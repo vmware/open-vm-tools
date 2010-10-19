@@ -91,8 +91,9 @@ UnityPlugin::UnityPlugin(ToolsAppCtx *ctx) : mUnityUpdateChannel(NULL)
       Warning("%s: Unable to initialize Unity update channel.\n", __FUNCTION__);
       return;
    }
+   unityHostCallbacks.updateCbCtx = mUnityUpdateChannel;
 
-   Unity_Init(NULL, mUnityUpdateChannel, unityHostCallbacks, ctx->serviceObj);
+   Unity_Init(NULL, unityHostCallbacks, ctx->serviceObj);
 
    GHITcloInit();
    GHIHostCallbacks ghiHostCallbacks;

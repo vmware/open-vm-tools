@@ -141,6 +141,9 @@ typedef struct UnityHostCallbacks {
    UnitySendWindowContentsFn sendWindowContents;
    UnitySendRequestMinimizeOperationFn sendRequestMinimizeOperation;
    UnityShouldShowTaskbarFn shouldShowTaskbar;
+
+   // Context/Cookie passed to buildUpdateCB and updateCB
+   void *updateCbCtx;
 } UnityHostCallbacks;
 
 #ifdef __cplusplus
@@ -148,7 +151,6 @@ extern "C" {
 #endif // __cplusplus
 
 void Unity_Init(GuestApp_Dict *conf,
-                void *updateChannel,
                 UnityHostCallbacks hostCallbacks,
                 gpointer serviceObj);
 Bool Unity_IsActive(void);

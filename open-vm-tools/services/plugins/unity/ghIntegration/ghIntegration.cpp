@@ -158,10 +158,8 @@ GHIX11_FindDesktopUriByExec(const char *exec)
  *
  * GHI_GetBinaryInfo --
  *
- *      Get binary information. The returned DynBuf contains a formatted string
- *      <name>\0<icon count>\0<width>\0<height>\0<size>\0<bgraData>\0...
- *      consisting of the 'friendly name' (ie 'Microsoft Word') and the icons
- *      in various sizes for the application.
+ *      Get binary information. Returns the 'friendly name' of the application, and
+ *      a list of various sized icons (depending on the icons provided by the app).
  *
  * Results:
  *     TRUE if everything is successful.
@@ -174,10 +172,11 @@ GHIX11_FindDesktopUriByExec(const char *exec)
  */
 
 Bool
-GHI_GetBinaryInfo(const char *pathUriUtf8,   // IN: full path to the binary file
-                  DynBuf *buf)               // OUT: binary information
+GHI_GetBinaryInfo(const char *pathUriUtf8,                // IN: full path to the binary file
+                  std::string &friendlyName,              // OUT: friendly (long) name
+                  std::list<GHIBinaryIconInfo> &iconList) // OUT: List of app icons
 {
-   return GHIPlatformGetBinaryInfo(ghiPlatformData, pathUriUtf8, buf);
+   return GHIPlatformGetBinaryInfo(ghiPlatformData, pathUriUtf8, friendlyName, iconList);
 }
 
 

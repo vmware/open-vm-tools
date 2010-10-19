@@ -48,7 +48,6 @@ extern "C" {
 
 Bool UnityPlatformIsSupported(void);
 UnityPlatform *UnityPlatformInit(UnityWindowTracker *tracker,
-                                 void *updateChannel,
                                  UnityHostCallbacks hostCallbacks);
 void UnityPlatformCleanup(UnityPlatform *up);
 Bool UnityPlatformUpdateWindowState(UnityPlatform *up,

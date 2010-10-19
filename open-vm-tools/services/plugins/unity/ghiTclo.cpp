@@ -55,6 +55,12 @@ extern "C" {
 
 static DynBuf gTcloUpdate;
 
+/*
+ * Overhead of encoding the icon data in a dynbuf - used to make sure we don't
+ * exceed GUEST_MSG_MAX_IN_SIZE when serializing the icons for an app.
+ */
+static const int GHI_ICON_OVERHEAD = 1024;
+
 
 /*
  *----------------------------------------------------------------------------
@@ -127,8 +133,13 @@ GHITcloGetBinaryInfo(RpcInData *data)        // IN/OUT
 {
    char *binaryPathUtf8;
    DynBuf *buf = &gTcloUpdate;
+   DynBuf iconDataBuf;
    unsigned int index = 0;
    Bool ret = TRUE;
+   std::string friendlyName;
+   std::list<GHIBinaryIconInfo> iconList;
+   char temp[128];   // Used to hold sizes and indices as strings
+   uint32 serializedIconCount = 0;
 
    /* Check our arguments. */
    ASSERT(data);
@@ -161,13 +172,67 @@ GHITcloGetBinaryInfo(RpcInData *data)        // IN/OUT
    }
 
    DynBuf_SetSize(buf, 0);
-   if (!GHI_GetBinaryInfo(binaryPathUtf8, buf)) {
+
+   if (!GHI_GetBinaryInfo(binaryPathUtf8, friendlyName, iconList)) {
       Debug("%s: Could not get binary info.\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data,
                              "Could not get binary info",
                              FALSE);
       goto exit;
    }
+
+   /*
+    * Append the name to the output buffer now. If we fail to get the
+    * icons, we still want to return the app name. Then the UI can display
+    * the default icon and correct app name.
+    *
+    * The output buffer should look like this:
+    * <name>\0<icon count>\0<width>\0<height>\0<size>\0<bgraData>\0...
+    *
+    * Note that the icon data is in BGRA format. An alpha channel value of 255 means
+    * "fully opaque", and an alpha channel value of 0 means "fully transparent".
+    */
+
+   DynBuf_AppendString(buf, friendlyName.c_str());
+
+   if (iconList.size() <= 0) {
+      Debug("%s: Could not find any icons for path: %s", __FUNCTION__, binaryPathUtf8);
+   }
+
+   DynBuf_Init(&iconDataBuf);
+   /* Copy icon info to the output buffer. */
+   for (std::list<GHIBinaryIconInfo>::const_iterator it = iconList.begin();
+        it != iconList.end();
+        it++) {
+      /*
+       * XXX: The backdoor has a maximum RPC data size of 64K - don't attempt to send
+       * icons larger than this size.
+       */
+      if ((DynBuf_GetSize(&iconDataBuf) + it->dataBGRA.size()) <
+           GUESTMSG_MAX_IN_SIZE - GHI_ICON_OVERHEAD) {
+         Str_Sprintf(temp, sizeof temp, "%u", it->width);
+         DynBuf_AppendString(&iconDataBuf, temp);
+
+         Str_Sprintf(temp, sizeof temp, "%u", it->height);
+         DynBuf_AppendString(&iconDataBuf, temp);
+
+         Str_Sprintf(temp, sizeof temp, "%u", (int32) it->dataBGRA.size());
+         DynBuf_AppendString(&iconDataBuf, temp);
+
+         DynBuf_Append(&iconDataBuf, &(it->dataBGRA[0]),
+                       it->dataBGRA.size());
+         DynBuf_AppendString(&iconDataBuf, "");
+
+         serializedIconCount++;
+      }
+   }
+
+   Str_Sprintf(temp, sizeof temp, "%d", serializedIconCount);
+   DynBuf_AppendString(buf, temp);
+
+   /* Append the icon data */
+   DynBuf_Append(buf, DynBuf_Get(&iconDataBuf), DynBuf_GetSize(&iconDataBuf));
+   DynBuf_Destroy(&iconDataBuf);
 
    /*
     * Write the final result into the result out parameters and return!

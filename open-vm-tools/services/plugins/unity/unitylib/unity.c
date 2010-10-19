@@ -203,13 +203,11 @@ Unity_IsActive(void)
 
 void
 Unity_Init(GuestApp_Dict *conf,                                    // IN
-           void *updateChannel,                                    // IN
            UnityHostCallbacks hostCallbacks,                       // IN
            gpointer serviceObj)                                    // IN
 {
    Debug("Unity_Init\n");
 
-   ASSERT(updateChannel);
    ASSERT(hostCallbacks.updateCB);
    ASSERT(hostCallbacks.buildUpdateCB);
    ASSERT(hostCallbacks.sendWindowContents);
@@ -217,7 +215,6 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
    ASSERT(hostCallbacks.shouldShowTaskbar);
 
    unity.hostCallbacks = hostCallbacks;
-   unity.updateChannel = updateChannel;
 
    /*
     * Initialize the UnityWindowTracker object.  The uwt does all the actual work
@@ -233,7 +230,6 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
     * Initialize the platform-specific portion of the unity service.
     */
    unity.up = UnityPlatformInit(&unity.tracker,
-                                unity.updateChannel,
                                 unity.hostCallbacks);
 
    unity.virtDesktopArray.desktopCount = 0;
@@ -777,7 +773,7 @@ UnityUpdateCallbackFn(void *param,          // IN: UnityPlatform
       break;
    }
 
-   unity.hostCallbacks.updateCB(unity.updateChannel, update);
+   unity.hostCallbacks.updateCB(unity.hostCallbacks.updateCbCtx, update);
 }
 
 

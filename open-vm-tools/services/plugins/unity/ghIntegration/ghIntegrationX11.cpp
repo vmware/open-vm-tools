@@ -573,7 +573,7 @@ void GHIPlatformUnregisterNotifyIconCallback(NotifyIconCallback *notifyIconCallb
  * GHIPlatformCollectIconInfo --
  *
  *      Sucks all the icon information for a particular application from the system, and
- *      appends it into the DynBuf for returning to the host.
+ *      appends it into the icon list for returning to the host.
  *
  * Results:
  *      None.
@@ -585,14 +585,12 @@ void GHIPlatformUnregisterNotifyIconCallback(NotifyIconCallback *notifyIconCallb
  */
 
 static void
-GHIPlatformCollectIconInfo(GHIPlatform *ghip,        // IN
-                           GHIMenuItem *ghm,         // IN
-                           unsigned long windowID,   // IN
-                           DynBuf *buf)              // IN/OUT
+GHIPlatformCollectIconInfo(GHIPlatform *ghip,                        // IN
+                           GHIMenuItem *ghm,                         // IN
+                           unsigned long windowID,                   // IN
+                           std::list<GHIBinaryIconInfo> &iconList)   // OUT: Icons
 {
    GPtrArray *pixbufs;
-   char tbuf[1024];
-   gsize totalIconBytes;
    char *ctmp = NULL;
    unsigned int i;
 
@@ -604,99 +602,39 @@ GHIPlatformCollectIconInfo(GHIPlatform *ghip,        // IN
    pixbufs = AppUtil_CollectIconArray(ctmp, windowID);
 
    /*
-    * Now see if all of these icons can fit into our reply.
+    * Now that we actually have all available icons loaded and checked, dump their
+    * contents into the list.
     */
-   totalIconBytes = DynBuf_GetSize(buf);
-   for (i = 0; i < pixbufs->len; i++) {
-      gsize thisIconBytes;
-      GdkPixbuf *pixbuf = (GdkPixbuf *) g_ptr_array_index(pixbufs, i);
-
-      thisIconBytes = ICON_SPACE_PADDING; // Space used by the width/height/size strings, and breathing room
-      thisIconBytes += gdk_pixbuf_get_width(pixbuf)
-                       * gdk_pixbuf_get_height(pixbuf)
-                       * 4 /* image will be BGRA */;
-      if ((thisIconBytes + totalIconBytes) < GUESTMSG_MAX_IN_SIZE) {
-         totalIconBytes += thisIconBytes;
-      } else if (pixbufs->len == 1) {
-         GdkPixbuf *newIcon;
-         volatile double newWidth;
-         volatile double newHeight;
-         volatile double scaleFactor;
-
-         newWidth = gdk_pixbuf_get_width(pixbuf);
-         newHeight = gdk_pixbuf_get_height(pixbuf);
-         scaleFactor = (GUESTMSG_MAX_IN_SIZE - totalIconBytes - ICON_SPACE_PADDING);
-         scaleFactor /= (newWidth * newHeight * 4.0);
-         if (scaleFactor > 0.95) {
-            /*
-             * Ensures that we remove at least a little bit of data from the icon.
-             * Otherwise we can get things like scalefactors of '0.999385' which result
-             * in an image of exactly the same size. A scaleFactor of 0.95 will remove at
-             * least one row or column from any icon large enough to go past the limit.
-             */
-            scaleFactor = 0.95;
-         }
-
-         newWidth *= scaleFactor;
-         newHeight *= scaleFactor;
-
-         /*
-          * If this is the only icon available, try scaling it down to the largest icon
-          * that will comfortably fit in the reply.
-          *
-          * Adding 0.5 to newWidth & newHeight is an easy way of rounding to the closest
-          * integer.
-          */
-         newIcon = gdk_pixbuf_scale_simple(pixbuf,
-                                           (int)(newWidth + 0.5),
-                                           (int)(newHeight + 0.5),
-                                           GDK_INTERP_HYPER);
-         g_object_unref(G_OBJECT(pixbuf));
-         g_ptr_array_index(pixbufs, i) = newIcon;
-         i--; // Try including the newly scaled-down icon
-      } else {
-         g_object_unref(G_OBJECT(pixbuf));
-         g_ptr_array_remove_index_fast(pixbufs, i);
-         i--;
-      }
-   }
-
-   /*
-    * Now that we actually have all available icons loaded and checked, dump their count
-    * and contents into the reply.
-    */
-   Str_Sprintf(tbuf, sizeof tbuf, "%u", pixbufs->len);
-   DynBuf_AppendString(buf, tbuf);
 
    for (i = 0; i < pixbufs->len; i++) {
-      int width;
-      int height;
       GdkPixbuf *pixbuf;
       guchar *pixels;
       int x, y;
+      int width, height;
       int rowstride;
       int n_channels;
+      GHIBinaryIconInfo iconInfo = { 0 };
+      unsigned char* bgra = NULL;
 
       pixbuf = (GdkPixbuf *) g_ptr_array_index(pixbufs, i);
 
       width = gdk_pixbuf_get_width(pixbuf);
       height = gdk_pixbuf_get_height(pixbuf);
-      Str_Sprintf(tbuf, sizeof tbuf, "%d", width);
-      DynBuf_AppendString(buf, tbuf);
-      Str_Sprintf(tbuf, sizeof tbuf, "%d", height);
-      DynBuf_AppendString(buf, tbuf);
 
-      Str_Sprintf(tbuf, sizeof tbuf, "%d", width * height * 4);
-      DynBuf_AppendString(buf, tbuf);
+      iconInfo.width = width;
+      iconInfo.height = height;
 
       ASSERT (gdk_pixbuf_get_colorspace (pixbuf) == GDK_COLORSPACE_RGB);
       ASSERT (gdk_pixbuf_get_bits_per_sample (pixbuf) == 8);
       rowstride = gdk_pixbuf_get_rowstride(pixbuf);
       n_channels = gdk_pixbuf_get_n_channels(pixbuf);
       pixels = gdk_pixbuf_get_pixels(pixbuf);
+
+      // Resize the destination BGRA vector to hold the pixel data.
+      iconInfo.dataBGRA.resize(iconInfo.width * iconInfo.height * 4);
+      bgra = &iconInfo.dataBGRA[0];
       for (y = height - 1; y >= 0; y--) { // GetBinaryInfo icons are bottom-to-top. :(
          for (x = 0; x < width; x++) {
-            char bgra[4];
             guchar *p; // Pointer to RGBA data in GdkPixbuf
 
             p = pixels + (y * rowstride) + (x * n_channels);
@@ -708,12 +646,11 @@ GHIPlatformCollectIconInfo(GHIPlatform *ghip,        // IN
             } else {
                bgra[3] = 0xFF;
             }
-            DynBuf_Append(buf, bgra, 4);
+            // Step on to the next pixel/group of bytes
+            bgra += 4;
          }
       }
-
-      DynBuf_AppendString(buf, "");
-
+      iconList.push_back(iconInfo);
    }
 
    AppUtil_FreeIconArray(pixbufs);
@@ -743,7 +680,8 @@ GHIPlatformCollectIconInfo(GHIPlatform *ghip,        // IN
 Bool
 GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific state
                          const char *pathURIUtf8,   // IN: full path to the binary file
-                         DynBuf *buf)               // OUT: binary information
+                         std::string &friendlyName,               // OUT: Friendly name
+                         std::list<GHIBinaryIconInfo> &iconList)  // OUT: Icons
 {
 #ifdef GTK2
    const char *realCmd = NULL;
@@ -757,7 +695,6 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
 
    ASSERT(ghip);
    ASSERT(pathURIUtf8);
-   ASSERT(buf);
 
    memset(&state, 0, sizeof state);
    memset(&uri, 0, sizeof uri);
@@ -860,7 +797,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
       }
    }
    /*
-    * Stick the app name into 'buf'.
+    * Stick the app name into 'friendlyName'.
     */
    if (ghm) {
       ctmp = g_key_file_get_locale_string(ghm->keyfile, G_KEY_FILE_DESKTOP_GROUP,
@@ -868,7 +805,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
       if (!ctmp) {
          ctmp = g_path_get_basename(realCmd);
       }
-      DynBuf_AppendString(buf, ctmp);
+      friendlyName = ctmp;
       free(ctmp);
    } else {
       /*
@@ -881,14 +818,14 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
       } else {
          ctmp = (char *) realCmd;
       }
-      DynBuf_AppendString(buf, ctmp);
+      friendlyName = ctmp;
    }
 
    free(freeMe);
    ctmp = NULL;
    freeMe = NULL;
 
-   GHIPlatformCollectIconInfo(ghip, ghm, windowID, buf);
+   GHIPlatformCollectIconInfo(ghip, ghm, windowID, iconList);
 
    return TRUE;
 #else // !GTK2

@@ -25,9 +25,14 @@
 #ifndef _GH_INTEGRATION_H_
 #define _GH_INTEGRATION_H_
 
-#if defined(__cplusplus) && !defined(OPEN_VM_TOOLS) && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
+#if defined(__cplusplus)
+#if !defined(OPEN_VM_TOOLS) && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 #include "appUtilFileTypes.h"
-#endif // __cplusplus && !OPEN_VM_TOOLS && !__FREEBSD__ && !sun && !__APPLE__
+#endif // !OPEN_VM_TOOLS && !__FREEBSD__ && !sun && !__APPLE__
+#include <vector>
+#include <string>
+#include <list>
+#endif // __cplusplus
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,8 +55,6 @@ typedef struct GHIHostCallbacks {
 Bool GHI_IsSupported(void);
 void GHI_Init(GMainLoop *mainLoop, const char **envp, GHIHostCallbacks hostCallbacks);
 void GHI_Cleanup(void);
-
-Bool GHI_GetBinaryInfo(const char *pathUriUtf8, DynBuf *buf);
 
 Bool GHI_OpenStartMenuTree(const char *rootUtf8, uint32 flags, DynBuf *buf);
 Bool GHI_GetStartMenuItem(uint32 handle, uint32 itemIndex, DynBuf *buf);
@@ -103,6 +106,13 @@ void GHI_UnregisterNotifyIconCallback(vmware::tools::NotifyIconCallback *notifyI
 const FileTypeList& GHI_GetBinaryHandlers(const char *pathUtf8);
 #endif // !OPEN_VM_TOOLS && !__FreeBSD__ && !sun && !__APPLE__
 
+typedef struct GHIBinaryIconInfo {
+   uint32 width;
+   uint32 height;
+   std::vector<uint8> dataBGRA;
+} GHIBinaryIconInfo;
+
+Bool GHI_GetBinaryInfo(const char *pathUriUtf8, std::string &friendlyName, std::list<GHIBinaryIconInfo> &iconList);
 #endif // __cplusplus
 
 #endif // _GH_INTEGRATION_H_

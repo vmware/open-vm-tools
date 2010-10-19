@@ -44,9 +44,6 @@ typedef struct _GHIPlatform GHIPlatform;
 Bool GHIPlatformIsSupported(void);
 GHIPlatform *GHIPlatformInit(GMainLoop *mainLoop, const char **envp, GHIHostCallbacks hostcallbacks);
 void GHIPlatformCleanup(GHIPlatform *ghip);
-Bool GHIPlatformGetBinaryInfo(GHIPlatform *ghip,
-                              const char *pathURIUtf8,
-                              DynBuf *buf);
 Bool GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,
                                   const char *rootUtf8,
                                   uint32 flags,
@@ -134,6 +131,8 @@ void GHIPlatformUnregisterNotifyIconCallback(vmware::tools::NotifyIconCallback *
 #if !defined(OPEN_VM_TOOLS)  && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 const FileTypeList& GHIPlatformGetBinaryHandlers(GHIPlatform *ghip, const char *pathUtf8);
 #endif // !OPEN_VM_TOOLS && !__FreeBSD__ && !sun && !__APPLE__
+
+Bool GHIPlatformGetBinaryInfo(GHIPlatform *ghip, const char *pathUriUtf8, std::string &friendlyName, std::list<GHIBinaryIconInfo> &iconList);
 
 #endif // __cplusplus
 

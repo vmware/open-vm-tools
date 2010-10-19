@@ -45,7 +45,6 @@ typedef struct UnityState {
    Bool isEnabled;
    uint32 currentOptions;                       // Last feature mask received via 'set.options'
    UnityVirtualDesktopArray virtDesktopArray;   // Virtual desktop configuration
-   void *updateChannel;                // Unity update transmission channel.
    UnityHostCallbacks hostCallbacks;   // Callbacks to the host for unity updates
    UnityPlatform *up; // Platform-specific state
    gpointer serviceObj; // 'Plugin' Host service object - used for signaling Unity state

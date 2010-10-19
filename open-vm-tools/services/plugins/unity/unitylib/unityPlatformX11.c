@@ -159,20 +159,17 @@ UnityPlatformIsSupported(void)
 
 UnityPlatform *
 UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
-                  void *updateChannel,                                    // IN
                   UnityHostCallbacks hostCallbacks)                       // IN:
 {
    UnityPlatform *up;
    char *displayName;
 
    ASSERT(tracker);
-   ASSERT(updateChannel);
 
    Debug("UnityPlatformInit: Running\n");
 
    up = Util_SafeCalloc(1, sizeof *up);
    up->tracker = tracker;
-   up->updateChannel = updateChannel;
    up->hostCallbacks = hostCallbacks;
 
    up->savedScreenSaverTimeout = -1;
@@ -2933,7 +2930,6 @@ UnityPlatformDoUpdate(UnityPlatform *up,        // IN:
    int flags = 0;
 
    ASSERT(up);
-   ASSERT(up->updateChannel);
 
    if (incremental) {
       flags |= UNITY_UPDATE_INCREMENTAL;
@@ -2945,7 +2941,7 @@ UnityPlatformDoUpdate(UnityPlatform *up,        // IN:
       UnityPlatformUpdateWindowState(up, up->tracker);
    }
 
-   up->hostCallbacks.buildUpdateCB(up->updateChannel, flags);
+   up->hostCallbacks.buildUpdateCB(up->hostCallbacks.updateCbCtx, flags);
 }
 
 
