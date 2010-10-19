@@ -141,6 +141,36 @@ DynXdrGetPos(DYNXDR_GETPOS_CONST XDR *xdrs) // IN
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynXdrSetPos --
+ *
+ *    Sets the position of the XDR stream. The current data in the buffer is
+ *    not affected, just the pointer to the current position.
+ *
+ * Results:
+ *    TRUE if pos is within the bounds of the backing buffer.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static bool_t
+DynXdrSetPos(XDR *xdrs, // IN
+             u_int pos) // IN
+{
+   DynXdrData *priv = (DynXdrData *) xdrs->x_private;
+   if (pos <= DynBuf_GetAllocatedSize(&priv->data)) {
+      DynBuf_SetSize(&priv->data, (size_t) pos);
+      return TRUE;
+   }
+   return FALSE;
+}
+
+
 #if defined(__GLIBC__) || (defined(sun) && (defined(_LP64) || defined(_KERNEL)))
 /*
  *-----------------------------------------------------------------------------
@@ -288,7 +318,7 @@ DynXdr_Create(XDR *in)  // IN
       NULL,             /* x_getbytes */
       DynXdrPutBytes,   /* x_putbytes */
       DynXdrGetPos,     /* x_getpostn */
-      NULL,             /* x_setpostn */
+      DynXdrSetPos,     /* x_setpostn */
       DynXdrInline,     /* x_inline */
       NULL,             /* x_destroy */
 #if defined(__GLIBC__)
