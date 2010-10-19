@@ -96,6 +96,8 @@ MXUserNativeRWSupported(void)
                    (pReleaseSRWLockShared != NULL) &&
                    (pAcquireSRWLockExclusive != NULL) &&
                    (pReleaseSRWLockExclusive != NULL));
+
+         COMPILER_MEM_BARRIER();
       } else {
          result = FALSE;
       }
@@ -814,21 +816,12 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
 
    myContext = MXUserGetHolderContext(lock);
+
    stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
    if (stats) {
       VmTimeType duration = Hostinfo_SystemTimerNS() - myContext->holdStart;
       MXUserHisto *histo;
-
-      if (UNLIKELY(myContext->state == RW_UNLOCKED)) {
-         uint32 lockCount = Atomic_Read(&lock->holderCount);
-
-         MXUserDumpAndPanic(&lock->header,
-                            "%s: Non-owner release of an %s read-write lock\n",
-                            __FUNCTION__,
-                            lockCount == 0 ? "unacquired" : "acquired");
-      }
-
 
       /*
        * The statistics are not always atomically safe so protect them
@@ -850,6 +843,15 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
       if ((myContext->state == RW_LOCKED_FOR_READ) && lock->useNative) {
          MXRecLockRelease(&lock->recursiveLock);
       }
+   }
+
+   if (UNLIKELY(myContext->state == RW_UNLOCKED)) {
+      uint32 lockCount = Atomic_Read(&lock->holderCount);
+
+      MXUserDumpAndPanic(&lock->header,
+                         "%s: Non-owner release of an %s read-write lock\n",
+                         __FUNCTION__,
+                         lockCount == 0 ? "unacquired" : "acquired");
    }
 
    MXUserReleaseTracking(&lock->header);
