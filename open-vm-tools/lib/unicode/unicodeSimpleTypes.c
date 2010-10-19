@@ -390,7 +390,7 @@ static struct xRef {
     * Source: RFC-1468 (see also RFC-2237)
     *         Windows-50221 and 50222 are routed here
     */
-   { 39, 50220, STRING_ENCODING_ISO_2022_JP, IN_FULL_ICU, 0,
+   { 39, 50220, STRING_ENCODING_ISO_2022_JP, SUPPORTED, 0,
       { "ISO-2022-JP", "csISO2022JP", NULL }
    },
    /*
@@ -2256,7 +2256,7 @@ static struct xRef {
     *              Japanese (JIS-Allow 1 byte Kana)
     *              handled by ICU with ISO-2022-JP
     */
-   { MIBUNDEF, 50221, STRING_ENCODING_WINDOWS_50221, IN_FULL_ICU, 0,
+   { MIBUNDEF, 50221, STRING_ENCODING_WINDOWS_50221, SUPPORTED, 0,
       { "csISO2022JP", NULL }
    },
    /*
@@ -2862,7 +2862,6 @@ Unicode_Init(int argc,        // IN
    UnicodeInitInternal(argc, NULL, NULL, NULL, argv, envp);
 }
 
-
 #ifdef TEST_CUSTOM_ICU_DATA_FILE
 /*
  *-----------------------------------------------------------------------------
@@ -2880,7 +2879,7 @@ Unicode_Init(int argc,        // IN
  *      To test custom ICU files, change the second arg in the call to
  *      UnicodeInitInternal() above to the *directory* containing the ICU
  *      data file, and add a call to this function.  Note that the name of
- *      the data file is hard coded to "icudt38l.dat" in lib/misc/codeset.c.
+ *      the data file is hard coded to "icudt44l.dat" in lib/misc/codeset.c.
  *      Also note that in devel builds, lib/misc/codeset.c will override the 
  *      icu directory argument with a path to the toolchain, so that may need 
  *      to be disabled, too.

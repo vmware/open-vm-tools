@@ -101,21 +101,22 @@
  * but I don't have time to deal with bora-vmsoft.  -- edward
  */
 
-#define ICU_DATA_FILE "icudt38l.dat"
+#define ICU_DATA_FILE "icudt44l.dat"
 #ifdef _WIN32
-#define ICU_DATA_FILE_DIR "%TCROOT%/noarch/icu-data-3.8-2"
-#else
-#define ICU_DATA_FILE_DIR "/build/toolchain/noarch/icu-data-3.8-2"
+#define ICU_DATA_ITEM "icudt44l"
+#define ICU_DATA_FILE_W XCONC(L, ICU_DATA_FILE)
 #endif
 
+#ifdef VMX86_DEVEL
 #ifdef _WIN32
-#define ICU_DATA_FILE_W XCONC(L, ICU_DATA_FILE)
+#define ICU_DATA_FILE_DIR "%TCROOT%/noarch/icu-data-4.4-1"
 #define ICU_DATA_FILE_DIR_W XCONC(L, ICU_DATA_FILE_DIR)
 #define ICU_DATA_FILE_PATH ICU_DATA_FILE_DIR_W DIRSEPS_W ICU_DATA_FILE_W
 #else
+#define ICU_DATA_FILE_DIR "/build/toolchain/noarch/icu-data-4.4-1"
 #define ICU_DATA_FILE_PATH ICU_DATA_FILE_DIR DIRSEPS ICU_DATA_FILE
 #endif
-
+#endif
 
 /*
  * Variables
@@ -604,6 +605,11 @@ found:
       ASSERT(memMappedData);
 
       udata_setCommonData(memMappedData, &uerr);
+      if (uerr != U_ZERO_ERROR) {
+         UnmapViewOfFile(memMappedData);
+         goto exit;
+      }
+      udata_setAppData(ICU_DATA_ITEM, memMappedData, &uerr);
       if (uerr != U_ZERO_ERROR) {
          UnmapViewOfFile(memMappedData);
          goto exit;
