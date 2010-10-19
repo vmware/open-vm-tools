@@ -22,21 +22,46 @@
  *    Implements an object that provides the entry points for tools unity plugin.
  */
 
+#include "vmware/tools/plugin.h"
+
 extern "C" {
    #include "vmware.h"
    #include "conf.h"
-   #include "ghIntegration.h"
+   #include "debug.h"
+   #include "dynxdr.h"
+   #include "guestrpc/unity.h"
+   #include "guestrpc/unityActive.h"
+   #include "rpcin.h"
+   #include "strutil.h"
+#if defined(OPEN_VM_TOOLS)
+   #include "unitylib/unity.h"
+#else
    #include "unity.h"
-   #include "unityDebug.h"
+#endif // OPEN_VM_TOOLS
+   #include "xdrutil.h"
 };
 
+#include "ghIntegration.h"
+#include "ghiTclo.h"
 #include "unityPlugin.h"
-#include "unityInt.h"
+#include "unityTclo.h"
 #include "ghIntegrationInt.h"
+#if defined(G_PLATFORM_WIN32)
+#include "NotifyIconRpcCallback.h"
+#endif // G_PLATFORM_WIN32
 
 #define UNITY_CAP_NAME "unity"
 
 namespace vmware { namespace tools {
+
+/*
+ * The static instance of the notification icon RPC callback object. This object
+ * sends an RPC to the VMX in response to any change to the set of notification
+ * icons.
+ */
+#if defined(G_PLATFORM_WIN32)
+static NotifyIconRpcCallback gNotifyIconCallback;
+#endif // G_PLATFORM_WIN32
 
 /**
  * Constructor for the Unity plugin, initialized Unity, and common options values
@@ -45,24 +70,48 @@ namespace vmware { namespace tools {
  *
  */
 
-UnityPlugin::UnityPlugin(ToolsAppCtx *ctx)
+UnityPlugin::UnityPlugin(ToolsAppCtx *ctx) : mUnityUpdateChannel(NULL)
 {
    ASSERT(ctx);
 
-   Unity_Init(NULL, NULL, ctx->serviceObj);
+   UnityHostCallbacks unityHostCallbacks;
+   memset(&unityHostCallbacks, 0, sizeof unityHostCallbacks);
+   unityHostCallbacks.buildUpdateCB = &UnityBuildUpdates;
+   unityHostCallbacks.updateCB = &UnityUpdateCallbackFn;
+   unityHostCallbacks.sendWindowContents = &UnitySendWindowContents;
+   unityHostCallbacks.sendRequestMinimizeOperation = &UnitySendRequestMinimizeOperation;
+   unityHostCallbacks.shouldShowTaskbar = &UnityShouldShowTaskbar;
+   UnityTcloInit();
 
+   /*
+    * Initialize the update channel.
+    */
+   mUnityUpdateChannel = UnityUpdateChannelInit();
+   if (NULL == mUnityUpdateChannel) {
+      Warning("%s: Unable to initialize Unity update channel.\n", __FUNCTION__);
+      return;
+   }
+
+   Unity_Init(NULL, mUnityUpdateChannel, unityHostCallbacks, ctx->serviceObj);
+
+   GHITcloInit();
+   GHIHostCallbacks ghiHostCallbacks;
+   memset(&ghiHostCallbacks, 0, sizeof ghiHostCallbacks);
+   ghiHostCallbacks.launchMenuChange = &GHILaunchMenuChangeRPC;
+   ghiHostCallbacks.sendTrashFolderState = &GHISendTrashFolderStateRPC;
 #if defined(G_PLATFORM_WIN32)
-   GHI_Init(ctx->mainLoop, NULL);
+   GHI_Init(ctx->mainLoop, NULL, ghiHostCallbacks);
+   GHI_RegisterNotifyIconCallback(&gNotifyIconCallback);
 #else
-   GHI_Init(ctx->mainLoop, ctx->envp);
+   GHI_Init(ctx->mainLoop, ctx->envp, ghiHostCallbacks);
 #endif // G_PLATFORM_WIN32
 
    if (g_key_file_get_boolean(ctx->config, CONFGROUPNAME_UNITY,
                               CONFNAME_UNITY_ENABLEDEBUG, NULL)) {
-         UnityDebug_Init(&unity.tracker);
+      Unity_InitializeDebugger();
    }
-   unity.forceEnable = g_key_file_get_boolean(ctx->config, CONFGROUPNAME_UNITY,
-                                              CONFNAME_UNITY_FORCEENABLE, NULL);
+   Unity_SetForceEnable(g_key_file_get_boolean(ctx->config, CONFGROUPNAME_UNITY,
+                                               CONFNAME_UNITY_FORCEENABLE, NULL));
 
    /*
     * If no preferred color is in the config file then use a light gray tone,
@@ -77,9 +126,25 @@ UnityPlugin::UnityPlugin(ToolsAppCtx *ctx)
                      /* green */ 0xdc << 8 |
                      /* blue */ 0xdc << 16;
    }
-   UnityPlatformSetConfigDesktopColor(unity.up, desktopColor);
+   Unity_SetConfigDesktopColor(desktopColor);
 }
 
+
+/**
+ * Destructor for the Unity plugin, cleanup Unity
+ */
+
+UnityPlugin::~UnityPlugin()
+{
+   Unity_Cleanup();
+   UnityUpdateChannelCleanup(mUnityUpdateChannel);
+   UnityTcloCleanup();
+#if defined(G_PLATFORM_WIN32)
+   GHI_UnregisterNotifyIconCallback(&gNotifyIconCallback);
+#endif // G_PLATFORM_WIN32
+   GHI_Cleanup();
+   GHITcloCleanup();
+}
 
 /**
  * Called by the service core when the host requests the capabilities supported

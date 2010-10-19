@@ -21,9 +21,11 @@
  *
  *    Unity: Guest window manager integration service.
  *
- * This file implements the guest-side Unity agent as part of the VMware Tools.
- * It contains entry points for embedding within the VMware Tools User Agent and
- * handles the GuestRpc (TCLO, RPCI) interface.
+ * This file implements the guest-side Unity agent generally used as part of the
+ * Tools Core Services Unity plugin. It contains the platform-agnostic entry points
+ * for Unity window operations and establishes the context for the platform specific
+ * window enumeration process that exports data from the guest window tracker to
+ * the host.
  *
  * UnityWindowTracker updates are sent to the MKS in two ways:
  *    @li @ref UNITY_RPC_GET_UPDATE GuestRpc (host-to-guest).
@@ -38,9 +40,6 @@
  */
 
 #include "vmware.h"
-#include "vmware/tools/guestrpc.h"
-#include "rpcin.h"
-#include "rpcout.h"
 #include "debug.h"
 #include "util.h"
 #include "strutil.h"
@@ -53,18 +52,9 @@
 #include "unityDebug.h"
 #include "vmware/tools/unityevents.h"
 #include "vmware/tools/plugin.h"
-#include "dynxdr.h"
-#include "guestrpc/unity.h"
-#include "guestrpc/unityActive.h"
-#include "guestrpc/unity.h"
 #include "appUtil.h"
-#include "xdrutil.h"
 #include <stdio.h>
 #include <glib-object.h>
-
-static GuestCapabilities unityCaps[] = {
-   UNITY_CAP_STATUS_UNITY_ACTIVE
-};
 
 /*
  * Singleton object for tracking the state of the service.
@@ -75,7 +65,6 @@ UnityState unity;
  * Helper Functions
  */
 
-static Bool UnityUpdateState(void);
 static void UnityUpdateCallbackFn(void *param, UnityUpdate *update);
 
 static void UnitySetAddHiddenWindows(Bool enabled);
@@ -83,44 +72,6 @@ static void UnitySetInterlockMinimizeOperation(Bool enabled);
 static void UnitySetSendWindowContents(Bool enabled);
 static void FireEnterUnitySignal(gpointer serviceObj, gboolean entered);
 static void UnitySetDisableCompositing(Bool disabled);
-
-/*
- * Wrapper function for the "unity.set.options" RPC.
- */
-RpcInRet UnityTcloSetUnityOptions(RpcInData *data);
-
-/*
- * Wrapper function for the "unity.window.contents.request" RPC.
- */
-RpcInRet UnityTcloRequestWindowContents(RpcInData *data);
-
-/* Sends the unity.window.contents.start RPC to the host. */
-Bool UnitySendWindowContentsStart(UnityWindowId window,
-                                  uint32 width,
-                                  uint32 height,
-                                  uint32 length);
-
-/* Sends the unity.window.contents.chunk RPC to the host. */
-Bool UnitySendWindowContentsChunk(UnityWindowId window,
-                                  uint32 seq,
-                                  const char *data,
-                                  uint32 length);
-
-/* Sends the unity.window.contents.end RPC to the host. */
-Bool UnitySendWindowContentsEnd(UnityWindowId window);
-
-/*
- * Callback function used by UnityXdrSendRpc() to encode XDR-serialized
- * arguments.
- */
-typedef Bool(*UnityXdrEncodeFunc)(XDR*,void*);
-
-/*
- * Helper function used to send an RPC to the host with XDR-serialized
- * arguments. Calls encodeFn on the XDR* and the provied arg to perform
- * XDR encoding.
- */
-Bool UnityXdrSendRpc(const char *rpcName, UnityXdrEncodeFunc encodeFn, void *arg);
 
 /*
  * Dispatch table for Unity window commands. All commands performing actions on
@@ -181,21 +132,6 @@ static UnityFeatureSetter unityFeatureTable[] = {
    /* Add more Unity Feature Setters above this. */
    {0, NULL}
 };
-
-/*
- * XXX:
- * According to Adar:
- *    "UnityTcloGetUpdate cannot return the contents of a DynBuf. This will leak
- *     the DynBuf's memory, since nobody at a lower level will ever free it.  It's
- *     a crappy interface, but we make due by using a static buffer to hold the
- *     results."
- *
- * We ideally would not use a static buffer because the maximum size of the
- * update is unknown.  To work around this, make the DynBuf returned in
- * UnityTcloGetUpdate file-global and recycle it across update requests.
- */
-
-static DynBuf gTcloUpdate;
 
 
 /*
@@ -267,10 +203,21 @@ Unity_IsActive(void)
 
 void
 Unity_Init(GuestApp_Dict *conf,                                    // IN
-           int *blockedWnd,                                        // IN
+           void *updateChannel,                                    // IN
+           UnityHostCallbacks hostCallbacks,                       // IN
            gpointer serviceObj)                                    // IN
 {
    Debug("Unity_Init\n");
+
+   ASSERT(updateChannel);
+   ASSERT(hostCallbacks.updateCB);
+   ASSERT(hostCallbacks.buildUpdateCB);
+   ASSERT(hostCallbacks.sendWindowContents);
+   ASSERT(hostCallbacks.sendRequestMinimizeOperation);
+   ASSERT(hostCallbacks.shouldShowTaskbar);
+
+   unity.hostCallbacks = hostCallbacks;
+   unity.updateChannel = updateChannel;
 
    /*
     * Initialize the UnityWindowTracker object.  The uwt does all the actual work
@@ -281,25 +228,13 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
     */
    UnityWindowTracker_Init(&unity.tracker, UnityUpdateCallbackFn);
 
-   /*
-    * Initialize the update channel.
-    */
-   if (UnityUpdateChannelInit(&unity.updateChannel) == FALSE) {
-      Warning("%s: Unable to initialize Unity update channel.\n", __FUNCTION__);
-      return;
-   }
 
    /*
-    * Initialize the host-specific portion of the unity service.
+    * Initialize the platform-specific portion of the unity service.
     */
    unity.up = UnityPlatformInit(&unity.tracker,
-                                &unity.updateChannel,
-                                blockedWnd);
-
-   /*
-    * Init our global dynbuf used to send results back.
-    */
-   DynBuf_Init(&gTcloUpdate);
+                                unity.updateChannel,
+                                unity.hostCallbacks);
 
    unity.virtDesktopArray.desktopCount = 0;
 
@@ -358,9 +293,7 @@ Unity_Cleanup()
    unity.up = NULL;
    UnityPlatformCleanup(up);
 
-   UnityUpdateChannelCleanup(&unity.updateChannel);
    UnityWindowTracker_Cleanup(&unity.tracker);
-   DynBuf_Destroy(&gTcloUpdate);
 }
 
 
@@ -418,12 +351,13 @@ Unity_SetActiveDnDDetWnd(UnityDnD *state)
  *    Restores system settings since we are exiting Unity.
  *    Kills all unity helper threads if any.
  *    Hides the unity dnd detection window if needed.
+ *    Sets unity.isEnabled to FALSE
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-Unity_Exit()
+Unity_Exit(void)
 {
    int featureIndex = 0;
 
@@ -458,75 +392,61 @@ Unity_Exit()
 /*
  *-----------------------------------------------------------------------------
  *
- * Unity_RegisterCaps  --
+ * Unity_Enter  --
  *
- *    Called by the application (VMwareUser) to allow the unity subsystem to
- *    register its capabilities.
+ *    Called everytime we enter Unity.
+ *
+ *    Try to do the following:
+ *    Save the system settings.
+ *    Start unity helper threads.
+ *    Show the unity dnd detection window.
  *
  * Results:
- *    None.
+ *    TRUE if Unity was entered.
  *
  * Side effects:
- *    None.
+ *    Sets unity.isEnabled to TRUE.
  *
  *-----------------------------------------------------------------------------
  */
 
-void
-Unity_RegisterCaps(void)
+Bool
+Unity_Enter(void)
 {
-   /*
-    * Send Unity capability.
-    */
+   if (!unity.isEnabled) {
+      /* Save and disable certain user settings here. */
+      UnityPlatformSaveSystemSettings(unity.up);
 
-   if (!RpcOut_sendOne(NULL, NULL, UNITY_RPC_UNITY_CAP" %d",
-                       Unity_IsSupported() ? 1 : 0)) {
-      Debug("%s: could not set unity capability\n", __FUNCTION__);
+      /* Start Unity helper threads. */
+      if (!UnityPlatformStartHelperThreads(unity.up)) {
+
+         /*
+          * If we couldn't start one or more helper threads,
+          * we cannot enter Unity. Kill all running helper
+          * threads and restore ui settings.
+          */
+
+         UnityPlatformKillHelperThreads(unity.up);
+         UnityPlatformRestoreSystemSettings(unity.up);
+         return FALSE;
+      }
+
+      /*
+       * Show full-screen detection window for Unity DnD. It is a bottom-most (but
+       * still in front of desktop) transparent detection window for guest->host DnD
+       * as drop target. We need this window because:
+       * 1. All active windows except desktop will be shown on host desktop and can
+       *    accept DnD signal. This full-screen detection window will block any DnD signal
+       *    (even mouse signal) to the desktop, which will fix bug 164880.
+       * 2. With this full-screen but bottommost detection window, every time when user
+       *    drag something out from active window, the dragEnter will always be immediately
+       *    catched for Unity DnD.
+       */
+      UnityPlatformUpdateDnDDetWnd(unity.up, TRUE);
+      FireEnterUnitySignal(unity.serviceObj, TRUE);
+      unity.isEnabled = TRUE;
    }
-
-   /*
-    * Register guest platform specific capabilities.
-    */
-
-   UnityPlatformRegisterCaps(unity.up);
-   AppUtil_SendGuestCaps(unityCaps, ARRAYSIZE(unityCaps), TRUE);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Unity_UnregisterCaps  --
- *
- *    Called by the application (VMwareUser) to allow the unity subsystem to
- *    unregister its capabilities.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-Unity_UnregisterCaps(void)
-{
-   /*
-    * Unregister guest platform specific capabilities.
-    */
-
-   UnityPlatformUnregisterCaps(unity.up);
-
-   /*
-    * Unregister the unity capability.
-    */
-
-   if (!RpcOut_sendOne(NULL, NULL, UNITY_RPC_UNITY_CAP" 0")) {
-      Debug("Failed to unregister Unity capability\n");
-   }
-   AppUtil_SendGuestCaps(unityCaps, ARRAYSIZE(unityCaps), FALSE);
+   return TRUE;
 }
 
 
@@ -556,129 +476,43 @@ Unity_GetWindowCommandList(char ***commandList)     // OUT
    *commandList = unityCommandList;
 }
 
+
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloEnter --
+ * Unity_GetWindowPath --
  *
- *     RPC handler for 'unity.enter'. Save and disable certain user
- *     settings. Start Unity updates thread and any other platform
- *     specific threads (like a thread that listens for
- *     the desktop switch event on Windows). Note that we first set
- *     the UI settings, and then start the threads. This way the UI
- *     settings take effect before we start sending Unity updates,
- *     so that we never send things like task bar (see bug 166085).
+ *      Get the information needed to re-launch a window and retrieve further information
+ *      on it. windowPathUtf8 and execPathUtf8 allow a platform to specify different
+ *      null terminated strings for the 'path' to the window vs. the path to the
+ *      executable that launched the window. The exact meaning of the buffer contents
+ *      is platform-specific.
  *
  * Results:
- *     TRUE if helper threads were started.
+ *     TRUE if everything is successful.
  *     FALSE otherwise.
  *
  * Side effects:
- *     Certain UI system settings will be disabled.
- *     Unity update thread will be started.
- *     Any other platform specific helper threads will be started as well.
+ *      None.
  *
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloEnter(RpcInData *data)         //  IN/OUT
+Bool
+Unity_GetWindowPath(UnityWindowId window,     // IN: window handle
+                    DynBuf *windowPathUtf8,   // IN/OUT: full path for the window
+                    DynBuf *execPathUtf8)     // IN/OUT: full path for the executable
 {
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   Debug("%s\n", __FUNCTION__);
-
-   if (!unity.isEnabled) {
-      /* Save and disable certain user settings here. */
-      UnityPlatformSaveSystemSettings(unity.up);
-
-      /* Start Unity helper threads. */
-      if (!UnityPlatformStartHelperThreads(unity.up)) {
-
-         /*
-          * If we couldn't start one or more helper threads,
-          * we cannot enter Unity. Kill all running helper
-          * threads and restore ui settings.
-          */
-
-         UnityPlatformKillHelperThreads(unity.up);
-         UnityPlatformRestoreSystemSettings(unity.up);
-         return RPCIN_SETRETVALS(data,
-                                 "Could not start unity helper threads", FALSE);
-      }
-
-      /*
-       * Show full-screen detection window for Unity DnD. It is a bottom-most (but
-       * still in front of desktop) transparent detection window for guest->host DnD
-       * as drop target. We need this window because:
-       * 1. All active windows except desktop will be shown on host desktop and can
-       *    accept DnD signal. This full-screen detection window will block any DnD signal
-       *    (even mouse signal) to the desktop, which will fix bug 164880.
-       * 2. With this full-screen but bottommost detection window, every time when user
-       *    drag something out from active window, the dragEnter will always be immediately
-       *    catched for Unity DnD.
-       */
-      UnityPlatformUpdateDnDDetWnd(unity.up, TRUE);
-      FireEnterUnitySignal(unity.serviceObj, TRUE);
-      unity.isEnabled = TRUE;
-   }
-
-   UnityUpdateState();
-
-   return RPCIN_SETRETVALS(data, "", TRUE);
+   return UnityPlatformGetWindowPath(unity.up, window, windowPathUtf8, execPathUtf8);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloExit --
+ * Unity_WindowCommand --
  *
- *     RPC handler for 'unity.exit'.
- *
- * Results:
- *     Always TRUE.
- *
- * Side effects:
- *     Same as side effects of Unity_Exit().
- *
- *----------------------------------------------------------------------------
- */
-
-RpcInRet
-UnityTcloExit(RpcInData *data)   // IN/OUT
-{
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   Debug("UnityTcloExit.\n");
-
-   Unity_Exit();
-
-   UnityUpdateState();
-   return RPCIN_SETRETVALS(data, "", TRUE);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityTcloGetWindowPath --
- *
- *      RPC handler for UNITY_RPC_GET_WINDOW_PATH.
- *
- *      Get the information needed to re-launch a window and retrieve further
- *      information on it.  Returns double-NUL-terminated buffer consisting of
- *      NUL-terminated strings "windowPath" and "execPath" strings, the first
- *      uniquely identifying the window and the second uniquely identifying the
- *      window's owning executable.
+ *      Execute the specified command for the given window ID.
  *
  * Results:
  *     TRUE if everything is successful.
@@ -690,155 +524,36 @@ UnityTcloExit(RpcInData *data)   // IN/OUT
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloGetWindowPath(RpcInData *data)   // IN/OUT
+Bool
+Unity_WindowCommand(UnityWindowId window,    // IN: window handle
+                    const char *command)     // IN: Command name
 {
-   UnityWindowId window;
-   DynBuf windowPathUtf8;
-   DynBuf execPathUtf8;
-
-   unsigned int index = 0;
-   Bool ret = TRUE;
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
-
-   /* Parse the command & window id.*/
-
-   if (!StrUtil_GetNextIntToken(&window, &index, data->args, " ")) {
-      Debug("UnityTcloGetWindowInfo: Invalid RPC arguments.\n");
-      return RPCIN_SETRETVALS(data,
-                              "Invalid arguments. Expected \"windowId\"",
-                              FALSE);
-   }
-
-   Debug("%s: window %d\n", __FUNCTION__, window);
-
-   /*
-    * Please note that the UnityPlatformGetWindowPath implementations assume that the
-    * dynbuf passed in does not contain any existing data that needs to be appended to,
-    * so this code should continue to accomodate that assumption.
-    */
-   DynBuf_Destroy(&gTcloUpdate);
-   DynBuf_Init(&gTcloUpdate);
-   DynBuf_Init(&windowPathUtf8);
-   DynBuf_Init(&execPathUtf8);
-   if (!UnityPlatformGetWindowPath(unity.up, window, &windowPathUtf8, &execPathUtf8)) {
-      Debug("%s: Could not get window path.\n", __FUNCTION__);
-      ret = RPCIN_SETRETVALS(data,
-                             "Could not get window path",
-                             FALSE);
-      goto exit;
-   }
-
-   /*
-    * Construct the buffer holding the result. Note that we need to use gTcloUpdate
-    * here to avoid leaking during the RPC handler.
-    */
-   DynBuf_Copy(&windowPathUtf8, &gTcloUpdate);
-   DynBuf_Append(&gTcloUpdate, DynBuf_Get(&execPathUtf8), DynBuf_GetSize(&execPathUtf8));
-
-   /*
-    * Write the final result into the result out parameters and return!
-    */
-   data->result = (char *)DynBuf_Get(&gTcloUpdate);
-   data->resultLen = DynBuf_GetSize(&gTcloUpdate);
-
-exit:
-   DynBuf_Destroy(&windowPathUtf8);
-   DynBuf_Destroy(&execPathUtf8);
-   return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityTcloWindowCommand --
- *
- *     RPC handler for 'unity.window.*' (excluding 'unity.window.settop')
- *
- * Results:
- *     TRUE if everything is successful.
- *     FALSE otherwise.
- *
- * Side effects:
- *     None.
- *
- *----------------------------------------------------------------------------
- */
-
-RpcInRet
-UnityTcloWindowCommand(RpcInData *data)   // IN/OUT
-{
-   UnityWindowId window;
-   unsigned int index = 0;
    unsigned int i;
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("UnityTcloWindowCommand: name:%s args:'%s'\n", data->name, data->args);
-
-   /* Parse the command & window id.*/
-
-   if (!StrUtil_GetNextIntToken(&window, &index, data->args, " ")) {
-      Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data,
-                              "Invalid arguments. Expected \"windowId\"",
-                              FALSE);
-
-   }
-
-   Debug("%s: %s window %d\n", __FUNCTION__, data->name, window);
+   ASSERT(command);
 
    for (i = 0; unityCommandTable[i].name != NULL; i++) {
-      if (strcmp(unityCommandTable[i].name, data->name) == 0) {
+      if (strcmp(unityCommandTable[i].name, command) == 0) {
          if (!unityCommandTable[i].exec(unity.up, window)) {
-            Debug("%s: Unity window command failed.\n", __FUNCTION__);
-            return RPCIN_SETRETVALS(data,
-                                   "Could not execute window command",
-                                   FALSE);
+            Debug("%s: Unity window command %s failed.\n", __FUNCTION__, command);
+            return FALSE;
          } else {
-            return RPCIN_SETRETVALS(data, "", TRUE);
+            return TRUE;
          }
       }
    }
 
-   return RPCIN_SETRETVALS(data, "Bad command", FALSE);
+   Debug("%s: Invalid command %s\n", __FUNCTION__, command);
+   return FALSE;
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloSetDesktopWorkArea --
+ * Unity_SetDesktopWorkAreas --
  *
- *     RPC handler for 'unity.desktop.work_area.set'.
+ *     Sets the work areas for all screens. These are the areas
+ *     to which windows will maximize.
  *
  * Results:
  *     TRUE if everything is successful.
@@ -850,99 +565,30 @@ UnityTcloWindowCommand(RpcInData *data)   // IN/OUT
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloSetDesktopWorkArea(RpcInData *data)    // IN/OUT
+Bool
+Unity_SetDesktopWorkAreas(UnityRect workAreas[], // IN
+                          uint32 numWorkAreas)   // IN
 {
-   Bool success = FALSE;
-   unsigned int count;
-   unsigned int i;
-   UnityRect *workAreas = NULL;
+   uint32 i;
 
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   /*
-    * The argument string will look something like:
-    *   <count> [ , <x> <y> <w> <h> ] * count.
-    *
-    * e.g.
-    *    3 , 0 0 640 480 , 640 0 800 600 , 0 480 640 480
-    */
-
-   if (sscanf(data->args, "%u", &count) != 1) {
-      return RPCIN_SETRETVALS(data,
-                              "Invalid arguments. Expected \"count\"",
-                              FALSE);
-   }
-
-   if (count != 0) {
-      workAreas = (UnityRect *)malloc(sizeof *workAreas * count);
-      if (!workAreas) {
-         RPCIN_SETRETVALS(data,
-                          "Failed to alloc buffer for work areas",
-                          FALSE);
-         goto out;
-      }
-   }
-
-   for (i = 0; i < count; i++) {
-      char *argList = strchr(data->args, ',');
-      if (!argList) {
-         RPCIN_SETRETVALS(data,
-                          "Expected comma separated display list",
-                          FALSE);
-         goto out;
-      }
-      argList++; /* Skip past the , */
-
-      if (sscanf(argList, " %d %d %d %d ",
-                 &workAreas[i].x, &workAreas[i].y,
-                 &workAreas[i].width, &workAreas[i].height) != 4) {
-         RPCIN_SETRETVALS(data,
-                          "Expected x, y, w, h in display entry",
-                          FALSE);
-         goto out;
-      }
-
+   for (i = 0; i < numWorkAreas; i++) {
       if (workAreas[i].x < 0 || workAreas[i].y < 0 ||
           workAreas[i].width <= 0 || workAreas[i].height <= 0) {
-         RPCIN_SETRETVALS(data, "Invalid argument", FALSE);
-         goto out;
+         Debug("%s: Invalid work area\n", __FUNCTION__);
+         return FALSE;
       }
    }
 
-   if (!UnityPlatformSetDesktopWorkAreas(unity.up, workAreas, count)) {
-      RPCIN_SETRETVALS(data,
-                       "UnityPlatformSetDesktopWorkAreas failed",
-                       FALSE);
-      goto out;
-   }
-
-   success = RPCIN_SETRETVALS(data, "", TRUE);
-
-out:
-   free(workAreas);
-   return success;
+   return UnityPlatformSetDesktopWorkAreas(unity.up, workAreas, numWorkAreas);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloSetTopWindowGroup --
+ * Unity_SetTopWindowGroup --
  *
- *     RPC handler for 'unity.window.settop'.
+ *      Set the group of windows on top of all others.
  *
  * Results:
  *     TRUE if everything is successful.
@@ -954,139 +600,46 @@ out:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloSetTopWindowGroup(RpcInData *data)  // IN/OUT
+Bool
+Unity_SetTopWindowGroup(UnityWindowId windows[],   // IN: array of window ids
+                        unsigned int windowCount) // IN: # of windows in the array
 {
-   UnityWindowId window;
-   unsigned int index = 0;
-   unsigned int windowCount = 0;
-   UnityWindowId windows[UNITY_MAX_SETTOP_WINDOW_COUNT];
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
-
-   /* Parse the command & window ids.*/
-
-   while (StrUtil_GetNextUintToken(&window, &index, data->args, " ")) {
-      windows[windowCount] = window;
-      windowCount++;
-      if (windowCount == UNITY_MAX_SETTOP_WINDOW_COUNT) {
-         Debug("%s: Too many windows.\n", __FUNCTION__);
-         return RPCIN_SETRETVALS(data,
-                                 "Invalid arguments. Too many windows",
-                                 FALSE);
-      }
-   }
-
-   if (windowCount == 0) {
-      Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data,
-                              "Invalid arguments. Expected at least one windowId",
-                              FALSE);
-   }
-
-   if (!UnityPlatformSetTopWindowGroup(unity.up, windows, windowCount)) {
-      return RPCIN_SETRETVALS(data,
-                              "Could not execute window command",
-                              FALSE);
-   }
-
-   return RPCIN_SETRETVALS(data, "", TRUE);
+   return UnityPlatformSetTopWindowGroup(unity.up, windows, windowCount);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloGetUpdate --
+ * Unity_GetUpdate --
  *
- *     RPC handler for 'unity.get.update'.  Ask the unity window tracker
- *     to give us an update (either incremental or non-incremental based
- *     on whether the 'incremental' arg is present) and send the result
- *     back to the VMX.
+ *      This function is used to asynchronously collect Unity window updates
+ *      and send them to the host via the guest->host channel.
  *
  * Results:
- *     None.
+ *      An event is posted such that the update helper thread will collect
+ *      and send updates to the host.
  *
  * Side effects:
- *     Clearly.
+ *      None.
  *
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloGetUpdate(RpcInData *data)    // IN/OUT
+void
+Unity_GetUpdate(Bool incremental)         // IN: Incremental vs. full update
 {
-   Bool incremental = FALSE;
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'", __FUNCTION__, data->name, data->args);
-
-   /*
-    * Specify incremental or non-incremetal updates based on whether or
-    * not the client set the "incremental" arg.
-    */
-   if (strstr(data->name, "incremental")) {
-      incremental = TRUE;
-   }
-
-   /*
-    * Call into platform-specific implementation to gather and send updates
-    * back via RPCI.  (This is done to ensure all updates are sent to the
-    * Unity server in sequence via the same channel.)
-    */
    UnityPlatformDoUpdate(unity.up, incremental);
-
-   /*
-    * To maintain compatibility, we'll return a successful but empty response.
-    */
-   data->result = "";
-   data->resultLen = 0;
-
-   /*
-    * Give the debugger a crack to do something interesting at this point
-    *
-    * XXX Not sure if this is worth keeping around since this routine no
-    * longer returns updates directly.
-    */
-   UnityDebug_OnUpdate();
-
-   return TRUE;
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloConfirmOperation --
+ * Unity_ConfirmOperation --
  *
- *     RPC handler for 'unity.operation.confirm'.
+ *     Confirmation from the host that an operation requiring interlock has been
+ *     completed by the host.
  *
  * Results:
  *     TRUE if the confirmation could be handled sucessfully.
@@ -1098,66 +651,32 @@ UnityTcloGetUpdate(RpcInData *data)    // IN/OUT
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloConfirmOperation(RpcInData *data)   // IN/OUT
+Bool
+Unity_ConfirmOperation(unsigned int operation,   // IN
+                       UnityWindowId windowId,   // IN
+                       uint32 sequence,          // IN
+                       Bool allow)               // IN
 {
-   UnityConfirmOperation unityConfirmOpMsg = {0};
-   UnityConfirmOperationV1 *confirmV1 = NULL;
    Bool retVal = FALSE;
-   unsigned int ret;
 
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: Enter.\n", __FUNCTION__);
-
-   /*
-    * Deserialize the XDR data. Note that the data begins with args + 1 since
-    * there is a space between the RPC name and the XDR serialization.
-    */
-   if (!XdrUtil_Deserialize(data->args + 1, data->argsSize - 1,
-                            xdr_UnityConfirmOperation, &unityConfirmOpMsg)) {
-      ret = RPCIN_SETRETVALS(data, "Failed to deserialize data", FALSE);
-      goto exit;
-   }
-
-   confirmV1 = unityConfirmOpMsg.UnityConfirmOperation_u.unityConfirmOpV1;
-   if (MINIMIZE == confirmV1->details.op) {
+   if (MINIMIZE == operation) {
       retVal = UnityPlatformConfirmMinimizeOperation(unity.up,
-                                                     confirmV1->windowId,
-                                                     confirmV1->sequence,
-                                                     confirmV1->allow);
+                                                     windowId,
+                                                     sequence,
+                                                     allow);
    } else {
-      Debug("%s: Confirmation for unknown operation ID = %d\n", __FUNCTION__,
-            confirmV1->details.op);
+      Debug("%s: Confirmation for unknown operation ID = %d\n", __FUNCTION__, operation);
    }
-   /* Free any memory allocated by XDR - we're done with unityConfirmOpMsg */
-   VMX_XDR_FREE(xdr_UnityConfirmOperation, &unityConfirmOpMsg);
-   ret = RPCIN_SETRETVALS(data, "", retVal);
-
-exit:
-   Debug("%s: Exit.\n", __FUNCTION__);
-   return ret;
+   return retVal;
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloSendMouseWheel --
+ * Unity_SendMouseWheel --
  *
- *     RPC handler for 'unity.sendMouseWheel'.
+ *     Sends the given mouse wheel event to the window at the given location.
  *
  * Results:
  *     TRUE on success, FALSE on failure.
@@ -1168,46 +687,20 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloSendMouseWheel(RpcInData *data)   // IN/OUT
+Bool
+Unity_SendMouseWheel(int32 deltaX,         // IN
+                     int32 deltaY,         // IN
+                     int32 deltaZ,         // IN
+                     uint32 modifierFlags) // IN
 {
-   UnityMouseWheel unityMouseWheelMsg = {0};
-   UnityMouseWheelV1 *mouseWheelV1 = NULL;
-   Bool retVal = FALSE;
-   unsigned int ret;
-   Debug("%s: Enter.\n", __FUNCTION__);
-
-   /*
-    * Deserialize the XDR data. Note that the data begins with args + 1 since
-    * there is a space between the RPC name and the XDR serialization.
-    */
-   if (!XdrUtil_Deserialize(data->args + 1, data->argsSize - 1,
-                            xdr_UnityMouseWheel, &unityMouseWheelMsg)) {
-      ret = RPCIN_SETRETVALS(data, "Failed to deserialize data", FALSE);
-      goto exit;
-   }
-
-   mouseWheelV1 = unityMouseWheelMsg.UnityMouseWheel_u.mouseWheelV1;
-   retVal = UnityPlatformSendMouseWheel(unity.up,
-                                        mouseWheelV1->deltaX,
-                                        mouseWheelV1->deltaY,
-                                        mouseWheelV1->deltaZ,
-                                        mouseWheelV1->modifierFlags);
-
-   /* Free any memory allocated by XDR - we're done with unityMouseWheelMsg */
-   VMX_XDR_FREE(xdr_UnityMouseWheel, &unityMouseWheelMsg);
-   ret = RPCIN_SETRETVALS(data, "", retVal);
-
-exit:
-   Debug("%s: Exit.\n", __FUNCTION__);
-   return ret;
+   return UnityPlatformSendMouseWheel(unity.up, deltaX, deltaY, deltaZ, modifierFlags);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityGetUpdateCommon --
+ * Unity_GetUpdates --
  *
  *     Get the unity window update and append it to the specified output buffer.
  *     This function can be called from two different threads: either from
@@ -1227,41 +720,18 @@ exit:
  */
 
 void
-UnityGetUpdateCommon(int flags,     //  IN: unity update flags
-                     DynBuf *buf)   //  IN/OUT: unity update buffer
+Unity_GetUpdates(int flags)            //  IN: unity update flags
 {
-
-   ASSERT(buf);
-
    UnityPlatformLock(unity.up);
 
    /*
-    * Ask the guest to crawl the windowing system and push updates
-    * into the unity window tracker.  If the guest backend isn't able to get
-    * notification of destroyed windows, UnityPlatformUpdateWindowState will
-    * return TRUE, which is are signal to set the UNITY_UPDATE_REMOVE_UNTOUCHED
-    * flag.  This make the unity window tracker generate remove events for
-    * windows that it hasn't seen an update for since the last update
-    * request.
+    * Generate the update stream. This will cause our UnityUpdateCallbackFn to be
+    * triggered, which will in turn lead to the callback registered with the
+    * 'consumer' of this library which will do the actual update serialization.
     */
-   if (UnityPlatformUpdateWindowState(unity.up, &unity.tracker)) {
-      flags |= UNITY_UPDATE_REMOVE_UNTOUCHED;
-   }
-
-   /*
-    * Generate the update string.  We'll accumulate updates in the DynBuf
-    * buf via the callbacks registered in Unity_Init().  Each update will
-    * append a null terminated string to buf.
-    */
-   UnityWindowTracker_RequestUpdates(&unity.tracker, flags, buf);
+   UnityWindowTracker_RequestUpdates(&unity.tracker, flags, unity.up);
 
    UnityPlatformUnlock(unity.up);
-
-   /*
-    * Write the final '\0' to the DynBuf to signal that we're all out of
-    * updates.
-    */
-   DynBuf_AppendString(buf, "");
 
    return;
 }
@@ -1272,11 +742,12 @@ UnityGetUpdateCommon(int flags,     //  IN: unity update flags
  *
  * UnityUpdateCallbackFn --
  *
- *     Callback from the unity window tracker indicating something's
+ *     Callback from the unity window tracker indicating something has
  *     changed.
  *
- *     Write the update string into our dynbuf accumlating the update
- *     and return.
+ *     Perform any internal functions we need called as a consequence of tracker
+ *     window state changing and then call the provided callback to serialize the
+ *     update.
  *
  * Results:
  *     None.
@@ -1288,355 +759,158 @@ UnityGetUpdateCommon(int flags,     //  IN: unity update flags
  */
 
 void
-UnityUpdateCallbackFn(void *param,          // IN: dynbuf
+UnityUpdateCallbackFn(void *param,          // IN: UnityPlatform
                       UnityUpdate *update)  // IN
 {
-   DynBuf *buf = (DynBuf *)param;
-   char data[1024];
-   int i, n, count = 0;
-   RegionPtr region;
-   char *titleUtf8 = NULL;
-   char *windowPathUtf8 = "";
-   char *execPathUtf8 = "";
-
+   UnityPlatform *up = (UnityPlatform*)param;
    switch (update->type) {
-
-   case UNITY_UPDATE_ADD_WINDOW:
-      if (DynBuf_GetSize(&update->u.addWindow.windowPathUtf8) > 0) {
-         windowPathUtf8 = DynBuf_Get(&update->u.addWindow.windowPathUtf8);
-      }
-      if (DynBuf_GetSize(&update->u.addWindow.execPathUtf8) > 0) {
-         execPathUtf8 = DynBuf_Get(&update->u.addWindow.execPathUtf8);
-      }
-
-      Str_Sprintf(data, sizeof data, "add %u windowPath=%s execPath=%s",
-                  update->u.addWindow.id,
-                  windowPathUtf8,
-                  execPathUtf8);
-      DynBuf_AppendString(buf, data);
-      break;
-
-   case UNITY_UPDATE_MOVE_WINDOW:
-      Str_Sprintf(data, sizeof data, "move %u %d %d %d %d",
-                  update->u.moveWindow.id,
-                  update->u.moveWindow.rect.x1,
-                  update->u.moveWindow.rect.y1,
-                  update->u.moveWindow.rect.x2,
-                  update->u.moveWindow.rect.y2);
-      DynBuf_AppendString(buf, data);
-      break;
 
    case UNITY_UPDATE_REMOVE_WINDOW:
       /*
        * Let the platform know that this window has been removed. This is
        * useful on platforms that must poll for window changes.
        */
-      UnityPlatformWillRemoveWindow(unity.up, update->u.removeWindow.id);
-
-      Str_Sprintf(data, sizeof data, "remove %u", update->u.removeWindow.id);
-      DynBuf_AppendString(buf, data);
-      break;
-
-   case UNITY_UPDATE_CHANGE_WINDOW_REGION:
-      /*
-       * A null region indicates that the region should be deleted.
-       * Make sure we write "region <id> 0" for the reply.
-       */
-      region = update->u.changeWindowRegion.region;
-      if (region) {
-         count = REGION_NUM_RECTS(region);
-      }
-      Str_Sprintf(data, sizeof data, "region %u %d",
-                  update->u.changeWindowRegion.id, count);
-      DynBuf_AppendString(buf, data);
-
-      for (i = 0; i < count; i++) {
-         BoxPtr p = REGION_RECTS(region) + i;
-         Str_Sprintf(data, sizeof data, "rect %d %d %d %d",
-                     p->x1, p->y1, p->x2, p->y2);
-         DynBuf_AppendString(buf, data);
-      }
-      break;
-
-   case UNITY_UPDATE_CHANGE_WINDOW_TITLE:
-      titleUtf8 = DynBuf_Get(&update->u.changeWindowTitle.titleUtf8);
-
-      if (titleUtf8 &&
-          (DynBuf_GetSize(&update->u.changeWindowTitle.titleUtf8) ==
-           strlen(titleUtf8) + 1)) {
-           Str_Sprintf(data, sizeof data, "title %u ",
-                       update->u.changeWindowTitle.id);
-           Str_Strncat(data, sizeof data, titleUtf8, sizeof data - strlen(data) - 1);
-           data[sizeof data - 1] = '\0';
-      } else {
-         Str_Sprintf(data, sizeof data, "title %u",
-                     update->u.changeWindowTitle.id);
-      }
-      DynBuf_AppendString(buf, data);
-      break;
-
-   case UNITY_UPDATE_CHANGE_ZORDER:
-      n = Str_Snprintf(data, sizeof data, "zorder %d", update->u.zorder.count);
-      DynBuf_Append(buf, data, n);
-      for (i = 0; i < update->u.zorder.count; i++) {
-         n = Str_Snprintf(data, sizeof data, " %d", update->u.zorder.ids[i]);
-         DynBuf_Append(buf, data, n);
-      }
-      DynBuf_AppendString(buf, ""); // for appending NULL
-      break;
-
-   case UNITY_UPDATE_CHANGE_WINDOW_STATE:
-      Str_Sprintf(data, sizeof data, "state %u %u",
-                  update->u.changeWindowState.id,
-                  update->u.changeWindowState.state);
-      DynBuf_AppendString(buf, data);
-      break;
-
-   case UNITY_UPDATE_CHANGE_WINDOW_ATTRIBUTE:
-      Str_Sprintf(data, sizeof data, "attr %u %u %u",
-                  update->u.changeWindowAttribute.id,
-                  update->u.changeWindowAttribute.attr,
-                  update->u.changeWindowAttribute.value);
-      DynBuf_AppendString(buf, data);
-      break;
-
-   case UNITY_UPDATE_CHANGE_WINDOW_TYPE:
-      Str_Sprintf(data, sizeof data, "type %u %d",
-                  update->u.changeWindowType.id,
-                  update->u.changeWindowType.winType);
-      DynBuf_AppendString(buf, data);
-      break;
-
-   case UNITY_UPDATE_CHANGE_WINDOW_ICON:
-      Str_Sprintf(data, sizeof data, "icon %u %u",
-                  update->u.changeWindowIcon.id,
-                  update->u.changeWindowIcon.iconType);
-      DynBuf_AppendString(buf, data);
-      break;
-
-   case UNITY_UPDATE_CHANGE_WINDOW_DESKTOP:
-      Str_Sprintf(data, sizeof data, "desktop %u %d",
-                  update->u.changeWindowDesktop.id,
-                  update->u.changeWindowDesktop.desktopId);
-      DynBuf_AppendString(buf, data);
-      break;
-
-   case UNITY_UPDATE_CHANGE_ACTIVE_DESKTOP:
-      Str_Sprintf(data, sizeof data, "activedesktop %d",
-                  update->u.changeActiveDesktop.desktopId);
-      DynBuf_AppendString(buf, data);
+      UnityPlatformWillRemoveWindow(up, update->u.removeWindow.id);
       break;
 
    default:
-      NOT_IMPLEMENTED();
+      break;
    }
+
+   unity.hostCallbacks.updateCB(unity.updateChannel, update);
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
- * UnityUpdateChannelInit --
+ * Unity_GetWindowContents --
  *
- *      Initialize the state for the update thread.
+ *     Read the correct bits off the window regardless of whether it's minimized
+ *     or obscured.   Return the result as a PNG in the imageData DynBuf.
  *
- * Return value:
- *      TRUE if all needed data was initialized.
- *      FALSE otherwise
+ * Results:
+ *     TRUE if everything is successful.
+ *     FALSE otherwise.
+ *     imageData contains PNG formatted window contents.
  *
  * Side effects:
- *      RpcOut channel might be open.
- *      Memory for the update buffer might be allocated.
+ *     None.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 Bool
-UnityUpdateChannelInit(UnityUpdateChannel *updateChannel) // IN
+Unity_GetWindowContents(UnityWindowId window,  // IN
+                        DynBuf *imageData,     // IN/OUT
+                        uint32 *width,         // OUT
+                        uint32 *height)        // OUT
 {
-   ASSERT(updateChannel);
-
-   updateChannel->rpcOut = NULL;
-   updateChannel->cmdSize = 0;
-
-   DynBuf_Init(&updateChannel->updates);
-   DynBuf_AppendString(&updateChannel->updates, UNITY_RPC_PUSH_UPDATE_CMD " ");
-
-   /* Exclude the null. */
-   updateChannel->cmdSize = DynBuf_GetSize(&updateChannel->updates) - 1;
-   DynBuf_SetSize(&updateChannel->updates, updateChannel->cmdSize);
-
-   updateChannel->rpcOut = RpcOut_Construct();
-   if (updateChannel->rpcOut == NULL) {
-      goto error;
-   }
-
-   if (!RpcOut_start(updateChannel->rpcOut)) {
-      RpcOut_Destruct(updateChannel->rpcOut);
-      goto error;
-   }
-
-   return TRUE;
-
-error:
-   DynBuf_Destroy(&updateChannel->updates);
-
-   return FALSE;
+   return UnityPlatformGetWindowContents(unity.up, window, imageData, width, height);
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
- * UnityUpdateChannelCleanup --
+ * Unity_GetIconData --
  *
- *      Cleanup the unity update thread state.
+ *     Read part or all of a particular icon on a window.  Return the result as a PNG in
+ *     the imageData DynBuf, and also return the full length of the PNG in fullLength.
  *
- * Return value:
- *      None.
+ * Results:
+ *     TRUE if everything is successful.
+ *     FALSE otherwise.
  *
  * Side effects:
- *      RpcOut channel will be closed.
- *      Memory will be freed.
+ *     None.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+Unity_GetIconData(UnityWindowId window,    // IN
+                  UnityIconType iconType,  // IN
+                  UnityIconSize iconSize,  // IN
+                  uint32 dataOffset,       // IN
+                  uint32 dataLength,       // IN
+                  DynBuf *imageData,       // OUT
+                  uint32 *fullLength)      // OUT
+{
+   return UnityPlatformGetIconData(unity.up, window, iconType, iconSize,
+                                   dataOffset, dataLength, imageData, fullLength);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Unity_ShowTaskbar  --
+ *
+ *     Show/hide the taskbar while in Unity mode.
+ *
+ * Results:
+ *     None.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
  */
 
 void
-UnityUpdateChannelCleanup(UnityUpdateChannel *updateChannel) // IN
+Unity_ShowTaskbar(Bool showTaskbar)    // IN
 {
-   if (updateChannel && updateChannel->rpcOut) {
-      RpcOut_stop(updateChannel->rpcOut);
-      RpcOut_Destruct(updateChannel->rpcOut);
-      updateChannel->rpcOut = NULL;
-
-      DynBuf_Destroy(&updateChannel->updates); // Avoid double-free by guarding this as well
-   }
+   UnityPlatformShowTaskbar(unity.up, showTaskbar);
 }
 
 
-#ifdef VMX86_DEVEL
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
- * DumpUpdate --
+ * Unity_MoveResizeWindow --
  *
- *      Prints a Unity update via debug output.  NUL is represented as '!'.
+ *      Moves and/or resizes the given window to the specified location. Does not
+ *      attempt to move and/or resize window if (a) the destination rectangle does not
+ *      intersect with the virtual screen rectangle, or (b) window is minimized.
+ *
+ *      If the input width & height match the current width & height, then this
+ *      function will end up just moving the window. Similarly if the input
+ *      x & y coordinates match the current coordinates, then it will end up just
+ *      resizing the window.
  *
  * Results:
- *      None.
+ *      Even if the move/resize operation is not executed or it fails, window's
+ *      current coordinates are always sent back.
+ *
+ *      Function does not return FALSE if the attempt to move and/or resize fails.
+ *      This is because the caller will be comparing input and output parameters to
+ *      decide whether the window really moved and/or resized.
+ *
+ *      In a very rare case, when attempt to get window's current coordinates fail,
+ *      returns FALSE.
  *
  * Side effects:
- *      None.
+ *      None
  *
- *-----------------------------------------------------------------------------
- */
-
-static void
-DumpUpdate(UnityUpdateChannel *updateChannel)   // IN
-{
-   int i, len;
-   char *buf = NULL;
-
-   len = updateChannel->updates.size;
-   buf = Util_SafeMalloc(len + 1);
-   memcpy(buf, updateChannel->updates.data, len);
-   buf[len] = '\0';
-   for (i = 0 ; i < len; i++) {
-      if (buf[i] == '\0') {
-         buf[i] = '!';
-      }
-   }
-
-   Debug("%s: Sending update: %s\n", __FUNCTION__, buf);
-
-   free(buf);
-}
-#endif // ifdef VMX86_DEVEL
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnitySendUpdates --
- *
- *      Gather and send a round of unity updates. The caller is responsible
- *      for gathering updates into updateChannel->updates buffer prior to the
- *      function call. This function should only be called if there's data
- *      in the update buffer to avoid sending empty update string to the VMX.
- *
- * Return value:
- *      TRUE if the update was sent,
- *      FALSE if something went wrong (an invalid RPC channel, for example).
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 Bool
-UnitySendUpdates(UnityUpdateChannel *updateChannel) // IN
+Unity_MoveResizeWindow(UnityWindowId window,      // IN: Window handle
+                       UnityRect *moveResizeRect) // IN/OUT: Desired coordinates,
+                                                  // before and after the operation.
 {
-   char const *myReply;
-   size_t myRepLen;
-   Bool retry = FALSE;
-
-   ASSERT(updateChannel);
-   ASSERT(updateChannel->rpcOut);
-
-   /* Send 'tools.unity.push.update <updates>' to the VMX. */
-
-#ifdef VMX86_DEVEL
-   DumpUpdate(updateChannel);
-#endif
-
-retry_send:
-   if (!RpcOut_send(updateChannel->rpcOut,
-                    (char *)DynBuf_Get(&updateChannel->updates),
-                    DynBuf_GetSize(&updateChannel->updates),
-                    &myReply, &myRepLen)) {
-
-      /*
-       * We could not send the RPC. If we haven't tried to reopen
-       * the channel, try to reopen and resend. If we already
-       * tried to resend, then it's time to give up. I hope that
-       * trying to resend once is enough.
-       */
-
-      if (!retry) {
-         retry = TRUE;
-         Debug("%s: could not send rpc. Reopening channel.\n", __FUNCTION__);
-         RpcOut_stop(updateChannel->rpcOut);
-         if (!RpcOut_start(updateChannel->rpcOut)) {
-            Debug("%s: could not reopen rpc channel. Exiting...\n", __FUNCTION__);
-            return FALSE;
-         }
-         goto retry_send;
-
-      } else {
-         Debug("%s: could not resend rpc. Giving up and exiting...\n", __FUNCTION__);
-         return FALSE;
-      }
-   }
-
-   /*
-    * With the update queue sent, purge the DynBuf by trimming it to the length
-    * of the command preamble.
-    */
-   DynBuf_SetSize(&updateChannel->updates, updateChannel->cmdSize);
-
-   return TRUE;
+   return UnityPlatformMoveResizeWindow(unity.up, window, moveResizeRect);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloGetWindowContents --
+ * Unity_SetDesktopConfig --
  *
- *     RPC handler for 'unity.get.window.contents'. Suck the bits off the
- *     window and return a .png image over the backdoor.
+ *     Set the virtual desktop configuration as specified by the host.
  *
  * Results:
  *     TRUE if everything is successful.
@@ -1648,408 +922,19 @@ retry_send:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloGetWindowContents(RpcInData *data)     // IN/OUT
+Bool
+Unity_SetDesktopConfig(const UnityVirtualDesktopArray *desktopConfig) // IN
 {
-   unsigned int window;
-   unsigned int index = 0;
-   DynBuf *imageData = &gTcloUpdate;
-   uint32 width;
-   uint32 height;
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
-
-   /*
-    * Parse the command & window id.
-    */
-   if (!StrUtil_GetNextIntToken(&window, &index, data->args, " ")) {
-      Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data,
-                              "failed: arguments. Expected \"windowId\"",
-                              FALSE);
-
-   }
-   Debug("%s: window %d\n", __FUNCTION__, window);
-
-   /*
-    * Read the contents of the window, compress it as a .png and
-    * send the .png back to the vmx as the RPC result.
-    */
-   DynBuf_SetSize(imageData, 0);
-   if (!UnityPlatformGetWindowContents(unity.up, window, imageData, &width, &height)) {
-      return RPCIN_SETRETVALS(data,
-                              "failed: Could not read window contents",
-                              FALSE);
-   }
-
-   data->result = (char *)DynBuf_Get(imageData);
-   data->resultLen = DynBuf_GetSize(imageData);
-
-   return TRUE;
+   return UnityPlatformSetDesktopConfig(unity.up, desktopConfig);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloGetIconData --
+ * Unity_SetDesktopActive --
  *
- *     RPC handler for 'unity.get.icon.data'. Suck the bits off the
- *     window and return a .png image over the backdoor.
- *
- * Results:
- *     TRUE if everything is successful.
- *     FALSE otherwise.
- *
- * Side effects:
- *     None.
- *
- *----------------------------------------------------------------------------
- */
-
-RpcInRet
-UnityTcloGetIconData(RpcInData *data)  // IN/OUT
-{
-   UnityWindowId window;
-   UnityIconType iconType;
-   UnityIconSize iconSize;
-   unsigned int dataOffset, dataLength;
-   uint32 fullLength;
-   size_t retLength;
-   DynBuf *results = &gTcloUpdate, imageData;
-   char bitmapData[1024];
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
-
-   /*
-    * Parse the arguments.
-    */
-   if ((sscanf(data->args, "%u %u %u %u %u",
-               &window,
-               &iconType,
-               &iconSize,
-               &dataOffset,
-               &dataLength) != 5)
-       || (dataLength > UNITY_MAX_ICON_DATA_CHUNK)) {
-      Debug("UnityTcloGetIconData: Invalid RPC arguments.\n");
-      return RPCIN_SETRETVALS(data,
-                              "failed: arguments missing",
-                              FALSE);
-   }
-
-   Debug("%s: window %u iconType %u" \
-         " iconSize %u dataOffset %u dataLength %u\n",
-         __FUNCTION__,
-         window, iconType, iconSize, dataOffset, dataLength);
-
-   /*
-    * Retrieve part/all of the icon in PNG format.
-    */
-   DynBuf_Init(&imageData);
-   if (!UnityPlatformGetIconData(unity.up, window, iconType, iconSize,
-                                 dataOffset, dataLength, &imageData, &fullLength)) {
-      return RPCIN_SETRETVALS(data,
-                              "failed: Could not read icon data properly",
-                              FALSE);
-   }
-
-
-   DynBuf_SetSize(results, 0);
-   retLength = DynBuf_GetSize(&imageData);
-   retLength = MIN(retLength, UNITY_MAX_ICON_DATA_CHUNK);
-   DynBuf_Append(results, bitmapData, Str_Snprintf(bitmapData,
-                                                   sizeof bitmapData,
-                                                   "%u %" FMTSZ "u ",
-                                                   fullLength, retLength));
-   DynBuf_Append(results, DynBuf_Get(&imageData), retLength);
-
-   /*
-    * Guarantee that the results have a trailing \0 in case anything does a strlen...
-    */
-   DynBuf_AppendString(results, "");
-   data->result = (char *)DynBuf_Get(results);
-   data->resultLen = DynBuf_GetSize(results);
-   DynBuf_Destroy(&imageData);
-
-   return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityTcloShowTaskbar --
- *
- *     RPC handler for 'unity.show.taskbar'.
- *
- * Results:
- *     TRUE if everything is successful.
- *     FALSE otherwise.
- *
- * Side effects:
- *     None.
- *
- *----------------------------------------------------------------------------
- */
-
-RpcInRet
-UnityTcloShowTaskbar(RpcInData *data)     // IN/OUT
-{
-   uint32 command = 0;
-   unsigned int index = 0;
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
-
-   if (!StrUtil_GetNextUintToken(&command, &index, data->args, " ")) {
-      Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data,
-                              "Invalid arguments.",
-                              FALSE);
-   }
-
-   Debug("%s: command %d\n", __FUNCTION__, command);
-
-   UnityPlatformShowTaskbar(unity.up, (command == 0) ? FALSE : TRUE);
-
-   return RPCIN_SETRETVALS(data, "", TRUE);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityTcloMoveResizeWindow --
- *
- *     RPC handler for 'unity.window.move_resize'.
- *
- * Results:
- *     TRUE if everything is successful.
- *     FALSE otherwise.
- *     If successful adds null terminated strings for each output coordinates.
- *
- * Side effects:
- *     None.
- *
- *----------------------------------------------------------------------------
- */
-
-RpcInRet
-UnityTcloMoveResizeWindow(RpcInData *data)      // IN/OUT
-{
-   DynBuf *buf = &gTcloUpdate;
-   UnityWindowId window;
-   UnityRect moveResizeRect = {0};
-   char temp[1024];
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
-
-   if (sscanf(data->args, "%u %d %d %d %d",
-              &window,
-              &moveResizeRect.x,
-              &moveResizeRect.y,
-              &moveResizeRect.width,
-              &moveResizeRect.height) != 5) {
-      Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data,
-                              "Invalid arguments.",
-                              FALSE);
-   }
-
-   if (!UnityPlatformMoveResizeWindow(unity.up, window, &moveResizeRect)) {
-      Debug("%s: Could not read window coordinates.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data,
-                              "Could not read window coordinates",
-                              FALSE);
-   }
-
-   /*
-    *  Send back the new (post move/resize operation) window coordinates.
-    */
-
-   DynBuf_SetSize(buf, 0);
-   Str_Sprintf(temp, sizeof temp, "%d %d %d %d", moveResizeRect.x,
-               moveResizeRect.y, moveResizeRect.width, moveResizeRect.height);
-   DynBuf_AppendString(buf, temp);
-
-   /*
-    * Write the final result into the result out parameters and return!
-    */
-
-   data->result = (char *)DynBuf_Get(buf);
-   data->resultLen = DynBuf_GetSize(buf);
-
-   return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityTcloSetDesktopConfig --
- *
- *     RPC handler for 'unity.set.desktop.config'. The RPC takes the form of:
- *     {1,1} {1,2} {2,1} {2,2} 1
- *     for a 2 x 2 virtual desktop where the upper right {1,2} is the currently
- *     active desktop.
- *
- * Results:
- *     TRUE if everything is successful.
- *     FALSE otherwise.
- *
- * Side effects:
- *     Might change virtual desktop configuration in the guest.
- *
- *----------------------------------------------------------------------------
- */
-
-RpcInRet
-UnityTcloSetDesktopConfig(RpcInData *data)      // IN/OUT
-{
-   unsigned int index = 0;
-   char *desktopStr = NULL;
-   char *errorMsg;
-   uint32 initialDesktopIndex = 0;
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
-
-   if (data->argsSize == 0) {
-      errorMsg = "Invalid arguments: desktop config is expected";
-      goto error;
-   }
-
-   unity.virtDesktopArray.desktopCount = 0;
-   /* Read the virtual desktop configuration. */
-   while ((desktopStr = StrUtil_GetNextToken(&index, data->args, " ")) != NULL) {
-      UnityVirtualDesktop desktop;
-      uint32 desktopCount = unity.virtDesktopArray.desktopCount;
-
-      if (sscanf(desktopStr, "{%d,%d}", &desktop.x, &desktop.y) == 2) {
-         if (desktopCount >= MAX_VIRT_DESK - 1) {
-            errorMsg = "Invalid arguments: too many desktops";
-            goto error;
-         }
-         unity.virtDesktopArray.desktops[desktopCount] = desktop;
-         unity.virtDesktopArray.desktopCount++;
-      } else if (sscanf(desktopStr, "%u", &initialDesktopIndex) == 1) {
-         if (initialDesktopIndex >= unity.virtDesktopArray.desktopCount) {
-            errorMsg = "Invalid arguments: current desktop is out of bounds";
-            goto error;
-         }
-         /* All done with arguments at this point - stop processing */
-         free(desktopStr);
-         break;
-      } else {
-         errorMsg = "Invalid arguments: invalid desktop config";
-         goto error;
-      }
-      free(desktopStr);
-      desktopStr = NULL;
-   }
-
-   /*
-    * Call the platform specific function to set the desktop configuration.
-    */
-
-   if (!UnityPlatformSetDesktopConfig(unity.up, &unity.virtDesktopArray)) {
-      errorMsg = "Could not set desktop configuration";
-      goto error;
-   }
-
-   if (!UnityPlatformSetInitialDesktop(unity.up, initialDesktopIndex)) {
-      errorMsg = "Could not set initial desktop";
-      goto error;
-   }
-
-   return RPCIN_SETRETVALS(data,
-                           "",
-                           TRUE);
-error:
-   free(desktopStr);
-   unity.virtDesktopArray.desktopCount = 0;
-   Debug("%s: %s\n", __FUNCTION__, errorMsg);
-
-   return RPCIN_SETRETVALS(data,
-                           errorMsg,
-                           FALSE);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityTcloSetDesktopActive --
- *
- *     RPC handler for 'unity.set.desktop.active'.
+ *     Switch to the specified virtual desktop.
  *
  * Results:
  *     TRUE if everything is successful.
@@ -2061,69 +946,25 @@ error:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloSetDesktopActive(RpcInData *data)      // IN/OUT
+Bool
+Unity_SetDesktopActive(UnityDesktopId desktopId)  // IN: Index into desktop config. array
 {
-   UnityDesktopId desktopId = 0;
-   char *errorMsg;
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
+   if (desktopId >= unity.virtDesktopArray.desktopCount) {
+      Debug("%s: Desktop (%d) does not exist in the guest", __FUNCTION__, desktopId);
       return FALSE;
    }
 
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
-
-   if (unity.isEnabled == FALSE) {
-      errorMsg = "Unity not enabled - cannot change active desktop";
-      goto error;
-   }
-
-   if (sscanf(data->args, " %d", &desktopId) != 1) {
-      errorMsg = "Invalid arguments: expected \"desktopId\"";
-      goto error;
-   }
-
-   if (desktopId >= unity.virtDesktopArray.desktopCount) {
-      errorMsg = "Desktop does not exist in the guest";
-      goto error;
-   }
-
-   /*
-    * Call the platform specific function to set the desktop active.
-    */
-
-   if (!UnityPlatformSetDesktopActive(unity.up, desktopId)) {
-      errorMsg = "Could not set active desktop";
-      goto error;
-   }
-
-   return RPCIN_SETRETVALS(data,
-                           "",
-                           TRUE);
-error:
-   Debug("%s: %s\n", __FUNCTION__, errorMsg);
-   return RPCIN_SETRETVALS(data,
-                           errorMsg,
-                           FALSE);
+   return UnityPlatformSetDesktopActive(unity.up, desktopId);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloSetWindowDesktop --
+ * Unity_SetWindowDesktop --
  *
- *     RPC handler for 'unity.set.window.desktop'.
+ *     Move the window to the specified desktop. The desktopId is an index
+ *     into the desktop configuration array.
  *
  * Results:
  *     TRUE if everything is successful.
@@ -2135,42 +976,13 @@ error:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloSetWindowDesktop(RpcInData *data)   // IN/OUT
+Bool
+Unity_SetWindowDesktop(UnityWindowId windowId,    // IN
+                       UnityDesktopId desktopId)  // IN
 {
-   UnityWindowId windowId;
-   uint32 desktopId = 0;
-   char *errorMsg;
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
-
-   if (unity.isEnabled == FALSE) {
-      errorMsg = "Unity not enabled - cannot set window desktop";
-      goto error;
-   }
-
-   if (sscanf(data->args, " %u %d", &windowId, &desktopId) != 2) {
-      errorMsg = "Invalid arguments: expected \"windowId desktopId\"";
-      goto error;
-   }
-
    if (desktopId >= unity.virtDesktopArray.desktopCount) {
-      errorMsg = "The desktop does not exist in the guest";
-      goto error;
+      Debug("%s: The desktop (%d) does not exist in the guest", __FUNCTION__, desktopId);
+      return FALSE;
    }
 
    /*
@@ -2183,37 +995,20 @@ UnityTcloSetWindowDesktop(RpcInData *data)   // IN/OUT
     */
    UnityWindowTracker_ChangeWindowDesktop(&unity.tracker, windowId, desktopId);
 
-   /*
-    * Call the platform specific function to move the window to the
-    * specified desktop.
-    */
-
-   if (!UnityPlatformSetWindowDesktop(unity.up, windowId, desktopId)) {
-      errorMsg = "Could not move the window to the desktop";
-      goto error;
-   }
-
-   return RPCIN_SETRETVALS(data,
-                           "",
-                           TRUE);
-error:
-   Debug("%s: %s\n", __FUNCTION__, errorMsg);
-   return RPCIN_SETRETVALS(data,
-                           errorMsg,
-                           FALSE);
+   return UnityPlatformSetWindowDesktop(unity.up, windowId, desktopId);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloSetUnityOptions --
+ * Unity_SetUnityOptions --
  *
  *     Set the Unity options - must be be called before entering Unity mode.
+ *     UnityFeatures is a bitmask of features to be enabled (see unityCommon.h)
  *
  * Results:
- *     TRUE if RPC was succesfully handled.
- *     FALSE otherwise.
+ *     None.
  *
  * Side effects:
  *     None.
@@ -2221,78 +1016,39 @@ error:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloSetUnityOptions(RpcInData *data)
+void
+Unity_SetUnityOptions(uint32 newFeaturesMask)   // IN: UnityFeatures
 {
-   Bool ret = TRUE;
-   UnityOptions optionsMsg;
    int featureIndex = 0;
    uint32 featuresChanged;
 
-   memset(&optionsMsg, 0, sizeof optionsMsg);
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
-         __FUNCTION__, data->name, data->argsSize);
-
-   /*
-    * Deserialize the XDR data. Note that the data begins with args + 1 since
-    * there is a space between the RPC name and the XDR serialization.
-    */
-   if (!XdrUtil_Deserialize((char *)data->args + 1, data->argsSize - 1,
-                            xdr_UnityOptions, &optionsMsg)) {
-      Debug("%s: Failed to deserialize data\n", __FUNCTION__);
-      ret = RPCIN_SETRETVALS(data, "Failed to deserialize data.", FALSE);
-      goto exit;
-   }
+   ASSERT(unity.isEnabled == FALSE);
 
    /*
     * For each potential feature bit XOR the current mask with the newly
     * specified set, then if the bit has changed call the specific setter
     * function with TRUE/FALSE according to the new state of the bit.
     */
-   featuresChanged = optionsMsg.UnityOptions_u.unityOptionsV1->featureMask ^
-                     unity.currentOptions;
+   featuresChanged = newFeaturesMask ^ unity.currentOptions;
    while (unityFeatureTable[featureIndex].featureBit != 0) {
       if (featuresChanged & unityFeatureTable[featureIndex].featureBit) {
          unityFeatureTable[featureIndex].setter(
-            (optionsMsg.UnityOptions_u.unityOptionsV1->featureMask &
-            unityFeatureTable[featureIndex].featureBit) != 0);
+            (newFeaturesMask & unityFeatureTable[featureIndex].featureBit) != 0);
       }
       featureIndex++;
    }
 
-   unity.currentOptions = optionsMsg.UnityOptions_u.unityOptionsV1->featureMask;
-
-   ret = RPCIN_SETRETVALS(data,
-                          "",
-                          TRUE);
-exit:
-   VMX_XDR_FREE(xdr_UnityOptions, &optionsMsg);
-
-   return ret;
+   unity.currentOptions = newFeaturesMask;
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloRequestWindowContents --
+ * Unity_RequestWindowContents --
  *
- *     Request the window contents for a set of windows.
+ *     Add the requeste window IDs to a list of windows whose contents should
+ *     be sent to the host. See also hostcallbacks.sendWindowContents().
  *
  * Results:
  *     TRUE if all the window IDs are valid.
@@ -2304,275 +1060,11 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
-UnityTcloRequestWindowContents(RpcInData *data)    // IN
-{
-   Bool ret = TRUE;
-   UnityWindowContentsRequest requestMsg;
-   UnityWindowContentsRequestV1 *requestV1 = NULL;
-   memset(&requestMsg, 0, sizeof requestMsg);
-
-   /* Check our arguments. */
-   ASSERT(data);
-   if (!data) {
-      return FALSE;
-   }
-
-   ASSERT(data->name);
-   ASSERT(data->args);
-
-   if (!data->name || !data->args) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-   }
-
-   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
-         __FUNCTION__, data->name, data->argsSize);
-
-   /*
-    * Deserialize the XDR data. Note that the data begins with args + 1 since
-    * there is a space between the RPC name and the XDR serialization.
-    */
-   if (!XdrUtil_Deserialize((char *)data->args + 1, data->argsSize - 1,
-                            xdr_UnityWindowContentsRequest, &requestMsg)) {
-      Debug("%s: Failed to deserialize data\n", __FUNCTION__);
-      ret = RPCIN_SETRETVALS(data, "Failed to deserialize data.", FALSE);
-      goto exit;
-   }
-
-   if (requestMsg.ver != UNITY_WINDOW_CONTENTS_V1) {
-      Debug("%s: Unexpected XDR version = %d\n", __FUNCTION__, requestMsg.ver);
-      goto exit;
-   }
-
-   requestV1 = requestMsg.UnityWindowContentsRequest_u.requestV1;
-
-   /*
-    * Call the platform implementation of the RPC handler.
-    */
-   if (!UnityPlatformRequestWindowContents(unity.up,
-                                           requestV1->windowID.windowID_val,
-                                           requestV1->windowID.windowID_len)) {
-      ret = RPCIN_SETRETVALS(data, "Invalid list of windows.", FALSE);
-      goto exit;
-   }
-
-   ret = RPCIN_SETRETVALS(data,
-                          "",
-                          TRUE);
-exit:
-   VMX_XDR_FREE(xdr_UnityWindowContentsRequest, &requestMsg);
-
-   return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityUpdateState --
- *
- *     Communicate unity state changes to vmx.
- *
- * Results:
- *     TRUE if everything is successful.
- *     FALSE otherwise.
- *
- * Side effects:
- *     None.
- *
- *----------------------------------------------------------------------------
- */
-
-static Bool
-UnityUpdateState(void)
-{
-   Bool ret = TRUE;
-   XDR xdrs;
-   UnityActiveProto message;
-   char *val;
-
-   if (DynXdr_Create(&xdrs) == NULL) {
-      return FALSE;
-   }
-
-   val = Str_Asprintf(NULL, "%s ", UNITY_RPC_UNITY_ACTIVE);
-   if (!val || !DynXdr_AppendRaw(&xdrs, val, strlen(val))) {
-      Debug("%s: Failed to create state string.\n", __FUNCTION__);
-      ret = FALSE;
-      goto out;
-   }
-   memset(&message, 0, sizeof message);
-   message.ver = UNITY_ACTIVE_V1;
-   message.UnityActiveProto_u.unityActive = unity.isEnabled;
-   if (!xdr_UnityActiveProto(&xdrs, &message)) {
-      Debug("%s: Failed to append message content.\n", __FUNCTION__);
-      ret = FALSE;
-      goto out;
-   }
-
-   if (!RpcOut_SendOneRaw(DynXdr_Get(&xdrs), xdr_getpos(&xdrs), NULL, NULL)) {
-      Debug("%s: Failed to send Unity state RPC.\n", __FUNCTION__);
-      ret = FALSE;
-   } else {
-      Debug("%s: success\n", __FUNCTION__);
-   }
-out:
-   free(val);
-   DynXdr_Destroy(&xdrs, TRUE);
-   return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityXdrRequestOperation --
- *
- *    XDR encoder function for UnityRequestOperation.
- *
- *    See UnityXdrSendRpc().
- *
- * Results:
- *    Returns true if the XDR struct was encoded successfully.
- *
- * Side-effects:
- *    None.
- *------------------------------------------------------------------------------
- */
-
 Bool
-UnityXdrRequestOperation(XDR *xdrs,    // IN
-                         void *arg)    // IN
+Unity_RequestWindowContents(UnityWindowId windowIds[],   // IN
+                            uint32 numWindowIds)         // IN)
 {
-   ASSERT(xdrs);
-   ASSERT(arg);
-   return xdr_UnityRequestOperation(xdrs, (UnityRequestOperation *) arg);
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * UnitySendRequestMinimizeOperation --
- *
- *     Send a request for a minimize operation to the host.
- *
- * Results:
- *     TRUE if everything is successful.
- *     FALSE otherwise.
- *
- * Side effects:
- *     None.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-UnitySendRequestMinimizeOperation(UnityWindowId windowId,   // IN
-                                  uint32 sequence)          // IN
-{
-   Bool ret = FALSE;
-   UnityRequestOperation msg = { 0 };
-   UnityRequestOperationV1 v1 = { 0 };
-
-   Debug("%s: Enter.\n", __FUNCTION__);
-
-   v1.windowId = windowId;
-   v1.sequence = sequence;
-   v1.details.op = MINIMIZE;
-
-   msg.ver = UNITY_OP_V1;
-   msg.UnityRequestOperation_u.unityRequestOpV1 = &v1;
-
-   ret = UnityXdrSendRpc(UNITY_RPC_REQUEST_OPERATION,
-                         &UnityXdrRequestOperation,
-                         &msg);
-
-   Debug("%s: Exit.\n", __FUNCTION__);
-   return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnitySendWindowContents --
- *
- *     Sends the content of a window to the host, as a PNG encoded image. If the
- *     image is larger than the maximum size of a GuestMsg, this function breaks
- *     the image down into a number of chunks, then transfers each of the chunks
- *     independently. See guest_msg_def.h and unity.x.
- *
- * Results:
- *     Returns true if the image was transferred successfully.
- *
- * Side effects:
- *     None.
- *
- *------------------------------------------------------------------------------
- */
-
-Bool
-UnitySendWindowContents(UnityWindowId windowID, // IN
-                        uint32 imageWidth,      // IN
-                        uint32 imageHeight,     // IN
-                        const char *imageData,  // IN
-                        uint32 imageLength)     // IN
-{
-   Bool ret = FALSE;
-   uint32 count = 0;                /* count of chunks sent */
-   uint32 len = 0;                  /* length of the next chunk */
-   const char *readptr = imageData; /* pointer to start of next chunk in imageData */
-
-   ASSERT(imageWidth > 0);
-   ASSERT(imageHeight > 0);
-   ASSERT(imageLength > 0);
-   ASSERT(imageData);
-
-   Debug("%s: Enter.\n", __FUNCTION__);
-   Debug("%s: Sending contents of window 0x%x.\n", __FUNCTION__, windowID);
-   Debug("%s: Contents are (%u x %u) image, %u bytes.\n", __FUNCTION__,
-         imageWidth, imageHeight, imageLength);
-
-   /* Send the unity.window.contents.start RPC to the host. */
-   if (!UnitySendWindowContentsStart(windowID,
-                                     imageWidth,
-                                     imageHeight,
-                                     imageLength)) {
-      goto exit;
-   }
-
-   /* Send the image data. */
-   while (imageLength > 0) {
-      /*
-       * Get the length of the next chunk to send, up to a maximum of
-       * UNITY_WINDOW_CONTENTS_MAX_CHUNK_SIZE bytes.
-       */
-      len = MIN(UNITY_WINDOW_CONTENTS_MAX_CHUNK_SIZE, imageLength);
-
-      Debug("%s: Sending chunk %u at offset 0x%p, size %u.\n", __FUNCTION__,
-            count, readptr, len);
-
-      /* Send the next chunk to the host. */
-      if (!UnitySendWindowContentsChunk(windowID, count, readptr, len)) {
-         goto exit;
-      }
-
-      count++;
-      readptr += len;
-      imageLength -= len;
-   }
-
-   /* Send the unity.window.contents.end RPC to the host. */
-   if (!UnitySendWindowContentsEnd(windowID)) {
-      goto exit;
-   }
-
-   ret = TRUE;
-
-exit:
-   return ret;
+   return UnityPlatformRequestWindowContents(unity.up, windowIds, numWindowIds);
 }
 
 
@@ -2717,276 +1209,97 @@ UnitySetDisableCompositing(Bool disabled)
 
 
 /*
- *------------------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  *
- * UnityXdrEncodeWindowContentsStart --
+ * Unity_SetConfigDesktopColor --
  *
- *    XDR encoder function for UnityWindowContentsStart.
- *
- *    See UnityXdrSendRpc().
+ *      Set the preferred desktop background color for use when in Unity Mode. Only
+ *      takes effect the next time unity mode is entered.
  *
  * Results:
- *    Returns true if the XDR struct was encoded successfully.
+ *      None.
  *
  * Side effects:
- *    None.
- *------------------------------------------------------------------------------
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
-Bool
-UnityXdrEncodeWindowContentsStart(XDR *xdrs,
-                                  void *arg)
+void
+Unity_SetConfigDesktopColor(int desktopColor)   // IN
 {
-   ASSERT(xdrs);
-   ASSERT(arg);
-   return xdr_UnityWindowContentsStart(xdrs, (UnityWindowContentsStart *) arg);
+   UnityPlatformSetConfigDesktopColor(unity.up, desktopColor);
 }
 
 
 /*
  *------------------------------------------------------------------------------
  *
- * UnitySendWindowContentsStart --
+ * Unity_SetInitialDesktop --
  *
- *    Sends the unity.window.contents.start RPC to the host.
+ *     Set a desktop specified by the desktop id as the initial state.
  *
  * Results:
- *    Returns true if the RPC was sent successfully.
+ *     Returns TRUE if successful, and FALSE otherwise.
  *
  * Side effects:
- *    None.
+ *     None.
  *
  *------------------------------------------------------------------------------
  */
 
 Bool
-UnitySendWindowContentsStart(UnityWindowId windowID, // IN
-                             uint32 imageWidth,      // IN
-                             uint32 imageHeight,     // IN
-                             uint32 imageLength)     // IN
+Unity_SetInitialDesktop(UnityDesktopId desktopId)  // IN
 {
-   Bool ret = FALSE;
-   UnityWindowContentsStart msg = { 0 };
-   UnityWindowContentsStartV1 v1 = { 0 };
-
-   Debug("%s: Enter.\n", __FUNCTION__);
-
-   v1.windowID = windowID;
-   v1.imageWidth  = imageWidth;
-   v1.imageHeight = imageHeight;
-   v1.imageLength = imageLength;
-
-   msg.ver = UNITY_WINDOW_CONTENTS_V1;
-   msg.UnityWindowContentsStart_u.startV1 = &v1;
-
-   ret = UnityXdrSendRpc(UNITY_RPC_WINDOW_CONTENTS_START,
-                         &UnityXdrEncodeWindowContentsStart,
-                         &msg);
-
-   Debug("%s: Exit.\n", __FUNCTION__);
-   return ret;
+   return UnityPlatformSetInitialDesktop(unity.up, desktopId);
 }
 
 
 /*
- *------------------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  *
- * UnityXdrEncodeWindowContentsChunk --
+ * Unity_SetForceEnable --
  *
- *    XDR encoder function for UnityWindowContentsChunk.
- *
- *    See UnityXdrSendRpc().
+ *      Set's the flag to indicate that Unity should be forced to be enabled, rather
+ *      than relying on runtime determination of the state of other dependancies.
  *
  * Results:
- *    Returns true if the XDR struct was encoded successfully.
+ *      None.
  *
- * Side-effects:
- *    None.
- *------------------------------------------------------------------------------
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
-Bool
-UnityXdrEncodeWindowContentsChunk(XDR *xdrs,
-                                  void *arg)
+void
+Unity_SetForceEnable(Bool forceEnable)   // IN
 {
-   ASSERT(xdrs);
-   ASSERT(arg);
-   return xdr_UnityWindowContentsChunk(xdrs, (UnityWindowContentsChunk *) arg);
+   unity.forceEnable = forceEnable;
 }
 
 
 /*
- *------------------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  *
- * UnitySendWindowContentsChunk --
+ * Unity_InitializeDebugger --
  *
- *    Sends a unity.window.contents.chunk RPC to the host.
- *
- * Results:
- *    Returns true if the RPC was sent successfully.
- *
- * Side effects:
- *    None.
- *
- *------------------------------------------------------------------------------
- */
-
-Bool
-UnitySendWindowContentsChunk(UnityWindowId windowID,
-                             uint32 chunkID,
-                             const char *data,
-                             uint32 len)
-{
-   Bool ret = FALSE;
-   UnityWindowContentsChunk msg = { 0 };
-   UnityWindowContentsChunkV1 v1 = { 0 };
-
-   Debug("%s: Enter.\n", __FUNCTION__);
-
-   v1.windowID = windowID;
-   v1.chunkID = chunkID;
-   v1.data.data_val = (char *) data;
-   v1.data.data_len = len;
-
-   msg.ver = UNITY_WINDOW_CONTENTS_V1;
-   msg.UnityWindowContentsChunk_u.chunkV1 = &v1;
-
-   ret = UnityXdrSendRpc(UNITY_RPC_WINDOW_CONTENTS_CHUNK,
-                         &UnityXdrEncodeWindowContentsChunk,
-                         &msg);
-
-   Debug("%s: Exit.\n", __FUNCTION__);
-   return ret;
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * UnityXdrEncodeWindowContentsEnd --
- *
- *    XDR encoder function for UnityWindowContentsEnd.
+ *      Initialize the Unity Debugger. This is a graphical display inside the guest
+ *      used to visualize the current state of the unity window tracker.
  *
  * Results:
- *    Returns true if the XDR struct was encoded successfully.
+ *      None.
  *
  * Side effects:
- *    None.
- *------------------------------------------------------------------------------
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
-Bool
-UnityXdrEncodeWindowContentsEnd(XDR *xdrs,
-                                void *arg)
+void
+Unity_InitializeDebugger(void)
 {
-   ASSERT(xdrs);
-   ASSERT(arg);
-   return xdr_UnityWindowContentsEnd(xdrs, (UnityWindowContentsEnd*) arg);
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * UnitySendWindowContentsEnd --
- *
- *    Sends a unity.window.contents.end RPC to the host.
- *
- * Results:
- *    Returns true if the RPC was sent successfully.
- *
- * Side effects:
- *    None.
- *
- *------------------------------------------------------------------------------
- */
-
-Bool
-UnitySendWindowContentsEnd(UnityWindowId windowID)
-{
-   Bool ret = FALSE;
-   UnityWindowContentsEnd msg = { 0 };
-   UnityWindowContentsEndV1 v1 = { 0 };
-
-   Debug("%s: Enter.\n", __FUNCTION__);
-
-   v1.windowID = windowID;
-
-   msg.ver = UNITY_WINDOW_CONTENTS_V1;
-   msg.UnityWindowContentsEnd_u.endV1 = &v1;
-
-   ret = UnityXdrSendRpc(UNITY_RPC_WINDOW_CONTENTS_END,
-                         &UnityXdrEncodeWindowContentsEnd,
-                         &msg);
-
-   Debug("%s: Exit.\n", __FUNCTION__);
-   return ret;
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * UnityXdrSendRpc --
- *
- *    Sends an RPC with XDR-serialized arguments to the host. The provided
- *    encodeFn will be called to perform XDR encoding of the RPC, with the XDR
- *    struct and the provided data pointer as its parameters.
- *
- * Returns:
- *    True if the RPC was sent successfully.
- *
- * Side effects:
- *    None.
- *
- *------------------------------------------------------------------------------
- */
-
-Bool
-UnityXdrSendRpc(const char *rpcName,
-                UnityXdrEncodeFunc encodeFn,
-                void *data)
-{
-   Bool ret = FALSE;
-   XDR xdrs = { 0 };
-
-   ASSERT(rpcName);
-
-   Debug("%s: Enter.\n", __FUNCTION__);
-
-   if (!DynXdr_Create(&xdrs)) {
-      Debug("%s: Failed to create DynXdr.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   if (!DynXdr_AppendRaw(&xdrs, rpcName, strlen(rpcName))) {
-      Debug("%s: Failed to append RPC name to DynXdr.\n", __FUNCTION__);
-      goto dynxdr_destroy;
-   }
-
-   if (!DynXdr_AppendRaw(&xdrs, " ", 1)) {
-      Debug("%s: Failed to append space to DynXdr.\n", __FUNCTION__);
-      goto dynxdr_destroy;
-   }
-
-   if (!(*encodeFn)(&xdrs, data)) {
-      Debug("%s: Failed to serialize RPC data.\n", __FUNCTION__);
-      goto dynxdr_destroy;
-   }
-
-   if (!RpcOut_SendOneRaw(DynXdr_Get(&xdrs), xdr_getpos(&xdrs), NULL, NULL)) {
-      Debug("%s: Failed to send RPC.\n", __FUNCTION__);
-      goto dynxdr_destroy;
-   }
-
-   ret = TRUE;
-
-dynxdr_destroy:
-   DynXdr_Destroy(&xdrs, TRUE);
-
-exit:
-   Debug("%s: Exit.\n", __FUNCTION__);
-   return ret;
+   UnityDebug_Init(&unity.tracker);
 }
 
 

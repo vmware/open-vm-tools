@@ -36,6 +36,7 @@
 #include "libExport.hh"
 #include "unityCommon.h"
 #endif
+#include "unityWindowTracker.h"
 
 /*
  * In Unity mode, all our DnD detection windows will be ignored and not displayed
@@ -72,6 +73,17 @@ typedef struct UnityPoint {
 } UnityPoint;
 
 /*
+ * Rectangle on the Unity desktop (typically relative to the Unity Desktop origin.
+  * Width & Height must be positive.
+  */
+typedef struct {
+   int x;
+   int y;
+   int width;
+   int height;
+} UnityRect;
+
+/*
  * Represents a virtual desktop configuration.
  */
 
@@ -83,26 +95,145 @@ typedef struct UnityVirtualDesktopArray {
 /* Forward reference. */
 typedef struct DesktopSwitchCallbackManager DesktopSwitchCallbackManager;
 
+/*
+ * Callback functions for outbound updates from the guest to the host.
+ * The Unity library requires these functions to be provided so that the host
+ * is correctly updated as to changes of window state (essentially relaying the
+ * Unity protocol to the host).
+ */
+
+ /*
+  * Prepares, builds and sends a sequence of Unity Window Tracker updates back
+  * to the host. flags is passed back to the UnityWindowTracker_RequestUpdates()
+  * function to set what type of updates are
+  * required - see bora/lib/public/unityWindowTracker.h
+  */
+typedef Bool (*UnityHostChannelBuildUpdateCallback)(void *param, int flags);
+
+/*
+ * Sends the provided window contents (a PNG Image) for the specified WindowID
+ * to the host. A FALSE return indicates the contents were not sent correctly.
+ */
+typedef Bool (*UnitySendWindowContentsFn)(UnityWindowId windowID,
+                                          uint32 imageWidth,
+                                          uint32 imageHeight,
+                                          const char *imageData,
+                                          uint32 imageLength);
+
+/*
+ * Notifies the host that the specified window would like to be minimized, the
+ * sequence number is returned in a subsequent confirmation.  A FALSE return indicates
+ * the contents were not sent correctly.
+ */
+typedef Bool (*UnitySendRequestMinimizeOperationFn)(UnityWindowId windowId,
+                                                    uint32 sequence);
+/*
+ * Sends a (synchronous) inquiry to the host as to whether the guest taskbar
+ * should be visible. A FALSE return indicates that the bar should not be shown,
+ * no errors are returned from this function - the default behaviour is to not show
+ * the task bar in the guest.
+ */
+typedef Bool (*UnityShouldShowTaskbarFn)(void);
+
+typedef struct UnityHostCallbacks {
+   UnityHostChannelBuildUpdateCallback buildUpdateCB;
+   UnityUpdateCallback updateCB; // From UnityWindowTracker.h
+   UnitySendWindowContentsFn sendWindowContents;
+   UnitySendRequestMinimizeOperationFn sendRequestMinimizeOperation;
+   UnityShouldShowTaskbarFn shouldShowTaskbar;
+} UnityHostCallbacks;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
 void Unity_Init(GuestApp_Dict *conf,
-                int *blockedWnd,
+                void *updateChannel,
+                UnityHostCallbacks hostCallbacks,
                 gpointer serviceObj);
 Bool Unity_IsActive(void);
 Bool Unity_IsSupported(void);
-void Unity_SetActiveDnDDetWnd(UnityDnD *state);
+Bool Unity_Enter(void);
 void Unity_Exit(void);
 void Unity_Cleanup(void);
-void Unity_RegisterCaps(void);
-void Unity_UnregisterCaps(void);
 void Unity_UnityToLocalPoint(UnityPoint *localPt, UnityPoint *unityPt);
 void Unity_LocalToUnityPoint(UnityPoint *unityPt, UnityPoint *localPt);
 void Unity_GetWindowCommandList(char ***commandList);
+
+void Unity_SetActiveDnDDetWnd(UnityDnD *state);
+
 #ifdef _WIN32
 LIB_EXPORT HWND Unity_GetHwndFromUnityId(UnityWindowId id);
 #endif
+void Unity_SetUnityOptions(uint32 newFeaturesMask);
+
+/*
+ * Retrieve window metadata, contents, icons, path to owning window.
+ */
+Bool Unity_RequestWindowContents(UnityWindowId windowIds[], uint32 numWindowIds);
+Bool Unity_GetWindowContents(UnityWindowId window,
+                             DynBuf *imageData,
+                             uint32 *width,
+                             uint32 *height);
+Bool Unity_GetIconData(UnityWindowId window,
+                       UnityIconType iconType,
+                       UnityIconSize iconSize,
+                       uint32 dataOffset,
+                       uint32 dataLength,
+                       DynBuf *imageData,
+                       uint32 *fullLength);
+Bool Unity_GetWindowPath(UnityWindowId window,
+                         DynBuf *windowPathUtf8,
+                         DynBuf *execPathUtf8);
+
+/*
+ * Desktop Appearance.
+ */
+void Unity_ShowTaskbar(Bool showTaskbar);
+void Unity_SetConfigDesktopColor(int desktopColor);
+
+/*
+ * Post a request to asynchronously retrieve Unity updates, or synchronously
+ * receive them via the updateChannel.
+ */
+void Unity_GetUpdate(Bool incremental);
+void Unity_GetUpdates(int flags);
+
+/*
+ * Virtual Desktop configuration and window location.
+ */
+Bool Unity_SetDesktopConfig(const UnityVirtualDesktopArray *desktopConfig);
+Bool Unity_SetInitialDesktop(UnityDesktopId desktopId);
+Bool Unity_SetDesktopActive(UnityDesktopId desktopId);
+Bool Unity_SetWindowDesktop(UnityWindowId windowId, UnityDesktopId desktopId);
+Bool Unity_SetDesktopWorkAreas(UnityRect workAreas[], uint32 numWorkAreas);
+Bool Unity_MoveResizeWindow(UnityWindowId window,
+                            UnityRect *moveResizeRect);
+
+/*
+ * Window state, grouping and order.
+ */
+Bool Unity_WindowCommand(UnityWindowId window, const char *command);
+Bool Unity_SetTopWindowGroup(UnityWindowId windows[], unsigned int windowCount);
+
+/*
+ * Interlocked operations.
+ */
+Bool Unity_ConfirmOperation(unsigned int operation,
+                            UnityWindowId windowId,
+                            uint32 sequence,
+                            Bool allow);
+
+/*
+ * Mouse Wheel event forwarding.
+ */
+Bool Unity_SendMouseWheel(int32 deltaX, int32 deltaY, int32 deltaZ, uint32 modifierFlags);
+
+/*
+ * Debugging aids.
+ */
+void Unity_SetForceEnable(Bool forceEnable);
+void Unity_InitializeDebugger(void);
 
 #ifdef __cplusplus
 };

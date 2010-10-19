@@ -36,9 +36,6 @@
 extern "C" {
 #endif // __cplusplus
 
-#include "vmware/tools/guestrpc.h"
-#include "rpcin.h"
-
 /*
  * Singleton object for tracking the state of the service.
  */
@@ -48,32 +45,13 @@ typedef struct UnityState {
    Bool isEnabled;
    uint32 currentOptions;                       // Last feature mask received via 'set.options'
    UnityVirtualDesktopArray virtDesktopArray;   // Virtual desktop configuration
-   UnityUpdateChannel updateChannel;            // Unity update transmission channel.
+   void *updateChannel;                // Unity update transmission channel.
+   UnityHostCallbacks hostCallbacks;   // Callbacks to the host for unity updates
    UnityPlatform *up; // Platform-specific state
    gpointer serviceObj; // 'Plugin' Host service object - used for signaling Unity state
 } UnityState;
 
 extern UnityState unity;
-
-
-RpcInRet UnityTcloEnter(RpcInData *data);
-RpcInRet UnityTcloGetUpdate(RpcInData *data);
-RpcInRet UnityTcloExit(RpcInData *data);
-RpcInRet UnityTcloGetWindowPath(RpcInData *data);
-RpcInRet UnityTcloWindowCommand(RpcInData *data);
-RpcInRet UnityTcloGetWindowContents(RpcInData *data);
-RpcInRet UnityTcloGetIconData(RpcInData *data);
-RpcInRet UnityTcloSetDesktopWorkArea(RpcInData *data);
-RpcInRet UnityTcloSetTopWindowGroup(RpcInData *data);
-RpcInRet UnityTcloShowTaskbar(RpcInData *data);
-RpcInRet UnityTcloMoveResizeWindow(RpcInData *data);
-RpcInRet UnityTcloSetDesktopConfig(RpcInData *data);
-RpcInRet UnityTcloSetDesktopActive(RpcInData *data);
-RpcInRet UnityTcloSetWindowDesktop(RpcInData *data);
-RpcInRet UnityTcloConfirmOperation(RpcInData *data);
-RpcInRet UnityTcloSetUnityOptions(RpcInData *data);
-RpcInRet UnityTcloRequestWindowContents(RpcInData *data);
-RpcInRet UnityTcloSendMouseWheel(RpcInData *data);
 
 #ifdef __cplusplus
 };

@@ -159,8 +159,8 @@ UnityPlatformIsSupported(void)
 
 UnityPlatform *
 UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
-                  UnityUpdateChannel *updateChannel,                      // IN
-                  int *blockedWnd)                                        // IN: not used
+                  void *updateChannel,                                    // IN
+                  UnityHostCallbacks hostCallbacks)                       // IN:
 {
    UnityPlatform *up;
    char *displayName;
@@ -173,6 +173,7 @@ UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
    up = Util_SafeCalloc(1, sizeof *up);
    up->tracker = tracker;
    up->updateChannel = updateChannel;
+   up->hostCallbacks = hostCallbacks;
 
    up->savedScreenSaverTimeout = -1;
 
@@ -2929,45 +2930,22 @@ void
 UnityPlatformDoUpdate(UnityPlatform *up,        // IN:
                       Bool incremental)         // IN: Incremental vs. full update
 {
+   int flags = 0;
+
    ASSERT(up);
    ASSERT(up->updateChannel);
 
-   if (!incremental) {
+   if (incremental) {
+      flags |= UNITY_UPDATE_INCREMENTAL;
+   } else {
+      /*
+       * Only update the window state for full updates. Incremental updates can be
+       * satisfied by the current state in the tracker.
+       */
       UnityPlatformUpdateWindowState(up, up->tracker);
    }
 
-   UnityWindowTracker_RequestUpdates(up->tracker,
-                                     incremental ? UNITY_UPDATE_INCREMENTAL : 0,
-                                     &up->updateChannel->updates);
-
-   /*
-    * Notify the host iff UnityWindowTracker_RequestUpdates pushed a valid
-    * update into the UpdateChannel buffer.
-    */
-   if (DynBuf_GetSize(&up->updateChannel->updates) > (up->updateChannel->cmdSize + 2)) {
-#ifdef VMX86_DEBUG
-      const char *dataBuf = DynBuf_Get(&up->updateChannel->updates);
-      size_t dataSize = DynBuf_GetSize(&up->updateChannel->updates);
-      ASSERT(dataBuf[up->updateChannel->cmdSize] != '\0');
-      ASSERT(dataBuf[dataSize - 1] == '\0');
-#endif
-
-      /* The update must be double nul terminated. */
-      DynBuf_AppendString(&up->updateChannel->updates, "");
-
-      if (!UnitySendUpdates(up->updateChannel)) {
-         /* XXX We should probably exit Unity. */
-         Debug("UPDATE TRANSMISSION FAILED! --------------------\n");
-         /*
-          * At this point, the update buffer contains a stream of updates
-          * terminated by a double nul. Rather than flush the input stream,
-          * let's "unseal" it by removing the second nul, allowing further
-          * updates to be appended and sent later.
-          */
-         DynBuf_SetSize(&up->updateChannel->updates,
-                        DynBuf_GetSize(&up->updateChannel->updates) - 1);
-      }
-   }
+   up->hostCallbacks.buildUpdateCB(up->updateChannel, flags);
 }
 
 

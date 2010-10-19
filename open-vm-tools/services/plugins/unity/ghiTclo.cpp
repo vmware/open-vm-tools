@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,15 +17,16 @@
  *********************************************************/
 
 /*
- * ghIntegration.c --
+ * ghiTclo.cpp --
  *
  *    Guest-host integration functions.
  */
 
 #include "appUtil.h"
 #include "ghIntegration.h"
-#include "ghIntegrationInt.h"
+#include "ghiTclo.h"
 
+extern "C" {
 #include "vmware.h"
 #include "vmware/tools/guestrpc.h"
 #include "debug.h"
@@ -38,51 +39,54 @@
 #include "unityCommon.h"
 #include "util.h"
 #include "xdrutil.h"
+};
 
 #include "guestrpc/ghiGetBinaryHandlers.h"
+#include "guestrpc/ghiGetExecInfoHash.h"
 #include "guestrpc/ghiProtocolHandler.h"
+#include "guestrpc/ghiSetFocusedWindow.h"
+#include "guestrpc/ghiSetGuestHandler.h"
+#include "guestrpc/ghiSetOutlookTempFolder.h"
 #include "guestrpc/ghiShellAction.h"
 #include "guestrpc/ghiStartMenu.h"
 #include "guestrpc/ghiTrayIcon.h"
+#include "guestrpc/ghiTrashFolder.h"
 #include "vmware/guestrpc/capabilities.h"
 
+static DynBuf gTcloUpdate;
 
-DynBuf gTcloUpdate;
-
-// The pointer to the platform-specific global state.
-static GHIPlatform *ghiPlatformData = NULL;
 
 /*
  *----------------------------------------------------------------------------
  *
- * GHI_IsSupported --
+ * GHITcloInit --
  *
- *     Determine whether this guest supports guest-host integration.
+ *     Initialize the global state (a Dynbuf) used to handle the TCLO parsing
+ *     and dispatch.
  *
  * Results:
- *     TRUE if the guest supports guest-host integration
- *     FALSE otherwise
+ *     None.
  *
  * Side effects:
- *     None
+ *     None.
  *
  *----------------------------------------------------------------------------
  */
 
-Bool
-GHI_IsSupported(void)
+void
+GHITcloInit()
 {
-   return GHIPlatformIsSupported();
+   DynBuf_Init(&gTcloUpdate);
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
- * GHI_RegisterCaps  --
+ * GHITcloCleanup --
  *
- *     Called by the application (VMwareUser) to allow the GHI subsystem to
- *     register its capabilities.
+ *     Cleanup the global state (a Dynbuf) used to handle the TCLO parsing
+ *     and dispatch.
  *
  * Results:
  *     None.
@@ -90,169 +94,14 @@ GHI_IsSupported(void)
  * Side effects:
  *     None.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 void
-GHI_RegisterCaps(void)
+GHITcloCleanup()
 {
-   /* Register guest platform specific capabilities. */
-   GHIPlatformRegisterCaps(ghiPlatformData);
+   DynBuf_Destroy(&gTcloUpdate);
 }
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHI_UnregisterCaps  --
- *
- *     Called by the application (VMwareUser) to allow the GHI subsystem to
- *     unregister its capabilities.
- *
- * Results:
- *     None.
- *
- * Side effects:
- *     None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-GHI_UnregisterCaps(void)
-{
-   /* Unregister guest platform specific capabilities. */
-   GHIPlatformUnregisterCaps(ghiPlatformData);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHI_Init --
- *
- *     One time initialization stuff.
- *
- * Results:
- *     None.
- *
- * Side effects:
- *     May register with the tools poll loop.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-GHI_Init(GMainLoop *mainLoop, // IN
-         const char **envp)   // IN
-{
-   Debug("%s: Enter.\n", __FUNCTION__);
-
-   // Call the platform-specific initialization function.
-   ghiPlatformData = GHIPlatformInit(mainLoop, envp);
-   if (!ghiPlatformData) {
-      // TODO: We should report this failure to the caller.
-      Debug("%s: GHIPlatformInit returned NULL pointer!\n", __FUNCTION__);
-   }
-
-   Debug("%s: Exit.\n", __FUNCTION__);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHI_Cleanup --
- *
- *     One time cleanup.
- *
- * Results:
- *     None.
- *
- * Side effects:
- *     None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-GHI_Cleanup(void)
-{
-   GHIPlatformCleanup(ghiPlatformData);
-   ghiPlatformData = NULL;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHI_Gather --
- *
- *    Collects all the desired guest/host integration mapping details for
- *    URL Protocol handling and sending an RPC to the host with the collected
- *    details. Also initializes the global application -> filetype list.
- *
- * Result
- *    None.
- *
- * Side-effects
- *    Updates the global application -> filetype list.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-GHI_Gather(void)
-{
-   GHIProtocolHandlerList protocolHandlers;
-
-   /* Get Protocol Handler information. */
-   protocolHandlers.handlers.handlers_len = 0;
-   protocolHandlers.handlers.handlers_val = NULL;
-
-   if (!GHIPlatformGetProtocolHandlers(ghiPlatformData, &protocolHandlers)) {
-      Debug("Failed to get protocol handler info.\n");
-   } else {
-      if (!GHIUpdateHost(&protocolHandlers)) {
-         Debug("Failed to update the host.\n");
-      }
-   }
-
-   VMX_XDR_FREE(xdr_GHIProtocolHandlerList, &protocolHandlers);
-
-#ifdef _WIN32
-   AppUtil_BuildGlobalApplicationList();
-#endif // _WIN32
-
-   Debug("Exited Guest/Host Integration Gather.\n");
-}
-
-
-#ifndef _WIN32
-/*
- ******************************************************************************
- * GHIX11_FindDesktopUriByExec --                                        */ /**
- *
- * Given an executable path, attempt to generate an "execUri" associated with a
- * corresponding .desktop file.
- *
- * @note Returned pointer belongs to the GHI module.  Caller must not free it.
- *
- * @param[in]  execPath Input binary path.  May be absolute or relative.
- *
- * @return Pointer to a URI string on success, NULL on failure.
- *
- ******************************************************************************
- */
-
-const char *
-GHIX11_FindDesktopUriByExec(const char *exec)
-{
-   ASSERT(ghiPlatformData);
-
-   return GHIX11FindDesktopUriByExec(ghiPlatformData, exec);
-}
-#endif // ifndef _WIN32
 
 
 /*
@@ -273,7 +122,7 @@ GHIX11_FindDesktopUriByExec(const char *exec)
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloGetBinaryInfo(RpcInData *data)        // IN/OUT
 {
    char *binaryPathUtf8;
@@ -312,7 +161,7 @@ GHITcloGetBinaryInfo(RpcInData *data)        // IN/OUT
    }
 
    DynBuf_SetSize(buf, 0);
-   if (!GHIPlatformGetBinaryInfo(ghiPlatformData, binaryPathUtf8, buf)) {
+   if (!GHI_GetBinaryInfo(binaryPathUtf8, buf)) {
       Debug("%s: Could not get binary info.\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data,
                              "Could not get binary info",
@@ -350,13 +199,14 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloGetBinaryHandlers(RpcInData *data)        // IN/OUT
 {
    char *binaryPathUtf8;
    XDR xdrs;
    unsigned int index = 0;
    Bool ret = TRUE;
+   GHIBinaryHandlersList *handlersList = NULL;
 
    /* Check our arguments. */
    ASSERT(data);
@@ -382,15 +232,90 @@ GHITcloGetBinaryHandlers(RpcInData *data)        // IN/OUT
 
    if (!binaryPathUtf8) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      ret = RPCIN_SETRETVALS(data, "Invalid arguments. Expected \"binary_path\"", FALSE);
-      goto exit;
+      return RPCIN_SETRETVALS(data, "Invalid arguments. Expected \"binary_path\"", FALSE);
    }
 
-   DynXdr_Create(&xdrs);
-   if (!GHIPlatformGetBinaryHandlers(ghiPlatformData, binaryPathUtf8, &xdrs)) {
-      ret = RPCIN_SETRETVALS(data, "Could not get binary filetypes", FALSE);
-      DynXdr_Destroy(&xdrs, FALSE);
-      goto exit;
+   handlersList = (GHIBinaryHandlersList *) Util_SafeCalloc(1, sizeof *handlersList);
+   ASSERT_MEM_ALLOC(DynXdr_Create(&xdrs));
+
+#if !defined(OPEN_VM_TOOLS)
+   FileTypeList::const_iterator fileTypeIterator;
+   FileTypeList aFileTypeList;
+
+   aFileTypeList = GHI_GetBinaryHandlers(binaryPathUtf8);
+
+   /*
+    * Take the list of filetypes handled by this application and convert it into
+    * the XDR based structure that we'll then serialize
+    */
+
+   int fileTypeCount;
+   for (fileTypeIterator = aFileTypeList.begin(), fileTypeCount = 0;
+        (fileTypeIterator != aFileTypeList.end()) &&
+         (fileTypeCount < GHI_MAX_NUM_BINARY_HANDLERS);
+        ++fileTypeIterator, ++fileTypeCount)
+   {
+      std::string extension = (*fileTypeIterator)->Extension();
+      size_t extensionStringLength = strlen(extension.c_str()) + 1;
+      std::string actionURI = (*fileTypeIterator)->GetActionURIList().front();
+      size_t actionURILength = strlen(actionURI.c_str()) + 1;
+
+      /*
+       * Copy the handlers suffix/extension string.
+       */
+      GHIBinaryHandlersDetails *aHandler = (GHIBinaryHandlersDetails *)
+                                                XDRUTIL_ARRAYAPPEND(handlersList,
+                                                                    handlers,
+                                                                    1);
+      ASSERT_MEM_ALLOC(aHandler);
+      aHandler->suffix = (char *) Util_SafeCalloc(extensionStringLength,
+                                                  sizeof *aHandler->suffix);
+      Str_Strcpy(aHandler->suffix, extension.c_str(), extensionStringLength);
+
+      /*
+       * Empty strings for all the other 'type' fields. Note that we cannot leave the
+       * string pointer as NULL, we must encode an empty string for XDR to work.
+       */
+      aHandler->mimetype = (char *) Util_SafeCalloc(1, sizeof *aHandler->mimetype);
+      aHandler->mimetype[0] = '\0';
+      aHandler->UTI = (char *) Util_SafeCalloc(1, sizeof *aHandler->UTI);
+      aHandler->UTI[0] = '\0';
+
+      /*
+       * Set the Action URI and friendly name for this type
+       */
+      GHIBinaryHandlersActionURIPair *anActionPair = (GHIBinaryHandlersActionURIPair *)
+                                                         XDRUTIL_ARRAYAPPEND(aHandler,
+                                                                             actionURIs,
+                                                                             1);
+      ASSERT_MEM_ALLOC(anActionPair);
+      anActionPair->actionURI = (char *) Util_SafeCalloc(actionURILength,
+                                                         sizeof *anActionPair->actionURI);
+      Str_Strcpy(anActionPair->actionURI, actionURI.c_str(), actionURILength);
+      anActionPair->verb = Util_SafeStrdup("run");
+
+      std::string friendlyName = (*fileTypeIterator)->FriendlyName();
+      size_t friendlyNameLength = strlen(friendlyName.c_str()) + 1;
+      aHandler->friendlyName = (char *) Util_SafeCalloc(friendlyNameLength,
+                                                        sizeof *aHandler->friendlyName);
+      Str_Strcpy(aHandler->friendlyName, friendlyName.c_str(), friendlyNameLength);
+
+      /*
+       * Store the list of icon dimensions and URIs.
+       * TODO: Retrieve the list of icons and their dimensions for this filetype.
+       */
+   }
+#endif // OPEN_VM_TOOLS
+
+   GHIBinaryHandlers message;
+   message.ver = GHI_BINARY_HANDLERS_V1;
+   message.GHIBinaryHandlers_u.handlersV1 = handlersList;
+
+   ret = xdr_GHIBinaryHandlers(&xdrs, &message);
+   if (ret == FALSE) {
+      Debug("%s: Failed to serialize binary handlers list.\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data, "Failed to serialize binary handlers list.", FALSE);
+      goto exitWithXDRCleanup;
    }
 
    /*
@@ -399,24 +324,24 @@ GHITcloGetBinaryHandlers(RpcInData *data)        // IN/OUT
     */
    if (xdr_getpos(&xdrs) > GUESTMSG_MAX_IN_SIZE) {
       ret = RPCIN_SETRETVALS(data, "Filetype list too large", FALSE);
-      DynXdr_Destroy(&xdrs, FALSE);
-      goto exit;
+      goto exitWithXDRCleanup;
    }
 
    /*
     * Write the final result into the result out parameters and return!
     */
-    data->result = DynXdr_Get(&xdrs);
+    data->result = reinterpret_cast<char *>(DynXdr_Get(&xdrs));
     data->resultLen = xdr_getpos(&xdrs);
     data->freeResult = TRUE;
     ret = TRUE;
 
+exitWithXDRCleanup:
+   VMX_XDR_FREE(xdr_GHIBinaryHandlers, &message);
     /*
      * Destroy the XDR structure but leave the data buffer alone since it will be
      * freed by the RpcIn layer.
      */
     DynXdr_Destroy(&xdrs, FALSE);
-exit:
    free(binaryPathUtf8);
    return ret;
 }
@@ -443,7 +368,7 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloOpenStartMenu(RpcInData *data)        // IN/OUT
 {
    char *rootUtf8 = NULL;
@@ -496,7 +421,7 @@ GHITcloOpenStartMenu(RpcInData *data)        // IN/OUT
    }
 
    DynBuf_SetSize(buf, 0);
-   if (!GHIPlatformOpenStartMenuTree(ghiPlatformData, rootUtf8, flags, buf)) {
+   if (!GHI_OpenStartMenuTree(rootUtf8, flags, buf)) {
       Debug("%s: Could not open start menu.\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data,
                              "Could not get start menu count",
@@ -536,7 +461,7 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloGetStartMenuItem(RpcInData *data)        // IN/OUT
 {
    DynBuf *buf = &gTcloUpdate;
@@ -578,7 +503,7 @@ GHITcloGetStartMenuItem(RpcInData *data)        // IN/OUT
    }
 
    DynBuf_SetSize(buf, 0);
-   if (!GHIPlatformGetStartMenuItem(ghiPlatformData, handle, itemIndex, buf)) {
+   if (!GHI_GetStartMenuItem(handle, itemIndex, buf)) {
       Debug("%s: Could not get start menu item.\n", __FUNCTION__);
       return RPCIN_SETRETVALS(data,
                               "Could not get start menu item",
@@ -612,7 +537,7 @@ GHITcloGetStartMenuItem(RpcInData *data)        // IN/OUT
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloCloseStartMenu(RpcInData *data)        // IN/OUT
 {
    uint32 index = 0;
@@ -642,7 +567,7 @@ GHITcloCloseStartMenu(RpcInData *data)        // IN/OUT
                               FALSE);
    }
 
-   GHIPlatformCloseStartMenuTree(ghiPlatformData, handle);
+   GHI_CloseStartMenuTree(handle);
 
    return RPCIN_SETRETVALS(data, "", TRUE);
 }
@@ -668,7 +593,7 @@ GHITcloCloseStartMenu(RpcInData *data)        // IN/OUT
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloShellOpen(RpcInData *data)    // IN/OUT
 {
    char *fileUtf8 = NULL;
@@ -704,7 +629,7 @@ GHITcloShellOpen(RpcInData *data)    // IN/OUT
                               FALSE);
    }
 
-   ret = GHIPlatformShellOpen(ghiPlatformData, fileUtf8);
+   ret = GHI_ShellOpen(fileUtf8);
    free(fileUtf8);
 
    if (!ret) {
@@ -764,12 +689,13 @@ GHITcloShellOpen(RpcInData *data)    // IN/OUT
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloShellAction(RpcInData *data)    // IN/OUT
 {
    Bool ret = TRUE;
    GHIShellAction shellActionMsg;
    GHIShellActionV1 *shellActionV1Ptr;
+   memset(&shellActionMsg, 0, sizeof shellActionMsg);
 
    /* Check our arguments. */
    ASSERT(data);
@@ -786,11 +712,11 @@ GHITcloShellAction(RpcInData *data)    // IN/OUT
    }
 
    /*
-    * Build an XDR Stream from the argument data which beings are args + 1
+    * Build an XDR Stream from the argument data which begins are args + 1
     * since there is a space separator between the RPC name and the XDR serialization.
     */
    if (!XdrUtil_Deserialize((char *)data->args + 1, data->argsSize - 1,
-                            xdr_GHIShellAction, &shellActionMsg)) {
+                            (void *)xdr_GHIShellAction, &shellActionMsg)) {
       Debug("%s: Failed to deserialize data\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data,
                              "Failed to deserialize data.",
@@ -808,23 +734,24 @@ GHITcloShellAction(RpcInData *data)    // IN/OUT
    }
 
    shellActionV1Ptr = shellActionMsg.GHIShellAction_u.actionV1;
-   ret = GHIPlatformShellAction(ghiPlatformData,
-                                shellActionV1Ptr->actionURI,
-                                shellActionV1Ptr->targetURI,
-                                (const char **)shellActionV1Ptr->locations.locations_val,
-                                shellActionV1Ptr->locations.locations_len);
-
-   VMX_XDR_FREE(xdr_GHIShellAction, &shellActionMsg);
-exit:
-
+   ret = GHI_ShellAction(shellActionV1Ptr->actionURI,
+                         shellActionV1Ptr->targetURI,
+                         (const char **)shellActionV1Ptr->locations.locations_val,
+                         shellActionV1Ptr->locations.locations_len);
    if (!ret) {
       Debug("%s: Could not perform the requested shell action.\n", __FUNCTION__);
-      return RPCIN_SETRETVALS(data,
-                              "Could not perform the requested shell action.",
-                              FALSE);
+      ret = RPCIN_SETRETVALS(data,
+                             "Could not perform the requested shell action.",
+                             FALSE);
+      goto exit;
    }
 
-   return RPCIN_SETRETVALS(data, "", TRUE);
+   ret = RPCIN_SETRETVALS(data, "", TRUE);
+
+exit:
+   VMX_XDR_FREE(xdr_GHIShellAction, &shellActionMsg);
+
+   return ret;
 }
 
 
@@ -846,7 +773,7 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloSetGuestHandler(RpcInData *data)        // IN/OUT
 {
    Bool ret = FALSE;
@@ -873,13 +800,32 @@ GHITcloSetGuestHandler(RpcInData *data)        // IN/OUT
     * since there is a space separator between the RPC name and the XDR serialization.
     */
    xdrmem_create(&xdrs, (char *) data->args + 1, data->argsSize - 1, XDR_DECODE);
-   ret = GHIPlatformSetGuestHandler(ghiPlatformData, &xdrs);
-   xdr_destroy(&xdrs);
+
+   GHISetGuestHandler setGuestHandlerMsg;
+   GHISetGuestHandlerV1 *setGuestHandlerV1Ptr;
+   GHISetGuestHandlerAction *aHandlerAction;
+
+   memset(&setGuestHandlerMsg, 0, sizeof setGuestHandlerMsg);
+   if (!xdr_GHISetGuestHandler(&xdrs, &setGuestHandlerMsg)) {
+      Debug("%s: Unable to deserialize data\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data, "Unable to deserialize data.", FALSE);
+      goto exitWithXDRCleanup;
+   }
+
+   ASSERT(setGuestHandlerMsg.ver == GHI_SET_GUEST_HANDLER_V1);
+   setGuestHandlerV1Ptr = setGuestHandlerMsg.GHISetGuestHandler_u.guestHandlerV1;
+   aHandlerAction = setGuestHandlerV1Ptr->actionURIs.actionURIs_val;
+
+   ret = GHI_SetGuestHandler(setGuestHandlerV1Ptr->suffix,
+                             setGuestHandlerV1Ptr->mimetype,
+                             setGuestHandlerV1Ptr->UTI,
+                             aHandlerAction->actionURI,
+                             aHandlerAction->targetURI);
 
    if (ret == FALSE) {
       Debug("%s: Unable to set guest handler\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data, "Unable to set guest handler", FALSE);
-      goto exit;
+      goto exitWithXDRCleanup;
    }
    /*
     * Write the final result into the result out parameters and return!
@@ -889,8 +835,10 @@ GHITcloSetGuestHandler(RpcInData *data)        // IN/OUT
     data->freeResult = FALSE;
     ret = TRUE;
 
-exit:
-    return ret;
+exitWithXDRCleanup:
+   VMX_XDR_FREE(xdr_GHISetGuestHandler, &setGuestHandlerMsg);
+   xdr_destroy(&xdrs);
+   return ret;
 }
 
 
@@ -912,7 +860,7 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloRestoreDefaultGuestHandler(RpcInData *data)        // IN/OUT
 {
    Bool ret = FALSE;
@@ -939,9 +887,23 @@ GHITcloRestoreDefaultGuestHandler(RpcInData *data)        // IN/OUT
     * since there is a space separator between the RPC name and the XDR serialization.
     */
    xdrmem_create(&xdrs, (char *) data->args + 1, data->argsSize - 1, XDR_DECODE);
-   ret = GHIPlatformRestoreDefaultGuestHandler(ghiPlatformData, &xdrs);
-   xdr_destroy(&xdrs);
 
+   GHIRestoreDefaultGuestHandler restoreMsg;
+   GHIRestoreDefaultGuestHandlerV1 *restoreV1Ptr = NULL;
+
+   memset(&restoreMsg, 0, sizeof restoreMsg);
+   if (!xdr_GHIRestoreDefaultGuestHandler(&xdrs, &restoreMsg)) {
+      Debug("%s: Unable to deserialize data\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data, "Unable to deserialize data", FALSE);
+      goto exit;
+   }
+
+   ASSERT(restoreMsg.ver == GHI_SET_GUEST_HANDLER_V1);
+   restoreV1Ptr = restoreMsg.GHIRestoreDefaultGuestHandler_u.defaultHandlerV1;
+
+   ret = GHI_RestoreDefaultGuestHandler(restoreV1Ptr->suffix,
+                                        restoreV1Ptr->mimetype,
+                                        restoreV1Ptr->UTI);
    if (ret == FALSE) {
       Debug("%s: Unable to restore guest handler\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data, "Unable to restore guest handler", FALSE);
@@ -950,13 +912,15 @@ GHITcloRestoreDefaultGuestHandler(RpcInData *data)        // IN/OUT
    /*
     * Write the final result into the result out parameters and return!
     */
-    data->result = "";
-    data->resultLen = 0;
-    data->freeResult = FALSE;
-    ret = TRUE;
+   data->result = "";
+   data->resultLen = 0;
+   data->freeResult = FALSE;
+   ret = TRUE;
 
 exit:
-    return ret;
+   xdr_destroy(&xdrs);
+   VMX_XDR_FREE(xdr_GHIRestoreDefaultGuestHandler, &restoreMsg);
+   return ret;
 }
 
 
@@ -998,9 +962,7 @@ GHILaunchMenuChangeRPC(int numFolderKeys,                // IN
    memset(&startMenuChanged, 0, sizeof startMenuChanged);
    memset(&smcv1, 0, sizeof smcv1);
 
-   if (DynXdr_Create(&xdrs) == NULL) {
-      return FALSE;
-   }
+   ASSERT_MEM_ALLOC(DynXdr_Create(&xdrs));
 
    smcv1.keys.keys_len = numFolderKeys;
    smcv1.keys.keys_val = (char **) folderKeysChanged;
@@ -1035,63 +997,6 @@ GHILaunchMenuChangeRPC(int numFolderKeys,                // IN
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * GHIUpdateHost --
- *
- *    Update the host with new guest/host integration information.
- *
- * Results:
- *    TRUE on success, FALSE on failure.
- *
- * Side effects:
- *    VMDB is updated if the given value has changed.
- *
- *-----------------------------------------------------------------------------
- */
-
-RpcInRet
-GHIUpdateHost(GHIProtocolHandlerList *handlers) // IN: type specific information
-{
-   /* +1 for the space separator */
-   char request[sizeof GHI_RPC_PROTOCOL_HANDLER_INFO + 1];
-   Bool status;
-   XDR xdrs;
-
-   ASSERT(handlers);
-
-   if (DynXdr_Create(&xdrs) == NULL) {
-      return FALSE;
-   }
-
-   Str_Sprintf(request,
-               sizeof request,
-               "%s ",
-               GHI_RPC_PROTOCOL_HANDLER_INFO);
-
-   /* Write preamble and serialized protocol handler info to XDR stream. */
-   if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
-       !xdr_GHIProtocolHandlerList(&xdrs, handlers)) {
-      Debug("%s: could not serialize protocol handler info\n", __FUNCTION__);
-      DynXdr_Destroy(&xdrs, TRUE);
-      return FALSE;
-   }
-
-   status = RpcOut_SendOneRaw(DynXdr_Get(&xdrs),
-                              xdr_getpos(&xdrs),
-                              NULL,
-                              NULL);
-   DynXdr_Destroy(&xdrs, TRUE);
-
-   if (!status) {
-      Debug("%s: failed to update protocol handler information\n",
-            __FUNCTION__);
-   }
-   return status;
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * GHITcloSetOutlookTempFolder --
@@ -1107,7 +1012,7 @@ GHIUpdateHost(GHIProtocolHandlerList *handlers) // IN: type specific information
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloSetOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
 {
    Bool ret = FALSE;
@@ -1140,15 +1045,29 @@ GHITcloSetOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
     */
    xdrmem_create(&xdrs, (char*) data->args + 1, data->argsSize - 1, XDR_DECODE);
 
+   /* Deserialize the XDR into a GHISetOutlookTempFolder struct. */
+   GHISetOutlookTempFolder folderMsg;
+   GHISetOutlookTempFolderV1 *folderV1Ptr = NULL;
+
+   memset(&folderMsg, 0, sizeof folderMsg);
+   if (!xdr_GHISetOutlookTempFolder(&xdrs, &folderMsg)) {
+      Debug("%s: Unable to deserialize data\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data, "Unable to deserialize data", FALSE);
+      goto exit;
+   }
+
+   /*
+    * Get the structure for v1 of the GHISetOutlookTempFolder XDR from the union
+    * in the GHISetOutlookTempFolder struct.
+    */
+   ASSERT(folderMsg.ver == GHI_SET_OUTLOOK_TEMP_FOLDER_V1);
+   folderV1Ptr = folderMsg.GHISetOutlookTempFolder_u.setOutlookTempFolderV1;
+
    // Call the platform implementation of our RPC.
-   ret = GHIPlatformSetOutlookTempFolder(ghiPlatformData, &xdrs);
-
-   // Destroy the XDR stream.
-   xdr_destroy(&xdrs);
-
+   ret = GHI_SetOutlookTempFolder(folderV1Ptr->targetURI);
    if (ret == FALSE) {
       Debug("%s: Failed to set Outlook temporary folder.\n", __FUNCTION__);
-      RPCIN_SETRETVALS(data, "Failed to set Outlook temporary folder", FALSE);
+      ret = RPCIN_SETRETVALS(data, "Failed to set Outlook temporary folder", FALSE);
       goto exit;
    }
 
@@ -1162,6 +1081,9 @@ GHITcloSetOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
    ret = TRUE;
 
 exit:
+   // Destroy the XDR stream.
+   xdr_destroy(&xdrs);
+   VMX_XDR_FREE(xdr_GHISetOutlookTempFolder, &folderMsg);
    Debug("%s: Exit.\n", __FUNCTION__);
    return ret;
 }
@@ -1183,34 +1105,17 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 GHITcloRestoreOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
 {
    Bool ret = FALSE;
 
    Debug("%s: Enter.\n", __FUNCTION__);
 
-   // Check our arguments. Note that this RPC doesn't have any arguments!
-   ASSERT(data);
-   ASSERT(data->name);
-   ASSERT(data->argsSize == 0);
-
-   if (!(data && data->name && data->argsSize == 0)) {
-      Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
-         __FUNCTION__, data->name, data->argsSize);
-
-   // Call the platform implementation of our RPC.
-   ret = GHIPlatformRestoreOutlookTempFolder(ghiPlatformData);
-
-   if (ret == FALSE) {
-      Debug("%s: Failed to set Outlook temporary folder.\n", __FUNCTION__);
-      RPCIN_SETRETVALS(data, "Failed to set Outlook temporary folder", FALSE);
-      goto exit;
-   }
+   /*
+    * XXX: This RPC is no longer used/required - the RPC handler is left here
+    * for compatibility with older hosts.
+    */
 
    /*
     * We don't have any out parameters, so we write empty values into the
@@ -1221,7 +1126,6 @@ GHITcloRestoreOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
    // Set our return value and return to the caller.
    ret = TRUE;
 
-exit:
    Debug("%s: Exit.\n", __FUNCTION__);
    return ret;
 }
@@ -1236,11 +1140,10 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-RpcInRet
+gboolean
 GHITcloTrashFolderAction(RpcInData *data)
 {
    Bool ret = FALSE;
-   XDR xdrs;
 
    Debug("%s: Enter.\n", __FUNCTION__);
 
@@ -1262,24 +1165,9 @@ GHITcloTrashFolderAction(RpcInData *data)
          __FUNCTION__, data->name, data->argsSize);
 
    /*
-    * Build an XDR stream from the argument data.
-    *
-    * Note that the argument data begins with args + 1 since there is a space
-    * between the RPC name and the XDR serialization.
+    * XXX: Trash/Recycle Folder support is not used by the host at this time
+    * so we can ignore this RPC.
     */
-   xdrmem_create(&xdrs, (char*) data->args + 1, data->argsSize - 1, XDR_DECODE);
-
-   /* Call the platform implementation of our RPC. */
-   ret = GHIPlatformTrashFolderAction(ghiPlatformData, &xdrs);
-
-   /* Destroy the XDR stream. */
-   xdr_destroy(&xdrs);
-
-   if (ret == FALSE) {
-      Debug("%s: RPC failed.\n", __FUNCTION__);
-      RPCIN_SETRETVALS(data, "RPC failed", FALSE);
-      goto exit;
-   }
 
    /*
     * We don't have any out parameters, so we write empty values into the
@@ -1290,7 +1178,6 @@ GHITcloTrashFolderAction(RpcInData *data)
    /* Set our return value and return to the caller. */
    ret = TRUE;
 
-exit:
    Debug("%s: Exit.\n", __FUNCTION__);
    return ret;
 }
@@ -1304,29 +1191,49 @@ exit:
  * the Trash (aka Recycle Bin) folder changes. Currently, the only information
  * sent using this RPC is the empty/non-empty state of the Trash folder.
  *
- * @params[in] xdrs Pointer to XDR serialized arguments.
+ * @params[in] empty True if the trash folder is empty.
  *
  * @retval TRUE  The RPC was sent successfully.
  * @retval FALSE The RPC was not sent.
  */
 
 Bool
-GHISendTrashFolderStateRPC(XDR *xdrs)
+GHISendTrashFolderStateRPC(Bool empty)
 {
    Bool ret = FALSE;
    DynBuf outBuf;
 
+   GHITrashFolderStateV1 *v1ptr = NULL;
+   GHITrashFolderState msg;
+   XDR xdrs;
+
    Debug("%s: Enter.\n", __FUNCTION__);
 
-   /* Check our arguments. */
-   ASSERT(xdrs);
+   memset(&msg, 0, sizeof msg);
+   DynBuf_Init(&outBuf);
 
-   if (NULL == xdrs) {
-      Debug("%s: Invalid parameter.\n", __FUNCTION__);
+   /* Create the GHITrashFolderStateV1 structure to send. */
+   v1ptr = (GHITrashFolderStateV1*) Util_SafeMalloc(sizeof *v1ptr);
+   if (NULL == v1ptr) {
+      Debug("%s: Failed to allocate trash folder state buffer.\n", __FUNCTION__);
       goto exit;
    }
 
-   DynBuf_Init(&outBuf);
+   v1ptr->empty = empty;
+
+   /* Create the GHITrashFolderState structure to send. */
+   msg.ver = GHI_TRASH_FOLDER_STATE_V1;
+   msg.GHITrashFolderState_u.trashFolderStateV1 = v1ptr;
+   v1ptr = NULL; /* This will be freed by VMX_XDR_FREE(). */
+
+   /* Create a new DynXdr structure for this message. */
+   ASSERT_MEM_ALLOC(DynXdr_Create(&xdrs));
+
+   /* Encode the structure into our DynXdr. */
+   if (!xdr_GHITrashFolderState(&xdrs, &msg)) {
+      Debug("%s: Failed to encode XDR data.\n", __FUNCTION__);
+      goto exit;
+   }
 
    /* Append our RPC name and a space to the DynBuf. */
    if (!DynBuf_Append(&outBuf,
@@ -1342,7 +1249,7 @@ GHISendTrashFolderStateRPC(XDR *xdrs)
    }
 
    /* Append the XDR serialized data to the DynBuf. */
-   if (!DynBuf_Append(&outBuf, DynXdr_Get(xdrs), xdr_getpos(xdrs)) )
+   if (!DynBuf_Append(&outBuf, DynXdr_Get(&xdrs), xdr_getpos(&xdrs)) )
    {
       Debug("%s: Failed to append XDR serialized data to DynBuf.\n",
             __FUNCTION__);
@@ -1356,14 +1263,16 @@ GHISendTrashFolderStateRPC(XDR *xdrs)
       Debug("%s: Failed to send RPC to host!\n", __FUNCTION__);
       goto exit;
    }
-
    ret = TRUE;
 
 exit:
    DynBuf_Destroy(&outBuf);
+   DynXdr_Destroy(&xdrs, TRUE);
+   VMX_XDR_FREE(xdr_GHITrashFolderState, &msg);
    Debug("%s: Exit.\n", __FUNCTION__);
    return ret;
 }
+
 
 /**
  * @brief Return the icon for the Trash folder (aka Recycle Bin) to the host.
@@ -1377,11 +1286,10 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-RpcInRet
+gboolean
 GHITcloTrashFolderGetIcon(RpcInData *data)
 {
    Bool ret = FALSE;
-   XDR xdrs;
 
    Debug("%s: Enter.\n", __FUNCTION__);
 
@@ -1397,51 +1305,24 @@ GHITcloTrashFolderGetIcon(RpcInData *data)
    Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
          __FUNCTION__, data->name, data->argsSize);
 
-   /* Create the XDR structure we'll use for the output of the RPC. */
-   if (NULL == DynXdr_Create(&xdrs)) {
-      Debug("%s: Failed to create DynXdr structure.\n", __FUNCTION__);
-      RPCIN_SETRETVALS(data, "Failed to create XDR structure", FALSE);
-      goto exit;
-   }
-
-   /* Call the platform code to get the icon data. */
-   if (!GHIPlatformTrashFolderGetIcon(ghiPlatformData, &xdrs)) {
-      Debug("%s: Failed to get Trash folder icon.\n", __FUNCTION__);
-      RPCIN_SETRETVALS(data, "Failed to get Trash folder icon", FALSE);
-      goto exit;
-   }
 
    /*
-    * If the serialized data exceeds our maximum message size we have little
-    * choice but to fail the request and log the oversize message.
-    *
-    * XXX Shouldn't the RPC layer enforce the maximum message size?
+    * XXX: Trash/Recycle Folder support is not used by the host at this time
+    * so we can ignore this RPC.
     */
-   if (xdr_getpos(&xdrs) > GUESTMSG_MAX_IN_SIZE) {
-      Debug("%s: Maximum message size exceeced! Got %d bytes of icon data.\n",
-            __FUNCTION__, xdr_getpos(&xdrs));
-      RPCIN_SETRETVALS(data, "Trash folder icon too large", FALSE);
-      goto exit;
-   }
 
    /*
     * Write the result into the RPC out parameters.
     */
-   data->result = DynXdr_Get(&xdrs);
-   data->resultLen = xdr_getpos(&xdrs);
-   data->freeResult = TRUE;
+   RPCIN_SETRETVALS(data, "", FALSE);
 
    ret = TRUE;
 
 exit:
-   /*
-    * If we were successful, then don't free the contents of the DynXdr; the
-    * buffer will be freed by the RPC layer.
-    */
-   DynXdr_Destroy(&xdrs, !ret);
    Debug("%s: Exit.\n", __FUNCTION__);
    return ret;
 }
+
 
 /**
  * @brief Send a mouse or keyboard event to a tray icon.
@@ -1452,13 +1333,14 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-RpcInRet
+gboolean
 GHITcloTrayIconSendEvent(RpcInData *data)
 {
    Bool ret = FALSE;
    GHITrayIconEventV1 *v1ptr = NULL;
    GHITrayIconEvent eventMsg;
 
+   memset(&eventMsg, 0, sizeof eventMsg);
    Debug("%s: Enter.\n", __FUNCTION__);
 
    /* Check our arguments. */
@@ -1468,7 +1350,7 @@ GHITcloTrayIconSendEvent(RpcInData *data)
 
    if (!(data && data->name && data->argsSize > 0)) {
       Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      goto exit;
+      return FALSE;
    }
 
    Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
@@ -1479,27 +1361,19 @@ GHITcloTrayIconSendEvent(RpcInData *data)
     * there is a space between the RPC name and the XDR serialization.
     */
    if (!XdrUtil_Deserialize((char *)data->args + 1, data->argsSize - 1,
-                            xdr_GHITrayIconEvent, &eventMsg)) {
+                            (void *)xdr_GHITrayIconEvent, &eventMsg)) {
       Debug("%s: Failed to deserialize data\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data, "Failed to deserialize data.", FALSE);
       goto exit;
    }
-
    ASSERT(eventMsg.ver == GHI_TRAY_ICON_EVENT_V1);
-   if (eventMsg.ver != GHI_TRAY_ICON_EVENT_V1) {
-      Debug("%s: Unexpected XDR version = %d\n", __FUNCTION__, eventMsg.ver);
-      ret = RPCIN_SETRETVALS(data, "Unexpected XDR version.", FALSE);
-      goto exit;
-   }
-
    v1ptr = eventMsg.GHITrayIconEvent_u.trayIconEventV1;
 
    /* Call the platform implementation of our RPC. */
-   ret = GHIPlatformTrayIconSendEvent(ghiPlatformData,
-                                      v1ptr->iconID,
-                                      v1ptr->event,
-                                      v1ptr->x,
-                                      v1ptr->y);
+   ret = GHI_TrayIconSendEvent(v1ptr->iconID,
+                               v1ptr->event,
+                               v1ptr->x,
+                               v1ptr->y);
 
    if (ret == FALSE) {
       Debug("%s: RPC failed.\n", __FUNCTION__);
@@ -1515,8 +1389,8 @@ GHITcloTrayIconSendEvent(RpcInData *data)
       ret = TRUE;
    }
 
-   VMX_XDR_FREE(xdr_GHITrayIconEvent, &eventMsg);
 exit:
+   VMX_XDR_FREE(xdr_GHITrayIconEvent, &eventMsg);
    Debug("%s: Exit.\n", __FUNCTION__);
    return ret;
 }
@@ -1530,7 +1404,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-RpcInRet
+gboolean
 GHITcloTrayIconStartUpdates(RpcInData *data)
 {
    Bool ret = FALSE;
@@ -1549,7 +1423,7 @@ GHITcloTrayIconStartUpdates(RpcInData *data)
    Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
          __FUNCTION__, data->name, data->argsSize);
 
-   if (!GHIPlatformTrayIconStartUpdates(ghiPlatformData)) {
+   if (!GHI_TrayIconStartUpdates()) {
       Debug("%s: Failed to start tray icon updates.\n", __FUNCTION__);
       RPCIN_SETRETVALS(data, "Failed to start tray icon updates", FALSE);
       goto exit;
@@ -1574,7 +1448,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-RpcInRet
+gboolean
 GHITcloTrayIconStopUpdates(RpcInData *data)
 {
    Bool ret = FALSE;
@@ -1593,7 +1467,7 @@ GHITcloTrayIconStopUpdates(RpcInData *data)
    Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
          __FUNCTION__, data->name, data->argsSize);
 
-   if (!GHIPlatformTrayIconStopUpdates(ghiPlatformData)) {
+   if (!GHI_TrayIconStopUpdates()) {
       Debug("%s: Failed to start tray icon updates.\n", __FUNCTION__);
       RPCIN_SETRETVALS(data, "Failed to start tray icon updates", FALSE);
       goto exit;
@@ -1671,6 +1545,7 @@ exit:
    return ret;
 }
 
+
 /**
  * @brief Set the specified window to be focused (NULL or zero window ID indicates
  * that no window should be focused).
@@ -1681,7 +1556,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-RpcInRet
+gboolean
 GHITcloSetFocusedWindow(RpcInData *data)
 {
    Bool ret = FALSE;
@@ -1709,17 +1584,37 @@ GHITcloSetFocusedWindow(RpcInData *data)
     */
    xdrmem_create(&xdrs, (char*) data->args + 1, data->argsSize - 1, XDR_DECODE);
 
-   /* Call the platform implementation of our RPC. */
-   ret = GHIPlatformSetFocusedWindow(ghiPlatformData, &xdrs);
+   GHISetFocusedWindow setFocusedWindowMsg;
+   GHISetFocusedWindowV1 *setFocusedWindowV1Ptr;
 
-   /* Destroy the XDR stream. */
-   xdr_destroy(&xdrs);
+   memset(&setFocusedWindowMsg, 0, sizeof setFocusedWindowMsg);
+   if (!xdr_GHISetFocusedWindow((XDR *)&xdrs, &setFocusedWindowMsg)) {
+      goto exitWithXDRCleanup;
+   }
+
+   ASSERT(setFocusedWindowMsg.ver == GHI_SET_FOCUSED_WINDOW_V1);
+   if (setFocusedWindowMsg.ver != GHI_SET_FOCUSED_WINDOW_V1) {
+      Debug("%s: Unexpected XDR version = %d\n", __FUNCTION__, setFocusedWindowMsg.ver);
+      ret = RPCIN_SETRETVALS(data,
+                             "Unexpected XDR version.",
+                             FALSE);
+      goto exitWithXDRCleanup;
+   }
+
+   setFocusedWindowV1Ptr = setFocusedWindowMsg.GHISetFocusedWindow_u.setFocusedWindowV1;
+
+   /* Call the platform implementation of our RPC. */
+   ret = GHI_SetFocusedWindow(setFocusedWindowV1Ptr->windowId);
 
    /*
     * Write the result into the RPC out parameters.
     */
    ret = RPCIN_SETRETVALS(data, "", TRUE);
 
+exitWithXDRCleanup:
+   /* Destroy the XDR stream. */
+   xdr_destroy(&xdrs);
+   VMX_XDR_FREE(xdr_GHISetFocusedWindow, &setFocusedWindowMsg);
 exit:
    return ret;
 }
@@ -1735,7 +1630,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-RpcInRet
+gboolean
 GHITcloGetExecInfoHash(RpcInData *data)
 {
    Bool ret = TRUE;
@@ -1768,7 +1663,7 @@ GHITcloGetExecInfoHash(RpcInData *data)
     * there is a space between the RPC name and the XDR serialization.
     */
    if (!XdrUtil_Deserialize((char *)data->args + 1, data->argsSize - 1,
-                            xdr_GHIGetExecInfoHashRequest, &requestMsg)) {
+                            (void *)xdr_GHIGetExecInfoHashRequest, &requestMsg)) {
       Debug("%s: Failed to deserialize data\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data, "Failed to deserialize data.", FALSE);
       goto error;
@@ -1786,7 +1681,7 @@ GHITcloGetExecInfoHash(RpcInData *data)
    /*
     * Call the platform implementation of the RPC handler.
     */
-   if (!GHIPlatformGetExecInfoHash(ghiPlatformData, requestV1->execPath, &execHash)) {
+   if (!GHI_GetExecInfoHash(requestV1->execPath, &execHash)) {
       ret = RPCIN_SETRETVALS(data, "Could not get executable info hash.", FALSE);
       goto exit;
    }
@@ -1798,11 +1693,7 @@ GHITcloGetExecInfoHash(RpcInData *data)
    /*
     * Serialize the result data and return.
     */
-   if (NULL == DynXdr_Create(&xdrs)) {
-      Debug("%s: Failed to create DynXdr structure.\n", __FUNCTION__);
-      ret =  RPCIN_SETRETVALS(data, "Failed to create XDR structure", FALSE);
-      goto exit;
-   }
+   ASSERT_MEM_ALLOC(DynXdr_Create(&xdrs));
 
    if (!xdr_GHIGetExecInfoHashReply(&xdrs, &replyMsg)) {
       ret = RPCIN_SETRETVALS(data, "Failed to serialize data", FALSE);
@@ -1810,7 +1701,7 @@ GHITcloGetExecInfoHash(RpcInData *data)
       goto exit;
    }
 
-   data->result = DynXdr_Get(&xdrs);
+   data->result = reinterpret_cast<char *>(DynXdr_Get(&xdrs));
    data->resultLen = xdr_getpos(&xdrs);
    data->freeResult = TRUE;
 

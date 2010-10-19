@@ -35,7 +35,7 @@
 #include "vm_assert.h"
 
 
-#define MAX_DAYSLEFT     1024
+#define MAX_DAYSLEFT     4096
 
 struct timeval;
 
