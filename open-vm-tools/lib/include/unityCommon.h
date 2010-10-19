@@ -542,13 +542,17 @@ execPath ::= ? UTF-8 string uniquely identifying JUST the executable ?
    @brief       Get the start menu sub-tree for a given item
    @todo        Move this into a GHI-specific header.
    @code
-   UNITY_RPC_OPEN_LAUNCHMENU root
+   UNITY_RPC_OPEN_LAUNCHMENU root [flags]
    @endcode
-   @param[in] root      Name of sub-tree, or "" for root of start menu.
+   @param[in] root  Name of sub-tree, or "" for root of start menu.
+   @param[in] flags @ref UNITY_START_MENU_FLAG_USE_PROGRAMS_FOLDER_AS_ROOT
    @return
-   <tt>"count handle"</tt>
-   \li @c count Number of items in the sub-tree.
-   \li @c handle Opaque handle passed to @ref UNITY_RPC_GET_LAUNCHMENU_ITEM.
+@verbatim
+retval ::= count handle
+
+count  ::= ? Number of items in the sub-tree. ?
+handle ::= ? Opaque 32-bit integer used with subsequent calls to UNITY_RPC_GET_LAUNCHMENU_ITEM. ?
+@endverbatim
 
 
    @def         UNITY_RPC_GET_LAUNCHMENU_ITEM
@@ -559,7 +563,15 @@ execPath ::= ? UTF-8 string uniquely identifying JUST the executable ?
    @endcode
    @param[in] handle    Handle returned by @ref UNITY_RPC_OPEN_LAUNCHMENU.
    @param[in] index     index of the item to retrieve (zero-indexed).
-   @return Executable path corresponding to menu item as UTF-8, or ""
+   @return
+@verbatim
+retval ::= name '\0' flags '\0' shellPath '\0' localName
+
+name ::= ? Canonical item name used as a unique ID. ?
+flags ::= 0 | 1 (* 0 = leaf node, 1 = directory *)
+shellPath ::= ? Opaque executable path sent to UNITY_RPC_SHELL_OPEN. ?
+localName ::= ? Localized item name displayed by UI. ?
+@endverbatim
    @sa UNITY_RPC_SHELL_OPEN
 
 
