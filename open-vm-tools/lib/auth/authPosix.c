@@ -274,7 +274,7 @@ Auth_AuthenticateUser(const char *user,  // IN:
 
       /*
        * XXX PAM can blow away our syslog level settings so we need
-       * to call Log_Init() again before doing any more Log()s
+       * to call Log_InitEx() again before doing any more Log()s
        */
 
 #define PAM_BAIL if (pam_error != PAM_SUCCESS) { \
