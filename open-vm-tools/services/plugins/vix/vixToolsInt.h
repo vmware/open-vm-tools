@@ -29,6 +29,7 @@
 #include "vmware.h"
 #include "vix.h"
 #include "vixCommands.h"
+#include <glib.h>
 
 
 #define PROCESS_CREATOR_USER_TOKEN       ((void *)1)
@@ -85,6 +86,7 @@ void VixToolsDeinitTicketedSessionList();
 
 
 VixError VixToolsAuthenticateWithSSPI(VixCommandRequestHeader *requestMsg,
+                                      GMainLoop *eventQueue,
                                       char **resultBuffer);
 
 VixError VixToolsGetTokenHandleFromTicketID(const char *ticketID,

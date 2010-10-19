@@ -130,8 +130,12 @@ typedef enum {
    VMXNET3_CMD_GET_DID_LO,
    VMXNET3_CMD_GET_DID_HI,
    VMXNET3_CMD_GET_DEV_EXTRA_INFO,
-   VMXNET3_CMD_GET_CONF_INTR
+   VMXNET3_CMD_GET_CONF_INTR,
+   VMXNET3_CMD_GET_ADAPTIVE_RING_INFO
 } Vmxnet3_Cmd;
+
+/* Adaptive Ring Info Flags */
+#define VMXNET3_DISABLE_ADAPTIVE_RING 1
 
 /*
  *	Little Endian layout of bitfields -

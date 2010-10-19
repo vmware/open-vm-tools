@@ -99,5 +99,19 @@ compat_msleep(unsigned long msecs) // IN
 #   define compat_init_timer_deferrable(timer) init_timer(timer)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+static inline void compat_setup_timer(struct timer_list * timer,
+                                      void (*function)(unsigned long),
+                                      unsigned long data)
+{
+   timer->function = function;
+   timer->data = data;
+   init_timer(timer);
+}
+#else
+#   define compat_setup_timer(timer, function, data) \
+       setup_timer(timer, function, data)
+#endif
+
 
 #endif /* __COMPAT_TIMER_H__ */

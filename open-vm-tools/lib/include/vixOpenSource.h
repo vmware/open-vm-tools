@@ -100,6 +100,7 @@ enum {
    VIX_E_OP_NOT_SUPPORTED_ON_NON_VMWARE_VM         = 3038,
 
    VIX_E_VI_OP_NOT_SUPPORTED_ON_GUEST              = 3048,
+   VIX_E_INVALID_LOGIN_CREDENTIALS                 = 3050,
 
    /* File Errors */
    VIX_E_DIRECTORY_NOT_EMPTY                       = 20006,
@@ -245,6 +246,33 @@ typedef struct VixPropertyListImpl
 } VixPropertyListImpl;
 
 
+/*
+ * This defines what action Deserialize should take when it encounters
+ * a string that is not UTF-8.
+ */
+typedef enum VixPropertyListBadEncodingAction {
+   /*
+    * Abort the deserialization and return an error. This is the recommended
+    * value since it is the strictest; you don't have to think about how
+    * any clients or library code will handle escaped values.
+    * This should always be used when parsing property lists passing arguments
+    * to RPCs since we should be very strict in terms of actions we take
+    * based on arguments.
+    */
+   VIX_PROPERTY_LIST_BAD_ENCODING_ERROR,
+
+   /*
+    * Escape any non-UTF-8 characters in the string, add the result to the
+    * property list, and continue deserializing. This should only be used
+    * when there are likely to be applications generated non-ASCII values
+    * for the property list in question (e.g., the Tools properties sent by
+    * pre-i18n Tools) and the properties are more informative then
+    * actionable (something like the hostname of a guest, maybe).
+    */
+   VIX_PROPERTY_LIST_BAD_ENCODING_ESCAPE,
+} VixPropertyListBadEncodingAction;
+
+
 void VixPropertyList_Initialize(VixPropertyListImpl *propList);
 
 void VixPropertyList_RemoveAllWithoutHandles(VixPropertyListImpl *propList);
@@ -256,11 +284,14 @@ VixError VixPropertyList_Serialize(VixPropertyListImpl *propListImpl,
 
 VixError VixPropertyList_Deserialize(VixPropertyListImpl *propListImpl,
                                      const char *buffer,
-                                     size_t bufferSize);
+                                     size_t bufferSize,
+                                     VixPropertyListBadEncodingAction action);
  
-VixError VixPropertyList_DeserializeNoClobber(VixPropertyListImpl *propListImpl,
-                                              const char *buffer,
-                                              size_t bufferSize);
+VixError
+VixPropertyList_DeserializeNoClobber(VixPropertyListImpl *propListImpl,
+                                     const char *buffer,
+                                     size_t bufferSize,
+                                     VixPropertyListBadEncodingAction action);
 
 VixError VixPropertyList_GetString(struct VixPropertyListImpl *propList,
                                    int propertyID,
@@ -431,6 +462,19 @@ enum {
    VIX_FILE_ATTRIBUTES_READONLY        = 0x0008,
 };
 
+/*
+ * These are the propery flags for SetGuestFileAttributes request.
+ */
+
+enum {
+   VIX_FILE_ATTRIBUTE_SET_ACCESS_DATE        = 0x0001,
+   VIX_FILE_ATTRIBUTE_SET_MODIFY_DATE        = 0x0002,
+   VIX_FILE_ATTRIBUTE_SET_READONLY           = 0x0004,
+   VIX_FILE_ATTRIBUTE_SET_HIDDEN             = 0x0008,
+   VIX_FILE_ATTRIBUTE_SET_UNIX_OWNERID       = 0x0010,
+   VIX_FILE_ATTRIBUTE_SET_UNIX_GROUPID       = 0x0020,
+   VIX_FILE_ATTRIBUTE_SET_UNIX_PERMISSIONS   = 0x0040,
+};
 
 
 /*

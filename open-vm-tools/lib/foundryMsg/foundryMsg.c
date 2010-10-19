@@ -1734,7 +1734,8 @@ VixMsg_ParseGenericRequestMsg(const VixCommandGenericRequest *request,  // IN
 
       err = VixPropertyList_Deserialize(propertyList,
                                         serializedBuffer,
-                                        request->propertyListSize);
+                                        request->propertyListSize,
+                                        VIX_PROPERTY_LIST_BAD_ENCODING_ERROR);
       if (VIX_OK != err) {
          goto abort;
       }
@@ -2355,7 +2356,8 @@ __VMAutomationRequestParserGetPropertyList(const char                *caller,   
       err = __VMAutomationRequestParserGetData(caller, line, state, length,
                                                &data);
       if (VIX_OK == err) {
-         err = VixPropertyList_Deserialize(propList, data, length);
+         err = VixPropertyList_Deserialize(propList, data, length,
+                                           VIX_PROPERTY_LIST_BAD_ENCODING_ERROR);
       }
    }
 

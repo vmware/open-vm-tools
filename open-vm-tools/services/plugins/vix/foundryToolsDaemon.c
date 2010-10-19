@@ -65,6 +65,7 @@
 #include "err.h"
 #include "hostinfo.h"
 #include "guest_os.h"
+#include "guest_msg_def.h"
 #include "conf.h"
 #include "vixCommands.h"
 #include "foundryToolsDaemon.h"
@@ -88,7 +89,6 @@
 #include "vixTools.h"
 #include "vixOpenSource.h"
 
-#define GUESTMSG_MAX_IN_SIZE (64 * 1024) /* vmx/main/guest_msg.c */
 #define MAX64_DECIMAL_DIGITS 20          /* 2^64 = 18,446,744,073,709,551,616 */
 
 #if defined(linux) || defined(_WIN32)
@@ -1141,7 +1141,8 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
    char *destPtr = NULL;
    int vixPrefixDataSize = (MAX64_DECIMAL_DIGITS * 2)
                              + (sizeof(' ') * 2)
-                             + sizeof('\0');
+                             + sizeof('\0')
+                             + sizeof(' ') * 10;   // for RPC header
 
    /*
     * Our temporary buffer will be the same size as what the
@@ -1193,18 +1194,6 @@ abort:
       tcloBufferLen = tcloBufferLen - resultValueLength;
       err = VIX_E_OUT_OF_MEMORY;
    }
-
-   /*
-    * This should never happen since tcloBuffer is pretty huge.
-    * But, there is no harm in being paranoid and I don't want to
-    * find out the buffer is too small when we are halfway through
-    * formatting the response.
-    */
-   if ((32 + resultValueLength + 32) >= sizeof(tcloBuffer)) {
-      err = VIX_E_OUT_OF_MEMORY;
-      resultValueLength = 0;
-   }
-
 
    /*
     * All Foundry tools commands return results that start with a foundry error

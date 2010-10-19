@@ -696,7 +696,6 @@ struct VixMsgSetGuestFileAttributesRequest {
    VixCommandRequestHeader header;
 
    int32                  fileOptions;
-   int64                  createTime;
    int64                  accessTime;
    int64                  modificationTime;
    int32                  ownerId;
