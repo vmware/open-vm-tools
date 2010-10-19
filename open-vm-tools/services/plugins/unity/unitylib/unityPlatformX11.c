@@ -764,7 +764,7 @@ ComparePointers(const void *p1, // IN
 /*
  *----------------------------------------------------------------------------
  *
- * UnityPlatformKillHelperThreads --
+ * UnityPlatformExitUnity --
  *
  *      Tears down the Unity "running" state.
  *
@@ -778,7 +778,7 @@ ComparePointers(const void *p1, // IN
  */
 
 void
-UnityPlatformKillHelperThreads(UnityPlatform *up) // IN
+UnityPlatformExitUnity(UnityPlatform *up) // IN
 {
    UnityPlatformWindow **upwList;
    UnitySpecialWindow **uswList;
@@ -914,7 +914,7 @@ UnityX11GetWMProtocols(UnityPlatform *up) // IN
 /*
  *----------------------------------------------------------------------------
  *
- * UnityPlatformStartHelperThreads --
+ * UnityPlatformEnterUnity --
  *
  *      Start Unity running.
  *
@@ -930,7 +930,7 @@ UnityX11GetWMProtocols(UnityPlatform *up) // IN
  */
 
 Bool
-UnityPlatformStartHelperThreads(UnityPlatform *up) // IN
+UnityPlatformEnterUnity(UnityPlatform *up) // IN
 {
    ASSERT(up);
    ASSERT(up->glibSource == NULL);

@@ -337,7 +337,6 @@ Unity_SetActiveDnDDetWnd(UnityDnD *state)
  *
  *    Try to do the following:
  *    Restore system settings if needed.
- *    Kills all unity helper threads if any are running.
  *    Hide the unity dnd detection window.
  *
  * Results:
@@ -345,7 +344,6 @@ Unity_SetActiveDnDDetWnd(UnityDnD *state)
  *
  * Side effects:
  *    Restores system settings since we are exiting Unity.
- *    Kills all unity helper threads if any.
  *    Hides the unity dnd detection window if needed.
  *    Sets unity.isEnabled to FALSE
  *
@@ -373,8 +371,7 @@ Unity_Exit(void)
       /* Hide full-screen detection window for Unity DnD. */
       UnityPlatformUpdateDnDDetWnd(unity.up, FALSE);
 
-      /* Kill Unity helper threads. */
-      UnityPlatformKillHelperThreads(unity.up);
+      UnityPlatformExitUnity(unity.up);
 
       /* Restore previously saved user settings. */
       UnityPlatformRestoreSystemSettings(unity.up);
@@ -394,7 +391,6 @@ Unity_Exit(void)
  *
  *    Try to do the following:
  *    Save the system settings.
- *    Start unity helper threads.
  *    Show the unity dnd detection window.
  *
  * Results:
@@ -413,16 +409,8 @@ Unity_Enter(void)
       /* Save and disable certain user settings here. */
       UnityPlatformSaveSystemSettings(unity.up);
 
-      /* Start Unity helper threads. */
-      if (!UnityPlatformStartHelperThreads(unity.up)) {
-
-         /*
-          * If we couldn't start one or more helper threads,
-          * we cannot enter Unity. Kill all running helper
-          * threads and restore ui settings.
-          */
-
-         UnityPlatformKillHelperThreads(unity.up);
+      if (!UnityPlatformEnterUnity(unity.up)) {
+         UnityPlatformExitUnity(unity.up);
          UnityPlatformRestoreSystemSettings(unity.up);
          return FALSE;
       }
@@ -613,8 +601,7 @@ Unity_SetTopWindowGroup(UnityWindowId windows[],   // IN: array of window ids
  *      and send them to the host via the guest->host channel.
  *
  * Results:
- *      An event is posted such that the update helper thread will collect
- *      and send updates to the host.
+ *      None.
  *
  * Side effects:
  *      None.

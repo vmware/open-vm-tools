@@ -50,6 +50,8 @@ Bool UnityPlatformIsSupported(void);
 UnityPlatform *UnityPlatformInit(UnityWindowTracker *tracker,
                                  UnityHostCallbacks hostCallbacks);
 void UnityPlatformCleanup(UnityPlatform *up);
+Bool UnityPlatformEnterUnity(UnityPlatform *up);
+void UnityPlatformExitUnity(UnityPlatform *up);
 Bool UnityPlatformUpdateWindowState(UnityPlatform *up,
                                     UnityWindowTracker *tracker);
 void UnityPlatformSaveSystemSettings(UnityPlatform *up);
@@ -113,8 +115,6 @@ Bool UnityPlatformConfirmMinimizeOperation(UnityPlatform *up,
                                            uint32 sequence,
                                            Bool allow);
 Bool UnityPlatformIsUnityRunning(UnityPlatform *up);
-Bool UnityPlatformStartHelperThreads(UnityPlatform *up);
-void UnityPlatformKillHelperThreads(UnityPlatform *up);
 void UnityPlatformUnlock(UnityPlatform *up);
 void UnityPlatformLock(UnityPlatform *up);
 void UnityPlatformUpdateDnDDetWnd(UnityPlatform *up,
