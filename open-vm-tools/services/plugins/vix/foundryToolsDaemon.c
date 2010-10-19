@@ -109,8 +109,9 @@ static Bool ToolsDaemonSyncDriverThawCallback(void *clientData);
 static char *ToolsDaemonTcloGetQuotedString(const char *args,
                                             const char **endOfArg);
   
-static char * ToolsDaemonTcloGetEncodedQuotedString(const char *args,
-                                                    const char **endOfArg);
+static VixError ToolsDaemonTcloGetEncodedQuotedString(const char *args,
+                                                      const char **endOfArg,
+                                                      char **result);
 
 RpcInRet ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 
@@ -180,8 +181,19 @@ FoundryToolsDaemonRunProgram(RpcInData *data) // IN
     * may be NULL.
     */
    requestName = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
-   commandLine = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args);
-   commandLineArgs = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args);
+
+   err = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args,
+                                               &commandLine);
+   if (err != VIX_OK) {
+      goto abort;
+   }
+
+   err = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args,
+                                               &commandLineArgs);
+   if (err != VIX_OK) {
+      goto abort;
+   }
+
    credentialTypeStr = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
    obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
    directoryPath = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
@@ -548,22 +560,27 @@ ToolsDaemonTcloGetQuotedString(const char *args,      // IN
  *-----------------------------------------------------------------------------
  */
 
-static char *
+static VixError
 ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
-                                      const char **endOfArg) // OUT
+                                      const char **endOfArg, // OUT
+                                      char **result)         // OUT
 {
+   VixError err = VIX_OK;
    char *rawResultStr = NULL;
    char *resultStr = NULL;
 
    rawResultStr = ToolsDaemonTcloGetQuotedString(args, endOfArg);
    if (NULL == rawResultStr) {
-      return(NULL);
+      goto abort;
    }
 
-   resultStr = VixMsg_DecodeString(rawResultStr);
-   free(rawResultStr);
+   err = VixMsg_DecodeString(rawResultStr, &resultStr);
 
-   return resultStr;
+abort:
+   free(rawResultStr);
+   *result = resultStr;
+
+   return err;
 }
 
 

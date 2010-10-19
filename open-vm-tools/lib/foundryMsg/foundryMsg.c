@@ -472,13 +472,15 @@ static const VixCommandInfo *VixGetCommandInfoForOpCode(int opCode);
 
 static void VixMsgInitializeObfuscationMapping(void);
 
-static char *VixMsgEncodeBuffer(const uint8 *buffer,
-                                size_t bufferLength,
-                                Bool includeEncodingId);
+static VixError VixMsgEncodeBuffer(const uint8 *buffer,
+                                   size_t bufferLength,
+                                   Bool includeEncodingId,
+                                   char **result);
 
-static char *VixMsgDecodeBuffer(const char *str,
-                                Bool nullTerminateResult,
-                                size_t *bufferLength);
+static VixError VixMsgDecodeBuffer(const char *str,
+                                   Bool nullTerminateResult,
+                                   char **result,
+                                   size_t *bufferLength);
 
 
 /*
@@ -1024,10 +1026,12 @@ VixMsgInitializeObfuscationMapping(void)
  *-----------------------------------------------------------------------------
  */
 
-char *
+VixError
 VixMsg_ObfuscateNamePassword(const char *userName,      // IN
-                             const char *password)      // IN
+                             const char *password,      // IN
+                             char **result)             // OUT
 {
+   VixError err = VIX_OK;
    char *packedBuffer = NULL;
    char *resultString = NULL;
    char *destPtr;
@@ -1045,7 +1049,12 @@ VixMsg_ObfuscateNamePassword(const char *userName,      // IN
     * Leave space for null terminating characters.
     */
    packedBufferLength = nameLength + 1 + passwordLength + 1;
-   packedBuffer = Util_SafeMalloc(packedBufferLength);
+   packedBuffer = VixMsg_MallocClientData(packedBufferLength);
+   if (packedBuffer == NULL) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
    destPtr = packedBuffer;
    if (NULL != userName) {
       Str_Strcpy(destPtr, userName, nameLength + 1);
@@ -1058,11 +1067,20 @@ VixMsg_ObfuscateNamePassword(const char *userName,      // IN
    }
    *(destPtr++) = 0;
 
-   resultString = VixMsgEncodeBuffer(packedBuffer, packedBufferLength, FALSE);
+   err = VixMsgEncodeBuffer(packedBuffer, packedBufferLength, FALSE,
+                            &resultString);
+   if (err != VIX_OK) {
+      goto abort;
+   }
 
+abort:
    Util_ZeroFree(packedBuffer, packedBufferLength);
 
-   return(resultString);
+   if (err == VIX_OK) {
+      *result = resultString;
+   }
+
+   return err;
 } // VixMsg_ObfuscateNamePassword
 
 
@@ -1075,7 +1093,7 @@ VixMsg_ObfuscateNamePassword(const char *userName,      // IN
  *      See the notes for that procedure.
  *
  * Results:
- *      Bool. TRUE on success, FALSE otherwise.
+ *      VixError. VIX_OK if successful.
  *
  * Side effects:
  *      None.
@@ -1083,36 +1101,55 @@ VixMsg_ObfuscateNamePassword(const char *userName,      // IN
  *-----------------------------------------------------------------------------
  */
 
-Bool
+VixError
 VixMsg_DeObfuscateNamePassword(const char *packagedName,   // IN
                                char **userNameResult,      // OUT
                                char **passwordResult)      // OUT
 {
-   Bool success = FALSE;
+   VixError err;
    char *packedString = NULL;
    char *srcPtr;
    size_t packedStringLength;
+   char *userName = NULL;
+   char *passwd = NULL;
 
-   packedString = VixMsgDecodeBuffer(packagedName, FALSE, &packedStringLength);
-   if (NULL == packedString) {
+   err = VixMsgDecodeBuffer(packagedName, FALSE,
+                            &packedString, &packedStringLength);
+   if (err != VIX_OK) {
       goto abort;
    }
 
    srcPtr = packedString;
    if (NULL != userNameResult) {
-      *userNameResult = Util_SafeStrdup(srcPtr);
+      Bool allocateFailed;
+      userName = VixMsg_StrdupClientData(srcPtr, &allocateFailed);
+      if (allocateFailed) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
    }
    srcPtr = srcPtr + strlen(srcPtr);
    srcPtr++;
    if (NULL != passwordResult) {
-      *passwordResult = Util_SafeStrdup(srcPtr);
+      Bool allocateFailed;
+      passwd = VixMsg_StrdupClientData(srcPtr, &allocateFailed);
+      if (allocateFailed) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
    }
-   success = TRUE;
+
+   *userNameResult = userName;
+   userName = NULL;
+   *passwordResult = passwd;
+   passwd = NULL;
 
 abort:
    Util_ZeroFree(packedString, packedStringLength);
+   Util_ZeroFreeString(userName);
+   Util_ZeroFreeString(passwd);
 
-   return(success);
+   return err;
 } // VixMsg_DeObfuscateNamePassword
 
 
@@ -1135,14 +1172,15 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-char *
-VixMsg_EncodeString(const char *str)  // IN
+VixError
+VixMsg_EncodeString(const char *str,  // IN
+                    char **result)    // OUT
 {
    if (NULL == str) {
       str = "";
    }
 
-   return VixMsgEncodeBuffer(str, strlen(str), TRUE);
+   return VixMsgEncodeBuffer(str, strlen(str), TRUE, result);
 } // VixMsg_EncodeString
 
 
@@ -1165,11 +1203,13 @@ VixMsg_EncodeString(const char *str)  // IN
  *-----------------------------------------------------------------------------
  */
 
-char *
+VixError
 VixMsgEncodeBuffer(const uint8 *buffer,     // IN
                    size_t bufferLength,     // IN
-                   Bool includeEncodingId)  // IN: Add 'a' (ASCII) at start of output
+                   Bool includeEncodingId,  // IN: Add 'a' (ASCII) at start of output
+                   char ** result)          // OUT
 {
+   VixError err = VIX_OK;
    char *base64String = NULL;
    char *resultString = NULL;
    size_t resultBufferLength = 0;
@@ -1180,12 +1220,18 @@ VixMsgEncodeBuffer(const uint8 *buffer,     // IN
    
    base64Length = Base64_EncodedLength((uint8 const *) buffer,
                                        bufferLength);
-   base64String = Util_SafeMalloc(base64Length);
+   base64String = VixMsg_MallocClientData(base64Length);
+   if (base64String == NULL) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
    if (!(Base64_Encode((uint8 const *) buffer,
                        bufferLength,
                        base64String, 
                        base64Length,
                        &base64Length))) {
+      err = VIX_E_FAIL;
       goto abort;
    }
 
@@ -1199,7 +1245,12 @@ VixMsgEncodeBuffer(const uint8 *buffer,     // IN
       resultBufferLength++;
    }
 
-   resultString = Util_SafeMalloc(resultBufferLength + 1);
+   resultString = VixMsg_MallocClientData(resultBufferLength + 1);
+   if (resultString == NULL) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
    destPtr = resultString;
    srcPtr = base64String;
    endSrcPtr = base64String + base64Length;
@@ -1233,7 +1284,11 @@ VixMsgEncodeBuffer(const uint8 *buffer,     // IN
 abort:
    free(base64String);
 
-   return resultString;
+   if (err == VIX_OK) {
+      *result = resultString;
+   }
+
+   return err;
 } // VixMsgEncodeBuffer
 
 /*
@@ -1245,7 +1300,7 @@ abort:
  *       See the notes for that procedure.
  *
  * Results:
- *      A pointer to the decoded string, or NULL on failure.
+ *      VixError. VIX_OK if successful.
  *
  * Side effects:
  *      None.
@@ -1253,18 +1308,20 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-char *
-VixMsg_DecodeString(const char *str)   // IN
+VixError
+VixMsg_DecodeString(const char *str,   // IN
+                    char **result)     // OUT
 {
    /*
     * Check the character set. 
     *   'a' means ASCII.
     */
    if ((NULL == str) || ('a' != *str)) {
-      return(NULL);
+      *result = NULL;
+      return VIX_E_INVALID_ARG;
    }
 
-   return VixMsgDecodeBuffer(str + 1, TRUE, NULL);
+   return VixMsgDecodeBuffer(str + 1, TRUE, result, NULL);
 } // VixMsg_DecodeString
 
 
@@ -1277,7 +1334,7 @@ VixMsg_DecodeString(const char *str)   // IN
  *      See the notes for that procedure.
  *
  * Results:
- *      A pointer to the decoded string, or NULL on failure.
+ *      VixError. VIX_OK if successful.
  *
  * Side effects:
  *      None.
@@ -1285,17 +1342,20 @@ VixMsg_DecodeString(const char *str)   // IN
  *-----------------------------------------------------------------------------
  */
 
-char *
+VixError
 VixMsgDecodeBuffer(const char *str,           // IN
                    Bool nullTerminateResult,  // OUT
+                   char **result,             // OUT
                    size_t *bufferLength)      // OUT: Optional
 {
+   VixError err = VIX_OK;
    char *base64String = NULL;
    char *resultStr = NULL;
    char *srcPtr;
    char *destPtr;
    size_t resultStrAllocatedLength;
    size_t resultStrLogicalLength;
+   Bool allocateFailed;
 
    if (NULL != bufferLength) {
       *bufferLength = 0;
@@ -1306,7 +1366,11 @@ VixMsgDecodeBuffer(const char *str,           // IN
     * Do this in a private copy because we will change the string in place.
     */
    VixMsgInitializeObfuscationMapping();
-   base64String = Util_SafeStrdup(str);
+   base64String = VixMsg_StrdupClientData(str, &allocateFailed);
+   if (allocateFailed) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
    destPtr = base64String;
    srcPtr = base64String;
 
@@ -1362,7 +1426,11 @@ VixMsgDecodeBuffer(const char *str,           // IN
 abort:
    free(base64String);
 
-   return(resultStr);
+   if (err == VIX_OK) {
+      *result = resultStr;
+   }
+
+   return err;
 } // VixMsgDecodeBuffer
 
 
@@ -1846,6 +1914,70 @@ __VMAutomationValidateString(const char  *caller,              // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * __VMAutomationValidateStringInBuffer --
+ *
+ *      Verifies that string at specified address is NUL terminated within
+ *      specified number of bytes, and is valid UTF-8.
+ *      String does not have to occupy the entire buffer.
+ *
+ * Results:
+ *      VixError.  VIX_OK on success.
+ *      Some other VIX_* code if message is malformed.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+__VMAutomationValidateStringInBuffer(const char  *caller,              // IN
+                                     unsigned int line,                // IN
+                                     const char  *buffer,              // IN
+                                     size_t       available,           // IN
+                                     size_t      *strLen)              // IN
+{
+   size_t stringLength;
+
+   /*
+    * NUL terminated string needs at least one byte - NUL one.
+    */
+   if (available < 1) {
+      Log("%s(%u): Message body too short to contain string.\n", caller, line);
+      return VIX_E_INVALID_MESSAGE_BODY;
+   }
+
+   /*
+    * Reject message if there is no NUL before request end.  There must
+    * be one...
+    */
+
+   stringLength = Str_Strlen(buffer, available);
+   *strLen = stringLength;
+
+   if (stringLength >= available) {
+      Log("%s(%u): Variable string is not NUL terminated "
+          "before message end.\n", caller, line);
+      return VIX_E_INVALID_MESSAGE_BODY;
+   }
+
+   /*
+    * If string is not UTF-8, reject it.  We do not want to pass non-UTF-8
+    * strings through vmx bowels - they could hit some ASSERT somewhere...
+    */
+
+   if (!Unicode_IsBufferValid(buffer, stringLength, STRING_ENCODING_UTF8)) {
+      Log("%s(%u): Variable string is not an UTF8 string.\n", caller, line);
+      return VIX_E_INVALID_UTF8_STRING;
+   }
+
+   return VIX_OK;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * __VMAutomationRequestParserInit --
  * VMAutomationRequestParserInit --
  *
@@ -2056,12 +2188,87 @@ __VMAutomationRequestParserGetOptionalString(const char                *caller, 
       if (VIX_OK != err) {
          return err;
       }
-      Log("%s(%u): Retrieved fixed string \"%s\".\n", caller, line, string);
       *result = string;
    } else {
       *result = NULL;
    }
    return VIX_OK;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMAutomationRequestParserGetOptionalStrings --
+ * __VMAutomationRequestParserGetOptionalStrings --
+ *
+ *      Fetches an array of strings from the request.  Length includes the
+ *      terminating NUL byte of each string.
+ *
+ * Results:
+ *      VixError.  VIX_OK on success.
+ *      Some other VIX_* code if message is malformed.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+__VMAutomationRequestParserGetOptionalStrings(const char *caller,   // IN
+                                              unsigned int line,    // IN
+                                VMAutomationRequestParser *state,   // IN/OUT
+                                              uint32 count,         // IN
+                                              size_t length,        // IN
+                                              const char **result) // OUT
+{
+   VixError err = VIX_OK;
+   const char *buffer;
+   const char *theResult;
+   int i;
+   size_t strLen;
+
+   if (0 == count) {
+      *result = NULL;
+      goto abort;
+   }
+
+   err = __VMAutomationRequestParserGetData(caller, line, state, length,
+                                            &buffer);
+   if (VIX_OK != err) {
+      return err;
+   }
+
+   theResult = buffer;
+
+   for (i = 0; i < count; ++i) {
+      err = __VMAutomationValidateStringInBuffer(caller, line,
+                                                 buffer, length, &strLen);
+      if (VIX_OK != err) {
+         return err;
+      }
+      ASSERT(strLen < length);
+      buffer += (strLen + 1);
+      length -= (strLen + 1);
+   }
+
+   /*
+    * If string is shorter than expected, complain.  Maybe it is too strict,
+    * but clients seems to not send malformed messages, so keep doing this.
+    */
+
+   if (length != 0) {
+      Log("%s(%u): Retrieved an array of string with trailing garbage.\n",
+          caller, line);
+      return VIX_E_INVALID_MESSAGE_BODY;
+   }
+
+   *result = theResult;
+
+abort:
+
+   return err;
 }
 
 

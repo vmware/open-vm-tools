@@ -130,22 +130,30 @@ ToolsDaemonTcloGetQuotedString(const char *args,
  * @return An allocated string.
  */
 
-static char *
-ToolsDaemonTcloGetEncodedQuotedString(const char *args,
-                                      const char **endOfArg)
+static VixError
+ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
+                                      const char **endOfArg, // OUT
+                                      char **result)         // OUT
 {
+   VixError err = VIX_OK;
    char *rawResultStr = NULL;
    char *resultStr = NULL;
 
    rawResultStr = ToolsDaemonTcloGetQuotedString(args, endOfArg);
    if (NULL == rawResultStr) {
-      return(NULL);
+      goto abort;
    }
 
-   resultStr = VixMsg_DecodeString(rawResultStr);
-   free(rawResultStr);
+   err = VixMsg_DecodeString(rawResultStr, &resultStr);
+   if (err != VIX_OK) {
+      goto abort;
+   }
 
-   return resultStr;
+abort:
+   free(rawResultStr);
+   *result = resultStr;
+
+   return err;
 }
 
 
@@ -175,7 +183,10 @@ VixUserOpenUrl(RpcInData *data)
    /*
     * Parse the arguments
     */
-   url = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args);
+   err = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args, &url);
+   if (err != VIX_OK) {
+      goto abort;
+   }
    windowState = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
    // These parameters at the end are optional, so they may be NULL.
    credentialTypeStr = ToolsDaemonTcloGetQuotedString(data->args, &data->args);

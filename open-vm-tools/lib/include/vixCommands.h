@@ -2461,16 +2461,17 @@ VixError VixMsg_ParseWriteVariableRequest(VixMsgWriteVariableRequest *msg,
                                           char **valueName,
                                           char **value);
 
-char *VixMsg_ObfuscateNamePassword(const char *userName,
-                                   const char *password);
+VixError VixMsg_ObfuscateNamePassword(const char *userName,
+                                      const char *password,
+                                      char **result);
 
-Bool VixMsg_DeObfuscateNamePassword(const char *packagedName,
-                                    char **userNameResult,
-                                    char **passwordResult);
+VixError VixMsg_DeObfuscateNamePassword(const char *packagedName,
+                                        char **userNameResult,
+                                        char **passwordResult);
 
-char *VixMsg_EncodeString(const char *str);
+VixError VixMsg_EncodeString(const char *str, char **result);
 
-char *VixMsg_DecodeString(const char *str);
+VixError VixMsg_DecodeString(const char *str, char **result);
 
 Bool VixMsg_ValidateCommandInfoTable(void);
 
@@ -2539,6 +2540,18 @@ VixError __VMAutomationRequestParserGetOptionalString(const char                
                                                       VMAutomationRequestParser *state,
                                                       size_t                     length,
                                                       const char               **result);
+
+#define VMAutomationRequestParserGetOptionalStrings(state, count, length,     \
+           result)                                                            \
+   __VMAutomationRequestParserGetOptionalStrings(__FUNCTION__, __LINE__,      \
+                                                 state, count, length, result)
+VixError __VMAutomationRequestParserGetOptionalStrings
+   (const char                *caller,
+    unsigned int               line,
+    VMAutomationRequestParser *state,
+    uint32                     count,
+    size_t                     length,
+    const char               **result);
 
 #define VMAutomationRequestParserGetString(state, length, result) \
         __VMAutomationRequestParserGetString(__FUNCTION__, __LINE__, \
