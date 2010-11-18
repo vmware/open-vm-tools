@@ -273,7 +273,8 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
    ASSERT(entry);
    ASSERT(arg);
 
-   if (entry->intf_type == INTF_TYPE_ETH) {
+   if (entry->intf_type == INTF_TYPE_ETH &&
+       entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
       GuestNicV3 *nic = NULL;
       char macAddress[NICINFO_MAC_LEN];
 
