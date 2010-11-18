@@ -2023,10 +2023,15 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
    if (strcmp(fsAttrs->fsType, FS_VMFS_ON_ESX) == 0) {
       if (fsAttrs->versionNumber == 3) {
          maxFileSize = (VMFS3CONST * (uint64) fsAttrs->fileBlockSize * 1024);
-      } else {
+      } else if (fsAttrs->versionNumber >= 5) {
          /* Get ready for 64 TB on VMFS5 and perform sanity check on version */
-         ASSERT(fsAttrs->versionNumber == 5);
          maxFileSize = (uint64) 0x400000000000ULL;
+      } else {
+         Log(LGPFX" %s: Unsupported filesystem version, %u\n", __func__,
+             fsAttrs->versionNumber);
+         free(fsAttrs);
+
+         return FALSE;
       }
 
       if (fileSize <= maxFileSize && maxFileSize != -1) {
