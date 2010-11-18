@@ -2499,77 +2499,107 @@ VixError VixMsg_ParseGenericRequestMsg(const VixCommandGenericRequest *request,
                                        int *options,
                                        VixPropertyListImpl *propertyList);
 
+VixError
+VixMsg_ParseSimpleResponseWithString(const VixCommandResponseHeader *response,
+                                     const char **result);
+
 void *VixMsg_MallocClientData(size_t size);
 void *VixMsg_ReallocClientData(void *ptr, size_t size);
 char *VixMsg_StrdupClientData(const char *s, Bool *allocateFailed);
 
 /*
- * Parser state used by VMAutomationRequestParser* group of functions.
+ * Parser state used by VMAutomationMsgParser* group of functions.
  */
 typedef struct {
    const char *currentPtr;
    const char *endPtr;
-} VMAutomationRequestParser;
+} VMAutomationMsgParser;
 
-#define VMAutomationRequestParserInit(state, msg, fixedLength) \
-        __VMAutomationRequestParserInit(__FUNCTION__, __LINE__, state, msg, fixedLength)
-VixError __VMAutomationRequestParserInit(const char                    *caller,
-                                         unsigned int                   line,
-                                         VMAutomationRequestParser     *state,
-                                         const struct VixCommandRequestHeader *msg,
-                                         size_t                         fixedLength);
+/* Keep the original type name around all the old code can stay the same. */
+typedef VMAutomationMsgParser VMAutomationRequestParser;
 
-const void * VMAutomationRequestParserGetRemainingData(VMAutomationRequestParser  *state,
-                                                       size_t                     *length);
 
-#define VMAutomationRequestParserGetData(state, length, result) \
-        __VMAutomationRequestParserGetData(__FUNCTION__, __LINE__, \
-                                           state, length, (const char **)result)
-VixError __VMAutomationRequestParserGetData(const char                 *caller,
-                                            unsigned int                line,
-                                            VMAutomationRequestParser  *state,
-                                            size_t                      length,
-                                            const char                **result);
+#define VMAutomationRequestParserInit VMAutomationMsgParserInitRequest
+#define VMAutomationMsgParserInitRequest(state, msg, fixedLength) \
+   __VMAutomationMsgParserInitRequest(__FUNCTION__, __LINE__, state, msg, fixedLength)
+VixError
+__VMAutomationMsgParserInitRequest(const char *caller,
+                                   unsigned int line,
+                                   VMAutomationMsgParser *state,
+                                   const struct VixCommandRequestHeader *msg,
+                                   size_t fixedLength);
 
-#define VMAutomationRequestParserGetOptionalString(state, length, result) \
-        __VMAutomationRequestParserGetOptionalString(__FUNCTION__, __LINE__, \
-                                                     state, length, result)
-VixError __VMAutomationRequestParserGetOptionalString(const char                *caller,
-                                                      unsigned int               line,
-                                                      VMAutomationRequestParser *state,
-                                                      size_t                     length,
-                                                      const char               **result);
+#define VMAutomationMsgParserInitResponse(state, msg, fixedLength) \
+   __VMAutomationMsgParserInitResponse(__FUNCTION__, __LINE__, state, msg, fixedLength)
+VixError
+__VMAutomationMsgParserInitResponse(const char *caller,
+                                    unsigned int line,
+                                    VMAutomationMsgParser *state,
+                                    const struct VixCommandResponseHeader *msg,
+                                    size_t fixedLength);
 
-#define VMAutomationRequestParserGetOptionalStrings(state, count, length,     \
+#define VMAutomationRequestParserGetRemainingData \
+   VMAutomationMsgParserGetRemainingData
+const void *
+VMAutomationMsgParserGetRemainingData(VMAutomationMsgParser *state,
+                                      size_t *length);
+
+#define VMAutomationRequestParserGetData VMAutomationMsgParserGetData
+#define VMAutomationMsgParserGetData(state, length, result) \
+   __VMAutomationMsgParserGetData(__FUNCTION__, __LINE__,               \
+                                  state, length, (const char **)result)
+VixError __VMAutomationMsgParserGetData(const char *caller,
+                                        unsigned int line,
+                                        VMAutomationMsgParser *state,
+                                        size_t length,
+                                        const char **result);
+
+#define VMAutomationRequestParserGetOptionalString \
+   VMAutomationMsgParserGetOptionalString
+#define VMAutomationMsgParserGetOptionalString(state, length, result) \
+   __VMAutomationMsgParserGetOptionalString(__FUNCTION__, __LINE__,     \
+                                            state, length, result)
+VixError __VMAutomationMsgParserGetOptionalString(const char *caller,
+                                                  unsigned int line,
+                                                  VMAutomationMsgParser *state,
+                                                  size_t length,
+                                                  const char **result);
+
+#define VMAutomationRequestParserGetOptionalStrings \
+   VMAutomationMsgParserGetOptionalStrings
+#define VMAutomationMsgParserGetOptionalStrings(state, count, length,     \
            result)                                                            \
-   __VMAutomationRequestParserGetOptionalStrings(__FUNCTION__, __LINE__,      \
-                                                 state, count, length, result)
-VixError __VMAutomationRequestParserGetOptionalStrings
-   (const char                *caller,
-    unsigned int               line,
-    VMAutomationRequestParser *state,
-    uint32                     count,
-    size_t                     length,
-    const char               **result);
+   __VMAutomationMsgParserGetOptionalStrings(__FUNCTION__, __LINE__,      \
+                                             state, count, length, result)
+VixError __VMAutomationMsgParserGetOptionalStrings
+   (const char *caller,
+    unsigned int line,
+    VMAutomationMsgParser *state,
+    uint32 count,
+    size_t length,
+    const char **result);
 
-#define VMAutomationRequestParserGetString(state, length, result) \
-        __VMAutomationRequestParserGetString(__FUNCTION__, __LINE__, \
-                                             state, length, result)
-VixError __VMAutomationRequestParserGetString(const char                *caller,
-                                              unsigned int               line,
-                                              VMAutomationRequestParser *state,
-                                              size_t                     length,
-                                              const char               **result);
+#define VMAutomationRequestParserGetString VMAutomationMsgParserGetString
+#define VMAutomationMsgParserGetString(state, length, result) \
+   __VMAutomationMsgParserGetString(__FUNCTION__, __LINE__,             \
+                                    state, length, result)
+VixError __VMAutomationMsgParserGetString(const char *caller,
+                                          unsigned int line,
+                                          VMAutomationMsgParser *state,
+                                          size_t length,
+                                          const char **result);
 
-
-#define VMAutomationRequestParserGetPropertyList(state, length, propList) \
-        __VMAutomationRequestParserGetPropertyList(__FUNCTION__, __LINE__, \
-                                                   state, length, propList)
-VixError __VMAutomationRequestParserGetPropertyList(const char                *caller,
-                                                    unsigned int               line,
-                                                    VMAutomationRequestParser *state,
-                                                    size_t                     length,
-                                                    VixPropertyListImpl       *propList);
+#define VMAutomationRequestParserGetPropertyList \
+   VMAutomationMsgParserGetPropertyList
+#define VMAutomationMsgParserGetPropertyList(state, length, propList) \
+   __VMAutomationMsgParserGetPropertyList(__FUNCTION__, __LINE__,       \
+                                          state, length, propList)
+VixError
+__VMAutomationMsgParserGetPropertyList(const char *caller,
+                                       unsigned int line,
+                                       VMAutomationMsgParser *state,
+                                       size_t length,
+                                       VixPropertyListImpl *propList);
 
 #endif   // VIX_HIDE_FROM_JAVA
 

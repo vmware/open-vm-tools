@@ -3784,8 +3784,8 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
 
    success = File_Rename(srcFilePathName, destFilePathName);
    if (!success) {
-      Debug("%s: File_Rename failed.\n", __FUNCTION__);
       err = FoundryToolsDaemon_TranslateSystemErr();
+      Debug("%s: File_Rename failed.\n", __FUNCTION__);
       goto abort;
    }
 
@@ -5381,13 +5381,13 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
          }
 
          if (!Win32U_SetFileAttributes(filePathName, fileAttr)) {
-            Debug("%s: Failed to set the file attributes\n", __FUNCTION__);
             err = FoundryToolsDaemon_TranslateSystemErr();
+            Debug("%s: Failed to set the file attributes\n", __FUNCTION__);
             goto abort;
          }
       } else {
-         Debug("%s: Failed to get the file attributes\n", __FUNCTION__);
          err = FoundryToolsDaemon_TranslateSystemErr();
+         Debug("%s: Failed to get the file attributes\n", __FUNCTION__);
          goto abort;
       }
    }
@@ -5396,8 +5396,8 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
       success = File_SetFilePermissions(filePathName,
                                         setGuestFileAttributesRequest->permissions);
       if (!success) {
-         Debug("%s: Failed to set the file permissions\n", __FUNCTION__);
          err = FoundryToolsDaemon_TranslateSystemErr();
+         Debug("%s: Failed to set the file permissions\n", __FUNCTION__);
          goto abort;
       }
    }
@@ -5409,9 +5409,9 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
          ownerId = statbuf.st_uid;
          groupId = statbuf.st_gid;
       } else {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Debug("%s: Posix_Stat(%s) failed with %d\n",
                __FUNCTION__, filePathName, errno);
-         err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }
 
@@ -5424,8 +5424,8 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
       }
 
       if (Posix_Chown(filePathName, ownerId, groupId)) {
-         Debug("%s: Failed to set the owner/group Id\n", __FUNCTION__);
          err = FoundryToolsDaemon_TranslateSystemErr();
+         Debug("%s: Failed to set the owner/group Id\n", __FUNCTION__);
          goto abort;
       }
    }
@@ -7459,9 +7459,9 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                                 &processToken);
 
       if (!retVal || !processToken) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to open process token: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
 
          goto abort;
       }
@@ -7474,9 +7474,10 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                           &processTokenInfoSize);
 
       if (ERROR_INSUFFICIENT_BUFFER != GetLastError()) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to get token info: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
+
          goto abort;
       }
 
@@ -7487,9 +7488,10 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                                processTokenInfo,
                                processTokenInfoSize,
                                &processTokenInfoSize)) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to get token info: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
+
          goto abort;
       }
 
@@ -7503,9 +7505,9 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                               &sidNameUse);
 
       if (ERROR_INSUFFICIENT_BUFFER != GetLastError()) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to lookup account sid: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }
 
@@ -7519,9 +7521,9 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                                    sidDomainName,
                                    &sidDomainNameSize,
                                    &sidNameUse)) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to lookup account sid: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
      }
 

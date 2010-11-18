@@ -1596,6 +1596,174 @@ VMGuestLib_GetHostMemUnmappedMB(VMGuestLibHandle handle,    // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * VMGuestLib_GetMemZippedMB --
+ *
+ *      Total zipped VM memory
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemZippedMB(VMGuestLibHandle handle,    // IN
+                          uint32 *memZippedMB)        // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memZippedMB, memZippedMB,
+                         GUESTLIB_MEM_ZIPPED_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemZipSavedMB --
+ *
+ *      Total memopry saved by zipping VM memory
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemZipSavedMB(VMGuestLibHandle handle,    // IN
+                            uint32 *memZipSavedMB)      // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memZipSavedMB, memZipSavedMB,
+                         GUESTLIB_MEM_ZIPSAVED_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemLLSwappedMB --
+ *
+ *      VM memory swapped to SSD
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemLLSwappedMB(VMGuestLibHandle handle,    // IN
+                             uint32 *memLLSwappedMB)     // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memLLSwappedMB, memLLSwappedMB,
+                         GUESTLIB_MEM_LLSWAPPED_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemSwapTargetMB --
+ *
+ *      VM memory swap target
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemSwapTargetMB(VMGuestLibHandle handle,    // IN
+                              uint32 *memSwapTargetMB)    // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memSwapTargetMB, memSwapTargetMB,
+                         GUESTLIB_MEM_SWAP_TARGET_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemBalloonTargetMB --
+ *
+ *      VM memory balloon target size
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemBalloonTargetMB(VMGuestLibHandle handle,    // IN
+                                 uint32 *memBalloonTargetMB) // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memBalloonTargetMB, memBalloonTargetMB,
+                         GUESTLIB_MEM_BALLOON_TARGET_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemBalloonMaxMB --
+ *
+ *      VM memory balloon limit
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemBalloonMaxMB(VMGuestLibHandle handle,    // IN
+                              uint32 *memBalloonMaxMB)    // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memBalloonMaxMB, memBalloonMaxMB,
+                         GUESTLIB_MEM_BALLOON_MAX_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VMGuestLibIoctl --
  *
  *      Marshal and invoke the guestlib ioctl.

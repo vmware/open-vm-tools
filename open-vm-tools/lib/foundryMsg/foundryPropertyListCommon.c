@@ -172,6 +172,8 @@ VixPropertyList_Serialize(VixPropertyListImpl    *propList,       // IN
    size_t bufferSize = 0;
    size_t pos = 0;
  
+   ASSERT_ON_COMPILE(PROPERTY_LENGTH_SIZE == sizeof valueLength);
+
    if ((NULL == propList) ||
        (NULL == resultSize) ||
        (NULL == resultBuffer)) {
@@ -271,7 +273,11 @@ VixPropertyList_Serialize(VixPropertyListImpl    *propList,       // IN
       property = property->next;
    }
 
-   *resultBuffer = (char*) Util_SafeCalloc(1, bufferSize);
+   *resultBuffer = (char*) VixMsg_MallocClientData(bufferSize);
+   if (NULL == *resultBuffer) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
    serializeBuffer = *resultBuffer;
 
    pos = 0;

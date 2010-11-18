@@ -116,14 +116,6 @@ typedef struct vmxnet3_rxqueue_t {
    Vmxnet3_RxQueueCtrl *sharedCtrl;
 } vmxnet3_rxqueue_t;
 
-#if 0
-enum {
-   PARAM_ACCEPT_JUMBO = 0,
-   PARAM_MTU
-   VMXNET3_PARAM_COUNT
-};
-
-#endif
 
 typedef struct vmxnet3_softc_t {
    dev_info_t          *dip;
@@ -161,7 +153,6 @@ typedef struct vmxnet3_softc_t {
    uint32_t             rxMode;
 
    vmxnet3_dmabuf_t     mfTable;
-//   caddr_t		nd_arg_p;
 } vmxnet3_softc_t;
 
 int       vmxnet3_alloc_dma_mem_1(vmxnet3_softc_t *dp, vmxnet3_dmabuf_t *dma,

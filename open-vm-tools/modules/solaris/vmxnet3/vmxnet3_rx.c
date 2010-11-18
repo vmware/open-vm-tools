@@ -16,8 +16,6 @@
 
 #include "vmxnet3_solaris.h"
 
-#define VMXNET3_RXBUF_SIZE (ETHERMTU + 18)
-
 static void vmxnet3_put_rxbuf(vmxnet3_rxbuf_t *rxBuf);
 
 /*
@@ -41,14 +39,18 @@ vmxnet3_alloc_rxbuf(vmxnet3_softc_t *dp, boolean_t canSleep)
 {
    vmxnet3_rxbuf_t *rxBuf;
    int flag = canSleep ? KM_SLEEP : KM_NOSLEEP;
+   int err;
 
    rxBuf = kmem_zalloc(sizeof(vmxnet3_rxbuf_t), flag);
    if (!rxBuf) {
       return NULL;
    }
 
-   if (vmxnet3_alloc_dma_mem_1(dp, &rxBuf->dma, VMXNET3_RXBUF_SIZE,
-                               canSleep) != DDI_SUCCESS) {
+   if ((err = vmxnet3_alloc_dma_mem_1(dp, &rxBuf->dma, (dp->cur_mtu + 18),
+                                      canSleep)) != DDI_SUCCESS) {
+
+      VMXNET3_DEBUG(dp, 0, "Failed to allocate %d bytes for rx buf, err:%d.\n",
+                    (dp->cur_mtu + 18), err);
       kmem_free(rxBuf, sizeof(vmxnet3_rxbuf_t));
       return NULL;
    }

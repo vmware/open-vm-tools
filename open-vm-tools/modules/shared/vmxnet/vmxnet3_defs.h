@@ -736,4 +736,6 @@ do {\
 
 #define VMXWIFI_DRIVER_SHARED_LEN 8192
 
+#define VMXNET3_DID_PASSTHRU    0xFFFF
+
 #endif /* _VMXNET3_DEFS_H_ */
