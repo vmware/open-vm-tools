@@ -76,8 +76,6 @@ typedef struct NetSG_Array {
    NetSG_Elem	sg[NET_SG_DEFAULT_LENGTH];
 } NetSG_Array;
 
-#define NET_SG_SIZE(len) (sizeof(NetSG_Array) + (len - NET_SG_DEFAULT_LENGTH) * sizeof(NetSG_Elem))
-
 #define NET_SG_MAKE_PA(elem)                 (PA)QWORD(elem.addrHi, elem.addrLow)
 #define NET_SG_MAKE_PTR(elem) (char *)(uintptr_t)QWORD(elem.addrHi, elem.addrLow)
 
