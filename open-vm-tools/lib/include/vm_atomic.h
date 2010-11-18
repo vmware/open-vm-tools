@@ -1780,10 +1780,11 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
 #elif defined(__GNUC__) && defined(__x86_64__)
    uint64 value;
 
+#ifdef VMM
+   ASSERT((uintptr_t)var % 8 == 0);
+#endif
    /*
-    * We have no evidence that suggests GCC will split this read into
-    * two move instructions.  However, we prefer to be defensive in
-    * light of errors seen in Atomic_Write64.
+    * Use asm to ensure we emit a single load.
     */
    __asm__ __volatile__(
       "movq %1, %0"
@@ -1836,6 +1837,35 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
 #   error No compiler defined for Atomic_Read64
 #endif
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Atomic_ReadUnaligned64 --
+ *
+ *      Atomically read a 64 bit integer, possibly misaligned.
+ *      This function can be *very* expensive, costing over 50 kcycles
+ *      on Nehalem.
+ * 
+ *      Note that "var" needs to be writable, even though it will not
+ *      be modified.
+ *
+ * Results:
+ *      The value of the atomic variable.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+#if defined(__x86_64__)
+static INLINE uint64
+Atomic_ReadUnaligned64(Atomic_uint64 const *var)
+{
+   return Atomic_ReadIfEqualWrite64((Atomic_uint64*)var, 0, 0);
+}
+#endif
 
 
 /*
@@ -2070,6 +2100,10 @@ Atomic_Write64(Atomic_uint64 *var, // IN
 {
 #if defined(__x86_64__)
 #if defined(__GNUC__)
+
+#ifdef VMM
+   ASSERT((uintptr_t)var % 8 == 0);
+#endif
    /*
     * There is no move instruction for 64-bit immediate to memory, so unless
     * the immediate value fits in 32-bit (i.e. can be sign-extended), GCC
