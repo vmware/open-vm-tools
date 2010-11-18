@@ -30,6 +30,9 @@
  * and then #undef bool. This is because Xlib has '#define Bool int', while
  * vm_basic_types.h has 'typedef char Bool;'.
  */
+
+#include "vmware/tools/unity/windowPathFactory.hh"
+
 extern "C" {
 #include <glib.h>
 #include <gdk/gdkx.h>
@@ -317,6 +320,8 @@ struct _UnityPlatform {
 
    int shapeEventBase;
    int shapeErrorBase;
+
+   vmware::tools::unity::WindowPathFactory* wpFactory;
 };
 
 /*

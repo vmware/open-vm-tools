@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,6 +39,8 @@ extern "C" {
 #include "Uri.h"
 #include "appUtil.h"
 #include "ghIntegration.h"
+
+using vmware::tools::unity::WindowPathFactory;
 
 /*
  * Utility routines
@@ -1761,9 +1763,7 @@ UnityPlatformGetWindowPath(UnityPlatform *up,        // IN: Platform data
                            DynBuf *execPathUtf8)     // IN/OUT: full path to the binary
 {
    UnityPlatformWindow *upw;
-   Bool retval = FALSE;
-   gchar *windowUri;
-   gchar *execUri;
+   bool retval = false;
 
    ASSERT(up);
 
@@ -1774,24 +1774,44 @@ UnityPlatformGetWindowPath(UnityPlatform *up,        // IN: Platform data
       return FALSE;
    }
 
-   //retval = UnityX11GetWindowPaths(up, upw, &windowUri, &execUri);
+   WindowPathFactory::WindowPathPair pathPair;
+   retval = up->wpFactory->FindByXid(upw->clientWindow ? upw->clientWindow :
+                                     upw->toplevelWindow, pathPair);
 
    if (!retval) {
       Debug("GetWindowPath didn't know how to identify the window...\n");
    } else {
+      /*
+       * FindByXid gives us 2 paths:
+       *    1.  Absolute path of executable owning the window.
+       *    2.  Desktop entry file for said application, if possible.
+       *
+       * The desktop entry references additional resources, such as icons,
+       * localized names, external launchers, etc., so it's the preferred
+       * way to refer to an application.
+       *
+       * Now, we're returning nearly the same path to our caller with one
+       * subtle difference:  one path includes a WindowXID URL parameter.
+       * Given the desktop entry or executable path returned by FindByXid,
+       * we'll just massage as needed into the caller's output DynBufs.
+       */
       Debug("GetWindowPath window %#x results in: \n"
-            "   windowUri = %s\n"
-            "   execUri = %s\n",
-            window, windowUri, execUri);
+            "   desktopEntry = %s\n"
+            "   execPath = %s\n",
+            window, pathPair.second.c_str(), pathPair.first.c_str());
 
       DynBuf_SetSize(windowPathUtf8, 0);
       DynBuf_SetSize(execPathUtf8, 0);
-      DynBuf_AppendString(windowPathUtf8, windowUri);
-      DynBuf_AppendString(execPathUtf8, execUri);
 
-      g_free(windowUri);
-      g_free(execUri);
-      retval = TRUE;
+      std::ostringstream ostr;
+      ostr << "file://";
+      ostr << (pathPair.second.empty() ? pathPair.first : pathPair.second);
+      DynBuf_AppendString(execPathUtf8, ostr.str().c_str());
+
+      ostr << "?WindowXID=" << window;
+      DynBuf_AppendString(windowPathUtf8, ostr.str().c_str());
+
+      retval = true;
    }
 
    return retval;

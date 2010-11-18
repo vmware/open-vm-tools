@@ -71,6 +71,7 @@ libunity_la_SOURCES += unitylib/unityPlatformX11.cc
 libunity_la_SOURCES += unitylib/unityPlatformX11Settings.cc
 libunity_la_SOURCES += unitylib/unityPlatformX11Window.cc
 libunity_la_SOURCES += unitylib/unityX11.h
+libunity_la_SOURCES += unitylib/windowPathFactory.cc
 libunity_la_SOURCES += unitylib/x11Event.cc
 libunity_la_SOURCES += unitylib/x11Util.cc
 

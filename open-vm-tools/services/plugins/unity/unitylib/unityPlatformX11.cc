@@ -26,12 +26,15 @@
  */
 
 #include "unityX11.h"
+
+extern "C" {
 #include "appUtil.h"
 #include "region.h"
 #include <sys/time.h>
 
 #include <X11/extensions/Xinerama.h>
 #include <X11/extensions/XTest.h>
+}
 
 typedef struct {
    Window realWindowID;
@@ -294,6 +297,8 @@ UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
    }
 #endif
 
+   up->wpFactory = new vmware::tools::unity::WindowPathFactory(up->display);
+
    return up;
 }
 
@@ -326,6 +331,8 @@ UnityPlatformCleanup(UnityPlatform *up) // IN
     */
    ASSERT(!up->isRunning);
    ASSERT(up->glibSource == NULL);
+
+   delete up->wpFactory;
 
    if (up->specialWindows) {
       HashTable_Free(up->specialWindows);
