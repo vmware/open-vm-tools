@@ -5886,7 +5886,13 @@ if (0 == *interpreterName) {
       }
    }
    if (fd < 0) {
-      err = FoundryToolsDaemon_TranslateSystemErr();
+      /*
+       * We use Posix variant function i.e. Posix_Open to create a
+       * temporary file. If Posix_Open() fails, then proper error is
+       * stuffed in errno variable. So, use Vix_TranslateErrno()
+       * to translate the errno to a proper foundry error.
+       */
+      err = Vix_TranslateErrno(errno);
       Debug("Unable to create a temporary file, errno is %d.\n", errno);
       goto abort;
    }
@@ -5903,7 +5909,7 @@ if (0 == *interpreterName) {
        * close(), but if close() succeeds it will clobber the errno, causing
        * something confusing to be reported to the user.
        */
-      err = FoundryToolsDaemon_TranslateSystemErr();
+      err = Vix_TranslateErrno(errno);
       Debug("Unable to write the script to the temporary file, errno is %d.\n", errno);
       if (close(fd) < 0) {
          Debug("Unable to close a file, errno is %d\n", errno);
@@ -5921,7 +5927,7 @@ if (0 == *interpreterName) {
        *     checking the return value when closing the file may lead to silent loss
        *     of data.  This can especially be observed with NFS and disk quotas."
        */
-      err = FoundryToolsDaemon_TranslateSystemErr();
+      err = Vix_TranslateErrno(errno);
       Debug("Unable to close a file, errno is %d\n", errno);
       goto abort;
    }
