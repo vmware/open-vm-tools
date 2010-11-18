@@ -236,17 +236,17 @@ void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
  * ESX needs more old log files for bug fixing (and vmotion).
  */
 
-#ifdef VMX86_SERVER
+#if defined(VMX86_SERVER)
 #define LOG_DEFAULT_KEEPOLD 6
 #else
 #define LOG_DEFAULT_KEEPOLD 3
 #endif
 
-#define LOG_NO_BPS_LIMIT             0xFFFFFFFF
-#define LOG_NO_ROTATION_SIZE         0
-#define LOG_NO_THROTTLE_THRESHOLD    0
+#define LOG_NO_BPS_LIMIT               0xFFFFFFFF
+#define LOG_NO_ROTATION_SIZE           0
+#define LOG_NO_THROTTLE_THRESHOLD      0
 
-#ifdef VMX86_RELEASE
+#if defined(VMX86_RELEASE)
 #define LOG_DEFAULT_THROTTLE_BPS       1000
 #else
 #define LOG_DEFAULT_THROTTLE_BPS       LOG_NO_BPS_LIMIT
