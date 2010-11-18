@@ -321,7 +321,6 @@ fi
 
 #	Clean up temporary files
 rm -rf $OUTPUT_DIR
-rm -rf $TARFILE
 
 if [ $? != 0 ]; then
 	banner "$OUTPUT_DIR was not successfully removed.  Please remove manually."
