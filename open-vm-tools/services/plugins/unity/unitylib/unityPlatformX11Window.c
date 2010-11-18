@@ -3631,8 +3631,9 @@ UPWindowPushFullUpdate(UnityPlatform *up,            // IN
                            &propCount);
    if (!UnityPlatformGetErrorCount(up)) {
       for (i = 0; i < propCount; i++) {
-         XEvent fakeEvent;
+         XEvent fakeEvent = {0,};
 
+         fakeEvent.xproperty.state = PropertyNewValue;
          fakeEvent.xproperty.atom = props[i];
          UPWindowProcessPropertyEvent(up, upw, &fakeEvent);
       }
