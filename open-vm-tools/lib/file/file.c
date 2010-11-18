@@ -2676,16 +2676,16 @@ FileSleeper(uint32 msecMinSleepTime,  // IN:
  *
  * FileRotateByRename --
  *
- *      The oldest indexed file should be removed so that the
- *      consequent rename succeeds.
+ *      The oldest indexed file should be removed so that the consequent
+ *      rename succeeds.
  *
  *      The last dst is 'fileName' and should not be deleted.
  *
  * Results:
- *      If newFileName is non-NULL: the new path is returned to
- *      *newFileName if the rotation succeeded, otherwise NULL
- *      is returned in *newFileName.  The caller is responsible
- *      for freeing the string returned in *newFileName.
+ *      If newFileName is non-NULL: the new path is returned to *newFileName
+ *      if the rotation succeeded, otherwise NULL is returned in *newFileName.
+ *      The caller is responsible for freeing the string returned in
+ *      *newFileName.
  *
  * Side effects:
  *      Rename backup old files kept so far.
@@ -2709,24 +2709,29 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
       src = (i == 0) ? (char *) fileName :
                        Str_SafeAsprintf(NULL, "%s-%d%s", baseName, i - 1, ext);
 
-      if (dst != NULL) {
+      if (dst == NULL) {
+         result = File_UnlinkIfExists(src);
+
+         if (result == -1) {
+            Log("LOG failed to remove %s: %s\n", src, Msg_ErrString());
+         }
+      } else {
          result = Posix_Rename(src, dst);
+
          if (result == -1) {
             int error = Err_Errno();
+
             if (error != ENOENT) {
                Log("LOG failed to rename %s -> %s: %s\n", src, dst,
                    Err_Errno2String(error));
             }
          }
-      } else {
-         result = File_UnlinkIfExists(src);
-         if (result == -1) {
-            Log("LOG failed to remove %s: %s\n", src, Msg_ErrString());
-         }
       }
-      if (src == fileName && newFileName != NULL) {
+
+      if ((src == fileName) && (newFileName != NULL)) {
          *newFileName = result == -1 ? NULL : strdup(dst);
       }
+
       ASSERT(dst != fileName);
       free(dst);
       dst = src;
@@ -2754,7 +2759,7 @@ static int
 FileNumberCompare(const void *a,  // IN:
                   const void *b)  // IN:
 {
-   return *(uint32 *)a - *(uint32 *)b;
+   return *(uint32 *) a - *(uint32 *) b;
 }
 
 
@@ -2771,10 +2776,10 @@ FileNumberCompare(const void *a,  // IN:
  *        Wrap around is handled incorrectly.
  *
  * Results:
- *      If newFilePath is non-NULL: the new path is returned to
- *      *newFilePath if the rotation succeeded, otherwise NULL
- *      is returned in *newFilePath.  The caller is responsible
- *      for freeing the string returned in *newFilePath.
+ *      If newFilePath is non-NULL: the new path is returned to *newFilePath
+ *      if the rotation succeeded, otherwise NULL is returned in *newFilePath.
+ *      The caller is responsible for freeing the string returned in
+ *      *newFilePath.
  *
  * Side effects:
  *      Files renamed / deleted.
@@ -2815,8 +2820,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
 
    nrFiles = File_ListDirectory(baseDir, &fileList);
    if (nrFiles == -1) {
-      Log("%s: failed to read the directory '%s'.\n", __FUNCTION__,
-          baseDir);
+      Log("%s: failed to read the directory '%s'.\n", __FUNCTION__, baseDir);
       goto cleanup;
    }
 
@@ -2834,6 +2838,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
           (bytesProcessed == strlen(fileList[i]))) {
          fileNumbers[nFound++] = curNr;
       }
+
       free(fileList[i]);
    }
 
@@ -2843,15 +2848,20 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    }
 
    /* rename the existing file to the next number */
-   tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName, maxNr + 1, ext);
+   tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName,
+                          maxNr + 1, ext);
+
    result = Posix_Rename(filePath, tmp);
+
    if (result == -1) {
       int error = Err_Errno();
+
       if (error != ENOENT) {
          Log("%s: failed to rename %s -> %s failed: %s\n", __FUNCTION__,
              filePath, tmp, Err_Errno2String(error));
       }
    }
+
    if (newFilePath != NULL) {
       if (result == -1) {
          *newFilePath = NULL;
@@ -2868,8 +2878,8 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
                                 fileNumbers[i], ext);
 
          if (Posix_Unlink(tmp) == -1) {
-            Log("%s: failed to remove %s: %s\n", __FUNCTION__,
-                tmp, Msg_ErrString());
+            Log("%s: failed to remove %s: %s\n", __FUNCTION__, tmp,
+                Msg_ErrString());
          }
          free(tmp);
       }
