@@ -65,7 +65,7 @@ static void UnityPlatformSendClientMessageFull(Display *d,
                                                Window w,
                                                Atom messageType,
                                                int format,
-                                               int numItems,
+                                               uint numItems,
                                                const void *data);
 static void UnityPlatformStackDnDDetWnd(UnityPlatform *up);
 static void UnityPlatformDnDSendClientMessage(UnityPlatform *up,
@@ -168,7 +168,7 @@ UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
 
    Debug("UnityPlatformInit: Running\n");
 
-   up = Util_SafeCalloc(1, sizeof *up);
+   up = (UnityPlatform*)Util_SafeCalloc(1, sizeof *up);
    up->tracker = tracker;
    up->hostCallbacks = hostCallbacks;
 
@@ -447,7 +447,7 @@ USWindowCreate(UnityPlatform *up,                    // IN
 
    ASSERT(up);
 
-   usw = Util_SafeCalloc(1, sizeof *usw);
+   usw = (UnitySpecialWindow*)Util_SafeCalloc(1, sizeof *usw);
    usw->evHandler = evHandler;
    USWindowUpdate(up, usw, windows, windowCount);
 
@@ -478,12 +478,10 @@ USWindowUpdate(UnityPlatform *up,       // IN
                Window *windows,         // IN
                int windowCount)         // IN
 {
-   int i;
-
    ASSERT(up);
    ASSERT(usw);
 
-   for (i = 0; i < usw->numWindows; i++) {
+   for (unsigned int i = 0; i < usw->numWindows; i++) {
       XSelectInput(up->display, usw->windows[i], 0);
       HashTable_Delete(up->specialWindows, GUINT_TO_POINTER(usw->windows[i]));
    }
@@ -492,7 +490,7 @@ USWindowUpdate(UnityPlatform *up,       // IN
    usw->windows = windows;
    usw->numWindows = windowCount;
 
-   for (i = 0; i < windowCount; i++) {
+   for (int i = 0; i < windowCount; i++) {
       HashTable_Insert(up->specialWindows, GUINT_TO_POINTER(windows[i]), usw);
    }
 }
@@ -546,12 +544,10 @@ static void
 USWindowDestroy(UnityPlatform *up,       // IN
                 UnitySpecialWindow *usw) // IN
 {
-   int i;
-
    ASSERT(up);
    ASSERT(usw);
 
-   for (i = 0; i < usw->numWindows; i++) {
+   for (unsigned int i = 0; i < usw->numWindows; i++) {
       HashTable_Delete(up->specialWindows, GUINT_TO_POINTER(usw->windows[i]));
 
       if (usw->windowsAreOwned) {
@@ -603,7 +599,7 @@ UnityPlatformMakeRootWindowsObject(UnityPlatform *up) // IN
    numRootWindows = ScreenCount(up->display);
    ASSERT(numRootWindows > 0);
 
-   rootWindows = Util_SafeCalloc(numRootWindows, sizeof rootWindows[0]);
+   rootWindows = (Window*)Util_SafeCalloc(numRootWindows, sizeof rootWindows[0]);
    for (i = 0; i < numRootWindows; i++) {
       rootWindows[i] = RootWindow(up->display, i);
    }
@@ -747,8 +743,8 @@ ComparePointers(const void *p1, // IN
    /*
     * Helper function for UnityPlatformKillHelperThreads
     */
-   const void * const *ptr1 = p1;
-   const void * const *ptr2 = p2;
+   char** ptr1 = (char**)p1;
+   char** ptr2 = (char**)p2;
    ptrdiff_t diff = (*ptr2 - *ptr1);
 
    if (diff < 0) {
@@ -870,7 +866,7 @@ UnityX11GetWMProtocols(UnityPlatform *up) // IN
 
    if ((propertyType == XA_ATOM || propertyType == XA_CARDINAL)
        && propertyFormat == 32) {
-      int i;
+      unsigned long i;
 
       for (i = 0; i < itemsReturned; i++) {
          if (valueReturned[i] == up->atoms._NET_MOVERESIZE_WINDOW) {
@@ -1086,7 +1082,7 @@ UnityPlatformUpdateZOrder(UnityPlatform *up) // IN
       return;
    }
 
-   elements = alloca(UNITY_MAX_WINDOWS * sizeof elements[0]);
+   elements = (UnityWindowId*)alloca(UNITY_MAX_WINDOWS * sizeof elements[0]);
    for (numElements = 0, curWindow = up->topWindow;
         curWindow; curWindow = curWindow->lowerWindow) {
       if (curWindow->isRelevant) {
@@ -1123,7 +1119,7 @@ Bool
 UnityPlatformUpdateWindowState(UnityPlatform *up,               // IN
                                UnityWindowTracker *tracker)     // IN
 {
-   int curRoot;
+   unsigned int curRoot;
    Window lowerWindow = None;
 
    if (!up || !up->rootWindows) {
@@ -1132,7 +1128,7 @@ UnityPlatformUpdateWindowState(UnityPlatform *up,               // IN
    }
 
    for (curRoot = 0; curRoot < up->rootWindows->numWindows; curRoot++) {
-      int i;
+      unsigned int i;
       Window dummyWin;
       Window *children;
       unsigned int numChildren;
@@ -1219,7 +1215,7 @@ UnityX11HandleEvents(gpointer data) // IN
       while (XEventsQueued(up->display, QueuedAlready)) {
          UnityTemporaryEvent *ev;
 
-         ev = Util_SafeCalloc(1, sizeof *ev);
+         ev = (UnityTemporaryEvent*)Util_SafeCalloc(1, sizeof *ev);
          XNextEvent(up->display, &ev->xevent);
          ev->realWindowID = UnityPlatformGetRealEventWindow(up, &ev->xevent);
 
@@ -1250,7 +1246,7 @@ UnityX11HandleEvents(gpointer data) // IN
             GList *nextItem = NULL;
 
             for (curItem = incomingEvents; curItem; curItem = nextItem) {
-               UnityTemporaryEvent *otherEvent = curItem->data;
+               UnityTemporaryEvent *otherEvent = (UnityTemporaryEvent*)curItem->data;
                nextItem = curItem->next;
 
                if (otherEvent->realWindowID == ev->realWindowID) {
@@ -1265,7 +1261,7 @@ UnityX11HandleEvents(gpointer data) // IN
 
       while (incomingEvents) {
          GList *nextItem;
-         UnityTemporaryEvent *tempEvent = incomingEvents->data;
+         UnityTemporaryEvent *tempEvent = (UnityTemporaryEvent*)incomingEvents->data;
 
          UnityPlatformProcessXEvent(up, &tempEvent->xevent, tempEvent->realWindowID);
 
@@ -1817,11 +1813,11 @@ UnityPlatformSendClientMessageFull(Display *d,        // IN
                                                       // header should be, so to speak.
                                    Atom messageType,  // IN
                                    int format,        // IN
-                                   int numItems,      // IN
+                                   uint numItems,     // IN
                                    const void *data)  // IN
 {
    XClientMessageEvent ev;
-   int i;
+   uint i;
 
    memset(&ev, 0, sizeof ev);
    ev.type = ClientMessage;
@@ -1832,21 +1828,21 @@ UnityPlatformSendClientMessageFull(Display *d,        // IN
    case 8:
       ASSERT(numItems <= ARRAYSIZE(ev.data.b));
       for (i = 0; i < numItems; i++) {
-         const char *datab = data;
+         const char *datab = (const char*)data;
          ev.data.b[i] = datab[i];
       }
       break;
    case 16:
       ASSERT(numItems <= ARRAYSIZE(ev.data.s));
       for (i = 0; i < numItems; i++) {
-         const short *datas = data;
+         const short *datas = (const short*)data;
          ev.data.s[i] = datas[i];
       }
       break;
    case 32:
       ASSERT(numItems <= ARRAYSIZE(ev.data.l));
       for (i = 0; i < numItems; i++) {
-         const Atom *datal = data;
+         const Atom *datal = (const Atom*)data;
          ev.data.l[i] = datal[i];
       }
       break;
@@ -1916,7 +1912,7 @@ UnityPlatformSetTopWindowGroup(UnityPlatform *up,        // IN: Platform data
                                unsigned int windowCount) // IN: # of windows in the array
 {
    Window sibling = None;
-   int i;
+   uint i;
 
    ASSERT(up);
    ASSERT(windows);
@@ -1948,10 +1944,9 @@ UnityPlatformSetTopWindowGroup(UnityPlatform *up,        // IN: Platform data
                                         up->atoms._NET_RESTACK_WINDOW,
                                         32, 5, data);
       } else {
-         XWindowChanges winch = {
-            .stack_mode = Above,
-            .sibling = sibling
-         };
+         XWindowChanges winch = {0,};
+         winch.stack_mode = Above;
+         winch.sibling = sibling;
          unsigned int valueMask = CWStackMode;
 
          if (sibling != None) {
@@ -2190,21 +2185,21 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
                                  uint32 numWorkAreas)   // IN
 {
    int iScreens;
-   int i;
+   uint i;
    XineramaScreenInfo *screenInfo = NULL;
    int numScreens;
    RegionPtr strutsRegion;
    RegionPtr screenRegion;
    RegionPtr workAreasRegion;
    XID (*strutInfos)[12];
-   int numStrutInfos;
+   uint numStrutInfos;
 
    if (!up->rootWindows) {
       /*
        * We're not in Unity mode yet. Save the info until we are.
        */
 
-      up->needWorkAreas = Util_SafeMalloc(numWorkAreas * sizeof *up->needWorkAreas);
+      up->needWorkAreas = (UnityRect*)Util_SafeMalloc(numWorkAreas * sizeof *up->needWorkAreas);
       memcpy(up->needWorkAreas, workAreas, numWorkAreas * sizeof *up->needWorkAreas);
       up->needNumWorkAreas = numWorkAreas;
       return TRUE;
@@ -2223,16 +2218,17 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
     * we'll query the Xinerama extension.  Otherwise we just fall back to
     * examining our root window's geometry.
     */
-   if (XineramaQueryExtension(up->display, &i, &i)) {
+   int q;
+   if (XineramaQueryExtension(up->display, &q, &q)) {
       screenInfo = XineramaQueryScreens(up->display, &numScreens);
    }
 
    if (!screenInfo) {
-      uint32 rootX;
-      uint32 rootY;
-      uint32 rootWidth;
-      uint32 rootHeight;
-      uint32 dummy;
+      int32 rootX;
+      int32 rootY;
+      uint rootWidth;
+      uint rootHeight;
+      uint dummy;
       Window winDummy;
 
       if (numWorkAreas > 1) {
@@ -2247,7 +2243,7 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
          return FALSE;
       }
 
-      screenInfo = Util_SafeCalloc(1, sizeof *screenInfo);
+      screenInfo = (XineramaScreenInfo*)Util_SafeCalloc(1, sizeof *screenInfo);
       numScreens = 1;
 
       screenInfo->x_org = rootX;
@@ -2312,7 +2308,7 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
    /*
     * One strut per screen edge = at most 4 strutInfos.
     */
-   strutInfos = alloca(4 * sizeof *strutInfos * numScreens);
+   strutInfos = (XID(*)[12])alloca(4 * sizeof *strutInfos * numScreens);
    memset(strutInfos, 0, 4 * sizeof *strutInfos * numScreens);
    numStrutInfos = 0;
 
@@ -2439,7 +2435,7 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
        || up->workAreas->numWindows != numStrutInfos) {
       Window *newWinList;
 
-      newWinList = Util_SafeCalloc(numStrutInfos, sizeof *newWinList);
+      newWinList = (Window*)Util_SafeCalloc(numStrutInfos, sizeof *newWinList);
       if (up->workAreas) {
          memcpy(newWinList, up->workAreas->windows,
                 MIN(numStrutInfos, up->workAreas->numWindows) * sizeof *newWinList);
@@ -2665,7 +2661,7 @@ Bool
 UnityPlatformSetDesktopConfig(UnityPlatform *up,                             // IN
                               const UnityVirtualDesktopArray *desktopConfig) // IN
 {
-   int i;
+   uint i;
    int x;
    int y;
    UnityVirtualDesktop minDesktop;
@@ -2766,7 +2762,7 @@ UnityPlatformSetDesktopConfig(UnityPlatform *up,                             // 
    up->desktopInfo.layoutData[2] = (desktopSpread.y + 1); // # of rows
    up->desktopInfo.layoutData[3] = _NET_WM_TOPLEFT; // Starting corner
 
-   if (((desktopSpread.x + 1) * (desktopSpread.y + 1)) >= desktopConfig->desktopCount
+   if (((desktopSpread.x + 1) * (desktopSpread.y + 1)) >= (int)desktopConfig->desktopCount
        && desktopSpread.x > 0
        && desktopSpread.y > 1
        && unityDesktopLayout[desktopSpread.x][desktopSpread.y - 1] < 0) {
@@ -2807,11 +2803,11 @@ UnityPlatformSetDesktopConfig(UnityPlatform *up,                             // 
    /*
     * Build tables to translate between guest-side and Unity-side desktop IDs.
     */
-   up->desktopInfo.guestDesktopToUnity =
+   up->desktopInfo.guestDesktopToUnity = (UnityDesktopId*)
       Util_SafeRealloc(up->desktopInfo.guestDesktopToUnity,
                        up->desktopInfo.numDesktops
                        * sizeof up->desktopInfo.guestDesktopToUnity[0]);
-   up->desktopInfo.unityDesktopToGuest =
+   up->desktopInfo.unityDesktopToGuest = (uint32*)
       Util_SafeRealloc(up->desktopInfo.unityDesktopToGuest,
                        up->desktopInfo.numDesktops
                        * sizeof up->desktopInfo.unityDesktopToGuest[0]);
@@ -2888,7 +2884,7 @@ UnityPlatformSetDesktopActive(UnityPlatform *up,         // IN
 
    UnityWindowTracker_ChangeActiveDesktop(up->tracker, desktopId);
 
-   if (desktopId >= up->desktopInfo.numDesktops) {
+   if (desktopId >= (UnityDesktopId)up->desktopInfo.numDesktops) {
       return FALSE;
    }
 

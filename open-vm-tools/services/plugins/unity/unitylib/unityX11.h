@@ -30,6 +30,7 @@
  * and then #undef bool. This is because Xlib has '#define Bool int', while
  * vm_basic_types.h has 'typedef char Bool;'.
  */
+extern "C" {
 #include <glib.h>
 #include <gdk/gdkx.h>
 #include <gtk/gtk.h>
@@ -61,6 +62,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+}
 
 
 /*

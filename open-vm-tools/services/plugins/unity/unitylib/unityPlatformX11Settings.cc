@@ -133,13 +133,13 @@ SetScreensaverActive(UnityPlatform *up,    // IN
    if (up->rootWindows && xdgScreensaverPath) {
       char rootWindowID[64];
       char *argv[] = {xdgScreensaverPath,
-                      currentSetting ? "resume" : "suspend",
+                      (char*)(currentSetting ? "resume" : "suspend"),
                       rootWindowID,
                       NULL};
 
       g_snprintf(rootWindowID, sizeof rootWindowID, "%#lx", up->rootWindows->windows[0]);
 
-      g_spawn_sync("/", argv, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL);
+      g_spawn_sync("/", argv, NULL, (GSpawnFlags)0, NULL, NULL, NULL, NULL, NULL, NULL);
    }
    g_free(xdgScreensaverPath);
 

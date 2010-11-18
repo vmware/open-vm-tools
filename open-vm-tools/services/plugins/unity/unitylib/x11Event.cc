@@ -23,10 +23,12 @@
  */
 
 
+extern "C" {
 #include <stdlib.h>
 #include <stdio.h>
-
 #include "vmware.h"
+}
+
 #include "unityX11.h"
 
 
@@ -65,11 +67,10 @@ static gboolean USourceDispatch(GSource *source, GSourceFunc callback,
 void
 UnityX11EventEstablishSource(UnityPlatform *up) // IN
 {
-   static GSourceFuncs unitySourceFuncs = {
-      .prepare = USourcePrepare,
-      .check = USourceCheck,
-      .dispatch = USourceDispatch,
-   };
+   static GSourceFuncs unitySourceFuncs = {0};
+   unitySourceFuncs.prepare = USourcePrepare;
+   unitySourceFuncs.check = USourceCheck;
+   unitySourceFuncs.dispatch = USourceDispatch;
 
    UnityGSource *uSource;
 
@@ -83,11 +84,11 @@ UnityX11EventEstablishSource(UnityPlatform *up) // IN
    up->glibSource = uSource;
 
    /* Hook our main X11 connection into our event source. */
-   ConnectionWatch(up->display, (void*)up, ConnectionNumber(up->display), TRUE,
+   ConnectionWatch(up->display, (XPointer)up, ConnectionNumber(up->display), TRUE,
                    NULL);
 
    /* If Xlib opens an internal connection, bind it to the source, too. */
-   XAddConnectionWatch(up->display, &ConnectionWatch, (void*)up);
+   XAddConnectionWatch(up->display, &ConnectionWatch, (XPointer)up);
 
    /* Attach the source to the event loop. */
    g_source_set_callback((GSource*)uSource, UnityX11HandleEvents, up, NULL);
@@ -118,7 +119,7 @@ UnityX11EventTeardownSource(UnityPlatform *up) // IN
    ASSERT(uSource);
 
    /* Detach Xlib internal connection notification from the Glib event loop. */
-   XRemoveConnectionWatch(up->display, &ConnectionWatch, (void*)up);
+   XRemoveConnectionWatch(up->display, &ConnectionWatch, (XPointer)up);
 
    /* Detach all Xlib file descriptors from our Glib event source. */
    g_hash_table_foreach_remove(uSource->fdTable, TeardownHashRemove, uSource);
@@ -195,7 +196,7 @@ ConnectionWatch(Display *display,       // IN
       /*
        * Remove a file descriptor from the poll array.
        */
-      GPollFD *oldFd = g_hash_table_lookup(uSource->fdTable, GINT_TO_POINTER(fd));
+      GPollFD *oldFd = (GPollFD*)g_hash_table_lookup(uSource->fdTable, GINT_TO_POINTER(fd));
 
       if (oldFd) {
          g_source_remove_poll((GSource *)uSource, oldFd);
@@ -226,8 +227,8 @@ TeardownHashRemove(gpointer key,        // IN
                    gpointer value,      // IN
                    gpointer user_data)  // IN
 {
-   GPollFD *oldFd = value;
-   UnityGSource *uSource = user_data;
+   GPollFD *oldFd = (GPollFD*)value;
+   UnityGSource *uSource = (UnityGSource*)user_data;
 
    ASSERT(value);
    ASSERT(user_data);
@@ -305,7 +306,7 @@ USourceCheck(GSource *source)   // IN
       pollFds = g_hash_table_get_values(uSource->fdTable);
 
       for (listIter = pollFds; listIter; listIter = listIter->next) {
-         GPollFD *pollFd = listIter->data;
+         GPollFD *pollFd = (GPollFD*)listIter->data;
 
          if (pollFd->revents & G_IO_IN) {
             haveData = TRUE;

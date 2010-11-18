@@ -24,6 +24,7 @@
  */
 
 #include "unityX11.h"
+extern "C" {
 #include "base64.h"
 #include "region.h"
 #include "imageUtil.h"
@@ -33,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+}
 
 #include "Uri.h"
 #include "appUtil.h"
@@ -78,8 +80,6 @@ static void UPWindowSetWindows(UnityPlatform *up,
                                UnityPlatformWindow *upw,
                                Window toplevelWindow,
                                Window clientWindow);
-static Window UPWindowLookupClientLeader(UnityPlatform *up,
-                                         UnityPlatformWindow *upw);
 static void UPWindowUpdateFrameExtents(UnityPlatform *up,
                                        UnityPlatformWindow *upw);
 
@@ -347,7 +347,7 @@ UnityPlatformFindWindows(UnityPlatform *up,      // IN
 
       retval = TRUE;
    } else if (parentWin == rootWin) {
-      int i;
+      uint i;
       GQueue *windowQueue;
 
       /*
@@ -572,18 +572,16 @@ UPWindow_Create(UnityPlatform *up,     // IN
       return NULL;
    }
 
-   upw = Util_SafeCalloc(1, sizeof *upw);
+   upw = (UnityPlatformWindow*)Util_SafeCalloc(1, sizeof *upw);
    upw->refs = 1;
 
    Debug("Creating new window for %#lx/%#lx/%#lx\n",
          toplevelWindow, clientWindow, rootWindow);
    upw->rootWindow = rootWindow;
    for (upw->screenNumber = 0;
-        upw->screenNumber < up->rootWindows->numWindows
+        upw->screenNumber < (int)up->rootWindows->numWindows
         && up->rootWindows->windows[upw->screenNumber] != rootWindow;
         upw->screenNumber++);
-   ASSERT (upw->screenNumber < up->rootWindows->numWindows);
-
    DynBuf_Init(&upw->iconPng.data);
    DynBuf_SetSize(&upw->iconPng.data, 0);
 
@@ -1203,7 +1201,7 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
             }
          }
       }
-      if (upw->desktopNumber < up->desktopInfo.numDesktops
+      if (upw->desktopNumber < (int)up->desktopInfo.numDesktops
           && upw->desktopNumber >= 0
           && up->desktopInfo.guestDesktopToUnity[upw->desktopNumber] !=
           UnityWindowTracker_GetActiveDesktop(up->tracker)) {
@@ -1252,7 +1250,7 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
        * tracker.
        */
 
-      if (winAttr.class == InputOnly) {
+      if (winAttr.c_class == InputOnly) {
          /* This is intrinsically true. */
          isInvisible = TRUE;
       } else if (!upw->isViewable && onCurrentDesktop && !upw->clientWindow) {
@@ -1621,7 +1619,7 @@ UnityPlatformMoveResizeWindow(UnityPlatform *up,         // IN
    } else
 #endif
    {
-      if (upw->desktopNumber == up->desktopInfo.currentDesktop ||
+      if (upw->desktopNumber == (int)up->desktopInfo.currentDesktop ||
           upw->desktopNumber == -1) {
          UnityRect actualRect;
          Window actualWindow;
@@ -1728,350 +1726,6 @@ UnityPlatformCloseWindow(UnityPlatform *up,         // IN: Platform data
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * UnityPlatformArgvToWindowPaths --
- *
- *      Encodes the string array 'argv' into two window paths, one uniquely
- *      representing a window and another its owning application.
- *
- * Results:
- *      TRUE on success, FALSE on failure.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-UnityPlatformArgvToWindowPaths(UnityPlatform *up,        // IN
-                               UnityPlatformWindow *upw, // IN
-                               char **inArgv,            // IN
-                               int argc,                 // IN
-                               char *cwd,                // IN
-                               gchar **windowUri,        // OUT
-                               gchar **execUri)          // OUT
-{
-   int numQueryArgs;
-   int i;
-   int err;
-   char **argv;
-   char *windowQueryString = NULL;
-   char *execQueryString = NULL;
-   const char *uriString = NULL;
-   const char *desktopUriString = NULL;
-   Bool retval = FALSE;
-
-   ASSERT(argc);
-   ASSERT(windowUri);
-   ASSERT(execUri);
-
-   argv = inArgv;
-
-   while (argc && AppUtil_AppIsSkippable(argv[0])) {
-      argv++;
-      argc--;
-   }
-
-   if (!argc) {
-      Debug("%s: all args determined skippable.\n", __func__);
-      return FALSE;
-   }
-
-   desktopUriString = GHIX11_FindDesktopUriByExec(argv[0]);
-
-   if (!desktopUriString) {
-      if (argv[0][0] != '/') {
-         char *ctmp = NULL;
-         if ((ctmp = AppUtil_CanonicalizeAppName(argv[0], cwd))) {
-            char **newArgv;
-            newArgv = alloca(argc * sizeof argv[0]);
-            memcpy(newArgv, argv, argc * sizeof argv[0]);
-            argv = newArgv;
-            i = strlen(ctmp) + 1;
-            argv[0] = alloca(i);
-            memcpy(argv[0], ctmp, i);
-            g_free(ctmp);
-         } else {
-            Debug("%s: Program %s not found\n", __FUNCTION__, argv[0]);
-            return FALSE;
-         }
-      }
-
-      /*
-       * If the program in question takes any arguments, they will be appended as URI
-       * query parameters.  (I.e., we're adding only arguments from argv[1] and beyond.)
-       */
-      numQueryArgs = argc - 1;
-
-      if (numQueryArgs > 0) {
-         UriQueryListA *queryList;
-         int j;
-
-         /*
-          * First build query string containing only program arguments.
-          */
-         queryList = alloca(numQueryArgs * sizeof *queryList);
-         for (i = 1, j = 0; i < argc; i++, j++) {
-            queryList[j].key = "argv[]";
-            queryList[j].value = argv[i];
-            queryList[j].next = &queryList[j + 1];
-         }
-
-         /*
-          * Terminate queryList.
-          */
-         queryList[numQueryArgs - 1].next = NULL;
-
-         if (uriComposeQueryMallocA(&execQueryString, queryList)) {
-            Debug("uriComposeQueryMallocA failed\n");
-            return FALSE;
-         }
-      }
-   }
-
-   /*
-    * Now, if we are to identify a specific window, go ahead and tack on its
-    * XID in a second buffer.  Please see UnityPlatformGetWindowPath for more
-    * an explanation about keeping the XID separate.
-    */
-   if (upw) {
-      Window xid = upw->clientWindow ? upw->clientWindow : upw->toplevelWindow;
-      /*
-       * The XID is used to allow GHI to retrieve icons for more apps...
-       */
-      windowQueryString = execQueryString ?
-         g_strdup_printf("%s&WindowXID=%lu", execQueryString, xid) :
-         g_strdup_printf("WindowXID=%lu", xid);
-   }
-
-   if (desktopUriString) {
-      uriString = desktopUriString;
-   } else {
-      char *mutableUriString = alloca(10 + 3 * strlen(argv[0])); // This formula comes from URI.h
-      err = uriUnixFilenameToUriStringA(argv[0], mutableUriString);
-      if (err) {
-         Debug("uriUnixFilenameToUriStringA failed\n");
-         goto out;
-      }
-      uriString = mutableUriString;
-   }
-
-   /*
-    * We could use uriparser to construct the whole URI with querystring for us, but
-    * there doesn't seem to be any advantage to that right now, and it'd involve more
-    * steps.
-    */
-
-   *windowUri = windowQueryString ?
-      g_strdup_printf("%s?%s", uriString, windowQueryString) :
-      g_strdup(uriString);
-
-   *execUri = execQueryString ?
-      g_strdup_printf("%s?%s", uriString, execQueryString) :
-      g_strdup(uriString);
-
-   retval = TRUE;
-
-out:
-   g_free(windowQueryString);
-   g_free(execQueryString);
-
-   return retval;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnityPlatformReadProcessPath --
- *
- *      Reads the cmdline of a process and stuffs it with and without window ID
- *      into supplied gchar ** arguments in URI-encoded form.
- *
- * Results:
- *      TRUE if successful, FALSE otherwise.
- *
- * Side effects:
- *      Values of windowUri and execUri may point to strings.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-UnityPlatformReadProcessPath(UnityPlatform *up,        // IN
-                             UnityPlatformWindow *upw, // IN
-                             pid_t pid,                // IN
-                             gchar **windowUri,        // OUT
-                             gchar **execUri)          // OUT
-{
-#if defined(linux)
-   FILE *fh;
-   char cbuf[256];
-   char cwdbuf[PATH_MAX];
-   int i;
-
-   Str_Snprintf(cbuf, sizeof cbuf, "/proc/%d/cwd", pid);
-   i = readlink(cbuf, cwdbuf, sizeof cwdbuf);
-   if (i <= 0) {
-      /* Lookup of cwd failed.  We'll try our best without it. */
-      i = 0;
-   }
-   cwdbuf[i] = '\0';
-
-   Str_Snprintf(cbuf, sizeof cbuf, "/proc/%d/cmdline", pid);
-
-   fh = fopen(cbuf, "r");
-   if (fh) {
-      size_t nitems;
-      char *argv[2048];
-      int argc, i;
-
-      nitems = fread(cbuf, 1, sizeof cbuf, fh);
-      fclose(fh);
-
-      if (!nitems) {
-         return FALSE;
-      }
-
-      for (argc = i = 0; i < nitems; i++) {
-         if (i == 0 || cbuf[i - 1] == '\0') {
-            argv[argc++] = &cbuf[i];
-         }
-      }
-      argv[argc] = NULL;
-
-      return UnityPlatformArgvToWindowPaths(up, upw, argv, argc,
-                                            cwdbuf[0] ? cwdbuf : NULL,
-                                            windowUri, execUri);
-   }
-#endif
-
-   return FALSE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnityX11GetWindowPaths --
- *
- *      Internal routine used to retrieve the window path for the purpose of getting its
- *      icons and for the unity.get.window.path operation.
- *
- * Results:
- *      TRUE on success, FALSE on failure.
- *
- * Side effects:
- *      Allocates memory to be returned to caller via g_free.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-UnityX11GetWindowPaths(UnityPlatform *up,        // IN
-                       UnityPlatformWindow *upw, // IN
-                       gchar **windowUri,        // OUT
-                       gchar **execUri)          // OUT
-{
-
-   Atom propertyType;
-   int propertyFormat;
-   unsigned long itemsReturned = 0;
-   unsigned long bytesRemaining;
-   unsigned char *valueReturned = NULL;
-   char **argv = NULL;
-   int argc;
-   XClassHint classHint = {NULL, NULL};
-   int ret;
-   Window checkWindow;
-   Bool retval = FALSE;
-   Bool triedLeader = FALSE;
-
-   checkWindow = upw->clientWindow ? upw->clientWindow : upw->toplevelWindow;
-
-tryLeader:
-   UnityPlatformResetErrorCount(up);
-   ret = XGetWindowProperty(up->display, checkWindow, up->atoms._NET_WM_PID, 0,
-                            1024, False, AnyPropertyType,
-                            &propertyType, &propertyFormat, &itemsReturned,
-                            &bytesRemaining, &valueReturned);
-   if (UnityPlatformGetErrorCount(up) || ret != Success) {
-      return FALSE;
-   }
-
-   if (propertyType == XA_CARDINAL && itemsReturned >= 1) {
-      pid_t windowPid = 0;
-
-      switch (propertyFormat) {
-      case 16:
-         windowPid = * (CARD16 *)valueReturned;
-         break;
-      case 32:
-         windowPid = *(XID *)valueReturned;
-         break;
-      default:
-         Debug("Unknown propertyFormat %d while retrieving _NET_WM_PID\n",
-               propertyFormat);
-         break;
-      }
-
-      if (windowPid) {
-         retval = UnityPlatformReadProcessPath(up, upw, windowPid, windowUri,
-                                               execUri);
-      }
-   }
-   XFree(valueReturned);
-
-   if (!retval && XGetCommand(up->display, checkWindow, &argv, &argc)) {
-      retval = UnityPlatformArgvToWindowPaths(up, upw, argv, argc, NULL,
-                                              windowUri, execUri);
-      XFreeStringList(argv);
-   }
-
-   if (!retval && XGetClassHint(up->display, checkWindow, &classHint)) {
-      /*
-       * Try finding the WM_CLASS on $PATH.
-       */
-
-      char *fakeArgv[2] = {NULL, NULL};
-
-      if (classHint.res_name && *classHint.res_name) {
-         fakeArgv[0] = classHint.res_name;
-      } else if (classHint.res_class && *classHint.res_class) {
-         fakeArgv[0] = classHint.res_class;
-      }
-
-      if (fakeArgv[0] && *(fakeArgv[0])) {
-         retval = UnityPlatformArgvToWindowPaths(up, upw, fakeArgv, 1, NULL,
-                                                 windowUri, execUri);
-      }
-
-      XFree(classHint.res_name);
-      XFree(classHint.res_class);
-   }
-
-   if (!retval && !triedLeader) {
-      /*
-       * Last ditch - look for a client leader window and try all of the above
-       * again.
-       */
-      checkWindow = UPWindowLookupClientLeader(up, upw);
-      if (checkWindow != None) {
-         triedLeader = TRUE;
-         goto tryLeader;
-      }
-   }
-
-   Debug("UnityX11GetWindowPath(%#lx) returning %s\n", upw->toplevelWindow,
-         retval ? "TRUE" : "FALSE");
-
-   return retval;
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * UnityPlatformGetWindowPath --
@@ -2120,7 +1774,7 @@ UnityPlatformGetWindowPath(UnityPlatform *up,        // IN: Platform data
       return FALSE;
    }
 
-   retval = UnityX11GetWindowPaths(up, upw, &windowUri, &execUri);
+   //retval = UnityX11GetWindowPaths(up, upw, &windowUri, &execUri);
 
    if (!retval) {
       Debug("GetWindowPath didn't know how to identify the window...\n");
@@ -2234,7 +1888,7 @@ UnityPlatformGetWindowContents(UnityPlatform *up,     // IN
    vmimage.greenMask = ximage->green_mask;
    vmimage.blueMask = ximage->blue_mask;
    vmimage.bytesPerLine = ximage->bytes_per_line;
-   vmimage.data = ximage->data;
+   vmimage.data = (unsigned char*)ximage->data;
 
    if (ImageUtil_ConstructPNGBuffer(&vmimage, NULL, imageData)) {
       result = TRUE;
@@ -2316,7 +1970,7 @@ UnityPlatformGetIconData(UnityPlatform *up,       // IN
          gchar *pngData;
          gsize pngDataSize;
 
-         pixbuf = g_ptr_array_index(pixbufs, 0);
+         pixbuf = (GdkPixbuf*)g_ptr_array_index(pixbufs, 0);
 
          if (gdk_pixbuf_save_to_buffer(pixbuf, &pngData, &pngDataSize,
                                        "png", NULL, NULL)) {
@@ -2606,7 +2260,7 @@ UPWindowUpdateShape(UnityPlatform *up,        // IN
       xRectangle *vmRects;
       int i;
 
-      vmRects = alloca(rectCount * (sizeof *vmRects));
+      vmRects = (xRectangle*)alloca(rectCount * (sizeof *vmRects));
       memset(vmRects, 0, rectCount * (sizeof *vmRects));
       for (i = 0; i < rectCount; i++) {
          ASSERT(rects[i].width);
@@ -2638,10 +2292,11 @@ UPWindowUpdateShape(UnityPlatform *up,        // IN
       int bShaped;
       int cShaped;
       int dummy;
+      uint udummy;
 
       XShapeQueryExtents(up->display, upw->toplevelWindow,
-                         &bShaped, &dummy, &dummy, &dummy, &dummy,
-                         &cShaped, &dummy, &dummy, &dummy, &dummy);
+                         &bShaped, &dummy, &dummy, &udummy, &udummy,
+                         &cShaped, &dummy, &dummy, &udummy, &udummy);
       if (!bShaped && !cShaped) {
          UnityWindowTracker_ChangeWindowRegion(up->tracker, upw->toplevelWindow, 0);
          return;
@@ -2661,7 +2316,7 @@ UPWindowUpdateShape(UnityPlatform *up,        // IN
       xRectangle *vmRects;
       int i;
 
-      vmRects = alloca(rectCount * (sizeof *vmRects));
+      vmRects = (xRectangle*)alloca(rectCount * (sizeof *vmRects));
       memset(vmRects, 0, rectCount * (sizeof *vmRects));
       for (i = 0; i < rectCount; i++) {
          ASSERT(rects[i].width);
@@ -3008,7 +2663,7 @@ UPWindowUpdateProtocols(UnityPlatform *up,        // IN
    unsigned long itemsReturned;
    unsigned long bytesRemaining;
    Atom *valueReturned = NULL;
-   int i;
+   uint i;
 
    if (!upw->clientWindow) {
       return;
@@ -3071,7 +2726,7 @@ UPWindowUpdateActions(UnityPlatform *up,        // IN
    unsigned long itemsReturned = 0;
    unsigned long bytesRemaining;
    Atom *valueReturned = NULL;
-   int i;
+   uint i;
    Bool curAttrValues[UNITY_MAX_ATTRIBUTES];
    Bool attrsAreSet[UNITY_MAX_ATTRIBUTES];
    Bool haveHorizMax;
@@ -3150,7 +2805,7 @@ UPWindowUpdateActions(UnityPlatform *up,        // IN
    for (i = 0; i < UNITY_MAX_ATTRIBUTES; i++) {
       if (attrsAreSet[i]) {
          UnityWindowTracker_ChangeWindowAttribute(up->tracker, upw->toplevelWindow,
-                                                  i, curAttrValues[i]);
+                                                  (UnityWindowAttribute)i, curAttrValues[i]);
       }
    }
 }
@@ -3388,7 +3043,7 @@ UPWindowUpdateState(UnityPlatform *up,            // IN
    unsigned long itemsReturned;
    unsigned long bytesRemaining;
    Atom *valueReturned = NULL;
-   int i;
+   uint i;
    Bool curAttrValues[UNITY_MAX_ATTRIBUTES];
    Bool attrsAreSet[UNITY_MAX_ATTRIBUTES];
    Bool isMinimized = FALSE;
@@ -3513,8 +3168,8 @@ UPWindowUpdateState(UnityPlatform *up,            // IN
    if (upw->isRelevant) {
       UnityWindowInfo *info;
       uint32 newState;
-      uint32 cDesk = -1;
-      uint32 gDesk;
+      int cDesk = -1;
+      int gDesk;
 
       info = UnityWindowTracker_LookupWindow(up->tracker, upw->toplevelWindow);
       ASSERT(info);
@@ -3558,7 +3213,7 @@ UPWindowUpdateState(UnityPlatform *up,            // IN
       for (i = 0; i < UNITY_MAX_ATTRIBUTES; i++) {
          if (attrsAreSet[i]) {
             UnityWindowTracker_ChangeWindowAttribute(up->tracker, upw->toplevelWindow,
-                                                     i, curAttrValues[i]);
+                                                     (UnityWindowAttribute)i, curAttrValues[i]);
          }
       }
    }
@@ -3986,7 +3641,7 @@ UnityPlatformSetWindowDesktop(UnityPlatform *up,         // IN
     * fixing.
     */
 
-   ASSERT(desktopId < up->desktopInfo.numDesktops);
+   ASSERT(desktopId < (int)up->desktopInfo.numDesktops);
    guestDesktopId = up->desktopInfo.unityDesktopToGuest[desktopId];
 
    UPWindow_SetEWMHDesktop(up, upw, guestDesktopId);
@@ -4054,57 +3709,6 @@ UPWindow_SetEWMHDesktop(UnityPlatform *up,               // IN
 				  upw->clientWindow,
 				  up->atoms._NET_WM_DESKTOP,
 				  32, 5, data);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UPWindowLookupClientLeader --
- *
- *      Given a UnityPlatformWindow, look up the associated "client leader"
- *      window, identified by the WM_CLIENT_LEADER property, if it exists.
- *
- * Results:
- *      A valid window ID if found, otherwise None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Window
-UPWindowLookupClientLeader(UnityPlatform *up,           // IN
-                           UnityPlatformWindow *upw)    // IN
-{
-   Atom propertyType;
-   int propertyFormat;
-   unsigned long itemsReturned;
-   unsigned long bytesRemaining;
-   unsigned char *valueReturned = NULL;
-
-   Window checkWindow;
-   Window leaderWindow = None;
-
-   ASSERT(up);
-   ASSERT(upw);
-
-   checkWindow = upw->clientWindow ? upw->clientWindow : upw->toplevelWindow;
-
-   UnityPlatformResetErrorCount(up);
-   XGetWindowProperty(up->display, checkWindow, up->atoms.WM_CLIENT_LEADER, 0,
-                      4, False, XA_WINDOW, &propertyType, &propertyFormat,
-                      &itemsReturned, &bytesRemaining, &valueReturned);
-
-   if (UnityPlatformGetErrorCount(up) == 0 && propertyFormat == 32 &&
-       itemsReturned == 1) {
-      leaderWindow = *(XID *)valueReturned;
-   }
-
-   XFree(valueReturned);
-
-   return leaderWindow;
 }
 
 
