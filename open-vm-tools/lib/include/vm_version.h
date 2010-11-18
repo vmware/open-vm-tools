@@ -276,7 +276,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 8
 #define USB_ARBITRATOR_VERSION_MINOR 1
-#define USB_ARBITRATOR_VERSION_Z     9
+#define USB_ARBITRATOR_VERSION_Z     10
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
 
@@ -291,7 +291,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.1.9"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.1.10"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
