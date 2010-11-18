@@ -140,9 +140,9 @@ public:
    string trimRight() const;
    string normalize(NormalizeMode mode = NORMALIZE_DEFAULT_COMPOSE) const;
 
-#ifdef SUPPORT_UNICODE
    string toLower(const char *locale) const;
    string toUpper(const char *locale) const;
+#ifdef USE_ICU
    string toTitle(const char *locale) const;
 #endif
 

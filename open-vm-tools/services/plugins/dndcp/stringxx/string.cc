@@ -966,8 +966,6 @@ string::normalize(NormalizeMode mode) // IN
 }
 
 
-#ifdef SUPPORT_UNICODE
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -989,9 +987,13 @@ string
 string::toLower(const char *locale) // IN
    const
 {
+#ifdef USE_ICU
    Unicode lower = Unicode_ToLower(c_str(), locale);
    string results(lower);
    Unicode_Free(lower);
+#else
+   string results(mUstr.lowercase());
+#endif
 
    return results;
 }
@@ -1018,13 +1020,20 @@ string
 string::toUpper(const char *locale) // IN
    const
 {
+#ifdef USE_ICU
    Unicode upper = Unicode_ToUpper(c_str(), locale);
    string results(upper);
    Unicode_Free(upper);
+#else
+   string results(mUstr.uppercase());
+#endif
+
 
    return results;
 }
 
+
+#ifdef USE_ICU
 
 /*
  *-----------------------------------------------------------------------------
