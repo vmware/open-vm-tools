@@ -136,7 +136,8 @@ MXUserRemoveFromList(MXUserHeader *header)  // IN:
  *      (uint32) (BINS_PER_DECADE * log10(value))
  *
  * Side effects:
- *      None
+ *      The computed value may actually be larger than expected by a tiny
+ *      amount - the log10 method is a ratio of two integers.
  *
  *-----------------------------------------------------------------------------
  */
@@ -272,10 +273,10 @@ MXUserHistoSample(MXUserHisto *histo,  // IN/OUT:
    if (durationNS < histo->minValue) {
       index = 0;
    } else {
-      if (durationNS > histo->maxValue) {
+      index = MXUserHistoIndex(durationNS / histo->minValue);
+
+      if (index > histo->numBins - 1) {
          index = histo->numBins - 1;
-      } else {
-         index = MXUserHistoIndex(durationNS / histo->minValue);
       }
    }
 
