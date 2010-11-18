@@ -437,29 +437,9 @@ ResolutionSetCapabilities(gpointer src,
    }
 
    /*
-    * If we can set the guest resolution, add the resolution_set capability to
-    * our array.
+    * XXX: We must register display_topology_set before resolution_set to avoid
+    *      a race condition in the host. See bug 472343.
     */
-   if (resInfo->canSetResolution) {
-      capabilityArray[capabilityCount].type  = TOOLS_CAP_OLD;
-      capabilityArray[capabilityCount].name  = "resolution_set";
-      capabilityArray[capabilityCount].index = 0;
-      capabilityArray[capabilityCount].value = set ? 1 : 0;
-      capabilityCount++;
-
-      /*
-       * Send the resolution_server RPC to the VMX.
-       *
-       * XXX: We need to send this ourselves, instead of including it in the
-       *      capability array, because the resolution_server RPC includes the
-       *      name of the RPC channel that the VMX should use when sending
-       *      resolution set RPCs as an argument.
-       */
-      if (ctx && ctx->rpc && ctx->isVMware) {
-         ResolutionSetServerCapability(ctx->rpc, set ? 1 : 0);
-      }
-   }
-
    /*
     * If we can set the guest topology, add the display_topology_set and
     * display_global_offset capabilities to our array.
@@ -481,6 +461,30 @@ ResolutionSetCapabilities(gpointer src,
       capabilityArray[capabilityCount].index = 0;
       capabilityArray[capabilityCount].value = set ? 1 : 0;
       capabilityCount++;
+   }
+
+   /*
+    * If we can set the guest resolution, add the resolution_set capability to
+    * our array.
+    */
+   if (resInfo->canSetResolution) {
+      capabilityArray[capabilityCount].type  = TOOLS_CAP_OLD;
+      capabilityArray[capabilityCount].name  = "resolution_set";
+      capabilityArray[capabilityCount].index = 0;
+      capabilityArray[capabilityCount].value = set ? 1 : 0;
+      capabilityCount++;
+
+      /*
+       * Send the resolution_server RPC to the VMX.
+       *
+       * XXX: We need to send this ourselves, instead of including it in the
+       *      capability array, because the resolution_server RPC includes the
+       *      name of the RPC channel that the VMX should use when sending
+       *      resolution set RPCs as an argument.
+       */
+      if (ctx && ctx->rpc && ctx->isVMware) {
+         ResolutionSetServerCapability(ctx->rpc, set ? 1 : 0);
+      }
    }
 
 #if defined(RESOLUTION_WIN32)
