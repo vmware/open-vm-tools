@@ -36,8 +36,8 @@ struct MXUserBarrier
 {
    MXUserHeader     header;        // Barrier's ID information
    MXUserExclLock  *lock;          // Barrier's (internal) lock
-   uint32           configCount;   // Hold until this many threads arrive.
-   uint32           curContext;    // Normal arrivals go to this context
+   uint32           configCount;   // Hold until this many threads arrive
+   volatile uint32  curContext;    // Arrivals go to this context
    BarrierContext   contexts[2];   // The normal and abnormal contexts
 };
 
@@ -238,18 +238,21 @@ void
 MXUser_EnterBarrier(MXUserBarrier *barrier)  // IN/OUT:
 {
    BarrierContext *ptr;
+   uint32 context;
 
    ASSERT(barrier && (barrier->header.signature == MXUSER_BARRIER_SIGNATURE));
 
    MXUser_AcquireExclLock(barrier->lock);
 
-   ptr = &barrier->contexts[barrier->curContext];
+   context = barrier->curContext;
+   ptr = &barrier->contexts[context];
 
    ptr->count++;
 
    if (ptr->count == barrier->configCount) {
-      /* The last thread has entered; release the other threads */
       /*
+       * The last thread has entered; release the other threads
+       *
        * Flip the current context. Should a thread leave the barrier and
        * enter the barrier while the barrier is "emptying" the thread will
        * parked on the condVar that is not "emptying". Eventually everything
@@ -257,14 +260,20 @@ MXUser_EnterBarrier(MXUserBarrier *barrier)  // IN/OUT:
        * context's condVar.
        */
 
-      barrier->curContext = (barrier->curContext + 1) & 0x1;
+      barrier->curContext = (context + 1) & 0x1;
       ASSERT(barrier->contexts[barrier->curContext].count == 0);
 
       /* Wake up all of the waiting threads. */
       MXUser_BroadcastCondVar(ptr->condVar);
    } else {
-      /* Not the last thread in... sleep until the last thread appears */
-      MXUser_WaitCondVarExclLock(barrier->lock, ptr->condVar);
+      /*
+       * Not the last thread in... wait/sleep until the last thread appears.
+       * Protect against spurious wakeups.
+       */
+
+      while (barrier->curContext == context) {
+         MXUser_WaitCondVarExclLock(barrier->lock, ptr->condVar);
+      }
    }
 
    ptr->count--;
