@@ -327,6 +327,26 @@ typedef enum {
     * types (that other plugins can hook into).
     */
    TOOLS_APP_PROVIDER   = 3,
+
+   /* VMCF applications. */
+
+   /**
+    * Denotes a raw VMCF object handler. See the VMCFObjectProvider struct.
+    */
+   TOOLS_VMCF_OBJECT       = 0x00010001,
+   /**
+    * Denotes a VMCF signal handler. See the VMCFSignalHandler struct.
+    */
+   TOOLS_VMCF_SIGNAL       = 0x00010002,
+   /**
+    * Denotes a VOLT object registration. See the VMCFVoltObject struct.
+    */
+   TOOLS_VMCF_VOLT_OBJECT  = 0x00010003,
+   /**
+    * Denotes a VOLT signal registration. See the VMCFVoltSignal struct.
+    */
+   TOOLS_VMCF_VOLT_SIGNAL  = 0x00010004,
+
 } ToolsAppType;
 
 
