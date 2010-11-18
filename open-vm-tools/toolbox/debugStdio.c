@@ -103,7 +103,7 @@ Debug_EnableToFile(const char *file,      // IN
       if (bakFile &&
           !File_IsDirectory(bakFile) &&
           0 == File_UnlinkIfExists(bakFile)) {  // remove old back up file.
-         File_Rename(file, bakFile);
+         File_Move(file, bakFile, NULL);
       }
       free(bakFile);
    }

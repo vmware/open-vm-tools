@@ -3698,7 +3698,7 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
 #endif
 
    /*
-    * pre-check the dest arg -- File_Rename() will return
+    * pre-check the dest arg -- File_Move() will return
     * diff err codes depending on OS, so catch it up front (bug 133165)
     */
    if (File_IsDirectory(destFilePathName)) {
@@ -3768,7 +3768,7 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
       }
 
       /*
-       * In case of moving a directory, File_Rename() returns different
+       * In case of moving a directory, File_Move() returns different
        * errors on different Guest Os if the destination file path points
        * to an existing file. We should catch them upfront and report them
        * to the user.
@@ -3782,10 +3782,10 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
       }
    }
 
-   success = File_Rename(srcFilePathName, destFilePathName);
+   success = File_Move(srcFilePathName, destFilePathName, NULL);
    if (!success) {
       err = FoundryToolsDaemon_TranslateSystemErr();
-      Debug("%s: File_Rename failed.\n", __FUNCTION__);
+      Debug("%s: File_Move failed.\n", __FUNCTION__);
       goto abort;
    }
 

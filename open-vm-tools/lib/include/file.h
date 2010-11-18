@@ -36,6 +36,7 @@ extern "C"{
 
 #include "fileIO.h"
 #include "unicodeTypes.h"
+#include "err.h"
 
 #ifdef N_PLAT_NLM
 #define FILE_MAXPATH	256
@@ -273,8 +274,9 @@ Bool File_CopyFromNameToName(ConstUnicode srcName,
 Bool File_Replace(ConstUnicode oldFile, 
                   ConstUnicode newFile);
 
-Bool File_Rename(ConstUnicode oldFile, 
-                 ConstUnicode newFile);
+Bool File_Move(ConstUnicode oldFile, 
+               ConstUnicode newFile,
+               Bool *asRename);
 
 void File_Rotate(const char *fileName,
                  int n,

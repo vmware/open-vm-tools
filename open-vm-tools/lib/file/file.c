@@ -1386,8 +1386,8 @@ File_MakeTemp(ConstUnicode tag,  // IN (OPT):
  *      end of the 'src' file to the current position in the 'dst' file
  *
  * Results:
- *      TRUE on success
- *      FALSE on failure
+ *      TRUE   success
+ *      FALSE  failure
  *
  * Side effects:
  *      The current position in the 'src' file and the 'dst' file are modified
@@ -1399,6 +1399,7 @@ Bool
 File_CopyFromFdToFd(FileIODescriptor src,  // IN:
                     FileIODescriptor dst)  // IN:
 {
+   Err_Number err;
    FileIOResult fretR;
 
    do {
@@ -1408,16 +1409,24 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
 
       fretR = FileIO_Read(&src, buf, sizeof(buf), &actual);
       if (!FileIO_IsSuccess(fretR) && (fretR != FILEIO_READ_ERROR_EOF)) {
+         err = Err_Errno();
+
          Msg_Append(MSGID(File.CopyFromFdToFd.read.failure)
                                "Read error: %s.\n\n", FileIO_MsgError(fretR));
+
+         Err_SetErrno(err);
 
          return FALSE;
       }
 
       fretW = FileIO_Write(&dst, buf, actual, NULL);
       if (!FileIO_IsSuccess(fretW)) {
+         err = Err_Errno();
+
          Msg_Append(MSGID(File.CopyFromFdToFd.write.failure)
                               "Write error: %s.\n\n", FileIO_MsgError(fretW));
+
+         Err_SetErrno(err);
 
          return FALSE;
       }
@@ -1455,9 +1464,10 @@ File_CopyFromFdToName(FileIODescriptor src,  // IN:
                       ConstUnicode dstName,  // IN:
                       int dstDispose)        // IN:
 {
-   FileIODescriptor dst;
+   Bool success;
+   Err_Number err;
    FileIOResult fret;
-   Bool result;
+   FileIODescriptor dst;
 
    ASSERT(dstName);
 
@@ -1465,30 +1475,43 @@ File_CopyFromFdToName(FileIODescriptor src,  // IN:
 
    fret = File_CreatePrompt(&dst, dstName, 0, dstDispose);
    if (!FileIO_IsSuccess(fret)) {
+      err = Err_Errno();
+
       if (fret != FILEIO_CANCELLED) {
          Msg_Append(MSGID(File.CopyFromFdToName.create.failure)
                     "Unable to create a new '%s' file: %s.\n\n",
                     UTF8(dstName), FileIO_MsgError(fret));
       }
 
+      Err_SetErrno(err);
+
       return FALSE;
    }
 
-   result = File_CopyFromFdToFd(src, dst);
+   success = File_CopyFromFdToFd(src, dst);
+
+   err = Err_Errno();
 
    if (FileIO_Close(&dst) != 0) {
+      if (success) {  // Report close failure when there isn't another error
+         err =  Err_Errno();
+      }
+
       Msg_Append(MSGID(File.CopyFromFdToName.close.failure)
                  "Unable to close the '%s' file: %s.\n\n", UTF8(dstName),
                  Msg_ErrString());
-      result = FALSE;
+
+      success = FALSE;
    }
 
-   if (result == FALSE) {
+   if (!success) {
       /* The copy failed: ensure the destination file is removed */
       File_Unlink(dstName);
    }
 
-   return result;
+   Err_SetErrno(err);
+
+   return success;
 }
 
 
@@ -1518,8 +1541,8 @@ File_CreatePrompt(FileIODescriptor *file,  // OUT:
                   int access,              // IN:
                   int prompt)              // IN:
 {
-   FileIOOpenAction action;
    FileIOResult fret;
+   FileIOOpenAction action;
 
    ASSERT(file);
    ASSERT(pathName);
@@ -1529,12 +1552,13 @@ File_CreatePrompt(FileIODescriptor *file,  // OUT:
    while ((fret = FileIO_Open(file, pathName, FILEIO_OPEN_ACCESS_WRITE | access,
                              action)) == FILEIO_OPEN_ERROR_EXIST) {
       static Msg_String const buttons[] = {
-         {BUTTONID(file.create.retry) "Retry"},
+         {BUTTONID(file.create.retry)     "Retry"},
          {BUTTONID(file.create.overwrite) "Overwrite"},
-         {BUTTONID(cancel) "Cancel"},
+         {BUTTONID(cancel)                "Cancel"},
          {NULL}
       };
       int answer;
+      Err_Number err = Err_Errno();
 
       answer = (prompt != -1) ? prompt : Msg_Question(buttons, 2,
          MSGID(File.CreatePrompt.question)
@@ -1544,6 +1568,9 @@ File_CreatePrompt(FileIODescriptor *file,  // OUT:
          "to another location, select Retry.\n"
          "To cancel the operation, select Cancel.\n",
          UTF8(pathName));
+
+      Err_SetErrno(err);
+
       if (answer == 2) {
          fret = FILEIO_CANCELLED;
          break;
@@ -1586,9 +1613,10 @@ File_CopyFromNameToName(ConstUnicode srcName,  // IN:
                         ConstUnicode dstName,  // IN:
                         int dstDispose)        // IN:
 {
-   FileIODescriptor src;
+   Bool success;
+   Err_Number err;
    FileIOResult fret;
-   Bool result;
+   FileIODescriptor src;
 
    ASSERT(srcName);
    ASSERT(dstName);
@@ -1597,23 +1625,36 @@ File_CopyFromNameToName(ConstUnicode srcName,  // IN:
 
    fret = FileIO_Open(&src, srcName, FILEIO_OPEN_ACCESS_READ, FILEIO_OPEN);
    if (!FileIO_IsSuccess(fret)) {
+      err = Err_Errno();
+
       Msg_Append(MSGID(File.CopyFromNameToName.open.failure)
                  "Unable to open the '%s' file for read access: %s.\n\n",
                  UTF8(srcName), FileIO_MsgError(fret));
 
+      Err_SetErrno(err);
+
       return FALSE;
    }
 
-   result = File_CopyFromFdToName(src, dstName, dstDispose);
+   success = File_CopyFromFdToName(src, dstName, dstDispose);
+
+   err = Err_Errno();
    
    if (FileIO_Close(&src) != 0) {
+      if (success) {  // Report close failure when there isn't another error
+         err =  Err_Errno();
+      }
+
       Msg_Append(MSGID(File.CopyFromNameToName.close.failure)
                  "Unable to close the '%s' file: %s.\n\n", UTF8(srcName),
                  Msg_ErrString());
-      result = FALSE;
+
+      success = FALSE;
    }
 
-   return result;
+   Err_SetErrno(err);
+
+   return success;
 }
 
 /*
@@ -1640,10 +1681,11 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
                 ConstUnicode dstName,     // IN:
                 Bool overwriteExisting)   // IN:
 {
+   Bool success;
+   Err_Number err;
+   FileIOResult fret;
    FileIODescriptor dst;
    FileIOOpenAction action;
-   FileIOResult fret;
-   Bool result;
 
    ASSERT(dstName);
 
@@ -1654,28 +1696,41 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
 
    fret = FileIO_Open(&dst, dstName, FILEIO_OPEN_ACCESS_WRITE, action);
    if (!FileIO_IsSuccess(fret)) {
+      err = Err_Errno();
+
       Msg_Append(MSGID(File.CopyFromFdToName.create.failure)
                  "Unable to create a new '%s' file: %s.\n\n", UTF8(dstName),
                  FileIO_MsgError(fret));
 
+      Err_SetErrno(err);
+
       return FALSE;
    }
 
-   result = File_CopyFromFdToFd(src, dst);
+   success = File_CopyFromFdToFd(src, dst);
+
+   err = Err_Errno();
 
    if (FileIO_Close(&dst) != 0) {
+      if (success) {  // Report close failure when there isn't another error
+         err =  Err_Errno();
+      }
+
       Msg_Append(MSGID(File.CopyFromFdToName.close.failure)
                  "Unable to close the '%s' file: %s.\n\n", UTF8(dstName),
                  Msg_ErrString());
-      result = FALSE;
+
+      success = FALSE;
    }
 
-   if (result == FALSE) {
+   if (!success) {
       /* The copy failed: ensure the destination file is removed */
       File_Unlink(dstName);
    }
 
-   return result;
+   Err_SetErrno(err);
+
+   return success;
 }
 
 
@@ -1704,9 +1759,10 @@ File_Copy(ConstUnicode srcName,    // IN:
           ConstUnicode dstName,    // IN:
           Bool overwriteExisting)  // IN:
 {
-   FileIODescriptor src;
+   Bool success;
+   Err_Number err;
    FileIOResult fret;
-   Bool result;
+   FileIODescriptor src;
 
    ASSERT(srcName);
    ASSERT(dstName);
@@ -1715,35 +1771,52 @@ File_Copy(ConstUnicode srcName,    // IN:
 
    fret = FileIO_Open(&src, srcName, FILEIO_OPEN_ACCESS_READ, FILEIO_OPEN);
    if (!FileIO_IsSuccess(fret)) {
+      err = Err_Errno();
+
       Msg_Append(MSGID(File.Copy.open.failure)
                  "Unable to open the '%s' file for read access: %s.\n\n",
                  UTF8(srcName), FileIO_MsgError(fret));
 
+      Err_SetErrno(err);
+
       return FALSE;
    }
 
-   result = File_CopyFromFd(src, dstName, overwriteExisting);
+   success = File_CopyFromFd(src, dstName, overwriteExisting);
+
+   err = Err_Errno();
    
    if (FileIO_Close(&src) != 0) {
+      if (success) {  // Report close failure when there isn't another error
+         err =  Err_Errno();
+      }
+
       Msg_Append(MSGID(File.Copy.close.failure)
                  "Unable to close the '%s' file: %s.\n\n", UTF8(srcName),
                  Msg_ErrString());
-      result = FALSE;
+
+      success = FALSE;
    }
 
-   return result;
+   Err_SetErrno(err);
+
+   return success;
 }
+
 
 /*
  *----------------------------------------------------------------------
  *
- * File_Rename --
+ * File_Move --
  *
- *      Renames a source to a destination file.
- *      Will copy the file if necessary
+ *      Moves a file from one place to the other as efficiently as possible.
+ *      This can be used to rename a file but, since file copying may be
+ *      necessary, there is no assurance of atomicity. For efficiency
+ *      purposes copying only results if the native rename ability fails.
  *
  * Results:
- *      TRUE if succeeded FALSE otherwise
+ *      TRUE   succeeded
+ *      FALSE  otherwise
  *      
  * Side effects:
  *      src file is no more, but dst file exists
@@ -1752,18 +1825,31 @@ File_Copy(ConstUnicode srcName,    // IN:
  */
 
 Bool 
-File_Rename(ConstUnicode oldFile,  // IN:
-            ConstUnicode newFile)  // IN:
+File_Move(ConstUnicode oldFile,  // IN:
+          ConstUnicode newFile,  // IN:
+          Bool *asRename)        // OUT: result occurred due to rename/copy
 {
-   Bool ret = TRUE;
+   Bool ret;
+   Bool duringRename;
 
-   if (FileRename(oldFile, newFile) != 0) {
-      /* overwrite the file if it exists */
-      if (File_Copy(oldFile, newFile, TRUE)) {
-         File_Unlink(oldFile);
+   if (FileRename(oldFile, newFile) == 0) {
+      duringRename = TRUE;
+      ret = TRUE;
+      Err_SetErrno(0);
+   } else {
+      duringRename = FALSE;
+
+      if (File_Copy(oldFile, newFile, TRUE)) {  // Allow overwrite
+         File_Unlink(oldFile);  // Explicitly ignore errors
+         ret = TRUE;
+         Err_SetErrno(0);
       } else {
          ret = FALSE;
       }
+   }
+
+   if (asRename) {
+      *asRename = duringRename;
    }
 
    return ret;
