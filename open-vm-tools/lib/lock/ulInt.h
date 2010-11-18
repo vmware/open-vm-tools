@@ -446,7 +446,7 @@ MXUserTryAcquireFail(const char *name)  // IN:
 MXUserCondVar *MXUserCreateCondVar(MXUserHeader *header,
                                    MXRecLock *lock);
 
-Bool MXUserWaitCondVar(MXUserHeader *header,
+void MXUserWaitCondVar(MXUserHeader *header,
                        MXRecLock *lock,
                        MXUserCondVar *condVar,
                        uint32 msecWait);

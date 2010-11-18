@@ -220,29 +220,24 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  *      MXUserCondVar.
  *
  * Results:
- *      TRUE   condvar was signalled
- *      FALSE  timed out waiting for signal
+ *      As above
  *
  * Side effects:
- *      None
+ *      It is possible to return from this routine without the condtion
+ *      variable having been signalled (spurious wake up); code accordingly!
  *
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Bool
+static INLINE void
 MXUserWaitInternal(MXRecLock *lock,         // IN:
                    MXUserCondVar *condVar,  // IN:
                    uint32 msecWait)         // IN:
 {
-   DWORD err;
-   Bool signalled;
-
    uint32 lockCount = MXRecLockCount(lock);
    DWORD waitTime = (msecWait == MXUSER_WAIT_INFINITE) ? INFINITE : msecWait;
 
    if (pSleepConditionVariableCS) {
-      Bool success;
-
       /*
        * When using the native lock found within the MXUser lock, be sure to
        * decrement the count before the wait/sleep and increment it after the
@@ -252,25 +247,11 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
        */
 
       MXRecLockDecCount(lock, lockCount);
-      success = (*pSleepConditionVariableCS)(&condVar->x.condObject,
-                                             &lock->nativeLock, waitTime);
+      (*pSleepConditionVariableCS)(&condVar->x.condObject, &lock->nativeLock,
+                                   waitTime);
       MXRecLockIncCount(lock, lockCount);
-
-      if (success) {
-         signalled = TRUE;
-         err = ERROR_SUCCESS;
-      } else {
-         signalled = FALSE;
-         err = GetLastError();
-         if (WAIT_TIMEOUT == err) {
-            if (msecWait == MXUSER_WAIT_INFINITE) {
-               err = ERROR_CALL_NOT_IMPLEMENTED;  // ACK! "IMPOSSIBLE"
-            } else {
-               err = ERROR_SUCCESS;
-            }
-         }
-      }
    } else {
+      DWORD err;
       Bool done = FALSE;
 
       EnterCriticalSection(&condVar->x.compat.condVarLock);
@@ -297,7 +278,6 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
                }
 
                err = ERROR_SUCCESS;
-               signalled = TRUE;
                done = TRUE;
             }
          } else {
@@ -316,7 +296,6 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
                err = GetLastError();
             }
 
-            signalled = FALSE;
             done = TRUE;
          }
 
@@ -325,14 +304,12 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
 
       MXRecLockAcquire(lock);
       MXRecLockIncCount(lock, lockCount - 1);
-   }
 
-   if (err != ERROR_SUCCESS) {
-      Panic("%s: failure %d on condVar (%p; %s)\n", __FUNCTION__, err,
-            condVar, condVar->header->name);
+      if (err != ERROR_SUCCESS) {
+         Panic("%s: failure %d on condVar (%p; %s)\n", __FUNCTION__, err,
+               condVar, condVar->header->name);
+      }
    }
-
-   return signalled;
 }
 
 
@@ -471,22 +448,21 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  *      MXUserCondVar.
  *
  * Results:
- *      TRUE   condvar was signalled
- *      FALSE  timed out waiting for signal
+ *      As above
  *
  * Side effects:
- *      None
+ *      It is possible to return from this routine without the condtion
+ *      variable having been signalled (spurious wake up); code accordingly!
  *
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Bool
+static INLINE void
 MXUserWaitInternal(MXRecLock *lock,         // IN:
                    MXUserCondVar *condVar,  // IN:
                    uint32 msecWait)         // IN:
 {
    int err;
-   Bool signalled;
    uint32 lockCount = MXRecLockCount(lock);
 
    /*
@@ -501,8 +477,6 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
 
    if (msecWait == MXUSER_WAIT_INFINITE) {
       err = pthread_cond_wait(&condVar->condObject, &lock->nativeLock);
-
-      signalled = (err == 0) ? TRUE : FALSE;
    } else {
       struct timeval curTime;
       struct timespec endTime;
@@ -523,25 +497,18 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       endTime.tv_nsec = (long int) (endNS % A_BILLION);
 #undef A_BILLION
 
-      err = pthread_cond_timedwait(&condVar->condObject,
-                                   &lock->nativeLock,
+      err = pthread_cond_timedwait(&condVar->condObject, &lock->nativeLock,
                                    &endTime);
-
-      signalled = (err == 0) ? TRUE : FALSE;
-
-      if (err == ETIMEDOUT) {
-         err = 0;
-      }
    }
 
    MXRecLockIncCount(lock, lockCount);
 
    if (err != 0) {
-      Panic("%s: failure %d on condVar (%p; %s)\n", __FUNCTION__, err,
-            condVar, condVar->header->name);
+      if (err != ETIMEDOUT) {
+         Panic("%s: failure %d on condVar (%p; %s)\n", __FUNCTION__, err,
+               condVar, condVar->header->name);
+      }
    }
-
-   return signalled;
 }
 
 
@@ -642,8 +609,7 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
  *      The internal wait on a condition variable routine.
  *
  * Results:
- *      TRUE   condvar was signalled
- *      FALSE  timed out waiting for signal
+ *      As above
  *
  * Side effects:
  *      An attempt to use a lock other than the one the specified condition
@@ -652,14 +618,12 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-Bool
+void
 MXUserWaitCondVar(MXUserHeader *header,    // IN:
                   MXRecLock *lock,         // IN:
                   MXUserCondVar *condVar,  // IN:
                   uint32 msecWait)         // IN:
 {
-   Bool signalled;
-
    ASSERT(header);
    ASSERT(lock);
    ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
@@ -675,10 +639,8 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    }
 
    Atomic_Inc(&condVar->referenceCount);
-   signalled = MXUserWaitInternal(lock, condVar, msecWait);
+   MXUserWaitInternal(lock, condVar, msecWait);
    Atomic_Dec(&condVar->referenceCount);
-
-   return signalled;
 }
 
 

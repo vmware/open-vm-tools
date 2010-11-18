@@ -758,7 +758,8 @@ MXUser_CreateCondVarRecLock(MXUserRecLock *lock)
  *      As above.
  *
  * Side effects:
- *      None.
+ *      It is possible to return from this routine without the condtion
+ *      variable having been signalled (spurious wake up); code accordingly!
  *
  *-----------------------------------------------------------------------------
  */
@@ -785,16 +786,16 @@ MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
  *      blocking and is reacquired before returning from this function.
  *
  * Results:
- *      TRUE   condVar was signalled
- *      FALSE  timed out waiting for signal
+ *      As above
  *
  * Side effects:
- *      None.
+ *      It is possible to return from this routine without the condtion
+ *      variable having been signalled (spurious wake up); code accordingly!
  *
  *-----------------------------------------------------------------------------
  */
 
-Bool
+void
 MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                                MXUserCondVar *condVar,  // IN:
                                uint32 msecWait)         // IN:
@@ -802,8 +803,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
    ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
-   return MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
-                            msecWait);
+   MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar, msecWait);
 }
 
 

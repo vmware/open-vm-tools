@@ -66,7 +66,7 @@ MXUserCondVar *MXUser_CreateCondVarExclLock(MXUserExclLock *lock);
 void MXUser_WaitCondVarExclLock(MXUserExclLock *lock,
                                 MXUserCondVar *condVar);
 
-Bool MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,
+void MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,
                                      MXUserCondVar *condVar,
                                      uint32 msecWait);
 
@@ -102,7 +102,7 @@ MXUserCondVar *MXUser_CreateCondVarRecLock(MXUserRecLock *lock);
 void MXUser_WaitCondVarRecLock(MXUserRecLock *lock,
                                MXUserCondVar *condVar);
 
-Bool MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,
+void MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,
                                     MXUserCondVar *condVar,
                                     uint32 msecWait);
 
