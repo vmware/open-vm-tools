@@ -342,6 +342,8 @@ Unicode File_ReplaceExtension(ConstUnicode pathName,
                               uint32 numExtensions,
                               ...);
 
+Unicode File_RemoveExtension(ConstUnicode pathName);
+
 Bool File_MakeCfgFileExecutable(ConstUnicode pathName);
 
 char *File_ExpandAndCheckDir(const char *dirName);

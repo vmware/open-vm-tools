@@ -65,6 +65,7 @@ EXTERN uint32 CRC_Compute(const uint8 *buf, int len);
 EXTERN uint32 Util_Checksum32(const uint32 *buf, int len);
 EXTERN uint32 Util_Checksum(const uint8 *buf, int len);
 EXTERN uint32 Util_Checksumv(void *iov, int numEntries);
+EXTERN uint32 Util_HashString(const char *str);
 EXTERN Unicode Util_ExpandString(ConstUnicode fileName);
 EXTERN void Util_ExitThread(int);
 EXTERN NORETURN void Util_ExitProcessAbruptly(int);

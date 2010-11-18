@@ -2532,6 +2532,38 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * File_RemoveExtension --
+ *
+ *      Return a copy of the given path name with the extension
+ *      removed. We ASSERT that the given path does have an extension.
+ *
+ * Results:
+ *      A newly allocated buffer with the modified string. The caller
+ *      is responsible to free it when they are done with it.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Unicode
+File_RemoveExtension(ConstUnicode pathName)  // IN:
+{
+   UnicodeIndex index;
+
+   ASSERT(pathName);
+
+   index = Unicode_FindLast(pathName, ".");
+   ASSERT(index != UNICODE_INDEX_NOT_FOUND);
+
+   return Unicode_Truncate(pathName, index);
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * File_ExpandAndCheckDir --

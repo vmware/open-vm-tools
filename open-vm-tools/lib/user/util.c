@@ -249,6 +249,37 @@ Util_Checksumv(void *iov,      // IN
 
 
 /*
+ *----------------------------------------------------------------------
+ *
+ * Util_HashString --
+ *
+ *      Get a hash of the given NUL terminated string using the djb2
+ *      hash algorithm.
+ *
+ * Results:
+ *      The hashed value.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+uint32
+Util_HashString(const char *str)  // IN:
+{
+   uint32 hash = 5381;
+   int c;
+
+   while ((c = *str++) != 0) {
+      hash = ((hash << 5) + hash) + c;
+   }
+
+   return hash;
+}
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * UtilLogWrapper --
