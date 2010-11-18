@@ -302,12 +302,28 @@ static const VMCIHandle VMCI_INVALID_HANDLE = {VMCI_INVALID_ID,
 /* VMCI reserved events. */
 typedef uint32 VMCI_Event;
 
-#define VMCI_EVENT_CTX_ID_UPDATE  0
-#define VMCI_EVENT_CTX_REMOVED    1
-#define VMCI_EVENT_QP_RESUMED     2
-#define VMCI_EVENT_QP_PEER_ATTACH 3
-#define VMCI_EVENT_QP_PEER_DETACH 4
-#define VMCI_EVENT_MAX            5
+#define VMCI_EVENT_CTX_ID_UPDATE  0  // Only applicable to guest endpoints
+#define VMCI_EVENT_CTX_REMOVED    1  // Applicable to guest and host
+#define VMCI_EVENT_QP_RESUMED     2  // Only applicable to guest endpoints
+#define VMCI_EVENT_QP_PEER_ATTACH 3  // Applicable to guest and host
+#define VMCI_EVENT_QP_PEER_DETACH 4  // Applicable to guest and host
+#define VMCI_EVENT_MEM_ACCESS_ON  5  // Only applicable to VMX endpoints
+#define VMCI_EVENT_MEM_ACCESS_OFF 6  // Only applicable to VMX endpoints
+#define VMCI_EVENT_MAX            7
+
+/*
+ * Of the above events, a few are reserved for use in the VMX, and
+ * other endpoints (guest and host kernel) should not use them. For
+ * the rest of the events, we allow both host and guest endpoints to
+ * subscribe to them, to maintain the same API for host and guest
+ * endpoints.
+ */
+
+#define VMCI_EVENT_VALID_VMX(_event) (_event == VMCI_EVENT_MEM_ACCESS_ON || \
+                                      _event == VMCI_EVENT_MEM_ACCESS_OFF)
+
+#define VMCI_EVENT_VALID(_event) (_event < VMCI_EVENT_MAX && \
+                                  !VMCI_EVENT_VALID_VMX(_event))
 
 /* Reserved guest datagram resource ids. */
 #define VMCI_EVENT_HANDLER 0

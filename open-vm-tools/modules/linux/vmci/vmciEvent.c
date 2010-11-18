@@ -466,7 +466,7 @@ VMCIEvent_Dispatch(VMCIDatagram *msg)  // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   if (eventMsg->eventData.event >= VMCI_EVENT_MAX) {
+   if (!VMCI_EVENT_VALID(eventMsg->eventData.event)) {
       return VMCI_ERROR_EVENT_UNKNOWN;
    }
 
@@ -508,7 +508,7 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
 
    ASSERT(sub);
 
-   if (event >= VMCI_EVENT_MAX || callback == NULL) {
+   if (!VMCI_EVENT_VALID(event) || callback == NULL) {
       VMCILOG(("VMCIEvent: Failed to subscribe to event %d cb %p data %p.\n",
                event, callback, callbackData));
       return VMCI_ERROR_INVALID_ARGS;
