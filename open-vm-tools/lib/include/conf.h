@@ -119,6 +119,13 @@
  */
 #define CONFNAME_UNITY_ENABLEPBRPC "pbrpc.enable"
 
+/**
+ * Lets users configure the socket type for the PBRPC Services
+ */
+#define CONFNAME_UNITY_PBRPCSOCKETTYPE "pbrpc.socketType"
+#define CONFNAME_UNITY_PBRPCSOCKETTYPE_IPSOCKET "ipsocket"
+#define CONFNAME_UNITY_PBRPCSOCKETTYPE_VSOCKET "vsocket"
+
 /*
  * END Unity goodies.
  ******************************************************************************
