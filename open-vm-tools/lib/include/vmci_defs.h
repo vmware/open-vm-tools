@@ -116,7 +116,8 @@ typedef uint32 VMCI_Resource;
  * WS 7.0/7.1 and ESX 4.1
  */
 #define VMCI_HGFS_TRANSPORT       13
-#define VMCI_RESOURCE_MAX         14
+#define VMCI_UNITY_PBRPC_REGISTER 14
+#define VMCI_RESOURCE_MAX         15
 
 /* VMCI Ids. */
 typedef uint32 VMCIId;

@@ -446,7 +446,15 @@ VSockAddr_SocketContextDgram(uint32 cid,  // IN
                              uint32 rid)  // IN
 {
    if (cid == VMCI_HYPERVISOR_CONTEXT_ID) {
-      return FALSE;
+      /*
+       * Registrations of PBRPC Servers do not modify VMX/Hypervisor state and
+       * are allowed.
+       */
+      if (rid == VMCI_UNITY_PBRPC_REGISTER) {
+         return TRUE;
+      } else {
+         return FALSE;
+      }
    }
 
    return TRUE;
