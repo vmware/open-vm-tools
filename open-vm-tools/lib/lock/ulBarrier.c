@@ -255,7 +255,7 @@ MXUser_EnterBarrier(MXUserBarrier *barrier)  // IN/OUT:
        *
        * Flip the current context. Should a thread leave the barrier and
        * enter the barrier while the barrier is "emptying" the thread will
-       * parked on the condVar that is not "emptying". Eventually everything
+       * park on the condVar that is not "emptying". Eventually everything
        * will "work out" and all of the threads will be parked on the opposite
        * context's condVar.
        */
