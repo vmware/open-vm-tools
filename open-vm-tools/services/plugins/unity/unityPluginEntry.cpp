@@ -186,13 +186,19 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       ToolsPlugin *pluginInstance = NULL;
 
 #if WIN32
-      pluginInstance = new UnityPluginWin32(ctx);
+      pluginInstance = new UnityPluginWin32();
 #else // Linux
-      pluginInstance = new UnityPlugin(ctx);
+      pluginInstance = new UnityPlugin();
 #endif
 
       if (!pluginInstance) {
          // There's nothing we can do if we can't construct the plugin instance
+         return NULL;
+      }
+
+      if (!pluginInstance->Initialize(ctx)) {
+         g_warning("%s: Unity Plugin failed to initialize.\n", __FUNCTION__);
+         delete pluginInstance;
          return NULL;
       }
       regData._private = pluginInstance;

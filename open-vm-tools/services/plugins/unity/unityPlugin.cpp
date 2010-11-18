@@ -65,11 +65,22 @@ static NotifyIconRpcCallback gNotifyIconCallback;
 /**
  * Constructor for the Unity plugin, initialized Unity, and common options values
  *
- * @param[in]  ctx      Host application context.
- *
  */
 
-UnityPlugin::UnityPlugin(ToolsAppCtx *ctx) : mUnityUpdateChannel(NULL)
+UnityPlugin::UnityPlugin() : mUnityUpdateChannel(NULL)
+{
+}
+
+/**
+ * Initializer for the Unity plugin, initialized Unity, and common options values
+ *
+ * @param[in]  ctx      Host application context.
+ *
+ * @return true if initialization was successful.
+ */
+
+gboolean
+UnityPlugin::Initialize(ToolsAppCtx *ctx)
 {
    ASSERT(ctx);
 
@@ -88,7 +99,7 @@ UnityPlugin::UnityPlugin(ToolsAppCtx *ctx) : mUnityUpdateChannel(NULL)
    mUnityUpdateChannel = UnityUpdateChannelInit();
    if (NULL == mUnityUpdateChannel) {
       Warning("%s: Unable to initialize Unity update channel.\n", __FUNCTION__);
-      return;
+      return false;
    }
    unityHostCallbacks.updateCbCtx = mUnityUpdateChannel;
 
@@ -127,6 +138,7 @@ UnityPlugin::UnityPlugin(ToolsAppCtx *ctx) : mUnityUpdateChannel(NULL)
                      /* blue */ 0xdc << 16;
    }
    Unity_SetConfigDesktopColor(desktopColor);
+   return true;
 }
 
 

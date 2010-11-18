@@ -117,6 +117,16 @@ class ToolsPlugin {
 public:
    virtual ~ToolsPlugin() {};
 
+
+   /**
+    * Initializer for the plugin.
+    *
+    * @param[in]  ctx      Host application context.
+    *
+    * @return true if initialization was successful.
+    */
+   virtual gboolean Initialize(ToolsAppCtx *ctx) = 0;
+
    /**
     * Handles a reset signal. This callback is called when the service receives a
     * "reset" message from the VMX, meaning the VMX may be restarting the RPC
@@ -193,8 +203,10 @@ public:
 
 class UnityPlugin  : public ToolsPlugin {
 public:
-   UnityPlugin(ToolsAppCtx *ctx);
+   UnityPlugin();
    virtual ~UnityPlugin();
+
+   virtual gboolean Initialize(ToolsAppCtx *ctx);
 
    virtual gboolean Reset(gpointer src) { return TRUE; }
    virtual void Shutdown(gpointer src) {};
@@ -212,8 +224,10 @@ protected:
 #ifdef _WIN32
 class UnityPluginWin32 : public UnityPlugin {
 public:
-   UnityPluginWin32(ToolsAppCtx *ctx);
+   UnityPluginWin32();
    virtual ~UnityPluginWin32();
+
+   virtual gboolean Initialize(ToolsAppCtx *ctx);
 
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set);
    virtual void SessionChange(gpointer src, DWORD code, DWORD id) {};
