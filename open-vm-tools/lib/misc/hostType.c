@@ -23,8 +23,6 @@
  *    code to determine the host OS type.
  */
 
-#define _GNU_SOURCE
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,15 +30,12 @@
 #include "hostType.h"
 #include "str.h"
 
-#if defined(linux)
-#include <gnu/libc-version.h>
+#if defined(VMX86_SERVER) || (defined(VMX86_VPX) && defined(linux))
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#if defined(VMX86_SERVER) || defined(VMX86_VPX)
 #include "uwvmkAPI.h"
-#endif // defined(VMX86_SERVER) || defined(VMX86_VPX)
-#endif // defined(linux)
+#endif
 
 #define LGPFX "HOSTTYPE:"
 
@@ -71,65 +66,56 @@
 static int
 HostTypeOSVMKernelType(void)
 {
-#if defined(linux)
+#if defined(VMX86_SERVER) || (defined(VMX86_VPX) && defined(linux))
    static int vmkernelType = -1;
 
    if (vmkernelType == -1) {
-      if (strncmp(gnu_get_libc_release(), "vmware", 6) == 0) {
-#if defined(VMX86_SERVER) || defined(VMX86_VPX)
-         char osname[128];
-         size_t osnameLength = sizeof(osname);
-         int kernOsTypeCtl[] = { CTL_KERN, KERN_OSTYPE };
+      char osname[128];
+      size_t osnameLength;
+      int kernOsTypeCtl[] = { CTL_KERN, KERN_OSTYPE };
+      int rc;
+      
+      osnameLength = sizeof(osname);
+      rc = sysctl(kernOsTypeCtl, ARRAYSIZE(kernOsTypeCtl),
+                  osname, &osnameLength,
+                  0, 0);
+      if (rc == 0) {
+         osnameLength = MAX(sizeof (osname), osnameLength);
 
-         if (sysctl(kernOsTypeCtl, ARRAYSIZE(kernOsTypeCtl),
-                    osname, &osnameLength, 0, 0) == 0) {
-            osnameLength = MAX(sizeof (osname), osnameLength);
-
-            /*
-             * XXX Yes, this is backwards in order of probability now, but we
-             *     call it only once and anyway someday it won't be backwards ...
-             */
-
-            if (! strncmp(osname, USERWORLD_SYSCTL_VISOR64_OSTYPE,
-                          osnameLength)) {
-               vmkernelType = 4;
-            } else if (! strncmp(osname, USERWORLD_SYSCTL_KERN64_OSTYPE,
-                                 osnameLength)) {
-               vmkernelType = 3;
-            } else if (! strncmp(osname, USERWORLD_SYSCTL_VISOR_OSTYPE,
-                                 osnameLength)) {
-               vmkernelType = 2;
-            } else if (! strncmp(osname, USERWORLD_SYSCTL_KERN_OSTYPE,
-                                 osnameLength)) {
-               vmkernelType = 1;
-            } else {
-               vmkernelType = 0;
-            }
-         } else {
-            /*
-             * XXX too many of the callers don't define Warning.  See bug 125455
-             */
-
-            vmkernelType = 0;
-         }
-#else // defined(VMX86_SERVER) || defined(VMX86_VPX)
          /*
-          * Only binaries part of ESX and VPX are supposed to work in userworlds.
-          * Hitting this assert means that you have built with incorrect PRODUCT.
+          * XXX Yes, this is backwards in order of probability now, but we
+          *     call it only once and anyway someday it won't be backwards ...
           */
 
-         NOT_REACHED();
-#endif // defined(VMX86_SERVER) || defined(VMX86_VPX)
+         if (! strncmp(osname, USERWORLD_SYSCTL_VISOR64_OSTYPE,
+                       osnameLength)) {
+            vmkernelType = 4;
+         } else if (! strncmp(osname, USERWORLD_SYSCTL_KERN64_OSTYPE,
+                              osnameLength)) {
+            vmkernelType = 3;
+         } else if (! strncmp(osname, USERWORLD_SYSCTL_VISOR_OSTYPE,
+                              osnameLength)) {
+            vmkernelType = 2;
+         } else if (! strncmp(osname, USERWORLD_SYSCTL_KERN_OSTYPE,
+                              osnameLength)) {
+            vmkernelType = 1;
+         } else {
+            vmkernelType = 0;
+         }
       } else {
+         /*
+          * XXX too many of the callers don't define Warning.  See bug 125455
+          */
+
          vmkernelType = 0;
       }
    }
 
    return (vmkernelType);
-#else // defined(linux)
-   /* Non-linux builds are never running on the VMKernel. */
+#else
+   /* Non-ESX builds are never running on the VMKernel. */
    return 0;
-#endif // defined(linux)
+#endif
 }
 
 

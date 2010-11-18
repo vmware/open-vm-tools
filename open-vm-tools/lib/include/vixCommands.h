@@ -1798,6 +1798,13 @@ typedef
 struct VixMsgListProcessesExRequest {
    VixCommandRequestHeader   header;
 
+   // if we need to make multiple trips, this is the key used to identify
+   // the result being processed
+   uint32 key;
+
+   // if we need to make multiple trips, this is the offset in the reply
+   // from which to send the next chunk
+   uint32 offset;
    uint32 numPids;
 
    // This is followed by the list of uint64s

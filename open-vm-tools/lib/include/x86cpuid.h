@@ -377,6 +377,7 @@ FIELDDEF(  5, EDX, INTEL,  16,  4, MWAIT_C4_SUBSTATE,   NA,  FALSE)
 #define CPUID_FIELD_DATA_LEVEL_6                                               \
 FLAGDEF(   6, EAX, INTEL,   0,  1, THERMAL_SENSOR,      NA,  FALSE)     \
 FLAGDEF(   6, EAX, INTEL,   1,  1, TURBO_MODE,          NA,  FALSE)     \
+FLAGDEF(   6, EAX, INTEL,   2,  1, APIC_INVARIANT,      NA,  FALSE)     \
 FIELDDEF(  6, EBX, INTEL,   0,  4, NUM_INTR_THRESHOLDS, NA,  FALSE)     \
 FLAGDEF(   6, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,   NA,  FALSE)	\
 FLAGDEF(   6, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,    NA,  FALSE)

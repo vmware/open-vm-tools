@@ -48,6 +48,8 @@
 #include "win32u.h"
 #include <sys/stat.h>
 #include <time.h>
+#define  SECURITY_WIN32
+#include <Security.h>
 #else
 #include <unistd.h>
 #endif
@@ -89,6 +91,7 @@
 #include "posix.h"
 #include "unicode.h"
 #include "hashTable.h"
+#include "su.h"
 
 #if defined(linux) || defined(_WIN32)
 #include "netutil.h"
@@ -213,6 +216,38 @@ static VixToolsExitedProgramState *exitedProcessList = NULL;
  * How long we keep the info of exited processes about.
  */
 #define  VIX_TOOLS_EXITED_PROGRAM_REAP_TIME  (5 * 60)
+
+/*
+ * This is used to cache the results of ListProcessesEx when the reply
+ * is too large to fit over the backdoor, so multiple trips are needed
+ * to fetch it.
+ */
+static GHashTable *listProcessesResultsTable = NULL;
+
+/*
+ * How long to keep around cached results in case the Vix side dies.
+ *
+ * Err on the very large; would hate to have it kick in just because
+ * the other side is slow or there's an immense ammount of data.
+ */
+#define  SECONDS_UNTIL_LISTPROC_CACHE_CLEANUP   (10 * 60)
+
+typedef struct VixToolsCachedListProcessesResult {
+   char *resultBuffer;
+   size_t resultBufferLen;
+#ifdef _WIN32
+   wchar_t *userName;
+#else
+   uid_t euid;
+#endif
+} VixToolsCachedListProcessesResult;
+
+/*
+ * Simple unique hashkey used for ListProcessesEx results.
+ */
+static uint32 listProcessesResultsKey = 1;
+
+static void VixToolsFreeCachedResult(gpointer p);
 
 /*
  * This structure is designed to implemente CreateTemporaryFile,
@@ -504,6 +539,11 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
                               NULL);   // rpc callback
    HgfsServerManager_Register(&gVixHgfsBkdrConn);
 #endif
+
+   listProcessesResultsTable = g_hash_table_new_full(g_int_hash, g_int_equal,
+                                                     free,
+                                                     VixToolsFreeCachedResult);
+
 
    return(err);
 } // VixTools_Initialize
@@ -981,7 +1021,10 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   Debug("%s: args: '%s' '%s' '%s'\n", __FUNCTION__, programPath, arguments, workingDir);
+   Debug("%s: args: progamPath: '%s', arguments: '%s'', workingDir: %s'\n",
+         __FUNCTION__, programPath,
+        (NULL != arguments) ? arguments : "",
+        (NULL != workingDir) ? workingDir : "");
 
    err = VixToolsStartProgramImpl(requestName,
                                   programPath,
@@ -1537,6 +1580,8 @@ VixToolsMonitorAsyncProc(void *clientData) // IN
    ProcMgr_Pid pid = -1;
    int result = -1;
    GSource *timer;
+   char *requestName = NULL;
+   VixRunProgramOptions runProgramOptions;
 
    asyncState = (VixToolsRunProgramState *)clientData;
    ASSERT(asyncState);
@@ -1556,7 +1601,7 @@ VixToolsMonitorAsyncProc(void *clientData) // IN
    return FALSE;
 
 done:
-   
+
    /*
     * We need to always check the exit code, even if there is no need to
     * report it. On POSIX systems, ProcMgr_GetExitCode() does things like
@@ -1567,22 +1612,26 @@ done:
    if (0 != result) {
       exitCode = -1;
    }
-   
+
+   runProgramOptions = asyncState->runProgramOptions;
+   requestName = Util_SafeStrdup(asyncState->requestName);
+
+   VixToolsFreeRunProgramState(asyncState);
+
    /*
     * We may just be running to clean up after running a script, with the
     * results already reported.
     */
    if ((NULL != reportProgramDoneProc)
-       && !(asyncState->runProgramOptions & VIX_RUNPROGRAM_RETURN_IMMEDIATELY)) {
-      (*reportProgramDoneProc)(asyncState->requestName, 
+       && !(runProgramOptions & VIX_RUNPROGRAM_RETURN_IMMEDIATELY)) {
+      (*reportProgramDoneProc)(requestName,
                                err,
                                exitCode,
                                (int64) pid,
                                reportProgramDoneData);
    }
 
-   VixToolsFreeRunProgramState(asyncState);
-
+   free(requestName);
    return FALSE;
 } // VixToolsMonitorAsyncProc
 
@@ -4179,8 +4228,9 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
- * VixToolsListProcessesEx --
+ * VixToolsFreeCachedResult --
  *
+ *    Hash table value destroy func.
  *
  * Return value:
  *    VixError
@@ -4191,39 +4241,89 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-VixError
-VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
-                        size_t maxBufferSize,                // IN
-                        char **result)                       // OUT
+static void
+VixToolsFreeCachedResult(gpointer ptr)          // IN
 {
-   VixError err = VIX_OK;
-   static char resultBuffer[GUESTMSG_MAX_IN_SIZE];
-   ProcMgr_ProcList *procList = NULL;
-   char *destPtr;
-   char *endDestPtr;
-   Bool impersonatingVMWareUser = FALSE;
-   void *userToken = NULL;
-   VixToolsExitedProgramState *epList;
-   char *procBufPtr = NULL;
-   size_t procBufSize;
-   VixMsgListProcessesExRequest *listRequest;
-   uint64 *pids = NULL;
-   uint32 numPids;
+   VixToolsCachedListProcessesResult *p = (VixToolsCachedListProcessesResult *) ptr;
+
+   if (NULL != p) {
+      free(p->resultBuffer);
+#ifdef _WIN32
+      free(p->userName);
+#endif
+      free(p);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListProcCacheCleanup --
+ *
+ *
+ * Return value:
+ *    FALSE -- tells glib not to clean up
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static gboolean
+VixToolsListProcCacheCleanup(void *clientData) // IN
+{
+   int32 *key = (int32 *)clientData;
+   gboolean ret;
+
+   ret = g_hash_table_remove(listProcessesResultsTable, key);
+   Debug("%s: list proc cache timed out, purged key %d (found? %d)\n",
+         __FUNCTION__, *key, ret);
+   free(key);
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListProcessesExGenerateData --
+ *
+ *    Does the work to generate the results into a string buffer.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    Allocates and creates the result buffer.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
+                                    const uint64 *pids,      // IN
+                                    size_t *resultSize,      // OUT
+                                    char **resultBuffer)     // OUT
+{
    int i;
    int j;
+   VixError err = VIX_OK;
+   char *procBufPtr = NULL;
+   size_t procBufSize;
+   ProcMgr_ProcList *procList = NULL;
+   DynBuf dynBuffer;
+   VixToolsExitedProgramState *epList;
+   Bool bRet;
+   static const char *procInfoFormatString =
+                                 "<proc><name>%s</name><pid>%"FMT64"d</pid>"
+                                 "<user>%s</user><start>%d</start>"
+                                 "<eCode>%d</eCode><eTime>%d</eTime>"
+                                 "</proc>";
 
-   ASSERT(maxBufferSize <= GUESTMSG_MAX_IN_SIZE);
-
-   destPtr = resultBuffer;
-   *destPtr = 0;
-
-   listRequest = (VixMsgListProcessesExRequest *) requestMsg;
-
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-   impersonatingVMWareUser = TRUE;
+   DynBuf_Init(&dynBuffer);
 
    procList = ProcMgr_ListProcesses();
    if (NULL == procList) {
@@ -4231,12 +4331,6 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
       goto abort;
    }
 
-   numPids = listRequest->numPids;
-   if (numPids > 0) {
-      pids = (uint64 *)((char *)requestMsg + sizeof(*listRequest));
-   }
-
-   endDestPtr = resultBuffer + maxBufferSize;
 
    /*
     * First check the procecess we've started via StartProgram, which
@@ -4249,26 +4343,19 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
          while (epList) {
             if (pids[i] == epList->pid) {
                procBufPtr = Str_Asprintf(&procBufSize,
-                                      "<proc><name>%s</name><pid>%"FMT64"d</pid>"
-                                      "<user>%s</user><start>%d</start>"
-                                      "<eCode>%d</eCode><eTime>%d</eTime>"
-                                      "</proc>",
-                                      epList->fullCommandLine,
-                                      epList->pid,
-                                      epList->user,
-                                      (int) epList->startTime,
-                                      epList->exitCode,
-                                      (int) epList->endTime);
-               if ((destPtr + procBufSize) < endDestPtr) {
-                  destPtr += Str_Sprintf(destPtr,
-                                         endDestPtr - destPtr,
-                                         "%s", procBufPtr);
-               } else { // out of space
-                  free(procBufPtr);
-                  Log("%s: proc list results too large, truncating", __FUNCTION__);
+                                         procInfoFormatString,
+                                         epList->fullCommandLine,
+                                         epList->pid,
+                                         epList->user,
+                                         (int) epList->startTime,
+                                         epList->exitCode,
+                                         (int) epList->endTime);
+               bRet = DynBuf_Append(&dynBuffer, procBufPtr, procBufSize);
+               free(procBufPtr);
+               if (!bRet) {
+                  err = VIX_E_OUT_OF_MEMORY;
                   goto abort;
                }
-               free(procBufPtr);
             }
             epList = epList->next;
          }
@@ -4277,26 +4364,19 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
       epList = exitedProcessList;
       while (epList) {
          procBufPtr = Str_Asprintf(&procBufSize,
-                                "<proc><name>%s</name><pid>%"FMT64"d</pid>"
-                                "<user>%s</user><start>%d</start>"
-                                "<eCode>%d</eCode><eTime>%d</eTime>"
-                                "</proc>",
-                                epList->fullCommandLine,
-                                epList->pid,
-                                epList->user,
-                                (int) epList->startTime,
-                                epList->exitCode,
-                                (int) epList->endTime);
-         if ((destPtr + procBufSize) < endDestPtr) {
-            destPtr += Str_Sprintf(destPtr,
-                                   endDestPtr - destPtr,
-                                   "%s", procBufPtr);
-         } else { // out of space
-            free(procBufPtr);
-            Log("%s: proc list results too large, truncating", __FUNCTION__);
+                                   procInfoFormatString,
+                                   epList->fullCommandLine,
+                                   epList->pid,
+                                   epList->user,
+                                   (int) epList->startTime,
+                                   epList->exitCode,
+                                   (int) epList->endTime);
+         bRet = DynBuf_Append(&dynBuffer, procBufPtr, procBufSize);
+         free(procBufPtr);
+         if (!bRet) {
+            err = VIX_E_OUT_OF_MEMORY;
             goto abort;
          }
-         free(procBufPtr);
          epList = epList->next;
       }
    }
@@ -4317,29 +4397,23 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
             }
             if (pids[i] == procList->procIdList[j]) {
                procBufPtr = Str_Asprintf(&procBufSize,
-                                      "<proc><name>%s</name><pid>%d</pid>"
-                                      "<user>%s</user><start>%d</start>"
-                                      "<eCode>0</eCode><eTime>0</eTime>"
-                                      "</proc>",
-                                      procList->procCmdList[j],
-                                      (int) procList->procIdList[j],
-                                      (NULL == procList->procOwnerList
-                                        || NULL == procList->procOwnerList[j])
-                                          ? ""
-                                          : procList->procOwnerList[j],
-                                      (NULL == procList->startTime)
-                                          ? 0
-                                          : (int) procList->startTime[j]);
-               if ((destPtr + procBufSize) < endDestPtr) {
-                  destPtr += Str_Sprintf(destPtr,
-                                         endDestPtr - destPtr,
-                                         "%s", procBufPtr);
-               } else { // out of space
-                  free(procBufPtr);
-                  Log("%s: proc list results too large, truncating", __FUNCTION__);
+                                         procInfoFormatString,
+                                         procList->procCmdList[j],
+                                         (uint64) procList->procIdList[j],
+                                         (NULL == procList->procOwnerList
+                                           || NULL == procList->procOwnerList[j])
+                                             ? ""
+                                             : procList->procOwnerList[j],
+                                         (NULL == procList->startTime)
+                                             ? 0
+                                             : (int) procList->startTime[j],
+                                             0, 0);      // eCode, eTime
+               bRet = DynBuf_Append(&dynBuffer, procBufPtr, procBufSize);
+               free(procBufPtr);
+               if (!bRet) {
+                  err = VIX_E_OUT_OF_MEMORY;
                   goto abort;
                }
-               free(procBufPtr);
             }
          }
       }
@@ -4350,41 +4424,332 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
             continue;
          }
          procBufPtr = Str_Asprintf(&procBufSize,
-                                "<proc><name>%s</name><pid>%d</pid>"
-                                "<user>%s</user><start>%d</start>"
-                                "<eCode>0</eCode><eTime>0</eTime>"
-                                "</proc>",
-                                procList->procCmdList[i],
-                                (int) procList->procIdList[i],
-                                (NULL == procList->procOwnerList
-                                  || NULL == procList->procOwnerList[i])
-                                    ? ""
-                                    : procList->procOwnerList[i],
-                                (NULL == procList->startTime)
-                                    ? 0
-                                    : (int) procList->startTime[i]);
-         if ((destPtr + procBufSize) < endDestPtr) {
-            destPtr += Str_Sprintf(destPtr,
-                                   endDestPtr - destPtr,
-                                   "%s", procBufPtr);
-         } else { // out of space
-            free(procBufPtr);
-            Log("%s: proc list results too large, truncating", __FUNCTION__);
+                                   procInfoFormatString,
+                                   procList->procCmdList[i],
+                                   (uint64) procList->procIdList[i],
+                                   (NULL == procList->procOwnerList
+                                     || NULL == procList->procOwnerList[i])
+                                       ? ""
+                                       : procList->procOwnerList[i],
+                                   (NULL == procList->startTime)
+                                       ? 0
+                                       : (int) procList->startTime[i],
+                                    0, 0);      // eCode, eTime
+         bRet = DynBuf_Append(&dynBuffer, procBufPtr, procBufSize);
+         free(procBufPtr);
+         if (!bRet) {
+            err = VIX_E_OUT_OF_MEMORY;
             goto abort;
          }
-         free(procBufPtr);
       }
+   }
+
+   // add the final NUL
+   bRet = DynBuf_Append(&dynBuffer, "", 1);
+   if (!bRet) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   DynBuf_Trim(&dynBuffer);
+   *resultSize = DynBuf_GetSize(&dynBuffer);
+   *resultBuffer  = DynBuf_Detach(&dynBuffer);
+
+abort:
+   DynBuf_Destroy(&dynBuffer);
+   ProcMgr_FreeProcList(procList);
+   return err;
+}
+
+
+#ifdef _WIN32
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsGetUserName --
+ *
+ *    Returns as unique a name as possible.  For our case, that's just
+ *    a domain name, since the only way to get the truly unique values
+ *    requires the process to be running inside a domain, which we
+ *    can't expect.
+ *
+ * Return value:
+ *    FALSE on error
+ *
+ * Side effects:
+ *    Return value is allocated and must be freed.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static Bool
+VixToolsGetUserName(wchar_t **userName)                     // OUT
+{
+   WCHAR userTmp[UNLEN + 1];
+   Bool bRet;
+   ULONG uLen = ARRAYSIZE(userTmp);
+
+   *userName = '\0';
+
+   bRet = GetUserNameExW(NameSamCompatible, userTmp, &uLen);
+   if (!bRet) {
+      Warning("%s: GetUserNameExW() failed %d\n", __FUNCTION__, GetLastError());
+      return bRet;
+   }
+   *userName = Util_SafeMalloc((uLen + 1) * sizeof(wchar_t));
+
+   wcscpy(*userName, userTmp);
+
+   return TRUE;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListProcessesEx --
+ *
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
+                        size_t maxBufferSize,                // IN
+                        void *eventQueue,                    // IN
+                        char **result)                       // OUT
+{
+   VixError err = VIX_OK;
+   char *fullResultBuffer;
+   char *finalResultBuffer = NULL;
+   size_t fullResultSize = 0;
+   size_t curPacketLen = 0;
+   int32 leftToSend = 0;
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   VixMsgListProcessesExRequest *listRequest;
+   uint64 *pids = NULL;
+   uint32 numPids;
+   uint32 key;
+   uint32 offset;
+   int len;
+   VixToolsCachedListProcessesResult *cachedResult = NULL;
+   uint32 *keyBuf;
+   GSource *timer;
+   int32 *timerData;
+#ifdef _WIN32
+   Bool bRet;
+   wchar_t *userName = NULL;
+#endif
+   static const char resultHeaderFormatString[] =
+                                 "<key>%u</key><totalSize>%d</totalSize>"
+                                 "<leftToSend>%d</leftToSend>";
+   // room for header plus 3 32-bit ints
+   int resultHeaderSize = sizeof(resultHeaderFormatString) + 3 * 10;
+   static const char leftHeaderFormatString[] =
+                                 "<leftToSend>%d</leftToSend>";
+   // room for header plus 1 32-bit ints
+   int leftHeaderSize = sizeof(leftHeaderFormatString) + 10;
+
+   ASSERT(maxBufferSize <= GUESTMSG_MAX_IN_SIZE);
+   ASSERT(maxBufferSize > resultHeaderSize);
+
+   listRequest = (VixMsgListProcessesExRequest *) requestMsg;
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   key = listRequest->key;
+   offset = listRequest->offset;
+
+   /*
+    * If the request has a key, then go look up the cached results
+    * it should point to.
+    */
+   if (0 != key) {
+
+      // find the cached data
+      cachedResult = g_hash_table_lookup(listProcessesResultsTable,
+                                        &key);
+      if (NULL == cachedResult) {
+         Debug("%s: failed to find cached data with key %d\n", __FUNCTION__, key);
+         err = VIX_E_FAIL;
+         goto abort;
+      }
+
+      // sanity check offset
+      if (listRequest->offset > cachedResult->resultBufferLen) {
+         /*
+          * Since this isn't user-set, assume any problem is in the
+          * code and return VIX_E_FAIL
+          */
+         err = VIX_E_FAIL;
+         goto abort;
+      }
+
+      // security check -- validate user
+#ifdef _WIN32
+      bRet = VixToolsGetUserName(&userName);
+      if (!bRet) {
+         Debug("%s: VixToolsGetUserName() failed\n", __FUNCTION__);
+         err = VIX_E_FAIL;
+         goto abort;
+      }
+      if (0 != wcscmp(userName, cachedResult->userName)) {
+         /*
+          * Since this isn't user-set, assume any problem is in the
+          * code and return VIX_E_FAIL
+          */
+         Debug("%s: username mismatch validating cached data (have %S, want %S)\n",
+               __FUNCTION__, userName, cachedResult->userName);
+         err = VIX_E_FAIL;
+         goto abort;
+      }
+#else
+      if (cachedResult->euid != Id_GetEUid()) {
+         /*
+          * Since this isn't user-set, assume any problem is in the
+          * code and return VIX_E_FAIL
+          */
+         err = VIX_E_FAIL;
+         Debug("%s: euid mismatch validating cached data (want %d, got %d)\n",
+               __FUNCTION__, (int) cachedResult->euid, (int) Id_GetEUid());
+         goto abort;
+      }
+#endif
+
+   } else {
+      /*
+       * No key, so this is the initial/only request.  Generate data,
+       * cache if necessary.
+       */
+
+      numPids = listRequest->numPids;
+      if (numPids > 0) {
+         pids = (uint64 *)((char *)requestMsg + sizeof(*listRequest));
+      }
+
+      err = VixToolsListProcessesExGenerateData(numPids, pids,
+                                                &fullResultSize,
+                                                &fullResultBuffer);
+
+      /*
+       * Check if the result is large enough to require more than one trip.
+       * Stuff it in the hash table if so.
+       */
+      if ((fullResultSize + resultHeaderSize) > maxBufferSize) {
+         Debug("%s: answer requires caching.  have %d bytes\n", __FUNCTION__, (int) (fullResultSize + resultHeaderSize));
+         /*
+          * Save it off in the hashtable.
+          */
+         keyBuf = Util_SafeMalloc(sizeof(uint32));
+         key = listProcessesResultsKey++;
+         *keyBuf = key;
+         cachedResult = Util_SafeMalloc(sizeof(VixToolsCachedListProcessesResult));
+         cachedResult->resultBufferLen = fullResultSize;
+         cachedResult->resultBuffer = fullResultBuffer;
+#ifdef _WIN32
+         bRet = VixToolsGetUserName(&cachedResult->userName);
+         if (!bRet) {
+            Debug("%s: failed to get current userName\n", __FUNCTION__);
+            goto abort;
+         }
+#else
+         cachedResult->euid = Id_GetEUid();
+#endif
+
+         g_hash_table_insert(listProcessesResultsTable, keyBuf, cachedResult);
+
+         /*
+          * Set timer callback to clean this up in case the Vix side
+          * never finishes
+          */
+         timerData = Util_SafeMalloc(sizeof(int32));
+         *timerData = *keyBuf;
+         timer = g_timeout_source_new(SECONDS_UNTIL_LISTPROC_CACHE_CLEANUP * 1000);
+         g_source_set_callback(timer, VixToolsListProcCacheCleanup, timerData, NULL);
+         g_source_attach(timer, g_main_loop_get_context(eventQueue));
+         g_source_unref(timer);
+      }
+   }
+
+   /*
+    * Now package up the return data.
+    */
+   if (NULL != cachedResult) {
+      int hdrSize;
+
+      /*
+       * For the first packet, sent the key and total size and leftToSend.
+       * After that, just send leftToSend.
+       */
+      if (0 == offset) {
+         hdrSize = resultHeaderSize;
+      } else {
+         hdrSize = leftHeaderSize;
+      }
+
+      leftToSend = cachedResult->resultBufferLen - offset;
+
+      if (leftToSend > (maxBufferSize - hdrSize)) {
+         curPacketLen = maxBufferSize - hdrSize;
+      } else {
+         curPacketLen = leftToSend;
+      }
+
+      leftToSend -= curPacketLen;
+
+      finalResultBuffer = Util_SafeMalloc(curPacketLen + hdrSize + 1);
+      if (0 == offset) {
+
+         len = Str_Sprintf(finalResultBuffer, maxBufferSize,
+                           resultHeaderFormatString,
+                           key, (int) cachedResult->resultBufferLen,
+                           leftToSend);
+      } else {
+         len = Str_Sprintf(finalResultBuffer, maxBufferSize,
+                           leftHeaderFormatString,
+                           leftToSend);
+      }
+
+      memcpy(finalResultBuffer + len,
+             cachedResult->resultBuffer + offset, curPacketLen);
+      finalResultBuffer[curPacketLen + len] = '\0';
+
+      /*
+       * All done, clean it out of the hash table.
+       */
+      if (0 == leftToSend) {
+         g_hash_table_remove(listProcessesResultsTable, &key);
+      }
+
+   } else {
+      /*
+       * In the simple/common case, just return the basic proces info.
+       */
+      finalResultBuffer = fullResultBuffer;
    }
 
 
 abort:
+#ifdef _WIN32
+   free(userName);
+#endif
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
    VixToolsLogoutUser(userToken);
-   ProcMgr_FreeProcList(procList);
 
-   *result = resultBuffer;
+   *result = finalResultBuffer;
 
    return(err);
 } // VixToolsListProcessesEx
@@ -4870,7 +5235,8 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    impersonatingVMWareUser = TRUE;
 
    Debug("%s: listing files in '%s' with pattern '%s'\n",
-         __FUNCTION__, dirPathName, pattern);
+         __FUNCTION__, dirPathName,
+         (NULL != pattern) ? pattern : "");
 
    if (pattern) {
       regex = g_regex_new(pattern, 0, 0, &gerr);
@@ -5875,7 +6241,18 @@ if (0 == *interpreterName) {
       if (fd >= 0) {
          break;
       }
-
+#if defined(_WIN32)
+      if ((errno == EACCES) && (File_Exists(tempScriptFilePath))) {
+         /*
+          * On windows, Posix_Open() fails with EACCES if there is any
+          * permissions check failure while creating the file. Also, EACCES is
+          * returned if a directory already exists with the same name. In such
+          * case, we need to check if a file already exists and ignore
+          * EACCES error.
+          */
+         continue;
+      }
+#endif
       if (errno != EEXIST) {
          /*
           * While persistence is generally a worthwhile trail, if something
@@ -7918,8 +8295,9 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       case VIX_COMMAND_LIST_PROCESSES_EX:
          err = VixToolsListProcessesEx(requestMsg,
                                       maxResultBufferSize,
+                                      eventQueue,
                                       &resultValue);
-         // resultValue is static. Do not free it.
+         deleteResultValue = TRUE;
          break;
 
       ////////////////////////////////////
