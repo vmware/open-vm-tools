@@ -545,6 +545,7 @@ ToolsCore_DumpPluginInfo(ToolsServiceState *state)
 gboolean
 ToolsCore_LoadPlugins(ToolsServiceState *state)
 {
+   gboolean pluginDirExists;
    gboolean ret = FALSE;
    gchar *pluginRoot;
 
@@ -603,7 +604,10 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
       goto exit;
    }
 
-   /* Load the container-specific plugins. */
+   /*
+    * Load the container-specific plugins. Ignore if the plugin directory
+    * doesn't exist when running in debug mode.
+    */
 
    if (state->pluginPath == NULL) {
       state->pluginPath = g_strdup_printf("%s%s%c%s",
@@ -613,12 +617,14 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
                                           state->name);
    }
 
-   if (!g_file_test(state->pluginPath, G_FILE_TEST_IS_DIR)) {
+   pluginDirExists = g_file_test(state->pluginPath, G_FILE_TEST_IS_DIR);
+   if (state->debugPlugin == NULL && !pluginDirExists) {
       g_warning("Plugin path is not a directory: %s\n", state->pluginPath);
       goto exit;
    }
 
-   if (!ToolsCoreLoadDirectory(&state->ctx, state->pluginPath, state->plugins)) {
+   if (pluginDirExists &&
+       !ToolsCoreLoadDirectory(&state->ctx, state->pluginPath, state->plugins)) {
       goto exit;
    }
 

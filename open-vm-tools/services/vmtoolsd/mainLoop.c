@@ -195,14 +195,19 @@ ToolsCoreRunLoop(ToolsServiceState *state)
    }
 
    /*
-    * Don't run the loop if a plugin has requested it not to run during
-    * initialization, or if not running under a VMware hypervisor. If not
-    * in a VM then there's no point in trying to run the loop, just exit
-    * with a '0' return status (see bug 297528 for why '0'). If we ever want
-    * to run vmtoolsd on physical hardware (or another hypervisor), we'll have
-    * to revisit this code.
+    * The following criteria needs to hold for the main loop to be run:
+    *
+    * . no plugin has requested the service to shut down during initialization.
+    * . we're either on a VMware hypervisor, or running an unknown service name.
+    * . we're running in debug mode.
+    *
+    * In the non-VMware hypervisor case, just exit with a '0' return status (see
+    * bug 297528 for why '0').
     */
-   if (state->ctx.isVMware && state->ctx.errorCode == 0) {
+   if (state->ctx.errorCode == 0 &&
+       (state->ctx.isVMware ||
+        ToolsCore_GetTcloName(state) == NULL ||
+        state->debugPlugin != NULL)) {
       ToolsCore_RegisterPlugins(state);
 
       /*
