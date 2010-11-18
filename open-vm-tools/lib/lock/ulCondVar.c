@@ -162,7 +162,7 @@ MXUserCreateInternal(MXUserCondVar *condVar)  // IN/OUT:
       success = TRUE;
    } else {
       if (InitializeCriticalSectionAndSpinCount(&condVar->x.compat.condVarLock,
-                                             0x80000400) == 0) {
+                                                0x80000400) == 0) {
          success = FALSE;
       } else {
          condVar->x.compat.numWaiters = 0;
