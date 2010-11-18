@@ -176,6 +176,56 @@ MXUser_IsCurThreadHoldingLocks(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * MXUserThreadRank --
+ *
+ *      Return the highest rank held by the current thread via MXUser locks.
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MX_Rank
+MXUserThreadRank(MXUserPerThread *perThread,  // IN:
+                 MXUserHeader *header,        // IN:
+                 Bool *firstUse)              // OUT:
+{
+   uint32 i;
+   Bool foundOnce = TRUE;
+   MX_Rank maxRank = RANK_UNRANKED;
+
+   ASSERT(perThread);
+
+   /*
+    * Determine the maximum rank held. Note if the lock being acquired
+    * was previously entered into the tracking system.
+    */
+
+   for (i = 0; i < perThread->locksHeld; i++) {
+      MXUserHeader *chkHdr = perThread->lockArray[i];
+
+      maxRank = MAX(chkHdr->rank, maxRank);
+
+      if (chkHdr == header) {
+         foundOnce = FALSE;
+      }
+   }
+
+   if (firstUse) {
+      *firstUse = foundOnce;
+   }
+
+   return maxRank;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * MXUserCurrentRank --
  *
  *      Return the highest rank held by the current thread via MXUser locks.
@@ -192,19 +242,15 @@ MXUser_IsCurThreadHoldingLocks(void)
 MX_Rank
 MXUserCurrentRank(void)
 {
-   MXUserPerThread *perThread;
-   MX_Rank maxRank = RANK_UNRANKED;
+   MX_Rank maxRank;
+   MXUserPerThread *perThread; 
 
    perThread = MXUserGetPerThread(MXUserGetNativeTID(), FALSE);
 
-   if (perThread != NULL) {
-      uint32 i;
-
-      for (i = 0; i < perThread->locksHeld; i++) {
-         MXUserHeader *chkHdr = perThread->lockArray[i];
-
-         maxRank = MAX(chkHdr->rank, maxRank);
-      }
+   if (perThread == NULL) {
+      maxRank = RANK_UNRANKED;
+   } else {
+      maxRank = MXUserThreadRank(perThread, NULL, NULL);
    }
 
    return maxRank;
@@ -238,26 +284,18 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
 
    /* Rank checking anyone? */
    if (checkRank && (header->rank != RANK_UNRANKED)) {
-      uint32 i;
       MX_Rank maxRank;
       Bool firstInstance = TRUE;
 
-      /* Check MX locks when they are present */
-      maxRank = (MXUserMxCheckRank) ? (*MXUserMxCheckRank)() : RANK_UNRANKED;
-
       /*
-       * Determine the maximum rank held. Note if the lock being acquired
-       * was previously entered into the tracking system.
+       * Determine the highest rank held by the calling thread. Check for
+       * MX locks if they are present.
        */
 
-      for (i = 0; i < perThread->locksHeld; i++) {
-         MXUserHeader *chkHdr = perThread->lockArray[i];
+      maxRank = MXUserThreadRank(perThread, header, &firstInstance);
 
-         maxRank = MAX(chkHdr->rank, maxRank);
-
-         if (chkHdr == header) {
-            firstInstance = FALSE;
-         }
+      if (MXUserMxCheckRank) {
+         maxRank = MAX(maxRank, (*MXUserMxCheckRank)());
       }
 
       /*
