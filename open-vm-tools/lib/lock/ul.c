@@ -178,13 +178,13 @@ MXUser_IsCurThreadHoldingLocks(void)
  *
  * MXUserThreadRank --
  *
- *      Return the highest rank held by the current thread via MXUser locks.
+ *      Return the highest rank held by the specified thread via MXUser locks.
  *
  * Results:
  *      As above
  *
  * Side effects:
- *      None
+ *      Can optionally determine if a lock has been locked before.
  *
  *-----------------------------------------------------------------------------
  */
