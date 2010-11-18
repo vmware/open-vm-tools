@@ -252,8 +252,12 @@
 #define VMRC_PLUGIN_VERSION_MINOR 0
 #define VMRC_PLUGIN_VERSION_Z     0
 
-#define VMRC_PLUGIN_VERSION_NUMBER       \
-        XSTR(VMRC_PLUGIN_VERSION_MAJOR) "." XSTR(VMRC_PLUGIN_VERSION_MINOR) "." XSTR(VMRC_PLUGIN_VERSION_Z)
+/*
+ * TODO: figure out why the following breaks linux installer
+ * #define VMRC_PLUGIN_VERSION_NUMBER       \
+ *         XSTR(VMRC_PLUGIN_VERSION_MAJOR) "." XSTR(VMRC_PLUGIN_VERSION_MINOR) "." XSTR(VMRC_PLUGIN_VERSION_Z)
+ */
+#define VMRC_PLUGIN_VERSION_NUMBER "4.0.0"
 
 /* this version number should always match real VMRC & plugin version number */
 #define VMRC_VERSION VMRC_PLUGIN_VERSION_NUMBER

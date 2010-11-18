@@ -47,6 +47,11 @@ typedef enum {
    /* etc */
 } Product;
 typedef uint64 ProductMask;
+#define PRODUCTMASK_HOSTED (PRODUCT_WORKSTATION |\
+                            PRODUCT_SERVER      |\
+                            PRODUCT_PLAYER      |\
+                            PRODUCT_CVP         |\
+                            PRODUCT_FUSION)
 
 typedef uint64 ProductCaps;
 /*

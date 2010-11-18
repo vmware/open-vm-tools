@@ -203,15 +203,16 @@
  *     the future.
  */
 #define PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES \
-   "application/x-vmware-vmrc;version=2.5.0.199067" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   "application/x-vmware-vmrc;version=2.5.0.158248" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   "application/x-vmware-vmrc;version=2.5.0.116460" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   "application/x-vmware-vmrc;version=2.5.0.0"
+   "application/x-vmware-vmrc;version=4.0.0.0"
 
 /*
  * legacy plugin mimetypes (currently unused but here for reference)
  */
 #define PRODUCT_VMRC_PLUGIN_LEGACY_MIMETYPES \
+   "application/x-vmware-vmrc;version=2.5.0.199067" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
+   "application/x-vmware-vmrc;version=2.5.0.158248" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
+   "application/x-vmware-vmrc;version=2.5.0.116460" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
+   "application/x-vmware-vmrc;version=2.5.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
    "application/x-vmware-mks;version=2.1.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
    "application/x-vmware-mks;version=2.0.1.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
    "application/x-vmware-mks;version=2.0.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR
