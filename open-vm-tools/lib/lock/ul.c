@@ -176,6 +176,44 @@ MXUser_IsCurThreadHoldingLocks(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * MXUserCurrentRank --
+ *
+ *      Return the highest rank held by the current thread via MXUser locks.
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MX_Rank
+MXUserCurrentRank(void)
+{
+   MXUserPerThread *perThread;
+   MX_Rank maxRank = RANK_UNRANKED;
+
+   perThread = MXUserGetPerThread(MXUserGetNativeTID(), FALSE);
+
+   if (perThread != NULL) {
+      uint32 i;
+
+      for (i = 0; i < perThread->locksHeld; i++) {
+         MXUserHeader *chkHdr = perThread->lockArray[i];
+
+         maxRank = MAX(chkHdr->rank, maxRank);
+      }
+   }
+
+   return maxRank;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * MXUserAcquisitionTracking --
  *
  *      Perform the appropriate tracking for lock acquisition.

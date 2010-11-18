@@ -30,6 +30,8 @@ MXUserListLocks(void)
 }
 #endif
 
+MX_Rank MXUserCurrentRank(void);
+
 extern void MXUserInstallMxHooks(void (*theLockListFunc)(void),
                                  MX_Rank (*theRankFunc)(void),
                                  void (*theLockFunc)(struct MX_MutexRec *lock),
