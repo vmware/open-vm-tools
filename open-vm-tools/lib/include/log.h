@@ -160,7 +160,7 @@ typedef struct
    Bool           useTimeStamp;         // Use a log line time stamp
    Bool           useMilliseconds;      // Show milliseconds in time stamp
    Bool           fastRotation;         // ESX log rotation optimization
-   Bool           preventRemove;        // prevert Log_RemoveFile(FALSE)
+   Bool           preventRemove;        // prevent Log_RemoveFile(FALSE)
 
    int32          stderrMinLevel;       // This level and above to stderr
    int32          logMinLevel;          // This level and above to log
