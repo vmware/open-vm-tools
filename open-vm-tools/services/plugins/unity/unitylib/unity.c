@@ -893,7 +893,11 @@ Unity_MoveResizeWindow(UnityWindowId window,      // IN: Window handle
 Bool
 Unity_SetDesktopConfig(const UnityVirtualDesktopArray *desktopConfig) // IN
 {
-   return UnityPlatformSetDesktopConfig(unity.up, desktopConfig);
+   if (UnityPlatformSetDesktopConfig(unity.up, desktopConfig)) {
+      unity.virtDesktopArray = *desktopConfig;
+      return TRUE;
+   }
+   return FALSE;
 }
 
 
