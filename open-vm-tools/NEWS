@@ -8,7 +8,7 @@ open-vm-tools 2010.10.18 changes:
 	* Bug fixes to the guest info plugin so that it better supports
 	VMs with several network interfaces.
 
-	* Other minor enhancements and bug fixes in several areas, incluing
+	* Other minor enhancements and bug fixes in several areas, including
 	vsock, vmmemctl and copy & paste.
 
 open-vm-tools 2010.09.19 changes:
