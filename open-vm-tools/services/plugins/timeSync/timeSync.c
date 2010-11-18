@@ -684,6 +684,7 @@ TimeSyncStopLoop(ToolsAppCtx *ctx,
    TimeSync_DisableTimeSlew();
 
    g_source_destroy(data->timer);
+   g_source_unref(data->timer);
    data->timer = NULL;
 
    data->state = TIMESYNC_STOPPED;

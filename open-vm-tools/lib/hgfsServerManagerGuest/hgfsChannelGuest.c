@@ -146,7 +146,8 @@ HgfsChannelActivateChannel(HgfsChannelData *channel,                  // IN/OUT:
    Bool success = FALSE;
    struct HgfsGuestConn *connData = NULL;
 
-   if (channel->ops->init(serverCBTable, mgrData->rpc, mgrData->rpcCallback, &connData)) {
+   if (channel->connection == NULL &&
+       channel->ops->init(serverCBTable, mgrData->rpc, mgrData->rpcCallback, &connData)) {
       channel->state |= HGFS_CHANNEL_STATE_CBINIT;
       channel->connection = connData;
       success = TRUE;
