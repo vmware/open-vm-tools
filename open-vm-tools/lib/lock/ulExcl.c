@@ -48,89 +48,6 @@ struct MXUserExclLock
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_ControlExclLock --
- *
- *      Perform the specified command on the specified lock.
- *
- * Results:
- *      TRUE    succeeded
- *      FALSE   failed
- *
- * Side effects:
- *      Depends on the command, no?
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-MXUser_ControlExclLock(MXUserExclLock *lock,  // IN/OUT:
-                       uint32 command,        // IN:
-                       ...)                   // IN:
-{
-   Bool result;
-
-   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
-
-   switch (command) {
-   case MXUSER_CONTROL_ACQUISITION_HISTO: {
-      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
-
-      if (stats) {
-         va_list a;
-         uint64 minValue;
-         uint32 decades;
-
-         va_start(a, command);
-         minValue = va_arg(a, uint64);
-         decades = va_arg(a, uint32);
-         va_end(a);
-
-         MXUserForceHisto(&stats->acquisitionHisto,
-                          MXUSER_STAT_CLASS_ACQUISITION, minValue, decades);
-
-         result = TRUE;
-      } else {
-         result = FALSE;
-      }
-
-      break;
-   }
-
-   case MXUSER_CONTROL_HELD_HISTO: {
-      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
-
-      if (stats) {
-         va_list a;
-         uint32 minValue;
-         uint32 decades;
-
-         va_start(a, command);
-         minValue = va_arg(a, uint64);
-         decades = va_arg(a, uint32);
-         va_end(a);
-
-         MXUserForceHisto(&stats->heldHisto, MXUSER_STAT_CLASS_HELD,
-                          minValue, decades);
-
-         result = TRUE;
-      } else {
-         result = FALSE;
-      }
-
-      break;
-   }
-
-   default:
-      result = FALSE;
-   }
-
-   return result;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * MXUserStatsActionExcl --
  *
  *      Perform the statistics action for the specified lock.
@@ -230,6 +147,89 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
    if (stats && (stats->holder != NULL)) {
       Warning("\tholder %p\n", stats->holder);
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_ControlExclLock --
+ *
+ *      Perform the specified command on the specified lock.
+ *
+ * Results:
+ *      TRUE    succeeded
+ *      FALSE   failed
+ *
+ * Side effects:
+ *      Depends on the command, no?
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUser_ControlExclLock(MXUserExclLock *lock,  // IN/OUT:
+                       uint32 command,        // IN:
+                       ...)                   // IN:
+{
+   Bool result;
+
+   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
+
+   switch (command) {
+   case MXUSER_CONTROL_ACQUISITION_HISTO: {
+      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
+      if (stats) {
+         va_list a;
+         uint64 minValue;
+         uint32 decades;
+
+         va_start(a, command);
+         minValue = va_arg(a, uint64);
+         decades = va_arg(a, uint32);
+         va_end(a);
+
+         MXUserForceHisto(&stats->acquisitionHisto,
+                          MXUSER_STAT_CLASS_ACQUISITION, minValue, decades);
+
+         result = TRUE;
+      } else {
+         result = FALSE;
+      }
+
+      break;
+   }
+
+   case MXUSER_CONTROL_HELD_HISTO: {
+      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
+      if (stats) {
+         va_list a;
+         uint32 minValue;
+         uint32 decades;
+
+         va_start(a, command);
+         minValue = va_arg(a, uint64);
+         decades = va_arg(a, uint32);
+         va_end(a);
+
+         MXUserForceHisto(&stats->heldHisto, MXUSER_STAT_CLASS_HELD,
+                          minValue, decades);
+
+         result = TRUE;
+      } else {
+         result = FALSE;
+      }
+
+      break;
+   }
+
+   default:
+      result = FALSE;
+   }
+
+   return result;
 }
 
 
