@@ -868,11 +868,7 @@ MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
       return myContext->state != RW_UNLOCKED;
 
    default:
-#if defined(MXUSER_DEBUG)
       Panic("%s: unknown query type %d\n", __FUNCTION__, queryType);
-#else   
-      return FALSE;
-#endif  
    }    
 }
 

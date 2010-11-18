@@ -214,7 +214,7 @@ MXUserRecLock *MXUser_InitFromMXRec(const char *name,
 
 #endif
 
-#if defined(VMX86_DEBUG)
+#if defined(VMX86_DEBUG) && !defined(DISABLE_MXUSER_DEBUG)
 #define MXUSER_DEBUG  // debugging "everywhere" when requested
 #endif
 

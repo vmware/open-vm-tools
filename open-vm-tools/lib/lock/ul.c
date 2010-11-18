@@ -69,7 +69,7 @@ static Atomic_Ptr hashTableMem;
  *-----------------------------------------------------------------------------
  */
 
-MXUserPerThread *
+static MXUserPerThread *
 MXUserGetPerThread(void *tid,      // IN: native thread ID
                    Bool mayAlloc)  // IN: alloc perThread if not present?
 {
@@ -106,6 +106,43 @@ MXUserGetPerThread(void *tid,      // IN: native thread ID
    }
 
    return perThread;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserListLocks
+ *
+ *      Allow a caller to list, via warnings, the list of locks the caller
+ *      has acquired. Ensure that no memory for lock tracking is allocated
+ *      if no locks have been taken.
+ *
+ * Results:
+ *      The list is printed
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserListLocks(void)
+{
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetNativeTID(),
+                                                   FALSE);
+
+   if (perThread != NULL) {
+      uint32 i;
+
+      for (i = 0; i < perThread->locksHeld; i++) {
+         MXUserHeader *hdr = perThread->lockArray[i];
+
+         Warning("\tMXUser lock %s (@%p) rank 0x%x\n", hdr->name, hdr,
+                 hdr->rank);
+      }
+   }
 }
 
 
@@ -160,10 +197,6 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
    MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetNativeTID(), TRUE);
 
    ASSERT_NOT_IMPLEMENTED(perThread->locksHeld < MXUSER_MAX_LOCKS_PER_THREAD);
-
-#if defined(DISABLE_MXUSER_LOCK_RANKS)
-   checkRank = FALSE;
-#endif
 
    /* Rank checking anyone? */
    if (checkRank && (header->rank != RANK_UNRANKED)) {
@@ -499,43 +532,4 @@ MXUserInstallMxHooks(void (*theLockListFunc)(void),
              (MXUserMX_IsLockedByCurThreadRec == theIsLockedFunc)
             );
    }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUserListLocks
- *
- *      Allow a caller to list, via warnings, the list of locks the caller
- *      has acquired. Ensure that no memory for lock tracking is allocated
- *      if no locks have been taken.
- *
- * Results:
- *      The list is printed
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-MXUserListLocks(void)
-{
-#if defined(MXUSER_DEBUG)
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetNativeTID(),
-                                                   FALSE);
-
-   if (perThread != NULL) {
-      uint32 i;
-
-      for (i = 0; i < perThread->locksHeld; i++) {
-         MXUserHeader *hdr = perThread->lockArray[i];
-
-         Warning("\tMXUser lock %s (@%p) rank 0x%x\n", hdr->name, hdr,
-                 hdr->rank);
-      }
-   }
-#endif
 }

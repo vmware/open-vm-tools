@@ -19,7 +19,16 @@
 #ifndef _ULINTSHARED_H_
 #define _ULINTSHARED_H_
 
+
+#if defined(MXUSER_DEBUG)
 extern void MXUserListLocks(void);
+#else
+static INLINE void
+MXUserListLocks(void)
+{
+   return;
+}
+#endif
 
 extern void MXUserInstallMxHooks(void (*theLockListFunc)(void),
                                  MX_Rank (*theRankFunc)(void),
