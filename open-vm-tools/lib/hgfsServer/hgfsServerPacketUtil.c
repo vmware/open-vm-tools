@@ -63,11 +63,6 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
        */
       LOG(4, ("Exising reply packet %s %Zu %Zu\n", __FUNCTION__,
               *replyPacketSize, packet->replyPacketSize));
-      /*
-       * HgfsServer_ProcessPacket does not tell us the real size of packetOut.
-       * It assumes that size of reply packet can never be bigger than size of
-       * the outgoing packet. I changed it to HGFS_LARGE_PACKET_MAX.
-       */
       ASSERT_DEVEL(*replyPacketSize <= packet->replyPacketSize);
    } else if (session->channelCbTable && session->channelCbTable->getWriteVa) {
      /* Can we write directly into guest memory ? */

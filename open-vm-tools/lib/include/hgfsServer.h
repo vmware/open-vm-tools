@@ -144,12 +144,6 @@ void HgfsServer_ExitState(void);
 uint32 HgfsServer_GetHandleCounter(void);
 void HgfsServer_SetHandleCounter(uint32 newHandleCounter);
 
-#ifdef VMX86_TOOLS
-void HgfsServer_ProcessPacket(char const *packetIn,
-                              char *packetOut,
-                              size_t *packetSize);
-#endif
-
 /*
  * Function pointers used for getting names in HgfsServerGetDents
  *
