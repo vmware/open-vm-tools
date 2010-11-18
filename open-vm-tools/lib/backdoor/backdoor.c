@@ -45,16 +45,15 @@
 extern "C" {
 #endif
 
-#if defined(__KERNEL__) || defined(_KERNEL)
-#else
-#   include "debug.h"
-#endif
-
 #include "backdoor_def.h"
 #include "backdoor.h"
 #include "backdoorInt.h"
 
 #if defined(BACKDOOR_DEBUG) && defined(USERLEVEL)
+#if defined(__KERNEL__) || defined(_KERNEL)
+#else
+#   include "debug.h"
+#endif
 #   include <stdio.h>
 #   define BACKDOOR_LOG(args) Debug args
 #   define BACKDOOR_LOG_PROTO_STRUCT(x) BackdoorPrintProtoStruct((x))
