@@ -1450,7 +1450,7 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
             std::vector<Glib::ustring> argv;
             argv.push_back(unixFile);
             try {
-               Glib::spawn_async("" /* inherit cwd */, argv, ghip->nativeEnviron, 0);
+               Glib::spawn_async("" /* inherit cwd */, argv, ghip->nativeEnviron, (Glib::SpawnFlags) 0);
                success = TRUE;
             } catch(Glib::SpawnError& e) {
                g_warning("%s: %s: %s\n", __func__, unixFile.c_str(), e.what().c_str());
