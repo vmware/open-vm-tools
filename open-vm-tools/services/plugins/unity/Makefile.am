@@ -109,6 +109,9 @@ BUILT_SOURCES =
 BUILT_SOURCES += $(RPCGEN_HDRS)
 BUILT_SOURCES += $(RPCGEN_SRCS)
 
+CLEANFILES =
+CLEANFILES += $(BUILT_SOURCES)
+
 libunity_la_SOURCES += $(RPCGEN_SRCS)
 
 ## `make clean` should also remove the copied headers.

@@ -68,6 +68,9 @@ BUILT_SOURCES =
 BUILT_SOURCES += cpFileContents.h
 BUILT_SOURCES += cpFileContents_xdr.c
 
+CLEANFILES =
+CLEANFILES += $(BUILT_SOURCES)
+
 libdndcp_la_SOURCES += cpFileContents_xdr.c
 
 cpFileContents.h: cpFileContents.x

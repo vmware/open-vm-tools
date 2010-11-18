@@ -47,6 +47,9 @@ BUILT_SOURCES += guestlibV3_xdr.c
 BUILT_SOURCES += guestlibIoctl.h
 BUILT_SOURCES += guestlibIoctl_xdr.c
 
+CLEANFILES =
+CLEANFILES += $(BUILT_SOURCES)
+
 CFLAGS += -Wno-unused
 
 EXTRA_DIST = vmguestlib.pc.in

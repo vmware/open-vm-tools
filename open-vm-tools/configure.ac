@@ -791,13 +791,22 @@ if test "$with_icu" = "yes"; then
                       [],
                       [ICU_CPPFLAGS="$ICU_CPPFLAGS -DUSE_ICU"],
                       [AC_MSG_ERROR([ICU library not found. Please configure without ICU (using --without-icu) or install ICU - http://www.icu-project.org])])
-   # Check whether we have ICU 3.8.
+   # Check whether we have ICU >= 3.8.
    AC_LANG_PUSH([C++])
-   AC_CHECK_LIB([icuuc],
-                [ucasemap_utf8ToTitle_3_8],
-                [ICU_CPPFLAGS="$ICU_CPPFLAGS -DHAVE_ICU_38"],
-                [],
-                [$ICU_LIBS])
+   AC_MSG_CHECKING([for ucasemap_utf8ToTitle in ICU])
+   ORIGINAL_CPPFLAGS="$CPPFLAGS"
+   CPPFLAGS="$CPPFLAGS $ICU_CPPFLAGS"
+   AC_TRY_COMPILE([#include <unicode/ucasemap.h>],
+                  [
+                     (void) &ucasemap_utf8ToTitle;
+                     return 0;
+                  ],
+                  [
+                     ICU_CPPFLAGS="$ICU_CPPFLAGS -DHAVE_ICU_38"
+                     AC_MSG_RESULT([yes])
+                  ],
+                  [AC_MSG_RESULT([no])])
+   CPPFLAGS="$ORIGINAL_CPPFLAGS"
    AC_LANG_POP([C++])
 
    # Easier to give all modules the ICU defines/includes...
