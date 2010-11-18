@@ -23,6 +23,8 @@
  *    code to determine the host OS type.
  */
 
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -30,12 +32,15 @@
 #include "hostType.h"
 #include "str.h"
 
-#if defined(VMX86_SERVER) || (defined(VMX86_VPX) && defined(linux))
+#if defined(linux)
+#include <gnu/libc-version.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#if defined(VMX86_SERVER) || defined(VMX86_VPX)
 #include "uwvmkAPI.h"
-#endif
+#endif // defined(VMX86_SERVER) || defined(VMX86_VPX)
+#endif // defined(linux)
 
 #define LGPFX "HOSTTYPE:"
 
@@ -66,56 +71,65 @@
 static int
 HostTypeOSVMKernelType(void)
 {
-#if defined(VMX86_SERVER) || (defined(VMX86_VPX) && defined(linux))
+#if defined(linux)
    static int vmkernelType = -1;
 
    if (vmkernelType == -1) {
-      char osname[128];
-      size_t osnameLength;
-      int kernOsTypeCtl[] = { CTL_KERN, KERN_OSTYPE };
-      int rc;
-      
-      osnameLength = sizeof(osname);
-      rc = sysctl(kernOsTypeCtl, ARRAYSIZE(kernOsTypeCtl),
-                  osname, &osnameLength,
-                  0, 0);
-      if (rc == 0) {
-         osnameLength = MAX(sizeof (osname), osnameLength);
+      if (strncmp(gnu_get_libc_release(), "vmware", 6) == 0) {
+#if defined(VMX86_SERVER) || defined(VMX86_VPX)
+         char osname[128];
+         size_t osnameLength = sizeof(osname);
+         int kernOsTypeCtl[] = { CTL_KERN, KERN_OSTYPE };
 
-         /*
-          * XXX Yes, this is backwards in order of probability now, but we
-          *     call it only once and anyway someday it won't be backwards ...
-          */
+         if (sysctl(kernOsTypeCtl, ARRAYSIZE(kernOsTypeCtl),
+                    osname, &osnameLength, 0, 0) == 0) {
+            osnameLength = MAX(sizeof (osname), osnameLength);
 
-         if (! strncmp(osname, USERWORLD_SYSCTL_VISOR64_OSTYPE,
-                       osnameLength)) {
-            vmkernelType = 4;
-         } else if (! strncmp(osname, USERWORLD_SYSCTL_KERN64_OSTYPE,
-                              osnameLength)) {
-            vmkernelType = 3;
-         } else if (! strncmp(osname, USERWORLD_SYSCTL_VISOR_OSTYPE,
-                              osnameLength)) {
-            vmkernelType = 2;
-         } else if (! strncmp(osname, USERWORLD_SYSCTL_KERN_OSTYPE,
-                              osnameLength)) {
-            vmkernelType = 1;
+            /*
+             * XXX Yes, this is backwards in order of probability now, but we
+             *     call it only once and anyway someday it won't be backwards ...
+             */
+
+            if (! strncmp(osname, USERWORLD_SYSCTL_VISOR64_OSTYPE,
+                          osnameLength)) {
+               vmkernelType = 4;
+            } else if (! strncmp(osname, USERWORLD_SYSCTL_KERN64_OSTYPE,
+                                 osnameLength)) {
+               vmkernelType = 3;
+            } else if (! strncmp(osname, USERWORLD_SYSCTL_VISOR_OSTYPE,
+                                 osnameLength)) {
+               vmkernelType = 2;
+            } else if (! strncmp(osname, USERWORLD_SYSCTL_KERN_OSTYPE,
+                                 osnameLength)) {
+               vmkernelType = 1;
+            } else {
+               vmkernelType = 0;
+            }
          } else {
+            /*
+             * XXX too many of the callers don't define Warning.  See bug 125455
+             */
+
             vmkernelType = 0;
          }
-      } else {
+#else // defined(VMX86_SERVER) || defined(VMX86_VPX)
          /*
-          * XXX too many of the callers don't define Warning.  See bug 125455
+          * Only binaries part of ESX and VPX are supposed to work in userworlds.
+          * Hitting this assert means that you have built with incorrect PRODUCT.
           */
 
+         NOT_REACHED();
+#endif // defined(VMX86_SERVER) || defined(VMX86_VPX)
+      } else {
          vmkernelType = 0;
       }
    }
 
    return (vmkernelType);
-#else
-   /* Non-ESX builds are never running on the VMKernel. */
+#else // defined(linux)
+   /* Non-linux builds are never running on the VMKernel. */
    return 0;
-#endif
+#endif // defined(linux)
 }
 
 
