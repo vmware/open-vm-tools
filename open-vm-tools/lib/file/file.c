@@ -1251,7 +1251,7 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
 
       if (fileName == NULL) {
          Msg_Append(MSGID(file.maketemp.helperFuncFailed)
-                  "Failed to construct the file name\n");
+                  "Failed to construct the file name.\n");
          errno = EFAULT;
          goto exit;
       }
