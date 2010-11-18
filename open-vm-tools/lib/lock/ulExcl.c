@@ -305,9 +305,7 @@ MXUser_CreateExclLock(const char *userName,  // IN:
    lock->header.dumpFunc = MXUserDumpExclLock;
 
    if (MXUserStatsEnabled()) {
-      Bool success = MXUser_ControlExclLock(lock, MXUSER_CONTROL_ENABLE_STATS);
-
-      ASSERT(success);
+      MXUser_ControlExclLock(lock, MXUSER_CONTROL_ENABLE_STATS);
    } else {
       lock->header.statsFunc = NULL;
       Atomic_WritePtr(&lock->statsMem, NULL);

@@ -551,10 +551,7 @@ MXUser_CreateRWLock(const char *userName,  // IN:
                                           MXUserFreeHashEntry);
 
       if (MXUserStatsEnabled()) {
-         Bool success = MXUser_ControlRWLock(lock,
-                                             MXUSER_CONTROL_ENABLE_STATS);
-
-         ASSERT(success);
+         MXUser_ControlRWLock(lock, MXUSER_CONTROL_ENABLE_STATS);
       } else {
          lock->header.statsFunc = NULL;
          Atomic_WritePtr(&lock->statsMem, NULL);

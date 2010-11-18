@@ -336,9 +336,7 @@ MXUserCreateRecLock(const char *userName,  // IN:
       lock->header.statsFunc = NULL;
       Atomic_WritePtr(&lock->statsMem, NULL);
    } else {
-      Bool success = MXUser_ControlRecLock(lock, MXUSER_CONTROL_ENABLE_STATS);
-
-      ASSERT(success);
+      MXUser_ControlRecLock(lock, MXUSER_CONTROL_ENABLE_STATS);
    }
 
    MXUserAddToList(&lock->header);
