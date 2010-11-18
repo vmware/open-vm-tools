@@ -594,4 +594,15 @@
  */
 #define HOST_AGENT_SERVICE_NAME     "VMwareHostd"
 
+// Name of the environment variable that controls which proxy server to use
+// while opening connections to vCenter and vSphere servers. Currently vCloud
+// VMRC uses it.
+#define VMWARE_HTTPSPROXY  "VMWARE_HTTPSPROXY"
+
+// Name of the environment variable that controls whether MKS traffic should
+// be tunnelled over HTTPS through the console proxy. Currently vCloud VMRC
+// uses it.
+#define VMWARE_HTTPSTUNNEL_MKS   "VMWARE_HTTPSTUNNEL_MKS"
+
+
 #endif /* VM_PRODUCT_H */

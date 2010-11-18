@@ -942,7 +942,8 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    Atomic_Dec(&lock->holderCount);
 
    if (LIKELY(lock->useNative)) {
-      int err = MXUserNativeRWRelease(&lock->nativeLock, myContext->state);
+      int err = MXUserNativeRWRelease(&lock->nativeLock,
+                                      myContext->state == RW_LOCKED_FOR_READ);
 
       if (UNLIKELY(err != 0)) {
          MXUserDumpAndPanic(&lock->header, "%s: Internal error (%d)\n",
