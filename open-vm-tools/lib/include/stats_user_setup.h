@@ -176,7 +176,9 @@
                 STATS_USER_STR_TABLE[i], STATS_USER_BLKVAR.counters[i].count);
          }
       }
-      for (cur = STATS_USER_BLKVAR.next; cur != NULL; cur = cur->next) {
+      for (cur = Atomic_ReadPtr(&STATS_USER_BLKVAR.next);
+           cur != NULL;
+           cur = Atomic_ReadPtr(&cur->next)) {
          for (i = 0; i < cur->size; i++) {
             if (cur->counters[i].count > 0) {
                LogFunc("STATINST %u %s:%-20s %-15s %10d\n",
@@ -287,19 +289,30 @@
    STATS_USER_INIT_INST_FN(STATS_MODULE)(const char *instanceName)
    {
       StatsUserBlock *e;
-      if (STATS_USER_BLKVAR.next == NULL) {
-         e = STATS_USER_BLKVAR.next = Util_SafeCalloc(1, sizeof *e);
-      } else {
-         StatsUserBlock *cur = STATS_USER_BLKVAR.next;
-         for (; cur->next != NULL; cur = cur->next) {
-            if (strcmp(instanceName, cur->name) == 0) { return cur; }
+      StatsUserBlock *cur;
+      Atomic_Ptr *nextptr = &STATS_USER_BLKVAR.next;
+
+      while ((cur = Atomic_ReadPtr(nextptr)) != NULL) {
+         if (strcmp(instanceName, cur->name) == 0) {
+             return cur;
          }
-         if (strcmp(instanceName, cur->name) == 0) { return cur; }
-         cur->next = e = Util_SafeCalloc(1, sizeof *e);
+         nextptr = &cur->next;
       }
+      e = Util_SafeCalloc(1, sizeof *e);
       e->size = STATS_USER_INST_NAME(Last);
       e->counters = Util_SafeCalloc(e->size, sizeof(StatsUserEntry));
-      if (e->name == NULL) { e->name = strdup(instanceName); }
+      e->name = Util_SafeStrdup(instanceName);
+      while ((cur = Atomic_ReadIfEqualWritePtr(nextptr, NULL, e)) != NULL) {
+         do {
+            if (strcmp(instanceName, cur->name) == 0) {
+               free(e->counters);
+               free((char *)e->name);
+               free(e);
+               return cur;
+            }
+            nextptr = &cur->next;
+         } while ((cur = Atomic_ReadPtr(nextptr)) != NULL);
+      }
 
       return e;
    }

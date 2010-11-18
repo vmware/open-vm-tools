@@ -32,6 +32,8 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#include "vm_atomic.h"
+
 #ifndef STATS_MODULE
 #error "stats_user_defs.h must be included with STATS_MODULE defined"
 #endif
@@ -53,10 +55,10 @@ typedef struct StatsUserEntry {
 } StatsUserEntry;
 
 typedef struct StatsUserBlock {
-   const char *name;
-   uint32 size;
+   const char     *name;
+   uint32          size;
    StatsUserEntry *counters;
-   struct StatsUserBlock *next;
+   Atomic_Ptr      next;
 } StatsUserBlock;
 
 EXTERN StatsUserBlock STATS_USER_BLKVAR;
