@@ -68,3 +68,4 @@ SUBDIRS += user
 SUBDIRS += vmCheck
 SUBDIRS += vmSignal
 SUBDIRS += wiper
+SUBDIRS += xdg

@@ -17,17 +17,17 @@
  *********************************************************/
 
 /*
- * ghiX11.h
+ * xdg.h --
  *
- * Declarations specific to GHI/X11.
+ *	vmware-xdg-* script wrapper library.
  */
 
-#ifndef _GHIX11_H_
-#define _GHIX11_H_
+#ifndef _VMWARE_XDG_H_
+#define _VMWARE_XDG_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
-const char *GHIX11DetectDesktopEnv(void);
+extern const char *Xdg_DetectDesktopEnv(void);
 
-#endif // ifndef _GHIX11_H_
+#endif // ifndef _VMWARE_XDG_H_

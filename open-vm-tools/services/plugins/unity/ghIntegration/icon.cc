@@ -32,7 +32,6 @@ extern "C" {
 #include "vmware.h"
 }
 
-#include "ghiX11.h"
 #include "ghiX11icon.h"
 
 

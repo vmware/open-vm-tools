@@ -77,6 +77,7 @@ extern "C" {
 #include "mntinfo.h"
 #include "guest_msg_def.h"
 #include "Uri.h"
+#include "xdg.h"
 };
 
 #define URI_TEXTRANGE_EQUAL(textrange, str) \
@@ -86,7 +87,6 @@ extern "C" {
 #include "appUtil.h"
 #include "ghIntegration.h"
 #include "ghIntegrationInt.h"
-#include "ghiX11.h"
 #include "ghiX11icon.h"
 
 #ifdef REDIST_GMENU
@@ -237,7 +237,8 @@ static bool AppInfoLaunchEnv(GHIPlatform* ghip, GAppInfo* appInfo);
 Bool
 GHIPlatformIsSupported(void)
 {
-   return GHIX11DetectDesktopEnv() != NULL;
+   const char *desktopEnv = Xdg_DetectDesktopEnv();
+   return (strcmp(desktopEnv, "GNOME") == 0) || (strcmp(desktopEnv, "KDE") == 0);
 }
 
 
@@ -278,7 +279,7 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
       ghip->nativeEnviron.push_back(*tmp);
    }
 
-   desktopEnv = GHIX11DetectDesktopEnv();
+   desktopEnv = Xdg_DetectDesktopEnv();
    g_desktop_app_info_set_desktop_env(desktopEnv);
 
 #ifdef REDIST_GMENU
@@ -1458,7 +1459,7 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
             }
          } else {
             std::vector<Glib::ustring> argv;
-            Glib::ustring de = GHIX11DetectDesktopEnv();
+            Glib::ustring de = Xdg_DetectDesktopEnv();
             // XXX Really we should just use xdg-open exclusively, but xdg-open
             // as shipped with xdg-utils 1.0.2 is broken.  It is fixed
             // in portland CVS, but we need to import into modsource and
@@ -1941,48 +1942,6 @@ tryagain:
    g_hash_table_insert(ghip->appsByWindowExecutable, g_strdup(exec), uri);
 
    return uri;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIX11DetectDesktopEnv --
- *
- *      Query environment and/or root window properties to determine if we're
- *      under GNOME or KDE.
- *
- *      XXX Consider moving this to another library.
- *      XXX Investigate whether this requires legal review, since it's cribbed
- *      from xdg-utils' detectDE subroutine (MIT license).
- *      XXX Add the _DT_SESSION bit for XFCE detection.
- *
- * Results:
- *      Pointer to a valid string on success, NULL on failure.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-const char *
-GHIX11DetectDesktopEnv(void)
-{
-   static const char *desktopEnvironment = NULL;
-   const char *tmp;
-
-   if (desktopEnvironment) {
-      return desktopEnvironment;
-   }
-
-   if (g_strcmp0(g_getenv("KDE_FULL_SESSION"), "true") == 0) {
-      desktopEnvironment = "KDE";
-   } else if ((tmp = g_getenv("GNOME_DESKTOP_SESSION_ID")) && *tmp) {
-      desktopEnvironment = "GNOME";
-   }
-
-   return desktopEnvironment;
 }
 
 

@@ -1196,6 +1196,7 @@ AC_CONFIG_FILES([                      \
    lib/vmCheck/Makefile                \
    lib/vmSignal/Makefile               \
    lib/wiper/Makefile                  \
+   lib/xdg/Makefile                    \
    services/Makefile                   \
    services/vmtoolsd/Makefile          \
    services/plugins/Makefile           \

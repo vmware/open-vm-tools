@@ -93,6 +93,8 @@ endif
 	$(INSTALL) -d $(DESTDIR)/usr/share/pixmaps/vmware
 	$(INSTALL) -m 644 bigIcon.xpm \
 		$(DESTDIR)/usr/share/pixmaps/vmware/vmware-toolbox.xpm
+	$(INSTALL) -m 755 ../scripts/common/vmware-xdg-detect-de \
+                $(DESTDIR)$(bindir)
    uninstall-hook:
 	rm -f $(DESTDIR)$(datadir)/share/applications/vmware-toolbox.desktop
 	rm -rf $(DESTDIR)/usr/share/pixmaps/vmware

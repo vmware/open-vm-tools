@@ -47,6 +47,7 @@ libunity_la_LIBADD += $(top_builddir)/lib/appUtil/libAppUtil.la
 libunity_la_LIBADD += $(top_builddir)/lib/image/libImage.la
 libunity_la_LIBADD += $(top_builddir)/lib/raster/libRaster.la
 libunity_la_LIBADD += $(top_builddir)/lib/region/libRegion.la
+libunity_la_LIBADD += $(top_builddir)/lib/xdg/libXdg.la
 
 libunity_la_SOURCES =
 
