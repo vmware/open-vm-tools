@@ -935,6 +935,8 @@ UnityX11GetWMProtocols(UnityPlatform *up) // IN
 Bool
 UnityPlatformEnterUnity(UnityPlatform *up) // IN
 {
+   UnityDesktopId activeDesktop;
+
    ASSERT(up);
    ASSERT(up->glibSource == NULL);
 
@@ -947,27 +949,57 @@ UnityPlatformEnterUnity(UnityPlatform *up) // IN
 
    UnityX11GetWMProtocols(up);
 
-   if (up->desktopInfo.numDesktops) {
-      UnityDesktopId activeDesktop;
+   if (up->desktopInfo.numDesktops == 0) {
+      /*
+       * PR 633099:  Host UI hasn't set the desktop config yet.  In that case,
+       * let's go ahead and initialize our the host:guest desktop mappings
+       * based on the guest's current configuration.  (This avoids unnecessarily
+       * changing the guest desktop layout.)
+       *
+       * XXX Consider factoring this out of UPSetDesktopConfig.
+       */
+      unsigned int i;
 
-      UnityPlatformSyncDesktopConfig(up);
+      ASSERT(up->desktopInfo.guestDesktopToUnity == NULL);
+      ASSERT(up->desktopInfo.unityDesktopToGuest == NULL);
 
-      if (up->desktopInfo.initialDesktop != UNITY_X11_INITIALDESKTOP_UNSET) {
-         Debug("%s: Setting activeDesktop to initialDesktop (%u).\n", __func__,
-               up->desktopInfo.initialDesktop);
-         activeDesktop = up->desktopInfo.initialDesktop;
-      } else {
-         activeDesktop = UnityWindowTracker_GetActiveDesktop(up->tracker);
+      up->desktopInfo.numDesktops = UnityPlatformGetNumVirtualDesktops(up);
+      if (up->desktopInfo.numDesktops == 0) {
+         Warning("%s: _NET_NUMBER_OF_DESKTOPS set to 0; impossible.\n", __FUNCTION__);
+         return FALSE;
       }
-      if (UnityPlatformSetDesktopActive(up, activeDesktop)) {;
-         /*
-          * XXX Rather than setting this directly here, should we instead wait for a
-          * PropertyNotify event from the window manager to one of the root windows?
-          * Doing so may be safer in that it confirms that our request was honored by
-          * the window manager.
-          */
-         UnityWindowTracker_ChangeActiveDesktop(up->tracker, activeDesktop);
+      up->desktopInfo.guestDesktopToUnity = (UnityDesktopId*)
+         Util_SafeRealloc(up->desktopInfo.guestDesktopToUnity,
+                          up->desktopInfo.numDesktops
+                          * sizeof up->desktopInfo.guestDesktopToUnity[0]);
+      up->desktopInfo.unityDesktopToGuest = (uint32*)
+         Util_SafeRealloc(up->desktopInfo.unityDesktopToGuest,
+                          up->desktopInfo.numDesktops
+                          * sizeof up->desktopInfo.unityDesktopToGuest[0]);
+
+      for (i = 0; i < up->desktopInfo.numDesktops; i++) {
+         up->desktopInfo.guestDesktopToUnity[i] =
+            up->desktopInfo.unityDesktopToGuest[i] = i;
       }
+   }
+
+   UnityPlatformSyncDesktopConfig(up);
+
+   if (up->desktopInfo.initialDesktop != UNITY_X11_INITIALDESKTOP_UNSET) {
+      Debug("%s: Setting activeDesktop to initialDesktop (%u).\n", __func__,
+            up->desktopInfo.initialDesktop);
+      activeDesktop = up->desktopInfo.initialDesktop;
+   } else {
+      activeDesktop = UnityWindowTracker_GetActiveDesktop(up->tracker);
+   }
+   if (UnityPlatformSetDesktopActive(up, activeDesktop)) {;
+      /*
+       * XXX Rather than setting this directly here, should we instead wait for a
+       * PropertyNotify event from the window manager to one of the root windows?
+       * Doing so may be safer in that it confirms that our request was honored by
+       * the window manager.
+       */
+      UnityWindowTracker_ChangeActiveDesktop(up->tracker, activeDesktop);
    }
 
    if (up->needWorkAreas) {
