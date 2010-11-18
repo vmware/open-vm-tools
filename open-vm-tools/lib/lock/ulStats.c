@@ -989,6 +989,10 @@ MXUser_PerLockData(void)
 {
    MXRecLock *listLock = MXUserInternalSingleton(&mxLockMemPtr);
 
+   if (mxUserStatsFunc == NULL) {
+      return;
+   }
+
    if (listLock && MXRecLockTryAcquire(listLock)) {
       ListItem *entry;
       uint32 highestSerialNumber;
