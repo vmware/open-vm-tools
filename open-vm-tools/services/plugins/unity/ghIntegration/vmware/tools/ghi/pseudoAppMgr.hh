@@ -44,6 +44,8 @@ struct PseudoApp {
 
 class PseudoAppMgr {
 public:
+   // WARNING: Don't change these values w/o visiting the assignment code in
+   // pseudoAppMgr.cc.
    enum AppId {
       // Defined entirely by GHI.
       PSEUDO_APP_HOME,
@@ -54,6 +56,8 @@ public:
       PSEUDO_APP_DOWNLOAD,
       PSEUDO_APP_MUSIC,
       PSEUDO_APP_PICTURES,
+      // executables sans .desktop files
+      PSEUDO_APP_GNOME_CONNECT,         // gnome-connect-server
       // Placeholder.
       PSEUDO_APP_NAPPS
    };

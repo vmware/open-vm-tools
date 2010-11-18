@@ -19,8 +19,17 @@
 /*
  * pseudoAppMgr.cc --
  *
- *	Manages "pseudo-applications" for special menu items, such as
- *	directories for which we wish to display custom menu item icons.
+ *      Manages "pseudo-applications" for special menu items, such as
+ *      directories for which we wish to display custom menu item icons or
+ *      executables which do not have regular menu items.
+ *
+ *      Pseudo apps are assigned well-known IDs (AppId, compile-time), and
+ *      are associated with URIs at runtime.  (Example:  A user's Desktop
+ *      folder has a compile-time AppId of PSEUDO_APP_DESKTOP with a likely
+ *      runtime URI of $HOME/Desktop.)
+ *
+ *      URIs may be influenced by environment variables or simply the existence
+ *      of a program in the user's search path.
  */
 
 
@@ -127,7 +136,7 @@ PseudoAppMgr::GetAppByAppId(AppId id,       // IN
 
 bool
 PseudoAppMgr::GetAppByUri(const Glib::ustring& uri, // IN
-                        PseudoApp& app)           // OUT
+                          PseudoApp& app)           // OUT
    const
 {
    if (sApps.find(uri) != sApps.end()) {
@@ -175,6 +184,7 @@ PseudoAppMgr::InitAppMap()
       { "Download", "folder" },                 // ..._DOWNLOAD
       { "Music", "folder" },                    // ..._MUSIC
       { "Pictures", "folder" },                 // ..._PICTURES
+      { "Connect to Server...", "applications-internet" }, // ..._GNOME_CONNECT
    };
    size_t idx;
 
@@ -184,6 +194,11 @@ PseudoAppMgr::InitAppMap()
       Glib::ustring uri = sUris[idx];
       if (!uri.empty()) {
          sApps[uri].uri = uri;
+         /*
+          * gettext lookup against xdg-user-dirs is purely opportunistic.  Standalone
+          * apps (likely) won't exist there, but to keep the loop logic simple, they
+          * aren't excluded from said lookup.
+          */
          sApps[uri].symbolicName = g_dgettext("xdg-user-dirs",
                                               initTable[idx].symbolicName);
          sApps[uri].iconName = initTable[idx].iconName;
@@ -235,6 +250,11 @@ PseudoAppMgr::InitUriVector()
       MAP_GUSER_PSEUDO(G_USER_DIRECTORY_DOWNLOAD, PSEUDO_APP_DOWNLOAD);
       MAP_GUSER_PSEUDO(G_USER_DIRECTORY_MUSIC, PSEUDO_APP_MUSIC);
       MAP_GUSER_PSEUDO(G_USER_DIRECTORY_PICTURES, PSEUDO_APP_PICTURES);
+
+      Glib::ustring connectPath = Glib::find_program_in_path("nautilus-connect-server");
+      if (!connectPath.empty()) {
+         sUris[PSEUDO_APP_GNOME_CONNECT] = Glib::filename_to_uri(connectPath);
+      }
    } catch (std::exception& e) {
       g_warning("%s: Caught exception while learning XDG directories: %s\n",
                 __func__, e.what());
