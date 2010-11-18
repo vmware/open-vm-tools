@@ -102,9 +102,9 @@
 #define BDOOR_CMD_INITPCIOPROM		28
 #define BDOOR_CMD_INT13			29
 #define BDOOR_CMD_MESSAGE               30
-#define BDOOR_CMD_RSVD0                 31
-#define BDOOR_CMD_RSVD1                 32
-#define BDOOR_CMD_RSVD2                 33
+#define BDOOR_CMD_SIDT                  31
+#define BDOOR_CMD_SGDT                  32
+#define BDOOR_CMD_SLDT_STR              33
 #define BDOOR_CMD_ISACPIDISABLED	34
 #define BDOOR_CMD_TOE			35 /* Not in use */
 #define BDOOR_CMD_ISMOUSEABSOLUTE       36
@@ -228,9 +228,9 @@
 static INLINE Bool
 Backdoor_CmdRequiresFullyValidVCPU(unsigned cmd)
 {
-   return cmd == BDOOR_CMD_RSVD0 ||
-          cmd == BDOOR_CMD_RSVD1 ||
-          cmd == BDOOR_CMD_RSVD2;
+   return cmd == BDOOR_CMD_SIDT ||
+          cmd == BDOOR_CMD_SGDT ||
+          cmd == BDOOR_CMD_SLDT_STR;
 }
 #endif
 
