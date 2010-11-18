@@ -1,3 +1,8 @@
+open-vm-tools 2010.11.17 changes:
+	* Mostly cleanups and bug fixes.
+
+	* vmxnet3 on Solaris now supports jumbo frames.
+
 open-vm-tools 2010.10.18 changes:
 	* The unity plugin has received some refactoring work, and the
 	menu gathering code has been enhanced to be more DE-agnostic and
