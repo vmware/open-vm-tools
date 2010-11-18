@@ -69,7 +69,7 @@ extern void                    HgfsKReq_FreeContainer(HgfsKReqContainerHandle ha
 extern void                    HgfsKReq_CancelRequests(HgfsKReqContainerHandle handle);
 extern Bool                    HgfsKReq_ContainerIsEmpty(HgfsKReqContainerHandle handle);
 
-extern HgfsKReqHandle          HgfsKReq_AllocateRequest(HgfsKReqContainerHandle handle);
+extern HgfsKReqHandle          HgfsKReq_AllocateRequest(HgfsKReqContainerHandle handle, int *ret);
 extern void                    HgfsKReq_ReleaseRequest(HgfsKReqContainerHandle container,
                                                        HgfsKReqHandle oldRequest);
 extern int                     HgfsKReq_SubmitRequest(HgfsKReqHandle req);

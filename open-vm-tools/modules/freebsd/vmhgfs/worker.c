@@ -30,8 +30,7 @@
 #include "request.h"
 #include "requestInt.h"
 #include "os.h"
-
-#include "hgfsBd.h"
+#include "channel.h"
 
 
 /*
@@ -47,11 +46,65 @@ OS_THREAD_T hgfsKReqWorkerThread;
  * See requestInt.h.
  */
 HgfsKReqWState hgfsKReqWorkerState;
+HgfsTransportChannel *gHgfsChannel = NULL;
+OS_MUTEX_T *gHgfsChannelLock = NULL;
 
 
 /*
  * Global (module) functions
  */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTransportSetupNewChannel --
+ *
+ *     Find a new workable channel.
+ *
+ * Results:
+ *     TRUE on success, otherwise FALSE.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+HgfsSetupNewChannel(void)
+{
+   Bool ret;
+
+   os_mutex_lock(gHgfsChannelLock);
+
+   if (gHgfsChannel && gHgfsChannel->status == HGFS_CHANNEL_CONNECTED) {
+      ret = TRUE;
+      goto exit;
+   }
+
+   gHgfsChannel = HgfsGetVmciChannel();
+   if (gHgfsChannel) {
+      if ((ret = gHgfsChannel->ops.open(gHgfsChannel))) {
+         goto exit;
+      }
+   }
+
+   /* Every client using this code is expected to have backdoor enabled. */
+   gHgfsChannel = HgfsGetBdChannel();
+   ret = gHgfsChannel->ops.open(gHgfsChannel);
+
+exit:
+   if (ret) {
+      gHgfsChannel->status = HGFS_CHANNEL_CONNECTED;
+      DEBUG(VM_DEBUG_ALWAYS, "Channel: %s\n", gHgfsChannel->name);
+   } else {
+      gHgfsChannel->status = HGFS_CHANNEL_NOTCONNECTED;
+   }
+
+   os_mutex_unlock(gHgfsChannelLock);
+
+   return ret;
+}
 
 
 /*
@@ -77,11 +130,20 @@ HgfsKReqWorker(void *arg)
    DblLnkLst_Links *currNode, *nextNode;
    HgfsKReqWState *ws = (HgfsKReqWState *)arg;
    HgfsKReqObject *req;
-   RpcOut *hgfsRpcOut = NULL;
-   char const *replyPacket;
    int ret = 0;
+   HgfsTransportChannel *channel;
 
    ws->running = TRUE;
+
+   gHgfsChannelLock = os_mutex_alloc_init(HGFS_FS_NAME "_channellck");
+   if (!gHgfsChannelLock) {
+      goto exit;
+   }
+
+   ret = HgfsSetupNewChannel();
+   if (!ret) {
+      DEBUG(VM_DEBUG_INFO, "VMware hgfs: %s: ohoh no channel yet.\n", __func__);
+   }
 
    for (;;) {
       /*
@@ -93,7 +155,7 @@ HgfsKReqWorker(void *arg)
       os_mutex_lock(hgfsKReqWorkItemLock);
 
       while (!ws->exit && !DblLnkLst_IsLinked(&hgfsKReqWorkItemList)) {
-	 os_cv_wait(&hgfsKReqWorkItemCv, hgfsKReqWorkItemLock);
+         os_cv_wait(&hgfsKReqWorkItemCv, hgfsKReqWorkItemLock);
       }
 
       if (ws->exit) {
@@ -124,13 +186,15 @@ HgfsKReqWorker(void *arg)
       req = DblLnkLst_Container(currNode, HgfsKReqObject, pendingNode);
 
       os_mutex_lock(req->stateLock);
+
+      channel = req->channel;
       switch (req->state) {
       case HGFS_REQ_SUBMITTED:
-         if (!HgfsBd_OpenBackdoor(&hgfsRpcOut)) {
+         if (channel->status != HGFS_CHANNEL_CONNECTED) {
             req->state = HGFS_REQ_ERROR;
             os_cv_signal(&req->stateCv);
             os_mutex_unlock(req->stateLock);
-	    os_mutex_unlock(hgfsKReqWorkItemLock);
+            os_mutex_unlock(hgfsKReqWorkItemLock);
             goto done;
          }
          break;
@@ -150,25 +214,7 @@ HgfsKReqWorker(void *arg)
        */
       os_mutex_unlock(hgfsKReqWorkItemLock);
 
-      ret = HgfsBd_Dispatch(hgfsRpcOut, req->payload, &req->payloadSize,
-                            &replyPacket);
-
-      /*
-       * We have a response.  (Maybe.)  Re-lock the request, update its state,
-       * etc.
-       */
-
-      os_mutex_lock(req->stateLock);
-
-      if ((ret == 0) && (req->state == HGFS_REQ_SUBMITTED)) {
-         bcopy(replyPacket, req->payload, req->payloadSize);
-         req->state = HGFS_REQ_COMPLETED;
-      } else {
-         req->state = HGFS_REQ_ERROR;
-      }
-
-      os_cv_signal(&req->stateCv);
-      os_mutex_unlock(req->stateLock);
+      ret = channel->ops.send(gHgfsChannel, req);
 
       if (ret != 0) {
          /*
@@ -176,7 +222,9 @@ HgfsKReqWorker(void *arg)
           * now. We do this because subsequent requests deserve a chance to
           * reopen it.
           */
-         HgfsBd_CloseBackdoor(&hgfsRpcOut);
+         os_mutex_lock(gHgfsChannelLock);
+         gHgfsChannel->ops.close(gHgfsChannel);
+         os_mutex_unlock(gHgfsChannelLock);
       }
 
 done:
@@ -213,9 +261,13 @@ done:
 
    ws->running = FALSE;
 
-   if (hgfsRpcOut != NULL ) {
-      HgfsBd_CloseBackdoor(&hgfsRpcOut);
+   if (gHgfsChannel && gHgfsChannel->status == HGFS_CHANNEL_CONNECTED) {
+      gHgfsChannel->ops.close(gHgfsChannel);
    }
 
+   if (gHgfsChannelLock) {
+      os_mutex_free(gHgfsChannelLock);
+   }
+exit:
    os_thread_exit(0);
 }

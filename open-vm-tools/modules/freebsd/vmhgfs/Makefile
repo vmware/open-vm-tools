@@ -29,6 +29,7 @@ HEADERS += vnopscommon.h
 HEADERS += os.h
 HEADERS += vfsopscommon.h
 HEADERS += transport.h
+HEADERS += channel.h
 
 COMMON_SRCS := cpName.c
 COMMON_SRCS += cpNameLinux.c
@@ -46,6 +47,7 @@ COMMON_SRCS += backdoorGcc32.c
 .endif
 
 COMMON_HGFS_SRCS := debug.c
+COMMON_HGFS_SRCS := bdhandler.c
 COMMON_HGFS_SRCS += request.c
 COMMON_HGFS_SRCS += worker.c
 COMMON_HGFS_SRCS += fsutil.c
@@ -57,6 +59,7 @@ COMMON_HGFS_SRCS += transport.c
 MODULE_SRCS := vnops.c
 MODULE_SRCS += vfsops.c
 MODULE_SRCS += os.c
+MODULE_SRCS += vmci.c
 MODULE_SRCS += hgfsUtil.c
 MODULE_SRCS += kernelStubsBSD.c
 

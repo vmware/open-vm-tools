@@ -74,9 +74,9 @@ HgfsStatfsInt(struct vnode *vp,          // IN: vnode
    }
 
    /* Prepare the request */
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ENOMEM;
+      return ret;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);

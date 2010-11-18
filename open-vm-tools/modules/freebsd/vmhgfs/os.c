@@ -40,6 +40,7 @@
 #include "vm_basic_types.h"
 #include "os.h"
 #include "debug.h"
+#include "channel.h"
 #include "compat_freebsd.h"
 
 /*
@@ -187,12 +188,20 @@ os_zone_destroy(OS_ZONE_T *zone) // IN
 
 void *
 os_zone_alloc(OS_ZONE_T *zone, // IN
-	      int flags)       // IN
+              int flags)       // IN
 {
+   void *mem;
+   HgfsTransportChannel *channel = gHgfsChannel;
+   HgfsKReqObject *req;
    ASSERT(zone);
    ASSERT(zone->umaZone);
 
-   return uma_zalloc(zone->umaZone, flags);
+   mem = uma_zalloc(zone->umaZone, flags | M_ZERO);
+   if (mem) {
+      req = (HgfsKReqObject *)mem;
+      req->channel = channel;
+   }
+   return mem;
 }
 
 
@@ -215,7 +224,7 @@ os_zone_alloc(OS_ZONE_T *zone, // IN
 
 void
 os_zone_free(OS_ZONE_T *zone, // IN
-	     void *mem)       // IN
+             void *mem)       // IN
 {
    ASSERT(zone);
    ASSERT(zone->umaZone);

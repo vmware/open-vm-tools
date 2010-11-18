@@ -110,9 +110,9 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
       return EXDEV;
    }
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ENOMEM;
+      return ret;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
@@ -528,9 +528,9 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
    ASSERT(vp);
    ASSERT(vap);
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ENOMEM;
+      return ret;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
@@ -1407,9 +1407,8 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
    }
    fullNameLen = ret;
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      ret = ENOMEM;
       goto out;
    }
 
@@ -1911,9 +1910,9 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
 
    DEBUG(VM_DEBUG_ENTRY, "entry.\n");
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return -ENOMEM;
+      return -ret;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
@@ -2043,9 +2042,9 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
    ASSERT(uiop);
    ASSERT(size <= HGFS_IO_MAX); // HgfsWrite() guarantees this
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return -ENOMEM;
+      return -ret;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
@@ -2162,9 +2161,9 @@ HgfsDelete(HgfsSuperInfo *sip,          // IN: Superinfo
 
    DEBUG(VM_DEBUG_ENTRY, "HgfsDelete().\n");
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ENOMEM;
+      return ret;
    }
 
    /* Initialize the request's contents. */
@@ -2275,10 +2274,10 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    ASSERT(nameOut);
    ASSERT(done);
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
       DEBUG(VM_DEBUG_FAIL, "couldn't get req.\n");
-      return ENOMEM;
+      return ret;
    }
 
    /*
@@ -2394,9 +2393,9 @@ HgfsReadlinkInt(struct vnode *vp,   // IN : File vnode
       return EINVAL;
    }
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ENOMEM;
+      return ret;
    }
 
    ret = HgfsQueryAttrInt(HGFS_VP_TO_FILENAME(vp), 0, sip, req);
@@ -2490,9 +2489,8 @@ HgfsSymlinkInt(struct vnode *dvp,         // IN : directory vnode
       goto out;
    }
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      ret = ENOMEM;
       goto out;
    }
 
@@ -2716,9 +2714,9 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
    DEBUG(VM_DEBUG_LOG, "Trace enter, %s.\n", path);
    ASSERT(hgfsAttrV2);
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ENOMEM;
+      return ret;
    }
 
    ret = HgfsQueryAttrInt(path, handle, sip, req);

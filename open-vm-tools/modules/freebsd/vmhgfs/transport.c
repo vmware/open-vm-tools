@@ -73,9 +73,9 @@ HgfsSendOpenDirRequest(HgfsSuperInfo *sip,   // IN: Superinfo pointer
    uint32 reqBufferSize;
    int ret;
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ENOMEM;
+      return ret;
    }
 
    /* Set the correct header values */
@@ -174,10 +174,10 @@ HgfsSendOpenRequest(HgfsSuperInfo *sip,   // IN: Superinfo pointer
    uint32 reqBufferSize;
 
    DEBUG(VM_DEBUG_LOG, "Trace enter.\n");
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
       DEBUG(VM_DEBUG_FAIL, "HgfsKReq_AllocateRequest failed.\n");
-      return ENOMEM;
+      return ret;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
@@ -276,9 +276,9 @@ HgfsCloseServerDirHandle(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    uint32 repSize;
    int ret;
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ENOMEM;
+      return ret;
    }
 
    /*
@@ -347,9 +347,9 @@ HgfsCloseServerFileHandle(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    uint32 repSize;
    int ret;
 
-   req = HgfsKReq_AllocateRequest(sip->reqs);
+   req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ENOMEM;
+      return ret;
    }
 
    /*
