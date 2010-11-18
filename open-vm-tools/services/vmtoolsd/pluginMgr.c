@@ -732,23 +732,25 @@ void
 ToolsCore_UnloadPlugins(ToolsServiceState *state)
 {
    guint i;
-   GArray *pcaps = NULL;
 
    if (state->plugins == NULL) {
       return;
    }
 
-   g_signal_emit_by_name(state->ctx.serviceObj,
-                         TOOLS_CORE_SIG_CAPABILITIES,
-                         &state->ctx,
-                         FALSE,
-                         &pcaps);
+   if (state->capsRegistered) {
+      GArray *pcaps = NULL;
+      g_signal_emit_by_name(state->ctx.serviceObj,
+                            TOOLS_CORE_SIG_CAPABILITIES,
+                            &state->ctx,
+                            FALSE,
+                            &pcaps);
 
-   if (pcaps != NULL) {
-      if (state->ctx.rpc) {
-         ToolsCore_SetCapabilities(state->ctx.rpc, pcaps, FALSE);
+      if (pcaps != NULL) {
+         if (state->ctx.rpc) {
+            ToolsCore_SetCapabilities(state->ctx.rpc, pcaps, FALSE);
+         }
+         g_array_free(pcaps, TRUE);
       }
-      g_array_free(pcaps, TRUE);
    }
 
    /*

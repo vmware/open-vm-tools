@@ -79,6 +79,7 @@ typedef struct ToolsServiceState {
    guint          configCheckTask;
    gboolean       log;
    gboolean       mainService;
+   gboolean       capsRegistered;
    gchar         *commonPath;
    gchar         *pluginPath;
    GPtrArray     *plugins;
