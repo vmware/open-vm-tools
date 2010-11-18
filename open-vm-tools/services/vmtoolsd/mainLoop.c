@@ -373,6 +373,7 @@ ToolsCore_Setup(ToolsServiceState *state)
    state->ctx.errorCode = EXIT_SUCCESS;
    state->ctx.mainLoop = g_main_loop_new(gctx, TRUE);
    state->ctx.isVMware = VmCheck_IsVirtualWorld();
+   g_main_context_unref(gctx);
 
    g_type_init();
    state->ctx.serviceObj = g_object_new(TOOLSCORE_TYPE_SERVICE, NULL);
