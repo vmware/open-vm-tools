@@ -36,6 +36,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <libgen.h>
 
@@ -211,6 +212,9 @@ static GuestCapabilities platformGHICaps[] = {
  */
 static FileTypeList sEmptyFileTypeList;
 #endif // OPEN_VM_TOOLS
+
+
+static bool AppInfoLaunchEnv(GHIPlatform* ghip, GAppInfo* appInfo);
 
 
 /*
@@ -1438,11 +1442,8 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
             GDesktopAppInfo* dappinfo;
             dappinfo = g_desktop_app_info_new_from_filename(unixFile.c_str());
             if (dappinfo) {
-               // XXX Okay, this is broken.  We need to use nativeEnviron when
-               // spawning applications, but g_app_info doesn't provide a way
-               // to do this.
                GAppInfo *appinfo = (GAppInfo*)G_APP_INFO(dappinfo);
-               success = g_app_info_launch(appinfo, NULL, NULL, NULL);
+               success = AppInfoLaunchEnv(ghip, appinfo);
                g_object_unref(dappinfo);
             }
          } else if (Glib::file_test(unixFile, Glib::FILE_TEST_IS_REGULAR) &&
@@ -1453,7 +1454,7 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
                Glib::spawn_async("" /* inherit cwd */, argv, ghip->nativeEnviron, (Glib::SpawnFlags) 0);
                success = TRUE;
             } catch(Glib::SpawnError& e) {
-               g_warning("%s: %s: %s\n", __func__, unixFile.c_str(), e.what().c_str());
+               g_warning("%s: %s: %s\n", __FUNCTION__, unixFile.c_str(), e.what().c_str());
             }
          } else {
             std::vector<Glib::ustring> argv;
@@ -1474,7 +1475,7 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
                Glib::spawn_async("", argv, ghip->nativeEnviron, Glib::SPAWN_SEARCH_PATH);
                success = TRUE;
             } catch(Glib::SpawnError& e) {
-               g_warning("%s: %s: %s\n", __func__, unixFile.c_str(), e.what().c_str());
+               g_warning("%s: %s: %s\n", __FUNCTION__, unixFile.c_str(), e.what().c_str());
             }
          }
 
@@ -1982,4 +1983,94 @@ GHIX11DetectDesktopEnv(void)
    }
 
    return desktopEnvironment;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AppInfoLaunchEnv --
+ *
+ *      Wrapper around g_app_info_launch which takes a custom environment into
+ *      account.
+ *
+ *      GHI/X11 should spawn applications using ghip->nativeEnviron, but
+ *      g_app_info_launch doesn't taken a custom environment as a parameter.
+ *      Rather than reimplement that function, we work around it by doing the
+ *      following:
+ *
+ *         Parent:
+ *         1.  Fork a child process.
+ *         2.  Block until child terminates, returning true if the child exited
+ *             with an exit code of 0.
+ *
+ *         Child:
+ *         1.  Flush the environment and build a new one from nativeEnviron.
+ *         2.  Spawn desired application with g_app_info_launch.
+ *         3.  Exit with 0 if spawn was successful, otherwise 1.
+ *
+ * Results:
+ *      Returns true if launch succeeded, false otherwise.
+ *
+ * Side effects:
+ *      Creates a child process and blocks until the child exits.  Child lasts
+ *      only as long as it takes to call g_app_info_launch.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static bool
+AppInfoLaunchEnv(GHIPlatform* ghip,     // IN
+                 GAppInfo* appInfo)     // IN
+{
+   bool success = false;
+
+   pid_t myPid = fork();
+   switch (myPid) {
+   case -1:
+      /* Error. */
+      g_warning("%s: fork: %s\n", __FUNCTION__, strerror(errno));
+      break;
+
+   case 0:
+      /* Child:  Exit with _exit() so as to not trigger any atexit() routines. */
+      {
+         if (clearenv() == 0) {
+            std::vector<Glib::ustring>::iterator envp;
+            for (envp = ghip->nativeEnviron.begin();
+                 envp != ghip->nativeEnviron.end();
+                 ++envp) {
+               /*
+                * The string passed to putenv() becomes part of the environment --
+                * it isn't copied.  That's fine, though, because we're running in
+                * the context of a very short-lived wrapper process.
+                */
+               if (putenv((char*)envp->c_str()) != 0) {
+                  g_warning("%s: failed to restore native environment\n", __FUNCTION__);
+                  _exit(1);
+               }
+            }
+            success = g_app_info_launch(appInfo, NULL, NULL, NULL);
+         }
+         _exit(success == true ? 0 : 1);
+      }
+      break;
+
+   default:
+      /* Parent:  Hang out until our child terminates. */
+      {
+         int status = 0;
+         int ret = -1;
+         while (1) {
+            ret = waitpid(myPid, &status, 0);
+            if ((ret == -1 && errno != EINTR) ||
+                (ret == myPid && (WIFEXITED(status) || WIFSIGNALED(status)))) {
+               break;
+            }
+         }
+         success = (ret == myPid) && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+      }
+   }
+
+   return success;
 }
