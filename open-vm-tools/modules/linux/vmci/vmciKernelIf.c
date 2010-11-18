@@ -1619,15 +1619,15 @@ VMCIHost_GetUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
       err = VMCI_ERROR_NO_MEM;
    }
 
+out:
+   up_write(&current->mm->mmap_sem);
+
    if (err == VMCI_SUCCESS) {
       produceQ->qHeader = kmap(attach->producePages[0]);
       produceQ->kernelIf->page = &attach->producePages[1];
       consumeQ->qHeader = kmap(attach->consumePages[0]);
       consumeQ->kernelIf->page = &attach->consumePages[1];
    }
-
-out:
-   up_write(&current->mm->mmap_sem);
 
 errorDealloc:
    if (err < VMCI_SUCCESS) {
