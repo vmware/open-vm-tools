@@ -34,6 +34,7 @@
 #endif
 
 #include "vm_assert.h"
+#include "vm_atomic.h"
 
 typedef struct FileLoggerData {
    LogHandlerData    handler;
@@ -167,7 +168,12 @@ VMFileLoggerOpen(FileLoggerData *data)
    if (g_file_test(path, G_FILE_TEST_EXISTS)) {
       struct stat fstats;
       if (g_stat(path, &fstats) > -1) {
+#if GLIB_CHECK_VERSION(2, 10, 0)
          g_atomic_int_set(&data->logSize, (gint) fstats.st_size);
+#else
+         data->logSize = (gint) fstats.st_size;
+         Atomic_MFence();
+#endif
       }
 
       if (!data->append || g_atomic_int_get(&data->logSize) >= data->maxSize) {
@@ -213,7 +219,12 @@ VMFileLoggerOpen(FileLoggerData *data)
             g_free(g_ptr_array_index(logfiles, id));
          }
          g_ptr_array_free(logfiles, TRUE);
+#if GLIB_CHECK_VERSION(2, 10, 0)
          g_atomic_int_set(&data->logSize, 0);
+#else
+         data->logSize = 0;
+         Atomic_MFence();
+#endif
          data->append = FALSE;
       }
    }
