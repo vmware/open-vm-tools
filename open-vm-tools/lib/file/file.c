@@ -2799,7 +2799,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    uint32 maxNr = 0;
    int i, nrFiles, nFound = 0;
    char **fileList = NULL;
-   uint32 *fileNumbers;
+   uint32 *fileNumbers = NULL;
    int result;
 
    fullPathNoExt = File_FullPath(filePathNoExt);
@@ -2886,6 +2886,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    }
 
   cleanup:
+   free(fileNumbers);
    free(fileList);
    free(fmtString);
    free(baseDir);
