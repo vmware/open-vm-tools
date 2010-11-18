@@ -287,8 +287,9 @@ Unity_Cleanup()
     */
    up = unity.up;
    unity.up = NULL;
-   UnityPlatformCleanup(up);
-
+   if (NULL != up) {
+      UnityPlatformCleanup(up);
+   }
    UnityWindowTracker_Cleanup(&unity.tracker);
 }
 

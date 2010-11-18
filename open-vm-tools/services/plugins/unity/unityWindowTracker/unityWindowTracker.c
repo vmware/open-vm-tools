@@ -98,7 +98,9 @@ UnityWindowTracker_Init(UnityWindowTracker *tracker,     // IN
 void
 UnityWindowTracker_Cleanup(UnityWindowTracker *tracker)  // IN
 {
-   HashTable_Free(tracker->windows);
+   if (NULL != tracker->windows) {
+      HashTable_Free(tracker->windows);
+   }
    memset(tracker, 0, sizeof(UnityWindowTracker));
 }
 

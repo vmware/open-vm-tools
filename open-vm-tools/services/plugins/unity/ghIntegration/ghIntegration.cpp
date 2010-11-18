@@ -121,7 +121,9 @@ GHI_Init(GMainLoop *mainLoop,             // IN
 void
 GHI_Cleanup(void)
 {
-   GHIPlatformCleanup(ghiPlatformData);
+   if (NULL != ghiPlatformData) {
+      GHIPlatformCleanup(ghiPlatformData);
+   }
    ghiPlatformData = NULL;
 }
 

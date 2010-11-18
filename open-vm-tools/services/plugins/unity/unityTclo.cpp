@@ -985,10 +985,12 @@ UnityUpdateChannelInit()
 
    updateChannel->rpcOut = RpcOut_Construct();
    if (updateChannel->rpcOut == NULL) {
+      Warning("%s: RpcOut_Construct() failed\n", __FUNCTION__);
       goto error;
    }
 
    if (!RpcOut_start(updateChannel->rpcOut)) {
+      Warning("%s: RpcOut_start() failed\n", __FUNCTION__);
       RpcOut_Destruct(updateChannel->rpcOut);
       goto error;
    }
