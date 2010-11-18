@@ -129,6 +129,10 @@ MXUserRWLock *MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
                                            const char *name,
                                            MX_Rank rank);
 
+Bool MXUser_ControlRWLock(MXUserRWLock *lock,
+                          uint32 command,
+                          ...);
+
 /*
  * Computational barrier
  */
@@ -190,11 +194,12 @@ void MXUser_BroadcastCondVar(MXUserCondVar *condVar);
 void MXUser_DestroyCondVar(MXUserCondVar *condVar);
 
 /*
- * MXUser_Control[Excl, Rec] commands
+ * MXUser_Control[Excl, Rec, RW] commands
  */
 
 #define MXUSER_CONTROL_ACQUISITION_HISTO   0     // minValue, decades
 #define MXUSER_CONTROL_HELD_HISTO          1     // minValue, decades
+#define MXUSER_CONTROL_ENABLE_STATS        2     // no arguments
 
 #define MXUSER_DEFAULT_HISTO_MIN_VALUE_NS  1000  // 1 usec
 #define MXUSER_DEFAULT_HISTO_DECADES       7     // 1 usec to 10 seconds

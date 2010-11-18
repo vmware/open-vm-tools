@@ -247,6 +247,32 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
       break; 
    }
 
+   case MXUSER_CONTROL_ENABLE_STATS: {
+      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
+      if (LIKELY(stats == NULL)) {
+         MXUserStats *before;
+
+         stats = Util_SafeCalloc(1, sizeof(*stats));
+
+         MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
+         MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
+
+         before = (MXUserStats *) Atomic_ReadIfEqualWritePtr(&lock->statsMem,
+                                                             NULL,
+                                                             (void *) stats);
+
+         if (before) {
+            free(stats);
+         }
+
+         lock->header.statsFunc = MXUserStatsActionRec;
+      }
+
+      result = TRUE;
+      break;
+   }
+
    default:
       result = FALSE;
    }
@@ -310,13 +336,9 @@ MXUserCreateRecLock(const char *userName,  // IN:
       lock->header.statsFunc = NULL;
       Atomic_WritePtr(&lock->statsMem, NULL);
    } else {
-      MXUserStats *stats = Util_SafeCalloc(1, sizeof(*stats));
+      Bool success = MXUser_ControlRecLock(lock, MXUSER_CONTROL_ENABLE_STATS);
 
-      MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
-      MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
-
-      lock->header.statsFunc = MXUserStatsActionRec;
-      Atomic_WritePtr(&lock->statsMem, stats);
+      ASSERT(success);
    }
 
    MXUserAddToList(&lock->header);

@@ -225,6 +225,32 @@ MXUser_ControlExclLock(MXUserExclLock *lock,  // IN/OUT:
       break;
    }
 
+   case MXUSER_CONTROL_ENABLE_STATS: {
+      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
+      if (LIKELY(stats == NULL)) {
+         MXUserStats *before;
+
+         stats = Util_SafeCalloc(1, sizeof(*stats));
+
+         MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
+         MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
+
+         before = (MXUserStats *) Atomic_ReadIfEqualWritePtr(&lock->statsMem,
+                                                             NULL,
+                                                             (void *) stats);
+
+         if (before) {
+            free(stats);
+         }
+
+         lock->header.statsFunc = MXUserStatsActionExcl;
+      }
+
+      result = TRUE;
+      break;
+   }
+
    default:
       result = FALSE;
    }
@@ -279,13 +305,9 @@ MXUser_CreateExclLock(const char *userName,  // IN:
    lock->header.dumpFunc = MXUserDumpExclLock;
 
    if (MXUserStatsEnabled()) {
-      MXUserStats *stats = Util_SafeCalloc(1, sizeof(*stats));
+      Bool success = MXUser_ControlExclLock(lock, MXUSER_CONTROL_ENABLE_STATS);
 
-      MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
-      MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
-
-      lock->header.statsFunc = MXUserStatsActionExcl;
-      Atomic_WritePtr(&lock->statsMem, stats);
+      ASSERT(success);
    } else {
       lock->header.statsFunc = NULL;
       Atomic_WritePtr(&lock->statsMem, NULL);

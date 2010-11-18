@@ -381,6 +381,115 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
+ * MXUser_ControlRWLock --
+ *
+ *      Perform the specified command on the specified lock.
+ *
+ * Results:
+ *      TRUE    succeeded
+ *      FALSE   failed
+ *
+ * Side effects:
+ *      Depends on the command, no?
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUser_ControlRWLock(MXUserRWLock *lock,  // IN/OUT:
+                     uint32 command,      // IN:
+                     ...)                 // IN:
+{
+   Bool result;
+
+   ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
+
+   switch (command) {
+   case MXUSER_CONTROL_ACQUISITION_HISTO: {
+      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
+      if (stats) {
+         va_list a;
+         uint64 minValue;
+         uint32 decades;
+
+         va_start(a, command);
+         minValue = va_arg(a, uint64);
+         decades = va_arg(a, uint32);
+         va_end(a);
+
+         MXUserForceHisto(&stats->acquisitionHisto,
+                          MXUSER_STAT_CLASS_ACQUISITION, minValue, decades);
+
+         result = TRUE;
+      } else {
+         result = FALSE;
+      }
+
+      break;
+   }
+
+   case MXUSER_CONTROL_HELD_HISTO: {
+      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
+      if (stats) {
+         va_list a;
+         uint32 minValue;
+         uint32 decades;
+
+         va_start(a, command);
+         minValue = va_arg(a, uint64);
+         decades = va_arg(a, uint32);
+         va_end(a);
+
+         MXUserForceHisto(&stats->heldHisto, MXUSER_STAT_CLASS_HELD,
+                          minValue, decades);
+
+         result = TRUE;
+      } else {
+         result = FALSE;
+      }
+
+      break;
+   }
+
+   case MXUSER_CONTROL_ENABLE_STATS: {
+      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
+      if (LIKELY(stats == NULL)) {
+         MXUserStats *before;
+
+         stats = Util_SafeCalloc(1, sizeof(*stats));
+
+         MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
+         MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
+
+         before = (MXUserStats *) Atomic_ReadIfEqualWritePtr(&lock->statsMem,
+                                                             NULL,
+                                                             (void *) stats);
+
+         if (before) {
+            free(stats);
+         }
+
+         lock->header.statsFunc = MXUserStatsActionRW;
+      }
+
+      result = TRUE;
+      break;
+   }
+
+   default:
+      result = FALSE;
+   }
+
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * MXUser_CreateRWLock --
  *
  *      Create a read/write lock.
@@ -442,13 +551,10 @@ MXUser_CreateRWLock(const char *userName,  // IN:
                                           MXUserFreeHashEntry);
 
       if (MXUserStatsEnabled()) {
-         MXUserStats *stats = Util_SafeCalloc(1, sizeof(*stats));
+         Bool success = MXUser_ControlRWLock(lock,
+                                             MXUSER_CONTROL_ENABLE_STATS);
 
-         MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
-         MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
-
-         lock->header.statsFunc = MXUserStatsActionRW;
-         Atomic_WritePtr(&lock->statsMem, stats);
+         ASSERT(success);
       } else {
          lock->header.statsFunc = NULL;
          Atomic_WritePtr(&lock->statsMem, NULL);
