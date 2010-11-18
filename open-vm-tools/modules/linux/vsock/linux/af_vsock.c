@@ -1771,9 +1771,33 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
    vpending->qpHandle = handle;
    vpending->qpair = qpair;
 
+   /*
+    * When we send the attach message, we must be ready to handle
+    * incoming control messages on the newly connected socket. So we
+    * move the pending socket to the connected state before sending
+    * the attach message. Otherwise, an incoming packet triggered by
+    * the attach being received by the peer may be processed
+    * concurrently with what happens below after sending the attach
+    * message, and that incoming packet will find the listening socket
+    * instead of the (currently) pending socket. Note that enqueueing
+    * the socket increments the reference count, so even if a reset
+    * comes before the connection is accepted, the socket will be
+    * valid until it is removed from the queue.
+    *
+    * If we fail sending the attach below, we remove the socket from
+    * the connected list and move the socket to SS_UNCONNECTED before
+    * releasing the lock, so a pending slow path processing of an
+    * incoming packet will not see the socket in the connected state
+    * in that case.
+    */
+   pending->sk_state = SS_CONNECTED;
+
+   VSockVmciInsertConnected(vsockConnectedSocketsVsk(vpending), pending);
+
    /* Notify our peer of our attach. */
    err = VSOCK_SEND_ATTACH(pending, handle);
    if (err < 0) {
+      VSockVmciRemoveConnected(pending);
       Log("Could not send attach\n");
       VSOCK_SEND_RESET(pending, pkt);
       err = VSockVmci_ErrorToVSockError(err);
@@ -1782,17 +1806,10 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
    }
 
    /*
-    * We have a connection.  Add our connection to the connected list so it no
-    * longer goes through the listening socket, move it from the listener's
-    * pending list to the accept queue so callers of accept() can find it.
-    * Note that enqueueing the socket increments the reference count, so even
-    * if a reset comes before the connection is accepted, the socket will be
-    * valid until it is removed from the queue.
+    * We have a connection. Move the now connected socket from the
+    * listener's pending list to the accept queue so callers of
+    * accept() can find it.
     */
-   pending->sk_state = SS_CONNECTED;
-
-   VSockVmciInsertConnected(vsockConnectedSocketsVsk(vpending), pending);
-
    VSockVmciRemovePending(listener, pending);
    VSockVmciEnqueueAccept(listener, pending);
 
