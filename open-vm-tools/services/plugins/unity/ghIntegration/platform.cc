@@ -50,6 +50,7 @@
 #include <giomm.h>
 #include <glib.h>
 #include <gdk-pixbuf/gdk-pixbuf-core.h>
+#include <sigc++/sigc++.h>
 
 // gdkx.h includes Xlib.h, which #defines Bool.
 #include <gdk/gdkx.h>
@@ -215,6 +216,7 @@ static FileTypeList sEmptyFileTypeList;
 
 
 static bool AppInfoLaunchEnv(GHIPlatform* ghip, GAppInfo* appInfo);
+static void OnMenusChanged(GHIPlatform* ghip);
 
 
 /*
@@ -284,16 +286,9 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
 
 #ifdef REDIST_GMENU
    ghip->menuItemManager = new MenuItemManager(desktopEnv);
-#endif
-
-#ifdef VMX86_DEBUG
-   std::vector<const char *> folderKeysChanged;
-   folderKeysChanged.push_back(UNITY_START_MENU_LAUNCH_FOLDER);
-   folderKeysChanged.push_back(UNITY_START_MENU_FIXED_FOLDER);
-   if (ghip->hostCallbacks.launchMenuChange) {
-      ghip->hostCallbacks.launchMenuChange(folderKeysChanged.size(),
-                                           &folderKeysChanged[0]);
-   }
+   sigc::slot<void,GHIPlatform*> menuSlot = sigc::ptr_fun(&OnMenusChanged);
+   ghip->menuItemManager->menusChanged.connect(sigc::bind(menuSlot, ghip));
+   OnMenusChanged(ghip);
 #endif
 
    return ghip;
@@ -2032,4 +2027,33 @@ AppInfoLaunchEnv(GHIPlatform* ghip,     // IN
    }
 
    return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OnMenusChanged --
+ *
+ *      Signal handler for updates to launch or fixed menus.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Calls transport's launchMenuChange callback, if set.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+OnMenusChanged(GHIPlatform *ghip)       // IN
+{
+   if (ghip->hostCallbacks.launchMenuChange) {
+      std::vector<const char *> folderKeysChanged;
+      folderKeysChanged.push_back(UNITY_START_MENU_LAUNCH_FOLDER);
+      folderKeysChanged.push_back(UNITY_START_MENU_FIXED_FOLDER);
+      ghip->hostCallbacks.launchMenuChange(folderKeysChanged.size(),
+                                           &folderKeysChanged[0]);
+   }
 }
