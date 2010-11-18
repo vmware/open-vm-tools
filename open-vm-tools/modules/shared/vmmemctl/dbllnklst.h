@@ -73,7 +73,6 @@
 
 #include "vm_basic_types.h"
 
-
 #define DblLnkLst_OffsetOf(type, field) ((intptr_t)&((type *)0)->field)
 
 #define DblLnkLst_Container(addr, type, field) \
@@ -97,9 +96,8 @@ typedef struct DblLnkLst_Links {
 /*
  * Functions
  *
- * DblLnkLst_LinkFirst and DblLnkLst_LinkLast are specific
- * to anchored lists.  The rest are for both circular and
- * anchored lists.
+ * DblLnkLst_LinkFirst, DblLnkLst_LinkLast, and DblLnkLst_Swap are specific
+ * to anchored lists.  The rest are for both circular and anchored lists.
  */
 
 
@@ -286,6 +284,48 @@ DblLnkLst_LinkLast(DblLnkLst_Links *head, // IN
                    DblLnkLst_Links *l)    // IN
 {
    DblLnkLst_Link(head, l);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DblLnkLst_Swap --
+ *
+ *    Swap all entries between the list anchored at 'head1' and the list
+ *    anchored at 'head2'.
+ *
+ *    The operation is commutative
+ *    The operation is inversible (its inverse is itself)
+ *
+ * Result
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+DblLnkLst_Swap(DblLnkLst_Links *head1,  // IN/OUT
+               DblLnkLst_Links *head2)  // IN/OUT
+{
+   DblLnkLst_Links const tmp = *head1;
+
+   if (DblLnkLst_IsLinked(head2)) {
+      (head1->prev = head2->prev)->next = head1;
+      (head1->next = head2->next)->prev = head1;
+   } else {
+      DblLnkLst_Init(head1);
+   }
+
+   if (tmp.prev != head1) {
+      (head2->prev = tmp.prev)->next = head2;
+      (head2->next = tmp.next)->prev = head2;
+   } else {
+      DblLnkLst_Init(head2);
+   }
 }
 
 
