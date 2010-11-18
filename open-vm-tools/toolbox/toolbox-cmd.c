@@ -99,7 +99,7 @@ static CmdTable commands[] = {
    { "stat",      Stat_Command,     TRUE,    FALSE,   Stat_Help},
    { "device",    Device_Command,   TRUE,    FALSE,   Device_Help},
 #if (defined(_WIN32) || defined(linux)) && !defined(OPEN_VM_TOOLS)
-   { "upgrade",   Upgrade_Command,  TRUE,    FALSE,   Upgrade_Help},
+   { "upgrade",   Upgrade_Command,  TRUE,    TRUE,   Upgrade_Help},
 #endif
    { "help",      HelpCommand,      FALSE,   FALSE,   ToolboxCmdHelp},
 };
