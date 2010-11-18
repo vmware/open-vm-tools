@@ -469,6 +469,8 @@ MXUserDumpSemaphore(MXUserHeader *header)  // IN:
    Warning("\tsignature 0x%X\n", sema->header.signature);
    Warning("\tname %s\n", sema->header.name);
    Warning("\trank 0x%X\n", sema->header.rank);
+   Warning("\tserial number %u\n", sema->header.serialNumber);
+
    Warning("\treference count %u\n", Atomic_Read(&sema->activeUserCount));
    Warning("\tnative semaphore 0x%p\n", &sema->nativeSemaphore);
 }

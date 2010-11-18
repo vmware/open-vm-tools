@@ -69,6 +69,7 @@ MXUserDumpBarrier(MXUserHeader *header)  // IN:
    Warning("\tsignature 0x%X\n", barrier->header.signature);
    Warning("\tname %s\n", barrier->header.name);
    Warning("\trank 0x%X\n", barrier->header.rank);
+   Warning("\tserial number %u\n", barrier->header.serialNumber);
 
    Warning("\tlock %p\n", barrier->lock);
    Warning("\tconfigured count %u\n", barrier->configCount);

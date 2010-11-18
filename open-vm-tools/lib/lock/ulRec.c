@@ -153,6 +153,7 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
    Warning("\tsignature 0x%X\n", lock->header.signature);
    Warning("\tname %s\n", lock->header.name);
    Warning("\trank 0x%X\n", lock->header.rank);
+   Warning("\tserial number %u\n", lock->header.serialNumber);
 
    if (lock->vmmLock == NULL) {
       MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
