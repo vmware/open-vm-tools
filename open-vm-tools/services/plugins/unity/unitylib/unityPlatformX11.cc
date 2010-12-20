@@ -348,10 +348,6 @@ UnityPlatformCleanup(UnityPlatform *up) // IN
       up->display = NULL;
    }
 
-   free(up->desktopInfo.guestDesktopToUnity);
-   up->desktopInfo.guestDesktopToUnity = NULL;
-   free(up->desktopInfo.unityDesktopToGuest);
-   up->desktopInfo.unityDesktopToGuest = NULL;
    up->desktopWindow = NULL;
 
    free(up);
@@ -796,6 +792,11 @@ UnityPlatformExitUnity(UnityPlatform *up) // IN
    UnityX11EventTeardownSource(up);
 
    up->desktopInfo.numDesktops = 0; // Zero means host has not set virtual desktop config
+   free(up->desktopInfo.guestDesktopToUnity);
+   up->desktopInfo.guestDesktopToUnity = NULL;
+   free(up->desktopInfo.unityDesktopToGuest);
+   up->desktopInfo.unityDesktopToGuest = NULL;
+
    UnityX11RestoreSystemSettings(up);
 
    HashTable_ToArray(up->allWindows,
@@ -968,14 +969,13 @@ UnityPlatformEnterUnity(UnityPlatform *up) // IN
          Warning("%s: _NET_NUMBER_OF_DESKTOPS set to 0; impossible.\n", __FUNCTION__);
          return FALSE;
       }
+
       up->desktopInfo.guestDesktopToUnity = (UnityDesktopId*)
-         Util_SafeRealloc(up->desktopInfo.guestDesktopToUnity,
-                          up->desktopInfo.numDesktops
-                          * sizeof up->desktopInfo.guestDesktopToUnity[0]);
+         Util_SafeMalloc(up->desktopInfo.numDesktops *
+                         sizeof up->desktopInfo.guestDesktopToUnity[0]);
       up->desktopInfo.unityDesktopToGuest = (uint32*)
-         Util_SafeRealloc(up->desktopInfo.unityDesktopToGuest,
-                          up->desktopInfo.numDesktops
-                          * sizeof up->desktopInfo.unityDesktopToGuest[0]);
+         Util_SafeMalloc(up->desktopInfo.numDesktops *
+                         sizeof up->desktopInfo.unityDesktopToGuest[0]);
 
       for (i = 0; i < up->desktopInfo.numDesktops; i++) {
          up->desktopInfo.guestDesktopToUnity[i] =
