@@ -379,8 +379,11 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,             // IN
  *      Indices and lengths that are out of bounds are pinned to the
  *      edges of the string.
  *
- *      Pass -1 for any length parameter to indicate "from start until
+ *      Pass -1 for the length parameter to indicate "from start until
  *      end of string".
+ *
+ *      The start and length arguments are in code points - unicode
+ *      "characters" - not bytes!
  *
  * Results:
  *      The newly-allocated substring of 'str' in the range [index,
@@ -393,13 +396,42 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,             // IN
  */
 
 Unicode
-Unicode_Substr(ConstUnicode str,    // IN
-               UnicodeIndex start,  // IN
-               UnicodeIndex length) // IN
+Unicode_Substr(ConstUnicode str,     // IN:
+               UnicodeIndex start,   // IN:
+               UnicodeIndex length)  // IN:
 {
-   UnicodePinIndices(str, &start, &length);
+   char *substr;
+   uint32 *utf32;
+   uint32 codePointLen;
 
-   return Util_SafeStrndup(((const char *)str) + start, length);
+   ASSERT(str);
+   ASSERT((start >= 0) || (start == -1));
+   ASSERT((length >= 0) || (length == -1));
+
+   if (!CodeSet_UTF8ToUTF32(str, (char **) &utf32)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, str);
+   }
+
+   codePointLen = 0;
+   while (utf32[codePointLen] != 0) {
+      codePointLen++;
+   }
+
+   if ((start < 0) || (start > codePointLen)) {
+      start = codePointLen;
+   }
+
+   if ((length < 0) || ((start + length) > codePointLen)) {
+      length = codePointLen - start;
+   }
+
+   utf32[start + length] = 0;
+
+   CodeSet_UTF32ToUTF8((char *) &utf32[start], &substr);
+
+   free(utf32);
+
+   return substr;
 }
 
 
@@ -453,13 +485,10 @@ Unicode_ReplaceRange(ConstUnicode destination,       // IN
    result = Util_SafeMalloc(resultLength + 1);
 
    // Start with the destination bytes before the substring to be replaced.
-   memcpy(result,
-          destination,
-          destinationStart);
+   memcpy(result, destination, destinationStart);
 
    // Insert the substring of source in place of the destination substring.
-   memcpy(result + destinationStart,
-          (const char *)source + sourceStart,
+   memcpy(result + destinationStart, (const char *) source + sourceStart,
           sourceLength);
 
    // Append the remaining bytes of destination after the replaced substring.
