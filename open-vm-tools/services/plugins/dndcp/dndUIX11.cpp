@@ -166,6 +166,27 @@ DnDUIX11::Init()
    m_detWnd->signal_drag_end().connect(
       sigc::mem_fun(this, &DnDUIX11::GtkSourceDragEndCB));
 
+   m_detWnd->signal_enter_notify_event().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkEnterEventCB));
+   m_detWnd->signal_leave_notify_event().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkLeaveEventCB));
+   m_detWnd->signal_map_event().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkMapEventCB));
+   m_detWnd->signal_unmap_event().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkUnmapEventCB));
+   m_detWnd->signal_realize().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkRealizeEventCB));
+   m_detWnd->signal_unrealize().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkUnrealizeEventCB));
+   m_detWnd->signal_motion_notify_event().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkMotionNotifyEventCB));
+   m_detWnd->signal_configure_event().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkConfigureEventCB));
+   m_detWnd->signal_button_press_event().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkButtonPressEventCB));
+   m_detWnd->signal_button_release_event().connect(
+      sigc::mem_fun(this, &DnDUIX11::GtkButtonReleaseEventCB));
+
    CommonUpdateDetWndCB(false, 0, 0);
    CommonUpdateUnityDetWndCB(false, 0, false);
    goto out;
@@ -508,7 +529,7 @@ DnDUIX11::CommonUpdateDetWndCB(bool bShow,
        * Stolen from the legacy V2 DnD code.
        */
 
-      SendFakeMouseMove(x, y);
+      SendFakeMouseMove(x + 2, y + 2);
       m_detWnd->SetIsVisible(true);
    } else {
       g_debug("%s: hide\n", __FUNCTION__);
@@ -1999,3 +2020,154 @@ DnDUIX11::VmxDnDVersionChanged(RpcChannel *chan, uint32 version)
    ASSERT(m_DnD);
    m_DnD->VmxDnDVersionChanged(version);
 }
+
+
+/**
+ * Track enter events on detection window.
+ *
+ * @param[ignored] event event data (ignored)
+ *
+ * @return always true.
+ */
+
+bool
+DnDUIX11::GtkEnterEventCB(GdkEventCrossing *ignored)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+   return true;
+}
+
+/**
+ * Track enter events on detection window.
+ *
+ * @param[ignored] event event data (ignored)
+ *
+ * @return always true.
+ */
+
+bool
+DnDUIX11::GtkLeaveEventCB(GdkEventCrossing *ignored)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+   return true;
+}
+
+/**
+ * Track enter events on detection window.
+ *
+ * @param[ignored] event event data (ignored)
+ *
+ * @return always true.
+ */
+
+bool
+DnDUIX11::GtkMapEventCB(GdkEventAny *event)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Track enter events on detection window.
+ *
+ * @param[ignored] event event data (ignored)
+ *
+ * @return always true.
+ */
+
+bool
+DnDUIX11::GtkUnmapEventCB(GdkEventAny *event)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Track realize events on detection window.
+ */
+
+void
+DnDUIX11::GtkRealizeEventCB()
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+}
+
+
+/**
+ * Track unrealize events on detection window.
+ */
+
+void
+DnDUIX11::GtkUnrealizeEventCB()
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+}
+
+/**
+ * Track motion notify events on detection window.
+ *
+ * @param[in] event event data
+ *
+ * @return always true.
+ */
+
+bool
+DnDUIX11::GtkMotionNotifyEventCB(GdkEventMotion *event)
+{
+   g_debug("%s: enter x %f y %f state 0x%x\n", __FUNCTION__,
+           event->x, event->y, event->state);
+   return true;
+}
+
+
+/**
+ * Track configure events on detection window.
+ *
+ * @param[in] event event data
+ *
+ * @return always true.
+ */
+
+bool
+DnDUIX11::GtkConfigureEventCB(GdkEventConfigure *event)
+{
+   g_debug("%s: enter x %d y %d width %d height %d\n",
+           __FUNCTION__, event->x, event->y, event->width, event->height);
+   return true;
+}
+
+
+/**
+ * Track button press events on detection window.
+ *
+ * @param[ignored] event event data (ignored)
+ *
+ * @return always true.
+ */
+
+bool
+DnDUIX11::GtkButtonPressEventCB(GdkEventButton *event)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Track button release events on detection window.
+ *
+ * @param[ignored] event event data (ignored)
+ *
+ * @return always true.
+ */
+
+bool
+DnDUIX11::GtkButtonReleaseEventCB(GdkEventButton *event)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+   return true;
+}
+
+

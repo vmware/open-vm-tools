@@ -149,6 +149,21 @@ private:
     */
    void TargetDragEnter(void);
 
+   /*
+    * Other signal handlers for tracing.
+    */
+
+   bool GtkEnterEventCB(GdkEventCrossing *event);
+   bool GtkLeaveEventCB(GdkEventCrossing *event);
+   bool GtkMapEventCB(GdkEventAny *event);
+   bool GtkUnmapEventCB(GdkEventAny *event);
+   void GtkRealizeEventCB();
+   void GtkUnrealizeEventCB();
+   bool GtkMotionNotifyEventCB(GdkEventMotion *event);
+   bool GtkConfigureEventCB(GdkEventConfigure *event);
+   bool GtkButtonPressEventCB(GdkEventButton *event);
+   bool GtkButtonReleaseEventCB(GdkEventButton *event);
+
    /**
     * Misc methods.
     */
