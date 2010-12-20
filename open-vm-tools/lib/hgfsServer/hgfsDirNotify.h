@@ -16,58 +16,39 @@
  *
  *********************************************************/
 
+#ifndef _HGFS_DIRNOTIFY_H
+#define _HGFS_DIRNOTIFY_H
+
 /*
  * hgfsDirNotify.h --
  *
  *	Function definitions for directory change notification.
  */
 
-/*
- *  XXX:
- *  Following constants comes from HGFS protocol definition.
- *  When hgfsProto.h is updated with new definitions for V4
- *  these constants should be removed and definitions from
- *  hgfsProto.h should be used instead.
- */
-#define HGFS_FILE_NOTIFY_ADD_FILE                 (1 << 0)
-#define HGFS_FILE_NOTIFY_ADD_DIR                  (1 << 1)
-#define HGFS_FILE_NOTIFY_DELETE_FILE              (1 << 2)
-#define HGFS_FILE_NOTIFY_DELETE_DIR               (1 << 3)
-#define HGFS_FILE_NOTIFY_RENAME_FILE              (1 << 4)
-#define HGFS_FILE_NOTIFY_RENAME_DIR               (1 << 5)
-#define HGFS_FILE_NOTIFY_CHANGE_SIZE              (1 << 6)
-#define HGFS_FILE_NOTIFY_CHANGE_LAST_WRITE        (1 << 7)
-#define HGFS_FILE_NOTIFY_CHANGE_LAST_ACCESS       (1 << 8)
-#define HGFS_FILE_NOTIFY_CHANGE_CREATION          (1 << 9)
-#define HGFS_FILE_NOTIFY_CHANGE_EA                (1 << 10)
-#define HGFS_FILE_NOTIFY_CHANGE_SECURITY          (1 << 11)
-#define HGFS_FILE_NOTIFY_ADD_STREAM               (1 << 12)
-#define HGFS_FILE_NOTIFY_DELETE_STREAM            (1 << 13)
-#define HGFS_FILE_NOTIFY_CHANGE_STREAM_SIZE       (1 << 14)
-#define HGFS_FILE_NOTIFY_CHANGE_STREAM_LAST_WRITE (1 << 15)
-#define HGFS_FILE_NOTIFY_WATCH_DELETED            (1 << 16)
-#define HGFS_FILE_NOTIFY_EVENTS_DROPPED           (1 << 17)
-
-#define INVALID_OBJECT_HANDLE  0xffffffff
-
-typedef uint32 HgfsSharedFolderHandle;
-typedef uint64 HgfsSubscriberHandle;
-
-uint32 HgfsNotify_Init(void);
+struct HgfsSessionInfo;
+/* This is a callback that is implemented in hgfsServer.c */
+typedef void HgfsNotificationCallbackFunc(HgfsSharedFolderHandle sharedFolder,
+                                          HgfsSubscriberHandle subscriber,
+                                          char *name,
+                                          uint32 mask,
+                                          struct HgfsSessionInfo *session);
+HgfsInternalStatus HgfsNotify_Init(void);
 void HgfsNotify_Shutdown(void);
 
-HgfsSharedFolderHandle HgfsNotify_AddSharedFolder(const char *path);
+HgfsSharedFolderHandle HgfsNotify_AddSharedFolder(const char *path,
+                                                  const char *shareName);
 HgfsSubscriberHandle HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder,
                                               const char *path,
                                               uint32 eventFilter,
-                                              uint32 recursive);
+                                              uint32 recursive,
+                                              HgfsNotificationCallbackFunc notify,
+                                              struct HgfsSessionInfo *session);
 
-uint32 HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder);
-uint32 HgfsNotify_RemoveSubscriber(HgfsSubscriberHandle subscriber);
+Bool HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder);
+Bool HgfsNotify_RemoveSubscriber(HgfsSubscriberHandle subscriber);
+void HgfsNotify_CleanupSession(struct HgfsSessionInfo *session);
+Bool HgfsNotify_GetShareName(HgfsSharedFolderHandle sharedFolder,
+                             size_t *shareNameLen,
+                             char **shareName);
 
-/* This is a callback that is implemented in hgfsServer.c */
-void Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder,
-                               HgfsSubscriberHandle subscriber,
-                               char *name,
-                               char *newName,
-                               uint32 mask);
+#endif // _HGFS_DIRNOTIFY_H

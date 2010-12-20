@@ -50,6 +50,7 @@
 /*
  * hgfs locks
  */
+#define RANK_hgfsSharedFolders       (RANK_libLockBase + 0x4003)
 #define RANK_hgfsNotifyLock          (RANK_libLockBase + 0x4005)
 #define RANK_hgfsFileIOLock          (RANK_libLockBase + 0x4010)
 #define RANK_hgfsSearchArrayLock     (RANK_libLockBase + 0x4020)

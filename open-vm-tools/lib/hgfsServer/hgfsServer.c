@@ -33,6 +33,7 @@
 #include "file.h"
 #include "util.h"
 #include "wiper.h"
+#include "hgfsServer.h"
 #include "hgfsDirNotify.h"
 #include "hgfsTransport.h"
 #include "userlock.h"
@@ -95,6 +96,9 @@
 #define HGFS_ASSERT_MINIMUM_OP(op)
 #endif
 
+#ifdef VMX86_TOOLS
+#define Config_GetBool(defaultValue,fmt) (defaultValue)
+#endif
 
 /*
  * This ensures that the hgfs name conversion code never fails on long
@@ -178,7 +182,25 @@ HgfsServerSessionCallbacks hgfsServerSessionCBTable = {
    HgfsServerSessionSendComplete,
 };
 
-static Bool hgfsChangeNotificationSupported = FALSE;
+/* Lock that protects shared folders list. */
+static MXUserExclLock *gHgfsSharedFoldersLock = NULL;
+
+/* List of shared folders nodes. */
+static DblLnkLst_Links gHgfsSharedFoldersList;
+
+/*
+ * Number of active sessions that support change directory notification. HGFS server
+ * needs to maintain up-to-date shared folders list when there is
+ * at least one such session.
+ */
+static Bool gHgfsDirNotifyActive = FALSE;
+
+typedef struct HgfsSharedFolderProperties {
+   DblLnkLst_Links links;
+   char *name;                                /* Name of the share. */
+   HgfsSharedFolderHandle notificationHandle; /* Directory notification handle. */
+   Bool markedForDeletion;
+} HgfsSharedFolderProperties;
 
 /*
  *    Limit payload to 16M + header.
@@ -233,6 +255,16 @@ static Bool HgfsIsShareRoot(char const *cpName, size_t cpNameSize);
 static void HgfsServerCompleteRequest(HgfsInternalStatus status,
                                       size_t replyPayloadSize,
                                       HgfsInputParam *input);
+static Bool HgfsHandle2NotifyInfo(HgfsHandle handle,
+                                  HgfsSessionInfo *session,
+                                  char **fileName,
+                                  size_t *fileNameSize,
+                                  HgfsSharedFolderHandle *folderHandle);
+static void Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder,
+                                      HgfsSubscriberHandle subscriber,
+                                      char* fileName,
+                                      uint32 mask,
+                                      struct HgfsSessionInfo *session);
 
 /*
  * Opcode handlers
@@ -257,6 +289,8 @@ static void HgfsServerCreateSession(HgfsInputParam *input);
 static void HgfsServerDestroySession(HgfsInputParam *input);
 static void HgfsServerClose(HgfsInputParam *input);
 static void HgfsServerSearchClose(HgfsInputParam *input);
+static void HgfsServerSetDirNotifyWatch(HgfsInputParam *input);
+static void HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input);
 
 
 /*
@@ -809,6 +843,7 @@ HgfsHandle2FileName(HgfsHandle handle,       // IN: Hgfs file handle
                                   fileNameSize);
 }
 
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -867,6 +902,58 @@ exit_unlock:
 
    *fileName = name;
    *fileNameSize = nameSize;
+
+   return found;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsHandle2FileNameMode --
+ *
+ *    Given an OS handle/fd, return information needed for directory
+ *    notification package: relative to the root share file name and
+ *    shared folder notification handle.
+ *
+ * Results:
+ *    TRUE if the node was found.
+ *    FALSE otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsHandle2NotifyInfo(HgfsHandle handle,                    // IN: Hgfs file handle
+                      HgfsSessionInfo *session,             // IN: Session info
+                      char **fileName,                      // OUT: UTF8 file name
+                      size_t *fileNameSize,                 // OUT: UTF8 file name size
+                      HgfsSharedFolderHandle *folderHandle) // OUT: shared folder handle
+{
+   Bool found = FALSE;
+   HgfsFileNode *existingFileNode;
+   char *name;
+   size_t nameSize;
+
+   ASSERT(fileName != NULL && fileNameSize != NULL);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
+
+   existingFileNode = HgfsHandle2FileNode(handle, session);
+   if (NULL != existingFileNode) {
+      nameSize = existingFileNode->utf8NameLen - existingFileNode->shareInfo.rootDirLen;
+      name = Util_SafeMalloc(nameSize + 1);
+      *folderHandle = existingFileNode->shareInfo.handle;
+      memcpy(name, existingFileNode->utf8Name, nameSize);
+      name[nameSize] = '\0';
+      *fileName = name;
+      *fileNameSize = nameSize;
+      found = TRUE;
+   }
+
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return found;
 }
@@ -1677,6 +1764,7 @@ HgfsAddNewFileNode(HgfsFileOpenInfo *openInfo,  // IN: open info struct
    newNode->state = FILENODE_STATE_IN_USE_NOT_CACHED;
    newNode->shareInfo.readPermissions = openInfo->shareInfo.readPermissions;
    newNode->shareInfo.writePermissions = openInfo->shareInfo.writePermissions;
+   newNode->shareInfo.handle = openInfo->shareInfo.handle;
 
    LOG(4, ("%s: got new node, handle %u\n", __FUNCTION__,
            HgfsFileNode2Handle(newNode)));
@@ -2191,27 +2279,13 @@ HgfsAddNewSearch(char const *utf8Dir,       // IN: UTF8 name of dir to search in
    newSearch->handle = HgfsServerGetNextHandleCounter();
 
    newSearch->utf8DirLen = strlen(utf8Dir);
-   newSearch->utf8Dir = strdup(utf8Dir);
-   if (newSearch->utf8Dir == NULL) {
-      HgfsRemoveSearchInternal(newSearch, session);
-
-      return NULL;
-   }
+   newSearch->utf8Dir = Util_SafeStrdup(utf8Dir);
 
    newSearch->utf8ShareNameLen = strlen(utf8ShareName);
-   newSearch->utf8ShareName = strdup(utf8ShareName);
-   if (newSearch->utf8ShareName == NULL) {
-      HgfsRemoveSearchInternal(newSearch, session);
-
-      return NULL;
-   }
+   newSearch->utf8ShareName = Util_SafeStrdup(utf8ShareName);
 
    newSearch->shareInfo.rootDirLen = strlen(rootDir);
-   newSearch->shareInfo.rootDir = strdup(rootDir);
-   if (newSearch->shareInfo.rootDir == NULL) {
-      HgfsRemoveSearchInternal(newSearch, session);
-      return NULL;
-   }
+   newSearch->shareInfo.rootDir = Util_SafeStrdup(rootDir);
 
    LOG(4, ("%s: got new search, handle %u\n", __FUNCTION__,
            HgfsSearch2SearchHandle(newSearch)));
@@ -2667,6 +2741,8 @@ static struct {
    { HgfsServerDestroySession,   offsetof(HgfsRequestDestroySessionV4, reserved),  REQ_SYNC},
    { HgfsServerRead,             sizeof (HgfsRequestReadV3),                       REQ_SYNC},
    { HgfsServerWrite,            sizeof (HgfsRequestWriteV3),                      REQ_SYNC},
+   { HgfsServerSetDirNotifyWatch,    sizeof (HgfsRequestSetWatchV4),               REQ_SYNC},
+   { HgfsServerRemoveDirNotifyWatch, sizeof (HgfsRequestRemoveWatchV4),            REQ_SYNC},
 
 };
 
@@ -2886,6 +2962,209 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerCleanupDeletedFolders --
+ *
+ *    This function iterates through all shared folders and removes all deleted
+ *    shared folders, removes them from notification package and from the folders list.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerCleanupDeletedFolders(void)
+{
+   DblLnkLst_Links *link, *nextElem;
+
+   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
+   DblLnkLst_ForEachSafe(link, nextElem, &gHgfsSharedFoldersList) {
+      HgfsSharedFolderProperties *folder =
+         DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
+      if (folder->markedForDeletion) {
+         if (!HgfsNotify_RemoveSharedFolder(folder->notificationHandle)) {
+            LOG(4, ("Problem removing %d shared folder handle\n",
+                    folder->notificationHandle));
+         }
+         DblLnkLst_Unlink1(link);
+         free(folder);
+      }
+   }
+   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServer_RegisterSharedFolder --
+ *
+ *    This is a callback function which is invoked by hgfsServerManagement
+ *    for every shared folder when something changed in shared folders configuration.
+ *    The function iterates through the list of exisitng shared folders trying to locate
+ *    an entry with the shareName. If the entry is found the function returns corresponding
+ *    handle. Otherwise it creates a new entry and assigns a new handle to it.
+ *
+ *    Currently there is no notification that a shared folder has been deleted. The only
+ *    way to find out that a shred folder is deleted is to notice that it is not
+ *    enumerated any more. Thus an explicit "end of list" notification is needed.
+ *    "sharedFolder == NULL" notifies that enumeration is completed which allows to delete
+ *    all shared folders that were not mentioned during current enumeration.
+ *
+ * Results:
+ *    HgfsSharedFolderHandle for the entry.
+ *
+ * Side effects:
+ *    May add an entry to known shared folders list.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+HgfsSharedFolderHandle
+HgfsServer_RegisterSharedFolder(const char *shareName,   // IN: shared folder name
+                                const char *sharePath,   // IN: shared folder path
+                                Bool addFolder)          // IN: add or remove folder
+{
+   DblLnkLst_Links *link, *nextElem;
+   HgfsSharedFolderHandle result = HGFS_INVALID_FOLDER_HANDLE;
+
+   if (!gHgfsDirNotifyActive) {
+      return HGFS_INVALID_FOLDER_HANDLE;
+   }
+
+   if (NULL == shareName) {
+      /*
+       * The function is invoked with shareName NULL when all shares has been
+       * enumerated.
+       * Need to delete all shared folders that were marked for deletion.
+       */
+      HgfsServerCleanupDeletedFolders();
+      return HGFS_INVALID_FOLDER_HANDLE;
+   }
+
+   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
+
+   DblLnkLst_ForEachSafe(link, nextElem, &gHgfsSharedFoldersList) {
+      HgfsSharedFolderProperties *folder =
+         DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
+      if (strcmp(folder->name, shareName) == 0) {
+         result = folder->notificationHandle;
+         folder->markedForDeletion = !addFolder;
+         break;
+      }
+   }
+   if (addFolder && HGFS_INVALID_FOLDER_HANDLE == result) {
+      result = HgfsNotify_AddSharedFolder(sharePath, shareName);
+      if (HGFS_INVALID_FOLDER_HANDLE != result) {
+         HgfsSharedFolderProperties *folder =
+            (HgfsSharedFolderProperties *)Util_SafeMalloc(sizeof *folder);
+         folder->notificationHandle = result;
+         folder->name = Util_SafeStrdup(shareName);
+         folder->markedForDeletion = FALSE;
+         DblLnkLst_Init(&folder->links);
+         DblLnkLst_LinkLast(&gHgfsSharedFoldersList, &folder->links);
+      }
+   }
+   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerGetShareHandle --
+ *
+ *    The function returns shared folder notification handle for the specified
+ *    shared folder.
+ *
+ * Results:
+ *    HgfsSharedFolderHandle that corresponds to the shared folder.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsSharedFolderHandle
+HgfsServerGetShareHandle(const char *shareName)  // IN: name of the shared folder
+{
+   DblLnkLst_Links *link;
+   HgfsSharedFolderHandle result = HGFS_INVALID_FOLDER_HANDLE;
+
+   if (!gHgfsDirNotifyActive) {
+      return HGFS_INVALID_FOLDER_HANDLE;
+   }
+
+   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
+
+   DblLnkLst_ForEach(link, &gHgfsSharedFoldersList) {
+      HgfsSharedFolderProperties *folder =
+         DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
+      if (strcmp(folder->name, shareName) == 0) {
+         result = folder->notificationHandle;
+         break;
+      }
+   }
+   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerGetShareName --
+ *
+ *    Get the share name for a shared folder handle by looking at the requested
+ *    handle, finding the matching share (if any), and returning the share's name.
+ *
+ * Results:
+ *    An Bool value indicating if the result is returned.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsServerGetShareName(HgfsSharedFolderHandle sharedFolder, // IN: Notify handle
+                       size_t *shareNameLen,                // OUT: Name length
+                       char **shareName)                    // OUT: Share name
+{
+   Bool result = FALSE;
+   DblLnkLst_Links *link;
+
+   if (!gHgfsDirNotifyActive) {
+      return FALSE;
+   }
+
+   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
+
+   DblLnkLst_ForEach(link, &gHgfsSharedFoldersList) {
+      HgfsSharedFolderProperties *folder =
+         DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
+      if (folder->notificationHandle == sharedFolder) {
+         *shareName = Util_SafeStrdup(folder->name);
+         result = TRUE;
+         *shareNameLen = strlen(*shareName);
+         break;
+      }
+   }
+   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServer_InitState --
  *
  *    Initialize the global server state
@@ -2911,23 +3190,32 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
    maxCachedOpenNodes = Config_GetLong(MAX_CACHED_FILENODES,
                                        "hgfs.fdCache.maxNodes");
 
-#ifndef VMX86_TOOLS
-   if (Config_GetBool(FALSE, "hgfs.alwaysUseHostTime")) {
-      alwaysUseHostTime = TRUE;
-   }
-#endif
+   alwaysUseHostTime = Config_GetBool(FALSE, "hgfs.alwaysUseHostTime");
 
-   if (HgfsNotify_Init() == 0) {
-      hgfsChangeNotificationSupported = TRUE;
+   /*
+    * Initialize the globals for handling the active shared folders.
+    */
+
+   gHgfsSharedFoldersLock = MXUser_CreateExclLock("sharedFoldersLock", RANK_hgfsSharedFolders);
+   if (NULL == gHgfsSharedFoldersLock) {
+      LOG(4, ("%s: Could not create shared folders mutex.\n", __FUNCTION__));
+
+      return FALSE;
    }
 
+   DblLnkLst_Init(&gHgfsSharedFoldersList);
    if (!HgfsServerPlatformInit()) {
       LOG(4, ("Could not initialize server platform specific \n"));
+      MXUser_DestroyExclLock(gHgfsSharedFoldersLock);
+      gHgfsSharedFoldersLock = NULL;
 
       return FALSE;
    }
 
    *callbackTable = &hgfsServerSessionCBTable;
+   if (Config_GetBool(TRUE, "isolation.tools.hgfs.notify.enable")) {
+      gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
+   }
 
    return TRUE;
 }
@@ -2956,9 +3244,14 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
 void
 HgfsServer_ExitState(void)
 {
-
-   if (hgfsChangeNotificationSupported) {
+   if (gHgfsDirNotifyActive) {
       HgfsNotify_Shutdown();
+      gHgfsDirNotifyActive = FALSE;
+   }
+
+   if (NULL != gHgfsSharedFoldersLock) {
+      MXUser_DestroyExclLock(gHgfsSharedFoldersLock);
+      gHgfsSharedFoldersLock = NULL;
    }
 
    HgfsServerPlatformDestroy();
@@ -3022,6 +3315,60 @@ HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
    LOG(4, ("%s: Setting capabilitiy flags %x for op code %d %s\n", __FUNCTION__, flags,
            op, result ? "succeeded" : "failed"));
    return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerEnumerateSharedFolders --
+ *
+ *    Enumerates all exisitng shared folders and registers shared folders with
+ *    directory notification package.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsServerEnumerateSharedFolders(void)
+{
+   void *state;
+   Bool success = FALSE;
+
+   state = HgfsServerPolicy_GetSharesInit();
+   if (NULL != state) {
+      Bool done;
+
+      do {
+         char const *shareName;
+         size_t len;
+
+         success = HgfsServerPolicy_GetShares(state, &shareName, &len, &done);
+         if (success && !done) {
+            HgfsSharedFolderHandle handle;
+            char const *sharePath;
+            size_t sharePathLen;
+            HgfsNameStatus nameStatus;
+
+            nameStatus = HgfsServerPolicy_GetSharePath(shareName, len,
+                                                       HGFS_OPEN_MODE_READ_ONLY,
+                                                       &sharePathLen, &sharePath);
+            if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
+               handle = HgfsServer_RegisterSharedFolder(shareName, sharePath, TRUE);
+               success = handle != HGFS_INVALID_FOLDER_HANDLE;
+            }
+         }
+      } while (!done && success);
+
+      HgfsServerPolicy_GetSharesCleanup(state);
+   }
+   return success;
 }
 
 
@@ -3093,6 +3440,7 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
 
    session->sessionId = HgfsGenerateSessionId();
    session->maxPacketSize = MAX_SERVER_PACKET_SIZE_V4;
+   session->activeNotification = FALSE;
    /*
     * Initialize the node handling components.
     */
@@ -3151,6 +3499,16 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
    if (channelCapabililies & HGFS_CHANNEL_SHARED_MEM) {
       HgfsServerSetSessionCapability(HGFS_OP_READ_FAST_V4, HGFS_REQUEST_SUPPORTED, session);
       HgfsServerSetSessionCapability(HGFS_OP_WRITE_FAST_V4, HGFS_REQUEST_SUPPORTED, session);
+      if (gHgfsDirNotifyActive) {
+         if (HgfsServerEnumerateSharedFolders()) {
+            HgfsServerSetSessionCapability(HGFS_OP_SET_WATCH_V4, HGFS_REQUEST_SUPPORTED, session);
+            HgfsServerSetSessionCapability(HGFS_OP_REMOVE_WATCH_V4, HGFS_REQUEST_SUPPORTED, session);
+            session->activeNotification = TRUE;
+         } else {
+            HgfsServerSetSessionCapability(HGFS_OP_SET_WATCH_V4, HGFS_REQUEST_NOT_SUPPORTED, session);
+            HgfsServerSetSessionCapability(HGFS_OP_REMOVE_WATCH_V4, HGFS_REQUEST_NOT_SUPPORTED, session);
+         }
+      }
    }
 
    return TRUE;
@@ -3187,6 +3545,10 @@ HgfsServerSessionDisconnect(void *clientData)    // IN: session context
    ASSERT(session->searchArray);
 
    session->state = HGFS_SESSION_STATE_CLOSED;
+
+   if (session->activeNotification) {
+      HgfsNotify_CleanupSession(session);
+   }
 }
 
 
@@ -3693,6 +4055,7 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
                                                len,
                                                &shareInfo->readPermissions,
                                                &shareInfo->writePermissions,
+                                               &shareInfo->handle,
                                                &shareInfo->rootDir);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("%s: No such share (%s)\n", __FUNCTION__, cpName));
@@ -3704,7 +4067,6 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
    nameStatus = HgfsServerPolicy_GetShareOptions(cpName, len, &shareOptions);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("%s: no matching share: %s.\n", __FUNCTION__, cpName));
-
       return nameStatus;
    }
 
@@ -5861,6 +6223,264 @@ HgfsServerWriteWin32Stream(HgfsInputParam *input)  // IN: Input params
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerSetDirWatchByHandle --
+ *
+ *    Sets directory notification watch request using directory handle.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsServerSetDirWatchByHandle(HgfsInputParam *input,         // IN: Input params
+                              HgfsHandle dir,                // IN: directory handle
+                              uint32 events,                 // IN: event types to report
+                              Bool watchTree,                // IN: recursive watch
+                              HgfsSubscriberHandle *watchId) // OUT: watch id
+{
+   HgfsInternalStatus status;
+   char *fileName = NULL;
+   size_t fileNameSize;
+   HgfsSharedFolderHandle sharedFolder = HGFS_INVALID_FOLDER_HANDLE;
+
+   ASSERT(watchId != NULL);
+
+   if (HgfsHandle2NotifyInfo(dir, input->session, &fileName, &fileNameSize,
+                             &sharedFolder)) {
+      *watchId = HgfsNotify_AddSubscriber(sharedFolder, fileName, events, watchTree,
+                                          Hgfs_NotificationCallback, input->session);
+      status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
+                                                              HGFS_ERROR_SUCCESS;
+   } else {
+      status = HGFS_ERROR_INTERNAL;
+   }
+   free(fileName);
+   return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerSetDirWatchByName --
+ *
+ *    Sets directory notification watch request using directory name.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
+                            char *cpName,                  // IN: directory name
+                            uint32 cpNameSize,             // IN: directory name length
+                            uint32 caseFlags,              // IN: case flags
+                            uint32 events,                 // IN: event types to report
+                            Bool watchTree,                // IN: recursive watch
+                            HgfsSubscriberHandle *watchId) // OUT: watch id
+{
+   HgfsInternalStatus status;
+   HgfsNameStatus nameStatus;
+   char *utf8Name = NULL;
+   size_t utf8NameLen;
+   HgfsShareInfo shareInfo;
+   HgfsSharedFolderHandle sharedFolder = HGFS_INVALID_FOLDER_HANDLE;
+
+   ASSERT(cpName != NULL);
+   ASSERT(watchId != NULL);
+
+   nameStatus = HgfsServerGetShareInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+                                       &utf8Name, &utf8NameLen);
+   if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
+      char const *inEnd = cpName + cpNameSize;
+      char const *next;
+      int len;
+
+      ASSERT(utf8Name);
+      /*
+       * Get first component.
+       */
+      len = CPName_GetComponent(cpName, inEnd, (char const **) &next);
+      if (len < 0) {
+         LOG(4, ("%s: get first component failed\n", __FUNCTION__));
+         nameStatus = HGFS_NAME_STATUS_FAILURE;
+      } else if (0 == len) {
+         /* See if we are dealing with the base of the namespace */
+         nameStatus = HGFS_NAME_STATUS_INCOMPLETE_BASE;
+      } else {
+         sharedFolder = HgfsServerGetShareHandle(cpName);
+      }
+
+      if (HGFS_NAME_STATUS_COMPLETE == nameStatus &&
+          HGFS_INVALID_FOLDER_HANDLE != sharedFolder) {
+         if (cpNameSize > len + 1) {
+            size_t nameSize = cpNameSize - len - 1;
+            char tempBuf[HGFS_PATH_MAX];
+            char *tempPtr = tempBuf;
+            size_t tempSize = sizeof tempBuf;
+
+            nameStatus = CPName_ConvertFrom((char const **) &next, &nameSize,
+                                            &tempSize, &tempPtr);
+            if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
+               *watchId = HgfsNotify_AddSubscriber(sharedFolder, tempBuf, events,
+                                                   watchTree, Hgfs_NotificationCallback,
+                                                   input->session);
+                status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
+                                              HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
+            } else {
+               LOG(4, ("%s: Conversion to platform specific name failed\n",
+                       __FUNCTION__));
+               status = HgfsPlatformConvertFromNameStatus(nameStatus);
+            }
+         } else {
+            *watchId = HgfsNotify_AddSubscriber(sharedFolder, "", events, watchTree,
+                                                Hgfs_NotificationCallback,
+                                                input->session);
+            status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
+                                                                    HGFS_ERROR_SUCCESS;
+         }
+      } else if (HGFS_NAME_STATUS_INCOMPLETE_BASE == nameStatus) {
+         LOG(4, ("%s: Notification for root share is not supported yet\n",
+                 __FUNCTION__));
+         status = HGFS_ERROR_INVALID_PARAMETER;
+      } else {
+         LOG(4, ("%s: file not found.\n", __FUNCTION__));
+         status = HgfsPlatformConvertFromNameStatus(nameStatus);
+      }
+   } else {
+      LOG(4, ("%s: file not found.\n", __FUNCTION__));
+      status = HgfsPlatformConvertFromNameStatus(nameStatus);
+   }
+   free(utf8Name);
+   return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerSetDirNotifyWatch --
+ *
+ *    Handle a set directory notification watch request.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerSetDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
+{
+   char *cpName;
+   size_t cpNameSize;
+   HgfsInternalStatus status;
+   HgfsHandle dir;
+   uint32 caseFlags;
+   size_t replyPayloadSize = 0;
+   uint32 flags;
+   uint32 events;
+   HgfsSubscriberHandle watchId = HGFS_INVALID_SUBSCRIBER_HANDLE;
+   Bool useHandle;
+
+   HGFS_ASSERT_INPUT(input);
+
+   /*
+    * If the active session does not support directory change notification - bail out
+    * with an error immediately. Otherwise setting watch may succeed but no notification
+    * will be delivered when a change occurs.
+    */
+   if (!input->session->activeNotification) {
+      HgfsServerCompleteRequest(HGFS_ERROR_PROTOCOL, 0, input);
+      return;
+   }
+
+   if (HgfsUnpackSetWatchRequest(input->payload, input->payloadSize, input->op,
+                                 &useHandle, &cpName, &cpNameSize, &flags, &events,
+                                 &dir, &caseFlags)) {
+      Bool watchTree = 0 != (flags & HGFS_NOTIFY_FLAG_WATCH_TREE);
+      if (useHandle) {
+         status = HgfsServerSetDirWatchByHandle(input, dir, events, watchTree, &watchId);
+      } else {
+         status = HgfsServerSetDirWatchByName(input, cpName, cpNameSize, caseFlags,
+                                              events, watchTree, &watchId);
+      }
+      if (HGFS_ERROR_SUCCESS == status) {
+         if (!HgfsPackSetWatchReply(input->packet, input->metaPacket, input->op,
+                                    watchId, &replyPayloadSize, input->session)) {
+            status = HGFS_ERROR_INTERNAL;
+         }
+      }
+   } else {
+      status = HGFS_ERROR_PROTOCOL;
+   }
+
+   HgfsServerCompleteRequest(status, replyPayloadSize, input);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerRemoveDirNotifyWatch --
+ *
+ *    Handle a remove directory notification watch request.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
+{
+   HgfsSubscriberHandle watchId;
+   HgfsInternalStatus status;
+   size_t replyPayloadSize = 0;
+
+   HGFS_ASSERT_INPUT(input);
+
+   if (HgfsUnpackRemoveWatchRequest(input->payload, input->payloadSize, input->op,
+                                    &watchId)) {
+      if (HgfsNotify_RemoveSubscriber(watchId)) {
+         status = HGFS_ERROR_SUCCESS;
+      } else {
+         status = HGFS_ERROR_INTERNAL;
+      }
+   } else {
+      status = HGFS_ERROR_PROTOCOL;
+   }
+   if (HGFS_ERROR_SUCCESS == status) {
+      if (!HgfsPackRemoveWatchReply(input->packet, input->metaPacket, input->op,
+         &replyPayloadSize, input->session)) {
+            status = HGFS_ERROR_INTERNAL;
+      }
+   }
+
+   HgfsServerCompleteRequest(status, replyPayloadSize, input);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerGetattr --
  *
  *    Handle a Getattr request.
@@ -6495,7 +7115,7 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
        * We need to unescape the name before sending it back to the client
        */
       if (HGFS_ERROR_SUCCESS == status) {
-         *entryName = strdup(dent->d_name);
+         *entryName = Util_SafeStrdup(dent->d_name);
          if (unescapeName) {
             *nameLength = HgfsEscape_Undo(*entryName, length + 1);
          } else {
@@ -6775,10 +7395,9 @@ HgfsBuildRelativePath(const char* source,    // IN: source file name
  *    Callback which is called by directory notification package when in response
  *    to a event.
  *
- *    XXX:
- *    The function must build directory notification packet and send it to the
- *    client. At the moment it just logs a message, actual logic will be
- *    implemented later when required infrastructure is ready.
+ *    The function builds directory notification packet and queues it to be sent
+ *    to the client. It processes one notification at a time. It relies on transport
+ *    to perform coalescing.
  *
  * Results:
  *    None.
@@ -6790,16 +7409,48 @@ HgfsBuildRelativePath(const char* source,    // IN: source file name
  */
 
 void
-Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder,
-                          HgfsSubscriberHandle subscriber,
-                          char* name,
-                          char* newName,
-                          uint32 mask)
+Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder, // IN: shared folder
+                          HgfsSubscriberHandle subscriber,     // IN: subsciber
+                          char* fileName,                      // IN: name of the file
+                          uint32 mask,                         // IN: event type
+                          struct HgfsSessionInfo *session)     // IN: session info
 {
-    LOG(4, ("%s: notification for folder: %d index: %d file name %s "
-            "(new name %s) mask %x\n", __FUNCTION__, sharedFolder,
-            (int)subscriber, name, (newName == NULL) ? "" : newName,
-            mask));
+   HgfsPacket *packet;
+   size_t sizeNeeded;
+   char *shareName;
+   size_t shareNameLen;
+   HgfsHeader *packetHeader;
+   uint32 flags;
+
+   if (HgfsServerGetShareName(sharedFolder, &shareNameLen, &shareName)) {
+
+      sizeNeeded = HgfsPackCalculateNotificationSize(shareName, fileName);
+
+      packetHeader = Util_SafeCalloc(1, sizeNeeded);
+      packet = Util_SafeCalloc(1, sizeof *packet);
+      packet->guestInitiated = FALSE;
+      packet->metaPacketSize = sizeNeeded;
+      packet->metaPacket = packetHeader;
+      packet->dataPacketIsAllocated = TRUE;
+      flags = 0;
+      if (mask & HGFS_NOTIFY_EVENTS_DROPPED) {
+         flags |= HGFS_NOTIFY_FLAG_OVERFLOW;
+      }
+
+      HgfsPackChangeNotificationRequest(packetHeader, subscriber, shareName, fileName, mask,
+                                        flags, session, &sizeNeeded);
+      if (!HgfsPacketSend(packet, (char *)packetHeader,  sizeNeeded, session, 0)) {
+         LOG(4, ("%s: failed to send notification to the host\n", __FUNCTION__));
+      }
+
+      LOG(4, ("%s: notification for folder: %d index: %d file name %s "
+              " mask %x\n", __FUNCTION__, sharedFolder,
+              (int)subscriber, fileName, mask));
+      free(shareName);
+   } else {
+      LOG(4, ("%s: failed to find shared folder for a handle %x\n",
+              __FUNCTION__, sharedFolder));
+   }
 }
 
 
@@ -7013,7 +7664,7 @@ TestNodeFreeList(void)
       printf("\nadding node with name: %s\n", tempName);
       localId.volumeId = 0;
       localId.fileId = i + 1000;
-      node = HgfsAddNewFileNode(strdup(tempName), &localId);
+      node = HgfsAddNewFileNode(Util_SafeStrdup(tempName), &localId);
       array[i] = HgfsFileNode2Handle(node);
    }
 
@@ -7045,7 +7696,7 @@ TestSearchFreeList(void)
 
       Str_Sprintf(tempName, sizeof tempName, "baseDir%u", i);
       printf("\nadding search with baseDir: \"%s\"\n", tempName);
-      search = HgfsAddNewSearch(strdup(tempName));
+      search = HgfsAddNewSearch(Util_SafeStrdup(tempName));
       array[i] = HgfsSearch2SearchHandle(search);
    }
 

@@ -173,4 +173,19 @@ HgfsCleanupFunc(void *);  // IN
 typedef void
 HgfsInvalidateObjectsFunc(DblLnkLst_Links *shares); // IN
 
+/*
+ * Function used to notify HGFS server that a shared folder has been created or updated.
+ * It allows HGFS server to maintain up-to-date list of shared folders and its
+ * properties.
+ */
+typedef uint32 HgfsSharedFolderHandle;
+#define HGFS_INVALID_FOLDER_HANDLE         ((HgfsSharedFolderHandle)~((HgfsSharedFolderHandle)0))
+
+typedef HgfsSharedFolderHandle
+HgfsRegisterSharedFolderFunc(const char *shareName,
+                             const char *sharePath,
+                             Bool addFolder);
+HgfsSharedFolderHandle HgfsServer_RegisterSharedFolder(const char *shareName,
+                                                       const char *sharePath,
+                                                       Bool addFolder);
 #endif // _HGFS_SERVER_H_

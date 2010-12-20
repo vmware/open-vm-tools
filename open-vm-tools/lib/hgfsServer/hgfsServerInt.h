@@ -147,6 +147,12 @@ typedef struct HgfsShareInfo {
 
    /* Write permissions for the shared folder, needed for handle => name conversions. */
    Bool writePermissions;
+
+   /*
+    *  Shared folder handle used by change directory notification code to identify
+    *  shared folder.
+    */
+   HgfsSharedFolderHandle handle;
 } HgfsShareInfo;
 
 /*
@@ -278,7 +284,6 @@ typedef enum {
    HGFS_SESSION_STATE_CLOSED,
 } HgfsSessionInfoState;
 
-
 typedef struct HgfsSessionInfo {
    /* Unique session id. */
    uint64 sessionId;
@@ -352,6 +357,8 @@ typedef struct HgfsSessionInfo {
    HgfsCapability hgfsSessionCapabilities[HGFS_OP_MAX];
 
    uint32 numberOfCapabilities;
+
+   Bool activeNotification;
 
 } HgfsSessionInfo;
 
@@ -795,6 +802,47 @@ HgfsPackDestorySessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 void
 HgfsServerGetDefaultCapabilities(HgfsCapability *capabilities,   // OUT:
                                  uint32 *numberOfCapabilities);  // OUT:
+Bool
+HgfsUnpackSetWatchRequest(void const *packet,      // IN: HGFS packet
+                          size_t packetSize,       // IN: request packet size
+                          HgfsOp op,               // IN: requested operation
+                          Bool *useHandle,         // OUT: handle or cpName
+                          char **cpName,           // OUT: cpName
+                          size_t *cpNameSize,      // OUT: cpName size
+                          uint32 *flags,           // OUT: flags for the new watch
+                          uint32 *events,          // OUT: event filter
+                          HgfsHandle *dir,         // OUT: direrctory handle
+                          uint32 *caseFlags);      // OUT: case-sensitivity flags
+Bool
+HgfsPackSetWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
+                      char const *packetHeader,     // IN: packet header
+                      HgfsOp     op,                // IN: operation code
+                      HgfsSubscriberHandle watchId, // IN: new watch id
+                      size_t *payloadSize,          // OUT: size of packet
+                      HgfsSessionInfo *session);    // IN: Session info
+Bool
+HgfsUnpackRemoveWatchRequest(void const *packet,             // IN: HGFS packet
+                             size_t packetSize,              // IN: packet size
+                             HgfsOp op,                      // IN: operation code
+                             HgfsSubscriberHandle *watchId); // OUT: watch Id
+Bool
+HgfsPackRemoveWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
+                         char const *packetHeader,     // IN: packet header
+                         HgfsOp     op,                // IN: operation code
+                         size_t *payloadSize,          // OUT: size of packet
+                         HgfsSessionInfo *session);    // IN: Session info
+size_t
+HgfsPackCalculateNotificationSize(char const *shareName, // IN: shared folder name
+                                  char *fileName);       // IN: file name
+Bool
+HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hgfs Packet
+                                  HgfsSubscriberHandle subscriber, // IN: watch
+                                  char const *shareName,           // IN: share name
+                                  char *fileName,                  // IN: file name
+                                  uint32 mask,                     // IN: event mask
+                                  uint32 flags,                    // IN: notify flags
+                                  HgfsSessionInfo *session,        // IN: session
+                                  size_t *bufferSize);             // IN/OUT: packet size
 /* Node cache functions. */
 
 Bool

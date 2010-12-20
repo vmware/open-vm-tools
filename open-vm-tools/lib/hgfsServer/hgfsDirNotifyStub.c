@@ -28,6 +28,9 @@
 #include "vmware.h"
 #include "vm_basic_types.h"
 
+#include "hgfsProto.h"
+#include "hgfsServer.h"
+#include "hgfsUtil.h"
 #include "hgfsDirNotify.h"
 
 
@@ -39,7 +42,7 @@
  *    One time initialization of the library.
  *
  * Results:
- *    0 if success, error code otherwise.
+ *    Invalid value error.
  *
  * Side effects:
  *    None.
@@ -47,7 +50,7 @@
  *-----------------------------------------------------------------------------
  */
 
-uint32
+HgfsInternalStatus
 HgfsNotify_Init(void)
 {
    return EINVAL;
@@ -84,7 +87,7 @@ HgfsNotify_Shutdown(void)
  *    Allocates memory and initializes new shared folder structure.
  *
  * Results:
- *    Opaque subscriber handle for the new subscriber or INVALID_OBJECT_HANDLE
+ *    Opaque subscriber handle for the new subscriber or HGFS_INVALID_FOLDER_HANDLE
  *    if adding shared folder fails.
  *
  * Side effects:
@@ -94,9 +97,10 @@ HgfsNotify_Shutdown(void)
  */
 
 HgfsSharedFolderHandle
-HgfsNotify_AddSharedFolder(const char *path) // IN
+HgfsNotify_AddSharedFolder(const char *path,       // IN: path in the host
+                           const char *shareName)  // IN: name of the shared folder
 {
-   return INVALID_OBJECT_HANDLE;
+   return HGFS_INVALID_FOLDER_HANDLE;
 }
 
 
@@ -109,7 +113,7 @@ HgfsNotify_AddSharedFolder(const char *path) // IN
  *    Inserts allocated subscriber into corrspondent array.
  *
  * Results:
- *    Opaque subscriber handle for the new subscriber or INVALID_OBJECT_HANDLE
+ *    Opaque subscriber handle for the new subscriber or HGFS_INVALID_SUBSCRIBER_HANDLE
  *    if adding subscriber fails.
  *
  * Side effects:
@@ -119,12 +123,14 @@ HgfsNotify_AddSharedFolder(const char *path) // IN
  */
 
 HgfsSubscriberHandle
-HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder, // IN
-                         const char *path,                    // IN path relative to shared folder
-                         uint32 eventFilter,                  // IN
-                         uint32 recursive)                    // IN TRUE if look in subdirectories
+HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder, // IN: shared folder handle
+                         const char *path,                    // IN: relative path
+                         uint32 eventFilter,                  // IN: event filter
+                         uint32 recursive,                    // IN: look in subfolders
+                         HgfsNotificationCallbackFunc notify, // IN notification callback
+                         struct HgfsSessionInfo *session)     // IN: server context
 {
-   return INVALID_OBJECT_HANDLE;
+   return HGFS_INVALID_SUBSCRIBER_HANDLE;
 }
 
 /*
@@ -136,7 +142,7 @@ HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder, // IN
  *    Also deletes all subscribers that are defined for the shared folder.
  *
  * Results:
- *    0 if success, error code otherwise.
+ *    FALSE.
  *
  * Side effects:
  *    Removes all subscribers that correspond to the shared folder and invalidates
@@ -145,10 +151,10 @@ HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder, // IN
  *-----------------------------------------------------------------------------
  */
 
-uint32
+Bool
 HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder) // IN
 {
-   return EINVAL;
+   return FALSE;
 }
 
 
@@ -160,7 +166,7 @@ HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder) // IN
  *    Deallcates memory used by NotificationSubscriber and performs necessary cleanup.
  *
  * Results:
- *    0 if success, error code otherwise.
+ *    FALSE.
  *
  * Side effects:
  *    None.
@@ -168,8 +174,30 @@ HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder) // IN
  *-----------------------------------------------------------------------------
  */
 
-uint32
+Bool
 HgfsNotify_RemoveSubscriber(HgfsSubscriberHandle subscriber) // IN
 {
-   return EINVAL;
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsNotify_CleanupSession --
+ *
+ *    Removes all entries that are related to a particular session.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsNotify_CleanupSession(struct HgfsSessionInfo *session) // IN
+{
 }

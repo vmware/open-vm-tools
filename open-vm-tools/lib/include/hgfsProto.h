@@ -1831,27 +1831,37 @@ HgfsRequestSetWatchV4;
 /*
  * Fine grain notification event types.
  * HgfsRequestSetWatch events.
- * Events marked with (*) apply only to directories.
  */
-#define HGFS_NOTIFY_ACCESS        (1 << 0)    /* File accessed (read) */
-#define HGFS_NOTIFY_ATTRIB        (1 << 1)    /* Windows file attributes changed. */
-#define HGFS_NOTIFY_SIZE          (1 << 2)    /* File size changed. */
-#define HGFS_NOTIFY_ATIME         (1 << 3)    /* Access time changed. */
-#define HGFS_NOTIFY_MTIME         (1 << 4)    /* Modification time changed. */
-#define HGFS_NOTIFY_CTIME         (1 << 5)    /* Attribute change time changed. */
-#define HGFS_NOTIFY_CRTIME        (1 << 6)    /* Creation time changed. */
-#define HGFS_NOTIFY_NAME          (1 << 7)    /* File / Directory name changed. */
-#define HGFS_NOTIFY_OPEN          (1 << 8)    /* File opened */
-#define HGFS_NOTIFY_CLOSE_WRITE   (1 << 9)    /* File opened for writing closed */
-#define HGFS_NOTIFY_CLOSE_NOWRITE (1 << 10)   /* File opened for reading closed */
-#define HGFS_NOTIFY_CREATE        (1 << 11)   /* File / directory created */
-#define HGFS_NOTIFY_DELETE        (1 << 12)   /* (*) File / directory deleted */
-#define HGFS_NOTIFY_DELETE_SELF   (1 << 13)   /* Watched file / directory deleted */
-#define HGFS_NOTIFY_MODIFY        (1 << 14)   /* File or directory modified. */
-#define HGFS_NOTIFY_MOVE_SELF     (1 << 15)   /* Watched file / directory moved. */
-#define HGFS_NOTIFY_MOVE_FROM     (1 << 16)   /* (*) Moved out of watched directory. */
-#define HGFS_NOTIFY_MOVE_TO       (1 << 17)   /* (*) Moved into watched directory. */
-#define HGFS_NOTIFY_RENAME        (1 << 18)   /* File / directory name changed. */
+#define HGFS_NOTIFY_ACCESS                   (1 << 0)    /* File accessed (read) */
+#define HGFS_NOTIFY_ATTRIB                   (1 << 1)    /* File attributes changed. */
+#define HGFS_NOTIFY_SIZE                     (1 << 2)    /* File size changed. */
+#define HGFS_NOTIFY_ATIME                    (1 << 3)    /* Access time changed. */
+#define HGFS_NOTIFY_MTIME                    (1 << 4)    /* Modification time changed. */
+#define HGFS_NOTIFY_CTIME                    (1 << 5)    /* Attribute time changed. */
+#define HGFS_NOTIFY_CRTIME                   (1 << 6)    /* Creation time changed. */
+#define HGFS_NOTIFY_NAME                     (1 << 7)    /* File / Directory name. */
+#define HGFS_NOTIFY_OPEN                     (1 << 8)    /* File opened */
+#define HGFS_NOTIFY_CLOSE_WRITE              (1 << 9)    /* Modified file closed. */
+#define HGFS_NOTIFY_CLOSE_NOWRITE            (1 << 10)   /* Non-modified file closed. */
+#define HGFS_NOTIFY_CREATE_FILE              (1 << 11)   /* File created */
+#define HGFS_NOTIFY_CREATE_DIR               (1 << 12)   /* Directory created */
+#define HGFS_NOTIFY_DELETE_FILE              (1 << 13)   /* File deleted */
+#define HGFS_NOTIFY_DELETE_DIR               (1 << 14)   /* Directory deleted */
+#define HGFS_NOTIFY_DELETE_SELF              (1 << 15)   /* Watched directory deleted */
+#define HGFS_NOTIFY_MODIFY                   (1 << 16)   /* File modified. */
+#define HGFS_NOTIFY_MOVE_SELF                (1 << 17)   /* Watched directory moved. */
+#define HGFS_NOTIFY_OLD_FILE_NAME            (1 << 18)   /* Rename: old file name. */
+#define HGFS_NOTIFY_NEW_FILE_NAME            (1 << 19)   /* Rename: new file name. */
+#define HGFS_NOTIFY_OLD_DIR_NAME             (1 << 20)   /* Rename: old dir name. */
+#define HGFS_NOTIFY_NEW_DIR_NAME             (1 << 21)   /* Rename: new dir name. */
+#define HGFS_NOTIFY_CHANGE_EA                (1 << 22)   /* Extended attributes. */
+#define HGFS_NOTIFY_CHANGE_SECURITY          (1 << 23)   /* Security/permissions. */
+#define HGFS_NOTIFY_ADD_STREAM               (1 << 24)   /* Named stream created. */
+#define HGFS_NOTIFY_DELETE_STREAM            (1 << 25)   /* Named stream deleted. */
+#define HGFS_NOTIFY_CHANGE_STREAM_SIZE       (1 << 26)   /* Named stream size changed. */
+#define HGFS_NOTIFY_CHANGE_STREAM_LAST_WRITE (1 << 27)   /* Stream timestamp changed. */
+#define HGFS_NOTIFY_WATCH_DELETED            (1 << 28)   /* Dir with watch deleted. */
+#define HGFS_NOTIFY_EVENTS_DROPPED           (1 << 29)   /* Notifications dropped. */
 
 /* HgfsRequestSetWatch flags. */
 #define HGFS_NOTIFY_FLAG_WATCH_TREE  (1 << 0)    /* Watch the entire directory tree. */
@@ -1864,11 +1874,14 @@ HgfsRequestSetWatchV4;
                                                   * set.
                                                   */
 
+typedef uint64 HgfsSubscriberHandle;
+#define HGFS_INVALID_SUBSCRIBER_HANDLE         ((HgfsSubscriberHandle)~((HgfsSubscriberHandle)0))
+
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplySetWatchV4 {
-    HgfsHandle watchId;    /* Watch identifier for subsequent references. */
-    uint64 reserved;       /* Reserved for future use. */
+    HgfsSubscriberHandle watchId; /* Watch identifier for subsequent references. */
+    uint64 reserved;              /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
 HgfsReplySetWatchV4;
@@ -1876,7 +1889,7 @@ HgfsReplySetWatchV4;
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestRemoveWatchV4 {
-    HgfsHandle watchId;    /* Watch identifier to remove. */
+    HgfsSubscriberHandle watchId;  /* Watch identifier to remove. */
 }
 #include "vmware_pack_end.h"
 HgfsRequestRemoveWatchV4;
@@ -1896,7 +1909,6 @@ struct HgfsNotifyEventV4 {
    uint64 mask;              /* Event occurred. */
    uint64 reserved;          /* Reserved for future use. */
    HgfsFileName fileName;    /* Filename. */
-   HgfsFileName oldName;     /* New filename for rename operation. */
 }
 #include "vmware_pack_end.h"
 HgfsNotifyEventV4;
@@ -1911,7 +1923,7 @@ HgfsNotifyEventV4;
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestNotifyV4 {
-   HgfsHandle watchId;           /* Watch identifier. */
+   HgfsSubscriberHandle watchId; /* Watch identifier. */
    uint32 flags;                 /* Various flags. */
    uint32 count;                 /* Number of events occured. */
    uint64 reserved;              /* Reserved for future use. */
@@ -1960,21 +1972,21 @@ HgfsReplyQueryEAV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsEA {
+struct HgfsEAV4 {
    uint32 nextOffset;      /* Offset of the next structure in the chain. */
    uint32 valueLength;     /* EA value length. */
    char data[1];           /* NULL terminated EA name followed by EA value. */
 }
 #include "vmware_pack_end.h"
-HgfsEA;
+HgfsEAV4;
 
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestSetEAV4 {
-   uint32 flags;           /* Flags, see below. */
-   uint64 reserved;        /* Reserved for future use. */
-   uint32 numEAs;          /* Number of EAs in this request. */
-   HgfsEA attributes[1];   /* Array of attributes. */
+   uint32   flags;           /* Flags, see below. */
+   uint64   reserved;        /* Reserved for future use. */
+   uint32   numEAs;          /* Number of EAs in this request. */
+   HgfsEAV4 attributes[1];   /* Array of attributes. */
 }
 #include "vmware_pack_end.h"
 HgfsRequestSetEAV4;

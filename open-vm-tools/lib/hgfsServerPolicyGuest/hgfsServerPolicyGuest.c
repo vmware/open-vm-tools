@@ -125,7 +125,8 @@ HgfsServerPolicyDestroyShares(DblLnkLst_Links *head) // IN
  */
 
 Bool
-HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects) // Ignored
+HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects,  // Unused
+                      HgfsRegisterSharedFolderFunc *registerFolder)  // Unused
 {
    HgfsSharedFolder *rootShare;
 
@@ -159,6 +160,7 @@ HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects) // Ignored
    /* These are strictly optimizations to save work later */
    rootShare->pathLen = strlen(rootShare->path);
    rootShare->nameLen = strlen(rootShare->name);
+   rootShare->handle = HGFS_INVALID_FOLDER_HANDLE;
 
    /* Add the root node to the end of the list */
    DblLnkLst_LinkLast(&myState.shares, &rootShare->links);
@@ -502,11 +504,12 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
  */
 
 HgfsNameStatus
-HgfsServerPolicy_ProcessCPName(char const *nameIn,         // IN: name in CPName form
-                               size_t nameInLen,           // IN: length of the name
-                               Bool *readAccess,           // OUT: Read permissions
-                               Bool *writeAccess,          // OUT: Write permissions
-                               char const **shareBaseDir)  // OUT: Shared directory
+HgfsServerPolicy_ProcessCPName(char const *nameIn,            // IN: name in CPName form
+                               size_t nameInLen,              // IN: length of the name
+                               Bool *readAccess,              // OUT: Read permissions
+                               Bool *writeAccess,             // OUT: Write permissions
+                               HgfsSharedFolderHandle *handle,// OUT: folder handle
+                               char const **shareBaseDir)     // OUT: Shared directory
 {
    HgfsSharedFolder *myShare;
 
@@ -522,6 +525,7 @@ HgfsServerPolicy_ProcessCPName(char const *nameIn,         // IN: name in CPName
    *readAccess = myShare->readAccess;
    *writeAccess = myShare->writeAccess;
    *shareBaseDir = myShare->path;
+   *handle = myShare->handle;
    return HGFS_NAME_STATUS_COMPLETE;
 }
 

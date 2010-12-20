@@ -95,7 +95,7 @@ HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
     * policy server never change, invalidating the need for an invalidate
     * function.
     */
-   if (!HgfsServerPolicy_Init(NULL)) {
+   if (!HgfsServerPolicy_Init(NULL, NULL)) {
       return FALSE;
    }
 

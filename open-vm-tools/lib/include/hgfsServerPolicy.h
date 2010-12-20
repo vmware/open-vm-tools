@@ -32,7 +32,7 @@
 #define HGFS_SERVER_POLICY_ROOT_SHARE_NAME "root"
 
 Bool
-HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects);
+HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects, HgfsRegisterSharedFolderFunc *registerFolder);
 
 Bool
 HgfsServerPolicy_Cleanup(void);
@@ -46,11 +46,11 @@ typedef uint32 HgfsShareOptions;
  */
 typedef struct HgfsSharedFolder {
    DblLnkLst_Links links;
-   char *name; /* Name of share */
-   char *path; /*
-                * Path of share in server's filesystem. Should
-                * not include final path separator.
-                */
+   char *name;          /* Name of share */
+   char *path;          /*
+                         * Path of share in server's filesystem. Should
+                         * not include final path separator.
+                         */
    char *shareTags;     /* Tags associated with this share (comma delimited). */
    size_t shareTagsLen; /* Length of shareTag string */
    size_t nameLen;      /* Length of name string */
@@ -58,6 +58,15 @@ typedef struct HgfsSharedFolder {
    Bool readAccess;     /* Read permission for this share */
    Bool writeAccess;    /* Write permission for this share */
    HgfsShareOptions configOptions; /* User-config options. */
+   HgfsSharedFolderHandle handle;  /* Handle assigned by HGFS server
+                                    * when the folder was registered with it.
+                                    * Policy package keeps the context and returns
+                                    * it along with other shared folder properties.
+                                    * Keeping it here ensures consistent lookup all
+                                    * properties of the shared folder which takes into
+                                    * account such details like case sensitive/case
+                                    * insensitive name lookup.
+                                    */
 } HgfsSharedFolder;
 
 /* Per share user configurable options. */
@@ -93,11 +102,12 @@ Bool
 HgfsServerPolicy_IsShareOptionSet(HgfsShareOptions shareOptions,  // IN: Config options
                                   uint32 option);                 // IN: Option to check
 HgfsNameStatus
-HgfsServerPolicy_ProcessCPName(char const *nameIn,         // IN: name in CPName form
-                               size_t nameInLen,           // IN: length of the name
-                               Bool *readAccess,           // OUT: Read permissions
-                               Bool *writeAccess,          // OUT: Write permissions
-                               char const **shareBaseDir); // OUT: Shared directory
+HgfsServerPolicy_ProcessCPName(char const *nameIn,            // IN: name in CPName form
+                               size_t nameInLen,              // IN: length of the name
+                               Bool *readAccess,              // OUT: Read permissions
+                               Bool *writeAccess,             // OUT: Write permissions
+                               HgfsSharedFolderHandle *handle,// OUT: folder handle
+                               char const **shareBaseDir);    // OUT: Shared directory
 
 void
 HgfsServerPolicy_FreeShareList(HgfsServerPolicy_ShareList *shareList); // IN: list to free

@@ -102,6 +102,9 @@ static HgfsCapability hgfsDefaultCapabilityTable[] =
    {HGFS_OP_DESTROY_SESSION_V4,    HGFS_REQUEST_SUPPORTED},
    {HGFS_OP_READ_FAST_V4,          HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_WRITE_FAST_V4,         HGFS_REQUEST_NOT_SUPPORTED},
+   {HGFS_OP_SET_WATCH_V4,          HGFS_REQUEST_NOT_SUPPORTED},
+   {HGFS_OP_REMOVE_WATCH_V4,       HGFS_REQUEST_NOT_SUPPORTED},
+   {HGFS_OP_NOTIFY_V4,             HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_OPEN_V4,               HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_DIRECTORY_READ_V4,     HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_ENUMERATE_STREAMS_V4,  HGFS_REQUEST_NOT_SUPPORTED},
@@ -119,9 +122,6 @@ static HgfsCapability hgfsDefaultCapabilityTable[] =
    {HGFS_OP_UNLOCK_BYTE_RANGE_V4,  HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_QUERY_EAS_V4,          HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_SET_EAS_V4,            HGFS_REQUEST_NOT_SUPPORTED},
-   {HGFS_OP_SET_WATCH_V4,          HGFS_REQUEST_NOT_SUPPORTED},
-   {HGFS_OP_REMOVE_WATCH_V4,       HGFS_REQUEST_NOT_SUPPORTED},
-   {HGFS_OP_NOTIFY_V4,             HGFS_REQUEST_NOT_SUPPORTED},
 };
 
 /*
@@ -4868,4 +4868,587 @@ HgfsServerGetDefaultCapabilities(HgfsCapability *capabilities,  // OUT: capabili
    *numberOfCapabilities = ARRAYSIZE(hgfsDefaultCapabilityTable);
    ASSERT(*numberOfCapabilities <= HGFS_OP_MAX);
    memcpy(capabilities, hgfsDefaultCapabilityTable, sizeof hgfsDefaultCapabilityTable);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackSetWatchReplyV4 --
+ *
+ *    Pack hgfs set watch V4 reply payload to the HgfsReplySetWatchV4 structure.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsPackSetWatchReplyV4(HgfsSubscriberHandle watchId, // IN: host id of thee new watch
+                        HgfsReplySetWatchV4 *reply)   // OUT: reply buffer to fill
+{
+   reply->watchId = watchId;
+   reply->reserved = 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackSetWatchReply --
+ *
+ *    Pack hgfs set watch reply to the HgfsReplySetWatchV4 structure.
+ *
+ * Results:
+ *    TRUE if successfully allocated reply request, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsPackSetWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
+                      char const *packetHeader,     // IN: packet header
+                      HgfsOp     op,                // IN: operation code
+                      HgfsSubscriberHandle watchId, // IN: id of the new watch
+                      size_t *payloadSize,          // OUT: size of packet
+                      HgfsSessionInfo *session)     // IN: Session info
+{
+   Bool result;
+   HgfsReplySetWatchV4 *reply;
+
+   HGFS_ASSERT_PACK_PARAMS;
+
+   *payloadSize = 0;
+
+   if (HGFS_OP_SET_WATCH_V4 != op) {
+      NOT_REACHED();
+      result = FALSE;
+   } else {
+      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                               (void **)&reply, session);
+      if (result) {
+         HgfsPackSetWatchReplyV4(watchId, reply);
+         *payloadSize = sizeof *reply;
+      }
+   }
+
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsUnpackSetWatchPayloadV4 --
+ *
+ *    Unpack HGFS set directory notication watch payload version 4 and initializes
+ *    a corresponding HgfsHandle or file name to tell us which directory to watch.
+ *
+ * Results:
+ *    TRUE on success.
+ *    FALSE on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsUnpackSetWatchPayloadV4(HgfsRequestSetWatchV4 *requestV4, // IN: request payload
+                            size_t payloadSize,               // IN: payload size
+                            Bool *useHandle,                  // OUT: handle or cpName
+                            uint32 *flags,                    // OUT: watch flags
+                            uint32 *events,                   // OUT: event filter
+                            char **cpName,                    // OUT: cpName
+                            size_t *cpNameSize,               // OUT: cpName size
+                            HgfsHandle *dir,                  // OUT: directory handle
+                            uint32 *caseFlags)                // OUT: case-sensitivity
+{
+   if (payloadSize < sizeof *requestV4) {
+      return FALSE;
+   }
+
+   *flags = requestV4->flags;
+   *events = requestV4->events;
+
+   return HgfsUnpackFileNameV3(&requestV4->fileName,
+                               payloadSize - sizeof *requestV4,
+                               useHandle,
+                               cpName,
+                               cpNameSize,
+                               dir,
+                               caseFlags);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsUnpackSetWatchRequest --
+ *
+ *    Unpack hgfs set directory notication watch request and initialize a corresponding
+ *    HgfsHandle or directory name to tell us which directory to monitor.
+ *
+ * Results:
+ *    TRUE on success.
+ *    FALSE on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsUnpackSetWatchRequest(void const *packet,      // IN: HGFS packet
+                          size_t packetSize,       // IN: request packet size
+                          HgfsOp op,               // IN: requested operation
+                          Bool *useHandle,         // OUT: handle or cpName
+                          char **cpName,           // OUT: cpName
+                          size_t *cpNameSize,      // OUT: cpName size
+                          uint32 *flags,           // OUT: flags for the new watch
+                          uint32 *events,          // OUT: event filter
+                          HgfsHandle *dir,         // OUT: direrctory handle
+                          uint32 *caseFlags)       // OUT: case-sensitivity flags
+{
+   HgfsRequestSetWatchV4 *requestV4 = (HgfsRequestSetWatchV4 *)packet;
+   Bool result;
+
+   ASSERT(packet);
+   ASSERT(cpName);
+   ASSERT(cpNameSize);
+   ASSERT(dir);
+   ASSERT(flags);
+   ASSERT(events);
+   ASSERT(caseFlags);
+   ASSERT(useHandle);
+
+   if (HGFS_OP_SET_WATCH_V4 != op) {
+      NOT_REACHED();
+      result = FALSE;
+   } else {
+      result = HgfsUnpackSetWatchPayloadV4(requestV4, packetSize, useHandle, flags,
+                                           events, cpName, cpNameSize, dir, caseFlags);
+   }
+
+   if (!result) {
+      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+   }
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackRemoveWatchReply --
+ *
+ *    Pack hgfs remove watch reply to the HgfsReplyRemoveWatchV4 structure.
+ *
+ * Results:
+ *    TRUE if successfully allocated reply request, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsPackRemoveWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
+                         char const *packetHeader,     // IN: packet header
+                         HgfsOp     op,                // IN: operation code
+                         size_t *payloadSize,          // OUT: size of packet
+                         HgfsSessionInfo *session)     // IN: Session info
+{
+   Bool result;
+   HgfsReplyRemoveWatchV4 *reply;
+
+   HGFS_ASSERT_PACK_PARAMS;
+
+   *payloadSize = 0;
+
+   if (HGFS_OP_REMOVE_WATCH_V4 != op) {
+      NOT_REACHED();
+      result = FALSE;
+   } else {
+      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                  (void **)&reply, session);
+      if (result) {
+         reply->reserved = 0;
+         *payloadSize = sizeof *reply;
+      }
+   }
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsUnpackRemoveWatchPayload --
+ *
+ *    Unpack HGFS remove directory notication watch payload version 4.
+ *
+ * Results:
+ *    TRUE on success.
+ *    FALSE on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsUnpackRemoveWatchPayloadV4(HgfsRequestRemoveWatchV4 *requestV4, // IN: request payload
+                               size_t payloadSize,                  // IN: payload size
+                               HgfsSubscriberHandle *watchId)       // OUT: watch id
+{
+   if (payloadSize < sizeof *requestV4) {
+      return FALSE;
+   }
+
+   *watchId = requestV4->watchId;
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsUnpackRemoveWatchRequest --
+ *
+ *    Unpack hgfs remove directory notication watch request.
+ *
+ * Results:
+ *    TRUE on success.
+ *    FALSE on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsUnpackRemoveWatchRequest(void const *packet,            // IN: HGFS packet
+                             size_t packetSize,             // IN: request packet size
+                             HgfsOp op,                     // IN: requested operation
+                             HgfsSubscriberHandle *watchId) // OUT: watch Id to remove
+{
+   HgfsRequestRemoveWatchV4 *requestV4 = (HgfsRequestRemoveWatchV4 *)packet;
+
+   ASSERT(packet);
+   ASSERT(watchId);
+
+   ASSERT(HGFS_OP_REMOVE_WATCH_V4 == op);
+
+   if (HGFS_OP_REMOVE_WATCH_V4 != op) {
+      return FALSE;
+   } else if (!HgfsUnpackRemoveWatchPayloadV4(requestV4, packetSize, watchId)) {
+      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackCalculateNotificationSize --
+ *
+ *    Calculates size needed for change notification packet.
+ *
+ * Results:
+ *    TRUE if successfully allocated reply request, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+size_t
+HgfsPackCalculateNotificationSize(char const *shareName, // IN: shared folder name
+                                  char *fileName)        // IN: relative file path
+{
+   size_t result = sizeof(HgfsRequestNotifyV4);
+
+   if (NULL != fileName) {
+      size_t shareNameLen = strlen(shareName);
+      result += strlen(fileName) + 1 + shareNameLen;
+   }
+   result += sizeof(HgfsHeader);
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsBuildCPName --
+ *
+ *    Build crossplatform name out of share name and relative to the shared folder
+ *    file path.
+ *
+ * Results:
+ *    Length of the output crossplatform name.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static size_t
+HgfsBuildCPName(char const *shareName,  // IN: utf8 share name
+                char *fileName,         // IN: utf8 file path
+                char **cpName)          // OUT: full name in cp format
+{
+   size_t shareNameLen = strlen(shareName) + 1;
+   size_t fileNameLen = strlen(fileName) + 1;
+   char *fullName = Util_SafeMalloc(shareNameLen + fileNameLen);
+   size_t result;
+
+   *cpName = Util_SafeMalloc(shareNameLen + fileNameLen);
+   Str_Strcpy(fullName, shareName, shareNameLen);
+   fullName[shareNameLen - 1] = DIRSEPC;
+   Str_Strcpy(fullName + shareNameLen, fileName, fileNameLen);
+
+   result = CPName_ConvertTo(fullName, shareNameLen + fileNameLen, *cpName);
+   ASSERT(result > 0); // Unescaped name can't be longer then escaped thus it must fit.
+   free(fullName);
+
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackHgfsName --
+ *
+ *    Pack cpName into HgfsFileName structure.
+ *
+ * Results:
+ *    TRUE if there is enough space in the buffer,
+ *    FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsPackHgfsName(char *cpName,            // IN: cpName to pack
+                 size_t cpNameLen,        // IN: length of the cpName
+                 size_t availableSpace,   // IN: space available for HgfsFileName
+                 size_t *nameSize,        // OUT: space consumed by HgfsFileName
+                 HgfsFileName *fileName)  // OUT: structure to pack cpName into
+{
+   if (availableSpace < offsetof(HgfsFileName, name) + cpNameLen) {
+      return FALSE;
+   }
+   fileName->length = cpNameLen;
+   memcpy(fileName->name, cpName, cpNameLen);
+   *nameSize = offsetof(HgfsFileName, name) + cpNameLen;
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackChangeNotificationV4 --
+ *
+ *    Pack single change directory notification event information.
+ *
+ * Results:
+ *    Length of the packed structure or 0 if the structure does not fit in the
+ *    the buffer.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static size_t
+HgfsPackChangeNotificationV4(uint32 mask,              // IN: event mask
+                             char const *shareName,    // IN: share name
+                             char *fileName,           // IN: file name
+                             size_t bufferSize,        // IN: available space
+                             HgfsNotifyEventV4 *reply) // OUT: notificaiton buffer
+{
+   size_t remainingSize;
+   size_t totalLength = sizeof *reply;
+
+   if (sizeof *reply > bufferSize) {
+      return 0;
+   }
+
+   reply->nextOffset = 0;
+   reply->mask = mask;
+   if (NULL != fileName) {
+      char *fullPath;
+      size_t nameSize;
+
+      nameSize = HgfsBuildCPName(shareName, fileName, &fullPath);
+      remainingSize = bufferSize - offsetof(HgfsNotifyEventV4, fileName);
+      if (HgfsPackHgfsName(fullPath, nameSize, remainingSize, &nameSize,
+                           &reply->fileName)) {
+          remainingSize -= nameSize;
+          totalLength += nameSize;
+      } else {
+         totalLength = 0;
+      }
+      free(fullPath);
+   } else {
+      reply->fileName.length = 0;
+      totalLength = sizeof *reply;
+   }
+   return totalLength;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackChangeNotifyRequestV4 --
+ *
+ *    Pack hgfs directory change notification request to be sent to the guest.
+ *
+ * Results:
+ *    Length of the packed structure or 0 if the structure does not fit in the
+ *    the buffer.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static size_t
+HgfsPackChangeNotifyRequestV4(HgfsSubscriberHandle watchId,  // IN: watch
+                              uint32 flags,                  // IN: notify flags
+                              uint32 mask,                   // IN: event mask
+                              char const *shareName,         // IN: share name
+                              char *fileName,                // IN: relative file path
+                              size_t bufferSize,             // IN: available space
+                              HgfsRequestNotifyV4 *reply)    // OUT: notification buffer
+{
+   size_t size;
+   size_t notificationOffset;
+
+   if (bufferSize < sizeof *reply) {
+      return 0;
+   }
+   reply->watchId = watchId;
+   reply->flags = flags;
+   if ((flags & HGFS_NOTIFY_FLAG_OVERFLOW) == HGFS_NOTIFY_FLAG_OVERFLOW) {
+      size = sizeof *reply;
+      reply->count = 0;
+      reply->flags = HGFS_NOTIFY_FLAG_OVERFLOW;
+   } else {
+      /*
+       * For the moment server sends only one notification at a time and it relies
+       * on transport to coalesce requests.
+       * Later on we may consider supporting multiple notifications.
+       */
+      reply->count = 1;
+      notificationOffset = offsetof(HgfsRequestNotifyV4, events);
+      size = HgfsPackChangeNotificationV4(mask, shareName, fileName,
+                                          bufferSize - notificationOffset,
+                                          reply->events);
+      if (size != 0) {
+         size += notificationOffset;
+      } else {
+         /*
+         * Set event flag to tell guest that some events were dropped
+         * when filling out notification details failed.
+         */
+         size = sizeof *reply;
+         reply->count = 0;
+         reply->flags = HGFS_NOTIFY_FLAG_OVERFLOW;
+      }
+   }
+   return size;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackChangeNotificationRequest --
+ *
+ *    Pack hgfs directory change notification request to the
+ *    HgfsRequestNotifyV4 structure.
+ *
+ * Results:
+ *    TRUE if successfully allocated reply request, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hgfs Packet
+                                  HgfsSubscriberHandle subscriber, // IN: watch
+                                  char const *shareName,           // IN: share name
+                                  char *fileName,                  // IN: relative name
+                                  uint32 mask,                     // IN: event mask
+                                  uint32 flags,                    // IN: notify flags
+                                  HgfsSessionInfo *session,        // IN: session
+                                  size_t *bufferSize)              // INOUT: size of packet
+{
+   size_t size;
+   HgfsRequestNotifyV4 *reply;
+   HgfsHeader *header = (HgfsHeader *)packet;
+   Bool result;
+
+   ASSERT(packet);
+   ASSERT(shareName);
+   ASSERT(NULL != fileName ||
+          (flags & HGFS_NOTIFY_FLAG_OVERFLOW) == HGFS_NOTIFY_FLAG_OVERFLOW);
+   ASSERT(session);
+   ASSERT(bufferSize);
+
+   if (*bufferSize < sizeof *header) {
+      return FALSE;
+   }
+
+   /*
+    *  Initialize notification header.
+    *  Set status and requestId to 0 since these fields are not relevant for
+    *  notifications.
+    *  Initialize payload size to 0 - it is not known yet and will be filled later.
+    */
+   header->headerSize = sizeof *header;
+
+   HgfsPackReplyHeaderV4(0, 0, HGFS_OP_NOTIFY_V4, session->sessionId, 0, header);
+   reply = (HgfsRequestNotifyV4 *)((char *)header + header->headerSize);
+   size = HgfsPackChangeNotifyRequestV4(subscriber, flags, mask, shareName, fileName,
+                                        *bufferSize - header->headerSize, reply);
+   if (0 != size) {
+      header->packetSize = header->headerSize + size;
+      result = TRUE;
+   } else {
+      result = FALSE;
+   }
+
+   return result;
 }
