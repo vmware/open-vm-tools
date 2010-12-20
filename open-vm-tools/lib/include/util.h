@@ -154,17 +154,80 @@ Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
 EXTERN Bool Util_Throttle(uint32 count);
 EXTERN uint32 Util_FastRand(uint32 seed);
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_ValidateBytes --
+ *
+ *      Check that memory is filled with the specified value.
+ *
+ * Results:
+ *      NULL   No error
+ *      !NULL  First address that doesn't have the proper value
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+Util_ValidateBytes(int byteValue,    // IN: memory must be this
+                   const void *ptr,  // IN: ptr to check
+                   size_t size)      // IN: size of ptr
+{
+   uint64 bigValue;
+
+   char *p = (char *) ptr;
+
+   /* Compare bytes until a "nice" boundary is achieved */
+   while ((((uintptr_t) p) & (sizeof(uint64) - 1)) != 0) {
+      if (*p != byteValue) {
+         return (void *) p;
+      }
+
+      size--;
+      p++;
+   }
+
+   /* Compare using a "nice sized" chunk for a long as possible */
+   memset((void *) &bigValue, byteValue, sizeof bigValue);
+
+   while (size >= sizeof(uint64)) {
+      if (*((uint64 *) p) != bigValue) {
+         /* That's not right... let the loop below report the exact address */
+         break;
+      }
+
+      size -= sizeof(uint64);
+      p += sizeof(uint64);
+   }
+
+   /* Handle any trailing bytes */
+   while (size) {
+      if (*p != byteValue) {
+         return (void *) p;
+      }
+
+      size--;
+      p++;
+   }
+
+   return NULL;
+}
+
 /*
  *----------------------------------------------------------------------
  *
  * Util_BufferIsEmpty --
  *
- *    Determine wether or not the buffer of 'len' bytes starting at 'base' is
- *    empty (i.e. full of zeroes)
+ *    Determine if the specified buffer of 'len' bytes starting at 'base'
+ *    is empty (i.e. full of zeroes).
  *
  * Results:
- *    TRUE if yes
- *    FALSE if no
+ *    TRUE  Yes
+ *    FALSE No
  *
  * Side effects:
  *    None
@@ -172,41 +235,12 @@ EXTERN uint32 Util_FastRand(uint32 seed);
  *----------------------------------------------------------------------
  */
 
-static INLINE Bool Util_BufferIsEmpty(void const *base, // IN
-                                      size_t len)       // IN
+static INLINE Bool
+Util_BufferIsEmpty(void const *base,  // IN:
+                   size_t len)        // IN:
 {
-   uint32 const *p32;
-   uint32 const *e32;
-   uint16 const *p16;
-
-   ASSERT_ON_COMPILE(sizeof(uint32) == 4);
-
-   p32 = (uint32 const *)base;
-   e32 = p32 + len / 4;
-   for (; p32 < e32; p32++) {
-      if (*p32) {
-         return FALSE;
-      }
-   }
-
-   len &= 0x3;
-   p16 = (uint16 const *)p32;
-
-   if (len & 0x2) {
-      if (*p16) {
-         return FALSE;
-      }
-
-      p16++;
-   }
-
-   if (   len & 0x1
-       && *(uint8 const *)p16) {
-      return FALSE;
-   }
-
-   return TRUE;
-};
+   return Util_ValidateBytes(0, base, len) == NULL;
+}
 
 
 EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
