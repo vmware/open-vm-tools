@@ -801,14 +801,8 @@ SetBit32(uint32 *var, unsigned index)
 #ifdef __GNUC__
    __asm__ (
       "bts %1, %0"
-#   if VM_ASM_PLUS
       : "+mr" (*var)
       : "ri" (index)
-#   else
-      : "=mr" (*var)
-      : "ri" (index),
-        "0" (*var)
-#   endif
       : "cc"
    );
 #elif defined(_MSC_VER)
@@ -822,14 +816,8 @@ ClearBit32(uint32 *var, unsigned index)
 #ifdef __GNUC__
    __asm__ (
       "btr %1, %0"
-#   if VM_ASM_PLUS
       : "+mr" (*var)
       : "ri" (index)
-#   else
-      : "=mr" (*var)
-      : "ri" (index),
-        "0" (*var)
-#   endif
       : "cc"
    );
 #elif defined(_MSC_VER)

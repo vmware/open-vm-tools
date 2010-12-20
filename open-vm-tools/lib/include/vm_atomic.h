@@ -384,16 +384,9 @@ Atomic_ReadWrite(Atomic_uint32 *var, // IN
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
       "xchgl %0, %1"
-#   if VM_ASM_PLUS
       : "=r" (val),
 	"+m" (var->value)
       : "0" (val)
-#   else
-      : "=r" (val),
-	"=m" (var->value)
-      : "0" (val),
-	"1" (var->value)
-#   endif
    );
    AtomicEpilogue();
    return val;
@@ -466,26 +459,10 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
       "lock; cmpxchgl %2, %1"
-#   if VM_ASM_PLUS
       : "=a" (val),
 	"+m" (var->value)
       : "r" (newVal),
 	"0" (oldVal)
-#   else
-      : "=a" (val),
-	"=m" (var->value)
-      : "r" (newVal),
-	"0" (oldVal)
-     /*
-      * "1" (var->value): results in inconsistent constraints on gcc 2.7.2.3
-      * when compiling enterprise-2.2.17-14-RH7.0-update.
-      * The constraint has been commented out for now. We may consider doing
-      * this systematically, but we need to be sure it is the right thing to
-      * do. However, it is also possible that the offending use of this asm
-      * function will be removed in the near future in which case we may
-      * decide to reintroduce the constraint instead. hpreg & agesen.
-      */
-#   endif
       : "cc"
    );
    AtomicEpilogue();
@@ -597,14 +574,8 @@ Atomic_And(Atomic_uint32 *var, // IN
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
       "lock; andl %1, %0"
-#   if VM_ASM_PLUS
       : "+m" (var->value)
       : "ri" (val)
-#   else
-      : "=m" (var->value)
-      : "ri" (val),
-        "0" (var->value)
-#   endif
       : "cc"
    );
    AtomicEpilogue();
@@ -659,14 +630,8 @@ Atomic_Or(Atomic_uint32 *var, // IN
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
       "lock; orl %1, %0"
-#   if VM_ASM_PLUS
       : "+m" (var->value)
       : "ri" (val)
-#   else
-      : "=m" (var->value)
-      : "ri" (val),
-        "0" (var->value)
-#   endif
       : "cc"
    );
    AtomicEpilogue();
@@ -720,14 +685,8 @@ Atomic_Xor(Atomic_uint32 *var, // IN
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
       "lock; xorl %1, %0"
-#   if VM_ASM_PLUS
       : "+m" (var->value)
       : "ri" (val)
-#   else
-      : "=m" (var->value)
-      : "ri" (val),
-        "0" (var->value)
-#   endif
       : "cc"
    );
    AtomicEpilogue();
@@ -821,14 +780,8 @@ Atomic_Add(Atomic_uint32 *var, // IN
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
       "lock; addl %1, %0"
-#   if VM_ASM_PLUS
       : "+m" (var->value)
       : "ri" (val)
-#   else
-      : "=m" (var->value)
-      : "ri" (val),
-        "0" (var->value)
-#   endif
       : "cc"
    );
    AtomicEpilogue();
@@ -921,14 +874,8 @@ Atomic_Sub(Atomic_uint32 *var, // IN
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
       "lock; subl %1, %0"
-#   if VM_ASM_PLUS
       : "+m" (var->value)
       : "ri" (val)
-#   else
-      : "=m" (var->value)
-      : "ri" (val),
-        "0" (var->value)
-#   endif
       : "cc"
    );
    AtomicEpilogue();
@@ -1014,13 +961,8 @@ Atomic_Inc(Atomic_uint32 *var) // IN
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
       "lock; incl %0"
-#   if VM_ASM_PLUS
       : "+m" (var->value)
       :
-#   else
-      : "=m" (var->value)
-      : "0" (var->value)
-#   endif
       : "cc"
    );
    AtomicEpilogue();
@@ -1066,13 +1008,8 @@ Atomic_Dec(Atomic_uint32 *var) // IN
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
       "lock; decl %0"
-#   if VM_ASM_PLUS
       : "+m" (var->value)
       :
-#   else
-      : "=m" (var->value)
-      : "0" (var->value)
-#   endif
       : "cc"
    );
    AtomicEpilogue();
@@ -1246,19 +1183,11 @@ Atomic_FetchAndAddUnfenced(Atomic_uint32 *var, // IN
 #else // __arm__
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
-#   if VM_ASM_PLUS
       "lock; xaddl %0, %1"
       : "=r" (val),
 	"+m" (var->value)
       : "0" (val)
       : "cc"
-#   else
-      "lock; xaddl %0, (%1)"
-      : "=r" (val)
-      : "r" (&var->value),
-	"0" (val)
-      : "cc", "memory"
-#   endif
    );
    return val;
 #endif // __arm__
@@ -1628,11 +1557,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    __asm__ __volatile__(
       "lock; cmpxchg8b %0" "\n\t"
       "sete %1"
-#      if VM_ASM_PLUS
       : "+m" (*var),
-#      else
-      : "=m" (*var),
-#      endif
 	"=qm" (equal),
 	"=a" (dummy1),
 	"=d" (dummy2)
@@ -1716,20 +1641,11 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
    __asm__ __volatile__(
       "lock; cmpxchgl %3, %0" "\n\t"
       "sete %1"
-#   if VM_ASM_PLUS
       : "+m" (*var),
 	"=qm" (equal),
 	"=a" (dummy)
       : "r" (newVal),
         "2" (oldVal)
-#   else
-      : "=m" (*var),
-	"=qm" (equal),
-	"=a" (dummy)
-      : /*"0" (*var), */
-        "r" (newVal),
-        "2" (oldVal)
-#   endif
       : "cc"
    );
    AtomicEpilogue();

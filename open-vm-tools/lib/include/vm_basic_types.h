@@ -648,6 +648,19 @@ typedef void * UserVA;
 
 
 /*
+ * At present, we effectively require a compiler that is at least
+ * gcc-3.3 (circa 2003).  Enforce this here, various things below
+ * this line depend upon it.
+ *
+ * In practice, most things presently compile with gcc-4.1 or gcc-4.4.
+ * The various linux kernel modules may use older (gcc-3.3) compilers.
+ */
+#if defined __GNUC__ && __GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
+#error "gcc version is to old to compile assembly, need gcc-3.3 or better"
+#endif
+
+
+/*
  * Consider the following reasons functions are inlined:
  *
  *  1) inlined for performance reasons
@@ -659,7 +672,7 @@ typedef void * UserVA;
  * are added the inline-ness should be removed.
  */
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)
+#if defined __GNUC__
 /*
  * Starting at version 3.3, gcc does not always inline functions marked
  * 'inline' (it depends on their size). To force gcc to do so, one must use the
@@ -687,21 +700,10 @@ typedef void * UserVA;
 
 #ifdef _MSC_VER
 #define NORETURN __declspec(noreturn)
-#elif __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 9)
+#elif defined __GNUC__
 #define NORETURN __attribute__((__noreturn__))
 #else
 #define NORETURN
-#endif
-
-/*
- * GCC 3.2 inline asm needs the + constraint for input/ouput memory operands.
- * Older GCCs don't know about it --hpreg
- */
-
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
-#   define VM_ASM_PLUS 1
-#else
-#   define VM_ASM_PLUS 0
 #endif
 
 /*
@@ -717,7 +719,7 @@ typedef void * UserVA;
  * all others we don't so we do nothing.
  */
 
-#if (__GNUC__ >= 3)
+#if defined __GNUC__
 /*
  * gcc3 uses __builtin_expect() to inform the compiler of an expected value.
  * We use this to inform the static branch predictor. The '!!' in LIKELY
@@ -799,17 +801,6 @@ typedef void * UserVA;
 #define ALIGNED(n) __attribute__((__aligned__(n)))
 #else
 #define ALIGNED(n)
-#endif
-
-/*
- * __func__ is a stringified function name that is part of the C99 standard. The block
- * below defines __func__ on older systems where the compiler does not support that
- * macro.
- */
-#if defined(__GNUC__) \
-   && ((__GNUC__ == 2 && __GNUC_MINOR < 96) \
-       || (__GNUC__ < 2))
-#   define __func__ __FUNCTION__
 #endif
 
 /*
