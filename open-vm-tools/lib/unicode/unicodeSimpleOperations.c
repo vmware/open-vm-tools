@@ -323,8 +323,8 @@ Unicode_FindSubstrInRange(ConstUnicode str,              // IN:
    for (index = strStart;
         index <= (strStart + strLength - strToFindLength);
         index++) {
-      Bool match = FALSE;
       UnicodeIndex i;
+      Bool match = FALSE;
       UnicodeIndex indexSrc = index;
       UnicodeIndex indexSrch = strToFindStart;
 
@@ -391,7 +391,6 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
                               UnicodeIndex strToFindLength)  // IN:
 {
    UnicodeIndex index;
-   UnicodeIndex strToFindEnd;
    uint32 *utf32Source = NULL;
    uint32 *utf32Search = NULL;
 
@@ -446,26 +445,24 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
     * to be searched.
     */
 
-   strToFindEnd = strToFindStart + strToFindLength - 1;
+   for (index = strStart + strLength - strToFindLength;
+        index >= strStart;
+        index--) {
+      UnicodeIndex i;
+      Bool match = FALSE;
+      UnicodeIndex indexSrc = index;
+      UnicodeIndex indexSrch = strToFindStart;
 
-   for (index = strStart + strLength - 1; index >= strStart; index--) {
-      if (utf32Source[index] == utf32Search[strToFindEnd]) {
-         UnicodeIndex strSubOffset = index;
-         UnicodeIndex strToFindSubOffset = strToFindEnd;
+      for (i = 0; i < strToFindLength; i++) {
+         match = (utf32Source[indexSrc++] == utf32Search[indexSrch++]);
 
-         while (TRUE) {
-            if (strToFindSubOffset == strToFindStart) {
-               index = strSubOffset;  // Found the substring.
-               goto bail;
-            }
-
-            strToFindSubOffset--;
-            strSubOffset--;
-
-            if (utf32Source[strSubOffset] != utf32Search[strToFindSubOffset]) {
-               break;
-            }
+         if (!match) {
+            break;
          }
+      }
+
+      if (match) {
+         goto bail;
       }
    }
 
