@@ -1,3 +1,15 @@
+open-vm-tools 2010.12.19 changes:
+	* New version of DnD code lands in open-vm-tools. The host part
+	of the new DnD protocol is not available yet in VMware products,
+	though.
+
+	* vmtoolsd gets some new functionality to support new features
+	being developed internally.
+
+	* vmxnet driver for FreeBSD fixed to allow changing the MAC address.
+
+	* lots of bug fixes and other cleanups in various areas.
+
 open-vm-tools 2010.11.17 changes:
 	* Mostly cleanups and bug fixes.
 
