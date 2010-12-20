@@ -995,7 +995,10 @@ Unity_SetUnityOptions(uint32 newFeaturesMask)   // IN: UnityFeatures
    int featureIndex = 0;
    uint32 featuresChanged;
 
-   ASSERT(unity.isEnabled == FALSE);
+   if (unity.isEnabled) {
+      Debug("%s: Attempting to set unity options whilst unity is enabled\n",
+            __FUNCTION__);
+   }
 
    /*
     * For each potential feature bit XOR the current mask with the newly
