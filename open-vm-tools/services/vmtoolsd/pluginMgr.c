@@ -23,9 +23,11 @@
  */
 
 #include <string.h>
+#include "toolsCoreInt.h"
+
 #include "vm_assert.h"
 #include "guestApp.h"
-#include "toolsCoreInt.h"
+#include "serviceObj.h"
 #include "util.h"
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
@@ -96,6 +98,26 @@ ToolsCoreDumpPluginInfo(ToolsServiceState *state,
 
    if (plugin->regs == NULL) {
       ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN, "No registrations.\n");
+   }
+}
+
+
+/**
+ * State dump callback for service properties.
+ *
+ * @param[in]  ctx   The application context.
+ * @param[in]  prov  Unused.
+ * @param[in]  reg   The application registration data.
+ */
+
+static void
+ToolsCoreDumpProperty(ToolsAppCtx *ctx,
+                      ToolsAppProvider *prov,
+                      gpointer reg)
+{
+   if (reg != NULL) {
+      ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN, "Service property: %s.\n",
+                         ((ToolsServiceProperty *)reg)->name);
    }
 }
 
@@ -287,6 +309,7 @@ ToolsCoreForEachPlugin(ToolsServiceState *state,
 
       for (j = 0; j < regs->len; j++) {
          guint k;
+         guint pregIdx;
          ToolsAppReg *reg = &g_array_index(regs, ToolsAppReg, j);
          ToolsAppProviderReg *preg = NULL;
 
@@ -297,6 +320,7 @@ ToolsCoreForEachPlugin(ToolsServiceState *state,
                                                       k);
             if (tmp->prov->regType == reg->type) {
                preg = tmp;
+               pregIdx = k;
                break;
             }
          }
@@ -318,9 +342,37 @@ ToolsCoreForEachPlugin(ToolsServiceState *state,
                j = regs->len;
                break;
             }
+
+            /*
+             * The registration callback may have modified the provider array,
+             * so we need to re-read the provider pointer.
+             */
+            preg = &g_array_index(state->providers, ToolsAppProviderReg, pregIdx);
          }
       }
    }
+}
+
+
+/**
+ * Callback to register service properties.
+ *
+ * @param[in]  ctx      The application context.
+ * @param[in]  prov     Unused.
+ * @param[in]  plugin   Unused.
+ * @param[in]  reg      The property registration data.
+ *
+ * @return TRUE
+ */
+
+static gboolean
+ToolsCoreRegisterProperty(ToolsAppCtx *ctx,
+                          ToolsAppProvider *prov,
+                          ToolsPluginData *plugin,
+                          gpointer reg)
+{
+   ToolsCoreService_RegisterProperty(ctx->serviceObj, reg);
+   return TRUE;
 }
 
 
@@ -363,14 +415,24 @@ ToolsCoreRegisterSignal(ToolsAppCtx *ctx,
                         ToolsPluginData *plugin,
                         gpointer reg)
 {
+   gboolean valid;
+   guint sigId;
+   GQuark sigDetail;
    ToolsPluginSignalCb *sig = reg;
-   if (g_signal_lookup(sig->signame, G_OBJECT_TYPE(ctx->serviceObj)) != 0) {
+
+   valid = g_signal_parse_name(sig->signame,
+                               G_OBJECT_TYPE(ctx->serviceObj),
+                               &sigId,
+                               &sigDetail,
+                               FALSE);
+   if (valid) {
       g_signal_connect(ctx->serviceObj,
                        sig->signame,
                        sig->callback,
                        sig->clientData);
       return TRUE;
    }
+
    return FALSE;
 }
 
@@ -706,6 +768,17 @@ ToolsCore_RegisterPlugins(ToolsServiceState *state)
    fakeReg.state = TOOLS_PROVIDER_ACTIVE;
    g_array_append_val(state->providers, fakeReg);
 
+   fakeProv = g_malloc0(sizeof *fakeProv);
+   fakeProv->regType = TOOLS_SVC_PROPERTY;
+   fakeProv->regSize = sizeof (ToolsServiceProperty);
+   fakeProv->name = "Service Properties";
+   fakeProv->registerApp = ToolsCoreRegisterProperty;
+   fakeProv->dumpState = ToolsCoreDumpProperty;
+
+   fakeReg.prov = fakeProv;
+   fakeReg.state = TOOLS_PROVIDER_ACTIVE;
+   g_array_append_val(state->providers, fakeReg);
+
 
    /*
     * First app providers need to be identified, so that we know that they're
@@ -760,7 +833,7 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
    }
 
    /*
-    * Stop all app providers, and free the memory we allocated for the two
+    * Stop all app providers, and free the memory we allocated for the
     * internal app providers.
     */
    for (i = 0; state->providers != NULL && i < state->providers->len; i++) {
@@ -774,7 +847,8 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
 
       if (preg->prov->regType == TOOLS_APP_GUESTRPC ||
           preg->prov->regType == TOOLS_APP_SIGNALS ||
-          preg->prov->regType == TOOLS_APP_PROVIDER) {
+          preg->prov->regType == TOOLS_APP_PROVIDER ||
+          preg->prov->regType == TOOLS_SVC_PROPERTY) {
          g_free(preg->prov);
       }
    }

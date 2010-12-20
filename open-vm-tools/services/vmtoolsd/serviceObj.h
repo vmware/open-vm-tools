@@ -31,9 +31,13 @@
 #include <glib-object.h>
 
 #define TOOLSCORE_TYPE_SERVICE   ToolsCore_Service_get_type()
+#define TOOLSCORESERVICE_GET_CLASS(object) \
+   (G_TYPE_INSTANCE_GET_CLASS((object), TOOLSCORE_TYPE_SERVICE, ToolsCoreServiceClass))
 
 typedef struct ToolsCoreService {
    GObject        parent;
+   GMutex        *lock;
+   GArray        *props;
 } ToolsCoreService;
 
 typedef struct ToolsCoreServiceClass {
@@ -42,6 +46,11 @@ typedef struct ToolsCoreServiceClass {
 
 GType
 ToolsCore_Service_get_type(void);
+
+void
+ToolsCoreService_RegisterProperty(ToolsCoreService *obj,
+                                  ToolsServiceProperty *prop);
+
 
 #endif /* _SERVICEOBJ_H_ */
 

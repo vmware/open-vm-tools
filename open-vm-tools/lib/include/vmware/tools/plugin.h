@@ -68,7 +68,7 @@
    g_source_attach(__src, g_main_loop_get_context((ctx)->mainLoop));    \
 } while (0)
 
-/* Indentation leves for the state log function below. */
+/* Indentation levels for the state log function below. */
 #define TOOLS_STATE_LOG_ROOT        0
 #define TOOLS_STATE_LOG_CONTAINER   1
 #define TOOLS_STATE_LOG_PLUGIN      2
@@ -195,6 +195,15 @@ ToolsCore_LogState(guint level,
 #define TOOLS_CORE_SIG_SERVICE_CONTROL  "tcs_service_control"
 
 #endif
+
+/**
+ * @brief Property where the container's ToolsAppCtx is stored.
+ *
+ * This property is useful in cases where the client code has access to the
+ * service object instance but not to the container's context object, such as
+ * in the callback for the object's "notify" signal.
+ */
+#define TOOLS_CORE_PROP_CTX "tcs_app_ctx"
 
 
 /**
@@ -327,6 +336,11 @@ typedef enum {
     * types (that other plugins can hook into).
     */
    TOOLS_APP_PROVIDER   = 3,
+   /**
+    * Denotes a property made available through the service's instance object
+    * (ToolsAppCtx::serviceObj).
+    */
+   TOOLS_SVC_PROPERTY   = 4,
 
    /* VMCF applications. */
 
@@ -438,6 +452,24 @@ typedef struct ToolsAppReg {
    ToolsAppType   type;
    GArray        *data;
 } ToolsAppReg;
+
+
+/**
+ * Defines a property that is exposed through the containers instance object
+ * (ToolsAppCtx::serviceObj). Plugins can expose properties through this
+ * mechanism to share state with other plugins. Properties can be accessed
+ * using GObject's g_set_property / g_get_property APIs, or monitored by
+ * registering for the "notify" signal on the object.
+ *
+ * All properties exposed using this mechanism are opaque pointers. It's up
+ * for individual plugins to define the actual types of the properties.
+ *
+ * Properties are not ref counted, so consumers (code calling "g_get_property")
+ * should be aware of the life cycle of the property as defined by the producer.
+ */
+typedef struct ToolsServiceProperty {
+   const char    *name;
+} ToolsServiceProperty;
 
 
 /**

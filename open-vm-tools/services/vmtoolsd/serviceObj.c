@@ -27,6 +27,13 @@
 #include "svcSignals.h"
 
 
+typedef struct ServiceProperty {
+   guint       id;
+   gchar      *name;
+   gpointer    value;
+} ServiceProperty;
+
+
 /**
  * Accumulator function for the "set option" signal. If a handler returns
  * TRUE, sets the result of the signal propagation to TRUE.
@@ -148,6 +155,135 @@ ToolsCoreServiceControlAccumulator(GSignalInvocationHint *ihint,
 #endif
 
 
+/*
+ *******************************************************************************
+ * ToolsCoreServiceGetProperty --                                         */ /**
+ *
+ * Gets the value of a property in the object.
+ *
+ * @param[in]  object   The instance.
+ * @param[in]  id       Property ID.
+ * @param[out] value    Where to set the value.
+ * @param[in]  pspec    Unused.
+ *
+ *******************************************************************************
+ */
+
+static void
+ToolsCoreServiceGetProperty(GObject *object,
+                            guint id,
+                            GValue *value,
+                            GParamSpec *pspec)
+{
+   ToolsCoreService *self = (ToolsCoreService *) object;
+
+   id -= 1;
+
+   g_mutex_lock(self->lock);
+
+   if (id < self->props->len) {
+      ServiceProperty *p = &g_array_index(self->props, ServiceProperty, id);
+      g_value_set_pointer(value, p->value);
+   }
+
+   g_mutex_unlock(self->lock);
+}
+
+
+/*
+ *******************************************************************************
+ * ToolsCoreServiceSetProperty --                                         */ /**
+ *
+ * Sets a property in the given object. If the property is found, a "notify"
+ * signal is sent so that interested listeners can act on the change.
+ *
+ * @param[in] object The instance.
+ * @param[in] id     Property ID.
+ * @param[in] value  Value to set.
+ * @param[in] pspec  Unused.
+ *
+ *******************************************************************************
+ */
+
+static void
+ToolsCoreServiceSetProperty(GObject *object,
+                            guint id,
+                            const GValue *value,
+                            GParamSpec *pspec)
+{
+   ServiceProperty *p = NULL;
+   ToolsCoreService *self = (ToolsCoreService *) object;
+
+   id -= 1;
+
+   g_mutex_lock(self->lock);
+
+   if (id < self->props->len) {
+      p = &g_array_index(self->props, ServiceProperty, id);
+      p->value = g_value_get_pointer(value);
+   }
+
+   g_mutex_unlock(self->lock);
+
+   if (p != NULL) {
+      g_object_notify(object, p->name);
+   }
+}
+
+
+/*
+ *******************************************************************************
+ * ToolsCoreServiceCtor --                                                */ /**
+ *
+ * Object constructor. Initialize internal state.
+ *
+ * @param   object   Instance being initialized.
+ *
+ *******************************************************************************
+ */
+
+static void
+ToolsCoreServiceCtor(GObject *object)
+{
+   ToolsCoreService *self = (ToolsCoreService *) object;
+   self->lock = g_mutex_new();
+   self->props = g_array_new(FALSE, FALSE, sizeof (ServiceProperty));
+}
+
+
+/*
+ *******************************************************************************
+ * ToolsCoreServiceDtor --                                                */ /**
+ *
+ * Object destructor. Frees memory associated with the object. Goes through the
+ * list of properties to make sure all of them have been cleaned up before the
+ * service exits, printing a warning otherwise.
+ *
+ * @param[in]  object   The object being destructed.
+ *
+ *******************************************************************************
+ */
+
+static void
+ToolsCoreServiceDtor(GObject *object)
+{
+   ToolsCoreService *self = (ToolsCoreService *) object;
+   guint i;
+
+   for (i = 0; i < self->props->len; i++) {
+      ServiceProperty *p = &g_array_index(self->props, ServiceProperty, i);
+      if (p->value != NULL) {
+         g_warning("Property '%s' was not cleaned up before shut down.",
+                   p->name);
+      }
+      g_free(p->name);
+   }
+
+   g_array_free(self->props, TRUE);
+   g_mutex_free(self->lock);
+}
+
+
 /**
  * Initializes the ToolsCoreService class. Sets up the signals that are sent
  * by the vmtoolsd service.
@@ -239,6 +375,11 @@ ToolsCore_Service_class_init(gpointer _klass,
                 G_TYPE_UINT,
                 G_TYPE_POINTER);
 #endif
+
+   G_OBJECT_CLASS(klass)->constructed = ToolsCoreServiceCtor;
+   G_OBJECT_CLASS(klass)->finalize = ToolsCoreServiceDtor;
+   G_OBJECT_CLASS(klass)->set_property = ToolsCoreServiceSetProperty;
+   G_OBJECT_CLASS(klass)->get_property = ToolsCoreServiceGetProperty;
 }
 
 
@@ -271,5 +412,42 @@ ToolsCore_Service_get_type(void)
                                     0);
    }
    return type;
+}
+
+
+/*
+ *******************************************************************************
+ * ToolsCoreService_RegisterProperty --                                   */ /**
+ *
+ * Installs a new property in the service object.
+ *
+ * @param[in] obj    Service object.
+ * @param[in] prop   Property to install.
+ *
+ *******************************************************************************
+ */
+
+void
+ToolsCoreService_RegisterProperty(ToolsCoreService *obj,
+                                  ToolsServiceProperty *prop)
+{
+   static guint PROP_ID_SEQ = 0;
+
+   ServiceProperty sprop;
+   ToolsCoreServiceClass *klass = TOOLSCORESERVICE_GET_CLASS(obj);
+   GParamSpec *pspec = g_param_spec_pointer(prop->name,
+                                            prop->name,
+                                            prop->name,
+                                            G_PARAM_READWRITE);
+
+   g_mutex_lock(obj->lock);
+
+   sprop.id = ++PROP_ID_SEQ;
+   sprop.name = g_strdup(prop->name);
+   sprop.value = NULL;
+   g_array_append_val(obj->props, sprop);
+   g_object_class_install_property(G_OBJECT_CLASS(klass), sprop.id, pspec);
+
+   g_mutex_unlock(obj->lock);
 }
 

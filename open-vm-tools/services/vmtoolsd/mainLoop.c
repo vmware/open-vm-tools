@@ -77,6 +77,7 @@ ToolsCoreCleanup(ToolsServiceState *state)
    }
 #endif
 
+   g_object_set(state->ctx.serviceObj, TOOLS_CORE_PROP_CTX, NULL, NULL);
    g_object_unref(state->ctx.serviceObj);
    state->ctx.serviceObj = NULL;
    state->ctx.config = NULL;
@@ -364,6 +365,7 @@ void
 ToolsCore_Setup(ToolsServiceState *state)
 {
    GMainContext *gctx;
+   ToolsServiceProperty ctxProp = { TOOLS_CORE_PROP_CTX };
 
    if (!g_thread_supported()) {
       g_thread_init(NULL);
@@ -382,6 +384,11 @@ ToolsCore_Setup(ToolsServiceState *state)
 
    g_type_init();
    state->ctx.serviceObj = g_object_new(TOOLSCORE_TYPE_SERVICE, NULL);
+
+   /* Register the core properties. */
+   ToolsCoreService_RegisterProperty(state->ctx.serviceObj,
+                                     &ctxProp);
+   g_object_set(state->ctx.serviceObj, TOOLS_CORE_PROP_CTX, &state->ctx, NULL);
 
    /* Initializes the debug library if needed. */
    if (state->debugPlugin != NULL) {
