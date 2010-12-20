@@ -330,6 +330,9 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
                               UnicodeIndex strToFindLength)  // IN:
 {
    UnicodeIndex index;
+   UnicodeIndex strToFindEnd;
+   uint32 *utf32Source = NULL;
+   uint32 *utf32Search = NULL;
 
    ASSERT(str);
    ASSERT(strStart >= 0);
@@ -338,6 +341,22 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
    ASSERT(strToFind);
    ASSERT(strToFindStart >= 0);
    ASSERT((strToFindLength >= 0) || (strToFindLength == -1));
+
+   /*
+    * Convert the string to be searched and the search string to UTF32.
+    */
+
+   if (!CodeSet_UTF8ToUTF32(str, (char **) &utf32Source)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, str);
+   }
+
+   if (!CodeSet_UTF8ToUTF32(strToFind, (char **) &utf32Search)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, strToFind);
+   }
+
+   /*
+    * Do any bounds cleanup and checking that is necessary...
+    */
 
    if (strLength < 0) {
       strLength = CodeSet_LengthInCodePoints(str) - strStart;
@@ -348,29 +367,49 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
    }
 
    if (strLength < strToFindLength) {
-      return UNICODE_INDEX_NOT_FOUND;
+      index = UNICODE_INDEX_NOT_FOUND;
+      goto bail;
    }
 
    if (strToFindLength == 0) {
-      return strStart;
+      index = strStart;
+      goto bail;
+   }
+  
+   /*
+    * Attempt to find the last occurence of the search string in the string
+    * to be searched.
+    */
+
+   strToFindEnd = strToFindStart + strToFindLength - 1;
+
+   for (index = strStart + strLength - 1; index >= strStart; index--) {
+      if (utf32Source[index] == utf32Search[strToFindEnd]) {
+         UnicodeIndex strSubOffset = index;
+         UnicodeIndex strToFindSubOffset = strToFindEnd;
+
+         while (TRUE) {
+            if (strToFindSubOffset == strToFindStart) {
+               index = strSubOffset;  // Found the substring.
+               goto bail;
+            }
+
+            strToFindSubOffset--;
+            strSubOffset--;
+
+            if (utf32Source[strSubOffset] != utf32Search[strToFindSubOffset]) {
+               break;
+            }
+         }
+      }
    }
 
    index = UNICODE_INDEX_NOT_FOUND;
 
-   while (TRUE) {
-      UnicodeIndex searchIndex;
+bail:
 
-      searchIndex = Unicode_FindSubstrInRange(str, strStart,
-                                              strLength, strToFind,
-                                              strToFindStart, strToFindLength);
-
-      if (searchIndex == UNICODE_INDEX_NOT_FOUND) {
-         break;
-      } else {
-         index = searchIndex;
-         strStart = searchIndex + 1;
-      }
-   }
+   free(utf32Source);
+   free(utf32Search);
 
    return index;
 }
@@ -408,8 +447,8 @@ Unicode_Substr(ConstUnicode str,     // IN:
                UnicodeIndex length)  // IN:
 {
    char *substr;
-   uint32 *utf32;
    uint32 codePointLen;
+   uint32 *utf32 = NULL;
 
    ASSERT(str);
    ASSERT((start >= 0) || (start == -1));
