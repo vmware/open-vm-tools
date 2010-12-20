@@ -55,7 +55,6 @@
 #include "vmci_kernel_if.h"
 #include "vmciGuestKernelIf.h"
 #include "vmciInt.h"
-#include "vmciProcess.h"
 #include "vmciDatagram.h"
 #include "vmciUtil.h"
 #include "vmciEvent.h"
@@ -275,7 +274,6 @@ Bool
 VMCI_CheckHostCapabilities(void)
 {
    Bool result = VMCIEvent_CheckHostCapabilities();
-   result &= VMCIProcess_CheckHostCapabilities();
    result &= VMCIDatagram_CheckHostCapabilities();
    result &= VMCIUtil_CheckHostCapabilities();
 

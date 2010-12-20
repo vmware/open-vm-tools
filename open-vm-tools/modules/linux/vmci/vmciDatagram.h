@@ -34,18 +34,8 @@
 #include "vmci_infrastructure.h"
 #include "vmci_iocontrols.h"
 
-typedef struct DatagramQueueEntry DatagramQueueEntry;
-typedef struct VMCIDatagramProcess VMCIDatagramProcess;
-
 void VMCIDatagram_Init(void);
 Bool VMCIDatagram_CheckHostCapabilities(void);
 int VMCIDatagram_Dispatch(VMCIId contextID, VMCIDatagram *msg);
-
-int VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,
-                               VMCIDatagramCreateProcessInfo *createInfo,
-                               uintptr_t eventHnd);
-void VMCIDatagramProcess_Destroy(VMCIDatagramProcess *dgmProc);
-int VMCIDatagramProcess_ReadCall(VMCIDatagramProcess *dgmProc,
-				 size_t maxSize, VMCIDatagram **dg);
 
 #endif //__VMCI_DATAGRAM_H__

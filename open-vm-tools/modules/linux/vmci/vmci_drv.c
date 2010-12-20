@@ -27,29 +27,30 @@
 #include <linux/moduleparam.h>
 #include <linux/poll.h>
 
+#include "compat_init.h"
+#include "compat_interrupt.h"
+#include "compat_ioport.h"
 #include "compat_kernel.h"
 #include "compat_module.h"
-#include "compat_pci.h"
-#include "compat_init.h"
-#include "compat_ioport.h"
-#include "compat_interrupt.h"
-#include "compat_page.h"
 #include "compat_mutex.h"
+#include "compat_page.h"
+#include "compat_pci.h"
+
+#include "kernelStubs.h"
+
 #include "vm_basic_types.h"
 #include "vm_device_version.h"
-#include "kernelStubs.h"
-#include "vmci_iocontrols.h"
+
 #include "vmci_defs.h"
-#include "vmciInt.h"
 #include "vmci_infrastructure.h"
+#include "vmci_iocontrols.h"
+#include "vmci_version.h"
 #include "vmciDatagram.h"
-#include "vmciProcess.h"
-#include "vmciUtil.h"
 #include "vmciEvent.h"
+#include "vmciInt.h"
 #include "vmciNotifications.h"
 #include "vmciQueuePairInt.h"
-#include "vmci_version.h"
-#include "vmciCommonInt.h"
+#include "vmciUtil.h"
 
 #define LGPFX "VMCI: "
 #define VMCI_DEVICE_MINOR_NUM 0
@@ -409,7 +410,6 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
     * components, and it may be invoked once request_irq() has
     * registered the handler (as the irq line may be shared).
     */
-   VMCIProcess_Init();
    VMCIDatagram_Init();
    VMCIEvent_Init();
    VMCIUtil_Init();
@@ -479,7 +479,6 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    VMCINotifications_Exit();
    VMCIUtil_Exit();
    VMCIEvent_Exit();
-   VMCIProcess_Exit();
    if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSIX) {
       pci_disable_msix(pdev);
    } else if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSI) {
@@ -531,7 +530,6 @@ vmci_remove_device(struct pci_dev* pdev)
    VMCIUtil_Exit();
    VMCIEvent_Exit();
    //VMCIDatagram_Exit();
-   VMCIProcess_Exit();
 
    compat_mutex_lock(&dev->lock);
    printk(KERN_INFO "Resetting vmci device\n");
@@ -649,11 +647,6 @@ vmci_close(struct inode *inode,  // IN
       (VMCIGuestDeviceHandle *) file->private_data;
 
    if (devHndl) {
-      if (devHndl->objType == VMCIOBJ_PROCESS) {
-         VMCIProcess_Destroy((VMCIProcess *) devHndl->obj);
-      } else if (devHndl->objType == VMCIOBJ_DATAGRAM_PROCESS) {
-         VMCIDatagramProcess_Destroy((VMCIDatagramProcess *) devHndl->obj);
-      }
       VMCI_FreeKernelMem(devHndl, sizeof *devHndl);
       file->private_data = NULL;
    }
@@ -682,183 +675,7 @@ vmci_ioctl(struct file *file,    // IN
            unsigned int cmd,     // IN
            unsigned long arg)    // IN
 {
-#ifndef VMX86_DEVEL
    return -ENOTTY;
-#else
-   int retval;
-   VMCIGuestDeviceHandle *devHndl = file->private_data;
-
-   if (devHndl == NULL) {
-      return -EINVAL;
-   }
-
-   compat_mutex_lock(&vmci_dev.lock);
-
-   /*
-    * When adding new ioctls make sure that their data structures are same
-    * for i386 and x86_64 architectures, as this handler is used for both ia32
-    * and x86_64 ioctls.
-    */
-   switch (cmd) {
-   case IOCTL_VMCI_CREATE_PROCESS: {
-      if (devHndl->objType != VMCIOBJ_NOT_SET) {
-         printk("VMCI: Received IOCTLCMD_VMCI_CREATE_PROCESS on "
-                "initialized handle.\n");
-         retval = -EINVAL;
-         break;
-      }
-      ASSERT(!devHndl->obj);
-      retval = VMCIProcess_Create((VMCIProcess **) &devHndl->obj);
-      if (retval != 0) {
-         printk("VMCI: Failed to create process.\n");
-         break;
-      }
-      devHndl->objType = VMCIOBJ_PROCESS;
-      break;
-   }
-
-   case IOCTL_VMCI_CREATE_DATAGRAM_PROCESS: {
-      VMCIDatagramCreateProcessInfo createInfo;
-      VMCIDatagramProcess *dgmProc;
-
-      if (devHndl->objType != VMCIOBJ_NOT_SET) {
-         printk("VMCI: Received IOCTLCMD_VMCI_CREATE_DATAGRAM_PROCESS on "
-                "initialized handle.\n");
-         retval = -EINVAL;
-         break;
-      }
-      ASSERT(!devHndl->obj);
-
-      retval = copy_from_user(&createInfo, (void *)arg, sizeof createInfo);
-      if (retval != 0) {
-	 printk("VMCI: Error getting datagram create info, %d.\n", retval);
-	 retval = -EFAULT;
-	 break;
-      }
-
-      if (VMCIDatagramProcess_Create(&dgmProc, &createInfo,
-                                     0 /* Unused */) < VMCI_SUCCESS) {
-	 retval = -EINVAL;
-	 break;
-      }
-
-      retval = copy_to_user((void *)arg, &createInfo, sizeof createInfo);
-      if (retval != 0) {
-         VMCIDatagramProcess_Destroy(dgmProc);
-         printk("VMCI: Failed to create datagram process.\n");
-	 retval = -EFAULT;
-         break;
-      }
-      devHndl->obj = dgmProc;
-      devHndl->objType = VMCIOBJ_DATAGRAM_PROCESS;
-      break;
-   }
-
-   case IOCTL_VMCI_DATAGRAM_SEND: {
-      VMCIDatagramSendRecvInfo sendInfo;
-      VMCIDatagram *dg;
-
-      if (devHndl->objType != VMCIOBJ_DATAGRAM_PROCESS) {
-         printk("VMCI: Ioctl %d only valid for process datagram handle.\n",
-		cmd);
-         retval = -EINVAL;
-         break;
-      }
-
-      retval = copy_from_user(&sendInfo, (void *) arg, sizeof sendInfo);
-      if (retval) {
-         printk("VMCI: copy_from_user failed.\n");
-         retval = -EFAULT;
-         break;
-      }
-
-      if (sendInfo.len > VMCI_MAX_DG_SIZE) {
-         printk("VMCI: datagram size too big.\n");
-	 retval = -EINVAL;
-	 break;
-      }
-
-      dg = VMCI_AllocKernelMem(sendInfo.len, VMCI_MEMORY_NORMAL);
-      if (dg == NULL) {
-         printk("VMCI: Cannot allocate memory to dispatch datagram.\n");
-         retval = -ENOMEM;
-         break;
-      }
-
-      retval = copy_from_user(dg, (char *)(VA)sendInfo.addr, sendInfo.len);
-      if (retval != 0) {
-         printk("VMCI: Error getting datagram: %d\n", retval);
-         VMCI_FreeKernelMem(dg, sendInfo.len);
-         retval = -EFAULT;
-         break;
-      }
-
-      DEBUG_ONLY(printk("VMCI: Datagram dst handle 0x%x:0x%x, src handle "
-			"0x%x:0x%x, payload size %"FMT64"u.\n",
-			dg->dst.context, dg->dst.resource,
-			dg->src.context, dg->src.resource, dg->payloadSize));
-
-      sendInfo.result = VMCIDatagram_Send(dg);
-      VMCI_FreeKernelMem(dg, sendInfo.len);
-
-      retval = copy_to_user((void *)arg, &sendInfo, sizeof sendInfo);
-      break;
-   }
-
-   case IOCTL_VMCI_DATAGRAM_RECEIVE: {
-      VMCIDatagramSendRecvInfo recvInfo;
-      VMCIDatagram *dg = NULL;
-
-      if (devHndl->objType != VMCIOBJ_DATAGRAM_PROCESS) {
-         printk("VMCI: Ioctl %d only valid for process datagram handle.\n",
-		cmd);
-         retval = -EINVAL;
-         break;
-      }
-
-      retval = copy_from_user(&recvInfo, (void *) arg, sizeof recvInfo);
-      if (retval) {
-         printk("VMCI: copy_from_user failed.\n");
-         retval = -EFAULT;
-         break;
-      }
-
-      ASSERT(devHndl->obj);
-      recvInfo.result =
-	 VMCIDatagramProcess_ReadCall((VMCIDatagramProcess *)devHndl->obj,
-				      recvInfo.len, &dg);
-      if (recvInfo.result < VMCI_SUCCESS) {
-	 retval = -EINVAL;
-	 break;
-      }
-      ASSERT(dg);
-      retval = copy_to_user((void *) ((uintptr_t) recvInfo.addr), dg,
-			    VMCI_DG_SIZE(dg));
-      VMCI_FreeKernelMem(dg, VMCI_DG_SIZE(dg));
-      if (retval != 0) {
-	 break;
-      }
-      retval = copy_to_user((void *)arg, &recvInfo, sizeof recvInfo);
-      break;
-   }
-
-   case IOCTL_VMCI_GET_CONTEXT_ID: {
-      VMCIId cid = VMCI_GetContextID();
-
-      retval = copy_to_user((void *)arg, &cid, sizeof cid);
-      break;
-   }
- 
-   default:
-      printk(KERN_DEBUG "vmci_ioctl(): unknown ioctl 0x%x.\n", cmd);
-      retval = -EINVAL;
-      break;
-   }
-
-   compat_mutex_unlock(&vmci_dev.lock);
-
-   return retval;
-#endif
 }
 
 
@@ -910,34 +727,7 @@ static unsigned int
 vmci_poll(struct file *file, // IN
           poll_table *wait)  // IN
 {
-   VMCILockFlags flags;
-   unsigned int mask = 0;
-   VMCIGuestDeviceHandle *devHndl =
-      (VMCIGuestDeviceHandle *) file->private_data;
-
-   /*
-    * Check for call to this VMCI process.
-    */
-
-   if (!devHndl) {
-      return mask;
-   }
-   if (devHndl->objType == VMCIOBJ_DATAGRAM_PROCESS) {
-      VMCIDatagramProcess *dgmProc = (VMCIDatagramProcess *) devHndl->obj;
-      ASSERT(dgmProc);
-
-      if (wait != NULL) {
-         poll_wait(file, &dgmProc->host.waitQueue, wait);
-      }
-
-      VMCI_GrabLock_BH(&dgmProc->datagramQueueLock, &flags);
-      if (dgmProc->pendingDatagrams > 0) {
-         mask = POLLIN;
-      }
-      VMCI_ReleaseLock_BH(&dgmProc->datagramQueueLock, flags);
-   }
-
-   return mask;
+   return 0;
 }
 
 

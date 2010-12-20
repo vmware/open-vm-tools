@@ -24,7 +24,6 @@
 
 #include "vm_basic_types.h"
 #include "vmci_call_defs.h"
-#include "vmciProcess.h"
 
 #define DODEBUGLOG(...) printk(KERN_DEBUG __VA_ARGS__)
 #define DOLOG(...) printk(KERN_INFO __VA_ARGS__)
