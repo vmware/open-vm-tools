@@ -37,20 +37,17 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 static GModule *gPlugin = NULL;
 
-/* Atomic types are not volatile in old glib versions. */
-#if GLIB_MAJOR_VERSION >= 2 && GLIB_MINOR_VERSION >= 10
-static volatile gint gRefCount = 0;
-#else
-static gint gRefCount = 0;
-#endif
-
-
 /*
  * Static variables to hold the app's main loop data. CUnit test functions
  * don't take any parameters so there's no other way to do this...
  */
-static void (*gRunMainLoop)(gpointer);
-static gpointer gRunData;
+static struct {
+   void (*mainLoop)(gpointer);
+   gpointer          loopData;
+   RpcDebugLibData  *libData;
+   ToolsAppCtx      *ctx;
+   gint              refCount;
+} gLibRunData;
 
 
 /*
@@ -65,9 +62,15 @@ static gpointer gRunData;
 static void
 RpcDebugRunLoop(void)
 {
-   ASSERT(gRunMainLoop);
-   ASSERT(gRunData);
-   gRunMainLoop(gRunData);
+   ASSERT(gLibRunData.libData);
+   ASSERT(gLibRunData.mainLoop);
+   ASSERT(gLibRunData.loopData);
+   gLibRunData.mainLoop(gLibRunData.loopData);
+
+   if (gLibRunData.libData->debugPlugin->shutdownFn != NULL) {
+      gLibRunData.libData->debugPlugin->shutdownFn(gLibRunData.ctx,
+                                                   gLibRunData.libData->debugPlugin);
+   }
 }
 
 
@@ -110,18 +113,15 @@ RpcDebugRun(ToolsAppCtx *ctx,
    test = CU_add_test(suite, g_module_name(gPlugin), RpcDebugRunLoop);
    ASSERT(test != NULL);
 
-   gRunMainLoop = runMainLoop;
-   gRunData = runData;
+   gLibRunData.ctx = ctx;
+   gLibRunData.libData = ldata;
+   gLibRunData.mainLoop = runMainLoop;
+   gLibRunData.loopData = runData;
 
    err = CU_basic_run_tests();
 
    /* Clean up internal library / debug plugin state. */
-   ASSERT(g_atomic_int_get(&gRefCount) >= 0);
-   ASSERT(ldata != NULL);
-
-   if (ldata->debugPlugin->shutdownFn != NULL) {
-      ldata->debugPlugin->shutdownFn(ctx, ldata->debugPlugin);
-   }
+   ASSERT(g_atomic_int_get(&gLibRunData.refCount) >= 0);
 
    if (gPlugin != NULL) {
       g_module_close(gPlugin);
@@ -133,6 +133,7 @@ RpcDebugRun(ToolsAppCtx *ctx,
    }
 
    CU_cleanup_registry();
+   memset(&gLibRunData, 0, sizeof gLibRunData);
    return (int) err;
 }
 
@@ -147,7 +148,7 @@ RpcDebugRun(ToolsAppCtx *ctx,
 void
 RpcDebug_DecRef(ToolsAppCtx *ctx)
 {
-   if (g_atomic_int_dec_and_test(&gRefCount)) {
+   if (g_atomic_int_dec_and_test(&gLibRunData.refCount)) {
       g_main_loop_quit(ctx->mainLoop);
    }
 }
@@ -161,7 +162,7 @@ RpcDebug_DecRef(ToolsAppCtx *ctx)
 void
 RpcDebug_IncRef(void)
 {
-   g_atomic_int_inc(&gRefCount);
+   g_atomic_int_inc(&gLibRunData.refCount);
 }
 
 
