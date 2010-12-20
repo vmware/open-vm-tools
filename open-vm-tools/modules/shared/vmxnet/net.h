@@ -58,7 +58,6 @@
 #endif
 
 #define ETHERNET_MTU         1518
-#define ETH_MIN_FRAME_LEN      60
 
 #ifndef ETHER_ADDR_LEN
 #define ETHER_ADDR_LEN          6  /* length of MAC address */
