@@ -253,6 +253,51 @@ CleanupProcDevice(void)
 
 /* procfs file operations */
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * ExecuteBlockOp --
+ *
+ *    Copy block name from user buffer into kernel space, canonicalize it
+ *    by removing all trailing path separators, and execute desired block
+ *    operation.
+ *
+ * Results:
+ *    0 on success, negative error code on failure.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+ExecuteBlockOp(const char __user *buf,                // IN: buffer with name
+               const os_blocker_id_t blocker,         // IN: blocker ID (file)
+               int (*blockOp)(const char *filename,   // IN: block operation
+                              const os_blocker_id_t blocker))
+{
+   char *name;
+   int i;
+   int retval;
+
+   name = getname(buf);
+   if (IS_ERR(name)) {
+      return PTR_ERR(name);
+   }
+
+   for (i = strlen(name) - 1; i >= 0 && name[i] == '/'; i--) {
+      name[i] = '\0';
+   }
+
+   retval = i < 0 ? -EINVAL : blockOp(name, blocker);
+
+   putname(name);
+
+   return retval;
+}
+
 /*
  *----------------------------------------------------------------------------
  *
@@ -277,60 +322,23 @@ ControlFileOpWrite(struct file *file,       // IN: Opened file, used for ID
                    loff_t *ppos)            // IN/OUT: File offset (unused)
 {
    int ret;
-   ssize_t i;
-   char *filename;
-
-#ifdef VMX86_DEVEL
-   if (cmd == VMBLOCK_LIST_FILEBLOCKS) {
-      BlockListFileBlocks();
-      return 0;
-   }
-#endif
-
-   /*
-    * XXX: Can we GPL our modules already?  This is gross.  On kernels 2.6.6
-    * through 2.6.12 when CONFIG_AUDITSYSCALL is defined, putname() turns into
-    * a macro that calls audit_putname(), which happens to only be exported to
-    * GPL modules (until 2.6.9).  Here we work around this by calling
-    * __getname() and __putname() to get our path buffer directly,
-    * side-stepping the syscall auditing and doing the copy from user space
-    * ourself.  Change this back once we GPL the module.
-    */
-   filename = __getname();
-   if (!filename) {
-      Warning("ControlFileOpWrite: Could not obtain memory for filename.\n");
-      return -ENOMEM;
-   }
-
-   /*
-    * XXX: __getname() returns a pointer to a PATH_MAX-sized buffer.
-    * Hard-coding this size is also gross, but it's our only option here and
-    * InodeOpLookup() already set a bad example by doing this.
-    */
-   ret = strncpy_from_user(filename, buf, PATH_MAX);
-   if (ret < 0 || ret >= PATH_MAX) {
-      Warning("ControlFileOpWrite: Could not access provided user buffer.\n");
-      ret = ret < 0 ? ret : -ENAMETOOLONG;
-      goto exit;
-   }
-
-   /* Remove all trailing path separators. */
-   for (i = ret - 1; i >= 0 && filename[i] == '/'; i--) {
-      filename[i] = '\0';
-   }
-
-   if (i < 0) {
-      ret = -EINVAL;
-      goto exit;
-   }
 
    switch (cmd) {
    case VMBLOCK_ADD_FILEBLOCK:
-      ret = BlockAddFileBlock(filename, file);
+      ret = ExecuteBlockOp(buf, file, BlockAddFileBlock);
       break;
+
    case VMBLOCK_DEL_FILEBLOCK:
-      ret = BlockRemoveFileBlock(filename, file);
+      ret = ExecuteBlockOp(buf, file, BlockRemoveFileBlock);
       break;
+
+#ifdef VMX86_DEVEL
+   case VMBLOCK_LIST_FILEBLOCKS:
+      BlockListFileBlocks();
+      ret = 0;
+      break;
+#endif
+
    default:
       Warning("ControlFileOpWrite: unrecognized command (%u) recieved\n",
               (unsigned)cmd);
@@ -338,8 +346,6 @@ ControlFileOpWrite(struct file *file,       // IN: Opened file, used for ID
       break;
    }
 
-exit:
-   __putname(filename);
    return ret;
 }
 
