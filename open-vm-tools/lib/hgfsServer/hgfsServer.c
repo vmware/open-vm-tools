@@ -4192,7 +4192,7 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
       }
 
       free(myBufOut);
-      LOG(4, ("%s: name is \"%s\"\n", __FUNCTION__, myBufOut));
+      LOG(4, ("%s: name is \"%s\"\n", __FUNCTION__, tempPtr));
 
       /* Save returned pointers, update buffer length. */
       myBufOut = tempPtr;
