@@ -178,6 +178,7 @@ Util_ValidateBytes(const void *ptr,  // IN: ptr to check
                    uint8 byteValue)  // IN: memory must be filled with this
 {
    uint8 *p;
+   uint8 *end;
    uint64 bigValue;
 
    ASSERT(ptr);
@@ -187,6 +188,7 @@ Util_ValidateBytes(const void *ptr,  // IN: ptr to check
    }
 
    p = (uint8 *) ptr;
+   end = p + size;
 
    /* Compare bytes until a "nice" boundary is achieved. */
    while ((uintptr_t) p % sizeof bigValue) {
@@ -194,19 +196,17 @@ Util_ValidateBytes(const void *ptr,  // IN: ptr to check
          return p;
       }
 
-      size--;
+      p++;
 
-      if (size == 0) {
+      if (p == end) {
          return NULL;
       }
-
-      p++;
    }
 
    /* Compare using a "nice sized" chunk for a long as possible. */
    memset(&bigValue, (int) byteValue, sizeof bigValue);
 
-   while (size >= sizeof bigValue) {
+   while (p + sizeof bigValue <= end) {
       if (*((uint64 *) p) != bigValue) {
          /* That's not right... let the loop below report the exact address. */
          break;
@@ -217,12 +217,11 @@ Util_ValidateBytes(const void *ptr,  // IN: ptr to check
    }
 
    /* Handle any trailing bytes. */
-   while (size) {
+   while (p < end) {
       if (*p != byteValue) {
          return p;
       }
 
-      size--;
       p++;
    }
 
