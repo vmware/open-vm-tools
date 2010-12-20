@@ -148,6 +148,8 @@ typedef enum {
 
 typedef struct
 {
+   uint32         signature;            // initialization signature
+
    const char    *fileName;             // File name, if known
    const char    *config;               // Config variable to look up
    const char    *suffix;               // Suffix to generate log file name
@@ -174,17 +176,27 @@ typedef struct
    char           systemLoggerID[128];  // Identifier for system logger
 } LogInitParams;
 
+void Log_GetStaticDefaults(LogInitParams *params);
+
+void Log_ApplyConfigValues(const char *appPrefix,
+                           LogInitParams *params);
+
 void Log_GetInitDefaults(const char *fileName,
                          const char *config,
                          const char *suffix,
                          const char *appPrefix,
                          LogInitParams *params);
 
+Bool Log_InitEx(const LogInitParams *params);
+
 Bool Log_Init(const char *fileName,
               const char *config,
               const char *suffix);
 
-Bool Log_InitEx(const LogInitParams *params);
+Bool Log_InitWithFile(const char *fileName,
+                      const char *appPrefix);
+
+Bool Log_InitWithConfig(const char *appPrefix);
 
 void Log_UpdateFileControl(Bool append,
                            unsigned keepOld,
