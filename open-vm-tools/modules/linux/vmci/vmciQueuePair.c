@@ -703,7 +703,8 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
       if (queuePairEntry->flags & VMCI_QPFLAG_LOCAL) {
          /* Local attach case. */
          if (queuePairEntry->refCount > 1) {
-            VMCI_LOG((LGPFX "Error attempting to attach more than once.\n"));
+            VMCI_DEBUG_LOG(4, (LGPFX"Error attempting to attach more than "
+                               "once.\n"));
             result = VMCI_ERROR_UNAVAILABLE;
             goto errorKeepEntry;
          }
@@ -711,7 +712,8 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
          if (queuePairEntry->produceSize != consumeSize ||
              queuePairEntry->consumeSize != produceSize ||
              queuePairEntry->flags != (flags & ~VMCI_QPFLAG_ATTACH_ONLY)) {
-            VMCI_LOG((LGPFX "Error mismatched queue pair in local attach.\n"));
+            VMCI_DEBUG_LOG(4, (LGPFX"Error mismatched queue pair in local "
+                               "attach.\n"));
             result = VMCI_ERROR_QUEUEPAIR_MISMATCH;
             goto errorKeepEntry;
          }
@@ -734,14 +736,14 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
 
    myProduceQ = VMCI_AllocQueue(produceSize);
    if (!myProduceQ) {
-      VMCI_LOG((LGPFX "Error allocating pages for produce queue.\n"));
+      VMCI_WARNING((LGPFX"Error allocating pages for produce queue.\n"));
       result = VMCI_ERROR_NO_MEM;
       goto error;
    }
 
    myConsumeQ = VMCI_AllocQueue(consumeSize);
    if (!myConsumeQ) {
-      VMCI_LOG((LGPFX "Error allocating pages for consume queue.\n"));
+      VMCI_WARNING((LGPFX"Error allocating pages for consume queue.\n"));
       result = VMCI_ERROR_NO_MEM;
       goto error;
    }
@@ -750,7 +752,7 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
                                          produceSize, consumeSize,
                                          myProduceQ, myConsumeQ);
    if (!queuePairEntry) {
-      VMCI_LOG((LGPFX "Error allocating memory in %s.\n", __FUNCTION__));
+      VMCI_WARNING((LGPFX"Error allocating memory in %s.\n", __FUNCTION__));
       result = VMCI_ERROR_NO_MEM;
       goto error;
    }
@@ -758,7 +760,7 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
    result = VMCI_AllocPPNSet(myProduceQ, numProducePages, myConsumeQ,
                              numConsumePages, &queuePairEntry->ppnSet);
    if (result < VMCI_SUCCESS) {
-      VMCI_LOG((LGPFX "VMCI_AllocPPNSet failed.\n"));
+      VMCI_WARNING((LGPFX"VMCI_AllocPPNSet failed.\n"));
       goto error;
    }
 
@@ -791,8 +793,8 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
    } else {
       result = VMCIQueuePairAlloc_HyperCall(queuePairEntry);
       if (result < VMCI_SUCCESS) {
-         VMCI_LOG((LGPFX "VMCIQueuePairAlloc_HyperCall result = %d.\n",
-                   result));
+         VMCI_WARNING((LGPFX"VMCIQueuePairAlloc_HyperCall result = %d.\n",
+                       result));
          goto error;
       }
    }
@@ -1063,18 +1065,20 @@ VMCIQueuePair_Hibernate(Bool enterHibernation)
             result = VMCI_ConvertToLocalQueue(consQ, prodQ, entry->consumeSize,
                                               TRUE, &oldConsQ);
             if (result != VMCI_SUCCESS) {
-               VMCI_LOG((LGPFX "Hibernate failed to create local consume queue "
-                         "from handle %x:%x (error: %d)\n",
-                         entry->handle.context, entry->handle.resource, result));
+               VMCI_WARNING((LGPFX"Hibernate failed to create local consume "
+                             "queue from handle %x:%x (error: %d)\n",
+                             entry->handle.context, entry->handle.resource,
+                             result));
                VMCI_ReleaseQueueMutex(prodQ);
                continue;
             }
             result = VMCI_ConvertToLocalQueue(prodQ, consQ, entry->produceSize,
                                               FALSE, &oldProdQ);
             if (result != VMCI_SUCCESS) {
-               VMCI_LOG((LGPFX "Hibernate failed to create local produce queue "
-                         "from handle %x:%x (error: %d)\n",
-                         entry->handle.context, entry->handle.resource, result));
+               VMCI_WARNING((LGPFX"Hibernate failed to create local produce "
+                             "queue from handle %x:%x (error: %d)\n",
+                             entry->handle.context, entry->handle.resource,
+                             result));
                VMCI_RevertToNonLocalQueue(consQ, oldConsQ, entry->consumeSize);
                VMCI_ReleaseQueueMutex(prodQ);
                continue;
@@ -1090,8 +1094,9 @@ VMCIQueuePair_Hibernate(Bool enterHibernation)
 
             result = VMCIQueuePairDetachHyperCall(entry->handle);
             if (result < VMCI_SUCCESS) {
-               VMCI_LOG((LGPFX "Hibernate failed to detach from handle %x:%x\n",
-                         entry->handle.context, entry->handle.resource));
+               VMCI_WARNING((LGPFX"Hibernate failed to detach from handle "
+                             "%x:%x\n",
+                             entry->handle.context, entry->handle.resource));
                VMCI_RevertToNonLocalQueue(consQ, oldConsQ, entry->consumeSize);
                VMCI_RevertToNonLocalQueue(prodQ, oldProdQ, entry->produceSize);
                VMCI_ReleaseQueueMutex(prodQ);

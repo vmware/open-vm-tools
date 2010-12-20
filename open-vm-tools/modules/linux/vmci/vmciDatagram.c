@@ -40,6 +40,8 @@
 #  error "Platform not support by VMCI datagram API."
 #endif // linux
 
+#define LGPFX "VMCIDatagram: "
+
 #include "vmci_kernel_if.h"
 #include "vm_basic_types.h"
 #include "vm_assert.h"
@@ -449,8 +451,8 @@ VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN
       wkMsg.wellKnownID = resourceID;
       result = VMCI_SendDatagram((VMCIDatagram *)&wkMsg);
       if (result < VMCI_SUCCESS) {
-         VMCI_LOG(("Failed to reserve wellknown id %d, error %d.\n",
-                   resourceID, result));
+         VMCI_DEBUG_LOG(4, (LGPFX"Failed to reserve wellknown id %d, "
+                            "error %d.\n", resourceID, result));
          return result;
       }
 
@@ -488,7 +490,7 @@ VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN
 
    result = DatagramHashAddEntry(entry, contextID);
    if (result != VMCI_SUCCESS) {
-      VMCI_LOG(("Failed to add new entry, err 0x%x.\n", result));
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to add new entry, err 0x%x.\n", result));
       VMCI_DestroyEvent(&entry->destroyEvent);
       VMCI_FreeKernelMem(entry, sizeof *entry);
       return result;
@@ -576,8 +578,8 @@ VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
       wkMsg.wellKnownID = entry->handle.resource;
       result = VMCI_SendDatagram((VMCIDatagram *)&wkMsg);
       if (result < VMCI_SUCCESS) {
-	 VMCI_LOG(("Failed to remove well-known mapping for resource %d.\n",
-		   entry->handle.resource));
+	 VMCI_WARNING((LGPFX"Failed to remove well-known mapping for "
+                       "resource %d.\n", entry->handle.resource));
       }
    }
 
@@ -614,20 +616,21 @@ VMCIDatagram_Send(VMCIDatagram *msg) // IN
    VMCIId contextId;
 
    if (msg == NULL) {
-      VMCI_LOG(("Invalid datagram.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid datagram.\n"));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
    if (VMCI_DG_SIZE(msg) > VMCI_MAX_DG_SIZE) {
-      VMCI_LOG(("Payload size %"FMT64"u too big to send.\n", msg->payloadSize));
+      VMCI_DEBUG_LOG(4, (LGPFX"Payload size %"FMT64"u too big to send.\n",
+                         msg->payloadSize));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
    /* Check srcHandle exists otherwise fail. */
    entry = DatagramHashGetEntry(msg->src);
    if (entry == NULL) {
-      VMCI_LOG(("Couldn't find handle 0x%x:0x%x.\n",
-		msg->src.context, msg->src.resource));
+      VMCI_DEBUG_LOG(4, (LGPFX"Couldn't find handle 0x%x:0x%x.\n",
+                         msg->src.context, msg->src.resource));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -704,15 +707,15 @@ VMCIDatagram_Dispatch(VMCIId contextID,  // IN: unused
 
    entry = DatagramHashGetEntryAnyCid(msg->dst);
    if (entry == NULL) {
-      VMCI_LOG(("destination handle 0x%x:0x%x doesn't exist.\n",
-		msg->dst.context, msg->dst.resource));
+      VMCI_DEBUG_LOG(4, (LGPFX"destination handle 0x%x:0x%x doesn't exist.\n",
+                         msg->dst.context, msg->dst.resource));
       return VMCI_ERROR_NO_HANDLE;
    }
 
    if (!entry->recvCB) {
-      VMCI_LOG(("no handle callback for handle 0x%x:0x%x payload of "
-                "size %"FMT64"d.\n",
-                msg->dst.context, msg->dst.resource, msg->payloadSize));
+      VMCI_WARNING((LGPFX"no handle callback for handle 0x%x:0x%x payload of "
+                    "size %"FMT64"d.\n", msg->dst.context, msg->dst.resource,
+                    msg->payloadSize));
       goto out;
    }
 
@@ -833,8 +836,8 @@ DatagramProcessNotify(void *clientData,   // IN:
    dgm = VMCI_AllocKernelMem(dgmSize,
 			     VMCI_MEMORY_NONPAGED | VMCI_MEMORY_ATOMIC);
    if (!dgm) {
-      VMCI_LOG(("VMCI: Failed to allocate datagram of size %d bytes.\n",
-		(uint32)dgmSize));
+      VMCI_WARNING((LGPFX"Failed to allocate datagram of size %d bytes.\n",
+                    (uint32)dgmSize));
       return VMCI_ERROR_NO_MEM;
    }
    memcpy(dgm, msg, dgmSize);
@@ -844,7 +847,7 @@ DatagramProcessNotify(void *clientData,   // IN:
 				 VMCI_MEMORY_NONPAGED | VMCI_MEMORY_ATOMIC);
    if (dqEntry == NULL) {
       VMCI_FreeKernelMem(dgm, dgmSize);
-      VMCI_LOG(("VMCI: Failed to allocate memory for process datagram.\n"));
+      VMCI_WARNING((LGPFX"Failed to allocate memory for process datagram.\n"));
       return VMCI_ERROR_NO_MEM;
    }
    dqEntry->dg = dgm;
@@ -854,7 +857,7 @@ DatagramProcessNotify(void *clientData,   // IN:
       VMCI_ReleaseLock_BH(&dgmProc->datagramQueueLock, flags);
       VMCI_FreeKernelMem(dgm, dgmSize);
       VMCI_FreeKernelMem(dqEntry, sizeof *dqEntry);
-      VMCI_LOG(("VMCI: Datagram process receive queue is full.\n"));
+      VMCI_LOG((LGPFX"Datagram process receive queue is full.\n"));
       return VMCI_ERROR_NO_RESOURCES;
    }
 
@@ -876,8 +879,8 @@ DatagramProcessNotify(void *clientData,   // IN:
    VMCI_ReleaseLock_BH(&dgmProc->datagramQueueLock, flags);
 #endif
 
-   DEBUG_ONLY(VMCI_LOG(("VMCI: Sent datagram with resource id %d and size %u.\n",
-                        msg->dst.resource, (uint32)dgmSize));)
+   VMCI_DEBUG_LOG(10, (LGPFX"Sent datagram with resource id %d and size %u.\n",
+                       msg->dst.resource, (uint32)dgmSize));
    /* dqEntry and dgm are freed when user reads call.. */
 
    return VMCI_SUCCESS;
@@ -1035,16 +1038,17 @@ VMCIDatagramProcess_ReadCall(VMCIDatagramProcess *dgmProc, // IN:
    if (dgmProc->pendingDatagrams == 0) {
       VMCIHost_ClearCall(&dgmProc->host);
       VMCI_ReleaseLock_BH(&dgmProc->datagramQueueLock, flags);
-      VMCI_LOG(("VMCI: No datagrams pending.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"No datagrams pending.\n"));
       return VMCI_ERROR_NO_MORE_DATAGRAMS;
    }
 #else
    while (dgmProc->pendingDatagrams == 0) {
       VMCIHost_ClearCall(&dgmProc->host);
-      if (!VMCIHost_WaitForCallLocked(&dgmProc->host, &dgmProc->datagramQueueLock,
+      if (!VMCIHost_WaitForCallLocked(&dgmProc->host,
+                                      &dgmProc->datagramQueueLock,
                                       &flags, TRUE)) {
          VMCI_ReleaseLock_BH(&dgmProc->datagramQueueLock, flags);
-         VMCI_LOG(("VMCI: Blocking read of datagram interrupted.\n"));
+         VMCI_DEBUG_LOG(4, (LGPFX"Blocking read of datagram interrupted.\n"));
          return VMCI_ERROR_NO_MORE_DATAGRAMS;
       }
    }
@@ -1059,7 +1063,7 @@ VMCIDatagramProcess_ReadCall(VMCIDatagramProcess *dgmProc, // IN:
    /* Check the size of the userland buffer. */
    if (maxSize < VMCI_DG_SIZE(dqEntry->dg)) {
       VMCI_ReleaseLock_BH(&dgmProc->datagramQueueLock, flags);
-      VMCI_LOG(("VMCI: Caller's buffer is too small.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Caller's buffer is too small.\n"));
       return VMCI_ERROR_NO_MEM;
    }
 

@@ -39,6 +39,8 @@
 #include "vmciUtil.h"
 #include "circList.h"
 
+#define LGPFX "VMCINotifications: "
+
 #if !defined(SOLARIS) && !defined(__APPLE__)
 
 /*
@@ -257,10 +259,10 @@ VMCINotifications_Hibernate(Bool enterHibernate)  // IN
          cur = LIST_CONTAINER(iter, VMCINotifyHashEntry, idxListItem);
          result = LinkNotificationHypercall(cur->handle, cur->doorbell, cur->idx);
          if (result != VMCI_SUCCESS && result != VMCI_ERROR_DUPLICATE_ENTRY) {
-            VMCI_LOG(("Failed to reregister doorbell handle 0x%x:0x%x of "
-                      "resource %s to index (error: %d).\n",
-                      cur->handle.context, cur->handle.resource,
-                      cur->doorbell ? "doorbell" : "queue pair", result));
+            VMCI_WARNING((LGPFX"Failed to reregister doorbell handle 0x%x:0x%x "
+                          "of resource %s to index (error: %d).\n",
+                          cur->handle.context, cur->handle.resource,
+                          cur->doorbell ? "doorbell" : "queue pair", result));
          }
       }
    }
@@ -844,9 +846,10 @@ VMCINotificationRegister(VMCIHandle *handle,     // IN
 
    result = LinkNotificationHypercall(entry->handle, doorbell, entry->idx);
    if (result != VMCI_SUCCESS) {
-      VMCI_LOG(("Failed to link handle 0x%x:0x%x of resource %s to index "
-                "(error: %d).\n", entry->handle.context, entry->handle.resource,
-                entry->doorbell ? "doorbell" : "queue pair", result));
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to link handle 0x%x:0x%x of resource %s "
+                         "to index (error: %d).\n",
+                         entry->handle.context, entry->handle.resource,
+                         entry->doorbell ? "doorbell" : "queue pair", result));
       VMCINotifyHashRemoveEntry(entry->handle, entry->doorbell);
       VMCI_DestroyEvent(&entry->destroyEvent);
       VMCI_FreeKernelMem(entry, sizeof *entry);
@@ -912,9 +915,10 @@ VMCINotificationUnregister(VMCIHandle handle, // IN
        * just print a warning and return success.
        */
 
-      VMCI_LOG(("Unlink of %s  handle 0x%x:0x%x unknown by hypervisor "
-                "(error: %d).\n", doorbell ? "doorbell" : "queuepair",
-                handle.context, handle.resource, result));
+      VMCI_DEBUG_LOG(4, (LGPFX"Unlink of %s  handle 0x%x:0x%x unknown by "
+                         "hypervisor (error: %d).\n",
+                         doorbell ? "doorbell" : "queuepair",
+                         handle.context, handle.resource, result));
    }
    return VMCI_SUCCESS;
 }
@@ -952,8 +956,9 @@ VMCI_RegisterNotificationBitmap(PPN bitmapPPN) // IN
 
    result = VMCI_SendDatagram((VMCIDatagram *)&bitmapSetMsg);
    if (result != VMCI_SUCCESS) {
-      VMCI_LOG(("VMCINotifications: Failed to register PPN %u as notification "
-                "bitmap (error: %d).\n", bitmapPPN, result));
+      VMCI_DEBUG_LOG(4, (LGPFX"VMCINotifications: Failed to register PPN %u as "
+                         "notification bitmap (error: %d).\n",
+                         bitmapPPN, result));
       return FALSE;
    }
    return TRUE;

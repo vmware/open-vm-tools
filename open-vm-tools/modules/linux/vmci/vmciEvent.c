@@ -45,8 +45,9 @@
 #endif
 #include "circList.h"  /* Must come after vmciVmkInt.h. */
 
-#define EVENT_MAGIC 0xEABE0000
+#define LGPFX "VMCIEvent: "
 
+#define EVENT_MAGIC 0xEABE0000
 
 typedef struct VMCISubscription {
    VMCIId         id;
@@ -509,8 +510,8 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    ASSERT(sub);
 
    if (!VMCI_EVENT_VALID(event) || callback == NULL) {
-      VMCILOG(("VMCIEvent: Failed to subscribe to event %d cb %p data %p.\n",
-               event, callback, callbackData));
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to subscribe to event %d cb %p data %p.\n",
+                      event, callback, callbackData));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -654,7 +655,7 @@ VMCIEvent_Subscribe(VMCI_Event event,        // IN
    VMCISubscription *s = NULL;
 
    if (subscriptionID == NULL) {
-      VMCILOG(("VMCIEvent: Invalid arguments.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid arguments.\n"));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
