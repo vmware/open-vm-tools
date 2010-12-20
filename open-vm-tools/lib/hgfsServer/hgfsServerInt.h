@@ -450,6 +450,7 @@ typedef struct HgfsInputParam {
    HgfsSessionInfo *session;
    HgfsPacket *packet;
    void const *payload;
+   uint32 payloadOffset;
    size_t payloadSize;
    HgfsOp op;
    uint32 id;

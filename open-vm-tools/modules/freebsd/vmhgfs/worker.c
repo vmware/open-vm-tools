@@ -228,6 +228,11 @@ HgfsKReqWorker(void *arg)
       }
 
 done:
+
+      /*
+       * If transport wants to process request async then it should have
+       * taken reference for itself. If not we free it.
+       */
       if (os_add_atomic(&req->refcnt, -1) == 1) {
          os_zone_free(hgfsKReqZone, req);
       }
@@ -235,6 +240,8 @@ done:
 
    /*
     * NB:  The work item lock is still held.
+    *
+    * XXX There may be some request on the sentList. what should we do about them ?
     */
 
    /*

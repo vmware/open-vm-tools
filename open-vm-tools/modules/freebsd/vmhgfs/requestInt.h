@@ -95,6 +95,7 @@ struct HgfsTransportChannel;
 typedef struct HgfsKReqObject {
    DblLnkLst_Links fsNode;      // Link between object and its parent file system.
    DblLnkLst_Links pendingNode; // Link between object and pending request list.
+   DblLnkLst_Links sentNode;    // Link between object and sent request list.
 
    unsigned int refcnt;         // Object reference count
    HgfsKReqState state;         // Indicates state of request
@@ -104,10 +105,13 @@ typedef struct HgfsKReqObject {
                                 // above.
 
    uint32_t id;                 // The unique identifier of this request.
-                                // Typically set to the address of the HgfsKReq
-                                // object.
+                                // Typically just incremented sequentially
+                                // from zero.
    size_t payloadSize;          // Total size of payload
-   void *ioBuf;
+   void *ioBuf;                 // Pointer to memory descriptor.
+                                // Used for MacOS over VMCI.
+
+   /* On which channel was the request allocated/sent ?. */
    struct HgfsTransportChannel *channel;
    /*
     * The file system is concerned only with the payload portion of an Hgfs
@@ -120,9 +124,14 @@ typedef struct HgfsKReqObject {
     * packet, and the command is varied by the transport layer.) So, anyway, effectively
     * all of __rpc_packet will be sent across the backdoor, but the file system will only
     * muck with _payload.
+    *
+    * VMCI:
+    * Mac OS X is capable of using VMCI in which case _command will have
+    * HgfsVmciTransportStatus.
+    *
     */
    struct {
-      char      _command[HGFS_REQUEST_PREFIX_LENGTH];  // Typically "f ".
+      char      _command[HGFS_REQUEST_PREFIX_LENGTH];
       char      _payload[HGFS_PACKET_MAX];      // Contains both the request and
                                                 // its reply.
    } __rpc_packet;

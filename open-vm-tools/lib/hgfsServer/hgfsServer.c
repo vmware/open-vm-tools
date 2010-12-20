@@ -2845,6 +2845,8 @@ HgfsServerProcessRequest(void *context)
                                              &input->metaPacketSize,
                                              input->session);
    }
+
+   input->payload = (char *)input->metaPacket + input->payloadOffset;
    (*handlers[input->op].handler)(input);
 }
 
@@ -2913,7 +2915,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
           (input->metaPacketSize >= handlers[input->op].minReqSize)) {
          /* Initial validation passed, process the client request now. */
          packet->processedAsync = packet->supportsAsync &&
-                                  (handlers[input->op].reqType == REQ_ASYNC);
+                                         (handlers[input->op].reqType == REQ_ASYNC);
          if (packet->processedAsync) {
             LOG(4, ("%s: %d: @@Async\n", __FUNCTION__, __LINE__));
 #ifndef VMX86_TOOLS

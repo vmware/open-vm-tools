@@ -358,6 +358,9 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
    if (HGFS_ERROR_SUCCESS != result) {
       LOG(4, ("%s: Malformed HGFS packet received!\n", __FUNCTION__));
    }
+
+   localInput->payloadOffset = (char *)localInput->payload -
+                               (char *)localInput->metaPacket;
    *status = result;
    return TRUE;
 }

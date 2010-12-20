@@ -371,7 +371,7 @@ HgfsKReq_ContainerIsEmpty(HgfsKReqContainerHandle container)       // IN:
  *      interrupted by a signal.
  *
  * Results:
- *      0 on success, error code on failure.
+ *      Pointer to fresh HgfsKReqHandle or NULL on failure.
  *
  * Side effects:
  *      Request inserted into caller's requests container.  This routine may
@@ -396,6 +396,11 @@ HgfsKReq_AllocateRequest(HgfsKReqContainerHandle container,  // IN:
       return NULL;
    }
 
+   /*
+    * In case we don't have any channel currently, set up a new channel.
+    * Note that we remember the channel from which request was allocated
+    * and sent, thereby making sure that we free it via correct channel.
+    */
    if (gHgfsChannel->status != HGFS_CHANNEL_CONNECTED) {
       if (!HgfsSetupNewChannel()) {
          *errorRet = EIO;
@@ -734,16 +739,12 @@ HgfsKReqZInit(void *mem,     // IN: Pointer to the allocated object
               int size,      // IN: Size of item being initialized [ignored]
               int flags)     // IN: malloc(9) style flags
 {
+   static unsigned int id = 0;
    HgfsKReqObject *req = (HgfsKReqObject *)mem;
    ASSERT(size == sizeof *req);
 
-   /*
-    * Request IDs are a 32-bit unsigned integer.  Conveniently enough for us,
-    * our memory addresses provide (at least) 32 bits.
-    *
-    * Assumption:  Kernel memory will never straddle a 2**32 byte boundary.
-    */
-   req->id = (uint32_t)((unsigned long)req & 0xffffffff);
+   os_add_atomic(&id, 1);
+   req->id = id;
    req->state = HGFS_REQ_UNUSED;
    req->stateLock = os_mutex_alloc_init("hgfs_req_mtx");
    if (!req->stateLock) {
@@ -755,6 +756,7 @@ HgfsKReqZInit(void *mem,     // IN: Pointer to the allocated object
    /* Reset list pointers. */
    DblLnkLst_Init(&req->fsNode);
    DblLnkLst_Init(&req->pendingNode);
+   DblLnkLst_Init(&req->sentNode);
 
    /* Clear packet of request before allocating to clients. */
    bzero(&req->__rpc_packet, sizeof req->__rpc_packet);
