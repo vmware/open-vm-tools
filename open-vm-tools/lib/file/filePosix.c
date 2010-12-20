@@ -38,6 +38,9 @@
 #  include <sys/mount.h>
 # else
 #  include <mntent.h>
+#  if defined __ANDROID__
+#   include <paths.h> /* for _PATH_MOUNTED */
+#  endif
 # endif
 #include <signal.h>
 #endif
@@ -1441,7 +1444,16 @@ FilePosixLookupMountPoint(char const *canPath,  // IN: Canonical file path
    size = 4 * FILE_MAXPATH;  // Should suffice for most locales
 
 retry:
+#if defined __ANDROID__
+   /*
+    * Android supports neither setmntent() nor MOUNTED.
+    * The code below is a workaround.
+    */
+   NOT_TESTED();
+   f = fopen(_PATH_MOUNTED, "r");
+#else
    f = setmntent(MOUNTED, "r");
+#endif
    if (f == NULL) {
       return NULL;
    }

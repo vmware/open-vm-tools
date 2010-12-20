@@ -17,64 +17,53 @@
  *********************************************************/
 
 /**
- * @file copyPasteRpcV3.hh --
+ * @copyPasteRpc.hh --
  *
- * Rpc layer object for CopyPaste version 3.
+ * Rpc layer object for CopyPaste.
  */
 
-#ifndef COPY_PASTE_RPC_V3_HH
-#define COPY_PASTE_RPC_V3_HH
+#ifndef COPY_PASTE_RPC_HH
+#define COPY_PASTE_RPC_HH
 
-#include <sigc++/trackable.h>
-#include "copyPasteRpc.hh"
-#include "dndCPTransport.h"
-#include "rpcV3Util.hpp"
+#include <sigc++/connection.h>
+#include "dndCPLibExport.hh"
+#include "rpcBase.h"
 
 extern "C" {
-#include "vmware/tools/guestrpc.h"
    #include "dnd.h"
-   #include "dndMsg.h"
 }
 
-class CopyPasteRpcV3
-   : public CopyPasteRpc,
-     public sigc::trackable
+class LIB_EXPORT CopyPasteRpc
+   : public RpcBase
 {
 public:
-   CopyPasteRpcV3(DnDCPTransport *transport);
-   virtual ~CopyPasteRpcV3(void);
+   virtual ~CopyPasteRpc(void) {};
 
-   virtual void Init(void);
+   /* sigc signals for CopyPaste source callback. */
+   sigc::signal<void, uint32, bool, const CPClipboard*> srcRecvClipChanged;
+   sigc::signal<void, uint32, const uint8 *, uint32> requestFilesChanged;
+   sigc::signal<void, uint32, bool, const uint8 *, uint32> getFilesDoneChanged;
+
+   /* sigc signals for CopyPaste destination callback. */
+   sigc::signal<void, uint32, bool> destRequestClipChanged;
+
+   virtual void Init(void) = 0;
 
    /* CopyPaste Rpc functions. */
    virtual bool SrcRequestClip(uint32 sessionId,
-                               bool isActive);
+                               bool isActive) = 0;
    virtual bool DestSendClip(uint32 sessionId,
                              bool isActive,
-                             const CPClipboard* clip);
+                             const CPClipboard* clip) = 0;
    virtual bool RequestFiles(uint32 sessionId,
                              const uint8 *stagingDirCP,
-                             uint32 sz);
+                             uint32 sz) = 0;
    virtual bool SendFilesDone(uint32 sessionId,
                               bool success,
                               const uint8 *stagingDirCP,
-                              uint32 sz);
+                              uint32 sz) = 0;
    virtual bool GetFilesDone(uint32 sessionId,
-                             bool success);
-   virtual void HandleMsg(RpcParams *params,
-                          const uint8 *binary,
-                          uint32 binarySize);
-   virtual bool SendPacket(uint32 destId,
-                           const uint8 *packet,
-                           size_t length);
-   virtual void OnRecvPacket(uint32 srcId,
-                             const uint8 *packet,
-                             size_t packetSize);
-
-private:
-   DnDCPTransport *mTransport;
-   TransportInterfaceType mTransportInterface;
-   RpcV3Util mUtil;
+                             bool success) = 0;
 };
 
-#endif // COPY_PASTE_RPC_V3_HH
+#endif // COPY_PASTE_RPC_HH

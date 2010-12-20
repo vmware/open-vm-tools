@@ -17,74 +17,49 @@
  *********************************************************/
 
 /**
- * @file dndRpcV3.hh --
+ * @copyPasteRpcV4.hh --
  *
- * Rpc layer object for DnD version 3.
+ * Rpc layer object for CopyPaste version 4.
  */
 
-#ifndef DND_RPC_V3_HH
-#define DND_RPC_V3_HH
+#ifndef COPY_PASTE_RPC_V4_HH
+#define COPY_PASTE_RPC_V4_HH
 
 #include <sigc++/trackable.h>
-#include "dndRpc.hh"
+#include "copyPasteRpc.hh"
 #include "dndCPTransport.h"
-#include "rpcV3Util.hpp"
+#include "rpcV4Util.hpp"
 
 extern "C" {
    #include "dnd.h"
    #include "dndMsg.h"
-   #include "vmware/tools/guestrpc.h"
+   #include "dndCPMsgV4.h"
 }
 
-class LIB_EXPORT DnDRpcV3
-   : public DnDRpc,
+class LIB_EXPORT CopyPasteRpcV4
+   : public CopyPasteRpc,
      public sigc::trackable
 {
 public:
-   DnDRpcV3(DnDCPTransport *transport);
-   virtual ~DnDRpcV3(void);
+   CopyPasteRpcV4(DnDCPTransport *transport);
 
    virtual void Init(void);
 
-   /* DnD source. */
-   virtual bool SrcDragBeginDone(uint32 sessionId);
-   virtual bool SrcDrop(uint32 sessionId, int32 x, int32 y);
-   virtual bool SrcDropDone(uint32 sessionId, const uint8 *stagingDirCP, uint32 sz);
-
-   virtual bool SrcPrivDragEnter(uint32 sessionId);
-   virtual bool SrcPrivDragLeave(uint32 sessionId, int32 x, int32 y);
-   virtual bool SrcPrivDrop(uint32 sessionId, int32 x, int32 y);
-
-   /* DnD destination. */
-   virtual bool DestDragEnter(uint32 sessionId,
-                              const CPClipboard *clip);
+   /* CopyPaste Rpc functions. */
+   virtual bool SrcRequestClip(uint32 sessionId,
+                               bool isActive);
    virtual bool DestSendClip(uint32 sessionId,
-                             const CPClipboard *clip);
-   virtual bool DestDragLeave(uint32 sessionId,
-                              int32 x,
-                              int32 y);
-   virtual bool DestDrop(uint32 sessionId,
-                         int32 x,
-                         int32 y);
-
-   /* Common. */
-   virtual bool UpdateFeedback(uint32 sessionId, DND_DROPEFFECT feedback);
-   virtual bool MoveMouse(uint32 sessionId,
-                          int32 x,
-                          int32 y);
-   virtual bool QueryExiting(uint32 sessionId, int32 x, int32 y);
-   virtual bool DragNotPending(uint32 sessionId);
-   virtual bool UpdateUnityDetWnd(uint32 sessionId,
-                                  bool show,
-                                  uint32 unityWndId);
-   virtual bool RequestFiles(uint32 sessionId);
+                             bool isActive,
+                             const CPClipboard* clip);
+   virtual bool RequestFiles(uint32 sessionId,
+                             const uint8 *stagingDirCP,
+                             uint32 sz);
    virtual bool SendFilesDone(uint32 sessionId,
                               bool success,
                               const uint8 *stagingDirCP,
                               uint32 sz);
    virtual bool GetFilesDone(uint32 sessionId,
                              bool success);
-
    virtual void HandleMsg(RpcParams *params,
                           const uint8 *binary,
                           uint32 binarySize);
@@ -96,11 +71,9 @@ public:
                              size_t packetSize);
 
 private:
-   bool SrcDragEnterDone(int32 x, int32 y);
    DnDCPTransport *mTransport;
    TransportInterfaceType mTransportInterface;
-   CPClipboard mClipboard;
-   RpcV3Util mUtil;
+   RpcV4Util mUtil;
 };
 
-#endif // DND_RPC_V3_HH
+#endif // COPY_PASTE_RPC_V4_HH

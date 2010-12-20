@@ -27,6 +27,7 @@
 #define G_LOG_DOMAIN "dndcp"
 
 #include "copyPasteDnDWrapper.h"
+#include "guestDnDCPMgr.hh"
 
 #if defined(HAVE_GTKMM)
 #include "copyPasteDnDX11.h"
@@ -120,6 +121,16 @@ void
 CopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
 {
    m_ctx = ctx;
+
+   /*
+    * We only support DnD/CP V3 and greater.
+    */
+   if (GetDnDVersion() >= 3 && GetCPVersion() >= 3 || GetCPVersion() == 1) {
+      GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
+      ASSERT(p);
+      p->Init(ctx);
+   }
+
    if (!m_pimpl) {
 #if defined(HAVE_GTKMM)
       m_pimpl = new CopyPasteDnDX11();
@@ -516,7 +527,7 @@ CopyPasteDnDWrapper::OnCapReg(gboolean set)
    g_debug("%s: enter\n", __FUNCTION__);
    char *reply;
    size_t replyLen;
-   char const *toolsDnDVersion = TOOLS_DND_VERSION_3;
+   const char *toolsDnDVersion = TOOLS_DND_VERSION_4;
    char *toolsCopyPasteVersion = NULL;
    int version;
 
@@ -542,9 +553,25 @@ CopyPasteDnDWrapper::OnCapReg(gboolean set)
             SetDnDVersion(version);
          } else {
             int version = atoi(reply);
-            ASSERT(version > 1);
+            ASSERT(version >= 1);
             SetDnDVersion(version);
             g_debug("%s: VMX is dnd version %d\n", __FUNCTION__, GetDnDVersion());
+            if (version == 3) {
+               /*
+                * VMDB still has version 4 in it, which will cause a V3
+                * host to fail. So, change to version 3. Since we don't
+                * support any other version, we only do this for V3.
+                */
+               toolsDnDVersion = TOOLS_DND_VERSION_3;
+               if (!RpcChannel_Send(ctx->rpc, toolsDnDVersion,
+                                    strlen(toolsDnDVersion), NULL, NULL)) {
+
+                  g_debug("%s: could not set VMX dnd version capability, assuming v1\n",
+                           __FUNCTION__);
+                  version = 1;
+                  SetDnDVersion(version);
+               }
+            }
          }
          vm_free(reply);
        }
@@ -553,7 +580,7 @@ CopyPasteDnDWrapper::OnCapReg(gboolean set)
        * Now CopyPaste.
        */
 
-      toolsCopyPasteVersion = g_strdup_printf(TOOLS_COPYPASTE_VERSION" %d", 3);
+      toolsCopyPasteVersion = g_strdup_printf(TOOLS_COPYPASTE_VERSION" %d", 4);
       if (!RpcChannel_Send(ctx->rpc, toolsCopyPasteVersion,
                            strlen(toolsCopyPasteVersion),
                            NULL, NULL)) {
@@ -576,6 +603,23 @@ CopyPasteDnDWrapper::OnCapReg(gboolean set)
             SetCPVersion(version);
             g_debug("%s: VMX is copypaste version %d\n", __FUNCTION__,
                   GetCPVersion());
+            if (version == 3) {
+               /*
+                * VMDB still has version 4 in it, which will cause a V3
+                * host to fail. So, change to version 3. Since we don't
+                * support any other version, we only do this for V3.
+                */
+               g_free(toolsCopyPasteVersion);
+               toolsCopyPasteVersion = g_strdup_printf(TOOLS_COPYPASTE_VERSION" %d", 3);
+               if (!RpcChannel_Send(ctx->rpc, toolsCopyPasteVersion,
+                                    strlen(toolsCopyPasteVersion), NULL, NULL)) {
+
+                  g_debug("%s: could not set VMX copypaste version, assuming v1\n",
+                           __FUNCTION__);
+                  version = 1;
+                  SetCPVersion(version);
+               }
+            }
          }
          vm_free(reply);
       }

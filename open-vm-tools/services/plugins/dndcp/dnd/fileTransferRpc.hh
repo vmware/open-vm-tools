@@ -16,31 +16,39 @@
  *
  *********************************************************/
 
-/*
- * dndPluginInt.h
+/**
+ * @fileTransferRpc.hh --
  *
- *    Various DnD plugin defines.
- *
+ * File transfer roc object for DnD/CopyPaste.
  */
 
-#if !defined (__DNDPLUGIN_INT_H__)
-#define __DNDPLUGIN_INT_H__
+#ifndef FILE_TRANSFER_RPC_HH
+#define FILE_TRANSFER_RPC_HH
+
+#include <sigc++/connection.h>
+#include "dndCPLibExport.hh"
+#include "rpcBase.h"
 
 extern "C" {
-   #include "guestApp.h"
-   #include "eventManager.h"
-   #include "conf.h"
+   #include "vm_basic_types.h"
 }
 
-#define DEBUG_PREFIX             "vmusr"
-#define RPC_POLL_TIME            10
-#define POINTER_POLL_TIME        10
-#define UNGRABBED_POS (-100)
-#define VMWARE_CLIP_FORMAT_NAME     L"VMwareClipFormat"
-#define TOOLS_DND_VERSION_3         "tools.capability.dnd_version 3"
-#define TOOLS_DND_VERSION_4         "tools.capability.dnd_version 4"
-#define QUERY_VMX_DND_VERSION       "vmx.capability.dnd_version"
-#define TOOLS_COPYPASTE_VERSION     "tools.capability.copypaste_version"
-#define QUERY_VMX_COPYPASTE_VERSION "vmx.capability.copypaste_version"
+class LIB_EXPORT FileTransferRpc
+   : public RpcBase
+{
+public:
+   virtual ~FileTransferRpc(void) {};
 
-#endif
+   sigc::signal<void, uint32, const uint8 *, size_t> HgfsPacketReceived;
+   sigc::signal<void, uint32, const uint8 *, size_t> HgfsReplyReceived;
+
+   virtual void Init(void) = 0;
+   virtual bool SendHgfsPacket(uint32 sessionId,
+                               const uint8 *packet,
+                               uint32 packetSize) = 0;
+   virtual bool SendHgfsReply(uint32 sessionId,
+                              const uint8 *packet,
+                              uint32 packetSize) = 0;
+};
+
+#endif // FILE_TRANSFER_RPC_HH

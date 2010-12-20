@@ -32,6 +32,9 @@
 #include <Security/Authorization.h>
 #include <Security/AuthorizationTags.h>
 #endif
+#if defined __ANDROID__
+#include <syscall-android.h>
+#endif
 
 #include "vmware.h"
 #include "su.h"
@@ -104,7 +107,7 @@ Id_SetUid(uid_t euid)		// IN: new euid
 {
 #if defined(__FreeBSD__) || defined(sun)
    return setuid(euid);
-#elif defined(linux)
+#elif defined(linux) || defined __ANDROID__
    if (uid32) {
       int r = syscall(SYS_setuid32, euid);
       if (r != -1 || errno != ENOSYS) {

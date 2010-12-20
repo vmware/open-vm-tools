@@ -65,7 +65,9 @@
 #include <sys/vfs.h>
 #endif
 #if !defined(sun) && (!defined(USING_AUTOCONF) || (defined(HAVE_SYS_IO_H) && defined(HAVE_SYS_SYSINFO_H)))
-#include <sys/io.h>
+# ifndef __ANDROID__
+# include <sys/io.h>
+# endif
 #include <sys/sysinfo.h>
 #ifndef HAVE_SYSINFO
 #define HAVE_SYSINFO 1

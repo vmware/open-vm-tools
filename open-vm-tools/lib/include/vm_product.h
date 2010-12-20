@@ -562,6 +562,8 @@
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Solaris"
 #elif defined(__APPLE__)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Mac OS X"
+#elif defined __ANDROID__
+#  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Android"
 #else
 #  ifdef VMX86_TOOLS
 #    error "Define a product string for this platform."

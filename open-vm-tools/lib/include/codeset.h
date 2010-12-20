@@ -65,7 +65,8 @@
 #if defined(__FreeBSD__) || \
     defined(VMX86_SERVER) || \
     defined(__APPLE__) || \
-    defined(N_PLAT_NLM)
+    defined(N_PLAT_NLM) || \
+    defined __ANDROID__
 #define CURRENT_IS_UTF8
 #endif
 

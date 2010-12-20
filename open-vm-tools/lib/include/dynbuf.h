@@ -97,7 +97,11 @@ DynBuf_SafeInternalAppend(DynBuf *b,            // IN
  *-----------------------------------------------------------------------------
  */
 
+#if defined(SWIG)
+static void *
+#else
 static INLINE void *
+#endif
 DynBuf_Get(DynBuf const *b) // IN
 {
    ASSERT(b);
@@ -122,7 +126,11 @@ DynBuf_Get(DynBuf const *b) // IN
  *-----------------------------------------------------------------------------
  */
 
+#if defined(SWIG)
+static size_t
+#else
 static INLINE size_t
+#endif
 DynBuf_GetSize(DynBuf const *b) // IN
 {
    ASSERT(b);
@@ -147,7 +155,11 @@ DynBuf_GetSize(DynBuf const *b) // IN
  *-----------------------------------------------------------------------------
  */
 
+#if defined(SWIG)
+static void
+#else
 static INLINE void
+#endif
 DynBuf_SetSize(DynBuf *b,   // IN
                size_t size) // IN
 {
@@ -174,7 +186,11 @@ DynBuf_SetSize(DynBuf *b,   // IN
  *-----------------------------------------------------------------------------
  */
 
+#if defined(SWIG)
+static size_t
+#else
 static INLINE size_t
+#endif
 DynBuf_GetAllocatedSize(DynBuf const *b) // IN
 {
    ASSERT(b);
@@ -202,7 +218,11 @@ DynBuf_GetAllocatedSize(DynBuf const *b) // IN
  *----------------------------------------------------------------------------
  */
 
+#if defined(SWIG)
+static Bool
+#else
 static INLINE Bool
+#endif
 DynBuf_AppendString(DynBuf *buf,         // IN
                     const char *string)  // IN
 {

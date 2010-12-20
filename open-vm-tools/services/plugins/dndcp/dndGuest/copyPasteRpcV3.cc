@@ -24,7 +24,6 @@
 
 
 #include "copyPasteRpcV3.hh"
-#include "dndTransportGuestRpc.hh"
 
 extern "C" {
    #include "dndMsg.h"
@@ -32,137 +31,103 @@ extern "C" {
    #include "dndClipboard.h"
 }
 
-/*
- *-----------------------------------------------------------------------------
+/**
+ * Constructor.
  *
- * CopyPasteRpcV3 --
- *
- *      Constructor of CopyPasteRpcV3 class.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
+ * @param[in] transport for sending packets.
  */
 
-CopyPasteRpcV3::CopyPasteRpcV3(RpcChannel *chan) // IN
+CopyPasteRpcV3::CopyPasteRpcV3(DnDCPTransport *transport)
+   : mTransport(transport),
+     mTransportInterface(TRANSPORT_GUEST_CONTROLLER_CP)
 {
-   mTransport = new DnDTransportGuestRpc(chan, "copypaste.transport");
-   mTransport->recvMsgChanged.connect(sigc::mem_fun(this, &CopyPasteRpcV3::OnRecvMsg));
+   ASSERT(mTransport);
+
+   mUtil.Init(this);
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- * CopyPasteRpcV3::~CopyPasteRpcV3 --
- *
- *      Destructor of CopyPasteRpcV3.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+/**
+ * Destructor.
  */
 
 CopyPasteRpcV3::~CopyPasteRpcV3(void)
 {
-   delete mTransport;
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- * CopyPasteRpcV3::GHGetClipboardDone --
- *
- *      Serialize all parameters and pass to transport layer for
- *      CP_GH_GET_CLIPBOARD_DONE signal.
- *
- * Results:
- *      TRUE if success, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+/**
+ * Init.
  */
 
-bool
-CopyPasteRpcV3::GHGetClipboardDone(const CPClipboard* clip) // IN
+void
+CopyPasteRpcV3::Init(void)
 {
-   DnDMsg msg;
-   DynBuf buf;
-   bool ret = FALSE;
-
-   DnDMsg_Init(&msg);
-   DynBuf_Init(&buf);
-
-   /* Serialize clip and output into buf. */
-   if (!CPClipboard_Serialize(clip, &buf)) {
-      Debug("%s: CPClipboard_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   /* Construct msg with both cmd CP_GH_GET_CLIPBOARD_DONE and buf. */
-   DnDMsg_SetCmd(&msg, CP_GH_GET_CLIPBOARD_DONE);
-   if (!DnDMsg_AppendArg(&msg, DynBuf_Get(&buf), DynBuf_GetSize(&buf))) {
-      Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   /* Reset buf. */
-   DynBuf_Destroy(&buf);
-   DynBuf_Init(&buf);
-
-   /* Serialize msg and output to buf. */
-   if (!DnDMsg_Serialize(&msg, &buf)) {
-      Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   ret = mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
-
-exit:
-   DynBuf_Destroy(&buf);
-   DnDMsg_Destroy(&msg);
-   return ret;
+   Debug("%s: entering.\n", __FUNCTION__);
+   ASSERT(mTransport);
+   mTransport->RegisterRpc(this, mTransportInterface);
 }
 
 
-/*
- *----------------------------------------------------------------------
+/**
+ * Not needed for version 3.
  *
- * CopyPasteRpcV3::HGStartFileCopy --
+ * @param[ignored] sessionId active session id the controller assigned
+ * @param[ignored] isActive active or passive CopyPaste
  *
- *      Serialize all parameters and pass to transport layer for
- *      CP_HG_START_FILE_COPY signal.
- *
- * Results:
- *      TRUE if success, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+ * @return always true.
  */
 
 bool
-CopyPasteRpcV3::HGStartFileCopy(const char *stagingDirCP, // IN
-                                size_t sz)                // IN
+CopyPasteRpcV3::SrcRequestClip(uint32 sessionId,
+                               bool isActive)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Send cmd CP_GH_GET_CLIPBOARD_DONE to controller.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] isActive active or passive CopyPaste
+ * @param[in] clip cross-platform clipboard data.
+ *
+ * @return true on success, false otherwise.
+ */
+
+bool
+CopyPasteRpcV3::DestSendClip(uint32 sessionId,
+                             bool isActive,
+                             const CPClipboard* clip)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return mUtil.SendMsg(CP_GH_GET_CLIPBOARD_DONE, clip);
+}
+
+
+/**
+ * Send cmd CP_HG_START_FILE_COPY to controller.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[in] stagingDirCP staging dir name in cross-platform format
+ * @param[in] sz the staging dir name size in bytes
+ *
+ * @return true on success, false otherwise.
+ */
+
+bool
+CopyPasteRpcV3::RequestFiles(uint32 sessionId,
+                             const uint8 *stagingDirCP,
+                             uint32 sz)
 {
    DnDMsg msg;
-   DynBuf buf;
-   bool ret = FALSE;
+   bool ret = false;
+
+   Debug("%s: entering.\n", __FUNCTION__);
 
    DnDMsg_Init(&msg);
-   DynBuf_Init(&buf);
 
    /* Construct msg with both cmd CP_HG_START_FILE_COPY and stagingDirCP. */
    DnDMsg_SetCmd(&msg, CP_HG_START_FILE_COPY);
@@ -171,41 +136,89 @@ CopyPasteRpcV3::HGStartFileCopy(const char *stagingDirCP, // IN
       goto exit;
    }
 
-   /* Serialize msg and output to buf. */
-   if (!DnDMsg_Serialize(&msg, &buf)) {
-      Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   ret = mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
+   ret = mUtil.SendMsg(&msg);
 
 exit:
-   DynBuf_Destroy(&buf);
    DnDMsg_Destroy(&msg);
    return ret;
 }
 
 
-/*
- *----------------------------------------------------------------------
+/**
+ * Not needed for version 3.
  *
- * CopyPasteRpcV3::OnRecvMsg --
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] success the file transfer operation was successful or not
+ * @param[ignored] stagingDirCP staging dir name in cross-platform format
+ * @param[ignored] sz the staging dir name size in bytes
  *
- *      Received a new message from transport layer. Unserialize and
- *      translate it and emit corresponding signal.
+ * @return always true.
+ */
+
+bool
+CopyPasteRpcV3::SendFilesDone(uint32 sessionId,
+                              bool success,
+                              const uint8 *stagingDirCP,
+                              uint32 sz)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
  *
- * Results:
- *      None.
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] success the file transfer operation was successful or not
  *
- * Side effects:
- *      None.
+ * @return always true.
+ */
+
+bool
+CopyPasteRpcV3::GetFilesDone(uint32 sessionId,
+                             bool success)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Send a packet.
  *
- *----------------------------------------------------------------------
+ * @param[in] destId destination address id.
+ * @param[in] packet
+ * @param[in] length packet length in byte
+ *
+ * @return true on success, false otherwise.
+ */
+
+bool
+CopyPasteRpcV3::SendPacket(uint32 destId,
+                           const uint8 *packet,
+                           size_t length)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return mTransport->SendPacket(destId,
+                                 mTransportInterface,
+                                 packet,
+                                 length);
+}
+
+
+/**
+ * Handle a received message.
+ *
+ * @param[in] params parameter list for received message.
+ * @param[in] binary attached binary data for received message.
+ * @param[in] binarySize in byte
  */
 
 void
-CopyPasteRpcV3::OnRecvMsg(const uint8 *data, // IN
-                          size_t dataSize)   // IN
+CopyPasteRpcV3::HandleMsg(RpcParams *params,
+                          const uint8 *binary,
+                          uint32 binarySize)
 {
    DnDMsg msg;
    DnDMsgErr ret;
@@ -213,54 +226,28 @@ CopyPasteRpcV3::OnRecvMsg(const uint8 *data, // IN
 
    DnDMsg_Init(&msg);
 
-   ret = DnDMsg_UnserializeHeader(&msg, (void *)data, dataSize);
+   ret = DnDMsg_UnserializeHeader(&msg, (void *)binary, binarySize);
    if (DNDMSG_SUCCESS != ret) {
-      Debug("%s: DnDMsg_UnserializeHeader failed with %d\n",
-             __FUNCTION__, ret);
+      Debug("%s: DnDMsg_UnserializeHeader failed %d\n", __FUNCTION__, ret);
       goto exit;
    }
 
    ret = DnDMsg_UnserializeArgs(&msg,
-                                (void *)&data[DNDMSG_HEADERSIZE_V3],
-                                dataSize - DNDMSG_HEADERSIZE_V3);
+                                (void *)(binary + DNDMSG_HEADERSIZE_V3),
+                                binarySize - DNDMSG_HEADERSIZE_V3);
    if (DNDMSG_SUCCESS != ret) {
-      Debug("%s: DnDMsg_UnserializeArgs failed with %d\n",
-            __FUNCTION__, ret);
+      Debug("%s: DnDMsg_UnserializeArgs failed with %d\n", __FUNCTION__, ret);
       goto exit;
    }
 
-   /* Translate command and emit signal. */
+   Debug("%s: Got %d, binary size %d.\n",
+         __FUNCTION__, DnDMsg_GetCmd(&msg), binarySize);
+
+   /*
+    * Translate command and emit signal. Session Id 1 is used because version
+    * 3 command does not provide session Id.
+    */
    switch (DnDMsg_GetCmd(&msg)) {
-   case CP_GH_GET_CLIPBOARD:
-      ghGetClipboardChanged.emit();
-#if defined (DND_TRANSPORT_TEST)
-      /* Sending 60 packets to host side to test transport. */
-      for (uint32 i = 1; i < 60; i++) {
-         DnDMsg msg;
-         DynBuf buf;
-
-         DnDMsg_Init(&msg);
-         DynBuf_Init(&buf);
-
-         DnDMsg_SetCmd(&msg, CP_GH_TRANSPORT_TEST);
-         if (!DnDMsg_AppendArg(&msg, &i, sizeof i)) {
-            Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
-            goto error;
-         }
-
-         if (!DnDMsg_Serialize(&msg, &buf)) {
-            Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-            goto error;
-         }
-
-         mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
-
-      error:
-         DynBuf_Destroy(&buf);
-         DnDMsg_Destroy(&msg);
-      }
-#endif
-      break;
    case CP_HG_SET_CLIPBOARD:
    {
       CPClipboard clip;
@@ -271,7 +258,8 @@ CopyPasteRpcV3::OnRecvMsg(const uint8 *data, // IN
          Debug("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
          goto exit;
       }
-      hgSetClipboardChanged.emit(&clip);
+      srcRecvClipChanged.emit(1, false, &clip);
+      CPClipboard_Destroy(&clip);
       break;
    }
    case CP_HG_FILE_COPY_DONE:
@@ -281,7 +269,12 @@ CopyPasteRpcV3::OnRecvMsg(const uint8 *data, // IN
       if (sizeof success == DynBuf_GetSize(buf)) {
          memcpy(&success, DynBuf_Get(buf), DynBuf_GetSize(buf));
       }
-      hgFileCopyDoneChanged.emit(success);
+      getFilesDoneChanged.emit(1, success, NULL, 0);
+      break;
+   }
+   case CP_GH_GET_CLIPBOARD:
+   {
+      destRequestClipChanged.emit(1, false);
       break;
    }
    default:
@@ -290,4 +283,22 @@ CopyPasteRpcV3::OnRecvMsg(const uint8 *data, // IN
    }
 exit:
    DnDMsg_Destroy(&msg);
+}
+
+
+/**
+ * Callback from transport layer after received a packet from srcId.
+ *
+ * @param[in] srcId addressId where the packet is from
+ * @param[in] packet
+ * @param[in] packetSize
+ */
+
+void
+CopyPasteRpcV3::OnRecvPacket(uint32 srcId,
+                             const uint8 *packet,
+                             size_t packetSize)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   mUtil.OnRecvPacket(srcId, packet, packetSize);
 }

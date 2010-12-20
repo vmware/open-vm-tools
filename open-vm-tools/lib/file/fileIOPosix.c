@@ -32,6 +32,9 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#if defined __ANDROID__
+#include <asm/unistd.h> // for __NR_SYSCALL_BASE
+#endif
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>

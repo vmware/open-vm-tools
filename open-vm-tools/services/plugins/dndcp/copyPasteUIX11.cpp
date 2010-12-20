@@ -33,6 +33,7 @@
 #include "copyPasteDnDWrapper.h"
 #include "copyPasteUIX11.h"
 #include "dndFileList.hh"
+#include "guestDnDCPMgr.hh"
 
 extern "C" {
    #include "vmblock.h"
@@ -93,6 +94,10 @@ CopyPasteUIX11::CopyPasteUIX11()
    mBlockCtrl(0),
    mInited(false)
 {
+   GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
+   ASSERT(p);
+   mCP = p->GetCopyPasteMgr();
+   ASSERT(mCP);
 }
 
 
@@ -131,11 +136,11 @@ CopyPasteUIX11::Init()
    mListTargets.push_back(gnome);
    mListTargets.push_back(kde);
 
-   mCP.newClipboard.connect(
+   mCP->srcRecvClipChanged.connect(
       sigc::mem_fun(this, &CopyPasteUIX11::GetRemoteClipboardCB));
-   mCP.localGetClipboard.connect(
+   mCP->destRequestClipChanged.connect(
       sigc::mem_fun(this, &CopyPasteUIX11::GetLocalClipboard));
-   mCP.localGetFilesDoneChanged.connect(
+   mCP->getFilesDoneChanged.connect(
       sigc::mem_fun(this, &CopyPasteUIX11::GetLocalFilesDone));
 
    mInited = true;
@@ -186,8 +191,9 @@ void
 CopyPasteUIX11::VmxCopyPasteVersionChanged(RpcChannel *chan,    // IN
                                            uint32 version)      // IN
 {
+   ASSERT(mCP);
    g_debug("%s: new version is %d\n", __FUNCTION__, version);
-   mCP.VmxCopyPasteVersionChanged(chan, version);
+   mCP->VmxCopyPasteVersionChanged(version);
 }
 
 
@@ -209,20 +215,25 @@ CopyPasteUIX11::VmxCopyPasteVersionChanged(RpcChannel *chan,    // IN
  *-----------------------------------------------------------------------------
  */
 
-bool
-CopyPasteUIX11::GetLocalClipboard(CPClipboard *clip) // OUT
+void
+CopyPasteUIX11::GetLocalClipboard(void)
 {
    g_debug("%s: enter.\n", __FUNCTION__);
 
    if (mIsClipboardOwner) {
+      /* If we are clipboard owner, send a not-changed clip to host. */
       g_debug("%s: is clipboard owner, set changed to false and return.\n", __FUNCTION__);
-      CPClipboard_SetChanged(clip, FALSE);
-      return true;
+      CPClipboard clip;
+      CPClipboard_Init(&clip);
+      CPClipboard_SetChanged(&clip, FALSE);
+      mCP->DestUISendClip(&clip);
+      CPClipboard_Destroy(&clip);
+      return;
    }
 
-   if (!mCP.IsCopyPasteAllowed()) {
+   if (!mCP->IsCopyPasteAllowed()) {
       g_debug("%s: copyPaste is not allowed\n", __FUNCTION__);
-      return true;
+      return;
    }
 
    Glib::RefPtr<Gtk::Clipboard> refClipboard =
@@ -234,7 +245,6 @@ CopyPasteUIX11::GetLocalClipboard(CPClipboard *clip) // OUT
    g_debug("%s: retrieving timestamps\n", __FUNCTION__);
    refClipboard->request_contents(TARGET_NAME_TIMESTAMP,
       sigc::mem_fun(this, &CopyPasteUIX11::LocalClipboardTimestampCB));
-   return false;
 }
 
 
@@ -310,7 +320,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       return;
    }
 
-   if (!mIsClipboardOwner || !mCP.IsCopyPasteAllowed()) {
+   if (!mIsClipboardOwner || !mCP->IsCopyPasteAllowed()) {
       g_debug("%s: not clipboard ownder, or copy paste not allowed, returning.\n",
             __FUNCTION__);
       return;
@@ -329,7 +339,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       size_t index = 0;
       mFileTransferDone = false;
 
-      hgStagingDir = static_cast<utf::string>(mCP.GetFiles());
+      hgStagingDir = static_cast<utf::string>(mCP->SrcUIRequestFiles());
       g_debug("%s: Getting files. Staging dir: %s", __FUNCTION__,
             hgStagingDir.c_str());
 
@@ -459,7 +469,7 @@ CopyPasteUIX11::LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, // IN/OUT
 {
    sd.set(sd.get_target().c_str(), "");
 
-   if (!mCP.IsCopyPasteAllowed()) {
+   if (!mCP->IsCopyPasteAllowed()) {
       return;
    }
 
@@ -638,7 +648,7 @@ again:
           bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
           CPClipboard_SetItem(&mClipboard, CPFORMAT_IMG_PNG,
                               buf, bufSize)) {
-         mCP.SetRemoteClipboard(&mClipboard);
+         mCP->DestUISendClip(&mClipboard);
          g_debug("%s: Got PNG: %"FMTSZ"u\n", __FUNCTION__, bufSize);
       } else {
          g_debug("%s: Failed to get PNG\n", __FUNCTION__);
@@ -702,7 +712,7 @@ again:
       /*
        * RTF or text data (or both) in the clipboard.
        */
-      mCP.SetRemoteClipboard(&mClipboard);
+      mCP->DestUISendClip(&mClipboard);
    } else if (!flipped) {
       /*
        * If we get here, we got nothing (no image, URI, text) so
@@ -714,6 +724,10 @@ again:
                      GDK_SELECTION_CLIPBOARD : GDK_SELECTION_PRIMARY;
       flipped = true;
       goto again;
+   } else {
+      g_debug("%s: got nothing, send empty clip back.\n",
+            __FUNCTION__);
+      mCP->DestUISendClip(&mClipboard);
    }
 }
 
@@ -744,7 +758,7 @@ CopyPasteUIX11::LocalReceivedFileListCB(const Gtk::SelectionData& sd)        // 
    if (target == FCP_TARGET_NAME_GNOME_COPIED_FILES ||
        target == FCP_TARGET_NAME_URI_LIST) {
       LocalGetSelectionFileList(sd);
-      mCP.SetRemoteClipboard(&mClipboard);
+      mCP->DestUISendClip(&mClipboard);
    }
 }
 

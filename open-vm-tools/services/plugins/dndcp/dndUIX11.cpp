@@ -26,6 +26,7 @@
 #define G_LOG_DOMAIN "dndcp"
 
 #include "dndUIX11.h"
+#include "guestDnDCPMgr.hh"
 
 extern "C" {
 #include "vmblock.h"
@@ -88,9 +89,6 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
 DnDUIX11::~DnDUIX11()
 {
    g_debug("%s: enter\n", __FUNCTION__);
-   if (m_DnD) {
-      delete m_DnD;
-   }
    if (m_detWnd) {
       delete m_detWnd;
    }
@@ -109,13 +107,13 @@ DnDUIX11::Init()
    g_debug("%s: enter\n", __FUNCTION__);
    bool ret = true;
 
-   ASSERT(m_ctx);
    CPClipboard_Init(&m_clipboard);
-   m_DnD = new DnD(m_ctx);
-   if (!m_DnD) {
-      g_debug("%s: unable to allocate DnD object\n", __FUNCTION__);
-      goto fail;
-   }
+
+   GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
+   ASSERT(p);
+   m_DnD = p->GetDnDMgr();
+   ASSERT(m_DnD);
+
    m_detWnd = new DragDetWnd();
    if (!m_detWnd) {
       g_debug("%s: unable to allocate DragDetWnd object\n", __FUNCTION__);
@@ -137,27 +135,29 @@ DnDUIX11::Init()
    SetTargetsAndCallbacks();
 
    /* Set common layer callbacks. */
-   m_DnD->dragStartChanged.connect(
+   m_DnD->srcDragBeginChanged.connect(
       sigc::mem_fun(this, &DnDUIX11::CommonDragStartCB));
-   m_DnD->fileCopyDoneChanged.connect(
+   m_DnD->srcDropChanged.connect(
+      sigc::mem_fun(this, &DnDUIX11::CommonSourceDropCB));
+   m_DnD->srcCancelChanged.connect(
+      sigc::mem_fun(this, &DnDUIX11::CommonSourceCancelCB));
+   m_DnD->getFilesDoneChanged.connect(
       sigc::mem_fun(this, &DnDUIX11::CommonSourceFileCopyDoneCB));
+
+   m_DnD->destCancelChanged.connect(
+      sigc::mem_fun(this, &DnDUIX11::CommonDestCancelCB));
+   m_DnD->privDropChanged.connect(
+      sigc::mem_fun(this, &DnDUIX11::CommonDestPrivateDropCB));
+
    m_DnD->updateDetWndChanged.connect(
       sigc::mem_fun(this, &DnDUIX11::CommonUpdateDetWndCB));
-   m_DnD->updateUnityDetWndChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonUpdateUnityDetWndCB));
-   m_DnD->moveDetWndToMousePos.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonMoveDetWndToMousePos));
-   m_DnD->sourceCancelChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonSourceCancelCB));
-   m_DnD->targetPrivateDropChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonDestPrivateDropCB));
-   m_DnD->ghCancel.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonDestCancelCB));
-   m_DnD->sourceDropChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonSourceDropCB));
-   m_DnD->updateMouseChanged.connect(
+   m_DnD->moveMouseChanged.connect(
       sigc::mem_fun(this, &DnDUIX11::CommonUpdateMouseCB));
 
+   m_DnD->updateUnityDetWndChanged.connect(
+      sigc::mem_fun(this, &DnDUIX11::CommonUpdateUnityDetWndCB));
+   m_DnD->destMoveDetWndToMousePosChanged.connect(
+      sigc::mem_fun(this, &DnDUIX11::CommonMoveDetWndToMousePos));
    /* Set Gtk+ callbacks for source. */
    m_detWnd->signal_drag_begin().connect(
       sigc::mem_fun(this, &DnDUIX11::GtkSourceDragBeginCB));
@@ -454,17 +454,23 @@ DnDUIX11::CommonSourceDropCB(void)
  * copying from host to guest staging directory.
  *
  * @param[in] success if true, transfer was successful
- * @param[in] path of staging dir (which will have a block that needs removing)
  */
 
 void
-DnDUIX11::CommonSourceFileCopyDoneCB(bool success,
-                                     std::vector<uint8> stagingDir)
+DnDUIX11::CommonSourceFileCopyDoneCB(bool success)
 {
    g_debug("%s: %s\n", __FUNCTION__, success ? "success" : "failed");
-   /* Copied files are already removed in common layer. */
-   stagingDir.clear();
-   CommonResetCB();
+
+   /*
+    * If hg drag is not done yet, only remove block. GtkSourceDragEndCB will
+    * call CommonResetCB(). Otherwise destination may miss the data because
+     * we are already reset.
+    */
+   if (!m_inHGDrag) {
+      CommonResetCB();
+   } else {
+      RemoveBlock();
+   }
    m_HGGetDataInProgress = false;
 }
 
@@ -939,7 +945,6 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 
    /* Can not get any valid data, cancel this HG DnD. */
    g_debug("%s: no valid data for HG DnD\n", __FUNCTION__);
-   m_DnD->SourceCancel();
    CommonResetCB();
 }
 
@@ -967,10 +972,11 @@ DnDUIX11::GtkSourceDragEndCB(const Glib::RefPtr<Gdk::DragContext> &dc)
    }
 
    /*
-    * If we are a file DnD, don't call CommonResetCB() here, since
-    * we will do so in the fileCopyDoneChanged callback.
+    * If we are a file DnD and file transfer is not done yet, don't call
+    * CommonResetCB() here, since we will do so in the fileCopyDoneChanged
+    * callback.
     */
-   if (!m_isFileDnD) {
+   if (!m_isFileDnD || !m_HGGetDataInProgress) {
       CommonResetCB();
    }
    m_inHGDrag = false;
@@ -1900,7 +1906,6 @@ exit:
 
 
 /**
- *
  * Tell host that we are done with HG DnD initialization.
  */
 
@@ -1909,7 +1914,7 @@ DnDUIX11::SourceDragStartDone(void)
 {
    g_debug("%s: enter\n", __FUNCTION__);
    m_inHGDrag = true;
-   m_DnD->HGDragStartDone();
+   m_DnD->SrcUIDragBeginDone();
 }
 
 
@@ -1927,7 +1932,6 @@ DnDUIX11::SetBlockControl(DnDBlockControl *blockCtrl)
 
 
 /**
- *
  * Got feedback from our DropSource, send it over to host. Called by
  * drag motion callback.
  *
@@ -1938,12 +1942,11 @@ void
 DnDUIX11::SourceUpdateFeedback(DND_DROPEFFECT effect)
 {
    g_debug("%s: entering\n", __FUNCTION__);
-   m_DnD->SetFeedback(effect);
+   m_DnD->SrcUIUpdateFeedback(effect);
 }
 
 
 /**
- *
  * This is triggered when user drags valid data from guest to host. Try to
  * get clip data and notify host to start GH DnD.
  */
@@ -1956,7 +1959,7 @@ DnDUIX11::TargetDragEnter(void)
    /* Check if there is valid data with current detection window. */
    if (!CPClipboard_IsEmpty(&m_clipboard)) {
       g_debug("%s: got valid data from detWnd.\n", __FUNCTION__);
-      m_DnD->DragEnter(&m_clipboard);
+      m_DnD->DestUIDragEnter(&m_clipboard);
    }
 
    /*
@@ -1968,7 +1971,6 @@ DnDUIX11::TargetDragEnter(void)
 
 
 /**
- *
  * Get Unix time in milliseconds. See man 2 gettimeofday for details.
  *
  * @return unix time in milliseconds.
@@ -1981,4 +1983,19 @@ DnDUIX11::GetTimeInMillis(void)
 
    Hostinfo_GetTimeOfDay(&atime);
    return((unsigned long)(atime / 1000));
+}
+
+
+/**
+ * Update version information in mDnD.
+ *
+ * @param[ignored] chan RpcChannel pointer
+ * @param[in] version the version negotiated with host.
+ */
+
+void
+DnDUIX11::VmxDnDVersionChanged(RpcChannel *chan, uint32 version)
+{
+   ASSERT(m_DnD);
+   m_DnD->VmxDnDVersionChanged(version);
 }

@@ -456,7 +456,7 @@ pid_t gettid(void)
 Util_ThreadID
 Util_GetCurrentThreadId(void)
 {
-#if defined(linux)
+#if defined(linux) || defined __ANDROID__
    /*
     * It is possible that two threads can enter gettid() path simultaneously,
     * both eventually clearing useTid to zero. It does not matter - only

@@ -16,10 +16,10 @@
  *
  *********************************************************/
 
-/*
- * DnDRpcV3.cc --
+/**
+ * @DnDRpcV3.cc --
  *
- *     Implementation of the DnDRpcV3 interface.
+ * Implementation of the DnDRpcV3 class.
  */
 
 #if defined (_WIN32)
@@ -36,262 +36,220 @@
 #endif
 
 #include "dndRpcV3.hh"
-#include "dndTransportGuestRpc.hh"
 
 extern "C" {
-   #include "dndMsg.h"
    #include "debug.h"
    #include "dndClipboard.h"
+   #include "util.h"
+   #include "dndMsg.h"
 }
 
-/*
- *-----------------------------------------------------------------------------
+
+/**
+ * Constructor.
  *
- * DnDRpcV3 --
- *
- *      Constructor of DnDRpcV3 class.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
+ * @param[in] transport for sending packets.
  */
 
-DnDRpcV3::DnDRpcV3(RpcChannel *chan) // IN
+DnDRpcV3::DnDRpcV3(DnDCPTransport *transport)
+   : mTransport(transport),
+     mTransportInterface(TRANSPORT_GUEST_CONTROLLER_DND)
 {
-   mTransport = new DnDTransportGuestRpc(chan, "dnd.transport");
-   mTransport->recvMsgChanged.connect(sigc::mem_fun(this, &DnDRpcV3::OnRecvMsg));
+   ASSERT(mTransport);
 
-   mHostMinorVersion = 0;
-   mGuestMinorVersion = 0;
-   /* Tell host that current DnD version in guest side is 3.1. */
-   mGuestMinorVersion = 1;
-   UpdateGuestVersion(3, mGuestMinorVersion);
+   mUtil.Init(this);
+   CPClipboard_Init(&mClipboard);
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- * DnDRpcV3::~DnDRpcV3 --
- *
- *      Destructor of DnDRpcV3.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+/**
+ * Destructor.
  */
 
 DnDRpcV3::~DnDRpcV3(void)
 {
-   delete mTransport;
+   CPClipboard_Destroy(&mClipboard);
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- * DnDRpcV3::UpdateGuestVersion --
- *
- *      Serialize DND_UPDATE_GUEST_VERSION message and forward to
- *      transport layer.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+/**
+ * Init.
  */
 
 void
-DnDRpcV3::UpdateGuestVersion(uint32 major, // IN
-                             uint32 minor) // IN
+DnDRpcV3::Init(void)
 {
-   DnDMsg msg;
-   DynBuf buf;
-
-   DnDMsg_Init(&msg);
-   DynBuf_Init(&buf);
-
-   DnDMsg_SetCmd(&msg, DND_UPDATE_GUEST_VERSION);
-
-   if (!DnDMsg_AppendArg(&msg, &major, sizeof major) ||
-       !DnDMsg_AppendArg(&msg, &minor, sizeof minor)) {
-      Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   if (!DnDMsg_Serialize(&msg, &buf)) {
-      Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
-
-exit:
-   DynBuf_Destroy(&buf);
-   DnDMsg_Destroy(&msg);
+   Debug("%s: entering.\n", __FUNCTION__);
+   ASSERT(mTransport);
+   mTransport->RegisterRpc(this, mTransportInterface);
 }
 
 
-/*
- *----------------------------------------------------------------------
+/**
+ * Send DND_HG_DRAG_ENTER_DONE message.
  *
- * DnDRpcV3::HGDragEnterDone --
+ * @param[in] x mouse position x.
+ * @param[in] y mouse position y.
  *
- *      Serialize DND_HG_DRAG_ENTER_DONE message and forward to
- *      transport layer.
- *
- * Results:
- *      true if success, false otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+ * @return true on success, false otherwise.
  */
 
 bool
-DnDRpcV3::HGDragEnterDone(int32 x, // IN
-                          int32 y) // IN
+DnDRpcV3::SrcDragEnterDone(int32 x,
+                           int32 y)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return mUtil.SendMsg(DND_HG_DRAG_ENTER_DONE, x, y);
+
+}
+
+
+/**
+ * Send DND_HG_DRAG_READY message.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ *
+ * @return true on success, false otherwise.
+ */
+
+bool
+DnDRpcV3::SrcDragBeginDone(uint32 sessionId)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return mUtil.SendMsg(DND_HG_DRAG_READY);
+}
+
+
+/**
+ * Send DND_HG_UPDATE_FEEDBACK message.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[in] feedback current dnd operation feedback.
+ *
+ * @return true on success, false otherwise.
+ */
+
+bool
+DnDRpcV3::UpdateFeedback(uint32 sessionId,
+                         DND_DROPEFFECT feedback)
 {
    DnDMsg msg;
-   DynBuf buf;
    bool ret = false;
 
    DnDMsg_Init(&msg);
-   DynBuf_Init(&buf);
-
-   DnDMsg_SetCmd(&msg, DND_HG_DRAG_ENTER_DONE);
-
-   if (!DnDMsg_AppendArg(&msg, &x, sizeof x) ||
-       !DnDMsg_AppendArg(&msg, &y, sizeof y)) {
-      Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   if (!DnDMsg_Serialize(&msg, &buf)) {
-      Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   ret = mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
-
-exit:
-   DynBuf_Destroy(&buf);
-   DnDMsg_Destroy(&msg);
-   return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * DnDRpcV3::HGDragStartDone --
- *
- *      Serialize DND_HG_DRAG_READY message and forward to
- *      transport layer.
- *
- * Results:
- *      true if success, false otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-bool
-DnDRpcV3::HGDragStartDone(void)
-{
-   return SendSingleCmd(DND_HG_DRAG_READY);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * DnDRpcV3::HGUpdateFeedback --
- *
- *      Serialize DND_HG_UPDATE_FEEDBACK message and forward to
- *      transport layer.
- *
- * Results:
- *      true if success, false otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-bool
-DnDRpcV3::HGUpdateFeedback(DND_DROPEFFECT effect) // IN
-{
-   DnDMsg msg;
-   DynBuf buf;
-   bool ret = false;
-
-   DnDMsg_Init(&msg);
-   DynBuf_Init(&buf);
 
    DnDMsg_SetCmd(&msg, DND_HG_UPDATE_FEEDBACK);
 
-   if (!DnDMsg_AppendArg(&msg, &effect, sizeof effect)) {
+   if (!DnDMsg_AppendArg(&msg, &feedback, sizeof feedback)) {
       Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
       goto exit;
    }
 
-   if (!DnDMsg_Serialize(&msg, &buf)) {
-      Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   ret = mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
+   ret = mUtil.SendMsg(&msg);
 
 exit:
-   DynBuf_Destroy(&buf);
    DnDMsg_Destroy(&msg);
    return ret;
 }
 
 
-/*
- *----------------------------------------------------------------------
+/**
+ * Not needed for version 3.
  *
- * DnDRpcV3::HGDropDone --
+ * @param[ignored] sessionId active session id the controller assigned earlier.
  *
- *      Serialize DND_HG_DROP_DONE message and forward to
- *      transport layer.
- *
- * Results:
- *      true if success, false otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+ * @return always true.
  */
 
 bool
-DnDRpcV3::HGDropDone(const char *stagingDirCP, // IN
-                     size_t sz)                // IN
+DnDRpcV3::SrcPrivDragEnter(uint32 sessionId)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] x mouse position x.
+ * @param[ignored] y mouse position y.
+ *
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::SrcPrivDragLeave(uint32 sessionId,
+                           int32 x,
+                           int32 y)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] x mouse position x.
+ * @param[ignored] y mouse position y.
+ *
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::SrcPrivDrop(uint32 sessionId,
+                      int32 x,
+                      int32 y)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] x mouse position x.
+ * @param[ignored] y mouse position y.
+ *
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::SrcDrop(uint32 sessionId,
+                  int32 x,
+                  int32 y)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Send DND_HG_DROP_DONE message.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[in] stagingDirCP staging dir name in cross-platform format
+ * @param[in] sz the staging dir name size in bytes
+ *
+ * @return true on success, false otherwise.
+ */
+
+bool
+DnDRpcV3::SrcDropDone(uint32 sessionId,
+                      const uint8 *stagingDirCP,
+                      uint32 sz)
 {
    DnDMsg msg;
-   DynBuf buf;
-   bool ret = FALSE;
+   bool ret = false;
+
+   Debug("%s: entering.\n", __FUNCTION__);
 
    DnDMsg_Init(&msg);
-   DynBuf_Init(&buf);
 
    /* Construct msg with both cmd CP_HG_START_FILE_COPY and stagingDirCP. */
    DnDMsg_SetCmd(&msg, DND_HG_DROP_DONE);
@@ -300,192 +258,254 @@ DnDRpcV3::HGDropDone(const char *stagingDirCP, // IN
       goto exit;
    }
 
-   /* Serialize msg and output to buf. */
-   if (!DnDMsg_Serialize(&msg, &buf)) {
-      Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   ret = mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
+   ret = mUtil.SendMsg(&msg);
 
 exit:
-   DynBuf_Destroy(&buf);
    DnDMsg_Destroy(&msg);
    return ret;
 }
 
 
-/*
- *----------------------------------------------------------------------
+/**
+ * Send DND_GH_DRAG_ENTER message.
  *
- * DnDRpcV3::GHDragEnter --
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[in] clip cross-platform clipboard data.
  *
- *      Serialize all parameters and pass to transport layer for
- *      DND_GH_DRAG_ENTER signal.
- *
- * Results:
- *      true if success, false otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+ * @return true on success, false otherwise.
  */
 
 bool
-DnDRpcV3::GHDragEnter(const CPClipboard *clip) // IN
+DnDRpcV3::DestDragEnter(uint32 sessionId,
+                        const CPClipboard *clip)
 {
-   return SendCmdWithClip(DND_GH_DRAG_ENTER, clip);
+   Debug("%s: entering.\n", __FUNCTION__);
+   return mUtil.SendMsg(DND_GH_DRAG_ENTER, clip);
 }
 
 
-/*
- *----------------------------------------------------------------------
+/**
+ * Not needed for version 3.
  *
- * DnDRpcV3::GHUngrabTimeout --
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] clip cross-platform clipboard data.
  *
- *      Serialize DND_GH_NOT_PENDING message and forward to
- *      transport layer.
- *
- * Results:
- *      true if success, false otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+ * @return always true.
  */
 
 bool
-DnDRpcV3::GHUngrabTimeout(void)
+DnDRpcV3::DestSendClip(uint32 sessionId,
+                       const CPClipboard *clip)
 {
-   return SendSingleCmd(DND_GH_NOT_PENDING);
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
 }
 
 
-/*
- *----------------------------------------------------------------------
+/**
+ * Send DND_GH_NOT_PENDING message.
  *
- * DnDRpcV3::SendSingleCmd --
+ * @param[ignored] sessionId active session id the controller assigned earlier.
  *
- *      Serialize message without any argument and forward to
- *      transport layer.
- *
- * Results:
- *      true if success, false otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+ * @return true on success, false otherwise.
  */
 
 bool
-DnDRpcV3::SendSingleCmd(DnDCommand cmd) // IN
+DnDRpcV3::DragNotPending(uint32 sessionId)
 {
-   DnDMsg msg;
-   DynBuf buf;
-   bool ret = false;
-
-   DnDMsg_Init(&msg);
-   DynBuf_Init(&buf);
-
-   DnDMsg_SetCmd(&msg, cmd);
-
-   if (!DnDMsg_Serialize(&msg, &buf)) {
-      Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   ret = mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
-
-exit:
-   DynBuf_Destroy(&buf);
-   DnDMsg_Destroy(&msg);
-   return ret;
+   Debug("%s: entering.\n", __FUNCTION__);
+   return mUtil.SendMsg(DND_GH_NOT_PENDING);
 }
 
 
-/*
- *----------------------------------------------------------------------
+/**
+ * Not needed for version 3.
  *
- * cui::dnd::DnDRpcV3::SendCmdWithClip --
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] x mouse position x.
+ * @param[ignored] y mouse position y.
  *
- *      Serialize message with only clip data and forward to
- *      transport layer.
- *
- * Results:
- *      true if success, false otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+ * @return always true.
  */
 
 bool
-DnDRpcV3::SendCmdWithClip(DnDCommand cmd,          // IN
-                          const CPClipboard *clip) // IN
+DnDRpcV3::DestDragLeave(uint32 sessionId,
+                        int32 x,
+                        int32 y)
 {
-   DnDMsg msg;
-   DynBuf buf;
-   bool ret = false;
-
-   DnDMsg_Init(&msg);
-   DynBuf_Init(&buf);
-
-   /* Serialize clip and output into buf. */
-   if (!CPClipboard_Serialize(clip, &buf)) {
-      Debug("%s: CPClipboard_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   /* Construct msg with both cmd CP_HG_SET_CLIPBOARD and buf. */
-   DnDMsg_SetCmd(&msg, cmd);
-   if (!DnDMsg_AppendArg(&msg, DynBuf_Get(&buf), DynBuf_GetSize(&buf))) {
-      Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   /* Reset buf. */
-   DynBuf_Destroy(&buf);
-   DynBuf_Init(&buf);
-
-   /* Serialize msg and output to buf. */
-   if (!DnDMsg_Serialize(&msg, &buf)) {
-      Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   ret = mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
-
-exit:
-   DynBuf_Destroy(&buf);
-   DnDMsg_Destroy(&msg);
-   return ret;
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
 }
 
 
-/*
- *----------------------------------------------------------------------
+/**
+ * Not needed for version 3.
  *
- * DnDRpcV3::OnRecvMsg --
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] x mouse position x.
+ * @param[ignored] y mouse position y.
  *
- *      Received a new message from transport layer. Unserialize and
- *      translate it and emit corresponding signal.
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::DestDrop(uint32 sessionId,
+                   int32 x,
+                   int32 y)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
  *
- * Results:
- *      None.
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] x mouse position x.
+ * @param[ignored] y mouse position y.
  *
- * Side effects:
- *      None.
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::QueryExiting(uint32 sessionId,
+                       int32 x,
+                       int32 y)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
  *
- *----------------------------------------------------------------------
+ * @param[ignored] sessionId  Active session id the controller assigned earlier.
+ * @param[ignored] show       Show or hide unity DnD detection window.
+ * @param[ignored] unityWndId The unity windows id.
+ *
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::UpdateUnityDetWnd(uint32 sessionId,
+                            bool show,
+                            uint32 unityWndId)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] x mouse position x.
+ * @param[ignored] y mouse position y.
+ *
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::MoveMouse(uint32 sessionId,
+                    int32 x,
+                    int32 y)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ *
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::RequestFiles(uint32 sessionId)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] success the file transfer operation was successful or not
+ * @param[ignored] stagingDirCP staging dir name in cross-platform format
+ * @param[ignored] sz the staging dir name size in bytes
+ *
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::SendFilesDone(uint32 sessionId,
+                        bool success,
+                        const uint8 *stagingDirCP,
+                        uint32 sz)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Not needed for version 3.
+ *
+ * @param[ignored] sessionId active session id the controller assigned earlier.
+ * @param[ignored] success the file transfer operation was successful or not
+ *
+ * @return always true.
+ */
+
+bool
+DnDRpcV3::GetFilesDone(uint32 sessionId,
+                       bool success)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return true;
+}
+
+
+/**
+ * Send a packet.
+ *
+ * @param[in] destId destination address id.
+ * @param[in] packet
+ * @param[in] length packet length
+ *
+ * @return true on success, false otherwise.
+ */
+
+bool
+DnDRpcV3::SendPacket(uint32 destId,
+                     const uint8 *packet,
+                     size_t length)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   return mTransport->SendPacket(destId, mTransportInterface, packet, length);
+}
+
+
+/**
+ * Handle a received version 3 message.
+ *
+ * @param[in] params parameter list for received message.
+ * @param[in] binary attached binary data for received message.
+ * @param[in] binarySize
  */
 
 void
-DnDRpcV3::OnRecvMsg(const uint8 *data, // IN
-                    size_t dataSize)   // IN
+DnDRpcV3::HandleMsg(RpcParams *params,
+                    const uint8 *binary,
+                    uint32 binarySize)
 {
    DnDMsg msg;
    DnDMsgErr ret;
@@ -493,43 +513,96 @@ DnDRpcV3::OnRecvMsg(const uint8 *data, // IN
 
    DnDMsg_Init(&msg);
 
-   ret = DnDMsg_UnserializeHeader(&msg, (void *)data, dataSize);
+   ret = DnDMsg_UnserializeHeader(&msg, (void *)binary, binarySize);
    if (DNDMSG_SUCCESS != ret) {
-      Debug("%s: DnDMsg_UnserializeHeader failed with %d\n",
-            __FUNCTION__, ret);
+      Debug("%s: DnDMsg_UnserializeHeader failed %d\n", __FUNCTION__, ret);
       goto exit;
    }
 
    ret = DnDMsg_UnserializeArgs(&msg,
-                                (void *)&data[DNDMSG_HEADERSIZE_V3],
-                                dataSize - DNDMSG_HEADERSIZE_V3);
+                                (void *)(binary + DNDMSG_HEADERSIZE_V3),
+                                binarySize - DNDMSG_HEADERSIZE_V3);
    if (DNDMSG_SUCCESS != ret) {
-      Debug("%s: DnDMsg_UnserializeArgs failed with %d\n",
-            __FUNCTION__, ret);
+      Debug("%s: DnDMsg_UnserializeArgs failed with %d\n", __FUNCTION__, ret);
       goto exit;
    }
 
-   /* Translate command and emit signal. */
+   Debug("%s: Got %d, binary size %d.\n",
+         __FUNCTION__, DnDMsg_GetCmd(&msg), binarySize);
+
+   /*
+    * Translate command and emit signal. Session Id 1 is used because version
+    * 3 command does not provide session Id.
+    */
    switch (DnDMsg_GetCmd(&msg)) {
-   case DND_GH_UPDATE_UNITY_DET_WND:
+   case DND_HG_DRAG_ENTER:
    {
-      bool bShow = false;
-      uint32 unityWndId;
+      CPClipboard_Clear(&mClipboard);
+
+      /* Unserialize clipboard data for the command. */
+      buf = DnDMsg_GetArg(&msg, 0);
+      if (!CPClipboard_Unserialize(&mClipboard, DynBuf_Get(buf), DynBuf_GetSize(buf))) {
+         Debug("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
+         break;
+      }
+      SrcDragEnterDone(DRAG_DET_WINDOW_WIDTH / 2,
+                       DRAG_DET_WINDOW_WIDTH / 2);
+      break;
+   }
+   case DND_HG_DRAG_START:
+      srcDragBeginChanged.emit(1, &mClipboard);
+      CPClipboard_Clear(&mClipboard);
+      break;
+   case DND_HG_CANCEL:
+      srcCancelChanged.emit(1);
+      break;
+   case DND_HG_DROP:
+      srcDropChanged.emit(1, 0, 0);
+      break;
+   case DND_GH_CANCEL:
+      destCancelChanged.emit(1);
+      break;
+   case DND_GH_PRIVATE_DROP:
+   {
+      int32 x = 0;
+      int32 y = 0;
 
       buf = DnDMsg_GetArg(&msg, 0);
-      if (DynBuf_GetSize(buf) == sizeof(bool)) {
-         memcpy(&bShow, (const char *)DynBuf_Get(buf), sizeof(bool));
+      if (DynBuf_GetSize(buf) == sizeof(int32)) {
+         memcpy(&x, (const char *)DynBuf_Get(buf), sizeof(int32));
       } else {
          break;
       }
 
       buf = DnDMsg_GetArg(&msg, 1);
-      if (DynBuf_GetSize(buf) == sizeof(uint32)) {
-         memcpy(&unityWndId, (const char *)DynBuf_Get(buf), sizeof(uint32));
+      if (DynBuf_GetSize(buf) == sizeof(int32)) {
+         memcpy(&y, (const char *)DynBuf_Get(buf), sizeof(int32));
       } else {
          break;
       }
-      ghUpdateUnityDetWndChanged.emit(bShow, unityWndId);
+
+      destPrivDropChanged.emit(1, x, y);
+      break;
+   }
+   case DND_GH_UPDATE_UNITY_DET_WND:
+   {
+      bool show = false;
+      uint32 unityWndId;
+
+      buf = DnDMsg_GetArg(&msg, 0);
+      if (DynBuf_GetSize(buf) == sizeof(show)) {
+         memcpy(&show, (const char *)DynBuf_Get(buf), sizeof(show));
+      } else {
+         break;
+      }
+
+      buf = DnDMsg_GetArg(&msg, 1);
+      if (DynBuf_GetSize(buf) == sizeof(unityWndId)) {
+         memcpy(&unityWndId, (const char *)DynBuf_Get(buf), sizeof(unityWndId));
+      } else {
+         break;
+      }
+      updateUnityDetWndChanged.emit(1, show, unityWndId);
 
       break;
    }
@@ -551,157 +624,44 @@ DnDRpcV3::OnRecvMsg(const uint8 *data, // IN
       } else {
          break;
       }
-      ghQueryPendingDragChanged.emit(x, y);
+      queryExitingChanged.emit(1, x, y);
       break;
    }
-   case DND_GH_CANCEL:
-      ghCancelChanged.emit();
-      break;
-   case DND_HG_DRAG_ENTER:
+   case DND_UPDATE_MOUSE:
    {
-      CPClipboard clip;
+      int32 x = 0;
+      int32 y = 0;
 
-      /* Unserialize clipboard data for the command. */
       buf = DnDMsg_GetArg(&msg, 0);
-      if (!CPClipboard_Unserialize(&clip, DynBuf_Get(buf), DynBuf_GetSize(buf))) {
-         Debug("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
+      if (DynBuf_GetSize(buf) == sizeof(x)) {
+         memcpy(&x, (const char *)DynBuf_Get(buf), sizeof(x));
+      } else {
          break;
       }
-      hgDragEnterChanged.emit(&clip);
 
-#if defined (DND_TRANSPORT_TEST)
-      /* Sending 60 packets to host side to test transport. */
-      for (uint32 i = 1; i < 60; i++) {
-         DnDMsg msg;
-         DynBuf buf;
-
-         DnDMsg_Init(&msg);
-         DynBuf_Init(&buf);
-
-         DnDMsg_SetCmd(&msg, DND_GH_TRANSPORT_TEST);
-         if (!DnDMsg_AppendArg(&msg, &i, sizeof i)) {
-            Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
-            goto error;
-         }
-
-         if (!DnDMsg_Serialize(&msg, &buf)) {
-            Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
-            goto error;
-         }
-
-         mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
-
-      error:
-         DynBuf_Destroy(&buf);
-         DnDMsg_Destroy(&msg);
+      buf = DnDMsg_GetArg(&msg, 1);
+      if (DynBuf_GetSize(buf) == sizeof(y)) {
+         memcpy(&y, (const char *)DynBuf_Get(buf), sizeof(y));
+      } else {
+         break;
       }
-#endif
+
+      moveMouseChanged.emit(1, x, y);
       break;
    }
-   case DND_HG_DRAG_START:
-   {
-      hgDragStartChanged.emit();
-      break;
-   }
-   case DND_HG_DROP:
-      hgDropChanged.emit();
-      break;
-   case DND_HG_CANCEL:
-      hgCancelChanged.emit();
-      break;
    case DND_HG_FILE_COPY_DONE:
    {
       bool success;
-      std::vector<uint8> stagingDir;
 
       buf = DnDMsg_GetArg(&msg, 0);
-      if (DynBuf_GetSize(buf) == sizeof(bool)) {
-         memcpy(&success, (const char *)DynBuf_Get(buf), sizeof(bool));
+      if (DynBuf_GetSize(buf) == sizeof(success)) {
+         memcpy(&success, (const char *)DynBuf_Get(buf), sizeof(success));
       } else {
          break;
       }
 
       buf = DnDMsg_GetArg(&msg, 1);
-      if (DynBuf_GetSize(buf) > 0) {
-         stagingDir.resize(DynBuf_GetSize(buf));
-         memcpy(&stagingDir[0],
-                (const char *)DynBuf_Get(buf),
-                stagingDir.size());
-      }
-      hgFileCopyDoneChanged.emit(success, stagingDir);
-      break;
-   }
-   case  DND_UPDATE_MOUSE:
-   {
-      int32 x = 0;
-      int32 y = 0;
-
-      buf = DnDMsg_GetArg(&msg, 0);
-      if (DynBuf_GetSize(buf) == sizeof(int32)) {
-         memcpy(&x, (const char *)DynBuf_Get(buf), sizeof(int32));
-      } else {
-         break;
-      }
-
-      buf = DnDMsg_GetArg(&msg, 1);
-      if (DynBuf_GetSize(buf) == sizeof(int32)) {
-         memcpy(&y, (const char *)DynBuf_Get(buf), sizeof(int32));
-      } else {
-         break;
-      }
-
-      updateMouseChanged.emit(x, y);
-      break;
-   }
-   case  DND_GH_PRIVATE_DROP:
-   {
-      int32 x = 0;
-      int32 y = 0;
-
-      buf = DnDMsg_GetArg(&msg, 0);
-      if (DynBuf_GetSize(buf) == sizeof(int32)) {
-         memcpy(&x, (const char *)DynBuf_Get(buf), sizeof(int32));
-      } else {
-         break;
-      }
-
-      buf = DnDMsg_GetArg(&msg, 1);
-      if (DynBuf_GetSize(buf) == sizeof(int32)) {
-         memcpy(&y, (const char *)DynBuf_Get(buf), sizeof(int32));
-      } else {
-         break;
-      }
-
-      ghPrivateDropChanged.emit(x, y);
-      break;
-   }
-   case  DND_MOVE_DET_WND_TO_MOUSE_POS:
-   {
-      moveDetWndToMousePos.emit();
-      break;
-   }
-   case DND_UPDATE_HOST_VERSION:
-   {
-      uint32 major = 0;
-
-      buf = DnDMsg_GetArg(&msg, 0);
-      if (DynBuf_GetSize(buf) == sizeof(uint32)) {
-         memcpy(&major, (const char *)DynBuf_Get(buf), sizeof(uint32));
-      } else {
-         break;
-      }
-
-      ASSERT(major == 3);
-
-      buf = DnDMsg_GetArg(&msg, 1);
-      if (DynBuf_GetSize(buf) == sizeof(uint32)) {
-         memcpy(&mHostMinorVersion, (const char *)DynBuf_Get(buf), sizeof(uint32));
-      } else {
-         break;
-      }
-      Debug("%s: got host DnD version %d.%d.\n",
-            __FUNCTION__, major, mHostMinorVersion);
-      UpdateGuestVersion(3, mGuestMinorVersion);
+      getFilesDoneChanged.emit(1, success, (const uint8 *)DynBuf_Get(buf), DynBuf_GetSize(buf));
       break;
    }
    default:
@@ -710,4 +670,22 @@ DnDRpcV3::OnRecvMsg(const uint8 *data, // IN
    }
 exit:
    DnDMsg_Destroy(&msg);
+}
+
+
+/**
+ * Callback from transport layer after received a packet from srcId.
+ *
+ * @param[in] srcId addressId where the packet is from
+ * @param[in] packet
+ * @param[in] packetSize
+ */
+
+void
+DnDRpcV3::OnRecvPacket(uint32 srcId,
+                       const uint8 *packet,
+                       size_t packetSize)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+   mUtil.OnRecvPacket(srcId, packet, packetSize);
 }

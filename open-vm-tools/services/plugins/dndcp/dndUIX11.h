@@ -42,9 +42,10 @@ extern "C" {
 #include "cpNameUtil.h"
 #include "posix.h"
 #include "vmware/tools/guestrpc.h"
+#include "vmware/tools/plugin.h"
 }
 
-#include "dnd.hh"
+#include "guestDnD.hh"
 #include "dndFileList.hh"
 #include "dragDetWndX11.h"
 
@@ -55,14 +56,13 @@ struct DblLnkLst_Links;
  * versions of the protocol.
  */
 class DnDUIX11
+   : public sigc::trackable
 {
 public:
    DnDUIX11(ToolsAppCtx *ctx);
    ~DnDUIX11();
    bool Init();
-   void VmxDnDVersionChanged(RpcChannel *chan,
-                             uint32 version)
-      {ASSERT(m_DnD); m_DnD->VmxDnDVersionChanged(chan, version);}
+   void VmxDnDVersionChanged(RpcChannel *chan, uint32 version);
    void SetDnDAllowed(bool isDnDAllowed)
       {ASSERT(m_DnD); m_DnD->SetDnDAllowed(isDnDAllowed);}
    void SetBlockControl(DnDBlockControl *blockCtrl);
@@ -108,7 +108,7 @@ private:
    /**
     * Source functions for file transfer.
     */
-   void CommonSourceFileCopyDoneCB(bool success, std::vector<uint8> stagingDir);
+   void CommonSourceFileCopyDoneCB(bool success);
 
    /**
     * Callbacks for showing/hiding detection window.
@@ -166,7 +166,7 @@ private:
    unsigned long GetTimeInMillis();
 
    ToolsAppCtx *m_ctx;
-   DnD *m_DnD;
+   GuestDnDMgr *m_DnD;
    std::string m_HGStagingDir;
    utf::string m_HGFileContentsUriList;
    DragDetWnd *m_detWnd;

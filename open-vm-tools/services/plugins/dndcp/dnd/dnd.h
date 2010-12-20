@@ -134,6 +134,17 @@ typedef struct {
    CPClipItem items[CPFORMAT_MAX - 1];
 } CPClipboard;
 
+#if !defined(SWIG)
+
+/*
+ * Comment out the following for SWIG. We don't currently need to use any of
+ * these data structures or call any of these functions from test scripts, and
+ * we would have to link in extra libraries if so. Only DnD V3 transport layer
+ * will call these functions. At some later time, may want to refactor this
+ * file to separate CPClipboard definitions from all these transport-related
+ * stuff (it is just the CPClipboard code that test scripts need).
+ */
+
 /* Definitions for transport layer big buffer support (>= V3). */
 typedef enum
 {
@@ -226,6 +237,7 @@ EXTERN Bool DnD_GetFileList(HDROP hDrop,
 /*
  * Posix-specific functions
  */
+
 EXTERN char *DnD_UriListGetNextFile(char const *uriList,
                                     size_t *index,
                                     size_t *length);
@@ -278,5 +290,6 @@ size_t DnD_TransportMsgToPacket(uint8 *msg,
                                 DnDTransportPacketHeader **packet);
 size_t DnD_TransportReqPacket(DnDTransportBuffer *buf,
                               DnDTransportPacketHeader **packet);
+#endif // !SWIG
 
 #endif // _DND_H_

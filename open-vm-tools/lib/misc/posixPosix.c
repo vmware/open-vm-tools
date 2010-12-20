@@ -1673,8 +1673,10 @@ GetpwInternal(struct passwd *pw)  // IN:
    spw.pw_dir = NULL;
    free(spw.pw_name);
    spw.pw_name = NULL;
+#if !defined __ANDROID__
    free(spw.pw_gecos);
    spw.pw_gecos = NULL;
+#endif
    free(spw.pw_shell);
    spw.pw_shell = NULL;
 #if defined(__FreeBSD__)
@@ -1711,11 +1713,13 @@ GetpwInternal(struct passwd *pw)  // IN:
                                     STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
+#if !defined __ANDROID__
    if (pw->pw_gecos &&
        (spw.pw_gecos = Unicode_Alloc(pw->pw_gecos,
                                      STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
+#endif
    if (pw->pw_shell &&
        (spw.pw_shell = Unicode_Alloc(pw->pw_shell,
                                      STRING_ENCODING_DEFAULT)) == NULL) {
@@ -2004,9 +2008,11 @@ PasswdCopy(struct passwd *orig, // IN
    if (!CopyFieldIntoBuf(orig->pw_passwd, &new->pw_passwd, &buf, &bufLen)) {
       return NULL;
    }
+#if !defined __ANDROID__
    if (!CopyFieldIntoBuf(orig->pw_gecos, &new->pw_gecos, &buf, &bufLen)) {
       return NULL;
    }
+#endif
    if (!CopyFieldIntoBuf(orig->pw_dir, &new->pw_dir, &buf, &bufLen)) {
       return NULL;
    }
@@ -2403,7 +2409,9 @@ GetpwInternal_r(struct passwd *pw,    // IN:
    int ret;
    char *pwname = NULL;
    char *passwd = NULL;
+#if !defined __ANDROID__
    char *gecos = NULL;
+#endif
    char *dir = NULL;
    char *shell = NULL;
    size_t n;
@@ -2430,11 +2438,13 @@ GetpwInternal_r(struct passwd *pw,    // IN:
                                STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
+#if !defined __ANDROID__
    if (pw->pw_gecos &&
        (gecos = Unicode_Alloc(pw->pw_gecos,
                               STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
+#endif
    if (pw->pw_dir &&
        (dir = Unicode_Alloc(pw->pw_dir,
                             STRING_ENCODING_DEFAULT)) == NULL) {
@@ -2472,7 +2482,7 @@ GetpwInternal_r(struct passwd *pw,    // IN:
       pw->pw_passwd = memcpy(buf + n, passwd, len);
       n += len;
    }
-
+#if !defined __ANDROID__
    if (gecos) {
       size_t len = strlen(gecos) + 1;
 
@@ -2482,7 +2492,7 @@ GetpwInternal_r(struct passwd *pw,    // IN:
       pw->pw_gecos = memcpy(buf + n, gecos, len);
       n += len;
    }
-
+#endif
    if (dir) {
       size_t len = strlen(dir) + 1;
 
@@ -2508,7 +2518,9 @@ exit:
    free(passwd);
    free(dir);
    free(pwname);
+#if !defined __ANDROID__
    free(gecos);
+#endif
    free(shell);
 
    return ret;
@@ -2897,9 +2909,16 @@ Posix_Setmntent(ConstUnicode pathName,  // IN:
    if (!PosixConvertToCurrent(pathName, &path)) {
       return NULL;
    }
-
+#if defined __ANDROID__
+   /*
+    * Android doesn't support setmntent().
+    */
+   NOT_TESTED();
+   errno = ENOSYS;
+   return NULL;
+#else
    stream = setmntent(path, mode);
-
+#endif
    free(path);
 
    return stream;
@@ -3003,6 +3022,14 @@ Posix_Getmntent_r(FILE *fp,          // IN:
                   char *buf,         // IN:
                   int size)          // IN:
 {
+#if defined __ANDROID__
+   /*
+    * Android doesn't support getmntent_r();
+    * using getmntent() will break thread safety.
+    */
+   errno = ENOSYS;
+   return NULL;
+#else
    int ret;
    char *fsname = NULL;
    char *dir = NULL;
@@ -3101,6 +3128,7 @@ exit:
    }
 
    return m;
+#endif // defined __ANDROID__
 }
 
 

@@ -248,6 +248,8 @@ typedef signed char        int8;
 #         include <stdlib.h>
 #         include <stdint.h>
 #      endif
+#   elif defined __ANDROID__
+#      include <stdint.h>
 #   else
 #      if !defined(__intptr_t_defined) && !defined(intptr_t)
 #         ifdef VM_I386
@@ -862,7 +864,7 @@ typedef void * UserVA;
 
 #   if !defined(FROBOS) && !defined(_SSIZE_T) && !defined(_SSIZE_T_) && \
        !defined(ssize_t) && !defined(__ssize_t_defined) && \
-       !defined(_SSIZE_T_DECLARED)
+       !defined(_SSIZE_T_DECLARED) && !defined(_SSIZE_T_DEFINED_)
 #      ifdef VM_I386
 #         define _SSIZE_T
 #         define __ssize_t_defined
@@ -876,7 +878,7 @@ typedef void * UserVA;
 #         define _SSIZE_T
 #         define __ssize_t_defined
 #         define _SSIZE_T_DECLARED
-          typedef int32 ssize_t;
+             typedef int32 ssize_t;
 #      endif
 #   endif
 

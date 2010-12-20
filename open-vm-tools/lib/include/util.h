@@ -196,7 +196,7 @@ static INLINE Bool Util_BufferIsEmpty(void const *base, // IN
 
 
 EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
-						unsigned int mode);
+                                                unsigned int mode);
 
 #ifdef N_PLAT_NLM
 #   define DIRSEPS	      "\\"
@@ -315,10 +315,18 @@ EXTERN char *Util_SafeInternalStrndup(int bugNumber, const char *s, size_t n,
 
 static INLINE void
 Util_Zero(void *buf,       // OUT
-          size_t bufSize)  // IN 
+          size_t bufSize)  // IN
 {
    if (buf != NULL) {
+#if defined _WIN32 && defined USERLEVEL
+      /*
+       * Simple memset calls might be optimized out.  See CERT advisory
+       * MSC06-C.
+       */
+      SecureZeroMemory(buf, bufSize);
+#else
       memset(buf, 0, bufSize);
+#endif
    }
 }
 
@@ -340,10 +348,10 @@ Util_Zero(void *buf,       // OUT
  */
 
 static INLINE void
-Util_ZeroString(char *str)  // IN
+Util_ZeroString(char *str)  // IN/OUT
 {
    if (str != NULL) {
-      memset(str, 0, strlen(str));
+      Util_Zero(str, strlen(str));
    }
 }
 
@@ -367,11 +375,11 @@ Util_ZeroString(char *str)  // IN
 
 static INLINE void
 Util_ZeroFree(void *buf,       // OUT
-              size_t bufSize)  // IN 
+              size_t bufSize)  // IN
 {
    if (buf != NULL) {
-      memset(buf, 0, bufSize);
-      free(buf); 
+      Util_Zero(buf, bufSize);
+      free(buf);
    }
 }
 
@@ -397,8 +405,8 @@ static INLINE void
 Util_ZeroFreeString(char *str)  // IN
 {
    if (str != NULL) {
-      Util_Zero(str, strlen(str));
-      free(str); 
+      Util_ZeroString(str);
+      free(str);
    }
 }
 
@@ -425,8 +433,8 @@ static INLINE void
 Util_ZeroFreeStringW(wchar_t *str)  // IN
 {
    if (str != NULL) {
-      Util_Zero(str, wcslen(str) * sizeof(wchar_t));
-      free(str); 
+      Util_Zero(str, wcslen(str) * sizeof *str);
+      free(str);
    }
 }
 #endif // _WIN32
@@ -468,15 +476,15 @@ Util_FreeList(void **list,      // IN/OUT: the list to free
       ssize_t i;
 
       for (i = 0; i < length; i++) {
-	 free(list[i]);
-	 DEBUG_ONLY(list[i] = NULL);
+         free(list[i]);
+         DEBUG_ONLY(list[i] = NULL);
       }
    } else {
       void **s;
 
       for (s = list; *s != NULL; s++) {
-	 free(*s);
-	 DEBUG_ONLY(*s = NULL);
+         free(*s);
+         DEBUG_ONLY(*s = NULL);
       }
    }
    free(list);

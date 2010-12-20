@@ -433,6 +433,9 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
     * F:   at least two digits for decimal, at least one digit for hex
     */
    char *decimal_point;   /* locale specific decimal point */
+#if defined __ANDROID__
+   static const char dp = '.';
+#endif
    int signflag;      /* true if float is negative */
    union {         /* floating point arguments %[aAeEfFgG] */
       double dbl;
@@ -586,7 +589,16 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
    convbuf = NULL;
 #ifndef NO_FLOATING_POINT
    dtoaresult = NULL;
+#if !defined __ANDROID__
    decimal_point = localeconv()->decimal_point;
+#else
+   /*
+    * Struct lconv is not working! For decimal_point,
+    * using '.' instead is a workaround.
+    */
+   NOT_TESTED();
+   decimal_point = &dp;
+#endif
 #endif
 
    fmt = (char *)fmt0;
@@ -702,9 +714,16 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
          goto rflag;
       case '\'':
          flags |= GROUPING;
+#if !defined __ANDROID__
          thousands_sep = *(localeconv()->thousands_sep);
          grouping = localeconv()->grouping;
-
+#else
+         /*
+          * Struct lconv is not working! The code below is a workaround.
+          */
+         NOT_TESTED();
+         thousands_sep = ',';
+#endif
 	 /*
 	  * Grouping should not begin with 0, but it nevertheless
 	  * does (see bug 281072) and makes the formatting code

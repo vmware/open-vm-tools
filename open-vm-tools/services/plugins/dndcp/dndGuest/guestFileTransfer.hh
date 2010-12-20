@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,30 +16,36 @@
  *
  *********************************************************/
 
-/*
- * dndTransport.hh --
+/**
+ * @guestFileTransfer.hh --
  *
- *      DnDTransport provides a data transportation interface for both dnd and copyPaste.
+ * File transfer object for guest.
  */
 
-#ifndef DND_TRANSPORT_HH
-#define DND_TRANSPORT_HH
+#ifndef GUEST_FILE_TRANSFER_HH
+#define GUEST_FILE_TRANSFER_HH
 
-#include <sigc++/connection.h>
-#include <sigc++/slot.h>
+#include <sigc++/trackable.h>
+#include "fileTransferRpc.hh"
+#include "dndCPTransport.h"
+extern "C" {
+#include "hgfsServerManager.h"
+}
 
-#include "vm_basic_types.h"
-
-class DnDTransport
+class GuestFileTransfer
+   : public sigc::trackable
 {
 public:
-   virtual ~DnDTransport() {};
+   GuestFileTransfer(DnDCPTransport *transport);
+   ~GuestFileTransfer(void);
 
-   /* sigc signals for RecvMsg. */
-   sigc::signal<void, const uint8 *, size_t> recvMsgChanged;
+private:
+   void OnRpcRecvHgfsPacket(uint32 sessionId,
+                            const uint8 *packet,
+                            size_t packetSize);
 
-   virtual bool SendMsg(uint8 *msg,
-                        size_t length) = 0;
+   FileTransferRpc *mRpc;
+   HgfsServerMgrData mHgfsServerMgrData;
 };
 
-#endif // DND_TRANSPORT_HH
+#endif // GUEST_FILE_TRANSFER_HH

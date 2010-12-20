@@ -177,12 +177,11 @@ CopyPasteDnDX11::RegisterCP()
          if (version >= 3) {
             CopyPasteVersionChanged(version);
             m_copyPasteUI->SetCopyPasteAllowed(TRUE);
-         } else {
-            /*
-             * Initialize legacy version.
-             */
-            CopyPaste_SetVersion(version);
          }
+         /*
+          * Set legacy copy/paste version.
+          */
+         CopyPaste_SetVersion(version);
       } else {
          delete m_copyPasteUI;
          m_copyPasteUI = NULL;

@@ -17,32 +17,31 @@
  *********************************************************/
 
 /**
- * @file dndRpcV3.hh --
+ * @dndRpcV4.hh --
  *
- * Rpc layer object for DnD version 3.
+ * Rpc layer object for DnD version 4.
  */
 
-#ifndef DND_RPC_V3_HH
-#define DND_RPC_V3_HH
+#ifndef DND_RPC_V4_HH
+#define DND_RPC_V4_HH
 
 #include <sigc++/trackable.h>
 #include "dndRpc.hh"
 #include "dndCPTransport.h"
-#include "rpcV3Util.hpp"
+#include "rpcV4Util.hpp"
 
 extern "C" {
    #include "dnd.h"
    #include "dndMsg.h"
-   #include "vmware/tools/guestrpc.h"
+   #include "dndCPMsgV4.h"
 }
 
-class LIB_EXPORT DnDRpcV3
+class LIB_EXPORT DnDRpcV4
    : public DnDRpc,
      public sigc::trackable
 {
 public:
-   DnDRpcV3(DnDCPTransport *transport);
-   virtual ~DnDRpcV3(void);
+   DnDRpcV4(DnDCPTransport *transport);
 
    virtual void Init(void);
 
@@ -75,7 +74,7 @@ public:
    virtual bool QueryExiting(uint32 sessionId, int32 x, int32 y);
    virtual bool DragNotPending(uint32 sessionId);
    virtual bool UpdateUnityDetWnd(uint32 sessionId,
-                                  bool show,
+                                  bool bShow,
                                   uint32 unityWndId);
    virtual bool RequestFiles(uint32 sessionId);
    virtual bool SendFilesDone(uint32 sessionId,
@@ -95,12 +94,15 @@ public:
                              const uint8 *packet,
                              size_t packetSize);
 
+   void AddRpcReceivedListener(DnDRpcListener *obj);
+   void RemoveRpcReceivedListener(DnDRpcListener *obj);
+   void AddRpcSentListener(DnDRpcListener *obj);
+   void RemoveRpcSentListener(DnDRpcListener *obj);
+
 private:
-   bool SrcDragEnterDone(int32 x, int32 y);
    DnDCPTransport *mTransport;
    TransportInterfaceType mTransportInterface;
-   CPClipboard mClipboard;
-   RpcV3Util mUtil;
+   RpcV4Util mUtil;
 };
 
-#endif // DND_RPC_V3_HH
+#endif // DND_RPC_V4_HH

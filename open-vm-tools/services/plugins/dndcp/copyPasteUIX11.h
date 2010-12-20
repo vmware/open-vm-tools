@@ -44,7 +44,7 @@ extern "C" {
 
 #include "unicodeOperations.h"
 
-#include "copyPaste.hh"
+#include "guestCopyPaste.hh"
 
 #include <gtkmm.h>
 #include <list>
@@ -55,10 +55,6 @@ extern "C" {
 #include <gdk/gdkx.h>
 #include "vmware/guestrpc/tclodefs.h"
 
-extern "C" {
-void CopyPasteSelectionReceivedCB(GtkWidget *w, GtkSelectionData *sel_data, void *data);
-}
-
 class CopyPasteUIX11 : public sigc::trackable
 {
 public:
@@ -68,7 +64,7 @@ public:
    void VmxCopyPasteVersionChanged(RpcChannel *chan,
                                    uint32 version);
    void SetCopyPasteAllowed(bool isCopyPasteAllowed)
-      { mCP.SetCopyPasteAllowed(isCopyPasteAllowed); }
+   { mCP->SetCopyPasteAllowed(isCopyPasteAllowed); }
    void Reset(void);
    void SetBlockControl(DnDBlockControl *blockCtrl)
       { Debug("Setting mBlockCtrl to %p\n", blockCtrl);
@@ -86,7 +82,7 @@ private:
    void LocalClearClipboardCB(void);
 
    /* gh */
-   bool GetLocalClipboard(CPClipboard *clip);
+   void GetLocalClipboard(void);
    void LocalClipboardTimestampCB(const Gtk::SelectionData& sd);
    void LocalPrimTimestampCB(const Gtk::SelectionData& sd);
    void LocalReceivedFileListCB(const Gtk::SelectionData& selection_data);
@@ -100,7 +96,7 @@ private:
    VmTimeType GetCurrentTime(void);
 
    // Member variables
-   CopyPaste mCP;
+   GuestCopyPasteMgr *mCP;
    bool mClipboardEmpty;
    utf::string mHGStagingDir;
    std::list<Gtk::TargetEntry> mListTargets;

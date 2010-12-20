@@ -43,15 +43,27 @@ libdndcp_la_SOURCES =
 
 libdndcp_la_SOURCES += dnd/dndClipboard.c
 libdndcp_la_SOURCES += dnd/dndCommon.c
+libdndcp_la_SOURCES += dnd/dndCPMsgV4.c
 libdndcp_la_SOURCES += dnd/dndLinux.c
 libdndcp_la_SOURCES += dnd/dndMsg.c
 
-libdndcp_la_SOURCES += dndGuest/copyPaste.cc
 libdndcp_la_SOURCES += dndGuest/copyPasteRpcV3.cc
-libdndcp_la_SOURCES += dndGuest/dnd.cc
 libdndcp_la_SOURCES += dndGuest/dndFileList.cc
 libdndcp_la_SOURCES += dndGuest/dndRpcV3.cc
-libdndcp_la_SOURCES += dndGuest/dndTransportGuestRpc.cc
+libdndcp_la_SOURCES += dndGuest/guestCopyPasteDest.cc
+libdndcp_la_SOURCES += dndGuest/guestCopyPasteMgr.cc
+libdndcp_la_SOURCES += dndGuest/guestCopyPasteSrc.cc
+libdndcp_la_SOURCES += dndGuest/guestDnDCPMgr.cc
+libdndcp_la_SOURCES += dndGuest/guestDnDDest.cc
+libdndcp_la_SOURCES += dndGuest/guestDnDMgr.cc
+libdndcp_la_SOURCES += dndGuest/guestDnDSrc.cc
+libdndcp_la_SOURCES += dndGuest/guestFileTransfer.cc
+libdndcp_la_SOURCES += dndGuest/copyPasteRpcV4.cc
+libdndcp_la_SOURCES += dndGuest/dndRpcV4.cc
+libdndcp_la_SOURCES += dndGuest/fileTransferRpcV4.cc
+libdndcp_la_SOURCES += dndGuest/rpcV3Util.cpp
+libdndcp_la_SOURCES += dndGuest/rpcV4Util.cpp
+libdndcp_la_SOURCES += dndGuest/dndCPTransportGuestRpc.cpp
 
 libdndcp_la_SOURCES += stringxx/string.cc
 

@@ -397,7 +397,7 @@
 #    if defined(__APPLE__)
 #      define PRODUCT_LICENSE_VERSION "3.0"
 #    else
-#      define PRODUCT_LICENSE_VERSION "7.0"
+#      define PRODUCT_LICENSE_VERSION "7.0+"
 #    endif
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "5.0"
@@ -412,7 +412,7 @@
 #  else
 #    define PRODUCT_LICENSE_VERSION "0.0"
 #  endif
-#  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION " " BUILD_NUMBER
+#  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
 
 #define PLAYER_LICENSE_VERSION "6.0"

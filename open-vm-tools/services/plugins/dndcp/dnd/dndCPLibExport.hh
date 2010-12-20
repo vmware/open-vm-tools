@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,35 +16,19 @@
  *
  *********************************************************/
 
-/*
- * copyPasteRpc.hh --
+/**
+ * @dndCPLibExport.hh --
  *
- *     Rpc layer object for CopyPaste.
+ * LibExport definition.
  */
 
-#ifndef COPY_PASTE_RPC_HH
-#define COPY_PASTE_RPC_HH
+#ifndef DND_CP_LIB_EXPORT_HH
+#define DND_CP_LIB_EXPORT_HH
 
-#include <sigc++/connection.h>
-#include "vm_basic_types.h"
+#if defined VMX86_TOOLS || COMPILE_WITHOUT_CUI
+#define LIB_EXPORT
+#else
+#include "libExport.hh"
+#endif
 
-extern "C" {
-   #include "dnd.h"
-}
-
-class CopyPasteRpc
-{
-   public:
-      virtual ~CopyPasteRpc(void) {};
-
-      /* sigc signals for callback. */
-      sigc::signal<void> ghGetClipboardChanged;
-      sigc::signal<void, const CPClipboard*> hgSetClipboardChanged;
-      sigc::signal<void, bool> hgFileCopyDoneChanged;
-
-      /* CopyPaste Rpc functions. */
-      virtual bool GHGetClipboardDone(const CPClipboard* clip) = 0;
-      virtual bool HGStartFileCopy(const char *stagingDirCP, size_t sz) = 0;
-};
-
-#endif // COPY_PASTE_RPC_HH
+#endif // DND_CP_LIB_EXPORT_HH

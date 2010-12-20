@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,50 +17,37 @@
  *********************************************************/
 
 /**
- * @file copyPasteRpcV3.hh --
+ * @fileTransferRpcV4.hh --
  *
- * Rpc layer object for CopyPaste version 3.
+ * File transfer rpc version 4 object for DnD/CopyPaste.
  */
 
-#ifndef COPY_PASTE_RPC_V3_HH
-#define COPY_PASTE_RPC_V3_HH
+#ifndef FILE_TRANSFER_RPC_V4_HH
+#define FILE_TRANSFER_RPC_V4_HH
 
-#include <sigc++/trackable.h>
-#include "copyPasteRpc.hh"
+#include "fileTransferRpc.hh"
 #include "dndCPTransport.h"
-#include "rpcV3Util.hpp"
+#include "rpcV4Util.hpp"
 
 extern "C" {
-#include "vmware/tools/guestrpc.h"
-   #include "dnd.h"
-   #include "dndMsg.h"
+   #include "dndCPMsgV4.h"
 }
 
-class CopyPasteRpcV3
-   : public CopyPasteRpc,
+class LIB_EXPORT FileTransferRpcV4
+   : public FileTransferRpc,
      public sigc::trackable
 {
 public:
-   CopyPasteRpcV3(DnDCPTransport *transport);
-   virtual ~CopyPasteRpcV3(void);
+   FileTransferRpcV4(DnDCPTransport *transport);
 
    virtual void Init(void);
 
-   /* CopyPaste Rpc functions. */
-   virtual bool SrcRequestClip(uint32 sessionId,
-                               bool isActive);
-   virtual bool DestSendClip(uint32 sessionId,
-                             bool isActive,
-                             const CPClipboard* clip);
-   virtual bool RequestFiles(uint32 sessionId,
-                             const uint8 *stagingDirCP,
-                             uint32 sz);
-   virtual bool SendFilesDone(uint32 sessionId,
-                              bool success,
-                              const uint8 *stagingDirCP,
-                              uint32 sz);
-   virtual bool GetFilesDone(uint32 sessionId,
-                             bool success);
+   virtual bool SendHgfsPacket(uint32 sessionId,
+                               const uint8 *packet,
+                               uint32 packetSize);
+   virtual bool SendHgfsReply(uint32 sessionId,
+                              const uint8 *packet,
+                              uint32 packetSize);
    virtual void HandleMsg(RpcParams *params,
                           const uint8 *binary,
                           uint32 binarySize);
@@ -74,7 +61,7 @@ public:
 private:
    DnDCPTransport *mTransport;
    TransportInterfaceType mTransportInterface;
-   RpcV3Util mUtil;
+   RpcV4Util mUtil;
 };
 
-#endif // COPY_PASTE_RPC_V3_HH
+#endif // FILE_TRANSFER_RPC_V4_HH
