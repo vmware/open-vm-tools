@@ -19,3 +19,17 @@ bin_PROGRAMS = vmware-checkvm
 
 vmware_checkvm_SOURCES =
 vmware_checkvm_SOURCES += checkvm.c
+
+vmware_checkvm_LDADD =
+vmware_checkvm_LDADD += @VMTOOLS_LIBS@
+
+if HAVE_ICU
+   vmware_checkvm_LDADD += @ICU_LIBS@
+   vmware_checkvm_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS)     \
+                            $(LIBTOOLFLAGS) --mode=link $(CXX)       \
+                            $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
+                            $(LDFLAGS) -o $@
+else
+   vmware_checkvm_LINK = $(LINK)
+endif
+
