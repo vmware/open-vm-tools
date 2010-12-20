@@ -173,13 +173,20 @@ EXTERN uint32 Util_FastRand(uint32 seed);
  */
 
 static INLINE void *
-Util_ValidateBytes(int byteValue,    // IN: memory must be this
-                   const void *ptr,  // IN: ptr to check
-                   size_t size)      // IN: size of ptr
+Util_ValidateBytes(const void *ptr,  // IN: ptr to check
+                   size_t size,      // IN: size of ptr
+                   uint8 byteValue)  // IN: memory must be filled with this
 {
+   uint8 *p;
    uint64 bigValue;
 
-   char *p = (char *) ptr;
+   ASSERT(ptr);
+
+   if (size == 0) {
+      return NULL;
+   }
+
+   p = (uint8 *) ptr;
 
    /* Compare bytes until a "nice" boundary is achieved */
    while ((((uintptr_t) p) & (sizeof(uint64) - 1)) != 0) {
@@ -188,11 +195,16 @@ Util_ValidateBytes(int byteValue,    // IN: memory must be this
       }
 
       size--;
+
+      if (size == 0) {
+         return NULL;
+      }
+
       p++;
    }
 
    /* Compare using a "nice sized" chunk for a long as possible */
-   memset((void *) &bigValue, byteValue, sizeof bigValue);
+   memset((void *) &bigValue, (int) byteValue, sizeof bigValue);
 
    while (size >= sizeof(uint64)) {
       if (*((uint64 *) p) != bigValue) {
@@ -239,7 +251,7 @@ static INLINE Bool
 Util_BufferIsEmpty(void const *base,  // IN:
                    size_t len)        // IN:
 {
-   return Util_ValidateBytes(0, base, len) == NULL;
+   return Util_ValidateBytes(base, len, '\0') == NULL;
 }
 
 
