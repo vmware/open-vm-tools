@@ -41,7 +41,7 @@ class GuestDnDCPMgr
 public:
    ~GuestDnDCPMgr();
    static GuestDnDCPMgr *GetInstance();
-
+   static void Destroy();
    GuestDnDMgr *GetDnDMgr(void);
    GuestCopyPasteMgr *GetCopyPasteMgr(void);
    DnDCPTransport *GetTransport(void);

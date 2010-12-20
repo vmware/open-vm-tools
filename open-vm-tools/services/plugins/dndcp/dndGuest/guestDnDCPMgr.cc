@@ -58,6 +58,7 @@ GuestDnDCPMgr::GuestDnDCPMgr()
 
 GuestDnDCPMgr::~GuestDnDCPMgr(void)
 {
+   g_debug("%s: enter\n", __FUNCTION__);
    delete mDnDMgr;
    mDnDMgr = NULL;
    delete mFileTransfer;
@@ -85,6 +86,20 @@ GuestDnDCPMgr::GetInstance(void)
 
 
 /**
+ * Destroy the GuestDnDCPMgr singleton.
+ */
+
+void
+GuestDnDCPMgr::Destroy(void)
+{
+   if (m_instance) {
+      delete m_instance;
+      m_instance = NULL;
+   }
+}
+
+
+/**
  * Initialize the GuestDnDCPMgr object. All owner should call this first before
  * calling any other function.
  *
@@ -99,6 +114,10 @@ GuestDnDCPMgr::Init(ToolsAppCtx *ctx)
 #if !defined(DND_USING_VMCF)
    ASSERT(mToolsAppCtx);
 #endif
+
+   if (mFileTransfer) {
+      delete mFileTransfer;
+   }
    mFileTransfer = new GuestFileTransfer(GetTransport());
 }
 

@@ -54,7 +54,7 @@ extern "C" {
  * CopyPasteDnDWrapper is a singleton, here is a pointer to its only instance.
  */
 
-CopyPasteDnDWrapper *CopyPasteDnDWrapper::m_instance = 0;
+CopyPasteDnDWrapper *CopyPasteDnDWrapper::m_instance = NULL;
 
 /**
  *
@@ -72,6 +72,22 @@ CopyPasteDnDWrapper::GetInstance()
    }
    ASSERT(m_instance);
    return m_instance;
+}
+
+
+/**
+ *
+ * Destroy the singleton object.
+ */
+
+void
+CopyPasteDnDWrapper::Destroy()
+{
+   if (m_instance) {
+      g_debug("%s: destroying self\n", __FUNCTION__);
+      delete m_instance;
+      m_instance = NULL;
+   }
 }
 
 
@@ -165,6 +181,7 @@ CopyPasteDnDWrapper::~CopyPasteDnDWrapper()
       }
       delete m_pimpl;
    }
+   GuestDnDCPMgr::Destroy();
 }
 
 

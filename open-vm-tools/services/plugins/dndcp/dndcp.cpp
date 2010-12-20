@@ -58,6 +58,7 @@ DnDCPShutdown(gpointer src,
       p->UnregisterCP();
       p->UnregisterDnD();
    }
+   CopyPasteDnDWrapper::Destroy();
 }
 
 

@@ -35,6 +35,7 @@ class CopyPasteDnDWrapper
 public:
    ~CopyPasteDnDWrapper();
    static CopyPasteDnDWrapper *GetInstance();
+   static void Destroy();
    gboolean RegisterCP();
    void UnregisterCP();
    gboolean RegisterDnD();
