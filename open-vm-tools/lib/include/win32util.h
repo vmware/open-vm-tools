@@ -154,13 +154,15 @@ Bool W32Util_RegisterEventLog(ConstUnicode serviceName,
                               ConstUnicode paramMsgFile);
 Bool W32Util_UnregisterEventLog(ConstUnicode serviceName);
 
-Bool W32Util_SetSDWithVmGroupPriv(PSECURITY_DESCRIPTOR pSecurityDescriptor,
-                                  DWORD accessType, PACL *pAcl,
-                                  Unicode *errString);
+typedef enum SetSDPrivsAccounts {
+   SDPRIV_GROUP_ADMIN = 0x1,
+   SDPRIV_GROUP_VMWARE = 0x2,
+   SDPRIV_USER_CURRENT = 0x4,
+} SetSDPrivsAccounts;
 
-Bool W32Util_SetSDWithVmGroupPrivEx(PSECURITY_DESCRIPTOR pSecurityDescriptor,
-				    DWORD accessType, Bool addCurrentUser,
-				    PACL *pAcl, Unicode *errString);
+Bool W32Util_SetSDPrivs(PSECURITY_DESCRIPTOR pSecurityDescriptor,
+                        DWORD accessType, SetSDPrivsAccounts accounts,
+                        PACL *pAcl, Unicode *errString);
 
 BOOL W32Util_SetSecurityDescriptorW(PSECURITY_DESCRIPTOR pSecurityDescriptor,
                                     ConstUnicode Owner, PACL *pAcl);
@@ -187,7 +189,7 @@ Bool W32Util_CreateWellKnownSid(WELL_KNOWN_SID_TYPE wsdType,
 
 Bool W32Util_GetCurrentUserSid(PSID *pSid);
 Bool W32Util_GetLocalAdminGroupSid(PSID *pSid);
-Bool W32Util_GetLocalAdminGroupSid(PSID *pSid);
+Bool W32Util_GetVMwareGroupSid(PSID *pSid);
 Bool W32Util_MakeSafeDirectory(ConstUnicode path);
 Bool W32Util_IsDirectorySafe(ConstUnicode path);
 Bool W32Util_DoesVolumeSupportAcls(ConstUnicode path);
@@ -215,6 +217,11 @@ HMODULE W32Util_GetModuleByAddress(const void *addr);
 Bool W32Util_VerifyXPModeHostLicense(void);
 
 Unicode W32Util_GetPipeNameFromFilePath(ConstUnicode fileName);
+
+Bool W32Util_CheckGroupMembership(HANDLE hToken,
+                                  BOOL respectUAC,
+                                  Unicode *errString,
+                                  BOOL *bMember);
 
 #endif // _WIN32
 #endif // WIN32UTIL_H_
