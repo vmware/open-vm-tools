@@ -701,6 +701,9 @@ enum {
 #undef FIELDDEFA
 #undef FLAGDEFA
 
+/* Level D subleaf 1 eax XSAVEOPT */
+#define CPUID_COMMON_IDDsub1EAX_XSAVEOPT 1
+
 /*
  * Legal CPUID config file mask characters.  For a description of the
  * cpuid masking system, please see:
