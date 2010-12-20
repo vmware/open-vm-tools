@@ -3410,7 +3410,6 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
       err = -EISCONN;
       goto out;
    case SS_DISCONNECTING:
-   case SS_LISTEN:
       err = -EINVAL;
       goto out;
    case SS_CONNECTING:
@@ -3424,8 +3423,10 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
       break;
    default:
       ASSERT(sk->sk_state == SS_FREE ||
-             sk->sk_state == SS_UNCONNECTED);
-      if (VSockAddr_Cast(addr, addrLen, &remoteAddr) != 0) {
+             sk->sk_state == SS_UNCONNECTED ||
+             sk->sk_state == SS_LISTEN);
+      if ((sk->sk_state == SS_LISTEN) || 
+          VSockAddr_Cast(addr, addrLen, &remoteAddr) != 0) {
          err = -EINVAL;
          goto out;
       }
