@@ -57,6 +57,9 @@
  *      Pass -1 for any length parameter to indicate "from start until
  *      end of string".
  *
+ *      The start and length arguments are in code points - unicode
+ *      "characters" - not bytes!
+ *
  * Results:
  *      -1 if str1 < str2, 0 if str1 == str2, 1 if str1 > str2.
  *
@@ -91,10 +94,11 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    UnicodePinIndices(str2, &str2Start, &str2Length);
 
    /*
-    * TODO: Allocating substrings is a performance hit.  We should do
-    * this search in-place.  (However, searching UTF-8 requires tender loving
+    * TODO: Allocating substrings is a performance hit.  We should do this
+    * search in-place.  (However, searching UTF-8 requires tender loving
     * care, and it's just easier to search UTF-16.)
     */
+
    substr1 = Unicode_Substr(str1, str1Start, str1Length);
    if (!substr1) {
       goto out;
@@ -108,6 +112,7 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    /*
     * XXX TODO: Need to normalize the incoming strings to NFC or NFD.
     */
+
    substr1UTF16 = Unicode_GetAllocUTF16(substr1);
    if (!substr1UTF16) {
       goto out;
@@ -119,10 +124,10 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    }
 
    /*
-    * TODO: This is the naive string search algorithm, which is
-    * O(n * m).  We can do better with KMP or Boyer-Moore if this
-    * proves to be a bottleneck.
+    * TODO: This is the naive string search algorithm, which is O(n * m). We
+    * can do better with KMP or Boyer-Moore if this proves to be a bottleneck.
     */
+
    while (TRUE) {
       codeUnit1 = *(substr1UTF16 + i);
       codeUnit2 = *(substr2UTF16 + i);
@@ -156,9 +161,9 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    }
 
    /*
-    * The two UTF-16 code units differ.  If they're the first code unit
-    * of a surrogate pair (for Unicode values past U+FFFF), decode the
-    * surrogate pair into a full Unicode code point.
+    * The two UTF-16 code units differ. If they're the first code unit of a
+    * surrogate pair (for Unicode values past U+FFFF), decode the surrogate
+    * pair into a full Unicode code point.
     */
 
    if (U16_IS_SURROGATE(codeUnit1)) {
@@ -453,6 +458,9 @@ Unicode_Substr(ConstUnicode str,     // IN:
  *      Pass -1 for any length parameter to indicate "from start until
  *      end of string".
  *
+ *      The start and length arguments are in code points - unicode
+ *      "characters" - not bytes!
+ *
  * Results:
  *      A newly-allocated string containing the results of the replace
  *      operation.  Caller must free with Unicode_Free.
@@ -464,41 +472,37 @@ Unicode_Substr(ConstUnicode str,     // IN:
  */
 
 Unicode
-Unicode_ReplaceRange(ConstUnicode destination,       // IN
-                     UnicodeIndex destinationStart,  // IN
-                     UnicodeIndex destinationLength, // IN
-                     ConstUnicode source,            // IN
-                     UnicodeIndex sourceStart,       // IN
-                     UnicodeIndex sourceLength)      // IN
+Unicode_ReplaceRange(ConstUnicode dest,        // IN:
+                     UnicodeIndex destStart,   // IN:
+                     UnicodeIndex destLength,  // IN:
+                     ConstUnicode src,         // IN:
+                     UnicodeIndex srcStart,    // IN:
+                     UnicodeIndex srcLength)   // IN:
 {
-   UnicodeIndex destNumCodeUnits;
-   UnicodeIndex resultLength;
-   char *result;
+   Unicode result;
+   Unicode stringOne;
+   Unicode stringTwo;
+   Unicode stringThree;
 
-   UnicodePinIndices(destination, &destinationStart, &destinationLength);
-   UnicodePinIndices(source, &sourceStart, &sourceLength);
+   ASSERT(dest);
+   ASSERT((destStart >= 0) || (destStart == -1));
+   ASSERT((destLength >= 0) || (destLength == -1));
 
-   destNumCodeUnits = Unicode_LengthInCodeUnits(destination);
+   ASSERT(src);
+   ASSERT((srcStart >= 0) || (srcStart == -1));
+   ASSERT((srcLength >= 0) || (srcLength == -1));
 
-   resultLength = destNumCodeUnits - destinationLength + sourceLength;
+   stringOne = Unicode_Substr(dest, 0, destStart);
+   stringTwo = Unicode_Substr(src, srcStart, srcLength);
+   stringThree = Unicode_Substr(dest, destStart + destLength, -1);
 
-   result = Util_SafeMalloc(resultLength + 1);
+   result = Unicode_Join(stringOne, stringTwo, stringThree, NULL);
 
-   // Start with the destination bytes before the substring to be replaced.
-   memcpy(result, destination, destinationStart);
+   Unicode_Free(stringOne);
+   Unicode_Free(stringTwo);
+   Unicode_Free(stringThree);
 
-   // Insert the substring of source in place of the destination substring.
-   memcpy(result + destinationStart, (const char *) source + sourceStart,
-          sourceLength);
-
-   // Append the remaining bytes of destination after the replaced substring.
-   memcpy(result + destinationStart + sourceLength,
-          (const char *)destination + destinationStart + destinationLength,
-          destNumCodeUnits - destinationStart - destinationLength);
-
-   result[resultLength] = '\0';
-
-   return (Unicode)result;
+   return result;
 }
 
 
@@ -523,29 +527,30 @@ Unicode_ReplaceRange(ConstUnicode destination,       // IN
 
 Unicode
 Unicode_Join(ConstUnicode first,  // IN:
-             ...)                 // IN
+             ...)                 // IN:
 {
-   va_list args;
    Unicode result;
-   ConstUnicode cur;
 
    if (first == NULL) {
-      return NULL;
+      result = NULL;
+   } else {
+      va_list args;
+      ConstUnicode cur;
+
+      result = Unicode_Duplicate(first);
+
+      va_start(args, first);
+
+      while ((cur = va_arg(args, ConstUnicode)) != NULL) {
+         Unicode temp;
+
+         temp = Unicode_Format("%s%s", result, cur);
+         Unicode_Free(result);
+         result = temp;
+      }
+
+      va_end(args);
    }
-
-   result = Unicode_Duplicate(first);
-
-   va_start(args, first);
-
-   while ((cur = va_arg(args, ConstUnicode)) != NULL) {
-      Unicode temp;
-
-      temp = Unicode_Append(result, cur);
-      Unicode_Free(result);
-      result = temp;
-   }
-
-   va_end(args);
 
    return result;
 }
