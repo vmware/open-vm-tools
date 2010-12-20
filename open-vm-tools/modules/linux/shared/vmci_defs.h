@@ -355,42 +355,6 @@ typedef uint32 VMCIPrivilegeFlags;
 #define VMCI_LEAST_PRIVILEGE_FLAGS         VMCI_PRIVILEGE_FLAG_RESTRICTED
 #define VMCI_MAX_PRIVILEGE_FLAGS           VMCI_PRIVILEGE_FLAG_TRUSTED
 
-/* VMCI Discovery Service. */
-
-/* Well-known handle to the discovery service. */
-#define VMCI_DS_RESOURCE_ID 1 /* Reserved resource ID for discovery service. */
-#define VMCI_DS_HANDLE VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID, \
-					VMCI_DS_RESOURCE_ID)
-#define VMCI_DS_CONTEXT VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID, \
-					 VMCI_CONTEXT_RESOURCE_ID)
-
-/* Maximum length of a DS message. */
-#define VMCI_DS_MAX_MSG_SIZE        300
-
-/* Command actions. */
-#define VMCI_DS_ACTION_LOOKUP         0
-#define VMCI_DS_ACTION_REGISTER       1
-#define VMCI_DS_ACTION_UNREGISTER     2
-
-/* Defines wire-protocol format for a request send to the DS from a context. */
-typedef struct VMCIDsRequestHeader {
-   int32       action;
-   int32       msgid;
-   VMCIHandle  handle;
-   int32       nameLen;
-   char        name[1];
-} VMCIDsRequestHeader;
-
-
-/* Defines the wire-protocol format for a request send from the DS to a context. */
-typedef struct VMCIDsReplyHeader {
-   int32       msgid;
-   int32       code;
-   VMCIHandle  handle;
-   int32       msgLen;
-   int8        msg[1];
-} VMCIDsReplyHeader;
-
 #define VMCI_PUBLIC_GROUP_NAME "vmci public group"
 /* 0 through VMCI_RESERVED_RESOURCE_ID_MAX are reserved. */
 #define VMCI_RESERVED_RESOURCE_ID_MAX 1023

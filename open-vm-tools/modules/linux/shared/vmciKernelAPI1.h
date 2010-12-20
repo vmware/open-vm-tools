@@ -86,10 +86,6 @@ int VMCIEvent_Unsubscribe(VMCIId subID);
 
 VMCIPrivilegeFlags VMCIContext_GetPrivFlags(VMCIId contextID);
 
-/* VMCI Discovery Service API. */
-
-int VMCIDs_Lookup(const char *name, VMCIHandle *out);
-
 /* VMCI Queue Pair API. */
 
 typedef struct VMCIQPair VMCIQPair;
