@@ -82,7 +82,9 @@
 #include "includeCheck.h"
 
 /* STRICT ANSI means the Xserver build and X defines Bool differently. */
-#if !defined(__STRICT_ANSI__) || defined(__FreeBSD__) || defined(__MINGW32__)
+#if !defined(_XTYPEDEF_BOOL) && \
+    (!defined(__STRICT_ANSI__) || defined(__FreeBSD__) || defined(__MINGW32__))
+#define _XTYPEDEF_BOOL
 typedef char           Bool;
 #endif
 
