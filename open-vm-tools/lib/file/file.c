@@ -2299,7 +2299,7 @@ File_PrependToPath(const char *searchPath,  // IN:
       char *next = Str_Strchr(path, sep);
       size_t len = next ? next - path : strlen(path);
 
-      if (len == n && Str_Strncmp(path, elem, len) == 0) {
+      if ((len == n) && (Str_Strncmp(path, elem, len) == 0)) {
          if (next) {
             memmove(path, next + 1, strlen(next + 1) + 1);
          } else {
@@ -2401,7 +2401,8 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
       if (Posix_EuidAccess(cur, F_OK) == 0) {
          break;
       }
-      if (errno == ENOSYS && FileAttributes(cur, NULL) == 0) {
+
+      if ((errno == ENOSYS) && (FileAttributes(cur, NULL) == 0)) {
          break;
       }
 
