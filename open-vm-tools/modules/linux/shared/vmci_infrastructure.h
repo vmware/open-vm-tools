@@ -40,8 +40,6 @@
 typedef enum {
    VMCIOBJ_VMX_VM = 10,
    VMCIOBJ_CONTEXT,
-   VMCIOBJ_PROCESS,
-   VMCIOBJ_DATAGRAM_PROCESS,
    VMCIOBJ_SOCKET,
    VMCIOBJ_NOT_SET,
 } VMCIObjType;
@@ -55,7 +53,7 @@ typedef struct VMCIObj {
 /* Guestcalls currently support a maximum of 8 uint64 arguments. */
 #define VMCI_GUESTCALL_MAX_ARGS_SIZE 64
 
-/* 
+/*
  * Structure used for checkpointing the doorbell mappings. It is
  * written to the checkpoint as is, so changing this structure will
  * break checkpoint compatibility.
