@@ -1657,6 +1657,101 @@ CodeSet_Validate(const char *buf,   // IN: the string
 /*
  *-----------------------------------------------------------------------------
  *
+ * CodeSet_GetUtf8 --
+ *
+ *      Parse the next UTF-8 sequence.
+ *
+ * Results:
+ *      0 on failure.
+ *      Length of sequence and Unicode character in *uchar on success.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+CodeSet_GetUtf8(const char *string,  // IN: string
+                const char *end,     // IN: end of string
+                uint32 *uchar)       // OUT: the Unicode character
+{
+   uint8 *p = (uint8 *) string;
+   uint8 *e;
+   uint32 c;
+   int len;
+   ASSERT(string < end);
+
+   c = *p;
+
+   if (c < 0x80) {
+      // ASCII: U+0000 - U+007F: 1 byte of UTF-8.
+      len = 1;
+      goto out;
+   }
+
+   if ((c < 0xc2) || (c > 0xf4)) {
+      // 0x81 to 0xbf are not valid first bytes
+      // 0xc0 and 0xc1 cannot appear in UTF-8, see below
+      // leading char can not be > 0xf4, illegal as well
+      return 0;
+   }
+
+   if (c < 0xe0) {
+      // U+0080 - U+07FF: 2 bytes of UTF-8.
+      c -= 0xc0;
+      len = 2;
+   } else if (c < 0xf0) {
+      // U+0800 - U+FFFF: 3 bytes of UTF-8.
+      c -= 0xe0;
+      len = 3;
+   } else {
+      // U+10000 - U+10FFFF: 4 bytes of UTF-8.
+      c -= 0xf0;
+      len = 4;
+   }
+
+   if ((e = p + len) > (uint8 *) end) {
+      // input too short
+      return 0;
+   }
+
+   while (++p < e) {
+      if ((*p & 0xc0) != 0x80) {
+         // bad trailing byte
+         return 0;
+      }
+      c <<= 6;
+      c += *p - 0x80;
+   }
+
+   /*
+    * Enforce shortest encoding.
+    * UTF-8 mandates that shortest possible encoding is used,
+    * as otherwise doing UTF-8 => anything => UTF-8 could bypass some
+    * important tests, like '/' for path separator or \0 for string
+    * termination.
+    *
+    * This test does not work for len == 2, but that case is handled
+    * by requiring the first byte to be 0xc2 or greater (see above).
+    */
+
+   if (c < 1U << (len * 5 - 4)) {
+      return 0;
+   }
+
+out:
+   if (uchar != NULL) {
+      *uchar = c;
+   }
+
+   return len;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * CodeSet_LengthInCodePoints --
  *
  *    Return the length of a UTF8 string in code points (the number of
@@ -1688,7 +1783,7 @@ CodeSet_LengthInCodePoints(const char *utf8)  // IN:
 
    while (p < end) {
       uint32 utf32;
-      uint32 len = CodeSetOldGetUtf8(p, end, &utf32);
+      uint32 len = CodeSet_GetUtf8(p, end, &utf32);
 
       if (len == 0) {
          return -1;
@@ -1751,7 +1846,7 @@ CodeSet_UTF8ToUTF32(const char *utf8,  // IN:
    *utf32 = (char *) ptr;
 
    while (p < end) {
-      p += CodeSetOldGetUtf8(p, end, ptr++);
+      p += CodeSet_GetUtf8(p, end, ptr++);
    }
 
    *ptr = 0;

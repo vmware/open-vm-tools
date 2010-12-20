@@ -378,6 +378,11 @@ Bool CodeSet_UTF32ToUTF8(const char *utf32,
 
 int CodeSet_LengthInCodePoints(const char *utf8);
 
+int CodeSet_GetUtf8(const char *string,
+                    const char *end,
+                    uint32 *uchar);
+
+
 /*
  *-----------------------------------------------------------------------------
  *
