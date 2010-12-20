@@ -70,13 +70,13 @@
  */
 
 int
-Unicode_CompareRange(ConstUnicode str1,       // IN
-                     UnicodeIndex str1Start,  // IN
-                     UnicodeIndex str1Length, // IN
-                     ConstUnicode str2,       // IN
-                     UnicodeIndex str2Start,  // IN
-                     UnicodeIndex str2Length, // IN
-                     Bool ignoreCase)         // IN
+Unicode_CompareRange(ConstUnicode str1,        // IN:
+                     UnicodeIndex str1Start,   // IN:
+                     UnicodeIndex str1Length,  // IN:
+                     ConstUnicode str2,        // IN:
+                     UnicodeIndex str2Start,   // IN:
+                     UnicodeIndex str2Length,  // IN:
+                     Bool ignoreCase)          // IN:
 {
    int result = -1;
    Unicode substr1 = NULL;
@@ -89,9 +89,6 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    utf16_t codeUnit2;
    uint32 codePoint1;
    uint32 codePoint2;
-
-   UnicodePinIndices(str1, &str1Start, &str1Length);
-   UnicodePinIndices(str2, &str2Start, &str2Length);
 
    /*
     * TODO: Allocating substrings is a performance hit.  We should do this
