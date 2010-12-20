@@ -51,6 +51,7 @@ typedef enum Vmxnet_TxStatus {
 #else
 #define VMXNET_ASSERT(cond)
 #endif
+#define ASSERT(cond)        VMXNET_ASSERT(cond)
 
 struct Vmxnet2_TxBuf {
    struct sk_buff *skb;

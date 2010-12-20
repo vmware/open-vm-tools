@@ -53,6 +53,7 @@
 #include "vm_device_version.h"
 #include "vmxnetInt.h"
 #include "net.h"
+#include "eth_public.h"
 #include "vmxnet_version.h"
 
 static int vmxnet_debug = 1;
