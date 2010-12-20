@@ -110,7 +110,6 @@ vmware_toolbox_cmd_CPPFLAGS =
 vmware_toolbox_cmd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
 
 vmware_toolbox_cmd_SOURCES =
-vmware_toolbox_cmd_SOURCES += debugStdio.c
 vmware_toolbox_cmd_SOURCES += toolbox-cmd.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-devices.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-scripts.c
