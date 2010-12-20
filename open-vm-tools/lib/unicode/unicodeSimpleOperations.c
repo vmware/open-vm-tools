@@ -37,7 +37,7 @@
  *
  * Unicode_LengthInCodePoints --
  *
- *      Returns the lenght of the unicode code string in code points
+ *      Returns the length of the unicode string in code points
  *      ("unicode characters").
  *
  * Results:
@@ -154,13 +154,11 @@ Unicode_CompareRange(ConstUnicode str1,        // IN:
       codeUnit2 = *(substr2UTF16 + i);
 
       /*
-       * TODO: Simple case folding doesn't handle the situation where
-       * more than one code unit is needed to store the result of the
-       * case folding.
+       * TODO: Simple case folding doesn't handle the situation where more
+       * than one code unit is needed to store the result of the case folding.
        *
-       * This means that German "straBe" (where B = sharp S, U+00DF)
-       * will not match "STRASSE", even though the two strings are the
-       * same.
+       * This means that German "straBe" (where B = sharp S, U+00DF) will not
+       * match "STRASSE", even though the two strings are the same.
        */
 
       if (ignoreCase) {
