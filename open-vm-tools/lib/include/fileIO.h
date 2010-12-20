@@ -375,7 +375,7 @@ ConstUnicode FileIO_Filename(FileIODescriptor *fd);
 /*
  *-------------------------------------------------------------------------
  * 
- * FileIO_Success --
+ * FileIO_IsSuccess --
  *
  *      Returns TRUE if the error code is success.
  *
