@@ -29,7 +29,7 @@
 #include "unicodeTypes.h"
 
 typedef struct {
-   uint8 *pos;
+   const uint8 *pos;
    size_t unreadLen;
 } BufRead;
 

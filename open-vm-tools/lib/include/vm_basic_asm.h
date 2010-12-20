@@ -506,11 +506,23 @@ mssb64(const uint64 value)
 }
 
 #ifdef __GNUC__
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 
 static INLINE void *
 uint16set(void *dst, uint16 val, size_t count)
 {
+#ifdef __arm__
+   if (count <= 0)
+       return dst;
+   __asm__ __volatile__ ("\t"
+                         "1: strh %0, [%1]     \n\t"
+                         "   subs %2, %2, #1   \n\t"
+                         "   bne 1b                "
+                         :: "r" (val), "r" (dst), "r" (count)
+                         : "memory"
+        );
+   return dst;
+#else
    int dummy0;
    int dummy1;
 
@@ -523,11 +535,24 @@ uint16set(void *dst, uint16 val, size_t count)
       );
 
    return dst;
+#endif
 }
 
 static INLINE void *
 uint32set(void *dst, uint32 val, size_t count)
 {
+#ifdef __arm__
+   if (count <= 0)
+       return dst;
+   __asm__ __volatile__ ("\t"
+                         "1: str %0, [%1]     \n\t"
+                         "   subs %2, %2, #1  \n\t"
+                         "   bne 1b               "
+                         :: "r" (val), "r" (dst), "r" (count)
+                         : "memory"
+        );
+   return dst;
+#else
    int dummy0;
    int dummy1;
 
@@ -540,6 +565,7 @@ uint32set(void *dst, uint32 val, size_t count)
       );
 
    return dst;
+#endif
 }
 
 #else /* unknown system: rely on C to write */
@@ -562,7 +588,7 @@ uint32set(void *dst, uint32 val, size_t count)
    }
    return dst;
 }
-#endif // defined(__i386__) || defined(__x86_64__)
+#endif // defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 #elif defined(_MSC_VER)
 
 static INLINE void *
@@ -634,7 +660,11 @@ Bswap16(uint16 v)
 static INLINE uint32
 Bswap32(uint32 v) // IN
 {
-#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) // {
+#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) || defined(__arm__) // {
+#ifdef __arm__
+    __asm__("rev %0, %0" : "+r"(v));
+    return v;
+#else // __arm__
    /* Checked against the Intel manual and GCC. --hpreg */
    __asm__(
       "bswap %0"
@@ -642,6 +672,7 @@ Bswap32(uint32 v) // IN
       : "0" (v)
    );
    return v;
+#endif // !__arm__
 #else // } {
    return    (v >> 24)
           | ((v >>  8) & 0xFF00)
@@ -669,7 +700,7 @@ Bswap64(uint64 v) // IN
 }
 
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 /*
  * COMPILER_MEM_BARRIER prevents the compiler from re-ordering memory
  * references accross the barrier.  NOTE: It does not generate any
@@ -695,7 +726,14 @@ static INLINE void
 PAUSE(void)
 #ifdef __GNUC__
 {
+#ifdef __arm__
+   /*
+    * ARM has no instruction to execute "spin-wait loop", just leave it
+    * empty.
+    */
+#else
    __asm__ __volatile__( "pause" :);
+#endif
 }
 #elif defined(_MSC_VER)
 #ifdef VM_X86_64
@@ -733,7 +771,7 @@ RDTSC(void)
    );
 
    return tscHigh << 32 | tscLow;
-#else
+#elif defined(__i386__)
    uint64 tim;
 
    __asm__ __volatile__(
@@ -742,6 +780,11 @@ RDTSC(void)
    );
 
    return tim;
+#else
+   /*
+    * For platform without cheap timer, just return 0.
+    */
+   return 0;
 #endif
 }
 #elif defined(_MSC_VER)
@@ -776,7 +819,7 @@ RDTSC(void)
 #else
 #define DEBUGBREAK()   __asm__ (" int $3 ")
 #endif
-#endif // defined(__i386__) || defined(__x86_64__)
+#endif // defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 
 
 /*

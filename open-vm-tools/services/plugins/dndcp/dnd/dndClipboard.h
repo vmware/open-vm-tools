@@ -132,6 +132,6 @@ size_t CPClipboard_GetTotalSize(const CPClipboard *clip);
 #endif
 Bool CPClipboard_Copy(CPClipboard *dest, const CPClipboard *src);
 Bool CPClipboard_Serialize(const CPClipboard *clip, DynBuf *buf);
-Bool CPClipboard_Unserialize(CPClipboard *clip, void *buf, size_t len);
+Bool CPClipboard_Unserialize(CPClipboard *clip, const void *buf, size_t len);
 
 #endif // _DND_CLIPBOARD_H_

@@ -632,7 +632,7 @@ CPClipboard_Serialize(const CPClipboard *clip, // IN
 
 Bool
 CPClipboard_Unserialize(CPClipboard *clip, // OUT: the clipboard
-                        void *buf,         // IN: input buffer
+                        const void *buf,   // IN: input buffer
                         size_t len)        // IN: buffer length
 {
    DND_CPFORMAT fmt;
