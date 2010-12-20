@@ -471,6 +471,8 @@ FLAGDEF(  81, ECX, AMD,    15,  1, LWP,                 NO,  FALSE)            \
 FLAGDEFA( 81, ECX, AMD,    16,  1, FMA4,                YES, TRUE,  FMA4)      \
 FLAGDEF(  81, ECX, AMD,    19,  1, NODEID,              NO,  FALSE)            \
 FLAGDEF(  81, ECX, AMD,    22,  1, TOPOLOGY,            NO,  FALSE)            \
+FLAGDEF(  81, ECX, AMD,    23,  1, PERFCTR_EXT_NB,      NO,  FALSE)            \
+FLAGDEF(  81, ECX, AMD,    24,  1, PREFCTR_EXT_CORE,    NO,  FALSE)            \
 FLAGDEF(  81, EDX, AMD,     0,  1, FPU,                 YES, TRUE)             \
 FLAGDEF(  81, EDX, AMD,     1,  1, VME,                 YES, FALSE)            \
 FLAGDEF(  81, EDX, AMD,     2,  1, DBGE,                YES, FALSE)            \
