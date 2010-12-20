@@ -142,5 +142,11 @@ void
 ToolsCore_CFRunLoop(ToolsServiceState *state);
 #endif
 
+void
+ToolsCorePool_Init(ToolsAppCtx *ctx);
+
+void
+ToolsCorePool_Shutdown(ToolsAppCtx *ctx);
+
 #endif /* _TOOLSCOREINT_H_ */
 

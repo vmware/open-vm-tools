@@ -55,6 +55,7 @@
 static void
 ToolsCoreCleanup(ToolsServiceState *state)
 {
+   ToolsCorePool_Shutdown(&state->ctx);
    ToolsCore_UnloadPlugins(state);
    if (state->ctx.rpc != NULL) {
       RpcChannel_Destroy(state->ctx.rpc);
@@ -389,6 +390,7 @@ ToolsCore_Setup(ToolsServiceState *state)
    ToolsCoreService_RegisterProperty(state->ctx.serviceObj,
                                      &ctxProp);
    g_object_set(state->ctx.serviceObj, TOOLS_CORE_PROP_CTX, &state->ctx, NULL);
+   ToolsCorePool_Init(&state->ctx);
 
    /* Initializes the debug library if needed. */
    if (state->debugPlugin != NULL) {

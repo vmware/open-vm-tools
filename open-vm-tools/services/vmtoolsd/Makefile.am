@@ -39,6 +39,7 @@ vmtoolsd_SOURCES += mainLoop.c
 vmtoolsd_SOURCES += mainPosix.c
 vmtoolsd_SOURCES += pluginMgr.c
 vmtoolsd_SOURCES += serviceObj.c
+vmtoolsd_SOURCES += threadPool.c
 vmtoolsd_SOURCES += toolsRpc.c
 vmtoolsd_SOURCES += svcSignals.c
 
