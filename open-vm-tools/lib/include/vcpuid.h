@@ -46,7 +46,7 @@ typedef uint32 Vcpuid;			// VCPU number
 #define BOOT_VCPU_ID     0
 #define IS_BOOT_VCPUID(vcpuid)  ((vcpuid) == BOOT_VCPU_ID)
 
-#define MAX_VCPUS	32
+#define MAX_VCPUS	64
 
 #ifdef VMM
 /* In VMM, CurVcpuid() is available everywhere. */
