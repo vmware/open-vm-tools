@@ -125,7 +125,7 @@ UnicodeSanityCheck(const void *buffer,      // IN
     */
 
    if (encoding == STRING_ENCODING_US_ASCII) {
-      const uint8 *asciiBytes = (const uint8 *)buffer;
+      const uint8 *asciiBytes = (const uint8 *) buffer;
 
       if (lengthInBytes == -1) {
 	 for (; *asciiBytes != '\0'; asciiBytes++) {
@@ -135,6 +135,7 @@ UnicodeSanityCheck(const void *buffer,      // IN
 	 }
       } else {
 	 ssize_t i;
+
 	 for (i = 0; i < lengthInBytes; i++) {
 	    if (asciiBytes[i] >= 0x80) {
 	       return FALSE;
@@ -191,14 +192,12 @@ UnicodePinIndices(ConstUnicode str,         // IN
 
    numCodeUnits = Unicode_LengthInCodeUnits(str);
 
-   if (   *startIndex < 0
-       || *startIndex > numCodeUnits) {
+   if ((*startIndex < 0) || (*startIndex > numCodeUnits)) {
       // Start on the NUL at the end of the string.
       *startIndex = numCodeUnits;
    }
 
-   if (   *length < 0
-       || *startIndex + *length > numCodeUnits) {
+   if ((*length < 0) || (*startIndex + *length > numCodeUnits)) {
       *length = numCodeUnits - *startIndex;
    }
 }
@@ -234,6 +233,7 @@ Unicode_LengthInBytes(const void *buffer,      // IN
    case STRING_ENCODING_UTF32_XE:
    {
       const int32 *p;
+
       for (p = buffer; *p != 0; p++) {
       }
       len = (const char *) p - (const char *) buffer;
@@ -244,6 +244,7 @@ Unicode_LengthInBytes(const void *buffer,      // IN
    case STRING_ENCODING_UTF16_XE:
    {
       const utf16_t *p;
+
       for (p = buffer; *p != 0; p++) {
       }
       len = (const char *) p - (const char *) buffer;
@@ -320,6 +321,7 @@ Unicode_UTF16Strdup(const utf16_t *utf16) // IN: May be NULL.
    numBytes = (Unicode_UTF16Strlen(utf16) + 1 /* NUL */) * sizeof *copy;
    copy = Util_SafeMalloc(numBytes);
    memcpy(copy, utf16, numBytes);
+
    return copy;
 }
 
@@ -388,8 +390,8 @@ Unicode_AllocWithLength(const void *buffer,      // IN
     */
 
    escapedBuffer = Unicode_EscapeBuffer(buffer, lengthInBytes, encoding);
-   Log("%s: Error: Couldn't convert invalid buffer [%s] "
-       "from %s to Unicode.\n",
+
+   Log("%s: Error: Couldn't convert invalid buffer [%s] from %s to Unicode.\n",
        __FUNCTION__,
        escapedBuffer ? escapedBuffer : "(couldn't escape bytes)",
        Unicode_EncodingEnumToName(encoding));
@@ -424,9 +426,13 @@ Unicode_CanGetBytesWithEncoding(ConstUnicode ustr,        // IN
    if (ustr == NULL) {
       return TRUE;
    }
-   if ((tmp = UnicodeGetAllocBytesInternal(ustr, encoding, -1, NULL)) == NULL) {
+
+   tmp = UnicodeGetAllocBytesInternal(ustr, encoding, -1, NULL);
+
+   if (tmp == NULL) {
       return FALSE;
    }
    free(tmp);
+
    return TRUE;
 }

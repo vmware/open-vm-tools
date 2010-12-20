@@ -136,6 +136,7 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
        * will not match "STRASSE", even though the two strings are the
        * same.
        */
+
       if (ignoreCase) {
          codeUnit1 = UnicodeSimpleCaseFold(codeUnit1);
          codeUnit2 = UnicodeSimpleCaseFold(codeUnit2);
@@ -159,6 +160,7 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
     * of a surrogate pair (for Unicode values past U+FFFF), decode the
     * surrogate pair into a full Unicode code point.
     */
+
    if (U16_IS_SURROGATE(codeUnit1)) {
       ssize_t substrUTF16Len = Unicode_UTF16Strlen(substr1UTF16);
 
@@ -256,6 +258,7 @@ Unicode_FindSubstrInRange(ConstUnicode str,             // IN
     * Unicode_FindLastSubstrInRange.  We might be able to refactor the
     * two into a common helper function.
     */
+
    for (strUTF8Offset = strStart;
         strUTF8Offset < strStart + strLength;
         strUTF8Offset++) {
