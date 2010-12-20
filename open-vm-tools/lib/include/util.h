@@ -188,10 +188,10 @@ Util_ValidateBytes(const void *ptr,  // IN: ptr to check
 
    p = (uint8 *) ptr;
 
-   /* Compare bytes until a "nice" boundary is achieved */
-   while ((((uintptr_t) p) & (sizeof(uint64) - 1)) != 0) {
+   /* Compare bytes until a "nice" boundary is achieved. */
+   while ((uintptr_t) p % sizeof bigValue) {
       if (*p != byteValue) {
-         return (void *) p;
+         return p;
       }
 
       size--;
@@ -203,23 +203,23 @@ Util_ValidateBytes(const void *ptr,  // IN: ptr to check
       p++;
    }
 
-   /* Compare using a "nice sized" chunk for a long as possible */
-   memset((void *) &bigValue, (int) byteValue, sizeof bigValue);
+   /* Compare using a "nice sized" chunk for a long as possible. */
+   memset(&bigValue, (int) byteValue, sizeof bigValue);
 
-   while (size >= sizeof(uint64)) {
+   while (size >= sizeof bigValue) {
       if (*((uint64 *) p) != bigValue) {
-         /* That's not right... let the loop below report the exact address */
+         /* That's not right... let the loop below report the exact address. */
          break;
       }
 
-      size -= sizeof(uint64);
-      p += sizeof(uint64);
+      size -= sizeof bigValue;
+      p += sizeof bigValue;
    }
 
-   /* Handle any trailing bytes */
+   /* Handle any trailing bytes. */
    while (size) {
       if (*p != byteValue) {
-         return (void *) p;
+         return p;
       }
 
       size--;
@@ -228,6 +228,7 @@ Util_ValidateBytes(const void *ptr,  // IN: ptr to check
 
    return NULL;
 }
+
 
 /*
  *----------------------------------------------------------------------
