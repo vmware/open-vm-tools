@@ -1164,7 +1164,6 @@ AC_CONFIG_FILES([                      \
    lib/appUtil/Makefile                \
    lib/auth/Makefile                   \
    lib/backdoor/Makefile               \
-   lib/conf/Makefile                   \
    lib/dict/Makefile                   \
    lib/dynxdr/Makefile                 \
    lib/err/Makefile                    \

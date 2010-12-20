@@ -155,7 +155,4 @@
 /* Wait 5 seconds between polls to see if the conf file has changed */
 #define CONF_POLL_TIME     500
 
-GuestApp_Dict *Conf_Load(void);
-Bool Conf_ReloadFile(GuestApp_Dict **pConfDict);
-
 #endif /* __CONF_H__ */

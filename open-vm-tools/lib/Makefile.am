@@ -22,7 +22,6 @@ if HAVE_X11
 endif
 SUBDIRS += auth
 SUBDIRS += backdoor
-SUBDIRS += conf
 SUBDIRS += dict
 SUBDIRS += dynxdr
 SUBDIRS += err

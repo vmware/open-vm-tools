@@ -16,7 +16,6 @@
 ################################################################################
 
 COMMON =
-COMMON += ../lib/conf/libConf.la
 COMMON += ../lib/eventManager/libEventManager.la
 COMMON += ../lib/file/libFile.la
 COMMON += ../lib/hgfs/libHgfs.la

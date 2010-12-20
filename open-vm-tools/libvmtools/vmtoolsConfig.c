@@ -33,6 +33,8 @@
 #include "vm_assert.h"
 #include "conf.h"
 #include "guestApp.h"
+#include "str.h"
+#include "util.h"
 
 /** Data types supported for translation. */
 typedef enum {
@@ -52,6 +54,73 @@ typedef struct ConfigEntry {
 } ConfigEntry;
 
 typedef void (*CfgCallback)(GKeyFile *cfg, const ConfigEntry *, const char *);
+
+
+/**
+ * Loads the legacy configuration file in the VMware dictionary format.
+ *
+ * @return A dictionary with the config data.
+ */
+
+static GuestApp_Dict *
+VMToolsConfigLoadLegacy(void)
+{
+   GuestApp_Dict *confDict;
+   char *path;
+   char *confPath = GuestApp_GetConfPath();
+   char *installPath = GuestApp_GetInstallPath();
+
+   if (confPath == NULL) {
+      Panic("Could not get path to Tools configuration file.\n");
+   }
+
+   path = Str_Asprintf(NULL, "%s%c%s", confPath, DIRSEPC, CONF_FILE);
+   ASSERT_NOT_IMPLEMENTED(path);
+   confDict = GuestApp_ConstructDict(path);
+   /* don't free path; it's used by the dict */
+
+   /* Set default conf values */
+   if (installPath != NULL) {
+      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
+                          CONFVAL_POWERONSCRIPT_DEFAULT);
+      ASSERT_NOT_IMPLEMENTED(path);
+      GuestApp_SetDictEntryDefault(confDict, CONFNAME_POWERONSCRIPT, path);
+      free(path);
+
+      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
+                          CONFVAL_POWEROFFSCRIPT_DEFAULT);
+      ASSERT_NOT_IMPLEMENTED(path);
+      GuestApp_SetDictEntryDefault(confDict, CONFNAME_POWEROFFSCRIPT, path);
+      free(path);
+
+      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
+                          CONFVAL_RESUMESCRIPT_DEFAULT);
+      ASSERT_NOT_IMPLEMENTED(path);
+      GuestApp_SetDictEntryDefault(confDict, CONFNAME_RESUMESCRIPT, path);
+      free(path);
+
+      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
+                          CONFVAL_SUSPENDSCRIPT_DEFAULT);
+      ASSERT_NOT_IMPLEMENTED(path);
+      GuestApp_SetDictEntryDefault(confDict, CONFNAME_SUSPENDSCRIPT, path);
+      free(path);
+
+      free(installPath);
+   } else {
+      Warning("Could not get path to Tools installation.\n");
+   }
+
+   GuestApp_SetDictEntryDefault(confDict, CONFNAME_MAX_WIPERSIZE,
+                                CONFVAL_MAX_WIPERSIZE_DEFAULT);
+
+   /* Load the user-configured values from the conf file if it's there */
+   GuestApp_LoadDict(confDict);
+
+   free(confPath);
+
+   return confDict;
+}
+
 
 /**
  * Upgrade the logging configuration.
@@ -302,11 +371,11 @@ VMTools_LoadConfig(const gchar *path,
 
    /*
     * Failed to load the config file; try to upgrade if requested. But only do
-    * it if the user is using the default conf file path; the old "Conf_Load()"
-    * API doesn't allow us to provide a custom config file path.
+    * it if the user is using the default conf file path; the legacy API doesn't
+    * allow us to provide a custom config file path.
     */
    if (path == NULL) {
-      old = Conf_Load();
+      old = VMToolsConfigLoadLegacy();
       if (old == NULL) {
          g_warning("Error loading old tools config data, bailing out.\n");
          goto error;

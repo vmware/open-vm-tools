@@ -43,13 +43,13 @@
 #include "msg.h"
 #include "file.h"
 #include "codeset.h"
-#include "productState.h"
 #include "posix.h"
 #include "vmware/guestrpc/tclodefs.h"
 
 #ifdef _MSC_VER
 #include <windows.h>
 #include <shlobj.h>
+#include "productState.h"
 #include "winregistry.h"
 #endif
 
