@@ -522,7 +522,7 @@ typedef int pid_t;
 #endif
 
 #if defined __linux__ && !defined __KERNEL__ && !defined MODULE && \
-                         !defined VMM && !defined FROBOS
+                         !defined VMM && !defined FROBOS && !defined __ANDROID__
 #include <features.h>
 #if __GLIBC_PREREQ(2, 1) && !defined GLIBC_VERSION_21
 #define GLIBC_VERSION_21
