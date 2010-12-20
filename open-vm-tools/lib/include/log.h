@@ -181,12 +181,6 @@ void Log_GetStaticDefaults(LogInitParams *params);
 void Log_ApplyConfigValues(const char *appPrefix,
                            LogInitParams *params);
 
-void Log_GetInitDefaults(const char *fileName,
-                         const char *config,
-                         const char *suffix,
-                         const char *appPrefix,
-                         LogInitParams *params);
-
 Bool Log_InitEx(const LogInitParams *params);
 
 Bool Log_Init(const char *fileName,
