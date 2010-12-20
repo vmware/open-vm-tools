@@ -98,6 +98,7 @@ enum {
    VIX_REQUESTMSG_REQUIRES_INTERACTIVE_ENVIRONMENT    = 0x08,
    VIX_REQUESTMSG_INCLUDES_AUTH_DATA_V1               = 0x10,
    VIX_REQUESTMSG_REQUIRES_VMDB_NOTIFICATION          = 0x20,
+   VIX_REQUESTMSG_ESCAPE_XML_DATA                     = 0x40,
 };
 
 
@@ -2133,8 +2134,8 @@ enum {
    /* DEPRECATED VIX_COMMAND_CREATE_FLOPPY                    = 30, */
    VIX_COMMAND_RELOAD_VM                        = 31,
    VIX_COMMAND_DELETE_VM                        = 32,
-   VIX_COMMAND_SYNCDRIVER_FREEZE                = 33,
-   VIX_COMMAND_SYNCDRIVER_THAW                  = 34,
+   /* DEPRECATED VIX_COMMAND_SYNCDRIVER_FREEZE                = 33, */
+   /* DEPRECATED VIX_COMMAND_SYNCDRIVER_THAW                  = 34, */
    /* DEPRECATED VIX_COMMAND_HOT_ADD_DISK                     = 35, */
    /* DEPRECATED VIX_COMMAND_HOT_REMOVE_DISK                  = 36, */
    VIX_COMMAND_SET_GUEST_PRINTER                = 37,
@@ -2422,6 +2423,35 @@ enum VixRunProgramResultValues {
 #define VIX_WINDOWSREGISTRY_VMWARE_KEY_RUNNING_VM_LIST VIX_WINDOWSREGISTRY_VMWARE_KEY "\\" VIX_WINDOWSREGISTRY_RUNNING_VM_LIST
 #endif
 
+
+/*
+ * This is used to denote that the contents of a VIX XML-like response
+ * string has been escaped. Old Tools did not escape the contents.
+ * This tag is only used for existing commands that did not originally perform
+ * escaping. Any new command must always escape any strings passed in XML.
+ * See ListProcessesInGuest as an example.
+ * The protocol works as follows:
+ * 1) A client library that internally knows how to handle escaped XML opts in
+ *    by including the VIX_REQUESTMSG_ESCAPE_XML_DATA in relevent requests.
+ * 2) Tools that understands the VIX_REQUESTMSG_ESCAPE_XML_DATA flag sees that
+ *    it is set in the request, and then escapes all string data within the
+ *    XML response. To indicate to the client that it has understood the
+ *    request, it include the VIX_XML_ESCAPED_TAG in the response (at the
+ *    begining of the response).
+ * 3) When the client library receives the response, it searches for the
+ *    VIX_XML_ESCAPED_TAG. If it is present, it then unescapes all string
+ *    data in the response. If the tag is not present, the client library
+ *    assumes that the Tools did not understand VIX_REQUESTMSG_ESCAPE_XML_DATA
+ *    and that the string data is not escaped.
+ * The following characters are escaped: '<', '>', and '%'.
+ * For new commands (starting with those released in M/N for the vSphere
+ * guest ops project), the escaping is exactly the same, but the
+ * VIX_REQUESTMSG_ESCAPE_XML_DATA flag and the VIX_XML_ESCAPED_TAG are not
+ * used, since both ends expect escaping.
+ */
+#define VIX_XML_ESCAPED_TAG   "<escaped/>"
+
+#define VIX_XML_ESCAPE_CHARACTER '%'
 
 
 /*

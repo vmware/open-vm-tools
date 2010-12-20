@@ -110,6 +110,10 @@ static Bool ProcMgrKill(pid_t pid,
                         int sig,
                         int timeout);
 
+#ifdef sun
+#define  SOLARIS_BASH_PATH "/usr/bin/bash"
+#endif
+
 #if defined(linux) && !defined(GLIBC_VERSION_23)
 /*
  * Implements the system calls (they are not wrapped by glibc til 2.3.2).
@@ -652,8 +656,40 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
    if (pid == -1) {
       Warning("Unable to fork: %s.\n\n", strerror(errno));
    } else if (pid == 0) {
+#ifdef sun
+      /*
+       * On Solaris, /bin/sh is the Bourne shell, and it
+       * doesn't appear to have the optimization that bash does -- when
+       * called with -c, bash appears to just use exec() to replace itself.
+       * Bourne shell does a fork & exec, so 2 processes are started.
+       * This is bad for us because we then see the PID of the shell, not the
+       * app that it starts.  When this PID is returned to a user to
+       * watch, they'll watch the wrong process.
+       *
+       * So for Solaris, use bash instead if possible.  We support
+       * Solaris 10 and better; it contains bash, but not in its
+       * minimal 'core' package, so it may not exist.
+       */
+      static const char bashShellPath[] = SOLARIS_BASH_PATH;
+      char *bashArgs[] = { "bash", "-c", cmdCurrent, NULL };
+      static const char bourneShellPath[] = "/bin/sh";
+      char *bourneArgs[] = { "sh", "-c", cmdCurrent, NULL };
+      const char *shellPath;
+      char **args;
+#else
       static const char shellPath[] = "/bin/sh";
       char *args[] = { "sh", "-c", cmdCurrent, NULL };
+#endif
+
+#ifdef sun
+      if (File_Exists(SOLARIS_BASH_PATH)) {
+         shellPath = bashShellPath;
+         args = bashArgs;
+      } else {
+         shellPath = bourneShellPath;
+         args = bourneArgs;
+      }
+#endif
 
       /*
        * Child

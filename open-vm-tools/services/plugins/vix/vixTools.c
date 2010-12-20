@@ -92,6 +92,7 @@
 #include "unicode.h"
 #include "hashTable.h"
 #include "su.h"
+#include "escape.h"
 
 #if defined(linux) || defined(_WIN32)
 #include "netutil.h"
@@ -292,6 +293,7 @@ static gboolean VixToolsMonitorStartProgram(void *clientData);
 
 static void VixToolsPrintFileInfo(const char *filePathName,
                                   char *fileName,
+                                  Bool escapeStrs,
                                   char **destPtr,
                                   char *endDestPtr);
 
@@ -395,6 +397,14 @@ static VixError VixToolsListProcesses(VixCommandRequestHeader *requestMsg,
                                       size_t maxBufferSize,
                                       char **result);
 
+static VixError VixToolsPrintProcInfoEx(DynBuf *dstBuffer,
+                                        const char *name,
+                                        uint64 pid,
+                                        const char *user,
+                                        int start,
+                                        int exitCode,
+                                        int exitTime);
+
 static VixError VixToolsListDirectory(VixCommandRequestHeader *requestMsg,
                                       size_t maxBufferSize,
                                       char **result);
@@ -427,6 +437,17 @@ static VixError VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,
 
 static VixError VixToolsListFileSystems(VixCommandRequestHeader *requestMsg,
                                         char **result);
+
+#if defined(_WIN32) || defined(linux)
+static VixError VixToolsPrintFileSystemInfo(char **destPtr,
+                                            const char *endDestPtr,
+                                            const char *name,
+                                            uint64 size,
+                                            uint64 freeSpace,
+                                            const char *type,
+                                            Bool escapeStrs,
+                                            Bool *truncated);
+#endif
 
 static VixError VixToolsValidateCredentials(VixCommandRequestHeader *requestMsg);
 
@@ -485,6 +506,8 @@ static void VixToolsFreeEnvp(char **envp);
 
 static VixError VixToolsRewriteError(uint32 opCode,
                                      VixError origError);
+
+static size_t VixToolsXMLStringEscapedLen(const char *str, Bool escapeStr);
 
 
 /*
@@ -3447,12 +3470,34 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
       value = VixToolsGetEnvFromUserEnvironment(env, names);
       if (NULL != value) {
          char *tmp = resultLocal;
-         resultLocal = Str_Asprintf(NULL, "%s<ev>%s=%s</ev>",
-                                    tmp, names, value);
-         free(tmp);
+         char *tmpVal;
+         char *escapedName;
+
+         escapedName = VixToolsEscapeXMLString(names);
+         if (NULL == escapedName) {
+            err = VIX_E_OUT_OF_MEMORY;
+            goto loopCleanup;
+         }
+
+         tmpVal = VixToolsEscapeXMLString(value);
+         if (NULL == tmpVal) {
+            err = VIX_E_OUT_OF_MEMORY;
+            goto loopCleanup;
+         }
          free(value);
+         value = tmpVal;
+
+         resultLocal = Str_Asprintf(NULL, "%s<ev>%s=%s</ev>",
+                                    tmp, escapedName, value);
+         free(tmp);
          if (NULL == resultLocal) {
             err = VIX_E_OUT_OF_MEMORY;
+         }
+
+      loopCleanup:
+         free(value);
+         free(escapedName);
+         if (VIX_OK != err) {
             goto abort;
          }
       }
@@ -3461,9 +3506,11 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
    }
 
    *result = resultLocal;
+   resultLocal = NULL;
    err = VIX_OK;
 
 abort:
+   free(resultLocal);
    VixToolsDestroyUserEnvironment(env);
 
    return err;
@@ -3512,6 +3559,16 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
 
    while ((envVar = VixToolsGetNextEnvVar(itr)) != NULL) {
       char *tmp = resultLocal;
+      char *tmpVal;
+
+      tmpVal = VixToolsEscapeXMLString(envVar);
+      free(envVar);
+      if (NULL == tmpVal) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+      envVar = tmpVal;
+
       resultLocal = Str_Asprintf(NULL, "%s<ev>%s</ev>", tmp, envVar);
       free(tmp);
       free(envVar);
@@ -4153,7 +4210,7 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
                       char **result)                       // OUT
 {
    VixError err = VIX_OK;
-   int index;
+   int i;
    static char resultBuffer[GUESTMSG_MAX_IN_SIZE];
    ProcMgr_ProcList *procList = NULL;
    char *destPtr;
@@ -4162,6 +4219,9 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    size_t procBufSize;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
+   Bool escapeStrs;
+   char *escapedName = NULL;
+   char *escapedUser = NULL;
 
    ASSERT(maxBufferSize <= GUESTMSG_MAX_IN_SIZE);
 
@@ -4174,6 +4234,9 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    }
    impersonatingVMWareUser = TRUE;
 
+   escapeStrs = (requestMsg->requestFlags &
+                 VIX_REQUESTMSG_ESCAPE_XML_DATA) != 0;
+
    procList = ProcMgr_ListProcesses();
    if (NULL == procList) {
       err = FoundryToolsDaemon_TranslateSystemErr();
@@ -4181,26 +4244,62 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    }
 
    endDestPtr = resultBuffer + maxBufferSize;
-   for (index = 0; index < procList->procCount; index++) {
+
+   if (escapeStrs) {
+      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr, "%s",
+                             VIX_XML_ESCAPED_TAG);
+   }
+
+   for (i = 0; i < procList->procCount; i++) {
+      const char *name;
+      const char *user;
+
+      if (escapeStrs) {
+         name = escapedName =
+            VixToolsEscapeXMLString(procList->procCmdList[i]);
+         if (NULL == escapedName) {
+            err = VIX_E_OUT_OF_MEMORY;
+            goto abort;
+         }
+      } else {
+         name = procList->procCmdList[i];
+      }
+
+      if ((NULL != procList->procOwnerList) &&
+          (NULL != procList->procOwnerList[i])) {
+         if (escapeStrs) {
+            user = escapedUser =
+               VixToolsEscapeXMLString(procList->procOwnerList[i]);
+            if (NULL == escapedUser) {
+               err = VIX_E_OUT_OF_MEMORY;
+               goto abort;
+            }
+         } else {
+            user = procList->procOwnerList[i];
+         }
+      } else {
+         user = "";
+      }
+
       procBufPtr = Str_Asprintf(&procBufSize,
                              "<proc><name>%s</name><pid>%d</pid>"
 #if defined(_WIN32)
                              "<debugged>%d</debugged>"
 #endif
                              "<user>%s</user><start>%d</start></proc>",
-                             procList->procCmdList[index],
-                             (int) procList->procIdList[index],
+                             name,
+                             (int) procList->procIdList[i],
 #if defined(_WIN32)
-                             (int) procList->procDebugged[index],
+                             (int) procList->procDebugged[i],
 #endif
-                             (NULL == procList->procOwnerList
-                               || NULL == procList->procOwnerList[index])
-                                 ? ""
-                                 : procList->procOwnerList[index],
+                             user,
                              (NULL == procList->startTime)
                                  ? 0
-                                 : (int) procList->startTime[index]);
-
+                                 : (int) procList->startTime[i]);
+      if (NULL == procBufPtr) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
       if ((destPtr + procBufSize) < endDestPtr) {
          destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
                                 "%s", procBufPtr);
@@ -4210,6 +4309,10 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
          goto abort;
       }
       free(procBufPtr);
+      free(escapedName);
+      escapedName = NULL;
+      free(escapedUser);
+      escapedUser = NULL;
    }
 
 abort:
@@ -4218,6 +4321,8 @@ abort:
    }
    VixToolsLogoutUser(userToken);
    ProcMgr_FreeProcList(procList);
+   free(escapedName);
+   free(escapedUser);
 
    *result = resultBuffer;
 
@@ -4308,20 +4413,13 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                                     size_t *resultSize,      // OUT
                                     char **resultBuffer)     // OUT
 {
-   int i;
-   int j;
    VixError err = VIX_OK;
-   char *procBufPtr = NULL;
-   size_t procBufSize;
    ProcMgr_ProcList *procList = NULL;
    DynBuf dynBuffer;
    VixToolsExitedProgramState *epList;
+   int i;
+   int j;
    Bool bRet;
-   static const char *procInfoFormatString =
-                                 "<proc><name>%s</name><pid>%"FMT64"d</pid>"
-                                 "<user>%s</user><start>%d</start>"
-                                 "<eCode>%d</eCode><eTime>%d</eTime>"
-                                 "</proc>";
 
    DynBuf_Init(&dynBuffer);
 
@@ -4342,18 +4440,14 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
          epList = exitedProcessList;
          while (epList) {
             if (pids[i] == epList->pid) {
-               procBufPtr = Str_Asprintf(&procBufSize,
-                                         procInfoFormatString,
-                                         epList->fullCommandLine,
-                                         epList->pid,
-                                         epList->user,
-                                         (int) epList->startTime,
-                                         epList->exitCode,
-                                         (int) epList->endTime);
-               bRet = DynBuf_Append(&dynBuffer, procBufPtr, procBufSize);
-               free(procBufPtr);
-               if (!bRet) {
-                  err = VIX_E_OUT_OF_MEMORY;
+               err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                             epList->fullCommandLine,
+                                             epList->pid,
+                                             epList->user,
+                                             (int) epList->startTime,
+                                             epList->exitCode,
+                                             (int) epList->endTime);
+               if (VIX_OK != err) {
                   goto abort;
                }
             }
@@ -4363,18 +4457,14 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
    } else {
       epList = exitedProcessList;
       while (epList) {
-         procBufPtr = Str_Asprintf(&procBufSize,
-                                   procInfoFormatString,
-                                   epList->fullCommandLine,
-                                   epList->pid,
-                                   epList->user,
-                                   (int) epList->startTime,
-                                   epList->exitCode,
-                                   (int) epList->endTime);
-         bRet = DynBuf_Append(&dynBuffer, procBufPtr, procBufSize);
-         free(procBufPtr);
-         if (!bRet) {
-            err = VIX_E_OUT_OF_MEMORY;
+         err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                       epList->fullCommandLine,
+                                       epList->pid,
+                                       epList->user,
+                                       (int) epList->startTime,
+                                       epList->exitCode,
+                                       (int) epList->endTime);
+         if (VIX_OK != err) {
             goto abort;
          }
          epList = epList->next;
@@ -4396,22 +4486,16 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                continue;
             }
             if (pids[i] == procList->procIdList[j]) {
-               procBufPtr = Str_Asprintf(&procBufSize,
-                                         procInfoFormatString,
-                                         procList->procCmdList[j],
-                                         (uint64) procList->procIdList[j],
-                                         (NULL == procList->procOwnerList
-                                           || NULL == procList->procOwnerList[j])
-                                             ? ""
-                                             : procList->procOwnerList[j],
-                                         (NULL == procList->startTime)
-                                             ? 0
-                                             : (int) procList->startTime[j],
-                                             0, 0);      // eCode, eTime
-               bRet = DynBuf_Append(&dynBuffer, procBufPtr, procBufSize);
-               free(procBufPtr);
-               if (!bRet) {
-                  err = VIX_E_OUT_OF_MEMORY;
+               err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                             procList->procCmdList[i],
+                                             procList->procIdList[i],
+                                             (NULL == procList->procOwnerList
+                                              || NULL == procList->procOwnerList[i])
+                                             ? "" : procList->procOwnerList[i],
+                                             (NULL == procList->startTime)
+                                             ? 0 : (int) procList->startTime[i],
+                                             0, 0);
+               if (VIX_OK != err) {
                   goto abort;
                }
             }
@@ -4423,22 +4507,16 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
          if (VixToolsFindExitedProgramState(procList->procIdList[i])) {
             continue;
          }
-         procBufPtr = Str_Asprintf(&procBufSize,
-                                   procInfoFormatString,
-                                   procList->procCmdList[i],
-                                   (uint64) procList->procIdList[i],
-                                   (NULL == procList->procOwnerList
-                                     || NULL == procList->procOwnerList[i])
-                                       ? ""
-                                       : procList->procOwnerList[i],
-                                   (NULL == procList->startTime)
-                                       ? 0
-                                       : (int) procList->startTime[i],
-                                    0, 0);      // eCode, eTime
-         bRet = DynBuf_Append(&dynBuffer, procBufPtr, procBufSize);
-         free(procBufPtr);
-         if (!bRet) {
-            err = VIX_E_OUT_OF_MEMORY;
+         err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                       procList->procCmdList[i],
+                                       procList->procIdList[i],
+                                       (NULL == procList->procOwnerList
+                                        || NULL == procList->procOwnerList[i])
+                                       ? "" : procList->procOwnerList[i],
+                                       (NULL == procList->startTime)
+                                       ? 0 : (int) procList->startTime[i],
+                                       0, 0);
+         if (VIX_OK != err) {
             goto abort;
          }
       }
@@ -4481,6 +4559,7 @@ abort:
  *
  *-----------------------------------------------------------------------------
  */
+
 static Bool
 VixToolsGetUserName(wchar_t **userName)                     // OUT
 {
@@ -4758,6 +4837,80 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsPrintProcInfoEx --
+ *
+ *      Appends a single process entry to the XML-like string starting at
+ *      *destPtr.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+VixToolsPrintProcInfoEx(DynBuf *dstBuffer,             // IN/OUT
+                        const char *name,              // IN
+                        uint64 pid,                    // IN
+                        const char *user,              // IN
+                        int start,                     // IN
+                        int exitCode,                  // IN
+                        int exitTime)                  // IN
+{
+   VixError err;
+   char *escapedName;
+   char *escapedUser = NULL;
+   size_t bytesPrinted;
+   char *procInfoEntry;
+   Bool success;
+
+   escapedName = VixToolsEscapeXMLString(name);
+   if (NULL == escapedName) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   escapedUser = VixToolsEscapeXMLString(user);
+   if (NULL == escapedUser) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   procInfoEntry = Str_Asprintf(&bytesPrinted,
+                                "<proc><name>%s</name><pid>%"FMT64"d</pid>"
+                                "<user>%s</user><start>%d</start>"
+                                "<eCode>%d</eCode><eTime>%d</eTime>"
+                                "</proc>",
+                                escapedName, pid, escapedUser, start, exitCode,
+                                exitTime);
+   if (NULL == procInfoEntry) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   success = DynBuf_Append(dstBuffer, procInfoEntry, bytesPrinted);
+   free(procInfoEntry);
+   if (!success) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   err = VIX_OK;
+
+abort:
+   free(escapedName);
+   free(escapedUser);
+
+   return err;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixToolsKillProcess --
  *
  *
@@ -4991,6 +5144,7 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
    Bool isLegacyFormat;
    VMAutomationRequestParser parser;
    int dirPathLen;
+   Bool escapeStrs;
 
    legacyListRequest = (VixMsgSimpleFileRequest *) requestMsg;
    if (legacyListRequest->fileOptions & VIX_LIST_DIRECTORY_USE_OFFSET) {
@@ -5039,6 +5193,9 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
    }
    impersonatingVMWareUser = TRUE;
 
+   escapeStrs = (requestMsg->requestFlags &
+                 VIX_REQUESTMSG_ESCAPE_XML_DATA) != 0;
+
    if (!(File_IsDirectory(dirPathName))) {
       err = VIX_E_NOT_A_DIRECTORY;
       goto abort;
@@ -5055,6 +5212,9 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
     * max number of entries we can store.
     */
    resultBufferSize = 3; // truncation bool + space + '\0'
+   if (escapeStrs) {
+      resultBufferSize += strlen(VIX_XML_ESCAPED_TAG);
+   }
    lastGoodResultBufferSize = resultBufferSize;
    ASSERT_NOT_IMPLEMENTED(lastGoodResultBufferSize < maxBufferSize);
    formatStringLength = strlen(fileInfoFormatString);
@@ -5063,7 +5223,8 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       currentFileName = fileNameList[fileNum];
 
       resultBufferSize += formatStringLength;
-      resultBufferSize += strlen(currentFileName);
+      resultBufferSize += VixToolsXMLStringEscapedLen(currentFileName,
+                                                      escapeStrs);
       resultBufferSize += 2; // DIRSEPC chars
       resultBufferSize += 10 + 20 + 20; // properties + size + modTime
 
@@ -5104,6 +5265,11 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       }
    }
 
+   if (escapeStrs) {
+      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr, "%s",
+                             VIX_XML_ESCAPED_TAG);
+   }
+
    for (fileNum = offset; fileNum < lastGoodNumFiles; fileNum++) {
       /* File_ListDirectory never returns "." or ".." */
       char *pathName;
@@ -5113,7 +5279,8 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       pathName = Str_SafeAsprintf(NULL, "%s%s%s", dirPathName, DIRSEPS,
                                   currentFileName);
 
-      VixToolsPrintFileInfo(pathName, currentFileName, &destPtr, endDestPtr);
+      VixToolsPrintFileInfo(pathName, currentFileName, escapeStrs, &destPtr,
+                            endDestPtr);
 
       free(pathName);
    } // for (fileNum = 0; fileNum < lastGoodNumFiles; fileNum++)
@@ -5465,13 +5632,14 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
       char *symlinkTarget;
       symlinkTarget = Posix_ReadLink(filePathName);
       if (NULL != symlinkTarget) {
-         fileExtendedInfoBufferSize += strlen(symlinkTarget);
+         fileExtendedInfoBufferSize +=
+            VixToolsXMLStringEscapedLen(symlinkTarget, TRUE);
       }
       free(symlinkTarget);
    }
 #endif
 
-   fileExtendedInfoBufferSize += strlen(fileName);
+   fileExtendedInfoBufferSize += VixToolsXMLStringEscapedLen(fileName, TRUE);
 
    return fileExtendedInfoBufferSize;
 }
@@ -5549,7 +5717,7 @@ VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,    // IN
     * Print the result buffer
     */
    destPtr = resultBuffer;
-   VixToolsPrintFileInfo(filePathName, "", &destPtr, resultBuffer + resultBufferSize);
+   VixToolsPrintFileInfo(filePathName, "", FALSE, &destPtr, resultBuffer + resultBufferSize);
 
 abort:
    if (impersonatingVMWareUser) {
@@ -5833,12 +6001,14 @@ abort:
 static void
 VixToolsPrintFileInfo(const char *filePathName,     // IN
                       char *fileName,               // IN
-                      char **destPtr,               // IN
-                      char *endDestPtr)             // OUT
+                      Bool escapeStrs,              // IN
+                      char **destPtr,               // IN/OUT
+                      char *endDestPtr)             // IN
 {
    int64 fileSize = 0;
    int64 modTime;
    int32 fileProperties = 0;
+   char *escapedFileName = NULL;
 
    modTime = File_GetModTime(filePathName);
    if (File_IsDirectory(filePathName)) {
@@ -5852,6 +6022,11 @@ VixToolsPrintFileInfo(const char *filePathName,     // IN
       }
    }
 
+   if (escapeStrs) {
+      fileName = escapedFileName = VixToolsEscapeXMLString(fileName);
+      ASSERT_MEM_ALLOC(NULL != escapedFileName);
+   }
+
    *destPtr += Str_Sprintf(*destPtr, 
                            endDestPtr - *destPtr, 
                            fileInfoFormatString,
@@ -5859,6 +6034,7 @@ VixToolsPrintFileInfo(const char *filePathName,     // IN
                            fileProperties,
                            fileSize,
                            modTime);
+   free(escapedFileName);
 } // VixToolsPrintFileInfo
 
 
@@ -5879,8 +6055,8 @@ VixToolsPrintFileInfo(const char *filePathName,     // IN
 static void
 VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                               const char *fileName,         // IN
-                              char **destPtr,               // IN
-                              char *endDestPtr)             // OUT
+                              char **destPtr,               // IN/OUT
+                              char *endDestPtr)             // IN
 {
 #if defined(_WIN32) || defined(linux)
    int64 fileSize = 0;
@@ -5897,8 +6073,10 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    int ownerId = 0;
    int groupId = 0;
    char *symlinkTarget = NULL;
+   char *tmp;
 #endif
    struct stat statbuf;
+   char *escapedFileName = NULL;
 
    /*
     * First check for symlink -- File_IsDirectory() will lie
@@ -5927,6 +6105,11 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    if (NULL == symlinkTarget) {
       symlinkTarget = Util_SafeStrdup("");
    }
+
+   tmp = VixToolsEscapeXMLString(symlinkTarget);
+   ASSERT_MEM_ALLOC(NULL != tmp);
+   free(symlinkTarget);
+   symlinkTarget = tmp;
 #endif
 
 #ifdef _WIN32
@@ -5961,11 +6144,14 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
             __FUNCTION__, filePathName, errno);
    }
 
+   escapedFileName = VixToolsEscapeXMLString(fileName);
+   ASSERT_MEM_ALLOC(NULL != escapedFileName);
+
 #ifdef _WIN32
    *destPtr += Str_Sprintf(*destPtr,
                            endDestPtr - *destPtr,
                            fileExtendedInfoWindowsFormatString,
-                           fileName,
+                           escapedFileName,
                            fileProperties,
                            fileSize,
                            modTime,
@@ -5977,7 +6163,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    *destPtr += Str_Sprintf(*destPtr,
                            endDestPtr - *destPtr,
                            fileExtendedInfoLinuxFormatString,
-                           fileName,
+                           escapedFileName,
                            fileProperties,
                            fileSize,
                            modTime,
@@ -5988,6 +6174,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                            symlinkTarget);
    free(symlinkTarget);
 #endif
+   free(escapedFileName);
 #endif   // defined(_WIN32) || defined(linux)
 } // VixToolsPrintFileExtendedInfo
 
@@ -6026,8 +6213,8 @@ VixToolsPrintFileExtendedInfoEx(const char *filePathName,          // IN
    destPtr = resultBuffer;
    endDestPtr = resultBuffer + resultBufferSize;
 
-   VixToolsPrintFileExtendedInfo(filePathName, filePathName,
-                                 &destPtr, endDestPtr);
+   VixToolsPrintFileExtendedInfo(filePathName, filePathName, &destPtr,
+                                 endDestPtr);
 
    *destPtr = '\0';
    return resultBuffer;
@@ -7304,13 +7491,9 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    void *userToken = NULL;
    char *destPtr;
    char *endDestPtr;
+   Bool escapeStrs;
 #if defined(_WIN32) || defined(linux)
-   const char *listFileSystemsFormatString = "<filesystem>"
-                                             "<name>%s</name>"
-                                             "<size>%"FMT64"u</size>"
-                                             "<freeSpace>%"FMT64"u</freeSpace>"
-                                             "<type>%s</type>"
-                                             "</filesystem>";
+   Bool truncated;
 #endif
 #if defined(_WIN32)
    Unicode *driveList = NULL;
@@ -7339,6 +7522,9 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    }
    impersonatingVMWareUser = TRUE;
 
+   escapeStrs = (requestMsg->requestFlags &
+                 VIX_REQUESTMSG_ESCAPE_XML_DATA) != 0;
+
 #if defined(_WIN32)
    numDrives = Win32U_GetLogicalDriveStrings(&driveList);
    if (-1 == numDrives) {
@@ -7346,6 +7532,11 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
               GetLastError());
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
+   }
+
+   if (escapeStrs) {
+      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr, "%s",
+                             VIX_XML_ESCAPED_TAG);
    }
 
    for (i = 0; i < numDrives; i++) {
@@ -7371,14 +7562,14 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
                                   NULL,
                                   NULL,
                                   &fileSystemType);
-
-      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
-                             listFileSystemsFormatString,
-                             driveList[i],
-                             totalBytesToUser,
-                             freeBytesToUser,
-                             fileSystemType);
-
+      err = VixToolsPrintFileSystemInfo(&destPtr, endDestPtr,
+                                        driveList[i], totalBytesToUser,
+                                        freeBytesToUser,
+                                        fileSystemType ? fileSystemType : "",
+                                        escapeStrs, &truncated);
+      if ((VIX_OK != err) || truncated) {
+         goto abort;
+      }
       Unicode_Free(fileSystemType);
    }
 
@@ -7404,13 +7595,13 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
       }
       size = (uint64) statfsbuf.f_blocks * (uint64) statfsbuf.f_bsize;
       freeSpace = (uint64) statfsbuf.f_bfree * (uint64) statfsbuf.f_bsize;
-      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
-                             listFileSystemsFormatString,
-                             MNTINFO_NAME(mnt),
-                             size,
-                             freeSpace,
-                             MNTINFO_FSTYPE(mnt));
-
+      err = VixToolsPrintFileSystemInfo(&destPtr, endDestPtr,
+                                        MNTINFO_NAME(mnt), size, freeSpace,
+                                        MNTINFO_FSTYPE(mnt), escapeStrs,
+                                        &truncated);
+      if ((VIX_OK != err) || truncated) {
+         goto abort;
+      }
    }
    CLOSE_MNTFILE(fp);
 #else
@@ -7437,6 +7628,88 @@ abort:
 
    return(err);
 } // VixToolsListFileSystems
+
+
+#if defined(_WIN32) || defined(linux)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsPrintFileSystemInfo --
+ *
+ *      Appends a single file system entry to the XML-like string starting at
+ *      *destPtr.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+VixToolsPrintFileSystemInfo(char **destPtr,                // IN/OUT
+                            const char *endDestPtr,        // IN
+                            const char *name,              // IN
+                            uint64 size,                   // IN
+                            uint64 freeSpace,              // IN
+                            const char *type,              // IN
+                            Bool escapeStrs,               // IN
+                            Bool *truncated)               // OUT
+{
+   VixError err;
+   char *escapedName = NULL;
+   char *escapedType = NULL;
+   int bytesPrinted;
+
+   ASSERT(endDestPtr > *destPtr);
+
+   *truncated = FALSE;
+
+   if (escapeStrs) {
+      name = escapedName = VixToolsEscapeXMLString(name);
+      if (NULL == escapedName) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+
+      type = escapedType = VixToolsEscapeXMLString(type);
+      if (NULL == escapedType) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+   }
+
+   bytesPrinted = Str_Snprintf(*destPtr, endDestPtr - *destPtr,
+                                "<filesystem>"
+                               "<name>%s</name>"
+                               "<size>%"FMT64"u</size>"
+                               "<freeSpace>%"FMT64"u</freeSpace>"
+                               "<type>%s</type>"
+                               "</filesystem>",
+                               name, size, freeSpace, type);
+   if (bytesPrinted != -1) {
+      *destPtr += bytesPrinted;
+   } else { // out of space
+      **destPtr = '\0';
+      Debug("%s: file system list results too large, truncating",
+            __FUNCTION__);
+      *truncated = TRUE;
+      err = VIX_OK;
+      goto abort;
+   }
+
+   err = VIX_OK;
+
+abort:
+   free(escapedName);
+   free(escapedType);
+
+   return err;
+}
+#endif // #if defined(_WIN32) || defined(linux)
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -8480,7 +8753,7 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       ////////////////////////////////////
       case VIX_COMMAND_INITIATE_FILE_TRANSFER_TO_GUEST:
          err = VixToolsInitiateFileTransferToGuest(requestMsg);
-			break;
+         break;
 
       ////////////////////////////////////
       case VIX_COMMAND_VALIDATE_CREDENTIALS:
@@ -8810,3 +9083,95 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
    return ret;
 }
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsEscapeXMLString --
+ *
+ *      Escapes a string to be included in VMAutomation XML.
+ *
+ * Results:
+ *      Pointer to a heap-allocated escaped string.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+VixToolsEscapeXMLString(const char *str)    // IN
+{
+   static const int bytesToEscape[] = {
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   // '%'
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,   // '<' and '>'
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   };
+
+   return Escape_Do(VIX_XML_ESCAPE_CHARACTER, bytesToEscape, str, strlen(str),
+                    NULL);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsXMLStringEscapedLen --
+ *
+ *      Computes the length of the supplied string if it were escaped
+ *      (if escapeStr is TRUE), or the length of the string as is.
+ *
+ * Results:
+ *      The length.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static size_t
+VixToolsXMLStringEscapedLen(const char *str,    // IN
+                            Bool escapeStr)     // IN
+{
+   if (escapeStr) {
+      size_t totalLen = 0;
+
+      while (TRUE) {
+         size_t nextLen = strcspn(str, "<>%");
+
+         totalLen += nextLen;
+         if ('\0' == str[nextLen]) {
+            break;
+         }
+
+         /*
+          * str[nextLen] is a character that needs to be escaped. Each
+          * escapeStr that is escaped will take up 3 bytes (an escape
+          * character and two hex digits) in the escaped string.
+          */
+
+         totalLen += 3;
+         str += nextLen + 1;
+      }
+
+      return totalLen;
+   } else {
+      return strlen(str);
+   }
+}

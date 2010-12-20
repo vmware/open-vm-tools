@@ -276,7 +276,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 8
 #define USB_ARBITRATOR_VERSION_MINOR 2
-#define USB_ARBITRATOR_VERSION_Z     0
+#define USB_ARBITRATOR_VERSION_Z     2
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
 
@@ -291,7 +291,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.2.0"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.2.2"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -518,23 +518,5 @@ typedef enum {
    VMX_PLATFORM_WIN32,
    VMX_PLATFORM_MACOS,
 } VMX_Platform;
-
-
-/*
- * UI versions
- *
- * Note that these only make sense in the context of the server type
- */
-
-#define  UI_VERSION_OLD            1  // pre-versioned UIs
-#define  UI_VERSION_ESX15          2
-#define  UI_VERSION_GSX20          2
-#define  UI_VERSION_ESX20          3
-#define  UI_VERSION_GSX25          3
-// Skip one just in case we want to insert ESX21 in between here for neatness
-#define  UI_VERSION_GSX30          5
-#define  UI_VERSION_VMSERVER10     6
-
-#define  UI_VERSION                6  // Current UI version
 
 #endif /* VM_VERSION_H */

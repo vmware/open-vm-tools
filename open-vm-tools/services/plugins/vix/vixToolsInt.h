@@ -65,6 +65,8 @@ VixError VixToolsValidateEnviron(char const * const *environ);
 char *VixToolsGetEnvVarFromEnvBlock(const wchar_t *envBlock,
                                     const char *envVarName);
 
+char *VixToolsEscapeXMLString(const char *str);
+
 #ifdef _WIN32
 VixError VixToolsGetEnvBlock(void *userToken,
                              wchar_t **envBlock);
