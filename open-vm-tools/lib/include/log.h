@@ -183,10 +183,6 @@ void Log_ApplyConfigValues(const char *appPrefix,
 
 Bool Log_InitEx(const LogInitParams *params);
 
-Bool Log_Init(const char *fileName,
-              const char *config,
-              const char *suffix);
-
 Bool Log_InitWithFile(const char *fileName,
                       const char *appPrefix);
 
