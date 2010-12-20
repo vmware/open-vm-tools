@@ -40,6 +40,7 @@
 #  include <sys/time.h>
 #endif
 
+#include "log.h"
 #if defined(G_PLATFORM_WIN32)
 #  include "coreDump.h"
 #endif
@@ -883,6 +884,53 @@ Log(const char *fmt, ...)
       g_logv(gLogDomain, G_LOG_LEVEL_MESSAGE, fmt, args);
       va_end(args);
    }
+}
+
+
+/**
+ * Logs a message with the given log level.
+ *
+ * Translates lib/log levels into glib levels, and sends the message to the log
+ * implementation.
+ *
+ * @param[in]  level    Log level.
+ * @param[in]  fmt      Log message format.
+ * @param[in]  args     Log message arguments.
+ */
+
+void
+LogV(int level,
+     const char *fmt,
+     va_list args)
+{
+   int glevel;
+
+   switch (level) {
+   case VMW_LOG_PANIC:
+      glevel = G_LOG_LEVEL_ERROR;
+      break;
+
+   case VMW_LOG_ERROR:
+      glevel = G_LOG_LEVEL_CRITICAL;
+      break;
+
+   case VMW_LOG_WARNING:
+      glevel = G_LOG_LEVEL_WARNING;
+      break;
+
+   case VMW_LOG_INFO:
+      glevel = G_LOG_LEVEL_MESSAGE;
+      break;
+
+   case VMW_LOG_VERBOSE:
+      glevel = G_LOG_LEVEL_INFO;
+      break;
+
+   default:
+      glevel = G_LOG_LEVEL_DEBUG;
+   }
+
+   g_logv(gLogDomain, glevel, fmt, args);
 }
 
 
