@@ -655,7 +655,7 @@ typedef void * UserVA;
  * In practice, most things presently compile with gcc-4.1 or gcc-4.4.
  * The various linux kernel modules may use older (gcc-3.3) compilers.
  */
-#if defined __GNUC__ && __GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
+#if defined __GNUC__ && (__GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3))
 #error "gcc version is to old to compile assembly, need gcc-3.3 or better"
 #endif
 
