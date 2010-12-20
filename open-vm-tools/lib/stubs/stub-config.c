@@ -52,7 +52,7 @@ char *
 Config_GetString(const char *defaultValue,
                  const char *fmt, ...)
 {
-   return (char *) defaultValue;
+   return (defaultValue == NULL) ? NULL : strdup(defaultValue);
 }
 
 
@@ -68,7 +68,7 @@ char *
 Preference_GetString(const char *defaultValue,
                      const char *name)
 {
-   return (char *) defaultValue;
+   return (defaultValue == NULL) ? NULL : strdup(defaultValue);
 }
 
 
@@ -76,7 +76,7 @@ char *
 Preference_GetPathName(const char *defaultValue,
                        const char *fmt)
 {
-   return (char *) defaultValue;
+   return (defaultValue == NULL) ? NULL : strdup(defaultValue);
 }
 
 int32
