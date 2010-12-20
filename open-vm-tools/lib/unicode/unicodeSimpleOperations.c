@@ -309,8 +309,7 @@ Unicode_FindSubstrInRange(ConstUnicode str,              // IN:
    }
 
    /*
-    * XXX: searching a string for an empty string and returning a match
-    * seems wrong. This was in the original code but needs investigation.
+    * Yes, this may be viewed as a bit strange but this is what strstr does.
     */
 
    if (strToFindLength == 0) {
@@ -436,8 +435,7 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
    }
 
    /*
-    * XXX: searching a string for an empty string and returning a match
-    * seems wrong. This was in the original code but needs investigation.
+    * Yes, this may be viewed as a bit strange but this is what strstr does.
     */
 
    if (strToFindLength == 0) {
