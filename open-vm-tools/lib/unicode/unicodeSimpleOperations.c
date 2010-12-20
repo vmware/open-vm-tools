@@ -308,6 +308,11 @@ Unicode_FindSubstrInRange(ConstUnicode str,              // IN:
       goto bail;
    }
 
+   /*
+    * XXX: searching a string for an empty string and returning a match
+    * seems wrong. This was in the original code but needs investigation.
+    */
+
    if (strToFindLength == 0) {
       index = strStart;
       goto bail;
@@ -429,6 +434,11 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
       index = UNICODE_INDEX_NOT_FOUND;
       goto bail;
    }
+
+   /*
+    * XXX: searching a string for an empty string and returning a match
+    * seems wrong. This was in the original code but needs investigation.
+    */
 
    if (strToFindLength == 0) {
       index = strStart;
