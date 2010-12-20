@@ -836,7 +836,7 @@ File_SplitName(ConstUnicode pathName,  // IN:
 
    ASSERT(pathName);
 
-   pathLen = Unicode_LengthInCodeUnits(pathName);
+   pathLen = Unicode_LengthInCodePoints(pathName);
 
    /*
     * Get volume.
@@ -1012,7 +1012,8 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
    /*
     * The volume component may be empty.
     */
-   if (Unicode_LengthInCodeUnits(volume) > 0) {
+
+   if (!Unicode_IsEmpty(volume)) {
       Unicode temp;
 
       temp = Unicode_Append(volume, *pathName);
@@ -1025,7 +1026,7 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
     * Remove any trailing directory separator characters.
     */
 
-   len = Unicode_LengthInCodeUnits(*pathName);
+   len = Unicode_LengthInCodePoints(*pathName);
 
    curLen = len;
 
@@ -2079,7 +2080,7 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName)  // IN:
       return TRUE;
    }
 
-   length = Unicode_LengthInCodeUnits(pathName);
+   length = Unicode_LengthInCodePoints(pathName);
 
    if (length == 0) {
       return TRUE;
@@ -2091,7 +2092,7 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName)  // IN:
 
    File_SplitName(pathName, &volume, NULL, NULL);
 
-   index = Unicode_LengthInCodeUnits(volume);
+   index = Unicode_LengthInCodePoints(volume);
 
    Unicode_Free(volume);
 
