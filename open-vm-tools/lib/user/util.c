@@ -36,6 +36,7 @@
 # include <io.h>
 # include <process.h>
 # include "coreDump.h"
+# include "getoptWin32.h"
 #endif
 
 #include <fcntl.h>
@@ -48,6 +49,7 @@
 
 #if !defined(_WIN32) && !defined(N_PLAT_NLM)
 #  include <unistd.h>
+#  include <getopt.h>
 #  include <pwd.h>
 #  include <dlfcn.h>
 #endif
@@ -933,6 +935,142 @@ Util_CompareDotted(const char *s1, const char *s2)
 
    return 0;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_GetOpt --
+ *
+ *      A wrapper around getopt_long that avoids needing separate long and
+ *      short option lists.
+ *
+ *      To use this, the array of option structs must:
+ *      * Store the short option name in the 'val' member.
+ *      * Set the 'name' member to NULL if the option has a short name but no
+ *        long name.
+ *      * For options that have only a long name, 'val' should be set to a
+ *        unique value greater than UCHAR_MAX.
+ *      * Terminate the array with a sentinel value that zero-initializes both
+ *        'name' and 'val'.
+ *
+ * Results:
+ *      See getopt_long.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+Util_GetOpt(int argc,                  // IN
+            char * const *argv,        // IN
+            const struct option *opts, // IN
+            Util_NonOptMode mode)      // IN
+{
+   int ret = -1;
+
+   struct option *longOpts = NULL;
+   char *shortOptString = NULL;
+
+   /*
+    * In the worst case, each character needs "::" to indicate that it takes
+    * an optional argument.
+    */
+   const size_t maxCharsPerShortOption = 3;
+   const size_t modePrefixSize = 1;
+
+   size_t n = 0;
+   size_t shortOptStringSize;
+
+   while (!(opts[n].name == NULL && opts[n].val == 0)) {
+      if (UNLIKELY(n == SIZE_MAX)) {
+         /*
+          * Avoid integer overflow.  If you have this many options, you're
+          * doing something wrong.
+          */
+         ASSERT(FALSE);
+         goto exit;
+      }
+      n++;
+   }
+
+   if (UNLIKELY(n > SIZE_MAX / sizeof *longOpts - 1)) {
+      /* Avoid integer overflow. */
+      ASSERT(FALSE);
+      goto exit;
+   }
+   longOpts = malloc((n + 1) * sizeof *longOpts);
+   if (longOpts == NULL) {
+      goto exit;
+   }
+
+   if (UNLIKELY(n > (SIZE_MAX - modePrefixSize - 1 /* NUL */) /
+                maxCharsPerShortOption)) {
+      /* Avoid integer overflow. */
+      ASSERT(FALSE);
+      goto exit;
+   }
+   shortOptStringSize = n * maxCharsPerShortOption + modePrefixSize + 1 /* NUL */;
+   shortOptString = malloc(shortOptStringSize);
+   if (shortOptString == NULL) {
+      goto exit;
+   } else {
+      struct option empty = { 0 };
+
+      size_t i;
+      struct option *longOptOut = longOpts;
+      char *shortOptOut = shortOptString;
+
+      switch (mode) {
+         case UTIL_NONOPT_STOP:
+            *shortOptOut++ = '+';
+            break;
+         case UTIL_NONOPT_ALL:
+            *shortOptOut++ = '-';
+            break;
+         default:
+            break;
+      }
+
+      for (i = 0; i < n; i++) {
+         int val = opts[i].val;
+
+         if (opts[i].name != NULL) {
+            *longOptOut++ = opts[i];
+         }
+
+         if (val > 0 && val <= UCHAR_MAX) {
+            int argSpec = opts[i].has_arg;
+
+            *shortOptOut++ = (char) val;
+
+            if (argSpec != no_argument) {
+               *shortOptOut++ = ':';
+
+               if (argSpec == optional_argument) {
+                  *shortOptOut++ = ':';
+               }
+            }
+         }
+      }
+
+      ASSERT(longOptOut - longOpts <= n);
+      *longOptOut = empty;
+
+      ASSERT(shortOptOut - shortOptString < shortOptStringSize);
+      *shortOptOut = '\0';
+   }
+
+   ret = getopt_long(argc, argv, shortOptString, longOpts, NULL);
+
+exit:
+   free(longOpts);
+   free(shortOptString);
+   return ret;
+}
+
 
 
 

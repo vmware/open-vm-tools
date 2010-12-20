@@ -128,6 +128,20 @@ void Util_BacktraceToBuffer(uintptr_t *basePtr,
 
 int Util_CompareDotted(const char *s1, const char *s2);
 
+/*
+ * This enum defines how Util_GetOpt should handle non-option arguments:
+ *
+ * UTIL_NONOPT_PERMUTE: Permute argv so that all non-options are at the end.
+ * UTIL_NONOPT_STOP:    Stop when first non-option argument is seen.
+ * UTIL_NONOPT_ALL:     Return each non-option argument as if it were
+ *                      an option with character code 1.
+ */
+typedef enum { UTIL_NONOPT_PERMUTE, UTIL_NONOPT_STOP, UTIL_NONOPT_ALL } Util_NonOptMode;
+struct option;
+int Util_GetOpt(int argc, char * const *argv, const struct option *opts,
+                Util_NonOptMode mode);
+
+
 #if defined(VMX86_STATS)
 Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
                             uint64 **transitns, uint64 **residency,
