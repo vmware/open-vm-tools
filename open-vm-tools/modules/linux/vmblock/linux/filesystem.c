@@ -158,13 +158,13 @@ VMBlockCleanupFileSystem(void)
 {
    int ret;
 
-   kmem_cache_destroy(VMBlockInodeCache);
-
    ret = unregister_filesystem(&fsType);
    if (ret < 0) {
       Warning("VMBlockCleanupFileSystem: could not unregister file system\n");
       return ret;
    }
+
+   kmem_cache_destroy(VMBlockInodeCache);
 
    return 0;
 }
