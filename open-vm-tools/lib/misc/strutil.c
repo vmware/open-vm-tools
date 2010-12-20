@@ -265,7 +265,7 @@ StrUtil_DecimalStrToUint(unsigned int *out, // OUT
    *out = (unsigned int)val;
    return TRUE;
 }
-   
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -444,6 +444,45 @@ StrUtil_StrToSizet(size_t *out,     // OUT: The output value
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_StrToDouble --
+ *
+ *      Convert a string into a double.
+ *
+ * Results:
+ *      TRUE if the conversion was successful and 'out' contains the converted
+ *      result.
+ *      FALSE otherwise. 'out' is undefined.
+ *
+ * Side effects:
+ *      Modifies errno.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_StrToDouble(double *out,      // OUT: The output value
+                    const char *str)  // IN : String to parse
+{
+   char *ptr = NULL;
+
+   ASSERT(out);
+   ASSERT(str);
+
+   errno = 0;
+
+   *out = strtod(str, &ptr);
+
+   /*
+    * Input must be complete and no overflow.
+    */
+
+   return *ptr == '\0' && errno != ERANGE;
+}
+
+
 #ifndef N_PLAT_NLM // NetWare Tools ask for unresolved _GLOBAL_OFFSET_TABLE...
 /*
  *-----------------------------------------------------------------------------
@@ -495,7 +534,7 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
       /*
        * [kK], [mM], [gG], and [tT] represent kilo, mega, giga, and tera
        * byte quantities respectively. [bB] represents a singular byte
-       * quantity. [sS] represents a sector quantity. 
+       * quantity. [sS] represents a sector quantity.
        *
        * For kilo, mega, giga, and tera we're OK with an additional byte
        * suffix. Otherwise, the presence of an additional suffix is an error.
@@ -542,7 +581,7 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
    return TRUE;
 }
 #endif
-                
+
 
 /*
  *-----------------------------------------------------------------------------

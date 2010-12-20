@@ -26,9 +26,6 @@
 
 #define G_LOG_DOMAIN "dndcp"
 
-#include "copyPasteDnDWrapper.h"
-#include "guestDnDCPMgr.hh"
-
 #if defined(HAVE_GTKMM)
 #include "copyPasteDnDX11.h"
 #endif
@@ -40,6 +37,9 @@
 #if defined(__APPLE__)
 #include "copyPasteDnDMac.h"
 #endif
+
+#include "copyPasteDnDWrapper.h"
+#include "guestDnDCPMgr.hh"
 
 extern "C" {
 #include "vmware.h"

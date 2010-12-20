@@ -26,28 +26,24 @@
 #ifndef LIB_EXPORT_HH
 #define LIB_EXPORT_HH
 
-#ifdef _WIN32
-   #ifdef LIB_EXPORT_SOURCE
-      #define LIB_EXPORT __declspec(dllexport)
-   #else
-      #define LIB_EXPORT __declspec(dllimport)
-   #endif
-   
-   #ifdef LIB_EXPORT_WUI_SOURCE
-      #define LIB_EXPORT_WUI __declspec(dllexport)
-   #else
-      #define LIB_EXPORT_WUI __declspec(dllimport)
-   #endif
+#include "vm_api.h"
 
-   #ifdef VMSTRING_EXPORT_SOURCE
-      #define VMSTRING_EXPORT __declspec(dllexport)
-   #else
-      #define VMSTRING_EXPORT __declspec(dllimport)
-   #endif
-#else 
-   #define LIB_EXPORT
-   #define LIB_EXPORT_WUI
-   #define VMSTRING_EXPORT
-#endif // WIN32
+#ifdef LIB_EXPORT_SOURCE
+   #define LIB_EXPORT VMW_EXPORT
+#else
+   #define LIB_EXPORT VMW_IMPORT
+#endif
+
+#ifdef LIB_EXPORT_WUI_SOURCE
+   #define LIB_EXPORT_WUI VMW_EXPORT
+#else
+   #define LIB_EXPORT_WUI VMW_IMPORT
+#endif
+
+#ifdef VMSTRING_EXPORT_SOURCE
+   #define VMSTRING_EXPORT VMW_EXPORT
+#else
+   #define VMSTRING_EXPORT VMW_IMPORT
+#endif
 
 #endif // LIB_EXPORT_HH

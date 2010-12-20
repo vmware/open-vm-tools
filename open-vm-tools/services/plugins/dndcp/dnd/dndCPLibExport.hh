@@ -26,6 +26,9 @@
 #define DND_CP_LIB_EXPORT_HH
 
 #if defined VMX86_TOOLS || COMPILE_WITHOUT_CUI
+#   ifdef LIB_EXPORT
+#   undef LIB_EXPORT
+#   endif
 #define LIB_EXPORT
 #else
 #include "libExport.hh"

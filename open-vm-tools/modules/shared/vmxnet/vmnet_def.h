@@ -40,12 +40,15 @@
 #define _VMNET_DEF_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
+#define INCLUDE_ALLOW_VMCORE
 
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMK_MODULE
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_DISTRIBUTE
 #include "includeCheck.h"
+
+#define VMNET_NAME_BUFFER_LEN  128 /* Increased for i18n. */
 
 /*
  * capabilities - not all of these are implemented in the virtual HW

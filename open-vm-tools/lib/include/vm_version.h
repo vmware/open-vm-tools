@@ -219,6 +219,7 @@
 #define VCB_FILE_VERSION 4,0,0,0
 #define VIM_VERSION "5.0.0"
 #define VPX_VERSION "5.0.0"
+#define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define SVA_VERSION "1.0.0"
 #define WBC_VERSION "5.0.0"
 #define SDK_VERSION "4.1.0"
@@ -277,7 +278,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 8
 #define USB_ARBITRATOR_VERSION_MINOR 2
-#define USB_ARBITRATOR_VERSION_Z     4
+#define USB_ARBITRATOR_VERSION_Z     6
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
 
@@ -292,7 +293,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.2.4"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.2.6"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -398,7 +399,7 @@
 #    if defined(__APPLE__)
 #      define PRODUCT_LICENSE_VERSION "3.0"
 #    else
-#      define PRODUCT_LICENSE_VERSION "7.0+"
+#      define PRODUCT_LICENSE_VERSION "8.0+"
 #    endif
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "5.0"

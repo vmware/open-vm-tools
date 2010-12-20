@@ -146,6 +146,92 @@ setresgid(gid_t ruid,
 /*
  *----------------------------------------------------------------------
  *
+ * ProcMgr_ReadProcFile --
+ *
+ *    Read the contents of a file in /proc/<pid>.
+ *
+ *    The size is essentially unbounded because of cmdline arguments.
+ *    The only way to figure out the content size is to keep reading;
+ *    stat(2) and lseek(2) lie.
+ *
+ *    The contents are NUL terminated -- in some distros may not include
+ *    a NUL for some commands (eg. pid 1, /sbin/init) -- so add
+ *    one to be safe.
+ *
+ * Results:
+ *
+ *    The length of the file.
+ *
+ *    -1 on error.
+ *
+ * Side effects:
+ *
+ *    The returned contents must be freed by caller.
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if !defined(sun)
+int
+ProcMgr_ReadProcFile(int fd,                       // IN
+                     char **contents)              // OUT
+{
+   int size = 0;
+#if !defined(__FreeBSD__) && !defined(__APPLE__)
+   char tmp[512];
+   int numRead;
+
+   *contents = NULL;
+   numRead = read(fd, tmp, sizeof(tmp));
+   size = numRead;
+
+   if (numRead <= 0) {
+      goto done;
+   }
+
+   /*
+    * handle the 99% case
+    */
+   if (sizeof(tmp) > numRead) {
+      char *result;
+
+      result = malloc(numRead + 1);
+      if (NULL == result) {
+         size = -1;
+         goto done;
+      }
+      memcpy(result, tmp, numRead);
+      result[numRead] = '\0';
+      *contents = result;
+      goto done;
+   } else {
+      DynBuf dbuf;
+
+      DynBuf_Init(&dbuf);
+      DynBuf_Append(&dbuf, tmp, numRead);
+      do {
+         numRead = read(fd, tmp, sizeof(tmp));
+         if (numRead > 0) {
+            DynBuf_Append(&dbuf, tmp, numRead);
+         }
+         size += numRead;
+      } while (numRead > 0);
+      // add the NUL term
+      DynBuf_Append(&dbuf, "", 1);
+      DynBuf_Trim(&dbuf);
+      *contents = DynBuf_Detach(&dbuf);
+      DynBuf_Destroy(&dbuf);
+   }
+done:
+#endif
+   return size;
+}
+
+#endif   // !sun
+
+/*
+ *----------------------------------------------------------------------
+ *
  * ProcMgr_ListProcesses --
  *
  *      List all the processes that the calling client has privilege to
@@ -250,8 +336,8 @@ ProcMgr_ListProcesses(void)
       pid_t pid;
       int replaceLoop;
       struct passwd *pwd;
-      char cmdLineTemp[2048];
-      char cmdStatTemp[2048];
+      char *cmdLineTemp = NULL;
+      char *cmdStatTemp = NULL;
       char *cmdLine;
       char *userName = NULL;
       size_t strLen = 0;
@@ -296,14 +382,18 @@ ProcMgr_ListProcesses(void)
        * In the future, we could keep the NUL version around and pass it
        * back to the client for easier parsing when retrieving individual
        * command line parameters is needed.
-       *
-       * We read at most (sizeof cmdLineTemp) - 1 bytes to leave room
-       * for NUL termination at the end.
        */
-      numRead = read(cmdFd, cmdLineTemp, sizeof cmdLineTemp - sizeof(char));
+      numRead = ProcMgr_ReadProcFile(cmdFd, &cmdLineTemp);
       close(cmdFd);
 
+      if (numRead < 0) {
+         continue;
+      }
+
       if (numRead > 0) {
+         /*
+          * Stop before we hit the final '\0'; want to leave it alone.
+          */
          for (replaceLoop = 0 ; replaceLoop < (numRead - 1) ; replaceLoop++) {
             if ('\0' == cmdLineTemp[replaceLoop]) {
                cmdLineTemp[replaceLoop] = ' ';
@@ -326,17 +416,11 @@ ProcMgr_ListProcesses(void)
             cmdFd = open(cmdFilePath, O_RDONLY);
          }
          if (cmdFd != -1) {
-            numRead = read(cmdFd, cmdLineTemp, sizeof(cmdLineTemp) - sizeof(char));
+            numRead = ProcMgr_ReadProcFile(cmdFd, &cmdLineTemp);
             close(cmdFd);
-
-            if (numRead < 0) {
-               cmdLineTemp[0] = '\0';
-            } else {
-               cmdLineTemp[numRead] = '\0';
-            }
          }
          if (numRead > 0) {
-            /* 
+            /*
              * Extract the part with just the name, by reading until the first
              * space, then reading the next non-space word after that, and
              * ignoring everything else. The format looks like this:
@@ -344,8 +428,8 @@ ProcMgr_ListProcesses(void)
              * for example:
              *     "Name:    nfsd"
              */
-            const char* nameStart = NULL;
-            char* copyItr = NULL;
+            const char *nameStart;
+            char *copyItr;
 
             /* Skip non-whitespace. */
             for (nameStart = cmdLineTemp; *nameStart && 
@@ -366,21 +450,6 @@ ProcMgr_ListProcesses(void)
       }
 
       /*
-       * There is an edge case where /proc/#/cmdline does not NUL terminate
-       * the command.  /sbin/init (process 1) is like that on some distros.
-       * So let's guarantee that the string is NUL terminated, even if
-       * the last character of the string might already be NUL.
-       * This is safe to do because we read at most (sizeof cmdLineTemp) - 1
-       * bytes from /proc/#/cmdline -- we left just enough space to add
-       * NUL termination at the end.
-       */
-      if (numRead < 0) {
-         cmdLineTemp[0] = '\0';
-      } else {
-         cmdLineTemp[numRead] = '\0';
-      }
-
-      /*
        * Get the inode information for this process.  This gives us
        * the process owner.
        */
@@ -389,7 +458,7 @@ ProcMgr_ListProcesses(void)
                    "/proc/%s",
                    ent->d_name) == -1) {
          Debug("Giant process id '%s'\n", ent->d_name);
-         continue;
+         goto next_entry;
       }
 
       /*
@@ -399,7 +468,7 @@ ProcMgr_ListProcesses(void)
        */
       statResult = stat(cmdFilePath, &fileStat);
       if (0 != statResult) {
-         continue;
+         goto next_entry;
       }
 
       /*
@@ -411,22 +480,22 @@ ProcMgr_ListProcesses(void)
                    "/proc/%s/stat",
                    ent->d_name) == -1) {
          Debug("Giant process id '%s'\n", ent->d_name);
-         continue;
+         goto next_entry;
       }
       cmdFd = open(cmdFilePath, O_RDONLY);
       if (-1 == cmdFd) {
-         continue;
+         goto next_entry;
       }
-      numRead = read(cmdFd, cmdStatTemp, sizeof cmdStatTemp);
+      numRead = ProcMgr_ReadProcFile(cmdFd, &cmdStatTemp);
       close(cmdFd);
       if (0 >= numRead) {
-         continue;
+         goto next_entry;
       }
       /*
        * Skip over initial process id and process name.  "123 (bash) [...]".
        */
       stringBegin = strchr(cmdStatTemp, ')') + 2;
-      
+
       numberFound = sscanf(stringBegin, "%c %d %d %d %d %d "
                            "%lu %lu %lu %lu %lu %Lu %Lu %Lu %Lu %ld %ld "
                            "%d %ld %Lu",
@@ -443,14 +512,18 @@ ProcMgr_ListProcesses(void)
                            (int *) &dummy, (long *) &dummy,
                            &relativeStartTime);
       if (20 != numberFound) {
-         continue;
+         goto next_entry;
       }
       processStartTime = hostStartTime + (relativeStartTime / hertz);
 
       /*
        * Store the command line string pointer in dynbuf.
        */
-      cmdLine = strdup(cmdLineTemp);
+      if (cmdLineTemp) {
+         cmdLine = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
+      } else {
+         cmdLine = Unicode_Alloc("", STRING_ENCODING_UTF8);
+      }
       DynBuf_Append(&dbProcCmd, &cmdLine, sizeof cmdLine);
 
       /*
@@ -465,7 +538,7 @@ ProcMgr_ListProcesses(void)
       pwd = getpwuid(fileStat.st_uid);
       userName = (NULL == pwd)
                  ? Str_Asprintf(&strLen, "%d", (int) fileStat.st_uid)
-                 : Util_SafeStrdup(pwd->pw_name);
+                 : Unicode_Alloc(pwd->pw_name, STRING_ENCODING_DEFAULT);
       DynBuf_Append(&dbProcOwner, &userName, sizeof userName);
 
       /*
@@ -474,6 +547,10 @@ ProcMgr_ListProcesses(void)
       DynBuf_Append(&dbProcStartTime,
                     &processStartTime,
                     sizeof processStartTime);
+
+next_entry:
+      free(cmdLineTemp);
+      free(cmdStatTemp);
    } // while readdir
 
    closedir(dir);
