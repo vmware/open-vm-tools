@@ -1177,6 +1177,20 @@ VSockVmciHandleDetach(struct sock *sk) // IN
        * queue.
        */
       if (VSockVmciStreamHasData(vsk) <= 0) {
+         if (sk->sk_state == SS_CONNECTING) {
+            /*
+             * The peer may detach from a queue pair while we are
+             * still in the connecting state, i.e., if the peer VM is
+             * killed after attaching to a queue pair, but before we
+             * complete the handshake. In that case, we treat the
+             * detach event like a reset.
+             */
+
+            sk->sk_state = SS_UNCONNECTED;
+            sk->sk_err = ECONNRESET;
+            sk->sk_error_report(sk);
+            return;
+         }
          sk->sk_state = SS_UNCONNECTED;
       }
       sk->sk_state_change(sk);
@@ -3118,6 +3132,7 @@ error:
 
    if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
       VMCIDatagram_DestroyHnd(vmciStreamHandle);
+      vmciStreamHandle = VMCI_INVALID_HANDLE;
    }
    return err;
 }
@@ -3153,6 +3168,7 @@ VSockVmciUnregisterAddressFamily(void)
       if (VMCIDatagram_DestroyHnd(vmciStreamHandle) != VMCI_SUCCESS) {
          Warning("Could not destroy VMCI datagram handle.\n");
       }
+      vmciStreamHandle = VMCI_INVALID_HANDLE;
    }
 
    if (qpResumedSubId != VMCI_INVALID_ID) {
