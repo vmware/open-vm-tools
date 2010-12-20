@@ -82,14 +82,6 @@ SOFTWARE.
 
 #include "vmware.h"
 
-#ifdef _WIN32
-/*
- * lib/region has terrible short/long confusion problems.  For MSFT,
- * disable the warning.  See PR142264.
- */
-#pragma warning( disable: 4242 )
-#endif
-
 /* Return values from RectIn() */
 #define rgnOUT 0
 #define rgnIN  1

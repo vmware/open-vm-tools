@@ -871,7 +871,7 @@ miAppendNonO (
     register BoxPtr	pNextRect;
     register int	newRects;
 
-    newRects = rEnd - r;
+    newRects = (int) (rEnd - r);
 
     ASSERT(y1 < y2);
     ASSERT(newRects != 0);
@@ -903,7 +903,7 @@ miAppendNonO (
 #define	AppendRegions(newReg, r, rEnd)					\
 {									\
     int newRects;							\
-    if ((newRects = rEnd - r)) {					\
+    if ((newRects = (int) (rEnd - r))) {				\
 	RECTALLOC(newReg, newRects);					\
 	memmove((char *)REGION_TOP(newReg),(char *)r, 			\
               newRects * sizeof(BoxRec));				\
@@ -1445,8 +1445,8 @@ miUnionO (
     ASSERT (y1 < y2);
     ASSERT(r1 != r1End && r2 != r2End);
 
-    miRegionInit(&subReg, NULL, r1End - r1);
-    miRegionInit(&tmpReg, NULL, r1End - r1);
+    miRegionInit(&subReg, NULL, (int) (r1End - r1));
+    miRegionInit(&tmpReg, NULL, (int) (r1End - r1));
 
     pNextRectTmp = REGION_BOXPTR((&tmpReg));
 
@@ -2068,7 +2068,7 @@ miRectsToRegionByBoundary(
     if (pBox != (BoxPtr) (pData + 1))
     {
 	pData->size = nrects;
-	pData->numRects = pBox - (BoxPtr) (pData + 1);
+	pData->numRects = (int) (pBox - (BoxPtr) (pData + 1));
     	pRgn->data = pData;
     	if (ctype != CT_YXBANDED)
     	{
@@ -2924,7 +2924,7 @@ miClipSpans(
 	    }
 	}
     }
-    return (pwidthNew - pwidthNewStart);
+    return (int) (pwidthNew - pwidthNewStart);
 }
 
 /* find the band in a region with the most rectangles */
