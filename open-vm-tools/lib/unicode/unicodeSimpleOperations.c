@@ -325,7 +325,7 @@ Unicode_FindSubstrInRange(ConstUnicode str,              // IN:
    for (index = strStart;
         index <= (strStart + strLength - strToFindLength);
         index++) {
-      Bool match;
+      Bool match = FALSE;
       UnicodeIndex i;
       UnicodeIndex indexSrc = index;
       UnicodeIndex indexSrch = strToFindStart;
