@@ -240,7 +240,7 @@ StatGetMemoryBallooned(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      g_print("%u MHz\n", memBallooned);
+      g_print("%u MB\n", memBallooned);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
