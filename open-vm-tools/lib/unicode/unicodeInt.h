@@ -35,18 +35,16 @@ extern "C" {
 Unicode UnicodeAllocInternal(const void *buffer,
                              ssize_t lengthInBytes,
                              StringEncoding encoding,
-			     Bool strict);
+                             Bool strict);
+
 Unicode UnicodeAllocStatic(const char *asciiBytes,
                            Bool unescape);
 
-void UnicodePinIndices(ConstUnicode str,
-                       UnicodeIndex *strStart,
-                       UnicodeIndex *strLength);
 utf16_t UnicodeSimpleCaseFold(utf16_t codeUnit);
 
 void *UnicodeGetAllocBytesInternal(ConstUnicode src,
                                    StringEncoding encoding,
-				   ssize_t lengthInBytes,
+                                   ssize_t lengthInBytes,
                                    size_t *retLength);
 
 Bool UnicodeSanityCheck(const void *buffer,

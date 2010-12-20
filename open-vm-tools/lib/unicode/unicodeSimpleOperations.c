@@ -35,6 +35,30 @@
 /*
  *-----------------------------------------------------------------------------
  *
+ * Unicode_LengthInCodePoints --
+ *
+ *      Returns the lenght of the unicode code string in code points
+ *      ("unicode characters").
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+UnicodeIndex
+Unicode_LengthInCodePoints(ConstUnicode str)  // IN:
+{
+   return CodeSet_LengthInCodePoints(str);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Unicode_CompareRange --
  *
  *      Compares ranges of two Unicode strings for canonical
@@ -220,6 +244,9 @@ Unicode_CompareRange(ConstUnicode str1,        // IN:
  *      Pass -1 for any length parameter to indicate "from start until
  *      end of string".
  *
+ *      The start and length arguments are in code points - unicode
+ *      "characters" - not bytes!
+ *
  * Results:
  *      If 'strToFind' exists inside 'str' in the specified range,
  *      returns the first starting index of 'strToFind' in that range.
@@ -233,61 +260,93 @@ Unicode_CompareRange(ConstUnicode str1,        // IN:
  */
 
 UnicodeIndex
-Unicode_FindSubstrInRange(ConstUnicode str,             // IN
-                          UnicodeIndex strStart,        // IN
-                          UnicodeIndex strLength,       // IN
-                          ConstUnicode strToFind,       // IN
-                          UnicodeIndex strToFindStart,  // IN
-                          UnicodeIndex strToFindLength) // IN
+Unicode_FindSubstrInRange(ConstUnicode str,              // IN:
+                          UnicodeIndex strStart,         // IN:
+                          UnicodeIndex strLength,        // IN:
+                          ConstUnicode strToFind,        // IN:
+                          UnicodeIndex strToFindStart,   // IN:
+                          UnicodeIndex strToFindLength)  // IN:
 {
-   const char *strUTF8 = (const char *)str;
-   const char *strToFindUTF8 = (const char *)strToFind;
-   UnicodeIndex strUTF8Offset;
+   UnicodeIndex index;
+   uint32 *utf32Source = NULL;
+   uint32 *utf32Search = NULL;
 
-   UnicodePinIndices(str, &strStart, &strLength);
-   UnicodePinIndices(strToFind, &strToFindStart, &strToFindLength);
+   ASSERT(str);
+   ASSERT(strStart >= 0);
+   ASSERT((strLength >= 0) || (strLength == -1));
 
-   if (strLength < strToFindLength) {
-      return UNICODE_INDEX_NOT_FOUND;
+   ASSERT(strToFind);
+   ASSERT(strToFindStart >= 0);
+   ASSERT((strToFindLength >= 0) || (strToFindLength == -1));
+
+   /*
+    * Convert the string to be searched and the search string to UTF32.
+    */
+
+   if (!CodeSet_UTF8ToUTF32(str, (char **) &utf32Source)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, str);
    }
 
-   if (strToFindLength == 0) {
-      return strStart;
+   if (!CodeSet_UTF8ToUTF32(strToFind, (char **) &utf32Search)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, strToFind);
    }
 
    /*
-    * TODO: This loop is quite similar to the one in
-    * Unicode_FindLastSubstrInRange.  We might be able to refactor the
-    * two into a common helper function.
+    * Do any bounds cleanup and checking that is necessary...
     */
 
-   for (strUTF8Offset = strStart;
-        strUTF8Offset < strStart + strLength;
-        strUTF8Offset++) {
-      char byte = strUTF8[strUTF8Offset];
+   if (strLength < 0) {
+      strLength = Unicode_LengthInCodePoints(str) - strStart;
+   }
 
-      if (byte == strToFindUTF8[strToFindStart]) {
-         UnicodeIndex strSubOffset = strUTF8Offset;
-         UnicodeIndex strToFindSubOffset = strToFindStart;
-         UnicodeIndex strToFindEnd = strToFindStart + strToFindLength - 1;
+   if (strToFindLength < 0) {
+      strToFindLength = Unicode_LengthInCodePoints(strToFind) - strToFindStart;
+   }
 
-         while (TRUE) {
-            if (strToFindSubOffset == strToFindEnd) {
-               // Found the substring.
-               return strUTF8Offset;
-            }
+   if (strLength < strToFindLength) {
+      index = UNICODE_INDEX_NOT_FOUND;
+      goto bail;
+   }
 
-            strToFindSubOffset++;
-            strSubOffset++;
+   if (strToFindLength == 0) {
+      index = strStart;
+      goto bail;
+   }
+  
+   /*
+    * Attempt to find the first occurence of the search string in the string
+    * to be searched.
+    */
 
-            if (strUTF8[strSubOffset] != strToFindUTF8[strToFindSubOffset]) {
-               break;
-            }
+   for (index = strStart;
+        index <= (strStart + strLength - strToFindLength);
+        index++) {
+      Bool match;
+      UnicodeIndex i;
+      UnicodeIndex indexSrc = index;
+      UnicodeIndex indexSrch = strToFindStart;
+
+      for (i = 0; i < strToFindLength; i++) {
+         match = (utf32Source[indexSrc++] == utf32Search[indexSrch++]);
+
+         if (!match) {
+            break;
          }
+      }
+
+      if (match) {
+         goto bail;
       }
    }
 
-   return UNICODE_INDEX_NOT_FOUND;
+   index = UNICODE_INDEX_NOT_FOUND;
+
+bail:
+
+   free(utf32Source);
+   free(utf32Search);
+
+   return index;
 }
 
 
@@ -359,11 +418,11 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
     */
 
    if (strLength < 0) {
-      strLength = CodeSet_LengthInCodePoints(str) - strStart;
+      strLength = Unicode_LengthInCodePoints(str) - strStart;
    }
 
    if (strToFindLength < 0) {
-      strToFindLength = CodeSet_LengthInCodePoints(strToFind) - strToFindStart;
+      strToFindLength = Unicode_LengthInCodePoints(strToFind) - strToFindStart;
    }
 
    if (strLength < strToFindLength) {

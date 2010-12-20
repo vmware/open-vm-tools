@@ -151,61 +151,6 @@ UnicodeSanityCheck(const void *buffer,      // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * UnicodePinIndices --
- *
- *      Given a string, a start index, and a length in code units,
- *      pins the index and length so that they're within the
- *      boundaries of the string.
- *
- *      numCodeUnits is the length of str in code units.
- *
- *      If startIndex == -1, sets startIndex to numCodeUnits.
- *
- *      If length == -1, sets length to (numCodeUnits - startIndex).
- *
- *      If startIndex > numCodeUnits, sets startIndex to numCodeUnits.
- *
- *      If startIndex + length > numCodeUnits, sets length to
- *         (numCodeUnits - startIndex).
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-UnicodePinIndices(ConstUnicode str,         // IN
-                  UnicodeIndex *startIndex, // IN/OUT
-                  UnicodeIndex *length)     // IN/OUT
-{
-   UnicodeIndex numCodeUnits;
-
-   ASSERT(str);
-   ASSERT(startIndex);
-   ASSERT(*startIndex >= 0 || *startIndex == -1);
-   ASSERT(length);
-   ASSERT(*length >= 0 || *length == -1);
-
-   numCodeUnits = Unicode_LengthInCodeUnits(str);
-
-   if ((*startIndex < 0) || (*startIndex > numCodeUnits)) {
-      // Start on the NUL at the end of the string.
-      *startIndex = numCodeUnits;
-   }
-
-   if ((*length < 0) || (*startIndex + *length > numCodeUnits)) {
-      *length = numCodeUnits - *startIndex;
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * Unicode_LengthInBytes --
  *
  *      Compute the length in bytes of a string in a given encoding.

@@ -97,6 +97,7 @@ Unicode Unicode_Join(ConstUnicode first,
 
 Unicode Unicode_Format(const char *fmt, ...);
 
+UnicodeIndex Unicode_LengthInCodePoints(ConstUnicode str);
 
 /*
  * Simple in-line functions that may be used below.
@@ -108,7 +109,7 @@ Unicode Unicode_Format(const char *fmt, ...);
  *
  * Unicode_IsIndexAtCodePointBoundary --
  *
- *      Check a string index for code point boundary.
+ *      Check a string index (in bytes) for code point boundary.
  *
  *	The index must be valid (>= 0 and <= string length).
  *	The end of the string is considered a valid boundary.
@@ -123,8 +124,8 @@ Unicode Unicode_Format(const char *fmt, ...);
  */
 
 static INLINE Bool
-Unicode_IsIndexAtCodePointBoundary(ConstUnicode str,    // IN
-                                   UnicodeIndex index)  // IN
+Unicode_IsIndexAtCodePointBoundary(ConstUnicode str,    // IN:
+                                   UnicodeIndex index)  // IN:
 {
    ASSERT(index >= 0 && index <= Unicode_LengthInCodeUnits(str));
 
@@ -189,17 +190,17 @@ Unicode_Append(ConstUnicode destination, // IN
  */
 
 static INLINE Unicode
-Unicode_AppendRange(ConstUnicode destination,  // IN
-                    ConstUnicode source,       // IN
-                    UnicodeIndex sourceStart,  // IN
-                    UnicodeIndex sourceLength) // IN
+Unicode_AppendRange(ConstUnicode dest,       // IN:
+                    ConstUnicode src,        // IN:
+                    UnicodeIndex srcStart,   // IN:
+                    UnicodeIndex srcLength)  // IN:
 {
-   return Unicode_ReplaceRange(destination,
-                               Unicode_LengthInCodeUnits(destination),
+   return Unicode_ReplaceRange(dest,
+                               Unicode_LengthInCodePoints(dest),
                                0,
-                               source,
-                               sourceStart,
-                               sourceLength);
+                               src,
+                               srcStart,
+                               srcLength);
 }
 
 
@@ -292,18 +293,15 @@ Unicode_CompareIgnoreCase(ConstUnicode str1, // IN
  */
 
 static INLINE Bool
-UnicodeEndsWith(ConstUnicode str,    // IN
-                ConstUnicode suffix, // IN
-                Bool ignoreCase)     // IN
+UnicodeEndsWith(ConstUnicode str,     // IN:
+                ConstUnicode suffix,  // IN:
+                Bool ignoreCase)      // IN:
 {
-   UnicodeIndex strLength = Unicode_LengthInCodeUnits(str);
-   UnicodeIndex suffixLength = Unicode_LengthInCodeUnits(suffix);
+   UnicodeIndex strLength = Unicode_LengthInCodePoints(str);
+   UnicodeIndex suffixLength = Unicode_LengthInCodePoints(suffix);
    UnicodeIndex offset = strLength - suffixLength;
 
    if (suffixLength > strLength) {
-      return FALSE;
-   }
-   if (!Unicode_IsIndexAtCodePointBoundary(str, offset)) {
       return FALSE;
    }
 
@@ -710,17 +708,14 @@ Unicode_Replace(ConstUnicode destination,
  */
 
 static INLINE Bool
-UnicodeStartsWith(ConstUnicode str,    // IN
-                  ConstUnicode prefix, // IN
-                  Bool ignoreCase)     // IN
+UnicodeStartsWith(ConstUnicode str,     // IN:
+                  ConstUnicode prefix,  // IN:
+                  Bool ignoreCase)      // IN:
 {
-   UnicodeIndex strLength = Unicode_LengthInCodeUnits(str);
-   UnicodeIndex prefixLength = Unicode_LengthInCodeUnits(prefix);
+   UnicodeIndex strLength = Unicode_LengthInCodePoints(str);
+   UnicodeIndex prefixLength = Unicode_LengthInCodePoints(prefix);
 
    if (prefixLength > strLength) {
-      return FALSE;
-   }
-   if (!Unicode_IsIndexAtCodePointBoundary(str, prefixLength)) {
       return FALSE;
    }
 
