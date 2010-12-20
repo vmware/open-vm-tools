@@ -16,8 +16,8 @@
  *
  *********************************************************/
 
-/**
- * @file unityPlugin.c
+/*
+ * unityPluginEntry.cpp --
  *
  *    Implements the unity plugin for the tools services. Registers for the Unity
  *    RPC's and sets the Unity capabilities.
@@ -35,31 +35,35 @@ extern "C" {
    #include "unity.h"
    #include "vmware/tools/plugin.h"
    #include "vmware/tools/utils.h"
-};
 
-extern "C" {
    TOOLS_MODULE_EXPORT ToolsPluginData *ToolsOnLoad(ToolsAppCtx *ctx);
 };
 
 using namespace vmware::tools;
 
-/**
- * Called by the service core when the host requests the capabilities supported
- * by the guest tools.
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in]  src      Unused.
- * @param[in]  ctx      The app context.
- * @param[in]  set      Whether capabilities are being set or unset (unused).
- * @param[in]  plugin   Plugin registration data.
+ * UnityPluginCapabilities --
  *
- * @return A list of capabilities to be sent to the host.
+ *      Called by the service core when the host requests the capabilities
+ *      supported by the guest tools.
+ *
+ * Results:
+ *      A list of capabilities to be sent to the host.
+ *
+ * Side effects:
+ *
+ *
+ *-----------------------------------------------------------------------------
  */
 
 static GArray *
-UnityPluginCapabilities(gpointer src,
-                        ToolsAppCtx *ctx,
-                        gboolean set,
-                        ToolsPluginData *plugin)
+UnityPluginCapabilities(gpointer src,            // IGNORED
+                        ToolsAppCtx *ctx,        // IN: The app context.
+                        gboolean set,            // IN: true if setting, else unsetting
+                        ToolsPluginData *plugin) // IN: Plugin registration data.
 {
    ToolsPlugin *pluginInstance = reinterpret_cast<ToolsPlugin*>(plugin->_private);
    ASSERT(pluginInstance);
@@ -67,28 +71,31 @@ UnityPluginCapabilities(gpointer src,
    std::vector<ToolsAppCapability> capabilities = pluginInstance->GetCapabilities(set);
 
    g_debug("%s: got capability signal, setting = %d.\n", __FUNCTION__, set);
-   return VMTools_WrapArray(&capabilities[0], sizeof capabilities[0], capabilities.size());
+   return VMTools_WrapArray(&capabilities[0], sizeof capabilities[0],
+                            capabilities.size());
 }
 
 
-/**
- * Handles a reset signal; just logs debug information. This callback is
- * called when the service receives a "reset" message from the VMX, meaning
- * the VMX may be restarting the RPC channel (due, for example, to restoring
- * a snapshot, resuming a VM or a VMotion), and should be used to reset any
- * application state that depends on the VMX.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in]  src      Event source.
- * @param[in]  ctx      The app context.
- * @param[in]  plugin   Plugin registration data.
+ * UnityPluginReset --
  *
- * @return TRUE on success.
+ *      Handles a reset signal.  Just logs debug information.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 static gboolean
-UnityPluginReset(gpointer src,
-                 ToolsAppCtx *ctx,
-                 ToolsPluginData *plugin)
+UnityPluginReset(gpointer src,            // IN: Event source.
+                 ToolsAppCtx *ctx,        // IN: The app context.
+                 ToolsPluginData *plugin) // IN: Plugin registration data.
 {
    ASSERT(ctx != NULL);
    g_debug("%s: reset signal for app %s\n", __FUNCTION__, ctx->name);
@@ -100,21 +107,26 @@ UnityPluginReset(gpointer src,
 }
 
 
-
-/**
- * Handles a shutdown callback; just logs debug information. This is called
- * before the service is shut down, and should be used to clean up any resources
- * that were initialized by the application.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in]  src      The source object.
- * @param[in]  ctx      The app context.
- * @param[in]  plugin   Plugin registration data.
+ * UnityPluginShutdown --
+ *
+ *      Handles a shutdown callback; just logs debug information.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 static void
-UnityPluginShutdown(gpointer src,
-                    ToolsAppCtx *ctx,
-                    ToolsPluginData *plugin)
+UnityPluginShutdown(gpointer src,            // IN: The source object.
+                    ToolsAppCtx *ctx,        // IN: The app context.
+                    ToolsPluginData *plugin) // Plugin registration data.
 {
    g_debug("%s: shutdown signal.\n", __FUNCTION__);
 
@@ -128,26 +140,28 @@ UnityPluginShutdown(gpointer src,
 }
 
 
-/**
- * Handles a "Set_Option" callback. Just logs debug information. This callback
- * is called when the VMX sends a "Set_Option" command to tools, to configure
- * different options whose values are kept outside of the virtual machine.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in]  src      Event source.
- * @param[in]  ctx      The app context.
- * @param[in]  plugin   Plugin registration data.
- * @param[in]  option   Option being set.
- * @param[in]  value    Option value.
+ * UnityPluginSetOption --
  *
- * @return TRUE on success.
+ *      Handles a "Set_Option" callback. Just logs debug information.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 static gboolean
-UnityPluginSetOption(gpointer src,
-                     ToolsAppCtx *ctx,
-                     const gchar *option,
-                     const gchar *value,
-                     ToolsPluginData *plugin)
+UnityPluginSetOption(gpointer src,            // IN: Event source.
+                     ToolsAppCtx *ctx,        // IN: The app context.
+                     const gchar *option,     // IN: Option to set.
+                     const gchar *value,      // IN: Option value.
+                     ToolsPluginData *plugin) // IN: Plugin registration data.
 {
    g_debug("%s: set '%s' to '%s'\n", __FUNCTION__, option, value);
    ToolsPlugin *pluginInstance = reinterpret_cast<ToolsPlugin*>(plugin->_private);
@@ -157,17 +171,24 @@ UnityPluginSetOption(gpointer src,
 }
 
 
-/**
- * Plugin entry point. Returns the registration data. This is called once when
- * the plugin is loaded into the service process.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in]  ctx   The app context.
+ * ToolsOnLoad` --
  *
- * @return The registration data.
+ *      Plugin entry point.  Returns the registration data.
+ *
+ * Results:
+ *      Registration data.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 TOOLS_MODULE_EXPORT ToolsPluginData *
-ToolsOnLoad(ToolsAppCtx *ctx)
+ToolsOnLoad(ToolsAppCtx *ctx)           // IN: The app context.
 {
    static ToolsPluginData regData = {
       "unity",
@@ -217,4 +238,3 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    return NULL;
 }
-

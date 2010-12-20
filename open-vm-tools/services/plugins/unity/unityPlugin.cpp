@@ -16,10 +16,11 @@
  *
  *********************************************************/
 
-/**
- * @file unityPlugin.cpp
+/*
+ * unityPlugin.cpp --
  *
- *    Implements an object that provides the entry points for tools unity plugin.
+ *      Implements an object that provides the entry points for tools unity
+ *      plugin.
  */
 
 #include "vmware/tools/plugin.h"
@@ -33,11 +34,11 @@ extern "C" {
    #include "guestrpc/unityActive.h"
    #include "rpcin.h"
    #include "strutil.h"
-#if defined(OPEN_VM_TOOLS)
-   #include "unitylib/unity.h"
-#else
-   #include "unity.h"
-#endif // OPEN_VM_TOOLS
+   #if defined(OPEN_VM_TOOLS)
+      #include "unitylib/unity.h"
+   #else
+      #include "unity.h"
+   #endif // OPEN_VM_TOOLS
    #include "xdrutil.h"
 };
 
@@ -62,25 +63,48 @@ namespace vmware { namespace tools {
 static NotifyIconRpcCallback gNotifyIconCallback;
 #endif // G_PLATFORM_WIN32
 
-/**
- * Constructor for the Unity plugin, initialized Unity, and common options values
+
+/*
+ *-----------------------------------------------------------------------------
  *
+ * UnityPlugin::UnityPlugin --
+ *
+ *      Constructor for the Unity plugin, initialized Unity, and common options
+ *      values.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 UnityPlugin::UnityPlugin() : mUnityUpdateChannel(NULL)
 {
 }
 
-/**
- * Initializer for the Unity plugin, initialized Unity, and common options values
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in]  ctx      Host application context.
+ * UnityPlugin::Initialize --
  *
- * @return true if initialization was successful.
+ *      Initializer for the Unity plugin, initialized Unity, and common options
+ *      values
+ *
+ * Results:
+ *      True if initializatino was successful.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 gboolean
-UnityPlugin::Initialize(ToolsAppCtx *ctx)
+UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
 {
    ASSERT(ctx);
 
@@ -142,8 +166,20 @@ UnityPlugin::Initialize(ToolsAppCtx *ctx)
 }
 
 
-/**
- * Destructor for the Unity plugin, cleanup Unity
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPlugin::~UnityPlugin --
+ *
+ *      Destructor for the Unity plugin, cleanup Unity.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Whole lotta stuff.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 UnityPlugin::~UnityPlugin()
@@ -158,21 +194,33 @@ UnityPlugin::~UnityPlugin()
    GHITcloCleanup();
 }
 
-/**
- * Called by the service core when the host requests the capabilities supported
- * by the guest tools.
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in]  set      Whether capabilities are being set or unset.
+ * UnityPlugin::GetCapabilities --
  *
- * @return A list of capabilities to be sent to the host.
+ *      Called by the service core when the host requests the capabilities
+ *      supported by the guest tools.
+ *
+ * Results:
+ *      A list of capabilities to be sent to the host.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 std::vector<ToolsAppCapability>
-UnityPlugin::GetCapabilities(gboolean set)
+UnityPlugin::GetCapabilities(gboolean set) // IN: Whether capabilities are being
+                                           // set or unset.
+                                           // XXX UNUSED  Fix this or mark as such.
 {
    std::vector<ToolsAppCapability> capsVector;
 
-   /* We can't use UNITY_RPC_UNITY_CAP here because that define includes the
+   /*
+    * We can't use UNITY_RPC_UNITY_CAP here because that define includes the
     * tools.capability prefix which CoreServices will automatically prepend to the
     * supplied name.
     */
@@ -184,11 +232,21 @@ UnityPlugin::GetCapabilities(gboolean set)
 }
 
 
-/**
- * Called by the service core when the host requests the RPCs supported
- * by the guest tools.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @return A list of RPC Callbacks to be sent to the host.
+ * UnityPlugin::GetRpcCallbackList --
+ *
+ *      Called by the service core when the host requests the RPCs supported
+ *      by the guest tools.
+ *
+ * Results:
+ *      A list of RPC Callbacks to be sent to the host.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 std::vector<RpcChannelCallback>

@@ -1196,17 +1196,24 @@ GHITcloRestoreOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
 }
 
 
-/**
- * @brief Wrapper function for the ghi.guest.trashFolder.action RPC.
+/*
+ *-----------------------------------------------------------------------------
  *
- * params[in] data Pointer to the RpcInData structure for the RPC.
+ * GHITcloTrashFolderAction --
  *
- * @retval TRUE  The RPC succeeded.
- * @retval FALSE The RPC failed.
+ *      Wrapper function for the ghi.guest.trashFolder.action RPC.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 gboolean
-GHITcloTrashFolderAction(RpcInData *data)
+GHITcloTrashFolderAction(RpcInData *data)       // IN/OUT:
 {
    Bool ret = FALSE;
 
@@ -1248,22 +1255,28 @@ GHITcloTrashFolderAction(RpcInData *data)
 }
 
 
-/**
- * @brief Send the ghi.guest.trashFolder.state RPC to the host.
+/*
+ *-----------------------------------------------------------------------------
  *
- * Send the ghi.guest.trashFolder.state RPC to the host. This function is used
- * by the platform-specific GHI backends to notify the host when the state of
- * the Trash (aka Recycle Bin) folder changes. Currently, the only information
- * sent using this RPC is the empty/non-empty state of the Trash folder.
+ * GHISendTrashFolderStateRPC --
  *
- * @params[in] empty True if the trash folder is empty.
+ *      Send the ghi.guest.trashFolder.state RPC to the host. This function is
+ *      used by the platform-specific GHI backends to notify the host when the
+ *      state of the Trash (aka Recycle Bin) folder changes. Currently, the only
+ *      information sent using this RPC is the empty/non-empty state of the
+ *      Trash folder.
  *
- * @retval TRUE  The RPC was sent successfully.
- * @retval FALSE The RPC was not sent.
+ * Results:
+ *      TRUE if RPC was sent successfully, FALSE otherwise.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 Bool
-GHISendTrashFolderStateRPC(Bool empty)
+GHISendTrashFolderStateRPC(Bool empty)  // IN: TRUE if the trash folder is empty.
 {
    Bool ret = FALSE;
    DynBuf outBuf;
@@ -1339,20 +1352,24 @@ exit:
 }
 
 
-/**
- * @brief Return the icon for the Trash folder (aka Recycle Bin) to the host.
+/*
+ *-----------------------------------------------------------------------------
  *
- * Get the icon for the Trash Folder (aka Recycle Bin) and return it to the
- * host.
+ * GHITcloTrashFolderGetIcon --
  *
- * @param[in] data Pointer to the RpcInData structure for the RPC.
+ *      Return the icon for the Trash folder (aka Recycle Bin) to the host.
  *
- * @retval TRUE  The RPC succeeded.
- * @retval FALSE The RPC failed.
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 gboolean
-GHITcloTrashFolderGetIcon(RpcInData *data)
+GHITcloTrashFolderGetIcon(RpcInData *data) // IN/OUT:
 {
    Bool ret = FALSE;
 
@@ -1389,17 +1406,24 @@ exit:
 }
 
 
-/**
- * @brief Send a mouse or keyboard event to a tray icon.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in] data Pointer to the RpcInData structure for the RPC.
+ * GHITcloTrayIconSendEvent --
  *
- * @retval TRUE  The RPC succeeded.
- * @retval FALSE The RPC failed.
+ *      Send a mouse or keyboard event to a tray icon.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 gboolean
-GHITcloTrayIconSendEvent(RpcInData *data)
+GHITcloTrayIconSendEvent(RpcInData *data) // IN/OUT: XXX
 {
    Bool ret = FALSE;
    GHITrayIconEventV1 *v1ptr = NULL;
@@ -1460,17 +1484,25 @@ exit:
    return ret;
 }
 
-/**
- * @brief Start sending tray icon updates to the VMX.
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in] data Pointer to the RpcInData structure for the RPC.
+ * GHITclOTrayIconStartUpdates --
  *
- * @retval TRUE  The RPC succeeded.
- * @retval FALSE The RPC failed.
+ *      Start sending tray icon updates to the VMX.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 gboolean
-GHITcloTrayIconStartUpdates(RpcInData *data)
+GHITcloTrayIconStartUpdates(RpcInData *data) // IN/OUT: XXX
 {
    Bool ret = FALSE;
 
@@ -1504,17 +1536,25 @@ exit:
    return ret;
 }
 
-/**
- * @brief Stop sending tray icon updates to the VMX.
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in] data Pointer to the RpcInData structure for the RPC.
+ * GHITcloTrayIconStopUpdates --
  *
- * @retval TRUE  The RPC succeeded.
- * @retval FALSE The RPC failed.
+ *      Stop sending tray icon updates to the VMX.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 gboolean
-GHITcloTrayIconStopUpdates(RpcInData *data)
+GHITcloTrayIconStopUpdates(RpcInData *data) // IN/OUT:
 {
    Bool ret = FALSE;
 
@@ -1548,17 +1588,24 @@ exit:
 }
 
 
-/**
- * @brief Send the ghi.guest.trayIcon.update RPC to the host.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in] data Pointer to the RpcInData structure for the RPC.
+ * GHISendTrayIconUpdateRPC --
  *
- * @retval TRUE  The RPC succeeded.
- * @retval FALSE The RPC failed.
+ *      Send the ghi.guest.trayIcon.update RPC to the host.
+ *
+ * Results:
+ *      TRUE if sent, FALSE otherwise.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 Bool
-GHISendTrayIconUpdateRpc(XDR *xdrs)
+GHISendTrayIconUpdateRpc(XDR *xdrs) // XXX
 {
    Bool ret = FALSE;
    DynBuf outBuf;
@@ -1611,14 +1658,21 @@ exit:
 }
 
 
-/**
- * @brief Set the specified window to be focused (NULL or zero window ID indicates
- * that no window should be focused).
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in] data Pointer to the RpcInData structure for the RPC.
+ * GHITcloSetFocusedWindow --
  *
- * @retval TRUE  The RPC succeeded.
- * @retval FALSE The RPC failed.
+ *      Set the specified window to be focused (NULL or zero window ID indicates
+ *      that no window should be focused).
+ *
+ * Results:
+ *      TRUE on success, FALSE otherwise.
+ *
+ * Side effects:
+ *      XXX.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 gboolean
@@ -1685,18 +1739,25 @@ exit:
 }
 
 
-/**
- * @brief Get the hash (or timestamp) of information returned by
- * GHITcloGetBinaryInfo.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in] data Pointer to the RpcInData structure for the RPC.
+ * GHITcloGetExecInfoHash --
  *
- * @retval TRUE  The RPC succeeded.
- * @retval FALSE The RPC failed.
+ *      Get the hash (or timestamp) of information returned by
+ *      GHITcloGetBinaryInfo.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 gboolean
-GHITcloGetExecInfoHash(RpcInData *data)
+GHITcloGetExecInfoHash(RpcInData *data) // IN/OUT:
 {
    Bool ret = TRUE;
    GHIGetExecInfoHashRequest requestMsg;
