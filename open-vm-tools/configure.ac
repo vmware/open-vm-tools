@@ -1096,6 +1096,9 @@ COMMON_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/common
 VMSVC_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmsvc
 VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
+# General definitions
+INSTVMSG='$(SHELL) $(top_srcdir)/scripts/build/instvmsg.sh'
+
 ### General substs
 
 AC_SUBST([HGFS_LIBS])
@@ -1123,6 +1126,7 @@ if test "$os" = "freebsd" -a -n "$SYSDIR"; then
    true
    AC_SUBST([SYSDIR])
 fi
+AC_SUBST([INSTVMSG])
 
 ### Lib substs
 
