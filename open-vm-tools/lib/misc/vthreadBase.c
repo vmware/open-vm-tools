@@ -835,10 +835,22 @@ VThreadBase_ForgetSelf(void)
 void
 VThreadBase_SetName(const char *name)  // IN: new name
 {
+   uint32 len = strlen(name);
    VThreadBaseData *base = VThreadBaseCooked();
 
    ASSERT(name);
-   Str_Strcpy(base->name, name, sizeof base->name);
+
+   if (len >= sizeof base->name) {
+      if (vmx86_debug) {
+         Warning("%s: thread name (%s) exceeds maximum length (%d)\n",
+                 __FUNCTION__, name, sizeof base->name -1);
+      }
+
+      len = sizeof base->name - 1;
+   }
+
+   memcpy(base->name, name, len);
+   base->name[len] = '\0';
 }
 
 
