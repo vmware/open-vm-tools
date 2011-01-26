@@ -228,9 +228,9 @@ DnDUIX11::SetTargetsAndCallbacks()
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_TEXT_RICHTEXT));
 
    /* Plain text DnD. */
+   targets.push_back(Gtk::TargetEntry(TARGET_NAME_UTF8_STRING));
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_STRING));
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_TEXT_PLAIN));
-   targets.push_back(Gtk::TargetEntry(TARGET_NAME_UTF8_STRING));
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_COMPOUND_TEXT));
 
    /*
