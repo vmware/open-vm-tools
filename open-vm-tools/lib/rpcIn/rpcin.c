@@ -686,6 +686,13 @@ RpcInLoop(void *clientData) // IN
 #endif
 
 error:
+   /* The event has fired and will not be rescheduled: it is no longer valid */
+   if (in->nextEvent) {
+#if defined(VMTOOLS_USE_GLIB)
+      g_source_unref(in->nextEvent);
+#endif
+      in->nextEvent = NULL;
+   }
    RpcIn_stop(in);
 
    /* Call the error routine */
