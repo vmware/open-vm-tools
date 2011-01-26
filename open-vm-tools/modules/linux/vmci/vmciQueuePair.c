@@ -33,6 +33,8 @@
 #endif /* __linux__ */
 
 #include "vm_assert.h"
+#include "vm_atomic.h"
+#include "vmci_handle_array.h"
 #include "vmci_kernel_if.h"
 #include "vmciEvent.h"
 #include "vmciInt.h"
@@ -54,16 +56,19 @@ typedef struct QueuePairEntry {
    void      *produceQ;
    void      *consumeQ;
    uint32     refCount;
+   Bool       hibernateFailure;
    ListItem   listItem;
 } QueuePairEntry;
 
 typedef struct QueuePairList {
-   ListItem  *head;
-   Bool      hibernate;
-   VMCIMutex mutex;
+   ListItem      *head;
+   Atomic_uint32  hibernate;
+   VMCIMutex      mutex;
 } QueuePairList;
 
 static QueuePairList queuePairList;
+static VMCIHandleArray *hibernateFailedList;
+static VMCILock hibernateFailedListLock;
 
 static QueuePairEntry *QueuePairList_FindEntry(VMCIHandle handle);
 static void QueuePairList_AddEntry(QueuePairEntry *entry);
@@ -83,6 +88,8 @@ static int VMCIQueuePairAllocHelper(VMCIHandle *handle, VMCIQueue **produceQ,
 static int VMCIQueuePairDetachHelper(VMCIHandle handle);
 static int VMCIQueuePairDetachHyperCall(VMCIHandle handle);
 static int QueuePairNotifyPeerLocal(Bool attach, VMCIHandle handle);
+static void VMCIQPMarkHibernateFailed(QueuePairEntry *entry);
+static void VMCIQPUnmarkHibernateFailed(QueuePairEntry *entry);
 
 
 /*
@@ -197,8 +204,19 @@ void
 VMCIQueuePair_Init(void)
 {
    queuePairList.head = NULL;
-   queuePairList.hibernate = FALSE;
+   Atomic_Write(&queuePairList.hibernate, 0);
    QueuePairLock_Init();
+   hibernateFailedList = VMCIHandleArray_Create(0);
+
+   /*
+    * The lock rank must be lower than subscriberLock in vmciEvent,
+    * since we hold the hibernateFailedListLock while generating
+    * detach events.
+    */
+
+   VMCI_InitLock(&hibernateFailedListLock,
+                 "VMCIQPHibernateFailed",
+                 VMCI_LOCK_RANK_MIDDLE_BH);
 }
 
 
@@ -248,9 +266,11 @@ VMCIQueuePair_Exit(void)
       QueuePairEntryDestroy(entry);
    }
 
-   queuePairList.hibernate = FALSE;
+   Atomic_Write(&queuePairList.hibernate, 0);
    QueuePairList_Unlock();
    QueuePairLock_Destroy();
+   VMCI_CleanupLock(&hibernateFailedListLock);
+   VMCIHandleArray_Destroy(hibernateFailedList);
 }
 
 
@@ -688,7 +708,8 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
 
    QueuePairList_Lock();
 
-   if (queuePairList.hibernate && !(flags & VMCI_QPFLAG_LOCAL)) {
+   if ((Atomic_Read(&queuePairList.hibernate) == 1) &&
+       !(flags & VMCI_QPFLAG_LOCAL)) {
       /*
        * While guest OS is in hibernate state, creating non-local
        * queue pairs is not allowed after the point where the VMCI
@@ -696,6 +717,7 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
        * ones.
        */
 
+      QueuePairList_Unlock();
       return VMCI_ERROR_UNAVAILABLE;
    }
 
@@ -925,6 +947,26 @@ VMCIQueuePairDetachHelper(VMCIHandle handle)   // IN:
       }
    } else {
       result = VMCIQueuePairDetachHyperCall(handle);
+      if (entry->hibernateFailure) {
+         if (result == VMCI_ERROR_NOT_FOUND) {
+            /*
+             * If a queue pair detach failed when entering
+             * hibernation, the guest driver and the device may
+             * disagree on its existence when coming out of
+             * hibernation. The guest driver will regard it as a
+             * non-local queue pair, but the device state is gone,
+             * since the device has been powered off. In this case, we
+             * treat the queue pair as a local queue pair with no
+             * peer.
+             */
+
+            ASSERT(entry->refCount == 1);
+            result = VMCI_SUCCESS;
+         }
+         if (result == VMCI_SUCCESS) {
+            VMCIQPUnmarkHibernateFailed(entry);
+         }
+      }
    }
 
 out:
@@ -998,9 +1040,87 @@ QueuePairNotifyPeerLocal(Bool attach,           // IN: attach or detach?
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQPMarkHibernateFailed --
+ *
+ *      Helper function that marks a queue pair entry as not being
+ *      converted to a local version during hibernation. Must be
+ *      called with the queue pair list lock held.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VMCIQPMarkHibernateFailed(QueuePairEntry *entry) // IN
+{
+   VMCILockFlags flags;
+   VMCIHandle handle;
+
+   /*
+    * entry->handle is located in paged memory, so it can't be
+    * accessed while holding a spinlock.
+    */
+
+   handle = entry->handle;
+   entry->hibernateFailure = TRUE;
+   VMCI_GrabLock_BH(&hibernateFailedListLock, &flags);
+   VMCIHandleArray_AppendEntry(&hibernateFailedList, handle);
+   VMCI_ReleaseLock_BH(&hibernateFailedListLock, flags);
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQPUnmarkHibernateFailed --
+ *
+ *      Helper function that removes a queue pair entry from the group
+ *      of handles marked as having failed hibernation. Must be called
+ *      with the queue pair list lock held.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VMCIQPUnmarkHibernateFailed(QueuePairEntry *entry) // IN
+{
+   VMCILockFlags flags;
+   VMCIHandle handle;
+
+   /*
+    * entry->handle is located in paged memory, so it can't be
+    * accessed while holding a spinlock.
+    */
+
+   handle = entry->handle;
+   entry->hibernateFailure = FALSE;
+   VMCI_GrabLock_BH(&hibernateFailedListLock, &flags);
+   VMCIHandleArray_RemoveEntry(hibernateFailedList, handle);
+   VMCI_ReleaseLock_BH(&hibernateFailedListLock, flags);
+}
+
+
+/*
  *----------------------------------------------------------------------------
  *
- * VMCIQueuePair_Hibernate --
+ * VMCIQueuePair_Convert --
+ *
+ *      Queue pairs may be converted to local ones in two cases: when
+ *      entering hibernation or when the device is powered off before
+ *      entering a sleep mode. Below we first discuss the case of
+ *      hibernation and then the case of entering sleep state.
  *
  *      When the guest enters hibernation, any non-local queue pairs
  *      will disconnect no later than at the time the VMCI device
@@ -1028,6 +1148,19 @@ QueuePairNotifyPeerLocal(Bool attach,           // IN: attach or detach?
  *      these queue pairs will no longer be external, so we simply
  *      mark them as local at that point.
  *
+ *      For the sleep state, the VMCI device will also be put into the
+ *      D3 power state, which may make the device inaccessible to the
+ *      guest driver (Windows unmaps the I/O space). When entering
+ *      sleep state, the hypervisor is likely to suspend the guest as
+ *      well, which will again convert all queue pairs to local ones.
+ *      However, VMCI device clients, e.g., VMCI Sockets, may attempt
+ *      to use queue pairs after the device has been put into the D3
+ *      power state, so we convert the queue pairs to local ones in
+ *      that case as well. When exiting the sleep states, the device
+ *      has not been reset, so all device state is still in sync with
+ *      the device driver, so no further processing is necessary at
+ *      that point.
+ *
  * Results:
  *      None.
  *
@@ -1038,13 +1171,13 @@ QueuePairNotifyPeerLocal(Bool attach,           // IN: attach or detach?
  */
 
 void
-VMCIQueuePair_Hibernate(Bool enterHibernation)
+VMCIQueuePair_Convert(Bool toLocal,     // IN
+                      Bool deviceReset) // IN
 {
-   ListItem *next;
+   if (toLocal) {
+      ListItem *next;
 
-   QueuePairList_Lock();
-
-   if (enterHibernation) {
+      QueuePairList_Lock();
 
       LIST_SCAN(next, queuePairList.head) {
          QueuePairEntry *entry = LIST_CONTAINER(next, QueuePairEntry, listItem);
@@ -1070,6 +1203,7 @@ VMCIQueuePair_Hibernate(Bool enterHibernation)
                              entry->handle.context, entry->handle.resource,
                              result));
                VMCI_ReleaseQueueMutex(prodQ);
+               VMCIQPMarkHibernateFailed(entry);
                continue;
             }
             result = VMCI_ConvertToLocalQueue(prodQ, consQ, entry->produceSize,
@@ -1081,15 +1215,14 @@ VMCIQueuePair_Hibernate(Bool enterHibernation)
                              result));
                VMCI_RevertToNonLocalQueue(consQ, oldConsQ, entry->consumeSize);
                VMCI_ReleaseQueueMutex(prodQ);
+               VMCIQPMarkHibernateFailed(entry);
                continue;
             }
 
             /*
              * Now that the contents of the queue pair has been saved,
              * we can detach from the non-local queue pair. This will
-             * revert the content of the non-local queues to that
-             * before the queue pair allocation and any buffered data
-             * will be lost.
+             * discard the content of the non-local queues.
              */
 
             result = VMCIQueuePairDetachHyperCall(entry->handle);
@@ -1100,6 +1233,7 @@ VMCIQueuePair_Hibernate(Bool enterHibernation)
                VMCI_RevertToNonLocalQueue(consQ, oldConsQ, entry->consumeSize);
                VMCI_RevertToNonLocalQueue(prodQ, oldProdQ, entry->produceSize);
                VMCI_ReleaseQueueMutex(prodQ);
+               VMCIQPMarkHibernateFailed(entry);
                continue;
             }
 
@@ -1113,25 +1247,32 @@ VMCIQueuePair_Hibernate(Bool enterHibernation)
             QueuePairNotifyPeerLocal(FALSE, entry->handle);
          }
       }
-      queuePairList.hibernate = TRUE;
+      Atomic_Write(&queuePairList.hibernate, 1);
+
+      QueuePairList_Unlock();
    } else {
-      queuePairList.hibernate = FALSE;
+      VMCILockFlags flags;
+      VMCIHandle handle;
 
-      LIST_SCAN(next, queuePairList.head) {
-         QueuePairEntry *entry = LIST_CONTAINER(next, QueuePairEntry, listItem);
+      /*
+       * When a guest enters hibernation, there may be queue pairs
+       * around, that couldn't be converted to local queue
+       * pairs. When coming out of hibernation, these queue pairs
+       * will be restored as part of the guest main mem by the OS
+       * hibernation code and they can now be regarded as local
+       * versions. Since they are no longer connected, detach
+       * notifications are sent to the local endpoint.
+       */
 
-         if (!(entry->flags & VMCI_QPFLAG_LOCAL)) {
-            /*
-             * Any queue pairs, that couldn't be deallocated when
-             * entering hibernation are now assumed to be local, since
-             * the VMCI device has been reset.
-             */
-
-            entry->flags |= VMCI_QPFLAG_LOCAL;
-            QueuePairNotifyPeerLocal(FALSE, entry->handle);
+      VMCI_GrabLock_BH(&hibernateFailedListLock, &flags);
+      while (VMCIHandleArray_GetSize(hibernateFailedList) > 0) {
+         handle = VMCIHandleArray_RemoveTail(hibernateFailedList);
+         if (deviceReset) {
+            QueuePairNotifyPeerLocal(FALSE, handle);
          }
       }
-   }
+      VMCI_ReleaseLock_BH(&hibernateFailedListLock, flags);
 
-   QueuePairList_Unlock();
+      Atomic_Write(&queuePairList.hibernate, 0);
+   }
 }

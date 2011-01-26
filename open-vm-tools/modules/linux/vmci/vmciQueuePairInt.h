@@ -39,7 +39,7 @@ int VMCIQueuePair_AllocPriv(VMCIHandle *handle, VMCIQueue **produceQ,
                             VMCIPrivilegeFlags privFlags);
 int VMCIQueuePair_Detach(VMCIHandle handle);
 
-void VMCIQueuePair_Hibernate(Bool enterHibernation);
+void VMCIQueuePair_Convert(Bool toLocal, Bool deviceReset);
 
 
 #endif /* !_VMCI_QUEUE_PAIR_INT_H_ */
