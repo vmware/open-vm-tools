@@ -7253,7 +7253,14 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
       }
       if (HgfsPackCreateSessionReply(input->packet, input->metaPacket,
                                      &replyPayloadSize, input->session)) {
+
+         /*
+          * XXX - TO BE RESTORED on session support implementation
+          * completion.
+          */
+#if defined HGFS_SESSION_SUPPORT
          HgfsServerSessionGet(input->session);
+#endif
          status = HGFS_ERROR_SUCCESS;
       } else {
          status = HGFS_ERROR_INTERNAL;
@@ -7288,7 +7295,13 @@ HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
    HGFS_ASSERT_INPUT(input);
 
    HgfsServerCompleteRequest(HGFS_ERROR_SUCCESS, 0, input);
+   /*
+    * XXX - TO BE RESTORED on session support implementation
+    * completion.
+      */
+#if defined HGFS_SESSION_SUPPORT
    HgfsServerSessionPut(input->session);
+#endif
 }
 
 
