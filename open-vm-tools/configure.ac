@@ -981,6 +981,8 @@ if test "$os" = "linux"; then
    CPPFLAGS="$CPPFLAGS -D_BSD_SOURCE"
    CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE"
 
+   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrt"
+
    MODULES="$MODULES vmsync vmci vsock"
    MODULES="$MODULES vmxnet vmblock vmhgfs"
    buildHgfsmounter=yes
