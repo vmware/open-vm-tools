@@ -171,7 +171,6 @@ enum {
    VIX_E_VM_NOT_REPLAYING                       = 3045,
    VIX_E_TOO_MANY_LOGONS                        = 3046,
    VIX_E_INVALID_AUTHENTICATION_SESSION         = 3047,
-   VIX_E_SSL_CERTIFICATE_VERIFICATION_ERROR     = 3048,
 
    /* VM Errors */
    VIX_E_VM_NOT_FOUND                           = 4000,
@@ -457,7 +456,6 @@ enum {
    VIX_PROPERTY_VM_IS_RECORDING                       = 236,
    VIX_PROPERTY_VM_IS_REPLAYING                       = 237,
    VIX_PROPERTY_VM_SSL_ERROR                          = 293,
-   VIX_PROPERTY_VM_SSL_PEER_SHA1_THUMBPRINT           = 294,
 
    /* Result properties; these are returned by various procedures */
    VIX_PROPERTY_JOB_RESULT_ERROR_CODE                 = 3000,
