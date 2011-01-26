@@ -349,7 +349,7 @@ PowerOpsRunScript(PowerOpState *state,
    GSource *watch;
    GError *err = NULL;
 
-   argv[0] = g_filename_from_utf8(script, -1, NULL, NULL, &err);
+   argv[0] = g_locale_from_utf8(script, -1, NULL, NULL, &err);
    if (err != NULL) {
       g_error("Conversion error: %s\n", err->message);
    }
