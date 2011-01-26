@@ -5757,7 +5757,7 @@ abort:
 VixError
 VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
 {
-#if (defined(_WIN32) || defined(__linux__))
+#if (defined(_WIN32) || defined(__linux__) || defined(sun))
    VixError err = VIX_OK;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
@@ -5837,7 +5837,7 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
    }
 #else
    if (windowsAttributeSpecified) {
-      Debug("%s: Invalid attributes received for Unix Guest\n",
+      Debug("%s: Invalid attributes received for Posix Guest\n",
             __FUNCTION__);
       err = VIX_E_INVALID_ARG;
       goto abort;
