@@ -100,7 +100,6 @@ private:
    bool mClipboardEmpty;
    utf::string mHGStagingDir;
    std::list<Gtk::TargetEntry> mListTargets;
-   bool mIsClipboardOwner;
    uint64 mClipTime;
    uint64 mPrimTime;
    GdkAtom mGHSelection;
