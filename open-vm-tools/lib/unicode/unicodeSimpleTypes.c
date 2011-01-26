@@ -2677,6 +2677,67 @@ UnicodeGetCurrentEncodingInternal(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * Unicode_GetCurrentEncoding --
+ *
+ *      Return the current encoding (corresponding to
+ *      CodeSet_GetCurrentCodeSet()).
+ *
+ * Results:
+ *      The current encoding.
+ *
+ * Side effects:
+ *      Since the return value of CodeSet_GetCurrentCodeSet() and our
+ *      look-up table do not change, we memoize the value.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+StringEncoding
+Unicode_GetCurrentEncoding(void)
+{
+   static StringEncoding encoding = STRING_ENCODING_UNKNOWN;
+
+   if (UNLIKELY(encoding == STRING_ENCODING_UNKNOWN)) {
+      encoding = UnicodeGetCurrentEncodingInternal();
+   }
+
+   return encoding;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_ResolveEncoding --
+ *
+ *      Resolves a meta-encoding enum value (e.g. STRING_ENCODING_DEFAULT) to
+ *      a concrete one (e.g. STRING_ENCODING_UTF8).
+ *
+ * Results:
+ *      A StringEncoding enum value.  May return STRING_ENCODING_UNKNOWN.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+StringEncoding
+Unicode_ResolveEncoding(StringEncoding encoding)  // IN:
+{
+   if (encoding == STRING_ENCODING_DEFAULT) {
+      encoding = Unicode_GetCurrentEncoding();
+   }
+
+   ASSERT(Unicode_IsEncodingValid(encoding));
+
+   return encoding;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Unicode_IsEncodingValid --
  *
  *      Checks whether we support the given encoding.
