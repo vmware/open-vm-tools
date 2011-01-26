@@ -58,6 +58,7 @@
 /* Strings used for formatting various types of data */
 #define DND_URI_LIST_PRE     "file://"
 #define DND_URI_LIST_PRE_KDE "file:"
+#define DND_URI_NON_FILE_SCHEMES {"ssh", "sftp", "smb", "dav", "davs", NULL}
 #define DND_URI_LIST_POST    "\r\n"
 #define DND_TEXT_PLAIN_PRE   ""
 #define DND_TEXT_PLAIN_POST  ""
@@ -241,6 +242,7 @@ EXTERN Bool DnD_GetFileList(HDROP hDrop,
 EXTERN char *DnD_UriListGetNextFile(char const *uriList,
                                     size_t *index,
                                     size_t *length);
+EXTERN Bool DnD_UriIsNonFileSchemes(char const *uri);
 #endif
 
 /*

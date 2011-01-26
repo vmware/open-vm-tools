@@ -1180,7 +1180,23 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
       while ((newPath = DnD_UriListGetNextFile(source.c_str(),
                                                &index,
                                                &newPathLen)) != NULL) {
-
+#if defined(linux)
+         if (DnD_UriIsNonFileSchemes(newPath)) {
+            /* Try to get local file path for non file uri. */
+            GFile *file = g_file_new_for_uri(newPath);
+            free(newPath);
+            if (!file) {
+               g_debug("%s: g_file_new_for_uri failed\n", __FUNCTION__);
+               return false;
+            }
+            newPath = g_file_get_path(file);
+            g_object_unref(file);
+            if (!newPath) {
+               g_debug("%s: g_file_get_path failed\n", __FUNCTION__);
+               return false;
+            }
+         }
+#endif
          /*
           * Parse relative path.
           */
