@@ -35,4 +35,5 @@ libresolutionSet_la_SOURCES =
 libresolutionSet_la_SOURCES += libvmwarectrl.c
 libresolutionSet_la_SOURCES += resolutionSet.c
 libresolutionSet_la_SOURCES += resolutionX11.c
+libresolutionSet_la_SOURCES += resolutionRandR12.c
 

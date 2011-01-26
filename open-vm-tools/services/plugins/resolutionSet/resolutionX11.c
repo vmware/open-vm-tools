@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "resolutionInt.h"
+#include "resolutionRandR12.h"
 
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
@@ -53,13 +54,6 @@
 #define VMWAREDRV_PATH      "/usr/X11R6/lib/modules/drivers/vmware_drv.o"
 #define VERSION_STRING      "VMware Guest X Server"
 
-#define RR12_OUTPUT_FORMAT "LVDS%u"
-#define RR12_MODE_FORMAT "autofit-%ux%u"
-#define RR12_MODE_MAXLEN (sizeof RR12_MODE_FORMAT + 2 * (10 - 2) + 1)
-#define RR12_DEFAULT_DPI 96.0
-#define MILLIS_PER_INCH 25.4
-
-
 /**
  * Describes the state of the X11 back-end of lib/resolution.
  */
@@ -71,10 +65,6 @@ typedef struct {
    Bool         canUseVMwareCtrlTopologySet;
                                 // TRUE if VMwareCtrl extension supports topology set
    Bool         canUseRandR12;  // TRUE if RandR extension >= 1.2 available
-   unsigned int topologyDisplays;
-                                // Number of displays in current topology
-   unsigned int topologyWidth;  // Total width of current topology
-   unsigned int topologyHeight; // Total height of current topology
 } ResolutionInfoX11Type;
 
 
@@ -90,11 +80,6 @@ ResolutionInfoX11Type resolutionInfoX11;
 
 static Bool ResolutionCanSet(void);
 static Bool TopologyCanSet(void);
-#ifndef NO_MULTIMON
-static Bool RandR12_SetTopology(unsigned int ndisplays,
-                                xXineramaScreenInfo *displays,
-                                unsigned int width, unsigned int height);
-#endif
 static Bool SelectResolution(uint32 width, uint32 height);
 
 
@@ -171,7 +156,7 @@ ResolutionSetResolution(uint32 width,
    ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
    ASSERT(resolutionInfo.canSetResolution);
 
-   if (resInfoX->canUseVMwareCtrl) {
+   if (resInfoX->canUseVMwareCtrl && !resInfoX->canUseRandR12) {
       /*
        * If so, use the VMWARE_CTRL extension to provide a custom resolution
        * which we'll find as an exact match from XRRConfigSizes() (unless
@@ -181,7 +166,7 @@ ResolutionSetResolution(uint32 width,
        * effort attempt to change resolution anyway.
        */
       VMwareCtrl_SetRes(resInfoX->display, DefaultScreen(resInfoX->display),
-                        width, height);
+			width, height);
    }
 
    return SelectResolution(width, height);
@@ -260,8 +245,11 @@ ResolutionSetTopology(unsigned int ndisplays,
       displays[i].y_org -= minY;
    }
 
-   if (resInfoX->canUseVMwareCtrl && resInfoX->canUseRandR12) {
-      success = RandR12_SetTopology(ndisplays, displays,
+   if (resInfoX->canUseRandR12) {
+      success = RandR12_SetTopology(resInfoX->display,
+                                    DefaultScreen(resInfoX->display),
+                                    resInfoX->rootWindow,
+                                    ndisplays, displays,
                                     maxX - minX, maxY - minY);
    } else if (resInfoX->canUseVMwareCtrlTopologySet) {
       if (!VMwareCtrl_SetTopology(resInfoX->display, DefaultScreen(resInfoX->display),
@@ -322,10 +310,6 @@ ResolutionCanSet(void)
       return FALSE;
    }
 
-   if (resInfoX->canUseVMwareCtrl) {
-      return TRUE;
-   }
-
 #ifndef NO_MULTIMON
    /*
     * See if RandR >= 1.2 can be used: The extension version is high enough and
@@ -369,21 +353,28 @@ ResolutionCanSet(void)
 
       XUngrabServer(resInfoX->display);
 
-      if (resInfoX->canUseRandR12 && resInfoX->canUseVMwareCtrl) {
+      if (resInfoX->canUseRandR12) {
          return TRUE;
       }
    }
+
 #endif // ifndef NO_MULTIMON
 
    /*
     * See if the VMWARE_CTRL extension is supported.
-    * Needs to be checked after RandR12 since the new vmwgfx driver uses both.
-    *
+    */
+
+   if (resInfoX->canUseVMwareCtrl) {
+      return TRUE;
+   }
+
+   /*
     * XXX: This check does not work with XOrg 6.9/7.0 for two reasons: Both
     * versions now use .so for the driver extension and 7.0 moves the drivers
     * to a completely different directory. As long as we ship a driver for
     * 6.9/7.0, we can instead just use the VMWARE_CTRL check.
     */
+
    buf[sizeof buf - 1] = '\0';
    FileIO_Invalidate(&fd);
    res = FileIO_Open(&fd, VMWAREDRV_PATH_64, FILEIO_ACCESS_READ, FILEIO_OPEN);
@@ -453,19 +444,20 @@ static Bool
 TopologyCanSet(void)
 {
    ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+
+   /**
+    * Note: For some strange reason, an early call to XineramaQueryVersion in
+    * in this function stops vmtoolsd from deadlocking and freezing the X
+    * display. Might be a call to XGrabServer() in and X library init
+    * function that is called when we've already grabbed the server....
+    */
+
 #ifdef NO_MULTIMON
    resInfoX->canUseVMwareCtrlTopologySet = FALSE;
    return FALSE;
 #else
    int major;
    int minor;
-
-   /*
-    * This is set in ResolutionCanSet so it needs to be called first.
-    */
-   if (resInfoX->canUseVMwareCtrl && resInfoX->canUseRandR12) {
-      return TRUE;
-   }
 
    if (resInfoX->canUseVMwareCtrl && XineramaQueryVersion(resInfoX->display, &major,
                                                           &minor)) {
@@ -477,291 +469,9 @@ TopologyCanSet(void)
       resInfoX->canUseVMwareCtrlTopologySet = FALSE;
    }
 
-   return resInfoX->canUseVMwareCtrlTopologySet;
+   return resInfoX->canUseVMwareCtrlTopologySet || resInfoX->canUseRandR12;
 #endif
 }
-
-
-#ifndef NO_MULTIMON
-
-/**
- * Employs the RandR 1.2 extension to set a new display topology.
- * This is for the new vmwgfx X driver, it works a lot like the old
- * driver except it uses RandR 1.2 to drive multiple outputs.
- *
- * It first sets the layout via the vmwctrl extensions, this updates the
- * preferred modes and connection status of the outputs. Then it uses
- * RandR to setup the preferred layout using the prefered modes adding any
- * missing modes needed.
- *
- * @return TRUE if operation succeeded, FALSE otherwise.
- */
-
-static Bool
-RandR12_SetTopology(unsigned int ndisplays,
-                    // IN:  number of elements in topology
-                    xXineramaScreenInfo *displays,
-                    // IN: array of display geometries
-                    unsigned int width,
-                    // IN: total width of topology
-                    unsigned int height)
-                    // IN: total height of topology
-{
-   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
-   int minWidth, minHeight, maxWidth, maxHeight;
-   XRRScreenResources* xrrRes = NULL;
-   XRROutputInfo** xrrOutputs;
-   unsigned int numOutputs;
-   unsigned int* outputMap;
-   XRRCrtcInfo** xrrCrtcs;
-   XRRScreenConfiguration* xrrConfig = NULL;
-   XRRScreenSize* xrrSizes;
-   Rotation xrrCurRotation;
-   uint32 xrrNumSizes;
-   SizeID currentSize;
-   XRRModeInfo xrrModes[ndisplays];
-   char name[RR12_MODE_MAXLEN];
-   float dpi;
-   int i, j, k;
-   Bool success = FALSE;
-
-   if (!XRRGetScreenSizeRange(resInfoX->display, resInfoX->rootWindow,
-                              &minWidth, &minHeight, &maxWidth, &maxHeight) ||
-       width < minWidth || height < minHeight ||
-       width > maxWidth || height > maxHeight) {
-      return FALSE;
-   }
-
-   /* Grab the server for two reasons:
-    * - Avoid race conditions with other clients changing RandR configuration.
-    * - Make our changes appear as atomic as possible to other clients.
-    */
-   XGrabServer(resInfoX->display);
-
-   /*
-    * Set the topology first, setting up the prefered modes.
-    */
-   if (!VMwareCtrl_SetTopology(resInfoX->display, DefaultScreen(resInfoX->display),
-                               displays, ndisplays)) {
-      Debug("Failed to set topology in the driver.\n");
-      goto error;
-   }
-
-   xrrRes = XRRGetScreenResources(resInfoX->display, resInfoX->rootWindow);
-   if (!xrrRes) {
-      goto error;
-   }
-
-   xrrCrtcs = Util_SafeCalloc(sizeof *xrrCrtcs, xrrRes->ncrtc);
-   xrrOutputs = Util_SafeCalloc(sizeof *xrrOutputs, xrrRes->noutput);
-   outputMap = Util_SafeCalloc(sizeof *outputMap, xrrRes->noutput);
-
-   /* RandR may enumerate outputs differently from the host. Apply the nth
-    * topology rectangle to the output called LVDS<n>.
-    */
-   for (i = 0; i < xrrRes->noutput; i++) {
-      outputMap[i] = i;
-   }
-
-   numOutputs = 0;
-   for (i = 0; i < xrrRes->noutput; i++) {
-      unsigned int num;
-
-      xrrOutputs[i] = XRRGetOutputInfo(resInfoX->display, xrrRes,
-                                       xrrRes->outputs[i]);
-
-      if (!xrrOutputs[i]) {
-         goto error;
-      }
-
-      if (sscanf(xrrOutputs[i]->name, RR12_OUTPUT_FORMAT, &num) != 1 ||
-          num > ndisplays) {
-         continue;
-      }
-
-      outputMap[num - 1] = i;
-
-      if (num > numOutputs) {
-         numOutputs = num;
-      }
-   }
-
-   /* Disable any CRTCs which won't be used or wont't fit in new screen size. */
-   for (i = 0; i < xrrRes->ncrtc; i++) {
-      xrrCrtcs[i] = XRRGetCrtcInfo(resInfoX->display, xrrRes,
-                                   xrrRes->crtcs[i]);
-
-      if (!xrrCrtcs[i]) {
-         goto error;
-      }
-
-      for (j = 0; j < numOutputs; j++) {
-         if (xrrOutputs[outputMap[j]]->crtc == xrrRes->crtcs[i]) {
-            break;
-         }
-      }
-
-      if (xrrCrtcs[i]->mode == None ||
-          (j < numOutputs &&
-           (xrrCrtcs[i]->x + xrrCrtcs[i]->width) <= width &&
-           (xrrCrtcs[i]->y + xrrCrtcs[i]->height) <= height)) {
-         continue;
-      }
-
-      if (XRRSetCrtcConfig(resInfoX->display, xrrRes, xrrRes->crtcs[i],
-                           xrrCrtcs[i]->timestamp, 0, 0, None, RR_Rotate_0, NULL, 0)
-          != Success) {
-         goto error;
-      }
-   }
-
-   /* Set new screen size. */
-   xrrConfig = XRRGetScreenInfo(resInfoX->display, resInfoX->rootWindow);
-   xrrSizes = XRRConfigSizes(xrrConfig, &xrrNumSizes);
-   currentSize = XRRConfigCurrentConfiguration(xrrConfig, &xrrCurRotation);
-
-   if (xrrSizes[currentSize].mheight > 0) {
-      dpi = MILLIS_PER_INCH * xrrSizes[currentSize].height / xrrSizes[currentSize].mheight;
-
-      if (!dpi) {
-         dpi = RR12_DEFAULT_DPI;
-      }
-   } else {
-      dpi = RR12_DEFAULT_DPI;
-   }
-
-   XRRSetScreenSize(resInfoX->display, resInfoX->rootWindow, width, height,
-                    (MILLIS_PER_INCH * width) / dpi,
-                    (MILLIS_PER_INCH * height) / dpi);
-
-   /* Set new topology. */
-   for (i = 0; i < numOutputs; i++) {
-      memset(xrrModes + i, 0, sizeof xrrModes[0]);
-
-      xrrModes[i].width = displays[i].width;
-      xrrModes[i].height = displays[i].height;
-
-      /* Look for existing matching autofit mode. */
-      for (j = 0; j < i && !xrrModes[i].id; j++) {
-         if (xrrModes[j].id &&
-             xrrModes[j].width == displays[i].width &&
-             xrrModes[j].height == displays[i].height) {
-            xrrModes[i].id = xrrModes[j].id;
-            break;
-         }
-      }
-
-      for (j = 0; j < xrrRes->nmode && !xrrModes[i].id; j++) {
-         unsigned int w, h;
-
-         if (sscanf(xrrRes->modes[j].name, RR12_MODE_FORMAT, &w, &h) == 2 &&
-             w == displays[i].width && h == displays[i].height) {
-            xrrModes[i].id = xrrRes->modes[j].id;
-            break;
-         }
-      }
-
-      /* If no luck, create new autofit mode. */
-      if (!xrrModes[i].id) {
-         Str_Sprintf(name, sizeof name, RR12_MODE_FORMAT,
-                     displays[i].width, displays[i].height);
-         xrrModes[i].name = name;
-         xrrModes[i].nameLength = strlen(xrrModes[i].name);
-         xrrModes[i].id = XRRCreateMode(resInfoX->display, resInfoX->rootWindow,
-                                        xrrModes + i);
-      }
-
-      if (xrrModes[i].id == None) {
-         continue;
-      }
-
-      /* Set autofit mode. */
-      if (xrrOutputs[outputMap[i]]->crtc == None) {
-         xrrOutputs[outputMap[i]]->crtc = xrrOutputs[outputMap[i]]->crtcs[0];
-      }
-
-      for (j = 0; j < xrrOutputs[outputMap[i]]->nmode; j++) {
-         if (xrrModes[i].id == xrrOutputs[outputMap[i]]->modes[j]) {
-            break;
-         }
-      }
-      if (j == xrrOutputs[outputMap[i]]->nmode) {
-         XRRAddOutputMode(resInfoX->display, xrrRes->outputs[outputMap[i]],
-                          xrrModes[i].id);
-      }
-      if (XRRSetCrtcConfig(resInfoX->display, xrrRes,
-                           xrrOutputs[outputMap[i]]->crtc, xrrCrtcs[i]->timestamp,
-                           displays[i].x_org, displays[i].y_org, xrrModes[i].id,
-                           RR_Rotate_0, xrrRes->outputs + outputMap[i], 1)
-          != Success) {
-         goto error;
-      }
-   }
-
-   /* Delete unused autofit modes. */
-   for (i = 0; i < xrrRes->nmode; i++) {
-      unsigned int w, h;
-      Bool destroy = TRUE;
-
-      if (sscanf(xrrRes->modes[i].name, RR12_MODE_FORMAT, &w, &h) != 2) {
-         continue;
-      }
-
-      for (j = 0; j < xrrRes->noutput; j++) {
-         if (j < numOutputs &&
-             w == displays[j].width && h == displays[j].height) {
-            destroy = FALSE;
-            continue;
-         }
-
-         for (k = 0; k < xrrOutputs[outputMap[j]]->nmode; k++) {
-            if (xrrOutputs[outputMap[j]]->modes[k] == xrrRes->modes[i].id) {
-               XRRDeleteOutputMode(resInfoX->display,
-                                   xrrRes->outputs[outputMap[j]],
-                                   xrrOutputs[outputMap[j]]->modes[k]);
-               break;
-            }
-         }
-      }
-
-      if (destroy) {
-         XRRDestroyMode(resInfoX->display, xrrRes->modes[i].id);
-      }
-   }
-
-   resInfoX->topologyDisplays = ndisplays;
-   resInfoX->topologyWidth = width;
-   resInfoX->topologyHeight = height;
-
-   success = TRUE;
-
-error:
-   XUngrabServer(resInfoX->display);
-
-   if (xrrConfig) {
-      XRRFreeScreenConfigInfo(xrrConfig);
-   }
-   if (xrrRes) {
-      for (i = 0; i < xrrRes->noutput; i++) {
-         if (xrrOutputs[i]) {
-            XRRFreeOutputInfo(xrrOutputs[i]);
-         }
-      }
-      for (i = 0; i < xrrRes->ncrtc; i++) {
-         if (xrrCrtcs[i]) {
-            XRRFreeCrtcInfo(xrrCrtcs[i]);
-         }
-      }
-      free(outputMap);
-      free(xrrOutputs);
-      free(xrrCrtcs);
-      XRRFreeScreenResources(xrrRes);
-   }
-
-   return success;
-}
-
-#endif // ifndef NO_MULTIMON
 
 /**
  * Given a width and height, find the biggest resolution that will "fit".
@@ -789,20 +499,17 @@ SelectResolution(uint32 width,
 
 #ifndef NO_MULTIMON
    if (resInfoX->canUseRandR12) {
-      if (resInfoX->topologyDisplays != 1 ||
-          resInfoX->topologyWidth != width ||
-          resInfoX->topologyHeight != height) {
-         xXineramaScreenInfo display;
+      xXineramaScreenInfo display;
 
-         display.x_org = 0;
-         display.y_org = 0;
-         display.width = width;
-         display.height = height;
+      display.x_org = 0;
+      display.y_org = 0;
+      display.width = width;
+      display.height = height;
 
-         return RandR12_SetTopology(1, &display, width, height);
-      }
-
-      return TRUE;
+      return RandR12_SetTopology(resInfoX->display,
+                                 DefaultScreen(resInfoX->display),
+                                 resInfoX->rootWindow,
+                                 1, &display, width, height);
    }
 #endif
 
