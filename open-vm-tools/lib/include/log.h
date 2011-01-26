@@ -161,6 +161,7 @@ typedef struct
    Bool           useThreadName;        // Thread name on log line
    Bool           useTimeStamp;         // Use a log line time stamp
    Bool           useMilliseconds;      // Show milliseconds in time stamp
+   Bool           useLevelDesignator;   // Show level designator
    Bool           fastRotation;         // ESX log rotation optimization
    Bool           preventRemove;        // prevent Log_RemoveFile(FALSE)
 
