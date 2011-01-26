@@ -29,12 +29,14 @@
 #include "dndPluginIntX11.h"
 
 Window gXRoot;
-Display *gXDisplay = NULL;
-GtkWidget *gUserMainWidget = NULL;
+Display *gXDisplay;
+GtkWidget *gUserMainWidget;
+
 
 extern "C" {
 #include "copyPasteCompat.h"
 #include "dndGuest.h"
+#include "vmware/tools/plugin.h"
 #if defined(NOT_YET)
 #include "unity.h"
 #endif
@@ -44,6 +46,148 @@ void CopyPaste_Unregister(GtkWidget *mainWnd);
 }
 
 #include "pointer.h"
+
+
+/**
+ *
+ * BlockingService - a singleton class responsible for initializing and
+ * cleaning up blocking state (vmblock).
+ */
+
+class BlockService {
+public:
+   static BlockService *GetInstance();
+   void Init(ToolsAppCtx *);
+   DnDBlockControl *GetBlockCtrl() { return &m_blockCtrl; }
+
+private:
+   BlockService();
+   ~BlockService();
+
+   void Shutdown();
+   static gboolean ShutdownSignalHandler(const siginfo_t *, gpointer);
+
+   GSource *m_shutdownSrc;
+   DnDBlockControl m_blockCtrl;
+   bool m_initialized;
+
+   static BlockService *m_instance;
+};
+
+BlockService *BlockService::m_instance = 0;
+
+
+/**
+ *
+ * Constructor.
+ */
+
+BlockService::BlockService() :
+   m_shutdownSrc(0),
+   m_initialized(false)
+{
+   memset(&m_blockCtrl, 0, sizeof m_blockCtrl);
+   m_blockCtrl.fd = -1;
+}
+
+
+/**
+ *
+ * Get an instance of BlockService, which is an application singleton.
+ *
+ * @return a pointer to the singleton BlockService object, or NULL if
+ * for some reason it could not be allocated.
+ */
+
+BlockService *
+BlockService::GetInstance()
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+
+   if (!m_instance) {
+      m_instance = new BlockService();
+   }
+
+   ASSERT(m_instance);
+   return m_instance;
+}
+
+
+/**
+ *
+ * Initialize blocking subsystem so that GTK+ DnD operations won't
+ * time out. Also install SIGUSR1 handler so we can disconnect from
+ * blcoing subsystem upon request.
+ *
+ * @param[in] ctx tools app context.
+ */
+
+void
+BlockService::Init(ToolsAppCtx *ctx)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+
+   if (!m_initialized && ctx) {
+      m_blockCtrl.fd = ctx->blockFD;
+      m_blockCtrl.fd >= 0 ?
+         DnD_CompleteBlockInitialization(m_blockCtrl.fd, &m_blockCtrl) :
+         DnD_InitializeBlocking(&m_blockCtrl);
+
+      m_shutdownSrc = VMTools_NewSignalSource(SIGUSR1);
+      VMTOOLSAPP_ATTACH_SOURCE(ctx, m_shutdownSrc, ShutdownSignalHandler,
+                               ctx, NULL);
+
+      m_initialized = true;
+   }
+}
+
+
+/**
+ *
+ * Signal handler called when we receive SIGUSR1 which is a hint for us
+ * to disconnect from blocking subsystem so that it can be upgraded.
+ *
+ * @param[in] siginfo unused.
+ * @param[in] data    unused.
+ *
+ * @return always TRUE.
+ */
+
+gboolean
+BlockService::ShutdownSignalHandler(const siginfo_t *siginfo,
+                                    gpointer data)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+
+   GetInstance()->Shutdown();
+
+   return FALSE;
+}
+
+
+/**
+ *
+ * Shut down blocking susbsystem so that we can perform upgrade.
+ */
+
+void
+BlockService::Shutdown()
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+
+   if (m_initialized) {
+      g_source_destroy(m_shutdownSrc);
+      g_source_unref(m_shutdownSrc);
+      m_shutdownSrc = 0;
+
+      if (DnD_BlockIsReady(&m_blockCtrl)) {
+         DnD_UninitializeBlocking(&m_blockCtrl);
+      }
+
+      m_initialized = false;
+   }
+}
+
 
 extern "C" {
 
@@ -98,10 +242,7 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    m_main = new Gtk::Main(&argc, (char ***) &argv, false);
 
    if (wrapper) {
-      m_blockCtrl.fd = ctx->blockFD;
-      m_blockCtrl.fd >= 0 ?
-         DnD_CompleteBlockInitialization(m_blockCtrl.fd, &m_blockCtrl) :
-         DnD_InitializeBlocking(&m_blockCtrl);
+      BlockService::GetInstance()->Init(ctx);
    }
 
    gUserMainWidget = gtk_invisible_new();
@@ -113,7 +254,8 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
     */
    CopyPaste_SetVersion(1);
    CopyPaste_Register(gUserMainWidget, ctx);
-   return true;
+
+   return TRUE;
 }
 
 
@@ -169,7 +311,8 @@ CopyPasteDnDX11::RegisterCP()
    m_copyPasteUI = new CopyPasteUIX11();
    if (m_copyPasteUI) {
       if (m_copyPasteUI->Init()) {
-         m_copyPasteUI->SetBlockControl(&m_blockCtrl);
+         BlockService *bs = BlockService::GetInstance();
+         m_copyPasteUI->SetBlockControl(bs->GetBlockCtrl());
          wrapper->SetCPIsRegistered(TRUE);
          int version = wrapper->GetCPVersion();
          g_debug("%s: version is %d\n", __FUNCTION__, version);
@@ -209,10 +352,10 @@ CopyPasteDnDX11::RegisterDnD()
    }
 
    if (!wrapper->IsDnDRegistered()) {
-      ToolsAppCtx *ctx = wrapper->GetToolsAppCtx();
-      m_dndUI = new DnDUIX11(ctx);
+      m_dndUI = new DnDUIX11(wrapper->GetToolsAppCtx());
       if (m_dndUI) {
-         m_dndUI->SetBlockControl(&m_blockCtrl);
+         BlockService *bs = BlockService::GetInstance();
+         m_dndUI->SetBlockControl(bs->GetBlockCtrl());
          if (m_dndUI->Init()) {
 #if defined(NOT_YET)
             UnityDnD state;
