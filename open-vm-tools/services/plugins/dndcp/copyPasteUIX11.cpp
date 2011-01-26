@@ -648,13 +648,12 @@ again:
           bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
           CPClipboard_SetItem(&mClipboard, CPFORMAT_IMG_PNG,
                               buf, bufSize)) {
-         mCP->DestUISendClip(&mClipboard);
+         validDataInClip = true;
          g_debug("%s: Got PNG: %"FMTSZ"u\n", __FUNCTION__, bufSize);
       } else {
          g_debug("%s: Failed to get PNG\n", __FUNCTION__);
       }
       g_free(buf);
-      return;
    }
 
    /* Try to get RTF data from clipboard. */
