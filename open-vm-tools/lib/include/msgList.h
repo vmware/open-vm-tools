@@ -58,6 +58,7 @@ EXTERN MsgList *MsgList_Create(const char *idFmt, ...);
 EXTERN MsgList *MsgList_VCreate(const char *idFmt, va_list args);
 
 EXTERN void MsgList_Log(const MsgList *messages);
+EXTERN char *MsgList_ToString(const MsgList *messages);
 EXTERN MsgList *MsgList_Copy(const MsgList *src);
 EXTERN void MsgList_Free(MsgList *messages);
 
