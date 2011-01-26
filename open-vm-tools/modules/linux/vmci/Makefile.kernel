@@ -31,19 +31,19 @@ obj-m += $(DRIVER).o
 $(DRIVER)-y := $(subst $(SRCROOT)/, , $(patsubst %.c, %.o, $(wildcard $(SRCROOT)/*.c)))
 
 #
-# Compile the common sources from the shared directory.
+# In open-vm-tools, need to compile the common sources from the shared directory.
 #
-STUBS      := kernelStubsLinux.o
-$(DRIVER)-y += $(STUBS)
+DRIVERLOG   := driverLog.o
+$(DRIVER)-y += $(DRIVERLOG)
 
 VMCI_PATH  := $(shell cd $(SRCROOT) && pwd)
 ifdef OVT_SOURCE_DIR
-STUBS_PATH := $(OVT_SOURCE_DIR)/modules/linux/shared
+DRIVERLOG_PATH := $(OVT_SOURCE_DIR)/modules/linux/shared
 else
-STUBS_PATH := $(VMCI_PATH)/shared
+DRIVERLOG_PATH := $(VMCI_PATH)/shared
 endif
 
-$(addprefix $(VMCI_PATH)/,$(STUBS)): $(VMCI_PATH)/%.o: $(STUBS_PATH)/%.c
+$(addprefix $(VMCI_PATH)/,$(DRIVERLOG)): $(VMCI_PATH)/%.o: $(DRIVERLOG_PATH)/%.c
 	$(Q)$(rule_cc_o_c)
 
 clean:
@@ -64,3 +64,4 @@ ifneq ($(MODULEBUILDDIR),)
 	cp -f $(SRCROOT)/Module.symvers $(MODULEBUILDDIR)/VMwareVMCIModule.symvers
 endif
 endif
+

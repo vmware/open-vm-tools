@@ -36,7 +36,7 @@
 #include "compat_page.h"
 #include "compat_pci.h"
 
-#include "kernelStubs.h"
+#include "driverLog.h"
 
 #include "vm_basic_types.h"
 #include "vm_device_version.h"
@@ -176,6 +176,8 @@ static int __init
 vmci_init(void)
 {
    int err;
+
+   DriverLog_Init("/dev/vmci");
 
    /* Initialize device data. */
    compat_mutex_init(&vmci_dev.lock);
