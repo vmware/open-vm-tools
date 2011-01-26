@@ -82,22 +82,23 @@
  */
 #if defined(__GNUC__)
 static INLINE void 
-FXSAVE_ES1(uint8 *save)
+FXSAVE_ES1(void *save)
 {
-   __asm__ __volatile__ ("fxsave %0\n" : "=m" (*save) : : "memory");
+   __asm__ __volatile__ ("fxsave %0\n" : "=m" (*(uint8 *)save) : : "memory");
 }
 
 static INLINE void 
-FXRSTOR_ES1(const uint8 *load)
+FXRSTOR_ES1(const void *load)
 {
-   __asm__ __volatile__ ("fxrstor %0\n" : : "m" (*load) : "memory");
+   __asm__ __volatile__ ("fxrstor %0\n"
+                         : : "m" (*(const uint8 *)load) : "memory");
 }
 
 static INLINE void 
-FXRSTOR_AMD_ES0(const uint8 *load)
+FXRSTOR_AMD_ES0(const void *load)
 {
    uint64 dummy = 0;
-      
+
    __asm__ __volatile__ 
        ("fnstsw  %%ax    \n"     // Grab x87 ES bit
         "bt      $7,%%ax \n"     // Test ES bit
@@ -109,7 +110,7 @@ FXRSTOR_AMD_ES0(const uint8 *load)
                                  // x87 exception pointers.
         "fxrstor %1      \n"
         :  
-        : "m" (dummy), "m" (*load)
+        : "m" (dummy), "m" (*(const uint8 *)load)
         : "ax", "memory");
 }
 #endif /* __GNUC__ */
@@ -124,46 +125,58 @@ FXRSTOR_AMD_ES0(const uint8 *load)
 #if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
 
 static INLINE void 
-XSAVE_ES1(uint8 *save, uint64 mask)
+XSAVE_ES1(void *save, uint64 mask)
 {
 #if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
    __asm__ __volatile__ (
         ".byte 0x0f, 0xae, 0x21 \n"
         :
-        : "c" (save), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "c" ((uint8 *)save), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
 #else
    __asm__ __volatile__ (
         "xsave %0 \n"
-        : "=m" (*save)
+        : "=m" (*(uint8 *)save)
         : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
 #endif
 }
 
 static INLINE void 
-XRSTOR_ES1(const uint8 *load, uint64 mask)
+XSAVEOPT_ES1(void *save, uint64 mask)
+{
+   __asm__ __volatile__ (
+        ".byte 0x0f, 0xae, 0x31 \n"
+        :
+        : "c" ((uint8 *)save), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+}
+
+static INLINE void 
+XRSTOR_ES1(const void *load, uint64 mask)
 {
 #if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
    __asm__ __volatile__ (
         ".byte 0x0f, 0xae, 0x29 \n"
         :
-        : "c" (load), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "c" ((const uint8 *)load),
+          "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
 #else
    __asm__ __volatile__ (
         "xrstor %0 \n"
         :
-        : "m" (*load), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "m" (*(const uint8 *)load),
+          "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
 #endif
 }
 
 static INLINE void 
-XRSTOR_AMD_ES0(const uint8 *load, uint64 mask)
+XRSTOR_AMD_ES0(const void *load, uint64 mask)
 {
    uint64 dummy = 0;
-      
+
    __asm__ __volatile__ 
        ("fnstsw  %%ax    \n"     // Grab x87 ES bit
         "bt      $7,%%ax \n"     // Test ES bit
@@ -177,12 +190,13 @@ XRSTOR_AMD_ES0(const uint8 *load, uint64 mask)
 #if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
         ".byte 0x0f, 0xae, 0x29 \n"
         :
-        : "m" (dummy),
-          "c" (load), "b" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "m" (dummy), "c" ((const uint8 *)load),
+          "b" ((uint32)mask), "d" ((uint32)(mask >> 32))
 #else
         "xrstor %1 \n"
         :
-        : "m" (dummy), "m" (*load), "b" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "m" (dummy), "m" (*(const uint8 *)load),
+          "b" ((uint32)mask), "d" ((uint32)(mask >> 32))
 #endif
         : "eax", "memory");
 }
