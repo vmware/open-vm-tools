@@ -842,8 +842,8 @@ VThreadBase_SetName(const char *name)  // IN: new name
 
    if (len >= sizeof base->name) {
       if (vmx86_debug) {
-         Warning("%s: thread name (%s) exceeds maximum length (%d)\n",
-                 __FUNCTION__, name, sizeof base->name -1);
+         Warning("%s: thread name (%s) exceeds maximum length (%u)\n",
+                 __FUNCTION__, name, (uint32) sizeof base->name -1);
       }
 
       len = sizeof base->name - 1;
