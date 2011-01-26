@@ -310,9 +310,10 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
 
    if (err != 0) {
       /*
-       * A member file may "disappear" if is deleted due to an unlock
-       * immediately after a directory scan but before the scan is processed.
-       * Since this is a "normal" thing ENOENT will be suppressed.
+       * A member file may "disappear" if is deleted (unlinked on POSIXen)
+       * due to an unlock immediately after a directory scan but before the
+       * scan is processed. Since this is a "normal" thing, ENOENT will be
+       * suppressed.
        */
 
       if (err != ENOENT) {
@@ -327,8 +328,17 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
    err = FileAttributesRobust(path, &fileData);
 
    if (err != 0) {
-      Warning(LGPFX" %s file size failure on '%s': %s\n", __FUNCTION__,
-              UTF8(path), Err_Errno2String(err));
+      /*
+       * A member file may "disappear" if is deleted (unlinked on POSIXen)
+       * due to an unlock immediately after a directory scan but before the
+       * scan is processed. Since this is a "normal" thing, ENOENT will be
+       * suppressed.
+       */
+
+      if (err != ENOENT) {
+         Warning(LGPFX" %s file size failure on '%s': %s\n", __FUNCTION__,
+                 UTF8(path), Err_Errno2String(err));
+      }
 
       FileLockCloseFile(handle);
 
