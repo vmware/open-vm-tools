@@ -557,7 +557,7 @@ FIELDDEFA(8A, EBX, AMD,     0, 32, SVM_N_ASIDS,         YES, FALSE, SVM_NUM_ASID
 FIELDDEF( 8A, ECX, AMD,     0, 32, SVMECX_RSVD,         NO,  FALSE)            \
 FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              YES, FALSE, NPT)       \
 FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             NO,  FALSE)            \
-FLAGDEF(  8A, EDX, AMD,     2,  1, SVM_LOCK,            NO,  FALSE)            \
+FLAGDEFA( 8A, EDX, AMD,     2,  1, SVM_LOCK,            YES, FALSE, SVM_LOCK)  \
 FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            YES, FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     4,  1, SVM_TSC_RATE_MSR,    NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     5,  1, SVM_VMCB_CLEAN,      YES, FALSE)            \
