@@ -54,6 +54,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef sun
+#include <sys/stat.h>
+#endif
+
 #ifdef _MSC_VER
 #   include <windows.h>
 #elif _WIN32
@@ -326,7 +330,7 @@ static const char *fileExtendedInfoWindowsFormatString = "<fxi>"
                                           "<ct>%"FMT64"u</ct>"
                                           "<at>%"FMT64"u</at>"
                                           "</fxi>";
-#elif defined(linux)
+#elif defined(linux) || defined(sun)
 static const char *fileExtendedInfoLinuxFormatString = "<fxi>"
                                           "<Name>%s</Name>"
                                           "<ft>%d</ft>"
@@ -5615,7 +5619,7 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
 
 #ifdef _WIN32
    fileExtendedInfoBufferSize = strlen(fileExtendedInfoWindowsFormatString);
-#elif defined(linux)
+#elif defined(linux) || defined(sun)
    fileExtendedInfoBufferSize = strlen(fileExtendedInfoLinuxFormatString);
 #endif
 
@@ -5623,11 +5627,11 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
    fileExtendedInfoBufferSize += 10 + 20 + (20 * 2); // properties + size + times
 #ifdef _WIN32
    fileExtendedInfoBufferSize += 20;                // createTime
-#elif defined(linux)
+#elif defined(linux) || defined(sun)
    fileExtendedInfoBufferSize += 10 * 3;            // uid, gid, perms
 #endif
 
-#ifdef linux
+#if defined(linux) || defined(sun)
    if (File_IsSymLink(filePathName)) {
       char *symlinkTarget;
       symlinkTarget = Posix_ReadLink(filePathName);
@@ -6058,7 +6062,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                               char **destPtr,               // IN/OUT
                               char *endDestPtr)             // IN
 {
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(linux) || defined(sun)
    int64 fileSize = 0;
    VmTimeType modTime = 0;
    VmTimeType accessTime = 0;
@@ -6068,7 +6072,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    Bool hidden = FALSE;
    Bool readOnly = FALSE;
    VmTimeType createTime = 0;
-#elif defined(linux)
+#elif defined(linux) || defined(sun)
    int permissions = 0;
    int ownerId = 0;
    int groupId = 0;
@@ -6090,7 +6094,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
       fileSize = File_GetSize(filePathName);
    }
 
-#ifdef linux
+#if defined(linux) || defined(sun)
    /*
     * If the file is a symlink, figure out where it points.
     */
@@ -6125,7 +6129,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
 #endif
 
    if (Posix_Stat(filePathName, &statbuf) != -1) {
-#ifdef linux
+#if defined(linux) || defined(sun)
       ownerId = statbuf.st_uid;
       groupId = statbuf.st_gid;
       permissions = statbuf.st_mode;
@@ -6159,7 +6163,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                            accessTime,
                            hidden,
                            readOnly);
-#elif defined(linux)
+#elif defined(linux) || defined(sun)
    *destPtr += Str_Sprintf(*destPtr,
                            endDestPtr - *destPtr,
                            fileExtendedInfoLinuxFormatString,
@@ -6175,7 +6179,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    free(symlinkTarget);
 #endif
    free(escapedFileName);
-#endif   // defined(_WIN32) || defined(linux)
+#endif   // defined(_WIN32) || defined(linux) || defined(sun)
 } // VixToolsPrintFileExtendedInfo
 
 

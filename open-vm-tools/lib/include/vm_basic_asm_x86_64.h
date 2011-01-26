@@ -272,13 +272,13 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
 /*
  *-----------------------------------------------------------------------------
  *
- * Mul64x3264 --
+ * Mul64x6464 --
  *
  *    Unsigned integer by fixed point multiplication:
  *       result = multiplicand * multiplier >> shift
  * 
  *       Unsigned 64-bit integer multiplicand.
- *       Unsigned 32-bit fixed point multiplier, represented as
+ *       Unsigned 64-bit fixed point multiplier, represented as
  *         multiplier >> shift, where shift < 64.
  *       Unsigned 64-bit integer product.
  *
@@ -296,18 +296,17 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
 #if defined(__GNUC__)
 
 static INLINE uint64
-Mul64x3264(uint64 multiplicand,
-           uint32 multiplier,
+Mul64x6464(uint64 multiplicand,
+           uint64 multiplier,
            uint32 shift)
 {
    uint64 result, dummy;
-   const uint64 multiplier64 = multiplier;
 
    __asm__("mulq    %3      \n\t"
            "shrdq   %1, %0  \n\t"
            : "=a" (result),
              "=d" (dummy)
-           : "0"  (multiplier64),
+           : "0"  (multiplier),
              "rm" (multiplicand),
          "c"  (shift)
            : "cc");
@@ -317,7 +316,7 @@ Mul64x3264(uint64 multiplicand,
 #elif defined(_MSC_VER)
 
 static INLINE uint64
-Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
+Mul64x6464(uint64 multiplicand, uint64 multiplier, uint32 shift)
 {
    uint64 tmplo, tmphi;
    tmplo = _umul128(multiplicand, multiplier, &tmphi);
@@ -329,13 +328,13 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
 /*
  *-----------------------------------------------------------------------------
  *
- * Muls64x32s64 --
+ * Muls64x64s64 --
  *
  *    Signed integer by fixed point multiplication:
  *       result = multiplicand * multiplier >> shift
  * 
  *       Signed 64-bit integer multiplicand.
- *       Unsigned 32-bit fixed point multiplier, represented as
+ *       Unsigned 64-bit fixed point multiplier, represented as
  *         multiplier >> shift, where shift < 64.
  *       Signed 64-bit integer product.
  *
@@ -357,16 +356,15 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
 #if defined(__GNUC__)
 
 static inline int64
-Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
+Muls64x64s64(int64 multiplicand, int64 multiplier, uint32 shift)
 {
    int64 result, dummy;
-   const int64 multiplier64 = multiplier;
 
    __asm__("imulq   %3      \n\t"
        "shrdq   %1, %0  \n\t"
        : "=a" (result),
          "=d" (dummy)
-       : "0"  (multiplier64),
+       : "0"  (multiplier),
          "rm" (multiplicand),
          "c"  (shift)
        : "cc");
@@ -376,14 +374,75 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
 #elif defined(_MSC_VER)
 
 static INLINE int64
-Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
+Muls64x64s64(int64 multiplicand, int64 multiplier, uint32 shift)
 {
    int64 tmplo, tmphi;
+
    tmplo = _mul128(multiplicand, multiplier, &tmphi);
    return __shiftright128(tmplo, tmphi, (uint8) shift);
 }
 
 #endif
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Mul64x3264 --
+ *
+ *    Unsigned integer by fixed point multiplication:
+ *       result = multiplicand * multiplier >> shift
+ * 
+ *       Unsigned 64-bit integer multiplicand.
+ *       Unsigned 32-bit fixed point multiplier, represented as
+ *         multiplier >> shift, where shift < 64.
+ *       Unsigned 64-bit integer product.
+ *
+ * Implementation:
+ *    Multiply 64x64 bits to yield a full 128-bit product.
+ *    Shift result in RDX:RAX right by "shift".
+ *    Return the low-order 64 bits of the above.
+ *
+ * Result:
+ *    Return the low-order 64 bits of ((multiplicand * multiplier) >> shift)
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
+{
+   return Mul64x6464(multiplicand, multiplier, shift);
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Muls64x32s64 --
+ *
+ *    Signed integer by fixed point multiplication:
+ *       result = (multiplicand * multiplier) >> shift
+ * 
+ *       Signed 64-bit integer multiplicand.
+ *       Unsigned 32-bit fixed point multiplier, represented as
+ *         multiplier >> shift, where shift < 64.
+ *       Signed 64-bit integer product.
+ *
+ * Implementation:
+ *    Multiply 64x64 bits to yield a full 128-bit product.
+ *    Shift result in RDX:RAX right by "shift".
+ *    Return the low-order 64 bits of the above.
+ *
+ * Result:
+ *    Return the low-order 64 bits of ((multiplicand * multiplier) >> shift)
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int64
+Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
+{
+   return Muls64x64s64(multiplicand, multiplier, shift);
+}
 
 
 #if defined(__GNUC__)

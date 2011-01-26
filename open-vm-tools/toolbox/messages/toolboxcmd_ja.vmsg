@@ -16,83 +16,208 @@
 #
 ##########################################################
 
-error.noadmin.win =
-   "%1$s: 操作を実行するには、管理者のアクセス許可が %2$s 必要です。"
-   "管理者コマンドプロンプトを使用して、 これらのタスクを完了してください。"
+arg.command = "コマンド"
 
-error.novirtual = "%1$s 仮想マシン内で実行する必要があります。\n"
+arg.devicename = "デバイス名"
+
+arg.mountpoint = "マウント ポイント"
+
+arg.scriptpath = "スクリプト パス"
+
+arg.scripttype = "スクリプト タイプ"
+
+arg.subcommand = "サブコマンド"
+
+device.connect.error = "デバイス %1$s に接続できません。\n"
+
+device.disconnect.error = "デバイス %1$s を切断できません。\n"
+
+device.notfound = "インターフェイス情報の取得中のエラー: デバイスが見つかりませんでした。\n"
+
+disk.shrink.canceled = "ディスク圧縮がキャンセルされました。\n"
+
+disk.shrink.complete = "ディスクの圧縮が完了しました。\n"
+
+disk.shrink.conflict =
+   "エラー。ツールボックスでディスクの圧縮が有効であると判断されましたが、ホストでは次のように判断されています "
+   "it is disabled.\n"
+   "\n"
+   " Please close and reopen the Toolbox to synchronize it with the host.\n"
+
+disk.shrink.disabled =
+   "ディスクの圧縮はこの仮想マシンでは無効になっています。\n"
+   "\n"
+   "Shrinking is disabled for linked clones, parents of linked clones, \n"
+   "pre-allocated disks, snapshots, or due to other factors. \n"
+   "See the User's manual for more information.\n"
+
+disk.shrink.error = "圧縮中にエラーが発生しました: %1$s\n"
+
+disk.shrink.incomplete = "圧縮が完了しませんでした。\n"
+
+disk.shrink.partition.error = "パーティション データを収集できません。\n"
+
+disk.shrink.partition.notfound = "パーティション %1$s が見つかりません\n"
+
+disk.shrink.partition.unsupported = "パーティション %1$s は圧縮できません\n"
+
+disk.shrink.unavailable =
+   "圧縮機能が使用できません。\n"
+   "\n"
+   "either because you are running an old version of a VMware product, or because "
+   "too many communication channels are open.\n"
+   "\n"
+   " If you are running an old version of a VMware product, you should consider "
+   "upgrading.\n"
+   "\n"
+   "If too many communication channels are open, you should power off your virtual "
+   "machine and then power it back on.\n"
+
+disk.wiper.error = "エラー: %1$s"
+
+disk.wiper.file.error = "エラー。ワイパー ファイルを作成できません。\n"
+
+error.missing = "%1$s: %2$s が見つかりません\n"
+
+error.noadmin.posix = "%1$s: %2$s 操作を実行するには、root ユーザーである必要があります。\n"
+
+error.noadmin.win =
+   "%1$s: %2$s 操作を実行するには、管理者権限が必要です。\n"
+   "Use an administrator command prompt to complete these tasks.\n"
+
+error.novirtual = "%1$s は仮想マシン内で実行する必要があります。\n"
+
+error.unknown = "%1$s: 不明な %2$s「%3$s」\n"
 
 help.device =
-   "%1$s: 仮想マシンのハードウェア デバイスに関連する関数\n"
-   "使用方法: %2$s %3$s <サブコマンド> [引数]\n"
-   "   dev はデバイスの名前です\n"
+   "%1$s: 仮想マシンのハードウェア デバイスに関連する機能\n"
+   "Usage: %2$s %3$s <subcommand> [args]\n"
+   "dev is the name of the device.\n"
    "\n"
-   "サブコマンド:\n"
-   "   enable <dev>: デバイスを有効にする\n"
-   "   disable <dev>: デバイスを無効にする\n"
-   "   list: すべての使用可能なデバイスの一覧を表示する\n"
-   "   status <dev>: デバイスのステータスをプリントする\n"
+   "Subcommands:\n"
+   "   enable <dev>: enable the device dev\n"
+   "   disable <dev>: disable the device dev\n"
+   "   list: list all available devices\n"
+   "   status <dev>: print the status of a device\n"
 
 help.disk =
-   "%1$s: ディスク収縮処理の実行\n"
-   "使用方法: %2$s %3$s <サブコマンド> [引数]\n"
+   "%1$s: ディスク圧縮操作を実行\n"
+   "Usage: %2$s %3$s <subcommand> [args]\n"
    "\n"
-   "サブコマンド:\n"
-   "   list: 使用可能なマウントポイントの一覧を表示する\n"
-   "   shrink <マウントポイント>: 指定されたマウントポイントでファイル システムを収縮する\n"
+   "Subcommands:\n"
+   "   list: list available mountpoints\n"
+   "   shrink <mount-point>: shrinks a file system at the given mountpoint\n"
 
-help.hint = "試行 '%1$s %2$s%3$s%4$s' 詳細情報。\n"
+help.hint = "詳細については、「%1$s %2$s%3$s%4$s」を参照してください。\n"
 
 help.main =
-   "使用方法: %1$s <コマンド> [オプション] [サブコマンド]\n"
-   "入力します '%2$s %3$s <コマンド>' 特定のコマンドに関するヘルプについて。\n"
-   "入力します '%4$s -v' VMware Tools のバージョンを確認します。\n"
-   "使用します '-q' stdout 出力をしないオプション。\n"
-   "ほとんどのコマンドはサブコマンドを使用します。\n"
+   "用途: %1$s <command> [options] [subcommand]\n"
+   "Type '%2$s %3$s <command>' for help on a specific command.\n"
+   "Type '%4$s -v' to see the VMware Tools version.\n"
+   "Use '-q' option to suppress stdout output.\n"
+   "Most commands take a subcommand.\n"
    "\n"
-   "使用可能なコマンド:\n"
-   "  device\n"
-   "  disk\n"
-   "  script\n"
-   "  stat\n"
-   "  timesync\n"
+   "Available commands:\n"
+   "   device\n"
+   "   disk\n"
+   "   script\n"
+   "   stat\n"
+   "   timesync\n"
+   "   upgrade (not available on all operating systems)\n"
    "\n"
-   "詳細については http://www.vmware.com/jp/support/ を参照してください\n"
+   "For additional information please visit http://www.vmware.com/support/\n"
    "\n"
 
 help.script =
-   "%1$s: パワー オペレーションに対してスクリプトの実行を制御する\n"
-   "使用方法: %2$s %3$s <power|resume|suspend|shutdown> <サブコマンド> [引数]\n"
+   "%1$s: 電源操作に対応して実行されるスクリプトを制御\n"
+   "Usage: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n"
    "\n"
-   "サブコマンド:\n"
-   "   enable: 指定されたスクリプトを有効にし、パスをデフォルトに戻す\n"
-   "   disable: 指定されたスクリプトを無効にする\n"
-   "   set <フル パス>: 指定されたスクリプトを指定されたパスに設定する\n"
-   "   default: 指定されたスクリプトのデフォルトのパスをプリントする\n"
-   "   current: 指定されたスクリプトの現在のパスをプリントする\n"
+   "Subcommands:\n"
+   "   enable: enable the given script and restore its path to the default\n"
+   "   disable: disable the given script\n"
+   "   set <full_path>: set the given script to the given path\n"
+   "   default: print the default path of the given script\n"
+   "   current: print the current path of the given script\n"
 
 help.stat =
-   "%1$s: 有益なゲストおよびホスト情報をプリントする\n"
-   "使用方法: %2$s %3$s <サブコマンド>\n"
+   "%1$s: 役に立つゲストおよびホスト情報を印刷\n"
+   "Usage: %2$s %3$s <subcommand>\n"
    "\n"
-   "サブコマンド:\n"
-   "   hosttime: ホスト時間をプリントする\n"
-   "   speed: CPU スピードを MHz 単位でプリントする\n"
-   "ESX ゲスト専用サブコマンド:\n"
-   "   sessionid: 現在のセッション ID をプリントする\n"
-   "   balloon: メモリ バルーニング情報をプリントする\n"
-   "   swap: メモリ スワッピング情報をプリントする\n"
-   "   memlimit: メモリ制限情報をプリントする\n"
-   "   memres: メモリ予約情報をプリントする\n"
-   "   cpures: CPU 予約情報をプリントする\n"
-   "   cpulimit: CPU 制限情報をプリントする\n"
+   "Subcommands:\n"
+   "   hosttime: print the host time\n"
+   "   speed: print the CPU speed in MHz\n"
+   "ESX guests only subcommands:\n"
+   "   sessionid: print the current session id\n"
+   "   balloon: print memory ballooning information\n"
+   "   swap: print memory swapping information\n"
+   "   memlimit: print memory limit information\n"
+   "   memres: print memory reservation information\n"
+   "   cpures: print CPU reservation information\n"
+   "   cpulimit: print CPU limit information\n"
 
 help.timesync =
-   "%1$s: ゲスト OS の時刻の同期を制御する関数\n"
-   "使用方法: %2$s %3$s <サブコマンド>\n"
+   "%1$s: ゲスト OS の時刻同期を制御する機能\n"
+   "Usage: %2$s %3$s <subcommand>\n"
    "\n"
-   "サブコマンド:\n"
-   "   enable: 時刻の同期を有効にする\n"
-   "   disable: 時刻の同期を無効にする\n"
-   "   status: 時刻の同期のステータスをプリントする\n"
+   "Subcommands:\n"
+   "   enable: enable time synchronization\n"
+   "   disable: disable time synchronization\n"
+   "   status: print the time synchronization status\n"
+
+help.upgrade =
+   "%1$s: VMware Tools のアップグレードに関連する機能。\n"
+   "Usage: %2$s %3$s <subcommand> [args]\n"
+   "Subcommands:\n"
+   "   status: check the VMware Tools upgrade status.\n"
+   "   start: initiate an auto-upgrade of VMware Tools.\n"
+   "\n"
+   "For upgrades to work, the VMware Tools service needs to be running.\n"
+
+option.disabled = "無効"
+
+option.enabled = "有効"
+
+script.notfound = "%1$s は存在しません。\n"
+
+script.operation = "操作"
+
+script.unknownop = "操作 %1$s のスクリプトがありません。\n"
+
+script.write.error = "構成書き込みエラー: %1$s\n"
+
+stat.balloon.failed = "バルーン メモリの取得に失敗しました: %1$s\n"
+
+stat.cpumax.failed = "CPU 制限の取得に失敗しました: %1$s\n"
+
+stat.cpumin.failed = "CPU 最小値の取得に失敗しました: %1$s\n"
+
+stat.formattime.failed = "ホスト時刻をフォーマットできません。\n"
+
+stat.getsession.failed = "セッション ID の取得に失敗しました: %1$s\n"
+
+stat.gettime.failed = "ホスト時刻を取得できません。\n"
+
+stat.maxmem.failed = "メモリ制限の取得に失敗しました: %1$s\n"
+
+stat.memres.failed = "メモリ予約の取得に失敗しました: %1$s\n"
+
+stat.memswap.failed = "スワップ メモリの取得に失敗しました: %1$s\n"
+
+stat.openhandle.failed = "OpenHandle が失敗しました: %1$s\n"
+
+stat.update.failed = "UpdateInfo が失敗しました: %1$s\n"
+
+upgrade.available = "VMware Tools の新しいバージョンを利用できます。\n"
+
+upgrade.error.check_error = "利用できるアップグレードがあるかどうかを確認中にエラーが発生しました。\n"
+
+upgrade.error.error = "VMware Tools のアップグレードの開始中にエラーが発生しました。\n"
+
+upgrade.error.not_supported = "ホストは、VMware Tools の自動アップグレードをサポートしていません。\n"
+
+upgrade.error.unknown_reply = "予期しないホスト応答: %1$s\n"
+
+upgrade.started = "アップグレードが開始されました。\n"
+
+upgrade.uptodate = "VMware Tools は最新です。\n"
 

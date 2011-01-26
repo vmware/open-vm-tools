@@ -16,84 +16,208 @@
 #
 ##########################################################
 
-error.noadmin.win =
-   "%1$s: Zur Verwendung der Operationen werden "
-   "Administratorberechtigungen %2$s benötigt. Verwenden Sie eine "
-   "Administratorbefehlszeile um diese Aufgaben abzuschließen."
+arg.command = "Befehl"
 
-error.novirtual = "%1$s muss in einer virtuellen Maschine ausgeführt werden.\n"
+arg.devicename = "Gerätename"
+
+arg.mountpoint = "Mount-Punkt"
+
+arg.scriptpath = "Skriptpfad"
+
+arg.scripttype = "Skripttyp"
+
+arg.subcommand = "Unterbefehl"
+
+device.connect.error = "Gerät '%1$s' kann nicht angeschlossen werden.\n"
+
+device.disconnect.error = "Das Gerät '%1$s' kann nicht getrennt werden.\n"
+
+device.notfound = "Fehler beim Abrufen der Schnittstelleninformationen: Gerät nicht gefunden.\n"
+
+disk.shrink.canceled = "Vorgang zum Verkleinern der Festplatte abgebrochen.\n"
+
+disk.shrink.complete = "Vorgang zum Verkleinern der Festplatte abgeschlossen.\n"
+
+disk.shrink.conflict =
+   "Die VMware Tools betrachten die Festplattenverkleinerung als aktiviert, während der Host "
+   "it is disabled.\n"
+   "\n"
+   " Please close and reopen the Toolbox to synchronize it with the host.\n"
+
+disk.shrink.disabled =
+   "Die Funktion zur Festplattenverkleinerung ist gegenwärtig für diese virtuelle Maschine deaktiviert.\n"
+   "\n"
+   "Shrinking is disabled for linked clones, parents of linked clones, \n"
+   "pre-allocated disks, snapshots, or due to other factors. \n"
+   "See the User's manual for more information.\n"
+
+disk.shrink.error = "Fehler beim Verkleinern der Festplatte: %1$s\n"
+
+disk.shrink.incomplete = "Vorgang zum Verkleinern der Festplatte nicht abgeschlossen.\n"
+
+disk.shrink.partition.error = "Partitionsdaten konnten nicht erfasst werden.\n"
+
+disk.shrink.partition.notfound = "Die Partition %1$s wurde nicht gefunden\n"
+
+disk.shrink.partition.unsupported = "Die Partition %1$s kann nicht verkleinert werden\n"
+
+disk.shrink.unavailable =
+   "Die Funktion zum Verkleinern der Festplatte ist nicht verfügbar,\n"
+   "\n"
+   "either because you are running an old version of a VMware product, or because "
+   "too many communication channels are open.\n"
+   "\n"
+   " If you are running an old version of a VMware product, you should consider "
+   "upgrading.\n"
+   "\n"
+   "If too many communication channels are open, you should power off your virtual "
+   "machine and then power it back on.\n"
+
+disk.wiper.error = "Fehler: %1$s"
+
+disk.wiper.file.error = "Fehler, Erstellen der Wiper-Datei nicht möglich.\n"
+
+error.missing = "%1$s: %2$s fehlt\n"
+
+error.noadmin.posix = "%1$s: Sie müssen root-Benutzer sein, um die %2$s-Vorgänge auszuführen.\n"
+
+error.noadmin.win =
+   "%1$s: Administratorberechtigungen sind nötig, um %2$s-Vorgänge auszuführen.\n"
+   "Use an administrator command prompt to complete these tasks.\n"
+
+error.novirtual = "%1$s muss innerhalb einer virtuellen Maschine ausgeführt werden.\n"
+
+error.unknown = "%1$s: %2$s '%3$s' unbekannt\n"
 
 help.device =
-   "%1$s: mit den Hardwaregeräten der virtuellen Maschine verbundene Funktionen\n"
-   "Nutzung: %2$s %3$s <Unterbefehl> [Argumente]\n"
-   "   dev ist der Name des Geräts.\n"
+   "%1$s: Funktionen, die sich auf die Hardwaregeräte der virtuellen Maschine beziehen\n"
+   "Usage: %2$s %3$s <subcommand> [args]\n"
+   "dev is the name of the device.\n"
    "\n"
-   "Unterbefehle:\n"
-   "   enable <dev>: Gerät aktivieren dev\n"
-   "   disable <dev>: Gerät deaktivieren dev\n"
-   "   list: Liste aller verfügbaren Geräte\n"
-   "   status <dev>: Status eines Geräts drucken\n"
+   "Subcommands:\n"
+   "   enable <dev>: enable the device dev\n"
+   "   disable <dev>: disable the device dev\n"
+   "   list: list all available devices\n"
+   "   status <dev>: print the status of a device\n"
 
 help.disk =
-   "%1$s: Festplattenverkleinerung durchführen\n"
-    "Nutzung: %2$s %3$s <Unterbefehl> [Argumente]\n"
-    "\n"
-    "Unterbefehle:\n"
-    "   list: Liste verfügbarer Mountpunkte\n"
-    "   shrink <Mountpunkt>: verkleinert ein Dateisystem an angegebenem Mountpunkt\n"
+   "%1$s: Vorgänge zum Verkleinen von Festplatten ausführen\n"
+   "Usage: %2$s %3$s <subcommand> [args]\n"
+   "\n"
+   "Subcommands:\n"
+   "   list: list available mountpoints\n"
+   "   shrink <mount-point>: shrinks a file system at the given mountpoint\n"
 
-help.hint = "Test '%1$s %2$s%3$s%4$s' weitere Informationen.\n"
+help.hint = "Siehe '%1$s %2$s%3$s%4$s' für weitere Informationen.\n"
 
 help.main =
    "Nutzung: %1$s <Befehl> [Optionen] [Unterbefehl]\n"
-   "Typ '%2$s %3$s <Befehl>' für Hilfe zu einem bestimmten Befehl.\n"
-   "Typ '%4$s -v' zur Anzeige der VMware Tools-Version.\n"
-   "Verwendung '-q' Option zum Unterdrücken der stdout-Ausgabe.\n"
-   "Für die meisten Befehle steht ein Unterbefehl zur Verfügung.\n"
+   "Type '%2$s %3$s <command>' for help on a specific command.\n"
+   "Type '%4$s -v' to see the VMware Tools version.\n"
+   "Use '-q' option to suppress stdout output.\n"
+   "Most commands take a subcommand.\n"
    "\n"
-   "Verfügbare Befehle:\n"
-   "  device\n"
-   "  disk\n"
-   "  script\n"
-   "  stat\n"
-   "  timesync\n"
+   "Available commands:\n"
+   "   device\n"
+   "   disk\n"
+   "   script\n"
+   "   stat\n"
+   "   timesync\n"
+   "   upgrade (not available on all operating systems)\n"
    "\n"
-   "Weitere Informationen erhalten Sie unter http://www.vmware.com/de/support/\n"
+   "For additional information please visit http://www.vmware.com/support/\n"
    "\n"
 
 help.script =
-   "%1$s: Skripts steuern, die als Antwort auf Betriebszustandsänderungen ausgeführt werden\n"
-   "Nutzung: %2$s %3$s <power|resume|suspend|shutdown> <Unterbefehl> [Argumente]\n"
+   "%1$s: Steuert die Skripts, die als Antwort auf Betriebsvorgänge ausgeführt werden\n"
+   "Usage: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n"
    "\n"
-   "Unterbefehle:\n"
-   "   enable: dieses Skript aktivieren und dessen Pfad auf die Standardeinstellung setzen\n"
-   "   disable: dieses Skript deaktivieren\n"
-   "   set <vollständiger Pfad>: für dieses Skript den angegebenen Pfad festlegen\n"
-   "   default: Standardpfad für dieses Skript drucken\n"
-   "   current: aktuellen Pfad dieses Skripts drucken\n"
+   "Subcommands:\n"
+   "   enable: enable the given script and restore its path to the default\n"
+   "   disable: disable the given script\n"
+   "   set <full_path>: set the given script to the given path\n"
+   "   default: print the default path of the given script\n"
+   "   current: print the current path of the given script\n"
 
 help.stat =
-   "%1$s: hilfreiche Informationen zu Gast- und Hostsystem drucken\n"
-   "Nutzung: %2$s %3$s <Unterbefehl>\n"
+   "%1$s: Druckt nützliche Informationen zum Gastbetriebssystem und Host\n"
+   "Usage: %2$s %3$s <subcommand>\n"
    "\n"
-   "Unterbefehle:\n"
-   "   hosttime: Hostzeit drucken\n"
-   "   speed: CPU-Geschwindigkeit in MHz drucken\n"
-   "ESX-Gastsysteme nur Unterbefehle:\n"
-   "   sessionid: aktuelle Sitzungs-ID drucken\n"
-   "   balloon: Informationen zu Arbeitsspeicher-Ballooning drucken\n"
-   "   swap: Informationen zu Arbeitsspeicherauslagerung drucken\n"
-   "   memlimit: Informationen zu maximaler Arbeitsspeichergröße drucken\n"
-   "   memres: Informationen zu Arbeitsspeicherreservierung drucken\n"
-   "   cpures: Informationen zu CPU-Reservierung drucken\n"
-   "   cpulimit: Informationen zu CPU-Grenzwert drucken\n"
+   "Subcommands:\n"
+   "   hosttime: print the host time\n"
+   "   speed: print the CPU speed in MHz\n"
+   "ESX guests only subcommands:\n"
+   "   sessionid: print the current session id\n"
+   "   balloon: print memory ballooning information\n"
+   "   swap: print memory swapping information\n"
+   "   memlimit: print memory limit information\n"
+   "   memres: print memory reservation information\n"
+   "   cpures: print CPU reservation information\n"
+   "   cpulimit: print CPU limit information\n"
 
 help.timesync =
-   "%1$s: funktionen zur Steuerung der Uhrzeitsynchronisierung auf dem Gastbetriebssystem\n"
-   "Nutzung: %2$s %3$s <Unterbefehl>\n"
+   "%1$s: Funktionen zum Steuern der Uhrzeitsynchronisierung auf dem Gastbetriebssystem\n"
+   "Usage: %2$s %3$s <subcommand>\n"
    "\n"
-   "Unterbefehle:\n"
-   "   enable: Uhrzeitsynchronisierung aktivieren\n"
-   "   disable: Uhrzeitsynchronisierung deaktivieren\n"
-   "   status: Status der Uhrzeitsynchonisierung drucken\n"
+   "Subcommands:\n"
+   "   enable: enable time synchronization\n"
+   "   disable: disable time synchronization\n"
+   "   status: print the time synchronization status\n"
+
+help.upgrade =
+   "%1$s: Funktionen, die sich auf das Aktualisieren der VMware Tools beziehen.\n"
+   "Usage: %2$s %3$s <subcommand> [args]\n"
+   "Subcommands:\n"
+   "   status: check the VMware Tools upgrade status.\n"
+   "   start: initiate an auto-upgrade of VMware Tools.\n"
+   "\n"
+   "For upgrades to work, the VMware Tools service needs to be running.\n"
+
+option.disabled = "Deaktiviert"
+
+option.enabled = "Aktiviert"
+
+script.notfound = "%1$s ist nicht vorhanden.\n"
+
+script.operation = "Vorgang"
+
+script.unknownop = "Kein Skript für den Vorgang %1$s.\n"
+
+script.write.error = "Fehler beim Schreiben der Konfiguration: %1$s\n"
+
+stat.balloon.failed = "Balloon-Arbeitsspeicher konnte nicht abgerufen werden: %1$s\n"
+
+stat.cpumax.failed = "CPU-Limit konnte nicht abgerufen werden: %1$s\n"
+
+stat.cpumin.failed = "CPU-Mindestwert konnte nicht abgerufen werden: %1$s\n"
+
+stat.formattime.failed = "Hostuhrzeit kann nicht formatiert werden.\"
+
+stat.getsession.failed = "Sitzungs-ID konnte nicht abgerufen werden: %1$s\n"
+
+stat.gettime.failed = "Hostuhrzeit konnte nicht abgerufen werden.\n"
+
+stat.maxmem.failed = "Arbeitsspeicher-Limit konnte nicht abgerufen werden: %1$s\n"
+
+stat.memres.failed = "Arbeitsspeicherreservierung konnte nicht abgerufen werden: %1$s\n"
+
+stat.memswap.failed = "Ausgelagerter Arbeitsspeicher konnte nicht abgerufen werden: %1$s\n"
+
+stat.openhandle.failed = "OpenHandle fehlgeschlagen: %1$s\n"
+
+stat.update.failed = "UpdateInfo fehlgeschlagen: %1$s\n"
+
+upgrade.available = "Eine neue Version von VMware Tools steht zur Verfügung.\n"
+
+upgrade.error.check_error = "Fehler beim Überprüfen der Verfügbarkeit von Upgrades.\n"
+
+upgrade.error.error = "Fehler beim Starten des Upgrades von VMware Tools.\n"
+
+upgrade.error.not_supported = "Der Host unterstützt kein automatisches Upgrade der VMware Tools.\n"
+
+upgrade.error.unknown_reply = "Unerwartete Antwort vom Host: %1$s\n"
+
+upgrade.started = "Das Upgrade wird durchgeführt.\n"
+
+upgrade.uptodate = "VMware Tools sind auf dem neuesten Stand\"
 
