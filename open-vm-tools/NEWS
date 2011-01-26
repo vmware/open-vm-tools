@@ -1,3 +1,8 @@
+open-vm-tools 2011.01.24 changes:
+	* Mostly cleanups and bug fixes.
+
+	* Install code fixed to handle translation catalogs correctly.
+
 open-vm-tools 2010.12.19 changes:
 	* New version of DnD code lands in open-vm-tools. The host part
 	of the new DnD protocol is not available yet in VMware products,
