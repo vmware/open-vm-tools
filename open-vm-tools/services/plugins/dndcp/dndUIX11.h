@@ -200,7 +200,7 @@ private:
    bool m_unityMode;
    bool m_inHGDrag;
    DND_DROPEFFECT m_effect;
-   bool m_isFileDnD;
+   bool m_fileTransferStarted;
    int32 m_mousePosX;
    int32 m_mousePosY;
    GdkDragContext *m_dc;

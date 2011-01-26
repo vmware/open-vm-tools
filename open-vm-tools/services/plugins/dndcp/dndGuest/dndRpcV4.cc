@@ -258,6 +258,28 @@ DnDRpcV4::SrcDropDone(uint32 sessionId,
 
 
 /**
+ * Send cmd DND_CMD_SRC_CANCEL to controller.
+ *
+ * @param[in] sessionId active session id the controller assigned earlier.
+ *
+ * @return true on success, false otherwise.
+ */
+
+bool
+DnDRpcV4::SrcCancel(uint32 sessionId)
+{
+   RpcParams params;
+
+   memset(&params, 0, sizeof params);
+   params.addrId = DEFAULT_CONNECTION_ID;
+   params.cmd = DND_CMD_SRC_CANCEL;
+   params.sessionId = sessionId;
+
+   return mUtil.SendMsg(&params);
+}
+
+
+/**
  * Send cmd DND_CMD_DEST_DRAG_ENTER to controller.
  *
  * @param[in] sessionId active session id the controller assigned earlier.
@@ -384,6 +406,28 @@ DnDRpcV4::DestDrop(uint32 sessionId,
    params.sessionId = sessionId;
    params.optional.mouseInfo.x = x;
    params.optional.mouseInfo.y = y;
+
+   return mUtil.SendMsg(&params);
+}
+
+
+/**
+ * Send cmd DND_CMD_DEST_CANCEL to controller.
+ *
+ * @param[in] sessionId active session id the controller assigned earlier.
+ *
+ * @return true on success, false otherwise.
+ */
+
+bool
+DnDRpcV4::DestCancel(uint32 sessionId)
+{
+   RpcParams params;
+
+   memset(&params, 0, sizeof params);
+   params.addrId = DEFAULT_CONNECTION_ID;
+   params.cmd = DND_CMD_DEST_CANCEL;
+   params.sessionId = sessionId;
 
    return mUtil.SendMsg(&params);
 }
@@ -625,6 +669,9 @@ DnDRpcV4::HandleMsg(RpcParams *params,
       destDropChanged.emit(params->sessionId,
                            params->optional.mouseInfo.x,
                            params->optional.mouseInfo.y);
+      break;
+   case DND_CMD_DEST_CANCEL:
+      destCancelChanged.emit(params->sessionId);
       break;
    case DND_CMD_PRIV_DRAG_ENTER:
       destPrivDragEnterChanged.emit(params->sessionId);

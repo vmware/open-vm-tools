@@ -53,6 +53,7 @@ public:
    virtual bool SrcPrivDragEnter(uint32 sessionId);
    virtual bool SrcPrivDragLeave(uint32 sessionId, int32 x, int32 y);
    virtual bool SrcPrivDrop(uint32 sessionId, int32 x, int32 y);
+   virtual bool SrcCancel(uint32 sessionId);
 
    /* DnD destination. */
    virtual bool DestDragEnter(uint32 sessionId,
@@ -65,6 +66,7 @@ public:
    virtual bool DestDrop(uint32 sessionId,
                          int32 x,
                          int32 y);
+   virtual bool DestCancel(uint32 sessionId);
 
    /* Common. */
    virtual bool UpdateFeedback(uint32 sessionId, DND_DROPEFFECT feedback);

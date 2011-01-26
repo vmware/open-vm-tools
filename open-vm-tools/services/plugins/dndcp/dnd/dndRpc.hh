@@ -70,6 +70,7 @@ public:
    virtual bool SrcPrivDragEnter(uint32 sessionId) = 0;
    virtual bool SrcPrivDragLeave(uint32 sessionId, int32 x, int32 y) = 0;
    virtual bool SrcPrivDrop(uint32 sessionId, int32 x, int32 y) = 0;
+   virtual bool SrcCancel(uint32 sessionId) = 0;
 
    /* DnD destination. */
    virtual bool DestDragEnter(uint32 sessionId,
@@ -78,6 +79,7 @@ public:
                              const CPClipboard *clip) = 0;
    virtual bool DestDragLeave(uint32 sessionId, int32 x, int32 y) = 0;
    virtual bool DestDrop(uint32 sessionId, int32 x, int32 y) = 0;
+   virtual bool DestCancel(uint32 sessionId) = 0;
 
    /* Common. */
    virtual void Init(void) = 0;

@@ -71,7 +71,7 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       m_unityMode(false),
       m_inHGDrag(false),
       m_effect(DROP_NONE),
-      m_isFileDnD(false),
+      m_fileTransferStarted(false),
       m_mousePosX(0),
       m_mousePosY(0),
       m_dc(NULL),
@@ -271,7 +271,7 @@ DnDUIX11::CommonResetCB(void)
    m_effect = DROP_NONE;
    m_inHGDrag = false;
    m_dc = NULL;
-   m_isFileDnD = false;
+   m_fileTransferStarted = false;
    RemoveBlock();
 }
 
@@ -364,7 +364,7 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
    /* Tell Gtk that a drag should be started from this widget. */
    m_detWnd->drag_begin(targets, actions, 1, (GdkEvent *)&event);
    m_blockAdded = false;
-   m_isFileDnD = false;
+   m_fileTransferStarted = false;
    SourceDragStartDone();
    /* Initialize host hide feedback to DROP_NONE. */
    m_effect = DROP_NONE;
@@ -487,12 +487,14 @@ DnDUIX11::CommonSourceFileCopyDoneCB(bool success)
     * call CommonResetCB(). Otherwise destination may miss the data because
      * we are already reset.
     */
+
+   m_HGGetDataInProgress = false;
+
    if (!m_inHGDrag) {
       CommonResetCB();
    } else {
       RemoveBlock();
    }
-   m_HGGetDataInProgress = false;
 }
 
 
@@ -924,9 +926,9 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
        * Doing both of these addresses bug
        * http://bugzilla.eng.vmware.com/show_bug.cgi?id=391661.
        */
-      if (!m_blockAdded && m_inHGDrag) {
+      if (!m_blockAdded && m_inHGDrag && !m_fileTransferStarted) {
          m_HGGetDataInProgress = true;
-         m_isFileDnD = true;
+         m_fileTransferStarted = true;
          AddBlock();
       } else {
          g_debug("%s: not calling AddBlock\n", __FUNCTION__);
@@ -997,7 +999,7 @@ DnDUIX11::GtkSourceDragEndCB(const Glib::RefPtr<Gdk::DragContext> &dc)
     * CommonResetCB() here, since we will do so in the fileCopyDoneChanged
     * callback.
     */
-   if (!m_isFileDnD || !m_HGGetDataInProgress) {
+   if (!m_fileTransferStarted || !m_HGGetDataInProgress) {
       CommonResetCB();
    }
    m_inHGDrag = false;
