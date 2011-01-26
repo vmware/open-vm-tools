@@ -75,6 +75,11 @@ GuestDnDDest::~GuestDnDDest(void)
 void
 GuestDnDDest::UIDragEnter(const CPClipboard *clip)
 {
+   if (!mMgr->IsDragEnterAllowed()) {
+      Debug("%s: not allowed.\n", __FUNCTION__);
+      return;
+   }
+
    Debug("%s: entering.\n", __FUNCTION__);
 
    if (GUEST_DND_DEST_DRAGGING == mMgr->GetState() ||

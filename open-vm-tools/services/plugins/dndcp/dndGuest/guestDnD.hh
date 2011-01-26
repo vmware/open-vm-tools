@@ -102,6 +102,7 @@ public:
    void SetDnDAllowed(bool isDnDAllowed)
    { mDnDAllowed = isDnDAllowed;}
    void VmxDnDVersionChanged(uint32 version);
+   bool IsDragEnterAllowed(void);
 
 private:
    void OnRpcSrcDragBegin(uint32 sessionId,

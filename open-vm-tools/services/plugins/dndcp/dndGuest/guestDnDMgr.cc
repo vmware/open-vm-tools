@@ -559,6 +559,25 @@ GuestDnDMgr::SetState(GUEST_DND_STATE state)
 
 
 /**
+ * Check if DragEnter is allowed.
+ *
+ * @return true if DragEnter is allowed, false otherwise.
+ */
+
+bool
+GuestDnDMgr::IsDragEnterAllowed(void)
+{
+   /*
+    * Right after any DnD is finished, there may be some unexpected
+    * DragEnter from UI, and may disturb our state machine. The
+    * mHideDetWndTimer will only be valid for 0.5 second after each
+    * DnD, and during this time UI DragEnter is not allowed.
+    */
+   return mHideDetWndTimer == NULL;
+}
+
+
+/**
  * Handle version change in VMX.
  *
  * @param[in] version negotiated DnD version.
