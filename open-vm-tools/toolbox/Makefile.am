@@ -127,10 +127,6 @@ else
 endif
 
 # Message catalogs.
-catalogsdir = $(datadir)/open-vm-tools/messages
-
-catalogs_DATA =
-catalogs_DATA += messages/toolboxcmd_de.vmsg
-catalogs_DATA += messages/toolboxcmd_ja.vmsg
-catalogs_DATA += messages/toolboxcmd_zh_CN.vmsg
+install-data-hook:
+	@INSTVMSG@ toolbox $(srcdir)/l10n $(DESTDIR)$(datadir)
 
