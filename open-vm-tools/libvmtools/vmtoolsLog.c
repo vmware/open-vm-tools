@@ -351,8 +351,8 @@ VMToolsLog(const gchar *domain,
           * message. Use the error handler to do it, and ignore any
           * errors.
           */
-         VMToolsError(domain, level | G_LOG_FLAG_RECURSION, message,
-                      gErrorData, VMToolsError);
+         gErrorData->logfn(domain, level | G_LOG_FLAG_RECURSION, msg,
+                           gErrorData, VMToolsError);
       }
       g_free(msg);
    }
