@@ -211,6 +211,32 @@ VMCINotifications_Exit(void)
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCINotifications_Sync --
+ *
+ *      Use this as a synchronization point when setting globals, for example,
+ *      during device shutdown.
+ *
+ * Results:
+ *      TRUE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VMCINotifications_Sync(void)
+{
+   VMCILockFlags flags;
+   VMCI_GrabLock_BH(&vmciNotifyHT.lock, &flags);
+   VMCI_ReleaseLock_BH(&vmciNotifyHT.lock, flags);
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * VMCINotifications_Hibernate --
@@ -300,6 +326,12 @@ VMCINotifyHashAddEntry(VMCINotifyHashEntry *entry) // IN
    ASSERT(entry);
 
    VMCI_GrabLock_BH(&vmciNotifyHT.lock, &flags);
+
+   /* Do not allow addition of a new handle if the device is being shutdown. */
+   if (VMCI_DeviceShutdown()) {
+      result = VMCI_ERROR_DEVICE_NOT_FOUND;
+      goto out;
+   }
 
    if (VMCI_HANDLE_INVALID(entry->handle)) {
       VMCIHandle newHandle;

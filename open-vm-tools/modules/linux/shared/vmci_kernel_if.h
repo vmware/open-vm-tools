@@ -280,11 +280,6 @@ Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,
 int VMCI_CopyFromUser(void *dst, VA64 src, size_t len);
 #endif
 
-#if defined(_WIN32)
-void VMCI_InitHelperQueue(void);
-void VMCI_ExitHelperQueue(void);
-#endif // _WIN32
-
 typedef void (VMCIWorkFn)(void *data);
 Bool VMCI_CanScheduleDelayedWork(void);
 int VMCI_ScheduleDelayedWork(VMCIWorkFn  *workFn,
@@ -295,10 +290,10 @@ void VMCIMutex_Destroy(VMCIMutex *mutex);
 void VMCIMutex_Acquire(VMCIMutex *mutex);
 void VMCIMutex_Release(VMCIMutex *mutex);
 
-#if defined(SOLARIS)
+#if defined(SOLARIS) || defined(_WIN32)
 int VMCIKernelIf_Init(void);
 void VMCIKernelIf_Exit(void);
-#endif		/* SOLARIS  */
+#endif // SOLARIS || _WIN32
 
 #if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
                            defined(SOLARIS) || defined(__APPLE__))
@@ -360,6 +355,9 @@ int VMCI_ConvertToLocalQueue(struct VMCIQueue *queueInfo,
 void VMCI_RevertToNonLocalQueue(struct VMCIQueue *queueInfo,
                                 void *nonLocalQueue, uint64 size);
 void VMCI_FreeQueueBuffer(void *queue, uint64 size);
+void VMCI_DeviceShutdownBegin(void);
+void VMCI_DeviceShutdownEnd(void);
+Bool VMCI_DeviceShutdown(void);
 #else // _WIN32
 #  define VMCI_InitQueueMutex(_pq, _cq)
 #  define VMCI_AcquireQueueMutex(_q)
@@ -368,6 +366,8 @@ void VMCI_FreeQueueBuffer(void *queue, uint64 size);
 #  define VMCI_ConvertToLocalQueue(_pq, _cq, _s, _oq, _kc) VMCI_ERROR_UNAVAILABLE
 #  define VMCI_RevertToNonLocalQueue(_q, _nlq, _s)
 #  define VMCI_FreeQueueBuffer(_q, _s)
+#  define VMCI_DeviceShutdown() FALSE
 #endif // !_WIN32
+
 
 #endif // _VMCI_KERNEL_IF_H_

@@ -31,6 +31,7 @@
 
 void VMCINotifications_Init(void);
 void VMCINotifications_Exit(void);
+void VMCINotifications_Sync(void);
 
 Bool VMCI_RegisterNotificationBitmap(PPN bitmapPPN);
 void VMCI_ScanNotificationBitmap(uint8 *bitmap);

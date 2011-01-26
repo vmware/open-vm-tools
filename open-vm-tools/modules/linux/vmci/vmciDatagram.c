@@ -144,6 +144,13 @@ DatagramHashAddEntry(DatagramHashEntry *entry, // IN:
    ASSERT(entry);
 
    VMCI_GrabLock_BH(&hashTable.lock, &flags);
+
+   /* Do not allow addition of a new handle if the device is being shutdown. */
+   if (VMCI_DeviceShutdown()) {
+      VMCI_ReleaseLock_BH(&hashTable.lock, flags);
+      return VMCI_ERROR_DEVICE_NOT_FOUND;
+   }
+
    if (!VMCI_HANDLE_INVALID(entry->handle) &&
        !DatagramHandleUniqueLockedAnyCid(entry->handle)) {
       VMCI_ReleaseLock_BH(&hashTable.lock, flags);
@@ -432,7 +439,6 @@ VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN
          return VMCI_ERROR_NO_RESOURCES;
       }
    }
-
 
    if ((flags & VMCI_FLAG_WELLKNOWN_DG_HND) != 0) {
       VMCIDatagramWellKnownMapMsg wkMsg;
@@ -794,4 +800,28 @@ Bool
 VMCIDatagram_CheckHostCapabilities(void)
 {
    return TRUE;
+}
+
+
+/*
+ * VMCIDatagram_Sync --
+ *
+ *      Use this as a synchronization point when setting globals, for example,
+ *      during device shutdown.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VMCIDatagram_Sync(void)
+{
+   VMCILockFlags flags;
+   VMCI_GrabLock_BH(&hashTable.lock, &flags);
+   VMCI_ReleaseLock_BH(&hashTable.lock, flags);
 }

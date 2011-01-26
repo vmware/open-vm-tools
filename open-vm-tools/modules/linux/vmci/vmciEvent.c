@@ -169,6 +169,33 @@ VMCIEvent_Exit(void)
    VMCI_CleanupLock(&subscriberLock);
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIEvent_Sync --
+ *
+ *      Use this as a synchronization point when setting globals, for example,
+ *      during device shutdown.
+ *
+ * Results:
+ *      TRUE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VMCIEvent_Sync(void)
+{
+   VMCILockFlags lockFlags;
+   VMCIEventGrabLock(&subscriberLock, &lockFlags);
+   VMCIEventReleaseLock(&subscriberLock, lockFlags);
+}
+
+
 #ifdef VMX86_TOOLS
 /*
  *-----------------------------------------------------------------------------
@@ -545,6 +572,13 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    sub->callbackData = callbackData;
 
    VMCIEventGrabLock(&subscriberLock, &lockFlags);
+
+   /* Do not allow a new subscription if the device is being shutdown. */
+   if (VMCI_DeviceShutdown()) {
+      result = VMCI_ERROR_DEVICE_NOT_FOUND;
+      goto exit;
+   }
+
    for (success = FALSE, attempts = 0;
         success == FALSE && attempts < VMCI_EVENT_MAX_ATTEMPTS;
         attempts++) {
@@ -573,8 +607,9 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    } else {
       result = VMCI_ERROR_NO_RESOURCES;
    }
-   VMCIEventReleaseLock(&subscriberLock, lockFlags);
 
+exit:
+   VMCIEventReleaseLock(&subscriberLock, lockFlags);
    return result;
 #  undef VMCI_EVENT_MAX_ATTEMPTS
 }

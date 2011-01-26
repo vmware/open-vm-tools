@@ -277,6 +277,31 @@ VMCIQueuePair_Exit(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * VMCIQueuePair_Sync --
+ *
+ *      Use this as a synchronization point when setting globals, for example,
+ *      during device shutdown.
+ *
+ * Results:
+ *      TRUE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VMCIQueuePair_Sync(void)
+{
+   QueuePairList_Lock();
+   QueuePairList_Unlock();
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * QueuePairList_FindEntry --
  *
  *    Searches the list of QueuePairs to find if an entry already exists.
@@ -708,6 +733,12 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
 
    QueuePairList_Lock();
 
+   /* Do not allow alloc/attach if the device is being shutdown. */
+   if (VMCI_DeviceShutdown()) {
+      result = VMCI_ERROR_DEVICE_NOT_FOUND;
+      goto error;
+   }
+
    if ((Atomic_Read(&queuePairList.hibernate) == 1) &&
        !(flags & VMCI_QPFLAG_LOCAL)) {
       /*
@@ -717,8 +748,8 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
        * ones.
        */
 
-      QueuePairList_Unlock();
-      return VMCI_ERROR_UNAVAILABLE;
+      result = VMCI_ERROR_UNAVAILABLE;
+      goto error;
    }
 
    if ((queuePairEntry = QueuePairList_FindEntry(*handle))) {

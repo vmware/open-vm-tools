@@ -35,6 +35,7 @@
 #include "vmci_iocontrols.h"
 
 void VMCIDatagram_Init(void);
+void VMCIDatagram_Sync(void);
 Bool VMCIDatagram_CheckHostCapabilities(void);
 int VMCIDatagram_Dispatch(VMCIId contextID, VMCIDatagram *msg);
 
