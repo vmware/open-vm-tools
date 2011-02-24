@@ -1658,6 +1658,178 @@ File_CopyFromNameToName(ConstUnicode srcName,  // IN:
    return success;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileCopyTree --
+ *
+ *      Recursively copies all files from a source path to a destination,
+ *      optionally overwriting any files. This does the actual work
+ *      for File_CopyTree.
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure: Error messages are appended.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+FileCopyTree(ConstUnicode srcName,    // IN:
+             ConstUnicode dstName,    // IN:
+             Bool overwriteExisting,  // IN:
+             Bool followSymlinks)     // IN:
+{
+   int err;
+   Bool success = TRUE;
+   int numFiles;
+   int i;
+   Unicode *fileList = NULL;
+
+   numFiles = File_ListDirectory(srcName, &fileList);
+
+   if (numFiles == -1) {
+      err = Err_Errno();
+      Msg_Append(MSGID(File.CopyTree.walk.failure)
+                 "Unable to access '%s' when copying files.\n\n",
+                 UTF8(srcName));
+      Err_SetErrno(err);
+
+      return FALSE;
+   }
+
+   File_EnsureDirectory(dstName);
+
+   for (i = 0; i < numFiles && success; i++) {
+      struct stat sb;
+      Unicode name;
+      Unicode srcFilename;
+
+      name = Unicode_Alloc(fileList[i], STRING_ENCODING_DEFAULT);
+      srcFilename = File_PathJoin(srcName, name);
+
+      if (followSymlinks) {
+         success = (Posix_Stat(srcFilename, &sb) == 0);
+      } else {
+         success = (Posix_Lstat(srcFilename, &sb) == 0);
+      }
+
+      if (success) {
+         Unicode dstFilename = File_PathJoin(dstName, name);
+
+         switch (sb.st_mode & S_IFMT) {
+         case S_IFDIR:
+            success = FileCopyTree(srcFilename, dstFilename, overwriteExisting,
+                                   followSymlinks);
+            break;
+
+#if !defined(_WIN32)
+         case S_IFLNK:
+            if (Posix_Symlink(Posix_ReadLink(srcFilename), dstFilename) != 0) {
+               err = Err_Errno();
+               Msg_Append(MSGID(File.CopyTree.symlink.failure)
+                          "Unable to symlink '%s' to '%s': %s\n\n",
+                          UTF8(Posix_ReadLink(srcFilename)),
+                          UTF8(dstFilename),
+                          Err_Errno2String(err));
+               Err_SetErrno(err);
+               success = FALSE;
+            }
+            break;
+#endif
+
+         default:
+            if (!File_Copy(srcFilename, dstFilename, overwriteExisting)) {
+               err = Err_Errno();
+               Msg_Append(MSGID(File.CopyTree.copy.failure)
+                          "Unable to copy '%s' to '%s': %s\n\n",
+                          UTF8(srcFilename), UTF8(dstFilename),
+                          Err_Errno2String(err));
+               Err_SetErrno(err);
+               success = FALSE;
+            }
+
+            break;
+         }
+
+         Unicode_Free(dstFilename);
+      } else {
+         err = Err_Errno();
+         Msg_Append(MSGID(File.CopyTree.stat.failure)
+                    "Unable to get information on '%s' when copying files.\n\n",
+                    UTF8(srcFilename));
+         Err_SetErrno(err);
+      }
+
+      Unicode_Free(srcFilename);
+      Unicode_Free(name);
+   }
+
+   for (i = 0; i < numFiles; i++) {
+      Unicode_Free(fileList[i]);
+   }
+
+   free(fileList);
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_CopyTree --
+ *
+ *      Recursively copies all files from a source path to a destination,
+ *      optionally overwriting any files.
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure: Error messages are appended.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_CopyTree(ConstUnicode srcName,    // IN:
+              ConstUnicode dstName,    // IN:
+              Bool overwriteExisting,  // IN:
+              Bool followSymlinks)     // IN:
+{
+   int err;
+
+   ASSERT(srcName);
+   ASSERT(dstName);
+
+   if (!File_IsDirectory(srcName)) {
+      err = Err_Errno();
+      Msg_Append(MSGID(File.CopyTree.source.notDirectory)
+                 "The source path '%s' is not a directory.\n\n",
+                 UTF8(srcName));
+      Err_SetErrno(err);
+      return FALSE;
+   }
+
+   if (!File_IsDirectory(dstName)) {
+      err = Err_Errno();
+      Msg_Append(MSGID(File.CopyTree.dest.notDirectory)
+                 "The destination path '%s' is not a directory.\n\n",
+                 UTF8(dstName));
+      Err_SetErrno(err);
+      return FALSE;
+   }
+
+   return FileCopyTree(srcName, dstName, overwriteExisting, followSymlinks);
+}
+
+
 /*
  *----------------------------------------------------------------------
  *

@@ -49,7 +49,8 @@ typedef struct {
     * 'depth' is the color depth (in bits per pixel) used for the image. 'bpp'
     * is the number of bits actually consumed per pixel in memory. (For
     * example, an image that uses 5 bits for each of R, G, B has depth=15 and
-    * bpp=16.  It's always true that depth <= bpp.  
+    * bpp=16.  If an image has an alpha channel, the alpha bits are counted in
+    * 'bpp' but not in 'depth'.) It's always true that depth <= bpp.
     * 
     * Also see the comment to Raster_ConvertPixels.
     */

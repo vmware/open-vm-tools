@@ -64,7 +64,20 @@
 #ifndef RC_INVOKED
 
 typedef uint32 ToolsVersion;
+typedef struct {
+   uint8 major;
+   uint8 minor;
+   uint8 base;
+} ToolsVersionComponents;
 
+static INLINE void
+TOOLS_VERSION_UINT_TO_COMPONENTS(const ToolsVersion toolsVersion,   // IN
+                                 ToolsVersionComponents *comps)     // IN/OUT
+{
+   comps->major = (toolsVersion >> 10) & 0x1f;      /* Keep lowest 5 bits after shift. */
+   comps->minor = (toolsVersion >> 5) & 0x1f;
+   comps->base  = toolsVersion & 0x1f;
+}
 #endif
 
 /*
@@ -103,16 +116,16 @@ typedef uint32 ToolsVersion;
 
 #define TOOLS_VERSION_UINT(MJR, MNR, BASE)    (((MJR) << 10) + ((MNR) << 5) + (BASE))
 
+
 /*
  * Allocate 5 bits to each sub-version in the dotted tools version. This
  * should take care of us for any reasonable usage: 32 x 32 x 32.
- * This macro takes the base variant appended with _V suffix and 
+ * This macro takes the base variant appended with _V suffix and
  * constructs the version number defines for the version.
  * It then passes the version numbers into the UINT construct macro above.
  */
 #define TOOLS_VERSION_TO_UINT(BASE_VARIANT_VER)   \
-   TOOLS_VERSION_UINT(BASE_VARIANT_VER##_MJR,BASE_VARIANT_VER##_MNR,BASE_VARIANT_VER##_BASE) 
-
+   TOOLS_VERSION_UINT(BASE_VARIANT_VER##_MJR,BASE_VARIANT_VER##_MNR,BASE_VARIANT_VER##_BASE)
 
 
 /*
@@ -132,11 +145,11 @@ typedef uint32 ToolsVersion;
 #define   TOOLS_VERSION_WS30         4
 #define   TOOLS_VERSION_WS31_BETA    5
 
-/* 
+/*
  * Versions:-
  * For non-RC compiled variant:
  * Define each version component pass to macro with BASENAME+SUFFIX (_V).
- * Where BASENAME describes the version and append 
+ * Where BASENAME describes the version and append
  * the appropriate suffix:_V
  * For RC and non-RC define BASENAME_V and append _MJR or _MNR or _BASE.
  * Set each version number accordingly.

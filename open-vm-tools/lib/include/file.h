@@ -48,9 +48,9 @@ extern "C"{
 # endif
 # if defined(__FreeBSD__)
 #  include <sys/syslimits.h>  // PATH_MAX
-# else 
+# else
 #  include <limits.h>  // PATH_MAX
-# endif 
+# endif
 #define FILE_MAXPATH	PATH_MAX
 #endif
 
@@ -137,12 +137,12 @@ int File_UnlinkDelayed(ConstUnicode pathName);
 int File_UnlinkNoFollow(ConstUnicode pathName);
 
 void File_SplitName(ConstUnicode pathName,
-                    Unicode *volume, 
-                    Unicode *dir, 
+                    Unicode *volume,
+                    Unicode *dir,
                     Unicode *base);
 
-void File_GetPathName(ConstUnicode fullPath, 
-                      Unicode *pathName, 
+void File_GetPathName(ConstUnicode fullPath,
+                      Unicode *pathName,
                       Unicode *base);
 
 Unicode File_StripSlashes(ConstUnicode path);
@@ -247,34 +247,39 @@ char *File_MapPathPrefix(const char *oldPath,
                          const char **newPrefixes,
                          size_t numPrefixes);
 
-Bool File_CopyFromFdToFd(FileIODescriptor src, 
+Bool File_CopyFromFdToFd(FileIODescriptor src,
                          FileIODescriptor dst);
 
-FileIOResult File_CreatePrompt(FileIODescriptor *file, 
-                               ConstUnicode pathName, 
-                               int access, 
+FileIOResult File_CreatePrompt(FileIODescriptor *file,
+                               ConstUnicode pathName,
+                               int access,
                                int prompt);
 
-Bool File_CopyFromFd(FileIODescriptor src, 
-                     ConstUnicode dstName, 
+Bool File_CopyFromFd(FileIODescriptor src,
+                     ConstUnicode dstName,
                      Bool overwriteExisting);
 
-Bool File_Copy(ConstUnicode srcName, 
-               ConstUnicode dstName, 
+Bool File_Copy(ConstUnicode srcName,
+               ConstUnicode dstName,
                Bool overwriteExisting);
 
-Bool File_CopyFromFdToName(FileIODescriptor src, 
-                           ConstUnicode dstName, 
+Bool File_CopyFromFdToName(FileIODescriptor src,
+                           ConstUnicode dstName,
                            int dstDispose);
 
-Bool File_CopyFromNameToName(ConstUnicode srcName, 
-                             ConstUnicode dstName, 
+Bool File_CopyFromNameToName(ConstUnicode srcName,
+                             ConstUnicode dstName,
                              int dstDispose);
 
-Bool File_Replace(ConstUnicode oldFile, 
+Bool File_CopyTree(ConstUnicode srcName,
+                   ConstUnicode dstName,
+                   Bool overwriteExisting,
+                   Bool followSymlinks);
+
+Bool File_Replace(ConstUnicode oldFile,
                   ConstUnicode newFile);
 
-Bool File_Move(ConstUnicode oldFile, 
+Bool File_Move(ConstUnicode oldFile,
                ConstUnicode newFile,
                Bool *asRename);
 
@@ -292,8 +297,8 @@ int64 File_GetSizeAlternate(ConstUnicode pathName);
 /* file change notification module */
 typedef void (*CbFunction)(void *clientData);
 
-typedef void (*NotifyCallback)(ConstUnicode pathName, 
-                               int err, 
+typedef void (*NotifyCallback)(ConstUnicode pathName,
+                               int err,
                                void *data);
 
 typedef void (*PollTimeout) (CbFunction f,
@@ -303,26 +308,26 @@ typedef void (*PollTimeout) (CbFunction f,
 typedef void (*PollRemoveTimeout) (CbFunction f,
                                    void *clientData);
 
-void File_PollInit(PollTimeout pt, 
+void File_PollInit(PollTimeout pt,
                    PollRemoveTimeout prt);
 
 void File_PollExit(void);
 
 void File_PollImpersonateOnCheck(Bool check);
 
-Bool File_PollAddFile(ConstUnicode pathName, 
-                      uint32 pollPeriod, 
-                      NotifyCallback callback, 
-                      void *data, 
+Bool File_PollAddFile(ConstUnicode pathName,
+                      uint32 pollPeriod,
+                      NotifyCallback callback,
+                      void *data,
                       Bool fPeriodic);
 
 Bool File_PollAddDirFile(ConstUnicode pathName,
-                         uint32 pollPeriod, 
+                         uint32 pollPeriod,
                          NotifyCallback callback,
-                         void *data, 
+                         void *data,
                          Bool fPeriodic);
 
-Bool File_PollRemoveFile(ConstUnicode pathName, 
+Bool File_PollRemoveFile(ConstUnicode pathName,
                          uint32 pollPeriod,
                          NotifyCallback callback);
 

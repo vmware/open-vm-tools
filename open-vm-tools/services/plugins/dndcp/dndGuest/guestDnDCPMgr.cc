@@ -179,10 +179,10 @@ GuestDnDCPMgr::GetTransport(void)
                                             "addr",
                                             NULL);
       }
-
       if (!brokerAddr) {
+
          /* We are executing in the simulator, so hardcode the brokerAddr. */
-         brokerAddr = "tcp:host=127.0.0.1,port=5672,family=ipv4";
+         brokerAddr = "tcp:host=127.0.0.1,port=8672,family=ipv4";
       }
       mTransport = new DnDCPTransportVMCF(brokerAddr, NULL, false);
 #else

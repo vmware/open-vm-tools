@@ -174,8 +174,8 @@
 /*
  * VMRC ActiveX CLSIDs and ProgIDs
  */
-#define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      0567856D-8D8E-43ad-9241-7772F392B3A3
-#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       AFAD9CB7-273F-4f59-8C78-D8AF13845222
+#define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      291BA977-564B-4626-B868-A968FB8D4591
+#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       70ABCAB7-6B45-4555-ABFC-8BC686E5ACFE
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "VMware.VMwareRemoteConsole"
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED    PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "." \
                                                XSTR(VMRC_PLUGIN_VERSION_BASE)
@@ -192,18 +192,7 @@
 #endif
 
 #define PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE \
-   "application/x-vmware-vmrc;version=" VMRC_PLUGIN_VERSION
-
-/*
- * previously shipped plugin mimetypes (updated as we ship them)
- *
- * XXX It is important that the mimetypes be listed in strictly decreasing
- *     order by version. Server 2.0 Web Access (WBC) only checks the first VMRC
- *     mimetype for compatibility, and others might make the same mistake in
- *     the future.
- */
-#define PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES \
-   "application/x-vmware-vmrc;version=4.0.0.0"
+   "application/x-vmware-vmrc-2011"
 
 /*
  * legacy plugin mimetypes (currently unused but here for reference)
@@ -223,8 +212,7 @@
  * NB: See above for constraints on the ordering of this list.
  */
 #define PRODUCT_VMRC_PLUGIN_MIMETYPES \
-   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES PRODUCT_VMRC_MIMETYPE_TERMINATOR
+   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE PRODUCT_VMRC_MIMETYPE_TERMINATOR
 
 /*
  * VMware USB Arbitration Service version definitions
