@@ -255,8 +255,8 @@ Unicode_UTF16Strlen(const utf16_t *utf16) // IN
 utf16_t *
 Unicode_UTF16Strdup(const utf16_t *utf16) // IN: May be NULL.
 {
-   ssize_t numBytes;
    utf16_t *copy;
+   ssize_t numBytes;
 
    // Follow Util_SafeStrdup semantics.
    if (utf16 == NULL) {
@@ -306,11 +306,10 @@ Unicode_UTF16Strdup(const utf16_t *utf16) // IN: May be NULL.
  */
 
 Unicode
-Unicode_AllocWithLength(const void *buffer,      // IN
-                        ssize_t lengthInBytes,   // IN
-                        StringEncoding encoding) // IN
+Unicode_AllocWithLength(const void *buffer,       // IN:
+                        ssize_t lengthInBytes,    // IN:
+                        StringEncoding encoding)  // IN:
 {
-   char *escapedBuffer;
    Unicode result;
 
    ASSERT(lengthInBytes >= 0 || lengthInBytes == -1);
@@ -321,27 +320,30 @@ Unicode_AllocWithLength(const void *buffer,      // IN
    }
 
    encoding = Unicode_ResolveEncoding(encoding);
+
    if (lengthInBytes == -1) {
       lengthInBytes = Unicode_LengthInBytes(buffer, encoding);
    }
 
    result = UnicodeAllocInternal(buffer, lengthInBytes, encoding, FALSE);
-   if (result != NULL) {
-      return result;
+
+   if (result == NULL) {
+      char *escapedBuffer = Unicode_EscapeBuffer(buffer, lengthInBytes,
+                                                 encoding);
+
+      /*
+       * Log and panic on failure.
+       */
+
+      Log("%s: Couldn't convert invalid buffer [%s] from %s to Unicode.\n",
+          __FUNCTION__,
+          escapedBuffer ? escapedBuffer : "(couldn't escape bytes)",
+          Unicode_EncodingEnumToName(encoding));
+      free(escapedBuffer);
+      PANIC();
    }
 
-   /*
-    * Log and panic on failure.
-    */
-
-   escapedBuffer = Unicode_EscapeBuffer(buffer, lengthInBytes, encoding);
-
-   Log("%s: Error: Couldn't convert invalid buffer [%s] from %s to Unicode.\n",
-       __FUNCTION__,
-       escapedBuffer ? escapedBuffer : "(couldn't escape bytes)",
-       Unicode_EncodingEnumToName(encoding));
-   free(escapedBuffer);
-   PANIC();
+   return result;
 }
 
 
@@ -363,8 +365,8 @@ Unicode_AllocWithLength(const void *buffer,      // IN
  */
 
 Bool
-Unicode_CanGetBytesWithEncoding(ConstUnicode ustr,        // IN
-                                StringEncoding encoding)  // IN
+Unicode_CanGetBytesWithEncoding(ConstUnicode ustr,        // IN:
+                                StringEncoding encoding)  // IN:
 {
    void *tmp;
 
