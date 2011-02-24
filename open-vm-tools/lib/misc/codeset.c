@@ -1614,7 +1614,7 @@ CodeSet_IsEncodingSupported(const char *name) // IN
 
 Bool
 CodeSet_Validate(const char *buf,   // IN: the string
-                 size_t size,	   // IN: length of string
+                 size_t size,	    // IN: length of string
                  const char *code)  // IN: encoding
 {
    UConverter *cv;
