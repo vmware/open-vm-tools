@@ -16,6 +16,7 @@
  *
  *********************************************************/
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -77,6 +78,10 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <paths.h>
+#endif
+
+#ifdef __linux__
+#include <dlfcn.h>
 #endif
 
 #if !defined(_PATH_DEVNULL)
@@ -155,7 +160,6 @@ typedef struct distro_info {
    char *name;
    char *filename;
 } DistroInfo;
-
 
 static const DistroInfo distroArray[] = {
    {"RedHat",             "/etc/redhat-release"},
@@ -3434,4 +3438,40 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
 #endif
 
    return path;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_GetLibraryPath --
+ *
+ *      Try and deduce the full path to the library where the
+ *      specified address resides. Expected usage is that the caller
+ *      will pass in the address of one of the caller's own functions.
+ *
+ *      Not implemented on MacOS.
+ *
+ * Results:
+ *      The full path or NULL on failure.
+ *
+ * Side effects:
+ *      Memory is allocated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Hostinfo_GetLibraryPath(void *addr)  // IN
+{
+#ifdef __linux__
+   Dl_info info;
+
+   if (dladdr(addr, &info)) {
+      return Unicode_Alloc(info.dli_fname, STRING_ENCODING_DEFAULT);
+   }
+   return NULL;
+#else
+   return NULL;
+#endif
 }

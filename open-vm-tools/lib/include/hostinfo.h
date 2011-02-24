@@ -82,7 +82,7 @@ extern char *Hostinfo_HypervisorCPUIDSig(void);
 #define HGMP_PRIVILEGE    0
 #define HGMP_NO_PRIVILEGE 1
 extern Unicode Hostinfo_GetModulePath(uint32 priv);
-
+extern char *Hostinfo_GetLibraryPath(void *addr);
 
 #if !defined(_WIN32)
 extern void Hostinfo_ResetProcessState(const int *keepFds, size_t numKeepFds);
