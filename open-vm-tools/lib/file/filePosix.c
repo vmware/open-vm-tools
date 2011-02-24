@@ -2280,6 +2280,9 @@ FileCreateDirectory(ConstUnicode pathName)  // IN:
  *      The memory allocated for the array may be larger than necessary.
  *      The caller may trim it with realloc() if it cares.
  *
+ *      A file name that cannot be represented in the default encoding
+ *      will appear as a string of three UTF8 sustitution characters.
+ *
  *----------------------------------------------------------------------
  */
 
@@ -2322,7 +2325,14 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
 
       /* Don't create the file list if we aren't providing it to the caller. */
       if (ids) {
-         Unicode id = Unicode_Alloc(entry->d_name, STRING_ENCODING_DEFAULT);
+         Unicode id;
+
+         if (Unicode_IsBufferValid(entry->d_name, -1,
+                                   STRING_ENCODING_DEFAULT)) {
+            id = Unicode_Alloc(entry->d_name, STRING_ENCODING_DEFAULT);
+         } else {
+            id = Unicode_Duplicate("\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD");
+         }
 
          DynBuf_Append(&b, &id, sizeof id);
       }
