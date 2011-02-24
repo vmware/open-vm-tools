@@ -678,13 +678,16 @@ typedef void * UserVA;
 #if defined __GNUC__
 /*
  * Starting at version 3.3, gcc does not always inline functions marked
- * 'inline' (it depends on their size). To force gcc to do so, one must use the
- * extra __always_inline__ attribute.
+ * 'inline' (it depends on their size and other factors). To force gcc
+ * to inline a function, one must use the __always_inline__ attribute.
+ * This attribute should be used sparingly and with care.  It is usually
+ * preferable to let gcc make its own inlining decisions
  */
-#   define INLINE_SINGLE_CALLER INLINE __attribute__((__always_inline__))
+#   define INLINE_ALWAYS INLINE __attribute__((__always_inline__))
 #else
-#   define INLINE_SINGLE_CALLER INLINE
+#   define INLINE_ALWAYS INLINE
 #endif
+#define INLINE_SINGLE_CALLER INLINE_ALWAYS
 
 /*
  * Used when a hard guaranteed of no inlining is needed. Very few
