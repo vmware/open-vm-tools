@@ -2168,6 +2168,32 @@ HgfsSearch2SearchHandle(HgfsSearch const *search) // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsSearchIsBaseNameSpace --
+ *
+ *    Check if the search is the base of our name space, i.e. the dirents are
+ *    the shares themselves.
+ *
+ * Results:
+ *    TRUE if the search is the base of the name space, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsSearchIsBaseNameSpace(HgfsSearch const *search) // IN
+{
+   ASSERT(search);
+
+   return search->type == DIRECTORY_SEARCH_TYPE_BASE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsGetSearchCopy --
  *
  *    Make a copy of the search. It should not be kept around for long, as the
@@ -3866,6 +3892,11 @@ HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,  // IN: List of new shares
       DblLnkLst_Links *l;
 
       if (DblLnkLst_IsLinked(&session->searchArray[i].links)) {
+         continue;
+      }
+
+      if (HgfsSearchIsBaseNameSpace(&session->searchArray[i])) {
+         /* Skip search of the base name space. Maybe stale but it is okay. */
          continue;
       }
 
