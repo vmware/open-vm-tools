@@ -353,36 +353,72 @@ mssb64_0(const uint64 value)
 #define USE_ARCH_X86_CUSTOM
 #endif
 
+/* **********************************************************
+ *  GCC's intrinsics for the lssb and mssb family produce sub-optimal code,
+ *  so we use inline assembly to improve matters.  However, GCC cannot 
+ *  propagate constants through inline assembly, so we help GCC out by 
+ *  allowing it to use its intrinsics for compile-time constant values.  
+ *  Some day, GCC will make better code and these can collapse to intrinsics.
+ *
+ *  For example, in Decoder_AddressSize, inlined into VVT_GetVTInstrInfo:
+ *  __builtin_ffs(a) compiles to:
+ *  mov   $0xffffffff, %esi
+ *  bsf   %eax, %eax
+ *  cmovz %esi, %eax
+ *  sub   $0x1, %eax
+ *  and   $0x7, %eax
+ *
+ *  While the code below compiles to:
+ *  bsf   %eax, %eax
+ *  sub   $0x1, %eax
+ *
+ *  Ideally, GCC should have recognized non-zero input in the first case.
+ *  Other instances of the intrinsic produce code like
+ *  sub $1, %eax; add $1, %eax; clts
+ * **********************************************************
+ */
+
+#if __GNUC__ < 4
+#define FEWER_BUILTINS
+#endif
+
 static INLINE int
 lssb32_0(uint32 value)
 {
 #if defined(USE_ARCH_X86_CUSTOM)
-   if (UNLIKELY(value == 0)) {
-      return -1;
-   } else {
-      int pos;
-      __asm__ __volatile__("bsfl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-      return pos;
+   if (!__builtin_constant_p(value)) {
+      if (UNLIKELY(value == 0)) {
+         return -1;
+      } else {
+         int pos;
+         __asm__ ("bsfl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+         return pos;
+      }
    }
-#else
-   return __builtin_ffs(value) - 1;
 #endif
+   return __builtin_ffs(value) - 1;
 }
 
+#ifndef FEWER_BUILTINS
 static INLINE int
 mssb32_0(uint32 value)
 {
+   /* 
+    * We must keep the UNLIKELY(...) outside the #if defined ...
+    * because __builtin_clz(0) is undefined according to gcc's
+    * documentation.
+    */
    if (UNLIKELY(value == 0)) {
       return -1;
    } else {
       int pos;
-
 #if defined(USE_ARCH_X86_CUSTOM)
-      __asm__ __volatile__("bsrl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-#else
-      pos = 32 - __builtin_clz(value) - 1;
+      if (!__builtin_constant_p(value)) {
+         __asm__ ("bsrl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+         return pos;
+      }
 #endif
-
+      pos = 32 - __builtin_clz(value) - 1;
       return pos;
    }
 }
@@ -391,14 +427,56 @@ static INLINE int
 lssb64_0(const uint64 value)
 {
 #if defined(USE_ARCH_X86_CUSTOM)
+   if (!__builtin_constant_p(value)) {
+      if (UNLIKELY(value == 0)) {
+         return -1;
+      } else {
+         intptr_t pos;
+   #if defined(VM_X86_64)
+         __asm__ ("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+   #else
+         /* The coding was chosen to minimize conditionals and operations */
+         pos = lssb32_0((uint32) value);
+         if (pos == -1) {
+            pos = lssb32_0((uint32) (value >> 32));
+            if (pos != -1) {
+               return pos + 32;
+            }
+         }
+   #endif
+         return pos;
+      }
+   }
+#endif
+   return __builtin_ffsll(value) - 1;
+}
+#endif /* !FEWER_BUILTINS */
+
+#if defined(FEWER_BUILTINS)
+/* GCC 3.3.x does not like __bulitin_clz or __builtin_ffsll. */
+static INLINE int
+mssb32_0(uint32 value)
+{
+   if (UNLIKELY(value == 0)) {
+      return -1;
+   } else {
+      int pos;
+      __asm__ __volatile__("bsrl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+      return pos;
+   }
+}
+
+static INLINE int
+lssb64_0(const uint64 value)
+{
    if (UNLIKELY(value == 0)) {
       return -1;
    } else {
       intptr_t pos;
 
-#if defined(VM_X86_64)
+   #if defined(VM_X86_64)
       __asm__ __volatile__("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-#else
+   #else
       /* The coding was chosen to minimize conditionals and operations */
       pos = lssb32_0((uint32) value);
       if (pos == -1) {
@@ -407,14 +485,12 @@ lssb64_0(const uint64 value)
             return pos + 32;
          }
       }
-#endif
-
+   #endif /* VM_X86_64 */
       return pos;
    }
-#else
-   return __builtin_ffsll(value) - 1;
-#endif
 }
+#endif /* FEWER_BUILTINS */
+
 
 static INLINE int
 mssb64_0(const uint64 value)
@@ -426,7 +502,7 @@ mssb64_0(const uint64 value)
 
 #if defined(USE_ARCH_X86_CUSTOM)
 #if defined(VM_X86_64)
-      __asm__ __volatile__("bsr %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+      __asm__ ("bsr %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
 #else
       /* The coding was chosen to minimize conditionals and operations */
       if (value > 0xFFFFFFFFULL) {
