@@ -424,44 +424,16 @@ QueuePairList_GetHead(void)
  *
  * VMCIQueuePair_Alloc --
  *
- *      Allocates a VMCI QueuePair. Only checks validity of input arguments.
- *      Real work is done in the OS-specific helper routine.
+ *      Allocates a VMCI QueuePair. Only checks validity of input
+ *      arguments.  Real work is done in the OS-specific helper
+ *      routine. The privilege flags argument is present to provide
+ *      compatibility with the host API; anything other than
+ *      VMCI_NO_PRIVILEGE_FLAGS will result in the error
+ *      VMCI_ERROR_NO_ACCESS, since requesting privileges from the
+ *      guest is not allowed.
  *
  * Results:
- *      Success or failure.
- *
- * Side effects:
- *      Memory is allocated.
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-VMCIQueuePair_Alloc(VMCIHandle *handle,     // IN/OUT:
-                    VMCIQueue  **produceQ,  // OUT:
-                    uint64     produceSize, // IN:
-                    VMCIQueue  **consumeQ,  // OUT:
-                    uint64     consumeSize, // IN:
-                    VMCIId     peer,        // IN:
-                    uint32     flags)       // IN:
-{
-   ASSERT_ON_COMPILE(sizeof(VMCIQueueHeader) <= PAGE_SIZE);
-
-   return VMCIQueuePair_AllocPriv(handle, produceQ, produceSize, consumeQ, consumeSize, peer, flags, VMCI_NO_PRIVILEGE_FLAGS);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIQueuePair_AllocPriv --
- *
- *      Provided for compatibility with the host API. Always returns an error
- *      since requesting privileges from the guest is not allowed. Use
- *      VMCIQueuePair_Alloc instead.
- *
- * Results:
- *      An error.
+ *      VMCI_SUCCESS on success, appropriate error code otherwise.
  *
  * Side effects:
  *      None.
@@ -470,14 +442,14 @@ VMCIQueuePair_Alloc(VMCIHandle *handle,     // IN/OUT:
  */
 
 int
-VMCIQueuePair_AllocPriv(VMCIHandle *handle,           // IN/OUT:
-                        VMCIQueue  **produceQ,        // OUT:
-                        uint64     produceSize,       // IN:
-                        VMCIQueue  **consumeQ,        // OUT:
-                        uint64     consumeSize,       // IN:
-                        VMCIId     peer,              // IN:
-                        uint32     flags,             // IN:
-                        VMCIPrivilegeFlags privFlags) // IN:
+VMCIQueuePair_Alloc(VMCIHandle *handle,           // IN/OUT:
+                    VMCIQueue  **produceQ,        // OUT:
+                    uint64     produceSize,       // IN:
+                    VMCIQueue  **consumeQ,        // OUT:
+                    uint64     consumeSize,       // IN:
+                    VMCIId     peer,              // IN:
+                    uint32     flags,             // IN:
+                    VMCIPrivilegeFlags privFlags) // IN:
 {
    if (privFlags != VMCI_NO_PRIVILEGE_FLAGS) {
       return VMCI_ERROR_NO_ACCESS;

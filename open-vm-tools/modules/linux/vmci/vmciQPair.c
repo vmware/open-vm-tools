@@ -147,14 +147,14 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
    myQPair->flags = flags;
    myQPair->privFlags = privFlags;
 
-   retval = VMCIQueuePair_AllocPriv(handle,
-                                    &myQPair->produceQ,
-                                    myQPair->produceQSize,
-                                    &myQPair->consumeQ,
-                                    myQPair->consumeQSize,
-                                    myQPair->peer,
-                                    myQPair->flags,
-                                    myQPair->privFlags);
+   retval = VMCIQueuePair_Alloc(handle,
+                                &myQPair->produceQ,
+                                myQPair->produceQSize,
+                                &myQPair->consumeQ,
+                                myQPair->consumeQSize,
+                                myQPair->peer,
+                                myQPair->flags,
+                                myQPair->privFlags);
 
    if (retval < VMCI_SUCCESS) {
       VMCI_FreeKernelMem(myQPair, sizeof *myQPair);
