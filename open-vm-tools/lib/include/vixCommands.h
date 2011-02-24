@@ -2347,15 +2347,6 @@ enum {
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
 };
 
-   
-
-/*
- * These are the command names that are passed through VMDB. These correspond
- * to the TestCommandType values.
- */
-#define VIX_VMDBCOMMAND_SET_GUEST_PRINTER       "SetGuestPrinter"
-#define VIX_VMDBCOMMAND_OPEN_URL                "OpenUrl"
-
 
 /*
  * These are the command names that are passed through the backdoor from the
@@ -2363,10 +2354,8 @@ enum {
  */
 #define VIX_BACKDOOR_COMMAND_VERSION               "Vix_1_"
 #define VIX_BACKDOORCOMMAND_RUN_PROGRAM            VIX_BACKDOOR_COMMAND_VERSION"Run_Program"
-#define VIX_BACKDOORCOMMAND_SET_GUEST_PRINTER      VIX_BACKDOOR_COMMAND_VERSION"Printer_Set"
 #define VIX_BACKDOORCOMMAND_SYNCDRIVER_FREEZE      VIX_BACKDOOR_COMMAND_VERSION"SyncDriver_Freeze"
 #define VIX_BACKDOORCOMMAND_SYNCDRIVER_THAW        VIX_BACKDOOR_COMMAND_VERSION"SyncDriver_Thaw"
-#define VIX_BACKDOORCOMMAND_OPEN_URL               VIX_BACKDOOR_COMMAND_VERSION"Open_Url"
 #define VIX_BACKDOORCOMMAND_GET_PROPERTIES         VIX_BACKDOOR_COMMAND_VERSION"Get_ToolsProperties"
 #define VIX_BACKDOORCOMMAND_CHECK_USER_ACCOUNT     VIX_BACKDOOR_COMMAND_VERSION"Check_User_Account"
 #define VIX_BACKDOORCOMMAND_SEND_HGFS_PACKET       VIX_BACKDOOR_COMMAND_VERSION"Send_Hgfs_Packet"
