@@ -359,10 +359,6 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
       info->numCores = 1;
    }
 
-   Log(LGPFX" This machine has %u physical CPUS, %u total cores, and %u "
-            "logical CPUs.\n", info->numPhysCPUs, info->numCores,
-       info->numLogCPUs);
-
    /*
     * Pull out versioning and feature information.
     */
