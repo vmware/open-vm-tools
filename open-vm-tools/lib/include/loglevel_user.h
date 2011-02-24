@@ -241,6 +241,7 @@
    LOGLEVEL_VAR(digestlib), \
    LOGLEVEL_VAR(svgadevtap), \
    LOGLEVEL_VAR(ssl), \
+   LOGLEVEL_VAR(vmrc), \
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

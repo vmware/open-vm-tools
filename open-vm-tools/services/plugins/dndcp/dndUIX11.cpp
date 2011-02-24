@@ -75,6 +75,7 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       m_mousePosX(0),
       m_mousePosY(0),
       m_dc(NULL),
+      m_numPendingRequest(0),
       m_destDropTime(0)
 {
    g_debug("%s: enter\n", __FUNCTION__);
@@ -758,7 +759,7 @@ DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
          m_GHDnDInProgress = true;
          /* only begin drag enter after we get the data */
          /* Need to grab all of the data. */
-         m_detWnd->drag_get_data(dc, target, timeValue);
+         ASSERT(RequestData(dc, timeValue));
       } else {
          g_debug("%s: Multiple drag motions before gh data has been received.\n",
                __FUNCTION__);
@@ -1039,8 +1040,6 @@ DnDUIX11::GtkDestDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
       return;
    }
 
-   CPClipboard_Clear(&m_clipboard);
-
    /*
     * Try to get data provided from the source.  If we cannot get any data,
     * there is no need to inform the guest of anything. If there is no data,
@@ -1052,6 +1051,12 @@ DnDUIX11::GtkDestDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
       CommonResetCB();
       return;
    }
+
+   m_numPendingRequest--;
+   if (m_numPendingRequest > 0) {
+      return;
+   }
+
    if (CPClipboard_IsEmpty(&m_clipboard)) {
       g_debug("%s: Failed getting item.\n", __FUNCTION__);
       CommonResetCB();
@@ -1257,6 +1262,68 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
       }
    }
    return true;
+}
+
+
+/**
+ *
+ * Ask for clipboard data from drag source.
+ *
+ * @param[in] dc   Associated drag context
+ * @param[in] time Time of the request
+ *
+ * @return true if there is any data request, false otherwise.
+ */
+
+bool
+DnDUIX11::RequestData(const Glib::RefPtr<Gdk::DragContext> &dc,
+                      guint time)
+{
+   Glib::RefPtr<Gtk::TargetList> targets;
+   targets = Gtk::TargetList::create(std::list<Gtk::TargetEntry>());
+
+   CPClipboard_Clear(&m_clipboard);
+   m_numPendingRequest = 0;
+
+   /*
+    * First check file list. If file list is available, all other formats will
+    * be ignored.
+    */
+   targets->add(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
+   Glib::ustring target = m_detWnd->drag_dest_find_target(dc, targets);
+   targets->remove(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
+   if (target != "") {
+      m_detWnd->drag_get_data(dc, target, time);
+      m_numPendingRequest++;
+      return true;
+   }
+
+   /* Then check plain text. */
+   targets->add(Glib::ustring(TARGET_NAME_STRING));
+   targets->add(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
+   targets->add(Glib::ustring(TARGET_NAME_UTF8_STRING));
+   targets->add(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
+   target = m_detWnd->drag_dest_find_target(dc, targets);
+   targets->remove(Glib::ustring(TARGET_NAME_STRING));
+   targets->remove(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
+   targets->remove(Glib::ustring(TARGET_NAME_UTF8_STRING));
+   targets->remove(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
+   if (target != "") {
+      m_detWnd->drag_get_data(dc, target, time);
+      m_numPendingRequest++;
+   }
+
+   /* Then check RTF. */
+   targets->add(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
+   targets->add(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
+   target = m_detWnd->drag_dest_find_target(dc, targets);
+   targets->remove(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
+   targets->remove(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
+   if (target != "") {
+      m_detWnd->drag_get_data(dc, target, time);
+      m_numPendingRequest++;
+   }
+   return (m_numPendingRequest > 0);
 }
 
 

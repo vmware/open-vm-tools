@@ -168,6 +168,8 @@ private:
     * Misc methods.
     */
    bool SetCPClipboardFromGtk(const Gtk::SelectionData& sd);
+   bool RequestData(const Glib::RefPtr<Gdk::DragContext> &dc,
+                    guint timeValue);
    std::string GetLastDirName(const std::string &str);
    utf::utf8string GetNextPath(utf::utf8string &str, size_t& index);
    DND_DROPEFFECT ToDropEffect(Gdk::DragAction action);
@@ -204,6 +206,7 @@ private:
    int32 m_mousePosX;
    int32 m_mousePosY;
    GdkDragContext *m_dc;
+   int m_numPendingRequest;
    unsigned long m_destDropTime;
 };
 
