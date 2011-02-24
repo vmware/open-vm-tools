@@ -53,6 +53,12 @@
 #define VMW_LOG_DEBUG_09  VMW_LOG_BASE + 15
 #define VMW_LOG_DEBUG_10  VMW_LOG_BASE + 16  // lowest priority; least noisy
 
+void
+LogVNoRoute(int rawLevel,
+            const char *fmt,
+            va_list args);
+
+
 void LogV(int level,
           const char *fmt,
           va_list args);
