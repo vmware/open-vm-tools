@@ -197,6 +197,8 @@ static struct sock *__VSockVmciCreate(struct net *net,
                                       gfp_t priority, unsigned short type);
 #endif
 static void VSockVmciTestUnregister(void);
+static int VSockVmciRegisterWithVmci(void);
+static void VSockVmciUnregisterWithVmci(void);
 static int VSockVmciRegisterAddressFamily(void);
 static void VSockVmciUnregisterAddressFamily(void);
 
@@ -3054,45 +3056,6 @@ VSockVmciRegisterAddressFamily(void)
 {
    int err = 0;
    int i;
-   uint32 apiVersion;
-
-   /*
-    * We don't call into the vmci module or register our socket family if the
-    * vmci device isn't present.
-    */
-   apiVersion = VMCI_KERNEL_API_VERSION_1;
-   vmciDevicePresent = VMCI_DeviceGet(&apiVersion);
-   if (!vmciDevicePresent) {
-      Log("Could not register VMCI Sockets because VMCI device is not present "
-          "or API version is unsupported.\n");
-      return -1;
-   }
-
-   /*
-    * Create the datagram handle that we will use to send and receive all
-    * VSocket control messages for this context.
-    */
-    err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID,
-                                     VMCI_FLAG_ANYCID_DG_HND,
-                                     VSockVmciRecvStreamCB, NULL,
-                                     &vmciStreamHandle,
-                                     TRUE);
-    if (err < VMCI_SUCCESS) {
-      Warning("Unable to create datagram handle. (%d)\n", err);
-      goto error;
-   }
-
-   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_RESUMED,
-                             VMCI_FLAG_EVENT_NONE,
-                             VSockVmciQPResumedCB,
-                             NULL,
-                             &qpResumedSubId);
-   if (err < VMCI_SUCCESS) {
-      Warning("Unable to subscribe to QP resumed event. (%d)\n", err);
-      err = VSockVmci_ErrorToVSockError(err);
-      qpResumedSubId = VMCI_INVALID_ID;
-      goto error;
-   }
 
    /*
     * Linux will not allocate an address family to code that is not part of the
@@ -3114,26 +3077,11 @@ VSockVmciRegisterAddressFamily(void)
       } else {
          vsockVmciDgramOps.family = i;
          vsockVmciStreamOps.family = i;
+         err = i;
          break;
       }
    }
 
-   if (err) {
-      goto error;
-   }
-
-   return vsockVmciFamilyOps.family;
-
-error:
-   if (qpResumedSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(qpResumedSubId);
-      qpResumedSubId = VMCI_INVALID_ID;
-   }
-
-   if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
-      VMCIDatagram_DestroyHnd(vmciStreamHandle);
-      vmciStreamHandle = VMCI_INVALID_HANDLE;
-   }
    return err;
 }
 
@@ -3159,6 +3107,107 @@ error:
 static void
 VSockVmciUnregisterAddressFamily(void)
 {
+   if (vsockVmciFamilyOps.family != VSOCK_INVALID_FAMILY) {
+      sock_unregister(vsockVmciFamilyOps.family);
+   }
+
+   vsockVmciDgramOps.family = vsockVmciFamilyOps.family = VSOCK_INVALID_FAMILY;
+   vsockVmciStreamOps.family = vsockVmciFamilyOps.family;
+}
+
+
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciRegisterWithVmci --
+ *
+ *      Registers with the VMCI device, and creates control message
+ *      and event handlers.
+ *
+ * Results:
+ *      Zero on success, error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+VSockVmciRegisterWithVmci(void)
+{
+   int err = 0;
+   uint32 apiVersion;
+
+   /*
+    * We don't call into the vmci module if the vmci device isn't
+    * present.
+    */
+   apiVersion = VMCI_KERNEL_API_VERSION_1;
+   vmciDevicePresent = VMCI_DeviceGet(&apiVersion);
+   if (!vmciDevicePresent) {
+      Warning("VMCI device not present.\n");
+      return -1;
+   }
+
+   /*
+    * Create the datagram handle that we will use to send and receive all
+    * VSocket control messages for this context.
+    */
+    err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID,
+                                     VMCI_FLAG_ANYCID_DG_HND,
+                                     VSockVmciRecvStreamCB, NULL,
+                                     &vmciStreamHandle,
+                                     TRUE);
+    if (err < VMCI_SUCCESS) {
+      Warning("Unable to create datagram handle. (%d)\n", err);
+      err = VSockVmci_ErrorToVSockError(err);
+      goto out;
+   }
+
+   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_RESUMED,
+                             VMCI_FLAG_EVENT_NONE,
+                             VSockVmciQPResumedCB,
+                             NULL,
+                             &qpResumedSubId);
+   if (err < VMCI_SUCCESS) {
+      Warning("Unable to subscribe to QP resumed event. (%d)\n", err);
+      err = VSockVmci_ErrorToVSockError(err);
+      qpResumedSubId = VMCI_INVALID_ID;
+      goto out;
+   }
+
+out:
+   if (err != 0) {
+      VSockVmciUnregisterWithVmci();
+   }
+
+   return err;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciUnregisterWithVmci --
+ *
+ *      Destroys control message and event handlers, and unregisters
+ *      with the VMCI device
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Our socket implementation is no longer accessible.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VSockVmciUnregisterWithVmci(void)
+{
    if (!vmciDevicePresent) {
       /* Nothing was registered. */
       return;
@@ -3176,14 +3225,8 @@ VSockVmciUnregisterAddressFamily(void)
       qpResumedSubId = VMCI_INVALID_ID;
    }
 
-   if (vsockVmciFamilyOps.family != VSOCK_INVALID_FAMILY) {
-      sock_unregister(vsockVmciFamilyOps.family);
-   }
-
-   vsockVmciDgramOps.family = vsockVmciFamilyOps.family = VSOCK_INVALID_FAMILY;
-   vsockVmciStreamOps.family = vsockVmciFamilyOps.family;
-
    VMCI_DeviceRelease();
+   vmciDevicePresent = FALSE;
 }
 
 
@@ -5099,9 +5142,18 @@ VSockVmciInit(void)
       return err;
    }
 
+   err = VSockVmciRegisterWithVmci();
+   if (err) {
+      Warning("Cannot register with VMCI device.\n");
+      unregister_ioctl32_handlers();
+      misc_deregister(&vsockVmciDevice);
+      return err;
+   }
+
    err = VSockVmciRegisterProto();
    if (err) {
       Warning("Cannot register vsock protocol.\n");
+      VSockVmciUnregisterWithVmci();
       unregister_ioctl32_handlers();
       misc_deregister(&vsockVmciDevice);
       return err;
@@ -5138,6 +5190,7 @@ VSockVmciExit(void)
    compat_mutex_unlock(&registrationMutex);
 
    VSockVmciUnregisterProto();
+   VSockVmciUnregisterWithVmci();
 }
 
 
