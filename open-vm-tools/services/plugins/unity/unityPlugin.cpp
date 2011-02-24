@@ -225,6 +225,8 @@ UnityPlugin::GetCapabilities(gboolean set) // IN: Whether capabilities are being
     * supplied name.
     */
    capsVector.push_back(ToolsAppCapabilityOldEntry(UNITY_CAP_NAME, Unity_IsSupported() ? 1 : 0));
+   capsVector.push_back(ToolsAppCapabilityOldEntry("unity.taskbar",
+                                                   Unity_IsSupported() ? 1 : 0));
 
    capsVector.push_back(ToolsAppCapabilityNewEntry(UNITY_CAP_STATUS_UNITY_ACTIVE, TRUE));
 
