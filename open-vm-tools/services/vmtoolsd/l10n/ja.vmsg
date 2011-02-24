@@ -1,0 +1,64 @@
+##########################################################
+# Copyright (C) 2010 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+cmdline.background = "バックグラウンドで実行し、pid ファイルを作成します。"
+
+cmdline.background.pidfile = "pidfile"
+
+cmdline.blockfd = "VMware ブロック fs のファイル記述子です。"
+
+cmdline.blockfd.fd = "fd"
+
+cmdline.commonpath = "共通プラグイン ディレクトリのパスです。"
+
+cmdline.config = "指定されたパスで構成ファイルを使用します。"
+
+cmdline.debug = "指定されたプラグインを使用して、デバッグ モードで実行します。"
+
+cmdline.displayname = "サービス表示名 (-i のみで使用)。"
+
+cmdline.displayname.argument = "名前"
+
+cmdline.install = "Service Control Manager を使ってサービスをインストールします。"
+
+cmdline.install.args = "args"
+
+cmdline.kill = "ツール サービスの実行中のインスタンスを停止します。"
+
+cmdline.log = "ログをオンにします。構成ファイルをオーバーライドします。"
+
+cmdline.name = "開始されているサービスの名前です。"
+
+cmdline.name.argument = "svcname"
+
+cmdline.path = "path"
+
+cmdline.pluginpath = "プラグイン ディレクトリのパスです。"
+
+cmdline.rpc = "ホストへ RPC コマンドを送信し、終了します。"
+
+cmdline.rpc.command = "コマンド"
+
+cmdline.rpcerror = "VMware ハイパーバイザーにコマンドを送信できません。"
+
+cmdline.state = "実行中のサービス インスタンスの内部状態をログにダンプします。"
+
+cmdline.uninstall = "Service Control Manager からサービスをアンインストールします。"
+
+cmdline.version = "デーモンのバージョンを出力し、終了します。"
+

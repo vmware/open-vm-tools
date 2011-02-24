@@ -129,5 +129,5 @@ endif
 
 # Message catalogs.
 install-data-hook:
-	@INSTVMSG@ toolbox $(srcdir)/l10n $(DESTDIR)$(datadir)
+	@INSTVMSG@ toolboxcmd $(srcdir)/l10n $(DESTDIR)$(datadir)
 

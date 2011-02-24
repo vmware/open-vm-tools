@@ -82,8 +82,13 @@ pam_SCRIPTS = $(top_srcdir)/scripts/linux/pam.d/64/vmtoolsd
 endif !THIRTY_TWO_BIT_USERSPACE
 endif HAVE_PAM
 
+# Message catalogs.
+install-data-hook:
+	@INSTVMSG@ vmtoolsd $(srcdir)/l10n $(DESTDIR)$(datadir)
+
 install-exec-hook:
 	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools
 
 uninstall-hook:
 	rm -rf $(DESTDIR)/etc/vmware-tools
+
