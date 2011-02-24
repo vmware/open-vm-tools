@@ -538,6 +538,10 @@ MXUserSqrt(double x)  // IN: hack until next round when FP goes away
    double xn;
    double xn1 = x;
 
+   if (x == 0.0) {
+      return 0.0;
+   }
+
    do {
       xn = xn1;
       xn1 = (xn + x/xn) / 2.0;
