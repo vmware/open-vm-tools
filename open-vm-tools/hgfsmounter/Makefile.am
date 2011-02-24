@@ -18,10 +18,11 @@
 sbin_PROGRAMS = mount.vmhgfs
 
 mount_vmhgfs_LDADD =
-mount_vmhgfs_LDADD += ../lib/misc/libMisc.la
 mount_vmhgfs_LDADD += ../lib/string/libString.la
 mount_vmhgfs_LDADD += ../lib/panicDefault/libPanicDefault.la
 mount_vmhgfs_LDADD += ../lib/panic/libPanic.la
+mount_vmhgfs_LDADD += ../lib/lock/libLock.la
+mount_vmhgfs_LDADD += ../lib/misc/libMisc.la
 mount_vmhgfs_LDADD += ../lib/stubs/libStubs.la
 
 mount_vmhgfs_SOURCES =

@@ -36,9 +36,10 @@ COMMON += ../lib/backdoor/libBackdoor.la
 COMMON += ../lib/dict/libDict.la
 COMMON += ../lib/message/libMessage.la
 COMMON += ../lib/unicode/libUnicode.la
-COMMON += ../lib/misc/libMisc.la
 COMMON += ../lib/panicDefault/libPanicDefault.la
 COMMON += ../lib/panic/libPanic.la
+COMMON += ../lib/lock/libLock.la
+COMMON += ../lib/misc/libMisc.la
 COMMON += ../lib/stubs/libStubs.la
 
 bin_PROGRAMS =
