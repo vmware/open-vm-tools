@@ -33,7 +33,7 @@
 #endif
 
 #if defined(_WIN32)
-#include <ntddk.h>
+#  include <ntddk.h>
 #endif
 
 #if defined(linux) && !defined(VMKERNEL)
@@ -45,14 +45,14 @@
 
 #ifdef __APPLE__
 #  include <IOKit/IOLib.h>
-#include <mach/task.h>
-#include <mach/semaphore.h>
+#  include <mach/task.h>
+#  include <mach/semaphore.h>
 #endif
 
 #ifdef VMKERNEL
-#include "splock.h"
-#include "semaphore_ext.h"
-#include "vmkapi.h"
+#  include "splock.h"
+#  include "semaphore_ext.h"
+#  include "vmkapi.h"
 #endif
 
 #ifdef SOLARIS
@@ -65,7 +65,9 @@
 #include "vm_basic_types.h"
 #include "vmci_defs.h"
 
-#if defined(__APPLE__)
+#if defined(VMKERNEL)
+#  include "list.h"
+#else
 #  include "dbllnklst.h"
 #endif
 
@@ -369,5 +371,32 @@ Bool VMCI_DeviceShutdown(void);
 #  define VMCI_DeviceShutdown() FALSE
 #endif // !_WIN32
 
+#if defined(VMKERNEL)
+  typedef List_Links VMCIListItem;
+  typedef List_Links VMCIList;
+
+#  define VMCIList_Init(_l)   List_Init(_l)
+#  define VMCIList_InitEntry(_e)  List_InitElement(_e)
+#  define VMCIList_Empty(_l)   List_IsEmpty(_l)
+#  define VMCIList_Insert(_e, _l) List_Insert(_e, LIST_ATREAR(_l))
+#  define VMCIList_Remove(_e, _l) List_Remove(_e)
+#  define VMCIList_Scan(_cur, _l) LIST_FORALL(_l, _cur)
+#  define VMCIList_ScanSafe(_cur, _next, _l) LIST_FORALL_SAFE(_l, _cur, _next)
+#  define VMCIList_Entry(_elem, _type, _field) List_Entry(_elem, _type, _field)
+#  define VMCIList_First(_l) (VMCIList_Empty(_l)?NULL:List_First(_l))
+#else
+  typedef DblLnkLst_Links VMCIListItem;
+  typedef DblLnkLst_Links VMCIList;
+
+#  define VMCIList_Init(_l)   DblLnkLst_Init(_l)
+#  define VMCIList_InitEntry(_e)   DblLnkLst_Init(_e)
+#  define VMCIList_Empty(_l)   (!DblLnkLst_IsLinked(_l))
+#  define VMCIList_Insert(_e, _l) DblLnkLst_LinkLast(_l, _e)
+#  define VMCIList_Remove(_e, _l) DblLnkLst_Unlink1(_e)
+#  define VMCIList_Scan(_cur, _l) DblLnkLst_ForEach(_cur, _l)
+#  define VMCIList_ScanSafe(_cur, _next, _l) DblLnkLst_ForEachSafe(_cur, _next, _l)
+#  define VMCIList_Entry(_elem, _type, _field) DblLnkLst_Container(_elem, _type, _field)
+#  define VMCIList_First(_l) (VMCIList_Empty(_l)?NULL:(_l)->next)
+#endif
 
 #endif // _VMCI_KERNEL_IF_H_

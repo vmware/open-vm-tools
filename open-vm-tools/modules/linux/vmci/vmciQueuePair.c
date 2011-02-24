@@ -41,27 +41,26 @@
 #include "vmciKernelAPI.h"
 #include "vmciQueuePairInt.h"
 #include "vmciUtil.h"
-#include "circList.h"
 
 #define LGPFX "VMCIQueuePair: "
 
 typedef struct QueuePairEntry {
-   VMCIHandle handle;
-   VMCIId     peer;
-   uint32     flags;
-   uint64     produceSize;
-   uint64     consumeSize;
-   uint64     numPPNs;
-   PPNSet     ppnSet;
-   void      *produceQ;
-   void      *consumeQ;
-   uint32     refCount;
-   Bool       hibernateFailure;
-   ListItem   listItem;
+   VMCIHandle    handle;
+   VMCIId        peer;
+   uint32        flags;
+   uint64        produceSize;
+   uint64        consumeSize;
+   uint64        numPPNs;
+   PPNSet        ppnSet;
+   void         *produceQ;
+   void         *consumeQ;
+   uint32        refCount;
+   Bool          hibernateFailure;
+   VMCIListItem  listItem;
 } QueuePairEntry;
 
 typedef struct QueuePairList {
-   ListItem      *head;
+   VMCIList       head;
    Atomic_uint32  hibernate;
    VMCIMutex      mutex;
 } QueuePairList;
@@ -203,7 +202,7 @@ QueuePairList_Unlock(void)
 void
 VMCIQueuePair_Init(void)
 {
-   queuePairList.head = NULL;
+   VMCIList_Init(&queuePairList.head);
    Atomic_Write(&queuePairList.hibernate, 0);
    QueuePairLock_Init();
    hibernateFailedList = VMCIHandleArray_Create(0);
@@ -319,14 +318,14 @@ VMCIQueuePair_Sync(void)
 static QueuePairEntry *
 QueuePairList_FindEntry(VMCIHandle handle) // IN:
 {
-   ListItem *next;
+   VMCIListItem *next;
 
    if (VMCI_HANDLE_INVALID(handle)) {
       return NULL;
    }
 
-   LIST_SCAN(next, queuePairList.head) {
-      QueuePairEntry *entry = LIST_CONTAINER(next, QueuePairEntry, listItem);
+   VMCIList_Scan(next, &queuePairList.head) {
+      QueuePairEntry *entry = VMCIList_Entry(next, QueuePairEntry, listItem);
 
       if (VMCI_HANDLE_EQUAL(entry->handle, handle)) {
          return entry;
@@ -358,7 +357,7 @@ static void
 QueuePairList_AddEntry(QueuePairEntry *entry) // IN:
 {
    if (entry) {
-      LIST_QUEUE(&entry->listItem, &queuePairList.head);
+      VMCIList_Insert(&entry->listItem, &queuePairList.head);
    }
 }
 
@@ -384,7 +383,7 @@ static void
 QueuePairList_RemoveEntry(QueuePairEntry *entry) // IN:
 {
    if (entry) {
-      LIST_DEL(&entry->listItem, &queuePairList.head);
+      VMCIList_Remove(&entry->listItem, &queuePairList.head);
    }
 }
 
@@ -409,10 +408,10 @@ QueuePairList_RemoveEntry(QueuePairEntry *entry) // IN:
 static QueuePairEntry *
 QueuePairList_GetHead(void)
 {
-   ListItem *first = LIST_FIRST(queuePairList.head);
+   VMCIListItem *first = VMCIList_First(&queuePairList.head);
 
    if (first) {
-      QueuePairEntry *entry = LIST_CONTAINER(first, QueuePairEntry, listItem);
+      QueuePairEntry *entry = VMCIList_Entry(first, QueuePairEntry, listItem);
       return entry;
    }
 
@@ -601,7 +600,7 @@ QueuePairEntryCreate(VMCIHandle handle,  // IN:
       entry->produceQ = produceQ;
       entry->consumeQ = consumeQ;
       entry->refCount = 0;
-      INIT_LIST_ITEM(&entry->listItem);
+      VMCIList_InitEntry(&entry->listItem);
    }
    return entry;
 }
@@ -1206,12 +1205,12 @@ VMCIQueuePair_Convert(Bool toLocal,     // IN
                       Bool deviceReset) // IN
 {
    if (toLocal) {
-      ListItem *next;
+      VMCIListItem *next;
 
       QueuePairList_Lock();
 
-      LIST_SCAN(next, queuePairList.head) {
-         QueuePairEntry *entry = LIST_CONTAINER(next, QueuePairEntry, listItem);
+      VMCIList_Scan(next, &queuePairList.head) {
+         QueuePairEntry *entry = VMCIList_Entry(next, QueuePairEntry, listItem);
 
          if (!(entry->flags & VMCI_QPFLAG_LOCAL)) {
             VMCIQueue *prodQ;

@@ -37,7 +37,6 @@
 #include "vmci_call_defs.h"
 #include "vmciInt.h"
 #include "vmciUtil.h"
-#include "circList.h"
 
 #define LGPFX "VMCINotifications: "
 
@@ -66,14 +65,14 @@ typedef struct VMCINotifyHashEntry {
    void          *callbackData;
    VMCIEvent      destroyEvent;
    int            refCount;
-   ListItem       handleListItem;
-   ListItem       idxListItem;
+   VMCIListItem   handleListItem;
+   VMCIListItem   idxListItem;
 } VMCINotifyHashEntry;
 
 typedef struct VMCINotifyHashTable {
    VMCILock lock;
-   ListItem *entriesByIdx[HASH_TABLE_SIZE];
-   ListItem *entriesByHandle[HASH_TABLE_SIZE];
+   VMCIList entriesByIdx[HASH_TABLE_SIZE];
+   VMCIList entriesByHandle[HASH_TABLE_SIZE];
 } VMCINotifyHashTable;
 
 
@@ -156,8 +155,15 @@ static uint32 lastNotifyIdxReleased = PAGE_SIZE;
 void
 VMCINotifications_Init(void)
 {
-   memset(vmciNotifyHT.entriesByIdx, 0, ARRAY_SIZE(vmciNotifyHT.entriesByIdx));
-   memset(vmciNotifyHT.entriesByHandle, 0, ARRAY_SIZE(vmciNotifyHT.entriesByHandle));
+   int i;
+
+   for (i = 0; i < ARRAY_SIZE(vmciNotifyHT.entriesByIdx); i++) {
+      VMCIList_Init(&vmciNotifyHT.entriesByIdx[i]);
+   }
+   for (i = 0; i < ARRAY_SIZE(vmciNotifyHT.entriesByHandle); i++) {
+      VMCIList_Init(&vmciNotifyHT.entriesByHandle[i]);
+   }
+
    VMCI_InitLock(&vmciNotifyHT.lock, "VMCINotifyHashLock",
                  VMCI_LOCK_RANK_HIGHER_BH);
    return;
@@ -184,10 +190,10 @@ void
 VMCINotifications_Exit(void)
 {
    uint32 bucket;
-   ListItem *iter, *iter2;
+   VMCIListItem *iter, *iter2;
 
    for (bucket = 0; bucket < HASH_TABLE_SIZE; bucket++) {
-      LIST_SCAN_SAFE(iter, iter2, vmciNotifyHT.entriesByIdx[bucket]) {
+      VMCIList_ScanSafe(iter, iter2, &vmciNotifyHT.entriesByIdx[bucket]) {
          VMCINotifyHashEntry *cur;
 
          /*
@@ -201,7 +207,7 @@ VMCINotifications_Exit(void)
           */
          ASSERT(FALSE);
 
-         cur = LIST_CONTAINER(iter, VMCINotifyHashEntry, idxListItem);
+         cur = VMCIList_Entry(iter, VMCINotifyHashEntry, idxListItem);
          VMCI_FreeKernelMem(cur, sizeof *cur);
       }
    }
@@ -265,7 +271,7 @@ VMCINotifications_Hibernate(Bool enterHibernate)  // IN
 {
    VMCILockFlags flags;
    uint32 bucket;
-   ListItem *iter;
+   VMCIListItem *iter;
 
    if (enterHibernate) {
       /*
@@ -278,11 +284,11 @@ VMCINotifications_Hibernate(Bool enterHibernate)  // IN
    VMCI_GrabLock_BH(&vmciNotifyHT.lock, &flags);
 
    for (bucket = 0; bucket < HASH_TABLE_SIZE; bucket++) {
-      LIST_SCAN(iter, vmciNotifyHT.entriesByIdx[bucket]) {
+      VMCIList_Scan(iter, &vmciNotifyHT.entriesByIdx[bucket]) {
          VMCINotifyHashEntry *cur;
          int result;
 
-         cur = LIST_CONTAINER(iter, VMCINotifyHashEntry, idxListItem);
+         cur = VMCIList_Entry(iter, VMCINotifyHashEntry, idxListItem);
          result = LinkNotificationHypercall(cur->handle, cur->doorbell, cur->idx);
          if (result != VMCI_SUCCESS && result != VMCI_ERROR_DUPLICATE_ENTRY) {
             VMCI_WARNING((LGPFX"Failed to reregister doorbell handle 0x%x:0x%x "
@@ -366,7 +372,8 @@ VMCINotifyHashAddEntry(VMCINotifyHashEntry *entry) // IN
       result = VMCI_ERROR_ALREADY_EXISTS;
       goto out;
    }
-   LIST_QUEUE(&entry->handleListItem, &vmciNotifyHT.entriesByHandle[bucket]);
+   VMCIList_Insert(&entry->handleListItem,
+                   &vmciNotifyHT.entriesByHandle[bucket]);
 
    /*
     * Below we try to allocate an index in the notification bitmap
@@ -408,7 +415,7 @@ VMCINotifyHashAddEntry(VMCINotifyHashEntry *entry) // IN
    bucket = VMCI_NOTIF_HASH(newNotifyIdx);
    entry->refCount++;
    entry->idx = newNotifyIdx;
-   LIST_QUEUE(&entry->idxListItem, &vmciNotifyHT.entriesByIdx[bucket]);
+   VMCIList_Insert(&entry->idxListItem, &vmciNotifyHT.entriesByIdx[bucket]);
    result = VMCI_SUCCESS;
 out:
    VMCI_ReleaseLock_BH(&vmciNotifyHT.lock, flags);
@@ -476,9 +483,10 @@ VMCINotifyHashRemoveEntry(VMCIHandle handle, // IN
    entry = VMCINotifyHashFindByHandle(handle, doorbell, &bucket);
    if (entry) {
       ASSERT(entry->refCount > 0);
-      LIST_DEL(&entry->handleListItem, &vmciNotifyHT.entriesByHandle[bucket]);
+      VMCIList_Remove(&entry->handleListItem,
+                      &vmciNotifyHT.entriesByHandle[bucket]);
       bucket = VMCI_NOTIF_HASH(entry->idx);
-      LIST_DEL(&entry->idxListItem, &vmciNotifyHT.entriesByIdx[bucket]);
+      VMCIList_Remove(&entry->idxListItem, &vmciNotifyHT.entriesByIdx[bucket]);
       notifyIdxCount--;
       if (entry->idx == maxNotifyIdx - 1) {
          /*
@@ -589,16 +597,16 @@ static VMCINotifyHashEntry *
 VMCINotifyHashFindByIdx(uint32 idx,         // IN
                         uint32 *hashBucket) // IN/OUT: hash value for idx
 {
-   ListItem *iter;
+   VMCIListItem *iter;
    uint32 bucket = VMCI_NOTIF_HASH(idx);
 
    if (hashBucket) {
       *hashBucket = bucket;
    }
 
-   LIST_SCAN(iter, vmciNotifyHT.entriesByIdx[bucket]) {
+   VMCIList_Scan(iter, &vmciNotifyHT.entriesByIdx[bucket]) {
       VMCINotifyHashEntry *cur =
-         LIST_CONTAINER(iter, VMCINotifyHashEntry, idxListItem);
+         VMCIList_Entry(iter, VMCINotifyHashEntry, idxListItem);
       if (cur->idx == idx) {
          return cur;
       }
@@ -631,16 +639,16 @@ VMCINotifyHashFindByHandle(VMCIHandle handle,  // IN
                            Bool doorbell,      // IN
                            uint32 *hashBucket) // IN/OUT: hash value for handle
 {
-   ListItem *iter;
+   VMCIListItem *iter;
    uint32 bucket = VMCI_NOTIF_HASH(handle.resource);
 
    if (hashBucket) {
       *hashBucket = bucket;
    }
 
-   LIST_SCAN(iter, vmciNotifyHT.entriesByHandle[bucket]) {
+   VMCIList_Scan(iter, &vmciNotifyHT.entriesByHandle[bucket]) {
       VMCINotifyHashEntry *cur =
-         LIST_CONTAINER(iter, VMCINotifyHashEntry, handleListItem);
+         VMCIList_Entry(iter, VMCINotifyHashEntry, handleListItem);
       if (VMCI_HANDLE_EQUAL(cur->handle, handle) && cur->doorbell == doorbell) {
          return cur;
       }
@@ -698,13 +706,13 @@ static void
 VMCINotifyHashFireEntries(uint32 notifyIdx) // IN
 {
    VMCILockFlags flags;
-   ListItem *iter;
+   VMCIListItem *iter;
    int bucket = VMCI_NOTIF_HASH(notifyIdx);
 
    VMCI_GrabLock_BH(&vmciNotifyHT.lock, &flags);
 
-   LIST_SCAN(iter, vmciNotifyHT.entriesByIdx[bucket]) {
-      VMCINotifyHashEntry *cur = LIST_CONTAINER(iter, VMCINotifyHashEntry,
+   VMCIList_Scan(iter, &vmciNotifyHT.entriesByIdx[bucket]) {
+      VMCINotifyHashEntry *cur = VMCIList_Entry(iter, VMCINotifyHashEntry,
                                                 idxListItem);
       if (cur->idx == notifyIdx && cur->notifyCB) {
          if (cur->runDelayed) {
@@ -868,6 +876,8 @@ VMCINotificationRegister(VMCIHandle *handle,     // IN
    entry->notifyCB = NULL; // Wait with this until link is established in hypervisor
    entry->callbackData = callbackData;
    entry->refCount = 0;
+   VMCIList_InitEntry(&entry->handleListItem);
+   VMCIList_InitEntry(&entry->idxListItem);
    result = VMCINotifyHashAddEntry(entry);
    if (result != VMCI_SUCCESS) {
       VMCI_FreeKernelMem(entry, sizeof *entry);

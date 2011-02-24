@@ -71,9 +71,6 @@
 #include "vm_assert.h"
 #include "vmci_handle_array.h"
 #include "vmci_defs.h"
-#ifndef VMKERNEL
-#  include "circList.h"
-#endif
 #if defined VMKERNEL || !defined VMX86_TOOLS
 #  include "vmciQueuePair.h"
 #else

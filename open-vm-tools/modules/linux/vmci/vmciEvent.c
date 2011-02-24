@@ -43,7 +43,6 @@
 #else
 #  include "vmciDriver.h"
 #endif
-#include "circList.h"  /* Must come after vmciVmkInt.h. */
 
 #define LGPFX "VMCIEvent: "
 
@@ -57,13 +56,8 @@ typedef struct VMCISubscription {
    VMCI_Event     event;
    VMCI_EventCB   callback;
    void           *callbackData;
-   ListItem       subscriberListItem;
+   VMCIListItem   subscriberListItem;
 } VMCISubscription;
-
-typedef struct VMCISubscriptionItem {
-   ListItem          listItem;
-   VMCISubscription  sub;
-} VMCISubscriptionItem;
 
 
 static VMCISubscription *VMCIEventFind(VMCIId subID);
@@ -92,7 +86,7 @@ static VMCISubscription *VMCIEventUnregisterSubscription(VMCIId subID);
 #endif
 
 
-static ListItem *subscriberArray[VMCI_EVENT_MAX] = {NULL};
+static VMCIList subscriberArray[VMCI_EVENT_MAX];
 static VMCILock subscriberLock;
 
 typedef struct VMCIDelayedEventInfo {
@@ -120,6 +114,11 @@ typedef struct VMCIDelayedEventInfo {
 void
 VMCIEvent_Init(void)
 {
+   int i;
+
+   for (i = 0; i < VMCI_EVENT_MAX; i++) {
+      VMCIList_Init(&subscriberArray[i]);
+   }
    VMCIEventInitLock(&subscriberLock, "VMCIEventSubscriberLock");
 }
 
@@ -143,12 +142,12 @@ VMCIEvent_Init(void)
 void
 VMCIEvent_Exit(void)
 {
-   ListItem *iter, *iter2;
+   VMCIListItem *iter, *iter2;
    VMCI_Event e;
 
    /* We free all memory at exit. */
    for (e = 0; e < VMCI_EVENT_MAX; e++) {
-      LIST_SCAN_SAFE(iter, iter2, subscriberArray[e]) {
+      VMCIList_ScanSafe(iter, iter2, &subscriberArray[e]) {
          VMCISubscription *cur;
 
          /*
@@ -162,7 +161,7 @@ VMCIEvent_Exit(void)
           */
          ASSERT(FALSE);
 
-         cur = LIST_CONTAINER(iter, VMCISubscription, subscriberListItem);
+         cur = VMCIList_Entry(iter, VMCISubscription, subscriberListItem);
          VMCI_FreeKernelMem(cur, sizeof *cur);
       }
    }
@@ -330,13 +329,13 @@ EventReleaseCB(void *clientData) // IN
 static VMCISubscription *
 VMCIEventFind(VMCIId subID)  // IN
 {
-   ListItem *iter;
+   VMCIListItem *iter;
    VMCI_Event e;
 
    for (e = 0; e < VMCI_EVENT_MAX; e++) {
-      LIST_SCAN(iter, subscriberArray[e]) {
+      VMCIList_Scan(iter, &subscriberArray[e]) {
          VMCISubscription *cur =
-            LIST_CONTAINER(iter, VMCISubscription, subscriberListItem);
+            VMCIList_Entry(iter, VMCISubscription, subscriberListItem);
          if (cur->id == subID) {
             VMCIEventGet(cur);
             return cur;
@@ -409,15 +408,15 @@ static int
 VMCIEventDeliver(VMCIEventMsg *eventMsg)  // IN
 {
    int err = VMCI_SUCCESS;
-   ListItem *iter;
+   VMCIListItem *iter;
    VMCILockFlags flags;
 
    ASSERT(eventMsg);
 
    VMCIEventGrabLock(&subscriberLock, &flags);
-   LIST_SCAN(iter, subscriberArray[eventMsg->eventData.event]) {
+   VMCIList_Scan(iter, &subscriberArray[eventMsg->eventData.event]) {
       VMCI_EventData *ed;
-      VMCISubscription *cur = LIST_CONTAINER(iter, VMCISubscription,
+      VMCISubscription *cur = VMCIList_Entry(iter, VMCISubscription,
                                              subscriberListItem);
       ASSERT(cur && cur->event == eventMsg->eventData.event);
 
@@ -570,6 +569,7 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    sub->event = event;
    sub->callback = callback;
    sub->callbackData = callbackData;
+   VMCIList_InitEntry(&sub->subscriberListItem);
 
    VMCIEventGrabLock(&subscriberLock, &lockFlags);
 
@@ -602,7 +602,7 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
 
    if (success) {
       VMCI_CreateEvent(&sub->destroyEvent);
-      LIST_QUEUE(&sub->subscriberListItem, &subscriberArray[event]);
+      VMCIList_Insert(&sub->subscriberListItem, &subscriberArray[event]);
       result = VMCI_SUCCESS;
    } else {
       result = VMCI_ERROR_NO_RESOURCES;
@@ -642,7 +642,7 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
    s = VMCIEventFind(subID);
    if (s != NULL) {
       VMCIEventRelease(s);
-      LIST_DEL(&s->subscriberListItem, &subscriberArray[s->event]);
+      VMCIList_Remove(&s->subscriberListItem, &subscriberArray[s->event]);
    }
    VMCIEventReleaseLock(&subscriberLock, flags);
 
