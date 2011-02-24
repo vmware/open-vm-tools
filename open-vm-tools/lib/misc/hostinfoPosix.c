@@ -3446,14 +3446,14 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
  *
  * Hostinfo_GetLibraryPath --
  *
- *      Try and deduce the full path to the library where the
- *      specified address resides. Expected usage is that the caller
- *      will pass in the address of one of the caller's own functions.
+ *      Try and deduce the path to the library where the specified
+ *      address resides. Expected usage is that the caller will pass
+ *      in the address of one of the caller's own functions.
  *
  *      Not implemented on MacOS.
  *
  * Results:
- *      The full path or NULL on failure.
+ *      The path (which MAY OR MAY NOT BE ABSOLUTE) or NULL on failure.
  *
  * Side effects:
  *      Memory is allocated.
