@@ -984,6 +984,28 @@ HostinfoOSData(void)
 
       Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS,
                    solarisRelease);
+#if defined(__APPLE__)
+   } else {
+      /*
+       * XXX: using the CF API to read the server / system plist is kind of a
+       * PITA. Get the output of system_profiler instead; downside is that any
+       * changes to the format of the output of system_profiler may break this.
+       */
+      const char *cmd = "/usr/sbin/system_profiler | "
+                        "/usr/bin/grep 'System Version:' | "
+                        "/usr/bin/cut -d : -f 2";
+      char *sysname = HostinfoGetCmdOutput(cmd);
+
+      if (sysname != NULL) {
+         char *trimmed = Unicode_Trim(sysname);
+         ASSERT_MEM_ALLOC(trimmed);
+         Str_Snprintf(osNameFull, sizeof osNameFull, "%s", trimmed);
+         free(trimmed);
+         free(sysname);
+      } else {
+         Log("%s: Failed to get output of system_profiler.\n", __FUNCTION__);
+      }
+#endif
    }
 
    if (Hostinfo_GetSystemBitness() == 64) {
