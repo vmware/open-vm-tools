@@ -65,6 +65,7 @@ static void VMCIUtilCidUpdate(VMCIId subID, VMCI_EventData *eventData,
 
 static VMCIId ctxUpdateSubID = VMCI_INVALID_ID;
 static Atomic_uint32 vmContextID = { VMCI_INVALID_ID };
+static Atomic_uint32 vmciClientCount;
 
 
 /*
@@ -363,11 +364,26 @@ VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
 Bool
 VMCI_DeviceGet(uint32 *apiVersion)
 {
+   Atomic_Inc32(&vmciClientCount);
+
    if (*apiVersion > VMCI_KERNEL_API_VERSION) {
       *apiVersion = VMCI_KERNEL_API_VERSION;
-      return FALSE;
+      goto release;
    }
-   return VMCI_DeviceEnabled();
+
+   if (!VMCI_DeviceEnabled()) {
+      goto release;
+   }
+
+   if (VMCI_DeviceShutdown()) {
+      goto release;
+   }
+
+   return TRUE;
+
+release:
+   Atomic_Dec32(&vmciClientCount);
+   return FALSE;
 }
 
 
@@ -391,6 +407,31 @@ VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
 void
 VMCI_DeviceRelease(void)
 {
+   Atomic_Dec32(&vmciClientCount);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_DeviceInUse --
+ *
+ *      Report whether the device is in-use by a client.
+ *
+ * Results:
+ *      TRUE if the device is in-use (reference count greater than zero),
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+VMCI_DeviceInUse(void)
+{
+   return Atomic_Read32(&vmciClientCount) > 0 ? TRUE : FALSE;
 }
 
 
