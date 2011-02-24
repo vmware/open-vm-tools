@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,16 +17,24 @@
  *********************************************************/
 
 /*
- * vmci_version.h --
+ * vmciDoorbell.h --
  *
- * Version definitions for the Linux vmci driver.
+ *	Internal functions in the VMCI Doorbell API.
  */
 
-#ifndef _VMCI_VERSION_H_
-#define _VMCI_VERSION_H_
+#ifndef VMCI_DOORBELL_H
+#define VMCI_DOORBELL_H
 
-#define VMCI_DRIVER_VERSION          9.1.7.0
-#define VMCI_DRIVER_VERSION_COMMAS   9,1,7,0
-#define VMCI_DRIVER_VERSION_STRING   "9.1.7.0"
+#define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_VMCORE
+#define INCLUDE_ALLOW_VMKERNEL
+#include "includeCheck.h"
 
-#endif /* _VMCI_VERSION_H_ */
+#include "vmci_kernel_if.h"
+#include "vmci_defs.h"
+
+int VMCIDoorbellHostContextNotify(VMCIId srcCID, VMCIHandle handle);
+int VMCIDoorbellGetPrivFlags(VMCIHandle handle, VMCIPrivilegeFlags *privFlags);
+void VMCIDoorbell_Sync(void);
+
+#endif // VMCI_DOORBELL_H

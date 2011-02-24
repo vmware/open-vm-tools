@@ -19,24 +19,45 @@
 /*
  * vmciDatagram.h --
  *
- *      Simple Datagram API for the Linux guest driver.
+ *    Internal functions in the VMCI Simple Datagram API.
  */
 
-#ifndef __VMCI_DATAGRAM_H__
-#define __VMCI_DATAGRAM_H__
+#ifndef _VMCI_DATAGRAM_H_
+#define _VMCI_DATAGRAM_H_
 
 #define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMCORE
+#define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
-#include "vmci_defs.h"
+#include "vmciContext.h"
 #include "vmci_call_defs.h"
-#include "vmci_kernel_if.h"
-#include "vmci_infrastructure.h"
+#ifndef VMX86_SERVER
 #include "vmci_iocontrols.h"
+#endif // !VMX86_SERVER
 
-void VMCIDatagram_Init(void);
+#define VMCI_MAX_DELAYED_DG_HOST_QUEUE_SIZE 256
+
+/* Init functions. */
+int VMCIDatagram_Init(void);
+void VMCIDatagram_Exit(void);
+
+
+/* Datagram API for non-public use. */
+int VMCIDatagram_Dispatch(VMCIId contextID, VMCIDatagram *dg, Bool fromGuest);
+int VMCIDatagram_InvokeGuestHandler(VMCIDatagram *dg);
+int VMCIDatagram_GetPrivFlags(VMCIHandle handle, VMCIPrivilegeFlags *privFlags);
+
+/* Misc. */
 void VMCIDatagram_Sync(void);
 Bool VMCIDatagram_CheckHostCapabilities(void);
-int VMCIDatagram_Dispatch(VMCIId contextID, VMCIDatagram *msg);
 
-#endif //__VMCI_DATAGRAM_H__
+/* Non public datagram API. */
+int VMCIDatagramRequestWellKnownMap(VMCIId wellKnownID, VMCIId contextID,
+                                    VMCIPrivilegeFlags privFlags);
+int VMCIDatagramRemoveWellKnownMap(VMCIId wellKnownID, VMCIId contextID);
+
+#endif // _VMCI_DATAGRAM_H_
+
+

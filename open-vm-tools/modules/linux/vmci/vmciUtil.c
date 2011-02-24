@@ -25,31 +25,15 @@
 
 #ifdef __linux__
 #  include "driver-config.h"
-
 #  define EXPORT_SYMTAB
-
 #  include <linux/module.h>
 #  include "compat_kernel.h"
 #  include "compat_slab.h"
 #  include "compat_interrupt.h"
-#elif defined(_WIN32)
-#  ifndef WINNT_DDK
-#     error  This file only works with the NT ddk
-#  endif // WINNT_DDK
-#  include <ntddk.h>
-#elif defined(SOLARIS)
-#  include <sys/ddi.h>
-#  include <sys/sunddi.h>
-#  include <sys/disp.h>
-#elif defined(__APPLE__)
-#  include <IOKit/IOLib.h>
-#else
-#error "platform not supported."
-#endif //linux
+#endif
 
-#define LGPFX "VMCIUtil: "
-
-#include "vmware.h"
+#include "vmci_kernel_if.h"
+#include "vm_assert.h"
 #include "vm_atomic.h"
 #include "vmci_defs.h"
 #include "vmci_kernel_if.h"
@@ -59,6 +43,8 @@
 #include "vmciUtil.h"
 #include "vmciEvent.h"
 #include "vmciKernelAPI.h"
+
+#define LGPFX "VMCIUtil: "
 
 static void VMCIUtilCidUpdate(VMCIId subID, VMCI_EventData *eventData,
                               void *clientData);
@@ -532,7 +518,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
              dg->dst.resource == VMCI_EVENT_HANDLER) {
             result = VMCIEvent_Dispatch(dg);
          } else {
-            result = VMCIDatagram_Dispatch(dg->src.context, dg);
+            result = VMCIDatagram_InvokeGuestHandler(dg);
          }
          if (result < VMCI_SUCCESS) {
             VMCI_DEBUG_LOG(4, (LGPFX"Datagram with resource %d failed with "
@@ -576,79 +562,3 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
       }
    }
 }
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCIContext_GetPrivFlags --
- *
- *      Provided for compatibility with the host VMCI API.
- *
- * Results:
- *      Always returns VMCI_NO_PRIVILEGE_FLAGS.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIContext_GetPrivFlags)
-VMCIPrivilegeFlags
-VMCIContext_GetPrivFlags(VMCIId contextID) // IN
-{
-   return VMCI_NO_PRIVILEGE_FLAGS;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCI_ContextID2HostVmID --
- *
- *      Provided for compatibility with the host VMCI API.
- *
- * Results:
- *      Returns VMCI_ERROR_UNAVAILABLE.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCI_ContextID2HostVmID)
-int
-VMCI_ContextID2HostVmID(VMCIId contextID,    // IN
-                        void *hostVmID,      // OUT
-                        size_t hostVmIDLen)  // IN
-{
-   return VMCI_ERROR_UNAVAILABLE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCI_IsContextOwner --
- *
- *      Provided for compatibility with the host VMCI API.
- *
- * Results:
- *      Returns VMCI_ERROR_UNAVAILABLE.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCI_IsContextOwner)
-int
-VMCI_IsContextOwner(VMCIId contextID,   // IN
-                    void *hostUser)     // IN
-{
-   return VMCI_ERROR_UNAVAILABLE;
-}
-

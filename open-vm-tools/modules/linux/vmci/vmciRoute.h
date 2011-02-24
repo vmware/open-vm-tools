@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,16 +17,35 @@
  *********************************************************/
 
 /*
- * vmci_version.h --
+ * vmciRoute.h --
  *
- * Version definitions for the Linux vmci driver.
+ *	VMCI Routing.
  */
 
-#ifndef _VMCI_VERSION_H_
-#define _VMCI_VERSION_H_
+#ifndef _VMCI_ROUTE_H_
+#define _VMCI_ROUTE_H_
 
-#define VMCI_DRIVER_VERSION          9.1.7.0
-#define VMCI_DRIVER_VERSION_COMMAS   9,1,7,0
-#define VMCI_DRIVER_VERSION_STRING   "9.1.7.0"
+#define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMCORE
+#define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_VMKERNEL
+#include "includeCheck.h"
 
-#endif /* _VMCI_VERSION_H_ */
+#include "vmci_defs.h"
+
+
+typedef enum {
+   VMCI_ROUTE_NONE,
+   VMCI_ROUTE_HOST_TO_SELF,
+   VMCI_ROUTE_HOST_TO_GUEST,
+   VMCI_ROUTE_GUEST_TO_HOST,
+   VMCI_ROUTE_GUEST_TO_HYPERVISOR = VMCI_ROUTE_GUEST_TO_HOST
+} VMCIRoute;
+
+
+int VMCI_Route(VMCIHandle *src, const VMCIHandle *dst, Bool fromGuest,
+               VMCIRoute *route);
+const char *VMCI_RouteString(VMCIRoute route);
+
+
+#endif // _VMCI_ROUTE_H_

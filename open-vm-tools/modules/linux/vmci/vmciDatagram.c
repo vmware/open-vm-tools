@@ -19,86 +19,117 @@
 /*
  * vmciDatagram.c --
  *
- *      Simple Datagram API for the guest driver.
+ *    This file implements the VMCI Simple Datagram API on the host.
  */
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(VMKERNEL)
 #  include "driver-config.h"
-#  include <linux/module.h>
 #  include "compat_kernel.h"
-#  include "compat_pci.h"
-#elif defined(_WIN32)
-#  include <ntddk.h>
-#elif defined(SOLARIS)
-#  include <sys/ddi.h>
-#  include <sys/sunddi.h>
-#elif defined(__APPLE__)
-#else
-#  error "Platform not support by VMCI datagram API."
-#endif // linux
-
-#define LGPFX "VMCIDatagram: "
-
+#  include "compat_module.h"
+#endif // __linux__
 #include "vmci_kernel_if.h"
-#include "vm_basic_types.h"
 #include "vm_assert.h"
 #include "vmci_defs.h"
 #include "vmci_infrastructure.h"
+#include "vmciCommonInt.h"
+#include "vmciContext.h"
 #include "vmciDatagram.h"
-#include "vmciInt.h"
+#include "vmciEvent.h"
+#include "vmciHashtable.h"
 #include "vmciKernelAPI.h"
-#include "vmciUtil.h"
+#include "vmciResource.h"
+#include "vmciRoute.h"
+#ifdef VMX86_TOOLS
+#  include "vmciInt.h"
+#  include "vmciUtil.h"
+#elif defined(VMKERNEL)
+#  include "vmciVmkInt.h"
+#  include "vm_libc.h"
+#  include "helper_ext.h"
+#  include "vmciDriver.h"
+#else
+#  include "vmciDriver.h"
+#endif
 
-typedef struct DatagramHashEntry {
-   struct DatagramHashEntry  *next;
-   int                       refCount;
+#define LGPFX "VMCIDatagram: "
 
-   VMCIHandle                handle;
-   uint32                    flags;
-   Bool                      runDelayed;
-   VMCIDatagramRecvCB        recvCB;
-   void                      *clientData;
-   VMCIEvent                 destroyEvent;
-} DatagramHashEntry;
-
-#define HASH_TABLE_SIZE 64
-
-#define VMCI_HASHRESOURCE(handle, size)                              \
-   VMCI_HashId(VMCI_HANDLE_TO_RESOURCE_ID(handle), (size))
 
 /*
- * Hash table containing all the datagram handles for this VM. It is
- * synchronized using a single lock but we should consider making it more
- * fine grained, e.g. a per bucket lock or per set of buckets' lock.
+ * DatagramEntry describes the datagram entity. It is used for datagram
+ * entities created only on the host.
  */
+typedef struct DatagramEntry {
+   VMCIResource        resource;
+   uint32              flags;
+   Bool                runDelayed;
+   VMCIDatagramRecvCB  recvCB;
+   void                *clientData;
+   VMCIEvent           destroyEvent;
+   VMCIPrivilegeFlags  privFlags;
+} DatagramEntry;
 
-typedef struct DatagramHashTable {
-   VMCILock lock;
-   DatagramHashEntry *entries[HASH_TABLE_SIZE];
-} DatagramHashTable;
+/* Mapping between wellknown resource and context. */
+typedef struct DatagramWKMapping {
+   VMCIHashEntry entry;
+   VMCIId        contextID;
+} DatagramWKMapping;
 
 typedef struct VMCIDelayedDatagramInfo {
-   DatagramHashEntry *entry;
+   Bool inDGHostQueue;
+   DatagramEntry *entry;
    VMCIDatagram msg;
 } VMCIDelayedDatagramInfo;
 
 
-static int DatagramReleaseCB(void *clientData);
-static int DatagramHashAddEntry(DatagramHashEntry *entry, VMCIId contextID);
-static int DatagramHashRemoveEntry(VMCIHandle handle);
-static DatagramHashEntry *DatagramHashGetEntry(VMCIHandle handle);
-static DatagramHashEntry *DatagramHashGetEntryAnyCid(VMCIHandle handle);
-static void DatagramHashReleaseEntry(DatagramHashEntry *entry);
-static Bool DatagramHandleUniqueLockedAnyCid(VMCIHandle handle);
+/* Wellknown mapping hashtable. */
+static VMCIHashTable *wellKnownTable = NULL;
 
-DatagramHashTable hashTable;
+static Atomic_uint32 delayedDGHostQueueSize;
+
+static int VMCIDatagramGetPrivFlagsInt(VMCIId contextID, VMCIHandle handle,
+                                       VMCIPrivilegeFlags *privFlags);
+static void DatagramFreeCB(void *resource);
+static int DatagramReleaseCB(void *clientData);
+
+static DatagramWKMapping *DatagramGetWellKnownMap(VMCIId wellKnownID);
+static void DatagramReleaseWellKnownMap(DatagramWKMapping *wkMap);
+
+
+/*------------------------------ Helper functions ----------------------------*/
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ *  DatagramFreeCB --
+ *     Callback to free datagram structure when resource is no longer used,
+ *     ie. the reference count reached 0.
+ *
+ *  Result:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+static void
+DatagramFreeCB(void *clientData)
+{
+   DatagramEntry *entry = (DatagramEntry *)clientData;
+   ASSERT(entry);
+   VMCI_SignalEvent(&entry->destroyEvent);
+
+   /*
+    * The entry is freed in VMCIDatagram_DestroyHnd, who is waiting for the
+    * above signal.
+    */
+}
+
 
 /*
  *------------------------------------------------------------------------------
  *
  *  DatagramReleaseCB --
  *
- *     Callback to release the datagram entry reference. It is called by the
+ *     Callback to release the resource reference. It is called by the
  *     VMCI_WaitOnEvent function before it blocks.
  *
  *  Result:
@@ -110,365 +141,72 @@ DatagramHashTable hashTable;
 static int
 DatagramReleaseCB(void *clientData)
 {
-   DatagramHashEntry *entry = (DatagramHashEntry *)clientData;
+   DatagramEntry *entry = (DatagramEntry *)clientData;
    ASSERT(entry);
-   DatagramHashReleaseEntry(entry);
-
+   VMCIResource_Release(&entry->resource);
    return 0;
 }
 
 
 /*
- *-------------------------------------------------------------------------
- *
- *  DatagramHashAddEntry --
- *     Given a datagram handle entry, adds it to the hashtable of datagram
- *     entries.  Allocates a resource id iff the handle of the given entry
- *     is an invalid one.  0 through VMCI_RESERVED_RESOURCE_ID_MAX are
- *     reserved resource ids.
- *
- *  Result:
- *     VMCI_SUCCESS if added, error if not.
- *
- *-------------------------------------------------------------------------
- */
-
-static int
-DatagramHashAddEntry(DatagramHashEntry *entry, // IN:
-                     VMCIId contextID)         // IN:
-{
-   int idx;
-   VMCILockFlags flags;
-   static VMCIId datagramRID = VMCI_RESERVED_RESOURCE_ID_MAX + 1;
-
-   ASSERT(entry);
-
-   VMCI_GrabLock_BH(&hashTable.lock, &flags);
-
-   /* Do not allow addition of a new handle if the device is being shutdown. */
-   if (VMCI_DeviceShutdown()) {
-      VMCI_ReleaseLock_BH(&hashTable.lock, flags);
-      return VMCI_ERROR_DEVICE_NOT_FOUND;
-   }
-
-   if (!VMCI_HANDLE_INVALID(entry->handle) &&
-       !DatagramHandleUniqueLockedAnyCid(entry->handle)) {
-      VMCI_ReleaseLock_BH(&hashTable.lock, flags);
-      return VMCI_ERROR_DUPLICATE_ENTRY;
-   } else if (VMCI_HANDLE_INVALID(entry->handle)) {
-      VMCIId oldRID = datagramRID;
-      VMCIHandle handle;
-      Bool foundRID = FALSE;
-
-      /*
-       * Generate a unique datagram rid.  Keep on trying until we wrap around
-       * in the RID space.
-       */
-      ASSERT(oldRID > VMCI_RESERVED_RESOURCE_ID_MAX);
-      do {
-         handle = VMCI_MAKE_HANDLE(contextID, datagramRID);
-         foundRID = DatagramHandleUniqueLockedAnyCid(handle);
-         datagramRID++;
-         if (UNLIKELY(!datagramRID)) {
-            /*
-             * Skip the reserved rids.
-             */
-            datagramRID = VMCI_RESERVED_RESOURCE_ID_MAX + 1;
-         }
-      } while (!foundRID && datagramRID != oldRID);
-
-      if (LIKELY(foundRID)) {
-         entry->handle = handle;
-      } else {
-         /*
-          * We wrapped around --- no rids were free.
-          */
-         ASSERT(datagramRID == oldRID);
-         VMCI_ReleaseLock_BH(&hashTable.lock, flags);
-         return VMCI_ERROR_NO_HANDLE;
-      }
-   }
-
-   ASSERT(!VMCI_HANDLE_INVALID(entry->handle));
-   idx = VMCI_HASHRESOURCE(entry->handle, HASH_TABLE_SIZE);
-
-   /* New entry is added to top/front of hash bucket. */
-   entry->refCount++;
-   entry->next = hashTable.entries[idx];
-   hashTable.entries[idx] = entry;
-   VMCI_ReleaseLock_BH(&hashTable.lock, flags);
-
-   return VMCI_SUCCESS;
-}
-
-
-/*
- *-------------------------------------------------------------------------
- *
- *  DatagramHashRemoveEntry --
- *
- *  Result:
- *     VMCI_SUCCESS if removed, VMCI_ERROR_NO_HANDLE if not found.
- *
- *-------------------------------------------------------------------------
- */
-
-static int
-DatagramHashRemoveEntry(VMCIHandle handle)
-{
-   int result = VMCI_ERROR_NOT_FOUND;
-   VMCILockFlags flags;
-   DatagramHashEntry *prev, *cur;
-   int idx = VMCI_HASHRESOURCE(handle, HASH_TABLE_SIZE);
-
-   prev = NULL;
-   VMCI_GrabLock_BH(&hashTable.lock, &flags);
-   cur = hashTable.entries[idx];
-   while (TRUE) {
-      if (cur == NULL) {
-	 break;
-      }
-      if (VMCI_HANDLE_EQUAL(cur->handle, handle)) {
-	 /* Remove entry and break. */
-	 if (prev) {
-	    prev->next = cur->next;
-	 } else {
-	    hashTable.entries[idx] = cur->next;
-	 }
-
-	 cur->refCount--;
-
-	 /*
-	  * We know that DestroyHnd still has a reference so refCount must be
-	  * at least 1.
-	  */
-	 ASSERT(cur->refCount > 0);
-	 result = VMCI_SUCCESS;
-	 break;
-      }
-      prev = cur;
-      cur = cur->next;
-   }
-   VMCI_ReleaseLock_BH(&hashTable.lock, flags);
-
-   return result;
-}
-
-
-/*
- *-------------------------------------------------------------------------
- *
- *  DatagramHashGetEntry --
- *
- *     Gets the given datagram hashtable entry based on handle lookup.
- *
- *  Result:
- *     Datagram hash entry if found. NULL otherwise.
- *
- *-------------------------------------------------------------------------
- */
-
-static DatagramHashEntry *
-DatagramHashGetEntry(VMCIHandle handle) // IN
-{
-   VMCILockFlags flags;
-   DatagramHashEntry *cur;
-   int idx = VMCI_HASHRESOURCE(handle, HASH_TABLE_SIZE);
-
-   VMCI_GrabLock_BH(&hashTable.lock, &flags);
-
-   for (cur = hashTable.entries[idx]; cur != NULL; cur = cur->next) {
-      if (VMCI_HANDLE_EQUAL(cur->handle, handle)) {
-	 cur->refCount++;
-	 break;
-      }
-   }
-
-   VMCI_ReleaseLock_BH(&hashTable.lock, flags);
-
-   return cur;
-}
-
-
-/*
- *-------------------------------------------------------------------------
- *
- *  DatagramHashGetEntryAnyCid --
- *
- *     Gets the given datagram hashtable entry based on handle lookup.
- *     Will match "any" or specific cid.
- *
- *  Result:
- *     Datagram hash entry if found. NULL otherwise.
- *
- *-------------------------------------------------------------------------
- */
-
-static DatagramHashEntry *
-DatagramHashGetEntryAnyCid(VMCIHandle handle) // IN
-{
-   VMCILockFlags flags;
-   DatagramHashEntry *cur;
-   int idx = VMCI_HASHRESOURCE(handle, HASH_TABLE_SIZE);
-
-   VMCI_GrabLock_BH(&hashTable.lock, &flags);
-
-   for (cur = hashTable.entries[idx]; cur != NULL; cur = cur->next) {
-      if (VMCI_HANDLE_TO_RESOURCE_ID(cur->handle) ==
-          VMCI_HANDLE_TO_RESOURCE_ID(handle)) {
-         if (VMCI_HANDLE_TO_CONTEXT_ID(cur->handle) == VMCI_INVALID_ID ||
-             VMCI_HANDLE_TO_CONTEXT_ID(cur->handle) ==
-             VMCI_HANDLE_TO_CONTEXT_ID(handle)) {
-            cur->refCount++;
-            break;
-         }
-      }
-   }
-
-   VMCI_ReleaseLock_BH(&hashTable.lock, flags);
-
-   return cur;
-}
-
-
-/*
- *-------------------------------------------------------------------------
- *
- *  DatagramHashReleaseEntry --
- *
- *     Drops a reference to the current hash entry. If this is the last
- *     reference then the entry is freed.
- *
- *  Result:
- *     None.
- *
- *-------------------------------------------------------------------------
- */
-
-static void
-DatagramHashReleaseEntry(DatagramHashEntry *entry) // IN
-{
-   VMCILockFlags flags;
-
-   VMCI_GrabLock_BH(&hashTable.lock, &flags);
-   entry->refCount--;
-
-   /* Check if this is last reference and signal the destroy event if so. */
-   if (entry->refCount == 0) {
-      VMCI_SignalEvent(&entry->destroyEvent);
-   }
-   VMCI_ReleaseLock_BH(&hashTable.lock, flags);
-}
-
-
-/*
  *------------------------------------------------------------------------------
  *
- *  DatagramHandleUniqueLockedAnyCid --
+ * DatagramCreateHnd --
  *
- *     Checks whether the resource id (with any context id) is already in the
- *     hash table.
- *     Assumes that the caller has the hash table lock.
- *
- *  Result:
- *     TRUE if the handle is unique. FALSE otherwise.
- *
- *------------------------------------------------------------------------------
- */
-
-static Bool
-DatagramHandleUniqueLockedAnyCid(VMCIHandle handle) // IN
-{
-   Bool unique = TRUE;
-   DatagramHashEntry *entry;
-   int idx = VMCI_HASHRESOURCE(handle, HASH_TABLE_SIZE);
-
-   entry = hashTable.entries[idx];
-   while (entry) {
-      if (VMCI_HANDLE_TO_RESOURCE_ID(entry->handle) ==
-          VMCI_HANDLE_TO_RESOURCE_ID(handle)) {
-	 unique = FALSE;
-	 break;
-      }
-      entry = entry->next;
-   }
-
-   return unique;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIDatagram_CreateHnd --
- *
- *      Creates a datagram endpoint and returns a handle to it.
+ *      Internal function to create a datagram entry given a handle.
  *
  * Results:
- *      Returns handle if success, negative errno value otherwise.
+ *      VMCI_SUCCESS if created, negative errno value otherwise.
  *
  * Side effects:
- *      Datagram endpoint is created both in guest and on host.
+ *      None.
  *
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIDatagram_CreateHnd)
-int
-VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN
-                       uint32 flags,               // IN
-                       VMCIDatagramRecvCB recvCB,  // IN
-                       void *clientData,           // IN
-                       VMCIHandle *outHandle)      // OUT
+static int
+DatagramCreateHnd(VMCIId resourceID,            // IN:
+                  uint32 flags,                 // IN:
+                  VMCIPrivilegeFlags privFlags, // IN:
+                  VMCIDatagramRecvCB recvCB,    // IN:
+                  void *clientData,             // IN:
+                  VMCIHandle *outHandle)        // OUT:
+
 {
    int result;
-   DatagramHashEntry *entry;
-   VMCIHandle handle;
    VMCIId contextID;
+   VMCIHandle handle;
+   DatagramEntry *entry;
 
-   if (!recvCB || !outHandle) {
-      return VMCI_ERROR_INVALID_ARGS;
-   }
-
-   if ((flags & VMCI_FLAG_ANYCID_DG_HND) != 0) {
-      contextID = VMCI_INVALID_ID;
-   } else {
-      contextID = VMCI_GetContextID();
-      /* Validate contextID. */
-      if (contextID == VMCI_INVALID_ID) {
-         return VMCI_ERROR_NO_RESOURCES;
-      }
-   }
+   ASSERT(recvCB != NULL);
+   ASSERT(outHandle != NULL);
+   ASSERT(!(privFlags & ~VMCI_PRIVILEGE_ALL_FLAGS));
 
    if ((flags & VMCI_FLAG_WELLKNOWN_DG_HND) != 0) {
-      VMCIDatagramWellKnownMapMsg wkMsg;
-      if (resourceID == VMCI_INVALID_ID) {
-         return VMCI_ERROR_INVALID_ARGS;
-      }
-      wkMsg.hdr.dst.context = VMCI_HYPERVISOR_CONTEXT_ID;
-      wkMsg.hdr.dst.resource = VMCI_DATAGRAM_REQUEST_MAP;
-      wkMsg.hdr.src = VMCI_ANON_SRC_HANDLE;
-      wkMsg.hdr.payloadSize = sizeof wkMsg - VMCI_DG_HEADERSIZE;
-      wkMsg.wellKnownID = resourceID;
-      result = VMCI_SendDatagram((VMCIDatagram *)&wkMsg);
-      if (result < VMCI_SUCCESS) {
-         VMCI_DEBUG_LOG(4, (LGPFX"Failed to reserve wellknown id %d, "
-                            "error %d.\n", resourceID, result));
-         return result;
+      return VMCI_ERROR_INVALID_ARGS;
+   } else {
+      if ((flags & VMCI_FLAG_ANYCID_DG_HND) != 0) {
+         contextID = VMCI_INVALID_ID;
+      } else {
+         contextID = VMCI_GetContextID();
+         if (contextID == VMCI_INVALID_ID) {
+            return VMCI_ERROR_NO_RESOURCES;
+         }
       }
 
-      handle = VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID, resourceID);
-   } else {
       if (resourceID == VMCI_INVALID_ID) {
-         handle = VMCI_INVALID_HANDLE;
-      } else {
-         handle = VMCI_MAKE_HANDLE(contextID, resourceID);
+         resourceID = VMCIResource_GetID(contextID);
+         if (resourceID == VMCI_INVALID_ID) {
+            return VMCI_ERROR_NO_HANDLE;
+         }
       }
+
+      handle = VMCI_MAKE_HANDLE(contextID, resourceID);
    }
 
-   /* Update local datastructure. */
    entry = VMCI_AllocKernelMem(sizeof *entry, VMCI_MEMORY_NONPAGED);
    if (entry == NULL) {
+      VMCI_WARNING((LGPFX"Failed allocating memory for datagram entry.\n"));
       return VMCI_ERROR_NO_MEM;
    }
 
@@ -482,109 +220,220 @@ VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN
       entry->runDelayed = (flags & VMCI_FLAG_DG_DELAYED_CB) ? TRUE : FALSE;
    }
 
-   entry->handle = handle;
    entry->flags = flags;
    entry->recvCB = recvCB;
    entry->clientData = clientData;
-   entry->refCount = 0;
    VMCI_CreateEvent(&entry->destroyEvent);
+   entry->privFlags = privFlags;
 
-   result = DatagramHashAddEntry(entry, contextID);
+   /* Make datagram resource live. */
+   result = VMCIResource_Add(&entry->resource, VMCI_RESOURCE_TYPE_DATAGRAM,
+                             handle, DatagramFreeCB, entry);
    if (result != VMCI_SUCCESS) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Failed to add new entry, err 0x%x.\n", result));
+      VMCI_WARNING((LGPFX"Failed to add new resource %d:%d.\n",
+                    handle.context, handle.resource));
       VMCI_DestroyEvent(&entry->destroyEvent);
       VMCI_FreeKernelMem(entry, sizeof *entry);
       return result;
    }
+   *outHandle = handle;
 
-   ASSERT(!VMCI_HANDLE_INVALID(entry->handle));
-   *outHandle = entry->handle;
+   return VMCI_SUCCESS;
+}
+
+
+/*------------------------------ Init functions ----------------------------*/
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ *  VMCIDatagram_Init --
+ *
+ *     Initialize Datagram API, ie. register the API functions with their
+ *     corresponding vectors.
+ *
+ *  Result:
+ *     None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+int
+VMCIDatagram_Init(void)
+{
+   /* Create hash table for wellknown mappings. */
+   wellKnownTable = VMCIHashTable_Create(32);
+   if (wellKnownTable == NULL) {
+      return VMCI_ERROR_NO_RESOURCES;
+   }
+
+   Atomic_Write(&delayedDGHostQueueSize, 0);
    return VMCI_SUCCESS;
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
- * VMCIDatagram_CreateHndPriv --
+ *  VMCIDatagram_Exit --
  *
- *      API provided for compatibility with the host vmci API. This function
- *      doesn't ever succeed since you can't ask for elevated privileges from
- *      the guest. Use VMCIDatagram_CreateHnd instead.
+ *     Cleanup Datagram API.
  *
- * Results:
- *      Returns a negative error.
+ *  Result:
+ *     None.
  *
  * Side effects:
  *      None.
  *
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIDatagram_CreateHndPriv)
-int
-VMCIDatagram_CreateHndPriv(VMCIId resourceID,            // IN:
-                           uint32 flags,                 // IN:
-                           VMCIPrivilegeFlags privFlags, // IN:
-                           VMCIDatagramRecvCB recvCB,    // IN:
-                           void *clientData,             // IN:
-                           VMCIHandle *outHandle)        // OUT:
+void
+VMCIDatagram_Exit(void)
 {
-   return VMCI_ERROR_NO_ACCESS;
+   if (wellKnownTable != NULL) {
+      VMCIHashTable_Destroy(wellKnownTable);
+      wellKnownTable = NULL;
+   }
+}
+
+
+/*------------------------------ Public API functions ------------------------*/
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * VMCIDatagram_CreateHnd --
+ *
+ *      Creates a host context datagram endpoint and returns a handle to it.
+ *
+ * Results:
+ *      VMCI_SUCCESS if created, negative errno value otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCIDatagram_CreateHnd)
+int
+VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN: Optional, generated
+                                                   //     if VMCI_INVALID_ID
+                       uint32 flags,               // IN:
+                       VMCIDatagramRecvCB recvCB,  // IN:
+                       void *clientData,           // IN:
+                       VMCIHandle *outHandle)      // OUT: newly created handle
+{
+   if (outHandle == NULL) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   if (recvCB == NULL) {
+      VMCI_DEBUG_LOG(4,
+                     (LGPFX"Client callback needed when creating datagram.\n"));
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   return DatagramCreateHnd(resourceID, flags, VMCI_DEFAULT_PROC_PRIVILEGE_FLAGS,
+                            recvCB, clientData, outHandle);
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
+ *
+ * VMCIDatagram_CreateHndPriv --
+ *
+ *      Creates a host context datagram endpoint and returns a handle to it.
+ *
+ * Results:
+ *      VMCI_SUCCESS if created, negative errno value otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCIDatagram_CreateHndPriv)
+int
+VMCIDatagram_CreateHndPriv(VMCIId resourceID,           // IN: Optional, generated
+                                                        //     if VMCI_INVALID_ID
+                           uint32 flags,                // IN:
+                           VMCIPrivilegeFlags privFlags,// IN:
+                           VMCIDatagramRecvCB recvCB,   // IN:
+                           void *clientData,            // IN:
+                           VMCIHandle *outHandle)       // OUT: newly created handle
+{
+   if (outHandle == NULL) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   if (recvCB == NULL) {
+      VMCI_DEBUG_LOG(4,
+                     (LGPFX"Client callback needed when creating datagram.\n"));
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   if (privFlags & ~VMCI_PRIVILEGE_ALL_FLAGS) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   return DatagramCreateHnd(resourceID, flags, privFlags, recvCB, clientData,
+                            outHandle);
+}
+
+
+/*
+ *------------------------------------------------------------------------------
  *
  * VMCIDatagram_DestroyHnd --
  *
  *      Destroys a handle.
  *
  * Results:
- *      VMCI_SUCCESS or error code.
+ *      None.
  *
  * Side effects:
- *      Host and guest state is cleaned up.
+ *      None.
  *
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 VMCI_EXPORT_SYMBOL(VMCIDatagram_DestroyHnd)
 int
 VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
 {
-   DatagramHashEntry *entry = DatagramHashGetEntry(handle);
-   if (entry == NULL) {
+   DatagramEntry *entry;
+   VMCIResource *resource = VMCIResource_Get(handle,
+                                             VMCI_RESOURCE_TYPE_DATAGRAM);
+   if (resource == NULL) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to destroy handle 0x%x:0x%x.\n",
+                         handle.context, handle.resource));
       return VMCI_ERROR_NOT_FOUND;
    }
+   entry = RESOURCE_CONTAINER(resource, DatagramEntry, resource);
 
-   DatagramHashRemoveEntry(entry->handle);
+   VMCIResource_Remove(handle, VMCI_RESOURCE_TYPE_DATAGRAM);
 
    /*
-    * We wait for destroyEvent to be signalled. The resource is released
-    * as part of the wait.
+    * We now wait on the destroyEvent and release the reference we got
+    * above.
     */
    VMCI_WaitOnEvent(&entry->destroyEvent, DatagramReleaseCB, entry);
 
-
    if ((entry->flags & VMCI_FLAG_WELLKNOWN_DG_HND) != 0) {
-      int result;
-      VMCIDatagramWellKnownMapMsg wkMsg;
-
-      wkMsg.hdr.dst.context = VMCI_HYPERVISOR_CONTEXT_ID;
-      wkMsg.hdr.dst.resource = VMCI_DATAGRAM_REMOVE_MAP;
-      wkMsg.hdr.src = VMCI_ANON_SRC_HANDLE;
-      wkMsg.hdr.payloadSize = sizeof wkMsg - VMCI_DG_HEADERSIZE;
-      wkMsg.wellKnownID = entry->handle.resource;
-      result = VMCI_SendDatagram((VMCIDatagram *)&wkMsg);
-      if (result < VMCI_SUCCESS) {
-	 VMCI_WARNING((LGPFX"Failed to remove well-known mapping for "
-                       "resource %d.\n", entry->handle.resource));
-      }
+      VMCIDatagramRemoveWellKnownMap(handle.resource, VMCI_HOST_CONTEXT_ID);
    }
 
-   /* We know we are now holding the last reference so we can free the entry. */
+   /*
+    * We know that we are now the only reference to the above entry so
+     * can safely free it.
+     */
    VMCI_DestroyEvent(&entry->destroyEvent);
    VMCI_FreeKernelMem(entry, sizeof *entry);
 
@@ -593,59 +442,80 @@ VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
 
 
 /*
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
- * VMCIDatagram_Send --
+ *  VMCIDatagramGetPrivFlagsInt --
  *
- *      Sends the payload to the destination datagram handle.
+ *     Internal utilility function with the same purpose as
+ *     VMCIDatagram_GetPrivFlags that also takes a contextID.
  *
- * Results:
- *      Returns number of bytes sent if success, or error code if failure.
+ *  Result:
+ *     VMCI_SUCCESS on success, VMCI_ERROR_INVALID_ARGS if handle is invalid.
  *
- * Side effects:
- *      None.
+ *  Side effects:
+ *     None.
  *
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIDatagram_Send)
-int
-VMCIDatagram_Send(VMCIDatagram *msg) // IN
+static int
+VMCIDatagramGetPrivFlagsInt(VMCIId contextID,              // IN
+                            VMCIHandle handle,             // IN
+                            VMCIPrivilegeFlags *privFlags) // OUT
 {
-   uint32 retval;
-   DatagramHashEntry *entry;
-   VMCIId contextId;
+   ASSERT(privFlags);
+   ASSERT(contextID != VMCI_INVALID_ID);
 
-   if (msg == NULL) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Invalid datagram.\n"));
+   if (contextID == VMCI_HOST_CONTEXT_ID) {
+      DatagramEntry *srcEntry;
+      VMCIResource *resource;
+
+      resource = VMCIResource_Get(handle, VMCI_RESOURCE_TYPE_DATAGRAM);
+      if (resource == NULL) {
+         return VMCI_ERROR_INVALID_ARGS;
+      }
+      srcEntry = RESOURCE_CONTAINER(resource, DatagramEntry, resource);
+      *privFlags = srcEntry->privFlags;
+      VMCIResource_Release(resource);
+   } else if (contextID == VMCI_HYPERVISOR_CONTEXT_ID) {
+      *privFlags = VMCI_MAX_PRIVILEGE_FLAGS;
+   } else {
+      *privFlags = VMCIContext_GetPrivFlags(contextID);
+   }
+
+   return VMCI_SUCCESS;
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ *  VMCIDatagram_GetPrivFlags --
+ *
+ *     Utilility function that retrieves the privilege flags
+ *     associated with a given datagram handle. For hypervisor and
+ *     guest endpoints, the privileges are determined by the context
+ *     ID, but for host endpoints privileges are associated with the
+ *     complete handle.
+ *
+ *  Result:
+ *     VMCI_SUCCESS on success, VMCI_ERROR_INVALID_ARGS if handle is invalid.
+ *
+ *  Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+int
+VMCIDatagram_GetPrivFlags(VMCIHandle handle,             // IN
+                          VMCIPrivilegeFlags *privFlags) // OUT
+{
+   if (privFlags == NULL || handle.context == VMCI_INVALID_ID) {
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   if (VMCI_DG_SIZE(msg) > VMCI_MAX_DG_SIZE) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Payload size %"FMT64"u too big to send.\n",
-                         msg->payloadSize));
-      return VMCI_ERROR_INVALID_ARGS;
-   }
-
-   /* Check srcHandle exists otherwise fail. */
-   entry = DatagramHashGetEntry(msg->src);
-   if (entry == NULL) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Couldn't find handle 0x%x:0x%x.\n",
-                         msg->src.context, msg->src.resource));
-      return VMCI_ERROR_INVALID_ARGS;
-   }
-
-   contextId = VMCI_HANDLE_TO_CONTEXT_ID(msg->src);
-
-   if (contextId == VMCI_INVALID_ID) {
-      msg->src = VMCI_MAKE_HANDLE(VMCI_GetContextID(),
-                                  VMCI_HANDLE_TO_RESOURCE_ID(msg->src));
-   }
-
-   retval = VMCI_SendDatagram(msg);
-   DatagramHashReleaseEntry(entry);
-
-   return retval;
+   return VMCIDatagramGetPrivFlagsInt(handle.context, handle, privFlags);
 }
 
 
@@ -668,96 +538,629 @@ VMCIDatagram_Send(VMCIDatagram *msg) // IN
 static void
 VMCIDatagramDelayedDispatchCB(void *data) // IN
 {
+   Bool inDGHostQueue;
    VMCIDelayedDatagramInfo *dgInfo = (VMCIDelayedDatagramInfo *)data;
 
    ASSERT(data);
 
    dgInfo->entry->recvCB(dgInfo->entry->clientData, &dgInfo->msg);
 
-   DatagramHashReleaseEntry(dgInfo->entry);
+   VMCIResource_Release(&dgInfo->entry->resource);
+
+   inDGHostQueue = dgInfo->inDGHostQueue;
    VMCI_FreeKernelMem(dgInfo, sizeof *dgInfo + (size_t)dgInfo->msg.payloadSize);
+
+   if (inDGHostQueue) {
+      Atomic_Dec(&delayedDGHostQueueSize);
+   }
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
- * VMCIDatagram_Dispatch --
+ *  VMCIDatagramDispatchFromHostToSelfOrGuest --
  *
- *      Forwards the datagram to the corresponding entry's callback.  This will
- *      defer the datagram if requested by the client, so that the callback
- *      is invoked in a delayed context.
+ *     Dispatch datagram to host or other vm context. This function cannot
+ *     dispatch to hypervisor context handlers. This should have been handled
+ *     before we get here by VMCIDatagramDispatch.
+ *
+ *  Result:
+ *     Number of bytes sent on success, appropriate error code otherwise.
+ *
+ *  Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+static int
+VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
+                                          VMCIDatagram *dg)  // IN:
+{
+   int retval;
+   size_t dgSize;
+   VMCIId dstContext;
+   VMCIPrivilegeFlags srcPrivFlags;
+   char srcDomain[VMCI_DOMAIN_NAME_MAXLEN]; /* Not used on hosted. */
+   char dstDomain[VMCI_DOMAIN_NAME_MAXLEN]; /* Not used on hosted. */
+
+   ASSERT(dg);
+
+   dgSize = VMCI_DG_SIZE(dg);
+
+   if (contextID == VMCI_HOST_CONTEXT_ID &&
+       dg->dst.context == VMCI_HYPERVISOR_CONTEXT_ID) {
+      return VMCI_ERROR_DST_UNREACHABLE;
+   }
+
+   ASSERT(dg->dst.context != VMCI_HYPERVISOR_CONTEXT_ID);
+
+   VMCI_DEBUG_LOG(10, (LGPFX"Sending from handle 0x%x:0x%x to handle 0x%x:0x%x, "
+                       "datagram size %u.\n",
+                       dg->src.context, dg->src.resource,
+                       dg->dst.context, dg->dst.resource, (uint32)dgSize));
+
+   /*
+    * Check that source handle matches sending context.
+    */
+   if (dg->src.context != contextID) {
+      if (dg->src.context == VMCI_WELL_KNOWN_CONTEXT_ID) {
+         /* Determine mapping. */
+         DatagramWKMapping *wkMap = DatagramGetWellKnownMap(dg->src.resource);
+         if (wkMap == NULL) {
+            VMCI_DEBUG_LOG(4, (LGPFX"Sending from invalid well-known resource "
+                               "id 0x%x:0x%x.\n",
+                               dg->src.context, dg->src.resource));
+            return VMCI_ERROR_INVALID_RESOURCE;
+         }
+         if (wkMap->contextID != contextID) {
+            VMCI_DEBUG_LOG(4, (LGPFX"Sender context 0x%x is not owner of "
+                               "well-known src datagram entry with handle "
+                               "0x%x:0x%x.\n",
+                               contextID, dg->src.context, dg->src.resource));
+            DatagramReleaseWellKnownMap(wkMap);
+            return VMCI_ERROR_NO_ACCESS;
+         }
+         DatagramReleaseWellKnownMap(wkMap);
+      } else {
+         VMCI_DEBUG_LOG(4, (LGPFX"Sender context 0x%x is not owner of src "
+                            "datagram entry with handle 0x%x:0x%x.\n",
+                            contextID, dg->src.context, dg->src.resource));
+         return VMCI_ERROR_NO_ACCESS;
+      }
+   }
+
+   if (dg->dst.context == VMCI_WELL_KNOWN_CONTEXT_ID) {
+      /* Determine mapping. */
+      DatagramWKMapping *wkMap = DatagramGetWellKnownMap(dg->dst.resource);
+      if (wkMap == NULL) {
+         VMCI_DEBUG_LOG(4, (LGPFX"Sending to invalid wellknown destination "
+                            "0x%x:0x%x.\n",
+                            dg->dst.context, dg->dst.resource));
+         return VMCI_ERROR_DST_UNREACHABLE;
+      }
+      dstContext = wkMap->contextID;
+      DatagramReleaseWellKnownMap(wkMap);
+   } else {
+      dstContext = dg->dst.context;
+   }
+
+   /*
+    * Get hold of privileges of sending endpoint.
+    */
+
+   retval = VMCIDatagramGetPrivFlagsInt(contextID, dg->src, &srcPrivFlags);
+   if (retval != VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Couldn't get privileges for handle 0x%x:0x%x.\n",
+                    dg->src.context, dg->src.resource));
+      return retval;
+   }
+
+#ifdef VMKERNEL
+   /*
+    * In the vmkernel, all communicating contexts except the
+    * hypervisor context must belong to the same domain. If the
+    * hypervisor is the source, the domain doesn't matter.
+    */
+
+   if (contextID != VMCI_HYPERVISOR_CONTEXT_ID) {
+      retval = VMCIContext_GetDomainName(contextID, srcDomain,
+                                         sizeof srcDomain);
+      if (retval < VMCI_SUCCESS) {
+         VMCI_WARNING((LGPFX"Failed to get domain name for context %u.\n",
+                       contextID));
+         return retval;
+      }
+   }
+#endif
+
+   /* Determine if we should route to host or guest destination. */
+   if (dstContext == VMCI_HOST_CONTEXT_ID) {
+      /* Route to host datagram entry. */
+      DatagramEntry *dstEntry;
+      VMCIResource *resource;
+
+      if (dg->src.context == VMCI_HYPERVISOR_CONTEXT_ID &&
+          dg->dst.resource == VMCI_EVENT_HANDLER) {
+         return VMCIEvent_Dispatch(dg);
+      }
+
+      resource = VMCIResource_Get(dg->dst, VMCI_RESOURCE_TYPE_DATAGRAM);
+      if (resource == NULL) {
+         VMCI_DEBUG_LOG(4, (LGPFX"Sending to invalid destination handle "
+                            "0x%x:0x%x.\n", dg->dst.context, dg->dst.resource));
+         return VMCI_ERROR_INVALID_RESOURCE;
+      }
+      dstEntry = RESOURCE_CONTAINER(resource, DatagramEntry, resource);
+#ifdef VMKERNEL
+      retval = VMCIContext_GetDomainName(VMCI_HOST_CONTEXT_ID, dstDomain,
+                                         sizeof dstDomain);
+      if (retval < VMCI_SUCCESS) {
+         VMCI_WARNING((LGPFX"Failed to get domain name for context %u.\n",
+                       VMCI_HOST_CONTEXT_ID));
+         VMCIResource_Release(resource);
+         return retval;
+      }
+#endif
+      if (VMCIDenyInteraction(srcPrivFlags, dstEntry->privFlags, srcDomain,
+                              dstDomain)) {
+         VMCIResource_Release(resource);
+         return VMCI_ERROR_NO_ACCESS;
+      }
+      ASSERT(dstEntry->recvCB);
+
+      /*
+       * If a VMCI datagram destined for the host is also sent by the
+       * host, we always run it delayed. This ensures that no locks
+       * are held when the datagram callback runs.
+       */
+
+      if (dstEntry->runDelayed ||
+          (dg->src.context == VMCI_HOST_CONTEXT_ID &&
+           VMCI_CanScheduleDelayedWork())) {
+         VMCIDelayedDatagramInfo *dgInfo;
+
+         if (Atomic_FetchAndAdd(&delayedDGHostQueueSize, 1) ==
+             VMCI_MAX_DELAYED_DG_HOST_QUEUE_SIZE) {
+            Atomic_Dec(&delayedDGHostQueueSize);
+            VMCIResource_Release(resource);
+            return VMCI_ERROR_NO_MEM;
+         }
+
+         dgInfo = VMCI_AllocKernelMem(sizeof *dgInfo + (size_t)dg->payloadSize,
+                                      (VMCI_MEMORY_ATOMIC |
+                                       VMCI_MEMORY_NONPAGED));
+         if (NULL == dgInfo) {
+            Atomic_Dec(&delayedDGHostQueueSize);
+            VMCIResource_Release(resource);
+            return VMCI_ERROR_NO_MEM;
+         }
+
+         dgInfo->inDGHostQueue = TRUE;
+         dgInfo->entry = dstEntry;
+         memcpy(&dgInfo->msg, dg, dgSize);
+
+         retval = VMCI_ScheduleDelayedWork(VMCIDatagramDelayedDispatchCB, dgInfo);
+         if (retval < VMCI_SUCCESS) {
+            VMCI_WARNING((LGPFX"Failed to schedule delayed work for datagram, "
+                          "result %d.\n", retval));
+            VMCI_FreeKernelMem(dgInfo, sizeof *dgInfo + (size_t)dg->payloadSize);
+            VMCIResource_Release(resource);
+            Atomic_Dec(&delayedDGHostQueueSize);
+            return retval;
+         }
+      } else {
+         retval = dstEntry->recvCB(dstEntry->clientData, dg);
+         VMCIResource_Release(resource);
+         if (retval < VMCI_SUCCESS) {
+            return retval;
+         }
+      }
+   } else {
+      /* Route to destination VM context. */
+      VMCIDatagram *newDG;
+
+#ifdef VMKERNEL
+      retval = VMCIContext_GetDomainName(dstContext, dstDomain,
+                                         sizeof dstDomain);
+      if (retval < VMCI_SUCCESS) {
+         VMCI_DEBUG_LOG(4, (LGPFX"Failed to get domain name for context %u.\n",
+                            dstContext));
+         return retval;
+      }
+#endif
+      if (contextID != dstContext &&
+         VMCIDenyInteraction(srcPrivFlags, VMCIContext_GetPrivFlags(dstContext),
+                             srcDomain, dstDomain)) {
+         return VMCI_ERROR_NO_ACCESS;
+      }
+
+      /* We make a copy to enqueue. */
+      newDG = VMCI_AllocKernelMem(dgSize, VMCI_MEMORY_NORMAL);
+      if (newDG == NULL) {
+         return VMCI_ERROR_NO_MEM;
+      }
+      memcpy(newDG, dg, dgSize);
+      retval = VMCIContext_EnqueueDatagram(dstContext, newDG);
+      if (retval < VMCI_SUCCESS) {
+         VMCI_FreeKernelMem(newDG, dgSize);
+         return retval;
+      }
+   }
+   /* The datagram is freed when the context reads it. */
+   VMCI_DEBUG_LOG(10, (LGPFX"Sent datagram of size %u.\n", (uint32)dgSize));
+
+   /*
+    * We currently truncate the size to signed 32 bits. This doesn't
+    * matter for this handler as it only support 4Kb messages.
+    */
+   return (int)dgSize;
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ *  VMCIDatagramDispatchFromGuestToHost --
+ *
+ *     Dispatch datagram down through the VMX, and potentially to the host.
+ *
+ *  Result:
+ *     Number of bytes sent on success, appropriate error code otherwise.
+ *
+ *  Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+static int
+VMCIDatagramDispatchFromGuestToHost(VMCIDatagram *dg)
+{
+#if defined(VMKERNEL)
+   VMCI_WARNING((LGPFX"Cannot send down to host from VMKERNEL.\n"));
+   return VMCI_ERROR_DST_UNREACHABLE;
+#else // VMKERNEL
+   int retval;
+   VMCIResource *resource;
+   extern int VMCI_SendDatagram(VMCIDatagram *);
+
+   resource = VMCIResource_Get(dg->src, VMCI_RESOURCE_TYPE_DATAGRAM);
+   if (NULL == resource) {
+      return VMCI_ERROR_NO_HANDLE;
+   }
+
+   retval = VMCI_SendDatagram(dg);
+   VMCIResource_Release(resource);
+   return retval;
+#endif // VMKERNEL
+}
+
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ *  VMCIDatagram_Dispatch --
+ *
+ *     Dispatch datagram.  This will determine the routing for the datagram
+ *     and dispatch it accordingly.
+ *
+ *  Result:
+ *     Number of bytes sent on success, appropriate error code otherwise.
+ *
+ *  Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+int
+VMCIDatagram_Dispatch(VMCIId contextID,
+                      VMCIDatagram *dg,
+                      Bool fromGuest)
+{
+   int retval;
+   VMCIRoute route;
+
+   ASSERT(dg);
+   ASSERT_ON_COMPILE(sizeof(VMCIDatagram) == 24);
+
+   if (VMCI_DG_SIZE(dg) > VMCI_MAX_DG_SIZE) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Payload size %"FMT64"u too big to send.\n",
+                         dg->payloadSize));
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   retval = VMCI_Route(&dg->src, &dg->dst, fromGuest, &route);
+   if (retval < VMCI_SUCCESS) {
+      return retval;
+   }
+
+   if (VMCI_ROUTE_HOST_TO_SELF == route ||
+       VMCI_ROUTE_HOST_TO_GUEST == route) {
+      if (VMCI_INVALID_ID == contextID) {
+         contextID = VMCI_HOST_CONTEXT_ID;
+      }
+      return VMCIDatagramDispatchFromHostToSelfOrGuest(contextID, dg);
+   }
+
+   if (VMCI_ROUTE_GUEST_TO_HOST == route ||
+       VMCI_ROUTE_GUEST_TO_HYPERVISOR == route) {
+      return VMCIDatagramDispatchFromGuestToHost(dg);
+   }
+
+   VMCI_WARNING((LGPFX"Unknown route for datagram.\n"));
+   return VMCI_ERROR_DST_UNREACHABLE;
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ *  VMCIDatagram_InvokeGuestHandler --
+ *
+ *     Invoke the handler for the given datagram.  This is intended to be
+ *     called only when acting as a guest and receiving a datagram from the
+ *     virtual device.
+ *
+ *  Result:
+ *     VMCI_SUCCESS on success, other error values on failure.
+ *
+ *  Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+int
+VMCIDatagram_InvokeGuestHandler(VMCIDatagram *dg) // IN
+{
+#if defined(VMKERNEL)
+   VMCI_WARNING((LGPFX"Cannot dispatch within guest in VMKERNEL.\n"));
+   return VMCI_ERROR_DST_UNREACHABLE;
+#else // VMKERNEL
+   int retval;
+   VMCIResource *resource;
+   DatagramEntry *dstEntry;
+
+   ASSERT(dg);
+
+   resource = VMCIResource_Get(dg->dst, VMCI_RESOURCE_TYPE_DATAGRAM);
+   if (NULL == resource) {
+      VMCI_DEBUG_LOG(4, (LGPFX"destination handle 0x%x:0x%x doesn't exist.\n",
+                         dg->dst.context, dg->dst.resource));
+      return VMCI_ERROR_NO_HANDLE;
+   }
+
+   dstEntry = RESOURCE_CONTAINER(resource, DatagramEntry, resource);
+   if (dstEntry->runDelayed) {
+      VMCIDelayedDatagramInfo *dgInfo;
+
+      dgInfo = VMCI_AllocKernelMem(sizeof *dgInfo + (size_t)dg->payloadSize,
+                                   (VMCI_MEMORY_ATOMIC | VMCI_MEMORY_NONPAGED));
+      if (NULL == dgInfo) {
+         VMCIResource_Release(resource);
+         retval = VMCI_ERROR_NO_MEM;
+         goto exit;
+      }
+
+      dgInfo->inDGHostQueue = FALSE;
+      dgInfo->entry = dstEntry;
+      memcpy(&dgInfo->msg, dg, VMCI_DG_SIZE(dg));
+
+      retval = VMCI_ScheduleDelayedWork(VMCIDatagramDelayedDispatchCB, dgInfo);
+      if (retval < VMCI_SUCCESS) {
+         VMCI_WARNING((LGPFX"Failed to schedule delayed work for datagram, "
+                       "result %d.\n", retval));
+         VMCI_FreeKernelMem(dgInfo, sizeof *dgInfo + (size_t)dg->payloadSize);
+         VMCIResource_Release(resource);
+         dgInfo = NULL;
+         goto exit;
+      }
+   } else {
+      dstEntry->recvCB(dstEntry->clientData, dg);
+      VMCIResource_Release(resource);
+      retval = VMCI_SUCCESS;
+   }
+
+exit:
+   return retval;
+#endif // VMKERNEL
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * VMCIDatagram_Send --
+ *
+ *      Sends the payload to the destination datagram handle.
  *
  * Results:
- *      VMCI_SUCCESS on success, error code if not.
+ *      Returns number of bytes sent if success, or error code if failure.
  *
  * Side effects:
  *      None.
  *
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCIDatagram_Send)
+int
+VMCIDatagram_Send(VMCIDatagram *msg) // IN
+{
+   if (msg == NULL) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   return VMCIDatagram_Dispatch(VMCI_INVALID_ID, msg, FALSE);
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * DatagramGetWellKnownMap --
+ *
+ *      Gets a mapping between handle and wellknown resource.
+ *
+ * Results:
+ *      DatagramWKMapping * if found, NULL if not.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+static DatagramWKMapping *
+DatagramGetWellKnownMap(VMCIId wellKnownID)  // IN:
+{
+   VMCIHashEntry *entry;
+   DatagramWKMapping *wkMap = NULL;
+   VMCIHandle wkHandle = VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID,
+                                          wellKnownID);
+   entry = VMCIHashTable_GetEntry(wellKnownTable, wkHandle);
+   if (entry != NULL) {
+      wkMap = RESOURCE_CONTAINER(entry, DatagramWKMapping, entry);
+   }
+   return wkMap;
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * DatagramReleaseWellKnownMap --
+ *
+ *      Releases a wellknown mapping.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+static void
+DatagramReleaseWellKnownMap(DatagramWKMapping *wkMap)  // IN:
+{
+   if (VMCIHashTable_ReleaseEntry(wellKnownTable, &wkMap->entry) ==
+       VMCI_SUCCESS_ENTRY_DEAD) {
+      VMCI_FreeKernelMem(wkMap, sizeof *wkMap);
+   }
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * VMCIDatagramRequestWellKnownMap --
+ *
+ *      Creates a mapping between handle and wellknown resource. If resource
+ *      is already used we fail the request.
+ *
+ * Results:
+ *      VMCI_SUCCESS if created, negative errno value otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
  */
 
 int
-VMCIDatagram_Dispatch(VMCIId contextID,  // IN: unused
-                      VMCIDatagram *msg) // IN
+VMCIDatagramRequestWellKnownMap(VMCIId wellKnownID,           // IN:
+                                VMCIId contextID,             // IN:
+                                VMCIPrivilegeFlags privFlags) // IN:
 {
-   int32 err = VMCI_SUCCESS;
-   DatagramHashEntry *entry;
+   int result;
+   DatagramWKMapping *wkMap;
+   VMCIHandle wkHandle = VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID,
+                                          wellKnownID);
 
-   ASSERT(msg);
-
-   entry = DatagramHashGetEntryAnyCid(msg->dst);
-   if (entry == NULL) {
-      VMCI_DEBUG_LOG(4, (LGPFX"destination handle 0x%x:0x%x doesn't exist.\n",
-                         msg->dst.context, msg->dst.resource));
-      return VMCI_ERROR_NO_HANDLE;
+   if (privFlags & VMCI_PRIVILEGE_FLAG_RESTRICTED ||
+       !VMCIWellKnownID_AllowMap(wellKnownID, privFlags)) {
+      return VMCI_ERROR_NO_ACCESS;
    }
 
-   if (!entry->recvCB) {
-      VMCI_WARNING((LGPFX"no handle callback for handle 0x%x:0x%x payload of "
-                    "size %"FMT64"d.\n", msg->dst.context, msg->dst.resource,
-                    msg->payloadSize));
-      goto out;
+   wkMap = VMCI_AllocKernelMem(sizeof *wkMap, VMCI_MEMORY_NONPAGED);
+   if (wkMap == NULL) {
+      return VMCI_ERROR_NO_MEM;
    }
 
-   if (entry->runDelayed) {
-      VMCIDelayedDatagramInfo *dgInfo;
+   VMCIHashTable_InitEntry(&wkMap->entry, wkHandle);
+   wkMap->contextID = contextID;
 
-      dgInfo = VMCI_AllocKernelMem(sizeof *dgInfo + (size_t)msg->payloadSize,
-                                   VMCI_MEMORY_ATOMIC | VMCI_MEMORY_NONPAGED);
-      if (NULL == dgInfo) {
-         err = VMCI_ERROR_NO_MEM;
-         goto out;
-      }
+   /* Fails if wkHandle (wellKnownID) already exists. */
+   result = VMCIHashTable_AddEntry(wellKnownTable, &wkMap->entry);
+   if (result != VMCI_SUCCESS) {
+      VMCI_FreeKernelMem(wkMap, sizeof *wkMap);
+      return result;
+   }
+   result = VMCIContext_AddWellKnown(contextID, wellKnownID);
+   if (UNLIKELY(result < VMCI_SUCCESS)) {
+      VMCIHashTable_RemoveEntry(wellKnownTable, &wkMap->entry);
+      VMCI_FreeKernelMem(wkMap, sizeof *wkMap);
+   }
+   return result;
+}
 
-      dgInfo->entry = entry;
-      memcpy(&dgInfo->msg, msg, VMCI_DG_SIZE(msg));
 
-      err = VMCI_ScheduleDelayedWork(VMCIDatagramDelayedDispatchCB, dgInfo);
-      if (VMCI_SUCCESS == err) {
-         return err;
-      }
+/*
+ *------------------------------------------------------------------------------
+ *
+ * VMCIDatagramRemoveWellKnownMap --
+ *
+ *      Removes a mapping between handle and wellknown resource. Checks if
+ *      mapping belongs to calling context.
+ *
+ * Results:
+ *      VMCI_SUCCESS if removed, negative errno value otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
+ */
 
-      VMCI_FreeKernelMem(dgInfo, sizeof *dgInfo + (size_t)msg->payloadSize);
-   } else {
-      entry->recvCB(entry->clientData, msg);
+int
+VMCIDatagramRemoveWellKnownMap(VMCIId wellKnownID,  // IN:
+                               VMCIId contextID)    // IN:
+{
+   int result = VMCI_ERROR_NO_ACCESS;
+   DatagramWKMapping *wkMap = DatagramGetWellKnownMap(wellKnownID);
+   if (wkMap == NULL) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to remove well-known mapping between "
+                         "resource %d and context %d.\n", wellKnownID,
+                         contextID));
+      return VMCI_ERROR_NOT_FOUND;
    }
 
-out:
-   DatagramHashReleaseEntry(entry);
-   return err;
+   if (contextID == wkMap->contextID) {
+      VMCIHashTable_RemoveEntry(wellKnownTable, &wkMap->entry);
+      VMCIContext_RemoveWellKnown(contextID, wellKnownID);
+      result = VMCI_SUCCESS;
+   }
+   DatagramReleaseWellKnownMap(wkMap);
+   return result;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIDatagram_Init --
+ * VMCIDatagram_Sync --
  *
- *      Register guest call handlers.
+ *      Use this as a synchronization point when setting globals, for example,
+ *      during device shutdown.
  *
  * Results:
- *      None
+ *      None.
  *
  * Side effects:
  *      None.
@@ -766,16 +1169,9 @@ out:
  */
 
 void
-VMCIDatagram_Init(void)
+VMCIDatagram_Sync(void)
 {
-   int i;
-
-   VMCI_InitLock(&hashTable.lock,
-                 "VMCIDatagramHashtable",
-                 VMCI_LOCK_RANK_MIDDLE_BH);
-   for (i = 0; i < HASH_TABLE_SIZE; i++) {
-      hashTable.entries[i] = NULL;
-   }
+   VMCIResource_Sync();
 }
 
 
@@ -800,30 +1196,4 @@ Bool
 VMCIDatagram_CheckHostCapabilities(void)
 {
    return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIDatagram_Sync --
- *
- *      Use this as a synchronization point when setting globals, for example,
- *      during device shutdown.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-VMCIDatagram_Sync(void)
-{
-   VMCILockFlags flags;
-   VMCI_GrabLock_BH(&hashTable.lock, &flags);
-   VMCI_ReleaseLock_BH(&hashTable.lock, flags);
 }

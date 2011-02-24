@@ -45,11 +45,13 @@
 #include "vmci_infrastructure.h"
 #include "vmci_iocontrols.h"
 #include "vmci_version.h"
+#include "vmciContext.h"
 #include "vmciDatagram.h"
 #include "vmciEvent.h"
 #include "vmciInt.h"
 #include "vmciNotifications.h"
 #include "vmciQueuePairInt.h"
+#include "vmciResource.h"
 #include "vmciUtil.h"
 
 #define LGPFX "VMCI: "
@@ -412,6 +414,8 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
     * components, and it may be invoked once request_irq() has
     * registered the handler (as the irq line may be shared).
     */
+   VMCIResource_Init();
+   VMCIContext_Init();
    VMCIDatagram_Init();
    VMCIEvent_Init();
    VMCIUtil_Init();
@@ -481,6 +485,8 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    VMCINotifications_Exit();
    VMCIUtil_Exit();
    VMCIEvent_Exit();
+   VMCIContext_Exit();
+   VMCIResource_Exit();
    if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSIX) {
       pci_disable_msix(pdev);
    } else if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSI) {
@@ -560,6 +566,9 @@ vmci_remove_device(struct pci_dev* pdev)
    if (notification_bitmap) {
       vfree(notification_bitmap);
    }
+
+   VMCIContext_Exit();
+   VMCIResource_Exit();
 
    printk(KERN_INFO "Unregistered vmci device.\n");
    compat_mutex_unlock(&dev->lock);

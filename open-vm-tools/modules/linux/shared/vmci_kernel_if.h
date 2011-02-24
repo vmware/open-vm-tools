@@ -261,13 +261,9 @@ void VMCI_FreeKernelMem(void *ptr, size_t size);
 int VMCI_CopyToUser(VA64 dst, const void *src, size_t len, int mode);
 #else
 int VMCI_CopyToUser(VA64 dst, const void *src, size_t len);
-/*
- * Don't need the following for guests, hence no Solaris code for this
- * function.
- */
+#endif
 Bool VMCIWellKnownID_AllowMap(VMCIId wellKnownID,
                               VMCIPrivilegeFlags privFlags);
-#endif
 
 int VMCIHost_CompareUser(VMCIHostUser *user1, VMCIHostUser *user2);
 
@@ -365,6 +361,8 @@ void VMCI_FreeQueueBuffer(void *queue, uint64 size);
 void VMCI_DeviceShutdownBegin(void);
 void VMCI_DeviceShutdownEnd(void);
 Bool VMCI_DeviceShutdown(void);
+Bool VMCI_HasGuestDevice(void);
+Bool VMCI_HasHostDevice(void);
 #else // _WIN32
 #  define VMCI_InitQueueMutex(_pq, _cq)
 #  define VMCI_AcquireQueueMutex(_q)
@@ -374,7 +372,15 @@ Bool VMCI_DeviceShutdown(void);
 #  define VMCI_RevertToNonLocalQueue(_q, _nlq, _s)
 #  define VMCI_FreeQueueBuffer(_q, _s)
 #  define VMCI_DeviceShutdown() FALSE
+#if defined(VMX86_TOOLS)
+#  define VMCI_HasGuestDevice() TRUE
+#  define VMCI_HasHostDevice()  FALSE
+#else // VMX86_TOOLS
+#  define VMCI_HasGuestDevice() FALSE
+#  define VMCI_HasHostDevice()  TRUE
+#endif // VMX86_TOOLS
 #endif // !_WIN32
+
 
 #if defined(VMKERNEL)
   typedef List_Links VMCIListItem;
