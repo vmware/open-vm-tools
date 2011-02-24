@@ -89,12 +89,12 @@ OpenHandle(VMGuestLibHandle *glHandle, // OUT: The guestlib handle
 static int
 StatProcessorSpeed(void)
 {
-   uint32 speed;
+   int32 speed;
    Backdoor_proto bp;
    bp.in.cx.halfs.low = BDOOR_CMD_GETMHZ;
    Backdoor(&bp);
    speed = bp.out.ax.word;
-   if (speed < 0) {
+   if (speed <= 0) {
       ToolsCmd_PrintErr("%s",
                         SU_(stat.getspeed.failed, "Unable to get processor speed.\n"));
       return EX_TEMPFAIL;
