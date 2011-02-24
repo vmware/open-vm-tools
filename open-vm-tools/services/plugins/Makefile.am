@@ -33,9 +33,6 @@ if ENABLE_UNITY
    SUBDIRS += unity
 endif
 SUBDIRS += vix
-if HAVE_X11
-   SUBDIRS += vixUser
-endif
 SUBDIRS += vmbackup
 
 #

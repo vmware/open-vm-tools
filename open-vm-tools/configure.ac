@@ -1224,7 +1224,6 @@ AC_CONFIG_FILES([                      \
    services/plugins/timeSync/Makefile  \
    services/plugins/unity/Makefile     \
    services/plugins/vix/Makefile       \
-   services/plugins/vixUser/Makefile   \
    services/plugins/vmbackup/Makefile  \
    vmware-user-suid-wrapper/Makefile   \
    toolbox/Makefile                    \
