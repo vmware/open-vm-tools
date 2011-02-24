@@ -808,47 +808,50 @@ FIELD_FUNC(AMD_CORES_PER_COMPUTE_UNIT, CPUID_AMD_ID81EEBX_CORES_PER_COMPUTE_UNIT
  * macros/functions for reading cpuid fields.
  */
 
-#define CPUID_FAMILY_EXTENDED 15
+#define CPUID_FAMILY_EXTENDED        15
 
 /* Effective Intel CPU Families */
-#define CPUID_FAMILY_486      4
-#define CPUID_FAMILY_P5       5
-#define CPUID_FAMILY_P6       6
-#define CPUID_FAMILY_P4       15
+#define CPUID_FAMILY_486              4
+#define CPUID_FAMILY_P5               5
+#define CPUID_FAMILY_P6               6
+#define CPUID_FAMILY_P4              15
 
 /* Effective AMD CPU Families */
-#define CPUID_FAMILY_5x86     4
-#define CPUID_FAMILY_K5       5
-#define CPUID_FAMILY_K6       5
-#define CPUID_FAMILY_K7       6
-#define CPUID_FAMILY_K8       15
-#define CPUID_FAMILY_K8L      16
-#define CPUID_FAMILY_K8MOBILE 17
-#define CPUID_FAMILY_LLANO    18
-#define CPUID_FAMILY_BOBCAT   20
-#define CPUID_FAMILY_BULLDOZER 21
+#define CPUID_FAMILY_5x86             4
+#define CPUID_FAMILY_K5               5 
+#define CPUID_FAMILY_K6               5
+#define CPUID_FAMILY_K7               6
+#define CPUID_FAMILY_K8              15
+#define CPUID_FAMILY_K8L             16
+#define CPUID_FAMILY_K8MOBILE        17
+#define CPUID_FAMILY_LLANO           18
+#define CPUID_FAMILY_BOBCAT          20
+#define CPUID_FAMILY_BULLDOZER       21
 
 /* Effective VIA CPU Families */
-#define CPUID_FAMILY_C7       6
+#define CPUID_FAMILY_C7               6
 
 /* Intel model information */
-#define CPUID_MODEL_PPRO       1
-#define CPUID_MODEL_PII_03     3
-#define CPUID_MODEL_PII_05     5
-#define CPUID_MODEL_CELERON_06 6
-#define CPUID_MODEL_PM_09      9
-#define CPUID_MODEL_PM_0D      13
-#define CPUID_MODEL_PM_0E      14    // Yonah / Sossaman
-#define CPUID_MODEL_CORE_0F    15    // Conroe / Merom
-#define CPUID_MODEL_CORE_17    0x17  // Penryn
-#define CPUID_MODEL_NEHALEM_1A 0x1a  // Nehalem / Gainestown
-#define CPUID_MODEL_ATOM_1C    0x1c  // Silverthorne / Diamondville
-#define CPUID_MODEL_CORE_1D    0x1d  // Dunnington
-#define CPUID_MODEL_NEHALEM_1E 0x1e  // Lynnfield
-#define CPUID_MODEL_NEHALEM_1F 0x1f  // Havendale
-#define CPUID_MODEL_NEHALEM_25 0x25  // Westmere / Clarkdale
-#define CPUID_MODEL_NEHALEM_2C 0x2c  // Westmere-EP
-#define CPUID_MODEL_NEHALEM_2E 0x2e  // Nehalem-EX
+#define CPUID_MODEL_PPRO              1
+#define CPUID_MODEL_PII_03            3
+#define CPUID_MODEL_PII_05            5
+#define CPUID_MODEL_CELERON_06        6
+#define CPUID_MODEL_PM_09             9
+#define CPUID_MODEL_PM_0D            13
+#define CPUID_MODEL_PM_0E            14  // Yonah / Sossaman
+#define CPUID_MODEL_CORE_0F          15  // Conroe / Merom
+#define CPUID_MODEL_CORE_17        0x17  // Penryn
+#define CPUID_MODEL_NEHALEM_1A     0x1a  // Nehalem / Gainestown
+#define CPUID_MODEL_ATOM_1C        0x1c  // Silverthorne / Diamondville
+#define CPUID_MODEL_CORE_1D        0x1d  // Dunnington
+#define CPUID_MODEL_NEHALEM_1E     0x1e  // Lynnfield
+#define CPUID_MODEL_NEHALEM_1F     0x1f  // Havendale
+#define CPUID_MODEL_NEHALEM_25     0x25  // Westmere / Clarkdale
+#define CPUID_MODEL_SANDYBRIDGE_2A 0x2a  // Sandybridge (desktop/mobile)
+#define CPUID_MODEL_SANDYBRIDGE_2D 0x2d  // Sandybridge-EP
+#define CPUID_MODEL_NEHALEM_2C     0x2c  // Westmere-EP
+#define CPUID_MODEL_NEHALEM_2E     0x2e  // Nehalem-EX
+#define CPUID_MODEL_NEHALEM_2F     0x2f  // Westmere-EX
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -986,16 +989,26 @@ CPUID_UARCH_IS_NEHALEM(uint32 v) // IN: %eax from CPUID with %eax=1.
    uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
 
    return CPUID_FAMILY_IS_P6(v) &&
-          (
-           effectiveModel == CPUID_MODEL_NEHALEM_1A ||
+          (effectiveModel == CPUID_MODEL_NEHALEM_1A ||
            effectiveModel == CPUID_MODEL_NEHALEM_1E ||
            effectiveModel == CPUID_MODEL_NEHALEM_1F ||
            effectiveModel == CPUID_MODEL_NEHALEM_25 ||
            effectiveModel == CPUID_MODEL_NEHALEM_2C ||
-           effectiveModel == CPUID_MODEL_NEHALEM_2E);
+           effectiveModel == CPUID_MODEL_NEHALEM_2E ||
+           effectiveModel == CPUID_MODEL_NEHALEM_2F);
 }
 
 
+static INLINE Bool
+CPUID_UARCH_IS_SANDYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
+
+   return CPUID_FAMILY_IS_P6(v) &&
+          (effectiveModel == CPUID_MODEL_SANDYBRIDGE_2A ||
+           effectiveModel == CPUID_MODEL_SANDYBRIDGE_2D);
+}
 
 
 static INLINE Bool
