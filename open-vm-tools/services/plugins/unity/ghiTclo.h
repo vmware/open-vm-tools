@@ -33,9 +33,7 @@ extern "C" {
    void GHITcloInit();
    void GHITcloCleanup();
 
-   /*
-    * RPC Entry points
-    */
+   /* RPC Entry points */
    gboolean GHITcloGetBinaryInfo(RpcInData *data);
    gboolean GHITcloGetBinaryHandlers(RpcInData *data);
    gboolean GHITcloGetStartMenuItem(RpcInData *data);
@@ -43,48 +41,17 @@ extern "C" {
    gboolean GHITcloCloseStartMenu(RpcInData *data);
    gboolean GHITcloShellOpen(RpcInData *data);
    gboolean GHITcloShellAction(RpcInData *data);
-
    gboolean GHITcloSetGuestHandler(RpcInData *data);
    gboolean GHITcloRestoreDefaultGuestHandler(RpcInData *data);
-
-   /*
-    * RPC Handlers
-    */
-
-   /* ghi.guest.outlook.set.tempFolder */
    gboolean GHITcloSetOutlookTempFolder(RpcInData* data);
-
-   /* ghi.guest.outlook.restore.tempFolder */
    gboolean GHITcloRestoreOutlookTempFolder(RpcInData* data);
-
-   /* ghi.guest.trashFolder.action */
-   gboolean GHITcloTrashFolderAction(RpcInData *data);
-
-   /* ghi.guest.trashFolder.getIcon */
-   gboolean GHITcloTrashFolderGetIcon(RpcInData *data);
-
-   /* ghi.guest.trayIcon.sendEvent */
    gboolean GHITcloTrayIconSendEvent(RpcInData *data);
-
-   /* ghi.guest.trayIcon.startUpdates */
    gboolean GHITcloTrayIconStartUpdates(RpcInData *data);
-
-   /* ghi.guest.trayIcon.stopUpdates */
    gboolean GHITcloTrayIconStopUpdates(RpcInData *data);
-
-   /* ghi.guest.setFocusedWindow */
    gboolean GHITcloSetFocusedWindow(RpcInData *data);
-
-   /* ghi.guest.getExecInfoHash */
    gboolean GHITcloGetExecInfoHash(RpcInData *data);
 
-   /*
-    * Send a tray icon update to the host.
-    */
-   Bool GHISendTrayIconUpdateRpc(XDR *xdrs);
-
    /* Callback functions to send data to the host */
+   Bool GHISendTrayIconUpdateRpc(XDR *xdrs);
    Bool GHILaunchMenuChangeRPC(int numFolderKeys, const char **folderKeysChanged);
-   Bool GHISendTrashFolderStateRPC(Bool empty);
 };
-

@@ -87,7 +87,6 @@ RPCGEN_SRCS += ghiTrayIcon_xdr.c
 RPCGEN_SRCS += ghiSetFocusedWindow_xdr.c
 RPCGEN_SRCS += ghiSetGuestHandler_xdr.c
 RPCGEN_SRCS += ghiSetOutlookTempFolder_xdr.c
-RPCGEN_SRCS += ghiTrashFolder_xdr.c
 RPCGEN_SRCS += unityActive_xdr.c
 RPCGEN_SRCS += unity_xdr.c
 
@@ -101,7 +100,6 @@ RPCGEN_HDRS += ghiTrayIcon.h
 RPCGEN_HDRS += ghiSetFocusedWindow.h
 RPCGEN_HDRS += ghiSetGuestHandler.h
 RPCGEN_HDRS += ghiSetOutlookTempFolder.h
-RPCGEN_HDRS += ghiTrashFolder.h
 RPCGEN_HDRS += unityActive.h
 RPCGEN_HDRS += unity.h
 
@@ -247,20 +245,6 @@ ghiSetOutlookTempFolder.h: ghiSetOutlookTempFolder.x
 
 ghiSetOutlookTempFolder_xdr.c: ghiSetOutlookTempFolder.x ghiSetOutlookTempFolder.h
 	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiSetOutlookTempFolder.x
-
-ghiTrashFolder.h: ghiTrashFolder.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiTrashFolder.x $(builddir);         \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiTrashFolder.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
-
-ghiTrashFolder_xdr.c: ghiTrashFolder.x ghiTrashFolder.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiTrashFolder.x
 
 unityActive.h: unityActive.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \

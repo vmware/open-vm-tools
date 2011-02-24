@@ -133,7 +133,7 @@ UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
    GHIHostCallbacks ghiHostCallbacks;
    memset(&ghiHostCallbacks, 0, sizeof ghiHostCallbacks);
    ghiHostCallbacks.launchMenuChange = &GHILaunchMenuChangeRPC;
-   ghiHostCallbacks.sendTrashFolderState = &GHISendTrashFolderStateRPC;
+
 #if defined(G_PLATFORM_WIN32)
    GHI_Init(ctx->mainLoop, NULL, ghiHostCallbacks);
    GHI_RegisterNotifyIconCallback(&gNotifyIconCallback);
@@ -291,8 +291,6 @@ UnityPlugin::GetRpcCallbackList()
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_RESTORE_DEFAULT_GUEST_HANDLER, GHITcloRestoreDefaultGuestHandler));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_OUTLOOK_SET_TEMP_FOLDER, GHITcloSetOutlookTempFolder));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_OUTLOOK_RESTORE_TEMP_FOLDER, GHITcloRestoreOutlookTempFolder));
-      rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRASH_FOLDER_ACTION, GHITcloTrashFolderAction));
-      rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRASH_FOLDER_GET_ICON, GHITcloTrashFolderGetIcon));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRAY_ICON_SEND_EVENT, GHITcloTrayIconSendEvent));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRAY_ICON_START_UPDATES, GHITcloTrayIconStartUpdates));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRAY_ICON_STOP_UPDATES, GHITcloTrayIconStopUpdates));
