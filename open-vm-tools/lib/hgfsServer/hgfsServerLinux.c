@@ -4385,12 +4385,12 @@ HgfsSetHiddenXAttr(char const *fileName,       // IN: path to the file
  *
  * HgfsGetHiddenXAttr --
  *
- *    Always returns EINVAL since there is no support for invisible files in Linux
+ *    Always returns 0 since there is no support for invisible files in Linux
  *    HGFS server.
  *
  * Results:
- *    Currently always returns EINVAL.  Will return 0 when support for invisible files
- *    is implemented in Linux server.
+ *    0 always. This is required to allow apps that use the hidden feature to
+ *    continue to work. attribute value is set to FALSE always.
  *
  * Side effects:
  *    None
@@ -4402,7 +4402,8 @@ static HgfsInternalStatus
 HgfsGetHiddenXAttr(char const *fileName,    // IN: File name
                    Bool *attribute)         // OUT: Value of the hidden attribute
 {
-   return EINVAL;
+   *attribute = FALSE;
+   return 0;
 }
 
 
@@ -4412,11 +4413,12 @@ HgfsGetHiddenXAttr(char const *fileName,    // IN: File name
  * HgfsSetHiddenXAttr --
  *
  *    Sets new value for the invisible attribute of a file.
- *    Currently Linux server does not support invisible or hiddden files thus
- *    the function fails when a attempt to mark a file as hidden is made.
+ *    Currently Linux server does not support invisible or hiddden files.
+ *    So this is a nop.
  *
  * Results:
- *    0 if succeeded, error code otherwise.
+ *    0 always. This is required to allow apps that use the hidden feature to
+ *    continue to work.
  *
  * Side effects:
  *    None
@@ -4428,6 +4430,6 @@ static HgfsInternalStatus
 HgfsSetHiddenXAttr(char const *fileName,   // IN: File name
                    Bool value)             // IN: Value of the attribute to set
 {
-   return value ? EINVAL : 0;
+   return 0;
 }
 #endif // __APPLE__
