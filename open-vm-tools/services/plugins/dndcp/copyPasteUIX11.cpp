@@ -306,9 +306,6 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
 {
    g_debug("%s: enter.\n", __FUNCTION__);
    VmTimeType curTime;
-   mBlockAdded = false;
-
-   sd.set(sd.get_target().c_str(), "");
 
    curTime = GetCurrentTime();
 
@@ -326,11 +323,24 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
    if (!mCP->IsCopyPasteAllowed()) {
       g_debug("%s: copy paste is not allowed, returning.\n",
             __FUNCTION__);
+      sd.set(sd.get_target().c_str(), "");
       return;
    }
 
    g_debug("%s: Got paste request, target is %s\n", __FUNCTION__,
          sd.get_target().c_str());
+
+   if (mHGGetFilesInitiated) {
+      /*
+       * On KDE (at least), we can see this multiple times, so ignore if
+       * we are already getting files.
+       */
+      g_debug("%s: already processing a GetFile request, returning.\n",
+              __FUNCTION__);
+      sd.set(sd.get_target().c_str(), mHGCopiedUriList.c_str());
+      return;
+   }
+
 
    /* Copy the files. */
    if (!mHGGetFilesInitiated) {
@@ -348,10 +358,12 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
 
       if (0 == hgStagingDir.bytes()) {
          g_debug("%s: Can not create staging directory\n", __FUNCTION__);
+         sd.set(sd.get_target().c_str(), "");
          return;
       }
       mHGGetFilesInitiated = true;
 
+      mBlockAdded = false;
       if (DnD_BlockIsReady(mBlockCtrl) && mBlockCtrl->AddBlock(mBlockCtrl->fd, hgStagingDir.c_str())) {
          g_debug("%s: add block for %s.\n",
                __FUNCTION__, hgStagingDir.c_str());
@@ -374,6 +386,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       } else {
          g_debug("%s: Unknown request target: %s\n", __FUNCTION__,
                sd.get_target().c_str());
+         sd.set(sd.get_target().c_str(), "");
          return;
       }
 
@@ -381,6 +394,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       stagingDirName = GetLastDirName(hgStagingDir);
       if (0 == stagingDirName.bytes()) {
          g_debug("%s: Can not get staging directory name\n", __FUNCTION__);
+         sd.set(sd.get_target().c_str(), "");
          return;
       }
 
@@ -403,6 +417,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
 
    if (0 == mHGCopiedUriList.bytes()) {
       g_debug("%s: Can not get uri list\n", __FUNCTION__);
+      sd.set(sd.get_target().c_str(), "");
       return;
    }
 
@@ -436,6 +451,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
          if (select(0, NULL, NULL, NULL, &tv) == -1) {
             g_debug("%s: error in select (%s).\n", __FUNCTION__,
                   strerror(errno));
+            sd.set(sd.get_target().c_str(), "");
             return;
          }
       }
