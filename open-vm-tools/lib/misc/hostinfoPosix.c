@@ -440,6 +440,7 @@ Hostinfo_GetSystemBitness(void)
 }
 
 
+#if !defined __APPLE__
 /*
  *-----------------------------------------------------------------------------
  *
@@ -719,6 +720,7 @@ out:
 
    return ret;
 }
+#endif
 
 
 /*
@@ -844,7 +846,40 @@ HostinfoOSData(void)
    Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s", buf.sysname,
                buf.release);
 
-   // XXX We should use compile-time instead of run-time checks.
+#if defined __APPLE__
+   {
+      /*
+       * The easiest way is to invoke "system_profiler" and hope that the
+       * format of its unlocalized output will never change.
+       *
+       * Alternatively, we could do what system_profiler does and use the
+       * CFPropertyList/CFDIctionary APIs to parse
+       * /System/Library/CoreServices/{Server,System}Version.plist.
+       *
+       * On a MacBookPro4,1 (and possibly other models), invoking
+       * "system_profiler" can take several seconds: it seems to spin up the CD
+       * drive as a side-effect. So use "system_profiler SPSoftwareDataType"
+       * instead.
+       */
+      char *sysname = HostinfoGetCmdOutput(
+                         "/usr/sbin/system_profiler SPSoftwareDataType"
+                      " | /usr/bin/grep 'System Version:'"
+                      " | /usr/bin/cut -d : -f 2");
+
+      if (sysname) {
+         char *trimmed = Unicode_Trim(sysname);
+
+         ASSERT_MEM_ALLOC(trimmed);
+         free(sysname);
+         Str_Snprintf(osNameFull, sizeof osNameFull, "%s", trimmed);
+         free(trimmed);
+      } else {
+         Log("%s: Failed to get output of system_profiler.\n", __FUNCTION__);
+         /* Fall back to returning the original osNameFull. */
+      }
+   }
+#else
+   // XXX Use compile-time instead of run-time checks for these as well.
    if (strstr(osNameFull, "Linux")) {
       char distro[DISTRO_BUF_SIZE];
       char distroShort[DISTRO_BUF_SIZE];
@@ -975,37 +1010,8 @@ HostinfoOSData(void)
 
       Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS,
                    solarisRelease);
-   } else if (strstr(osNameFull, "Darwin")) {
-      /*
-       * The easiest way is to invoke "system_profiler" and hope that the
-       * format of its unlocalized output will never change.
-       *
-       * Alternatively, we could do what system_profiler does and use the
-       * CFPropertyList/CFDIctionary APIs to parse
-       * /System/Library/CoreServices/{Server,System}Version.plist.
-       *
-       * On a MacBookPro4,1 (and possibly other models), invoking
-       * "system_profiler" can take several seconds: it seems to spin up the CD
-       * drive as a side-effect. So use "system_profiler SPSoftwareDataType"
-       * instead.
-       */
-      char *sysname = HostinfoGetCmdOutput(
-                         "/usr/sbin/system_profiler SPSoftwareDataType"
-                      " | /usr/bin/grep 'System Version:'"
-                      " | /usr/bin/cut -d : -f 2");
-
-      if (sysname) {
-         char *trimmed = Unicode_Trim(sysname);
-
-         ASSERT_MEM_ALLOC(trimmed);
-         free(sysname);
-         Str_Snprintf(osNameFull, sizeof osNameFull, "%s", trimmed);
-         free(trimmed);
-      } else {
-         Log("%s: Failed to get output of system_profiler.\n", __FUNCTION__);
-         /* Fall back to returning the original osNameFull. */
-      }
    }
+#endif
 
    if (Hostinfo_GetSystemBitness() == 64) {
       if (strlen(osName) + sizeof STR_OS_64BIT_SUFFIX > sizeof osName) {
