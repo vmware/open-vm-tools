@@ -74,6 +74,8 @@ Atomic_Ptr errStrTable;
  * Err_ErrString --
  *
  *      Returns a string that corresponds to the last error message.
+ *      The error number used is that which is native to the platform,
+ *      errno on POSIXen and GetLastError on Windows.
  *
  * Results:
  *      Error message string.
@@ -98,6 +100,8 @@ Err_ErrString(void)
  * Err_Errno2String --
  *
  *      Return a string that corresponds to the passed error number.
+ *      The error number used is that which is native to the platform,
+ *      errno on POSIXen and GetLastError on Windows.
  *
  *	The string is in English in UTF-8, has indefinite lifetime,
  *	and need not be freed.
@@ -203,6 +207,8 @@ Err_Errno2String(Err_Number errorNumber) // IN
  * Err_String2Errno --
  *
  *      Return an error number that corresponds to the passed string.
+ *      The error number used is that which is native to the platform,
+ *      errno on POSIXen and GetLastError on Windows.
  *
  *	To be recognized, the string must be one previously returned
  *	by Err_Errno2String.  Any other string (even a copy of
