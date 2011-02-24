@@ -54,6 +54,7 @@ public:
    virtual void UnregisterDnD();
    virtual void DnDVersionChanged(int version);
    virtual void CopyPasteVersionChanged(int version);
+   virtual uint32 GetCaps();
    void SetUnityMode(Bool mode) {m_dndUI->SetUnityMode(mode);};
    void SetDnDAllowed(bool allowed);
    void SetCopyPasteAllowed(bool allowed);

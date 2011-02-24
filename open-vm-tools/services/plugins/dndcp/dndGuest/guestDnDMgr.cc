@@ -25,6 +25,7 @@
 #include "guestDnD.hh"
 #include "dndRpcV4.hh"
 #include "dndRpcV3.hh"
+#include "guestDnDCPMgr.hh"
 
 extern "C" {
    #include "debug.h"
@@ -117,7 +118,8 @@ GuestDnDMgr::GuestDnDMgr(DnDCPTransport *transport,
    mUngrabTimeout(NULL),
    mToolsAppCtx(ctx),
    mDnDAllowed(false),
-   mDnDTransport(transport)
+   mDnDTransport(transport),
+   mCapabilities(0xffffffff)
 {
    ASSERT(transport);
    ASSERT(mToolsAppCtx);
@@ -610,7 +612,8 @@ GuestDnDMgr::VmxDnDVersionChanged(uint32 version)
       break;
    }
    if (mRpc) {
-      mRpc->Init();
+      mRpc->pingReplyChanged.connect(
+         sigc::mem_fun(this, &GuestDnDMgr::OnPingReply));
       mRpc->srcDragBeginChanged.connect(
          sigc::mem_fun(this, &GuestDnDMgr::OnRpcSrcDragBegin));
       mRpc->queryExitingChanged.connect(
@@ -619,7 +622,46 @@ GuestDnDMgr::VmxDnDVersionChanged(uint32 version)
          sigc::mem_fun(this, &GuestDnDMgr::OnRpcUpdateUnityDetWnd));
       mRpc->moveMouseChanged.connect(
          sigc::mem_fun(this, &GuestDnDMgr::OnRpcMoveMouse));
+      mRpc->Init();
+      mRpc->SendPing(GuestDnDCPMgr::GetInstance()->GetCaps() &
+                     (DND_CP_CAP_DND | DND_CP_CAP_FORMATS_DND |
+                      DND_CP_CAP_VALID));
    }
 
    ResetDnD();
 }
+
+
+/**
+ * Check if a request is allowed based on resolved capabilities.
+ *
+ * @param[in] capsRequest requested capabilities.
+ *
+ * @return TRUE if allowed, FALSE otherwise.
+ */
+
+Bool
+GuestDnDMgr::CheckCapability(uint32 capsRequest)
+{
+   Bool allowed = FALSE;
+
+   if ((mCapabilities & capsRequest) == capsRequest) {
+      allowed = TRUE;
+   }
+   return allowed;
+}
+
+
+/**
+ * Got pingReplyChanged message. Update capabilities.
+ *
+ * @param[in] capability modified capabilities from VMX controller.
+ */
+
+void
+GuestDnDMgr::OnPingReply(uint32 capabilities)
+{
+   Debug("%s: dnd ping reply caps are %x\n", __FUNCTION__, capabilities);
+   mCapabilities = capabilities;
+}
+

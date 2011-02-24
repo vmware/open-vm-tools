@@ -45,6 +45,7 @@ public:
    virtual ~DnDRpcV3(void);
 
    virtual void Init(void);
+   virtual void SendPing(uint32 caps) {};
 
    /* DnD source. */
    virtual bool SrcDragBeginDone(uint32 sessionId);

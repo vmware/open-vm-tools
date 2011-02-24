@@ -141,9 +141,9 @@ CopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
    /*
     * We only support DnD/CP V3 and greater.
     */
+   GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
+   ASSERT(p);
    if (GetDnDVersion() >= 3 && GetCPVersion() >= 3 || GetCPVersion() == 1) {
-      GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
-      ASSERT(p);
       p->Init(ctx);
    }
 
@@ -159,6 +159,10 @@ CopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
 #endif
       if (m_pimpl) {
          m_pimpl->Init(ctx);
+         /*
+          * Tell the Guest DnD Manager what capabilities we support.
+          */
+         p->SetCaps(m_pimpl->GetCaps());
       }
    }
 }
@@ -670,4 +674,19 @@ CopyPasteDnDWrapper::OnSetOption(const char *option, const char *value)
    }
 
    return ret;
+}
+
+
+/**
+ * Get capabilities by calling platform implementation.
+ *
+ * @return 32-bit mask of DnD/CP capabilities.
+ */
+
+uint32
+CopyPasteDnDWrapper::GetCaps()
+{
+   ASSERT(m_pimpl);
+
+   return m_pimpl->GetCaps();
 }

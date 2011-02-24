@@ -42,8 +42,8 @@ class LIB_EXPORT CopyPasteRpcV4
 {
 public:
    CopyPasteRpcV4(DnDCPTransport *transport);
-
    virtual void Init(void);
+   virtual void SendPing(uint32 caps);
 
    /* CopyPaste Rpc functions. */
    virtual bool SrcRequestClip(uint32 sessionId,

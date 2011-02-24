@@ -49,7 +49,8 @@ public:
    void EndLoop();
    void IterateLoop();
    void Init(ToolsAppCtx *ctx);
-
+   void SetCaps(uint32 caps) {mLocalCaps = caps;};
+   uint32 GetCaps() {return mLocalCaps;};
 private:
    /* We're a singleton, so it is a compile time error to call these. */
    GuestDnDCPMgr(void);
@@ -62,6 +63,7 @@ private:
    GuestFileTransfer *mFileTransfer;
    DnDCPTransport *mTransport;
    ToolsAppCtx *mToolsAppCtx;
+   uint32 mLocalCaps;
 };
 
 #endif // GUEST_DND_CP_HH

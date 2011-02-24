@@ -1152,7 +1152,7 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
    const utf::string target = sd.get_target().c_str();
 
    /* Try to get file list. */
-   if (target == DRAG_TARGET_NAME_URI_LIST) {
+   if (m_DnD->CheckCapability(DND_CP_CAP_FILE_DND) && target == DRAG_TARGET_NAME_URI_LIST) {
       /*
        * Turn the uri list into two \0  delimited lists. One for full paths and
        * one for just the last path component.
@@ -1229,10 +1229,11 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
    }
 
    /* Try to get plain text. */
-   if (target == TARGET_NAME_STRING ||
+   if (m_DnD->CheckCapability(DND_CP_CAP_PLAIN_TEXT_DND) && (
+       target == TARGET_NAME_STRING ||
        target == TARGET_NAME_TEXT_PLAIN ||
        target == TARGET_NAME_UTF8_STRING ||
-       target == TARGET_NAME_COMPOUND_TEXT) {
+       target == TARGET_NAME_COMPOUND_TEXT)) {
       utf::string source = sd.get_data_as_string().c_str();
       if (source.bytes() > 0 &&
           source.bytes() < DNDMSG_MAX_ARGSZ &&
@@ -1247,8 +1248,9 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
    }
 
    /* Try to get RTF string. */
-   if (target == TARGET_NAME_APPLICATION_RTF ||
-       target == TARGET_NAME_TEXT_RICHTEXT) {
+   if (m_DnD->CheckCapability(DND_CP_CAP_RTF_DND) && (
+       target == TARGET_NAME_APPLICATION_RTF ||
+       target == TARGET_NAME_TEXT_RICHTEXT)) {
       utf::string source = sd.get_data_as_string().c_str();
       if (source.bytes() > 0 &&
           source.bytes() < DNDMSG_MAX_ARGSZ &&
@@ -2096,7 +2098,7 @@ DnDUIX11::GetTimeInMillis(void)
 
 
 /**
- * Update version information in mDnD.
+ * Update version information in m_DnD.
  *
  * @param[ignored] chan RpcChannel pointer
  * @param[in] version the version negotiated with host.

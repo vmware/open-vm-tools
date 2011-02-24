@@ -29,6 +29,8 @@
 #include "dndRpcV4.hh"
 #include "guestFileTransfer.hh"
 
+#include "capsProvider.h"
+
 #include <string>
 
 extern "C" {
@@ -54,7 +56,7 @@ class GuestDnDSrc;
 class GuestDnDDest;
 
 class GuestDnDMgr
-   : public sigc::trackable
+   : public sigc::trackable, public CapsProvider
 {
 public:
    GuestDnDMgr(DnDCPTransport *transport,
@@ -103,7 +105,7 @@ public:
    { mDnDAllowed = isDnDAllowed;}
    void VmxDnDVersionChanged(uint32 version);
    bool IsDragEnterAllowed(void);
-
+   Bool CheckCapability(uint32 capsRequest);
 private:
    void OnRpcSrcDragBegin(uint32 sessionId,
                           const CPClipboard *clip);
@@ -114,6 +116,8 @@ private:
    void OnRpcMoveMouse(uint32 sessionId,
                        int32 x,
                        int32 y);
+   void OnPingReply(uint32 capabilities);
+
    GuestDnDSrc *mSrc;
    GuestDnDDest *mDest;
    DnDRpc *mRpc;
@@ -127,6 +131,7 @@ private:
    bool mDnDAllowed;
    uint32 mVmxDnDVersion;
    DnDCPTransport *mDnDTransport;
+   uint32 mCapabilities;
 };
 
 

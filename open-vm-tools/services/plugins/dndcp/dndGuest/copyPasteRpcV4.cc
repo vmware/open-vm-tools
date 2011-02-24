@@ -67,11 +67,23 @@ CopyPasteRpcV4::CopyPasteRpcV4(DnDCPTransport *transport)
  */
 
 void
-CopyPasteRpcV4::Init(void)
+CopyPasteRpcV4::Init()
 {
    ASSERT(mTransport);
    mTransport->RegisterRpc(this, mTransportInterface);
-   mUtil.SendPingMsg(DEFAULT_CONNECTION_ID, 0);
+}
+
+
+/**
+ * Send Ping message to controller.
+ *
+ * @param[in] caps capabilities value.
+ */
+
+void
+CopyPasteRpcV4::SendPing(uint32 caps)
+{
+   mUtil.SendPingMsg(DEFAULT_CONNECTION_ID, caps);
 }
 
 
@@ -282,6 +294,13 @@ CopyPasteRpcV4::HandleMsg(RpcParams *params,
                                DND_CP_MSG_STATUS_SUCCESS == params->status,
                                binary,
                                binarySize);
+      break;
+   case DNDCP_CMD_PING_REPLY:
+      pingReplyChanged.emit(params->optional.version.capability);
+      break;
+   case DNDCP_CMP_REPLY:
+      LOG(0, ("%s: Got cmp reply command %d.\n", __FUNCTION__, params->cmd));
+      cmdReplyChanged.emit(params->cmd, params->status);
       break;
    default:
       LOG(0, ("%s: Got unknown command %d.\n", __FUNCTION__, params->cmd));

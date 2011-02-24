@@ -44,6 +44,7 @@ public:
    DnDRpcV4(DnDCPTransport *transport);
 
    virtual void Init(void);
+   virtual void SendPing(uint32 caps);
 
    /* DnD source. */
    virtual bool SrcDragBeginDone(uint32 sessionId);

@@ -523,3 +523,21 @@ CopyPasteDnDX11::PointerInit()
 
    Pointer_Init(ctx);
 }
+
+
+/**
+ * Return platform DnD/CP caps.
+ *
+ * @return 32-bit caps vector.
+ */
+
+uint32
+CopyPasteDnDX11::GetCaps()
+{
+   return DND_CP_CAP_VALID |
+          DND_CP_CAP_DND |
+          DND_CP_CAP_CP |
+          DND_CP_CAP_FORMATS_ALL |
+          DND_CP_CAP_ACTIVE_CP |
+          DND_CP_CAP_BIG_BUFFER;
+}

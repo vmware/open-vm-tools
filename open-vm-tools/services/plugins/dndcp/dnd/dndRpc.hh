@@ -60,6 +60,12 @@ public:
    sigc::signal<void, uint32, const uint8 *, uint32> requestFileChanged;
    sigc::signal<void, uint32, bool, const uint8 *, uint32> getFilesDoneChanged;
 
+   /* sigc signal for responding to ping reply */
+   sigc::signal<void, uint32> pingReplyChanged;
+
+   /* sigc signal for rpc cmd reply received. */
+   sigc::signal<void, uint32, uint32> cmdReplyChanged;
+
    /* DnD source. */
    virtual bool SrcDragBeginDone(uint32 sessionId) = 0;
    virtual bool SrcDrop(uint32 sessionId, int32 x, int32 y) = 0;
@@ -83,6 +89,7 @@ public:
 
    /* Common. */
    virtual void Init(void) = 0;
+   virtual void SendPing(uint32 caps) = 0;
    virtual bool UpdateFeedback(uint32 sessionId, DND_DROPEFFECT feedback) = 0;
    virtual bool MoveMouse(uint32 sessionId,
                           int32 x,

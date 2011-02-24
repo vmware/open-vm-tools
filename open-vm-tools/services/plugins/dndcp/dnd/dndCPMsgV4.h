@@ -174,6 +174,21 @@ typedef enum DnDCPMsgPacketType {
 #define DND_CP_CAP_GUEST_PROGRESS   (1 << 14)
 #define DND_CP_CAP_BIG_BUFFER       (1 << 15)
 
+#define DND_CP_CAP_FORMATS_CP       (DND_CP_CAP_PLAIN_TEXT_CP   | \
+                                     DND_CP_CAP_RTF_CP          | \
+                                     DND_CP_CAP_IMAGE_CP        | \
+                                     DND_CP_CAP_FILE_CP         | \
+                                     DND_CP_CAP_FILE_CONTENT_CP)
+
+#define DND_CP_CAP_FORMATS_DND      (DND_CP_CAP_PLAIN_TEXT_DND  | \
+                                     DND_CP_CAP_RTF_DND         | \
+                                     DND_CP_CAP_IMAGE_DND       | \
+                                     DND_CP_CAP_FILE_DND        | \
+                                     DND_CP_CAP_FILE_CONTENT_DND)
+
+#define DND_CP_CAP_FORMATS_ALL      (DND_CP_CAP_FORMATS_CP      | \
+                                     DND_CP_CAP_FORMATS_DND)
+
 /*
  * Header definition for DnD version 4 packet. Any DnD version 4 packet has 2
  * parts: fixed header and payload. payload is optional.

@@ -631,10 +631,10 @@ again:
    /* First check for URIs. This must always be done first */
    bool haveURIs = false;
    std::string format;
-   if (refClipboard->wait_is_target_available(FCP_TARGET_NAME_GNOME_COPIED_FILES)) {
+   if (mCP->CheckCapability(DND_CP_CAP_FILE_CP) && refClipboard->wait_is_target_available(FCP_TARGET_NAME_GNOME_COPIED_FILES)) {
       format = FCP_TARGET_NAME_GNOME_COPIED_FILES;
       haveURIs = true;
-   } else if (refClipboard->wait_is_target_available(FCP_TARGET_NAME_URI_LIST)) {
+   } else if (mCP->CheckCapability(DND_CP_CAP_FILE_CP) && refClipboard->wait_is_target_available(FCP_TARGET_NAME_URI_LIST)) {
       format = FCP_TARGET_NAME_URI_LIST;
       haveURIs = true;
    }
@@ -649,7 +649,7 @@ again:
    /* Try to get image data from clipboard. */
    Glib::RefPtr<Gdk::Pixbuf> img = refClipboard->wait_for_image();
    gsize bufSize;
-   if (img) {
+   if (mCP->CheckCapability(DND_CP_CAP_IMAGE_CP) && img) {
       gchar *buf = NULL;
 
       img->save_to_buffer(buf, bufSize, Glib::ustring("png"));
@@ -678,7 +678,7 @@ again:
       haveRTF = true;
    }
 
-   if (haveRTF) {
+   if (mCP->CheckCapability(DND_CP_CAP_RTF_CP) && haveRTF) {
       /*
        * There is a function for waiting for rtf data, but that was leading
        * to crashes. It's use required we instantiate a class that implements
@@ -701,7 +701,8 @@ again:
    }
 
    /* Try to get Text data from clipboard. */
-   if (refClipboard->wait_is_text_available()) {
+   if (mCP->CheckCapability(DND_CP_CAP_PLAIN_TEXT_CP) &&
+       refClipboard->wait_is_text_available()) {
       g_debug("%s: ask for text\n", __FUNCTION__);
       Glib::ustring str = refClipboard->wait_for_text();
       bufSize = str.bytes();
@@ -763,6 +764,12 @@ CopyPasteUIX11::LocalReceivedFileListCB(const Gtk::SelectionData& sd)        // 
    g_debug("%s: enter", __FUNCTION__);
    const utf::string target = sd.get_target().c_str();
 
+   if (!mCP->CheckCapability(DND_CP_CAP_FILE_CP)) {
+      /*
+       * Disallowed based on caps settings, return.
+       */
+      return;
+   }
    if (target == FCP_TARGET_NAME_GNOME_COPIED_FILES ||
        target == FCP_TARGET_NAME_URI_LIST) {
       LocalGetSelectionFileList(sd);
@@ -798,6 +805,13 @@ CopyPasteUIX11::LocalGetFileContentsRequestCB(Gtk::SelectionData& sd, // IN
    utf::string uriList = "";
    utf::string pre;
    utf::string post;
+
+   if (!mCP->CheckCapability(DND_CP_CAP_FILE_CONTENT_CP)) {
+      /*
+       * Disallowed based on caps settings, return.
+       */
+      return;
+   }
 
    sd.set(sd.get_target().c_str(), "");
 

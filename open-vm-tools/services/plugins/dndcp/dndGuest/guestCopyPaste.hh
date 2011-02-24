@@ -71,13 +71,14 @@ public:
    void SetCopyPasteAllowed(bool isCopyPasteAllowed)
    { mCopyPasteAllowed = isCopyPasteAllowed; }
    void VmxCopyPasteVersionChanged(uint32 version);
-
+   Bool CheckCapability(uint32 capsRequest);
 private:
    void OnRpcSrcRecvClip(uint32 sessionId,
                          bool isActive,
                          const CPClipboard *clip);
    void OnRpcDestRequestClip(uint32 sessionId,
                              bool isActive);
+   void OnPingReply(uint32 capabilities);
    GuestCopyPasteSrc *mSrc;
    GuestCopyPasteDest *mDest;
    CopyPasteRpc *mRpc;
@@ -85,6 +86,7 @@ private:
    DnDCPTransport *mTransport;
    uint32 mSessionId;
    bool mCopyPasteAllowed;
+   uint32 mResolvedCaps;       // caps as returned in ping reply, or default.
 };
 
 

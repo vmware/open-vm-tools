@@ -68,11 +68,23 @@ DnDRpcV4::DnDRpcV4(DnDCPTransport *transport)
  */
 
 void
-DnDRpcV4::Init(void)
+DnDRpcV4::Init()
 {
    ASSERT(mTransport);
    mTransport->RegisterRpc(this, mTransportInterface);
-   mUtil.SendPingMsg(DEFAULT_CONNECTION_ID, 0);
+}
+
+
+/**
+ * Send Ping message to controller.
+ *
+ * @param[in] caps capabilities value.
+ */
+
+void
+DnDRpcV4::SendPing(uint32 caps)
+{
+   mUtil.SendPingMsg(DEFAULT_CONNECTION_ID, caps);
 }
 
 
@@ -718,6 +730,7 @@ DnDRpcV4::HandleMsg(RpcParams *params,
                                binarySize);
       break;
    case DNDCP_CMD_PING_REPLY:
+      pingReplyChanged.emit(params->optional.version.capability);
       break;
    case DNDCP_CMD_TEST_BIG_BINARY:
    {
@@ -744,6 +757,10 @@ DnDRpcV4::HandleMsg(RpcParams *params,
 
       break;
    }
+   case DNDCP_CMP_REPLY:
+      LOG(0, ("%s: Got cmp reply command %d.\n", __FUNCTION__, params->cmd));
+      cmdReplyChanged.emit(params->cmd, params->status);
+      break;
    default:
       LOG(0, ("%s: Got unknown command %d.\n", __FUNCTION__, params->cmd));
       break;

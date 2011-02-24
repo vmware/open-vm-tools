@@ -44,10 +44,17 @@ public:
    sigc::signal<void, uint32, const uint8 *, uint32> requestFilesChanged;
    sigc::signal<void, uint32, bool, const uint8 *, uint32> getFilesDoneChanged;
 
-   /* sigc signals for CopyPaste destination callback. */
+   /* sigc signal for CopyPaste destination callback. */
    sigc::signal<void, uint32, bool> destRequestClipChanged;
 
+   /* sigc signal for ping reply callback. */
+   sigc::signal<void, uint32> pingReplyChanged;
+
+   /* sigc signal for rpc command reply received. */
+   sigc::signal<void, uint32, uint32> cmdReplyChanged;
+
    virtual void Init(void) = 0;
+   virtual void SendPing(uint32 caps) = 0;
 
    /* CopyPaste Rpc functions. */
    virtual bool SrcRequestClip(uint32 sessionId,

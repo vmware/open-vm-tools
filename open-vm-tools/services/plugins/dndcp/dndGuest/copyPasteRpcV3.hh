@@ -45,6 +45,7 @@ public:
    virtual ~CopyPasteRpcV3(void);
 
    virtual void Init(void);
+   virtual void SendPing(uint32 caps);
 
    /* CopyPaste Rpc functions. */
    virtual bool SrcRequestClip(uint32 sessionId,

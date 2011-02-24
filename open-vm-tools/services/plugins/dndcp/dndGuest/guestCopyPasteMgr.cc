@@ -25,6 +25,7 @@
 #include "guestCopyPaste.hh"
 #include "copyPasteRpcV3.hh"
 #include "copyPasteRpcV4.hh"
+#include "guestDnDCPMgr.hh"
 
 extern "C" {
    #include "debug.h"
@@ -44,7 +45,8 @@ GuestCopyPasteMgr::GuestCopyPasteMgr(DnDCPTransport *transport)
    mCPState(GUEST_CP_READY),
    mTransport(transport),
    mSessionId(0),
-   mCopyPasteAllowed(false)
+   mCopyPasteAllowed(false),
+   mResolvedCaps(0xffffffff)
 {
    ASSERT(transport);
 }
@@ -235,12 +237,53 @@ GuestCopyPasteMgr::VmxCopyPasteVersionChanged(uint32 version)
       break;
    }
    if (mRpc) {
-      mRpc->Init();
+      Debug("GuestCopyPasteMgr::%s: register ping reply changed %d\n",
+            __FUNCTION__, version);
+      mRpc->pingReplyChanged.connect(
+         sigc::mem_fun(this, &GuestCopyPasteMgr::OnPingReply));
       mRpc->srcRecvClipChanged.connect(
          sigc::mem_fun(this, &GuestCopyPasteMgr::OnRpcSrcRecvClip));
       mRpc->destRequestClipChanged.connect(
          sigc::mem_fun(this, &GuestCopyPasteMgr::OnRpcDestRequestClip));
+      mRpc->Init();
+      mRpc->SendPing(GuestDnDCPMgr::GetInstance()->GetCaps() &
+                     (DND_CP_CAP_CP | DND_CP_CAP_FORMATS_CP | DND_CP_CAP_VALID));
    }
 
    ResetCopyPaste();
 }
+
+
+/**
+ * Check if a request is allowed based on resolved capabilities.
+ *
+ * @param[in] capsRequest requested capabilities.
+ *
+ * @return TRUE if allowed, FALSE otherwise.
+ */
+
+Bool
+GuestCopyPasteMgr::CheckCapability(uint32 capsRequest)
+{
+   Bool allowed = FALSE;
+
+   if ((mResolvedCaps & capsRequest) == capsRequest) {
+      allowed = TRUE;
+   }
+   return allowed;
+}
+
+
+/**
+ * Got pingReplyChanged message. Update capabilities.
+ *
+ * @param[in] capability modified capabilities from VMX controller.
+ */
+
+void
+GuestCopyPasteMgr::OnPingReply(uint32 capabilities)
+{
+   Debug("%s: copypaste ping reply caps are %x\n", __FUNCTION__, capabilities);
+   mResolvedCaps = capabilities;
+}
+

@@ -47,7 +47,8 @@ GuestDnDCPMgr::GuestDnDCPMgr()
      mCPMgr(NULL),
      mFileTransfer(NULL),
      mTransport(NULL),
-     mToolsAppCtx(NULL)
+     mToolsAppCtx(NULL),
+     mLocalCaps(0xffffffff)
 {
 }
 
@@ -233,4 +234,3 @@ GuestDnDCPMgr::EndLoop()
       mTransport->EndLoop();
    }
 }
-

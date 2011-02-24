@@ -59,6 +59,7 @@ public:
    void Init(ToolsAppCtx *ctx);
    void PointerInit(void);
    ToolsAppCtx *GetToolsAppCtx() {return m_ctx;};
+   uint32 GetCaps();
 private:
    /*
     * We're a singleton, so it is a compile time error to call these.

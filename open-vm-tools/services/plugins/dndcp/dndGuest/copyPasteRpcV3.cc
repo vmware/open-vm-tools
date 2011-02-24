@@ -72,6 +72,19 @@ CopyPasteRpcV3::Init(void)
 /**
  * Not needed for version 3.
  *
+ * @param[ignored] caps capabilities mask
+ */
+
+void
+CopyPasteRpcV3::SendPing(uint32 caps)
+{
+   Debug("%s: entering.\n", __FUNCTION__);
+}
+
+
+/**
+ * Not needed for version 3.
+ *
  * @param[ignored] sessionId active session id the controller assigned
  * @param[ignored] isActive active or passive CopyPaste
  *

@@ -30,6 +30,7 @@
 
 #include "dndClipboard.h"
 #include "dndInt.h"
+#include "dndCPMsgV4.h"
 
 
 #define CPFormatToIndex(x) ((unsigned int)(x) - 1)
@@ -689,4 +690,52 @@ CPClipboard_Unserialize(CPClipboard *clip, // OUT: the clipboard
 error:
    CPClipboard_Destroy(clip);
    return FALSE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CPClipboard_Strip --
+ *
+ *      Remove clipboard items based on the passed in capabilities mask.
+ *      Introduced in DnDV4.
+ *
+ *      XXX This function assumes that the bits in mask are such that if the
+ *      check is being made for copy paste, that the corresponding bit for
+ *      DnD is set to zero. Otherwise, the format cleared by copy paste will
+ *      not be removed. Similar for the other case. A way to make this clearer
+ *      would be to pass a flag to this function that tells it which bits
+ *      to check, with no dependencies on the other bits being in proper
+ *      state.
+ *
+ * Results:
+ *      TRUE if clipboard is empty as a result, else FALSE.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+CPClipboard_Strip(CPClipboard *clip,    // IN/OUT: the clipboard
+                  uint32 mask)          // IN: if TRUE, DnD.
+{
+   if (!(mask & DND_CP_CAP_PLAIN_TEXT_DND) &&
+       !(mask & DND_CP_CAP_PLAIN_TEXT_CP)) {
+      CPClipboard_ClearItem(clip, CPFORMAT_TEXT);
+   }
+   if (!(mask & DND_CP_CAP_RTF_DND) && !(mask & DND_CP_CAP_RTF_CP)) {
+      CPClipboard_ClearItem(clip, CPFORMAT_RTF);
+   }
+   if (!(mask & DND_CP_CAP_IMAGE_DND) && !(mask & DND_CP_CAP_IMAGE_CP)) {
+      CPClipboard_ClearItem(clip, CPFORMAT_IMG_PNG);
+   }
+   if (!(mask & DND_CP_CAP_FILE_DND) && !(mask & DND_CP_CAP_FILE_CP)) {
+      CPClipboard_ClearItem(clip, CPFORMAT_FILELIST);
+      CPClipboard_ClearItem(clip, CPFORMAT_FILELIST_URI);
+   }
+   if (!(mask & DND_CP_CAP_FILE_CONTENT_DND) &&
+       !(mask & DND_CP_CAP_FILE_CONTENT_CP)) {
+      CPClipboard_ClearItem(clip, CPFORMAT_FILECONTENTS);
+   }
+   return CPClipboard_IsEmpty(clip);
 }

@@ -46,6 +46,7 @@ public:
    virtual void DnDVersionChanged(const int version) = 0;
    virtual void SetCopyPasteAllowed(bool allowed) = 0;
    virtual void SetDnDAllowed(bool allowed) = 0;
+   virtual uint32 GetCaps() = 0;
 };
 
 #endif // __COPYPASTEDNDIMPL_H__
