@@ -804,6 +804,8 @@ VMCIDatagram_CheckHostCapabilities(void)
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
  * VMCIDatagram_Sync --
  *
  *      Use this as a synchronization point when setting globals, for example,
