@@ -805,9 +805,6 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
  *
  *      Determine the OS short (.vmx format) and long names.
  *
- *      First retrieve OS information using uname, then look in
- *      /etc/xxx-release file to get the distro info.
- *
  * Return value:
  *      Returns TRUE on success and FALSE on failure.
  *
@@ -822,12 +819,8 @@ HostinfoOSData(void)
 {
    struct utsname buf;
    unsigned int lastCharPos;
-   const char *lsbCmd = "lsb_release -sd 2>/dev/null";
-   char *lsbOutput = NULL;
-
    char osName[MAX_OS_NAME_LEN];
    char osNameFull[MAX_OS_FULLNAME_LEN];
-
    static Atomic_uint32 mutex = {0};
 
    /*
@@ -848,18 +841,15 @@ HostinfoOSData(void)
    }
 
    Str_Strcpy(osName, STR_OS_EMPTY, sizeof osName);
-   Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s", buf.sysname, buf.release);
+   Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s", buf.sysname,
+               buf.release);
 
-   /*
-    * Check to see if this is Linux
-    * If yes, determine the distro by looking for /etc/xxx file.
-    */
-
+   // XXX We should use compile-time instead of run-time checks.
    if (strstr(osNameFull, "Linux")) {
       char distro[DISTRO_BUF_SIZE];
       char distroShort[DISTRO_BUF_SIZE];
-      int i = 0;
-      int distroSize = sizeof distro;
+      static int const distroSize = sizeof distro;
+      char *lsbOutput;
 
       /*
        * Write default distro string depending on the kernel version. If
@@ -881,9 +871,10 @@ HostinfoOSData(void)
        * Try to get OS detailed information from the lsb_release command.
        */
 
-      lsbOutput = HostinfoGetCmdOutput(lsbCmd);
-
+      lsbOutput = HostinfoGetCmdOutput("lsb_release -sd 2>/dev/null");
       if (!lsbOutput) {
+         int i;
+
          /*
           * Try to get more detailed information from the version file.
           */
@@ -984,28 +975,36 @@ HostinfoOSData(void)
 
       Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS,
                    solarisRelease);
-#if defined(__APPLE__)
-   } else {
+   } else if (strstr(osNameFull, "Darwin")) {
       /*
-       * XXX: using the CF API to read the server / system plist is kind of a
-       * PITA. Get the output of system_profiler instead; downside is that any
-       * changes to the format of the output of system_profiler may break this.
+       * The easiest way is to invoke "system_profiler" and hope that the
+       * format of its unlocalized output will never change.
+       *
+       * Alternatively, we could do what system_profiler does and use the
+       * CFPropertyList/CFDIctionary APIs to parse
+       * /System/Library/CoreServices/{Server,System}Version.plist.
+       *
+       * On a MacBookPro4,1 (and possibly other models), invoking
+       * "system_profiler" can take several seconds: it seems to spin up the CD
+       * drive as a side-effect. So use "system_profiler SPSoftwareDataType"
+       * instead.
        */
-      const char *cmd = "/usr/sbin/system_profiler | "
-                        "/usr/bin/grep 'System Version:' | "
-                        "/usr/bin/cut -d : -f 2";
-      char *sysname = HostinfoGetCmdOutput(cmd);
+      char *sysname = HostinfoGetCmdOutput(
+                         "/usr/sbin/system_profiler SPSoftwareDataType"
+                      " | /usr/bin/grep 'System Version:'"
+                      " | /usr/bin/cut -d : -f 2");
 
-      if (sysname != NULL) {
+      if (sysname) {
          char *trimmed = Unicode_Trim(sysname);
+
          ASSERT_MEM_ALLOC(trimmed);
+         free(sysname);
          Str_Snprintf(osNameFull, sizeof osNameFull, "%s", trimmed);
          free(trimmed);
-         free(sysname);
       } else {
          Log("%s: Failed to get output of system_profiler.\n", __FUNCTION__);
+         /* Fall back to returning the original osNameFull. */
       }
-#endif
    }
 
    if (Hostinfo_GetSystemBitness() == 64) {
