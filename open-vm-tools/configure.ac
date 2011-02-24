@@ -972,6 +972,10 @@ TARGET_OS="$os"
 MODULES_DIR=""
 buildHgfsmounter=no
 
+if test "$have_glib_2_14" = "yes"; then
+   CPPFLAGS="$CPPFLAGS -DHAVE_GLIB_REGEX"
+fi
+
 if test "$os" = "linux"; then
    MODULES_DIR="$LINUXDIR/kernel/"
 

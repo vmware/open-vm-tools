@@ -477,8 +477,6 @@ void
 ToolsCorePool_Init(ToolsAppCtx *ctx)
 {
    gint maxThreads;
-   gint maxIdleTime;
-   gint maxUnused;
    GError *err = NULL;
 
    ToolsServiceProperty prop = { TOOLS_CORE_PROP_TPOOL };
@@ -487,20 +485,6 @@ ToolsCorePool_Init(ToolsAppCtx *ctx)
    gState.funcs.cancel = ToolsCorePoolCancel;
    gState.funcs.start = ToolsCorePoolStart;
    gState.ctx = ctx;
-
-   maxIdleTime = g_key_file_get_integer(ctx->config, ctx->name,
-                                        "pool.maxIdleTime", &err);
-   if (err != NULL || maxIdleTime <= 0) {
-      maxIdleTime = DEFAULT_MAX_IDLE_TIME;
-      g_clear_error(&err);
-   }
-
-   maxUnused = g_key_file_get_integer(ctx->config, ctx->name,
-                                      "pool.maxUnusedThreads", &err);
-   if (err != NULL || maxUnused < 0) {
-      maxUnused = DEFAULT_MAX_UNUSED_THREADS;
-      g_clear_error(&err);
-   }
 
    maxThreads = g_key_file_get_integer(ctx->config, ctx->name,
                                        "pool.maxThreads", &err);
@@ -513,8 +497,27 @@ ToolsCorePool_Init(ToolsAppCtx *ctx)
       gState.pool = g_thread_pool_new(ToolsCorePoolRunWorker,
                                       NULL, maxThreads, FALSE, &err);
       if (err == NULL) {
+#if GLIB_CHECK_VERSION(2, 10, 0)
+         gint maxIdleTime;
+         gint maxUnused;
+
+         maxIdleTime = g_key_file_get_integer(ctx->config, ctx->name,
+                                              "pool.maxIdleTime", &err);
+         if (err != NULL || maxIdleTime <= 0) {
+            maxIdleTime = DEFAULT_MAX_IDLE_TIME;
+            g_clear_error(&err);
+         }
+
+         maxUnused = g_key_file_get_integer(ctx->config, ctx->name,
+                                            "pool.maxUnusedThreads", &err);
+         if (err != NULL || maxUnused < 0) {
+            maxUnused = DEFAULT_MAX_UNUSED_THREADS;
+            g_clear_error(&err);
+         }
+
          g_thread_pool_set_max_idle_time(maxIdleTime);
          g_thread_pool_set_max_unused_threads(maxUnused);
+#endif
       } else {
          g_warning("error initializing thread pool, running single threaded: %s",
                    err->message);
