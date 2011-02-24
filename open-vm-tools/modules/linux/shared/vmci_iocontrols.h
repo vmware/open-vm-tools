@@ -183,15 +183,21 @@ enum IOCTLCmd_VMCI {
 
    /* BEGIN VMCI */
    IOCTLCMD(INIT_CONTEXT),
-   IOCTLCMD(CREATE_PROCESS),
-   IOCTLCMD(CREATE_DATAGRAM_PROCESS),
+
+   /*
+    * The following two were used for process and datagram process creation.
+    * They are not used anymore and reserved for future use.
+    * They will fail if issued.
+    */
+   IOCTLCMD(RESERVED1),
+   IOCTLCMD(RESERVED2),
 
    /*
     * The following two used to be for shared memory.  They are now unused and
     * and are reserved for future use.  They will fail if issued.
     */
-   IOCTLCMD(RESERVED1),
-   IOCTLCMD(RESERVED2),
+   IOCTLCMD(RESERVED3),
+   IOCTLCMD(RESERVED4),
 
    /*
     * The follwoing two were also used to be for shared memory. An old
@@ -335,10 +341,6 @@ enum IOCTLCmd_VMCIWin32 {
 /* BEGIN VMCI */
 #define IOCTL_VMCI_INIT_CONTEXT \
                VMCIIOCTL_BUFFERED(INIT_CONTEXT)
-#define IOCTL_VMCI_CREATE_PROCESS \
-               VMCIIOCTL_BUFFERED(CREATE_PROCESS)
-#define IOCTL_VMCI_CREATE_DATAGRAM_PROCESS \
-               VMCIIOCTL_BUFFERED(CREATE_DATAGRAM_PROCESS)
 #define IOCTL_VMCI_HYPERCALL \
                VMCIIOCTL_BUFFERED(HYPERCALL)
 #define IOCTL_VMCI_CREATE_DATAGRAM_HANDLE  \
@@ -520,19 +522,6 @@ typedef struct VMCIDatagramSendRecvInfo {
    int32  result;
 } VMCIDatagramSendRecvInfo;
 
-/* Used to create datagram endpoints in guest or host userlevel. */
-typedef struct VMCIDatagramCreateProcessInfo {
-   VMCIId      resourceID;
-   uint32      flags;
-#ifdef _WIN32
-   int         eventHnd;
-#else
-   int         _unused;
-#endif
-   int         result;     // result of handle create operation
-   VMCIHandle  handle;     // handle if successfull
-} VMCIDatagramCreateProcessInfo;
-
 /* Used to add/remove well-known datagram mappings. */
 typedef struct VMCIDatagramMapInfo {
    VMCIId      wellKnownID;
@@ -666,8 +655,6 @@ typedef struct VMCIDeviceGetInfo {
 enum VMCrossTalkSockOpt {
    VMCI_SO_VERSION = 0,
    VMCI_SO_CONTEXT                  = IOCTL_VMCI_INIT_CONTEXT,
-   VMCI_SO_PROCESS                  = IOCTL_VMCI_CREATE_PROCESS,
-   VMCI_SO_DATAGRAM_PROCESS         = IOCTL_VMCI_CREATE_DATAGRAM_PROCESS,
    VMCI_SO_NOTIFY_RESOURCE          = IOCTL_VMCI_NOTIFY_RESOURCE,
    VMCI_SO_NOTIFICATIONS_RECEIVE    = IOCTL_VMCI_NOTIFICATIONS_RECEIVE,
    VMCI_SO_VERSION2                 = IOCTL_VMCI_VERSION2,
