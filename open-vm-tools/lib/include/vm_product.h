@@ -192,7 +192,7 @@
 #endif
 
 #define PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE \
-   "application/x-vmware-vmrc-2011"
+   "application/x-vmware-remote-console-2011"
 
 /*
  * legacy plugin mimetypes (currently unused but here for reference)
