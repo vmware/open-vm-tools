@@ -240,7 +240,8 @@ Bool
 GHIPlatformIsSupported(void)
 {
    const char *desktopEnv = Xdg_DetectDesktopEnv();
-   return (strcmp(desktopEnv, "GNOME") == 0) || (strcmp(desktopEnv, "KDE") == 0);
+   return    (g_strcmp0(desktopEnv, "GNOME") == 0)
+          || (g_strcmp0(desktopEnv, "KDE") == 0);
 }
 
 
