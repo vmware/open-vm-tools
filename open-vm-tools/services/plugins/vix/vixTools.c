@@ -319,7 +319,9 @@ static const char *fileInfoFormatString = "<FileInfo>"
                                           "<ModTime>%"FMT64"d</ModTime>"
                                           "</FileInfo>";
 
+#if !defined(OPEN_VM_TOOLS) || defined(HAVE_GLIB_REGEX)
 static const char *listFilesRemainingFormatString = "<rem>%d</rem>";
+#endif
 
 #ifdef _WIN32
 static const char *fileExtendedInfoWindowsFormatString = "<fxi>"
