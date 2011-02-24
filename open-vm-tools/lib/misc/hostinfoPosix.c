@@ -1051,100 +1051,6 @@ HostinfoOSData(void)
 }
 
 
-#if defined(VMX86_SERVER)
-/*
- *----------------------------------------------------------------------
- *
- * HostinfoReadProc --
- *
- *      Depending on what string is passed to it, this function parses the
- *      /proc/vmware/sched/ncpus node and returns the requested value.
- *
- * Results:
- *      A postive value on success, -1 (0xFFFFFFFF) on failure.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static uint32
-HostinfoReadProc(const char *str)  // IN:
-{
-   /* XXX this should use sysinfo!! (bug 59849)
-    */
-   FILE *f;
-   char *line;
-   uint32 count;
-
-   ASSERT(!strcmp("logical", str) || !strcmp("cores", str) ||
-          !strcmp("packages", str));
-
-   ASSERT(!HostType_OSIsVMK()); // Don't use /proc/vmware
-
-   f = Posix_Fopen("/proc/vmware/sched/ncpus", "r");
-
-   if (f != NULL) {
-      while (StdIO_ReadNextLine(f, &line, 0, NULL) == StdIO_Success) {
-         if (strstr(line, str)) {
-            if (sscanf(line, "%d ", &count) == 1) {
-               free(line);
-               break;
-            }
-         }
-         free(line);
-      }
-      fclose(f);
-
-      if (count > 0) {
-         return count;
-      }
-   }
-
-   return -1;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Hostinfo_HTDisabled --
- *
- *      Figure out if hyperthreading is enabled
- *
- * Results:
- *      TRUE if hyperthreading is disabled, FALSE otherwise
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_HTDisabled(void)
-{
-   static uint32 logical = 0, cores = 0;
-
-   if (HostType_OSIsVMK()) {
-      return VMKernel_HTEnabledCPU() != VMK_OK;
-   }
-
-   if (logical == 0 && cores == 0) {
-      logical = HostinfoReadProc("logical");
-      cores = HostinfoReadProc("cores");
-
-      if (logical <= 0 || cores <= 0) {
-         logical = cores = 0;
-      }
-   }
-
-   return logical == cores;
-}
-#endif /*ifdef VMX86_SERVER*/
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1320,6 +1226,9 @@ Hostinfo_NumCPUs(void)
    static int count = 0;
 
    if (count <= 0) {
+      FILE *f;
+      char *line;
+
 #if defined(VMX86_SERVER)
       if (HostType_OSIsVMK()) {
          VMK_ReturnStatus status = VMKernel_GetNumCPUsUsed(&count);
@@ -1329,19 +1238,10 @@ Hostinfo_NumCPUs(void)
 
             return -1;
          }
-      } else {
-         count = HostinfoReadProc("logical");
 
-         if (count <= 0) {
-            count = 0;
-
-            return -1;
-         }
+         return count;
       }
-#else /* ifdef VMX86_SERVER */
-      FILE *f;
-      char *line;
-
+#endif
       f = Posix_Fopen("/proc/cpuinfo", "r");
       if (f == NULL) {
 	 return -1;
@@ -1359,7 +1259,6 @@ Hostinfo_NumCPUs(void)
       if (count == 0) {
 	 return -1;
       }
-#endif /* ifdef VMX86_SERVER */
    }
 
    return count;

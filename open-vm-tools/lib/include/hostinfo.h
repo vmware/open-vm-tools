@@ -130,9 +130,7 @@ extern uint32 Hostinfo_NumCPUs(void);
 extern char *Hostinfo_GetCpuidStr(void);
 extern Bool Hostinfo_GetCpuid(HostinfoCpuIdInfo *info);
 
-#if defined(VMX86_SERVER)
-extern Bool Hostinfo_HTDisabled(void);
-#else
+#if !defined(VMX86_SERVER)
 extern Bool Hostinfo_CPUCounts(uint32 *logical, uint32 *cores, uint32 *pkgs);
 #endif
 
