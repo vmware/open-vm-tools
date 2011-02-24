@@ -93,6 +93,8 @@ typedef enum GuestOSType {
    GUEST_OS_WINEIGHT_64         = GUEST_OS_BASE + 55, // Windows 8 x64
    GUEST_OS_WINEIGHTSERVER_64   = GUEST_OS_BASE + 56, // Windows 8 Server X64
    GUEST_OS_VMKERNEL5           = GUEST_OS_BASE + 57, // ESX 5.x and later
+   GUEST_OS_DARWIN11            = GUEST_OS_BASE + 58, // Mac OS 10.7
+   GUEST_OS_DARWIN11_64         = GUEST_OS_BASE + 59,
 } GuestOSType;
 
 
@@ -174,9 +176,8 @@ typedef enum GuestOSFamilyType {
 #define ALLLINUX64      (BS(OTHERLINUX_64) | BS(OTHER24XLINUX_64) | \
                          ALL26XLINUX64)
 #define ALLLINUX        (ALLLINUX32 | ALLLINUX64)
-#define ALLDARWIN32     (BS(DARWIN9) | BS(DARWIN10))
-#define ALLDARWIN64     (BS(DARWIN9_64) | BS(DARWIN10_64))
-#define ALLDARWIN10     (BS(DARWIN10) | BS(DARWIN10_64))
+#define ALLDARWIN32     (BS(DARWIN9) | BS(DARWIN10) | BS(DARWIN11))
+#define ALLDARWIN64     (BS(DARWIN9_64) | BS(DARWIN10_64) | BS(DARWIN11_64))
 #define ALLDARWIN       (ALLDARWIN32 | ALLDARWIN64)
 #define ALL64           (ALLWIN64 | ALLLINUX64 | \
                          BS(SOLARIS10_64) | BS(FREEBSD_64) | \
