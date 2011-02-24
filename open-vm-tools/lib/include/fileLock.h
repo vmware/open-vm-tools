@@ -30,9 +30,6 @@
 
 #include "unicodeTypes.h"
 
-// Horrible hack that exists to please VMX; should be removed ASAP
-int  FileLock_DeleteFileVMX(ConstUnicode filePath);
-
 // The default time, in msec, to wait for a lock before giving up
 #define	FILELOCK_DEFAULT_WAIT 2500
 

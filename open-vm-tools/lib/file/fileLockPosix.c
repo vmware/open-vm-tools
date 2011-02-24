@@ -1155,47 +1155,6 @@ FileLock_Unlock(const FileLockToken *lockToken)  // IN:
    return FileUnlockIntrinsic((FileLockToken *) lockToken);
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * FileLock_DeleteFileVMX --
- *
- *      The VMX file delete primitive.
- *
- * Results:
- *      0       unlocked
- *      >0      errno
- *
- * Side effects:
- *      Changes the host file system.
- *
- * Note:
- *      THIS IS A HORRIBLE HACK AND NEEDS TO BE REMOVED ASAP!!!
- *
- *----------------------------------------------------------------------
- */
-
-int
-FileLock_DeleteFileVMX(ConstUnicode filePath)  // IN:
-{
-   int err;
-   Unicode normalizedPath;
-
-   ASSERT(filePath);
-
-   normalizedPath = FileLockNormalizePath(filePath);
-   if (normalizedPath == NULL) {
-      err = EINVAL;
-   } else {
-      err = FileLockHackVMX(normalizedPath);
-
-      Unicode_Free(normalizedPath);
-   }
-
-   return err;
-}
-
 #else
 
 /*
