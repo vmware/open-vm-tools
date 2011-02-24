@@ -134,9 +134,10 @@ GetConfEntry(const char *progName,  // IN: program name (argv[0])
              const char *apm,       // IN: apm name
              ScriptType type)       // IN: Script type (default or current)
 {
-   gchar *entry = NULL;
-   GKeyFile *confDict = NULL;
+   gchar *entry;
+   GKeyFile *confDict;
    const char *confName;
+   int len;
    int ret;
 
    confName = GetConfName(apm);
@@ -149,16 +150,42 @@ GetConfEntry(const char *progName,  // IN: program name (argv[0])
 
    confDict = LoadConfFile();
 
-   if (type == Default) {
-      entry = g_strdup(GuestApp_GetDefaultScript(confName));
-   } else if (type == Current) {
+   switch (type) {
+   case Current:
       entry = g_key_file_get_string(confDict, "powerops", confName, NULL);
-      if (entry == NULL) {
-         entry = g_strdup(GuestApp_GetDefaultScript(confName));
+      if (entry) {
+         break;
       }
+      /* Fall through */
+
+   default:
+      entry = g_strdup(GuestApp_GetDefaultScript(confName));
+      break;
    }
 
-   if (strlen(entry) > 0) {
+   len = strlen(entry);
+   if (len > 0) {
+
+      /* If script path is not absolute, assume the Tools install path. */
+      if (!g_path_is_absolute(entry)) {
+         char *defaultPath = GuestApp_GetInstallPath();
+         char *tmp;
+         Bool quoted;
+
+         ASSERT(defaultPath != NULL);
+
+         /* Cope with old configs that added quotes around script paths. */
+         quoted = (entry[0] == '"' && entry[len - 1] == '"');
+         tmp = g_strdup_printf("%s%c%.*s", defaultPath, DIRSEPC,
+                                quoted ? len - 2 : len,
+                                quoted ? entry + 1 : entry);
+
+         vm_free(defaultPath);
+
+         g_free(entry);
+         entry = tmp;
+      }
+
       g_print("%s\n", entry);
       ret = EXIT_SUCCESS;
    } else {
