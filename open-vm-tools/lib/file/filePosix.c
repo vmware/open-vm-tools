@@ -2331,6 +2331,14 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
                                    STRING_ENCODING_DEFAULT)) {
             id = Unicode_Alloc(entry->d_name, STRING_ENCODING_DEFAULT);
          } else {
+            id = Unicode_EscapeBuffer(entry->d_name, -1,
+                                     STRING_ENCODING_DEFAULT);
+
+            Warning("%s: file '%s' in directory '%s' cannot be converted to "
+                    "UTF8\n", __FUNCTION__, pathName, id);
+
+            Unicode_Free(id);
+
             id = Unicode_Duplicate("\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD");
          }
 
