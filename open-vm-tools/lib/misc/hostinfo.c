@@ -54,68 +54,6 @@ char HostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
 
 #if defined(__i386__) || defined(__x86_64__)
 /*
- *----------------------------------------------------------------------
- *
- * HostInfoGetIntelCPUCount --
- *
- *      For an Intel processor, determine the number of cores per physical
- *      CPU and the number of threads per core.
- *
- * Results:
- *
- *      TRUE if the information was successfully gathered, FALSE if
- *      otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-HostInfoGetIntelCPUCount(CPUIDSummary *cpuid,       // IN
-                         uint32 *numCoresPerPCPU,   // OUT
-                         uint32 *numThreadsPerCore) // OUT
-{
-   *numCoresPerPCPU = CPUIDSummary_IntelCoresPerPackage(cpuid,
-                                                        numThreadsPerCore);
-
-   return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * HostInfoGetAMDCPUCount --
- *
- *      For an AMD processor, determine the number of cores per physical
- *      CPU and the number of threads per core.
- *
- * Results:
- *
- *      TRUE if the information was successfully gathered, FALSE if
- *      otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-HostInfoGetAMDCPUCount(CPUIDSummary *cpuid,       // IN
-                       uint32 *numCoresPerPCPU,   // OUT
-                       uint32 *numThreadsPerCore) // OUT
-{
-   *numCoresPerPCPU = CPUIDSummary_AMDCoresPerPackage(cpuid,
-                                                      numThreadsPerCore);
-
-   return TRUE;
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * HostInfoGetCpuidStrSection --
@@ -249,7 +187,6 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 #if defined(__i386__) || defined(__x86_64__)
    CPUIDSummary cpuid;
    CPUIDRegs id0;
-   uint32 numCoresPerPCPU, numThreadsPerCore;
 
    /*
     * Can't do cpuid = {0} as an initializer above because gcc throws
@@ -284,81 +221,16 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
    __GET_CPUID(0x80000008, (CPUIDRegs*)&cpuid.id88);
 
    /*
-    * Calculate vendor and CPU count information.
+    * Calculate vendor information.
     */
 
    if (0 == strcmp(cpuid.id0.name, CPUID_INTEL_VENDOR_STRING_FIXED)) {
       info->vendor = CPUID_VENDOR_INTEL;
-      if (!HostInfoGetIntelCPUCount(&cpuid, &numCoresPerPCPU,
-                                    &numThreadsPerCore)) {
-         Warning(LGPFX" Failed to get Intel CPU count.\n");
-
-         return FALSE;
-      }
-
-      Log(LGPFX" Seeing Intel CPU, numCoresPerCPU %u numThreadsPerCore %u.\n",
-          numCoresPerPCPU, numThreadsPerCore);
    } else if (strcmp(cpuid.id0.name, CPUID_AMD_VENDOR_STRING_FIXED) == 0) {
       info->vendor = CPUID_VENDOR_AMD;
-      if (!HostInfoGetAMDCPUCount(&cpuid, &numCoresPerPCPU,
-                                  &numThreadsPerCore)) {
-         Warning(LGPFX" Failed to get AMD CPU count.\n");
-
-         return FALSE;
-      }
-
-      Log(LGPFX" Seeing AMD CPU, numCoresPerCPU %u numThreadsPerCore %u.\n",
-          numCoresPerPCPU, numThreadsPerCore);
    } else {
       info->vendor = CPUID_VENDOR_UNKNOWN;
-
-      // assume one core per CPU, one thread per core
-      numCoresPerPCPU = 1;
-      numThreadsPerCore = 1;
-
-      Log(LGPFX" Unknown CPU vendor \"%s\" seen, assuming one core per CPU "
-               "and one thread per core.\n", cpuid.id0.name);
    }
-
-   info->numLogCPUs = Hostinfo_NumCPUs();
-
-   if (-1 == info->numLogCPUs) {
-      Warning(LGPFX" Failed to get logical CPU count.\n");
-
-      return FALSE;
-   }
-
-#ifdef VMX86_SERVER
-   /*
-    * The host can avoid scheduling hypertwins, regardless of the CPU
-    * supporting it or hyperthreading being enabled in the BIOS. This leads
-    * to numThreadsPerCore set to 2 when it should be 1.
-    */
-
-   if (Hostinfo_HTDisabled()) {
-      Log(LGPFX" hyperthreading disabled, setting number of threads per core "
-               "to 1.\n");
-      numThreadsPerCore = 1;
-   }
-#endif
-
-   info->numPhysCPUs = info->numLogCPUs / (numCoresPerPCPU *
-                                           numThreadsPerCore);
-
-   if (0 == info->numPhysCPUs) {
-      // UP kernel case, possibly
-      Log(LGPFX" numPhysCPUs is 0, bumping to 1.\n");
-      info->numPhysCPUs = 1;
-   }
-
-   info->numCores = info->numLogCPUs / numThreadsPerCore;
-
-   if (0 == info->numCores) {
-      // UP kernel case, possibly
-      Log(LGPFX" numCores is 0, bumping to 1.\n");
-      info->numCores = 1;
-   }
-
    /*
     * Pull out versioning and feature information.
     */

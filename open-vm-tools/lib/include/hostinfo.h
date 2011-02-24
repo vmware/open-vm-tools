@@ -123,10 +123,6 @@ typedef struct {
 
    uint32 features;
    uint32 extfeatures;
-
-   uint32 numPhysCPUs;
-   uint32 numCores;
-   uint32 numLogCPUs;
 } HostinfoCpuIdInfo;
 
 
@@ -136,6 +132,8 @@ extern Bool Hostinfo_GetCpuid(HostinfoCpuIdInfo *info);
 
 #if defined(VMX86_SERVER)
 extern Bool Hostinfo_HTDisabled(void);
+#else
+extern Bool Hostinfo_CPUCounts(uint32 *logical, uint32 *cores, uint32 *pkgs);
 #endif
 
 #if defined(_WIN32)
