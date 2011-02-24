@@ -301,7 +301,7 @@ FLAGDEFA(  1, ECX, COMMON, 12,  1, FMA,                 YES, TRUE,  FMA)       \
 FLAGDEFA(  1, ECX, COMMON, 13,  1, CMPX16,              YES, TRUE,  CMPX16)    \
 FLAGDEF(   1, ECX, INTEL,  14,  1, xPPR,                NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  15,  1, PERF_MSR,            NO,  FALSE)            \
-FLAGDEF(   1, ECX, INTEL,  17,  1, PCID,                NO,  FALSE)            \
+FLAGDEFA(  1, ECX, INTEL,  17,  1, PCID,                YES, FALSE, PCID)      \
 FLAGDEF(   1, ECX, INTEL,  18,  1, DCA,                 NO,  FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 19,  1, SSE41,               YES, TRUE,  SSE41)     \
 FLAGDEFA(  1, ECX, COMMON, 20,  1, SSE42,               YES, TRUE,  SSE42)     \
