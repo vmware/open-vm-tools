@@ -28,16 +28,17 @@
 #include "vmci_defs.h"
 #include "vmciQueue.h"
 
-void VMCIQueuePair_Init(void);
-void VMCIQueuePair_Exit(void);
-void VMCIQueuePair_Sync(void);
+void VMCIQPGuestEndpoints_Init(void);
+void VMCIQPGuestEndpoints_Exit(void);
+void VMCIQPGuestEndpoints_Sync(void);
+void VMCIQPGuestEndpoints_Convert(Bool toLocal, Bool deviceReset);
+
 int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
                         uint64 produceSize, VMCIQueue **consumeQ,
                         uint64 consumeSize, VMCIId peer, uint32 flags,
                         VMCIPrivilegeFlags privFlags);
 int VMCIQueuePair_Detach(VMCIHandle handle);
 
-void VMCIQueuePair_Convert(Bool toLocal, Bool deviceReset);
 
 
 #endif /* !_VMCI_QUEUE_PAIR_INT_H_ */

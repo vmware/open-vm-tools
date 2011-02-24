@@ -45,41 +45,48 @@
 #define LGPFX "VMCIQueuePair: "
 
 typedef struct QueuePairEntry {
+   VMCIListItem  listItem;
    VMCIHandle    handle;
    VMCIId        peer;
    uint32        flags;
    uint64        produceSize;
    uint64        consumeSize;
-   uint64        numPPNs;
-   PPNSet        ppnSet;
-   void         *produceQ;
-   void         *consumeQ;
    uint32        refCount;
-   Bool          hibernateFailure;
-   VMCIListItem  listItem;
 } QueuePairEntry;
+
+typedef struct QPGuestEndpoint {
+   QueuePairEntry qp;
+   uint64         numPPNs;
+   void          *produceQ;
+   void          *consumeQ;
+   Bool           hibernateFailure;
+   PPNSet         ppnSet;
+} QPGuestEndpoint;
 
 typedef struct QueuePairList {
    VMCIList       head;
    Atomic_uint32  hibernate;
-   VMCIMutex      mutex;
+   VMCIMutex      lock;
 } QueuePairList;
 
-static QueuePairList queuePairList;
+static QueuePairList qpGuestEndpoints;
 static VMCIHandleArray *hibernateFailedList;
 static VMCILock hibernateFailedListLock;
 
-static QueuePairEntry *QueuePairList_FindEntry(VMCIHandle handle);
-static void QueuePairList_AddEntry(QueuePairEntry *entry);
-static void QueuePairList_RemoveEntry(QueuePairEntry *entry);
-static QueuePairEntry *QueuePairList_GetHead(void);
-static QueuePairEntry *QueuePairEntryCreate(VMCIHandle handle,
+static QueuePairEntry *QueuePairList_FindEntry(QueuePairList *qpList,
+                                               VMCIHandle handle);
+static void QueuePairList_AddEntry(QueuePairList *qpList,
+                                   QueuePairEntry *entry);
+static void QueuePairList_RemoveEntry(QueuePairList *qpList,
+                                      QueuePairEntry *entry);
+static QueuePairEntry *QueuePairList_GetHead(QueuePairList *qpList);
+static QPGuestEndpoint *QPGuestEndpointCreate(VMCIHandle handle,
                                             VMCIId peer, uint32 flags,
                                             uint64 produceSize,
                                             uint64 consumeSize,
                                             void *produceQ, void *consumeQ);
-static void QueuePairEntryDestroy(QueuePairEntry *entry);
-static int VMCIQueuePairAlloc_HyperCall(const QueuePairEntry *entry);
+static void QPGuestEndpointDestroy(QPGuestEndpoint *entry);
+static int VMCIQueuePairAlloc_HyperCall(const QPGuestEndpoint *entry);
 static int VMCIQueuePairAllocHelper(VMCIHandle *handle, VMCIQueue **produceQ,
                                     uint64 produceSize, VMCIQueue **consumeQ,
                                     uint64 consumeSize,
@@ -87,16 +94,47 @@ static int VMCIQueuePairAllocHelper(VMCIHandle *handle, VMCIQueue **produceQ,
 static int VMCIQueuePairDetachHelper(VMCIHandle handle);
 static int VMCIQueuePairDetachHyperCall(VMCIHandle handle);
 static int QueuePairNotifyPeerLocal(Bool attach, VMCIHandle handle);
-static void VMCIQPMarkHibernateFailed(QueuePairEntry *entry);
-static void VMCIQPUnmarkHibernateFailed(QueuePairEntry *entry);
+static void VMCIQPMarkHibernateFailed(QPGuestEndpoint *entry);
+static void VMCIQPUnmarkHibernateFailed(QPGuestEndpoint *entry);
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * QueuePairLock_Init --
+ * QueuePairList_Init --
  *
- *      Creates the lock protecting the QueuePair list.
+ *      Initializes a queue pair list.
+ *
+ * Results:
+ *      Success or failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int
+QueuePairList_Init(QueuePairList *qpList)
+{
+   int ret;
+
+   VMCIList_Init(&qpList->head);
+   Atomic_Write(&qpList->hibernate, 0);
+   ret = VMCIMutex_Init(&qpList->lock);
+
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * QueuePairList_Destroy --
+ *
+ *      Cleans up state queue pair list state created by
+ *      QueuePairList_Init. It destroys the lock protecting the
+ *      QueuePair list.
  *
  * Results:
  *      None.
@@ -108,87 +146,20 @@ static void VMCIQPUnmarkHibernateFailed(QueuePairEntry *entry);
  */
 
 static INLINE void
-QueuePairLock_Init(void)
+QueuePairList_Destroy(QueuePairList *qpList)
 {
-   VMCIMutex_Init(&queuePairList.mutex);
+   VMCIList_Init(&qpList->head);
+   VMCIMutex_Destroy(&qpList->lock); /* No-op on Linux and Windows. */
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * QueuePairLock_Destroy --
+ * VMCIQPGuestEndpoints_Init --
  *
- *      Destroys the lock protecting the QueuePair list.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-QueuePairLock_Destroy(void)
-{
-   VMCIMutex_Destroy(&queuePairList.mutex); /* No-op on Linux and Windows. */
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * QueuePairList_Lock --
- *
- *      Acquires the lock protecting the QueuePair list.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-QueuePairList_Lock(void)
-{
-   VMCIMutex_Acquire(&queuePairList.mutex);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * QueuePairList_Unlock --
- *
- *      Releases the lock protecting the QueuePair list.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-QueuePairList_Unlock(void)
-{
-   VMCIMutex_Release(&queuePairList.mutex);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIQueuePair_Init --
- *
- *      Initalizes QueuePair data structure state.
+ *      Initalizes data structure state keeping track of queue pair
+ *      guest endpoints.
  *
  * Results:
  *      None.
@@ -200,11 +171,9 @@ QueuePairList_Unlock(void)
  */
 
 void
-VMCIQueuePair_Init(void)
+VMCIQPGuestEndpoints_Init(void)
 {
-   VMCIList_Init(&queuePairList.head);
-   Atomic_Write(&queuePairList.hibernate, 0);
-   QueuePairLock_Init();
+   QueuePairList_Init(&qpGuestEndpoints);
    hibernateFailedList = VMCIHandleArray_Create(0);
 
    /*
@@ -222,9 +191,12 @@ VMCIQueuePair_Init(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQueuePair_Exit --
+ * VMCIQPGuestEndpoints_Exit --
  *
- *      Destroys all QueuePairs. Makes hypercalls to detach from QueuePairs.
+ *      Destroys all guest queue pair endpoints. If active guest queue
+ *      pairs still exist, hypercalls to attempt detach from these
+ *      queue pairs will be made. Any failure to detach is silently
+ *      ignored.
  *
  * Results:
  *      None.
@@ -236,38 +208,38 @@ VMCIQueuePair_Init(void)
  */
 
 void
-VMCIQueuePair_Exit(void)
+VMCIQPGuestEndpoints_Exit(void)
 {
-   QueuePairEntry *entry;
+   QPGuestEndpoint *entry;
 
-   QueuePairList_Lock();
+   VMCIMutex_Acquire(&qpGuestEndpoints.lock);
 
-   while ((entry = QueuePairList_GetHead())) {
+   while ((entry = (QPGuestEndpoint *)QueuePairList_GetHead(&qpGuestEndpoints))) {
       /*
        * Don't make a hypercall for local QueuePairs.
        */
-      if (!(entry->flags & VMCI_QPFLAG_LOCAL)) {
+      if (!(entry->qp.flags & VMCI_QPFLAG_LOCAL)) {
          VMCIQueuePairDetachMsg detachMsg;
 
          detachMsg.hdr.dst = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
                                               VMCI_QUEUEPAIR_DETACH);
          detachMsg.hdr.src = VMCI_ANON_SRC_HANDLE;
-         detachMsg.hdr.payloadSize = sizeof entry->handle;
-         detachMsg.handle = entry->handle;
+         detachMsg.hdr.payloadSize = sizeof entry->qp.handle;
+         detachMsg.handle = entry->qp.handle;
 
          (void)VMCI_SendDatagram((VMCIDatagram *)&detachMsg);
       }
       /*
        * We cannot fail the exit, so let's reset refCount.
        */
-      entry->refCount = 0;
-      QueuePairList_RemoveEntry(entry);
-      QueuePairEntryDestroy(entry);
+      entry->qp.refCount = 0;
+      QueuePairList_RemoveEntry(&qpGuestEndpoints, &entry->qp);
+      QPGuestEndpointDestroy(entry);
    }
 
-   Atomic_Write(&queuePairList.hibernate, 0);
-   QueuePairList_Unlock();
-   QueuePairLock_Destroy();
+   Atomic_Write(&qpGuestEndpoints.hibernate, 0);
+   VMCIMutex_Release(&qpGuestEndpoints.lock);
+   QueuePairList_Destroy(&qpGuestEndpoints);
    VMCI_CleanupLock(&hibernateFailedListLock);
    VMCIHandleArray_Destroy(hibernateFailedList);
 }
@@ -276,7 +248,7 @@ VMCIQueuePair_Exit(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQueuePair_Sync --
+ * VMCIQPGuestEndpoints_Sync --
  *
  *      Use this as a synchronization point when setting globals, for example,
  *      during device shutdown.
@@ -291,10 +263,10 @@ VMCIQueuePair_Exit(void)
  */
 
 void
-VMCIQueuePair_Sync(void)
+VMCIQPGuestEndpoints_Sync(void)
 {
-   QueuePairList_Lock();
-   QueuePairList_Unlock();
+   VMCIMutex_Acquire(&qpGuestEndpoints.lock);
+   VMCIMutex_Release(&qpGuestEndpoints.lock);
 }
 
 
@@ -316,7 +288,8 @@ VMCIQueuePair_Sync(void)
  */
 
 static QueuePairEntry *
-QueuePairList_FindEntry(VMCIHandle handle) // IN:
+QueuePairList_FindEntry(QueuePairList *qpList, // IN
+                        VMCIHandle handle)     // IN
 {
    VMCIListItem *next;
 
@@ -324,7 +297,7 @@ QueuePairList_FindEntry(VMCIHandle handle) // IN:
       return NULL;
    }
 
-   VMCIList_Scan(next, &queuePairList.head) {
+   VMCIList_Scan(next, &qpList->head) {
       QueuePairEntry *entry = VMCIList_Entry(next, QueuePairEntry, listItem);
 
       if (VMCI_HANDLE_EQUAL(entry->handle, handle)) {
@@ -354,10 +327,11 @@ QueuePairList_FindEntry(VMCIHandle handle) // IN:
  */
 
 static void
-QueuePairList_AddEntry(QueuePairEntry *entry) // IN:
+QueuePairList_AddEntry(QueuePairList *qpList, // IN
+                       QueuePairEntry *entry) // IN
 {
    if (entry) {
-      VMCIList_Insert(&entry->listItem, &queuePairList.head);
+      VMCIList_Insert(&entry->listItem, &qpList->head);
    }
 }
 
@@ -380,10 +354,11 @@ QueuePairList_AddEntry(QueuePairEntry *entry) // IN:
  */
 
 static void
-QueuePairList_RemoveEntry(QueuePairEntry *entry) // IN:
+QueuePairList_RemoveEntry(QueuePairList *qpList, // IN
+                          QueuePairEntry *entry) // IN
 {
    if (entry) {
-      VMCIList_Remove(&entry->listItem, &queuePairList.head);
+      VMCIList_Remove(&entry->listItem, &qpList->head);
    }
 }
 
@@ -406,9 +381,9 @@ QueuePairList_RemoveEntry(QueuePairEntry *entry) // IN:
  */
 
 static QueuePairEntry *
-QueuePairList_GetHead(void)
+QueuePairList_GetHead(QueuePairList *qpList) // IN
 {
-   VMCIListItem *first = VMCIList_First(&queuePairList.head);
+   VMCIListItem *first = VMCIList_First(&qpList->head);
 
    if (first) {
       QueuePairEntry *entry = VMCIList_Entry(first, QueuePairEntry, listItem);
@@ -442,14 +417,14 @@ QueuePairList_GetHead(void)
  */
 
 int
-VMCIQueuePair_Alloc(VMCIHandle *handle,           // IN/OUT:
-                    VMCIQueue  **produceQ,        // OUT:
-                    uint64     produceSize,       // IN:
-                    VMCIQueue  **consumeQ,        // OUT:
-                    uint64     consumeSize,       // IN:
-                    VMCIId     peer,              // IN:
-                    uint32     flags,             // IN:
-                    VMCIPrivilegeFlags privFlags) // IN:
+VMCIQueuePair_Alloc(VMCIHandle *handle,           // IN/OUT
+                    VMCIQueue  **produceQ,        // OUT
+                    uint64     produceSize,       // IN
+                    VMCIQueue  **consumeQ,        // OUT
+                    uint64     consumeSize,       // IN
+                    VMCIId     peer,              // IN
+                    uint32     flags,             // IN
+                    VMCIPrivilegeFlags privFlags) // IN
 {
    if (privFlags != VMCI_NO_PRIVILEGE_FLAGS) {
       return VMCI_ERROR_NO_ACCESS;
@@ -483,7 +458,7 @@ VMCIQueuePair_Alloc(VMCIHandle *handle,           // IN/OUT:
  */
 
 int
-VMCIQueuePair_Detach(VMCIHandle handle) // IN:
+VMCIQueuePair_Detach(VMCIHandle handle) // IN
 {
    if (VMCI_HANDLE_INVALID(handle)) {
       return VMCI_ERROR_INVALID_ARGS;
@@ -495,12 +470,13 @@ VMCIQueuePair_Detach(VMCIHandle handle) // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * QueuePairEntryCreate --
+ * QPGuestEndpointCreate --
  *
- *      Allocates and initializes a QueuePairEntry structure.  Allocates a
- *      QueuePair rid (and handle) iff the given entry has an invalid handle.
- *      0 through VMCI_RESERVED_RESOURCE_ID_MAX are reserved handles.  Assumes
- *      that the QP list lock is held by the caller.
+ *      Allocates and initializes a QPGuestEndpoint structure.
+ *      Allocates a QueuePair rid (and handle) iff the given entry has
+ *      an invalid handle.  0 through VMCI_RESERVED_RESOURCE_ID_MAX
+ *      are reserved handles.  Assumes that the QP list lock is held
+ *      by the caller.
  *
  * Results:
  *      Pointer to structure intialized.
@@ -511,17 +487,17 @@ VMCIQueuePair_Detach(VMCIHandle handle) // IN:
  *-----------------------------------------------------------------------------
  */
 
-QueuePairEntry *
-QueuePairEntryCreate(VMCIHandle handle,  // IN:
-                     VMCIId peer,        // IN:
-                     uint32 flags,       // IN:
-                     uint64 produceSize, // IN:
-                     uint64 consumeSize, // IN:
-                     void *produceQ,     // IN:
-                     void *consumeQ)     // IN:
+QPGuestEndpoint *
+QPGuestEndpointCreate(VMCIHandle handle,  // IN
+                      VMCIId peer,        // IN
+                      uint32 flags,       // IN
+                      uint64 produceSize, // IN
+                      uint64 consumeSize, // IN
+                      void *produceQ,     // IN
+                      void *consumeQ)     // IN
 {
    static VMCIId queuePairRID = VMCI_RESERVED_RESOURCE_ID_MAX + 1;
-   QueuePairEntry *entry;
+   QPGuestEndpoint *entry;
    const uint64 numPPNs = CEILING(produceSize, PAGE_SIZE) +
                           CEILING(consumeSize, PAGE_SIZE) +
                           2; /* One page each for the queue headers. */
@@ -539,7 +515,8 @@ QueuePairEntryCreate(VMCIHandle handle,  // IN:
       ASSERT(oldRID > VMCI_RESERVED_RESOURCE_ID_MAX);
       do {
          handle = VMCI_MAKE_HANDLE(contextID, queuePairRID);
-         entry = QueuePairList_FindEntry(handle);
+         entry = (QPGuestEndpoint *)QueuePairList_FindEntry(&qpGuestEndpoints,
+                                                            handle);
          queuePairRID++;
          if (UNLIKELY(!queuePairRID)) {
             /*
@@ -559,20 +536,20 @@ QueuePairEntryCreate(VMCIHandle handle,  // IN:
    }
 
    ASSERT(!VMCI_HANDLE_INVALID(handle) &&
-          QueuePairList_FindEntry(handle) == NULL);
+          QueuePairList_FindEntry(&qpGuestEndpoints, handle) == NULL);
    entry = VMCI_AllocKernelMem(sizeof *entry, VMCI_MEMORY_NORMAL);
    if (entry) {
-      entry->handle = handle;
-      entry->peer = peer;
-      entry->flags = flags;
-      entry->produceSize = produceSize;
-      entry->consumeSize = consumeSize;
+      entry->qp.handle = handle;
+      entry->qp.peer = peer;
+      entry->qp.flags = flags;
+      entry->qp.produceSize = produceSize;
+      entry->qp.consumeSize = consumeSize;
+      entry->qp.refCount = 0;
       entry->numPPNs = numPPNs;
       memset(&entry->ppnSet, 0, sizeof entry->ppnSet);
       entry->produceQ = produceQ;
       entry->consumeQ = consumeQ;
-      entry->refCount = 0;
-      VMCIList_InitEntry(&entry->listItem);
+      VMCIList_InitEntry(&entry->qp.listItem);
    }
    return entry;
 }
@@ -581,9 +558,9 @@ QueuePairEntryCreate(VMCIHandle handle,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * QueuePairEntryDestroy --
+ * QPGuestEndpointDestroy --
  *
- *      Frees a QueuePairEntry structure.
+ *      Frees a QPGuestEndpoint structure.
  *
  * Results:
  *      None.
@@ -595,14 +572,14 @@ QueuePairEntryCreate(VMCIHandle handle,  // IN:
  */
 
 void
-QueuePairEntryDestroy(QueuePairEntry *entry) // IN:
+QPGuestEndpointDestroy(QPGuestEndpoint *entry) // IN
 {
    ASSERT(entry);
-   ASSERT(entry->refCount == 0);
+   ASSERT(entry->qp.refCount == 0);
 
    VMCI_FreePPNSet(&entry->ppnSet);
-   VMCI_FreeQueue(entry->produceQ, entry->produceSize);
-   VMCI_FreeQueue(entry->consumeQ, entry->consumeSize);
+   VMCI_FreeQueue(entry->produceQ, entry->qp.produceSize);
+   VMCI_FreeQueue(entry->consumeQ, entry->qp.consumeSize);
    VMCI_FreeKernelMem(entry, sizeof *entry);
 }
 
@@ -624,7 +601,7 @@ QueuePairEntryDestroy(QueuePairEntry *entry) // IN:
  */
 
 int
-VMCIQueuePairAlloc_HyperCall(const QueuePairEntry *entry) // IN:
+VMCIQueuePairAlloc_HyperCall(const QPGuestEndpoint *entry) // IN
 {
    VMCIQueuePairAllocMsg *allocMsg;
    size_t msgSize;
@@ -634,7 +611,7 @@ VMCIQueuePairAlloc_HyperCall(const QueuePairEntry *entry) // IN:
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   ASSERT(!(entry->flags & VMCI_QPFLAG_LOCAL));
+   ASSERT(!(entry->qp.flags & VMCI_QPFLAG_LOCAL));
 
    msgSize = sizeof *allocMsg + (size_t)entry->numPPNs * sizeof(PPN);
    allocMsg = VMCI_AllocKernelMem(msgSize, VMCI_MEMORY_NONPAGED);
@@ -646,11 +623,11 @@ VMCIQueuePairAlloc_HyperCall(const QueuePairEntry *entry) // IN:
 					VMCI_QUEUEPAIR_ALLOC);
    allocMsg->hdr.src = VMCI_ANON_SRC_HANDLE;
    allocMsg->hdr.payloadSize = msgSize - VMCI_DG_HEADERSIZE;
-   allocMsg->handle = entry->handle;
-   allocMsg->peer = entry->peer;
-   allocMsg->flags = entry->flags;
-   allocMsg->produceSize = entry->produceSize;
-   allocMsg->consumeSize = entry->consumeSize;
+   allocMsg->handle = entry->qp.handle;
+   allocMsg->peer = entry->qp.peer;
+   allocMsg->flags = entry->qp.flags;
+   allocMsg->produceSize = entry->qp.produceSize;
+   allocMsg->consumeSize = entry->qp.consumeSize;
    allocMsg->numPPNs = entry->numPPNs;
    result = VMCI_PopulatePPNList((uint8 *)allocMsg + sizeof *allocMsg, &entry->ppnSet);
    if (result == VMCI_SUCCESS) {
@@ -680,20 +657,20 @@ VMCIQueuePairAlloc_HyperCall(const QueuePairEntry *entry) // IN:
  */
 
 static int
-VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
-                         VMCIQueue **produceQ, // OUT:
-                         uint64 produceSize,   // IN:
-                         VMCIQueue **consumeQ, // OUT:
-                         uint64 consumeSize,   // IN:
-                         VMCIId peer,          // IN:
-                         uint32 flags)         // IN:
+VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT
+                         VMCIQueue **produceQ, // OUT
+                         uint64 produceSize,   // IN
+                         VMCIQueue **consumeQ, // OUT
+                         uint64 consumeSize,   // IN
+                         VMCIId peer,          // IN
+                         uint32 flags)         // IN
 {
    const uint64 numProducePages = CEILING(produceSize, PAGE_SIZE) + 1;
    const uint64 numConsumePages = CEILING(consumeSize, PAGE_SIZE) + 1;
    void *myProduceQ = NULL;
    void *myConsumeQ = NULL;
    int result;
-   QueuePairEntry *queuePairEntry = NULL;
+   QPGuestEndpoint *queuePairEntry = NULL;
 
    /*
     * XXX Check for possible overflow of 'size' arguments when passed to
@@ -702,7 +679,7 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
 
    ASSERT(handle && produceQ && consumeQ && (produceSize || consumeSize));
 
-   QueuePairList_Lock();
+   VMCIMutex_Acquire(&qpGuestEndpoints.lock);
 
    /* Do not allow alloc/attach if the device is being shutdown. */
    if (VMCI_DeviceShutdown()) {
@@ -710,7 +687,7 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
       goto error;
    }
 
-   if ((Atomic_Read(&queuePairList.hibernate) == 1) &&
+   if ((Atomic_Read(&qpGuestEndpoints.hibernate) == 1) &&
        !(flags & VMCI_QPFLAG_LOCAL)) {
       /*
        * While guest OS is in hibernate state, creating non-local
@@ -723,19 +700,20 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
       goto error;
    }
 
-   if ((queuePairEntry = QueuePairList_FindEntry(*handle))) {
-      if (queuePairEntry->flags & VMCI_QPFLAG_LOCAL) {
+   if ((queuePairEntry = (QPGuestEndpoint *)QueuePairList_FindEntry(
+                                               &qpGuestEndpoints, *handle))) {
+      if (queuePairEntry->qp.flags & VMCI_QPFLAG_LOCAL) {
          /* Local attach case. */
-         if (queuePairEntry->refCount > 1) {
+         if (queuePairEntry->qp.refCount > 1) {
             VMCI_DEBUG_LOG(4, (LGPFX"Error attempting to attach more than "
                                "once.\n"));
             result = VMCI_ERROR_UNAVAILABLE;
             goto errorKeepEntry;
          }
 
-         if (queuePairEntry->produceSize != consumeSize ||
-             queuePairEntry->consumeSize != produceSize ||
-             queuePairEntry->flags != (flags & ~VMCI_QPFLAG_ATTACH_ONLY)) {
+         if (queuePairEntry->qp.produceSize != consumeSize ||
+             queuePairEntry->qp.consumeSize != produceSize ||
+             queuePairEntry->qp.flags != (flags & ~VMCI_QPFLAG_ATTACH_ONLY)) {
             VMCI_DEBUG_LOG(4, (LGPFX"Error mismatched queue pair in local "
                                "attach.\n"));
             result = VMCI_ERROR_QUEUEPAIR_MISMATCH;
@@ -772,9 +750,9 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
       goto error;
    }
 
-   queuePairEntry = QueuePairEntryCreate(*handle, peer, flags,
-                                         produceSize, consumeSize,
-                                         myProduceQ, myConsumeQ);
+   queuePairEntry = QPGuestEndpointCreate(*handle, peer, flags,
+                                          produceSize, consumeSize,
+                                          myProduceQ, myConsumeQ);
    if (!queuePairEntry) {
       VMCI_WARNING((LGPFX"Error allocating memory in %s.\n", __FUNCTION__));
       result = VMCI_ERROR_NO_MEM;
@@ -792,7 +770,7 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
     * It's only necessary to notify the host if this queue pair will be
     * attached to from another context.
     */
-   if (queuePairEntry->flags & VMCI_QPFLAG_LOCAL) {
+   if (queuePairEntry->qp.flags & VMCI_QPFLAG_LOCAL) {
       /* Local create case. */
       VMCIId contextId = VMCI_GetContextID();
 
@@ -803,14 +781,14 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
        * cannot exist during create.  We also ensure specified peer is this
        * context or an invalid one.
        */
-      if (queuePairEntry->handle.context != contextId ||
-          (queuePairEntry->peer != VMCI_INVALID_ID &&
-           queuePairEntry->peer != contextId)) {
+      if (queuePairEntry->qp.handle.context != contextId ||
+          (queuePairEntry->qp.peer != VMCI_INVALID_ID &&
+           queuePairEntry->qp.peer != contextId)) {
          result = VMCI_ERROR_NO_ACCESS;
          goto error;
       }
 
-      if (queuePairEntry->flags & VMCI_QPFLAG_ATTACH_ONLY) {
+      if (queuePairEntry->qp.flags & VMCI_QPFLAG_ATTACH_ONLY) {
          result = VMCI_ERROR_NOT_FOUND;
          goto error;
       }
@@ -825,11 +803,11 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
 
    VMCI_InitQueueMutex((VMCIQueue *)myProduceQ, (VMCIQueue *)myConsumeQ);
 
-   QueuePairList_AddEntry(queuePairEntry);
+   QueuePairList_AddEntry(&qpGuestEndpoints, &queuePairEntry->qp);
 
 out:
-   queuePairEntry->refCount++;
-   *handle = queuePairEntry->handle;
+   queuePairEntry->qp.refCount++;
+   *handle = queuePairEntry->qp.handle;
    *produceQ = (VMCIQueue *)myProduceQ;
    *consumeQ = (VMCIQueue *)myConsumeQ;
 
@@ -838,21 +816,21 @@ out:
     * create.  For non-local queue pairs, the hypervisor initializes the header
     * pages in the create step.
     */
-   if ((queuePairEntry->flags & VMCI_QPFLAG_LOCAL) &&
-       queuePairEntry->refCount == 1) {
+   if ((queuePairEntry->qp.flags & VMCI_QPFLAG_LOCAL) &&
+       queuePairEntry->qp.refCount == 1) {
       VMCIQueueHeader_Init((*produceQ)->qHeader, *handle);
       VMCIQueueHeader_Init((*consumeQ)->qHeader, *handle);
    }
 
-   QueuePairList_Unlock();
+   VMCIMutex_Release(&qpGuestEndpoints.lock);
 
    return VMCI_SUCCESS;
 
 error:
-   QueuePairList_Unlock();
+   VMCIMutex_Release(&qpGuestEndpoints.lock);
    if (queuePairEntry) {
       /* The queues will be freed inside the destroy routine. */
-      QueuePairEntryDestroy(queuePairEntry);
+      QPGuestEndpointDestroy(queuePairEntry);
    } else {
       if (myProduceQ) {
          VMCI_FreeQueue(myProduceQ, produceSize);
@@ -865,8 +843,8 @@ error:
 
 errorKeepEntry:
    /* This path should only be used when an existing entry was found. */
-   ASSERT(queuePairEntry->refCount > 0);
-   QueuePairList_Unlock();
+   ASSERT(queuePairEntry->qp.refCount > 0);
+   VMCIMutex_Release(&qpGuestEndpoints.lock);
    return result;
 }
 
@@ -888,7 +866,7 @@ errorKeepEntry:
  */
 
 int
-VMCIQueuePairDetachHyperCall(VMCIHandle handle) // IN:
+VMCIQueuePairDetachHyperCall(VMCIHandle handle) // IN
 {
    VMCIQueuePairDetachMsg detachMsg;
 
@@ -920,28 +898,28 @@ VMCIQueuePairDetachHyperCall(VMCIHandle handle) // IN:
  */
 
 static int
-VMCIQueuePairDetachHelper(VMCIHandle handle)   // IN:
+VMCIQueuePairDetachHelper(VMCIHandle handle)   // IN
 {
    int result;
-   QueuePairEntry *entry;
+   QPGuestEndpoint *entry;
    uint32 refCount;
 
    ASSERT(!VMCI_HANDLE_INVALID(handle));
 
-   QueuePairList_Lock();
+   VMCIMutex_Acquire(&qpGuestEndpoints.lock);
 
-   entry = QueuePairList_FindEntry(handle);
+   entry = (QPGuestEndpoint *)QueuePairList_FindEntry(&qpGuestEndpoints, handle);
    if (!entry) {
       result = VMCI_ERROR_NOT_FOUND;
       goto out;
    }
 
-   ASSERT(entry->refCount >= 1);
+   ASSERT(entry->qp.refCount >= 1);
 
-   if (entry->flags & VMCI_QPFLAG_LOCAL) {
+   if (entry->qp.flags & VMCI_QPFLAG_LOCAL) {
       result = VMCI_SUCCESS;
 
-      if (entry->refCount > 1) {
+      if (entry->qp.refCount > 1) {
          result = QueuePairNotifyPeerLocal(FALSE, handle);
          if (result < VMCI_SUCCESS) {
             goto out;
@@ -962,7 +940,7 @@ VMCIQueuePairDetachHelper(VMCIHandle handle)   // IN:
              * peer.
              */
 
-            ASSERT(entry->refCount == 1);
+            ASSERT(entry->qp.refCount == 1);
             result = VMCI_SUCCESS;
          }
          if (result == VMCI_SUCCESS) {
@@ -973,24 +951,24 @@ VMCIQueuePairDetachHelper(VMCIHandle handle)   // IN:
 
 out:
    if (result >= VMCI_SUCCESS) {
-      entry->refCount--;
+      entry->qp.refCount--;
 
-      if (entry->refCount == 0) {
-         QueuePairList_RemoveEntry(entry);
+      if (entry->qp.refCount == 0) {
+         QueuePairList_RemoveEntry(&qpGuestEndpoints, &entry->qp);
       }
    }
 
    /* If we didn't remove the entry, this could change once we unlock. */
-   refCount = entry ? entry->refCount :
+   refCount = entry ? entry->qp.refCount :
                       0xffffffff; /*
                                    * Value does not matter, silence the
                                    * compiler.
                                    */
 
-   QueuePairList_Unlock();
+   VMCIMutex_Release(&qpGuestEndpoints.lock);
 
    if (result >= VMCI_SUCCESS && refCount == 0) {
-      QueuePairEntryDestroy(entry);
+      QPGuestEndpointDestroy(entry);
    }
    return result;
 }
@@ -1060,7 +1038,7 @@ QueuePairNotifyPeerLocal(Bool attach,           // IN: attach or detach?
  */
 
 static void
-VMCIQPMarkHibernateFailed(QueuePairEntry *entry) // IN
+VMCIQPMarkHibernateFailed(QPGuestEndpoint *entry) // IN
 {
    VMCILockFlags flags;
    VMCIHandle handle;
@@ -1070,7 +1048,7 @@ VMCIQPMarkHibernateFailed(QueuePairEntry *entry) // IN
     * accessed while holding a spinlock.
     */
 
-   handle = entry->handle;
+   handle = entry->qp.handle;
    entry->hibernateFailure = TRUE;
    VMCI_GrabLock_BH(&hibernateFailedListLock, &flags);
    VMCIHandleArray_AppendEntry(&hibernateFailedList, handle);
@@ -1096,7 +1074,7 @@ VMCIQPMarkHibernateFailed(QueuePairEntry *entry) // IN
  */
 
 static void
-VMCIQPUnmarkHibernateFailed(QueuePairEntry *entry) // IN
+VMCIQPUnmarkHibernateFailed(QPGuestEndpoint *entry) // IN
 {
    VMCILockFlags flags;
    VMCIHandle handle;
@@ -1106,7 +1084,7 @@ VMCIQPUnmarkHibernateFailed(QueuePairEntry *entry) // IN
     * accessed while holding a spinlock.
     */
 
-   handle = entry->handle;
+   handle = entry->qp.handle;
    entry->hibernateFailure = FALSE;
    VMCI_GrabLock_BH(&hibernateFailedListLock, &flags);
    VMCIHandleArray_RemoveEntry(hibernateFailedList, handle);
@@ -1117,12 +1095,13 @@ VMCIQPUnmarkHibernateFailed(QueuePairEntry *entry) // IN
 /*
  *----------------------------------------------------------------------------
  *
- * VMCIQueuePair_Convert --
+ * VMCIQPGuestEndpoints_Convert --
  *
- *      Queue pairs may be converted to local ones in two cases: when
- *      entering hibernation or when the device is powered off before
- *      entering a sleep mode. Below we first discuss the case of
- *      hibernation and then the case of entering sleep state.
+ *      Guest queue pair endpoints may be converted to local ones in
+ *      two cases: when entering hibernation or when the device is
+ *      powered off before entering a sleep mode. Below we first
+ *      discuss the case of hibernation and then the case of entering
+ *      sleep state.
  *
  *      When the guest enters hibernation, any non-local queue pairs
  *      will disconnect no later than at the time the VMCI device
@@ -1173,18 +1152,21 @@ VMCIQPUnmarkHibernateFailed(QueuePairEntry *entry) // IN
  */
 
 void
-VMCIQueuePair_Convert(Bool toLocal,     // IN
-                      Bool deviceReset) // IN
+VMCIQPGuestEndpoints_Convert(Bool toLocal,     // IN
+                             Bool deviceReset) // IN
 {
    if (toLocal) {
       VMCIListItem *next;
 
-      QueuePairList_Lock();
+      VMCIMutex_Acquire(&qpGuestEndpoints.lock);
 
-      VMCIList_Scan(next, &queuePairList.head) {
-         QueuePairEntry *entry = VMCIList_Entry(next, QueuePairEntry, listItem);
+      VMCIList_Scan(next, &qpGuestEndpoints.head) {
+         QPGuestEndpoint *entry = (QPGuestEndpoint *)VMCIList_Entry(
+                                                        next,
+                                                        QueuePairEntry,
+                                                        listItem);
 
-         if (!(entry->flags & VMCI_QPFLAG_LOCAL)) {
+         if (!(entry->qp.flags & VMCI_QPFLAG_LOCAL)) {
             VMCIQueue *prodQ;
             VMCIQueue *consQ;
             void *oldProdQ;
@@ -1197,25 +1179,28 @@ VMCIQueuePair_Convert(Bool toLocal,     // IN
 
             VMCI_AcquireQueueMutex(prodQ);
 
-            result = VMCI_ConvertToLocalQueue(consQ, prodQ, entry->consumeSize,
+            result = VMCI_ConvertToLocalQueue(consQ, prodQ,
+                                              entry->qp.consumeSize,
                                               TRUE, &oldConsQ);
             if (result != VMCI_SUCCESS) {
                VMCI_WARNING((LGPFX"Hibernate failed to create local consume "
                              "queue from handle %x:%x (error: %d)\n",
-                             entry->handle.context, entry->handle.resource,
+                             entry->qp.handle.context, entry->qp.handle.resource,
                              result));
                VMCI_ReleaseQueueMutex(prodQ);
                VMCIQPMarkHibernateFailed(entry);
                continue;
             }
-            result = VMCI_ConvertToLocalQueue(prodQ, consQ, entry->produceSize,
+            result = VMCI_ConvertToLocalQueue(prodQ, consQ,
+                                              entry->qp.produceSize,
                                               FALSE, &oldProdQ);
             if (result != VMCI_SUCCESS) {
                VMCI_WARNING((LGPFX"Hibernate failed to create local produce "
                              "queue from handle %x:%x (error: %d)\n",
-                             entry->handle.context, entry->handle.resource,
+                             entry->qp.handle.context, entry->qp.handle.resource,
                              result));
-               VMCI_RevertToNonLocalQueue(consQ, oldConsQ, entry->consumeSize);
+               VMCI_RevertToNonLocalQueue(consQ, oldConsQ,
+                                          entry->qp.consumeSize);
                VMCI_ReleaseQueueMutex(prodQ);
                VMCIQPMarkHibernateFailed(entry);
                continue;
@@ -1227,31 +1212,34 @@ VMCIQueuePair_Convert(Bool toLocal,     // IN
              * discard the content of the non-local queues.
              */
 
-            result = VMCIQueuePairDetachHyperCall(entry->handle);
+            result = VMCIQueuePairDetachHyperCall(entry->qp.handle);
             if (result < VMCI_SUCCESS) {
                VMCI_WARNING((LGPFX"Hibernate failed to detach from handle "
                              "%x:%x\n",
-                             entry->handle.context, entry->handle.resource));
-               VMCI_RevertToNonLocalQueue(consQ, oldConsQ, entry->consumeSize);
-               VMCI_RevertToNonLocalQueue(prodQ, oldProdQ, entry->produceSize);
+                             entry->qp.handle.context,
+                             entry->qp.handle.resource));
+               VMCI_RevertToNonLocalQueue(consQ, oldConsQ,
+                                          entry->qp.consumeSize);
+               VMCI_RevertToNonLocalQueue(prodQ, oldProdQ,
+                                          entry->qp.produceSize);
                VMCI_ReleaseQueueMutex(prodQ);
                VMCIQPMarkHibernateFailed(entry);
                continue;
             }
 
-            entry->flags |= VMCI_QPFLAG_LOCAL;
+            entry->qp.flags |= VMCI_QPFLAG_LOCAL;
 
             VMCI_ReleaseQueueMutex(prodQ);
 
-            VMCI_FreeQueueBuffer(oldProdQ, entry->produceSize);
-            VMCI_FreeQueueBuffer(oldConsQ, entry->consumeSize);
+            VMCI_FreeQueueBuffer(oldProdQ, entry->qp.produceSize);
+            VMCI_FreeQueueBuffer(oldConsQ, entry->qp.consumeSize);
 
-            QueuePairNotifyPeerLocal(FALSE, entry->handle);
+            QueuePairNotifyPeerLocal(FALSE, entry->qp.handle);
          }
       }
-      Atomic_Write(&queuePairList.hibernate, 1);
+      Atomic_Write(&qpGuestEndpoints.hibernate, 1);
 
-      QueuePairList_Unlock();
+      VMCIMutex_Release(&qpGuestEndpoints.lock);
    } else {
       VMCILockFlags flags;
       VMCIHandle handle;
@@ -1275,6 +1263,6 @@ VMCIQueuePair_Convert(Bool toLocal,     // IN
       }
       VMCI_ReleaseLock_BH(&hibernateFailedListLock, flags);
 
-      Atomic_Write(&queuePairList.hibernate, 0);
+      Atomic_Write(&qpGuestEndpoints.hibernate, 0);
    }
 }

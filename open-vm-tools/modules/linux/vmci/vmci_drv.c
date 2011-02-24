@@ -416,7 +416,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    VMCIEvent_Init();
    VMCIUtil_Init();
    VMCINotifications_Init();
-   VMCIQueuePair_Init();
+   VMCIQPGuestEndpoints_Init();
 
    /*
     * Enable interrupts.  Try MSI-X first, then MSI, and then fallback on
@@ -477,7 +477,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    return 0;
 
  components_exit:
-   VMCIQueuePair_Exit();
+   VMCIQPGuestEndpoints_Exit();
    VMCINotifications_Exit();
    VMCIUtil_Exit();
    VMCIEvent_Exit();
@@ -526,7 +526,7 @@ vmci_remove_device(struct pci_dev* pdev)
 
    printk(KERN_INFO "Removing vmci device\n");
 
-   VMCIQueuePair_Exit();
+   VMCIQPGuestEndpoints_Exit();
 
    // XXX Todo add exit/cleanup functions for util, sm, dg, and resource apis.
    VMCIUtil_Exit();
