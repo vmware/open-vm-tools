@@ -569,22 +569,23 @@ typedef void * UserVA;
  * Must be at least as large as MAX_PPN which is the maximum PPN
  * for any region other than buserror.
  */
-#define PHYSMEM_MAX_PPN ((PPN)0xffffffff)
-#define MAX_PPN         ((PPN)0x1fffffff)   /* Maximal observable PPN value. */
-#define INVALID_PPN     ((PPN)0xffffffff)
+#define PHYSMEM_MAX_PPN   ((PPN)0xffffffff)
+#define MAX_PPN           ((PPN)0x1fffffff) /* Maximal observable PPN value. */
+#define INVALID_PPN       ((PPN)0xffffffff)
+#define APIC_DISABLED_PPN ((PPN)0xfffffffe)
 
-#define INVALID_BPN     ((BPN)0x1fffffff)
+#define INVALID_BPN       ((BPN)0x1fffffff)
 
-#define RESERVED_MPN    ((MPN) 0)
-#define INVALID_MPN     ((MPN)-1)
-#define MEMREF_MPN      ((MPN)-2)
-#define RELEASED_MPN    ((MPN)-3)
-#define MAX_MPN         ((MPN)0x7fffffff)  /* 43 bits of address space. */
+#define RESERVED_MPN      ((MPN) 0)
+#define INVALID_MPN       ((MPN)-1)
+#define MEMREF_MPN        ((MPN)-2)
+#define RELEASED_MPN      ((MPN)-3)
+#define MAX_MPN           ((MPN)0x7fffffff)  /* 43 bits of address space. */
 
-#define INVALID_LPN     ((LPN)-1)
-#define INVALID_VPN     ((VPN)-1)
-#define INVALID_LPN64   ((LPN64)-1)
-#define INVALID_PAGENUM ((PageNum)-1)
+#define INVALID_LPN       ((LPN)-1)
+#define INVALID_VPN       ((VPN)-1)
+#define INVALID_LPN64     ((LPN64)-1)
+#define INVALID_PAGENUM   ((PageNum)-1)
 
 
 /*
