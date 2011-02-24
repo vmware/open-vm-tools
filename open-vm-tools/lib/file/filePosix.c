@@ -1105,6 +1105,53 @@ bail:
 /*
  *----------------------------------------------------------------------
  *
+ * File_GetVMFSVersion --
+ *
+ *      Get the version number of the VMFS file system on which the
+ *      given file resides.
+ *
+ * Results:
+ *      Integer return value and version number.
+ *
+ * Side effects:
+ *      Will fail if file is not on VMFS or not enough memory for partition
+ *      query results.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_GetVMFSVersion(ConstUnicode pathName,  // IN: File name to test
+                    uint32 *versionNum)     // OUT: Version number
+{
+   int ret = -1;
+   FS_PartitionListResult *fsAttrs = NULL;
+
+   if (!versionNum) {
+      errno = EINVAL;
+      goto exit;
+   }
+   
+   ret = File_GetVMFSAttributes(pathName, &fsAttrs);
+
+   if (ret < 0) {
+      Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
+   } else {
+      *versionNum = fsAttrs->versionNumber;
+   }
+
+   if (fsAttrs) {
+      free(fsAttrs);
+   }
+
+exit:
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * File_GetVMFSBlockSize --
  *
  *      Acquire the blocksize for a given file on a VMFS file system.
@@ -1123,8 +1170,13 @@ int
 File_GetVMFSBlockSize(ConstUnicode pathName,  // IN: File name to test
                       uint32 *blockSize)      // IN/OUT: VMFS block size
 {
-   int ret;
+   int ret = -1;
    FS_PartitionListResult *fsAttrs = NULL;
+
+   if (!blockSize) {
+      errno = EINVAL;
+      goto exit;
+   }
 
    ret = File_GetVMFSAttributes(pathName, &fsAttrs);
 
@@ -1138,6 +1190,7 @@ File_GetVMFSBlockSize(ConstUnicode pathName,  // IN: File name to test
       free(fsAttrs);
    }
 
+exit:
    return ret;
 }
 

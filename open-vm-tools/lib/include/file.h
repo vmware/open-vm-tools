@@ -111,6 +111,8 @@ char *FileMacos_DiskDeviceToUniqueID(char const *bsdPath);
 char *FileMacos_UniqueIDToDiskDevice(char const *identifier);
 
 #elif defined VMX86_SERVER
+int File_GetVMFSVersion(ConstUnicode pathName,
+                        uint32 *versionNum);
 int File_GetVMFSBlockSize(ConstUnicode pathName,
                           uint32 *blockSize);
 
