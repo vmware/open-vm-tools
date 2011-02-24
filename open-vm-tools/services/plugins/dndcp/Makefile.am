@@ -86,16 +86,9 @@ CLEANFILES += $(BUILT_SOURCES)
 libdndcp_la_SOURCES += cpFileContents_xdr.c
 
 cpFileContents.h: cpFileContents.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                               \
-	   cp -f $(top_srcdir)/services/plugins/dndcp/cpFileContents.x $(builddir); \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/cpFileContents.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/dndcp/cpFileContents.x $@
 
 cpFileContents_xdr.c: cpFileContents.x cpFileContents.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/cpFileContents.x
+	@RPCGEN_WRAPPER@ services/plugins/dndcp/cpFileContents.x $@
 
 

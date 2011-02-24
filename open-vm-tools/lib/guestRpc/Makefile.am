@@ -38,15 +38,8 @@ EXTRA_DIST += nicinfo.x
 # to copy the sources to the build dir before compiling them.
 
 nicinfo.h: nicinfo.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then               \
-	   cp -f $(top_srcdir)/lib/guestRpc/nicinfo.x $(builddir);  \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/nicinfo.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ lib/guestRpc/nicinfo.x $@
 
 nicinfo_xdr.c: nicinfo.x nicinfo.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/nicinfo.x
+	@RPCGEN_WRAPPER@ lib/guestRpc/nicinfo.x $@
 

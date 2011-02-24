@@ -1128,6 +1128,7 @@ VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
 # General definitions
 INSTVMSG='$(SHELL) $(top_srcdir)/scripts/build/instvmsg.sh'
+RPCGEN_WRAPPER='$(SHELL) $(top_builddir)/scripts/build/rpcgen_wrapper.sh'
 
 ### General substs
 
@@ -1158,6 +1159,7 @@ if test "$os" = "freebsd" -a -n "$SYSDIR"; then
    AC_SUBST([SYSDIR])
 fi
 AC_SUBST([INSTVMSG])
+AC_SUBST([RPCGEN_WRAPPER])
 
 ### Lib substs
 
@@ -1254,7 +1256,8 @@ AC_CONFIG_FILES([                      \
    tests/testVmblock/Makefile          \
    docs/Makefile                       \
    docs/api/Makefile                   \
-   scripts/Makefile		       \
+   scripts/Makefile		               \
+   scripts/build/rpcgen_wrapper.sh     \
 ])
 
 ###

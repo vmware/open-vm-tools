@@ -51,13 +51,8 @@ EXTRA_DIST =
 EXTRA_DIST += testData.x
 
 testData.h: testData.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                   \
-	   cp -f $(top_srcdir)/tests/testPlugin/testData.x $(builddir); \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/testData.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
+	@RPCGEN_WRAPPER@ tests/testPlugin/testData.x $@
 
 testData_xdr.c: testData.x testData.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/testData.x
+	@RPCGEN_WRAPPER@ tests/testPlugin/testData.x $@
 

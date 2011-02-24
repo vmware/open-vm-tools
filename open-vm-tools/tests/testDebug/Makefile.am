@@ -48,11 +48,8 @@ CLEANFILES += testData_xdr.c
 CLEANFILES += testData.h
 
 testData.h: $(top_srcdir)/tests/testPlugin/testData.x
-	cp -f $(top_srcdir)/tests/testPlugin/testData.x $(builddir)
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/testData.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
+	@RPCGEN_WRAPPER@ tests/testPlugin/testData.x $@
 
 testData_xdr.c: testData.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/testData.x
+	@RPCGEN_WRAPPER@ tests/testPlugin/testData.x $@
 

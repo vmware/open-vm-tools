@@ -121,154 +121,77 @@ clean-local:
 	fi
 
 ghiGetBinaryHandlers.h: ghiGetBinaryHandlers.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiGetBinaryHandlers.x $(builddir);\
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiGetBinaryHandlers.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiGetBinaryHandlers.x $@ \
+	   services/plugins/unity/ghiCommonDefines.h
 
 ghiGetBinaryHandlers_xdr.c: ghiGetBinaryHandlers.x ghiGetBinaryHandlers.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiGetBinaryHandlers.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiGetBinaryHandlers.x $@
 
 ghiGetExecInfoHash.h: ghiGetExecInfoHash.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiGetExecInfoHash.x $(builddir);  \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiGetExecInfoHash.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiGetExecInfoHash.x $@ \
+	   services/plugins/unity/ghiCommonDefines.h
 
 ghiGetExecInfoHash_xdr.c: ghiGetExecInfoHash.x ghiGetExecInfoHash.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiGetExecInfoHash.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiGetExecInfoHash.x $@
 
 ghiProtocolHandler.h: ghiProtocolHandler.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiProtocolHandler.x $(builddir);  \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiProtocolHandler.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiProtocolHandler.x $@ \
+	   services/plugins/unity/ghiCommonDefines.h
 
 ghiProtocolHandler_xdr.c: ghiProtocolHandler.x ghiProtocolHandler.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiProtocolHandler.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiProtocolHandler.x $@
 
 ghiStartMenu.h: ghiStartMenu.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiStartMenu.x $(builddir);        \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiStartMenu.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiStartMenu.x $@ \
+	   services/plugins/unity/ghiCommonDefines.h
 
 ghiStartMenu_xdr.c: ghiStartMenu.x ghiStartMenu.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiStartMenu.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiStartMenu.x $@
 
 ghiShellAction.h: ghiShellAction.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiShellAction.x $(builddir);      \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiShellAction.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiShellAction.x $@ \
+	   services/plugins/unity/ghiCommonDefines.h
 
 ghiShellAction_xdr.c: ghiShellAction.x ghiShellAction.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiShellAction.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiShellAction.x $@
 
 ghiTrayIcon.h: ghiTrayIcon.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiTrayIcon.x $(builddir);         \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiTrayIcon.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiTrayIcon.x $@ \
+	   services/plugins/unity/ghiCommonDefines.h
 
 ghiTrayIcon_xdr.c: ghiTrayIcon.x ghiTrayIcon.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiTrayIcon.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiTrayIcon.x $@
 
 ghiSetFocusedWindow.h: ghiSetFocusedWindow.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiSetFocusedWindow.x $(builddir);         \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiSetFocusedWindow.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiSetFocusedWindow.x $@ \
+	   services/plugins/unity/ghiCommonDefines.h
 
 ghiSetFocusedWindow_xdr.c: ghiSetFocusedWindow.x ghiSetFocusedWindow.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiSetFocusedWindow.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiSetFocusedWindow.x $@
 
 ghiSetGuestHandler.h: ghiSetGuestHandler.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiSetGuestHandler.x $(builddir);         \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiSetGuestHandler.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiSetGuestHandler.x $@ \
+	   services/plugins/unity/ghiCommonDefines.h
 
 ghiSetGuestHandler_xdr.c: ghiSetGuestHandler.x ghiSetGuestHandler.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiSetGuestHandler.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiSetGuestHandler.x $@
 
 ghiSetOutlookTempFolder.h: ghiSetOutlookTempFolder.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiSetOutlookTempFolder.x $(builddir);         \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiSetOutlookTempFolder.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiSetOutlookTempFolder.x $@ \
+	   services/plugins/unity/ghiCommonDefines.h
 
 ghiSetOutlookTempFolder_xdr.c: ghiSetOutlookTempFolder.x ghiSetOutlookTempFolder.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiSetOutlookTempFolder.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/ghiSetOutlookTempFolder.x $@
 
 unityActive.h: unityActive.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/unityActive.x $(builddir);         \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/unityActive.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/unityActive.x $@
 
 unityActive_xdr.c: unityActive.x unityActive.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/unityActive.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/unityActive.x $@
 
 unity.h: unity.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/unity.x $(builddir);               \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/unity.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
+	@RPCGEN_WRAPPER@ services/plugins/unity/unity.x $@
 
 unity_xdr.c: unity.x unity.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/unity.x
+	@RPCGEN_WRAPPER@ services/plugins/unity/unity.x $@
 

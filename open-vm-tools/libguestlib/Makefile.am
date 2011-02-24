@@ -60,24 +60,15 @@ pkgconfig_DATA = vmguestlib.pc
 $(pkgconfig_DATA): $(top_builddir)/config.status
 
 guestlibIoctl.h: guestlibIoctl.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                     \
-	   cp -f $(top_srcdir)/libguestlib/guestlibIoctl.x $(builddir);   \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/guestlibIoctl.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-
-guestlibV3.h: guestlibV3.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                     \
-	   cp -f $(top_srcdir)/libguestlib/guestlibV3.x $(builddir);      \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/guestlibV3.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-
-guestlibV3_xdr.c: guestlibV3.x guestlibV3.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/guestlibV3.x
+	@RPCGEN_WRAPPER@ libguestlib/guestlibIoctl.x $@
 
 guestlibIoctl_xdr.c: guestlibIoctl.x guestlibIoctl.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/guestlibIoctl.x
+	@RPCGEN_WRAPPER@ libguestlib/guestlibIoctl.x $@
+
+guestlibV3.h: guestlibV3.x
+	@RPCGEN_WRAPPER@ libguestlib/guestlibV3.x $@
+
+guestlibV3_xdr.c: guestlibV3.x guestlibV3.h
+	@RPCGEN_WRAPPER@ libguestlib/guestlibV3.x $@
+
 

@@ -1,0 +1,120 @@
+#!/bin/sh
+################################################################################
+### Copyright 2011 VMware, Inc.  All rights reserved.
+###
+### This program is free software; you can redistribute it and/or modify
+### it under the terms of version 2 of the GNU General Public License as
+### published by the Free Software Foundation.
+###
+### This program is distributed in the hope that it will be useful,
+### but WITHOUT ANY WARRANTY; without even the implied warranty of
+### MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+### GNU General Public License for more details.
+###
+### You should have received a copy of the GNU General Public License
+### along with this program; if not, write to the Free Software
+### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+################################################################################
+
+#
+# rpcgen_wrapper.sh - executes rpcgen.
+#
+# rpcgen is very finicky in the way it's invoked. It tends to pollute the
+# generated files with all sorts of weird stuff if you specify full paths to the
+# files being compiled. So this script copies the source file (plus any other
+# needed files) to the build directory before invoking rpcgen.
+#
+# The pattern to use in Makefile.am is:
+#
+# . have separate rules for generating the header and the source files, both
+#   invoking rpcgen_wrapper.sh
+# . make the source depend on the header
+#
+# The script assumes that $(builddir) is ".". The generated header is copied
+# to the "lib/include" directory under $(top_builddir).
+#
+# Arguments:
+#  input       ($1): path of .x file, relative to $(top_srcdir)
+#  output      ($2): name of output header file
+#  extra       ($@): other files to copy into the build directory; paths
+#                    relative to $(top_srcdir)
+#
+
+set -e
+
+rpcgen=@RPCGEN@
+rpcgenflags="@RPCGENFLAGS@"
+top_srcdir="@abs_top_srcdir@"
+top_builddir="@abs_top_builddir@"
+input=$1
+output=$2
+
+if [ -z "$output" ]; then
+   echo "Invalid arguments." >&2
+   exit 1
+fi
+
+shift 2
+
+# need_update($target, $source)
+need_update()
+{
+   test ! -f $1 -o $1 -ot $2
+}
+
+
+# do_rpcgen($type)
+# type is either "-h" or "-c"
+do_rpcgen()
+{
+   if need_update $output `basename $input`; then
+      rm -f $output
+   fi
+
+   $rpcgen $rpcgenflags $1 -o $output `basename $input`
+   sed 's,rpc/rpc\.h,vmxrpc.h,' $output > ${output}.tmp
+   mv ${output}.tmp $output
+}
+
+
+do_header()
+{
+   #
+   # Check both if srcdir != blddir, and also if we're copying a .x file from
+   # a different component.
+   #
+   top_builddir=`cd $top_builddir && pwd`
+   top_srcdir=`cd $top_srcdir && pwd`
+
+   if test $top_builddir != $top_srcdir -o \
+      `pwd` != `dirname $top_builddir/$input`; then
+      for f in $@; do
+         if need_update `basename $f` $top_srcdir/$f; then
+            cp -f $top_srcdir/$f .
+         fi
+      done
+      if need_update `basename $input` $top_srcdir/$input; then
+         cp -f $top_srcdir/$input .
+      fi
+   fi
+
+   do_rpcgen "-h"
+
+   # Export the generated header.
+   mkdir -p $top_builddir/lib/include/guestrpc
+   cp $output $top_builddir/lib/include/guestrpc
+}
+
+
+do_impl()
+{
+   do_rpcgen "-c"
+}
+
+
+case $output in
+   *.h) do_header ;;
+   *.c) do_impl ;;
+   *) echo "Unknown output file type: $output" ;;
+esac
+
