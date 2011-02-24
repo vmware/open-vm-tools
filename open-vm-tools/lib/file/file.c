@@ -2165,12 +2165,23 @@ File_MapPathPrefix(const char *oldPath,       // IN:
       /*
        * If the prefix matches on a DIRSEPS boundary, or the prefix is the
        * whole string, replace it.
+       *
        * If we don't insist on matching a whole directory name, we could
        * mess things of if one directory is a substring of another.
+       *
+       * Perform a case-insensitive compare on Windows. (There are
+       * case-insensitive filesystems on MacOS also, but the problem
+       * is more acute with Windows because of frequent drive-letter
+       * case mismatches. So in lieu of actually asking the
+       * filesystem, let's just go with a simple ifdef for now.)
        */
 
       if ((oldPathLen >= oldPrefixLen) &&
-          (memcmp(oldPath, oldPrefix, oldPrefixLen) == 0) &&
+#ifdef _WIN32
+          (Str_Strncasecmp(oldPath, oldPrefix, oldPrefixLen) == 0) &&
+#else
+          (Str_Strncmp(oldPath, oldPrefix, oldPrefixLen) == 0) &&
+#endif
           (strchr(VALID_DIRSEPS, oldPath[oldPrefixLen]) ||
               (oldPath[oldPrefixLen] == '\0'))) {
          size_t newPrefixLen = strlen(newPrefix);
