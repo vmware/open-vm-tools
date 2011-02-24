@@ -41,6 +41,7 @@
 #include "str.h"
 #include "config.h"
 #include "util.h"
+#include "userlock.h"
 #if defined(_WIN32) || !defined(VMX86_TOOLS)
 #include "coreDump.h"
 #endif
@@ -464,6 +465,8 @@ Panic_Panic(const char *format,
 {
    char buf[1024];
    static int count = 0;
+
+   MXUser_SetInPanic();
 
    Str_Vsnprintf(buf, sizeof buf, format, args);
 
