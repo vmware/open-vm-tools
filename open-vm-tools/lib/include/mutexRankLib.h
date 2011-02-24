@@ -85,6 +85,7 @@
  * RANK_vigorClientLock < VMDB range
  */
 #define RANK_vigorClientLock         (RANK_libLockBase + 0x5400)
+#define RANK_vigorOfflineClientLock  (RANK_libLockBase + 0x5410)
 
 /*
  * VMDB range:
