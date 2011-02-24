@@ -46,7 +46,11 @@ endif
 VM_UNAME = $(shell uname -r)
 
 # Header directory for the running kernel
+ifdef LINUXINCLUDE
+HEADER_DIR = $(LINUXINCLUDE)
+else
 HEADER_DIR = /lib/modules/$(VM_UNAME)/build/include
+endif
 
 BUILD_DIR = $(HEADER_DIR)/..
 

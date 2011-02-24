@@ -17,6 +17,7 @@ EXTRA_ARGS += "SYSDIR=@SYSDIR@"
 endif
 
 if LINUX
+export LINUXINCLUDE := @LINUXINCLUDE@
 export vmblockdir := $(MODULES_DIR)/fs/vmblock
 export vmcidir := $(MODULES_DIR)/drivers/misc
 export vmhgfsdir := $(MODULES_DIR)/fs/vmhgfs

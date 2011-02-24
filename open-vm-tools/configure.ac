@@ -148,6 +148,10 @@ if test "$with_kernel_modules" = "yes"; then
          if test ! -d "$LINUXDIR/kernel/"; then
              AC_MSG_ERROR([$LINUXDIR/kernel does not exist])
          fi
+         LINUXINCLUDE="$LINUXDIR/build/include"
+         if test ! -d "$LINUXINCLUDE"; then
+            AC_MSG_ERROR([Can't find include dir under $LINUXDIR])
+         fi
          ;;
 
       freebsd)
@@ -1131,6 +1135,7 @@ AC_SUBST([HGFS_LIBS])
 AC_SUBST([TOOLS_VERSION])
 AC_SUBST([TARGET_OS])
 AC_SUBST([KERNEL_RELEASE])
+AC_SUBST([LINUXINCLUDE])
 AC_SUBST([MODULES_OS])
 AC_SUBST([MODULES_DIR])
 AC_SUBST([MODULES])
