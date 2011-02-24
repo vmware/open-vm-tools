@@ -114,6 +114,7 @@ asmlinkage __attribute__((weak)) long
 sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #endif
 
+#include "compat_cred.h"
 #include "compat_module.h"
 #include "compat_kernel.h"
 #include "compat_init.h"
@@ -513,6 +514,77 @@ VSockVmciNewProtoSupportedVersions(void) // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * VSockSocket_Trusted --
+ *
+ *      We allow two kinds of sockets to communicate with a restricted VM:
+ *      1) trusted sockets
+ *      2) sockets from applications running as the same user as the VM (this
+ *         is only true for the host side and only when using hosted products)
+ *
+ * Results:
+ *      TRUE if trusted communication is allowed to peerCid, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+VSockVmciTrusted(VSockVmciSock *vsock, // IN: Local socket
+                 VMCIId peerCid)       // IN: Context ID of peer
+{
+   int res;
+
+   if (vsock->trusted) {
+      return TRUE;
+   }
+
+   res = VMCI_IsContextOwner(peerCid, &vsock->owner);
+
+   return res == VMCI_SUCCESS;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockSocket_AllowDgram --
+ *
+ *      We allow sending datagrams to and receiving datagrams from a
+ *      restricted VM only if it is trusted as described in
+ *      VSockVmciTrusted.
+ *
+ * Results:
+ *      TRUE if datagram communication is allowed to peerCid, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+VSockVmciAllowDgram(VSockVmciSock *vsock, // IN: Local socket
+                    VMCIId peerCid)       // IN: Context ID of peer
+{
+   if (vsock->cachedPeer != peerCid) {
+      vsock->cachedPeer = peerCid;
+      if (!VSockVmciTrusted(vsock, peerCid) &&
+          (VMCIContext_GetPrivFlags(peerCid) & VMCI_PRIVILEGE_FLAG_RESTRICTED)) {
+         vsock->cachedPeerAllowDgram = FALSE;
+      } else {
+         vsock->cachedPeerAllowDgram = TRUE;
+      }
+   }
+
+   return vsock->cachedPeerAllowDgram;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * VMCISock_GetAFValue --
  *
  *      Kernel interface that allows external kernel modules to get the current
@@ -779,8 +851,8 @@ out:
  * VSockVmciDatagramCreateHnd --
  *
  *      Creates a datagram handle. Tries to register with trusted
- *      status if requested but does not fail if the handler could not be
- *      allocated as trusted (running in the guest).
+ *      status but does not fail if the handler could not be allocated
+ *      as trusted (running in the guest).
  *
  * Results:
  *      0 on success. A VMCI error on error.
@@ -796,31 +868,26 @@ VSockVmciDatagramCreateHnd(VMCIId resourceID,            // IN
                            uint32 flags,                 // IN
                            VMCIDatagramRecvCB recvCB,    // IN
                            void *clientData,             // IN
-                           VMCIHandle *outHandle,        // OUT
-                           Bool trusted)                 // IN
+                           VMCIHandle *outHandle)        // OUT
 {
    int err = 0;
 
-   if (trusted) {
-      /*
-       * Try to allocate our datagram handler as trusted. This will only work
-       * if vsock is running in the host.
-       */
+   /*
+    * Try to allocate our datagram handler as trusted. This will only work
+    * if vsock is running in the host.
+    */
 
-      err = VMCIDatagram_CreateHndPriv(resourceID, flags,
-                                       VMCI_PRIVILEGE_FLAG_TRUSTED,
-                                       recvCB, clientData,
-                                       outHandle);
+   err = VMCIDatagram_CreateHndPriv(resourceID, flags,
+                                    VMCI_PRIVILEGE_FLAG_TRUSTED,
+                                    recvCB, clientData,
+                                    outHandle);
 
-      if (err != VMCI_ERROR_NO_ACCESS) {
-         goto out;
-      }
+   if (err == VMCI_ERROR_NO_ACCESS) {
+      err = VMCIDatagram_CreateHnd(resourceID, flags,
+                                   recvCB, clientData,
+                                   outHandle);
    }
 
-   err = VMCIDatagram_CreateHnd(resourceID, flags,
-                                recvCB, clientData,
-                                outHandle);
-out:
    return err;
 }
 
@@ -883,6 +950,7 @@ VSockVmciRecvDgramCB(void *data,          // IN
    struct sock *sk;
    size_t size;
    struct sk_buff *skb;
+   VSockVmciSock *vsk;
 
    ASSERT(dg);
    ASSERT(dg->payloadSize <= VMCI_MAX_DG_PAYLOAD_SIZE);
@@ -892,6 +960,21 @@ VSockVmciRecvDgramCB(void *data,          // IN
    ASSERT(sk);
    /* XXX Figure out why sk->sk_socket can be NULL. */
    ASSERT(sk->sk_socket ? sk->sk_socket->type == SOCK_DGRAM : 1);
+
+   /*
+    * This handler is privileged when this module is running on the
+    * host. We will get datagrams from all endpoints (even VMs that
+    * are in a restricted context). If we get one from a restricted
+    * context then the destination socket must be trusted.
+    *
+    * NOTE: We access the socket struct without holding the lock here. This
+    * is ok because the field we are interested is never modified outside
+    * of the create and destruct socket functions.
+    */
+   vsk = vsock_sk(sk);
+   if (!VSockVmciAllowDgram(vsk, VMCI_HANDLE_TO_CONTEXT_ID(dg->src))) {
+      return VMCI_ERROR_NO_ACCESS;
+   }
 
    size = VMCI_DG_SIZE(dg);
 
@@ -1029,12 +1112,9 @@ VSockVmciRecvStreamCB(void *data,           // IN
     * of the create and destruct socket functions.
     */
    vsk = vsock_sk(sk);
-   if (VMCIContext_GetPrivFlags(VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src)) &
-       VMCI_PRIVILEGE_FLAG_RESTRICTED) {
-      if (!vsk->trusted) {
-         err = VMCI_ERROR_NO_ACCESS;
-         goto out;
-      }
+   if (!VSockVmciAllowDgram(vsk, VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src))) {
+      err = VMCI_ERROR_NO_ACCESS;
+      goto out;
    }
 
    /*
@@ -1776,7 +1856,8 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
                                  vpending->consumeSize,
                                  VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src),
                                  flags,
-                                 vpending->trusted);
+                                 VSockVmciTrusted(vpending,
+                                                  vpending->remoteAddr.svm_cid));
    if (err < 0) {
       VSOCK_SEND_RESET(pending, pkt);
       skerr = -err;
@@ -2115,7 +2196,7 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
                                  pkt->u.size,
                                  vsk->remoteAddr.svm_cid,
                                  flags,
-                                 vsk->trusted);
+                                 VSockVmciTrusted(vsk, vsk->remoteAddr.svm_cid));
    if (err < 0) {
       goto destroy;
    }
@@ -2612,8 +2693,7 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
 
       err = VSockVmciDatagramCreateHnd(newAddr.svm_port, flags,
                                        VSockVmciRecvDgramCB, sk,
-                                       &vsk->dgHandle,
-                                       vsk->trusted);
+                                       &vsk->dgHandle);
       if (err < VMCI_SUCCESS) {
          err = VSockVmci_ErrorToVSockError(err);
          goto out;
@@ -2772,11 +2852,13 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    if (parent) {
       psk = vsock_sk(parent);
       vsk->trusted = psk->trusted;
+      vsk->owner = psk->owner;
       vsk->queuePairSize = psk->queuePairSize;
       vsk->queuePairMinSize = psk->queuePairMinSize;
       vsk->queuePairMaxSize = psk->queuePairMaxSize;
    } else {
       vsk->trusted = capable(CAP_NET_ADMIN);
+      vsk->owner = current_uid();
       vsk->queuePairSize = VSOCK_DEFAULT_QP_SIZE;
       vsk->queuePairMinSize = VSOCK_DEFAULT_QP_SIZE_MIN;
       vsk->queuePairMaxSize = VSOCK_DEFAULT_QP_SIZE_MAX;
@@ -3159,8 +3241,7 @@ VSockVmciRegisterWithVmci(void)
     err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID,
                                      VMCI_FLAG_ANYCID_DG_HND,
                                      VSockVmciRecvStreamCB, NULL,
-                                     &vmciStreamHandle,
-                                     TRUE);
+                                     &vmciStreamHandle);
     if (err < VMCI_SUCCESS) {
       Warning("Unable to create datagram handle. (%d)\n", err);
       err = VSockVmci_ErrorToVSockError(err);
@@ -4118,6 +4199,11 @@ VSockVmciDgramSendmsg(struct kiocb *kiocb,          // UNUSED
    if (!VSockAddr_SocketContextDgram(remoteAddr->svm_cid,
                                      remoteAddr->svm_port)) {
       err = -EINVAL;
+      goto out;
+   }
+
+   if (!VSockVmciAllowDgram(vsk, remoteAddr->svm_cid)) {
+      err = -EPERM;
       goto out;
    }
 

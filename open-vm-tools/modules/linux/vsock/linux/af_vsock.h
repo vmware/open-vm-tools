@@ -58,6 +58,9 @@ typedef struct VSockVmciSock {
     * modified outsided of socket create or destruct.
     */
    Bool trusted;
+   Bool cachedPeerAllowDgram; /* Dgram communication allowed to cached peer? */
+   VMCIId cachedPeer; /* Context ID of last dgram destination check. */
+   uid_t owner;
    VMCIHandle dgHandle;           /* For SOCK_DGRAM only. */
    /* Rest are SOCK_STREAM only. */
    VMCIHandle qpHandle;
