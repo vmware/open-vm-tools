@@ -29,7 +29,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
-
 #include "vmware.h"
 #include "vmware/guestrpc/capabilities.h"
 
@@ -101,6 +100,9 @@ AppUtil_GetIconIndexAndLocationForShortcut(const TCHAR *shortcut,
                                            TCHAR *iconFile,
                                            int *iconIndex);
 
+LPSTR  AppUtil_ToLowerUtf8(LPCSTR s);
+LPWSTR AppUtil_ToLowerUtf16(LPCWSTR s);
+
 #ifdef __cplusplus
 };
 #endif // __cplusplus
@@ -145,4 +147,3 @@ void AppUtil_SendGuestCaps(const GuestCapabilities *caps,
 #endif // __cplusplus
 
 #endif // _APP_UTIL_H_
-
