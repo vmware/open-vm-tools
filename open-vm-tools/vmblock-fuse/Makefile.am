@@ -29,12 +29,13 @@ AM_CFLAGS += -D_XOPEN_SOURCE=600
 AM_CFLAGS += -DUSERLEVEL
 AM_CFLAGS += -D_FILE_OFFSET_BITS=64
 AM_CFLAGS += @FUSE_CPPFLAGS@
+AM_CFLAGS += @GLIB2_CPPFLAGS@
 AM_CFLAGS += -I$(top_srcdir)/modules/shared/vmblock
 AM_CFLAGS += -I$(srcdir)
 
 vmware_vmblock_fuse_LDADD =
-vmware_vmblock_fuse_LDADD += ../lib/misc/libMisc.la
 vmware_vmblock_fuse_LDADD += @FUSE_LIBS@
+vmware_vmblock_fuse_LDADD += @GLIB2_LIBS@
 
 vmware_vmblock_fuse_SOURCES =
 vmware_vmblock_fuse_SOURCES += util.c

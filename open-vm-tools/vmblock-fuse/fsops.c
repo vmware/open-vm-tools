@@ -724,7 +724,6 @@ VMBlockRelease(const char *path,                   // IN: Must be control file.
 void *
 VMBlockInit(void)
 {
-   Atomic_Init();
    BlockInit();
    return NULL;
 }
