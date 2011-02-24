@@ -2339,7 +2339,9 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
 
             Unicode_Free(id);
 
-            id = Unicode_Duplicate("\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD");
+            id = Unicode_Duplicate(UNICODE_SUBSTITUTION_CHAR
+                                   UNICODE_SUBSTITUTION_CHAR
+                                   UNICODE_SUBSTITUTION_CHAR);
          }
 
          DynBuf_Append(&b, &id, sizeof id);

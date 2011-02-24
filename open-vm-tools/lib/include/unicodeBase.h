@@ -40,6 +40,8 @@ extern "C" {
 #include "unicodeTypes.h"
 
 
+#define UNICODE_SUBSTITUTION_CHAR "\xEF\xBF\xBD"
+
 /*
  * Unescapes \\uABCD in string literals to Unicode code point
  * U+ABCD, and \\U001FABCD to Unicode code point U+1FABCD.
