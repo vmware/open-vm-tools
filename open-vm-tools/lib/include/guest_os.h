@@ -253,7 +253,7 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_TINYSOFA           "Tiny Sofa"  
 #define STR_OS_TURBO              "turbolinux"   
 #define STR_OS_TURBO_FULL         "Turbolinux"   
-#define STR_OS_UBUNTU             "Ubuntu"
+#define STR_OS_UBUNTU             "ubuntu"
 #define STR_OS_ULTRAPENGUIN       "UltraPenguin"
 #define STR_OS_UNITEDLINUX        "UnitedLinux"
 #define STR_OS_VALINUX            "VALinux"
