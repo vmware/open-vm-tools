@@ -1368,6 +1368,11 @@ VixToolsStartProgramImpl(const char *requestName,      // IN
 #endif
    GSource *timer;
 
+   /*
+    * Initialize this here so we can call free on its member variables in abort
+    */
+   memset(&procArgs, 0, sizeof procArgs);
+
    if (NULL != pid) {
       *pid = (int64) -1;
    }
@@ -1479,7 +1484,6 @@ VixToolsStartProgramImpl(const char *requestName,      // IN
     */
    asyncState = Util_SafeCalloc(1, sizeof *asyncState);
 
-   memset(&procArgs, 0, sizeof procArgs);
 #if defined(_WIN32)
    if (NULL != envVars) {
       err = VixToolsEnvironToEnvBlock(envVars, &envBlock);
@@ -4029,9 +4033,9 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
 #if defined(_WIN32)
    int fd = -1;
    char *tempFilePath = NULL;
-#else
-   FileIOResult res;
+   static char *tempFileBaseName = "vmware";
 #endif
+   FileIOResult res;
 
    VixCommandInitiateFileTransferToGuestRequest *commandRequest;
    VMAutomationRequestParser parser;
@@ -4099,11 +4103,29 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
    if (File_Exists(guestPathName)) {
       if (File_IsDirectory(guestPathName)) {
          err = VIX_E_NOT_A_FILE;
-         goto abort;
       } else if (!overwrite) {
          err = VIX_E_FILE_ALREADY_EXISTS;
-         goto abort;
+      } else {
+         /*
+          * If the file exists and overwrite flag is true, then check
+          * if the file is writable. If not, return a proper error.
+          */
+         res = FileIO_Access(guestPathName, FILEIO_ACCESS_WRITE);
+         if (FILEIO_SUCCESS != res) {
+            /*
+             * On Linux guests, FileIO_Access sets the proper errno
+             * on failure. On Windows guests, last errno is not
+             * set when FileIO_Access fails. So, we cannot use
+             * FoundryToolsDaemon_TranslateSystemErr() to translate the
+             * error. To maintain consistency for all the guests,
+             * return an explicit VIX_E_FILE_ACCESS_ERROR.
+             */
+            err = VIX_E_FILE_ACCESS_ERROR;
+            Debug("Unable to get access permissions for the file: %s\n",
+                  guestPathName);
+         }
       }
+      goto abort;
    }
 
    File_GetPathName(guestPathName, &dirName, &baseName);
@@ -4145,10 +4167,11 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
     * create the temporary file with the exact specified filename. Any name
     * would be fine.
     */
-   fd = File_MakeTempEx(dirName, baseName, &tempFilePath);
+   fd = File_MakeTempEx(dirName, tempFileBaseName, &tempFilePath);
 
    if (fd > 0) {
       close(fd);
+      File_UnlinkNoFollow(tempFilePath);
    } else {
       /*
        * File_MakeTempEx() function internally uses Posix variant
@@ -4172,7 +4195,15 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
    res = FileIO_Access(dirName, FILEIO_ACCESS_WRITE);
 
    if (FILEIO_SUCCESS != res) {
-      err = FoundryToolsDaemon_TranslateSystemErr();
+      /*
+       * On Linux guests, FileIO_Access sets the proper errno
+       * on failure. On Windows guests, last errno is not
+       * set when FileIO_Access fails. So, we cannot use
+       * FoundryToolsDaemon_TranslateSystemErr() to translate the
+       * error. To maintain consistency for all the guests,
+       * return an explicit VIX_E_FILE_ACCESS_ERROR.
+       */
+      err = VIX_E_FILE_ACCESS_ERROR;
       Debug("Unable to get access permissions for the directory: %s\n",
             dirName);
       goto abort;
