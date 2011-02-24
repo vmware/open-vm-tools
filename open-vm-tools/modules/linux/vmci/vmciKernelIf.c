@@ -187,7 +187,7 @@ VMCI_ReleaseLock(VMCILock *lock,      // IN
  * VMCI_GrabLock_BH
  *
  *      Grabs the given lock and for linux kernels disables bottom half execution.
- * .    This should be used with locks accessed both from bottom half/tasklet
+ *      This should be used with locks accessed both from bottom half/tasklet
  *      contexts, ie. guestcall handlers, and from process contexts to avoid
  *      deadlocks where the process has the lock and gets descheduled due to a
  *      bh/tasklet coming in.
@@ -214,9 +214,9 @@ VMCI_GrabLock_BH(VMCILock *lock,        // IN
  *
  * VMCI_ReleaseLock_BH
  *
- *      Releases the given lock and for linux kernels reenables bottom half 
+ *      Releases the given lock and for linux kernels reenables bottom half
  *      execution.
- * .    This should be used with locks accessed both from bottom half/tasklet
+ *      This should be used with locks accessed both from bottom half/tasklet
  *      contexts, ie. guestcall handlers, and from process contexts to avoid
  *      deadlocks where the process has the lock and get descheduled due to a
  *      bh/tasklet coming in.
@@ -338,12 +338,12 @@ VMCIHost_WaitForCallLocked(VMCIHost *hostContext, // IN
 {
    DECLARE_WAITQUEUE(wait, current);
 
-   /* 
+   /*
     * The thread must be added to the wait queue and have its state
     * changed while holding the lock - otherwise a signal may change
     * the state in between and have it overwritten causing a loss of
     * the event.
-    */      
+    */
 
    add_wait_queue(&hostContext->waitQueue, &wait);
    current->state = TASK_INTERRUPTIBLE;
@@ -395,16 +395,48 @@ VMCIHost_ClearCall(VMCIHost *hostContext)     // IN
 {
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIHost_CompareUser --
+ *
+ *      Determines whether the two users are the same.
+ *
+ * Results:
+ *      VMCI_SUCCESS if equal, error code otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int VMCIHost_CompareUser(VMCIHostUser *user1,
+                         VMCIHostUser *user2)
+{
+   if (!user1 || !user2) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   if (*user1 == *user2) {
+      return VMCI_SUCCESS;
+   } else {
+      return VMCI_ERROR_GENERIC;
+   }
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
  * VMCI_AllocKernelMem
  *
- *      Allocate some kernel memory for the VMCI driver. 
+ *      Allocate some kernel memory for the VMCI driver.
  *
  * Results:
- *      The address allocated or NULL on error. 
- *      
+ *      The address allocated or NULL on error.
+ *
  *
  * Side effects:
  *      memory is malloced
@@ -431,7 +463,7 @@ VMCI_AllocKernelMem(size_t size, int flags)
  *
  * VMCI_FreeKernelMem
  *
- *      Free kernel memory allocated for the VMCI driver. 
+ *      Free kernel memory allocated for the VMCI driver.
  *
  * Results:
  *      None.
@@ -719,15 +751,15 @@ VMCI_WaitOnEventInterruptible(VMCIEvent *event,              // IN:
    add_wait_queue(event, &wait);
    current->state = TASK_INTERRUPTIBLE;
 
-   /* 
-    * Release the lock or other primitive that makes it possible for us to 
-    * put the current thread on the wait queue without missing the signal. 
+   /*
+    * Release the lock or other primitive that makes it possible for us to
+    * put the current thread on the wait queue without missing the signal.
     * Ie. on Linux we need to put ourselves on the wait queue and set our
     * stateto TASK_INTERRUPTIBLE without another thread signalling us.
     * The releaseCB is used to synchronize this.
     */
    releaseCB(clientData);
-   
+
    schedule();
    current->state = TASK_RUNNING;
    remove_wait_queue(event, &wait);
@@ -1376,7 +1408,6 @@ VMCIWellKnownID_AllowMap(VMCIId wellKnownID,           // IN:
    }
    return TRUE;
 }
-
 
 
 #ifndef VMX86_TOOLS

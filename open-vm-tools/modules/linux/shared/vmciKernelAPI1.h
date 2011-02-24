@@ -72,6 +72,7 @@ VMCIId VMCI_GetContextID(void);
 uint32 VMCI_Version(void);
 int VMCI_ContextID2HostVmID(VMCIId contextID, void *hostVmID,
                             size_t hostVmIDLen);
+int VMCI_IsContextOwner(VMCIId contextID, void *hostUser);
 
 /* VMCI Event API. */
 

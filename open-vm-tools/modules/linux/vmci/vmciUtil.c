@@ -626,3 +626,29 @@ VMCI_ContextID2HostVmID(VMCIId contextID,    // IN
 {
    return VMCI_ERROR_UNAVAILABLE;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_IsContextOwner --
+ *
+ *      Provided for compatibility with the host VMCI API.
+ *
+ * Results:
+ *      Returns VMCI_ERROR_UNAVAILABLE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCI_IsContextOwner)
+int
+VMCI_IsContextOwner(VMCIId contextID,   // IN
+                    void *hostUser)     // IN
+{
+   return VMCI_ERROR_UNAVAILABLE;
+}
+

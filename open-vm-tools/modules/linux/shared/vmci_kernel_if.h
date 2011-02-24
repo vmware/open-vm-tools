@@ -38,15 +38,17 @@
 
 #if defined(linux) && !defined(VMKERNEL)
 #  include <linux/wait.h>
-#  include "compat_version.h"
-#  include "compat_spinlock.h"
+#  include "compat_cred.h"
 #  include "compat_semaphore.h"
+#  include "compat_spinlock.h"
+#  include "compat_version.h"
 #endif // linux
 
 #ifdef __APPLE__
 #  include <IOKit/IOLib.h>
 #  include <mach/task.h>
 #  include <mach/semaphore.h>
+#  include <sys/kauth.h>
 #endif
 
 #ifdef VMKERNEL
@@ -94,12 +96,14 @@
   typedef Semaphore VMCIEvent;
   typedef Semaphore VMCIMutex;
   typedef World_ID VMCIHostVmID;
+  typedef uint32 VMCIHostUser;
 #elif defined(linux)
   typedef spinlock_t VMCILock;
   typedef unsigned long VMCILockFlags;
   typedef wait_queue_head_t VMCIEvent;
   typedef struct semaphore VMCIMutex;
   typedef PPN *VMCIPpnList; /* List of PPNs in produce/consume queue. */
+  typedef uid_t VMCIHostUser;
 #elif defined(__APPLE__)
   typedef IOLock *VMCILock;
   typedef unsigned long VMCILockFlags;
@@ -110,18 +114,21 @@
   } VMCIEvent;
   typedef IOLock *VMCIMutex;
   typedef void *VMCIPpnList; /* Actually a pointer to the C++ Object IOMemoryDescriptor */
+  typedef uid_t VMCIHostUser;
 #elif defined(_WIN32)
   typedef KSPIN_LOCK VMCILock;
   typedef KIRQL VMCILockFlags;
   typedef KEVENT VMCIEvent;
   typedef FAST_MUTEX VMCIMutex;
   typedef PMDL VMCIPpnList; /* MDL to map the produce/consume queue. */
+  typedef PSID VMCIHostUser;
 #elif defined(SOLARIS)
   typedef kmutex_t VMCILock;
   typedef unsigned long VMCILockFlags;
   typedef ksema_t VMCIEvent;
   typedef kmutex_t VMCIMutex;
   typedef PPN *VMCIPpnList; /* List of PPNs in produce/consume queue. */
+  typedef uid_t VMCIHostUser;
 #endif // VMKERNEL
 
 /* Callback needed for correctly waiting on events. */
@@ -261,6 +268,8 @@ int VMCI_CopyToUser(VA64 dst, const void *src, size_t len);
 Bool VMCIWellKnownID_AllowMap(VMCIId wellKnownID,
                               VMCIPrivilegeFlags privFlags);
 #endif
+
+int VMCIHost_CompareUser(VMCIHostUser *user1, VMCIHostUser *user2);
 
 void VMCI_CreateEvent(VMCIEvent *event);
 void VMCI_DestroyEvent(VMCIEvent *event);
