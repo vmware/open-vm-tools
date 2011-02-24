@@ -495,7 +495,7 @@ FLAGDEFA( 81, EDX, AMD,    22,  1, MMXEXT,              YES, TRUE,  MMXEXT)    \
 FLAGDEF(  81, EDX, AMD,    23,  1, MMX,                 YES, TRUE)             \
 FLAGDEF(  81, EDX, AMD,    24,  1, FXSAVE,              YES, TRUE)             \
 FLAGDEFA( 81, EDX, AMD,    25,  1, FFXSR,               YES, FALSE, FFXSR)     \
-FLAGDEF(  81, EDX, COMMON, 26,  1, PDPE1GB,             NO,  FALSE)            \
+FLAGDEFA( 81, EDX, COMMON, 26,  1, PDPE1GB,             YES, FALSE, PDPE1GB)   \
 FLAGDEFA( 81, EDX, COMMON, 27,  1, RDTSCP,              YES, TRUE,  RDTSCP)    \
 FLAGDEFA( 81, EDX, COMMON, 29,  1, LM,                  YES, FALSE, LM) \
 FLAGDEFA( 81, EDX, AMD,    30,  1, 3DNOWPLUS,           YES, TRUE,  3DNOWPLUS) \
