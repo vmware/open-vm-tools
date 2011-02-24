@@ -250,10 +250,6 @@ void VMCIHost_SignalBitmap(VMCIHost *hostContext);
 
 void *VMCI_AllocKernelMem(size_t size, int flags);
 void VMCI_FreeKernelMem(void *ptr, size_t size);
-VMCIBuffer VMCI_AllocBuffer(size_t size, int flags);
-void *VMCI_MapBuffer(VMCIBuffer buf);
-void VMCI_ReleaseBuffer(void *ptr);
-void VMCI_FreeBuffer(VMCIBuffer buf, size_t size);
 #ifdef SOLARIS
 int VMCI_CopyToUser(VA64 dst, const void *src, size_t len, int mode);
 #else
