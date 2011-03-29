@@ -83,7 +83,6 @@ void VMCI_HostCleanup(void);
 VMCIId VMCI_GetContextID(void);
 int VMCI_SendDatagram(VMCIDatagram *dg);
 
-#if defined(VMX86_TOOLS)
 void VMCIUtil_Init(void);
 void VMCIUtil_Exit(void);
 Bool VMCI_CheckHostCapabilities(void);
@@ -95,7 +94,6 @@ Bool VMCI_DeviceEnabled(void);
 int VMCIDoSendDatagram(unsigned int dgSize, ULONG *dataPort, ULONG *resultPort,
                        VMCIDatagram *dg);
 #endif // _WIN64
-#endif // VMX86_TOOLS
 
 
 #endif // _VMCI_DRIVER_H_

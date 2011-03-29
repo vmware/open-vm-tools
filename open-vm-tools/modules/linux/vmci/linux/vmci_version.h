@@ -17,29 +17,16 @@
  *********************************************************/
 
 /*
- * vmciEvent.h --
+ * vmci_version.h --
  *
- *      Event code for the vmci guest driver
+ * Version definitions for the Linux vmci driver.
  */
 
-#ifndef __VMCI_EVENT_H__
-#define __VMCI_EVENT_H__
+#ifndef _VMCI_VERSION_H_
+#define _VMCI_VERSION_H_
 
-#define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_VMMON
-#define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMKERNEL
-#include "includeCheck.h"
+#define VMCI_DRIVER_VERSION          9.1.10.0
+#define VMCI_DRIVER_VERSION_COMMAS   9,1,10,0
+#define VMCI_DRIVER_VERSION_STRING   "9.1.10.0"
 
-#include "vmci_defs.h"
-#include "vmci_call_defs.h"
-
-void VMCIEvent_Init(void);
-void VMCIEvent_Exit(void);
-void VMCIEvent_Sync(void);
-int  VMCIEvent_Dispatch(VMCIDatagram *msg);
-#ifdef VMX86_TOOLS
-Bool VMCIEvent_CheckHostCapabilities(void);
-#endif
-
-#endif //__VMCI_EVENT_H__
+#endif /* _VMCI_VERSION_H_ */
