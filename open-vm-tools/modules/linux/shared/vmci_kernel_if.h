@@ -402,18 +402,8 @@ Bool VMCI_CanCreate(void);
 #  define VMCI_FreeQueueBuffer(_q, _s)
 #  define VMCI_CanCreate() TRUE
 #endif // !_WIN32
-#if defined(_WIN32) || (defined(linux) && !defined(VMKERNEL))
-  Bool VMCI_GuestPersonalityActive(void);
-  Bool VMCI_HostPersonalityActive(void);
-#else
-#  if defined(VMX86_TOOLS)
-#    define VMCI_GuestPersonalityActive() TRUE
-#    define VMCI_HostPersonalityActive()  FALSE
-#  else // VMX86_TOOLS
-#    define VMCI_GuestPersonalityActive() FALSE
-#    define VMCI_HostPersonalityActive()  TRUE
-#  endif // !VMX86_TOOLS
-#endif // !(_WIN32 || (linux && !VMKERNEL))
+Bool VMCI_GuestPersonalityActive(void);
+Bool VMCI_HostPersonalityActive(void);
 
 
 #if defined(VMKERNEL)
