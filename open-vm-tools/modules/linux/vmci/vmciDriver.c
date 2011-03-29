@@ -47,9 +47,6 @@
 #define LGPFX "VMCI: "
 
 static Atomic_uint32 vmContextID = { VMCI_INVALID_ID };
-
-#if !defined(VMX86_TOOLS)
-
 static VMCIContext *hostContext;
 
 
@@ -127,6 +124,8 @@ VMCI_HostCleanup(void)
    VMCIQPBroker_Exit();
 }
 
+
+#if !defined(VMX86_TOOLS)
 
 /*
  *----------------------------------------------------------------------

@@ -597,7 +597,7 @@ static int
 vmci_open(struct inode *inode,  // IN
           struct file *file)    // IN
 {
-   VMCIGuestDeviceHandle *devHndl;
+   VMCIObj *devHndl;
    int errcode;
 
    printk(KERN_INFO "Opening vmci device\n");
@@ -620,8 +620,8 @@ vmci_open(struct inode *inode,  // IN
       errcode = -ENOMEM;
       goto unlock;
    }
-   devHndl->obj = NULL;
-   devHndl->objType = VMCIOBJ_NOT_SET;
+   devHndl->ptr = NULL;
+   devHndl->type = VMCIOBJ_NOT_SET;
    file->private_data = devHndl;
 
    compat_mutex_unlock(&vmci_dev.lock);
@@ -654,8 +654,7 @@ static int
 vmci_close(struct inode *inode,  // IN
            struct file *file)    // IN
 {
-   VMCIGuestDeviceHandle *devHndl =
-      (VMCIGuestDeviceHandle *) file->private_data;
+   VMCIObj *devHndl = (VMCIObj *)file->private_data;
 
    if (devHndl) {
       VMCI_FreeKernelMem(devHndl, sizeof *devHndl);

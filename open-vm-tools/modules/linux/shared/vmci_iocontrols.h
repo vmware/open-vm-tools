@@ -308,18 +308,26 @@ enum IOCTLCmd_VMCIMacOS {
  * Windows VMCI ioctl definitions.
  */
 
-/*
- * The first is the device name in user-mode.  The next two are for registering
- * or opening the device in kernel-mode, and are always in UNICODE.
- */
-#define VMCI_DEVICE_NAME         TEXT("\\\\.\\VMCI")
-#define VMCI_DEVICE_NAME_NT      L"\\??\\VMCI"
-#define VMCI_DEVICE_NAME_PATH    L"\\Device\\vmci"
-#define VMCI_DEVICE_LINK_PATH    L"\\DosDevices\\vmci"
+/* PUBLIC: For VMCISockets user-mode clients that use CreateFile(). */
+#define VMCI_INTERFACE_VSOCK_PUBLIC_NAME TEXT("\\\\.\\VMCI")
+
+/* PUBLIC: For VMCISockets user-mode clients that use NtCreateFile(). */
+#define VMCI_INTERFACE_VSOCK_PUBLIC_NAME_NT L"\\??\\VMCI"
+
+/* PUBLIC: For the VMX, which uses CreateFile(). */
+#define VMCI_INTERFACE_VMX_PUBLIC_NAME TEXT("\\\\.\\VMCIHostDev\\VMX")
+
+/* PRIVATE NAMES */
+#define VMCI_DEVICE_VSOCK_NAME_PATH L"\\Device\\vmci"
+#define VMCI_DEVICE_VSOCK_LINK_PATH L"\\DosDevices\\vmci"
+#define VMCI_DEVICE_HOST_NAME_PATH  L"\\Device\\VMCIHostDev"
+#define VMCI_DEVICE_HOST_LINK_PATH  L"\\DosDevice\\VMCIHostDev"
+#define VMCI_DEVICE_GUEST_NAME_PATH L"\\Device\\VMCIGuestDev"
+/* PRIVATE NAMES */
 
 /* These values cannot be changed since some of the ioctl values are public. */
-#define FILE_DEVICE_VMCI         0x8103
-#define VMCI_IOCTL_BASE_INDEX    0x801
+#define FILE_DEVICE_VMCI      0x8103
+#define VMCI_IOCTL_BASE_INDEX 0x801
 #define VMCIIOCTL_BUFFERED(name) \
       CTL_CODE(FILE_DEVICE_VMCI, \
 	       VMCI_IOCTL_BASE_INDEX + IOCTLCMD_VMCI_ ## name, \
@@ -436,8 +444,8 @@ typedef struct VMCIInitBlock {
 typedef struct VMCISharedMemInfo {
    VMCIHandle handle;
    uint32     size;
-   uint32     result;     
-   VA64       va; /* Currently only used in the guest. */ 
+   uint32     result;
+   VA64       va; /* Currently only used in the guest. */
    char       pageFileName[VMCI_PATH_MAX];
 } VMCISharedMemInfo;
 
@@ -451,7 +459,7 @@ typedef struct VMCIQueuePairAllocInfo {
    VA64       producePageFile; /* User VA. */
    VA64       consumePageFile; /* User VA. */
    uint64     producePageFileSize; /* Size of the file name array. */
-   uint64     consumePageFileSize; /* Size of the file name array. */ 
+   uint64     consumePageFileSize; /* Size of the file name array. */
 #else
    PPN *      PPNs;
    uint64     numPPNs;
@@ -550,12 +558,12 @@ typedef struct VMCISetNotifyInfo {
    uint32      _pad;
 } VMCISetNotifyInfo;
 
-#define VMCI_NOTIFY_RESOURCE_QUEUE_PAIR 0 
+#define VMCI_NOTIFY_RESOURCE_QUEUE_PAIR 0
 #define VMCI_NOTIFY_RESOURCE_DOOR_BELL  1
 
-#define VMCI_NOTIFY_RESOURCE_ACTION_NOTIFY  0 
-#define VMCI_NOTIFY_RESOURCE_ACTION_CREATE  1 
-#define VMCI_NOTIFY_RESOURCE_ACTION_DESTROY 2 
+#define VMCI_NOTIFY_RESOURCE_ACTION_NOTIFY  0
+#define VMCI_NOTIFY_RESOURCE_ACTION_CREATE  1
+#define VMCI_NOTIFY_RESOURCE_ACTION_DESTROY 2
 
 /*
  * Used to create and destroy doorbells, and generate a notification
@@ -662,13 +670,13 @@ enum VMCrossTalkSockOpt {
    VMCI_SO_QUEUEPAIR_SETPAGEFILE    = IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE,
    VMCI_SO_QUEUEPAIR_DETACH         = IOCTL_VMCI_QUEUEPAIR_DETACH,
    VMCI_SO_DATAGRAM_SEND            = IOCTL_VMCI_DATAGRAM_SEND,
-   VMCI_SO_DATAGRAM_RECEIVE         = IOCTL_VMCI_DATAGRAM_RECEIVE, 
+   VMCI_SO_DATAGRAM_RECEIVE         = IOCTL_VMCI_DATAGRAM_RECEIVE,
    VMCI_SO_DATAGRAM_REQUEST_MAP     = IOCTL_VMCI_DATAGRAM_REQUEST_MAP,
-   VMCI_SO_DATAGRAM_REMOVE_MAP      = IOCTL_VMCI_DATAGRAM_REMOVE_MAP, 
-   VMCI_SO_CTX_ADD_NOTIFICATION     = IOCTL_VMCI_CTX_ADD_NOTIFICATION, 
-   VMCI_SO_CTX_REMOVE_NOTIFICATION  = IOCTL_VMCI_CTX_REMOVE_NOTIFICATION, 
-   VMCI_SO_CTX_GET_CPT_STATE        = IOCTL_VMCI_CTX_GET_CPT_STATE, 
-   VMCI_SO_CTX_SET_CPT_STATE        = IOCTL_VMCI_CTX_SET_CPT_STATE, 
+   VMCI_SO_DATAGRAM_REMOVE_MAP      = IOCTL_VMCI_DATAGRAM_REMOVE_MAP,
+   VMCI_SO_CTX_ADD_NOTIFICATION     = IOCTL_VMCI_CTX_ADD_NOTIFICATION,
+   VMCI_SO_CTX_REMOVE_NOTIFICATION  = IOCTL_VMCI_CTX_REMOVE_NOTIFICATION,
+   VMCI_SO_CTX_GET_CPT_STATE        = IOCTL_VMCI_CTX_GET_CPT_STATE,
+   VMCI_SO_CTX_SET_CPT_STATE        = IOCTL_VMCI_CTX_SET_CPT_STATE,
    VMCI_SO_GET_CONTEXT_ID           = IOCTL_VMCI_GET_CONTEXT_ID,
    VMCI_SO_USERFD,
 };

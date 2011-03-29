@@ -71,7 +71,6 @@
 
 #include "vm_basic_types.h"
 #include "vmci_defs.h"
-#include "vmci_infrastructure.h"
 
 #if defined(VMKERNEL)
 #  include "list.h"
@@ -255,18 +254,6 @@ typedef struct VMCIHost {
 void VMCI_ReadPortBytes(VMCIIoHandle handle, VMCIIoPort port, uint8 *buffer,
                         size_t bufferLength);
 
-/*
- * Guest device handle (FsCtx).  Not used on VMK, but we use an empty type to
- * keep offsetchecker happy.
- */
-
-typedef struct VMCIGuestDeviceHandle {
-#if !defined(VMKERNEL)
-   void *obj;
-   VMCIObjType objType;
-#endif // VMKERNEL
-} VMCIGuestDeviceHandle;
-
 
 void VMCI_InitLock(VMCILock *lock, char *name, VMCILockRank rank);
 void VMCI_CleanupLock(VMCILock *lock);
@@ -294,8 +281,22 @@ uintptr_t VMCIHost_GetActiveHnd(VMCIHost *hostContext);
 void VMCIHost_SignalBitmap(VMCIHost *hostContext);
 #endif
 
+#if defined(_WIN32)
+   /*
+    * On Windows, Driver Verifier will panic() if we leak memory when we are
+    * unloaded.  It dumps the leaked blocks for us along with callsites, which
+    * it handily tracks, but if we embed ExAllocate() inside a function, then
+    * the callsite is useless.  So make this a macro on this platform only.
+    */
+#  define VMCI_AllocKernelMem(_sz, _f)                       \
+      ExAllocatePoolWithTag((((_f) & VMCI_MEMORY_NONPAGED) ? \
+                             NonPagedPool : PagedPool),      \
+                            (_sz), 'MMTC')
+#else // _WIN32
 void *VMCI_AllocKernelMem(size_t size, int flags);
+#endif // _WIN32
 void VMCI_FreeKernelMem(void *ptr, size_t size);
+
 int VMCI_CopyToUser(VA64 dst, const void *src, size_t len);
 Bool VMCIWellKnownID_AllowMap(VMCIId wellKnownID,
                               VMCIPrivilegeFlags privFlags);
