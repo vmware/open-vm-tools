@@ -1,3 +1,20 @@
+open-vm-tools 2011.03.28 changes:
+	* HGFS mounter and vmusr's suid wrapper were changed to avoid
+	  issues with symlink attacks. A new mount utility for vmblock on
+	  Solaris and FreeBSD was added.
+  
+	* The VMCI driver was thoroughly reworked so that it can serve as
+	  both the host and guest VMCI driver. This is mostly targeted at
+	  supporting nested VMs.
+  
+	* vmusr got better integration with X's session manager, including
+	  proper cleanup during session teardown.
+  
+	* Unity has been enhanced to better handle some desktop environments.
+
+	* Many small bug fixes in other areas, including updates for newer
+	  Linux kernels.
+
 open-vm-tools 2011.02.23 changes:
         * Some copy & paste issues with KDE were fixed.
 
