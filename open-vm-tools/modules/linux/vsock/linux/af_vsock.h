@@ -70,6 +70,7 @@ typedef struct VSockVmciSock {
    uint64 queuePairSize;
    uint64 queuePairMinSize;
    uint64 queuePairMaxSize;
+   long connectTimeout;
    VSockVmciNotify notify;
    VSockVmciNotifyOps *notifyOps;
    VMCIId attachSubId;

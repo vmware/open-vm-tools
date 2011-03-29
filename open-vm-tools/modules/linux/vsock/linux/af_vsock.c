@@ -386,6 +386,12 @@ static int PROTOCOL_OVERRIDE = -1;
 #define VSOCK_DEFAULT_QP_SIZE       262144
 #define VSOCK_DEFAULT_QP_SIZE_MAX   262144
 
+/*
+ * The default peer timeout indicates how long we will wait for a peer
+ * response to a control message.
+ */
+#define VSOCK_DEFAULT_CONNECT_TIMEOUT (2 * HZ)
+
 #ifdef VMX86_DEVEL
 # define LOG_PACKET(_pkt)  VSockVmciLogPkt(__FUNCTION__, __LINE__, _pkt)
 #else
@@ -1633,7 +1639,7 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    pending = __VSockVmciCreate(NULL, sk, GFP_KERNEL, sk->sk_type);
 #else
    pending = __VSockVmciCreate(compat_sock_net(sk), NULL, sk, GFP_KERNEL,
-			       sk->sk_type);
+                               sk->sk_type);
 #endif
    if (!pending) {
       VSOCK_SEND_RESET(sk, pkt);
@@ -2360,7 +2366,7 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
       sock_set_flag(sk, SOCK_DONE);
       vsk->peerShutdown = SHUTDOWN_MASK;
       if (VSockVmciStreamHasData(vsk) <= 0) {
-	 sk->sk_state = SS_DISCONNECTING;
+         sk->sk_state = SS_DISCONNECTING;
       }
       sk->sk_state_change(sk);
       break;
@@ -2857,12 +2863,14 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
       vsk->queuePairSize = psk->queuePairSize;
       vsk->queuePairMinSize = psk->queuePairMinSize;
       vsk->queuePairMaxSize = psk->queuePairMaxSize;
+      vsk->connectTimeout = psk->connectTimeout;
    } else {
       vsk->trusted = capable(CAP_NET_ADMIN);
       vsk->owner = current_uid();
       vsk->queuePairSize = VSOCK_DEFAULT_QP_SIZE;
       vsk->queuePairMinSize = VSOCK_DEFAULT_QP_SIZE_MIN;
       vsk->queuePairMaxSize = VSOCK_DEFAULT_QP_SIZE_MAX;
+      vsk->connectTimeout = VSOCK_DEFAULT_CONNECT_TIMEOUT;
    }
 
    vsk->notifyOps = NULL;
@@ -3512,6 +3520,49 @@ out:
 /*
  *----------------------------------------------------------------------------
  *
+ * VSockVmciConnectTimeout --
+ *
+ *    Asynchronous connection attempts schedule this timeout function
+ *    to notify the connector of an unsuccessfull connection
+ *    attempt. If the socket is still in the connecting state and
+ *    hasn't been closed, we mark the socket as timed out. Otherwise,
+ *    we do nothing.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    May destroy the socket.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VSockVmciConnectTimeout(compat_delayed_work_arg work)    // IN
+{
+   struct sock *sk;
+   VSockVmciSock *vsk;
+
+   vsk = COMPAT_DELAYED_WORK_GET_DATA(work, VSockVmciSock, dwork);
+   ASSERT(vsk);
+
+   sk = sk_vsock(vsk);
+
+   lock_sock(sk);
+   if (sk->sk_state == SS_CONNECTING && (sk->sk_shutdown != SHUTDOWN_MASK)) {
+      sk->sk_state = SS_UNCONNECTED;
+      sk->sk_err = ETIMEDOUT;
+      sk->sk_error_report(sk);
+   }
+   release_sock(sk);
+
+   sock_put(sk);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * VSockVmciStreamConnect --
  *
  *    Connects a stream socket.
@@ -3566,7 +3617,7 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
       ASSERT(sk->sk_state == SS_FREE ||
              sk->sk_state == SS_UNCONNECTED ||
              sk->sk_state == SS_LISTEN);
-      if ((sk->sk_state == SS_LISTEN) || 
+      if ((sk->sk_state == SS_LISTEN) ||
           VSockAddr_Cast(addr, addrLen, &remoteAddr) != 0) {
          err = -EINVAL;
          goto out;
@@ -3632,15 +3683,22 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
     * the connected state.  Here we wait for the connection to be completed or
     * a notification of an error.
     */
-   timeout = sock_sndtimeo(sk, flags & O_NONBLOCK);
+   timeout = vsk->connectTimeout;
    prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
    while (sk->sk_state != SS_CONNECTED && sk->sk_err == 0) {
-      if (timeout == 0) {
+      if (flags & O_NONBLOCK) {
          /*
-          * If we're not going to block, skip ahead to preserve error code set
-          * above.
+          * If we're not going to block, we schedule a timeout
+          * function to generate a timeout on the connection attempt,
+          * in case the peer doesn't respond in a timely manner. We
+          * hold on to the socket until the timeout fires.
           */
+         sock_hold(sk);
+         COMPAT_INIT_DELAYED_WORK(&vsk->dwork, VSockVmciConnectTimeout, vsk);
+         compat_schedule_delayed_work(&vsk->dwork, timeout);
+
+         /* Skip ahead to preserve error code set above. */
          goto outWait;
       }
 
@@ -3926,14 +3984,14 @@ VSockVmciPoll(struct file *file,    // IN
        * Listening sockets that have connections in their accept queue can be read.
        */
       if (sk->sk_state == SS_LISTEN && !VSockVmciIsAcceptQueueEmpty(sk)) {
-	 mask |= POLLIN | POLLRDNORM;
+         mask |= POLLIN | POLLRDNORM;
       }
 
       /*
        * If there is something in the queue then we can read.
        */
       if (!VMCI_HANDLE_INVALID(vsk->qpHandle) &&
-	  !(sk->sk_shutdown & RCV_SHUTDOWN)) {
+          !(sk->sk_shutdown & RCV_SHUTDOWN)) {
          Bool dataReadyNow = FALSE;
          int32 ret = 0;
          NOTIFYCALLRET(vsk, ret, pollIn, sk, 1, &dataReadyNow);
@@ -3959,7 +4017,7 @@ VSockVmciPoll(struct file *file,    // IN
        * Connected sockets that can produce data can be written.
        */
       if (sk->sk_state == SS_CONNECTED) {
-	 if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
+         if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
             Bool spaceAvailNow = FALSE;
             int32 ret = 0;
 
@@ -3972,7 +4030,7 @@ VSockVmciPoll(struct file *file,    // IN
                   mask |= POLLOUT | POLLWRNORM;
                }
             }
-	 }
+         }
       }
 
       /*
@@ -4274,13 +4332,17 @@ VSockVmciStreamSetsockopt(struct socket *sock,           // IN/OUT
       return -ENOPROTOOPT;
    }
 
-   if (optlen < sizeof val) {
-      return -EINVAL;
-   }
-
-   if (copy_from_user(&val, optval, sizeof val) != 0) {
-      return -EFAULT;
-   }
+#  define COPY_IN(_v)                                              \
+   do {                                                            \
+      if (optlen < sizeof _v) {                                    \
+         err = -EINVAL;                                            \
+         goto exit;                                                \
+      }                                                            \
+      if (copy_from_user(&_v, optval, sizeof _v) != 0) {           \
+         err = -EFAULT;                                            \
+         goto exit;                                                \
+      }                                                            \
+   } while (0)
 
    err = 0;
    sk = sock->sk;
@@ -4293,6 +4355,7 @@ VSockVmciStreamSetsockopt(struct socket *sock,           // IN/OUT
 
    switch (optname) {
    case SO_VMCI_BUFFER_SIZE:
+      COPY_IN(val);
       if (val < vsk->queuePairMinSize) {
          vsk->queuePairMinSize = val;
       }
@@ -4305,6 +4368,7 @@ VSockVmciStreamSetsockopt(struct socket *sock,           // IN/OUT
       break;
 
    case SO_VMCI_BUFFER_MAX_SIZE:
+      COPY_IN(val);
       if (val < vsk->queuePairSize) {
          vsk->queuePairSize = val;
       }
@@ -4312,20 +4376,39 @@ VSockVmciStreamSetsockopt(struct socket *sock,           // IN/OUT
       break;
 
    case SO_VMCI_BUFFER_MIN_SIZE:
+      COPY_IN(val);
       if (val > vsk->queuePairSize) {
          vsk->queuePairSize = val;
       }
       vsk->queuePairMinSize = val;
       break;
 
+   case SO_VMCI_CONNECT_TIMEOUT: {
+      struct timeval tv;
+      COPY_IN(tv);
+      if (tv.tv_sec >= 0 && tv.tv_usec < USEC_PER_SEC &&
+          tv.tv_sec < (MAX_SCHEDULE_TIMEOUT/HZ - 1)) {
+         vsk->connectTimeout = tv.tv_sec * HZ +
+                               CEILING(tv.tv_usec, (1000000 / HZ));
+         if (vsk->connectTimeout == 0) {
+            vsk->connectTimeout = VSOCK_DEFAULT_CONNECT_TIMEOUT;
+         }
+      } else {
+         err = -ERANGE;
+      }
+      break;
+   }
+
    default:
       err = -ENOPROTOOPT;
       break;
    }
 
+#  undef COPY_IN
+
    ASSERT(vsk->queuePairMinSize <= vsk->queuePairSize &&
           vsk->queuePairSize <= vsk->queuePairMaxSize);
-
+exit:
    release_sock(sk);
    return err;
 }
@@ -4354,53 +4437,65 @@ VSockVmciStreamGetsockopt(struct socket *sock,          // IN
                           char __user *optval,          // OUT
                           int __user * optlen)          // IN/OUT
 {
-    int err;
-    int len;
-    struct sock *sk;
-    VSockVmciSock *vsk;
-    uint64 val;
+   int err;
+   int len;
+   struct sock *sk;
+   VSockVmciSock *vsk;
 
-    if (level != VSockVmci_GetAFValue()) {
-       return -ENOPROTOOPT;
-    }
+   if (level != VSockVmci_GetAFValue()) {
+      return -ENOPROTOOPT;
+   }
 
-    if ((err = get_user(len, optlen)) != 0) {
-       return err;
-    }
-    if (len < sizeof val) {
-       return -EINVAL;
-    }
+   if ((err = get_user(len, optlen)) != 0) {
+      return err;
+   }
 
-    len = sizeof val;
+#  define COPY_OUT(_v)                                             \
+   do {                                                            \
+      if (len < sizeof _v) {                                       \
+         return -EINVAL;                                           \
+      }                                                            \
+      len = sizeof _v;                                             \
+      if (copy_to_user(optval, &_v, len) != 0) {                   \
+         return -EFAULT;                                           \
+      }                                                            \
+   } while (0)
 
-    err = 0;
-    sk = sock->sk;
-    vsk = vsock_sk(sk);
+   err = 0;
+   sk = sock->sk;
+   vsk = vsock_sk(sk);
 
-    switch (optname) {
-    case SO_VMCI_BUFFER_SIZE:
-       val = vsk->queuePairSize;
-       break;
+   switch (optname) {
+   case SO_VMCI_BUFFER_SIZE:
+      COPY_OUT(vsk->queuePairSize);
+      break;
 
-    case SO_VMCI_BUFFER_MAX_SIZE:
-       val = vsk->queuePairMaxSize;
-       break;
+   case SO_VMCI_BUFFER_MAX_SIZE:
+      COPY_OUT(vsk->queuePairMaxSize);
+      break;
 
-    case SO_VMCI_BUFFER_MIN_SIZE:
-       val = vsk->queuePairMinSize;
-       break;
+   case SO_VMCI_BUFFER_MIN_SIZE:
+      COPY_OUT(vsk->queuePairMinSize);
+      break;
 
-    default:
-       return -ENOPROTOOPT;
-    }
+   case SO_VMCI_CONNECT_TIMEOUT: {
+      struct timeval tv;
+      tv.tv_sec = vsk->connectTimeout / HZ;
+      tv.tv_usec = (vsk->connectTimeout - tv.tv_sec * HZ) * (1000000 / HZ);
+      COPY_OUT(tv);
+      break;
+   }
+   default:
+      return -ENOPROTOOPT;
+   }
 
-    if ((err = copy_to_user(optval, &val, len)) != 0) {
-       return -EFAULT;
-    }
-    if ((err = put_user(len, optlen)) != 0) {
-       return -EFAULT;
-    }
-    return 0;
+   if ((err = put_user(len, optlen)) != 0) {
+      return -EFAULT;
+   }
+
+#  undef COPY_OUT
+
+   return 0;
 }
 
 
