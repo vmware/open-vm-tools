@@ -680,6 +680,12 @@ typedef int pid_t;
 #define hosted_lg_pg 0
 #endif
 
+#ifdef TCL
+#define TCL_ONLY(x) x
+#else
+#define TCL_ONLY(x)
+#endif
+
 /*
  * Use to initialize cbSize for this structure to preserve < Vista
  * compatibility.
