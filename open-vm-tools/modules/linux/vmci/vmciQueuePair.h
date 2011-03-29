@@ -69,7 +69,8 @@ typedef struct QueuePairPageStore {
 
 #endif // !VMKERNEL
 
-#if (defined(__linux__) || defined(_WIN32) || defined(__APPLE__)) && !defined(VMKERNEL)
+#if (defined(__linux__) || defined(_WIN32) || defined(__APPLE__) || \
+     defined(SOLARIS)) && !defined(VMKERNEL)
 struct VMCIQueue;
 
 typedef struct PageStoreAttachInfo {

@@ -81,7 +81,8 @@ typedef struct QPBrokerEntry {
    Bool                 createdByTrusted;
 #ifdef VMKERNEL
    QueuePairPageStore   store;
-#elif defined(__linux__) || defined(_WIN32) || defined(__APPLE__)
+#elif defined(__linux__) || defined(_WIN32) || defined(__APPLE__) || \
+      defined(SOLARIS)
    /*
     * Always created but only used if a host endpoint attaches to this
     * queue.
