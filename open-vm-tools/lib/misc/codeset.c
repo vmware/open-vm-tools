@@ -91,9 +91,13 @@
 #define CODESET_CAN_FALLBACK_ON_NON_ICU TRUE
 
 #if defined(__APPLE__)
-#define POSIX_ICU_DIR DEFAULT_LIBDIRECTORY "/icu"
+#   define POSIX_ICU_DIR DEFAULT_LIBDIRECTORY "/icu"
 #elif !defined(WIN32)
-#define POSIX_ICU_DIR "/etc/vmware/icu"
+#   if defined(VMX86_TOOLS)
+#      define POSIX_ICU_DIR "/etc/vmware-tools/icu"
+#   else
+#      define POSIX_ICU_DIR "/etc/vmware/icu"
+#   endif
 #endif
 
 /*
