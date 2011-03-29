@@ -162,10 +162,7 @@ static void
 ToolsMainCleanupRpc(void)
 {
    if (gRpcInCtlPanel) {
-      if (!RpcIn_stop(gRpcInCtlPanel)) {
-         Debug("Failed to stop RpcIn loop\n");
-      }
-
+      RpcIn_stop(gRpcInCtlPanel);
       RpcIn_Destruct(gRpcInCtlPanel);
       gRpcInCtlPanel = NULL;
    }

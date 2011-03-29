@@ -112,16 +112,28 @@ struct RpcIn {
 
    /* The size of the result */
    size_t last_resultLen;
+
+   /*
+    * It's possible for a callback dispatched by RpcInLoop to call RpcIn_stop.
+    * When this happens, we corrupt the state of the RpcIn struct, resulting in
+    * a crash the next time RpcInLoop is called. To prevent corruption of the
+    * RpcIn struct, we check inLoop when RpcIn_stop is called, and if it is
+    * true, we set shouldStop to TRUE instead of actually stopping the
+    * channel. When RpcInLoop exits, it will stop the channel if shouldStop is
+    * TRUE.
+    */
+   Bool inLoop;     // RpcInLoop is running.
+   Bool shouldStop; // Stop the channel the next time RpcInLoop exits.
 };
 
 
-/* 
+/*
  * The following functions are only needed in the non-glib version of the
  * library. The glib version of the library only deals with the transport
  * aspects of the code - RPC dispatching and other RPC-layer concerns are
  * handled by the rpcChannel abstraction library, or by the application.
  */
- 
+
 #if !defined(VMTOOLS_USE_GLIB)
 
 /*
@@ -447,29 +459,23 @@ RpcInSend(RpcIn *in) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * RpcIn_stop --
+ * RpcInStop --
  *
- *      Stop the background loop that receives RPC from VMware
+ *      Stop the RPC channel.
  *
  * Results:
- *      TRUE on success
- *      FALSE on failure
+ *      None
  *
- * Side-effects:
- *      Try to send the last result and to close the channel
+ * Side effects:
+ *      Sends the last result back to the host.
  *
  *-----------------------------------------------------------------------------
  */
 
-Bool
-RpcIn_stop(RpcIn *in) // IN
+static void
+RpcInStop(RpcIn *in) // IN
 {
-   Bool status;
-
    ASSERT(in);
-
-   status = TRUE;
-
    if (in->nextEvent) {
       /* The loop is started. Stop it */
 #if defined(VMTOOLS_USE_GLIB)
@@ -482,26 +488,46 @@ RpcIn_stop(RpcIn *in) // IN
 
    if (in->channel) {
       /* The channel is open */
-
       if (in->mustSend) {
          /* There is a final result to send back. Try to send it */
-         if (RpcInSend(in) == FALSE) {
-            status = FALSE;
-         }
-
+         RpcInSend(in);
          ASSERT(in->mustSend == FALSE);
       }
 
       /* Try to close the channel */
       if (Message_Close(in->channel) == FALSE) {
          Debug("RpcIn: couldn't close channel\n");
-         status = FALSE;
       }
 
       in->channel = NULL;
    }
+}
 
-   return status;
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcIn_stop --
+ *
+ *      Stop the RPC channel.
+ *
+ * Results:
+ *      None
+ *
+ * Side-effects:
+ *      Sends the last result to the host, if one exists.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+RpcIn_stop(RpcIn *in) // IN
+{
+   if (in->inLoop) {
+      in->shouldStop = TRUE;
+   } else {
+      RpcInStop(in);
+   }
 }
 
 
@@ -510,17 +536,16 @@ RpcIn_stop(RpcIn *in) // IN
  *
  * RpcInLoop --
  *
- *    The background loop that receives RPC from VMware
+ *      Receives an RPC from the host.
  *
- * Result
- *    Always FALSE for the glib implementation (to force unregistration of the
- *    timer; this function will re-schedule the callback).
- *    TRUE on success
- *    FALSE on failure (never happens in this implementation)
+ * Result:
+ *      For the Event Manager implementation, always TRUE.
  *
- * Side-effects
- *    May call the error routine in which case the loop is
- *    stopped.
+ *      For the glib implementation, returns FALSE if the timer was rescheduled
+ *      so that g_main_loop will unregister the old timer, or TRUE otherwise.
+ *
+ * Side-effects:
+ *      Stops the RPC channel on error.
  *
  *-----------------------------------------------------------------------------
  */
@@ -542,12 +567,16 @@ RpcInLoop(void *clientData) // IN
    in = (RpcIn *)clientData;
    ASSERT(in);
 
-   /* The event has fired: it is no longer valid */
+   in->inLoop = TRUE;
+
+   /* The event has fired: it is no longer valid. */
    ASSERT(in->nextEvent);
    current = in->delay;
 
-   /* This is very important: this is the only way to signal the existence
-      of this guest application to VMware */
+   /*
+    * This is very important: this is the only way to signal the existence of
+    * this guest application to VMware.
+    */
    ASSERT(in->channel);
    ASSERT(in->mustSend);
    if (RpcInSend(in) == FALSE) {
@@ -623,7 +652,7 @@ RpcInLoop(void *clientData) // IN
       memcpy(in->last_result, statusStr, statusLen);
       memcpy(in->last_result + statusLen, result, resultLen);
       in->last_resultLen = statusLen + resultLen;
-      
+
       if (freeResult) {
          free(result);
       }
@@ -664,20 +693,30 @@ RpcInLoop(void *clientData) // IN
    ASSERT(in->mustSend == FALSE);
    in->mustSend = TRUE;
 
+   if (!in->shouldStop) {
 #if defined(VMTOOLS_USE_GLIB)
-   resched = (in->delay != current);
-   if (resched) {
-      g_source_unref(in->nextEvent);
-      RPCIN_SCHED_EVENT(in, VMTools_CreateTimer(in->delay * 10));
-   }
+      resched = (in->delay != current);
+      if (resched) {
+         g_source_unref(in->nextEvent);
+         RPCIN_SCHED_EVENT(in, VMTools_CreateTimer(in->delay * 10));
+      }
 #else
-   resched = TRUE; /* Avoid unused warning. */
-   in->nextEvent = EventManager_Add(gTimerEventQueue, in->delay, RpcInLoop, in);
+      resched = TRUE; /* Avoid unused warning. */
+      in->nextEvent = EventManager_Add(gTimerEventQueue, in->delay, RpcInLoop, in);
 #endif
-   if (in->nextEvent == NULL) {
-      errmsg = "RpcIn: Unable to run the loop";
-      goto error;
+      if (in->nextEvent == NULL) {
+         errmsg = "RpcIn: Unable to run the loop";
+         goto error;
+      }
    }
+
+exit:
+   if (in->shouldStop) {
+      RpcInStop(in);
+      in->shouldStop = FALSE;
+   }
+
+   in->inLoop = FALSE;
 
 #if defined(VMTOOLS_USE_GLIB)
    return !resched;
@@ -686,23 +725,10 @@ RpcInLoop(void *clientData) // IN
 #endif
 
 error:
-   /* The event has fired and will not be rescheduled: it is no longer valid */
-   if (in->nextEvent) {
-#if defined(VMTOOLS_USE_GLIB)
-      g_source_unref(in->nextEvent);
-#endif
-      in->nextEvent = NULL;
-   }
-   RpcIn_stop(in);
-
    /* Call the error routine */
    (*in->errorFunc)(in->errorData, errmsg);
-
-#if defined(VMTOOLS_USE_GLIB)
-   return FALSE;
-#else
-   return TRUE;
-#endif
+   in->shouldStop = TRUE;
+   goto exit;
 }
 
 
@@ -782,8 +808,7 @@ RpcIn_start(RpcIn *in,                    // IN
    return TRUE;
 
 error:
-   RpcIn_stop(in);
-
+   RpcInStop(in);
    return FALSE;
 }
 
