@@ -60,6 +60,12 @@ Hostinfo_SystemTimerUS(void)
    return Hostinfo_SystemTimerNS() / 1000ULL;
 }
 
+static INLINE VmTimeType
+Hostinfo_SystemTimerMS(void)
+{
+   return Hostinfo_SystemTimerNS() / 1000000ULL;
+}
+
 extern int Hostinfo_OSVersion(unsigned int i);
 extern int Hostinfo_GetSystemBitness(void);
 extern const char *Hostinfo_OSVersionString(void);
