@@ -915,13 +915,13 @@ RDTSC(void)
  */
 
 static INLINE void
-SetBit32(uint32 *var, unsigned index)
+SetBit32(uint32 *var, uint32 index)
 {
 #ifdef __GNUC__
    __asm__ (
       "bts %1, %0"
       : "+mr" (*var)
-      : "ri" (index)
+      : "rI" (index)
       : "cc"
    );
 #elif defined(_MSC_VER)
@@ -930,13 +930,13 @@ SetBit32(uint32 *var, unsigned index)
 }
 
 static INLINE void
-ClearBit32(uint32 *var, unsigned index)
+ClearBit32(uint32 *var, uint32 index)
 {
 #ifdef __GNUC__
    __asm__ (
       "btr %1, %0"
       : "+mr" (*var)
-      : "ri" (index)
+      : "rI" (index)
       : "cc"
    );
 #elif defined(_MSC_VER)
@@ -946,13 +946,13 @@ ClearBit32(uint32 *var, unsigned index)
 
 #if defined(VM_X86_64)
 static INLINE void
-SetBit64(uint64 *var, unsigned index)
+SetBit64(uint64 *var, uint64 index)
 {
 #ifdef __GNUC__
    __asm__ (
       "bts %1, %0"
       : "+mr" (*var)
-      : "ri" (index)
+      : "rJ" (index)
       : "cc"
    );
 #elif defined _MSC_VER
@@ -961,13 +961,13 @@ SetBit64(uint64 *var, unsigned index)
 }
 
 static INLINE void
-ClearBit64(uint64 *var, unsigned index)
+ClearBit64(uint64 *var, uint64 index)
 {
 #ifdef __GNUC__
    __asm__ (
       "btr %1, %0"
       : "+mr" (*var)
-      : "ri" (index)
+      : "rJ" (index)
       : "cc"
    );
 #elif defined _MSC_VER
