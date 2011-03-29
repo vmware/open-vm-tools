@@ -288,6 +288,8 @@ UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
    INIT_ATOM(WM_STATE);
    INIT_ATOM(WM_TRANSIENT_FOR);
    INIT_ATOM(WM_WINDOW_ROLE);
+   INIT_ATOM(COMPOUND_TEXT);
+   INIT_ATOM(UTF8_STRING);
 
 #  undef INIT_ATOM
 

@@ -2608,16 +2608,48 @@ UPWindowUpdateTitle(UnityPlatform *up,        // IN
       return;
    }
 
-   if (propertyType != XA_STRING || propertyFormat != 8) {
+   if (bytesRemaining != 0) {
+      Log("Skipping title update for window %#lx.  Title too long.\n",
+          upw->clientWindow);
       return;
    }
 
-   DynBuf_Init(&titleBuf);
-   DynBuf_Append(&titleBuf, valueReturned, itemsReturned);
-   if (!itemsReturned || valueReturned[itemsReturned-1] != '\0') {
-      DynBuf_AppendString(&titleBuf, "");
+   /*
+    * propertyFormat tells us (in bits) the size of each item returned.  Let's
+    * convert that to bytes.  See XGetWindowProperty(3) for details.
+    */
+   size_t bytesRead = itemsReturned * propertyFormat / 8;
+   Glib::ustring newTitle;
+
+   if (bytesRead) {                 // i.e. valueReturned isn't empty
+      if (   propertyType == XA_STRING
+          || propertyType == up->atoms.UTF8_STRING) {
+         /*
+          * Insert() used because NUL termination isn't guaranteed.  (Is that
+          * really the case?  TODO: Look this up.)
+          */
+         newTitle.insert(0, (const char *)valueReturned, bytesRead);
+      } else if (propertyType == up->atoms.COMPOUND_TEXT) {
+         /*
+          * COMPOUND_TEXT strings may contain characters outside the ASCII set.
+          * We'll convert these to something usable (*cough*UTF-8*cough*) via
+          * our trusty good pal, Gdk.
+          */
+         gchar **utf8List = NULL;
+         gint nconverted;
+         nconverted = gdk_text_property_to_utf8_list(
+            gdk_x11_xatom_to_atom(up->atoms.COMPOUND_TEXT), propertyFormat,
+            valueReturned, bytesRead, &utf8List);
+         if (nconverted) {
+            newTitle.assign(utf8List[0]);
+         }
+         g_strfreev(utf8List);
+      }
    }
    XFree(valueReturned);
+
+   DynBuf_Init(&titleBuf);
+   DynBuf_Append(&titleBuf, newTitle.c_str(), newTitle.bytes() + 1);
    Debug("Set title of window %#lx to %s\n",
          upw->clientWindow, (char *)DynBuf_Get(&titleBuf));
    UnityWindowTracker_SetWindowTitle(up->tracker, (UnityWindowId) upw->toplevelWindow,
