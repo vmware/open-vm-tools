@@ -31,6 +31,7 @@
 #include "fileIO.h"
 #include "fileLock.h"
 #include "unicodeTypes.h"
+#include "memaligned.h"
 
 #if defined __linux__
 /*
@@ -260,6 +261,55 @@ EXTERN Bool FileLockValidOwner(const char *executionID,
 EXTERN Bool FileLockValidName(ConstUnicode fileName);
 
 EXTERN Bool FileIsWritableDir(ConstUnicode dirName);
+
+
+/*
+ * FileIOAligned_* are useful on hosted platforms where malloc/memalign/valloc
+ * for "large buffers" (in the range 64 KiB - 1 MiB) will generally fall
+ * through to mmap/munmap, which is expensive due to page table modifications
+ * and the attendant TLB flushing (which requires IPIs and possibly world
+ * switches) on other threads running in the same address space.  In particular,
+ * on Mac OS 10.6.6 on a Westmere-class Mac Pro, mmap + memcpy + munmap adds
+ * around a millisecond of CPU time and a hundred IPIs to a 512 KiB write.  See
+ * PR#685845.
+ *
+ * This isn't applicable to ESX because
+ * 1. we don't use this path for disk IO
+ * 2. we don't want to do extra large allocations
+ * 3. we don't have the same alignment constraints
+ * so simply define it away to nothing.
+ */
+
+#ifdef VMX86_SERVER
+#define FileIOAligned_PoolInit()     /* nothing */
+#define FileIOAligned_PoolExit()     /* nothing */
+#define FileIOAligned_PoolMalloc(sz) NULL
+#define FileIOAligned_PoolFree(ptr)  FALSE
+#else
+EXTERN void FileIOAligned_PoolInit(void);
+EXTERN void FileIOAligned_PoolExit(void);
+EXTERN void *FileIOAligned_PoolMalloc(size_t);
+EXTERN Bool FileIOAligned_PoolFree(void *);
+#endif
+
+static INLINE void *
+FileIOAligned_Malloc(size_t sz)  // IN:
+{
+   void *buf = FileIOAligned_PoolMalloc(sz);
+
+   if (!buf) {
+      buf = Aligned_Malloc(sz);
+   }
+   return buf;
+}
+
+static INLINE void
+FileIOAligned_Free(void *ptr)  // IN:
+{
+   if (!FileIOAligned_PoolFree(ptr)) {
+      Aligned_Free(ptr);
+   }
+}
 
 #if defined(__APPLE__)
 EXTERN int PosixFileOpener(ConstUnicode pathName,

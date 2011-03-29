@@ -94,10 +94,9 @@
 
 #include "unicodeOperations.h"
 #include "memaligned.h"
+#include "userlock.h"
 
-#if defined(__linux__)
 #include "hostinfo.h"
-#endif
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
@@ -151,6 +150,41 @@ typedef struct FilePosixOptions {
 
 static FilePosixOptions filePosixOptions;
 
+/*
+ * Data structures for FileIOAligned_* functions; only used on
+ * hosted (see fileInt.h for rationale).
+ */
+#ifndef VMX86_SERVER
+#define ALIGNEDPOOL_FREELIST_SIZE 30
+#define ALIGNEDPOOL_BUFSZ         (1024 * 1024)
+#define ALIGNEDPOOL_OLD_AGE       ((VmTimeType)1000 * 1000 * 1000) /* nanoseconds */
+
+typedef struct AlignedPool {
+   MXUserExclLock *lock;
+
+   /*
+    * list: Array of allocated buffers.
+    *        0 .. numBusy-1 : busy buffers (in use by a caller).
+    * numBusy .. numAlloc-1 : allocated but not busy.
+    *    numAlloc .. SIZE-1 : unused.
+    */
+   void           *list[ALIGNEDPOOL_FREELIST_SIZE];
+
+   /*
+    * timestamp: Array of release timestamps.
+    *        0 .. numBusy-1 : unused.
+    * numBusy .. numAlloc-1 : last time we had N buffers outstanding.
+    *    numAlloc .. SIZE-1 : unused.
+    */
+   VmTimeType      timestamp[ALIGNEDPOOL_FREELIST_SIZE];
+
+   /* invariant: 0 <= numBusy <= numAlloc <= ALIGNEDPOOL_FREELIST_SIZE */
+   unsigned        numAlloc;
+   unsigned        numBusy;
+} AlignedPool;
+
+static AlignedPool alignedPool;
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -249,6 +283,7 @@ FileIO_OptionalSafeInitialize(void)
                            Config_GetLong(0, "aiomgr.numThreads");
 
       filePosixOptions.initialized = TRUE;
+      FileIOAligned_PoolInit();
    }
 }
 
@@ -661,7 +696,7 @@ ProxyUse(ConstUnicode pathName,  // IN:
  *
  *      Open a file. Use a proxy when creating a file or on NFS.
  *
- *      Why a proxy? The MacOS X 10.4.* NFS client interacts with our
+ *      Why a proxy? The Mac OS X 10.4.* NFS client interacts with our
  *      use of settid() and doesn't send the proper credentials on opens.
  *      This leads to files being written without error but containing no
  *      data. The proxy avoids all of this unhappiness.
@@ -1308,7 +1343,7 @@ FileIOCoalesce(struct iovec *inVec,   // IN:  Vector to coalesce from
    //        isWrite ? "write" : "read", inCount, inTotalSize));
 
    if (filePosixOptions.aligned || flags & FILEIO_OPEN_UNBUFFERED) {
-      cBuf = Aligned_Malloc(sizeof(uint8) * inTotalSize);
+      cBuf = FileIOAligned_Malloc(sizeof(uint8) * inTotalSize);
    } else {
       cBuf = Util_SafeMalloc(sizeof(uint8) * inTotalSize);
    }
@@ -1364,7 +1399,7 @@ FileIODecoalesce(struct iovec *coVec,   // IN: Coalesced (1-entry) vector
    }
 
    if (filePosixOptions.aligned || flags & FILEIO_OPEN_UNBUFFERED) {
-      Aligned_Free(coVec->iov_base);
+      FileIOAligned_Free(coVec->iov_base);
    } else {
       free(coVec->iov_base);
    }
@@ -2376,3 +2411,218 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
    return ret;
 }
 
+
+/*
+ * The FileIOAligned_* functions are only used on
+ * hosted (see fileInt.h for rationale).
+ */
+#ifndef VMX86_SERVER
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * FileIOAligned_PoolInit --
+ *
+ *      Initialize alignedPool.  Must be called before FileIOAligned_PoolMalloc.
+ *      This is not thread-safe and must be protected from multiple entry.
+ *
+ * Result:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+void
+FileIOAligned_PoolInit(void)
+{
+   ASSERT(!alignedPool.lock);
+   alignedPool.lock = MXUser_CreateExclLock("alignedPoolLock", RANK_LEAF);
+}
+
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * FileIOAligned_PoolExit --
+ *
+ *      Tear down alignedPool.  Afterwards, PoolInit can be called again if
+ *      desired.
+ *
+ * Result:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+void
+FileIOAligned_PoolExit(void)
+{
+   if (!alignedPool.lock) {
+      LOG_ONCE(("%s called without FileIOAligned_Pool lock\n", __FUNCTION__));
+      return;
+   }
+
+   MXUser_AcquireExclLock(alignedPool.lock);
+
+   if (alignedPool.numBusy > 0) {
+      LOG_ONCE(("%s: %d busy buffers!  Proceeding with trepidation.\n",
+		__FUNCTION__, alignedPool.numBusy));
+   }
+   while (alignedPool.numAlloc > 0) {
+      alignedPool.numAlloc--;
+      Aligned_Free(alignedPool.list[alignedPool.numAlloc]);
+   }
+
+   MXUser_ReleaseExclLock(alignedPool.lock);
+   MXUser_DestroyExclLock(alignedPool.lock);
+
+   memset(&alignedPool, 0, sizeof alignedPool);
+}
+
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * FileIOAligned_PoolMalloc --
+ *
+ *      Alloc a chunk of memory aligned on a page boundary using a memory
+ *      pool.  Result needs to be freed with FileIOAligned_PoolFree.  Returns
+ *      NULL if the pool is full or the requested size cannot be satisfied from
+ *      the pool.
+ *
+ * Result:
+ *      A pointer.  NULL if requested size is too large, or on out of memory
+ *      condition.
+ *
+ * Side effects:
+ *      None.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+void *
+FileIOAligned_PoolMalloc(size_t size)  // IN:
+{
+   void *buf = NULL;
+
+   if (!alignedPool.lock) {
+      LOG_ONCE(("%s called without FileIOAligned_Pool lock\n", __FUNCTION__));
+      return NULL;
+   }
+
+   if (size > ALIGNEDPOOL_BUFSZ) {
+      return NULL;
+   }
+
+   MXUser_AcquireExclLock(alignedPool.lock);
+
+   ASSERT(alignedPool.numBusy <= ARRAYSIZE(alignedPool.list));
+   ASSERT(alignedPool.numAlloc <= ARRAYSIZE(alignedPool.list));
+   ASSERT(alignedPool.numBusy <= alignedPool.numAlloc);
+
+   if (alignedPool.numBusy == ARRAYSIZE(alignedPool.list)) {
+      goto done;
+   }
+   if (alignedPool.numBusy == alignedPool.numAlloc) {
+      buf = Aligned_UnsafeMalloc(ALIGNEDPOOL_BUFSZ);
+      /* If allocation fails, just bail. */
+      if (buf) {
+         alignedPool.list[alignedPool.numAlloc] = buf;
+         alignedPool.numBusy = ++alignedPool.numAlloc;
+      }
+      goto done;
+   }
+   buf = alignedPool.list[alignedPool.numBusy];
+   alignedPool.numBusy++;
+
+done:
+   MXUser_ReleaseExclLock(alignedPool.lock);
+
+   return buf;
+}
+
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * FileIOAligned_PoolFree --
+ *
+ *      Test if a pointer was allocated from alignedPool, and if so, free it.
+ *
+ * Result:
+ *      TRUE if ptr was allocated from alignedPool.  ptr is returned to pool.
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      Might Aligned_Free() some entries from alignedPool if the timestamp[]
+ *      entries indicate that we have not needed them for a while.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+Bool
+FileIOAligned_PoolFree(void *ptr)  // IN:
+{
+   unsigned i;
+   Bool ret = FALSE;
+   VmTimeType now;
+
+   if (!alignedPool.lock) {
+      LOG_ONCE(("%s called without FileIOAligned_Pool lock\n", __FUNCTION__));
+
+      return FALSE;
+   }
+
+   MXUser_AcquireExclLock(alignedPool.lock);
+
+   ASSERT(alignedPool.numBusy <= ARRAYSIZE(alignedPool.list));
+   ASSERT(alignedPool.numAlloc <= ARRAYSIZE(alignedPool.list));
+   ASSERT(alignedPool.numBusy <= alignedPool.numAlloc);
+
+   for (i = 0; i < alignedPool.numBusy; i++) {
+      if (alignedPool.list[i] == ptr) {
+         break;
+      }
+   }
+   if (i == alignedPool.numBusy) {
+      /* The pointer wasn't allocated from our pool. */
+      goto done;
+   }
+
+   alignedPool.numBusy--;
+
+   /*
+    * At this point either i points to the "top" busy item, or i points to an
+    * earlier busy item.  If i points to the top, we're done, and the following
+    * "swap" is a noop.  If i points somewhere further down the busy list, we
+    * can simply move the newly freed item to the top of the free list by
+    * swapping its place with the not-freed item at list[numBusy].
+    */
+   alignedPool.list[i] = alignedPool.list[alignedPool.numBusy];
+   alignedPool.list[alignedPool.numBusy] = ptr;
+
+   now = Hostinfo_SystemTimerNS();
+   alignedPool.timestamp[alignedPool.numBusy] = now;
+
+   while (alignedPool.numAlloc > alignedPool.numBusy &&
+          now - alignedPool.timestamp[alignedPool.numAlloc - 1] > ALIGNEDPOOL_OLD_AGE) {
+      alignedPool.numAlloc--;
+      Aligned_Free(alignedPool.list[alignedPool.numAlloc]);
+      alignedPool.list[alignedPool.numAlloc] = NULL;
+   }
+
+   ret = TRUE;
+
+done:
+   MXUser_ReleaseExclLock(alignedPool.lock);
+
+   return ret;
+}
+
+#endif
