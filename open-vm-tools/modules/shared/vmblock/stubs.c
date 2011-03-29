@@ -65,9 +65,15 @@
  *      Common stubs.
  */
 
+#if defined(__FreeBSD__)
+#include <sys/cdefs.h>
+#include <machine/stdarg.h>
+#else
 #include <stdarg.h>
+#endif
 
 #include "os.h"
+#include "vm_assert.h"
 
 /*
  *----------------------------------------------------------------------------
@@ -93,4 +99,11 @@ Panic(const char *fmt, ...)
    va_start(args, fmt);
    os_panic(fmt, args);
    va_end(args);
+
+   /*
+    * Solaris's vcmn_err() is not marked as NORETURN and thus generates a
+    * warning. I'd use NOT_REACHED(), as recommended, except that we are
+    * already in Panic().
+    */
+   INFINITE_LOOP();
 }

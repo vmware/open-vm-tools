@@ -47,6 +47,7 @@
 #include <sys/proc.h>
 #include <sys/condvar.h>
 #include <vm/uma.h>
+#include <machine/stdarg.h>
 
 #include "vm_basic_types.h"
 
@@ -75,7 +76,7 @@ typedef struct file * os_blocker_id_t;
 #define OS_FMTTID                       "p"
 #define os_threadid                     curthread
 
-#define os_panic(fmt, args)             panic(fmt, args)
+extern NORETURN void os_panic(const char *fmt, va_list args);
 
 #define os_rwlock_init(lock)            sx_init(lock, "vmblock-sx")
 #define os_rwlock_destroy(lock)         sx_destroy(lock)

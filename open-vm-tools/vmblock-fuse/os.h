@@ -59,7 +59,7 @@ typedef char *                          os_blocker_id_t;
 
 #define os_panic(fmt, args)             \
 ({                                      \
-   fprintf(stderr, fmt, args);          \
+   vfprintf(stderr, fmt, args);         \
    abort();                             \
 })
 
