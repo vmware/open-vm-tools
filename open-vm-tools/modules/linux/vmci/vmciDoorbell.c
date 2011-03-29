@@ -1170,7 +1170,9 @@ VMCI_ScanNotificationBitmap(uint8 *bitmap)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIDoorbell_Create/VMCIDoorbell_Destroy/VMCIDoorbell_Notify --
+ * VMCIDoorbell_Create/VMCIDoorbell_Destroy/VMCIDoorbell_Notify/
+ * VMCIDoorbellHostContextNotify/VMCIDoorbellGetPrivFlags/
+ * VMCIDoorbell_Init/VMCIDoorbell_Exit --
  *
  *      The doorbell functions have yet to be implemented for Solaris
  *      and Mac OS X guest drivers.
@@ -1210,6 +1212,34 @@ VMCIDoorbell_Notify(VMCIHandle handle,             // IN
                     VMCIPrivilegeFlags privFlags)  // IN
 {
    return VMCI_ERROR_UNAVAILABLE;
+}
+
+
+int
+VMCIDoorbellHostContextNotify(VMCIId srcCID,     // IN
+                              VMCIHandle handle) // IN
+{
+   return VMCI_ERROR_UNAVAILABLE;
+}
+
+
+int
+VMCIDoorbellGetPrivFlags(VMCIHandle handle,             // IN
+                         VMCIPrivilegeFlags *privFlags) // OUT
+{
+   return VMCI_ERROR_UNAVAILABLE;
+}
+
+
+void
+VMCIDoorbell_Init(void)
+{
+}
+
+
+void
+VMCIDoorbell_Exit(void)
+{
 }
 
 #endif // SOLARIS) || __APPLE__
