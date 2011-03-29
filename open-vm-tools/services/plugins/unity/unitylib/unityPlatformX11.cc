@@ -2293,6 +2293,13 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
       screenInfo->height = rootHeight;
    }
 
+   if ((uint32)numScreens != numWorkAreas) {
+      Warning("Mismatch between host-specified work areas and available "
+              "screens.  Request dropped.\n");
+      free(screenInfo);
+      return FALSE;
+   }
+
    /*
     * New and improved wild'n'crazy scheme to map the host's work area
     * coordinates to a collection of struts.
