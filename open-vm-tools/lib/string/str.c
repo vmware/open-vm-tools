@@ -82,42 +82,6 @@ extern int vsnprintf(char *buf, size_t len, const char *f, va_list arg);
 /*
  *----------------------------------------------------------------------
  *
- * Str_Sprintf --
- *
- *      sprintf wrapper that fails on overflow
- *
- * Results:
- *      Returns the number of bytes stored in 'buf'.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Str_Sprintf(char *buf,       // OUT
-            size_t maxSize,  // IN
-            const char *fmt, // IN
-            ...)             // IN
-{
-   uint32 *stack = (uint32*) &buf;
-   va_list args;
-   int i;
-   
-   va_start(args, fmt);
-   i = Str_Vsnprintf(buf, maxSize, fmt, args);
-   va_end(args);
-   if (i < 0) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
-   }
-   return i;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * Str_Vsnprintf --
  *
  *	Compatibility wrapper b/w different libc versions
@@ -176,6 +140,42 @@ Str_Vsnprintf(char *str,          // OUT
       return -1;
    }
    return retval;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Str_Sprintf --
+ *
+ *      sprintf wrapper that fails on overflow
+ *
+ * Results:
+ *      Returns the number of bytes stored in 'buf'.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Str_Sprintf(char *buf,       // OUT
+            size_t maxSize,  // IN
+            const char *fmt, // IN
+            ...)             // IN
+{
+   uint32 *stack = (uint32*) &buf;
+   va_list args;
+   int i;
+   
+   va_start(args, fmt);
+   i = Str_Vsnprintf(buf, maxSize, fmt, args);
+   va_end(args);
+   if (i < 0) {
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+   }
+   return i;
 }
 
 
