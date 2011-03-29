@@ -403,8 +403,8 @@ BSDFmt_WCharToUTF8(wchar_t *wcsarg, int prec)
 
 int
 bsd_vsnprintf_core(char **outbuf,
-                   char *grouping,
-                   char thousands_sep,
+                   char *groupingIn,
+                   char thousands_sepIn,
                    char *decimal_point,
                    size_t bufSize,
                    const char *fmt0,
@@ -420,6 +420,8 @@ bsd_vsnprintf_core(char **outbuf,
    int width;      /* width from format (%8d), or 0 */
    int prec;      /* precision from format; <0 for N/A */
    char sign;      /* sign prefix (' ', '+', '-', or \0) */
+   char thousands_sep;   /* locale specific thousands separator */
+   char *grouping;       /* locale specific numeric grouping rules */
 
 #ifndef NO_FLOATING_POINT
    /*
@@ -585,6 +587,7 @@ bsd_vsnprintf_core(char **outbuf,
 
    xdigs = xdigs_lower;
    thousands_sep = '\0';
+   grouping = NULL;
    convbuf = NULL;
 #ifndef NO_FLOATING_POINT
    dtoaresult = NULL;
@@ -703,6 +706,9 @@ bsd_vsnprintf_core(char **outbuf,
          goto rflag;
       case '\'':
          flags |= GROUPING;
+         thousands_sep = thousands_sepIn;
+         grouping = groupingIn;
+
 	 /*
 	  * Grouping should not begin with 0, but it nevertheless
 	  * does (see bug 281072) and makes the formatting code
