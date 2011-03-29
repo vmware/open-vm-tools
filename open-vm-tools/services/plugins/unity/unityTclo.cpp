@@ -435,6 +435,7 @@ gboolean
 UnityTcloSetDesktopWorkArea(RpcInData *data)    // IN/OUT
 {
    Bool success = FALSE;
+   const char *argList;
    unsigned int count;
    unsigned int i;
    UnityRect *workAreas = NULL;
@@ -477,8 +478,8 @@ UnityTcloSetDesktopWorkArea(RpcInData *data)    // IN/OUT
       }
    }
 
-   for (i = 0; i < count; i++) {
-      const char *argList = strchr(data->args, ',');
+   for (argList = data->args, i = 0; i < count; i++) {
+      argList = strchr(argList, ',');
       if (!argList) {
          RPCIN_SETRETVALS(data,
                           "Expected comma separated display list",
