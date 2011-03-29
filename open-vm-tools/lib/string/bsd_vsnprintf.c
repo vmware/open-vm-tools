@@ -589,15 +589,15 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
    convbuf = NULL;
 #ifndef NO_FLOATING_POINT
    dtoaresult = NULL;
-#if !defined __ANDROID__
-   decimal_point = localeconv()->decimal_point;
-#else
+#if defined(__ANDROID__)
    /*
     * Struct lconv is not working! For decimal_point,
     * using '.' instead is a workaround.
     */
    NOT_TESTED();
    decimal_point = &dp;
+#else
+   decimal_point = localeconv()->decimal_point;
 #endif
 #endif
 
@@ -714,15 +714,15 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
          goto rflag;
       case '\'':
          flags |= GROUPING;
-#if !defined __ANDROID__
-         thousands_sep = *(localeconv()->thousands_sep);
-         grouping = localeconv()->grouping;
-#else
+#if defined(__ANDROID__)
          /*
           * Struct lconv is not working! The code below is a workaround.
           */
          NOT_TESTED();
          thousands_sep = ',';
+#else
+         thousands_sep = *(localeconv()->thousands_sep);
+         grouping = localeconv()->grouping;
 #endif
 	 /*
 	  * Grouping should not begin with 0, but it nevertheless
