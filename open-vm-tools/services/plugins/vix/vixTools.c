@@ -2886,6 +2886,20 @@ VixToolsDeleteObject(VixCommandRequestHeader *requestMsg)  // IN
       }
       success = File_DeleteEmptyDirectory(pathName);
       if (!success) {
+#if !defined(_WIN32)
+         /*
+          * If the specified directory is not empty then
+          * File_DeleteEmptyDirectory() fails and
+          * 1. errno is set to either EEXIST or ENOTEMPTY on linux platforms.
+          * 2. errno is set EEXIST on Solaris platforms.
+          *
+          * To maintain consistency across different Posix platforms, lets
+          * re-write the error before returning.
+          */
+         if (EEXIST == errno) {
+            errno = ENOTEMPTY;
+         }
+#endif
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }
@@ -2986,6 +3000,22 @@ VixToolsDeleteDirectory(VixCommandRequestHeader *requestMsg)  // IN
    }
 
    if (!success) {
+      if (!recursive) {
+#if !defined(_WIN32)
+         /*
+          * If the specified directory is not empty then
+          * File_DeleteEmptyDirectory() fails and
+          * 1. errno is set to either EEXIST or ENOTEMPTY on linux platforms.
+          * 2. errno is set EEXIST on Solaris platforms.
+          *
+          * To maintain consistency across different Posix platforms, lets
+          * re-write the error before returning.
+          */
+         if (EEXIST == errno) {
+            errno = ENOTEMPTY;
+         }
+#endif
+      }
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
    }
