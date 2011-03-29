@@ -154,7 +154,7 @@ static FilePosixOptions filePosixOptions;
  * Data structures for FileIOAligned_* functions; only used on
  * hosted (see fileInt.h for rationale).
  */
-#ifndef VMX86_SERVER
+#if !defined(VMX86_TOOLS) && !defined(VMX86_SERVER)
 #define ALIGNEDPOOL_FREELIST_SIZE 30
 #define ALIGNEDPOOL_BUFSZ         (1024 * 1024)
 #define ALIGNEDPOOL_OLD_AGE       ((VmTimeType)1000 * 1000 * 1000) /* nanoseconds */
@@ -2416,7 +2416,7 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
  * The FileIOAligned_* functions are only used on
  * hosted (see fileInt.h for rationale).
  */
-#ifndef VMX86_SERVER
+#if !defined(VMX86_TOOLS) && !defined(VMX86_SERVER)
 
 /*
  *---------------------------------------------------------------------------

@@ -278,9 +278,12 @@ EXTERN Bool FileIsWritableDir(ConstUnicode dirName);
  * 2. we don't want to do extra large allocations
  * 3. we don't have the same alignment constraints
  * so simply define it away to nothing.
+ *
+ * Tools is another case, we can use this path for IO but we don't want to add
+ * MXUserExclLock dependencies.
  */
 
-#ifdef VMX86_SERVER
+#if defined(VMX86_TOOLS) || defined(VMX86_SERVER)
 #define FileIOAligned_PoolInit()     /* nothing */
 #define FileIOAligned_PoolExit()     /* nothing */
 #define FileIOAligned_PoolMalloc(sz) NULL
