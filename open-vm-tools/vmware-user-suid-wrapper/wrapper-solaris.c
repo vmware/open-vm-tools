@@ -23,9 +23,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/mount.h>
-#include <sys/mntent.h>
-#include <sys/modctl.h>
 #include <sys/systeminfo.h>
 
 #include <errno.h>
@@ -38,119 +35,6 @@
 /*
  * Global functions
  */
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnloadModule --
- *
- *      Lookup and, if loaded, unload the VMBlock kernel module.
- *
- * Results:
- *      TRUE on success, FALSE otherwise
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-UnloadModule(int id)    // IN: module id for modctl(2)
-{
-   if (modctl(MODUNLOAD, id) < 0) {
-      Error("Error unloading VMBlock module: %s", strerror(errno));
-      return FALSE;
-   }
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * LoadVMBlock --
- *
- *      Load the VMBlock kernel module.
- *
- * Results:
- *      TRUE on success, FALSE otherwise
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-LoadVMBlock(void)
-{
-   /*
-    * modctl will load either the 32-bit or 64-bit module, as appropriate.
-    */
-   if (modctl(MODLOAD, 1, "drv/vmblock", NULL) < 0) {
-      Error("failed to load vmblock\n");
-      return FALSE;
-   }
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnmountVMBlock --
- *
- *      Unmount the VMBlock file system.
- *
- * Results:
- *      TRUE on success, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-UnmountVMBlock(const char *mountPoint)  // IN: VMBlock mount point
-{
-   if (umount(mountPoint) == -1) {
-      return FALSE;
-   }
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MountVMBlock --
- *
- *      Mount the VMBlock file system.
- *
- * Results:
- *      TRUE on success, FALSE otherwise
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-MountVMBlock(void)
-{
-   if (mount(TMP_DIR, VMBLOCK_MOUNT_POINT, MS_DATA, VMBLOCK_FS_NAME) < 0) {
-      Error("failed to mount vmblock file system: %s\n", strerror(errno));
-      return FALSE;
-   }
-
-   return TRUE;
-}
 
 
 #ifdef USES_LOCATIONS_DB
@@ -197,44 +81,6 @@ BuildExecPath(char *execPath,           // OUT: Path to executable for isaexec()
    return TRUE;
 }
 #endif // ifdef USES_LOCATIONS_DB
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * GetModuleId --
- *
- *      Finds the id of the provided loaded module.
- *
- * Results:
- *      The id on success, a negative error code on failure.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-int
-GetModuleId(const char *name)   // IN: module name to search for
-{
-   struct modinfo modinfo;
-
-   /*
-    * Loop until either there are no more modules (modctl() fails) or we found
-    * the module the caller wanted.
-    */
-   modinfo.mi_id = modinfo.mi_nextid = -1;
-   modinfo.mi_info = MI_INFO_ALL;
-
-   do {
-      if (modctl(MODINFO, modinfo.mi_id, &modinfo) < 0) {
-         return -1;
-      }
-   } while (strcmp(modinfo.mi_name, name) != 0);
-
-   return modinfo.mi_id;
-}
 
 
 /*
