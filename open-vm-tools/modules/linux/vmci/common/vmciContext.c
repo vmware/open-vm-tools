@@ -30,6 +30,7 @@
 #include "vmciContext.h"
 #include "vmciDatagram.h"
 #include "vmciDoorbell.h"
+#include "vmciDriver.h"
 #include "vmciEvent.h"
 #include "vmciKernelAPI.h"
 #include "vmciQueuePair.h"
@@ -38,9 +39,6 @@
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
-#  include "vmciDriver.h"
-#else
-#  include "vmciDriver.h"
 #endif
 
 #define LGPFX "VMCIContext: "
@@ -1292,7 +1290,7 @@ VMCI_EXPORT_SYMBOL(VMCIContext_GetPrivFlags)
 VMCIPrivilegeFlags
 VMCIContext_GetPrivFlags(VMCIId contextID)  // IN
 {
-   if (VMCI_HasHostDevice()) {
+   if (VMCI_HostPersonalityActive()) {
       VMCIPrivilegeFlags flags;
       VMCIContext *context;
 
@@ -2320,7 +2318,7 @@ int
 VMCI_IsContextOwner(VMCIId contextID,   // IN
                     void *hostUser)     // IN
 {
-   if (VMCI_HasHostDevice()) {
+   if (VMCI_HostPersonalityActive()) {
       VMCIContext *context;
       VMCIHostUser *user = (VMCIHostUser *)hostUser;
       int retval;

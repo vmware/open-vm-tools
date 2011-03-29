@@ -29,6 +29,7 @@
 #include "vmciCommonInt.h"
 #include "vmciDatagram.h"
 #include "vmciDoorbell.h"
+#include "vmciDriver.h"
 #include "vmciKernelAPI.h"
 #include "vmciResource.h"
 #include "vmciRoute.h"
@@ -36,9 +37,6 @@
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
-#  include "vmciDriver.h"
-#else
-#  include "vmciDriver.h"
 #endif
 
 #define LGPFX "VMCIDoorbell: "
@@ -300,7 +298,7 @@ VMCIDoorbellIndexTableFind(uint32 idx) // IN
    uint32 bucket = VMCI_DOORBELL_HASH(idx);
    VMCIListItem *iter;
 
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    VMCIList_Scan(iter, &vmciDoorbellIT.entries[bucket]) {
       VMCIDoorbellEntry *cur =
@@ -343,7 +341,7 @@ VMCIDoorbellIndexTableAdd(VMCIDoorbellEntry *entry) // IN/OUT
    VMCILockFlags flags;
 
    ASSERT(entry);
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    VMCIResource_Hold(&entry->resource);
 
@@ -417,7 +415,7 @@ VMCIDoorbellIndexTableRemove(VMCIDoorbellEntry *entry) // IN/OUT
    VMCILockFlags flags;
 
    ASSERT(entry);
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    VMCIDoorbellGrabLock(&vmciDoorbellIT.lock, &flags);
 
@@ -476,7 +474,7 @@ VMCIDoorbellLink(VMCIHandle handle, // IN
    VMCIDoorbellLinkMsg linkMsg;
 
    ASSERT(!VMCI_HANDLE_INVALID(handle));
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    if (isDoorbell) {
       resourceID = VMCI_DOORBELL_LINK;
@@ -525,7 +523,7 @@ VMCIDoorbellUnlink(VMCIHandle handle, // IN
    VMCIDoorbellUnlinkMsg unlinkMsg;
 
    ASSERT(!VMCI_HANDLE_INVALID(handle));
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    if (isDoorbell) {
       resourceID = VMCI_DOORBELL_UNLINK;
@@ -618,7 +616,7 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
       if (VMCI_HOST_CONTEXT_ID == handle->context) {
          validContext = TRUE;
       }
-      if (VMCI_HasGuestDevice() && VMCI_GetContextID() == handle->context) {
+      if (VMCI_GuestPersonalityActive() && VMCI_GetContextID() == handle->context) {
          validContext = TRUE;
       }
 
@@ -649,7 +647,7 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
       goto destroy;
    }
 
-   if (VMCI_HasGuestDevice()) {
+   if (VMCI_GuestPersonalityActive()) {
       result = VMCIDoorbellLink(newHandle, entry->isDoorbell, entry->idx);
       if (VMCI_SUCCESS != result) {
          goto destroyResource;
@@ -710,7 +708,7 @@ VMCIDoorbell_Destroy(VMCIHandle handle)  // IN
    }
    entry = RESOURCE_CONTAINER(resource, VMCIDoorbellEntry, resource);
 
-   if (VMCI_HasGuestDevice()) {
+   if (VMCI_GuestPersonalityActive()) {
       int result;
 
       VMCIDoorbellIndexTableRemove(entry);
@@ -788,7 +786,7 @@ VMCIDoorbellNotifyAsGuest(VMCIHandle handle,            // IN
 #else // VMKERNEL
    VMCIDoorbellNotifyMsg notifyMsg;
 
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    notifyMsg.hdr.dst = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
                                         VMCI_DOORBELL_NOTIFY);
@@ -904,7 +902,7 @@ VMCIDoorbellHostContextNotify(VMCIId srcCID,     // IN
    VMCIResource *resource;
    int result;
 
-   ASSERT(VMCI_HasHostDevice());
+   ASSERT(VMCI_HostPersonalityActive());
 
    resource = VMCIResource_Get(handle, VMCI_RESOURCE_TYPE_DOORBELL);
    if (resource == NULL) {
@@ -968,7 +966,7 @@ VMCIDoorbell_Hibernate(Bool enterHibernate)
    VMCIListItem *iter;
    VMCILockFlags flags;
 
-   if (!VMCI_HasGuestDevice() || enterHibernate) {
+   if (!VMCI_GuestPersonalityActive() || enterHibernate) {
       return;
    }
 
@@ -1093,7 +1091,7 @@ VMCIDoorbellFireEntries(uint32 notifyIdx) // IN
    VMCIListItem *iter;
    VMCILockFlags flags;
 
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    VMCIDoorbellGrabLock(&vmciDoorbellIT.lock, &flags);
 
@@ -1148,7 +1146,7 @@ VMCI_ScanNotificationBitmap(uint8 *bitmap)
    uint32 idx;
 
    ASSERT(bitmap);
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    for (idx = 0; idx < maxNotifyIdx; idx++) {
       if (bitmap[idx] & 0x1) {

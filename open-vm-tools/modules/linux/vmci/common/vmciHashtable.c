@@ -29,14 +29,12 @@
 #include "vmci_defs.h"
 #include "vmci_infrastructure.h"
 #include "vmciCommonInt.h"
+#include "vmciDriver.h"
 #include "vmciHashtable.h"
 #if defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
-#  include "vmciDriver.h"
-#else
-#  include "vmciDriver.h"
 #endif
 
 #define LGPFX "VMCIHashTable: "

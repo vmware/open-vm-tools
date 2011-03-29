@@ -28,15 +28,13 @@
 #include "vmci_infrastructure.h"
 #include "vmciCommonInt.h"
 #include "vmciContext.h"
+#include "vmciDriver.h"
 #include "vmciKernelAPI.h"
 #include "vmciRoute.h"
 #if defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
-#  include "vmciDriver.h"
-#else
-#  include "vmciDriver.h"
 #endif
 
 #define LGPFX "VMCIRoute: "
@@ -87,8 +85,8 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
     * device.
     */
 
-   hasHostDevice = VMCI_HasHostDevice();
-   hasGuestDevice = VMCI_HasGuestDevice();
+   hasHostDevice = VMCI_HostPersonalityActive();
+   hasGuestDevice = VMCI_GuestPersonalityActive();
 
    /* Must have a valid destination context. */
    if (VMCI_INVALID_ID == dst->context) {

@@ -30,6 +30,7 @@
 #include "vmciCommonInt.h"
 #include "vmciContext.h"
 #include "vmciDatagram.h"
+#include "vmciDriver.h"
 #include "vmciEvent.h"
 #include "vmciHashtable.h"
 #include "vmciKernelAPI.h"
@@ -40,9 +41,6 @@
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
-#  include "vmciDriver.h"
-#else
-#  include "vmciDriver.h"
 #endif
 
 #define LGPFX "VMCIQueuePair: "

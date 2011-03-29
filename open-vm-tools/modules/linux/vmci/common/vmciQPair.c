@@ -142,7 +142,7 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
 
    retval = VMCI_Route(&src, &dst, FALSE, &route);
    if (retval < VMCI_SUCCESS) {
-      if (VMCI_HasGuestDevice()) {
+      if (VMCI_GuestPersonalityActive()) {
          route = VMCI_ROUTE_AS_GUEST;
       } else {
          route = VMCI_ROUTE_AS_HOST;

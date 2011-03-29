@@ -29,6 +29,7 @@
 #include "vmciCommonInt.h"
 #include "vmciContext.h"
 #include "vmciDatagram.h"
+#include "vmciDriver.h"
 #include "vmciEvent.h"
 #include "vmciHashtable.h"
 #include "vmciKernelAPI.h"
@@ -38,9 +39,6 @@
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
-#  include "vmciDriver.h"
-#else
-#  include "vmciDriver.h"
 #endif
 
 #define LGPFX "VMCIDatagram: "
@@ -578,7 +576,7 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
    char dstDomain[VMCI_DOMAIN_NAME_MAXLEN]; /* Not used on hosted. */
 
    ASSERT(dg);
-   ASSERT(VMCI_HasHostDevice());
+   ASSERT(VMCI_HostPersonalityActive());
 
    dgSize = VMCI_DG_SIZE(dg);
 
@@ -826,7 +824,7 @@ VMCIDatagramDispatchAsGuest(VMCIDatagram *dg)
    int retval;
    VMCIResource *resource;
 
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    resource = VMCIResource_Get(dg->src, VMCI_RESOURCE_TYPE_DATAGRAM);
    if (NULL == resource) {
@@ -926,7 +924,7 @@ VMCIDatagram_InvokeGuestHandler(VMCIDatagram *dg) // IN
    DatagramEntry *dstEntry;
 
    ASSERT(dg);
-   ASSERT(VMCI_HasGuestDevice());
+   ASSERT(VMCI_GuestPersonalityActive());
 
    resource = VMCIResource_Get(dg->dst, VMCI_RESOURCE_TYPE_DATAGRAM);
    if (NULL == resource) {

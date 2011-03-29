@@ -405,15 +405,15 @@ Bool VMCI_DeviceShutdown(void);
 #  define VMCI_DeviceShutdown() FALSE
 #endif // !_WIN32
 #if defined(_WIN32) || (defined(linux) && !defined(VMKERNEL))
-  Bool VMCI_HasGuestDevice(void);
-  Bool VMCI_HasHostDevice(void);
+  Bool VMCI_GuestPersonalityActive(void);
+  Bool VMCI_HostPersonalityActive(void);
 #else
 #  if defined(VMX86_TOOLS)
-#    define VMCI_HasGuestDevice() TRUE
-#    define VMCI_HasHostDevice()  FALSE
+#    define VMCI_GuestPersonalityActive() TRUE
+#    define VMCI_HostPersonalityActive()  FALSE
 #  else // VMX86_TOOLS
-#    define VMCI_HasGuestDevice() FALSE
-#    define VMCI_HasHostDevice()  TRUE
+#    define VMCI_GuestPersonalityActive() FALSE
+#    define VMCI_HostPersonalityActive()  TRUE
 #  endif // !VMX86_TOOLS
 #endif // !(_WIN32 || (linux && !VMKERNEL))
 

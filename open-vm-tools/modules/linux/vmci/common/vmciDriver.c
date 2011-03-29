@@ -562,7 +562,7 @@ VMCI_EXPORT_SYMBOL(VMCI_GetContextID)
 VMCIId
 VMCI_GetContextID(void)
 {
-   if (VMCI_HasGuestDevice()) {
+   if (VMCI_GuestPersonalityActive()) {
       if (Atomic_Read(&vmContextID) == VMCI_INVALID_ID) {
          uint32 result;
          VMCIDatagram getCidMsg;
@@ -574,7 +574,7 @@ VMCI_GetContextID(void)
          Atomic_Write(&vmContextID, result);
       }
       return Atomic_Read(&vmContextID);
-   } else if (VMCI_HasHostDevice()) {
+   } else if (VMCI_HostPersonalityActive()) {
       return VMCI_HOST_CONTEXT_ID;
    }
    return VMCI_INVALID_ID;

@@ -2163,7 +2163,7 @@ vmci_interrupt_bm(int irq,               // IN
 Bool
 VMCI_DeviceEnabled(void)
 {
-   return VMCI_HasGuestDevice() || VMCI_HasHostDevice();
+   return VMCI_GuestPersonalityActive() || VMCI_HostPersonalityActive();
 }
 
 
@@ -2321,7 +2321,7 @@ process_bitmap(unsigned long data)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCI_HasGuestDevice --
+ * VMCI_GuestPersonalityActive --
  *
  *      Determines whether the VMCI PCI device has been successfully
  *      initialized.
@@ -2336,7 +2336,7 @@ process_bitmap(unsigned long data)
  */
 
 Bool
-VMCI_HasGuestDevice(void)
+VMCI_GuestPersonalityActive(void)
 {
    return guestDeviceInit && atomic_read(&guestDeviceActive) > 0;
 }
@@ -2345,15 +2345,15 @@ VMCI_HasGuestDevice(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCI_HasHostDevice --
+ * VMCI_HostPersonalityActive --
  *
- *      Determines whether the VMCI host device is available. Since
- *      the core functionality of the host driver is always present,
- *      all guests could possibly use the host personality. However,
- *      to minimize the deviation from the pre-unified driver state of
- *      affairs, we only consider the host device active, if there is
- *      no active guest device, or if there are VMX'en with active
- *      VMCI contexts using the host device.
+ *      Determines whether the VMCI host personality is
+ *      available. Since the core functionality of the host driver is
+ *      always present, all guests could possibly use the host
+ *      personality. However, to minimize the deviation from the
+ *      pre-unified driver state of affairs, we only consider the host
+ *      device active, if there is no active guest device, or if there
+ *      are VMX'en with active VMCI contexts using the host device.
  *
  * Results:
  *      TRUE, if VMCI host driver is operational, FALSE otherwise.
@@ -2365,10 +2365,11 @@ VMCI_HasGuestDevice(void)
  */
 
 Bool
-VMCI_HasHostDevice(void)
+VMCI_HostPersonalityActive(void)
 {
    return hostDeviceInit &&
-      (!VMCI_HasGuestDevice() || atomic_read(&linuxState.activeContexts) > 0);
+      (!VMCI_GuestPersonalityActive() ||
+       atomic_read(&linuxState.activeContexts) > 0);
 }
 
 
@@ -2418,7 +2419,7 @@ vmci_init(void)
          Warning(LGPFX"VMCI PCI device not initialized (err=%d).\n", retval);
       }
       guestDeviceInit = (retval == 0);
-      if (VMCI_HasGuestDevice()) {
+      if (VMCI_GuestPersonalityActive()) {
          Log(LGPFX"Using guest personality\n");
       }
    }
