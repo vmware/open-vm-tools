@@ -143,6 +143,12 @@ Bool alwaysUseHostTime = FALSE;
  */
 static Atomic_uint32 hgfsHandleCounter = {0};
 
+/*
+ * Number of outstanding asynchronous operations.
+ */
+static Atomic_uint32 gHgfsAsyncCounter = {0};
+static MXUserExclLock *gHgfsAsyncLock;
+static MXUserCondVar  *gHgfsAsyncVar;
 
 static HgfsServerStateLogger *hgfsMgrData = NULL;
 
@@ -2962,6 +2968,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
              */
             HSPU_PutMetaPacket(packet, session);
             input->metaPacket = NULL;
+            Atomic_Inc(&gHgfsAsyncCounter);
 
             /* Remove pending requests during poweroff. */
             Poll_Callback(POLL_CS_MAIN,
@@ -3221,6 +3228,8 @@ Bool
 HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our callbacks
                      HgfsServerStateLogger *serverMgrData)        // IN: mgr callback
 {
+   Bool result = TRUE;
+
    ASSERT(callbackTable);
 
    /* Save any server manager data for logging state updates.*/
@@ -3235,28 +3244,44 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
     * Initialize the globals for handling the active shared folders.
     */
 
-   gHgfsSharedFoldersLock = MXUser_CreateExclLock("sharedFoldersLock", RANK_hgfsSharedFolders);
-   if (NULL == gHgfsSharedFoldersLock) {
-      LOG(4, ("%s: Could not create shared folders mutex.\n", __FUNCTION__));
-
-      return FALSE;
-   }
+   gHgfsAsyncLock = NULL;
+   gHgfsAsyncVar = NULL;
+   Atomic_Write(&gHgfsAsyncCounter, 0);
 
    DblLnkLst_Init(&gHgfsSharedFoldersList);
-   if (!HgfsServerPlatformInit()) {
-      LOG(4, ("Could not initialize server platform specific \n"));
-      MXUser_DestroyExclLock(gHgfsSharedFoldersLock);
-      gHgfsSharedFoldersLock = NULL;
-
-      return FALSE;
+   gHgfsSharedFoldersLock = MXUser_CreateExclLock("sharedFoldersLock", RANK_hgfsSharedFolders);
+   if (NULL != gHgfsSharedFoldersLock) {
+      gHgfsAsyncLock = MXUser_CreateExclLock("asyncLock", RANK_hgfsSharedFolders);
+      if (NULL != gHgfsAsyncLock) {
+         gHgfsAsyncVar = MXUser_CreateCondVarExclLock(gHgfsAsyncLock);
+         if (NULL != gHgfsAsyncVar) {
+            if (!HgfsServerPlatformInit()) {
+               LOG(4, ("Could not initialize server platform specific \n"));
+               result = FALSE;
+            }
+         } else {
+            LOG(4, ("%s: Could not create async counter cond var.\n", __FUNCTION__));
+            result = FALSE;
+         }
+      } else {
+         LOG(4, ("%s: Could not create async counter mutex.\n", __FUNCTION__));
+         result = FALSE;
+      }
+   } else {
+      LOG(4, ("%s: Could not create shared folders mutex.\n", __FUNCTION__));
+      result = FALSE;
    }
 
-   *callbackTable = &hgfsServerSessionCBTable;
-   if (Config_GetBool(TRUE, "isolation.tools.hgfs.notify.enable")) {
-      gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
+   if (result) {
+      *callbackTable = &hgfsServerSessionCBTable;
+      if (Config_GetBool(TRUE, "isolation.tools.hgfs.notify.enable")) {
+         gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
+      }
+   } else {
+      HgfsServer_ExitState(); // Cleanup partially initialized state
    }
 
-   return TRUE;
+   return result;
 }
 
 
@@ -3291,6 +3316,16 @@ HgfsServer_ExitState(void)
    if (NULL != gHgfsSharedFoldersLock) {
       MXUser_DestroyExclLock(gHgfsSharedFoldersLock);
       gHgfsSharedFoldersLock = NULL;
+   }
+
+   if (NULL != gHgfsAsyncLock) {
+      MXUser_DestroyExclLock(gHgfsAsyncLock);
+      gHgfsAsyncLock = NULL;
+   }
+
+   if (NULL != gHgfsAsyncVar) {
+      MXUser_DestroyCondVar(gHgfsAsyncVar);
+      gHgfsAsyncVar = NULL;
    }
 
    HgfsServerPlatformDestroy();
@@ -3781,6 +3816,80 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
 /*
  *----------------------------------------------------------------------------
  *
+ * HgfsServer_Quiesce --
+ *
+ *    The function is called when VM is about to take a snapshot and
+ *    when creation of the snapshot completed.
+ *    When the freeze is TRUE the function quiesces all asynchronous and background
+ *    activity to prevent interactions with snapshots and waits until there is no such
+ *    activity.
+ *    When freeze is FALSE the function restarts background activity that has been
+ *    suspended previously.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+HgfsServer_Quiesce(Bool freeze)
+{
+   if (freeze) {
+      /* Suspend background activity. */
+      if (gHgfsDirNotifyActive) {
+         HgfsNotify_Suspend();
+      }
+      /* Wait for outstanding asynchronous requests to complete. */
+      MXUser_AcquireExclLock(gHgfsAsyncLock);
+      while (Atomic_Read(&gHgfsAsyncCounter)) {
+         MXUser_WaitCondVarExclLock(gHgfsAsyncLock, gHgfsAsyncVar);
+      }
+      MXUser_ReleaseExclLock(gHgfsAsyncLock);
+   } else {
+      /* Resume background activity. */
+      if (gHgfsDirNotifyActive) {
+         HgfsNotify_Resume();
+      }
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsNotifyPacketSent --
+ *
+ *    Decrements counter of outstanding asynchronous packets
+ *    and signal conditional variable when the counter
+ *    becomes 0.
+ *
+ * Results:
+ *    TRUE on success, FALSE on error.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+HgfsNotifyPacketSent(void)
+{
+   if (Atomic_FetchAndDec(&gHgfsAsyncCounter) == 1) {
+      MXUser_AcquireExclLock(gHgfsAsyncLock);
+      MXUser_BroadcastCondVar(gHgfsAsyncVar);
+      MXUser_ReleaseExclLock(gHgfsAsyncLock);
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * HgfsPacketSend --
  *
  *    Send the packet.
@@ -3802,6 +3911,7 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
                HgfsSendFlags flags)           // IN: flags for how to process
 {
    Bool result = FALSE;
+   Bool notificationNeeded = packet->guestInitiated && packet->processedAsync;
 
    ASSERT(packet);
    ASSERT(session);
@@ -3814,6 +3924,9 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
                                              packetOutLen, flags);
    }
 
+   if (notificationNeeded) {
+      HgfsNotifyPacketSent();
+   }
    return result;
 }
 

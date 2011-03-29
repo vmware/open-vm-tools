@@ -34,6 +34,8 @@ typedef void HgfsNotificationCallbackFunc(HgfsSharedFolderHandle sharedFolder,
                                           struct HgfsSessionInfo *session);
 HgfsInternalStatus HgfsNotify_Init(void);
 void HgfsNotify_Shutdown(void);
+void HgfsNotify_Suspend(void);
+void HgfsNotify_Resume(void);
 
 HgfsSharedFolderHandle HgfsNotify_AddSharedFolder(const char *path,
                                                   const char *shareName);
