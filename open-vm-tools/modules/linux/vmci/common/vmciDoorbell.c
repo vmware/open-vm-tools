@@ -607,12 +607,15 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
       Bool validContext;
 
       /*
-       * Validate the handle.  We must do both of the checks below because we
-       * can be acting as both a host and a guest at the same time.
+       * Validate the handle.  We must do both of the checks below
+       * because we can be acting as both a host and a guest at the
+       * same time. We always allow the host context ID, since the
+       * host functionality is in practice always there with the
+       * unified driver.
        */
 
       validContext = FALSE;
-      if (VMCI_HasHostDevice() && VMCI_HOST_CONTEXT_ID == handle->context) {
+      if (VMCI_HOST_CONTEXT_ID == handle->context) {
          validContext = TRUE;
       }
       if (VMCI_HasGuestDevice() && VMCI_GetContextID() == handle->context) {

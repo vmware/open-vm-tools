@@ -17,8 +17,6 @@
 #
 ##########################################################
 
-vm_product_defines = $(if $(findstring tools,$(1)), -DVMX86_TOOLS,)
-CC_OPTS += $(call vm_product_defines, $(PRODUCT))
 CC_OPTS += -DVMCI
 
 INCLUDE += -I$(SRCROOT)/shared -I$(SRCROOT)/common -I$(SRCROOT)/linux

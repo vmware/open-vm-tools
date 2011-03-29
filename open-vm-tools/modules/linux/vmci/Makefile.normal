@@ -19,7 +19,6 @@
 
 vm_check_build = $(shell if $(CC) $(CC_OPTS) $(INCLUDE) -Werror -S -o /dev/null -xc $(1) \
         > /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi)
-vm_product_defines = $(if $(findstring tools,$(1)), -DVMX86_TOOLS,)
 
 ####
 ####  DESTDIR is where the module, object files, and dependencies are built
@@ -57,7 +56,6 @@ CC_KFLAGS := -D__KERNEL__ -fno-strength-reduce -fno-omit-frame-pointer \
 CC_KFLAGS += $(call vm_check_gcc,-falign-loops=2 -falign-jumps=2 -falign-functions=2, \
 	     -malign-loops=2 -malign-jumps=2 -malign-functions=2)
 CC_KFLAGS += $(call vm_check_gcc,-fno-strict-aliasing,)
-CC_KFLAGS += $(call vm_product_defines, $(PRODUCT))
 ifeq ($(MACHINE),x86_64)
 CC_KFLAGS += -mno-red-zone -mcmodel=kernel
 else

@@ -109,6 +109,7 @@ typedef struct vmci_device {
 
    Bool              enabled;
    spinlock_t        dev_spinlock;
+   atomic_t          datagrams_allowed;
 } vmci_device;
 
 static const struct pci_device_id vmci_ids[] = {
@@ -147,6 +148,8 @@ static void process_bitmap(unsigned long data);
 #endif
 
 static vmci_device vmci_dev;
+static int vmci_disable_host = 0;
+static int vmci_disable_guest = 0;
 static int vmci_disable_msi;
 static int vmci_disable_msix = VMCI_DISABLE_MSIX;
 
@@ -209,6 +212,7 @@ typedef struct VMCILinuxState {
    struct miscdevice misc;
    char deviceName[VM_DEVICE_NAME_SIZE];
    char buf[LINUXLOG_BUFFER_SIZE];
+   atomic_t activeContexts;
 } VMCILinuxState;
 
 static struct VMCILinuxState linuxState;
@@ -257,19 +261,6 @@ static atomic_t guestDeviceActive;
 static Bool hostDeviceInit;
 
 /*
- * Until we have a single driver, that uses load or runtime
- * configuration to enable guest and host personalities directly, we
- * let the tools flag decide.
- */
-
-#ifdef VMX86_TOOLS
-static Bool isGuestDriver = TRUE;
-#else
-static Bool isGuestDriver = FALSE;
-#endif
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * Host device support --
@@ -309,7 +300,8 @@ register_ioctl32_handlers(void)
                                                   LinuxDriver_Ioctl32_Handler);
 
          if (retval) {
-            Warning("Fail to register ioctl32 conversion for cmd %d\n", i);
+            Warning(LGPFX"Failed to register ioctl32 conversion "
+                    "(cmd=%d,err=%d).\n", i, retval);
             return retval;
          }
       }
@@ -319,7 +311,8 @@ register_ioctl32_handlers(void)
                                                   LinuxDriver_Ioctl32_Handler);
 
          if (retval) {
-            Warning("Fail to register ioctl32 conversion for cmd %d\n", i);
+            Warning(LGPFX"Failed to register ioctl32 conversion "
+                    "(cmd=%d,err=%d).\n", i, retval);
             return retval;
          }
       }
@@ -339,7 +332,8 @@ unregister_ioctl32_handlers(void)
          int retval = unregister_ioctl32_conversion(i);
 
          if (retval) {
-            Warning("Fail to unregister ioctl32 conversion for cmd %d\n", i);
+            Warning(LGPFX"Failed to unregister ioctl32 conversion "
+                    "(cmd=%d,err=%d).\n", i, retval);
          }
       }
 
@@ -347,7 +341,8 @@ unregister_ioctl32_handlers(void)
          int retval = unregister_ioctl32_conversion(i);
 
          if (retval) {
-            Warning("Fail to unregister ioctl32 conversion for cmd %d\n", i);
+            Warning(LGPFX"Failed to unregister ioctl32 conversion "
+                    "(cmd=%d,err=%d).\n", i, retval);
          }
       }
    }
@@ -409,16 +404,19 @@ vmci_host_init(void)
    linuxState.misc.minor = MISC_DYNAMIC_MINOR;
    linuxState.misc.name = linuxState.deviceName;
    linuxState.misc.fops = &vmuser_fops;
+   atomic_set(&linuxState.activeContexts, 0);
 
    retval = misc_register(&linuxState.misc);
 
    if (retval) {
-      Warning("Module %s: error %u registering with major=%d minor=%d\n",
-	      linuxState.deviceName, -retval, linuxState.major, linuxState.minor);
+      Warning(LGPFX"Module registration error "
+              "(name=%s,major=%d,minor=%d,err=%d).\n",
+	      linuxState.deviceName, -retval, linuxState.major,
+              linuxState.minor);
       goto exit;
    }
    linuxState.minor = linuxState.misc.minor;
-   Log("Module %s: registered with major=%d minor=%d\n",
+   Log(LGPFX"Module registered (name=%s,major=%d,minor=%d).\n",
        linuxState.deviceName, linuxState.major, linuxState.minor);
 
    retval = register_ioctl32_handlers();
@@ -439,8 +437,7 @@ exit:
  *
  * LinuxDriver_Open  --
  *
- *      called on open of /dev/vmci. Use count used
- *      to determine eventual deallocation of the module
+ *     Called on open of /dev/vmci.
  *
  * Side effects:
  *     Increment use count used to determine eventual deallocation of
@@ -477,9 +474,8 @@ LinuxDriver_Open(struct inode *inode, // IN
  *
  * LinuxDriver_Close  --
  *
- *      called on close of /dev/vmci, most often when the
- *      process exits. Decrement use count, allowing for possible uninstalling
- *      of the module.
+ *      Called on close of /dev/vmci, most often when the process
+ *      exits.
  *
  *----------------------------------------------------------------------
  */
@@ -501,6 +497,15 @@ LinuxDriver_Close(struct inode *inode, // IN
 
       VMCIContext_ReleaseContext(vmciLinux->context);
       vmciLinux->context = NULL;
+
+      /*
+       * The number of active contexts is used to track whether any
+       * VMX'en are using the host personality. It is incremented when
+       * a context is created through the IOCTL_VMCI_INIT_CONTEXT
+       * ioctl.
+       */
+
+      atomic_dec(&linuxState.activeContexts);
    }
    vmciLinux->ctType = VMCIOBJ_NOT_SET;
 
@@ -658,20 +663,20 @@ LinuxDriver_Ioctl(struct inode *inode,
 
       retval = copy_from_user(&initBlock, (void *)ioarg, sizeof initBlock);
       if (retval != 0) {
-         Log("VMCI: Error reading init block.\n");
+         Log(LGPFX"Error reading init block.\n");
          retval = -EFAULT;
          break;
       }
 
       LinuxDriverLockIoctlPerFD(&vmciLinux->lock);
       if (vmciLinux->ctType != VMCIOBJ_NOT_SET) {
-         Log("VMCI: Received VMCI init on initialized handle\n");
+         Log(LGPFX"Received VMCI init on initialized handle.\n");
          retval = -EINVAL;
          goto init_release;
       }
 
       if (initBlock.flags & ~VMCI_PRIVILEGE_FLAG_RESTRICTED) {
-         Log("VMCI: Unsupported VMCI restriction flag.\n");
+         Log(LGPFX"Unsupported VMCI restriction flag.\n");
          retval = -EINVAL;
          goto init_release;
       }
@@ -681,7 +686,7 @@ LinuxDriver_Ioctl(struct inode *inode,
                                        0 /* Unused */, vmciLinux->userVersion,
                                        &user, &vmciLinux->context);
       if (retval < VMCI_SUCCESS) {
-         Log("VMCI: Error initializing context.\n");
+         Log(LGPFX"Error initializing context.\n");
          retval = retval == VMCI_ERROR_DUPLICATE_ENTRY ? -EEXIST : -EINVAL;
          goto init_release;
       }
@@ -695,13 +700,15 @@ LinuxDriver_Ioctl(struct inode *inode,
       if (retval != 0) {
 	 VMCIContext_ReleaseContext(vmciLinux->context);
 	 vmciLinux->context = NULL;
-	 Log("VMCI: Error writing init block.\n");
+	 Log(LGPFX"Error writing init block.\n");
 	 retval = -EFAULT;
 	 goto init_release;
       }
       ASSERT(initBlock.cid != VMCI_INVALID_ID);
 
       vmciLinux->ctType = VMCIOBJ_CONTEXT;
+
+      atomic_inc(&linuxState.activeContexts);
 
      init_release:
       LinuxDriverUnlockIoctlPerFD(&vmciLinux->lock);
@@ -714,49 +721,50 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIId cid;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Warning("VMCI: Ioctl %d only valid for context handle.\n", iocmd);
+         Warning(LGPFX"Ioctl only valid for context handle (iocmd=%d).\n", iocmd);
          retval = -EINVAL;
          break;
       }
 
       retval = copy_from_user(&sendInfo, (void *) ioarg, sizeof sendInfo);
       if (retval) {
-         Warning("VMCI: copy_from_user failed.\n");
+         Warning(LGPFX"copy_from_user failed.\n");
          retval = -EFAULT;
          break;
       }
 
       if (sendInfo.len > VMCI_MAX_DG_SIZE) {
-         Warning("VMCI: datagram size too big.\n");
+         Warning(LGPFX"Datagram too big (size=%d).\n", sendInfo.len);
 	 retval = -EINVAL;
 	 break;
       }
 
       if (sendInfo.len < sizeof *dg) {
-         Warning("VMCI: datagram size too small.\n");
+         Warning(LGPFX"Datagram too small (size=%d).\n", sendInfo.len);
 	 retval = -EINVAL;
 	 break;
       }
 
       dg = VMCI_AllocKernelMem(sendInfo.len, VMCI_MEMORY_NORMAL);
       if (dg == NULL) {
-         Log("VMCI: Cannot allocate memory to dispatch datagram.\n");
+         Log(LGPFX"Cannot allocate memory to dispatch datagram.\n");
          retval = -ENOMEM;
          break;
       }
 
       retval = copy_from_user(dg, (char *)(VA)sendInfo.addr, sendInfo.len);
       if (retval != 0) {
-         Log("VMCI: Error getting datagram: %d\n", retval);
+         Log(LGPFX"Error getting datagram (err=%d).\n", retval);
          VMCI_FreeKernelMem(dg, sendInfo.len);
          retval = -EFAULT;
          break;
       }
 
-      VMCI_DEBUG_LOG(10, ("VMCI: Datagram dst handle 0x%"FMT64"x, "
-                          "src handle 0x%"FMT64"x, payload size %"FMT64"u.\n",
-                          VMCI_HANDLE_TO_UINT64(dg->dst),
-                          VMCI_HANDLE_TO_UINT64(dg->src), dg->payloadSize));
+      VMCI_DEBUG_LOG(10, (LGPFX"Datagram dst (handle=0x%x:0x%x) src "
+                          "(handle=0x%x:0x%x), payload (size=%"FMT64"u "
+                          "bytes).\n", dg->dst.context, dg->dst.resource,
+                          dg->src.context, dg->src.resource,
+                          dg->payloadSize));
 
       /* Get source context id. */
       ASSERT(vmciLinux->context);
@@ -774,14 +782,15 @@ LinuxDriver_Ioctl(struct inode *inode,
       size_t size;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Warning("VMCI: Ioctl %d only valid for context handle.\n", iocmd);
+         Warning(LGPFX"Ioctl only valid for context handle (iocmd=%d).\n",
+                 iocmd);
          retval = -EINVAL;
          break;
       }
 
       retval = copy_from_user(&recvInfo, (void *) ioarg, sizeof recvInfo);
       if (retval) {
-         Warning("VMCI: copy_from_user failed.\n");
+         Warning(LGPFX"copy_from_user failed.\n");
          retval = -EFAULT;
          break;
       }
@@ -813,7 +822,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIId cid;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_QUEUEPAIR_ALLOC only valid for contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_ALLOC only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -846,8 +855,7 @@ LinuxDriver_Ioctl(struct inode *inode,
                                      &pageStore,
                                      vmciLinux->context);
       }
-      Log("VMCI: IOCTL_VMCI_QUEUEPAIR_ALLOC cid = %u result = %d.\n", cid,
-          result);
+      Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_ALLOC (cid=%u,result=%d).\n", cid, result);
       retval = copy_to_user(&info->result, &result, sizeof result);
       if (retval) {
          retval = -EFAULT;
@@ -871,8 +879,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       int size;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE only valid for "
-             "contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -935,7 +942,7 @@ LinuxDriver_Ioctl(struct inode *inode,
          VMCIQPBroker_Unlock();
 
          if (result < VMCI_SUCCESS) {
-            Log("VMCI: IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE cid = %u result = %d.\n",
+            Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE (cid=%u,result=%d).\n",
                 cid, result);
 
             retval = copy_to_user(&info->result, &result, sizeof result);
@@ -978,7 +985,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIId cid;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_QUEUEPAIR_DETACH only valid for contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_DETACH only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -993,7 +1000,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIQPBroker_Lock();
       result = VMCIQPBroker_Detach(detachInfo.handle, vmciLinux->context,
                                 FALSE); /* Probe detach operation. */
-      Log("VMCI: IOCTL_VMCI_QUEUEPAIR_DETACH cid = %u result = %d.\n",
+      Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_DETACH (cid=%u,result=%d).\n",
           cid, result);
 
       retval = copy_to_user(&info->result, &result, sizeof result);
@@ -1010,8 +1017,8 @@ LinuxDriver_Ioctl(struct inode *inode,
                 * This should never happen.  But it's better to log a warning
                 * than to crash the host.
                 */
-               Warning("VMCIQPBroker_Detach returned different results:  "
-                       "previous = %d, current = %d.\n", result, result2);
+               Warning(LGPFX"VMCIQPBroker_Detach returned different results:  "
+                       "(previous=%d,current=%d).\n", result, result2);
             }
          }
       }
@@ -1027,7 +1034,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIId cid;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_REQUEST_MAP only valid for contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_REQUEST_MAP only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -1056,7 +1063,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIId cid;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_REMOVE_MAP only valid for contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_REMOVE_MAP only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -1084,7 +1091,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIId cid;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_CTX_ADD_NOTIFICATION only valid for contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_CTX_ADD_NOTIFICATION only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -1112,7 +1119,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIId cid;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_CTX_REMOVE_NOTIFICATION only valid for "
+         Log(LGPFX"IOCTL_VMCI_CTX_REMOVE_NOTIFICATION only valid for "
 	     "contexts.\n");
          retval = -EINVAL;
          break;
@@ -1140,8 +1147,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       char *cptBuf;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_CTX_GET_CPT_STATE only valid for "
-	     "contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_CTX_GET_CPT_STATE only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -1179,8 +1185,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       char *cptBuf;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_CTX_SET_CPT_STATE only valid for "
-	     "contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_CTX_SET_CPT_STATE only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -1193,7 +1198,7 @@ LinuxDriver_Ioctl(struct inode *inode,
 
       cptBuf = VMCI_AllocKernelMem(setInfo.bufSize, VMCI_MEMORY_NORMAL);
       if (cptBuf == NULL) {
-         Log("VMCI: Cannot allocate memory to set cpt state of type %d.\n",
+         Log(LGPFX"Cannot allocate memory to set cpt state (type=%d).\n",
 	     setInfo.cptType);
          retval = -ENOMEM;
          break;
@@ -1229,7 +1234,7 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCISetNotifyInfo notifyInfo;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_SET_NOTIFY only valid for contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_SET_NOTIFY only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -1262,14 +1267,14 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIId cid;
 
       if (vmciLinux->userVersion < VMCI_VERSION_NOTIFY) {
-         Log("VMCI: IOCTL_VMCI_NOTIFY_RESOURCE is invalid for current"
+         Log(LGPFX"IOCTL_VMCI_NOTIFY_RESOURCE is invalid for current"
              " VMX versions.\n");
          retval = -EINVAL;
          break;
       }
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_NOTIFY_RESOURCE is only valid for contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_NOTIFY_RESOURCE is only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -1297,7 +1302,7 @@ LinuxDriver_Ioctl(struct inode *inode,
          info.result = VMCIContext_DoorbellDestroy(cid, info.handle);
          break;
       default:
-         Log("VMCI: IOCTL_VMCI_NOTIFY_RESOURCE got unknown action %d.\n",
+         Log(LGPFX"IOCTL_VMCI_NOTIFY_RESOURCE got unknown action (action=%d).\n",
              info.action);
          info.result = VMCI_ERROR_INVALID_ARGS;
       }
@@ -1318,13 +1323,13 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIId cid;
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log("VMCI: IOCTL_VMCI_NOTIFICATIONS_RECEIVE is only valid for contexts.\n");
+         Log(LGPFX"IOCTL_VMCI_NOTIFICATIONS_RECEIVE is only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
 
       if (vmciLinux->userVersion < VMCI_VERSION_NOTIFY) {
-         Log("VMCI: IOCTL_VMCI_NOTIFICATIONS_RECEIVE is not supported for the"
+         Log(LGPFX"IOCTL_VMCI_NOTIFICATIONS_RECEIVE is not supported for the"
              " current vmx version.\n");
          retval = -EINVAL;
          break;
@@ -1371,7 +1376,7 @@ LinuxDriver_Ioctl(struct inode *inode,
    }
 
    default:
-      Warning("Unknown ioctl %d\n", iocmd);
+      Warning(LGPFX"Unknown ioctl (iocmd=%d).\n", iocmd);
       retval = -EINVAL;
    }
 
@@ -1539,7 +1544,7 @@ VMCISetupNotify(VMCIContext *context, // IN:
    int retval;
 
    if (context->notify) {
-      Warning("VMCI:  Notify mechanism is already set up.\n");
+      Warning(LGPFX"Notify mechanism is already set up.\n");
       return VMCI_ERROR_DUPLICATE_ENTRY;
    }
 
@@ -1667,6 +1672,7 @@ vmci_guest_init(void)
    vmci_dev.exclusive_vectors = FALSE;
    spin_lock_init(&vmci_dev.dev_spinlock);
    vmci_dev.enabled = FALSE;
+   atomic_set(&vmci_dev.datagrams_allowed, 0);
    atomic_set(&guestDeviceActive, 0);
 
    data_buffer = vmalloc(data_buffer_size);
@@ -1819,6 +1825,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
 
    vmci_dev.ioaddr = ioaddr;
    vmci_dev.ioaddr_size = ioaddr_size;
+   atomic_set(&vmci_dev.datagrams_allowed, 1);
 
    /*
     * Register notification bitmap with device if that capability is
@@ -1830,7 +1837,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
       if (!VMCI_RegisterNotificationBitmap(bitmapPPN)) {
          printk(KERN_ERR "VMCI device unable to register notification bitmap "
                 "with PPN 0x%x.\n", (uint32)bitmapPPN);
-         goto unlock;
+         goto datagram_disallow;
       }
    }
 
@@ -1920,6 +1927,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
  components_exit:
    VMCIQPGuestEndpoints_Exit();
    VMCIUtil_Exit();
+   vmci_dev.enabled = FALSE;
    if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSIX) {
       pci_disable_msix(pdev);
    } else if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSI) {
@@ -1929,6 +1937,8 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    if (notification_bitmap) {
       outl(VMCI_CONTROL_RESET, vmci_dev.ioaddr + VMCI_CONTROL_ADDR);
    }
+ datagram_disallow:
+   atomic_set(&vmci_dev.datagrams_allowed, 0);
  unlock:
    compat_mutex_unlock(&vmci_dev.lock);
  release:
@@ -1972,6 +1982,9 @@ vmci_remove_device(struct pci_dev* pdev)
    VMCIUtil_Exit();
 
    compat_mutex_lock(&dev->lock);
+
+   atomic_set(&vmci_dev.datagrams_allowed, 0);
+
    printk(KERN_INFO "Resetting vmci device\n");
    outl(VMCI_CONTROL_RESET, vmci_dev.ioaddr + VMCI_CONTROL_ADDR);
 
@@ -2177,13 +2190,13 @@ VMCI_SendDatagram(VMCIDatagram *dg)
    unsigned long flags;
    int result;
 
-   if (!isGuestDriver) {
-      return VMCI_ERROR_UNAVAILABLE;
-   }
-
    /* Check args. */
    if (dg == NULL) {
       return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   if (atomic_read(&vmci_dev.datagrams_allowed) == 0) {
+      return VMCI_ERROR_UNAVAILABLE;
    }
 
    /*
@@ -2334,8 +2347,13 @@ VMCI_HasGuestDevice(void)
  *
  * VMCI_HasHostDevice --
  *
- *      Determines whether the VMCI host driver has been successfully
- *      initialized.
+ *      Determines whether the VMCI host device is available. Since
+ *      the core functionality of the host driver is always present,
+ *      all guests could possibly use the host personality. However,
+ *      to minimize the deviation from the pre-unified driver state of
+ *      affairs, we only consider the host device active, if there is
+ *      no active guest device, or if there are VMX'en with active
+ *      VMCI contexts using the host device.
  *
  * Results:
  *      TRUE, if VMCI host driver is operational, FALSE otherwise.
@@ -2349,7 +2367,8 @@ VMCI_HasGuestDevice(void)
 Bool
 VMCI_HasHostDevice(void)
 {
-   return hostDeviceInit;
+   return hostDeviceInit &&
+      (!VMCI_HasGuestDevice() || atomic_read(&linuxState.activeContexts) > 0);
 }
 
 
@@ -2384,8 +2403,6 @@ vmci_init(void)
 {
    int retval;
 
-   DriverLog_Init("/dev/vmci");
-
    retval = VMCI_SharedInit();
    if (retval != VMCI_SUCCESS) {
       Warning(LGPFX"Failed to initialize VMCI common components (err=%d).\n",
@@ -2393,19 +2410,26 @@ vmci_init(void)
       return -ENOMEM;
    }
 
-   if (isGuestDriver) {
+   if (vmci_disable_guest) {
+      guestDeviceInit = 0;
+   } else {
       retval = vmci_guest_init();
       if (retval != 0) {
          Warning(LGPFX"VMCI PCI device not initialized (err=%d).\n", retval);
       }
       guestDeviceInit = (retval == 0);
-      if (guestDeviceInit) {
+      if (VMCI_HasGuestDevice()) {
          Log(LGPFX"Using guest personality\n");
       }
+   }
+
+   if (vmci_disable_host) {
+      hostDeviceInit = 0;
    } else {
       retval = vmci_host_init();
       if (retval != 0) {
-         Warning(LGPFX"Unable to initialize host personality (err=%d).\n", retval);
+         Warning(LGPFX"Unable to initialize host personality (err=%d).\n",
+                 retval);
       }
       hostDeviceInit = (retval == 0);
       if (hostDeviceInit) {
@@ -2418,7 +2442,7 @@ vmci_init(void)
       return -ENODEV;
    }
 
-   Log("Module %s: initialized\n", linuxState.deviceName);
+   Log(LGPFX"Module (name=%s) is initialized\n", linuxState.deviceName);
 
    return 0;
 }
@@ -2453,9 +2477,10 @@ vmci_exit(void)
 
       retval = misc_deregister(&linuxState.misc);
       if (retval) {
-         Warning("Module %s: error unregistering\n", linuxState.deviceName);
+         Warning(LGPFX"Module %s: error unregistering\n",
+                 linuxState.deviceName);
       } else {
-         Log("Module %s: unloaded\n", linuxState.deviceName);
+         Log(LGPFX"Module %s: unloaded\n", linuxState.deviceName);
       }
 
       hostDeviceInit = FALSE;
@@ -2469,13 +2494,18 @@ module_init(vmci_init);
 module_exit(vmci_exit);
 MODULE_DEVICE_TABLE(pci, vmci_ids);
 
+module_param_named(disable_host, vmci_disable_host, bool, 0);
+MODULE_PARM_DESC(disable_host, "Disable driver host personality - (default=0)");
+
+module_param_named(disable_guest, vmci_disable_guest, bool, 0);
+MODULE_PARM_DESC(disable_guest, "Disable driver guest personality - (default=0)");
+
 module_param_named(disable_msi, vmci_disable_msi, bool, 0);
 MODULE_PARM_DESC(disable_msi, "Disable MSI use in driver - (default=0)");
 
 module_param_named(disable_msix, vmci_disable_msix, bool, 0);
 MODULE_PARM_DESC(disable_msix, "Disable MSI-X use in driver - (default="
 		 __stringify(VMCI_DISABLE_MSIX) ")");
-
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Machine Communication Interface (VMCI).");
