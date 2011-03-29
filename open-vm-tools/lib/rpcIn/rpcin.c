@@ -479,7 +479,11 @@ RpcInStop(RpcIn *in) // IN
    if (in->nextEvent) {
       /* The loop is started. Stop it */
 #if defined(VMTOOLS_USE_GLIB)
-      g_source_destroy(in->nextEvent);
+      if (!in->inLoop) {
+         g_source_destroy(in->nextEvent);
+      }
+
+      g_source_unref(in->nextEvent);
 #else
       EventManager_Remove(in->nextEvent);
 #endif
@@ -566,26 +570,32 @@ RpcInLoop(void *clientData) // IN
 
    in = (RpcIn *)clientData;
    ASSERT(in);
+   ASSERT(in->nextEvent);
+   ASSERT(in->channel);
+   ASSERT(in->mustSend);
+
+#if !defined(VMTOOLS_USE_GLIB)
+   /*
+    * The event has fired: it is no longer valid. Note that this is
+    * not true in the glib case!
+    */
+   in->nextEvent = NULL;
+#endif
 
    in->inLoop = TRUE;
 
-   /* The event has fired: it is no longer valid. */
-   ASSERT(in->nextEvent);
    current = in->delay;
 
    /*
     * This is very important: this is the only way to signal the existence of
     * this guest application to VMware.
     */
-   ASSERT(in->channel);
-   ASSERT(in->mustSend);
    if (RpcInSend(in) == FALSE) {
       errmsg = "RpcIn: Unable to send";
       goto error;
    }
 
-   if (Message_Receive(in->channel, (unsigned char **)(char**)&reply, &repLen)
-          == FALSE) {
+   if (Message_Receive(in->channel, (unsigned char **)&reply, &repLen) == FALSE) {
       errmsg = "RpcIn: Unable to receive";
       goto error;
    }
@@ -695,19 +705,24 @@ RpcInLoop(void *clientData) // IN
 
    if (!in->shouldStop) {
 #if defined(VMTOOLS_USE_GLIB)
-      resched = (in->delay != current);
-      if (resched) {
+      if (in->delay != current) {
+         resched = TRUE;
          g_source_unref(in->nextEvent);
          RPCIN_SCHED_EVENT(in, VMTools_CreateTimer(in->delay * 10));
       }
 #else
-      resched = TRUE; /* Avoid unused warning. */
       in->nextEvent = EventManager_Add(gTimerEventQueue, in->delay, RpcInLoop, in);
 #endif
       if (in->nextEvent == NULL) {
          errmsg = "RpcIn: Unable to run the loop";
          goto error;
       }
+   } else {
+      /*
+       * We need to return FALSE in this case so that the g_main_loop will
+       * release its reference to the source.
+       */
+      resched = TRUE;
    }
 
 exit:
