@@ -47,6 +47,7 @@ extern "C" {
 #include "vmware/tools/utils.h"
 #include "posix.h"
 #include "str.h"
+#include "xdg.h"
 };
 
 namespace vmware {
@@ -260,6 +261,18 @@ tryagain:
    /* Try for a DesktopAppInfo identified by arg. */
    Glib::ustring desktopId = testString + ".desktop";
    Glib::RefPtr<Gio::DesktopAppInfo> desktopApp = Gio::DesktopAppInfo::create(desktopId);
+   if (!desktopApp && g_strcmp0(Xdg_DetectDesktopEnv(), "KDE") == 0) {
+      /*
+       * PR631378 - see
+       * http://standards.freedesktop.org/menu-spec/latest/ar01s04.html#menu-file-elements
+       *
+       * With OpenSUSE 11.2, apps under /usr/share/applications/kde4 are referred
+       * to as kde4-$app, not just $app.
+       */
+      desktopId.insert(0, "kde4-");
+      desktopApp = Gio::DesktopAppInfo::create(desktopId);
+   }
+
    if (desktopApp) {
       GDesktopAppInfo* gobj = desktopApp->gobj();
       pathPair.second = g_desktop_app_info_get_filename(gobj);
