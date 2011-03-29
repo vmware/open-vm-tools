@@ -36,5 +36,6 @@
 extern Bool HostType_OSIsVMK(void);
 extern Bool HostType_OSIsPureVMK(void);
 extern Bool HostType_OSIsVMK64(void);
+extern Bool HostType_OSIsSimulator(void);
 
 #endif /* ifndef _HOSTTYPE_H_ */

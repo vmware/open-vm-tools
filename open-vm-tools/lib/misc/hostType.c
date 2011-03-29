@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <unistd.h>
 #include "uwvmkAPI.h"
 #define DO_REAL_HOST_CHECK
 #endif
@@ -201,4 +202,41 @@ Bool
 HostType_OSIsVMK64(void)
 {
    return (HostTypeOSVMKernelType() == 3 || HostTypeOSVMKernelType() == 4);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HostType_OSIsSimulator --
+ *
+ *      Are we running on an ESX host simulator? Check presence of the
+ *      mockup file.
+ *
+ * Results:
+ *      TRUE if mockup file exists
+ *      FALSE if the file doesn't exist
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+HostType_OSIsSimulator(void)
+{
+#ifdef DO_REAL_HOST_CHECK
+   static int simulatorType = -1;
+   if (simulatorType == -1) {
+      if (access("/etc/vmware/hostd/mockupEsxHost.txt", 0) != -1) {
+         simulatorType = 1;
+      } else {
+         simulatorType = 0;
+      }
+   }
+   return (simulatorType == 1);
+#else
+   /* We are only interested in the case where VMX86_SERVER or friends are defined */
+   return FALSE;
+#endif
 }

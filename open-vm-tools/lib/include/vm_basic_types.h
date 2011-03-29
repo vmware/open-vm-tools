@@ -775,6 +775,11 @@ typedef void * UserVA;
 # endif
 #endif
 
+#ifndef UNUSED_VARIABLE
+// XXX is there a better way?
+#  define UNUSED_VARIABLE(_var) (void)_var
+#endif
+
 /*
  * REGPARM defaults to REGPARM3; i.e., a request that gcc
  * put the first three arguments in registers.  (It is fine

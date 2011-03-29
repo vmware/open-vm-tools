@@ -98,6 +98,52 @@
 #error "Don't define FILECODE.  It is obsolete."
 #endif
 
+/*
+ * Internal macros, functions, and strings
+ *
+ * The monitor wants to save space at call sites, so it has specialized
+ * functions for each situation.  User level wants to save on implementation
+ * so it uses generic functions.
+ */
+
+#if !defined VMM || defined MONITOR_APP // {
+
+#if defined VMKERNEL
+// vmkernel Panic() function does not want a trailing newline.
+#define _ASSERT_PANIC(name) \
+           Panic(_##name##Fmt, __FILE__, __LINE__)
+#define _ASSERT_PANIC_BUG(bug, name) \
+           Panic(_##name##Fmt " bugNr=%d", __FILE__, __LINE__, bug)
+#define _ASSERT_PANIC_NORETURN(name) \
+           Panic_NoReturn(_##name##Fmt, __FILE__, __LINE__)
+
+#else /* !VMKERNEL */
+#define _ASSERT_PANIC(name) \
+           Panic(_##name##Fmt "\n", __FILE__, __LINE__)
+#define _ASSERT_PANIC_BUG(bug, name) \
+           Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
+#endif /* VMKERNEL */
+
+#define AssertLengthFmt     _AssertLengthFmt
+#define AssertUnexpectedFmt _AssertUnexpectedFmt
+#define AssertNotTestedFmt  _AssertNotTestedFmt
+
+#endif // }
+
+
+// these don't have newline so a bug can be tacked on
+#define _AssertPanicFmt            "PANIC %s:%d"
+#define _AssertAssertFmt           "ASSERT %s:%d"
+#define _AssertNotImplementedFmt   "NOT_IMPLEMENTED %s:%d"
+#define _AssertNotReachedFmt       "NOT_REACHED %s:%d"
+#define _AssertMemAllocFmt         "MEM_ALLOC %s:%d"
+
+// these are complete formats with newline
+#define _AssertLengthFmt           "LENGTH %s:%d r=%#x e=%#x\n"
+#define _AssertUnexpectedFmt       "UNEXPECTED %s:%d bugNr=%d\n"
+#define _AssertNotTestedFmt        "NOT_TESTED %s:%d\n"
+
+
 
 /*
  * Panic and log functions
@@ -105,7 +151,14 @@
 
 EXTERN void Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 EXTERN void Warning(const char *fmt, ...) PRINTF_DECL(1, 2);
+#if defined VMKERNEL
+EXTERN NORETURN void Panic_NoReturn(const char *fmt, ...) PRINTF_DECL(1, 2);
+#endif
+#if defined VMKERNEL && defined VMX86_DEBUG
+EXTERN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
+#else
 EXTERN NORETURN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
+#endif
 
 EXTERN void LogThrottled(uint32 *count, const char *fmt, ...)
             PRINTF_DECL(2, 3);
@@ -173,10 +226,18 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
 #define ASSERT_NOT_IMPLEMENTED_BUG(bug, cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED_BUG(bug))
 
+#if defined VMKERNEL && defined VMX86_DEBUG
+#define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
+#else
 #define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented)
+#endif
 #define NOT_IMPLEMENTED_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertNotImplemented)
 
+#if defined VMKERNEL && defined VMX86_DEBUG
+#define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached)
+#else
 #define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached)
+#endif
 #define NOT_REACHED_BUG(bug)     _ASSERT_PANIC_BUG(bug, AssertNotReached)
 
 #define ASSERT_MEM_ALLOC(cond) \
@@ -338,47 +399,5 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
       assertions \
    }
 
-
-/*
- * Internal macros, functions, and strings
- *
- * The monitor wants to save space at call sites, so it has specialized
- * functions for each situation.  User level wants to save on implementation
- * so it uses generic functions.
- */
-
-#if !defined VMM || defined MONITOR_APP // {
-
-#if defined VMKERNEL
-// vmkernel Panic() function does not want a trailing newline.
-#define _ASSERT_PANIC(name) \
-           Panic(_##name##Fmt, __FILE__, __LINE__)
-#define _ASSERT_PANIC_BUG(bug, name) \
-           Panic(_##name##Fmt " bugNr=%d", __FILE__, __LINE__, bug)
-
-#else /* !VMKERNEL */
-#define _ASSERT_PANIC(name) \
-           Panic(_##name##Fmt "\n", __FILE__, __LINE__)
-#define _ASSERT_PANIC_BUG(bug, name) \
-           Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
-#endif /* VMKERNEL */
-
-#define AssertLengthFmt     _AssertLengthFmt
-#define AssertUnexpectedFmt _AssertUnexpectedFmt
-#define AssertNotTestedFmt  _AssertNotTestedFmt
-
-#endif // }
-
-// these don't have newline so a bug can be tacked on
-#define _AssertPanicFmt            "PANIC %s:%d"
-#define _AssertAssertFmt           "ASSERT %s:%d"
-#define _AssertNotImplementedFmt   "NOT_IMPLEMENTED %s:%d"
-#define _AssertNotReachedFmt       "NOT_REACHED %s:%d"
-#define _AssertMemAllocFmt         "MEM_ALLOC %s:%d"
-
-// these are complete formats with newline
-#define _AssertLengthFmt           "LENGTH %s:%d r=%#x e=%#x\n"
-#define _AssertUnexpectedFmt       "UNEXPECTED %s:%d bugNr=%d\n"
-#define _AssertNotTestedFmt        "NOT_TESTED %s:%d\n"
 
 #endif /* ifndef _VM_ASSERT_H_ */

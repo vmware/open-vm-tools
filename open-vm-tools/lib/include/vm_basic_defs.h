@@ -579,6 +579,22 @@ typedef int pid_t;
 #define LOG_ONLY(x)
 #endif
 
+#ifdef VMX86_BETA
+#define vmx86_beta     1
+#define BETA_ONLY(x)   x
+#else
+#define vmx86_beta     0
+#define BETA_ONLY(x)
+#endif
+
+#ifdef VMX86_RELEASE
+#define vmx86_release   1
+#define RELEASE_ONLY(x) x
+#else
+#define vmx86_release   0
+#define RELEASE_ONLY(x) 
+#endif
+
 #ifdef VMX86_SERVER
 #define vmx86_server 1
 #define SERVER_ONLY(x) x
