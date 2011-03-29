@@ -50,6 +50,7 @@
 
 #include <errno.h>
 #include <glib.h>
+#include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -65,6 +66,7 @@
 
 
 static void InitSignals(ToolsAppCtx* ctx);
+static void InitSMProperties(SmcConn smcCnx);
 
 
 /*
@@ -141,6 +143,7 @@ SessionMgr_Init(ToolsAppCtx *ctx,
                         &smCallbacks, NULL, &clientID, sizeof errorBuf, errorBuf);
    if (smcCnx != NULL) {
       InitSignals(ctx);
+      InitSMProperties(smcCnx);
       g_hash_table_insert(pdata->_private, DE_FEATURE_KEY, smcCnx);
       g_debug("Registered with session manager as %s\n", clientID);
       free(clientID);
@@ -245,6 +248,63 @@ InitSignals(ToolsAppCtx *ctx)
                 G_TYPE_NONE,
                 1,
                 G_TYPE_POINTER);
+}
+
+
+/*
+ ******************************************************************************
+ * InitSMProperties --                                                   */ /**
+ *
+ * Tell the session manager a little bit about ourself.
+ *
+ * The most important property to us is SmRestartStyleHint, where we hint to
+ * the session manager that it shouldn't attempt to restore the vmusr container
+ * as part of a session.  (Instead, that job is handled by our XDG autostart
+ * entry.)
+ *
+ * The other properties are set only because SMlib docs claim they're
+ * mandatory.  Dummy values are used where possible.
+ *
+ * @param[in]  smcCnx   SM client connection.
+ *
+ ******************************************************************************
+ */
+
+static void
+InitSMProperties(SmcConn smcCnx)
+{
+   enum {
+      PROP_ID_CLONE_CMD,
+      PROP_ID_PROGRAM,
+      PROP_ID_RESTART_CMD,
+      PROP_ID_RESTART_STYLE,
+      PROP_ID_USER_ID,
+   };
+   static uint8 restartHint = SmRestartNever;
+   static SmPropValue values[] = {
+      { sizeof "/bin/false" - 1, "/bin/false" },
+      { sizeof "vmware-user" - 1, "vmware-user" },
+      { sizeof "/bin/false" - 1, "/bin/false" },
+      { sizeof restartHint, &restartHint },
+      { 0, NULL },
+   };
+   static SmProp properties[] = {
+      { SmCloneCommand, SmLISTofARRAY8, 1, &values[PROP_ID_CLONE_CMD] },
+      { SmProgram, SmARRAY8, 1, &values[PROP_ID_PROGRAM] },
+      { SmRestartCommand, SmLISTofARRAY8, 1, &values[PROP_ID_RESTART_CMD] },
+      { SmRestartStyleHint, SmCARD8, 1, &values[PROP_ID_RESTART_STYLE] },
+      { SmUserID, SmARRAY8, 1, &values[PROP_ID_USER_ID] },
+   };
+   static SmProp *propp[] = {
+      &properties[0], &properties[1], &properties[2], &properties[3],
+      &properties[4]
+   };
+
+   struct passwd *pw = getpwuid(getuid());
+   values[PROP_ID_USER_ID].length = strlen(pw->pw_name);
+   values[PROP_ID_USER_ID].value = pw->pw_name;
+
+   SmcSetProperties(smcCnx, ARRAYSIZE(propp), (SmProp**)propp);
 }
 
 
