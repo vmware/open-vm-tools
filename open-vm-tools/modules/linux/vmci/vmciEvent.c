@@ -22,20 +22,12 @@
  *     VMCI Event code for host and guests.
  */
 
-#if defined(__linux__) && !defined(VMKERNEL)
-#  include "driver-config.h"
-#  include "compat_kernel.h"
-#  include "compat_module.h"
-#endif // __linux__
 #include "vmci_kernel_if.h"
 #include "vmci_defs.h"
 #include "vmci_infrastructure.h"
 #include "vmciEvent.h"
 #include "vmciKernelAPI.h"
-#ifdef VMX86_TOOLS
-#  include "vmciInt.h"
-#  include "vmciUtil.h"
-#elif defined(VMKERNEL)
+#if defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
@@ -69,21 +61,19 @@ static int VMCIEventRegisterSubscription(VMCISubscription *sub,
                                          void *callbackData);
 static VMCISubscription *VMCIEventUnregisterSubscription(VMCIId subID);
 
-/*
- * In the guest, VMCI events are dispatched from interrupt context, so
- * the locks need to be bottom half safe. In the host kernel, this
- * isn't so, and regular locks are used instead.
- */
 
-#ifdef VMX86_TOOLS
-#define VMCIEventInitLock(_lock, _name) VMCI_InitLock(_lock, _name, VMCI_LOCK_RANK_HIGHER_BH)
-#define VMCIEventGrabLock(_lock, _flags) VMCI_GrabLock_BH(_lock, _flags)
-#define VMCIEventReleaseLock(_lock, _flags) VMCI_ReleaseLock_BH(_lock, _flags)
-#else
-#define VMCIEventInitLock(_lock, _name) VMCI_InitLock(_lock, _name, VMCI_LOCK_RANK_HIGHER)
-#define VMCIEventGrabLock(_lock, _flags) VMCI_GrabLock(_lock, _flags)
-#define VMCIEventReleaseLock(_lock, _flags) VMCI_ReleaseLock(_lock, _flags)
-#endif
+#if defined(VMKERNEL)
+   /* VMK doesn't need BH locks, so use lower ranks. */
+#  define VMCIEventInitLock(_lock, _name) \
+   VMCI_InitLock(_lock, _name, VMCI_LOCK_RANK_HIGHER)
+#  define VMCIEventGrabLock(_lock, _flags)    VMCI_GrabLock(_lock, _flags)
+#  define VMCIEventReleaseLock(_lock, _flags) VMCI_ReleaseLock(_lock, _flags)
+#else // VMKERNEL
+#  define VMCIEventInitLock(_lock, _name) \
+   VMCI_InitLock(_lock, _name, VMCI_LOCK_RANK_HIGHER_BH)
+#  define VMCIEventGrabLock(_lock, _flags)    VMCI_GrabLock_BH(_lock, _flags)
+#  define VMCIEventReleaseLock(_lock, _flags) VMCI_ReleaseLock_BH(_lock, _flags)
+#endif // VMKERNEL
 
 
 static VMCIList subscriberArray[VMCI_EVENT_MAX];

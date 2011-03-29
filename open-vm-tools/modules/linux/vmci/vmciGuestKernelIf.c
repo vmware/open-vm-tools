@@ -35,7 +35,7 @@
 #include "compat_version.h"
 #include "compat_pci.h"
 #include "vm_basic_types.h"
-#include "vmciGuestKernelIf.h"
+#include "vmciDriver.h"
 
 
 /*

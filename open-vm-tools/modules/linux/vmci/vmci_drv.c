@@ -48,11 +48,10 @@
 #include "vmciContext.h"
 #include "vmciDatagram.h"
 #include "vmciDoorbell.h"
+#include "vmciDriver.h"
 #include "vmciEvent.h"
-#include "vmciInt.h"
 #include "vmciQueuePair.h"
 #include "vmciResource.h"
-#include "vmciUtil.h"
 
 #define LGPFX "VMCI: "
 #define VMCI_DEVICE_MINOR_NUM 0
@@ -1022,6 +1021,25 @@ process_bitmap(unsigned long data)
 
 
    VMCI_ScanNotificationBitmap(notification_bitmap);
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ *  VMCIUnsetNotify --
+ *
+ *     Stub.  Not called in the guest driver (yet).
+ *
+ *  Result:
+ *     Always VMCI_ERROR_GENERIC.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+void
+VMCIUnsetNotify(VMCIContext *context)
+{
 }
 
 

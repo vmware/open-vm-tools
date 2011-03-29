@@ -60,14 +60,18 @@
 #endif
 
 #ifdef SOLARIS
+#  include <sys/ddi.h>
+#  include <sys/kmem.h>
 #  include <sys/mutex.h>
 #  include <sys/poll.h>
 #  include <sys/semaphore.h>
-#  include <sys/kmem.h>
+#  include <sys/sunddi.h>
+#  include <sys/types.h>
 #endif
 
 #include "vm_basic_types.h"
 #include "vmci_defs.h"
+#include "vmci_infrastructure.h"
 
 #if defined(VMKERNEL)
 #  include "list.h"
@@ -229,6 +233,39 @@ typedef struct VMCIHost {
                               */
 #endif
 } VMCIHost;
+
+/*
+ * Guest device port I/O.
+ */
+
+#if defined(linux)
+   typedef unsigned short int VMCIIoPort;
+   typedef int VMCIIoHandle;
+#elif defined(_WIN32)
+   typedef PUCHAR VMCIIoPort;
+   typedef int VMCIIoHandle;
+#elif defined(SOLARIS)
+   typedef uint8_t * VMCIIoPort;
+   typedef ddi_acc_handle_t VMCIIoHandle;
+#elif defined(__APPLE__)
+   typedef unsigned short int VMCIIoPort;
+   typedef void *VMCIIoHandle;
+#endif // __APPLE__
+
+void VMCI_ReadPortBytes(VMCIIoHandle handle, VMCIIoPort port, uint8 *buffer,
+                        size_t bufferLength);
+
+/*
+ * Guest device handle (FsCtx).  Not used on VMK, but we use an empty type to
+ * keep offsetchecker happy.
+ */
+
+typedef struct VMCIGuestDeviceHandle {
+#if !defined(VMKERNEL)
+   void *obj;
+   VMCIObjType objType;
+#endif // VMKERNEL
+} VMCIGuestDeviceHandle;
 
 
 void VMCI_InitLock(VMCILock *lock, char *name, VMCILockRank rank);

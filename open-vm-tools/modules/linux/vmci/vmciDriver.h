@@ -43,7 +43,12 @@
 #ifdef _WIN32
 #  include "vmciLog.h"
 #else // _WIN32
-#ifdef VMKERNEL
+#if defined(VMKERNEL) && !defined(VMKERNEL_OFFSET_CHECKER)
+   /*
+    * LOGLEVEL_MODULE is defined in another header that gets included into the
+    * dummy file used by the offsetchecker, which causes it to barf on the
+    * redefinition.
+    */
 #  define LOGLEVEL_MODULE_LEN 0
 #  define LOGLEVEL_MODULE VMCIVMK
 #  include "log.h"
@@ -54,10 +59,10 @@
         int i = _level;                   \
         _VMCILOG _args ;                  \
      } while(FALSE)
-#  else
+#  else // VMX86_LOG
 #    define VMCI_DEBUG_LOG(_level, _args)
-#  endif
-#else
+#  endif // VMX86_LOG
+#else // VMKERNEL
 #  define VMCI_DEBUG_LEVEL 4
 #  define VMCI_DEBUG_LOG(_level, _args) \
    do {                                 \
@@ -65,13 +70,30 @@
          Log _args ;                    \
       }                                 \
    } while(FALSE)
-#endif
+#endif // VMKERNEL
 #define VMCI_LOG(_args) Log _args
 #define VMCI_WARNING(_args) Warning _args
 #endif // _WIN32
 
+
 int VMCI_Init(void);
 void VMCI_Cleanup(void);
 VMCIId VMCI_GetContextID(void);
+int VMCI_SendDatagram(VMCIDatagram *dg);
+
+#if defined(VMX86_TOOLS)
+void VMCIUtil_Init(void);
+void VMCIUtil_Exit(void);
+Bool VMCI_CheckHostCapabilities(void);
+void VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle, VMCIIoPort dgInPort,
+                                uint8 *dgInBuffer, size_t dgInBufferSize);
+Bool VMCI_DeviceInUse(void);
+Bool VMCI_DeviceEnabled(void);
+#if defined(_WIN64)
+int VMCIDoSendDatagram(unsigned int dgSize, ULONG *dataPort, ULONG *resultPort,
+                       VMCIDatagram *dg);
+#endif // _WIN64
+#endif // VMX86_TOOLS
+
 
 #endif // _VMCI_DRIVER_H_

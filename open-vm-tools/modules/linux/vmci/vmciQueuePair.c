@@ -22,11 +22,6 @@
  *    VMCI QueuePair API implementation in the host driver.
  */
 
-#if defined(__linux__) && !defined(VMKERNEL)
-#  include "driver-config.h"
-#  include "compat_kernel.h"
-#  include "compat_module.h"
-#endif // __linux__
 #include "vmci_kernel_if.h"
 #include "vm_assert.h"
 #include "vmci_defs.h"
@@ -41,10 +36,7 @@
 #include "vmciQueuePair.h"
 #include "vmciResource.h"
 #include "vmciRoute.h"
-#ifdef VMX86_TOOLS
-#  include "vmciInt.h"
-#  include "vmciUtil.h"
-#elif defined(VMKERNEL)
+#if defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"

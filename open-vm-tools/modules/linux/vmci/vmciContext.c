@@ -22,11 +22,6 @@
  *     Platform independent routines for VMCI calls.
  */
 
-#if defined(__linux__) && !defined(VMKERNEL)
-#  include "driver-config.h"
-#  include "compat_kernel.h"
-#  include "compat_module.h"
-#endif // __linux__
 #include "vmci_kernel_if.h"
 #include "vm_assert.h"
 #include "vmci_defs.h"
@@ -39,10 +34,7 @@
 #include "vmciKernelAPI.h"
 #include "vmciQueuePair.h"
 #include "vmciResource.h"
-#ifdef VMX86_TOOLS
-#  include "vmciInt.h"
-#  include "vmciUtil.h"
-#elif defined(VMKERNEL)
+#if defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
@@ -929,7 +921,7 @@ VMCIContext_DequeueDatagram(VMCIContext *context, // IN
       *maxSize = dqEntry->dgSize;
       VMCI_ReleaseLock(&context->lock, flags);
       VMCI_DEBUG_LOG(4, (LGPFX"Caller's buffer should be at least "
-                         "(size=%"FMTSZ"d bytes).\n", *maxSize));
+                         "(size=%u bytes).\n", (uint32)*maxSize));
       return VMCI_ERROR_NO_MEM;
    }
 
@@ -1300,20 +1292,19 @@ VMCI_EXPORT_SYMBOL(VMCIContext_GetPrivFlags)
 VMCIPrivilegeFlags
 VMCIContext_GetPrivFlags(VMCIId contextID)  // IN
 {
-#if defined(VMX86_TOOLS)
-   return VMCI_NO_PRIVILEGE_FLAGS;
-#else // VMX86_TOOLS
-   VMCIPrivilegeFlags flags;
-   VMCIContext *context;
+   if (VMCI_HasHostDevice()) {
+      VMCIPrivilegeFlags flags;
+      VMCIContext *context;
 
-   context = VMCIContext_Get(contextID);
-   if (!context) {
-      return VMCI_LEAST_PRIVILEGE_FLAGS;
+      context = VMCIContext_Get(contextID);
+      if (!context) {
+         return VMCI_LEAST_PRIVILEGE_FLAGS;
+      }
+      flags = context->privFlags;
+      VMCIContext_Release(context);
+      return flags;
    }
-   flags = context->privFlags;
-   VMCIContext_Release(context);
-   return flags;
-#endif // VMX86_TOOLS
+   return VMCI_NO_PRIVILEGE_FLAGS;
 }
 
 
@@ -2329,35 +2320,34 @@ int
 VMCI_IsContextOwner(VMCIId contextID,   // IN
                     void *hostUser)     // IN
 {
-#if defined(VMX86_TOOLS)
+   if (VMCI_HasHostDevice()) {
+      VMCIContext *context;
+      VMCIHostUser *user = (VMCIHostUser *)hostUser;
+      int retval;
+
+      if (vmkernel) {
+         return VMCI_ERROR_UNAVAILABLE;
+      }
+
+      if (!hostUser) {
+         return VMCI_ERROR_INVALID_ARGS;
+      }
+
+      context = VMCIContext_Get(contextID);
+      if (!context) {
+         return VMCI_ERROR_NOT_FOUND;
+      }
+
+      if (context->validUser) {
+         retval = VMCIHost_CompareUser(user, &context->user);
+      } else {
+         retval = VMCI_ERROR_UNAVAILABLE;
+      }
+      VMCIContext_Release(context);
+
+      return retval;
+   }
    return VMCI_ERROR_UNAVAILABLE;
-#else // VMX86_TOOLS
-   VMCIContext *context;
-   VMCIHostUser *user = (VMCIHostUser *)hostUser;
-   int retval;
-
-   if (vmkernel) {
-      return VMCI_ERROR_UNAVAILABLE;
-   }
-
-   if (!hostUser) {
-      return VMCI_ERROR_INVALID_ARGS;
-   }
-
-   context = VMCIContext_Get(contextID);
-   if (!context) {
-      return VMCI_ERROR_NOT_FOUND;
-   }
-
-   if (context->validUser) {
-      retval = VMCIHost_CompareUser(user, &context->user);
-   } else {
-      retval = VMCI_ERROR_UNAVAILABLE;
-   }
-   VMCIContext_Release(context);
-
-   return retval;
-#endif // VMX86_TOOLS
 }
 
 

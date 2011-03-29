@@ -22,11 +22,6 @@
  *    This file implements the VMCI doorbell API on the host.
  */
 
-#if defined(__linux__) && !defined(VMKERNEL)
-#  include "driver-config.h"
-#  include "compat_kernel.h"
-#  include "compat_module.h"
-#endif // __linux__
 #include "vmci_kernel_if.h"
 #include "vm_assert.h"
 #include "vmci_defs.h"
@@ -37,10 +32,7 @@
 #include "vmciKernelAPI.h"
 #include "vmciResource.h"
 #include "vmciRoute.h"
-#ifdef VMX86_TOOLS
-#  include "vmciInt.h"
-#  include "vmciUtil.h"
-#elif defined(VMKERNEL)
+#if defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
@@ -127,7 +119,6 @@ static uint32 lastNotifyIdxReleased = PAGE_SIZE;
 static void VMCIDoorbellFreeCB(void *clientData);
 static int VMCIDoorbellReleaseCB(void *clientData);
 static void VMCIDoorbellDelayedDispatchCB(void *data);
-extern int VMCI_SendDatagram(VMCIDatagram *);
 
 
 /*
@@ -1189,7 +1180,7 @@ VMCI_ScanNotificationBitmap(uint8 *bitmap)
 VMCI_EXPORT_SYMBOL(VMCIDoorbell_Create)
 int
 VMCIDoorbell_Create(VMCIHandle *handle,            // IN
-                    uint32 flags,                  // I
+                    uint32 flags,                  // IN
                     VMCIPrivilegeFlags privFlags,  // IN
                     VMCICallback notifyCB,         // IN
                     void *clientData)              // IN

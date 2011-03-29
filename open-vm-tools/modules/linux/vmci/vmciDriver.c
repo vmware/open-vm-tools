@@ -17,41 +17,272 @@
  *********************************************************/
 
 /*
- * vmciUtil.c
+ * vmciDriver.c --
  *
- * Small utility function for allocating kernel memory and copying data.
- *
+ *     VMCI initialization and ioctl handling.
  */
-
-#ifdef __linux__
-#  include "driver-config.h"
-#  define EXPORT_SYMTAB
-#  include <linux/module.h>
-#  include "compat_kernel.h"
-#  include "compat_slab.h"
-#  include "compat_interrupt.h"
-#endif
 
 #include "vmci_kernel_if.h"
 #include "vm_assert.h"
-#include "vm_atomic.h"
 #include "vmci_defs.h"
-#include "vmci_kernel_if.h"
-#include "vmciGuestKernelIf.h"
-#include "vmciInt.h"
+#include "vmci_infrastructure.h"
+#include "vmciCommonInt.h"
+#include "vmciContext.h"
 #include "vmciDatagram.h"
-#include "vmciUtil.h"
+#include "vmciDoorbell.h"
 #include "vmciEvent.h"
+#include "vmciHashtable.h"
 #include "vmciKernelAPI.h"
+#include "vmciQueuePair.h"
+#include "vmciResource.h"
+#if defined(VMKERNEL)
+#  include "vmciVmkInt.h"
+#  include "vm_libc.h"
+#  include "helper_ext.h"
+#  include "vmciDriver.h"
+#else
+#  include "vmciDriver.h"
+#endif
 
-#define LGPFX "VMCIUtil: "
+#define LGPFX "VMCI: "
 
-static void VMCIUtilCidUpdate(VMCIId subID, VMCI_EventData *eventData,
-                              void *clientData);
-
-static VMCIId ctxUpdateSubID = VMCI_INVALID_ID;
 static Atomic_uint32 vmContextID = { VMCI_INVALID_ID };
+
+#if !defined(VMX86_TOOLS)
+
+static VMCIContext *hostContext;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_Init --
+ *
+ *      Initializes VMCI. This registers core hypercalls.
+ *
+ * Results:
+ *      VMCI_SUCCESS if successful, appropriate error code otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+VMCI_Init(void)
+{
+   int result;
+
+   result = VMCIResource_Init();
+   if (result < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIResource (result=%d)",
+                    result));
+      goto errorExit;
+   }
+
+   result = VMCIContext_Init();
+   if (result < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d)",
+                    result));
+      goto resourceExit;
+   }
+
+   result = VMCIDatagram_Init();
+   if (result < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIDatagram (result=%d)",
+                    result));
+      goto contextExit;
+   }
+
+   /*
+    * In theory, it is unsafe to pass an eventHnd of -1 to platforms which use
+    * it (VMKernel/Windows/Mac OS at the time of this writing). In practice we
+    * are fine though, because the event is never used in the case of the host
+    * context.
+    */
+   result = VMCIContext_InitContext(VMCI_HOST_CONTEXT_ID,
+                                    VMCI_DEFAULT_PROC_PRIVILEGE_FLAGS,
+                                    -1, VMCI_VERSION, NULL, &hostContext);
+   if (result < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d)",
+                    result));
+      goto datagramExit;
+   }
+
+   VMCIEvent_Init();
+   VMCIDoorbell_Init();
+
+   result = VMCIQPBroker_Init();
+   if (result < VMCI_SUCCESS) {
+      goto hostContextExit;
+   }
+
+   VMCI_LOG((LGPFX"Driver initialized."));
+   return VMCI_SUCCESS;
+
+  hostContextExit:
+   VMCIDoorbell_Exit();
+   VMCIEvent_Exit();
+   VMCIContext_ReleaseContext(hostContext);
+  datagramExit:
+   VMCIDatagram_Exit();
+  contextExit:
+   VMCIContext_Exit();
+  resourceExit:
+   VMCIResource_Exit();
+  errorExit:
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_Cleanup --
+ *
+ *      Cleanup the  VMCI module.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCI_Cleanup(void)
+{
+   VMCIDoorbell_Exit();
+   VMCIEvent_Exit();
+   VMCIContext_ReleaseContext(hostContext);
+   VMCIDatagram_Exit();
+   VMCIContext_Exit();
+   VMCIResource_Exit();
+   VMCIQPBroker_Exit();
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_DeviceGet --
+ *
+ *      API provided for compatibility with the guest vmci
+ *      API. Indicates the callers intention to use the device until
+ *      it calls VMCI_DeviceRelease().
+ *
+ * Results:
+ *      TRUE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
+Bool
+VMCI_DeviceGet(uint32 *apiVersion)
+{
+   if (*apiVersion > VMCI_KERNEL_API_VERSION) {
+      *apiVersion = VMCI_KERNEL_API_VERSION;
+      return FALSE;
+   }
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_DeviceRelease --
+ *
+ *      API provided for compatibility with the guest vmci
+ *      API. Indicates that the caller is done using the VMCI device.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
+void
+VMCI_DeviceRelease(void)
+{
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCI_SendDatagram --
+ *
+ *      Stub for guest VM to hypervisor call mechanism.
+ *
+ * Results:
+ *      Always VMCI_ERROR_GENERIC.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCI_SendDatagram(VMCIDatagram *dg)
+{
+   return VMCI_ERROR_UNAVAILABLE;
+}
+
+#else // VMX86_TOOLS
+
 static Atomic_uint32 vmciClientCount;
+static VMCIId ctxUpdateSubID = VMCI_INVALID_ID;
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIUtilCidUpdate --
+ *
+ *      Gets called with the new context id if updated or resumed.
+ *
+ * Results:
+ *      Context id.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VMCIUtilCidUpdate(VMCIId subID,               // IN:
+                  VMCI_EventData *eventData,  // IN:
+                  void *clientData)           // IN:
+{
+   VMCIEventPayload_Context *evPayload = VMCIEventDataPayload(eventData);
+
+   if (subID != ctxUpdateSubID) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid subscriber (ID=0x%x).\n", subID));
+      return;
+   }
+   if (eventData == NULL || evPayload->contextID == VMCI_INVALID_ID) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid event data.\n"));
+      return;
+   }
+   VMCI_LOG((LGPFX"Updating context from (ID=0x%x) to (ID=0x%x) on event "
+             "(type=%d).\n", Atomic_Read(&vmContextID), evPayload->contextID,
+             eventData->event));
+   Atomic_Write(&vmContextID, evPayload->contextID);
+}
 
 
 /*
@@ -116,45 +347,6 @@ VMCIUtil_Exit(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIUtilCidUpdate --
- *
- *      Gets called with the new context id if updated or resumed.
- *
- * Results:
- *      Context id.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-VMCIUtilCidUpdate(VMCIId subID,               // IN:
-                  VMCI_EventData *eventData,  // IN:
-                  void *clientData)           // IN:
-{
-   VMCIEventPayload_Context *evPayload = VMCIEventDataPayload(eventData);
-
-   if (subID != ctxUpdateSubID) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Invalid subscriber (ID=0x%x).\n", subID));
-      return;
-   }
-   if (eventData == NULL || evPayload->contextID == VMCI_INVALID_ID) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Invalid event data.\n"));
-      return;
-   }
-   VMCI_LOG((LGPFX"Updating context from (ID=0x%x) to (ID=0x%x) on event "
-             "(type=%d).\n", Atomic_Read(&vmContextID), evPayload->contextID,
-             eventData->event));
-   Atomic_Write(&vmContextID, evPayload->contextID);
-}
-
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * VMCIUtil_CheckHostCapabilities --
  *
  *      Verify that the host supports the hypercalls we need. If it does not,
@@ -172,8 +364,8 @@ VMCIUtilCidUpdate(VMCIId subID,               // IN:
 
 #define VMCI_UTIL_NUM_RESOURCES 1
 
-Bool
-VMCIUtil_CheckHostCapabilities(void)
+static Bool
+VMCIUtilCheckHostCapabilities(void)
 {
    int result;
    VMCIResourcesQueryMsg *msg;
@@ -206,40 +398,6 @@ VMCIUtil_CheckHostCapabilities(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCI_GetContextID --
- *
- *      Returns the context id.
- *
- * Results:
- *      Context id.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCI_GetContextID)
-VMCIId
-VMCI_GetContextID(void)
-{
-   if (Atomic_Read(&vmContextID) == VMCI_INVALID_ID) {
-      uint32 result;
-      VMCIDatagram getCidMsg;
-      getCidMsg.dst =  VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
-                                        VMCI_GET_CONTEXT_ID);
-      getCidMsg.src = VMCI_ANON_SRC_HANDLE;
-      getCidMsg.payloadSize = 0;
-      result = VMCI_SendDatagram(&getCidMsg);
-      Atomic_Write(&vmContextID, result);
-   }
-   return Atomic_Read(&vmContextID);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * VMCI_CheckHostCapabilities --
  *
  *      Tell host which guestcalls we support and let each API check
@@ -261,69 +419,11 @@ VMCI_CheckHostCapabilities(void)
 {
    Bool result = VMCIEvent_CheckHostCapabilities();
    result &= VMCIDatagram_CheckHostCapabilities();
-   result &= VMCIUtil_CheckHostCapabilities();
+   result &= VMCIUtilCheckHostCapabilities();
 
    VMCI_LOG((LGPFX"Host capability check: %s\n", result ? "PASSED" : "FAILED"));
 
    return result;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCI_Version --
- *
- *     Returns the version of the VMCI guest driver.
- *
- * Results:
- *      Returns a version number.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCI_Version)
-uint32
-VMCI_Version()
-{
-   return VMCI_VERSION_NUMBER;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCI_InInterrupt --
- *
- *     Determines if we are running in tasklet/dispatch level or above.
- *
- * Results:
- *      TRUE if tasklet/dispatch or above, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-VMCI_InInterrupt()
-{
-#if defined(_WIN32)
-   return KeGetCurrentIrql() >= DISPATCH_LEVEL;
-#elif defined(__linux__)
-   return in_interrupt();
-#elif defined(SOLARIS)
-   return servicing_interrupt();   /* servicing_interrupt is not part of DDI. */
-#elif defined(__APPLE__)
-   /*
-    * All interrupt servicing is handled by IOKit functions, by the time the IOService
-    * interrupt handler is called we're no longer in an interrupt dispatch level.
-    */
-   return false;
-#endif //
 }
 
 
@@ -560,4 +660,69 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
          remainingBytes = currentDgInBufferSize;
       }
    }
+}
+
+#endif // VMX86_TOOLS
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VMCI_GetContextID --
+ *
+ *    Returns the current context ID.  Note that since this is accessed only
+ *    from code running in the host, this always returns the host context ID.
+ *
+ * Results:
+ *    Context ID.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCI_GetContextID)
+VMCIId
+VMCI_GetContextID(void)
+{
+   if (VMCI_HasGuestDevice()) {
+      if (Atomic_Read(&vmContextID) == VMCI_INVALID_ID) {
+         uint32 result;
+         VMCIDatagram getCidMsg;
+         getCidMsg.dst =  VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
+                                           VMCI_GET_CONTEXT_ID);
+         getCidMsg.src = VMCI_ANON_SRC_HANDLE;
+         getCidMsg.payloadSize = 0;
+         result = VMCI_SendDatagram(&getCidMsg);
+         Atomic_Write(&vmContextID, result);
+      }
+      return Atomic_Read(&vmContextID);
+   } else if (VMCI_HasHostDevice()) {
+      return VMCI_HOST_CONTEXT_ID;
+   }
+   return VMCI_INVALID_ID;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_Version --
+ *
+ *     Returns the version of the VMCI driver.
+ *
+ * Results:
+ *      Returns a version number.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCI_Version)
+uint32
+VMCI_Version()
+{
+   return VMCI_VERSION;
 }
