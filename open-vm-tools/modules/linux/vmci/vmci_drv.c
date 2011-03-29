@@ -484,6 +484,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    VMCIDoorbell_Exit();
    VMCIUtil_Exit();
    VMCIEvent_Exit();
+   VMCIDatagram_Exit();
    VMCIContext_Exit();
    VMCIResource_Exit();
    if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSIX) {
@@ -536,7 +537,6 @@ vmci_remove_device(struct pci_dev* pdev)
    // XXX Todo add exit/cleanup functions for util, sm, dg, and resource apis.
    VMCIUtil_Exit();
    VMCIEvent_Exit();
-   //VMCIDatagram_Exit();
 
    compat_mutex_lock(&dev->lock);
    printk(KERN_INFO "Resetting vmci device\n");
@@ -566,6 +566,7 @@ vmci_remove_device(struct pci_dev* pdev)
       vfree(notification_bitmap);
    }
 
+   VMCIDatagram_Exit();
    VMCIContext_Exit();
    VMCIResource_Exit();
 
