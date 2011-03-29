@@ -1246,7 +1246,6 @@ UnityX11HandleEvents(gpointer data) // IN
    ASSERT(up);
    ASSERT(up->isRunning);
 
-   Debug("Starting unity event handling\n");
    while (XEventsQueued(up->display, QueuedAfterFlush)) {
       /*
        * This outer loop is here to make sure we really process all available events
