@@ -235,6 +235,7 @@ GuestInfoGather(gpointer data)
    GuestDiskInfo *diskInfo = NULL;
 #if defined(_WIN32) || defined(linux)
    GuestMemInfo vmStats = {0};
+   gboolean perfmonEnabled;
 #endif
    ToolsAppCtx *ctx = data;
 
@@ -309,13 +310,19 @@ GuestInfoGather(gpointer data)
 
 #if defined(_WIN32) || defined(linux)
    /* Send the vmstats to the VMX. */
+   perfmonEnabled = !g_key_file_get_boolean(ctx->config,
+                                            CONFGROUPNAME_GUESTINFO,
+                                            CONFNAME_GUESTINFO_DISABLEPERFMON,
+                                            NULL);
 
-   if (!GuestInfo_PerfMon(&vmStats)) {
-      g_warning("Failed to get vmstats.\n");
-   } else {
-      vmStats.version = 1;
-      if (!GuestInfoUpdateVmdb(ctx, INFO_MEMORY, &vmStats)) {
-         g_warning("Failed to send vmstats.\n");
+   if (perfmonEnabled) {
+      if (!GuestInfo_PerfMon(&vmStats)) {
+         g_warning("Failed to get vmstats.\n");
+      } else {
+         vmStats.version = 1;
+         if (!GuestInfoUpdateVmdb(ctx, INFO_MEMORY, &vmStats)) {
+            g_warning("Failed to send vmstats.\n");
+         }
       }
    }
 #endif
