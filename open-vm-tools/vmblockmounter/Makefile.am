@@ -1,8 +1,5 @@
 ################################################################################
-### Copyright 2007 VMware, Inc.  All rights reserved.
-###
-### Top-level Makefile for building the VMware OSS Tools.
-###
+### Copyright 2011 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -18,39 +15,28 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-# These flags get passed to aclocal when autoreconf calls it, and tell aclocal
-# that all of our macros are in the 'm4' subdirectory.
-ACLOCAL_AMFLAGS = -I m4
+sbin_PROGRAMS = mount.vmblock
 
-SUBDIRS =
-SUBDIRS += lib
-SUBDIRS += libvmtools
-SUBDIRS += libhgfs
-SUBDIRS += hgfsclient
-if BUILD_HGFSMOUNTER
-   SUBDIRS += hgfsmounter
-endif
-SUBDIRS += checkvm
-SUBDIRS += libguestlib
-SUBDIRS += rpctool
-SUBDIRS += scripts
-SUBDIRS += services
-SUBDIRS += toolbox
-if HAVE_X11
-   SUBDIRS += vmware-user-suid-wrapper
-endif
-if HAVE_FUSE
-   SUBDIRS += vmblock-fuse
-endif
-if !LINUX
-   SUBDIRS += vmblockmounter
-endif
-SUBDIRS += xferlogs
-if ENABLE_TESTS
-   SUBDIRS += tests
-endif
-if WITH_KERNEL_MODULES
-   SUBDIRS += modules
-endif
-SUBDIRS += docs
+mount_vmblock_LDADD =
+mount_vmblock_LDADD += ../lib/stubs/libStubs.la
 
+mount_vmblock_SOURCES =
+mount_vmblock_SOURCES += vmblockmounter.c
+
+if FREEBSD
+install-exec-hook:
+	mv $(DESTDIR)$(sbindir)/mount.vmblock \
+		$(DESTDIR)$(sbindir)/mount_vmblock
+	-$(MKDIR_P) $(DESTDIR)/sbin
+	-$(LN_S) $(DESTDIR)$(sbindir)/mount_vmblock \
+		$(DESTDIR)/sbin/mount_vmblock &> /dev/null
+uninstall-hook:
+	rm -f $(DESTDIR)$(sbindir)/mount_vmblock
+else
+install-exec-hook:
+	-$(MKDIR_P) $(DESTDIR)/sbin
+	-$(LN_S) $(DESTDIR)$(sbindir)/mount.vmblock \
+		$(DESTDIR)/sbin/mount.vmblock &> /dev/null
+uninstall-hook:
+	rm -f $(DESTDIR)/sbin/mount.vmblock
+endif !FREEBSD

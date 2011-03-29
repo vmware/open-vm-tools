@@ -1249,6 +1249,7 @@ AC_CONFIG_FILES([                      \
    xferlogs/Makefile                   \
    modules/Makefile                    \
    vmblock-fuse/Makefile               \
+   vmblockmounter/Makefile             \
    tests/Makefile                      \
    tests/vmrpcdbg/Makefile             \
    tests/testDebug/Makefile            \
