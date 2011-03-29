@@ -29,6 +29,8 @@
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_VMMON
 #define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_DISTRIBUTE
+#define INCLUDE_ALLOW_VMKDRIVERS
 #include "includeCheck.h"
 
 #include "compat_version.h"

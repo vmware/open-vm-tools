@@ -280,7 +280,7 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
         unregister_netdevice_notifier(_nb);
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24) || defined(__VMKLNX__)
 
 #   define compat_netif_napi_add(dev, napi, poll, quota) \
       netif_napi_add(dev, napi, poll, quota)

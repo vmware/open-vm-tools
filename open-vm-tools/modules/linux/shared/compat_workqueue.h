@@ -124,7 +124,8 @@ __compat_delayed_work_timer(unsigned long arg)
 # define COMPAT_DELAYED_WORK_GET_DATA(_p, _type, _member) \
    (_type *)(_p)
 
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)  /* } { */
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)       \
+      && !defined(__VMKLNX__) /* } { */
 typedef struct work_struct compat_work;
 typedef struct work_struct compat_delayed_work;
 typedef void * compat_work_arg;
