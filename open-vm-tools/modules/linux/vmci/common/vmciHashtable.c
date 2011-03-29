@@ -191,10 +191,10 @@ VMCIHashTable_AddEntry(VMCIHashTable *table,   // IN
 
    VMCIHashTableGrabLock(&table->lock, &flags);
 
-   /* Do not allow addition of a new entry if the device is being shutdown. */
-   if (VMCI_DeviceShutdown()) {
+   /* Check if creation of a new hashtable entry is allowed. */
+   if (!VMCI_CanCreate()) {
       VMCIHashTableReleaseLock(&table->lock, flags);
-      return VMCI_ERROR_DEVICE_NOT_FOUND;
+      return VMCI_ERROR_UNAVAILABLE;
    }
 
    if (VMCIHashTableEntryExistsLocked(table, entry->handle)) {

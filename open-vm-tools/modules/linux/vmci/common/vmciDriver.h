@@ -88,7 +88,6 @@ void VMCIUtil_Exit(void);
 Bool VMCI_CheckHostCapabilities(void);
 void VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle, VMCIIoPort dgInPort,
                                 uint8 *dgInBuffer, size_t dgInBufferSize);
-Bool VMCI_DeviceInUse(void);
 Bool VMCI_DeviceEnabled(void);
 #if defined(_WIN64)
 int VMCIDoSendDatagram(unsigned int dgSize, ULONG *dataPort, ULONG *resultPort,

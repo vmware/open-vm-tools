@@ -47,7 +47,6 @@
 static VMCIId ctxUpdateSubID = VMCI_INVALID_ID;
 static VMCIContext *hostContext;
 static Atomic_uint32 vmContextID = { VMCI_INVALID_ID };
-static Atomic_uint32 vmciClientCount;
 
 
 /*
@@ -125,6 +124,7 @@ VMCI_HostCleanup(void)
 }
 
 
+#if !defined(_WIN32)
 /*
  *----------------------------------------------------------------------
  *
@@ -147,26 +147,16 @@ VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
 Bool
 VMCI_DeviceGet(uint32 *apiVersion)
 {
-   Atomic_Inc32(&vmciClientCount);
-
    if (*apiVersion > VMCI_KERNEL_API_VERSION) {
       *apiVersion = VMCI_KERNEL_API_VERSION;
-      goto release;
+      return FALSE;
    }
 
    if (!VMCI_DeviceEnabled()) {
-      goto release;
-   }
-
-   if (VMCI_DeviceShutdown()) {
-      goto release;
+      return FALSE;
    }
 
    return TRUE;
-
-release:
-   Atomic_Dec32(&vmciClientCount);
-   return FALSE;
 }
 
 
@@ -190,8 +180,8 @@ VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
 void
 VMCI_DeviceRelease(void)
 {
-   Atomic_Dec32(&vmciClientCount);
 }
+#endif // !_WIN32
 
 
 /*
@@ -371,30 +361,6 @@ VMCI_CheckHostCapabilities(void)
    VMCI_LOG((LGPFX"Host capability check: %s\n", result ? "PASSED" : "FAILED"));
 
    return result;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCI_DeviceInUse --
- *
- *      Report whether the device is in-use by a client.
- *
- * Results:
- *      TRUE if the device is in-use (reference count greater than zero),
- *      FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-VMCI_DeviceInUse(void)
-{
-   return Atomic_Read32(&vmciClientCount) > 0 ? TRUE : FALSE;
 }
 
 

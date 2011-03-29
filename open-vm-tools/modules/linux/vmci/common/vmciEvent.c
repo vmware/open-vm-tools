@@ -562,9 +562,9 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
 
    VMCIEventGrabLock(&subscriberLock, &lockFlags);
 
-   /* Do not allow a new subscription if the device is being shutdown. */
-   if (VMCI_DeviceShutdown()) {
-      result = VMCI_ERROR_DEVICE_NOT_FOUND;
+   /* Check if creation of a new event is allowed. */
+   if (!VMCI_CanCreate()) {
+      result = VMCI_ERROR_UNAVAILABLE;
       goto exit;
    }
 

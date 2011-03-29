@@ -1982,9 +1982,9 @@ VMCIQueuePairAllocGuestWork(VMCIHandle *handle,           // IN/OUT
 
    VMCIQPLock_Acquire(&qpGuestEndpoints.lock);
 
-   /* Do not allow alloc/attach if the device is being shutdown. */
-   if (VMCI_DeviceShutdown()) {
-      result = VMCI_ERROR_DEVICE_NOT_FOUND;
+   /* Check if creation/attachment of a queuepair is allowed. */
+   if (!VMCI_CanCreate()) {
+      result = VMCI_ERROR_UNAVAILABLE;
       goto error;
    }
 
@@ -2001,8 +2001,8 @@ VMCIQueuePairAllocGuestWork(VMCIHandle *handle,           // IN/OUT
       goto error;
    }
 
-   if ((queuePairEntry = (QPGuestEndpoint *)QueuePairList_FindEntry(
-                                               &qpGuestEndpoints, *handle))) {
+   if ((queuePairEntry = (QPGuestEndpoint *)
+        QueuePairList_FindEntry(&qpGuestEndpoints, *handle))) {
       if (queuePairEntry->qp.flags & VMCI_QPFLAG_LOCAL) {
          /* Local attach case. */
          if (queuePairEntry->qp.refCount > 1) {

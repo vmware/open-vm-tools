@@ -391,9 +391,7 @@ int VMCI_ConvertToLocalQueue(struct VMCIQueue *queueInfo,
 void VMCI_RevertToNonLocalQueue(struct VMCIQueue *queueInfo,
                                 void *nonLocalQueue, uint64 size);
 void VMCI_FreeQueueBuffer(void *queue, uint64 size);
-void VMCI_DeviceShutdownBegin(void);
-void VMCI_DeviceShutdownEnd(void);
-Bool VMCI_DeviceShutdown(void);
+Bool VMCI_CanCreate(void);
 #else // _WIN32
 #  define VMCI_InitQueueMutex(_pq, _cq)
 #  define VMCI_AcquireQueueMutex(_q)
@@ -402,7 +400,7 @@ Bool VMCI_DeviceShutdown(void);
 #  define VMCI_ConvertToLocalQueue(_pq, _cq, _s, _oq, _kc) VMCI_ERROR_UNAVAILABLE
 #  define VMCI_RevertToNonLocalQueue(_q, _nlq, _s)
 #  define VMCI_FreeQueueBuffer(_q, _s)
-#  define VMCI_DeviceShutdown() FALSE
+#  define VMCI_CanCreate() TRUE
 #endif // !_WIN32
 #if defined(_WIN32) || (defined(linux) && !defined(VMKERNEL))
   Bool VMCI_GuestPersonalityActive(void);
