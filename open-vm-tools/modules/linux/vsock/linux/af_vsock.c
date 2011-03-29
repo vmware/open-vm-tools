@@ -342,6 +342,7 @@ static struct proto_ops vsockVmciStreamOps = {
 };
 
 static struct file_operations vsockVmciDeviceOps = {
+   .owner = THIS_MODULE,
 #ifdef HAVE_UNLOCKED_IOCTL
    .unlocked_ioctl = VSockVmciDevUnlockedIoctl,
 #else
