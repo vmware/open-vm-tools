@@ -159,7 +159,7 @@ CPUIDSummary_IntelCoresPerPackage(CPUIDSummary *cpuid,
     * Multi-core processors have the HT feature bit set even if they don't
     * support HT.  The reported number of HT is the total, not per core.
     */
-   if (cpuid->id1.edxFeatures & CPUID_FEATURE_COMMON_ID1EDX_HT) {
+   if (cpuid->id1.edxFeatures & CPUID_FEATURE_COMMON_ID1EDX_HTT) {
       *numThreadsPerCore = CPUID_LCPU_COUNT(cpuid->id1.ebx);
        if (cpuid->id0.numEntries >= 4) {
          numCoresPerPackage =
