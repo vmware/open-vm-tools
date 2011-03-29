@@ -128,12 +128,14 @@ XIOError_Init(ToolsAppCtx *ctx,
  * Shutdown function, restores the original X I/O error handler.
  *
  * @param[in] ctx   Application context.
+ * @param[in] pdata Plugin data (unused).
  *
  ******************************************************************************
  */
 
 void
-XIOError_Shutdown(ToolsAppCtx *ctx)
+XIOError_Shutdown(ToolsAppCtx *ctx,
+                  ToolsPluginData *pdata)
 {
    XSetIOErrorHandler(gOrigHandler);
    gCtx = NULL;

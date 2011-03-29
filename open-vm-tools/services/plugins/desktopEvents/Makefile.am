@@ -36,3 +36,7 @@ libdesktopEvents_la_SOURCES += reload.c
 libdesktopEvents_la_SOURCES += x11Lock.c
 libdesktopEvents_la_SOURCES += xioError.c
 
+if HAVE_XSM
+libdesktopEvents_la_LIBADD += @XSM_LIBS@
+libdesktopEvents_la_SOURCES += sessionMgr.c
+endif

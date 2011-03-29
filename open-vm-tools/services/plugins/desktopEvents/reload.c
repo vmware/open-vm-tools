@@ -111,12 +111,14 @@ Reload_Init(ToolsAppCtx *ctx,
  * Unregisters the SIGUSR2 signal handler.
  *
  * @param[in] ctx   Application context.
+ * @param[in] pdata Plugin data (unused).
  *
  ******************************************************************************
  */
 
 void
-Reload_Shutdown(ToolsAppCtx *ctx)
+Reload_Shutdown(ToolsAppCtx *ctx,
+                ToolsPluginData *pdata)
 {
    g_source_destroy(gReloadSrc);
    g_source_unref(gReloadSrc);
