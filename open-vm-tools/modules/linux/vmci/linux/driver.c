@@ -21,6 +21,7 @@
 
 #define EXPORT_SYMTAB
 
+#include <asm/atomic.h>
 #include <asm/io.h>
 
 #include <linux/file.h>
@@ -252,6 +253,7 @@ static struct file_operations vmuser_fops;
  */
 
 static Bool guestDeviceInit;
+static atomic_t guestDeviceActive;
 static Bool hostDeviceInit;
 
 /*
@@ -1665,6 +1667,7 @@ vmci_guest_init(void)
    vmci_dev.exclusive_vectors = FALSE;
    spin_lock_init(&vmci_dev.dev_spinlock);
    vmci_dev.enabled = FALSE;
+   atomic_set(&guestDeviceActive, 0);
 
    data_buffer = vmalloc(data_buffer_size);
    if (!data_buffer) {
@@ -1897,6 +1900,8 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
 
    printk(KERN_INFO "Registered vmci device.\n");
 
+   atomic_inc(&guestDeviceActive);
+
    compat_mutex_unlock(&vmci_dev.lock);
 
    /* Enable specific interrupt bits. */
@@ -1960,6 +1965,8 @@ vmci_remove_device(struct pci_dev* pdev)
    struct vmci_device *dev = pci_get_drvdata(pdev);
 
    printk(KERN_INFO "Removing vmci device\n");
+
+   atomic_dec(&guestDeviceActive);
 
    VMCIQPGuestEndpoints_Exit();
    VMCIUtil_Exit();
@@ -2143,17 +2150,7 @@ vmci_interrupt_bm(int irq,               // IN
 Bool
 VMCI_DeviceEnabled(void)
 {
-   Bool retval;
-
-   if (!guestDeviceInit) {
-      return FALSE;
-   }
-
-   compat_mutex_lock(&vmci_dev.lock);
-   retval = vmci_dev.enabled;
-   compat_mutex_unlock(&vmci_dev.lock);
-
-   return retval;
+   return VMCI_HasGuestDevice() || VMCI_HasHostDevice();
 }
 
 
@@ -2328,7 +2325,7 @@ process_bitmap(unsigned long data)
 Bool
 VMCI_HasGuestDevice(void)
 {
-   return VMCI_DeviceEnabled();
+   return guestDeviceInit && atomic_read(&guestDeviceActive) > 0;
 }
 
 
