@@ -44,11 +44,10 @@
 
 #define LGPFX "VMCI: "
 
-static Atomic_uint32 vmContextID = { VMCI_INVALID_ID };
-static VMCIContext *hostContext;
-
-static Atomic_uint32 vmciClientCount;
 static VMCIId ctxUpdateSubID = VMCI_INVALID_ID;
+static VMCIContext *hostContext;
+static Atomic_uint32 vmContextID = { VMCI_INVALID_ID };
+static Atomic_uint32 vmciClientCount;
 
 
 /*
@@ -126,63 +125,6 @@ VMCI_HostCleanup(void)
 }
 
 
-#if !defined(VMX86_TOOLS)
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCI_DeviceGet --
- *
- *      API provided for compatibility with the guest vmci
- *      API. Indicates the callers intention to use the device until
- *      it calls VMCI_DeviceRelease().
- *
- * Results:
- *      TRUE.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
-Bool
-VMCI_DeviceGet(uint32 *apiVersion)
-{
-   if (*apiVersion > VMCI_KERNEL_API_VERSION) {
-      *apiVersion = VMCI_KERNEL_API_VERSION;
-      return FALSE;
-   }
-   return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCI_DeviceRelease --
- *
- *      API provided for compatibility with the guest vmci
- *      API. Indicates that the caller is done using the VMCI device.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
-void
-VMCI_DeviceRelease(void)
-{
-}
-
-#else // VMX86_TOOLS
-
 /*
  *----------------------------------------------------------------------
  *
@@ -250,8 +192,6 @@ VMCI_DeviceRelease(void)
 {
    Atomic_Dec32(&vmciClientCount);
 }
-
-#endif // VMX86_TOOLS
 
 
 /*
