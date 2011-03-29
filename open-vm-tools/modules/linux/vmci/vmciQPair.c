@@ -61,24 +61,13 @@
  *        functions are compatible with those definitions.
  */
 
-/* Must come before any kernel header file. */
-#if defined(__linux__) && !defined(VMKERNEL)
-#  include "driver-config.h"
-#  include "compat_module.h"
-#endif
-
 #include "vmci_kernel_if.h"
 #include "vm_assert.h"
 #include "vmci_handle_array.h"
 #include "vmci_defs.h"
-#if defined VMKERNEL || !defined VMX86_TOOLS
-#  include "vmciQueuePair.h"
-#else
-#  include "vmciGuestKernelIf.h"
-#  include "vmciQueuePairInt.h"
-#endif
-
 #include "vmciKernelAPI.h"
+#include "vmciQueuePair.h"
+#include "vmciRoute.h"
 
 /*
  * VMCIQPair
@@ -95,6 +84,7 @@ struct VMCIQPair {
    VMCIId peer;
    uint32 flags;
    VMCIPrivilegeFlags privFlags;
+   Bool guestEndpoint;
 };
 
 #define VMCI_QPAIR_NO_QUEUE(_qp) (!(_qp)->produceQ->qHeader || \
@@ -134,6 +124,9 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
 {
    VMCIQPair *myQPair;
    int retval;
+   VMCIHandle src = VMCI_INVALID_HANDLE;
+   VMCIHandle dst = VMCI_MAKE_HANDLE(peer, VMCI_INVALID_ID);
+   VMCIRoute route;
 
    myQPair = VMCI_AllocKernelMem(sizeof *myQPair, VMCI_MEMORY_NONPAGED);
    if (!myQPair) {
@@ -147,6 +140,21 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
    myQPair->flags = flags;
    myQPair->privFlags = privFlags;
 
+   retval = VMCI_Route(&src, &dst, FALSE, &route);
+   if (retval < VMCI_SUCCESS) {
+      if (VMCI_HasGuestDevice()) {
+         route = VMCI_ROUTE_AS_GUEST;
+      } else {
+         route = VMCI_ROUTE_AS_HOST;
+      }
+   }
+
+   if (VMCI_ROUTE_AS_HOST == route) {
+      myQPair->guestEndpoint = FALSE;
+   } else {
+      myQPair->guestEndpoint = TRUE;
+   }
+
    retval = VMCIQueuePair_Alloc(handle,
                                 &myQPair->produceQ,
                                 myQPair->produceQSize,
@@ -154,7 +162,8 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
                                 myQPair->consumeQSize,
                                 myQPair->peer,
                                 myQPair->flags,
-                                myQPair->privFlags);
+                                myQPair->privFlags,
+                                myQPair->guestEndpoint);
 
    if (retval < VMCI_SUCCESS) {
       VMCI_FreeKernelMem(myQPair, sizeof *myQPair);
@@ -198,7 +207,7 @@ VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
    }
 
    oldQPair = *qpair;
-   result = VMCIQueuePair_Detach(oldQPair->handle);
+   result = VMCIQueuePair_Detach(oldQPair->handle, oldQPair->guestEndpoint);
 
    if  (result >= VMCI_SUCCESS) {
 #ifdef DEBUG
@@ -700,7 +709,7 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
    size_t read;
    ssize_t result;
 
-#if !defined VMX86_TOOLS && !defined VMX86_VMX
+#if !defined VMX86_VMX
    if (UNLIKELY(!produceQ->qHeader ||
                 !consumeQ->qHeader)) {
       return VMCI_ERROR_QUEUEPAIR_NODATA;
@@ -778,11 +787,11 @@ VMCIQPair_Enqueue(VMCIQPair *qpair,        // IN
 
    VMCIQPairLock(qpair);
 
-   result =  EnqueueLocked(qpair->produceQ,
-                           qpair->consumeQ,
-                           qpair->produceQSize,
-                           buf, bufSize, bufType,
-                           VMCIMemcpyToQueue);
+   result = EnqueueLocked(qpair->produceQ,
+                          qpair->consumeQ,
+                          qpair->produceQSize,
+                          buf, bufSize, bufType,
+                          VMCIMemcpyToQueue);
 
    VMCIQPairUnlock(qpair);
 
@@ -822,12 +831,12 @@ VMCIQPair_Dequeue(VMCIQPair *qpair,        // IN
 
    VMCIQPairLock(qpair);
 
-   result =  DequeueLocked(qpair->produceQ,
-                           qpair->consumeQ,
-                           qpair->consumeQSize,
-                           buf, bufSize, bufType,
-                           VMCIMemcpyFromQueue,
-                           TRUE);
+   result = DequeueLocked(qpair->produceQ,
+                          qpair->consumeQ,
+                          qpair->consumeQSize,
+                          buf, bufSize, bufType,
+                          VMCIMemcpyFromQueue,
+                          TRUE);
 
    VMCIQPairUnlock(qpair);
 
@@ -868,12 +877,12 @@ VMCIQPair_Peek(VMCIQPair *qpair,    // IN
 
    VMCIQPairLock(qpair);
 
-   result =  DequeueLocked(qpair->produceQ,
-                           qpair->consumeQ,
-                           qpair->consumeQSize,
-                           buf, bufSize, bufType,
-                           VMCIMemcpyFromQueue,
-                           FALSE);
+   result = DequeueLocked(qpair->produceQ,
+                          qpair->consumeQ,
+                          qpair->consumeQSize,
+                          buf, bufSize, bufType,
+                          VMCIMemcpyFromQueue,
+                          FALSE);
 
    VMCIQPairUnlock(qpair);
 
@@ -917,11 +926,11 @@ VMCIQPair_EnqueueV(VMCIQPair *qpair,        // IN
 
    VMCIQPairLock(qpair);
 
-   result =  EnqueueLocked(qpair->produceQ,
-                           qpair->consumeQ,
-                           qpair->produceQSize,
-                           iov, iovSize, bufType,
-                           VMCIMemcpyToQueueV);
+   result = EnqueueLocked(qpair->produceQ,
+                          qpair->consumeQ,
+                          qpair->produceQSize,
+                          iov, iovSize, bufType,
+                          VMCIMemcpyToQueueV);
 
    VMCIQPairUnlock(qpair);
 
@@ -961,12 +970,12 @@ VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   result =  DequeueLocked(qpair->produceQ,
-                           qpair->consumeQ,
-                           qpair->consumeQSize,
-                           iov, iovSize, bufType,
-                           VMCIMemcpyFromQueueV,
-                           TRUE);
+   result = DequeueLocked(qpair->produceQ,
+                          qpair->consumeQ,
+                          qpair->consumeQSize,
+                          iov, iovSize, bufType,
+                          VMCIMemcpyFromQueueV,
+                          TRUE);
 
    VMCIQPairUnlock(qpair);
 
@@ -1007,12 +1016,12 @@ VMCIQPair_PeekV(VMCIQPair *qpair,           // IN
 
    VMCIQPairLock(qpair);
 
-   result =  DequeueLocked(qpair->produceQ,
-                           qpair->consumeQ,
-                           qpair->consumeQSize,
-                           iov, iovSize, bufType,
-                           VMCIMemcpyFromQueueV,
-                           FALSE);
+   result = DequeueLocked(qpair->produceQ,
+                          qpair->consumeQ,
+                          qpair->consumeQSize,
+                          iov, iovSize, bufType,
+                          VMCIMemcpyFromQueueV,
+                          FALSE);
 
    VMCIQPairUnlock(qpair);
 

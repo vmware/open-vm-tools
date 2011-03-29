@@ -69,6 +69,43 @@ typedef struct QueuePairPageStore {
 
 #endif // !VMKERNEL
 
+#if (defined(__linux__) || defined(_WIN32) || defined(__APPLE__)) && !defined(VMKERNEL)
+struct VMCIQueue;
+
+typedef struct PageStoreAttachInfo {
+   char producePageFile[VMCI_PATH_MAX];
+   char consumePageFile[VMCI_PATH_MAX];
+   uint64 numProducePages;
+   uint64 numConsumePages;
+
+   /* User VAs in the VMX task */
+   VA64   produceBuffer;
+   VA64   consumeBuffer;
+
+   /*
+    * Platform-specific references to the physical pages backing the
+    * queue. These include a page for the header.
+    *
+    * PR361589 tracks this, too.
+    */
+
+#if defined(__linux__)
+   struct page **producePages;
+   struct page **consumePages;
+#elif defined(_WIN32)
+   void *kmallocPtr;
+   size_t kmallocSize;
+   PMDL produceMDL;
+   PMDL consumeMDL;
+#elif defined(__APPLE__)
+   /*
+    * All the Mac OS X fields are members of the VMCIQueue
+    */
+#endif
+} PageStoreAttachInfo;
+
+#endif // (__linux__ || _WIN32 || __APPLE__) && !VMKERNEL
+
 
 /*
  *------------------------------------------------------------------------------
@@ -99,7 +136,6 @@ VMCI_QP_PAGESTORE_IS_WELLFORMED(QueuePairPageStore *pageStore) // IN
 #endif // !VMKERNEL
 }
 
-
 int VMCIQPBroker_Init(void);
 void VMCIQPBroker_Exit(void);
 void VMCIQPBroker_Lock(void);
@@ -114,54 +150,16 @@ int VMCIQPBroker_SetPageStore(VMCIHandle handle,
                               VMCIContext *context);
 int VMCIQPBroker_Detach(VMCIHandle handle, VMCIContext *context, Bool detach);
 
-#if (defined(__linux__) || defined(_WIN32) || defined(__APPLE__)) && !defined(VMKERNEL)
-struct VMCIQueue;
-
-typedef struct PageStoreAttachInfo {
-   char producePageFile[VMCI_PATH_MAX];
-   char consumePageFile[VMCI_PATH_MAX];
-   uint64 numProducePages;
-   uint64 numConsumePages;
-
-   /* User VAs in the VMX task */
-   VA64   produceBuffer;
-   VA64   consumeBuffer;
-
-   /*
-    * Platform-specific references to the physical pages backing the
-    * queue. These include a page for the header.
-    *
-    * PR361589 tracks this, too.
-    */
-
-#if defined(__linux__)
-# if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0)
-   struct kiobuf *produceIoBuf;
-   struct kiobuf *consumeIoBuf;
-# else
-   struct page **producePages;
-   struct page **consumePages;
-# endif
-#elif defined(_WIN32)
-   void *kmallocPtr;
-   size_t kmallocSize;
-   PMDL produceMDL;
-   PMDL consumeMDL;
-#elif defined(__APPLE__)
-   /*
-    * All the Mac OS X fields are members of the VMCIQueue
-    */
-#endif
-} PageStoreAttachInfo;
-
-#endif // (__linux__ || _WIN32 || __APPLE__) && !VMKERNEL
-
+void VMCIQPGuestEndpoints_Init(void);
+void VMCIQPGuestEndpoints_Exit(void);
+void VMCIQPGuestEndpoints_Sync(void);
+void VMCIQPGuestEndpoints_Convert(Bool toLocal, Bool deviceReset);
 
 int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
                         uint64 produceSize, VMCIQueue **consumeQ,
                         uint64 consumeSize, VMCIId peer, uint32 flags,
-                        VMCIPrivilegeFlags privFlags);
-int VMCIQueuePair_Detach(VMCIHandle handle);
+                        VMCIPrivilegeFlags privFlags, Bool guestEndpoint);
+int VMCIQueuePair_Detach(VMCIHandle handle, Bool guestEndpoint);
 
 
 #endif /* !_VMCI_QUEUE_PAIR_H_ */

@@ -29,7 +29,7 @@
 
 #if !defined(linux) && !defined(_WIN32) && !defined(__APPLE__) && \
     !defined(VMKERNEL) && !defined(SOLARIS)
-#error "Platform not supported."
+#  error "Platform not supported."
 #endif
 
 #if defined(_WIN32)
@@ -37,11 +37,13 @@
 #endif
 
 #if defined(linux) && !defined(VMKERNEL)
-#  include <linux/wait.h>
+#  include "driver-config.h"
 #  include "compat_cred.h"
+#  include "compat_module.h"
 #  include "compat_semaphore.h"
 #  include "compat_spinlock.h"
 #  include "compat_version.h"
+#  include <linux/wait.h>
 #endif // linux
 
 #ifdef __APPLE__
@@ -317,8 +319,7 @@ int VMCI_PopulatePPNList(uint8 *callBuf, const PPNSet *ppnSet);
 
 struct VMCIQueue;
 
-#if !defined(VMX86_TOOLS)
-#if  !defined(VMKERNEL)
+#if !defined(VMKERNEL)
 struct PageStoreAttachInfo;
 struct VMCIQueue *VMCIHost_AllocQueue(uint64 queueSize);
 void VMCIHost_FreeQueue(struct VMCIQueue *queue, uint64 queueSize);
@@ -342,8 +343,6 @@ void VMCIHost_SaveProduceQ(struct PageStoreAttachInfo *attach,
                            struct VMCIQueue *detachQ,
                            const uint64 produceQSize);
 #endif // _WIN32
-
-#endif // !VMX86_TOOLS
 
 #ifdef _WIN32
 void VMCI_InitQueueMutex(struct VMCIQueue *produceQ,

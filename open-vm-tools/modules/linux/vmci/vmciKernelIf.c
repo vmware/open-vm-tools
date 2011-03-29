@@ -52,30 +52,21 @@
 #include "compat_page.h"
 #include "compat_mm.h"
 #include "compat_highmem.h"
-#include "vm_basic_types.h"
 #include "vm_assert.h"
-#include "vmci_kernel_if.h"
-#ifndef VMX86_TOOLS
-#  include "vmciQueuePair.h"
-#endif
-
-#include "vmciQueue.h"
+#include "vm_basic_types.h"
 #include "vmci_iocontrols.h"
+#include "vmci_kernel_if.h"
+#include "vmciQueue.h"
+#include "vmciQueuePair.h"
 
 
 /*
  * The Kernel specific component of the VMCIQueue structure.
  */
 
-#if defined VMX86_TOOLS
-struct VMCIQueueKernelIf {
-   struct page *page[0];
-};
-#else
 struct VMCIQueueKernelIf {
    struct page **page;
 };
-#endif
 
 typedef struct VMCIDelayedWorkInfo {
    compat_work work;
@@ -860,7 +851,6 @@ VMCIMutex_Release(VMCIMutex *mutex) // IN:
 }
 
 
-#ifdef VMX86_TOOLS
 /*
  *-----------------------------------------------------------------------------
  *
@@ -893,8 +883,8 @@ VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
    const uint64 numDataPages = CEILING(size, PAGE_SIZE);
    const uint queueSize =
       PAGE_SIZE +
-      sizeof *queue +
-      numDataPages * sizeof queue->kernelIf->page[0];
+      sizeof *queue + sizeof *(queue->kernelIf) +
+      numDataPages * sizeof *(queue->kernelIf->page);
 
    qHeader = (VMCIQueueHeader *)vmalloc(queueSize);
    if (!qHeader) {
@@ -904,6 +894,8 @@ VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
    queue = (VMCIQueue *)((uint8 *)qHeader + PAGE_SIZE);
    queue->qHeader = qHeader;
    queue->kernelIf = (VMCIQueueKernelIf *)((uint8 *)queue + sizeof *queue);
+   queue->kernelIf->page = (struct page **)((uint8 *)queue->kernelIf +
+                                            sizeof *(queue->kernelIf));
 
    for (i = 0; i < numDataPages; i++) {
       queue->kernelIf->page[i] = alloc_pages(GFP_KERNEL, 0);
@@ -1116,7 +1108,6 @@ VMCI_PopulatePPNList(uint8 *callBuf,       // OUT:
 
    return VMCI_SUCCESS;
 }
-#endif
 
 
 #ifdef __KERNEL__
@@ -1410,8 +1401,6 @@ VMCIWellKnownID_AllowMap(VMCIId wellKnownID,           // IN:
 }
 
 
-#ifndef VMX86_TOOLS
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1635,5 +1624,3 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
                       attach->numConsumePages *
                       sizeof attach->consumePages[0]);
 }
-
-#endif  /* Host only code */

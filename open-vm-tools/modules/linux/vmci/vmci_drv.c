@@ -50,7 +50,7 @@
 #include "vmciDoorbell.h"
 #include "vmciEvent.h"
 #include "vmciInt.h"
-#include "vmciQueuePairInt.h"
+#include "vmciQueuePair.h"
 #include "vmciResource.h"
 #include "vmciUtil.h"
 

@@ -36,66 +36,6 @@
 /*
  *------------------------------------------------------------------------------
  *
- *  VMCIQPBroker_Lock --
- *
- *     Stub.  Not called in the guest driver (yet).
- *
- *  Result:
- *     Always VMCI_ERROR_GENERIC.
- *
- *------------------------------------------------------------------------------
- */
- 
-void
-VMCIQPBroker_Lock(void)
-{
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- *  VMCIQPBroker_Unlock --
- *
- *     Stub.  Not called in the guest driver (yet).
- *
- *  Result:
- *     Always VMCI_ERROR_GENERIC.
- *
- *------------------------------------------------------------------------------
- */
-
-void
-VMCIQPBroker_Unlock(void)
-{
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- *  QueuePair_Detach --
- *
- *     Stub.  Not called in the guest driver (yet).
- *
- *  Result:
- *     Always VMCI_ERROR_GENERIC.
- *
- *------------------------------------------------------------------------------
- */
-
-int
-VMCIQPBroker_Detach(VMCIHandle handle,
-                    VMCIContext *context,
-                    Bool detach)
-{
-   return VMCI_ERROR_GENERIC;
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
  *  VMCIUnsetNotify --
  *
  *     Stub.  Not called in the guest driver (yet).
