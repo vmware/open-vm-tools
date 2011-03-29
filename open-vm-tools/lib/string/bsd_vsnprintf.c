@@ -402,7 +402,13 @@ BSDFmt_WCharToUTF8(wchar_t *wcsarg, int prec)
 
 
 int
-bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
+bsd_vsnprintf_core(char **outbuf,
+                   char *grouping,
+                   char thousands_sep,
+                   char *decimal_point,
+                   size_t bufSize,
+                   const char *fmt0,
+                   va_list ap)
 {
    char *fmt;      /* format string */
    int ch;         /* character from fmt */
@@ -414,8 +420,6 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
    int width;      /* width from format (%8d), or 0 */
    int prec;      /* precision from format; <0 for N/A */
    char sign;      /* sign prefix (' ', '+', '-', or \0) */
-   char thousands_sep;   /* locale specific thousands separator */
-   const char *grouping;   /* locale specific numeric grouping rules */
 
 #ifndef NO_FLOATING_POINT
    /*
@@ -432,10 +436,6 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
     * D:   expchar holds this character; '\0' if no exponent, e.g. %f
     * F:   at least two digits for decimal, at least one digit for hex
     */
-   char *decimal_point;   /* locale specific decimal point */
-#if defined __ANDROID__
-   static const char dp = '.';
-#endif
    int signflag;      /* true if float is negative */
    union {         /* floating point arguments %[aAeEfFgG] */
       double dbl;
@@ -585,20 +585,9 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
 
    xdigs = xdigs_lower;
    thousands_sep = '\0';
-   grouping = NULL;
    convbuf = NULL;
 #ifndef NO_FLOATING_POINT
    dtoaresult = NULL;
-#if defined(__ANDROID__)
-   /*
-    * Struct lconv is not working! For decimal_point,
-    * using '.' instead is a workaround.
-    */
-   NOT_TESTED();
-   decimal_point = &dp;
-#else
-   decimal_point = localeconv()->decimal_point;
-#endif
 #endif
 
    fmt = (char *)fmt0;
@@ -714,16 +703,6 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
          goto rflag;
       case '\'':
          flags |= GROUPING;
-#if defined(__ANDROID__)
-         /*
-          * Struct lconv is not working! The code below is a workaround.
-          */
-         NOT_TESTED();
-         thousands_sep = ',';
-#else
-         thousands_sep = *(localeconv()->thousands_sep);
-         grouping = localeconv()->grouping;
-#endif
 	 /*
 	  * Grouping should not begin with 0, but it nevertheless
 	  * does (see bug 281072) and makes the formatting code
@@ -1303,12 +1282,65 @@ error:
 #undef FIND_ARGUMENTS
 }
 
+int
+bsd_vsnprintf_c_locale(char **outbuf,
+                       size_t bufSize,
+                       const char *fmt0,
+                       va_list ap)
+{
+   char thousands_sep;
+   char *decimal_point;
+   static char dp = '.';
+
+   /*
+    * Perform a "%f" conversion always using the locale associated
+    * with the C locale - "," for thousands, '.' for decimal point.
+    */
+
+   thousands_sep = ',';
+   decimal_point = &dp;
+
+   return bsd_vsnprintf_core(outbuf, NULL, thousands_sep, decimal_point,
+                             bufSize, fmt0, ap);
+}
+
+int
+bsd_vsnprintf(char **outbuf,
+              size_t bufSize,
+              const char *fmt0,
+              va_list ap)
+{
+   char *grouping;
+   char thousands_sep;
+   char *decimal_point;
+
+#if defined(__ANDROID__)
+   static char dp = '.';
+
+   /*
+    * Struct lconv is not working! The code below is a workaround.
+    */
+   NOT_TESTED();
+   grouping = NULL;
+   thousands_sep = ',';
+   decimal_point = &dp;
+#else
+   grouping =        localeconv()->grouping;
+   thousands_sep = *(localeconv()->thousands_sep);
+   decimal_point =   localeconv()->decimal_point;
+#endif
+
+   return bsd_vsnprintf_core(outbuf, grouping, thousands_sep, decimal_point,
+                             bufSize, fmt0, ap);
+}
+
 /*
  * Find all arguments when a positional parameter is encountered.  Returns a
  * table, indexed by argument number, of pointers to each arguments.  The
  * initial argument table should be an array of STATIC_ARG_TBL_SIZE entries.
  * It will be replaces with a malloc-ed one if it overflows.
  */
+
 static void
 __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
 {

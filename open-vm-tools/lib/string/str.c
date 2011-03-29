@@ -131,16 +131,71 @@ Str_Vsnprintf(char *str,          // OUT
     * those cases.
     */
 
-   if ((retval < 0 || retval >= size) && size > 0) {
-      /* Find UTF-8 code point boundary and place NUL termination there */
-      int trunc = CodeSet_Utf8FindCodePointBoundary(str, size - 1);
-      str[trunc] = '\0';
+   if ((retval < 0) || (retval >= size)) {
+      if (size > 0) {
+         /* Find UTF-8 code point boundary and place NUL termination there */
+         int trunc = CodeSet_Utf8FindCodePointBoundary(str, size - 1);
+
+         str[trunc] = '\0';
+      }
    }
    if (retval >= size) {
       return -1;
    }
    return retval;
 }
+
+
+#ifdef HAS_BSD_PRINTF
+/*
+ *----------------------------------------------------------------------
+ *
+ * Str_Sprintf_C_Locale --
+ *
+ *      sprintf wrapper that fails on overflow. Enforces numeric C locale.
+ *
+ * Results:
+ *      Returns the number of bytes stored in 'buf'.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Str_Sprintf_C_Locale(char *buf,        // OUT:
+                     size_t maxSize,   // IN:
+                     const char *fmt,  // IN:
+                     ...)              // IN:
+{
+   uint32 *stack = (uint32*) &buf;
+   va_list args;
+   int retval;
+
+   ASSERT(buf);
+   ASSERT(fmt);
+   
+   va_start(args, fmt);
+   retval = bsd_vsnprintf_c_locale(&buf, maxSize, fmt, args);
+   va_end(args);
+
+   if ((retval < 0) || (retval >= maxSize)) {
+      if (maxSize > 0) {
+         /* Find UTF-8 code point boundary and place NUL termination there */
+         int trunc = CodeSet_Utf8FindCodePointBoundary(buf, maxSize - 1);
+
+         buf[trunc] = '\0';
+      }
+   }
+
+   if (retval >= maxSize) {
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+   }
+
+   return retval;
+}
+#endif
 
 
 /*

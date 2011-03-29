@@ -48,6 +48,10 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0,
               va_list ap);
 
 int
+bsd_vsnprintf_c_locale(char **outbuf, size_t bufSize, const char *fmt0,
+                       va_list ap);
+
+int
 bsd_vsnwprintf(wchar_t **outbuf, size_t bufSize, const wchar_t *fmt0,
                va_list ap);
 
