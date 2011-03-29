@@ -67,6 +67,20 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 
 /**
+ * Upper bound for value sizes, based on gethostname(2):
+ *
+ *    SUS2 guarantees that "Host names are limited to 255 bytes".
+ *
+ * We can't modify MAX_VALUE_LEN since it's used in wire-level definitions
+ * (such as PartitionEntry).
+ */
+#define GUESTINFO_MAX_VALUE_SIZE    256
+
+MY_ASSERTS(GI_SIZE_ASSERTS,
+           ASSERT_ON_COMPILE(GUESTINFO_MAX_VALUE_SIZE >= MAX_VALUE_LEN);
+)
+
+/**
  * Default poll interval is 30s (in milliseconds).
  */
 #define GUESTINFO_TIME_INTERVAL_MSEC 30000
@@ -78,7 +92,8 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  */
 
 typedef struct _GuestInfoCache{
-   char value[INFO_MAX][MAX_VALUE_LEN]; /* Stores values of all key-value pairs. */
+   /* Stores values of all key-value pairs. */
+   char value[INFO_MAX][GUESTINFO_MAX_VALUE_SIZE];
    NicInfoV3     *nicInfo;
    GuestDiskInfo *diskInfo;
 } GuestInfoCache;
@@ -227,9 +242,9 @@ GuestInfoVMSupport(RpcInData *data)
 static gboolean
 GuestInfoGather(gpointer data)
 {
-   char name[255];
-   char osNameFull[MAX_VALUE_LEN];
-   char osName[MAX_VALUE_LEN];
+   char name[GUESTINFO_MAX_VALUE_SIZE];
+   char osNameFull[GUESTINFO_MAX_VALUE_SIZE];
+   char osName[GUESTINFO_MAX_VALUE_SIZE];
    gboolean disableQueryDiskInfo;
    NicInfoV3 *nicInfo = NULL;
    GuestDiskInfo *diskInfo = NULL;
@@ -458,7 +473,9 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
       }
 
       /* Update the value in the cache as well. */
-      Str_Strcpy(gInfoCache.value[infoType], (char *)info, MAX_VALUE_LEN);
+      Str_Strcpy(gInfoCache.value[infoType],
+                 (char *)info,
+                 sizeof gInfoCache.value[infoType]);
       break;
 
    case INFO_IPADDRESS:
