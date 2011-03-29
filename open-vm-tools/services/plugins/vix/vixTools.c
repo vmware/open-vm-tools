@@ -203,6 +203,12 @@ typedef struct VixToolsStartProgramState {
  * a timer loop, and StartProgram of a very short lived program
  * followed immediately by a ListProcesses could miss the program
  * if we don't save it off for before the timer fires.
+ *
+ * Note that we save off the procState so that we keep an open
+ * handle to the process, to prevent its PID from being recycled.
+ * We need to hold this open until we no longer save the result
+ * of the exited program.  This is documented as 5 minutes
+ * (VIX_TOOLS_EXITED_PROGRAM_REAP_TIME) in the VMODL.
  */
 typedef struct VixToolsExitedProgramState {
    char                                *fullCommandLine;
@@ -212,6 +218,7 @@ typedef struct VixToolsExitedProgramState {
    int                                 exitCode;
    time_t                              endTime;
    Bool                                isRunning;
+   ProcMgr_AsyncProc                   *procState;
    struct VixToolsExitedProgramState   *next;
 } VixToolsExitedProgramState;
 
@@ -1102,6 +1109,7 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
       exitState->endTime = 0;
       exitState->isRunning = TRUE;
       exitState->next = NULL;
+      exitState->procState = NULL;
 
       // add it to the list of exited programs
       VixToolsUpdateExitedProgramList(exitState);
@@ -1341,16 +1349,16 @@ abort:
  */
 
 VixError
-VixToolsStartProgramImpl(const char *requestName,      // IN
-                         const char *programPath,      // IN
-                         const char *arguments,        // IN
-                         const char *workingDir,       // IN
-                         int numEnvVars,               // IN
-                         const char **envVars,         // IN
-                         Bool startMinimized,          // IN
-                         void *userToken,              // IN
-                         void *eventQueue,             // IN
-                         int64 *pid)                   // OUT
+VixToolsStartProgramImpl(const char *requestName,            // IN
+                         const char *programPath,            // IN
+                         const char *arguments,              // IN
+                         const char *workingDir,             // IN
+                         int numEnvVars,                     // IN
+                         const char **envVars,               // IN
+                         Bool startMinimized,                // IN
+                         void *userToken,                    // IN
+                         void *eventQueue,                   // IN
+                         int64 *pid)                         // OUT
 {
    VixError err = VIX_OK;
    char *fullCommandLine = NULL;
@@ -1741,6 +1749,7 @@ done:
    exitState->endTime = time(NULL);
    exitState->isRunning = FALSE;
    exitState->next = NULL;
+   exitState->procState = asyncState->procState;
 
    // add it to the list of exited programs
    VixToolsUpdateExitedProgramList(exitState);
@@ -1790,6 +1799,11 @@ VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state)        // IN
             epList->exitCode = state->exitCode;
             epList->endTime = state->endTime;
             epList->isRunning = FALSE;
+            epList->procState = state->procState;
+
+            // don't let the procState be free'd
+            state->procState = NULL;
+
             VixToolsFreeExitedProgramState(state);
             // NULL it out so we don't try to add it later in this function
             state  = NULL;
@@ -1807,6 +1821,17 @@ VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state)        // IN
    last = NULL;
    epList = exitedProcessList;
    while (epList) {
+      /*
+       * Sanity check we don't have a duplicate entry -- this should
+       * only happen when the OS re-uses the PID before we reap the record
+       * of its exit status.
+       */
+      if (state) {
+         if (state->pid == epList->pid) {
+            // XXX just whine for M/N, needs better fix in *main
+            Warning("%s: found duplicate entry in exitedProcessList\n", __FUNCTION__);
+         }
+      }
       if (!epList->isRunning &&
           (epList->endTime < (now - VIX_TOOLS_EXITED_PROGRAM_REAP_TIME))) {
          if (last) {
@@ -1862,6 +1887,10 @@ VixToolsFreeExitedProgramState(VixToolsExitedProgramState *exitState) // IN
 
    free(exitState->fullCommandLine);
    free(exitState->user);
+
+   if (NULL != exitState->procState) {
+      ProcMgr_Free(exitState->procState);
+   }
 
    free(exitState);
 } // VixToolsFreeExitedProgramState
@@ -4460,15 +4489,20 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
 
    DynBuf_Init(&dynBuffer);
 
+   /*
+    * XXX optimize -- we should only do this if we can't find
+    * all requested processes on the exitedProcessList, which is
+    * a common case, when a client is watching for a single pid
+    * from StartProgram to exit.
+    */
    procList = ProcMgr_ListProcesses();
    if (NULL == procList) {
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
    }
 
-
    /*
-    * First check the procecess we've started via StartProgram, which
+    * First check the processes we've started via StartProgram, which
     * will find those running and recently deceased.
     */
    VixToolsUpdateExitedProgramList(NULL);
@@ -4968,7 +5002,12 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixCommandKillProcessRequest *killProcessRequest;
-   
+#ifdef _WIN32
+   DWORD dwErr;
+#else
+   int sysErrno;
+#endif
+
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -4995,35 +5034,65 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
 
    if (!ProcMgr_KillByPid(killProcessRequest->pid)) {
       /*
-       * FoundryToolsDaemon_TranslateSystemErr() calls
-       * Vix_TranslateSystemError() which assumes that any perm error
+       * Save off the error code so any Debug() statements added later
+       * (or when debugging something else) doesn't change the error code.
+       */
+#ifdef _WIN32
+      dwErr = GetLastError();
+#else
+      sysErrno = errno;
+#endif
+
+
+#ifdef _WIN32
+      /*
+       * If we know it's already gone, just say so.  If this gets called
+       * on a process we started but is still on the 'exited' list,
+       * then Windows returns an ACCESS_ERROR.  So rewrite it.
+       */
+      if (VixToolsFindExitedProgramState(killProcessRequest->pid)) {
+         err = VIX_E_NO_SUCH_PROCESS;
+         goto abort;
+      }
+#endif
+
+      /*
+       * Vix_TranslateSystemError() assumes that any perm error
        * is file related, and returns VIX_E_FILE_ACCESS_ERROR.  Bogus
        * for this case, so rewrite it here.
        */
 #ifdef _WIN32
-      if (ERROR_ACCESS_DENIED == GetLastError()) {
+      if (ERROR_ACCESS_DENIED == dwErr) {
          err = VIX_E_GUEST_USER_PERMISSIONS;
          goto abort;
       }
 #else
-      if ((EPERM == errno) || (EACCES == errno)) {
+      if ((EPERM == sysErrno) || (EACCES == sysErrno)) {
          err = VIX_E_GUEST_USER_PERMISSIONS;
          goto abort;
       }
 #endif
+
+
+#ifdef _WIN32
       /*
        * Windows doesn't give us an obvious error for a non-existent
        * PID.  But we can make a pretty good guess that it returned
        * ERROR_INVALID_PARAMETER because the PID was bad, so rewrite
        * that error if we see it.
        */
-#ifdef _WIN32
-      if (ERROR_INVALID_PARAMETER == GetLastError()) {
+      if (ERROR_INVALID_PARAMETER == dwErr) {
          err = VIX_E_NO_SUCH_PROCESS;
          goto abort;
       }
 #endif
-      err = FoundryToolsDaemon_TranslateSystemErr();
+
+#ifdef _WIN32
+      err = Vix_TranslateSystemError(dwErr);
+#else
+      err = Vix_TranslateSystemError(sysErrno);
+#endif
+
       goto abort;
    }
 
@@ -7111,10 +7180,6 @@ VixToolsFreeStartProgramState(VixToolsStartProgramState *asyncState) // IN
 {
    if (NULL == asyncState) {
       return;
-   }
-
-   if (NULL != asyncState->procState) {
-      ProcMgr_Free(asyncState->procState);
    }
 
    free(asyncState);
