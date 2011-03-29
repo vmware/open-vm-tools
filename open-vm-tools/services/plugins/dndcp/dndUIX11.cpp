@@ -1210,7 +1210,8 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
           */
          newRelPath = Str_Strrchr(newPath, DIRSEPC) + 1; // Point to char after '/'
 
-         if ((size = File_GetSize(newPath)) >= 0) {
+         /* Keep track of how big the dnd files are. */
+         if ((size = File_GetSizeEx(newPath)) >= 0) {
             totalSize += size;
          } else {
             g_debug("%s: unable to get file size for %s\n", __FUNCTION__, newPath);

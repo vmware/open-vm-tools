@@ -486,6 +486,7 @@ static VixError VMAutomationMsgParserInit(const char *caller,
                                           const VixMsgHeader *msg,
                                           size_t headerLength,
                                           size_t fixedLength,
+                                          size_t miscDataLength,
                                           const char *packetType);
 
 
@@ -2047,8 +2048,21 @@ __VMAutomationMsgParserInitRequest(const char *caller,                  // IN
                                    const VixCommandRequestHeader *msg,  // IN
                                    size_t fixedLength)                  // IN
 {
+   size_t miscDataLength = 0;
+
+   /*
+    * If the VM is encrypted, there is additional data factored into
+    * the total message size that needs to be accounted for.
+    */
+
+   if (VIX_REQUESTMSG_INCLUDES_AUTH_DATA_V1 & msg->requestFlags) {
+      miscDataLength = sizeof(VixMsgAuthDataV1);
+   } else {
+      miscDataLength = 0;
+   }
+
    return VMAutomationMsgParserInit(caller, line, state, &msg->commonHeader,
-                                    sizeof *msg, fixedLength, "request");
+                                    sizeof *msg, fixedLength, miscDataLength, "request");
 }
 
 
@@ -2078,7 +2092,7 @@ __VMAutomationMsgParserInitResponse(const char *caller,                  // IN
                                     size_t fixedLength)                  // IN
 {
    return VMAutomationMsgParserInit(caller, line, state, &msg->commonHeader,
-                                    sizeof *msg, fixedLength, "response");
+                                    sizeof *msg, fixedLength, 0, "response");
 }
 
 
@@ -2106,12 +2120,14 @@ VMAutomationMsgParserInit(const char *caller,              // IN
                           const VixMsgHeader *msg,         // IN
                           size_t headerLength,             // IN
                           size_t fixedLength,              // IN
+                          size_t miscDataLength,           // IN
                           const char *packetType)          // IN
 {
    uint32 headerAndBodyLength;
    // use int64 to prevent overflow
    int64 computedTotalLength = (int64)msg->headerLength +
-      (int64)msg->bodyLength + (int64)msg->credentialLength;
+      (int64)msg->bodyLength + (int64)msg->credentialLength +
+      (int64)miscDataLength;
 
    int64 extBodySize = (int64)msg->headerLength + (int64)msg->bodyLength -
       (int64)fixedLength;

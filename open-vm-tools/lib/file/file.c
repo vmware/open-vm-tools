@@ -2064,7 +2064,7 @@ File_GetModTimeString(ConstUnicode pathName)  // IN:
  *
  * File_GetSize --
  *
- *      Get size of file.
+ *      Get size of file. Try File_GetSizeEx to get size of directory/symlink.
  *
  * Results:
  *      Size of file or -1.
@@ -2213,6 +2213,79 @@ File_MapPathPrefix(const char *oldPath,       // IN:
 
 
 #if !defined(N_PLAT_NLM)
+/*
+ *----------------------------------------------------------------------------
+ *
+ * File_GetSizeEx --
+ *
+ *      Get size of file or directory or symlink. File_GetSize can only get
+ *      size of file.
+ *
+ * Results:
+ *      Size of file/directory/symlink or -1.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int64
+File_GetSizeEx(ConstUnicode pathName) // IN
+{
+   int numFiles;
+   int i;
+   Unicode *fileList = NULL;
+   struct stat sb;
+   int64 totalSize = 0;
+
+   if (pathName == NULL) {
+      return -1;
+   }
+
+   if (-1 == Posix_Lstat(pathName, &sb)) {
+      return -1;
+   }
+
+   if (S_IFDIR != (sb.st_mode & S_IFMT)) {
+      return sb.st_size;
+   }
+
+   numFiles = File_ListDirectory(pathName, &fileList);
+
+   if (-1 == numFiles) {
+      return -1;
+   }
+
+   for (i = 0; i < numFiles; i++) {
+      Unicode name;
+      Unicode fileName;
+      int64 fileSize;
+
+      name = Unicode_Alloc(fileList[i], STRING_ENCODING_DEFAULT);
+      fileName = File_PathJoin(pathName, name);
+
+      fileSize = File_GetSizeEx(fileName);
+
+      Unicode_Free(fileName);
+      Unicode_Free(name);
+
+      if (-1 == fileSize) {
+         totalSize = -1;
+         break;
+      } else {
+         totalSize += fileSize;
+      }
+   }
+
+   if (numFiles >= 0) {
+      Unicode_FreeList(fileList, numFiles);
+   }
+
+   return totalSize;
+}
+
+
 /*
  *----------------------------------------------------------------------------
  *

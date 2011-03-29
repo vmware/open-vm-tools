@@ -2329,6 +2329,7 @@ IntToStr(int64 val) // IN
  * utf::CopyArray --
  *
  *      Copies an array to a vector.
+ *      Guaranteed to not shrink the vector.
  *
  * Results:
  *      A vector containing a shallow copy of the array.
@@ -2345,10 +2346,13 @@ CopyArray(const T *p,          // IN:
           size_t n,            // IN: The number of array elements to copy.
           std::vector<T>& buf) // OUT:
 {
-   buf.resize(n);
+   if (n > buf.size()) {
+      buf.resize(n);
+   }
+
    if (!buf.empty()) {
       ASSERT(p != NULL);
-      memcpy(&buf[0], p, buf.size() * sizeof buf[0]);
+      memcpy(&buf[0], p, n * sizeof buf[0]);
    }
 }
 
@@ -2359,9 +2363,12 @@ CopyArray(const T *p,          // IN:
  * utf::CreateWritableBuffer --
  *
  *      Copies a utf::string to a writable buffer.
+ *      Guaranteed to never shrink the size of the destination buffer.
  *
  * Results:
- *      A std::vector containing the string data.
+ *      A std::vector containing the NUL-terminated string data.
+ *      The size of the resulting vector may exceed the length of the
+ *      NUL-terminated string.
  *
  * Side effects:
  *      None

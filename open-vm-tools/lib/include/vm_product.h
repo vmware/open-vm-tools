@@ -64,6 +64,7 @@
 #define PRODUCT_WORKSTATION_BRIEF_NAME "Workstation"
 #define PRODUCT_WORKSTATION_ENTERPRISE_BRIEF_NAME \
          PRODUCT_WORKSTATION_BRIEF_NAME " " "ACE Edition"
+#define PRODUCT_WORKSTATION_SERVER_BRIEF_NAME "Workstation Server"
 #define PRODUCT_PLAYER_BRIEF_NAME "Player"
 #define PRODUCT_ACE_PLAYER_BRIEF_NAME "ACE " PRODUCT_PLAYER_BRIEF_NAME
 #define PRODUCT_MAC_DESKTOP_BRIEF_NAME "Fusion"
@@ -87,6 +88,7 @@
 #define PRODUCT_GSX_SMP_NAME MAKE_NAME("Virtual SMP for GSX Server")
 #define PRODUCT_WORKSTATION_NAME MAKE_NAME(PRODUCT_WORKSTATION_BRIEF_NAME)
 #define PRODUCT_WORKSTATION_ENTERPRISE_NAME MAKE_NAME(PRODUCT_WORKSTATION_ENTERPRISE_BRIEF_NAME)
+#define PRODUCT_WORKSTATION_SERVER_NAME MAKE_NAME(PRODUCT_WORKSTATION_SERVER_BRIEF_NAME)
 #define PRODUCT_MUI_NAME MAKE_NAME("Management Interface")
 #define PRODUCT_CONSOLE_NAME MAKE_NAME("Server Console")
 #define PRODUCT_PLAYER_NAME MAKE_NAME(PRODUCT_PLAYER_BRIEF_NAME)
@@ -143,6 +145,8 @@
 #define PRODUCT_XVP_SHORT_NAME "XVP"
 #define PRODUCT_XVP_NAME MAKE_NAME("vCenter XVP Manager")
 #define PRODUCT_RMKSCONTAINER_NAME MAKE_NAME("Remote MKS Container")
+
+#define PRODUCT_BOOMERANG_NAME MAKE_NAME("Boomerang")
 
 // XXX VMvisor is the underlying technology for possibly several products,
 // XXX not the product. Fix when names are decided.
@@ -252,7 +256,8 @@
       || defined(VMX86_P2V)      \
       || defined(VMX86_DDK)      \
       || defined(VMX86_VDDK)     \
-      || defined(VMX86_NETDUMP))
+      || defined(VMX86_NETDUMP) \
+      || defined(VMX86_BOOMERANG))
 #   if defined(_WIN32) || defined(__APPLE__)
       /*
        * XXX Make the product be Workstation by default if none of the defines
@@ -327,6 +332,8 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VDDK_NAME
 #elif defined(VMX86_NETDUMP)
 # define PRODUCT_SHORT_NAME PRODUCT_NETDUMP_NAME
+#elif defined(VMX86_BOOMERANG)
+# define PRODUCT_SHORT_NAME PRODUCT_BOOMERANG_NAME
 #endif
 
 

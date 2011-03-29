@@ -470,7 +470,7 @@ Posix_GetAddrInfo(ConstUnicode nodename,        // IN
    ASSERT(nodename || servname);
    ASSERT(res);
 
-   hWs2_32 = LoadLibraryA("ws2_32");
+   hWs2_32 = LoadLibraryW(L"ws2_32");
 
    if (hWs2_32) {
       /*
@@ -582,7 +582,7 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
    Unicode servUTF8 = NULL;
    GetNameInfoWFnType GetNameInfoWFn;
 
-   hWs2_32 = LoadLibraryA("ws2_32");
+   hWs2_32 = LoadLibraryW(L"ws2_32");
 
    if (hWs2_32) {
       /*

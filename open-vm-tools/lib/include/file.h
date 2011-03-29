@@ -290,7 +290,11 @@ void File_Rotate(const char *fileName,
                  Bool noRename,
                  char **newFileName);
 
+/* Get size only for regular file. */
 int64 File_GetSize(ConstUnicode pathName);
+
+/* Get size for file or directory. */
+int64 File_GetSizeEx(ConstUnicode pathName);
 
 int64 File_GetSizeByPath(ConstUnicode pathName);
 

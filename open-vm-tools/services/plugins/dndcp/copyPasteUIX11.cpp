@@ -87,6 +87,7 @@ GdkAtom GDK_SELECTION_TYPE_UTF8_STRING;
 CopyPasteUIX11::CopyPasteUIX11()
  : mClipboardEmpty(true),
    mHGStagingDir(""),
+   mIsClipboardOwner(false),
    mHGGetFilesInitiated(false),
    mFileTransferDone(false),
    mBlockAdded(false),
@@ -129,13 +130,11 @@ CopyPasteUIX11::Init()
 
    Gtk::TargetEntry gnome(FCP_TARGET_NAME_GNOME_COPIED_FILES);
    Gtk::TargetEntry kde(FCP_TARGET_NAME_URI_LIST);
-   Gtk::TargetEntry vmware(VMWARE_TARGET);
    gnome.set_info(FCP_TARGET_INFO_GNOME_COPIED_FILES);
    kde.set_info(FCP_TARGET_INFO_URI_LIST);
 
    mListTargets.push_back(gnome);
    mListTargets.push_back(kde);
-   mListTargets.push_back(vmware);
 
    mCP->srcRecvClipChanged.connect(
       sigc::mem_fun(this, &CopyPasteUIX11::GetRemoteClipboardCB));
@@ -219,15 +218,9 @@ CopyPasteUIX11::VmxCopyPasteVersionChanged(RpcChannel *chan,    // IN
 void
 CopyPasteUIX11::GetLocalClipboard(void)
 {
-   Glib::RefPtr<Gtk::Clipboard> refClipboard =
-      Gtk::Clipboard::get(GDK_SELECTION_CLIPBOARD);
-   Glib::RefPtr<Gtk::Clipboard> refPrimary =
-      Gtk::Clipboard::get(GDK_SELECTION_PRIMARY);
-
    g_debug("%s: enter.\n", __FUNCTION__);
 
-   if (refClipboard->wait_is_target_available(VMWARE_TARGET) &&
-       refPrimary->wait_is_target_available(VMWARE_TARGET)) {
+   if (mIsClipboardOwner) {
       /* If we are clipboard owner, send a not-changed clip to host. */
       g_debug("%s: we are owner, send unchanged clip back.\n", __FUNCTION__);
       CPClipboard clip;
@@ -242,6 +235,9 @@ CopyPasteUIX11::GetLocalClipboard(void)
       g_debug("%s: copyPaste is not allowed\n", __FUNCTION__);
       return;
    }
+
+   Glib::RefPtr<Gtk::Clipboard> refClipboard =
+      Gtk::Clipboard::get(GDK_SELECTION_CLIPBOARD);
 
    mClipTime = 0;
    mPrimTime = 0;
@@ -305,6 +301,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
                                       guint info)                    // IN:
 {
    g_debug("%s: enter.\n", __FUNCTION__);
+   mHGCopiedUriList = "";
    VmTimeType curTime;
 
    curTime = GetCurrentTime();
@@ -320,8 +317,8 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       return;
    }
 
-   if (!mCP->IsCopyPasteAllowed()) {
-      g_debug("%s: copy paste is not allowed, returning.\n",
+   if (!mIsClipboardOwner || !mCP->IsCopyPasteAllowed()) {
+      g_debug("%s: not clipboard ownder, or copy paste not allowed, returning.\n",
             __FUNCTION__);
       sd.set(sd.get_target().c_str(), "");
       return;
@@ -546,6 +543,7 @@ void
 CopyPasteUIX11::LocalClearClipboardCB(void)
 {
    g_debug("%s: got clear callback\n", __FUNCTION__);
+   mIsClipboardOwner = FALSE;
 }
 
 
@@ -636,13 +634,6 @@ again:
           mGHSelection == GDK_SELECTION_PRIMARY ? "Primary" : "Clip");
 
    CPClipboard_Clear(&mClipboard);
-
-   if (refClipboard->wait_is_target_available(VMWARE_TARGET)) {
-      g_debug("%s: we are owner, send unchanged clip back.\n", __FUNCTION__);
-      CPClipboard_SetChanged(&mClipboard, FALSE);
-      mCP->DestUISendClip(&mClipboard);
-      return;
-   }
 
    /* First check for URIs. This must always be done first */
    bool haveURIs = false;
@@ -947,11 +938,8 @@ CopyPasteUIX11::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // 
        */
       newRelPath = Str_Strrchr(newPath, DIRSEPC) + 1; // Point to char after '/'
 
-      /*
-       * XXX For directory, value is -1, so if there is any directory,
-       * total size is not accurate.
-       */
-      if ((size = File_GetSize(newPath)) >= 0) {
+      /* Keep track of how big the fcp files are. */
+      if ((size = File_GetSizeEx(newPath)) >= 0) {
          totalSize += size;
       } else {
          g_debug("%s: Unable to get file size for %s\n", __FUNCTION__, newPath);
@@ -1112,13 +1100,11 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
    }
 
    /* Clear the clipboard contents if we are the owner. */
-   if (refClipboard->wait_is_target_available(VMWARE_TARGET)) {
+   if (mIsClipboardOwner) {
       refClipboard->clear();
-      g_debug("%s: Cleared local clipboard", __FUNCTION__);
-   }
-   if (refPrimary->wait_is_target_available(VMWARE_TARGET)) {
       refPrimary->clear();
-      g_debug("%s: Cleared local primary selection", __FUNCTION__);
+      mIsClipboardOwner = false;
+      g_debug("%s: Cleared local clipboard", __FUNCTION__);
    }
 
    mHGTextData.clear();
@@ -1137,12 +1123,11 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
          g_debug("%s: RTF data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
          Gtk::TargetEntry appRtf(TARGET_NAME_APPLICATION_RTF);
          Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RICHTEXT);
-         Gtk::TargetEntry vmware(VMWARE_TARGET);
 
          targets.push_back(appRtf);
          targets.push_back(textRtf);
-         targets.push_back(vmware);
          mHGRTFData = std::string((const char *)buf);
+         mIsClipboardOwner = true;
       }
 
       if (CPClipboard_GetItem(clip, CPFORMAT_TEXT, &buf, &sz)) {
@@ -1150,16 +1135,15 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
          Gtk::TargetEntry plainText(TARGET_NAME_TEXT_PLAIN);
          Gtk::TargetEntry utf8Text(TARGET_NAME_UTF8_STRING);
          Gtk::TargetEntry compountText(TARGET_NAME_COMPOUND_TEXT);
-         Gtk::TargetEntry vmware(VMWARE_TARGET);
 
          g_debug("%s: Text data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
          targets.push_back(stringText);
          targets.push_back(plainText);
          targets.push_back(utf8Text);
          targets.push_back(compountText);
-         targets.push_back(vmware);
          mHGTextData = utf::string(reinterpret_cast<char *>(buf),
                                    STRING_ENCODING_UTF8);
+         mIsClipboardOwner = true;
       }
 
       refClipboard->set(targets,
@@ -1198,6 +1182,7 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
                       sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileRequestCB),
                       sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
 
+      mIsClipboardOwner = true;
       mHGGetListTime = GetCurrentTime();
       mHGGetFilesInitiated = false;
       mHGCopiedUriList = "";
@@ -1212,6 +1197,7 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
          refPrimary->set(mListTargets,
                          sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileContentsRequestCB),
                          sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
+         mIsClipboardOwner = true;
       }
    }
 }
@@ -1457,6 +1443,7 @@ CopyPasteUIX11::GetLocalFilesDone(bool success)
       /* Copied files are already removed in common layer. */
       mHGStagingDir.clear();
    }
+   mHGGetFilesInitiated = false;
 }
 
 

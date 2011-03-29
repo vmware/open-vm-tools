@@ -93,6 +93,8 @@
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
    #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#elif defined(VMX86_BOOMERANG)
+   #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    #define PRODUCT_VERSION    4,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
 #endif
@@ -210,6 +212,7 @@
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0
 #define FUSION_VERSION "e.x.p"
+#define BOOMERANG_VERSION "e.x.p"
 
 // These must match VIE_FILEVERSION above
 #define SYSIMAGE_VERSION "5.0.0"
@@ -276,9 +279,9 @@
  */
 #define TOOLS_VERSION TOOLS_VERSION_CURRENT_STR
 
-#define USB_ARBITRATOR_VERSION_MAJOR 8
-#define USB_ARBITRATOR_VERSION_MINOR 3
-#define USB_ARBITRATOR_VERSION_Z     13
+#define USB_ARBITRATOR_VERSION_MAJOR 9
+#define USB_ARBITRATOR_VERSION_MINOR 0
+#define USB_ARBITRATOR_VERSION_Z     9
 
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
@@ -294,7 +297,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.3.13"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.9"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -359,6 +362,8 @@
 #  define PRODUCT_VERSION_NUMBER TOOLS_VERSION
 #elif defined(VMX86_VDDK)
 #  define PRODUCT_VERSION_NUMBER VDDK_VERSION
+#elif defined(VMX86_BOOMERANG)
+#  define PRODUCT_VERSION_NUMBER BOOMERANG_VERSION
 #endif
 
 /*
