@@ -27,6 +27,7 @@ libMisc_la_SOURCES += dynbuf.c
 libMisc_la_SOURCES += escape.c
 libMisc_la_SOURCES += hashTable.c
 libMisc_la_SOURCES += hostinfo.c
+libMisc_la_SOURCES += hostinfoHV.c
 libMisc_la_SOURCES += hostinfoPosix.c
 libMisc_la_SOURCES += hostname.c
 libMisc_la_SOURCES += hostType.c
