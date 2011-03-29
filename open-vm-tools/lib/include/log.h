@@ -35,16 +35,16 @@
  */
 
 #define VMW_LOG_BASE      100
-#define VMW_LOG_PANIC     VMW_LOG_BASE + 00  // highest priority
-#define VMW_LOG_ERROR     VMW_LOG_BASE + 01
-#define VMW_LOG_WARNING   VMW_LOG_BASE + 02  // <= goes to stderr by default
-#define VMW_LOG_INFO      VMW_LOG_BASE + 03  // <= goes to log by default
-#define VMW_LOG_VERBOSE   VMW_LOG_BASE + 04
-#define VMW_LOG_TRIVIA    VMW_LOG_BASE + 05
-#define VMW_LOG_DEBUG_00  VMW_LOG_BASE + 06  // noisiest level of debugging
-#define VMW_LOG_DEBUG_01  VMW_LOG_BASE + 07
-#define VMW_LOG_DEBUG_02  VMW_LOG_BASE + 08
-#define VMW_LOG_DEBUG_03  VMW_LOG_BASE + 09
+#define VMW_LOG_PANIC     VMW_LOG_BASE +  0  // highest priority
+#define VMW_LOG_ERROR     VMW_LOG_BASE +  1
+#define VMW_LOG_WARNING   VMW_LOG_BASE +  2  // <= goes to stderr by default
+#define VMW_LOG_INFO      VMW_LOG_BASE +  3  // <= goes to log by default
+#define VMW_LOG_VERBOSE   VMW_LOG_BASE +  4
+#define VMW_LOG_TRIVIA    VMW_LOG_BASE +  5
+#define VMW_LOG_DEBUG_00  VMW_LOG_BASE +  6  // noisiest level of debugging
+#define VMW_LOG_DEBUG_01  VMW_LOG_BASE +  7
+#define VMW_LOG_DEBUG_02  VMW_LOG_BASE +  8
+#define VMW_LOG_DEBUG_03  VMW_LOG_BASE +  9
 #define VMW_LOG_DEBUG_04  VMW_LOG_BASE + 10
 #define VMW_LOG_DEBUG_05  VMW_LOG_BASE + 11
 #define VMW_LOG_DEBUG_06  VMW_LOG_BASE + 12
