@@ -450,12 +450,19 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
    memset(&uri, 0, sizeof uri);
    state.uri = &uri;
 
-   if (pathURIUtf8[0] == '/') {
-      realCmd = pathURIUtf8;
-   } else if (uriParseUriA(&state, pathURIUtf8) == URI_SUCCESS) {
+   /* Strip query component. */
+   size_t uriSize = strlen(pathURIUtf8) + 1;
+   gchar *uriSansQuery = (gchar*)g_alloca(uriSize);
+   memcpy(uriSansQuery, pathURIUtf8, uriSize);
+   gchar *tmp = strchr(uriSansQuery, '?');
+   if (tmp) { *tmp = '\0'; }
+
+   if (uriSansQuery[0] == '/') {
+      realCmd = uriSansQuery;
+   } else if (uriParseUriA(&state, uriSansQuery) == URI_SUCCESS) {
       if (URI_TEXTRANGE_EQUAL(uri.scheme, "file")) {
-         gchar* tmp = (gchar*)g_alloca(strlen(pathURIUtf8) + 1);
-         uriUriStringToUnixFilenameA(pathURIUtf8, tmp);
+         gchar* tmp = (gchar*)g_alloca(strlen(uriSansQuery) + 1);
+         uriUriStringToUnixFilenameA(uriSansQuery, tmp);
 
          Glib::ustring unixFile;
          unixFile.assign(tmp);
@@ -481,7 +488,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
           *     content type.
           */
 
-         if (contentType == "application/x-desktop") {
+         if (g_str_has_suffix(unixFile.c_str(), ".desktop")) {
             Glib::RefPtr<Gio::DesktopAppInfo> desktopFileInfo;
 
             desktopFileInfo = Gio::DesktopAppInfo::create_from_filename(unixFile);
@@ -490,7 +497,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
                GHIX11IconGetIconsForDesktopFile(unixFile.c_str(), iconList);
                success = TRUE;
             }
-         } else if (appMgr.GetAppByUri(pathURIUtf8, app)) {
+         } else if (appMgr.GetAppByUri(uriSansQuery, app)) {
             friendlyName = app.symbolicName;
             GHIX11IconGetIconsByName(app.iconName.c_str(), iconList);
             success = TRUE;
