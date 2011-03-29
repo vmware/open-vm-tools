@@ -68,15 +68,15 @@ VMSysLoggerLog(const gchar *domain,
    int priority;
 
    /* glib and syslog disagree about critical / error. */
-   if (level | G_LOG_LEVEL_ERROR) {
+   if (level & G_LOG_LEVEL_ERROR) {
       priority = LOG_CRIT;
-   } else if (level | G_LOG_LEVEL_CRITICAL) {
+   } else if (level & G_LOG_LEVEL_CRITICAL) {
       priority = LOG_ERR;
-   } else if (level | G_LOG_LEVEL_WARNING) {
+   } else if (level & G_LOG_LEVEL_WARNING) {
       priority = LOG_WARNING;
-   } else if (level | G_LOG_LEVEL_MESSAGE) {
+   } else if (level & G_LOG_LEVEL_MESSAGE) {
       priority = LOG_NOTICE;
-   } else if (level | G_LOG_LEVEL_INFO) {
+   } else if (level & G_LOG_LEVEL_INFO) {
       priority = LOG_INFO;
    } else {
       priority = LOG_DEBUG;
