@@ -41,7 +41,6 @@ extern "C" {
 
 using namespace vmware::tools;
 
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -170,11 +169,42 @@ UnityPluginSetOption(gpointer src,            // IN: Event source.
    return pluginInstance->SetOption(src, std::string(option), std::string(value));
 }
 
+#ifdef WIN32
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPluginServiceControl --
+ *
+ *      C thunk for TOOLS_CORE_SIG_SERVICE_CONTROL messages.
+ *
+ * Results:
+ *      Returns the result of calling OnServiceControl on the plugin object.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+DWORD
+UnityPluginServiceControl(gpointer src,                 // IN
+                          ToolsAppCtx *ctx,             // IN
+                          SERVICE_STATUS_HANDLE handle, // IN
+                          guint control,                // IN
+                          guint evtType,                // IN
+                          gpointer evtData,             // IN
+                          ToolsPluginData *data)        // IN
+{
+   ToolsPlugin *p = reinterpret_cast<ToolsPlugin*>(data->_private);
+   ASSERT(p);
+   return p->OnServiceControl(src, ctx, handle, control, evtType, evtData);
+}
+#endif
 
 /*
  *-----------------------------------------------------------------------------
  *
- * ToolsOnLoad` --
+ * ToolsOnLoad --
  *
  *      Plugin entry point.  Returns the registration data.
  *
@@ -202,6 +232,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)           // IN: The app context.
          { TOOLS_CORE_SIG_SHUTDOWN, (void *) UnityPluginShutdown, &regData },
          { TOOLS_CORE_SIG_CAPABILITIES, (void *) UnityPluginCapabilities, &regData },
          { TOOLS_CORE_SIG_SET_OPTION, (void *) UnityPluginSetOption, &regData },
+#ifdef WIN32
+         { TOOLS_CORE_SIG_SERVICE_CONTROL, (void *) UnityPluginServiceControl, &regData },
+#endif
       };
 
       ToolsPlugin *pluginInstance = NULL;

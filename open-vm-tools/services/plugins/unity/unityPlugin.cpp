@@ -213,24 +213,19 @@ UnityPlugin::~UnityPlugin()
  */
 
 std::vector<ToolsAppCapability>
-UnityPlugin::GetCapabilities(gboolean set) // IN: Whether capabilities are being
-                                           // set or unset.
-                                           // XXX UNUSED  Fix this or mark as such.
+UnityPlugin::GetCapabilities(gboolean set) // IN
 {
-   std::vector<ToolsAppCapability> capsVector;
-
    /*
-    * We can't use UNITY_RPC_UNITY_CAP here because that define includes the
-    * tools.capability prefix which CoreServices will automatically prepend to the
-    * supplied name.
+    * Note that we can't use UNITY_RPC_UNITY_CAP here because it includes the
+    * "tools.capability" prefix which vmtoolsd will automatically prepend to the
+    * supplied capability name.
     */
-   capsVector.push_back(ToolsAppCapabilityOldEntry(UNITY_CAP_NAME, Unity_IsSupported() ? 1 : 0));
-   capsVector.push_back(ToolsAppCapabilityOldEntry("unity.taskbar",
-                                                   Unity_IsSupported() ? 1 : 0));
-
-   capsVector.push_back(ToolsAppCapabilityNewEntry(UNITY_CAP_STATUS_UNITY_ACTIVE, TRUE));
-
-   return capsVector;
+   Bool b = set ? Unity_IsSupported() : FALSE;
+   std::vector<ToolsAppCapability> caps;
+   caps.push_back(ToolsAppCapabilityOldEntry(UNITY_CAP_NAME, b));
+   caps.push_back(ToolsAppCapabilityOldEntry("unity.taskbar", b));
+   caps.push_back(ToolsAppCapabilityNewEntry(UNITY_CAP_STATUS_UNITY_ACTIVE, b));
+   return caps;
 }
 
 

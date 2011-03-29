@@ -141,6 +141,17 @@ public:
    virtual gboolean SetOption(gpointer src,
                               const std::string &option,
                               const std::string &value) = 0;
+
+#ifdef WIN32
+   // Handler for the TOOLS_CORE_SIG_SERVICE_CONTROL signal.
+   virtual DWORD OnServiceControl(gpointer src,
+                                  ToolsAppCtx *ctx,
+                                  SERVICE_STATUS_HANDLE handle,
+                                  guint control,
+                                  guint evtType,
+                                  gpointer evtData) = 0;
+#endif
+
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set) = 0;
    virtual std::vector<RpcChannelCallback> GetRpcCallbackList() = 0;
 
@@ -167,6 +178,7 @@ public:
    {
       return FALSE;
    }
+
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set);
    virtual std::vector<RpcChannelCallback> GetRpcCallbackList();
 
@@ -186,6 +198,13 @@ public:
 
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set);
    virtual void SessionChange(gpointer src, DWORD code, DWORD id) {};
+
+   virtual DWORD OnServiceControl(gpointer src,
+                                  ToolsAppCtx *ctx,
+                                  SERVICE_STATUS_HANDLE handle,
+                                  guint control,
+                                  guint evtType,
+                                  gpointer evtData);
 
 protected:
    boost::shared_ptr<UnityPBRPCServer> mUnityPBRPCServer;
