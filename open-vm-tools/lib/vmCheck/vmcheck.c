@@ -23,11 +23,8 @@
  *    Utility functions for discovering our virtualization status.
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef WINNT_DDK
 #   include <ntddk.h>
@@ -36,6 +33,9 @@ extern "C" {
 #include "vmware.h"
 #include "vm_version.h"
 #include "vm_tools_version.h"
+#if !defined(WINNT_DDK)
+#  include "hostinfo.h"
+#endif
 
 /*
  * backdoor.h includes some files which redefine constants in ntddk.h.  Ignore
@@ -56,12 +56,13 @@ extern "C" {
 #include "backdoor_def.h"
 #include "debug.h"
 
+
+typedef Bool (*SafeCheckFn)(void);
+
 #if !defined(_WIN32)
 #   include "vmsignal.h"
 #   include "setjmp.h"
-#endif
 
-#if !defined(_WIN32)
 static sigjmp_buf jmpBuf;
 static Bool       jmpIsSet;
 
@@ -90,10 +91,75 @@ VmCheckSegvHandler(int clientData) // UNUSED
    if (jmpIsSet) {
       siglongjmp(jmpBuf, 1);
    } else {
-      Panic("Recieved SEGV, exiting");
+      Panic("Received SEGV, exiting.");
    }
 }
 #endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VmCheckSafe --
+ *
+ *      Calls a potentially unsafe function, trapping possible exceptions.
+ *
+ * Results:
+ *
+ *      Return value of the passed function, or FALSE in case of exception.
+ *
+ * Side effects:
+ *
+ *      Temporarily suppresses signals / SEH exceptions
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+VmCheckSafe(SafeCheckFn checkFn)
+{
+   Bool result = FALSE;
+
+   /*
+    * On a real host this call should cause a GP and we catch
+    * that and set result to FALSE.
+    */
+
+#if defined(_WIN32)
+   __try {
+      result = checkFn();
+   } __except(EXCEPTION_EXECUTE_HANDLER) {
+      /* no op */
+   }
+#else
+   do {
+      int signals[] = {
+         SIGILL,
+         SIGSEGV,
+      };
+      struct sigaction olds[ARRAYSIZE(signals)];
+
+      if (Signal_SetGroupHandler(signals, olds, ARRAYSIZE(signals),
+                                 VmCheckSegvHandler) == 0) {
+         Warning("%s: Failed to set signal handlers.\n", __FUNCTION__);
+         break;
+      }
+
+      if (sigsetjmp(jmpBuf, TRUE) == 0) {
+         jmpIsSet = TRUE;
+         result = checkFn();
+      } else {
+         jmpIsSet = FALSE;
+      }
+
+      if (Signal_ResetGroupHandler(signals, olds, ARRAYSIZE(signals)) == 0) {
+         Warning("%s: Failed to reset signal handlers.\n", __FUNCTION__);
+      }
+   } while (0);
+#endif
+
+   return result;
+}
 
 
 /*
@@ -151,7 +217,7 @@ VmCheck_GetVersion(uint32 *version, // OUT
     * our special pattern will still be there. --hpreg
     */
 
-   /* 
+   /*
     * Need to expand this out since the toolchain's gcc doesn't like mixing
     * integral types and enums in the same trinary operator.
     */
@@ -186,34 +252,56 @@ VmCheck_IsVirtualWorld(void)
 {
    uint32 version;
    uint32 dummy;
-#if defined _WIN32
+
+#if !defined(WINNT_DDK)
+   char *hypervisorSig;
+
+   hypervisorSig = Hostinfo_HypervisorCPUIDSig();
+   if (hypervisorSig != NULL &&
+       strcmp(hypervisorSig, CPUID_VMWARE_HYPERVISOR_VENDOR_STRING) != 0) {
+      free(hypervisorSig);
+      Debug("%s: detected non-VMware hypervisor (%s).\n",
+            __FUNCTION__, hypervisorSig);
+      return FALSE;
+   }
+
+   free(hypervisorSig);
+
+   /*
+    * No hypervisor CPUID string, check through other means, trying the
+    * backdoor as a last resort since some hypervisors don't play well
+    * with it.
+    */
+
+   if (VmCheckSafe(Hostinfo_TouchXen)) {
+      Debug("%s: detected Xen.\n", __FUNCTION__);
+      return FALSE;
+   }
+
+   if (VmCheckSafe(Hostinfo_TouchVirtualPC)) {
+      Debug("%s: detected Virtual PC.\n", __FUNCTION__);
+      return FALSE;
+   }
+
+   if (!VmCheckSafe(Hostinfo_TouchBackDoor)) {
+      Debug("%s: backdoor not detected.\n", __FUNCTION__);
+      return FALSE;
+   }
+
+   /* It should be safe to use the backdoor without a crash handler now. */
+   VmCheck_GetVersion(&version, &dummy);
+#else
+   /*
+    * The Win32 vmwvaudio driver uses this function, so keep the old,
+    * VMware-only check.
+    */
    __try {
       VmCheck_GetVersion(&version, &dummy);
    } __except (GetExceptionCode() == STATUS_PRIVILEGED_INSTRUCTION) {
       return FALSE;
    }
-#else // POSIX
-   int signals[] = {
-      SIGSEGV,
-   };
-   struct sigaction olds[ARRAYSIZE(signals)];
-
-   if (Signal_SetGroupHandler(signals, olds, ARRAYSIZE(signals),
-                              VmCheckSegvHandler) == 0) {
-      exit(1);
-   }
-   if (sigsetjmp(jmpBuf, TRUE) == 0) {
-      jmpIsSet = TRUE;
-      VmCheck_GetVersion(&version, &dummy);
-   } else {
-      jmpIsSet = FALSE;
-      return FALSE;
-   }
-
-   if (Signal_ResetGroupHandler(signals, olds, ARRAYSIZE(signals)) == 0) {
-      exit(1);
-   }
 #endif
+
    if (version != VERSION_MAGIC) {
       Debug("The version of this program is incompatible with your %s.\n"
             "For information on updating your VMware Tools please see\n"
@@ -225,6 +313,3 @@ VmCheck_IsVirtualWorld(void)
    return TRUE;
 }
 
-#ifdef __cplusplus
-}
-#endif
