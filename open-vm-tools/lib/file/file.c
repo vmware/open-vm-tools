@@ -2930,7 +2930,8 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
          result = File_UnlinkIfExists(src);
 
          if (result == -1) {
-            Log("LOG failed to remove %s: %s\n", src, Msg_ErrString());
+            Log(LGPFX" %s: failed to remove %s: %s\n", __FUNCTION__,
+                src, Msg_ErrString());
          }
       } else {
          result = Posix_Rename(src, dst);
@@ -2939,8 +2940,8 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
             int error = Err_Errno();
 
             if (error != ENOENT) {
-               Log("LOG failed to rename %s -> %s: %s\n", src, dst,
-                   Err_Errno2String(error));
+               Log(LGPFX" %s: failed to rename %s -> %s: %s\n", src, dst,
+                   __FUNCTION__, Err_Errno2String(error));
             }
          }
       }
@@ -3021,14 +3022,14 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
 
    fullPathNoExt = File_FullPath(filePathNoExt);
    if (fullPathNoExt == NULL) {
-      Log("%s: failed to get full path for '%s'.\n", __FUNCTION__,
+      Log(LGPFX" %s: failed to get full path for '%s'.\n", __FUNCTION__,
           filePathNoExt);
       goto cleanup;
    }
 
    File_GetPathName(fullPathNoExt, &baseDir, &baseName);
    if ((baseDir[0] == '\0') || (baseName[0] == '\0')) {
-      Log("%s: failed to get base dir for path '%s'.\n", __FUNCTION__,
+      Log(LGPFX" %s: failed to get base dir for path '%s'.\n", __FUNCTION__,
           filePathNoExt);
       goto cleanup;
    }
@@ -3037,7 +3038,8 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
 
    nrFiles = File_ListDirectory(baseDir, &fileList);
    if (nrFiles == -1) {
-      Log("%s: failed to read the directory '%s'.\n", __FUNCTION__, baseDir);
+      Log(LGPFX" %s: failed to read the directory '%s'.\n", __FUNCTION__,
+          baseDir);
       goto cleanup;
    }
 
@@ -3074,7 +3076,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
       int error = Err_Errno();
 
       if (error != ENOENT) {
-         Log("%s: failed to rename %s -> %s failed: %s\n", __FUNCTION__,
+         Log(LGPFX" %s: failed to rename %s -> %s failed: %s\n", __FUNCTION__,
              filePath, tmp, Err_Errno2String(error));
       }
    }
@@ -3095,7 +3097,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
                                 fileNumbers[i], ext);
 
          if (Posix_Unlink(tmp) == -1) {
-            Log("%s: failed to remove %s: %s\n", __FUNCTION__, tmp,
+            Log(LGPFX" %s: failed to remove %s: %s\n", __FUNCTION__, tmp,
                 Msg_ErrString());
          }
          free(tmp);
