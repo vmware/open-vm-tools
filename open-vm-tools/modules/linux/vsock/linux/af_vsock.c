@@ -1651,7 +1651,7 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    ASSERT(vsk->localAddr.svm_port == pkt->dstPort);
 
    VSockAddr_Init(&vpending->localAddr,
-                  VMCI_GetContextID(),
+                  VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.dst),
                   pkt->dstPort);
    VSockAddr_Init(&vpending->remoteAddr,
                   VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src),
@@ -2137,6 +2137,14 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
        pkt->u.size > vsk->queuePairMaxSize) {
       err = -EINVAL;
       goto destroy;
+   }
+
+   /*
+    * At this point we know the CID the peer is using to talk to us.
+    */
+
+   if (vsk->localAddr.svm_cid == VMADDR_CID_ANY) {
+      vsk->localAddr.svm_cid = VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.dst);
    }
 
    /*
@@ -3640,14 +3648,6 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
          if ((err = __VSockVmciBind(sk, &localAddr))) {
             goto out;
          }
-      }
-
-      /*
-       * For the client stream sockets, we always want to make sure that
-       * we have a specific context id.
-       */
-      if (vsk->localAddr.svm_cid == VMADDR_CID_ANY) {
-         vsk->localAddr.svm_cid = VMCI_GetContextID();
       }
 
       sk->sk_state = SS_CONNECTING;
