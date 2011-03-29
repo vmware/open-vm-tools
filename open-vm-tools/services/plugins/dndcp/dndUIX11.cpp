@@ -759,7 +759,10 @@ DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
          m_GHDnDInProgress = true;
          /* only begin drag enter after we get the data */
          /* Need to grab all of the data. */
-         ASSERT(RequestData(dc, timeValue));
+         if (!RequestData(dc, timeValue)) {
+            g_debug("%s: RequestData failed.\n", __FUNCTION__);
+            return false;
+         }
       } else {
          g_debug("%s: Multiple drag motions before gh data has been received.\n",
                __FUNCTION__);
@@ -1234,12 +1237,12 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
        target == TARGET_NAME_TEXT_PLAIN ||
        target == TARGET_NAME_UTF8_STRING ||
        target == TARGET_NAME_COMPOUND_TEXT)) {
-      utf::string source = sd.get_data_as_string().c_str();
-      if (source.bytes() > 0 &&
-          source.bytes() < DNDMSG_MAX_ARGSZ &&
+      std::string source = sd.get_data_as_string();
+      if (source.size() > 0 &&
+          source.size() < DNDMSG_MAX_ARGSZ &&
           CPClipboard_SetItem(&m_clipboard, CPFORMAT_TEXT, source.c_str(),
-                              source.bytes() + 1)) {
-         g_debug("%s: Got text, size %"FMTSZ"u\n", __FUNCTION__, source.bytes());
+                              source.size() + 1)) {
+         g_debug("%s: Got text, size %"FMTSZ"u\n", __FUNCTION__, source.size());
       } else {
          g_debug("%s: Failed to get text\n", __FUNCTION__);
          return false;
@@ -1251,12 +1254,12 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
    if (m_DnD->CheckCapability(DND_CP_CAP_RTF_DND) && (
        target == TARGET_NAME_APPLICATION_RTF ||
        target == TARGET_NAME_TEXT_RICHTEXT)) {
-      utf::string source = sd.get_data_as_string().c_str();
-      if (source.bytes() > 0 &&
-          source.bytes() < DNDMSG_MAX_ARGSZ &&
+      std::string source = sd.get_data_as_string();
+      if (source.size() > 0 &&
+          source.size() < DNDMSG_MAX_ARGSZ &&
           CPClipboard_SetItem(&m_clipboard, CPFORMAT_RTF, source.c_str(),
-                              source.bytes() + 1)) {
-         g_debug("%s: Got RTF, size %"FMTSZ"u\n", __FUNCTION__, source.bytes());
+                              source.size() + 1)) {
+         g_debug("%s: Got RTF, size %"FMTSZ"u\n", __FUNCTION__, source.size());
          return true;
       } else {
          g_debug("%s: Failed to get text\n", __FUNCTION__ );
@@ -1301,9 +1304,9 @@ DnDUIX11::RequestData(const Glib::RefPtr<Gdk::DragContext> &dc,
    }
 
    /* Then check plain text. */
+   targets->add(Glib::ustring(TARGET_NAME_UTF8_STRING));
    targets->add(Glib::ustring(TARGET_NAME_STRING));
    targets->add(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
-   targets->add(Glib::ustring(TARGET_NAME_UTF8_STRING));
    targets->add(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
    target = m_detWnd->drag_dest_find_target(dc, targets);
    targets->remove(Glib::ustring(TARGET_NAME_STRING));

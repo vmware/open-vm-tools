@@ -111,7 +111,7 @@ private:
    utf::string mHGCopiedUriList;
    utf::utf8string mHGFCPData;
    utf::string mHGTextData;
-   utf::string mHGRTFData;
+   std::string mHGRTFData;
    std::vector<utf::string> mHGFileContentsList;
    bool mFileTransferDone;
    bool mBlockAdded;

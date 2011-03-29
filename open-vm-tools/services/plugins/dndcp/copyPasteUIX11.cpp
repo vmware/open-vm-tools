@@ -499,13 +499,13 @@ CopyPasteUIX11::LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, // IN/OUT
 
    if (target == TARGET_NAME_APPLICATION_RTF ||
        target == TARGET_NAME_TEXT_RICHTEXT) {
-      if (0 == mHGRTFData.bytes()) {
+      if (0 == mHGRTFData.size()) {
          g_debug("%s: Can not get valid RTF data\n", __FUNCTION__);
          return;
       }
 
       g_debug("%s: providing RTF data, size %"FMTSZ"u\n",
-            __FUNCTION__, mHGRTFData.bytes());
+            __FUNCTION__, mHGRTFData.size());
 
       sd.set(target.c_str(), mHGRTFData.c_str());
    }
@@ -1129,6 +1129,22 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
        CPClipboard_ItemExists(clip, CPFORMAT_RTF)) {
       std::list<Gtk::TargetEntry> targets;
 
+      /*
+       * rtf should be first in the target list otherwise OpenOffice may not
+       * accept paste.
+       */
+      if (CPClipboard_GetItem(clip, CPFORMAT_RTF, &buf, &sz)) {
+         g_debug("%s: RTF data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
+         Gtk::TargetEntry appRtf(TARGET_NAME_APPLICATION_RTF);
+         Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RICHTEXT);
+         Gtk::TargetEntry vmware(VMWARE_TARGET);
+
+         targets.push_back(appRtf);
+         targets.push_back(textRtf);
+         targets.push_back(vmware);
+         mHGRTFData = std::string((const char *)buf);
+      }
+
       if (CPClipboard_GetItem(clip, CPFORMAT_TEXT, &buf, &sz)) {
          Gtk::TargetEntry stringText(TARGET_NAME_STRING);
          Gtk::TargetEntry plainText(TARGET_NAME_TEXT_PLAIN);
@@ -1144,18 +1160,6 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
          targets.push_back(vmware);
          mHGTextData = utf::string(reinterpret_cast<char *>(buf),
                                    STRING_ENCODING_UTF8);
-      }
-
-      if (CPClipboard_GetItem(clip, CPFORMAT_RTF, &buf, &sz)) {
-         g_debug("%s: RTF data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
-         Gtk::TargetEntry appRtf(TARGET_NAME_APPLICATION_RTF);
-         Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RICHTEXT);
-         Gtk::TargetEntry vmware(VMWARE_TARGET);
-
-         targets.push_back(appRtf);
-         targets.push_back(textRtf);
-         targets.push_back(vmware);
-         mHGRTFData = utf::string((const char *)buf);
       }
 
       refClipboard->set(targets,

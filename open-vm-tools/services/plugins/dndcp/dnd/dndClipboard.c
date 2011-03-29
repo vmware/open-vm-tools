@@ -31,7 +31,7 @@
 #include "dndClipboard.h"
 #include "dndInt.h"
 #include "dndCPMsgV4.h"
-
+#include "unicode.h"
 
 #define CPFormatToIndex(x) ((unsigned int)(x) - 1)
 
@@ -270,6 +270,15 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
    item = &clip->items[CPFormatToIndex(fmt)];
 
    if (clipitem) {
+      /* It has to be valid utf8 for plain text format. */
+      if (CPFORMAT_TEXT == fmt) {
+         char *str = (char *)clipitem;
+         if (!Unicode_IsBufferValid(str,
+                                    strlen(str),
+                                    STRING_ENCODING_UTF8)) {
+            return FALSE;
+         }
+      }
       newBuf = malloc(size);
       if (!newBuf) {
          return FALSE;
@@ -368,6 +377,8 @@ CPClipboard_GetItem(const CPClipboard *clip,    // IN: the clipboard
    if (clip->items[CPFormatToIndex(fmt)].exists) {
       *buf = clip->items[CPFormatToIndex(fmt)].buf;
       *size = clip->items[CPFormatToIndex(fmt)].size;
+      ASSERT(*buf);
+      ASSERT((*size > 0) && (*size < CPCLIPITEM_MAX_SIZE_V3));
       return TRUE;
    } else {
       ASSERT(!clip->items[CPFormatToIndex(fmt)].size);
