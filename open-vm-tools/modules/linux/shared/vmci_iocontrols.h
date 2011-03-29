@@ -315,13 +315,12 @@ enum IOCTLCmd_VMCIMacOS {
 #define VMCI_INTERFACE_VSOCK_PUBLIC_NAME_NT L"\\??\\VMCI"
 
 /* PUBLIC: For the VMX, which uses CreateFile(). */
-#define VMCI_INTERFACE_VMX_PUBLIC_NAME TEXT("\\\\.\\VMCIHostDev\\VMX")
+#define VMCI_INTERFACE_VMX_PUBLIC_NAME TEXT("\\\\.\\VMCI\\VMX")
 
 /* PRIVATE NAMES */
 #define VMCI_DEVICE_VSOCK_NAME_PATH L"\\Device\\vmci"
 #define VMCI_DEVICE_VSOCK_LINK_PATH L"\\DosDevices\\vmci"
 #define VMCI_DEVICE_HOST_NAME_PATH  L"\\Device\\VMCIHostDev"
-#define VMCI_DEVICE_HOST_LINK_PATH  L"\\DosDevice\\VMCIHostDev"
 #define VMCI_DEVICE_GUEST_NAME_PATH L"\\Device\\VMCIGuestDev"
 /* PRIVATE NAMES */
 

@@ -589,10 +589,11 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
 
    ASSERT(dg->dst.context != VMCI_HYPERVISOR_CONTEXT_ID);
 
-   VMCI_DEBUG_LOG(10, (LGPFX"Sending from (handle=0x%x:0x%x) to "
-                       "(handle=0x%x:0x%x) (size=%u bytes).\n",
-                       dg->src.context, dg->src.resource,
-                       dg->dst.context, dg->dst.resource, (uint32)dgSize));
+   /* Chatty. */
+   // VMCI_DEBUG_LOG(10, (LGPFX"Sending from (handle=0x%x:0x%x) to "
+   //                     "(handle=0x%x:0x%x) (size=%u bytes).\n",
+   //                     dg->src.context, dg->src.resource,
+   //                     dg->dst.context, dg->dst.resource, (uint32)dgSize));
 
    /*
     * Check that source handle matches sending context.
@@ -782,14 +783,18 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
          return retval;
       }
    }
+
    /* The datagram is freed when the context reads it. */
-   VMCI_DEBUG_LOG(10, (LGPFX"Sent datagram (size=%u bytes).\n",
-                       (uint32)dgSize));
+
+   /* Chatty. */
+   // VMCI_DEBUG_LOG(10, (LGPFX"Sent datagram (size=%u bytes).\n",
+   //                     (uint32)dgSize));
 
    /*
     * We currently truncate the size to signed 32 bits. This doesn't
     * matter for this handler as it only support 4Kb messages.
     */
+
    return (int)dgSize;
 }
 
