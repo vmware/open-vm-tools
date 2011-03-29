@@ -88,11 +88,11 @@ extern int vsnprintf(char *buf, size_t len, const char *f, va_list arg);
  *
  * Results:
  *
- *	int - number of bytes stored in 'str' (not including null
+ *	int - number of bytes stored in 'str' (not including NUL
  *	terminate character), -1 on overflow (insufficient space for
- *	null terminate is considered overflow)
+ *	NUL terminate is considered overflow)
  *
- *	NB: on overflow the buffer WILL be null terminated at the last
+ *	NB: on overflow the buffer WILL be NUL terminated at the last
  *	UTF-8 code point boundary within the buffer's bounds.
  *
  * WARNING: See warning at the top of this file.
@@ -121,13 +121,13 @@ Str_Vsnprintf(char *str,          // OUT
 #endif
 
    /*
-    * Linux glibc 2.0.x returns -1 and null terminates (which we shouldn't
+    * Linux glibc 2.0.x returns -1 and NUL terminates (which we shouldn't
     * be linking against), but glibc 2.1.x follows c99 and returns
     * characters that would have been written.
     *
     * In the case of Win32 and !HAS_BSD_PRINTF, we are using
     * _vsnprintf(), which returns -1 on overflow, returns size
-    * when result fits exactly, and does not null terminate in
+    * when result fits exactly, and does not NUL terminate in
     * those cases.
     */
 
@@ -188,11 +188,11 @@ Str_Sprintf(char *buf,       // OUT
  *
  * Results:
  *
- *	int - number of bytes stored in 'str' (not including null
+ *	int - number of bytes stored in 'str' (not including NUL
  *	terminate character), -1 on overflow (insufficient space for
- *	null terminate is considered overflow)
+ *	NUL terminate is considered overflow)
  *
- *	NB: on overflow the buffer WILL be null terminated
+ *	NB: on overflow the buffer WILL be NUL terminated
  *
  * Side effects:
  *	None
@@ -421,7 +421,7 @@ Str_Strncat(char *buf,       // IN-OUT
     * The reason the test with bufLen and n is >= rather than just >
     * is that strncat always NUL-terminates the resulting string, even
     * if it reaches the length limit n. This means that if it happens that
-    * bufLen + n == bufSize, strncat will write a null terminator that
+    * bufLen + n == bufSize, strncat will write a NUL terminator that
     * is outside of the buffer. Therefore, we make sure this does not
     * happen by adding the == case to the Panic test.
     */
@@ -432,7 +432,7 @@ Str_Strncat(char *buf,       // IN-OUT
    }
 
    /*
-    * We don't need to worry about null termination, because it's only
+    * We don't need to worry about NUL termination, because it's only
     * needed on overflow and we Panic above in that case.
     */
 
@@ -692,11 +692,11 @@ Str_Swprintf(wchar_t *buf,       // OUT
  *
  * Results:
  *
- *	int - number of wchar_ts stored in 'str' (not including null
+ *	int - number of wchar_ts stored in 'str' (not including NUL
  *	terminate character), -1 on overflow (insufficient space for
- *	null terminate is considered overflow)
+ *	NUL terminate is considered overflow)
  *
- *	NB: on overflow the buffer WILL be null terminated
+ *	NB: on overflow the buffer WILL be NUL terminated
  *
  * WARNING: See warning at the top of this file.
  *
@@ -723,13 +723,13 @@ Str_Vsnwprintf(wchar_t *str,          // OUT
 #endif
 
    /*
-    * Linux glibc 2.0.x returns -1 and null terminates (which we shouldn't
+    * Linux glibc 2.0.x returns -1 and NUL terminates (which we shouldn't
     * be linking against), but glibc 2.1.x follows c99 and returns
     * characters that would have been written.
     *
     * In the case of Win32 and !HAS_BSD_PRINTF, we are using
     * _vsnwprintf(), which returns -1 on overflow, returns size
-    * when result fits exactly, and does not null terminate in
+    * when result fits exactly, and does not NUL terminate in
     * those cases.
     */
 
@@ -755,11 +755,11 @@ Str_Vsnwprintf(wchar_t *str,          // OUT
  *
  * Results:
  *
- *	int - number of wchar_ts stored in 'str' (not including null
+ *	int - number of wchar_ts stored in 'str' (not including NUL
  *	terminate character), -1 on overflow (insufficient space for
- *	null terminate is considered overflow)
+ *	NUL terminate is considered overflow)
  *
- *	NB: on overflow the buffer WILL be null terminated
+ *	NB: on overflow the buffer WILL be NUL terminated
  *
  * Side effects:
  *	None
@@ -890,7 +890,7 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
     * The reason the test with bufLen and n is >= rather than just >
     * is that wcsncat always NUL-terminates the resulting string, even
     * if it reaches the length limit n. This means that if it happens that
-    * bufLen + n == bufSize, wcsncat will write a null terminator that
+    * bufLen + n == bufSize, wcsncat will write a NUL terminator that
     * is outside of the buffer. Therefore, we make sure this does not
     * happen by adding the == case to the Panic test.
     */
@@ -901,7 +901,7 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
    }
 
    /*
-    * We don't need to worry about null termination, because it's only
+    * We don't need to worry about NUL termination, because it's only
     * needed on overflow and we Panic above in that case.
     */
 
