@@ -421,42 +421,6 @@ Hostinfo_TouchXen(void)
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_SystemTimerUS --
- *
- *      Return the time.
- *         - These timers are documented to never go backwards.
- *         - These timers may take locks
- *
- * NOTES:
- *      These are the routines to use when performing timing measurements.
- *
- *      The value returned is valid (finish-time - start-time) only within a
- *      single process. Don't send a time measurement obtained with these
- *      routines to another process and expect a relative time measurement
- *      to be correct.
- *
- *      The actual resolution of these "clocks" are undefined - it varies
- *      depending on hardware, OSen and OS versions.
- *
- * Results:
- *      The time in microseconds is returned. Zero upon error.
- *
- * Side effects:
- *	None.
- *
- *-----------------------------------------------------------------------------
- */
-
-VmTimeType 
-Hostinfo_SystemTimerUS(void)
-{
-   return Hostinfo_SystemTimerNS() / 1000;
-}
-
-
-/*
  *----------------------------------------------------------------------
  *
  *  Hostinfo_SLC64Supported --

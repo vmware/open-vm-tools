@@ -53,7 +53,13 @@ extern char *Hostinfo_GetCpuDescription(uint32 cpuNumber);
 extern void Hostinfo_GetTimeOfDay(VmTimeType *time);
 extern VmTimeType Hostinfo_SystemUpTime(void);
 extern VmTimeType Hostinfo_SystemTimerNS(void);
-extern VmTimeType Hostinfo_SystemTimerUS(void);
+
+static INLINE VmTimeType
+Hostinfo_SystemTimerUS(void)
+{
+   return Hostinfo_SystemTimerNS() / 1000ULL;
+}
+
 extern int Hostinfo_OSVersion(unsigned int i);
 extern int Hostinfo_GetSystemBitness(void);
 extern const char *Hostinfo_OSVersionString(void);
