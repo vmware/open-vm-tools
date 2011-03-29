@@ -170,6 +170,7 @@ typedef struct
    Bool           useLevelDesignator;   // Show level designator
    Bool           fastRotation;         // ESX log rotation optimization
    Bool           preventRemove;        // prevent Log_RemoveFile(FALSE)
+   Bool           syncAfterWrite;       // Sync after a write. Expensive!
 
    int32          stderrMinLevel;       // This level and above to stderr
    int32          logMinLevel;          // This level and above to log
