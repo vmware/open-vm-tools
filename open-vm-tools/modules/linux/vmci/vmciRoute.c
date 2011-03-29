@@ -193,8 +193,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
    /* If we are acting as a host then this might be destined for a guest. */
    if (hasHostDevice) {
       /* It will have a context if it is meant for a guest. */
-      VMCIContext *context = VMCIContext_Get(dst->context);
-      if (NULL != context) {
+      if (VMCIContext_Exists(dst->context)) {
          if (VMCI_INVALID_ID == src->context) {
             /*
              * If it came from a guest then it must have a valid context.
