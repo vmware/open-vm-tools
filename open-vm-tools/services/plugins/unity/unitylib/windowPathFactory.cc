@@ -107,12 +107,13 @@ WindowPathFactory::FindByXid(XID window,               // IN
    Window checkWindow = window;
 
 tryLeader:
-   pid_t windowPid = GetPidForXid(checkWindow);
-   if (windowPid != -1) {
-      success = FindByPid(windowPid, pathPair);
-   }
-
-   if (!success && XGetCommand(mDpy, checkWindow, &argv, &argc)) {
+   /*
+    * We examine WM_COMMAND before checking argv because kdeinit has a tendency
+    * to rewrite /proc/$pid/cmdline as "kdeinit4: foo [kdeinit] bar baz".  Even
+    * though it's deprecated, WM_COMMAND is widely available and specifies a
+    * command vector suitable for launching an application from scratch.
+    */
+   if (XGetCommand(mDpy, checkWindow, &argv, &argc)) {
       std::vector<Glib::ustring> vec;
       for (int i = 0; i < argc; i++) {
          vec.push_back(argv[i]);
@@ -120,6 +121,12 @@ tryLeader:
       success = FindByArgv("" /* without a PID, cwd is unavailable */, vec,
                            pathPair);
       XFreeStringList(argv);
+   }
+
+   pid_t windowPid;
+   if (   !success
+       && (windowPid = GetPidForXid(checkWindow)) != -1) {
+      success = FindByPid(windowPid, pathPair);
    }
 
    if (!success && !triedLeader) {
@@ -257,27 +264,34 @@ WindowPathFactory::FindByArgv(const Glib::ustring& cwd,        // IN
    Glib::ustring testString = Glib::path_get_basename(*arg);
    bool guessed = false;
 
-tryagain:
-   /* Try for a DesktopAppInfo identified by arg. */
-   Glib::ustring desktopId = testString + ".desktop";
-   Glib::RefPtr<Gio::DesktopAppInfo> desktopApp = Gio::DesktopAppInfo::create(desktopId);
-   if (!desktopApp && g_strcmp0(Xdg_DetectDesktopEnv(), "KDE") == 0) {
-      /*
-       * PR631378 - see
-       * http://standards.freedesktop.org/menu-spec/latest/ar01s04.html#menu-file-elements
-       *
-       * With OpenSUSE 11.2, apps under /usr/share/applications/kde4 are referred
-       * to as kde4-$app, not just $app.
-       */
-      desktopId.insert(0, "kde4-");
-      desktopApp = Gio::DesktopAppInfo::create(desktopId);
-   }
+   /*
+    * PR631378 - see
+    * http://standards.freedesktop.org/menu-spec/latest/ar01s04.html#menu-file-elements
+    *
+    * With OpenSUSE 11.2, apps under /usr/share/applications/kde4 are referred
+    * to as kde4-$app, not just $app.
+    *
+    * XXX Prefixes should be discovered at runtime when analyzing .menu files.
+    */
+   std::vector<std::string> prefixes;
+   prefixes.push_back("");
+   prefixes.push_back("kde4-");
 
-   if (desktopApp) {
-      GDesktopAppInfo* gobj = desktopApp->gobj();
-      pathPair.second = g_desktop_app_info_get_filename(gobj);
-      mExecMap[*arg] = pathPair;
-      return true;
+tryagain:
+   for (std::vector<std::string>::iterator i = prefixes.begin();
+        i != prefixes.end();
+        ++i) {
+
+      /* Try for a DesktopAppInfo identified by arg. */
+      Glib::ustring desktopId = Glib::ustring::compose("%1%2.desktop", *i, testString);
+      Glib::RefPtr<Gio::DesktopAppInfo> desktopApp =
+         Gio::DesktopAppInfo::create(desktopId);
+      if (desktopApp) {
+         GDesktopAppInfo* gobj = desktopApp->gobj();
+         pathPair.second = g_desktop_app_info_get_filename(gobj);
+         mExecMap[*arg] = pathPair;
+         return true;
+      }
    }
 
    /* Attempt #2: Get our static map on. */
