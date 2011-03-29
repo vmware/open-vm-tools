@@ -21,11 +21,17 @@
  *
  *    Implements the unity plugin for the tools services. Registers for the Unity
  *    RPC's and sets the Unity capabilities.
+ *
+ *    XXX Rewrite all of this to match CUI models and be, like, readable.
  */
 
 #define G_LOG_DOMAIN "unity"
 
 #include "unityPlugin.h"
+
+#ifndef WIN32
+#   include "unityPluginPosix.h"
+#endif
 
 extern "C" {
    #include "util.h"
@@ -41,6 +47,7 @@ extern "C" {
 };
 
 using namespace vmware::tools;
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -258,7 +265,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)           // IN: The app context.
 #if WIN32
       pluginInstance = new UnityPluginWin32();
 #else // Linux
-      pluginInstance = new UnityPlugin();
+      pluginInstance = new UnityPluginPosix();
 #endif
 
       if (!pluginInstance) {

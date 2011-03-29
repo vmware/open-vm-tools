@@ -240,8 +240,13 @@ Bool
 GHIPlatformIsSupported(void)
 {
    const char *desktopEnv = Xdg_DetectDesktopEnv();
-   return    (g_strcmp0(desktopEnv, "GNOME") == 0)
-          || (g_strcmp0(desktopEnv, "KDE") == 0);
+   Bool supported = (g_strcmp0(desktopEnv, "GNOME") == 0) ||
+                    (g_strcmp0(desktopEnv, "KDE") == 0);
+   if (!supported) {
+      g_message("GHI not available under unsupported desktop environment %s\n",
+                desktopEnv ? desktopEnv : "(nil)");
+   }
+   return supported;
 }
 
 
@@ -271,6 +276,14 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
 
    Gtk::Main::init_gtkmm_internals();
 
+   if (!GHIPlatformIsSupported()) {
+      /*
+       * Don't bother allocating resources if running under an unsupported
+       * desktop environment.
+       */
+      return NULL;
+   }
+
    ghip = (GHIPlatform *) Util_SafeCalloc(1, sizeof *ghip);
    ghip->appsByWindowExecutable =
       g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
@@ -283,6 +296,7 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
    }
 
    desktopEnv = Xdg_DetectDesktopEnv();
+   ASSERT(desktopEnv); // Asserting based on GHIPlatformIsSupported check above.
    g_desktop_app_info_set_desktop_env(desktopEnv);
 
 #ifdef REDIST_GMENU
@@ -377,6 +391,9 @@ GHIPlatformCleanup(GHIPlatform *ghip) // IN
       return;
    }
 
+#ifdef REDIST_GMENU
+   delete ghip->menuItemManager;
+#endif
    g_hash_table_destroy(ghip->appsByWindowExecutable);
    free(ghip);
 }
