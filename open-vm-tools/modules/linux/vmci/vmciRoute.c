@@ -144,6 +144,22 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
        * any ambiguity from the host context.
        */
 
+      if (src->context == VMCI_HYPERVISOR_CONTEXT_ID) {
+         /*
+          * If the hypervisor is the source, this is host local
+          * communication. The hypervisor may send vmci event
+          * datagrams to the host itself, but it will never send
+          * datagrams to an "outer host" through the guest device.
+          */
+
+         if (hasHostDevice) {
+            *route = VMCI_ROUTE_AS_HOST;
+            return VMCI_SUCCESS;
+         } else {
+            return VMCI_ERROR_DEVICE_NOT_FOUND;
+         }
+      }
+
       if (!fromGuest && hasGuestDevice) {
          /* If no source context then use the current. */
          if (VMCI_INVALID_ID == src->context) {
