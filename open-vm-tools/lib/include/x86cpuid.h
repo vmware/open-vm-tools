@@ -310,6 +310,8 @@ FLAG(   1, ECX, COMMON, 25,  1, AES,                               YES, TRUE)  \
 FLAG(   1, ECX, COMMON, 26,  1, XSAVE,                             YES, FALSE) \
 FLAG(   1, ECX, COMMON, 27,  1, OSXSAVE,                           ANY, FALSE) \
 FLAG(   1, ECX, COMMON, 28,  1, AVX,                               YES, TRUE)  \
+FLAG(   1, ECX, COMMON, 29,  1, F16,                               YES, TRUE)  \
+FLAG(   1, ECX, COMMON, 30,  1, RDRAND,                            YES, TRUE)  \
 FLAG(   1, ECX, COMMON, 31,  1, HYPERVISOR,                        ANY, FALSE) \
 FLAG(   1, EDX, COMMON, 0,   1, FPU,                               YES, TRUE)  \
 FLAG(   1, EDX, COMMON, 1,   1, VME,                               YES, FALSE) \
