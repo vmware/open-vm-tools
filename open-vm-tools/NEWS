@@ -1,7 +1,7 @@
 open-vm-tools 2011.02.23 changes:
-	* Some copy & paste issues with KDE were fixed.
+        * Some copy & paste issues with KDE were fixed.
 
-	* Mostly cleanups and bug fixes, with a few build enhancements.
+        * Mostly cleanups and bug fixes, with a few build enhancements.
 
 open-vm-tools 2011.01.24 changes:
 	* Mostly cleanups and bug fixes.
