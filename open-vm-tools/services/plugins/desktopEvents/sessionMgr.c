@@ -33,6 +33,9 @@
  * This should work with any session manager implementing XSMP, covering all
  * of our supported desktop environments.
  *
+ * This plugin also maps the XSM callbacks to GLib signals.  See desktopevents.h
+ * for details.
+ *
  * @todo Scrutinize libICE error handling.  I/O errors should be handled here,
  *       but errors handled by libICE's default may exit().
  */
@@ -40,7 +43,10 @@
 
 /* Include first.  Sets G_LOG_DOMAIN. */
 #include "desktopEventsInt.h"
+
 #include "vmware.h"
+#include "vmware/tools/desktopevents.h"
+#include "sessionMgrSignals.h"
 
 #include <errno.h>
 #include <glib.h>
@@ -56,6 +62,9 @@
  * table.
  */
 #define DE_FEATURE_KEY  "sessionMgr"
+
+
+static void InitSignals(ToolsAppCtx* ctx);
 
 
 /*
@@ -119,8 +128,11 @@ SessionMgr_Init(ToolsAppCtx *ctx,
 
    memset(&smCallbacks, 0, sizeof smCallbacks);
    smCallbacks.save_yourself.callback = &SMSaveYourselfCb;
+   smCallbacks.save_yourself.client_data = pdata;
    smCallbacks.save_complete.callback = &SMSaveCompleteCb;
+   smCallbacks.save_complete.client_data = pdata;
    smCallbacks.shutdown_cancelled.callback = &SMShutdownCancelledCb;
+   smCallbacks.shutdown_cancelled.client_data = pdata;
    smCallbacks.die.callback = &SMDieCb;
    smCallbacks.die.client_data = pdata;
 
@@ -128,6 +140,7 @@ SessionMgr_Init(ToolsAppCtx *ctx,
       SmcOpenConnection(NULL, NULL, SmProtoMajor, SmProtoMinor, cbMask,
                         &smCallbacks, NULL, &clientID, sizeof errorBuf, errorBuf);
    if (smcCnx != NULL) {
+      InitSignals(ctx);
       g_hash_table_insert(pdata->_private, DE_FEATURE_KEY, smcCnx);
       g_debug("Registered with session manager as %s\n", clientID);
       free(clientID);
@@ -145,7 +158,7 @@ SessionMgr_Init(ToolsAppCtx *ctx,
  ******************************************************************************
  * SessionMgr_Shutdown --                                                */ /**
  *
- * Unregisters signal callbacks and disappears from the message bus.
+ * Shuts down XSM and ICE interfaces and frees other resources.
  *
  * @param[in] ctx   Application context.
  * @param[in] pdata Plugin data.
@@ -164,6 +177,74 @@ SessionMgr_Shutdown(ToolsAppCtx *ctx,
       IceRemoveConnectionWatch(ICEWatch, pdata);
       g_hash_table_remove(desktopData, DE_FEATURE_KEY);
    }
+}
+
+
+/*
+ ******************************************************************************
+ * InitSignals --                                                        */ /**
+ *
+ * Creates new signals for XSM events.
+ *
+ * @param[in]  ctx      ToolsAppCtx*: Application context.
+ *
+ ******************************************************************************
+ */
+
+static void
+InitSignals(ToolsAppCtx *ctx)
+{
+   /* SmcCallbacks::save_yourself */
+   g_signal_new(TOOLS_CORE_SIG_XSM_SAVE_YOURSELF,
+                G_OBJECT_TYPE(ctx->serviceObj),
+                0,      // GSignalFlags
+                0,      // class offset
+                NULL,   // accumulator
+                NULL,   // accu_data
+                g_cclosure_user_marshal_VOID__POINTER_INT_BOOLEAN_INT_BOOLEAN,
+                G_TYPE_NONE,
+                5,
+                G_TYPE_POINTER,
+                G_TYPE_INT,
+                G_TYPE_BOOLEAN,
+                G_TYPE_INT,
+                G_TYPE_BOOLEAN);
+
+   /* SmcCallbacks::die */
+   g_signal_new(TOOLS_CORE_SIG_XSM_DIE,
+                G_OBJECT_TYPE(ctx->serviceObj),
+                0,      // GSignalFlags
+                0,      // class offset
+                NULL,   // accumulator
+                NULL,   // accu_data
+                g_cclosure_marshal_VOID__POINTER,
+                G_TYPE_NONE,
+                1,
+                G_TYPE_POINTER);
+
+   /* SmcCallbacks::save_complete */
+   g_signal_new(TOOLS_CORE_SIG_XSM_SAVE_COMPLETE,
+                G_OBJECT_TYPE(ctx->serviceObj),
+                0,      // GSignalFlags
+                0,      // class offset
+                NULL,   // accumulator
+                NULL,   // accu_data
+                g_cclosure_marshal_VOID__POINTER,
+                G_TYPE_NONE,
+                1,
+                G_TYPE_POINTER);
+
+   /* SmcCallbacks::shutdown_cancelled */
+   g_signal_new(TOOLS_CORE_SIG_XSM_SHUTDOWN_CANCELLED,
+                G_OBJECT_TYPE(ctx->serviceObj),
+                0,      // GSignalFlags
+                0,      // class offset
+                NULL,   // accumulator
+                NULL,   // accu_data
+                g_cclosure_marshal_VOID__POINTER,
+                G_TYPE_NONE,
+                1,
+                G_TYPE_POINTER);
 }
 
 
@@ -350,8 +431,8 @@ ICEWatch(IceConn iceCnx,
  *
  * Callback for a XSM "Die" event.
  *
- * Instructs the main loop to quit, then acknowledges the session manager's
- * request.
+ * Instructs the main loop to quit.  We "acknowledge" the callback by closing
+ * the connection in our shutdown handler.
  *
  * @param[in]  smcCnx   Opaque XSM connection object.
  * @param[in]  cbData   (ToolsPluginData*) Plugin data.
@@ -364,12 +445,16 @@ SMDieCb(SmcConn smcCnx,
         SmPointer cbData)
 {
    ToolsPluginData *pdata = cbData;
-   ToolsAppCtx *ctx = g_hash_table_lookup(pdata->_private, DE_PRIVATE_CTX);
+   ToolsAppCtx *ctx;
+
+   ASSERT(pdata);
+
+   ctx = g_hash_table_lookup(pdata->_private, DE_PRIVATE_CTX);
    ASSERT(ctx);
 
    g_message("Session manager says our time is up.  Exiting.\n");
+   g_signal_emit_by_name(ctx->serviceObj, TOOLS_CORE_SIG_XSM_DIE, ctx);
    g_main_loop_quit(ctx->mainLoop);
-   SmcCloseConnection(smcCnx, 0, NULL);
 }
 
 
@@ -406,6 +491,16 @@ SMSaveYourselfCb(SmcConn smcCnx,
                  int interactStyle,
                  Bool fast)
 {
+   ToolsPluginData *pdata = cbData;
+   ToolsAppCtx *ctx;
+
+   ASSERT(pdata);
+
+   ctx = g_hash_table_lookup(pdata->_private, DE_PRIVATE_CTX);
+   ASSERT(ctx);
+
+   g_signal_emit_by_name(ctx->serviceObj, TOOLS_CORE_SIG_XSM_SAVE_YOURSELF,
+                         ctx, saveType, shutdown, interactStyle, fast);
    SmcSaveYourselfDone(smcCnx, True);
 }
 
@@ -429,6 +524,15 @@ static void
 SMSaveCompleteCb(SmcConn smcCnx,
                  SmPointer cbData)
 {
+   ToolsPluginData *pdata = cbData;
+   ToolsAppCtx *ctx;
+
+   ASSERT(pdata);
+
+   ctx = g_hash_table_lookup(pdata->_private, DE_PRIVATE_CTX);
+   ASSERT(ctx);
+
+   g_signal_emit_by_name(ctx->serviceObj, TOOLS_CORE_SIG_XSM_SAVE_COMPLETE, ctx);
 }
 
 
@@ -450,6 +554,16 @@ static void
 SMShutdownCancelledCb(SmcConn smcCnx,
                       SmPointer cbData)
 {
+   ToolsPluginData *pdata = cbData;
+   ToolsAppCtx *ctx;
+
+   ASSERT(pdata);
+
+   ctx = g_hash_table_lookup(pdata->_private, DE_PRIVATE_CTX);
+   ASSERT(ctx);
+
+   g_signal_emit_by_name(ctx->serviceObj, TOOLS_CORE_SIG_XSM_SHUTDOWN_CANCELLED,
+                         ctx);
 }
 
 

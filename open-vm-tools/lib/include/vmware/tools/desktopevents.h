@@ -56,7 +56,49 @@
  */
 #define DESKTOP_EVENTS_SHUTDOWN "VMdesktopEventsShutdownMsg"
 
-#endif
+#else   // !WIN32
+
+/**
+ * Signal emitted upon SmcCallbacks::save_yourself.
+ *
+ * @param[in]   src             The source object.
+ * @param[in]   ctx             ToolsAppCtx *: the application context.
+ * @parma[in]   saveType        Refer to SMlib.xml.
+ * @param[in]   shutdown        0 = checkpoint, 1 = shutdown.
+ * @param[in]   interactStyle   May interact with user?
+ * @param[in]   fast            Shutdown as quickly as possible.
+ * @param[in]   data            Client data.
+ */
+#define TOOLS_CORE_SIG_XSM_SAVE_YOURSELF "tcs_de_xsm_save_yourself"
+
+/**
+ * Signal emitted upon SmcCallbacks::die.
+ *
+ * @param[in]   src     The source object.
+ * @param[in]   ctx     ToolsAppCtx *: the application context.
+ * @param[in]   data    Client data.
+ */
+#define TOOLS_CORE_SIG_XSM_DIE "tcs_de_xsm_die"
+
+/**
+ * Signal emitted upon SmcCallbacks::save_complete.
+ *
+ * @param[in]   src     The source object.
+ * @param[in]   ctx     ToolsAppCtx *: the application context.
+ * @param[in]   data    Client data.
+ */
+#define TOOLS_CORE_SIG_XSM_SAVE_COMPLETE "tcs_de_xsm_save_complete"
+
+/**
+ * Signal emitted upon SmcCallbacks::shutdown_cancelled.
+ *
+ * @param[in]   src     The source object.
+ * @param[in]   ctx     ToolsAppCtx *: the application context.
+ * @param[in]   data    Client data.
+ */
+#define TOOLS_CORE_SIG_XSM_SHUTDOWN_CANCELLED "tcs_de_xsm_shutdown_cancelled"
+
+#endif  // if defined(_WIN32)
 
 /** @} */
 
