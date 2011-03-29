@@ -26,9 +26,9 @@
 #include "vmware.h"
 #if defined(__i386__) || defined(__x86_64__)
 #  include "cpuid_info.h"
+#  include "backdoor_def.h"
+#  include "backdoor_types.h"
 #endif
-#include "backdoor_def.h"
-#include "backdoor_types.h"
 #include "hostinfo.h"
 #include "util.h"
 
@@ -183,7 +183,11 @@ Hostinfo_TouchXen(void)
 Bool
 Hostinfo_SLC64Supported(void)
 {
+#if defined(__i386__) || defined(__x86_64__)
    return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_SLC64);
+#else
+   return FALSE;
+#endif
 }
 
 
@@ -210,7 +214,11 @@ Hostinfo_SLC64Supported(void)
 Bool
 Hostinfo_NestedHVReplaySupported(void)
 {
+#if defined(__i386__) || defined(__x86_64__)
    return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_HV_REPLAY_OK);
+#else
+   return FALSE;
+#endif
 }
 
 
@@ -235,7 +243,11 @@ Hostinfo_NestedHVReplaySupported(void)
 Bool
 Hostinfo_SynchronizedVTSCs(void)
 {
+#if defined(__i386__) || defined(__x86_64__)
    return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_SYNC_VTSCS);
+#else
+   return FALSE;
+#endif
 }
 
 
