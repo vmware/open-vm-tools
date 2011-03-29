@@ -150,14 +150,12 @@ public:
                                   guint control,
                                   guint evtType,
                                   gpointer evtData) = 0;
+
+   virtual void OnDesktopSwitch() = 0;
 #endif
 
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set) = 0;
    virtual std::vector<RpcChannelCallback> GetRpcCallbackList() = 0;
-
-#if defined(G_PLATFORM_WIN32)
-   virtual void SessionChange(gpointer src, DWORD stateCode, DWORD sessionID) = 0;
-#endif // G_PLATFORM_WIN32
 };
 
 
@@ -197,7 +195,6 @@ public:
    virtual gboolean Initialize(ToolsAppCtx *ctx);
 
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set);
-   virtual void SessionChange(gpointer src, DWORD code, DWORD id) {};
 
    virtual DWORD OnServiceControl(gpointer src,
                                   ToolsAppCtx *ctx,
@@ -205,6 +202,8 @@ public:
                                   guint control,
                                   guint evtType,
                                   gpointer evtData);
+
+   virtual void OnDesktopSwitch();
 
 protected:
    boost::shared_ptr<UnityPBRPCServer> mUnityPBRPCServer;

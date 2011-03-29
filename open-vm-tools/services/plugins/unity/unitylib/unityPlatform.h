@@ -85,6 +85,7 @@ Bool UnityPlatformMoveResizeWindow(UnityPlatform *up,
                                    UnityWindowId window,
                                    UnityRect *moveResizeRect);
 void UnityPlatformShowTaskbar(UnityPlatform *up, Bool showTaskbar);
+void UnityPlatformShowDesktop(UnityPlatform *up, Bool showDesktop);
 Bool UnityPlatformGetIconData(UnityPlatform *up,
                               UnityWindowId window,
                               UnityIconType iconType,

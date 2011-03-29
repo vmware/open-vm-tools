@@ -193,6 +193,7 @@ Bool Unity_GetWindowPath(UnityWindowId window,
  */
 void Unity_ShowTaskbar(Bool showTaskbar);
 void Unity_SetConfigDesktopColor(int desktopColor);
+void Unity_ShowDesktop(Bool showDesktop);
 
 /*
  * Post a request to asynchronously retrieve Unity updates, or synchronously

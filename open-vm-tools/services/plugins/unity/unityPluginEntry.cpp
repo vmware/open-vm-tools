@@ -35,6 +35,7 @@ extern "C" {
    #include "unity.h"
    #include "vmware/tools/plugin.h"
    #include "vmware/tools/utils.h"
+   #include "vmware/tools/desktopevents.h"
 
    TOOLS_MODULE_EXPORT ToolsPluginData *ToolsOnLoad(ToolsAppCtx *ctx);
 };
@@ -170,6 +171,7 @@ UnityPluginSetOption(gpointer src,            // IN: Event source.
 }
 
 #ifdef WIN32
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -199,6 +201,19 @@ UnityPluginServiceControl(gpointer src,                 // IN
    ASSERT(p);
    return p->OnServiceControl(src, ctx, handle, control, evtType, evtData);
 }
+
+
+void
+UnityPluginDesktopSwitch(gpointer src,            // IN
+                         ToolsAppCtx *ctx,        // IN
+                         ToolsPluginData *plugin) // IN
+{
+   ToolsPlugin *p = reinterpret_cast<ToolsPlugin*>(plugin->_private);
+   ASSERT(p);
+   p->OnDesktopSwitch();
+}
+
+
 #endif
 
 /*
@@ -234,6 +249,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)           // IN: The app context.
          { TOOLS_CORE_SIG_SET_OPTION, (void *) UnityPluginSetOption, &regData },
 #ifdef WIN32
          { TOOLS_CORE_SIG_SERVICE_CONTROL, (void *) UnityPluginServiceControl, &regData },
+         { TOOLS_CORE_SIG_DESKTOP_SWITCH, (void *) UnityPluginDesktopSwitch, &regData },
 #endif
       };
 
