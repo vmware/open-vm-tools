@@ -149,6 +149,7 @@ getdents_linux(unsigned int fd,
          dirp[i].d_off = dirp_temp[i].d_off;
          dirp[i].d_reclen = dirp_temp[i].d_reclen;
          dirp[i].d_type = DT_UNKNOWN;
+         memset(dirp[i].d_name, 0, sizeof dirp->d_name);
          memcpy(dirp[i].d_name, dirp_temp[i].d_name,
                 ((sizeof dirp->d_name) < (sizeof dirp_temp->d_name))
                 ? (sizeof dirp->d_name)
@@ -3092,8 +3093,20 @@ HgfsConvertToUtf8FormC(char *buffer,         // IN/OUT: name to normalize
 
    return result;
 #else
-   /* NOOP on Linux where the name is already has the correct encoding. */
-   return TRUE;
+   size_t size;
+   /*
+    * Buffer may contain invalid data after the null terminating character.
+    * We need to check the validity of the buffer only till the null
+    * terminating character (if any). Calculate the real size of the
+    * string before calling Unicode_IsBufferValid().
+    */
+   for (size = 0; size < bufferSize ; size++) {
+      if ('\0' == buffer[size]) {
+         break;
+      }
+   }
+
+   return Unicode_IsBufferValid(buffer, size, STRING_ENCODING_UTF8);
 #endif /* defined(__APPLE__) */
 }
 

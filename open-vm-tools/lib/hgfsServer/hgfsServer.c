@@ -51,6 +51,7 @@
 #include "poll.h"
 #include "mutexRankLib.h"
 #include "vm_basic_asm.h"
+#include "unicodeOperations.h"
 
 #if defined(_WIN32)
 #include <io.h>
@@ -4230,6 +4231,11 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
    ASSERT(bufOut);
 
    inEnd = cpName + cpNameSize;
+
+   if (!Unicode_IsBufferValid(cpName, cpNameSize, STRING_ENCODING_UTF8)) {
+      LOG(4, ("%s: invalid UTF8 string @ %p\n", __FUNCTION__, cpName));
+      return HGFS_NAME_STATUS_FAILURE;
+   }
 
    /*
     * Get first component.
