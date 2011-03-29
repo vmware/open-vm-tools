@@ -38,20 +38,22 @@
 #include <linux/mm.h>           /* For vmalloc_to_page() and get_user_pages()*/
 #include <linux/pagemap.h>      /* For page_cache_release() */
 #include <linux/socket.h>       /* For memcpy_{to,from}iovec(). */
-#include <linux/wait.h>
 #include <linux/vmalloc.h>
+#include <linux/wait.h>
 
-#include "compat_module.h"
-#include "compat_version.h"
-#include "compat_sched.h"
-#include "compat_workqueue.h"
-#include "compat_interrupt.h"
-#include "compat_spinlock.h"
-#include "compat_slab.h"
-#include "compat_semaphore.h"
-#include "compat_page.h"
-#include "compat_mm.h"
 #include "compat_highmem.h"
+#include "compat_interrupt.h"
+#include "compat_mm.h"
+#include "compat_module.h"
+#include "compat_page.h"
+#include "compat_pci.h"
+#include "compat_sched.h"
+#include "compat_semaphore.h"
+#include "compat_slab.h"
+#include "compat_spinlock.h"
+#include "compat_version.h"
+#include "compat_workqueue.h"
+
 #include "vm_assert.h"
 #include "vm_basic_types.h"
 #include "vmci_iocontrols.h"
@@ -1623,4 +1625,30 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
    VMCI_FreeKernelMem(attach->consumePages,
                       attach->numConsumePages *
                       sizeof attach->consumePages[0]);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCI_ReadPortBytes --
+ *
+ *      Copy memory from an I/O port to kernel memory.
+ *
+ * Results:
+ *      No results.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VMCI_ReadPortBytes(VMCIIoHandle handle,  // IN: Unused
+		   VMCIIoPort port,      // IN
+		   uint8 *buffer,        // OUT
+		   size_t bufferLength)  // IN
+{
+   insb(port, buffer, bufferLength);
 }
