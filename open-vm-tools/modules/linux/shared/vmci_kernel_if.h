@@ -394,6 +394,8 @@ void VMCI_FreeQueueBuffer(void *queue, uint64 size);
 void VMCI_DeviceShutdownBegin(void);
 void VMCI_DeviceShutdownEnd(void);
 Bool VMCI_DeviceShutdown(void);
+Bool VMCI_HasGuestDevice(void);
+Bool VMCI_HasHostDevice(void);
 #else // _WIN32
 #  define VMCI_InitQueueMutex(_pq, _cq)
 #  define VMCI_AcquireQueueMutex(_q)
@@ -403,19 +405,14 @@ Bool VMCI_DeviceShutdown(void);
 #  define VMCI_RevertToNonLocalQueue(_q, _nlq, _s)
 #  define VMCI_FreeQueueBuffer(_q, _s)
 #  define VMCI_DeviceShutdown() FALSE
+#if defined(VMX86_TOOLS)
+#  define VMCI_HasGuestDevice() TRUE
+#  define VMCI_HasHostDevice()  FALSE
+#else // VMX86_TOOLS
+#  define VMCI_HasGuestDevice() FALSE
+#  define VMCI_HasHostDevice()  TRUE
+#endif // VMX86_TOOLS
 #endif // !_WIN32
-#if defined(_WIN32) || (defined(linux) && !defined(VMKERNEL))
-  Bool VMCI_HasGuestDevice(void);
-  Bool VMCI_HasHostDevice(void);
-#else
-#  if defined(VMX86_TOOLS)
-#    define VMCI_HasGuestDevice() TRUE
-#    define VMCI_HasHostDevice()  FALSE
-#  else // VMX86_TOOLS
-#    define VMCI_HasGuestDevice() FALSE
-#    define VMCI_HasHostDevice()  TRUE
-#  endif // !VMX86_TOOLS
-#endif // !(_WIN32 || (linux && !VMKERNEL))
 
 
 #if defined(VMKERNEL)

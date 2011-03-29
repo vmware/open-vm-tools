@@ -30,7 +30,6 @@
 #include "vmciContext.h"
 #include "vmciDatagram.h"
 #include "vmciDoorbell.h"
-#include "vmciDriver.h"
 #include "vmciEvent.h"
 #include "vmciHashtable.h"
 #include "vmciKernelAPI.h"
@@ -40,15 +39,15 @@
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
+#  include "vmciDriver.h"
+#else
+#  include "vmciDriver.h"
 #endif
 
 #define LGPFX "VMCI: "
 
 static Atomic_uint32 vmContextID = { VMCI_INVALID_ID };
 static VMCIContext *hostContext;
-
-static Atomic_uint32 vmciClientCount;
-static VMCIId ctxUpdateSubID = VMCI_INVALID_ID;
 
 
 /*
@@ -92,12 +91,12 @@ VMCI_HostInit(void)
       goto hostContextExit;
    }
 
-   VMCI_LOG((LGPFX"host components initialized."));
+   VMCI_LOG((LGPFX"Driver initialized."));
    return VMCI_SUCCESS;
 
-hostContextExit:
+  hostContextExit:
    VMCIContext_ReleaseContext(hostContext);
-errorExit:
+  errorExit:
    return result;
 }
 
@@ -181,77 +180,33 @@ VMCI_DeviceRelease(void)
 {
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCI_SendDatagram --
+ *
+ *      Stub for guest VM to hypervisor call mechanism.
+ *
+ * Results:
+ *      Always VMCI_ERROR_GENERIC.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCI_SendDatagram(VMCIDatagram *dg)
+{
+   return VMCI_ERROR_UNAVAILABLE;
+}
+
 #else // VMX86_TOOLS
 
-/*
- *----------------------------------------------------------------------
- *
- * VMCI_DeviceGet --
- *
- *      Verifies that a valid VMCI device is present, and indicates
- *      the callers intention to use the device until it calls
- *      VMCI_DeviceRelease().
- *
- * Results:
- *      TRUE if a valid VMCI device is present, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
-Bool
-VMCI_DeviceGet(uint32 *apiVersion)
-{
-   Atomic_Inc32(&vmciClientCount);
-
-   if (*apiVersion > VMCI_KERNEL_API_VERSION) {
-      *apiVersion = VMCI_KERNEL_API_VERSION;
-      goto release;
-   }
-
-   if (!VMCI_DeviceEnabled()) {
-      goto release;
-   }
-
-   if (VMCI_DeviceShutdown()) {
-      goto release;
-   }
-
-   return TRUE;
-
-release:
-   Atomic_Dec32(&vmciClientCount);
-   return FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCI_DeviceRelease --
- *
- *      Indicates that the caller is done using the VMCI device.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
-void
-VMCI_DeviceRelease(void)
-{
-   Atomic_Dec32(&vmciClientCount);
-}
-
-#endif // VMX86_TOOLS
+static Atomic_uint32 vmciClientCount;
+static VMCIId ctxUpdateSubID = VMCI_INVALID_ID;
 
 
 /*
@@ -437,6 +392,75 @@ VMCI_CheckHostCapabilities(void)
 /*
  *----------------------------------------------------------------------
  *
+ * VMCI_DeviceGet --
+ *
+ *      Verifies that a valid VMCI device is present, and indicates
+ *      the callers intention to use the device until it calls
+ *      VMCI_DeviceRelease().
+ *
+ * Results:
+ *      TRUE if a valid VMCI device is present, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
+Bool
+VMCI_DeviceGet(uint32 *apiVersion)
+{
+   Atomic_Inc32(&vmciClientCount);
+
+   if (*apiVersion > VMCI_KERNEL_API_VERSION) {
+      *apiVersion = VMCI_KERNEL_API_VERSION;
+      goto release;
+   }
+
+   if (!VMCI_DeviceEnabled()) {
+      goto release;
+   }
+
+   if (VMCI_DeviceShutdown()) {
+      goto release;
+   }
+
+   return TRUE;
+
+release:
+   Atomic_Dec32(&vmciClientCount);
+   return FALSE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_DeviceRelease --
+ *
+ *      Indicates that the caller is done using the VMCI device.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
+void
+VMCI_DeviceRelease(void)
+{
+   Atomic_Dec32(&vmciClientCount);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * VMCI_DeviceInUse --
  *
  *      Report whether the device is in-use by a client.
@@ -600,6 +624,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
    }
 }
 
+#endif // VMX86_TOOLS
 
 /*
  *----------------------------------------------------------------------------
@@ -711,14 +736,14 @@ VMCI_SharedInit(void)
    VMCIEvent_Init();
    VMCIDoorbell_Init();
 
-   VMCI_LOG((LGPFX"shared components initialized."));
+   VMCI_LOG((LGPFX"Driver initialized."));
    return VMCI_SUCCESS;
 
-contextExit:
+  contextExit:
    VMCIContext_Exit();
-resourceExit:
+  resourceExit:
    VMCIResource_Exit();
-errorExit:
+  errorExit:
    return result;
 }
 

@@ -185,6 +185,7 @@ VMCIEvent_Sync(void)
 }
 
 
+#ifdef VMX86_TOOLS
 /*
  *-----------------------------------------------------------------------------
  *
@@ -209,6 +210,7 @@ VMCIEvent_CheckHostCapabilities(void)
    /* VMCIEvent does not require any hypercalls. */
    return TRUE;
 }
+#endif
 
 
 /*
