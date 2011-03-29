@@ -76,8 +76,10 @@
 #endif // _WIN32
 
 
-int VMCI_Init(void);
-void VMCI_Cleanup(void);
+int VMCI_SharedInit(void);
+void VMCI_SharedCleanup(void);
+int VMCI_HostInit(void);
+void VMCI_HostCleanup(void);
 VMCIId VMCI_GetContextID(void);
 int VMCI_SendDatagram(VMCIDatagram *dg);
 

@@ -56,9 +56,9 @@ static VMCIContext *hostContext;
 /*
  *----------------------------------------------------------------------
  *
- * VMCI_Init --
+ * VMCI_HostInit --
  *
- *      Initializes VMCI. This registers core hypercalls.
+ *      Initializes the host driver specific components of VMCI.
  *
  * Results:
  *      VMCI_SUCCESS if successful, appropriate error code otherwise.
@@ -70,30 +70,9 @@ static VMCIContext *hostContext;
  */
 
 int
-VMCI_Init(void)
+VMCI_HostInit(void)
 {
    int result;
-
-   result = VMCIResource_Init();
-   if (result < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to initialize VMCIResource (result=%d)",
-                    result));
-      goto errorExit;
-   }
-
-   result = VMCIContext_Init();
-   if (result < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d)",
-                    result));
-      goto resourceExit;
-   }
-
-   result = VMCIDatagram_Init();
-   if (result < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to initialize VMCIDatagram (result=%d)",
-                    result));
-      goto contextExit;
-   }
 
    /*
     * In theory, it is unsafe to pass an eventHnd of -1 to platforms which use
@@ -107,11 +86,8 @@ VMCI_Init(void)
    if (result < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d)",
                     result));
-      goto datagramExit;
+      goto errorExit;
    }
-
-   VMCIEvent_Init();
-   VMCIDoorbell_Init();
 
    result = VMCIQPBroker_Init();
    if (result < VMCI_SUCCESS) {
@@ -122,15 +98,7 @@ VMCI_Init(void)
    return VMCI_SUCCESS;
 
   hostContextExit:
-   VMCIDoorbell_Exit();
-   VMCIEvent_Exit();
    VMCIContext_ReleaseContext(hostContext);
-  datagramExit:
-   VMCIDatagram_Exit();
-  contextExit:
-   VMCIContext_Exit();
-  resourceExit:
-   VMCIResource_Exit();
   errorExit:
    return result;
 }
@@ -139,9 +107,9 @@ VMCI_Init(void)
 /*
  *----------------------------------------------------------------------
  *
- * VMCI_Cleanup --
+ * VMCI_HostCleanup --
  *
- *      Cleanup the  VMCI module.
+ *      Cleans up the host specific components of the VMCI module.
  *
  * Results:
  *      None.
@@ -153,14 +121,9 @@ VMCI_Init(void)
  */
 
 void
-VMCI_Cleanup(void)
+VMCI_HostCleanup(void)
 {
-   VMCIDoorbell_Exit();
-   VMCIEvent_Exit();
    VMCIContext_ReleaseContext(hostContext);
-   VMCIDatagram_Exit();
-   VMCIContext_Exit();
-   VMCIResource_Exit();
    VMCIQPBroker_Exit();
 }
 
@@ -725,4 +688,90 @@ uint32
 VMCI_Version()
 {
    return VMCI_VERSION;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_SharedInit --
+ *
+ *      Initializes VMCI components shared between guest and host
+ *      driver. This registers core hypercalls.
+ *
+ * Results:
+ *      VMCI_SUCCESS if successful, appropriate error code otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+VMCI_SharedInit(void)
+{
+   int result;
+
+   result = VMCIResource_Init();
+   if (result < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIResource (result=%d)",
+                    result));
+      goto errorExit;
+   }
+
+   result = VMCIContext_Init();
+   if (result < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d)",
+                    result));
+      goto resourceExit;
+   }
+
+   result = VMCIDatagram_Init();
+   if (result < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIDatagram (result=%d)",
+                    result));
+      goto contextExit;
+   }
+
+   VMCIEvent_Init();
+   VMCIDoorbell_Init();
+
+   VMCI_LOG((LGPFX"Driver initialized."));
+   return VMCI_SUCCESS;
+
+  contextExit:
+   VMCIContext_Exit();
+  resourceExit:
+   VMCIResource_Exit();
+  errorExit:
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_SharedCleanup --
+ *
+ *      Cleans up VMCI components shared between guest and host
+ *      driver.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCI_SharedCleanup(void)
+{
+   VMCIDoorbell_Exit();
+   VMCIEvent_Exit();
+   VMCIDatagram_Exit();
+   VMCIContext_Exit();
+   VMCIResource_Exit();
 }
