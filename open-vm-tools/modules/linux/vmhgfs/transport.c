@@ -42,7 +42,6 @@
 /* Must be included after semaphore.h. */
 #include <linux/timer.h>
 /* Must be included after sched.h. */
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h> /* for spin_lock_bh */
 
 
