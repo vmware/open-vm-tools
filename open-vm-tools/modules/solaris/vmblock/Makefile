@@ -63,8 +63,7 @@ ifdef OVT_SOURCE_DIR
    CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
    CFLAGS += -I$(OVT_SOURCE_DIR)/modules/shared/vmblock
    CFLAGS += -I$(OVT_SOURCE_DIR)/modules/solaris/vmblock
-   VPATH  := $(OVT_SOURCE_DIR)/lib/misc
-   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/modules/shared/vmblock
+   VPATH  := $(OVT_SOURCE_DIR)/modules/shared/vmblock
 endif
 
 CFLAGS_32  := $(CFLAGS)

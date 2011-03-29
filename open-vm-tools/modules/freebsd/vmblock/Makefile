@@ -62,8 +62,7 @@ CFLAGS  += $(INCLUDE) -Wall -Werror
    CFLAGS += -I$(OVT_SOURCE_DIR)/modules/freebsd/shared
    CFLAGS += -I$(OVT_SOURCE_DIR)/modules/freebsd/vmblock
    CFLAGS += -I$(OVT_SOURCE_DIR)/modules/shared/vmblock
-   VPATH  := $(OVT_SOURCE_DIR)/lib/misc
-   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/modules/shared/vmblock
+   VPATH  := $(OVT_SOURCE_DIR)/modules/shared/vmblock
 .else
    CFLAGS += -Ishared
 .endif
