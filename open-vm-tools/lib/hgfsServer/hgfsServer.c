@@ -205,6 +205,8 @@ static MXUserExclLock *gHgfsSharedFoldersLock = NULL;
 /* List of shared folders nodes. */
 static DblLnkLst_Links gHgfsSharedFoldersList;
 
+static Bool gHgfsInitialized = FALSE;
+
 /*
  * Number of active sessions that support change directory notification. HGFS server
  * needs to maintain up-to-date shared folders list when there is
@@ -3277,6 +3279,7 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
       if (Config_GetBool(TRUE, "isolation.tools.hgfs.notify.enable")) {
          gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
       }
+      gHgfsInitialized = TRUE;
    } else {
       HgfsServer_ExitState(); // Cleanup partially initialized state
    }
@@ -3308,6 +3311,8 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
 void
 HgfsServer_ExitState(void)
 {
+   gHgfsInitialized = FALSE;
+
    if (gHgfsDirNotifyActive) {
       HgfsNotify_Shutdown();
       gHgfsDirNotifyActive = FALSE;
@@ -3838,6 +3843,10 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
 void
 HgfsServer_Quiesce(Bool freeze)
 {
+   if (!gHgfsInitialized) {
+      return;
+   }
+
    if (freeze) {
       /* Suspend background activity. */
       if (gHgfsDirNotifyActive) {
