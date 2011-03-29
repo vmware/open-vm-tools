@@ -104,7 +104,7 @@ DentryOpRevalidate(struct dentry *dentry,  // IN: dentry revalidating
       return actualDentry->d_op->d_revalidate(actualDentry, nd);
    }
 
-   if (path_lookup(iinfo->name, 0, &actualNd)) {
+   if (compat_path_lookup(iinfo->name, 0, &actualNd)) {
       LOG(4, "DentryOpRevalidate: [%s] no longer exists\n", iinfo->name);
       return 0;
    }

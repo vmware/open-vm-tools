@@ -19,9 +19,7 @@
 #ifndef __COMPAT_NAMEI_H__
 #   define __COMPAT_NAMEI_H__
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 18)
 #include <linux/namei.h>
-#endif
 
 /*
  * In 2.6.25-rc2, dentry and mount objects were removed from the nameidata
@@ -40,18 +38,11 @@
 #define compat_path_release(nd) path_release(nd)
 #endif
 
-/* path_lookup was exported in 2.4.25 */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 25)
-#define compat_path_lookup(path, flags, nd)     path_lookup(path, flags, nd)
+/* path_lookup was removed in 2.6.39 merge window VFS merge */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+#define compat_path_lookup(name, flags, nd)     kern_path(name, flags, &((nd)->path))
 #else
-#define compat_path_lookup(path, flags, nd)     \
-         ({                                     \
-            int ret = 0;                        \
-            if (path_init(path, flags, nd)) {   \
-               ret = path_walk(path, nd);       \
-            }                                   \
-            ret;                                \
-         })
+#define compat_path_lookup(name, flags, nd)     path_lookup(name, flags, nd)
 #endif
 
 #endif /* __COMPAT_NAMEI_H__ */
