@@ -560,13 +560,14 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       } else if (strstr(distroLower, "5.0")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_5, distroShortSize);
       }
-   } else if (StrUtil_StartsWith(distroLower, "enterprise linux")) {
+   } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
+              StrUtil_StartsWith(distroLower, "oracle")) {
       /*
        * [root@localhost ~]# lsb_release -sd
        * "Enterprise Linux Enterprise Linux Server release 5.4 (Carthage)"
        *
        * Not sure why they didn't brand their releases as "Oracle Enterprise
-       * Linux".  Oh well.
+       * Linux". Oh well. It's fixed in 6.0, though.
        */
       Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
    } else if (strstr(distroLower, "fedora")) {
