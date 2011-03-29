@@ -1014,9 +1014,8 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
     */
 
    if (!Unicode_IsEmpty(volume)) {
-      Unicode temp;
+      Unicode temp = Unicode_Append(volume, *pathName);
 
-      temp = Unicode_Append(volume, *pathName);
       Unicode_Free(*pathName);
       *pathName = temp;
    }
@@ -1036,9 +1035,8 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
    }
 
    if (curLen < len) {
-      Unicode temp;
+      Unicode temp = Unicode_Substr(*pathName, 0, curLen);
 
-      temp = Unicode_Substr(*pathName, 0, curLen);
       Unicode_Free(*pathName);
       *pathName = temp;
    }
