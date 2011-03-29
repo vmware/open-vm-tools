@@ -52,6 +52,7 @@ void VMCIHashTable_InitEntry(VMCIHashEntry *entry, VMCIHandle handle);
 int VMCIHashTable_AddEntry(VMCIHashTable *table, VMCIHashEntry *entry);
 int VMCIHashTable_RemoveEntry(VMCIHashTable *table, VMCIHashEntry *entry);
 VMCIHashEntry *VMCIHashTable_GetEntry(VMCIHashTable *table, VMCIHandle handle);
+void VMCIHashTable_HoldEntry(VMCIHashTable *table, VMCIHashEntry *entry);
 int VMCIHashTable_ReleaseEntry(VMCIHashTable *table, VMCIHashEntry *entry);
 Bool VMCIHashTable_EntryExists(VMCIHashTable *table, VMCIHandle handle);
 void VMCIHashTable_Sync(VMCIHashTable *table);

@@ -60,12 +60,13 @@ static VMCIHashTable *resourceTable = NULL;
 /* Public Resource Access Control API. */
 
 /*
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
  * VMCIResource_Init --
  *
  *      Initializes the VMCI Resource Access Control API. Creates a hashtable
- *      to hold all resources, and registers vectors and callbacks for hypercalls.
+ *      to hold all resources, and registers vectors and callbacks for
+ *      hypercalls.
  *
  * Results:
  *      None.
@@ -73,7 +74,7 @@ static VMCIHashTable *resourceTable = NULL;
  * Side effects:
  *      None.
  *
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 int
@@ -92,7 +93,7 @@ VMCIResource_Init(void)
 
 
 /*
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
  * VMCIResource_Exit --
  *
@@ -104,7 +105,7 @@ VMCIResource_Init(void)
  * Side effects:
  *      None.
  *
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 void
@@ -120,7 +121,7 @@ VMCIResource_Exit(void)
 
 
 /*
- *-------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
  *  VMCIResource_GetID --
  *
@@ -134,7 +135,7 @@ VMCIResource_Exit(void)
  *     None.
  *
  *
- *-------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 VMCIId
@@ -178,7 +179,7 @@ VMCIResource_GetID(VMCIId contextID)
 
 
 /*
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
  * VMCIResource_Add --
  *
@@ -188,7 +189,7 @@ VMCIResource_GetID(VMCIId contextID)
  * Side effects:
  *      None.
  *
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 int
@@ -227,7 +228,7 @@ VMCIResource_Add(VMCIResource *resource,                // IN
 
 
 /*
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
  * VMCIResource_Remove --
  *
@@ -237,7 +238,7 @@ VMCIResource_Add(VMCIResource *resource,                // IN
  * Side effects:
  *      None.
  *
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 void
@@ -258,7 +259,7 @@ VMCIResource_Remove(VMCIHandle resourceHandle,     // IN:
 
 
 /*
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
  * VMCIResource_Get --
  *
@@ -268,7 +269,7 @@ VMCIResource_Remove(VMCIHandle resourceHandle,     // IN:
  * Side effects:
  *      None.
  *
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 VMCIResource *
@@ -281,7 +282,8 @@ VMCIResource_Get(VMCIHandle resourceHandle,     // IN
       return NULL;
    }
    resource = RESOURCE_CONTAINER(entry, VMCIResource, hashEntry);
-   if ((resourceType == VMCI_RESOURCE_TYPE_ANY) || (resource->type == resourceType)) {
+   if (resourceType == VMCI_RESOURCE_TYPE_ANY ||
+       resource->type == resourceType) {
       return resource;
    }
    VMCIHashTable_ReleaseEntry(resourceTable, entry);
@@ -290,7 +292,33 @@ VMCIResource_Get(VMCIHandle resourceHandle,     // IN
 
 
 /*
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
+ *
+ * VMCIResource_Hold --
+ *
+ *      Hold the given resource.  This will hold the hashtable entry.  This
+ *      is like doing a Get() but without having to lookup the resource by
+ *      handle.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+void
+VMCIResource_Hold(VMCIResource *resource)
+{
+   ASSERT(resource);
+   VMCIHashTable_HoldEntry(resourceTable, &resource->hashEntry);
+}
+
+
+/*
+ *------------------------------------------------------------------------------
  *
  * VMCIResourceDoRemove --
  *
@@ -303,7 +331,7 @@ VMCIResource_Get(VMCIHandle resourceHandle,     // IN
  * Side effects:
  *      May deallocate memory and invoke a callback for the removed resource.
  *
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 static void INLINE
@@ -319,7 +347,7 @@ VMCIResourceDoRemove(VMCIResource *resource)
 
 
 /*
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
  * VMCIResource_Release --
  *
@@ -329,7 +357,7 @@ VMCIResourceDoRemove(VMCIResource *resource)
  * Side effects:
  *      resource's containerFreeCB will get called if last reference.
  *
- *-----------------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 int
@@ -353,7 +381,7 @@ VMCIResource_Release(VMCIResource *resource)
 
 
 /*
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
  * VMCIResource_Sync --
  *
@@ -366,7 +394,7 @@ VMCIResource_Release(VMCIResource *resource)
  * Side effects:
  *      None.
  *
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
 
 void

@@ -112,7 +112,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
    if (fromGuest && hasHostDevice &&
        (VMCI_WELL_KNOWN_CONTEXT_ID == src->context ||
         VMCI_WELL_KNOWN_CONTEXT_ID == dst->context)) {
-      *route = VMCI_ROUTE_HOST_TO_GUEST;
+      *route = VMCI_ROUTE_AS_HOST;
       return VMCI_SUCCESS;
    }
 
@@ -138,7 +138,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
       }
 
       /* Send from local client down to the hypervisor. */
-      *route = VMCI_ROUTE_GUEST_TO_HYPERVISOR;
+      *route = VMCI_ROUTE_AS_GUEST;
       return VMCI_SUCCESS;
    }
 
@@ -159,7 +159,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
          }
 
          /* Send it from local client down to the host. */
-         *route = VMCI_ROUTE_GUEST_TO_HOST;
+         *route = VMCI_ROUTE_AS_GUEST;
          return VMCI_SUCCESS;
       }
 
@@ -186,7 +186,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
       }
 
       /* Route to local client. */
-      *route = VMCI_ROUTE_HOST_TO_SELF;
+      *route = VMCI_ROUTE_AS_HOST;
       return VMCI_SUCCESS;
    }
 
@@ -207,7 +207,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
          }
 
          /* Pass it up to the guest. */
-         *route = VMCI_ROUTE_HOST_TO_GUEST;
+         *route = VMCI_ROUTE_AS_HOST;
          return VMCI_SUCCESS;
       }
    }
@@ -231,7 +231,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
     * the other guest for us.
     */
 
-   *route = VMCI_ROUTE_GUEST_TO_HOST;
+   *route = VMCI_ROUTE_AS_GUEST;
    return VMCI_SUCCESS;
 }
 
@@ -258,11 +258,10 @@ VMCI_RouteString(VMCIRoute route) // IN
 {
    const char *vmciRouteStrings[] = {
       "none",
-      "host to self",
-      "host to guest",
-      "guest to host/hypervisor",
+      "as host",
+      "as guest",
    };
-   if (route >= VMCI_ROUTE_NONE && route <= VMCI_ROUTE_GUEST_TO_HYPERVISOR) {
+   if (route >= VMCI_ROUTE_NONE && route <= VMCI_ROUTE_AS_GUEST) {
       return vmciRouteStrings[route];
    }
    return "";

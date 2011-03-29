@@ -559,11 +559,11 @@ VMCIDatagramDelayedDispatchCB(void *data) // IN
 /*
  *------------------------------------------------------------------------------
  *
- *  VMCIDatagramDispatchFromHostToSelfOrGuest --
+ *  VMCIDatagramDispatchAsHost --
  *
- *     Dispatch datagram to host or other vm context. This function cannot
- *     dispatch to hypervisor context handlers. This should have been handled
- *     before we get here by VMCIDatagramDispatch.
+ *     Dispatch datagram as a host, to the host or other vm context. This
+ *     function cannot dispatch to hypervisor context handlers. This should
+ *     have been handled before we get here by VMCIDatagramDispatch.
  *
  *  Result:
  *     Number of bytes sent on success, appropriate error code otherwise.
@@ -575,8 +575,8 @@ VMCIDatagramDelayedDispatchCB(void *data) // IN
  */
 
 static int
-VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
-                                          VMCIDatagram *dg)  // IN:
+VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
+                           VMCIDatagram *dg)  // IN:
 {
    int retval;
    size_t dgSize;
@@ -586,6 +586,7 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
    char dstDomain[VMCI_DOMAIN_NAME_MAXLEN]; /* Not used on hosted. */
 
    ASSERT(dg);
+   ASSERT(VMCI_HasHostDevice());
 
    dgSize = VMCI_DG_SIZE(dg);
 
@@ -804,9 +805,10 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
 /*
  *------------------------------------------------------------------------------
  *
- *  VMCIDatagramDispatchFromGuestToHost --
+ *  VMCIDatagramDispatchAsGuest --
  *
- *     Dispatch datagram down through the VMX, and potentially to the host.
+ *     Dispatch datagram as a guest, down through the VMX and potentially to
+ *     the host.
  *
  *  Result:
  *     Number of bytes sent on success, appropriate error code otherwise.
@@ -818,7 +820,7 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
  */
 
 static int
-VMCIDatagramDispatchFromGuestToHost(VMCIDatagram *dg)
+VMCIDatagramDispatchAsGuest(VMCIDatagram *dg)
 {
 #if defined(VMKERNEL)
    VMCI_WARNING((LGPFX"Cannot send down to host from VMKERNEL.\n"));
@@ -827,6 +829,8 @@ VMCIDatagramDispatchFromGuestToHost(VMCIDatagram *dg)
    int retval;
    VMCIResource *resource;
    extern int VMCI_SendDatagram(VMCIDatagram *);
+
+   ASSERT(VMCI_HasGuestDevice());
 
    resource = VMCIResource_Get(dg->src, VMCI_RESOURCE_TYPE_DATAGRAM);
    if (NULL == resource) {
@@ -880,17 +884,15 @@ VMCIDatagram_Dispatch(VMCIId contextID,
       return retval;
    }
 
-   if (VMCI_ROUTE_HOST_TO_SELF == route ||
-       VMCI_ROUTE_HOST_TO_GUEST == route) {
+   if (VMCI_ROUTE_AS_HOST == route) {
       if (VMCI_INVALID_ID == contextID) {
          contextID = VMCI_HOST_CONTEXT_ID;
       }
-      return VMCIDatagramDispatchFromHostToSelfOrGuest(contextID, dg);
+      return VMCIDatagramDispatchAsHost(contextID, dg);
    }
 
-   if (VMCI_ROUTE_GUEST_TO_HOST == route ||
-       VMCI_ROUTE_GUEST_TO_HYPERVISOR == route) {
-      return VMCIDatagramDispatchFromGuestToHost(dg);
+   if (VMCI_ROUTE_AS_GUEST == route) {
+      return VMCIDatagramDispatchAsGuest(dg);
    }
 
    VMCI_WARNING((LGPFX"Unknown route (%d) for datagram.\n", route));
@@ -928,6 +930,7 @@ VMCIDatagram_InvokeGuestHandler(VMCIDatagram *dg) // IN
    DatagramEntry *dstEntry;
 
    ASSERT(dg);
+   ASSERT(VMCI_HasGuestDevice());
 
    resource = VMCIResource_Get(dg->dst, VMCI_RESOURCE_TYPE_DATAGRAM);
    if (NULL == resource) {

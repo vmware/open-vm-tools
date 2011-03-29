@@ -33,8 +33,15 @@
 #include "vmci_kernel_if.h"
 #include "vmci_defs.h"
 
+void VMCIDoorbell_Init(void);
+void VMCIDoorbell_Exit(void);
+void VMCIDoorbell_Hibernate(Bool enterHibernation);
+void VMCIDoorbell_Sync(void);
+
 int VMCIDoorbellHostContextNotify(VMCIId srcCID, VMCIHandle handle);
 int VMCIDoorbellGetPrivFlags(VMCIHandle handle, VMCIPrivilegeFlags *privFlags);
-void VMCIDoorbell_Sync(void);
+
+Bool VMCI_RegisterNotificationBitmap(PPN bitmapPPN);
+void VMCI_ScanNotificationBitmap(uint8 *bitmap);
 
 #endif // VMCI_DOORBELL_H

@@ -43,7 +43,6 @@
 int VMCIDatagram_Init(void);
 void VMCIDatagram_Exit(void);
 
-
 /* Datagram API for non-public use. */
 int VMCIDatagram_Dispatch(VMCIId contextID, VMCIDatagram *dg, Bool fromGuest);
 int VMCIDatagram_InvokeGuestHandler(VMCIDatagram *dg);

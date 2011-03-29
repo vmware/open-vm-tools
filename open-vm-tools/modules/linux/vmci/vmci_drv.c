@@ -47,9 +47,9 @@
 #include "vmci_version.h"
 #include "vmciContext.h"
 #include "vmciDatagram.h"
+#include "vmciDoorbell.h"
 #include "vmciEvent.h"
 #include "vmciInt.h"
-#include "vmciNotifications.h"
 #include "vmciQueuePairInt.h"
 #include "vmciResource.h"
 #include "vmciUtil.h"
@@ -419,7 +419,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    VMCIDatagram_Init();
    VMCIEvent_Init();
    VMCIUtil_Init();
-   VMCINotifications_Init();
+   VMCIDoorbell_Init();
    VMCIQPGuestEndpoints_Init();
 
    /*
@@ -482,7 +482,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
 
  components_exit:
    VMCIQPGuestEndpoints_Exit();
-   VMCINotifications_Exit();
+   VMCIDoorbell_Exit();
    VMCIUtil_Exit();
    VMCIEvent_Exit();
    VMCIContext_Exit();
@@ -562,7 +562,7 @@ vmci_remove_device(struct pci_dev* pdev)
 
    release_region(dev->ioaddr, dev->ioaddr_size);
    dev->enabled = FALSE;
-   VMCINotifications_Exit();
+   VMCIDoorbell_Exit();
    if (notification_bitmap) {
       vfree(notification_bitmap);
    }

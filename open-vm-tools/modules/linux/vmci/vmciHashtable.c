@@ -49,6 +49,19 @@
 
 #define LGPFX "VMCIHashTable: "
 
+#if defined(VMKERNEL)
+   /* VMK doesn't need BH locks, so use lower ranks. */
+#  define VMCIHashTableInitLock(_l, _n) \
+   VMCI_InitLock(_l, _n, VMCI_LOCK_RANK_HIGHEST)
+#  define VMCIHashTableGrabLock(_l, _f)      VMCI_GrabLock(_l, _f)
+#  define VMCIHashTableReleaseLock(_l, _f)   VMCI_ReleaseLock(_l, _f)
+#else // VMKERNEL
+#  define VMCIHashTableInitLock(_l, _n) \
+   VMCI_InitLock(_l, _n, VMCI_LOCK_RANK_HIGH_BH)
+#  define VMCIHashTableGrabLock(_l, _f)      VMCI_GrabLock_BH(_l, _f)
+#  define VMCIHashTableReleaseLock(_l, _f)   VMCI_ReleaseLock_BH(_l, _f)
+#endif // VMKERNEL
+
 #define VMCI_HASHTABLE_HASH(_h, _sz) \
    VMCI_HashId(VMCI_HANDLE_TO_RESOURCE_ID(_h), (_sz))
 
@@ -87,9 +100,7 @@ VMCIHashTable_Create(int size)
    }
    memset(table->entries, 0, sizeof *table->entries * size);
    table->size = size;
-   VMCI_InitLock(&table->lock,
-                 "VMCIHashTableLock",
-                 VMCI_LOCK_RANK_HIGH);   
+   VMCIHashTableInitLock(&table->lock, "VMCIHashTableLock");
 
    return table;
 }
@@ -121,7 +132,7 @@ VMCIHashTable_Destroy(VMCIHashTable *table)
 
    ASSERT(table);
 
-   VMCI_GrabLock(&table->lock, &flags);
+   VMCIHashTableGrabLock(&table->lock, &flags);
 #if 0
 #ifdef VMX86_DEBUG
    for (i = 0; i < table->size; i++) {
@@ -139,8 +150,8 @@ VMCIHashTable_Destroy(VMCIHashTable *table)
 #endif
    VMCI_FreeKernelMem(table->entries, sizeof *table->entries * table->size);
    table->entries = NULL;
-   VMCI_ReleaseLock(&table->lock, flags);
-   VMCI_CleanupLock(&table->lock);   
+   VMCIHashTableReleaseLock(&table->lock, flags);
+   VMCI_CleanupLock(&table->lock);
    VMCI_FreeKernelMem(table, sizeof *table);
 }
 
@@ -188,18 +199,18 @@ VMCIHashTable_AddEntry(VMCIHashTable *table,   // IN
    ASSERT(entry);
    ASSERT(table);
 
-   VMCI_GrabLock(&table->lock, &flags);
+   VMCIHashTableGrabLock(&table->lock, &flags);
 
    /* Do not allow addition of a new entry if the device is being shutdown. */
    if (VMCI_DeviceShutdown()) {
-      VMCI_ReleaseLock(&table->lock, flags);
+      VMCIHashTableReleaseLock(&table->lock, flags);
       return VMCI_ERROR_DEVICE_NOT_FOUND;
    }
 
    if (VMCIHashTableEntryExistsLocked(table, entry->handle)) {
       VMCI_DEBUG_LOG(4, (LGPFX"Entry (handle=0x%x:0x%x) already exists.\n",
                          entry->handle.context, entry->handle.resource));
-      VMCI_ReleaseLock(&table->lock, flags);
+      VMCIHashTableReleaseLock(&table->lock, flags);
       return VMCI_ERROR_DUPLICATE_ENTRY;
    }
 
@@ -210,7 +221,7 @@ VMCIHashTable_AddEntry(VMCIHashTable *table,   // IN
    entry->refCount++;
    entry->next = table->entries[idx];
    table->entries[idx] = entry;
-   VMCI_ReleaseLock(&table->lock, flags);
+   VMCIHashTableReleaseLock(&table->lock, flags);
 
    return VMCI_SUCCESS;
 }
@@ -239,8 +250,8 @@ VMCIHashTable_RemoveEntry(VMCIHashTable *table, // IN
    ASSERT(table);
    ASSERT(entry);
 
-   VMCI_GrabLock(&table->lock, &flags);
-   
+   VMCIHashTableGrabLock(&table->lock, &flags);
+
    /* First unlink the entry. */
    result = HashTableUnlinkEntry(table, entry);
    if (result != VMCI_SUCCESS) {
@@ -254,10 +265,10 @@ VMCIHashTable_RemoveEntry(VMCIHashTable *table, // IN
       result = VMCI_SUCCESS_ENTRY_DEAD;
       goto done;
    }
-   
+
   done:
-   VMCI_ReleaseLock(&table->lock, flags);
-   
+   VMCIHashTableReleaseLock(&table->lock, flags);
+
    return result;
 }
 
@@ -338,12 +349,45 @@ VMCIHashTable_GetEntry(VMCIHashTable *table,  // IN
    }
 
    ASSERT(table);
-   
-   VMCI_GrabLock(&table->lock, &flags);
+
+   VMCIHashTableGrabLock(&table->lock, &flags);
    entry = VMCIHashTableGetEntryLocked(table, handle);
-   VMCI_ReleaseLock(&table->lock, flags);
+   VMCIHashTableReleaseLock(&table->lock, flags);
 
    return entry;
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ *  VMCIHashTable_HoldEntry --
+ *
+ *     Hold the given entry.  This will increment the entry's reference count.
+ *     This is like a GetEntry() but without having to lookup the entry by
+ *     handle.
+ *
+ *  Result:
+ *     None.
+ *
+ *  Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+void
+VMCIHashTable_HoldEntry(VMCIHashTable *table, // IN
+                        VMCIHashEntry *entry) // IN/OUT
+{
+   VMCILockFlags flags;
+
+   ASSERT(table);
+   ASSERT(entry);
+
+   VMCIHashTableGrabLock(&table->lock, &flags);
+   entry->refCount++;
+   VMCIHashTableReleaseLock(&table->lock, flags);
 }
 
 
@@ -377,7 +421,7 @@ VMCIHashTableReleaseEntryLocked(VMCIHashTable *table,  // IN
 
    entry->refCount--;
    /* Check if this is last reference and report if so. */
-   if (entry->refCount == 0) { 
+   if (entry->refCount == 0) {
 
       /*
        * Remove entry from hash table if not already removed. This could have
@@ -417,9 +461,9 @@ VMCIHashTable_ReleaseEntry(VMCIHashTable *table,  // IN
    int result;
 
    ASSERT(table);
-   VMCI_GrabLock(&table->lock, &flags);
+   VMCIHashTableGrabLock(&table->lock, &flags);
    result = VMCIHashTableReleaseEntryLocked(table, entry);
-   VMCI_ReleaseLock(&table->lock, flags);
+   VMCIHashTableReleaseLock(&table->lock, flags);
 
    return result;
 }
@@ -450,9 +494,9 @@ VMCIHashTable_EntryExists(VMCIHashTable *table,  // IN
 
    ASSERT(table);
 
-   VMCI_GrabLock(&table->lock, &flags);
+   VMCIHashTableGrabLock(&table->lock, &flags);
    exists = VMCIHashTableEntryExistsLocked(table, handle);
-   VMCI_ReleaseLock(&table->lock, flags);
+   VMCIHashTableReleaseLock(&table->lock, flags);
 
    return exists;
 }
@@ -576,6 +620,6 @@ VMCIHashTable_Sync(VMCIHashTable *table)
 {
    VMCILockFlags flags;
    ASSERT(table);
-   VMCI_GrabLock(&table->lock, &flags);
-   VMCI_ReleaseLock(&table->lock, flags);
+   VMCIHashTableGrabLock(&table->lock, &flags);
+   VMCIHashTableReleaseLock(&table->lock, flags);
 }

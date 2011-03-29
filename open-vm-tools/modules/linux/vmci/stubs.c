@@ -96,48 +96,6 @@ VMCIQPBroker_Detach(VMCIHandle handle,
 /*
  *------------------------------------------------------------------------------
  *
- *  VMCIDoorbellHostContextNotify --
- *
- *     Stub.  Not called in the guest driver (yet).
- *
- *  Result:
- *     Always VMCI_ERROR_GENERIC.
- *
- *------------------------------------------------------------------------------
- */
-
-int
-VMCIDoorbellHostContextNotify(VMCIId srcCID,
-                              VMCIHandle handle)
-{
-   return VMCI_ERROR_GENERIC;
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- *  VMCIDoorbellGetPrivFlags --
- *
- *     Stub.  Not called in the guest driver (yet).
- *
- *  Result:
- *     Always VMCI_ERROR_GENERIC.
- *
- *------------------------------------------------------------------------------
- */
-
-int
-VMCIDoorbellGetPrivFlags(VMCIHandle handle,
-                         VMCIPrivilegeFlags *privFlags)
-{
-   return VMCI_ERROR_GENERIC;
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
  *  VMCIUnsetNotify --
  *
  *     Stub.  Not called in the guest driver (yet).

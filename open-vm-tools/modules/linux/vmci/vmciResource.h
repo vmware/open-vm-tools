@@ -72,6 +72,7 @@ void VMCIResource_Remove(VMCIHandle resourceHandle,
                          VMCIResourceType resourceType);
 VMCIResource *VMCIResource_Get(VMCIHandle resourceHandle,
                                VMCIResourceType resourceType);
+void VMCIResource_Hold(VMCIResource *resource);
 int VMCIResource_Release(VMCIResource *resource);
 
 
