@@ -122,7 +122,18 @@ struct sockaddr_vm {
          }
          return afvalue;
       }
-   
+
+      static __inline int VMCISock_GetAFValueFd(int *outFd)
+      {
+         (void)outFd; /* Unused parameter. */
+         return VMCISock_GetAFValue();
+      }
+
+      static __inline void VMCISock_ReleaseAFValueFd(int fd)
+      {
+         (void)fd; /* Unused parameter. */
+      }
+
       static __inline unsigned int VMCISock_GetLocalCID(void)
       {
          unsigned int cid = VMADDR_CID_ANY;
