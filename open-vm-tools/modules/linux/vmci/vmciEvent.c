@@ -536,8 +536,9 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    ASSERT(sub);
 
    if (!VMCI_EVENT_VALID(event) || callback == NULL) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Failed to subscribe to event %d cb %p data %p.\n",
-                      event, callback, callbackData));
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to subscribe to event (type=%d) "
+                         "(callback=%p) (data=%p).\n",
+                         event, callback, callbackData));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -690,7 +691,7 @@ VMCIEvent_Subscribe(VMCI_Event event,        // IN
    VMCISubscription *s = NULL;
 
    if (subscriptionID == NULL) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Invalid arguments.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid subscription (NULL).\n"));
       return VMCI_ERROR_INVALID_ARGS;
    }
 

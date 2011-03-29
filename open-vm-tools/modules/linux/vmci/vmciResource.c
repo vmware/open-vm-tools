@@ -85,8 +85,7 @@ VMCIResource_Init(void)
       return VMCI_ERROR_NO_MEM;
    }
 
-   VMCI_InitLock(&resourceIdLock, "VMCIRIDLock",
-                 VMCI_LOCK_RANK_HIGHEST);
+   VMCI_InitLock(&resourceIdLock, "VMCIRIDLock", VMCI_LOCK_RANK_HIGHEST);
 
    return VMCI_SUCCESS;
 }
@@ -204,7 +203,7 @@ VMCIResource_Add(VMCIResource *resource,                // IN
    ASSERT(resource);
 
    if (VMCI_HANDLE_EQUAL(resourceHandle, VMCI_INVALID_HANDLE)) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Invalid arguments resource 0x%x:0x%x.\n",
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid argument resource (handle=0x%x:0x%x).\n",
                          resourceHandle.context, resourceHandle.resource));
       return VMCI_ERROR_INVALID_ARGS;
    }
@@ -218,7 +217,8 @@ VMCIResource_Add(VMCIResource *resource,                // IN
    /* Add resource to hashtable. */
    result = VMCIHashTable_AddEntry(resourceTable, &resource->hashEntry);
    if (result != VMCI_SUCCESS) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Failed to add entry to hash table.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to add entry to hash table "
+                         "(result=%d).\n", result));
       return result;
    }
 

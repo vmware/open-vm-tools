@@ -299,7 +299,8 @@ VMCIContext_InitContext(VMCIId cid,                   // IN
    int result;
 
    if (privFlags & ~VMCI_PRIVILEGE_ALL_FLAGS) {
-      VMCI_WARNING((LGPFX"Invalid flag for VMCI context.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid flag (flags=0x%x) for VMCI context.\n",
+                         privFlags));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -662,7 +663,7 @@ VMCIContext_EnqueueDatagram(VMCIId cid,        // IN: Target VM
    /* Get the target VM's VMCI context. */
    context = VMCIContext_Get(cid);
    if (context == NULL) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Invalid cid.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid context (ID=0x%x).\n", cid));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -697,7 +698,8 @@ VMCIContext_EnqueueDatagram(VMCIId cid,        // IN: Target VM
       VMCI_ReleaseLock(&context->lock, flags);
       VMCIContext_Release(context);
       VMCI_FreeKernelMem(dqEntry, sizeof *dqEntry);
-      VMCI_DEBUG_LOG(10, (LGPFX"Context 0x%x receive queue is full.\n", cid));
+      VMCI_DEBUG_LOG(10, (LGPFX"Context (ID=0x%x) receive queue is full.\n",
+                          cid));
       return VMCI_ERROR_NO_RESOURCES;
    }
 
@@ -926,8 +928,8 @@ VMCIContext_DequeueDatagram(VMCIContext *context, // IN
    if (*maxSize < dqEntry->dgSize) {
       *maxSize = dqEntry->dgSize;
       VMCI_ReleaseLock(&context->lock, flags);
-      VMCI_DEBUG_LOG(4, (LGPFX"Caller's buffer is too small. It must be at "
-                         "least %"FMTSZ"d bytes.\n", *maxSize));
+      VMCI_DEBUG_LOG(4, (LGPFX"Caller's buffer should be at least "
+                         "(size=%"FMTSZ"d bytes).\n", *maxSize));
       return VMCI_ERROR_NO_MEM;
    }
 
@@ -1573,8 +1575,8 @@ VMCIContextFireNotification(VMCIId contextID,             // IN
       result = VMCIDatagram_Dispatch(VMCI_HYPERVISOR_CONTEXT_ID,
                                      (VMCIDatagram *)eMsg, FALSE);
       if (result < VMCI_SUCCESS) {
-         VMCI_DEBUG_LOG(4, (LGPFX"Failed to enqueue event datagram %d for "
-                            "context %d.\n",
+         VMCI_DEBUG_LOG(4, (LGPFX"Failed to enqueue event datagram "
+                            "(type=%d) for context (ID=0x%x).\n",
                             eMsg->eventData.event, eMsg->hdr.dst.context));
          /* We continue to enqueue on next subscriber. */
       }
@@ -1636,7 +1638,7 @@ VMCIContext_GetCheckpointState(VMCIId contextID,    // IN:
       array = context->doorbellArray;
       getContextID = FALSE;
    } else {
-      VMCI_DEBUG_LOG(4, (LGPFX"Invalid cpt state type %d.\n", cptType));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid cpt state (type=%d).\n", cptType));
       result = VMCI_ERROR_INVALID_ARGS;
       goto release;
    }
@@ -1716,7 +1718,7 @@ VMCIContext_SetCheckpointState(VMCIId contextID, // IN:
 
    if (cptType != VMCI_NOTIFICATION_CPT_STATE &&
        cptType != VMCI_WELLKNOWN_CPT_STATE) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Invalid cpt state type %d.\n", cptType));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid cpt state (type=%d).\n", cptType));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -1730,7 +1732,7 @@ VMCIContext_SetCheckpointState(VMCIId contextID, // IN:
       }
    }
    if (result != VMCI_SUCCESS) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Failed to set cpt state type %d, error %d.\n",
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to set cpt state (type=%d) (error=%d).\n",
                          cptType, result));
    }
    return result;
@@ -2051,7 +2053,7 @@ VMCIContext_NotifyDoorbell(VMCIId srcCID,                   // IN
    /* Get the target VM's VMCI context. */
    dstContext = VMCIContext_Get(handle.context);
    if (dstContext == NULL) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Invalid cid.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid context (ID=0x%x).\n", handle.context));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -2064,15 +2066,16 @@ VMCIContext_NotifyDoorbell(VMCIId srcCID,                   // IN
 
       result = VMCIContext_GetDomainName(srcCID, srcDomain, sizeof srcDomain);
       if (result < VMCI_SUCCESS) {
-         VMCI_WARNING((LGPFX"Failed to get domain name for source context %u.\n",
-                       srcCID));
+         VMCI_WARNING((LGPFX"Failed to get domain name for source context "
+                       "(ID=0x%x).\n", srcCID));
          goto out;
       }
 #endif
       result = VMCIDoorbellGetPrivFlags(handle, &dstPrivFlags);
       if (result < VMCI_SUCCESS) {
          VMCI_WARNING((LGPFX"Failed to get privilege flags for destination "
-                       "handle 0x%x:0x%x.\n", handle.context, handle.resource));
+                       "(handle=0x%x:0x%x).\n", handle.context,
+                       handle.resource));
          goto out;
       }
 

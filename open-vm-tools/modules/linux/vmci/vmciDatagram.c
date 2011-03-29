@@ -230,7 +230,7 @@ DatagramCreateHnd(VMCIId resourceID,            // IN:
    result = VMCIResource_Add(&entry->resource, VMCI_RESOURCE_TYPE_DATAGRAM,
                              handle, DatagramFreeCB, entry);
    if (result != VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to add new resource %d:%d.\n",
+      VMCI_WARNING((LGPFX"Failed to add new resource (handle=0x%x:0x%x).\n",
                     handle.context, handle.resource));
       VMCI_DestroyEvent(&entry->destroyEvent);
       VMCI_FreeKernelMem(entry, sizeof *entry);
@@ -412,7 +412,7 @@ VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
    VMCIResource *resource = VMCIResource_Get(handle,
                                              VMCI_RESOURCE_TYPE_DATAGRAM);
    if (resource == NULL) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Failed to destroy handle 0x%x:0x%x.\n",
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to destroy datagram (handle=0x%x:0x%x).\n",
                          handle.context, handle.resource));
       return VMCI_ERROR_NOT_FOUND;
    }
@@ -596,8 +596,8 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
 
    ASSERT(dg->dst.context != VMCI_HYPERVISOR_CONTEXT_ID);
 
-   VMCI_DEBUG_LOG(10, (LGPFX"Sending from handle 0x%x:0x%x to handle 0x%x:0x%x, "
-                       "datagram size %u.\n",
+   VMCI_DEBUG_LOG(10, (LGPFX"Sending from (handle=0x%x:0x%x) to "
+                       "(handle=0x%x:0x%x) (size=%u bytes).\n",
                        dg->src.context, dg->src.resource,
                        dg->dst.context, dg->dst.resource, (uint32)dgSize));
 
@@ -610,22 +610,22 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
          DatagramWKMapping *wkMap = DatagramGetWellKnownMap(dg->src.resource);
          if (wkMap == NULL) {
             VMCI_DEBUG_LOG(4, (LGPFX"Sending from invalid well-known resource "
-                               "id 0x%x:0x%x.\n",
+                               "(handle=0x%x:0x%x).\n",
                                dg->src.context, dg->src.resource));
             return VMCI_ERROR_INVALID_RESOURCE;
          }
          if (wkMap->contextID != contextID) {
-            VMCI_DEBUG_LOG(4, (LGPFX"Sender context 0x%x is not owner of "
-                               "well-known src datagram entry with handle "
-                               "0x%x:0x%x.\n",
+            VMCI_DEBUG_LOG(4, (LGPFX"Sender context (ID=0x%x) is not owner of "
+                               "well-known src datagram entry "
+                               "(handle=0x%x:0x%x).\n",
                                contextID, dg->src.context, dg->src.resource));
             DatagramReleaseWellKnownMap(wkMap);
             return VMCI_ERROR_NO_ACCESS;
          }
          DatagramReleaseWellKnownMap(wkMap);
       } else {
-         VMCI_DEBUG_LOG(4, (LGPFX"Sender context 0x%x is not owner of src "
-                            "datagram entry with handle 0x%x:0x%x.\n",
+         VMCI_DEBUG_LOG(4, (LGPFX"Sender context (ID=0x%x) is not owner of src "
+                            "datagram entry (handle=0x%x:0x%x).\n",
                             contextID, dg->src.context, dg->src.resource));
          return VMCI_ERROR_NO_ACCESS;
       }
@@ -636,7 +636,7 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
       DatagramWKMapping *wkMap = DatagramGetWellKnownMap(dg->dst.resource);
       if (wkMap == NULL) {
          VMCI_DEBUG_LOG(4, (LGPFX"Sending to invalid wellknown destination "
-                            "0x%x:0x%x.\n",
+                            "(handle=0x%x:0x%x).\n",
                             dg->dst.context, dg->dst.resource));
          return VMCI_ERROR_DST_UNREACHABLE;
       }
@@ -652,7 +652,7 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
 
    retval = VMCIDatagramGetPrivFlagsInt(contextID, dg->src, &srcPrivFlags);
    if (retval != VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Couldn't get privileges for handle 0x%x:0x%x.\n",
+      VMCI_WARNING((LGPFX"Couldn't get privileges (handle=0x%x:0x%x).\n",
                     dg->src.context, dg->src.resource));
       return retval;
    }
@@ -668,7 +668,7 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
       retval = VMCIContext_GetDomainName(contextID, srcDomain,
                                          sizeof srcDomain);
       if (retval < VMCI_SUCCESS) {
-         VMCI_WARNING((LGPFX"Failed to get domain name for context %u.\n",
+         VMCI_WARNING((LGPFX"Failed to get domain name for context (ID=0x%x).\n",
                        contextID));
          return retval;
       }
@@ -688,8 +688,9 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
 
       resource = VMCIResource_Get(dg->dst, VMCI_RESOURCE_TYPE_DATAGRAM);
       if (resource == NULL) {
-         VMCI_DEBUG_LOG(4, (LGPFX"Sending to invalid destination handle "
-                            "0x%x:0x%x.\n", dg->dst.context, dg->dst.resource));
+         VMCI_DEBUG_LOG(4, (LGPFX"Sending to invalid destination "
+                            "(handle=0x%x:0x%x).\n",
+                            dg->dst.context, dg->dst.resource));
          return VMCI_ERROR_INVALID_RESOURCE;
       }
       dstEntry = RESOURCE_CONTAINER(resource, DatagramEntry, resource);
@@ -697,7 +698,7 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
       retval = VMCIContext_GetDomainName(VMCI_HOST_CONTEXT_ID, dstDomain,
                                          sizeof dstDomain);
       if (retval < VMCI_SUCCESS) {
-         VMCI_WARNING((LGPFX"Failed to get domain name for context %u.\n",
+         VMCI_WARNING((LGPFX"Failed to get domain name for context (ID=0x%x).\n",
                        VMCI_HOST_CONTEXT_ID));
          VMCIResource_Release(resource);
          return retval;
@@ -743,8 +744,8 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
 
          retval = VMCI_ScheduleDelayedWork(VMCIDatagramDelayedDispatchCB, dgInfo);
          if (retval < VMCI_SUCCESS) {
-            VMCI_WARNING((LGPFX"Failed to schedule delayed work for datagram, "
-                          "result %d.\n", retval));
+            VMCI_WARNING((LGPFX"Failed to schedule delayed work for datagram "
+                          "(result=%d).\n", retval));
             VMCI_FreeKernelMem(dgInfo, sizeof *dgInfo + (size_t)dg->payloadSize);
             VMCIResource_Release(resource);
             Atomic_Dec(&delayedDGHostQueueSize);
@@ -765,8 +766,8 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
       retval = VMCIContext_GetDomainName(dstContext, dstDomain,
                                          sizeof dstDomain);
       if (retval < VMCI_SUCCESS) {
-         VMCI_DEBUG_LOG(4, (LGPFX"Failed to get domain name for context %u.\n",
-                            dstContext));
+         VMCI_DEBUG_LOG(4, (LGPFX"Failed to get domain name for context "
+                            "(ID=0x%x).\n", dstContext));
          return retval;
       }
 #endif
@@ -789,7 +790,8 @@ VMCIDatagramDispatchFromHostToSelfOrGuest(VMCIId contextID,  // IN:
       }
    }
    /* The datagram is freed when the context reads it. */
-   VMCI_DEBUG_LOG(10, (LGPFX"Sent datagram of size %u.\n", (uint32)dgSize));
+   VMCI_DEBUG_LOG(10, (LGPFX"Sent datagram (size=%u bytes).\n",
+                       (uint32)dgSize));
 
    /*
     * We currently truncate the size to signed 32 bits. This doesn't
@@ -868,8 +870,8 @@ VMCIDatagram_Dispatch(VMCIId contextID,
    ASSERT_ON_COMPILE(sizeof(VMCIDatagram) == 24);
 
    if (VMCI_DG_SIZE(dg) > VMCI_MAX_DG_SIZE) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Payload size %"FMT64"u too big to send.\n",
-                         dg->payloadSize));
+      VMCI_DEBUG_LOG(4, (LGPFX"Payload (size=%"FMT64"u bytes) too big to "
+                         "send.\n", dg->payloadSize));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -891,7 +893,7 @@ VMCIDatagram_Dispatch(VMCIId contextID,
       return VMCIDatagramDispatchFromGuestToHost(dg);
    }
 
-   VMCI_WARNING((LGPFX"Unknown route for datagram.\n"));
+   VMCI_WARNING((LGPFX"Unknown route (%d) for datagram.\n", route));
    return VMCI_ERROR_DST_UNREACHABLE;
 }
 
@@ -929,7 +931,7 @@ VMCIDatagram_InvokeGuestHandler(VMCIDatagram *dg) // IN
 
    resource = VMCIResource_Get(dg->dst, VMCI_RESOURCE_TYPE_DATAGRAM);
    if (NULL == resource) {
-      VMCI_DEBUG_LOG(4, (LGPFX"destination handle 0x%x:0x%x doesn't exist.\n",
+      VMCI_DEBUG_LOG(4, (LGPFX"destination (handle=0x%x:0x%x) doesn't exist.\n",
                          dg->dst.context, dg->dst.resource));
       return VMCI_ERROR_NO_HANDLE;
    }
@@ -952,8 +954,8 @@ VMCIDatagram_InvokeGuestHandler(VMCIDatagram *dg) // IN
 
       retval = VMCI_ScheduleDelayedWork(VMCIDatagramDelayedDispatchCB, dgInfo);
       if (retval < VMCI_SUCCESS) {
-         VMCI_WARNING((LGPFX"Failed to schedule delayed work for datagram, "
-                       "result %d.\n", retval));
+         VMCI_WARNING((LGPFX"Failed to schedule delayed work for datagram "
+                       "(result=%d).\n", retval));
          VMCI_FreeKernelMem(dgInfo, sizeof *dgInfo + (size_t)dg->payloadSize);
          VMCIResource_Release(resource);
          dgInfo = NULL;
@@ -1136,8 +1138,8 @@ VMCIDatagramRemoveWellKnownMap(VMCIId wellKnownID,  // IN:
    DatagramWKMapping *wkMap = DatagramGetWellKnownMap(wellKnownID);
    if (wkMap == NULL) {
       VMCI_DEBUG_LOG(4, (LGPFX"Failed to remove well-known mapping between "
-                         "resource %d and context %d.\n", wellKnownID,
-                         contextID));
+                         "resource (ID=0x%x) and context (ID=0x%x).\n",
+                         wellKnownID, contextID));
       return VMCI_ERROR_NOT_FOUND;
    }
 

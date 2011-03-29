@@ -80,7 +80,7 @@ VMCIUtil_Init(void)
    if (VMCIEvent_Subscribe(VMCI_EVENT_CTX_ID_UPDATE, VMCI_FLAG_EVENT_NONE,
                            VMCIUtilCidUpdate, NULL,
                            &ctxUpdateSubID) < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to subscribe to event %d.\n",
+      VMCI_WARNING((LGPFX"Failed to subscribe to event (type=%d).\n",
                     VMCI_EVENT_CTX_ID_UPDATE));
    }
 }
@@ -106,8 +106,8 @@ void
 VMCIUtil_Exit(void)
 {
    if (VMCIEvent_Unsubscribe(ctxUpdateSubID) < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to unsubscribe to event %d with "
-                    "subscriber id %d.\n", VMCI_EVENT_CTX_ID_UPDATE,
+      VMCI_WARNING((LGPFX"Failed to unsubscribe to event (type=%d) with "
+                    "subscriber (ID=0x%x).\n", VMCI_EVENT_CTX_ID_UPDATE,
                     ctxUpdateSubID));
    }
 }
@@ -137,16 +137,15 @@ VMCIUtilCidUpdate(VMCIId subID,               // IN:
    VMCIEventPayload_Context *evPayload = VMCIEventDataPayload(eventData);
 
    if (subID != ctxUpdateSubID) {
-      VMCI_WARNING((LGPFX"Invalid subscriber id. %d.\n", subID));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid subscriber (ID=0x%x).\n", subID));
       return;
    }
    if (eventData == NULL || evPayload->contextID == VMCI_INVALID_ID) {
-      VMCI_WARNING((LGPFX"Invalid event data.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid event data.\n"));
       return;
    }
-   VMCI_LOG((LGPFX"Updating context id from 0x%x to 0x%x on event %d.\n",
-             Atomic_Read(&vmContextID),
-             evPayload->contextID,
+   VMCI_LOG((LGPFX"Updating context from (ID=0x%x) to (ID=0x%x) on event "
+             "(type=%d).\n", Atomic_Read(&vmContextID), evPayload->contextID,
              eventData->event));
    Atomic_Write(&vmContextID, evPayload->contextID);
 }
@@ -521,8 +520,8 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
             result = VMCIDatagram_InvokeGuestHandler(dg);
          }
          if (result < VMCI_SUCCESS) {
-            VMCI_DEBUG_LOG(4, (LGPFX"Datagram with resource %d failed with "
-                               "err %x.\n", dg->dst.resource, result));
+            VMCI_DEBUG_LOG(4, (LGPFX"Datagram with resource (ID=0x%x) failed "
+                               "(err=%d).\n", dg->dst.resource, result));
          }
 
          /* On to the next datagram. */
@@ -534,7 +533,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
           * Datagram doesn't fit in datagram buffer of maximal size. We drop it.
           */
 
-         VMCI_DEBUG_LOG(4, (LGPFX"Failed to receive datagram of size %u.\n",
+         VMCI_DEBUG_LOG(4, (LGPFX"Failed to receive datagram (size=%u bytes).\n",
                             dgInSize));
 
          bytesToSkip = dgInSize - remainingBytes;

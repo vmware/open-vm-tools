@@ -132,8 +132,8 @@ VMCIHashTable_Destroy(VMCIHashTable *table)
       }
    }
    if (leakingEntries) {
-      VMCI_WARNING((LGPFX"Leaking %d hash table entries for table %p.\n",
-               leakingEntries, table));
+      VMCI_WARNING((LGPFX"Leaking entries (%d) for hash table (%p).\n",
+                    leakingEntries, table));
    }
 #endif // VMX86_DEBUG
 #endif
@@ -197,7 +197,7 @@ VMCIHashTable_AddEntry(VMCIHashTable *table,   // IN
    }
 
    if (VMCIHashTableEntryExistsLocked(table, entry->handle)) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Entry's handle 0x%x:0x%x already exists.\n",
+      VMCI_DEBUG_LOG(4, (LGPFX"Entry (handle=0x%x:0x%x) already exists.\n",
                          entry->handle.context, entry->handle.resource));
       VMCI_ReleaseLock(&table->lock, flags);
       return VMCI_ERROR_DUPLICATE_ENTRY;
