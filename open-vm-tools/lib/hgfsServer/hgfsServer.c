@@ -16,6 +16,17 @@
  *
  *********************************************************/
 
+#if defined(__APPLE__)
+/*
+ * DirectoryEntry type that is used in common code is
+ * defined as dirent for Mac OS.
+ * _DARWIN_USE_64_BIT_INODE definition is needed to make dirent
+ * structure definitions in this file and in HgfsServerLinux.c
+ * consistent.
+ */
+#define _DARWIN_USE_64_BIT_INODE
+#endif
+
 #include <string.h>
 #include <stdlib.h>
 

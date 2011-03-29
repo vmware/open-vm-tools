@@ -28,6 +28,10 @@
 
 #define _GNU_SOURCE // for O_NOFOLLOW
 
+#if defined(__APPLE__)
+#define _DARWIN_USE_64_BIT_INODE
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -156,12 +160,28 @@ getdents_linux(unsigned int fd,
 #   endif
 }
 #      define getdents getdents_linux
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#elif defined(__FreeBSD__)
 #define getdents(fd, dirp, count)                                             \
 ({                                                                            \
    long basep;                                                                \
    getdirentries(fd, dirp, count, &basep);                                    \
 })
+#elif defined(__APPLE__)
+static INLINE int
+getdents_apple(DIR *fd,               // IN
+               DirectoryEntry *dirp,  // OUT
+               unsigned int count)    // IN: ignored
+{
+   int res = 0;
+   struct dirent *dirEntry;
+   dirEntry = readdir(fd);
+   if (NULL != dirEntry) {
+      memcpy(dirp, dirEntry, dirEntry->d_reclen);
+      res =  dirEntry->d_reclen;
+   }
+   return res;
+}
+#      define getdents getdents_apple
 #endif
 
 /*
@@ -306,13 +326,7 @@ static HgfsInternalStatus HgfsSetHiddenXAttr(char const *fileName, Bool value);
 static HgfsInternalStatus HgfsEffectivePermissions(char *fileName,
                                                    Bool readOnlyShare,
                                                    uint32 *permissions);
-#if defined(__APPLE__)
-static void HgfsConvertStat64ToStat(const struct stat64 *stats64,
-                                    struct stat *stats,
-                                    uint64 *creationTime);
-#else
 static uint64 HgfsGetCreationTime(const struct stat *stats);
-#endif
 
 #ifdef HGFS_OPLOCKS
 /*
@@ -733,7 +747,15 @@ HgfsCheckFileNode(char const *localName,      // IN
     * file name still refers to the same pair
     */
 
+#if defined(__APPLE__)
+   /*
+    *  Can't use Posix_Stat because of inconsistent definition
+    *  of _DARWIN_USE_64_BIT_INODE in this file and in other libraries.
+    */
+   if (stat(localName, &nodeStat) < 0) {
+#else
    if (Posix_Stat(localName, &nodeStat) < 0) {
+#endif
       int error = errno;
 
       LOG(4, ("%s: couldn't stat local file \"%s\": %s\n", __FUNCTION__,
@@ -1892,49 +1914,6 @@ HgfsEffectivePermissions(char *fileName,          // IN: Input filename
 }
 
 
-#if defined(__APPLE__)
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsConvertStat64ToStat --
- *
- *    Helper function that converts data in stat64 format into stat format.
- *    It returns creationTime in HGFS platform independent format.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-HgfsConvertStat64ToStat(const struct stat64 *stats64,  // IN: data in stat64 format
-                        struct stat *stats,            // OUT: data in stat format
-                        uint64 *creationTime)          // OUT: creation time
-{
-   stats->st_dev = stats64->st_dev;
-   stats->st_ino = stats64->st_ino;
-   stats->st_mode = stats64->st_mode;
-   stats->st_nlink = stats64->st_nlink;
-   stats->st_uid = stats64->st_uid;
-   stats->st_gid = stats64->st_gid;
-   stats->st_rdev = stats64->st_rdev;
-   stats->st_atimespec = stats64->st_atimespec;
-   stats->st_mtimespec = stats64->st_mtimespec;
-   stats->st_ctimespec = stats64->st_ctimespec;
-   stats->st_size = stats64->st_size;
-   stats->st_blocks = stats64->st_blocks;
-   stats->st_blksize = stats64->st_blksize;
-   stats->st_flags = stats64->st_flags;
-   stats->st_gen = stats64->st_gen;
-   *creationTime =  HgfsConvertTimeSpecToNtTime(&stats64->st_birthtimespec);
-}
-#else
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1993,6 +1972,8 @@ HgfsGetCreationTime(const struct stat *stats)
 #   else
    creationTime   = HgfsConvertTimeSpecToNtTime(&stats->st_mtim);
 #   endif
+#elif defined(__APPLE__)
+   creationTime   = HgfsConvertTimeSpecToNtTime(&stats->st_birthtimespec);
 #else
    /*
     * Solaris: No nanosecond timestamps, no file create timestamp.
@@ -2001,7 +1982,6 @@ HgfsGetCreationTime(const struct stat *stats)
 #endif
    return creationTime;
 }
-#endif
 
 
 /*
@@ -2009,8 +1989,8 @@ HgfsGetCreationTime(const struct stat *stats)
  *
  * HgfsStat --
  *
- *    Wrapper function that invokes stat64 on Mac OS and stat on Linux (where stat64 is
- *    unavailable).
+ *    Wrapper function that invokes stat on Mac OS and on Linux.
+ *
  *    Returns filled stat structure and a file creation time. File creation time is
  *    the birthday time for Mac OS and last write time for Linux (which does not support
  *    file creation time).
@@ -2033,14 +2013,10 @@ HgfsStat(const char* fileName,   // IN: file name
 {
    int error;
 #if defined(__APPLE__)
-   struct stat64 stats64;
    if (followLink) {
-      error = stat64(fileName, &stats64);
+      error = stat(fileName, stats);
    } else {
-      error = lstat64(fileName, &stats64);
-   }
-   if (error == 0) {
-      HgfsConvertStat64ToStat(&stats64, stats, creationTime);
+      error = lstat(fileName, stats);
    }
 #else
    if (followLink) {
@@ -2048,8 +2024,8 @@ HgfsStat(const char* fileName,   // IN: file name
    } else {
       error = Posix_Lstat(fileName, stats);
    }
-   *creationTime = HgfsGetCreationTime(stats);
 #endif
+   *creationTime = HgfsGetCreationTime(stats);
    return error;
 }
 
@@ -2059,8 +2035,8 @@ HgfsStat(const char* fileName,   // IN: file name
  *
  * HgfsFStat --
  *
- *    Wrapper function that invokes stat64 on Mac OS and stat on Linux (where stat64 is
- *    unavailable).
+ *    Wrapper function that invokes fstat.
+ *
  *    Returns filled stat structure and a file creation time. File creation time is
  *    the birthday time for Mac OS and last write time for Linux (which does not support
  *    file creation time).
@@ -2081,18 +2057,10 @@ HgfsFStat(int fd,                 // IN: file descriptor
           uint64 *creationTime)   // OUT: file creation time
 {
    int error = 0;
-#if defined(__APPLE__)
-   struct stat64 stats64;
-   error = fstat64(fd, &stats64);
-   if (error == 0) {
-      HgfsConvertStat64ToStat(&stats64, stats, creationTime);
-   }
-#else
    if (fstat(fd, stats) < 0) {
       error = errno;
    }
    *creationTime = HgfsGetCreationTime(stats);
-#endif
    return error;
 }
 
@@ -3141,6 +3109,10 @@ HgfsConvertToUtf8FormC(char *buffer,         // IN/OUT: name to normalize
  *    symlinks. Instead, we'll open(2) the directory with O_DIRECTORY and
  *    O_NOFOLLOW, call getdents(2) directly, then close(2) the directory.
  *
+ *    On Mac OS getdirentries became deprecated starting from 10.6 and
+ *    there is no similar API available. Thus on Mac OS readdir is used that
+ *    returns one directory entry at a time.
+ *
  * Results:
  *    Zero on success. numDents contains the number of directory entries found.
  *    Non-zero on error.
@@ -3158,11 +3130,16 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
                   DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
                   int *numDents)            // OUT: Number of DirectoryEntrys
 {
-   int fd = -1, result;
+#if defined(__APPLE__)
+   DIR *fd = NULL;
+#else
+   int fd = -1;
+   int openFlags = O_NONBLOCK | O_RDONLY | O_DIRECTORY | O_NOFOLLOW;
+#endif
+   int result;
    DirectoryEntry **myDents = NULL;
    int myNumDents = 0;
    HgfsInternalStatus status = 0;
-   int openFlags = O_NONBLOCK | O_RDONLY | O_DIRECTORY | O_NOFOLLOW;
 
    /*
     * XXX: glibc uses 8192 (BUFSIZ) when it can't get st_blksize from a stat.
@@ -3170,6 +3147,34 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
     */
    char buffer[8192];
 
+#if defined(__APPLE__)
+   /*
+    * Since opendir does not support O_NOFOLLOW flag need to explicitly verify
+    * that we are not dealing with symlink if follow symlinks is
+    * not allowed.
+    */
+   if (!followSymlinks) {
+      struct stat st;
+      if (lstat(baseDir, &st) == -1) {
+         status = errno;
+         LOG(4, ("%s: error in lstat: %d (%s)\n", __FUNCTION__, status,
+                 strerror(status)));
+         goto exit;
+      }
+      if (S_ISLNK(st.st_mode)) {
+         status = EACCES;
+         LOG(4, ("%s: do not follow symlink\n", __FUNCTION__));
+         goto exit;
+      }
+   }
+   fd = Posix_OpenDir(baseDir);
+   if (NULL ==  fd) {
+      status = errno;
+      LOG(4, ("%s: error in opendir: %d (%s)\n", __FUNCTION__, status,
+              strerror(status)));
+      goto exit;
+   }
+#else
    /* Follow symlinks if config option is set. */
    if (followSymlinks) {
       openFlags &= ~O_NOFOLLOW;
@@ -3184,6 +3189,7 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
       goto exit;
    }
    fd = result;
+#endif
 
    /*
     * Rather than read a single dent at a time, batch up multiple dents
@@ -3247,7 +3253,11 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
    }
 
   exit:
+#if defined(__APPLE__)
+   if (NULL != fd && closedir(fd) < 0) {
+#else
    if (fd != -1 && close(fd) < 0) {
+#endif
       status = errno;
       LOG(4, ("%s: error in close: %d (%s)\n", __FUNCTION__, status,
               strerror(status)));
