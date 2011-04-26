@@ -107,6 +107,10 @@ void _WriteBarrier(void);
 void _ReadWriteBarrier(void);
 #pragma intrinsic(_ReadBarrier, _WriteBarrier, _ReadWriteBarrier)
 
+void _mm_mfence(void);
+void _mm_lfence(void);
+#pragma intrinsic(_mm_mfence, _mm_lfence)
+
 #ifdef VM_X86_64
 /*
  * intrinsic functions only supported by x86-64 windows as of 2k3sp1
@@ -878,6 +882,56 @@ RDTSC(void)
 #else  /* __GNUC__  */
 #error No compiler defined for RDTSC
 #endif /* __GNUC__  */
+
+#if defined(__i386__) || defined(__x86_64__)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RDTSC_BARRIER --
+ *
+ *      Implements an RDTSC fence.  Instructions executed prior to the
+ *      fence will have completed before the fence and all stores to
+ *      memory are flushed from the store buffer.
+ *
+ *      On AMD, MFENCE is sufficient.  On Intel, only LFENCE is
+ *      documented to fence RDTSC, but LFENCE won't drain the store
+ *      buffer.  So, use MFENCE;LFENCE, which will work on both AMD and
+ *      Intel.
+ *
+ *      It is the callers' responsibility to check for SSE2 before
+ *      calling this function.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Cause loads and stores prior to this to be globally visible, and
+ *      RDTSC will not pass.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+RDTSC_BARRIER(void)
+{
+#ifdef __GNUC__
+   __asm__ __volatile__(
+      "mfence \n\t"
+      "lfence \n\t"
+      ::: "memory"
+   );
+#elif defined _MSC_VER
+   /* Prevent compiler from moving code across mfence/lfence. */
+   _ReadWriteBarrier();
+   _mm_mfence();
+   _mm_lfence();
+   _ReadWriteBarrier();
+#else
+#error No compiler defined for RDTSC_BARRIER
+#endif
+}
+
+#endif // __i386 || __x86_64__
 
 /*
  *-----------------------------------------------------------------------------
