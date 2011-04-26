@@ -824,8 +824,6 @@ VMCIDatagramDispatchAsGuest(VMCIDatagram *dg)
    int retval;
    VMCIResource *resource;
 
-   ASSERT(VMCI_GuestPersonalityActive());
-
    resource = VMCIResource_Get(dg->src, VMCI_RESOURCE_TYPE_DATAGRAM);
    if (NULL == resource) {
       return VMCI_ERROR_NO_HANDLE;
@@ -924,7 +922,6 @@ VMCIDatagram_InvokeGuestHandler(VMCIDatagram *dg) // IN
    DatagramEntry *dstEntry;
 
    ASSERT(dg);
-   ASSERT(VMCI_GuestPersonalityActive());
 
    resource = VMCIResource_Get(dg->dst, VMCI_RESOURCE_TYPE_DATAGRAM);
    if (NULL == resource) {
