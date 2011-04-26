@@ -1277,7 +1277,9 @@ bsd_vsnprintf_core(char **outbuf,
                buf[0] = *cp++;
                buf[1] = *decimal_point;
                PRINT(buf, 2);
-               PRINT(cp, ndig - 1);
+               if (ndig > 0) {
+                  PRINT(cp, ndig - 1);
+               }
                PAD(prec - ndig, zeroes);
             } else {  /* XeYYY */
                PRINT(cp, 1);
