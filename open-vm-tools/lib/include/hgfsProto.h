@@ -128,8 +128,8 @@ typedef enum {
    HGFS_OP_WRITE_FAST_V4,         /* Write */
    HGFS_OP_SET_WATCH_V4,          /* Start monitoring directory changes. */
    HGFS_OP_REMOVE_WATCH_V4,       /* Stop monitoring directory changes. */
-   HGFS_OP_SEARCH_READ_V4,        /* Read V4 directory entries. */
    HGFS_OP_NOTIFY_V4,             /* Notification for a directory change event. */
+   HGFS_OP_SEARCH_READ_V4,        /* Read V4 directory entries. */
    HGFS_OP_OPEN_V4,               /* Open file */
    HGFS_OP_ENUMERATE_STREAMS_V4,  /* Enumerate alternative named streams for a file. */
    HGFS_OP_GETATTR_V4,            /* Get file attributes */
