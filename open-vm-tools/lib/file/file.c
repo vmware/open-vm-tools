@@ -814,7 +814,7 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
       }
 
       /* construct base full pathname to use */
-      path = Unicode_Join(dir, DIRSEPS,  fileName, NULL);
+      path = Unicode_Join(dir, DIRSEPS, fileName, NULL);
 
       Unicode_Free(fileName);
 
