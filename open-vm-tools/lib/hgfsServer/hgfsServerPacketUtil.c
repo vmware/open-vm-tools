@@ -154,7 +154,7 @@ HSPU_GetMetaPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    return HSPU_GetBuf(packet, 0, &packet->metaPacket,
                       packet->metaPacketSize,
                       &packet->metaPacketIsAllocated,
-                      BUF_WRITEABLE, session);
+                      BUF_READWRITEABLE, session);
 }
 
 
@@ -255,7 +255,8 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
       return NULL;
    }
 
-   if (mappingType == BUF_WRITEABLE) {
+   if (mappingType == BUF_WRITEABLE ||
+       mappingType == BUF_READWRITEABLE) {
       func = session->channelCbTable->getWriteVa;
    } else {
       ASSERT(mappingType == BUF_READABLE);
@@ -303,20 +304,23 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
 
       LOG(10, ("%s: Hgfs Allocating buffer \n", __FUNCTION__));
 
-      /*
-       * Since we are allocating seperate buffer, it does not make sense
-       * to continue to hold on to mappings. Let's release it, we will
-       * reacquire mappings when we need in HSPU_CopyBufToIovec.
-       */
-      remainingSize = bufSize;
-      for (i = startIndex; i < packet->iovCount && remainingSize > 0; i++) {
-         copyAmount = remainingSize < packet->iov[i].len ?
-                      remainingSize : packet->iov[i].len;
-         memcpy((char *)*buf + copiedAmount, packet->iov[i].va, copyAmount);
-         copiedAmount += copyAmount;
-         remainingSize -= copyAmount;
+      if (mappingType == BUF_READABLE ||
+          mappingType == BUF_READWRITEABLE) {
+         /*
+          * Since we are allocating seperate buffer, it does not make sense
+          * to continue to hold on to mappings. Let's release it, we will
+          * reacquire mappings when we need in HSPU_CopyBufToIovec.
+          */
+         remainingSize = bufSize;
+         for (i = startIndex; i < packet->iovCount && remainingSize > 0; i++) {
+            copyAmount = remainingSize < packet->iov[i].len ?
+                         remainingSize : packet->iov[i].len;
+            memcpy((char *)*buf + copiedAmount, packet->iov[i].va, copyAmount);
+            copiedAmount += copyAmount;
+            remainingSize -= copyAmount;
+         }
+         ASSERT_DEVEL(copiedAmount == bufSize);
       }
-      ASSERT_DEVEL(copiedAmount == bufSize);
    } else {
       /* We will continue to hold on to guest mappings */
       *buf = packet->iov[startIndex].va;
