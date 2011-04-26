@@ -309,7 +309,6 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
                                       guint info)                    // IN:
 {
    g_debug("%s: enter.\n", __FUNCTION__);
-   mHGCopiedUriList = "";
    VmTimeType curTime;
 
    curTime = GetCurrentTime();
@@ -340,8 +339,8 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
        * On KDE (at least), we can see this multiple times, so ignore if
        * we are already getting files.
        */
-      g_debug("%s: already processing a GetFile request, returning.\n",
-              __FUNCTION__);
+      g_debug("%s: GetFiles already started, returning uriList [%s]\n",
+              __FUNCTION__, mHGCopiedUriList.c_str());
       sd.set(sd.get_target().c_str(), mHGCopiedUriList.c_str());
       return;
    }

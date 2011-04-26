@@ -189,7 +189,7 @@ private:
    DragDetWnd *m_detWnd;
    CPClipboard m_clipboard;
    DnDBlockControl *m_blockCtrl;
-   bool m_HGGetDataInProgress;
+   DND_FILE_TRANSFER_STATUS m_HGGetFileStatus;
    int m_HGEffect;
    bool m_blockAdded;
 
@@ -202,7 +202,6 @@ private:
    bool m_unityMode;
    bool m_inHGDrag;
    DND_DROPEFFECT m_effect;
-   bool m_fileTransferStarted;
    int32 m_mousePosX;
    int32 m_mousePosY;
    GdkDragContext *m_dc;

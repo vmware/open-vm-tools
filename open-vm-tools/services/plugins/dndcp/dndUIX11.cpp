@@ -64,14 +64,13 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       m_DnD(NULL),
       m_detWnd(NULL),
       m_blockCtrl(NULL),
-      m_HGGetDataInProgress(false),
+      m_HGGetFileStatus(DND_FILE_TRANSFER_NOT_STARTED),
       m_blockAdded(false),
       m_GHDnDInProgress(false),
       m_GHDnDDataReceived(false),
       m_unityMode(false),
       m_inHGDrag(false),
       m_effect(DROP_NONE),
-      m_fileTransferStarted(false),
       m_mousePosX(0),
       m_mousePosY(0),
       m_dc(NULL),
@@ -268,12 +267,11 @@ DnDUIX11::CommonResetCB(void)
 {
    g_debug("%s: entering\n", __FUNCTION__);
    m_GHDnDDataReceived = false;
-   m_HGGetDataInProgress = false;
+   m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    m_GHDnDInProgress = false;
    m_effect = DROP_NONE;
    m_inHGDrag = false;
    m_dc = NULL;
-   m_fileTransferStarted = false;
    RemoveBlock();
 }
 
@@ -366,7 +364,7 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
    /* Tell Gtk that a drag should be started from this widget. */
    m_detWnd->drag_begin(targets, actions, 1, (GdkEvent *)&event);
    m_blockAdded = false;
-   m_fileTransferStarted = false;
+   m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    SourceDragStartDone();
    /* Initialize host hide feedback to DROP_NONE. */
    m_effect = DROP_NONE;
@@ -394,7 +392,7 @@ DnDUIX11::CommonSourceCancelCB(void)
    SendFakeXEvents(true, true, false, true, true, 0, 0);
    CommonUpdateDetWndCB(false, 0, 0);
    m_inHGDrag = false;
-   m_HGGetDataInProgress = false;
+   m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    m_effect = DROP_NONE;
    RemoveBlock();
 }
@@ -490,7 +488,7 @@ DnDUIX11::CommonSourceFileCopyDoneCB(bool success)
      * we are already reset.
     */
 
-   m_HGGetDataInProgress = false;
+   m_HGGetFileStatus = DND_FILE_TRANSFER_FINISHED;
 
    if (!m_inHGDrag) {
       CommonResetCB();
@@ -685,7 +683,7 @@ DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
    g_debug("%s: not ignored %ld %ld %ld\n", __FUNCTION__,
          curTime, m_destDropTime, curTime - m_destDropTime);
 
-   if (m_inHGDrag || m_HGGetDataInProgress) {
+   if (m_inHGDrag || (m_HGGetFileStatus != DND_FILE_TRANSFER_NOT_STARTED)) {
       g_debug("%s: ignored not in hg drag or not getting hg data\n", __FUNCTION__);
       return true;
    }
@@ -931,9 +929,10 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
        * Doing both of these addresses bug
        * http://bugzilla.eng.vmware.com/show_bug.cgi?id=391661.
        */
-      if (!m_blockAdded && m_inHGDrag && !m_fileTransferStarted) {
-         m_HGGetDataInProgress = true;
-         m_fileTransferStarted = true;
+      if (!m_blockAdded &&
+          m_inHGDrag &&
+          (m_HGGetFileStatus == DND_FILE_TRANSFER_NOT_STARTED)) {
+         m_HGGetFileStatus == DND_FILE_TRANSFER_IN_PROGRESS;
          AddBlock();
       } else {
          g_debug("%s: not calling AddBlock\n", __FUNCTION__);
@@ -1004,7 +1003,7 @@ DnDUIX11::GtkSourceDragEndCB(const Glib::RefPtr<Gdk::DragContext> &dc)
     * CommonResetCB() here, since we will do so in the fileCopyDoneChanged
     * callback.
     */
-   if (!m_fileTransferStarted || !m_HGGetDataInProgress) {
+   if (DND_FILE_TRANSFER_IN_PROGRESS != m_HGGetFileStatus) {
       CommonResetCB();
    }
    m_inHGDrag = false;
@@ -1780,7 +1779,7 @@ void
 DnDUIX11::RemoveBlock()
 {
    g_debug("%s: enter\n", __FUNCTION__);
-   if (m_blockAdded && !m_HGGetDataInProgress) {
+   if (m_blockAdded && (DND_FILE_TRANSFER_IN_PROGRESS != m_HGGetFileStatus)) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, m_HGStagingDir.c_str());
       /* We need to make sure block subsystem has not been shut off. */
       if (DnD_BlockIsReady(m_blockCtrl)) {
@@ -1788,10 +1787,10 @@ DnDUIX11::RemoveBlock()
       }
       m_blockAdded = false;
    } else {
-      g_debug("%s: not removing block m_blockAdded %d m_HGGetDataInProgress %d\n",
+      g_debug("%s: not removing block m_blockAdded %d m_HGGetFileStatus %d\n",
             __FUNCTION__,
             m_blockAdded,
-            m_HGGetDataInProgress);
+            m_HGGetFileStatus);
    }
 }
 

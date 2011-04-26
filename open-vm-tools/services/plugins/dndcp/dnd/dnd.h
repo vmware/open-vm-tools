@@ -58,7 +58,7 @@
 /* Strings used for formatting various types of data */
 #define DND_URI_LIST_PRE     "file://"
 #define DND_URI_LIST_PRE_KDE "file:"
-#define DND_URI_NON_FILE_SCHEMES {"ssh", "sftp", "smb", "dav", "davs", NULL}
+#define DND_URI_NON_FILE_SCHEMES {"ssh", "sftp", "smb", "dav", "davs", "ftp",  NULL}
 #define DND_URI_LIST_POST    "\r\n"
 #define DND_TEXT_PLAIN_PRE   ""
 #define DND_TEXT_PLAIN_POST  ""
@@ -136,6 +136,12 @@ typedef struct {
 } CPClipboard;
 
 #if !defined(SWIG)
+
+typedef enum {
+   DND_FILE_TRANSFER_NOT_STARTED = 0,
+   DND_FILE_TRANSFER_IN_PROGRESS,
+   DND_FILE_TRANSFER_FINISHED,
+} DND_FILE_TRANSFER_STATUS;
 
 /*
  * Comment out the following for SWIG. We don't currently need to use any of
