@@ -132,8 +132,8 @@ FileGetTmpDir(Bool useConf)  // IN: Use the config file?
       }
    }
 
-   /* getenv string must _not_ be freed */
-   edirName = FileTryDir(getenv("TMPDIR"));
+   /* Posix_Getenv string must _not_ be freed */
+   edirName = FileTryDir(Posix_Getenv("TMPDIR"));
    if (edirName != NULL) {
       return edirName;
    }
