@@ -4140,11 +4140,11 @@ VSockVmciShutdown(struct socket *sock,  // IN
       return -EINVAL;
    }
 
-   if (sock->state == SS_UNCONNECTED) {
+   sk = sock->sk;
+   if (sk->sk_type == SOCK_STREAM && sock->state == SS_UNCONNECTED) {
       return -ENOTCONN;
    }
 
-   sk = sock->sk;
    sock->state = SS_DISCONNECTING;
 
    /* Receive and send shutdowns are treated alike. */
