@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,23 +36,22 @@
 
 #define VMW_LOG_BASE      100
 #define VMW_LOG_PANIC     VMW_LOG_BASE +  0  // highest priority
-#define VMW_LOG_ERROR     VMW_LOG_BASE +  5
-#define VMW_LOG_WARNING   VMW_LOG_BASE + 10  // <= goes to stderr by default
-#define VMW_LOG_AUDIT     VMW_LOG_BASE + 15  // *ALWAYS* output to the log
-#define VMW_LOG_INFO      VMW_LOG_BASE + 20  // <= goes to log by default
-#define VMW_LOG_VERBOSE   VMW_LOG_BASE + 25
-#define VMW_LOG_TRIVIA    VMW_LOG_BASE + 30
-#define VMW_LOG_DEBUG_00  VMW_LOG_BASE + 35  // noisiest level of debugging
-#define VMW_LOG_DEBUG_01  VMW_LOG_DEBUG_00 +  1
-#define VMW_LOG_DEBUG_02  VMW_LOG_DEBUG_00 +  2
-#define VMW_LOG_DEBUG_03  VMW_LOG_DEBUG_00 +  3
-#define VMW_LOG_DEBUG_04  VMW_LOG_DEBUG_00 +  4
-#define VMW_LOG_DEBUG_05  VMW_LOG_DEBUG_00 +  5
-#define VMW_LOG_DEBUG_06  VMW_LOG_DEBUG_00 +  6
-#define VMW_LOG_DEBUG_07  VMW_LOG_DEBUG_00 +  7
-#define VMW_LOG_DEBUG_08  VMW_LOG_DEBUG_00 +  8
-#define VMW_LOG_DEBUG_09  VMW_LOG_DEBUG_00 +  9
-#define VMW_LOG_DEBUG_10  VMW_LOG_DEBUG_00 + 10  // lowest priority; least noisy
+#define VMW_LOG_ERROR     VMW_LOG_BASE +  1
+#define VMW_LOG_WARNING   VMW_LOG_BASE +  2  // <= goes to stderr by default
+#define VMW_LOG_INFO      VMW_LOG_BASE +  3  // <= goes to log by default
+#define VMW_LOG_VERBOSE   VMW_LOG_BASE +  4
+#define VMW_LOG_TRIVIA    VMW_LOG_BASE +  5
+#define VMW_LOG_DEBUG_00  VMW_LOG_BASE +  6  // noisiest level of debugging
+#define VMW_LOG_DEBUG_01  VMW_LOG_BASE +  7
+#define VMW_LOG_DEBUG_02  VMW_LOG_BASE +  8
+#define VMW_LOG_DEBUG_03  VMW_LOG_BASE +  9
+#define VMW_LOG_DEBUG_04  VMW_LOG_BASE + 10
+#define VMW_LOG_DEBUG_05  VMW_LOG_BASE + 11
+#define VMW_LOG_DEBUG_06  VMW_LOG_BASE + 12
+#define VMW_LOG_DEBUG_07  VMW_LOG_BASE + 13
+#define VMW_LOG_DEBUG_08  VMW_LOG_BASE + 14
+#define VMW_LOG_DEBUG_09  VMW_LOG_BASE + 15
+#define VMW_LOG_DEBUG_10  VMW_LOG_BASE + 16  // lowest priority; least noisy
 
 void
 LogVNoRoute(int rawLevel,
@@ -103,18 +102,6 @@ Log_Panic(const char *fmt,
 
    va_start(ap, fmt);
    LogV(VMW_LOG_PANIC, fmt, ap);
-   va_end(ap);
-}
-
-
-static INLINE void PRINTF_DECL(1, 2)
-Log_Audit(const char *fmt,
-          ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(VMW_LOG_AUDIT, fmt, ap);  // HEY! Security staff, look at this!
    va_end(ap);
 }
 
