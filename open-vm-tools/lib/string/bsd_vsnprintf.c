@@ -867,14 +867,13 @@ bsd_vsnprintf_core(char **outbuf,
             freedtoa(dtoaresult);
          if (flags & LLONGINT) {
             fparg.ldbl = GETARG(long double);
-            dtoaresult = cp =
-               ldtoa(&fparg.ldbl, expchar ? 2 : 3, prec,
-                     &expt, &signflag, &dtoaend);
+            dtoaresult = cp = ldtoa(&fparg.ldbl, expchar ? 2 : 3, prec,
+                                     &expt, &signflag, &dtoaend);
          } else {
             fparg.dbl = GETARG(double);
-            dtoaresult = cp =
-               dtoa(fparg.dbl, expchar ? 2 : 3, prec,
-                    &expt, &signflag, &dtoaend);
+            dtoaresult = cp = dtoa(fparg.dbl, expchar ? 2 : 3, prec,
+                                   &expt, &signflag, &dtoaend);
+
             if (expt == 9999)
                expt = INT_MAX;
          }
@@ -1186,17 +1185,15 @@ bsd_vsnprintf_core(char **outbuf,
                PRINTANDPAD(cp, dtoaend, lead, zeroes);
                cp += lead;
                if (grouping) {
-                  while (nseps>0 || nrepeats>0) {
+                  while (nseps > 0 || nrepeats > 0) {
                      if (nrepeats > 0)
                         nrepeats--;
                      else {
                         grouping--;
                         nseps--;
                      }
-                     PRINT(&thousands_sep,
-                           1);
-                     PRINTANDPAD(cp,dtoaend,
-                                 *grouping, zeroes);
+                     PRINT(&thousands_sep, 1);
+                     PRINTANDPAD(cp,dtoaend, *grouping, zeroes);
                      cp += *grouping;
                   }
                   if (cp > dtoaend)
@@ -1211,7 +1208,7 @@ bsd_vsnprintf_core(char **outbuf,
                buf[0] = *cp++;
                buf[1] = *decimal_point;
                PRINT(buf, 2);
-               PRINT(cp, ndig-1);
+               PRINT(cp, ndig - 1);
                PAD(prec - ndig, zeroes);
             } else   /* XeYYY */
                PRINT(cp, 1);
