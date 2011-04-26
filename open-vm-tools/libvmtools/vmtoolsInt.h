@@ -95,6 +95,12 @@ VMStdLoggerConfig(const gchar *defaultDomain,
 
 #if defined(_WIN32)
 LogHandlerData *
+VMEventLoggerConfig(const gchar *defaultDomain,
+                    const gchar *domain,
+                    const gchar *name,
+                    GKeyFile *cfg);
+
+LogHandlerData *
 VMDebugOutputConfig(const gchar *defaultDomain,
                     const gchar *domain,
                     const gchar *name,

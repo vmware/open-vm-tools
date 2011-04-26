@@ -106,6 +106,9 @@ static LogHandler gHandlers[] = {
 #endif
 #if defined(_WIN32)
    { 4,  "outputdebugstring", VMDebugOutputConfig },
+#if defined(VMTOOLS_USE_GLIB)
+   { 5,  "syslog",            VMEventLoggerConfig },
+#endif
    { -1, NULL,                VMDebugOutputConfig },
 #else
    { 4,  "syslog",            VMSysLoggerConfig },
