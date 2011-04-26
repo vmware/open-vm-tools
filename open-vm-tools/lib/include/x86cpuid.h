@@ -431,7 +431,7 @@ FLAG(   D, EAX, COMMON,  0,  1, XCR0_MASTER_LEGACY_FP,             YES, FALSE) \
 FLAG(   D, EAX, COMMON,  1,  1, XCR0_MASTER_SSE,                   YES, FALSE) \
 FLAG(   D, EAX, COMMON,  2,  1, XCR0_MASTER_YMM_H,                 YES, FALSE) \
 FIELD(  D, EAX, COMMON,  3, 29, XCR0_MASTER_LOWER,                 NO,  FALSE) \
-FIELD(  D, EBX, COMMON,  0, 32, XSAVE_ENABLED_SIZE,                YES, FALSE) \
+FIELD(  D, EBX, COMMON,  0, 32, XSAVE_ENABLED_SIZE,                ANY, FALSE) \
 FIELD(  D, ECX, COMMON,  0, 32, XSAVE_MAX_SIZE,                    YES, FALSE) \
 FIELD(  D, EDX, COMMON,  0, 32, XCR0_MASTER_UPPER,                 NO,  FALSE)
 
