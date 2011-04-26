@@ -1002,15 +1002,15 @@ static INLINE uint64
 RoundUpPow2Asm64(uint64 value)
 {
    uint64 out = 2;
-   asm("lea -1(%[in]), %%rcx;"      // rcx = value - 1.  Preserve original.
-       "bsr %%rcx, %%rcx;"          // rcx = log2(value - 1) if value != 1
-                                    // if value == 0, then rcx = 63
-                                    // if value == 1 then zf = 1, else zf = 0.
-       "rol %%cl, %[out];"          // out = 2 << rcx (if rcx != -1)
-                                    //     = 2^(log2(value - 1) + 1)
-                                    // if rcx == -1 (value == 0), out = 1
-                                    // zf is always unmodified.
-       "cmovz %[in], %[out]"        // if value == 1 (zf == 1), write 1 to out.
+   __asm__("lea -1(%[in]), %%rcx;"      // rcx = value - 1.  Preserve original.
+           "bsr %%rcx, %%rcx;"          // rcx = log2(value - 1) if value != 1
+                                        // if value == 0, then rcx = 63
+                                        // if value == 1 then zf = 1, else zf = 0.
+           "rol %%cl, %[out];"          // out = 2 << rcx (if rcx != -1)
+                                        //     = 2^(log2(value - 1) + 1)
+                                        // if rcx == -1 (value == 0), out = 1
+                                        // zf is always unmodified.
+           "cmovz %[in], %[out]"        // if value == 1 (zf == 1), write 1 to out.
        : [out]"+r"(out) : [in]"r"(value) : "%rcx", "cc");
    return out;
 }
@@ -1045,15 +1045,15 @@ static INLINE uint32
 RoundUpPow2Asm32(uint32 value)
 {
    uint32 out = 2;
-   asm("lea -1(%[in]), %%ecx;"      // ecx = value - 1.  Preserve original.
-       "bsr %%ecx, %%ecx;"          // ecx = log2(value - 1) if value != 1
-                                    // if value == 0, then ecx = 31
-                                    // if value == 1 then zf = 1, else zf = 0.
-       "rol %%cl, %[out];"          // out = 2 << ecx (if ecx != -1)
-                                    //     = 2^(log2(value - 1) + 1).  
-                                    // if ecx == -1 (value == 0), out = 1
-                                    // zf is always unmodified.
-       "cmovz %[in], %[out]"        // if value == 1 (zf == 1), write 1 to out.
+   __asm__("lea -1(%[in]), %%ecx;"      // ecx = value - 1.  Preserve original.
+           "bsr %%ecx, %%ecx;"          // ecx = log2(value - 1) if value != 1
+                                        // if value == 0, then ecx = 31
+                                        // if value == 1 then zf = 1, else zf = 0.
+           "rol %%cl, %[out];"          // out = 2 << ecx (if ecx != -1)
+                                        //     = 2^(log2(value - 1) + 1).  
+                                        // if ecx == -1 (value == 0), out = 1
+                                        // zf is always unmodified
+           "cmovz %[in], %[out]"        // if value == 1 (zf == 1), write 1 to out.
        : [out]"+r"(out) : [in]"r"(value) : "%ecx", "cc");
    return out;
 }
@@ -1074,3 +1074,4 @@ RoundUpPow2_32(uint32 value)
 }
 
 #endif // _VM_BASIC_ASM_H_
+
