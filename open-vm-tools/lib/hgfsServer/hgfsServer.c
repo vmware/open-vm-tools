@@ -2796,6 +2796,8 @@ static struct {
    { HgfsServerWrite,            sizeof (HgfsRequestWriteV3),                      REQ_SYNC},
    { HgfsServerSetDirNotifyWatch,    sizeof (HgfsRequestSetWatchV4),               REQ_SYNC},
    { HgfsServerRemoveDirNotifyWatch, sizeof (HgfsRequestRemoveWatchV4),            REQ_SYNC},
+   { NULL,                       0,                                                REQ_SYNC}, // No Op notify
+   { HgfsServerSearchRead,       sizeof (HgfsRequestSearchReadV4),                 REQ_SYNC},
 
 };
 
@@ -2970,6 +2972,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
       if (HgfsValidatePacket(input->metaPacket, input->metaPacketSize,
                              input->v4header) &&
           (input->op < ARRAYSIZE(handlers)) &&
+          (handlers[input->op].handler != NULL) &&
           (input->metaPacketSize >= handlers[input->op].minReqSize)) {
          /* Initial validation passed, process the client request now. */
          packet->processedAsync = packet->supportsAsync &&
@@ -3620,6 +3623,8 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
                                            HGFS_REQUEST_NOT_SUPPORTED, session);
          }
       }
+      HgfsServerSetSessionCapability(HGFS_OP_SEARCH_READ_V4,
+                                     HGFS_REQUEST_SUPPORTED, session);
    }
 
    return TRUE;
@@ -7113,6 +7118,74 @@ HgfsServerOpen(HgfsInputParam *input)  // IN: Input params
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerSearchReadAttrToMask --
+ *
+ *    Sets a search read information mask from the retrieved attribute
+ *    information.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerSearchReadAttrToMask(HgfsFileAttrInfo *attr,     // IN/OUT: attributes for entry
+                               HgfsSearchReadMask *mask)   // IN/OUT: what info is required/returned
+{
+   if (0 != (attr->mask & HGFS_ATTR_VALID_TYPE)) {
+      *mask |= (HGFS_SEARCH_READ_FILE_NODE_TYPE);
+   }
+   if (0 != (attr->mask & HGFS_ATTR_VALID_SIZE)) {
+      *mask |= (HGFS_SEARCH_READ_FILE_SIZE);
+   }
+   if (0 != (attr->mask & HGFS_ATTR_VALID_ALLOCATION_SIZE)) {
+      *mask |= (HGFS_SEARCH_READ_ALLOCATION_SIZE);
+   }
+   if (0 != (attr->mask & (HGFS_ATTR_VALID_CREATE_TIME |
+                           HGFS_ATTR_VALID_ACCESS_TIME |
+                           HGFS_ATTR_VALID_WRITE_TIME |
+                           HGFS_ATTR_VALID_CHANGE_TIME))) {
+      *mask |= (HGFS_SEARCH_READ_TIME_STAMP);
+   }
+   if (0 != (attr->mask & HGFS_ATTR_VALID_FLAGS)) {
+      Bool isReadOnly = TRUE;
+
+      *mask |= (HGFS_SEARCH_READ_FILE_ATTRIBUTES);
+      /*
+       * For V4 we don't return the permissions as they are really not
+       * used. Only used to see if the entry is read only. So set the
+       * attribute flag if the entry is read only.
+       */
+      if (attr->mask & HGFS_ATTR_VALID_OWNER_PERMS &&
+          attr->ownerPerms & HGFS_PERM_WRITE) {
+          isReadOnly = FALSE;
+      }
+      if (attr->mask & HGFS_ATTR_VALID_GROUP_PERMS &&
+          attr->groupPerms & HGFS_PERM_WRITE) {
+          isReadOnly = FALSE;
+      }
+      if (attr->mask & HGFS_ATTR_VALID_OTHER_PERMS &&
+          attr->otherPerms & HGFS_PERM_WRITE) {
+          isReadOnly = FALSE;
+      }
+      if (isReadOnly) {
+         attr->flags |= HGFS_ATTR_READONLY;
+      }
+   }
+   if (0 != (attr->mask & (HGFS_ATTR_VALID_FILEID |
+                           HGFS_ATTR_VALID_NON_STATIC_FILEID))) {
+      *mask |= (HGFS_SEARCH_READ_FILE_ID);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsGetDirEntry --
  *
  *    Gets a directory entry at specified offset.
@@ -7127,20 +7200,45 @@ HgfsServerOpen(HgfsInputParam *input)  // IN: Input params
  */
 
 static HgfsInternalStatus
-HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
-                uint32 requestedOffset,
-                HgfsSearch *search,
-                HgfsShareOptions configOptions,
-                HgfsSessionInfo *session,
-                HgfsFileAttrInfo *attr,
-                char **entryName,
-                size_t *nameLength)
+HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,     // IN: ID for search data
+                HgfsSearch *search,              // IN: search data
+                HgfsShareOptions configOptions,  // IN: share configuration settings
+                HgfsSessionInfo *session,        // IN: session we are called in
+                HgfsSearchReadInfo *info,        // IN/OUT: request details
+                HgfsSearchReadEntry *entry,      // OUT: directory entry
+                Bool *moreEntries)               // OUT: any more entries
 {
-   HgfsInternalStatus status;
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
    DirectoryEntry *dent;
+   HgfsSearchReadMask infoRetrieved;
+   HgfsSearchReadMask infoRequested;
+   HgfsFileAttrInfo *attr;
+   char **entryName;
+   uint32 *nameLength;
+   Bool getAttrs;
    Bool unescapeName = TRUE;
+   uint32 requestedIndex;
 
-   dent = HgfsGetSearchResult(hgfsSearchHandle, session, requestedOffset, FALSE);
+   infoRequested = info->requestedMask;
+
+   attr = &entry->attr;
+   entryName = &entry->name;
+   nameLength = &entry->nameLength;
+
+   requestedIndex = info->currentIndex;
+
+   getAttrs = (0 != (infoRequested & (HGFS_SEARCH_READ_FILE_SIZE |
+                                      HGFS_SEARCH_READ_ALLOCATION_SIZE |
+                                      HGFS_SEARCH_READ_TIME_STAMP |
+                                      HGFS_SEARCH_READ_FILE_ATTRIBUTES |
+                                      HGFS_SEARCH_READ_FILE_ID |
+                                      HGFS_SEARCH_READ_FILE_NODE_TYPE)));
+
+   /* Clear out what we will return. */
+   infoRetrieved = 0;
+   memset(attr, 0, sizeof *attr);
+
+   dent = HgfsGetSearchResult(hgfsSearchHandle, session, requestedIndex, FALSE);
    if (dent) {
       unsigned int length;
       char *fullName;
@@ -7169,41 +7267,48 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
 
             LOG(4, ("%s: about to stat \"%s\"\n", __FUNCTION__, fullName));
 
-            /*
-             * XXX: It is unreasonable to make the caller either 1) pass existing
-             * handles for directory objects as part of the SearchRead, or 2)
-             * prior to calling SearchRead on a directory, break all oplocks on
-             * that directory's objects.
-             *
-             * To compensate for that, if we detect that this directory object
-             * has an oplock, we'll quietly reuse the handle. Note that this
-             * requires clients who take out an exclusive oplock to open a
-             * handle with read as well as write access, otherwise we'll fail
-             * further down in HgfsStat.
-             *
-             * XXX: We could open a new handle safely if its a shared oplock.
-             * But isn't this handle sharing always desirable?
-             */
-            if (HgfsFileHasServerLock(fullName, session, &serverLock, &fileDesc)) {
-               LOG(4, ("%s: Reusing existing oplocked handle "
-                       "to avoid oplock break deadlock\n", __FUNCTION__));
-               status = HgfsPlatformGetattrFromFd(fileDesc, session, attr);
-            } else {
-               status = HgfsPlatformGetattrFromName(fullName, configOptions,
-                                                    search->utf8ShareName, attr, NULL);
-            }
+            /* Do we need to query the attributes information? */
+            if (getAttrs) {
+               /*
+                * XXX: It is unreasonable to make the caller either 1) pass existing
+                * handles for directory objects as part of the SearchRead, or 2)
+                * prior to calling SearchRead on a directory, break all oplocks on
+                * that directory's objects.
+                *
+                * To compensate for that, if we detect that this directory object
+                * has an oplock, we'll quietly reuse the handle. Note that this
+                * requires clients who take out an exclusive oplock to open a
+                * handle with read as well as write access, otherwise we'll fail
+                * further down in HgfsStat.
+                *
+                * XXX: We could open a new handle safely if its a shared oplock.
+                * But isn't this handle sharing always desirable?
+                */
+               if (HgfsFileHasServerLock(fullName, session, &serverLock, &fileDesc)) {
+                  LOG(4, ("%s: Reusing existing oplocked handle "
+                          "to avoid oplock break deadlock\n", __FUNCTION__));
+                  status = HgfsPlatformGetattrFromFd(fileDesc, session, attr);
+               } else {
+                  status = HgfsPlatformGetattrFromName(fullName, configOptions,
+                                                       search->utf8ShareName, attr, NULL);
+               }
 
-            if (HGFS_ERROR_SUCCESS != status) {
-               HgfsOp savedOp = attr->requestType;
-               LOG(4, ("%s: stat FAILED %s (%d)\n", __FUNCTION__, fullName, status));
-               memset(attr, 0, sizeof *attr);
-               attr->requestType = savedOp;
-               attr->type = HGFS_FILE_TYPE_REGULAR;
-               attr->mask = HGFS_ATTR_VALID_TYPE;
+               if (HGFS_ERROR_SUCCESS != status) {
+                  HgfsOp savedOp = attr->requestType;
+                  LOG(4, ("%s: stat FAILED %s (%d)\n", __FUNCTION__, fullName, status));
+                  memset(attr, 0, sizeof *attr);
+                  attr->requestType = savedOp;
+                  attr->type = HGFS_FILE_TYPE_REGULAR;
+                  attr->mask = HGFS_ATTR_VALID_TYPE;
+                  status = HGFS_ERROR_SUCCESS;
+               }
             }
+            /*
+             * Update the search read mask for the attributes information.
+             */
+            HgfsServerSearchReadAttrToMask(attr, &infoRetrieved);
 
             free(fullName);
-            status = HGFS_ERROR_SUCCESS;
          } else {
             LOG(4, ("%s: could not allocate space for \"%s\\%s\"\n",
                     __FUNCTION__, search->utf8Dir, dent->d_name));
@@ -7219,73 +7324,80 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
           * The client will take care of escaping anything it requires.
           */
          unescapeName = FALSE;
-         /*
-          * For a search enumerating all shares, give the default attributes
-          * for '.' and ".." (which aren't really shares anyway). Each real
-          * share gets resolved into its full path, and gets its attributes
-          * via HgfsGetattrFromName.
-          */
-         if (strcmp(dent->d_name, ".") == 0 ||
-             strcmp(dent->d_name, "..") == 0) {
-            LOG(4, ("%s: assigning %s default attributes\n",
-                    __FUNCTION__, dent->d_name));
-            HgfsPlatformGetDefaultDirAttrs(attr);
-            status = HGFS_ERROR_SUCCESS;
-         } else {
-            HgfsNameStatus nameStatus;
-
-            /* Check permission on the share and get the share path */
-            nameStatus =
-               HgfsServerPolicy_GetSharePath(dent->d_name, length,
-                                             HGFS_OPEN_MODE_READ_ONLY,
-                                             &sharePathLen,
-                                             (char const **)&sharePath);
-            if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
-
-               /*
-                * Server needs to produce list of shares that is consistent with
-                * the list defined in UI. If a share can't be accessed because of
-                * problems on the host, the server still enumerates it and
-                * returns to the client.
-                */
-               /*
-                * XXX: We will open a new handle for this, but it should be safe
-                * from oplock-induced deadlock because these are all directories,
-                * and thus cannot have oplocks placed on them.
-                */
-               status = HgfsPlatformGetattrFromName(sharePath, configOptions,
-                                                    dent->d_name, attr, NULL);
-
-               /*
-                * For some reason, Windows marks drives as hidden and system. So
-                * if one of the top level shared folders is mapped to a drive
-                * letter (like C:\), then GetFileAttributesEx() will return hidden
-                * and system attributes for that drive. We don't want that
-                * since we want the users to see all top level shared folders.
-                * Even in the case when the top level shared folder is mapped
-                * to a non-drive hidden/system directory, we still want to display
-                * it to the user. So make sure that system and hidden attributes
-                * are not set.
-                * Note, that for network shares this doesn't apply, since each
-                * top level network share is a separate mount point that doesn't
-                * have such attributes. So when we finally have per share
-                * mounting, this hack will go away.
-                *
-                * See bug 125065.
-                */
-               attr->flags &= ~(HGFS_ATTR_HIDDEN | HGFS_ATTR_SYSTEM);
-
-               if (HGFS_ERROR_SUCCESS != status) {
-                  /*
-                   * The dent no longer exists. Log the event.
-                   */
-
-                  LOG(4, ("%s: stat FAILED\n", __FUNCTION__));
-                  status = HGFS_ERROR_SUCCESS;
-               }
+         if (getAttrs) {
+            /*
+             * For a search enumerating all shares, give the default attributes
+             * for '.' and ".." (which aren't really shares anyway). Each real
+             * share gets resolved into its full path, and gets its attributes
+             * via HgfsGetattrFromName.
+             */
+            if (strcmp(dent->d_name, ".") == 0 ||
+                strcmp(dent->d_name, "..") == 0) {
+               LOG(4, ("%s: assigning %s default attributes\n",
+                       __FUNCTION__, dent->d_name));
+               HgfsPlatformGetDefaultDirAttrs(attr);
             } else {
-               LOG(4, ("%s: No such share or access denied\n", __FUNCTION__));
-               status = HgfsPlatformConvertFromNameStatus(nameStatus);
+               HgfsNameStatus nameStatus;
+
+               /* Check permission on the share and get the share path */
+               nameStatus =
+                  HgfsServerPolicy_GetSharePath(dent->d_name, length,
+                                                HGFS_OPEN_MODE_READ_ONLY,
+                                                &sharePathLen,
+                                                (char const **)&sharePath);
+               if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
+
+                  /*
+                   * Server needs to produce list of shares that is consistent with
+                   * the list defined in UI. If a share can't be accessed because of
+                   * problems on the host, the server still enumerates it and
+                   * returns to the client.
+                   */
+                  /*
+                   * XXX: We will open a new handle for this, but it should be safe
+                   * from oplock-induced deadlock because these are all directories,
+                   * and thus cannot have oplocks placed on them.
+                   */
+                  status = HgfsPlatformGetattrFromName(sharePath, configOptions,
+                                                       dent->d_name, attr, NULL);
+
+                  /*
+                   * For some reason, Windows marks drives as hidden and system. So
+                   * if one of the top level shared folders is mapped to a drive
+                   * letter (like C:\), then GetFileAttributesEx() will return hidden
+                   * and system attributes for that drive. We don't want that
+                   * since we want the users to see all top level shared folders.
+                   * Even in the case when the top level shared folder is mapped
+                   * to a non-drive hidden/system directory, we still want to display
+                   * it to the user. So make sure that system and hidden attributes
+                   * are not set.
+                   * Note, that for network shares this doesn't apply, since each
+                   * top level network share is a separate mount point that doesn't
+                   * have such attributes. So when we finally have per share
+                   * mounting, this hack will go away.
+                   *
+                   * See bug 125065.
+                   */
+                  attr->flags &= ~(HGFS_ATTR_HIDDEN | HGFS_ATTR_SYSTEM);
+
+                  if (HGFS_ERROR_SUCCESS != status) {
+                     /*
+                      * The dent no longer exists. Log the event.
+                      */
+
+                     LOG(4, ("%s: stat FAILED\n", __FUNCTION__));
+                     status = HGFS_ERROR_SUCCESS;
+                  }
+               } else {
+                  LOG(4, ("%s: No such share or access denied\n", __FUNCTION__));
+                  status = HgfsPlatformConvertFromNameStatus(nameStatus);
+               }
+            }
+            if (HGFS_ERROR_SUCCESS == status) {
+               /*
+                * Update the search read mask for the attributes information.
+                */
+               HgfsServerSearchReadAttrToMask(attr, &infoRetrieved);
             }
          }
          break;
@@ -7303,12 +7415,18 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
           * This cannot apply to these entries.
           */
          unescapeName = FALSE;
-         /*
-          * All "other" searches get the default attributes. This includes
-          * an enumeration of drive, and the root enumeration (which contains
-          * a "drive" dent and a "unc" dent).
-          */
-         HgfsPlatformGetDefaultDirAttrs(attr);
+         if (getAttrs) {
+            /*
+             * All "other" searches get the default attributes. This includes
+             * an enumeration of drive, and the root enumeration (which contains
+             * a "drive" dent and a "unc" dent).
+             */
+            HgfsPlatformGetDefaultDirAttrs(attr);
+            /*
+             * Update the search read mask for the attributes information.
+             */
+            HgfsServerSearchReadAttrToMask(attr, &infoRetrieved);
+         }
          break;
       default:
          NOT_IMPLEMENTED();
@@ -7325,6 +7443,7 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
          } else {
             *nameLength = length;
          }
+         infoRetrieved |= HGFS_SEARCH_READ_NAME;
          LOG(4, ("%s: dent name is \"%s\" len = %"FMTSZ"u\n", __FUNCTION__,
                  *entryName, *nameLength));
       } else {
@@ -7333,13 +7452,142 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
          LOG(4, ("%s: error %d getting dent\n", __FUNCTION__, status));
       }
 
+      if (HGFS_ERROR_SUCCESS == status) {
+         /* Update the entry fields for valid data and index for the dent. */
+         entry->fileIndex = requestedIndex;
+         entry->mask = infoRetrieved;
+         /* Retrieve any platform specific information from the dent. */
+      }
       free(dent);
+      *moreEntries = TRUE;
    } else {
       /* End of directory entries marker. */
       *entryName = NULL;
       *nameLength = 0;
-      status = HGFS_ERROR_SUCCESS;
+      *moreEntries = FALSE;
+      info->replyFlags |= HGFS_SEARCH_READ_REPLY_FINAL_ENTRY;
    }
+   return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsDoSearchRead --
+ *
+ *    Gets all the directory entries that remain or as many that will
+ *    fit into the reply buffer from the specified index. Fill in the
+ *    reply with the records and complete the reply details.
+ *
+ * Results:
+ *    A platform specific error or success.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsDoSearchRead(HgfsHandle hgfsSearchHandle,     // IN: ID for search data
+                 HgfsSearch *search,              // IN: search data
+                 HgfsShareOptions configOptions,  // IN: share configuration settings
+                 HgfsSessionInfo *session,        // IN: session we are called in
+                 HgfsSearchReadInfo *info,        // IN/OUT: request details
+                 size_t *replyHeaderSize,         // OUT: reply info written size
+                 size_t *replyDirentSize)         // OUT: reply dirent written size
+{
+   HgfsSearchReadEntry entry;
+   size_t bytesWritten = 0;
+   size_t bytesRemaining = 0;
+   char *currentSearchReadRecord = NULL;
+   char *lastSearchReadRecord = NULL;
+   Bool moreEntries = TRUE;
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
+
+   info->currentIndex = info->startIndex;
+   *replyHeaderSize = 0;
+   *replyDirentSize = 0;
+
+
+   while (moreEntries) {
+      size_t offsetInBuffer = ROUNDUP(*replyDirentSize, sizeof (uint64));
+
+      if (info->payloadSize <= offsetInBuffer) {
+         break;
+      }
+
+      memset(&entry, 0, sizeof entry);
+
+      currentSearchReadRecord = (char*)info->replyPayload + offsetInBuffer;
+      bytesRemaining = info->payloadSize - offsetInBuffer;
+      bytesWritten = 0;
+
+      status = HgfsGetDirEntry(hgfsSearchHandle,
+                               search,
+                               configOptions,
+                               session,
+                               info,
+                               &entry,
+                               &moreEntries);
+      if (HGFS_ERROR_SUCCESS != status) {
+         /* Failed to retrieve an entry record, bail. */
+         break;
+      }
+
+      if (!HgfsPackSearchReadReplyRecord(info->requestType,
+                                         &entry,
+                                         bytesRemaining,
+                                         lastSearchReadRecord,
+                                         currentSearchReadRecord,
+                                         &bytesWritten)) {
+         /*
+          * The current entry is too large to be contained in the reply.
+          * If this is the first entry returned then we have an error.
+          * Otherwise, we return success for what is already in the reply.
+          */
+         if (0 == info->numberRecordsWritten) {
+            status = HGFS_ERROR_INTERNAL;
+         }
+         moreEntries = FALSE;
+      }
+
+      if (NULL != entry.name) {
+         free(entry.name);
+      }
+
+      if (HGFS_ERROR_SUCCESS != status) {
+         /* Failed to pack any entry records, bail. */
+         break;
+      }
+
+      /*
+       * Only count records actually written to the reply.
+       * (The final, empty record is not written for all protocol versions.)
+       */
+      if (0 < bytesWritten) {
+
+         if (0 != (info->flags & HGFS_SEARCH_READ_SINGLE_ENTRY)) {
+            moreEntries = FALSE;
+         }
+
+         *replyDirentSize = ROUNDUP(*replyDirentSize, sizeof (uint64)) + bytesWritten;
+         lastSearchReadRecord = currentSearchReadRecord;
+         info->currentIndex++;
+         info->numberRecordsWritten++;
+      }
+   }
+
+   /* Now pack the search read reply common reply part. */
+   if (HgfsPackSearchReadReplyHeader(info,
+                                     &bytesWritten)) {
+      /* The search read reply common reply part size was already done so should be 0. */
+      *replyHeaderSize = bytesWritten;
+   } else {
+      status = HGFS_ERROR_PROTOCOL;
+   }
+
    return status;
 }
 
@@ -7363,56 +7611,89 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
 static void
 HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
 {
-   uint32 requestedOffset;
-   HgfsFileAttrInfo attr;
-   HgfsInternalStatus status;
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
    HgfsNameStatus nameStatus;
    HgfsHandle hgfsSearchHandle;
    HgfsSearch search;
    HgfsShareOptions configOptions = 0;
+   size_t replyInfoSize = 0;
+   size_t replyDirentSize = 0;
    size_t replyPayloadSize = 0;
-   char *entryName;
-   size_t nameLength;
+   size_t inlineDataSize = 0;
+   size_t baseReplySize;
+   HgfsSearchReadInfo info;
 
    HGFS_ASSERT_INPUT(input);
 
-   if (HgfsUnpackSearchReadRequest(input->payload, input->payloadSize, input->op, &attr,
-                                   &hgfsSearchHandle, &requestedOffset)) {
+   memset(&info, 0, sizeof info);
+
+   /*
+    * For search read V4 we use the whole packet buffer available to pack
+    * as many replies as can fit into that size. For all previous versions
+    * only one record is going to be returned, so we allow the old packet
+    * max for the reply.
+    */
+   if (HgfsUnpackSearchReadRequest(input->payload, input->payloadSize, input->op,
+                                   &info, &baseReplySize, &inlineDataSize,
+                                   &hgfsSearchHandle)) {
+
       LOG(4, ("%s: read search #%u, offset %u\n", __FUNCTION__,
-              hgfsSearchHandle, requestedOffset));
-      if (HgfsGetSearchCopy(hgfsSearchHandle, input->session, &search)) {
-         /* Get the config options. */
-         status = HGFS_ERROR_SUCCESS;
-         if (search.utf8ShareNameLen != 0) {
-            nameStatus = HgfsServerPolicy_GetShareOptions(search.utf8ShareName,
-                                                          search.utf8ShareNameLen,
-                                                          &configOptions);
-            if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
-               LOG(4, ("%s: no matching share: %s.\n", __FUNCTION__,
-                       search.utf8ShareName));
-               status = HGFS_ERROR_FILE_NOT_FOUND;
-            }
-         }
+              hgfsSearchHandle, info.startIndex));
 
-         if (HGFS_ERROR_SUCCESS == status) {
-            status = HgfsGetDirEntry(hgfsSearchHandle, requestedOffset, &search,
-                                     configOptions, input->session, &attr, &entryName,
-                                     &nameLength);
-            if (HGFS_ERROR_SUCCESS == status) {
-               if (!HgfsPackSearchReadReply(input->packet, input->metaPacket, entryName,
-                                            nameLength, &attr, &replyPayloadSize,
-                                            input->session)) {
-                  status = HGFS_ERROR_INTERNAL;
-               }
-               free(entryName);
-            }
-         }
-
-         free(search.utf8Dir);
-         free(search.utf8ShareName);
+      if (!HgfsAllocInitReply(input->packet, input->metaPacket,
+                              baseReplySize + inlineDataSize, &info.reply,
+                              input->session)) {
+         status = HGFS_ERROR_PROTOCOL;
       } else {
-         LOG(4, ("%s: handle %u is invalid\n", __FUNCTION__, hgfsSearchHandle));
-         status = HGFS_ERROR_INVALID_HANDLE;
+
+         if (inlineDataSize == 0) {
+            info.replyPayload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
+                                                      input->session);
+         } else {
+            info.replyPayload = (char *)info.reply + baseReplySize;
+         }
+
+         if (info.replyPayload == NULL) {
+            LOG(4, ("%s: Op %d reply buffer failure\n", __FUNCTION__, input->op));
+            status = HGFS_ERROR_PROTOCOL;
+         } else {
+
+            if (HgfsGetSearchCopy(hgfsSearchHandle, input->session, &search)) {
+               /* Get the config options. */
+               if (search.utf8ShareNameLen != 0) {
+                  nameStatus = HgfsServerPolicy_GetShareOptions(search.utf8ShareName,
+                                                                search.utf8ShareNameLen,
+                                                                &configOptions);
+                  if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+                     LOG(4, ("%s: no matching share: %s.\n", __FUNCTION__,
+                             search.utf8ShareName));
+                     status = HGFS_ERROR_FILE_NOT_FOUND;
+                  }
+               }
+
+               if (HGFS_ERROR_SUCCESS == status) {
+                  status = HgfsDoSearchRead(hgfsSearchHandle,
+                                            &search,
+                                            configOptions,
+                                            input->session,
+                                            &info,
+                                            &replyInfoSize,
+                                            &replyDirentSize);
+               }
+
+               if (HGFS_ERROR_SUCCESS == status) {
+                  replyPayloadSize = replyInfoSize +
+                                     ((inlineDataSize == 0) ? 0 : replyDirentSize);
+               }
+
+               free(search.utf8Dir);
+               free(search.utf8ShareName);
+
+            } else {
+               LOG(4, ("%s: handle %u is invalid\n", __FUNCTION__, hgfsSearchHandle));
+               status = HGFS_ERROR_INVALID_HANDLE;
+            }
+         }
       }
    } else {
       status = HGFS_ERROR_PROTOCOL;

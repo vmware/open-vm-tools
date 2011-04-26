@@ -417,7 +417,33 @@ typedef struct HgfsFileAttrInfo {
    uint64 hostFileId;            /* File Id of the file on host: inode_t on Linux */
    uint32 volumeId;              /* Volume Id of the volune on which the file resides */
    uint32 effectivePerms;        /* Permissions in effect for the current user */
+   uint32 eaSize;                /* Extended attribute data size */
+   uint32 reparseTag;            /* Windows reparse point tag, valid by attr flag */
+   HgfsShortFileName shortName;  /* Windows DOS 8 dot 3 name for long names */
 } HgfsFileAttrInfo;
+
+typedef struct HgfsSearchReadEntry {
+   HgfsSearchReadMask mask;      /* Info returned mask */
+   HgfsFileAttrInfo attr;        /* Attributes of entry */
+   uint32 fileIndex;             /* Entry directory index */
+   char *name;                   /* Name */
+   uint32 nameLength;            /* Name byte length */
+} HgfsSearchReadEntry;
+
+typedef struct HgfsSearchReadInfo {
+   HgfsOp requestType;           /* HGFS request version */
+   HgfsSearchReadMask requestedMask; /* Entry info requested mask */
+   HgfsSearchReadFlags flags;    /* Request specific flags */
+   HgfsSearchReadFlags replyFlags;   /* Reply specific flags */
+   char *searchPattern;          /* Search pattern to match entries with */
+   uint32 searchPatternLength;   /* Byte length of search pattern */
+   uint32 startIndex;            /* Starting index for entries */
+   uint32 currentIndex;          /* Current index for entries */
+   uint32 numberRecordsWritten;  /* Number of entries written */
+   void *reply;                  /* Fixed part of search read reply */
+   void *replyPayload;           /* Variable part (dirent records) of reply */
+   size_t payloadSize;           /* Remaining bytes in reply payload. */
+} HgfsSearchReadInfo;
 
 typedef struct HgfsCreateDirInfo {
    HgfsOp requestType;
@@ -636,18 +662,20 @@ Bool
 HgfsUnpackSearchReadRequest(const void *packet,           // IN: request packet
                             size_t packetSize,            // IN: packet size
                             HgfsOp op,                    // IN: requested operation
-                            HgfsFileAttrInfo *attr,       // OUT: unpacked attr struct
-                            HgfsHandle *hgfsSearchHandle, // OUT: hgfs search handle
-                            uint32 *offset);              // OUT: entry offset
-
+                            HgfsSearchReadInfo *info,     // OUT: search info
+                            size_t *baseReplySize,        // OUT: op base reply size
+                            size_t *inlineReplyDataSize,  // OUT: size of inline reply data
+                            HgfsHandle *hgfsSearchHandle);// OUT: hgfs search handle
 Bool
-HgfsPackSearchReadReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                        char const *packetHeader,   // IN: packet header
-                        const char *utf8Name,       // IN: file name
-                        size_t utf8NameLen,         // IN: file name length
-                        HgfsFileAttrInfo *attr,     // IN: file attr struct
-                        size_t *payloadSize,        // OUT: size of packet
-                        HgfsSessionInfo *session);  // IN: Session Info
+HgfsPackSearchReadReplyRecord(HgfsOp requestType,           // IN: search read request
+                              HgfsSearchReadEntry *entry,   // IN: entry info
+                              size_t maxRecordSize,         // IN: max size in bytes for record
+                              void *lastSearchReadRecord,   // IN/OUT: last packed entry
+                              void *currentSearchReadRecord,// OUT: currrent entry to pack
+                              size_t *replyRecordSize);     // OUT: size of packet
+Bool
+HgfsPackSearchReadReplyHeader(HgfsSearchReadInfo *info,    // IN: request info
+                              size_t *payloadSize);        // OUT: size of packet
 
 Bool
 HgfsUnpackSetattrRequest(void const *packet,            // IN: request packet
