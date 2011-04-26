@@ -115,7 +115,7 @@ BSDFmt_SFVWrite(BSDFmt_StrBuf *sbuf, BSDFmt_UIO *uio)
    }
 
    for (i = 0, siov = uio->uio_iov; i < uio->uio_iovcnt; i++, siov++) {
-      int numToWrite;
+      int numToWrite = sbuf->size - sbuf->index - 1;  // -1 for \0
 
       /*
        * Overflowing the buffer is not an error.
@@ -124,13 +124,11 @@ BSDFmt_SFVWrite(BSDFmt_StrBuf *sbuf, BSDFmt_UIO *uio)
        * Always leave space for null termination.
        */
 
-      numToWrite = sbuf->size - sbuf->index - 1;	// -1 for \0
       if (numToWrite > siov->iov_len) {
 	 numToWrite = siov->iov_len;
       }
 
-      memcpy(sbuf->buf + sbuf->index, siov->iov_base,
-             numToWrite);
+      memcpy(sbuf->buf + sbuf->index, siov->iov_base, numToWrite);
       sbuf->index += numToWrite;
    }
 
@@ -200,19 +198,21 @@ __ultoa(u_long val, char *endp, int base, int octzero, const char *xdigs,
       do {
          *--cp = to_char(sval % 10);
          ndig++;
+
          /*
           * If (*grp == CHAR_MAX) then no more grouping
           * should be performed.
           */
-         if (needgrp && ndig == *grp && *grp != CHAR_MAX
-             && sval > 9) {
+
+         if (needgrp && ndig == *grp && *grp != CHAR_MAX && sval > 9) {
             *--cp = thousep;
             ndig = 0;
+
             /*
-             * If (*(grp+1) == '\0') then we have to
-             * use *grp character (last grouping rule)
-             * for all next cases
+             * If (*(grp+1) == '\0') then we have to* use *grp character
+             * (last grouping rule) for all next cases
              */
+
             if (*(grp+1) != '\0') {
                grp++;
             }
@@ -226,6 +226,7 @@ __ultoa(u_long val, char *endp, int base, int octzero, const char *xdigs,
          *--cp = to_char(val & 7);
          val >>= 3;
       } while (val);
+
       if (octzero && *cp != '0') {
          *--cp = '0';
       }
@@ -278,18 +279,18 @@ BSDFmt_UJToA(uintmax_t val, char *endp, int base, int octzero,
          *--cp = to_char(sval % 10);
          ndig++;
          /*
-          * If (*grp == CHAR_MAX) then no more grouping
-          * should be performed.
+          * If (*grp == CHAR_MAX) then no more grouping should be performed.
           */
-         if (needgrp && *grp != CHAR_MAX && ndig == *grp
-             && sval > 9) {
+
+         if (needgrp && *grp != CHAR_MAX && ndig == *grp && sval > 9) {
             *--cp = thousep;
             ndig = 0;
+
             /*
-             * If (*(grp+1) == '\0') then we have to
-             * use *grp character (last grouping rule)
-             * for all next cases
+             * If (*(grp+1) == '\0') then we have to use *grp character
+            * (last grouping rule) for all next cases
              */
+
             if (*(grp+1) != '\0') {
                grp++;
             }
@@ -303,6 +304,7 @@ BSDFmt_UJToA(uintmax_t val, char *endp, int base, int octzero,
          *--cp = to_char(val & 7);
          val >>= 3;
       } while (val);
+
       if (octzero && *cp != '0') {
          *--cp = '0';
       }
@@ -461,7 +463,7 @@ bsd_vsnprintf_core(char **outbuf,
    int expsize;      /* character count for expstr */
    int lead;      /* sig figs before decimal or group sep */
    int ndig;      /* actual number of digits returned by dtoa */
-   char expstr[MAXEXPDIG+2];   /* buffer for exponent string: e+ZZZ */
+   char expstr[MAXEXPDIG + 2];   /* buffer for exponent string: e+ZZZ */
    char *dtoaresult;   /* buffer allocated by dtoa */
    int nseps;      /* number of group separators with ' */
    int nrepeats;      /* number of repeats of the last group */
@@ -490,39 +492,42 @@ bsd_vsnprintf_core(char **outbuf,
    /*
     * BEWARE, these `goto error' on error, and PAD uses `n'.
     */
-#define   PRINT(ptr, len) {                             \
-      iovp->iov_base = (ptr);                           \
-      iovp->iov_len = (len) * sizeof (char);            \
-      uio.uio_resid += (len) * sizeof (char);           \
-      iovp++;                                           \
-      if (++uio.uio_iovcnt >= BSDFMT_NIOV) {            \
-         if (BSDFmt_SPrint(&sbuf, &uio))                \
-            goto error;                                 \
-         iovp = iov;                                    \
-      }                                                 \
+#define   PRINT(ptr, len) {                   \
+      iovp->iov_base = (ptr);                 \
+      iovp->iov_len = (len) * sizeof (char);  \
+      uio.uio_resid += (len) * sizeof (char); \
+      iovp++;                                 \
+      if (++uio.uio_iovcnt >= BSDFMT_NIOV) {  \
+         if (BSDFmt_SPrint(&sbuf, &uio))      \
+            goto error;                       \
+         iovp = iov;                          \
+      }                                       \
    }
-#define   PAD(howmany, with) {                  \
-      if ((n = (howmany)) > 0) {                \
-         while (n > PADSIZE) {                  \
-            PRINT(with, PADSIZE);               \
-            n -= PADSIZE;                       \
-         }                                      \
-         PRINT(with, n);                        \
-      }                                         \
+
+#define   PAD(howmany, with) {     \
+      if ((n = (howmany)) > 0) {   \
+         while (n > PADSIZE) {     \
+            PRINT(with, PADSIZE);  \
+            n -= PADSIZE;          \
+         }                         \
+         PRINT(with, n);           \
+      }                            \
    }
-#define   PRINTANDPAD(p, ep, len, with) do {    \
-      n2 = (ep) - (p);                          \
-      if (n2 > (len))                           \
-         n2 = (len);                            \
-      if (n2 > 0)                               \
-         PRINT((p), n2);                        \
-      PAD((len) - (n2 > 0 ? n2 : 0), (with));   \
+
+#define   PRINTANDPAD(p, ep, len, with) do {   \
+      n2 = (ep) - (p);                         \
+      if (n2 > (len))                          \
+         n2 = (len);                           \
+      if (n2 > 0)                              \
+         PRINT((p), n2);                       \
+      PAD((len) - (n2 > 0 ? n2 : 0), (with));  \
    } while(0)
-#define   FLUSH() {                                                     \
-      if (uio.uio_resid && BSDFmt_SPrint(&sbuf, &uio))                  \
-         goto error;                                                    \
-      uio.uio_iovcnt = 0;                                               \
-      iovp = iov;                                                       \
+
+#define   FLUSH() {                                     \
+      if (uio.uio_resid && BSDFmt_SPrint(&sbuf, &uio))  \
+         goto error;                                    \
+      uio.uio_iovcnt = 0;                               \
+      iovp = iov;                                       \
    }
 
    /*
@@ -530,29 +535,34 @@ bsd_vsnprintf_core(char **outbuf,
     * built, use it to get the argument.  If its not, get the next
     * argument (and arguments must be gotten sequentially).
     */
-#define GETARG(type)                                            \
-   ((argtable != NULL) ? *((type*)(&argtable[nextarg++])) :     \
+
+#define GETARG(type)                                         \
+   ((argtable != NULL) ? *((type*)(&argtable[nextarg++])) :  \
     (nextarg++, va_arg(ap, type)))
 
    /*
     * To extend shorts properly, we need both signed and unsigned
     * argument extraction methods.
     */
+
 #define   SARG()                                        \
    (flags&LONGINT ? GETARG(long) :                      \
     flags&SHORTINT ? (long)(short)GETARG(int) :         \
     flags&CHARINT ? (long)(signed char)GETARG(int) :    \
     (long)GETARG(int))
+
 #define   UARG()                                        \
    (flags&LONGINT ? GETARG(u_long) :                    \
     flags&SHORTINT ? (u_long)(u_short)GETARG(int) :     \
     flags&CHARINT ? (u_long)(u_char)GETARG(int) :       \
     (u_long)GETARG(u_int))
+
 #define SJARG()                                         \
    (flags&INTMAXT ? GETARG(intmax_t) :                  \
     flags&SIZET ? (intmax_t)GETARG(size_t) :            \
     flags&PTRDIFFT ? (intmax_t)GETARG(ptrdiff_t) :      \
     (intmax_t)GETARG(long long))
+
 #define   UJARG()                                       \
    (flags&INTMAXT ? GETARG(uintmax_t) :                 \
     flags&SIZET ? (uintmax_t)GETARG(size_t) :           \
@@ -563,22 +573,23 @@ bsd_vsnprintf_core(char **outbuf,
     * Get * arguments, including the form *nn$.  Preserve the nextarg
     * that the argument can be gotten once the type is determined.
     */
-#define GETASTER(val)                           \
-   n2 = 0;                                      \
-   cp = fmt;                                    \
-   while (is_digit(*cp)) {                      \
-      n2 = 10 * n2 + to_digit(*cp);             \
-      cp++;                                     \
-   }                                            \
-   if (*cp == '$') {                            \
-      int hold = nextarg;                       \
-      FIND_ARGUMENTS();                         \
-      nextarg = n2;                             \
-      val = GETARG (int);                       \
-      nextarg = hold;                           \
-      fmt = ++cp;                               \
-   } else {                                     \
-      val = GETARG (int);                       \
+
+#define GETASTER(val)                \
+   n2 = 0;                           \
+   cp = fmt;                         \
+   while (is_digit(*cp)) {           \
+      n2 = 10 * n2 + to_digit(*cp);  \
+      cp++;                          \
+   }                                 \
+   if (*cp == '$') {                 \
+      int hold = nextarg;            \
+      FIND_ARGUMENTS();              \
+      nextarg = n2;                  \
+      val = GETARG (int);            \
+      nextarg = hold;                \
+      fmt = ++cp;                    \
+   } else {                          \
+      val = GETARG (int);            \
    }
 
    /*
@@ -587,13 +598,13 @@ bsd_vsnprintf_core(char **outbuf,
     */
 
 #ifndef _WIN32
-   #define FIND_ARGUMENTS() \
-      (argtable == NULL ? \
-	 (argtable = statargtable, \
-	  __find_arguments(fmt0, orgap, &argtable)) : \
+   #define FIND_ARGUMENTS()                            \
+      (argtable == NULL ?                              \
+	 (argtable = statargtable,                     \
+	  __find_arguments(fmt0, orgap, &argtable)) :  \
 	 (void) 0)
 #else
-   #define FIND_ARGUMENTS() \
+   #define FIND_ARGUMENTS()                            \
       ASSERT(argtable != NULL)
 #endif
 
@@ -631,8 +642,7 @@ bsd_vsnprintf_core(char **outbuf,
 
    /*
     * If asprintf(), allocate initial buffer based on format length.
-    * Empty format only needs one byte.
-    * Otherwise, round up to multiple of 64.
+    * Empty format only needs one byte. Otherwise, round up to multiple of 64.
     */
 
    if (sbuf.alloc) {
@@ -690,9 +700,8 @@ bsd_vsnprintf_core(char **outbuf,
      reswitch:   switch (ch) {
       case ' ':
          /*-
-          * ``If the space and + flags both appear, the space
-          * flag will be ignored.''
-          *   -- ANSI X3J11
+          * ``If the space and + flags both appear, the space flag will be
+          *   ignored.'' -- ANSI X3J11
           */
 
          if (!sign) {
@@ -704,9 +713,9 @@ bsd_vsnprintf_core(char **outbuf,
          goto rflag;
       case '*':
          /*-
-          * ``A negative field width argument is taken as a
-          * - flag followed by a positive field width.''
-          *   -- ANSI X3J11
+          * ``A negative field width argument is taken as a flag followed by
+          *   a positive field width.''-- ANSI X3J11
+          *
           * They don't exclude field widths read from args.
           */
          GETASTER (width);
@@ -727,9 +736,9 @@ bsd_vsnprintf_core(char **outbuf,
          grouping = groupingIn;
 
 	 /*
-	  * Grouping should not begin with 0, but it nevertheless
-	  * does (see bug 281072) and makes the formatting code
-	  * behave badly, so we fix it up.
+	  * Grouping should not begin with 0, but it nevertheless does (see
+          * bug 281072) and makes the formatting code behave badly, so we
+          * fix it up.
 	  */
 
 	 if (grouping != NULL && *grouping == '\0') {
@@ -752,7 +761,7 @@ bsd_vsnprintf_core(char **outbuf,
       case '0':
          /*-
           * ``Note that 0 is taken as a flag, not as the beginning of a
-          * field width.''  -- ANSI X3J11
+          *   field width.''  -- ANSI X3J11
           */
 
          flags |= ZEROPAD;
@@ -830,7 +839,7 @@ bsd_vsnprintf_core(char **outbuf,
 
 	    mbs = initial;
             mbseqlen = wcrtomb(cp = buf, (wchar_t)GETARG(wint_t), &mbs);
-            if (mbseqlen == (size_t)-1) {
+            if (mbseqlen == (size_t) -1) {
                sbuf.error = TRUE;
                goto error;
             }
@@ -936,8 +945,8 @@ bsd_vsnprintf_core(char **outbuf,
                }
             } else {
                /*
-                * Make %[gG] smell like %[eE], but
-                * trim trailing zeroes if no # flag.
+                * Make %[gG] smell like %[eE], but trim trailing zeroes
+                * if no # flag.
                 */
 
                if (!(flags & ALT)) {
@@ -971,7 +980,7 @@ bsd_vsnprintf_core(char **outbuf,
                      break;
                   }
                   lead -= *grouping;
-                  if (*(grouping+1)) {
+                  if (*(grouping + 1)) {
                      nseps++;
                      grouping++;
                   } else {
@@ -979,17 +988,19 @@ bsd_vsnprintf_core(char **outbuf,
                   }
                }
                size += nseps + nrepeats;
-            } else
+            } else {
                lead = expt;
+            }
          }
          break;
 #endif /* !NO_FLOATING_POINT */
       case 'n':
          /*
-          * Assignment-like behavior is specified if the
-          * value overflows or is otherwise unrepresentable.
-          * C99 says to use `signed char' for %hhn conversions.
+          * Assignment-like behavior is specified if the value overflows or
+          * is otherwise unrepresentable. C99 says to use `signed char'
+          * for %hhn conversions.
           */
+
          if (flags & LLONGINT) {
             *GETARG(long long *) = ret;
          }
@@ -1027,11 +1038,9 @@ bsd_vsnprintf_core(char **outbuf,
          goto nosign;
       case 'p':
          /*-
-          * ``The argument shall be a pointer to void.  The
-          * value of the pointer is converted to a sequence
-          * of printable characters, in an implementation-
-          * defined manner.''
-          *   -- ANSI X3J11
+          * ``The argument shall be a pointer to void. The value of the
+          *   pointer is converted to a sequence of printable characters, in
+          *   an implementation- defined manner.''   -- ANSI X3J11
           */
          ujval = (uintmax_t)(uintptr_t)GETARG(void *);
          base = 16;
@@ -1072,19 +1081,20 @@ bsd_vsnprintf_core(char **outbuf,
 
          if (prec >= 0) {
             /*
-             * can't use strlen; can only look for the
-             * NUL in the first `prec' characters, and
-             * strlen() will go further.
+             * can't use strlen; can only look for the NUL in the first
+             * `prec' characters, and strlen() will go further.
              */
+
             char *p = memchr(cp, 0, (size_t)prec);
 
-            if (p != NULL) {
+            if (p == NULL) {
+               size = prec;
+            } else {
                size = p - cp;
+
                if (size > prec) {
                   size = prec;
                }
-            } else {
-               size = prec;
             }
             size = CodeSet_Utf8FindCodePointBoundary(cp, size);
          } else {
@@ -1115,8 +1125,7 @@ bsd_vsnprintf_core(char **outbuf,
          }
          base = 16;
          /* leading 0x/X only if non-zero */
-         if (flags & ALT &&
-             (flags & INTMAX_SIZE ? ujval != 0 : ulval != 0)) {
+         if (flags & ALT && (flags & INTMAX_SIZE ? ujval != 0 : ulval != 0)) {
             ox[1] = ch;
          }
 
@@ -1124,22 +1133,19 @@ bsd_vsnprintf_core(char **outbuf,
          /* unsigned conversions */
       nosign:         sign = '\0';
          /*-
-          * ``... diouXx conversions ... if a precision is
-          * specified, the 0 flag will be ignored.''
-          *   -- ANSI X3J11
+          * ``... diouXx conversions ... if a precision is specified, the
+          *       0 flag will be ignored.'' -- ANSI X3J11
           */
       number:         if ((dprec = prec) >= 0) {
                          flags &= ~ZEROPAD;
                       }
 
          /*-
-          * ``The result of converting a zero value with an
-          * explicit precision of zero is no characters.''
-          *   -- ANSI X3J11
+          * ``The result of converting a zero value with an explicit
+          *   precision of zero is no characters.'' -- ANSI X3J11
           *
-          * ``The C Standard is clear enough as is.  The call
-          * printf("%#.0o", 0) should print 0.''
-          *   -- Defect Report #151
+          * ``The C Standard is clear enough as is. The call printf("%#.0o", 0)
+         *    should print 0.'' -- Defect Report #151
           */
          cp = buf + INT_CONV_BUF;
          if (flags & INTMAX_SIZE) {
@@ -1177,19 +1183,19 @@ bsd_vsnprintf_core(char **outbuf,
       }
 
       /*
-       * All reasonable formats wind up here.  At this point, `cp'
-       * points to a string which (if not flags&LADJUST) should be
-       * padded out to `width' places.  If flags&ZEROPAD, it should
-       * first be prefixed by any sign or other prefix; otherwise,
-       * it should be blank padded before the prefix is emitted.
-       * After any left-hand padding and prefixing, emit zeroes
-       * required by a decimal [diouxX] precision, then print the
-       * string proper, then emit zeroes required by any leftover
-       * floating precision; finally, if LADJUST, pad with blanks.
+       * All reasonable formats wind up here.  At this point, `cp' points to
+       * a string which (if not flags&LADJUST) should be padded out to `width'
+       * places.  If flags&ZEROPAD, it should first be prefixed by any sign
+       * or other prefix; otherwise, it should be blank padded before the
+       * prefix is emitted. After any left-hand padding and prefixing, emit
+       * zeroes required by a decimal [diouxX] precision, then print the
+       * string proper, then emit zeroes required by any leftover floating
+       * precision; finally, if LADJUST, pad with blanks.
        *
-       * Compute actual size, so we know how much to pad.
-       * size excludes decimal prec; realsz includes it.
+       * Compute actual size, so we know how much to pad. size excludes
+       * decimal prec; realsz includes it.
        */
+
       realsz = dprec > size ? dprec : size;
       if (sign) {
          realsz++;
@@ -1205,7 +1211,7 @@ bsd_vsnprintf_core(char **outbuf,
       }
 
       /* right-adjusting blank padding */
-      if ((flags & (LADJUST|ZEROPAD)) == 0) {
+      if ((flags & (LADJUST | ZEROPAD)) == 0) {
          PAD(width - realsz, blanks);
       }
 
@@ -1254,7 +1260,7 @@ bsd_vsnprintf_core(char **outbuf,
                         nseps--;
                      }
                      PRINT(&thousands_sep, 1);
-                     PRINTANDPAD(cp,dtoaend, *grouping, zeroes);
+                     PRINTANDPAD(cp, dtoaend, *grouping, zeroes);
                      cp += *grouping;
                   }
                   if (cp > dtoaend) {
@@ -1262,7 +1268,7 @@ bsd_vsnprintf_core(char **outbuf,
                   }
                }
                if (prec || flags & ALT) {
-                  PRINT(decimal_point,1);
+                  PRINT(decimal_point, 1);
                }
             }
             PRINTANDPAD(cp, dtoaend, prec, zeroes);
@@ -1292,6 +1298,7 @@ bsd_vsnprintf_core(char **outbuf,
 
       FLUSH();   /* copy out the I/O vectors */
    }
+
 done:
    FLUSH();
 
@@ -1764,19 +1771,26 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
    enum typeid *newtable;
    int n, newsize = oldsize * 2;
 
-   if (newsize < nextarg + 1)
+   if (newsize < nextarg + 1) {
       newsize = nextarg + 1;
+   }
+
    if (oldsize == STATIC_ARG_TBL_SIZE) {
-      if ((newtable = malloc(newsize * sizeof(enum typeid))) == NULL)
+      if ((newtable = malloc(newsize * sizeof(enum typeid))) == NULL) {
          abort();         /* XXX handle better */
+      }
+
       memmove(newtable, oldtable, oldsize * sizeof(enum typeid));
    } else {
       newtable = realloc(oldtable, newsize * sizeof(enum typeid));
-      if (newtable == NULL)
+
+      if (newtable == NULL) {
          abort();         /* XXX handle better */
+      }
    }
-   for (n = oldsize; n < newsize; n++)
+   for (n = oldsize; n < newsize; n++) {
       newtable[n] = T_UNUSED;
+   }
 
    *typetable = newtable;
    *tablesize = newsize;
@@ -1796,9 +1810,10 @@ BSDFmt_Exponent(char *p0, int exp, int fmtch)
    if (exp < 0) {
       exp = -exp;
       *p++ = '-';
-   }
-   else
+   } else {
       *p++ = '+';
+   }
+
    t = expbuf + MAXEXPDIG;
 
    if (exp < 10) {
@@ -1813,7 +1828,9 @@ BSDFmt_Exponent(char *p0, int exp, int fmtch)
       do {
          *--t = to_char(exp % 10);
       } while ((exp /= 10) > 9);
+
       *--t = to_char(exp);
+
       for (; t < expbuf + MAXEXPDIG; *p++ = *t++);
    } else {
       *p++ = to_char(exp);
