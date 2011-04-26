@@ -5222,6 +5222,15 @@ VSockVmciDevIoctl(struct inode *inode,     // IN
    retval = 0;
 
    switch (iocmd) {
+   case IOCTL_VMCI_SOCKETS_VERSION: {
+      uint16 parts[4] = { VSOCK_DRIVER_VERSION_COMMAS };
+      uint32 version = VMCI_SOCKETS_MAKE_VERSION(parts);
+      if (copy_to_user((void*)ioarg, &version, sizeof version) != 0) {
+         retval = -EFAULT;
+      }
+      break;
+   }
+
    case IOCTL_VMCI_SOCKETS_GET_AF_VALUE: {
       int family;
 

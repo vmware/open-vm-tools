@@ -134,6 +134,20 @@ VMCIPtrToVA64(void const *ptr) // IN
 #define VMCI_VERSION_PREHOSTQP      VMCI_MAKE_VERSION(8, 0)
 #define VMCI_VERSION_PREVERS2       VMCI_MAKE_VERSION(1, 0)
 
+/*
+ * VMCISockets driver version.  The version is platform-dependent and is
+ * embedded in vsock_version.h for each platform.  It can be obtained via
+ * VMCISock_Version() (which uses IOCTL_VMCI_SOCKETS_VERSION).  The
+ * following is simply for constructing an unsigned integer value from the
+ * comma-separated version in the header.  This must match the macros defined
+ * in vmci_sockets.h.  An example of using this is:
+ * uint16 parts[4] = { VSOCK_DRIVER_VERSION_COMMAS };
+ * uint32 version = VMCI_SOCKETS_MAKE_VERSION(parts);
+ */
+
+#define VMCI_SOCKETS_MAKE_VERSION(_p) \
+   ((((_p)[0] & 0xFF) << 24) | (((_p)[1] & 0xFF) << 16) | ((_p)[2]))
+
 #if defined(__linux__) || defined(SOLARIS) || defined(VMKERNEL)
 /*
  * Linux defines _IO* macros, but the core kernel code ignore the encoded
@@ -231,17 +245,23 @@ enum IOCTLCmd_VMCI {
     * */
    IOCTLCMD(LAST),
    IOCTLCMD(SOCKETS_FIRST) = IOCTLCMD(LAST),
-   IOCTLCMD(SOCKETS_ACCEPT) = IOCTLCMD(SOCKETS_FIRST),
+
+   /*
+    * This used to be for accept() on Windows and Mac OS, which is now
+    * redundant (since we now use real handles).  It is used instead for
+    * getting the version.  This value is now public, so it cannot change.
+    */
+   IOCTLCMD(SOCKETS_VERSION) = IOCTLCMD(SOCKETS_FIRST),
    IOCTLCMD(SOCKETS_BIND),
 
    /*
-    * This used to be for close() on Windows and MacOS, which is now
-    * redundant (since we now use real handles).  It is now used instead for
-    * sending private symbols to the MacOS driver.
+    * This used to be for close() on Windows and Mac OS, but is no longer
+    * used for the same reason as accept() above.  It is used instead for
+    * sending private symbols to the Mac OS driver.
     */
    IOCTLCMD(SOCKETS_SET_SYMBOLS),
-
    IOCTLCMD(SOCKETS_CONNECT),
+
    /*
     * The next two values are public (vmci_sockets.h) and cannot be changed.
     * That means the number of values above these cannot be changed either
@@ -297,6 +317,7 @@ struct IOCTLCmd_VMCIMacOS_PrivSyms {
 ;
 enum IOCTLCmd_VMCIMacOS {
    IOCTLCMD_I(SOCKETS_SET_SYMBOLS, struct IOCTLCmd_VMCIMacOS_PrivSyms),
+   IOCTLCMD_O(SOCKETS_VERSION, unsigned int),
    IOCTLCMD_O(SOCKETS_GET_AF_VALUE, int),
    IOCTLCMD_O(SOCKETS_GET_LOCAL_CID, unsigned int),
 };
@@ -389,12 +410,10 @@ enum IOCTLCmd_VMCIWin32 {
 /* END VMCI */
 
 /* BEGIN VMCI SOCKETS */
-#define IOCTL_VMCI_SOCKETS_ACCEPT \
-               VMCIIOCTL_BUFFERED(SOCKETS_ACCEPT)
+#define IOCTL_VMCI_SOCKETS_VERSION \
+               VMCIIOCTL_BUFFERED(SOCKETS_VERSION)
 #define IOCTL_VMCI_SOCKETS_BIND \
                VMCIIOCTL_BUFFERED(SOCKETS_BIND)
-#define IOCTL_VMCI_SOCKETS_CLOSE \
-               VMCIIOCTL_BUFFERED(SOCKETS_CLOSE)
 #define IOCTL_VMCI_SOCKETS_CONNECT \
                VMCIIOCTL_BUFFERED(SOCKETS_CONNECT)
 #define IOCTL_VMCI_SOCKETS_GET_AF_VALUE \
