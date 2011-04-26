@@ -153,7 +153,8 @@
 #define   BDOOR_CMD_FIRMWARE_ERROR           71 /* CPL 0 only. */
 #  define BDOOR_CMD_FE_INSUFFICIENT_MEM       0
 #  define BDOOR_CMD_FE_EXCEPTION              1
-#define   BDOOR_CMD_MAX                      72
+#define   BDOOR_CMD_VMK_INFO                 72
+#define   BDOOR_CMD_MAX                      73
 
 
 /* 
@@ -208,6 +209,8 @@
 #define IS_BDOOR_PMC(index)  (((index) | 3) == 0x10003)
 #define BDOOR_CMD(ecx)       ((ecx) & 0xffff)
 
+/* Sub commands for BDOOR_CMD_VMK_INFO */
+#define BDOOR_CMD_VMK_INFO_ENTRY   1
 
 #ifdef VMM
 /*
