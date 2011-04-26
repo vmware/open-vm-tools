@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -975,5 +975,102 @@ ClearBit64(uint64 *var, uint64 index)
 #endif
 }
 #endif /* VM_X86_64 */
+
+/*
+ *-----------------------------------------------------------------------------
+ * RoundUpPow2_{64,32} --
+ *
+ *   Rounds a value up to the next higher power of 2.  Returns the original 
+ *   value if it is a power of 2.  The next power of 2 for inputs {0, 1} is 1.
+ *   The result is undefined for inputs above {2^63, 2^31} (but equal to 1
+ *   in this implementation).
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+RoundUpPow2C64(uint64 value)
+{
+   if (value <= 1 || value > (CONST64U(1) << 63)) {
+      return 1; // Match the assembly's undefined value for large inputs.
+   } else {
+      return (CONST64U(2) << mssb64_0(value - 1));
+   }
+}
+
+#if defined(VM_X86_64) && defined(__GNUC__)
+static INLINE uint64
+RoundUpPow2Asm64(uint64 value)
+{
+   uint64 out = 2;
+   asm("lea -1(%[in]), %%rcx;"      // rcx = value - 1.  Preserve original.
+       "bsr %%rcx, %%rcx;"          // rcx = log2(value - 1) if value != 1
+                                    // if value == 0, then rcx = 63
+                                    // if value == 1 then zf = 1, else zf = 0.
+       "rol %%cl, %[out];"          // out = 2 << rcx (if rcx != -1)
+                                    //     = 2^(log2(value - 1) + 1)
+                                    // if rcx == -1 (value == 0), out = 1
+                                    // zf is always unmodified.
+       "cmovz %[in], %[out]"        // if value == 1 (zf == 1), write 1 to out.
+       : [out]"+r"(out) : [in]"r"(value) : "%rcx", "cc");
+   return out;
+}
+#endif
+
+static INLINE uint64
+RoundUpPow2_64(uint64 value)
+{
+#if defined(VM_X86_64) && defined(__GNUC__)
+   if (__builtin_constant_p(value)) {
+      return RoundUpPow2C64(value);
+   } else {
+      return RoundUpPow2Asm64(value);
+   }
+#else
+   return RoundUpPow2C64(value);
+#endif
+}
+
+static INLINE uint32
+RoundUpPow2C32(uint32 value)
+{
+   if (value <= 1 || value > (1U << 31)) {
+      return 1; // Match the assembly's undefined value for large inputs.
+   } else {
+      return (2 << mssb32_0(value - 1));
+   }
+}
+
+#ifdef __GNUC__
+static INLINE uint32
+RoundUpPow2Asm32(uint32 value)
+{
+   uint32 out = 2;
+   asm("lea -1(%[in]), %%ecx;"      // ecx = value - 1.  Preserve original.
+       "bsr %%ecx, %%ecx;"          // ecx = log2(value - 1) if value != 1
+                                    // if value == 0, then ecx = 31
+                                    // if value == 1 then zf = 1, else zf = 0.
+       "rol %%cl, %[out];"          // out = 2 << ecx (if ecx != -1)
+                                    //     = 2^(log2(value - 1) + 1).  
+                                    // if ecx == -1 (value == 0), out = 1
+                                    // zf is always unmodified.
+       "cmovz %[in], %[out]"        // if value == 1 (zf == 1), write 1 to out.
+       : [out]"+r"(out) : [in]"r"(value) : "%ecx", "cc");
+   return out;
+}
+#endif // __GNUC__
+
+static INLINE uint32
+RoundUpPow2_32(uint32 value)
+{
+#ifdef __GNUC__
+   if (__builtin_constant_p(value)) {
+      return RoundUpPow2C32(value);
+   } else {
+      return RoundUpPow2Asm32(value);
+   }
+#else
+   return RoundUpPow2C32(value);
+#endif
+}
 
 #endif // _VM_BASIC_ASM_H_
