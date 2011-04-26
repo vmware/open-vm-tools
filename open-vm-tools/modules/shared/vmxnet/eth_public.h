@@ -307,9 +307,14 @@ extern Eth_Address netEthBroadcastAddr;
  */
 
 static INLINE Bool
-Eth_IsAddrMatch(const Eth_Address addr1, const Eth_Address addr2) 
+Eth_IsAddrMatch(const Eth_Address addr1, const Eth_Address addr2)
 {
+#ifdef __GNUC__
+   /* string.h may not exist for kernel modules, so cannot use memcmp() */
+   return !__builtin_memcmp(addr1, addr2, ETH_ADDR_LENGTH);
+#else
    return !memcmp(addr1, addr2, ETH_ADDR_LENGTH);
+#endif
 }
 
 

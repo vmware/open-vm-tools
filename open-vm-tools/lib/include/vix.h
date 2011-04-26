@@ -562,7 +562,10 @@ void Vix_FreeBuffer(void *p);
 
 typedef int VixHostOptions;
 enum {
-   VIX_HOSTOPTION_USE_EVENT_PUMP        = 0x0008,
+   /*
+    * The following option was removed in version 1.11.
+      VIX_HOSTOPTION_USE_EVENT_PUMP        = 0x0008,
+    */
    VIX_HOSTOPTION_VERIFY_SSL_CERT       = 0x4000,
 };
 
@@ -651,16 +654,21 @@ VixHandle VixHost_OpenVM(VixHandle hostHandle,
 
 
 /*
- * Event pump
+ * Following functions were removed in version 1.11.
+ *
+   typedef int VixPumpEventsOptions;
+   enum {
+    VIX_PUMPEVENTOPTION_NONE = 0,
+   };
+   void Vix_PumpEvents(VixHandle hostHandle, VixPumpEventsOptions options);
+
+   VixHandle VixVM_OpenUrlInGuest(VixHandle vmHandle,
+                                  const char *url,
+                                  int windowState,
+                                  VixHandle propertyListHandle,
+                                  VixEventProc *callbackProc,
+                                  void *clientData);
  */
-
-typedef int VixPumpEventsOptions;
-enum {
-   VIX_PUMPEVENTOPTION_NONE = 0,
-};
-
-void Vix_PumpEvents(VixHandle hostHandle, VixPumpEventsOptions options);
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -896,14 +904,6 @@ VixHandle VixVM_RunScriptInGuest(VixHandle vmHandle,
                                  VixHandle propertyListHandle,
                                  VixEventProc *callbackProc,
                                  void *clientData);
-
-VixHandle VixVM_OpenUrlInGuest(VixHandle vmHandle,
-                               const char *url,
-                               int windowState,
-                               VixHandle propertyListHandle,
-                               VixEventProc *callbackProc,
-                               void *clientData);
-
 
 /* 
  * Guest File functions 

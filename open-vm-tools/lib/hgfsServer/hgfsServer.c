@@ -4163,7 +4163,7 @@ HgfsServerStatFs(const char *pathName, // IN: Path we're interested in
     * delimiter on copy. Allow 0 length drives so that hidden feature "" can
     * work.
     */
-   if (pathLength < 0 || pathLength >= sizeof p.mountPoint) {
+   if (pathLength >= sizeof p.mountPoint) {
       LOG(4, ("%s: could not get the volume name\n", __FUNCTION__));
 
       return FALSE;
@@ -5358,8 +5358,8 @@ HgfsQueryVolume(HgfsSessionInfo *session,   // IN: session info
                 uint64 *totalBytes)         // OUT: capacity in bytes
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
-   uint64 outFreeBytes;
-   uint64 outTotalBytes;
+   uint64 outFreeBytes = 0;
+   uint64 outTotalBytes = 0;
    char *utf8Name = NULL;
    size_t utf8NameLen;
    HgfsNameStatus nameStatus;
@@ -6801,6 +6801,8 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
    } else {
       status = HGFS_ERROR_PROTOCOL;
    }
+
+   free(targetName);
 
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
 }

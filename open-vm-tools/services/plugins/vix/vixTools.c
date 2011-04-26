@@ -440,8 +440,6 @@ static VixError VixToolsRunScript(VixCommandRequestHeader *requestMsg,
                                   void *eventQueue,
                                   char **result);
 
-static VixError VixToolsOpenUrl(VixCommandRequestHeader *requestMsg);
-
 static VixError VixToolsCheckUserAccount(VixCommandRequestHeader *requestMsg);
 
 static VixError VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,
@@ -2089,8 +2087,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    }
    err = VixPropertyList_SetInteger(&propList,
                                     VIX_PROPERTY_GUEST_TOOLS_API_OPTIONS,
-                                    VIX_TOOLSFEATURE_SUPPORT_GET_HANDLE_STATE
-                                    | VIX_TOOLSFEATURE_SUPPORT_OPEN_URL);
+                                    VIX_TOOLSFEATURE_SUPPORT_GET_HANDLE_STATE);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -3134,71 +3131,6 @@ abort:
 
    return err;
 } // VixToolsObjectExists
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VixToolsOpenUrl --
- *
- *    Open a URL on the guest.
- *
- * Return value:
- *    VixError
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-VixError
-VixToolsOpenUrl(VixCommandRequestHeader *requestMsg) // IN
-{
-   VixError err = VIX_OK;
-   const char *url = NULL;
-   char *windowState = "default";
-   Bool impersonatingVMWareUser = FALSE;
-   void *userToken = NULL;
-   VixMsgOpenUrlRequest *openUrlRequest;
-   VMAutomationRequestParser parser;
-
-   err = VMAutomationRequestParserInit(&parser,
-                                       requestMsg, sizeof *openUrlRequest);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-
-   openUrlRequest = (VixMsgOpenUrlRequest *) requestMsg;
-
-   err = VMAutomationRequestParserGetString(&parser,
-                                            openUrlRequest->urlLength,
-                                            &url);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-   impersonatingVMWareUser = TRUE;
-
-   /* Actually open the URL. */
-   if (!GuestApp_OpenUrl(url, strcmp(windowState, "maximize") == 0)) {
-      err = VIX_E_FAIL;
-      Debug("Failed to open the url \"%s\"\n", url);
-      goto abort;
-   }
-
-abort:
-   if (impersonatingVMWareUser) {
-      VixToolsUnimpersonateUser(userToken);
-   }
-   VixToolsLogoutUser(userToken);
-
-   return err;
-} // VixToolsOpenUrl
 
 
 /*
@@ -8575,7 +8507,6 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
       case VIX_COMMAND_DIRECTORY_EXISTS:
       case VIX_COMMAND_GET_FILE_INFO:
       case VIX_COMMAND_LIST_FILESYSTEMS:
-      case VIX_COMMAND_OPEN_URL:
       case VIX_COMMAND_READ_VARIABLE:
       case VIX_COMMAND_WRITE_VARIABLE:
       case VIX_COMMAND_GET_GUEST_NETWORKING_CONFIG:
@@ -8785,11 +8716,6 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       case VIX_COMMAND_START_PROGRAM:
          err = VixTools_StartProgram(requestMsg, requestName, eventQueue, &resultValue);
          // resultValue is static. Do not free it.
-         break;
-
-      ////////////////////////////////////
-      case VIX_COMMAND_OPEN_URL:
-         err = VixToolsOpenUrl(requestMsg);
          break;
 
       ////////////////////////////////////
@@ -9019,7 +8945,6 @@ VixToolsRewriteError(uint32 opCode,          // IN
    case VIX_COMMAND_MOVE_GUEST_FILE:
    case VIX_COMMAND_RUN_SCRIPT_IN_GUEST:
    case VIX_COMMAND_RUN_PROGRAM:
-   case VIX_COMMAND_OPEN_URL:
    case VIX_COMMAND_CREATE_TEMPORARY_FILE:
    case VIX_COMMAND_READ_VARIABLE:
    case VIX_COMMAND_WRITE_VARIABLE:

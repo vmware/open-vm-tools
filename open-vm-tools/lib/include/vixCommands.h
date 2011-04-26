@@ -1323,22 +1323,6 @@ VixMsgSetSharedFolderRequest;
 
 /*
  * **********************************************************
- * Open a URL in the guest.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgOpenUrlRequest {
-   VixCommandRequestHeader  header;
-
-   int32                    windowState;
-   uint64                   urlLength;
-}
-#include "vmware_pack_end.h"
-VixMsgOpenUrlRequest;
-
-
-/*
- * **********************************************************
  * Capture the screen of a VM
  */
 
@@ -2150,7 +2134,7 @@ enum {
    VIX_COMMAND_RUN_SCRIPT_IN_GUEST              = 46,
    VIX_COMMAND_OPEN_VM                          = 47,
    /* DEPRECATED VIX_COMMAND_GET_DISK_PROPERTIES              = 48, */
-   VIX_COMMAND_OPEN_URL                         = 49,
+   /* DEPRECATED VIX_COMMAND_OPEN_URL                         = 49, */
    VIX_COMMAND_GET_HANDLE_STATE                 = 50,
    /* DEPRECATED VIX_COMMAND_SET_HANDLE_STATE                 = 51, */
    VIX_COMMAND_CREATE_WORKING_COPY              = 55, // DELETE this when we switch remote foundry to VIM
@@ -2370,7 +2354,7 @@ enum {
  */
 enum VixToolsFeatures {
    VIX_TOOLSFEATURE_SUPPORT_GET_HANDLE_STATE   = 0x0001,
-   VIX_TOOLSFEATURE_SUPPORT_OPEN_URL           = 0x0002,
+   /* VIX_TOOLSFEATURE_SUPPORT_OPEN_URL           = 0x0002, Removed in version 1.11*/
 };
 
 
