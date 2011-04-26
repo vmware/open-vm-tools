@@ -1520,6 +1520,110 @@ File_Move(ConstUnicode oldFile,  // IN:
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * File_MoveTree --
+ *
+ *    Moves a directory from one place to the other.
+ *     - If dstName indicates a path that does not exist a directory will be
+ *       created with that path filled with the contents from srcName.
+ *     - If dstName is an existing directory then the contents will be moved
+ *       into that directory.
+ *     - If dstName indicates a file then File_MoveTree fails.
+ *
+ *    First we'll attempt to rename the directory, failing that we copy the
+ *    contents from src->destination and unlink the src.  If the copy is
+ *    succesful then we will report success even if the unlink fails for some
+ *    reason.  In that event we will append error messages.
+ *
+ * Results:
+ *    TRUE - on success
+ *    FALSE - on failure with error messages appended
+ *
+ * Side effects:
+ *    - Deletes the originating directory
+ *    - In the event of a failed copy we'll leave the new directory in a state
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_MoveTree(ConstUnicode srcName,   // IN:
+              ConstUnicode dstName,   // IN:
+              Bool overwriteExisting) // IN:
+{
+   Bool ret = FALSE;
+   Bool createdDir = FALSE;
+
+   ASSERT(srcName);
+   ASSERT(dstName);
+
+   if (!File_IsDirectory(srcName)) {
+      Msg_Append(MSGID(File.MoveTree.source.notDirectory)
+                 "The source path '%s' is not a directory.\n\n",
+                 UTF8(srcName));
+      return FALSE;
+   }
+
+   if (FileRename(srcName, dstName) == 0) {
+      ret = TRUE;
+   } else {
+      struct stat statbuf;
+      if (-1 == Posix_Stat(dstName, &statbuf)) {
+         int err = Err_Errno();
+
+         if (ENOENT == err) {
+            if (!File_CreateDirectoryHierarchy(dstName)) {
+               Msg_Append(MSGID(File.MoveTree.dst.couldntCreate)
+                          "Could not create '%s'.\n\n", UTF8(dstName));
+               return FALSE;
+            }
+
+            createdDir = TRUE;
+         } else {
+            Msg_Append(MSGID(File.MoveTree.statFailed)
+                       "%d:Failed to stat destination '%s'.\n\n",
+                       err, UTF8(dstName));
+            return FALSE;
+         }
+      } else {
+         if (!File_IsDirectory(dstName)) {
+            Msg_Append(MSGID(File.MoveTree.dest.notDirectory)
+                       "The destination path '%s' is not a directory.\n\n",
+                       UTF8(dstName));
+            return FALSE;
+         }
+      }
+
+      if (File_CopyTree(srcName, dstName, overwriteExisting, FALSE)) {
+         ret = TRUE;
+         if (!File_DeleteDirectoryTree(srcName)) {
+            Msg_Append(MSGID(File.MoveTree.cleanupFailed)
+                       "Forced to copy '%s' into '%s' but unable to remove "
+                       "source directory.\n\n",
+                       UTF8(srcName), UTF8(dstName));
+         }
+      } else {
+         ret = FALSE;
+         Msg_Append(MSGID(File.MoveTree.copyFailed)
+                    "Could not rename and failed to copy source directory "
+                    "'%s'.\n\n",
+                    UTF8(srcName));
+         if (createdDir) {
+            /*
+             * Only clean up if we created the directory.  Not attempting to
+             * clean up partial failures.
+             */
+            File_DeleteDirectoryTree(dstName);
+         }
+      }
+   }
+
+   return ret;
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * File_GetModTimeString --

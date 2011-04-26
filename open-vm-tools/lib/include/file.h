@@ -266,6 +266,10 @@ Bool File_CopyFromNameToName(ConstUnicode srcName,
                              ConstUnicode dstName,
                              int dstDispose);
 
+Bool File_MoveTree(ConstUnicode srcName,
+                   ConstUnicode dstName,
+                   Bool overwriteExisting);
+
 Bool File_CopyTree(ConstUnicode srcName,
                    ConstUnicode dstName,
                    Bool overwriteExisting,

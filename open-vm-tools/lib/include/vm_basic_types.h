@@ -804,6 +804,16 @@ typedef void * UserVA;
 # define REGPARM
 #endif
 
+
+/*
+ * gcc can warn us if we're ignoring returns
+ */
+#if defined(__GNUC__)
+# define MUST_CHECK_RETURN __attribute__((warn_unused_result))
+#else
+# define MUST_CHECK_RETURN
+#endif
+
 /*
  * ALIGNED specifies minimum alignment in "n" bytes.
  */

@@ -1679,29 +1679,6 @@ VixMsgMountHGFSRequest;
 
 
 /*
- * **********************************************************
- * Get the state of all USB devices.
- */
-
-
-/*
- * This is used to reply to VixMsgGetUSBDeviceListRequest operations.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetUSBDeviceListResponse {
-   VixCommandResponseHeader   header;
-
-   int32                      numRunningDevices;
-   uint32                     runningDeviceListLength;
-
-   uint32                     patternListLength;
-}
-#include "vmware_pack_end.h"
-VixMsgGetUSBDeviceListResponse;
-
-
-/*
  * Get guest networking config
  */
 typedef
@@ -2183,7 +2160,7 @@ enum {
    VIX_COMMAND_VPROBE_LOAD                      = 107,
    VIX_COMMAND_VPROBE_RESET                     = 108,
 
-   VIX_COMMAND_LIST_USB_DEVICES                 = 109,
+   /* DEPRECATED VIX_COMMAND_LIST_USB_DEVICES                 = 109, */
    VIX_COMMAND_CONNECT_HOST                     = 110,
 
    VIX_COMMAND_CREATE_LINKED_CLONE              = 112,

@@ -932,7 +932,7 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
       if (!m_blockAdded &&
           m_inHGDrag &&
           (m_HGGetFileStatus == DND_FILE_TRANSFER_NOT_STARTED)) {
-         m_HGGetFileStatus == DND_FILE_TRANSFER_IN_PROGRESS;
+         m_HGGetFileStatus = DND_FILE_TRANSFER_IN_PROGRESS;
          AddBlock();
       } else {
          g_debug("%s: not calling AddBlock\n", __FUNCTION__);

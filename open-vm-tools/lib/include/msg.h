@@ -183,6 +183,7 @@ EXTERN void Msg_ForceUnblock(void);
 
 EXTERN const char *Msg_GetMessages(void);
 EXTERN const char *Msg_GetMessagesAndReset(void);
+EXTERN void Msg_LogAndReset(void);
 EXTERN MsgList *Msg_GetMsgList(void);
 EXTERN MsgList *Msg_GetMsgListAndReset(void);
 EXTERN char *Msg_LocalizeList(const MsgList *messages);

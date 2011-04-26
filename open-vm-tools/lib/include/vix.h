@@ -157,18 +157,18 @@ enum {
    VIX_E_CONSOLE_GUEST_OPERATIONS_PROHIBITED    = 3026,
    VIX_E_MUST_BE_CONSOLE_USER                   = 3027,
    VIX_E_VMX_MSG_DIALOG_AND_NO_UI               = 3028,
-   VIX_E_NOT_ALLOWED_DURING_VM_RECORDING        = 3029,
-   VIX_E_NOT_ALLOWED_DURING_VM_REPLAY           = 3030,
+   /* VIX_E_NOT_ALLOWED_DURING_VM_RECORDING        = 3029, Removed in version 1.11 */
+   /* VIX_E_NOT_ALLOWED_DURING_VM_REPLAY           = 3030, Removed in version 1.11 */
    VIX_E_OPERATION_NOT_ALLOWED_FOR_LOGIN_TYPE   = 3031,
    VIX_E_LOGIN_TYPE_NOT_SUPPORTED               = 3032,
    VIX_E_EMPTY_PASSWORD_NOT_ALLOWED_IN_GUEST    = 3033,
    VIX_E_INTERACTIVE_SESSION_NOT_PRESENT        = 3034,
    VIX_E_INTERACTIVE_SESSION_USER_MISMATCH      = 3035,
-   VIX_E_UNABLE_TO_REPLAY_VM                    = 3039,
+   /* VIX_E_UNABLE_TO_REPLAY_VM                    = 3039, Removed in version 1.11 */
    VIX_E_CANNOT_POWER_ON_VM                     = 3041,
    VIX_E_NO_DISPLAY_SERVER                      = 3043,
-   VIX_E_VM_NOT_RECORDING                       = 3044,
-   VIX_E_VM_NOT_REPLAYING                       = 3045,
+   /* VIX_E_VM_NOT_RECORDING                       = 3044, Removed in version 1.11 */
+   /* VIX_E_VM_NOT_REPLAYING                       = 3045, Removed in version 1.11 */
    VIX_E_TOO_MANY_LOGONS                        = 3046,
    VIX_E_INVALID_AUTHENTICATION_SESSION         = 3047,
 
@@ -453,8 +453,8 @@ enum {
    VIX_PROPERTY_VM_TOOLS_STATE                        = 152,
    VIX_PROPERTY_VM_IS_RUNNING                         = 196,
    VIX_PROPERTY_VM_SUPPORTED_FEATURES                 = 197,
-   VIX_PROPERTY_VM_IS_RECORDING                       = 236,
-   VIX_PROPERTY_VM_IS_REPLAYING                       = 237,
+   /* VIX_PROPERTY_VM_IS_RECORDING                       = 236, Removed in version 1.11 */
+   /* VIX_PROPERTY_VM_IS_REPLAYING                       = 237, Removed in version 1.11 */
    VIX_PROPERTY_VM_SSL_ERROR                          = 293,
 
    /* Result properties; these are returned by various procedures */
@@ -492,7 +492,7 @@ enum {
    VIX_PROPERTY_SNAPSHOT_DISPLAYNAME                  = 4200,   
    VIX_PROPERTY_SNAPSHOT_DESCRIPTION                  = 4201,
    VIX_PROPERTY_SNAPSHOT_POWERSTATE                   = 4205,
-   VIX_PROPERTY_SNAPSHOT_IS_REPLAYABLE                = 4207,
+   /* VIX_PROPERTY_SNAPSHOT_IS_REPLAYABLE                = 4207, Removed in version 1.11 */
 
    VIX_PROPERTY_GUEST_SHAREDFOLDERS_SHARES_PATH       = 4525,
 
@@ -810,35 +810,36 @@ enum {
 
 
 /*
- * Record/replay operations
- */
-VixHandle VixVM_BeginRecording(VixHandle vmHandle,
-                               const char *displayName,
-                               const char *description,
+ * Following functions were removed in version 1.11.
+ *
+   VixHandle VixVM_BeginRecording(VixHandle vmHandle,
+                                  const char *displayName,
+                                  const char *description,
+                                  int options,
+                                  VixHandle propertyList,
+                                  VixEventProc *callbackProc,
+                                  void *clientData);
+
+   VixHandle VixVM_EndRecording(VixHandle vmHandle,
+                                int options,
+                                VixHandle propertyList,
+                                VixEventProc *callbackProc,
+                                void *clientData);
+
+   VixHandle VixVM_BeginReplay(VixHandle vmHandle,
+                               VixHandle snapshotHandle,
                                int options,
                                VixHandle propertyList,
                                VixEventProc *callbackProc,
                                void *clientData);
 
-VixHandle VixVM_EndRecording(VixHandle vmHandle,
+   VixHandle VixVM_EndReplay(VixHandle vmHandle,
                              int options,
                              VixHandle propertyList,
                              VixEventProc *callbackProc,
                              void *clientData);
 
-VixHandle VixVM_BeginReplay(VixHandle vmHandle,
-                            VixHandle snapshotHandle,
-                            int options,
-                            VixHandle propertyList,
-                            VixEventProc *callbackProc,
-                            void *clientData);
-
-VixHandle VixVM_EndReplay(VixHandle vmHandle,
-                          int options,
-                          VixHandle propertyList,
-                          VixEventProc *callbackProc,
-                          void *clientData);
-
+ */
 
 /*
  * Guest operations
