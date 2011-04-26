@@ -291,11 +291,12 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    }
 
    if (iovMapped > 1) {
-      /* Seems like more than one page was requested. */
       uint32 copiedAmount = 0;
       uint32 copyAmount;
       int32 remainingSize;
       int i;
+
+      /* Seems like more than one page was requested. */
       ASSERT_DEVEL(packet->iov[startIndex].len < bufSize);
       *buf = Util_SafeMalloc(bufSize);
       *isAllocated = TRUE;
@@ -323,7 +324,7 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    }
 
 freeMem:
-   for (i = 0; i < iovCount; i++) {
+   for (i = startIndex; i < iovCount; i++) {
       session->channelCbTable->putVa(&packet->iov[i].token);
       packet->iov[i].va = NULL;
    }
