@@ -51,6 +51,8 @@ File_MakeSafeTemp(ConstUnicode tag,  // IN (OPT):
    Unicode dir = NULL;
    Unicode fileName = NULL;
 
+   ASSERT(presult);
+
    *presult = NULL;
 
    if (tag && File_IsFullPath(tag)) {
