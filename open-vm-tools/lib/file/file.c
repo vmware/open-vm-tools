@@ -706,8 +706,8 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
                  Unicode *presult)                             // OUT:
 {
    int fd = -1;
-   int err;
-   uint32 var;
+   int var;
+   uint32 i;
 
    Unicode path = NULL;
 
@@ -720,21 +720,16 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
 
    *presult = NULL;
 
-   for (var = 0; var < 0xFFFFFFFF; var++) {
-      Unicode fileName = NULL;
+   for (i = 0, var = 0; i < 0xFFFFFFFF;
+        i++, var += (FileSimpleRandom() >> 8) & 0xFF) {
+      Unicode fileName;
 
       /* construct suffixed pathname to use */
       Unicode_Free(path);
       path = NULL;
 
       fileName = (*createNameFunc)(var, createNameFuncData);
-
-      if (fileName == NULL) {
-         Msg_Append(MSGID(file.maketemp.helperFuncFailed)
-                  "Failed to construct the filename.\n");
-         errno = EFAULT;
-         goto exit;
-      }
+      ASSERT(fileName);
 
       /* construct base full pathname to use */
       path = Unicode_Join(dir, DIRSEPS, fileName, NULL);
@@ -750,6 +745,7 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
           * if a directory already exists with the same name. In such case,
           * we need to check if a file already exists and ignore EACCES error.
           */
+
          if ((fd == -1) && (errno == EACCES) && (File_Exists(path))) {
             continue;
          }
@@ -765,27 +761,23 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
       }
 
       if (errno != EEXIST) {
-         err = errno;
-         Msg_Append(MSGID(file.maketemp.openFailed)
-                 "Failed to create temporary file \"%s\": %s.\n",
-                 UTF8(path), Msg_ErrString());
-         errno = err;
+         Log(LGPFX" Failed to create temporary %s \"%s\": %s.\n",
+             createTempFile ? "file" : "directory",
+             UTF8(path), strerror(errno));
          goto exit;
       }
    }
 
    if (fd == -1) {
-      Msg_Append(MSGID(file.maketemp.fullNamespace)
-                 "Failed to create temporary file \"%s\": The name space is "
-                 "full.\n", UTF8(path));
+      Warning(LGPFX" Failed to create temporary %s \"%s\": "
+              "The name space is full.\n",
+              createTempFile ? "file" : "directory", UTF8(path));
 
       errno = EAGAIN;
    }
 
   exit:
-   err = errno;
    Unicode_Free(path);
-   errno = err;
 
    return fd;
 }
