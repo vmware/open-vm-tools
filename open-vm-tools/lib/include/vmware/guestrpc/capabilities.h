@@ -59,7 +59,7 @@ typedef enum {
    GHI_CAP_SET_HANDLER                  = 14, // supports setting the handler for types/protocols
    UNITY_CAP_STATUS_UNITY_ACTIVE        = 15, // supports GuestRpc bits for Unity Status
    GHI_CAP_SET_OUTLOOK_TEMP_FOLDER      = 16, // supports setting the Outlook temp folder
-                                              // 17 is obsolete, do not use
+   OBSOLETE_17                          = 17, // 17 is obsolete, do not use
    CAP_SET_TOPO_MODES                   = 18, // supports setting topology modes in video driver
    GHI_CAP_TRAY_ICONS                   = 19, // supports ghi.guest.trayIcon commands
    GHI_CAP_SET_FOCUSED_WINDOW           = 20, // supports ghi.guest.setFocusedWindow
@@ -128,6 +128,7 @@ static GuestCapElem guestCapTable[] = {
    { GHI_CAP_SET_HANDLER,                  GHI_CAP_VMDB_PATH,   "setHandler" },
    { UNITY_CAP_STATUS_UNITY_ACTIVE,        UNITY_CAP_VMDB_PATH, "unityActive" },
    { GHI_CAP_SET_OUTLOOK_TEMP_FOLDER,      GHI_CAP_VMDB_PATH,   "setOutlookTempFolder" },
+   { OBSOLETE_17,                          NULL,                NULL },
    { CAP_SET_TOPO_MODES,                   CAP_VMDB_PATH,       "displayTopologyModesSet" },
    { GHI_CAP_TRAY_ICONS,                   GHI_CAP_VMDB_PATH,   "trayIcons" },
    { GHI_CAP_SET_FOCUSED_WINDOW,           GHI_CAP_VMDB_PATH,   "setFocusedWindow"},
