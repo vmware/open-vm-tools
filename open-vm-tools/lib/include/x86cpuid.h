@@ -270,6 +270,13 @@ typedef enum {
 } CpuidFieldSupported;
 
 
+#define CPUID_1_ECX_29
+#define CPUID_1_ECX_30
+#define CPUID_7_EBX_0
+#define CPUID_7_EBX_7
+#define CPUID_7_EBX_9
+
+
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_0                                               \
 FIELD(  0, EAX, COMMON,  0, 32, NUMLEVELS,                         ANY, FALSE) \
@@ -318,8 +325,8 @@ FLAG(   1, ECX, COMMON, 25,  1, AES,                               YES, TRUE)  \
 FLAG(   1, ECX, COMMON, 26,  1, XSAVE,                             YES, FALSE) \
 FLAG(   1, ECX, COMMON, 27,  1, OSXSAVE,                           ANY, FALSE) \
 FLAG(   1, ECX, COMMON, 28,  1, AVX,                               YES, TRUE)  \
-FLAG(   1, ECX, COMMON, 29,  1, F16,                               YES, TRUE)  \
-FLAG(   1, ECX, COMMON, 30,  1, RDRAND,                            YES, TRUE)  \
+CPUID_1_ECX_29                                                                 \
+CPUID_1_ECX_30                                                                 \
 FLAG(   1, ECX, COMMON, 31,  1, HYPERVISOR,                        ANY, FALSE) \
 FLAG(   1, EDX, COMMON, 0,   1, FPU,                               YES, TRUE)  \
 FLAG(   1, EDX, COMMON, 1,   1, VME,                               YES, FALSE) \
@@ -390,9 +397,9 @@ FLAG(   6, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,                  NA,  FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
-FLAG(   7, EBX, INTEL,   0,  1, FSGSBASE,                          YES, TRUE)  \
-FLAG(   7, EBX, INTEL,   7,  1, SMEP,                              NO,  FALSE) \
-FLAG(   7, EBX, INTEL,   9,  1, ENFSTRG,                           YES, TRUE)
+CPUID_7_EBX_0                                                                  \
+CPUID_7_EBX_7                                                                  \
+CPUID_7_EBX_9
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
