@@ -1,3 +1,12 @@
+open-vm-tools 2011.04.25 changes:
+	* Mostly cleanups and small bug fixes in this release.
+
+	* Logging is enabled by default in vmtoolsd, writing to syslog.
+	  The default log level is not chatty, so few messages should
+	  make it to syslog during normal operation.
+
+	* The GUI version of the toolbox was removed.
+
 open-vm-tools 2011.03.28 changes:
 	* HGFS mounter and vmusr's suid wrapper were changed to avoid
 	  issues with symlink attacks. A new mount utility for vmblock on
