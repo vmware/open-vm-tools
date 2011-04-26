@@ -7444,7 +7444,7 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,     // IN: ID for search data
             *nameLength = length;
          }
          infoRetrieved |= HGFS_SEARCH_READ_NAME;
-         LOG(4, ("%s: dent name is \"%s\" len = %"FMTSZ"u\n", __FUNCTION__,
+         LOG(4, ("%s: dent name is \"%s\" len = %u\n", __FUNCTION__,
                  *entryName, *nameLength));
       } else {
          *entryName = NULL;
