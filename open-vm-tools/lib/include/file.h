@@ -78,7 +78,7 @@ typedef const WalkDirContextImpl *WalkDirContext;
  * If successful, this function should return a dynamically allocated string
  * with the filename.
  *
- * File_MakeTempEx2 frees the fileName after a successful call to this
+ * File_MakeTempEx2 frees the pathName after a successful call to this
  * function.
  *
  */
@@ -179,7 +179,7 @@ Bool File_IsDirectory(ConstUnicode pathName);
 
 Bool File_IsFile(ConstUnicode pathName);
 
-Bool File_IsSymLink(ConstUnicode fileName);
+Bool File_IsSymLink(ConstUnicode pathName);
 
 Bool File_IsCharDevice(ConstUnicode pathName);
 
@@ -198,15 +198,15 @@ uint64 File_GetFreeSpace(ConstUnicode pathName,
 
 uint64 File_GetCapacity(ConstUnicode pathName);
 
-/* Deprecated; use Util_GetSafeTmpDir if you can */
+/* Deprecated; use File_GetSafeTmpDir if you can */
 char *File_GetTmpDir(Bool useConf);
 
-/* Deprecated; use Util_MakeSafeTemp if you can */
+/* Deprecated; use File_MakeSafeTemp if you can */
 int File_MakeTemp(ConstUnicode tag,
                   Unicode *presult);
 
 int File_MakeTempEx(ConstUnicode dir,
-                    ConstUnicode fileName,
+                    ConstUnicode pathName,
                     Unicode *presult);
 
 int File_MakeTempEx2(ConstUnicode dir,
@@ -219,7 +219,7 @@ int64 File_GetModTime(ConstUnicode pathName);
 
 char *File_GetModTimeString(ConstUnicode pathName);
 
-char *File_GetUniqueFileSystemID(const char *fileName);
+char *File_GetUniqueFileSystemID(const char *pathName);
 
 Bool File_GetTimes(ConstUnicode pathName,
                    VmTimeType *createTime,
@@ -285,7 +285,7 @@ Bool File_Move(ConstUnicode oldFile,
                ConstUnicode newFile,
                Bool *asRename);
 
-void File_Rotate(const char *fileName,
+void File_Rotate(const char *pathName,
                  int n,
                  Bool noRename,
                  char **newFileName);
@@ -358,6 +358,13 @@ Unicode File_RemoveExtension(ConstUnicode pathName);
 Bool File_MakeCfgFileExecutable(ConstUnicode pathName);
 
 char *File_ExpandAndCheckDir(const char *dirName);
+
+char *File_GetSafeTmpDir(Bool useConf);
+
+int File_MakeSafeTemp(ConstUnicode tag,
+                      Unicode *presult);
+
+Bool File_DoesVolumeSupportAcls(ConstUnicode pathName);
 
 #ifdef __cplusplus
 } // extern "C" {

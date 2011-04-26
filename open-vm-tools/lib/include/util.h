@@ -95,11 +95,6 @@ EXTERN char *Util_DeriveFileName(const char *source,
 EXTERN char *Util_CombineStrings(char **sources, int count);
 EXTERN char **Util_SeparateStrings(char *source, int *count);
 
-EXTERN char *Util_GetSafeTmpDir(Bool useConf);
-
-EXTERN int Util_MakeSafeTemp(ConstUnicode tag,
-                             Unicode *presult);
-
 typedef struct UtilSingleUseResource UtilSingleUseResource;
 UtilSingleUseResource *Util_SingleUseAcquire(const char *name);
 void Util_SingleUseRelease(UtilSingleUseResource *res);

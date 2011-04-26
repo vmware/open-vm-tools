@@ -2714,7 +2714,7 @@ FileTryDir(const char *dirName)  // IN: Is this a writable directory?
  *	Determine the best temporary directory. Unsafe since the
  *	returned directory is generally going to be 0777, thus all sorts
  *	of denial of service or symlink attacks are possible.  Please
- *	use Util_GetSafeTmpDir if your dependencies permit it.
+ *	use File_GetSafeTmpDir if your dependencies permit it.
  *
  * Results:
  *	NULL if error (reported to the user).

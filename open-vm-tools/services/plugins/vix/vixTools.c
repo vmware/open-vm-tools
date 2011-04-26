@@ -7444,9 +7444,9 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
 #endif
 
    /*
-    * We need to use File_MakeTemp and not Util_MakeSafeTemp.
-    * File_MakeTemp uses File_GetTmpDir, while Util_MakeSafeTemp
-    * uses Util_GetSafeTmpDir. We can't use Util_GetSafeTmpDir
+    * We need to use File_MakeTemp and not File_MakeSafeTemp.
+    * File_MakeTemp uses File_GetTmpDir, while File_MakeSafeTemp
+    * uses File_GetSafeTmpDir. We can't use File_GetSafeTmpDir
     * because much of win32util.c which gets used in that call creates
     * dependencies on code that won't run on win9x.
     */
