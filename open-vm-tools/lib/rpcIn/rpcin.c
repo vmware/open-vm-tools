@@ -717,18 +717,14 @@ RpcInLoop(void *clientData) // IN
          errmsg = "RpcIn: Unable to run the loop";
          goto error;
       }
-   } else {
-      /*
-       * We need to return FALSE in this case so that the g_main_loop will
-       * release its reference to the source.
-       */
-      resched = TRUE;
    }
 
 exit:
    if (in->shouldStop) {
       RpcInStop(in);
       in->shouldStop = FALSE;
+      /* Force the GMainContext to unref the GSource that runs the RpcIn loop. */
+      resched = TRUE;
    }
 
    in->inLoop = FALSE;
