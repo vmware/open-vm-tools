@@ -80,7 +80,7 @@ VMCI_HostInit(void)
                                     VMCI_DEFAULT_PROC_PRIVILEGE_FLAGS,
                                     -1, VMCI_VERSION, NULL, &hostContext);
    if (result < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d)",
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d).\n",
                     result));
       goto errorExit;
    }
@@ -90,7 +90,7 @@ VMCI_HostInit(void)
       goto hostContextExit;
    }
 
-   VMCI_LOG((LGPFX"host components initialized."));
+   VMCI_LOG((LGPFX"host components initialized.\n"));
    return VMCI_SUCCESS;
 
 hostContextExit:
@@ -358,7 +358,7 @@ VMCI_CheckHostCapabilities(void)
    result &= VMCIDatagram_CheckHostCapabilities();
    result &= VMCIUtilCheckHostCapabilities();
 
-   VMCI_LOG((LGPFX"Host capability check: %s\n", result ? "PASSED" : "FAILED"));
+   VMCI_LOG((LGPFX"Host capability check: %s.\n", result ? "PASSED" : "FAILED"));
 
    return result;
 }
@@ -595,21 +595,21 @@ VMCI_SharedInit(void)
 
    result = VMCIResource_Init();
    if (result < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to initialize VMCIResource (result=%d)",
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIResource (result=%d).\n",
                     result));
       goto errorExit;
    }
 
    result = VMCIContext_Init();
    if (result < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d)",
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d).\n",
                     result));
       goto resourceExit;
    }
 
    result = VMCIDatagram_Init();
    if (result < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to initialize VMCIDatagram (result=%d)",
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIDatagram (result=%d).\n",
                     result));
       goto contextExit;
    }
@@ -617,7 +617,7 @@ VMCI_SharedInit(void)
    VMCIEvent_Init();
    VMCIDoorbell_Init();
 
-   VMCI_LOG((LGPFX"shared components initialized."));
+   VMCI_LOG((LGPFX"shared components initialized.\n"));
    return VMCI_SUCCESS;
 
 contextExit:
