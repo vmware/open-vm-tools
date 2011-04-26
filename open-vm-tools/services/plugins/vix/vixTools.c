@@ -2052,7 +2052,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
                                             CONFNAME_SUSPENDSCRIPT, NULL);
    }
 
-   tempDir = File_GetTmpDir(TRUE);
+   tempDir = File_GetSafeTmpDir(TRUE);
 
    /*
     * Now, record these values in a property list.
@@ -6528,7 +6528,7 @@ if (0 == *interpreterName) {
       /* 
        * Don't give up if VixToolsGetUserTmpDir() failed. It might just
        * have failed to load DLLs, so we might be running on Win 9x.
-       * Just fall through to use the old fashioned File_GetTmpDir().
+       * Just fall through to use the old fashioned File_GetSafeTmpDir().
        */
 
       err = VIX_OK;
@@ -6536,7 +6536,7 @@ if (0 == *interpreterName) {
 #endif
 
    if (NULL == tempDirPath) {
-      tempDirPath = File_GetTmpDir(TRUE);
+      tempDirPath = File_GetSafeTmpDir(TRUE);
       if (NULL == tempDirPath) {
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
@@ -7443,18 +7443,11 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
    }
 #endif
 
-   /*
-    * We need to use File_MakeTemp and not File_MakeSafeTemp.
-    * File_MakeTemp uses File_GetTmpDir, while File_MakeSafeTemp
-    * uses File_GetSafeTmpDir. We can't use File_GetSafeTmpDir
-    * because much of win32util.c which gets used in that call creates
-    * dependencies on code that won't run on win9x.
-    */
    if (NULL == tempFilePath) {
       if (!strcmp(directoryPath, "")) {
          free(directoryPath);
          directoryPath = NULL;
-         directoryPath = File_GetTmpDir(TRUE);
+         directoryPath = File_GetSafeTmpDir(TRUE);
       }
 
       /*
@@ -7481,9 +7474,9 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
                             &tempFilePath);
       if (fd < 0) {
          /*
-          * File_MakeTempEx() function internally uses Posix variant
+          * File_MakeTempEx2() function internally uses Posix variant
           * functions and proper error will be stuffed in errno variable.
-          * If File_MakeTempEx() fails, then use Vix_TranslateErrno()
+          * If File_MakeTempEx2() fails, then use Vix_TranslateErrno()
           * to translate the errno to a proper foundry error.
           */
          err = Vix_TranslateErrno(errno);

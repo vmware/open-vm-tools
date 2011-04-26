@@ -688,8 +688,8 @@ File_IsFile(ConstUnicode pathName)  // IN:
  */
 
 static Unicode
-FileMakeTempExCreateNameFunc(int num,               // IN:
-                             void *data)            // IN:
+FileMakeTempExCreateNameFunc(int num,     // IN:
+                             void *data)  // IN:
 {
    Unicode filePath;
 
@@ -776,11 +776,11 @@ File_MakeTempEx(ConstUnicode dir,       // IN:
  */
 
 int
-File_MakeTempEx2(ConstUnicode dir,                                // IN:
-                 Bool createTempFile,                             // IN:
-                 File_MakeTempCreateNameFunc *createNameFunc,     // IN:
-                 void *createNameFuncData,                        // IN:
-                 Unicode *presult)                                // OUT:
+File_MakeTempEx2(ConstUnicode dir,                             // IN:
+                 Bool createTempFile,                          // IN:
+                 File_MakeTempCreateNameFunc *createNameFunc,  // IN:
+                 void *createNameFuncData,                     // IN:
+                 Unicode *presult)                             // OUT:
 {
    int fd = -1;
    int err;
@@ -862,72 +862,6 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
   exit:
    err = errno;
    Unicode_Free(path);
-   errno = err;
-
-   return fd;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *  File_MakeTemp --
- *
- *      Create a temporary file and, if successful, return an open file
- *      descriptor to the file.
- *
- *      'tag' can either be a full pathname, a string, or NULL.
- *
- *      If 'tag' is a full pathname, that path will be used as the root
- *      path for the file.
- *
- *      If 'tag' is a string, the created file's filename will begin
- *      with 'tag' and will be created in the default temp directory.
- *
- *      If 'tag' is NULL, then 'tag' is assumed to be "vmware" and the
- *      above case applies.
- *
- *      This API is technically unsafe if you allow this function to use
- *      the default temp directory since it's not guaranteed on Windows
- *      that when the file is closed it is not readable by other users
- *      (no matter what we specify as the mode to open, the new file
- *      will inherit DACLs from the parent, and certain temp directories
- *      on Windows give all Power Users read&write access). Please use
- *      Util_MakeSafeTemp if your dependencies permit it.
- *
- * Results:
- *      Open file descriptor or -1; if successful then filename points
- *      to a dynamically allocated string with the pathname of the temp
- *      file.
- *
- * Side effects:
- *      Creates a file if successful. Errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-int
-File_MakeTemp(ConstUnicode tag,  // IN (OPT):
-              Unicode *presult)  // OUT:
-{
-   int fd;
-   int err;
-   Unicode dir;
-   Unicode fileName;
-
-   if (tag && File_IsFullPath(tag)) {
-      File_GetPathName(tag, &dir, &fileName);
-   } else {
-      dir = File_GetTmpDir(TRUE);
-      fileName = Unicode_Duplicate(tag ? tag : "vmware");
-   }
-
-   fd = File_MakeTempEx(dir, fileName, presult);
-   err = errno;
-
-   Unicode_Free(dir);
-   Unicode_Free(fileName);
-
    errno = err;
 
    return fd;

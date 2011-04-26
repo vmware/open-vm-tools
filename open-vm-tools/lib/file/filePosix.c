@@ -2027,7 +2027,7 @@ FilePosixCreateTestFileSize(ConstUnicode dirName,  // IN: test directory
    FileIODescriptor fd;
 
    temp = Unicode_Append(dirName, "/.vmBigFileTest");
-   posixFD = File_MakeTemp(temp, &path);
+   posixFD = File_MakeSafeTemp(temp, &path);
    Unicode_Free(temp);
 
    if (posixFD == -1) {
@@ -2668,122 +2668,6 @@ FileIsWritableDir(ConstUnicode dirName)  // IN:
    /* Check for Read and Execute permissions */
    return (fileData.fileMode & 3) == 3;
 }
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileTryDir --
- *
- *	Check to see if the given directory is actually a directory
- *      and is writable by us.
- *
- * Results:
- *	The expanded directory name on success, NULL on failure.
- *
- * Side effects:
- *	The result is allocated.
- *
- *----------------------------------------------------------------------
- */
-
-static char *
-FileTryDir(const char *dirName)  // IN: Is this a writable directory?
-{
-   char *edirName;
-
-   if (dirName == NULL) {
-      return NULL;
-   }
-
-   edirName = Util_ExpandString(dirName);
-   if (edirName != NULL && FileIsWritableDir(edirName)) {
-      return edirName;
-   }
-   free(edirName);
-
-   return NULL;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * File_GetTmpDir --
- *
- *	Determine the best temporary directory. Unsafe since the
- *	returned directory is generally going to be 0777, thus all sorts
- *	of denial of service or symlink attacks are possible.  Please
- *	use File_GetSafeTmpDir if your dependencies permit it.
- *
- * Results:
- *	NULL if error (reported to the user).
- *
- * Side effects:
- *	The result is allocated.
- *
- *----------------------------------------------------------------------
- */
-
-char *
-File_GetTmpDir(Bool useConf)  // IN: Use the config file?
-{
-   char *dirName;
-   char *edirName;
-
-   /* Make several attempts to find a good temporary directory candidate */
-
-   if (useConf) {
-      dirName = (char *)LocalConfig_GetString(NULL, "tmpDirectory");
-      edirName = FileTryDir(dirName);
-      free(dirName);
-      if (edirName != NULL) {
-         return edirName;
-      }
-   }
-
-   /* getenv string must _not_ be freed */
-   edirName = FileTryDir(getenv("TMPDIR"));
-   if (edirName != NULL) {
-      return edirName;
-   }
-
-   /* P_tmpdir is usually defined in <stdio.h> */
-   edirName = FileTryDir(P_tmpdir);
-   if (edirName != NULL) {
-      return edirName;
-   }
-
-   edirName = FileTryDir("/tmp");
-   if (edirName != NULL) {
-      return edirName;
-   }
-
-   edirName = FileTryDir("~");
-   if (edirName != NULL) {
-      return edirName;
-   }
-
-   dirName = File_Cwd(NULL);
-
-   if (dirName != NULL) {
-      edirName = FileTryDir(dirName);
-      free(dirName);
-      if (edirName != NULL) {
-         return edirName;
-      }
-   }
-
-   edirName = FileTryDir("/");
-   if (edirName != NULL) {
-      return edirName;
-   }
-
-   Warning("%s: Couldn't get a temporary directory\n", __FUNCTION__);
-   return NULL;
-}
-
-#undef HOSTINFO_TRYDIR
 
 
 /*

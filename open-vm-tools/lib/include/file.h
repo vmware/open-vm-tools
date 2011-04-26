@@ -198,13 +198,6 @@ uint64 File_GetFreeSpace(ConstUnicode pathName,
 
 uint64 File_GetCapacity(ConstUnicode pathName);
 
-/* Deprecated; use File_GetSafeTmpDir if you can */
-char *File_GetTmpDir(Bool useConf);
-
-/* Deprecated; use File_MakeSafeTemp if you can */
-int File_MakeTemp(ConstUnicode tag,
-                  Unicode *presult);
-
 int File_MakeTempEx(ConstUnicode dir,
                     ConstUnicode pathName,
                     Unicode *presult);

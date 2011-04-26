@@ -32,16 +32,17 @@
 #include <dirent.h>
 #include <ctype.h>
 
-#if !__FreeBSD__ && !sun
+#if !defined(__FreeBSD__) && !defined(sun)
 #   include <pwd.h>
 #endif
 
-#ifdef sun
+#if defined(sun)
 #   include <procfs.h>
 #endif
 
 #include "vmware.h"
 #include "file.h"
+#include "fileInt.h"
 #include "util.h"
 #include "su.h"
 #include "vm_atomic.h"
@@ -54,12 +55,128 @@
 #include "posix.h"
 #include "mutexRankLib.h"
 #include "hostType.h"
+#include "localconfig.h"
 
 #define LOGLEVEL_MODULE util
 #include "loglevel_user.h"
 
 
-#if !__FreeBSD__ && !sun
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileTryDir --
+ *
+ *	Check to see if the given directory is actually a directory
+ *      and is writable by us.
+ *
+ * Results:
+ *	The expanded directory name on success, NULL on failure.
+ *
+ * Side effects:
+ *	The result is allocated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static char *
+FileTryDir(const char *dirName)  // IN: Is this a writable directory?
+{
+   char *edirName;
+
+   if (dirName != NULL) {
+      edirName = Util_ExpandString(dirName);
+
+      if ((edirName != NULL) && FileIsWritableDir(edirName)) {
+         return edirName;
+      }
+
+      free(edirName);
+   }
+
+   return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileGetTmpDir --
+ *
+ *	Determine the best temporary directory. Unsafe since the
+ *	returned directory is generally going to be 0777, thus all sorts
+ *	of denial of service or symlink attacks are possible.
+ *
+ * Results:
+ *	NULL if error (reported to the user).
+ *
+ * Side effects:
+ *	The result is allocated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static char *
+FileGetTmpDir(Bool useConf)  // IN: Use the config file?
+{
+   char *dirName;
+   char *edirName;
+
+   /* Make several attempts to find a good temporary directory candidate */
+
+   if (useConf) {
+      dirName = (char *)LocalConfig_GetString(NULL, "tmpDirectory");
+      edirName = FileTryDir(dirName);
+      free(dirName);
+      if (edirName != NULL) {
+         return edirName;
+      }
+   }
+
+   /* getenv string must _not_ be freed */
+   edirName = FileTryDir(getenv("TMPDIR"));
+   if (edirName != NULL) {
+      return edirName;
+   }
+
+   /* P_tmpdir is usually defined in <stdio.h> */
+   edirName = FileTryDir(P_tmpdir);
+   if (edirName != NULL) {
+      return edirName;
+   }
+
+   edirName = FileTryDir("/tmp");
+   if (edirName != NULL) {
+      return edirName;
+   }
+
+   edirName = FileTryDir("~");
+   if (edirName != NULL) {
+      return edirName;
+   }
+
+   dirName = File_Cwd(NULL);
+
+   if (dirName != NULL) {
+      edirName = FileTryDir(dirName);
+      free(dirName);
+      if (edirName != NULL) {
+         return edirName;
+      }
+   }
+
+   edirName = FileTryDir("/");
+   if (edirName != NULL) {
+      return edirName;
+   }
+
+   Warning("%s: Couldn't get a temporary directory\n", __FUNCTION__);
+   return NULL;
+}
+
+#undef HOSTINFO_TRYDIR
+
+
+#if !defined(__FreeBSD__) && !defined(sun)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -87,10 +204,11 @@ FileGetUserName(uid_t uid)  // IN:
    struct passwd *pw_p;
    long memPoolSize;
 
-#if __APPLE__
+#if defined(__APPLE__)
    memPoolSize = _PASSWORD_LEN;
 #else
    memPoolSize = sysconf(_SC_GETPW_R_SIZE_MAX);
+
    if (memPoolSize <= 0) {
       Warning("%s: sysconf(_SC_GETPW_R_SIZE_MAX) failed.\n", __FUNCTION__);
 
@@ -328,6 +446,7 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
 
    return tmpDir;
 }
+#endif // __linux__
 
 
 /*
@@ -354,9 +473,13 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
 char *
 File_GetSafeTmpDir(Bool useConf)  // IN:
 {
+   char *tmpDir;
+
+#if defined(__FreeBSD__) || defined(sun)
+   tmpDir = FileGetTmpDir(useConf);
+#else
    static Atomic_Ptr lckStorage;
    static char *safeDir;
-   char *tmpDir = NULL;
    char *baseTmpDir = NULL;
    char *userName = NULL;
    uid_t userId;
@@ -375,16 +498,18 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
     * Check if we've created a temporary dir already and if it is still usable.
     */
 
+   tmpDir = NULL;
+
    if (safeDir && FileAcceptableSafeTmpDir(safeDir, userId)) {
       tmpDir = Util_SafeStrdup(safeDir);
       goto exit;
    }
 
    /* We don't have a useable temporary dir, create one. */
-   baseTmpDir = File_GetTmpDir(useConf);
+   baseTmpDir = FileGetTmpDir(useConf);
    
    if (!baseTmpDir) {
-      Warning("%s: File_GetTmpDir failed.\n", __FUNCTION__);
+      Warning("%s: FileGetTmpDir failed.\n", __FUNCTION__);
       goto exit;
    }
    
@@ -445,7 +570,7 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
    MXUser_ReleaseExclLock(lck);
    free(baseTmpDir);
    free(userName);
+#endif
 
    return tmpDir;
 }
-#endif // __linux__
