@@ -26,6 +26,7 @@
 #if defined(_WIN32)
 #  include <windows.h>
 #endif
+#include <stdlib.h>
 #include "vm_assert.h"
 #include "msg.h"
 #include "str.h"
