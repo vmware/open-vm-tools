@@ -32,6 +32,15 @@
 
 
 void
+Msg_AppendMsgList(const MsgList *msgs)
+{
+   char *str = MsgList_ToString(msgs);
+   Warning("%s [STUB]: %s\n", __FUNCTION__, str);
+   free(str);
+}
+
+
+void
 Msg_Append(const char *fmt,
            ...)
 {
