@@ -324,7 +324,7 @@ FLAG(   1, ECX, COMMON, 24,  1, TSC_DEADLINE,                      NO,  FALSE) \
 FLAG(   1, ECX, COMMON, 25,  1, AES,                               YES, TRUE)  \
 FLAG(   1, ECX, COMMON, 26,  1, XSAVE,                             YES, FALSE) \
 FLAG(   1, ECX, COMMON, 27,  1, OSXSAVE,                           ANY, FALSE) \
-FLAG(   1, ECX, COMMON, 28,  1, AVX,                               YES, TRUE)  \
+FLAG(   1, ECX, COMMON, 28,  1, AVX,                               YES, FALSE)  \
 CPUID_1_ECX_29                                                                 \
 CPUID_1_ECX_30                                                                 \
 FLAG(   1, ECX, COMMON, 31,  1, HYPERVISOR,                        ANY, FALSE) \
