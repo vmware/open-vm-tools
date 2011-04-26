@@ -1989,8 +1989,8 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    const char *powerOnScript = NULL;
    const char *resumeScript = NULL;
    const char *suspendScript = NULL;
-   char osNameFull[MAX_VALUE_LEN];
-   char osName[MAX_VALUE_LEN];
+   char osNameFull[GUESTINFO_MAX_VALUE_SIZE];
+   char osName[GUESTINFO_MAX_VALUE_SIZE];
    Bool foundHostName;
    char *tempDir = NULL;
    int wordSize = 32;

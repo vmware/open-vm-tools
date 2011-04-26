@@ -65,17 +65,6 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
-
-/**
- * Upper bound for value sizes, based on gethostname(2):
- *
- *    SUS2 guarantees that "Host names are limited to 255 bytes".
- *
- * We can't modify MAX_VALUE_LEN since it's used in wire-level definitions
- * (such as PartitionEntry).
- */
-#define GUESTINFO_MAX_VALUE_SIZE    256
-
 MY_ASSERTS(GI_SIZE_ASSERTS,
            ASSERT_ON_COMPILE(GUESTINFO_MAX_VALUE_SIZE >= MAX_VALUE_LEN);
 )
