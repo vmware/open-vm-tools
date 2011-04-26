@@ -73,7 +73,7 @@
 #define VMCI_SOCKETS_INVALID_VERSION ((unsigned int)-1)
 
 /*
- * Use these macros with the result of VMCISock_GetVersion() to get the
+ * Use these macros with the result of VMCISock_Version() to get the
  * component parts of a valid version.
  */
 
