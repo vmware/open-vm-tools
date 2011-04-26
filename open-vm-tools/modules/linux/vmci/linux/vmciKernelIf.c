@@ -1469,6 +1469,40 @@ VMCIHost_FreeQueue(VMCIQueue *queue,   // IN:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VMCIReleasePageStorePages --
+ *
+ *       Helper function to release pages in the PageStoreAttachInfo
+ *       previously obtained using get_user_pages.
+ *
+ * Results:
+ *       None.
+ *
+ * Side Effects:
+ *       None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VMCIReleasePages(struct page **pages,  // IN
+                 uint64 numPages,      // IN
+                 Bool dirty)           // IN
+{
+   int i;
+
+   for (i = 0; i < numPages; i++) {
+      ASSERT(pages[i]);
+      if (dirty) {
+         set_page_dirty(pages[i]);
+      }
+      page_cache_release(pages[i]);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VMCIHost_GetUserMemory --
  *       Lock the user pages referenced by the {produce,consume}Buffer
  *       struct into memory and populate the {produce,consume}Pages
@@ -1516,12 +1550,7 @@ VMCIHost_GetUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
                            NULL);
    if (retval < attach->numProducePages) {
       Log("get_user_pages(produce) failed: %d\n", retval);
-      if (retval > 0) {
-         int i;
-         for (i = 0; i < retval; i++) {
-            page_cache_release(attach->producePages[i]);
-         }
-      }
+      VMCIReleasePages(attach->producePages, retval, FALSE);
       err = VMCI_ERROR_NO_MEM;
       goto out;
    }
@@ -1534,16 +1563,9 @@ VMCIHost_GetUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
                            attach->consumePages,
                            NULL);
    if (retval < attach->numConsumePages) {
-      int i;
       Log("get_user_pages(consume) failed: %d\n", retval);
-      if (retval > 0) {
-         for (i = 0; i < retval; i++) {
-            page_cache_release(attach->consumePages[i]);
-         }
-      }
-      for (i = 0; i < attach->numProducePages; i++) {
-         page_cache_release(attach->producePages[i]);
-      }
+      VMCIReleasePages(attach->consumePages, retval, FALSE);
+      VMCIReleasePages(attach->producePages, attach->numProducePages, FALSE);
       err = VMCI_ERROR_NO_MEM;
    }
 
@@ -1551,10 +1573,23 @@ out:
    up_write(&current->mm->mmap_sem);
 
    if (err == VMCI_SUCCESS) {
-      produceQ->qHeader = kmap(attach->producePages[0]);
-      produceQ->kernelIf->page = &attach->producePages[1];
-      consumeQ->qHeader = kmap(attach->consumePages[0]);
-      consumeQ->kernelIf->page = &attach->consumePages[1];
+      struct page *headers[2];
+
+      headers[0] = attach->producePages[0];
+      headers[1] = attach->consumePages[0];
+
+      produceQ->qHeader = vmap(headers, 2, VM_MAP, PAGE_KERNEL);
+      if (produceQ->qHeader != NULL) {
+         consumeQ->qHeader =
+            (VMCIQueueHeader *)((uint8 *)produceQ->qHeader + PAGE_SIZE);
+         produceQ->kernelIf->page = &attach->producePages[1];
+         consumeQ->kernelIf->page = &attach->consumePages[1];
+      } else {
+         Log("vmap failed\n");
+         VMCIReleasePages(attach->producePages, attach->numProducePages, FALSE);
+         VMCIReleasePages(attach->consumePages, attach->numConsumePages, FALSE);
+         err = VMCI_ERROR_NO_MEM;
+     }
    }
 
 errorDealloc:
@@ -1597,27 +1632,14 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
                            VMCIQueue *produceQ,              // OUT
                            VMCIQueue *consumeQ)              // OUT
 {
-   int i;
-
    ASSERT(attach->producePages);
    ASSERT(attach->consumePages);
+   ASSERT(produceQ->qHeader);
 
-   kunmap(attach->producePages[0]);
-   kunmap(attach->consumePages[0]);
+   vunmap(produceQ->qHeader);
 
-   for (i = 0; i < attach->numProducePages; i++) {
-      ASSERT(attach->producePages[i]);
-
-      set_page_dirty(attach->producePages[i]);
-      page_cache_release(attach->producePages[i]);
-   }
-
-   for (i = 0; i < attach->numConsumePages; i++) {
-      ASSERT(attach->consumePages[i]);
-
-      set_page_dirty(attach->consumePages[i]);
-      page_cache_release(attach->consumePages[i]);
-   }
+   VMCIReleasePages(attach->producePages, attach->numProducePages, TRUE);
+   VMCIReleasePages(attach->consumePages, attach->numConsumePages, TRUE);
 
    VMCI_FreeKernelMem(attach->producePages,
                       attach->numProducePages *
