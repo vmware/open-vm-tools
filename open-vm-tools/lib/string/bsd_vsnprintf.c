@@ -866,10 +866,12 @@ bsd_vsnprintf_core(char **outbuf,
          if (prec == 0)
             prec = 1;
       fp_begin:
-         if (prec < 0)
+         if (prec < 0) {
             prec = DEFPREC;
-         if (dtoaresult != NULL)
+         }
+         if (dtoaresult != NULL) {
             freedtoa(dtoaresult);
+         }
          if (flags & LLONGINT) {
             fparg.ldbl = GETARG(long double);
             dtoaresult = cp = ldtoa(&fparg.ldbl, expchar ? 2 : 3, prec,
@@ -879,22 +881,25 @@ bsd_vsnprintf_core(char **outbuf,
             dtoaresult = cp = dtoa(fparg.dbl, expchar ? 2 : 3, prec,
                                    &expt, &signflag, &dtoaend);
 
-            if (expt == 9999)
+            if (expt == 9999) {
                expt = INT_MAX;
+            }
          }
          /* Our dtoa / ldtoa call strdup(), which can fail. PR319844 */
          if (dtoaresult == NULL) {
             sbuf.error = TRUE;
             goto error;
          }
-         if (signflag)
+         if (signflag) {
             sign = '-';
+         }
          if (expt == INT_MAX) {   /* inf or nan */
             if (*cp == 'N') {
                cp = (ch >= 'a') ? "nan" : "NAN";
                sign = '\0';
-            } else
+            } else {
                cp = (ch >= 'a') ? "inf" : "INF";
+            }
             size = 3;
             break;
          }
@@ -904,48 +909,58 @@ bsd_vsnprintf_core(char **outbuf,
             if (expt > -4 && expt <= prec) {
                /* Make %[gG] smell like %[fF] */
                expchar = '\0';
-               if (flags & ALT)
+               if (flags & ALT) {
                   prec -= expt;
-               else
+               } else {
                   prec = ndig - expt;
-               if (prec < 0)
+               }
+
+               if (prec < 0) {
                   prec = 0;
+               }
             } else {
                /*
                 * Make %[gG] smell like %[eE], but
                 * trim trailing zeroes if no # flag.
                 */
-               if (!(flags & ALT))
+
+               if (!(flags & ALT)) {
                   prec = ndig;
+               }
             }
          }
          if (expchar) {
             expsize = BSDFmt_Exponent(expstr, expt - 1, expchar);
             size = expsize + prec;
-            if (prec > 1 || flags & ALT)
+            if (prec > 1 || flags & ALT) {
                ++size;
+            }
          } else {
             /* space for digits before decimal point */
-            if (expt > 0)
+            if (expt > 0) {
                size = expt;
-            else   /* "0" */
+            } else {  /* "0" */
                size = 1;
+            }
             /* space for decimal pt and following digits */
-            if (prec || flags & ALT)
+            if (prec || flags & ALT) {
                size += prec + 1;
+            }
             if (grouping && expt > 0) {
                /* space for thousands' grouping */
                nseps = nrepeats = 0;
                lead = expt;
                while (*grouping != CHAR_MAX) {
-                  if (lead <= *grouping)
+                  if (lead <= *grouping) {
                      break;
+                  }
                   lead -= *grouping;
                   if (*(grouping+1)) {
                      nseps++;
                      grouping++;
-                  } else
+                  } else {
                      nrepeats++;
+                  }
                }
                size += nseps + nrepeats;
             } else
@@ -959,31 +974,39 @@ bsd_vsnprintf_core(char **outbuf,
           * value overflows or is otherwise unrepresentable.
           * C99 says to use `signed char' for %hhn conversions.
           */
-         if (flags & LLONGINT)
+         if (flags & LLONGINT) {
             *GETARG(long long *) = ret;
-         else if (flags & SIZET)
+         }
+         else if (flags & SIZET) {
             *GETARG(size_t *) = (size_t)ret;
-         else if (flags & PTRDIFFT)
+         }
+         else if (flags & PTRDIFFT) {
             *GETARG(ptrdiff_t *) = ret;
-         else if (flags & INTMAXT)
+         }
+         else if (flags & INTMAXT) {
             *GETARG(intmax_t *) = ret;
-         else if (flags & LONGINT)
+         }
+         else if (flags & LONGINT) {
             *GETARG(long *) = ret;
-         else if (flags & SHORTINT)
+         }
+         else if (flags & SHORTINT) {
             *GETARG(short *) = ret;
-         else if (flags & CHARINT)
+         }
+         else if (flags & CHARINT) {
             *GETARG(signed char *) = ret;
-         else
+         } else {
             *GETARG(int *) = ret;
+         }
          continue;   /* no output */
       case 'O':
          flags |= LONGINT;
          /*FALLTHROUGH*/
       case 'o':
-         if (flags & INTMAX_SIZE)
+         if (flags & INTMAX_SIZE) {
             ujval = UJARG();
-         else
+         } else {
             ulval = UARG();
+         }
          base = 8;
          goto nosign;
       case 'p':
@@ -1016,9 +1039,9 @@ bsd_vsnprintf_core(char **outbuf,
                free(convbuf);
                convbuf = NULL;
             }
-            if ((wcp = GETARG(wchar_t *)) == NULL)
+            if ((wcp = GETARG(wchar_t *)) == NULL) {
                cp = "(null)";
-            else {
+            } else {
                convbuf = BSDFmt_WCharToUTF8(wcp, prec);
                if (convbuf == NULL) {
                   sbuf.error = TRUE;
@@ -1041,13 +1064,16 @@ bsd_vsnprintf_core(char **outbuf,
 
             if (p != NULL) {
                size = p - cp;
-               if (size > prec)
+               if (size > prec) {
                   size = prec;
-            } else
+               }
+            } else {
                size = prec;
+            }
             size = CodeSet_Utf8FindCodePointBoundary(cp, size);
-         } else
+         } else {
             size = strlen(cp);
+         }
          sign = '\0';
          break;
       case 'U':
@@ -1073,8 +1099,9 @@ bsd_vsnprintf_core(char **outbuf,
          base = 16;
          /* leading 0x/X only if non-zero */
          if (flags & ALT &&
-             (flags & INTMAX_SIZE ? ujval != 0 : ulval != 0))
+             (flags & INTMAX_SIZE ? ujval != 0 : ulval != 0)) {
             ox[1] = ch;
+         }
 
          flags &= ~GROUPING;
          /* unsigned conversions */
@@ -1099,26 +1126,30 @@ bsd_vsnprintf_core(char **outbuf,
          cp = buf + INT_CONV_BUF;
          if (flags & INTMAX_SIZE) {
             if (ujval != 0 || prec != 0 ||
-                (flags & ALT && base == 8))
+                (flags & ALT && base == 8)) {
                cp = BSDFmt_UJToA(ujval, cp, base,
                                  flags & ALT, xdigs,
                                  flags & GROUPING, thousands_sep,
                                  grouping);
+            }
          } else {
             if (ulval != 0 || prec != 0 ||
-                (flags & ALT && base == 8))
+                (flags & ALT && base == 8)) {
                cp = __ultoa(ulval, cp, base,
                             flags & ALT, xdigs,
                             flags & GROUPING, thousands_sep,
                             grouping);
+            }
          }
          size = buf + INT_CONV_BUF - cp;
-         if (size > INT_CONV_BUF)   /* should never happen */
+         if (size > INT_CONV_BUF) {   /* should never happen */
             abort();
+         }
          break;
       default:   /* "%?" prints ?, unless ? is NUL */
-         if (ch == '\0')
+         if (ch == '\0') {
             goto done;
+         }
          /* pretend it was %c with argument ch */
          cp = buf;
          *cp = ch;
@@ -1142,10 +1173,12 @@ bsd_vsnprintf_core(char **outbuf,
        * size excludes decimal prec; realsz includes it.
        */
       realsz = dprec > size ? dprec : size;
-      if (sign)
+      if (sign) {
          realsz++;
-      if (ox[1])
+      }
+      if (ox[1]) {
          realsz += 2;
+      }
 
       prsize = width > realsz ? width : realsz;
       if ((unsigned)ret + prsize > INT_MAX) {
@@ -1154,12 +1187,14 @@ bsd_vsnprintf_core(char **outbuf,
       }
 
       /* right-adjusting blank padding */
-      if ((flags & (LADJUST|ZEROPAD)) == 0)
+      if ((flags & (LADJUST|ZEROPAD)) == 0) {
          PAD(width - realsz, blanks);
+      }
 
       /* prefix */
-      if (sign)
+      if (sign) {
          PRINT(&sign, 1);
+      }
 
       if (ox[1]) {   /* ox[1] is either x, X, or \0 */
          ox[0] = '0';
@@ -1167,8 +1202,9 @@ bsd_vsnprintf_core(char **outbuf,
       }
 
       /* right-adjusting zero padding */
-      if ((flags & (LADJUST|ZEROPAD)) == ZEROPAD)
+      if ((flags & (LADJUST|ZEROPAD)) == ZEROPAD) {
          PAD(width - realsz, zeroes);
+      }
 
       /* leading zeroes from decimal precision */
       PAD(dprec - size, zeroes);
@@ -1181,8 +1217,10 @@ bsd_vsnprintf_core(char **outbuf,
          if (!expchar) {   /* %[fF] or sufficiently short %[gG] */
             if (expt <= 0) {
                PRINT(zeroes, 1);
-               if (prec || flags & ALT)
+               if (prec || flags & ALT) {
                   PRINT(decimal_point, 1);
+               }
+
                PAD(-expt, zeroes);
                /* already handled initial 0's */
                prec += expt;
@@ -1191,9 +1229,9 @@ bsd_vsnprintf_core(char **outbuf,
                cp += lead;
                if (grouping) {
                   while (nseps > 0 || nrepeats > 0) {
-                     if (nrepeats > 0)
+                     if (nrepeats > 0) {
                         nrepeats--;
-                     else {
+                     } else {
                         grouping--;
                         nseps--;
                      }
@@ -1201,11 +1239,13 @@ bsd_vsnprintf_core(char **outbuf,
                      PRINTANDPAD(cp,dtoaend, *grouping, zeroes);
                      cp += *grouping;
                   }
-                  if (cp > dtoaend)
+                  if (cp > dtoaend) {
                      cp = dtoaend;
+                  }
                }
-               if (prec || flags & ALT)
+               if (prec || flags & ALT) {
                   PRINT(decimal_point,1);
+               }
             }
             PRINTANDPAD(cp, dtoaend, prec, zeroes);
          } else {   /* %[eE] or sufficiently long %[gG] */
@@ -1215,8 +1255,9 @@ bsd_vsnprintf_core(char **outbuf,
                PRINT(buf, 2);
                PRINT(cp, ndig - 1);
                PAD(prec - ndig, zeroes);
-            } else   /* XeYYY */
+            } else {  /* XeYYY */
                PRINT(cp, 1);
+            }
             PRINT(expstr, expsize);
          }
       }
@@ -1224,8 +1265,9 @@ bsd_vsnprintf_core(char **outbuf,
       PRINT(cp, size);
 #endif
       /* left-adjusting padding (always blank) */
-      if (flags & LADJUST)
+      if (flags & LADJUST) {
          PAD(width - realsz, blanks);
+      }
 
       /* finally, adjust ret */
       ret += prsize;
@@ -1252,8 +1294,9 @@ error:
    va_end(orgap);
 #endif
 #ifndef NO_FLOATING_POINT
-   if (dtoaresult != NULL)
+   if (dtoaresult != NULL) {
       freedtoa(dtoaresult);
+   }
 #endif
    if (convbuf != NULL) {
       free(convbuf);
@@ -1262,8 +1305,9 @@ error:
    if (sbuf.error) {
       ret = EOF;
    }
-   if ((argtable != NULL) && (argtable != statargtable))
+   if ((argtable != NULL) && (argtable != statargtable)) {
       free (argtable);
+   }
 
    // return allocated buffer on success, free it on failure
    if (sbuf.alloc) {
