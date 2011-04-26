@@ -94,6 +94,7 @@ DnDUIX11::~DnDUIX11()
       delete m_detWnd;
    }
    CPClipboard_Destroy(&m_clipboard);
+   CommonResetCB();
 }
 
 

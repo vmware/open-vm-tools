@@ -168,6 +168,14 @@ CopyPasteUIX11::~CopyPasteUIX11()
 {
    g_debug("%s: enter\n", __FUNCTION__);
    CPClipboard_Destroy(&mClipboard);
+   if (mBlockAdded) {
+      g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
+      /* We need to make sure block subsystem has not been shut off. */
+      if (DnD_BlockIsReady(mBlockCtrl)) {
+         mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
+      }
+      mBlockAdded = false;
+   }
 }
 
 
