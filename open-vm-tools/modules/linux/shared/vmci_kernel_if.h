@@ -329,10 +329,10 @@ void VMCIMutex_Destroy(VMCIMutex *mutex);
 void VMCIMutex_Acquire(VMCIMutex *mutex);
 void VMCIMutex_Release(VMCIMutex *mutex);
 
-#if defined(SOLARIS) || defined(_WIN32)
+#if defined(SOLARIS) || defined(_WIN32) || defined(__APPLE__)
 int VMCIKernelIf_Init(void);
 void VMCIKernelIf_Exit(void);
-#endif // SOLARIS || _WIN32
+#endif // SOLARIS || _WIN32 || __APPLE__
 
 #if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
                            defined(SOLARIS) || defined(__APPLE__))
