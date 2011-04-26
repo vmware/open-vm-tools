@@ -95,10 +95,10 @@ help.device =
    "dev にはデバイス名を指定します。\n"
    "\n"
    "サブコマンド:\n"
-   "   enable <dev>: デバイス dev を有効にする\n"
-   "   disable <dev>: デバイス dev を無効にする\n"
+   "   enable <デバイス>: デバイス dev を有効にする\n"
+   "   disable <デバイス>: デバイス dev を無効にする\n"
    "   list: 有効なデバイスを一覧表示\n"
-   "   status <dev>: デバイスのステータスを出力\n"
+   "   status <デバイス>: デバイスのステータスを出力\n"
 
 help.disk =
    "%1$s: ディスク圧縮操作を実行\n"
@@ -111,7 +111,7 @@ help.disk =
 help.hint = "詳細については、「%1$s %2$s%3$s%4$s」を参照してください。\n"
 
 help.main =
-   "用途: %1$s <command> [options] [subcommand]\n"
+   "用途: %1$s <コマンド> [オプション] [サブコマンド]\n"
    "「%2$s %3$s <コマンド>」と入力すると、そのコマンドのヘルプを表示できます。\n"
    "VMware Tools のバージョンを確認するには、「'%4$s -v」と入力します。\n"
    "stdout 出力を抑止するには、「-q」オプションを使用します。\n"
@@ -125,7 +125,7 @@ help.main =
    "   timesync\n"
    "   upgrade (OS によっては使用できない場合もあります)\n"
    "\n"
-   "詳細については、http://www.vmware.com/support/ を参照してください。\n"
+   "詳細については、http://www.vmware.com/jp/support/ を参照してください。\n"
    "\n"
 
 help.script =
