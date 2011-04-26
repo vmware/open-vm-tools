@@ -644,6 +644,9 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
    if (result != VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to add new resource (handle=0x%x:0x%x).\n",
                     newHandle.context, newHandle.resource));
+      if (result == VMCI_ERROR_DUPLICATE_ENTRY) {
+         result = VMCI_ERROR_ALREADY_EXISTS;
+      }
       goto destroy;
    }
 
