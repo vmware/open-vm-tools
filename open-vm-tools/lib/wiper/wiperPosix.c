@@ -438,7 +438,7 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
          } else if (MNTINFO_MNT_IS_RO(mnt)) {
             comment = "Not writable.";
          }
-      } else if (access(MNTINFO_MNTPT(mnt), W_OK) != 0) {
+      } else if (Posix_Access(MNTINFO_MNTPT(mnt), W_OK) != 0) {
          comment = "Mount point not writable.";
       }
 
