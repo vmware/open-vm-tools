@@ -1202,7 +1202,7 @@ static INLINE Bool
 CPUID_MODEL_IS_BARCELONA(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is AMD. */
-   return CPUID_EFFECTIVE_FAMILY(v) == CPUID_FAMILY_K8 &&
+   return CPUID_EFFECTIVE_FAMILY(v) == CPUID_FAMILY_K8L &&
           CPUID_EFFECTIVE_MODEL(v)  == CPUID_MODEL_BARCELONA_02;
 }
 
