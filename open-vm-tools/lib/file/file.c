@@ -51,6 +51,7 @@
 #include "util.h"
 #include "str.h"
 #include "msg.h"
+#include "log.h"
 #include "random.h"
 #include "uuid.h"
 #include "config.h"
@@ -664,84 +665,6 @@ File_IsFile(ConstUnicode pathName)  // IN:
 
 
 /*
- *----------------------------------------------------------------------------
- *
- * FileMakeTempExCreateNameFunc --
- *
- *      This is a helper function designed for File_MakeTempEx function.
- *      Everytime this function is called, this creates a fileName with the
- *      format <num><fileName> and returns back to the caller.
- *
- *      'num' specifies the nth time this function is called.
- *
- *      'data' specifies the payload that is specified when File_MakeTempEx2()
- *      function is called. This points to a Unicode string.
- *
- * Results:
- *      if successful, a dynamically allocated string with the basename of
- *      the temp file. NULL otherwise.
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------------
- */
-
-static Unicode
-FileMakeTempExCreateNameFunc(int num,     // IN:
-                             void *data)  // IN:
-{
-   Unicode filePath;
-
-   if (data == NULL) {
-      return NULL;
-   }
-
-   filePath = Unicode_Format("%s%d", (Unicode) data, num);
-
-   return filePath;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *  File_MakeTempEx --
- *
- *      Create a temporary file and, if successful, return an open file
- *      descriptor to that file.
- *
- *      'dir' specifies the directory in which to create the file. It
- *      must not end in a slash.
- *
- *      'fileName' specifies the base filename of the created file.
- *
- * Results:
- *      Open file descriptor or -1; if successful then presult points
- *      to a dynamically allocated string with the pathname of the temp
- *      file.
- *
- * Side effects:
- *      Creates a file if successful. Errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-int
-File_MakeTempEx(ConstUnicode dir,       // IN:
-                ConstUnicode fileName,  // IN:
-                Unicode *presult)       // OUT:
-{
-   return File_MakeTempEx2(dir,
-                           TRUE,
-                           FileMakeTempExCreateNameFunc,
-                           (void *) fileName,
-                           presult);
-
-}
-
-
-/*
  *----------------------------------------------------------------------
  *
  *  File_MakeTempEx2 --
@@ -865,6 +788,84 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
    errno = err;
 
    return fd;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * FileMakeTempExCreateNameFunc --
+ *
+ *      This is a helper function designed for File_MakeTempEx function.
+ *      Everytime this function is called, this creates a fileName with the
+ *      format <num><fileName> and returns back to the caller.
+ *
+ *      'num' specifies the nth time this function is called.
+ *
+ *      'data' specifies the payload that is specified when File_MakeTempEx2()
+ *      function is called. This points to a Unicode string.
+ *
+ * Results:
+ *      if successful, a dynamically allocated string with the basename of
+ *      the temp file. NULL otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Unicode
+FileMakeTempExCreateNameFunc(int num,     // IN:
+                             void *data)  // IN:
+{
+   Unicode filePath;
+
+   if (data == NULL) {
+      return NULL;
+   }
+
+   filePath = Unicode_Format("%s%d", (Unicode) data, num);
+
+   return filePath;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  File_MakeTempEx --
+ *
+ *      Create a temporary file and, if successful, return an open file
+ *      descriptor to that file.
+ *
+ *      'dir' specifies the directory in which to create the file. It
+ *      must not end in a slash.
+ *
+ *      'fileName' specifies the base filename of the created file.
+ *
+ * Results:
+ *      Open file descriptor or -1; if successful then presult points
+ *      to a dynamically allocated string with the pathname of the temp
+ *      file.
+ *
+ * Side effects:
+ *      Creates a file if successful. Errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_MakeTempEx(ConstUnicode dir,       // IN:
+                ConstUnicode fileName,  // IN:
+                Unicode *presult)       // OUT:
+{
+   return File_MakeTempEx2(dir,
+                           TRUE,
+                           FileMakeTempExCreateNameFunc,
+                           (void *) fileName,
+                           presult);
+
 }
 
 
