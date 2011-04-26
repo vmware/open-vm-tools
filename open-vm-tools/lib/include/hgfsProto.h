@@ -2487,6 +2487,7 @@ struct HgfsRequestSearchReadV4 {
    HgfsSearchReadMask mask;
    HgfsSearchReadFlags flags;
    HgfsHandle fid;
+   uint32 replyDirEntryMaxSize;
    uint32 restartIndex;
    uint64 reserved;
    HgfsFileName searchPattern;
