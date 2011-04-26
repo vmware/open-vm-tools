@@ -122,6 +122,9 @@
 # if !defined(EPERM)
 #  define EPERM               WSAEACCES /* WSA doesn't have EPERM */
 # endif
+# if !defined(ENOSYS)
+#  define ENOSYS              WSAEOPNOTSUPP
+# endif
 #  define EWOULDBLOCK         WSAEWOULDBLOCK
 #  define EINPROGRESS         WSAEINPROGRESS
 #  define EALREADY            WSAEALREADY
