@@ -26,7 +26,6 @@
 #if defined(_WIN32)
 #  include <windows.h>
 #endif
-#include <stdlib.h>
 #include "vm_assert.h"
 #include "msg.h"
 #include "str.h"
@@ -35,9 +34,9 @@
 void
 Msg_AppendMsgList(const MsgList *msgs)
 {
-   char *str = MsgList_ToString(msgs);
-   Warning("%s [STUB]: %s\n", __FUNCTION__, str);
-   free(str);
+   while (msgs != NULL) {
+      Warning("%s [STUB]: %s\n", __FUNCTION__, msgs->id);
+   }
 }
 
 
