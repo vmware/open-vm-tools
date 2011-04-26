@@ -665,8 +665,9 @@ bsd_vsnprintf_core(char **outbuf,
          PRINT(cp, n);
          ret += n;
       }
-      if (ch == '\0')
+      if (ch == '\0') {
          goto done;
+      }
       fmt++;      /* skip over '%' */
 
       flags = 0;
@@ -684,8 +685,10 @@ bsd_vsnprintf_core(char **outbuf,
           * flag will be ignored.''
           *   -- ANSI X3J11
           */
-         if (!sign)
+
+         if (!sign) {
             sign = ' ';
+         }
          goto rflag;
       case '#':
          flags |= ALT;
@@ -698,8 +701,9 @@ bsd_vsnprintf_core(char **outbuf,
           * They don't exclude field widths read from args.
           */
          GETASTER (width);
-         if (width >= 0)
+         if (width >= 0) {
             goto rflag;
+         }
          width = -width;
          /* FALLTHROUGH */
       case '-':
@@ -851,10 +855,11 @@ bsd_vsnprintf_core(char **outbuf,
       case 'e':
       case 'E':
          expchar = ch;
-         if (prec < 0)   /* account for digit before decpt */
+         if (prec < 0) {  /* account for digit before decpt */
             prec = DEFPREC + 1;
-         else
+         } else {
             prec++;
+         }
          goto fp_begin;
       case 'f':
       case 'F':
@@ -863,8 +868,9 @@ bsd_vsnprintf_core(char **outbuf,
       case 'g':
       case 'G':
          expchar = ch - ('g' - 'e');
-         if (prec == 0)
+         if (prec == 0) {
             prec = 1;
+         }
       fp_begin:
          if (prec < 0) {
             prec = DEFPREC;
