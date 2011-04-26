@@ -293,9 +293,7 @@ ToolboxCmdHelp(const char *progName,   // IN
                           "   script\n"
                           "   stat\n"
                           "   timesync\n"
-                          "   upgrade (not available on all operating systems)\n"
-                          "\n"
-                          "For additional information please visit http://www.vmware.com/support/\n\n"),
+                          "   upgrade (not available on all operating systems)\n"),
            progName, progName, cmd, progName);
 }
 
