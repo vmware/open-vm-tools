@@ -193,8 +193,10 @@ __ultoa(u_long val, char *endp, int base, int octzero, const char *xdigs,
          *--cp = to_char(val % 10);
          ndig++;
          sval = val / 10;
-      } else
+      } else {
          sval = val;
+      }
+
       do {
          *--cp = to_char(sval % 10);
          ndig++;
@@ -211,8 +213,9 @@ __ultoa(u_long val, char *endp, int base, int octzero, const char *xdigs,
              * use *grp character (last grouping rule)
              * for all next cases
              */
-            if (*(grp+1) != '\0')
+            if (*(grp+1) != '\0') {
                grp++;
+            }
          }
          sval /= 10;
       } while (sval != 0);
@@ -223,8 +226,9 @@ __ultoa(u_long val, char *endp, int base, int octzero, const char *xdigs,
          *--cp = to_char(val & 7);
          val >>= 3;
       } while (val);
-      if (octzero && *cp != '0')
+      if (octzero && *cp != '0') {
          *--cp = '0';
+      }
       break;
 
    case 16:
@@ -251,9 +255,11 @@ BSDFmt_UJToA(uintmax_t val, char *endp, int base, int octzero,
 
    /* quick test for small values; __ultoa is typically much faster */
    /* (perhaps instead we should run until small, then call __ultoa?) */
-   if (val <= ULONG_MAX)
+   if (val <= ULONG_MAX) {
       return (__ultoa((u_long)val, endp, base, octzero, xdigs,
                       needgrp, thousep, grp));
+   }
+
    switch (base) {
    case 10:
       if (val < 10) {
@@ -265,8 +271,9 @@ BSDFmt_UJToA(uintmax_t val, char *endp, int base, int octzero,
          *--cp = to_char(val % 10);
          ndig++;
          sval = val / 10;
-      } else
+      } else {
          sval = val;
+      }
       do {
          *--cp = to_char(sval % 10);
          ndig++;
@@ -283,8 +290,9 @@ BSDFmt_UJToA(uintmax_t val, char *endp, int base, int octzero,
              * use *grp character (last grouping rule)
              * for all next cases
              */
-            if (*(grp+1) != '\0')
+            if (*(grp+1) != '\0') {
                grp++;
+            }
          }
          sval /= 10;
       } while (sval != 0);
@@ -295,8 +303,9 @@ BSDFmt_UJToA(uintmax_t val, char *endp, int base, int octzero,
          *--cp = to_char(val & 7);
          val >>= 3;
       } while (val);
-      if (octzero && *cp != '0')
+      if (octzero && *cp != '0') {
          *--cp = '0';
+      }
       break;
 
    case 16:
@@ -742,10 +751,10 @@ bsd_vsnprintf_core(char **outbuf,
          goto reswitch;
       case '0':
          /*-
-          * ``Note that 0 is taken as a flag, not as the
-          * beginning of a field width.''
-          *   -- ANSI X3J11
+          * ``Note that 0 is taken as a flag, not as the beginning of a
+          * field width.''  -- ANSI X3J11
           */
+
          flags |= ZEROPAD;
          goto rflag;
       case '1': case '2': case '3': case '4':
@@ -766,8 +775,9 @@ bsd_vsnprintf_core(char **outbuf,
          if (flags & SHORTINT) {
             flags &= ~SHORTINT;
             flags |= CHARINT;
-         } else
+         } else {
             flags |= SHORTINT;
+         }
          goto rflag;
       case 'j':
          flags |= INTMAXT;
@@ -1098,10 +1108,11 @@ bsd_vsnprintf_core(char **outbuf,
       case 'x':
          xdigs = xdigs_lower;
       hex:
-         if (flags & INTMAX_SIZE)
+         if (flags & INTMAX_SIZE) {
             ujval = UJARG();
-         else
+         } else {
             ulval = UARG();
+         }
          base = 16;
          /* leading 0x/X only if non-zero */
          if (flags & ALT &&
@@ -1117,8 +1128,9 @@ bsd_vsnprintf_core(char **outbuf,
           * specified, the 0 flag will be ignored.''
           *   -- ANSI X3J11
           */
-      number:         if ((dprec = prec) >= 0)
-            flags &= ~ZEROPAD;
+      number:         if ((dprec = prec) >= 0) {
+                         flags &= ~ZEROPAD;
+                      }
 
          /*-
           * ``The result of converting a zero value with an
