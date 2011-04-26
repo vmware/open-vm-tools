@@ -559,6 +559,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_DEBIAN_4, distroShortSize);
       } else if (strstr(distroLower, "5.0")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_5, distroShortSize);
+      } else if (strstr(distroLower, "6.0")) {
+         Str_Strcpy(distroShort, STR_OS_DEBIAN_6, distroShortSize);
       }
    } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
               StrUtil_StartsWith(distroLower, "oracle")) {
