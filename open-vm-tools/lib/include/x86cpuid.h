@@ -49,6 +49,7 @@
 #include "vm_basic_types.h"
 #include "community_source.h"
 #include "x86vendor.h"
+#include "vm_assert.h"
 
 /*
  * The linux kernel's ptrace.h stupidly defines the bare
@@ -149,6 +150,13 @@ typedef enum {
 #undef CPUIDLEVEL
    CPUID_NUM_CACHED_LEVELS
 } CpuidCachedLevel;
+
+/* Enum to translate between shorthand name and actual CPUID level value. */
+enum {
+#define CPUIDLEVEL(t, s, v) CPUID_LEVEL_VAL_##s = v,
+   CPUID_ALL_LEVELS
+#undef CPUIDLEVEL
+};
 
 
 /* SVM CPUID feature leaf */
@@ -467,7 +475,7 @@ FLAG(  81, ECX, AMD,    12,  1, SKINIT,                            NO,  FALSE) \
 FLAG(  81, ECX, AMD,    13,  1, WATCHDOG,                          NO,  FALSE) \
 FLAG(  81, ECX, AMD,    15,  1, LWP,                               NO,  FALSE) \
 FLAG(  81, ECX, AMD,    16,  1, FMA4,                              YES, TRUE)  \
-FLAG(  81, ECX, AMD,    19,  1, NODEID,                            NO,  FALSE) \
+FLAG(  81, ECX, AMD,    19,  1, NODEID_MSR,                        NO,  FALSE) \
 FLAG(  81, ECX, AMD,    22,  1, TOPOLOGY,                          NO,  FALSE) \
 FLAG(  81, EDX, AMD,     0,  1, LEAF81_FPU,                        YES, TRUE)  \
 FLAG(  81, EDX, AMD,     1,  1, LEAF81_VME,                        YES, FALSE) \
@@ -628,7 +636,7 @@ FLAG( 81D, EDX, AMD,     1,  1, LEAF81D_CACHE_INCLUSIVE,           NA,  FALSE) \
 FIELD(81E, EAX, AMD,     0, 32, EXTENDED_APICID,                   NA,  FALSE) \
 FIELD(81E, EBX, AMD,     0,  8, COMPUTE_UNIT_ID,                   NA,  FALSE) \
 FIELD(81E, EBX, AMD,     8,  2, CORES_PER_COMPUTE_UNIT,            NA,  FALSE) \
-FIELD(81E, ECX, AMD,     0,  8, NODEID,                            NA,  FALSE) \
+FIELD(81E, ECX, AMD,     0,  8, NODEID_VAL,                        NA,  FALSE) \
 FIELD(81E, ECX, AMD,     8,  3, NODES_PER_PKG,                     NA,  FALSE)
 
 #define INTEL_CPUID_FIELD_DATA
@@ -676,7 +684,12 @@ FIELD(81E, ECX, AMD,     8,  3, NODES_PER_PKG,                     NA,  FALSE)
    CPUID_##vend##_ID##lvl##reg##_##name##_MASK  =                     \
                       VMW_BIT_MASK(size) << bitpos,                   \
    CPUID_FEATURE_##vend##_ID##lvl##reg##_##name =                     \
-                      CPUID_##vend##_ID##lvl##reg##_##name##_MASK,
+      CPUID_##vend##_ID##lvl##reg##_##name##_MASK,                    \
+   CPUID_INTERNAL_SHIFT_##name  = bitpos,                             \
+   CPUID_INTERNAL_MASK_##name   = VMW_BIT_MASK(size) << bitpos,       \
+   CPUID_INTERNAL_REG_##name    = CPUID_REG_##reg,                    \
+   CPUID_INTERNAL_EAXIN_##name  = CPUID_LEVEL_VAL_##lvl,
+ 
 
 #define FLAG FIELD
 
@@ -690,6 +703,10 @@ enum {
 
 /* Level D subleaf 1 eax XSAVEOPT */
 #define CPUID_COMMON_IDDsub1EAX_XSAVEOPT 1
+#define CPUID_INTERNAL_MASK_XSAVEOPT  1
+#define CPUID_INTERNAL_SHIFT_XSAVEOPT 0
+#define CPUID_INTERNAL_REG_XSAVEOPT   CPUID_REG_EAX
+#define CPUID_INTERNAL_EAXIN_XSAVEOPT 0xd
 
 /*
  * Legal CPUID config file mask characters.  For a description of the
@@ -786,6 +803,121 @@ FIELD_FUNC(AMD_NODES_PER_PKG,   CPUID_AMD_ID81EECX_NODES_PER_PKG)
 FIELD_FUNC(AMD_NUM_SHARING_CACHE, CPUID_AMD_ID81DEAX_LEAF81D_NUM_SHARING_CACHE)
 FIELD_FUNC(AMD_CORES_PER_COMPUTE_UNIT, CPUID_AMD_ID81EEBX_CORES_PER_COMPUTE_UNIT)
 #undef FIELD_FUNC
+
+
+/*
+ * CPUID_MASK --
+ * CPUID_SHIFT --
+ * CPUID_ISSET --
+ * CPUID_GET --
+ * CPUID_SET --
+ * CPUID_CLEAR --
+ * CPUID_SETTO --
+ *
+ * Accessor macros for all CPUID consts/fields/flags.  Level and reg are not
+ * required, but are used to force compile-time asserts which help verify that
+ * the flag is being used on the right CPUID input and result register.
+ *
+ * Note: ASSERT_ON_COMPILE is duplicated rather than factored into its own
+ * macro, because token concatenation does not work as expected if an input is
+ * #defined (e.g. APIC) when macros are nested.  Also, compound statements
+ * within parenthes is a GCC extension, so we must use runtime asserts with
+ * other compilers.
+ */
+
+#ifdef __GNUC__
+
+#define CPUID_MASK(eaxIn, reg, flag)                                    \
+   ({                                                                   \
+      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
+              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+      CPUID_INTERNAL_MASK_##flag;                                       \
+   })
+
+#define CPUID_SHIFT(eaxIn, reg, flag)                                   \
+   ({                                                                   \
+      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
+              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+      CPUID_INTERNAL_SHIFT_##flag;                                      \
+   })
+
+#define CPUID_ISSET(eaxIn, reg, flag, data)                             \
+   ({                                                                   \
+      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
+              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+      ((data & CPUID_INTERNAL_MASK_##flag) != 0);                       \
+   })
+
+#define CPUID_GET(eaxIn, reg, field, data)                              \
+   ({                                                                   \
+      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##field &&        \
+              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##field); \
+      (((uint32)data & CPUID_INTERNAL_MASK_##field) >>                  \
+       CPUID_INTERNAL_SHIFT_##field);                                   \
+   })
+
+#else
+
+/*
+ * CPUIDCheck --
+ *
+ * Return val after verifying parameters.
+ */
+
+static INLINE uint32
+CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
+           CpuidReg reg, CpuidReg regCheck, uint32 val)
+{
+   ASSERT(eaxIn == eaxInCheck && reg == regCheck);
+   return val;
+}
+
+#define CPUID_MASK(eaxIn, reg, flag)                                    \
+   CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
+              CPUID_REG_##reg, CPUID_INTERNAL_REG_##flag,               \
+              CPUID_INTERNAL_MASK_##flag)
+
+#define CPUID_SHIFT(eaxIn, reg, flag)                                   \
+   CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
+              CPUID_REG_##reg, CPUID_INTERNAL_REG_##flag,               \
+              CPUID_INTERNAL_SHIFT_##flag)
+
+#define CPUID_ISSET(eaxIn, reg, flag, data)                             \
+   CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
+              CPUID_REG_##reg, CPUID_INTERNAL_REG_##flag,               \
+              (CPUID_INTERNAL_MASK_##flag & data) != 0)
+
+#define CPUID_GET(eaxIn, reg, field, data)                              \
+   CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##field,                      \
+              CPUID_REG_##reg, CPUID_INTERNAL_REG_##field,              \
+              ((uint32)data & CPUID_INTERNAL_MASK_##field) >>           \
+              CPUID_INTERNAL_SHIFT_##field)
+
+#endif
+
+
+#define CPUID_SET(eaxIn, reg, flag, dataPtr)                            \
+   do {                                                                 \
+      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
+              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+      *dataPtr |= CPUID_INTERNAL_MASK_##flag;                           \
+   } while (0)
+
+#define CPUID_CLEAR(eaxIn, reg, flag, dataPtr)                          \
+   do {                                                                 \
+      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
+              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+      *dataPtr &= ~CPUID_INTERNAL_MASK_##flag;                          \
+   } while (0)
+
+#define CPUID_SETTO(eaxIn, reg, field, dataPtr, val)                    \
+   do {                                                                 \
+      uint32 *d = dataPtr;                                              \
+      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##field &&        \
+              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##field); \
+      *d = (*d & ~CPUID_INTERNAL_MASK_##field) |                        \
+           (val << CPUID_INTERNAL_SHIFT_##field);                       \
+   } while (0)
 
 
 /*
