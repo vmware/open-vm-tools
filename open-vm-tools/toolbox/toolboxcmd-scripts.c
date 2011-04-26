@@ -28,6 +28,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "conf.h"
+#include "file.h"
+#include "guestApp.h"
 #include "system.h"
 #include "toolboxCmdInt.h"
 #include "vmware/tools/i18n.h"

@@ -33,6 +33,7 @@
 #include "toolboxcmd_version.h"
 #include "system.h"
 #include "unicode.h"
+#include "vmcheck.h"
 #include "vmware/tools/guestrpc.h"
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"

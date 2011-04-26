@@ -25,10 +25,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "toolboxInt.h"
 #include "toolboxCmdInt.h"
+#include "guestApp.h"
+#include "removable_device.h"
 #include "vmware/tools/i18n.h"
 
+#define MAX_DEVICES 50
 
 /*
  *-----------------------------------------------------------------------------

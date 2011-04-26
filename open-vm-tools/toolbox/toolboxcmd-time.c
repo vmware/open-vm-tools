@@ -23,6 +23,7 @@
  */
 
 #include "toolboxCmdInt.h"
+#include "guestApp.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/guestrpc/timesync.h"
 #include "vmware/tools/i18n.h"

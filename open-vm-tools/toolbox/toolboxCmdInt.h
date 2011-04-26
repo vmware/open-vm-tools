@@ -24,8 +24,10 @@
 #ifndef _TOOLBOX_CMD_INT_H_
 #define _TOOLBOX_CMD_INT_H_
 
-#define VMW_TEXT_DOMAIN "toolboxcmd"
+#define G_LOG_MAIN "toolboxcmd"
+#define VMW_TEXT_DOMAIN G_LOG_MAIN
 
+#include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +39,6 @@
 #   include <unistd.h>
 #endif
 
-#include "toolboxInt.h"
 #include "vmGuestLib.h"
 
 /*

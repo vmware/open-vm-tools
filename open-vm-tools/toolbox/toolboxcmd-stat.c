@@ -24,6 +24,8 @@
 
 #include <time.h>
 #include "toolboxCmdInt.h"
+#include "backdoor.h"
+#include "backdoor_def.h"
 #include "vmware/tools/i18n.h"
 
 

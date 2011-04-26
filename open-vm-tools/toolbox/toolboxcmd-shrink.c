@@ -31,13 +31,36 @@
 #endif
 
 #include "toolboxCmdInt.h"
-#include "rpcout.h"
+#include "guestApp.h"
+#include "wiper.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/i18n.h"
 
 #ifndef _WIN32
 static void ShrinkWiperDestroy(int signal);
 #endif
+
+#define SHRINK_DISABLED_ERR                                       \
+   "Shrink disk is disabled for this virtual machine.\n\n"        \
+   "Shrinking is disabled for linked clones, parents of "         \
+   "linked clones, \npre-allocated disks, snapshots, or due to "  \
+   "other factors. \nSee the User's manual for more "             \
+   "information.\n"
+
+#define SHRINK_FEATURE_ERR                                                    \
+   "The shrink feature is not available,\n\n"                                 \
+   "either because you are running an old version of a VMware product, "      \
+   "or because too many communication channels are open.\n\n"                 \
+   "If you are running an old version of a VMware product, you should "       \
+   "consider upgrading.\n\n"                                                  \
+   "If too many communication channels are open, you should power off your "  \
+   "virtual machine and then power it back on.\n"
+
+#define SHRINK_CONFLICT_ERR                                 \
+   "Error, The Toolbox believes disk shrinking is "         \
+   "enabled while the host believes it is disabled.\n\n "   \
+   "Please close and reopen the Toolbox to synchronize "    \
+   "it with the host.\n"
 
 static Wiper_State *wiper = NULL;
 
