@@ -59,4 +59,9 @@ EXTERN void ImageUtil_FreeImageData(ImageInfo *image);
 EXTERN Bool ImageUtil_Combine(const ImageInfo *images, const VMPoint *origins,
                               size_t n, ImageInfo *combined);
 
+EXTERN Bool ImageUtil_CropAndScaleImage(ImageInfo *image,
+                                        VMRect srcRect,
+                                        VMRect dstRect,
+                                        ImageInfo *dstImage);
+
 #endif // _IMAGEUTIL_H_
