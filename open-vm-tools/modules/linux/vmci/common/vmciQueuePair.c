@@ -2212,8 +2212,8 @@ VMCIQueuePairDetachGuestWork(VMCIHandle handle)   // IN
 
    entry = (QPGuestEndpoint *)QueuePairList_FindEntry(&qpGuestEndpoints, handle);
    if (!entry) {
-      result = VMCI_ERROR_NOT_FOUND;
-      goto out;
+      VMCIQPLock_Release(&qpGuestEndpoints.lock);
+      return VMCI_ERROR_NOT_FOUND;
    }
 
    ASSERT(entry->qp.refCount >= 1);
@@ -2223,9 +2223,11 @@ VMCIQueuePairDetachGuestWork(VMCIHandle handle)   // IN
 
       if (entry->qp.refCount > 1) {
          result = QueuePairNotifyPeerLocal(FALSE, handle);
-         if (result < VMCI_SUCCESS) {
-            goto out;
-         }
+         /*
+          * We can fail to notify a local queuepair because we can't allocate.
+          * We still want to release the entry if that happens, so don't bail
+          * out yet.
+          */
       }
    } else {
       result = VMCIQueuePairDetachHypercall(handle);
@@ -2249,15 +2251,28 @@ VMCIQueuePairDetachGuestWork(VMCIHandle handle)   // IN
             VMCIQPUnmarkHibernateFailed(entry);
          }
       }
+      if (result < VMCI_SUCCESS) {
+         /*
+          * We failed to notify a non-local queuepair.  That other queuepair
+          * might still be accessing the shared memory, so don't release the
+          * entry yet.  It will get cleaned up by VMCIQueuePair_Exit()
+          * if necessary (assuming we are going away, otherwise why did this
+          * fail?).
+          */
+
+         VMCIQPLock_Release(&qpGuestEndpoints.lock);
+         return result;
+      }
    }
 
-out:
-   if (result >= VMCI_SUCCESS) {
-      entry->qp.refCount--;
+   /*
+    * If we get here then we either failed to notify a local queuepair, or
+    * we succeeded in all cases.  Release the entry if required.
+    */
 
-      if (entry->qp.refCount == 0) {
-         QueuePairList_RemoveEntry(&qpGuestEndpoints, &entry->qp);
-      }
+   entry->qp.refCount--;
+   if (entry->qp.refCount == 0) {
+      QueuePairList_RemoveEntry(&qpGuestEndpoints, &entry->qp);
    }
 
    /* If we didn't remove the entry, this could change once we unlock. */
@@ -2269,7 +2284,7 @@ out:
 
    VMCIQPLock_Release(&qpGuestEndpoints.lock);
 
-   if (result >= VMCI_SUCCESS && refCount == 0) {
+   if (refCount == 0) {
       QPGuestEndpointDestroy(entry);
    }
    return result;

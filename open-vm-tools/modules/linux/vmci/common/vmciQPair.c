@@ -209,22 +209,19 @@ VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
    oldQPair = *qpair;
    result = VMCIQueuePair_Detach(oldQPair->handle, oldQPair->guestEndpoint);
 
-   if  (result >= VMCI_SUCCESS) {
-#ifdef DEBUG
-      oldQPair->handle = VMCI_INVALID_HANDLE;
-      oldQPair->produceQ = NULL;
-      oldQPair->consumeQ = NULL;
-      oldQPair->produceQSize = 0;
-      oldQPair->consumeQSize = 0;
-      oldQPair->flags = 0;
-      oldQPair->privFlags = 0;
-      oldQPair->peer = VMCI_INVALID_ID;
-#endif
+   /*
+    * The guest can fail to detach for a number of reasons, and if it does so,
+    * it will cleanup the entry (if there is one).  The host can fail too, but
+    * it won't cleanup the entry immediately, it will do that later when the
+    * context is freed.  Either way, we need to release the qpair struct here;
+    * there isn't much the caller can do, and we don't want to leak.
+    */
 
-      VMCI_FreeKernelMem(oldQPair, sizeof *oldQPair);
-
-      *qpair = NULL;
-   }
+   memset(oldQPair, 0, sizeof *oldQPair);
+   oldQPair->handle = VMCI_INVALID_HANDLE;
+   oldQPair->peer = VMCI_INVALID_ID;
+   VMCI_FreeKernelMem(oldQPair, sizeof *oldQPair);
+   *qpair = NULL;
 
    return result;
 }
