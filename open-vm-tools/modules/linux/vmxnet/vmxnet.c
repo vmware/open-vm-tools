@@ -1915,7 +1915,7 @@ vmxnet_open(struct net_device *dev)
    }
 
    if (dev->irq == 0 ||	request_irq(dev->irq, &vmxnet_interrupt,
-			            COMPAT_IRQF_SHARED, lp->name, (void *)dev)) {
+			            COMPAT_IRQF_SHARED, dev->name, (void *)dev)) {
       return -EAGAIN;
    }
 
