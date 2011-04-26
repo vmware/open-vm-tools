@@ -36,7 +36,6 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #include <linux/moduleparam.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 
 #include "compat_highmem.h"
 #include "compat_init.h"
