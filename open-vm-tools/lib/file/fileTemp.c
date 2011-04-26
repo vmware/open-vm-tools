@@ -34,6 +34,7 @@
 #include "fileInt.h"
 #include "util.h"
 #include "unicodeOperations.h"
+#include "posix.h"
 
 #if !defined(O_BINARY)
 #define O_BINARY 0
