@@ -220,6 +220,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    gboolean dumpState = FALSE;
    gboolean kill = FALSE;
 #endif
+   gboolean unused;
    GOptionEntry clOptions[] = {
       { "name", 'n', 0, G_OPTION_ARG_STRING, &state->name,
          SU_(cmdline.name, "Name of the service being started."),
@@ -263,8 +264,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       { "debug", 'g', 0, G_OPTION_ARG_FILENAME, &state->debugPlugin,
          SU_(cmdline.debug, "Runs in debug mode, using the given plugin."),
          SU_(cmdline.path, "path") },
-      { "log", 'l', 0, G_OPTION_ARG_NONE, &state->log,
-         SU_(cmdline.log, "Turns on logging. Overrides the config file."),
+      { "log", 'l', 0, G_OPTION_ARG_NONE, &unused,
+         SU_(cmdline.log, "Ignored, kept for backwards compatibility."),
          NULL },
       { "version", 'v', 0, G_OPTION_ARG_NONE, &version,
          SU_(cmdline.version, "Prints the daemon version and exits."),
@@ -308,10 +309,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       state->mainService = (strcmp(state->name, VMTOOLS_GUEST_SERVICE) == 0);
    }
 
-   VMTools_ConfigLogging(state->name,
-                         NULL,
-                         state->log,
-                         FALSE);
+   VMTools_ConfigLogging(state->name, NULL, TRUE, TRUE);
 
 #if defined(G_PLATFORM_WIN32)
    if (kill) {

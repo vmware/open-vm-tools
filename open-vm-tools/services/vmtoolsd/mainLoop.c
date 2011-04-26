@@ -350,7 +350,7 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
    if (reset || loaded) {
       VMTools_ConfigLogging(state->name,
                             state->ctx.config,
-                            state->log,
+                            TRUE,
                             reset);
    }
 }

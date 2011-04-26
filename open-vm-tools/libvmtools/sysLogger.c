@@ -33,6 +33,7 @@
 
 typedef struct SysLogData {
    LogHandlerData    handler;
+   gchar            *domain;
    gint              refcount;
 } SysLogData;
 
@@ -107,6 +108,7 @@ VMSysLoggerUnref(LogHandlerData *_data)
    gSysLogger->refcount -= 1;
    if (gSysLogger->refcount == 0) {
       closelog();
+      g_free(gSysLogger->domain);
       g_free(gSysLogger);
       gSysLogger = NULL;
    }
@@ -209,8 +211,9 @@ VMSysLoggerConfig(const gchar *defaultDomain,
       gSysLogger->handler.copyfn = NULL;
       gSysLogger->handler.dtor = VMSysLoggerUnref;
 
+      gSysLogger->domain = g_strdup(defaultDomain);
       gSysLogger->refcount = 1;
-      openlog(defaultDomain, LOG_CONS | LOG_PID, facility);
+      openlog(gSysLogger->domain, LOG_CONS | LOG_PID, facility);
    } else {
       gSysLogger->refcount += 1;
    }

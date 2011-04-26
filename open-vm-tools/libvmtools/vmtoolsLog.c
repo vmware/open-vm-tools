@@ -48,8 +48,15 @@
 
 #define MAX_DOMAIN_LEN        64
 
-/** Alias to retrieve the default handler from the handler array. */
-#define DEFAULT_HANDLER (&gHandlers[ARRAYSIZE(gHandlers) - 1])
+/**
+ * Alias to retrieve the safe handler from the handler array. This handler is
+ * used when logging to the configured handler fails, and it shouldn't cause
+ * log recursion.
+ */
+#define SAFE_HANDLER (&gHandlers[ARRAYSIZE(gHandlers) - 1])
+
+/** The default handler to use if none is specified by the config data. */
+#define DEFAULT_HANDLER "syslog"
 
 /** Tells whether the given log level is a fatal error. */
 #define IS_FATAL(level) ((level) & G_LOG_FLAG_FATAL)
@@ -106,9 +113,7 @@ static LogHandler gHandlers[] = {
 #endif
 #if defined(_WIN32)
    { 4,  "outputdebugstring", VMDebugOutputConfig },
-#if defined(VMTOOLS_USE_GLIB)
    { 5,  "syslog",            VMEventLoggerConfig },
-#endif
    { -1, NULL,                VMDebugOutputConfig },
 #else
    { 4,  "syslog",            VMSysLoggerConfig },
@@ -388,7 +393,7 @@ VMToolsConfigLogDomain(const gchar *domain,
    gchar *level = NULL;
    gchar key[128];
    guint hid;
-   size_t i;
+   gboolean isDefault = strcmp(domain, gLogDomain) == 0;
 
    GLogLevelFlags levelsMask;
    LogHandlerConfigFn configfn = NULL;
@@ -417,7 +422,17 @@ VMToolsConfigLogDomain(const gchar *domain,
    g_snprintf(key, sizeof key, "%s.handler", domain);
    handler = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
 
+   if (handler == NULL && isDefault) {
+      /*
+       * If no handler defined and we're configuring the default domain,
+       * then instantiate the default handler.
+       */
+      handler = g_strdup(DEFAULT_HANDLER);
+   }
+
    if (handler != NULL) {
+      size_t i;
+
       for (i = 0; i < ARRAYSIZE(gHandlers) - 1; i++) {
          if (handler == gHandlers[i].name ||
              strcmp(handler, gHandlers[i].name) == 0) {
@@ -429,24 +444,15 @@ VMToolsConfigLogDomain(const gchar *domain,
 
       if (configfn == NULL) {
          g_warning("Unknown log handler '%s', using default.", handler);
-         if (strcmp(domain, gLogDomain) == 0) {
-            configfn = DEFAULT_HANDLER->configfn;
-            hid = DEFAULT_HANDLER->id;
+         if (isDefault) {
+            configfn = SAFE_HANDLER->configfn;
+            hid = SAFE_HANDLER->id;
          } else {
             goto exit;
          }
       }
 
       data = configfn(gLogDomain, domain, handler, cfg);
-   } else if (strcmp(domain, gLogDomain) == 0) {
-      /*
-       * If no handler defined and we're configuring the default domain,
-       * then instantiate the default handler.
-       */
-      hid = DEFAULT_HANDLER->id;
-      configfn = DEFAULT_HANDLER->configfn;
-      data = configfn(gLogDomain, domain, NULL, cfg);
-      ASSERT(data != NULL);
    } else {
       /* An inherited handler. Just create a dummy instance. */
       ASSERT(gDefaultData != NULL);
@@ -497,11 +503,11 @@ VMToolsConfigLogDomain(const gchar *domain,
    data->mask = levelsMask;
    data->type = hid;
 
-   if (strcmp(domain, gLogDomain) == 0) {
+   if (isDefault) {
       /*
-       * Replace the global log configuration. If the default log domain was
-       * logging to a file and the file path hasn't changed, then keep the old
-       * file handle open, instead of rotating the log.
+       * Replace the global log configuration, and copy the old handler data if
+       * the handler type hasn't changed. This allows the process to keep the
+       * old log file handle open instead of rotating the log, for example.
        */
       LogHandlerData *old = gDefaultData;
 
@@ -513,9 +519,7 @@ VMToolsConfigLogDomain(const gchar *domain,
       gDefaultData = data;
       CLEAR_LOG_HANDLER(old);
       data = NULL;
-   }
-
-   if (data != NULL) {
+   } else {
       if (gDomains == NULL) {
          gDomains = g_ptr_array_new();
       }
@@ -567,7 +571,7 @@ VMToolsResetLogging(gboolean hard)
       }
    }
 
-   if (hard && gDefaultData != NULL) {
+   if (hard) {
       CLEAR_LOG_HANDLER(gDefaultData);
       gDefaultData = NULL;
    }
@@ -636,9 +640,7 @@ VMToolsRestoreLogging(LogHandlerData *oldDefault,
       }
    }
 
-   if (oldDefault != NULL) {
-      CLEAR_LOG_HANDLER(oldDefault);
-   }
+   CLEAR_LOG_HANDLER(oldDefault);
 }
 
 
@@ -784,7 +786,7 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
    }
 
    gLogDomain = g_strdup(defaultDomain);
-   gErrorData = DEFAULT_HANDLER->configfn(gLogDomain, gLogDomain, NULL, NULL);
+   gErrorData = SAFE_HANDLER->configfn(gLogDomain, gLogDomain, NULL, NULL);
 
    /*
     * Configure the default domain first. See function documentation for
