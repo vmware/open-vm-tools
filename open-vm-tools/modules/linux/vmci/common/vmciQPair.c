@@ -128,6 +128,27 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
    VMCIHandle dst = VMCI_MAKE_HANDLE(peer, VMCI_INVALID_ID);
    VMCIRoute route;
 
+   /*
+    * Restrict the size of a queuepair.  The device already enforces a limit
+    * on the total amount of memory that can be allocated to queuepairs for a
+    * guest.  However, we try to allocate this memory before we make the
+    * queuepair allocation hypercall.  On Windows and Mac OS, we request a
+    * single, continguous block, and it will fail if the OS cannot satisfy the
+    * request. On Linux, we allocate each page separately, which means rather
+    * than fail, the guest will thrash while it tries to allocate, and will
+    * become increasingly unresponsive to the point where it appears to be hung.
+    * So we place a limit on the size of an individual queuepair here, and
+    * leave the device to enforce the restriction on total queuepair memory.
+    * (Note that this doesn't prevent all cases; a user with only this much
+    * physical memory could still get into trouble.)  The error used by the
+    * device is NO_RESOURCES, so use that here too.
+    */
+
+   if (produceQSize + consumeQSize < MAX(produceQSize, consumeQSize) ||
+       produceQSize + consumeQSize > VMCI_MAX_GUEST_QP_MEMORY) {
+      return VMCI_ERROR_NO_RESOURCES;
+   }
+
    myQPair = VMCI_AllocKernelMem(sizeof *myQPair, VMCI_MEMORY_NONPAGED);
    if (!myQPair) {
       return VMCI_ERROR_NO_MEM;

@@ -888,6 +888,17 @@ VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
       sizeof *queue + sizeof *(queue->kernelIf) +
       numDataPages * sizeof *(queue->kernelIf->page);
 
+   /*
+    * Size should be enforced by VMCIQPair_Alloc(), double-check here.
+    * Allocating too much on Linux can cause the system to become
+    * unresponsive, because we allocate page-by-page, and we allow the
+    * system to wait for pages rather than fail.
+    */
+   if (size > VMCI_MAX_GUEST_QP_MEMORY) {
+      ASSERT(FALSE);
+      return NULL;
+   }
+
    qHeader = (VMCIQueueHeader *)vmalloc(queueSize);
    if (!qHeader) {
       return NULL;
