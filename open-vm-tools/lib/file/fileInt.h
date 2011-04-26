@@ -262,6 +262,9 @@ Bool FileLockValidName(ConstUnicode fileName);
 
 Bool FileIsWritableDir(ConstUnicode dirName);
 
+UnicodeIndex FileFirstSlashIndex(ConstUnicode pathName,
+                                 UnicodeIndex startIndex);
+
 
 /*
  * FileIOAligned_* are useful on hosted platforms where malloc/memalign/valloc

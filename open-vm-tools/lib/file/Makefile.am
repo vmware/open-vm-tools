@@ -19,6 +19,7 @@ noinst_LTLIBRARIES = libFile.la
 
 libFile_la_SOURCES = 
 libFile_la_SOURCES += file.c
+libFile_la_SOURCES += fileStandAlone.c
 libFile_la_SOURCES += filePosix.c
 libFile_la_SOURCES += fileIO.c
 libFile_la_SOURCES += fileIOPosix.c
