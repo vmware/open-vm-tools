@@ -25,5 +25,5 @@ libFile_la_SOURCES += fileIO.c
 libFile_la_SOURCES += fileIOPosix.c
 libFile_la_SOURCES += fileLockPrimitive.c
 libFile_la_SOURCES += fileLockPosix.c
-libFile_la_SOURCES += fileTemp.c
 libFile_la_SOURCES += fileTempPosix.c
+libFile_la_SOURCES += fileTemp.c
