@@ -112,8 +112,39 @@ typedef struct WiperDiskString {
 } WiperDiskString;
 #endif
 
+typedef struct PartitionInfo {
+   const char          *name;
+   WiperPartition_Type  type;
+   const char          *comment;
+   Bool                 diskBacked;
+} PartitionInfo;
+
 
 /* Variables */
+
+static const char gRemoteFS[] = "Remote filesystem.";
+
+static const PartitionInfo gKnownPartitions[] = {
+   { "autofs",    PARTITION_UNSUPPORTED,  "autofs filesystem.",   FALSE       },
+   { "devpts",    PARTITION_UNSUPPORTED,  "devpts filesystem.",   FALSE       },
+   { "nfs",       PARTITION_UNSUPPORTED,  gRemoteFS,              FALSE       },
+   { "smbfs",     PARTITION_UNSUPPORTED,  gRemoteFS,              FALSE       },
+   { "swap",      PARTITION_UNSUPPORTED,  "Swap partition.",      FALSE       },
+   { "vmhgfs",    PARTITION_UNSUPPORTED,  gRemoteFS,              FALSE       },
+   { PROCFS,      PARTITION_UNSUPPORTED,  "proc filesystem.",     FALSE       },
+   { "ext2",      PARTITION_EXT2,         NULL,                   TRUE        },
+   { "ext3",      PARTITION_EXT3,         NULL,                   TRUE        },
+   { "ext4",      PARTITION_EXT4,         NULL,                   TRUE        },
+   { "hfs",       PARTITION_HFS,          NULL,                   TRUE        },
+   { "msdos",     PARTITION_FAT,          NULL,                   TRUE        },
+   { "ntfs",      PARTITION_NTFS,         NULL,                   TRUE        },
+   { "pcfs",      PARTITION_PCFS,         NULL,                   TRUE        },
+   { "reiserfs",  PARTITION_REISERFS,     NULL,                   TRUE        },
+   { "ufs",       PARTITION_UFS,          NULL,                   TRUE        },
+   { "vfat",      PARTITION_FAT,          NULL,                   TRUE        },
+   { "zfs",       PARTITION_ZFS,          NULL,                   FALSE       },
+};
+
 static Bool initDone = FALSE;
 
 
@@ -372,82 +403,48 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
 {
    struct stat s;
    const char *comment = NULL;
+   const char *fsname = MNTINFO_FSTYPE(mnt);
+   const PartitionInfo *info;
+   size_t i;
 
    item->type = PARTITION_UNSUPPORTED;
 
-   /*
-    * Let's ignore remote filesystems before we do a stat(2) on the actual
-    * mountpoint. This should prevent a deadlock in guestd for guests that
-    * still use an HGFS pserver (Solaris).
-    */
-   if (strcmp(MNTINFO_FSTYPE(mnt), "autofs") == 0) {
-      /* XXX Should we look at autofs' config files? --hpreg */
-      comment = "Not implemented. Contact VMware";
+   for (i = 0; i < ARRAYSIZE(gKnownPartitions); i++) {
+      info = &gKnownPartitions[i];
+      if (strcmp(info->name, fsname) == 0) {
+         item->type = info->type;
+         comment = info->comment;
+         break;
+      }
+   }
 
-   } else if (strcmp(MNTINFO_FSTYPE(mnt), "vmhgfs") == 0) {
-      comment = "Remote partition";
+   if (i == ARRAYSIZE(gKnownPartitions)) {
+      comment = "Unknown filesystem. Contact VMware.";
+   } else if (item->type != PARTITION_UNSUPPORTED) {
+      /*
+       * If the partition is supported by the wiper library, do some other
+       * checks before declaring it shrinkable.
+       */
 
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "nfs") == 0) {
-      comment = "Remote filesystem";
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "smbfs") == 0) {
-      comment = "Remote filesystem";
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "swap") == 0) {
-      comment = "Swap partition";
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), PROCFS) == 0) {
-      comment = "Proc partition";
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "devpts") == 0) {
-      comment = "Devpts partition";
-
-   } if (Posix_Stat(MNTINFO_NAME(mnt), &s) < 0) {
-      comment = "Unknown device";
-
+      if (info->diskBacked) {
+         if (Posix_Stat(MNTINFO_NAME(mnt), &s) < 0) {
+            comment = "Unknown device.";
 #if defined(sun) || defined(__linux__)
-   } else if (! S_ISBLK(s.st_mode)) {
-      comment = "Not a block device";
+         } else if (!S_ISBLK(s.st_mode)) {
+            comment = "Not a block device.";
 #endif
+         } else if (!WiperIsDiskDevice(mnt, &s)) {
+            comment = "Not a disk device.";
+         } else if (MNTINFO_MNT_IS_RO(mnt)) {
+            comment = "Not writable.";
+         }
+      } else if (access(MNTINFO_MNTPT(mnt), W_OK) != 0) {
+         comment = "Mount point not writable.";
+      }
 
-   } else if (!WiperIsDiskDevice(mnt, &s)) {
-      comment = "Not a disk device";
-
-   } if (MNTINFO_MNT_IS_RO(mnt)) {
-      comment = "Not writable";
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "ext2") == 0) {
-      item->type = PARTITION_EXT2;
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "ext3") == 0) {
-      item->type = PARTITION_EXT3;
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "ext4") == 0) {
-      item->type = PARTITION_EXT4;
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "reiserfs") == 0) {
-      item->type = PARTITION_REISERFS;
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "ntfs") == 0) {
-      item->type = PARTITION_NTFS;
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "vfat") == 0) {
-      item->type = PARTITION_FAT;
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "ufs") == 0) {
-      item->type = PARTITION_UFS;
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "pcfs") == 0) {
-      item->type = PARTITION_PCFS;
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "hfs") == 0) {
-      item->type = PARTITION_HFS;
-
-   } if (strcmp(MNTINFO_FSTYPE(mnt), "msdos") == 0) {
-      item->type = PARTITION_FAT;
-
-   } else {
-      comment = "Unknown filesystem. Contact VMware";
+      if (comment != NULL) {
+         item->type = PARTITION_UNSUPPORTED;
+      }
    }
 
    if (item->type == PARTITION_UNSUPPORTED) {
