@@ -99,8 +99,10 @@ BSDFmt_SFVWrite(BSDFmt_StrBuf *sbuf, BSDFmt_UIO *uio)
 
    if (sbuf->alloc) {
       size_t n = sbuf->index + uio->uio_resid + 1;	// +1 for \0
+
       if (n > sbuf->size) {
 	 char *p;
+
 	 ASSERT(sbuf->size > 0);
 	 n = ROUNDUP(n, sbuf->size);
 	 if ((p = realloc(sbuf->buf, n)) == NULL) {
@@ -148,9 +150,11 @@ BSDFmt_SPrint(BSDFmt_StrBuf *sbuf, BSDFmt_UIO *uio)
       uio->uio_iovcnt = 0;
       return (0);
    }
+
    err = BSDFmt_SFVWrite(sbuf, uio);
    uio->uio_resid = 0;
    uio->uio_iovcnt = 0;
+
    return err;
 }
 
@@ -326,8 +330,7 @@ BSDFmt_WCharToUTF8(wchar_t *wcsarg, int prec)
 
    targSize = (-1 == prec) ? sourceSize : MIN(sourceSize, prec);
 
-   while (TRUE)
-   {
+   while (TRUE) {
       /*
        * Pad by 4, because we need to NUL-terminate.
        */
@@ -625,6 +628,7 @@ bsd_vsnprintf_core(char **outbuf,
 
    if (sbuf.alloc) {
       size_t n = strlen(fmt0) + 1;	// +1 for \0
+
       if (n > 1) {
 	 n = ROUNDUP(n, 64);
       }
@@ -717,6 +721,7 @@ bsd_vsnprintf_core(char **outbuf,
 
 	 if (grouping != NULL && *grouping == '\0') {
 	    static char g[] = { CHAR_MAX, '\0' };
+
 	    grouping = g;
 	 }
          goto rflag;
