@@ -526,7 +526,8 @@ VMCIHashTableEntryExistsLocked(VMCIHashTable *table,   // IN
           VMCI_HANDLE_TO_RESOURCE_ID(handle)) {
          if ((VMCI_HANDLE_TO_CONTEXT_ID(entry->handle) ==
               VMCI_HANDLE_TO_CONTEXT_ID(handle)) ||
-             (VMCI_INVALID_ID == VMCI_HANDLE_TO_CONTEXT_ID(handle))) {
+             (VMCI_INVALID_ID == VMCI_HANDLE_TO_CONTEXT_ID(handle)) ||
+             (VMCI_INVALID_ID == VMCI_HANDLE_TO_CONTEXT_ID(entry->handle))) {
             return TRUE;
          }
       }
