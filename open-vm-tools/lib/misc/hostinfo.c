@@ -236,9 +236,9 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
     */
 
    info->version = cpuid.id1.version;
-   info->family = CPUID_FAMILY(cpuid.id1.version);
-   info->model = CPUID_MODEL(cpuid.id1.version);
-   info->stepping = CPUID_STEPPING(cpuid.id1.version);
+   info->family = CPUID_GET(1, EAX, FAMILY, cpuid.id1.version);
+   info->model = CPUID_GET(1, EAX, MODEL, cpuid.id1.version);
+   info->stepping = CPUID_GET(1, EAX, STEPPING, cpuid.id1.version);
    info->type = (cpuid.id1.version >> 12) & 0x0003;
 
    info->extfeatures = cpuid.id1.ecxFeatures;

@@ -419,11 +419,11 @@ FIELD(  A, EDX, INTEL,   5,  8, PMC_WIDTH_FIXED,                   NA,  FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_B                                               \
-FIELD(  B, EAX, INTEL,   0,  5, MASK_WIDTH,                        NA,  FALSE) \
-FIELD(  B, EBX, INTEL,   0, 16, CPUS_SHARING_LEVEL,                NA,  FALSE) \
-FIELD(  B, ECX, INTEL,   0,  8, LEVEL_NUMBER,                      NA,  FALSE) \
-FIELD(  B, ECX, INTEL,   8,  8, LEVEL_TYPE,                        NA,  FALSE) \
-FIELD(  B, EDX, INTEL,   0, 32, X2APIC_ID,                         NA,  FALSE)
+FIELD(  B, EAX, INTEL,   0,  5, TOPOLOGY_MASK_WIDTH,               NA,  FALSE) \
+FIELD(  B, EBX, INTEL,   0, 16, TOPOLOGY_CPUS_SHARING_LEVEL,       NA,  FALSE) \
+FIELD(  B, ECX, INTEL,   0,  8, TOPOLOGY_LEVEL_NUMBER,             NA,  FALSE) \
+FIELD(  B, ECX, INTEL,   8,  8, TOPOLOGY_LEVEL_TYPE,               NA,  FALSE) \
+FIELD(  B, EDX, INTEL,   0, 32, TOPOLOGY_X2APIC_ID,                NA,  FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_D                                               \
@@ -758,61 +758,6 @@ enum {
     NULL)
 
 /*
- * Macro to define GET and SET functions for various common CPUID
- * fields.  To create function for a new field, simply name it (CPUID_
- * and CPUID_SET_ are automatically prepended), and list the field
- * name that it needs to use.
- */
-
-#define FIELD_FUNC(name, field)                                 \
-   static INLINE uint32 CPUID_##name(uint32 reg)                \
-   {                                                            \
-      return (reg & field##_MASK) >> field##_SHIFT;             \
-   }                                                            \
-   static INLINE void CPUID_SET_##name(uint32 *reg, uint32 val) \
-   {                                                            \
-      *reg = (*reg & ~field##_MASK) | (val << field##_SHIFT);   \
-   }
-
-FIELD_FUNC(STEPPING,         CPUID_COMMON_ID1EAX_STEPPING)
-FIELD_FUNC(MODEL,            CPUID_COMMON_ID1EAX_MODEL)
-FIELD_FUNC(FAMILY,           CPUID_COMMON_ID1EAX_FAMILY)
-FIELD_FUNC(TYPE,             CPUID_COMMON_ID1EAX_TYPE)
-FIELD_FUNC(EXTENDED_MODEL,   CPUID_COMMON_ID1EAX_EXTENDED_MODEL)
-FIELD_FUNC(EXTENDED_FAMILY,  CPUID_COMMON_ID1EAX_EXTENDED_FAMILY)
-FIELD_FUNC(LCPU_COUNT,       CPUID_COMMON_ID1EBX_LCPU_COUNT)
-FIELD_FUNC(APICID,           CPUID_COMMON_ID1EBX_APICID)
-FIELD_FUNC(PHYS_BITS,        CPUID_COMMON_ID88EAX_PHYS_BITS)
-FIELD_FUNC(VIRT_BITS,        CPUID_COMMON_ID88EAX_VIRT_BITS)
-FIELD_FUNC(SVM_REVISION,     CPUID_AMD_ID8AEAX_SVM_REVISION)
-FIELD_FUNC(SVM_NUM_ASIDS,    CPUID_AMD_ID8AEBX_SVM_NUM_ASIDS)
-FIELD_FUNC(CACHE_TYPE,       CPUID_INTEL_ID4EAX_LEAF4_CACHE_TYPE)
-FIELD_FUNC(LEAF4_CORE_COUNT, CPUID_INTEL_ID4EAX_LEAF4_CORE_COUNT)
-FIELD_FUNC(LEAF88_CORE_COUNT, CPUID_AMD_ID88ECX_LEAF88_CORE_COUNT)
-FIELD_FUNC(AMD_APICID_COREID_SIZE, CPUID_AMD_ID88ECX_APICID_COREID_SIZE)
-FIELD_FUNC(AMD_EXTAPICSPC,   CPUID_AMD_ID81ECX_EXTAPICSPC)
-FIELD_FUNC(MWAIT_MIN_SIZE,   CPUID_COMMON_ID5EAX_MWAIT_MIN_SIZE)
-FIELD_FUNC(MWAIT_MAX_SIZE,   CPUID_COMMON_ID5EBX_MWAIT_MAX_SIZE)
-FIELD_FUNC(MWAIT_C0_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C0_SUBSTATE)
-FIELD_FUNC(MWAIT_C1_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C1_SUBSTATE)
-FIELD_FUNC(MWAIT_C2_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C2_SUBSTATE)
-FIELD_FUNC(MWAIT_C3_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C3_SUBSTATE)
-FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
-FIELD_FUNC(TOPOLOGY_MASK_WIDTH,         CPUID_INTEL_IDBEAX_MASK_WIDTH)
-FIELD_FUNC(TOPOLOGY_CPUS_SHARING_LEVEL, CPUID_INTEL_IDBEBX_CPUS_SHARING_LEVEL)
-FIELD_FUNC(TOPOLOGY_LEVEL_NUMBER,       CPUID_INTEL_IDBECX_LEVEL_NUMBER)
-FIELD_FUNC(TOPOLOGY_LEVEL_TYPE,         CPUID_INTEL_IDBECX_LEVEL_TYPE)
-FIELD_FUNC(TOPOLOGY_X2APIC_ID,          CPUID_INTEL_IDBEDX_X2APIC_ID)
-FIELD_FUNC(AMD_CACHE_TYPE,      CPUID_AMD_ID81DEAX_LEAF81D_CACHE_TYPE)
-FIELD_FUNC(AMD_CACHE_LEVEL,     CPUID_AMD_ID81DEAX_LEAF81D_CACHE_LEVEL)
-FIELD_FUNC(AMD_CACHE_WAYS,      CPUID_AMD_ID81DEBX_LEAF81D_CACHE_WAYS)
-FIELD_FUNC(AMD_NODES_PER_PKG,   CPUID_AMD_ID81EECX_NODES_PER_PKG)
-FIELD_FUNC(AMD_NUM_SHARING_CACHE, CPUID_AMD_ID81DEAX_LEAF81D_NUM_SHARING_CACHE)
-FIELD_FUNC(AMD_CORES_PER_COMPUTE_UNIT, CPUID_AMD_ID81EEBX_CORES_PER_COMPUTE_UNIT)
-#undef FIELD_FUNC
-
-
-/*
  * CPUID_MASK --
  * CPUID_SHIFT --
  * CPUID_ISSET --
@@ -881,22 +826,22 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 
 #define CPUID_MASK(eaxIn, reg, flag)                                    \
    CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
-              CPUID_REG_##reg, CPUID_INTERNAL_REG_##flag,               \
+              CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,     \
               CPUID_INTERNAL_MASK_##flag)
 
 #define CPUID_SHIFT(eaxIn, reg, flag)                                   \
    CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
-              CPUID_REG_##reg, CPUID_INTERNAL_REG_##flag,               \
+              CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,     \
               CPUID_INTERNAL_SHIFT_##flag)
 
 #define CPUID_ISSET(eaxIn, reg, flag, data)                             \
    CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
-              CPUID_REG_##reg, CPUID_INTERNAL_REG_##flag,               \
+              CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,     \
               (CPUID_INTERNAL_MASK_##flag & data) != 0)
 
 #define CPUID_GET(eaxIn, reg, field, data)                              \
    CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##field,                      \
-              CPUID_REG_##reg, CPUID_INTERNAL_REG_##field,              \
+              CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##field,    \
               ((uint32)data & CPUID_INTERNAL_MASK_##field) >>           \
               CPUID_INTERNAL_SHIFT_##field)
 
@@ -1032,8 +977,9 @@ CPUID_IsVendorVIA(CPUIDRegs *id0)
 static INLINE uint32
 CPUID_EFFECTIVE_FAMILY(uint32 v) /* %eax from CPUID with %eax=1. */
 {
-   return CPUID_FAMILY(v) +
-      (CPUID_FAMILY(v) == CPUID_FAMILY_EXTENDED ? CPUID_EXTENDED_FAMILY(v) : 0);
+   uint32 f = CPUID_GET(1, EAX, FAMILY, v);
+   return f != CPUID_FAMILY_EXTENDED ? f : f +
+      CPUID_GET(1, EAX, EXTENDED_FAMILY, v);
 }
 
 /* Normally only used when FAMILY==CPUID_FAMILY_EXTENDED, but Intel is
@@ -1043,7 +989,9 @@ CPUID_EFFECTIVE_FAMILY(uint32 v) /* %eax from CPUID with %eax=1. */
 static INLINE uint32
 CPUID_EFFECTIVE_MODEL(uint32 v) /* %eax from CPUID with %eax=1. */
 {
-   return CPUID_MODEL(v) + (CPUID_EXTENDED_MODEL(v) << 4); 
+   uint32 m = CPUID_GET(1, EAX, MODEL, v);
+   uint32 em = CPUID_GET(1, EAX, EXTENDED_MODEL, v);
+   return m + (em << 4); 
 }
 
 /*
@@ -1155,7 +1103,7 @@ CPUID_FAMILY_IS_K8EXT(uint32 eax)
     * worth a separate function, for syntactic sugar.
     */
    return CPUID_FAMILY_IS_K8(eax) &&
-          CPUID_EXTENDED_MODEL(eax) != 0;
+          CPUID_GET(1, EAX, EXTENDED_MODEL, eax) != 0;
 }
 
 static INLINE Bool
@@ -1278,7 +1226,7 @@ static INLINE uint32
 CPUID_IntelCoresPerPackage(uint32 v) /* %eax from CPUID with %eax=4 and %ecx=0. */
 {
    // Note: This is not guaranteed to work on older Intel CPUs.
-   return 1 + CPUID_LEAF4_CORE_COUNT(v);
+   return 1 + CPUID_GET(4, EAX, LEAF4_CORE_COUNT, v);
 }
 
 
@@ -1286,7 +1234,7 @@ static INLINE uint32
 CPUID_AMDCoresPerPackage(uint32 v) /* %ecx from CPUID with %eax=0x80000008. */
 {
    // Note: This is not guaranteed to work on older AMD CPUs.
-   return 1 + CPUID_LEAF88_CORE_COUNT(v);
+   return 1 + CPUID_GET(0x80000008, ECX, LEAF88_CORE_COUNT, v);
 }
 
 

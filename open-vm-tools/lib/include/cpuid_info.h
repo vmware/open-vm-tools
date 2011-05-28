@@ -160,7 +160,7 @@ CPUIDSummary_IntelCoresPerPackage(CPUIDSummary *cpuid,
     * support HT.  The reported number of HT is the total, not per core.
     */
    if (cpuid->id1.edxFeatures & CPUID_FEATURE_COMMON_ID1EDX_HTT) {
-      *numThreadsPerCore = CPUID_LCPU_COUNT(cpuid->id1.ebx);
+      *numThreadsPerCore = CPUID_GET(1, EBX, LCPU_COUNT, cpuid->id1.ebx);
        if (cpuid->id0.numEntries >= 4) {
          numCoresPerPackage =
             CPUID_IntelCoresPerPackage(__GET_EAX_FROM_CPUID4(0));
