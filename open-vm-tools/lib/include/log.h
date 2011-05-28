@@ -55,12 +55,12 @@
 #define VMW_LOG_DEBUG_10  VMW_LOG_DEBUG_00 + 10  // lowest priority; least noisy
 
 void
-LogVNoRoute(int rawLevel,
+LogVNoRoute(int level,
             const char *fmt,
             va_list args);
 
 
-void LogV(int level,
+void LogV(uint32 routing,
           const char *fmt,
           va_list args);
 
@@ -75,23 +75,23 @@ void LogV(int level,
  */
 
 static INLINE void PRINTF_DECL(2, 3)
-Log_Level(int level,
+Log_Level(uint32 routing,
           const char *fmt,
           ...)
 {
    va_list ap;
 
    va_start(ap, fmt);
-   LogV(level, fmt, ap);
+   LogV(routing, fmt, ap);
    va_end(ap);
 }
 
 
 static INLINE void
-Log_String(int level,
+Log_String(uint32 routing,
            const char *string)
 {
-   Log_Level(level, "%s", string);
+   Log_Level(routing, "%s", string);
 }
 
 
