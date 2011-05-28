@@ -695,8 +695,8 @@ FIELD(81E, ECX, AMD,     8,  3, NODES_PER_PKG,                     NA,  FALSE)
    CPUID_INTERNAL_SHIFT_##name  = bitpos,                             \
    CPUID_INTERNAL_MASK_##name   = VMW_BIT_MASK(size) << bitpos,       \
    CPUID_INTERNAL_REG_##name    = CPUID_REG_##reg,                    \
-   CPUID_INTERNAL_EAXIN_##name  = CPUID_LEVEL_VAL_##lvl,
- 
+   CPUID_INTERNAL_EAXIN_##name  = CPUID_LEVEL_VAL_##lvl,              \
+   CPUID_INTERNAL_ECXIN_##name  = 0,
 
 #define FLAG FIELD
 
@@ -1258,5 +1258,19 @@ CPUID_IsHypervisorLevel(uint32 level)
    return (level & 0xffffff00) == 0x40000000;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUID_LevelUsesEcx --
+ *
+ *      Returns TRUE for leaves that support input ECX != 0 (subleaves).
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE Bool
+CPUID_LevelUsesEcx(uint32 level) {
+   return level == 4 || level == 7 || level == 0xb || level == 0xd;
+}
 
 #endif
