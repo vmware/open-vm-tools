@@ -876,7 +876,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    }
 #endif
 
-#if defined(linux) && !defined(N_PLAT_NLM)
+#if defined(linux)
    if (access & FILEIO_OPEN_SYNC) {
       flags |= O_SYNC;
    }
