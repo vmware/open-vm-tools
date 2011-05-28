@@ -202,4 +202,12 @@ Bool Hostinfo_GetLoadAverage(uint32 *l);
 size_t Hostinfo_GetKernelZoneElemSize(char const *name);
 #endif
 
+#ifdef _WIN32
+static INLINE Bool
+Hostinfo_AtLeastVista(void)
+{
+   return (Hostinfo_GetOSType() >= OS_VISTA);
+}
+#endif
+
 #endif /* ifndef _HOSTINFO_H_ */
