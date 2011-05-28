@@ -80,9 +80,6 @@ Bool
 GuestApp_GetDictEntryBool(GuestApp_Dict *dict, // IN
                           const char *name);   // IN
 
-Bool
-GuestApp_WasDictFileChanged(GuestApp_Dict *dict); // IN
-
 void
 GuestApp_FreeDict(GuestApp_Dict *dict); // IN
 
@@ -91,9 +88,6 @@ GuestApp_LoadDict(GuestApp_Dict *dict); // IN
 
 const char *
 GuestApp_GetDefaultScript(const char *confName); // IN
-
-Bool
-GuestApp_GetUnifiedLoopCap(const char *channel); // IN
 
 #ifdef _WIN32
 LPWSTR
@@ -141,8 +135,6 @@ Bool
 GuestApp_GetDeviceInfo(uint16 id,      // IN: Device ID
                        RD_Info *info); // OUT
 
-Bool GuestApp_OpenUrl(const char *url, Bool maximize);
-
 typedef enum {
    GUESTAPP_ABSMOUSE_UNAVAILABLE,
    GUESTAPP_ABSMOUSE_AVAILABLE,
@@ -150,11 +142,6 @@ typedef enum {
 } GuestAppAbsoluteMouseState;
 
 GuestAppAbsoluteMouseState GuestApp_GetAbsoluteMouseState(void);
-
-#ifndef _WIN32
-void GuestApp_SetSpawnEnviron(const char **spawnEnviron);
-Bool GuestApp_FindProgram(const char *program);
-#endif
 
 #ifdef __cplusplus
 }

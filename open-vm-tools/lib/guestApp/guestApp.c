@@ -31,7 +31,6 @@
 #include "vm_version.h"
 #include "vm_tools_version.h"
 #include "guestApp.h"
-#include "hgfs.h"
 #include "backdoor.h"
 #include "backdoor_def.h"
 #include "conf.h"
@@ -42,7 +41,6 @@
 #include "dictll.h"
 #include "msg.h"
 #include "file.h"
-#include "codeset.h"
 #include "posix.h"
 #include "vmware/guestrpc/tclodefs.h"
 
@@ -51,6 +49,7 @@
 #include <shlobj.h>
 #include "productState.h"
 #include "winregistry.h"
+#include "win32util.h"
 #endif
 
 /*
@@ -86,12 +85,6 @@ struct GuestApp_Dict {
    int64 fileModTime;
    char *fileName;
 };
-
-/* Function pointer, used in GuestApp_GetConfPath. */
-#if defined(_WIN32)
-typedef HRESULT (WINAPI *PSHGETFOLDERPATH)(HWND, int, HANDLE, DWORD, LPWSTR);
-static PSHGETFOLDERPATH pfnSHGetFolderPath = NULL;
-#endif
 
 
 /*
@@ -478,33 +471,6 @@ GuestApp_FreeDict(GuestApp_Dict *dict) // IN/OUT
 
 
 /*
- *----------------------------------------------------------------------
- *
- * GuestApp_WasDictFileChanged --
- *
- *      Has the dict file been changed since the last time we loaded
- *      or wrote it?
- *
- * Results:
- *      TRUE if it has; FALSE if it hasn't
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-GuestApp_WasDictFileChanged(GuestApp_Dict *dict)
-{
-   ASSERT(dict);
-   ASSERT(dict->fileName);
-
-   return (File_GetModTime(dict->fileName) > dict->fileModTime);
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * GuestApp_OldGetOptions --
@@ -589,48 +555,6 @@ GuestApp_SetOptionInVMX(const char *option,     // IN
 {
    return RpcOut_sendOne(NULL, NULL, "vmx.set_option %s %s %s",
                          option, currentVal, newVal);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestApp_GetUnifiedLoopCap --
- *
- *    Check to see if the VMX supports TCLO as the medium for
- *    updating all the config options.
- *
- * Return value:
- *    TRUE:  if VMware supports the unified TCLO loop (i.e. can send us options
-
- *           via TCLO.
- *    FALSE: if VMware doesn't support the unified loop or the rpc failed.
- *
- * Side effects:
- *    If channel != NULL, the vmx will start sending options to that channel.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-GuestApp_GetUnifiedLoopCap(const char *channel) // IN: send options to which channel?
-{
-   Bool unifiedLoopCap;
-
-   if (channel) {
-      unifiedLoopCap = RpcOut_sendOne(NULL, NULL,
-                                      "vmx.capability.unified_loop %s",
-                                      channel);
-   } else {
-      unifiedLoopCap = RpcOut_sendOne(NULL, NULL,
-                                      "vmx.capability.unified_loop");
-   }
-
-   Debug("Unified loop capability is %d for '%s'\n", unifiedLoopCap,
-
-         channel);
-
-   return unifiedLoopCap;
 }
 
 
@@ -889,15 +813,6 @@ GuestApp_GetInstallPath(void)
  *      The return conf path is a dynamically allocated UTF-8 encoded
  *      string that should be freed by the caller.
  *
- *      XXX: Unfortunately, much of this function is duplicated in
- *      lib/user/win32util.c because we can't use that file inside guest
- *      code. If we do, we'll break Win95 Tools.
- *
- *      XXX: For Windows, this function will only fail on pre-2k/Me systems
- *      that haven't installed IE4 _and_ haven't ever used our installer
- *      (it is thought that the installer will copy shfolder.dll if the
- *      system needs it).
- *
  *      However, the function will also return NULL if we fail to create
  *      a "VMware/VMware Tools" directory. This can occur if we're not running
  *      as Administrator, which VMwareUser doesn't. But I believe that
@@ -917,98 +832,22 @@ char *
 GuestApp_GetConfPath(void)
 {
 #if defined(_WIN32)
-   char *pathUtf8 = NULL;
-   char *appFolderPathUtf8 = NULL;
-   WCHAR appFolderPath[MAX_PATH] = L"";
-   size_t pathUtf8Size = 0;
-   const char *productName;
+   char *path = W32Util_GetVmwareCommonAppDataFilePath(NULL);
 
-   /*
-    * XXX: This is racy. But GuestApp_GetInstallPath is racy too. Clearly
-    * that is a good enough justification.
-    */
+   if (path != NULL) {
+      char *tmp = Str_SafeAsprintf(NULL, "%s%c%s", path, DIRSEPC,
+                                   ProductState_GetName());
+      free(path);
+      path = tmp;
 
-   if (!pfnSHGetFolderPath) {
-      HMODULE h = LoadLibraryW(L"shfolder.dll");
-      if (h) {
-         pfnSHGetFolderPath = (PSHGETFOLDERPATH)
-            GetProcAddress(h, "SHGetFolderPathW");
-      }
-
-      /* win32util.c avoids calling FreeLibrary() so we will too. */
-   }
-
-   /*
-    * Get the Common Application data folder - create if it doesn't
-    * exist.
-    */
-
-   if (!pfnSHGetFolderPath ||
-       FAILED(pfnSHGetFolderPath(NULL, CSIDL_COMMON_APPDATA |
-                                 CSIDL_FLAG_CREATE, NULL, 0, appFolderPath))) {
-      return NULL;
-   }
-
-   ASSERT(appFolderPath[0]);
-
-   if (!CodeSet_Utf16leToUtf8((const char *)appFolderPath,
-                               wcslen(appFolderPath) * sizeof *appFolderPath,
-                               &appFolderPathUtf8,
-                               NULL)) {
-      return NULL;
-   }
-
-   productName = ProductState_GetName();
-
-   /*
-    * Make sure there's enought space for
-    * appFolderPath\PRODUCT_GENERIC_NAME\PRODUCT_NAME.
-    */
-
-   pathUtf8Size = strlen(appFolderPathUtf8) + 1 +
-                  strlen(PRODUCT_GENERIC_NAME) + 1 +
-                  strlen(productName) + 1;
-   pathUtf8 = malloc(pathUtf8Size);
-   if (pathUtf8 == NULL) {
-      free(appFolderPathUtf8);
-      goto error;
-   }
-
-   Str_Strcpy(pathUtf8, appFolderPathUtf8, pathUtf8Size);
-   free(appFolderPathUtf8);
-
-   /* Check to see if <product> subdirectories exist. */
-   Str_Strcat(pathUtf8, "\\" PRODUCT_GENERIC_NAME, pathUtf8Size);
-   if (!File_Exists(pathUtf8)) {
-      if (!File_CreateDirectory(pathUtf8)) {
-         goto error;
+      if (!File_EnsureDirectory(path)) {
+         free(path);
+         path = NULL;
       }
    }
 
-   if (!File_IsDirectory(pathUtf8)) {
-      goto error;
-   }
-
-   Str_Strcat(pathUtf8, "\\", MAX_PATH);
-   Str_Strcat(pathUtf8, productName, pathUtf8Size);
-   if (!File_Exists(pathUtf8)) {
-      if (!File_CreateDirectory(pathUtf8)) {
-         goto error;
-      }
-   }
-
-   if (!File_IsDirectory(pathUtf8)) {
-      goto error;
-   }
-
-   return pathUtf8;
-
-error:
-   free(pathUtf8);
-
-   return NULL;
+   return path;
 #else
-
     /* Just call into GuestApp_GetInstallPath. */
    return GuestApp_GetInstallPath();
 #endif
