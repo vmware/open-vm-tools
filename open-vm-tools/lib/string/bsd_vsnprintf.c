@@ -71,6 +71,7 @@
 #include "bsd_output_int.h"
 #include "codeset.h"
 #include "convertutf.h"
+#include "str.h"
 
 static char   *__ultoa(u_long, char *, int, int, const char *, int, char,
                        const char *);
@@ -634,7 +635,7 @@ bsd_vsnprintf_core(char **outbuf,
     * Set up output string buffer structure.
     */
 
-   sbuf.alloc = *outbuf == NULL;
+   sbuf.alloc = (*outbuf == NULL);
    sbuf.error = FALSE;
    sbuf.buf = *outbuf;
    sbuf.size = bufSize;
@@ -905,30 +906,36 @@ bsd_vsnprintf_core(char **outbuf,
             fparg.dbl = GETARG(double);
             dtoaresult = cp = dtoa(fparg.dbl, expchar ? 2 : 3, prec,
                                    &expt, &signflag, &dtoaend);
-
-            if (expt == 9999) {
-               expt = INT_MAX;
-            }
          }
+
          /* Our dtoa / ldtoa call strdup(), which can fail. PR319844 */
          if (dtoaresult == NULL) {
             sbuf.error = TRUE;
             goto error;
          }
+
+         flags |= FPT;
+
+         if ((expt == 9999) ||
+             ((Str_Strcasecmp(cp, "-inf") == 0) ||
+              (Str_Strcasecmp(cp, "inf") == 0) ||
+              (Str_Strcasecmp(cp, "nan") == 0))) {
+            if (*cp == '-') {
+               sign = '-';
+               cp++;
+            }
+
+            cp = islower(ch) ? Str_ToLower(cp) : Str_ToUpper(cp);
+
+            expt = INT_MAX;
+            size = strlen(cp);
+            break;
+         }
+
          if (signflag) {
             sign = '-';
          }
-         if (expt == INT_MAX) {   /* inf or nan */
-            if (*cp == 'N') {
-               cp = (ch >= 'a') ? "nan" : "NAN";
-               sign = '\0';
-            } else {
-               cp = (ch >= 'a') ? "inf" : "INF";
-            }
-            size = 3;
-            break;
-         }
-         flags |= FPT;
+
          ndig = dtoaend - cp;
          if (ch == 'g' || ch == 'G') {
             if (expt > -4 && expt <= prec) {
@@ -1220,6 +1227,12 @@ bsd_vsnprintf_core(char **outbuf,
          PRINT(&sign, 1);
       }
 
+      /* NAN, INF and -INF */
+      if ((flags & FPT) && (expt == INT_MAX)) {
+         PRINT(cp, size);
+         goto skip;
+      }
+
       if (ox[1]) {   /* ox[1] is either x, X, or \0 */
          ox[0] = '0';
          PRINT(ox, 2);
@@ -1279,17 +1292,22 @@ bsd_vsnprintf_core(char **outbuf,
                PRINT(buf, 2);
                if (ndig > 0) {
                   PRINT(cp, ndig - 1);
+                  PAD(prec - ndig, zeroes);
+               } else {
+                  PAD(prec - ndig - 1, zeroes);
                }
-               PAD(prec - ndig, zeroes);
             } else {  /* XeYYY */
                PRINT(cp, 1);
             }
+
             PRINT(expstr, expsize);
          }
       }
 #else
       PRINT(cp, size);
 #endif
+
+skip:
       /* left-adjusting padding (always blank) */
       if (flags & LADJUST) {
          PAD(width - realsz, blanks);
