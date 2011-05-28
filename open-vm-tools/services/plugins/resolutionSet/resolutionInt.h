@@ -28,13 +28,20 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_DISTRIBUTE
 #include "includeCheck.h"
+#include "vmware.h"
 
-#include "resolution.h"
+#if defined(_WIN32)
+#  include "resolutionWinCommon.h"
+#endif
 
-/*
- * Data types
- */
-
+#if defined(RESOLUTION_X11)
+#  include <X11/Xlib.h>
+typedef Display *       InitHandle;
+#elif defined(__APPLE__) || defined(RESOLUTION_WIN32)
+typedef void *          InitHandle;
+#else
+#  error Unknown display backend
+#endif
 
 /*
  * Describes internal state of the resolution library.  I.e., tracks whether
@@ -46,10 +53,12 @@ typedef struct {
    Bool canSetTopology;                 // TRUE if back-end supports DisplayTopology_Set.
 } ResolutionInfoType;
 
-
+#if !defined(_WIN32)
 /*
  * Describes the size and offset of a display.  An array of these
- * structures describes the entire topology of the guest desktop
+ * structures describes the entire topology of the guest desktop.
+ *
+ * XXX: For Win32, this is already defined in resolutionWinCommon.h.
  */
 typedef struct {
    int x;
@@ -57,7 +66,7 @@ typedef struct {
    int width;
    int height;
 } DisplayTopologyInfo;
-
+#endif
 
 /*
  * Global variables

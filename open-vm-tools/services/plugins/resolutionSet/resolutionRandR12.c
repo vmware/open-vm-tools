@@ -62,24 +62,17 @@
 
 #ifndef NO_MULTIMON
 
+#include "resolutionInt.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "resolutionInt.h"
-#include "resolutionRandR12.h"
-#include <X11/extensions/Xrandr.h>
 #include <X11/X.h>
 #include <X11/Xmd.h>
 #include <X11/extensions/panoramiXproto.h>
+#include <X11/extensions/Xrandr.h>
 
-#include <X11/Xlib.h>
-#undef Bool
-
-#include "vmware.h"
-#include "resolution.h"
-#include "debug.h"
-
+#include "resolutionRandR12.h"
 #include "str.h"
 #include "strutil.h"
 #include "util.h"

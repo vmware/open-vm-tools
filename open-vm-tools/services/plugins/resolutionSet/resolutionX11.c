@@ -29,20 +29,14 @@
 #include "resolutionInt.h"
 #include "resolutionRandR12.h"
 
-#include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 #ifndef NO_MULTIMON
 #include <X11/extensions/Xinerama.h>
 #endif
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
-#include <X11/Xlib.h>
-#undef Bool
 
 #include "vmware.h"
-
-#include "resolution.h"
-
 #include "debug.h"
 #include "fileIO.h"
 #include "libvmwarectrl.h"
