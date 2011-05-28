@@ -228,8 +228,6 @@ int FileLockMemberValues(ConstUnicode lockDir,
                          uint32 size,
                          LockValues *memberValues);
 
-int FileLockHackVMX(ConstUnicode filePathName);
-
 int FileLockOpenFile(ConstUnicode pathName,
                      int flags,
                      FILELOCK_FILE_HANDLE *handle);
