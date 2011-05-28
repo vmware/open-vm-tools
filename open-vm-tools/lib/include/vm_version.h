@@ -244,6 +244,7 @@
 #define VDM_CLIENT_VERSION "e.x.p"
 #define VGAUTH_VERSION "e.x.p"
 #define VIEWY_VERSION "e.x.p"
+#define VMCFSDK_VERSION "e.x.p"
 
 
 // VMRC_PLUGIN_VERSION should match PLAYER_VERSION but can't be e.x.p
