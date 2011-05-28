@@ -88,8 +88,7 @@ CopyPasteUIX11::CopyPasteUIX11()
  : mClipboardEmpty(true),
    mHGStagingDir(""),
    mIsClipboardOwner(false),
-   mHGGetFilesInitiated(false),
-   mFileTransferDone(false),
+   mHGGetFileStatus(DND_FILE_TRANSFER_NOT_STARTED),
    mBlockAdded(false),
    mBlockCtrl(0),
    mInited(false)
@@ -168,6 +167,12 @@ CopyPasteUIX11::~CopyPasteUIX11()
 {
    g_debug("%s: enter\n", __FUNCTION__);
    CPClipboard_Destroy(&mClipboard);
+   /* Any files from last unfinished file transfer should be deleted. */
+   if (DND_FILE_TRANSFER_IN_PROGRESS == mHGGetFileStatus &&
+       !mHGStagingDir.empty()) {
+      g_debug("%s: deleting dir %s\n", __FUNCTION__, mHGStagingDir.c_str());
+      DnD_DeleteStagingFiles(mHGStagingDir.c_str(), FALSE);
+   }
    if (mBlockAdded) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
       /* We need to make sure block subsystem has not been shut off. */
@@ -334,7 +339,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
    g_debug("%s: Got paste request, target is %s\n", __FUNCTION__,
          sd.get_target().c_str());
 
-   if (mHGGetFilesInitiated) {
+   if (mHGGetFileStatus != DND_FILE_TRANSFER_NOT_STARTED) {
       /*
        * On KDE (at least), we can see this multiple times, so ignore if
        * we are already getting files.
@@ -343,18 +348,13 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
               __FUNCTION__, mHGCopiedUriList.c_str());
       sd.set(sd.get_target().c_str(), mHGCopiedUriList.c_str());
       return;
-   }
-
-
-   /* Copy the files. */
-   if (!mHGGetFilesInitiated) {
+   } else {
       utf::string str;
       utf::string hgStagingDir;
       utf::string stagingDirName;
       utf::string pre;
       utf::string post;
       size_t index = 0;
-      mFileTransferDone = false;
 
       hgStagingDir = static_cast<utf::string>(mCP->SrcUIRequestFiles());
       g_debug("%s: Getting files. Staging dir: %s", __FUNCTION__,
@@ -365,7 +365,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
          sd.set(sd.get_target().c_str(), "");
          return;
       }
-      mHGGetFilesInitiated = true;
+      mHGGetFileStatus = DND_FILE_TRANSFER_IN_PROGRESS;
 
       mBlockAdded = false;
       if (DnD_BlockIsReady(mBlockCtrl) && mBlockCtrl->AddBlock(mBlockCtrl->fd, hgStagingDir.c_str())) {
@@ -441,12 +441,9 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
        * apparently it only has so much patience regarding how quickly we
        * return.
        */
-      g_debug("%s no blocking driver, waiting for "
-            "HG file copy done ... mFileTransferDone is %d\n", __FUNCTION__,
-            (int) mFileTransferDone);
       CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
       ToolsAppCtx *ctx = wrapper->GetToolsAppCtx();
-      while (mFileTransferDone == false) {
+      while (mHGGetFileStatus == DND_FILE_TRANSFER_IN_PROGRESS) {
          struct timeval tv;
 
          tv.tv_sec = 0;
@@ -1191,7 +1188,7 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
 
       mIsClipboardOwner = true;
       mHGGetListTime = GetCurrentTime();
-      mHGGetFilesInitiated = false;
+      mHGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
       mHGCopiedUriList = "";
    }
 
@@ -1438,7 +1435,7 @@ CopyPasteUIX11::GetLocalFilesDone(bool success)
       mBlockAdded = false;
    }
 
-   mFileTransferDone = true;
+   mHGGetFileStatus = DND_FILE_TRANSFER_FINISHED;
    if (success) {
       /*
        * Mark current staging dir to be deleted on next reboot for FCP. The
@@ -1450,7 +1447,6 @@ CopyPasteUIX11::GetLocalFilesDone(bool success)
       /* Copied files are already removed in common layer. */
       mHGStagingDir.clear();
    }
-   mHGGetFilesInitiated = false;
 }
 
 

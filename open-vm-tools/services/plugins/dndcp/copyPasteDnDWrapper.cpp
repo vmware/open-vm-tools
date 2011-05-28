@@ -138,14 +138,9 @@ CopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
 {
    m_ctx = ctx;
 
-   /*
-    * We only support DnD/CP V3 and greater.
-    */
    GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
    ASSERT(p);
-   if (GetDnDVersion() >= 3 && GetCPVersion() >= 3 || GetCPVersion() == 1) {
-      p->Init(ctx);
-   }
+   p->Init(ctx);
 
    if (!m_pimpl) {
 #if defined(HAVE_GTKMM)

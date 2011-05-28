@@ -107,14 +107,13 @@ private:
    CPClipboard mClipboard;
 
    /* File vars. */
-   bool mHGGetFilesInitiated;
    VmTimeType mHGGetListTime;
    utf::string mHGCopiedUriList;
    utf::utf8string mHGFCPData;
    utf::string mHGTextData;
    std::string mHGRTFData;
    std::vector<utf::string> mHGFileContentsList;
-   bool mFileTransferDone;
+   DND_FILE_TRANSFER_STATUS mHGGetFileStatus;
    bool mBlockAdded;
    DnDBlockControl *mBlockCtrl;
    bool mInited;

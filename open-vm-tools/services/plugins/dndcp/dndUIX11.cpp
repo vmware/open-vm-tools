@@ -93,6 +93,12 @@ DnDUIX11::~DnDUIX11()
       delete m_detWnd;
    }
    CPClipboard_Destroy(&m_clipboard);
+   /* Any files from last unfinished file transfer should be deleted. */
+   if (DND_FILE_TRANSFER_IN_PROGRESS == m_HGGetFileStatus &&
+       !m_HGStagingDir.empty()) {
+      g_debug("%s: deleting dir %s\n", __FUNCTION__, m_HGStagingDir.c_str());
+      DnD_DeleteStagingFiles(m_HGStagingDir.c_str(), FALSE);
+   }
    CommonResetCB();
 }
 
@@ -938,7 +944,7 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
          g_debug("%s: not calling AddBlock\n", __FUNCTION__);
       }
       selection_data.set(DRAG_TARGET_NAME_URI_LIST, uriList.c_str());
-      g_debug("%s: exit\n", __FUNCTION__);
+      g_debug("%s: providing uriList [%s]\n", __FUNCTION__, uriList.c_str());
       return;
    }
 
