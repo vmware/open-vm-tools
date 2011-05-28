@@ -404,8 +404,9 @@ main(int argc,    // IN: length of command line arguments
    Bool show_help = FALSE;
    Bool show_version = FALSE;
    CmdTable *cmd = NULL;
+   GKeyFile *conf = NULL;
    int c;
-   int retval;
+   int retval = EXIT_FAILURE;
 
 #if defined(_WIN32)
    char **argv;
@@ -415,7 +416,8 @@ main(int argc,    // IN: length of command line arguments
 #endif
 
    setlocale(LC_ALL, "");
-   VMTools_ConfigLogging("toolboxcmd", NULL, FALSE, FALSE);
+   VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &conf, NULL);
+   VMTools_ConfigLogging("toolboxcmd", conf, FALSE, FALSE);
    VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 
    /*
@@ -424,7 +426,7 @@ main(int argc,    // IN: length of command line arguments
    if (!VmCheck_IsVirtualWorld()) {
       g_printerr(SU_(error.novirtual, "%s must be run inside a virtual machine.\n"),
                  argv[0]);
-      exit(EXIT_FAILURE);
+      goto exit;
    }
 
    /*
@@ -457,17 +459,19 @@ main(int argc,    // IN: length of command line arguments
          /* getopt_long already printed an error message. */
          g_printerr(SU_(help.hint, "Try '%s %s%s%s' for more information.\n"),
                     argv[0], "-h", "", "");
-         return EXIT_FAILURE;
+         goto exit;
 
       default:
-         return EXIT_FAILURE;
+         goto exit;
       }
    }
 
    if (show_version) {
       g_print("%s (%s)\n", TOOLBOXCMD_VERSION_STRING, BUILD_NUMBER);
+      retval = EXIT_SUCCESS;
    } else if (show_help) {
       ToolboxCmdHelp(argv[0], "help");
+      retval = EXIT_SUCCESS;
    } else {
       /* Process any remaining command line arguments (not options), and
        * execute corresponding command
@@ -502,9 +506,12 @@ main(int argc,    // IN: length of command line arguments
          g_printerr(SU_(help.hint, "Try '%s %s%s%s' for more information.\n"),
                     argv[0], "help", cmd ? " " : "", cmd ? cmd->command : "");
       }
-
-      return retval;
    }
 
-   return EXIT_SUCCESS;
+exit:
+   if (conf != NULL) {
+      g_key_file_free(conf);
+   }
+
+   return retval;
 }
