@@ -30,6 +30,7 @@
 #include "hgfsServerManager.h"
 #include "vm_assert.h"
 #include "vmware/guestrpc/tclodefs.h"
+#include "vmware/tools/log.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
 
@@ -161,7 +162,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) != 0 &&
        strcmp(ctx->name, VMTOOLS_USER_SERVICE) != 0) {
-      g_message("Unknown container '%s', not loading HGFS plugin.", ctx->name);
+      g_info("Unknown container '%s', not loading HGFS plugin.", ctx->name);
       return NULL;
    }
 

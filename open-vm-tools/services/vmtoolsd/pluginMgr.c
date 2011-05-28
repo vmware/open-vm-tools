@@ -30,6 +30,7 @@
 #include "serviceObj.h"
 #include "util.h"
 #include "vmware/tools/i18n.h"
+#include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
 
 
@@ -538,7 +539,7 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
       }
 
       if (data == NULL) {
-         g_message("Plugin '%s' didn't provide deployment data, unloading.\n", entry);
+         g_info("Plugin '%s' didn't provide deployment data, unloading.\n", entry);
          goto next;
       }
 

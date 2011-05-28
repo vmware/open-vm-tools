@@ -55,6 +55,7 @@
 #include "xdrutil.h"
 #include "vmsupport.h"
 #include "vmware/guestrpc/tclodefs.h"
+#include "vmware/tools/log.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
@@ -1050,13 +1051,13 @@ TweakGatherLoop(ToolsAppCtx *ctx,
    guestInfoPollInterval = pollInterval;
 
    if (guestInfoPollInterval) {
-      g_message("New poll interval is %us.\n", guestInfoPollInterval / 1000);
+      g_info("New poll interval is %us.\n", guestInfoPollInterval / 1000);
 
       gatherTimeoutSource = g_timeout_source_new(guestInfoPollInterval);
       VMTOOLSAPP_ATTACH_SOURCE(ctx, gatherTimeoutSource, GuestInfoGather, ctx, NULL);
       g_source_unref(gatherTimeoutSource);
    } else {
-      g_message("Poll loop disabled.\n");
+      g_info("Poll loop disabled.\n");
    }
 
    g_clear_error(&gError);

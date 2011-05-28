@@ -907,7 +907,7 @@ Debug(const char *fmt, ...)
 
 
 /**
- * Logs a message using the G_LOG_LEVEL_MESSAGE level.
+ * Logs a message using the G_LOG_LEVEL_INFO level.
  *
  * @param[in] fmt Log message format.
  */
@@ -919,7 +919,7 @@ Log(const char *fmt, ...)
    if (gPanicCount == 0) {
       va_list args;
       va_start(args, fmt);
-      g_logv(gLogDomain, G_LOG_LEVEL_MESSAGE, fmt, args);
+      g_logv(gLogDomain, G_LOG_LEVEL_INFO, fmt, args);
       va_end(args);
    }
 }
