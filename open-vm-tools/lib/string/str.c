@@ -74,10 +74,6 @@ extern int vswprintf(wchar_t *wcs, size_t maxlen, const wchar_t *format, va_list
 #   endif
 #endif // _WIN32
 
-#ifdef N_PLAT_NLM
-extern int vsnprintf(char *buf, size_t len, const char *f, va_list arg);
-#endif
-
 
 /*
  *----------------------------------------------------------------------

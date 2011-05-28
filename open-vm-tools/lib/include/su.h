@@ -50,7 +50,7 @@ Bool Id_AuthCheck(char const *right,
                   char const *localizedDescription,
                   Bool showDialogIfNeeded);
 
-#elif (defined(__linux__) || defined(sun) || defined(__FreeBSD__)) && !defined(N_PLAT_NLM)
+#elif (defined(__linux__) || defined(sun) || defined(__FreeBSD__))
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -114,7 +114,7 @@ Id_SetEGid(gid_t egid)
 }
 #endif /* linux */
 
-#if defined(_WIN32) || defined(N_PLAT_NLM)
+#if defined(_WIN32)
 #define Id_BeginSuperUser() (-1)
 #define Id_EndSuperUser(uid)
 #define Id_IsSuperUser() TRUE

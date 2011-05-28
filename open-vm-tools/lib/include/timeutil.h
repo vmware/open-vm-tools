@@ -119,11 +119,10 @@ EXTERN char * TimeUtil_GetTimeFormat(int64 utcTime,  // IN
                                      Bool showDate,  // IN
                                      Bool showTime); // IN
 
-#if !defined N_PLAT_NLM
 EXTERN int TimeUtil_NtTimeToUnixTime(struct timespec *unixTime, // OUT
                                      VmTimeType ntTime);        // IN
+
 EXTERN VmTimeType TimeUtil_UnixTimeToNtTime(struct timespec unixTime); // IN
-#endif
 
 
 #ifdef _WIN32

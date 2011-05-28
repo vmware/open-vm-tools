@@ -59,13 +59,11 @@
  *   FreeBSD: really UTF-8
  *   ESX: UTF-8 by policy decree
  *   Mac: really UTF-8
- *   Netware: don't know (either no iconv, or really UTF-8)
  */
 
 #if defined(__FreeBSD__) || \
     defined(VMX86_SERVER) || \
     defined(__APPLE__) || \
-    defined(N_PLAT_NLM) || \
     defined __ANDROID__
 #define CURRENT_IS_UTF8
 #endif

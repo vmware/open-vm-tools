@@ -253,11 +253,7 @@ Util_BufferIsEmpty(void const *base,  // IN:
 EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
                                                 unsigned int mode);
 
-#ifdef N_PLAT_NLM
-#   define DIRSEPS	      "\\"
-#   define DIRSEPC	      '\\'
-#   define VALID_DIRSEPS      "\\/:"
-#elif _WIN32
+#if _WIN32
 #   define DIRSEPS	      "\\"
 #   define DIRSEPS_W	      L"\\"
 #   define DIRSEPC	      '\\'

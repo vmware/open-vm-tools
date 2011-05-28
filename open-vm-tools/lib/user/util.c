@@ -47,7 +47,7 @@
 #include <errno.h>
 #include <ctype.h>
 
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#if !defined(_WIN32)
 #  include <unistd.h>
 #  include <getopt.h>
 #  include <pwd.h>
@@ -428,7 +428,7 @@ UtilBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwind cont
    return _URC_END_OF_STACK;
 }
 
-#if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
+#if !defined(_WIN32) && !defined(VMX86_TOOLS)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -558,7 +558,7 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
    data.skippedFrames = 0;
    _Unwind_Backtrace(UtilBacktraceFromPointerCallback, &data);
 
-#if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
+#if !defined(_WIN32) && !defined(VMX86_TOOLS)
    /* 
     * We do a separate pass here that includes symbols in order to
     * make sure the base backtrace that does not call dladdr() etc.
@@ -575,7 +575,7 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
 #elif !defined(VM_X86_64)
    uintptr_t *x = basePtr;
    int i;
-#if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
+#if !defined(_WIN32) && !defined(VMX86_TOOLS)
    Dl_info dli;
 #endif
 
@@ -588,7 +588,7 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
       x = (uintptr_t *) x[0];
    }
 
-#if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
+#if !defined(_WIN32) && !defined(VMX86_TOOLS)
    /* 
     * We do a separate pass here that includes symbols in order to
     * make sure the base backtrace that does not call dladdr() etc.
@@ -772,7 +772,7 @@ Util_BacktraceWithFunc(int bugNr, Util_OutputFunc outFunc, void *outFuncData)
 
 
 /* XXX This should go in a separate utilPosix.c file --hpreg */
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#if !defined(_WIN32)
 /*
  *----------------------------------------------------------------------
  *
@@ -1140,7 +1140,6 @@ end:
 #endif
 }
 
-#if !defined(N_PLAT_NLM)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1377,5 +1376,3 @@ Util_SeparateStrings(char *source,              // IN
 
    return stringVector;
 }
-
-#endif /* !defined(N_PLAT_NLM) */

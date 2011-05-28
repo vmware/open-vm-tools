@@ -30,12 +30,10 @@
 
 #include "posix.h"
 #include "unicode.h"
-#ifndef N_PLAT_NLM
 #include "hashTable.h"
 #include "vm_atomic.h"
 #include "util.h"
 #include "str.h"
-#endif
 
 
 #ifndef _WIN32 // {
@@ -126,8 +124,6 @@ PosixConvertToCurrentList(Unicode const *in,  // IN: list to convert
 
 #endif // }
 
-
-#ifndef N_PLAT_NLM // {
 
 /*
  * Hash table for Posix_Getenv
@@ -240,8 +236,5 @@ PosixGetenvHash(ConstUnicode name,  // IN
 
    return value;
 }
-
-#endif // }
-
 
 #endif // ifndef _POSIXINT_H_

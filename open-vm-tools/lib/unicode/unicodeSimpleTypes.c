@@ -2806,7 +2806,7 @@ UnicodeInitInternal(int argc,               // IN
     * on lib/sync, so cheese it.
     */
    while (1 == Atomic_ReadIfEqualWrite(&locked, 0, 1)) {
-#if !defined(N_PLAT_NLM) && !defined(__FreeBSD__)
+#if !defined(__FreeBSD__)
       usleep(250 * 1000);
 #endif
    }
@@ -2820,9 +2820,7 @@ UnicodeInitInternal(int argc,               // IN
     * Always init the codeset module first.
     */
    if (!CodeSet_Init(icuDataDir)) {
-#ifndef N_PLAT_NLM
       snprintf(panicMsg, sizeof panicMsg, "Failed to initialize codeset.\n");
-#endif
       goto exit;
    }
 
@@ -2831,29 +2829,23 @@ UnicodeInitInternal(int argc,               // IN
    currentCodeSetName = CodeSet_GetCurrentCodeSet();
    encoding = Unicode_EncodingNameToEnum(currentCodeSetName);
    if (!Unicode_IsEncodingValid(encoding)) {
-#ifndef N_PLAT_NLM
       snprintf(panicMsg, sizeof panicMsg,
               "Unsupported local character encoding \"%s\".\n",
                currentCodeSetName);
-#endif
       goto exit;
    }
 
    if (wargv) {
       list = Unicode_AllocList((char **)wargv, argc + 1, STRING_ENCODING_UTF16);
       if (!list) {
-#ifndef N_PLAT_NLM
          snprintf(panicMsg, sizeof panicMsg, "Unicode_AllocList1 failed.\n");
-#endif
          goto exit;
       }
       *argv = list;
    } else if (argv) {
       list = Unicode_AllocList(*argv, argc + 1, STRING_ENCODING_DEFAULT);
       if (!list) {
-#ifndef N_PLAT_NLM
          snprintf(panicMsg, sizeof panicMsg, "Unicode_AllocList2 failed.\n");
-#endif
          goto exit;
       }
       *argv = list;
@@ -2862,18 +2854,14 @@ UnicodeInitInternal(int argc,               // IN
    if (wenvp) {
       list = Unicode_AllocList((char **)wenvp, -1, STRING_ENCODING_UTF16);
       if (!list) {
-#ifndef N_PLAT_NLM
          snprintf(panicMsg, sizeof panicMsg, "Unicode_AllocList3 failed.\n");
-#endif
          goto exit;
       }
       *envp = list;
    } else if (envp) {
       list = Unicode_AllocList(*envp, -1, STRING_ENCODING_DEFAULT);
       if (!list) {
-#ifndef N_PLAT_NLM
          snprintf(panicMsg, sizeof panicMsg, "Unicode_AllocList4 failed.\n");
-#endif
          goto exit;
       }
       *envp = list;

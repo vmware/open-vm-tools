@@ -43,7 +43,7 @@
  * leading to a (potentially undetected) mismatch.
  */
 
-#if defined(linux) && !defined(N_PLAT_NLM) && \
+#if defined(linux) && \
     (!defined(_LARGEFILE64_SOURCE) || _FILE_OFFSET_BITS != 64)
 #error LFS support is not enabled!
 #endif
@@ -81,13 +81,11 @@ void Posix_Perror(ConstUnicode str);
 int Posix_Printf(ConstUnicode format, ...);
 int Posix_Fprintf(FILE *stream, ConstUnicode format, ...);
 
-#if !defined(N_PLAT_NLM)
 int Posix_Mkdir(ConstUnicode pathName, mode_t mode);
 int Posix_Chdir(ConstUnicode pathName);
 Unicode Posix_Getenv(ConstUnicode name);
 long Posix_Pathconf(ConstUnicode pathName, int name);
 int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
-#endif
 
 #if !defined(_WIN32)
 /*
@@ -106,7 +104,6 @@ void *Posix_Dlopen(ConstUnicode pathName, int flags);
 
 int Posix_Utime(ConstUnicode pathName, const struct utimbuf *times);
 
-#if !defined(N_PLAT_NLM)
 int Posix_Mknod(ConstUnicode pathName, mode_t mode, dev_t dev);
 int Posix_Chown(ConstUnicode pathName, uid_t owner, gid_t group);
 int Posix_Lchown(ConstUnicode pathName, uid_t owner, gid_t group);
@@ -170,7 +167,6 @@ struct mntent *Posix_Getmntent_r(FILE *fp, struct mntent *m,
 int Posix_Getmntent(FILE *fp, struct mnttab *mp);
 
 #endif // !defined(sun)
-#endif // !defined(N_PLAT_NLM)
 #if !defined(__APPLE__)
 
 

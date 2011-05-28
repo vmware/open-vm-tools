@@ -399,8 +399,6 @@ Hostinfo_GetSystemBitness(void)
    } else {
       return 32;
    }
-#elif defined N_PLAT_NLM
-   return 32;
 #else
    char buf[SYSTEM_BITNESS_MAXLEN] = { '\0', };
 #   if defined __FreeBSD__ || defined __APPLE__
@@ -743,10 +741,6 @@ out:
 static char *
 HostinfoGetCmdOutput(const char *cmd)  // IN:
 {
-#if defined(N_PLAT_NLM)
-   Warning("Trying to execute command \"%s\" and catch its output... No way on NetWare...\n", cmd);
-   return NULL;
-#else
    DynBuf db;
    FILE *stream;
    char *out = NULL;
@@ -797,7 +791,6 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
    pclose(stream);
 
    return out;
-#endif
 }
 
 

@@ -39,10 +39,8 @@
 #include <utime.h>
 #include <sys/time.h>
 #include <stdarg.h>
-#if !defined(N_PLAT_NLM)
 #include <pwd.h>
 #include <grp.h>
-#endif
 
 #if defined(__APPLE__)
 #include <sys/socket.h>
@@ -58,15 +56,13 @@
 #elif defined(__FreeBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
-#elif !defined(N_PLAT_NLM)
-#include <sys/statfs.h>
-#include <sys/mount.h>
-#if !defined(sun)
-#include <mntent.h>
-#else
+#elif defined(sun)
 #include <alloca.h>
 #include <sys/mnttab.h>
-#endif
+#else
+#include <sys/statfs.h>
+#include <sys/mount.h>
+#include <mntent.h>
 #endif
 
 #if !defined(__FreeBSD__) || __FreeBSD_release >= 503001
@@ -89,11 +85,9 @@
 
 #include "vm_basic_defs.h"
 
-#if !defined(N_PLAT_NLM)
 static struct passwd *GetpwInternal(struct passwd *pw);
 static int GetpwInternal_r(struct passwd *pw, char *buf, size_t size,
                            struct passwd **ppw);
-#endif
 
 
 /*
@@ -584,7 +578,6 @@ Posix_Perror(ConstUnicode str)  // IN:
 }
 
 
-#if !defined(N_PLAT_NLM) // {
 /*
  *----------------------------------------------------------------------
  *
@@ -3268,4 +3261,3 @@ Posix_Getmntent(FILE *fp,           // IN:
 }
 
 #endif // } !defined(sun)
-#endif // } !defined(N_PLAT_NLM)

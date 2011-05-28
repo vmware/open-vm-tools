@@ -173,17 +173,6 @@ HashTableComputeHash(HashTable *ht,  // IN: hash table
    return h;
 }
 
-#if defined(N_PLAT_NLM)
-static int
-strcasecmp(const char *s1,  // IN:
-           const char *s2)  // IN:
-{
-   while (*s1 && tolower(*s1++) == tolower(*s2++));
-   
-   return tolower(*s1) - tolower(*s2);
-}
-#endif
-
 
 /*
  *-----------------------------------------------------------------------------

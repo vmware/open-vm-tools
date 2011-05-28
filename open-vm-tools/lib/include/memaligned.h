@@ -170,23 +170,12 @@ Aligned_UnsafeMalloc(size_t size) // IN
 #elif defined _WIN32
    buf = _aligned_malloc(size, PAGE_SIZE);
 #elif __linux__
-#  if defined N_PLAT_NLM
-   /*
-    * Netware does not support valloc or memalign.  Fall back to malloc.
-    *
-    * TODO: Should we #define MEMALIGNED_USE_INTERNAL_IMPL for Netware
-    * as well?
-    */
-   buf = malloc(size);
-#  else
    buf = memalign(PAGE_SIZE, size);
-#  endif
 #else // Apple, BSD, Solaris (tools)
    buf = valloc(size); 
 #endif
-#if !defined N_PLAT_NLM  // Netware won't be aligned necessarily.
    ASSERT(((uintptr_t)buf % PAGE_SIZE) == 0);
-#endif
+
    return buf;
 }
 

@@ -58,7 +58,7 @@ ErrErrno2String(Err_Number errorNumber, // IN
 {
    char *p;
 
-#if defined(linux) && !defined(N_PLAT_NLM)
+#if defined(linux)
    p = strerror_r(errorNumber, buf, bufSize);
 #else
    p = strerror(errorNumber);

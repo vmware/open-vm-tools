@@ -60,8 +60,8 @@
  * These platforms use bsd_vsnprintf().
  * This does not mean it has bsd_vsnwprintf().
  */
-#if defined _WIN32 && !defined STR_NO_WIN32_LIBS || \
-    defined __linux__ && !defined N_PLAT_NLM || defined __APPLE__
+#if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
+    defined __linux__ || defined __APPLE__
 #define HAS_BSD_PRINTF 1
 #endif
 
@@ -195,11 +195,6 @@ unsigned char *Str_Mbscat(char *buf, const char *src,
    #define Str_Strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
    #define Str_ToUpper(s) _strupr(s)
    #define Str_ToLower(s) _strlwr(s)
-#elif defined(N_PLAT_NLM)
-   #define Str_Strcasecmp(s1, s2) stricmp(s1, s2)
-   #define Str_Strncasecmp(s1, s2, n) strnicmp(s1, s2, n)
-   char *Str_ToUpper(char *string);
-   char *Str_ToLower(char *string);
 #else
    #define Str_Strcasecmp(s1, s2) strcasecmp(s1, s2)
    #define Str_Strncasecmp(s1, s2, n) strncasecmp(s1, s2, n)

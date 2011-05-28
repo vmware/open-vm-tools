@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#if !defined(_WIN32)
 #include <strings.h> /* For strncasecmp */
 #endif
 #include "vmware.h"
@@ -384,9 +384,6 @@ StrUtil_StrToInt64(int64 *out,      // OUT: The output value
    *out = _strtoi64(str, &ptr, 0);
 #elif defined(__FreeBSD__)
    *out = strtoq(str, &ptr, 0);
-#elif defined(N_PLAT_NLM)
-   /* Works for small values of str... */
-   *out = (int64)strtol(str, &ptr, 0);
 #else
    *out = strtoll(str, &ptr, 0);
 #endif
@@ -429,9 +426,6 @@ StrUtil_StrToSizet(size_t *out,     // OUT: The output value
    *out = _strtoui64(str, &ptr, 0);
 #   elif defined(__FreeBSD__)
    *out = strtouq(str, &ptr, 0);
-#   elif defined(N_PLAT_NLM)
-   /* Works for small values of str... */
-   *out = strtoul(str, &ptr, 0);
 #   else
    *out = strtoull(str, &ptr, 0);
 #   endif
@@ -483,7 +477,6 @@ StrUtil_StrToDouble(double *out,      // OUT: The output value
 }
 
 
-#ifndef N_PLAT_NLM // NetWare Tools ask for unresolved _GLOBAL_OFFSET_TABLE...
 /*
  *-----------------------------------------------------------------------------
  *
@@ -580,7 +573,6 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
 
    return TRUE;
 }
-#endif
 
 
 /*

@@ -63,9 +63,7 @@
 #include "base64.h"
 #include "timeutil.h"
 #include "hostinfo.h"
-#if !defined(N_PLAT_NLM)
 #include "vm_atomic.h"
-#endif
 
 #include "unicodeOperations.h"
 
@@ -350,7 +348,6 @@ File_DeleteEmptyDirectory(ConstUnicode pathName)  // IN:
 }
 
 
-#if !defined(N_PLAT_NLM)
 /*
  *----------------------------------------------------------------------
  *
@@ -633,7 +630,6 @@ File_IsEmptyDirectory(ConstUnicode pathName)  // IN:
 
    return numFiles == 0;
 }
-#endif /* N_PLAT_NLM */
 
 
 /*
@@ -1515,7 +1511,6 @@ File_SupportsLargeFiles(ConstUnicode pathName)  // IN:
 }
 
 
-#if !defined(N_PLAT_NLM)
 /*
  *----------------------------------------------------------------------------
  *
@@ -2073,7 +2068,6 @@ FileSleeper(uint32 msecMinSleepTime,  // IN:
 
    return msecActualSleepTime;
 }
-#endif // N_PLAT_NLM
 
 
 /*

@@ -39,7 +39,7 @@
 #include <errno.h>
 #include <ctype.h>
 
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#if !defined(_WIN32)
 #  if defined(linux)
 #    include <sys/syscall.h> // for SYS_gettid
 #  endif
@@ -74,7 +74,6 @@
 #include "user_layout.h"
 #endif
 
-#if !defined(N_PLAT_NLM)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -136,7 +135,6 @@ Util_GetCanonicalPath(const char *path)  // IN:
 #endif
    return canonicalPath;
 }
-#endif
 
 
 #if defined(_WIN32)
@@ -402,7 +400,6 @@ Util_GetPrime(unsigned n0)  // IN:
 }
 
 
-#ifndef N_PLAT_NLM
 #if defined(linux)
 /*
  *-----------------------------------------------------------------------------
@@ -897,5 +894,3 @@ out:
 
    return result;
 }
-
-#endif // N_PLAT_NLM

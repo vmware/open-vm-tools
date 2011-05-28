@@ -38,9 +38,7 @@ extern "C"{
 #include "unicodeTypes.h"
 #include "err.h"
 
-#ifdef N_PLAT_NLM
-#define FILE_MAXPATH	256
-#elif defined(_WIN32)
+#if defined(_WIN32)
 #define FILE_MAXPATH	MAX_PATH
 #else
 # ifdef __FreeBSD__

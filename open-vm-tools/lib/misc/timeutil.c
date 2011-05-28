@@ -26,10 +26,7 @@
 #include "safetime.h"
 #include "unicode.h"
 
-#if defined(N_PLAT_NLM)
-#  include <sys/timeval.h>
-#  include <nwtime.h>
-#elif defined(_WIN32)
+#if defined(_WIN32)
 #  include <wtypes.h>
 #else
 #  include <sys/time.h>
@@ -871,7 +868,6 @@ TimeUtil_GetTimeFormat(int64 utcTime,  // IN
 }
 
 
-#if !defined N_PLAT_NLM
 /*
  *-----------------------------------------------------------------------------
  *
@@ -957,7 +953,6 @@ TimeUtil_UnixTimeToNtTime(struct timespec unixTime) // IN: Time in Unix format
    return (VmTimeType)unixTime.tv_sec * 10000000 +
                                           unixTime.tv_nsec / 100 + UNIX_EPOCH;
 }
-#endif // N_PLAT_NLM
 
 #ifdef _WIN32
 /*
@@ -1093,7 +1088,7 @@ TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName)   // OUT: returning
       struct tm tim;
       localtime_r(&now, &tim);
 
-      #if defined(sun) || defined N_PLAT_NLM
+      #if defined(sun)
          /*
           * Offset is to standard (no need for DST adjustment).
           * Negative is east of prime meridian.

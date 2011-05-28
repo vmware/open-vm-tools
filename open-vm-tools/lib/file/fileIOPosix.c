@@ -39,7 +39,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <dirent.h>
-#if !defined(N_PLAT_NLM) && defined(linux)
+#if defined(linux)
 /*
  * These headers are needed to get __USE_LARGEFILE, __USE_LARGEFILE64,
  * and SYS__llseek.
@@ -69,12 +69,10 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
-#if !defined(N_PLAT_NLM)
 #include <sys/statfs.h>
 #if !defined(sun)
 #include <mntent.h>
 #include <dlfcn.h>
-#endif
 #endif
 #endif
 #endif
@@ -805,7 +803,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    if (access & FILEIO_OPEN_EXCLUSIVE_LOCK_MACOS) {
       flags |= O_EXLOCK;
    }
-#elif !defined(__FreeBSD__) && !defined(sun) && !defined(N_PLAT_NLM)
+#elif !defined(__FreeBSD__) && !defined(sun)
    /*
     * If FILEIO_OPEN_EXCLUSIVE_LOCK or FILEIO_OPEN_MULTIWRITER_LOCK or
     * (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_LOCKED) are passed, and we are
@@ -883,6 +881,10 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       flags |= O_SYNC;
    }
 #endif
+
+   if (access & FILEIO_OPEN_ACCESS_NOFOLLOW) {
+      flags |= O_NOFOLLOW;
+   }
 
    flags |= FileIO_OpenActions[action];
 
@@ -1027,7 +1029,7 @@ FileIO_Open(FileIODescriptor *file,   // OUT:
  *----------------------------------------------------------------------
  */
 
-#if defined(linux) && !defined(N_PLAT_NLM) && defined(SYS__llseek)
+#if defined(linux) && defined(SYS__llseek)
 /*
  * If the llseek system call exists, use it to provide a version of 64-bit
  * lseek() functionality, for FileIO_Seek() to use if appropriate.
@@ -1243,7 +1245,6 @@ FileIO_Read(FileIODescriptor *fd,  // IN:
 }
 
 
-#if !defined(N_PLAT_NLM)
 /*
  *----------------------------------------------------------------------
  *
@@ -1268,7 +1269,6 @@ FileIO_Truncate(FileIODescriptor *file,  // IN:
 
    return ftruncate(file->posix, newLength) == 0;
 }
-#endif /* !defined(N_PLAT_NLM) */
 
 
 /*
@@ -1310,7 +1310,6 @@ FileIO_Close(FileIODescriptor *file)  // IN:
 }
 
 
-#if !defined(N_PLAT_NLM)
 /*
  *----------------------------------------------------------------------
  *
@@ -1849,7 +1848,6 @@ exit:
 }
 #endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||
           defined(sun) */
-#endif /* !defined(N_PLAT_NLM) */
 
 /*
  *----------------------------------------------------------------------
@@ -1901,16 +1899,12 @@ FileIO_GetAllocSize(const FileIODescriptor *fd)  // IN
 
    ASSERT(fd);
 
-#if __linux__ && defined(N_PLAT_NLM)
-   /* Netware doesn't have st_blocks.  Just fall back to GetSize. */
-   return FileIO_GetSize(fd);
-#else
    /*
     * If you don't like the magic number 512, yell at the people
     * who wrote sys/stat.h and tell them to add a #define for it.
     */
+
    return (fstat(fd->posix, &s) == -1) ? -1 : s.st_blocks * 512;
-#endif
 }
 
 
@@ -2093,10 +2087,7 @@ Bool
 FileIO_SupportsFileSize(const FileIODescriptor *fd,  // IN:
                         uint64 requestedSize)        // IN:
 {
-#if defined(N_PLAT_NLM)
-   /* API we use on NetWare cannot go over 2GB - 1 although filesystem could. */
-   return requestedSize <= 0x7FFFFFFF;
-#elif defined(linux)
+#if defined(linux)
    /*
     * Linux makes test on seek(), so we can do simple non-intrusive test.
     * Verified to work on 2.2.x, 2.4.x and 2.6.x, with ext2, ext3, smbfs, 
