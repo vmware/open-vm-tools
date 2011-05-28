@@ -2857,24 +2857,29 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
    timesStatus = HgfsSetattrTimes(&statBuf, attr, hints,
                                   &times[0], &times[1], &timesChanged);
    if (timesStatus == 0 && timesChanged) {
-      uid_t uid;
+      uid_t uid = (uid_t)-1;
+      Bool switchToSuperUser = FALSE;
 
       LOG(4, ("%s: setting new times\n", __FUNCTION__));
 
       /*
-       * If the VMX is either the file owner or running as root, switch to
-       * superuser briefly to set the files times using futimes. Otherwise
-       * return an error.
+       * If the VMX is neither the file owner nor running as root, return an error.
+       * Otherwise if we are not the file owner switch to superuser briefly
+       * to set the files times using futimes.
        */
 
-      if (!Id_IsSuperUser() && (getuid() != statBuf.st_uid)) {
-         LOG(4, ("%s: only owner of file %u or root can call futimes\n",
-                 __FUNCTION__, fd));
-         /* XXX: Linux kernel says both EPERM and EACCES are valid here. */
-         status = EPERM;
-         goto exit;
+      if (getuid() != statBuf.st_uid) {
+         /* We are not the file owner. Check if we are running as root. */
+         if (!Id_IsSuperUser()) {
+            LOG(4, ("%s: only owner of file %u or root can call futimes\n",
+                    __FUNCTION__, fd));
+            /* XXX: Linux kernel says both EPERM and EACCES are valid here. */
+            status = EPERM;
+            goto exit;
+         }
+         uid = Id_BeginSuperUser();
+         switchToSuperUser = TRUE;
       }
-      uid = Id_BeginSuperUser();
       /*
        * XXX Newer glibc provide also lutimes() and futimes()
        *     when we politely ask with -D_GNU_SOURCE -D_BSD_SOURCE
@@ -2886,7 +2891,9 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
                  fd, strerror(error)));
          status = error;
       }
-      Id_EndSuperUser(uid);
+      if (switchToSuperUser) {
+         Id_EndSuperUser(uid);
+      }
    } else if (timesStatus != 0) {
       status = timesStatus;
    }
