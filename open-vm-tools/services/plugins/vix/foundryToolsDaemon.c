@@ -68,14 +68,13 @@
 #include "guest_msg_def.h"
 #include "conf.h"
 #include "vixCommands.h"
-#include "foundryToolsDaemon.h"
-#include "printer.h"
 #include "base64.h"
 #include "syncDriver.h"
 #include "hgfsServerManager.h"
 #include "hgfs.h"
 #include "system.h"
 #include "codeset.h"
+#include "vixToolsInt.h"
 
 #if defined(linux)
 #include "hgfsDevLinux.h"
@@ -86,7 +85,6 @@
 #include "impersonate.h"
 #endif
 
-#include "vixTools.h"
 #include "vixOpenSource.h"
 
 #define MAX64_DECIMAL_DIGITS 20          /* 2^64 = 18,446,744,073,709,551,616 */

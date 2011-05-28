@@ -108,7 +108,6 @@
 #endif
 
 #include "vixOpenSource.h"
-#include "vixTools.h"
 #include "vixToolsInt.h"
 
 #ifdef _WIN32

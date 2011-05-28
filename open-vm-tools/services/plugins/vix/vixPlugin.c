@@ -27,7 +27,6 @@
 #include <string.h>
 
 #include "vmware.h"
-#include "foundryToolsDaemon.h"
 #include "syncDriver.h"
 #include "vixCommands.h"
 #include "vixPluginInt.h"

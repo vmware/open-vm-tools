@@ -46,6 +46,59 @@ typedef struct VixToolsEnvIterator VixToolsEnvIterator;
 
 typedef struct VixToolsUserEnvironment VixToolsUserEnvironment;
 
+typedef void (*VixToolsReportProgramDoneProcType)(const char *requestName,
+                                                  VixError err,
+                                                  int exitCode,
+                                                  int64 pid,
+                                                  void *clientData);
+
+VixError VixTools_Initialize(Bool thisProcessRunsAsRootArg,
+                             const char * const *originalEnvp,
+                             VixToolsReportProgramDoneProcType reportProgramDoneProc,
+                             void *clientData);
+
+void VixTools_Uninitialize(void);
+
+void VixTools_SetConsoleUserPolicy(Bool allowConsoleUserOpsParam);
+
+void VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProgramDoneProc,
+                                    void *clientData);
+
+/*
+ * These are internal procedures that are exposed for the legacy
+ * tclo callbacks.
+ */
+VixError VixToolsRunProgramImpl(char *requestName,
+                                const char *commandLine,
+                                const char *commandLineArgs,
+                                int runProgramOptions,
+                                void *userToken,
+                                void *eventQueue,
+                                int64 *pid);
+
+VixError VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,
+                                         char **resultBuffer,
+                                         size_t *resultBufferLength);
+
+VixError VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,
+                                    char *requestName,
+                                    size_t maxResultBufferSize,
+                                    GKeyFile *confDictRef,
+                                    GMainLoop *eventQueue,
+                                    char **resultBuffer,
+                                    size_t *resultLen,
+                                    Bool *deleteResultBufferResult);
+
+
+Bool VixToolsImpersonateUserImpl(char const *credentialTypeStr,
+                                 int credentialType,
+                                 char const *password,
+                                 void **userToken);
+
+void VixToolsUnimpersonateUser(void *userToken);
+
+void VixToolsLogoutUser(void *userToken);
+
 VixError VixToolsNewEnvIterator(void *userToken, VixToolsEnvIterator **envItr);
 
 char *VixToolsGetNextEnvVar(VixToolsEnvIterator *envItr);

@@ -28,8 +28,13 @@
 #define Debug        g_debug
 #define Warning      g_warning
 
+#include "vmware/tools/guestrpc.h"
 #include "vmware/tools/plugin.h"
-#include "rpcin.h"
+
+void
+FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx);
+void
+FoundryToolsDaemon_Uninitialize(ToolsAppCtx *ctx);
 
 gboolean
 ToolsDaemonTcloCheckUserAccount(RpcInData *data);
