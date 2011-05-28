@@ -187,8 +187,8 @@ FileRename(ConstUnicode oldName,  // IN:
  */
 
 int
-FileDeletion(ConstUnicode pathName,   // IN:
-             const Bool handleLink)   // IN:
+FileDeletion(ConstUnicode pathName,  // IN:
+             const Bool handleLink)  // IN:
 {
    int err;
    char *linkPath = NULL;
@@ -1215,12 +1215,12 @@ exit:
  */
 
 int 
-File_GetVMFSMountInfo(ConstUnicode pathName,  // IN:
-                     char **fsType,           // OUT:
-                     uint32 *version,         // OUT:
-                     char **remoteIP,         // OUT:
-                     char **remoteMountPoint, // OUT:
-                     char **localMountPoint)  // OUT:
+File_GetVMFSMountInfo(ConstUnicode pathName,   // IN:
+                     char **fsType,            // OUT:
+                     uint32 *version,          // OUT:
+                     char **remoteIP,          // OUT:
+                     char **remoteMountPoint,  // OUT:
+                     char **localMountPoint)   // OUT:
 {
    int ret;
    int len;
@@ -1274,7 +1274,7 @@ File_GetVMFSMountInfo(ConstUnicode pathName,  // IN:
  */
 
 Bool
-FileIsVMFS(ConstUnicode pathName) // IN
+FileIsVMFS(ConstUnicode pathName)  // IN:
 {
    Bool result = FALSE;
 
@@ -1318,7 +1318,7 @@ FileIsVMFS(ConstUnicode pathName) // IN
  */
 
 Bool
-File_SupportsZeroedThick(ConstUnicode pathName) // IN
+File_SupportsZeroedThick(ConstUnicode pathName)  // IN:
 {
    return FileIsVMFS(pathName);
 }
@@ -1344,7 +1344,7 @@ File_SupportsZeroedThick(ConstUnicode pathName) // IN
  */
 
 Bool
-File_SupportsMultiWriter(ConstUnicode pathName) // IN
+File_SupportsMultiWriter(ConstUnicode pathName)  // IN:
 {
    return FileIsVMFS(pathName);
 }
