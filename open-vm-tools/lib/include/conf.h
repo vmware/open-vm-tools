@@ -44,7 +44,6 @@
 #   define CONFVAL_SUSPENDSCRIPT_DEFAULT  "suspend-vm-default.bat"
 #endif
 
-#define CONFNAME_MAX_WIPERSIZE            "max.wiperfile.size"
 #define CONFNAME_POWERONSCRIPT            "poweron-script"
 #define CONFNAME_POWEROFFSCRIPT           "poweroff-script"
 #define CONFNAME_RESUMESCRIPT             "resume-script"
@@ -137,25 +136,8 @@
  */
 
 
-/*
- * Tell the tools to show the wireless icon in the guest.
- */
-
-#define CONFNAME_SHOW_WIRELESS_ICON "wirelessIcon.enable"
-
 /** Where to find Tools data in the Win32 registry. */
 #define CONF_VMWARE_TOOLS_REGKEY    "Software\\VMware, Inc.\\VMware Tools"
-
-/*
- * Directory containing the tools library files.  Currently only intended
- * for vmware-user.
- */
-#if !defined(_WIN32)
-#   define CONFNAME_LIBDIR                        "libdir"
-#endif
-
-/* Default maximum size of wiper file in MB */
-#define CONFVAL_MAX_WIPERSIZE_DEFAULT         "512"
 
 /* Wait 5 seconds between polls to see if the conf file has changed */
 #define CONF_POLL_TIME     500

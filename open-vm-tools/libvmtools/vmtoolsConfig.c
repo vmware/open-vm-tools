@@ -110,9 +110,6 @@ VMToolsConfigLoadLegacy(void)
       Warning("Could not get path to Tools installation.\n");
    }
 
-   GuestApp_SetDictEntryDefault(confDict, CONFNAME_MAX_WIPERSIZE,
-                                CONFVAL_MAX_WIPERSIZE_DEFAULT);
-
    /* Load the user-configured values from the conf file if it's there */
    GuestApp_LoadDict(confDict);
 
@@ -193,12 +190,9 @@ VMToolsConfigUpgrade(GuestApp_Dict *old,
       { CONFNAME_RESUMESCRIPT, "powerops", CONFNAME_RESUMESCRIPT, CFG_STRING, NULL },
       { CONFNAME_SUSPENDSCRIPT, "powerops", CONFNAME_SUSPENDSCRIPT, CFG_STRING, NULL },
       /* guestd options. */
-      { CONFNAME_MAX_WIPERSIZE, "vmsvc", CONFNAME_MAX_WIPERSIZE, CFG_INTEGER, NULL },
       { CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO, "guestinfo", CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO, CFG_BOOLEAN, NULL },
       { CONFNAME_DISABLETOOLSVERSION, "vmsvc", CONFNAME_DISABLETOOLSVERSION, CFG_BOOLEAN, NULL },
 #if defined(_WIN32)
-      /* Tray options. */
-      { CONFNAME_SHOW_WIRELESS_ICON, "vmtray", CONFNAME_SHOW_WIRELESS_ICON, CFG_BOOLEAN, NULL },
       { CONFNAME_DISABLEPMTIMERWARNING, "desktopevents", CONFNAME_DISABLEPMTIMERWARNING, CFG_BOOLEAN, NULL },
 #endif
       /* Unity options. */
