@@ -407,6 +407,11 @@ GuestDnDMgr::OnRpcUpdateUnityDetWnd(uint32 sessionId,
       return;
    }
 
+   if (mUnityDnDDetTimeout) {
+      g_source_destroy(mUnityDnDDetTimeout);
+      mUnityDnDDetTimeout = NULL;
+   }
+
    if (show) {
       /*
        * When showing full screen window, also show the small top-most
@@ -415,16 +420,13 @@ GuestDnDMgr::OnRpcUpdateUnityDetWnd(uint32 sessionId,
        * this window to accept drop in cancel case.
        */
       UpdateDetWnd(show, 1, 1);
-      if (mUnityDnDDetTimeout) {
-         g_source_unref(mUnityDnDDetTimeout);
-         mUnityDnDDetTimeout = NULL;
-      }
       mUnityDnDDetTimeout = g_timeout_source_new(UNITY_DND_DET_TIMEOUT);
       VMTOOLSAPP_ATTACH_SOURCE(mToolsAppCtx,
                                mUnityDnDDetTimeout,
                                DnDUnityDetTimeout,
                                this,
                                NULL);
+      g_source_unref(mUnityDnDDetTimeout);
       mSessionId = sessionId;
       Debug("%s: change sessionId to %d\n", __FUNCTION__, mSessionId);
    } else {

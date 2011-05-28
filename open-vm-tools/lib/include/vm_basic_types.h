@@ -695,7 +695,7 @@ typedef void * UserVA;
  * that gcc will not do inlining.
  */
 
-#if defined(__GNUC__) && defined(VMM)
+#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
 #define ABSOLUTELY_NOINLINE __attribute__((__noinline__))
 #endif
 

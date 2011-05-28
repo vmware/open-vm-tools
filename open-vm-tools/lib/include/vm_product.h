@@ -427,8 +427,13 @@
  * run time, and the MUI is not really a separate product.
  */
 #   if defined(__APPLE__)
-#      define VMWARE_HOST_DIRECTORY_PREFIX \
-          "/Library/Application Support/" PRODUCT_SHORT_NAME
+#      if defined VMX86_DESKTOP
+#         define VMWARE_HOST_DIRECTORY_PREFIX \
+             "/Applications/" PRODUCT_SHORT_NAME ".app/Contents/Library"
+#      else
+#         define VMWARE_HOST_DIRECTORY_PREFIX \
+             "/Library/Application Support/" PRODUCT_SHORT_NAME
+#      endif
 #   endif
 
 #   if defined(VMX86_API)

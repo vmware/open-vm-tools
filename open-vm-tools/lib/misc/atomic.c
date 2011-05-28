@@ -30,9 +30,11 @@
 #include "x86cpuid.h"
 #include "x86cpuid_asm.h"
 #include "vm_basic_asm.h"
+#include "vmk_exports.h"
 
 
 Bool AtomicUseFence;
+VMK_KERNEL_EXPORT(AtomicUseFence);
 
 Bool atomicFenceInitialized;
 

@@ -237,9 +237,10 @@
    LOGLEVEL_VAR(sg), /* lib/sg */ \
    LOGLEVEL_VAR(ftcpt), \
    LOGLEVEL_VAR(wrapLib),  \
-   LOGLEVEL_VAR(bluetooth),  \
    LOGLEVEL_VAR(digestlib), \
+   LOGLEVEL_VAR(inputdevtap), \
    LOGLEVEL_VAR(svgadevtap), \
+   LOGLEVEL_VAR(masReceipt), \
    LOGLEVEL_VAR(ssl), \
    LOGLEVEL_VAR(vmrc), \
    /* end of list */
