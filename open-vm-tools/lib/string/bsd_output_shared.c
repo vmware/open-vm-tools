@@ -104,7 +104,46 @@ dtoa(double d,       // IN
    char *str = NULL;
    int dec;
 
-#ifndef _WIN32
+#if defined(_WIN32)
+   if (2 == mode) {
+      str = malloc(_CVTBUFSIZE);
+      if (str) {
+         if (_ecvt_s(str, _CVTBUFSIZE, d, prec, &dec, sign)) {
+            free(str);
+            str = NULL;
+         }
+      }
+   } else {
+      ASSERT(3 == mode);
+      str = malloc(_CVTBUFSIZE);
+      if (str) {
+         if (_fcvt_s(str, _CVTBUFSIZE, d, prec, &dec, sign)) {
+            free(str);
+            str = NULL;
+         }
+      }
+
+      /*
+       * When the value is not zero but rounds to zero at prec digits,
+       * the Windows fcvt() sometimes returns the empty string and
+       * a negative dec that goes too far (as in -dec > prec).
+       * For example, converting 0.001 with prec 1 results in
+       * the empty string and dec -2.  (See bug 253674.)
+       *
+       * We just clamp dec to -prec when this happens.
+       *
+       * While this may appear to be a safe and good thing to
+       * do in general.  It really only works when the result is
+       * all zeros or empty.  Since checking for all zeros is
+       * expensive, we only check for empty string, which works
+       * for this bug.
+       */
+
+      if (str && *str == '\0' && dec < 0 && dec < -prec) {
+	 dec = -prec;
+      }
+   }
+#else // _WIN32
    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
    if (2 == mode) {
@@ -146,44 +185,6 @@ dtoa(double d,       // IN
          pthread_mutex_lock(&mutex);
          str = strdup(fcvt(d, prec, &dec, sign));
          pthread_mutex_unlock(&mutex);
-      }
-   }
-#else // _WIN32
-   if (2 == mode) {
-      str = malloc(_CVTBUFSIZE);
-      if (str) {
-         if (_ecvt_s(str, _CVTBUFSIZE, d, prec, &dec, sign)) {
-            free(str);
-            str = NULL;
-         }
-      }
-   } else {
-      ASSERT(3 == mode);
-      str = malloc(_CVTBUFSIZE);
-      if (str) {
-         if (_fcvt_s(str, _CVTBUFSIZE, d, prec, &dec, sign)) {
-            free(str);
-            str = NULL;
-         }
-      }
-      /*
-       * When the value is not zero but rounds to zero at prec digits,
-       * the Windows fcvt() sometimes returns the empty string and
-       * a negative dec that goes too far (as in -dec > prec).
-       * For example, converting 0.001 with prec 1 results in
-       * the empty string and dec -2.  (See bug 253674.)
-       *
-       * We just clamp dec to -prec when this happens.
-       *
-       * While this may appear to be a safe and good thing to
-       * do in general.  It really only works when the result is
-       * all zeros or empty.  Since checking for all zeros is
-       * expensive, we only check for empty string, which works
-       * for this bug.
-       */
-
-      if (str && *str == '\0' && dec < 0 && dec < -prec) {
-	 dec = -prec;
       }
    }
 #endif // _WIN32
