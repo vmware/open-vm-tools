@@ -465,7 +465,8 @@ typedef uint64    BA;
 #endif
 typedef uint32    BPN;
 typedef uint32    PageNum;
-typedef unsigned  MemHandle;
+typedef unsigned      MemHandle;
+typedef unsigned int  IoHandle;
 typedef int32     World_ID;
 
 /* !! do not alter the definition of INVALID_WORLD_ID without ensuring
