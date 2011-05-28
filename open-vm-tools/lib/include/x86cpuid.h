@@ -1273,4 +1273,50 @@ CPUID_LevelUsesEcx(uint32 level) {
    return level == 4 || level == 7 || level == 0xb || level == 0xd;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUID_IsValid*Subleaf --
+ *
+ *      Functions to determine the last subleaf for the level specified
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE Bool
+CPUID_IsValidBSubleaf(uint32 ebx)  // IN: %ebx = cpuid.b.sublevel.ebx
+{
+   return ebx != 0;
+}
+
+static INLINE Bool
+CPUID_IsValid4Subleaf(uint32 eax)  // IN: %eax = cpuid.4.sublevel.eax
+{
+   return eax != 0;
+}
+
+static INLINE Bool
+CPUID_IsValid7Subleaf(uint32 eax, uint32 subleaf)  // IN: %eax = cpuid.7.0.eax
+{
+   /*
+    * cpuid.7.0.eax is the max ecx (subleaf) index
+    */
+   return subleaf <= eax;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUID_IsValidDSubleaf --
+ *
+ *    It is the caller's repsonsibility to determine if the processor
+ *    supports XSAVE and therefore has D sub-leaves.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE Bool
+CPUID_IsValidDSubleaf(uint32 subleaf)  // IN: subleaf to check
+{
+   return subleaf <= 63;
+}
 #endif
