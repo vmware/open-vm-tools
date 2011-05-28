@@ -323,7 +323,9 @@ static HgfsInternalStatus HgfsSetattrTimes(struct stat *statBuf,
                                            Bool *timesChanged);
 
 static HgfsInternalStatus HgfsGetHiddenXAttr(char const *fileName, Bool *attribute);
-static HgfsInternalStatus HgfsSetHiddenXAttr(char const *fileName, Bool value);
+static HgfsInternalStatus HgfsSetHiddenXAttr(char const *fileName,
+                                             Bool value,
+                                             mode_t permissions);
 static HgfsInternalStatus HgfsEffectivePermissions(char *fileName,
                                                    Bool readOnlyShare,
                                                    uint32 *permissions);
@@ -1082,11 +1084,6 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       goto exit;
    }
 
-   /* Set the rest of the Windows specific attributes if necessary. */
-   if (needToSetAttribute) {
-      HgfsSetHiddenXAttr(openInfo->utf8Name, openInfo->attr & HGFS_ATTR_HIDDEN);
-   }
-
    /* Stat file to get its volume and file info */
    if (fstat(fd, &fileStat) < 0) {
       error = errno;
@@ -1095,6 +1092,12 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       close(fd);
       status = error;
       goto exit;
+   }
+
+   /* Set the rest of the Windows specific attributes if necessary. */
+   if (needToSetAttribute) {
+      HgfsSetHiddenXAttr(openInfo->utf8Name, openInfo->attr & HGFS_ATTR_HIDDEN,
+                         fileStat.st_mode);
    }
 
    /* Try to acquire an oplock. */
@@ -2840,11 +2843,13 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
       }
    }
 
-   if (attr->mask & HGFS_ATTR_VALID_FLAGS) {
+   /* Setting hidden attribute for symlink itself is not supported. */
+   if ((attr->mask & HGFS_ATTR_VALID_FLAGS) && !S_ISLNK(statBuf.st_mode)) {
        char *localName;
        size_t localNameSize;
        if (HgfsHandle2FileName(file, session, &localName, &localNameSize)) {
-          status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN);
+          status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN,
+                                      newPermissions);
           free(localName);
        }
    }
@@ -3007,7 +3012,8 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
    }
 
    if (attr->mask & HGFS_ATTR_VALID_FLAGS) {
-      status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN);
+      status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN,
+                                  newPermissions);
    }
 
    timesStatus = HgfsSetattrTimes(&statBuf, attr, hints,
@@ -3974,7 +3980,7 @@ HgfsPlatformCreateDir(HgfsCreateDirInfo *info,  // IN: direcotry properties
        *  Set hidden attribute when requested.
        *  Do not fail directory creation if setting hidden attribute fails.
        */
-      HgfsSetHiddenXAttr(utf8Name, TRUE);
+      HgfsSetHiddenXAttr(utf8Name, TRUE, permissions);
    }
 
    if (status) {
@@ -4360,7 +4366,8 @@ ChangeInvisibleFlag(uint16 *flags,           // IN: variable that contains flags
 
 static HgfsInternalStatus
 HgfsSetHiddenXAttr(char const *fileName,       // IN: path to the file
-                   Bool value)                 // IN: new value to the invisible attribute
+                   Bool value,                 // IN: new value to the invisible attribute
+                   mode_t permissions)         // IN: permissions of the file
 {
    HgfsInternalStatus err;
    Bool changed = FALSE;
@@ -4397,6 +4404,22 @@ HgfsSetHiddenXAttr(char const *fileName,       // IN: path to the file
       attrList.commonattr = ATTR_CMN_FNDRINFO;
       err = setattrlist(fileName, &attrList, attrBuf.finderInfo,
                         sizeof attrBuf.finderInfo, 0);
+      if (0 != err) {
+         err = errno;
+      }
+      if (EACCES == err) {
+         mode_t mode = permissions | S_IWOTH | S_IWGRP | S_IWUSR;
+         if (chmod(fileName, mode) == 0) {
+            err = setattrlist(fileName, &attrList, attrBuf.finderInfo,
+                              sizeof attrBuf.finderInfo, 0);
+            if (0 != err) {
+               err = errno;
+            }
+            chmod(fileName, permissions);
+         } else {
+            err = errno;
+         }
+      }
    }
    return err;
 }
@@ -4451,7 +4474,8 @@ HgfsGetHiddenXAttr(char const *fileName,    // IN: File name
 
 static HgfsInternalStatus
 HgfsSetHiddenXAttr(char const *fileName,   // IN: File name
-                   Bool value)             // IN: Value of the attribute to set
+                   Bool value,             // IN: Value of the attribute to set
+                   mode_t permissions)     // IN: permissions of the file
 {
    return 0;
 }
