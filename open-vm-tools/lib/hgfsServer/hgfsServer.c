@@ -285,6 +285,8 @@ static void Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder,
                                       char* fileName,
                                       uint32 mask,
                                       struct HgfsSessionInfo *session);
+static void HgfsFreeSearchDirents(HgfsSearch *search);
+
 
 /*
  * Opcode handlers
@@ -2349,6 +2351,38 @@ HgfsAddNewSearch(char const *utf8Dir,       // IN: UTF8 name of dir to search in
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsFreeSearchDirents --
+ *
+ *    Frees all dirents and dirents pointer array.
+ *
+ *    Caller should hold the session's searchArrayLock.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsFreeSearchDirents(HgfsSearch *search)       // IN/OUT: search
+{
+   unsigned int i;
+
+   if (search->dents) {
+      for (i = 0; i < search->numDents; i++) {
+         free(search->dents[i]);
+      }
+      free(search->dents);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsRemoveSearchInternal --
  *
  *    Destroy a search object and recycle it to the free list
@@ -2374,17 +2408,7 @@ HgfsRemoveSearchInternal(HgfsSearch *search,       // IN: search
    LOG(4, ("%s: handle %u, dir %s\n", __FUNCTION__,
            HgfsSearch2SearchHandle(search), search->utf8Dir));
 
-   /* Free all of the dirents */
-   if (search->dents) {
-      unsigned int i;
-
-      for (i = 0; i < search->numDents; i++) {
-         free(search->dents[i]);
-      }
-
-      free(search->dents);
-   }
-
+   HgfsFreeSearchDirents(search);
    free(search->utf8Dir);
    free(search->utf8ShareName);
    free((char*)search->shareInfo.rootDir);
@@ -7675,6 +7699,28 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
                              search.utf8ShareName));
                      status = HGFS_ERROR_FILE_NOT_FOUND;
                   }
+               } else if (0 == info.startIndex) {
+                  HgfsSearch *rootSearch;
+
+                  MXUser_AcquireExclLock(input->session->searchArrayLock);
+
+                  rootSearch = HgfsSearchHandle2Search(hgfsSearchHandle, input->session);
+                  ASSERT(NULL != rootSearch);
+                  HgfsFreeSearchDirents(rootSearch);
+
+                  rootSearch->numDents =
+                     HgfsServerGetDents(HgfsServerPolicy_GetShares,
+                                        HgfsServerPolicy_GetSharesInit,
+                                        HgfsServerPolicy_GetSharesCleanup,
+                                        &rootSearch->dents);
+                  if (rootSearch->numDents < 0) {
+                     ASSERT_DEVEL(0);
+                     LOG(4, ("%s: couldn't get root dents\n", __FUNCTION__));
+                     rootSearch->numDents = 0;
+                     status = HGFS_ERROR_INTERNAL;
+                  }
+
+                  MXUser_ReleaseExclLock(input->session->searchArrayLock);
                }
 
                if (HGFS_ERROR_SUCCESS == status) {
