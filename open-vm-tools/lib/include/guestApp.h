@@ -38,53 +38,13 @@ extern "C" {
 #   include "vm_basic_types.h"
 #   include "removable_device.h"
 
-typedef struct GuestApp_Dict GuestApp_Dict;
-
 uint32
 GuestApp_OldGetOptions(void);
-
-void
-GuestApp_OldSetOptions(uint32 options); // IN
 
 Bool
 GuestApp_SetOptionInVMX(const char *option,     // IN
                         const char *currentVal, // IN
                         const char *newVal);    // IN
-
-GuestApp_Dict *
-GuestApp_ConstructDict(char *fileName); // IN
-
-void
-GuestApp_SetDictEntry(GuestApp_Dict *dict, // IN
-                      const char *name,    // IN
-                      const char *value);  // IN
-
-void
-GuestApp_SetDictEntryDefault(GuestApp_Dict *dict,     // IN
-                             const char *name,        // IN
-                             const char *defaultVal); // IN
-const char *
-GuestApp_GetDictEntry(GuestApp_Dict *dict, // IN
-                      const char *name);   // IN
-
-const char *
-GuestApp_GetDictEntryDefault(GuestApp_Dict *dict, // IN
-                             const char *name);   // IN
-
-Bool
-GuestApp_GetDictEntryInt(GuestApp_Dict *dict, // IN
-                         const char *name,    // IN
-                         int32 *value);       // OUT
-
-Bool
-GuestApp_GetDictEntryBool(GuestApp_Dict *dict, // IN
-                          const char *name);   // IN
-
-void
-GuestApp_FreeDict(GuestApp_Dict *dict); // IN
-
-Bool
-GuestApp_LoadDict(GuestApp_Dict *dict); // IN
 
 const char *
 GuestApp_GetDefaultScript(const char *confName); // IN

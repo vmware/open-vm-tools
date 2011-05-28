@@ -31,9 +31,12 @@
 #include <glib/gstdio.h>
 
 #include "vm_assert.h"
+#include "dictll.h"
 #include "conf.h"
+#include "err.h"
 #include "guestApp.h"
 #include "str.h"
+#include "strutil.h"
 #include "util.h"
 
 /** Data types supported for translation. */
@@ -59,63 +62,85 @@ typedef void (*CfgCallback)(GKeyFile *cfg, const ConfigEntry *, const char *);
 /**
  * Loads the legacy configuration file in the VMware dictionary format.
  *
- * @return A dictionary with the config data.
+ * @return A dictionary with the config data, NULL on error.
  */
 
-static GuestApp_Dict *
+static GHashTable *
 VMToolsConfigLoadLegacy(void)
 {
-   GuestApp_Dict *confDict;
-   char *path;
+   gchar *path;
+   gchar *localPath;
    char *confPath = GuestApp_GetConfPath();
-   char *installPath = GuestApp_GetInstallPath();
+   gboolean success = FALSE;
+   FILE *stream = NULL;
+   GHashTable *dict = NULL;
 
    if (confPath == NULL) {
       Panic("Could not get path to Tools configuration file.\n");
    }
 
-   path = Str_Asprintf(NULL, "%s%c%s", confPath, DIRSEPC, CONF_FILE);
-   ASSERT_NOT_IMPLEMENTED(path);
-   confDict = GuestApp_ConstructDict(path);
-   /* don't free path; it's used by the dict */
-
-   /* Set default conf values */
-   if (installPath != NULL) {
-      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
-                          CONFVAL_POWERONSCRIPT_DEFAULT);
-      ASSERT_NOT_IMPLEMENTED(path);
-      GuestApp_SetDictEntryDefault(confDict, CONFNAME_POWERONSCRIPT, path);
-      free(path);
-
-      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
-                          CONFVAL_POWEROFFSCRIPT_DEFAULT);
-      ASSERT_NOT_IMPLEMENTED(path);
-      GuestApp_SetDictEntryDefault(confDict, CONFNAME_POWEROFFSCRIPT, path);
-      free(path);
-
-      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
-                          CONFVAL_RESUMESCRIPT_DEFAULT);
-      ASSERT_NOT_IMPLEMENTED(path);
-      GuestApp_SetDictEntryDefault(confDict, CONFNAME_RESUMESCRIPT, path);
-      free(path);
-
-      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
-                          CONFVAL_SUSPENDSCRIPT_DEFAULT);
-      ASSERT_NOT_IMPLEMENTED(path);
-      GuestApp_SetDictEntryDefault(confDict, CONFNAME_SUSPENDSCRIPT, path);
-      free(path);
-
-      free(installPath);
-   } else {
-      Warning("Could not get path to Tools installation.\n");
+   /* Load the data from the old config file. */
+   path = g_strdup_printf("%s%c%s", confPath, DIRSEPC, CONF_FILE);
+   localPath = VMTOOLS_GET_FILENAME_LOCAL(path, NULL);
+   if (localPath == NULL) {
+      g_warning("Error converting path to local encoding.");
+      goto exit;
    }
 
-   /* Load the user-configured values from the conf file if it's there */
-   GuestApp_LoadDict(confDict);
+   stream = g_fopen(localPath, "r");
+   if (stream == NULL) {
+      goto exit;
+   }
 
+   dict = g_hash_table_new_full(g_str_hash, g_str_equal, free, free);
+
+   for (;;) {
+      char *name;
+      char *value;
+      char *line;
+      int status;
+
+      status = DictLL_ReadLine(stream, &line, &name, &value);
+      if (status == 0) {
+         g_warning("Unable to read a line from \"%s\": %s\n", path,
+                   Err_ErrString());
+         goto exit;
+      } else if (status == 1) {
+         break;
+      } else if (status != 2) {
+         NOT_IMPLEMENTED();
+      }
+
+      if (name && value) {
+         g_hash_table_insert(dict, name, value);
+      } else {
+         free(name);
+         free(value);
+      }
+
+      free(line);
+   }
+
+   success = TRUE;
+
+exit:
+   if (stream != NULL && fclose(stream)) {
+      g_warning("Unable to close \"%s\": %s\n", path, Err_ErrString());
+      success = FALSE;
+   }
+
+   VMTOOLS_RELEASE_FILENAME_LOCAL(localPath);
+   g_free(path);
    free(confPath);
 
-   return confDict;
+   if (!success) {
+      if (dict != NULL) {
+         g_hash_table_destroy(dict);
+         dict = NULL;
+      }
+   }
+
+   return dict;
 }
 
 
@@ -177,7 +202,7 @@ VMToolsConfigUpgradeLog(GKeyFile *cfg,
  */
 
 static void
-VMToolsConfigUpgrade(GuestApp_Dict *old,
+VMToolsConfigUpgrade(GHashTable *old,
                      GKeyFile *dst)
 {
    const ConfigEntry entries[] = {
@@ -205,17 +230,16 @@ VMToolsConfigUpgrade(GuestApp_Dict *old,
    const ConfigEntry *entry;
 
    for (entry = entries; entry->key != NULL; entry++) {
-      const char *value = GuestApp_GetDictEntry(old, entry->key);
-      const char *dfltValue = GuestApp_GetDictEntryDefault(old, entry->key);
+      const char *value = g_hash_table_lookup(old, entry->key);
 
-      if (value == NULL || (dfltValue != NULL && strcmp(value, dfltValue) == 0)) {
+      if (value == NULL) {
          continue;
       }
 
       switch (entry->type) {
       case CFG_BOOLEAN:
          {
-            gboolean val = GuestApp_GetDictEntryBool(old, entry->key);
+            gboolean val = Str_Strcasecmp(value, "TRUE") == 0;
             g_key_file_set_boolean(dst, entry->destGroup, entry->destKey, val);
             break;
          }
@@ -223,7 +247,7 @@ VMToolsConfigUpgrade(GuestApp_Dict *old,
       case CFG_INTEGER:
          {
             gint val;
-            if (GuestApp_GetDictEntryInt(old, entry->key, &val)) {
+            if (StrUtil_StrToInt(&val, value)) {
                g_key_file_set_integer(dst, entry->destGroup, entry->destKey, val);
             }
             break;
@@ -307,7 +331,7 @@ VMTools_LoadConfig(const gchar *path,
    gchar *defaultPath = NULL;
    gchar *localPath = NULL;
    struct stat confStat;
-   GuestApp_Dict *old = NULL;
+   GHashTable *old = NULL;
    GError *err = NULL;
    GKeyFile *cfg = NULL;
 
@@ -403,7 +427,7 @@ error:
 exit:
    g_clear_error(&err);
    if (old != NULL) {
-      GuestApp_FreeDict(old);
+      g_hash_table_destroy(old);
    }
    if (cfg != NULL) {
       if (*config != NULL) {
