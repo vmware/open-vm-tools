@@ -59,18 +59,18 @@ struct FileLockToken;
 # include <windows.h>
 
 typedef struct FileIODescriptor {
-   HANDLE win32;
-   uint32 flags;
-   Unicode fileName;
+   HANDLE                win32;
+   uint32                flags;
+   Unicode               fileName;
    struct FileLockToken *lockToken;
 } FileIODescriptor;
 
 #else
 
 typedef struct FileIODescriptor {
-   int posix;
-   int flags;
-   Unicode fileName;
+   int                   posix;
+   int                   flags;
+   Unicode               fileName;
    struct FileLockToken *lockToken;
 } FileIODescriptor;
 
@@ -247,7 +247,9 @@ typedef enum {
 } FileIOResult;
 
 const char *FileIO_MsgError(FileIOResult status);
+
 void FileIO_Invalidate(FileIODescriptor *file);
+
 Bool FileIO_IsValid(const FileIODescriptor *fd);
 
 FileIOResult FileIO_Create(FileIODescriptor *file,
@@ -324,7 +326,8 @@ int64   FileIO_GetSize(const FileIODescriptor *fd);
 
 int64   FileIO_GetAllocSize(const FileIODescriptor *fd);
 
-Bool    FileIO_SetAllocSize(const FileIODescriptor *fd, uint64 size);
+Bool    FileIO_SetAllocSize(const FileIODescriptor *fd,
+                            uint64 size);
 
 int64   FileIO_GetSizeByPath(ConstUnicode pathName);
 
@@ -340,8 +343,8 @@ Bool    FileIO_SupportsFileSize(const FileIODescriptor *file,
 
 int64   FileIO_GetModTime(const FileIODescriptor *fd);
 
-FileIOResult FileIO_Lock(FileIODescriptor *file,  // IN/OUT
-                         int access);             // IN
+FileIOResult FileIO_Lock(FileIODescriptor *file,
+                         int access);
 
 FileIOResult FileIO_Unlock(FileIODescriptor *file);
 
