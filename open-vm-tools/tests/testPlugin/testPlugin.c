@@ -32,6 +32,7 @@
 
 #include "testData.h"
 #include "util.h"
+#include "vmware/tools/log.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/rpcdebug.h"
 #include "vmware/tools/utils.h"
@@ -85,16 +86,16 @@ TestPluginRpc1(RpcInData *data)
                                    testdata,
                                    &cmd,
                                    &cmdLen)) {
-      g_error("Failed to create test.rpcout.msg1 command.\n");
+      vm_error("Failed to create test.rpcout.msg1 command.");
    }
 
    if (!RpcChannel_Send(ctx->rpc, cmd, cmdLen, NULL, NULL)) {
-      g_error("Failed to send 'test.rpcout.msg1' message.\n");
+      vm_error("Failed to send 'test.rpcout.msg1' message.");
    }
 
    vm_free(cmd);
 
-   g_debug("Successfully handled rpc %s\n", data->name);
+   vm_debug("Successfully handled rpc %s", data->name);
    return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
@@ -110,7 +111,7 @@ TestPluginRpc1(RpcInData *data)
 static gboolean
 TestPluginRpc2(RpcInData *data)
 {
-   g_debug("%s: %s\n", __FUNCTION__, data->name);
+   vm_debug("%s", data->name);
    return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
@@ -128,7 +129,7 @@ static gboolean
 TestPluginRpc3(RpcInData *data)
 {
    TestPluginData *ret;
-   g_debug("%s: %s\n", __FUNCTION__, data->name);
+   vm_debug("%s", data->name);
 
    ret = g_malloc(sizeof *ret);
    ret->data = Util_SafeStrdup("Hello World!");
@@ -165,7 +166,7 @@ TestPluginCapabilities(gpointer src,
       { TOOLS_CAP_NEW, NULL, GHI_CAP_SHELL_ACTION_BROWSE, 1 }
    };
 
-   g_debug("%s: got capability signal, setting = %d.\n", __FUNCTION__, set);
+   vm_debug("got capability signal, setting = %d.", set);
    return VMTools_WrapArray(caps, sizeof *caps, ARRAYSIZE(caps));
 }
 
@@ -190,7 +191,7 @@ TestPluginReset(gpointer src,
                 ToolsPluginData *plugin)
 {
    RPCDEBUG_ASSERT(ctx != NULL, FALSE);
-   g_debug("%s: reset signal for app %s\n", __FUNCTION__, ctx->name);
+   vm_debug("reset signal for app %s", ctx->name);
    return TRUE;
 }
 
@@ -219,8 +220,8 @@ TestPluginServiceControl(gpointer src,
                          gpointer eventData,
                          gpointer data)
 {
-   g_debug("Got service control signal, code = %u, event = %u\n",
-           controlCode, eventType);
+   vm_debug("Got service control signal, code = %u, event = %u",
+            controlCode, eventType);
    return ERROR_CALL_NOT_IMPLEMENTED;
 }
 #endif
@@ -241,7 +242,7 @@ TestPluginShutdown(gpointer src,
                    ToolsAppCtx *ctx,
                    ToolsPluginData *plugin)
 {
-   g_debug("%s: shutdown signal.\n", __FUNCTION__);
+   vm_debug("shutdown signal.");
    CU_ASSERT(gInvalidSigError);
    CU_ASSERT(gInvalidAppError);
    CU_ASSERT(gInvalidAppProvider);
@@ -270,7 +271,7 @@ TestPluginSetOption(gpointer src,
                     const gchar *value,
                     ToolsPluginData *plugin)
 {
-   g_debug("%s: set '%s' to '%s'\n", __FUNCTION__, option, value);
+   vm_debug("set '%s' to '%s'", option, value);
    return TRUE;
 }
 
@@ -294,7 +295,7 @@ TestProviderRegisterApp(ToolsAppCtx *ctx,
                         gpointer reg)
 {
    TestApp *app = reg;
-   g_debug("%s: registration data is '%s'\n", __FUNCTION__, app->name);
+   vm_debug("registration data is '%s'", app->name);
    gValidAppRegistration |= strcmp(app->name, TEST_APP_NAME) == 0;
    CU_ASSERT(strcmp(app->name, TEST_APP_DONT_REGISTER) != 0);
    return (strcmp(app->name, TEST_APP_ERROR) != 0);
@@ -397,6 +398,8 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { 42,                 VMTOOLS_WRAP_ARRAY(tapp) },
       { 43,                 VMTOOLS_WRAP_ARRAY(tnoprov) },
    };
+
+   vm_info("loading test plugin...");
 
    g_signal_new("test-signal",
                 G_OBJECT_TYPE(ctx->serviceObj),
