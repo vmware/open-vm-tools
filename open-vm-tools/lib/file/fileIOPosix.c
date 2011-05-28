@@ -369,12 +369,19 @@ FileIO_CreateFDPosix(int posix,  // IN: UNIX file descriptor
 
    FileIO_Invalidate(&fd);
 
-   if (flags & O_RDWR) {
+   switch (flags & O_ACCMODE) {
+   case O_RDWR:
       fd.flags |= (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE);
-   } else if (flags & O_WRONLY) {
+      break;
+   case O_WRONLY:
       fd.flags |= FILEIO_OPEN_ACCESS_WRITE;
-   } else if (flags & O_RDONLY) {
+      break;
+   default:
+      ASSERT(FALSE);
+      /* FALLTHRU */
+   case O_RDONLY:
       fd.flags |= FILEIO_OPEN_ACCESS_READ;
+      break;
    }
 
 #if defined(O_SYNC) // Not available in FreeBSD tools build
@@ -382,6 +389,9 @@ FileIO_CreateFDPosix(int posix,  // IN: UNIX file descriptor
       fd.flags |= FILEIO_OPEN_SYNC;
    }
 #endif
+   if (flags & O_APPEND) {
+      fd.flags |= FILEIO_OPEN_APPEND;
+   }
 
    fd.posix = posix;
 
@@ -858,17 +868,23 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       flags |= O_NONBLOCK;
    }
 
+   if (access & FILEIO_OPEN_APPEND) {
+      flags |= O_APPEND;
+   }
+
+#if defined(linux) && !defined(N_PLAT_NLM)
+   if (access & FILEIO_OPEN_SYNC) {
+      flags |= O_SYNC;
+   }
+#endif
+
+   flags |= FileIO_OpenActions[action];
+
    file->flags = access;
 
    if (access & FILEIO_OPEN_PRIVILEGED) {
       uid = Id_BeginSuperUser();
    }
-
-   flags |= 
-#if defined(linux) && !defined(N_PLAT_NLM)
-            ((access & FILEIO_OPEN_SYNC) ? O_SYNC : 0) |
-#endif
-            FileIO_OpenActions[action];
 
    fd = PosixFileOpener(pathName, flags, mode);
 
