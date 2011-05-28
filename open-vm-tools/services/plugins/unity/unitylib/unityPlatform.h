@@ -60,9 +60,6 @@ Bool UnityPlatformGetWindowPath(UnityPlatform *up,
                                 UnityWindowId window,
                                 DynBuf *windowPathUtf8,
                                 DynBuf *execPathUtf8);
-Bool UnityPlatformGetNativeWindowPath(UnityPlatform *up,
-                                      UnityWindowId window,
-                                      DynBuf *buf);
 Bool UnityPlatformGetBinaryInfo(UnityPlatform *up,
                                 const char *pathUtf8,
                                 DynBuf *buf);
