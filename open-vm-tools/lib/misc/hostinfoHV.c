@@ -62,7 +62,7 @@ Hostinfo_HypervisorCPUIDSig(void)
    CPUIDRegs regs;
 
    __GET_CPUID(1, &regs);
-   if (!(regs.ecx & CPUID_FEATURE_COMMON_ID1ECX_HYPERVISOR)) {
+   if (!CPUID_ISSET(1, ECX, HYPERVISOR, regs.ecx)) {
       return NULL;
    }
 
