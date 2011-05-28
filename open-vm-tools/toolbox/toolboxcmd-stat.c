@@ -130,6 +130,7 @@ StatHostTime(void)
    int64 hostUsecs;
    time_t sec;
    char buf[256];
+   gchar *timeUtf8;
    Backdoor_proto bp;
 
    bp.in.cx.halfs.low = BDOOR_CMD_GETTIMEFULL;
@@ -156,7 +157,16 @@ StatHostTime(void)
                         SU_(stat.formattime.failed, "Unable to format host time.\n"));
       return EX_TEMPFAIL;
    }
-   g_print("%s\n", buf);
+
+   timeUtf8 = g_locale_to_utf8(buf, -1, NULL, NULL, NULL);
+   if (timeUtf8 == NULL) {
+      ToolsCmd_PrintErr("%s",
+                        SU_(stat.formattime.failed, "Unable to format host time.\n"));
+      return EX_TEMPFAIL;
+   }
+
+   g_print("%s\n", timeUtf8);
+   g_free(timeUtf8);
    return EXIT_SUCCESS;
 }
 
