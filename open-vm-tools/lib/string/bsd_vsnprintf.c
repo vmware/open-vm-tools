@@ -1822,9 +1822,10 @@ BSDFmt_Exponent(char *p0, int exp, int fmtch)
       *p++ = '0';
    }
 
-   if (exp < 100) {
-      *p++ = '0';
-   }
+// See PR 704706: POSIX specifies that exponents < 100 only have 2 digits
+//   if (exp < 100) {
+//      *p++ = '0';
+//   }
 
    if (exp > 9) {
       do {
