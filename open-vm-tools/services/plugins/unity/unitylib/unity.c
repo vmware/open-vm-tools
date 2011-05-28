@@ -202,8 +202,7 @@ Unity_IsActive(void)
  */
 
 void
-Unity_Init(GuestApp_Dict *conf,                                    // IN
-           UnityHostCallbacks hostCallbacks,                       // IN
+Unity_Init(UnityHostCallbacks hostCallbacks,                       // IN
            gpointer serviceObj)                                    // IN
 {
    Debug("Unity_Init\n");

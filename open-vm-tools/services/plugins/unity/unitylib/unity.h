@@ -29,7 +29,6 @@
 #include <string.h>
 #include "dndGuest.h"
 #include "dbllnklst.h"
-#include "guestApp.h"
 #include "dynbuf.h"
 #include "str.h"
 #ifdef _WIN32
@@ -150,8 +149,7 @@ typedef struct UnityHostCallbacks {
 extern "C" {
 #endif // __cplusplus
 
-void Unity_Init(GuestApp_Dict *conf,
-                UnityHostCallbacks hostCallbacks,
+void Unity_Init(UnityHostCallbacks hostCallbacks,
                 gpointer serviceObj);
 Bool Unity_IsActive(void);
 Bool Unity_IsSupported(void);

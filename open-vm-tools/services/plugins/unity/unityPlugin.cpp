@@ -127,7 +127,7 @@ UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
    }
    unityHostCallbacks.updateCbCtx = mUnityUpdateChannel;
 
-   Unity_Init(NULL, unityHostCallbacks, ctx->serviceObj);
+   Unity_Init(unityHostCallbacks, ctx->serviceObj);
 
    GHITcloInit();
    GHIHostCallbacks ghiHostCallbacks;
