@@ -882,9 +882,11 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    }
 #endif
 
+#if defined(O_NOFOLLOW)
    if (access & FILEIO_OPEN_ACCESS_NOFOLLOW) {
       flags |= O_NOFOLLOW;
    }
+#endif
 
    flags |= FileIO_OpenActions[action];
 
