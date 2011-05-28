@@ -47,7 +47,7 @@
 #include "err.h"
 #include "log.h"
 #include "str.h"
-#include "file.h"
+#include "fileIO.h"
 #include "fileLock.h"
 #include "fileInt.h"
 #include "random.h"
@@ -284,17 +284,20 @@ int
 FileLockMemberValues(ConstUnicode lockDir,      // IN:
                      ConstUnicode fileName,     // IN:
                      char *buffer,              // OUT:
-                     uint32 requiredSize,       // IN:
+                     size_t requiredSize,       // IN:
                      LockValues *memberValues)  // OUT:
 {
-   uint32 argc = 0;
-   FILELOCK_FILE_HANDLE handle;
-   uint32 len;
-   char *argv[FL_MAX_ARGS];
-   char *saveptr = NULL;
-   int err;
+   size_t len;
+   int access;
    Unicode path;
    FileData fileData;
+   FileIOResult result;
+   FileIODescriptor desc;
+   char *argv[FL_MAX_ARGS];
+
+   int err = 0;
+   uint32 argc = 0;
+   char *saveptr = NULL;
 
    ParseTable table = { PARSE_TABLE_STRING,
                         "lc",
@@ -306,9 +309,20 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
 
    path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
-   err = FileLockOpenFile(path, O_RDONLY, &handle);
+   FileIO_Invalidate(&desc);
 
-   if (err != 0) {
+   access = FILEIO_OPEN_ACCESS_READ;
+
+#if defined(_WIN32)
+   access |= FILEIO_OPEN_SHARE_DELETE;
+#endif
+
+   result = FileIOCreateRetry(&desc, path, access, FILEIO_OPEN, 0444,
+                              FILE_MAX_WAIT_TIME_MS);
+
+   if (!FileIO_IsSuccess(result)) {
+      err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+
       /*
        * A member file may "disappear" if is deleted (unlinked on POSIXen)
        * due to an unlock immediately after a directory scan but before the
@@ -340,27 +354,29 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
                  UTF8(path), strerror(err));
       }
 
-      FileLockCloseFile(handle);
+      FileIO_Close(&desc);
 
       goto bail;
    }
 
    /* Complain if the lock file is not the proper size */
    if (fileData.fileSize != requiredSize) {
-      Warning(LGPFX" %s file '%s': size %"FMT64"u, required size %u\n",
+      Warning(LGPFX" %s file '%s': size %"FMT64"u, required size %"FMTSZ"d\n",
               __FUNCTION__, UTF8(path), fileData.fileSize, requiredSize);
 
-      FileLockCloseFile(handle);
+      FileIO_Close(&desc);
 
       goto corrupt;
    }
 
    /* Attempt to read the lock file data and validate how much was read. */
-   err = FileLockReadFile(handle, buffer, requiredSize, &len);
+   result = FileIO_Read(&desc, buffer, requiredSize, &len);
 
-   FileLockCloseFile(handle);
+   FileIO_Close(&desc);
 
-   if (err != 0) {
+   if (!FileIO_IsSuccess(result)) {
+      err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+
       Warning(LGPFX" %s read failure on '%s': %s\n",
               __FUNCTION__, UTF8(path), strerror(err));
 
@@ -368,7 +384,7 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
    }
 
    if (len != requiredSize) {
-      Warning(LGPFX" %s read length issue on '%s': %u and %u\n",
+      Warning(LGPFX" %s read length issue on '%s': %"FMTSZ"d and %"FMTSZ"d\n",
               __FUNCTION__, UTF8(path), len, requiredSize);
 
       err = EIO;
@@ -450,11 +466,13 @@ corrupt:
            UTF8(path));
 
    if (argc) {
+      uint32 i;
+
       Log(LGPFX" %s '%s' contents are:\n", __FUNCTION__, UTF8(fileName));
 
-      for (len = 0; len < argc; len++) {
-         Log(LGPFX" %s %s argv[%d]: '%s'\n", __FUNCTION__, UTF8(fileName),
-             len, argv[len]);
+      for (i = 0; i < argc; i++) {
+         Log(LGPFX" %s %s argv[%u]: '%s'\n", __FUNCTION__, UTF8(fileName),
+             i, argv[i]);
       }
    }
 
@@ -1171,7 +1189,7 @@ MakeDirectory(ConstUnicode pathName)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * CreateEntryDirectory --
+ * FileLockCreateEntryDirectory --
  *
  *      Create an entry directory in the specified locking directory.
  *
@@ -1194,11 +1212,11 @@ MakeDirectory(ConstUnicode pathName)  // IN:
  */
 
 static int
-CreateEntryDirectory(ConstUnicode lockDir,     // IN:
-                     Unicode *entryDirectory,  // OUT:
-                     Unicode *entryFilePath,   // OUT:
-                     Unicode *memberFilePath,  // OUT:
-                     Unicode *memberName)      // OUT:
+FileLockCreateEntryDirectory(ConstUnicode lockDir,     // IN:
+                             Unicode *entryDirectory,  // OUT:
+                             Unicode *entryFilePath,   // OUT:
+                             Unicode *memberFilePath,  // OUT:
+                             Unicode *memberName)      // OUT:
 {
    int err = 0;
    uint32 randomNumber = 0;
@@ -1348,7 +1366,7 @@ CreateEntryDirectory(ConstUnicode lockDir,     // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * CreateMemberFile --
+ * FileLockCreateMemberFile --
  *
  *      Create the member file.
  *
@@ -1363,13 +1381,15 @@ CreateEntryDirectory(ConstUnicode lockDir,     // IN:
  */
 
 static int
-CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
-                 const LockValues *myValues,        // IN:
-                 ConstUnicode entryFilePath,        // IN:
-                 ConstUnicode memberFilePath)       // IN:
+FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
+                         const LockValues *myValues,   // IN:
+                         ConstUnicode entryFilePath,   // IN:
+                         ConstUnicode memberFilePath)  // IN:
 {
-   int err;
-   uint32 len;
+   size_t len;
+   FileIOResult result;
+
+   int err = 0;
    char buffer[FILELOCK_DATA_SIZE] = { 0 };
 
    ASSERT(entryFilePath);
@@ -1396,20 +1416,22 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
                myValues->locationChecksum);
 
    /* Attempt to write the data */
-   err = FileLockWriteFile(entryHandle, buffer, sizeof buffer, &len);
+   result = FileIO_Write(desc, buffer, sizeof buffer, &len);
 
-   if (err != 0) {
+   if (!FileIO_IsSuccess(result)) {
+      err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+
       Warning(LGPFX" %s write of '%s' failed: %s\n", __FUNCTION__,
               UTF8(entryFilePath), strerror(err));
 
-      FileLockCloseFile(entryHandle);
+      FileIO_Close(desc);
 
       return err;
    }
 
-   err = FileLockCloseFile(entryHandle);
+   if (FileIO_Close(desc)) {
+      err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
 
-   if (err != 0) {
       Warning(LGPFX" %s close of '%s' failed: %s\n", __FUNCTION__,
               UTF8(entryFilePath), strerror(err));
 
@@ -1417,7 +1439,7 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
    }
 
    if (len != sizeof buffer) {
-      Warning(LGPFX" %s write length issue on '%s': %u and %"FMTSZ"d\n",
+      Warning(LGPFX" %s write length issue on '%s': %"FMTSZ"d and %"FMTSZ"d\n",
               __FUNCTION__, UTF8(entryFilePath), len, sizeof buffer);
 
       return EIO;
@@ -1480,9 +1502,10 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
                   const char *payload,     // IN:
                   int *err)                // OUT:
 {
-   FILELOCK_FILE_HANDLE handle;
+   int access;
    LockValues myValues;
-   int createFlags;
+   FileIOResult result;
+   FileIODescriptor desc;
    FileLockToken *tokenPtr;
 
    Unicode lockDir = NULL;
@@ -1517,8 +1540,9 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
     * entry and member path names.
     */
 
-   *err = CreateEntryDirectory(lockDir, &entryDirectory, &entryFilePath,
-                               &memberFilePath, &myValues.memberName);
+   *err = FileLockCreateEntryDirectory(lockDir, &entryDirectory,
+                                       &entryFilePath, &memberFilePath,
+                                       &myValues.memberName);
 
    switch (*err) {
    case 0:
@@ -1550,13 +1574,23 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
           Unicode_LengthInCodeUnits(pathName) <= FILELOCK_OVERHEAD);
 
    /* Attempt to create the entry file */
-   createFlags = O_CREAT | O_WRONLY; 
-#ifndef _WIN32
-   createFlags |= O_NOFOLLOW;
-#endif
-   *err = FileLockOpenFile(entryFilePath, createFlags, &handle);
+   access = FILEIO_OPEN_ACCESS_WRITE;
 
-   if (*err != 0) {
+#if defined(_WIN32)
+   access |= FILEIO_OPEN_SHARE_DELETE;
+#else
+   access |= FILEIO_OPEN_ACCESS_NOFOLLOW;
+#endif
+
+   FileIO_Invalidate(&desc);
+
+   result = FileIOCreateRetry(&desc, entryFilePath, access,
+                              FILEIO_OPEN_CREATE_SAFE, 0644,
+                              FILE_MAX_WAIT_TIME_MS);
+
+   if (!FileIO_IsSuccess(result)) {
+      *err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+
       /* clean up */
       FileRemoveDirectoryRobust(entryDirectory);
       FileRemoveDirectoryRobust(lockDir);
@@ -1569,7 +1603,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
 
    if (*err != 0) {
       /* clean up */
-      FileLockCloseFile(handle);
+      FileIO_Close(&desc);
       FileDeletionRobust(entryFilePath, FALSE);
       FileRemoveDirectoryRobust(entryDirectory);
       FileRemoveDirectoryRobust(lockDir);
@@ -1581,7 +1615,8 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    myValues.lamportNumber++;
 
    /* Attempt to create the member file */
-   *err = CreateMemberFile(handle, &myValues, entryFilePath, memberFilePath);
+   *err = FileLockCreateMemberFile(&desc, &myValues, entryFilePath,
+                                   memberFilePath);
 
    /* Remove entry directory; it has done its job */
    FileRemoveDirectoryRobust(entryDirectory);
@@ -1662,10 +1697,10 @@ FileLockIsLocked(ConstUnicode pathName,  // IN:
                  int *err)               // OUT:
 {
    uint32 i;
-   int errValue = 0;
    int numEntries;
    Unicode lockDir;
 
+   int errValue = 0;
    Bool isLocked = FALSE;
    Unicode *fileList = NULL;
 

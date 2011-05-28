@@ -27,7 +27,9 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
+#include "err.h"
 #include "posix.h"
+#include "file.h"
 #include "fileIO.h"
 #include "fileLock.h"
 #include "unicodeTypes.h"
@@ -100,9 +102,11 @@ typedef struct FileData {
    int    fileGroup;
 } FileData;
 
+#define FILE_MAX_WAIT_TIME_MS 2000  // maximum wait time in milliseconds
+
 #if defined(_WIN32)
-int FileMapErrorToErrno(char *functionName,
-                        DWORD status);
+int FileMapErrorToErrno(const char *functionName,
+                        Err_Number status);
 
 Bool FileRetryThisError(DWORD error,
                         uint32 numCodes,
@@ -137,8 +141,6 @@ int FileListDirectoryRetry(ConstUnicode pathName,
 #define FileCreateDirectory(a, b)  FileCreateDirectoryRetry((a), (b), 0)
 #define FileRemoveDirectory(a)     FileRemoveDirectoryRetry((a), 0)
 
-#define FILE_MAX_WAIT_TIME_MS 2000  // maximum wait time in milliseconds
-
 #define FileListDirectoryRobust(a, b) \
                     FileListDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS, (b))
 #define FileAttributesRobust(a, b) \
@@ -152,6 +154,13 @@ int FileListDirectoryRetry(ConstUnicode pathName,
 #define FileRemoveDirectoryRobust(a) \
                     FileRemoveDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS)
 #else
+static INLINE int
+FileMapErrorToErrno(const char *functionName,
+                    Err_Number status)
+{
+   return status;
+}
+
 char *FilePosixGetBlockDevice(char const *path);
 
 int FileAttributes(ConstUnicode pathName,
@@ -204,12 +213,6 @@ typedef struct lock_values
 
 #define FILELOCK_DATA_SIZE 512
 
-#if defined(_WIN32)
-typedef HANDLE FILELOCK_FILE_HANDLE;
-#else
-typedef int FILELOCK_FILE_HANDLE;
-#endif
-
 uint32 FileSleeper(uint32 msecMinSleepTime,
                    uint32 msecMaxSleepTime);
 
@@ -225,24 +228,8 @@ Bool FileLockMachineIDMatch(char *host,
 int FileLockMemberValues(ConstUnicode lockDir, 
                          ConstUnicode fileName,
                          char *buffer,
-                         uint32 size,
+                         size_t size,
                          LockValues *memberValues);
-
-int FileLockOpenFile(ConstUnicode pathName,
-                     int flags,
-                     FILELOCK_FILE_HANDLE *handle);
-
-int FileLockCloseFile(FILELOCK_FILE_HANDLE handle);
-
-int FileLockReadFile(FILELOCK_FILE_HANDLE handle,
-                     void *buf,
-                     uint32 requestedBytes,
-                     uint32 *resultantBytes);
-
-int FileLockWriteFile(FILELOCK_FILE_HANDLE handle,
-                      void *buf,
-                      uint32 requestedBytes,
-                      uint32 *resultantBytes);
 
 FileLockToken *FileLockIntrinsic(ConstUnicode filePathName,
                                  Bool exclusivity,
@@ -264,6 +251,14 @@ Bool FileIsWritableDir(ConstUnicode dirName);
 
 UnicodeIndex FileFirstSlashIndex(ConstUnicode pathName,
                                  UnicodeIndex startIndex);
+
+FileIOResult
+FileIOCreateRetry(FileIODescriptor *fd,
+                  ConstUnicode pathName,
+                  int access,
+                  FileIOOpenAction action,
+                  int mode,
+                  uint32 msecMaxWaitTime);
 
 
 /*
@@ -306,6 +301,7 @@ FileIOAligned_Malloc(size_t sz)  // IN:
    if (!buf) {
       buf = Aligned_Malloc(sz);
    }
+
    return buf;
 }
 

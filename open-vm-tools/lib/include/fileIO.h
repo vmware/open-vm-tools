@@ -166,6 +166,14 @@ typedef enum {
  * not to the current file pointer location.
  */
 #define FILEIO_OPEN_APPEND               (1 << 17)
+/*
+ * Valid only on POSIXen. Don't follow a symbolic link.
+ */
+#define FILEIO_OPEN_ACCESS_NOFOLLOW (1 << 18)
+/*
+ * Valid only on Windows. Set FILE_SHARE_DELETE.
+ */
+#define FILEIO_OPEN_SHARE_DELETE (1 << 19)
 
 /*
  * Flag passed to open() to not attempt to get the lun attributes as part of

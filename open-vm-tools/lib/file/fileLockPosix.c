@@ -820,140 +820,6 @@ FileLockValidOwner(const char *executionID,  // IN:
 
 
 /*
- *----------------------------------------------------------------------
- *
- *  FileLockOpenFile --
- *
- *      Open the specified file
- *
- * Results:
- *      0       success
- *      > 0     failure (errno)
- *
- * Side effects:
- *      May change the host file system.
- *
- *----------------------------------------------------------------------
- */
-
-int
-FileLockOpenFile(ConstUnicode pathName,         // IN:
-                 int flags,                     // IN:
-                 FILELOCK_FILE_HANDLE *handle)  // OUT:
-{
-   ASSERT(pathName);
-
-   *handle = PosixFileOpener(pathName, flags, 0644);
-
-   return (*handle == -1) ? errno : 0;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *  FileLockCloseFile --
- *
- *      Close the specified file
- *
- * Results:
- *      0       success
- *      > 0     failure (errno)
- *
- * Side effects:
- *      May change the host file system.
- *
- *----------------------------------------------------------------------
- */
-
-int
-FileLockCloseFile(FILELOCK_FILE_HANDLE handle)  // IN:
-{
-   return (close(handle) == -1) ? errno : 0;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * FileLockReadFile --
- *
- *      Read a file.
- *
- * Results:
- *      0       success
- *      > 0     failure (errno)
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-FileLockReadFile(FILELOCK_FILE_HANDLE handle,  // IN:
-                 void *buf,                    // IN:
-                 uint32 requestedBytes,        // IN:
-                 uint32 *resultantBytes)       // OUT:
-{
-   int err;
-   ssize_t result;
-
-   result = read(handle, buf, requestedBytes);
-
-   if (result == -1) {
-      *resultantBytes = 0;
-      err = errno;
-   } else {
-      *resultantBytes = result;
-      err = 0;
-   }
-
-   return err;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * FileLockWriteFile --
- *
- *      Write a file.
- *
- * Results:
- *      0       success
- *      > 0     failure (errno)
- *
- * Side effects:
- *      May change the host file system.
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-FileLockWriteFile(FILELOCK_FILE_HANDLE handle,  // IN:
-                  void *buf,                    // IN:
-                  uint32 requestedBytes,        // IN:
-                  uint32 *resultantBytes)       // OUT:
-{
-   int err;
-   ssize_t result;
-
-   result = write(handle, buf, requestedBytes);
-
-   if (result == -1) {
-      *resultantBytes = 0;
-      err = errno;
-   } else {
-      *resultantBytes = result;
-      err = 0;
-   }
-
-   return err;
-}
-
-
-/*
  *---------------------------------------------------------------------------
  *
  * FileLockGetExecutionID --
@@ -1156,44 +1022,11 @@ FileLock_Unlock(const FileLockToken *lockToken)  // IN:
 }
 
 #else
-
-/*
- * Stub functions for unsupported platforms.
- */
- 
-int
-FileLockCloseFile(FILELOCK_FILE_HANDLE handle)  // IN:
-{
-   NOT_IMPLEMENTED();
-}
-
-
 char *
 FileLockGetExecutionID(void)
 {
    NOT_IMPLEMENTED();
 }
-
-
-int
-FileLockOpenFile(ConstUnicode pathName,         // IN:
-                 int flags,                     // IN:
-                 FILELOCK_FILE_HANDLE *handle)  // OUT:
-{
-
-   NOT_IMPLEMENTED();
-}
-
-
-int
-FileLockReadFile(FILELOCK_FILE_HANDLE handle,  // IN:
-                 void *buf,                    // IN:
-                 uint32 requestedBytes,        // IN:
-                 uint32 *resultantBytes)       // OUT:
-{
-   NOT_IMPLEMENTED();
-}
-
 
 Bool
 FileLockValidOwner(const char *executionID,  // IN:
@@ -1201,15 +1034,4 @@ FileLockValidOwner(const char *executionID,  // IN:
 {
    NOT_IMPLEMENTED();
 }
-
-
-int
-FileLockWriteFile(FILELOCK_FILE_HANDLE handle,  // IN:
-                  void *buf,                    // IN:
-                  uint32 requestedBytes,        // IN:
-                  uint32 *resultantBytes)       // OUT:
-{
-   NOT_IMPLEMENTED();
-}
-
 #endif /* !__FreeBSD__ && !sun */

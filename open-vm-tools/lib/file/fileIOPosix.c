@@ -872,6 +872,10 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       flags |= O_APPEND;
    }
 
+   if (access & FILEIO_OPEN_ACCESS_NOFOLLOW) {
+      flags |= O_NOFOLLOW;
+   }
+
 #if defined(linux) && !defined(N_PLAT_NLM)
    if (access & FILEIO_OPEN_SYNC) {
       flags |= O_SYNC;
