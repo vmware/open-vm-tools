@@ -4966,6 +4966,7 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
    VixCommandKillProcessRequest *killProcessRequest;
 #ifdef _WIN32
    DWORD dwErr;
+   const VixToolsExitedProgramState *exitedState;
 #else
    int sysErrno;
 #endif
@@ -5012,7 +5013,8 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
        * on a process we started but is still on the 'exited' list,
        * then Windows returns an ACCESS_ERROR.  So rewrite it.
        */
-      if (VixToolsFindExitedProgramState(killProcessRequest->pid)) {
+       exitedState = VixToolsFindExitedProgramState(killProcessRequest->pid);
+       if ((NULL != exitedState) && !exitedState->isRunning) {
          err = VIX_E_NO_SUCH_PROCESS;
          goto abort;
       }
