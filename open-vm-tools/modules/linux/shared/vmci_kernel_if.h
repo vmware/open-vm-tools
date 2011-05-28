@@ -304,8 +304,7 @@ int VMCI_CopyFromUser(void *dst, VA64 src, size_t len);
 
 typedef void (VMCIWorkFn)(void *data);
 Bool VMCI_CanScheduleDelayedWork(void);
-int VMCI_ScheduleDelayedWork(VMCIWorkFn  *workFn,
-                             void *data);
+int VMCI_ScheduleDelayedWork(VMCIWorkFn *workFn, void *data);
 
 int VMCIMutex_Init(VMCIMutex *mutex);
 void VMCIMutex_Destroy(VMCIMutex *mutex);
@@ -315,6 +314,9 @@ void VMCIMutex_Release(VMCIMutex *mutex);
 #if defined(SOLARIS) || defined(_WIN32) || defined(__APPLE__)
 int VMCIKernelIf_Init(void);
 void VMCIKernelIf_Exit(void);
+#if defined(_WIN32)
+void VMCIKernelIf_DrainDelayedWork(void);
+#endif // _WIN32
 #endif // SOLARIS || _WIN32 || __APPLE__
 
 #if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
