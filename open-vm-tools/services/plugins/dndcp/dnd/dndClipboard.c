@@ -115,11 +115,12 @@ CPClipItemCopy(CPClipItem *dest,        // IN: dest clipboard item
 
    if (src->buf) {
       void *tmp = dest->buf;
-      dest->buf = realloc(dest->buf, src->size);
+      dest->buf = realloc(dest->buf, src->size + 1);
       if (!dest->buf) {
          dest->buf = tmp;
          return FALSE;
       }
+      ((uint8 *)dest->buf)[src->size] = 0;
       memcpy(dest->buf, src->buf, src->size);
    }
 
@@ -244,7 +245,7 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
                     const size_t size)          // IN: the item size
 {
    CPClipItem *item;
-   void *newBuf = NULL;
+   uint8 *newBuf = NULL;
    /*
     * Image, rtf and text may be put into a clipboard at same time, and total
     * size may be more than limit. Image data will be first dropped, then
@@ -274,16 +275,18 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
       if (CPFORMAT_TEXT == fmt) {
          char *str = (char *)clipitem;
          if (!Unicode_IsBufferValid(str,
-                                    strlen(str),
+                                    size,
                                     STRING_ENCODING_UTF8)) {
             return FALSE;
          }
       }
-      newBuf = malloc(size);
+
+      newBuf = malloc(size + 1);
       if (!newBuf) {
          return FALSE;
       }
       memcpy(newBuf, clipitem, size);
+      newBuf[size] = 0;
    }
 
    item->buf = newBuf;
