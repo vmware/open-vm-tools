@@ -1175,7 +1175,7 @@ MakeDirectory(ConstUnicode pathName)  // IN:
  *
  *      Create an entry directory in the specified locking directory.
  *
- *      Due to FileLock_UnlockFile() attempting to remove the locking
+ *      Due to FileLock_Unlock() attempting to remove the locking
  *      directory on an unlock operation (to "clean up" and remove the
  *      locking directory when it is no longer needed), this routine
  *      must carefully handle a number of race conditions to insure the
