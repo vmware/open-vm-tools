@@ -76,6 +76,7 @@ typedef struct VMCIDoorbellEntry {
    VMCICallback        notifyCB;
    void                *clientData;
    VMCIEvent           destroyEvent;
+   Atomic_uint32       active;       // Only used by guest personality
 } VMCIDoorbellEntry;
 
 typedef struct VMCIDoorbellIndexTable {
@@ -637,6 +638,7 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
    entry->runDelayed = (flags & VMCI_FLAG_DELAYED_CB) ? TRUE : FALSE;
    entry->notifyCB = notifyCB;
    entry->clientData = clientData;
+   Atomic_Write(&entry->active, 0);
    VMCI_CreateEvent(&entry->destroyEvent);
 
    result = VMCIResource_Add(&entry->resource, VMCI_RESOURCE_TYPE_DOORBELL,
@@ -651,11 +653,12 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
    }
 
    if (VMCI_GuestPersonalityActive()) {
+      VMCIDoorbellIndexTableAdd(entry);
       result = VMCIDoorbellLink(newHandle, entry->isDoorbell, entry->idx);
       if (VMCI_SUCCESS != result) {
          goto destroyResource;
-      }
-      VMCIDoorbellIndexTableAdd(entry);
+     }
+      Atomic_Write(&entry->active, 1);
    }
 
    if (VMCI_HANDLE_INVALID(*handle)) {
@@ -665,6 +668,7 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
    return result;
 
 destroyResource:
+   VMCIDoorbellIndexTableRemove(entry);
    VMCIResource_Remove(newHandle, VMCI_RESOURCE_TYPE_DOORBELL);
 destroy:
    VMCI_DestroyEvent(&entry->destroyEvent);
@@ -1104,7 +1108,7 @@ VMCIDoorbellFireEntries(uint32 notifyIdx) // IN
 
       ASSERT(cur);
 
-      if (cur->idx == notifyIdx) {
+      if (cur->idx == notifyIdx && Atomic_Read(&cur->active) == 1) {
          ASSERT(cur->notifyCB);
          if (cur->runDelayed) {
             int err;
