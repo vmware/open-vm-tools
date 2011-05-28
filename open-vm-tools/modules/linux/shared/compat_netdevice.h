@@ -327,6 +327,13 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 
 #endif
 
+#ifdef NETIF_F_TSO6
+#  define COMPAT_NETIF_F_TSO (NETIF_F_TSO6 | NETIF_F_TSO)
+#else
+#  define COMPAT_NETIF_F_TSO (NETIF_F_TSO)
+#endif
+
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 18)
 #   define compat_netif_tx_lock(dev) netif_tx_lock(dev)
 #   define compat_netif_tx_unlock(dev) netif_tx_unlock(dev)
