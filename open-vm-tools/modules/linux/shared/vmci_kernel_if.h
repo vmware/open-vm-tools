@@ -190,23 +190,6 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
 #define VMCI_LOCK_RANK_LOW         (VMCI_LOCK_RANK_MIDDLE_LOW-1)
 #define VMCI_LOCK_RANK_LOWEST      (VMCI_LOCK_RANK_LOW-1)
 
-
-/*
- * In vmkernel, we try to reduce the amount of memory mapped into the
- * virtual address space by only mapping the memory of buffered
- * datagrams when copying from and to the guest. In other OSes,
- * regular kernel memory is used. VMCIBuffer is used to reference
- * possibly unmapped memory.
- */
-
-#ifdef VMKERNEL
-typedef MPN VMCIBuffer;
-#define VMCI_BUFFER_INVALID INVALID_MPN
-#else
-typedef void * VMCIBuffer;
-#define VMCI_BUFFER_INVALID NULL
-#endif
-
 /*
  * Host specific struct used for signalling.
  */
