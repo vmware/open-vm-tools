@@ -160,7 +160,7 @@ Atomic_VolatileToAtomic64(volatile uint64 *var)
  *      Determine whether an lfence intruction is executed after
  *	every locked instruction.
  *
- *	Certain AMD processes have a bug (see bug 107024) that
+ *	Certain AMD processors have a bug (see bug 107024) that
  *	requires an lfence after every locked instruction.
  *
  *	The global variable AtomicUseFence controls whether lfence
@@ -2216,9 +2216,153 @@ Atomic_And64(Atomic_uint64 *var, // IN
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_SetBit64 --
+ *
+ *      Atomic read, set bit N, and write.
+ *      Be careful: if bit is in a register (not in an immediate), then it 
+ *      can specify a bit offset above 63 or even a negative offset.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE void
+Atomic_SetBit64(Atomic_uint64 *var, // IN/OUT
+                uint64 bit)         // IN
+{
+#if defined(__x86_64__)
+#if defined(__GNUC__)
+   __asm__ __volatile__(
+      "lock; bts %1, %0"
+      : "+m" (var->value)
+      : "ri" (bit)
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif defined _MSC_VER
+   uint64 oldVal;
+   uint64 newVal;
+   do {
+      oldVal = var->value;
+      newVal = oldVal | (CONST64U(1) << bit);
+   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+#else
+#error No compiler defined for Atomic_SetBit64
+#endif
+#else // __x86_64__
+   uint64 oldVal;
+   uint64 newVal;
+   do {
+      oldVal = var->value;
+      newVal = oldVal | (CONST64U(1) << bit);
+   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ClearBit64 --
+ *
+ *      Atomic read, clear bit N, and write.
+ *      Be careful: if bit is in a register (not in an immediate), then it 
+ *      can specify a bit offset above 63 or even a negative offset.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE void
+Atomic_ClearBit64(Atomic_uint64 *var, // IN/OUT
+                  uint64 bit)         // IN
+{
+#if defined(__x86_64__)
+#if defined(__GNUC__)
+   __asm__ __volatile__(
+      "lock; btr %1, %0"
+      : "+m" (var->value)
+      : "ri" (bit)
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif defined _MSC_VER
+   uint64 oldVal;
+   uint64 newVal;
+   do {
+      oldVal = var->value;
+      newVal = oldVal & ~(CONST64U(1) << bit);
+   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+#else
+#error No compiler defined for Atomic_ClearBit64
+#endif
+#else // __x86_64__
+   uint64 oldVal;
+   uint64 newVal;
+   do {
+      oldVal = var->value;
+      newVal = oldVal & ~(CONST64U(1) << bit);
+   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_TestBit64 --
+ *
+ *      Read a bit.
+ *      Be careful: if bit is in a register (not in an immediate), then it 
+ *      can specify a bit offset above 63 or even a negative offset.
+ *
+ * Results:
+ *      TRUE if the tested bit was set; else FALSE.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE Bool
+Atomic_TestBit64(Atomic_uint64 *var, // IN
+                 uint64 bit)         // IN
+{
+#if defined(__x86_64__)
+#if defined(__GNUC__)
+   Bool out = FALSE;
+   __asm__ __volatile__(
+      "bt %2, %1; setc %0"
+      : "=rm"(out)
+      : "m" (var->value),
+        "ri" (bit)
+      : "cc"
+   );
+   return out;
+#elif defined _MSC_VER
+   return (var->value & (CONST64U(1) << bit)) != 0;
+#else
+#error No compiler defined for Atomic_TestBit64
+#endif
+#else // __x86_64__
+   return (var->value & (CONST64U(1) << bit)) != 0;
+#endif
+}
+
+/*
  * Template code for the Atomic_<name> type and its operators.
  *
- * The cast argument is an intermedia type cast to make some
+ * The cast argument is an intermediate type cast to make some
  * compilers stop complaining about casting uint32 <-> void *,
  * even though we only do it in the 32-bit case so they are always
  * the same size.  So for val of type uint32, instead of
