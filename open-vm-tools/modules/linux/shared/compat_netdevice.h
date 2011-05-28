@@ -349,8 +349,10 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 #   define COMPAT_VLAN_GROUP_ARRAY_LEN VLAN_N_VID
+#   define compat_flush_scheduled_work(work) cancel_work_sync(work)
 #else
 #   define COMPAT_VLAN_GROUP_ARRAY_LEN VLAN_GROUP_ARRAY_LEN
+#   define compat_flush_scheduled_work(work) flush_scheduled_work()
 #endif
 
 #endif /* __COMPAT_NETDEVICE_H__ */
