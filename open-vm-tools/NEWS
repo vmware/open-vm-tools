@@ -1,3 +1,6 @@
+open-vm-tools 2011.05.27 changes:
+	* Mostly cleanups and a few bug fixes.
+
 open-vm-tools 2011.04.25 changes:
 	* Mostly cleanups and small bug fixes in this release.
 
