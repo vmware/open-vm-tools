@@ -36,7 +36,7 @@
 
 #include "vmci_defs.h"
 #include "vm_assert.h"
-#ifdef VMKERNEL 
+#ifdef VMKERNEL
 #include "vm_libc.h"
 #endif // VMKERNEL
 
@@ -46,7 +46,7 @@
 #include <sys/types.h>
 #include <sys/systm.h>
 #endif
- 
+
 #define VMCI_HANDLE_ARRAY_DEFAULT_SIZE 4
 
 typedef struct VMCIHandleArray {
@@ -71,10 +71,10 @@ typedef struct VMCIHandleArray {
  */
 
 static INLINE VMCIHandleArray *
-VMCIHandleArray_Create(uint32 capacity) 
+VMCIHandleArray_Create(uint32 capacity)
 {
    VMCIHandleArray *array;
-   
+
    if (capacity == 0) {
       capacity = VMCI_HANDLE_ARRAY_DEFAULT_SIZE;
    }
@@ -82,13 +82,14 @@ VMCIHandleArray_Create(uint32 capacity)
    array = (VMCIHandleArray *)VMCI_AllocKernelMem(sizeof array->capacity +
                                                   sizeof array->size +
                                                   capacity * sizeof(VMCIHandle),
-                                                  VMCI_MEMORY_NONPAGED);
+                                                  VMCI_MEMORY_NONPAGED |
+                                                     VMCI_MEMORY_ATOMIC);
    if (array == NULL) {
       return NULL;
    }
    array->capacity = capacity;
    array->size = 0;
-   
+
    return array;
 }
 
@@ -108,7 +109,7 @@ VMCIHandleArray_Create(uint32 capacity)
  */
 
 static INLINE void
-VMCIHandleArray_Destroy(VMCIHandleArray *array) 
+VMCIHandleArray_Destroy(VMCIHandleArray *array)
 {
    VMCI_FreeKernelMem(array,
                       sizeof array->capacity + sizeof array->size +
@@ -214,14 +215,14 @@ static INLINE VMCIHandle
 VMCIHandleArray_RemoveTail(VMCIHandleArray *array)
 {
    VMCIHandle handle;
-   
+
    if (array->size == 0) {
       return VMCI_INVALID_HANDLE;
    }
    handle = array->entries[array->size-1];
    array->entries[array->size-1] = VMCI_INVALID_HANDLE;
    array->size--;
-   
+
    return handle;
 }
 
@@ -248,8 +249,8 @@ VMCIHandleArray_GetEntry(const VMCIHandleArray *array,
    if (UNLIKELY(index >= array->size)) {
       return VMCI_INVALID_HANDLE;
    }
- 
-  return array->entries[index];
+
+   return array->entries[index];
 }
 
 
@@ -327,8 +328,8 @@ VMCIHandleArray_GetCopy(const VMCIHandleArray *array)
    VMCIHandleArray *arrayCopy;
 
    ASSERT(array);
-   
-   arrayCopy = (VMCIHandleArray *)VMCI_AllocKernelMem(sizeof array->capacity + 
+
+   arrayCopy = (VMCIHandleArray *)VMCI_AllocKernelMem(sizeof array->capacity +
                                                       sizeof array->size +
                                                       array->size * sizeof(VMCIHandle),
                                                       VMCI_MEMORY_NONPAGED |
