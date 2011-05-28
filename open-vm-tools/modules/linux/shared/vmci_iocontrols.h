@@ -652,6 +652,9 @@ typedef struct VMCIDeviceGetInfoVer2 {
 typedef struct VMCIDeviceGetInfoHdr {
    /* Requested API version on input, supported version on output. */
    uint32 apiVersion;
+   VMCI_DeviceShutdownFn *deviceShutdownCB;
+   void *userData;
+   void *deviceRegistration;
 } VMCIDeviceGetInfoHdr;
 
 /* Combination of all versions. */

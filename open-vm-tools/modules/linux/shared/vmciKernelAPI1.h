@@ -51,8 +51,12 @@
 
 /* VMCI Device Usage API. */
 
-Bool VMCI_DeviceGet(uint32 *apiVersion);
-void VMCI_DeviceRelease(void);
+typedef void (VMCI_DeviceShutdownFn)(void *deviceRegistration,
+                                     void *userData);
+
+Bool VMCI_DeviceGet(uint32 *apiVersion, VMCI_DeviceShutdownFn *deviceShutdownCB,
+                    void *userData, void **deviceRegistration);
+void VMCI_DeviceRelease(void *deviceRegistration);
 
 /* VMCI Datagram API. */
 
@@ -148,7 +152,7 @@ ssize_t VMCIQPair_PeekV(VMCIQPair *qpair,
 
 /* Typedefs for all of the above, used by the IOCTLs and the kernel library. */
 
-typedef void (VMCI_DeviceReleaseFct)(void);
+typedef void (VMCI_DeviceReleaseFct)(void *);
 typedef int (VMCIDatagram_CreateHndFct)(VMCIId, uint32, VMCIDatagramRecvCB,
                                         void *, VMCIHandle *);
 typedef int (VMCIDatagram_CreateHndPrivFct)(VMCIId, uint32, VMCIPrivilegeFlags,

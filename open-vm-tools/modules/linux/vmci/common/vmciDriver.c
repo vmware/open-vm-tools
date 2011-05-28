@@ -145,8 +145,15 @@ VMCI_HostCleanup(void)
 
 VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
 Bool
-VMCI_DeviceGet(uint32 *apiVersion)
+VMCI_DeviceGet(uint32 *apiVersion,                      // IN/OUT
+               VMCI_DeviceShutdownFn *deviceShutdownCB, // UNUSED
+               void *userData,                          // UNUSED
+               void **deviceRegistration)               // OUT
 {
+   if (NULL != deviceRegistration) {
+      *deviceRegistration = NULL;
+   }
+
    if (*apiVersion > VMCI_KERNEL_API_VERSION) {
       *apiVersion = VMCI_KERNEL_API_VERSION;
       return FALSE;
@@ -178,7 +185,7 @@ VMCI_DeviceGet(uint32 *apiVersion)
 
 VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
 void
-VMCI_DeviceRelease(void)
+VMCI_DeviceRelease(void *deviceRegistration) // UNUSED
 {
 }
 #endif // !_WIN32

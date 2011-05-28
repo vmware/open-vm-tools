@@ -3244,7 +3244,7 @@ VSockVmciRegisterWithVmci(void)
     * present.
     */
    apiVersion = VMCI_KERNEL_API_VERSION_1;
-   vmciDevicePresent = VMCI_DeviceGet(&apiVersion);
+   vmciDevicePresent = VMCI_DeviceGet(&apiVersion, NULL, NULL, NULL);
    if (!vmciDevicePresent) {
       Warning("VMCI device not present.\n");
       return -1;
@@ -3322,7 +3322,7 @@ VSockVmciUnregisterWithVmci(void)
       qpResumedSubId = VMCI_INVALID_ID;
    }
 
-   VMCI_DeviceRelease();
+   VMCI_DeviceRelease(NULL);
    vmciDevicePresent = FALSE;
 }
 
