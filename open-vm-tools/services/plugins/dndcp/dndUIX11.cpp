@@ -75,7 +75,8 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       m_mousePosY(0),
       m_dc(NULL),
       m_numPendingRequest(0),
-      m_destDropTime(0)
+      m_destDropTime(0),
+      mTotalFileSize(0)
 {
    g_debug("%s: enter\n", __FUNCTION__);
 }
@@ -96,8 +97,16 @@ DnDUIX11::~DnDUIX11()
    /* Any files from last unfinished file transfer should be deleted. */
    if (DND_FILE_TRANSFER_IN_PROGRESS == m_HGGetFileStatus &&
        !m_HGStagingDir.empty()) {
-      g_debug("%s: deleting dir %s\n", __FUNCTION__, m_HGStagingDir.c_str());
-      DnD_DeleteStagingFiles(m_HGStagingDir.c_str(), FALSE);
+      uint64 totalSize = File_GetSizeEx(m_HGStagingDir.c_str());
+      if (mTotalFileSize != totalSize) {
+         g_debug("%s: deleting %s, expecting %"FMT64"d, finished %"FMT64"d\n",
+                 __FUNCTION__, m_HGStagingDir.c_str(),
+                 mTotalFileSize, totalSize);
+         DnD_DeleteStagingFiles(m_HGStagingDir.c_str(), FALSE);
+      } else {
+         g_debug("%s: file size match %s\n",
+                 __FUNCTION__, m_HGStagingDir.c_str());
+      }
    }
    CommonResetCB();
 }
@@ -890,6 +899,8 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
          g_debug("%s: Can't get data from clipboard\n", __FUNCTION__);
          return;
       }
+
+      mTotalFileSize = fList.GetFileSize();
 
       /* Provide URIs for each path in the guest's file list. */
       if (FCP_TARGET_INFO_GNOME_COPIED_FILES == info) {

@@ -587,6 +587,13 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
       switch (result) {
       case 0:
          iinfo->createdAndUnopened = FALSE;
+         LOG(10, (KERN_DEBUG "VMware hgfs: HgfsOpen: old hostFileId = "
+                  "%"FMT64"u\n", iinfo->hostFileId));
+         /*
+          * Invalidate the hostFileId as we need to retrieve it from
+          * the server.
+          */
+         iinfo->hostFileId = 0;
          result = HgfsUnpackOpenReply(req, opUsed, &replyFile, &replyLock);
          if (result != 0) {
             break;

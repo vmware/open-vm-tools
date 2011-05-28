@@ -207,6 +207,7 @@ private:
    GdkDragContext *m_dc;
    int m_numPendingRequest;
    unsigned long m_destDropTime;
+   uint64 mTotalFileSize;
 };
 
 #endif // __DND_UI_X11_H__

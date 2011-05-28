@@ -91,7 +91,8 @@ CopyPasteUIX11::CopyPasteUIX11()
    mHGGetFileStatus(DND_FILE_TRANSFER_NOT_STARTED),
    mBlockAdded(false),
    mBlockCtrl(0),
-   mInited(false)
+   mInited(false),
+   mTotalFileSize(0)
 {
    GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
    ASSERT(p);
@@ -170,8 +171,16 @@ CopyPasteUIX11::~CopyPasteUIX11()
    /* Any files from last unfinished file transfer should be deleted. */
    if (DND_FILE_TRANSFER_IN_PROGRESS == mHGGetFileStatus &&
        !mHGStagingDir.empty()) {
-      g_debug("%s: deleting dir %s\n", __FUNCTION__, mHGStagingDir.c_str());
-      DnD_DeleteStagingFiles(mHGStagingDir.c_str(), FALSE);
+      uint64 totalSize = File_GetSizeEx(mHGStagingDir.c_str());
+      if (mTotalFileSize != totalSize) {
+         g_debug("%s: deleting %s, expecting %"FMT64"d, finished %"FMT64"d\n",
+                 __FUNCTION__, mHGStagingDir.c_str(),
+                 mTotalFileSize, totalSize);
+         DnD_DeleteStagingFiles(mHGStagingDir.c_str(), FALSE);
+      } else {
+         g_debug("%s: file size match %s\n",
+                 __FUNCTION__, mHGStagingDir.c_str());
+      }
    }
    if (mBlockAdded) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
@@ -1177,6 +1186,7 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
       g_debug("%s: File data.\n", __FUNCTION__);
       DnDFileList flist;
       flist.FromCPClipboard(buf, sz);
+      mTotalFileSize = flist.GetFileSize();
       mHGFCPData = flist.GetRelPathsStr();
 
       refClipboard->set(mListTargets,

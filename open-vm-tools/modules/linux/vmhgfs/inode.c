@@ -2059,6 +2059,7 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
    int error = 0;
    HgfsSuperInfo *si;
    unsigned long age;
+   HgfsInodeInfo *iinfo;
 
    ASSERT(dentry);
    si = HGFS_SB_TO_COMMON(dentry->d_sb);
@@ -2072,7 +2073,9 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
            "inum %lu\n", dentry->d_name.name, dentry->d_inode->i_ino));
 
    age = jiffies - dentry->d_time;
-   if (age > si->ttl) {
+   iinfo = INODE_GET_II_P(dentry->d_inode);
+
+   if (age > si->ttl || iinfo->hostFileId == 0) {
       HgfsAttrInfo attr;
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRevalidate: dentry is too old, "
               "getting new attributes\n"));
@@ -2089,9 +2092,8 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
           * the same file name has been used for other file during the period.
           */
          if (attr.mask & HGFS_ATTR_VALID_FILEID) {
-            HgfsInodeInfo *iinfo = INODE_GET_II_P(dentry->d_inode);
             if (iinfo->hostFileId == 0) {
-               /* It should not happen, just in case. */
+               /* hostFileId was invalidated, so update it here */
                iinfo->hostFileId = attr.hostFileId;
             } else if (iinfo->hostFileId != attr.hostFileId) {
                LOG(4, ("VMware hgfs: %s: host file id mismatch. Expected "

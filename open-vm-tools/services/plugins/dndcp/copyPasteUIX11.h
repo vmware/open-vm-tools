@@ -117,6 +117,7 @@ private:
    bool mBlockAdded;
    DnDBlockControl *mBlockCtrl;
    bool mInited;
+   uint64 mTotalFileSize;
 };
 
 #endif // __COPYPASTE_UI_X11_H__

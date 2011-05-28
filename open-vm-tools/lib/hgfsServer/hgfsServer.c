@@ -3849,9 +3849,15 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
                               void *clientData)     // IN: session info
 {
    HgfsSessionInfo *session = (HgfsSessionInfo *)clientData;
-   HSPU_PutMetaPacket(packet, session);
-   HSPU_PutReplyPacket(packet, session);
-   HSPU_PutDataPacketBuf(packet, session);
+
+   if (packet->guestInitiated) {
+      HSPU_PutMetaPacket(packet, session);
+      HSPU_PutReplyPacket(packet, session);
+      HSPU_PutDataPacketBuf(packet, session);
+   } else {
+      free(packet->metaPacket);
+      free(packet);
+   }
 }
 
 
