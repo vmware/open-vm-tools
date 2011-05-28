@@ -566,6 +566,17 @@ MsgLoadCatalog(const char *path)
          }
 
          /*
+          * Fix the line break to always be Unix-style, to make lib/dict
+          * happy.
+          */
+         if (line[term] == '\r') {
+            line[term] = '\n';
+            if (len > term) {
+               line[term + 1] = '\0';
+            }
+         }
+
+         /*
           * If currently name is not NULL, then check if this is a continuation
           * line and, if it is, just append the contents to the current value.
           */
