@@ -168,6 +168,7 @@ RpcChannelReset(RpcInData *data)
 
    if (chan->resetCheck == NULL) {
       chan->resetCheck = g_idle_source_new();
+      g_source_set_priority(chan->resetCheck, G_PRIORITY_HIGH);
       g_source_set_callback(chan->resetCheck, RpcChannelCheckReset, chan, NULL);
       g_source_attach(chan->resetCheck, chan->mainCtx);
    }
