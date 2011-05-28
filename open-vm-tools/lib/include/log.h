@@ -155,6 +155,10 @@ Log_Trivia(const char *fmt,
 }
 
 #if !defined(VMM)
+
+/* Forward decl */
+struct MsgList;
+
 typedef void (LogBasicFunc)(const char *fmt,
                             va_list args);
 
@@ -231,7 +235,7 @@ Bool Log_RemoveFile(Bool alwaysRemove);
 void Log_DisableThrottling(void);
 void Log_EnableStderrWarnings(Bool stderrOutput);
 void Log_BackupOldFiles(const char *fileName, Bool noRename);
-Bool Log_CopyFile(const char *fileName);
+Bool Log_CopyFile(const char *fileName, struct MsgList **errs);
 uint32 Log_MaxLineLength(void);
 
 void Log_RegisterBasicFunctions(LogBasicFunc *log,
@@ -241,7 +245,8 @@ Bool Log_SetOutput(const char *fileName,
                    const char *config,
                    Bool copy,
                    uint32 systemLoggerUse,
-                   char *systemLoggerID);
+                   char *systemLoggerID,
+                   struct MsgList **errs);
 
 size_t Log_MakeTimeString(Bool millisec,
                           char *buf,
