@@ -633,7 +633,7 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
                        int distroSize,  // IN: size of OS distro name buffer
                        char *distro)    // OUT: full distro name
 {
-   int fd;
+   int fd = -1;
    int buf_sz;
    struct stat st;
    Bool ret = FALSE;
@@ -642,10 +642,8 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
    char *tmpDistroPos = NULL;
    int i = 0;
 
-   if ((fd = open(filename, O_RDONLY)) < 0) {
-      Warning("%s: could not open file%s: %d\n", __FUNCTION__, filename,
-              errno);
-
+   /* It's OK for the file to not exist, don't warn for this.  */
+   if ((fd = Posix_Open(filename, O_RDONLY)) == -1) {
       return FALSE;
    }
 
@@ -669,9 +667,7 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
 
    if (distroOrig == NULL) {
       Warning("%s: could not allocate memory\n", __FUNCTION__);
-      close(fd);
-
-      return FALSE;
+      goto out;
    }
 
    if (read(fd, distroOrig, buf_sz) != buf_sz) {
@@ -718,7 +714,9 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
    ret = TRUE;
 
 out:
-   close(fd);
+   if (fd != -1) {
+      close(fd);
+   }
    free(distroOrig);
 
    return ret;

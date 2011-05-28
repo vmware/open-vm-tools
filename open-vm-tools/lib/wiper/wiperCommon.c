@@ -55,7 +55,7 @@ WiperSinglePartition_Allocate(void)
       memset(p->mountPoint, 0, sizeof p->mountPoint);
       p->type = PARTITION_UNSUPPORTED;
       p->comment = NULL;
-      p->attemptUnmaps = FALSE;
+      p->attemptUnmaps = TRUE;
       DblLnkLst_Init(&p->link);
    }
 

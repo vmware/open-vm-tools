@@ -189,10 +189,89 @@ ShrinkList(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * ShrinkDoShrink  --
+ * ShrinkDiskSendRPC  --
+ *
+ *      Shrink all shrinkable disks/partitions, returning only when the shrink
+ *      RPC operation is done or canceled.
+ *
+ * Results:
+ *      EXIT_SUCCESS on success.
+ *      EX_TEMPFAIL on failure.
+ *
+ * Side effects:
+ *      Prints to stderr on errors.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ShrinkDiskSendRPC(void)
+{
+   char *result;
+   size_t resultLen;
+
+   ToolsCmd_PrintErr("\n");
+
+   if (ToolsCmd_SendRPC(DISK_SHRINK_CMD, sizeof DISK_SHRINK_CMD - 1,
+                        &result, &resultLen)) {
+      ToolsCmd_Print("%s",
+                     SU_(disk.shrink.complete, "Disk shrinking complete.\n"));
+      return EXIT_SUCCESS;
+   }
+
+   ToolsCmd_PrintErr(SU_(disk.shrink.error, "Error while shrinking: %s\n"), result);
+   return EX_TEMPFAIL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ShrinkDoAllDiskShrinkOnly  --
+ *
+ *      Shrink all shrinkable disks/partitions if it is enabled. Layered around
+ *      ShrinkDoAllDiskShrinkCommon. This routine does not invoke the disk wipe
+ *      operation step.
+ *
+ * Results:
+ *      EXIT_SUCCESS on success.
+ *      EX_TEMPFAIL on failure.
+ *
+ * Side effects:
+ *      Prints to stderr on errors.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ShrinkDoAllDiskShrinkOnly(void)
+{
+#ifndef _WIN32
+   signal(SIGINT, ShrinkWiperDestroy);
+#endif
+
+   /*
+    * Verify that shrinking is permitted.
+    */
+   if (!GuestApp_IsDiskShrinkEnabled()) {
+      ToolsCmd_PrintErr("%s",
+                        SU_(disk.shrink.conflict, SHRINK_CONFLICT_ERR));
+      return EX_TEMPFAIL;
+   }
+
+   return ShrinkDiskSendRPC();
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ShrinkDoWipeAndShrink  --
  *
  *      Wipe a single partition, returning only when the wiper
  *      operation is done or canceled.
+ *      Caller can optionally indicate whether a disk shrink operation is required
+ *      to be performed after the wipe operation or not.
  *
  * Results:
  *      EXIT_SUCCESS on success.
@@ -207,8 +286,9 @@ ShrinkList(void)
  */
 
 static int
-ShrinkDoShrink(char *mountPoint, // IN: mount point
-               gboolean quiet)   // IN: verbosity flag
+ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
+                      gboolean quiet,           // IN: verbosity flag
+                      gboolean performShrink)   // IN: perform a shrink operation
 {
    int i;
    int progress = 0;
@@ -274,26 +354,15 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
       }
    }
 
-   if (progress >= 100) {
-      char *result;
-      size_t resultLen;
-
-      ToolsCmd_PrintErr("\n");
-
-      if (ToolsCmd_SendRPC(DISK_SHRINK_CMD, sizeof DISK_SHRINK_CMD - 1,
-                           &result, &resultLen)) {
-         ToolsCmd_Print("%s",
-                        SU_(disk.shrink.complete, "Disk shrinking complete.\n"));
-         rc = EXIT_SUCCESS;
-         goto out;
-      }
-
-      ToolsCmd_PrintErr(SU_(disk.shrink.error, "Error while shrinking: %s\n"), result);
+   rc = EX_TEMPFAIL;
+   if (progress >= 100 && performShrink) {
+      rc = ShrinkDiskSendRPC();
    }
 
-   ToolsCmd_PrintErr("%s",
-                     SU_(disk.shrink.incomplete, "Shrinking not completed.\n"));
-   rc = EX_TEMPFAIL;
+   if (rc != EXIT_SUCCESS) {
+      ToolsCmd_PrintErr("%s",
+                        SU_(disk.shrink.incomplete, "Shrinking not completed.\n"));
+   }
 
 out:
    WiperSinglePartition_Close(part);
@@ -362,8 +431,18 @@ Disk_Command(char **argv,      // IN: command line arguments
       if (++optind >= argc) {
          ToolsCmd_MissingEntityError(argv[0], SU_(arg.mountpoint, "mount point"));
       } else {
-         return ShrinkDoShrink(argv[optind], quiet);
+         return ShrinkDoWipeAndShrink(argv[optind], quiet,
+                                      TRUE /* perform shrink */);
       }
+   } else if (toolbox_strcmp(argv[optind], "wipe") == 0) {
+      if (++optind >= argc) {
+         ToolsCmd_MissingEntityError(argv[0], SU_(arg.mountpoint, "mount point"));
+      } else {
+         return ShrinkDoWipeAndShrink(argv[optind], quiet,
+                                      FALSE /* do not perform shrink */);
+      }
+   } else if (toolbox_strcmp(argv[optind], "shrinkonly") == 0) {
+      return ShrinkDoAllDiskShrinkOnly();
    } else {
       ToolsCmd_UnknownEntityError(argv[0],
                                   SU_(arg.subcommand, "subcommand"),
@@ -396,8 +475,10 @@ Disk_Help(const char *progName, // IN: The name of the program obtained from arg
    g_print(SU_(help.disk, "%s: perform disk shrink operations\n"
                           "Usage: %s %s <subcommand> [args]\n\n"
                           "Subcommands:\n"
-                          "   list: list available mountpoints\n"
-                          "   shrink <mount-point>: shrinks a file system at the given mountpoint\n"),
+                          "   list: list available locations\n"
+                          "   shrink <location>: wipes and shrinks a file system at the given location\n"
+                          "   shrinkonly: shrinks all disks\n"
+                          "   wipe <location>: wipes a file system at the given location\n"),
            cmd, progName, cmd);
 }
 
