@@ -355,4 +355,40 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 #   define compat_flush_scheduled_work(work) flush_scheduled_work()
 #endif
 
+
+
+/*
+ * For kernel versions older than 2.6.29, where pci_msi_enabled is not
+ * available, check if
+ *	1. CONFIG_PCI_MSI is present
+ *	2. kernel version is newer than 2.6.25 (because multiqueue is not
+ *	   supporter) in kernels older than that)
+ *	3. msi can be enabled. If it fails it means that MSI is not available.
+ * When all the above are true, return non-zero so that multiple queues will be
+ * allowed in the driver.
+ */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
+#   define compat_multiqueue_allowed(dev) pci_msi_enabled()
+#else
+#   if defined CONFIG_PCI_MSI && LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 25)
+static inline int
+compat_multiqueue_allowed(struct pci_dev *dev)
+{
+   int ret;
+
+   if (!pci_enable_msi(dev))
+      ret = 1;
+   else
+      ret = 0;
+
+   pci_disable_msi(dev);
+   return ret;
+}
+
+#   else
+#      define compat_multiqueue_allowed(dev) (0)
+#   endif
+#endif
+
 #endif /* __COMPAT_NETDEVICE_H__ */
