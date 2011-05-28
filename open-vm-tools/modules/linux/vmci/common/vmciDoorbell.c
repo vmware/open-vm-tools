@@ -412,7 +412,6 @@ VMCIDoorbellIndexTableAdd(VMCIDoorbellEntry *entry) // IN/OUT
 static void
 VMCIDoorbellIndexTableRemove(VMCIDoorbellEntry *entry) // IN/OUT
 {
-   uint32 bucket;
    VMCILockFlags flags;
 
    ASSERT(entry);
@@ -420,8 +419,7 @@ VMCIDoorbellIndexTableRemove(VMCIDoorbellEntry *entry) // IN/OUT
 
    VMCIDoorbellGrabLock(&vmciDoorbellIT.lock, &flags);
 
-   bucket = VMCI_DOORBELL_HASH(entry->idx);
-   VMCIList_Remove(&entry->idxListItem, &vmciDoorbellIT.entries[bucket]);
+   VMCIList_Remove(&entry->idxListItem);
 
    notifyIdxCount--;
    if (entry->idx == maxNotifyIdx - 1) {

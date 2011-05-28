@@ -438,7 +438,7 @@ QueuePairList_RemoveEntry(QueuePairList *qpList,  // IN
                           QueuePairEntry *entry)  // IN
 {
    if (entry) {
-      VMCIList_Remove(&entry->listItem, &qpBrokerList.head);
+      VMCIList_Remove(&entry->listItem);
    }
 }
 
@@ -2485,10 +2485,10 @@ VMCIQPGuestEndpoints_Convert(Bool toLocal,     // IN
                                                         listItem);
 
          if (!(entry->qp.flags & VMCI_QPFLAG_LOCAL)) {
-            VMCIQueue *prodQ;
-            VMCIQueue *consQ;
+            UNUSED_PARAM(VMCIQueue *prodQ); // Only used on Win32
+            UNUSED_PARAM(VMCIQueue *consQ); // Only used on Win32
             void *oldProdQ;
-            void *oldConsQ;
+            UNUSED_PARAM(void *oldConsQ); // Only used on Win32
             int result;
 
             prodQ = (VMCIQueue *)entry->produceQ;

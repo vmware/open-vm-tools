@@ -631,7 +631,7 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
    s = VMCIEventFind(subID);
    if (s != NULL) {
       VMCIEventRelease(s);
-      VMCIList_Remove(&s->subscriberListItem, &subscriberArray[s->event]);
+      VMCIList_Remove(&s->subscriberListItem);
    }
    VMCIEventReleaseLock(&subscriberLock, flags);
 

@@ -443,7 +443,7 @@ VMCIContext_ReleaseContext(VMCIContext *context)   // IN
    /* Dequeue VMCI context. */
 
    VMCI_GrabLock(&contextList.lock, &flags);
-   VMCIList_Remove(&context->listItem, &contextList.head);
+   VMCIList_Remove(&context->listItem);
    VMCI_ReleaseLock(&contextList.lock, flags);
 
    VMCIContext_Release(context);
@@ -533,7 +533,7 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
 
    VMCIList_ScanSafe(curr, next, &context->datagramQueue) {
       dqEntry = VMCIList_Entry(curr, DatagramQueueEntry, listItem);
-      VMCIList_Remove(curr, &context->datagramQueue);
+      VMCIList_Remove(curr);
       ASSERT(dqEntry && dqEntry->dg);
       ASSERT(dqEntry->dgSize == VMCI_DG_SIZE(dqEntry->dg));
       VMCI_FreeKernelMem(dqEntry->dg, dqEntry->dgSize);
@@ -923,7 +923,7 @@ VMCIContext_DequeueDatagram(VMCIContext *context, // IN
       return VMCI_ERROR_NO_MEM;
    }
 
-   VMCIList_Remove(listItem, &context->datagramQueue);
+   VMCIList_Remove(listItem);
    context->pendingDatagrams--;
    context->datagramQueueSize -= dqEntry->dgSize;
    if (context->pendingDatagrams == 0) {

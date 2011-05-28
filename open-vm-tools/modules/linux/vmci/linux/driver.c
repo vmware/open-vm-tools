@@ -489,10 +489,7 @@ LinuxDriver_Close(struct inode *inode, // IN
    ASSERT(vmciLinux);
 
    if (vmciLinux->ctType == VMCIOBJ_CONTEXT) {
-      VMCIId cid;
-
       ASSERT(vmciLinux->context);
-      cid = VMCIContext_GetId(vmciLinux->context);
 
       VMCIContext_ReleaseContext(vmciLinux->context);
       vmciLinux->context = NULL;
