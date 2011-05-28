@@ -290,6 +290,21 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
 
    const char** tmp;
    for (tmp = envp; *tmp; tmp++) {
+      /*
+       * PR 685881: DESKTOP_AUTOSTART_ID was proposed on the xdg@freedesktop.org
+       * mailing list, but doesn't seem like it made it to a final spec.
+       *
+       * http://lists.freedesktop.org/archives/xdg/2007-January/007436.html
+       *
+       * It refers to a XSMP session manager client ID which shouldn't be
+       * passed to children.  Having this environment variable breaks launching
+       * nautilus w/o arguments.  (Aside, GNOME fixed this upstream in response
+       * to https://bugzilla.gnome.org/show_bug.cgi?id=649063.)
+       */
+      if (g_str_has_prefix(*tmp, "DESKTOP_AUTOSTART_ID=")) {
+         continue;
+      }
+
       ghip->nativeEnviron.push_back(*tmp);
    }
 
