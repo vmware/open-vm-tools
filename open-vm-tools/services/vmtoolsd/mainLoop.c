@@ -261,6 +261,13 @@ ToolsCore_DumpState(ToolsServiceState *state)
 
    ASSERT_ON_COMPILE(ARRAYSIZE(providerStates) == TOOLS_PROVIDER_MAX);
 
+   if (!g_main_loop_is_running(state->ctx.mainLoop)) {
+      ToolsCore_LogState(TOOLS_STATE_LOG_ROOT,
+                         "VM Tools Service '%s': not running.\n",
+                         state->name);
+      return;
+   }
+
    ToolsCore_LogState(TOOLS_STATE_LOG_ROOT,
                       "VM Tools Service '%s':\n",
                       state->name);
@@ -379,7 +386,7 @@ ToolsCore_Setup(ToolsServiceState *state)
    state->ctx.version = TOOLS_CORE_API_V1;
    state->ctx.name = state->name;
    state->ctx.errorCode = EXIT_SUCCESS;
-   state->ctx.mainLoop = g_main_loop_new(gctx, TRUE);
+   state->ctx.mainLoop = g_main_loop_new(gctx, FALSE);
    state->ctx.isVMware = VmCheck_IsVirtualWorld();
    g_main_context_unref(gctx);
 
