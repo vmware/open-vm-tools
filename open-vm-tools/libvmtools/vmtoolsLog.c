@@ -937,13 +937,13 @@ Log(const char *fmt, ...)
  */
 
 void
-LogV(int level,
+LogV(uint32 routing,
      const char *fmt,
      va_list args)
 {
    int glevel;
 
-   switch (level) {
+   switch (routing) {
    case VMW_LOG_PANIC:
       glevel = G_LOG_LEVEL_ERROR;
       break;
