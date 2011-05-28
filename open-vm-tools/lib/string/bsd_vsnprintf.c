@@ -458,7 +458,7 @@ bsd_vsnprintf_core(char **outbuf,
       double dbl;
       long double ldbl;
    } fparg;
-   int expt;      /* integer value of exponent */
+   int expt = 0;      /* integer value of exponent */
    char expchar;      /* exponent character: [eEpP\0] */
    char *dtoaend;      /* pointer to end of converted digits */
    int expsize;      /* character count for expstr */
@@ -1231,11 +1231,13 @@ bsd_vsnprintf_core(char **outbuf,
          PRINT(&sign, 1);
       }
 
+#if !defined(NO_FLOATING_POINT)
       /* NAN, INF and -INF */
       if ((flags & FPT) && (expt == INT_MAX)) {
          PRINT(cp, size);
          goto skip;
       }
+#endif
 
       if (ox[1]) {   /* ox[1] is either x, X, or \0 */
          ox[0] = '0';
