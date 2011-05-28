@@ -1485,21 +1485,16 @@ out:
 static void
 VSockVmciRecvPktWork(compat_work_arg work)  // IN
 {
-   int err;
    VSockRecvPktInfo *recvPktInfo;
    VSockPacket *pkt;
-   VSockVmciSock *vsk;
    struct sock *sk;
 
    recvPktInfo = COMPAT_WORK_GET_DATA(work, VSockRecvPktInfo, work);
    ASSERT(recvPktInfo);
 
-   err = 0;
    sk = recvPktInfo->sk;
    pkt = &recvPktInfo->pkt;
-   vsk = vsock_sk(sk);
 
-   ASSERT(vsk);
    ASSERT(pkt);
    ASSERT(pkt->type < VSOCK_PACKET_TYPE_MAX);
 
@@ -1507,17 +1502,17 @@ VSockVmciRecvPktWork(compat_work_arg work)  // IN
 
    switch (sk->sk_state) {
    case SS_LISTEN:
-      err = VSockVmciRecvListen(sk, pkt);
+      VSockVmciRecvListen(sk, pkt);
       break;
    case SS_CONNECTING:
       /*
        * Processing of pending connections for servers goes through the
        * listening socket, so see VSockVmciRecvListen() for that path.
        */
-      err = VSockVmciRecvConnectingClient(sk, pkt);
+      VSockVmciRecvConnectingClient(sk, pkt);
       break;
    case SS_CONNECTED:
-      err = VSockVmciRecvConnected(sk, pkt);
+      VSockVmciRecvConnected(sk, pkt);
       break;
    default:
       /*
@@ -1564,7 +1559,6 @@ static int
 VSockVmciRecvListen(struct sock *sk,   // IN
                     VSockPacket *pkt)  // IN
 {
-   VSockVmciSock *vsk;
    struct sock *pending;
    VSockVmciSock *vpending;
    int err;
@@ -1576,7 +1570,6 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    ASSERT(pkt);
    ASSERT(sk->sk_state == SS_LISTEN);
 
-   vsk = vsock_sk(sk);
    err = 0;
 
    /*
@@ -1647,7 +1640,7 @@ VSockVmciRecvListen(struct sock *sk,   // IN
 
    vpending = vsock_sk(pending);
    ASSERT(vpending);
-   ASSERT(vsk->localAddr.svm_port == pkt->dstPort);
+   ASSERT(vsock_sk(sk)->localAddr.svm_port == pkt->dstPort);
 
    VSockAddr_Init(&vpending->localAddr,
                   VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.dst),

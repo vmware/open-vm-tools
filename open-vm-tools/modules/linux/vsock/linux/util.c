@@ -617,13 +617,11 @@ void
 VSockVmciRemovePending(struct sock *listener,   // IN: listening socket
                        struct sock *pending)    // IN: pending connection
 {
-   VSockVmciSock *vlistener;
    VSockVmciSock *vpending;
 
    ASSERT(listener);
    ASSERT(pending);
 
-   vlistener = vsock_sk(listener);
    vpending = vsock_sk(pending);
 
    list_del_init(&vpending->pendingLinks);

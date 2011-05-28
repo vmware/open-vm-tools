@@ -772,13 +772,11 @@ VSockVmciNotifyPktRecvPreBlock(struct sock *sk,               // IN
                                int target,                    // IN
                                VSockVmciRecvNotifyData *data) // IN
 {
-   VSockVmciSock *vsk;
    int err;
 
    ASSERT(sk);
    ASSERT(data);
 
-   vsk = vsock_sk(sk);
    err = 0;
 
    /* Notify our peer that we are waiting for data to read. */
