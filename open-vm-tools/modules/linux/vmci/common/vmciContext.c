@@ -599,27 +599,6 @@ VMCIContext_PendingDatagrams(VMCIId cid,      // IN
 
 
 /*
- * We allow at least 1024 more event datagrams from the hypervisor past the
- * normally allowed datagrams pending for a given context.  We define this
- * limit on event datagrams from the hypervisor to guard against DoS attack
- * from a malicious VM which could repeatedly attach to and detach from a queue
- * pair, causing events to be queued at the destination VM.  However, the rate
- * at which such events can be generated is small since it requires a VM exit
- * and handling of queue pair attach/detach call at the hypervisor.  Event
- * datagrams may be queued up at the destination VM if it has interrupts
- * disabled or if it is not draining events for some other reason.  1024
- * datagrams is a grossly conservative estimate of the time for which
- * interrupts may be disabled in the destination VM, but at the same time does
- * not exacerbate the memory pressure problem on the host by much (size of each
- * event datagram is small).
- */
-
-#define VMCI_MAX_DATAGRAM_AND_EVENT_QUEUE_SIZE \
-   (VMCI_MAX_DATAGRAM_QUEUE_SIZE + \
-    1024 * (sizeof(VMCIDatagram) + sizeof(VMCIEventData_Max)))
-
-
-/*
  *----------------------------------------------------------------------
  *
  * VMCIContext_EnqueueDatagram --
