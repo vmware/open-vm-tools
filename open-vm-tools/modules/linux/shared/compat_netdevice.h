@@ -24,6 +24,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/pci.h>
 
 /*
  * The enet_statistics structure moved from linux/if_ether.h to
