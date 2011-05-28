@@ -2248,15 +2248,15 @@ out:
  */
 
 int
-FileCreateDirectory(ConstUnicode pathName)  // IN:
+FileCreateDirectory(ConstUnicode pathName,  // IN:
+                    int mask)               // IN:
 {
    int err;
 
    if (pathName == NULL) {
       err = errno = EFAULT;
    } else {
-      err = (Posix_Mkdir(pathName,
-                         S_IRWXU | S_IRWXG | S_IRWXO) == -1) ? errno : 0;
+      err = (Posix_Mkdir(pathName, mask) == -1) ? errno : 0;
    }
 
    return err;

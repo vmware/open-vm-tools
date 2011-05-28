@@ -275,7 +275,9 @@ File_UnlinkNoFollow(ConstUnicode pathName)  // IN:
 Bool
 File_CreateDirectory(ConstUnicode pathName)  // IN:
 {
-   return (FileCreateDirectory(pathName) == 0) ? TRUE : FALSE;
+   int err = FileCreateDirectory(pathName, S_IRWXU | S_IRWXG | S_IRWXO);
+
+   return err == 0;
 }
 
 
@@ -299,9 +301,9 @@ File_CreateDirectory(ConstUnicode pathName)  // IN:
 Bool
 File_EnsureDirectory(ConstUnicode pathName)  // IN:
 {
-   int res = FileCreateDirectory(pathName);
+   int err = FileCreateDirectory(pathName, S_IRWXU | S_IRWXG | S_IRWXO);
 
-   return ((0 == res) || (EEXIST == res));
+   return ((err == 0) || (err == EEXIST));
 }
 
 

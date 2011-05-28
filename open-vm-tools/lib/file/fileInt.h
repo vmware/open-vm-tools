@@ -121,6 +121,7 @@ int FileDeletionRetry(ConstUnicode pathName,
                       uint32 msecMaxWaitTime);
 
 int FileCreateDirectoryRetry(ConstUnicode pathName,
+                             int mask,
                              uint32 msecMaxWaitTime);
 
 int FileRemoveDirectoryRetry(ConstUnicode pathName,
@@ -130,11 +131,11 @@ int FileListDirectoryRetry(ConstUnicode pathName,
                            uint32 msecMaxWaitTime,
                            Unicode **ids);
 
-#define FileAttributes(a, b)    FileAttributesRetry((a), 0, (b))
-#define FileRename(a, b)        FileRenameRetry((a), (b), 0)
-#define FileDeletion(a, b)      FileDeletionRetry((a), (b), 0)
-#define FileCreateDirectory(a)  FileCreateDirectoryRetry((a), 0)
-#define FileRemoveDirectory(a)  FileRemoveDirectoryRetry((a), 0)
+#define FileAttributes(a, b)       FileAttributesRetry((a), 0, (b))
+#define FileRename(a, b)           FileRenameRetry((a), (b), 0)
+#define FileDeletion(a, b)         FileDeletionRetry((a), (b), 0)
+#define FileCreateDirectory(a, b)  FileCreateDirectoryRetry((a), (b), 0)
+#define FileRemoveDirectory(a)     FileRemoveDirectoryRetry((a), 0)
 
 #define FILE_MAX_WAIT_TIME_MS 2000  // maximum wait time in milliseconds
 
@@ -146,8 +147,8 @@ int FileListDirectoryRetry(ConstUnicode pathName,
                     FileRenameRetry((a), (b), FILE_MAX_WAIT_TIME_MS)
 #define FileDeletionRobust(a, b) \
                     FileDeletionRetry((a), (b), FILE_MAX_WAIT_TIME_MS)
-#define FileCreateDirectoryRobust(a) \
-                    FileCreateDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS)
+#define FileCreateDirectoryRobust(a, b) \
+                    FileCreateDirectoryRetry((a), (b), FILE_MAX_WAIT_TIME_MS)
 #define FileRemoveDirectoryRobust(a) \
                     FileRemoveDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS)
 #else
@@ -162,16 +163,17 @@ int FileRename(ConstUnicode fromPath,
 int FileDeletion(ConstUnicode pathName,
                  Bool handleLink);
 
-int FileCreateDirectory(ConstUnicode pathName);
+int FileCreateDirectory(ConstUnicode pathName,
+                       int mask);
 
 int FileRemoveDirectory(ConstUnicode pathName);
 
-#define FileListDirectoryRobust(a, b) File_ListDirectory((a), (b))
-#define FileAttributesRobust(a, b)    FileAttributes((a), (b))
-#define FileRenameRobust(a, b)        FileRename((a), (b))
-#define FileDeletionRobust(a, b)      FileDeletion((a), (b))
-#define FileCreateDirectoryRobust(a)  FileCreateDirectory((a))
-#define FileRemoveDirectoryRobust(a)  FileRemoveDirectory((a))
+#define FileListDirectoryRobust(a, b)    File_ListDirectory((a), (b))
+#define FileAttributesRobust(a, b)       FileAttributes((a), (b))
+#define FileRenameRobust(a, b)           FileRename((a), (b))
+#define FileDeletionRobust(a, b)         FileDeletion((a), (b))
+#define FileCreateDirectoryRobust(a, b)  FileCreateDirectory((a), (b))
+#define FileRemoveDirectoryRobust(a)     FileRemoveDirectory((a))
 #endif
 
 typedef struct active_lock

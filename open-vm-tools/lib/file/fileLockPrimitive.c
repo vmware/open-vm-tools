@@ -1158,7 +1158,7 @@ MakeDirectory(ConstUnicode pathName)  // IN:
 
    ASSERT(pathName);
 
-   err = FileCreateDirectoryRobust(pathName);
+   err = FileCreateDirectoryRobust(pathName, S_IRWXU | S_IRWXG | S_IRWXO);
 
 #if !defined(_WIN32)
    umask(save);
