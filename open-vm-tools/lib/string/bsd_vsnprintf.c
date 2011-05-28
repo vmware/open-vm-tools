@@ -438,7 +438,7 @@ bsd_vsnprintf_core(char **outbuf,
    char thousands_sep;   /* locale specific thousands separator */
    char *grouping;       /* locale specific numeric grouping rules */
 
-#ifndef NO_FLOATING_POINT
+#if !defined(NO_FLOATING_POINT)
    /*
     * We can decompose the printed representation of floating
     * point numbers into several parts, some of which may be empty:
@@ -613,7 +613,7 @@ bsd_vsnprintf_core(char **outbuf,
    thousands_sep = '\0';
    grouping = NULL;
    convbuf = NULL;
-#ifndef NO_FLOATING_POINT
+#if !defined(NO_FLOATING_POINT)
    dtoaresult = NULL;
 #endif
 
@@ -660,7 +660,7 @@ bsd_vsnprintf_core(char **outbuf,
    }
 
    // shut compile up
-#ifndef NO_FLOATING_POINT
+#if !defined(NO_FLOATING_POINT)
    expchar = 0;
    expsize = 0;
    lead = 0;
@@ -839,12 +839,12 @@ bsd_vsnprintf_core(char **outbuf,
             size_t mbseqlen;
 
 	    mbs = initial;
-            mbseqlen = wcrtomb(cp = buf, (wchar_t)GETARG(wint_t), &mbs);
+            mbseqlen = wcrtomb(cp = buf, (wchar_t) GETARG(wint_t), &mbs);
             if (mbseqlen == (size_t) -1) {
                sbuf.error = TRUE;
                goto error;
             }
-            size = (int)mbseqlen;
+            size = (int) mbseqlen;
          } else {
             *(cp = buf) = GETARG(int);
             size = 1;
@@ -858,20 +858,21 @@ bsd_vsnprintf_core(char **outbuf,
       case 'i':
          if (flags & INTMAX_SIZE) {
             ujval = SJARG();
-            if ((intmax_t)ujval < 0) {
+            if ((intmax_t) ujval < 0) {
                ujval = -ujval;
                sign = '-';
             }
          } else {
             ulval = SARG();
-            if ((long)ulval < 0) {
+            if ((long) ulval < 0) {
                ulval = -ulval;
                sign = '-';
             }
          }
          base = 10;
          goto number;
-#ifndef NO_FLOATING_POINT
+
+#if !defined(NO_FLOATING_POINT)
       case 'e':
       case 'E':
          expchar = ch;
@@ -1001,6 +1002,7 @@ bsd_vsnprintf_core(char **outbuf,
          }
          break;
 #endif /* !NO_FLOATING_POINT */
+
       case 'n':
          /*
           * Assignment-like behavior is specified if the value overflows or
@@ -1049,7 +1051,8 @@ bsd_vsnprintf_core(char **outbuf,
           *   pointer is converted to a sequence of printable characters, in
           *   an implementation- defined manner.''   -- ANSI X3J11
           */
-         ujval = (uintmax_t)(uintptr_t)GETARG(void *);
+
+         ujval = (uintmax_t)(uintptr_t) GETARG(void *);
          base = 16;
          xdigs = xdigs_upper;
          flags = flags | INTMAXT;
@@ -1152,8 +1155,9 @@ bsd_vsnprintf_core(char **outbuf,
           *   precision of zero is no characters.'' -- ANSI X3J11
           *
           * ``The C Standard is clear enough as is. The call printf("%#.0o", 0)
-         *    should print 0.'' -- Defect Report #151
+          *    should print 0.'' -- Defect Report #151
           */
+
          cp = buf + INT_CONV_BUF;
          if (flags & INTMAX_SIZE) {
             if (ujval != 0 || prec != 0 ||
@@ -1247,11 +1251,27 @@ bsd_vsnprintf_core(char **outbuf,
       PAD(dprec - size, zeroes);
 
       /* the string or number proper */
-#ifndef NO_FLOATING_POINT
-      if ((flags & FPT) == 0) {
-         PRINT(cp, size);
-      } else {   /* glue together f_p fragments */
-         if (!expchar) {   /* %[fF] or sufficiently short %[gG] */
+      if (flags & FPT) { /* glue together f_p fragments */
+#if defined(NO_FLOATING_POINT)
+         NOT_IMPLEMENTED();
+#else
+         if (expchar) {   /* %[fF] or sufficiently short %[gG] */
+            if (prec > 1 || flags & ALT) {
+               buf[0] = *cp++;
+               buf[1] = *decimal_point;
+               PRINT(buf, 2);
+               if (ndig > 0) {
+                  PRINT(cp, ndig - 1);
+                  PAD(prec - ndig, zeroes);
+               } else {
+                  PAD(prec - ndig - 1, zeroes);
+               }
+            } else {  /* XeYYY */
+               PRINT(cp, 1);
+            }
+
+            PRINT(expstr, expsize);
+         } else {   /* %[eE] or sufficiently long %[gG] */
             if (expt <= 0) {
                PRINT(zeroes, 1);
                if (prec || flags & ALT) {
@@ -1285,27 +1305,11 @@ bsd_vsnprintf_core(char **outbuf,
                }
             }
             PRINTANDPAD(cp, dtoaend, prec, zeroes);
-         } else {   /* %[eE] or sufficiently long %[gG] */
-            if (prec > 1 || flags & ALT) {
-               buf[0] = *cp++;
-               buf[1] = *decimal_point;
-               PRINT(buf, 2);
-               if (ndig > 0) {
-                  PRINT(cp, ndig - 1);
-                  PAD(prec - ndig, zeroes);
-               } else {
-                  PAD(prec - ndig - 1, zeroes);
-               }
-            } else {  /* XeYYY */
-               PRINT(cp, 1);
-            }
-
-            PRINT(expstr, expsize);
          }
-      }
-#else
-      PRINT(cp, size);
 #endif
+      } else {
+         PRINT(cp, size);
+      }
 
 skip:
       /* left-adjusting padding (always blank) */
@@ -1338,7 +1342,7 @@ error:
 #ifndef _WIN32
    va_end(orgap);
 #endif
-#ifndef NO_FLOATING_POINT
+#if !defined(NO_FLOATING_POINT)
    if (dtoaresult != NULL) {
       freedtoa(dtoaresult);
    }
@@ -1615,7 +1619,7 @@ __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
       case 'i':
          ADDSARG();
          break;
-#ifndef NO_FLOATING_POINT
+#if !defined(NO_FLOATING_POINT)
       case 'a':
       case 'A':
       case 'e':
@@ -1748,7 +1752,7 @@ __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
       case TP_INTMAXT:
          (*argtable) [n].pintmaxarg = va_arg (ap, intmax_t *);
          break;
-#ifndef NO_FLOATING_POINT
+#if !defined(NO_FLOATING_POINT)
       case T_DOUBLE:
          (*argtable) [n].doublearg = va_arg (ap, double);
          break;
@@ -1817,8 +1821,7 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 }
 
 
-#ifndef NO_FLOATING_POINT
-
+#if !defined(NO_FLOATING_POINT)
 int
 BSDFmt_Exponent(char *p0, int exp, int fmtch)
 {
@@ -1859,7 +1862,6 @@ BSDFmt_Exponent(char *p0, int exp, int fmtch)
 
    return (p - p0);
 }
-
 #endif /* !NO_FLOATING_POINT */
 
 #endif /* !STR_NO_WIN32_LIBS|*BSD */
