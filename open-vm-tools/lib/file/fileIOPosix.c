@@ -748,9 +748,10 @@ PosixFileOpener(ConstUnicode pathName,  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * FileIO_Create --
+ * FileIOCreateRetry --
  *
  *      Open/create a file; specify creation mode
+ *      May perform retries to deal with certain OS conditions
  *
  * Results:
  *      FILEIO_SUCCESS on success: 'file' is set
@@ -765,11 +766,12 @@ PosixFileOpener(ConstUnicode pathName,  // IN:
  */
 
 FileIOResult
-FileIO_Create(FileIODescriptor *file,   // OUT:
-              ConstUnicode pathName,    // IN:
-              int access,               // IN:
-              FileIOOpenAction action,  // IN:
-              int mode)                 // IN: mode_t for creation
+FileIOCreateRetry(FileIODescriptor *file,   // OUT:
+                  ConstUnicode pathName,    // IN:
+                  int access,               // IN:
+                  FileIOOpenAction action,  // IN:
+                  int mode,                 // IN: mode_t for creation
+                  uint32 msecMaxWaitTime)   // IN: Ignored
 {
    uid_t uid = -1;
    int fd = -1;
@@ -927,6 +929,36 @@ error:
 /*
  *----------------------------------------------------------------------
  *
+ * FileIO_Create --
+ *
+ *      Open/create a file; specify creation mode
+ *
+ * Results:
+ *      FILEIO_SUCCESS on success: 'file' is set
+ *      FILEIO_OPEN_ERROR_EXIST if the file already exists
+ *      FILEIO_FILE_NOT_FOUND if the file is not present
+ *      FILEIO_ERROR for other errors
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+FileIOResult
+FileIO_Create(FileIODescriptor *file,   // OUT:
+              ConstUnicode pathName,    // IN:
+              int access,               // IN:
+              FileIOOpenAction action,  // IN:
+              int mode)                 // IN: mode_t for creation
+{
+   return FileIOCreateRetry(file, pathName, access, action, mode, 0);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * FileIO_Open --
  *
  *      Open/create a file
@@ -949,7 +981,8 @@ FileIO_Open(FileIODescriptor *file,   // OUT:
             int access,               // IN:
             FileIOOpenAction action)  // IN:
 {
-   return FileIO_Create(file, pathName, access, action, S_IRUSR | S_IWUSR);
+   return FileIOCreateRetry(file, pathName, access, action,
+                            S_IRUSR | S_IWUSR, 0);
 }
 
 
