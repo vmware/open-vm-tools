@@ -727,19 +727,15 @@ HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
                    HgfsAttrInfo *attr,     // OUT: Attr to copy into
                    char **fileName)        // OUT: pointer to allocated file name
 {
-   struct HgfsSuperInfo *si;
    HgfsReq *req;
    HgfsStatus replyStatus;
    HgfsOp opUsed;
    int result = 0;
-   HgfsRequest *requestHeader;
    Bool allowHandleReuse = TRUE;
 
    ASSERT(dentry);
    ASSERT(dentry->d_sb);
    ASSERT(attr);
-
-   si = HGFS_SB_TO_COMMON(dentry->d_sb);
 
    req = HgfsGetNewRequest();
    if (!req) {
@@ -748,7 +744,6 @@ HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
       result = -ENOMEM;
       goto out;
    }
-   requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
 
   retry:
 
@@ -1081,14 +1076,12 @@ HgfsBuildPath(char *buffer,           // IN/OUT: Buffer to write into
    int retval = 0;
    size_t shortestNameLength;
    HgfsSuperInfo *si;
-   char *originalBuffer;
 
    ASSERT(buffer);
    ASSERT(dentry);
    ASSERT(dentry->d_sb);
 
    si = HGFS_SB_TO_COMMON(dentry->d_sb);
-   originalBuffer = buffer;
 
    /*
     * Buffer must hold at least the share name (which is already prefixed with
@@ -1156,8 +1149,7 @@ HgfsBuildPath(char *buffer,           // IN/OUT: Buffer to write into
 
    /* Don't forget the share name length (which also accounts for the nul). */
    retval += shortestNameLength;
-   LOG(4, (KERN_DEBUG "VMware hgfs: HgfsBuildPath: Built \"%s\"\n",
-   	   originalBuffer));
+   LOG(4, (KERN_DEBUG "VMware hgfs: HgfsBuildPath: Built \"%s\"\n", buffer));
 
    return retval;
 }

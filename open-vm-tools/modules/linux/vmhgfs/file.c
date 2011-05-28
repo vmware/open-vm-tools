@@ -540,7 +540,6 @@ static int
 HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
          struct file *file)    // IN: File pointer for this open
 {
-   HgfsSuperInfo *si;
    HgfsReq *req;
    HgfsOp opUsed;
    HgfsStatus replyStatus;
@@ -555,7 +554,6 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
    ASSERT(file->f_dentry);
    ASSERT(file->f_dentry->d_inode);
 
-   si = HGFS_SB_TO_COMMON(inode->i_sb);
    iinfo = INODE_GET_II_P(inode);
 
    req = HgfsGetNewRequest();
@@ -1057,7 +1055,6 @@ static int
 HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
             struct file *file)    // IN: File that is getting released
 {
-   HgfsSuperInfo *si;
    HgfsReq *req;
    HgfsHandle handle;
    HgfsOp opUsed;
@@ -1079,7 +1076,6 @@ HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
    compat_filemap_write_and_wait(inode->i_mapping);
 
    HgfsReleaseFileInfo(file);
-   si = HGFS_SB_TO_COMMON(file->f_dentry->d_sb);
 
    req = HgfsGetNewRequest();
    if (!req) {
