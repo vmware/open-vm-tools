@@ -262,7 +262,7 @@ __GET_CPUID(int input, CPUIDRegs *regs)
 #ifdef VM_X86_64
 
 /*
- * No inline assembly in Win64. Implemented in bora/lib/user in
+ * No inline assembly in Win64. Implemented in bora/lib/misc in
  * cpuidMasm64.asm.
  */
 
@@ -406,7 +406,7 @@ __GET_EDX_FROM_CPUID(int input)
 #ifdef VM_X86_64
 
 /*
- * No inline assembly in Win64. Implemented in bora/lib/user in
+ * No inline assembly in Win64. Implemented in bora/lib/misc in
  * cpuidMasm64.asm.
  */
 

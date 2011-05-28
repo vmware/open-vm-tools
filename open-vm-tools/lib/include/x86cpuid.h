@@ -825,22 +825,22 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 }
 
 #define CPUID_MASK(eaxIn, reg, flag)                                    \
-   CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
+   CPUIDCheck((uint32)eaxIn, CPUID_INTERNAL_EAXIN_##flag,               \
               CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,     \
               CPUID_INTERNAL_MASK_##flag)
 
 #define CPUID_SHIFT(eaxIn, reg, flag)                                   \
-   CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
+   CPUIDCheck((uint32)eaxIn, CPUID_INTERNAL_EAXIN_##flag,               \
               CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,     \
               CPUID_INTERNAL_SHIFT_##flag)
 
 #define CPUID_ISSET(eaxIn, reg, flag, data)                             \
-   CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
-              CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,     \
-              (CPUID_INTERNAL_MASK_##flag & data) != 0)
+   (CPUIDCheck((uint32)eaxIn, CPUID_INTERNAL_EAXIN_##flag,              \
+               CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,    \
+               CPUID_INTERNAL_MASK_##flag & data) != 0)
 
 #define CPUID_GET(eaxIn, reg, field, data)                              \
-   CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##field,                      \
+   CPUIDCheck((uint32)eaxIn, CPUID_INTERNAL_EAXIN_##field,              \
               CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##field,    \
               ((uint32)data & CPUID_INTERNAL_MASK_##field) >>           \
               CPUID_INTERNAL_SHIFT_##field)
@@ -850,14 +850,14 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 
 #define CPUID_SET(eaxIn, reg, flag, dataPtr)                            \
    do {                                                                 \
-      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
+      ASSERT_ON_COMPILE((uint32)eaxIn == (uint32)CPUID_INTERNAL_EAXIN_##flag && \
               CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
       *dataPtr |= CPUID_INTERNAL_MASK_##flag;                           \
    } while (0)
 
 #define CPUID_CLEAR(eaxIn, reg, flag, dataPtr)                          \
    do {                                                                 \
-      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
+      ASSERT_ON_COMPILE((uint32)eaxIn == (uint32)CPUID_INTERNAL_EAXIN_##flag && \
               CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
       *dataPtr &= ~CPUID_INTERNAL_MASK_##flag;                          \
    } while (0)
@@ -865,10 +865,12 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_SETTO(eaxIn, reg, field, dataPtr, val)                    \
    do {                                                                 \
       uint32 *d = dataPtr;                                              \
-      ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##field &&        \
+      ASSERT_ON_COMPILE((uint32)eaxIn == (uint32)CPUID_INTERNAL_EAXIN_##field && \
               CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##field); \
       *d = (*d & ~CPUID_INTERNAL_MASK_##field) |                        \
-           (val << CPUID_INTERNAL_SHIFT_##field);                       \
+         ((uint32)val << CPUID_INTERNAL_SHIFT_##field);                 \
+      ASSERT(val == (*d & CPUID_INTERNAL_MASK_##field) >>               \
+             CPUID_INTERNAL_SHIFT_##field);                             \
    } while (0)
 
 
@@ -1163,13 +1165,22 @@ CPUID_MODEL_IS_BARCELONA(uint32 v) // IN: %eax from CPUID with %eax=1.
 #define CPUID_INTEL_ID4EAX_LEAF4_CACHE_TYPE_DATA      1
 #define CPUID_INTEL_ID4EAX_LEAF4_CACHE_TYPE_INST      2
 #define CPUID_INTEL_ID4EAX_LEAF4_CACHE_TYPE_UNIF      3
+#define CPUID_LEAF4_CACHE_TYPE_NULL      0
+#define CPUID_LEAF4_CACHE_TYPE_DATA      1
+#define CPUID_LEAF4_CACHE_TYPE_INST      2
+#define CPUID_LEAF4_CACHE_TYPE_UNIF      3
 
 #define CPUID_INTEL_ID4EAX_LEAF4_CACHE_SELF_INIT      0x00000100
 #define CPUID_INTEL_ID4EAX_LEAF4_CACHE_FULLY_ASSOC    0x00000200
+#define CPUID_LEAF4_CACHE_SELF_INIT      0x00000100
+#define CPUID_LEAF4_CACHE_FULLY_ASSOC    0x00000200
 
 #define CPUID_INTEL_IDBECX_LEVEL_TYPE_INVALID   0
 #define CPUID_INTEL_IDBECX_LEVEL_TYPE_SMT       1
 #define CPUID_INTEL_IDBECX_LEVEL_TYPE_CORE      2
+#define CPUID_TOPOLOGY_LEVEL_TYPE_INVALID   0
+#define CPUID_TOPOLOGY_LEVEL_TYPE_SMT       1
+#define CPUID_TOPOLOGY_LEVEL_TYPE_CORE      2
 
 
 /*
