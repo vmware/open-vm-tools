@@ -324,7 +324,19 @@ struct _UnityPlatform {
    int shapeErrorBase;
 
    vmware::tools::unity::WindowPathFactory* wpFactory;
+
+   /* See UNITY_ANNOY(). */
+   Bool noisyLogging;
 };
+
+
+#define UNITY_DEBUGLOG(unityPlatform, ...)      do {                    \
+   if (   LIKELY(unityPlatform)                                         \
+       && UNLIKELY(unityPlatform->noisyLogging)) {                      \
+          Debug(__VA_ARGS__);                                           \
+   }                                                                    \
+} while(0)
+
 
 /*
  * Holds per-window platform-specific data.
