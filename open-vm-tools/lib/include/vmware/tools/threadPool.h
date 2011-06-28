@@ -24,6 +24,10 @@
  *
  * Public interface for vmtoolsd's thread pool.
  *
+ * @defgroup vmtools_threads  Threading
+ * @brief Thread Pooling and Monitoring
+ * @{
+ *
  * vmtoolsd provides a worker thread pool for use by plugins. This pool is
  * shared among all plugins, and is configurable from the Tools config file.
  * Plugins can submit tasks to the thread pool by using one of the inline
@@ -205,6 +209,7 @@ ToolsCorePool_StartThread(ToolsAppCtx *ctx,
    return FALSE;
 }
 
+/** @} */
 
 #endif /* _THREADPOOL_H_ */
 
