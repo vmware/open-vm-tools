@@ -108,7 +108,6 @@
  *    Intel HECI (as embedded in ich9m)
  */
 #define PCI_VENDOR_ID_INTEL             0x8086
-#define PCI_DEVICE_ID_INTEL_82371SB     0x7000
 #define PCI_DEVICE_ID_INTEL_82439TX     0x7100
 #define PCI_DEVICE_ID_INTEL_82371AB_0   0x7110
 #define PCI_DEVICE_ID_INTEL_82371AB_2   0x7112
