@@ -2868,6 +2868,11 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
        * to set the files times using futimes.
        */
 
+      /*
+       * XXX Bug 718252: Ideally we should use geteuid() instead of
+       *     getuid(). For Nitrogen/Honeycomb, we can live with getuid()
+       *     and fix it later on the *-main.
+       */
       if (getuid() != statBuf.st_uid) {
          /* We are not the file owner. Check if we are running as root. */
          if (!Id_IsSuperUser()) {
@@ -2886,10 +2891,27 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
        */
 
       if (futimes(fd, times) < 0) {
-         error = errno;
-         LOG(4, ("%s: futimes error on file %u: %s\n", __FUNCTION__,
-                 fd, strerror(error)));
-         status = error;
+         if (!switchToSuperUser) {
+            /*
+             * Check bug 718252. If futimes() fails, switch to
+             * superuser briefly and try futimes() one more time.
+             */
+            uid = Id_BeginSuperUser();
+            switchToSuperUser = TRUE;
+            if (futimes(fd, times) < 0) {
+               error = errno;
+               LOG(4, ("%s: Executing futimes as owner on file: %u "
+                       "failed with error: %s\n", __FUNCTION__,
+                       fd, strerror(error)));
+               status = error;
+            }
+         } else {
+            error = errno;
+            LOG(4, ("%s: Executing futimes as superuser on file: %u "
+                    "failed with error: %s\n", __FUNCTION__,
+                    fd, strerror(error)));
+            status = error;
+         }
       }
       if (switchToSuperUser) {
          Id_EndSuperUser(uid);
