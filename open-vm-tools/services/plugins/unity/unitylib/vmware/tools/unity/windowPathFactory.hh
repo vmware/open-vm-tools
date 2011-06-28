@@ -55,6 +55,7 @@ public:
 private:
    typedef std::tr1::unordered_map<Glib::ustring, WindowPathPair,
                                    std::tr1::hash<std::string> > ExecMap;
+   typedef std::pair<Glib::RefPtr<Glib::Regex>, std::string> ExecPattern;
 
    Glib::ustring CanonicalizeAppName(const Glib::ustring& appName,
                                      const Glib::ustring& cwd);
@@ -67,6 +68,8 @@ private:
 
    Display* mDpy;
    ExecMap mExecMap;
+   std::vector<std::string> mEnvPrefixes;
+   std::vector<ExecPattern> mExecPatterns;
    Glib::RefPtr<Glib::Regex> mSkipPatterns;
 };
 
