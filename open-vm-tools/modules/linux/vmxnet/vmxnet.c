@@ -30,7 +30,6 @@
 #include "compat_spinlock.h"
 #include "compat_pci.h"
 #include "compat_pci_mapping.h"
-#include "compat_init.h"
 #include "compat_timer.h"
 #include "compat_ethtool.h"
 #include "compat_netdevice.h"
@@ -41,6 +40,8 @@
 #include <linux/delay.h>
 #endif
 #include "compat_interrupt.h"
+
+#include <linux/init.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>

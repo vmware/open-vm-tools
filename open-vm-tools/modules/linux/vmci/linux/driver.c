@@ -26,6 +26,7 @@
 
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/init.h>
 #if defined(__x86_64__) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 12)
 #   include <linux/ioctl32.h>
 /* Use weak: not all kernels export sys_ioctl for use by modules */
@@ -38,7 +39,6 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #include <linux/smp.h>
 
 #include "compat_highmem.h"
-#include "compat_init.h"
 #include "compat_interrupt.h"
 #include "compat_ioport.h"
 #include "compat_kernel.h"

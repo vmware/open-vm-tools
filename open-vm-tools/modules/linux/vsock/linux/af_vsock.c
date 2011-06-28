@@ -105,6 +105,7 @@
 #include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/wait.h>
+#include <linux/init.h>
 #include <asm/io.h>
 #if defined(__x86_64__) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 12)
 #   include <linux/ioctl32.h>
@@ -116,7 +117,6 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #include "compat_cred.h"
 #include "compat_module.h"
 #include "compat_kernel.h"
-#include "compat_init.h"
 #include "compat_sock.h"
 #include "compat_version.h"
 #include "compat_workqueue.h"
