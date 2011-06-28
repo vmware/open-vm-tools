@@ -162,9 +162,12 @@ typedef int (VMCIDatagram_DestroyHndFct)(VMCIHandle);
 typedef int (VMCIDatagram_SendFct)(VMCIDatagram *);
 typedef VMCIId (VMCI_GetContextIDFct)(void);
 typedef uint32 (VMCI_VersionFct)(void);
+typedef int (VMCI_ContextID2HostVmIDFct)(VMCIId, void *, size_t);
+typedef int (VMCI_IsContextOwnerFct)(VMCIId, void *);
 typedef int (VMCIEvent_SubscribeFct)(VMCI_Event, uint32, VMCI_EventCB, void *,
                                      VMCIId *);
 typedef int (VMCIEvent_UnsubscribeFct)(VMCIId);
+typedef VMCIPrivilegeFlags (VMCIContext_GetPrivFlagsFct)(VMCIId);
 typedef int (VMCIQPair_AllocFct)(VMCIQPair **, VMCIHandle *, uint64, uint64,
                                  VMCIId, uint32, VMCIPrivilegeFlags);
 typedef int (VMCIQPair_DetachFct)(VMCIQPair **);

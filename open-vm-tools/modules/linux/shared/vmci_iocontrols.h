@@ -640,6 +640,9 @@ typedef struct VMCIDeviceGetInfoVer1 {
    VMCIQPair_EnqueueVFct *qpairEnqueueV;
    VMCIQPair_DequeueVFct *qpairDequeueV;
    VMCIQPair_PeekVFct *qpairPeekV;
+   VMCI_ContextID2HostVmIDFct *contextID2HostVmID;
+   VMCI_IsContextOwnerFct *isContextOwner;
+   VMCIContext_GetPrivFlagsFct *contextGetPrivFlags;
 } VMCIDeviceGetInfoVer1;
 
 /* Version 2. */
