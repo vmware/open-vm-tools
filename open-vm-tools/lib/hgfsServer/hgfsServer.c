@@ -3683,6 +3683,9 @@ HgfsServerSessionDisconnect(void *clientData)    // IN: session context
    ASSERT(session);
    ASSERT(session->nodeArray);
    ASSERT(session->searchArray);
+   if (session->activeNotification) {
+      HgfsNotify_CleanupSession(session);
+   }
 
    session->state = HGFS_SESSION_STATE_CLOSED;
 }
@@ -4030,10 +4033,6 @@ HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,  // IN: List of new shares
    ASSERT(session->nodeArray);
    ASSERT(session->searchArray);
    LOG(4, ("%s: Beginning\n", __FUNCTION__));
-
-   if (session->activeNotification) {
-      HgfsNotify_CleanupSession(session);
-   }
 
    MXUser_AcquireExclLock(session->nodeArrayLock);
 
