@@ -1719,6 +1719,9 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
  *      The actual resolution of these "clocks" are undefined - it varies
  *      depending on hardware, OSen and OS versions.
  *
+ *     *** NOTE: This function and all children must be callable
+ *     while RANK_logLock is held. ***
+ *
  * Results:
  *      The time in nanoseconds is returned. Zero upon error.
  *
