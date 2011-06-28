@@ -7712,7 +7712,7 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
                                         HgfsServerPolicy_GetSharesInit,
                                         HgfsServerPolicy_GetSharesCleanup,
                                         &rootSearch->dents);
-                  if (rootSearch->numDents < 0) {
+                  if (((int) (rootSearch->numDents)) < 0) {
                      ASSERT_DEVEL(0);
                      LOG(4, ("%s: couldn't get root dents\n", __FUNCTION__));
                      rootSearch->numDents = 0;
