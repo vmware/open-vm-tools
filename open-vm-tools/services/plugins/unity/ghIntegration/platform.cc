@@ -239,7 +239,8 @@ GHIPlatformIsSupported(void)
 {
    const char *desktopEnv = Xdg_DetectDesktopEnv();
    Bool supported = (g_strcmp0(desktopEnv, "GNOME") == 0) ||
-                    (g_strcmp0(desktopEnv, "KDE") == 0);
+                    (g_strcmp0(desktopEnv, "KDE") == 0) ||
+                    (g_strcmp0(desktopEnv, "XFCE") == 0);
    if (!supported) {
       g_message("GHI not available under unsupported desktop environment %s\n",
                 desktopEnv ? desktopEnv : "(nil)");
