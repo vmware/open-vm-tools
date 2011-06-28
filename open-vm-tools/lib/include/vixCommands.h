@@ -314,35 +314,6 @@ struct VixCommandSSPI {
 #include "vmware_pack_end.h"
 VixCommandSSPI;
 
-/*
- * **********************************************************
- * Open VM Command
- *
- */
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVMOpenRequest {
-   VixCommandRequestHeader header;
-   int32                   options; //options for VM_Open or CreateWorkingCopy
-   uint32                  xmlPathNameSize;
-   uint32                  vmxPathNameSize;
-   //this is followed by the xml pathname and the vmx pathname
-}
-#include "vmware_pack_end.h"
-VixMsgVMOpenRequest;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVMOpenResponse {
-   VixCommandResponseHeader   header;
-   int32                      vmPowerState;
-   uint32                     vmxPathNameSize;
-}
-#include "vmware_pack_end.h"
-VixMsgVMOpenResponse;
-
-
 
 /*
  * **********************************************************
@@ -2118,9 +2089,9 @@ enum {
    VIX_COMMAND_DISCARD_WORKING_COPY             = 56, // DELETE this when we switch remote foundry to VIM
    VIX_COMMAND_SAVE_WORKING_COPY                = 57, // DELETE this when we switch remote foundry to VIM
    VIX_COMMAND_CAPTURE_SCREEN                   = 58,
-   VIX_COMMAND_GET_VMDB_VALUES                  = 59,
-   VIX_COMMAND_SET_VMDB_VALUES                  = 60,
-   VIX_COMMAND_READ_XML_FILE                    = 61,
+   /* DEPRECATED VIX_COMMAND_GET_VMDB_VALUES                  = 59, */
+   /* DEPRECATED VIX_COMMAND_SET_VMDB_VALUES                  = 60, */
+   /* DEPRECATED VIX_COMMAND_READ_XML_FILE                    = 61, */
    VIX_COMMAND_GET_TOOLS_STATE                  = 62,
    VIX_COMMAND_CHANGE_SCREEN_RESOLUTION         = 69,
    VIX_COMMAND_DIRECTORY_EXISTS                 = 70,
@@ -2346,10 +2317,8 @@ enum  {
  * to the VMX.
  */
 #define VIX_BACKDOORCOMMAND_RUN_PROGRAM_DONE    "Run_Program_Done"
-#define VIX_BACKDOORCOMMAND_PROXY_MESSAGE       "VIX_Proxy_Msg"
 
 
-#define VIX_HOST_FOR_THIS_GUEST_OS "self"
 #define VIX_FEATURE_UNKNOWN_VALUE "Unknown"
 
 
