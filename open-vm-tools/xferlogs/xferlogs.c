@@ -20,11 +20,11 @@
  * xferlogs.c --
  *
  *      Simple program based on rpctool to dump the vm-support output to
- *      the vmx log file base64 encoded, it can dump any file supplied on the 
+ *      the vmx log file base64 encoded, it can dump any file supplied on the
  *      commandline to the vmx log. It also does the decoding part of it
  *      it can read the vmware.log file decode and write the encoded files in
  *      the directory it was invoked.
- * 
+ *
  *      example of a transfer found in the vmx log file.
  *      Aug 24 18:48:09: vcpu-0| Guest: >Logfile Begins : /root/install.log: ver - 1
  *      Aug 24 18:48:09: vcpu-0| Guest: >SW5zdGFsbGluZyA0NDEgcGFja2FnZXMKCkluc3RhbGxpbmcgZ2xpYmMtY29tbW9uLTIuMi41LTM0
@@ -47,6 +47,7 @@
 
 #include "vmware.h"
 #include "vmsupport.h"
+#include "debug.h"
 #include "rpcvmx.h"
 #include "rpcout.h"
 #include "base64.h"
@@ -57,7 +58,7 @@
 #include "embed_version.h"
 VM_EMBED_VERSION(XFERLOGS_VERSION_STRING);
 
-/* 
+/*
  * "The resultant base64-encoded data exceeds the original in length by the
  * ratio 4:3, and typically appears to consist of seemingly random characters.
  * As newlines, represented by a CR+LF pair, are inserted in the encoded data
@@ -73,28 +74,21 @@ VM_EMBED_VERSION(XFERLOGS_VERSION_STRING);
 #define LOG_END_MARK           ">Logfile Ends "
 
 typedef enum {
-   NOT_IN_GUEST_LOGGING, 
+   NOT_IN_GUEST_LOGGING,
    IN_GUEST_LOGGING
 } extractMode;
 
 #define LOG_VERSION            1
 
-/* 
- * The function definitions of Warning and Debug were the same, So I elected
- * to do this. Or the other alternative was to define it again.
- */
-#define Warning                Debug
-
-void Debug(const char *fmt, ...);
 
 /*
  *--------------------------------------------------------------------------
- * 
+ *
  * xmitFile --
  *
- *       This function transfers a file using the rpc channel in base64 
+ *       This function transfers a file using the rpc channel in base64
  *       encoding to the vmx logs.
- * 
+ *
  * Results:
  *       None.
  *
@@ -112,8 +106,8 @@ xmitFile(char *filename) //IN : file to be transmitted.
    size_t readLen;
    char buf[BUF_BASE64_SIZE];
 
-   /* 
-    * We have a unique identifier saying that this is guest dumping the 
+   /*
+    * We have a unique identifier saying that this is guest dumping the
     * output of logs and not any other logging information from the guest.
     */
    char base64B[BUF_BASE64_SIZE * 2] = ">";
@@ -134,7 +128,7 @@ xmitFile(char *filename) //IN : file to be transmitted.
          goto exit;
       }
    }
-exit :
+exit:
    RpcVMX_Log(LOG_END_MARK);
    fclose(fp);
 }
@@ -142,13 +136,13 @@ exit :
 
 /*
  *--------------------------------------------------------------------------
- * 
+ *
  * extractFile --
  *
- *       This function iterates through the vmx log file and for every 
+ *       This function iterates through the vmx log file and for every
  *       line which has a "Guest: >" writes the unencoded base64 output to
  *       a file, depending on the state machine.
- * 
+ *
  * Results:
  *       None
  *
@@ -181,11 +175,15 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
 
    while (fgets(buf, sizeof buf, fp)) {
 
-      /* 
+      /*
        * The state machine determines when to open, write and close a file.
        */
       if (strstr(buf, LOG_GUEST_MARK)) {
          if (strstr(buf, LOG_START_MARK)) { //open a new output file.
+            const char *ext;
+            char tstamp[32];
+            time_t now;
+
             ASSERT(outfp == NULL);
             ASSERT(state == NOT_IN_GUEST_LOGGING);
             state = IN_GUEST_LOGGING;
@@ -196,17 +194,34 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
              */
             logInpFilename = strstr(buf, LOG_START_MARK);
             logInpFilename += sizeof LOG_START_MARK;
-            ptrStr = strchr(logInpFilename, ':');
+            ptrStr = strstr(logInpFilename, ": ver ");
+            if (ptrStr == NULL) {
+               fprintf(stderr, "Invalid start log mark.");
+               break;
+            }
             *ptrStr = '\0';
 
-            /* 
+            /*
              * Ignore the filename in the log, for obvious security reasons
              * and create a new filename consiting of time and enumerator.
+             * Try to maintain the same extension reported by the guest,
+             * though, if it's in the white list.
              */
-            Str_Sprintf(fname, sizeof fname, "%d_%"FMTTIME".log",
-                        filenu++, time(NULL));
+            if (StrUtil_EndsWith(logInpFilename, ".zip")) {
+               ext = "zip";
+            } else if (StrUtil_EndsWith(logInpFilename, ".tar.gz")) {
+               ext = "tar.gz";
+            } else {
+               /* Something else we don't expect from out vm-support scripts. */
+               ext = "log";
+            }
 
-            /* 
+            time(&now);
+            strftime(tstamp, sizeof tstamp, "%Y-%m-%d-%H-%M", localtime(&now));
+            Str_Sprintf(fname, sizeof fname, "vm-support-%d-%s.%s",
+                        filenu++, tstamp, ext);
+
+            /*
              * Read the version information, if they dont match just warn
              * and leave the outfp null, so we do process the input file, but
              * dont write anything.
@@ -252,21 +267,23 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
    fclose(fp);
 }
 
-static void usage(void) {
+
+static void
+usage(void)
+{
    Warning("xferlogs <options> <filename>\n");
    Warning("options - enc/dec\n");
 }
 
+
 int
-main(int argc, char *argv[])
+main(int argc,
+     char *argv[])
 {
    int status;
-   if (argc < 2) {
+   if (argc != 3) {
       usage();
       return -1;
-   } if (argc == 2) {
-      RpcVMX_Log("%s", argv[1]);
-      return 0;
    }
 
    if (!strncmp(argv[1], "enc", 3)) {
@@ -274,7 +291,7 @@ main(int argc, char *argv[])
    } else if(!strncmp(argv[1], "dec", 3)) {
       extractFile(argv[2]);
    } else if(!strncmp(argv[1], "upd", 3)) {
-      if (argc == 3 && StrUtil_StrToInt(&status, argv[2])) {
+      if (StrUtil_StrToInt(&status, argv[2])) {
          RpcOut_sendOne(NULL, NULL, RPC_VMSUPPORT_STATUS " %d", status);
       } else {
          return -1;
@@ -286,30 +303,3 @@ main(int argc, char *argv[])
    return 0;
 }
 
-void
-Panic(const char *fmt, ...)
-{
-   va_list args;
-   char buf[1024];
-
-   va_start(args, fmt);
-   Str_Vsnprintf(buf, sizeof buf, fmt, args);
-   va_end(args);
-
-   fputs(buf, stderr);
-   abort();
-}
-
-void
-Debug(const char *fmt, ...)
-{
-   va_list args;
-   char *buf;
-
-   va_start(args, fmt);
-   buf = (char *)Str_Vasprintf(NULL, fmt, args);
-   va_end(args);
-
-   fprintf(stderr, "xferlogs: %s\n", buf);
-   fflush(stderr);
-}
