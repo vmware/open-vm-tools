@@ -308,6 +308,12 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
       ghip->nativeEnviron.push_back(*tmp);
    }
 
+   /*
+    * PR 698958: Unity: There can be only one.  (Disable Ubuntu global application menu.)
+    * See https://wiki.ubuntu.com/DesktopExperienceTeam/ApplicationMenu#Troubleshooting
+    */
+   ghip->nativeEnviron.push_back("UBUNTU_MENUPROXY=");
+
    desktopEnv = Xdg_DetectDesktopEnv();
    ASSERT(desktopEnv); // Asserting based on GHIPlatformIsSupported check above.
    g_desktop_app_info_set_desktop_env(desktopEnv);
