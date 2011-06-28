@@ -315,8 +315,6 @@ ResolutionCanSet(void)
       unsigned int num;
       int i;
 
-      XGrabServer(resInfoX->display);
-
       xrrRes = XRRGetScreenResources(resInfoX->display, resInfoX->rootWindow);
 
       if (xrrRes) {
@@ -344,8 +342,6 @@ ResolutionCanSet(void)
 
          XRRFreeScreenResources(xrrRes);
       }
-
-      XUngrabServer(resInfoX->display);
 
       if (resInfoX->canUseRandR12) {
          return TRUE;
