@@ -2868,12 +2868,7 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
        * to set the files times using futimes.
        */
 
-      /*
-       * XXX Bug 718252: Ideally we should use geteuid() instead of
-       *     getuid(). For Nitrogen/Honeycomb, we can live with getuid()
-       *     and fix it later on the *-main.
-       */
-      if (getuid() != statBuf.st_uid) {
+      if (geteuid() != statBuf.st_uid) {
          /* We are not the file owner. Check if we are running as root. */
          if (!Id_IsSuperUser()) {
             LOG(4, ("%s: only owner of file %u or root can call futimes\n",
