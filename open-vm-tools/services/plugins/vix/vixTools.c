@@ -7171,8 +7171,8 @@ VixToolsFreeStartProgramState(VixToolsStartProgramState *asyncState) // IN
  */
 
 static char *
-VixToolsGetTempFileCreateNameFunc(int num,                    // IN
-                                  void *payload)              // IN
+VixToolsGetTempFileCreateNameFunc(uint32 num,     // IN:
+                                  void *payload)  // IN:
 {
    char *fileName = NULL;
 
@@ -7190,7 +7190,7 @@ VixToolsGetTempFileCreateNameFunc(int num,                    // IN
    }
 
    fileName = Str_SafeAsprintf(NULL,
-                               "%s%s%d%s",
+                               "%s%s%u%s",
                                data->filePrefix,
                                data->tag,
                                num,

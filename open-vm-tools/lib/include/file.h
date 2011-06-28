@@ -81,7 +81,7 @@ typedef const WalkDirContextImpl *WalkDirContext;
  *
  */
 
-typedef Unicode File_MakeTempCreateNameFunc(int num,
+typedef Unicode File_MakeTempCreateNameFunc(uint32 num,
                                             void *data);
 
 #if defined(__APPLE__)

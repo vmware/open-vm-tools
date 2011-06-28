@@ -45,6 +45,45 @@
 /*
  *----------------------------------------------------------------------
  *
+ *  FileTempNum --
+ *
+ *      Compute a number to be used as an attachment to a base name.
+ *      In order to avoid race conditions, files and directories are
+ *      kept separate via enforced odd (file) and even (directory)
+ *      numberings.
+ *
+ *      Regardless of the input value of *var, the output value will
+ *      be even or odd as determined by createTempFile.
+ *
+ * Results:
+ *      An odd number if createTempFile is TRUE.
+ *      An even number if createTempFile is FALSE.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+FileTempNum(Bool createTempFile,  // IN:
+            uint32 *var)          // IN/OUT:
+{
+   uint32 delta;
+
+   ASSERT(var);
+
+   do {
+      delta = (FileSimpleRandom() >> 8) & 0xFF;
+   } while (((*var + delta) & 0x1) != (createTempFile ? 1 : 0));
+
+   *var += delta;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  *  File_MakeTempEx2 --
  *
  *      Create a temporary file or a directory.
@@ -71,7 +110,11 @@
  *      string with the pathname of the temp file.
  *
  * Side effects:
- *      Creates a file if successful. Errno is set on error
+ *      Creates the requested object when successful. Errno is set on error
+ *
+ *      Files and directories are effectively in separate name spaces;
+ *      the numerical value attached via createNameFunc is odd for files
+ *      and even for directories.
  *
  *----------------------------------------------------------------------
  */
@@ -83,14 +126,15 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
                  void *createNameFuncData,                     // IN:
                  Unicode *presult)                             // OUT:
 {
-   int fd = -1;
-   int var;
    uint32 i;
 
+   int fd = -1;
+   uint32 var = 0;
    Unicode path = NULL;
 
    if ((dir == NULL) || (createNameFunc == NULL)) {
       errno = EFAULT;
+
       return -1;
    }
 
@@ -98,13 +142,22 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
 
    *presult = NULL;
 
-   for (i = 0, var = 0; i < 0xFFFFFFFF;
-        i++, var += (FileSimpleRandom() >> 8) & 0xFF) {
+   for (i = 0; i < (MAX_INT32 / 2); i++) {
       Unicode fileName;
 
       /* construct suffixed pathname to use */
       Unicode_Free(path);
       path = NULL;
+
+      /*
+       * Files and directories are kept separate (odd and even respectfully).
+       * This way the available exclusion mechanisms work properly - O_EXCL
+       * on files, mkdir on directories - and races are avoided.
+       *
+       * Not attempting an open on a directory is a good thing...
+       */
+
+      FileTempNum(createTempFile, &var);
 
       fileName = (*createNameFunc)(var, createNameFuncData);
       ASSERT(fileName);
@@ -116,18 +169,6 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
 
       if (createTempFile) {
          fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
-#if defined(_WIN32)
-         /*
-          * On Windows, Posix_Open() fails with EACCES if there is any
-          * access violation while creating the file. Also, EACCES is returned
-          * if a directory already exists with the same name. In such case,
-          * we need to check if a file already exists and ignore EACCES error.
-          */
-
-         if ((fd == -1) && (errno == EACCES) && (File_Exists(path))) {
-            continue;
-         }
-#endif
       } else {
          fd = Posix_Mkdir(path, 0600);
       }
@@ -186,18 +227,14 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
  */
 
 static Unicode
-FileMakeTempExCreateNameFunc(int num,     // IN:
+FileMakeTempExCreateNameFunc(uint32 num,  // IN:
                              void *data)  // IN:
 {
-   Unicode filePath;
-
    if (data == NULL) {
       return NULL;
    }
 
-   filePath = Unicode_Format("%s%d", (Unicode) data, num);
-
-   return filePath;
+   return Unicode_Format("%s%u", (Unicode) data, num);
 }
 
 
