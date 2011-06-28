@@ -39,6 +39,7 @@
 #include "str.h"
 #include "vmcheck.h"
 #include "vmtoolsd_version.h"
+#include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/i18n.h"
 

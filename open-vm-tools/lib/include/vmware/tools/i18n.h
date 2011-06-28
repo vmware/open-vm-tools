@@ -22,13 +22,10 @@
 /**
  * @file i18n.h
  *
- * Functions and macros to help with internationalization and localization of
- * applications.
- *
- * @addtogroup vmtools_utils
+ * @defgroup vmtools_i18n Internationalization
  * @{
  *
- * @section vmtools_utils_i18n Internationalization
+ * @brief Functions and macros to help with internationalization of applications.
  *
  * To create a localizable string, use the MSGID macro in the following manner:
  *

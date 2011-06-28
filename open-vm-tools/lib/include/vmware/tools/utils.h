@@ -24,8 +24,14 @@
  *
  *    Public functions from the VMTools shared library, and other definitions.
  *
- * @addtogroup vmtools_utils
+ * @defgroup vmtools_utils Utility Functions
  * @{
+ *
+ * @brief A collection of useful functions.
+ *
+ * This module contains functions for loading configuration data and extensions
+ * to the glib API that are useful when writing applications.
+ *
  */
 
 #define  VMTOOLS_GUEST_SERVICE   "vmsvc"
@@ -97,12 +103,6 @@ G_BEGIN_DECLS
 
 void
 vm_free(void *ptr);
-
-void
-VMTools_ConfigLogging(const gchar *defaultDomain,
-                      GKeyFile *cfg,
-                      gboolean force,
-                      gboolean reset);
 
 gboolean
 VMTools_LoadConfig(const gchar *path,

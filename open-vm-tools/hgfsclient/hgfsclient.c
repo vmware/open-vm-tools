@@ -24,6 +24,7 @@
  *
  */
 
+#define G_LOG_DOMAIN "hgfsClient"
 #include "vmware.h"
 #include "guestApp.h"
 #include "vmcheck.h"
@@ -34,6 +35,7 @@
 #include "hgfsProto.h"
 #include "conf.h"
 #include "str.h"
+#include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
 
 #include "hgfsclient_version.h"

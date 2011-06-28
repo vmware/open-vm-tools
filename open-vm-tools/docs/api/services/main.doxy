@@ -43,7 +43,9 @@ new plugin containers.
 @section tc_main_utils     Miscelaneous Utilities
 
    - @ref vmtools_utils
+   - @ref vmtools_logging
    - @ref vmtools_threads
+   - @ref vmtools_i18n
 
 @section tc_main_debug     Debugging Support
 

@@ -25,9 +25,89 @@
  * Some wrappers around glib log functions, expanding their functionality to
  * support common usage patterns at VMware.
  *
- * @addtogroup vmtools_utils
+ * @defgroup vmtools_logging Logging
  * @{
- */
+ *
+ * The Tools logging facility is built on top of glib's logging functions
+ * (http://developer.gnome.org/glib/stable/glib-Message-Logging.html). Some
+ * convenience macros built on top of glib's existing macros are also provided.
+ *
+ * Logging is configurable on a per-domain basis. The configuration options
+ * for each domain are:
+ *
+ *    - level: minimum log level to log. Also used to declare specific log
+ *      domain configurations.
+ *      - Valid values: error, critical, warning, message, info, debug, none
+ *      - This value is required when configuring a domain.
+ *    - handler: the handler to use when logging.
+ *      - Valid values: std, outputdebugstring (Win32-only), file, file+ (same as
+ *        "file", but appends to existing log file), vmx, syslog.
+ *      - Default: "syslog".
+ *
+ * For file handlers, the following extra configuration information can be
+ * provided:
+ *
+ *    - data: path to the log file, required.
+ *    - maxOldLogFiles: maximum number of rotated log files to keep around. By
+ *      default, at most 10 backed up log files will be kept. Value should be >= 1.
+ *    - maxLogSize: maximum size of each log file, defaults to 10 (MB). A value of
+ *      0 disables log rotation.
+ *
+ * When using syslog on Unix, the following options are available:
+ *
+ *    - facility: either of "daemon", "user" or "local[0-7]". Controls whether to
+ *      connect to syslog as LOG_DAEMON, LOG_USER or LOG_LOCAL[0-7], respectively
+ *      (see syslog(3)). Defaults to "user". Any unknown value is mapped to
+ *      LOG_USER. This option should be defined for the application's default
+ *      log domain (it's ignored for all other domains).
+ *
+ * The "vmx" logger will log all messages to the host; it's not recommended
+ * for normal use, since writing to the host log is an expensive operation and
+ * can also affect other running applications that need to send messages to the
+ * host. Do not use this logger unless explicitly instructed to do so.
+ *
+ * Logging configuration should be under the "[logging]" group in the
+ * application's configuration file.
+ *
+ * Each application can specify a default log domain (which defaults to
+ * "vmtools"). If no handler is specified for a particular domain when
+ * logging, the default handler will be used. The default logging level
+ * for the default domain is "warning" in non-debug builds, and "message"
+ * in debug builds.
+ *
+ * Example of logging configuration in the config file:
+ *
+ * @verbatim
+ * [logging]
+ * # Turns on logging globally. It can still be disabled for each domain.
+ * log = true
+ *
+ * # Disables core dumps on fatal errors; they're enabled by default.
+ * enableCoreDump = false
+ *
+ * # Defines the "vmsvc" domain, logging to stdout/stderr.
+ * vmsvc.level = info
+ * vmsvc.handler = std
+ *
+ * # Defines the "unity" domain, logging to a file.
+ * unity.level = warning
+ * unity.handler = file
+ * unity.data = /tmp/unity.log
+ *
+ * # Defines the "vmtoolsd" domain, and disable logging for it.
+ * vmtoolsd.level = none
+ * @endverbatim
+ *
+ * Log file names can contain references to pre-defined variables. The following
+ * variables are expanded when determining the path of the log file:
+ *
+ *    - @a ${USER}: expands to the current user's login name
+ *    - @a ${PID}: expands to the current process's ID.
+ *    - @a ${IDX}: expands to the log file index (for rolling logs).
+ *
+ * So, for example, @a log.${USER}.${PID}.txt would expand to "log.jdoe.1234.txt"
+ * for user "jdoe" if the process ID were 1234.
+ * */
 
 #if !defined(G_LOG_DOMAIN)
 #  error "G_LOG_DOMAIN must be defined."
@@ -87,6 +167,16 @@
 
 /** @copydoc vm_critical */
 #define  vm_warning(fmt, ...)    g_warning("%s: " fmt, FUNC, ## __VA_ARGS__)
+
+G_BEGIN_DECLS
+
+void
+VMTools_ConfigLogging(const gchar *defaultDomain,
+                      GKeyFile *cfg,
+                      gboolean force,
+                      gboolean reset);
+
+G_END_DECLS
 
 /** @} */
 

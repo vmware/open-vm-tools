@@ -35,6 +35,7 @@
 #include "system.h"
 #include "unicode.h"
 #include "util.h"
+#include "vmware/tools/log.h"
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 
