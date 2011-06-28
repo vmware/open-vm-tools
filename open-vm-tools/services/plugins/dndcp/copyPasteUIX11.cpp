@@ -88,6 +88,9 @@ CopyPasteUIX11::CopyPasteUIX11()
  : mClipboardEmpty(true),
    mHGStagingDir(""),
    mIsClipboardOwner(false),
+   mClipTime(0),
+   mPrimTime(0),
+   mLastTimestamp(0),
    mHGGetFileStatus(DND_FILE_TRANSFER_NOT_STARTED),
    mBlockAdded(false),
    mBlockCtrl(0),
@@ -245,11 +248,7 @@ CopyPasteUIX11::GetLocalClipboard(void)
    if (mIsClipboardOwner) {
       /* If we are clipboard owner, send a not-changed clip to host. */
       g_debug("%s: we are owner, send unchanged clip back.\n", __FUNCTION__);
-      CPClipboard clip;
-      CPClipboard_Init(&clip);
-      CPClipboard_SetChanged(&clip, FALSE);
-      mCP->DestUISendClip(&clip);
-      CPClipboard_Destroy(&clip);
+      SendClipNotChanged();
       return;
    }
 
@@ -632,9 +631,22 @@ CopyPasteUIX11::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
    }
 
    /* After got both timestamp, choose latest one as active selection. */
-   mGHSelection = GDK_SELECTION_PRIMARY;
    if (mClipTime > mPrimTime) {
       mGHSelection = GDK_SELECTION_CLIPBOARD;
+      if (mClipTime > 0 && mClipTime == mLastTimestamp) {
+         g_debug("%s: clip is not changed\n", __FUNCTION__);
+         SendClipNotChanged();
+         return;
+      }
+      mLastTimestamp = mClipTime;
+   } else {
+      mGHSelection = GDK_SELECTION_PRIMARY;
+      if (mPrimTime > 0 && mPrimTime == mLastTimestamp) {
+         g_debug("%s: clip is not changed\n", __FUNCTION__);
+         SendClipNotChanged();
+         return;
+      }
+      mLastTimestamp = mPrimTime;
    }
 
    Glib::RefPtr<Gtk::Clipboard> refClipboard;
@@ -1171,14 +1183,15 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
    if (CPClipboard_GetItem(clip, CPFORMAT_IMG_PNG, &buf, &sz)) {
       g_debug("%s: PNG data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
       /* Try to load buf into pixbuf, and write to local clipboard. */
-      Glib::RefPtr<Gdk::PixbufLoader> loader = Gdk::PixbufLoader::create();
-
-      if (loader) {
+      try {
+         Glib::RefPtr<Gdk::PixbufLoader> loader = Gdk::PixbufLoader::create();
          loader->write((const guint8 *)buf, sz);
          loader->close();
 
          refClipboard->set_image(loader->get_pixbuf());
          refPrimary->set_image(loader->get_pixbuf());
+      } catch(...) {
+         // Do nothing
       }
       return;
    }
@@ -1457,6 +1470,35 @@ CopyPasteUIX11::GetLocalFilesDone(bool success)
       /* Copied files are already removed in common layer. */
       mHGStagingDir.clear();
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CopyPasteUIX11::SendClipNotChanged --
+ *
+ *    Send a not-changed clip to host.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+CopyPasteUIX11::SendClipNotChanged(void)
+{
+   CPClipboard clip;
+
+   g_debug("%s: enter.\n", __FUNCTION__);
+   CPClipboard_Init(&clip);
+   CPClipboard_SetChanged(&clip, FALSE);
+   mCP->DestUISendClip(&clip);
+   CPClipboard_Destroy(&clip);
 }
 
 

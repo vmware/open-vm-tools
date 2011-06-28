@@ -87,6 +87,7 @@ private:
    void LocalPrimTimestampCB(const Gtk::SelectionData& sd);
    void LocalReceivedFileListCB(const Gtk::SelectionData& selection_data);
    void GetLocalFilesDone(bool success);
+   void SendClipNotChanged(void);
 
    /* Conversion methods. */
    utf::utf8string GetNextPath(utf::utf8string &str, size_t& index);
@@ -103,6 +104,7 @@ private:
    bool mIsClipboardOwner;
    uint64 mClipTime;
    uint64 mPrimTime;
+   uint64 mLastTimestamp;
    GdkAtom mGHSelection;
    CPClipboard mClipboard;
 

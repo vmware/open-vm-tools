@@ -855,7 +855,6 @@ HostinfoOSData(void)
        * drive as a side-effect. So use "system_profiler SPSoftwareDataType"
        * instead.
        */
-      SInt32 major;
       char *sysname = HostinfoGetCmdOutput(
                          "/usr/sbin/system_profiler SPSoftwareDataType"
                       " | /usr/bin/grep 'System Version:'"
@@ -873,22 +872,8 @@ HostinfoOSData(void)
          /* Fall back to returning the original osNameFull. */
       }
 
-      if (Gestalt(gestaltSystemVersionMajor, &major) == 0) {
-         /*
-          * XXX: some places in the code refer to Mac OS X Lion (10.7?)
-          * as "darwin11", which is not what this code is doing. Once it's
-          * released and we support it, this code may need some tweaking.
-          */
-         Str_Snprintf(osName, sizeof osName, "%s%d", STR_OS_MACOS, (int) major);
-      } else if (Gestalt(gestaltSystemVersion, &major) == 0) {
-         /* Pre 10.3 Mac OS doesn't have gestaltSystemVersionMajor. */
-         NOT_TESTED();
-         major = (major & 0xFF00) >> 8;
-         Str_Snprintf(osName, sizeof osName, "%s%x", STR_OS_MACOS, (int) major);
-      } else {
-         Log("Call to Gestalt() failed!\n");
-         Str_Snprintf(osName, sizeof osName, "%s", STR_OS_MACOS);
-      }
+      Str_Snprintf(osName, sizeof osName, "%s%d", STR_OS_MACOS,
+                   Hostinfo_OSVersion(0));
    }
 #else
    // XXX Use compile-time instead of run-time checks for these as well.

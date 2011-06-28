@@ -240,7 +240,9 @@
    LOGLEVEL_VAR(digestlib), \
    LOGLEVEL_VAR(inputdevtap), \
    LOGLEVEL_VAR(svgadevtap), \
-   LOGLEVEL_VAR(masReceipt), \
+   LOGLEVEL_VAR(masReceipt), /* lib/masReceipt */ \
+   LOGLEVEL_VAR(serviceImpl), /* lib/serviceImpl */ \
+   LOGLEVEL_VAR(serviceUser), /* lib/serviceUser */ \
    LOGLEVEL_VAR(ssl), \
    LOGLEVEL_VAR(vmrc), \
    /* end of list */
