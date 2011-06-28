@@ -420,8 +420,10 @@
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   endif
 
-/* Default for the 'libdir' config variable */
 /*
+ * VMWARE_HOST_DIRECTORY is for host-specific configuration files.
+ * DEFAULT_LIBDIRECTORY is the default for the 'libdir' config variable.
+ *
  * The APIs are installed as separate products and must have their own
  * configuration and library directories.  The remote console checks at
  * run time, and the MUI is not really a separate product.
@@ -429,7 +431,7 @@
 #   if defined(__APPLE__)
 #      if defined VMX86_DESKTOP
 #         define VMWARE_HOST_DIRECTORY_PREFIX \
-             "/Applications/" PRODUCT_SHORT_NAME ".app/Contents/Library"
+             "/Library/Preferences/" PRODUCT_SHORT_NAME
 #      else
 #         define VMWARE_HOST_DIRECTORY_PREFIX \
              "/Library/Application Support/" PRODUCT_SHORT_NAME
@@ -475,22 +477,26 @@
 #   endif
 
 #   if defined(__APPLE__)
+#      if defined VMX86_DESKTOP
 /*
- * Mac OS hosts don't distinguish between an /etc and /usr equivalent,
- * so put both in DEFAULT_LIBDIRECTORY.  Note: If there are filename
- * clashes, we'll need to distinguish the two.
+ * We will remove this definition soon. Fusion's library directory should not
+ * be hardcoded: it prevents Fusion from being relocated. Use
+ * Location_GetLibrary() instead.
  */
-#      define DEFAULT_LIBDIRECTORY VMWARE_HOST_DIRECTORY
+#         define DEFAULT_LIBDIRECTORY \
+             "/Applications/" PRODUCT_SHORT_NAME ".app/Contents/Library"
+#      else
+#         define DEFAULT_LIBDIRECTORY VMWARE_HOST_DIRECTORY
+#      endif
 #   endif
 
-/* For host specific files */
+/* For user-specific files. */
 #   if defined(__APPLE__)
-#      define VMWARE_USER_SUBDIRECTORY "Library/Preferences/" PRODUCT_SHORT_NAME
+#      define VMWARE_USER_DIRECTORY "~/Library/Preferences/" PRODUCT_SHORT_NAME
 #   else
-#      define VMWARE_USER_SUBDIRECTORY "." PRODUCT_GENERIC_NAME_LOWER
+#      define VMWARE_USER_DIRECTORY "~/." PRODUCT_GENERIC_NAME_LOWER
 #   endif
-/* For user specific files */
-#   define VMWARE_USER_DIRECTORY "~/" VMWARE_USER_SUBDIRECTORY
+
 #   define VMWARE_MODULE_NAME "/dev/vmmon"
 #   define VMWARE_CONFIG PRODUCT_GENERIC_NAME_LOWER "-config.pl"
 #   define VMWARE_CONNECT_SOCKET_DIRECTORY "/var/run/" PRODUCT_GENERIC_NAME_LOWER

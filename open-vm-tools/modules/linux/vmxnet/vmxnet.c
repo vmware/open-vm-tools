@@ -107,25 +107,12 @@ static Bool vmxnet_alloc_shared_mem(struct pci_dev *pdev, size_t size,
    static int vmxnet_suspend_device(struct pci_dev *pdev, pm_message_t state)
 #  define VMXNET_RESUME_DEVICE(pdev)                                          \
    static int vmxnet_resume_device(struct pci_dev *pdev)
-#  define VMXNET_SET_POWER_STATE_D0(pdev) (pdev)->current_state = 0
-   /*
-    * The definition of pm_message_t changed on 2.6.14 kernel but apparently
-    * the change has been backported to some kernels,
-    * e.g., TurboLinux 2.6.12-1-x86_64.  So, we extract the int value of
-    * pm_message_t based on if PM_EVENT_ON is defined or not which was
-    * introduced along with the change in definition of pm_messaget_t.
-    */
-#  ifdef PM_EVENT_ON
-#     define PM_MESSAGE_TO_POWER_STATE(state) (state).event
-#  else
-#     define PM_MESSAGE_TO_POWER_STATE(state) (int)(state)
-#  endif
+
+#  define VMXNET_SET_POWER_STATE_D0(pdev) pci_set_power_state(pdev, PCI_D0)
+
 #  define VMXNET_SET_POWER_STATE(pdev, state)                                 \
-   do {                                                                       \
-      (pdev)->current_state = PM_MESSAGE_TO_POWER_STATE(state);               \
-   } while (0)
-#  define VMXNET_GET_POWER_STATE(pdev) (pdev)->current_state
-#  define VMXNET_REQ_POWER_STATE(state) PM_MESSAGE_TO_POWER_STATE(state)
+      pci_set_power_state(pdev, pci_choose_state(pdev, state))
+
 #  define VMXNET_PM_RETURN(ret) return ret
 
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 6)
@@ -139,8 +126,6 @@ static Bool vmxnet_alloc_shared_mem(struct pci_dev *pdev, size_t size,
    do {                                                                       \
       (pdev)->current_state = state;                                          \
    } while (0)
-#  define VMXNET_GET_POWER_STATE(pdev) (pdev)->current_state
-#  define VMXNET_REQ_POWER_STATE(state) (state)
 #  define VMXNET_PM_RETURN(ret) return ret
 
 #else
@@ -151,8 +136,6 @@ static Bool vmxnet_alloc_shared_mem(struct pci_dev *pdev, size_t size,
    static void vmxnet_resume_device(struct pci_dev *pdev)
 #  define VMXNET_SET_POWER_STATE_D0(pdev)
 #  define VMXNET_SET_POWER_STATE(pdev, state)
-#  define VMXNET_GET_POWER_STATE(pdev) 0
-#  define VMXNET_REQ_POWER_STATE(state) 0
 #  define VMXNET_PM_RETURN(ret)
 
 #endif
@@ -1638,17 +1621,6 @@ VMXNET_SUSPEND_DEVICE(/* struct pci_dev * */ pdev,  // IN: pci device
    struct net_device *dev = pci_get_drvdata(pdev);
    struct Vmxnet_Private *lp = netdev_priv(dev);
 
-   /*
-    * vmxnet does not have PM capabilities.  So, according to
-    * Documentation/power/pci.txt we set the current power state in the pci_dev
-    * structure ourselves.
-    */
-
-   if (VMXNET_GET_POWER_STATE(pdev) != 0) { /* Already suspended. */
-      printk(KERN_ERR "vmxnet is already suspended\n");
-      goto done;
-   }
-
    if (lp->devOpen) {
       /*
        * Close the device first (and unmap rings, frees skbs, etc)
@@ -1667,11 +1639,7 @@ VMXNET_SUSPEND_DEVICE(/* struct pci_dev * */ pdev,  // IN: pci device
    pci_disable_device(pdev); /* Disables bus-mastering. */
    vmxnet_release_private_data(lp, pdev);
 
-done:
-   if (VMXNET_REQ_POWER_STATE(state) > VMXNET_GET_POWER_STATE(pdev)) {
-      /* Deeper sleep. */
-      VMXNET_SET_POWER_STATE(pdev, state);
-   }
+   VMXNET_SET_POWER_STATE(pdev, state);
    VMXNET_PM_RETURN(0);
 }
 
@@ -1698,13 +1666,6 @@ VMXNET_RESUME_DEVICE(/* struct pci_dev* */ pdev) // IN: pci device
    struct net_device *dev = pci_get_drvdata(pdev);
    struct Vmxnet_Private *lp = netdev_priv(dev);
    int ret;
-
-   /* Resume does the opposite of suspend, in reverse order. */
-
-   if (VMXNET_GET_POWER_STATE(pdev) == 0) { /* Already resumed. */
-      printk(KERN_ERR "vmxnet is already resumed\n");
-      VMXNET_PM_RETURN(0);
-   }
 
    ret = pci_enable_device(pdev); /* Does not enable bus-mastering. */
    if (ret) {

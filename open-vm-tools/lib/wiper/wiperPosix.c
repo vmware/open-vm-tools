@@ -651,6 +651,29 @@ WiperPartition_Open(WiperPartition_List *pl)
 
 
 /*
+ *---------------------------------------------------------------------------
+ *
+ * Wiper_IsWipeSupported --
+ *
+ *      Query if wipe is supported on the specified wiper partition.
+ *
+ * Results:
+ *      FALSE always.
+ *
+ * Side Effects:
+ *      None
+ *
+ *---------------------------------------------------------------------------
+ */
+
+Bool
+Wiper_IsWipeSupported(const WiperPartition *part)
+{
+   return FALSE;
+}
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * Wiper_Start --

@@ -95,6 +95,7 @@ void WiperPartition_Close(WiperPartition_List *pl);
 WiperPartition *WiperSinglePartition_Allocate(void);
 WiperPartition *WiperSinglePartition_Open(const char *mntpt);
 void WiperSinglePartition_Close(WiperPartition *);
+Bool Wiper_IsWipeSupported(const WiperPartition *);
 
 unsigned char *WiperSinglePartition_GetSpace(const WiperPartition *p,
                               uint64 *free,

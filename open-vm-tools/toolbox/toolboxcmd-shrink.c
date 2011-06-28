@@ -87,13 +87,10 @@ ShrinkGetMountPoints(WiperPartition_List *pl) // OUT: Known mount points
    if (!GuestApp_IsDiskShrinkCapable()) {
       ToolsCmd_PrintErr("%s",
                         SU_(disk.shrink.unavailable, SHRINK_FEATURE_ERR));
-   } else if (!GuestApp_IsDiskShrinkEnabled()) {
-      ToolsCmd_PrintErr("%s",
-                        SU_(disk.shrink.disabled, SHRINK_DISABLED_ERR));
    } else if (!WiperPartition_Open(pl)) {
       ToolsCmd_PrintErr("%s",
                         SU_(disk.shrink.partition.error,
-                            "Unable to collect partition data.\n"));
+                           "Unable to collect partition data.\n"));
    } else {
       return TRUE;
    }
@@ -168,6 +165,7 @@ ShrinkList(void)
 {
    WiperPartition_List plist;
    DblLnkLst_Links *curr;
+   uint32 countShrink = 0;
 
    if (!ShrinkGetMountPoints(&plist)) {
       return EX_TEMPFAIL;
@@ -175,12 +173,24 @@ ShrinkList(void)
 
    DblLnkLst_ForEach(curr, &plist.link) {
       WiperPartition *p = DblLnkLst_Container(curr, WiperPartition, link);
-      if (p->type != PARTITION_UNSUPPORTED) {
+      if (p->type != PARTITION_UNSUPPORTED &&
+          (GuestApp_IsDiskShrinkEnabled() || Wiper_IsWipeSupported(p))) {
          g_print("%s\n", p->mountPoint);
+         countShrink++;
       }
    }
 
    WiperPartition_Close(&plist);
+
+   /*
+    * No shrinkable/wipable disks found.
+    */
+   if (countShrink == 0) {
+      g_debug("No shrinkable disks found\n");
+      ToolsCmd_PrintErr("%s",
+                        SU_(disk.shrink.disabled, SHRINK_DISABLED_ERR));
+      return EX_TEMPFAIL;
+   }
 
    return EXIT_SUCCESS;
 }
@@ -246,16 +256,37 @@ ShrinkDiskSendRPC(void)
 static int
 ShrinkDoAllDiskShrinkOnly(void)
 {
+   WiperPartition_List plist;
+   DblLnkLst_Links *curr;
+   Bool canShrink = FALSE;
+
 #ifndef _WIN32
    signal(SIGINT, ShrinkWiperDestroy);
 #endif
 
+   if (!ShrinkGetMountPoints(&plist)) {
+      return EX_TEMPFAIL;
+   }
+
+   DblLnkLst_ForEach(curr, &plist.link) {
+      WiperPartition *p = DblLnkLst_Container(curr, WiperPartition, link);
+      if (p->type != PARTITION_UNSUPPORTED &&
+          (GuestApp_IsDiskShrinkEnabled() || Wiper_IsWipeSupported(p))) {
+         canShrink = TRUE;
+         break;
+      }
+   }
+
+   WiperPartition_Close(&plist);
+
    /*
-    * Verify that shrinking is permitted.
+    * Verify that shrinking is permitted on at least 1 disk.
     */
-   if (!GuestApp_IsDiskShrinkEnabled()) {
+
+   if (!canShrink) {
+      g_debug("No shrinkable disks found\n");
       ToolsCmd_PrintErr("%s",
-                        SU_(disk.shrink.conflict, SHRINK_CONFLICT_ERR));
+                        SU_(disk.shrink.disabled, SHRINK_DISABLED_ERR));
       return EX_TEMPFAIL;
    }
 
@@ -317,13 +348,13 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
    }
 
    /*
-    * Verify that shrinking is still possible before going through with the
-    * wiping. This obviously isn't atomic, but it should take care of
-    * the case where the user takes a snapshot with the toolbox open.
+    * Verify that wiping/shrinking are permitted before going through with the
+    * wiping operation.
     */
-   if (!GuestApp_IsDiskShrinkEnabled()) {
+   if (!GuestApp_IsDiskShrinkEnabled() && !Wiper_IsWipeSupported(part)) {
+      g_debug("%s cannot be wiped / shrunk\n", mountPoint);
       ToolsCmd_PrintErr("%s",
-                        SU_(disk.shrink.conflict, SHRINK_CONFLICT_ERR));
+                        SU_(disk.shrink.disabled, SHRINK_DISABLED_ERR));
       rc = EX_TEMPFAIL;
       goto out;
    }
@@ -342,6 +373,7 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
          }
 
          rc = EX_TEMPFAIL;
+         break;
       }
 
       if (!quiet) {
@@ -354,9 +386,13 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
       }
    }
 
-   rc = EX_TEMPFAIL;
+   rc = EXIT_SUCCESS;
    if (progress >= 100 && performShrink) {
       rc = ShrinkDiskSendRPC();
+   } else if (progress < 100) {
+      rc = EX_TEMPFAIL;
+   } else {
+      g_debug("Shrinking skipped.\n");
    }
 
    if (rc != EXIT_SUCCESS) {
