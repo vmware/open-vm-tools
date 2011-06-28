@@ -2291,7 +2291,7 @@ FileIO_DescriptorToStream(FileIODescriptor *fdesc,  // IN:
  *
  *      Returns TRUE if the host OS is new enough to support F_PREALLOCATE
  *      without data loss bugs.  On OSX, this has been verified fixed
- *      on 10.6 build with kern.osreleasae 10.0.0d6.
+ *      on 10.6 build with kern.osrelease 10.0.0d6.
  *
  * Results:
  *      TRUE if the current host OS is new enough.
@@ -2306,6 +2306,8 @@ FileIO_DescriptorToStream(FileIODescriptor *fdesc,  // IN:
 static Bool
 HostSupportsPrealloc(void)
 {
+   static Atomic_uint32 supported = { 0 };
+   enum { PREALLOC_UNKNOWN = 0, PREALLOC_YES, PREALLOC_NO } val;
    char curRel[32];
    char type;
    unsigned static const int req[] = { 10, 0, 0, 6 };
@@ -2313,6 +2315,11 @@ HostSupportsPrealloc(void)
    int num;
    size_t len = sizeof(curRel);
    Bool ret = FALSE;
+
+   val = Atomic_Read(&supported);
+   if (val != PREALLOC_UNKNOWN) {
+      return val == PREALLOC_YES;
+   }
 
    if (sysctlbyname("kern.osrelease", (void *) &curRel, &len, NULL, 0) == -1) {
       goto exit;
@@ -2363,10 +2370,12 @@ HostSupportsPrealloc(void)
 exit:
    if (!ret && filePosixOptions.initialized && 
        filePosixOptions.aioNumThreads == 1) {
-      ret =TRUE;
+      ret = TRUE;
    }
 
-   return  ret;
+   Atomic_Write(&supported, ret ? PREALLOC_YES : PREALLOC_NO);
+
+   return ret;
 }
 
 #else
