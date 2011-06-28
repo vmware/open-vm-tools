@@ -85,7 +85,7 @@ typedef struct VMCIDelayedWorkInfo {
  *      Initializes the lock. Must be called before use.
  *
  * Results:
- *      None
+ *      Always VMCI_SUCCESS.
  *
  * Side effects:
  *      Thread can block.
@@ -93,12 +93,13 @@ typedef struct VMCIDelayedWorkInfo {
  *-----------------------------------------------------------------------------
  */
 
-void
+int
 VMCI_InitLock(VMCILock *lock,    // IN:
               char *name,        // IN: Unused on Linux
               VMCILockRank rank) // IN: Unused on Linux
 {
    spin_lock_init(lock);
+   return VMCI_SUCCESS;
 }
 
 

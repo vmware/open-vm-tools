@@ -34,7 +34,7 @@
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
 
-void VMCIEvent_Init(void);
+int VMCIEvent_Init(void);
 void VMCIEvent_Exit(void);
 void VMCIEvent_Sync(void);
 int  VMCIEvent_Dispatch(VMCIDatagram *msg);

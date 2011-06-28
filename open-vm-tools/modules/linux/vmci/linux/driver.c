@@ -1858,7 +1858,10 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
     * registered the handler (as the irq line may be shared).
     */
    VMCIUtil_Init();
-   VMCIQPGuestEndpoints_Init();
+
+   if (VMCIQPGuestEndpoints_Init() < VMCI_SUCCESS) {
+      goto util_exit;
+   }
 
    /*
     * Enable interrupts.  Try MSI-X first, then MSI, and then fallback on
@@ -1922,6 +1925,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
 
  components_exit:
    VMCIQPGuestEndpoints_Exit();
+ util_exit:
    VMCIUtil_Exit();
    vmci_dev.enabled = FALSE;
    if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSIX) {

@@ -621,12 +621,27 @@ VMCI_SharedInit(void)
       goto contextExit;
    }
 
-   VMCIEvent_Init();
-   VMCIDoorbell_Init();
+   result = VMCIEvent_Init();
+   if (result < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIEvent (result=%d).\n",
+                    result));
+      goto datagramExit;
+   }
+
+   result = VMCIDoorbell_Init();
+   if (result < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to initialize VMCIDoorbell (result=%d).\n",
+                    result));
+      goto eventExit;
+   }
 
    VMCI_LOG((LGPFX"shared components initialized.\n"));
    return VMCI_SUCCESS;
 
+eventExit:
+   VMCIEvent_Exit();
+datagramExit:
+   VMCIDatagram_Exit();
 contextExit:
    VMCIContext_Exit();
 resourceExit:

@@ -99,9 +99,8 @@ typedef struct QPGuestEndpoint {
 
 #ifdef VMKERNEL
 typedef VMCILock VMCIQPLock;
-# define VMCIQPLock_Init(_l, _r) VMCI_InitLock(_l, "VMCIQPLock",        \
-                                               VMCI_LOCK_RANK_HIGH); \
-                                 _r = VMCI_SUCCESS
+# define VMCIQPLock_Init(_l, _r) \
+   _r = VMCI_InitLock(_l, "VMCIQPLock", VMCI_LOCK_RANK_HIGH)
 # define VMCIQPLock_Destroy(_l)  VMCI_CleanupLock(_l)
 # define VMCIQPLock_Acquire(_l)  VMCI_GrabLock(_l, NULL)
 # define VMCIQPLock_Release(_l)  VMCI_ReleaseLock(_l, 0)
@@ -1668,11 +1667,21 @@ VMCIQueuePairDetachHostWork(VMCIHandle handle) // IN
  *-----------------------------------------------------------------------------
  */
 
-void
+int
 VMCIQPGuestEndpoints_Init(void)
 {
-   QueuePairList_Init(&qpGuestEndpoints);
+   int err;
+
+   err = QueuePairList_Init(&qpGuestEndpoints);
+   if (err < VMCI_SUCCESS) {
+      return err;
+   }
+
    hibernateFailedList = VMCIHandleArray_Create(0);
+   if (NULL == hibernateFailedList) {
+      QueuePairList_Destroy(&qpGuestEndpoints);
+      return VMCI_ERROR_NO_MEM;
+   }
 
    /*
     * The lock rank must be lower than subscriberLock in vmciEvent,
@@ -1680,9 +1689,15 @@ VMCIQPGuestEndpoints_Init(void)
     * detach events.
     */
 
-   VMCI_InitLock(&hibernateFailedListLock,
-                 "VMCIQPHibernateFailed",
-                 VMCI_LOCK_RANK_MIDDLE_BH);
+   err = VMCI_InitLock(&hibernateFailedListLock, "VMCIQPHibernateFailed",
+                       VMCI_LOCK_RANK_MIDDLE_BH);
+   if (err < VMCI_SUCCESS) {
+      VMCIHandleArray_Destroy(hibernateFailedList);
+      hibernateFailedList = NULL;
+      QueuePairList_Destroy(&qpGuestEndpoints);
+   }
+
+   return err;
 }
 
 

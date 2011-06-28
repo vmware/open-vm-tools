@@ -33,7 +33,7 @@
 #include "vmci_kernel_if.h"
 #include "vmci_defs.h"
 
-void VMCIDoorbell_Init(void);
+int VMCIDoorbell_Init(void);
 void VMCIDoorbell_Exit(void);
 void VMCIDoorbell_Hibernate(Bool enterHibernation);
 void VMCIDoorbell_Sync(void);

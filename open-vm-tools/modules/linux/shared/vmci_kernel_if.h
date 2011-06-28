@@ -238,7 +238,7 @@ void VMCI_ReadPortBytes(VMCIIoHandle handle, VMCIIoPort port, uint8 *buffer,
                         size_t bufferLength);
 
 
-void VMCI_InitLock(VMCILock *lock, char *name, VMCILockRank rank);
+int VMCI_InitLock(VMCILock *lock, char *name, VMCILockRank rank);
 void VMCI_CleanupLock(VMCILock *lock);
 void VMCI_GrabLock(VMCILock *lock, VMCILockFlags *flags);
 void VMCI_ReleaseLock(VMCILock *lock, VMCILockFlags flags);

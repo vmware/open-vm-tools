@@ -151,7 +151,7 @@ int VMCIQPBroker_SetPageStore(VMCIHandle handle,
                               VMCIContext *context);
 int VMCIQPBroker_Detach(VMCIHandle handle, VMCIContext *context, Bool detach);
 
-void VMCIQPGuestEndpoints_Init(void);
+int VMCIQPGuestEndpoints_Init(void);
 void VMCIQPGuestEndpoints_Exit(void);
 void VMCIQPGuestEndpoints_Sync(void);
 void VMCIQPGuestEndpoints_Convert(Bool toLocal, Bool deviceReset);

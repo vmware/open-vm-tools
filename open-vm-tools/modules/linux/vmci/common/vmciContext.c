@@ -226,13 +226,23 @@ VMCIContextGetDomainName(VMCIContext *context) // IN
 int
 VMCIContext_Init(void)
 {
-   VMCIList_Init(&contextList.head);
-   VMCI_InitLock(&contextList.lock, "VMCIContextListLock",
-                 VMCI_LOCK_RANK_HIGHER);
-   VMCI_InitLock(&contextList.firingLock, "VMCIContextFiringLock",
-                 VMCI_LOCK_RANK_MIDDLE_LOW);
+   int err;
 
-   return VMCI_SUCCESS;
+   VMCIList_Init(&contextList.head);
+
+   err = VMCI_InitLock(&contextList.lock, "VMCIContextListLock",
+                       VMCI_LOCK_RANK_HIGHER);
+   if (err < VMCI_SUCCESS) {
+      return err;
+   }
+
+   err = VMCI_InitLock(&contextList.firingLock, "VMCIContextFiringLock",
+                       VMCI_LOCK_RANK_MIDDLE_LOW);
+   if (err < VMCI_SUCCESS) {
+      VMCI_CleanupLock(&contextList.lock);
+   }
+
+   return err;
 }
 
 
@@ -340,9 +350,11 @@ VMCIContext_InitContext(VMCIId cid,                   // IN
       goto error;
    }
 
-   VMCI_InitLock(&context->lock,
-                 "VMCIContextLock",
-                 VMCI_LOCK_RANK_HIGHER);
+   result = VMCI_InitLock(&context->lock, "VMCIContextLock",
+                          VMCI_LOCK_RANK_HIGHER);
+   if (result < VMCI_SUCCESS) {
+      goto error;
+   }
    Atomic_Write(&context->refCount, 1);
 
    /* Inititialize host-specific VMCI context. */

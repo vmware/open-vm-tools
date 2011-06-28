@@ -101,7 +101,7 @@ typedef struct VMCIDelayedEventInfo {
  *----------------------------------------------------------------------
  */
 
-void
+int
 VMCIEvent_Init(void)
 {
    int i;
@@ -109,7 +109,8 @@ VMCIEvent_Init(void)
    for (i = 0; i < VMCI_EVENT_MAX; i++) {
       VMCIList_Init(&subscriberArray[i]);
    }
-   VMCIEventInitLock(&subscriberLock, "VMCIEventSubscriberLock");
+
+   return VMCIEventInitLock(&subscriberLock, "VMCIEventSubscriberLock");
 }
 
 

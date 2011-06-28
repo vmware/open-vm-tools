@@ -90,7 +90,12 @@ VMCIHashTable_Create(int size)
    }
    memset(table->entries, 0, sizeof *table->entries * size);
    table->size = size;
-   VMCIHashTableInitLock(&table->lock, "VMCIHashTableLock");
+
+   if (VMCIHashTableInitLock(&table->lock, "VMCIHashTableLock") < VMCI_SUCCESS) {
+      VMCI_FreeKernelMem(table->entries, sizeof *table->entries * size);
+      VMCI_FreeKernelMem(table, sizeof *table);
+      return NULL;
+   }
 
    return table;
 }

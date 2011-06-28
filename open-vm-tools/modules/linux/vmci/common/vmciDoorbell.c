@@ -136,7 +136,7 @@ static void VMCIDoorbellDelayedDispatchCB(void *data);
  *------------------------------------------------------------------------------
  */
 
-void
+int
 VMCIDoorbell_Init(void)
 {
    uint32 bucket;
@@ -145,7 +145,8 @@ VMCIDoorbell_Init(void)
       VMCIList_Init(&vmciDoorbellIT.entries[bucket]);
    }
 
-   VMCIDoorbellInitLock(&vmciDoorbellIT.lock, "VMCIDoorbellIndexTableLock");
+   return VMCIDoorbellInitLock(&vmciDoorbellIT.lock,
+                               "VMCIDoorbellIndexTableLock");
 }
 
 
@@ -1228,9 +1229,10 @@ VMCIDoorbellGetPrivFlags(VMCIHandle handle,             // IN
 }
 
 
-void
+int
 VMCIDoorbell_Init(void)
 {
+   return VMCI_SUCCESS;
 }
 
 

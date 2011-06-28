@@ -72,13 +72,18 @@ static VMCIHashTable *resourceTable = NULL;
 int
 VMCIResource_Init(void)
 {
+   int err = VMCI_InitLock(&resourceIdLock, "VMCIRIDLock",
+                           VMCI_LOCK_RANK_HIGHEST);
+   if (err < VMCI_SUCCESS) {
+      return err;
+   }
+
    resourceTable = VMCIHashTable_Create(128);
    if (resourceTable == NULL) {
       VMCI_WARNING((LGPFX"Failed creating a resource hash table for VMCI.\n"));
+      VMCI_CleanupLock(&resourceIdLock);
       return VMCI_ERROR_NO_MEM;
    }
-
-   VMCI_InitLock(&resourceIdLock, "VMCIRIDLock", VMCI_LOCK_RANK_HIGHEST);
 
    return VMCI_SUCCESS;
 }
