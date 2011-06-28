@@ -49,12 +49,6 @@
 #  define G_MODULE_SUFFIX "dylib"
 #endif
 
-/** Defines the internal data about a plugin. */
-typedef struct ToolsPlugin {
-   GModule          *module;
-   ToolsPluginData  *data;
-} ToolsPlugin;
-
 /** State of app providers. */
 typedef enum {
    TOOLS_PROVIDER_IDLE,

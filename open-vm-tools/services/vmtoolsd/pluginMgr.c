@@ -34,6 +34,15 @@
 #include "vmware/tools/utils.h"
 
 
+/** Defines the internal data about a plugin. */
+typedef struct ToolsPlugin {
+   gchar               *fileName;
+   GModule             *module;
+   ToolsPluginOnLoad    onload;
+   ToolsPluginData     *data;
+} ToolsPlugin;
+
+
 #ifdef USE_APPLOADER
 static Bool (*LoadDependencies)(char *libName, Bool useShipped);
 #endif
@@ -160,6 +169,26 @@ ToolsCoreDumpSignal(ToolsAppCtx *ctx,
       ToolsPluginSignalCb *sig = reg;
       ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN, "Signal callback: %s\n", sig->signame);
    }
+}
+
+
+/**
+ * Frees memory associated with a ToolsPlugin instance. If the plugin hasn't
+ * been initialized yet, this will unload the shared object.
+ *
+ * @param[in]  plugin   ToolsPlugin instance.
+ */
+
+static void
+ToolsCoreFreePlugin(ToolsPlugin *plugin)
+{
+   if (plugin->module != NULL && !g_module_close(plugin->module)) {
+      g_warning("Error unloading plugin '%s': %s\n",
+                plugin->fileName,
+                g_module_error());
+   }
+   g_free(plugin->fileName);
+   g_free(plugin);
 }
 
 
@@ -505,7 +534,6 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
       gchar *path;
       GModule *module = NULL;
       ToolsPlugin *plugin = NULL;
-      ToolsPluginData *data = NULL;
       ToolsPluginOnLoad onload;
 
       entry = g_ptr_array_index(plugins, i);
@@ -534,29 +562,12 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
          goto next;
       }
 
-      if (onload != NULL) {
-         data = onload(ctx);
-      }
-
-      if (data == NULL) {
-         g_info("Plugin '%s' didn't provide deployment data, unloading.\n", entry);
-         goto next;
-      }
-
-      /* Break early if a plugin has requested the container to quit. */
-      if (ctx->errorCode != 0) {
-         break;
-      }
-
-      ASSERT(data->name != NULL);
-      g_module_make_resident(module);
       plugin = g_malloc(sizeof *plugin);
+      plugin->fileName = entry;
+      plugin->data = NULL;
       plugin->module = module;
-      plugin->data = data;
-      VMTools_BindTextDomain(data->name, NULL, NULL);
-
+      plugin->onload = onload;
       g_ptr_array_add(regs, plugin);
-      g_debug("Plugin '%s' initialized.\n", plugin->data->name);
 
    next:
       g_free(path);
@@ -567,9 +578,6 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
       }
    }
 
-   for (i = 0; i < plugins->len; i++) {
-      g_free(g_ptr_array_index(plugins, i));
-   }
    g_ptr_array_free(plugins, TRUE);
    ret = TRUE;
 
@@ -611,6 +619,8 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
    gboolean pluginDirExists;
    gboolean ret = FALSE;
    gchar *pluginRoot;
+   guint i;
+   GPtrArray *plugins = NULL;
 
 #if defined(sun) && defined(__x86_64__)
    const char *subdir = "/amd64";
@@ -645,7 +655,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
    }
 #endif
 
-   state->plugins = g_ptr_array_new();
+   plugins = g_ptr_array_new();
 
    /*
     * First, load plugins from the common directory. The common directory
@@ -663,7 +673,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
    }
 
    if (g_file_test(state->commonPath, G_FILE_TEST_IS_DIR) &&
-       !ToolsCoreLoadDirectory(&state->ctx, state->commonPath, state->plugins)) {
+       !ToolsCoreLoadDirectory(&state->ctx, state->commonPath, plugins)) {
       goto exit;
    }
 
@@ -687,9 +697,39 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
    }
 
    if (pluginDirExists &&
-       !ToolsCoreLoadDirectory(&state->ctx, state->pluginPath, state->plugins)) {
+       !ToolsCoreLoadDirectory(&state->ctx, state->pluginPath, plugins)) {
       goto exit;
    }
+
+
+   /*
+    * All plugins are loaded, now initialize them.
+    */
+
+   state->plugins = g_ptr_array_new();
+
+   for (i = 0; i < plugins->len; i++) {
+      ToolsPlugin *plugin = g_ptr_array_index(plugins, i);
+
+      plugin->data = plugin->onload(&state->ctx);
+
+      if (plugin->data == NULL) {
+         g_info("Plugin '%s' didn't provide deployment data, unloading.\n",
+                plugin->fileName);
+         ToolsCoreFreePlugin(plugin);
+      } else if (state->ctx.errorCode != 0) {
+         /* Break early if a plugin has requested the container to quit. */
+         ToolsCoreFreePlugin(plugin);
+         break;
+      } else {
+         ASSERT(plugin->data->name != NULL);
+         g_module_make_resident(plugin->module);
+         g_ptr_array_add(state->plugins, plugin);
+         VMTools_BindTextDomain(plugin->data->name, NULL, NULL);
+         g_debug("Plugin '%s' initialized.\n", plugin->data->name);
+      }
+   }
+
 
    /*
     * If there is a debug plugin, see if it exports standard plugin registration
@@ -707,6 +747,9 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
    ret = TRUE;
 
 exit:
+   if (plugins != NULL) {
+      g_ptr_array_free(plugins, TRUE);
+   }
    g_free(pluginRoot);
    return ret;
 }
@@ -874,11 +917,8 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       }
 
       g_ptr_array_remove_index(state->plugins, state->plugins->len - 1);
-      if (plugin->module != NULL) {
-         g_module_close(plugin->module);
-      }
-      g_free(plugin);
-   }
+      ToolsCoreFreePlugin(plugin);
+  }
 
    if (state->providers != NULL) {
       g_array_free(state->providers, TRUE);
