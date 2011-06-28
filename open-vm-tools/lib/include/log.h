@@ -34,31 +34,27 @@
  * used system logger values will be invalid and the errant usage caught.
  */
 
-#define VMW_LOG_BASE      100
-#define VMW_LOG_PANIC     VMW_LOG_BASE     +  0  // highest priority
-#define VMW_LOG_ERROR     VMW_LOG_BASE     +  5
-#define VMW_LOG_WARNING   VMW_LOG_BASE     + 10  // <= goes to stderr by default
-#define VMW_LOG_AUDIT     VMW_LOG_BASE     + 15  // *ALWAYS* output to the log
-#define VMW_LOG_INFO      VMW_LOG_BASE     + 20  // <= goes to log by default
-#define VMW_LOG_VERBOSE   VMW_LOG_BASE     + 25
-#define VMW_LOG_TRIVIA    VMW_LOG_BASE     + 30 
-#define VMW_LOG_DEBUG_00  VMW_LOG_BASE     + 35  // noisiest level of debugging
-#define VMW_LOG_DEBUG_01  VMW_LOG_DEBUG_00 +  1
-#define VMW_LOG_DEBUG_02  VMW_LOG_DEBUG_00 +  2
-#define VMW_LOG_DEBUG_03  VMW_LOG_DEBUG_00 +  3
-#define VMW_LOG_DEBUG_04  VMW_LOG_DEBUG_00 +  4
-#define VMW_LOG_DEBUG_05  VMW_LOG_DEBUG_00 +  5
-#define VMW_LOG_DEBUG_06  VMW_LOG_DEBUG_00 +  6
-#define VMW_LOG_DEBUG_07  VMW_LOG_DEBUG_00 +  7
-#define VMW_LOG_DEBUG_08  VMW_LOG_DEBUG_00 +  8
-#define VMW_LOG_DEBUG_09  VMW_LOG_DEBUG_00 +  9
-#define VMW_LOG_DEBUG_10  VMW_LOG_DEBUG_00 + 10  // lowest priority; least noisy
+#define VMW_LOG_BASE     100
+#define VMW_LOG_PANIC    (VMW_LOG_BASE     +  0) // highest priority
+#define VMW_LOG_ERROR    (VMW_LOG_BASE     +  5)
+#define VMW_LOG_WARNING  (VMW_LOG_BASE     + 10) // <= goes to stderr by default
+#define VMW_LOG_AUDIT    (VMW_LOG_BASE     + 15) // *ALWAYS* output to the log
+#define VMW_LOG_INFO     (VMW_LOG_BASE     + 20) // <= goes to log by default
+#define VMW_LOG_VERBOSE  (VMW_LOG_BASE     + 25)
+#define VMW_LOG_TRIVIA   (VMW_LOG_BASE     + 30) 
+#define VMW_LOG_DEBUG_00 (VMW_LOG_BASE     + 35) // noisiest level of debugging
+#define VMW_LOG_DEBUG_01 (VMW_LOG_DEBUG_00 +  1)
+#define VMW_LOG_DEBUG_02 (VMW_LOG_DEBUG_00 +  2)
+#define VMW_LOG_DEBUG_03 (VMW_LOG_DEBUG_00 +  3)
+#define VMW_LOG_DEBUG_04 (VMW_LOG_DEBUG_00 +  4)
+#define VMW_LOG_DEBUG_05 (VMW_LOG_DEBUG_00 +  5)
+#define VMW_LOG_DEBUG_06 (VMW_LOG_DEBUG_00 +  6)
+#define VMW_LOG_DEBUG_07 (VMW_LOG_DEBUG_00 +  7)
+#define VMW_LOG_DEBUG_08 (VMW_LOG_DEBUG_00 +  8)
+#define VMW_LOG_DEBUG_09 (VMW_LOG_DEBUG_00 +  9)
+#define VMW_LOG_DEBUG_10 (VMW_LOG_DEBUG_00 + 10) // lowest priority; least noisy
 
-void
-LogVNoRoute(int level,
-            const char *fmt,
-            va_list args);
-
+#define VMW_LOG_NO_ROUTE 0x80000000  // Force routing to Log
 
 void LogV(uint32 routing,
           const char *fmt,
