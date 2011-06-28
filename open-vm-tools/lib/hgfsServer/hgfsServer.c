@@ -7180,7 +7180,10 @@ HgfsServerSearchReadAttrToMask(HgfsFileAttrInfo *attr,     // IN/OUT: attributes
                            HGFS_ATTR_VALID_CHANGE_TIME))) {
       *mask |= (HGFS_SEARCH_READ_TIME_STAMP);
    }
-   if (0 != (attr->mask & HGFS_ATTR_VALID_FLAGS)) {
+   if (0 != (attr->mask & (HGFS_ATTR_VALID_FLAGS |
+                           HGFS_ATTR_VALID_OWNER_PERMS |
+                           HGFS_ATTR_VALID_GROUP_PERMS |
+                           HGFS_ATTR_VALID_OTHER_PERMS))) {
       Bool isReadOnly = TRUE;
 
       *mask |= (HGFS_SEARCH_READ_FILE_ATTRIBUTES);
@@ -7203,6 +7206,7 @@ HgfsServerSearchReadAttrToMask(HgfsFileAttrInfo *attr,     // IN/OUT: attributes
       }
       if (isReadOnly) {
          attr->flags |= HGFS_ATTR_READONLY;
+         attr->mask |= HGFS_ATTR_VALID_FLAGS;
       }
    }
    if (0 != (attr->mask & (HGFS_ATTR_VALID_FILEID |
