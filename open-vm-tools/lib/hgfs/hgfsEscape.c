@@ -574,8 +574,19 @@ HgfsIsEscapeSequence(char const *bufIn,   // IN: input name
 {
    if (bufIn[offset] == HGFS_ESCAPE_CHAR && offset > 0) {
       char *substitute;
-      if (bufIn[offset - 1] == HGFS_ESCAPE_SUBSTITUE_CHAR) {
-         return TRUE;
+      if (bufIn[offset - 1] == HGFS_ESCAPE_SUBSTITUE_CHAR && offset > 1) {
+         /*
+          * Possibly a valid sequence, check it must be preceded with a substitute
+          * character or another escape-escape character. Otherwise, HGFS did
+          * not generate this sequence and should leave it alone.
+          */
+         if (bufIn[offset - 2] == HGFS_ESCAPE_SUBSTITUE_CHAR) {
+            return TRUE;
+         }
+         substitute = strchr(HGFS_SUBSTITUTE_CHARS, bufIn[offset - 2]);
+         if (substitute != NULL) {
+            return TRUE;
+         }
       }
       substitute = strchr(HGFS_SUBSTITUTE_CHARS, bufIn[offset - 1]);
       if (substitute != NULL) {
