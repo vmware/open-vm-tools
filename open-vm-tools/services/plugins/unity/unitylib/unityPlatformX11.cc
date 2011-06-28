@@ -169,7 +169,6 @@ UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
    Debug("UnityPlatformInit: Running\n");
 
    up = (UnityPlatform*)Util_SafeCalloc(1, sizeof *up);
-   up->noisyLogging = getenv("VMWARE_UNITY_VERBOSE_LOGGING") ? TRUE : FALSE;
    up->tracker = tracker;
    up->hostCallbacks = hostCallbacks;
 

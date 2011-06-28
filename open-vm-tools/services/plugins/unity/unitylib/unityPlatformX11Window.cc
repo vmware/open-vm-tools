@@ -190,8 +190,8 @@ CompareStackingOrder(UnityPlatform *up,         // IN
     */
    if (numURelevant != numXRelevant ||
        numURelevant != up->tracker->count) {
-      UNITY_DEBUGLOG(up, "%s: mismatch (count): server %u, unity %u, uwt %u\n", __func__,
-                     numXRelevant, numURelevant, up->tracker->count);
+      Debug("%s: mismatch (count): server %u, unity %u, uwt %u\n", __func__,
+            numXRelevant, numURelevant, up->tracker->count);
       goto out;
    }
 
@@ -232,22 +232,22 @@ CompareStackingOrder(UnityPlatform *up,         // IN
 
       if (memcmp(relevantXChildren, relevantUChildren, childrenSize) ||
           memcmp(relevantXChildren, trackerChildren, childrenSize)) {
-         UNITY_DEBUGLOG(up, "%s: mismatch!\n", callerName);
-         UNITY_DEBUGLOG(up, "%s: %8s %10s %10s %10s\n", callerName, "index", "X Server",
-                        "Unity", "UWT");
+         Debug("%s: mismatch!\n", callerName);
+         Debug("%s: %8s %10s %10s %10s\n", callerName, "index", "X Server",
+               "Unity", "UWT");
 
          for (i = 0; i < nWindows; i++) {
             if (relevantXChildren[i] != relevantUChildren[i] ||
                 relevantXChildren[i] != trackerChildren[i]) {
-               UNITY_DEBUGLOG(up, "%s: [%6u] %#10lx %#10lx %#10lx\n", callerName, i,
-                              relevantXChildren[i], relevantUChildren[i],
-                              trackerChildren[i]);
+               Debug("%s: [%6u] %#10lx %#10lx %#10lx\n", callerName, i,
+                     relevantXChildren[i], relevantUChildren[i],
+                     trackerChildren[i]);
             }
          }
       } else {
-         UNITY_DEBUGLOG(up, "%s: match (%u windows).\n", callerName, nWindows);
+         Debug("%s: match (%u windows).\n", callerName, nWindows);
          for (i = 0; i < nWindows; i++) {
-            UNITY_DEBUGLOG(up, "%s:   [%u] %#lx\n", callerName, i, relevantXChildren[i]);
+            Debug("%s:   [%u] %#lx\n", callerName, i, relevantXChildren[i]);
          }
       }
    }
@@ -450,8 +450,8 @@ UPWindowSetWindows(UnityPlatform *up,        // IN
 
    wasRelevant = upw->isRelevant;
 
-   UNITY_DEBUGLOG(up, "%s: %#lx::%#lx -> %#lx::%#lx\n", __func__, upw->toplevelWindow,
-                  upw->clientWindow, toplevelWindow, clientWindow);
+   Debug("%s: %#lx::%#lx -> %#lx::%#lx\n", __func__, upw->toplevelWindow,
+         upw->clientWindow, toplevelWindow, clientWindow);
    UPWindowSetRelevance(up, upw, FALSE);
    if (upw->toplevelWindow) {
       XSelectInput(up->display, upw->toplevelWindow, 0);
@@ -561,8 +561,8 @@ UPWindow_Create(UnityPlatform *up,     // IN
    if (HashTable_Lookup(up->allWindows,
                         GUINT_TO_POINTER(toplevelWindow),
                         (void **)&upw)) {
-      Log("Lookup of window %#lx returned %#lx\n",
-          toplevelWindow, upw->toplevelWindow);
+      Debug("Lookup of window %#lx returned %#lx\n",
+            toplevelWindow, upw->toplevelWindow);
       abort();
    }
 
@@ -577,8 +577,8 @@ UPWindow_Create(UnityPlatform *up,     // IN
    upw = (UnityPlatformWindow*)Util_SafeCalloc(1, sizeof *upw);
    upw->refs = 1;
 
-   UNITY_DEBUGLOG(up, "Creating new window for %#lx/%#lx/%#lx\n",
-                  toplevelWindow, clientWindow, rootWindow);
+   Debug("Creating new window for %#lx/%#lx/%#lx\n",
+         toplevelWindow, clientWindow, rootWindow);
    upw->rootWindow = rootWindow;
    for (upw->screenNumber = 0;
         upw->screenNumber < (int)up->rootWindows->numWindows
@@ -953,7 +953,7 @@ UPWindow_Restack(UnityPlatform *up,        // IN
       ASSERT(upw->lowerWindow != upw);
       if (upw->isRelevant) {
          up->stackingChanged = TRUE;
-         UNITY_DEBUGLOG(up, "Stacking order has changed\n");
+         Debug("Stacking order has changed\n");
       }
    }
 }
@@ -1370,10 +1370,9 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
 out:
    ASSERT(shouldBeRelevant >= 0);
 
-   UNITY_DEBUGLOG(up,
-      "Relevance for (%p) %#lx/%#lx/%#lx is %d (window type %d)\n",
-      upw, upw->toplevelWindow, upw->clientWindow, upw->rootWindow,
-      shouldBeRelevant, upw->windowType);
+   Debug("Relevance for (%p) %#lx/%#lx/%#lx is %d (window type %d)\n",
+         upw, upw->toplevelWindow, upw->clientWindow, upw->rootWindow,
+         shouldBeRelevant, upw->windowType);
 
    UPWindowSetRelevance(up, upw, shouldBeRelevant ? TRUE : FALSE);
 }
@@ -2201,9 +2200,9 @@ UPWindowProcessConfigureEvent(UnityPlatform *up,        // IN
       y -= border_width;
 
 #ifdef VMX86_DEVEL
-      UNITY_DEBUGLOG(up, "Moving window %#lx/%#lx to (%d, %d) +(%d, %d)\n",
-                     upw->toplevelWindow, upw->clientWindow,
-                     x, y, xprime - x, yprime - y);
+      Debug("Moving window %#lx/%#lx to (%d, %d) +(%d, %d)\n",
+            upw->toplevelWindow, upw->clientWindow,
+            x, y, xprime - x, yprime - y);
 #endif
 
       /*
@@ -2225,14 +2224,13 @@ UPWindowProcessConfigureEvent(UnityPlatform *up,        // IN
 	  || (xevent->xconfigure.above == None && upw->lowerWindow)
 	  || (upw->lowerWindow && xevent->xconfigure.above
               != upw->lowerWindow->toplevelWindow)) {
-         UNITY_DEBUGLOG(up, "Marking window %#lx/%#lx for restacking\n",
-                        upw->toplevelWindow, upw->clientWindow);
+         Debug("Marking window %#lx/%#lx for restacking\n",
+               upw->toplevelWindow, upw->clientWindow);
          UPWindow_Restack(up, upw, xevent->xconfigure.above);
       }
    } else {
-      UNITY_DEBUGLOG(up,
-         "ProcessConfigureEvent skipped event on window %#lx (upw was %#lx/%#lx)\n",
-         xevent->xconfigure.window, upw->toplevelWindow, upw->clientWindow);
+      Debug("ProcessConfigureEvent skipped event on window %#lx (upw was %#lx/%#lx)\n",
+            xevent->xconfigure.window, upw->toplevelWindow, upw->clientWindow);
    }
 
 #ifdef VMX86_DEVEL
@@ -2959,8 +2957,7 @@ UPWindowUpdateDesktop(UnityPlatform *up,        // IN
          desktopId = up->desktopInfo.guestDesktopToUnity[guestDesktop];
       }
 
-      UNITY_DEBUGLOG(up, "Window %#lx is now on desktop %d\n", upw->toplevelWindow,
-                     desktopId);
+      Debug("Window %#lx is now on desktop %d\n", upw->toplevelWindow, desktopId);
       UnityWindowTracker_ChangeWindowDesktop(up->tracker,
                                              upw->toplevelWindow,
                                              desktopId);
@@ -3240,22 +3237,20 @@ UPWindowUpdateState(UnityPlatform *up,            // IN
          if (cDesk == gDesk || gDesk == -1) {
             if (isMinimized) {
                if (! (newState & UNITY_WINDOW_STATE_MINIMIZED)) {
-                  UNITY_DEBUGLOG(up,
-                     "Enabling minimized attribute for window %#lx/%#lx\n",
-                     upw->toplevelWindow, upw->clientWindow);
+                  Debug("Enabling minimized attribute for window %#lx/%#lx\n",
+                        upw->toplevelWindow, upw->clientWindow);
                   newState |= UNITY_WINDOW_STATE_MINIMIZED;
                }
             } else {
                if ((newState & UNITY_WINDOW_STATE_MINIMIZED)) {
-                  UNITY_DEBUGLOG(up,
-                     "Disabling minimized attribute for window %#lx/%#lx\n",
-                     upw->toplevelWindow, upw->clientWindow);
+                  Debug("Disabling minimized attribute for window %#lx/%#lx\n",
+                        upw->toplevelWindow, upw->clientWindow);
                   newState &= ~UNITY_WINDOW_STATE_MINIMIZED;
                }
             }
          }
       } else {
-         Log("%s: Unable to get window desktop\n", __FUNCTION__);
+         Debug("%s: Unable to get window desktop\n", __FUNCTION__);
       }
 
       if (newState != info->state) {
@@ -3528,12 +3523,12 @@ UnityPlatformMinimizeWindow(UnityPlatform *up,    // IN
       return FALSE;
    }
 
-   UNITY_DEBUGLOG(up, "UnityPlatformMinimizeWindow(%#lx)\n", upw->toplevelWindow);
+   Debug("UnityPlatformMinimizeWindow(%#lx)\n", upw->toplevelWindow);
    upw->wantInputFocus = FALSE;
    if (!upw->isMinimized) {
       Atom data[5] = {0, 0, 0, 0, 0};
 
-      UNITY_DEBUGLOG(up, "Minimizing window %#x\n", window);
+      Debug("Minimizing window %#x\n", window);
       upw->isMinimized = TRUE;
       data[0] = _NET_WM_STATE_ADD;
       if (UnityPlatformWMProtocolSupported(up, UNITY_X11_WM__NET_WM_STATE_MINIMIZED)) {
@@ -3547,7 +3542,7 @@ UnityPlatformMinimizeWindow(UnityPlatform *up,    // IN
 
       XIconifyWindow(up->display, upw->clientWindow, 0);
    } else {
-      UNITY_DEBUGLOG(up, "Window %#x is already minimized\n", window);
+      Debug("Window %#x is already minimized\n", window);
    }
 
 
