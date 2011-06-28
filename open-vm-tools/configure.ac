@@ -515,11 +515,24 @@ else
       have_xsm="yes"
    fi
 
+   AC_CHECK_LIB(
+      [Xcomposite],
+      [XCompositeQueryExtension],
+      [XCOMPOSITE_LIBS="-lXcomposite"],
+      [have_xcomposite="no"]
+      [])
+   AC_CHECK_HEADERS([X11/extensions/Xcomposite.h],
+                    [],
+                    [have_xcomposite="no"],
+                    [])
+   if test "$have_xcomposite" != "no"; then
+      have_xcomposite="yes"
+   fi
+
    # If we're building with support for Unity, we'll need a few additional
    # libraries.
    if test "$enable_unity" != "no"; then
-
-      # Unity needs the X11 Screen Saver extension library. It should be
+           # Unity needs the X11 Screen Saver extension library. It should be
 	   # in the same place as the X11 libraries, so no need for any fancy
 	   # path checking.
 	   AC_VMW_CHECK_X11_LIB(
@@ -1086,6 +1099,7 @@ AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
 AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(HAVE_XSM, test "$have_xsm" = "yes")
+AM_CONDITIONAL(HAVE_XCOMPOSITE, test "$have_xcomposite" = "yes")
 AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 AM_CONDITIONAL(ENABLE_TESTS, test "$have_cunit" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
@@ -1099,6 +1113,10 @@ AM_CONDITIONAL(USE_SLASH_PROC, test "os" = "linux" -a "$have_glib_2_14" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
+fi
+
+if test "$have_xcomposite" != "yes"; then
+   AC_DEFINE([NO_XCOMPOSITE])
 fi
 
 ### Feature-specific flags / actions
@@ -1162,6 +1180,7 @@ AC_SUBST([MODULES_DIR])
 AC_SUBST([MODULES])
 AC_SUBST([COMMON_XLIBS])
 AC_SUBST([XSM_LIBS])
+AC_SUBST([XCOMPOSITE_LIBS])
 AC_SUBST([PAM_PREFIX])
 AC_SUBST([PLUGIN_CPPFLAGS])
 AC_SUBST([PLUGIN_LDFLAGS])

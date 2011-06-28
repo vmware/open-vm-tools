@@ -37,6 +37,7 @@ libunity_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libunity_la_LIBADD =
 libunity_la_LIBADD += @COMMON_XLIBS@
+libunity_la_LIBADD += @XCOMPOSITE_LIBS@
 libunity_la_LIBADD += @GTK_LIBS@
 libunity_la_LIBADD += @GTKMM_LIBS@
 libunity_la_LIBADD += @GIO_LIBS@
