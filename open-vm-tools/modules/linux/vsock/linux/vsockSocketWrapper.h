@@ -156,8 +156,8 @@
 #  define __ELOCALSHUTDOWN    ESHUTDOWN
 #  define __EPEERSHUTDOWN     ECONNABORTED
 #  define __ECONNINPROGRESS   EWOULDBLOCK
-#else
-#if defined(VMKERNEL)
+#  define ESYSNOTREADY        WSASYSNOTREADY
+#elif defined(VMKERNEL)
 #  define EINTR               VMK_WAIT_INTERRUPTED
 #  define EPERM               VMK_ACCESS_DENIED
 #  define EACCES              VMK_NO_ACCESS
@@ -200,13 +200,14 @@
 #  define __ELOCALSHUTDOWN    EPIPE
 #  define __EPEERSHUTDOWN     EPIPE
 #  define __ECONNINPROGRESS   EINPROGRESS
-#else
-#if defined(__APPLE__)
+#  define ESYSNOTREADY        VMK_NOT_SUPPORTED
+#elif defined(__APPLE__)
 #  define __ELOCALSHUTDOWN    ESHUTDOWN
 #  define __EPEERSHUTDOWN     ECONNABORTED
 #  define __ECONNINPROGRESS   EINPROGRESS
-#endif // __APPLE
-#endif // VMKERNEL
+#  define ESYSNOTREADY        EOPNOTSUPP
+#elif defined(linux)
+#  define ESYSNOTREADY        EOPNOTSUPP
 #endif // _WIN32
 
 
