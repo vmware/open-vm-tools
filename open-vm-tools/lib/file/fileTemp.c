@@ -69,15 +69,10 @@ static void
 FileTempNum(Bool createTempFile,  // IN:
             uint32 *var)          // IN/OUT:
 {
-   uint32 delta;
-
    ASSERT(var);
 
-   do {
-      delta = (FileSimpleRandom() >> 8) & 0xFF;
-   } while (((*var + delta) & 0x1) != (createTempFile ? 1 : 0));
-
-   *var += delta;
+   *var += (FileSimpleRandom() >> 8) & 0xFF;
+   *var = (*var & ~0x1) | (createTempFile ? 1 : 0);
 }
 
 
