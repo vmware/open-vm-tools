@@ -1,3 +1,12 @@
+open-vm-tools 2011.06.27 changes:
+	* A few enhancements to Unity: XFCE support, better interaction
+	  with "the other" (Ubuntu's) Unity and compositing window
+	  managers, better X error handling, and a few bug fixes.
+
+	* A few bug fixes in HGFS, and minor bug fixes in other components.
+
+	* Otherwise, mostly code cleanup.
+
 open-vm-tools 2011.05.27 changes:
 	* Mostly cleanups and a few bug fixes.
 
