@@ -59,6 +59,15 @@
 #else   // !WIN32
 
 /**
+ * Signal emitted upon X I/O error callback firing.
+ *
+ * @param[in]   src     The source object.
+ * @param[in]   ctx     ToolsAppCtx *: the application context.
+ * @param[in]   data    Client data.
+ */
+#define TOOLS_CORE_SIG_XIOERROR "tcs_de_xioerror"
+
+/**
  * Signal emitted upon SmcCallbacks::save_yourself.
  *
  * @param[in]   src             The source object.

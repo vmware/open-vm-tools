@@ -22,16 +22,24 @@
  * Handles responding to X11 I/O errors.
  */
 
+/* Include first.  Sets G_LOG_DOMAIN. */
 #include "desktopEventsInt.h"
-#include <stdlib.h>
+
 #include <sys/types.h>
-#include <unistd.h>
 #include <X11/Xlib.h>
+
+#include <glib.h>
+#include <glib-object.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include "vmware/tools/desktopevents.h"
 
 
 static int gParentPid;
 static ToolsAppCtx *gCtx;
 static XIOErrorHandler gOrigHandler;
+
 
 /*
  ******************************************************************************
@@ -61,6 +69,12 @@ DEXIOErrorHandler(Display *dpy)
       g_debug("%s", __func__);
 
       /*
+       * Inform clients capable of/interested in quick'n'dirty cleanup upon an
+       * X I/O error.
+       */
+      g_signal_emit_by_name(gCtx->serviceObj, TOOLS_CORE_SIG_XIOERROR, gCtx);
+
+      /*
        * XXX: the really correct thing to do here would be to properly stop all
        * plugins so that capabilities are unset and all other "clean shutdown"
        * tasks are performed. Unfortunately two things currently prevent that:
@@ -81,7 +95,6 @@ DEXIOErrorHandler(Display *dpy)
       if (gCtx->rpc != NULL) {
          RpcChannel_Stop(gCtx->rpc);
       }
-      Reload_Do();
       exit(EXIT_FAILURE);
    } else {
       /*
@@ -117,6 +130,18 @@ XIOError_Init(ToolsAppCtx *ctx,
    gCtx = ctx;
    gParentPid = getpid();
    gOrigHandler = XSetIOErrorHandler(DEXIOErrorHandler);
+
+   g_signal_new(TOOLS_CORE_SIG_XIOERROR,
+                G_OBJECT_TYPE(ctx->serviceObj),
+                0,      // GSignalFlags
+                0,      // class offset
+                NULL,   // accumulator
+                NULL,   // accu_data
+                g_cclosure_marshal_VOID__POINTER,
+                G_TYPE_NONE,
+                1,
+                G_TYPE_POINTER);
+
    return TRUE;
 }
 

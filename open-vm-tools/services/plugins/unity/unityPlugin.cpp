@@ -81,7 +81,9 @@ static NotifyIconRpcCallback gNotifyIconCallback;
  *-----------------------------------------------------------------------------
  */
 
-UnityPlugin::UnityPlugin() : mUnityUpdateChannel(NULL)
+UnityPlugin::UnityPlugin(const ToolsAppCtx* ctx)        // IN: The app context.
+   : ToolsPlugin(ctx),
+     mUnityUpdateChannel(NULL)
 {
 }
 
@@ -104,10 +106,8 @@ UnityPlugin::UnityPlugin() : mUnityUpdateChannel(NULL)
  */
 
 gboolean
-UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
+UnityPlugin::Initialize()
 {
-   ASSERT(ctx);
-
    UnityHostCallbacks unityHostCallbacks;
    memset(&unityHostCallbacks, 0, sizeof unityHostCallbacks);
    unityHostCallbacks.buildUpdateCB = &UnityBuildUpdates;
@@ -127,7 +127,7 @@ UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
    }
    unityHostCallbacks.updateCbCtx = mUnityUpdateChannel;
 
-   Unity_Init(unityHostCallbacks, ctx->serviceObj);
+   Unity_Init(unityHostCallbacks, mCtx->serviceObj);
 
    GHITcloInit();
    GHIHostCallbacks ghiHostCallbacks;
@@ -135,17 +135,17 @@ UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
    ghiHostCallbacks.launchMenuChange = &GHILaunchMenuChangeRPC;
 
 #if defined(G_PLATFORM_WIN32)
-   GHI_Init(ctx->mainLoop, NULL, ghiHostCallbacks);
+   GHI_Init(mCtx->mainLoop, NULL, ghiHostCallbacks);
    GHI_RegisterNotifyIconCallback(&gNotifyIconCallback);
 #else
-   GHI_Init(ctx->mainLoop, ctx->envp, ghiHostCallbacks);
+   GHI_Init(mCtx->mainLoop, mCtx->envp, ghiHostCallbacks);
 #endif // G_PLATFORM_WIN32
 
-   if (g_key_file_get_boolean(ctx->config, CONFGROUPNAME_UNITY,
+   if (g_key_file_get_boolean(mCtx->config, CONFGROUPNAME_UNITY,
                               CONFNAME_UNITY_ENABLEDEBUG, NULL)) {
       Unity_InitializeDebugger();
    }
-   Unity_SetForceEnable(g_key_file_get_boolean(ctx->config, CONFGROUPNAME_UNITY,
+   Unity_SetForceEnable(g_key_file_get_boolean(mCtx->config, CONFGROUPNAME_UNITY,
                                                CONFNAME_UNITY_FORCEENABLE, NULL));
 
    /*
@@ -154,7 +154,7 @@ UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
     */
    int desktopColor = 0;
    GError *e = NULL;
-   desktopColor = g_key_file_get_integer(ctx->config, CONFGROUPNAME_UNITY,
+   desktopColor = g_key_file_get_integer(mCtx->config, CONFGROUPNAME_UNITY,
                                          CONFNAME_UNITY_BACKGROUNDCOLOR, &e);
    if (e != NULL) {
       desktopColor = /* red */ 0xdc |

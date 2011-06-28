@@ -41,16 +41,18 @@ class UnityPluginPosix
    : public UnityPlugin
 {
 public:
-   UnityPluginPosix();
+   UnityPluginPosix(const ToolsAppCtx* ctx);
    virtual ~UnityPluginPosix();
 
-   gboolean Initialize(ToolsAppCtx* ctx);
+   std::vector<ToolsPluginSignalCb> GetSignalRegistrations(ToolsPluginData*) const;
 
 private:
    static void XSMDieCb(GObject*, ToolsAppCtx*, gpointer);
    void OnXSMDie();
 
-   ToolsAppCtx* mCtx;
+   static void XIOErrorCb(GObject*, ToolsAppCtx*, gpointer);
+   void OnXIOError();
+
    std::map<const char*, gulong> mSignalIDs;
 };
 

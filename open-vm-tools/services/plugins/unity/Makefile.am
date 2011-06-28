@@ -51,6 +51,7 @@ libunity_la_LIBADD += $(top_builddir)/lib/xdg/libXdg.la
 
 libunity_la_SOURCES =
 
+libunity_la_SOURCES += toolsPlugin.cpp
 libunity_la_SOURCES += unityPlugin.cpp
 libunity_la_SOURCES += unityPluginEntry.cpp
 libunity_la_SOURCES += unityPlugin.h

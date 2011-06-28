@@ -58,9 +58,8 @@ namespace tools {
  *-----------------------------------------------------------------------------
  */
 
-UnityPluginPosix::UnityPluginPosix()
-   : UnityPlugin(),
-     mCtx(NULL)
+UnityPluginPosix::UnityPluginPosix(const ToolsAppCtx* ctx) // IN: The app context.
+   : UnityPlugin(ctx)
 {
 }
 
@@ -83,26 +82,20 @@ UnityPluginPosix::UnityPluginPosix()
 
 UnityPluginPosix::~UnityPluginPosix()
 {
-   if (mCtx) {
-      for (std::map<const char*, gulong>::iterator i = mSignalIDs.begin();
-           i != mSignalIDs.end();
-           ++i) {
-         g_signal_handler_disconnect(mCtx->serviceObj, i->second);
-      }
-   }
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * UnityPluginPosix::Initialize --
+ * UnityPluginPosix::GetSignalRegistrations --
  *
- *      Initialize UnityPlugin base class and connect to X Session Manager
- *      GLib signals.
+ *      Returns a vector containing signal registration info (signal name,
+ *      callback, callback context).  Signals will be connected by container
+ *      after all plugins have successfully registered.
  *
  * Results:
- *      TRUE on success, FALSE otherwise.
+ *      Vector of signal registration info.
  *
  * Side effects:
  *      None.
@@ -110,25 +103,26 @@ UnityPluginPosix::~UnityPluginPosix()
  *-----------------------------------------------------------------------------
  */
 
-gboolean
-UnityPluginPosix::Initialize(ToolsAppCtx* ctx)  // IN
+std::vector<ToolsPluginSignalCb>
+UnityPluginPosix::GetSignalRegistrations(ToolsPluginData* pdata) // IN
+   const
 {
-   if (UnityPlugin::Initialize(ctx)) {
-      mCtx = ctx;
-      mSignalIDs[TOOLS_CORE_SIG_XSM_DIE] =
-         g_signal_connect(ctx->serviceObj, TOOLS_CORE_SIG_XSM_DIE,
-                          G_CALLBACK(XSMDieCb), static_cast<gpointer>(this));
-      return TRUE;
-   }
-
-   return FALSE;
+   std::vector<ToolsPluginSignalCb> signals =
+      UnityPlugin::GetSignalRegistrations(pdata);
+   signals.push_back(
+      ToolsPlugin::SignalCtx(TOOLS_CORE_SIG_XIOERROR, (void*)XIOErrorCb,
+                             static_cast<gpointer>(const_cast<UnityPluginPosix*>(this))));
+   signals.push_back(
+      ToolsPlugin::SignalCtx(TOOLS_CORE_SIG_XSM_DIE, (void*)XSMDieCb,
+                             static_cast<gpointer>(const_cast<UnityPluginPosix*>(this))));
+   return signals;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * UnityPluginPosix::OnXSMEvent --
+ * UnityPluginPosix::OnXSMDie --
  *
  *      X Session Management event handler.  Exits Unity upon notice of session
  *      termination.
@@ -152,6 +146,37 @@ UnityPluginPosix::OnXSMDie()
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPluginPosix::OnXIOError --
+ *
+ *      In response to an X I/O error, signals host UI that vmusr is no longer
+ *      Unity-capable.
+ *
+ *      This is done because we can't perform a full, correct clean-up after
+ *      receiving an X I/O error.  See xioError.c for details.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Invokes a G->H RPC.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+UnityPluginPosix::OnXIOError()
+{
+   char *result;
+   size_t resultLen;
+   char tmp[] = "tools.capability.unity 0";
+   RpcChannel_Send(mCtx->rpc, tmp, sizeof tmp, &result, &resultLen);
+   vm_free(result);
+}
+
+
+/*
  ******************************************************************************
  * BEGIN Static member functions
  */
@@ -162,7 +187,7 @@ UnityPluginPosix::OnXSMDie()
  *
  * UnityPluginPosix::XSMDieCb --
  *
- *      Thunk between XSM "die" OnXSMDie.
+ *      Thunk between XSM "die" and OnXSMDie.
  *
  * Results:
  *      None.
@@ -180,6 +205,32 @@ UnityPluginPosix::XSMDieCb(GObject* obj,        // UNUSED
 {
    UnityPluginPosix* unityPlugin = static_cast<UnityPluginPosix*>(cbData);
    unityPlugin->OnXSMDie();
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPluginPosix::XIOErrorCb --
+ *
+ *      Thunk between XIOErrorHandler and OnXIOError.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      See OnXIOError.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+UnityPluginPosix::XIOErrorCb(GObject* obj,        // UNUSED
+                             ToolsAppCtx* ctx,    // UNUSED
+                             gpointer cbData)     // IN: UnityPluginPosix*
+{
+   UnityPluginPosix* unityPlugin = static_cast<UnityPluginPosix*>(cbData);
+   unityPlugin->OnXIOError();
 }
 
 
