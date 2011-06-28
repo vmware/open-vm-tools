@@ -147,11 +147,13 @@ Bool W32Util_RegisterService(Bool bRegister,
 Bool W32Util_DebugService(ConstUnicode dbgFile);
 
 Bool W32Util_RegisterEventLog(ConstUnicode serviceName,
+                              Bool registryVolatile,
                               DWORD typesSupported,
                               ConstUnicode eventMsgFile,
                               ConstUnicode categoryMsgFile,
                               DWORD categoryCount,
                               ConstUnicode paramMsgFile);
+
 Bool W32Util_UnregisterEventLog(ConstUnicode serviceName);
 
 typedef enum SetSDPrivsAccounts {
