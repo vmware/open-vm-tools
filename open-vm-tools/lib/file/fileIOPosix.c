@@ -98,6 +98,18 @@
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
+
+/*
+ * F_NODIRECT was added in Mac OS 10.7.0 "Lion".  We test at runtime for the
+ * right version before using it, but we also need to get the definition.
+ */
+
+#include <sys/fcntl.h>
+
+#ifndef F_NODIRECT
+#define F_NODIRECT 62
+#endif
+
 #endif
 
 /*
@@ -917,6 +929,20 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       if (error == -1) {
          ret = FileIOErrno2Result(errno);
          goto error;
+      }
+
+      if (!(access & FILEIO_OPEN_SYNC)) {
+         /*
+          * F_NODIRECT was added in Mac OS 10.7.0 "Lion" which has Darwin
+          * kernel 11.0.0.
+          */
+         if (Hostinfo_OSVersion(0) >= 11) {
+            error = fcntl(fd, F_NODIRECT, 1);
+            if (error == -1) {
+               ret = FileIOErrno2Result(errno);
+               goto error;
+            }
+         }
       }
    }
 #endif
