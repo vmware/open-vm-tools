@@ -2472,11 +2472,11 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
  *
  * Hostinfo_Execute --
  *
- *      Start program COMMAND.  If WAIT is TRUE, wait for program
+ *      Start program 'path'.  If 'wait' is TRUE, wait for program
  *	to complete and return exit status.
  *
  * Results:
- *      Exit status of COMMAND.
+ *      Exit status of 'path'.
  *
  * Side effects:
  *      Run a separate program.
@@ -2485,14 +2485,16 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
  */
 
 int
-Hostinfo_Execute(const char *command,  // IN:
-		 char * const *args,   // IN:
-		 Bool wait)            // IN:
+Hostinfo_Execute(const char *path,   // IN:
+                 char * const *args, // IN:
+                 Bool wait,          // IN:
+                 const int *keepFds, // IN/OPT: array of fds to be kept open
+                 size_t numKeepFds)  // IN: number of fds in keepFds
 {
    int pid;
    int status;
 
-   if (command == NULL) {
+   if (path == NULL) {
       return 1;
    }
 
@@ -2503,8 +2505,8 @@ Hostinfo_Execute(const char *command,  // IN:
    }
 
    if (pid == 0) {
-      Hostinfo_ResetProcessState(NULL, 0);
-      Posix_Execvp(command, args);
+      Hostinfo_ResetProcessState(keepFds, numKeepFds);
+      Posix_Execvp(path, args);
       exit(127);
    }
 

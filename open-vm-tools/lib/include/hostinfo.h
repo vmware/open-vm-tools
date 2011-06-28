@@ -98,8 +98,11 @@ extern char *Hostinfo_GetLibraryPath(void *addr);
 
 #if !defined(_WIN32)
 extern void Hostinfo_ResetProcessState(const int *keepFds, size_t numKeepFds);
-extern int Hostinfo_Execute(const char *command, char * const *args,
-			    Bool wait);
+extern int Hostinfo_Execute(const char *path,
+                            char * const *args,
+                            Bool wait,
+                            const int *keepFds,
+                            size_t numKeepFds);
 typedef enum HostinfoDaemonizeFlags {
    HOSTINFO_DAEMONIZE_DEFAULT = 0,
    HOSTINFO_DAEMONIZE_NOCHDIR = (1 << 0),
@@ -110,8 +113,8 @@ extern Bool Hostinfo_Daemonize(const char *path,
                                char * const *args,
                                HostinfoDaemonizeFlags flags,
                                const char *pidPath,
-                               const int *openFds,
-                               size_t numFds);
+                               const int *keepFds,
+                               size_t numKeepFds);
 #endif
 
 extern Unicode Hostinfo_GetUser(void);
