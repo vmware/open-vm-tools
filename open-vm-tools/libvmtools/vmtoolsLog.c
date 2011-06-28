@@ -891,6 +891,33 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
 /* Wrappers for VMware's logging functions. */
 
 /**
+ * Generic wrapper for VMware log functions.
+ *
+ * CoreDump_CoreDump() may log, and glib doesn't like recursive log calls. So
+ * if recursing, bypass glib and log to the default domain's log handler.
+ *
+ * @param[in]  level    Log level.
+ * @param[in]  fmt      Message format.
+ * @param[in]  args     Message arguments.
+ */
+
+static void
+VMToolsLogWrapper(GLogLevelFlags level,
+                  const char *fmt,
+                  va_list args)
+{
+   if (gPanicCount == 0) {
+      g_logv(gLogDomain, level, fmt, args);
+   } else {
+      /* Try to avoid malloc() since we're aborting. */
+      gchar msg[256];
+      g_vsnprintf(msg, sizeof msg, fmt, args);
+      VMToolsLog(gLogDomain, level, msg, gDefaultData);
+   }
+}
+
+
+/**
  * Logs a message using the G_LOG_LEVEL_DEBUG level.
  *
  * @param[in] fmt Log message format.
@@ -901,7 +928,7 @@ Debug(const char *fmt, ...)
 {
    va_list args;
    va_start(args, fmt);
-   g_logv(gLogDomain, G_LOG_LEVEL_DEBUG, fmt, args);
+   VMToolsLogWrapper(G_LOG_LEVEL_DEBUG, fmt, args);
    va_end(args);
 }
 
@@ -915,13 +942,10 @@ Debug(const char *fmt, ...)
 void
 Log(const char *fmt, ...)
 {
-   /* CoreDump_CoreDump() calls Log(), avoid that message. */
-   if (gPanicCount == 0) {
-      va_list args;
-      va_start(args, fmt);
-      g_logv(gLogDomain, G_LOG_LEVEL_INFO, fmt, args);
-      va_end(args);
-   }
+   va_list args;
+   va_start(args, fmt);
+   VMToolsLogWrapper(G_LOG_LEVEL_INFO, fmt, args);
+   va_end(args);
 }
 
 
@@ -968,7 +992,7 @@ LogV(uint32 routing,
       glevel = G_LOG_LEVEL_DEBUG;
    }
 
-   g_logv(gLogDomain, glevel, fmt, args);
+   VMToolsLogWrapper(glevel, fmt, args);
 }
 
 
@@ -1019,12 +1043,9 @@ Panic(const char *fmt, ...)
 void
 Warning(const char *fmt, ...)
 {
-   /* CoreDump_CoreDump() may call Warning(), avoid that message. */
-   if (gPanicCount == 0) {
-      va_list args;
-      va_start(args, fmt);
-      g_logv(gLogDomain, G_LOG_LEVEL_WARNING, fmt, args);
-      va_end(args);
-   }
+   va_list args;
+   va_start(args, fmt);
+   VMToolsLogWrapper(G_LOG_LEVEL_WARNING, fmt, args);
+   va_end(args);
 }
 
