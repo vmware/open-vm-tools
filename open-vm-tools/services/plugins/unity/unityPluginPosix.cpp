@@ -88,6 +88,38 @@ UnityPluginPosix::~UnityPluginPosix()
 /*
  *-----------------------------------------------------------------------------
  *
+ * UnityPluginPosix::GetCapabilities --
+ *
+ *      Called by the service core when the host requests the capabilities
+ *      supported by the guest tools.
+ *
+ * Results:
+ *      A list of capabilities to be sent to the host.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+std::vector<ToolsAppCapability>
+UnityPluginPosix::GetCapabilities(gboolean set) // IN
+{
+   std::vector<ToolsAppCapability> caps = UnityPlugin::GetCapabilities(set);
+#define ADDCAP(capName) caps.push_back(ToolsAppCapabilityNewEntry(capName, set))
+   ADDCAP(UNITY_CAP_WORK_AREA);
+   ADDCAP(UNITY_CAP_START_MENU);
+   ADDCAP(UNITY_CAP_MULTI_MON);
+   ADDCAP(UNITY_CAP_VIRTUAL_DESK);
+   ADDCAP(UNITY_CAP_STICKY_WINDOWS);
+#undef ADDCAP
+   return caps;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * UnityPluginPosix::GetSignalRegistrations --
  *
  *      Returns a vector containing signal registration info (signal name,

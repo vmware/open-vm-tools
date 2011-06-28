@@ -91,14 +91,6 @@ static Bool SetWindowStickiness(UnityPlatform *up,
                                 Bool wantSticky);
 static UnitySpecialWindow *MakeCompositeOverlaysObject(UnityPlatform *up);
 
-static const GuestCapabilities platformUnityCaps[] = {
-   UNITY_CAP_WORK_AREA,
-   UNITY_CAP_START_MENU,
-   UNITY_CAP_MULTI_MON,
-   UNITY_CAP_VIRTUAL_DESK,
-   UNITY_CAP_STICKY_WINDOWS,
-};
-
 /*
  * Has to be global for UnityPlatformXErrorHandler
  */
@@ -359,70 +351,6 @@ UnityPlatformCleanup(UnityPlatform *up) // IN
    up->desktopWindow = NULL;
 
    free(up);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityPlatformRegisterCaps --
- *
- *      Register guest platform specific capabilities with the VMX.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-UnityPlatformRegisterCaps(UnityPlatform *up) // IN
-{
-   ASSERT(up);
-
-   if (!RpcOut_sendOne(NULL, NULL, UNITY_RPC_SHOW_TASKBAR_CAP " %d",
-                       Unity_IsSupported() ? 1 : 0)) {
-      Debug("Could not set unity show taskbar cap\n");
-   }
-
-   AppUtil_SendGuestCaps(platformUnityCaps, ARRAYSIZE(platformUnityCaps), TRUE);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityPlatformUnregisterCaps --
- *
- *      Unregister guest platform specific capabilities with the VMX.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-UnityPlatformUnregisterCaps(UnityPlatform *up) // IN
-{
-   /*
-    * This function may potentially be called during UnityPlatform destruction.
-    */
-   if (!up) {
-      return;
-   }
-
-   AppUtil_SendGuestCaps(platformUnityCaps, ARRAYSIZE(platformUnityCaps), FALSE);
-
-   if (!RpcOut_sendOne(NULL, NULL, UNITY_RPC_SHOW_TASKBAR_CAP " 0")) {
-      Debug("Failed to unregister Unity taskbar capability\n");
-   }
 }
 
 

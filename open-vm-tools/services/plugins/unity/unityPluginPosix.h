@@ -44,6 +44,7 @@ public:
    UnityPluginPosix(const ToolsAppCtx* ctx);
    virtual ~UnityPluginPosix();
 
+   std::vector<ToolsAppCapability> GetCapabilities(gboolean set);
    std::vector<ToolsPluginSignalCb> GetSignalRegistrations(ToolsPluginData*) const;
 
 private:
