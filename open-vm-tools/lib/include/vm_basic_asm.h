@@ -1043,7 +1043,7 @@ TestBit32(uint32 *var, uint32 index)
    );
    return bit;
 #elif defined _MSC_VER
-   return _bittest((long *)var, index);
+   return (*var & (1 << index)) != 0;
 #endif
 }
 
@@ -1061,7 +1061,7 @@ TestBit64(uint64 *var, uint64 index)
    );
    return bit;
 #elif defined _MSC_VER
-   return _bittest64((__int64 *)var, index);
+   return (*var & (CONST64U(1) << index)) != 0;
 #endif
 }
 #endif /* VM_X86_64 */
