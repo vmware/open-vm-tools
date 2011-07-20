@@ -820,7 +820,6 @@ HostinfoOSData(void)
    struct utsname buf;
    unsigned int lastCharPos;
    const char *lsbCmd = "lsb_release -sd 2>/dev/null";
-   char *lsbOutput = NULL;
 
    char osName[MAX_OS_NAME_LEN];
    char osNameFull[MAX_OS_FULLNAME_LEN];
@@ -855,23 +854,26 @@ HostinfoOSData(void)
    if (strstr(osNameFull, "Linux")) {
       char distro[DISTRO_BUF_SIZE];
       char distroShort[DISTRO_BUF_SIZE];
+      static int const distroSize = sizeof distro;
+      char *lsbOutput;
       int i = 0;
-      int distroSize = sizeof distro;
+      int majorVersion;
 
       /*
        * Write default distro string depending on the kernel version. If
        * later we find more detailed information this will get overwritten.
        */
 
-      if (StrUtil_StartsWith(buf.release, "2.4.")) {
-         Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
-      } else if (StrUtil_StartsWith(buf.release, "2.6.")) {
-         Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
-      } else {
+      majorVersion = Hostinfo_OSVersion(0);
+      if (majorVersion < 2 || (majorVersion == 2 && Hostinfo_OSVersion(1) < 4)) {
          Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
+      } else if (majorVersion == 2 && Hostinfo_OSVersion(1) < 6) {
+         Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
+      } else {
+         Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
       }
 
       /*
@@ -3456,7 +3458,8 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
 #endif
 
    // "/proc/self/exe" only exists on Linux 2.2+.
-   ASSERT(Hostinfo_OSVersion(0) >= 2 && Hostinfo_OSVersion(1) >= 2);
+   ASSERT(Hostinfo_OSVersion(0) > 2 ||
+          (Hostinfo_OSVersion(0) == 2 && Hostinfo_OSVersion(1) >= 2));
 
    if (priv == HGMP_PRIVILEGE) {
       uid = Id_BeginSuperUser();
