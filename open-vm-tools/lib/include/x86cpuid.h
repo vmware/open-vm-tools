@@ -467,7 +467,7 @@ FLAG(  81,  0, ECX, COMMON,  0,  1, LAHF64,                        YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,     1,  1, CMPLEGACY,                     NO,  FALSE) \
 FLAG(  81,  0, ECX, AMD,     2,  1, SVM,                           YES, FALSE) \
 FLAG(  81,  0, ECX, AMD,     3,  1, EXTAPICSPC,                    YES, FALSE) \
-FLAG(  81,  0, ECX, AMD,     4,  1, CR8AVAIL,                      NO,  FALSE) \
+FLAG(  81,  0, ECX, AMD,     4,  1, CR8AVAIL,                      YES, FALSE) \
 FLAG(  81,  0, ECX, AMD,     5,  1, ABM,                           YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,     6,  1, SSE4A,                         YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,     7,  1, MISALIGNED_SSE,                YES, TRUE)  \
