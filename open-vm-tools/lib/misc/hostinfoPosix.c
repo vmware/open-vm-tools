@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <errno.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -1918,6 +1919,10 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
  *      (as a US-ASCII string followed by a newline) of the daemon
  *      process to that path.
  *
+ *      If 'flags' contains HOSTINFO_DAEMONIZE_LOCKPID and pidPath is
+ *      non-NULL, then an exclusive flock(2) is taken on pidPath to prevent
+ *      multiple instances of the service from running.
+ *
  * Results:
  *      FALSE if the process could not be daemonized.  errno contains
  *      the error on failure.
@@ -1961,19 +1966,53 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
     * causes them to reopen their Mach ports.
     */
 
+   int pidPathFd = -1;
    int childPid;
    int pipeFds[2] = { -1, -1 };
    uint32 err = EINVAL;
    char *pathLocalEncoding = NULL;
-   char *pidPathLocalEncoding = NULL;
    char **argsLocalEncoding = NULL;
    int *tempFds = NULL;
+   size_t numTempFds = numKeepFds + 1;
    sigset_t sig;
 
    ASSERT_ON_COMPILE(sizeof (errno) <= sizeof err);
    ASSERT(args);
    ASSERT(path);
    ASSERT(numKeepFds == 0 || keepFds);
+
+   if (pidPath) {
+      pidPathFd = Posix_Open(pidPath, O_WRONLY | O_CREAT, 0644);
+      if (pidPathFd == -1) {
+         err = errno;
+         Warning("%s: Couldn't open PID path [%s], error %u.\n",
+                 __FUNCTION__, pidPath, err);
+         errno = err;
+         return FALSE;
+      }
+
+      /*
+       * Lock this file to take a mutex on daemonizing this process. The child
+       * will keep this file descriptor open for as long as it is running.
+       *
+       * flock(2) is a BSD extension (also supported on Linux) which creates a
+       * lock that is inherited by the child after fork(2). fcntl(2) locks do
+       * not have this property. Solaris only supports fcntl(2) locks.
+       */
+#ifndef sun
+      if ((flags & HOSTINFO_DAEMONIZE_LOCKPID) &&
+          flock(pidPathFd, LOCK_EX | LOCK_NB) == -1) {
+         err = errno;
+         Warning("%s: Lock held on PID path [%s], error %u, not daemonizing.\n",
+                 __FUNCTION__, pidPath, err);
+         errno = err;
+         close(pidPathFd);
+         return FALSE;
+      }
+#endif
+
+      numTempFds++;
+   }
 
    if (pipe(pipeFds) == -1) {
       err = errno;
@@ -1982,16 +2021,18 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
       goto cleanup;
    }
 
-   numKeepFds++;
-   tempFds = malloc(sizeof tempFds[0] * numKeepFds);
+   tempFds = malloc(sizeof tempFds[0] * numTempFds);
    if (!tempFds) {
       err = errno;
       Warning("%s: Couldn't allocate memory, error %u.\n", __FUNCTION__, err);
       goto cleanup;
    }
-   tempFds[0] = pipeFds[1];
    if (keepFds) {
-      memcpy(tempFds + 1, keepFds, sizeof tempFds[0] * (numKeepFds - 1));
+      memcpy(tempFds, keepFds, sizeof tempFds[0] * numKeepFds);
+   }
+   tempFds[numKeepFds++] = pipeFds[1];
+   if (pidPath) {
+      tempFds[numKeepFds++] = pidPathFd;
    }
 
    if (fcntl(pipeFds[1], F_SETFD, 1) == -1) {
@@ -2007,17 +2048,6 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
       Warning("%s: Couldn't convert path [%s] to default encoding.\n",
               __FUNCTION__, path);
       goto cleanup;
-   }
-
-   if (pidPath) {
-      pidPathLocalEncoding = Unicode_GetAllocBytes(pidPath,
-                                                   STRING_ENCODING_DEFAULT);
-
-      if (!pidPathLocalEncoding) {
-         Warning("%s: Couldn't convert path [%s] to default encoding.\n",
-                 __FUNCTION__, pidPath);
-         goto cleanup;
-      }
    }
 
    argsLocalEncoding = Unicode_GetAllocList(args, STRING_ENCODING_DEFAULT, -1);
@@ -2084,9 +2114,9 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
 
    /*
     * Close all fds except for the write end of the error pipe (which we've
-    * already set to close on successful exec), and the ones requested by
-    * the caller. Also reset the signal mask to unblock all signals. fork()
-    * clears pending signals.
+    * already set to close on successful exec), the pid file, and the ones
+    * requested by the caller. Also reset the signal mask to unblock all
+    * signals. fork() clears pending signals.
     */
 
    Hostinfo_ResetProcessState(tempFds, numKeepFds);
@@ -2165,18 +2195,15 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
       int64 pid;
       char pidString[32];
       int pidStringLen;
-      int pidPathFd;
 
       ASSERT_ON_COMPILE(sizeof (pid_t) <= sizeof pid);
-      ASSERT(pidPathLocalEncoding);
+      ASSERT(pidPathFd >= 0);
 
-      /* See above comment about how we can't use our i18n wrappers here. */
-      pidPathFd = open(pidPathLocalEncoding, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-
-      if (pidPathFd == -1) {
-         err = errno;
-         Warning("%s: Couldn't open PID path [%s], error %d.\n",
-                 __FUNCTION__, pidPath, err);
+      pid = getpid();
+      pidStringLen = Str_Sprintf(pidString, sizeof pidString,
+                                 "%"FMT64"d\n", pid);
+      if (pidStringLen <= 0) {
+         err = EINVAL;
 
          if (write(pipeFds[1], &err, sizeof err) == -1) {
             Warning("%s: Couldn't write to parent pipe: %u, original "
@@ -2185,11 +2212,10 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
          _exit(EXIT_FAILURE);
       }
 
-      pid = getpid();
-      pidStringLen = Str_Sprintf(pidString, sizeof pidString,
-                                 "%"FMT64"d\n", pid);
-      if (pidStringLen <= 0) {
-         err = EINVAL;
+      if (ftruncate(pidPathFd, 0) == -1) {
+         err = errno;
+         Warning("%s: Couldn't truncate path [%s], error %d.\n",
+                 __FUNCTION__, pidPath, err);
 
          if (write(pipeFds[1], &err, sizeof err) == -1) {
             Warning("%s: Couldn't write to parent pipe: %u, original "
@@ -2210,7 +2236,22 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
          _exit(EXIT_FAILURE);
       }
 
-      close(pidPathFd);
+      if (fsync(pidPathFd) == -1) {
+         err = errno;
+         Warning("%s: Couldn't flush PID to path [%s], error %d.\n",
+                 __FUNCTION__, pidPath, err);
+
+         if (write(pipeFds[1], &err, sizeof err) == -1) {
+            Warning("%s: Couldn't write to parent pipe: %u, original "
+                    "error: %u.\n", __FUNCTION__, errno, err);
+         }
+         _exit(EXIT_FAILURE);
+      }
+
+      /* Leave pidPathFd open to hold the mutex until this process exits. */
+      if (!(flags & HOSTINFO_DAEMONIZE_LOCKPID)) {
+         close(pidPathFd);
+      }
    }
 
    if (execv(pathLocalEncoding, argsLocalEncoding) == -1) {
@@ -2237,7 +2278,6 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
       close(pipeFds[1]);
    }
    Util_FreeStringList(argsLocalEncoding, -1);
-   free(pidPathLocalEncoding);
    free(pathLocalEncoding);
 
    if (err == 0) {
@@ -2246,10 +2286,19 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
       }
    } else {
       if (pidPath) {
+         /*
+          * Unlink pidPath on error before closing pidPathFd to avoid racing
+          * with another process attempting to daemonize and unlinking the
+          * file it created instead.
+          */
          Posix_Unlink(pidPath);
       }
 
       errno = err;
+   }
+
+   if (pidPath) {
+      close(pidPathFd);
    }
 
    return err == 0;

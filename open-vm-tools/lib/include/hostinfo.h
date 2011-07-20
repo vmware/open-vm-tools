@@ -108,6 +108,7 @@ typedef enum HostinfoDaemonizeFlags {
    HOSTINFO_DAEMONIZE_NOCHDIR = (1 << 0),
    HOSTINFO_DAEMONIZE_NOCLOSE = (1 << 1),
    HOSTINFO_DAEMONIZE_EXIT    = (1 << 2),
+   HOSTINFO_DAEMONIZE_LOCKPID = (1 << 3),
 } HostinfoDaemonizeFlags;
 extern Bool Hostinfo_Daemonize(const char *path,
                                char * const *args,
