@@ -95,7 +95,8 @@ CopyPasteUIX11::CopyPasteUIX11()
    mBlockAdded(false),
    mBlockCtrl(0),
    mInited(false),
-   mTotalFileSize(0)
+   mTotalFileSize(0),
+   mGetTimestampOnly(false)
 {
    GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
    ASSERT(p);
@@ -263,6 +264,7 @@ CopyPasteUIX11::GetLocalClipboard(void)
    mClipTime = 0;
    mPrimTime = 0;
    mGHSelection = GDK_SELECTION_CLIPBOARD;
+   mGetTimestampOnly = false;
    g_debug("%s: retrieving timestamps\n", __FUNCTION__);
    refClipboard->request_contents(TARGET_NAME_TIMESTAMP,
       sigc::mem_fun(this, &CopyPasteUIX11::LocalClipboardTimestampCB));
@@ -628,6 +630,11 @@ CopyPasteUIX11::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
       g_debug("%s: mPrimTime: %"FMT64"u.", __FUNCTION__, mPrimTime);
    } else {
       g_debug("%s: Unable to get mPrimTime.", __FUNCTION__);
+   }
+
+   if (mGetTimestampOnly) {
+      mLastTimestamp = mClipTime > mPrimTime ? mClipTime : mPrimTime;
+      return;
    }
 
    /* After got both timestamp, choose latest one as active selection. */
@@ -1190,6 +1197,18 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
 
          refClipboard->set_image(loader->get_pixbuf());
          refPrimary->set_image(loader->get_pixbuf());
+
+         /*
+          * Record current clipboard timestamp to prevent unexpected clipboard
+          * exchange.
+          *
+          * XXX We should do this for all formats.
+          */
+         mClipTime = 0;
+         mPrimTime = 0;
+         mGetTimestampOnly = true;
+         refClipboard->request_contents(TARGET_NAME_TIMESTAMP,
+            sigc::mem_fun(this, &CopyPasteUIX11::LocalClipboardTimestampCB));
       } catch(...) {
          // Do nothing
       }

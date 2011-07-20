@@ -120,6 +120,7 @@ private:
    DnDBlockControl *mBlockCtrl;
    bool mInited;
    uint64 mTotalFileSize;
+   bool mGetTimestampOnly;
 };
 
 #endif // __COPYPASTE_UI_X11_H__
