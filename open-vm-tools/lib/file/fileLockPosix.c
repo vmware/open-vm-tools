@@ -591,7 +591,7 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * ReadSlashProc --
+ * FileReadSlashProc --
  *
  *      Read the data in a /proc file
  *
@@ -606,7 +606,7 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
  */
 
 static int
-ReadSlashProc(const char *procPath,  // IN:
+FileReadSlashProc(const char *procPath,  // IN:
               char *buffer,          // OUT:
               size_t bufferSize)     // IN:
 {
@@ -649,7 +649,7 @@ ReadSlashProc(const char *procPath,  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * ProcessCreationTime --
+ * FileProcessCreationTime --
  *
  *      Return the specified process's creation time.
  *
@@ -664,7 +664,7 @@ ReadSlashProc(const char *procPath,  // IN:
  */
 
 static uint64
-ProcessCreationTime(pid_t pid)  // IN:
+FileProcessCreationTime(pid_t pid)  // IN:
 {
    int err;
    char path[64];
@@ -673,7 +673,7 @@ ProcessCreationTime(pid_t pid)  // IN:
 
    Str_Sprintf(path, sizeof path, "/proc/%d/stat", pid);
 
-   err = ReadSlashProc(path, buffer, sizeof buffer);
+   err = FileReadSlashProc(path, buffer, sizeof buffer);
 
    if (err == 0) {
       uint32 i;
@@ -715,7 +715,7 @@ ProcessCreationTime(pid_t pid)  // IN:
 }
 #elif defined(__APPLE__)
 static uint64
-ProcessCreationTime(pid_t pid)  // IN:
+FileProcessCreationTime(pid_t pid)  // IN:
 {
     int err;
     size_t size;
@@ -746,7 +746,7 @@ ProcessCreationTime(pid_t pid)  // IN:
 }
 #else
 static uint64
-ProcessCreationTime(pid_t pid)  // IN:
+FileProcessCreationTime(pid_t pid)  // IN:
 {
    return 0;
 }
@@ -806,7 +806,7 @@ FileLockValidOwner(const char *executionID,  // IN:
       }
 
       /* Non-matching process creation times -> pid is not the creator */
-      processCreationTime = ProcessCreationTime(pid);
+      processCreationTime = FileProcessCreationTime(pid);
 
       if ((fileCreationTime != 0) &&
           (processCreationTime != 0) &&
@@ -941,7 +941,7 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
       char creationTimeString[32];
 
       Str_Sprintf(creationTimeString, sizeof creationTimeString, "%"FMT64"u",
-                  ProcessCreationTime(getpid()));
+                  FileProcessCreationTime(getpid()));
 
       tokenPtr = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
                                    creationTimeString, err);
