@@ -742,7 +742,7 @@ exit:
 #if (defined(VMX86_SERVER) || defined(__APPLE__)) && \
    !defined(UNICODE_BUILDING_POSIX_WRAPPERS)
 /*
- * ESX and MacOS X are UTF-8 environments so these functions can be
+ * ESX and Mac OS are UTF-8 environments so these functions can be
  * "defined away" - the POSIX wrapper call can be directly mapped to the
  * POSIX function avoiding unneccesary (call and handling) overhead.
  *
