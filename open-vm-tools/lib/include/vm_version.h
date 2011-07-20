@@ -224,6 +224,7 @@
 #define VPX_VERSION "5.0.0"
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define SVA_VERSION "1.0.0"
+#define SSO_VERSION "1.0.0"
 #define WBC_VERSION "5.0.0"
 #define SDK_VERSION "4.1.0"
 #define FOUNDRY_VERSION "1.11.0"
@@ -245,6 +246,7 @@
 #define VGAUTH_VERSION "e.x.p"
 #define VIEWY_VERSION "e.x.p"
 #define VMCFSDK_VERSION "e.x.p"
+#define PCOIP_VERSION "e.x.p"
 
 
 // VMRC_PLUGIN_VERSION should match PLAYER_VERSION but can't be e.x.p
@@ -284,7 +286,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 9
 #define USB_ARBITRATOR_VERSION_MINOR 0
-#define USB_ARBITRATOR_VERSION_Z     19
+#define USB_ARBITRATOR_VERSION_Z     25
 
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
@@ -300,7 +302,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.19"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.25"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
