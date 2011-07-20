@@ -258,6 +258,7 @@ VmCheck_IsVirtualWorld(void)
 
    hypervisorSig = Hostinfo_HypervisorCPUIDSig();
    if (hypervisorSig != NULL &&
+       *hypervisorSig != '\0' &&
        strcmp(hypervisorSig, CPUID_VMWARE_HYPERVISOR_VENDOR_STRING) != 0) {
       free(hypervisorSig);
       Debug("%s: detected non-VMware hypervisor (%s).\n",
