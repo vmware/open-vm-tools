@@ -1,3 +1,11 @@
+open-vm-tools 2011.07.19 changes:
+	* Fix an issue in the HGFS driver that could lead to a kernel
+	  panic.
+
+	* Update some code to support new compiler and kernel versions.
+
+	* Minor bug fixes and code cleanup.
+
 open-vm-tools 2011.06.27 changes:
 	* A few enhancements to Unity: XFCE support, better interaction
 	  with "the other" (Ubuntu's) Unity and compositing window
