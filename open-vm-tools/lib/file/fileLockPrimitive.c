@@ -299,10 +299,12 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
    uint32 argc = 0;
    char *saveptr = NULL;
 
-   ParseTable table = { PARSE_TABLE_STRING,
-                        "lc",
-                        (void *) &memberValues->locationChecksum
-                      };
+   ParseTable table[] = {
+                           { PARSE_TABLE_STRING,
+                             "lc",
+                             (void *) &memberValues->locationChecksum
+                           }
+                        };
  
    ASSERT(lockDir);
    ASSERT(fileName);
@@ -391,6 +393,8 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
       goto bail;
    }
 
+fixedUp:
+
    /* Extract and validate the lock file data. */
    for (argc = 0; argc < FL_MAX_ARGS; argc++) {
       argv[argc] = strtok_r((argc == 0) ? buffer : NULL, " ", &saveptr);
@@ -400,48 +404,60 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
       }
    }
 
-   if ((argc < 4) || ((argc == FL_MAX_ARGS) &&
-                       (strtok_r(NULL, " ", &saveptr) != NULL))) {
-      goto corrupt;
-   }
-
    /*
-    * Lock file arguments are space separated. There is a minimum of 4
-    * arguments - machineID, executionID, Lamport number and lock type.
-    * The maximum number of arguments is FL_MAX_ARGS.
+    * Lock file arguments are space separated. There is a minimum of 5
+    * arguments - machineID, executionID, Lamport number, lock type
+    * and process creation time. The maximum number of arguments is
+    * FL_MAX_ARGS.
     *
-    * The fifth argument, if present, is the payload or "[" if there is no
-    * payload and additional arguments are present. The additional arguments
-    * form  a properly list - one or more "name=value" pairs.
+    * Additional arguments, if present, form a property list - one or more
+    * "name=value" pairs.
     *
     * Here is picture of valid forms:
     *
     * 0 1 2 3 4 5 6   Comment
     *-------------------------
-    * A B C D         contents, no payload, no list entries
-    * A B C D [       contents, no payload, no list entries
-    * A B C D P       contents, a payload,  no list entries
-    * A B C D [ x     contents, no payload, one list entry
-    * A B C D P x     contents, a payload,  one list entry
-    * A B C D [ x y   contents, no payload, two list entries
-    * A B C D P x y   contents, a payload,  two list entries
+    * A B C D E       No property list
+    * A B C D E x     One property
+    * A B C D E x y   Two properties
     */
 
    memberValues->locationChecksum = NULL;
 
-   if (argc == 4) {
-      memberValues->payload = NULL;
-   } else {
-      if (strcmp(argv[4], "[") == 0) {
-         memberValues->payload = NULL;
-      } else {
-         memberValues->payload = argv[4];
-      }
-
-      if (FileLockParseArgs(argv, argc - 5, &table, 1)) {
-         goto corrupt;
-      }
+   if ((argc < 5) || ((argc == FL_MAX_ARGS) &&
+                       (strtok_r(NULL, " ", &saveptr) != NULL))) {
+      goto corrupt;
    }
+
+   if ((argc > 5) && FileLockParseArgs(argv, argc - 5,
+                                       table, ARRAYSIZE(table))) {
+      goto corrupt;
+   }
+
+   /*
+    * Check for an old style lock file; if found, upgrade it (internally).
+    *
+    * The new style lock always has an executionID that is minimally
+    * processID-processCreationTime (the '-' is the critical difference).
+    */
+
+   if ((strchr(argv[1], '-') == NULL) &&
+       (strchr(argv[1], '(') == NULL) &&
+       (strchr(argv[1], ')') == NULL) &&
+       (argc == 6) &&
+       !FileLockParseArgs(argv, argc - 5, table, ARRAYSIZE(table))) {
+         char *newBuffer;
+
+         newBuffer = Str_SafeAsprintf(NULL, "%s %s-%s %s %s %s %s",
+                                      argv[0], argv[1], argv[4], argv[2],
+                                      argv[3], argv[4], argv[5]);
+
+        Str_Strcpy(buffer, newBuffer, requiredSize);
+
+        free(newBuffer);
+
+        goto fixedUp;
+  }
 
    if (sscanf(argv[2], "%u", &memberValues->lamportNumber) != 1) {
       goto corrupt;
@@ -762,8 +778,7 @@ FileLockScanDirectory(ConstUnicode lockDir,     // IN:
                                     memberValues.machineID)) {
             char *dispose = NULL;
 
-            if (FileLockValidOwner(memberValues.executionID,
-                                   memberValues.payload)) {
+            if (FileLockValidExecutionID(memberValues.executionID)) {
                /* If it's mine it better still be where I put it! */
                if ((strcmp(myExecutionID, memberValues.executionID) == 0) &&
                    ((memberValues.locationChecksum != NULL) &&
@@ -1078,8 +1093,8 @@ FileLockWaitForPossession(ConstUnicode lockDir,      // IN:
          }
 
          /* still valid? */
-         if (thisMachine && !FileLockValidOwner(memberValues->executionID,
-                                                memberValues->payload)) {
+         if (thisMachine &&
+             !FileLockValidExecutionID(memberValues->executionID)) {
             /* Invalid Execution ID; remove the member file */
             Warning(LGPFX" %s discarding file '%s'; invalid executionID.\n",
                     __FUNCTION__, UTF8(path));
@@ -1097,10 +1112,10 @@ FileLockWaitForPossession(ConstUnicode lockDir,      // IN:
       if ((myValues->msecMaxWaitTime != FILELOCK_TRYLOCK_WAIT) &&
           (err == EAGAIN)) {
          if (thisMachine) {
-            Log(LGPFX" %s timeout on '%s' due to a local process (%s)\n",
+            Log(LGPFX" %s timeout on '%s' due to a local process '%s'\n",
                     __FUNCTION__, UTF8(path), memberValues->executionID);
          } else {
-            Log(LGPFX" %s timeout on '%s' due to another machine (%s)\n",
+            Log(LGPFX" %s timeout on '%s' due to another machine '%s'\n",
                     __FUNCTION__, UTF8(path), memberValues->machineID);
          }
       }
@@ -1386,8 +1401,11 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
                          ConstUnicode entryFilePath,   // IN:
                          ConstUnicode memberFilePath)  // IN:
 {
+   int cnt;
+   int pid;
    size_t len;
    FileIOResult result;
+   uint64 processCreationTime;
 
    int err = 0;
    char buffer[FILELOCK_DATA_SIZE] = { 0 };
@@ -1398,21 +1416,32 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
    /*
     * Populate the buffer with appropriate data
     *
-    * Lock file arguments are space separated. There is a minimum of 4
-    * arguments - machineID, executionID, Lamport number and lock type.
-    * The maximum number of argument is FL_MAX_ARGS.
+    * Lock file arguments are space separated. There is a minimum of 5
+    * arguments - machineID, executionID, Lamport number, lock type
+    * and process creation time. The maximum number of arguments is
+    * FL_MAX_ARGS.
     *
-    * The fifth argument, if present, is the payload or "[" if there is no
-    * payload and additional arguments are present. The additional arguments
-    * form  a properly list - one or more "name=value" pairs.
+    * Additional arguments, if present, form a property list - one or more
+    * "name=value" pairs.
+    *
+    * Yes, the process creation time is redundently encoded. This is necessary
+    * to maintain backwards compatibility. Should an older code pick up a
+    * newer lock file and there is lock contention, the older code will log
+    * the name of the process causing the contention - it's also encoded
+    * into the executionID.
     */
 
-   Str_Sprintf(buffer, sizeof buffer, "%s %s %u %s %s lc=%s",
+   cnt = sscanf(myValues->executionID, "%d-%"FMT64"u", &pid,
+                &processCreationTime);
+
+   ASSERT(cnt == 2);  // ensure new format executionID
+
+   Str_Sprintf(buffer, sizeof buffer, "%s %s %u %s %"FMT64"u lc=%s",
                myValues->machineID,
                myValues->executionID,
                myValues->lamportNumber,
                myValues->lockType,
-               myValues->payload == NULL ? "[" : myValues->payload,
+               processCreationTime,
                myValues->locationChecksum);
 
    /* Attempt to write the data */
@@ -1499,7 +1528,6 @@ FileLockToken *
 FileLockIntrinsic(ConstUnicode pathName,   // IN:
                   Bool exclusivity,        // IN:
                   uint32 msecMaxWaitTime,  // IN:
-                  const char *payload,     // IN:
                   int *err)                // OUT:
 {
    int access;
@@ -1523,7 +1551,6 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
 
    myValues.machineID = (char *) FileLockGetMachineID(); // don't free this!
    myValues.executionID = FileLockGetExecutionID();      // free this!
-   myValues.payload = (char *) payload;
    myValues.lockType = exclusivity ? LOCK_EXCLUSIVE : LOCK_SHARED;
    myValues.lamportNumber = 0;
    myValues.locationChecksum = FileLockLocationChecksum(lockDir); // free this!

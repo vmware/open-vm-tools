@@ -197,7 +197,6 @@ typedef struct lock_values
 {
    char         *machineID;
    char         *executionID;
-   char         *payload;
    char         *lockType;
    char         *locationChecksum;
    Unicode       memberName;
@@ -234,7 +233,6 @@ int FileLockMemberValues(ConstUnicode lockDir,
 FileLockToken *FileLockIntrinsic(ConstUnicode filePathName,
                                  Bool exclusivity,
                                  uint32 msecMaxWaitTime,
-                                 const char *payload,
                                  int *err);
 
 int FileUnlockIntrinsic(FileLockToken *tokenPtr);
@@ -242,8 +240,7 @@ int FileUnlockIntrinsic(FileLockToken *tokenPtr);
 Bool FileLockIsLocked(ConstUnicode filePath,
                       int *err);
 
-Bool FileLockValidOwner(const char *executionID,
-                        const char *payload);
+Bool FileLockValidExecutionID(const char *executionID);
 
 Bool FileLockValidName(ConstUnicode fileName);
 
