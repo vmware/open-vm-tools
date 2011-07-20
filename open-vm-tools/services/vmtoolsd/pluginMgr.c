@@ -738,6 +738,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
    if (state->debugData != NULL && state->debugData->debugPlugin->plugin != NULL) {
       ToolsPluginData *data = state->debugData->debugPlugin->plugin;
       ToolsPlugin *plugin = g_malloc(sizeof *plugin);
+      plugin->fileName = NULL;
       plugin->module = NULL;
       plugin->data = data;
       VMTools_BindTextDomain(data->name, NULL, NULL);
