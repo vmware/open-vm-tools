@@ -89,7 +89,7 @@
 #elif defined(VMX86_VCB)
    #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VLICENSE)
-   #define PRODUCT_VERSION    1,1,2,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
    #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -230,7 +230,7 @@
 #define FOUNDRY_VERSION "1.11.0"
 #define FOUNDRY_FILE_VERSION 1,11,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
-#define VLICENSE_VERSION "1.1.2"
+#define VLICENSE_VERSION "1.1.5"
 #define DDK_VERSION "e.x.p"
 #define VIPERL_VERSION "1.1.0"
 #define RCLI_VERSION "5.0.0"

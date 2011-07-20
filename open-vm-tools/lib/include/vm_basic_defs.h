@@ -705,4 +705,15 @@ typedef int pid_t;
 #define NONCLIENTMETRICSINFO_V1_SIZE CCSIZEOF_STRUCT(NONCLIENTMETRICS, \
                                                      lfMessageFont)
 
+/* This is not intended to be thread-safe. */
+#define DO_ONCE(code)                                                   \
+   do {                                                                 \
+      static Bool _doOnceDone = FALSE;                                  \
+      if (UNLIKELY(!_doOnceDone)) {                                     \
+         _doOnceDone = TRUE;                                            \
+         code;                                                          \
+      }                                                                 \
+   } while (0)
+
+
 #endif // ifndef _VM_BASIC_DEFS_H_

@@ -281,14 +281,7 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
    #define NOT_TESTED() Log(AssertNotTestedFmt, __FILE__, __LINE__)
 #endif
 
-#define NOT_TESTED_ONCE()                                               \
-   do {                                                                 \
-      static Bool alreadyPrinted = FALSE;                               \
-      if (UNLIKELY(!alreadyPrinted)) {                                  \
-	 alreadyPrinted = TRUE;                                         \
-	 NOT_TESTED();                                                  \
-      }                                                                 \
-   } while (0)
+#define NOT_TESTED_ONCE() DO_ONCE(NOT_TESTED())
 
 #define NOT_TESTED_1024()                                               \
    do {                                                                 \
@@ -297,14 +290,7 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
       count = (count + 1) & 1023;                                       \
    } while (0)
 
-#define LOG_ONCE(_s)                                                    \
-   do {                                                                 \
-      static Bool logged = FALSE;                                       \
-      if (!logged) {                                                    \
-	 Log _s;                                                        \
-         logged = TRUE;                                                 \
-      }                                                                 \
-   } while (0)
+#define LOG_ONCE(_s) DO_ONCE(Log _s)
 
 
 /*
