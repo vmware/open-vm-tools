@@ -67,6 +67,7 @@ libdndcp_la_SOURCES += dndGuest/dndCPTransportGuestRpc.cpp
 
 libdndcp_la_SOURCES += stringxx/string.cc
 
+libdndcp_la_SOURCES += copyPasteCompat.c
 libdndcp_la_SOURCES += copyPasteCompatX11.c
 libdndcp_la_SOURCES += copyPasteDnDWrapper.cpp
 libdndcp_la_SOURCES += copyPasteDnDX11.cpp

@@ -45,9 +45,9 @@
 #include <errno.h>
 
 #include "vm_assert.h"
+#include "copyPasteCompat.h"
 #include "str.h"
 #include "strutil.h"
-#include "guestApp.h"
 #include "dnd.h"
 #include "util.h"
 #include "cpName.h"
@@ -547,7 +547,7 @@ CopyPasteSelectionClearCB(GtkWidget          *widget,         // IN: unused
  * CopyPasteSetBackdoorSelections --
  *
  *      Set the clipboard one of two ways, the old way or the new way.
- *      The old way uses GuestApp_SetSel and there's only one selection.
+ *      The old way uses CopyPaste_SetSelLength and there's only one selection.
  *      Set backdoor selection with either primary selection or clipboard.
  *      The primary selection is the first priority, then clipboard.
  *      If both unavailable, set backdoor selection length to be 0.
@@ -606,7 +606,7 @@ CopyPasteSetBackdoorSelections(void)
    }
 
    if (p == NULL) {
-      GuestApp_SetSelLength(0);
+      CopyPaste_SetSelLength(0);
       g_debug("CopyPasteSetBackdoorSelections Set empty text.\n");
    } else {
       len = strlen((char *)p);
@@ -616,9 +616,9 @@ CopyPasteSetBackdoorSelections(void)
       /* Here long string should already be truncated. */
       ASSERT(aligned_len <= MAX_SELECTION_BUFFER_LENGTH);
 
-      GuestApp_SetSelLength(len);
+      CopyPaste_SetSelLength(len);
       for (i = 0; i < len; i += 4, p++) {
-         GuestApp_SetNextPiece(*p);
+         CopyPaste_SetNextPiece(*p);
       }
    }
 }
@@ -630,9 +630,9 @@ CopyPasteSetBackdoorSelections(void)
  * CopyPaste_GetBackdoorSelections --
  *
  *      Get the clipboard "the old way".
- *      The old way uses GuestApp_SetSel and there's only one selection.
- *      We don't have to do anything for the "new way", since the host
- *      will just push PRIMARY and/or CLIPBOARD when they are available
+ *      The old way uses CopyPaste_GetHostSelectionLen and there's only one
+ *      selection. We don't have to do anything for the "new way", since the
+ *      host will just push PRIMARY and/or CLIPBOARD when they are available
  *      on the host.
  *
  *      XXX: the "new way" isn't availble yet because the vmx doesn't
@@ -658,11 +658,11 @@ CopyPaste_GetBackdoorSelections(void)
       return TRUE;
    }
 
-   selLength = GuestApp_GetHostSelectionLen();
+   selLength = CopyPaste_GetHostSelectionLen();
    if (selLength < 0 || selLength > MAX_SELECTION_BUFFER_LENGTH) {
       return FALSE;
    } else if (selLength > 0) {
-      GuestApp_GetHostSelection(selLength, gHostClipboardBuf);
+      CopyPaste_GetHostSelection(selLength, gHostClipboardBuf);
       gHostClipboardBuf[selLength] = 0;
       g_debug("CopyPaste_GetBackdoorSelections Get text [%s].\n", gHostClipboardBuf);
       gtk_selection_owner_set(gUserMainWidget,

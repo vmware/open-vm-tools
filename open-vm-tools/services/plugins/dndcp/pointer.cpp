@@ -41,13 +41,21 @@ extern "C" {
 
 extern "C" {
    #include "vm_assert.h"
-   #include "guestApp.h"
    #include "backdoor_def.h"
+   #include "backdoor.h"
    #include "rpcvmx.h"
 }
 
+
+typedef enum {
+   ABSMOUSE_UNAVAILABLE,
+   ABSMOUSE_AVAILABLE,
+   ABSMOUSE_UNKNOWN
+} AbsoluteMouseState;
+
+
 static Bool mouseIsGrabbed;
-static GuestAppAbsoluteMouseState absoluteMouseState = GUESTAPP_ABSMOUSE_UNKNOWN;
+static AbsoluteMouseState absoluteMouseState = ABSMOUSE_UNKNOWN;
 static uint8 gHostClipboardTries = 0;
 
 #if defined(WIN32)
@@ -59,6 +67,41 @@ static void PointerUngrabbed(void);
 static gboolean PointerUpdatePointerLoop(gpointer clientData);
 
 #define POINTER_UPDATE_TIMEOUT 100
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * PointerGetAbsoluteMouseState
+ *
+ *    Are the host/guest capable of using absolute mouse mode?
+ *
+ * Results:
+ *    TRUE if host is in absolute mouse mode, FALSE otherwise.
+ *
+ * Side effects:
+ *    Issues Tools RPC.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static AbsoluteMouseState
+PointerGetAbsoluteMouseState(void)
+{
+   Backdoor_proto bp;
+   AbsoluteMouseState state = ABSMOUSE_UNKNOWN;
+
+   bp.in.cx.halfs.low = BDOOR_CMD_ISMOUSEABSOLUTE;
+   Backdoor(&bp);
+   if (bp.out.ax.word == 0) {
+      state = ABSMOUSE_UNAVAILABLE;
+   } else if (bp.out.ax.word == 1) {
+      state = ABSMOUSE_AVAILABLE;
+   }
+
+   return state;
+}
+
 
 #if !defined(WIN32)
 /*
@@ -114,6 +157,67 @@ PointerSetXCursorPos(int x, int y)
 
 #endif
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * PointerGetPos --
+ *
+ *      Retrieve the host notion of the guest pointer location.
+ *
+ * Results:
+ *      '*x' and '*y' are the coordinates (top left corner is 0, 0) of the
+ *      host notion of the guest pointer location. (-100, -100) means that the
+ *      mouse is not grabbed on the host.
+ *
+ * Side effects:
+ *	None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+PointerGetPos(int16 *x, // OUT
+              int16 *y) // OUT
+{
+   Backdoor_proto bp;
+
+   bp.in.cx.halfs.low = BDOOR_CMD_GETPTRLOCATION;
+   Backdoor(&bp);
+   *x = bp.out.ax.word >> 16;
+   *y = bp.out.ax.word;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * PointerSetPos --
+ *
+ *      Update the host notion of the guest pointer location. 'x' and 'y' are
+ *      the coordinates (top left corner is 0, 0).
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *	None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+PointerSetPos(uint16 x, // IN
+              uint16 y) // IN
+{
+   Backdoor_proto bp;
+
+   bp.in.cx.halfs.low = BDOOR_CMD_SETPTRLOCATION;
+   bp.in.size = (x << 16) | y;
+   Backdoor(&bp);
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -138,7 +242,7 @@ PointerGrabbed(void)
    short hostPosX;
    short hostPosY;
 
-   GuestApp_GetPos(&hostPosX, &hostPosY);
+   PointerGetPos(&hostPosX, &hostPosY);
 #if defined(WIN32)
    SetCursorPos(hostPosX, hostPosY);
 #else
@@ -220,7 +324,7 @@ PointerUpdatePointerLoop(gpointer clientData) // IN: unused
    int guestX, guestY;
 #endif
 
-   GuestApp_GetPos(&hostPosX, &hostPosY);
+   PointerGetPos(&hostPosX, &hostPosY);
    if (mouseIsGrabbed) {
       if (hostPosX == UNGRABBED_POS) {
          /* We transitioned from grabbed to ungrabbed */
@@ -243,13 +347,13 @@ PointerUpdatePointerLoop(gpointer clientData) // IN: unused
                 * where to position the outside pointer if the user releases the guest
                 * pointer via the key combination).
                 */
-               GuestApp_SetPos(guestPos.x, guestPos.y);
+               PointerSetPos(guestPos.x, guestPos.y);
             }
          }
 #else
          PointerGetXCursorPos(&guestX, &guestY);
          if ( hostPosX != guestX || hostPosY != guestY) {
-            GuestApp_SetPos(guestX, guestY);
+            PointerSetPos(guestX, guestY);
          }
 #endif
          CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
@@ -271,7 +375,7 @@ PointerUpdatePointerLoop(gpointer clientData) // IN: unused
    }
 
    if (!CopyPaste_IsRpcCPSupported() ||
-       (absoluteMouseState == GUESTAPP_ABSMOUSE_UNAVAILABLE)) {
+       (absoluteMouseState == ABSMOUSE_UNAVAILABLE)) {
 
       GSource *src;
 
@@ -310,7 +414,7 @@ PointerUpdatePointerLoop(gpointer clientData) // IN: unused
 void
 Pointer_Init(ToolsAppCtx *ctx)
 {
-   absoluteMouseState = GuestApp_GetAbsoluteMouseState();
+   absoluteMouseState = PointerGetAbsoluteMouseState();
    PointerUpdatePointerLoop(NULL);
    mouseIsGrabbed = FALSE;
 }

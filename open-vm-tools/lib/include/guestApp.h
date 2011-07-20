@@ -51,35 +51,6 @@ GuestApp_GetInstallPath(void);
 char *
 GuestApp_GetConfPath(void);
 
-void
-GuestApp_GetPos(int16 *x,  // OUT
-                int16 *y); // OUT
-
-void
-GuestApp_SetPos(uint16 x,  // IN
-                uint16 y); // IN
-
-int32
-GuestApp_GetHostSelectionLen(void);
-
-void
-GuestApp_GetHostSelection(unsigned int size, // IN
-                          char *data);       // OUT
-
-void
-GuestApp_SetSelLength(uint32 length); // IN
-
-void
-GuestApp_SetNextPiece(uint32 data); // IN
-
-typedef enum {
-   GUESTAPP_ABSMOUSE_UNAVAILABLE,
-   GUESTAPP_ABSMOUSE_AVAILABLE,
-   GUESTAPP_ABSMOUSE_UNKNOWN
-} GuestAppAbsoluteMouseState;
-
-GuestAppAbsoluteMouseState GuestApp_GetAbsoluteMouseState(void);
-
 #ifdef __cplusplus
 }
 #endif

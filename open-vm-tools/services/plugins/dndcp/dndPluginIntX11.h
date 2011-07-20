@@ -31,8 +31,6 @@
 #include "vm_basic_types.h"
 #include "dnd.h"
 
-#include "guestApp.h"
-
 #define UNGRABBED_POS (-100)
 
 extern Display *gXDisplay;

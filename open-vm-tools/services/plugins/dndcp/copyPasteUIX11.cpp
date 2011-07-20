@@ -45,7 +45,6 @@ extern "C" {
    #include "cpNameUtil.h"
    #include "rpcout.h"
    #include "vmware/guestrpc/tclodefs.h"
-   #include "guestApp.h"
 }
 
 /*

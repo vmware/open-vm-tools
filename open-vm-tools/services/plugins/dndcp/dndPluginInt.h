@@ -27,7 +27,6 @@
 #define __DNDPLUGIN_INT_H__
 
 extern "C" {
-   #include "guestApp.h"
    #include "conf.h"
 }
 
