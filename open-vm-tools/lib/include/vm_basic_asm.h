@@ -1028,6 +1028,42 @@ ClearBit64(uint64 *var, uint64 index)
    _bittestandreset64((__int64 *)var, index);
 #endif
 }
+
+static INLINE Bool
+TestBit32(uint32 *var, uint32 index)
+{
+#ifdef __GNUC__
+   Bool bit;
+   __asm__ (
+      "bt %[index], %[var] \n"
+      "setc %[bit]"
+      : [bit] "=rm" (bit)
+      : [index] "rI" (index), [var] "r" (*var)
+      : "cc"
+   );
+   return bit;
+#elif defined _MSC_VER
+   return _bittest((long *)var, index);
+#endif
+}
+
+static INLINE Bool
+TestBit64(uint64 *var, uint64 index)
+{
+#ifdef __GNUC__
+   Bool bit;
+   __asm__ (
+      "bt %[index], %[var] \n"
+      "setc %[bit]"
+      : [bit] "=rm" (bit)
+      : [index] "rJ" (index), [var] "r" (*var)
+      : "cc"
+   );
+   return bit;
+#elif defined _MSC_VER
+   return _bittest64((__int64 *)var, index);
+#endif
+}
 #endif /* VM_X86_64 */
 
 /*
