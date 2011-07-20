@@ -31,6 +31,7 @@ libvmtools_la_LIBADD += ../lib/netUtil/libNetUtil.la
 libvmtools_la_LIBADD += ../lib/panic/libPanic.la
 libvmtools_la_LIBADD += ../lib/procMgr/libProcMgr.la
 libvmtools_la_LIBADD += ../lib/rpcChannel/libRpcChannel.la
+libvmtools_la_LIBADD += ../lib/rpcIn/libRpcIn.la
 libvmtools_la_LIBADD += ../lib/rpcOut/libRpcOut.la
 libvmtools_la_LIBADD += ../lib/rpcVmx/libRpcVmx.la
 libvmtools_la_LIBADD += ../lib/string/libString.la
@@ -62,9 +63,6 @@ libvmtools_la_SOURCES += vmtools.c
 libvmtools_la_SOURCES += vmtoolsConfig.c
 libvmtools_la_SOURCES += vmtoolsLog.c
 libvmtools_la_SOURCES += vmxLogger.c
-
-# Recompile the rpcIn library with GLIB support.
-libvmtools_la_SOURCES += $(top_srcdir)/lib/rpcIn/rpcin.c
 
 # Recompile the stub for Log_* functions, but not Log() itself (see -DNO_LOG_STUB).
 libvmtools_la_SOURCES += $(top_srcdir)/lib/stubs/stub-log.c
