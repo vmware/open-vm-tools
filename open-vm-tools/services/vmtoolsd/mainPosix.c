@@ -187,7 +187,7 @@ main(int argc,
 
       if (!Hostinfo_Daemonize(argv[0],
                               argv,
-                              HOSTINFO_DAEMONIZE_DEFAULT,
+                              HOSTINFO_DAEMONIZE_LOCKPID,
                               gState.pidFile, NULL, 0)) {
          goto exit;
       }
