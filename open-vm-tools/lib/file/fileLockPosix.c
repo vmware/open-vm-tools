@@ -1210,8 +1210,7 @@ FileLockGetExecutionID(void)
 }
 
 Bool
-FileLockValidOwner(const char *executionID,  // IN:
-                   const char *payload)      // IN:
+FileLockValidExecutionID(const char *executionID)  // IN:
 {
    NOT_IMPLEMENTED();
 }
