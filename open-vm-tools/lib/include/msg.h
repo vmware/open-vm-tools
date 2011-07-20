@@ -169,8 +169,6 @@ EXTERN char *Msg_GetLocale(void);
 EXTERN void Msg_SetLocale(const char *locale, const char *binaryName);
 EXTERN void Msg_SetLocaleEx(const char *locale, const char *binaryName,
                             const char *baseDirPath);
-EXTERN char *Msg_GetMessageFilePath(const char *locale, const char *binaryName,
-				    const char *extension);
 EXTERN char *Msg_FormatFloat(double value, unsigned int precision);
 EXTERN char *Msg_FormatSizeInBytes(uint64 size);
 EXTERN Bool Msg_LoadMessageFile(const char *locale, const char *fileName);
