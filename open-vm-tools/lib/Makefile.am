@@ -25,7 +25,6 @@ SUBDIRS += backdoor
 SUBDIRS += dict
 SUBDIRS += dynxdr
 SUBDIRS += err
-SUBDIRS += eventManager
 SUBDIRS += file
 SUBDIRS += foundryMsg
 SUBDIRS += guestApp

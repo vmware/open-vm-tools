@@ -47,7 +47,6 @@
 #include "vm_assert.h"
 #include "str.h"
 #include "strutil.h"
-#include "eventManager.h"
 #include "guestApp.h"
 #include "dnd.h"
 #include "util.h"

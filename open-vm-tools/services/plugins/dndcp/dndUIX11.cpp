@@ -39,7 +39,6 @@ extern "C" {
 #include "cpNameUtil.h"
 #include "hostinfo.h"
 #include "rpcout.h"
-#include "eventManager.h"
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 #include <X11/extensions/XTest.h>       /* for XTest*() */

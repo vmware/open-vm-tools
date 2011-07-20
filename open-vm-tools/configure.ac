@@ -1224,7 +1224,6 @@ AC_CONFIG_FILES([                      \
    lib/dict/Makefile                   \
    lib/dynxdr/Makefile                 \
    lib/err/Makefile                    \
-   lib/eventManager/Makefile           \
    lib/file/Makefile                   \
    lib/foundryMsg/Makefile             \
    lib/guestApp/Makefile               \

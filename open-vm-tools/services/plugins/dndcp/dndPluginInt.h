@@ -28,7 +28,6 @@
 
 extern "C" {
    #include "guestApp.h"
-   #include "eventManager.h"
    #include "conf.h"
 }
 
