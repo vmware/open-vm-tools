@@ -108,9 +108,7 @@ static LogHandler gHandlers[] = {
    { 0,  "std",               VMStdLoggerConfig },
    { 1,  "file",              VMFileLoggerConfig },
    { 2,  "file+",             VMFileLoggerConfig },
-#if defined(VMTOOLS_USE_GLIB)
    { 3,  "vmx",               VMXLoggerConfig },
-#endif
 #if defined(_WIN32)
    { 4,  "outputdebugstring", VMDebugOutputConfig },
    { 5,  "syslog",            VMEventLoggerConfig },
