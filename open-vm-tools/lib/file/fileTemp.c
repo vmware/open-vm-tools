@@ -165,7 +165,7 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
       if (createTempFile) {
          fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
       } else {
-         fd = Posix_Mkdir(path, 0600);
+         fd = Posix_Mkdir(path, 0700);
       }
 
       if (fd != -1) {
