@@ -508,6 +508,10 @@ FLAG(  81, EDX, COMMON, 29,  1, LM,                                YES, FALSE) \
 FLAG(  81, EDX, AMD,    30,  1, 3DNOWPLUS,                         YES, TRUE)  \
 FLAG(  81, EDX, AMD,    31,  1, 3DNOW,                             YES, TRUE)
 
+#define CPUID_8A_EDX_13_31 \
+FIELD( 8A, EDX, AMD,    13, 19, SVMEDX_RSVD2,                      NO,  FALSE)
+
+
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_8x                                              \
 FIELD( 85, EAX, AMD,     0,  8, ITLB_ENTRIES_2M4M_PGS,             NA,  FALSE) \
@@ -574,7 +578,7 @@ FIELD( 8A, EDX, AMD,     8,  2, SVMEDX_RSVD0,                      NO,  FALSE) \
 FLAG(  8A, EDX, AMD,    10,  1, SVM_PAUSE_FILTER,                  NO,  FALSE) \
 FLAG(  8A, EDX, AMD,    11,  1, SVMEDX_RSVD1,                      NO,  FALSE) \
 FLAG(  8A, EDX, AMD,    12,  1, SVM_PAUSE_THRESHOLD,               NO,  FALSE) \
-FIELD( 8A, EDX, AMD,    13, 19, SVMEDX_RSVD2,                      NO,  FALSE)
+CPUID_8A_EDX_13_31
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_81x                                             \
