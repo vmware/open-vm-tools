@@ -677,10 +677,9 @@ FileReadSlashProc(const char *procPath,  // IN:
 static char *
 FileLockProcessDescriptor(pid_t pid)  // IN:
 {
-   int err;
    char path[64];
-   char *descriptor;
    char buffer[1024];
+   char *descriptor = NULL;
 
    if (!FileLockIsValidProcess(pid)) {
       return NULL;
@@ -688,9 +687,7 @@ FileLockProcessDescriptor(pid_t pid)  // IN:
 
    Str_Sprintf(path, sizeof path, "/proc/%d/stat", pid);
 
-   err = FileReadSlashProc(path, buffer, sizeof buffer);
-
-   if (err == 0) {
+   if (FileReadSlashProc(path, buffer, sizeof buffer) == 0) {
       char *p;
       char *q;
       char *rest;
@@ -712,7 +709,6 @@ FileLockProcessDescriptor(pid_t pid)  // IN:
       p = strchr(buffer, '(');
 
       if ((p == NULL) || (p == buffer) || (*(p - 1) != ' ')) {
-         argc = 0;
          goto bail;
       }
 
@@ -721,12 +717,10 @@ FileLockProcessDescriptor(pid_t pid)  // IN:
       q = strrchr(p + 1, ')');
       if (q == NULL) {
          argc = 0;
-         goto bail;
       }
 
       rest = q + 1;
       if (*rest != ' ') {
-         argc = 0;
          goto bail;
       }
 
@@ -755,21 +749,21 @@ FileLockProcessDescriptor(pid_t pid)  // IN:
          }
       }
 
-bail:
-
       if (argc == 22) {
          descriptor = Str_SafeAsprintf(NULL, "%s-%s%s", argv[0], argv[21],
                                        argv[1]);
-      } else {
-         /*
-          * Since /proc didn't parse properly, emit a valid string that
-          * also provides a clue that there is problem.
-          */
-
-         descriptor = Str_SafeAsprintf(NULL, "%d-0", pid);
       }
-   } else {
-      descriptor = NULL;
+   }
+
+bail:
+
+   if (descriptor == NULL) {
+      /*
+       * Accessing /proc failed in some way. Emit a valid string that also
+       * provides a clue that there is/was a problem.
+       */
+
+      descriptor = Str_SafeAsprintf(NULL, "%d-0", pid);
    }
 
    return descriptor;
