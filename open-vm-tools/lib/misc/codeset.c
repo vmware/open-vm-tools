@@ -84,7 +84,8 @@
 #include "str.h"
 #include "win32util.h"
 #if defined __APPLE__
-#include "location.h"
+#   define LOCATION_WEAK
+#   include "location.h"
 #endif
 
 /*
@@ -93,7 +94,9 @@
 
 #define CODESET_CAN_FALLBACK_ON_NON_ICU TRUE
 
-#if !defined _WIN32 && !defined __APPLE__
+#if defined __APPLE__
+#   define POSIX_ICU_DIR DEFAULT_LIBDIRECTORY
+#elif !defined _WIN32
 #   if defined(VMX86_TOOLS)
 #      define POSIX_ICU_DIR "/etc/vmware-tools"
 #   else
@@ -347,36 +350,6 @@ CodeSet_DontUseIcu(void)
 }
 
 
-#if defined __APPLE__
-/*
- *-----------------------------------------------------------------------------
- *
- * Location_GetLibrary --
- *
- *      This is a WEAK function that ends up only being used when this code is
- *      not linked with the location library.
- *
- * Results:
- *      On success: The allocated, NUL-terminated path.
- *      On failure: NULL.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-/* Mach-O's "weak" is like ELF's "common". */
-char *Location_GetLibrary(void) __attribute__((weak));
-
-char *
-Location_GetLibrary(void)
-{
-   return strdup(DEFAULT_LIBDIRECTORY);
-}
-#endif // defined __APPLE__
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -612,19 +585,26 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
    } else {
       /* Use a default ICU data dir. */
 #   if defined __APPLE__
-      char *libDir = Location_GetLibrary();
+      Location_GetLibrary_Type *Location_GetLibrary =
+         Location_GetLibrary_Addr();
 
-      if (!libDir ||
-          !DynBuf_Append(&dbpath, libDir, strlen(libDir))) {
-         goto exit;
-      }
+      if (Location_GetLibrary) {
+         char *libDir = Location_GetLibrary();
+         Bool success =    libDir
+                        && DynBuf_Append(&dbpath, libDir, strlen(libDir));
 
-      free(libDir);
-#   else
-      if (!DynBuf_Append(&dbpath, POSIX_ICU_DIR, strlen(POSIX_ICU_DIR))) {
-         goto exit;
-      }
+         free(libDir);
+         if (!success) {
+            goto exit;
+         }
+      } else
 #   endif
+
+      {
+         if (!DynBuf_Append(&dbpath, POSIX_ICU_DIR, strlen(POSIX_ICU_DIR))) {
+            goto exit;
+         }
+      }
 
       if (!DynBuf_Append(&dbpath, "/icu", strlen("/icu"))) {
          goto exit;
