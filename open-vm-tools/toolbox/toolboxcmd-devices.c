@@ -26,11 +26,121 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "toolboxCmdInt.h"
-#include "guestApp.h"
+#include "backdoor.h"
+#include "backdoor_def.h"
+#include "backdoor_types.h"
 #include "removable_device.h"
 #include "vmware/tools/i18n.h"
 
 #define MAX_DEVICES 50
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestApp_SetDeviceState --
+ *
+ *      Ask the VMX to change the connected state of a device.
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+SetDeviceState(uint16 id,      // IN: Device ID
+               Bool connected) // IN
+{
+   Backdoor_proto bp;
+
+   bp.in.cx.halfs.low = BDOOR_CMD_TOGGLEDEVICE;
+   bp.in.size = (connected ? 0x80000000 : 0) | id;
+   Backdoor(&bp);
+   return bp.out.ax.word ? TRUE : FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GetDeviceListElement --
+ *
+ *      Retrieve 4 bytes of of information about a removable device.
+ *
+ * Results:
+ *      TRUE on success. '*data' is set
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+GetDeviceListElement(uint16 id,     // IN : Device ID
+                     uint16 offset, // IN : Offset in the RD_Info
+                                    //      structure
+                     uint32 *data)  // OUT: Piece of RD_Info structure
+{
+   Backdoor_proto bp;
+
+   bp.in.cx.halfs.low = BDOOR_CMD_GETDEVICELISTELEMENT;
+   bp.in.size = (id << 16) | offset;
+   Backdoor(&bp);
+   if (bp.out.ax.word == FALSE) {
+      return FALSE;
+   }
+   *data = bp.out.bx.word;
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GetDeviceInfo --
+ *
+ *      Retrieve information about a removable device.
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+GetDeviceInfo(uint16 id,     // IN: Device ID
+              RD_Info *info) // OUT
+{
+   uint16 offset;
+   uint32 *p;
+
+   /*
+    * XXX It is theoretically possible to SEGV here as we can write up to 3
+    *     bytes beyond the end of the 'info' structure. I think alignment
+    *     saves us in practice.
+    */
+   for (offset = 0, p = (uint32 *)info;
+        offset < sizeof *info;
+        offset += sizeof (uint32), p++) {
+      if (GetDeviceListElement(id, offset, p) == FALSE) {
+         return FALSE;
+      }
+   }
+
+   return TRUE;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -54,7 +164,7 @@ DevicesList(void)
    int i;
    for (i = 0; i < MAX_DEVICES; i++) {
       RD_Info info;
-      if (GuestApp_GetDeviceInfo(i, &info) && strlen(info.name) > 0) {
+      if (GetDeviceInfo(i, &info) && strlen(info.name) > 0) {
          const char *status = info.enabled ? SU_(option.enabled, "Enabled")
                                            : SU_(option.disabled, "Disabled");
          g_print("%s: %s\n", info.name, status);
@@ -88,7 +198,7 @@ DevicesGetStatus(char *devName)  // IN: Device Name
    int i;
    for (i = 0; i < MAX_DEVICES; i++) {
       RD_Info info;
-      if (GuestApp_GetDeviceInfo(i, &info)
+      if (GetDeviceInfo(i, &info)
           && toolbox_strcmp(info.name, devName) == 0) {
          if (info.enabled) {
             ToolsCmd_Print("%s\n", SU_(option.enabled, "Enabled"));
@@ -133,9 +243,9 @@ DevicesSetStatus(char *devName,  // IN: device name
    int dev_id;
    for (dev_id = 0; dev_id < MAX_DEVICES; dev_id++) {
       RD_Info info;
-      if (GuestApp_GetDeviceInfo(dev_id, &info) &&
+      if (GetDeviceInfo(dev_id, &info) &&
           toolbox_strcmp(info.name, devName) == 0) {
-         if (!GuestApp_SetDeviceState(dev_id, enable)) {
+         if (!SetDeviceState(dev_id, enable)) {
             if (enable) {
                ToolsCmd_PrintErr(SU_(device.connect.error,
                                      "Unable to connect device %s.\n"),

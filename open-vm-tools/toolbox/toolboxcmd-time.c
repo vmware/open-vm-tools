@@ -23,10 +23,37 @@
  */
 
 #include "toolboxCmdInt.h"
-#include "guestApp.h"
+#include "backdoor.h"
+#include "backdoor_def.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/guestrpc/timesync.h"
 #include "vmware/tools/i18n.h"
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TimeSyncGetOldOptions --
+ *
+ *    Retrieve the tools options from VMware using the old (deprecated) method.
+ *
+ * Return value:
+ *    The tools options
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static uint32
+TimeSyncGetOldOptions(void)
+{
+   Backdoor_proto bp;
+   bp.in.cx.halfs.low = BDOOR_CMD_GETGUIOPTIONS;
+   Backdoor(&bp);
+   return bp.out.ax.word;
+}
 
 
 /*
@@ -49,8 +76,11 @@
 static void
 TimeSyncSet(Bool enable) // IN: status
 {
-   GuestApp_SetOptionInVMX(TOOLSOPTION_SYNCTIME,
-                           !enable ? "1" : "0", enable ? "1" : "0");
+   gchar *msg = g_strdup_printf("vmx.set_option %s %s %s",
+                                TOOLSOPTION_SYNCTIME,
+                                !enable ? "1" : "0",
+                                enable ? "1" : "0");
+   ToolsCmd_SendRPC(msg, strlen(msg) + 1, NULL, NULL);
 }
 
 
@@ -125,7 +155,7 @@ static int
 TimeSyncStatus(void)
 {
    Bool status = FALSE;
-   if (GuestApp_OldGetOptions() & VMWARE_GUI_SYNC_TIME) {
+   if (TimeSyncGetOldOptions() & VMWARE_GUI_SYNC_TIME) {
       status = TRUE;
    }
    if (status) {

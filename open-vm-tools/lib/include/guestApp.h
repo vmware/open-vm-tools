@@ -36,15 +36,6 @@ extern "C" {
 #endif
 
 #   include "vm_basic_types.h"
-#   include "removable_device.h"
-
-uint32
-GuestApp_OldGetOptions(void);
-
-Bool
-GuestApp_SetOptionInVMX(const char *option,     // IN
-                        const char *currentVal, // IN
-                        const char *newVal);    // IN
 
 const char *
 GuestApp_GetDefaultScript(const char *confName); // IN
@@ -59,12 +50,6 @@ GuestApp_GetInstallPath(void);
 
 char *
 GuestApp_GetConfPath(void);
-
-Bool
-GuestApp_IsDiskShrinkEnabled(void);
-
-Bool
-GuestApp_IsDiskShrinkCapable(void);
 
 void
 GuestApp_GetPos(int16 *x,  // OUT
@@ -86,14 +71,6 @@ GuestApp_SetSelLength(uint32 length); // IN
 
 void
 GuestApp_SetNextPiece(uint32 data); // IN
-
-Bool
-GuestApp_SetDeviceState(uint16 id,       // IN: Device ID
-                        Bool connected); // IN
-
-Bool
-GuestApp_GetDeviceInfo(uint16 id,      // IN: Device ID
-                       RD_Info *info); // OUT
 
 typedef enum {
    GUESTAPP_ABSMOUSE_UNAVAILABLE,

@@ -64,6 +64,49 @@ static void ShrinkWiperDestroy(int signal);
 
 static Wiper_State *wiper = NULL;
 
+#define WIPER_STATE_CMD "disk.wiper.enable"
+
+typedef enum {
+   WIPER_UNAVAILABLE,
+   WIPER_DISABLED,
+   WIPER_ENABLED,
+} WiperState;
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ShrinkGetWiperState  --
+ *
+ *      Gets the state of the shrink backend in the host.
+ *
+ * Results:
+ *      The shrink backend state.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static WiperState
+ShrinkGetWiperState(void) {
+   char *result;
+   size_t resultLen;
+   WiperState state = WIPER_UNAVAILABLE;
+
+   if (ToolsCmd_SendRPC(WIPER_STATE_CMD, sizeof WIPER_STATE_CMD,
+                        &result, &resultLen)) {
+      if (resultLen == 1 && strcmp(result, "1") == 0) {
+         state = WIPER_ENABLED;
+      } else {
+         state = WIPER_DISABLED;
+      }
+   }
+   free(result);
+   return state;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -84,7 +127,7 @@ static Wiper_State *wiper = NULL;
 static Bool
 ShrinkGetMountPoints(WiperPartition_List *pl) // OUT: Known mount points
 {
-   if (!GuestApp_IsDiskShrinkCapable()) {
+   if (ShrinkGetWiperState() != WIPER_UNAVAILABLE) {
       ToolsCmd_PrintErr("%s",
                         SU_(disk.shrink.unavailable, SHRINK_FEATURE_ERR));
    } else if (!WiperPartition_Open(pl)) {
@@ -174,7 +217,7 @@ ShrinkList(void)
    DblLnkLst_ForEach(curr, &plist.link) {
       WiperPartition *p = DblLnkLst_Container(curr, WiperPartition, link);
       if (p->type != PARTITION_UNSUPPORTED &&
-          (GuestApp_IsDiskShrinkEnabled() || Wiper_IsWipeSupported(p))) {
+          (ShrinkGetWiperState() == WIPER_ENABLED || Wiper_IsWipeSupported(p))) {
          g_print("%s\n", p->mountPoint);
          countShrink++;
       }
@@ -271,7 +314,7 @@ ShrinkDoAllDiskShrinkOnly(void)
    DblLnkLst_ForEach(curr, &plist.link) {
       WiperPartition *p = DblLnkLst_Container(curr, WiperPartition, link);
       if (p->type != PARTITION_UNSUPPORTED &&
-          (GuestApp_IsDiskShrinkEnabled() || Wiper_IsWipeSupported(p))) {
+          (ShrinkGetWiperState() == WIPER_ENABLED || Wiper_IsWipeSupported(p))) {
          canShrink = TRUE;
          break;
       }
@@ -351,7 +394,7 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
     * Verify that wiping/shrinking are permitted before going through with the
     * wiping operation.
     */
-   if (!GuestApp_IsDiskShrinkEnabled() && !Wiper_IsWipeSupported(part)) {
+   if (!ShrinkGetWiperState() == WIPER_ENABLED && !Wiper_IsWipeSupported(part)) {
       g_debug("%s cannot be wiped / shrunk\n", mountPoint);
       ToolsCmd_PrintErr("%s",
                         SU_(disk.shrink.disabled, SHRINK_DISABLED_ERR));
