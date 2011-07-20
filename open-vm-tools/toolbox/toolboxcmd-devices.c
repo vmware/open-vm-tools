@@ -38,7 +38,7 @@
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestApp_SetDeviceState --
+ * SetDeviceState --
  *
  *      Ask the VMX to change the connected state of a device.
  *
