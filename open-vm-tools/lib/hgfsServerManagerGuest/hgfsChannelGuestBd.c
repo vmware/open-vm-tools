@@ -593,7 +593,6 @@ HgfsChannelGuestBdSend(void *conn,              // IN: our connection data
                        HgfsSendFlags flags)     // IN: Flags to say how to process
 {
    HgfsGuestConn *connData = conn;
-   unsigned char *packetOut = &connData->packetOut[0];
 
    ASSERT(NULL != connData);
    ASSERT(NULL != packet);
@@ -601,10 +600,6 @@ HgfsChannelGuestBdSend(void *conn,              // IN: our connection data
    ASSERT(bufferLen <= HGFS_LARGE_PACKET_MAX &&
           bufferLen <= packet->replyPacketSize);
 
-   if (connData->clientPacketOut != NULL) {
-      /* Client passed us an out buffer so use it. */
-      packetOut = connData->clientPacketOut;
-   }
    ASSERT(bufferLen <= connData->packetOutLen);
    if (bufferLen > connData->packetOutLen) {
       bufferLen = connData->packetOutLen;

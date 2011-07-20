@@ -113,8 +113,8 @@ do_impl()
 
 
 case $output in
-   *.h) do_header ;;
-   *.c) do_impl ;;
+   *.h) do_header "$@" ;;
+   *.c) do_impl "$@" ;;
    *) echo "Unknown output file type: $output" ;;
 esac
 

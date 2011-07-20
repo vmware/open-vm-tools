@@ -5406,7 +5406,6 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    size_t resultBufferSize = 0;
    size_t lastGoodResultBufferSize = 0;
    int numFiles = 0;
-   int lastGoodNumFiles = 0;
    int fileNum;
    char *currentFileName;
    char *destPtr;
@@ -5569,12 +5568,6 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
       }
 
       if (resultBufferSize < maxBufferSize) {
-         /*
-          * lastGoodNumFiles is a count (1 based), while fileNum is
-          * an array index (zero based).  So lastGoodNumFiles is
-          * fileNum + 1.
-          */
-         lastGoodNumFiles = fileNum + 1;
          lastGoodResultBufferSize = resultBufferSize;
       } else {
          truncated = TRUE;
@@ -5841,7 +5834,6 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
    int64 tempTime;
    Bool timeAttributeSpecified = FALSE;
    Bool windowsAttributeSpecified = FALSE;
-   Bool posixAttributeSpecified = FALSE;
    int32 fileAttributeOptions = 0;
 
 #ifdef _WIN32
@@ -5881,12 +5873,6 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
 
    fileAttributeOptions = setGuestFileAttributesRequest->fileOptions;
 
-   if ((fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_OWNERID) ||
-       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_GROUPID) ||
-       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_PERMISSIONS)) {
-      posixAttributeSpecified = TRUE;
-   }
-
    if ((fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_HIDDEN) ||
        (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_READONLY)) {
       windowsAttributeSpecified = TRUE;
@@ -5898,7 +5884,9 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
    }
 
 #if defined(_WIN32)
-   if (posixAttributeSpecified) {
+   if ((fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_OWNERID) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_GROUPID) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_PERMISSIONS)) {
       Debug("%s: Invalid attributes received for Windows Guest\n",
             __FUNCTION__);
       err = VIX_E_INVALID_ARG;

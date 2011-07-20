@@ -95,7 +95,7 @@ VMToolsDllInit(void *lib)
 #else
    (void) wiperData;
    success = Wiper_Init(NULL);
-   ASSERT(success);
+   ASSERT_NOT_IMPLEMENTED(success);
 #endif
 }
 

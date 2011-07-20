@@ -1297,7 +1297,6 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
    int n, n2;                /* handy integer (short term usage) */
    wchar_t *cp;                /* handy char pointer (short term usage) */
    int flags;                /* flags as above */
-   int width;                /* width from format (%8d), or 0 */
    enum typeid *typetable; /* table of types */
    enum typeid stattypetable [STATIC_ARG_TBL_SIZE];
    int tablesize;                /* current size of type table */
@@ -1364,7 +1363,6 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
       fmt++;                /* skip over '%' */
 
       flags = 0;
-      width = 0;
 
      rflag:          ch = *fmt++;
      reswitch:       switch (ch) {
@@ -1400,7 +1398,6 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
             nextarg = n;
             goto rflag;
          }
-         width = n;
          goto reswitch;
       case 'h':
          if (flags & SHORTINT) {

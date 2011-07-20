@@ -220,12 +220,10 @@ File_SplitName(ConstUnicode pathName,  // IN:
    Unicode bas;
    UnicodeIndex volEnd;
    UnicodeIndex length;
-   UnicodeIndex pathLen;
    UnicodeIndex baseBegin;
+   WIN32_ONLY(UnicodeIndex pathLen);
 
    ASSERT(pathName);
-
-   pathLen = Unicode_LengthInCodePoints(pathName);
 
    /*
     * Get volume.
@@ -234,6 +232,7 @@ File_SplitName(ConstUnicode pathName,  // IN:
    volEnd = 0;
 
 #if defined(_WIN32)
+   pathLen = Unicode_LengthInCodePoints(pathName);
    if ((pathLen > 2) &&
        (Unicode_StartsWith(pathName, "\\\\") ||
         Unicode_StartsWith(pathName, "//"))) {

@@ -565,8 +565,11 @@ RpcInLoop(void *clientData) // IN
    char const *errmsg;
    char const *reply;
    size_t repLen;
-   Bool resched = FALSE;
+
+#if defined(VMTOOLS_USE_GLIB)
    unsigned int current;
+   Bool resched = FALSE;
+#endif
 
    in = (RpcIn *)clientData;
    ASSERT(in);
@@ -574,7 +577,9 @@ RpcInLoop(void *clientData) // IN
    ASSERT(in->channel);
    ASSERT(in->mustSend);
 
-#if !defined(VMTOOLS_USE_GLIB)
+#if defined(VMTOOLS_USE_GLIB)
+   current = in->delay;
+#else
    /*
     * The event has fired: it is no longer valid. Note that this is
     * not true in the glib case!
@@ -583,8 +588,6 @@ RpcInLoop(void *clientData) // IN
 #endif
 
    in->inLoop = TRUE;
-
-   current = in->delay;
 
    /*
     * This is very important: this is the only way to signal the existence of
@@ -723,8 +726,10 @@ exit:
    if (in->shouldStop) {
       RpcInStop(in);
       in->shouldStop = FALSE;
+#if defined(VMTOOLS_USE_GLIB)
       /* Force the GMainContext to unref the GSource that runs the RpcIn loop. */
       resched = TRUE;
+#endif
    }
 
    in->inLoop = FALSE;

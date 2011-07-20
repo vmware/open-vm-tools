@@ -962,10 +962,9 @@ VThreadBaseSimpleNoID(void)
    void *newNative = VThreadBaseGetNative();
    HashTable *ht = VThreadBaseGetNativeHash();
    VThreadBaseData *base;
-   VThreadBaseKeyType key;
 
    /* Require key allocation before TLS read */
-   key = VThreadBaseGetKey();
+   VThreadBaseGetKey();
 
    /* Before allocating a new ID, try to reclaim any old IDs. */
    for (newID = 0;
@@ -1007,7 +1006,7 @@ VThreadBaseSimpleNoID(void)
 
       newKey = (void *)(uintptr_t)newID;
       result = HashTable_Insert(ht, newKey, newNative);
-      ASSERT(result);
+      ASSERT_NOT_IMPLEMENTED(result);
    }
 
    /* ID picked.  Now do the important stuff. */

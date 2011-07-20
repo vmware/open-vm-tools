@@ -111,7 +111,7 @@ RpcDebugRun(ToolsAppCtx *ctx,
    ASSERT(suite != NULL);
 
    test = CU_add_test(suite, g_module_name(gPlugin), RpcDebugRunLoop);
-   ASSERT(test != NULL);
+   ASSERT_NOT_IMPLEMENTED(test != NULL);
 
    gLibRunData.ctx = ctx;
    gLibRunData.libData = ldata;

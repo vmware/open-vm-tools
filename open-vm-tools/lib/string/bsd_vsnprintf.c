@@ -1452,7 +1452,6 @@ __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
    int n, n2;      /* handy integer (short term usage) */
    char *cp;      /* handy char pointer (short term usage) */
    int flags;      /* flags as above */
-   int width;      /* width from format (%8d), or 0 */
    enum typeid *typetable; /* table of types */
    enum typeid stattypetable [STATIC_ARG_TBL_SIZE];
    int tablesize;      /* current size of type table */
@@ -1520,7 +1519,6 @@ __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
       fmt++;      /* skip over '%' */
 
       flags = 0;
-      width = 0;
 
      rflag:      ch = *fmt++;
      reswitch:   switch (ch) {
@@ -1556,7 +1554,6 @@ __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
             nextarg = n;
             goto rflag;
          }
-         width = n;
          goto reswitch;
       case 'h':
          if (flags & SHORTINT) {

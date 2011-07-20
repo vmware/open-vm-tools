@@ -164,7 +164,7 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
    char *ptrStr, *logInpFilename, *ver;
    int version;
    int filenu = 0; // output file enumerator
-   extractMode state = NOT_IN_GUEST_LOGGING;
+   DEBUG_ONLY(extractMode state = NOT_IN_GUEST_LOGGING);
 
 
    if (!(fp = fopen(filename, "rt"))) {
@@ -186,7 +186,7 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
 
             ASSERT(outfp == NULL);
             ASSERT(state == NOT_IN_GUEST_LOGGING);
-            state = IN_GUEST_LOGGING;
+            DEBUG_ONLY(state = IN_GUEST_LOGGING);
 
             /*
              * read the input filename, which was the filename written by the
@@ -245,7 +245,7 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
             }
          } else if (strstr(buf, LOG_END_MARK)) { // close the output file.
             ASSERT(state == IN_GUEST_LOGGING);
-            state = NOT_IN_GUEST_LOGGING;
+            DEBUG_ONLY(state = NOT_IN_GUEST_LOGGING);
             fclose(outfp);
             outfp = NULL;
          } else { // write to the output file

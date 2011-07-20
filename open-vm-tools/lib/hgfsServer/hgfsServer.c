@@ -4085,7 +4085,6 @@ HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,  // IN: List of new shares
     * each search, if its base name is no longer within a share, remove it.
     */
    for (i = 0; i < session->numSearches; i++) {
-      HgfsHandle handle;
       DblLnkLst_Links *l;
 
       if (DblLnkLst_IsLinked(&session->searchArray[i].links)) {
@@ -4097,7 +4096,6 @@ HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,  // IN: List of new shares
          continue;
       }
 
-      handle = HgfsSearch2SearchHandle(&session->searchArray[i]);
       LOG(4, ("%s: Examining search (%s)\n", __FUNCTION__,
               session->searchArray[i].utf8Dir));
 
@@ -4545,9 +4543,10 @@ HgfsServerIsSharedFolderOnly(char const *cpName,// IN:  Cross-platform filename 
    ASSERT(cpName);
 
    inEnd = cpName + cpNameSize;
-
    len = CPName_GetComponent(cpName, inEnd, &next);
+
    ASSERT(len > 0);
+   (void) len; /* Shuts up gcc's -Werror=unused-but-set-variable. */
 
    return (next == inEnd);
 }
