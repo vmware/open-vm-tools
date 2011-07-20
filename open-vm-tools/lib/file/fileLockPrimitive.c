@@ -94,7 +94,7 @@ struct FileLockToken
 /*
  *-----------------------------------------------------------------------------
  *
- * Sleeper --
+ * FileLockSleeper --
  *
  *      Have the calling thread sleep "for a while". The duration of the
  *      sleep is determined by the count that is passed in. Checks are
@@ -111,8 +111,8 @@ struct FileLockToken
  */
 
 static int
-Sleeper(LockValues *myValues,  // IN/OUT:
-        uint32 *loopCount)     // IN/OUT:
+FileLockSleeper(LockValues *myValues,  // IN/OUT:
+                uint32 *loopCount)     // IN/OUT:
 {
    uint32 msecSleepTime;
 
@@ -151,7 +151,7 @@ Sleeper(LockValues *myValues,  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
- * RemoveLockingFile --
+ * FileLockRemoveLockingFile --
  *
  *      Remove the specified file.
  *
@@ -166,8 +166,8 @@ Sleeper(LockValues *myValues,  // IN/OUT:
  */
 
 static int
-RemoveLockingFile(ConstUnicode lockDir,   // IN:
-                  ConstUnicode fileName)  // IN:
+FileLockRemoveLockingFile(ConstUnicode lockDir,   // IN:
+                          ConstUnicode fileName)  // IN:
 {
    int err;
    Unicode path;
@@ -536,7 +536,7 @@ FileLockValidName(ConstUnicode fileName)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * ActivateLockList
+ * FileLockActivateList
  *
  *      Insure a lock list entry exists for the lock directory.
  *
@@ -551,8 +551,8 @@ FileLockValidName(ConstUnicode fileName)  // IN:
  */
 
 static int
-ActivateLockList(ConstUnicode dirName,  // IN:
-                 LockValues *myValues)  // IN:
+FileLockActivateList(ConstUnicode dirName,  // IN:
+                         LockValues *myValues)  // IN:
 {
    ActiveLock   *ptr;
 
@@ -634,7 +634,7 @@ FileLockLocationChecksum(ConstUnicode path)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * ScanDirectory --
+ * FileLockScanDirectory --
  *
  *      Call the specified function for each member file found in the
  *      specified directory.
@@ -650,15 +650,15 @@ FileLockLocationChecksum(ConstUnicode path)  // IN:
  */
 
 static int
-ScanDirectory(ConstUnicode lockDir,     // IN:
-              int (*func)(              // IN:
-                     ConstUnicode lockDir,
-                     ConstUnicode fileName,
-                     LockValues *memberValues,
-                     LockValues *myValues
-                   ),
-              LockValues *myValues,    // IN:
-              Bool cleanUp)            // IN:
+FileLockScanDirectory(ConstUnicode lockDir,     // IN:
+                      int (*func)(              // IN:
+                             ConstUnicode lockDir,
+                             ConstUnicode fileName,
+                             LockValues *memberValues,
+                             LockValues *myValues
+                           ),
+                      LockValues *myValues,    // IN:
+                      Bool cleanUp)            // IN:
 {
    uint32 i;
    int err;
@@ -686,7 +686,7 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
          Log(LGPFX" %s discarding %s from %s'; invalid file name.\n",
              __FUNCTION__, UTF8(fileList[i]), UTF8(lockDir));
 
-         err = RemoveLockingFile(lockDir, fileList[i]);
+         err = FileLockRemoveLockingFile(lockDir, fileList[i]);
          if (err != 0) {
             goto bail;
          }
@@ -706,7 +706,7 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
 
       if (Unicode_StartsWith(fileList[i], "D")) {
          if (cleanUp) {
-            err = ActivateLockList(fileList[i], myValues);
+            err = FileLockActivateList(fileList[i], myValues);
             if (err != 0) {
                goto bail;
             }
@@ -781,7 +781,7 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
 
                Unicode_Free(memberValues.memberName);
 
-               err = RemoveLockingFile(lockDir, fileList[i]);
+               err = FileLockRemoveLockingFile(lockDir, fileList[i]);
                if (err != 0) {
                   break;
                }
@@ -822,7 +822,7 @@ bail:
 /*
  *-----------------------------------------------------------------------------
  *
- * Scanner --
+ * FileLockScanner --
  *
  *      Call the specified function for each member file found in the
  *      specified directory. If a rescan is necessary check the list
@@ -839,15 +839,15 @@ bail:
  */
 
 static int
-Scanner(ConstUnicode lockDir,    // IN:
-        int (*func)(             // IN:
-               ConstUnicode lockDir,
-               ConstUnicode fileName,
-               LockValues *memberValues,
-               LockValues *myValues
-            ),
-        LockValues *myValues,    // IN:
-        Bool cleanUp)            // IN:
+FileLockScanner(ConstUnicode lockDir,    // IN:
+                int (*func)(             // IN:
+                       ConstUnicode lockDir,
+                       ConstUnicode fileName,
+                       LockValues *memberValues,
+                       LockValues *myValues
+                    ),
+                LockValues *myValues,    // IN:
+                Bool cleanUp)            // IN:
 {
    int        err;
    ActiveLock *ptr;
@@ -859,7 +859,7 @@ Scanner(ConstUnicode lockDir,    // IN:
    while (TRUE) {
       ActiveLock *prev;
 
-      err = ScanDirectory(lockDir, func, myValues, cleanUp);
+      err = FileLockScanDirectory(lockDir, func, myValues, cleanUp);
       if ((err > 0) || ((err == 0) && (myValues->lockList == NULL))) {
          break;
       }
@@ -1021,7 +1021,7 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * WaitForPossession --
+ * FileLockWaitForPossession --
  *
  *      Wait until the caller has a higher priority towards taking
  *      possession of a lock than the specified file.
@@ -1037,10 +1037,10 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
  */
 
 static int
-WaitForPossession(ConstUnicode lockDir,      // IN:
-                  ConstUnicode fileName,     // IN:
-                  LockValues *memberValues,  // IN:
-                  LockValues *myValues)      // IN:
+FileLockWaitForPossession(ConstUnicode lockDir,      // IN:
+                          ConstUnicode fileName,     // IN:
+                          LockValues *memberValues,  // IN:
+                          LockValues *myValues)      // IN:
 {
    int err = 0;
 
@@ -1065,7 +1065,7 @@ WaitForPossession(ConstUnicode lockDir,      // IN:
 
       path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
-      while ((err = Sleeper(myValues, &loopCount)) == 0) {
+      while ((err = FileLockSleeper(myValues, &loopCount)) == 0) {
          /* still there? */
          err = FileAttributesRobust(path, NULL);
          if (err != 0) {
@@ -1084,7 +1084,7 @@ WaitForPossession(ConstUnicode lockDir,      // IN:
             Warning(LGPFX" %s discarding file '%s'; invalid executionID.\n",
                     __FUNCTION__, UTF8(path));
 
-            err = RemoveLockingFile(lockDir, fileName);
+            err = FileLockRemoveLockingFile(lockDir, fileName);
             break;
          }
       }
@@ -1115,7 +1115,7 @@ WaitForPossession(ConstUnicode lockDir,      // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * NumberScan --
+ * FileLockNumberScan --
  *
  *      Determine the maxmimum number value within the current locking set.
  *
@@ -1130,10 +1130,10 @@ WaitForPossession(ConstUnicode lockDir,      // IN:
  */
 
 static int
-NumberScan(ConstUnicode lockDir,      // IN:
-           ConstUnicode fileName,     // IN:
-           LockValues *memberValues,  // IN:
-           LockValues *myValues)      // IN/OUT:
+FileLockNumberScan(ConstUnicode lockDir,      // IN:
+                   ConstUnicode fileName,     // IN:
+                   LockValues *memberValues,  // IN:
+                   LockValues *myValues)      // IN/OUT:
 {
    ASSERT(lockDir);
    ASSERT(fileName);
@@ -1149,7 +1149,7 @@ NumberScan(ConstUnicode lockDir,      // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MakeDirectory --
+ * FileLockMakeDirectory --
  *
  *      Create a directory.
  *
@@ -1164,7 +1164,7 @@ NumberScan(ConstUnicode lockDir,      // IN:
  */
 
 static int
-MakeDirectory(ConstUnicode pathName)  // IN:
+FileLockMakeDirectory(ConstUnicode pathName)  // IN:
 {
    int err;
 
@@ -1267,7 +1267,7 @@ FileLockCreateEntryDirectory(ConstUnicode lockDir,     // IN:
       } else {
          if (err == ENOENT) {
             /* Not there anymore; locker unlocked or timed out */
-            err = MakeDirectory(lockDir);
+            err = FileLockMakeDirectory(lockDir);
 
             if ((err != 0) && (err != EEXIST)) {
                Warning(LGPFX" %s creation failure on '%s': %s\n",
@@ -1298,7 +1298,7 @@ FileLockCreateEntryDirectory(ConstUnicode lockDir,     // IN:
 
       *memberFilePath = Unicode_Join(lockDir, DIRSEPS, *memberName, NULL);
 
-      err = MakeDirectory(*entryDirectory);
+      err = FileLockMakeDirectory(*entryDirectory);
 
       if (err == 0) {
          /*
@@ -1599,7 +1599,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    }
 
    /* what is max(Number[1]... Number[all lockers])? */
-   *err = Scanner(lockDir, NumberScan, &myValues, FALSE);
+   *err = FileLockScanner(lockDir, FileLockNumberScan, &myValues, FALSE);
 
    if (*err != 0) {
       /* clean up */
@@ -1631,7 +1631,8 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    }
 
    /* Attempt to acquire the lock */
-   *err = Scanner(lockDir, WaitForPossession, &myValues, TRUE);
+   *err = FileLockScanner(lockDir, FileLockWaitForPossession,
+                          &myValues, TRUE);
 
    switch (*err) {
    case 0:
