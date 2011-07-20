@@ -1019,7 +1019,7 @@ ClearBit64(uint64 *var, uint64 index)
 {
 #ifdef __GNUC__
    __asm__ (
-      "btr %1, %0"
+      "btrq %1, %0"
       : "+mr" (*var)
       : "rJ" (index)
       : "cc"
