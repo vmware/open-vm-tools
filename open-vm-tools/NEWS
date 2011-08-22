@@ -1,3 +1,8 @@
+open-vm-tools 2011.08.21 changes:
+	* Enabled several VIX APIs on FreeBSD.
+
+	* Minor bug fixes and code cleanup.
+
 open-vm-tools 2011.07.19 changes:
 	* Fix an issue in the HGFS driver that could lead to a kernel
 	  panic.
