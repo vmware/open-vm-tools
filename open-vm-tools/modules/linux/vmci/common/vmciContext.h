@@ -114,6 +114,7 @@ void VMCIContext_ReceiveNotificationsRelease(VMCIId contextID,
                                              Bool success);
 #if defined(VMKERNEL)
 void VMCIContext_SignalPendingDoorbells(VMCIId contextID);
+void VMCIContext_SignalPendingDatagrams(VMCIId contextID);
 
 int VMCIContextID2HostVmID(VMCIId contextID, void *hostVmID, size_t hostVmIDLen);
 #endif

@@ -2151,6 +2151,50 @@ VMCIContext_SignalPendingDoorbells(VMCIId contextID)
 /*
  *----------------------------------------------------------------------
  *
+ * VMCIContext_SignalPendingDatagrams --
+ *
+ *      Signals the guest if any datagrams are pending. This is used
+ *      after the VMCI device is unquiesced to ensure that no pending
+ *      datagrams go unnoticed, since signals may not be fully
+ *      processed while the device is quiesced.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCIContext_SignalPendingDatagrams(VMCIId contextID)
+{
+   Bool pending;
+   VMCIContext *context;
+   VMCILockFlags flags;
+
+   context = VMCIContext_Get(contextID);
+   if (!context) {
+      ASSERT(FALSE);
+      return;
+   }
+
+   VMCI_GrabLock(&context->lock, &flags);
+   pending = context->pendingDatagrams;
+   VMCI_ReleaseLock(&context->lock, flags);
+
+   if (pending) {
+      VMCIHost_SignalCall(&context->hostContext);
+   }
+
+   VMCIContext_Release(context);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * VMCIContext_SetDomainName --
  *
  *      Sets the domain name of the given context.
