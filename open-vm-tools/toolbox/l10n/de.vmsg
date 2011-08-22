@@ -191,7 +191,7 @@ stat.cpumax.failed = "CPU-Limit konnte nicht abgerufen werden: %1$s\n"
 
 stat.cpumin.failed = "CPU-Mindestwert konnte nicht abgerufen werden: %1$s\n"
 
-stat.formattime.failed = "Hostuhrzeit kann nicht formatiert werden.\"
+stat.formattime.failed = "Hostuhrzeit kann nicht formatiert werden.\n"
 
 stat.getsession.failed = "Sitzungs-ID konnte nicht abgerufen werden: %1$s\n"
 
@@ -219,5 +219,5 @@ upgrade.error.unknown_reply = "Unerwartete Antwort vom Host: %1$s\n"
 
 upgrade.started = "Das Upgrade wird durchgeführt.\n"
 
-upgrade.uptodate = "VMware Tools sind auf dem neuesten Stand\"
+upgrade.uptodate = "VMware Tools sind auf dem neuesten Stand.\n"
 
