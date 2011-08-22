@@ -177,8 +177,9 @@
 /* Task applied to backdoor pshare hints */
 #define BDOOR_PSHARE_HINTS_CMD_SHARE   0
 #define BDOOR_PSHARE_HINTS_CMD_DROP    1
+#define BDOOR_PSHARE_HINTS_CMD_MAX     2
 
-#define BDOOR_PSHARE_HINTS_CMD(ecx)   (((ecx) >> 24) & 0x1)
+#define BDOOR_PSHARE_HINTS_CMD(ecx)   (((ecx) >> 24) & 0xff)
 
 /* Nesting control operations */
 
