@@ -950,6 +950,18 @@ AC_TRY_COMPILE([],
                [AC_MSG_RESULT(no)])
 CFLAGS="$ORIGINAL_CFLAGS"
 
+# Detect "unused-but-set-variable" gcc warning and disable it.
+ORIGINAL_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -Wno-unused-but-set-variable"
+AC_MSG_CHECKING([for GCC flag -Wno-unused-but-set-variable])
+AC_TRY_COMPILE([],
+               [return 0;],
+               [ORIGINAL_CFLAGS="$ORIGINAL_CFLAGS -Wno-unused-but-set-variable";
+                AC_MSG_RESULT(yes)],
+               [AC_MSG_RESULT(no)])
+CFLAGS="$ORIGINAL_CFLAGS"
+
+
 BUILDDIR="`pwd`"
 
 INCLUDE_DIR="`cd $srcdir; pwd`/lib/include"
