@@ -46,6 +46,7 @@
 #include "wiper.h"
 #include "util.h"
 #include "str.h"
+#include "strutil.h"
 #include "fileIO.h"
 #include "vmstdio.h"
 #include "mntinfo.h"
@@ -325,7 +326,7 @@ WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
    return FALSE;
 }
 
-#elif defined(__FreeBSD__) || defined(__APPLE__) /* } FreeBSD { */
+#elif defined(__FreeBSD__) /* } FreeBSD { */
 
 static Bool
 WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
@@ -359,7 +360,7 @@ WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
        (S_ISCHR(s->st_mode) && ((maj == 3) || (maj == 13)))) {
       retval = TRUE;
    }
-#else /* Also the Apple case */
+#else
    /*
     * Begin by testing whether file system source is really a character
     * device node.  (FreeBSD killed off block devices long ago.)  Next,
@@ -375,10 +376,27 @@ WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
          retval = TRUE;
       }
    }
+#undef MASK_ATA_DISK
+#undef MASK_SCSI_DISK
 #endif /* __FreeBSD_version */
 
    return retval;
 }
+
+#elif defined(__APPLE__) /* } { */
+
+static Bool
+WiperIsDiskDevice(MNTINFO *mnt,     // IN
+                  struct stat *s)   // IN
+{
+   /*
+    * Differently from FreeBSD, Mac OS still lists disks as block devices,
+    * it seems. Disks devices also seem to start with "/dev/disk".
+    */
+   return S_ISBLK(s->st_mode) &&
+          StrUtil_StartsWith(MNTINFO_NAME(mnt), "/dev/disk");
+}
+
 #endif /* } */
 
 /*
