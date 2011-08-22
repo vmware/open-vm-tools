@@ -165,10 +165,14 @@ Bool MsgFmt_GetArgsWithBuf(const char *fmt, va_list va,
                            MsgFmt_Arg **args, int *numArgs, char **error,
 			   void *buf, size_t *bufSize);
 void MsgFmt_FreeArgs(MsgFmt_Arg *args, int numArgs);
+
 void MsgFmt_SwizzleArgs(MsgFmt_Arg *args,
                         int numArgs);
-void MsgFmt_UnswizzleArgs(MsgFmt_Arg *args,
-                          int numArgs);
+int MsgFmt_GetSwizzledString(const MsgFmt_Arg *args, int numArgs, int idx,
+                             const void *bufEnd, const int8 **str);
+int MsgFmt_UnswizzleArgs(MsgFmt_Arg *args,
+                          int numArgs,
+                          void *bufEnd);
 
 MsgFmt_Arg* MsgFmt_CopyArgs(MsgFmt_Arg* copyArgs,
                             int numArgs);
