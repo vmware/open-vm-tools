@@ -196,7 +196,7 @@ compat_alloc_netdev(int priv_size,
 #define netdev_priv(dev)               ((dev)->priv)
 #endif
 
-#if defined(NETDEV_TX_OK)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 #   define COMPAT_NETDEV_TX_OK    NETDEV_TX_OK
 #   define COMPAT_NETDEV_TX_BUSY  NETDEV_TX_BUSY
 #else
