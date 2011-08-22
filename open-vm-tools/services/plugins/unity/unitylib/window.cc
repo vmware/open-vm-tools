@@ -17,13 +17,13 @@
  *********************************************************/
 
 /*
- * unityPlatformX11Window.c --
+ * window.cc --
  *
  *    Implementation of Unity for guest operating systems that use the X11 windowing
  *    system. This file implements per-window operations (move, minimize, etc.)
  */
 
-#include "unityX11.h"
+#include "x11Platform.h"
 extern "C" {
 #include "base64.h"
 #include "region.h"

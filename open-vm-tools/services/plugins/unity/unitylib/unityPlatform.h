@@ -22,16 +22,14 @@
  * Implementation specific functionality
  */
 
-#ifndef _UNITY_PLATFORM_H_
-#define _UNITY_PLATFORM_H_
+#ifndef _UNITYPLATFORM_H_
+#define _UNITYPLATFORM_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
-
 #include "unityWindowTracker.h"
 #include "unity.h"
-
 #ifdef __cplusplus
 };
 #endif // __cplusplus
@@ -138,4 +136,4 @@ void UnityPlatformSetDisableCompositing(UnityPlatform *up, Bool disabled);
 };
 #endif // __cplusplus
 
-#endif
+#endif // _UNITYPLATFORM_H_

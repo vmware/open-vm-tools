@@ -17,15 +17,15 @@
  *********************************************************/
 
 /**
- * @file unityPlatformX11.c
+ * @file x11Platform.cc
  *
- * Implementation of Unity for guest operating systems that use the X11 windowing
- * system. This file holds the basic things such as initialization/destruction of the
- * UnityPlatform object, overall event handling, and handling of some Unity
- * RPCs that are not window-centric.
+ * Implementation of Unity for guest operating systems that use the X11 window
+ * system. This file holds the basic things such as initialization/destruction
+ * of the UnityPlatform object, overall event handling, and handling of some
+ * Unity RPCs that are not window-centric.
  */
 
-#include "unityX11.h"
+#include "x11Platform.h"
 
 extern "C" {
 #include "appUtil.h"

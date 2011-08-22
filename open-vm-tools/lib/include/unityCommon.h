@@ -188,8 +188,9 @@
 #ifndef _UNITY_COMMON_H_
 #define _UNITY_COMMON_H_
 
-#define UNITY_MAX_SETTOP_WINDOW_COUNT 100
+#include "vmware.h"
 
+#define UNITY_MAX_SETTOP_WINDOW_COUNT 100
 
 /*
  * Unity, GHI GuestRPC interface.

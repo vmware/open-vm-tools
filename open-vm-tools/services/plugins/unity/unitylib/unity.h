@@ -26,14 +26,10 @@
 #define _UNITY_H_
 
 #include <glib.h>
-#include <string.h>
 #include "dndGuest.h"
-#include "dbllnklst.h"
 #include "dynbuf.h"
-#include "str.h"
 #ifdef _WIN32
-#include "libExport.hh"
-#include "unityCommon.h"
+   #include "libExport.hh"
 #endif
 #include "unityWindowTracker.h"
 
@@ -42,7 +38,7 @@
  * on host desktop. Right now we have 4 DnD detection window. 2 for DnD version 2
  * or older, 2 for DnD version 3 or newer.
  */
-enum{
+enum {
    UNITY_BLOCKED_WND_DND_FULL_DET_V2  = 0,
    UNITY_BLOCKED_WND_DND_DET_V2       = 1,
    UNITY_BLOCKED_WND_DND_FULL_DET_V3  = 2,
@@ -53,14 +49,12 @@ enum{
 /*
  * Maximum number of virtual desktops supported.
  */
-
 #define MAX_VIRT_DESK 64
 
 /*
  * Represents a virtual desktop coordinates in the virtual desktop grid.
  * The grid might look like {1,1} {1,2} {2,1} {2,2} or {1,1} {1,2} {1,2} etc.
  */
-
 typedef struct UnityVirtualDesktop {
    int32 x;
    int32 y;
@@ -85,7 +79,6 @@ typedef struct {
 /*
  * Represents a virtual desktop configuration.
  */
-
 typedef struct UnityVirtualDesktopArray {
    size_t desktopCount;                              // number of desktops in the grid
    UnityVirtualDesktop desktops[MAX_VIRT_DESK];      // array of desktops
@@ -99,14 +92,12 @@ typedef struct DesktopSwitchCallbackManager DesktopSwitchCallbackManager;
  * The Unity library requires these functions to be provided so that the host
  * is correctly updated as to changes of window state (essentially relaying the
  * Unity protocol to the host).
+ *
+ * Prepares, builds and sends a sequence of Unity Window Tracker updates back
+ * to the host. flags is passed back to the UnityWindowTracker_RequestUpdates()
+ * function to set what type of updates are
+ * required - see bora/lib/public/unityWindowTracker.h
  */
-
- /*
-  * Prepares, builds and sends a sequence of Unity Window Tracker updates back
-  * to the host. flags is passed back to the UnityWindowTracker_RequestUpdates()
-  * function to set what type of updates are
-  * required - see bora/lib/public/unityWindowTracker.h
-  */
 typedef Bool (*UnityHostChannelBuildUpdateCallback)(void *param, int flags);
 
 /*
@@ -159,12 +150,12 @@ void Unity_Cleanup(void);
 void Unity_UnityToLocalPoint(UnityPoint *localPt, UnityPoint *unityPt);
 void Unity_LocalToUnityPoint(UnityPoint *unityPt, UnityPoint *localPt);
 void Unity_GetWindowCommandList(char ***commandList);
-
 void Unity_SetActiveDnDDetWnd(UnityDnD *state);
 
 #ifdef _WIN32
 LIB_EXPORT HWND Unity_GetHwndFromUnityId(UnityWindowId id);
 #endif
+
 void Unity_SetUnityOptions(uint32 newFeaturesMask);
 
 /*
@@ -239,5 +230,4 @@ void Unity_InitializeDebugger(void);
 #ifdef __cplusplus
 };
 #endif // __cplusplus
-
 #endif

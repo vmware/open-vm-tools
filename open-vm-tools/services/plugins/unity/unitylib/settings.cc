@@ -17,16 +17,16 @@
  *********************************************************/
 
 /*
- * unityPlatformX11Settings.c --
+ * settings.cc --
  *
  *    Handles saving and restoring various system settings that are needed for Unity to
  *    work well.
  */
 
-#include "unityX11.h"
+#include "x11Platform.h"
 
 #if !defined(VM_HAVE_X11_SS_EXT) && !defined(USING_AUTOCONF)
-#error "We're not building with the X11 ScreenSaver extension."
+   #error "We're not building with the X11 ScreenSaver extension."
 #endif
 
 

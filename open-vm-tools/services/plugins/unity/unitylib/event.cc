@@ -17,19 +17,19 @@
  *********************************************************/
 
 /**
- * @file x11Event.c
+ * @file event.cc
  *
  * Provides code relating the Glib main loop and Xlib/X11 event sources.
  */
 
 
 extern "C" {
-#include <stdlib.h>
-#include <stdio.h>
-#include "vmware.h"
+   #include <stdlib.h>
+   #include <stdio.h>
+   #include "vmware.h"
 }
 
-#include "unityX11.h"
+#include "x11Platform.h"
 
 
 /*

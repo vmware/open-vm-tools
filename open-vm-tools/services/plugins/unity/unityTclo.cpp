@@ -47,6 +47,7 @@ extern "C" {
    #include "guestrpc/unityActive.h"
    #include "rpcin.h"
    #include "rpcout.h"
+   #include "str.h"
    #include "strutil.h"
 #if defined(OPEN_VM_TOOLS)
    #include "unitylib/unity.h"

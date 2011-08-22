@@ -17,12 +17,12 @@
  *********************************************************/
 
 /**
- * @file x11Util.c
+ * @file util.cc
  *
  * This file just adds some random X utility functions.
  */
 
-#include "unityX11.h"
+#include "x11Platform.h"
 
 
 /*

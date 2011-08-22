@@ -17,13 +17,13 @@
  *********************************************************/
 
 /*
- * unityX11.h --
+ * x11Platform.h --
  *
  *    Internal state shared between the various modules that implement Unity for X11.
  */
 
-#ifndef _UNITY_X11_H_
-#define _UNITY_X11_H_
+#ifndef _X11PLATFORM_H_
+#define _X11PLATFORM_H_
 
 /*
  * It's necessary to include glib, gtk+, and Xlib before the rest of the header files,
@@ -493,4 +493,4 @@ void UnityX11EventTeardownSource(UnityPlatform *up);
 Bool UnityX11Util_IsWindowDecorationWidget(UnityPlatform *up,
                                            Window operand);
 
-#endif
+#endif // _X11PLATFORM_H_

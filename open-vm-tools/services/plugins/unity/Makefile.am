@@ -70,14 +70,16 @@ libunity_la_SOURCES += ghIntegration/platform.cc
 libunity_la_SOURCES += ghIntegration/pseudoAppMgr.cc
 
 libunity_la_SOURCES += unitylib/unity.c
+libunity_la_SOURCES += unitylib/unityInt.h
 libunity_la_SOURCES += unitylib/unityPlatform.h
-libunity_la_SOURCES += unitylib/unityPlatformX11.cc
-libunity_la_SOURCES += unitylib/unityPlatformX11Settings.cc
-libunity_la_SOURCES += unitylib/unityPlatformX11Window.cc
-libunity_la_SOURCES += unitylib/unityX11.h
+libunity_la_SOURCES += unitylib/debug.c
+libunity_la_SOURCES += unitylib/event.cc
+libunity_la_SOURCES += unitylib/settings.cc
+libunity_la_SOURCES += unitylib/util.cc
+libunity_la_SOURCES += unitylib/window.cc
 libunity_la_SOURCES += unitylib/windowPathFactory.cc
-libunity_la_SOURCES += unitylib/x11Event.cc
-libunity_la_SOURCES += unitylib/x11Util.cc
+libunity_la_SOURCES += unitylib/x11Platform.cc
+libunity_la_SOURCES += unitylib/x11Platform.h
 
 libunity_la_SOURCES += unityWindowTracker/unityWindowTracker.c
 

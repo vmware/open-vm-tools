@@ -39,22 +39,14 @@
  *    @li UnityRpcGH
  */
 
+#include <glib.h>
+#include <glib-object.h>
 #include "vmware.h"
 #include "debug.h"
-#include "util.h"
-#include "strutil.h"
-#include "region.h"
-#include "unityWindowTracker.h"
-#include "unityCommon.h"
-#include "unity.h"
+#include "unityDebug.h"
 #include "unityInt.h"
 #include "unityPlatform.h"
-#include "unityDebug.h"
 #include "vmware/tools/unityevents.h"
-#include "vmware/tools/plugin.h"
-#include "appUtil.h"
-#include <stdio.h>
-#include <glib-object.h>
 
 /*
  * Singleton object for tracking the state of the service.
@@ -64,9 +56,7 @@ UnityState unity;
 /*
  * Helper Functions
  */
-
 static void UnityUpdateCallbackFn(void *param, UnityUpdate *update);
-
 static void UnitySetAddHiddenWindows(Bool enabled);
 static void UnitySetInterlockMinimizeOperation(Bool enabled);
 static void UnitySetSendWindowContents(Bool enabled);
@@ -77,7 +67,6 @@ static void UnitySetDisableCompositing(Bool disabled);
  * Dispatch table for Unity window commands. All commands performing actions on
  * guest unity windows go here.
  */
-
 typedef struct {
    const char *name;
    Bool (*exec)(UnityPlatform *up, UnityWindowId window);
@@ -132,7 +121,6 @@ static UnityFeatureSetter unityFeatureTable[] = {
    /* Add more Unity Feature Setters above this. */
    {0, NULL}
 };
-
 
 /*
  *----------------------------------------------------------------------------
