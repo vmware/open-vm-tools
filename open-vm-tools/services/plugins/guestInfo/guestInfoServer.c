@@ -455,7 +455,8 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
        * Above fall-through is intentional.
        */
 
-      if (strcmp(gInfoCache.value[infoType], (char *)info) == 0) {
+      if (gInfoCache.value[infoType] != NULL &&
+          strcmp(gInfoCache.value[infoType], (char *)info) == 0) {
          /* The value has not changed */
          g_debug("Value unchanged for infotype %d.\n", infoType);
          break;
