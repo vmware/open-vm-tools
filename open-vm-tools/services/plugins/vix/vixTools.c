@@ -54,7 +54,7 @@
 #include <unistd.h>
 #endif
 
-#ifdef sun
+#if defined(sun) || defined(__FreeBSD__)
 #include <sys/stat.h>
 #endif
 
@@ -102,8 +102,8 @@
 #include "netutil.h"
 #endif
 
-/* Only Windows and Linux use impersonation functions. */
-#if !defined(__FreeBSD__) && !defined(sun)
+/* All but MacOS use impersonation functions. */
+#if !defined(__APPLE__)
 #include "impersonate.h"
 #endif
 
@@ -289,9 +289,7 @@ typedef struct VixToolsEnvironmentTableIterator {
  */
 static HashTable *userEnvironmentTable = NULL;
 #endif
-#if !defined(__FreeBSD__)
 static HgfsServerMgrData gVixHgfsBkdrConn;
-#endif
 
 static VixError VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,
                                     char **result);
@@ -338,7 +336,7 @@ static const char *fileExtendedInfoWindowsFormatString = "<fxi>"
                                           "<ct>%"FMT64"u</ct>"
                                           "<at>%"FMT64"u</at>"
                                           "</fxi>";
-#elif defined(linux) || defined(sun)
+#elif !defined(__APPLE__)
 static const char *fileExtendedInfoLinuxFormatString = "<fxi>"
                                           "<Name>%s</Name>"
                                           "<ft>%d</ft>"
@@ -564,14 +562,12 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
    VixToolsInitSspiSessionList(VIX_TOOLS_MAX_SSPI_SESSIONS);
    VixToolsInitTicketedSessionList(VIX_TOOLS_MAX_TICKETED_SESSIONS);
 #endif
-#if !defined(__FreeBSD__)
    /* Register a straight through connection with the Hgfs server. */
    HgfsServerManager_DataInit(&gVixHgfsBkdrConn,
                               VIX_BACKDOORCOMMAND_COMMAND,
                               NULL,    // no RPC registration
                               NULL);   // rpc callback
    HgfsServerManager_Register(&gVixHgfsBkdrConn);
-#endif
 
    listProcessesResultsTable = g_hash_table_new_full(g_int_hash, g_int_equal,
                                                      free,
@@ -600,9 +596,7 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
 void
 VixTools_Uninitialize(void) // IN
 {
-#if !defined(__FreeBSD__)
    HgfsServerManager_Unregister(&gVixHgfsBkdrConn);
-#endif
 }
 
 
@@ -1996,7 +1990,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
 
 
    VixPropertyList_Initialize(&propList);
-   
+
    /*
     * Collect some values about the host.
     *
@@ -2190,19 +2184,28 @@ abort:
    free(osNameFull);
 #else
    /*
-    * FreeBSD.  Return an empty serialized property list.
+    * FreeBSD. We do not require all the properties above.
+    * We only Support VMODL Guest Ops for now (Bug 228398).
     */
 
    VixPropertyList_Initialize(&propList);
 
+   /* InitiateFileTransfer(From|To)Guest operations require this */
+   err = VixPropertyList_SetInteger(&propList,
+                                    VIX_PROPERTY_GUEST_OS_FAMILY,
+                                    GUEST_OS_FAMILY_LINUX);
+   if (VIX_OK != err) {
+      goto abort;
+   }
    /* Retrieve the share folders UNC root path. */
    err = VixToolsSetSharedFoldersProperties(&propList);
-
+   if (VIX_OK != err) {
+      goto abort;
+   }
    /*
     * Set up the API status properties.
-    * This is done even though none are currently supported, so
-    * that the client side can tell the difference between OutOfDate
-    * tools and NotSupported.
+    * This is done so that the client side can tell the
+    * difference between OutOfDate tools and NotSupported.
     */
    err = VixToolsSetAPIEnabledProperties(&propList, confDictRef);
    if (VIX_OK != err) {
@@ -5769,7 +5772,7 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
 
 #ifdef _WIN32
    fileExtendedInfoBufferSize = strlen(fileExtendedInfoWindowsFormatString);
-#elif defined(linux) || defined(sun)
+#elif !defined(__APPLE__)
    fileExtendedInfoBufferSize = strlen(fileExtendedInfoLinuxFormatString);
 #endif
 
@@ -5777,11 +5780,11 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
    fileExtendedInfoBufferSize += 10 + 20 + (20 * 2); // properties + size + times
 #ifdef _WIN32
    fileExtendedInfoBufferSize += 20;                // createTime
-#elif defined(linux) || defined(sun)
+#elif !defined(__APPLE__)
    fileExtendedInfoBufferSize += 10 * 3;            // uid, gid, perms
 #endif
 
-#if defined(linux) || defined(sun)
+#if defined(linux) || defined(sun) || defined(__FreeBSD__)
    if (File_IsSymLink(filePathName)) {
       char *symlinkTarget;
       symlinkTarget = Posix_ReadLink(filePathName);
@@ -5907,7 +5910,7 @@ abort:
 VixError
 VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
 {
-#if (defined(_WIN32) || defined(__linux__) || defined(sun))
+#if !defined(__APPLE__)
    VixError err = VIX_OK;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
@@ -6207,7 +6210,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                               char **destPtr,               // IN/OUT
                               char *endDestPtr)             // IN
 {
-#if defined(_WIN32) || defined(linux) || defined(sun)
+#if !defined(__APPLE__)
    int64 fileSize = 0;
    VmTimeType modTime = 0;
    VmTimeType accessTime = 0;
@@ -6217,7 +6220,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    Bool hidden = FALSE;
    Bool readOnly = FALSE;
    VmTimeType createTime = 0;
-#elif defined(linux) || defined(sun)
+#else
    int permissions = 0;
    int ownerId = 0;
    int groupId = 0;
@@ -6239,7 +6242,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
       fileSize = File_GetSize(filePathName);
    }
 
-#if defined(linux) || defined(sun)
+#if !defined(_WIN32)
    /*
     * If the file is a symlink, figure out where it points.
     */
@@ -6274,7 +6277,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
 #endif
 
    if (Posix_Stat(filePathName, &statbuf) != -1) {
-#if defined(linux) || defined(sun)
+#if !defined(_WIN32)
       ownerId = statbuf.st_uid;
       groupId = statbuf.st_gid;
       permissions = statbuf.st_mode;
@@ -6308,7 +6311,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                            accessTime,
                            hidden,
                            readOnly);
-#elif defined(linux) || defined(sun)
+#else
    *destPtr += Str_Sprintf(*destPtr,
                            endDestPtr - *destPtr,
                            fileExtendedInfoLinuxFormatString,
@@ -6324,7 +6327,7 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    free(symlinkTarget);
 #endif
    free(escapedFileName);
-#endif   // defined(_WIN32) || defined(linux) || defined(sun)
+#endif   // !defined(__APPLE__)
 } // VixToolsPrintFileExtendedInfo
 
 
@@ -7553,7 +7556,7 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
       err = VIX_E_FAIL;
       goto abort;
    }
-   
+
    err = VMAutomationRequestParserInit(&parser,
                                       &requestMsg->header, sizeof *requestMsg);
    if (VIX_OK != err) {
@@ -7576,7 +7579,6 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
 
    hgfsReplyPacketSize = sizeof hgfsReplyPacket;
 
-#if !defined(__FreeBSD__)
    /*
     * Impersonation was okay, so let's give our packet to
     * the HGFS server and forward the reply packet back.
@@ -7586,7 +7588,6 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
                                    requestMsg->hgfsPacketSize, // packet in size
                                    hgfsReplyPacket,            // packet out buf
                                    &hgfsReplyPacketSize);      // in/out size
-#endif
 
    if (NULL != resultValueResult) {
       *resultValueResult = hgfsReplyPacketSize;
