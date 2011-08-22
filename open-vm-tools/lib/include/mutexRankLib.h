@@ -38,13 +38,13 @@
 /*
  * hostDeviceInfo HAL lock
  *
- * Must be > vmhs locks since this is held around the RANK_vmhsHDILock
+ * Must be < vmhs locks since this is held around the RANK_vmhsHDILock
  * callback lock which vmhs passes into that library.
  */
 #define RANK_hdiHALLock             (RANK_libLockBase + 0x1005)
 
 /*
- * vmhs locks
+ * vmhs locks (must be < vigor)
  */
 #define RANK_vmhsHDILock            (RANK_libLockBase + 0x3002)
 #define RANK_vmhsThrMxLock          (RANK_libLockBase + 0x3005)
@@ -77,6 +77,12 @@
 #define RANK_popPendingListLock      (RANK_libLockBase + 0x4605)
 
 /*
+ * vigor (must be < VMDB range and < disklib, see bug 741290)
+ */
+#define RANK_vigorClientLock         (RANK_libLockBase + 0x4700)
+#define RANK_vigorOfflineClientLock  (RANK_libLockBase + 0x4710)
+
+/*
  * disklib and I/O related locks
  */
 #define RANK_diskLibLock             (RANK_libLockBase + 0x5001)
@@ -88,12 +94,6 @@
 #define RANK_fsCmdLock               (RANK_libLockBase + 0x5050)
 #define RANK_scsiStateLock           (RANK_libLockBase + 0x5060)
 #define RANK_parInitLock             (RANK_libLockBase + 0x5070)
-
-/*
- * RANK_vigorClientLock < VMDB range
- */
-#define RANK_vigorClientLock         (RANK_libLockBase + 0x5400)
-#define RANK_vigorOfflineClientLock  (RANK_libLockBase + 0x5410)
 
 /*
  * VMDB range:
