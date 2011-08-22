@@ -2984,7 +2984,7 @@ HgfsAccessInt(struct vnode *vp,     // IN: Vnode to check access for
             hgfsAttrV2.ownerPerms | hgfsAttrV2.groupPerms | hgfsAttrV2.otherPerms;
       }
       if (!IsModeCompatible(mode, effectivePermissions)) {
-         ret = EPERM;
+         ret = EACCES;
          DEBUG(VM_DEBUG_FAIL, "HgfsAccessInt denied access: %s (%d, %d)\n",
                HGFS_VP_TO_FILENAME(vp), mode, effectivePermissions);
       }
