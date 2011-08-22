@@ -3259,5 +3259,45 @@ Posix_Getmntent(FILE *fp,           // IN:
 
    return ret;
 }
-
 #endif // } !defined(sun)
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_MkTemp --
+ *
+ *      POSIX mktemp().  It is implemented via mkstemp() to avoid
+ *      warning about using dangerous mktemp() API - but note that
+ *      it suffers from all mktemp() problems - caller has to use
+ *      O_EXCL when creating file, and retry if file already exists.
+ *
+ * Results:
+ *      NULL    Error
+ *      !NULL   Success (result must be freed by the caller)
+ *
+ * Side effects:
+ *      errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+Unicode
+Posix_MkTemp(ConstUnicode pathName)  // IN:
+{
+   Unicode result = NULL;
+   char *path;
+   int fd;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return NULL;
+   }
+   fd = mkstemp(path);
+   if (fd >= 0) {
+      close(fd);
+      unlink(path);
+      result = Unicode_Alloc(path, STRING_ENCODING_DEFAULT);
+   }
+   free(path);
+   return result;
+}

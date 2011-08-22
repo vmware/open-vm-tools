@@ -86,6 +86,7 @@ int Posix_Chdir(ConstUnicode pathName);
 Unicode Posix_Getenv(ConstUnicode name);
 long Posix_Pathconf(ConstUnicode pathName, int name);
 int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
+Unicode Posix_MkTemp(ConstUnicode pathName);
 
 #if !defined(_WIN32)
 /*
