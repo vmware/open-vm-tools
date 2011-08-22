@@ -5252,6 +5252,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
 
    if (!HgfsUnpackReadRequest(input->payload, input->payloadSize, input->op, &file,
                               &offset, &requiredSize)) {
+      LOG(4, ("%s: Failed to unpack a valid packet -> PROTOCOL_ERROR.\n", __FUNCTION__));
       status = HGFS_ERROR_PROTOCOL;
    } else {
       switch(input->op) {
@@ -5266,9 +5267,10 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
                                     sizeof *reply + inlineDataSize, (void **)&reply,
                                     input->session)) {
                status = HGFS_ERROR_PROTOCOL;
+               LOG(4, ("%s: V3/V4 Failed to alloc reply -> PROTOCOL_ERROR.\n", __FUNCTION__));
             } else {
-               if (inlineDataSize > 0) {
-                  payload = reply->payload;
+               if (HGFS_OP_READ_V3 == input->op) {
+                  payload = &reply->payload[0];
                } else {
                   payload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
                                                   input->session);
@@ -5284,6 +5286,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
                   }
                } else {
                   status = HGFS_ERROR_PROTOCOL;
+                  LOG(4, ("%s: V3/V4 Failed to get payload -> PROTOCOL_ERROR.\n", __FUNCTION__));
                }
             }
             break;
@@ -5298,15 +5301,20 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
                                              reply->payload, &reply->actualSize);
                if (HGFS_ERROR_SUCCESS == status) {
                   replyPayloadSize = sizeof *reply + reply->actualSize;
+               } else {
+                  LOG(4, ("%s: V1 Failed to read-> %d.\n", __FUNCTION__, status));
                }
             } else {
                status = HGFS_ERROR_PROTOCOL;
+               LOG(4, ("%s: V1 Failed to alloc reply -> PROTOCOL_ERROR.\n", __FUNCTION__));
             }
             break;
          }
       default:
          NOT_IMPLEMENTED();
          status = HGFS_ERROR_PROTOCOL;
+         LOG(4, ("%s: Unsupported protocol version passed %d -> PROTOCOL_ERROR.\n",
+                 __FUNCTION__, input->op));
       }
    }
 
@@ -5575,6 +5583,8 @@ HgfsQueryVolume(HgfsSessionInfo *session,   // IN: session info
 
    *freeBytes  = outFreeBytes;
    *totalBytes = outTotalBytes;
+   LOG(4, ("%s: return %"FMT64"u bytes Free %"FMT64"u bytes\n", __FUNCTION__,
+          outTotalBytes, outFreeBytes));
 
    return status;
 }

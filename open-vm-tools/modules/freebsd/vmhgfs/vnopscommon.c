@@ -487,7 +487,7 @@ HgfsGetattrInt(struct vnode *vp,      // IN : vnode of the file
       HgfsAttrToBSD(vp, &hgfsAttrV2, vap);
    }
 
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_LOG, "Exit %s -> %d.\n",  HGFS_VP_TO_FILENAME(vp), ret);
    return ret;
 }
 
@@ -701,7 +701,7 @@ int HgfsRemoveInt(struct vnode *vp) // IN: Vnode to delete
    ret = HgfsDelete(sip, HGFS_VP_TO_FILENAME(vp), HGFS_OP_DELETE_FILE_V3);
 
 out:
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_LOG, "Exit %s -> %d.\n",  HGFS_VP_TO_FILENAME(vp), ret);
    return ret;
 }
 
@@ -1115,8 +1115,9 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
 
    /* We can't read from directories, that's what readdir() is for. */
    if (HGFS_VP_TO_VTYPE(vp) != VREG) {
-      DEBUG(VM_DEBUG_FAIL, "Can only read regular files.\n");
-      return (HGFS_VP_TO_VTYPE(vp) == VDIR) ? EISDIR : EPERM;
+      ret = (HGFS_VP_TO_VTYPE(vp) == VDIR) ? EISDIR : EPERM;
+      DEBUG(VM_DEBUG_FAIL, "Read not a reg file type %d ret %d.\n", HGFS_VP_TO_VTYPE(vp), ret);
+      return ret;
    }
 
    /* off_t is a signed quantity */
@@ -1163,14 +1164,20 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
    do {
       uint32_t size;
 
-      DEBUG(VM_DEBUG_INFO, "offset=%"FMT64"d, uio_offset=%"FMT64"d\n",
-            offset, HGFS_UIOP_TO_OFFSET(uiop));
-      DEBUG(VM_DEBUG_HANDLE, "** handle=%d, file=%s\n",
-            handle, HGFS_VP_TO_FILENAME(vp));
-
       /* Request at most HGFS_IO_MAX bytes */
       size = (HGFS_UIOP_TO_RESID(uiop) > HGFS_IO_MAX) ? HGFS_IO_MAX :
                                                         HGFS_UIOP_TO_RESID(uiop);
+
+      DEBUG(VM_DEBUG_INFO, "offset=%"FMT64"d, uio_offset=%"FMT64"d\n",
+            offset, HGFS_UIOP_TO_OFFSET(uiop));
+      DEBUG(VM_DEBUG_HANDLE, "** handle=%d, file=%s to read %u\n",
+            handle, HGFS_VP_TO_FILENAME(vp), size);
+
+      if (size == 0) {
+         /* For a zero byte length read we return success. */
+         DEBUG(VM_DEBUG_DONE, "size of 0 ret -> 0.\n");
+         return 0;
+      }
 
       /* Send one read request. */
       ret = HgfsDoRead(sip, handle, offset, size, uiop);
@@ -1524,7 +1531,7 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
    fp = HGFS_VP_TO_FP(vp);
    ASSERT(fp);
 
-   DEBUG(VM_DEBUG_ENTRY, "opening \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "opening dir \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
 
    /*
     *  If the directory is already opened then we are done.
@@ -1668,11 +1675,11 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
     * again. Thus, returning ENOENT to the Mac OS puts the guest kernel into infinite
     * loop. In order to resolve this issue, before passing on the request to the
     * server, we validate if user is attempting to create a new share. If yes,
-    * we return EPERM as the error code.
+    * we return EACCES as the error code.
     */
    if (HgfsAttemptToCreateShare(HGFS_VP_TO_FILENAME(vp), flag)) {
       DEBUG (VM_DEBUG_LOG, "An attempt to create a new share was made.\n");
-      return EPERM;
+      return EACCES;
    }
 
    /* Convert FreeBSD modes to Hgfs modes */
