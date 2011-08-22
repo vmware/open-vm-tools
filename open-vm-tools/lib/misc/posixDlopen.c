@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#if defined(__APPLE__) || defined(linux) || defined(sun)
+#if !defined(_WIN32)
 #include <dlfcn.h>
 #endif
 
@@ -29,7 +29,7 @@
 #include "posixInt.h"
 
 
-#if defined(__APPLE__) || defined(linux) || defined(sun)
+#if !defined(_WIN32)
 /*
  *----------------------------------------------------------------------
  *

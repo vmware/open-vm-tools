@@ -46,6 +46,8 @@
 #ifdef USE_PAM
 #if defined(sun)
 #define CURRENT_PAM_LIBRARY	"libpam.so.1"
+#elif defined(__FreeBSD__)
+#define CURRENT_PAM_LIBRARY	"libpam.so"
 #else
 #define CURRENT_PAM_LIBRARY	"libpam.so.0"
 #endif

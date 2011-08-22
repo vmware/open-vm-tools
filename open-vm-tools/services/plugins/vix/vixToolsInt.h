@@ -99,7 +99,11 @@ void VixToolsUnimpersonateUser(void *userToken);
 
 void VixToolsLogoutUser(void *userToken);
 
-VixError VixToolsNewEnvIterator(void *userToken, VixToolsEnvIterator **envItr);
+VixError VixToolsNewEnvIterator(void *userToken,
+#ifdef __FreeBSD__
+                                char **envp,
+#endif
+                                VixToolsEnvIterator **envItr);
 
 char *VixToolsGetNextEnvVar(VixToolsEnvIterator *envItr);
 

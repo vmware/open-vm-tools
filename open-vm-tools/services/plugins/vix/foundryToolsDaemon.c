@@ -80,8 +80,8 @@
 #include "hgfsDevLinux.h"
 #endif
 
-/* Only Win32 and Linux use impersonation functions. */
-#if !defined(__FreeBSD__) && !defined(sun)
+/* Only Win32, Linux, Solaris and FreeBSD use impersonation functions. */
+#if !defined(__APPLE__)
 #include "impersonate.h"
 #endif
 
@@ -441,11 +441,15 @@ FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx)
     * changed them.
     */
    (void) VixTools_Initialize(thisProcessRunsAsRoot,
-                              NULL,   // envp
+#if defined(__FreeBSD__)
+                              ctx->envp,   // envp
+#else
+                              NULL,        // envp
+#endif
                               ToolsDaemonTcloReportProgramCompleted,
                               ctx);
 
-#if defined(linux) || defined(_WIN32)
+#if !defined(__APPLE__)
    if (thisProcessRunsAsRoot) {
       Impersonate_Init();
    }

@@ -33,6 +33,8 @@
 #include <unistd.h>
 #if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 #include <asm/param.h>
+#endif
+#if !defined(sun) && !defined(__APPLE__)
 #include <locale.h>
 #include <sys/stat.h>
 #endif
@@ -48,13 +50,17 @@
 #include <time.h>
 #include <grp.h>
 #include <sys/syscall.h>
-#if defined(linux) || defined(HAVE_SYS_USER_H)
+#if defined(linux) || defined(__FreeBSD__) || defined(HAVE_SYS_USER_H)
 // sys/param.h is required on FreeBSD before sys/user.h
 #   include <sys/param.h>
 // Pull in PAGE_SIZE/PAGE_SHIFT defines ahead of vm_basic_defs.h
 #   include <sys/user.h>
 #endif
-
+#if defined (__FreeBSD__)
+#include <kvm.h>
+#include <sys/sysctl.h>
+#include <paths.h>
+#endif
 #include "vmware.h"
 #include "procMgr.h"
 #include "vm_assert.h"
@@ -171,13 +177,13 @@ setresgid(gid_t ruid,
  *----------------------------------------------------------------------
  */
 
-#if !defined(sun)
+#if !defined(sun) && !defined(__FreeBSD__)
 int
 ProcMgr_ReadProcFile(int fd,                       // IN
                      char **contents)              // OUT
 {
    int size = 0;
-#if !defined(__FreeBSD__) && !defined(__APPLE__)
+#if !defined(__APPLE__)
    char tmp[512];
    int numRead;
 
@@ -227,7 +233,7 @@ done:
    return size;
 }
 
-#endif   // !sun
+#endif   // !sun && !FreeBSD
 
 /*
  *----------------------------------------------------------------------
@@ -247,12 +253,12 @@ done:
  *----------------------------------------------------------------------
  */
 
-#if !defined(sun)
+#if !defined(sun) && !defined(__FreeBSD__)
 ProcMgr_ProcList *
 ProcMgr_ListProcesses(void)
 {
    ProcMgr_ProcList *procList = NULL;
-#if !defined(__FreeBSD__) && !defined(__APPLE__)
+#if !defined(__APPLE__)
    Bool failed = FALSE;
    DynBuf dbProcId;
    DynBuf dbProcCmd;
@@ -595,12 +601,211 @@ abort:
       ProcMgr_FreeProcList(procList);
       procList = NULL;
    }
-#endif // !defined(__FreeBSD__) && !defined(__APPLE__)
+#endif // !defined(__APPLE__)
 
    return procList;
 }
-#endif // !defined(sun)
+#endif // !defined(sun) & !defined(__FreeBSD__)
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ProcMgr_ListProcesses --
+ *
+ *      List all the processes that the calling client has privilege to
+ *      enumerate. The strings in the returned structure should be all
+ *      UTF-8 encoded, although we do not enforce it right now.
+ *
+ * Results:
+ *
+ *      A ProcMgr_ProcList.
+ *
+ * Side effects:
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if defined(__FreeBSD__)
+ProcMgr_ProcList *
+ProcMgr_ListProcesses(void)
+{
+   ProcMgr_ProcList *procList = NULL;
+   Bool failed = TRUE;
+   static kvm_t *kd;
+   struct kinfo_proc *kp;
+   char errbuf[_POSIX2_LINE_MAX];
+   int i, nentries=-1, flag=0;
+   DynBuf dbProcId;
+   DynBuf dbProcCmd;
+   DynBuf dbProcStartTime;
+   DynBuf dbProcOwner;
+
+   DynBuf_Init(&dbProcId);
+   DynBuf_Init(&dbProcCmd);
+   DynBuf_Init(&dbProcStartTime);
+   DynBuf_Init(&dbProcOwner);
+
+   /*
+    * Get the handle to the Kernel Virtual Memory
+    */
+   kd = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, errbuf);
+   if (kd == NULL) {
+      Warning("%s: failed to open kvm with error: %s\n", __FUNCTION__, errbuf);
+      goto abort;
+   }
+
+   /*
+    * Get the list of process info structs
+    */
+   kp = kvm_getprocs(kd, KERN_PROC_PROC, flag, &nentries);
+   if ((kp == NULL && nentries > 0) || (kp != NULL && nentries < 0)) {
+      Warning("%s: failed to get proc infos with error: %s\n",
+              __FUNCTION__, kvm_geterr(kd));
+      goto abort;
+   }
+
+   /*
+    * Iterate through the list of process entries
+    */
+   for (i = 0; i < nentries; ++i, ++kp) {
+      struct passwd *pwd;
+      char *userName = NULL;
+      char *cmdLine = NULL;
+      char **cmdLineTemp = NULL;
+      time_t processStartTime;
+
+      /*
+       * Store the pid of the process
+       */
+      if (!DynBuf_Append(&dbProcId, &(kp->ki_pid), sizeof(kp->ki_pid))) {
+         Warning("%s: failed to append pid in DynBuf - out of memory\n",
+                 __FUNCTION__);
+         goto abort;
+      }
+
+      /*
+       * Store the owner of the process.
+       */
+      pwd = getpwuid(kp->ki_uid);
+      userName = (NULL == pwd)
+                 ? Str_SafeAsprintf(NULL, "%d", (int) kp->ki_uid)
+                 : Unicode_Alloc(pwd->pw_name, STRING_ENCODING_DEFAULT);
+      if (!DynBuf_Append(&dbProcOwner, &userName, sizeof userName)) {
+         Warning("%s: failed to append username in DynBuf - out of memory\n",
+                 __FUNCTION__);
+         goto abort;
+      }
+
+      /*
+       * Store the command line string of the process
+       */
+      cmdLineTemp = kvm_getargv(kd, kp, 0);
+      if (cmdLineTemp != NULL) {
+         // flatten the argument list to get cmd & all params
+         DynBuf dbuf;
+
+         DynBuf_Init(&dbuf);
+         while (*cmdLineTemp != NULL) {
+            if (!DynBuf_Append(&dbuf, *cmdLineTemp, strlen(*cmdLineTemp))) {
+               Warning("%s: failed to append cmd/args in DynBuf - no memory\n",
+                       __FUNCTION__);
+               goto abort;
+            }
+            cmdLineTemp++;
+            if (*cmdLineTemp != NULL) {
+               // add the whitespace between arguments
+               if (!DynBuf_Append(&dbuf, " ", 1)) {
+                  Warning("%s: failed to append ' ' in DynBuf - no memory\n",
+                          __FUNCTION__);
+                  goto abort;
+               }
+            }
+         }
+         // add the NUL term
+         if (!DynBuf_Append(&dbuf, "", 1)) {
+            Warning("%s: failed to append NUL in DynBuf - out of memory\n",
+                    __FUNCTION__);
+            goto abort;
+         }
+         DynBuf_Trim(&dbuf);
+         cmdLine = DynBuf_Detach(&dbuf);
+         DynBuf_Destroy(&dbuf);
+      } else {
+         cmdLine = Unicode_Alloc(kp->ki_comm, STRING_ENCODING_DEFAULT);
+      }
+      if (!DynBuf_Append(&dbProcCmd, &cmdLine, sizeof cmdLine)) {
+         Warning("%s: failed to append cmdline in DynBuf - out of memory\n",
+                 __FUNCTION__);
+         goto abort;
+      }
+
+      /*
+       * Store the start time of the process
+       */
+      processStartTime = kp->ki_start.tv_sec;
+      if (!DynBuf_Append(&dbProcStartTime,
+                    &processStartTime,
+                    sizeof processStartTime)) {
+         Warning("%s: failed to append start time in DynBuf - out of memory\n",
+                 __FUNCTION__);
+         goto abort;
+      }
+
+   } // for nentries
+
+   if (0 == DynBuf_GetSize(&dbProcId)) {
+      goto abort;
+   }
+
+   /*
+    * We're done adding to DynBuf.  Trim off any unused allocated space.
+    * DynBuf_Trim() followed by DynBuf_Detach() avoids a memcpy().
+    */
+   DynBuf_Trim(&dbProcId);
+   DynBuf_Trim(&dbProcCmd);
+   DynBuf_Trim(&dbProcStartTime);
+   DynBuf_Trim(&dbProcOwner);
+
+   /*
+    * Create a ProcMgr_ProcList and populate its fields.
+    */
+   procList = (ProcMgr_ProcList *) Util_SafeCalloc(1, sizeof(ProcMgr_ProcList));
+   ASSERT_NOT_IMPLEMENTED(procList);
+
+   procList->procCount = DynBuf_GetSize(&dbProcId) / sizeof(pid_t);
+
+   procList->procIdList = (pid_t *) DynBuf_Detach(&dbProcId);
+   ASSERT_NOT_IMPLEMENTED(procList->procIdList);
+   procList->procCmdList = (char **) DynBuf_Detach(&dbProcCmd);
+   ASSERT_NOT_IMPLEMENTED(procList->procCmdList);
+   procList->startTime = (time_t *) DynBuf_Detach(&dbProcStartTime);
+   ASSERT_NOT_IMPLEMENTED(procList->startTime);
+   procList->procOwnerList = (char **) DynBuf_Detach(&dbProcOwner);
+   ASSERT_NOT_IMPLEMENTED(procList->procOwnerList);
+
+   failed = FALSE;
+abort:
+   DynBuf_Destroy(&dbProcId);
+   DynBuf_Destroy(&dbProcCmd);
+   DynBuf_Destroy(&dbProcStartTime);
+   DynBuf_Destroy(&dbProcOwner);
+
+   if (kd != NULL) {
+      /*
+       * Wrap up: also deallocates memory (if) allocated by kvm_getargv()
+       */
+      kvm_close(kd);
+   }
+
+   if (failed) {
+      ProcMgr_FreeProcList(procList);
+      procList = NULL;
+   }
+
+   return procList;
+}
+#endif // defined(__FreeBSD__)
 
 /*
  *----------------------------------------------------------------------
@@ -1435,7 +1640,7 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
    free(asyncProc);
 }
 
-#ifdef linux
+#if defined(linux) || defined(__FreeBSD__)
 
 /*
  *----------------------------------------------------------------------
@@ -1634,4 +1839,4 @@ ProcMgr_GetImpersonatedUserInfo(char **userName,            // OUT
    return TRUE;
 }
 
-#endif // linux
+#endif // linux || __FreeBSD__

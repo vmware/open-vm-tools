@@ -496,7 +496,7 @@ static VixError VixToolsImpersonateUserImplEx(char const *credentialTypeStr,
                                               char const *obfuscatedNamePassword,
                                               void **userToken);
 
-#if defined(_WIN32) || defined(linux) || defined(sun)
+#if !defined(__APPLE__)
 static VixError VixToolsDoesUsernameMatchCurrentUser(const char *username);
 #endif
 
@@ -1275,7 +1275,7 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    si.dwFlags = STARTF_USESHOWWINDOW;
    si.wShowWindow = (VIX_RUNPROGRAM_ACTIVATE_WINDOW & runProgramOptions)
                      ? SW_SHOWNORMAL : SW_MINIMIZE;
-#else
+#elif !defined(__FreeBSD__)
    procArgs.envp = VixToolsEnvironmentTableToEnvp(userEnvironmentTable);
 #endif
 
@@ -1438,7 +1438,7 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * For non-Windows, we use the user's $HOME if workingDir isn't supplied.
     */
    if (NULL == workingDir) {
-#if defined(linux) || defined(sun)
+#if defined(linux) || defined(sun) || defined(__FreeBSD__)
       char *username = NULL;
 
       if (!ProcMgr_GetImpersonatedUserInfo(&username, &workingDirectory)) {
@@ -2355,7 +2355,7 @@ static Bool
 VixToolsComputeEnabledProperty(GKeyFile *confDictRef,            // IN
                                const char *varName)              // IN
 {
-#if defined(_WIN32) || defined(linux) || defined(sun)
+#if !defined(__APPLE__)
    return VixToolsGetAPIDisabledFromConf(confDictRef, varName);
 #else
    return FALSE;
@@ -3458,6 +3458,14 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
    char *resultLocal = Util_SafeStrdup("");  // makes the loop cleaner.
    VixToolsUserEnvironment *env;
 
+#ifdef __FreeBSD__
+   if (NULL == userEnvironmentTable) {
+      err = VIX_E_FAIL;
+      free(resultLocal);
+      return err;
+   }
+#endif
+
    err = VixToolsNewUserEnvironment(userToken, &env);
    if (VIX_FAILED(err)) {
       env = NULL;
@@ -3467,7 +3475,29 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
    for (i = 0; i < numNames; i++) {
       char *value;
 
+#ifdef __FreeBSD__
+      /*
+       * We should check the original envp for all vars except
+       * a few whitelisted ones that we set/unset on impersonate
+       * user start/stop. for them we need to do getenv()
+       */
+      if (!strcmp(names, "USER") ||
+          !strcmp(names, "HOME") ||
+          !strcmp(names, "SHELL")) {
+         value = VixToolsGetEnvFromUserEnvironment(env, names);
+      }
+      else {
+         if (HashTable_Lookup(userEnvironmentTable,
+                              names, (void **) &value)) {
+            value = Util_SafeStrdup(value);
+         } else {
+            value = Util_SafeStrdup("");
+         }
+      }
+#else
       value = VixToolsGetEnvFromUserEnvironment(env, names);
+#endif
+
       if (NULL != value) {
          char *tmp = resultLocal;
          char *tmpVal;
@@ -3544,6 +3574,14 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
    char *resultLocal;
    VixToolsEnvIterator *itr;
    char *envVar;
+#ifdef __FreeBSD__
+   char **envp;
+   if (NULL == userEnvironmentTable) {
+      err = VIX_E_FAIL;
+      return err;
+   }
+   envp = VixToolsEnvironmentTableToEnvp(userEnvironmentTable);
+#endif
 
    if (NULL == result) {
       err = VIX_E_FAIL;
@@ -3552,7 +3590,11 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
 
    resultLocal = Util_SafeStrdup("");  // makes the loop cleaner.
 
+#ifdef __FreeBSD__
+   err = VixToolsNewEnvIterator(userToken, envp, &itr);
+#else
    err = VixToolsNewEnvIterator(userToken, &itr);
+#endif
    if (VIX_FAILED(err)) {
       goto abort;
    }
@@ -3560,7 +3602,42 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
    while ((envVar = VixToolsGetNextEnvVar(itr)) != NULL) {
       char *tmp = resultLocal;
       char *tmpVal;
+#ifdef __FreeBSD__
+      /*
+       * For variables we change during Impersonatation of user,
+       * we need to fetch from getenv() system call, all else
+       * can be read from the hash table of the original envp.
+       */
+      if (StrUtil_StartsWith(envVar, "USER=") ||
+          StrUtil_StartsWith(envVar, "HOME=") ||
+          StrUtil_StartsWith(envVar, "SHELL=")) {
+         char *name = NULL;
+         char *escapedName = NULL;
+         char *whereToSplit;
+         size_t nameLen;
 
+         whereToSplit = strchr(envVar, '=');
+         if (NULL == whereToSplit) {
+            /* Our code generated this list, so this shouldn't happen. */
+            ASSERT(0);
+            continue;
+         }
+
+         nameLen = whereToSplit - envVar;
+         name = Util_SafeMalloc(nameLen + 1);
+         memcpy(name, envVar, nameLen);
+         name[nameLen] = '\0';
+
+         escapedName = VixToolsEscapeXMLString(name);
+
+         free(envVar);
+         envVar = Str_SafeAsprintf(NULL, "%s=%s",
+                                   escapedName, Posix_Getenv(name));
+
+         free(name);
+         free(escapedName);
+      }
+#endif
       tmpVal = VixToolsEscapeXMLString(envVar);
       free(envVar);
       if (NULL == tmpVal) {
@@ -3581,6 +3658,9 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
 
 abort:
    VixToolsDestroyEnvIterator(itr);
+#ifdef __FreeBSD__
+   VixToolsFreeEnvp(envp);
+#endif
    *result = resultLocal;
 
    return err;
@@ -6819,10 +6899,13 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
    *userToken = NULL;
 
 ///////////////////////////////////////////////////////////////////////
-#if defined(__FreeBSD__)
-   err = VIX_E_NOT_SUPPORTED;
+// NOTE: The following 3 lines need to be uncommented to disable FreeBSD
+// support for VMODL Guest Operations completely - THE KILL SWITCH
+//#if defined(__FreeBSD__)
+//   err = VIX_E_NOT_SUPPORTED;
+//#endif
 ///////////////////////////////////////////////////////////////////////
-#elif defined(_WIN32) || defined(linux) || defined(sun)
+#if !defined(__APPLE__)
    {
       AuthToken authToken;
       char *unobfuscatedUserName = NULL;
@@ -7001,7 +7084,7 @@ VixToolsUnimpersonateUser(void *userToken)
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
 #if defined(_WIN32)
       Impersonate_Undo();
-#elif defined(linux) || defined(sun)
+#elif defined(linux) || defined(sun) || defined(__FreeBSD__)
       ProcMgr_ImpersonateUserStop();
 #endif
    }
@@ -7029,12 +7112,10 @@ VixToolsLogoutUser(void *userToken)    // IN
       return;
    }
 
-#if !defined(__FreeBSD__)
    if (NULL != userToken) {
       AuthToken authToken = (AuthToken) userToken;
       Auth_CloseToken(authToken);
    }
-#endif
 } // VixToolsLogoutUser
 
 
@@ -7056,7 +7137,7 @@ VixToolsLogoutUser(void *userToken)    // IN
 static char *
 VixToolsGetImpersonatedUsername(void *userToken)
 {
-#if defined(_WIN32) || defined(linux) || defined(sun)
+#if !defined(__APPLE__)
    char *userName = NULL;
    char *homeDir = NULL;
 
@@ -8116,7 +8197,7 @@ abort:
 #endif
 
 
-#if defined(_WIN32) || defined(linux) || defined(sun)
+#if !defined(__APPLE__)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -8323,7 +8404,7 @@ abort:
    
    return err;
 }
-#endif  /* #if defined(_WIN32) || defined(linux) || defined(sun) */
+#endif  /* #if !defined(__APPLE__) */
 
 
 /*

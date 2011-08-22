@@ -94,6 +94,9 @@ struct VixToolsUserEnvironment {
 
 VixError
 VixToolsNewEnvIterator(void *userToken,                  // IN
+#ifdef __FreeBSD__
+                       char **envp,                      // IN
+#endif
                        VixToolsEnvIterator **envItr)     // OUT
 {
    VixError err = VIX_OK;
@@ -132,14 +135,7 @@ VixToolsNewEnvIterator(void *userToken,                  // IN
 #elif defined(__APPLE__)
    it->environ = *_NSGetEnviron();
 #elif defined(__FreeBSD__)
-   /*
-    * Looking at /build/toolchain/bsd32/freebsd-6.3/usr/include/stand.h,
-    * environ is a pointer to a doubly linked list of structs. I guess they
-    * just want to be different. Anyway, this is something that needs
-    * work if we want to support FreeBSD.
-    */
-   err = VIX_E_NOT_SUPPORTED;
-   goto abort;
+   it->environ = envp;
 #else
    it->environ = environ;
 #endif
