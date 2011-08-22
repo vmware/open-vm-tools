@@ -188,7 +188,7 @@
  * 4.0.0-1.8: patch 3
  */
 #define ESX_VERSION_MAJOR "5"
-#define ESX_VERSION_MINOR "0"
+#define ESX_VERSION_MINOR "1"
 #define ESX_VERSION_MAINT "0"
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
                     ESX_VERSION_MAINT
@@ -222,8 +222,18 @@
 #define VCB_VERSION "4.0.0"
 #define VCB_FILE_VERSION 4,0,0,0
 #define VIM_VERSION "5.1.0"
+
+// Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
 #define VPX_VERSION "5.1.0"
+#define VPX_VERSION_MAJOR "5"
+#define VPX_VERSION_MINOR "1"
+#define VPX_VERSION_MAINT "0"
+#define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
+                                VPX_VERSION_MAINT
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
+#define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
+
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
 #define WBC_VERSION "5.1.0"
