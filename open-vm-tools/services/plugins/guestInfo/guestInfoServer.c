@@ -66,10 +66,6 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
-MY_ASSERTS(GI_SIZE_ASSERTS,
-           ASSERT_ON_COMPILE(GUESTINFO_MAX_VALUE_SIZE >= MAX_VALUE_LEN);
-)
-
 /**
  * Default poll interval is 30s (in milliseconds).
  */
@@ -81,9 +77,9 @@ MY_ASSERTS(GI_SIZE_ASSERTS,
  * Stores information about all guest information sent to the vmx.
  */
 
-typedef struct _GuestInfoCache{
+typedef struct _GuestInfoCache {
    /* Stores values of all key-value pairs. */
-   char value[INFO_MAX][GUESTINFO_MAX_VALUE_SIZE];
+   char          *value[INFO_MAX];
    NicInfoV3     *nicInfo;
    GuestDiskInfo *diskInfo;
 } GuestInfoCache;
@@ -232,7 +228,8 @@ GuestInfoVMSupport(RpcInData *data)
 static gboolean
 GuestInfoGather(gpointer data)
 {
-   char name[GUESTINFO_MAX_VALUE_SIZE];
+   char name[256];  // Size is derived from the SUS2 specification
+                    // "Host names are limited to 255 bytes"
    char *osString = NULL;
    gboolean disableQueryDiskInfo;
    NicInfoV3 *nicInfo = NULL;
@@ -470,9 +467,8 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
       }
 
       /* Update the value in the cache as well. */
-      Str_Strcpy(gInfoCache.value[infoType],
-                 (char *)info,
-                 sizeof gInfoCache.value[infoType]);
+      free(gInfoCache.value[infoType]);
+      gInfoCache.value[infoType] = Util_SafeStrdup((char *) info);
       break;
 
    case INFO_IPADDRESS:
@@ -921,7 +917,8 @@ GuestInfoClearCache(void)
    int i;
 
    for (i = 0; i < INFO_MAX; i++) {
-      gInfoCache.value[i][0] = 0;
+      free(gInfoCache.value[i]);
+      gInfoCache.value[i] = NULL;
    }
 
    GuestInfo_FreeDiskInfo(gInfoCache.diskInfo);
