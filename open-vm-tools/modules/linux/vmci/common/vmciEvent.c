@@ -535,9 +535,25 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
       /*
        * In the vmkernel we defer delivery of events to a helper world.  This
        * makes the event delivery more consistent across hosts and guests with
-       * regard to which locks are held.
+       * regard to which locks are held.  Memory access events are an exception
+       * to this, since clients need to know immediately that the device
+       * memory is disabled (if we delay such events, then clients may be
+       * notified too late).
        */
-      sub->runDelayed = TRUE;
+      if (VMCI_EVENT_MEM_ACCESS_ON == event ||
+          VMCI_EVENT_MEM_ACCESS_OFF == event) {
+         /*
+          * Client must expect to get such events synchronously, and should
+          * perform its locking accordingly.  If it can't handle this, then
+          * fail.
+          */
+         if (flags & VMCI_FLAG_EVENT_DELAYED_CB) {
+            return VMCI_ERROR_INVALID_ARGS;
+         }
+         sub->runDelayed = FALSE;
+      } else {
+         sub->runDelayed = TRUE;
+      }
    } else if (!VMCI_CanScheduleDelayedWork()) {
       /*
        * If the platform doesn't support delayed work callbacks then don't

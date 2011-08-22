@@ -80,6 +80,7 @@ typedef struct VMCIDoorbellCptState {
 #define VMCI_DEV_QP_BREAK_SHARING 0x05  // DEPRECATED
 #define VMCI_DEV_RESTORE_SYNC     0x06
 #define VMCI_DEV_BMASTER_OFF      0x07
+#define VMCI_DEV_BMASTER_ON       0x08
 
 
 /*

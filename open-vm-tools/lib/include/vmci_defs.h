@@ -314,8 +314,10 @@ typedef uint32 VMCI_Event;
 #define VMCI_EVENT_QP_RESUMED     2  // Only applicable to guest endpoints
 #define VMCI_EVENT_QP_PEER_ATTACH 3  // Applicable to guest and host
 #define VMCI_EVENT_QP_PEER_DETACH 4  // Applicable to guest and host
-#define VMCI_EVENT_MEM_ACCESS_ON  5  // Only applicable to VMX endpoints
-#define VMCI_EVENT_MEM_ACCESS_OFF 6  // Only applicable to VMX endpoints
+#define VMCI_EVENT_MEM_ACCESS_ON  5  // Applicable to VMX and vmk.  On vmk,
+                                     // this event has the Context payload type.
+#define VMCI_EVENT_MEM_ACCESS_OFF 6  // Applicable to VMX and vmk.  Same as
+                                     // above for the payload type.
 #define VMCI_EVENT_MAX            7
 
 /*
@@ -329,8 +331,12 @@ typedef uint32 VMCI_Event;
 #define VMCI_EVENT_VALID_VMX(_event) (_event == VMCI_EVENT_MEM_ACCESS_ON || \
                                       _event == VMCI_EVENT_MEM_ACCESS_OFF)
 
+#if defined(VMX86_SERVER)
+#define VMCI_EVENT_VALID(_event) (_event < VMCI_EVENT_MAX)
+#else // VMX86_SERVER
 #define VMCI_EVENT_VALID(_event) (_event < VMCI_EVENT_MAX && \
                                   !VMCI_EVENT_VALID_VMX(_event))
+#endif // VMX86_SERVER
 
 /* Reserved guest datagram resource ids. */
 #define VMCI_EVENT_HANDLER 0

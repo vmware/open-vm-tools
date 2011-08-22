@@ -92,7 +92,7 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_BOOMERANG)
    #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
@@ -123,7 +123,7 @@
  * VMI 2.0      : 3.1.0
  * P2VA 3.0     : 3.?.?
  */
-#define VIE_FILEVERSION 5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VIE_FILEVERSION 5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 /*
  * This string can be a little more "free form".  The license
@@ -215,17 +215,17 @@
 #define BOOMERANG_VERSION "e.x.p"
 
 // These must match VIE_FILEVERSION above
-#define SYSIMAGE_VERSION "5.0.0"
+#define SYSIMAGE_VERSION "5.1.0"
 #define SYSIMAGE_FILE_VERSION VIE_FILEVERSION
 
 #define VCB_VERSION "4.0.0"
 #define VCB_FILE_VERSION 4,0,0,0
-#define VIM_VERSION "5.0.0"
-#define VPX_VERSION "5.0.0"
+#define VIM_VERSION "5.1.0"
+#define VPX_VERSION "5.1.0"
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
-#define WBC_VERSION "5.0.0"
+#define WBC_VERSION "5.1.0"
 #define SDK_VERSION "4.1.0"
 #define FOUNDRY_VERSION "1.11.0"
 #define FOUNDRY_FILE_VERSION 1,11,0,PRODUCT_BUILD_NUMBER_NUMERIC
