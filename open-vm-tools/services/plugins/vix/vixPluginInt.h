@@ -37,9 +37,6 @@ void
 FoundryToolsDaemon_Uninitialize(ToolsAppCtx *ctx);
 
 gboolean
-ToolsDaemonTcloCheckUserAccount(RpcInData *data);
-
-gboolean
 FoundryToolsDaemonGetToolsProperties(RpcInData *data);
 
 gboolean

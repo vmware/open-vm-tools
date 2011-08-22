@@ -77,8 +77,6 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          FoundryToolsDaemonRunProgram, NULL, NULL, NULL, 0 },
       { VIX_BACKDOORCOMMAND_GET_PROPERTIES,
          FoundryToolsDaemonGetToolsProperties, NULL, NULL, 0 },
-      { VIX_BACKDOORCOMMAND_CHECK_USER_ACCOUNT,
-         ToolsDaemonTcloCheckUserAccount, NULL, NULL, NULL, 0 },
       { VIX_BACKDOORCOMMAND_SEND_HGFS_PACKET,
          ToolsDaemonHgfsImpersonated, NULL, NULL, NULL, 0 },
       { VIX_BACKDOORCOMMAND_COMMAND,
