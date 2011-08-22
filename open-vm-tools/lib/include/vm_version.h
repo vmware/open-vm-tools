@@ -211,6 +211,11 @@
 #define PLAYER_VERSION "e.x.p"
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0
+/*
+ * When updating FUSION_VERSION from e.x.p to GA, you will also need to update
+ * lastVersion{Major,Minor,Patch} in bora/scons/package/fusion/fusion.sc
+ * which controls what versions are allowed to automatically update for free.
+ */
 #define FUSION_VERSION "e.x.p"
 #define BOOMERANG_VERSION "e.x.p"
 #define HBR_SERVER_VERSION "e.x.p"
@@ -297,7 +302,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 9
 #define USB_ARBITRATOR_VERSION_MINOR 0
-#define USB_ARBITRATOR_VERSION_Z     27
+#define USB_ARBITRATOR_VERSION_Z     28
 
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
@@ -313,7 +318,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.27"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.28"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

@@ -24,6 +24,11 @@
 /*
  * MXUser mutex ranks for bora/lib code.
  *
+ * The ranks define the ordering in which locks are allowed to be acquired.
+ *
+ * Only locks with higher rank numbers (generally more localized)
+ * can be acquired while a lock with a lower rank number is active.
+ *
  * bora/lib lock rank space is from RANK_libLockBase on up to
  * RANK_LEAF (see vm_basic_defs).asdf
  *
@@ -111,12 +116,13 @@
  * non-leaf locks are usually defined with RANK_LEAF - 1.
  *
  * At least:
- *    impersonate > pollDefault
- *    keyLocator > preference (for checking AESNI)
- *    configDb > keyLocator (for unlocking dictionaries)
- *    battery/button > preference
- *    workerLib > something for sure under VThread_Create
- *    licenseCheck > preference
+ *    impersonate < pollDefault
+ *    keyLocator < preference (for checking AESNI)
+ *    keyLocator < ssl (bug 743010)
+ *    configDb < keyLocator (for unlocking dictionaries)
+ *    battery/button < preference
+ *    workerLib < something for sure under VThread_Create
+ *    licenseCheck < preference
  */
 
 #define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7020)
