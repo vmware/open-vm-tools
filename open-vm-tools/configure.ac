@@ -1037,6 +1037,7 @@ if test "$os" = "linux"; then
 fi
 
 if test "$os" = "freebsd"; then
+   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lkvm"
    MODULES_DIR="/boot/modules"
 
    if test "$osVersion" -ge 302000; then

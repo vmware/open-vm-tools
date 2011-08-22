@@ -58,8 +58,9 @@
 #endif
 #if defined (__FreeBSD__)
 #include <kvm.h>
-#include <sys/sysctl.h>
+#include <limits.h>
 #include <paths.h>
+#include <sys/sysctl.h>
 #endif
 #include "vmware.h"
 #include "procMgr.h"
