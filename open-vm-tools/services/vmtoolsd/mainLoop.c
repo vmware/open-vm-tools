@@ -387,7 +387,15 @@ ToolsCore_Setup(ToolsServiceState *state)
    state->ctx.version = TOOLS_CORE_API_V1;
    state->ctx.name = state->name;
    state->ctx.errorCode = EXIT_SUCCESS;
+#if defined(__APPLE__)
+   /*
+    * Mac OS doesn't use g_main_loop_run(), so need to create the loop as
+    * "running".
+    */
+   state->ctx.mainLoop = g_main_loop_new(gctx, TRUE);
+#else
    state->ctx.mainLoop = g_main_loop_new(gctx, FALSE);
+#endif
    state->ctx.isVMware = VmCheck_IsVirtualWorld();
    g_main_context_unref(gctx);
 

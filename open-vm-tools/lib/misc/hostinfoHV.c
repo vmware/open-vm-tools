@@ -489,7 +489,7 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
 /*
  *----------------------------------------------------------------------
  *
- *  Hostinfo_TouchBackDoor --
+ * Hostinfo_TouchBackDoor --
  *
  *      Access the backdoor. This is used to determine if we are
  *      running in a VM or on a physical host. On a physical host
@@ -505,7 +505,7 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
  *      if not.
  *
  * Side effects:
- *	Exception if not in a VM.
+ *      Exception if not in a VM.
  *
  *----------------------------------------------------------------------
  */
@@ -513,13 +513,7 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
 Bool
 Hostinfo_TouchBackDoor(void)
 {
-   /*
-    * XXX: This can cause Apple's Crash Reporter to erroneously display
-    * a crash, even though the process has caught the SIGILL and handled
-    * it.
-    */
-
-#if !defined(__APPLE__) && (defined(__i386__) || defined(__x86_64__))
+#if defined(__i386__) || defined(__x86_64__)
    uint32 eax;
    uint32 ebx;
    uint32 ecx;
