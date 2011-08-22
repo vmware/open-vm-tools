@@ -392,4 +392,10 @@ compat_multiqueue_allowed(struct pci_dev *dev)
 #   endif
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
+#   define compat_vlan_get_protocol(skb) vlan_get_protocol(skb)
+#else
+#   define compat_vlan_get_protocol(skb) (skb->protocol)
+#endif
+
 #endif /* __COMPAT_NETDEVICE_H__ */
