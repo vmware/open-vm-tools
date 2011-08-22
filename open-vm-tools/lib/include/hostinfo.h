@@ -70,10 +70,8 @@ extern int Hostinfo_OSVersion(unsigned int i);
 extern int Hostinfo_GetSystemBitness(void);
 extern const char *Hostinfo_OSVersionString(void);
 
-extern Bool Hostinfo_GetOSName(uint32 outBufFullLen,
-                               uint32 outBufLen,
-                               char *osNameFull,
-                               char *osName);
+extern char *Hostinfo_GetOSName(void);
+extern char *Hostinfo_GetOSGuestString(void);
 
 extern Bool Hostinfo_OSIsSMP(void);
 #if defined(_WIN32)

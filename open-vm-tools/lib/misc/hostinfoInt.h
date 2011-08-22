@@ -26,8 +26,8 @@
 #define _HOSTINFOINT_H_
 
 
-#define MAX_OS_NAME_LEN 64
-#define MAX_OS_FULLNAME_LEN 192
+#define MAX_OS_NAME_LEN 128
+#define MAX_OS_FULLNAME_LEN 512
 
 
 /*

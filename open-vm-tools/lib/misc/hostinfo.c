@@ -256,11 +256,9 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
  *
  * Hostinfo_GetOSName --
  *
- *      Query the operating system and build a pair of strings to identify it.
- *      The two strings are osName and osNameFull.  Short osName strings are
- *      the same as you'd see in a VM's .vmx file.
+ *      Query the operating system and build a string to identify it.
  *
- *      The long names are a bit more descriptive:
+ *      Examples:
  *         Windows: <OS NAME> <SERVICE PACK> (BUILD <BUILD_NUMBER>)
  *         example: Windows XP Professional Service Pack 2 (Build 2600)
  *
@@ -268,31 +266,62 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
  *         example: Linux 2.4.18-3 Red Hat Linux release 7.3 (Valhalla)
  *
  * Return value:
- *      Returns TRUE on success and FALSE on failure.
- *      Returns the guest's full OS name (osFullName)
- *      Returns the guest's OS name in the same format as .vmx file (osName)
+ *      NULL  Unable to obtain the OS name.
+ *     !NULL  The OS name. The caller is responsible for freeing it.
  *
  * Side effects:
- *      None
+ *      Memory is allocated.
  *
  *-----------------------------------------------------------------------------
  */
 
-Bool
-Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osFullName buffer
-                   uint32 outBufLen,      // IN: length of osName buffer
-                   char *osFullName,      // OUT: Full OS name
-                   char *osName)          // OUT: OS name
+char *
+Hostinfo_GetOSName(void)
 {
-   Bool retval;
+   char *name;
+   Bool data = HostinfoOSNameCacheValid ? TRUE : HostinfoOSData();
 
-   retval = HostinfoOSNameCacheValid ? TRUE : HostinfoOSData();
-
-   if (retval) {
-       Str_Strcpy(osFullName, HostinfoCachedOSFullName, outBufFullLen);
-       Str_Strcpy(osName, HostinfoCachedOSName, outBufLen);
+   if (data) {
+       name = Util_SafeStrdup(HostinfoCachedOSFullName);
+   } else {
+      name = NULL;
    }
 
-   return retval;
+   return name;
+}
+
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetOSGuestString --
+ *
+ *      Query the operating system and build a string to identify it. The
+ *      returned string is the same as you'd see in a VM's .vmx file.
+ *
+ * Return value:
+ *      NULL  Unable to obtain the OS name.
+ *     !NULL  The OS name. The caller is responsible for freeing it.
+ *
+ * Side effects:
+ *      Memory is allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Hostinfo_GetOSGuestString(void)
+{
+   char *name;
+   Bool data = HostinfoOSNameCacheValid ? TRUE : HostinfoOSData();
+
+   if (data) {
+       name = Util_SafeStrdup(HostinfoCachedOSName);
+   } else {
+      name = NULL;
+   }
+
+   return name;
 }
 

@@ -1988,8 +1988,8 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    const char *powerOnScript = NULL;
    const char *resumeScript = NULL;
    const char *suspendScript = NULL;
-   char osNameFull[GUESTINFO_MAX_VALUE_SIZE];
-   char osName[GUESTINFO_MAX_VALUE_SIZE];
+   char *osName = NULL;
+   char *osNameFull = NULL;
    Bool foundHostName;
    char *tempDir = NULL;
    int wordSize = 32;
@@ -2023,11 +2023,17 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
 #else
    osFamily = GUEST_OS_FAMILY_LINUX;
 #endif
-   if (!(Hostinfo_GetOSName(sizeof osNameFull, sizeof osName, osNameFull,
-                            osName))) {
-      osNameFull[0] = 0;
-      osName[0] = 0;
+
+   osNameFull = Hostinfo_GetOSName();
+   if (osNameFull == NULL) {
+      osNameFull = Util_SafeStrdup("");
    }
+
+   osName = Hostinfo_GetOSGuestString();
+   if (osName == NULL) {
+      osName = Util_SafeStrdup("");
+   }
+
    wordSize = Hostinfo_GetSystemBitness();
    if (wordSize <= 0) {
       wordSize = 32;
@@ -2180,6 +2186,8 @@ abort:
    free(guestName);
    free(serializedBuffer);
    free(tempDir);
+   free(osName);
+   free(osNameFull);
 #else
    /*
     * FreeBSD.  Return an empty serialized property list.
@@ -2219,7 +2227,7 @@ abort:
    VixPropertyList_RemoveAllWithoutHandles(&propList);
    free(serializedBuffer);
 #endif // __FreeBSD__
-   
+
    return err;
 } // VixTools_GetToolsPropertiesImpl
 

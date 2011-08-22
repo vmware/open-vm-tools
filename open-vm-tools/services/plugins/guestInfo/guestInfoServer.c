@@ -233,8 +233,7 @@ static gboolean
 GuestInfoGather(gpointer data)
 {
    char name[GUESTINFO_MAX_VALUE_SIZE];
-   char osNameFull[GUESTINFO_MAX_VALUE_SIZE];
-   char osName[GUESTINFO_MAX_VALUE_SIZE];
+   char *osString = NULL;
    gboolean disableQueryDiskInfo;
    NicInfoV3 *nicInfo = NULL;
    GuestDiskInfo *diskInfo = NULL;
@@ -257,17 +256,25 @@ GuestInfoGather(gpointer data)
    }
 
    /* Gather all the relevant guest information. */
-   if (!Hostinfo_GetOSName(sizeof osNameFull, sizeof osName, osNameFull,
-                           osName)) {
+   osString = Hostinfo_GetOSName();
+   if (osString == NULL) {
       g_warning("Failed to get OS info.\n");
    } else {
-      if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME_FULL, osNameFull)) {
-         g_warning("Failed to update VMDB\n");
-      }
-      if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME, osName)) {
+      if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME_FULL, osString)) {
          g_warning("Failed to update VMDB\n");
       }
    }
+   free(osString);
+
+   osString = Hostinfo_GetOSGuestString();
+   if (osString == NULL) {
+      g_warning("Failed to get OS info.\n");
+   } else {
+      if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME, osString)) {
+         g_warning("Failed to update VMDB\n");
+      }
+   }
+   free(osString);
 
    disableQueryDiskInfo =
       g_key_file_get_boolean(ctx->config, CONFGROUPNAME_GUESTINFO,
