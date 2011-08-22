@@ -195,6 +195,8 @@ stat.formattime.failed = "ホスト時刻をフォーマットできません。
 
 stat.getsession.failed = "セッション ID の取得に失敗しました: %1$s\n"
 
+stat.getspeed.failed = "プロセッサ速度を取得できません。\n"
+
 stat.gettime.failed = "ホスト時刻を取得できません。\n"
 
 stat.maxmem.failed = "メモリ制限の取得に失敗しました: %1$s\n"

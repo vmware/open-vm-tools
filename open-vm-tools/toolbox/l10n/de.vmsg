@@ -168,7 +168,7 @@ help.upgrade =
    "%1$s: Funktionen für das Upgrade der VMware Tools.\n"
    "Nutzung: %2$s %3$s <Unterbefehl> [args]\n"
    "Unterbefehle:\n"
-   "   status: Überprüfen des Upgrade-Status für die VMware Tools.\n"
+   "   status: Überprüfen des Upgrade-Status für VMware Tools.\n"
    "   start: Starten eines automatischen Upgrades der VMware Tools.\n"
    "\n"
    "Damit die Upgrades funktionieren, muss der VMware Tools-Dienst ausgeführt werden.\n"
@@ -195,6 +195,8 @@ stat.formattime.failed = "Hostuhrzeit kann nicht formatiert werden.\n"
 
 stat.getsession.failed = "Sitzungs-ID konnte nicht abgerufen werden: %1$s\n"
 
+stat.getspeed.failed = "Prozessorgeschwindigkeit nicht abrufbar.\n"
+
 stat.gettime.failed = "Hostuhrzeit konnte nicht abgerufen werden.\n"
 
 stat.maxmem.failed = "Arbeitsspeicher-Limit konnte nicht abgerufen werden: %1$s\n"
@@ -219,5 +221,5 @@ upgrade.error.unknown_reply = "Unerwartete Antwort vom Host: %1$s\n"
 
 upgrade.started = "Das Upgrade wird durchgeführt.\n"
 
-upgrade.uptodate = "VMware Tools sind auf dem neuesten Stand.\n"
+upgrade.uptodate = "VMware Tools ist auf dem neuesten Stand.\n"
 
