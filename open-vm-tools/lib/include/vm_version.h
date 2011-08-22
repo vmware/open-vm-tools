@@ -95,6 +95,8 @@
    #define PRODUCT_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_BOOMERANG)
    #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#elif defined(VMX86_VIEW)
+   #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    #define PRODUCT_VERSION    4,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
 #endif
@@ -263,6 +265,7 @@
 #define VIEWY_VERSION "e.x.p"
 #define VMCFSDK_VERSION "e.x.p"
 #define PCOIP_VERSION "e.x.p"
+#define VIEW_VERSION "0.0.0"
 
 
 // VMRC_PLUGIN_VERSION should match PLAYER_VERSION but can't be e.x.p
@@ -302,7 +305,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 9
 #define USB_ARBITRATOR_VERSION_MINOR 0
-#define USB_ARBITRATOR_VERSION_Z     28
+#define USB_ARBITRATOR_VERSION_Z     33
 
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
@@ -318,7 +321,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.28"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.33"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -387,6 +390,8 @@
 #  define PRODUCT_VERSION_NUMBER BOOMERANG_VERSION
 #elif defined(VMX86_HBR_SERVER)
 #  define PRODUCT_VERSION_NUMBER HBR_SERVER_VERSION
+#elif defined(VMX86_VIEW)
+#  define PRODUCT_VERSION_NUMBER VIEW_VERSION
 #endif
 
 /*

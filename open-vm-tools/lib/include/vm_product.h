@@ -133,8 +133,9 @@
 
 #define PRODUCT_DDK_NAME MAKE_NAME("ESX DDK")
 
-#define PRODUCT_VDM_SHORT_NAME "VDM"
-#define PRODUCT_VDM_NAME MAKE_NAME("Virtual Desktop Manager")
+// XXX I think these are dead and can be removed -clayton
+// #define PRODUCT_VDM_SHORT_NAME "VDM"
+// #define PRODUCT_VDM_NAME MAKE_NAME("Virtual Desktop Manager")
 
 #define PRODUCT_VDDK_SHORT_NAME "VDDK"
 #define PRODUCT_VDDK_NAME MAKE_NAME("VMware Virtual Disk Development Kit")
@@ -149,6 +150,11 @@
 #define PRODUCT_BOOMERANG_NAME MAKE_NAME("Boomerang")
 
 #define PRODUCT_HBR_SERVER_NAME MAKE_NAME("vSphere Replication Server")
+
+#define PRODUCT_VIEW_SHORT_NAME "View"
+#define PRODUCT_VIEW_NAME MAKE_NAME("View")
+#define PRODUCT_VIEW_NAME_FOR_LICENSE PRODUCT_VIEW_NAME
+
 
 // XXX VMvisor is the underlying technology for possibly several products,
 // XXX not the product. Fix when names are decided.
@@ -182,7 +188,7 @@
  */
 #define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      291BA977-564B-4626-B868-A968FB8D4591
 #define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       70ABCAB7-6B45-4555-ABFC-8BC686E5ACFE
-#define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "VMware.VMwareRemoteConsole"
+#define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "VMware.RemoteConsole"
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED    PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "." \
                                                XSTR(VMRC_PLUGIN_VERSION_BASE)
 
@@ -244,6 +250,7 @@
       || defined(VMX86_WGS)      \
       || defined(VMX86_DESKTOP)  \
       || defined(VMX86_ENTERPRISE_DESKTOP) \
+      || defined(VMX86_VIEW)     \
       || defined(VMX86_MUI)      \
       || defined(VMX86_API)      \
       || defined(VMX86_VPX)      \
@@ -339,6 +346,8 @@
 # define PRODUCT_SHORT_NAME PRODUCT_BOOMERANG_NAME
 #elif defined(VMX86_HBR_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_HBR_SERVER_NAME
+#elif defined(VMX86_VIEW)
+# define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
 #endif
 
 

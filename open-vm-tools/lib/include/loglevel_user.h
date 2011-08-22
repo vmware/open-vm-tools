@@ -119,6 +119,7 @@
    LOGLEVEL_VAR(gui), \
    LOGLEVEL_VAR(guiWin32), \
    LOGLEVEL_VAR(mks), \
+   LOGLEVEL_VAR(mksSWB), \
    LOGLEVEL_VAR(mksClient), \
    LOGLEVEL_VAR(mksServer), \
    LOGLEVEL_VAR(mksKeyboard), \
@@ -128,6 +129,7 @@
    LOGLEVEL_VAR(mksHostOps), \
    LOGLEVEL_VAR(mksGLManager), \
    LOGLEVEL_VAR(mksGLShader), \
+   LOGLEVEL_VAR(mksGLState), \
    LOGLEVEL_VAR(vdpPlugin), \
    \
    /* user/sound */ \
@@ -176,6 +178,7 @@
    LOGLEVEL_VAR(smbios), \
    LOGLEVEL_VAR(acpi), \
    LOGLEVEL_VAR(acpiGPE), \
+   LOGLEVEL_VAR(vmgenc), \
    LOGLEVEL_VAR(xpmode), \
    LOGLEVEL_VAR(snapshot), \
    LOGLEVEL_VAR(asyncsocket), \
@@ -239,6 +242,7 @@
    LOGLEVEL_VAR(wrapLib),  \
    LOGLEVEL_VAR(digestlib), \
    LOGLEVEL_VAR(inputdevtap), \
+   LOGLEVEL_VAR(objlib), \
    LOGLEVEL_VAR(svgadevtap), \
    LOGLEVEL_VAR(masReceipt), /* lib/masReceipt */ \
    LOGLEVEL_VAR(serviceImpl), /* lib/serviceImpl */ \

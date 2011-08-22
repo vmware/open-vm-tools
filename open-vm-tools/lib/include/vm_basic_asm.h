@@ -603,8 +603,8 @@ uint16set(void *dst, uint16 val, size_t count)
         );
    return dst;
 #else
-   int dummy0;
-   int dummy1;
+   size_t dummy0;
+   void *dummy1;
 
    __asm__ __volatile__("\t"
                         "cld"            "\n\t"
@@ -633,8 +633,8 @@ uint32set(void *dst, uint32 val, size_t count)
         );
    return dst;
 #else
-   int dummy0;
-   int dummy1;
+   size_t dummy0;
+   void *dummy1;
 
    __asm__ __volatile__("\t"
                         "cld"            "\n\t"

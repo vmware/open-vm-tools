@@ -335,12 +335,16 @@ Bool    FileIO_Truncate(FileIODescriptor *file,
 
 int     FileIO_Sync(const FileIODescriptor *file);
 
+FileIOResult FileIO_GetAllocSize(const FileIODescriptor *fd,
+                                 uint64 *logicalBytes,
+                                 uint64 *allocedBytes);
 int64   FileIO_GetSize(const FileIODescriptor *fd);
 
-int64   FileIO_GetAllocSize(const FileIODescriptor *fd);
+Bool    FileIO_SetAllocSize(const FileIODescriptor *fd, uint64 size);
 
-Bool    FileIO_SetAllocSize(const FileIODescriptor *fd,
-                            uint64 size);
+FileIOResult FileIO_GetAllocSizeByPath(ConstUnicode pathName,
+                                       uint64 *logicalBytes,
+                                       uint64 *allocedBytes);
 
 int64   FileIO_GetSizeByPath(ConstUnicode pathName);
 

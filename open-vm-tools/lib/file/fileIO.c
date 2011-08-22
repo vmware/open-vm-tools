@@ -349,6 +349,58 @@ FileIO_Unlock(FileIODescriptor *file)  // IN/OUT:
 /*
  *----------------------------------------------------------------------
  *
+ * FileIO_GetSize --
+ *
+ *      Get size of file.
+ *
+ * Results:
+ *      Size of file or -1.
+ *
+ * Side effects:
+ *      errno is set on error.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int64
+FileIO_GetSize(const FileIODescriptor *fd)  // IN:
+{
+   int64 logicalBytes;
+
+   return (FileIO_GetAllocSize(fd, &logicalBytes, NULL) != FILEIO_SUCCESS) ?
+      -1 : logicalBytes;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_GetSizeByPath --
+ *
+ *      Get size of a file specified by path. 
+ *
+ * Results:
+ *      Size of file or -1.
+ *
+ * Side effects:
+ *      errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+int64
+FileIO_GetSizeByPath(ConstUnicode pathName)  // IN:
+{
+   int64 logicalBytes;
+
+   return (FileIO_GetAllocSizeByPath(pathName, &logicalBytes, NULL) !=
+      FILEIO_SUCCESS) ? -1 : logicalBytes;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * FileIO_Filename --
  *
  *      Returns the filename that was used to open a FileIODescriptor

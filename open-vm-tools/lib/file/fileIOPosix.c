@@ -1877,42 +1877,16 @@ exit:
 #endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||
           defined(sun) */
 
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_GetSize --
- *
- *      Get size of file.
- *
- * Results:
- *      Size of file or -1.
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-int64
-FileIO_GetSize(const FileIODescriptor *fd)  // IN:
-{
-   struct stat statBuf;
-
-   ASSERT(fd);
-
-   return (fstat(fd->posix, &statBuf) == -1) ? -1 : statBuf.st_size;
-}
-
 
 /*
  *----------------------------------------------------------------------
  *
  * FileIO_GetAllocSize --
  *
- *      Get allocated size of file.
+ *      Get logcial and alloced size of a file.
  *
  * Results:
- *      Size of file or -1.
+ *      FileIOResult.
  *
  * Side effects:
  *      None
@@ -1920,19 +1894,32 @@ FileIO_GetSize(const FileIODescriptor *fd)  // IN:
  *----------------------------------------------------------------------
  */
 
-int64
-FileIO_GetAllocSize(const FileIODescriptor *fd)  // IN
+FileIOResult
+FileIO_GetAllocSize(const FileIODescriptor *fd,     // IN:
+                    uint64 *logicalBytes,           // OUT:
+                    uint64 *allocedBytes)           // OUT:
 {
-   struct stat s;
+   struct stat statBuf;
 
    ASSERT(fd);
 
-   /*
-    * If you don't like the magic number 512, yell at the people
-    * who wrote sys/stat.h and tell them to add a #define for it.
-    */
+   if (fstat(fd->posix, &statBuf) == -1) {
+      return FileIOErrno2Result(errno);
+   }
 
-   return (fstat(fd->posix, &s) == -1) ? -1 : s.st_blocks * 512;
+   if (logicalBytes) {
+      *logicalBytes = statBuf.st_size;
+   }
+
+   if (allocedBytes) {
+     /*
+      * If you don't like the magic number 512, yell at the people
+      * who wrote sys/stat.h and tell them to add a #define for it.
+      */
+      *allocedBytes = statBuf.st_blocks * 512;
+   }
+
+   return FILEIO_SUCCESS;
 }
 
 
@@ -1959,13 +1946,18 @@ FileIO_SetAllocSize(const FileIODescriptor *fd,  // IN:
 {
 
 #if defined(__APPLE__) || defined(__linux__)
+   FileIOResult fret;
    uint64 curSize;
    uint64 preallocLen;
 #if defined(__APPLE__)
    fstore_t prealloc;
 #endif
 
-   curSize = FileIO_GetAllocSize(fd);
+   fret = FileIO_GetAllocSize(fd, NULL, &curSize);
+   if (!FileIO_IsSuccess(fret)) {
+      return FALSE;
+   }
+
    if (curSize > size) {
       errno = EINVAL;
 
@@ -1997,12 +1989,12 @@ FileIO_SetAllocSize(const FileIODescriptor *fd,  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * FileIO_GetSizeByPath --
+ * FileIO_GetAllocSizeByPath --
  *
- *      Get size of a file specified by path. 
+ *      Get the logcial and alloced size of a file specified by path.
  *
  * Results:
- *      Size of file or -1.
+ *      FileIOResult.
  *
  * Side effects:
  *      errno is set on error
@@ -2010,15 +2002,35 @@ FileIO_SetAllocSize(const FileIODescriptor *fd,  // IN:
  *----------------------------------------------------------------------
  */
 
-int64
-FileIO_GetSizeByPath(ConstUnicode pathName)  // IN:
+FileIOResult
+FileIO_GetAllocSizeByPath(ConstUnicode pathName,    // IN:
+                          uint64 *logicalBytes,     // OUT:
+                          uint64 *allocedBytes)     // OUT:
 {
-   int err;
-   struct stat statbuf;
+   struct stat statBuf;
 
-   err = Posix_Stat(pathName, &statbuf);
+   if (Posix_Stat(pathName, &statBuf) == -1) {
+      return FileIOErrno2Result(errno);
+   }
 
-   return (err == 0) ? statbuf.st_size : -1;
+   if (logicalBytes) {
+      *logicalBytes = statBuf.st_size;
+   }
+
+   if (allocedBytes) {
+#if __linux__ && defined(N_PLAT_NLM)
+      /* Netware doesn't have st_blocks.  Just fall back to GetSize. */
+      *allocedBytes = statBuf.st_size;
+#else
+     /*
+      * If you don't like the magic number 512, yell at the people
+      * who wrote sys/stat.h and tell them to add a #define for it.
+      */
+      *allocedBytes = statBuf.st_blocks * 512;
+#endif
+   }
+
+   return FILEIO_SUCCESS;
 }
 
 
