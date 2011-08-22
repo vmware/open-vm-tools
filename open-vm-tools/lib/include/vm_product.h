@@ -148,6 +148,8 @@
 
 #define PRODUCT_BOOMERANG_NAME MAKE_NAME("Boomerang")
 
+#define PRODUCT_HBR_SERVER_NAME MAKE_NAME("vSphere Replication Server")
+
 // XXX VMvisor is the underlying technology for possibly several products,
 // XXX not the product. Fix when names are decided.
 // #define PRODUCT_VMVISOR_NAME MAKE_NAME("VMvisor")
@@ -257,7 +259,8 @@
       || defined(VMX86_DDK)      \
       || defined(VMX86_VDDK)     \
       || defined(VMX86_NETDUMP) \
-      || defined(VMX86_BOOMERANG))
+      || defined(VMX86_BOOMERANG) \
+      || defined(VMX86_HBR_SERVER))
 #   if defined(_WIN32) || defined(__APPLE__)
       /*
        * XXX Make the product be Workstation by default if none of the defines
@@ -334,6 +337,8 @@
 # define PRODUCT_SHORT_NAME PRODUCT_NETDUMP_NAME
 #elif defined(VMX86_BOOMERANG)
 # define PRODUCT_SHORT_NAME PRODUCT_BOOMERANG_NAME
+#elif defined(VMX86_HBR_SERVER)
+# define PRODUCT_SHORT_NAME PRODUCT_HBR_SERVER_NAME
 #endif
 
 

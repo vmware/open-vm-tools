@@ -213,6 +213,7 @@
 #define V2V_FILE_VERSION 1,0,0,0
 #define FUSION_VERSION "e.x.p"
 #define BOOMERANG_VERSION "e.x.p"
+#define HBR_SERVER_VERSION "e.x.p"
 
 // These must match VIE_FILEVERSION above
 #define SYSIMAGE_VERSION "5.1.0"
@@ -286,7 +287,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 9
 #define USB_ARBITRATOR_VERSION_MINOR 0
-#define USB_ARBITRATOR_VERSION_Z     25
+#define USB_ARBITRATOR_VERSION_Z     27
 
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
@@ -302,7 +303,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.25"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.27"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -369,6 +370,8 @@
 #  define PRODUCT_VERSION_NUMBER VDDK_VERSION
 #elif defined(VMX86_BOOMERANG)
 #  define PRODUCT_VERSION_NUMBER BOOMERANG_VERSION
+#elif defined(VMX86_HBR_SERVER)
+#  define PRODUCT_VERSION_NUMBER HBR_SERVER_VERSION
 #endif
 
 /*
