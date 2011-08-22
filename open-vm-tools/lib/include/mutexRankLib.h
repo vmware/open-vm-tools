@@ -119,7 +119,6 @@
  *    licenseCheck > preference
  */
 
-#define RANK_sslStateLock            (RANK_libLockBase + 0x7010)
 #define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7020)
 #define RANK_batteryLock             (RANK_libLockBase + 0x7030)
 #define RANK_buttonLock              (RANK_libLockBase + 0x7040)
@@ -128,6 +127,7 @@
 #define RANK_workerLibLock           (RANK_libLockBase + 0x7060)
 #define RANK_configDbLock            (RANK_libLockBase + 0x7070)
 #define RANK_keyLocatorLock          (RANK_libLockBase + 0x7080)
+#define RANK_sslStateLock            (RANK_libLockBase + 0x7085)
 #define RANK_licenseCheckLock        (RANK_libLockBase + 0x7090)
 #define RANK_preferenceLock          (RANK_libLockBase + 0x7100)
 
