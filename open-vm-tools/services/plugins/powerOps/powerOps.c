@@ -349,9 +349,14 @@ PowerOpsRunScript(PowerOpState *state,
    GSource *watch;
    GError *err = NULL;
 
-   argv[0] = g_filename_from_utf8(script, -1, NULL, NULL, &err);
+   argv[0] = g_locale_from_utf8(script, -1, NULL, NULL, &err);
    if (err != NULL) {
-      g_error("Conversion error: %s\n", err->message);
+      g_debug("Conversion error: %s\n", err->message);
+      /*
+       * If we could not convert to current locate let's hope that
+       * what we have is a useable script name and use it directly.
+       */
+      argv[0] = g_strdup(script);
    }
    argv[1] = NULL;
 

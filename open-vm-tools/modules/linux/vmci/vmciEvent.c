@@ -45,8 +45,9 @@
 #endif
 #include "circList.h"  /* Must come after vmciVmkInt.h. */
 
-#define EVENT_MAGIC 0xEABE0000
+#define LGPFX "VMCIEvent: "
 
+#define EVENT_MAGIC 0xEABE0000
 
 typedef struct VMCISubscription {
    VMCIId         id;
@@ -167,6 +168,33 @@ VMCIEvent_Exit(void)
    }
    VMCI_CleanupLock(&subscriberLock);
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIEvent_Sync --
+ *
+ *      Use this as a synchronization point when setting globals, for example,
+ *      during device shutdown.
+ *
+ * Results:
+ *      TRUE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VMCIEvent_Sync(void)
+{
+   VMCILockFlags lockFlags;
+   VMCIEventGrabLock(&subscriberLock, &lockFlags);
+   VMCIEventReleaseLock(&subscriberLock, lockFlags);
+}
+
 
 #ifdef VMX86_TOOLS
 /*
@@ -509,8 +537,8 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    ASSERT(sub);
 
    if (event >= VMCI_EVENT_MAX || callback == NULL) {
-      VMCILOG(("VMCIEvent: Failed to subscribe to event %d cb %p data %p.\n",
-               event, callback, callbackData));
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to subscribe to event %d cb %p data %p.\n",
+                      event, callback, callbackData));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -544,6 +572,13 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    sub->callbackData = callbackData;
 
    VMCIEventGrabLock(&subscriberLock, &lockFlags);
+
+   /* Do not allow a new subscription if the device is being shutdown. */
+   if (VMCI_DeviceShutdown()) {
+      result = VMCI_ERROR_DEVICE_NOT_FOUND;
+      goto exit;
+   }
+
    for (success = FALSE, attempts = 0;
         success == FALSE && attempts < VMCI_EVENT_MAX_ATTEMPTS;
         attempts++) {
@@ -572,8 +607,9 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    } else {
       result = VMCI_ERROR_NO_RESOURCES;
    }
-   VMCIEventReleaseLock(&subscriberLock, lockFlags);
 
+exit:
+   VMCIEventReleaseLock(&subscriberLock, lockFlags);
    return result;
 #  undef VMCI_EVENT_MAX_ATTEMPTS
 }
@@ -622,7 +658,7 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
 /*
  *----------------------------------------------------------------------
  *
- * VMCIEventSubscribe --
+ * VMCIEvent_Subscribe --
  *
  *      Subscribe to given event. The callback specified can be fired
  *      in different contexts depending on what flag is specified while
@@ -642,19 +678,19 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIEventSubscribe)
+VMCI_EXPORT_SYMBOL(VMCIEvent_Subscribe)
 int
-VMCIEventSubscribe(VMCI_Event event,        // IN
-                   uint32 flags,            // IN
-                   VMCI_EventCB callback,   // IN
-                   void *callbackData,      // IN
-                   VMCIId *subscriptionID)  // OUT
+VMCIEvent_Subscribe(VMCI_Event event,        // IN
+                    uint32 flags,            // IN
+                    VMCI_EventCB callback,   // IN
+                    void *callbackData,      // IN
+                    VMCIId *subscriptionID)  // OUT
 {
    int retval;
    VMCISubscription *s = NULL;
 
    if (subscriptionID == NULL) {
-      VMCILOG(("VMCIEvent: Invalid arguments.\n"));
+      VMCI_DEBUG_LOG(4, (LGPFX"Invalid arguments.\n"));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -675,76 +711,6 @@ VMCIEventSubscribe(VMCI_Event event,        // IN
 }
 
 
-#ifndef VMKERNEL
-/*
- *----------------------------------------------------------------------
- *
- * VMCIEvent_Subscribe --
- *
- *      Subscribe to given event.
- *
- * Results:
- *      VMCI_SUCCESS on success, error code otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIEvent_Subscribe)
-int
-VMCIEvent_Subscribe(VMCI_Event event,        // IN
-                    uint32 flags,            // IN
-                    VMCI_EventCB callback,   // IN
-                    void *callbackData,      // IN
-                    VMCIId *subscriptionID)  // OUT
-{
-   return VMCIEventSubscribe(event, flags, callback, callbackData,
-                             subscriptionID);
-}
-#endif	/* !VMKERNEL  */
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCIEventUnsubscribe --
- *
- *      Unsubscribe to given event. Removes it from list and frees it.
- *      Will return callbackData if requested by caller.
- *
- * Results:
- *      VMCI_SUCCESS on success, error code otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIEventUnsubscribe)
-int
-VMCIEventUnsubscribe(VMCIId subID)   // IN
-{
-   VMCISubscription *s;
-
-   /*
-    * Return subscription. At this point we know noone else is accessing
-    * the subscription so we can free it.
-    */
-   s = VMCIEventUnregisterSubscription(subID);
-   if (s == NULL) {
-      return VMCI_ERROR_NOT_FOUND;
-
-   }
-   VMCI_FreeKernelMem(s, sizeof *s);
-
-   return VMCI_SUCCESS;
-}
-
-
-#ifndef VMKERNEL
 /*
  *----------------------------------------------------------------------
  *
@@ -766,7 +732,18 @@ VMCI_EXPORT_SYMBOL(VMCIEvent_Unsubscribe)
 int
 VMCIEvent_Unsubscribe(VMCIId subID)   // IN
 {
-   return VMCIEventUnsubscribe(subID);
-}
+   VMCISubscription *s;
 
-#endif /* !VMKERNEL  */
+   /*
+    * Return subscription. At this point we know noone else is accessing
+    * the subscription so we can free it.
+    */
+   s = VMCIEventUnregisterSubscription(subID);
+   if (s == NULL) {
+      return VMCI_ERROR_NOT_FOUND;
+
+   }
+   VMCI_FreeKernelMem(s, sizeof *s);
+
+   return VMCI_SUCCESS;
+}

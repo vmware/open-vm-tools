@@ -59,7 +59,6 @@ SUBDIRS += rpcVmx
 if USE_SLASH_PROC
    SUBDIRS += slashProc
 endif
-SUBDIRS += SLPv2Parser
 SUBDIRS += string
 SUBDIRS += stubs
 SUBDIRS += syncDriver

@@ -40,12 +40,17 @@
 #define _VMNET_DEF_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
+#define INCLUDE_ALLOW_VMCORE
 
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMK_MODULE
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_DISTRIBUTE
 #include "includeCheck.h"
+
+#define VMNET_NAME_BUFFER_LEN  128 /* Increased for i18n. */
+#define VMNET_COAL_SCHEME_NAME_LEN 16
+
 
 /*
  * capabilities - not all of these are implemented in the virtual HW
@@ -78,5 +83,9 @@
 #define VMNET_CAP_RDONLY_INETHDRS 0x800000 /* Modifies inet headers for TSO/CSUm */
 #define VMNET_CAP_NPA         0x1000000	/* Support NPA */
 #define VMNET_CAP_DCB         0x2000000	/* Support DCB */
-
+#define VMNET_CAP_OFFLOAD_8OFFSET 0x4000000 /* supports 8bit parameterized offsets */ 
+#define VMNET_CAP_OFFLOAD_16OFFSET 0x8000000 /* supports 16bit parameterized offsets */ 
+#define VMNET_CAP_IP6_CSUM_EXT_HDRS 0x10000000 /* support csum of ip6 ext hdrs */
+#define VMNET_CAP_TSO6_EXT_HDRS 0x20000000 /* support TSO for ip6 ext hdrs */
+#define VMNET_CAP_SCHED       0x40000000 /* compliant with network scheduling */
 #endif // _VMNET_DEF_H_

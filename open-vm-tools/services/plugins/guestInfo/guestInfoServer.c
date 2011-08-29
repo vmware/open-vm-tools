@@ -65,6 +65,9 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
+MY_ASSERTS(GI_SIZE_ASSERTS,
+           ASSERT_ON_COMPILE(GUESTINFO_MAX_VALUE_SIZE >= MAX_VALUE_LEN);
+)
 
 /**
  * Default poll interval is 30s (in milliseconds).
@@ -78,7 +81,8 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  */
 
 typedef struct _GuestInfoCache{
-   char value[INFO_MAX][MAX_VALUE_LEN]; /* Stores values of all key-value pairs. */
+   /* Stores values of all key-value pairs. */
+   char value[INFO_MAX][GUESTINFO_MAX_VALUE_SIZE];
    NicInfoV3     *nicInfo;
    GuestDiskInfo *diskInfo;
 } GuestInfoCache;
@@ -227,14 +231,15 @@ GuestInfoVMSupport(RpcInData *data)
 static gboolean
 GuestInfoGather(gpointer data)
 {
-   char name[255];
-   char osNameFull[MAX_VALUE_LEN];
-   char osName[MAX_VALUE_LEN];
+   char name[GUESTINFO_MAX_VALUE_SIZE];
+   char osNameFull[GUESTINFO_MAX_VALUE_SIZE];
+   char osName[GUESTINFO_MAX_VALUE_SIZE];
    gboolean disableQueryDiskInfo;
    NicInfoV3 *nicInfo = NULL;
    GuestDiskInfo *diskInfo = NULL;
 #if defined(_WIN32) || defined(linux)
    GuestMemInfo vmStats = {0};
+   gboolean perfmonEnabled;
 #endif
    ToolsAppCtx *ctx = data;
 
@@ -309,13 +314,19 @@ GuestInfoGather(gpointer data)
 
 #if defined(_WIN32) || defined(linux)
    /* Send the vmstats to the VMX. */
+   perfmonEnabled = !g_key_file_get_boolean(ctx->config,
+                                            CONFGROUPNAME_GUESTINFO,
+                                            CONFNAME_GUESTINFO_DISABLEPERFMON,
+                                            NULL);
 
-   if (!GuestInfo_PerfMon(&vmStats)) {
-      g_warning("Failed to get vmstats.\n");
-   } else {
-      vmStats.version = 1;
-      if (!GuestInfoUpdateVmdb(ctx, INFO_MEMORY, &vmStats)) {
-         g_warning("Failed to send vmstats.\n");
+   if (perfmonEnabled) {
+      if (!GuestInfo_PerfMon(&vmStats)) {
+         g_warning("Failed to get vmstats.\n");
+      } else {
+         vmStats.version = 1;
+         if (!GuestInfoUpdateVmdb(ctx, INFO_MEMORY, &vmStats)) {
+            g_warning("Failed to send vmstats.\n");
+         }
       }
    }
 #endif
@@ -451,7 +462,9 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
       }
 
       /* Update the value in the cache as well. */
-      Str_Strcpy(gInfoCache.value[infoType], (char *)info, MAX_VALUE_LEN);
+      Str_Strcpy(gInfoCache.value[infoType],
+                 (char *)info,
+                 sizeof gInfoCache.value[infoType]);
       break;
 
    case INFO_IPADDRESS:
@@ -506,7 +519,7 @@ nicinfo_fsm:
                /* Write preamble and serialized nic info to XDR stream. */
                if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
                    !xdr_GuestNicProto(&xdrs, &message)) {
-                  g_warning("Error serializing nic info v2 data.");
+                  g_warning("Error serializing nic info v%d data.", message.ver);
                   DynXdr_Destroy(&xdrs, TRUE);
                   return FALSE;
                }

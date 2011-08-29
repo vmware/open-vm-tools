@@ -1663,7 +1663,10 @@ DnDUIX11::RemoveBlock()
    g_debug("%s: enter\n", __FUNCTION__);
    if (m_blockAdded && !m_HGGetDataInProgress) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, m_HGStagingDir.c_str());
-      m_blockCtrl->RemoveBlock(m_blockCtrl->fd, m_HGStagingDir.c_str());
+      /* We need to make sure block subsystem has not been shut off. */
+      if (DnD_BlockIsReady(m_blockCtrl)) {
+         m_blockCtrl->RemoveBlock(m_blockCtrl->fd, m_HGStagingDir.c_str());
+      }
       m_blockAdded = false;
    } else {
       g_debug("%s: not removing block m_blockAdded %d m_HGGetDataInProgress %d\n",

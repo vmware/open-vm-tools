@@ -552,14 +552,17 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_DEBIAN_4, distroShortSize);
       } else if (strstr(distroLower, "5.0")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_5, distroShortSize);
+      } else if (strstr(distroLower, "6.0")) {
+         Str_Strcpy(distroShort, STR_OS_DEBIAN_6, distroShortSize);
       }
-   } else if (StrUtil_StartsWith(distroLower, "enterprise linux")) {
+   } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
+              StrUtil_StartsWith(distroLower, "oracle")) {
       /*
        * [root@localhost ~]# lsb_release -sd
        * "Enterprise Linux Enterprise Linux Server release 5.4 (Carthage)"
        *
        * Not sure why they didn't brand their releases as "Oracle Enterprise
-       * Linux".  Oh well.
+       * Linux". Oh well. It's fixed in 6.0, though.
        */
       Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
    } else if (strstr(distroLower, "fedora")) {
@@ -978,6 +981,46 @@ HostinfoOSData(void)
 
       Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS,
                    solarisRelease);
+#if defined(__APPLE__)
+   } else {
+      /*
+       * XXX: using the CF API to read the server / system plist is kind of a
+       * PITA. Get the output of system_profiler instead; downside is that any
+       * changes to the format of the output of system_profiler may break this.
+       */
+      SInt32 major;
+      const char *cmd = "/usr/sbin/system_profiler SPSoftwareDataType | "
+                        "/usr/bin/grep 'System Version:' | "
+                        "/usr/bin/cut -d : -f 2";
+      char *sysname = HostinfoGetCmdOutput(cmd);
+
+      if (sysname != NULL) {
+         char *trimmed = Unicode_Trim(sysname);
+         ASSERT_MEM_ALLOC(trimmed);
+         Str_Snprintf(osNameFull, sizeof osNameFull, "%s", trimmed);
+         free(trimmed);
+         free(sysname);
+      } else {
+         Log("%s: Failed to get output of system_profiler.\n", __FUNCTION__);
+      }
+
+      if (Gestalt(gestaltSystemVersionMajor, &major) == 0) {
+         /*
+          * XXX: some places in the code refer to Mac OS X Lion (10.7?)
+          * as "darwin11", which is not what this code is doing. Once it's
+          * released and we support it, this code may need some tweaking.
+          */
+         Str_Snprintf(osName, sizeof osName, "%s%d", STR_OS_MACOS, (int) major);
+      } else if (Gestalt(gestaltSystemVersion, &major) == 0) {
+         /* Pre 10.3 Mac OS doesn't have gestaltSystemVersionMajor. */
+         NOT_TESTED();
+         major = (major & 0xFF00) >> 8;
+         Str_Snprintf(osName, sizeof osName, "%s%x", STR_OS_MACOS, (int) major);
+      } else {
+         Log("Call to Gestalt() failed!\n");
+         Str_Snprintf(osName, sizeof osName, "%s", STR_OS_MACOS);
+      }
+#endif
    }
 
    if (Hostinfo_GetSystemBitness() == 64) {
@@ -1933,15 +1976,16 @@ Hostinfo_NestingSupported(void)
 /*
  *----------------------------------------------------------------------
  *
- *  Hostinfo_SLC64Supported --
+ *  Hostinfo_VCPUInfoBackdoor --
  *
- *      Access the backdoor with an SLC64 control query. This is used
- *      to determine if we are running inside a VM that supports SLC64.
- *      This function should only be called after determining that the
- *	backdoor is present with Hostinfo_TouchBackdoor().
+ *      Access the backdoor with an VCPU info query. This is used to
+ *      determine whether a VCPU supports a particular feature,
+ *      determined by 'bit'.  This function should only be called after
+ *      determining that the backdoor is present with
+ *      Hostinfo_TouchBackdoor().
  *
  * Results:
- *      TRUE if the outer VM supports SLC64.
+ *      TRUE if the outer VM supports the feature.
  *	FALSE otherwise.
  *
  * Side effects:
@@ -1951,7 +1995,7 @@ Hostinfo_NestingSupported(void)
  */
 
 Bool
-Hostinfo_SLC64Supported(void)
+Hostinfo_VCPUInfoBackdoor(unsigned bit)
 {
 #if defined(__i386__) || defined(__x86_64__)
    uint32 result;
@@ -1964,7 +2008,7 @@ Hostinfo_SLC64Supported(void)
    );
    /* If reserved bit is 1, this command wasn't implemented. */
    return (result & (1 << BDOOR_CMD_VCPU_RESERVED)) == 0 &&
-          (result & (1 << BDOOR_CMD_VCPU_SLC64))    != 0;
+          (result & (1 << bit))                     != 0;
 #endif
    return FALSE;
 }

@@ -48,8 +48,14 @@
 #include "win32u.h"
 #include <sys/stat.h>
 #include <time.h>
+#define  SECURITY_WIN32
+#include <Security.h>
 #else
 #include <unistd.h>
+#endif
+
+#ifdef sun
+#include <sys/stat.h>
 #endif
 
 #ifdef _MSC_VER
@@ -77,6 +83,7 @@
 #include "guestInfo.h"  // MAX_VALUE_LEN
 #include "hostinfo.h"
 #include "guest_os.h"
+#include "guest_msg_def.h"
 #include "conf.h"
 #include "vixCommands.h"
 #include "base64.h"
@@ -88,6 +95,8 @@
 #include "posix.h"
 #include "unicode.h"
 #include "hashTable.h"
+#include "su.h"
+#include "escape.h"
 
 #if defined(linux) || defined(_WIN32)
 #include "netutil.h"
@@ -114,8 +123,6 @@
 #endif
 
 #define SECONDS_BETWEEN_POLL_TEST_FINISHED     1
-
-#define MAX_PROCESS_LIST_RESULT_LENGTH    81920
 
 /*
  * This is used by the PRODUCT_VERSION_STRING macro.
@@ -196,6 +203,12 @@ typedef struct VixToolsStartProgramState {
  * a timer loop, and StartProgram of a very short lived program
  * followed immediately by a ListProcesses could miss the program
  * if we don't save it off for before the timer fires.
+ *
+ * Note that we save off the procState so that we keep an open
+ * handle to the process, to prevent its PID from being recycled.
+ * We need to hold this open until we no longer save the result
+ * of the exited program.  This is documented as 5 minutes
+ * (VIX_TOOLS_EXITED_PROGRAM_REAP_TIME) in the VMODL.
  */
 typedef struct VixToolsExitedProgramState {
    char                                *fullCommandLine;
@@ -205,6 +218,7 @@ typedef struct VixToolsExitedProgramState {
    int                                 exitCode;
    time_t                              endTime;
    Bool                                isRunning;
+   ProcMgr_AsyncProc                   *procState;
    struct VixToolsExitedProgramState   *next;
 } VixToolsExitedProgramState;
 
@@ -214,6 +228,38 @@ static VixToolsExitedProgramState *exitedProcessList = NULL;
  * How long we keep the info of exited processes about.
  */
 #define  VIX_TOOLS_EXITED_PROGRAM_REAP_TIME  (5 * 60)
+
+/*
+ * This is used to cache the results of ListProcessesEx when the reply
+ * is too large to fit over the backdoor, so multiple trips are needed
+ * to fetch it.
+ */
+static GHashTable *listProcessesResultsTable = NULL;
+
+/*
+ * How long to keep around cached results in case the Vix side dies.
+ *
+ * Err on the very large; would hate to have it kick in just because
+ * the other side is slow or there's an immense ammount of data.
+ */
+#define  SECONDS_UNTIL_LISTPROC_CACHE_CLEANUP   (10 * 60)
+
+typedef struct VixToolsCachedListProcessesResult {
+   char *resultBuffer;
+   size_t resultBufferLen;
+#ifdef _WIN32
+   wchar_t *userName;
+#else
+   uid_t euid;
+#endif
+} VixToolsCachedListProcessesResult;
+
+/*
+ * Simple unique hashkey used for ListProcessesEx results.
+ */
+static uint32 listProcessesResultsKey = 1;
+
+static void VixToolsFreeCachedResult(gpointer p);
 
 /*
  * This structure is designed to implemente CreateTemporaryFile,
@@ -256,10 +302,17 @@ static VixError VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg);
 static gboolean VixToolsMonitorAsyncProc(void *clientData);
 static gboolean VixToolsMonitorStartProgram(void *clientData);
 
-static void VixToolsPrintFileInfo(char *filePathName,
+static void VixToolsPrintFileInfo(const char *filePathName,
                                   char *fileName,
+                                  Bool escapeStrs,
                                   char **destPtr,
                                   char *endDestPtr);
+
+static int VixToolsGetFileExtendedInfoLength(const char *filePathName,
+                                             const char *fileName);
+
+static char *VixToolsPrintFileExtendedInfoEx(const char *filePathName,
+                                             const char *fileName);
 
 static void VixToolsPrintFileExtendedInfo(const char *filePathName,
                                           const char *fileName,
@@ -284,17 +337,17 @@ static const char *fileExtendedInfoWindowsFormatString = "<fxi>"
                                           "<ct>%"FMT64"u</ct>"
                                           "<at>%"FMT64"u</at>"
                                           "</fxi>";
-#elif defined(linux)
+#elif defined(linux) || defined(sun)
 static const char *fileExtendedInfoLinuxFormatString = "<fxi>"
                                           "<Name>%s</Name>"
                                           "<ft>%d</ft>"
                                           "<fs>%"FMT64"u</fs>"
                                           "<mt>%"FMT64"u</mt>"
-                                          "<ct>%"FMT64"u</ct>"
                                           "<at>%"FMT64"u</at>"
                                           "<uid>%d</uid>"
                                           "<gid>%d</gid>"
                                           "<perm>%d</perm>"
+                                          "<slt>%s</slt>"
                                           "</fxi>";
 #endif
 
@@ -309,10 +362,10 @@ static void VixToolsFreeStartProgramState(VixToolsStartProgramState *asyncState)
 static void VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state);
 static void VixToolsFreeExitedProgramState(VixToolsExitedProgramState *state);
 
-static VixError VixToolsStartProgramImpl(char *requestName,
-                                         char *programPath,
-                                         char *arguments,
-                                         char *workingDir,
+static VixError VixToolsStartProgramImpl(const char *requestName,
+                                         const char *programPath,
+                                         const char *arguments,
+                                         const char *workingDir,
                                          int numEnvVars,
                                          const char **envVars,
                                          Bool startMinimized,
@@ -352,7 +405,16 @@ static VixError VixToolsGetAllEnvVarsForUser(void *userToken, char **result);
 static VixError VixToolsWriteVariable(VixCommandRequestHeader *requestMsg);
 
 static VixError VixToolsListProcesses(VixCommandRequestHeader *requestMsg,
+                                      size_t maxBufferSize,
                                       char **result);
+
+static VixError VixToolsPrintProcInfoEx(DynBuf *dstBuffer,
+                                        const char *name,
+                                        uint64 pid,
+                                        const char *user,
+                                        int start,
+                                        int exitCode,
+                                        int exitTime);
 
 static VixError VixToolsListDirectory(VixCommandRequestHeader *requestMsg,
                                       size_t maxBufferSize,
@@ -361,6 +423,9 @@ static VixError VixToolsListDirectory(VixCommandRequestHeader *requestMsg,
 static VixError VixToolsListFiles(VixCommandRequestHeader *requestMsg,
                                   size_t maxBufferSize,
                                   char **result);
+
+static VixError VixToolsInitiateFileTransferFromGuest(VixCommandRequestHeader *requestMsg,
+                                                      char **result);
 
 static VixError VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg);
 
@@ -384,9 +449,21 @@ static VixError VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,
 static VixError VixToolsListFileSystems(VixCommandRequestHeader *requestMsg,
                                         char **result);
 
+#if defined(_WIN32) || defined(linux)
+static VixError VixToolsPrintFileSystemInfo(char **destPtr,
+                                            const char *endDestPtr,
+                                            const char *name,
+                                            uint64 size,
+                                            uint64 freeSpace,
+                                            const char *type,
+                                            Bool escapeStrs,
+                                            Bool *truncated);
+#endif
+
 static VixError VixToolsValidateCredentials(VixCommandRequestHeader *requestMsg);
 
 static VixError VixToolsAcquireCredentials(VixCommandRequestHeader *requestMsg,
+                                           GMainLoop *eventQueue,
                                            char **result);
 
 static VixError VixToolsReleaseCredentials(VixCommandRequestHeader *requestMsg);
@@ -435,7 +512,13 @@ static int VixToolsEnvironmentTableEntryToEnvpEntry(const char *key, void *value
                                                     void *clientData);
 
 static void VixToolsFreeEnvp(char **envp);
+
 #endif
+
+static VixError VixToolsRewriteError(uint32 opCode,
+                                     VixError origError);
+
+static size_t VixToolsXMLStringEscapedLen(const char *str, Bool escapeStr);
 
 
 /*
@@ -490,6 +573,11 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
                               NULL);   // rpc callback
    HgfsServerManager_Register(&gVixHgfsBkdrConn);
 #endif
+
+   listProcessesResultsTable = g_hash_table_new_full(g_int_hash, g_int_equal,
+                                                     free,
+                                                     VixToolsFreeCachedResult);
+
 
    return(err);
 } // VixTools_Initialize
@@ -780,23 +868,40 @@ VixTools_RunProgram(VixCommandRequestHeader *requestMsg, // IN
 {
    VixError err = VIX_OK;
    VixMsgRunProgramRequest *runProgramRequest;
-   char *commandLine = NULL;
-   char *commandLineArgs = NULL;
+   const char *commandLine = NULL;
+   const char *commandLineArgs = NULL;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    int64 pid;
    static char resultBuffer[32];
+   VMAutomationRequestParser parser;
+
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *runProgramRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    runProgramRequest = (VixMsgRunProgramRequest *) requestMsg;
-   commandLine = ((char *) runProgramRequest) + sizeof(*runProgramRequest);
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                          runProgramRequest->programNameLength,
+                                            &commandLine);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if (0 == *commandLine) {
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
    if (runProgramRequest->commandLineArgsLength > 0) {
-      commandLineArgs = commandLine 
-                           + runProgramRequest->programNameLength 
-                           + 1;
+      err = VMAutomationRequestParserGetString(&parser,
+                                     runProgramRequest->commandLineArgsLength,
+                                               &commandLineArgs);
+      if (VIX_OK != err) {
+         goto abort;
+      }
    }
 
 #ifdef _WIN32
@@ -865,37 +970,71 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
 {
    VixError err = VIX_OK;
    VixMsgStartProgramRequest *startProgramRequest;
-   char *programPath = NULL;
-   char *arguments = NULL;
-   char *workingDir = NULL;
+   const char *programPath = NULL;
+   const char *arguments = NULL;
+   const char *workingDir = NULL;
    const char **envVars = NULL;
-   char *bp = NULL;
+   const char *bp = NULL;
    Bool impersonatingVMWareUser = FALSE;
    int64 pid = -1;
    int i;
    void *userToken = NULL;
    static char resultBuffer[32];    // more than enough to hold a 64 bit pid
    VixToolsExitedProgramState *exitState;
+   VMAutomationRequestParser parser;
+
+   err = VMAutomationRequestParserInit(&parser,
+                                      requestMsg, sizeof *startProgramRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    startProgramRequest = (VixMsgStartProgramRequest *) requestMsg;
-   programPath = ((char *) startProgramRequest) + sizeof(*startProgramRequest);
-   if (0 == *programPath) {
+
+   /*
+    * It seems that this functions uses the a string format that includes
+    * the '\0' terminator in the length fields.
+    * This is different from other "old" vix guest command format.
+    */
+   err = VMAutomationRequestParserGetOptionalString(&parser,
+                                      startProgramRequest->programPathLength,
+                                            &programPath);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   if (NULL == programPath || 0 == *programPath) {
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
-   bp = programPath + startProgramRequest->programPathLength;
-   if (startProgramRequest->argumentsLength > 0) {
-      arguments = bp;
-      bp += startProgramRequest->argumentsLength;
+
+   err = VMAutomationRequestParserGetOptionalString(&parser,
+                                          startProgramRequest->argumentsLength,
+                                                    &arguments);
+   if (VIX_OK != err) {
+      goto abort;
    }
-   if (startProgramRequest->workingDirLength > 0) {
-      workingDir = bp;
-      if ('\0' == workingDir[0]) {
-         /* Let's treat an empty string the same as NULL: use the default. */
-         workingDir = NULL;
-      }
-      bp += startProgramRequest->workingDirLength;
+
+   err = VMAutomationRequestParserGetOptionalString(&parser,
+                                         startProgramRequest->workingDirLength,
+                                                    &workingDir);
+   if (VIX_OK != err) {
+      goto abort;
    }
+
+   if (NULL != workingDir && '\0' == workingDir[0]) {
+      /* Let's treat an empty string the same as NULL: use the default. */
+      workingDir = NULL;
+   }
+
+   err = VMAutomationRequestParserGetOptionalStrings(&parser,
+                                             startProgramRequest->numEnvVars,
+                                             startProgramRequest->envVarLength,
+                                                    &bp);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if (startProgramRequest->numEnvVars > 0) {
       envVars = Util_SafeMalloc(sizeof(char*) * (startProgramRequest->numEnvVars + 1));
       for (i = 0; i < startProgramRequest->numEnvVars; i++) {
@@ -916,7 +1055,10 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   Debug("%s: args: '%s' '%s' '%s'\n", __FUNCTION__, programPath, arguments, workingDir);
+   Debug("%s: args: progamPath: '%s', arguments: '%s'', workingDir: %s'\n",
+         __FUNCTION__, programPath,
+        (NULL != arguments) ? arguments : "",
+        (NULL != workingDir) ? workingDir : "");
 
    err = VixToolsStartProgramImpl(requestName,
                                   programPath,
@@ -965,6 +1107,7 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
       exitState->endTime = 0;
       exitState->isRunning = TRUE;
       exitState->next = NULL;
+      exitState->procState = NULL;
 
       // add it to the list of exited programs
       VixToolsUpdateExitedProgramList(exitState);
@@ -1004,8 +1147,8 @@ abort:
 
 VixError
 VixToolsRunProgramImpl(char *requestName,      // IN
-                       char *commandLine,      // IN
-                       char *commandLineArgs,  // IN
+                       const char *commandLine,      // IN
+                       const char *commandLineArgs,  // IN
                        int  runProgramOptions, // IN
                        void *userToken,        // IN
                        void *eventQueue,       // IN
@@ -1204,16 +1347,16 @@ abort:
  */
 
 VixError
-VixToolsStartProgramImpl(char *requestName,      // IN
-                         char *programPath,      // IN
-                         char *arguments,        // IN
-                         char *workingDir,       // IN
-                         int numEnvVars,         // IN
-                         const char **envVars,   // IN
-                         Bool startMinimized,    // IN
-                         void *userToken,        // IN
-                         void *eventQueue,       // IN
-                         int64 *pid)             // OUT
+VixToolsStartProgramImpl(const char *requestName,            // IN
+                         const char *programPath,            // IN
+                         const char *arguments,              // IN
+                         const char *workingDir,             // IN
+                         int numEnvVars,                     // IN
+                         const char **envVars,               // IN
+                         Bool startMinimized,                // IN
+                         void *userToken,                    // IN
+                         void *eventQueue,                   // IN
+                         int64 *pid)                         // OUT
 {
    VixError err = VIX_OK;
    char *fullCommandLine = NULL;
@@ -1232,6 +1375,11 @@ VixToolsStartProgramImpl(char *requestName,      // IN
    Bool envBlockFromMalloc = TRUE;
 #endif
    GSource *timer;
+
+   /*
+    * Initialize this here so we can call free on its member variables in abort
+    */
+   memset(&procArgs, 0, sizeof procArgs);
 
    if (NULL != pid) {
       *pid = (int64) -1;
@@ -1302,7 +1450,7 @@ VixToolsStartProgramImpl(char *requestName,      // IN
 
       free(username);
 #elif defined(_WIN32)
-      workingDirectory = workingDir;
+      workingDirectory = (char *)workingDir;
 #else
       /*
        * we shouldn't ever get here for unsupported guests, so just
@@ -1344,7 +1492,6 @@ VixToolsStartProgramImpl(char *requestName,      // IN
     */
    asyncState = Util_SafeCalloc(1, sizeof *asyncState);
 
-   memset(&procArgs, 0, sizeof procArgs);
 #if defined(_WIN32)
    if (NULL != envVars) {
       err = VixToolsEnvironToEnvBlock(envVars, &envBlock);
@@ -1472,6 +1619,8 @@ VixToolsMonitorAsyncProc(void *clientData) // IN
    ProcMgr_Pid pid = -1;
    int result = -1;
    GSource *timer;
+   char *requestName = NULL;
+   VixRunProgramOptions runProgramOptions;
 
    asyncState = (VixToolsRunProgramState *)clientData;
    ASSERT(asyncState);
@@ -1491,7 +1640,7 @@ VixToolsMonitorAsyncProc(void *clientData) // IN
    return FALSE;
 
 done:
-   
+
    /*
     * We need to always check the exit code, even if there is no need to
     * report it. On POSIX systems, ProcMgr_GetExitCode() does things like
@@ -1502,22 +1651,26 @@ done:
    if (0 != result) {
       exitCode = -1;
    }
-   
+
+   runProgramOptions = asyncState->runProgramOptions;
+   requestName = Util_SafeStrdup(asyncState->requestName);
+
+   VixToolsFreeRunProgramState(asyncState);
+
    /*
     * We may just be running to clean up after running a script, with the
     * results already reported.
     */
    if ((NULL != reportProgramDoneProc)
-       && !(asyncState->runProgramOptions & VIX_RUNPROGRAM_RETURN_IMMEDIATELY)) {
-      (*reportProgramDoneProc)(asyncState->requestName, 
+       && !(runProgramOptions & VIX_RUNPROGRAM_RETURN_IMMEDIATELY)) {
+      (*reportProgramDoneProc)(requestName,
                                err,
                                exitCode,
                                (int64) pid,
                                reportProgramDoneData);
    }
 
-   VixToolsFreeRunProgramState(asyncState);
-
+   free(requestName);
    return FALSE;
 } // VixToolsMonitorAsyncProc
 
@@ -1594,6 +1747,7 @@ done:
    exitState->endTime = time(NULL);
    exitState->isRunning = FALSE;
    exitState->next = NULL;
+   exitState->procState = asyncState->procState;
 
    // add it to the list of exited programs
    VixToolsUpdateExitedProgramList(exitState);
@@ -1643,6 +1797,11 @@ VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state)        // IN
             epList->exitCode = state->exitCode;
             epList->endTime = state->endTime;
             epList->isRunning = FALSE;
+            epList->procState = state->procState;
+
+            // don't let the procState be free'd
+            state->procState = NULL;
+
             VixToolsFreeExitedProgramState(state);
             // NULL it out so we don't try to add it later in this function
             state  = NULL;
@@ -1660,6 +1819,17 @@ VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state)        // IN
    last = NULL;
    epList = exitedProcessList;
    while (epList) {
+      /*
+       * Sanity check we don't have a duplicate entry -- this should
+       * only happen when the OS re-uses the PID before we reap the record
+       * of its exit status.
+       */
+      if (state) {
+         if (state->pid == epList->pid) {
+            // XXX just whine for M/N, needs better fix in *main
+            Warning("%s: found duplicate entry in exitedProcessList\n", __FUNCTION__);
+         }
+      }
       if (!epList->isRunning &&
           (epList->endTime < (now - VIX_TOOLS_EXITED_PROGRAM_REAP_TIME))) {
          if (last) {
@@ -1715,6 +1885,10 @@ VixToolsFreeExitedProgramState(VixToolsExitedProgramState *exitState) // IN
 
    free(exitState->fullCommandLine);
    free(exitState->user);
+
+   if (NULL != exitState->procState) {
+      ProcMgr_Free(exitState->procState);
+   }
 
    free(exitState);
 } // VixToolsFreeExitedProgramState
@@ -1815,8 +1989,8 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    const char *powerOnScript = NULL;
    const char *resumeScript = NULL;
    const char *suspendScript = NULL;
-   char osNameFull[MAX_VALUE_LEN];
-   char osName[MAX_VALUE_LEN];
+   char osNameFull[GUESTINFO_MAX_VALUE_SIZE];
+   char osName[GUESTINFO_MAX_VALUE_SIZE];
    Bool foundHostName;
    char *tempDir = NULL;
    int wordSize = 32;
@@ -2398,12 +2572,26 @@ VixToolsReadRegistry(VixCommandRequestHeader *requestMsg,  // IN
    void *userToken = NULL;
    char *valueStr = NULL;
    VixMsgRegistryRequest *registryRequest;
+   VMAutomationRequestParser parser;
 
    /*
     * Parse the argument
     */
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *registryRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    registryRequest = (VixMsgRegistryRequest *) requestMsg;
-   registryPathName = ((char *) registryRequest) + sizeof(*registryRequest);
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            registryRequest->registryKeyLength,
+                                            &(const char*)registryPathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if (0 == *registryPathName) {
       err = VIX_E_INVALID_ARG;
       goto abort;
@@ -2499,17 +2687,30 @@ VixToolsWriteRegistry(VixCommandRequestHeader *requestMsg) // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixMsgRegistryRequest *registryRequest;
+   VMAutomationRequestParser parser;
 
    /*
     * Parse the argument
     */
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *registryRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    registryRequest = (VixMsgRegistryRequest *) requestMsg;
-   registryPathName = ((char *) registryRequest) + sizeof(*registryRequest);
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            registryRequest->registryKeyLength,
+                                            &(const char*)registryPathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if (0 == *registryPathName) {
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
-   registryData = registryPathName + registryRequest->registryKeyLength + 1;
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
@@ -2518,6 +2719,13 @@ VixToolsWriteRegistry(VixCommandRequestHeader *requestMsg) // IN
    impersonatingVMWareUser = TRUE;
 
    if (VIX_PROPERTYTYPE_INTEGER == registryRequest->expectedRegistryKeyType) {
+      err = VMAutomationRequestParserGetData(&parser,
+                                             registryRequest->dataToWriteSize,
+                                             &(const char*)registryData);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       intValue = *((int *) registryData);
 
       errResult = Registry_WriteInteger(registryPathName, intValue);
@@ -2526,6 +2734,13 @@ VixToolsWriteRegistry(VixCommandRequestHeader *requestMsg) // IN
          goto abort;
       }
    } else if (VIX_PROPERTYTYPE_STRING == registryRequest->expectedRegistryKeyType) {
+      err = VMAutomationRequestParserGetOptionalString(&parser,
+                                            registryRequest->dataToWriteSize,
+                                               &(const char*)registryData);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       errResult = Registry_WriteString(registryPathName, registryData);
       if (ERROR_SUCCESS != errResult) {
          err = Vix_TranslateSystemError(errResult);
@@ -2535,7 +2750,6 @@ VixToolsWriteRegistry(VixCommandRequestHeader *requestMsg) // IN
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
-
 
 abort:
    if (impersonatingVMWareUser) {
@@ -2572,19 +2786,33 @@ VixError
 VixToolsDeleteObject(VixCommandRequestHeader *requestMsg)  // IN
 {
    VixError err = VIX_OK;
-   char *pathName = NULL;
+   const char *pathName = NULL;
    int resultInt;
    Bool resultBool;
    Bool success;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixMsgSimpleFileRequest *fileRequest;
+   VMAutomationRequestParser parser;
 
    /*
     * Parse the argument
     */
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *fileRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    fileRequest = (VixMsgSimpleFileRequest *) requestMsg;
-   pathName = ((char *) fileRequest) + sizeof(*fileRequest);
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            fileRequest->guestPathNameLength,
+                                            &pathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if (0 == *pathName) {
       err = VIX_E_INVALID_ARG;
       goto abort;
@@ -2597,7 +2825,8 @@ VixToolsDeleteObject(VixCommandRequestHeader *requestMsg)  // IN
    impersonatingVMWareUser = TRUE;
 
    ///////////////////////////////////////////
-   if (VIX_COMMAND_DELETE_GUEST_FILE == requestMsg->opCode) {
+   if ((VIX_COMMAND_DELETE_GUEST_FILE == requestMsg->opCode) ||
+       (VIX_COMMAND_DELETE_GUEST_FILE_EX == requestMsg->opCode)) {
       /*
        * if pathName is an invalid symbolic link, we still want to delete it.
        */
@@ -2677,6 +2906,101 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsDeleteDirectory --
+ *
+ *    Delete a directory on the guest.
+ *
+ * Return value:
+ *    TRUE on success
+ *    FALSE on failure
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsDeleteDirectory(VixCommandRequestHeader *requestMsg)  // IN
+{
+   VixError err = VIX_OK;
+   const char *directoryPath = NULL;
+   Bool success;
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   Bool recursive = TRUE;
+   VixMsgDeleteDirectoryRequest *deleteDirectoryRequest;
+   VMAutomationRequestParser parser;
+
+   ASSERT(NULL != requestMsg);
+
+   /*
+    * Parse the argument
+    */
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg,
+                                       sizeof *deleteDirectoryRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   deleteDirectoryRequest = (VixMsgDeleteDirectoryRequest *) requestMsg;
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            deleteDirectoryRequest->guestPathNameLength,
+                                            &directoryPath);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   if ('\0' == *directoryPath) {
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+
+   recursive = deleteDirectoryRequest->recursive;
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   success = File_Exists(directoryPath);
+   if (!success) {
+      err = VIX_E_FILE_NOT_FOUND;
+      goto abort;
+   }
+
+   if (File_IsSymLink(directoryPath) || File_IsFile(directoryPath)) {
+      err = VIX_E_NOT_A_DIRECTORY;
+      goto abort;
+   }
+
+   if (recursive) {
+      success = File_DeleteDirectoryTree(directoryPath);
+   } else {
+      success = File_DeleteEmptyDirectory(directoryPath);
+   }
+
+   if (!success) {
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      goto abort;
+   }
+
+abort:
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+
+   return err;
+} // VixToolsDeleteDirectory
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixToolsObjectExists --
  *
  *    Find a file on the guest.
@@ -2703,12 +3027,26 @@ VixToolsObjectExists(VixCommandRequestHeader *requestMsg,  // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixMsgSimpleFileRequest *fileRequest;
+   VMAutomationRequestParser parser;
 
    /*
     * Parse the argument
     */
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *fileRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    fileRequest = (VixMsgSimpleFileRequest *) requestMsg;
-   pathName = ((char *) fileRequest) + sizeof(*fileRequest);
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            fileRequest->guestPathNameLength,
+                                            (const char **)&pathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if (0 == *pathName) {
       err = VIX_E_INVALID_ARG;
       goto abort;
@@ -2786,14 +3124,27 @@ VixError
 VixToolsOpenUrl(VixCommandRequestHeader *requestMsg) // IN
 {
    VixError err = VIX_OK;
-   char *url = NULL;
+   const char *url = NULL;
    char *windowState = "default";
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixMsgOpenUrlRequest *openUrlRequest;
+   VMAutomationRequestParser parser;
+
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *openUrlRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    openUrlRequest = (VixMsgOpenUrlRequest *) requestMsg;
-   url = ((char *) openUrlRequest) + sizeof(*openUrlRequest);
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            openUrlRequest->urlLength,
+                                            &url);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
@@ -2915,10 +3266,23 @@ VixToolsReadVariable(VixCommandRequestHeader *requestMsg,   // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixMsgReadVariableRequest *readRequest;
-   char *valueName = NULL;
+   const char *valueName = NULL;
+   VMAutomationRequestParser parser;
+
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *readRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    readRequest = (VixMsgReadVariableRequest *) requestMsg;
-   valueName = ((char *) readRequest) + sizeof(*readRequest);
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            readRequest->nameLength,
+                                            &valueName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
@@ -3046,6 +3410,14 @@ VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,   // IN
    void *userToken = NULL;
    VixMsgReadEnvironmentVariablesRequest *readRequest;
    char *results = NULL;
+   VMAutomationRequestParser parser;
+   const char *names = NULL;
+
+   err = VMAutomationRequestParserInit(&parser,
+                                      requestMsg, sizeof *readRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    readRequest = (VixMsgReadEnvironmentVariablesRequest *) requestMsg;
 
@@ -3055,8 +3427,15 @@ VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,   // IN
    }
    impersonatingVMWareUser = TRUE;
 
+   err = VMAutomationRequestParserGetOptionalStrings(&parser,
+                                                     readRequest->numNames,
+                                                     readRequest->namesLength,
+                                                     &names);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if (readRequest->numNames > 0) {
-      char *names = ((char *) readRequest) + sizeof(*readRequest);
       err = VixToolsGetMultipleEnvVarsForUser(userToken, names,
                                               readRequest->numNames,
                                               &results);
@@ -3128,12 +3507,34 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
       value = VixToolsGetEnvFromUserEnvironment(env, names);
       if (NULL != value) {
          char *tmp = resultLocal;
-         resultLocal = Str_Asprintf(NULL, "%s<ev>%s=%s</ev>",
-                                    tmp, names, value);
-         free(tmp);
+         char *tmpVal;
+         char *escapedName;
+
+         escapedName = VixToolsEscapeXMLString(names);
+         if (NULL == escapedName) {
+            err = VIX_E_OUT_OF_MEMORY;
+            goto loopCleanup;
+         }
+
+         tmpVal = VixToolsEscapeXMLString(value);
+         if (NULL == tmpVal) {
+            err = VIX_E_OUT_OF_MEMORY;
+            goto loopCleanup;
+         }
          free(value);
+         value = tmpVal;
+
+         resultLocal = Str_Asprintf(NULL, "%s<ev>%s=%s</ev>",
+                                    tmp, escapedName, value);
+         free(tmp);
          if (NULL == resultLocal) {
             err = VIX_E_OUT_OF_MEMORY;
+         }
+
+      loopCleanup:
+         free(value);
+         free(escapedName);
+         if (VIX_OK != err) {
             goto abort;
          }
       }
@@ -3142,9 +3543,11 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
    }
 
    *result = resultLocal;
+   resultLocal = NULL;
    err = VIX_OK;
 
 abort:
+   free(resultLocal);
    VixToolsDestroyUserEnvironment(env);
 
    return err;
@@ -3193,6 +3596,16 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
 
    while ((envVar = VixToolsGetNextEnvVar(itr)) != NULL) {
       char *tmp = resultLocal;
+      char *tmpVal;
+
+      tmpVal = VixToolsEscapeXMLString(envVar);
+      free(envVar);
+      if (NULL == tmpVal) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+      envVar = tmpVal;
+
       resultLocal = Str_Asprintf(NULL, "%s<ev>%s</ev>", tmp, envVar);
       free(tmp);
       free(envVar);
@@ -3331,24 +3744,41 @@ VixError
 VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
 {
    VixError err = VIX_OK;
-   char *srcFilePathName = NULL;
-   char *destFilePathName = NULL;
+   const char *srcFilePathName = NULL;
+   const char *destFilePathName = NULL;
    Bool success;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    Bool overwrite = TRUE;
+   VMAutomationRequestParser parser;
+   int srcPathLen, destPathLen;
+
 
    if (VIX_COMMAND_MOVE_GUEST_FILE == requestMsg->opCode) {
       VixCommandRenameFileRequest *renameRequest;
+
+      err = VMAutomationRequestParserInit(&parser,
+                                          requestMsg, sizeof *renameRequest);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       renameRequest = (VixCommandRenameFileRequest *) requestMsg;
-      srcFilePathName = ((char *) renameRequest) + sizeof(*renameRequest);
-      destFilePathName = srcFilePathName + renameRequest->oldPathNameLength + 1;
+      srcPathLen = renameRequest->oldPathNameLength;
+      destPathLen = renameRequest->newPathNameLength;
    } else if ((VIX_COMMAND_MOVE_GUEST_FILE_EX == requestMsg->opCode) ||
               (VIX_COMMAND_MOVE_GUEST_DIRECTORY == requestMsg->opCode)) {
       VixCommandRenameFileRequestEx *renameRequest;
+
+      err = VMAutomationRequestParserInit(&parser,
+                                          requestMsg, sizeof *renameRequest);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       renameRequest = (VixCommandRenameFileRequestEx *) requestMsg;
-      srcFilePathName = ((char *) renameRequest) + sizeof(*renameRequest);
-      destFilePathName = srcFilePathName + renameRequest->oldPathNameLength + 1;
+      srcPathLen = renameRequest->oldPathNameLength;
+      destPathLen = renameRequest->newPathNameLength;
       overwrite = renameRequest->overwrite;
    } else {
       ASSERT(0);
@@ -3358,10 +3788,27 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
       goto abort;
    }
 
+   err = VMAutomationRequestParserGetString(&parser,
+                                            srcPathLen,
+                                            &srcFilePathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            destPathLen,
+                                            &destFilePathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if ((0 == *srcFilePathName) || (0 == *destFilePathName)) {
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
+
+   Debug("%s: src = %s, dest=%s\n", __FUNCTION__, srcFilePathName,
+         destFilePathName);
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
@@ -3394,7 +3841,7 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
 #endif
 
    /*
-    * pre-check the dest arg -- File_Rename() will return
+    * pre-check the dest arg -- File_Move() will return
     * diff err codes depending on OS, so catch it up front (bug 133165)
     */
    if (File_IsDirectory(destFilePathName)) {
@@ -3462,11 +3909,26 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
          err = VIX_E_NOT_A_DIRECTORY;
          goto abort;
       }
+
+      /*
+       * In case of moving a directory, File_Move() returns different
+       * errors on different Guest Os if the destination file path points
+       * to an existing file. We should catch them upfront and report them
+       * to the user.
+       * As per the documentation for rename() on linux, if the source
+       * file points to an existing directory, then destionation file
+       * should not point to anything other than a directory.
+       */
+      if (File_IsSymLink(destFilePathName) || File_IsFile(destFilePathName)) {
+         err = VIX_E_FILE_ALREADY_EXISTS;
+         goto abort;
+      }
    }
 
-   success = File_Rename(srcFilePathName, destFilePathName);
+   success = File_Move(srcFilePathName, destFilePathName, NULL);
    if (!success) {
       err = FoundryToolsDaemon_TranslateSystemErr();
+      Debug("%s: File_Move failed.\n", __FUNCTION__);
       goto abort;
    }
 
@@ -3478,6 +3940,98 @@ abort:
 
    return err;
 } // VixToolsMoveObject
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsInitiateFileTransferFromGuest --
+ *
+ *    This function is called to implement
+ *    InitiateFileTransferFromGuest VI guest operation. Specified filepath
+ *    should not point to a directory or a symlink.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsInitiateFileTransferFromGuest(VixCommandRequestHeader *requestMsg,    // IN
+                                      char **result)                          // OUT
+{
+   VixError err = VIX_OK;
+   const char *filePathName = NULL;
+   char *resultBuffer = NULL;
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   VixMsgListFilesRequest *commandRequest = NULL;
+   VMAutomationRequestParser parser;
+
+   ASSERT(NULL != requestMsg);
+   ASSERT(NULL != result);
+
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *commandRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   commandRequest = (VixMsgListFilesRequest *) requestMsg;
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            commandRequest->guestPathNameLength,
+                                            &filePathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   if (0 == *filePathName) {
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   if (File_IsSymLink(filePathName)){
+      Debug("%s: File path cannot point to a symlink.\n", __FUNCTION__);
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+
+   if (File_IsDirectory(filePathName)) {
+      err = VIX_E_NOT_A_FILE;
+      goto abort;
+   }
+
+   if (!File_Exists(filePathName)) {
+      err = VIX_E_FILE_NOT_FOUND;
+      goto abort;
+   }
+
+   resultBuffer = VixToolsPrintFileExtendedInfoEx(filePathName, filePathName);
+
+abort:
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+
+   if (NULL == resultBuffer) {
+      resultBuffer = Util_SafeStrdup("");
+   }
+   *result = resultBuffer;
+
+   return err;
+} // VixToolsInitiateFileTransferFromGuest
 
 
 /*
@@ -3498,41 +4052,70 @@ VixError
 VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
 {
    VixError err = VIX_OK;
-   char *guestPathName = NULL;
+   const char *guestPathName = NULL;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    Bool overwrite = TRUE;
    char *dirName = NULL;
    char *baseName = NULL;
+   int32 fileAttributeOptions = 0;
 #if defined(_WIN32)
    int fd = -1;
    char *tempFilePath = NULL;
-#else
-   FileIOResult res;
+   static char *tempFileBaseName = "vmware";
 #endif
+   FileIOResult res;
 
-   VixCommandInitiateFileTransferToGuestRequest *commandRequest =
-      (VixCommandInitiateFileTransferToGuestRequest *) requestMsg;
+   VixCommandInitiateFileTransferToGuestRequest *commandRequest;
+   VMAutomationRequestParser parser;
 
    ASSERT(NULL != requestMsg);
 
-   guestPathName = ((char *) commandRequest) + sizeof(*commandRequest);
-   overwrite = commandRequest->overwrite;
-
-   if ((requestMsg->commonHeader.bodyLength +
-        requestMsg->commonHeader.headerLength) !=
-       (((uint64) sizeof(*commandRequest)) +
-        commandRequest->guestPathNameLength + 1)) {
-      ASSERT(0);
-      Debug("%s: Invalid request message received\n", __FUNCTION__);
-      err = VIX_E_INVALID_MESSAGE_BODY;
+   /*
+    * Parse the argument
+    */
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg,
+                                       sizeof *commandRequest);
+   if (VIX_OK != err) {
       goto abort;
    }
 
-   if (0 == *guestPathName) {
+   commandRequest = (VixCommandInitiateFileTransferToGuestRequest *) requestMsg;
+   overwrite = commandRequest->overwrite;
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            commandRequest->guestPathNameLength,
+                                            &guestPathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   if ('\0' == *guestPathName) {
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
+
+   fileAttributeOptions = commandRequest->options;
+
+#if defined(_WIN32)
+   if ((fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_OWNERID) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_GROUPID) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_PERMISSIONS)) {
+      Debug("%s: Invalid attributes received for Windows Guest\n",
+            __FUNCTION__);
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+#else
+   if ((fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_HIDDEN) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_READONLY)) {
+      Debug("%s: Invalid attributes received for Unix Guest\n",
+            __FUNCTION__);
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+#endif
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
@@ -3540,14 +4123,38 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
    }
    impersonatingVMWareUser = TRUE;
 
+   if (File_IsSymLink(guestPathName)) {
+      Debug("%s: Filepath cannot point to a symlink.\n", __FUNCTION__);
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+
    if (File_Exists(guestPathName)) {
       if (File_IsDirectory(guestPathName)) {
          err = VIX_E_NOT_A_FILE;
-         goto abort;
       } else if (!overwrite) {
          err = VIX_E_FILE_ALREADY_EXISTS;
-         goto abort;
+      } else {
+         /*
+          * If the file exists and overwrite flag is true, then check
+          * if the file is writable. If not, return a proper error.
+          */
+         res = FileIO_Access(guestPathName, FILEIO_ACCESS_WRITE);
+         if (FILEIO_SUCCESS != res) {
+            /*
+             * On Linux guests, FileIO_Access sets the proper errno
+             * on failure. On Windows guests, last errno is not
+             * set when FileIO_Access fails. So, we cannot use
+             * FoundryToolsDaemon_TranslateSystemErr() to translate the
+             * error. To maintain consistency for all the guests,
+             * return an explicit VIX_E_FILE_ACCESS_ERROR.
+             */
+            err = VIX_E_FILE_ACCESS_ERROR;
+            Debug("Unable to get access permissions for the file: %s\n",
+                  guestPathName);
+         }
       }
+      goto abort;
    }
 
    File_GetPathName(guestPathName, &dirName, &baseName);
@@ -3589,13 +4196,20 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
     * create the temporary file with the exact specified filename. Any name
     * would be fine.
     */
-   fd = File_MakeTempEx(dirName, baseName, &tempFilePath);
+   fd = File_MakeTempEx(dirName, tempFileBaseName, &tempFilePath);
 
    if (fd > 0) {
       close(fd);
+      File_UnlinkNoFollow(tempFilePath);
    } else {
-      err = FoundryToolsDaemon_TranslateSystemErr();
-      Debug("Unable to create a tmp file to test directory permissions,"
+      /*
+       * File_MakeTempEx() function internally uses Posix variant
+       * functions and proper error will be stuffed in errno variable.
+       * If File_MakeTempEx() fails, then use Vix_TranslateErrno()
+       * to translate the errno to a proper foundry error.
+       */
+      err = Vix_TranslateErrno(errno);
+      Debug("Unable to create a temp file to test directory permissions,"
             " errno is %d\n", errno);
       goto abort;
    }
@@ -3610,7 +4224,15 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
    res = FileIO_Access(dirName, FILEIO_ACCESS_WRITE);
 
    if (FILEIO_SUCCESS != res) {
-      err = FoundryToolsDaemon_TranslateSystemErr();
+      /*
+       * On Linux guests, FileIO_Access sets the proper errno
+       * on failure. On Windows guests, last errno is not
+       * set when FileIO_Access fails. So, we cannot use
+       * FoundryToolsDaemon_TranslateSystemErr() to translate the
+       * error. To maintain consistency for all the guests,
+       * return an explicit VIX_E_FILE_ACCESS_ERROR.
+       */
+      err = VIX_E_FILE_ACCESS_ERROR;
       Debug("Unable to get access permissions for the directory: %s\n",
             dirName);
       goto abort;
@@ -3648,16 +4270,24 @@ abort:
 
 VixError
 VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
+                      size_t maxBufferSize,                // IN
                       char **result)                       // OUT
 {
    VixError err = VIX_OK;
-   int index;
-   static char resultBuffer[MAX_PROCESS_LIST_RESULT_LENGTH];
+   int i;
+   static char resultBuffer[GUESTMSG_MAX_IN_SIZE];
    ProcMgr_ProcList *procList = NULL;
    char *destPtr;
    char *endDestPtr;
+   char *procBufPtr = NULL;
+   size_t procBufSize;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
+   Bool escapeStrs;
+   char *escapedName = NULL;
+   char *escapedUser = NULL;
+
+   ASSERT(maxBufferSize <= GUESTMSG_MAX_IN_SIZE);
 
    destPtr = resultBuffer;
    *destPtr = 0;
@@ -3668,33 +4298,85 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    }
    impersonatingVMWareUser = TRUE;
 
+   escapeStrs = (requestMsg->requestFlags &
+                 VIX_REQUESTMSG_ESCAPE_XML_DATA) != 0;
+
    procList = ProcMgr_ListProcesses();
    if (NULL == procList) {
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
    }
 
-   endDestPtr = resultBuffer + sizeof(resultBuffer);
-   for (index = 0; index < procList->procCount; index++) {
-      destPtr += Str_Sprintf(destPtr,
-                             endDestPtr - destPtr,
+   endDestPtr = resultBuffer + maxBufferSize;
+
+   if (escapeStrs) {
+      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr, "%s",
+                             VIX_XML_ESCAPED_TAG);
+   }
+
+   for (i = 0; i < procList->procCount; i++) {
+      const char *name;
+      const char *user;
+
+      if (escapeStrs) {
+         name = escapedName =
+            VixToolsEscapeXMLString(procList->procCmdList[i]);
+         if (NULL == escapedName) {
+            err = VIX_E_OUT_OF_MEMORY;
+            goto abort;
+         }
+      } else {
+         name = procList->procCmdList[i];
+      }
+
+      if ((NULL != procList->procOwnerList) &&
+          (NULL != procList->procOwnerList[i])) {
+         if (escapeStrs) {
+            user = escapedUser =
+               VixToolsEscapeXMLString(procList->procOwnerList[i]);
+            if (NULL == escapedUser) {
+               err = VIX_E_OUT_OF_MEMORY;
+               goto abort;
+            }
+         } else {
+            user = procList->procOwnerList[i];
+         }
+      } else {
+         user = "";
+      }
+
+      procBufPtr = Str_Asprintf(&procBufSize,
                              "<proc><name>%s</name><pid>%d</pid>"
 #if defined(_WIN32)
                              "<debugged>%d</debugged>"
 #endif
                              "<user>%s</user><start>%d</start></proc>",
-                             procList->procCmdList[index],
-                             (int) procList->procIdList[index],
+                             name,
+                             (int) procList->procIdList[i],
 #if defined(_WIN32)
-                             (int) procList->procDebugged[index],
+                             (int) procList->procDebugged[i],
 #endif
-                             (NULL == procList->procOwnerList
-                               || NULL == procList->procOwnerList[index])
-                                 ? ""
-                                 : procList->procOwnerList[index],
+                             user,
                              (NULL == procList->startTime)
                                  ? 0
-                                 : (int) procList->startTime[index]);
+                                 : (int) procList->startTime[i]);
+      if (NULL == procBufPtr) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+      if ((destPtr + procBufSize) < endDestPtr) {
+         destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
+                                "%s", procBufPtr);
+      } else { // out of space
+         free(procBufPtr);
+         Log("%s: proc list results too large, truncating", __FUNCTION__);
+         goto abort;
+      }
+      free(procBufPtr);
+      free(escapedName);
+      escapedName = NULL;
+      free(escapedUser);
+      escapedUser = NULL;
    }
 
 abort:
@@ -3703,6 +4385,8 @@ abort:
    }
    VixToolsLogoutUser(userToken);
    ProcMgr_FreeProcList(procList);
+   free(escapedName);
+   free(escapedUser);
 
    *result = resultBuffer;
 
@@ -3713,8 +4397,9 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
- * VixToolsListProcessesEx --
+ * VixToolsFreeCachedResult --
  *
+ *    Hash table value destroy func.
  *
  * Return value:
  *    VixError
@@ -3725,50 +4410,97 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
+static void
+VixToolsFreeCachedResult(gpointer ptr)          // IN
+{
+   VixToolsCachedListProcessesResult *p = (VixToolsCachedListProcessesResult *) ptr;
+
+   if (NULL != p) {
+      free(p->resultBuffer);
+#ifdef _WIN32
+      free(p->userName);
+#endif
+      free(p);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListProcCacheCleanup --
+ *
+ *
+ * Return value:
+ *    FALSE -- tells glib not to clean up
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static gboolean
+VixToolsListProcCacheCleanup(void *clientData) // IN
+{
+   int32 *key = (int32 *)clientData;
+   gboolean ret;
+
+   ret = g_hash_table_remove(listProcessesResultsTable, key);
+   Debug("%s: list proc cache timed out, purged key %d (found? %d)\n",
+         __FUNCTION__, *key, ret);
+   free(key);
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListProcessesExGenerateData --
+ *
+ *    Does the work to generate the results into a string buffer.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    Allocates and creates the result buffer.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 VixError
-VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
-                        char **result)                       // OUT
+VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
+                                    const uint64 *pids,      // IN
+                                    size_t *resultSize,      // OUT
+                                    char **resultBuffer)     // OUT
 {
    VixError err = VIX_OK;
-   static char resultBuffer[MAX_PROCESS_LIST_RESULT_LENGTH];
    ProcMgr_ProcList *procList = NULL;
-   char *destPtr;
-   char *endDestPtr;
-   Bool impersonatingVMWareUser = FALSE;
-   void *userToken = NULL;
+   DynBuf dynBuffer;
    VixToolsExitedProgramState *epList;
-   VixMsgListProcessesExRequest *listRequest;
-   uint64 *pids = NULL;
-   uint32 numPids;
    int i;
    int j;
+   Bool bRet;
 
-   destPtr = resultBuffer;
-   *destPtr = 0;
+   DynBuf_Init(&dynBuffer);
 
-   listRequest = (VixMsgListProcessesExRequest *) requestMsg;
-
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-   impersonatingVMWareUser = TRUE;
-
+   /*
+    * XXX optimize -- we should only do this if we can't find
+    * all requested processes on the exitedProcessList, which is
+    * a common case, when a client is watching for a single pid
+    * from StartProgram to exit.
+    */
    procList = ProcMgr_ListProcesses();
    if (NULL == procList) {
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
    }
 
-   numPids = listRequest->numPids;
-   if (numPids > 0) {
-      pids = (uint64 *)((char *)requestMsg + sizeof(*listRequest));
-   }
-
-   endDestPtr = resultBuffer + sizeof(resultBuffer);
-
    /*
-    * First check the procecess we've started via StartProgram, which
+    * First check the processes we've started via StartProgram, which
     * will find those running and recently deceased.
     */
    VixToolsUpdateExitedProgramList(NULL);
@@ -3777,18 +4509,16 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
          epList = exitedProcessList;
          while (epList) {
             if (pids[i] == epList->pid) {
-               destPtr += Str_Sprintf(destPtr,
-                                      endDestPtr - destPtr,
-                                      "<proc><name>%s</name><pid>%"FMT64"d</pid>"
-                                      "<user>%s</user><start>%d</start>"
-                                      "<eCode>%d</eCode><eTime>%d</eTime>"
-                                      "</proc>",
-                                      epList->fullCommandLine,
-                                      epList->pid,
-                                      epList->user,
-                                      (int) epList->startTime,
-                                      epList->exitCode,
-                                      (int) epList->endTime);
+               err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                             epList->fullCommandLine,
+                                             epList->pid,
+                                             epList->user,
+                                             (int) epList->startTime,
+                                             epList->exitCode,
+                                             (int) epList->endTime);
+               if (VIX_OK != err) {
+                  goto abort;
+               }
             }
             epList = epList->next;
          }
@@ -3796,18 +4526,16 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
    } else {
       epList = exitedProcessList;
       while (epList) {
-         destPtr += Str_Sprintf(destPtr,
-                                endDestPtr - destPtr,
-                                "<proc><name>%s</name><pid>%"FMT64"d</pid>"
-                                "<user>%s</user><start>%d</start>"
-                                "<eCode>%d</eCode><eTime>%d</eTime>"
-                                "</proc>",
-                                epList->fullCommandLine,
-                                epList->pid,
-                                epList->user,
-                                (int) epList->startTime,
-                                epList->exitCode,
-                                (int) epList->endTime);
+         err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                       epList->fullCommandLine,
+                                       epList->pid,
+                                       epList->user,
+                                       (int) epList->startTime,
+                                       epList->exitCode,
+                                       (int) epList->endTime);
+         if (VIX_OK != err) {
+            goto abort;
+         }
          epList = epList->next;
       }
    }
@@ -3827,21 +4555,18 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
                continue;
             }
             if (pids[i] == procList->procIdList[j]) {
-               destPtr += Str_Sprintf(destPtr,
-                                      endDestPtr - destPtr,
-                                      "<proc><name>%s</name><pid>%d</pid>"
-                                      "<user>%s</user><start>%d</start>"
-                                      "<eCode>0</eCode><eTime>0</eTime>"
-                                      "</proc>",
-                                      procList->procCmdList[j],
-                                      (int) procList->procIdList[j],
-                                      (NULL == procList->procOwnerList
-                                        || NULL == procList->procOwnerList[j])
-                                          ? ""
-                                          : procList->procOwnerList[j],
-                                      (NULL == procList->startTime)
-                                          ? 0
-                                          : (int) procList->startTime[j]);
+               err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                             procList->procCmdList[i],
+                                             procList->procIdList[i],
+                                             (NULL == procList->procOwnerList
+                                              || NULL == procList->procOwnerList[i])
+                                             ? "" : procList->procOwnerList[i],
+                                             (NULL == procList->startTime)
+                                             ? 0 : (int) procList->startTime[i],
+                                             0, 0);
+               if (VIX_OK != err) {
+                  goto abort;
+               }
             }
          }
       }
@@ -3851,36 +4576,405 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
          if (VixToolsFindExitedProgramState(procList->procIdList[i])) {
             continue;
          }
-         destPtr += Str_Sprintf(destPtr,
-                                endDestPtr - destPtr,
-                                "<proc><name>%s</name><pid>%d</pid>"
-                                "<user>%s</user><start>%d</start>"
-                                "<eCode>0</eCode><eTime>0</eTime>"
-                                "</proc>",
-                                procList->procCmdList[i],
-                                (int) procList->procIdList[i],
-                                (NULL == procList->procOwnerList
-                                  || NULL == procList->procOwnerList[i])
-                                    ? ""
-                                    : procList->procOwnerList[i],
-                                (NULL == procList->startTime)
-                                    ? 0
-                                    : (int) procList->startTime[i]);
+         err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                       procList->procCmdList[i],
+                                       procList->procIdList[i],
+                                       (NULL == procList->procOwnerList
+                                        || NULL == procList->procOwnerList[i])
+                                       ? "" : procList->procOwnerList[i],
+                                       (NULL == procList->startTime)
+                                       ? 0 : (int) procList->startTime[i],
+                                       0, 0);
+         if (VIX_OK != err) {
+            goto abort;
+         }
       }
+   }
+
+   // add the final NUL
+   bRet = DynBuf_Append(&dynBuffer, "", 1);
+   if (!bRet) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   DynBuf_Trim(&dynBuffer);
+   *resultSize = DynBuf_GetSize(&dynBuffer);
+   *resultBuffer  = DynBuf_Detach(&dynBuffer);
+
+abort:
+   DynBuf_Destroy(&dynBuffer);
+   ProcMgr_FreeProcList(procList);
+   return err;
+}
+
+
+#ifdef _WIN32
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsGetUserName --
+ *
+ *    Returns as unique a name as possible.  For our case, that's just
+ *    a domain name, since the only way to get the truly unique values
+ *    requires the process to be running inside a domain, which we
+ *    can't expect.
+ *
+ * Return value:
+ *    FALSE on error
+ *
+ * Side effects:
+ *    Return value is allocated and must be freed.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VixToolsGetUserName(wchar_t **userName)                     // OUT
+{
+   WCHAR userTmp[UNLEN + 1];
+   Bool bRet;
+   ULONG uLen = ARRAYSIZE(userTmp);
+
+   *userName = '\0';
+
+   bRet = GetUserNameExW(NameSamCompatible, userTmp, &uLen);
+   if (!bRet) {
+      Warning("%s: GetUserNameExW() failed %d\n", __FUNCTION__, GetLastError());
+      return bRet;
+   }
+   *userName = Util_SafeMalloc((uLen + 1) * sizeof(wchar_t));
+
+   wcscpy(*userName, userTmp);
+
+   return TRUE;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListProcessesEx --
+ *
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
+                        size_t maxBufferSize,                // IN
+                        void *eventQueue,                    // IN
+                        char **result)                       // OUT
+{
+   VixError err = VIX_OK;
+   char *fullResultBuffer;
+   char *finalResultBuffer = NULL;
+   size_t fullResultSize = 0;
+   size_t curPacketLen = 0;
+   int32 leftToSend = 0;
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   VixMsgListProcessesExRequest *listRequest;
+   uint64 *pids = NULL;
+   uint32 numPids;
+   uint32 key;
+   uint32 offset;
+   int len;
+   VixToolsCachedListProcessesResult *cachedResult = NULL;
+   uint32 *keyBuf;
+   GSource *timer;
+   int32 *timerData;
+#ifdef _WIN32
+   Bool bRet;
+   wchar_t *userName = NULL;
+#endif
+   static const char resultHeaderFormatString[] =
+                                 "<key>%u</key><totalSize>%d</totalSize>"
+                                 "<leftToSend>%d</leftToSend>";
+   // room for header plus 3 32-bit ints
+   int resultHeaderSize = sizeof(resultHeaderFormatString) + 3 * 10;
+   static const char leftHeaderFormatString[] =
+                                 "<leftToSend>%d</leftToSend>";
+   // room for header plus 1 32-bit ints
+   int leftHeaderSize = sizeof(leftHeaderFormatString) + 10;
+
+   ASSERT(maxBufferSize <= GUESTMSG_MAX_IN_SIZE);
+   ASSERT(maxBufferSize > resultHeaderSize);
+
+   listRequest = (VixMsgListProcessesExRequest *) requestMsg;
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   key = listRequest->key;
+   offset = listRequest->offset;
+
+   /*
+    * If the request has a key, then go look up the cached results
+    * it should point to.
+    */
+   if (0 != key) {
+
+      // find the cached data
+      cachedResult = g_hash_table_lookup(listProcessesResultsTable,
+                                        &key);
+      if (NULL == cachedResult) {
+         Debug("%s: failed to find cached data with key %d\n", __FUNCTION__, key);
+         err = VIX_E_FAIL;
+         goto abort;
+      }
+
+      // sanity check offset
+      if (listRequest->offset > cachedResult->resultBufferLen) {
+         /*
+          * Since this isn't user-set, assume any problem is in the
+          * code and return VIX_E_FAIL
+          */
+         err = VIX_E_FAIL;
+         goto abort;
+      }
+
+      // security check -- validate user
+#ifdef _WIN32
+      bRet = VixToolsGetUserName(&userName);
+      if (!bRet) {
+         Debug("%s: VixToolsGetUserName() failed\n", __FUNCTION__);
+         err = VIX_E_FAIL;
+         goto abort;
+      }
+      if (0 != wcscmp(userName, cachedResult->userName)) {
+         /*
+          * Since this isn't user-set, assume any problem is in the
+          * code and return VIX_E_FAIL
+          */
+         Debug("%s: username mismatch validating cached data (have %S, want %S)\n",
+               __FUNCTION__, userName, cachedResult->userName);
+         err = VIX_E_FAIL;
+         goto abort;
+      }
+#else
+      if (cachedResult->euid != Id_GetEUid()) {
+         /*
+          * Since this isn't user-set, assume any problem is in the
+          * code and return VIX_E_FAIL
+          */
+         err = VIX_E_FAIL;
+         Debug("%s: euid mismatch validating cached data (want %d, got %d)\n",
+               __FUNCTION__, (int) cachedResult->euid, (int) Id_GetEUid());
+         goto abort;
+      }
+#endif
+
+   } else {
+      /*
+       * No key, so this is the initial/only request.  Generate data,
+       * cache if necessary.
+       */
+
+      numPids = listRequest->numPids;
+      if (numPids > 0) {
+         pids = (uint64 *)((char *)requestMsg + sizeof(*listRequest));
+      }
+
+      err = VixToolsListProcessesExGenerateData(numPids, pids,
+                                                &fullResultSize,
+                                                &fullResultBuffer);
+
+      /*
+       * Check if the result is large enough to require more than one trip.
+       * Stuff it in the hash table if so.
+       */
+      if ((fullResultSize + resultHeaderSize) > maxBufferSize) {
+         Debug("%s: answer requires caching.  have %d bytes\n", __FUNCTION__, (int) (fullResultSize + resultHeaderSize));
+         /*
+          * Save it off in the hashtable.
+          */
+         keyBuf = Util_SafeMalloc(sizeof(uint32));
+         key = listProcessesResultsKey++;
+         *keyBuf = key;
+         cachedResult = Util_SafeMalloc(sizeof(VixToolsCachedListProcessesResult));
+         cachedResult->resultBufferLen = fullResultSize;
+         cachedResult->resultBuffer = fullResultBuffer;
+#ifdef _WIN32
+         bRet = VixToolsGetUserName(&cachedResult->userName);
+         if (!bRet) {
+            Debug("%s: failed to get current userName\n", __FUNCTION__);
+            goto abort;
+         }
+#else
+         cachedResult->euid = Id_GetEUid();
+#endif
+
+         g_hash_table_insert(listProcessesResultsTable, keyBuf, cachedResult);
+
+         /*
+          * Set timer callback to clean this up in case the Vix side
+          * never finishes
+          */
+         timerData = Util_SafeMalloc(sizeof(int32));
+         *timerData = *keyBuf;
+         timer = g_timeout_source_new(SECONDS_UNTIL_LISTPROC_CACHE_CLEANUP * 1000);
+         g_source_set_callback(timer, VixToolsListProcCacheCleanup, timerData, NULL);
+         g_source_attach(timer, g_main_loop_get_context(eventQueue));
+         g_source_unref(timer);
+      }
+   }
+
+   /*
+    * Now package up the return data.
+    */
+   if (NULL != cachedResult) {
+      int hdrSize;
+
+      /*
+       * For the first packet, sent the key and total size and leftToSend.
+       * After that, just send leftToSend.
+       */
+      if (0 == offset) {
+         hdrSize = resultHeaderSize;
+      } else {
+         hdrSize = leftHeaderSize;
+      }
+
+      leftToSend = cachedResult->resultBufferLen - offset;
+
+      if (leftToSend > (maxBufferSize - hdrSize)) {
+         curPacketLen = maxBufferSize - hdrSize;
+      } else {
+         curPacketLen = leftToSend;
+      }
+
+      leftToSend -= curPacketLen;
+
+      finalResultBuffer = Util_SafeMalloc(curPacketLen + hdrSize + 1);
+      if (0 == offset) {
+
+         len = Str_Sprintf(finalResultBuffer, maxBufferSize,
+                           resultHeaderFormatString,
+                           key, (int) cachedResult->resultBufferLen,
+                           leftToSend);
+      } else {
+         len = Str_Sprintf(finalResultBuffer, maxBufferSize,
+                           leftHeaderFormatString,
+                           leftToSend);
+      }
+
+      memcpy(finalResultBuffer + len,
+             cachedResult->resultBuffer + offset, curPacketLen);
+      finalResultBuffer[curPacketLen + len] = '\0';
+
+      /*
+       * All done, clean it out of the hash table.
+       */
+      if (0 == leftToSend) {
+         g_hash_table_remove(listProcessesResultsTable, &key);
+      }
+
+   } else {
+      /*
+       * In the simple/common case, just return the basic proces info.
+       */
+      finalResultBuffer = fullResultBuffer;
    }
 
 
 abort:
+#ifdef _WIN32
+   free(userName);
+#endif
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
    VixToolsLogoutUser(userToken);
-   ProcMgr_FreeProcList(procList);
 
-   *result = resultBuffer;
+   *result = finalResultBuffer;
 
    return(err);
 } // VixToolsListProcessesEx
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsPrintProcInfoEx --
+ *
+ *      Appends a single process entry to the XML-like string starting at
+ *      *destPtr.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+VixToolsPrintProcInfoEx(DynBuf *dstBuffer,             // IN/OUT
+                        const char *name,              // IN
+                        uint64 pid,                    // IN
+                        const char *user,              // IN
+                        int start,                     // IN
+                        int exitCode,                  // IN
+                        int exitTime)                  // IN
+{
+   VixError err;
+   char *escapedName;
+   char *escapedUser = NULL;
+   size_t bytesPrinted;
+   char *procInfoEntry;
+   Bool success;
+
+   escapedName = VixToolsEscapeXMLString(name);
+   if (NULL == escapedName) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   escapedUser = VixToolsEscapeXMLString(user);
+   if (NULL == escapedUser) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   procInfoEntry = Str_Asprintf(&bytesPrinted,
+                                "<proc><name>%s</name><pid>%"FMT64"d</pid>"
+                                "<user>%s</user><start>%d</start>"
+                                "<eCode>%d</eCode><eTime>%d</eTime>"
+                                "</proc>",
+                                escapedName, pid, escapedUser, start, exitCode,
+                                exitTime);
+   if (NULL == procInfoEntry) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   success = DynBuf_Append(dstBuffer, procInfoEntry, bytesPrinted);
+   free(procInfoEntry);
+   if (!success) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   err = VIX_OK;
+
+abort:
+   free(escapedName);
+   free(escapedUser);
+
+   return err;
+}
 
 
 /*
@@ -3906,7 +5000,12 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixCommandKillProcessRequest *killProcessRequest;
-   
+#ifdef _WIN32
+   DWORD dwErr;
+#else
+   int sysErrno;
+#endif
+
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -3933,35 +5032,65 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
 
    if (!ProcMgr_KillByPid(killProcessRequest->pid)) {
       /*
-       * FoundryToolsDaemon_TranslateSystemErr() calls
-       * Vix_TranslateSystemError() which assumes that any perm error
+       * Save off the error code so any Debug() statements added later
+       * (or when debugging something else) doesn't change the error code.
+       */
+#ifdef _WIN32
+      dwErr = GetLastError();
+#else
+      sysErrno = errno;
+#endif
+
+
+#ifdef _WIN32
+      /*
+       * If we know it's already gone, just say so.  If this gets called
+       * on a process we started but is still on the 'exited' list,
+       * then Windows returns an ACCESS_ERROR.  So rewrite it.
+       */
+      if (VixToolsFindExitedProgramState(killProcessRequest->pid)) {
+         err = VIX_E_NO_SUCH_PROCESS;
+         goto abort;
+      }
+#endif
+
+      /*
+       * Vix_TranslateSystemError() assumes that any perm error
        * is file related, and returns VIX_E_FILE_ACCESS_ERROR.  Bogus
        * for this case, so rewrite it here.
        */
 #ifdef _WIN32
-      if (ERROR_ACCESS_DENIED == GetLastError()) {
+      if (ERROR_ACCESS_DENIED == dwErr) {
          err = VIX_E_GUEST_USER_PERMISSIONS;
          goto abort;
       }
 #else
-      if ((EPERM == errno) || (EACCES == errno)) {
+      if ((EPERM == sysErrno) || (EACCES == sysErrno)) {
          err = VIX_E_GUEST_USER_PERMISSIONS;
          goto abort;
       }
 #endif
+
+
+#ifdef _WIN32
       /*
        * Windows doesn't give us an obvious error for a non-existent
        * PID.  But we can make a pretty good guess that it returned
        * ERROR_INVALID_PARAMETER because the PID was bad, so rewrite
        * that error if we see it.
        */
-#ifdef _WIN32
-      if (ERROR_INVALID_PARAMETER == GetLastError()) {
+      if (ERROR_INVALID_PARAMETER == dwErr) {
          err = VIX_E_NO_SUCH_PROCESS;
          goto abort;
       }
 #endif
-      err = FoundryToolsDaemon_TranslateSystemErr();
+
+#ifdef _WIN32
+      err = Vix_TranslateSystemError(dwErr);
+#else
+      err = Vix_TranslateSystemError(sysErrno);
+#endif
+
       goto abort;
    }
 
@@ -3994,27 +5123,47 @@ VixError
 VixToolsCreateDirectory(VixCommandRequestHeader *requestMsg)  // IN
 {
    VixError err = VIX_OK;
-   char *dirPathName = NULL;
+   const char *dirPathName = NULL;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    Bool createParentDirectories = TRUE;
+   VMAutomationRequestParser parser;
+   int dirPathLen;
 
    if (VIX_COMMAND_CREATE_DIRECTORY == requestMsg->opCode) {
       VixMsgCreateFileRequest *dirRequest = NULL;
 
+      err = VMAutomationRequestParserInit(&parser,
+                                          requestMsg, sizeof *dirRequest);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       dirRequest = (VixMsgCreateFileRequest *) requestMsg;
-      dirPathName = ((char *) dirRequest) + sizeof(*dirRequest);
+      dirPathLen = dirRequest->guestPathNameLength;
    } else if (VIX_COMMAND_CREATE_DIRECTORY_EX == requestMsg->opCode) {
       VixMsgCreateFileRequestEx *dirRequest = NULL;
 
+      err = VMAutomationRequestParserInit(&parser,
+                                          requestMsg, sizeof *dirRequest);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       dirRequest = (VixMsgCreateFileRequestEx *) requestMsg;
-      dirPathName = ((char *) dirRequest) + sizeof(*dirRequest);
+      dirPathLen = dirRequest->guestPathNameLength;
       createParentDirectories = dirRequest->createParentDirectories;
    } else {
       ASSERT(0);
       Debug("%s: Invalid request with opcode %d received\n ",
             __FUNCTION__, requestMsg->opCode);
       err = VIX_E_FAIL;
+      goto abort;
+   }
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            dirPathLen, &dirPathName);
+   if (VIX_OK != err) {
       goto abort;
    }
 
@@ -4078,7 +5227,7 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
                       char **result)                          // OUT
 {
    VixError err = VIX_OK;
-   char *dirPathName = NULL;
+   const char *dirPathName = NULL;
    char *fileList = NULL;
    char **fileNameList = NULL;
    size_t resultBufferSize = 0;
@@ -4097,22 +5246,44 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
    Bool truncated = FALSE;
    int64 offset = 0;
    Bool isLegacyFormat;
+   VMAutomationRequestParser parser;
+   int dirPathLen;
+   Bool escapeStrs;
 
    legacyListRequest = (VixMsgSimpleFileRequest *) requestMsg;
    if (legacyListRequest->fileOptions & VIX_LIST_DIRECTORY_USE_OFFSET) {
       /*
        * Support updated ListDirectory format.
        */
+      err = VMAutomationRequestParserInit(&parser,
+                                          requestMsg, sizeof *listRequest);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       listRequest = (VixMsgListDirectoryRequest *) requestMsg;
       offset = listRequest->offset;
-      dirPathName = ((char *) requestMsg) + sizeof(*listRequest);
+
+      dirPathLen = listRequest->guestPathNameLength;
       isLegacyFormat = FALSE;
    } else {
       /*
        * Support legacy ListDirectory format.
        */
-      dirPathName = ((char *) requestMsg) + sizeof(*legacyListRequest);
+      err = VMAutomationRequestParserInit(&parser,
+                                        requestMsg, sizeof *legacyListRequest);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
+      dirPathLen = legacyListRequest->guestPathNameLength;
       isLegacyFormat = TRUE;
+   }
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            dirPathLen, &dirPathName);
+   if (VIX_OK != err) {
+      goto abort;
    }
 
    if (0 == *dirPathName) {
@@ -4125,6 +5296,9 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       goto abort;
    }
    impersonatingVMWareUser = TRUE;
+
+   escapeStrs = (requestMsg->requestFlags &
+                 VIX_REQUESTMSG_ESCAPE_XML_DATA) != 0;
 
    if (!(File_IsDirectory(dirPathName))) {
       err = VIX_E_NOT_A_DIRECTORY;
@@ -4142,6 +5316,9 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
     * max number of entries we can store.
     */
    resultBufferSize = 3; // truncation bool + space + '\0'
+   if (escapeStrs) {
+      resultBufferSize += strlen(VIX_XML_ESCAPED_TAG);
+   }
    lastGoodResultBufferSize = resultBufferSize;
    ASSERT_NOT_IMPLEMENTED(lastGoodResultBufferSize < maxBufferSize);
    formatStringLength = strlen(fileInfoFormatString);
@@ -4150,7 +5327,8 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       currentFileName = fileNameList[fileNum];
 
       resultBufferSize += formatStringLength;
-      resultBufferSize += strlen(currentFileName);
+      resultBufferSize += VixToolsXMLStringEscapedLen(currentFileName,
+                                                      escapeStrs);
       resultBufferSize += 2; // DIRSEPC chars
       resultBufferSize += 10 + 20 + 20; // properties + size + modTime
 
@@ -4191,6 +5369,11 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       }
    }
 
+   if (escapeStrs) {
+      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr, "%s",
+                             VIX_XML_ESCAPED_TAG);
+   }
+
    for (fileNum = offset; fileNum < lastGoodNumFiles; fileNum++) {
       /* File_ListDirectory never returns "." or ".." */
       char *pathName;
@@ -4200,7 +5383,8 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       pathName = Str_SafeAsprintf(NULL, "%s%s%s", dirPathName, DIRSEPS,
                                   currentFileName);
 
-      VixToolsPrintFileInfo(pathName, currentFileName, &destPtr, endDestPtr);
+      VixToolsPrintFileInfo(pathName, currentFileName, escapeStrs, &destPtr,
+                            endDestPtr);
 
       free(pathName);
    } // for (fileNum = 0; fileNum < lastGoodNumFiles; fileNum++)
@@ -4233,12 +5417,7 @@ abort:
  *
  * VixToolsListFiles --
  *
- *    This function is called to implement two opcodes i.e.
- *    VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST and
- *    VIX_COMMAND_LIST_FILES.
- *
- *    If the opcode is VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST,
- *    then the specified filepath should not point to a directory.
+ *    This function is called to implement ListFilesInGuest VI Guest operation.
  *
  * Return value:
  *    VixError
@@ -4255,7 +5434,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
                   char **result)                          // OUT
 {
    VixError err = VIX_OK;
-   char *dirPathName = NULL;
+   const char *dirPathName = NULL;
    char *fileList = NULL;
    char **fileNameList = NULL;
    size_t resultBufferSize = 0;
@@ -4267,13 +5446,12 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    char *destPtr;
    char *endDestPtr;
    Bool impersonatingVMWareUser = FALSE;
-   size_t formatStringLength = 0;
    void *userToken = NULL;
    VixMsgListFilesRequest *listRequest = NULL;
    Bool truncated = FALSE;
    uint64 offset = 0;
    Bool listingSingleFile = FALSE;
-   char *pattern = NULL;
+   const char *pattern = NULL;
    int index = 0;
    int maxResults = 0;
    int count = 0;
@@ -4281,15 +5459,14 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    int numResults;
    GRegex *regex = NULL;
    GError *gerr = NULL;
+   char *pathName;
+   VMAutomationRequestParser parser;
 
    ASSERT(NULL != requestMsg);
 
-   if ((VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST != requestMsg->opCode) &&
-       (VIX_COMMAND_LIST_FILES != requestMsg->opCode)) {
-      ASSERT(0);
-      err = VIX_E_FAIL;
-      Debug("%s: Received a request with an invalid opcode: %d\n",
-            __FUNCTION__, requestMsg->opCode);
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *listRequest);
+   if (VIX_OK != err) {
       goto abort;
    }
 
@@ -4297,9 +5474,22 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    offset = listRequest->offset;
    index = listRequest->index;
    maxResults = listRequest->maxResults;
-   dirPathName = ((char *) requestMsg) + sizeof(*listRequest);
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            listRequest->guestPathNameLength,
+                                            &dirPathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if (listRequest->patternLength > 0) {
-      pattern = dirPathName + listRequest->guestPathNameLength + 1;
+      err = VMAutomationRequestParserGetString(&parser,
+                                               listRequest->patternLength,
+                                               &pattern);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       Debug("%s: pattern length is %d, value is '%s'\n",
             __FUNCTION__, listRequest->patternLength, pattern);
    }
@@ -4316,7 +5506,8 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    impersonatingVMWareUser = TRUE;
 
    Debug("%s: listing files in '%s' with pattern '%s'\n",
-         __FUNCTION__, dirPathName, pattern);
+         __FUNCTION__, dirPathName,
+         (NULL != pattern) ? pattern : "");
 
    if (pattern) {
       regex = g_regex_new(pattern, 0, 0, &gerr);
@@ -4328,22 +5519,31 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
       }
    }
 
-   if (File_IsDirectory(dirPathName)) {
-      /*
-       * Ideally we should not overload VixToolsListFiles(). We should
-       * implement a separate function for implementing VIX_COMMAND_LIST_FILES
-       * and VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST. For now, adding
-       * this check is OK. But, we should revisit this later.
-       */
-      if (VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST == requestMsg->opCode) {
-         err = VIX_E_NOT_A_FILE;
-         goto abort;
-      }
-
+   /*
+    * First check for symlink -- File_IsDirectory() will lie
+    * if its a symlink to a directory.
+    */
+   if (!File_IsSymLink(dirPathName) && File_IsDirectory(dirPathName)) {
       numFiles = File_ListDirectory(dirPathName, &fileNameList);
       if (numFiles < 0) {
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
+      }
+      /*
+       * File_ListDirectory() doesn't return '.' and '..', but we want them,
+       * so add '.' and '..' to the list.  Place them in front since that's
+       * a more normal location.
+       */
+      numFiles += 2;
+      {
+         char **newFileNameList = NULL;
+
+         newFileNameList = Util_SafeMalloc(numFiles * sizeof(char *));
+         newFileNameList[0] = Unicode_Alloc(".", STRING_ENCODING_UTF8);
+         newFileNameList[1] = Unicode_Alloc("..", STRING_ENCODING_UTF8);
+         memcpy(newFileNameList + 2, fileNameList, (numFiles - 2) * sizeof(char *));
+         free(fileNameList);
+         fileNameList = newFileNameList;
       }
    } else {
       if (File_Exists(dirPathName)) {
@@ -4371,15 +5571,11 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    resultBufferSize += strlen(listFilesRemainingFormatString) + 10;
    lastGoodResultBufferSize = resultBufferSize;
    ASSERT_NOT_IMPLEMENTED(lastGoodResultBufferSize < maxBufferSize);
-#ifdef _WIN32
-   formatStringLength = strlen(fileExtendedInfoWindowsFormatString);
-#elif defined(linux)
-   formatStringLength = strlen(fileExtendedInfoLinuxFormatString);
-#endif
 
    for (fileNum = offset + index;
         fileNum < numFiles;
         fileNum++) {
+
       currentFileName = fileNameList[fileNum];
 
       if (regex) {
@@ -4395,13 +5591,16 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
          continue;   // stop computing buffersize
       }
 
-      resultBufferSize += formatStringLength;
-      resultBufferSize += 2; // DIRSEPC chars
-      resultBufferSize += 10 + 20 + (20 * 3); // properties + size + times
-#ifdef linux
-      resultBufferSize += 10 * 3;            // uid, gid, perms
-#endif
-      resultBufferSize += strlen(currentFileName);
+      if (listingSingleFile) {
+         resultBufferSize += VixToolsGetFileExtendedInfoLength(currentFileName,
+                                                               currentFileName);
+      } else {
+         pathName = Str_SafeAsprintf(NULL, "%s%s%s", dirPathName, DIRSEPS,
+                                     currentFileName);
+         resultBufferSize += VixToolsGetFileExtendedInfoLength(pathName,
+                                                               currentFileName);
+         free(pathName);
+      }
 
       if (resultBufferSize < maxBufferSize) {
          /*
@@ -4445,9 +5644,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
 
    for (fileNum = offset + index, count = 0;
         count < numResults;
-        fileNum++, count++) {
-      /* File_ListDirectory never returns "." or ".." */
-      char *pathName;
+        fileNum++) {
 
       currentFileName = fileNameList[fileNum];
 
@@ -4468,6 +5665,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
                                     &destPtr, endDestPtr);
 
       free(pathName);
+      count++;
    } // for (fileNum = 0; fileNum < lastGoodNumFiles; fileNum++)
    *destPtr = '\0';
 
@@ -4496,6 +5694,64 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsGetFileExtendedInfoLength --
+ *
+ *    This function calculates the total number of bytes required to hold
+ *    the extended info about the specified file.
+ *
+ * Return value:
+ *    Size of extended info buffer.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
+                                  const char *fileName)       // IN
+{
+   int fileExtendedInfoBufferSize = 0;
+
+   ASSERT(NULL != filePathName);
+   ASSERT(NULL != fileName);
+
+#ifdef _WIN32
+   fileExtendedInfoBufferSize = strlen(fileExtendedInfoWindowsFormatString);
+#elif defined(linux) || defined(sun)
+   fileExtendedInfoBufferSize = strlen(fileExtendedInfoLinuxFormatString);
+#endif
+
+   fileExtendedInfoBufferSize += 2; // DIRSEPC chars
+   fileExtendedInfoBufferSize += 10 + 20 + (20 * 2); // properties + size + times
+#ifdef _WIN32
+   fileExtendedInfoBufferSize += 20;                // createTime
+#elif defined(linux) || defined(sun)
+   fileExtendedInfoBufferSize += 10 * 3;            // uid, gid, perms
+#endif
+
+#if defined(linux) || defined(sun)
+   if (File_IsSymLink(filePathName)) {
+      char *symlinkTarget;
+      symlinkTarget = Posix_ReadLink(filePathName);
+      if (NULL != symlinkTarget) {
+         fileExtendedInfoBufferSize +=
+            VixToolsXMLStringEscapedLen(symlinkTarget, TRUE);
+      }
+      free(symlinkTarget);
+   }
+#endif
+
+   fileExtendedInfoBufferSize += VixToolsXMLStringEscapedLen(fileName, TRUE);
+
+   return fileExtendedInfoBufferSize;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixToolsGetFileInfo --
  *
  *
@@ -4518,9 +5774,25 @@ VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,    // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    char *destPtr;
-   char *filePathName;
+   const char *filePathName;
+   VixMsgSimpleFileRequest *simpleFileReq;
+   VMAutomationRequestParser parser;
 
-   filePathName = ((char *) requestMsg) + sizeof(VixMsgSimpleFileRequest);
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *simpleFileReq);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   simpleFileReq = (VixMsgSimpleFileRequest *)requestMsg;
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            simpleFileReq->guestPathNameLength,
+                                            &filePathName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    if (0 == *filePathName) {
       err = VIX_E_INVALID_ARG;
       goto abort;
@@ -4549,7 +5821,7 @@ VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,    // IN
     * Print the result buffer
     */
    destPtr = resultBuffer;
-   VixToolsPrintFileInfo(filePathName, "", &destPtr, resultBuffer + resultBufferSize);
+   VixToolsPrintFileInfo(filePathName, "", FALSE, &destPtr, resultBuffer + resultBufferSize);
 
 abort:
    if (impersonatingVMWareUser) {
@@ -4585,49 +5857,92 @@ abort:
 VixError
 VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
 {
-#if (defined(_WIN32) || defined(__linux__))
+#if (defined(_WIN32) || defined(__linux__) || defined(sun))
    VixError err = VIX_OK;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
-   char *filePathName;
+   const char *filePathName = NULL;
    VixMsgSetGuestFileAttributesRequest *setGuestFileAttributesRequest = NULL;
    struct timespec timeBuf;
    Bool success = FALSE;
    int64 createTime;
    int64 accessTime;
    int64 modificationTime;
+   VMAutomationRequestParser parser;
+   int64 tempTime;
+   Bool timeAttributeSpecified = FALSE;
+   Bool windowsAttributeSpecified = FALSE;
+   Bool posixAttributeSpecified = FALSE;
+   int32 fileAttributeOptions = 0;
 
 #ifdef _WIN32
    DWORD fileAttr = 0;
+#else
+   int ownerId = 0;
+   int groupId = 0;
+   struct stat statbuf;
 #endif
+
+   ASSERT(NULL != requestMsg);
+
+   /*
+    * Parse the argument
+    */
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg,
+                                       sizeof *setGuestFileAttributesRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    setGuestFileAttributesRequest =
                (VixMsgSetGuestFileAttributesRequest *) requestMsg;
 
-   if ((requestMsg->commonHeader.bodyLength +
-        requestMsg->commonHeader.headerLength) !=
-       (((uint64) sizeof(*setGuestFileAttributesRequest)) +
-        setGuestFileAttributesRequest->guestPathNameLength + 1)) {
-      ASSERT(0);
-      Debug("%s: Invalid request message received\n", __FUNCTION__);
-      err = VIX_E_INVALID_MESSAGE_BODY;
+   err = VMAutomationRequestParserGetString(&parser,
+                                            setGuestFileAttributesRequest->guestPathNameLength,
+                                            &filePathName);
+   if (VIX_OK != err) {
       goto abort;
    }
 
-   filePathName = ((char *) requestMsg) +
-                  sizeof(*setGuestFileAttributesRequest);
    if ('\0' == *filePathName) {
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
 
-   if ('\0' != *(filePathName +
-                 setGuestFileAttributesRequest->guestPathNameLength)) {
-      ASSERT(0);
-      Debug("%s: Invalid request message received.\n", __FUNCTION__);
-      err = VIX_E_INVALID_MESSAGE_BODY;
+   fileAttributeOptions = setGuestFileAttributesRequest->fileOptions;
+
+   if ((fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_OWNERID) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_GROUPID) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_PERMISSIONS)) {
+      posixAttributeSpecified = TRUE;
+   }
+
+   if ((fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_HIDDEN) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_READONLY)) {
+      windowsAttributeSpecified = TRUE;
+   }
+
+   if ((fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_ACCESS_DATE) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_MODIFY_DATE)) {
+      timeAttributeSpecified = TRUE;
+   }
+
+#if defined(_WIN32)
+   if (posixAttributeSpecified) {
+      Debug("%s: Invalid attributes received for Windows Guest\n",
+            __FUNCTION__);
+      err = VIX_E_INVALID_ARG;
       goto abort;
    }
+#else
+   if (windowsAttributeSpecified) {
+      Debug("%s: Invalid attributes received for Posix Guest\n",
+            __FUNCTION__);
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+#endif
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
@@ -4640,66 +5955,117 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
       goto abort;
    }
 
-   /*
-    * User specifies the time in Unix Time Format. File_SetTimes()
-    * accepts times in Windows NT Format. We should convert the time
-    * from Unix Format to Windows NT Format.
-    */
-   timeBuf.tv_sec  = setGuestFileAttributesRequest->createTime;
-   timeBuf.tv_nsec = 0;
-   createTime      = TimeUtil_UnixTimeToNtTime(timeBuf);
+   if (timeAttributeSpecified) {
+      success = File_GetTimes(filePathName,
+                              &createTime,
+                              &accessTime,
+                              &modificationTime,
+                              &tempTime);
 
-   timeBuf.tv_sec  = setGuestFileAttributesRequest->accessTime;
-   timeBuf.tv_nsec = 0;
-   accessTime      = TimeUtil_UnixTimeToNtTime(timeBuf);
+      if (!success) {
+         Debug("%s: Failed to get the times.\n", __FUNCTION__);
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         goto abort;
+      }
 
-   timeBuf.tv_sec    = setGuestFileAttributesRequest->modificationTime;
-   timeBuf.tv_nsec   = 0;
-   modificationTime  = TimeUtil_UnixTimeToNtTime(timeBuf);
+      /*
+       * User specifies the time in Unix Time Format. File_SetTimes()
+       * accepts times in Windows NT Format. We should convert the time
+       * from Unix Format to Windows NT Format.
+       */
 
-   success = File_SetTimes(filePathName,
-                           createTime,
-                           accessTime,
-                           modificationTime,
-                           modificationTime);
-   if (!success) {
-      Debug("%s: Failed to set the times.\n", __FUNCTION__);
-      err = FoundryToolsDaemon_TranslateSystemErr();
-      goto abort;
+      if (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_ACCESS_DATE ) {
+         timeBuf.tv_sec  = setGuestFileAttributesRequest->accessTime;
+         timeBuf.tv_nsec = 0;
+         accessTime      = TimeUtil_UnixTimeToNtTime(timeBuf);
+      }
+
+      if (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_MODIFY_DATE) {
+         timeBuf.tv_sec    = setGuestFileAttributesRequest->modificationTime;
+         timeBuf.tv_nsec   = 0;
+         modificationTime  = TimeUtil_UnixTimeToNtTime(timeBuf);
+      }
+
+      success = File_SetTimes(filePathName,
+                              createTime,
+                              accessTime,
+                              modificationTime,
+                              modificationTime);
+      if (!success) {
+         Debug("%s: Failed to set the times.\n", __FUNCTION__);
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         goto abort;
+      }
    }
-
 #if defined(_WIN32)
-   fileAttr = Win32U_GetFileAttributes(filePathName);
-   if (fileAttr != INVALID_FILE_ATTRIBUTES) {
-      if (setGuestFileAttributesRequest->hidden) {
-         fileAttr |= FILE_ATTRIBUTE_HIDDEN;
-      } else {
-         fileAttr &= (~FILE_ATTRIBUTE_HIDDEN);
-      }
+   if (windowsAttributeSpecified) {
+      fileAttr = Win32U_GetFileAttributes(filePathName);
 
-      if (setGuestFileAttributesRequest->readOnly) {
-         fileAttr |= FILE_ATTRIBUTE_READONLY;
-      } else {
-         fileAttr &= (~FILE_ATTRIBUTE_READONLY);
-      }
+      if (fileAttr != INVALID_FILE_ATTRIBUTES) {
+         if (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_HIDDEN) {
+            if (setGuestFileAttributesRequest->hidden) {
+               fileAttr |= FILE_ATTRIBUTE_HIDDEN;
+            } else {
+               fileAttr &= (~FILE_ATTRIBUTE_HIDDEN);
+            }
+         }
 
-      Win32U_SetFileAttributes(filePathName, fileAttr);
+         if (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_READONLY) {
+            if (setGuestFileAttributesRequest->readOnly) {
+               fileAttr |= FILE_ATTRIBUTE_READONLY;
+            } else {
+               fileAttr &= (~FILE_ATTRIBUTE_READONLY);
+            }
+         }
+
+         if (!Win32U_SetFileAttributes(filePathName, fileAttr)) {
+            err = FoundryToolsDaemon_TranslateSystemErr();
+            Debug("%s: Failed to set the file attributes\n", __FUNCTION__);
+            goto abort;
+         }
+      } else {
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         Debug("%s: Failed to get the file attributes\n", __FUNCTION__);
+         goto abort;
+      }
    }
 #else
-   success = File_SetFilePermissions(filePathName,
-                                     setGuestFileAttributesRequest->permissions);
-   if (!success) {
-      Debug("%s: Failed to set the file permissions\n", __FUNCTION__);
-      err = FoundryToolsDaemon_TranslateSystemErr();
-      goto abort;
+   if (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_PERMISSIONS) {
+      success = File_SetFilePermissions(filePathName,
+                                        setGuestFileAttributesRequest->permissions);
+      if (!success) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         Debug("%s: Failed to set the file permissions\n", __FUNCTION__);
+         goto abort;
+      }
    }
 
-   if (Posix_Chown(filePathName,
-                    setGuestFileAttributesRequest->ownerId,
-                    setGuestFileAttributesRequest->groupId)) {
-      Debug("%s: Failed to set the owner/group Id\n", __FUNCTION__);
-      err = FoundryToolsDaemon_TranslateSystemErr();
-      goto abort;
+   if ((fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_OWNERID) ||
+       (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_GROUPID)) {
+
+      if (-1 != Posix_Stat(filePathName, &statbuf)) {
+         ownerId = statbuf.st_uid;
+         groupId = statbuf.st_gid;
+      } else {
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         Debug("%s: Posix_Stat(%s) failed with %d\n",
+               __FUNCTION__, filePathName, errno);
+         goto abort;
+      }
+
+      if (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_OWNERID) {
+         ownerId = setGuestFileAttributesRequest->ownerId;
+      }
+
+      if (fileAttributeOptions & VIX_FILE_ATTRIBUTE_SET_UNIX_GROUPID) {
+         groupId = setGuestFileAttributesRequest->groupId;
+      }
+
+      if (Posix_Chown(filePathName, ownerId, groupId)) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         Debug("%s: Failed to set the owner/group Id\n", __FUNCTION__);
+         goto abort;
+      }
    }
 #endif
 
@@ -4737,14 +6103,16 @@ abort:
  */
 
 static void
-VixToolsPrintFileInfo(char *filePathName,     // IN
-                      char *fileName,         // IN
-                      char **destPtr,         // IN
-                      char *endDestPtr)       // OUT
+VixToolsPrintFileInfo(const char *filePathName,     // IN
+                      char *fileName,               // IN
+                      Bool escapeStrs,              // IN
+                      char **destPtr,               // IN/OUT
+                      char *endDestPtr)             // IN
 {
    int64 fileSize = 0;
    int64 modTime;
    int32 fileProperties = 0;
+   char *escapedFileName = NULL;
 
    modTime = File_GetModTime(filePathName);
    if (File_IsDirectory(filePathName)) {
@@ -4758,6 +6126,11 @@ VixToolsPrintFileInfo(char *filePathName,     // IN
       }
    }
 
+   if (escapeStrs) {
+      fileName = escapedFileName = VixToolsEscapeXMLString(fileName);
+      ASSERT_MEM_ALLOC(NULL != escapedFileName);
+   }
+
    *destPtr += Str_Sprintf(*destPtr, 
                            endDestPtr - *destPtr, 
                            fileInfoFormatString,
@@ -4765,6 +6138,7 @@ VixToolsPrintFileInfo(char *filePathName,     // IN
                            fileProperties,
                            fileSize,
                            modTime);
+   free(escapedFileName);
 } // VixToolsPrintFileInfo
 
 
@@ -4785,36 +6159,63 @@ VixToolsPrintFileInfo(char *filePathName,     // IN
 static void
 VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                               const char *fileName,         // IN
-                              char **destPtr,               // IN
-                              char *endDestPtr)             // OUT
+                              char **destPtr,               // IN/OUT
+                              char *endDestPtr)             // IN
 {
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(linux) || defined(sun)
    int64 fileSize = 0;
    VmTimeType modTime = 0;
    VmTimeType accessTime = 0;
-   VmTimeType createTime = 0;
    int32 fileProperties = 0;
 #ifdef _WIN32
    DWORD fileAttr = 0;
    Bool hidden = FALSE;
    Bool readOnly = FALSE;
-#elif defined(linux)
+   VmTimeType createTime = 0;
+#elif defined(linux) || defined(sun)
    int permissions = 0;
    int ownerId = 0;
    int groupId = 0;
+   char *symlinkTarget = NULL;
+   char *tmp;
 #endif
    struct stat statbuf;
+   char *escapedFileName = NULL;
 
-   if (File_IsDirectory(filePathName)) {
+   /*
+    * First check for symlink -- File_IsDirectory() will lie
+    * if its a symlink to a directory.
+    */
+   if (File_IsSymLink(filePathName)) {
+      fileProperties |= VIX_FILE_ATTRIBUTES_SYMLINK;
+   } else if (File_IsDirectory(filePathName)) {
       fileProperties |= VIX_FILE_ATTRIBUTES_DIRECTORY;
-   } else {
-      if (File_IsSymLink(filePathName)) {
-         fileProperties |= VIX_FILE_ATTRIBUTES_SYMLINK;
-      }
-      if (File_IsFile(filePathName)) {
-         fileSize = File_GetSize(filePathName);
-      }
+   } else if (File_IsFile(filePathName)) {
+      fileSize = File_GetSize(filePathName);
    }
+
+#if defined(linux) || defined(sun)
+   /*
+    * If the file is a symlink, figure out where it points.
+    */
+   if (fileProperties & VIX_FILE_ATTRIBUTES_SYMLINK) {
+      symlinkTarget = Posix_ReadLink(filePathName);
+   }
+
+   /*
+    * Have a nice empty value if it's not a link or there's some error
+    * reading the link.
+    */
+   if (NULL == symlinkTarget) {
+      symlinkTarget = Util_SafeStrdup("");
+   }
+
+   tmp = VixToolsEscapeXMLString(symlinkTarget);
+   ASSERT_MEM_ALLOC(NULL != tmp);
+   free(symlinkTarget);
+   symlinkTarget = tmp;
+#endif
+
 #ifdef _WIN32
    fileAttr = Win32U_GetFileAttributes(filePathName);
    if (fileAttr != INVALID_FILE_ATTRIBUTES) {
@@ -4828,24 +6229,33 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
 #endif
 
    if (Posix_Stat(filePathName, &statbuf) != -1) {
-#ifdef linux
+#if defined(linux) || defined(sun)
       ownerId = statbuf.st_uid;
       groupId = statbuf.st_gid;
       permissions = statbuf.st_mode;
 #endif
-      modTime = statbuf.st_mtime;
+      /*
+       * We want create time.  ctime is the inode change time for Linux,
+       * so we can't report anything.
+       */
+#ifdef _WIN32
       createTime = statbuf.st_ctime;
+#endif
+      modTime = statbuf.st_mtime;
       accessTime = statbuf.st_atime;
    } else {
       Debug("%s: Posix_Stat(%s) failed with %d\n",
             __FUNCTION__, filePathName, errno);
    }
 
+   escapedFileName = VixToolsEscapeXMLString(fileName);
+   ASSERT_MEM_ALLOC(NULL != escapedFileName);
+
 #ifdef _WIN32
    *destPtr += Str_Sprintf(*destPtr,
                            endDestPtr - *destPtr,
                            fileExtendedInfoWindowsFormatString,
-                           fileName,
+                           escapedFileName,
                            fileProperties,
                            fileSize,
                            modTime,
@@ -4853,22 +6263,66 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                            accessTime,
                            hidden,
                            readOnly);
-#elif defined(linux)
+#elif defined(linux) || defined(sun)
    *destPtr += Str_Sprintf(*destPtr,
                            endDestPtr - *destPtr,
                            fileExtendedInfoLinuxFormatString,
-                           fileName,
+                           escapedFileName,
                            fileProperties,
                            fileSize,
                            modTime,
-                           createTime,
                            accessTime,
                            ownerId,
                            groupId,
-                           permissions);
+                           permissions,
+                           symlinkTarget);
+   free(symlinkTarget);
 #endif
-#endif   // defined(_WIN32) || defined(linux)
+   free(escapedFileName);
+#endif   // defined(_WIN32) || defined(linux) || defined(sun)
 } // VixToolsPrintFileExtendedInfo
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsPrintFileExtendedInfoEx --
+ *
+ *    Given a specified file, this function returns a properly XML
+ *    formatted string representing the extended information of the file.
+ *
+ * Return value:
+ *    char * - Dynamically allocated string that holds the extended info
+ *    about the specified file. It is the responsibility of the caller
+ *    to free the memory.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+VixToolsPrintFileExtendedInfoEx(const char *filePathName,          // IN
+                                const char *fileName)              // IN
+{
+   int resultBufferSize;
+   char *destPtr = NULL;
+   char *endDestPtr = NULL;
+   char *resultBuffer = NULL;
+
+   resultBufferSize = VixToolsGetFileExtendedInfoLength(filePathName,
+                                                        fileName);
+   resultBuffer = Util_SafeMalloc(resultBufferSize);
+   destPtr = resultBuffer;
+   endDestPtr = resultBuffer + resultBufferSize;
+
+   VixToolsPrintFileExtendedInfo(filePathName, filePathName, &destPtr,
+                                 endDestPtr);
+
+   *destPtr = '\0';
+   return resultBuffer;
+}
 
 
 /*
@@ -4932,9 +6386,9 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
                   char **result)                        // OUT
 {
    VixError err = VIX_OK;
-   char *propertiesString = NULL;
-   char *script = NULL;
-   char *interpreterName = NULL;
+   const char *propertiesString = NULL;
+   const char *script = NULL;
+   const char *interpreterName = NULL;
    char *fileSuffix = "";
    Bool impersonatingVMWareUser = FALSE;
    VixToolsRunProgramState *asyncState = NULL;
@@ -4957,11 +6411,36 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
    wchar_t *envBlock = NULL;
 #endif
    GSource *timer;
+   VMAutomationRequestParser parser;
+
+   err = VMAutomationRequestParserInit(&parser,
+                                       requestMsg, sizeof *scriptRequest);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    scriptRequest = (VixMsgRunScriptRequest *) requestMsg;
-   interpreterName = ((char *) scriptRequest) + sizeof(*scriptRequest);
-   propertiesString = interpreterName + scriptRequest->interpreterNameLength + 1;
-   script = propertiesString + scriptRequest->propertiesLength + 1;
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                          scriptRequest->interpreterNameLength,
+                                            &interpreterName);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            scriptRequest->propertiesLength,
+                                            &propertiesString);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   err = VMAutomationRequestParserGetString(&parser,
+                                            scriptRequest->scriptLength,
+                                            &script);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
@@ -5053,7 +6532,18 @@ if (0 == *interpreterName) {
       if (fd >= 0) {
          break;
       }
-
+#if defined(_WIN32)
+      if ((errno == EACCES) && (File_Exists(tempScriptFilePath))) {
+         /*
+          * On windows, Posix_Open() fails with EACCES if there is any
+          * permissions check failure while creating the file. Also, EACCES is
+          * returned if a directory already exists with the same name. In such
+          * case, we need to check if a file already exists and ignore
+          * EACCES error.
+          */
+         continue;
+      }
+#endif
       if (errno != EEXIST) {
          /*
           * While persistence is generally a worthwhile trail, if something
@@ -5064,7 +6554,13 @@ if (0 == *interpreterName) {
       }
    }
    if (fd < 0) {
-      err = FoundryToolsDaemon_TranslateSystemErr();
+      /*
+       * We use Posix variant function i.e. Posix_Open to create a
+       * temporary file. If Posix_Open() fails, then proper error is
+       * stuffed in errno variable. So, use Vix_TranslateErrno()
+       * to translate the errno to a proper foundry error.
+       */
+      err = Vix_TranslateErrno(errno);
       Debug("Unable to create a temporary file, errno is %d.\n", errno);
       goto abort;
    }
@@ -5081,7 +6577,7 @@ if (0 == *interpreterName) {
        * close(), but if close() succeeds it will clobber the errno, causing
        * something confusing to be reported to the user.
        */
-      err = FoundryToolsDaemon_TranslateSystemErr();
+      err = Vix_TranslateErrno(errno);
       Debug("Unable to write the script to the temporary file, errno is %d.\n", errno);
       if (close(fd) < 0) {
          Debug("Unable to close a file, errno is %d\n", errno);
@@ -5099,7 +6595,7 @@ if (0 == *interpreterName) {
        *     checking the return value when closing the file may lead to silent loss
        *     of data.  This can especially be observed with NFS and disk quotas."
        */
-      err = FoundryToolsDaemon_TranslateSystemErr();
+      err = Vix_TranslateErrno(errno);
       Debug("Unable to close a file, errno is %d\n", errno);
       goto abort;
    }
@@ -5356,11 +6852,14 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
                               char const *obfuscatedNamePassword,    // IN
                               void **userToken)                      // OUT
 {
-   VixError err = VIX_E_GUEST_USER_PERMISSIONS;
+   VixError err = VIX_E_INVALID_LOGIN_CREDENTIALS;
 
-   if (NULL != userToken) {
-      *userToken = NULL;
+   if (NULL == userToken) {
+      Debug("%s: Invalid userToken pointer\n", __FUNCTION__);
+      return VIX_E_FAIL;
    }
+
+   *userToken = NULL;
 
 ///////////////////////////////////////////////////////////////////////
 #if defined(__FreeBSD__)
@@ -5368,11 +6867,10 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
 ///////////////////////////////////////////////////////////////////////
 #elif defined(_WIN32) || defined(linux) || defined(sun)
    {
-      Bool success = FALSE;
       AuthToken authToken;
       char *unobfuscatedUserName = NULL;
       char *unobfuscatedPassword = NULL;
-      char *ticketID = NULL;
+      Bool success = FALSE;
 
       if (NULL != credentialTypeStr) {
          if (!StrUtil_StrToInt(&credentialType, credentialTypeStr)) {
@@ -5389,11 +6887,10 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
        * The VMX will make sure that only it will pass this value in,
        * and only when the VM and host are configured to allow this.
        */
-      if ((VIX_USER_CREDENTIAL_ROOT == credentialType) 
+      if ((VIX_USER_CREDENTIAL_ROOT == credentialType)
             && (thisProcessRunsAsRoot)) {
-         if (NULL != userToken) {
-            *userToken = PROCESS_CREATOR_USER_TOKEN;
-         }
+         *userToken = PROCESS_CREATOR_USER_TOKEN;
+
          err = VIX_OK;
          goto abort;
       }
@@ -5403,11 +6900,10 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
        * The VMX will make sure that only it will pass this value in,
        * and only when the VM and host are configured to allow this.
        */
-      if ((VIX_USER_CREDENTIAL_CONSOLE_USER == credentialType) 
+      if ((VIX_USER_CREDENTIAL_CONSOLE_USER == credentialType)
             && ((allowConsoleUserOps) || !(thisProcessRunsAsRoot))) {
-         if (NULL != userToken) {
-            *userToken = PROCESS_CREATOR_USER_TOKEN;
-         }
+         *userToken = PROCESS_CREATOR_USER_TOKEN;
+
          err = VIX_OK;
          goto abort;
       }
@@ -5422,11 +6918,10 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
        */
       if (VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER == credentialType) {
          if (!thisProcessRunsAsRoot) {
-            success = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
-                                                     &unobfuscatedUserName,
-                                                     &unobfuscatedPassword);
-            if (!success || (NULL == unobfuscatedUserName)) {
-               err = VIX_E_FAIL;
+            err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
+                                                 &unobfuscatedUserName,
+                                                 &unobfuscatedPassword);
+            if (err != VIX_OK) {
                goto abort;
             }
 
@@ -5440,9 +6935,7 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
                goto abort;
             }
 
-            if (NULL != userToken) {
-               *userToken = PROCESS_CREATOR_USER_TOKEN;
-            }
+            *userToken = PROCESS_CREATOR_USER_TOKEN;
 
             goto abort;
          } else {
@@ -5470,35 +6963,9 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
 
       if (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType) {
 #ifdef _WIN32
-         size_t ticketSize;
          char *username;
 
-         ticketSize = Base64_DecodedLength(obfuscatedNamePassword,
-                                           strlen(obfuscatedNamePassword));
-
-         /*
-          * Leave room for null terminator
-          */
-         ticketID = Util_SafeMalloc(ticketSize + 1);
-
-         if (!Base64_Decode(obfuscatedNamePassword,
-                            ticketID,
-                            ticketSize,
-                            &ticketSize)) {
-           Debug("%s: Decode Failed\n", __FUNCTION__);
-           err = VIX_E_FAIL;
-           goto abort;
-         }
-
-         ticketID[ticketSize] = '\0';
-
-         if (ticketSize != strlen(ticketID)) {
-            Debug("%s: Invalid Ticket\n", __FUNCTION__);
-            err = VIX_E_FAIL;
-            goto abort;
-         }
-
-         err = VixToolsGetTokenHandleFromTicketID(ticketID,
+         err = VixToolsGetTokenHandleFromTicketID(obfuscatedNamePassword,
                                                   &username,
                                                   &authToken);
 
@@ -5507,27 +6974,26 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
          }
 
          unobfuscatedUserName = Util_SafeStrdup(username);
+         *userToken = (void *) authToken;
 #else
          err = VIX_E_NOT_SUPPORTED;
          goto abort;
 #endif
       } else {
-         success = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
-                                                  &unobfuscatedUserName,
-                                                  &unobfuscatedPassword);
-         if (!success) {
-            err = VIX_E_FAIL;
+         err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
+                                              &unobfuscatedUserName,
+                                              &unobfuscatedPassword);
+         if (err != VIX_OK) {
             goto abort;
          }
 
          authToken = Auth_AuthenticateUser(unobfuscatedUserName, unobfuscatedPassword);
          if (NULL == authToken) {
-            err = VIX_E_GUEST_USER_PERMISSIONS;
+            err = VIX_E_INVALID_LOGIN_CREDENTIALS;
             goto abort;
          }
-         if (NULL != userToken) {
-            *userToken = (void *) authToken;
-         }
+
+         *userToken = (void *) authToken;
       }
 #ifdef _WIN32
       success = Impersonate_Do(unobfuscatedUserName, authToken);
@@ -5539,7 +7005,7 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
       success = ProcMgr_ImpersonateUserStart(unobfuscatedUserName, authToken);
 #endif
       if (!success) {
-         err = VIX_E_GUEST_USER_PERMISSIONS;
+         err = VIX_E_INVALID_LOGIN_CREDENTIALS;
          goto abort;
       }
 
@@ -5548,8 +7014,6 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
 abort:
       free(unobfuscatedUserName);
       Util_ZeroFreeString(unobfuscatedPassword);
-
-      Util_ZeroFreeString(ticketID);
    }
 
 #else
@@ -5710,10 +7174,6 @@ VixToolsFreeStartProgramState(VixToolsStartProgramState *asyncState) // IN
 {
    if (NULL == asyncState) {
       return;
-   }
-
-   if (NULL != asyncState->procState) {
-      ProcMgr_Free(asyncState->procState);
    }
 
    free(asyncState);
@@ -5933,7 +7393,13 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
                                &data,
                                &tempFilePath);
          if (fd < 0) {
-            err = FoundryToolsDaemon_TranslateSystemErr();
+            /*
+             * File_MakeTempEx() function internally uses Posix variant
+             * functions and proper error will be stuffed in errno variable.
+             * If File_MakeTempEx() fails, then use Vix_TranslateErrno()
+             * to translate the errno to a proper foundry error.
+             */
+            err = Vix_TranslateErrno(errno);
             goto abort;
          }
       }
@@ -5978,7 +7444,13 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
                             &data,
                             &tempFilePath);
       if (fd < 0) {
-         err = FoundryToolsDaemon_TranslateSystemErr();
+         /*
+          * File_MakeTempEx() function internally uses Posix variant
+          * functions and proper error will be stuffed in errno variable.
+          * If File_MakeTempEx() fails, then use Vix_TranslateErrno()
+          * to translate the errno to a proper foundry error.
+          */
+         err = Vix_TranslateErrno(errno);
          goto abort;
       }
    }
@@ -6032,9 +7504,10 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
    VixError err = VIX_OK;
    void *userToken = NULL;
    Bool impersonatingVMWareUser = FALSE;
-   char *hgfsPacket;
+   const char *hgfsPacket;
    size_t hgfsReplyPacketSize = 0;
    static char hgfsReplyPacket[HGFS_LARGE_PACKET_MAX];
+   VMAutomationRequestParser parser;
 
    if ((NULL == requestMsg) || (0 == requestMsg->hgfsPacketSize)) {
       ASSERT(0);
@@ -6042,6 +7515,12 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
       goto abort;
    }
    
+   err = VMAutomationRequestParserInit(&parser,
+                                      &requestMsg->header, sizeof *requestMsg);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
                                  &userToken);
    if (VIX_OK != err) {
@@ -6049,7 +7528,13 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   hgfsPacket = ((char *) requestMsg) + sizeof(*requestMsg);
+   err = VMAutomationRequestParserGetData(&parser,
+                                          requestMsg->hgfsPacketSize,
+                                          &hgfsPacket);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
    hgfsReplyPacketSize = sizeof hgfsReplyPacket;
 
 #if !defined(__FreeBSD__)
@@ -6101,18 +7586,14 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
                         char **result)                       // OUT
 {
    VixError err = VIX_OK;
-   static char resultBuffer[MAX_PROCESS_LIST_RESULT_LENGTH];
+   static char resultBuffer[GUESTMSG_MAX_IN_SIZE];
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    char *destPtr;
    char *endDestPtr;
+   Bool escapeStrs;
 #if defined(_WIN32) || defined(linux)
-   const char *listFileSystemsFormatString = "<filesystem>"
-                                             "<name>%s</name>"
-                                             "<size>%"FMT64"u</size>"
-                                             "<freeSpace>%"FMT64"u</freeSpace>"
-                                             "<type>%s</type>"
-                                             "</filesystem>";
+   Bool truncated;
 #endif
 #if defined(_WIN32)
    Unicode *driveList = NULL;
@@ -6141,6 +7622,9 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    }
    impersonatingVMWareUser = TRUE;
 
+   escapeStrs = (requestMsg->requestFlags &
+                 VIX_REQUESTMSG_ESCAPE_XML_DATA) != 0;
+
 #if defined(_WIN32)
    numDrives = Win32U_GetLogicalDriveStrings(&driveList);
    if (-1 == numDrives) {
@@ -6148,6 +7632,11 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
               GetLastError());
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
+   }
+
+   if (escapeStrs) {
+      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr, "%s",
+                             VIX_XML_ESCAPED_TAG);
    }
 
    for (i = 0; i < numDrives; i++) {
@@ -6173,14 +7662,14 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
                                   NULL,
                                   NULL,
                                   &fileSystemType);
-
-      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
-                             listFileSystemsFormatString,
-                             driveList[i],
-                             totalBytesToUser,
-                             freeBytesToUser,
-                             fileSystemType);
-
+      err = VixToolsPrintFileSystemInfo(&destPtr, endDestPtr,
+                                        driveList[i], totalBytesToUser,
+                                        freeBytesToUser,
+                                        fileSystemType ? fileSystemType : "",
+                                        escapeStrs, &truncated);
+      if ((VIX_OK != err) || truncated) {
+         goto abort;
+      }
       Unicode_Free(fileSystemType);
    }
 
@@ -6206,13 +7695,13 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
       }
       size = (uint64) statfsbuf.f_blocks * (uint64) statfsbuf.f_bsize;
       freeSpace = (uint64) statfsbuf.f_bfree * (uint64) statfsbuf.f_bsize;
-      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
-                             listFileSystemsFormatString,
-                             MNTINFO_NAME(mnt),
-                             size,
-                             freeSpace,
-                             MNTINFO_FSTYPE(mnt));
-
+      err = VixToolsPrintFileSystemInfo(&destPtr, endDestPtr,
+                                        MNTINFO_NAME(mnt), size, freeSpace,
+                                        MNTINFO_FSTYPE(mnt), escapeStrs,
+                                        &truncated);
+      if ((VIX_OK != err) || truncated) {
+         goto abort;
+      }
    }
    CLOSE_MNTFILE(fp);
 #else
@@ -6239,6 +7728,88 @@ abort:
 
    return(err);
 } // VixToolsListFileSystems
+
+
+#if defined(_WIN32) || defined(linux)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsPrintFileSystemInfo --
+ *
+ *      Appends a single file system entry to the XML-like string starting at
+ *      *destPtr.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+VixToolsPrintFileSystemInfo(char **destPtr,                // IN/OUT
+                            const char *endDestPtr,        // IN
+                            const char *name,              // IN
+                            uint64 size,                   // IN
+                            uint64 freeSpace,              // IN
+                            const char *type,              // IN
+                            Bool escapeStrs,               // IN
+                            Bool *truncated)               // OUT
+{
+   VixError err;
+   char *escapedName = NULL;
+   char *escapedType = NULL;
+   int bytesPrinted;
+
+   ASSERT(endDestPtr > *destPtr);
+
+   *truncated = FALSE;
+
+   if (escapeStrs) {
+      name = escapedName = VixToolsEscapeXMLString(name);
+      if (NULL == escapedName) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+
+      type = escapedType = VixToolsEscapeXMLString(type);
+      if (NULL == escapedType) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+   }
+
+   bytesPrinted = Str_Snprintf(*destPtr, endDestPtr - *destPtr,
+                                "<filesystem>"
+                               "<name>%s</name>"
+                               "<size>%"FMT64"u</size>"
+                               "<freeSpace>%"FMT64"u</freeSpace>"
+                               "<type>%s</type>"
+                               "</filesystem>",
+                               name, size, freeSpace, type);
+   if (bytesPrinted != -1) {
+      *destPtr += bytesPrinted;
+   } else { // out of space
+      **destPtr = '\0';
+      Debug("%s: file system list results too large, truncating",
+            __FUNCTION__);
+      *truncated = TRUE;
+      err = VIX_OK;
+      goto abort;
+   }
+
+   err = VIX_OK;
+
+abort:
+   free(escapedName);
+   free(escapedType);
+
+   return err;
+}
+#endif // #if defined(_WIN32) || defined(linux)
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -6305,6 +7876,7 @@ abort:
 
 VixError
 VixToolsAcquireCredentials(VixCommandRequestHeader *requestMsg,    // IN
+                           GMainLoop *eventQueue,                  // IN
                            char **result)                          // OUT
 {
    VixError err;
@@ -6314,7 +7886,7 @@ VixToolsAcquireCredentials(VixCommandRequestHeader *requestMsg,    // IN
    err = VIX_E_NOT_SUPPORTED;
    goto abort;
 #else
-   err = VixToolsAuthenticateWithSSPI(requestMsg, result);
+   err = VixToolsAuthenticateWithSSPI(requestMsg, eventQueue, result);
 
    if (VIX_OK != err) {
       Debug("%s: Failed to authenticate with SSPI with error %d\n", __FUNCTION__, err);
@@ -6507,7 +8079,8 @@ VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
    VixPropertyList_Initialize(&propList);
    err = VixPropertyList_Deserialize(&propList, 
                                      messageBody, 
-                                     setGuestNetworkingConfigRequest -> bufferSize);
+                                     setGuestNetworkingConfigRequest -> bufferSize,
+                                     VIX_PROPERTY_LIST_BAD_ENCODING_ERROR);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -6642,9 +8215,9 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                                 &processToken);
 
       if (!retVal || !processToken) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to open process token: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
 
          goto abort;
       }
@@ -6657,9 +8230,10 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                           &processTokenInfoSize);
 
       if (ERROR_INSUFFICIENT_BUFFER != GetLastError()) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to get token info: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
+
          goto abort;
       }
 
@@ -6670,9 +8244,10 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                                processTokenInfo,
                                processTokenInfoSize,
                                &processTokenInfoSize)) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to get token info: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
+
          goto abort;
       }
 
@@ -6686,9 +8261,9 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                               &sidNameUse);
 
       if (ERROR_INSUFFICIENT_BUFFER != GetLastError()) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to lookup account sid: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }
 
@@ -6702,9 +8277,9 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
                                    sidDomainName,
                                    &sidDomainNameSize,
                                    &sidNameUse)) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          Warning("unable to lookup account sid: windows error code %d\n",
                  GetLastError());
-         err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
      }
 
@@ -6885,15 +8460,18 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
                                    VIX_TOOLS_CONFIG_API_LIST_FILES_NAME);
          break;
       case VIX_COMMAND_DELETE_GUEST_FILE:
+      case VIX_COMMAND_DELETE_GUEST_FILE_EX:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
                                    VIX_TOOLS_CONFIG_API_DELETE_FILE_NAME);
          break;
       case VIX_COMMAND_DELETE_GUEST_DIRECTORY:
       case VIX_COMMAND_DELETE_GUEST_EMPTY_DIRECTORY:
+      case VIX_COMMAND_DELETE_GUEST_DIRECTORY_EX:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
                                    VIX_TOOLS_CONFIG_API_DELETE_DIRECTORY_NAME);
          break;
       case VIX_COMMAND_KILL_PROCESS:
+      case VIX_COMMAND_TERMINATE_PROCESS:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
                                    VIX_TOOLS_CONFIG_API_TERMINATE_PROCESS_NAME);
          break;
@@ -7080,14 +8658,19 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
 
       ////////////////////////////////////
       case VIX_COMMAND_LIST_PROCESSES:
-         err = VixToolsListProcesses(requestMsg, &resultValue);
+         err = VixToolsListProcesses(requestMsg,
+                                     maxResultBufferSize,
+                                     &resultValue);
          // resultValue is static. Do not free it.
          break;
 
       ////////////////////////////////////
       case VIX_COMMAND_LIST_PROCESSES_EX:
-         err = VixToolsListProcessesEx(requestMsg, &resultValue);
-         // resultValue is static. Do not free it.
+         err = VixToolsListProcessesEx(requestMsg,
+                                      maxResultBufferSize,
+                                      eventQueue,
+                                      &resultValue);
+         deleteResultValue = TRUE;
          break;
 
       ////////////////////////////////////
@@ -7099,7 +8682,6 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
 
       ////////////////////////////////////
-      case VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST:
       case VIX_COMMAND_LIST_FILES:
          err = VixToolsListFiles(requestMsg,
                                  maxResultBufferSize,
@@ -7108,10 +8690,16 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
       ////////////////////////////////////
       case VIX_COMMAND_DELETE_GUEST_FILE:
+      case VIX_COMMAND_DELETE_GUEST_FILE_EX:
       case VIX_COMMAND_DELETE_GUEST_REGISTRY_KEY:
       case VIX_COMMAND_DELETE_GUEST_DIRECTORY:
       case VIX_COMMAND_DELETE_GUEST_EMPTY_DIRECTORY:
          err = VixToolsDeleteObject(requestMsg);
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_DELETE_GUEST_DIRECTORY_EX:
+         err = VixToolsDeleteDirectory(requestMsg);
          break;
 
       ////////////////////////////////////
@@ -7135,6 +8723,7 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
 
       ////////////////////////////////////
       case VIX_COMMAND_KILL_PROCESS:
+      case VIX_COMMAND_TERMINATE_PROCESS:
          err = VixToolsKillProcess(requestMsg);
          break;
 
@@ -7255,17 +8844,25 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
 
       ////////////////////////////////////
+      case VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST:
+         err = VixToolsInitiateFileTransferFromGuest(requestMsg,
+                                                     &resultValue);
+         deleteResultValue = TRUE;
+         break;
+
+      ////////////////////////////////////
       case VIX_COMMAND_INITIATE_FILE_TRANSFER_TO_GUEST:
          err = VixToolsInitiateFileTransferToGuest(requestMsg);
-			break;
+         break;
 
+      ////////////////////////////////////
       case VIX_COMMAND_VALIDATE_CREDENTIALS:
          err = VixToolsValidateCredentials(requestMsg);
          break;
 
       ////////////////////////////////////
       case VIX_COMMAND_ACQUIRE_CREDENTIALS:
-         err = VixToolsAcquireCredentials(requestMsg, &resultValue);
+         err = VixToolsAcquireCredentials(requestMsg, eventQueue, &resultValue);
          // resultValue is static. Do not free it.
          break;
 
@@ -7332,8 +8929,87 @@ abort:
       *deleteResultBufferResult = deleteResultValue;
    }
 
+   /*
+    * Remaps specific errors for backward compatibility purposes.
+    */
+   err = VixToolsRewriteError(requestMsg->opCode, err);
+
    return(err);
 } // VixTools_ProcessVixCommand
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsRewriteError --
+ *
+ *    Rewrites the error if necessary.
+ *
+ *    Some errors returned by tools need to be changed so
+ *    that error code consistency with old VIX is maintained.
+ *
+ *    So specific errors from specific operations are rewritten here.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsRewriteError(uint32 opCode,          // IN
+                     VixError origError)     // IN
+{
+   VixError newError = origError;
+
+   ASSERT(VIX_ERROR_CODE(origError) == origError);
+
+   switch (opCode) {
+      /*
+       * This should include all non-VI guest operations.
+       */
+   case VIX_COMMAND_CHECK_USER_ACCOUNT:
+   case VIX_COMMAND_LOGOUT_IN_GUEST:
+   case VIX_COMMAND_GET_TOOLS_STATE:
+   case VIX_COMMAND_LIST_PROCESSES:
+   case VIX_COMMAND_LIST_DIRECTORY:
+   case VIX_COMMAND_DELETE_GUEST_FILE:
+   case VIX_COMMAND_DELETE_GUEST_REGISTRY_KEY:
+   case VIX_COMMAND_DELETE_GUEST_DIRECTORY:
+   case VIX_COMMAND_DELETE_GUEST_EMPTY_DIRECTORY:
+   case VIX_COMMAND_REGISTRY_KEY_EXISTS:
+   case VIX_COMMAND_GUEST_FILE_EXISTS:
+   case VIX_COMMAND_DIRECTORY_EXISTS:
+   case VIX_COMMAND_READ_REGISTRY:
+   case VIX_COMMAND_WRITE_REGISTRY:
+   case VIX_COMMAND_KILL_PROCESS:
+   case VIX_COMMAND_CREATE_DIRECTORY:
+   case VIX_COMMAND_MOVE_GUEST_FILE:
+   case VIX_COMMAND_RUN_SCRIPT_IN_GUEST:
+   case VIX_COMMAND_RUN_PROGRAM:
+   case VIX_COMMAND_OPEN_URL:
+   case VIX_COMMAND_CREATE_TEMPORARY_FILE:
+   case VIX_COMMAND_READ_VARIABLE:
+   case VIX_COMMAND_WRITE_VARIABLE:
+   case VIX_COMMAND_GET_FILE_INFO:
+   case VMXI_HGFS_SEND_PACKET_COMMAND:
+   case VIX_COMMAND_GET_GUEST_NETWORKING_CONFIG:
+   case VIX_COMMAND_LIST_FILESYSTEMS:
+   case VIX_COMMAND_WAIT_FOR_TOOLS:
+   case VIX_COMMAND_CAPTURE_SCREEN:
+      switch (origError) {
+      case VIX_E_INVALID_LOGIN_CREDENTIALS:
+         newError = VIX_E_GUEST_USER_PERMISSIONS;
+         break;
+      }
+      break;
+   }
+
+   return newError;
+}
 
 
 /*
@@ -7507,3 +9183,95 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
    return ret;
 }
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsEscapeXMLString --
+ *
+ *      Escapes a string to be included in VMAutomation XML.
+ *
+ * Results:
+ *      Pointer to a heap-allocated escaped string.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+VixToolsEscapeXMLString(const char *str)    // IN
+{
+   static const int bytesToEscape[] = {
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   // '%'
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,   // '<' and '>'
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   };
+
+   return Escape_Do(VIX_XML_ESCAPE_CHARACTER, bytesToEscape, str, strlen(str),
+                    NULL);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsXMLStringEscapedLen --
+ *
+ *      Computes the length of the supplied string if it were escaped
+ *      (if escapeStr is TRUE), or the length of the string as is.
+ *
+ * Results:
+ *      The length.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static size_t
+VixToolsXMLStringEscapedLen(const char *str,    // IN
+                            Bool escapeStr)     // IN
+{
+   if (escapeStr) {
+      size_t totalLen = 0;
+
+      while (TRUE) {
+         size_t nextLen = strcspn(str, "<>%");
+
+         totalLen += nextLen;
+         if ('\0' == str[nextLen]) {
+            break;
+         }
+
+         /*
+          * str[nextLen] is a character that needs to be escaped. Each
+          * escapeStr that is escaped will take up 3 bytes (an escape
+          * character and two hex digits) in the escaped string.
+          */
+
+         totalLen += 3;
+         str += nextLen + 1;
+      }
+
+      return totalLen;
+   } else {
+      return strlen(str);
+   }
+}

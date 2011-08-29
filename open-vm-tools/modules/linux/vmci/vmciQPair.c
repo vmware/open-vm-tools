@@ -63,7 +63,6 @@
 
 /* Must come before any kernel header file. */
 #if defined(__linux__) && !defined(VMKERNEL)
-#  define EXPORT_SYMTAB
 #  include "driver-config.h"
 #  include "compat_module.h"
 #endif
@@ -101,6 +100,9 @@ struct VMCIQPair {
    VMCIPrivilegeFlags privFlags;
 };
 
+#define VMCI_QPAIR_NO_QUEUE(_qp) (!(_qp)->produceQ->qHeader || \
+                                  !(_qp)->consumeQ->qHeader)
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -135,6 +137,27 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
 {
    VMCIQPair *myQPair;
    int retval;
+
+   /*
+    * Restrict the size of a queuepair.  The device already enforces a limit
+    * on the total amount of memory that can be allocated to queuepairs for a
+    * guest.  However, we try to allocate this memory before we make the
+    * queuepair allocation hypercall.  On Windows and Mac OS, we request a
+    * single, continguous block, and it will fail if the OS cannot satisfy the
+    * request. On Linux, we allocate each page separately, which means rather
+    * than fail, the guest will thrash while it tries to allocate, and will
+    * become increasingly unresponsive to the point where it appears to be hung.
+    * So we place a limit on the size of an individual queuepair here, and
+    * leave the device to enforce the restriction on total queuepair memory.
+    * (Note that this doesn't prevent all cases; a user with only this much
+    * physical memory could still get into trouble.)  The error used by the
+    * device is NO_RESOURCES, so use that here too.
+    */
+
+   if (produceQSize + consumeQSize < MAX(produceQSize, consumeQSize) ||
+       produceQSize + consumeQSize > VMCI_MAX_GUEST_QP_MEMORY) {
+      return VMCI_ERROR_NO_RESOURCES;
+   }
 
    myQPair = VMCI_AllocKernelMem(sizeof *myQPair, VMCI_MEMORY_NONPAGED);
    if (!myQPair) {
@@ -201,22 +224,19 @@ VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
    oldQPair = *qpair;
    result = VMCIQueuePair_Detach(oldQPair->handle);
 
-   if  (result >= VMCI_SUCCESS) {
-#ifdef DEBUG
-      oldQPair->handle = VMCI_INVALID_HANDLE;
-      oldQPair->produceQ = NULL;
-      oldQPair->consumeQ = NULL;
-      oldQPair->produceQSize = 0;
-      oldQPair->consumeQSize = 0;
-      oldQPair->flags = 0;
-      oldQPair->privFlags = 0;
-      oldQPair->peer = VMCI_INVALID_ID;
-#endif
+   /*
+    * The guest can fail to detach for a number of reasons, and if it does so,
+    * it will cleanup the entry (if there is one).  The host can fail too, but
+    * it won't cleanup the entry immediately, it will do that later when the
+    * context is freed.  Either way, we need to release the qpair struct here;
+    * there isn't much the caller can do, and we don't want to leak.
+    */
 
-      VMCI_FreeKernelMem(oldQPair, sizeof *oldQPair);
-
-      *qpair = NULL;
-   }
+   memset(oldQPair, 0, sizeof *oldQPair);
+   oldQPair->handle = VMCI_INVALID_HANDLE;
+   oldQPair->peer = VMCI_INVALID_ID;
+   VMCI_FreeKernelMem(oldQPair, sizeof *oldQPair);
+   *qpair = NULL;
 
    return result;
 }
@@ -253,8 +273,8 @@ VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
 static INLINE void
 VMCIQPairLock(const VMCIQPair *qpair) // IN
 {
-#if !defined VMX86_TOOLS && !defined VMX86_VMX
-   VMCIHost_AcquireQueueMutex(qpair->produceQ);
+#if !defined VMX86_VMX
+   VMCI_AcquireQueueMutex(qpair->produceQ);
 #endif
 }
 
@@ -278,42 +298,9 @@ VMCIQPairLock(const VMCIQPair *qpair) // IN
 static INLINE void
 VMCIQPairUnlock(const VMCIQPair *qpair) // IN
 {
-#if !defined VMX86_TOOLS && !defined VMX86_VMX
-   VMCIHost_ReleaseQueueMutex(qpair->produceQ);
+#if !defined VMX86_VMX
+   VMCI_ReleaseQueueMutex(qpair->produceQ);
 #endif
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIQPair_Init --
- *
- *      This is the client interface for initializing the producer's
- *      pointers.
- *
- * Results:
- *      err, if < 0
- *
- * Side effects:
- *      Windows blocking call.
- *
- *-----------------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIQPair_Init)
-void
-VMCIQPair_Init(VMCIQPair *qpair)
-{
-   VMCIQPairLock(qpair);
-
-   if (NULL != qpair &&
-       NULL != qpair->produceQ &&
-       NULL != qpair->produceQ->qHeader) {
-      VMCIQueueHeader_Init(qpair->produceQ->qHeader, qpair->handle);
-   }
-
-   VMCIQPairUnlock(qpair);
 }
 
 
@@ -341,25 +328,33 @@ VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair, // IN
                             uint64 *producerTail,   // OUT
                             uint64 *consumerHead)   // OUT
 {
+   int result;
+
    if (!qpair) {
       return VMCI_ERROR_INVALID_ARGS;
    }
 
    VMCIQPairLock(qpair);
 
-   VMCIQueueHeader_GetPointers(qpair->produceQ->qHeader,
-                               qpair->consumeQ->qHeader,
-                               producerTail,
-                               consumerHead);
+   if (UNLIKELY(VMCI_QPAIR_NO_QUEUE(qpair))) {
+      result = VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+   } else {
+      VMCIQueueHeader_GetPointers(qpair->produceQ->qHeader,
+                                  qpair->consumeQ->qHeader,
+                                  producerTail,
+                                  consumerHead);
+      result = VMCI_SUCCESS;
+   }
 
    VMCIQPairUnlock(qpair);
 
-   if ((producerTail && *producerTail >= qpair->produceQSize) ||
-       (consumerHead && *consumerHead >= qpair->produceQSize)) {
+   if (result == VMCI_SUCCESS &&
+       ((producerTail && *producerTail >= qpair->produceQSize) ||
+        (consumerHead && *consumerHead >= qpair->produceQSize))) {
       return VMCI_ERROR_INVALID_SIZE;
    }
 
-   return VMCI_SUCCESS;
+   return result;
 }
 
 
@@ -387,25 +382,33 @@ VMCIQPair_GetConsumeIndexes(const VMCIQPair *qpair, // IN
                             uint64 *consumerTail,   // OUT
                             uint64 *producerHead)   // OUT
 {
+   int result;
+
    if (!qpair) {
       return VMCI_ERROR_INVALID_ARGS;
    }
 
    VMCIQPairLock(qpair);
 
-   VMCIQueueHeader_GetPointers(qpair->consumeQ->qHeader,
-                               qpair->produceQ->qHeader,
-                               consumerTail,
-                               producerHead);
+   if (UNLIKELY(VMCI_QPAIR_NO_QUEUE(qpair))) {
+      result = VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+   } else {
+      VMCIQueueHeader_GetPointers(qpair->consumeQ->qHeader,
+                                  qpair->produceQ->qHeader,
+                                  consumerTail,
+                                  producerHead);
+      result = VMCI_SUCCESS;
+   }
 
    VMCIQPairUnlock(qpair);
 
-   if ((consumerTail && *consumerTail >= qpair->consumeQSize) ||
-       (producerHead && *producerHead >= qpair->consumeQSize)) {
+   if (result == VMCI_SUCCESS &&
+       ((consumerTail && *consumerTail >= qpair->consumeQSize) ||
+        (producerHead && *producerHead >= qpair->consumeQSize))) {
       return VMCI_ERROR_INVALID_SIZE;
    }
 
-   return VMCI_SUCCESS;
+   return result;
 }
 
 
@@ -441,9 +444,13 @@ VMCIQPair_ProduceFreeSpace(const VMCIQPair *qpair) // IN
 
    VMCIQPairLock(qpair);
 
-   result = VMCIQueueHeader_FreeSpace(qpair->produceQ->qHeader,
-                                      qpair->consumeQ->qHeader,
-                                      qpair->produceQSize);
+   if (UNLIKELY(VMCI_QPAIR_NO_QUEUE(qpair))) {
+      result = 0;
+   } else {
+      result = VMCIQueueHeader_FreeSpace(qpair->produceQ->qHeader,
+                                         qpair->consumeQ->qHeader,
+                                         qpair->produceQSize);
+   }
 
    VMCIQPairUnlock(qpair);
 
@@ -484,9 +491,13 @@ VMCIQPair_ConsumeFreeSpace(const VMCIQPair *qpair) // IN
 
    VMCIQPairLock(qpair);
 
-   result = VMCIQueueHeader_FreeSpace(qpair->consumeQ->qHeader,
-                                      qpair->produceQ->qHeader,
-                                      qpair->consumeQSize);
+   if (UNLIKELY(VMCI_QPAIR_NO_QUEUE(qpair))) {
+      result = 0;
+   } else {
+      result = VMCIQueueHeader_FreeSpace(qpair->consumeQ->qHeader,
+                                         qpair->produceQ->qHeader,
+                                         qpair->consumeQSize);
+   }
 
    VMCIQPairUnlock(qpair);
 
@@ -527,9 +538,13 @@ VMCIQPair_ProduceBufReady(const VMCIQPair *qpair) // IN
 
    VMCIQPairLock(qpair);
 
-   result = VMCIQueueHeader_BufReady(qpair->produceQ->qHeader,
-                                     qpair->consumeQ->qHeader,
-                                     qpair->produceQSize);
+   if (UNLIKELY(VMCI_QPAIR_NO_QUEUE(qpair))) {
+      result = 0;
+   } else {
+      result = VMCIQueueHeader_BufReady(qpair->produceQ->qHeader,
+                                        qpair->consumeQ->qHeader,
+                                        qpair->produceQSize);
+   }
 
    VMCIQPairUnlock(qpair);
 
@@ -569,9 +584,13 @@ VMCIQPair_ConsumeBufReady(const VMCIQPair *qpair) // IN
 
    VMCIQPairLock(qpair);
 
-   result = VMCIQueueHeader_BufReady(qpair->consumeQ->qHeader,
-                                     qpair->produceQ->qHeader,
-                                     qpair->consumeQSize);
+   if (UNLIKELY(VMCI_QPAIR_NO_QUEUE(qpair))) {
+      result = 0;
+   } else {
+      result = VMCIQueueHeader_BufReady(qpair->consumeQ->qHeader,
+                                        qpair->produceQ->qHeader,
+                                        qpair->consumeQSize);
+   }
 
    VMCIQPairUnlock(qpair);
 
@@ -595,6 +614,8 @@ VMCIQPair_ConsumeBufReady(const VMCIQPair *qpair) // IN
  *      VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue
  *      (as defined by the queue size).
  *      VMCI_ERROR_INVALID_ARGS, if an error occured when accessing the buffer.
+ *      VMCI_ERROR_QUEUEPAIR_NOTATTACHED, if the queue pair pages aren't
+ *      available.
  *      Otherwise, the number of bytes written to the queue is returned.
  *
  * Side effects:
@@ -617,8 +638,8 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
    size_t written;
    ssize_t result;
 
-#if !defined VMX86_TOOLS && !defined VMX86_VMX
-   if (UNLIKELY(VMCIHost_EnqueueToDevNull(produceQ))) {
+#if !defined VMX86_VMX
+   if (UNLIKELY(VMCI_EnqueueToDevNull(produceQ))) {
       return (ssize_t) bufSize;
    }
 
@@ -700,12 +721,12 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
    size_t read;
    ssize_t result;
 
-#if defined _WIN32 && !defined VMX86_TOOLS && !defined VMX86_VMX
+#if !defined VMX86_TOOLS && !defined VMX86_VMX
    if (UNLIKELY(!produceQ->qHeader ||
                 !consumeQ->qHeader)) {
       return VMCI_ERROR_QUEUEPAIR_NODATA;
    }
-#endif /* Windows Host only support */
+#endif
 
    bufReady = VMCIQueueHeader_BufReady(consumeQ->qHeader,
                                        produceQ->qHeader,
@@ -1020,4 +1041,3 @@ VMCIQPair_PeekV(VMCIQPair *qpair,           // IN
 }
 
 #endif /* Systems that support struct iovec */
-

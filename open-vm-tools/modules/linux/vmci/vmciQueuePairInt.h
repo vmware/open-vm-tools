@@ -30,6 +30,7 @@
 
 void VMCIQueuePair_Init(void);
 void VMCIQueuePair_Exit(void);
+void VMCIQueuePair_Sync(void);
 int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
                         uint64 produceSize, VMCIQueue **consumeQ,
                         uint64 consumeSize, VMCIId peer, uint32 flags);
@@ -38,6 +39,8 @@ int VMCIQueuePair_AllocPriv(VMCIHandle *handle, VMCIQueue **produceQ,
                             uint64 consumeSize, VMCIId peer, uint32 flags,
                             VMCIPrivilegeFlags privFlags);
 int VMCIQueuePair_Detach(VMCIHandle handle);
+
+void VMCIQueuePair_Convert(Bool toLocal, Bool deviceReset);
 
 
 #endif /* !_VMCI_QUEUE_PAIR_INT_H_ */

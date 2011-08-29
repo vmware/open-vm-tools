@@ -71,7 +71,7 @@
 #elif defined __APPLE__
 #  if defined KERNEL
 #     include <IOKit/system.h>
-#     define VMCI_SOCKETS_AF_VALUE PF_SYSTEM
+#     define VMCI_SOCKETS_AF_VALUE   14
 #     define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
 #  else // KERNEL
 #     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
@@ -79,6 +79,7 @@
 #endif // __APPLE__
 
 #include "vmware.h"
+#include "vm_basic_asm.h"
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
 #include "vmci_infrastructure.h"

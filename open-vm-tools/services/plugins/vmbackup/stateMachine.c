@@ -213,6 +213,7 @@ VmBackupFinalize(void)
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
+   g_free(gBackupState->errorMsg);
    g_free(gBackupState);
    gBackupState = NULL;
 }
@@ -260,7 +261,7 @@ VmBackupStartScripts(VmBackupScriptType type)
                               opName)) {
       VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                          VMBACKUP_SCRIPT_ERROR,
-                         "Error when starting backup scripts.");
+                         "Error when starting custom quiesce scripts.");
       return FALSE;
    }
 
@@ -334,7 +335,7 @@ VmBackupDoAbort(void)
 
       VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ABORT,
                          VMBACKUP_REMOTE_ABORT,
-                         "Backup aborted.");
+                         "Quiesce aborted.");
 
       /* Transition to the error state. */
       if (VmBackupOnError()) {
@@ -404,20 +405,19 @@ VmBackupAsyncCallback(void *clientData)
 
    default:
       {
-         Bool freeMsg = TRUE;
-         char *errMsg = Str_Asprintf(NULL,
-                                     "Asynchronous operation failed: %s",
-                                     gBackupState->currentOpName);
-         if (errMsg == NULL) {
-            freeMsg = FALSE;
-            errMsg = "Asynchronous operation failed.";
+         gchar *msg;
+         if (gBackupState->errorMsg != NULL) {
+            msg = g_strdup_printf("'%s' operation failed: %s",
+                                  gBackupState->currentOpName,
+                                  gBackupState->errorMsg);
+         } else {
+            msg = g_strdup_printf("'%s' operation failed.",
+                                  gBackupState->currentOpName);
          }
          VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                             VMBACKUP_UNEXPECTED_ERROR,
-                            errMsg);
-         if (freeMsg) {
-            vm_free(errMsg);
-         }
+                            msg);
+         g_free(msg);
 
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
@@ -704,7 +704,8 @@ error:
    g_free(gBackupState->volumes);
    g_free(gBackupState);
    gBackupState = NULL;
-   return RPCIN_SETRETVALS(data, "Error initializing backup.", FALSE);
+   return RPCIN_SETRETVALS(data, "Error initializing quiesce operation.",
+                           FALSE);
 }
 
 
@@ -726,7 +727,8 @@ VmBackupStart(RpcInData *data)
 {
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
-      return RPCIN_SETRETVALS(data, "Backup operation already in progress.", FALSE);
+      return RPCIN_SETRETVALS(data, "Quiesce operation already in progress.",
+                              FALSE);
    }
    gBackupState = g_new0(VmBackupState, 1);
    if (data->argsSize > 0) {
@@ -794,7 +796,7 @@ VmBackupStartWithOpts(RpcInData *data)
 
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
-      return RPCIN_SETRETVALS(data, "Backup operation already in progress.",
+      return RPCIN_SETRETVALS(data, "Quiesce operation already in progress.",
                               FALSE);
    }
    params = (GuestQuiesceParams *)data->args;
@@ -836,7 +838,8 @@ VmBackupAbort(RpcInData *data)
 {
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState == NULL) {
-      return RPCIN_SETRETVALS(data, "Error: no backup in progress", FALSE);
+      return RPCIN_SETRETVALS(data, "Error: no quiesce operation in progress",
+                              FALSE);
    }
 
    VmBackupDoAbort();
@@ -858,12 +861,12 @@ VmBackupSnapshotDone(RpcInData *data)
 {
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState == NULL) {
-      return RPCIN_SETRETVALS(data, "Error: no backup in progress", FALSE);
+      return RPCIN_SETRETVALS(data, "Error: no quiesce operation in progress", FALSE);
    } else if (gBackupState->machineState != VMBACKUP_MSTATE_SYNC_FREEZE) {
       g_warning("Error: unexpected state for snapshot done message: %s",
                 VmBackupGetStateName(gBackupState->machineState));
       return RPCIN_SETRETVALS(data,
-                              "Error: unexpected state for snapshot done message.",
+                              "Error: unexpected state for quiesce done message.",
                               FALSE);
    } else {
       if (data->argsSize > 1) {
@@ -984,9 +987,12 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 #if defined(G_PLATFORM_WIN32)
    /*
     * If initializing COM fails (unlikely), we'll fallback to the sync driver
-    * or the null provider, depending on the configuration.
+    * or the null provider, depending on the configuration. On success, send
+    * a request to unregister the VMware snapshot provider.
     */
-   if (!ToolsCore_InitializeCOM(ctx)) {
+   if (ToolsCore_InitializeCOM(ctx)) {
+      VmBackup_UnregisterSnapshotProvider();
+   } else {
       g_warning("Failed to initialize COM, VSS support will be unavailable.");
    }
 #endif

@@ -54,8 +54,8 @@ void VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProg
  * tclo callbacks.
  */
 VixError VixToolsRunProgramImpl(char *requestName,
-                                char *commandLine,
-                                char *commandLineArgs,
+                                const char *commandLine,
+                                const char *commandLineArgs,
                                 int runProgramOptions,
                                 void *userToken,
                                 void *eventQueue,

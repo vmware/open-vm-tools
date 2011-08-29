@@ -502,7 +502,7 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
            "shrdl %%edx, %%eax\n\t"   // result = hi(p2):hi(p1):lo(p1) >> shift
            "shrdl %1, %%edx\n"
         "3:\n\t"
-           : "=A" (result), "=&r" (tmp1), "=&r" (tmp2)
+           : "=A" (result), "=&r" (tmp1), "=&rm" (tmp2)
            : "0" (multiplicand), "rm" (multiplier), "c" (shift)
            : "cc");
    return result;

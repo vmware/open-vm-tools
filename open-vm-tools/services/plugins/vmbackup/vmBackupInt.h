@@ -100,6 +100,7 @@ typedef struct VmBackupState {
    void          *scripts;
    const char    *configDir;
    ssize_t        currentScript;
+   gchar         *errorMsg;
    VmBackupMState machineState;
    struct VmBackupSyncProvider *provider;
 } VmBackupState;
@@ -213,6 +214,9 @@ VmBackup_NewSyncDriverProvider(void);
 #if defined(G_PLATFORM_WIN32)
 VmBackupSyncProvider *
 VmBackup_NewVssProvider(void);
+
+void
+VmBackup_UnregisterSnapshotProvider(void);
 #endif
 
 VmBackupOp *

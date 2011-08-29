@@ -132,5 +132,5 @@ catalogsdir = $(datadir)/open-vm-tools/messages
 catalogs_DATA =
 catalogs_DATA += messages/toolboxcmd_de.vmsg
 catalogs_DATA += messages/toolboxcmd_ja.vmsg
-catalogs_DATA += messages/toolboxcmd_zh.vmsg
+catalogs_DATA += messages/toolboxcmd_zh_CN.vmsg
 

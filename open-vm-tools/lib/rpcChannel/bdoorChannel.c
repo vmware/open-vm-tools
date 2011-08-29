@@ -67,6 +67,8 @@ RpcInSetup(RpcChannel *chan,
 /**
  * Starts the RpcIn loop and the RpcOut channel.
  *
+ * No-op if channels are already started.
+ *
  * @param[in]  chan     The RPC channel instance.
  *
  * @return TRUE on success.
@@ -78,8 +80,13 @@ RpcInStart(RpcChannel *chan)
    gboolean ret = TRUE;
    BackdoorChannel *bdoor = chan->_private;
 
-   ASSERT(bdoor->in == NULL || !bdoor->inStarted);
-   ASSERT(!bdoor->outStarted);
+   if (bdoor->outStarted) {
+      /* Already started. Make sure both channels are in sync and return. */
+      ASSERT(bdoor->in == NULL || bdoor->inStarted);
+      return ret;
+   } else {
+      ASSERT(bdoor->in == NULL || !bdoor->inStarted);
+   }
 
    if (bdoor->in != NULL) {
       ret = RpcIn_start(bdoor->in, RPCIN_MAX_DELAY, RpcChannel_Error, chan);

@@ -103,6 +103,11 @@ VSockAddr_InitNoFamily(struct sockaddr_vm *addr, // OUT
 {
    ASSERT(addr);
    memset(addr, 0, sizeof *addr);
+
+#if defined(__APPLE__)
+   addr->svm_len = sizeof *addr;
+#endif
+
    addr->svm_cid = cid;
    addr->svm_port = port;
    VSOCK_ADDR_NOFAMILY_ASSERT(addr);

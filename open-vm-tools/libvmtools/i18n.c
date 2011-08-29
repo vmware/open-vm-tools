@@ -746,6 +746,7 @@ VMTools_BindTextDomain(const char *domain,
             usrlang = Util_SafeStrdup(lang);
          }
          usrlang[sep - lang] = '\0';
+         g_free(file);
          file = g_strdup_printf("%s%smessages%s%s%s%s.vmsg",
                                 catdir, DIRSEPS, DIRSEPS, usrlang, DIRSEPS, domain);
       }

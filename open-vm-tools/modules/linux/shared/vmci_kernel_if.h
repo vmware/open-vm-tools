@@ -17,13 +17,13 @@
  *********************************************************/
 
 /*
- * vmci_kernel_if.h -- 
- * 
+ * vmci_kernel_if.h --
+ *
  *      This file defines helper functions for VMCI host _and_ guest
  *      kernel code. It must work for Windows, Mac OS, vmkernel, Linux and
  *      Solaris kernels, i.e. using defines where necessary.
  */
- 
+
 #ifndef _VMCI_KERNEL_IF_H_
 #define _VMCI_KERNEL_IF_H_
 
@@ -34,7 +34,7 @@
 
 #if defined(_WIN32)
 #include <ntddk.h>
-#endif 
+#endif
 
 #if defined(linux) && !defined(VMKERNEL)
 #  include <linux/wait.h>
@@ -52,6 +52,7 @@
 #ifdef VMKERNEL
 #include "splock.h"
 #include "semaphore_ext.h"
+#include "vmkapi.h"
 #endif
 
 #ifdef SOLARIS
@@ -75,7 +76,9 @@
 
 /* Platform specific type definitions. */
 
-#if defined(linux) && !defined(VMKERNEL)
+#if defined(VMKERNEL)
+#  define VMCI_EXPORT_SYMBOL(_SYMBOL)  VMK_MODULE_EXPORT_SYMBOL(_SYMBOL);
+#elif defined(linux)
 #  define VMCI_EXPORT_SYMBOL(_symbol)  EXPORT_SYMBOL(_symbol);
 #elif defined(__APPLE__)
 #  define VMCI_EXPORT_SYMBOL(_symbol)  __attribute__((visibility("default")))
@@ -125,7 +128,7 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
 /*
  * The VMCI locks use a ranking scheme similar to the one used by
  * vmkernel. While holding a lock L1 with rank R1, only locks with
- * rank higher than R1 may be grabbed. The available ranks for VMCI 
+ * rank higher than R1 may be grabbed. The available ranks for VMCI
  * locks are (in descending order):
  * - VMCI_LOCK_RANK_HIGH_BH : to be used for locks grabbed while executing
  *   in a bottom half and not held while grabbing other locks.
@@ -205,12 +208,12 @@ typedef struct VMCIHost {
 #elif defined(__APPLE__)
    struct Socket *socket; /* vmci Socket object on Mac OS. */
 #elif defined(_WIN32)
-   KEVENT *callEvent; /* Ptr to userlevel event used when signalling 
+   KEVENT *callEvent; /* Ptr to userlevel event used when signalling
                        * new pending guestcalls in kernel.
                        */
 #elif defined(SOLARIS)
    struct pollhead pollhead; /* Per datagram handle pollhead structure to
-                              * be treated as a black-box. None of its 
+                              * be treated as a black-box. None of its
                               * fields should be referenced.
                               */
 #endif
@@ -264,7 +267,7 @@ Bool VMCIWellKnownID_AllowMap(VMCIId wellKnownID,
 void VMCI_CreateEvent(VMCIEvent *event);
 void VMCI_DestroyEvent(VMCIEvent *event);
 void VMCI_SignalEvent(VMCIEvent *event);
-void VMCI_WaitOnEvent(VMCIEvent *event, VMCIEventReleaseCB releaseCB, 
+void VMCI_WaitOnEvent(VMCIEvent *event, VMCIEventReleaseCB releaseCB,
 		      void *clientData);
 #if (defined(__APPLE__) || defined(__linux__) || defined(_WIN32)) && !defined(VMKERNEL)
 Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,
@@ -277,11 +280,6 @@ Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,
 int VMCI_CopyFromUser(void *dst, VA64 src, size_t len);
 #endif
 
-#if defined(_WIN32)
-void VMCI_InitHelperQueue(void);
-void VMCI_ExitHelperQueue(void);
-#endif // _WIN32
-
 typedef void (VMCIWorkFn)(void *data);
 Bool VMCI_CanScheduleDelayedWork(void);
 int VMCI_ScheduleDelayedWork(VMCIWorkFn  *workFn,
@@ -292,10 +290,10 @@ void VMCIMutex_Destroy(VMCIMutex *mutex);
 void VMCIMutex_Acquire(VMCIMutex *mutex);
 void VMCIMutex_Release(VMCIMutex *mutex);
 
-#if defined(SOLARIS)
+#if defined(SOLARIS) || defined(_WIN32)
 int VMCIKernelIf_Init(void);
 void VMCIKernelIf_Exit(void);
-#endif		/* SOLARIS  */
+#endif // SOLARIS || _WIN32
 
 #if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
                            defined(SOLARIS) || defined(__APPLE__))
@@ -314,9 +312,9 @@ void VMCI_FreePPNSet(PPNSet *ppnSet);
 int VMCI_PopulatePPNList(uint8 *callBuf, const PPNSet *ppnSet);
 #endif
 
-#if !defined(VMX86_TOOLS)
 struct VMCIQueue;
 
+#if !defined(VMX86_TOOLS)
 #if  !defined(VMKERNEL)
 struct PageStoreAttachInfo;
 struct VMCIQueue *VMCIHost_AllocQueue(uint64 queueSize);
@@ -329,13 +327,8 @@ void VMCIHost_ReleaseUserMemory(struct PageStoreAttachInfo *attach,
                                 struct VMCIQueue *produceQ,
                                 struct VMCIQueue *detachQ);
 #endif // VMKERNEL
-#ifdef _WIN32
-void VMCIHost_InitQueueMutex(struct VMCIQueue *produceQ,
-                             struct VMCIQueue *consumeQ);
-void VMCIHost_AcquireQueueMutex(struct VMCIQueue *queue);
-void VMCIHost_ReleaseQueueMutex(struct VMCIQueue *queue);
-Bool VMCIHost_EnqueueToDevNull(struct VMCIQueue *queue);
 
+#ifdef _WIN32
 /*
  * Special routine used on the Windows platform to save a queue when
  * its backing memory goes away.
@@ -345,13 +338,36 @@ void VMCIHost_SaveProduceQ(struct PageStoreAttachInfo *attach,
                            struct VMCIQueue *produceQ,
                            struct VMCIQueue *detachQ,
                            const uint64 produceQSize);
-#else // _WIN32
-#  define VMCIHost_InitQueueMutex(_pq, _cq)
-#  define VMCIHost_AcquireQueueMutex(_q)
-#  define VMCIHost_ReleaseQueueMutex(_q)
-#  define VMCIHost_EnqueueToDevNull(_q) FALSE
 #endif // _WIN32
+
 #endif // !VMX86_TOOLS
+
+#ifdef _WIN32
+void VMCI_InitQueueMutex(struct VMCIQueue *produceQ,
+                             struct VMCIQueue *consumeQ);
+void VMCI_AcquireQueueMutex(struct VMCIQueue *queue);
+void VMCI_ReleaseQueueMutex(struct VMCIQueue *queue);
+Bool VMCI_EnqueueToDevNull(struct VMCIQueue *queue);
+int VMCI_ConvertToLocalQueue(struct VMCIQueue *queueInfo,
+                             struct VMCIQueue *otherQueueInfo,
+                             uint64 size, Bool keepContent,
+                             void **oldQueue);
+void VMCI_RevertToNonLocalQueue(struct VMCIQueue *queueInfo,
+                                void *nonLocalQueue, uint64 size);
+void VMCI_FreeQueueBuffer(void *queue, uint64 size);
+void VMCI_DeviceShutdownBegin(void);
+void VMCI_DeviceShutdownEnd(void);
+Bool VMCI_DeviceShutdown(void);
+#else // _WIN32
+#  define VMCI_InitQueueMutex(_pq, _cq)
+#  define VMCI_AcquireQueueMutex(_q)
+#  define VMCI_ReleaseQueueMutex(_q)
+#  define VMCI_EnqueueToDevNull(_q) FALSE
+#  define VMCI_ConvertToLocalQueue(_pq, _cq, _s, _oq, _kc) VMCI_ERROR_UNAVAILABLE
+#  define VMCI_RevertToNonLocalQueue(_q, _nlq, _s)
+#  define VMCI_FreeQueueBuffer(_q, _s)
+#  define VMCI_DeviceShutdown() FALSE
+#endif // !_WIN32
 
 
 #endif // _VMCI_KERNEL_IF_H_

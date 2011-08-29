@@ -317,7 +317,7 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
 
    /* Build full name to send to server. */
    if (HgfsBuildPath(name,
-                     req->bufferSize - (requestSize - 1),
+                     HGFS_PACKET_MAX - (requestSize - 1),
                      file->f_dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackOpenRequest: build path "
               "failed\n"));
@@ -329,7 +329,7 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
 
    /* Convert to CP name. */
    result = CPName_ConvertTo(name,
-                             req->bufferSize - (requestSize - 1),
+                             HGFS_PACKET_MAX - (requestSize - 1),
                              name);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackOpenRequest: CP conversion "

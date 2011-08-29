@@ -174,12 +174,19 @@ ProcMgr_ListProcesses(void)
        * ExtractCommandLineFromAddressSpaceFile for every process.
        */
       if (strlen(procInfo.pr_psargs) + 1 == PRARGSZ) {
-         cmdLineTemp = ExtractCommandLineFromAddressSpaceFile(&procInfo);
-         if(cmdLineTemp == NULL) {
-            cmdLineTemp = Util_SafeStrdup(procInfo.pr_psargs);
+         char *tmp;
+
+         tmp = ExtractCommandLineFromAddressSpaceFile(&procInfo);
+         if (tmp != NULL) {
+            cmdLineTemp = Unicode_Alloc(tmp, STRING_ENCODING_DEFAULT);
+            free(tmp);
+         } else {
+            cmdLineTemp = Unicode_Alloc(procInfo.pr_psargs,
+                                        STRING_ENCODING_DEFAULT);
          }
       } else {
-         cmdLineTemp = Util_SafeStrdup(procInfo.pr_psargs);
+         cmdLineTemp = Unicode_Alloc(procInfo.pr_psargs,
+                                     STRING_ENCODING_DEFAULT);
       }
 
       /*
@@ -199,7 +206,7 @@ ProcMgr_ListProcesses(void)
       pwd = getpwuid(procInfo.pr_uid);
       userName = (NULL == pwd)
                  ? Str_Asprintf(&strLen, "%d", (int) procInfo.pr_uid)
-                 : Util_SafeStrdup(pwd->pw_name);
+                 : Unicode_Alloc(pwd->pw_name, STRING_ENCODING_DEFAULT);
       DynBuf_Append(&dbProcOwner, &userName, sizeof userName);
 
       /*

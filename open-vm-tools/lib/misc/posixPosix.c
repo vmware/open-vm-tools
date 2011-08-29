@@ -503,15 +503,14 @@ Posix_EuidAccess(ConstUnicode pathName,  // IN:
 #if defined(GLIBC_VERSION_24)
    char *path;
    int ret;
-   int err;
 
    if (!PosixConvertToCurrent(pathName, &path)) {
       return -1;
    }
+
    ret = euidaccess(path, mode);
-   err = errno;
+
    free(path);
-   errno = err;
    return ret;
 #else
    errno = ENOSYS;
@@ -574,7 +573,7 @@ Posix_Utime(ConstUnicode pathName,        // IN:
  */
 
 void
-Posix_Perror(ConstUnicode str)         // IN:
+Posix_Perror(ConstUnicode str)  // IN:
 {
    char *tmpstr = Unicode_GetAllocBytes(str, STRING_ENCODING_DEFAULT);
 

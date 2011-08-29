@@ -33,6 +33,7 @@
 #include <dirent.h>
 #include <stdio.h>
 #include <limits.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -49,6 +50,7 @@
 #include <gdk/gdkx.h>
 #undef Bool
 
+extern "C" {
 #include "vmware.h"
 #include "vmware/tools/guestrpc.h"
 #include "base64.h"
@@ -67,15 +69,19 @@
 #include <paths.h>
 #include "vm_atomic.h"
 #include "mntinfo.h"
-#include "ghIntegration.h"
-#include "ghIntegrationInt.h"
 #include "guest_msg_def.h"
 #include "Uri.h"
+};
+
 #define URI_TEXTRANGE_EQUAL(textrange, str) \
-   (((textrange).afterLast - (textrange).first) == strlen((str))        \
+   (((textrange).afterLast - (textrange).first) == (ssize_t) strlen((str))        \
     && !strncmp((textrange).first, (str), (textrange).afterLast - (textrange).first))
 
 #include "appUtil.h"
+#include "ghIntegration.h"
+#include "ghIntegrationInt.h"
+
+using vmware::tools::NotifyIconCallback;
 
 /*
  * The following defines appear in newer versions of glib 2.x, so
@@ -162,6 +168,9 @@ struct _GHIPlatform {
 
    /** Pre-wrapper script environment.  See @ref System_GetNativeEnviron. */
    const char **nativeEnviron;
+
+   /** Callbacks to send data (RPCs) to the host */
+   GHIHostCallbacks hostCallbacks;
 };
 
 #ifdef GTK2
@@ -238,6 +247,14 @@ static GuestCapabilities platformGHICaps[] = {
 };
 */
 
+#if !defined(OPEN_VM_TOOLS)
+/*
+ * An empty file type list - a reference to this can be returned by
+ * GHIPlatformGetBinaryHandlers() in some circumstances.
+ */
+static FileTypeList sEmptyFileTypeList;
+#endif // OPEN_VM_TOOLS
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -263,7 +280,7 @@ GHIPlatformDestroyMenuItem(gpointer data,      // IN
 
    ASSERT(data);
 
-   gmi = data;
+   gmi = (GHIMenuItem *) data;
    g_key_file_free(gmi->keyfile);
    g_free(gmi->keyfilePath);
    g_free(gmi->exepath);
@@ -344,16 +361,18 @@ GHIPlatformIsSupported(void)
  */
 
 GHIPlatform *
-GHIPlatformInit(GMainLoop *mainLoop,   // IN
-                const char **envp)     // IN
+GHIPlatformInit(GMainLoop *mainLoop,            // IN
+                const char **envp,              // IN
+                GHIHostCallbacks hostCallbacks) // IN
 {
    GHIPlatform *ghip;
 
-   ghip = Util_SafeCalloc(1, sizeof *ghip);
+   ghip = (GHIPlatform *) Util_SafeCalloc(1, sizeof *ghip);
    ghip->directoriesTracked = g_array_new(FALSE, FALSE, sizeof(GHIDirectoryWatch));
    ghip->nativeEnviron = envp;
    ghip->appsByWindowExecutable =
       g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+   ghip->hostCallbacks = hostCallbacks;
    AppUtil_Init();
 
    return ghip;
@@ -518,6 +537,33 @@ GHIPlatformCleanup(GHIPlatform *ghip) // IN
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GHIPlatformRegisterNotifyIconCallback / GHIPlatformUnregisterNotifyIconCallback --
+ *
+ *      Register/Unregister the NotifyIcon Callback object. Since notification icons
+ *      (aka Tray icons) are unsupported on Linux guests this function does nothing.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Adds data into the DynBuf.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+GHIPlatformRegisterNotifyIconCallback(NotifyIconCallback *notifyIconCallback) // IN
+{
+}
+
+void GHIPlatformUnregisterNotifyIconCallback(NotifyIconCallback *notifyIconCallback)   // IN
+{
+}
+
+
 #ifdef GTK2
 
 
@@ -548,7 +594,7 @@ GHIPlatformCollectIconInfo(GHIPlatform *ghip,        // IN
    char tbuf[1024];
    gsize totalIconBytes;
    char *ctmp = NULL;
-   int i;
+   unsigned int i;
 
    if (ghm) {
       ctmp = g_key_file_get_string(ghm->keyfile, G_KEY_FILE_DESKTOP_GROUP,
@@ -563,7 +609,7 @@ GHIPlatformCollectIconInfo(GHIPlatform *ghip,        // IN
    totalIconBytes = DynBuf_GetSize(buf);
    for (i = 0; i < pixbufs->len; i++) {
       gsize thisIconBytes;
-      GdkPixbuf *pixbuf = g_ptr_array_index(pixbufs, i);
+      GdkPixbuf *pixbuf = (GdkPixbuf *) g_ptr_array_index(pixbufs, i);
 
       thisIconBytes = ICON_SPACE_PADDING; // Space used by the width/height/size strings, and breathing room
       thisIconBytes += gdk_pixbuf_get_width(pixbuf)
@@ -631,7 +677,7 @@ GHIPlatformCollectIconInfo(GHIPlatform *ghip,        // IN
       int rowstride;
       int n_channels;
 
-      pixbuf = g_ptr_array_index(pixbufs, i);
+      pixbuf = (GdkPixbuf *) g_ptr_array_index(pixbufs, i);
 
       width = gdk_pixbuf_get_width(pixbuf);
       height = gdk_pixbuf_get_height(pixbuf);
@@ -724,7 +770,8 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
          UriQueryListA *queryList = NULL;
          int itemCount;
 
-         realCmd = freeMe = GHIPlatformUriPathToString(uri.pathHead);
+         freeMe = GHIPlatformUriPathToString(uri.pathHead);
+         realCmd = (const char *) freeMe;
          if (uriDissectQueryMallocA(&queryList, &itemCount,
                                     uri.query.first,
                                     uri.query.afterLast) == URI_SUCCESS) {
@@ -774,7 +821,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
    }
 
    if (keyfilePath) {
-      ghm = g_hash_table_lookup(ghip->appsByDesktopEntry, keyfilePath);
+      ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByDesktopEntry, keyfilePath);
       g_free(keyfilePath);
    }
 
@@ -782,7 +829,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
       /*
        * Now that we have the full path, look it up in our hash table of GHIMenuItems
        */
-      ghm = g_hash_table_lookup(ghip->appsByExecutable, realCmd);
+      ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByExecutable, realCmd);
    }
 
    if (!ghm) {
@@ -803,12 +850,13 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
                                    (int)((slashLoc + 1) - realCmd),
                                    realCmd, newPath);
             g_free(freeMe);
-            realCmd = freeMe = ctmp;
+            freeMe = ctmp;
+            realCmd = (const char *) freeMe;
          } else {
             realCmd = newPath;
          }
 
-         ghm = g_hash_table_lookup(ghip->appsByExecutable, realCmd);
+         ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByExecutable, realCmd);
       }
    }
    /*
@@ -837,7 +885,8 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
    }
 
    free(freeMe);
-   ctmp = freeMe = NULL;
+   ctmp = NULL;
+   freeMe = NULL;
 
    GHIPlatformCollectIconInfo(ghip, ghm, windowID, buf);
 
@@ -848,6 +897,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
 }
 
 
+#if !defined(OPEN_VM_TOOLS)
 /*
  *----------------------------------------------------------------------------
  *
@@ -859,7 +909,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
  *      Once we find it, we can retrieve info on the app from the .desktop file.
  *
  * Results:
- *      TRUE if everything went ok, FALSE otherwise.
+ *      A Filetype list of the handlers.
  *
  * Side effects:
  *      None
@@ -867,13 +917,13 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
  *----------------------------------------------------------------------------
  */
 
-Bool
+const FileTypeList&
 GHIPlatformGetBinaryHandlers(GHIPlatform *ghip,      // IN: platform-specific state
-                             const char *pathUtf8,   // IN: full path to the executable
-                             XDR *xdrs)              // OUT: binary information
+                             const char *pathUtf8)   // IN: full path to the executable
 {
-   return FALSE;
+   return sEmptyFileTypeList;
 }
+#endif // OPEN_VM_TOOLS
 
 
 #ifdef GTK2
@@ -898,7 +948,7 @@ GHIPlatformGetBinaryHandlers(GHIPlatform *ghip,      // IN: platform-specific st
 static const char *
 GHIPlatformGetDesktopName(void)
 {
-   int i;
+   unsigned int i;
    static const char *clientMappings[][2] = {
       {"gnome-panel", "GNOME"},
       {"gnome-session", "GNOME"},
@@ -936,7 +986,7 @@ GHIPlatformGetDesktopName(void)
 
    for (i = 0; i < nchildren && !desktopEnvironment; i++) {
       XClassHint wmClass = { 0, 0 };
-      int j;
+      unsigned int j;
 
       /*
        * Try WM_CLASS first, then try WM_NAME.
@@ -1045,7 +1095,7 @@ GHIPlatformIsMenuItemAllowed(GHIPlatform *ghip, // IN:
                                                 &nstrings, NULL);
       if (onlyShowList && nstrings) {
          Bool matchedOnlyShowIn = FALSE;
-         int i;
+         unsigned int i;
 
          if (dtname) {
             for (i = 0; i < nstrings; i++) {
@@ -1069,7 +1119,7 @@ GHIPlatformIsMenuItemAllowed(GHIPlatform *ghip, // IN:
    if (dtname) {
       gchar **notShowList = NULL;
       gsize nstrings;
-      int i;
+      unsigned int i;
 
       notShowList = g_key_file_get_string_list(keyfile, G_KEY_FILE_DESKTOP_GROUP,
                                                G_KEY_FILE_DESKTOP_KEY_NOT_SHOW_IN,
@@ -1269,9 +1319,9 @@ GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
    Bool foundIt = FALSE;
    char **categories = NULL;
    gsize numcats;
-   int kfIndex;                 // keyfile categories index/iterator
-   int vIndex;                  // validCategories index/iterator
-   int iIndex;                  // invalidCategories index/iterator
+   unsigned int kfIndex;                 // keyfile categories index/iterator
+   unsigned int vIndex;                  // validCategories index/iterator
+   unsigned int iIndex;                  // invalidCategories index/iterator
 
    /*
     * Figure out if this .desktop file is in a category we want to put on our menus,
@@ -1323,7 +1373,7 @@ GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
    gmi->keyfile = keyfile;
    gmi->exepath = exePath;
 
-   gmd = g_tree_lookup(ghip->apps, validCategories[vIndex][0]);
+   gmd = (GHIMenuDirectory *) g_tree_lookup(ghip->apps, validCategories[vIndex][0]);
 
    if (!gmd) {
       /*
@@ -1382,7 +1432,7 @@ GHIPlatformReadDesktopFile(GHIPlatform *ghip, // IN
       return;
    }
 
-   if (!g_key_file_load_from_file(keyfile, path, 0, NULL) ||
+   if (!g_key_file_load_from_file(keyfile, path, (GKeyFileFlags) 0, NULL) ||
        !GHIPlatformIsMenuItemAllowed(ghip, keyfile)) {
       g_key_file_free(keyfile);
       Debug("%s: Unable to load .desktop file or told to skip it.\n", __func__);
@@ -1443,7 +1493,7 @@ GHIPlatformReadApplicationsDir(GHIPlatform *ghip, // IN
    while ((dent = readdir(dirh))) {
       char subpath[PATH_MAX];
       struct stat sbuf;
-      int subpathLen;
+      unsigned int subpathLen;
 
       if (!strcmp(dent->d_name, ".") ||
           !strcmp(dent->d_name, "..") ||
@@ -1502,7 +1552,7 @@ GHIPlatformReadAllApplications(GHIPlatform *ghip) // IN
    ASSERT(ghip);
 
    if (!ghip->apps) {
-      int i;
+      unsigned int i;
 
       ghip->apps = g_tree_new_full((GCompareDataFunc)strcmp, NULL, NULL,
                                    GHIPlatformDestroyMenuDirectory);
@@ -1578,21 +1628,22 @@ GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,        // IN: platform-specific 
    gmh->handleID = ++ghip->nextMenuHandle;
 
    if (!strcmp(rootUtf8, UNITY_START_MENU_LAUNCH_FOLDER)) {
-      gmh->handleType = LAUNCH_FOLDER;
+      gmh->handleType = GHIMenuHandle::LAUNCH_FOLDER;
       itemCount = g_tree_nnodes(ghip->apps);
       retval = TRUE;
    } else if (!strcmp(rootUtf8, UNITY_START_MENU_FIXED_FOLDER)) {
       /*
        * XXX Not yet implemented
        */
-      gmh->handleType = FIXED_FOLDER;
+      gmh->handleType = GHIMenuHandle::FIXED_FOLDER;
       retval = TRUE;
    } else if (*rootUtf8) {
-      gmh->handleType = DIRECTORY_FOLDER;
+      gmh->handleType = GHIMenuHandle::DIRECTORY_FOLDER;
 
       if (StrUtil_StartsWith(rootUtf8, UNITY_START_MENU_LAUNCH_FOLDER)) {
-         gmh->gmd = g_tree_lookup(ghip->apps,
-                                  rootUtf8 + sizeof(UNITY_START_MENU_LAUNCH_FOLDER));
+         gmh->gmd = (GHIMenuDirectory *) g_tree_lookup(ghip->apps,
+                                                       rootUtf8 +
+                                                         sizeof(UNITY_START_MENU_LAUNCH_FOLDER));
          if (gmh->gmd) {
             itemCount = gmh->gmd->items->len;
             retval = TRUE;
@@ -1646,11 +1697,11 @@ GHIPlatformFindLaunchMenuItem(gpointer key,   // IN
 
    ASSERT(data);
    ASSERT(value);
-   td = data;
+   td = (GHITreeTraversal *) data;
 
    td->currentItem++;
    if (td->currentItem == td->desiredItem) {
-      td->gmd = value;
+      td->gmd = (GHIMenuDirectory *) value;
       return TRUE;
    }
 
@@ -1703,7 +1754,7 @@ GHIPlatformMenuItemToURI(GHIPlatform *ghip, // IN
       return NULL;
    }
 
-   queryItems = alloca((argc + 1) * sizeof *queryItems);
+   queryItems = (UriQueryListA *) alloca((argc + 1) * sizeof *queryItems);
 
    for (i = 0; i < (argc - 1); i++) {
       queryItems[i].key = "argv[]";
@@ -1718,7 +1769,7 @@ GHIPlatformMenuItemToURI(GHIPlatform *ghip, // IN
     * 10 + 3 * len is the formula recommended by uriparser for the maximum URI string
     * length.
     */
-   uriString = alloca(10 + 3 * strlen(gmi->exepath));
+   uriString = (char *) alloca(10 + 3 * strlen(gmi->exepath));
    if (uriUnixFilenameToUriStringA(gmi->exepath, uriString)) {
       g_strfreev(argv);
       return NULL;
@@ -1727,7 +1778,7 @@ GHIPlatformMenuItemToURI(GHIPlatform *ghip, // IN
       g_strfreev(argv);
       return NULL;
    }
-   queryString = alloca(nchars + 1);
+   queryString = (char *) alloca(nchars + 1);
    err = uriComposeQueryA(queryString, queryItems, nchars + 1, &i);
    g_strfreev(argv);
    if (err != URI_SUCCESS) {
@@ -1783,13 +1834,13 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
    ASSERT(ghip->menuHandles);
    ASSERT(buf);
 
-   gmh = g_hash_table_lookup(ghip->menuHandles, GINT_TO_POINTER(handle));
+   gmh = (GHIMenuHandle *) g_hash_table_lookup(ghip->menuHandles, GINT_TO_POINTER(handle));
    if (!gmh) {
       return FALSE;
    }
 
    switch (gmh->handleType) {
-   case LAUNCH_FOLDER:
+   case GHIMenuHandle::LAUNCH_FOLDER:
       {
          GHITreeTraversal traverseData = { -1, itemIndex, NULL };
 
@@ -1815,10 +1866,10 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
             (char *)traverseData.gmd->dirname;
       }
       break;
-   case FIXED_FOLDER:
+   case GHIMenuHandle::FIXED_FOLDER:
       return FALSE;
 
-   case DIRECTORY_FOLDER:
+   case GHIMenuHandle::DIRECTORY_FOLDER:
       {
          GHIMenuItem *gmi;
 
@@ -1826,7 +1877,7 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
             return FALSE;
          }
 
-         gmi = g_ptr_array_index(gmh->gmd->items, itemIndex);
+         gmi = (GHIMenuItem *) g_ptr_array_index(gmh->gmd->items, itemIndex);
 
          localizedItemName = g_key_file_get_locale_string(gmi->keyfile,
                                                           G_KEY_FILE_DESKTOP_GROUP,
@@ -1895,7 +1946,7 @@ GHIPlatformCloseStartMenuTree(GHIPlatform *ghip, // IN: platform-specific state
       return TRUE;
    }
 
-   gmh = g_hash_table_lookup(ghip->menuHandles, GINT_TO_POINTER(handle));
+   gmh = (GHIMenuHandle *) g_hash_table_lookup(ghip->menuHandles, GINT_TO_POINTER(handle));
    if (!gmh) {
       return TRUE;
    }
@@ -2333,13 +2384,13 @@ GHIPlatformCombineArgs(GHIPlatform *ghip,            // IN
          case 'i':
          case 'c':
             if (!ghm && targetDotDesktop) {
-               ghm = g_hash_table_lookup(ghip->appsByDesktopEntry,
-                                         targetDotDesktop);
+               ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByDesktopEntry,
+                                                         targetDotDesktop);
             }
             if (!ghm) {
                ASSERT (fullargs->len > 0);
-               ghm = g_hash_table_lookup(ghip->appsByExecutable,
-                                         g_ptr_array_index(fullargs, 0));
+               ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByExecutable,
+                                                         g_ptr_array_index(fullargs, 0));
             }
 
             if (ghm) {
@@ -2442,9 +2493,9 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
                              * Comment stolen from GuestAppX11OpenUrl.
                              */
                              (char **)ghip->nativeEnviron,
-                             G_SPAWN_SEARCH_PATH |
+                             (GSpawnFlags) (G_SPAWN_SEARCH_PATH |
                              G_SPAWN_STDOUT_TO_DEV_NULL |
-                             G_SPAWN_STDERR_TO_DEV_NULL,
+                             G_SPAWN_STDERR_TO_DEV_NULL),
                              NULL, NULL, NULL, NULL);
    }
 
@@ -2590,10 +2641,13 @@ GHIPlatformShellUrlOpen(GHIPlatform *ghip,      // IN: platform-specific state
 
 Bool
 GHIPlatformSetGuestHandler(GHIPlatform *ghip,    // IN: platform-specific state
-                           const XDR *xdrs)      // IN: XDR Serialized arguments
+                           const char *suffix,   // IN/OPT: suffix
+                           const char *mimeType, // IN/OPT: MIME Type
+                           const char *UTI,      // IN/OPT: UTI
+                           const char *actionURI,  // IN:
+                           const char *targetURI)  // IN:
 {
    ASSERT(ghip);
-   ASSERT(xdrs);
 
    return FALSE;
 }
@@ -2618,10 +2672,11 @@ GHIPlatformSetGuestHandler(GHIPlatform *ghip,    // IN: platform-specific state
 
 Bool
 GHIPlatformRestoreDefaultGuestHandler(GHIPlatform *ghip,  // IN: platform-specific state
-                                      const XDR *xdrs)    // IN: XDR Serialized arguments
+                                      const char *suffix,   // IN/OPT: Suffix
+                                      const char *mimetype, // IN/OPT: MIME Type
+                                      const char *UTI)      // IN/OPT: UTI
 {
    ASSERT(ghip);
-   ASSERT(xdrs);
 
    return FALSE;
 }
@@ -2650,7 +2705,7 @@ static void
 GHIPlatformSetMenuTracking(GHIPlatform *ghip, // IN
                            Bool isEnabled)    // IN
 {
-   int i;
+   unsigned int i;
    ASSERT(ghip);
 
    if (isEnabled == ghip->trackingEnabled) {
@@ -2675,32 +2730,6 @@ GHIPlatformSetMenuTracking(GHIPlatform *ghip, // IN
 
 
 /*
- *------------------------------------------------------------------------------
- *
- * GHIPlatformGetProtocolHandlers --
- *
- *     XXX Needs to be implemented for Linux/X11 guests.
- *     Retrieve the list of protocol handlers from the guest.
- *
- * Results:
- *     TRUE on success
- *     FALSE on error
- *
- * Side effects:
- *     None
- *
- *------------------------------------------------------------------------------
- */
-
-Bool
-GHIPlatformGetProtocolHandlers(GHIPlatform *ghip,                           // UNUSED
-                               GHIProtocolHandlerList *protocolHandlerList) // IN
-{
-   return FALSE;
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * GHIPlatformSetOutlookTempFolder --
@@ -2721,85 +2750,15 @@ GHIPlatformGetProtocolHandlers(GHIPlatform *ghip,                           // U
  */
 
 Bool
-GHIPlatformSetOutlookTempFolder(GHIPlatform *ghip,  // IN: platform-specific state
-                                const XDR *xdrs)    // IN: XDR Serialized arguments
+GHIPlatformSetOutlookTempFolder(GHIPlatform *ghip,       // IN: platform-specific state
+                                const char *targetURI)   // IN: Target URI
 {
    ASSERT(ghip);
-   ASSERT(xdrs);
+   ASSERT(targetURI);
 
    return FALSE;
 }
 
-
-/*
- *----------------------------------------------------------------------------
- *
- * GHIPlatformRestoreOutlookTempFolder --
- *
- *    Set the temporary folder used by Microsoft Outlook to store attachments
- *    opened by the user.
- *
- * Results:
- *    TRUE if successful, FALSE otherwise.
- *
- * Side effects:
- *    None
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-GHIPlatformRestoreOutlookTempFolder(GHIPlatform *ghip)  // IN: platform-specific state
-{
-   ASSERT(ghip);
-
-   return FALSE;
-}
-
-
-/**
- * @brief Performs an action on the Trash (aka Recycle Bin) folder.
- *
- * Performs an action on the Trash (aka Recycle Bin) folder. Currently, the
- * only supported actions are to open the folder, or empty it.
- *
- * @param[in] ghip Pointer to platform-specific GHI data.
- * @param[in] xdrs Pointer to XDR serialized arguments.
- *
- * @retval TRUE  The action was performed.
- * @retval FALSE The action couldn't be performed.
- */
-
-Bool
-GHIPlatformTrashFolderAction(GHIPlatform *ghip,
-                             const XDR   *xdrs)
-{
-   ASSERT(ghip);
-   ASSERT(xdrs);
-   return FALSE;
-}
-
-
-/* @brief Returns the icon of the Trash (aka Recycle Bin) folder.
- *
- * Gets the icon of the Trash (aka Recycle Bin) folder, and returns it
- * to the host.
- *
- * @param[in]  ghip Pointer to platform-specific GHI data.
- * @param[out] xdrs Pointer to XDR serialized data to send to the host.
- *
- * @retval TRUE  The icon was fetched successfully.
- * @retval FALSE The icon could not be fetched.
- */
-
-Bool
-GHIPlatformTrashFolderGetIcon(GHIPlatform *ghip,
-                              XDR         *xdrs)
-{
-   ASSERT(ghip);
-   ASSERT(xdrs);
-   return FALSE;
-}
 
 /* @brief Send a mouse or keyboard event to a tray icon.
  *
@@ -2862,10 +2821,9 @@ GHIPlatformTrayIconStopUpdates(GHIPlatform *ghip)
 
 Bool
 GHIPlatformSetFocusedWindow(GHIPlatform *ghip,
-                            const XDR   *xdrs)
+                            int32 windowId)
 {
    ASSERT(ghip);
-   ASSERT(xdrs);
    return FALSE;
 }
 
@@ -2998,7 +2956,7 @@ tryagain:
             { "*thunderbird*-bin", "thunderbird" },
             { "*soffice.bin", "ooffice" }
          };
-         int i;
+         unsigned int i;
 
          fudged = TRUE;
 

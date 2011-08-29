@@ -35,6 +35,7 @@
 #include "util.h"
 #include "str.h"
 #include "dynbuf.h"
+#include "backdoor_def.h"
 
 #define LOGLEVEL_MODULE hostinfo
 #include "loglevel_user.h"
@@ -294,9 +295,6 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 
          return FALSE;
       }
-
-      Log(LGPFX" Seeing Intel CPU, numCoresPerCPU %u numThreadsPerCore %u.\n",
-          numCoresPerPCPU, numThreadsPerCore);
    } else if (strcmp(cpuid.id0.name, CPUID_AMD_VENDOR_STRING_FIXED) == 0) {
       info->vendor = CPUID_VENDOR_AMD;
       if (!HostInfoGetAMDCPUCount(&cpuid, &numCoresPerPCPU,
@@ -305,18 +303,12 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 
          return FALSE;
       }
-
-      Log(LGPFX" Seeing AMD CPU, numCoresPerCPU %u numThreadsPerCore %u.\n",
-          numCoresPerPCPU, numThreadsPerCore);
    } else {
       info->vendor = CPUID_VENDOR_UNKNOWN;
 
       // assume one core per CPU, one thread per core
       numCoresPerPCPU = 1;
       numThreadsPerCore = 1;
-
-      Log(LGPFX" Unknown CPU vendor \"%s\" seen, assuming one core per CPU "
-               "and one thread per core.\n", cpuid.id0.name);
    }
 
    info->numLogCPUs = Hostinfo_NumCPUs();
@@ -357,10 +349,6 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
       Log(LGPFX" numCores is 0, bumping to 1.\n");
       info->numCores = 1;
    }
-
-   Log(LGPFX" This machine has %u physical CPUS, %u total cores, and %u "
-            "logical CPUs.\n", info->numPhysCPUs, info->numCores,
-       info->numLogCPUs);
 
    /*
     * Pull out versioning and feature information.
@@ -584,4 +572,83 @@ VmTimeType
 Hostinfo_SystemTimerUS(void)
 {
    return Hostinfo_SystemTimerNS() / 1000;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Hostinfo_SLC64Supported --
+ *
+ *      Access the backdoor with an SLC64 control query. This is used
+ *      to determine if we are running in a VM that supports SLC64.
+ *      This function should only be called after determining that the
+ *	backdoor is present with Hostinfo_TouchBackdoor().
+ *
+ * Results:
+ *      TRUE if the outer VM supports SLC64.
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      Exception if not in a VM, so don't do that!
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_SLC64Supported(void)
+{
+   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_SLC64);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Hostinfo_NestedHVReplaySupported --
+ *
+ *      Access the backdoor with a HV replay control query. This is used
+ *      to determine if we are running in a VM that supports nested HV replay.
+ *      This function should only be called after determining that the
+ *	backdoor is present with Hostinfo_TouchBackdoor().
+ *
+ * Results:
+ *      TRUE if the outer VM supports nexted HV replay.
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      Exception if not in a VM, so don't do that!
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_NestedHVReplaySupported(void)
+{
+   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_HV_REPLAY_OK);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Hostinfo_SynchronizedVTSCs --
+ *
+ *      Access the backdoor to determine if the VCPUs' TSCs are
+ *      synchronized.
+ *
+ * Results:
+ *      TRUE if the outer VM provides synchronized VTSCs.
+ *	FALSE otherwise.
+ *
+ * Side effects:
+ *	Exception if not in a VM, so don't do that!
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_SynchronizedVTSCs(void)
+{
+   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_SYNC_VTSCS);
 }

@@ -159,7 +159,7 @@ GetConfEntry(const char *progName,  // IN: program name (argv[0])
    }
 
    if (strlen(entry) > 0) {
-      printf("%s\n", entry);
+      g_print("%s\n", entry);
       ret = EXIT_SUCCESS;
    } else {
       ToolsCmd_PrintErr(SU_(script.unknownop, "No script for operation %s.\n"),

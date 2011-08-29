@@ -565,7 +565,7 @@ UtilGetHomeDirectory(const char *name) // IN: user name
    ASSERT(name);
 
    pwd = Posix_Getpwnam(name);
-   if (pwd->pw_dir) {
+   if (pwd && pwd->pw_dir) {
       dir = Util_SafeStrdup(pwd->pw_dir);
    } else {
       dir = NULL;
@@ -599,7 +599,7 @@ UtilGetLoginName(int uid) //IN: user id
    struct passwd *pwd;
 
    pwd = Posix_Getpwuid(uid);
-   if (pwd->pw_name) {
+   if (pwd && pwd->pw_name) {
       name = Util_SafeStrdup(pwd->pw_name);
    } else {
       name = NULL;

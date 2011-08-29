@@ -65,6 +65,7 @@
 #include "err.h"
 #include "hostinfo.h"
 #include "guest_os.h"
+#include "guest_msg_def.h"
 #include "conf.h"
 #include "vixCommands.h"
 #include "foundryToolsDaemon.h"
@@ -88,7 +89,6 @@
 #include "vixTools.h"
 #include "vixOpenSource.h"
 
-#define GUESTMSG_MAX_IN_SIZE (64 * 1024) /* vmx/main/guest_msg.c */
 #define MAX64_DECIMAL_DIGITS 20          /* 2^64 = 18,446,744,073,709,551,616 */
 
 #if defined(linux) || defined(_WIN32)
@@ -109,8 +109,9 @@ static Bool ToolsDaemonSyncDriverThawCallback(void *clientData);
 static char *ToolsDaemonTcloGetQuotedString(const char *args,
                                             const char **endOfArg);
   
-static char * ToolsDaemonTcloGetEncodedQuotedString(const char *args,
-                                                    const char **endOfArg);
+static VixError ToolsDaemonTcloGetEncodedQuotedString(const char *args,
+                                                      const char **endOfArg,
+                                                      char **result);
 
 RpcInRet ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 
@@ -180,8 +181,19 @@ FoundryToolsDaemonRunProgram(RpcInData *data) // IN
     * may be NULL.
     */
    requestName = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
-   commandLine = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args);
-   commandLineArgs = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args);
+
+   err = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args,
+                                               &commandLine);
+   if (err != VIX_OK) {
+      goto abort;
+   }
+
+   err = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args,
+                                               &commandLineArgs);
+   if (err != VIX_OK) {
+      goto abort;
+   }
+
    credentialTypeStr = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
    obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
    directoryPath = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
@@ -548,22 +560,27 @@ ToolsDaemonTcloGetQuotedString(const char *args,      // IN
  *-----------------------------------------------------------------------------
  */
 
-static char *
+static VixError
 ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
-                                      const char **endOfArg) // OUT
+                                      const char **endOfArg, // OUT
+                                      char **result)         // OUT
 {
+   VixError err = VIX_OK;
    char *rawResultStr = NULL;
    char *resultStr = NULL;
 
    rawResultStr = ToolsDaemonTcloGetQuotedString(args, endOfArg);
    if (NULL == rawResultStr) {
-      return(NULL);
+      goto abort;
    }
 
-   resultStr = VixMsg_DecodeString(rawResultStr);
-   free(rawResultStr);
+   err = VixMsg_DecodeString(rawResultStr, &resultStr);
 
-   return resultStr;
+abort:
+   free(rawResultStr);
+   *result = resultStr;
+
+   return err;
 }
 
 
@@ -1124,7 +1141,8 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
    char *destPtr = NULL;
    int vixPrefixDataSize = (MAX64_DECIMAL_DIGITS * 2)
                              + (sizeof(' ') * 2)
-                             + sizeof('\0');
+                             + sizeof('\0')
+                             + sizeof(' ') * 10;   // for RPC header
 
    /*
     * Our temporary buffer will be the same size as what the
@@ -1176,18 +1194,6 @@ abort:
       tcloBufferLen = tcloBufferLen - resultValueLength;
       err = VIX_E_OUT_OF_MEMORY;
    }
-
-   /*
-    * This should never happen since tcloBuffer is pretty huge.
-    * But, there is no harm in being paranoid and I don't want to
-    * find out the buffer is too small when we are halfway through
-    * formatting the response.
-    */
-   if ((32 + resultValueLength + 32) >= sizeof(tcloBuffer)) {
-      err = VIX_E_OUT_OF_MEMORY;
-      resultValueLength = 0;
-   }
-
 
    /*
     * All Foundry tools commands return results that start with a foundry error

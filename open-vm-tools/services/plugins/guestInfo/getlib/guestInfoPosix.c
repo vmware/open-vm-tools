@@ -278,23 +278,32 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
       GuestNicV3 *nic = NULL;
       char macAddress[NICINFO_MAC_LEN];
 
-      Str_Sprintf(macAddress, sizeof macAddress, "%s",
-                  addr_ntoa(&entry->intf_link_addr));
-      nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
-      ASSERT_MEM_ALLOC(nic);
+      /*
+       * There is a race where the guest info plugin might be iterating over the
+       * interfaces while the OS is modifying them (i.e. by bringing them up
+       * after a resume). If we see an ethernet interface with an invalid MAC,
+       * then ignore it for now. Subsequent iterations of the gather loop will
+       * pick up any changes.
+       */
+      if (entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
+         Str_Sprintf(macAddress, sizeof macAddress, "%s",
+                     addr_ntoa(&entry->intf_link_addr));
+         nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
+         ASSERT_MEM_ALLOC(nic);
 
-      /* Record the "primary" address. */
-      if (entry->intf_addr.addr_type == ADDR_TYPE_IP ||
-          entry->intf_addr.addr_type == ADDR_TYPE_IP6) {
-         RecordNetworkAddress(nic, &entry->intf_addr);
-      }
+         /* Record the "primary" address. */
+         if (entry->intf_addr.addr_type == ADDR_TYPE_IP ||
+             entry->intf_addr.addr_type == ADDR_TYPE_IP6) {
+            RecordNetworkAddress(nic, &entry->intf_addr);
+         }
 
-      /* Walk the list of alias's and add those that are IPV4 or IPV6 */
-      for (i = 0; i < entry->intf_alias_num; i++) {
-         const struct addr *alias = &entry->intf_alias_addrs[i];
-         if (alias->addr_type == ADDR_TYPE_IP ||
-             alias->addr_type == ADDR_TYPE_IP6) {
-            RecordNetworkAddress(nic, alias);
+         /* Walk the list of alias's and add those that are IPV4 or IPV6 */
+         for (i = 0; i < entry->intf_alias_num; i++) {
+            const struct addr *alias = &entry->intf_alias_addrs[i];
+            if (alias->addr_type == ADDR_TYPE_IP ||
+                alias->addr_type == ADDR_TYPE_IP6) {
+               RecordNetworkAddress(nic, alias);
+            }
          }
       }
    }
@@ -356,7 +365,16 @@ RecordResolverInfo(NicInfoV3 *nicInfo)  // OUT
     * Search suffixes.
     */
    for (s = _res.dnsrch; *s; s++) {
-      DnsHostname *suffix = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, searchSuffixes, 1);
+      DnsHostname *suffix;
+
+      /* Check to see if we're going above our limit. See bug 605821. */
+      if (dnsConfigInfo->searchSuffixes.searchSuffixes_len == DNSINFO_MAX_SUFFIXES) {
+         g_message("%s: dns search suffix limit (%d) reached, skipping overflow.",
+                   __FUNCTION__, DNSINFO_MAX_SUFFIXES);
+         break;
+      }
+
+      suffix = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, searchSuffixes, 1);
       ASSERT_MEM_ALLOC(suffix);
       *suffix = Util_SafeStrdup(*s);
    }
@@ -402,7 +420,16 @@ RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
       for (i = 0; i < _res.nscount; i++) {
          struct sockaddr *sa = (struct sockaddr *)&ns[i];
          if (sa->sa_family == AF_INET || sa->sa_family == AF_INET6) {
-            TypedIpAddress *ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
+            TypedIpAddress *ip;
+
+            /* Check to see if we're going above our limit. See bug 605821. */
+            if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
+               g_message("%s: dns server limit (%d) reached, skipping overflow.",
+                         __FUNCTION__, DNSINFO_MAX_SERVERS);
+               break;
+            }
+
+            ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
             ASSERT_MEM_ALLOC(ip);
             GuestInfoSockaddrToTypedIpAddress(sa, ip);
          }
@@ -416,7 +443,16 @@ RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
       for (i = 0; i < MAXNS; i++) {
          struct sockaddr_in *sin = &_res.nsaddr_list[i];
          if (sin->sin_family == AF_INET) {
-            TypedIpAddress *ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
+            TypedIpAddress *ip;
+
+            /* Check to see if we're going above our limit. See bug 605821. */
+            if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
+               g_message("%s: dns server limit (%d) reached, skipping overflow.",
+                         __FUNCTION__, DNSINFO_MAX_SERVERS);
+               break;
+            }
+
+            ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
             ASSERT_MEM_ALLOC(ip);
             GuestInfoSockaddrToTypedIpAddress((struct sockaddr *)sin, ip);
          }
@@ -428,7 +464,16 @@ RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
       for (i = 0; i < MAXNS; i++) {
          struct sockaddr_in6 *sin6 = _res._u._ext.nsaddrs[i];
          if (sin6) {
-            TypedIpAddress *ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
+            TypedIpAddress *ip;
+
+            /* Check to see if we're going above our limit. See bug 605821. */
+            if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
+               g_message("%s: dns server limit (%d) reached, skipping overflow.",
+                         __FUNCTION__, DNSINFO_MAX_SERVERS);
+               break;
+            }
+
+            ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
             ASSERT_MEM_ALLOC(ip);
             GuestInfoSockaddrToTypedIpAddress((struct sockaddr *)sin6, ip);
          }
@@ -476,6 +521,13 @@ RecordRoutingInfoIPv4(NicInfoV3 *nicInfo)
       struct sockaddr_in *sin_genmask;
       InetCidrRouteEntry *icre;
       uint32_t ifIndex;
+
+      /* Check to see if we're going above our limit. See bug 605821. */
+      if (nicInfo->routes.routes_len == NICINFO_MAX_ROUTES) {
+         g_message("%s: route limit (%d) reached, skipping overflow.",
+                   __FUNCTION__, NICINFO_MAX_ROUTES);
+         break;
+      }
 
       rtentry = g_ptr_array_index(routes, i);
 
@@ -558,6 +610,13 @@ RecordRoutingInfoIPv6(NicInfoV3 *nicInfo)
       struct in6_rtmsg *in6_rtmsg;
       InetCidrRouteEntry *icre;
       uint32_t ifIndex = -1;
+
+      /* Check to see if we're going above our limit. See bug 605821. */
+      if (nicInfo->routes.routes_len == NICINFO_MAX_ROUTES) {
+         g_message("%s: route limit (%d) reached, skipping overflow.",
+                   __FUNCTION__, NICINFO_MAX_ROUTES);
+         break;
+      }
 
       in6_rtmsg = g_ptr_array_index(routes, i);
 

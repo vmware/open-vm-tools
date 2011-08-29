@@ -90,8 +90,10 @@ VSockVmci_ErrorToVSockError(int32 vmciError) // IN
    case VMCI_ERROR_NO_RESOURCES:
       err = ENOBUFS;
       break;
-   case VMCI_ERROR_INVALID_ARGS:
    case VMCI_ERROR_INVALID_RESOURCE:
+      err = EHOSTUNREACH;
+      break;
+   case VMCI_ERROR_INVALID_ARGS:
    default:
       err = EINVAL;
    }

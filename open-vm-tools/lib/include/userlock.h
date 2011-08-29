@@ -210,6 +210,7 @@ void MXUser_StatisticsControl(double contentionRatio,
                               uint64 minCount);
 
 void MXUser_PerLockData(void);
+void MXUser_ReportStats(Bool enable);
 #endif
 
 void MXUser_SetInPanic(void);

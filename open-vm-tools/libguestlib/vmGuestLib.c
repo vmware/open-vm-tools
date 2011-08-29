@@ -33,8 +33,10 @@
 #include "debug.h"
 #include "strutil.h"
 #include "guestlibV3.h"
+#include "guestlibIoctl.h"
 #include "dynxdr.h"
 #include "xdrutil.h"
+#include "ctype.h"
 
 #define GUESTLIB_NAME "VMware Guest API"
 
@@ -602,6 +604,7 @@ VMGuestLib_UpdateInfo(VMGuestLibHandle handle) // IN
    error = VMGuestLibUpdateInfo(handle);
    if (error != VMGUESTLIB_ERROR_SUCCESS) {
       Debug("VMGuestLibUpdateInfo failed: %d\n", error);
+      HANDLE_SESSIONID(handle) = 0;
       return error;
    }
 
@@ -1589,3 +1592,247 @@ VMGuestLib_GetHostMemUnmappedMB(VMGuestLibHandle handle,    // IN
    return error;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemZippedMB --
+ *
+ *      Total zipped VM memory
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemZippedMB(VMGuestLibHandle handle,    // IN
+                          uint32 *memZippedMB)        // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memZippedMB, memZippedMB,
+                         GUESTLIB_MEM_ZIPPED_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemZipSavedMB --
+ *
+ *      Total memopry saved by zipping VM memory
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemZipSavedMB(VMGuestLibHandle handle,    // IN
+                            uint32 *memZipSavedMB)      // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memZipSavedMB, memZipSavedMB,
+                         GUESTLIB_MEM_ZIPSAVED_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemLLSwappedMB --
+ *
+ *      VM memory swapped to SSD
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemLLSwappedMB(VMGuestLibHandle handle,    // IN
+                             uint32 *memLLSwappedMB)     // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memLLSwappedMB, memLLSwappedMB,
+                         GUESTLIB_MEM_LLSWAPPED_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemSwapTargetMB --
+ *
+ *      VM memory swap target
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemSwapTargetMB(VMGuestLibHandle handle,    // IN
+                              uint32 *memSwapTargetMB)    // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memSwapTargetMB, memSwapTargetMB,
+                         GUESTLIB_MEM_SWAP_TARGET_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemBalloonTargetMB --
+ *
+ *      VM memory balloon target size
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemBalloonTargetMB(VMGuestLibHandle handle,    // IN
+                                 uint32 *memBalloonTargetMB) // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memBalloonTargetMB, memBalloonTargetMB,
+                         GUESTLIB_MEM_BALLOON_TARGET_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemBalloonMaxMB --
+ *
+ *      VM memory balloon limit
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemBalloonMaxMB(VMGuestLibHandle handle,    // IN
+                              uint32 *memBalloonMaxMB)    // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memBalloonMaxMB, memBalloonMaxMB,
+                         GUESTLIB_MEM_BALLOON_MAX_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLibIoctl --
+ *
+ *      Marshal and invoke the guestlib ioctl.
+ *
+ * Results:
+ *      TRUE on success, FALSE otherwise (reply contains error detail, if
+ *      provided)
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VMGuestLibIoctl(const GuestLibIoctlParam *param,
+                char **reply,
+                size_t *replySize)
+{
+   XDR xdrs;
+   Bool ret;
+   static const char *request = VMGUESTLIB_IOCTL_COMMAND_STRING " ";
+
+   if (param == NULL || param->d >= GUESTLIB_IOCTL_MAX) {
+      return FALSE;
+   }
+   if (NULL == DynXdr_Create(&xdrs)) {
+      return FALSE;
+   }
+   if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
+       !xdr_GuestLibIoctlParam(&xdrs, (GuestLibIoctlParam *)param)) {
+      DynXdr_Destroy(&xdrs, TRUE);
+      return FALSE;
+   }
+   ret = RpcOut_SendOneRaw(DynXdr_Get(&xdrs), xdr_getpos(&xdrs), reply, replySize);
+   DynXdr_Destroy(&xdrs, TRUE);
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_AtomicUpdateCookie --
+ *
+ *      Atomically update a cookie on the host.
+ *
+ * Results:
+ *      TRUE on success, FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+VMGuestLib_AtomicUpdateCookie(const char *src,    // IN
+                              const char *dst,    // IN
+                              char **reply,       // OUT
+                              size_t *replySize)  // OUT
+{
+   GuestLibIoctlParam param;
+
+   ASSERT(src != NULL);
+   ASSERT(dst != NULL);
+
+   param.d = GUESTLIB_IOCTL_ATOMIC_UPDATE_COOKIE;
+   param.GuestLibIoctlParam_u.atomicUpdateCookie.src = (char *)src;
+   param.GuestLibIoctlParam_u.atomicUpdateCookie.dst = (char *)dst;
+   return VMGuestLibIoctl(&param, reply, replySize);
+}

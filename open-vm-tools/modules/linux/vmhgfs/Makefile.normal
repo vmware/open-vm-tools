@@ -1,0 +1,127 @@
+#!/usr/bin/make -f
+##########################################################
+# Copyright (C) 1998 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation version 2 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+#
+##########################################################
+
+####
+####  VMware vmhgfs Makefile to be distributed externally
+####
+
+vm_check_build = $(shell if $(CC) $(CC_OPTS) $(INCLUDE) -Werror -S -o /dev/null -xc $(1) \
+        > /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi)
+
+DRIVERNAME = $(DRIVER)-$(VM_UNAME)
+
+ifneq (,$(filter x86_64%, $(shell $(CC) -dumpmachine)))
+MACHINE := x86_64
+else
+MACHINE := x386
+endif
+
+####
+#### You must compile with at least -O level of optimization
+#### or the module won't load.
+#### If desparate, I think that bringing in <linux/bitops.h> might
+#### suffice.
+####
+CC_WARNINGS := -Wall -Wstrict-prototypes
+# Don't use -pipe or egcs-2.91.66 (shipped with RedHat) will die
+CC_KFLAGS := -D__KERNEL__ -fno-strength-reduce -fno-omit-frame-pointer \
+             -fno-common -DKBUILD_MODNAME=$(DRIVER)
+CC_KFLAGS += $(call vm_check_gcc,-falign-loops=2 -falign-jumps=2 -falign-functions=2, \
+	     -malign-loops=2 -malign-jumps=2 -malign-functions=2)
+CC_KFLAGS += $(call vm_check_gcc,-fno-strict-aliasing,)
+ifeq ($(MACHINE),x86_64)
+CC_KFLAGS += -mno-red-zone -mcmodel=kernel
+else
+# Gcc 3.0 deprecates -m486 --hpreg
+CC_KFLAGS += -DCPU=586 $(call check_gcc,-march=i586,-m486)
+endif
+
+CC_OPTS := -O2 -DMODULE $(GLOBAL_DEFS) $(CC_KFLAGS) $(CC_WARNINGS)
+
+INCLUDE += -I. -I$(HEADER_DIR)
+
+INCLUDE += $(shell $(CC) $(INCLUDE) -E $(AUTOCONF_DIR)/geninclude.c \
+	   | sed -n -e 's!^APATH!-I$(HEADER_DIR)/asm!p')
+
+ifdef OVT_SOURCE_DIR
+INCLUDE += -I$(call VMLIB_PATH,backdoor)
+INCLUDE += -I$(call VMLIB_PATH,hgfs)
+endif
+
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c, -DVMW_HAVE_EPOLL, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/maxbytes.c, -DVMW_SB_HAS_MAXBYTES, )
+CC_OPTS += -DVMW_KMEMCR_HAS_DTOR
+
+# Core driver components
+OBJS =  bdhandler.o
+OBJS += dentry.o
+OBJS += dir.o
+OBJS += file.o
+OBJS += filesystem.o
+OBJS += fsutil.o
+OBJS += inode.o
+OBJS += link.o
+OBJS += module.o
+OBJS += page.o
+OBJS += request.o
+OBJS += stubs.o
+OBJS += super.o
+OBJS += tcp.o
+OBJS += transport.o
+
+# Additional components
+OBJS +=	backdoor.o
+OBJS +=	cpName.o
+OBJS +=	cpNameLinux.o
+OBJS +=	cpNameLite.o
+OBJS +=	hgfsBd.o
+OBJS +=	hgfsEscape.o
+OBJS +=	hgfsUtil.o
+OBJS +=	kernelStubsLinux.o
+OBJS +=	message.o
+OBJS +=	messageBackdoor.o
+OBJS +=	rpcout.o
+
+ifeq ($(MACHINE),x86_64)
+OBJS += backdoorGcc64.o
+else
+OBJS += backdoorGcc32.o
+endif
+
+CFLAGS := $(CC_OPTS) $(INCLUDE)
+
+LIBS :=
+
+default: all
+
+all: ../$(DRIVER).o
+
+$(DRIVERNAME): $(OBJS)
+	$(LD) -r -o $@ $^
+
+$(DRIVER) $(DRIVER).o ../$(DRIVER).o: $(DRIVERNAME)
+	cp -f $< $@
+
+auto-build: ../$(DRIVER).o
+
+clean:
+	rm -f $(DRIVERNAME) ../$(DRIVERNAME) $(DRIVER).o ../$(DRIVER).o $(DRIVER) $(OBJS)
+
+.SILENT:

@@ -141,12 +141,20 @@
 #  define BDOOR_CMD_FAS_GET_TABLE_SIZE    0
 #  define BDOOR_CMD_FAS_GET_TABLE_DATA    1
 #  define BDOOR_CMD_FAS_GET_PLATFORM_NAME 2
+#  define BDOOR_CMD_FAS_GET_PCIE_OSC_MASK 3
 #define BDOOR_CMD_SENDPSHAREHINTS       66
 #define BDOOR_CMD_ENABLE_USB_MOUSE      67
 #define BDOOR_CMD_GET_VCPU_INFO         68
 #  define BDOOR_CMD_VCPU_SLC64            0
+#  define BDOOR_CMD_VCPU_SYNC_VTSCS       1
+#  define BDOOR_CMD_VCPU_HV_REPLAY_OK     2
 #  define BDOOR_CMD_VCPU_RESERVED        31
-#define BDOOR_CMD_MAX                   69
+#define BDOOR_CMD_EFI_SERIALCON_CONFIG   69
+#define BDOOR_CMD_BUG328986              70
+#define BDOOR_CMD_FIRMWARE_ERROR         71
+#  define BDOOR_CMD_FE_INSUFFICIENT_MEM   0
+#  define BDOOR_CMD_FE_EXCEPTION          1
+#define BDOOR_CMD_MAX                    72
 
 
 /* 
@@ -165,6 +173,12 @@
 /* Version of backdoor pshare hints protocol */
 #define BDOOR_PSHARE_HINTS_VERSION     1
 #define BDOOR_PSHARE_HINTS_VER(ecx)    (((ecx) >> 17) & 0x7f)
+
+/* Task applied to backdoor pshare hints */
+#define BDOOR_PSHARE_HINTS_CMD_SHARE   0
+#define BDOOR_PSHARE_HINTS_CMD_DROP    1
+
+#define BDOOR_PSHARE_HINTS_CMD(ecx)   (((ecx) >> 24) & 0x1)
 
 /* Nesting control operations */
 

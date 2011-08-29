@@ -355,7 +355,27 @@ File_EnsureDirectory(ConstUnicode pathName)  // IN:
 Bool
 File_DeleteEmptyDirectory(ConstUnicode pathName)  // IN:
 {
-   return (FileRemoveDirectory(pathName) == 0) ? TRUE : FALSE;
+   Bool returnValue = TRUE;
+
+   if (FileRemoveDirectory(pathName) != 0) {
+#if defined(_WIN32)
+      /*
+       * Directory may have read-only bit set. Unset the
+       * read-only bit and try deleting one more time.
+       */
+      if (File_SetFilePermissions(pathName, S_IWUSR)) {
+         if (FileRemoveDirectory(pathName) != 0) {
+            returnValue = FALSE;
+         }
+      } else {
+         returnValue = FALSE;
+      }
+#else
+      returnValue =  FALSE;
+#endif
+   }
+
+   return returnValue;
 }
 
 
@@ -816,7 +836,7 @@ File_SplitName(ConstUnicode pathName,  // IN:
 
    ASSERT(pathName);
 
-   pathLen = Unicode_LengthInCodeUnits(pathName);
+   pathLen = Unicode_LengthInCodePoints(pathName);
 
    /*
     * Get volume.
@@ -992,7 +1012,8 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
    /*
     * The volume component may be empty.
     */
-   if (Unicode_LengthInCodeUnits(volume) > 0) {
+
+   if (!Unicode_IsEmpty(volume)) {
       Unicode temp;
 
       temp = Unicode_Append(volume, *pathName);
@@ -1005,7 +1026,7 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
     * Remove any trailing directory separator characters.
     */
 
-   len = Unicode_LengthInCodeUnits(*pathName);
+   len = Unicode_LengthInCodePoints(*pathName);
 
    curLen = len;
 
@@ -1111,8 +1132,8 @@ File_StripSlashes(ConstUnicode path)  // IN:
  */
 
 static Unicode
-FileMakeTempExCreateNameFunc(int num,               // IN:
-                             void *data)            // IN:
+FileMakeTempExCreateNameFunc(int num,     // IN:
+                             void *data)  // IN:
 {
    Unicode filePath;
 
@@ -1207,7 +1228,8 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
 {
    int fd = -1;
    int err;
-   uint32 var;
+   int var;
+   uint32 i;
 
    Unicode path = NULL;
 
@@ -1220,7 +1242,8 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
 
    *presult = NULL;
 
-   for (var = 0; var < 0xFFFFFFFF; var++) {
+   for (i = 0, var = 0; i < 0xFFFFFFFF;
+        i++, var += (FileSimpleRandom() >> 8) & 0xFF) {
       Unicode fileName = NULL;
 
       /* construct suffixed pathname to use */
@@ -1231,7 +1254,7 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
 
       if (fileName == NULL) {
          Msg_Append(MSGID(file.maketemp.helperFuncFailed)
-                  "Failed to construct the file name\n");
+                  "Failed to construct the filename.\n");
          errno = EFAULT;
          goto exit;
       }
@@ -1243,6 +1266,17 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
 
       if (createTempFile) {
          fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
+#if defined(_WIN32)
+         /*
+          * On windows, Posix_Open() fails with EACCES if there is any
+          * access violation while creating the file. Also, EACCES is returned
+          * if a directory already exists with the same name. In such case,
+          * we need to check if a file already exists and ignore EACCES error.
+          */
+         if ((fd == -1) && (errno == EACCES) && (File_Exists(path))) {
+            continue;
+         }
+#endif
       } else {
          fd = Posix_Mkdir(path, 0600);
       }
@@ -1253,16 +1287,7 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
          break;
       }
 
-#if defined(_WIN32)
-      /*
-       * On windows, Posix_Open() fails with EACCES if a directory
-       * already exists with the same name. In such case, we need to
-       * ignore EACCES error and continue trying out.
-       */
-      if ((errno != EEXIST) && (errno != EACCES)) {
-#else
       if (errno != EEXIST) {
-#endif
          err = errno;
          Msg_Append(MSGID(file.maketemp.openFailed)
                  "Failed to create temporary file \"%s\": %s.\n",
@@ -1364,8 +1389,8 @@ File_MakeTemp(ConstUnicode tag,  // IN (OPT):
  *      end of the 'src' file to the current position in the 'dst' file
  *
  * Results:
- *      TRUE on success
- *      FALSE on failure
+ *      TRUE   success
+ *      FALSE  failure
  *
  * Side effects:
  *      The current position in the 'src' file and the 'dst' file are modified
@@ -1377,6 +1402,7 @@ Bool
 File_CopyFromFdToFd(FileIODescriptor src,  // IN:
                     FileIODescriptor dst)  // IN:
 {
+   Err_Number err;
    FileIOResult fretR;
 
    do {
@@ -1386,16 +1412,24 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
 
       fretR = FileIO_Read(&src, buf, sizeof(buf), &actual);
       if (!FileIO_IsSuccess(fretR) && (fretR != FILEIO_READ_ERROR_EOF)) {
+         err = Err_Errno();
+
          Msg_Append(MSGID(File.CopyFromFdToFd.read.failure)
                                "Read error: %s.\n\n", FileIO_MsgError(fretR));
+
+         Err_SetErrno(err);
 
          return FALSE;
       }
 
       fretW = FileIO_Write(&dst, buf, actual, NULL);
       if (!FileIO_IsSuccess(fretW)) {
+         err = Err_Errno();
+
          Msg_Append(MSGID(File.CopyFromFdToFd.write.failure)
                               "Write error: %s.\n\n", FileIO_MsgError(fretW));
+
+         Err_SetErrno(err);
 
          return FALSE;
       }
@@ -1433,9 +1467,10 @@ File_CopyFromFdToName(FileIODescriptor src,  // IN:
                       ConstUnicode dstName,  // IN:
                       int dstDispose)        // IN:
 {
-   FileIODescriptor dst;
+   Bool success;
+   Err_Number err;
    FileIOResult fret;
-   Bool result;
+   FileIODescriptor dst;
 
    ASSERT(dstName);
 
@@ -1443,30 +1478,43 @@ File_CopyFromFdToName(FileIODescriptor src,  // IN:
 
    fret = File_CreatePrompt(&dst, dstName, 0, dstDispose);
    if (!FileIO_IsSuccess(fret)) {
+      err = Err_Errno();
+
       if (fret != FILEIO_CANCELLED) {
          Msg_Append(MSGID(File.CopyFromFdToName.create.failure)
                     "Unable to create a new '%s' file: %s.\n\n",
                     UTF8(dstName), FileIO_MsgError(fret));
       }
 
+      Err_SetErrno(err);
+
       return FALSE;
    }
 
-   result = File_CopyFromFdToFd(src, dst);
+   success = File_CopyFromFdToFd(src, dst);
+
+   err = Err_Errno();
 
    if (FileIO_Close(&dst) != 0) {
+      if (success) {  // Report close failure when there isn't another error
+         err =  Err_Errno();
+      }
+
       Msg_Append(MSGID(File.CopyFromFdToName.close.failure)
                  "Unable to close the '%s' file: %s.\n\n", UTF8(dstName),
                  Msg_ErrString());
-      result = FALSE;
+
+      success = FALSE;
    }
 
-   if (result == FALSE) {
+   if (!success) {
       /* The copy failed: ensure the destination file is removed */
       File_Unlink(dstName);
    }
 
-   return result;
+   Err_SetErrno(err);
+
+   return success;
 }
 
 
@@ -1496,8 +1544,8 @@ File_CreatePrompt(FileIODescriptor *file,  // OUT:
                   int access,              // IN:
                   int prompt)              // IN:
 {
-   FileIOOpenAction action;
    FileIOResult fret;
+   FileIOOpenAction action;
 
    ASSERT(file);
    ASSERT(pathName);
@@ -1507,12 +1555,13 @@ File_CreatePrompt(FileIODescriptor *file,  // OUT:
    while ((fret = FileIO_Open(file, pathName, FILEIO_OPEN_ACCESS_WRITE | access,
                              action)) == FILEIO_OPEN_ERROR_EXIST) {
       static Msg_String const buttons[] = {
-         {BUTTONID(file.create.retry) "Retry"},
+         {BUTTONID(file.create.retry)     "Retry"},
          {BUTTONID(file.create.overwrite) "Overwrite"},
-         {BUTTONID(cancel) "Cancel"},
+         {BUTTONID(cancel)                "Cancel"},
          {NULL}
       };
       int answer;
+      Err_Number err = Err_Errno();
 
       answer = (prompt != -1) ? prompt : Msg_Question(buttons, 2,
          MSGID(File.CreatePrompt.question)
@@ -1522,6 +1571,9 @@ File_CreatePrompt(FileIODescriptor *file,  // OUT:
          "to another location, select Retry.\n"
          "To cancel the operation, select Cancel.\n",
          UTF8(pathName));
+
+      Err_SetErrno(err);
+
       if (answer == 2) {
          fret = FILEIO_CANCELLED;
          break;
@@ -1564,9 +1616,10 @@ File_CopyFromNameToName(ConstUnicode srcName,  // IN:
                         ConstUnicode dstName,  // IN:
                         int dstDispose)        // IN:
 {
-   FileIODescriptor src;
+   Bool success;
+   Err_Number err;
    FileIOResult fret;
-   Bool result;
+   FileIODescriptor src;
 
    ASSERT(srcName);
    ASSERT(dstName);
@@ -1575,23 +1628,36 @@ File_CopyFromNameToName(ConstUnicode srcName,  // IN:
 
    fret = FileIO_Open(&src, srcName, FILEIO_OPEN_ACCESS_READ, FILEIO_OPEN);
    if (!FileIO_IsSuccess(fret)) {
+      err = Err_Errno();
+
       Msg_Append(MSGID(File.CopyFromNameToName.open.failure)
                  "Unable to open the '%s' file for read access: %s.\n\n",
                  UTF8(srcName), FileIO_MsgError(fret));
 
+      Err_SetErrno(err);
+
       return FALSE;
    }
 
-   result = File_CopyFromFdToName(src, dstName, dstDispose);
+   success = File_CopyFromFdToName(src, dstName, dstDispose);
+
+   err = Err_Errno();
    
    if (FileIO_Close(&src) != 0) {
+      if (success) {  // Report close failure when there isn't another error
+         err =  Err_Errno();
+      }
+
       Msg_Append(MSGID(File.CopyFromNameToName.close.failure)
                  "Unable to close the '%s' file: %s.\n\n", UTF8(srcName),
                  Msg_ErrString());
-      result = FALSE;
+
+      success = FALSE;
    }
 
-   return result;
+   Err_SetErrno(err);
+
+   return success;
 }
 
 /*
@@ -1618,10 +1684,11 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
                 ConstUnicode dstName,     // IN:
                 Bool overwriteExisting)   // IN:
 {
+   Bool success;
+   Err_Number err;
+   FileIOResult fret;
    FileIODescriptor dst;
    FileIOOpenAction action;
-   FileIOResult fret;
-   Bool result;
 
    ASSERT(dstName);
 
@@ -1632,28 +1699,41 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
 
    fret = FileIO_Open(&dst, dstName, FILEIO_OPEN_ACCESS_WRITE, action);
    if (!FileIO_IsSuccess(fret)) {
+      err = Err_Errno();
+
       Msg_Append(MSGID(File.CopyFromFdToName.create.failure)
                  "Unable to create a new '%s' file: %s.\n\n", UTF8(dstName),
                  FileIO_MsgError(fret));
 
+      Err_SetErrno(err);
+
       return FALSE;
    }
 
-   result = File_CopyFromFdToFd(src, dst);
+   success = File_CopyFromFdToFd(src, dst);
+
+   err = Err_Errno();
 
    if (FileIO_Close(&dst) != 0) {
+      if (success) {  // Report close failure when there isn't another error
+         err =  Err_Errno();
+      }
+
       Msg_Append(MSGID(File.CopyFromFdToName.close.failure)
                  "Unable to close the '%s' file: %s.\n\n", UTF8(dstName),
                  Msg_ErrString());
-      result = FALSE;
+
+      success = FALSE;
    }
 
-   if (result == FALSE) {
+   if (!success) {
       /* The copy failed: ensure the destination file is removed */
       File_Unlink(dstName);
    }
 
-   return result;
+   Err_SetErrno(err);
+
+   return success;
 }
 
 
@@ -1682,9 +1762,10 @@ File_Copy(ConstUnicode srcName,    // IN:
           ConstUnicode dstName,    // IN:
           Bool overwriteExisting)  // IN:
 {
-   FileIODescriptor src;
+   Bool success;
+   Err_Number err;
    FileIOResult fret;
-   Bool result;
+   FileIODescriptor src;
 
    ASSERT(srcName);
    ASSERT(dstName);
@@ -1693,35 +1774,52 @@ File_Copy(ConstUnicode srcName,    // IN:
 
    fret = FileIO_Open(&src, srcName, FILEIO_OPEN_ACCESS_READ, FILEIO_OPEN);
    if (!FileIO_IsSuccess(fret)) {
+      err = Err_Errno();
+
       Msg_Append(MSGID(File.Copy.open.failure)
                  "Unable to open the '%s' file for read access: %s.\n\n",
                  UTF8(srcName), FileIO_MsgError(fret));
 
+      Err_SetErrno(err);
+
       return FALSE;
    }
 
-   result = File_CopyFromFd(src, dstName, overwriteExisting);
+   success = File_CopyFromFd(src, dstName, overwriteExisting);
+
+   err = Err_Errno();
    
    if (FileIO_Close(&src) != 0) {
+      if (success) {  // Report close failure when there isn't another error
+         err =  Err_Errno();
+      }
+
       Msg_Append(MSGID(File.Copy.close.failure)
                  "Unable to close the '%s' file: %s.\n\n", UTF8(srcName),
                  Msg_ErrString());
-      result = FALSE;
+
+      success = FALSE;
    }
 
-   return result;
+   Err_SetErrno(err);
+
+   return success;
 }
+
 
 /*
  *----------------------------------------------------------------------
  *
- * File_Rename --
+ * File_Move --
  *
- *      Renames a source to a destination file.
- *      Will copy the file if necessary
+ *      Moves a file from one place to the other as efficiently as possible.
+ *      This can be used to rename a file but, since file copying may be
+ *      necessary, there is no assurance of atomicity. For efficiency
+ *      purposes copying only results if the native rename ability fails.
  *
  * Results:
- *      TRUE if succeeded FALSE otherwise
+ *      TRUE   succeeded
+ *      FALSE  otherwise
  *      
  * Side effects:
  *      src file is no more, but dst file exists
@@ -1730,18 +1828,31 @@ File_Copy(ConstUnicode srcName,    // IN:
  */
 
 Bool 
-File_Rename(ConstUnicode oldFile,  // IN:
-            ConstUnicode newFile)  // IN:
+File_Move(ConstUnicode oldFile,  // IN:
+          ConstUnicode newFile,  // IN:
+          Bool *asRename)        // OUT: result occurred due to rename/copy
 {
-   Bool ret = TRUE;
+   Bool ret;
+   Bool duringRename;
 
-   if (FileRename(oldFile, newFile) != 0) {
-      /* overwrite the file if it exists */
-      if (File_Copy(oldFile, newFile, TRUE)) {
-         File_Unlink(oldFile);
+   if (FileRename(oldFile, newFile) == 0) {
+      duringRename = TRUE;
+      ret = TRUE;
+      Err_SetErrno(0);
+   } else {
+      duringRename = FALSE;
+
+      if (File_Copy(oldFile, newFile, TRUE)) {  // Allow overwrite
+         File_Unlink(oldFile);  // Explicitly ignore errors
+         ret = TRUE;
+         Err_SetErrno(0);
       } else {
          ret = FALSE;
       }
+   }
+
+   if (asRename) {
+      *asRename = duringRename;
    }
 
    return ret;
@@ -1971,7 +2082,7 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName)  // IN:
       return TRUE;
    }
 
-   length = Unicode_LengthInCodeUnits(pathName);
+   length = Unicode_LengthInCodePoints(pathName);
 
    if (length == 0) {
       return TRUE;
@@ -1983,7 +2094,7 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName)  // IN:
 
    File_SplitName(pathName, &volume, NULL, NULL);
 
-   index = Unicode_LengthInCodeUnits(volume);
+   index = Unicode_LengthInCodePoints(volume);
 
    Unicode_Free(volume);
 
@@ -2132,8 +2243,11 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
 
    Unicode_Free(base);
 
-   /* delete the now-empty directory */
-   if (!File_DeleteEmptyDirectory(pathName)) {
+   /*
+    * Call File_DeleteEmptyDirectory() only if there is no prior error
+    * while deleting the children.
+    */
+   if (!sawFileError && !File_DeleteEmptyDirectory(pathName)) {
       sawFileError = TRUE;
    }
 
@@ -2558,3 +2672,272 @@ FileSleeper(uint32 msecMinSleepTime,  // IN:
    return msecActualSleepTime;
 }
 #endif // N_PLAT_NLM
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileRotateByRename --
+ *
+ *      The oldest indexed file should be removed so that the
+ *      consequent rename succeeds.
+ *
+ *      The last dst is 'fileName' and should not be deleted.
+ *
+ * Results:
+ *      If newFileName is non-NULL: the new path is returned to
+ *      *newFileName if the rotation succeeded, otherwise NULL
+ *      is returned in *newFileName.  The caller is responsible
+ *      for freeing the string returned in *newFileName.
+ *
+ * Side effects:
+ *      Rename backup old files kept so far.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+FileRotateByRename(const char *fileName,  // IN: full path to file
+                   const char *baseName,  // IN: filename w/o extension.
+                   const char *ext,       // IN: extension
+                   int n,                 // IN: number of old files to keep
+                   char **newFileName)    // OUT/OPT: new path to file
+{
+   char *src = NULL;
+   char *dst = NULL;
+   int i;
+   int result;
+
+   for (i = n; i >= 0; i--) {
+      src = (i == 0) ? (char *) fileName :
+                       Str_SafeAsprintf(NULL, "%s-%d%s", baseName, i - 1, ext);
+
+      if (dst != NULL) {
+         result = Posix_Rename(src, dst);
+         if (result == -1) {
+            int error = Err_Errno();
+            if (error != ENOENT) {
+               Log("LOG failed to rename %s -> %s: %s\n", src, dst,
+                   Err_Errno2String(error));
+            }
+         }
+      } else {
+         result = File_UnlinkIfExists(src);
+         if (result == -1) {
+            Log("LOG failed to remove %s: %s\n", src, Msg_ErrString());
+         }
+      }
+      if (src == fileName && newFileName != NULL) {
+         *newFileName = result == -1 ? NULL : strdup(dst);
+      }
+      ASSERT(dst != fileName);
+      free(dst);
+      dst = src;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileNumberCompare --
+ *
+ *      Helper function for comparing the contents of two
+ *      uint32 pointers a and b, suitable for use by qsort
+ *      to order an array of file numbers.
+ *
+ * Results:
+ *      The contents of 'a' minus the contents of 'b'.
+ *
+ * Side effects:
+ *      None.
+ */
+
+static int
+FileNumberCompare(const void *a,  // IN:
+                  const void *b)  // IN:
+{
+   return *(uint32 *)a - *(uint32 *)b;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileRotateByRenumber --
+ *
+ *      File rotation scheme optimized for vmfs:
+ *        1) find highest numbered file (maxNr)
+ *        2) rename <base>.<ext> to <base>-<maxNr + 1>.<ext>
+ *        3) delete (nFound - numToKeep) lowest numbered files.
+ *
+ *        Wrap around is handled incorrectly.
+ *
+ * Results:
+ *      If newFilePath is non-NULL: the new path is returned to
+ *      *newFilePath if the rotation succeeded, otherwise NULL
+ *      is returned in *newFilePath.  The caller is responsible
+ *      for freeing the string returned in *newFilePath.
+ *
+ * Side effects:
+ *      Files renamed / deleted.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+FileRotateByRenumber(const char *filePath,       // IN: full path to file
+                     const char *filePathNoExt,  // IN: filename w/o extension.
+                     const char *ext,            // IN: extension
+                     int n,                      // IN: number old files to keep
+                     char **newFilePath)         // OUT/OPT: new path to file
+{
+   char *baseDir = NULL, *fmtString = NULL, *baseName = NULL, *tmp;
+   char *fullPathNoExt = NULL;
+   uint32 maxNr = 0;
+   int i, nrFiles, nFound = 0;
+   char **fileList = NULL;
+   uint32 *fileNumbers = NULL;
+   int result;
+
+   fullPathNoExt = File_FullPath(filePathNoExt);
+   if (fullPathNoExt == NULL) {
+      Log("%s: failed to get full path for '%s'.\n", __FUNCTION__,
+          filePathNoExt);
+      goto cleanup;
+   }
+
+   File_GetPathName(fullPathNoExt, &baseDir, &baseName);
+   if ((baseDir[0] == '\0') || (baseName[0] == '\0')) {
+      Log("%s: failed to get base dir for path '%s'.\n", __FUNCTION__,
+          filePathNoExt);
+      goto cleanup;
+   }
+
+   fmtString = Str_SafeAsprintf(NULL, "%s-%%d%s%%n", baseName, ext);
+
+   nrFiles = File_ListDirectory(baseDir, &fileList);
+   if (nrFiles == -1) {
+      Log("%s: failed to read the directory '%s'.\n", __FUNCTION__,
+          baseDir);
+      goto cleanup;
+   }
+
+   fileNumbers = Util_SafeCalloc(nrFiles, sizeof(uint32));
+
+   for (i = 0; i < nrFiles; i++) {
+      uint32 curNr;
+      int bytesProcessed = 0;
+
+      /*
+       * Make sure the whole file name matched what we expect for the file.
+       */
+
+      if ((sscanf(fileList[i], fmtString, &curNr, &bytesProcessed) >= 1) &&
+          (bytesProcessed == strlen(fileList[i]))) {
+         fileNumbers[nFound++] = curNr;
+      }
+      free(fileList[i]);
+   }
+
+   if (nFound > 0) {
+      qsort(fileNumbers, nFound, sizeof(uint32), FileNumberCompare);
+      maxNr = fileNumbers[nFound - 1];
+   }
+
+   /* rename the existing file to the next number */
+   tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName, maxNr + 1, ext);
+   result = Posix_Rename(filePath, tmp);
+   if (result == -1) {
+      int error = Err_Errno();
+      if (error != ENOENT) {
+         Log("%s: failed to rename %s -> %s failed: %s\n", __FUNCTION__,
+             filePath, tmp, Err_Errno2String(error));
+      }
+   }
+   if (newFilePath != NULL) {
+      if (result == -1) {
+         *newFilePath = NULL;
+         free(tmp);
+      } else {
+         *newFilePath = tmp;
+      }
+   }
+
+   if (nFound >= n) {
+      /* Delete the extra files. */
+      for (i = 0; i <= nFound - n; i++) {
+         tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName,
+                                fileNumbers[i], ext);
+
+         if (Posix_Unlink(tmp) == -1) {
+            Log("%s: failed to remove %s: %s\n", __FUNCTION__,
+                tmp, Msg_ErrString());
+         }
+         free(tmp);
+      }
+   }
+
+  cleanup:
+   free(fileNumbers);
+   free(fileList);
+   free(fmtString);
+   free(baseDir);
+   free(baseName);
+   free(fullPathNoExt);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_Rotate --
+ *
+ *      Rotate old files. The 'noRename' option is useful for filesystems
+ *      where rename is hideously expensive (*cough* vmfs).
+ *
+ * Results:
+ *      If newFileName is non-NULL: the new path is returned to
+ *      *newFileName if the rotation succeeded, otherwise NULL
+ *      is returned in *newFileName.  The caller is responsible
+ *      for freeing the string returned in *newFileName.
+ *
+ * Side effects:
+ *      Files are renamed / deleted.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+File_Rotate(const char *fileName,  // IN: original file
+            int n,                 // IN: number of backup files
+            Bool noRename,         // IN: don't rename all files
+            char **newFileName)    // OUT/OPT: new path to file
+{
+   const char *ext;
+   size_t baseLen;
+   char *baseName;
+
+   if ((ext = Str_Strrchr(fileName, '.')) == NULL) {
+      ext = fileName + strlen(fileName);
+   }
+   baseLen = ext - fileName;
+
+   /*
+    * Backup base of file name.
+    *
+    * Since the Str_Asprintf(...) doesn't like format of %.*s and crashes
+    * in Windows 2000. (Daniel Liu)
+    */
+
+   baseName = Util_SafeStrdup(fileName);
+   baseName[baseLen] = '\0';
+
+   if (noRename) {
+      FileRotateByRenumber(fileName, baseName, ext, n, newFileName);
+   } else {
+      FileRotateByRename(fileName, baseName, ext, n, newFileName);
+   }
+
+   free(baseName);
+}

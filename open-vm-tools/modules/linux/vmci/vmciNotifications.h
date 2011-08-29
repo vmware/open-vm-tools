@@ -25,8 +25,13 @@
 #ifndef _VMCI_NOTIFICATIONS_H_
 #define _VMCI_NOTIFICATIONS_H_
 
+#include "vm_basic_types.h"
+#include "vmci_defs.h"
+#include "vmciKernelAPI.h"
+
 void VMCINotifications_Init(void);
 void VMCINotifications_Exit(void);
+void VMCINotifications_Sync(void);
 
 Bool VMCI_RegisterNotificationBitmap(PPN bitmapPPN);
 void VMCI_ScanNotificationBitmap(uint8 *bitmap);
@@ -34,6 +39,8 @@ void VMCI_ScanNotificationBitmap(uint8 *bitmap);
 int VMCINotificationRegister(VMCIHandle *handle, Bool doorbell, uint32 flags,
                              VMCICallback notifyCB, void *callbackData);
 int VMCINotificationUnregister(VMCIHandle handle, Bool doorbell);
+
+void VMCINotifications_Hibernate(Bool enterHibernation);
 
 #endif /* !_VMCI_NOTIFICATIONS_H_ */
 

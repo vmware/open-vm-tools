@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <glib.h>
 
 #if defined _WIN32
 #   include <ws2tcpip.h>
@@ -256,7 +257,7 @@ out:
  * @note The returned GuestNic will take ownership of @a dnsInfo and
  *       @a winsInfo  The caller must not free it directly.
  *
- * @return Pointer to the new NIC.
+ * @return Pointer to the new NIC, or NULL if NIC limit was reached.
  *
  ******************************************************************************
  */
@@ -268,6 +269,13 @@ GuestInfoAddNicEntry(NicInfoV3 *nicInfo,
                      WinsConfigInfo *winsInfo)
 {
    GuestNicV3 *newNic;
+
+   /* Check to see if we're going above our limit. See bug 605821. */
+   if (nicInfo->nics.nics_len == NICINFO_MAX_NICS) {
+      g_message("%s: NIC limit (%d) reached, skipping overflow.",
+                __FUNCTION__, NICINFO_MAX_NICS);
+      return NULL;
+   }
 
    newNic = XDRUTIL_ARRAYAPPEND(nicInfo, nics, 1);
    ASSERT_MEM_ALLOC(newNic);
@@ -307,6 +315,13 @@ GuestInfoAddIpAddress(GuestNicV3 *nic,
    IpAddressEntry *ip;
 
    ASSERT(sockAddr);
+
+   /* Check to see if we're going above our limit. See bug 605821. */
+   if (nic->ips.ips_len == NICINFO_MAX_IPS) {
+      g_message("%s: IP address limit (%d) reached, skipping overflow.",
+                __FUNCTION__, NICINFO_MAX_IPS);
+      return NULL;
+   }
 
    ip = XDRUTIL_ARRAYAPPEND(nic, ips, 1);
    ASSERT_MEM_ALLOC(ip);

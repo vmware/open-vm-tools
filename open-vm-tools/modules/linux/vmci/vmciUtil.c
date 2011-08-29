@@ -66,6 +66,7 @@ static void VMCIUtilCidUpdate(VMCIId subID, VMCI_EventData *eventData,
 
 static VMCIId ctxUpdateSubID = VMCI_INVALID_ID;
 static Atomic_uint32 vmContextID = { VMCI_INVALID_ID };
+static Atomic_uint32 vmciClientCount;
 
 
 /*
@@ -94,8 +95,8 @@ VMCIUtil_Init(void)
    if (VMCIEvent_Subscribe(VMCI_EVENT_CTX_ID_UPDATE, VMCI_FLAG_EVENT_NONE,
                            VMCIUtilCidUpdate, NULL,
                            &ctxUpdateSubID) < VMCI_SUCCESS) {
-      VMCI_LOG(("VMCIUtil: Failed to subscribe to event %d.\n",
-                VMCI_EVENT_CTX_ID_UPDATE));
+      VMCI_WARNING((LGPFX"Failed to subscribe to event %d.\n",
+                    VMCI_EVENT_CTX_ID_UPDATE));
    }
 }
 
@@ -120,8 +121,9 @@ void
 VMCIUtil_Exit(void)
 {
    if (VMCIEvent_Unsubscribe(ctxUpdateSubID) < VMCI_SUCCESS) {
-      VMCI_LOG(("VMCIUtil: Failed to unsubscribe to event %d with subscriber "
-                "id %d.\n", VMCI_EVENT_CTX_ID_UPDATE, ctxUpdateSubID));
+      VMCI_WARNING((LGPFX"Failed to unsubscribe to event %d with "
+                    "subscriber id %d.\n", VMCI_EVENT_CTX_ID_UPDATE,
+                    ctxUpdateSubID));
    }
 }
 
@@ -150,14 +152,14 @@ VMCIUtilCidUpdate(VMCIId subID,               // IN:
    VMCIEventPayload_Context *evPayload = VMCIEventDataPayload(eventData);
 
    if (subID != ctxUpdateSubID) {
-      VMCI_LOG(("VMCIUtil: Invalid subscriber id. %d.\n", subID));
+      VMCI_WARNING((LGPFX"Invalid subscriber id. %d.\n", subID));
       return;
    }
    if (eventData == NULL || evPayload->contextID == VMCI_INVALID_ID) {
-      VMCI_LOG(("VMCIUtil: Invalid event data.\n"));
+      VMCI_WARNING((LGPFX"Invalid event data.\n"));
       return;
    }
-   VMCI_LOG(("VMCIUtil: Updating context id from 0x%x to 0x%x on event %d.\n",
+   VMCI_LOG((LGPFX"Updating context id from 0x%x to 0x%x on event %d.\n",
              Atomic_Read(&vmContextID),
              evPayload->contextID,
              eventData->event));
@@ -196,7 +198,7 @@ VMCIUtil_CheckHostCapabilities(void)
    VMCIDatagram *checkMsg = VMCI_AllocKernelMem(msgSize, VMCI_MEMORY_NONPAGED);
 
    if (checkMsg == NULL) {
-      VMCI_LOG((LGPFX"Check host: Insufficient memory.\n"));
+      VMCI_WARNING((LGPFX"Check host: Insufficient memory.\n"));
       return FALSE;
    }
 
@@ -362,9 +364,28 @@ VMCI_InInterrupt()
 
 VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
 Bool
-VMCI_DeviceGet(void)
+VMCI_DeviceGet(uint32 *apiVersion)
 {
-   return VMCI_DeviceEnabled();
+   Atomic_Inc32(&vmciClientCount);
+
+   if (*apiVersion > VMCI_KERNEL_API_VERSION) {
+      *apiVersion = VMCI_KERNEL_API_VERSION;
+      goto release;
+   }
+
+   if (!VMCI_DeviceEnabled()) {
+      goto release;
+   }
+
+   if (VMCI_DeviceShutdown()) {
+      goto release;
+   }
+
+   return TRUE;
+
+release:
+   Atomic_Dec32(&vmciClientCount);
+   return FALSE;
 }
 
 
@@ -388,6 +409,31 @@ VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
 void
 VMCI_DeviceRelease(void)
 {
+   Atomic_Dec32(&vmciClientCount);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_DeviceInUse --
+ *
+ *      Report whether the device is in-use by a client.
+ *
+ * Results:
+ *      TRUE if the device is in-use (reference count greater than zero),
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+VMCI_DeviceInUse(void)
+{
+   return Atomic_Read32(&vmciClientCount) > 0 ? TRUE : FALSE;
 }
 
 
@@ -491,8 +537,8 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
             result = VMCIDatagram_Dispatch(dg->src.context, dg);
          }
          if (result < VMCI_SUCCESS) {
-            VMCI_LOG(("Datagram with resource %d failed with err %x.\n",
-                      dg->dst.resource, result));
+            VMCI_DEBUG_LOG(4, (LGPFX"Datagram with resource %d failed with "
+                               "err %x.\n", dg->dst.resource, result));
          }
 
          /* On to the next datagram. */
@@ -504,8 +550,8 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
           * Datagram doesn't fit in datagram buffer of maximal size. We drop it.
           */
 
-         VMCI_LOG(("Failed to receive datagram of size %u.\n",
-                   dgInSize));
+         VMCI_DEBUG_LOG(4, (LGPFX"Failed to receive datagram of size %u.\n",
+                            dgInSize));
 
          bytesToSkip = dgInSize - remainingBytes;
          if (currentDgInBufferSize != dgInBufferSize) {

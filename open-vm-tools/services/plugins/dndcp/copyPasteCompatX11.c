@@ -100,7 +100,7 @@ static char gGuestSelPrimaryBuf[MAX_SELECTION_BUFFER_LENGTH];
 static char gGuestSelClipboardBuf[MAX_SELECTION_BUFFER_LENGTH];
 static uint64 gGuestSelPrimaryTime = 0;
 static uint64 gGuestSelClipboardTime = 0;
-static char gHostClipboardBuf[MAX_SELECTION_BUFFER_LENGTH];
+static char gHostClipboardBuf[MAX_SELECTION_BUFFER_LENGTH + 1];
 
 static Bool gIsOwner;
 static ToolsAppCtx *gCtx = NULL;
@@ -219,20 +219,43 @@ CopyPaste_RequestSelection(void)
 
    /* Only send out request if we are not the owner. */
    if (!gIsOwner) {
+      /* Try to get timestamp for primary and clipboard. */
+      gWaitingOnGuestSelection = TRUE;
+      gtk_selection_convert(gUserMainWidget,
+                            GDK_SELECTION_PRIMARY,
+                            GDK_SELECTION_TYPE_TIMESTAMP,
+                            GDK_CURRENT_TIME);
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+         gtk_main_iteration();
+      }
+
+      gWaitingOnGuestSelection = TRUE;
+      gtk_selection_convert(gUserMainWidget,
+                            GDK_SELECTION_CLIPBOARD,
+                            GDK_SELECTION_TYPE_TIMESTAMP,
+                            GDK_CURRENT_TIME);
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+         gtk_main_iteration();
+      }
+
       /* Try to get utf8 text from primary and clipboard. */
       gWaitingOnGuestSelection = TRUE;
       gtk_selection_convert(gUserMainWidget,
                             GDK_SELECTION_PRIMARY,
                             GDK_SELECTION_TYPE_UTF8_STRING,
                             GDK_CURRENT_TIME);
-      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+         gtk_main_iteration();
+      }
 
       gWaitingOnGuestSelection = TRUE;
       gtk_selection_convert(gUserMainWidget,
                             GDK_SELECTION_CLIPBOARD,
                             GDK_SELECTION_TYPE_UTF8_STRING,
                             GDK_CURRENT_TIME);
-      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+         gtk_main_iteration();
+      }
 
       if (gGuestSelPrimaryBuf[0] == '\0' && gGuestSelClipboardBuf[0] == '\0') {
          /*
@@ -244,14 +267,18 @@ CopyPaste_RequestSelection(void)
                                GDK_SELECTION_PRIMARY,
                                GDK_SELECTION_TYPE_STRING,
                                GDK_CURRENT_TIME);
-         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
+         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+            gtk_main_iteration();
+         }
 
          gWaitingOnGuestSelection = TRUE;
          gtk_selection_convert(gUserMainWidget,
                                GDK_SELECTION_CLIPBOARD,
                                GDK_SELECTION_TYPE_STRING,
                                GDK_CURRENT_TIME);
-         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
+         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+            gtk_main_iteration();
+         }
       }
    }
    /* Send text to host. */
@@ -557,7 +584,12 @@ CopyPasteSetBackdoorSelections(void)
    primaryLen = strlen(gGuestSelPrimaryBuf);
    clipboardLen = strlen(gGuestSelClipboardBuf);
 
-   if (primaryLen) {
+   if (primaryLen && clipboardLen) {
+      /* Pick latest one if both are available. */
+      p = gGuestSelPrimaryTime >= gGuestSelClipboardTime ?
+         (uint32 const *)gGuestSelPrimaryBuf :
+         (uint32 const *)gGuestSelClipboardBuf;
+   } else if (primaryLen) {
       /*
        * Send primary selection to backdoor if it exists.
        */
@@ -628,11 +660,11 @@ CopyPaste_GetBackdoorSelections(void)
    }
 
    selLength = GuestApp_GetHostSelectionLen();
-   if (selLength < 0) {
+   if (selLength < 0 || selLength > MAX_SELECTION_BUFFER_LENGTH) {
       return FALSE;
    } else if (selLength > 0) {
-      memset(gHostClipboardBuf, 0, sizeof (gHostClipboardBuf));
       GuestApp_GetHostSelection(selLength, gHostClipboardBuf);
+      gHostClipboardBuf[selLength] = 0;
       g_debug("CopyPaste_GetBackdoorSelections Get text [%s].\n", gHostClipboardBuf);
       gtk_selection_owner_set(gUserMainWidget,
                               GDK_SELECTION_CLIPBOARD,

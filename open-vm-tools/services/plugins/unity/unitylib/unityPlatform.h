@@ -25,28 +25,16 @@
 #ifndef _UNITY_PLATFORM_H_
 #define _UNITY_PLATFORM_H_
 
-#include "rpcout.h"
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 #include "unityWindowTracker.h"
 #include "unity.h"
 
-/**
- * Container used to store and send Unity updates.
- */
-
-typedef struct {
-   DynBuf updates;      ///< See @ref vmtools_unity_uwtGuestRpc.
-   size_t cmdSize;      /**< @brief Size of RpcOut command prefix.
-                             Used as a convenient offset within #updates when
-                             resetting the update buffer. */
-   RpcOut *rpcOut;
-} UnityUpdateChannel;
-
-typedef struct {
-   int x;
-   int y;
-   int width;
-   int height;
-} UnityRect;
+#ifdef __cplusplus
+};
+#endif // __cplusplus
 
 typedef struct _UnityPlatform UnityPlatform;
 
@@ -57,13 +45,12 @@ typedef struct _UnityPlatform UnityPlatform;
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
+
 Bool UnityPlatformIsSupported(void);
 UnityPlatform *UnityPlatformInit(UnityWindowTracker *tracker,
-                                 UnityUpdateChannel *updateChannel,
-                                 int *blockedWnd);
+                                 void *updateChannel,
+                                 UnityHostCallbacks hostCallbacks);
 void UnityPlatformCleanup(UnityPlatform *up);
-void UnityPlatformRegisterCaps(UnityPlatform *up);
-void UnityPlatformUnregisterCaps(UnityPlatform *up);
 Bool UnityPlatformUpdateWindowState(UnityPlatform *up,
                                     UnityWindowTracker *tracker);
 void UnityPlatformSaveSystemSettings(UnityPlatform *up);
@@ -156,20 +143,6 @@ Bool UnityPlatformSendMouseWheel(UnityPlatform *up,
  * NOTE: This function is called with the platform lock held.
  */
 void UnityPlatformWillRemoveWindow(UnityPlatform *up, UnityWindowId windowId);
-
-/* Functions implemented in unity.c for use by the platform-specific code. */
-void UnityGetUpdateCommon(int flags, DynBuf *buf);
-Bool UnityUpdateChannelInit(UnityUpdateChannel *updateChannel);
-void UnityUpdateChannelCleanup(UnityUpdateChannel *updateChannel);
-Bool UnitySendUpdates(UnityUpdateChannel *updateChannel);
-Bool UnitySendRequestMinimizeOperation(UnityWindowId windowId, uint32 sequence);
-
-/* Sends the provided window contents to the host. */
-Bool UnitySendWindowContents(UnityWindowId windowID,
-                             uint32 imageWidth,
-                             uint32 imageHeight,
-                             const char *imageData,
-                             uint32 imageLength);
 
 void UnityPlatformSetDisableCompositing(UnityPlatform *up, Bool disabled);
 

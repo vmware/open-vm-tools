@@ -69,4 +69,8 @@ Escape_Sh(void const *bufIn, // IN
 void
 Escape_UnescapeCString(char *buf); // IN/OUT
 
+char *
+Escape_Comma(const char *string); // IN
+
+
 #endif /* __ESCAPE_H__ */

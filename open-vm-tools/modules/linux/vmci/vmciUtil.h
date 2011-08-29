@@ -47,6 +47,7 @@ Bool VMCIUtil_CheckHostCapabilities(void);
 Bool VMCI_CheckHostCapabilities(void);
 Bool VMCI_InInterrupt(void);
 void VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle, VMCIIoPort dgInPort,
-				uint8 *dgInBuffer, size_t dgInBufferSize);
+                                uint8 *dgInBuffer, size_t dgInBufferSize);
+Bool VMCI_DeviceInUse(void);
 
 #endif //__VMCI_UTIL_H__

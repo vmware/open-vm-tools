@@ -87,11 +87,19 @@ enum GuestLibV3TypeIds {
    GUESTLIB_HOST_MEM_KERN_OVHD_MB   = 28,
    GUESTLIB_HOST_MEM_MAPPED_MB      = 29,
    GUESTLIB_HOST_MEM_UNMAPPED_MB    = 30,
-   GUESTLIB_RESOURCE_POOL_PATH_LONG = 31,
+
+   /* Counters added in ESX5.0 */
+   GUESTLIB_MEM_ZIPPED_MB           = 31,
+   GUESTLIB_MEM_ZIPSAVED_MB         = 32,
+   GUESTLIB_MEM_LLSWAPPED_MB        = 33,
+   GUESTLIB_MEM_SWAP_TARGET_MB      = 34,
+   GUESTLIB_MEM_BALLOON_TARGET_MB   = 35,
+   GUESTLIB_MEM_BALLOON_MAX_MB      = 36,
+   GUESTLIB_RESOURCE_POOL_PATH_LONG = 37,
    /*------ Add any new statistics above this line. ------- */
 
    /*------ Bump this when adding to this list. -------*/
-   GUESTLIB_MAX_STATISTIC_ID        = 32
+   GUESTLIB_MAX_STATISTIC_ID        = 38
 };
 
 union GuestLibV3Stat switch (GuestLibV3TypeIds d) {
@@ -161,6 +169,18 @@ union GuestLibV3Stat switch (GuestLibV3TypeIds d) {
       struct GuestLibV3StatUint64 hostMemMappedMB;
    case GUESTLIB_HOST_MEM_UNMAPPED_MB:
       struct GuestLibV3StatUint64 hostMemUnmappedMB;
+   case GUESTLIB_MEM_ZIPPED_MB:
+      struct GuestLibV3StatUint32 memZippedMB;
+   case GUESTLIB_MEM_ZIPSAVED_MB:
+      struct GuestLibV3StatUint32 memZipSavedMB;
+   case GUESTLIB_MEM_LLSWAPPED_MB:
+      struct GuestLibV3StatUint32 memLLSwappedMB;
+   case GUESTLIB_MEM_SWAP_TARGET_MB:
+      struct GuestLibV3StatUint32 memSwapTargetMB;
+   case GUESTLIB_MEM_BALLOON_TARGET_MB:
+      struct GuestLibV3StatUint32 memBalloonTargetMB;
+   case GUESTLIB_MEM_BALLOON_MAX_MB:
+      struct GuestLibV3StatUint32 memBalloonMaxMB;
    case GUESTLIB_RESOURCE_POOL_PATH_LONG:
       struct GuestLibV3ByteArray resourcePoolPathLong;
 };

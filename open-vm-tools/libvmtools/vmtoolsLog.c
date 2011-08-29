@@ -350,8 +350,8 @@ VMToolsLog(const gchar *domain,
           * message. Use the error handler to do it, and ignore any
           * errors.
           */
-         VMToolsError(domain, level | G_LOG_FLAG_RECURSION, message,
-                      gErrorData, VMToolsError);
+         gErrorData->logfn(domain, level | G_LOG_FLAG_RECURSION, msg,
+                           gErrorData, VMToolsError);
       }
       g_free(msg);
    }
@@ -425,7 +425,12 @@ VMToolsConfigLogDomain(const gchar *domain,
 
       if (configfn == NULL) {
          g_warning("Unknown log handler '%s', using default.", handler);
-         goto exit;
+         if (strcmp(domain, gLogDomain) == 0) {
+            configfn = DEFAULT_HANDLER->configfn;
+            hid = DEFAULT_HANDLER->id;
+         } else {
+            goto exit;
+         }
       }
 
       data = configfn(gLogDomain, domain, handler, cfg);
@@ -637,6 +642,28 @@ VMToolsRestoreLogging(LogHandlerData *oldDefault,
 
 
 #if defined(_WIN32)
+
+
+/**
+ * Checks whether given standard device (standard input, standard output,
+ * or standard error) has been redirected to an on-disk file/pipe.
+ * Win32-only.
+ *
+ * @param[in] nStdHandle          The standard device number.
+ *
+ * @return TRUE if device redirected to a file/pipe.
+ */
+
+static gboolean
+VMToolsIsRedirected(DWORD nStdHandle)
+{
+   HANDLE handle = GetStdHandle(nStdHandle);
+   DWORD type = handle ? GetFileType(handle) : FILE_TYPE_UNKNOWN;
+
+   return type == FILE_TYPE_DISK || type == FILE_TYPE_PIPE;
+}
+
+
 /**
  * Attaches a console to the current process. If the parent process already has
  * a console open, reuse it. Otherwise, create a new console for the current
@@ -655,34 +682,45 @@ gboolean
 VMTools_AttachConsole(void)
 {
    typedef BOOL (WINAPI *AttachConsoleFn)(DWORD);
-   gboolean ret = FALSE;
+   gboolean ret = TRUE;
    AttachConsoleFn _AttachConsole;
+   BOOL reopenStdout, reopenStderr;
 
    if (GetConsoleWindow() != NULL) {
-      return TRUE;
+      goto exit;
+   }
+
+   reopenStdout = !VMToolsIsRedirected(STD_OUTPUT_HANDLE);
+   reopenStderr = !VMToolsIsRedirected(STD_ERROR_HANDLE);
+   if (!reopenStdout && !reopenStderr) {
+      goto exit;
    }
 
    _AttachConsole = (AttachConsoleFn) GetProcAddress(GetModuleHandleW(L"kernel32.dll"),
                                                      "AttachConsole");
    if ((_AttachConsole != NULL && _AttachConsole(ATTACH_PARENT_PROCESS)) ||
        AllocConsole()) {
-      FILE* fptr;
+      FILE *fptr;
 
-      fptr = _wfreopen(L"CONOUT$", L"a", stdout);
-      if (fptr == NULL) {
-         g_warning("_wfreopen failed for stdout/CONOUT$: %d (%s)",
-                   errno, strerror(errno));
-         goto exit;
+      if (reopenStdout) {
+         fptr = _wfreopen(L"CONOUT$", L"a", stdout);
+         if (fptr == NULL) {
+            g_warning("_wfreopen failed for stdout/CONOUT$: %d (%s)",
+                      errno, strerror(errno));
+            ret = FALSE;
+         }
       }
 
-      fptr = _wfreopen(L"CONOUT$", L"a", stderr);
-      if (fptr == NULL) {
-         g_warning("_wfreopen failed for stderr/CONOUT$: %d (%s)",
-                   errno, strerror(errno));
-         goto exit;
+      if (reopenStderr) {
+         fptr = _wfreopen(L"CONOUT$", L"a", stderr);
+         if (fptr == NULL) {
+            g_warning("_wfreopen failed for stderr/CONOUT$: %d (%s)",
+                      errno, strerror(errno));
+            ret = FALSE;
+         } else {
+            setvbuf(fptr, NULL, _IONBF, 0);
+         }
       }
-      setvbuf(fptr, NULL, _IONBF, 0);
-      ret = TRUE;
    }
 
 exit:

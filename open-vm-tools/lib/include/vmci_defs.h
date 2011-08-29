@@ -88,6 +88,13 @@ typedef enum VMCIIntrType {
 #define VMCI_INTR_DATAGRAM     0
 #define VMCI_INTR_NOTIFICATION 1
 
+
+/*
+ * A single VMCI device has an upper limit of 128MB on the amount of
+ * memory that can be used for queue pairs.
+ */
+#define VMCI_MAX_GUEST_QP_MEMORY (128 * 1024 * 1024)
+
 /*
  * We have a fixed set of resource IDs available in the VMX.
  * This allows us to have a very simple implementation since we statically

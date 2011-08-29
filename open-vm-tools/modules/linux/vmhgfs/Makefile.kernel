@@ -23,8 +23,17 @@
 
 INCLUDE += -I.
 
+ifdef OVT_SOURCE_DIR
+INCLUDE += -I$(call VMLIB_PATH,backdoor)
+INCLUDE += -I$(call VMLIB_PATH,hgfs)
+endif
+
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c, -DVMW_HAVE_EPOLL, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/maxbytes.c, -DVMW_SB_HAS_MAXBYTES, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachecreate.c, -DVMW_KMEMCR_HAS_DTOR, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector.c, -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector1.c, -DVMW_KMEMCR_CTOR_HAS_2_ARGS, )
 
@@ -33,73 +42,9 @@ EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/getsb1.c,, -DVMW_GETSB_26
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/statfs1.c,, -DVMW_STATFS_2618)
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/inode1.c,, -DVMW_INODE_2618)
 
-MODPOST_VMCI_SYMVERS := $(wildcard $(MODULEBUILDDIR)/VMwareVMCIModule.symvers)
-
 obj-m += $(DRIVER).o
 
 $(DRIVER)-y := $(subst $(SRCROOT)/, , $(patsubst %.c, %.o, $(wildcard $(SRCROOT)/*.c)))
-
-#
-# In open-vm-tools, need to compile the common sources from the lib directory.
-#
-VMHGFS_PATH      := $(shell cd $(SRCROOT) && pwd)
-
-ifdef OVT_SOURCE_DIR
-LIBBACKDOOR_PATH := $(call VMLIB_PATH,backdoor)
-LIBHGFS_PATH     := $(call VMLIB_PATH,hgfs)
-LIBHGFSBD_PATH   := $(call VMLIB_PATH,hgfsBd)
-LIBMESSAGE_PATH  := $(call VMLIB_PATH,message)
-LIBRPCOUT_PATH   := $(call VMLIB_PATH,rpcOut)
-STUBS_PATH       := $(OVT_SOURCE_DIR)/modules/linux/shared
-
-INCLUDE          += -I$(LIBBACKDOOR_PATH)
-INCLUDE          += -I$(LIBHGFS_PATH)
-
-LIBBACKDOOR      := backdoor.o
-LIBBACKDOOR      += backdoorGcc32.o
-LIBBACKDOOR      += backdoorGcc64.o
-
-LIBHGFS          := cpName.o
-LIBHGFS          += cpNameLinux.o
-LIBHGFS          += cpNameLite.o
-LIBHGFS          += hgfsEscape.o
-LIBHGFS          += hgfsUtil.o
-
-LIBHGFSBD        := hgfsBd.o
-
-LIBMESSAGE       := message.o
-
-LIBRPCOUT        := rpcout.o
-
-$(addprefix $(VMHGFS_PATH)/,$(LIBBACKDOOR)): $(VMHGFS_PATH)/%.o: $(LIBBACKDOOR_PATH)/%.c
-	$(Q)$(rule_cc_o_c)
-
-$(addprefix $(VMHGFS_PATH)/,$(LIBHGFS)): $(VMHGFS_PATH)/%.o: $(LIBHGFS_PATH)/%.c
-	$(Q)$(rule_cc_o_c)
-
-$(addprefix $(VMHGFS_PATH)/,$(LIBHGFSBD)): $(VMHGFS_PATH)/%.o: $(LIBHGFSBD_PATH)/%.c
-	$(Q)$(rule_cc_o_c)
-
-$(addprefix $(VMHGFS_PATH)/,$(LIBMESSAGE)): $(VMHGFS_PATH)/%.o: $(LIBMESSAGE_PATH)/%.c
-	$(Q)$(rule_cc_o_c)
-
-$(addprefix $(VMHGFS_PATH)/,$(LIBRPCOUT)): $(VMHGFS_PATH)/%.o: $(LIBRPCOUT_PATH)/%.c
-	$(Q)$(rule_cc_o_c)
-
-
-$(DRIVER)-y += $(LIBBACKDOOR)
-$(DRIVER)-y += $(LIBHGFS)
-$(DRIVER)-y += $(LIBHGFSBD)
-$(DRIVER)-y += $(LIBMESSAGE)
-$(DRIVER)-y += $(LIBRPCOUT)
-else
-STUBS_PATH  := $(VMHGFS_PATH)/shared
-endif
-
-STUBS       := kernelStubsLinux.o
-$(DRIVER)-y += $(STUBS)
-$(addprefix $(VMHGFS_PATH)/,$(STUBS)): $(VMHGFS_PATH)/%.o: $(STUBS_PATH)/%.c
-	$(Q)$(rule_cc_o_c)
 
 #
 # On a 32-bit machine, strip out 64-bit backdoor code, and vice versa.
@@ -114,19 +59,3 @@ clean:
 	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko .tmp_versions \
 	       Module.symvers Modules.symvers Module.markers modules.order \
 	       $(foreach dir,./,$(addprefix $(dir),.*.cmd .*.o.flags *.o)))
-
-
-#
-# vmhgfs kernel module uses symbols from the VMCI kernel module. Copy the
-# Module.symvers file here so that the vmhgfs module knows about the VMCI version.
-# This is not done for tar builds because the tools install takes care of it.
-#
-prebuild::
-ifneq ($(MODULEBUILDDIR),)
-ifeq ($(MODPOST_VMCI_SYMVERS),)
-	$(shell echo >&2 "Building vmhgfs without VMCI module symbols.")
-else
-	$(shell echo >&2 "Building vmhgfs with VMCI module symbols.")
-	cp -f $(MODPOST_VMCI_SYMVERS) $(SRCROOT)/Module.symvers
-endif
-endif

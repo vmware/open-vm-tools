@@ -31,25 +31,26 @@ static int       vmxnet3_getstat(void *, uint_t, uint64_t *);
 static int       vmxnet3_start(void *);
 static void      vmxnet3_stop(void *);
 static int       vmxnet3_setpromisc(void *, boolean_t);
+static void      vmxnet3_ioctl(void *arg, queue_t *wq, mblk_t *mp);
 static int       vmxnet3_multicst(void *, boolean_t, const uint8_t *);
 static int       vmxnet3_unicst(void *, const uint8_t *);
 static boolean_t vmxnet3_getcapab(void *, mac_capab_t, void *);
 
 /* MAC callbacks */
 static mac_callbacks_t vmxnet3_mac_callbacks = {
-   MC_GETCAPAB,        /* mc_callbacks */
-   vmxnet3_getstat,    /* mc_getstat */
-   vmxnet3_start,      /* mc_start */
-   vmxnet3_stop,       /* mc_stop */
-   vmxnet3_setpromisc, /* mc_setpromisc */
-   vmxnet3_multicst,   /* mc_multicst */
-   vmxnet3_unicst,     /* mc_unicst */
-   vmxnet3_tx,         /* mc_tx */
+   .mc_callbacks = MC_GETCAPAB | MC_IOCTL,
+   .mc_getstat = vmxnet3_getstat,
+   .mc_start = vmxnet3_start,
+   .mc_stop = vmxnet3_stop,
+   .mc_setpromisc = vmxnet3_setpromisc,
+   .mc_multicst = vmxnet3_multicst,
+   .mc_unicst = vmxnet3_unicst,
+   .mc_tx = vmxnet3_tx,
 #ifndef OPEN_SOLARIS
-   NULL,               /* mc_resources */
+   .mc_resources = NULL,
 #endif
-   NULL,               /* mc_ioctl */
-   vmxnet3_getcapab    /* mc_getcapab */
+   .mc_ioctl = vmxnet3_ioctl,
+   .mc_getcapab = *vmxnet3_getcapab,
 };
 
 /* Tx DMA engine description */
@@ -250,7 +251,8 @@ vmxnet3_prepare_drivershared(vmxnet3_softc_t *dp)
    ds->devRead.misc.driverInfo.uptVerSpt = 1;
 
    ds->devRead.misc.uptFeatures = UPT1_F_RXCSUM;
-   ds->devRead.misc.mtu = ETHERMTU;
+   ds->devRead.misc.mtu = dp->cur_mtu;
+
    // XXX: ds->devRead.misc.maxNumRxSG
    ds->devRead.misc.numTxQueues = 1;
    ds->devRead.misc.numRxQueues = 1;
@@ -651,7 +653,7 @@ vmxnet3_start(void *data)
     */
    rxQueueSize = vmxnet3_getprop(dp, "RxRingSize", 32, 4096,
                                  VMXNET3_DEF_RX_RING_SIZE);
-   if (!(txQueueSize & VMXNET3_RING_SIZE_MASK)) {
+   if (!(rxQueueSize & VMXNET3_RING_SIZE_MASK)) {
       dp->rxQueue.cmdRing.size = rxQueueSize;
       dp->rxQueue.compRing.size = rxQueueSize;
       dp->rxQueue.sharedCtrl = &rqdesc->ctrl;
@@ -938,6 +940,164 @@ vmxnet3_unicst(void *data, const uint8_t *macaddr)
    return DDI_SUCCESS;
 }
 
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * vmxnet3_change_mtu --
+ *
+ *    Change the MTU as seen by the driver. Reset the device and tx/rx queues
+ *    so that buffers of right size are posted in rx queues.
+ *
+ * Results:
+ *    EINVAL for invalid MTUs or other failures. 0 for success.
+ *
+ * Side effects:
+ *    None.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+static int
+vmxnet3_change_mtu(vmxnet3_softc_t *dp, uint32_t new_mtu)
+{
+   int ret = 0, do_reset = 0;
+   ASSERT(dp);
+   if (new_mtu == dp->cur_mtu) {
+      VMXNET3_WARN(dp, "New MTU is same as old mtu : %d.\n", new_mtu);
+      return 0;
+   }
+
+   if (new_mtu < VMXNET3_MIN_MTU || new_mtu > VMXNET3_MAX_MTU) {
+      VMXNET3_WARN(dp, "New MTU not in valid range [%d, %d].\n",
+                   VMXNET3_MIN_MTU, VMXNET3_MAX_MTU);
+      return EINVAL;
+   }
+
+   if (dp->devEnabled) {
+      do_reset = 1;
+      vmxnet3_stop(dp);
+      VMXNET3_BAR1_PUT32(dp, VMXNET3_REG_CMD, VMXNET3_CMD_RESET_DEV);
+   }
+
+   dp->cur_mtu = new_mtu;
+
+   if (do_reset)
+      ret = vmxnet3_start(dp);
+
+   return ret;
+}
+
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * vmxnet3_ioctl --
+ *
+ *    DDI/DDK callback to handle IOCTL in driver. Currently it only handles
+ *    ND_SET ioctl. Rest all are ignored. The ND_SET is used to set/reset
+ *    accept-jumbo ndd parameted for the interface.
+ *
+ * Results:
+ *    Nothing is returned directly. An ACK or NACK is conveyed to the calling
+ *    function from the mblk which was used to call this function.
+ *
+ * Side effects:
+ *    MTU can be changed and device can be reset.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+static void
+vmxnet3_ioctl(void *arg, queue_t *wq, mblk_t *mp)
+{
+   vmxnet3_softc_t *dp = arg;
+   int             ret = EINVAL;
+   IOCP            iocp;
+   mblk_t          *mp1;
+   char            *valp, *param;
+   int             data;
+
+   iocp = (void *)mp->b_rptr;
+   iocp->ioc_error = 0;
+
+   switch (iocp->ioc_cmd) {
+   case ND_SET:
+
+      /* the mblk in continuation would contain the ndd parameter name
+       * and data value to be set
+       */
+      mp1 = mp->b_cont;
+      if (!mp1) {
+         VMXNET3_WARN(dp, "Error locating parameter name.\n");
+         ret = EINVAL;
+         break;
+      }
+
+      mp1->b_datap->db_lim[-1] = '\0';	/* Force null termination */
+
+      /*
+       * From /usr/src/uts/common/inet/nd.c : nd_getset()
+       * "logic throughout nd_xxx assumes single data block for ioctl.
+       *  However, existing code sends in some big buffers."
+       */
+      if (mp1->b_cont) {
+         freemsg(mp1->b_cont);
+         mp1->b_cont = NULL;
+      }
+
+      valp = (char *)mp1->b_rptr;	/* Points to param name*/
+      ASSERT(valp);
+      param = valp;
+      VMXNET3_DEBUG(dp, 3, "ND Set ioctl for %s\n", param);
+
+      /* Go past the end of this null terminated string to get the data value.*/
+      while (*valp && valp <= (char *)mp1->b_wptr)
+         valp++;
+
+      if (valp > (char *)mp1->b_wptr) {
+         /* We are already beyond the readable area of mblk and still havent
+          * found the end of param string.
+          */
+         VMXNET3_WARN(dp, "No data value found to be set to param.\n");
+         data = -1;
+      } else {
+         valp++;                        /* Now this points to data string */
+         data = (int)*valp - (int)'0';  /* Get numeric value of first letter */
+      }
+
+      if (strcmp("accept-jumbo", param) == 0) {
+         if (data == 1) {
+            VMXNET3_DEBUG(dp, 2, "Accepting jumbo frames\n");
+            ret = vmxnet3_change_mtu(dp, VMXNET3_MAX_MTU);
+         } else if (data == 0) {
+            VMXNET3_DEBUG(dp, 2, "Rejecting jumbo frames\n");
+            ret = vmxnet3_change_mtu(dp, ETHERMTU);
+         } else {
+            VMXNET3_WARN(dp, "Invalid data value to be set, use 1 or 0.\n");
+            ret = -1;
+         }
+      }
+      freemsg(mp1);
+      mp->b_cont = NULL;
+      break;
+
+   default:
+      if (mp->b_cont) {
+         freemsg(mp->b_cont);
+         mp->b_cont = NULL;
+      }
+      ret = -1;
+      break;
+   }
+
+   if (ret == 0)
+      miocack(wq, mp, 0, 0);
+   else
+      miocnak(wq, mp, 0, EINVAL);
+}
+
+
 /*
  *---------------------------------------------------------------------------
  *
@@ -1128,6 +1288,7 @@ intr_unclaimed:
    return DDI_INTR_UNCLAIMED;
 }
 
+
 /*
  *---------------------------------------------------------------------------
  *
@@ -1150,7 +1311,7 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
    mac_register_t *macr;
    uint16_t vendorId, devId, ret16;
    uint32_t ret32;
-   int ret;
+   int ret, err;
    uint_t uret;
 
    if (cmd != DDI_ATTACH) {
@@ -1165,6 +1326,7 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 
    dp->dip = dip;
    dp->instance = ddi_get_instance(dip);
+   dp->cur_mtu = ETHERMTU;
 
    VMXNET3_DEBUG(dp, 1, "attach()\n");
 
@@ -1252,8 +1414,8 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
    macr->m_src_addr = dp->macaddr;
    macr->m_dst_addr = NULL;
    macr->m_callbacks = &vmxnet3_mac_callbacks;
-   macr->m_min_sdu = 0;
-   macr->m_max_sdu = ETHERMTU;
+   macr->m_min_sdu = VMXNET3_MIN_MTU;
+   macr->m_max_sdu = VMXNET3_MAX_MTU;
    macr->m_pdata = NULL;
    macr->m_pdata_size = 0;
 
@@ -1274,17 +1436,16 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
       case VMXNET3_IT_AUTO:
       case VMXNET3_IT_MSIX:
          dp->intrType = DDI_INTR_TYPE_MSIX;
-         if (ddi_intr_alloc(dip, &dp->intrHandle, dp->intrType, 0, 1,
-                            &ret, DDI_INTR_ALLOC_STRICT) == DDI_SUCCESS) {
+         err = ddi_intr_alloc(dip, &dp->intrHandle, dp->intrType, 0, 1,
+                              &ret, DDI_INTR_ALLOC_STRICT);
+         if (err == DDI_SUCCESS)
             break;
-         }
-         VMXNET3_DEBUG(dp, 2, "DDI_INTR_TYPE_MSIX failed\n");
+         VMXNET3_DEBUG(dp, 2, "DDI_INTR_TYPE_MSIX failed, err:%d\n", err);
       case VMXNET3_IT_MSI:
          dp->intrType = DDI_INTR_TYPE_MSI;
          if (ddi_intr_alloc(dip, &dp->intrHandle, dp->intrType, 0, 1,
-                            &ret, DDI_INTR_ALLOC_STRICT) == DDI_SUCCESS) {
+                            &ret, DDI_INTR_ALLOC_STRICT) == DDI_SUCCESS)
             break;
-         }
          VMXNET3_DEBUG(dp, 2, "DDI_INTR_TYPE_MSI failed\n");
       case VMXNET3_IT_INTX:
          dp->intrType = DDI_INTR_TYPE_FIXED;
@@ -1335,9 +1496,24 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
       goto error_mutexes;
    }
 
-   if (ddi_intr_enable(dp->intrHandle) != DDI_SUCCESS) {
-      VMXNET3_WARN(dp, "ddi_intr_enable() failed\n");
+   err = ddi_intr_get_cap(dp->intrHandle, &dp->intrCap);
+   if (err != DDI_SUCCESS) {
+      VMXNET3_WARN(dp, "ddi_intr_get_cap() failed %d", err);
       goto error_intr_handler;
+   }
+
+   if (dp->intrCap & DDI_INTR_FLAG_BLOCK) {
+      err = ddi_intr_block_enable(&dp->intrHandle, 1);
+      if (err != DDI_SUCCESS) {
+         VMXNET3_WARN(dp, "ddi_intr_block_enable() failed, err:%d\n", err);
+         goto error_intr_handler;
+      }
+   } else {
+      err = ddi_intr_enable(dp->intrHandle);
+      if ((err != DDI_SUCCESS)) {
+         VMXNET3_WARN(dp, "ddi_intr_enable() failed, err:%d\n", err);
+         goto error_intr_handler;
+      }
    }
 
    return DDI_SUCCESS;
@@ -1403,7 +1579,11 @@ vmxnet3_detach(dev_info_t *dip, ddi_detach_cmd_t cmd)
       }
    }
 
-   ddi_intr_disable(dp->intrHandle);
+   if (dp->intrCap & DDI_INTR_FLAG_BLOCK) {
+      ddi_intr_block_disable(&dp->intrHandle, 1);
+   } else {
+      ddi_intr_disable(dp->intrHandle);
+   }
    ddi_intr_remove_handler(dp->intrHandle);
    ddi_intr_free(dp->intrHandle);
 

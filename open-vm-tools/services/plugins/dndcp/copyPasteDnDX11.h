@@ -61,7 +61,6 @@ private:
    Gtk::Main *m_main;
    CopyPasteUIX11 *m_copyPasteUI;
    DnDUIX11 *m_dndUI;
-   DnDBlockControl m_blockCtrl;
 };
 
 #endif // __COPYPASTEDNDX11_H__

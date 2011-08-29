@@ -367,9 +367,7 @@ static compat_define_mutex(registrationMutex);
 static int devOpenCount = 0;
 static int vsockVmciSocketCount = 0;
 static int vsockVmciKernClientCount = 0;
-#ifdef VMX86_TOOLS
 static Bool vmciDevicePresent = FALSE;
-#endif
 static VMCIHandle vmciStreamHandle = { VMCI_INVALID_ID, VMCI_INVALID_ID };
 static VMCIId qpResumedSubId = VMCI_INVALID_ID;
 
@@ -1179,6 +1177,20 @@ VSockVmciHandleDetach(struct sock *sk) // IN
        * queue.
        */
       if (VSockVmciStreamHasData(vsk) <= 0) {
+         if (sk->sk_state == SS_CONNECTING) {
+            /*
+             * The peer may detach from a queue pair while we are
+             * still in the connecting state, i.e., if the peer VM is
+             * killed after attaching to a queue pair, but before we
+             * complete the handshake. In that case, we treat the
+             * detach event like a reset.
+             */
+
+            sk->sk_state = SS_UNCONNECTED;
+            sk->sk_err = ECONNRESET;
+            sk->sk_error_report(sk);
+            return;
+         }
          sk->sk_state = SS_UNCONNECTED;
       }
       sk->sk_state_change(sk);
@@ -1769,15 +1781,37 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
       goto destroy;
    }
 
-   VMCIQPair_Init(qpair);
-
    ASSERT(VMCI_HANDLE_EQUAL(handle, pkt->u.handle));
    vpending->qpHandle = handle;
    vpending->qpair = qpair;
 
+   /*
+    * When we send the attach message, we must be ready to handle
+    * incoming control messages on the newly connected socket. So we
+    * move the pending socket to the connected state before sending
+    * the attach message. Otherwise, an incoming packet triggered by
+    * the attach being received by the peer may be processed
+    * concurrently with what happens below after sending the attach
+    * message, and that incoming packet will find the listening socket
+    * instead of the (currently) pending socket. Note that enqueueing
+    * the socket increments the reference count, so even if a reset
+    * comes before the connection is accepted, the socket will be
+    * valid until it is removed from the queue.
+    *
+    * If we fail sending the attach below, we remove the socket from
+    * the connected list and move the socket to SS_UNCONNECTED before
+    * releasing the lock, so a pending slow path processing of an
+    * incoming packet will not see the socket in the connected state
+    * in that case.
+    */
+   pending->sk_state = SS_CONNECTED;
+
+   VSockVmciInsertConnected(vsockConnectedSocketsVsk(vpending), pending);
+
    /* Notify our peer of our attach. */
    err = VSOCK_SEND_ATTACH(pending, handle);
    if (err < 0) {
+      VSockVmciRemoveConnected(pending);
       Log("Could not send attach\n");
       VSOCK_SEND_RESET(pending, pkt);
       err = VSockVmci_ErrorToVSockError(err);
@@ -1786,17 +1820,10 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
    }
 
    /*
-    * We have a connection.  Add our connection to the connected list so it no
-    * longer goes through the listening socket, move it from the listener's
-    * pending list to the accept queue so callers of accept() can find it.
-    * Note that enqueueing the socket increments the reference count, so even
-    * if a reset comes before the connection is accepted, the socket will be
-    * valid until it is removed from the queue.
+    * We have a connection. Move the now connected socket from the
+    * listener's pending list to the accept queue so callers of
+    * accept() can find it.
     */
-   pending->sk_state = SS_CONNECTED;
-
-   VSockVmciInsertConnected(vsockConnectedSocketsVsk(vpending), pending);
-
    VSockVmciRemovePending(listener, pending);
    VSockVmciEnqueueAccept(listener, pending);
 
@@ -2090,8 +2117,6 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    if (err < 0) {
       goto destroy;
    }
-
-   VMCIQPair_Init(qpair);
 
    err = VSOCK_SEND_QP_OFFER(sk, handle);
    if (err < 0) {
@@ -3029,18 +3054,19 @@ VSockVmciRegisterAddressFamily(void)
 {
    int err = 0;
    int i;
+   uint32 apiVersion;
 
-#ifdef VMX86_TOOLS
    /*
     * We don't call into the vmci module or register our socket family if the
     * vmci device isn't present.
     */
-   vmciDevicePresent = VMCI_DeviceGet();
+   apiVersion = VMCI_KERNEL_API_VERSION_1;
+   vmciDevicePresent = VMCI_DeviceGet(&apiVersion);
    if (!vmciDevicePresent) {
-      Log("Could not register VMCI Sockets because VMCI device is not present.\n");
+      Log("Could not register VMCI Sockets because VMCI device is not present "
+          "or API version is unsupported.\n");
       return -1;
    }
-#endif
 
    /*
     * Create the datagram handle that we will use to send and receive all
@@ -3106,6 +3132,7 @@ error:
 
    if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
       VMCIDatagram_DestroyHnd(vmciStreamHandle);
+      vmciStreamHandle = VMCI_INVALID_HANDLE;
    }
    return err;
 }
@@ -3132,17 +3159,16 @@ error:
 static void
 VSockVmciUnregisterAddressFamily(void)
 {
-#ifdef VMX86_TOOLS
    if (!vmciDevicePresent) {
       /* Nothing was registered. */
       return;
    }
-#endif
 
    if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
       if (VMCIDatagram_DestroyHnd(vmciStreamHandle) != VMCI_SUCCESS) {
          Warning("Could not destroy VMCI datagram handle.\n");
       }
+      vmciStreamHandle = VMCI_INVALID_HANDLE;
    }
 
    if (qpResumedSubId != VMCI_INVALID_ID) {
@@ -3157,6 +3183,7 @@ VSockVmciUnregisterAddressFamily(void)
    vsockVmciDgramOps.family = vsockVmciFamilyOps.family = VSOCK_INVALID_FAMILY;
    vsockVmciStreamOps.family = vsockVmciFamilyOps.family;
 
+   VMCI_DeviceRelease();
 }
 
 
@@ -3399,7 +3426,6 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
       err = -EISCONN;
       goto out;
    case SS_DISCONNECTING:
-   case SS_LISTEN:
       err = -EINVAL;
       goto out;
    case SS_CONNECTING:
@@ -3413,8 +3439,10 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
       break;
    default:
       ASSERT(sk->sk_state == SS_FREE ||
-             sk->sk_state == SS_UNCONNECTED);
-      if (VSockAddr_Cast(addr, addrLen, &remoteAddr) != 0) {
+             sk->sk_state == SS_UNCONNECTED ||
+             sk->sk_state == SS_LISTEN);
+      if ((sk->sk_state == SS_LISTEN) || 
+          VSockAddr_Cast(addr, addrLen, &remoteAddr) != 0) {
          err = -EINVAL;
          goto out;
       }
@@ -3930,11 +3958,11 @@ VSockVmciShutdown(struct socket *sock,  // IN
       return -EINVAL;
    }
 
-   if (sock->state == SS_UNCONNECTED) {
+   sk = sock->sk;
+   if (sk->sk_type == SOCK_STREAM && sock->state == SS_UNCONNECTED) {
       return -ENOTCONN;
    }
 
-   sk = sock->sk;
    sock->state = SS_DISCONNECTING;
 
    /* Receive and send shutdowns are treated alike. */
@@ -4325,12 +4353,7 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
    prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
    while (totalWritten < len) {
-      Bool sentWrote;
-      unsigned int retries;
       ssize_t written;
-
-      sentWrote = FALSE;
-      retries = 0;
 
       while (VSockVmciStreamHasSpace(vsk) == 0 &&
              sk->sk_err == 0 &&
@@ -4557,9 +4580,9 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
        * local shutdown occured with the SOCK_DONE flag.
        */
       if (sock_flag(sk, SOCK_DONE)) {
-	 err = 0;
+         err = 0;
       } else {
-	 err = -ENOTCONN;
+         err = -ENOTCONN;
       }
       goto out;
    }
@@ -4574,6 +4597,17 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
     * but there can be data in the VMCI queue that local socket can receive.
     */
    if (sk->sk_shutdown & RCV_SHUTDOWN) {
+      err = 0;
+      goto out;
+   }
+
+   /*
+    * It is valid on Linux to pass in a zero-length receive buffer.  This
+    * is not an error.  We may as well bail out now.  Note that if we don't,
+    * we will fail "ASSERT(copied >= target)" after we dequeue, because the
+    * minimum target is always 1 byte.
+    */
+   if (!len) {
       err = 0;
       goto out;
    }

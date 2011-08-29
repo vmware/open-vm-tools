@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="2010.08.24"
+TOOLS_VERSION="2011.08.29"
 AC_INIT(
    [open-vm-tools],
-   [2010.08.24],
+   [2011.08.29],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -1175,7 +1175,6 @@ AC_CONFIG_FILES([                      \
    lib/rpcIn/Makefile                  \
    lib/rpcOut/Makefile                 \
    lib/rpcVmx/Makefile                 \
-   lib/SLPv2Parser/Makefile            \
    lib/slashProc/Makefile              \
    lib/string/Makefile                 \
    lib/stubs/Makefile                  \

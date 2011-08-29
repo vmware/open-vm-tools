@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -219,6 +219,8 @@
 #define VCB_FILE_VERSION 4,0,0,0
 #define VIM_VERSION "5.0.0"
 #define VPX_VERSION "5.0.0"
+#define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define SVA_VERSION "1.0.0"
 #define WBC_VERSION "5.0.0"
 #define SDK_VERSION "4.1.0"
 #define FOUNDRY_VERSION "1.10.0"
@@ -229,12 +231,12 @@
 #define VIPERL_VERSION "1.1.0"
 #define RCLI_VERSION "5.0.0"
 #define VDM_VERSION "e.x.p"
-#define VMSAFE_VERSION        "1.1.0"
-#define VMSAFE_FILE_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VMSAFE_VERSION        "1.2.0"
+#define VMSAFE_FILE_VERSION    1,2,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define NETDUMP_VERSION        "1.1.0"
 #define NETDUMP_FILE_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define VDDK_VERSION          "1.1.0"
-#define VDDK_FILE_VERSION      1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VDDK_VERSION          "5.0.0"
+#define VDDK_FILE_VERSION      5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "2.0.1"
 #define VDM_CLIENT_VERSION "e.x.p"
 
@@ -266,7 +268,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 8
 #define USB_ARBITRATOR_VERSION_MINOR 0
-#define USB_ARBITRATOR_VERSION_Z     1
+#define USB_ARBITRATOR_VERSION_Z     19
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
 
@@ -281,7 +283,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.0.1"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.0.19"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

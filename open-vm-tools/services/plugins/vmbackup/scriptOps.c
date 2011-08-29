@@ -315,7 +315,7 @@ exit:
       /* Report the script error to the host */
       VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                          VMBACKUP_SCRIPT_ERROR,
-                         "Custom script failed.");
+                         "Custom quiesce script failed.");
    }
    return ret;
 }

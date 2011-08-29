@@ -152,6 +152,7 @@ ToolsCoreRpcCapReg(RpcInData *data)
       g_free(toolsVersion);
    }
 
+   state->capsRegistered = TRUE;
    free(confPath);
    return RPCIN_SETRETVALS(data, "", TRUE);
 }

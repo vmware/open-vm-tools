@@ -29,6 +29,7 @@
 #include "vmware.h"
 #include "vix.h"
 #include "vixCommands.h"
+#include <glib.h>
 
 
 #define PROCESS_CREATOR_USER_TOKEN       ((void *)1)
@@ -64,6 +65,8 @@ VixError VixToolsValidateEnviron(char const * const *environ);
 char *VixToolsGetEnvVarFromEnvBlock(const wchar_t *envBlock,
                                     const char *envVarName);
 
+char *VixToolsEscapeXMLString(const char *str);
+
 #ifdef _WIN32
 VixError VixToolsGetEnvBlock(void *userToken,
                              wchar_t **envBlock);
@@ -85,6 +88,7 @@ void VixToolsDeinitTicketedSessionList();
 
 
 VixError VixToolsAuthenticateWithSSPI(VixCommandRequestHeader *requestMsg,
+                                      GMainLoop *eventQueue,
                                       char **resultBuffer);
 
 VixError VixToolsGetTokenHandleFromTicketID(const char *ticketID,

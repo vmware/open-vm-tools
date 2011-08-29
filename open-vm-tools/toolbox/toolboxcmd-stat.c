@@ -89,17 +89,17 @@ OpenHandle(VMGuestLibHandle *glHandle, // OUT: The guestlib handle
 static int
 StatProcessorSpeed(void)
 {
-   uint32 speed;
+   int32 speed;
    Backdoor_proto bp;
    bp.in.cx.halfs.low = BDOOR_CMD_GETMHZ;
    Backdoor(&bp);
    speed = bp.out.ax.word;
-   if (speed < 0) {
+   if (speed <= 0) {
       ToolsCmd_PrintErr("%s",
                         SU_(stat.getspeed.failed, "Unable to get processor speed.\n"));
       return EX_TEMPFAIL;
    }
-   printf("%u MHz\n", speed);
+   g_print("%u MHz\n", speed);
    return EXIT_SUCCESS;
 }
 
@@ -154,7 +154,7 @@ StatHostTime(void)
                         SU_(stat.formattime.failed, "Unable to format host time.\n"));
       return EX_TEMPFAIL;
    }
-   printf("%s\n", buf);
+   g_print("%s\n", buf);
    return EXIT_SUCCESS;
 }
 
@@ -196,7 +196,7 @@ StatGetSessionID(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      printf("0x%"FMT64"x\n", session);
+      g_print("0x%"FMT64"x\n", session);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -240,7 +240,7 @@ StatGetMemoryBallooned(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      printf("%u MHz\n", memBallooned);
+      g_print("%u MB\n", memBallooned);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -284,7 +284,7 @@ StatGetMemoryReservation(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      printf("%u MB\n", memReservation);
+      g_print("%u MB\n", memReservation);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -329,7 +329,7 @@ StatGetMemorySwapped(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      printf("%u MB\n", memSwapped);
+      g_print("%u MB\n", memSwapped);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -373,7 +373,7 @@ StatGetMemoryLimit(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      printf("%u MB\n", memLimit);
+      g_print("%u MB\n", memLimit);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -417,7 +417,7 @@ StatGetCpuReservation(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      printf("%u MHz\n", cpuReservation);
+      g_print("%u MHz\n", cpuReservation);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -461,7 +461,7 @@ StatGetCpuLimit(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      printf("%u MHz\n", cpuLimit);
+      g_print("%u MHz\n", cpuLimit);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;

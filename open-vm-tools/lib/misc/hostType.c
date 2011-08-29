@@ -30,11 +30,16 @@
 #include "hostType.h"
 #include "str.h"
 
-#ifdef VMX86_SERVER
+/*
+ * XXX see bug 651592 for how to make this not warn on newer linux hosts
+ * that have deprecated sysctl.
+ */
+#if defined(VMX86_SERVER) || ((defined(VMX86_VPX) || defined(VMX86_VMACORE)) && defined(linux))
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include "uwvmkAPI.h"
+#define DO_REAL_HOST_CHECK
 #endif
 
 #define LGPFX "HOSTTYPE:"
@@ -66,7 +71,7 @@
 static int
 HostTypeOSVMKernelType(void)
 {
-#ifdef VMX86_SERVER
+#ifdef DO_REAL_HOST_CHECK
    static int vmkernelType = -1;
 
    if (vmkernelType == -1) {
@@ -113,7 +118,7 @@ HostTypeOSVMKernelType(void)
 
    return (vmkernelType);
 #else
-   /* Non-ESX builds are never running on the VMKernel. */
+   /* Non-linux builds are never running in a userworld */
    return 0;
 #endif
 }

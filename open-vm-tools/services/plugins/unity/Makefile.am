@@ -49,10 +49,14 @@ libunity_la_SOURCES =
 libunity_la_SOURCES += unityPlugin.cpp
 libunity_la_SOURCES += unityPluginEntry.cpp
 libunity_la_SOURCES += unityPlugin.h
+libunity_la_SOURCES += ghiTclo.h
+libunity_la_SOURCES += ghiTclo.cpp
+libunity_la_SOURCES += unityTclo.h
+libunity_la_SOURCES += unityTclo.cpp
 
-libunity_la_SOURCES += ghIntegration/ghIntegration.c
+libunity_la_SOURCES += ghIntegration/ghIntegration.cpp
 libunity_la_SOURCES += ghIntegration/ghIntegrationInt.h
-libunity_la_SOURCES += ghIntegration/ghIntegrationX11.c
+libunity_la_SOURCES += ghIntegration/ghIntegrationX11.cpp
 
 libunity_la_SOURCES += unitylib/unity.c
 libunity_la_SOURCES += unitylib/unityDebug.h
@@ -73,6 +77,10 @@ RPCGEN_SRCS += ghiProtocolHandler_xdr.c
 RPCGEN_SRCS += ghiStartMenu_xdr.c
 RPCGEN_SRCS += ghiShellAction_xdr.c
 RPCGEN_SRCS += ghiTrayIcon_xdr.c
+RPCGEN_SRCS += ghiSetFocusedWindow_xdr.c
+RPCGEN_SRCS += ghiSetGuestHandler_xdr.c
+RPCGEN_SRCS += ghiSetOutlookTempFolder_xdr.c
+RPCGEN_SRCS += ghiTrashFolder_xdr.c
 RPCGEN_SRCS += unityActive_xdr.c
 RPCGEN_SRCS += unity_xdr.c
 
@@ -83,6 +91,10 @@ RPCGEN_HDRS += ghiProtocolHandler.h
 RPCGEN_HDRS += ghiStartMenu.h
 RPCGEN_HDRS += ghiShellAction.h
 RPCGEN_HDRS += ghiTrayIcon.h
+RPCGEN_HDRS += ghiSetFocusedWindow.h
+RPCGEN_HDRS += ghiSetGuestHandler.h
+RPCGEN_HDRS += ghiSetOutlookTempFolder.h
+RPCGEN_HDRS += ghiTrashFolder.h
 RPCGEN_HDRS += unityActive.h
 RPCGEN_HDRS += unity.h
 
@@ -183,6 +195,62 @@ ghiTrayIcon.h: ghiTrayIcon.x
 
 ghiTrayIcon_xdr.c: ghiTrayIcon.x ghiTrayIcon.h
 	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiTrayIcon.x
+
+ghiSetFocusedWindow.h: ghiSetFocusedWindow.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
+	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
+	   cp -f $(top_srcdir)/services/plugins/unity/ghiSetFocusedWindow.x $(builddir);         \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiSetFocusedWindow.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+ghiSetFocusedWindow_xdr.c: ghiSetFocusedWindow.x ghiSetFocusedWindow.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiSetFocusedWindow.x
+
+ghiSetGuestHandler.h: ghiSetGuestHandler.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
+	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
+	   cp -f $(top_srcdir)/services/plugins/unity/ghiSetGuestHandler.x $(builddir);         \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiSetGuestHandler.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+ghiSetGuestHandler_xdr.c: ghiSetGuestHandler.x ghiSetGuestHandler.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiSetGuestHandler.x
+
+ghiSetOutlookTempFolder.h: ghiSetOutlookTempFolder.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
+	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
+	   cp -f $(top_srcdir)/services/plugins/unity/ghiSetOutlookTempFolder.x $(builddir);         \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiSetOutlookTempFolder.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+ghiSetOutlookTempFolder_xdr.c: ghiSetOutlookTempFolder.x ghiSetOutlookTempFolder.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiSetOutlookTempFolder.x
+
+ghiTrashFolder.h: ghiTrashFolder.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
+	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
+	   cp -f $(top_srcdir)/services/plugins/unity/ghiTrashFolder.x $(builddir);         \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiTrashFolder.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+ghiTrashFolder_xdr.c: ghiTrashFolder.x ghiTrashFolder.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiTrashFolder.x
 
 unityActive.h: unityActive.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \

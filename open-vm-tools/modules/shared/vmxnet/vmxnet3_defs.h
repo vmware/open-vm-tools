@@ -130,8 +130,12 @@ typedef enum {
    VMXNET3_CMD_GET_DID_LO,
    VMXNET3_CMD_GET_DID_HI,
    VMXNET3_CMD_GET_DEV_EXTRA_INFO,
-   VMXNET3_CMD_GET_CONF_INTR
+   VMXNET3_CMD_GET_CONF_INTR,
+   VMXNET3_CMD_GET_ADAPTIVE_RING_INFO
 } Vmxnet3_Cmd;
+
+/* Adaptive Ring Info Flags */
+#define VMXNET3_DISABLE_ADAPTIVE_RING 1
 
 /*
  *	Little Endian layout of bitfields -
@@ -731,5 +735,7 @@ do {\
 #define VMXNET3_LINK_DOWN       0
 
 #define VMXWIFI_DRIVER_SHARED_LEN 8192
+
+#define VMXNET3_DID_PASSTHRU    0xFFFF
 
 #endif /* _VMXNET3_DEFS_H_ */

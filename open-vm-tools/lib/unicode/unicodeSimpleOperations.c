@@ -35,6 +35,30 @@
 /*
  *-----------------------------------------------------------------------------
  *
+ * Unicode_LengthInCodePoints --
+ *
+ *      Returns the length of the unicode string in code points
+ *      ("unicode characters").
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+UnicodeIndex
+Unicode_LengthInCodePoints(ConstUnicode str)  // IN:
+{
+   return CodeSet_LengthInCodePoints(str);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Unicode_CompareRange --
  *
  *      Compares ranges of two Unicode strings for canonical
@@ -57,6 +81,9 @@
  *      Pass -1 for any length parameter to indicate "from start until
  *      end of string".
  *
+ *      The start and length arguments are in code points - unicode
+ *      "characters" - not bytes!
+ *
  * Results:
  *      -1 if str1 < str2, 0 if str1 == str2, 1 if str1 > str2.
  *
@@ -67,13 +94,13 @@
  */
 
 int
-Unicode_CompareRange(ConstUnicode str1,       // IN
-                     UnicodeIndex str1Start,  // IN
-                     UnicodeIndex str1Length, // IN
-                     ConstUnicode str2,       // IN
-                     UnicodeIndex str2Start,  // IN
-                     UnicodeIndex str2Length, // IN
-                     Bool ignoreCase)         // IN
+Unicode_CompareRange(ConstUnicode str1,        // IN:
+                     UnicodeIndex str1Start,   // IN:
+                     UnicodeIndex str1Length,  // IN:
+                     ConstUnicode str2,        // IN:
+                     UnicodeIndex str2Start,   // IN:
+                     UnicodeIndex str2Length,  // IN:
+                     Bool ignoreCase)          // IN:
 {
    int result = -1;
    Unicode substr1 = NULL;
@@ -87,14 +114,12 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    uint32 codePoint1;
    uint32 codePoint2;
 
-   UnicodePinIndices(str1, &str1Start, &str1Length);
-   UnicodePinIndices(str2, &str2Start, &str2Length);
-
    /*
-    * TODO: Allocating substrings is a performance hit.  We should do
-    * this search in-place.  (However, searching UTF-8 requires tender loving
+    * TODO: Allocating substrings is a performance hit.  We should do this
+    * search in-place.  (However, searching UTF-8 requires tender loving
     * care, and it's just easier to search UTF-16.)
     */
+
    substr1 = Unicode_Substr(str1, str1Start, str1Length);
    if (!substr1) {
       goto out;
@@ -108,6 +133,7 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    /*
     * XXX TODO: Need to normalize the incoming strings to NFC or NFD.
     */
+
    substr1UTF16 = Unicode_GetAllocUTF16(substr1);
    if (!substr1UTF16) {
       goto out;
@@ -119,23 +145,22 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    }
 
    /*
-    * TODO: This is the naive string search algorithm, which is
-    * O(n * m).  We can do better with KMP or Boyer-Moore if this
-    * proves to be a bottleneck.
+    * TODO: This is the naive string search algorithm, which is O(n * m). We
+    * can do better with KMP or Boyer-Moore if this proves to be a bottleneck.
     */
+
    while (TRUE) {
       codeUnit1 = *(substr1UTF16 + i);
       codeUnit2 = *(substr2UTF16 + i);
 
       /*
-       * TODO: Simple case folding doesn't handle the situation where
-       * more than one code unit is needed to store the result of the
-       * case folding.
+       * TODO: Simple case folding doesn't handle the situation where more
+       * than one code unit is needed to store the result of the case folding.
        *
-       * This means that German "straBe" (where B = sharp S, U+00DF)
-       * will not match "STRASSE", even though the two strings are the
-       * same.
+       * This means that German "straBe" (where B = sharp S, U+00DF) will not
+       * match "STRASSE", even though the two strings are the same.
        */
+
       if (ignoreCase) {
          codeUnit1 = UnicodeSimpleCaseFold(codeUnit1);
          codeUnit2 = UnicodeSimpleCaseFold(codeUnit2);
@@ -155,10 +180,11 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    }
 
    /*
-    * The two UTF-16 code units differ.  If they're the first code unit
-    * of a surrogate pair (for Unicode values past U+FFFF), decode the
-    * surrogate pair into a full Unicode code point.
+    * The two UTF-16 code units differ. If they're the first code unit of a
+    * surrogate pair (for Unicode values past U+FFFF), decode the surrogate
+    * pair into a full Unicode code point.
     */
+
    if (U16_IS_SURROGATE(codeUnit1)) {
       ssize_t substrUTF16Len = Unicode_UTF16Strlen(substr1UTF16);
 
@@ -216,6 +242,9 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
  *      Pass -1 for any length parameter to indicate "from start until
  *      end of string".
  *
+ *      The start and length arguments are in code points - unicode
+ *      "characters" - not bytes!
+ *
  * Results:
  *      If 'strToFind' exists inside 'str' in the specified range,
  *      returns the first starting index of 'strToFind' in that range.
@@ -229,60 +258,97 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
  */
 
 UnicodeIndex
-Unicode_FindSubstrInRange(ConstUnicode str,             // IN
-                          UnicodeIndex strStart,        // IN
-                          UnicodeIndex strLength,       // IN
-                          ConstUnicode strToFind,       // IN
-                          UnicodeIndex strToFindStart,  // IN
-                          UnicodeIndex strToFindLength) // IN
+Unicode_FindSubstrInRange(ConstUnicode str,              // IN:
+                          UnicodeIndex strStart,         // IN:
+                          UnicodeIndex strLength,        // IN:
+                          ConstUnicode strToFind,        // IN:
+                          UnicodeIndex strToFindStart,   // IN:
+                          UnicodeIndex strToFindLength)  // IN:
 {
-   const char *strUTF8 = (const char *)str;
-   const char *strToFindUTF8 = (const char *)strToFind;
-   UnicodeIndex strUTF8Offset;
+   UnicodeIndex index;
+   uint32 *utf32Source = NULL;
+   uint32 *utf32Search = NULL;
 
-   UnicodePinIndices(str, &strStart, &strLength);
-   UnicodePinIndices(strToFind, &strToFindStart, &strToFindLength);
+   ASSERT(str);
+   ASSERT(strStart >= 0);
+   ASSERT((strLength >= 0) || (strLength == -1));
 
-   if (strLength < strToFindLength) {
-      return UNICODE_INDEX_NOT_FOUND;
+   ASSERT(strToFind);
+   ASSERT(strToFindStart >= 0);
+   ASSERT((strToFindLength >= 0) || (strToFindLength == -1));
+
+   /*
+    * Convert the string to be searched and the search string to UTF32.
+    */
+
+   if (!CodeSet_UTF8ToUTF32(str, (char **) &utf32Source)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, str);
    }
 
-   if (strToFindLength == 0) {
-      return strStart;
+   if (!CodeSet_UTF8ToUTF32(strToFind, (char **) &utf32Search)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, strToFind);
    }
 
    /*
-    * TODO: This loop is quite similar to the one in
-    * Unicode_FindLastSubstrInRange.  We might be able to refactor the
-    * two into a common helper function.
+    * Do any bounds cleanup and checking that is necessary...
     */
-   for (strUTF8Offset = strStart;
-        strUTF8Offset < strStart + strLength;
-        strUTF8Offset++) {
-      char byte = strUTF8[strUTF8Offset];
 
-      if (byte == strToFindUTF8[strToFindStart]) {
-         UnicodeIndex strSubOffset = strUTF8Offset;
-         UnicodeIndex strToFindSubOffset = strToFindStart;
-         UnicodeIndex strToFindEnd = strToFindStart + strToFindLength - 1;
+   if (strLength < 0) {
+      strLength = Unicode_LengthInCodePoints(str) - strStart;
+   }
 
-         while (TRUE) {
-            if (strToFindSubOffset == strToFindEnd) {
-               // Found the substring.
-               return strUTF8Offset;
-            }
+   if (strToFindLength < 0) {
+      strToFindLength = Unicode_LengthInCodePoints(strToFind) - strToFindStart;
+   }
 
-            strToFindSubOffset++;
-            strSubOffset++;
+   if (strLength < strToFindLength) {
+      index = UNICODE_INDEX_NOT_FOUND;
+      goto bail;
+   }
 
-            if (strUTF8[strSubOffset] != strToFindUTF8[strToFindSubOffset]) {
-               break;
-            }
+   /*
+    * Yes, this may be viewed as a bit strange but this is what strstr does.
+    */
+
+   if (strToFindLength == 0) {
+      index = strStart;
+      goto bail;
+   }
+  
+   /*
+    * Attempt to find the first occurence of the search string in the string
+    * to be searched.
+    */
+
+   for (index = strStart;
+        index <= (strStart + strLength - strToFindLength);
+        index++) {
+      UnicodeIndex i;
+      Bool match = FALSE;
+      UnicodeIndex indexSrc = index;
+      UnicodeIndex indexSrch = strToFindStart;
+
+      for (i = 0; i < strToFindLength; i++) {
+         match = (utf32Source[indexSrc++] == utf32Search[indexSrch++]);
+
+         if (!match) {
+            break;
          }
+      }
+
+      if (match) {
+         goto bail;
       }
    }
 
-   return UNICODE_INDEX_NOT_FOUND;
+   index = UNICODE_INDEX_NOT_FOUND;
+
+bail:
+
+   free(utf32Source);
+   free(utf32Search);
+
+   return index;
 }
 
 
@@ -301,6 +367,9 @@ Unicode_FindSubstrInRange(ConstUnicode str,             // IN
  *      Pass -1 for any length parameter to indicate "from start until
  *      end of string".
  *
+ *      The start and length arguments are in code points - unicode
+ *      "characters" - not bytes!
+ *
  * Results:
  *      If 'strToFind' exists inside 'str' in the specified range,
  *      returns the last starting index of 'strToFind' in that range.
@@ -314,55 +383,97 @@ Unicode_FindSubstrInRange(ConstUnicode str,             // IN
  */
 
 UnicodeIndex
-Unicode_FindLastSubstrInRange(ConstUnicode str,             // IN
-                              UnicodeIndex strStart,        // IN
-                              UnicodeIndex strLength,       // IN
-                              ConstUnicode strToFind,       // IN
-                              UnicodeIndex strToFindStart,  // IN
-                              UnicodeIndex strToFindLength) // IN
+Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
+                              UnicodeIndex strStart,         // IN:
+                              UnicodeIndex strLength,        // IN:
+                              ConstUnicode strToFind,        // IN:
+                              UnicodeIndex strToFindStart,   // IN:
+                              UnicodeIndex strToFindLength)  // IN:
 {
-   const char *strUTF8 = (const char *)str;
-   const char *strToFindUTF8 = (const char *)strToFind;
-   UnicodeIndex strUTF8Offset;
+   UnicodeIndex index;
+   uint32 *utf32Source = NULL;
+   uint32 *utf32Search = NULL;
 
-   UnicodePinIndices(str, &strStart, &strLength);
-   UnicodePinIndices(strToFind, &strToFindStart, &strToFindLength);
+   ASSERT(str);
+   ASSERT(strStart >= 0);
+   ASSERT((strLength >= 0) || (strLength == -1));
+
+   ASSERT(strToFind);
+   ASSERT(strToFindStart >= 0);
+   ASSERT((strToFindLength >= 0) || (strToFindLength == -1));
+
+   /*
+    * Convert the string to be searched and the search string to UTF32.
+    */
+
+   if (!CodeSet_UTF8ToUTF32(str, (char **) &utf32Source)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, str);
+   }
+
+   if (!CodeSet_UTF8ToUTF32(strToFind, (char **) &utf32Search)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, strToFind);
+   }
+
+   /*
+    * Do any bounds cleanup and checking that is necessary...
+    */
+
+   if (strLength < 0) {
+      strLength = Unicode_LengthInCodePoints(str) - strStart;
+   }
+
+   if (strToFindLength < 0) {
+      strToFindLength = Unicode_LengthInCodePoints(strToFind) - strToFindStart;
+   }
 
    if (strLength < strToFindLength) {
-      return UNICODE_INDEX_NOT_FOUND;
+      index = UNICODE_INDEX_NOT_FOUND;
+      goto bail;
    }
+
+   /*
+    * Yes, this may be viewed as a bit strange but this is what strstr does.
+    */
 
    if (strToFindLength == 0) {
-      return strStart;
+      index = strStart;
+      goto bail;
    }
+  
+   /*
+    * Attempt to find the last occurence of the search string in the string
+    * to be searched.
+    */
 
-   for (strUTF8Offset = strStart + strLength - 1;
-        strUTF8Offset >= strStart;
-        strUTF8Offset--) {
-      char byte = strUTF8[strUTF8Offset];
-      UnicodeIndex strToFindEnd = strToFindStart + strToFindLength - 1;
+   for (index = strStart + strLength - strToFindLength;
+        index >= strStart;
+        index--) {
+      UnicodeIndex i;
+      Bool match = FALSE;
+      UnicodeIndex indexSrc = index;
+      UnicodeIndex indexSrch = strToFindStart;
 
-      if (byte == strToFindUTF8[strToFindEnd]) {
-         UnicodeIndex strSubOffset = strUTF8Offset;
-         UnicodeIndex strToFindSubOffset = strToFindEnd;
+      for (i = 0; i < strToFindLength; i++) {
+         match = (utf32Source[indexSrc++] == utf32Search[indexSrch++]);
 
-         while (TRUE) {
-            if (strToFindSubOffset == strToFindStart) {
-               // Found the substring.
-               return strSubOffset;
-            }
-
-            strToFindSubOffset--;
-            strSubOffset--;
-
-            if (strUTF8[strSubOffset] != strToFindUTF8[strToFindSubOffset]) {
-               break;
-            }
+         if (!match) {
+            break;
          }
+      }
+
+      if (match) {
+         goto bail;
       }
    }
 
-   return UNICODE_INDEX_NOT_FOUND;
+   index = UNICODE_INDEX_NOT_FOUND;
+
+bail:
+
+   free(utf32Source);
+   free(utf32Search);
+
+   return index;
 }
 
 
@@ -376,8 +487,11 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,             // IN
  *      Indices and lengths that are out of bounds are pinned to the
  *      edges of the string.
  *
- *      Pass -1 for any length parameter to indicate "from start until
+ *      Pass -1 for the length parameter to indicate "from start until
  *      end of string".
+ *
+ *      The start and length arguments are in code points - unicode
+ *      "characters" - not bytes!
  *
  * Results:
  *      The newly-allocated substring of 'str' in the range [index,
@@ -390,13 +504,42 @@ Unicode_FindLastSubstrInRange(ConstUnicode str,             // IN
  */
 
 Unicode
-Unicode_Substr(ConstUnicode str,    // IN
-               UnicodeIndex start,  // IN
-               UnicodeIndex length) // IN
+Unicode_Substr(ConstUnicode str,     // IN:
+               UnicodeIndex start,   // IN:
+               UnicodeIndex length)  // IN:
 {
-   UnicodePinIndices(str, &start, &length);
+   char *substr;
+   uint32 codePointLen;
+   uint32 *utf32 = NULL;
 
-   return Util_SafeStrndup(((const char *)str) + start, length);
+   ASSERT(str);
+   ASSERT((start >= 0) || (start == -1));
+   ASSERT((length >= 0) || (length == -1));
+
+   if (!CodeSet_UTF8ToUTF32(str, (char **) &utf32)) {
+      Panic("%s: invalid UTF8 string @ %p\n", __FUNCTION__, str);
+   }
+
+   codePointLen = 0;
+   while (utf32[codePointLen] != 0) {
+      codePointLen++;
+   }
+
+   if ((start < 0) || (start > codePointLen)) {
+      start = codePointLen;
+   }
+
+   if ((length < 0) || ((start + length) > codePointLen)) {
+      length = codePointLen - start;
+   }
+
+   utf32[start + length] = 0;
+
+   CodeSet_UTF32ToUTF8((char *) &utf32[start], &substr);
+
+   free(utf32);
+
+   return substr;
 }
 
 
@@ -418,6 +561,9 @@ Unicode_Substr(ConstUnicode str,    // IN
  *      Pass -1 for any length parameter to indicate "from start until
  *      end of string".
  *
+ *      The start and length arguments are in code points - unicode
+ *      "characters" - not bytes!
+ *
  * Results:
  *      A newly-allocated string containing the results of the replace
  *      operation.  Caller must free with Unicode_Free.
@@ -429,44 +575,37 @@ Unicode_Substr(ConstUnicode str,    // IN
  */
 
 Unicode
-Unicode_ReplaceRange(ConstUnicode destination,       // IN
-                     UnicodeIndex destinationStart,  // IN
-                     UnicodeIndex destinationLength, // IN
-                     ConstUnicode source,            // IN
-                     UnicodeIndex sourceStart,       // IN
-                     UnicodeIndex sourceLength)      // IN
+Unicode_ReplaceRange(ConstUnicode dest,        // IN:
+                     UnicodeIndex destStart,   // IN:
+                     UnicodeIndex destLength,  // IN:
+                     ConstUnicode src,         // IN:
+                     UnicodeIndex srcStart,    // IN:
+                     UnicodeIndex srcLength)   // IN:
 {
-   UnicodeIndex destNumCodeUnits;
-   UnicodeIndex resultLength;
-   char *result;
+   Unicode result;
+   Unicode stringOne;
+   Unicode stringTwo;
+   Unicode stringThree;
 
-   UnicodePinIndices(destination, &destinationStart, &destinationLength);
-   UnicodePinIndices(source, &sourceStart, &sourceLength);
+   ASSERT(dest);
+   ASSERT((destStart >= 0) || (destStart == -1));
+   ASSERT((destLength >= 0) || (destLength == -1));
 
-   destNumCodeUnits = Unicode_LengthInCodeUnits(destination);
+   ASSERT(src);
+   ASSERT((srcStart >= 0) || (srcStart == -1));
+   ASSERT((srcLength >= 0) || (srcLength == -1));
 
-   resultLength = destNumCodeUnits - destinationLength + sourceLength;
+   stringOne = Unicode_Substr(dest, 0, destStart);
+   stringTwo = Unicode_Substr(src, srcStart, srcLength);
+   stringThree = Unicode_Substr(dest, destStart + destLength, -1);
 
-   result = Util_SafeMalloc(resultLength + 1);
+   result = Unicode_Join(stringOne, stringTwo, stringThree, NULL);
 
-   // Start with the destination bytes before the substring to be replaced.
-   memcpy(result,
-          destination,
-          destinationStart);
+   Unicode_Free(stringOne);
+   Unicode_Free(stringTwo);
+   Unicode_Free(stringThree);
 
-   // Insert the substring of source in place of the destination substring.
-   memcpy(result + destinationStart,
-          (const char *)source + sourceStart,
-          sourceLength);
-
-   // Append the remaining bytes of destination after the replaced substring.
-   memcpy(result + destinationStart + sourceLength,
-          (const char *)destination + destinationStart + destinationLength,
-          destNumCodeUnits - destinationStart - destinationLength);
-
-   result[resultLength] = '\0';
-
-   return (Unicode)result;
+   return result;
 }
 
 
@@ -491,29 +630,30 @@ Unicode_ReplaceRange(ConstUnicode destination,       // IN
 
 Unicode
 Unicode_Join(ConstUnicode first,  // IN:
-             ...)                 // IN
+             ...)                 // IN:
 {
-   va_list args;
    Unicode result;
-   ConstUnicode cur;
 
    if (first == NULL) {
-      return NULL;
+      result = NULL;
+   } else {
+      va_list args;
+      ConstUnicode cur;
+
+      result = Unicode_Duplicate(first);
+
+      va_start(args, first);
+
+      while ((cur = va_arg(args, ConstUnicode)) != NULL) {
+         Unicode temp;
+
+         temp = Unicode_Format("%s%s", result, cur);
+         Unicode_Free(result);
+         result = temp;
+      }
+
+      va_end(args);
    }
-
-   result = Unicode_Duplicate(first);
-
-   va_start(args, first);
-
-   while ((cur = va_arg(args, ConstUnicode)) != NULL) {
-      Unicode temp;
-
-      temp = Unicode_Append(result, cur);
-      Unicode_Free(result);
-      result = temp;
-   }
-
-   va_end(args);
 
    return result;
 }

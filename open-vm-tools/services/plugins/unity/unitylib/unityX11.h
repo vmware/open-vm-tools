@@ -251,7 +251,8 @@ struct _UnityPlatform {
    } atoms;
 
    UnityWindowTracker *tracker;
-   UnityUpdateChannel *updateChannel;
+   UnityHostCallbacks hostCallbacks;
+   void *updateChannel;
 
    /*
     * This tracks all toplevel windows, whether or not they are showing through to the

@@ -27,23 +27,115 @@
 #include <stdarg.h>
 
 /*
- * The log levels are taken from POSIXen syslog. We hijack their values
- * on POSIXen and provide equivalent defines on all other platforms.
+ * The bora/lig Log Facility log level model.
+ * This the same as the vmacore/hostd Log Facility.
+ *
+ * The VMW_LOG_BASE is chosen to ensure that on all platforms commonly
+ * used system logger values will be invalid and the errant usage caught.
  */
 
-#if defined(_WIN32)
-#   include <windows.h>
+#define VMW_LOG_BASE      100
+#define VMW_LOG_PANIC     VMW_LOG_BASE + 00  // highest priority
+#define VMW_LOG_ERROR     VMW_LOG_BASE + 01
+#define VMW_LOG_WARNING   VMW_LOG_BASE + 02  // <= goes to stderr by default
+#define VMW_LOG_INFO      VMW_LOG_BASE + 03  // <= goes to log by default
+#define VMW_LOG_VERBOSE   VMW_LOG_BASE + 04
+#define VMW_LOG_TRIVIA    VMW_LOG_BASE + 05
+#define VMW_LOG_DEBUG_00  VMW_LOG_BASE + 06  // noisiest level of debugging
+#define VMW_LOG_DEBUG_01  VMW_LOG_BASE + 07
+#define VMW_LOG_DEBUG_02  VMW_LOG_BASE + 08
+#define VMW_LOG_DEBUG_03  VMW_LOG_BASE + 09
+#define VMW_LOG_DEBUG_04  VMW_LOG_BASE + 10
+#define VMW_LOG_DEBUG_05  VMW_LOG_BASE + 11
+#define VMW_LOG_DEBUG_06  VMW_LOG_BASE + 12
+#define VMW_LOG_DEBUG_07  VMW_LOG_BASE + 13
+#define VMW_LOG_DEBUG_08  VMW_LOG_BASE + 14
+#define VMW_LOG_DEBUG_09  VMW_LOG_BASE + 15
+#define VMW_LOG_DEBUG_10  VMW_LOG_BASE + 16  // lowest priority; least noisy
 
-#   define LOG_INFO       EVENTLOG_INFORMATION_TYPE
-#   define LOG_WARNING    EVENTLOG_WARNING_TYPE
-#   define LOG_ERR        EVENTLOG_ERROR_TYPE
-#else
-#   if !defined(VMM)
-#      include <syslog.h>
-#   endif
-#endif
+void LogV(int level,
+          const char *fmt,
+          va_list args);
 
 
+/*
+ * Handy wrapper functions.
+ *
+ * Log -> VMW_LOG_INFO
+ * Warning -> VMW_LOG_WARNING
+ *
+ * TODO: even Log and Warning become wrapper functions around LogV.
+ */
+
+static INLINE void
+Log_Level(int level,
+          const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(level, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_String(int level,
+           const char *string)
+{
+   Log_Level(level, "%s", string);
+}
+
+
+static INLINE void
+Log_Panic(const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_PANIC, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Error(const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_ERROR, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Verbose(const char *fmt,
+            ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_VERBOSE, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Trivia(const char *fmt,
+           ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_TRIVIA, fmt, ap);
+   va_end(ap);
+}
+
+#if !defined(VMM)
 typedef void (LogBasicFunc)(const char *fmt,
                             va_list args);
 
@@ -69,7 +161,9 @@ typedef struct
    Bool           useMilliseconds;      // Show milliseconds in time stamp
    Bool           fastRotation;         // ESX log rotation optimization
    Bool           preventRemove;        // prevert Log_RemoveFile(FALSE)
-   Bool           stderrWarnings;       // warnings also go to stderr
+
+   int32          stderrMinLevel;       // This level and above to stderr
+   int32          logMinLevel;          // This level and above to log
 
    uint32         keepOld;              // Number of old logs to keep
    uint32         throttleThreshold;    // Threshold for throttling
@@ -90,12 +184,6 @@ Bool Log_Init(const char *fileName,
               const char *config,
               const char *suffix);
 
-Bool Log_InitForApp(const char *fileName,
-                    const char *config,
-                    const char *suffix,
-                    const char *appName,
-                    const char *appVersion);
-
 Bool Log_InitEx(const LogInitParams *params);
 
 void Log_UpdateFileControl(Bool append,
@@ -111,7 +199,6 @@ void Log_UpdatePerLine(Bool perLineTimeStamps,
 
 void Log_Exit(void);
 void Log_SetConfigDir(const char *configDir);
-void Log_WriteBytes(const char *msg);
 
 Bool Log_Outputting(void);
 const char *Log_GetFileName(void);
@@ -137,19 +224,6 @@ size_t Log_MakeTimeString(Bool millisec,
                           char *buf,
                           size_t max);
 
-void LogV(const char *fmt,
-          va_list args);
-
-void WarningV(const char *fmt,
-              va_list args);
-
-void Log_Level(int level,
-               const char *fmt,
-               ...);
-
-void Log_LevelV(int level,
-                const char *fmt,
-                va_list args);
 
 /* Logging that uses the custom guest throttling configuration. */
 void GuestLog_Init(void);
@@ -200,4 +274,5 @@ void Log_Histogram(uint32 n,
                    int *count,
                    int limit);
 
+#endif /* !VMM */
 #endif /* VMWARE_LOG_H */

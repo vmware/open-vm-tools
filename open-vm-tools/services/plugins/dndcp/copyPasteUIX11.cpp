@@ -1365,7 +1365,10 @@ CopyPasteUIX11::GetLocalFilesDone(bool success)
 
    if (mBlockAdded) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
-      mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
+      /* We need to make sure block subsystem has not been shut off. */
+      if (DnD_BlockIsReady(mBlockCtrl)) {
+         mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
+      }
       mBlockAdded = false;
    }
 

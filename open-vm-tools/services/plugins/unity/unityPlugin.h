@@ -35,6 +35,9 @@
 
 namespace vmware { namespace tools {
 
+typedef struct _UnityUpdateChannel UnityUpdateChannel;
+
+
 /**
  * Helper struct to build an RPCChannelCallback structure from a name and a
  * simple function pointer that takes an RPCInData pointer.
@@ -185,7 +188,7 @@ public:
 class UnityPlugin  : public ToolsPlugin {
 public:
    UnityPlugin(ToolsAppCtx *ctx);
-   virtual ~UnityPlugin() {};
+   virtual ~UnityPlugin();
 
    virtual gboolean Reset(gpointer src) { return TRUE; }
    virtual void Shutdown(gpointer src) {};
@@ -195,6 +198,9 @@ public:
    }
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set);
    virtual std::vector<RpcChannelCallback> GetRpcCallbackList();
+
+protected:
+   UnityUpdateChannel *mUnityUpdateChannel;
 };
 
 #ifdef _WIN32

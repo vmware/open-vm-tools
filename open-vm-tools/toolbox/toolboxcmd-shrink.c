@@ -153,7 +153,7 @@ ShrinkList(void)
    DblLnkLst_ForEach(curr, &plist.link) {
       WiperPartition *p = DblLnkLst_Container(curr, WiperPartition, link);
       if (p->type != PARTITION_UNSUPPORTED) {
-         printf("%s\n", p->mountPoint);
+         g_print("%s\n", p->mountPoint);
       }
    }
 
@@ -242,11 +242,11 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
       }
 
       if (!quiet) {
-         printf("\rProgress: %d [", progress);
+         g_print("\rProgress: %d [", progress);
          for (i = 0; i <= progress / 10; i++) {
             putchar('=');
          }
-         printf(">%*c", 10 - i + 1, ']');
+         g_print(">%*c", 10 - i + 1, ']');
          fflush(stdout);
       }
    }

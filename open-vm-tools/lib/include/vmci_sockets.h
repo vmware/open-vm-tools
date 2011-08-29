@@ -27,9 +27,9 @@
 
 
 #if defined(_WIN32)
-#  if !defined(_DDK_DRIVER_)
+#  if !defined(NT_INCLUDED)
 #     include <winsock2.h>
-#  endif // _DDK_DRIVER_
+#  endif // !NT_INCLUDED
 #else // _WIN32
 #if defined(linux) && !defined(VMKERNEL)
 #  if !defined(__KERNEL__)
@@ -102,7 +102,7 @@ struct sockaddr_vm {
 
 
 #if defined(_WIN32)
-#  if !defined(_DDK_DRIVER_)
+#  if !defined(NT_INCLUDED)
 #     include <winioctl.h>
 #     define VMCI_SOCKETS_DEVICE          L"\\\\.\\VMCI"
 #     define VMCI_SOCKETS_GET_AF_VALUE    0x81032068
@@ -138,14 +138,16 @@ struct sockaddr_vm {
          }
          return cid;
       }
-#  endif // _DDK_DRIVER_
+#  endif // !NT_INCLUDED
 #else // _WIN32
-#if defined(linux) && !defined(VMKERNEL)
-#  ifdef __KERNEL__
+#if (defined(linux) && !defined(VMKERNEL)) || (defined(__APPLE__))
+#  if defined(linux) && defined(__KERNEL__)
    void VMCISock_KernelRegister(void);
    void VMCISock_KernelDeregister(void);
    int VMCISock_GetAFValue(void);
    int VMCISock_GetLocalCID(void);
+#  elif defined(__APPLE__) && (KERNEL)
+   /* Nothing to define here. */
 #  else // __KERNEL__
 #  include <sys/types.h>
 #  include <sys/stat.h>
@@ -157,8 +159,15 @@ struct sockaddr_vm {
 
 #  define VMCI_SOCKETS_DEFAULT_DEVICE      "/dev/vsock"
 #  define VMCI_SOCKETS_CLASSIC_ESX_DEVICE  "/vmfs/devices/char/vsock/vsock"
-#  define IOCTL_VMCI_SOCKETS_GET_AF_VALUE  1976
-#  define IOCTL_VMCI_SOCKETS_GET_LOCAL_CID 1977
+
+# if defined(linux)
+#  define VMCI_SOCKETS_GET_AF_VALUE  1976
+#  define VMCI_SOCKETS_GET_LOCAL_CID 1977
+# elif defined(__APPLE__)
+#  include <sys/ioccom.h>
+#  define VMCI_SOCKETS_GET_AF_VALUE  _IOR('V', 25 , int)
+#  define VMCI_SOCKETS_GET_LOCAL_CID _IOR('V', 26 , unsigned)
+#endif
 
    /*
     *----------------------------------------------------------------------------
@@ -205,7 +214,7 @@ struct sockaddr_vm {
          }
       }
 
-      if (ioctl(fd, IOCTL_VMCI_SOCKETS_GET_AF_VALUE, &family) < 0) {
+      if (ioctl(fd, VMCI_SOCKETS_GET_AF_VALUE, &family) < 0) {
          family = -1;
       }
 
@@ -244,7 +253,7 @@ struct sockaddr_vm {
          }
       }
 
-      if (ioctl(fd, IOCTL_VMCI_SOCKETS_GET_LOCAL_CID, &contextId) < 0) {
+      if (ioctl(fd, VMCI_SOCKETS_GET_LOCAL_CID, &contextId) < 0) {
          contextId = VMADDR_CID_ANY;
       }
 
@@ -252,11 +261,6 @@ struct sockaddr_vm {
       return contextId;
    }
 #  endif // __KERNEL__
-#else
-#if defined(__APPLE__) && !defined(KERNEL)
-extern int VMCISock_GetAFValue(void);
-extern unsigned int VMCISock_GetLocalCID(void);
-#endif // __APPLE__ && !KERNEL
 #endif // linux && !VMKERNEL
 #endif // _WIN32
 

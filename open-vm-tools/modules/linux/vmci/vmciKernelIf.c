@@ -17,12 +17,12 @@
  *********************************************************/
 
 /*
- * vmciKernelIf.c -- 
- * 
+ * vmciKernelIf.c --
+ *
  *      This file implements defines and helper functions for VMCI
  *      host _and_ guest kernel code. This is the linux specific
  *      implementation.
- */ 
+ */
 
 /* Must come before any kernel header file */
 #include "driver-config.h"
@@ -34,9 +34,6 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 9)
 #  error "Linux kernels before 2.6.9 are not supported."
 #endif
-
-#define EXPORT_SYMTAB
-#define __NO_VERSION__
 
 #include <linux/mm.h>           /* For vmalloc_to_page() and get_user_pages()*/
 #include <linux/pagemap.h>      /* For page_cache_release() */
@@ -961,6 +958,17 @@ VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
       sizeof *queue +
       numDataPages * sizeof queue->kernelIf->page[0];
 
+   /*
+    * Size should be enforced by VMCIQPair_Alloc(), double-check here.
+    * Allocating too much on Linux can cause the system to become
+    * unresponsive, because we allocate page-by-page, and we allow the
+    * system to wait for pages rather than fail.
+    */
+   if (size > VMCI_MAX_GUEST_QP_MEMORY) {
+      ASSERT(FALSE);
+      return NULL;
+   }
+
    qHeader = (VMCIQueueHeader *)vmalloc(queueSize);
    if (!qHeader) {
       return NULL;
@@ -1333,8 +1341,6 @@ __VMCIMemcpyFromQueue(void *dest,             // OUT:
  *-----------------------------------------------------------------------------
  */
 
-EXPORT_SYMBOL(VMCIMemcpyToQueue);
-
 int
 VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
                   uint64 queueOffset, // IN:
@@ -1364,8 +1370,6 @@ VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
  *-----------------------------------------------------------------------------
  */
 
-EXPORT_SYMBOL(VMCIMemcpyFromQueue);
-
 int
 VMCIMemcpyFromQueue(void *dest,             // OUT:
                     size_t destOffset,      // IN:
@@ -1394,8 +1398,6 @@ VMCIMemcpyFromQueue(void *dest,             // OUT:
  *
  *----------------------------------------------------------------------------
  */
-
-EXPORT_SYMBOL(VMCIMemcpyToQueueV);
 
 int
 VMCIMemcpyToQueueV(VMCIQueue *queue,      // OUT:
@@ -1429,8 +1431,6 @@ VMCIMemcpyToQueueV(VMCIQueue *queue,      // OUT:
  *
  *----------------------------------------------------------------------------
  */
-
-EXPORT_SYMBOL(VMCIMemcpyFromQueueV);
 
 int
 VMCIMemcpyFromQueueV(void *dest,              // OUT: iovec

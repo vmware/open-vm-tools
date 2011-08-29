@@ -37,8 +37,8 @@
 
 /* Used by the Windows implementation to communicate with other processes. */
 #if defined(G_PLATFORM_WIN32)
-#  define QUIT_EVENT_NAME_FMT         L"Global\\VMwareToolsQuitEvent_%s"
-#  define DUMP_STATE_EVENT_NAME_FMT   L"Global\\VMwareToolsDumpStateEvent_%s"
+#  define QUIT_EVENT_NAME_FMT         L"%S\\VMwareToolsQuitEvent_%s"
+#  define DUMP_STATE_EVENT_NAME_FMT   L"%S\\VMwareToolsDumpStateEvent_%s"
 #endif
 
 /* On Mac OS, G_MODULE_SUFFIX seems to be defined to "so"... */
@@ -79,6 +79,7 @@ typedef struct ToolsServiceState {
    guint          configCheckTask;
    gboolean       log;
    gboolean       mainService;
+   gboolean       capsRegistered;
    gchar         *commonPath;
    gchar         *pluginPath;
    GPtrArray     *plugins;

@@ -109,6 +109,10 @@ AppUtil_GetIconIndexAndLocationForShortcut(const TCHAR *shortcut,
 
 #include <glib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 void AppUtil_Init(void);
 GPtrArray *AppUtil_CollectIconArray(const char *iconName,
                                     unsigned long windowID);
@@ -117,14 +121,28 @@ void AppUtil_FreeIconArray(GPtrArray *pixbufs);
 Bool AppUtil_AppIsSkippable(const char *appName);
 char *AppUtil_CanonicalizeAppName(const char *appName,
                                   const char *cwd);
+
+#ifdef __cplusplus
+};
+#endif // __cplusplus
+
 #endif
 
 /*
  * Platform-independent functions.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 void AppUtil_SendGuestCaps(const GuestCapabilities *caps,
                            size_t numCaps,
                            Bool enabled);
+
+#ifdef __cplusplus
+};
+#endif // __cplusplus
 
 #endif // _APP_UTIL_H_
 

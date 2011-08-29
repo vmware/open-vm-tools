@@ -42,6 +42,7 @@ static uint64 mxUserContentionCount = 0;    // always "off"
 #if defined(MXUSER_STATS)
 static Atomic_Ptr mxLockMemPtr;   // internal singleton lock
 static ListItem *mxUserLockList;  // list of all MXUser locks
+static Bool mxUserReportStats = TRUE;
 #endif
 
 struct MXUserHisto {
@@ -128,7 +129,8 @@ MXUserRemoveFromList(MXUserHeader *header)  // IN:
  *      (uint32) (BINS_PER_DECADE * log10(value))
  *
  * Side effects:
- *      None
+ *      The computed value may actually be larger than expected by a tiny
+ *      amount - the log10 method is a ratio of two integers.
  *
  *-----------------------------------------------------------------------------
  */
@@ -262,10 +264,10 @@ MXUserHistoSample(MXUserHisto *histo,  // IN/OUT:
    if (durationNS < histo->minValue) {
       index = 0;
    } else {
-      if (durationNS > histo->maxValue) {
+      index = MXUserHistoIndex(durationNS / histo->minValue);
+
+      if (index > histo->numBins - 1) {
          index = histo->numBins - 1;
-      } else {
-         index = MXUserHistoIndex(durationNS / histo->minValue);
       }
    }
 
@@ -810,6 +812,13 @@ MXUserForceHisto(Atomic_Ptr *histoPtr,  // IN/OUT:
 
 
 #if defined(MXUSER_STATS)
+void
+MXUser_ReportStats(Bool enable)
+{
+   mxUserReportStats = enable;
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -838,6 +847,10 @@ void
 MXUser_PerLockData(void)
 {
    MXRecLock *listLock = MXUserInternalSingleton(&mxLockMemPtr);
+
+   if (!mxUserReportStats) {
+      return;
+   }
 
    if (listLock && MXRecLockTryAcquire(listLock, GetReturnAddress())) {
       ListItem *entry;

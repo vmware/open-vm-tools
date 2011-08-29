@@ -26,13 +26,20 @@
 #include "vmci_call_defs.h"
 #include "vmciProcess.h"
 
+#define DODEBUGLOG(...) printk(KERN_DEBUG __VA_ARGS__)
 #define DOLOG(...) printk(KERN_INFO __VA_ARGS__)
-#define VMCI_LOG(_args) DOLOG _args
-/* XXX We need to make this consistant between the guest and the host. */
-#define VMCILOG(_args) DOLOG _args
+#define DOWARNING(...) printk(KERN_WARNING __VA_ARGS__)
 
-/* 
- * Called by common code, hence the different naming convention. 
+#ifdef VMCI_DEBUG
+#  define VMCI_DEBUG_LOG(_level, _args) DODEBUGLOG _args
+#else
+#  define VMCI_DEBUG_LOG(_level, _args)
+#endif // VMCI_DEBUG
+#define VMCI_LOG(_args) DOLOG _args
+#define VMCI_WARNING(_args) DOWARNING _args
+
+/*
+ * Called by common code, hence the different naming convention.
  * XXX Should be in vmci.h.
  */
 int VMCI_SendDatagram(VMCIDatagram *dg);

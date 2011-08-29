@@ -79,7 +79,8 @@ ToolsCoreRunCommand(const gchar *option,
       vm_free(result);
       exit(status ? 0 : 1);
    }
-   g_printerr(SU_(cmdline.rpcerror, "Unable to send command to VMware hypervisor.\n"));
+   g_printerr("%s\n",
+              SU_(cmdline.rpcerror, "Unable to send command to VMware hypervisor."));
    exit(1);
 }
 
@@ -108,7 +109,9 @@ ToolsCoreIgnoreArg(const gchar *option,
 
 
 /**
- * Signals a specific event in a running service instance.
+ * Signals a specific event in a running service instance. Since this function
+ * doesn't know whether the service is running through the SCM, it first tries
+ * to open a local event, and if that fails, tries a global event.
  *
  * @param[in]  svcname     Name of the service to be signaled.
  * @param[in]  evtFmt      Format string for the event name. It should expect
@@ -128,7 +131,19 @@ ToolsCoreSignalEvent(const gchar *svcname,
 
    ASSERT(svcname != NULL);
 
-   evt = Str_Aswprintf(NULL, evtFmt, svcname);
+   evt = Str_Aswprintf(NULL, evtFmt, L"Local", svcname);
+   if (evt == NULL) {
+      g_printerr("Out of memory!\n");
+      goto exit;
+   }
+
+   h = OpenEvent(EVENT_MODIFY_STATE, FALSE, evt);
+   if (h != NULL) {
+      goto dispatch;
+   }
+
+   vm_free(evt);
+   evt = Str_Aswprintf(NULL, evtFmt, L"Global", svcname);
    if (evt == NULL) {
       g_printerr("Out of memory!\n");
       goto exit;
@@ -139,6 +154,7 @@ ToolsCoreSignalEvent(const gchar *svcname,
       goto error;
    }
 
+dispatch:
    if (!SetEvent(h)) {
       goto error;
    }

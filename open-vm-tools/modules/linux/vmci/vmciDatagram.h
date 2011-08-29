@@ -38,27 +38,15 @@ typedef struct DatagramQueueEntry DatagramQueueEntry;
 typedef struct VMCIDatagramProcess VMCIDatagramProcess;
 
 void VMCIDatagram_Init(void);
+void VMCIDatagram_Sync(void);
 Bool VMCIDatagram_CheckHostCapabilities(void);
 int VMCIDatagram_Dispatch(VMCIId contextID, VMCIDatagram *msg);
-
-int VMCIDatagramCreateHndInt(VMCIId resourceID,
-                             uint32 flags,
-                             VMCIDatagramRecvCB recvCB,
-                             void *clientData,
-                             VMCIHandle *outHandle);
-int VMCIDatagramCreateHndPriv(VMCIId resourceID,
-                              uint32 flags,
-                              VMCIPrivilegeFlags privFlags,
-                              VMCIDatagramRecvCB recvCB,
-                              void *clientData,
-                              VMCIHandle *outHandle); /* Compat */
-int VMCIDatagramDestroyHndInt(VMCIHandle handle);
 
 int VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,
                                VMCIDatagramCreateProcessInfo *createInfo,
                                uintptr_t eventHnd);
 void VMCIDatagramProcess_Destroy(VMCIDatagramProcess *dgmProc);
 int VMCIDatagramProcess_ReadCall(VMCIDatagramProcess *dgmProc,
-				 size_t maxSize, VMCIDatagram **dg);
+                                 size_t maxSize, VMCIDatagram **dg);
 
 #endif //__VMCI_DATAGRAM_H__
