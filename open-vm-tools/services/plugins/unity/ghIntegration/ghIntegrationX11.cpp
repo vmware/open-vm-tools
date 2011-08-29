@@ -841,7 +841,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
 
       linkLen = readlink(realCmd, newPath, sizeof newPath - 1);
       if (linkLen > 0) {
-         char *slashLoc;
+         const char *slashLoc;
 
          newPath[linkLen] = '\0';
          slashLoc = strrchr(realCmd, '/');
@@ -875,7 +875,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
        * If we can't find it, then just tell the host that the app name is the same as
        * the basename of the application's path.
        */
-      ctmp = strrchr(realCmd, '/');
+      ctmp = (char *) strrchr(realCmd, '/');
       if (ctmp) {
          ctmp++;
       } else {
@@ -1826,7 +1826,6 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
    char *itemPath = NULL;
    char *localizedItemName = NULL;
    Bool freeItemName = FALSE;
-   Bool freeItemPath = FALSE;
    Bool freeLocalItemName = FALSE;
    char temp[64];
 
@@ -1856,7 +1855,7 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
             return FALSE;
          }
 
-         itemPath = "";
+         itemPath = Util_SafeStrdup("");
          itemFlags = UNITY_START_MENU_ITEM_DIRECTORY; // It's a directory
          itemName = g_strdup_printf("%s/%s", UNITY_START_MENU_LAUNCH_FOLDER,
                                     traverseData.gmd->dirname);
@@ -1889,7 +1888,6 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
          freeItemName = TRUE;
 
          itemPath = GHIPlatformMenuItemToURI(ghip, gmi);
-         freeItemPath = TRUE;
       }
       break;
    }
@@ -1903,9 +1901,7 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
    if (freeItemName) {
       g_free(itemName);
    }
-   if (freeItemPath) {
-      g_free(itemPath);
-   }
+   g_free(itemPath);
    if (freeLocalItemName) {
       g_free(localizedItemName);
    }
