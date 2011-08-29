@@ -102,7 +102,6 @@
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/wait.h>

@@ -43,9 +43,6 @@
 #include "compat_uaccess.h"
 #include "compat_version.h"
 
-/* Must be included after sched.h. */
-#include <linux/smp_lock.h>
-
 #include "filesystem.h"
 #include "transport.h"
 #include "hgfsDevLinux.h"

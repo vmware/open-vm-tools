@@ -40,8 +40,6 @@
 
 /* Must be included after semaphore.h. */
 #include <linux/timer.h>
-/* Must be included after sched.h. */
-#include <linux/smp_lock.h>
 
 #include "bdhandler.h"
 #include "hgfsDevLinux.h"
