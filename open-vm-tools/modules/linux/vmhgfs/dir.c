@@ -688,18 +688,18 @@ HgfsDirLlseek(struct file *file,
 {
    struct dentry *dentry = file->f_dentry;
    struct inode *inode = dentry->d_inode;
-   compat_mutex_t mtx;
+   compat_mutex_t *mtx;
 
    LOG(4, (KERN_DEBUG "Got llseek call with origin = %d, offset = %u,"
            "pos = %u\n", origin, (uint32)offset, (uint32)file->f_pos));
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
-   mtx = inode->i_sem;
+   mtx = &inode->i_sem;
 #else
-   mtx = inode->i_mutex;
+   mtx = &inode->i_mutex;
 #endif
 
-   compat_mutex_lock(&mtx);
+   compat_mutex_lock(mtx);
 
    switch(origin) {
 
@@ -744,7 +744,7 @@ HgfsDirLlseek(struct file *file,
    }
 
 out:
-   compat_mutex_unlock(&mtx);
+   compat_mutex_unlock(mtx);
    return offset;
 }
 

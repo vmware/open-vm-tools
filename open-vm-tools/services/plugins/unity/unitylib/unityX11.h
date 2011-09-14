@@ -252,7 +252,9 @@ struct _UnityPlatform {
       WM_PROTOCOLS,
       WM_STATE,
       WM_TRANSIENT_FOR,
-      WM_WINDOW_ROLE;
+      WM_WINDOW_ROLE,
+      COMPOUND_TEXT,
+      UTF8_STRING;
    } atoms;
 
    UnityWindowTracker *tracker;

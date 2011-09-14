@@ -19,36 +19,7 @@
 #ifndef __COMPAT_SPINLOCK_H__
 #   define __COMPAT_SPINLOCK_H__
 
-
-/*
- * The spin_lock() API appeared in 2.1.25 in asm/smp_lock.h
- * It moved in 2.1.30 to asm/spinlock.h
- * It moved again in 2.3.18 to linux/spinlock.h
- *
- *   --hpreg
- */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 18)
-#   include <linux/spinlock.h>
-#else
-#   if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 1, 30)
-#      include <asm/spinlock.h>
-#   else
-typedef struct {} spinlock_t;
-#      define spin_lock_init(lock)
-#      define spin_lock(lock)
-#      define spin_unlock(lock)
-#      define spin_lock_irqsave(lock, flags) do {      \
-                    save_flags(flags);                 \
-                    cli();                             \
-                    spin_lock(lock);                   \
-                 } while (0)
-#      define spin_unlock_irqrestore(lock, flags) do { \
-                    spin_unlock(lock);                 \
-                    restore_flags(flags);              \
-                 } while (0)
-#   endif
-#endif
-
+#include <linux/spinlock.h>
 
 /*
  * Preempt support was added during 2.5.x development cycle, and later
@@ -64,5 +35,14 @@ typedef struct {} spinlock_t;
 #define compat_preempt_enable()  do { } while (0)
 #endif
 
+/* Some older kernels - 2.6.10 and earlier - lack DEFINE_SPINLOCK */
+#ifndef DEFINE_SPINLOCK
+#define DEFINE_SPINLOCK(x) spinlock_t x = SPIN_LOCK_UNLOCKED
+#endif
+
+/* Same goes for DEFINE_RWLOCK */
+#ifndef DEFINE_RWLOCK
+#define DEFINE_RWLOCK(x)   rwlock_t x = RW_LOCK_UNLOCKED
+#endif
 
 #endif /* __COMPAT_SPINLOCK_H__ */

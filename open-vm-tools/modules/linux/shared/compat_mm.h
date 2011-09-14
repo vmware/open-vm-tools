@@ -48,33 +48,6 @@
 #endif
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 0)
-#  define compat_vm_pgoff(vma) ((vma)->vm_offset >> PAGE_SHIFT)
-
-static inline unsigned long compat_do_mmap_pgoff(struct file *file, unsigned long addr,
-   unsigned long len, unsigned long prot,
-   unsigned long flag, unsigned long pgoff)
-{
-   unsigned long ret = -EINVAL;
-
-   if (pgoff < 1 << (32 - PAGE_SHIFT)) {
-      ret = do_mmap(file, addr, len, prot, flag, pgoff << PAGE_SHIFT);
-   }
-   return ret;
-}
-
-#else
-#  define compat_vm_pgoff(vma) (vma)->vm_pgoff
-#  ifdef VMW_SKAS_MMAP
-#    define compat_do_mmap_pgoff(f, a, l, p, g, o) \
-				do_mmap_pgoff(current->mm, f, a, l, p, g, o)
-#  else
-#    define compat_do_mmap_pgoff(f, a, l, p, g, o) \
-				do_mmap_pgoff(f, a, l, p, g, o)
-#  endif
-#endif
-
-
 /* 2.2.x uses 0 instead of some define */
 #ifndef NOPAGE_SIGBUS
 #define NOPAGE_SIGBUS (0)

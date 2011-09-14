@@ -87,6 +87,11 @@
  * strings of "wchar_t" units, regardless of platform.
  */
 
+#ifdef HAS_BSD_PRINTF
+EXTERN int Str_Sprintf_C_Locale(char *buf, size_t max,
+                                const char *fmt, ...) PRINTF_DECL(3, 4);
+#endif
+
 EXTERN int Str_Sprintf(char *buf, size_t max,
                        const char *fmt, ...) PRINTF_DECL(3, 4);
 EXTERN int Str_Snprintf(char *buf, size_t len,

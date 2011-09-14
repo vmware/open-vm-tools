@@ -31,9 +31,18 @@
 
 typedef struct DesktopEventFuncs {
    gboolean (*initFn)(ToolsAppCtx *, ToolsPluginData *);
-   void     (*shutdownFn)(ToolsAppCtx *ctx);
+   void     (*shutdownFn)(ToolsAppCtx *ctx, ToolsPluginData *);
    gboolean initialized;
 } DesktopEventFuncs;
+
+
+/*
+ * This plugin's private data field is a GHashTable*.  Each sub-feature may use
+ * that table to keep its own private state.  The following key is reserved and
+ * points to the hosting application's ToolsAppCtx.
+ */
+#define DE_PRIVATE_CTX  "ctx"
+
 
 /*
  * This platform-specific file defines the list of features available
@@ -42,4 +51,3 @@ typedef struct DesktopEventFuncs {
 #include "deFeatures.h"
 
 #endif /* _DESKTOPEVENTSINT_H_ */
-

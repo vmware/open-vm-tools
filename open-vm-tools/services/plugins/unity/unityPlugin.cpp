@@ -81,7 +81,9 @@ static NotifyIconRpcCallback gNotifyIconCallback;
  *-----------------------------------------------------------------------------
  */
 
-UnityPlugin::UnityPlugin() : mUnityUpdateChannel(NULL)
+UnityPlugin::UnityPlugin(const ToolsAppCtx* ctx)        // IN: The app context.
+   : ToolsPlugin(ctx),
+     mUnityUpdateChannel(NULL)
 {
 }
 
@@ -104,10 +106,8 @@ UnityPlugin::UnityPlugin() : mUnityUpdateChannel(NULL)
  */
 
 gboolean
-UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
+UnityPlugin::Initialize()
 {
-   ASSERT(ctx);
-
    UnityHostCallbacks unityHostCallbacks;
    memset(&unityHostCallbacks, 0, sizeof unityHostCallbacks);
    unityHostCallbacks.buildUpdateCB = &UnityBuildUpdates;
@@ -127,25 +127,25 @@ UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
    }
    unityHostCallbacks.updateCbCtx = mUnityUpdateChannel;
 
-   Unity_Init(NULL, unityHostCallbacks, ctx->serviceObj);
+   Unity_Init(NULL, unityHostCallbacks, mCtx->serviceObj);
 
    GHITcloInit();
    GHIHostCallbacks ghiHostCallbacks;
    memset(&ghiHostCallbacks, 0, sizeof ghiHostCallbacks);
    ghiHostCallbacks.launchMenuChange = &GHILaunchMenuChangeRPC;
-   ghiHostCallbacks.sendTrashFolderState = &GHISendTrashFolderStateRPC;
+
 #if defined(G_PLATFORM_WIN32)
-   GHI_Init(ctx->mainLoop, NULL, ghiHostCallbacks);
+   GHI_Init(mCtx->mainLoop, NULL, ghiHostCallbacks);
    GHI_RegisterNotifyIconCallback(&gNotifyIconCallback);
 #else
-   GHI_Init(ctx->mainLoop, ctx->envp, ghiHostCallbacks);
+   GHI_Init(mCtx->mainLoop, mCtx->envp, ghiHostCallbacks);
 #endif // G_PLATFORM_WIN32
 
-   if (g_key_file_get_boolean(ctx->config, CONFGROUPNAME_UNITY,
+   if (g_key_file_get_boolean(mCtx->config, CONFGROUPNAME_UNITY,
                               CONFNAME_UNITY_ENABLEDEBUG, NULL)) {
       Unity_InitializeDebugger();
    }
-   Unity_SetForceEnable(g_key_file_get_boolean(ctx->config, CONFGROUPNAME_UNITY,
+   Unity_SetForceEnable(g_key_file_get_boolean(mCtx->config, CONFGROUPNAME_UNITY,
                                                CONFNAME_UNITY_FORCEENABLE, NULL));
 
    /*
@@ -154,7 +154,7 @@ UnityPlugin::Initialize(ToolsAppCtx *ctx)       // IN: Host application context.
     */
    int desktopColor = 0;
    GError *e = NULL;
-   desktopColor = g_key_file_get_integer(ctx->config, CONFGROUPNAME_UNITY,
+   desktopColor = g_key_file_get_integer(mCtx->config, CONFGROUPNAME_UNITY,
                                          CONFNAME_UNITY_BACKGROUNDCOLOR, &e);
    if (e != NULL) {
       desktopColor = /* red */ 0xdc |
@@ -213,22 +213,19 @@ UnityPlugin::~UnityPlugin()
  */
 
 std::vector<ToolsAppCapability>
-UnityPlugin::GetCapabilities(gboolean set) // IN: Whether capabilities are being
-                                           // set or unset.
-                                           // XXX UNUSED  Fix this or mark as such.
+UnityPlugin::GetCapabilities(gboolean set) // IN
 {
-   std::vector<ToolsAppCapability> capsVector;
-
    /*
-    * We can't use UNITY_RPC_UNITY_CAP here because that define includes the
-    * tools.capability prefix which CoreServices will automatically prepend to the
-    * supplied name.
+    * Note that we can't use UNITY_RPC_UNITY_CAP here because it includes the
+    * "tools.capability" prefix which vmtoolsd will automatically prepend to the
+    * supplied capability name.
     */
-   capsVector.push_back(ToolsAppCapabilityOldEntry(UNITY_CAP_NAME, Unity_IsSupported() ? 1 : 0));
-
-   capsVector.push_back(ToolsAppCapabilityNewEntry(UNITY_CAP_STATUS_UNITY_ACTIVE, TRUE));
-
-   return capsVector;
+   Bool b = set ? Unity_IsSupported() : FALSE;
+   std::vector<ToolsAppCapability> caps;
+   caps.push_back(ToolsAppCapabilityOldEntry(UNITY_CAP_NAME, b));
+   caps.push_back(ToolsAppCapabilityOldEntry("unity.taskbar", b));
+   caps.push_back(ToolsAppCapabilityNewEntry(UNITY_CAP_STATUS_UNITY_ACTIVE, b));
+   return caps;
 }
 
 
@@ -291,8 +288,6 @@ UnityPlugin::GetRpcCallbackList()
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_RESTORE_DEFAULT_GUEST_HANDLER, GHITcloRestoreDefaultGuestHandler));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_OUTLOOK_SET_TEMP_FOLDER, GHITcloSetOutlookTempFolder));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_OUTLOOK_RESTORE_TEMP_FOLDER, GHITcloRestoreOutlookTempFolder));
-      rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRASH_FOLDER_ACTION, GHITcloTrashFolderAction));
-      rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRASH_FOLDER_GET_ICON, GHITcloTrashFolderGetIcon));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRAY_ICON_SEND_EVENT, GHITcloTrayIconSendEvent));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRAY_ICON_START_UPDATES, GHITcloTrayIconStartUpdates));
       rpcList.push_back(RpcChannelCallbackEntry(GHI_RPC_TRAY_ICON_STOP_UPDATES, GHITcloTrayIconStopUpdates));

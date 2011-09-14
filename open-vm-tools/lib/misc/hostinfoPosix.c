@@ -436,6 +436,7 @@ Hostinfo_GetSystemBitness(void)
 }
 
 
+#if !defined __APPLE__
 /*
  *-----------------------------------------------------------------------------
  *
@@ -554,6 +555,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_DEBIAN_4, distroShortSize);
       } else if (strstr(distroLower, "5.0")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_5, distroShortSize);
+      } else if (strstr(distroLower, "6.0")) {
+         Str_Strcpy(distroShort, STR_OS_DEBIAN_6, distroShortSize);
       }
    } else if (StrUtil_StartsWith(distroLower, "enterprise linux")) {
       /*
@@ -715,6 +718,7 @@ out:
 
    return ret;
 }
+#endif
 
 
 /*
@@ -801,9 +805,6 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
  *
  *      Determine the OS short (.vmx format) and long names.
  *
- *      First retrieve OS information using uname, then look in
- *      /etc/xxx-release file to get the distro info.
- *
  * Return value:
  *      Returns TRUE on success and FALSE on failure.
  *
@@ -818,12 +819,8 @@ HostinfoOSData(void)
 {
    struct utsname buf;
    unsigned int lastCharPos;
-   const char *lsbCmd = "lsb_release -sd 2>/dev/null";
-   char *lsbOutput = NULL;
-
    char osName[MAX_OS_NAME_LEN];
    char osNameFull[MAX_OS_FULLNAME_LEN];
-
    static Atomic_uint32 mutex = {0};
 
    /*
@@ -844,42 +841,75 @@ HostinfoOSData(void)
    }
 
    Str_Strcpy(osName, STR_OS_EMPTY, sizeof osName);
-   Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s", buf.sysname, buf.release);
+   Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s", buf.sysname,
+               buf.release);
 
-   /*
-    * Check to see if this is Linux
-    * If yes, determine the distro by looking for /etc/xxx file.
-    */
+#if defined __APPLE__
+   {
+      /*
+       * The easiest way is to invoke "system_profiler" and hope that the
+       * format of its unlocalized output will never change.
+       *
+       * Alternatively, we could do what system_profiler does and use the
+       * CFPropertyList/CFDIctionary APIs to parse
+       * /System/Library/CoreServices/{Server,System}Version.plist.
+       *
+       * On a MacBookPro4,1 (and possibly other models), invoking
+       * "system_profiler" can take several seconds: it seems to spin up the CD
+       * drive as a side-effect. So use "system_profiler SPSoftwareDataType"
+       * instead.
+       */
+      char *sysname = HostinfoGetCmdOutput(
+                         "/usr/sbin/system_profiler SPSoftwareDataType"
+                      " | /usr/bin/grep 'System Version:'"
+                      " | /usr/bin/cut -d : -f 2");
 
+      if (sysname) {
+         char *trimmed = Unicode_Trim(sysname);
+
+         ASSERT_MEM_ALLOC(trimmed);
+         free(sysname);
+         Str_Snprintf(osNameFull, sizeof osNameFull, "%s", trimmed);
+         free(trimmed);
+      } else {
+         Log("%s: Failed to get output of system_profiler.\n", __FUNCTION__);
+         /* Fall back to returning the original osNameFull. */
+      }
+   }
+#else
+   // XXX Use compile-time instead of run-time checks for these as well.
    if (strstr(osNameFull, "Linux")) {
       char distro[DISTRO_BUF_SIZE];
       char distroShort[DISTRO_BUF_SIZE];
-      int i = 0;
-      int distroSize = sizeof distro;
+      static int const distroSize = sizeof distro;
+      char *lsbOutput;
+      int majorVersion;
 
       /*
        * Write default distro string depending on the kernel version. If
        * later we find more detailed information this will get overwritten.
        */
 
-      if (StrUtil_StartsWith(buf.release, "2.4.")) {
-         Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
-      } else if (StrUtil_StartsWith(buf.release, "2.6.")) {
-         Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
-      } else {
+      majorVersion = Hostinfo_OSVersion(0);
+      if (majorVersion < 2 || (majorVersion == 2 && Hostinfo_OSVersion(1) < 4)) {
          Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
+      } else if (majorVersion == 2 && Hostinfo_OSVersion(1) < 6) {
+         Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
+      } else {
+         Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
       }
 
       /*
        * Try to get OS detailed information from the lsb_release command.
        */
 
-      lsbOutput = HostinfoGetCmdOutput(lsbCmd);
-
+      lsbOutput = HostinfoGetCmdOutput("lsb_release -sd 2>/dev/null");
       if (!lsbOutput) {
+         int i;
+
          /*
           * Try to get more detailed information from the version file.
           */
@@ -981,6 +1011,7 @@ HostinfoOSData(void)
       Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS,
                    solarisRelease);
    }
+#endif
 
    if (Hostinfo_GetSystemBitness() == 64) {
       if (strlen(osName) + sizeof STR_OS_64BIT_SUFFIX > sizeof osName) {
@@ -1020,98 +1051,93 @@ HostinfoOSData(void)
 }
 
 
-#if defined(VMX86_SERVER)
 /*
- *----------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  *
- * HostinfoReadProc --
+ * Hostinfo_CPUCounts --
  *
- *      Depending on what string is passed to it, this function parses the
- *      /proc/vmware/sched/ncpus node and returns the requested value.
+ *      Get a count of CPUs for the host.
+ *        pkgs := total number of sockets/packages
+ *        cores := total number of actual cores (not including hyperthreads)
+ *        logical := total schedulable threads, as seen by host scheduler
+ *      Depending on available host OS interfaces, these numbers may be
+ *      either "active" or "possible", so do not depend upon them for
+ *      precision.
+ *
+ *      As an example, a 2 socket Nehalem (4 cores + HT) would return:
+ *        pkgs = 2, cores = 8, logical = 16
+ *
+ *      Again, this interface is generally not useful b/c of its potential
+ *      inaccuracy (especially with hotplug!) and because it is only implemented
+ *      for a few OSes.
+ *
+ *      If you are trying to use this interface, it probably means you are doing
+ *      something 'clever' with licensing.  Don't.
  *
  * Results:
- *      A postive value on success, -1 (0xFFFFFFFF) on failure.
+ *      TRUE if sane numbers are populated, FALSE otherwise.
  *
  * Side effects:
- *      None.
+ *      None
  *
- *----------------------------------------------------------------------
- */
-
-static uint32
-HostinfoReadProc(const char *str)  // IN:
-{
-   /* XXX this should use sysinfo!! (bug 59849)
-    */
-   FILE *f;
-   char *line;
-   uint32 count;
-
-   ASSERT(!strcmp("logical", str) || !strcmp("cores", str) ||
-          !strcmp("packages", str));
-
-   ASSERT(!HostType_OSIsVMK()); // Don't use /proc/vmware
-
-   f = Posix_Fopen("/proc/vmware/sched/ncpus", "r");
-
-   if (f != NULL) {
-      while (StdIO_ReadNextLine(f, &line, 0, NULL) == StdIO_Success) {
-         if (strstr(line, str)) {
-            if (sscanf(line, "%d ", &count) == 1) {
-               free(line);
-               break;
-            }
-         }
-         free(line);
-      }
-      fclose(f);
-
-      if (count > 0) {
-         return count;
-      }
-   }
-
-   return -1;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Hostinfo_HTDisabled --
- *
- *      Figure out if hyperthreading is enabled
- *
- * Results:
- *      TRUE if hyperthreading is disabled, FALSE otherwise
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  */
 
 Bool
-Hostinfo_HTDisabled(void)
+Hostinfo_CPUCounts(uint32 *logical,  // OUT
+                   uint32 *cores,    // OUT
+                   uint32 *pkgs)     // OUT
 {
-   static uint32 logical = 0, cores = 0;
+#if defined __APPLE__
+   /*
+    * Lame logic.  Because Apple doesn't really expose this info,
+    * we'd only use it for licensing anyway, and we just plain
+    * don't need it on Apple except that VMHS stuffs it somewhere
+    * and may result in a division-by-zero if we don't provide it.
+    */
+   *logical = Hostinfo_NumCPUs();
+   *pkgs = *logical > 4 ? 2 : 1;
+   *cores = *logical / *pkgs;
 
-   if (HostType_OSIsVMK()) {
-      return VMKernel_HTEnabledCPU() != VMK_OK;
+   return TRUE;
+#elif defined __linux__
+   FILE *f;
+   char *line;
+   unsigned count = 0, coresPerProc = 0, siblingsPerProc = 0;
+
+   f = Posix_Fopen("/proc/cpuinfo", "r");
+   if (f == NULL) {
+      return FALSE;
    }
 
-   if (logical == 0 && cores == 0) {
-      logical = HostinfoReadProc("logical");
-      cores = HostinfoReadProc("cores");
-
-      if (logical <= 0 || cores <= 0) {
-         logical = cores = 0;
+   while (StdIO_ReadNextLine(f, &line, 0, NULL) == StdIO_Success) {
+      if (strncmp(line, "processor", strlen("processor")) == 0) {
+         count++;
       }
+      /* Assume all processors are identical, so just read the first. */
+      if (coresPerProc == 0) {
+         sscanf(line, "cpu cores : %u", &coresPerProc);
+      }
+      if (siblingsPerProc == 0) {
+         sscanf(line, "siblings : %u", &siblingsPerProc);
+      }
+      free(line);
    }
 
-   return logical == cores;
+   fclose(f);
+
+   *logical = count;
+   *pkgs = siblingsPerProc > 0 ? count / siblingsPerProc : count;
+   *cores = coresPerProc > 0 ? *pkgs * coresPerProc : *pkgs;
+
+   Log(LGPFX" This machine has %u physical CPUS, %u total cores, and %u "
+            "logical CPUs.\n", *pkgs, *cores, *logical);
+
+   return TRUE;
+#else
+   NOT_IMPLEMENTED();
+#endif
 }
-#endif /*ifdef VMX86_SERVER*/
 
 
 /*
@@ -1200,6 +1226,9 @@ Hostinfo_NumCPUs(void)
    static int count = 0;
 
    if (count <= 0) {
+      FILE *f;
+      char *line;
+
 #if defined(VMX86_SERVER)
       if (HostType_OSIsVMK()) {
          VMK_ReturnStatus status = VMKernel_GetNumCPUsUsed(&count);
@@ -1209,19 +1238,10 @@ Hostinfo_NumCPUs(void)
 
             return -1;
          }
-      } else {
-         count = HostinfoReadProc("logical");
 
-         if (count <= 0) {
-            count = 0;
-
-            return -1;
-         }
+         return count;
       }
-#else /* ifdef VMX86_SERVER */
-      FILE *f;
-      char *line;
-
+#endif
       f = Posix_Fopen("/proc/cpuinfo", "r");
       if (f == NULL) {
 	 return -1;
@@ -1239,7 +1259,6 @@ Hostinfo_NumCPUs(void)
       if (count == 0) {
 	 return -1;
       }
-#endif /* ifdef VMX86_SERVER */
    }
 
    return count;
@@ -2642,11 +2661,11 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
  *
  * Hostinfo_Execute --
  *
- *      Start program COMMAND.  If WAIT is TRUE, wait for program
+ *      Start program 'path'.  If 'wait' is TRUE, wait for program
  *	to complete and return exit status.
  *
  * Results:
- *      Exit status of COMMAND.
+ *      Exit status of 'path'.
  *
  * Side effects:
  *      Run a separate program.
@@ -2655,14 +2674,16 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
  */
 
 int
-Hostinfo_Execute(const char *command,  // IN:
-		 char * const *args,   // IN:
-		 Bool wait)            // IN:
+Hostinfo_Execute(const char *path,   // IN:
+                 char * const *args, // IN:
+                 Bool wait,          // IN:
+                 const int *keepFds, // IN/OPT: array of fds to be kept open
+                 size_t numKeepFds)  // IN: number of fds in keepFds
 {
    int pid;
    int status;
 
-   if (command == NULL) {
+   if (path == NULL) {
       return 1;
    }
 
@@ -2673,8 +2694,8 @@ Hostinfo_Execute(const char *command,  // IN:
    }
 
    if (pid == 0) {
-      Hostinfo_ResetProcessState(NULL, 0);
-      Posix_Execvp(command, args);
+      Hostinfo_ResetProcessState(keepFds, numKeepFds);
+      Posix_Execvp(path, args);
       exit(127);
    }
 
@@ -3415,7 +3436,8 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
 #endif
 
    // "/proc/self/exe" only exists on Linux 2.2+.
-   ASSERT(Hostinfo_OSVersion(0) >= 2 && Hostinfo_OSVersion(1) >= 2);
+   ASSERT(Hostinfo_OSVersion(0) > 2 ||
+          (Hostinfo_OSVersion(0) == 2 && Hostinfo_OSVersion(1) >= 2));
 
    if (priv == HGMP_PRIVILEGE) {
       uid = Id_BeginSuperUser();

@@ -282,8 +282,14 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
 
    ASSERT_NOT_IMPLEMENTED(perThread->locksHeld < MXUSER_MAX_LOCKS_PER_THREAD);
 
-   /* Rank checking anyone? */
-   if (checkRank && (header->rank != RANK_UNRANKED)) {
+   /*
+    * Rank checking anyone?
+    *
+    * Rank checking is abandoned once we're in a panic situation. This will
+    * improve the chances of obtaining a good log and/or coredump.
+    */
+
+   if (checkRank && (header->rank != RANK_UNRANKED) && !MXUser_InPanic()) {
       MX_Rank maxRank;
       Bool firstInstance = TRUE;
 
@@ -321,15 +327,7 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
 
          MXUserListLocks();
 
-         /*
-          * When called within a panic situation, don't panic on a rank
-          * violation. This helps avoid a secondary panic which will confuse
-          * or abort obtaining a good log and/or coredump.
-          */
-
-         if (!MXUser_InPanic()) {
-            MXUserDumpAndPanic(header, "%s: rank violation\n", __FUNCTION__);
-         }
+         MXUserDumpAndPanic(header, "%s: rank violation\n", __FUNCTION__);
       }
    }
 

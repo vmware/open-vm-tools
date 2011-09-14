@@ -68,6 +68,9 @@
 #define AUTOUPGRADE_AVAILABLE_CMD   "vmx.capability.tools_is_upgradable"
 #define AUTOUPGRADE_START_CMD       "guest.initiateAutoUpgrade"
 
+/* More upgrader commands. */
+#define GUEST_UPGRADER_SEND_CMD_LINE_ARGS  "guest.upgrader_send_cmd_line_args"
+
 /*
  * Shrink commands.
  */

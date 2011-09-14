@@ -36,3 +36,27 @@ libdesktopEvents_la_SOURCES += reload.c
 libdesktopEvents_la_SOURCES += x11Lock.c
 libdesktopEvents_la_SOURCES += xioError.c
 
+if HAVE_XSM
+libdesktopEvents_la_LIBADD += @XSM_LIBS@
+libdesktopEvents_la_SOURCES += sessionMgr.c
+libdesktopEvents_la_SOURCES += sessionMgrSignals.c
+
+BUILT_SOURCES =
+BUILT_SOURCES += sessionMgrSignals.c
+BUILT_SOURCES += sessionMgrSignals.h
+
+CLEANFILES =
+CLEANFILES += sessionMgrSignals.c
+CLEANFILES += sessionMgrSignals.h
+
+EXTRA_DIST =
+EXTRA_DIST += sessionMgrSignals.gm
+
+sessionMgrSignals.c: $(top_srcdir)/services/plugins/desktopEvents/sessionMgrSignals.gm
+	glib-genmarshal --body $(top_srcdir)/services/plugins/desktopEvents/sessionMgrSignals.gm > \
+	   $@ || (rm -f $@ && exit 1)
+
+sessionMgrSignals.h: $(top_srcdir)/services/plugins/desktopEvents/sessionMgrSignals.gm
+	glib-genmarshal --header $(top_srcdir)/services/plugins/desktopEvents/sessionMgrSignals.gm > \
+	   $@ || (rm -f $@ && exit 1)
+endif

@@ -311,7 +311,7 @@ FLAGDEFA(  1, ECX, COMMON, 23,  1, POPCNT,              YES, TRUE,  POPCNT)    \
 FLAGDEFA(  1, ECX, COMMON, 25,  1, AES,                 YES, TRUE, AES)        \
 FLAGDEFA(  1, ECX, COMMON, 26,  1, XSAVE,               YES, FALSE, XSAVE)     \
 FLAGDEFA(  1, ECX, COMMON, 27,  1, OSXSAVE,             ANY, FALSE, OSXSAVE)   \
-FLAGDEFA(  1, ECX, COMMON, 28,  1, AVX,                 YES, TRUE,  AVX)       \
+FLAGDEFA(  1, ECX, COMMON, 28,  1, AVX,                 YES, FALSE, AVX)       \
 FLAGDEFA(  1, ECX, COMMON, 29,  1, F16,                 YES, TRUE,  F16)       \
 FLAGDEFA(  1, ECX, COMMON, 30,  1, RDRAND,              YES, TRUE,  RDRAND)    \
 FLAGDEFA(  1, ECX, COMMON, 31,  1, HYPERVISOR,          ANY, FALSE, HYPERVISOR)\
@@ -384,9 +384,9 @@ FLAGDEF(   6, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,    NA,  FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
-FLAGDEFA(  7, EBX, INTEL,   0,  1, FSGSBASE,            YES, TRUE,  FSGSBASE)  \
+FLAGDEFA(  7, EBX, INTEL,   0,  1, FSGSBASE,            YES, FALSE, FSGSBASE)  \
 FLAGDEF(   7, EBX, INTEL,   7,  1, SMEP,                NO,  FALSE)            \
-FLAGDEF(   7, EBX, INTEL,   9,  1, ENFSTRG,             YES, TRUE)
+FLAGDEF(   7, EBX, INTEL,   9,  1, ENFSTRG,             YES, FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
@@ -418,7 +418,7 @@ FLAGDEFA(  D, EAX, COMMON,  0,  1, XCR0_MASTER_LEGACY_FP, YES, FALSE, XCR0_MASTE
 FLAGDEFA(  D, EAX, COMMON,  1,  1, XCR0_MASTER_SSE,     YES, FALSE, XCR0_MASTER_SSE) \
 FLAGDEFA(  D, EAX, COMMON,  2,  1, XCR0_MASTER_YMM_H,   YES, FALSE, XCR0_MASTER_YMM_H) \
 FIELDDEF(  D, EAX, COMMON,  3, 29, XCR0_MASTER_LOWER,   NO,  FALSE)            \
-FIELDDEF(  D, EBX, COMMON,  0, 32, XSAVE_ENABLED_SIZE,  YES, FALSE)            \
+FIELDDEF(  D, EBX, COMMON,  0, 32, XSAVE_ENABLED_SIZE,  ANY, FALSE)            \
 FIELDDEFA( D, ECX, COMMON,  0, 32, XSAVE_MAX_SIZE,      YES, FALSE, XSAVE_MAX_SIZE) \
 FIELDDEF(  D, EDX, COMMON,  0, 32, XCR0_MASTER_UPPER,   NO,  FALSE)
 
@@ -558,7 +558,7 @@ FIELDDEF( 8A, ECX, AMD,     0, 32, SVMECX_RSVD,         NO,  FALSE)            \
 FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              YES, FALSE, NPT)       \
 FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             NO,  FALSE)            \
 FLAGDEFA( 8A, EDX, AMD,     2,  1, SVM_LOCK,            YES, FALSE, SVM_LOCK)  \
-FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            YES, FALSE)            \
+FLAGDEFA( 8A, EDX, AMD,     3,  1, SVM_NRIP,            YES, FALSE, SVM_NRIP)  \
 FLAGDEF(  8A, EDX, AMD,     4,  1, SVM_TSC_RATE_MSR,    NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     5,  1, SVM_VMCB_CLEAN,      YES, FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     6,  1, SVM_FLUSH_BY_ASID,   YES, FALSE)            \
@@ -1066,7 +1066,7 @@ static INLINE Bool
 CPUID_MODEL_IS_BARCELONA(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is AMD. */
-   return CPUID_EFFECTIVE_FAMILY(v) == CPUID_FAMILY_K8 &&
+   return CPUID_EFFECTIVE_FAMILY(v) == CPUID_FAMILY_K8L &&
           CPUID_EFFECTIVE_MODEL(v)  == CPUID_MODEL_BARCELONA_02;
 }
 

@@ -1163,7 +1163,37 @@ Atomic_ReadOr64(Atomic_uint64 *var, // IN
 
    return res;
 }
-#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadAnd64 --
+ *
+ *      Atomic read (returned), bitwise AND with a value, write.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+Atomic_ReadAnd64(Atomic_uint64 *var, // IN
+                 uint64 val)         // IN
+{
+   uint64 res;
+
+   do {
+      res = var->value;
+   } while (res != Atomic_ReadIfEqualWrite64(var, res, res & val));
+
+   return res;
+}
+#endif // __x86_64__
 
 
 /*

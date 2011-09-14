@@ -99,6 +99,7 @@ int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
 #define Posix_GetHostByName gethostbyname
 #endif
 #define Posix_GetAddrInfo getaddrinfo
+#define Posix_FreeAddrInfo freeaddrinfo
 #define Posix_GetNameInfo getnameinfo
 
 void *Posix_Dlopen(ConstUnicode pathName, int flags);
@@ -428,7 +429,8 @@ Posix_FreeHostent(struct hostent *he)
 #ifdef _WS2TCPIP_H_
 typedef int (WINAPI *GetAddrInfoWFnType)(PCWSTR pNodeName, PCWSTR pServiceName,
                                          const struct addrinfo *pHints,
-                                         struct addrinfo **ppResult);
+                                         struct addrinfoW **ppResult);
+typedef void (WINAPI *FreeAddrInfoWFnType)(struct addrinfoW *ai);
 typedef int (WINAPI *GetNameInfoWFnType)(const SOCKADDR *pSockaddr,
                                          socklen_t SockAddrLength,
                                 	 PWCHAR pNodeBuffer,
@@ -461,52 +463,68 @@ Posix_GetAddrInfo(ConstUnicode nodename,        // IN
                   const struct addrinfo *hints, // IN
                   struct addrinfo **res)        // OUT
 {
-   HMODULE hWs2_32;
+   HMODULE hWs2_32 = GetModuleHandleW(L"ws2_32");
+   GetAddrInfoWFnType GetAddrInfoWFn = NULL;
+   FreeAddrInfoWFnType FreeAddrInfoWFn = NULL;
    int retval;
    char *nodenameMBCS;
    char *servnameMBCS;
-   GetAddrInfoWFnType GetAddrInfoWFn;
+   struct addrinfo *resA;
 
    ASSERT(nodename || servname);
    ASSERT(res);
-
-   hWs2_32 = LoadLibraryA("ws2_32");
+   ASSERT(hWs2_32);
 
    if (hWs2_32) {
-      /*
-       * If the unicode version of getaddrinfo exists, use it.  The string
-       * conversion required is between UTF-8 and UTF-16 encodings.  Note
-       * that struct addrinfo and ADDRINFOW are identical except for the
-       * fields ai_canonname (char * vs. PWSTR) and ai_next (obviously).
-       */
-
       GetAddrInfoWFn = (GetAddrInfoWFnType)GetProcAddress(hWs2_32,
                                                           "GetAddrInfoW");
+      FreeAddrInfoWFn = (FreeAddrInfoWFnType)GetProcAddress(hWs2_32,
+                                                            "FreeAddrInfoW");
+   }
 
-      if (GetAddrInfoWFn) {
-         utf16_t *nodenameW = Unicode_GetAllocUTF16(nodename);
-         utf16_t *servnameW = Unicode_GetAllocUTF16(servname);
+   /*
+    * If the unicode version of getaddrinfo exists, use it.  The string
+    * conversion required is between UTF-8 and UTF-16 encodings.  Note
+    * that struct addrinfo and ADDRINFOW are identical except for the
+    * fields ai_canonname (char * vs. PWSTR) and ai_next (obviously).
+    */
 
-         retval = (*GetAddrInfoWFn)(nodenameW, servnameW, hints, res);
+   if (GetAddrInfoWFn && FreeAddrInfoWFn) {
+      utf16_t *nodenameW = Unicode_GetAllocUTF16(nodename);
+      utf16_t *servnameW = Unicode_GetAllocUTF16(servname);
+      struct addrinfoW *resW;
 
-         if (retval == 0) {
-            struct addrinfo *cur;
-            utf16_t *tempW;
+      retval = (*GetAddrInfoWFn)(nodenameW, servnameW, hints, &resW);
 
-            for (cur = *res; cur != NULL; cur = cur->ai_next) {
-               if (cur->ai_canonname) {
-                  tempW = (utf16_t *)cur->ai_canonname;
-                  cur->ai_canonname = Unicode_AllocWithUTF16(tempW);
-                  free(tempW);
-               }
+      if (retval == 0) {
+         struct addrinfoW *cur;
+         struct addrinfo **pres = res;
+
+         for (cur = resW; cur != NULL; cur = cur->ai_next) {
+            *pres = (struct addrinfo *)Util_SafeMalloc(sizeof **pres);
+            (*pres)->ai_flags = cur->ai_flags;
+            (*pres)->ai_family = cur->ai_family;
+            (*pres)->ai_socktype = cur->ai_socktype;
+            (*pres)->ai_protocol = cur->ai_protocol;
+            (*pres)->ai_addrlen = cur->ai_addrlen;
+            if (cur->ai_canonname) {
+               (*pres)->ai_canonname = Unicode_AllocWithUTF16(cur->ai_canonname);
+            } else {
+               (*pres)->ai_canonname = NULL;
             }
+            (*pres)->ai_addr = (struct sockaddr *)
+                               Util_SafeMalloc((*pres)->ai_addrlen);
+            memcpy((*pres)->ai_addr, cur->ai_addr, (*pres)->ai_addrlen);
+            pres = &((*pres)->ai_next);
          }
-
-         free(nodenameW);
-         free(servnameW);
-
-         goto exit;
+         *pres = NULL;
+         FreeAddrInfoWFn(resW);
       }
+
+      free(nodenameW);
+      free(servnameW);
+
+      goto exit;
    }
 
    /*
@@ -519,30 +537,70 @@ Posix_GetAddrInfo(ConstUnicode nodename,        // IN
    servnameMBCS = (char *)Unicode_GetAllocBytes(servname,
                                                 STRING_ENCODING_DEFAULT);
 
-   retval = getaddrinfo(nodenameMBCS, servnameMBCS, hints, res);
+   retval = getaddrinfo(nodenameMBCS, servnameMBCS, hints, &resA);
 
    if (retval == 0) {
+      struct addrinfo **pres = res;
       struct addrinfo *cur;
-      char *temp;
 
-      for (cur = *res; cur != NULL; cur = cur->ai_next) {
+      for (cur = resA; cur != NULL; cur = cur->ai_next) {
+         *pres = (struct addrinfo *)Util_SafeMalloc(sizeof **pres);
+         (*pres)->ai_flags = cur->ai_flags;
+         (*pres)->ai_family = cur->ai_family;
+         (*pres)->ai_socktype = cur->ai_socktype;
+         (*pres)->ai_protocol = cur->ai_protocol;
+         (*pres)->ai_addrlen = cur->ai_addrlen;
          if (cur->ai_canonname) {
-            temp = cur->ai_canonname;
-            cur->ai_canonname = Unicode_Alloc(temp, STRING_ENCODING_DEFAULT);
-            free(temp);
+            (*pres)->ai_canonname = Unicode_Alloc(cur->ai_canonname,
+                                                  STRING_ENCODING_DEFAULT);
+         } else {
+            (*pres)->ai_canonname = NULL;
          }
+         (*pres)->ai_addr = (struct sockaddr *)
+                            Util_SafeMalloc((*pres)->ai_addrlen);
+         memcpy((*pres)->ai_addr, cur->ai_addr, (*pres)->ai_addrlen);
+         pres = &((*pres)->ai_next);
       }
+      *pres = NULL;
+      freeaddrinfo(resA);
    }
 
    free(nodenameMBCS);
    free(servnameMBCS);
 
 exit:
-   if (hWs2_32) {
-      FreeLibrary(hWs2_32);
-   }
-
    return retval;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Posix_FreeAddrInfo --
+ *
+ *      Free the addrinfo structure allocated by Posix_GetAddrInfo.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Posix_FreeAddrInfo(struct addrinfo *ai)
+{
+   struct addrinfo *temp;
+
+   while (ai) {
+      temp = ai;
+      ai = ai->ai_next;
+      free(temp->ai_canonname);
+      free(temp->ai_addr);
+      free(temp);
+   }
 }
 
 
@@ -582,7 +640,7 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
    Unicode servUTF8 = NULL;
    GetNameInfoWFnType GetNameInfoWFn;
 
-   hWs2_32 = LoadLibraryA("ws2_32");
+   hWs2_32 = LoadLibraryW(L"ws2_32");
 
    if (hWs2_32) {
       /*

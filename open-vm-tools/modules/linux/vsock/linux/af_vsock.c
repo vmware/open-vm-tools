@@ -102,7 +102,6 @@
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/wait.h>
@@ -114,6 +113,7 @@ asmlinkage __attribute__((weak)) long
 sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #endif
 
+#include "compat_cred.h"
 #include "compat_module.h"
 #include "compat_kernel.h"
 #include "compat_init.h"
@@ -197,6 +197,8 @@ static struct sock *__VSockVmciCreate(struct net *net,
                                       gfp_t priority, unsigned short type);
 #endif
 static void VSockVmciTestUnregister(void);
+static int VSockVmciRegisterWithVmci(void);
+static void VSockVmciUnregisterWithVmci(void);
 static int VSockVmciRegisterAddressFamily(void);
 static void VSockVmciUnregisterAddressFamily(void);
 
@@ -339,6 +341,7 @@ static struct proto_ops vsockVmciStreamOps = {
 };
 
 static struct file_operations vsockVmciDeviceOps = {
+   .owner = THIS_MODULE,
 #ifdef HAVE_UNLOCKED_IOCTL
    .unlocked_ioctl = VSockVmciDevUnlockedIoctl,
 #else
@@ -381,6 +384,12 @@ static int PROTOCOL_OVERRIDE = -1;
 #define VSOCK_DEFAULT_QP_SIZE_MIN   128
 #define VSOCK_DEFAULT_QP_SIZE       262144
 #define VSOCK_DEFAULT_QP_SIZE_MAX   262144
+
+/*
+ * The default peer timeout indicates how long we will wait for a peer
+ * response to a control message.
+ */
+#define VSOCK_DEFAULT_CONNECT_TIMEOUT (2 * HZ)
 
 #ifdef VMX86_DEVEL
 # define LOG_PACKET(_pkt)  VSockVmciLogPkt(__FUNCTION__, __LINE__, _pkt)
@@ -505,6 +514,77 @@ VSockVmciNewProtoSupportedVersions(void) // IN
    }
 
    return VSOCK_PROTO_ALL_SUPPORTED;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockSocket_Trusted --
+ *
+ *      We allow two kinds of sockets to communicate with a restricted VM:
+ *      1) trusted sockets
+ *      2) sockets from applications running as the same user as the VM (this
+ *         is only true for the host side and only when using hosted products)
+ *
+ * Results:
+ *      TRUE if trusted communication is allowed to peerCid, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+VSockVmciTrusted(VSockVmciSock *vsock, // IN: Local socket
+                 VMCIId peerCid)       // IN: Context ID of peer
+{
+   int res;
+
+   if (vsock->trusted) {
+      return TRUE;
+   }
+
+   res = VMCI_IsContextOwner(peerCid, &vsock->owner);
+
+   return res == VMCI_SUCCESS;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockSocket_AllowDgram --
+ *
+ *      We allow sending datagrams to and receiving datagrams from a
+ *      restricted VM only if it is trusted as described in
+ *      VSockVmciTrusted.
+ *
+ * Results:
+ *      TRUE if datagram communication is allowed to peerCid, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+VSockVmciAllowDgram(VSockVmciSock *vsock, // IN: Local socket
+                    VMCIId peerCid)       // IN: Context ID of peer
+{
+   if (vsock->cachedPeer != peerCid) {
+      vsock->cachedPeer = peerCid;
+      if (!VSockVmciTrusted(vsock, peerCid) &&
+          (VMCIContext_GetPrivFlags(peerCid) & VMCI_PRIVILEGE_FLAG_RESTRICTED)) {
+         vsock->cachedPeerAllowDgram = FALSE;
+      } else {
+         vsock->cachedPeerAllowDgram = TRUE;
+      }
+   }
+
+   return vsock->cachedPeerAllowDgram;
 }
 
 
@@ -777,8 +857,8 @@ out:
  * VSockVmciDatagramCreateHnd --
  *
  *      Creates a datagram handle. Tries to register with trusted
- *      status if requested but does not fail if the handler could not be
- *      allocated as trusted (running in the guest).
+ *      status but does not fail if the handler could not be allocated
+ *      as trusted (running in the guest).
  *
  * Results:
  *      0 on success. A VMCI error on error.
@@ -794,31 +874,26 @@ VSockVmciDatagramCreateHnd(VMCIId resourceID,            // IN
                            uint32 flags,                 // IN
                            VMCIDatagramRecvCB recvCB,    // IN
                            void *clientData,             // IN
-                           VMCIHandle *outHandle,        // OUT
-                           Bool trusted)                 // IN
+                           VMCIHandle *outHandle)        // OUT
 {
    int err = 0;
 
-   if (trusted) {
-      /*
-       * Try to allocate our datagram handler as trusted. This will only work
-       * if vsock is running in the host.
-       */
+   /*
+    * Try to allocate our datagram handler as trusted. This will only work
+    * if vsock is running in the host.
+    */
 
-      err = VMCIDatagram_CreateHndPriv(resourceID, flags,
-                                       VMCI_PRIVILEGE_FLAG_TRUSTED,
-                                       recvCB, clientData,
-                                       outHandle);
+   err = VMCIDatagram_CreateHndPriv(resourceID, flags,
+                                    VMCI_PRIVILEGE_FLAG_TRUSTED,
+                                    recvCB, clientData,
+                                    outHandle);
 
-      if (err != VMCI_ERROR_NO_ACCESS) {
-         goto out;
-      }
+   if (err == VMCI_ERROR_NO_ACCESS) {
+      err = VMCIDatagram_CreateHnd(resourceID, flags,
+                                   recvCB, clientData,
+                                   outHandle);
    }
 
-   err = VMCIDatagram_CreateHnd(resourceID, flags,
-                                recvCB, clientData,
-                                outHandle);
-out:
    return err;
 }
 
@@ -881,6 +956,7 @@ VSockVmciRecvDgramCB(void *data,          // IN
    struct sock *sk;
    size_t size;
    struct sk_buff *skb;
+   VSockVmciSock *vsk;
 
    ASSERT(dg);
    ASSERT(dg->payloadSize <= VMCI_MAX_DG_PAYLOAD_SIZE);
@@ -890,6 +966,21 @@ VSockVmciRecvDgramCB(void *data,          // IN
    ASSERT(sk);
    /* XXX Figure out why sk->sk_socket can be NULL. */
    ASSERT(sk->sk_socket ? sk->sk_socket->type == SOCK_DGRAM : 1);
+
+   /*
+    * This handler is privileged when this module is running on the
+    * host. We will get datagrams from all endpoints (even VMs that
+    * are in a restricted context). If we get one from a restricted
+    * context then the destination socket must be trusted.
+    *
+    * NOTE: We access the socket struct without holding the lock here. This
+    * is ok because the field we are interested is never modified outside
+    * of the create and destruct socket functions.
+    */
+   vsk = vsock_sk(sk);
+   if (!VSockVmciAllowDgram(vsk, VMCI_HANDLE_TO_CONTEXT_ID(dg->src))) {
+      return VMCI_ERROR_NO_ACCESS;
+   }
 
    size = VMCI_DG_SIZE(dg);
 
@@ -1027,12 +1118,9 @@ VSockVmciRecvStreamCB(void *data,           // IN
     * of the create and destruct socket functions.
     */
    vsk = vsock_sk(sk);
-   if (VMCIContext_GetPrivFlags(VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src)) &
-       VMCI_PRIVILEGE_FLAG_RESTRICTED) {
-      if (!vsk->trusted) {
-         err = VMCI_ERROR_NO_ACCESS;
-         goto out;
-      }
+   if (!VSockVmciAllowDgram(vsk, VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src))) {
+      err = VMCI_ERROR_NO_ACCESS;
+      goto out;
    }
 
    /*
@@ -1397,21 +1485,16 @@ out:
 static void
 VSockVmciRecvPktWork(compat_work_arg work)  // IN
 {
-   int err;
    VSockRecvPktInfo *recvPktInfo;
    VSockPacket *pkt;
-   VSockVmciSock *vsk;
    struct sock *sk;
 
    recvPktInfo = COMPAT_WORK_GET_DATA(work, VSockRecvPktInfo, work);
    ASSERT(recvPktInfo);
 
-   err = 0;
    sk = recvPktInfo->sk;
    pkt = &recvPktInfo->pkt;
-   vsk = vsock_sk(sk);
 
-   ASSERT(vsk);
    ASSERT(pkt);
    ASSERT(pkt->type < VSOCK_PACKET_TYPE_MAX);
 
@@ -1419,17 +1502,17 @@ VSockVmciRecvPktWork(compat_work_arg work)  // IN
 
    switch (sk->sk_state) {
    case SS_LISTEN:
-      err = VSockVmciRecvListen(sk, pkt);
+      VSockVmciRecvListen(sk, pkt);
       break;
    case SS_CONNECTING:
       /*
        * Processing of pending connections for servers goes through the
        * listening socket, so see VSockVmciRecvListen() for that path.
        */
-      err = VSockVmciRecvConnectingClient(sk, pkt);
+      VSockVmciRecvConnectingClient(sk, pkt);
       break;
    case SS_CONNECTED:
-      err = VSockVmciRecvConnected(sk, pkt);
+      VSockVmciRecvConnected(sk, pkt);
       break;
    default:
       /*
@@ -1476,7 +1559,6 @@ static int
 VSockVmciRecvListen(struct sock *sk,   // IN
                     VSockPacket *pkt)  // IN
 {
-   VSockVmciSock *vsk;
    struct sock *pending;
    VSockVmciSock *vpending;
    int err;
@@ -1488,7 +1570,6 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    ASSERT(pkt);
    ASSERT(sk->sk_state == SS_LISTEN);
 
-   vsk = vsock_sk(sk);
    err = 0;
 
    /*
@@ -1550,7 +1631,7 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    pending = __VSockVmciCreate(NULL, sk, GFP_KERNEL, sk->sk_type);
 #else
    pending = __VSockVmciCreate(compat_sock_net(sk), NULL, sk, GFP_KERNEL,
-			       sk->sk_type);
+                               sk->sk_type);
 #endif
    if (!pending) {
       VSOCK_SEND_RESET(sk, pkt);
@@ -1559,10 +1640,10 @@ VSockVmciRecvListen(struct sock *sk,   // IN
 
    vpending = vsock_sk(pending);
    ASSERT(vpending);
-   ASSERT(vsk->localAddr.svm_port == pkt->dstPort);
+   ASSERT(vsock_sk(sk)->localAddr.svm_port == pkt->dstPort);
 
    VSockAddr_Init(&vpending->localAddr,
-                  VMCI_GetContextID(),
+                  VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.dst),
                   pkt->dstPort);
    VSockAddr_Init(&vpending->remoteAddr,
                   VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src),
@@ -1774,7 +1855,8 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
                                  vpending->consumeSize,
                                  VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src),
                                  flags,
-                                 vpending->trusted);
+                                 VSockVmciTrusted(vpending,
+                                                  vpending->remoteAddr.svm_cid));
    if (err < 0) {
       VSOCK_SEND_RESET(pending, pkt);
       skerr = -err;
@@ -2050,6 +2132,14 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    }
 
    /*
+    * At this point we know the CID the peer is using to talk to us.
+    */
+
+   if (vsk->localAddr.svm_cid == VMADDR_CID_ANY) {
+      vsk->localAddr.svm_cid = VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.dst);
+   }
+
+   /*
     * Setup the notify ops to be the highest supported version that both the
     * server and the client support.
     */
@@ -2113,7 +2203,7 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
                                  pkt->u.size,
                                  vsk->remoteAddr.svm_cid,
                                  flags,
-                                 vsk->trusted);
+                                 VSockVmciTrusted(vsk, vsk->remoteAddr.svm_cid));
    if (err < 0) {
       goto destroy;
    }
@@ -2276,7 +2366,7 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
       sock_set_flag(sk, SOCK_DONE);
       vsk->peerShutdown = SHUTDOWN_MASK;
       if (VSockVmciStreamHasData(vsk) <= 0) {
-	 sk->sk_state = SS_DISCONNECTING;
+         sk->sk_state = SS_DISCONNECTING;
       }
       sk->sk_state_change(sk);
       break;
@@ -2610,8 +2700,7 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
 
       err = VSockVmciDatagramCreateHnd(newAddr.svm_port, flags,
                                        VSockVmciRecvDgramCB, sk,
-                                       &vsk->dgHandle,
-                                       vsk->trusted);
+                                       &vsk->dgHandle);
       if (err < VMCI_SUCCESS) {
          err = VSockVmci_ErrorToVSockError(err);
          goto out;
@@ -2770,14 +2859,18 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    if (parent) {
       psk = vsock_sk(parent);
       vsk->trusted = psk->trusted;
+      vsk->owner = psk->owner;
       vsk->queuePairSize = psk->queuePairSize;
       vsk->queuePairMinSize = psk->queuePairMinSize;
       vsk->queuePairMaxSize = psk->queuePairMaxSize;
+      vsk->connectTimeout = psk->connectTimeout;
    } else {
       vsk->trusted = capable(CAP_NET_ADMIN);
+      vsk->owner = current_uid();
       vsk->queuePairSize = VSOCK_DEFAULT_QP_SIZE;
       vsk->queuePairMinSize = VSOCK_DEFAULT_QP_SIZE_MIN;
       vsk->queuePairMaxSize = VSOCK_DEFAULT_QP_SIZE_MAX;
+      vsk->connectTimeout = VSOCK_DEFAULT_CONNECT_TIMEOUT;
    }
 
    vsk->notifyOps = NULL;
@@ -3054,45 +3147,6 @@ VSockVmciRegisterAddressFamily(void)
 {
    int err = 0;
    int i;
-   uint32 apiVersion;
-
-   /*
-    * We don't call into the vmci module or register our socket family if the
-    * vmci device isn't present.
-    */
-   apiVersion = VMCI_KERNEL_API_VERSION_1;
-   vmciDevicePresent = VMCI_DeviceGet(&apiVersion);
-   if (!vmciDevicePresent) {
-      Log("Could not register VMCI Sockets because VMCI device is not present "
-          "or API version is unsupported.\n");
-      return -1;
-   }
-
-   /*
-    * Create the datagram handle that we will use to send and receive all
-    * VSocket control messages for this context.
-    */
-    err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID,
-                                     VMCI_FLAG_ANYCID_DG_HND,
-                                     VSockVmciRecvStreamCB, NULL,
-                                     &vmciStreamHandle,
-                                     TRUE);
-    if (err < VMCI_SUCCESS) {
-      Warning("Unable to create datagram handle. (%d)\n", err);
-      goto error;
-   }
-
-   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_RESUMED,
-                             VMCI_FLAG_EVENT_NONE,
-                             VSockVmciQPResumedCB,
-                             NULL,
-                             &qpResumedSubId);
-   if (err < VMCI_SUCCESS) {
-      Warning("Unable to subscribe to QP resumed event. (%d)\n", err);
-      err = VSockVmci_ErrorToVSockError(err);
-      qpResumedSubId = VMCI_INVALID_ID;
-      goto error;
-   }
 
    /*
     * Linux will not allocate an address family to code that is not part of the
@@ -3114,26 +3168,11 @@ VSockVmciRegisterAddressFamily(void)
       } else {
          vsockVmciDgramOps.family = i;
          vsockVmciStreamOps.family = i;
+         err = i;
          break;
       }
    }
 
-   if (err) {
-      goto error;
-   }
-
-   return vsockVmciFamilyOps.family;
-
-error:
-   if (qpResumedSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(qpResumedSubId);
-      qpResumedSubId = VMCI_INVALID_ID;
-   }
-
-   if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
-      VMCIDatagram_DestroyHnd(vmciStreamHandle);
-      vmciStreamHandle = VMCI_INVALID_HANDLE;
-   }
    return err;
 }
 
@@ -3159,6 +3198,106 @@ error:
 static void
 VSockVmciUnregisterAddressFamily(void)
 {
+   if (vsockVmciFamilyOps.family != VSOCK_INVALID_FAMILY) {
+      sock_unregister(vsockVmciFamilyOps.family);
+   }
+
+   vsockVmciDgramOps.family = vsockVmciFamilyOps.family = VSOCK_INVALID_FAMILY;
+   vsockVmciStreamOps.family = vsockVmciFamilyOps.family;
+}
+
+
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciRegisterWithVmci --
+ *
+ *      Registers with the VMCI device, and creates control message
+ *      and event handlers.
+ *
+ * Results:
+ *      Zero on success, error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+VSockVmciRegisterWithVmci(void)
+{
+   int err = 0;
+   uint32 apiVersion;
+
+   /*
+    * We don't call into the vmci module if the vmci device isn't
+    * present.
+    */
+   apiVersion = VMCI_KERNEL_API_VERSION_1;
+   vmciDevicePresent = VMCI_DeviceGet(&apiVersion, NULL, NULL, NULL);
+   if (!vmciDevicePresent) {
+      Warning("VMCI device not present.\n");
+      return -1;
+   }
+
+   /*
+    * Create the datagram handle that we will use to send and receive all
+    * VSocket control messages for this context.
+    */
+    err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID,
+                                     VMCI_FLAG_ANYCID_DG_HND,
+                                     VSockVmciRecvStreamCB, NULL,
+                                     &vmciStreamHandle);
+    if (err < VMCI_SUCCESS) {
+      Warning("Unable to create datagram handle. (%d)\n", err);
+      err = VSockVmci_ErrorToVSockError(err);
+      goto out;
+   }
+
+   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_RESUMED,
+                             VMCI_FLAG_EVENT_NONE,
+                             VSockVmciQPResumedCB,
+                             NULL,
+                             &qpResumedSubId);
+   if (err < VMCI_SUCCESS) {
+      Warning("Unable to subscribe to QP resumed event. (%d)\n", err);
+      err = VSockVmci_ErrorToVSockError(err);
+      qpResumedSubId = VMCI_INVALID_ID;
+      goto out;
+   }
+
+out:
+   if (err != 0) {
+      VSockVmciUnregisterWithVmci();
+   }
+
+   return err;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciUnregisterWithVmci --
+ *
+ *      Destroys control message and event handlers, and unregisters
+ *      with the VMCI device
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Our socket implementation is no longer accessible.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VSockVmciUnregisterWithVmci(void)
+{
    if (!vmciDevicePresent) {
       /* Nothing was registered. */
       return;
@@ -3176,14 +3315,8 @@ VSockVmciUnregisterAddressFamily(void)
       qpResumedSubId = VMCI_INVALID_ID;
    }
 
-   if (vsockVmciFamilyOps.family != VSOCK_INVALID_FAMILY) {
-      sock_unregister(vsockVmciFamilyOps.family);
-   }
-
-   vsockVmciDgramOps.family = vsockVmciFamilyOps.family = VSOCK_INVALID_FAMILY;
-   vsockVmciStreamOps.family = vsockVmciFamilyOps.family;
-
-   VMCI_DeviceRelease();
+   VMCI_DeviceRelease(NULL);
+   vmciDevicePresent = FALSE;
 }
 
 
@@ -3387,6 +3520,49 @@ out:
 /*
  *----------------------------------------------------------------------------
  *
+ * VSockVmciConnectTimeout --
+ *
+ *    Asynchronous connection attempts schedule this timeout function
+ *    to notify the connector of an unsuccessfull connection
+ *    attempt. If the socket is still in the connecting state and
+ *    hasn't been closed, we mark the socket as timed out. Otherwise,
+ *    we do nothing.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    May destroy the socket.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VSockVmciConnectTimeout(compat_delayed_work_arg work)    // IN
+{
+   struct sock *sk;
+   VSockVmciSock *vsk;
+
+   vsk = COMPAT_DELAYED_WORK_GET_DATA(work, VSockVmciSock, dwork);
+   ASSERT(vsk);
+
+   sk = sk_vsock(vsk);
+
+   lock_sock(sk);
+   if (sk->sk_state == SS_CONNECTING && (sk->sk_shutdown != SHUTDOWN_MASK)) {
+      sk->sk_state = SS_UNCONNECTED;
+      sk->sk_err = ETIMEDOUT;
+      sk->sk_error_report(sk);
+   }
+   release_sock(sk);
+
+   sock_put(sk);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * VSockVmciStreamConnect --
  *
  *    Connects a stream socket.
@@ -3441,7 +3617,7 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
       ASSERT(sk->sk_state == SS_FREE ||
              sk->sk_state == SS_UNCONNECTED ||
              sk->sk_state == SS_LISTEN);
-      if ((sk->sk_state == SS_LISTEN) || 
+      if ((sk->sk_state == SS_LISTEN) ||
           VSockAddr_Cast(addr, addrLen, &remoteAddr) != 0) {
          err = -EINVAL;
          goto out;
@@ -3464,14 +3640,6 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
          if ((err = __VSockVmciBind(sk, &localAddr))) {
             goto out;
          }
-      }
-
-      /*
-       * For the client stream sockets, we always want to make sure that
-       * we have a specific context id.
-       */
-      if (vsk->localAddr.svm_cid == VMADDR_CID_ANY) {
-         vsk->localAddr.svm_cid = VMCI_GetContextID();
       }
 
       sk->sk_state = SS_CONNECTING;
@@ -3507,15 +3675,22 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
     * the connected state.  Here we wait for the connection to be completed or
     * a notification of an error.
     */
-   timeout = sock_sndtimeo(sk, flags & O_NONBLOCK);
+   timeout = vsk->connectTimeout;
    prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
    while (sk->sk_state != SS_CONNECTED && sk->sk_err == 0) {
-      if (timeout == 0) {
+      if (flags & O_NONBLOCK) {
          /*
-          * If we're not going to block, skip ahead to preserve error code set
-          * above.
+          * If we're not going to block, we schedule a timeout
+          * function to generate a timeout on the connection attempt,
+          * in case the peer doesn't respond in a timely manner. We
+          * hold on to the socket until the timeout fires.
           */
+         sock_hold(sk);
+         COMPAT_INIT_DELAYED_WORK(&vsk->dwork, VSockVmciConnectTimeout, vsk);
+         compat_schedule_delayed_work(&vsk->dwork, timeout);
+
+         /* Skip ahead to preserve error code set above. */
          goto outWait;
       }
 
@@ -3801,14 +3976,14 @@ VSockVmciPoll(struct file *file,    // IN
        * Listening sockets that have connections in their accept queue can be read.
        */
       if (sk->sk_state == SS_LISTEN && !VSockVmciIsAcceptQueueEmpty(sk)) {
-	 mask |= POLLIN | POLLRDNORM;
+         mask |= POLLIN | POLLRDNORM;
       }
 
       /*
        * If there is something in the queue then we can read.
        */
       if (!VMCI_HANDLE_INVALID(vsk->qpHandle) &&
-	  !(sk->sk_shutdown & RCV_SHUTDOWN)) {
+          !(sk->sk_shutdown & RCV_SHUTDOWN)) {
          Bool dataReadyNow = FALSE;
          int32 ret = 0;
          NOTIFYCALLRET(vsk, ret, pollIn, sk, 1, &dataReadyNow);
@@ -3834,7 +4009,7 @@ VSockVmciPoll(struct file *file,    // IN
        * Connected sockets that can produce data can be written.
        */
       if (sk->sk_state == SS_CONNECTED) {
-	 if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
+         if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
             Bool spaceAvailNow = FALSE;
             int32 ret = 0;
 
@@ -3847,7 +4022,7 @@ VSockVmciPoll(struct file *file,    // IN
                   mask |= POLLOUT | POLLWRNORM;
                }
             }
-	 }
+         }
       }
 
       /*
@@ -3943,6 +4118,7 @@ static int
 VSockVmciShutdown(struct socket *sock,  // IN
                   int mode)             // IN
 {
+   int32 err;
    struct sock *sk;
 
    /*
@@ -3958,12 +4134,23 @@ VSockVmciShutdown(struct socket *sock,  // IN
       return -EINVAL;
    }
 
-   if (sock->state == SS_UNCONNECTED) {
-      return -ENOTCONN;
-   }
+   /*
+    * If this is a STREAM socket and it is not connected then bail out
+    * immediately.  If it is a DGRAM socket then we must first kick the socket
+    * so that it wakes up from any sleeping calls, for example recv(), and then
+    * afterwards return the error.
+    */
 
    sk = sock->sk;
-   sock->state = SS_DISCONNECTING;
+   if (sock->state == SS_UNCONNECTED) {
+      err = -ENOTCONN;
+      if (sk->sk_type == SOCK_STREAM) {
+         return err;
+      }
+   } else {
+      sock->state = SS_DISCONNECTING;
+      err = 0;
+   }
 
    /* Receive and send shutdowns are treated alike. */
    mode = mode & (RCV_SHUTDOWN | SEND_SHUTDOWN);
@@ -3979,7 +4166,7 @@ VSockVmciShutdown(struct socket *sock,  // IN
       VSOCK_SEND_SHUTDOWN(sk, mode);
    }
 
-   return 0;
+   return err;
 }
 
 
@@ -4078,6 +4265,11 @@ VSockVmciDgramSendmsg(struct kiocb *kiocb,          // UNUSED
       goto out;
    }
 
+   if (!VSockVmciAllowDgram(vsk, remoteAddr->svm_cid)) {
+      err = -EPERM;
+      goto out;
+   }
+
    /*
     * Allocate a buffer for the user's message and our packet header.
     */
@@ -4144,13 +4336,17 @@ VSockVmciStreamSetsockopt(struct socket *sock,           // IN/OUT
       return -ENOPROTOOPT;
    }
 
-   if (optlen < sizeof val) {
-      return -EINVAL;
-   }
-
-   if (copy_from_user(&val, optval, sizeof val) != 0) {
-      return -EFAULT;
-   }
+#  define COPY_IN(_v)                                              \
+   do {                                                            \
+      if (optlen < sizeof _v) {                                    \
+         err = -EINVAL;                                            \
+         goto exit;                                                \
+      }                                                            \
+      if (copy_from_user(&_v, optval, sizeof _v) != 0) {           \
+         err = -EFAULT;                                            \
+         goto exit;                                                \
+      }                                                            \
+   } while (0)
 
    err = 0;
    sk = sock->sk;
@@ -4163,6 +4359,7 @@ VSockVmciStreamSetsockopt(struct socket *sock,           // IN/OUT
 
    switch (optname) {
    case SO_VMCI_BUFFER_SIZE:
+      COPY_IN(val);
       if (val < vsk->queuePairMinSize) {
          vsk->queuePairMinSize = val;
       }
@@ -4175,6 +4372,7 @@ VSockVmciStreamSetsockopt(struct socket *sock,           // IN/OUT
       break;
 
    case SO_VMCI_BUFFER_MAX_SIZE:
+      COPY_IN(val);
       if (val < vsk->queuePairSize) {
          vsk->queuePairSize = val;
       }
@@ -4182,20 +4380,39 @@ VSockVmciStreamSetsockopt(struct socket *sock,           // IN/OUT
       break;
 
    case SO_VMCI_BUFFER_MIN_SIZE:
+      COPY_IN(val);
       if (val > vsk->queuePairSize) {
          vsk->queuePairSize = val;
       }
       vsk->queuePairMinSize = val;
       break;
 
+   case SO_VMCI_CONNECT_TIMEOUT: {
+      struct timeval tv;
+      COPY_IN(tv);
+      if (tv.tv_sec >= 0 && tv.tv_usec < USEC_PER_SEC &&
+          tv.tv_sec < (MAX_SCHEDULE_TIMEOUT/HZ - 1)) {
+         vsk->connectTimeout = tv.tv_sec * HZ +
+                               CEILING(tv.tv_usec, (1000000 / HZ));
+         if (vsk->connectTimeout == 0) {
+            vsk->connectTimeout = VSOCK_DEFAULT_CONNECT_TIMEOUT;
+         }
+      } else {
+         err = -ERANGE;
+      }
+      break;
+   }
+
    default:
       err = -ENOPROTOOPT;
       break;
    }
 
+#  undef COPY_IN
+
    ASSERT(vsk->queuePairMinSize <= vsk->queuePairSize &&
           vsk->queuePairSize <= vsk->queuePairMaxSize);
-
+exit:
    release_sock(sk);
    return err;
 }
@@ -4224,53 +4441,65 @@ VSockVmciStreamGetsockopt(struct socket *sock,          // IN
                           char __user *optval,          // OUT
                           int __user * optlen)          // IN/OUT
 {
-    int err;
-    int len;
-    struct sock *sk;
-    VSockVmciSock *vsk;
-    uint64 val;
+   int err;
+   int len;
+   struct sock *sk;
+   VSockVmciSock *vsk;
 
-    if (level != VSockVmci_GetAFValue()) {
-       return -ENOPROTOOPT;
-    }
+   if (level != VSockVmci_GetAFValue()) {
+      return -ENOPROTOOPT;
+   }
 
-    if ((err = get_user(len, optlen)) != 0) {
-       return err;
-    }
-    if (len < sizeof val) {
-       return -EINVAL;
-    }
+   if ((err = get_user(len, optlen)) != 0) {
+      return err;
+   }
 
-    len = sizeof val;
+#  define COPY_OUT(_v)                                             \
+   do {                                                            \
+      if (len < sizeof _v) {                                       \
+         return -EINVAL;                                           \
+      }                                                            \
+      len = sizeof _v;                                             \
+      if (copy_to_user(optval, &_v, len) != 0) {                   \
+         return -EFAULT;                                           \
+      }                                                            \
+   } while (0)
 
-    err = 0;
-    sk = sock->sk;
-    vsk = vsock_sk(sk);
+   err = 0;
+   sk = sock->sk;
+   vsk = vsock_sk(sk);
 
-    switch (optname) {
-    case SO_VMCI_BUFFER_SIZE:
-       val = vsk->queuePairSize;
-       break;
+   switch (optname) {
+   case SO_VMCI_BUFFER_SIZE:
+      COPY_OUT(vsk->queuePairSize);
+      break;
 
-    case SO_VMCI_BUFFER_MAX_SIZE:
-       val = vsk->queuePairMaxSize;
-       break;
+   case SO_VMCI_BUFFER_MAX_SIZE:
+      COPY_OUT(vsk->queuePairMaxSize);
+      break;
 
-    case SO_VMCI_BUFFER_MIN_SIZE:
-       val = vsk->queuePairMinSize;
-       break;
+   case SO_VMCI_BUFFER_MIN_SIZE:
+      COPY_OUT(vsk->queuePairMinSize);
+      break;
 
-    default:
-       return -ENOPROTOOPT;
-    }
+   case SO_VMCI_CONNECT_TIMEOUT: {
+      struct timeval tv;
+      tv.tv_sec = vsk->connectTimeout / HZ;
+      tv.tv_usec = (vsk->connectTimeout - tv.tv_sec * HZ) * (1000000 / HZ);
+      COPY_OUT(tv);
+      break;
+   }
+   default:
+      return -ENOPROTOOPT;
+   }
 
-    if ((err = copy_to_user(optval, &val, len)) != 0) {
-       return -EFAULT;
-    }
-    if ((err = put_user(len, optlen)) != 0) {
-       return -EFAULT;
-    }
-    return 0;
+   if ((err = put_user(len, optlen)) != 0) {
+      return -EFAULT;
+   }
+
+#  undef COPY_OUT
+
+   return 0;
 }
 
 
@@ -4998,6 +5227,15 @@ VSockVmciDevIoctl(struct inode *inode,     // IN
    retval = 0;
 
    switch (iocmd) {
+   case IOCTL_VMCI_SOCKETS_VERSION: {
+      uint16 parts[4] = { VSOCK_DRIVER_VERSION_COMMAS };
+      uint32 version = VMCI_SOCKETS_MAKE_VERSION(parts);
+      if (copy_to_user((void*)ioarg, &version, sizeof version) != 0) {
+         retval = -EFAULT;
+      }
+      break;
+   }
+
    case IOCTL_VMCI_SOCKETS_GET_AF_VALUE: {
       int family;
 
@@ -5099,9 +5337,18 @@ VSockVmciInit(void)
       return err;
    }
 
+   err = VSockVmciRegisterWithVmci();
+   if (err) {
+      Warning("Cannot register with VMCI device.\n");
+      unregister_ioctl32_handlers();
+      misc_deregister(&vsockVmciDevice);
+      return err;
+   }
+
    err = VSockVmciRegisterProto();
    if (err) {
       Warning("Cannot register vsock protocol.\n");
+      VSockVmciUnregisterWithVmci();
       unregister_ioctl32_handlers();
       misc_deregister(&vsockVmciDevice);
       return err;
@@ -5138,6 +5385,7 @@ VSockVmciExit(void)
    compat_mutex_unlock(&registrationMutex);
 
    VSockVmciUnregisterProto();
+   VSockVmciUnregisterWithVmci();
 }
 
 

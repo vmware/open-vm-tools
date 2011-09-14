@@ -49,26 +49,30 @@
  *    VMware chipset (Subsystem ID for our motherboards)
  *    VMware e1000 (Subsystem ID)
  *    VMware vmxnet3 (Uniform Pass Through NIC)
+ *    VMware HD Audio codec
+ *    VMware HD Audio controller
  */
-#define PCI_VENDOR_ID_VMWARE            0x15AD
-#define PCI_DEVICE_ID_VMWARE_SVGA2      0x0405
-#define PCI_DEVICE_ID_VMWARE_SVGA       0x0710
-#define PCI_DEVICE_ID_VMWARE_NET        0x0720
-#define PCI_DEVICE_ID_VMWARE_SCSI       0x0730
-#define PCI_DEVICE_ID_VMWARE_VMCI       0x0740
-#define PCI_DEVICE_ID_VMWARE_CHIPSET    0x1976
-#define PCI_DEVICE_ID_VMWARE_82545EM    0x0750 /* single port */
-#define PCI_DEVICE_ID_VMWARE_82546EB    0x0760 /* dual port   */
-#define PCI_DEVICE_ID_VMWARE_EHCI       0x0770
-#define PCI_DEVICE_ID_VMWARE_UHCI       0x0774
-#define PCI_DEVICE_ID_VMWARE_XHCI       0x0778
-#define PCI_DEVICE_ID_VMWARE_1394       0x0780
-#define PCI_DEVICE_ID_VMWARE_BRIDGE     0x0790
-#define PCI_DEVICE_ID_VMWARE_ROOTPORT   0x07A0
-#define PCI_DEVICE_ID_VMWARE_VMXNET3    0x07B0
-#define PCI_DEVICE_ID_VMWARE_VMXWIFI    0x07B8
-#define PCI_DEVICE_ID_VMWARE_PVSCSI     0x07C0
-#define PCI_DEVICE_ID_VMWARE_82574      0x07D0
+#define PCI_VENDOR_ID_VMWARE                    0x15AD
+#define PCI_DEVICE_ID_VMWARE_SVGA2              0x0405
+#define PCI_DEVICE_ID_VMWARE_SVGA               0x0710
+#define PCI_DEVICE_ID_VMWARE_NET                0x0720
+#define PCI_DEVICE_ID_VMWARE_SCSI               0x0730
+#define PCI_DEVICE_ID_VMWARE_VMCI               0x0740
+#define PCI_DEVICE_ID_VMWARE_CHIPSET            0x1976
+#define PCI_DEVICE_ID_VMWARE_82545EM            0x0750 /* single port */
+#define PCI_DEVICE_ID_VMWARE_82546EB            0x0760 /* dual port   */
+#define PCI_DEVICE_ID_VMWARE_EHCI               0x0770
+#define PCI_DEVICE_ID_VMWARE_UHCI               0x0774
+#define PCI_DEVICE_ID_VMWARE_XHCI               0x0778
+#define PCI_DEVICE_ID_VMWARE_1394               0x0780
+#define PCI_DEVICE_ID_VMWARE_BRIDGE             0x0790
+#define PCI_DEVICE_ID_VMWARE_ROOTPORT           0x07A0
+#define PCI_DEVICE_ID_VMWARE_VMXNET3            0x07B0
+#define PCI_DEVICE_ID_VMWARE_VMXWIFI            0x07B8
+#define PCI_DEVICE_ID_VMWARE_PVSCSI             0x07C0
+#define PCI_DEVICE_ID_VMWARE_82574              0x07D0
+#define PCI_DEVICE_ID_VMWARE_HDAUDIO_CODEC      0x1975
+#define PCI_DEVICE_ID_VMWARE_HDAUDIO_CONTROLLER 0x1977
 
 /* The hypervisor device might grow.  Please leave room
  * for 7 more subfunctions.
@@ -100,7 +104,6 @@
  *    Intel 82443BX (440 BX North Bridge and AGP Bridge)
  *    Intel 82545EM (e1000, server adapter, single port)
  *    Intel 82546EB (e1000, server adapter, dual port)
- *    Intel ICH7_16 (High Definition Audio controller)
  *    Intel HECI (as embedded in ich9m)
  */
 #define PCI_VENDOR_ID_INTEL             0x8086
@@ -116,12 +119,19 @@
 #define PCI_DEVICE_ID_INTEL_82546EB     0x1010
 #define PCI_DEVICE_ID_INTEL_82574       0x10d3
 #define PCI_DEVICE_ID_INTEL_82574_APPLE 0x10f6
-#define PCI_DEVICE_ID_INTEL_ICH7_16     0x27d8
 #define PCI_DEVICE_ID_INTEL_HECI        0x2a74
 
 #define E1000E_PCI_DEVICE_ID_CONFIG_STR "e1000e.pci.deviceID"
 #define E1000E_PCI_SUB_VENDOR_ID_CONFIG_STR "e1000e.pci.subVendorID"
 #define E1000E_PCI_SUB_DEVICE_ID_CONFIG_STR "e1000e.pci.subDeviceID"
+
+/*
+ * Intel HD Audio controller and Realtek ALC885 codec.
+ */
+#define PCI_DEVICE_ID_INTEL_631XESB_632XESB  0x269a
+#define PCI_VENDOR_ID_REALTEK                0x10ec
+#define PCI_DEVICE_ID_REALTEK_ALC885         0x0885
+
 
 /*
  * Fresco Logic xHCI (USB 3.0) Controller

@@ -39,8 +39,9 @@
  *
  * Calls the shutdown function of the available features.
  *
+ * @param[in]  obj      Unused.
  * @param[in]  ctx      The application context.
- * @param[in]  plugin   Unused.
+ * @param[in]  plugin   Plugin data.
  *
  * @return TRUE.
  *
@@ -48,7 +49,8 @@
  */
 
 static gboolean
-DesktopEventsShutdown(ToolsAppCtx *ctx,
+DesktopEventsShutdown(gpointer serviceObj,
+                      ToolsAppCtx *ctx,
                       ToolsPluginData *plugin)
 {
    size_t i;
@@ -56,8 +58,14 @@ DesktopEventsShutdown(ToolsAppCtx *ctx,
    for (i = 0; i < ARRAYSIZE(gFeatures); i++) {
       DesktopEventFuncs *f = &gFeatures[i];
       if (f->initialized && f->shutdownFn != NULL) {
-         f->shutdownFn(ctx);
+         f->shutdownFn(ctx, plugin);
       }
+   }
+
+   if (plugin->_private) {
+      g_hash_table_remove(plugin->_private, DE_PRIVATE_CTX);
+      g_hash_table_unref(plugin->_private);
+      plugin->_private = NULL;
    }
 
    return TRUE;
@@ -83,6 +91,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    static ToolsPluginData regData = {
       "desktopEvents",
       NULL,
+      NULL,
       NULL
    };
 
@@ -93,6 +102,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 #endif
 
    regData.regs = g_array_new(FALSE, TRUE, sizeof (ToolsAppReg));
+   regData._private = g_hash_table_new(g_str_hash, g_str_equal);
+   g_hash_table_insert(regData._private, DE_PRIVATE_CTX, ctx);
+
    for (i = 0; i < ARRAYSIZE(gFeatures); i++) {
       DesktopEventFuncs *f = &gFeatures[i];
       if (!f->initFn(ctx, &regData)) {
@@ -107,7 +119,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
     */
    if (i == ARRAYSIZE(gFeatures)) {
       ToolsPluginSignalCb sigs[] = {
-         { TOOLS_CORE_SIG_SHUTDOWN, DesktopEventsShutdown, NULL }
+         { TOOLS_CORE_SIG_SHUTDOWN, DesktopEventsShutdown, &regData }
       };
       ToolsAppReg regs[] = {
          { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) },
@@ -117,7 +129,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    }
 
    /* Failed to initialize something, clean up and unload. */
-   DesktopEventsShutdown(ctx, &regData);
+   DesktopEventsShutdown(NULL, ctx, &regData);
 
    /* Cleanup regData to make sure memory is freed. */
    for (i = 0; i < regData.regs->len; i++) {
@@ -130,4 +142,3 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    return NULL;
 }
-

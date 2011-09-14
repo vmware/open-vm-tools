@@ -170,6 +170,10 @@ DnDUriListGetFile(char const *uriList,  // IN    : text/uri-list string
                       DND_URI_LIST_PRE_KDE,
                       sizeof DND_URI_LIST_PRE_KDE - 1) == 0) {
       nameStart += sizeof DND_URI_LIST_PRE_KDE - 1;
+#if defined(linux)
+   } else if (DnD_UriIsNonFileSchemes(nameStart)) {
+      /* Do nothing. */
+#endif
    } else {
       Warning("%s: the URI list did not begin with %s or %s\n", __func__,
               DND_URI_LIST_PRE, DND_URI_LIST_PRE_KDE);
@@ -261,6 +265,40 @@ DnD_UriListGetNextFile(char const *uriList,  // IN    : text/uri-list string
    }
 
    return unescapedName;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * DnD_UriIsNonFileSchemes --
+ *
+ *    Check if the uri contains supported non-file scheme.
+ *
+ * Results:
+ *    TRUE if the uri contains supported non-file scheme. FALSE otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+DnD_UriIsNonFileSchemes(const char *uri)
+{
+   const char *schemes[] = DND_URI_NON_FILE_SCHEMES;
+   int i = 0;
+
+   while (schemes[i] != NULL) {
+      if (strncmp(uri,
+                  schemes[i],
+                  strlen(schemes[i])) == 0) {
+         return TRUE;
+      }
+      i++;
+   }
+   return FALSE;
 }
 
 
@@ -455,7 +493,7 @@ static Bool
 DnD_CheckBlockFuse(int blockFd)                    // IN
 {
    char buf[sizeof(VMBLOCK_FUSE_READ_RESPONSE)];
-   size_t size;
+   ssize_t size;
 
    size = read(blockFd, buf, sizeof(VMBLOCK_FUSE_READ_RESPONSE));
    if (size < 0) {

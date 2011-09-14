@@ -32,6 +32,15 @@
 
 
 void
+Msg_AppendMsgList(const MsgList *msgs)
+{
+   while (msgs != NULL) {
+      Warning("%s [STUB]: %s\n", __FUNCTION__, msgs->id);
+   }
+}
+
+
+void
 Msg_Append(const char *fmt,
            ...)
 {

@@ -122,7 +122,7 @@ EXTERN void Msg_Append(const char *idFmt, ...)
        PRINTF_DECL(1, 2);
 EXTERN void Msg_Post(MsgSeverity severity, const char *idFmt, ...)
        PRINTF_DECL(2, 3);
-EXTERN void Msg_PostMsgList(MsgSeverity severity, MsgList *msg);
+EXTERN void Msg_PostMsgList(MsgSeverity severity, const MsgList *msgs);
 
 EXTERN char *Msg_Format(const char *idFmt, ...)
        PRINTF_DECL(1, 2);
@@ -130,10 +130,7 @@ EXTERN char *Msg_VFormat(const char *idFmt, va_list arguments);
 EXTERN unsigned Msg_Question(Msg_String const *buttons,
                              int defaultAnswer, const char *idFmt, ...)
        PRINTF_DECL(3, 4);
-EXTERN void Msg_AppendMsgList(char* id,
-                              char* fmt,
-                              MsgFmt_Arg *args,
-                              int numArgs);
+EXTERN void Msg_AppendMsgList(const MsgList *msgs);
 
 /*
  * Unfortunately, gcc warns about both NULL and "" being passed as format
@@ -186,6 +183,7 @@ EXTERN void Msg_ForceUnblock(void);
 
 EXTERN const char *Msg_GetMessages(void);
 EXTERN const char *Msg_GetMessagesAndReset(void);
+EXTERN void Msg_LogAndReset(void);
 EXTERN MsgList *Msg_GetMsgList(void);
 EXTERN MsgList *Msg_GetMsgListAndReset(void);
 EXTERN char *Msg_LocalizeList(const MsgList *messages);

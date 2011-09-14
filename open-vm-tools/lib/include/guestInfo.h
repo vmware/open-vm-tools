@@ -51,6 +51,17 @@
 
 #define GUEST_INFO_COMMAND "SetGuestInfo"
 #define MAX_VALUE_LEN 100
+
+/**
+ * Upper bound for value sizes, based on gethostname(2):
+ *
+ *    SUS2 guarantees that "Host names are limited to 255 bytes".
+ *
+ * We can't modify MAX_VALUE_LEN since it's used in wire-level definitions
+ * (such as PartitionEntry).
+ */
+#define GUESTINFO_MAX_VALUE_SIZE 512
+
 #define MAX_NICS     16
 #define MAX_IPS      8     // Max number of IP addresses for a single NIC
 #define MAC_ADDR_SIZE 19

@@ -33,6 +33,7 @@ typedef struct ServiceProperty {
    gpointer    value;
 } ServiceProperty;
 
+static gpointer gToolsCoreServiceParentClass;
 
 /**
  * Accumulator function for the "set option" signal. If a handler returns
@@ -237,17 +238,32 @@ ToolsCoreServiceSetProperty(GObject *object,
  *
  * Object constructor. Initialize internal state.
  *
- * @param   object   Instance being initialized.
+ * @param[in] type      Object type.
+ * @param[in] nparams   Param count.
+ * @param[in] params    Construction parameters.
+ *
+ * @return A new instance.
  *
  *******************************************************************************
  */
 
-static void
-ToolsCoreServiceCtor(GObject *object)
+static GObject *
+ToolsCoreServiceCtor(GType type,
+                     guint nparams,
+                     GObjectConstructParam *params)
 {
-   ToolsCoreService *self = (ToolsCoreService *) object;
+   GObject *object;
+   ToolsCoreService *self;
+
+   object = G_OBJECT_CLASS(gToolsCoreServiceParentClass)->constructor(type,
+                                                                      nparams,
+                                                                      params);
+
+   self = TOOLSCORE_SERVICE(object);
    self->lock = g_mutex_new();
    self->props = g_array_new(FALSE, FALSE, sizeof (ServiceProperty));
+
+   return object;
 }
 
 
@@ -296,6 +312,9 @@ ToolsCore_Service_class_init(gpointer _klass,
                              gpointer klassData)
 {
    ToolsCoreServiceClass *klass = _klass;
+
+   gToolsCoreServiceParentClass = g_type_class_peek_parent(_klass);
+
    g_signal_new(TOOLS_CORE_SIG_CAPABILITIES,
                 G_OBJECT_CLASS_TYPE(klass),
                 G_SIGNAL_RUN_LAST,
@@ -376,7 +395,7 @@ ToolsCore_Service_class_init(gpointer _klass,
                 G_TYPE_POINTER);
 #endif
 
-   G_OBJECT_CLASS(klass)->constructed = ToolsCoreServiceCtor;
+   G_OBJECT_CLASS(klass)->constructor = ToolsCoreServiceCtor;
    G_OBJECT_CLASS(klass)->finalize = ToolsCoreServiceDtor;
    G_OBJECT_CLASS(klass)->set_property = ToolsCoreServiceSetProperty;
    G_OBJECT_CLASS(klass)->get_property = ToolsCoreServiceGetProperty;

@@ -47,6 +47,7 @@ extern "C" {
 #include "vmware/tools/utils.h"
 #include "posix.h"
 #include "str.h"
+#include "xdg.h"
 };
 
 namespace vmware {
@@ -73,6 +74,39 @@ namespace unity {
 WindowPathFactory::WindowPathFactory(Display* dpy)
    : mDpy(dpy)
 {
+   /*
+    * PR631378 - see
+    * http://standards.freedesktop.org/menu-spec/latest/ar01s04.html#menu-file-elements
+    *
+    * With OpenSUSE 11.2, apps under /usr/share/applications/kde4 are referred
+    * to as kde4-$app, not just $app.
+    */
+   mEnvPrefixes.push_back("");
+   mEnvPrefixes.push_back("gnome-");
+   mEnvPrefixes.push_back("kde4-");
+
+   /*
+    * There isn't always a direct correspondance between an application's executable's
+    * path and its .desktop file.  For example on Ubuntu 10.10 Mozilla Firefox has a
+    * firefox.desktop which launches "firefox".  However "firefox" is just a symlink to
+    * a wrapper around the actual Firefox executable, firefox-bin.  It's the latter
+    * which Unity/X11 will encounter and use as a starting point to find the app's
+    * .desktop file.
+    *
+    * Below are pairs of regular expressions and candidate application names.  If an
+    * executable name matches pair.first(), we'll check for a pair.second()+".desktop".
+    */
+   // XXX Keep this in an external file.
+#define WPFADDMATCH(pattern, target)       \
+   mExecPatterns.push_back(std::make_pair(Glib::Regex::create(pattern), target))
+   WPFADDMATCH("acroread$", "AdobeReader");
+   WPFADDMATCH("firefox(-bin|$)", "firefox");
+   WPFADDMATCH("firefox(-bin|$)", "mozilla-firefox");
+   WPFADDMATCH("thunderbird(-bin|$)", "thunderbird");
+   WPFADDMATCH("thunderbird(-bin|$)", "mozilla-thunderbird");
+   WPFADDMATCH("soffice", "openoffice.org-base");
+#undef WPFADDMATCH
+
    // XXX Keep this in an external file.
    mSkipPatterns = Glib::Regex::create("^(sh|bash)-?|(perl|python)(-|\\d|$)");
 }
@@ -106,12 +140,13 @@ WindowPathFactory::FindByXid(XID window,               // IN
    Window checkWindow = window;
 
 tryLeader:
-   pid_t windowPid = GetPidForXid(checkWindow);
-   if (windowPid != -1) {
-      success = FindByPid(windowPid, pathPair);
-   }
-
-   if (!success && XGetCommand(mDpy, checkWindow, &argv, &argc)) {
+   /*
+    * We examine WM_COMMAND before checking argv because kdeinit has a tendency
+    * to rewrite /proc/$pid/cmdline as "kdeinit4: foo [kdeinit] bar baz".  Even
+    * though it's deprecated, WM_COMMAND is widely available and specifies a
+    * command vector suitable for launching an application from scratch.
+    */
+   if (XGetCommand(mDpy, checkWindow, &argv, &argc)) {
       std::vector<Glib::ustring> vec;
       for (int i = 0; i < argc; i++) {
          vec.push_back(argv[i]);
@@ -119,6 +154,12 @@ tryLeader:
       success = FindByArgv("" /* without a PID, cwd is unavailable */, vec,
                            pathPair);
       XFreeStringList(argv);
+   }
+
+   pid_t windowPid;
+   if (   !success
+       && (windowPid = GetPidForXid(checkWindow)) != -1) {
+      success = FindByPid(windowPid, pathPair);
    }
 
    if (!success && !triedLeader) {
@@ -254,43 +295,35 @@ WindowPathFactory::FindByArgv(const Glib::ustring& cwd,        // IN
     */
 
    Glib::ustring testString = Glib::path_get_basename(*arg);
-   bool guessed = false;
 
-tryagain:
-   /* Try for a DesktopAppInfo identified by arg. */
-   Glib::ustring desktopId = testString + ".desktop";
-   Glib::RefPtr<Gio::DesktopAppInfo> desktopApp = Gio::DesktopAppInfo::create(desktopId);
-   if (desktopApp) {
-      GDesktopAppInfo* gobj = desktopApp->gobj();
-      pathPair.second = g_desktop_app_info_get_filename(gobj);
-      mExecMap[*arg] = pathPair;
-      return true;
+   std::vector<std::string> candidates;
+   candidates.push_back(testString);
+
+   for (std::vector<ExecPattern>::iterator pattern = mExecPatterns.begin();
+        pattern != mExecPatterns.end();
+        ++pattern) {
+      if (pattern->first->match(testString)) {
+         candidates.push_back(pattern->second);
+      }
    }
 
-   /* Attempt #2: Get our static map on. */
-   if (!guessed) {
-      static struct {
-         const gchar *pattern;
-         const gchar *exec;
-      } fudgePatterns[] = {
-         /*
-          * XXX Worth compiling once?  Consider placing in an external filter
-          * file to allow users to update it themselves easily.
-          */
-         { "*acroread", "AdobeReader" },
-         { "*firefox*-bin", "firefox" },
-         { "*thunderbird*-bin", "thunderbird" },
-         { "*soffice*", "openoffice.org-base" }
-      };
-      unsigned int i;
-
-      guessed = true;
-
-      for (i = 0; i < ARRAYSIZE(fudgePatterns); i++) {
-         if (g_pattern_match_simple(fudgePatterns[i].pattern,
-                                    testString.c_str())) {
-            testString = fudgePatterns[i].exec;
-            goto tryagain;
+   for (std::vector<std::string>::iterator candidate = candidates.begin();
+        candidate != candidates.end();
+        ++candidate)
+   {
+      for (std::vector<std::string>::iterator i = mEnvPrefixes.begin();
+           i != mEnvPrefixes.end();
+           ++i) {
+         /* Try for a DesktopAppInfo identified by arg. */
+         Glib::ustring desktopId =
+            Glib::ustring::compose("%1%2.desktop", *i, *candidate);
+         Glib::RefPtr<Gio::DesktopAppInfo> desktopApp =
+            Gio::DesktopAppInfo::create(desktopId);
+         if (desktopApp) {
+            GDesktopAppInfo* gobj = desktopApp->gobj();
+            pathPair.second = g_desktop_app_info_get_filename(gobj);
+            mExecMap[*arg] = pathPair;
+            return true;
          }
       }
    }

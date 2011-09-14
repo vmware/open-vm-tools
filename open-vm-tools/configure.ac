@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="2010.12.19"
+TOOLS_VERSION="2011.09.14"
 AC_INIT(
    [open-vm-tools],
-   [2010.12.19],
+   [2011.09.14],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -496,11 +496,39 @@ else
 	 [libXtst not found. Please configure without X11 (using --without-x) or install the libXtst devel package(s).])],
       [$COMMON_XLIBS])
 
+   AC_CHECK_LIB(
+      [SM],
+      [SmcOpenConnection],
+      [XSM_LIBS="-lSM -lICE" && have_xsm_lib="yes"],
+      []
+      [-lICE])
+
+   AC_CHECK_HEADERS([X11/SM/SMlib.h X11/ICE/ICElib.h],
+                    [have_xsm_header="yes"],
+                    [],
+                    [])
+   if test "$have_xsm_lib" = "yes" -a "$have_xsm_header" = "yes"; then
+      have_xsm="yes"
+   fi
+
+   AC_CHECK_LIB(
+      [Xcomposite],
+      [XCompositeQueryExtension],
+      [XCOMPOSITE_LIBS="-lXcomposite"],
+      [have_xcomposite="no"]
+      [])
+   AC_CHECK_HEADERS([X11/extensions/Xcomposite.h],
+                    [],
+                    [have_xcomposite="no"],
+                    [])
+   if test "$have_xcomposite" != "no"; then
+      have_xcomposite="yes"
+   fi
+
    # If we're building with support for Unity, we'll need a few additional
    # libraries.
    if test "$enable_unity" != "no"; then
-
-      # Unity needs the X11 Screen Saver extension library. It should be
+           # Unity needs the X11 Screen Saver extension library. It should be
 	   # in the same place as the X11 libraries, so no need for any fancy
 	   # path checking.
 	   AC_VMW_CHECK_X11_LIB(
@@ -1062,6 +1090,8 @@ AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
 AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
+AM_CONDITIONAL(HAVE_XSM, test "$have_xsm" = "yes")
+AM_CONDITIONAL(HAVE_XCOMPOSITE, test "$have_xcomposite" = "yes")
 AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 AM_CONDITIONAL(ENABLE_TESTS, test "$have_cunit" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
@@ -1072,6 +1102,14 @@ AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "os" = "linux" -a "$have_glib_2_14" = "yes")
+
+if test "$have_xsm" != "yes"; then
+AC_DEFINE([NO_XSM], 1, [])
+fi
+
+if test "$have_xcomposite" != "yes"; then
+   AC_DEFINE([NO_XCOMPOSITE])
+fi
 
 ### Feature-specific flags / actions
 # Combine where possible
@@ -1118,6 +1156,9 @@ COMMON_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/common
 VMSVC_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmsvc
 VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
+# General definitions
+INSTVMSG='$(SHELL) $(top_srcdir)/scripts/build/instvmsg.sh'
+
 ### General substs
 
 AC_SUBST([HGFS_LIBS])
@@ -1128,6 +1169,8 @@ AC_SUBST([MODULES_OS])
 AC_SUBST([MODULES_DIR])
 AC_SUBST([MODULES])
 AC_SUBST([COMMON_XLIBS])
+AC_SUBST([XSM_LIBS])
+AC_SUBST([XCOMPOSITE_LIBS])
 AC_SUBST([PAM_PREFIX])
 AC_SUBST([PLUGIN_CPPFLAGS])
 AC_SUBST([PLUGIN_LDFLAGS])
@@ -1145,6 +1188,7 @@ if test "$os" = "freebsd" -a -n "$SYSDIR"; then
    true
    AC_SUBST([SYSDIR])
 fi
+AC_SUBST([INSTVMSG])
 
 ### Lib substs
 
@@ -1235,6 +1279,7 @@ AC_CONFIG_FILES([                      \
    xferlogs/Makefile                   \
    modules/Makefile                    \
    vmblock-fuse/Makefile               \
+   vmblockmounter/Makefile             \
    tests/Makefile                      \
    tests/vmrpcdbg/Makefile             \
    tests/testDebug/Makefile            \

@@ -66,9 +66,7 @@ About_Create(GtkWidget* mainWnd)
    GtkWidget *viewport;
    GtkWidget *ebox;
    gchar buf1[sizeof (UTF8_COPYRIGHT_STRING) + sizeof (RIGHT_RESERVED) + 2];
-   GdkPixmap* pix       = NULL;
-   GdkBitmap* bit       = NULL;
-   GdkColormap* colormap = NULL;    
+   GdkPixbuf* pixbuf;
    GtkStyle *style;
    GdkColor color;
 
@@ -76,12 +74,10 @@ About_Create(GtkWidget* mainWnd)
    gtk_widget_show(abouttab);
    gtk_container_set_border_width(GTK_CONTAINER(abouttab), 10);
 
-   /* Create the icon from a pixmap */
-   colormap = gtk_widget_get_colormap(abouttab);
-   pix = gdk_pixmap_colormap_create_from_xpm_d(NULL, colormap, &bit, NULL, bigIcon_xpm);
-   icon = gtk_pixmap_new(pix,bit);
-   gdk_pixmap_unref(pix);
-   gdk_bitmap_unref(bit);
+   /* Create the icon from xpm */
+   pixbuf = gdk_pixbuf_new_from_xpm_data((const char**)bigIcon_xpm);
+   icon = gtk_image_new_from_pixbuf(pixbuf);
+   gdk_pixbuf_unref(pixbuf);
    gtk_widget_show(icon);
    gtk_box_pack_start(GTK_BOX(abouttab), icon, FALSE, FALSE, 0);
    gtk_misc_set_alignment(GTK_MISC(icon), 0, 0);

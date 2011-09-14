@@ -238,7 +238,7 @@ RpcV4Util::SendPingMsg(uint32 destId,
    params.cmd = DNDCP_CMD_PING;
    params.optional.version.major = mVersionMajor;
    params.optional.version.minor = mVersionMinor;
-   params.optional.version.capability = capability;
+   params.optional.version.capability = 0xffffffff;
 
    return SendMsg(&params);
 }
@@ -263,7 +263,7 @@ RpcV4Util::SendPingReplyMsg(uint32 destId,
    params.cmd = DNDCP_CMD_PING_REPLY;
    params.optional.version.major = mVersionMajor;
    params.optional.version.minor = mVersionMinor;
-   params.optional.version.capability = capability;
+   params.optional.version.capability = 0xffffffff;
 
    return SendMsg(&params);
 }

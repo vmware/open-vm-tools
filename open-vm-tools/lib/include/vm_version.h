@@ -83,7 +83,7 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_DESKTOP)
-   #define PRODUCT_VERSION    7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VCB)
@@ -94,7 +94,7 @@
    /* this should be kept in sync with the corresponding vpx branch. */
    #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
-   #define PRODUCT_VERSION    3,1,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    4,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
 #endif
 
 /*
@@ -197,19 +197,19 @@
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
 #define GSX_VERSION "e.x.p"
 #define VMSERVER_VERSION "e.x.p"
-#define WORKSTATION_VERSION_NUMBER "7.1.0" /* this version number should always match real WS version number */
-#define WORKSTATION_VERSION "e.x.p"
-#define WORKSTATION_ENTERPRISE_VERSION "e.x.p"
+#define WORKSTATION_VERSION_NUMBER "8.0.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION "8.0.0"
+#define WORKSTATION_ENTERPRISE_VERSION "8.0.0"
 #define ACE_MANAGEMENT_SERVER_VERSION "e.x.p"
 #define MUI_VERSION "4.1.0"
 #define CONSOLE_VERSION "4.1.0"
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
-#define PLAYER_VERSION_NUMBER "3.1.0" /* this version number should always match real Player version number */
-#define PLAYER_VERSION "e.x.p"
+#define PLAYER_VERSION_NUMBER "4.0.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION "4.0.0"
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0
-#define FUSION_VERSION "e.x.p"
+#define FUSION_VERSION "4.0.2"
 
 // These must match VIE_FILEVERSION above
 #define SYSIMAGE_VERSION "5.0.0"
@@ -223,8 +223,8 @@
 #define SVA_VERSION "1.0.0"
 #define WBC_VERSION "5.0.0"
 #define SDK_VERSION "4.1.0"
-#define FOUNDRY_VERSION "1.10.0"
-#define FOUNDRY_FILE_VERSION 1,10,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define FOUNDRY_VERSION "1.11.0"
+#define FOUNDRY_FILE_VERSION 1,11,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
 #define VLICENSE_VERSION "1.1.2"
 #define DDK_VERSION "e.x.p"
@@ -238,7 +238,8 @@
 #define VDDK_VERSION          "5.1.0"
 #define VDDK_FILE_VERSION      5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "2.1.0"
-#define VDM_CLIENT_VERSION "e.x.p"
+#define VDM_CLIENT_VERSION "5.0.0"
+#define VIEWY_VERSION "e.x.p"
 
 
 // VMRC_PLUGIN_VERSION should match PLAYER_VERSION but can't be e.x.p
@@ -277,8 +278,9 @@
 #define TOOLS_VERSION TOOLS_VERSION_CURRENT_STR
 
 #define USB_ARBITRATOR_VERSION_MAJOR 8
-#define USB_ARBITRATOR_VERSION_MINOR 2
-#define USB_ARBITRATOR_VERSION_Z     6
+#define USB_ARBITRATOR_VERSION_MINOR 4
+#define USB_ARBITRATOR_VERSION_Z     19
+
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
 
@@ -293,7 +295,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.2.6"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.4.18"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -397,7 +399,7 @@
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_DESKTOP)
 #    if defined(__APPLE__)
-#      define PRODUCT_LICENSE_VERSION "3.0"
+#      define PRODUCT_LICENSE_VERSION "4.0+"
 #    else
 #      define PRODUCT_LICENSE_VERSION "8.0+"
 #    endif
@@ -475,6 +477,7 @@
 #define PRODUCT_VERSION_SCALABLE_SERVER_30 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 3.0"
 #define PRODUCT_VERSION_SCALABLE_SERVER_31 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 3.5"
 #define PRODUCT_VERSION_SCALABLE_SERVER_40 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 4.x"
+#define PRODUCT_VERSION_SCALABLE_SERVER_50 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 5.0"
 #define PRODUCT_VERSION_WGS_1 PRODUCT_WGS_BRIEF_NAME " 1.x"
 #define PRODUCT_VERSION_WGS_2 PRODUCT_WGS_BRIEF_NAME " 2.x"
 #define PRODUCT_VERSION_GSX_2 PRODUCT_GSX_BRIEF_NAME " 2.x"
@@ -492,6 +495,7 @@
 #define PRODUCT_VERSION_MAC_DESKTOP_1 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.1"
 #define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_3 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 3.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_40 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 4.0"
 
 
 /*

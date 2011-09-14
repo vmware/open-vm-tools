@@ -34,6 +34,10 @@ extern "C" {
 
 #include <X11/extensions/Xinerama.h>
 #include <X11/extensions/XTest.h>
+
+#ifndef NO_XCOMPOSITE
+#   include <X11/extensions/Xcomposite.h>
+#endif
 }
 
 typedef struct {
@@ -85,14 +89,7 @@ static Bool GetRelevantWMWindow(UnityPlatform *up,
 static Bool SetWindowStickiness(UnityPlatform *up,
                                 UnityWindowId windowId,
                                 Bool wantSticky);
-
-static const GuestCapabilities platformUnityCaps[] = {
-   UNITY_CAP_WORK_AREA,
-   UNITY_CAP_START_MENU,
-   UNITY_CAP_MULTI_MON,
-   UNITY_CAP_VIRTUAL_DESK,
-   UNITY_CAP_STICKY_WINDOWS,
-};
+static UnitySpecialWindow *MakeCompositeOverlaysObject(UnityPlatform *up);
 
 /*
  * Has to be global for UnityPlatformXErrorHandler
@@ -288,6 +285,8 @@ UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
    INIT_ATOM(WM_STATE);
    INIT_ATOM(WM_TRANSIENT_FOR);
    INIT_ATOM(WM_WINDOW_ROLE);
+   INIT_ATOM(COMPOUND_TEXT);
+   INIT_ATOM(UTF8_STRING);
 
 #  undef INIT_ATOM
 
@@ -351,70 +350,6 @@ UnityPlatformCleanup(UnityPlatform *up) // IN
    up->desktopWindow = NULL;
 
    free(up);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityPlatformRegisterCaps --
- *
- *      Register guest platform specific capabilities with the VMX.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-UnityPlatformRegisterCaps(UnityPlatform *up) // IN
-{
-   ASSERT(up);
-
-   if (!RpcOut_sendOne(NULL, NULL, UNITY_RPC_SHOW_TASKBAR_CAP " %d",
-                       Unity_IsSupported() ? 1 : 0)) {
-      Debug("Could not set unity show taskbar cap\n");
-   }
-
-   AppUtil_SendGuestCaps(platformUnityCaps, ARRAYSIZE(platformUnityCaps), TRUE);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityPlatformUnregisterCaps --
- *
- *      Unregister guest platform specific capabilities with the VMX.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-UnityPlatformUnregisterCaps(UnityPlatform *up) // IN
-{
-   /*
-    * This function may potentially be called during UnityPlatform destruction.
-    */
-   if (!up) {
-      return;
-   }
-
-   AppUtil_SendGuestCaps(platformUnityCaps, ARRAYSIZE(platformUnityCaps), FALSE);
-
-   if (!RpcOut_sendOne(NULL, NULL, UNITY_RPC_SHOW_TASKBAR_CAP " 0")) {
-      Debug("Failed to unregister Unity taskbar capability\n");
-   }
 }
 
 
@@ -943,6 +878,7 @@ UnityPlatformEnterUnity(UnityPlatform *up) // IN
 
    XSync(up->display, TRUE);
    up->rootWindows = UnityPlatformMakeRootWindowsObject(up);
+   MakeCompositeOverlaysObject(up);
    up->isRunning = TRUE;
    up->eventTimeDiff = 0;
 
@@ -1244,7 +1180,6 @@ UnityX11HandleEvents(gpointer data) // IN
    ASSERT(up);
    ASSERT(up->isRunning);
 
-   Debug("Starting unity event handling\n");
    while (XEventsQueued(up->display, QueuedAfterFlush)) {
       /*
        * This outer loop is here to make sure we really process all available events
@@ -2291,6 +2226,13 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
       screenInfo->height = rootHeight;
    }
 
+   if ((uint32)numScreens != numWorkAreas) {
+      Warning("Mismatch between host-specified work areas and available "
+              "screens.  Request dropped.\n");
+      free(screenInfo);
+      return FALSE;
+   }
+
    /*
     * New and improved wild'n'crazy scheme to map the host's work area
     * coordinates to a collection of struts.
@@ -3331,6 +3273,66 @@ UnityPlatformSendMouseWheel(UnityPlatform *up,    // IN
    return FALSE;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MakeCompositeOverlaysObject --
+ *
+ *      Probes X server for any composite overlay windows.  If found, they're
+ *      monitored as UnitySpecialWindows whereby we won't mistakenly place them
+ *      in the global window tracker.
+ *
+ * Results:
+ *      Returns pointer to new UnitySpecialWindow on success, NULL on failure.
+ *
+ * Side effects:
+ *      If overlay windows haven't yet been mapped, they will be (temporarily).
+ *
+ *      Caller doesn't need to free returned UnitySpecialWindow*.  That's handled
+ *      automatically when exiting Unity.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static UnitySpecialWindow *
+MakeCompositeOverlaysObject(UnityPlatform *up)  // IN
+{
+   ASSERT(up);
+   ASSERT(up->rootWindows);
+
+#ifndef NO_XCOMPOSITE
+   int eventBase;
+   int errorBase;
+   if (XCompositeQueryExtension(up->display, &eventBase, &errorBase)) {
+      /*
+       * XCompositeGetOverlayWindow didn't appear until XComposite 0.3.
+       */
+      int major = 0;
+      int minor = 0;
+      XCompositeQueryVersion(up->display, &major, &minor);
+      if (major > 0 || (major == 0 && minor >= 3)) {
+         size_t nWindows = up->rootWindows->numWindows;
+         Window *overlays = (Window*)Util_SafeCalloc(nWindows, sizeof *overlays);
+         for (unsigned int i = 0; i < nWindows; i++) {
+            overlays[i] = XCompositeGetOverlayWindow(up->display,
+                                                     up->rootWindows->windows[i]);
+            XCompositeReleaseOverlayWindow(up->display, overlays[i]);
+         }
+
+         /*
+          * Note 1: See above. Caller doesn't need to need to track this explicitly.
+          * Note 2: The NULL event handler parameter is how we tell the X event handling
+          *         pieces to ignore this window, thereby keeping it out of the window
+          *         tracker.
+          */
+         return USWindowCreate(up, NULL, overlays, nWindows);
+      }
+   }
+#endif // ifndef NO_XCOMPOSITE
+
+   return NULL;
+}
 
 /*
  *

@@ -34,8 +34,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <glib.h>
 
-#include "vm_atomic.h"
 #include "vm_assert.h"
 
 typedef pthread_rwlock_t                os_rwlock_t;
@@ -45,7 +45,7 @@ typedef struct os_completion_t {
 	pthread_mutex_t mutex;
 	int completed;
 }                                       os_completion_t;
-typedef Atomic_Int                      os_atomic_t;
+typedef gint                            os_atomic_t;
 typedef char *                          os_blocker_id_t;
 
 #define OS_UNKNOWN_BLOCKER              0
@@ -59,7 +59,7 @@ typedef char *                          os_blocker_id_t;
 
 #define os_panic(fmt, args)             \
 ({                                      \
-   fprintf(stderr, fmt, args);          \
+   vfprintf(stderr, fmt, args);         \
    abort();                             \
 })
 
@@ -126,10 +126,10 @@ typedef char *                          os_blocker_id_t;
  * the value before the dec.
  */
 
-#define os_atomic_dec_and_test(atomic)  (Atomic_ReadDecInt(atomic) == 1)
-#define os_atomic_dec                   Atomic_DecInt
-#define os_atomic_set                   Atomic_WriteInt
-#define os_atomic_inc                   Atomic_IncInt
+#define os_atomic_dec_and_test(atomic)  g_atomic_int_dec_and_test(atomic)
+#define os_atomic_dec(atomic)           g_atomic_int_add((atomic), -1)
+#define os_atomic_inc(atomic)           g_atomic_int_inc(atomic)
+#define os_atomic_set(atomic, val)      g_atomic_int_set((atomic), (val))
 
 /*
  * Extra stuff fuse port needs defined (ie not in os.h for other ports).

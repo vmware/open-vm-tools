@@ -35,23 +35,30 @@
  */
 
 #define VMW_LOG_BASE      100
-#define VMW_LOG_PANIC     VMW_LOG_BASE + 00  // highest priority
-#define VMW_LOG_ERROR     VMW_LOG_BASE + 01
-#define VMW_LOG_WARNING   VMW_LOG_BASE + 02  // <= goes to stderr by default
-#define VMW_LOG_INFO      VMW_LOG_BASE + 03  // <= goes to log by default
-#define VMW_LOG_VERBOSE   VMW_LOG_BASE + 04
-#define VMW_LOG_TRIVIA    VMW_LOG_BASE + 05
-#define VMW_LOG_DEBUG_00  VMW_LOG_BASE + 06  // noisiest level of debugging
-#define VMW_LOG_DEBUG_01  VMW_LOG_BASE + 07
-#define VMW_LOG_DEBUG_02  VMW_LOG_BASE + 08
-#define VMW_LOG_DEBUG_03  VMW_LOG_BASE + 09
-#define VMW_LOG_DEBUG_04  VMW_LOG_BASE + 10
-#define VMW_LOG_DEBUG_05  VMW_LOG_BASE + 11
-#define VMW_LOG_DEBUG_06  VMW_LOG_BASE + 12
-#define VMW_LOG_DEBUG_07  VMW_LOG_BASE + 13
-#define VMW_LOG_DEBUG_08  VMW_LOG_BASE + 14
-#define VMW_LOG_DEBUG_09  VMW_LOG_BASE + 15
-#define VMW_LOG_DEBUG_10  VMW_LOG_BASE + 16  // lowest priority; least noisy
+#define VMW_LOG_PANIC     VMW_LOG_BASE     +  0  // highest priority
+#define VMW_LOG_ERROR     VMW_LOG_BASE     +  5
+#define VMW_LOG_WARNING   VMW_LOG_BASE     + 10  // <= goes to stderr by default
+#define VMW_LOG_AUDIT     VMW_LOG_BASE     + 15  // *ALWAYS* output to the log
+#define VMW_LOG_INFO      VMW_LOG_BASE     + 20  // <= goes to log by default
+#define VMW_LOG_VERBOSE   VMW_LOG_BASE     + 25
+#define VMW_LOG_TRIVIA    VMW_LOG_BASE     + 30 
+#define VMW_LOG_DEBUG_00  VMW_LOG_BASE     + 35  // noisiest level of debugging
+#define VMW_LOG_DEBUG_01  VMW_LOG_DEBUG_00 +  1
+#define VMW_LOG_DEBUG_02  VMW_LOG_DEBUG_00 +  2
+#define VMW_LOG_DEBUG_03  VMW_LOG_DEBUG_00 +  3
+#define VMW_LOG_DEBUG_04  VMW_LOG_DEBUG_00 +  4
+#define VMW_LOG_DEBUG_05  VMW_LOG_DEBUG_00 +  5
+#define VMW_LOG_DEBUG_06  VMW_LOG_DEBUG_00 +  6
+#define VMW_LOG_DEBUG_07  VMW_LOG_DEBUG_00 +  7
+#define VMW_LOG_DEBUG_08  VMW_LOG_DEBUG_00 +  8
+#define VMW_LOG_DEBUG_09  VMW_LOG_DEBUG_00 +  9
+#define VMW_LOG_DEBUG_10  VMW_LOG_DEBUG_00 + 10  // lowest priority; least noisy
+
+void
+LogVNoRoute(int rawLevel,
+            const char *fmt,
+            va_list args);
+
 
 void LogV(int level,
           const char *fmt,
@@ -101,6 +108,18 @@ Log_Panic(const char *fmt,
 
 
 static INLINE void PRINTF_DECL(1, 2)
+Log_Audit(const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_AUDIT, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void PRINTF_DECL(1, 2)
 Log_Error(const char *fmt,
           ...)
 {
@@ -136,6 +155,10 @@ Log_Trivia(const char *fmt,
 }
 
 #if !defined(VMM)
+
+/* Forward decl */
+struct MsgList;
+
 typedef void (LogBasicFunc)(const char *fmt,
                             va_list args);
 
@@ -161,8 +184,10 @@ typedef struct
    Bool           useThreadName;        // Thread name on log line
    Bool           useTimeStamp;         // Use a log line time stamp
    Bool           useMilliseconds;      // Show milliseconds in time stamp
+   Bool           useLevelDesignator;   // Show level designator
    Bool           fastRotation;         // ESX log rotation optimization
    Bool           preventRemove;        // prevent Log_RemoveFile(FALSE)
+   Bool           syncAfterWrite;       // Sync after a write. Expensive!
 
    int32          stderrMinLevel;       // This level and above to stderr
    int32          logMinLevel;          // This level and above to log
@@ -210,7 +235,7 @@ Bool Log_RemoveFile(Bool alwaysRemove);
 void Log_DisableThrottling(void);
 void Log_EnableStderrWarnings(Bool stderrOutput);
 void Log_BackupOldFiles(const char *fileName, Bool noRename);
-Bool Log_CopyFile(const char *fileName);
+Bool Log_CopyFile(const char *fileName, struct MsgList **errs);
 uint32 Log_MaxLineLength(void);
 
 void Log_RegisterBasicFunctions(LogBasicFunc *log,
@@ -220,7 +245,8 @@ Bool Log_SetOutput(const char *fileName,
                    const char *config,
                    Bool copy,
                    uint32 systemLoggerUse,
-                   char *systemLoggerID);
+                   char *systemLoggerID,
+                   struct MsgList **errs);
 
 size_t Log_MakeTimeString(Bool millisec,
                           char *buf,

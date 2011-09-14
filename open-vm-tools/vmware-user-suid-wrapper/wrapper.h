@@ -33,11 +33,6 @@
 #include "vm_basic_types.h"
 #include "vmblock.h"
 
-#define TMP_DIR                 "/tmp/VMwareDnD"
-#define TMP_DIR_MODE            (S_ISVTX | S_IRWXU | S_IRWXO | S_IRWXG)
-#define MOUNT_POINT_MODE        (S_IRWXU | S_IRWXO | S_IRWXG)
-#define MODULE_NAME             VMBLOCK_FS_NAME
-
 #define progname                "vmware-user"
 #define Error(fmt, args...)     fprintf(stderr, "%s: " fmt, progname, ##args);
 
@@ -72,17 +67,6 @@ typedef enum {
 /*
  * Global functions
  */
-
-#if defined(sun) || defined(__FreeBSD__)
-#define TOGGLE_VMBLOCK
-extern int GetModuleId(const char *);
-extern Bool UnloadModule(int);
-
-extern Bool UnloadVMBlock(void);
-extern Bool LoadVMBlock(void);
-extern Bool UnmountVMBlock(const char *);
-extern Bool MountVMBlock(void);
-#endif
 
 extern Bool CompatExec(const char *, char * const [], char * const []);
 extern Bool BuildExecPath(char *, size_t);

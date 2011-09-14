@@ -105,8 +105,8 @@ static HgfsCapability hgfsDefaultCapabilityTable[] =
    {HGFS_OP_SET_WATCH_V4,          HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_REMOVE_WATCH_V4,       HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_NOTIFY_V4,             HGFS_REQUEST_NOT_SUPPORTED},
+   {HGFS_OP_SEARCH_READ_V4,        HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_OPEN_V4,               HGFS_REQUEST_NOT_SUPPORTED},
-   {HGFS_OP_DIRECTORY_READ_V4,     HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_ENUMERATE_STREAMS_V4,  HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_GETATTR_V4,            HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_SETATTR_V4,            HGFS_REQUEST_NOT_SUPPORTED},
@@ -2592,9 +2592,9 @@ HgfsPackGetattrReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsPackSearchReadReplyPayloadV3 --
+ * HgfsPackSearchReadReplyHeaderV4 --
  *
- *    Packs SearchRead V3 reply payload.
+ *    Packs SearchRead V4 reply header part for all entry records returned.
  *
  * Results:
  *    None.
@@ -2605,28 +2605,99 @@ HgfsPackGetattrReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-void
-HgfsPackSearchReadReplyPayloadV3(HgfsFileAttrInfo *attr,       // IN: attr stucture
-                                 const char *utf8Name,         // IN: file name
-                                 uint32 utf8NameLen,           // IN: file name length
-                                 HgfsReplySearchReadV3 *reply) // OUT: payload
+static void
+HgfsPackSearchReadReplyHeaderV4(HgfsSearchReadInfo *info,     // IN: reply info
+                                HgfsReplySearchReadV4 *reply, // OUT: payload
+                                size_t *headerSize)           // OUT: size written
 {
-   HgfsDirEntry *dirent = (HgfsDirEntry *)reply->payload;
-
-   reply->count = 1;
+   reply->numberEntriesReturned = info->numberRecordsWritten;
+   reply->offsetToContinue = info->currentIndex;
+   reply->flags = info->replyFlags;
    reply->reserved = 0;
 
-   dirent->fileName.length = (uint32)utf8NameLen;
-   dirent->fileName.flags = 0;
-   dirent->fileName.fid = 0;
-   dirent->fileName.caseType = HGFS_FILE_NAME_DEFAULT_CASE;
-   dirent->nextEntry = 0;
+   *headerSize = offsetof(HgfsReplySearchReadV4, entries);
+}
 
-   if (utf8NameLen != 0) {
-      memcpy(dirent->fileName.name, utf8Name, utf8NameLen);
-      dirent->fileName.name[utf8NameLen] = 0;
 
-      HgfsPackAttrV2(attr, &dirent->attr);
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackSearchReadReplyRecordV4 --
+ *
+ *    Packs SearchRead V4 reply record.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsPackSearchReadReplyRecordV4(HgfsSearchReadEntry *entry,        // IN: entry info
+                                HgfsDirEntryV4 *replylastEntry,    // IN/OUT: payload
+                                HgfsDirEntryV4 *replyCurrentEntry) // OUT: reply buffer for dirent
+{
+   HgfsFileAttrInfo *attr = &entry->attr;
+
+   memset(replyCurrentEntry, 0, sizeof *replyCurrentEntry);
+
+   if (NULL != replylastEntry) {
+      replylastEntry->nextEntryOffset = ((char*)replyCurrentEntry -
+                                         (char*)replylastEntry);
+   }
+
+   /* Set the valid data mask for the entry. */
+   replyCurrentEntry->mask = entry->mask;
+
+   if (0 != (entry->mask & HGFS_SEARCH_READ_NAME)) {
+
+      replyCurrentEntry->nextEntryOffset = 0;
+      replyCurrentEntry->fileIndex = entry->fileIndex;
+
+      if (0 != (replyCurrentEntry->mask & HGFS_SEARCH_READ_FILE_NODE_TYPE)) {
+         replyCurrentEntry->fileType = attr->type;
+      }
+      if (0 != (entry->mask & HGFS_SEARCH_READ_FILE_SIZE)) {
+         replyCurrentEntry->fileSize = attr->size;
+      }
+      if (0 != (entry->mask & HGFS_SEARCH_READ_ALLOCATION_SIZE)) {
+         replyCurrentEntry->allocationSize = attr->allocationSize;
+      }
+      if (0 != (entry->mask & HGFS_SEARCH_READ_TIME_STAMP)) {
+         replyCurrentEntry->creationTime = attr->creationTime;
+         replyCurrentEntry->accessTime = attr->accessTime;
+         replyCurrentEntry->writeTime = attr->writeTime;
+         replyCurrentEntry->attrChangeTime = attr->attrChangeTime;
+      }
+      if (0 != (entry->mask & HGFS_SEARCH_READ_FILE_ATTRIBUTES)) {
+         replyCurrentEntry->attrFlags = attr->flags;
+      }
+      if (0 != (entry->mask & HGFS_SEARCH_READ_FILE_ID)) {
+         replyCurrentEntry->hostFileId = attr->hostFileId;
+      }
+      if (0 != (entry->mask & HGFS_SEARCH_READ_EA_SIZE)) {
+         replyCurrentEntry->eaSize = attr->eaSize;
+      }
+      if (0 != (entry->mask & HGFS_SEARCH_READ_REPARSE_TAG)) {
+         replyCurrentEntry->reparseTag = attr->reparseTag;
+      }
+
+      if (0 != (entry->mask & HGFS_SEARCH_READ_SHORT_NAME)) {
+         ASSERT(attr->shortName.length > 0);
+         memcpy(replyCurrentEntry->shortName.name,
+                attr->shortName.name,
+                attr->shortName.length);
+         replyCurrentEntry->shortName.length = attr->shortName.length;
+      }
+
+      memcpy(replyCurrentEntry->fileName.name, entry->name, entry->nameLength);
+      replyCurrentEntry->fileName.name[entry->nameLength] = 0;
+      replyCurrentEntry->fileName.length = entry->nameLength;
+
+      replyCurrentEntry->reserved = 0;
    }
 }
 
@@ -2634,9 +2705,9 @@ HgfsPackSearchReadReplyPayloadV3(HgfsFileAttrInfo *attr,       // IN: attr stuct
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsPackSearchReadReplyPayloadV2 --
+ * HgfsPackSearchReadReplyHeaderV3 --
  *
- *    Packs SearchRead V2 reply payload.
+ *    Packs SearchRead V3 reply record.
  *
  * Results:
  *    None.
@@ -2647,11 +2718,108 @@ HgfsPackSearchReadReplyPayloadV3(HgfsFileAttrInfo *attr,       // IN: attr stuct
  *-----------------------------------------------------------------------------
  */
 
-void
-HgfsPackSearchReadReplyPayloadV2(HgfsFileAttrInfo *attr,       // IN: attr stucture
-                                 const char *utf8Name,         // IN: file name
-                                 uint32 utf8NameLen,           // IN: file name length
-                                 HgfsReplySearchReadV2 *reply) // OUT: payload
+static void
+HgfsPackSearchReadReplyHeaderV3(HgfsSearchReadInfo *info,     // IN: reply info
+                                HgfsReplySearchReadV3 *reply, // OUT: payload
+                                size_t *headerSize)           // OUT: size written
+{
+   ASSERT(info->numberRecordsWritten <= 1 &&
+          0 != (info->flags & HGFS_SEARCH_READ_SINGLE_ENTRY));
+   reply->count = info->numberRecordsWritten;
+   reply->reserved = 0;
+   /*
+    * Previous shipping tools expect to account for a whole reply,
+    * which is not strictly correct, but we are stuck with it.
+    */
+   *headerSize = sizeof *reply;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackSearchReadReplyRecordV3 --
+ *
+ *    Packs SearchRead V3 reply record.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsPackSearchReadReplyRecordV3(HgfsFileAttrInfo *attr,       // IN: attr stucture
+                                const char *utf8Name,         // IN: file name
+                                uint32 utf8NameLen,           // IN: file name length
+                                HgfsDirEntry *replyDirent)    // OUT: reply buffer for dirent
+{
+   replyDirent->fileName.length = (uint32)utf8NameLen;
+   replyDirent->fileName.flags = 0;
+   replyDirent->fileName.fid = 0;
+   replyDirent->fileName.caseType = HGFS_FILE_NAME_DEFAULT_CASE;
+   replyDirent->nextEntry = 0;
+
+   if (utf8NameLen != 0) {
+      memcpy(replyDirent->fileName.name, utf8Name, utf8NameLen);
+      replyDirent->fileName.name[utf8NameLen] = 0;
+
+      HgfsPackAttrV2(attr, &replyDirent->attr);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackSearchReadReplyHeaderV2 --
+ *
+ *    Packs SearchRead V2 reply header (common) part for all records.
+ *    V2 replies only contain a single record, so there is nothing to do here.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsPackSearchReadReplyHeaderV2(HgfsSearchReadInfo *info,     // IN: unused
+                                HgfsReplySearchReadV2 *reply, // OUT: unused
+                                size_t *headerSize)           // OUT: size written
+{
+   /* The header has already been accounted for. */
+   *headerSize = sizeof *reply;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackSearchReadReplyRecordV2 --
+ *
+ *    Packs SearchRead V2 reply record.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsPackSearchReadReplyRecordV2(HgfsFileAttrInfo *attr,       // IN: attr stucture
+                                const char *utf8Name,         // IN: file name
+                                uint32 utf8NameLen,           // IN: file name length
+                                HgfsReplySearchReadV2 *reply) // OUT: reply buffer
 {
    reply->fileName.length = (uint32)utf8NameLen;
 
@@ -2666,9 +2834,10 @@ HgfsPackSearchReadReplyPayloadV2(HgfsFileAttrInfo *attr,       // IN: attr stuct
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsPackSearchReadReplyPayloadV1 --
+ * HgfsPackSearchReadReplyHeaderV1 --
  *
- *    Packs SearchRead V1 reply payload.
+ *    Packs SearchRead V1 reply header (common) part for all records.
+ *    V1 replies only contain a single record, so there is nothing to do here.
  *
  * Results:
  *    None.
@@ -2679,11 +2848,37 @@ HgfsPackSearchReadReplyPayloadV2(HgfsFileAttrInfo *attr,       // IN: attr stuct
  *-----------------------------------------------------------------------------
  */
 
-void
-HgfsPackSearchReadReplyPayloadV1(HgfsFileAttrInfo *attr,     // IN: attr stucture
-                                 const char *utf8Name,       // IN: file name
-                                 uint32 utf8NameLen,         // IN: file name length
-                                 HgfsReplySearchRead *reply) // OUT: payload
+static void
+HgfsPackSearchReadReplyHeaderV1(HgfsSearchReadInfo *info,   // IN: unused
+                                HgfsReplySearchRead *reply, // OUT: unused
+                                size_t *headerSize)         // OUT: size written
+{
+   /* The header has already been accounted for. */
+   *headerSize = sizeof *reply;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackSearchReadReplyRecordV1 --
+ *
+ *    Packs SearchRead V1 reply record.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsPackSearchReadReplyRecordV1(HgfsFileAttrInfo *attr,     // IN: attr stucture
+                                const char *utf8Name,       // IN: file name
+                                uint32 utf8NameLen,         // IN: file name length
+                                HgfsReplySearchRead *reply) // OUT: reply buffer
 {
    reply->fileName.length = (uint32)utf8NameLen;
 
@@ -2734,48 +2929,256 @@ Bool
 HgfsUnpackSearchReadRequest(const void *packet,           // IN: request packet
                             size_t packetSize,            // IN: packet size
                             HgfsOp op,                    // IN: reqest type
-                            HgfsFileAttrInfo *attr,       // OUT: unpacked attr struct
-                            HgfsHandle *hgfsSearchHandle, // OUT: hgfs search handle
-                            uint32 *offset)               // OUT: entry offset
+                            HgfsSearchReadInfo *info,     // OUT: search info
+                            size_t *baseReplySize,        // OUT: op base reply size
+                            size_t *inlineReplyDataSize,  // OUT: size of inline reply data
+                            HgfsHandle *hgfsSearchHandle) // OUT: hgfs search handle
 {
+   Bool result = TRUE;
+   uint32 *startIndex;
+   HgfsSearchReadMask *mask;
+   HgfsSearchReadFlags *flags;
+   size_t *replyPayloadSize;
+
    ASSERT(packet);
-   ASSERT(attr);
+   ASSERT(info);
+   ASSERT(baseReplySize);
+   ASSERT(inlineReplyDataSize);
    ASSERT(hgfsSearchHandle);
-   ASSERT(offset);
 
-   HgfsInitFileAttr(op, attr);
+   info->requestType = op;
+   info->searchPattern = NULL;
+   startIndex = &info->startIndex;
+   replyPayloadSize = &info->payloadSize;
+   mask = &info->requestedMask;
+   flags = &info->flags;
+   *mask = 0;
+   *flags = 0;
 
+   switch (op) {
+   case HGFS_OP_SEARCH_READ_V4: {
+      HgfsRequestSearchReadV4 *request = (HgfsRequestSearchReadV4 *)packet;
 
-   if (op == HGFS_OP_SEARCH_READ_V3) {
+      /* Enforced by the dispatch function. */
+      ASSERT(packetSize >= sizeof *request);
+
+      if (0 != (request->flags & HGFS_SEARCH_READ_FID_OPEN_V4)) {
+         /*
+          * XXX - When this is implemented, the handle will get us a node,
+          * (of directory type) and then with the node, we can look up a
+          * search handle, if the data is cached in the search array.
+          */
+         NOT_IMPLEMENTED();
+      }
+
+      *hgfsSearchHandle = request->fid;
+      *startIndex = request->restartIndex;
+      *mask = request->mask;
+      *flags = request->flags;
+      *baseReplySize = offsetof(HgfsReplySearchReadV4, entries);
+      *replyPayloadSize = request->replyDirEntryMaxSize;
+      *inlineReplyDataSize = 0;
+      ASSERT(*replyPayloadSize > 0);
+
+      LOG(4, ("%s: HGFS_OP_SEARCH_READ_V4\n", __FUNCTION__));
+      break;
+   }
+
+   case HGFS_OP_SEARCH_READ_V3: {
       HgfsRequestSearchReadV3 *request = (HgfsRequestSearchReadV3 *)packet;
 
       /* Enforced by the dispatch function. */
       ASSERT(packetSize >= sizeof *request);
 
       *hgfsSearchHandle = request->search;
-      *offset = request->offset;
+      *startIndex = request->offset;
+      *flags = HGFS_SEARCH_READ_SINGLE_ENTRY;
+      *mask = (HGFS_SEARCH_READ_FILE_NODE_TYPE |
+               HGFS_SEARCH_READ_NAME |
+               HGFS_SEARCH_READ_FILE_SIZE |
+               HGFS_SEARCH_READ_TIME_STAMP |
+               HGFS_SEARCH_READ_FILE_ATTRIBUTES |
+               HGFS_SEARCH_READ_FILE_ID);
+      *baseReplySize = offsetof(HgfsReplySearchReadV3, payload);
+      *replyPayloadSize = HGFS_PACKET_MAX - *baseReplySize;
+      *inlineReplyDataSize = *replyPayloadSize;
 
       LOG(4, ("%s: HGFS_OP_SEARCH_READ_V3\n", __FUNCTION__));
-   } else {
+      break;
+   }
+
+   case HGFS_OP_SEARCH_READ_V2:
+   /*
+    * Currently, the HgfsRequestSearchReadV2 is the same as
+    * HgfsRequestSearchRead, so drop through.
+    */
+   case HGFS_OP_SEARCH_READ: {
       HgfsRequestSearchRead *request = (HgfsRequestSearchRead *)packet;
 
       /* Enforced by the dispatch function. */
       ASSERT(packetSize >= sizeof *request);
 
       *hgfsSearchHandle = request->search;
-      *offset = request->offset;
+      *startIndex = request->offset;
+      *flags = HGFS_SEARCH_READ_SINGLE_ENTRY;
+      *mask = (HGFS_SEARCH_READ_FILE_NODE_TYPE |
+               HGFS_SEARCH_READ_NAME |
+               HGFS_SEARCH_READ_FILE_SIZE |
+               HGFS_SEARCH_READ_TIME_STAMP |
+               HGFS_SEARCH_READ_FILE_ATTRIBUTES);
+      *baseReplySize = 0;
+      *replyPayloadSize = HGFS_PACKET_MAX;
+      *inlineReplyDataSize = *replyPayloadSize;
+      break;
    }
 
-   return TRUE;
+   default:
+      /* Should never occur. */
+      NOT_REACHED();
+      result = FALSE;
+      Log("%s: ERROR Invalid OP %u\n", __FUNCTION__, op);
+      break;
+   }
+
+   ASSERT(result);
+   return result;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsPackSearchReadReply --
+ * HgfsPackSearchReadReplyRecord --
  *
- *    Pack hgfs search read reply to the HgfsReplySearchRead{V2} structure.
+ *    Pack hgfs search read reply record to the current entry record.
+ *    If the last record is not NULL then update its offset to the current
+ *    entry field.
+ *
+ * Results:
+ *    TRUE on success and number of bytes written in replyRecordSize.
+ *    FALSE on failure, nothing written.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsPackSearchReadReplyRecord(HgfsOp requestType,           // IN: search read request
+                              HgfsSearchReadEntry *entry,   // IN: entry info
+                              size_t bytesRemaining,        // IN: space in bytes for record
+                              void *lastSearchReadRecord,   // IN/OUT: last packed entry
+                              void *currentSearchReadRecord,// OUT: currrent entry to pack
+                              size_t *replyRecordSize)      // OUT: size of packet
+{
+   Bool result = TRUE;
+   size_t recordSize = 0;
+
+   switch (requestType) {
+   case HGFS_OP_SEARCH_READ_V4: {
+      HgfsDirEntryV4 *replyCurrentEntry = currentSearchReadRecord;
+      HgfsDirEntryV4 *replyLastEntry = lastSearchReadRecord;
+
+      /* Skip the final empty record, it is not needed for V4.*/
+      if (0 == entry->nameLength) {
+         break;
+      }
+
+      recordSize = offsetof(HgfsDirEntryV4, fileName.name) +
+                   entry->nameLength + 1;
+
+      if (recordSize > bytesRemaining) {
+         result = FALSE;
+         break;
+      }
+
+      HgfsPackSearchReadReplyRecordV4(entry,
+                                      replyLastEntry,
+                                      replyCurrentEntry);
+      break;
+   }
+
+   case HGFS_OP_SEARCH_READ_V3: {
+      HgfsDirEntry *replyCurrentEntry = currentSearchReadRecord;
+
+      /*
+       * Previous shipping tools expect to account for a whole reply,
+       * which is not strictly correct, it should be using
+       * offsetof(HgfsDirEntry, fileName.name) + entry->nameLength + 1
+       * but we are stuck with it.
+       */
+      recordSize = sizeof *replyCurrentEntry + entry->nameLength;
+
+      if (recordSize > bytesRemaining) {
+         result = FALSE;
+         break;
+      }
+
+      HgfsPackSearchReadReplyRecordV3(&entry->attr,
+                                      entry->name,
+                                      entry->nameLength,
+                                      replyCurrentEntry);
+      break;
+   }
+
+   case HGFS_OP_SEARCH_READ_V2: {
+      HgfsReplySearchReadV2 *replyV2 = currentSearchReadRecord;
+
+      /* We have already accounted for the fixed part of the record. */
+      recordSize = entry->nameLength;
+
+      if (recordSize > bytesRemaining) {
+         result = FALSE;
+         break;
+      }
+
+      HgfsPackSearchReadReplyRecordV2(&entry->attr,
+                                      entry->name,
+                                      entry->nameLength,
+                                      replyV2);
+      break;
+   }
+
+   case HGFS_OP_SEARCH_READ: {
+      HgfsReplySearchRead *replyV1 = currentSearchReadRecord;
+
+      /* We have already accounted for the fixed part of the record. */
+      recordSize = entry->nameLength;
+
+      if (recordSize > bytesRemaining) {
+         result = FALSE;
+         break;
+      }
+
+      HgfsPackSearchReadReplyRecordV1(&entry->attr,
+                                      entry->name,
+                                      entry->nameLength,
+                                      replyV1);
+      break;
+   }
+
+   default: {
+      Log("%s: Invalid SearchRead Op.", __FUNCTION__);
+      NOT_REACHED();
+      result = FALSE;
+   }
+   }
+
+   if (result) {
+      *replyRecordSize = recordSize;
+   }
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackSearchReadReplyHeader --
+ *
+ *    Pack hgfs search read reply header (common) part to all the
+ *    entries returned in the search read reply.
  *
  * Results:
  *    TRUE on success.
@@ -2788,53 +3191,39 @@ HgfsUnpackSearchReadRequest(const void *packet,           // IN: request packet
  */
 
 Bool
-HgfsPackSearchReadReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                        char const *packetHeader,  // IN: packet header
-                        const char *utf8Name,      // IN: file name
-                        size_t utf8NameLen,        // IN: file name length
-                        HgfsFileAttrInfo *attr,    // IN: file attr struct
-                        size_t *payloadSize,       // OUT: size of packet
-                        HgfsSessionInfo *session)  // IN: Session info
+HgfsPackSearchReadReplyHeader(HgfsSearchReadInfo *info,    // IN: request info
+                              size_t *payloadSize)         // OUT: size of packet
 {
-   Bool result;
+   Bool result = TRUE;
 
-   switch (attr->requestType) {
+   *payloadSize = 0;
+
+   switch (info->requestType) {
+   case HGFS_OP_SEARCH_READ_V4: {
+      HgfsReplySearchReadV4 *reply = info->reply;
+
+      HgfsPackSearchReadReplyHeaderV4(info, reply, payloadSize);
+      break;
+   }
+
    case HGFS_OP_SEARCH_READ_V3: {
-      HgfsReplySearchReadV3 *reply;
-      *payloadSize = sizeof *reply + utf8NameLen + sizeof(HgfsDirEntry);
+      HgfsReplySearchReadV3 *reply = info->reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, *payloadSize,
-                                  (void **)&reply, session);
-      if (result) {
-         HgfsPackSearchReadReplyPayloadV3(attr, utf8Name, utf8NameLen, reply);
-      }
+      HgfsPackSearchReadReplyHeaderV3(info, reply, payloadSize);
       break;
    }
 
    case HGFS_OP_SEARCH_READ_V2: {
-      HgfsReplySearchReadV2 *reply;
-      *payloadSize = sizeof *reply + utf8NameLen;
+      HgfsReplySearchReadV2 *reply = info->reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, *payloadSize,
-                                  (void **)&reply, session);
-      if (result) {
-         HgfsPackSearchReadReplyPayloadV2(attr,
-                                          utf8Name,
-                                          utf8NameLen,
-                                        reply);
-      }
+      HgfsPackSearchReadReplyHeaderV2(info, reply, payloadSize);
       break;
    }
 
    case HGFS_OP_SEARCH_READ: {
-      HgfsReplySearchRead *reply;
-      *payloadSize = sizeof *reply + utf8NameLen;
+      HgfsReplySearchRead *reply = info->reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, *payloadSize,
-                                  (void **)&reply, session);
-      if (result) {
-         HgfsPackSearchReadReplyPayloadV1(attr, utf8Name, utf8NameLen, reply);
-      }
+      HgfsPackSearchReadReplyHeaderV1(info, reply, payloadSize);
       break;
    }
 

@@ -158,7 +158,8 @@ Max(int a, int b)
  * argument. The range 0..31 is safe.
  */
 
-#define MASK(n)			((1 << (n)) - 1)	/* make an n-bit mask */
+#define MASK(n)		((1 << (n)) - 1)	    /* make an n-bit mask */
+#define MASK64(n)	((CONST64U(1) << (n)) - 1)  /* make an n-bit mask */
 
 #define DWORD_ALIGN(x)          ((((x) + 3) >> 2) << 2)
 #define QWORD_ALIGN(x)          ((((x) + 7) >> 3) << 3)

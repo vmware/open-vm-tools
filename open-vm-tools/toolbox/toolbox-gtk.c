@@ -161,14 +161,7 @@ static void ShowUsage(char const *prog);
 static void
 ToolsMainCleanupRpc(void)
 {
-   if (gRpcInCtlPanel) {
-      if (!RpcIn_stop(gRpcInCtlPanel)) {
-         Debug("Failed to stop RpcIn loop\n");
-      }
-
-      RpcIn_Destruct(gRpcInCtlPanel);
-      gRpcInCtlPanel = NULL;
-   }
+   RpcIn_stop(gRpcInCtlPanel);
 
    /* Remove timeout so event queue isn't pumped after being destroyed. */
    gtk_timeout_remove(gTimeoutId);
@@ -1216,6 +1209,8 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
     * signal is received.
     */
    gtk_main();
+
+   RpcIn_Destruct(gRpcInCtlPanel);
 
    Signal_ResetGroupHandler(gSignals, olds, ARRAYSIZE(gSignals));
    System_FreeNativeEnviron(gNativeEnviron);

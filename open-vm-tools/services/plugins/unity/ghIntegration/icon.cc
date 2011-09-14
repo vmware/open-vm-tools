@@ -23,16 +23,26 @@
  */
 
 
+#include <math.h>
+
 #include <gtk/gtk.h>
 #include <glib.h>
-
 #include <gio/gdesktopappinfo.h>
 
 extern "C" {
 #include "vmware.h"
+#include "guest_msg_def.h"
 }
 
 #include "ghiX11icon.h"
+
+
+/*
+ * GHI/X11 still pumps icons over GuestMsg, which limits us to 64K.  Until we
+ * switch transports, we'll have to scale down icons to fit within limits.
+ */
+
+static const size_t MAX_ICON_SIZE = GUESTMSG_MAX_IN_SIZE - 1024;
 
 
 /*
@@ -42,11 +52,13 @@ extern "C" {
 static void  AppendFileToArray(const gchar* iconPath,
                                std::list<GHIBinaryIconInfo>& iconList);
 static void  AppendPixbufToArray(const GdkPixbuf* pixbuf,
-                                 std::list<GHIBinaryIconInfo>& iconList);
+                                 std::list<GHIBinaryIconInfo>& iconList,
+                                 bool scaleHint = false);
 static gint* GetIconSizesDescending(GtkIconTheme *iconTheme,
                                     const gchar* iconName);
 static Bool  GetIconsForGIcon(GIcon* gicon,
                               std::list<GHIBinaryIconInfo>& iconList);
+static GdkPixbuf* ShrinkPixbuf(const GdkPixbuf* pixbuf, size_t maxSize);
 
 
 /*
@@ -255,7 +267,7 @@ AppendFileToArray(const gchar* iconPath,                  // IN
    GdkPixbuf* pixbuf;
 
    if ((pixbuf = gdk_pixbuf_new_from_file(iconPath, NULL)) != NULL) {
-      AppendPixbufToArray(pixbuf, iconList);
+      AppendPixbufToArray(pixbuf, iconList, true);
       g_object_unref(pixbuf);
    }
 }
@@ -278,8 +290,10 @@ AppendFileToArray(const gchar* iconPath,                  // IN
  */
 
 static void
-AppendPixbufToArray(const GdkPixbuf* pixbuf,                // IN
-                    std::list<GHIBinaryIconInfo>& iconList) // OUT
+AppendPixbufToArray(
+   const GdkPixbuf* pixbuf,                // IN
+   std::list<GHIBinaryIconInfo>& iconList, // OUT
+   bool scaleHint)                         // IN: Scale icon to fit GuestMsg
 {
    GHIBinaryIconInfo ghiIcon;
    guchar* pixels;
@@ -289,7 +303,10 @@ AppendPixbufToArray(const GdkPixbuf* pixbuf,                // IN
    guint rowstride;
    guint n_channels;
    guint bgraStride;
+   bool scaled = false;
+   GdkPixbuf *scaledPixbuf = NULL;
 
+rescaled:
    ASSERT(pixbuf);
    ASSERT(gdk_pixbuf_get_colorspace(pixbuf) == GDK_COLORSPACE_RGB);
    ASSERT(gdk_pixbuf_get_bits_per_sample(pixbuf) == 8);
@@ -302,6 +319,14 @@ AppendPixbufToArray(const GdkPixbuf* pixbuf,                // IN
    ghiIcon.height = height = gdk_pixbuf_get_height(pixbuf);
    bgraStride = width * 4;
    ghiIcon.dataBGRA.resize(height * bgraStride);
+
+   if (   !scaled
+       && scaleHint
+       && height * bgraStride > MAX_ICON_SIZE) {
+      scaled = true;
+      pixbuf = scaledPixbuf = ShrinkPixbuf(pixbuf, MAX_ICON_SIZE);
+      goto rescaled;
+   }
 
    /* GetBinaryInfo icons are bottom-to-top. */
    for (y = 0; y < height; y++) {
@@ -322,6 +347,10 @@ AppendPixbufToArray(const GdkPixbuf* pixbuf,                // IN
    }
 
    iconList.push_back(ghiIcon);
+
+   if (scaledPixbuf) {
+      g_object_unref(G_OBJECT(scaledPixbuf));
+   }
 }
 
 
@@ -386,4 +415,50 @@ GetIconSizesDescending(GtkIconTheme* iconTheme, // IN
    qsort(iconSizes, nsizes, sizeof *iter, DescendingIntCmp);
 
    return iconSizes;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ShrinkPixbuf --
+ *
+ *      Scale a pixbuf to fit within transport size constraints.
+ *
+ * Results:
+ *      Pointer to new pixbuf.  Caller should free with g_object_unref.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+GdkPixbuf*
+ShrinkPixbuf(const GdkPixbuf* pixbuf, // IN
+             size_t maxSize)          // IN: Must scale to less than this.
+{
+   GdkPixbuf *newIcon;
+   volatile double newWidth;
+   volatile double newHeight;
+   volatile double scaleFactor;
+
+   newWidth = gdk_pixbuf_get_width(pixbuf);
+   newHeight = gdk_pixbuf_get_height(pixbuf);
+   scaleFactor = maxSize / (newWidth * newHeight * 4.0);
+   /*
+    * Ensures that we remove at least a little bit of data from the icon.
+    * Otherwise we can get things like scalefactors of '0.999385' which result
+    * in an image of exactly the same size. A scaleFactor of 0.95 will remove at
+    * least one row or column from any icon large enough to go past the limit.
+    */
+   scaleFactor = MIN(scaleFactor, 0.95);
+
+   newWidth *= scaleFactor;
+   newHeight *= scaleFactor;
+   newIcon = gdk_pixbuf_scale_simple(pixbuf,
+                                     (int)ceil(newWidth),
+                                     (int)ceil(newHeight),
+                                     GDK_INTERP_HYPER);
+   return newIcon;
 }

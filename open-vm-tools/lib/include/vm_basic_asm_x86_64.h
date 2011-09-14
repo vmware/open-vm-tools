@@ -72,6 +72,25 @@ uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
 #endif // _MSC_VER
 
 /*
+ * GET_CURRENT_RIP
+ *
+ * Return an approximation of the current instruction pointer. For example for a
+ * function call
+ * foo.c
+ * L123: Foo(GET_CURRENT_RIP())
+ *
+ * The return value from GET_CURRENT_RIP will point a debugger to L123.
+ */
+#if defined(__GNUC__)
+#define GET_CURRENT_RIP() ({                                                   \
+      void *__rip;                                                             \
+      asm("lea 0(%%rip), %0;\n\t"                                              \
+         : "=r" (__rip));                                                      \
+      __rip;                                                                   \
+})
+#endif
+
+/*
  * FXSAVE/FXRSTOR
  *     save/restore SIMD/MMX fpu state
  *

@@ -91,7 +91,7 @@ Escape_DoString(const char *escStr,    // IN
                 int const *bytesToEsc, // IN
                 void const *bufIn,     // IN
                 size_t sizeIn,         // IN
-                size_t *sizeOut)       // OUT
+                size_t *sizeOut)       // OUT/OPT
 {
    char const *buf;
    DynBuf b;
@@ -180,7 +180,7 @@ Escape_Do(char escByte,          // IN
           int const *bytesToEsc, // IN
           void const *bufIn,     // IN
           size_t sizeIn,         // IN
-          size_t *sizeOut)       // OUT
+          size_t *sizeOut)       // OUT/OPT
 {
    const char escStr[] = { escByte, '\0' };
 
@@ -211,7 +211,7 @@ void *
 Escape_Undo(char escByte,      // IN
             void const *bufIn, // IN
             size_t sizeIn,     // IN
-            size_t *sizeOut)   // OUT
+            size_t *sizeOut)   // OUT/OPT
 {
    char const *buf;
    DynBuf b;
@@ -311,7 +311,7 @@ nem:
 void *
 Escape_AnsiToUnix(void const *bufIn, // IN
                   size_t sizeIn,     // IN
-                  size_t *sizeOut)   // OUT
+                  size_t *sizeOut)   // OUT/OPT
 {
    char const *buf;
    DynBuf b;
@@ -427,8 +427,8 @@ main(int argc,
  *
  * Escape_Sh --
  *
- *    Escape a buffer so that it is passed as one argument on a sh command
- *    line --hpreg
+ *    Escape a buffer so that it can be passed verbatim as part of an argument
+ *    on a shell command line.
  *
  * Results:
  *    The escaped, allocated, NUL terminated buffer on success. If not NULL,
@@ -445,7 +445,7 @@ main(int argc,
 void *
 Escape_Sh(void const *bufIn, // IN
           size_t sizeIn,     // IN
-          size_t *sizeOut)   // OUT
+          size_t *sizeOut)   // OUT/OPT
 {
    static const char be[] = { '\'', };
    static const char escSeq[] = { '\'', '"', '\'', '"', };
@@ -482,6 +482,104 @@ Escape_Sh(void const *bufIn, // IN
                      index - startUnescaped) == FALSE ||
        DynBuf_Append(&b, be, sizeof(be)) == FALSE ||
        /* NUL terminator --hpreg */
+       DynBuf_Append(&b, "", 1) == FALSE ||
+       DynBuf_Trim(&b) == FALSE) {
+      goto nem;
+   }
+
+   if (sizeOut) {
+      *sizeOut = DynBuf_GetSize(&b) - 1;
+   }
+
+   return DynBuf_Get(&b);
+
+nem:
+   DynBuf_Destroy(&b);
+
+   return NULL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Escape_BRE --
+ *
+ *    Escape a buffer so that it can be passed verbatim as part of a Basic
+ *    (a.k.a. obsolete) Regular Expression.
+ *
+ * Results:
+ *    The escaped, allocated, NUL terminated buffer on success. If not NULL,
+ *     '*sizeOut' contains the size of the buffer (excluding the NUL
+ *     terminator)
+ *    NULL on failure (not enough memory)
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void *
+Escape_BRE(void const *bufIn, // IN
+           size_t sizeIn,     // IN
+           size_t *sizeOut)   // OUT/OPT
+{
+   static const char escByte = '\\';
+   /* Escape ] [ ^ . * $ and 'escByte'. */
+   static const int bytesToEsc[] = {
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   };
+   char const *buf;
+   DynBuf b;
+   size_t startUnescaped;
+   size_t index;
+
+   /* Unsigned does matter. */
+   ASSERT(bytesToEsc[(unsigned char)escByte]);
+
+   buf = (char const *)bufIn;
+   ASSERT(buf);
+
+   DynBuf_Init(&b);
+   startUnescaped = 0;
+
+   for (index = 0; index < sizeIn; index++) {
+      /* Unsigned does matter. */
+      unsigned char ubyte;
+
+      ubyte = buf[index];
+      if (bytesToEsc[ubyte]) {
+         /* We must escape that byte. */
+
+         if (DynBuf_Append(&b, &buf[startUnescaped],
+                           index - startUnescaped) == FALSE ||
+             DynBuf_Append(&b, &escByte, sizeof escByte) == FALSE) {
+            goto nem;
+         }
+         startUnescaped = index;
+      }
+   }
+
+   if (/* Last unescaped chunk (if any). */
+       DynBuf_Append(&b, &buf[startUnescaped],
+                     index - startUnescaped) == FALSE ||
+       /* NUL terminator. */
        DynBuf_Append(&b, "", 1) == FALSE ||
        DynBuf_Trim(&b) == FALSE) {
       goto nem;

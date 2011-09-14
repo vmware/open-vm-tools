@@ -59,9 +59,7 @@ typedef enum {
    GHI_CAP_SET_HANDLER                  = 14, // supports setting the handler for types/protocols
    UNITY_CAP_STATUS_UNITY_ACTIVE        = 15, // supports GuestRpc bits for Unity Status
    GHI_CAP_SET_OUTLOOK_TEMP_FOLDER      = 16, // supports setting the Outlook temp folder
-   GHI_CAP_TRASH_FOLDER                 = 17, // supports ghi.guest.trashFolder.action,
-                                              // ghi.guest.trashFolder.state, and
-                                              // ghi.guest.trashFolder.getIcon commands
+   OBSOLETE_17                          = 17, // 17 is obsolete, do not use
    CAP_SET_TOPO_MODES                   = 18, // supports setting topology modes in video driver
    GHI_CAP_TRAY_ICONS                   = 19, // supports ghi.guest.trayIcon commands
    GHI_CAP_SET_FOCUSED_WINDOW           = 20, // supports ghi.guest.setFocusedWindow
@@ -72,6 +70,8 @@ typedef enum {
    GHI_CAP_AUTOLOGON                    = 25, // supports autologon
    CAP_DESKTOP_AUTOLOCK                 = 26, // supports desktop autolock
    CAP_UPDATE_AGENT                     = 27, // supports guest update agent
+   HGFSU_CAP_MIRROR_DOWNLOADS           = 28, // supports remapping GOS Downloads to HGFS
+   HGFSU_CAP_MIRROR_MOVIES              = 29, // supports remapping GOS Movies to HGFS
 } GuestCapabilities;
 
 typedef struct {
@@ -130,7 +130,7 @@ static GuestCapElem guestCapTable[] = {
    { GHI_CAP_SET_HANDLER,                  GHI_CAP_VMDB_PATH,   "setHandler" },
    { UNITY_CAP_STATUS_UNITY_ACTIVE,        UNITY_CAP_VMDB_PATH, "unityActive" },
    { GHI_CAP_SET_OUTLOOK_TEMP_FOLDER,      GHI_CAP_VMDB_PATH,   "setOutlookTempFolder" },
-   { GHI_CAP_TRASH_FOLDER,                 GHI_CAP_VMDB_PATH,   "trashFolder" },
+   { OBSOLETE_17,                          NULL,                NULL },
    { CAP_SET_TOPO_MODES,                   CAP_VMDB_PATH,       "displayTopologyModesSet" },
    { GHI_CAP_TRAY_ICONS,                   GHI_CAP_VMDB_PATH,   "trayIcons" },
    { GHI_CAP_SET_FOCUSED_WINDOW,           GHI_CAP_VMDB_PATH,   "setFocusedWindow"},
@@ -141,6 +141,8 @@ static GuestCapElem guestCapTable[] = {
    { GHI_CAP_AUTOLOGON,                    GHI_CAP_VMDB_PATH,   "autologon" },
    { CAP_DESKTOP_AUTOLOCK,                 CAP_VMDB_PATH,       "desktopAutolock" },
    { CAP_UPDATE_AGENT,                     CAP_VMDB_PATH,       "updateAgent"},
+   { HGFSU_CAP_MIRROR_DOWNLOADS,           HGFSU_CAP_VMDB_PATH, "mirrorDownloads" },
+   { HGFSU_CAP_MIRROR_MOVIES,              HGFSU_CAP_VMDB_PATH, "mirrorMovies" },
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING

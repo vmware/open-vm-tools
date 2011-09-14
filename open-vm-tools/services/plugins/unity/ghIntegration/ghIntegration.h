@@ -49,7 +49,6 @@ typedef Bool (*GHISendTrashFolderStateRPCFn)(Bool empty);
 
 typedef struct GHIHostCallbacks {
    GHILaunchMenuChangeRPCFn launchMenuChange;
-   GHISendTrashFolderStateRPCFn sendTrashFolderState;
 } GHIHostCallbacks;
 
 Bool GHI_IsSupported(void);

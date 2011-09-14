@@ -72,7 +72,7 @@ DnDRpcV4::Init(void)
 {
    ASSERT(mTransport);
    mTransport->RegisterRpc(this, mTransportInterface);
-   mUtil.SendPingMsg(DEFAULT_CONNECTION_ID, 0);
+   mUtil.SendPingMsg(DEFAULT_CONNECTION_ID, 0xffffffff);
 }
 
 
@@ -93,6 +93,7 @@ DnDRpcV4::SrcDragBeginDone(uint32 sessionId)
    params.addrId = DEFAULT_CONNECTION_ID;
    params.cmd = DND_CMD_SRC_DRAG_BEGIN_DONE;
    params.sessionId = sessionId;
+   params.optional.version.capability = 0xffffffff;
    params.optional.version.major = 4;
    params.optional.version.minor = 0;
 
@@ -298,6 +299,7 @@ DnDRpcV4::DestDragEnter(uint32 sessionId,
    params.addrId = DEFAULT_CONNECTION_ID;
    params.cmd = DND_CMD_DEST_DRAG_ENTER;
    params.sessionId = sessionId;
+   params.optional.version.capability = 0xffffffff;
    params.optional.version.major = mUtil.GetVersionMajor();
    params.optional.version.minor = mUtil.GetVersionMinor();
 
@@ -454,6 +456,7 @@ DnDRpcV4::QueryExiting(uint32 sessionId,
    params.addrId = DEFAULT_CONNECTION_ID;
    params.cmd = DND_CMD_QUERY_EXITING;
    params.sessionId = sessionId;
+   params.optional.queryExiting.capability = 0xffffffff;
    params.optional.queryExiting.major = mUtil.GetVersionMajor();
    params.optional.queryExiting.minor = mUtil.GetVersionMinor();
    params.optional.queryExiting.x = x;
@@ -484,6 +487,7 @@ DnDRpcV4::UpdateUnityDetWnd(uint32 sessionId,
    params.addrId = DEFAULT_CONNECTION_ID;
    params.cmd = DND_CMD_UPDATE_UNITY_DET_WND;
    params.sessionId = sessionId;
+   params.optional.updateUnityDetWnd.capability = 0xffffffff;
    params.optional.updateUnityDetWnd.major = mUtil.GetVersionMajor();
    params.optional.updateUnityDetWnd.minor = mUtil.GetVersionMinor();
    params.optional.updateUnityDetWnd.show = show ? 1 : 0;

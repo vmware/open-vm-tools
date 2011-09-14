@@ -82,6 +82,50 @@ HgfsNotify_Shutdown(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsNotify_Suspend --
+ *
+ *    Suspends sending notifications.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsNotify_Suspend(void)
+{
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsNotify_Resume --
+ *
+ *    Resumes sending notifications.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsNotify_Resume(void)
+{
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsNotify_AddSharedFolder --
  *
  *    Allocates memory and initializes new shared folder structure.

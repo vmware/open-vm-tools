@@ -1005,3 +1005,28 @@ UnityPlatformShowTaskbar(UnityPlatform *up,   // IN
 
    UnityPlatformDoUpdate(up, TRUE);
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPlatformShowDesktop --
+ *
+ *      Show/hide the entire VM desktop while in Unity mode.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+UnityPlatformShowDesktop(UnityPlatform *up, // IN
+                         Bool showDesktop)  // IN
+{
+   ASSERT(up);
+   NOT_IMPLEMENTED();
+}

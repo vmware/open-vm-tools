@@ -37,6 +37,7 @@ libunity_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libunity_la_LIBADD =
 libunity_la_LIBADD += @COMMON_XLIBS@
+libunity_la_LIBADD += @XCOMPOSITE_LIBS@
 libunity_la_LIBADD += @GTK_LIBS@
 libunity_la_LIBADD += @GTKMM_LIBS@
 libunity_la_LIBADD += @GIO_LIBS@
@@ -51,9 +52,12 @@ libunity_la_LIBADD += $(top_builddir)/lib/xdg/libXdg.la
 
 libunity_la_SOURCES =
 
+libunity_la_SOURCES += toolsPlugin.cpp
 libunity_la_SOURCES += unityPlugin.cpp
 libunity_la_SOURCES += unityPluginEntry.cpp
 libunity_la_SOURCES += unityPlugin.h
+libunity_la_SOURCES += unityPluginPosix.h
+libunity_la_SOURCES += unityPluginPosix.cpp
 libunity_la_SOURCES += ghiTclo.h
 libunity_la_SOURCES += ghiTclo.cpp
 libunity_la_SOURCES += unityTclo.h
@@ -87,7 +91,6 @@ RPCGEN_SRCS += ghiTrayIcon_xdr.c
 RPCGEN_SRCS += ghiSetFocusedWindow_xdr.c
 RPCGEN_SRCS += ghiSetGuestHandler_xdr.c
 RPCGEN_SRCS += ghiSetOutlookTempFolder_xdr.c
-RPCGEN_SRCS += ghiTrashFolder_xdr.c
 RPCGEN_SRCS += unityActive_xdr.c
 RPCGEN_SRCS += unity_xdr.c
 
@@ -101,7 +104,6 @@ RPCGEN_HDRS += ghiTrayIcon.h
 RPCGEN_HDRS += ghiSetFocusedWindow.h
 RPCGEN_HDRS += ghiSetGuestHandler.h
 RPCGEN_HDRS += ghiSetOutlookTempFolder.h
-RPCGEN_HDRS += ghiTrashFolder.h
 RPCGEN_HDRS += unityActive.h
 RPCGEN_HDRS += unity.h
 
@@ -247,20 +249,6 @@ ghiSetOutlookTempFolder.h: ghiSetOutlookTempFolder.x
 
 ghiSetOutlookTempFolder_xdr.c: ghiSetOutlookTempFolder.x ghiSetOutlookTempFolder.h
 	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiSetOutlookTempFolder.x
-
-ghiTrashFolder.h: ghiTrashFolder.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiCommonDefines.h $(builddir);    \
-	   cp -f $(top_srcdir)/services/plugins/unity/ghiTrashFolder.x $(builddir);         \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiTrashFolder.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
-
-ghiTrashFolder_xdr.c: ghiTrashFolder.x ghiTrashFolder.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiTrashFolder.x
 
 unityActive.h: unityActive.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                                    \

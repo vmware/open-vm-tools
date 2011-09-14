@@ -223,5 +223,11 @@ Bool W32Util_CheckGroupMembership(HANDLE hToken,
                                   Unicode *errString,
                                   BOOL *bMember);
 
+Bool W32Util_DismountVolumes(uint16 drive,
+                             uint64 offset,
+                             uint64 size,
+                             void **handle);
+void W32Util_CloseDismountHandle(void *handle);
+
 #endif // _WIN32
 #endif // WIN32UTIL_H_

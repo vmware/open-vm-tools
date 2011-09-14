@@ -482,6 +482,8 @@ HgfsChannelGuestReceiveInternal(HgfsGuestConn *connData,  // IN: connection
    packet.metaPacketSize = packetInSize;
    packet.replyPacket = packetOut;
    packet.replyPacketSize = *packetOutSize;
+   /* Misnomer to be fixed, guestInitiated really means client initiated */
+   packet.guestInitiated = TRUE;
 
    /* The server will perform a synchronous processing of requests. */
    connData->serverCbTable->receive(&packet, connData->serverSession);

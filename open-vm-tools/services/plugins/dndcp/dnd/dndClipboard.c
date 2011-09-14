@@ -30,6 +30,7 @@
 
 #include "dndClipboard.h"
 #include "dndInt.h"
+#include "unicode.h"
 
 
 #define CPFormatToIndex(x) ((unsigned int)(x) - 1)
@@ -114,11 +115,12 @@ CPClipItemCopy(CPClipItem *dest,        // IN: dest clipboard item
 
    if (src->buf) {
       void *tmp = dest->buf;
-      dest->buf = realloc(dest->buf, src->size);
+      dest->buf = realloc(dest->buf, src->size + 1);
       if (!dest->buf) {
          dest->buf = tmp;
          return FALSE;
       }
+      ((uint8 *)dest->buf)[src->size] = 0;
       memcpy(dest->buf, src->buf, src->size);
    }
 
@@ -243,7 +245,7 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
                     const size_t size)          // IN: the item size
 {
    CPClipItem *item;
-   void *newBuf = NULL;
+   uint8 *newBuf = NULL;
    /*
     * Image, rtf and text may be put into a clipboard at same time, and total
     * size may be more than limit. Image data will be first dropped, then
@@ -269,11 +271,22 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
    item = &clip->items[CPFormatToIndex(fmt)];
 
    if (clipitem) {
-      newBuf = malloc(size);
+      /* It has to be valid utf8 for plain text format. */
+      if (CPFORMAT_TEXT == fmt) {
+         char *str = (char *)clipitem;
+         if (!Unicode_IsBufferValid(str,
+                                    size,
+                                    STRING_ENCODING_UTF8)) {
+            return FALSE;
+         }
+      }
+
+      newBuf = malloc(size + 1);
       if (!newBuf) {
          return FALSE;
       }
       memcpy(newBuf, clipitem, size);
+      newBuf[size] = 0;
    }
 
    item->buf = newBuf;
@@ -367,6 +380,8 @@ CPClipboard_GetItem(const CPClipboard *clip,    // IN: the clipboard
    if (clip->items[CPFormatToIndex(fmt)].exists) {
       *buf = clip->items[CPFormatToIndex(fmt)].buf;
       *size = clip->items[CPFormatToIndex(fmt)].size;
+      ASSERT(*buf);
+      ASSERT((*size > 0) && (*size < CPCLIPITEM_MAX_SIZE_V3));
       return TRUE;
    } else {
       ASSERT(!clip->items[CPFormatToIndex(fmt)].size);

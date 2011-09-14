@@ -161,6 +161,11 @@ typedef enum {
  * |                      | on conflicts       | on conflicts
  */
 #define FILEIO_OPEN_EXCLUSIVE_LOCK_MACOS (1 << 16)
+/*
+ * Open file in APPEND-only mode.  All writes go to the current end of file,
+ * not to the current file pointer location.
+ */
+#define FILEIO_OPEN_APPEND               (1 << 17)
 
 /*
  * Flag passed to open() to not attempt to get the lun attributes as part of

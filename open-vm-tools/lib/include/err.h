@@ -56,8 +56,9 @@ Err_Number Err_String2Errno(const char *string);
 Err_Number Err_String2ErrnoDebug(const char *string);
 #endif
 
-char *Err_Errno2LocalString(Err_Number errorNumber);
-
+#if defined(_WIN32)
+char *Err_SanitizeMessage(const char *msg);
+#endif
 
 /*
  *----------------------------------------------------------------------

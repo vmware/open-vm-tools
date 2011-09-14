@@ -431,8 +431,6 @@ static VixError VixToolsRunScript(VixCommandRequestHeader *requestMsg,
                                   void *eventQueue,
                                   char **result);
 
-static VixError VixToolsOpenUrl(VixCommandRequestHeader *requestMsg);
-
 static VixError VixToolsCheckUserAccount(VixCommandRequestHeader *requestMsg);
 
 static VixError VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,
@@ -1368,6 +1366,11 @@ VixToolsStartProgramImpl(const char *requestName,      // IN
 #endif
    GSource *timer;
 
+   /*
+    * Initialize this here so we can call free on its member variables in abort
+    */
+   memset(&procArgs, 0, sizeof procArgs);
+
    if (NULL != pid) {
       *pid = (int64) -1;
    }
@@ -1479,7 +1482,6 @@ VixToolsStartProgramImpl(const char *requestName,      // IN
     */
    asyncState = Util_SafeCalloc(1, sizeof *asyncState);
 
-   memset(&procArgs, 0, sizeof procArgs);
 #if defined(_WIN32)
    if (NULL != envVars) {
       err = VixToolsEnvironToEnvBlock(envVars, &envBlock);
@@ -1956,8 +1958,8 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    const char *powerOnScript = NULL;
    const char *resumeScript = NULL;
    const char *suspendScript = NULL;
-   char osNameFull[MAX_VALUE_LEN];
-   char osName[MAX_VALUE_LEN];
+   char osNameFull[GUESTINFO_MAX_VALUE_SIZE];
+   char osName[GUESTINFO_MAX_VALUE_SIZE];
    Bool foundHostName;
    char *tempDir = NULL;
    int wordSize = 32;
@@ -2054,8 +2056,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    }
    err = VixPropertyList_SetInteger(&propList,
                                     VIX_PROPERTY_GUEST_TOOLS_API_OPTIONS,
-                                    VIX_TOOLSFEATURE_SUPPORT_GET_HANDLE_STATE
-                                    | VIX_TOOLSFEATURE_SUPPORT_OPEN_URL);
+                                    VIX_TOOLSFEATURE_SUPPORT_GET_HANDLE_STATE);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -3074,71 +3075,6 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
- * VixToolsOpenUrl --
- *
- *    Open a URL on the guest.
- *
- * Return value:
- *    VixError
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-VixError
-VixToolsOpenUrl(VixCommandRequestHeader *requestMsg) // IN
-{
-   VixError err = VIX_OK;
-   const char *url = NULL;
-   char *windowState = "default";
-   Bool impersonatingVMWareUser = FALSE;
-   void *userToken = NULL;
-   VixMsgOpenUrlRequest *openUrlRequest;
-   VMAutomationRequestParser parser;
-
-   err = VMAutomationRequestParserInit(&parser,
-                                       requestMsg, sizeof *openUrlRequest);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-
-   openUrlRequest = (VixMsgOpenUrlRequest *) requestMsg;
-
-   err = VMAutomationRequestParserGetString(&parser,
-                                            openUrlRequest->urlLength,
-                                            &url);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-   impersonatingVMWareUser = TRUE;
-
-   /* Actually open the URL. */
-   if (!GuestApp_OpenUrl(url, strcmp(windowState, "maximize") == 0)) {
-      err = VIX_E_FAIL;
-      Debug("Failed to open the url \"%s\"\n", url);
-      goto abort;
-   }
-
-abort:
-   if (impersonatingVMWareUser) {
-      VixToolsUnimpersonateUser(userToken);
-   }
-   VixToolsLogoutUser(userToken);
-
-   return err;
-} // VixToolsOpenUrl
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * VixToolsCreateTempFile --
  *
  *    Create a temporary file on the guest.
@@ -4029,9 +3965,9 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
 #if defined(_WIN32)
    int fd = -1;
    char *tempFilePath = NULL;
-#else
-   FileIOResult res;
+   static char *tempFileBaseName = "vmware";
 #endif
+   FileIOResult res;
 
    VixCommandInitiateFileTransferToGuestRequest *commandRequest;
    VMAutomationRequestParser parser;
@@ -4099,11 +4035,29 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
    if (File_Exists(guestPathName)) {
       if (File_IsDirectory(guestPathName)) {
          err = VIX_E_NOT_A_FILE;
-         goto abort;
       } else if (!overwrite) {
          err = VIX_E_FILE_ALREADY_EXISTS;
-         goto abort;
+      } else {
+         /*
+          * If the file exists and overwrite flag is true, then check
+          * if the file is writable. If not, return a proper error.
+          */
+         res = FileIO_Access(guestPathName, FILEIO_ACCESS_WRITE);
+         if (FILEIO_SUCCESS != res) {
+            /*
+             * On Linux guests, FileIO_Access sets the proper errno
+             * on failure. On Windows guests, last errno is not
+             * set when FileIO_Access fails. So, we cannot use
+             * FoundryToolsDaemon_TranslateSystemErr() to translate the
+             * error. To maintain consistency for all the guests,
+             * return an explicit VIX_E_FILE_ACCESS_ERROR.
+             */
+            err = VIX_E_FILE_ACCESS_ERROR;
+            Debug("Unable to get access permissions for the file: %s\n",
+                  guestPathName);
+         }
       }
+      goto abort;
    }
 
    File_GetPathName(guestPathName, &dirName, &baseName);
@@ -4145,10 +4099,11 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
     * create the temporary file with the exact specified filename. Any name
     * would be fine.
     */
-   fd = File_MakeTempEx(dirName, baseName, &tempFilePath);
+   fd = File_MakeTempEx(dirName, tempFileBaseName, &tempFilePath);
 
    if (fd > 0) {
       close(fd);
+      File_UnlinkNoFollow(tempFilePath);
    } else {
       /*
        * File_MakeTempEx() function internally uses Posix variant
@@ -4172,7 +4127,15 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
    res = FileIO_Access(dirName, FILEIO_ACCESS_WRITE);
 
    if (FILEIO_SUCCESS != res) {
-      err = FoundryToolsDaemon_TranslateSystemErr();
+      /*
+       * On Linux guests, FileIO_Access sets the proper errno
+       * on failure. On Windows guests, last errno is not
+       * set when FileIO_Access fails. So, we cannot use
+       * FoundryToolsDaemon_TranslateSystemErr() to translate the
+       * error. To maintain consistency for all the guests,
+       * return an explicit VIX_E_FILE_ACCESS_ERROR.
+       */
+      err = VIX_E_FILE_ACCESS_ERROR;
       Debug("Unable to get access permissions for the directory: %s\n",
             dirName);
       goto abort;
@@ -8450,7 +8413,6 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
       case VIX_COMMAND_DIRECTORY_EXISTS:
       case VIX_COMMAND_GET_FILE_INFO:
       case VIX_COMMAND_LIST_FILESYSTEMS:
-      case VIX_COMMAND_OPEN_URL:
       case VIX_COMMAND_READ_VARIABLE:
       case VIX_COMMAND_WRITE_VARIABLE:
       case VIX_COMMAND_GET_GUEST_NETWORKING_CONFIG:
@@ -8660,11 +8622,6 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       case VIX_COMMAND_START_PROGRAM:
          err = VixTools_StartProgram(requestMsg, requestName, eventQueue, &resultValue);
          // resultValue is static. Do not free it.
-         break;
-
-      ////////////////////////////////////
-      case VIX_COMMAND_OPEN_URL:
-         err = VixToolsOpenUrl(requestMsg);
          break;
 
       ////////////////////////////////////
@@ -8894,7 +8851,6 @@ VixToolsRewriteError(uint32 opCode,          // IN
    case VIX_COMMAND_MOVE_GUEST_FILE:
    case VIX_COMMAND_RUN_SCRIPT_IN_GUEST:
    case VIX_COMMAND_RUN_PROGRAM:
-   case VIX_COMMAND_OPEN_URL:
    case VIX_COMMAND_CREATE_TEMPORARY_FILE:
    case VIX_COMMAND_READ_VARIABLE:
    case VIX_COMMAND_WRITE_VARIABLE:

@@ -74,11 +74,16 @@ VSockVmciNotifyWaitingWrite(VSockVmciSock *vsk)    // IN
 
    if (!PKT_FIELD(vsk, peerWaitingWriteDetected)) {
       PKT_FIELD(vsk, peerWaitingWriteDetected) = TRUE;
-      PKT_FIELD(vsk, writeNotifyWindow) -= PAGE_SIZE;
-      if (PKT_FIELD(vsk, writeNotifyWindow) <
-                    PKT_FIELD(vsk, writeNotifyMinWindow)) {
+      if (PKT_FIELD(vsk, writeNotifyWindow) < PAGE_SIZE) {
          PKT_FIELD(vsk, writeNotifyWindow) =
             PKT_FIELD(vsk, writeNotifyMinWindow);
+      } else {
+         PKT_FIELD(vsk, writeNotifyWindow) -= PAGE_SIZE;
+         if (PKT_FIELD(vsk, writeNotifyWindow) <
+             PKT_FIELD(vsk, writeNotifyMinWindow)) {
+            PKT_FIELD(vsk, writeNotifyWindow) =
+               PKT_FIELD(vsk, writeNotifyMinWindow);
+         }
       }
    }
    notifyLimit = vsk->consumeSize - PKT_FIELD(vsk, writeNotifyWindow);
@@ -278,7 +283,7 @@ VSockVmciNotifyPktSocketInit(struct sock *sk) // IN
    VSockVmciSock *vsk;
    vsk = vsock_sk(sk);
 
-   PKT_FIELD(vsk, writeNotifyWindow) = 0;
+   PKT_FIELD(vsk, writeNotifyWindow) = PAGE_SIZE;
    PKT_FIELD(vsk, writeNotifyMinWindow) = PAGE_SIZE;
    PKT_FIELD(vsk, peerWaitingWrite) = FALSE;
    PKT_FIELD(vsk, peerWaitingWriteDetected) = FALSE;
@@ -307,11 +312,10 @@ VSockVmciNotifyPktSocketDestruct(struct sock *sk) // IN
    VSockVmciSock *vsk;
    vsk = vsock_sk(sk);
 
-   PKT_FIELD(vsk, writeNotifyWindow) = 0;
+   PKT_FIELD(vsk, writeNotifyWindow) = PAGE_SIZE;
    PKT_FIELD(vsk, writeNotifyMinWindow) = PAGE_SIZE;
    PKT_FIELD(vsk, peerWaitingWrite) = FALSE;
    PKT_FIELD(vsk, peerWaitingWriteDetected) = FALSE;
-   return;
 }
 
 
@@ -491,13 +495,11 @@ VSockVmciNotifyPktRecvPreBlock(struct sock *sk,               // IN
                                int target,                    // IN
                                VSockVmciRecvNotifyData *data) // IN
 {
-   VSockVmciSock *vsk;
    int err;
 
    ASSERT(sk);
    ASSERT(data);
 
-   vsk = vsock_sk(sk);
    err = 0;
 
    VSockVmciBlockUpdateWriteWindow(sk);
@@ -731,6 +733,9 @@ VSockVmciNotifyPktProcessRequest(struct sock *sk) // IN
    vsk = vsock_sk(sk);
 
    PKT_FIELD(vsk, writeNotifyWindow) = vsk->consumeSize;
+   if (vsk->consumeSize < PKT_FIELD(vsk, writeNotifyMinWindow)) {
+      PKT_FIELD(vsk, writeNotifyMinWindow) = vsk->consumeSize;
+   }
 }
 
 
@@ -760,6 +765,9 @@ VSockVmciNotifyPktProcessNegotiate(struct sock *sk) // IN
    vsk = vsock_sk(sk);
 
    PKT_FIELD(vsk, writeNotifyWindow) = vsk->consumeSize;
+   if (vsk->consumeSize < PKT_FIELD(vsk, writeNotifyMinWindow)) {
+      PKT_FIELD(vsk, writeNotifyMinWindow) = vsk->consumeSize;
+   }
 }
 
 

@@ -29,43 +29,52 @@
 
 #if !defined(linux) && !defined(_WIN32) && !defined(__APPLE__) && \
     !defined(VMKERNEL) && !defined(SOLARIS)
-#error "Platform not supported."
+#  error "Platform not supported."
 #endif
 
 #if defined(_WIN32)
-#include <ntddk.h>
+#  include <ntddk.h>
 #endif
 
 #if defined(linux) && !defined(VMKERNEL)
-#  include <linux/wait.h>
-#  include "compat_version.h"
-#  include "compat_spinlock.h"
+#  include "driver-config.h"
+#  include "compat_cred.h"
+#  include "compat_module.h"
 #  include "compat_semaphore.h"
+#  include "compat_spinlock.h"
+#  include "compat_version.h"
+#  include <linux/wait.h>
 #endif // linux
 
 #ifdef __APPLE__
 #  include <IOKit/IOLib.h>
-#include <mach/task.h>
-#include <mach/semaphore.h>
+#  include <mach/task.h>
+#  include <mach/semaphore.h>
+#  include <sys/kauth.h>
 #endif
 
 #ifdef VMKERNEL
-#include "splock.h"
-#include "semaphore_ext.h"
-#include "vmkapi.h"
+#  include "splock.h"
+#  include "semaphore_ext.h"
+#  include "vmkapi.h"
 #endif
 
 #ifdef SOLARIS
+#  include <sys/ddi.h>
+#  include <sys/kmem.h>
 #  include <sys/mutex.h>
 #  include <sys/poll.h>
 #  include <sys/semaphore.h>
-#  include <sys/kmem.h>
+#  include <sys/sunddi.h>
+#  include <sys/types.h>
 #endif
 
 #include "vm_basic_types.h"
 #include "vmci_defs.h"
 
-#if defined(__APPLE__)
+#if defined(VMKERNEL)
+#  include "list.h"
+#else
 #  include "dbllnklst.h"
 #endif
 
@@ -92,12 +101,14 @@
   typedef Semaphore VMCIEvent;
   typedef Semaphore VMCIMutex;
   typedef World_ID VMCIHostVmID;
+  typedef uint32 VMCIHostUser;
 #elif defined(linux)
   typedef spinlock_t VMCILock;
   typedef unsigned long VMCILockFlags;
   typedef wait_queue_head_t VMCIEvent;
   typedef struct semaphore VMCIMutex;
   typedef PPN *VMCIPpnList; /* List of PPNs in produce/consume queue. */
+  typedef uid_t VMCIHostUser;
 #elif defined(__APPLE__)
   typedef IOLock *VMCILock;
   typedef unsigned long VMCILockFlags;
@@ -108,18 +119,21 @@
   } VMCIEvent;
   typedef IOLock *VMCIMutex;
   typedef void *VMCIPpnList; /* Actually a pointer to the C++ Object IOMemoryDescriptor */
+  typedef uid_t VMCIHostUser;
 #elif defined(_WIN32)
   typedef KSPIN_LOCK VMCILock;
   typedef KIRQL VMCILockFlags;
   typedef KEVENT VMCIEvent;
   typedef FAST_MUTEX VMCIMutex;
   typedef PMDL VMCIPpnList; /* MDL to map the produce/consume queue. */
+  typedef PSID VMCIHostUser;
 #elif defined(SOLARIS)
   typedef kmutex_t VMCILock;
   typedef unsigned long VMCILockFlags;
   typedef ksema_t VMCIEvent;
   typedef kmutex_t VMCIMutex;
   typedef PPN *VMCIPpnList; /* List of PPNs in produce/consume queue. */
+  typedef uid_t VMCIHostUser;
 #endif // VMKERNEL
 
 /* Callback needed for correctly waiting on events. */
@@ -219,8 +233,29 @@ typedef struct VMCIHost {
 #endif
 } VMCIHost;
 
+/*
+ * Guest device port I/O.
+ */
 
-void VMCI_InitLock(VMCILock *lock, char *name, VMCILockRank rank);
+#if defined(linux)
+   typedef unsigned short int VMCIIoPort;
+   typedef int VMCIIoHandle;
+#elif defined(_WIN32)
+   typedef PUCHAR VMCIIoPort;
+   typedef int VMCIIoHandle;
+#elif defined(SOLARIS)
+   typedef uint8_t * VMCIIoPort;
+   typedef ddi_acc_handle_t VMCIIoHandle;
+#elif defined(__APPLE__)
+   typedef unsigned short int VMCIIoPort;
+   typedef void *VMCIIoHandle;
+#endif // __APPLE__
+
+void VMCI_ReadPortBytes(VMCIIoHandle handle, VMCIIoPort port, uint8 *buffer,
+                        size_t bufferLength);
+
+
+int VMCI_InitLock(VMCILock *lock, char *name, VMCILockRank rank);
 void VMCI_CleanupLock(VMCILock *lock);
 void VMCI_GrabLock(VMCILock *lock, VMCILockFlags *flags);
 void VMCI_ReleaseLock(VMCILock *lock, VMCILockFlags flags);
@@ -246,23 +281,27 @@ uintptr_t VMCIHost_GetActiveHnd(VMCIHost *hostContext);
 void VMCIHost_SignalBitmap(VMCIHost *hostContext);
 #endif
 
+#if defined(_WIN32)
+   /*
+    * On Windows, Driver Verifier will panic() if we leak memory when we are
+    * unloaded.  It dumps the leaked blocks for us along with callsites, which
+    * it handily tracks, but if we embed ExAllocate() inside a function, then
+    * the callsite is useless.  So make this a macro on this platform only.
+    */
+#  define VMCI_AllocKernelMem(_sz, _f)                       \
+      ExAllocatePoolWithTag((((_f) & VMCI_MEMORY_NONPAGED) ? \
+                             NonPagedPool : PagedPool),      \
+                            (_sz), 'MMTC')
+#else // _WIN32
 void *VMCI_AllocKernelMem(size_t size, int flags);
+#endif // _WIN32
 void VMCI_FreeKernelMem(void *ptr, size_t size);
-VMCIBuffer VMCI_AllocBuffer(size_t size, int flags);
-void *VMCI_MapBuffer(VMCIBuffer buf);
-void VMCI_ReleaseBuffer(void *ptr);
-void VMCI_FreeBuffer(VMCIBuffer buf, size_t size);
-#ifdef SOLARIS
-int VMCI_CopyToUser(VA64 dst, const void *src, size_t len, int mode);
-#else
+
 int VMCI_CopyToUser(VA64 dst, const void *src, size_t len);
-/*
- * Don't need the following for guests, hence no Solaris code for this
- * function.
- */
 Bool VMCIWellKnownID_AllowMap(VMCIId wellKnownID,
                               VMCIPrivilegeFlags privFlags);
-#endif
+
+int VMCIHost_CompareUser(VMCIHostUser *user1, VMCIHostUser *user2);
 
 void VMCI_CreateEvent(VMCIEvent *event);
 void VMCI_DestroyEvent(VMCIEvent *event);
@@ -280,11 +319,6 @@ Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,
 int VMCI_CopyFromUser(void *dst, VA64 src, size_t len);
 #endif
 
-#if defined(_WIN32)
-void VMCI_InitHelperQueue(void);
-void VMCI_ExitHelperQueue(void);
-#endif // _WIN32
-
 typedef void (VMCIWorkFn)(void *data);
 Bool VMCI_CanScheduleDelayedWork(void);
 int VMCI_ScheduleDelayedWork(VMCIWorkFn  *workFn,
@@ -295,10 +329,10 @@ void VMCIMutex_Destroy(VMCIMutex *mutex);
 void VMCIMutex_Acquire(VMCIMutex *mutex);
 void VMCIMutex_Release(VMCIMutex *mutex);
 
-#if defined(SOLARIS)
+#if defined(SOLARIS) || defined(_WIN32) || defined(__APPLE__)
 int VMCIKernelIf_Init(void);
 void VMCIKernelIf_Exit(void);
-#endif		/* SOLARIS  */
+#endif // SOLARIS || _WIN32 || __APPLE__
 
 #if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
                            defined(SOLARIS) || defined(__APPLE__))
@@ -319,8 +353,7 @@ int VMCI_PopulatePPNList(uint8 *callBuf, const PPNSet *ppnSet);
 
 struct VMCIQueue;
 
-#if !defined(VMX86_TOOLS)
-#if  !defined(VMKERNEL)
+#if !defined(VMKERNEL)
 struct PageStoreAttachInfo;
 struct VMCIQueue *VMCIHost_AllocQueue(uint64 queueSize);
 void VMCIHost_FreeQueue(struct VMCIQueue *queue, uint64 queueSize);
@@ -345,8 +378,6 @@ void VMCIHost_SaveProduceQ(struct PageStoreAttachInfo *attach,
                            const uint64 produceQSize);
 #endif // _WIN32
 
-#endif // !VMX86_TOOLS
-
 #ifdef _WIN32
 void VMCI_InitQueueMutex(struct VMCIQueue *produceQ,
                              struct VMCIQueue *consumeQ);
@@ -360,6 +391,7 @@ int VMCI_ConvertToLocalQueue(struct VMCIQueue *queueInfo,
 void VMCI_RevertToNonLocalQueue(struct VMCIQueue *queueInfo,
                                 void *nonLocalQueue, uint64 size);
 void VMCI_FreeQueueBuffer(void *queue, uint64 size);
+Bool VMCI_CanCreate(void);
 #else // _WIN32
 #  define VMCI_InitQueueMutex(_pq, _cq)
 #  define VMCI_AcquireQueueMutex(_q)
@@ -368,6 +400,38 @@ void VMCI_FreeQueueBuffer(void *queue, uint64 size);
 #  define VMCI_ConvertToLocalQueue(_pq, _cq, _s, _oq, _kc) VMCI_ERROR_UNAVAILABLE
 #  define VMCI_RevertToNonLocalQueue(_q, _nlq, _s)
 #  define VMCI_FreeQueueBuffer(_q, _s)
+#  define VMCI_CanCreate() TRUE
 #endif // !_WIN32
+Bool VMCI_GuestPersonalityActive(void);
+Bool VMCI_HostPersonalityActive(void);
+
+
+#if defined(VMKERNEL)
+  typedef List_Links VMCIListItem;
+  typedef List_Links VMCIList;
+
+#  define VMCIList_Init(_l)   List_Init(_l)
+#  define VMCIList_InitEntry(_e)  List_InitElement(_e)
+#  define VMCIList_Empty(_l)   List_IsEmpty(_l)
+#  define VMCIList_Insert(_e, _l) List_Insert(_e, LIST_ATREAR(_l))
+#  define VMCIList_Remove(_e) List_Remove(_e)
+#  define VMCIList_Scan(_cur, _l) LIST_FORALL(_l, _cur)
+#  define VMCIList_ScanSafe(_cur, _next, _l) LIST_FORALL_SAFE(_l, _cur, _next)
+#  define VMCIList_Entry(_elem, _type, _field) List_Entry(_elem, _type, _field)
+#  define VMCIList_First(_l) (VMCIList_Empty(_l)?NULL:List_First(_l))
+#else
+  typedef DblLnkLst_Links VMCIListItem;
+  typedef DblLnkLst_Links VMCIList;
+
+#  define VMCIList_Init(_l)   DblLnkLst_Init(_l)
+#  define VMCIList_InitEntry(_e)   DblLnkLst_Init(_e)
+#  define VMCIList_Empty(_l)   (!DblLnkLst_IsLinked(_l))
+#  define VMCIList_Insert(_e, _l) DblLnkLst_LinkLast(_l, _e)
+#  define VMCIList_Remove(_e) DblLnkLst_Unlink1(_e)
+#  define VMCIList_Scan(_cur, _l) DblLnkLst_ForEach(_cur, _l)
+#  define VMCIList_ScanSafe(_cur, _next, _l) DblLnkLst_ForEachSafe(_cur, _next, _l)
+#  define VMCIList_Entry(_elem, _type, _field) DblLnkLst_Container(_elem, _type, _field)
+#  define VMCIList_First(_l) (VMCIList_Empty(_l)?NULL:(_l)->next)
+#endif
 
 #endif // _VMCI_KERNEL_IF_H_

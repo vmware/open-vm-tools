@@ -87,6 +87,7 @@ private:
    void LocalPrimTimestampCB(const Gtk::SelectionData& sd);
    void LocalReceivedFileListCB(const Gtk::SelectionData& selection_data);
    void GetLocalFilesDone(bool success);
+   void SendClipNotChanged(void);
 
    /* Conversion methods. */
    utf::utf8string GetNextPath(utf::utf8string &str, size_t& index);
@@ -100,23 +101,26 @@ private:
    bool mClipboardEmpty;
    utf::string mHGStagingDir;
    std::list<Gtk::TargetEntry> mListTargets;
+   bool mIsClipboardOwner;
    uint64 mClipTime;
    uint64 mPrimTime;
+   uint64 mLastTimestamp;
    GdkAtom mGHSelection;
    CPClipboard mClipboard;
 
    /* File vars. */
-   bool mHGGetFilesInitiated;
    VmTimeType mHGGetListTime;
    utf::string mHGCopiedUriList;
    utf::utf8string mHGFCPData;
    utf::string mHGTextData;
-   utf::string mHGRTFData;
+   std::string mHGRTFData;
    std::vector<utf::string> mHGFileContentsList;
-   bool mFileTransferDone;
+   DND_FILE_TRANSFER_STATUS mHGGetFileStatus;
    bool mBlockAdded;
    DnDBlockControl *mBlockCtrl;
    bool mInited;
+   uint64 mTotalFileSize;
+   bool mGetTimestampOnly;
 };
 
 #endif // __COPYPASTE_UI_X11_H__

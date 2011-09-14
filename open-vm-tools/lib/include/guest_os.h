@@ -86,13 +86,16 @@ typedef enum GuestOSType {
    GUEST_OS_WINSEVEN_64         = GUEST_OS_BASE + 48, // Windows 7
    GUEST_OS_WIN2008R2           = GUEST_OS_BASE + 49, // Server 2008 R2
    GUEST_OS_WIN2008R2_64        = GUEST_OS_BASE + 50, // Server 2008 R2
-   GUEST_OS_ECOMSTATION         = GUEST_OS_BASE + 51, // OS/2 variant
+   GUEST_OS_ECOMSTATION         = GUEST_OS_BASE + 51, // OS/2 variant; 1.x
    GUEST_OS_RHEL6               = GUEST_OS_BASE + 52,
    GUEST_OS_RHEL6_64            = GUEST_OS_BASE + 53,
    GUEST_OS_WINEIGHT            = GUEST_OS_BASE + 54, // Windows 8
    GUEST_OS_WINEIGHT_64         = GUEST_OS_BASE + 55, // Windows 8 x64
    GUEST_OS_WINEIGHTSERVER_64   = GUEST_OS_BASE + 56, // Windows 8 Server X64
    GUEST_OS_VMKERNEL5           = GUEST_OS_BASE + 57, // ESX 5.x and later
+   GUEST_OS_DARWIN11            = GUEST_OS_BASE + 58, // Mac OS 10.7
+   GUEST_OS_DARWIN11_64         = GUEST_OS_BASE + 59,
+   GUEST_OS_ECOMSTATION2        = GUEST_OS_BASE + 60, // OS/2 variant; 2.x
 } GuestOSType;
 
 
@@ -167,24 +170,26 @@ typedef enum GuestOSFamilyType {
                          BS(SOLARIS9) | BS(SOLARIS10) | BS(SOLARIS10_64))
 #define ALLSOLARIS10    (BS(SOLARIS10) | BS(SOLARIS10_64))
 #define ALLNETWARE      (BS(NETWARE4) | BS(NETWARE5) | BS(NETWARE6))
-#define ALL26XLINUX32   (BS(OTHER26XLINUX) | BS(DEBIAN45) | BS(RHEL6) | BS(UBUNTU))
+#define ALL26XLINUX32   (BS(OTHER26XLINUX) | BS(DEBIAN45) | BS(RHEL6) | \
+                         BS(UBUNTU))
 #define ALL26XLINUX64   (BS(OTHER26XLINUX_64) | BS(DEBIAN45_64) | BS(RHEL6_64))
-#define ALLLINUX32      (BS(OTHER24XLINUX) | BS(VMKERNEL) | \
-                         BS(OTHERLINUX) | ALL26XLINUX32)
-#define ALLLINUX64      (BS(OTHERLINUX_64) | BS(OTHER24XLINUX_64) | \
-                         ALL26XLINUX64)
+
+#define ALLVMKERNEL     (BS(VMKERNEL) | BS(VMKERNEL5))
+
+#define ALLLINUX32      (BS(OTHER24XLINUX) | ALL26XLINUX32 | \
+                         BS(OTHERLINUX) | BS(VMKERNEL))
+#define ALLLINUX64      (BS(OTHER24XLINUX_64) | ALL26XLINUX64 | \
+                         BS(OTHERLINUX_64))
 #define ALLLINUX        (ALLLINUX32 | ALLLINUX64)
-#define ALLDARWIN32     (BS(DARWIN9) | BS(DARWIN10))
-#define ALLDARWIN64     (BS(DARWIN9_64) | BS(DARWIN10_64))
-#define ALLDARWIN10     (BS(DARWIN10) | BS(DARWIN10_64))
+#define ALLDARWIN32     (BS(DARWIN9) | BS(DARWIN10) | BS(DARWIN11))
+#define ALLDARWIN64     (BS(DARWIN9_64) | BS(DARWIN10_64) | BS(DARWIN11_64))
 #define ALLDARWIN       (ALLDARWIN32 | ALLDARWIN64)
 #define ALL64           (ALLWIN64 | ALLLINUX64 | \
                          BS(SOLARIS10_64) | BS(FREEBSD_64) | \
-                         ALLDARWIN64 | BS(OTHER_64) | BS(VMKERNEL))
+                         ALLDARWIN64 | BS(OTHER_64) | ALLVMKERNEL)
 
-#define ALLOS2          (BS(OS2) | BS(ECOMSTATION))
-
-#define ALLVMKERNEL     (BS(VMKERNEL) | BS(VMKERNEL5))
+#define ALLECOMSTATION  (BS(ECOMSTATION) | BS(ECOMSTATION2))
+#define ALLOS2          (BS(OS2) | ALLECOMSTATION)
 
 
 /*
@@ -252,7 +257,7 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_TINYSOFA           "Tiny Sofa"  
 #define STR_OS_TURBO              "turbolinux"   
 #define STR_OS_TURBO_FULL         "Turbolinux"   
-#define STR_OS_UBUNTU             "Ubuntu"
+#define STR_OS_UBUNTU             "ubuntu"
 #define STR_OS_ULTRAPENGUIN       "UltraPenguin"
 #define STR_OS_UNITEDLINUX        "UnitedLinux"
 #define STR_OS_VALINUX            "VALinux"

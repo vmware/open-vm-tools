@@ -101,7 +101,6 @@ static void HgfsFreeFile(HgfsFile *fp);
 
 /* Adding/finding/removing file state from hash table */
 static void HgfsAddFile(HgfsFile *fp, HgfsFileHashTable *htp);
-static void HgfsRemoveFile(HgfsFile *fp, HgfsFileHashTable *htp);
 static HgfsFile *HgfsFindFile(const char *fileName, HgfsFileHashTable *htp);
 
 /* Other utility functions */
@@ -680,7 +679,7 @@ HgfsLookupExistingVnode(const char* fileName,
          } else {
             /* vnode exists but unusable, remove HGFS context assosiated with it. */
             DEBUG(VM_DEBUG_FAIL, "Removing HgfsFile assosiated with an unusable vnode\n");
-            HgfsRemoveFile(existingFp, htp);
+            DblLnkLst_Unlink1(&existingFp->listNode);
             err = ENOENT;
          }
       }
@@ -1097,15 +1096,14 @@ HgfsReleaseFile(HgfsFile *fp,           // IN: File to release
    ASSERT(fp);
    ASSERT(htp);
 
-   os_mutex_lock(htp->mutex);
-
    DEBUG(VM_DEBUG_INFO, "HgfsReleaseFile: freeing HgfsFile for %s.\n",
          fp->fileName);
    /* Take this file off its list */
+   os_mutex_lock(htp->mutex);
    DblLnkLst_Unlink1(&fp->listNode);
-   HgfsFreeFile(fp);
-
    os_mutex_unlock(htp->mutex);
+
+   HgfsFreeFile(fp);
 }
 
 
@@ -1379,43 +1377,6 @@ HgfsFindFile(const char *fileName,      // IN: Filename to look for
 
    /* Return file if found. */
    return found;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsRemoveFile --
- *
- *      Removes file from the hash table.
- *
- *      Note that unlike the other two hash functions, this one performs its own
- *      locking since the removal doesn't need to be atomic with other
- *      operations.  (This could change in the future if the functions that use
- *      this one are reorganized.)
- *
- * Results:
- *      Returns 0 on success and a non-zero error code on failure.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-HgfsRemoveFile(HgfsFile *fp,            // IN: File to remove
-               HgfsFileHashTable *htp)  // IN: Hash table to remove from
-{
-   ASSERT(fp);
-   ASSERT(htp);
-
-   os_mutex_lock(htp->mutex);
-
-   /* Take this file off its list */
-   DblLnkLst_Unlink1(&fp->listNode);
-
-   os_mutex_unlock(htp->mutex);
 }
 
 

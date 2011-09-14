@@ -34,16 +34,7 @@
 struct list_head vsockBindTable[VSOCK_HASH_SIZE + 1];
 struct list_head vsockConnectedTable[VSOCK_HASH_SIZE];
 
-spinlock_t vsockTableLock = SPIN_LOCK_UNLOCKED;
-
-/*
- * snprintf() wasn't exported until 2.4.10: fall back on sprintf in those
- * cases.  It's okay since this is only for the debug function for logging
- * packets.
- */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 10)
-#define snprintf(str, size, fmt, args...) sprintf(str, fmt, ## args)
-#endif
+DEFINE_SPINLOCK(vsockTableLock);
 
 
 /*
@@ -626,13 +617,11 @@ void
 VSockVmciRemovePending(struct sock *listener,   // IN: listening socket
                        struct sock *pending)    // IN: pending connection
 {
-   VSockVmciSock *vlistener;
    VSockVmciSock *vpending;
 
    ASSERT(listener);
    ASSERT(pending);
 
-   vlistener = vsock_sk(listener);
    vpending = vsock_sk(pending);
 
    list_del_init(&vpending->pendingLinks);

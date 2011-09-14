@@ -87,11 +87,16 @@ GdkAtom GDK_SELECTION_TYPE_UTF8_STRING;
 CopyPasteUIX11::CopyPasteUIX11()
  : mClipboardEmpty(true),
    mHGStagingDir(""),
-   mHGGetFilesInitiated(false),
-   mFileTransferDone(false),
+   mIsClipboardOwner(false),
+   mClipTime(0),
+   mPrimTime(0),
+   mLastTimestamp(0),
+   mHGGetFileStatus(DND_FILE_TRANSFER_NOT_STARTED),
    mBlockAdded(false),
    mBlockCtrl(0),
-   mInited(false)
+   mInited(false),
+   mTotalFileSize(0),
+   mGetTimestampOnly(false)
 {
    GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
    ASSERT(p);
@@ -129,13 +134,11 @@ CopyPasteUIX11::Init()
 
    Gtk::TargetEntry gnome(FCP_TARGET_NAME_GNOME_COPIED_FILES);
    Gtk::TargetEntry kde(FCP_TARGET_NAME_URI_LIST);
-   Gtk::TargetEntry vmware(VMWARE_TARGET);
    gnome.set_info(FCP_TARGET_INFO_GNOME_COPIED_FILES);
    kde.set_info(FCP_TARGET_INFO_URI_LIST);
 
    mListTargets.push_back(gnome);
    mListTargets.push_back(kde);
-   mListTargets.push_back(vmware);
 
    mCP->srcRecvClipChanged.connect(
       sigc::mem_fun(this, &CopyPasteUIX11::GetRemoteClipboardCB));
@@ -169,6 +172,28 @@ CopyPasteUIX11::~CopyPasteUIX11()
 {
    g_debug("%s: enter\n", __FUNCTION__);
    CPClipboard_Destroy(&mClipboard);
+   /* Any files from last unfinished file transfer should be deleted. */
+   if (DND_FILE_TRANSFER_IN_PROGRESS == mHGGetFileStatus &&
+       !mHGStagingDir.empty()) {
+      uint64 totalSize = File_GetSizeEx(mHGStagingDir.c_str());
+      if (mTotalFileSize != totalSize) {
+         g_debug("%s: deleting %s, expecting %"FMT64"d, finished %"FMT64"d\n",
+                 __FUNCTION__, mHGStagingDir.c_str(),
+                 mTotalFileSize, totalSize);
+         DnD_DeleteStagingFiles(mHGStagingDir.c_str(), FALSE);
+      } else {
+         g_debug("%s: file size match %s\n",
+                 __FUNCTION__, mHGStagingDir.c_str());
+      }
+   }
+   if (mBlockAdded) {
+      g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
+      /* We need to make sure block subsystem has not been shut off. */
+      if (DnD_BlockIsReady(mBlockCtrl)) {
+         mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
+      }
+      mBlockAdded = false;
+   }
 }
 
 
@@ -219,22 +244,12 @@ CopyPasteUIX11::VmxCopyPasteVersionChanged(RpcChannel *chan,    // IN
 void
 CopyPasteUIX11::GetLocalClipboard(void)
 {
-   Glib::RefPtr<Gtk::Clipboard> refClipboard =
-      Gtk::Clipboard::get(GDK_SELECTION_CLIPBOARD);
-   Glib::RefPtr<Gtk::Clipboard> refPrimary =
-      Gtk::Clipboard::get(GDK_SELECTION_PRIMARY);
-
    g_debug("%s: enter.\n", __FUNCTION__);
 
-   if (refClipboard->wait_is_target_available(VMWARE_TARGET) &&
-       refPrimary->wait_is_target_available(VMWARE_TARGET)) {
+   if (mIsClipboardOwner) {
       /* If we are clipboard owner, send a not-changed clip to host. */
       g_debug("%s: we are owner, send unchanged clip back.\n", __FUNCTION__);
-      CPClipboard clip;
-      CPClipboard_Init(&clip);
-      CPClipboard_SetChanged(&clip, FALSE);
-      mCP->DestUISendClip(&clip);
-      CPClipboard_Destroy(&clip);
+      SendClipNotChanged();
       return;
    }
 
@@ -243,9 +258,13 @@ CopyPasteUIX11::GetLocalClipboard(void)
       return;
    }
 
+   Glib::RefPtr<Gtk::Clipboard> refClipboard =
+      Gtk::Clipboard::get(GDK_SELECTION_CLIPBOARD);
+
    mClipTime = 0;
    mPrimTime = 0;
    mGHSelection = GDK_SELECTION_CLIPBOARD;
+   mGetTimestampOnly = false;
    g_debug("%s: retrieving timestamps\n", __FUNCTION__);
    refClipboard->request_contents(TARGET_NAME_TIMESTAMP,
       sigc::mem_fun(this, &CopyPasteUIX11::LocalClipboardTimestampCB));
@@ -306,9 +325,6 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
 {
    g_debug("%s: enter.\n", __FUNCTION__);
    VmTimeType curTime;
-   mBlockAdded = false;
-
-   sd.set(sd.get_target().c_str(), "");
 
    curTime = GetCurrentTime();
 
@@ -323,24 +339,32 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       return;
    }
 
-   if (!mCP->IsCopyPasteAllowed()) {
-      g_debug("%s: copy paste is not allowed, returning.\n",
+   if (!mIsClipboardOwner || !mCP->IsCopyPasteAllowed()) {
+      g_debug("%s: not clipboard ownder, or copy paste not allowed, returning.\n",
             __FUNCTION__);
+      sd.set(sd.get_target().c_str(), "");
       return;
    }
 
    g_debug("%s: Got paste request, target is %s\n", __FUNCTION__,
          sd.get_target().c_str());
 
-   /* Copy the files. */
-   if (!mHGGetFilesInitiated) {
+   if (mHGGetFileStatus != DND_FILE_TRANSFER_NOT_STARTED) {
+      /*
+       * On KDE (at least), we can see this multiple times, so ignore if
+       * we are already getting files.
+       */
+      g_debug("%s: GetFiles already started, returning uriList [%s]\n",
+              __FUNCTION__, mHGCopiedUriList.c_str());
+      sd.set(sd.get_target().c_str(), mHGCopiedUriList.c_str());
+      return;
+   } else {
       utf::string str;
       utf::string hgStagingDir;
       utf::string stagingDirName;
       utf::string pre;
       utf::string post;
       size_t index = 0;
-      mFileTransferDone = false;
 
       hgStagingDir = static_cast<utf::string>(mCP->SrcUIRequestFiles());
       g_debug("%s: Getting files. Staging dir: %s", __FUNCTION__,
@@ -348,10 +372,12 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
 
       if (0 == hgStagingDir.bytes()) {
          g_debug("%s: Can not create staging directory\n", __FUNCTION__);
+         sd.set(sd.get_target().c_str(), "");
          return;
       }
-      mHGGetFilesInitiated = true;
+      mHGGetFileStatus = DND_FILE_TRANSFER_IN_PROGRESS;
 
+      mBlockAdded = false;
       if (DnD_BlockIsReady(mBlockCtrl) && mBlockCtrl->AddBlock(mBlockCtrl->fd, hgStagingDir.c_str())) {
          g_debug("%s: add block for %s.\n",
                __FUNCTION__, hgStagingDir.c_str());
@@ -374,6 +400,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       } else {
          g_debug("%s: Unknown request target: %s\n", __FUNCTION__,
                sd.get_target().c_str());
+         sd.set(sd.get_target().c_str(), "");
          return;
       }
 
@@ -381,6 +408,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       stagingDirName = GetLastDirName(hgStagingDir);
       if (0 == stagingDirName.bytes()) {
          g_debug("%s: Can not get staging directory name\n", __FUNCTION__);
+         sd.set(sd.get_target().c_str(), "");
          return;
       }
 
@@ -403,6 +431,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
 
    if (0 == mHGCopiedUriList.bytes()) {
       g_debug("%s: Can not get uri list\n", __FUNCTION__);
+      sd.set(sd.get_target().c_str(), "");
       return;
    }
 
@@ -422,12 +451,9 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
        * apparently it only has so much patience regarding how quickly we
        * return.
        */
-      g_debug("%s no blocking driver, waiting for "
-            "HG file copy done ... mFileTransferDone is %d\n", __FUNCTION__,
-            (int) mFileTransferDone);
       CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
       ToolsAppCtx *ctx = wrapper->GetToolsAppCtx();
-      while (mFileTransferDone == false) {
+      while (mHGGetFileStatus == DND_FILE_TRANSFER_IN_PROGRESS) {
          struct timeval tv;
 
          tv.tv_sec = 0;
@@ -436,6 +462,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
          if (select(0, NULL, NULL, NULL, &tv) == -1) {
             g_debug("%s: error in select (%s).\n", __FUNCTION__,
                   strerror(errno));
+            sd.set(sd.get_target().c_str(), "");
             return;
          }
       }
@@ -483,13 +510,13 @@ CopyPasteUIX11::LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, // IN/OUT
 
    if (target == TARGET_NAME_APPLICATION_RTF ||
        target == TARGET_NAME_TEXT_RICHTEXT) {
-      if (0 == mHGRTFData.bytes()) {
+      if (0 == mHGRTFData.size()) {
          g_debug("%s: Can not get valid RTF data\n", __FUNCTION__);
          return;
       }
 
       g_debug("%s: providing RTF data, size %"FMTSZ"u\n",
-            __FUNCTION__, mHGRTFData.bytes());
+            __FUNCTION__, mHGRTFData.size());
 
       sd.set(target.c_str(), mHGRTFData.c_str());
    }
@@ -530,6 +557,7 @@ void
 CopyPasteUIX11::LocalClearClipboardCB(void)
 {
    g_debug("%s: got clear callback\n", __FUNCTION__);
+   mIsClipboardOwner = FALSE;
 }
 
 
@@ -604,10 +632,28 @@ CopyPasteUIX11::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
       g_debug("%s: Unable to get mPrimTime.", __FUNCTION__);
    }
 
+   if (mGetTimestampOnly) {
+      mLastTimestamp = mClipTime > mPrimTime ? mClipTime : mPrimTime;
+      return;
+   }
+
    /* After got both timestamp, choose latest one as active selection. */
-   mGHSelection = GDK_SELECTION_PRIMARY;
    if (mClipTime > mPrimTime) {
       mGHSelection = GDK_SELECTION_CLIPBOARD;
+      if (mClipTime > 0 && mClipTime == mLastTimestamp) {
+         g_debug("%s: clip is not changed\n", __FUNCTION__);
+         SendClipNotChanged();
+         return;
+      }
+      mLastTimestamp = mClipTime;
+   } else {
+      mGHSelection = GDK_SELECTION_PRIMARY;
+      if (mPrimTime > 0 && mPrimTime == mLastTimestamp) {
+         g_debug("%s: clip is not changed\n", __FUNCTION__);
+         SendClipNotChanged();
+         return;
+      }
+      mLastTimestamp = mPrimTime;
    }
 
    Glib::RefPtr<Gtk::Clipboard> refClipboard;
@@ -620,13 +666,6 @@ again:
           mGHSelection == GDK_SELECTION_PRIMARY ? "Primary" : "Clip");
 
    CPClipboard_Clear(&mClipboard);
-
-   if (refClipboard->wait_is_target_available(VMWARE_TARGET)) {
-      g_debug("%s: we are owner, send unchanged clip back.\n", __FUNCTION__);
-      CPClipboard_SetChanged(&mClipboard, FALSE);
-      mCP->DestUISendClip(&mClipboard);
-      return;
-   }
 
    /* First check for URIs. This must always be done first */
    bool haveURIs = false;
@@ -894,17 +933,31 @@ CopyPasteUIX11::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // 
    while ((newPath = DnD_UriListGetNextFile(source.c_str(),
                                             &index,
                                             &newPathLen)) != NULL) {
+#if defined(linux)
+      if (DnD_UriIsNonFileSchemes(newPath)) {
+         /* Try to get local file path for non file uri. */
+         GFile *file = g_file_new_for_uri(newPath);
+         free(newPath);
+         if (!file) {
+            g_debug("%s: g_file_new_for_uri failed\n", __FUNCTION__);
+            return;
+         }
+         newPath = g_file_get_path(file);
+         g_object_unref(file);
+         if (!newPath) {
+            g_debug("%s: g_file_get_path failed\n", __FUNCTION__);
+            return;
+         }
+      }
+#endif
 
       /*
        * Parse relative path.
        */
       newRelPath = Str_Strrchr(newPath, DIRSEPC) + 1; // Point to char after '/'
 
-      /*
-       * XXX For directory, value is -1, so if there is any directory,
-       * total size is not accurate.
-       */
-      if ((size = File_GetSize(newPath)) >= 0) {
+      /* Keep track of how big the fcp files are. */
+      if ((size = File_GetSizeEx(newPath)) >= 0) {
          totalSize += size;
       } else {
          g_debug("%s: Unable to get file size for %s\n", __FUNCTION__, newPath);
@@ -1065,13 +1118,11 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
    }
 
    /* Clear the clipboard contents if we are the owner. */
-   if (refClipboard->wait_is_target_available(VMWARE_TARGET)) {
+   if (mIsClipboardOwner) {
       refClipboard->clear();
-      g_debug("%s: Cleared local clipboard", __FUNCTION__);
-   }
-   if (refPrimary->wait_is_target_available(VMWARE_TARGET)) {
       refPrimary->clear();
-      g_debug("%s: Cleared local primary selection", __FUNCTION__);
+      mIsClipboardOwner = false;
+      g_debug("%s: Cleared local clipboard", __FUNCTION__);
    }
 
    mHGTextData.clear();
@@ -1082,33 +1133,35 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
        CPClipboard_ItemExists(clip, CPFORMAT_RTF)) {
       std::list<Gtk::TargetEntry> targets;
 
+      /*
+       * rtf should be first in the target list otherwise OpenOffice may not
+       * accept paste.
+       */
+      if (CPClipboard_GetItem(clip, CPFORMAT_RTF, &buf, &sz)) {
+         g_debug("%s: RTF data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
+         Gtk::TargetEntry appRtf(TARGET_NAME_APPLICATION_RTF);
+         Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RICHTEXT);
+
+         targets.push_back(appRtf);
+         targets.push_back(textRtf);
+         mHGRTFData = std::string((const char *)buf);
+         mIsClipboardOwner = true;
+      }
+
       if (CPClipboard_GetItem(clip, CPFORMAT_TEXT, &buf, &sz)) {
          Gtk::TargetEntry stringText(TARGET_NAME_STRING);
          Gtk::TargetEntry plainText(TARGET_NAME_TEXT_PLAIN);
          Gtk::TargetEntry utf8Text(TARGET_NAME_UTF8_STRING);
          Gtk::TargetEntry compountText(TARGET_NAME_COMPOUND_TEXT);
-         Gtk::TargetEntry vmware(VMWARE_TARGET);
 
          g_debug("%s: Text data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
          targets.push_back(stringText);
          targets.push_back(plainText);
          targets.push_back(utf8Text);
          targets.push_back(compountText);
-         targets.push_back(vmware);
          mHGTextData = utf::string(reinterpret_cast<char *>(buf),
                                    STRING_ENCODING_UTF8);
-      }
-
-      if (CPClipboard_GetItem(clip, CPFORMAT_RTF, &buf, &sz)) {
-         g_debug("%s: RTF data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
-         Gtk::TargetEntry appRtf(TARGET_NAME_APPLICATION_RTF);
-         Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RICHTEXT);
-         Gtk::TargetEntry vmware(VMWARE_TARGET);
-
-         targets.push_back(appRtf);
-         targets.push_back(textRtf);
-         targets.push_back(vmware);
-         mHGRTFData = utf::string((const char *)buf);
+         mIsClipboardOwner = true;
       }
 
       refClipboard->set(targets,
@@ -1123,14 +1176,27 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
    if (CPClipboard_GetItem(clip, CPFORMAT_IMG_PNG, &buf, &sz)) {
       g_debug("%s: PNG data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
       /* Try to load buf into pixbuf, and write to local clipboard. */
-      Glib::RefPtr<Gdk::PixbufLoader> loader = Gdk::PixbufLoader::create();
-
-      if (loader) {
+      try {
+         Glib::RefPtr<Gdk::PixbufLoader> loader = Gdk::PixbufLoader::create();
          loader->write((const guint8 *)buf, sz);
          loader->close();
 
          refClipboard->set_image(loader->get_pixbuf());
          refPrimary->set_image(loader->get_pixbuf());
+
+         /*
+          * Record current clipboard timestamp to prevent unexpected clipboard
+          * exchange.
+          *
+          * XXX We should do this for all formats.
+          */
+         mClipTime = 0;
+         mPrimTime = 0;
+         mGetTimestampOnly = true;
+         refClipboard->request_contents(TARGET_NAME_TIMESTAMP,
+            sigc::mem_fun(this, &CopyPasteUIX11::LocalClipboardTimestampCB));
+      } catch(...) {
+         // Do nothing
       }
       return;
    }
@@ -1138,6 +1204,7 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
       g_debug("%s: File data.\n", __FUNCTION__);
       DnDFileList flist;
       flist.FromCPClipboard(buf, sz);
+      mTotalFileSize = flist.GetFileSize();
       mHGFCPData = flist.GetRelPathsStr();
 
       refClipboard->set(mListTargets,
@@ -1147,8 +1214,9 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
                       sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileRequestCB),
                       sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
 
+      mIsClipboardOwner = true;
       mHGGetListTime = GetCurrentTime();
-      mHGGetFilesInitiated = false;
+      mHGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
       mHGCopiedUriList = "";
    }
 
@@ -1161,6 +1229,7 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
          refPrimary->set(mListTargets,
                          sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileContentsRequestCB),
                          sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
+         mIsClipboardOwner = true;
       }
    }
 }
@@ -1394,7 +1463,7 @@ CopyPasteUIX11::GetLocalFilesDone(bool success)
       mBlockAdded = false;
    }
 
-   mFileTransferDone = true;
+   mHGGetFileStatus = DND_FILE_TRANSFER_FINISHED;
    if (success) {
       /*
        * Mark current staging dir to be deleted on next reboot for FCP. The
@@ -1406,6 +1475,35 @@ CopyPasteUIX11::GetLocalFilesDone(bool success)
       /* Copied files are already removed in common layer. */
       mHGStagingDir.clear();
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CopyPasteUIX11::SendClipNotChanged --
+ *
+ *    Send a not-changed clip to host.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+CopyPasteUIX11::SendClipNotChanged(void)
+{
+   CPClipboard clip;
+
+   g_debug("%s: enter.\n", __FUNCTION__);
+   CPClipboard_Init(&clip);
+   CPClipboard_SetChanged(&clip, FALSE);
+   mCP->DestUISendClip(&clip);
+   CPClipboard_Destroy(&clip);
 }
 
 

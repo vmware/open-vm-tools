@@ -21,11 +21,17 @@
  *
  *    Implements the unity plugin for the tools services. Registers for the Unity
  *    RPC's and sets the Unity capabilities.
+ *
+ *    XXX Rewrite all of this to match CUI models and be, like, readable.
  */
 
 #define G_LOG_DOMAIN "unity"
 
 #include "unityPlugin.h"
+
+#ifndef WIN32
+#   include "unityPluginPosix.h"
+#endif
 
 extern "C" {
    #include "util.h"
@@ -45,136 +51,7 @@ using namespace vmware::tools;
 /*
  *-----------------------------------------------------------------------------
  *
- * UnityPluginCapabilities --
- *
- *      Called by the service core when the host requests the capabilities
- *      supported by the guest tools.
- *
- * Results:
- *      A list of capabilities to be sent to the host.
- *
- * Side effects:
- *
- *
- *-----------------------------------------------------------------------------
- */
-
-static GArray *
-UnityPluginCapabilities(gpointer src,            // IGNORED
-                        ToolsAppCtx *ctx,        // IN: The app context.
-                        gboolean set,            // IN: true if setting, else unsetting
-                        ToolsPluginData *plugin) // IN: Plugin registration data.
-{
-   ToolsPlugin *pluginInstance = reinterpret_cast<ToolsPlugin*>(plugin->_private);
-   ASSERT(pluginInstance);
-
-   std::vector<ToolsAppCapability> capabilities = pluginInstance->GetCapabilities(set);
-
-   g_debug("%s: got capability signal, setting = %d.\n", __FUNCTION__, set);
-   return VMTools_WrapArray(&capabilities[0], sizeof capabilities[0],
-                            capabilities.size());
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnityPluginReset --
- *
- *      Handles a reset signal.  Just logs debug information.
- *
- * Results:
- *      TRUE on success, FALSE on failure.
- *
- * Side effects:
- *      XXX.
- *
- *-----------------------------------------------------------------------------
- */
-
-static gboolean
-UnityPluginReset(gpointer src,            // IN: Event source.
-                 ToolsAppCtx *ctx,        // IN: The app context.
-                 ToolsPluginData *plugin) // IN: Plugin registration data.
-{
-   ASSERT(ctx != NULL);
-   g_debug("%s: reset signal for app %s\n", __FUNCTION__, ctx->name);
-
-   ToolsPlugin *pluginInstance = reinterpret_cast<ToolsPlugin*>(plugin->_private);
-   ASSERT(pluginInstance);
-
-   return pluginInstance->Reset(src);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnityPluginShutdown --
- *
- *      Handles a shutdown callback; just logs debug information.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      XXX.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-UnityPluginShutdown(gpointer src,            // IN: The source object.
-                    ToolsAppCtx *ctx,        // IN: The app context.
-                    ToolsPluginData *plugin) // Plugin registration data.
-{
-   g_debug("%s: shutdown signal.\n", __FUNCTION__);
-
-   ToolsPlugin *pluginInstance = reinterpret_cast<ToolsPlugin*>(plugin->_private);
-   ASSERT(pluginInstance);
-
-   pluginInstance->Shutdown(src);
-
-   delete pluginInstance;
-   plugin->_private = NULL;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnityPluginSetOption --
- *
- *      Handles a "Set_Option" callback. Just logs debug information.
- *
- * Results:
- *      TRUE on success, FALSE on failure.
- *
- * Side effects:
- *      XXX.
- *
- *-----------------------------------------------------------------------------
- */
-
-static gboolean
-UnityPluginSetOption(gpointer src,            // IN: Event source.
-                     ToolsAppCtx *ctx,        // IN: The app context.
-                     const gchar *option,     // IN: Option to set.
-                     const gchar *value,      // IN: Option value.
-                     ToolsPluginData *plugin) // IN: Plugin registration data.
-{
-   g_debug("%s: set '%s' to '%s'\n", __FUNCTION__, option, value);
-   ToolsPlugin *pluginInstance = reinterpret_cast<ToolsPlugin*>(plugin->_private);
-   ASSERT(pluginInstance);
-
-   return pluginInstance->SetOption(src, std::string(option), std::string(value));
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * ToolsOnLoad` --
+ * ToolsOnLoad --
  *
  *      Plugin entry point.  Returns the registration data.
  *
@@ -197,19 +74,12 @@ ToolsOnLoad(ToolsAppCtx *ctx)           // IN: The app context.
    };
 
    if (ctx->rpc != NULL) {
-      ToolsPluginSignalCb sigs[] = {
-         { TOOLS_CORE_SIG_RESET, (void *) UnityPluginReset, &regData },
-         { TOOLS_CORE_SIG_SHUTDOWN, (void *) UnityPluginShutdown, &regData },
-         { TOOLS_CORE_SIG_CAPABILITIES, (void *) UnityPluginCapabilities, &regData },
-         { TOOLS_CORE_SIG_SET_OPTION, (void *) UnityPluginSetOption, &regData },
-      };
-
       ToolsPlugin *pluginInstance = NULL;
 
 #if WIN32
-      pluginInstance = new UnityPluginWin32();
+      pluginInstance = new UnityPluginWin32(ctx);
 #else // Linux
-      pluginInstance = new UnityPlugin();
+      pluginInstance = new UnityPluginPosix(ctx);
 #endif
 
       if (!pluginInstance) {
@@ -217,7 +87,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)           // IN: The app context.
          return NULL;
       }
 
-      if (!pluginInstance->Initialize(ctx)) {
+      if (!pluginInstance->Initialize()) {
          g_warning("%s: Unity Plugin failed to initialize.\n", __FUNCTION__);
          delete pluginInstance;
          return NULL;
@@ -225,10 +95,12 @@ ToolsOnLoad(ToolsAppCtx *ctx)           // IN: The app context.
       regData._private = pluginInstance;
 
       std::vector<RpcChannelCallback> rpcs = pluginInstance->GetRpcCallbackList();
+      std::vector<ToolsPluginSignalCb> sigs =
+         pluginInstance->GetSignalRegistrations(&regData);
 
       ToolsAppReg regs[] = {
          { TOOLS_APP_GUESTRPC, VMTools_WrapArray(&rpcs[0], sizeof rpcs[0], rpcs.size()) },
-         { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
+         { TOOLS_APP_SIGNALS, VMTools_WrapArray(&sigs[0], sizeof sigs[0], sigs.size()) },
       };
 
       regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));

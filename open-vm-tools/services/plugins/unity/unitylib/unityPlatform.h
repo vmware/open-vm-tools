@@ -60,9 +60,6 @@ Bool UnityPlatformGetWindowPath(UnityPlatform *up,
                                 UnityWindowId window,
                                 DynBuf *windowPathUtf8,
                                 DynBuf *execPathUtf8);
-Bool UnityPlatformGetNativeWindowPath(UnityPlatform *up,
-                                      UnityWindowId window,
-                                      DynBuf *buf);
 Bool UnityPlatformGetBinaryInfo(UnityPlatform *up,
                                 const char *pathUtf8,
                                 DynBuf *buf);
@@ -85,6 +82,7 @@ Bool UnityPlatformMoveResizeWindow(UnityPlatform *up,
                                    UnityWindowId window,
                                    UnityRect *moveResizeRect);
 void UnityPlatformShowTaskbar(UnityPlatform *up, Bool showTaskbar);
+void UnityPlatformShowDesktop(UnityPlatform *up, Bool showDesktop);
 Bool UnityPlatformGetIconData(UnityPlatform *up,
                               UnityWindowId window,
                               UnityIconType iconType,

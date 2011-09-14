@@ -569,22 +569,23 @@ typedef void * UserVA;
  * Must be at least as large as MAX_PPN which is the maximum PPN
  * for any region other than buserror.
  */
-#define PHYSMEM_MAX_PPN ((PPN)0xffffffff)
-#define MAX_PPN         ((PPN)0x1fffffff)   /* Maximal observable PPN value. */
-#define INVALID_PPN     ((PPN)0xffffffff)
+#define PHYSMEM_MAX_PPN   ((PPN)0xffffffff)
+#define MAX_PPN           ((PPN)0x1fffffff) /* Maximal observable PPN value. */
+#define INVALID_PPN       ((PPN)0xffffffff)
+#define APIC_DISABLED_PPN ((PPN)0xfffffffe)
 
-#define INVALID_BPN     ((BPN)0x1fffffff)
+#define INVALID_BPN       ((BPN)0x1fffffff)
 
-#define RESERVED_MPN    ((MPN) 0)
-#define INVALID_MPN     ((MPN)-1)
-#define MEMREF_MPN      ((MPN)-2)
-#define RELEASED_MPN    ((MPN)-3)
-#define MAX_MPN         ((MPN)0x7fffffff)  /* 43 bits of address space. */
+#define RESERVED_MPN      ((MPN) 0)
+#define INVALID_MPN       ((MPN)-1)
+#define MEMREF_MPN        ((MPN)-2)
+#define RELEASED_MPN      ((MPN)-3)
+#define MAX_MPN           ((MPN)0x7fffffff)  /* 43 bits of address space. */
 
-#define INVALID_LPN     ((LPN)-1)
-#define INVALID_VPN     ((VPN)-1)
-#define INVALID_LPN64   ((LPN64)-1)
-#define INVALID_PAGENUM ((PageNum)-1)
+#define INVALID_LPN       ((LPN)-1)
+#define INVALID_VPN       ((VPN)-1)
+#define INVALID_LPN64     ((LPN64)-1)
+#define INVALID_PAGENUM   ((PageNum)-1)
 
 
 /*
@@ -677,13 +678,16 @@ typedef void * UserVA;
 #if defined __GNUC__
 /*
  * Starting at version 3.3, gcc does not always inline functions marked
- * 'inline' (it depends on their size). To force gcc to do so, one must use the
- * extra __always_inline__ attribute.
+ * 'inline' (it depends on their size and other factors). To force gcc
+ * to inline a function, one must use the __always_inline__ attribute.
+ * This attribute should be used sparingly and with care.  It is usually
+ * preferable to let gcc make its own inlining decisions
  */
-#   define INLINE_SINGLE_CALLER INLINE __attribute__((__always_inline__))
+#   define INLINE_ALWAYS INLINE __attribute__((__always_inline__))
 #else
-#   define INLINE_SINGLE_CALLER INLINE
+#   define INLINE_ALWAYS INLINE
 #endif
+#define INLINE_SINGLE_CALLER INLINE_ALWAYS
 
 /*
  * Used when a hard guaranteed of no inlining is needed. Very few

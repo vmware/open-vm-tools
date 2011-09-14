@@ -48,7 +48,7 @@
  */
 
 void
-DynBuf_Init(DynBuf *b) // IN
+DynBuf_Init(DynBuf *b)  // OUT:
 {
    ASSERT(b);
 
@@ -75,13 +75,12 @@ DynBuf_Init(DynBuf *b) // IN
  */
 
 void
-DynBuf_Destroy(DynBuf *b) // IN
+DynBuf_Destroy(DynBuf *b)  // IN/OUT:
 {
    ASSERT(b);
 
    free(b->data);
-   b->data = NULL;
-   b->allocated = 0;
+   DynBuf_Init(b);
 }
 
 

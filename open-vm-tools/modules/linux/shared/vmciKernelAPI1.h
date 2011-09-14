@@ -51,8 +51,12 @@
 
 /* VMCI Device Usage API. */
 
-Bool VMCI_DeviceGet(uint32 *apiVersion);
-void VMCI_DeviceRelease(void);
+typedef void (VMCI_DeviceShutdownFn)(void *deviceRegistration,
+                                     void *userData);
+
+Bool VMCI_DeviceGet(uint32 *apiVersion, VMCI_DeviceShutdownFn *deviceShutdownCB,
+                    void *userData, void **deviceRegistration);
+void VMCI_DeviceRelease(void *deviceRegistration);
 
 /* VMCI Datagram API. */
 
@@ -72,6 +76,7 @@ VMCIId VMCI_GetContextID(void);
 uint32 VMCI_Version(void);
 int VMCI_ContextID2HostVmID(VMCIId contextID, void *hostVmID,
                             size_t hostVmIDLen);
+int VMCI_IsContextOwner(VMCIId contextID, void *hostUser);
 
 /* VMCI Event API. */
 
@@ -147,7 +152,7 @@ ssize_t VMCIQPair_PeekV(VMCIQPair *qpair,
 
 /* Typedefs for all of the above, used by the IOCTLs and the kernel library. */
 
-typedef void (VMCI_DeviceReleaseFct)(void);
+typedef void (VMCI_DeviceReleaseFct)(void *);
 typedef int (VMCIDatagram_CreateHndFct)(VMCIId, uint32, VMCIDatagramRecvCB,
                                         void *, VMCIHandle *);
 typedef int (VMCIDatagram_CreateHndPrivFct)(VMCIId, uint32, VMCIPrivilegeFlags,
@@ -157,9 +162,12 @@ typedef int (VMCIDatagram_DestroyHndFct)(VMCIHandle);
 typedef int (VMCIDatagram_SendFct)(VMCIDatagram *);
 typedef VMCIId (VMCI_GetContextIDFct)(void);
 typedef uint32 (VMCI_VersionFct)(void);
+typedef int (VMCI_ContextID2HostVmIDFct)(VMCIId, void *, size_t);
+typedef int (VMCI_IsContextOwnerFct)(VMCIId, void *);
 typedef int (VMCIEvent_SubscribeFct)(VMCI_Event, uint32, VMCI_EventCB, void *,
                                      VMCIId *);
 typedef int (VMCIEvent_UnsubscribeFct)(VMCIId);
+typedef VMCIPrivilegeFlags (VMCIContext_GetPrivFlagsFct)(VMCIId);
 typedef int (VMCIQPair_AllocFct)(VMCIQPair **, VMCIHandle *, uint64, uint64,
                                  VMCIId, uint32, VMCIPrivilegeFlags);
 typedef int (VMCIQPair_DetachFct)(VMCIQPair **);

@@ -67,6 +67,11 @@
 #define CONFGROUPNAME_GUESTINFO "guestinfo"
 
 /**
+ * Lets users disable just the perf monitor.
+ */
+#define CONFNAME_GUESTINFO_DISABLEPERFMON "disable-perf-mon"
+
+/**
  * Lets users disable just DiskInfo.
  *
  * If thinking of deprecating this, please read bug 535343 first.

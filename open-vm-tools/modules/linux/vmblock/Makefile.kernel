@@ -21,7 +21,6 @@ INCLUDE += -I$(SRCROOT)/include
 
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 
-EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/skas1.c,   -DVMW_SKAS_MMAP, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachecreate.c, -DVMW_KMEMCR_HAS_DTOR, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector.c,   -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector1.c,  -DVMW_KMEMCR_CTOR_HAS_2_ARGS, )

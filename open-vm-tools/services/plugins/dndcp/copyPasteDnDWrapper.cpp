@@ -138,14 +138,9 @@ CopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
 {
    m_ctx = ctx;
 
-   /*
-    * We only support DnD/CP V3 and greater.
-    */
-   if (GetDnDVersion() >= 3 && GetCPVersion() >= 3 || GetCPVersion() == 1) {
-      GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
-      ASSERT(p);
-      p->Init(ctx);
-   }
+   GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
+   ASSERT(p);
+   p->Init(ctx);
 
    if (!m_pimpl) {
 #if defined(HAVE_GTKMM)
@@ -476,6 +471,23 @@ void
 CopyPasteDnDWrapper::OnResetInternal()
 {
    g_debug("%s: enter\n", __FUNCTION__);
+
+   /*
+    * Reset DnD/Copy/Paste only if vmx said we can. The reason is that
+    * we may also get reset request from vmx when user is taking snapshot
+    * or recording. If there is an ongoing DnD/copy/paste, we should not
+    * reset here. For details please refer to bug 375928.
+    */
+   char *reply = NULL;
+   size_t replyLen;
+   ToolsAppCtx *ctx = GetToolsAppCtx();
+   if (RpcChannel_Send(ctx->rpc, "dnd.is.active",
+                       strlen("dnd.is.active"), &reply, &replyLen) &&
+       (1 == atoi(reply))) {
+      g_debug("%s: ignore reset while file transfer is busy.\n", __FUNCTION__);
+      return;
+   }
+
    if (IsDnDRegistered()) {
       UnregisterDnD();
    }
@@ -486,21 +498,7 @@ CopyPasteDnDWrapper::OnResetInternal()
       RegisterCP();
    }
    if (IsDnDEnabled() && !IsDnDRegistered()) {
-      /*
-       * Reset DnD/Copy/Paste only if vmx said we can. The reason is that
-       * we may also get reset request from vmx when user is taking snapshot
-       * or recording. If there is an ongoing DnD/copy/paste, we should not
-       * reset here. For details please refer to bug 375928.
-       */
-
-      char *reply = NULL;
-      size_t replyLen;
-      ToolsAppCtx *ctx = GetToolsAppCtx();
-      if (!RpcChannel_Send(ctx->rpc, "dnd.is.active",
-                           strlen("dnd.is.active"), &reply, &replyLen) ||
-          (0 == atoi(reply))) {
-         RegisterDnD();
-      }
+      RegisterDnD();
    }
    if (!IsDnDRegistered() || !IsCPRegistered()) {
       g_debug("%s: unable to reset fully DnD %d CP %d!\n",

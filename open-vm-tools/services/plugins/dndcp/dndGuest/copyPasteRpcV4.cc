@@ -71,7 +71,7 @@ CopyPasteRpcV4::Init(void)
 {
    ASSERT(mTransport);
    mTransport->RegisterRpc(this, mTransportInterface);
-   mUtil.SendPingMsg(DEFAULT_CONNECTION_ID, 0);
+   mUtil.SendPingMsg(DEFAULT_CONNECTION_ID, 0xffffffff);
 }
 
 
@@ -94,6 +94,7 @@ CopyPasteRpcV4::SrcRequestClip(uint32 sessionId,
    params.addrId = DEFAULT_CONNECTION_ID;
    params.cmd = CP_CMD_REQUEST_CLIPBOARD;
    params.sessionId = sessionId;
+   params.optional.cpInfo.capability = 0xffffffff;
    params.optional.cpInfo.major = mUtil.GetVersionMajor();
    params.optional.cpInfo.minor = mUtil.GetVersionMinor();
    params.optional.cpInfo.isActive = isActive;
@@ -123,6 +124,7 @@ CopyPasteRpcV4::DestSendClip(uint32 sessionId,
    params.addrId = DEFAULT_CONNECTION_ID;
    params.cmd = CP_CMD_SEND_CLIPBOARD;
    params.sessionId = sessionId;
+   params.optional.cpInfo.capability = 0xffffffff;
    params.optional.cpInfo.major = mUtil.GetVersionMajor();
    params.optional.cpInfo.minor = mUtil.GetVersionMinor();
    params.optional.cpInfo.isActive = isActive;

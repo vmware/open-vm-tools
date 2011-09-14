@@ -82,6 +82,125 @@ extern int vsnprintf(char *buf, size_t len, const char *f, va_list arg);
 /*
  *----------------------------------------------------------------------
  *
+ * Str_Vsnprintf --
+ *
+ *	Compatibility wrapper b/w different libc versions
+ *
+ * Results:
+ *
+ *	int - number of bytes stored in 'str' (not including NUL
+ *	terminate character), -1 on overflow (insufficient space for
+ *	NUL terminate is considered overflow)
+ *
+ *	NB: on overflow the buffer WILL be NUL terminated at the last
+ *	UTF-8 code point boundary within the buffer's bounds.
+ *
+ * WARNING: See warning at the top of this file.
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Str_Vsnprintf(char *str,          // OUT
+              size_t size,        // IN
+              const char *format, // IN
+              va_list ap)         // IN
+{
+   int retval;
+
+   ASSERT(str != NULL);
+   ASSERT(format != NULL);
+
+#ifdef HAS_BSD_PRINTF
+   retval = bsd_vsnprintf(&str, size, format, ap);
+#else
+   retval = vsnprintf(str, size, format, ap);
+#endif
+
+   /*
+    * Linux glibc 2.0.x returns -1 and NUL terminates (which we shouldn't
+    * be linking against), but glibc 2.1.x follows c99 and returns
+    * characters that would have been written.
+    *
+    * In the case of Win32 and !HAS_BSD_PRINTF, we are using
+    * _vsnprintf(), which returns -1 on overflow, returns size
+    * when result fits exactly, and does not NUL terminate in
+    * those cases.
+    */
+
+   if ((retval < 0) || (retval >= size)) {
+      if (size > 0) {
+         /* Find UTF-8 code point boundary and place NUL termination there */
+         int trunc = CodeSet_Utf8FindCodePointBoundary(str, size - 1);
+
+         str[trunc] = '\0';
+      }
+   }
+   if (retval >= size) {
+      return -1;
+   }
+   return retval;
+}
+
+
+#ifdef HAS_BSD_PRINTF
+/*
+ *----------------------------------------------------------------------
+ *
+ * Str_Sprintf_C_Locale --
+ *
+ *      sprintf wrapper that fails on overflow. Enforces numeric C locale.
+ *
+ * Results:
+ *      Returns the number of bytes stored in 'buf'.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Str_Sprintf_C_Locale(char *buf,        // OUT:
+                     size_t maxSize,   // IN:
+                     const char *fmt,  // IN:
+                     ...)              // IN:
+{
+   uint32 *stack = (uint32*) &buf;
+   va_list args;
+   int retval;
+
+   ASSERT(buf);
+   ASSERT(fmt);
+   
+   va_start(args, fmt);
+   retval = bsd_vsnprintf_c_locale(&buf, maxSize, fmt, args);
+   va_end(args);
+
+   if ((retval < 0) || (retval >= maxSize)) {
+      if (maxSize > 0) {
+         /* Find UTF-8 code point boundary and place NUL termination there */
+         int trunc = CodeSet_Utf8FindCodePointBoundary(buf, maxSize - 1);
+
+         buf[trunc] = '\0';
+      }
+   }
+
+   if (retval >= maxSize) {
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+   }
+
+   return retval;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Str_Sprintf --
  *
  *      sprintf wrapper that fails on overflow
@@ -118,81 +237,17 @@ Str_Sprintf(char *buf,       // OUT
 /*
  *----------------------------------------------------------------------
  *
- * Str_Vsnprintf --
- *
- *	Compatibility wrapper b/w different libc versions
- *
- * Results:
- *
- *	int - number of bytes stored in 'str' (not including null
- *	terminate character), -1 on overflow (insufficient space for
- *	null terminate is considered overflow)
- *
- *	NB: on overflow the buffer WILL be null terminated at the last
- *	UTF-8 code point boundary within the buffer's bounds.
- *
- * WARNING: See warning at the top of this file.
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-int
-Str_Vsnprintf(char *str,          // OUT
-              size_t size,        // IN
-              const char *format, // IN
-              va_list ap)         // IN
-{
-   int retval;
-
-   ASSERT(str != NULL);
-   ASSERT(format != NULL);
-
-#ifdef HAS_BSD_PRINTF
-   retval = bsd_vsnprintf(&str, size, format, ap);
-#else
-   retval = vsnprintf(str, size, format, ap);
-#endif
-
-   /*
-    * Linux glibc 2.0.x returns -1 and null terminates (which we shouldn't
-    * be linking against), but glibc 2.1.x follows c99 and returns
-    * characters that would have been written.
-    *
-    * In the case of Win32 and !HAS_BSD_PRINTF, we are using
-    * _vsnprintf(), which returns -1 on overflow, returns size
-    * when result fits exactly, and does not null terminate in
-    * those cases.
-    */
-
-   if ((retval < 0 || retval >= size) && size > 0) {
-      /* Find UTF-8 code point boundary and place NUL termination there */
-      int trunc = CodeSet_Utf8FindCodePointBoundary(str, size - 1);
-      str[trunc] = '\0';
-   }
-   if (retval >= size) {
-      return -1;
-   }
-   return retval;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * Str_Snprintf --
  *
  *	Compatibility wrapper b/w different libc versions
  *
  * Results:
  *
- *	int - number of bytes stored in 'str' (not including null
+ *	int - number of bytes stored in 'str' (not including NUL
  *	terminate character), -1 on overflow (insufficient space for
- *	null terminate is considered overflow)
+ *	NUL terminate is considered overflow)
  *
- *	NB: on overflow the buffer WILL be null terminated
+ *	NB: on overflow the buffer WILL be NUL terminated
  *
  * Side effects:
  *	None
@@ -421,7 +476,7 @@ Str_Strncat(char *buf,       // IN-OUT
     * The reason the test with bufLen and n is >= rather than just >
     * is that strncat always NUL-terminates the resulting string, even
     * if it reaches the length limit n. This means that if it happens that
-    * bufLen + n == bufSize, strncat will write a null terminator that
+    * bufLen + n == bufSize, strncat will write a NUL terminator that
     * is outside of the buffer. Therefore, we make sure this does not
     * happen by adding the == case to the Panic test.
     */
@@ -432,7 +487,7 @@ Str_Strncat(char *buf,       // IN-OUT
    }
 
    /*
-    * We don't need to worry about null termination, because it's only
+    * We don't need to worry about NUL termination, because it's only
     * needed on overflow and we Panic above in that case.
     */
 
@@ -692,11 +747,11 @@ Str_Swprintf(wchar_t *buf,       // OUT
  *
  * Results:
  *
- *	int - number of wchar_ts stored in 'str' (not including null
+ *	int - number of wchar_ts stored in 'str' (not including NUL
  *	terminate character), -1 on overflow (insufficient space for
- *	null terminate is considered overflow)
+ *	NUL terminate is considered overflow)
  *
- *	NB: on overflow the buffer WILL be null terminated
+ *	NB: on overflow the buffer WILL be NUL terminated
  *
  * WARNING: See warning at the top of this file.
  *
@@ -723,13 +778,13 @@ Str_Vsnwprintf(wchar_t *str,          // OUT
 #endif
 
    /*
-    * Linux glibc 2.0.x returns -1 and null terminates (which we shouldn't
+    * Linux glibc 2.0.x returns -1 and NUL terminates (which we shouldn't
     * be linking against), but glibc 2.1.x follows c99 and returns
     * characters that would have been written.
     *
     * In the case of Win32 and !HAS_BSD_PRINTF, we are using
     * _vsnwprintf(), which returns -1 on overflow, returns size
-    * when result fits exactly, and does not null terminate in
+    * when result fits exactly, and does not NUL terminate in
     * those cases.
     */
 
@@ -755,11 +810,11 @@ Str_Vsnwprintf(wchar_t *str,          // OUT
  *
  * Results:
  *
- *	int - number of wchar_ts stored in 'str' (not including null
+ *	int - number of wchar_ts stored in 'str' (not including NUL
  *	terminate character), -1 on overflow (insufficient space for
- *	null terminate is considered overflow)
+ *	NUL terminate is considered overflow)
  *
- *	NB: on overflow the buffer WILL be null terminated
+ *	NB: on overflow the buffer WILL be NUL terminated
  *
  * Side effects:
  *	None
@@ -890,7 +945,7 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
     * The reason the test with bufLen and n is >= rather than just >
     * is that wcsncat always NUL-terminates the resulting string, even
     * if it reaches the length limit n. This means that if it happens that
-    * bufLen + n == bufSize, wcsncat will write a null terminator that
+    * bufLen + n == bufSize, wcsncat will write a NUL terminator that
     * is outside of the buffer. Therefore, we make sure this does not
     * happen by adding the == case to the Panic test.
     */
@@ -901,7 +956,7 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
    }
 
    /*
-    * We don't need to worry about null termination, because it's only
+    * We don't need to worry about NUL termination, because it's only
     * needed on overflow and we Panic above in that case.
     */
 

@@ -1252,7 +1252,7 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
 
       if (fileName == NULL) {
          Msg_Append(MSGID(file.maketemp.helperFuncFailed)
-                  "Failed to construct the file name.\n");
+                  "Failed to construct the filename.\n");
          errno = EFAULT;
          goto exit;
       }
@@ -1658,6 +1658,178 @@ File_CopyFromNameToName(ConstUnicode srcName,  // IN:
    return success;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileCopyTree --
+ *
+ *      Recursively copies all files from a source path to a destination,
+ *      optionally overwriting any files. This does the actual work
+ *      for File_CopyTree.
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure: Error messages are appended.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+FileCopyTree(ConstUnicode srcName,    // IN:
+             ConstUnicode dstName,    // IN:
+             Bool overwriteExisting,  // IN:
+             Bool followSymlinks)     // IN:
+{
+   int err;
+   Bool success = TRUE;
+   int numFiles;
+   int i;
+   Unicode *fileList = NULL;
+
+   numFiles = File_ListDirectory(srcName, &fileList);
+
+   if (numFiles == -1) {
+      err = Err_Errno();
+      Msg_Append(MSGID(File.CopyTree.walk.failure)
+                 "Unable to access '%s' when copying files.\n\n",
+                 UTF8(srcName));
+      Err_SetErrno(err);
+
+      return FALSE;
+   }
+
+   File_EnsureDirectory(dstName);
+
+   for (i = 0; i < numFiles && success; i++) {
+      struct stat sb;
+      Unicode name;
+      Unicode srcFilename;
+
+      name = Unicode_Alloc(fileList[i], STRING_ENCODING_DEFAULT);
+      srcFilename = File_PathJoin(srcName, name);
+
+      if (followSymlinks) {
+         success = (Posix_Stat(srcFilename, &sb) == 0);
+      } else {
+         success = (Posix_Lstat(srcFilename, &sb) == 0);
+      }
+
+      if (success) {
+         Unicode dstFilename = File_PathJoin(dstName, name);
+
+         switch (sb.st_mode & S_IFMT) {
+         case S_IFDIR:
+            success = FileCopyTree(srcFilename, dstFilename, overwriteExisting,
+                                   followSymlinks);
+            break;
+
+#if !defined(_WIN32)
+         case S_IFLNK:
+            if (Posix_Symlink(Posix_ReadLink(srcFilename), dstFilename) != 0) {
+               err = Err_Errno();
+               Msg_Append(MSGID(File.CopyTree.symlink.failure)
+                          "Unable to symlink '%s' to '%s': %s\n\n",
+                          UTF8(Posix_ReadLink(srcFilename)),
+                          UTF8(dstFilename),
+                          Err_Errno2String(err));
+               Err_SetErrno(err);
+               success = FALSE;
+            }
+            break;
+#endif
+
+         default:
+            if (!File_Copy(srcFilename, dstFilename, overwriteExisting)) {
+               err = Err_Errno();
+               Msg_Append(MSGID(File.CopyTree.copy.failure)
+                          "Unable to copy '%s' to '%s': %s\n\n",
+                          UTF8(srcFilename), UTF8(dstFilename),
+                          Err_Errno2String(err));
+               Err_SetErrno(err);
+               success = FALSE;
+            }
+
+            break;
+         }
+
+         Unicode_Free(dstFilename);
+      } else {
+         err = Err_Errno();
+         Msg_Append(MSGID(File.CopyTree.stat.failure)
+                    "Unable to get information on '%s' when copying files.\n\n",
+                    UTF8(srcFilename));
+         Err_SetErrno(err);
+      }
+
+      Unicode_Free(srcFilename);
+      Unicode_Free(name);
+   }
+
+   for (i = 0; i < numFiles; i++) {
+      Unicode_Free(fileList[i]);
+   }
+
+   free(fileList);
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_CopyTree --
+ *
+ *      Recursively copies all files from a source path to a destination,
+ *      optionally overwriting any files.
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure: Error messages are appended.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_CopyTree(ConstUnicode srcName,    // IN:
+              ConstUnicode dstName,    // IN:
+              Bool overwriteExisting,  // IN:
+              Bool followSymlinks)     // IN:
+{
+   int err;
+
+   ASSERT(srcName);
+   ASSERT(dstName);
+
+   if (!File_IsDirectory(srcName)) {
+      err = Err_Errno();
+      Msg_Append(MSGID(File.CopyTree.source.notDirectory)
+                 "The source path '%s' is not a directory.\n\n",
+                 UTF8(srcName));
+      Err_SetErrno(err);
+      return FALSE;
+   }
+
+   if (!File_IsDirectory(dstName)) {
+      err = Err_Errno();
+      Msg_Append(MSGID(File.CopyTree.dest.notDirectory)
+                 "The destination path '%s' is not a directory.\n\n",
+                 UTF8(dstName));
+      Err_SetErrno(err);
+      return FALSE;
+   }
+
+   return FileCopyTree(srcName, dstName, overwriteExisting, followSymlinks);
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1858,6 +2030,110 @@ File_Move(ConstUnicode oldFile,  // IN:
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * File_MoveTree --
+ *
+ *    Moves a directory from one place to the other.
+ *     - If dstName indicates a path that does not exist a directory will be
+ *       created with that path filled with the contents from srcName.
+ *     - If dstName is an existing directory then the contents will be moved
+ *       into that directory.
+ *     - If dstName indicates a file then File_MoveTree fails.
+ *
+ *    First we'll attempt to rename the directory, failing that we copy the
+ *    contents from src->destination and unlink the src.  If the copy is
+ *    succesful then we will report success even if the unlink fails for some
+ *    reason.  In that event we will append error messages.
+ *
+ * Results:
+ *    TRUE - on success
+ *    FALSE - on failure with error messages appended
+ *
+ * Side effects:
+ *    - Deletes the originating directory
+ *    - In the event of a failed copy we'll leave the new directory in a state
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_MoveTree(ConstUnicode srcName,   // IN:
+              ConstUnicode dstName,   // IN:
+              Bool overwriteExisting) // IN:
+{
+   Bool ret = FALSE;
+   Bool createdDir = FALSE;
+
+   ASSERT(srcName);
+   ASSERT(dstName);
+
+   if (!File_IsDirectory(srcName)) {
+      Msg_Append(MSGID(File.MoveTree.source.notDirectory)
+                 "The source path '%s' is not a directory.\n\n",
+                 UTF8(srcName));
+      return FALSE;
+   }
+
+   if (FileRename(srcName, dstName) == 0) {
+      ret = TRUE;
+   } else {
+      struct stat statbuf;
+      if (-1 == Posix_Stat(dstName, &statbuf)) {
+         int err = Err_Errno();
+
+         if (ENOENT == err) {
+            if (!File_CreateDirectoryHierarchy(dstName)) {
+               Msg_Append(MSGID(File.MoveTree.dst.couldntCreate)
+                          "Could not create '%s'.\n\n", UTF8(dstName));
+               return FALSE;
+            }
+
+            createdDir = TRUE;
+         } else {
+            Msg_Append(MSGID(File.MoveTree.statFailed)
+                       "%d:Failed to stat destination '%s'.\n\n",
+                       err, UTF8(dstName));
+            return FALSE;
+         }
+      } else {
+         if (!File_IsDirectory(dstName)) {
+            Msg_Append(MSGID(File.MoveTree.dest.notDirectory)
+                       "The destination path '%s' is not a directory.\n\n",
+                       UTF8(dstName));
+            return FALSE;
+         }
+      }
+
+      if (File_CopyTree(srcName, dstName, overwriteExisting, FALSE)) {
+         ret = TRUE;
+         if (!File_DeleteDirectoryTree(srcName)) {
+            Msg_Append(MSGID(File.MoveTree.cleanupFailed)
+                       "Forced to copy '%s' into '%s' but unable to remove "
+                       "source directory.\n\n",
+                       UTF8(srcName), UTF8(dstName));
+         }
+      } else {
+         ret = FALSE;
+         Msg_Append(MSGID(File.MoveTree.copyFailed)
+                    "Could not rename and failed to copy source directory "
+                    "'%s'.\n\n",
+                    UTF8(srcName));
+         if (createdDir) {
+            /*
+             * Only clean up if we created the directory.  Not attempting to
+             * clean up partial failures.
+             */
+            File_DeleteDirectoryTree(dstName);
+         }
+      }
+   }
+
+   return ret;
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * File_GetModTimeString --
@@ -1892,7 +2168,7 @@ File_GetModTimeString(ConstUnicode pathName)  // IN:
  *
  * File_GetSize --
  *
- *      Get size of file.
+ *      Get size of file. Try File_GetSizeEx to get size of directory/symlink.
  *
  * Results:
  *      Size of file or -1.
@@ -1993,12 +2269,23 @@ File_MapPathPrefix(const char *oldPath,       // IN:
       /*
        * If the prefix matches on a DIRSEPS boundary, or the prefix is the
        * whole string, replace it.
+       *
        * If we don't insist on matching a whole directory name, we could
        * mess things of if one directory is a substring of another.
+       *
+       * Perform a case-insensitive compare on Windows. (There are
+       * case-insensitive filesystems on MacOS also, but the problem
+       * is more acute with Windows because of frequent drive-letter
+       * case mismatches. So in lieu of actually asking the
+       * filesystem, let's just go with a simple ifdef for now.)
        */
 
       if ((oldPathLen >= oldPrefixLen) &&
-          (memcmp(oldPath, oldPrefix, oldPrefixLen) == 0) &&
+#ifdef _WIN32
+          (Str_Strncasecmp(oldPath, oldPrefix, oldPrefixLen) == 0) &&
+#else
+          (Str_Strncmp(oldPath, oldPrefix, oldPrefixLen) == 0) &&
+#endif
           (strchr(VALID_DIRSEPS, oldPath[oldPrefixLen]) ||
               (oldPath[oldPrefixLen] == '\0'))) {
          size_t newPrefixLen = strlen(newPrefix);
@@ -2030,6 +2317,79 @@ File_MapPathPrefix(const char *oldPath,       // IN:
 
 
 #if !defined(N_PLAT_NLM)
+/*
+ *----------------------------------------------------------------------------
+ *
+ * File_GetSizeEx --
+ *
+ *      Get size of file or directory or symlink. File_GetSize can only get
+ *      size of file.
+ *
+ * Results:
+ *      Size of file/directory/symlink or -1.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int64
+File_GetSizeEx(ConstUnicode pathName) // IN
+{
+   int numFiles;
+   int i;
+   Unicode *fileList = NULL;
+   struct stat sb;
+   int64 totalSize = 0;
+
+   if (pathName == NULL) {
+      return -1;
+   }
+
+   if (-1 == Posix_Lstat(pathName, &sb)) {
+      return -1;
+   }
+
+   if (S_IFDIR != (sb.st_mode & S_IFMT)) {
+      return sb.st_size;
+   }
+
+   numFiles = File_ListDirectory(pathName, &fileList);
+
+   if (-1 == numFiles) {
+      return -1;
+   }
+
+   for (i = 0; i < numFiles; i++) {
+      Unicode name;
+      Unicode fileName;
+      int64 fileSize;
+
+      name = Unicode_Alloc(fileList[i], STRING_ENCODING_DEFAULT);
+      fileName = File_PathJoin(pathName, name);
+
+      fileSize = File_GetSizeEx(fileName);
+
+      Unicode_Free(fileName);
+      Unicode_Free(name);
+
+      if (-1 == fileSize) {
+         totalSize = -1;
+         break;
+      } else {
+         totalSize += fileSize;
+      }
+   }
+
+   if (numFiles >= 0) {
+      Unicode_FreeList(fileList, numFiles);
+   }
+
+   return totalSize;
+}
+
+
 /*
  *----------------------------------------------------------------------------
  *
@@ -2747,7 +3107,8 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
          result = File_UnlinkIfExists(src);
 
          if (result == -1) {
-            Log("LOG failed to remove %s: %s\n", src, Msg_ErrString());
+            Log(LGPFX" %s: failed to remove %s: %s\n", __FUNCTION__,
+                src, Msg_ErrString());
          }
       } else {
          result = Posix_Rename(src, dst);
@@ -2756,8 +3117,8 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
             int error = Err_Errno();
 
             if (error != ENOENT) {
-               Log("LOG failed to rename %s -> %s: %s\n", src, dst,
-                   Err_Errno2String(error));
+               Log(LGPFX" %s: failed to rename %s -> %s: %s\n", src, dst,
+                   __FUNCTION__, Err_Errno2String(error));
             }
          }
       }
@@ -2838,14 +3199,14 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
 
    fullPathNoExt = File_FullPath(filePathNoExt);
    if (fullPathNoExt == NULL) {
-      Log("%s: failed to get full path for '%s'.\n", __FUNCTION__,
+      Log(LGPFX" %s: failed to get full path for '%s'.\n", __FUNCTION__,
           filePathNoExt);
       goto cleanup;
    }
 
    File_GetPathName(fullPathNoExt, &baseDir, &baseName);
    if ((baseDir[0] == '\0') || (baseName[0] == '\0')) {
-      Log("%s: failed to get base dir for path '%s'.\n", __FUNCTION__,
+      Log(LGPFX" %s: failed to get base dir for path '%s'.\n", __FUNCTION__,
           filePathNoExt);
       goto cleanup;
    }
@@ -2854,7 +3215,8 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
 
    nrFiles = File_ListDirectory(baseDir, &fileList);
    if (nrFiles == -1) {
-      Log("%s: failed to read the directory '%s'.\n", __FUNCTION__, baseDir);
+      Log(LGPFX" %s: failed to read the directory '%s'.\n", __FUNCTION__,
+          baseDir);
       goto cleanup;
    }
 
@@ -2891,7 +3253,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
       int error = Err_Errno();
 
       if (error != ENOENT) {
-         Log("%s: failed to rename %s -> %s failed: %s\n", __FUNCTION__,
+         Log(LGPFX" %s: failed to rename %s -> %s failed: %s\n", __FUNCTION__,
              filePath, tmp, Err_Errno2String(error));
       }
    }
@@ -2912,7 +3274,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
                                 fileNumbers[i], ext);
 
          if (Posix_Unlink(tmp) == -1) {
-            Log("%s: failed to remove %s: %s\n", __FUNCTION__, tmp,
+            Log(LGPFX" %s: failed to remove %s: %s\n", __FUNCTION__, tmp,
                 Msg_ErrString());
          }
          free(tmp);

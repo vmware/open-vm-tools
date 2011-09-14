@@ -233,6 +233,10 @@ HgfsConvertFromInternalStatus(HgfsInternalStatus status) // IN
       return HGFS_STATUS_INVALID_PARAMETER;
    case ERROR_NOT_SAME_DEVICE:
       return HGFS_STATUS_NOT_SAME_DEVICE;
+   case HGFS_ERROR_STALE_SESSION:
+      return HGFS_STATUS_STALE_SESSION;
+   case ERROR_FILENAME_EXCED_RANGE:
+      return HGFS_STATUS_NAME_TOO_LONG;
    case ERROR_INTERNAL_ERROR:
    case HGFS_INTERNAL_STATUS_ERROR:
    default:

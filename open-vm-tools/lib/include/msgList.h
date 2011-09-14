@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,6 +56,9 @@ struct MsgList {
 
 EXTERN MsgList *MsgList_Create(const char *idFmt, ...);
 EXTERN MsgList *MsgList_VCreate(const char *idFmt, va_list args);
+
+EXTERN void MsgList_Append(MsgList **tail, const char *idFmt, ...);
+EXTERN void MsgList_VAppend(MsgList **tail, const char *idFmt, va_list args);
 
 EXTERN void MsgList_Log(const MsgList *messages);
 EXTERN char *MsgList_ToString(const MsgList *messages);

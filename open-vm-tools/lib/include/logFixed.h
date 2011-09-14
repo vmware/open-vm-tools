@@ -16,7 +16,7 @@
  *
  *********************************************************/
 
-#ifndef _LOGIFXED_H_
+#ifndef _LOGFIXED_H_
 #define _LOGFIXED_H_
 
 #define INCLUDE_ALLOW_USERLEVEL

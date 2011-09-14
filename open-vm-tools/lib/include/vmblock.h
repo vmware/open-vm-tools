@@ -115,7 +115,7 @@
 #define VMBLOCK_FUSE_READ_RESPONSE     "I am VMBLOCK-FUSE"
 
 #define VMBLOCK_FUSE_FS_NAME           "fuse.vmware-vmblock"
-#define VMBLOCK_FUSE_MOUNT_POINT       "/tmp/vmblock-fuse"
+#define VMBLOCK_FUSE_MOUNT_POINT       "/var/run/vmblock-fuse"
 #define VMBLOCK_FUSE_CTRL_MNTPNT       "blockdir"
 #define VMBLOCK_FUSE_FS_ROOT           VMBLOCK_FUSE_MOUNT_POINT "/" VMBLOCK_FUSE_CTRL_MNTPNT
 #define VMBLOCK_FUSE_DEVICE_NAME       "dev"

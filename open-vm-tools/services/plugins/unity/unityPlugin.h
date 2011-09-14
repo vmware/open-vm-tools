@@ -133,20 +133,42 @@ struct ToolsAppCapabilityNewEntry
 
 class ToolsPlugin {
 public:
+   struct SignalCtx
+      : public ToolsPluginSignalCb
+   {
+      SignalCtx(const char* signame_, void* callback_, void* clientData_)
+      {
+         signame = signame_;
+         callback = callback_;
+         clientData = clientData_;
+      }
+   };
+
    virtual ~ToolsPlugin() {};
 
-   virtual gboolean Initialize(ToolsAppCtx *ctx) = 0;
+   virtual gboolean Initialize() = 0;
    virtual gboolean Reset(gpointer src) = 0;
    virtual void Shutdown(gpointer src) = 0;
    virtual gboolean SetOption(gpointer src,
                               const std::string &option,
                               const std::string &value) = 0;
+
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set) = 0;
    virtual std::vector<RpcChannelCallback> GetRpcCallbackList() = 0;
+   virtual std::vector<ToolsPluginSignalCb> GetSignalRegistrations(ToolsPluginData*) const;
 
-#if defined(G_PLATFORM_WIN32)
-   virtual void SessionChange(gpointer src, DWORD stateCode, DWORD sessionID) = 0;
-#endif // G_PLATFORM_WIN32
+protected:
+   ToolsPlugin(const ToolsAppCtx* ctx) : mCtx(ctx) {}
+
+   // C thunks.
+   static gboolean OnCReset(gpointer src, ToolsAppCtx* ctx, ToolsPluginData* pdata);
+   static void OnCShutdown(gpointer src, ToolsAppCtx* ctx, ToolsPluginData* pdata);
+   static GArray* OnCCapabilities(gpointer src, ToolsAppCtx* ctx, gboolean set,
+                                  ToolsPluginData* plugin);
+   static gboolean OnCSetOption(gpointer src, ToolsAppCtx* ctx, const gchar* option,
+                                const gchar* value, ToolsPluginData* plugin);
+
+   const ToolsAppCtx* mCtx;
 };
 
 
@@ -154,10 +176,7 @@ class UnityPlugin
    : public ToolsPlugin
 {
 public:
-   UnityPlugin();
-   virtual ~UnityPlugin();
-
-   virtual gboolean Initialize(ToolsAppCtx *ctx);
+   virtual gboolean Initialize();
 
    virtual gboolean Reset(gpointer src) { return TRUE; }
    virtual void Shutdown(gpointer src) {};
@@ -167,10 +186,14 @@ public:
    {
       return FALSE;
    }
+
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set);
    virtual std::vector<RpcChannelCallback> GetRpcCallbackList();
 
 protected:
+   UnityPlugin(const ToolsAppCtx* ctx);
+   virtual ~UnityPlugin();
+
    UnityUpdateChannel *mUnityUpdateChannel;
 };
 
@@ -179,16 +202,32 @@ class UnityPluginWin32
    : public UnityPlugin
 {
 public:
-   UnityPluginWin32();
+   UnityPluginWin32(const ToolsAppCtx* ctx);
    virtual ~UnityPluginWin32();
 
-   virtual gboolean Initialize(ToolsAppCtx *ctx);
+   virtual gboolean Initialize();
 
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set);
-   virtual void SessionChange(gpointer src, DWORD code, DWORD id) {};
+   virtual std::vector<ToolsPluginSignalCb> GetSignalRegistrations(ToolsPluginData*) const;
+
+   virtual DWORD OnServiceControl(gpointer src,
+                                  ToolsAppCtx *ctx,
+                                  SERVICE_STATUS_HANDLE handle,
+                                  guint control,
+                                  guint evtType,
+                                  gpointer evtData);
+
+   virtual void OnDesktopSwitch();
 
 protected:
    boost::shared_ptr<UnityPBRPCServer> mUnityPBRPCServer;
+
+private:
+   static DWORD OnCServiceControl(gpointer src, ToolsAppCtx* ctx,
+                                  SERVICE_STATUS_HANDLE handle, guint control,
+                                  guint evtType, gpointer evtData,
+                                  ToolsPluginData* data);
+   static void OnCDesktopSwitch(gpointer src, ToolsAppCtx* ctx, ToolsPluginData* plugin);
 };
 #endif // _WIN32
 

@@ -106,7 +106,7 @@ typedef enum {
    HGFS_OP_WRITE_V3,              /* Write to file */
    HGFS_OP_CLOSE_V3,              /* Close file */
    HGFS_OP_SEARCH_OPEN_V3,        /* Start new search */
-   HGFS_OP_SEARCH_READ_V3,        /* Start new search */
+   HGFS_OP_SEARCH_READ_V3,        /* Read V3 directory entries */
    HGFS_OP_SEARCH_CLOSE_V3,       /* End a search */
    HGFS_OP_GETATTR_V3,            /* Get file attributes */
    HGFS_OP_SETATTR_V3,            /* Set file attributes */
@@ -129,8 +129,8 @@ typedef enum {
    HGFS_OP_SET_WATCH_V4,          /* Start monitoring directory changes. */
    HGFS_OP_REMOVE_WATCH_V4,       /* Stop monitoring directory changes. */
    HGFS_OP_NOTIFY_V4,             /* Notification for a directory change event. */
+   HGFS_OP_SEARCH_READ_V4,        /* Read V4 directory entries. */
    HGFS_OP_OPEN_V4,               /* Open file */
-   HGFS_OP_DIRECTORY_READ_V4,     /* Read directory entries. */
    HGFS_OP_ENUMERATE_STREAMS_V4,  /* Enumerate alternative named streams for a file. */
    HGFS_OP_GETATTR_V4,            /* Get file attributes */
    HGFS_OP_SETATTR_V4,            /* Set file attributes */
@@ -471,6 +471,9 @@ typedef uint64 HgfsAttrValid;
  *    by host file system, for example by ACL.
  */
 #define HGFS_ATTR_VALID_EFFECTIVE_PERMS   (1 << 17)
+#define HGFS_ATTR_VALID_EXTEND_ATTR_SIZE  (1 << 18)
+#define HGFS_ATTR_VALID_REPARSE_POINT     (1 << 19)
+#define HGFS_ATTR_VALID_SHORT_NAME        (1 << 20)
 
 
 /*
@@ -598,6 +601,19 @@ struct HgfsFileName {
 #include "vmware_pack_end.h"
 HgfsFileName;
 
+
+/*
+ * Windows hosts only: the server may return the DOS 8 dot 3 format
+ * name as part of the directory entry.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsShortFileName {
+   uint32 length;            /* Does NOT include terminating NUL */
+   char name[12 * 4];        /* UTF8 max char size is 4 bytes. */
+}
+#include "vmware_pack_end.h"
+HgfsShortFileName;
 
 /*
  * Case-sensitiviy flags are only used when any lookup is
@@ -2429,23 +2445,28 @@ struct HgfsReplyQueryVolumeV4 {
 #include "vmware_pack_end.h"
 HgfsReplyQueryVolumeV4;
 
-typedef uint32 HgfsDirectoryReadMaskV4;
-#define HGFS_DIRECTORY_READ_NAME                (1 << 0)
-#define HGFS_DIRECTORY_READ_SHORT_NAME          (1 << 1)
-#define HGFS_DIRECTORY_READ_FILE_SIZE           (1 << 2)
-#define HGFS_DIRECTORY_READ_ALLOCATION_SIZE     (1 << 3)
-#define HGFS_DIRECTORY_READ_EA_SIZE             (1 << 4)
-#define HGFS_DIRECTORY_READ_TIME_STAMP          (1 << 5)
-#define HGFS_DIRECTORY_READ_FILE_ATTRIBUTES     (1 << 6)
-#define HGFS_DIRECTORY_READ_FILE_NODE_TYPE      (1 << 7)
+typedef uint32 HgfsSearchReadMask;
+#define HGFS_SEARCH_READ_NAME                (1 << 0)
+#define HGFS_SEARCH_READ_SHORT_NAME          (1 << 1)
+#define HGFS_SEARCH_READ_FILE_SIZE           (1 << 2)
+#define HGFS_SEARCH_READ_ALLOCATION_SIZE     (1 << 3)
+#define HGFS_SEARCH_READ_EA_SIZE             (1 << 4)
+#define HGFS_SEARCH_READ_TIME_STAMP          (1 << 5)
+#define HGFS_SEARCH_READ_FILE_ATTRIBUTES     (1 << 6)
+#define HGFS_SEARCH_READ_FILE_NODE_TYPE      (1 << 7)
+#define HGFS_SEARCH_READ_REPARSE_TAG         (1 << 8)
+#define HGFS_SEARCH_READ_FILE_ID             (1 << 9)
 
-typedef uint32 HgfsDirectoryReadFlagsV4;
-#define HGFS_DIRECTORY_READ_INITIAL_QUERY       (1 << 1)
-#define HGFS_DIRECTORY_READ_SINGLE_ENTRY        (1 << 2)
+typedef uint32 HgfsSearchReadFlags;
+#define HGFS_SEARCH_READ_INITIAL_QUERY       (1 << 1)
+#define HGFS_SEARCH_READ_SINGLE_ENTRY        (1 << 2)
+#define HGFS_SEARCH_READ_FID_OPEN_V4         (1 << 3)
+#define HGFS_SEARCH_READ_REPLY_FINAL_ENTRY   (1 << 4)
 
 /*
  * Read directory request can be used to enumerate files in a directory.
- * File handle used in the request must be returned by HgfsRequestOpenV4 or later.
+ * File handle used in the request can be either from HgfsRequestOpenV4 or
+ * HgfsRequestSearchOpenV3.
  * searchPattern parameter allows filter out file names in the server for optimization.
  * It is optional - host may ignore patterns and return entries that do not match
  * the pattern. It is client responsibility to filter out names that do not match
@@ -2455,53 +2476,60 @@ typedef uint32 HgfsDirectoryReadFlagsV4;
  * interested in. It allows to implement optimization in the server by skipping
  * parameters which client does not need.
  *
- * Service fills mask field in the reply buffer to specify which of the requested
- * properties it supports, which may be a subset of requested properties.
+ * The HGFS Server fills mask field in the reply buffer to specify which
+ * of the requested properties it supports, which may be a subset of the
+ * requested properties.
  */
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestReadDirectoryV4 {
-     HgfsDirectoryReadMaskV4 mask;
-     HgfsDirectoryReadFlagsV4 flags;
-     HgfsHandle fid;
-     uint32 restartIndex;
-     HgfsFileName searchPattern;
+struct HgfsRequestSearchReadV4 {
+   HgfsSearchReadMask mask;
+   HgfsSearchReadFlags flags;
+   HgfsHandle fid;
+   uint32 replyDirEntryMaxSize;
+   uint32 restartIndex;
+   uint64 reserved;
+   HgfsFileName searchPattern;
 }
 #include "vmware_pack_end.h"
-HgfsRequestReadDirectoryV4;
+HgfsRequestSearchReadV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsDirectoryEntryV4 {
+struct HgfsDirEntryV4 {
    uint32 nextEntryOffset;
    uint32 fileIndex;
-   HgfsAttrFlags attributes;
+   HgfsSearchReadMask mask;      /* Returned mask: may be a subset of requested mask. */
+   HgfsAttrFlags attrFlags;      /* File system attributes of the entry */
    HgfsFileType fileType;
    uint64 fileSize;
    uint64 allocationSize;
    uint64 creationTime;
    uint64 accessTime;
-   uint64 modificationTime;
-   uint64 changeAttributesTime;
-   uint32 eaSize;
-   HgfsFileName shortName;
-   HgfsFileName fileName;
+   uint64 writeTime;
+   uint64 attrChangeTime;
+   uint64 hostFileId;            /* File Id of the file on host: inode_t on Linux */
+   uint32 eaSize;                /* Byte size of any extended attributes. */
+   uint32 reparseTag;            /* Windows only: reparse point tag. */
+   uint64 reserved;              /* Reserved for future use. */
+   HgfsShortFileName shortName;  /* Windows only: 8 dot 3 format name. */
+   HgfsFileName fileName;        /* Entry file name. */
 }
 #include "vmware_pack_end.h"
-HgfsDirectoryEntryV4;
+HgfsDirEntryV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplyReadDirectoryV4 {
-   uint32 numberEntriesReturned;
-   uint32 offsetToContinue;
-   HgfsDirectoryReadMaskV4 mask; /* Returned mask that may be a subset of requested mask. */
+struct HgfsReplySearchReadV4 {
+   uint32 numberEntriesReturned; /* number of directory entries in this reply. */
+   uint32 offsetToContinue;      /* Entry index of the directory entry. */
+   HgfsSearchReadFlags flags;    /* Flags to indicate reply specifics */
    uint64 reserved;              /* Reserved for future use. */
-   HgfsDirectoryEntryV4 entries[1];
+   HgfsDirEntryV4 entries[1];    /* Unused as entries transfered using shared memory. */
 }
 #include "vmware_pack_end.h"
-HgfsReplyReadDirectoryV4;
+HgfsReplySearchReadV4;
 
 /*
  * File handle returned by HgfsRequestOpenV4 or later. Descriptors returned by

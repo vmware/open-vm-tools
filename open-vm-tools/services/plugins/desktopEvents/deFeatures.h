@@ -36,7 +36,18 @@ Reload_Init(ToolsAppCtx *ctx,
             ToolsPluginData *pdata);
 
 void
-Reload_Shutdown(ToolsAppCtx *ctx);
+Reload_Shutdown(ToolsAppCtx *ctx,
+                ToolsPluginData *pdata);
+
+#ifndef NO_XSM
+gboolean
+SessionMgr_Init(ToolsAppCtx *ctx,
+                ToolsPluginData *pdata);
+
+void
+SessionMgr_Shutdown(ToolsAppCtx *ctx,
+                    ToolsPluginData *pdata);
+#endif
 
 gboolean
 X11Lock_Init(ToolsAppCtx *ctx,
@@ -47,16 +58,21 @@ XIOError_Init(ToolsAppCtx *ctx,
               ToolsPluginData *pdata);
 
 void
-XIOError_Shutdown(ToolsAppCtx *ctx);
+XIOError_Shutdown(ToolsAppCtx *ctx,
+                  ToolsPluginData *pdata);
 
 
 #if defined(DE_MAIN)
 static DesktopEventFuncs gFeatures[] = {
    { X11Lock_Init,         NULL,                      FALSE },
    { Reload_Init,          Reload_Shutdown,           FALSE },
+#ifndef NO_XSM
+   { SessionMgr_Init,      SessionMgr_Shutdown,       FALSE },
+#endif
    { XIOError_Init,        XIOError_Shutdown,         FALSE },
 };
 #endif
+
 
 #endif /* _DEFEATURES_H_ */
 

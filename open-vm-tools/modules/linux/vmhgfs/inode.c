@@ -97,6 +97,10 @@ static int HgfsSymlink(struct inode *dir,
 static int HgfsPermission(struct inode *inode,
                           int mask,
                           struct nameidata *nameidata);
+#elif defined(IPERM_FLAG_RCU) /* introduced in 2.6.38 */
+static int HgfsPermission(struct inode *inode,
+                          int mask,
+                          unsigned int flags);
 #else
 static int HgfsPermission(struct inode *inode,
                           int mask);
@@ -1781,6 +1785,9 @@ HgfsPermission(struct inode *inode,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
                , struct nameidata *nd
 #endif
+#ifdef IPERM_FLAG_RCU /* introduced in 2.6.38 */
+               , unsigned int flags
+#endif
                )
 {
    LOG(8, ("VMware hgfs: %s: inode->mode: %8x mask: %8x\n", __func__,
@@ -1798,10 +1805,25 @@ HgfsPermission(struct inode *inode,
       int dcount = 0;
       struct dentry *dentry = NULL;
 
+#ifdef IPERM_FLAG_RCU
+      /*
+       * In 2.6.38 path walk is done in 2 distinct modes: rcu-walk and
+       * ref-walk. Ref-walk is the classic one; rcu is lockless and is
+       * not allowed to sleep. We insist on using ref-walk since our
+       * transports may sleep.
+       */
+      if (flags & IPERM_FLAG_RCU)
+         return -ECHILD;
+#endif
+
       /* Find a dentry with valid d_count. Refer bug 587789. */
       list_for_each(pos, &inode->i_dentry) {
          dentry = list_entry(pos, struct dentry, d_alias);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 38)
          dcount = atomic_read(&dentry->d_count);
+#else
+         dcount = dentry->d_count;
+#endif
          if (dcount) {
             LOG(4, ("Found %s %d \n", (dentry)->d_name.name, dcount));
             break;
@@ -2037,6 +2059,7 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
    int error = 0;
    HgfsSuperInfo *si;
    unsigned long age;
+   HgfsInodeInfo *iinfo;
 
    ASSERT(dentry);
    si = HGFS_SB_TO_COMMON(dentry->d_sb);
@@ -2050,7 +2073,9 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
            "inum %lu\n", dentry->d_name.name, dentry->d_inode->i_ino));
 
    age = jiffies - dentry->d_time;
-   if (age > si->ttl) {
+   iinfo = INODE_GET_II_P(dentry->d_inode);
+
+   if (age > si->ttl || iinfo->hostFileId == 0) {
       HgfsAttrInfo attr;
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRevalidate: dentry is too old, "
               "getting new attributes\n"));
@@ -2067,9 +2092,8 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
           * the same file name has been used for other file during the period.
           */
          if (attr.mask & HGFS_ATTR_VALID_FILEID) {
-            HgfsInodeInfo *iinfo = INODE_GET_II_P(dentry->d_inode);
             if (iinfo->hostFileId == 0) {
-               /* It should not happen, just in case. */
+               /* hostFileId was invalidated, so update it here */
                iinfo->hostFileId = attr.hostFileId;
             } else if (iinfo->hostFileId != attr.hostFileId) {
                LOG(4, ("VMware hgfs: %s: host file id mismatch. Expected "

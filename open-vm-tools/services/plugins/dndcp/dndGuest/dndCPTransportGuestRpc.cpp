@@ -382,17 +382,12 @@ DnDCPTransportGuestRpc::SendPacket(uint32 destId,
       LOG(0, ("%s: failed to send msg to host\n", __FUNCTION__));
    }
 
-   LOG(4, ("%s: sending [%s]\n", __FUNCTION__, rpc));
-
    free(rpc);
-   LOG(4, ("%s: sending\n", __FUNCTION__));
 #else
    GuestRpc_SendWithTimeOut((const unsigned char *)TOOLS_DND_NAME,
                             (const unsigned char *)rpc, rpcSize,
                             GuestRpc_GenericCompletionRoutine, rpc,
                             DND_TIMEOUT);
-   LOG(4, ("%s: sending [%s]\n", __FUNCTION__, rpc));
-
 #endif
    return ret;
 }

@@ -1,0 +1,222 @@
+##########################################################
+# Copyright (C) 2010 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+arg.command = "命令"
+
+arg.devicename = "设备名称"
+
+arg.mountpoint = "装载点"
+
+arg.scriptpath = "脚本路径"
+
+arg.scripttype = "脚本类型"
+
+arg.subcommand = "子命令"
+
+device.connect.error = "无法连接设备 %1$s。\n"
+
+device.disconnect.error = "无法断开设备 %1$s。\n"
+
+device.notfound = "获取接口信息时出错: 未发现设备。\n"
+
+disk.shrink.canceled = "磁盘压缩已取消。\n"
+
+disk.shrink.complete = "磁盘压缩完成。\n"
+
+disk.shrink.conflict =
+   "错误，工具箱认为已启用磁盘压缩，而宿主机认为 "
+   "其已被禁用。\n"
+   "\n"
+   " 请关闭并重新打开工具箱，使之与宿主机同步。\n"
+
+disk.shrink.disabled =
+   "该虚拟机的压缩磁盘功能已禁用。\n"
+   "\n"
+   "由于关联式克隆、关联式克隆的父级虚拟机、\n"
+   "预分配的磁盘、快照或其他因素，压缩已禁用。\n"
+   "请参见用户手册了解更多信息。\n"
+
+disk.shrink.error = "压缩过程中出错: %1$s\n"
+
+disk.shrink.incomplete = "压缩未完成。\n"
+
+disk.shrink.partition.error = "无法收集分区数据。\n"
+
+disk.shrink.partition.notfound = "找不到分区 %1$s\n"
+
+disk.shrink.partition.unsupported = "分区 %1$s 不可压缩\n"
+
+disk.shrink.unavailable =
+   "压缩功能不可用，\n"
+   "\n"
+   "这可能是由于您运行的 VMware 产品版本较旧，也可能是 "
+   "由于打开了过多的通信信道。\n"
+   "\n"
+   " 如果您正在运行低版本的 VMware 产品，应考虑 "
+   "升级。\n"
+   "\n"
+   "如果打开了过多的通信信道，应该关闭虚拟 "
+   "机，然后重新启动。\n"
+
+disk.wiper.error = "错误: %1$s"
+
+disk.wiper.file.error = "错误，无法创建擦除器文件。\n"
+
+error.missing = "%1$s: 缺少 %2$s\n"
+
+error.noadmin.posix = "%1$s: 需要 root 权限才能执行 %2$s 操作。\n"
+
+error.noadmin.win =
+   "%1$s: 需要管理员权限才能执行 %2$s 操作。\n"
+   "使用管理员命令提示符完成这些任务。\n"
+
+error.novirtual = "%1$s 必须在虚拟机中运行。\n"
+
+error.unknown = "%1$s: 未知 %2$s '%3$s'\n"
+
+help.device =
+   "%1$s: 与虚拟机硬件设备相关的功能\n"
+   "用途: %2$s %3$s <子命令> [参数]\n"
+   "   dev 是设备的名称。\n"
+   "\n"
+   "子命令:\n"
+   "   enable <dev>: 启用设备\n"
+   "   disable <dev>: 禁用设备\n"
+   "   list: 列出所有可用的设备\n"
+   "   status <dev>: 打印设备状态\n"
+
+help.disk =
+   "%1$s: 执行磁盘压缩操作\n"
+   "用途: %2$s %3$s <子命令> [参数]\n"
+   "\n"
+   "子命令:\n"
+   "   list: 列出可用的装载点\n"
+   "   shrink <装载点>: 在给定的装载点压缩文件系统\n"
+
+help.hint = "尝试 '%1$s %2$s%3$s%4$s' 获取更多信息。\n"
+
+help.main =
+   "用途: %1$s <命令> [选项] [子命令]\n"
+   "键入 '%2$s %3$s <命令>' 获取关于特定命令的帮助。\n"
+   "键入 '%4$s -v' 查看 VMware Tools 版本。\n"
+   "使用 '-q' 用于隐藏 stdout 输出的选项。\n"
+   "多数命令都带有一个子命令。\n"
+   "\n"
+   "可用命令:\n"
+   "   device\n"
+   "   disk\n"
+   "   script\n"
+   "   stat\n"
+   "   timesync\n"
+   "   升级（并非在所有操作系统中均可用）\n"
+
+help.script =
+   "%1$s: 控制由电源操作触发的脚本\n"
+   "用途: %2$s %3$s <power|resume|suspend|shutdown> <子命令> [参数]\n"
+   "\n"
+   "子命令:\n"
+   "   enable: 启用给定的脚本，并将其路径恢复为默认值\n"
+   "   disable: 禁用给定的脚本\n"
+   "   set <完整路径>: 将给定脚本设置到给定路径\n"
+   "   default: 打印给定脚本的默认路径\n"
+   "   current: 打印给定脚本的当前路径\n"
+
+help.stat =
+   "%1$s: 打印有用的宾客机和宿主机信息\n"
+   "使用情况: %2$s %3$s <子命令>\n"
+   "\n"
+   "子命令:\n"
+   "   hosttime: 打印宿主机时间\n"
+   "   speed:以 MHz 为单位打印 CPU 速度\n"
+   "ESX 宾客机专用子命令:\n"
+   "   sessionid: 打印当前会话 ID\n"
+   "   balloon: 打印内存释放信息\n"
+   "   swap: 打印内存交换信息\n"
+   "   memlimit: 打印内存限制信息\n"
+   "   memres: 打印内存预留信息\n"
+   "   cpures: 打印 CPU 预留信息\n"
+   "   cpulimit: 打印 CPU 限制信息\n"
+
+help.timesync =
+   "%1$s: 用于控制宾客机操作系统上的时间同步功能\n"
+   "用途: %2$s %3$s <子命令>\n"
+   "\n"
+   "子命令:\n"
+   "   enable: 启用时间同步\n"
+   "   disable: 禁用时间同步\n"
+   "   status: 打印时间同步状态\n"
+
+help.upgrade =
+   "%1$s: 与升级 VMware Tools 相关的功能。\n"
+   "使用情况: %2$s %3$s <子命令> [参数]\n"
+   "子命令:\n"
+   "   status: 查看 VMware Tools 的升级状态。\n"
+   "   start: 启动 VMware Tools 自动升级。\n"
+   "\n"
+   "要进行升级，需要运行 VMware Tools 服务。\n"
+
+option.disabled = "禁用"
+
+option.enabled = "启用"
+
+script.notfound = "%1$s 不存在。\n"
+
+script.operation = "操作"
+
+script.unknownop = "无 %1$s 操作脚本。\n"
+
+script.write.error = "写入配置时出错: %1$s\n"
+
+stat.balloon.failed = "获取释放的内存失败: %1$s\n"
+
+stat.cpumax.failed = "获取 CPU 限制失败: %1$s\n"
+
+stat.cpumin.failed = "获取最小 CPU 失败: %1$s\n"
+
+stat.formattime.failed = "无法格式化宿主机时间。\n"
+
+stat.getsession.failed = "获取会话 ID 失败: %1$s\n"
+
+stat.getspeed.failed = "无法获取处理器速度。\n"
+
+stat.gettime.failed = "无法获取宿主机时间。\n"
+
+stat.maxmem.failed = "获取内存限制失败: %1$s\n"
+
+stat.memres.failed = "获取内存预留失败: %1$s\n"
+
+stat.memswap.failed = "获取交换的内存失败: %1$s\n"
+
+stat.openhandle.failed = "打开句柄失败: %1$s\n"
+
+stat.update.failed = "更新信息失败: %1$s\n"
+
+upgrade.available = "VMware Tools 有新版本可用。\n"
+
+upgrade.error.check_error = "检查升级可用性时出错。\n"
+
+upgrade.error.error = "启动 VMware Tools 升级时出错。\n"
+
+upgrade.error.not_supported = "宿主机不支持 VMware Tools 自动升级。\n"
+
+upgrade.error.unknown_reply = "意外的宿主机回复: %1$s\n"
+
+upgrade.started = "升级已开始。\n"
+
+upgrade.uptodate = "VMware Tools 已升级。\n"
+

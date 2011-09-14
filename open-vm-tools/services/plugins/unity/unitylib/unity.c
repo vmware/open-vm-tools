@@ -835,6 +835,31 @@ Unity_ShowTaskbar(Bool showTaskbar)    // IN
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * Unity_ShowDesktop --
+ *
+ *      Shows or hides the entire VM desktop while in unity. This is useful for
+ *      situations where the user must interact with a window that we cannot
+ *      control programmatically, such as UAC prompts on Vista and Win7.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Unity_ShowDesktop(Bool showDesktop) // IN
+{
+   UnityPlatformShowDesktop(unity.up, showDesktop);
+}
+
+
+/*
  *----------------------------------------------------------------------------
  *
  * Unity_MoveResizeWindow --
@@ -1295,4 +1320,3 @@ FireEnterUnitySignal(gpointer serviceObj,
                          UNITY_SIG_ENTER_LEAVE_UNITY,
                          enter);
 }
-

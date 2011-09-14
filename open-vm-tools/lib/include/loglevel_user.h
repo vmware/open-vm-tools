@@ -88,7 +88,6 @@
    LOGLEVEL_VAR(vide), \
    LOGLEVEL_VAR(ideCdrom), \
    LOGLEVEL_VAR(hostonly), \
-   LOGLEVEL_VAR(backdoorAbsMouse), \
    LOGLEVEL_VAR(oprom), \
    LOGLEVEL_VAR(http), \
    LOGLEVEL_VAR(vmci), \
@@ -123,7 +122,9 @@
    LOGLEVEL_VAR(mksClient), \
    LOGLEVEL_VAR(mksServer), \
    LOGLEVEL_VAR(mksKeyboard), \
+   LOGLEVEL_VAR(keymap), \
    LOGLEVEL_VAR(mksMouse), \
+   LOGLEVEL_VAR(mksHostCursor), \
    LOGLEVEL_VAR(mksHostOps), \
    LOGLEVEL_VAR(mksGLManager), \
    LOGLEVEL_VAR(mksGLShader), \
@@ -234,9 +235,15 @@
    LOGLEVEL_VAR(guestAppMonitor), \
    LOGLEVEL_VAR(syncWaitQ), \
    LOGLEVEL_VAR(sg), /* lib/sg */ \
+   LOGLEVEL_VAR(ftcpt), \
    LOGLEVEL_VAR(wrapLib),  \
-   LOGLEVEL_VAR(bluetooth),  \
-   LOGLEVEL_VAR(digestlib) \
+   LOGLEVEL_VAR(digestlib), \
+   LOGLEVEL_VAR(inputdevtap), \
+   LOGLEVEL_VAR(svgadevtap), \
+   LOGLEVEL_VAR(masReceipt), /* lib/masReceipt */ \
+   LOGLEVEL_VAR(serviceImpl), /* lib/serviceImpl */ \
+   LOGLEVEL_VAR(serviceUser), /* lib/serviceUser */ \
+   /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 

@@ -32,20 +32,20 @@ Escape_DoString(const char *escStr,    // IN
                 int const *bytesToEsc, // IN
                 void const *bufIn,     // IN
                 size_t sizeIn,         // IN
-                size_t *sizeOut);      // OUT
+                size_t *sizeOut);      // OUT/OPT
 
 void *
 Escape_Do(char escByte,          // IN
           int const *bytesToEsc, // IN
           void const *bufIn,     // IN
           size_t sizeIn,         // IN
-          size_t *sizeOut);      // OUT
+          size_t *sizeOut);      // OUT/OPT
 
 void *
 Escape_Undo(char escByte,      // IN
             void const *bufIn, // IN
             size_t sizeIn,     // IN
-            size_t *sizeOut);  // OUT
+            size_t *sizeOut);  // OUT/OPT
 
 const char *
 Escape_Strchr(char escByte,      // IN
@@ -59,12 +59,17 @@ Escape_Unescape(char escByte,       // IN
 void *
 Escape_AnsiToUnix(void const *bufIn, // IN
                   size_t sizeIn,     // IN
-                  size_t *sizeOut);  // OUT
+                  size_t *sizeOut);  // OUT/OPT
 
 void *
 Escape_Sh(void const *bufIn, // IN
           size_t sizeIn,     // IN
-          size_t *sizeOut);  // OUT
+          size_t *sizeOut);  // OUT/OPT
+
+void *
+Escape_BRE(void const *bufIn, // IN
+           size_t sizeIn,     // IN
+           size_t *sizeOut);  // OUT/OPT
 
 void
 Escape_UnescapeCString(char *buf); // IN/OUT

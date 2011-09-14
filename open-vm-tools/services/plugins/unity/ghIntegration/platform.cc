@@ -188,8 +188,6 @@ typedef struct {
    GHIMenuDirectory *gmd; // OUT - pointer to the Nth GHIMenuDirectory
 } GHITreeTraversal;
 
-static char *GHIPlatformUriPathToString(UriPathSegmentA *path);
-
 
 /*
  * GHI capabilities for this platform.
@@ -240,7 +238,14 @@ Bool
 GHIPlatformIsSupported(void)
 {
    const char *desktopEnv = Xdg_DetectDesktopEnv();
-   return (strcmp(desktopEnv, "GNOME") == 0) || (strcmp(desktopEnv, "KDE") == 0);
+   Bool supported = (g_strcmp0(desktopEnv, "GNOME") == 0) ||
+                    (g_strcmp0(desktopEnv, "KDE") == 0) ||
+                    (g_strcmp0(desktopEnv, "XFCE") == 0);
+   if (!supported) {
+      g_message("GHI not available under unsupported desktop environment %s\n",
+                desktopEnv ? desktopEnv : "(nil)");
+   }
+   return supported;
 }
 
 
@@ -270,6 +275,14 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
 
    Gtk::Main::init_gtkmm_internals();
 
+   if (!GHIPlatformIsSupported()) {
+      /*
+       * Don't bother allocating resources if running under an unsupported
+       * desktop environment.
+       */
+      return NULL;
+   }
+
    ghip = (GHIPlatform *) Util_SafeCalloc(1, sizeof *ghip);
    ghip->appsByWindowExecutable =
       g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
@@ -278,10 +291,32 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
 
    const char** tmp;
    for (tmp = envp; *tmp; tmp++) {
+      /*
+       * PR 685881: DESKTOP_AUTOSTART_ID was proposed on the xdg@freedesktop.org
+       * mailing list, but doesn't seem like it made it to a final spec.
+       *
+       * http://lists.freedesktop.org/archives/xdg/2007-January/007436.html
+       *
+       * It refers to a XSMP session manager client ID which shouldn't be
+       * passed to children.  Having this environment variable breaks launching
+       * nautilus w/o arguments.  (Aside, GNOME fixed this upstream in response
+       * to https://bugzilla.gnome.org/show_bug.cgi?id=649063.)
+       */
+      if (g_str_has_prefix(*tmp, "DESKTOP_AUTOSTART_ID=")) {
+         continue;
+      }
+
       ghip->nativeEnviron.push_back(*tmp);
    }
 
+   /*
+    * PR 698958: Unity: There can be only one.  (Disable Ubuntu global application menu.)
+    * See https://wiki.ubuntu.com/DesktopExperienceTeam/ApplicationMenu#Troubleshooting
+    */
+   ghip->nativeEnviron.push_back("UBUNTU_MENUPROXY=");
+
    desktopEnv = Xdg_DetectDesktopEnv();
+   ASSERT(desktopEnv); // Asserting based on GHIPlatformIsSupported check above.
    g_desktop_app_info_set_desktop_env(desktopEnv);
 
 #ifdef REDIST_GMENU
@@ -376,6 +411,9 @@ GHIPlatformCleanup(GHIPlatform *ghip) // IN
       return;
    }
 
+#ifdef REDIST_GMENU
+   delete ghip->menuItemManager;
+#endif
    g_hash_table_destroy(ghip->appsByWindowExecutable);
    free(ghip);
 }
@@ -449,12 +487,19 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
    memset(&uri, 0, sizeof uri);
    state.uri = &uri;
 
-   if (pathURIUtf8[0] == '/') {
-      realCmd = pathURIUtf8;
-   } else if (uriParseUriA(&state, pathURIUtf8) == URI_SUCCESS) {
+   /* Strip query component. */
+   size_t uriSize = strlen(pathURIUtf8) + 1;
+   gchar *uriSansQuery = (gchar*)g_alloca(uriSize);
+   memcpy(uriSansQuery, pathURIUtf8, uriSize);
+   gchar *tmp = strchr(uriSansQuery, '?');
+   if (tmp) { *tmp = '\0'; }
+
+   if (uriSansQuery[0] == '/') {
+      realCmd = uriSansQuery;
+   } else if (uriParseUriA(&state, uriSansQuery) == URI_SUCCESS) {
       if (URI_TEXTRANGE_EQUAL(uri.scheme, "file")) {
-         gchar* tmp = (gchar*)g_alloca(strlen(pathURIUtf8) + 1);
-         uriUriStringToUnixFilenameA(pathURIUtf8, tmp);
+         gchar* tmp = (gchar*)g_alloca(strlen(uriSansQuery) + 1);
+         uriUriStringToUnixFilenameA(uriSansQuery, tmp);
 
          Glib::ustring unixFile;
          unixFile.assign(tmp);
@@ -480,7 +525,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
           *     content type.
           */
 
-         if (contentType == "application/x-desktop") {
+         if (g_str_has_suffix(unixFile.c_str(), ".desktop")) {
             Glib::RefPtr<Gio::DesktopAppInfo> desktopFileInfo;
 
             desktopFileInfo = Gio::DesktopAppInfo::create_from_filename(unixFile);
@@ -489,7 +534,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
                GHIX11IconGetIconsForDesktopFile(unixFile.c_str(), iconList);
                success = TRUE;
             }
-         } else if (appMgr.GetAppByUri(pathURIUtf8, app)) {
+         } else if (appMgr.GetAppByUri(uriSansQuery, app)) {
             friendlyName = app.symbolicName;
             GHIX11IconGetIconsByName(app.iconName.c_str(), iconList);
             success = TRUE;
@@ -509,43 +554,6 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
 
          uriFreeUriMembersA(&uri);
          return success;
-#if 0
-         UriQueryListA *queryList = NULL;
-         int itemCount;
-
-         freeMe = GHIPlatformUriPathToString(uri.pathHead);
-         realCmd = (const char *) freeMe;
-         if (g_str_has_suffix(realCmd, ".desktop") &&
-             (desktopFileInfo = g_desktop_app_info_new_from_filename(realCmd))
-              != NULL) {
-            Bool success;
-
-            friendlyName = g_app_info_get_name(G_APP_INFO(desktopFileInfo));
-            g_object_unref(desktopFileInfo);
-
-            success = GHIX11IconGetIconsForDesktopFile(realCmd, iconList);
-            uriFreeUriMembersA(&uri);
-            return success;
-         } else if (uriDissectQueryMallocA(&queryList, &itemCount,
-                                           uri.query.first,
-                                           uri.query.afterLast) == URI_SUCCESS) {
-            UriQueryListA *cur;
-
-            for (cur = queryList; cur; cur = cur->next) {
-               if (!cur->value) {
-                  continue;
-               }
-
-               if (strcmp(cur->key, "WindowXID") == 0) {
-                  sscanf(cur->value, "%lu", &windowID); // Ignore any failures
-               } else if (strcmp(cur->key, "DesktopEntry") == 0) {
-                  keyfilePath = g_strdup(cur->value);
-               }
-            }
-
-            uriFreeQueryListA(queryList);
-         }
-#endif
       } else {
          uriFreeUriMembersA(&uri);
          Debug("Binary URI %s does not have a 'file' scheme\n", pathURIUtf8);
@@ -557,97 +565,6 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
    }
 
    return FALSE;
-
-#if 0
-   /*
-    * If for some reason the command we got wasn't a fullly expanded filesystem path,
-    * then expand the command into a full path.
-    */
-   if (realCmd[0] != '/') {
-      ctmp = g_find_program_in_path(realCmd);
-      if (ctmp && *ctmp) {
-         free(freeMe);
-         freeMe = ctmp;
-         realCmd = ctmp;
-      } else {
-         free(ctmp);
-         free(freeMe);
-         return FALSE;
-      }
-   }
-
-   if (keyfilePath) {
-      ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByDesktopEntry, keyfilePath);
-      g_free(keyfilePath);
-   }
-
-   if (!ghm) {
-      /*
-       * Now that we have the full path, look it up in our hash table of GHIMenuItems
-       */
-      ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByExecutable, realCmd);
-   }
-
-   if (!ghm) {
-      /*
-       * To deal with /usr/bin/gimp being a symlink to gimp-2.x, also try symlinks.
-       */
-      char newPath[PATH_MAX + 1];
-      ssize_t linkLen;
-
-      linkLen = readlink(realCmd, newPath, sizeof newPath - 1);
-      if (linkLen > 0) {
-         char *slashLoc;
-
-         newPath[linkLen] = '\0';
-         slashLoc = strrchr(realCmd, '/');
-         if (newPath[0] != '/' && slashLoc) {
-            ctmp = g_strdup_printf("%.*s%s",
-                                   (int)((slashLoc + 1) - realCmd),
-                                   realCmd, newPath);
-            g_free(freeMe);
-            freeMe = ctmp;
-            realCmd = (const char *) freeMe;
-         } else {
-            realCmd = newPath;
-         }
-
-         ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByExecutable, realCmd);
-      }
-   }
-   /*
-    * Stick the app name into 'friendlyName'.
-    */
-   if (ghm) {
-      ctmp = g_key_file_get_locale_string(ghm->keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                   G_KEY_FILE_DESKTOP_KEY_NAME, NULL, NULL);
-      if (!ctmp) {
-         ctmp = g_path_get_basename(realCmd);
-      }
-      friendlyName = ctmp;
-      free(ctmp);
-   } else {
-      /*
-       * If we can't find it, then just tell the host that the app name is the same as
-       * the basename of the application's path.
-       */
-      ctmp = strrchr(realCmd, '/');
-      if (ctmp) {
-         ctmp++;
-      } else {
-         ctmp = (char *) realCmd;
-      }
-      friendlyName = ctmp;
-   }
-
-   free(freeMe);
-   ctmp = NULL;
-   freeMe = NULL;
-
-   GHIPlatformCollectIconInfo(ghip, ghm, windowID, iconList);
-
-#endif
-   return TRUE;
 }
 
 
@@ -966,417 +883,6 @@ GHIPlatformFindHGFSShare(GHIPlatform *ghip,              // IN
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformUriPathToString --
- *
- *      Turns a UriPathSegment sequence into a '/' separated filesystem path.
- *
- * Results:
- *      Newly heap-allocated string containing the FS path.
- *
- * Side effects:
- *      Allocates memory (caller is responsible for freeing it).
- *
- *-----------------------------------------------------------------------------
- */
-
-static char *
-GHIPlatformUriPathToString(UriPathSegmentA *path) // IN
-{
-   GString *str;
-   char *retval;
-   UriPathSegmentA *cur;
-
-   str = g_string_new("");
-   for (cur = path; cur; cur = cur->next) {
-      g_string_append_c(str, '/');
-      g_string_append_len(str, cur->text.first, cur->text.afterLast - cur->text.first);
-   }
-
-   retval = str->str;
-   g_string_free(str, FALSE);
-
-   return retval;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformURIToArgs --
- *
- *      Turns a URI into an array of arguments that are useable for execing...
- *
- * Results:
- *      TRUE if successful, FALSE otherwise.
- *
- * Side effects:
- *      Allocates an array of strings, and returns it in *argv...
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-GHIPlatformURIToArgs(GHIPlatform *ghip,     // IN
-                     const char *uriString, // IN
-                     char ***argv,          // IN/OUT
-                     int *argc,             // IN/OUT
-                     char **dotDesktopPath) // IN/OUT
-{
-   UriParserStateA state;
-   UriUriA uri;
-   Bool parseQueryString = TRUE;
-   GPtrArray *newargv;
-
-   ASSERT(ghip);
-   ASSERT(uriString);
-   ASSERT(argv);
-   ASSERT(argc);
-   ASSERT(dotDesktopPath);
-
-   memset(&state, 0, sizeof state);
-   memset(&uri, 0, sizeof uri);
-   state.uri = &uri;
-   if (uriParseUriA(&state, uriString) != URI_SUCCESS) {
-      uriFreeUriMembersA(&uri);
-      return FALSE;
-   }
-
-   newargv = g_ptr_array_new();
-
-#if 0 // Temporary until ShellAction is implemented.
-   /*
-    * This is previous code that was used for mapping x-vmware-share and
-    * x-vmware-action URIs, but it's not being used at the moment.
-    */
-   if (URI_TEXTRANGE_EQUAL(uri.scheme, "x-vmware-share")) {
-      UriTextRangeA *sharename;
-      UriPathSegmentA *sharepath;
-      char *sharedir;
-      char *subdir;
-
-      /*
-       * Try to find a mounted HGFS filesystem that has the right path...
-       * Deals with both share://sharename/baz/baz and share:///sharename/baz/baz
-       */
-      if (uri.hostText.first) {
-         sharename = &uri.hostText;
-         sharepath = uri.pathHead;
-      } else if (uri.pathHead) {
-         sharename = &uri.pathHead->text;
-         sharepath = uri.pathHead->next;
-      } else {
-         NOT_REACHED();
-      }
-
-      sharedir = GHIPlatformFindHGFSShare(ghip, sharename);
-      if (!sharedir) {
-         uriFreeUriMembersA(&uri);
-         g_ptr_array_free(newargv, TRUE);
-         Debug("Couldn't find a mounted HGFS filesystem for %s\n", uriString);
-         return FALSE;
-      }
-
-      subdir = GHIPlatformUriPathToString(sharepath);
-      g_ptr_array_add(newargv, g_strconcat(sharedir, subdir, NULL));
-      g_free(sharedir);
-      g_free(subdir);
-   } else if (URI_TEXTRANGE_EQUAL(uri.scheme, "x-vmware-action")) {
-      if (g_file_test("/usr/bin/gnome-open", G_FILE_TEST_IS_EXECUTABLE)) {
-         g_ptr_array_add(newargv, g_strdup("/usr/bin/gnome-open"));
-      } else if (g_file_test("/usr/bin/htmlview", G_FILE_TEST_IS_EXECUTABLE)
-                 && URI_TEXTRANGE_EQUAL(uri.hostText, "browse")) {
-         g_ptr_array_add(newargv, g_strdup("/usr/bin/htmlview"));
-      } else {
-         Debug("Don't know how to handle URI %s. "
-               "We definitely don't have /usr/bin/gnome-open.\n",
-               uriString);
-         NOT_IMPLEMENTED();
-      }
-   }
-#endif // Temporary until ShellAction is implemented.
-
-   if (URI_TEXTRANGE_EQUAL(uri.scheme, "file")) {
-      char *fspath = GHIPlatformUriPathToString(uri.pathHead);
-      g_ptr_array_add(newargv, fspath);
-   } else {
-      /*
-       * Just append the unparsed URI as-is onto the command line.
-       */
-      g_ptr_array_add(newargv, g_strdup(uriString));
-      parseQueryString = FALSE;
-   }
-
-   *dotDesktopPath = NULL;
-   if (parseQueryString) {
-      /*
-       * We may need additional command-line arguments from the part of the URI after the
-       * '?'.
-       */
-
-      UriQueryListA *queryList;
-      int itemCount;
-
-      if (uriDissectQueryMallocA(&queryList, &itemCount,
-                                 uri.query.first, uri.query.afterLast) == URI_SUCCESS) {
-         UriQueryListA *cur;
-
-         for (cur = queryList; cur; cur = cur->next) {
-            if (!cur->value) {
-               continue;
-            }
-
-            if (strcmp(cur->key, "argv[]") == 0) {
-               g_ptr_array_add(newargv, g_strdup(cur->value));
-               cur->value = NULL;
-            } else if (strcmp(cur->key, "DesktopEntry")) {
-               *dotDesktopPath = g_strdup(cur->value);
-            }
-         }
-
-         uriFreeQueryListA(queryList);
-      } else {
-         Warning("Dissection of query string in URI %s failed\n",
-                 uriString);
-      }
-   }
-
-   uriFreeUriMembersA(&uri);
-
-   *argc = newargv->len;
-   g_ptr_array_add(newargv, NULL);
-   *argv = (char **) g_ptr_array_free(newargv, FALSE);
-
-   return TRUE;
-}
-
-
-#if 0 // REMOVE AFTER IMPLEMENTING GHIPlatformShellAction
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformStripFieldCodes --
- *
- *      Strip field codes from an argv-style string array.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Modifies the string array, possibly freeing some members.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformStripFieldCodes(char **argv, // IN/OUT
-                           int *argc)   // IN/OUT
-{
-   int i;
-
-   ASSERT(argv);
-   ASSERT(argc);
-
-   for (i = 0; i < *argc; i++) {
-      if (argv[i][0] == '%'
-          && argv[i][1] != '\0'
-          && argv[i][2] == '\0') {
-         g_free(argv[i]);
-         /*
-          * This math may look slightly dodgy - just remember that these
-          * argv's have a terminating NULL pointer, which is not included in its argc.
-          */
-         g_memmove(argv + i, argv + i + 1,
-                   (*argc - i) * sizeof *argv);
-         (*argc)--;
-      }
-   }
-}
-#endif // REMOVE AFTER IMPLEMENTING GHIPlatformShellAction
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformCombineArgs --
- *
- *      Takes a target URI and turns it into an argv array that we can actually
- *      exec().
- *
- *      XXX TODO: accept location arguments once ShellAction is implemented.
- *
- * Results:
- *      TRUE if successful, FALSE otherwise. If TRUE, fullArgv/fullArgc will
- *      contain the exec-able argument array.
- *
- * Side effects:
- *      Allocates a string array in fullArgv (owner is responsible for freeing).
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-GHIPlatformCombineArgs(GHIPlatform *ghip,            // IN
-                       const char *targetUtf8,       // IN
-                       char ***fullArgv,             // OUT
-                       int *fullArgc)                // OUT
-{
-   char **targetArgv = NULL;
-   int targetArgc = 0;
-   char *targetDotDesktop = NULL;
-   GPtrArray *fullargs = g_ptr_array_new();
-   GHIMenuItem *ghm = NULL;
-   int i;
-
-   ASSERT(ghip);
-   ASSERT(targetUtf8);
-   ASSERT(fullArgv);
-   ASSERT(fullArgc);
-
-   if (!GHIPlatformURIToArgs(ghip,
-                             targetUtf8,
-                             &targetArgv,
-                             &targetArgc,
-                             &targetDotDesktop)) {
-      Debug("Parsing URI %s failed\n", targetUtf8);
-      return FALSE;
-   }
-
-#if 0 // Temporary until ShellAction is implemented.
-   /*
-    * This is previous code that was used for combining file and action
-    * arguments, but it's not being used at the moment. Our action URI format
-    * has changed, so this will need to be updated before it's usable.
-    */
-
-   /*
-    * In the context of the .desktop spec
-    * (http://standards.freedesktop.org/desktop-entry-spec/1.1/ar01s06.html),
-    * combining the two is not as simple as just concatenating them.
-    *
-    * XXX for some random older programs, we may want to do concatenation in the future.
-    */
-   char **srcArgv;
-   int srcArgc;
-   char *srcDotDesktop = NULL;
-
-   /*
-    * First, figure out which argv[] array is the 'main' one, and which one will serve
-    * only to fill in the file/URL argument in the .desktop file...
-    */
-   if (! *actionArgc) {
-      srcArgv = *fileArgv;
-      srcArgc = *fileArgc;
-      srcDotDesktop = fileDotDesktop;
-   } else {
-      srcArgv = *actionArgv;
-      srcArgc = *actionArgc;
-      srcDotDesktop = actionDotDesktop;
-      if (fileDotDesktop) {
-         GHIPlatformStripFieldCodes(*fileArgv, fileArgc);
-      }
-   }
-#endif // Temporary until ShellAction is implemented.
-
-   for (i = 0; i < targetArgc; i++) {
-      const char *thisarg = targetArgv[i];
-
-      if (thisarg[0] == '%' && thisarg[1] != '\0' && thisarg[2] == '\0') {
-         switch (thisarg[1]) {
-         case 'F': // %F expands to multiple filenames
-         case 'f': // %f expands to a filename
-            /*
-             * XXX TODO: add file location arguments
-             */
-            //if (srcArgv != *fileArgv && *fileArgc) {
-            //   g_ptr_array_add(fullargs, g_strdup((*fileArgv)[0]));
-            //}
-            break;
-         case 'U': // %U expands to multiple URLs
-         case 'u': // %u expands to a URL
-            /*
-             * XXX TODO: add URL location arguments
-             */
-            //if (srcArgv != *fileArgv && fileUtf8) {
-            //   g_ptr_array_add(fullargs, g_strdup(fileUtf8));
-            //}
-            break;
-
-            /*
-             * These three require getting at the .desktop info for the app.
-             */
-         case 'k':
-         case 'i':
-         case 'c':
-            if (!ghm && targetDotDesktop) {
-               ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByDesktopEntry,
-                                                         targetDotDesktop);
-            }
-            if (!ghm) {
-               ASSERT (fullargs->len > 0);
-               ghm = (GHIMenuItem *) g_hash_table_lookup(ghip->appsByExecutable,
-                                                         g_ptr_array_index(fullargs, 0));
-            }
-
-            if (ghm) {
-               switch (thisarg[1]) {
-               case 'c': // %c expands to the .desktop's Name=
-                  {
-                     char *ctmp =
-                        g_key_file_get_locale_string(ghm->keyfile,
-                                                     G_KEY_FILE_DESKTOP_GROUP,
-                                                     G_KEY_FILE_DESKTOP_KEY_NAME,
-                                                     NULL, NULL);
-                     if (ctmp) {
-                        g_ptr_array_add(fullargs, ctmp);
-                     }
-                  }
-                  break;
-               case 'i': // %i expands to "--icon" then the .desktop's Icon=
-                  {
-                     char *ctmp =
-                        g_key_file_get_string(ghm->keyfile,
-                                              G_KEY_FILE_DESKTOP_GROUP,
-                                              G_KEY_FILE_DESKTOP_KEY_ICON,
-                                              NULL);
-                     if (ctmp && *ctmp) {
-                        g_ptr_array_add(fullargs, g_strdup("--icon"));
-                        g_ptr_array_add(fullargs, ctmp);
-                     }
-                  }
-                  break;
-               case 'k': // %k expands to the .desktop's path
-                  g_ptr_array_add(fullargs, g_strdup(ghm->keyfilePath));
-                  break;
-               }
-            }
-            break;
-         case '%': // Expands to a literal
-            g_ptr_array_add(fullargs, g_strdup("%"));
-            break;
-         default:
-            /*
-             * Intentionally ignore an unknown field code.
-             */
-            break;
-         }
-      } else {
-         g_ptr_array_add(fullargs, g_strdup(thisarg));
-      }
-   }
-   *fullArgc = fullargs->len;
-   g_ptr_array_add(fullargs, NULL);
-   *fullArgv = (char **) g_ptr_array_free(fullargs, FALSE);
-
-   g_strfreev(targetArgv);
-   g_free(targetDotDesktop);
-
-   return *fullArgc ? TRUE : FALSE;
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * GHIPlatformShellOpen --
@@ -1398,109 +904,77 @@ Bool
 GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
                      const char *fileUtf8) // IN
 {
-   char **fullArgv = NULL;
-   int fullArgc = 0;
-   Bool retval = FALSE;
-
    ASSERT(ghip);
    ASSERT(fileUtf8);
 
    Debug("%s: file: '%s'\n", __FUNCTION__, fileUtf8);
 
-   /*
-    * XXX This is not shippable.  GHIPlatformCombineArgs may still be necessary,
-    * and I chose to use if (1) rather than #if 0 it out in order to not have to
-    * #if 0 out that function and everything else it calls as well.
-    */
-   if (1) {
-      UriParserStateA upState;
-      UriUriA uri;
+   UriParserStateA upState;
+   UriUriA uri;
 
-      memset(&upState, 0, sizeof upState);
-      memset(&uri, 0, sizeof uri);
-      upState.uri = &uri;
+   memset(&upState, 0, sizeof upState);
+   memset(&uri, 0, sizeof uri);
+   upState.uri = &uri;
 
-      if (uriParseUriA(&upState, fileUtf8) == URI_SUCCESS &&
-          URI_TEXTRANGE_EQUAL(uri.scheme, "file")) {
-         Bool success = FALSE;
+   if (uriParseUriA(&upState, fileUtf8) == URI_SUCCESS &&
+       URI_TEXTRANGE_EQUAL(uri.scheme, "file")) {
+      Bool success = FALSE;
 
-         gchar* tmp = (gchar*)g_alloca(strlen(fileUtf8) + 1);
-         uriUriStringToUnixFilenameA(fileUtf8, tmp);
+      gchar* tmp = (gchar*)g_alloca(strlen(fileUtf8) + 1);
+      uriUriStringToUnixFilenameA(fileUtf8, tmp);
 
-         Glib::ustring unixFile;
-         unixFile.assign(tmp);
+      Glib::ustring unixFile;
+      unixFile.assign(tmp);
 
-         Glib::ustring contentType;
-         bool uncertain;
-         contentType = Gio::content_type_guess(unixFile, std::string(""), uncertain);
+      Glib::ustring contentType;
+      bool uncertain;
+      contentType = Gio::content_type_guess(unixFile, std::string(""), uncertain);
 
-         if (contentType == "application/x-desktop") {
-            GDesktopAppInfo* dappinfo;
-            dappinfo = g_desktop_app_info_new_from_filename(unixFile.c_str());
-            if (dappinfo) {
-               GAppInfo *appinfo = (GAppInfo*)G_APP_INFO(dappinfo);
-               success = AppInfoLaunchEnv(ghip, appinfo);
-               g_object_unref(dappinfo);
-            }
-         } else if (Glib::file_test(unixFile, Glib::FILE_TEST_IS_REGULAR) &&
-                    Glib::file_test(unixFile, Glib::FILE_TEST_IS_EXECUTABLE)) {
-            std::vector<Glib::ustring> argv;
-            argv.push_back(unixFile);
-            try {
-               Glib::spawn_async("" /* inherit cwd */, argv, ghip->nativeEnviron, (Glib::SpawnFlags) 0);
-               success = TRUE;
-            } catch(Glib::SpawnError& e) {
-               g_warning("%s: %s: %s\n", __FUNCTION__, unixFile.c_str(), e.what().c_str());
-            }
-         } else {
-            std::vector<Glib::ustring> argv;
-            Glib::ustring de = Xdg_DetectDesktopEnv();
-            // XXX Really we should just use xdg-open exclusively, but xdg-open
-            // as shipped with xdg-utils 1.0.2 is broken.  It is fixed
-            // in portland CVS, but we need to import into modsource and
-            // redistribute with Tools in order to guarantee a working version.
-            if (de == "GNOME") {
-               argv.push_back("gnome-open");
-            } else if (de == "KDE") {
-               argv.push_back("kde-open");
-            } else {
-               argv.push_back("xdg-open");
-            }
-            argv.push_back(unixFile);
-            try {
-               Glib::spawn_async("", argv, ghip->nativeEnviron, Glib::SPAWN_SEARCH_PATH);
-               success = TRUE;
-            } catch(Glib::SpawnError& e) {
-               g_warning("%s: %s: %s\n", __FUNCTION__, unixFile.c_str(), e.what().c_str());
-            }
+      if (contentType == "application/x-desktop") {
+         GDesktopAppInfo* dappinfo;
+         dappinfo = g_desktop_app_info_new_from_filename(unixFile.c_str());
+         if (dappinfo) {
+            GAppInfo *appinfo = (GAppInfo*)G_APP_INFO(dappinfo);
+            success = AppInfoLaunchEnv(ghip, appinfo);
+            g_object_unref(dappinfo);
          }
-
-         return success;
+      } else if (Glib::file_test(unixFile, Glib::FILE_TEST_IS_REGULAR) &&
+                 Glib::file_test(unixFile, Glib::FILE_TEST_IS_EXECUTABLE)) {
+         std::vector<Glib::ustring> argv;
+         argv.push_back(unixFile);
+         try {
+            Glib::spawn_async("" /* inherit cwd */, argv, ghip->nativeEnviron, (Glib::SpawnFlags) 0);
+            success = TRUE;
+         } catch(Glib::SpawnError& e) {
+            g_warning("%s: %s: %s\n", __FUNCTION__, unixFile.c_str(), e.what().c_str());
+         }
+      } else {
+         std::vector<Glib::ustring> argv;
+         Glib::ustring de = Xdg_DetectDesktopEnv();
+         // XXX Really we should just use xdg-open exclusively, but xdg-open
+         // as shipped with xdg-utils 1.0.2 is broken.  It is fixed
+         // in portland CVS, but we need to import into modsource and
+         // redistribute with Tools in order to guarantee a working version.
+         if (de == "GNOME") {
+            argv.push_back("gnome-open");
+         } else if (de == "KDE") {
+            argv.push_back("kde-open");
+         } else {
+            argv.push_back("xdg-open");
+         }
+         argv.push_back(unixFile);
+         try {
+            Glib::spawn_async("", argv, ghip->nativeEnviron, Glib::SPAWN_SEARCH_PATH);
+            success = TRUE;
+         } catch(Glib::SpawnError& e) {
+            g_warning("%s: %s: %s\n", __FUNCTION__, unixFile.c_str(), e.what().c_str());
+         }
       }
-   } else if (GHIPlatformCombineArgs(ghip, fileUtf8, &fullArgv, &fullArgc) &&
-       fullArgc > 0) {
-      // XXX Will fix this soon.
-#if 0
-      retval = g_spawn_async(NULL, fullArgv,
-                            /*
-                             * XXX  Please don't hate me for casting off the qualifier
-                             * here.  Glib does -not- modify the environment, at
-                             * least not in the parent process, but their prototype
-                             * does not specify this argument as being const.
-                             *
-                             * Comment stolen from GuestAppX11OpenUrl.
-                             */
-                             (char **)ghip->nativeEnviron,
-                             (GSpawnFlags) (G_SPAWN_SEARCH_PATH |
-                             G_SPAWN_STDOUT_TO_DEV_NULL |
-                             G_SPAWN_STDERR_TO_DEV_NULL),
-                             NULL, NULL, NULL, NULL);
-#endif
+
+      return success;
    }
 
-   g_strfreev(fullArgv);
-
-   return retval;
+   return FALSE;
 }
 
 

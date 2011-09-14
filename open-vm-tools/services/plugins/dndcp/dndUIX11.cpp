@@ -64,18 +64,19 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       m_DnD(NULL),
       m_detWnd(NULL),
       m_blockCtrl(NULL),
-      m_HGGetDataInProgress(false),
+      m_HGGetFileStatus(DND_FILE_TRANSFER_NOT_STARTED),
       m_blockAdded(false),
       m_GHDnDInProgress(false),
       m_GHDnDDataReceived(false),
       m_unityMode(false),
       m_inHGDrag(false),
       m_effect(DROP_NONE),
-      m_fileTransferStarted(false),
       m_mousePosX(0),
       m_mousePosY(0),
       m_dc(NULL),
-      m_destDropTime(0)
+      m_numPendingRequest(0),
+      m_destDropTime(0),
+      mTotalFileSize(0)
 {
    g_debug("%s: enter\n", __FUNCTION__);
 }
@@ -93,6 +94,21 @@ DnDUIX11::~DnDUIX11()
       delete m_detWnd;
    }
    CPClipboard_Destroy(&m_clipboard);
+   /* Any files from last unfinished file transfer should be deleted. */
+   if (DND_FILE_TRANSFER_IN_PROGRESS == m_HGGetFileStatus &&
+       !m_HGStagingDir.empty()) {
+      uint64 totalSize = File_GetSizeEx(m_HGStagingDir.c_str());
+      if (mTotalFileSize != totalSize) {
+         g_debug("%s: deleting %s, expecting %"FMT64"d, finished %"FMT64"d\n",
+                 __FUNCTION__, m_HGStagingDir.c_str(),
+                 mTotalFileSize, totalSize);
+         DnD_DeleteStagingFiles(m_HGStagingDir.c_str(), FALSE);
+      } else {
+         g_debug("%s: file size match %s\n",
+                 __FUNCTION__, m_HGStagingDir.c_str());
+      }
+   }
+   CommonResetCB();
 }
 
 
@@ -228,9 +244,9 @@ DnDUIX11::SetTargetsAndCallbacks()
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_TEXT_RICHTEXT));
 
    /* Plain text DnD. */
+   targets.push_back(Gtk::TargetEntry(TARGET_NAME_UTF8_STRING));
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_STRING));
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_TEXT_PLAIN));
-   targets.push_back(Gtk::TargetEntry(TARGET_NAME_UTF8_STRING));
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_COMPOUND_TEXT));
 
    /*
@@ -266,12 +282,11 @@ DnDUIX11::CommonResetCB(void)
 {
    g_debug("%s: entering\n", __FUNCTION__);
    m_GHDnDDataReceived = false;
-   m_HGGetDataInProgress = false;
+   m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    m_GHDnDInProgress = false;
    m_effect = DROP_NONE;
    m_inHGDrag = false;
    m_dc = NULL;
-   m_fileTransferStarted = false;
    RemoveBlock();
 }
 
@@ -364,7 +379,7 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
    /* Tell Gtk that a drag should be started from this widget. */
    m_detWnd->drag_begin(targets, actions, 1, (GdkEvent *)&event);
    m_blockAdded = false;
-   m_fileTransferStarted = false;
+   m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    SourceDragStartDone();
    /* Initialize host hide feedback to DROP_NONE. */
    m_effect = DROP_NONE;
@@ -392,7 +407,7 @@ DnDUIX11::CommonSourceCancelCB(void)
    SendFakeXEvents(true, true, false, true, true, 0, 0);
    CommonUpdateDetWndCB(false, 0, 0);
    m_inHGDrag = false;
-   m_HGGetDataInProgress = false;
+   m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    m_effect = DROP_NONE;
    RemoveBlock();
 }
@@ -488,7 +503,7 @@ DnDUIX11::CommonSourceFileCopyDoneCB(bool success)
      * we are already reset.
     */
 
-   m_HGGetDataInProgress = false;
+   m_HGGetFileStatus = DND_FILE_TRANSFER_FINISHED;
 
    if (!m_inHGDrag) {
       CommonResetCB();
@@ -683,7 +698,7 @@ DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
    g_debug("%s: not ignored %ld %ld %ld\n", __FUNCTION__,
          curTime, m_destDropTime, curTime - m_destDropTime);
 
-   if (m_inHGDrag || m_HGGetDataInProgress) {
+   if (m_inHGDrag || (m_HGGetFileStatus != DND_FILE_TRANSFER_NOT_STARTED)) {
       g_debug("%s: ignored not in hg drag or not getting hg data\n", __FUNCTION__);
       return true;
    }
@@ -758,7 +773,10 @@ DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
          m_GHDnDInProgress = true;
          /* only begin drag enter after we get the data */
          /* Need to grab all of the data. */
-         m_detWnd->drag_get_data(dc, target, timeValue);
+         if (!RequestData(dc, timeValue)) {
+            g_debug("%s: RequestData failed.\n", __FUNCTION__);
+            return false;
+         }
       } else {
          g_debug("%s: Multiple drag motions before gh data has been received.\n",
                __FUNCTION__);
@@ -882,6 +900,8 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
          return;
       }
 
+      mTotalFileSize = fList.GetFileSize();
+
       /* Provide URIs for each path in the guest's file list. */
       if (FCP_TARGET_INFO_GNOME_COPIED_FILES == info) {
          pre = FCP_GNOME_LIST_PRE;
@@ -926,15 +946,16 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
        * Doing both of these addresses bug
        * http://bugzilla.eng.vmware.com/show_bug.cgi?id=391661.
        */
-      if (!m_blockAdded && m_inHGDrag && !m_fileTransferStarted) {
-         m_HGGetDataInProgress = true;
-         m_fileTransferStarted = true;
+      if (!m_blockAdded &&
+          m_inHGDrag &&
+          (m_HGGetFileStatus == DND_FILE_TRANSFER_NOT_STARTED)) {
+         m_HGGetFileStatus = DND_FILE_TRANSFER_IN_PROGRESS;
          AddBlock();
       } else {
          g_debug("%s: not calling AddBlock\n", __FUNCTION__);
       }
       selection_data.set(DRAG_TARGET_NAME_URI_LIST, uriList.c_str());
-      g_debug("%s: exit\n", __FUNCTION__);
+      g_debug("%s: providing uriList [%s]\n", __FUNCTION__, uriList.c_str());
       return;
    }
 
@@ -999,7 +1020,7 @@ DnDUIX11::GtkSourceDragEndCB(const Glib::RefPtr<Gdk::DragContext> &dc)
     * CommonResetCB() here, since we will do so in the fileCopyDoneChanged
     * callback.
     */
-   if (!m_fileTransferStarted || !m_HGGetDataInProgress) {
+   if (DND_FILE_TRANSFER_IN_PROGRESS != m_HGGetFileStatus) {
       CommonResetCB();
    }
    m_inHGDrag = false;
@@ -1039,8 +1060,6 @@ DnDUIX11::GtkDestDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
       return;
    }
 
-   CPClipboard_Clear(&m_clipboard);
-
    /*
     * Try to get data provided from the source.  If we cannot get any data,
     * there is no need to inform the guest of anything. If there is no data,
@@ -1052,6 +1071,12 @@ DnDUIX11::GtkDestDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
       CommonResetCB();
       return;
    }
+
+   m_numPendingRequest--;
+   if (m_numPendingRequest > 0) {
+      return;
+   }
+
    if (CPClipboard_IsEmpty(&m_clipboard)) {
       g_debug("%s: Failed getting item.\n", __FUNCTION__);
       CommonResetCB();
@@ -1180,13 +1205,30 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
       while ((newPath = DnD_UriListGetNextFile(source.c_str(),
                                                &index,
                                                &newPathLen)) != NULL) {
-
+#if defined(linux)
+         if (DnD_UriIsNonFileSchemes(newPath)) {
+            /* Try to get local file path for non file uri. */
+            GFile *file = g_file_new_for_uri(newPath);
+            free(newPath);
+            if (!file) {
+               g_debug("%s: g_file_new_for_uri failed\n", __FUNCTION__);
+               return false;
+            }
+            newPath = g_file_get_path(file);
+            g_object_unref(file);
+            if (!newPath) {
+               g_debug("%s: g_file_get_path failed\n", __FUNCTION__);
+               return false;
+            }
+         }
+#endif
          /*
           * Parse relative path.
           */
          newRelPath = Str_Strrchr(newPath, DIRSEPC) + 1; // Point to char after '/'
 
-         if ((size = File_GetSize(newPath)) >= 0) {
+         /* Keep track of how big the dnd files are. */
+         if ((size = File_GetSizeEx(newPath)) >= 0) {
             totalSize += size;
          } else {
             g_debug("%s: unable to get file size for %s\n", __FUNCTION__, newPath);
@@ -1212,12 +1254,12 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
        target == TARGET_NAME_TEXT_PLAIN ||
        target == TARGET_NAME_UTF8_STRING ||
        target == TARGET_NAME_COMPOUND_TEXT) {
-      utf::string source = sd.get_data_as_string().c_str();
-      if (source.bytes() > 0 &&
-          source.bytes() < DNDMSG_MAX_ARGSZ &&
+      std::string source = sd.get_data_as_string();
+      if (source.size() > 0 &&
+          source.size() < DNDMSG_MAX_ARGSZ &&
           CPClipboard_SetItem(&m_clipboard, CPFORMAT_TEXT, source.c_str(),
-                              source.bytes() + 1)) {
-         g_debug("%s: Got text, size %"FMTSZ"u\n", __FUNCTION__, source.bytes());
+                              source.size() + 1)) {
+         g_debug("%s: Got text, size %"FMTSZ"u\n", __FUNCTION__, source.size());
       } else {
          g_debug("%s: Failed to get text\n", __FUNCTION__);
          return false;
@@ -1228,12 +1270,12 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
    /* Try to get RTF string. */
    if (target == TARGET_NAME_APPLICATION_RTF ||
        target == TARGET_NAME_TEXT_RICHTEXT) {
-      utf::string source = sd.get_data_as_string().c_str();
-      if (source.bytes() > 0 &&
-          source.bytes() < DNDMSG_MAX_ARGSZ &&
+      std::string source = sd.get_data_as_string();
+      if (source.size() > 0 &&
+          source.size() < DNDMSG_MAX_ARGSZ &&
           CPClipboard_SetItem(&m_clipboard, CPFORMAT_RTF, source.c_str(),
-                              source.bytes() + 1)) {
-         g_debug("%s: Got RTF, size %"FMTSZ"u\n", __FUNCTION__, source.bytes());
+                              source.size() + 1)) {
+         g_debug("%s: Got RTF, size %"FMTSZ"u\n", __FUNCTION__, source.size());
          return true;
       } else {
          g_debug("%s: Failed to get text\n", __FUNCTION__ );
@@ -1241,6 +1283,68 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
       }
    }
    return true;
+}
+
+
+/**
+ *
+ * Ask for clipboard data from drag source.
+ *
+ * @param[in] dc   Associated drag context
+ * @param[in] time Time of the request
+ *
+ * @return true if there is any data request, false otherwise.
+ */
+
+bool
+DnDUIX11::RequestData(const Glib::RefPtr<Gdk::DragContext> &dc,
+                      guint time)
+{
+   Glib::RefPtr<Gtk::TargetList> targets;
+   targets = Gtk::TargetList::create(std::list<Gtk::TargetEntry>());
+
+   CPClipboard_Clear(&m_clipboard);
+   m_numPendingRequest = 0;
+
+   /*
+    * First check file list. If file list is available, all other formats will
+    * be ignored.
+    */
+   targets->add(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
+   Glib::ustring target = m_detWnd->drag_dest_find_target(dc, targets);
+   targets->remove(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
+   if (target != "") {
+      m_detWnd->drag_get_data(dc, target, time);
+      m_numPendingRequest++;
+      return true;
+   }
+
+   /* Then check plain text. */
+   targets->add(Glib::ustring(TARGET_NAME_UTF8_STRING));
+   targets->add(Glib::ustring(TARGET_NAME_STRING));
+   targets->add(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
+   targets->add(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
+   target = m_detWnd->drag_dest_find_target(dc, targets);
+   targets->remove(Glib::ustring(TARGET_NAME_STRING));
+   targets->remove(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
+   targets->remove(Glib::ustring(TARGET_NAME_UTF8_STRING));
+   targets->remove(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
+   if (target != "") {
+      m_detWnd->drag_get_data(dc, target, time);
+      m_numPendingRequest++;
+   }
+
+   /* Then check RTF. */
+   targets->add(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
+   targets->add(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
+   target = m_detWnd->drag_dest_find_target(dc, targets);
+   targets->remove(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
+   targets->remove(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
+   if (target != "") {
+      m_detWnd->drag_get_data(dc, target, time);
+      m_numPendingRequest++;
+   }
+   return (m_numPendingRequest > 0);
 }
 
 
@@ -1690,7 +1794,7 @@ void
 DnDUIX11::RemoveBlock()
 {
    g_debug("%s: enter\n", __FUNCTION__);
-   if (m_blockAdded && !m_HGGetDataInProgress) {
+   if (m_blockAdded && (DND_FILE_TRANSFER_IN_PROGRESS != m_HGGetFileStatus)) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, m_HGStagingDir.c_str());
       /* We need to make sure block subsystem has not been shut off. */
       if (DnD_BlockIsReady(m_blockCtrl)) {
@@ -1698,10 +1802,10 @@ DnDUIX11::RemoveBlock()
       }
       m_blockAdded = false;
    } else {
-      g_debug("%s: not removing block m_blockAdded %d m_HGGetDataInProgress %d\n",
+      g_debug("%s: not removing block m_blockAdded %d m_HGGetFileStatus %d\n",
             __FUNCTION__,
             m_blockAdded,
-            m_HGGetDataInProgress);
+            m_HGGetFileStatus);
    }
 }
 

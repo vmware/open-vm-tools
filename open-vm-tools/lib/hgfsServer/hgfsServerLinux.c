@@ -28,6 +28,10 @@
 
 #define _GNU_SOURCE // for O_NOFOLLOW
 
+#if defined(__APPLE__)
+#define _DARWIN_USE_64_BIT_INODE
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -145,6 +149,7 @@ getdents_linux(unsigned int fd,
          dirp[i].d_off = dirp_temp[i].d_off;
          dirp[i].d_reclen = dirp_temp[i].d_reclen;
          dirp[i].d_type = DT_UNKNOWN;
+         memset(dirp[i].d_name, 0, sizeof dirp->d_name);
          memcpy(dirp[i].d_name, dirp_temp[i].d_name,
                 ((sizeof dirp->d_name) < (sizeof dirp_temp->d_name))
                 ? (sizeof dirp->d_name)
@@ -156,12 +161,28 @@ getdents_linux(unsigned int fd,
 #   endif
 }
 #      define getdents getdents_linux
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#elif defined(__FreeBSD__)
 #define getdents(fd, dirp, count)                                             \
 ({                                                                            \
    long basep;                                                                \
    getdirentries(fd, dirp, count, &basep);                                    \
 })
+#elif defined(__APPLE__)
+static INLINE int
+getdents_apple(DIR *fd,               // IN
+               DirectoryEntry *dirp,  // OUT
+               unsigned int count)    // IN: ignored
+{
+   int res = 0;
+   struct dirent *dirEntry;
+   dirEntry = readdir(fd);
+   if (NULL != dirEntry) {
+      memcpy(dirp, dirEntry, dirEntry->d_reclen);
+      res =  dirEntry->d_reclen;
+   }
+   return res;
+}
+#      define getdents getdents_apple
 #endif
 
 /*
@@ -302,17 +323,13 @@ static HgfsInternalStatus HgfsSetattrTimes(struct stat *statBuf,
                                            Bool *timesChanged);
 
 static HgfsInternalStatus HgfsGetHiddenXAttr(char const *fileName, Bool *attribute);
-static HgfsInternalStatus HgfsSetHiddenXAttr(char const *fileName, Bool value);
+static HgfsInternalStatus HgfsSetHiddenXAttr(char const *fileName,
+                                             Bool value,
+                                             mode_t permissions);
 static HgfsInternalStatus HgfsEffectivePermissions(char *fileName,
                                                    Bool readOnlyShare,
                                                    uint32 *permissions);
-#if defined(__APPLE__)
-static void HgfsConvertStat64ToStat(const struct stat64 *stats64,
-                                    struct stat *stats,
-                                    uint64 *creationTime);
-#else
 static uint64 HgfsGetCreationTime(const struct stat *stats);
-#endif
 
 #ifdef HGFS_OPLOCKS
 /*
@@ -733,7 +750,15 @@ HgfsCheckFileNode(char const *localName,      // IN
     * file name still refers to the same pair
     */
 
+#if defined(__APPLE__)
+   /*
+    *  Can't use Posix_Stat because of inconsistent definition
+    *  of _DARWIN_USE_64_BIT_INODE in this file and in other libraries.
+    */
+   if (stat(localName, &nodeStat) < 0) {
+#else
    if (Posix_Stat(localName, &nodeStat) < 0) {
+#endif
       int error = errno;
 
       LOG(4, ("%s: couldn't stat local file \"%s\": %s\n", __FUNCTION__,
@@ -1059,11 +1084,6 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       goto exit;
    }
 
-   /* Set the rest of the Windows specific attributes if necessary. */
-   if (needToSetAttribute) {
-      HgfsSetHiddenXAttr(openInfo->utf8Name, openInfo->attr & HGFS_ATTR_HIDDEN);
-   }
-
    /* Stat file to get its volume and file info */
    if (fstat(fd, &fileStat) < 0) {
       error = errno;
@@ -1072,6 +1092,12 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       close(fd);
       status = error;
       goto exit;
+   }
+
+   /* Set the rest of the Windows specific attributes if necessary. */
+   if (needToSetAttribute) {
+      HgfsSetHiddenXAttr(openInfo->utf8Name, openInfo->attr & HGFS_ATTR_HIDDEN,
+                         fileStat.st_mode);
    }
 
    /* Try to acquire an oplock. */
@@ -1892,49 +1918,6 @@ HgfsEffectivePermissions(char *fileName,          // IN: Input filename
 }
 
 
-#if defined(__APPLE__)
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsConvertStat64ToStat --
- *
- *    Helper function that converts data in stat64 format into stat format.
- *    It returns creationTime in HGFS platform independent format.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-HgfsConvertStat64ToStat(const struct stat64 *stats64,  // IN: data in stat64 format
-                        struct stat *stats,            // OUT: data in stat format
-                        uint64 *creationTime)          // OUT: creation time
-{
-   stats->st_dev = stats64->st_dev;
-   stats->st_ino = stats64->st_ino;
-   stats->st_mode = stats64->st_mode;
-   stats->st_nlink = stats64->st_nlink;
-   stats->st_uid = stats64->st_uid;
-   stats->st_gid = stats64->st_gid;
-   stats->st_rdev = stats64->st_rdev;
-   stats->st_atimespec = stats64->st_atimespec;
-   stats->st_mtimespec = stats64->st_mtimespec;
-   stats->st_ctimespec = stats64->st_ctimespec;
-   stats->st_size = stats64->st_size;
-   stats->st_blocks = stats64->st_blocks;
-   stats->st_blksize = stats64->st_blksize;
-   stats->st_flags = stats64->st_flags;
-   stats->st_gen = stats64->st_gen;
-   *creationTime =  HgfsConvertTimeSpecToNtTime(&stats64->st_birthtimespec);
-}
-#else
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1993,6 +1976,8 @@ HgfsGetCreationTime(const struct stat *stats)
 #   else
    creationTime   = HgfsConvertTimeSpecToNtTime(&stats->st_mtim);
 #   endif
+#elif defined(__APPLE__)
+   creationTime   = HgfsConvertTimeSpecToNtTime(&stats->st_birthtimespec);
 #else
    /*
     * Solaris: No nanosecond timestamps, no file create timestamp.
@@ -2001,7 +1986,6 @@ HgfsGetCreationTime(const struct stat *stats)
 #endif
    return creationTime;
 }
-#endif
 
 
 /*
@@ -2009,8 +1993,8 @@ HgfsGetCreationTime(const struct stat *stats)
  *
  * HgfsStat --
  *
- *    Wrapper function that invokes stat64 on Mac OS and stat on Linux (where stat64 is
- *    unavailable).
+ *    Wrapper function that invokes stat on Mac OS and on Linux.
+ *
  *    Returns filled stat structure and a file creation time. File creation time is
  *    the birthday time for Mac OS and last write time for Linux (which does not support
  *    file creation time).
@@ -2033,14 +2017,10 @@ HgfsStat(const char* fileName,   // IN: file name
 {
    int error;
 #if defined(__APPLE__)
-   struct stat64 stats64;
    if (followLink) {
-      error = stat64(fileName, &stats64);
+      error = stat(fileName, stats);
    } else {
-      error = lstat64(fileName, &stats64);
-   }
-   if (error == 0) {
-      HgfsConvertStat64ToStat(&stats64, stats, creationTime);
+      error = lstat(fileName, stats);
    }
 #else
    if (followLink) {
@@ -2048,8 +2028,8 @@ HgfsStat(const char* fileName,   // IN: file name
    } else {
       error = Posix_Lstat(fileName, stats);
    }
-   *creationTime = HgfsGetCreationTime(stats);
 #endif
+   *creationTime = HgfsGetCreationTime(stats);
    return error;
 }
 
@@ -2059,8 +2039,8 @@ HgfsStat(const char* fileName,   // IN: file name
  *
  * HgfsFStat --
  *
- *    Wrapper function that invokes stat64 on Mac OS and stat on Linux (where stat64 is
- *    unavailable).
+ *    Wrapper function that invokes fstat.
+ *
  *    Returns filled stat structure and a file creation time. File creation time is
  *    the birthday time for Mac OS and last write time for Linux (which does not support
  *    file creation time).
@@ -2081,18 +2061,10 @@ HgfsFStat(int fd,                 // IN: file descriptor
           uint64 *creationTime)   // OUT: file creation time
 {
    int error = 0;
-#if defined(__APPLE__)
-   struct stat64 stats64;
-   error = fstat64(fd, &stats64);
-   if (error == 0) {
-      HgfsConvertStat64ToStat(&stats64, stats, creationTime);
-   }
-#else
    if (fstat(fd, stats) < 0) {
       error = errno;
    }
    *creationTime = HgfsGetCreationTime(stats);
-#endif
    return error;
 }
 
@@ -2871,11 +2843,13 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
       }
    }
 
-   if (attr->mask & HGFS_ATTR_VALID_FLAGS) {
+   /* Setting hidden attribute for symlink itself is not supported. */
+   if ((attr->mask & HGFS_ATTR_VALID_FLAGS) && !S_ISLNK(statBuf.st_mode)) {
        char *localName;
        size_t localNameSize;
        if (HgfsHandle2FileName(file, session, &localName, &localNameSize)) {
-          status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN);
+          status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN,
+                                      newPermissions);
           free(localName);
        }
    }
@@ -2883,36 +2857,65 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
    timesStatus = HgfsSetattrTimes(&statBuf, attr, hints,
                                   &times[0], &times[1], &timesChanged);
    if (timesStatus == 0 && timesChanged) {
-      uid_t uid;
+      uid_t uid = (uid_t)-1;
+      Bool switchToSuperUser = FALSE;
 
       LOG(4, ("%s: setting new times\n", __FUNCTION__));
 
       /*
-       * If the VMX is either the file owner or running as root, switch to
-       * superuser briefly to set the files times using futimes. Otherwise
-       * return an error.
+       * If the VMX is neither the file owner nor running as root, return an error.
+       * Otherwise if we are not the file owner switch to superuser briefly
+       * to set the files times using futimes.
        */
 
-      if (!Id_IsSuperUser() && (getuid() != statBuf.st_uid)) {
-         LOG(4, ("%s: only owner of file %u or root can call futimes\n",
-                 __FUNCTION__, fd));
-         /* XXX: Linux kernel says both EPERM and EACCES are valid here. */
-         status = EPERM;
-         goto exit;
+      /*
+       * XXX Bug 718252: Ideally we should use geteuid() instead of
+       *     getuid(). For Nitrogen/Honeycomb, we can live with getuid()
+       *     and fix it later on the *-main.
+       */
+      if (getuid() != statBuf.st_uid) {
+         /* We are not the file owner. Check if we are running as root. */
+         if (!Id_IsSuperUser()) {
+            LOG(4, ("%s: only owner of file %u or root can call futimes\n",
+                    __FUNCTION__, fd));
+            /* XXX: Linux kernel says both EPERM and EACCES are valid here. */
+            status = EPERM;
+            goto exit;
+         }
+         uid = Id_BeginSuperUser();
+         switchToSuperUser = TRUE;
       }
-      uid = Id_BeginSuperUser();
       /*
        * XXX Newer glibc provide also lutimes() and futimes()
        *     when we politely ask with -D_GNU_SOURCE -D_BSD_SOURCE
        */
 
       if (futimes(fd, times) < 0) {
-         error = errno;
-         LOG(4, ("%s: futimes error on file %u: %s\n", __FUNCTION__,
-                 fd, strerror(error)));
-         status = error;
+         if (!switchToSuperUser) {
+            /*
+             * Check bug 718252. If futimes() fails, switch to
+             * superuser briefly and try futimes() one more time.
+             */
+            uid = Id_BeginSuperUser();
+            switchToSuperUser = TRUE;
+            if (futimes(fd, times) < 0) {
+               error = errno;
+               LOG(4, ("%s: Executing futimes as owner on file: %u "
+                       "failed with error: %s\n", __FUNCTION__,
+                       fd, strerror(error)));
+               status = error;
+            }
+         } else {
+            error = errno;
+            LOG(4, ("%s: Executing futimes as superuser on file: %u "
+                    "failed with error: %s\n", __FUNCTION__,
+                    fd, strerror(error)));
+            status = error;
+         }
       }
-      Id_EndSuperUser(uid);
+      if (switchToSuperUser) {
+         Id_EndSuperUser(uid);
+      }
    } else if (timesStatus != 0) {
       status = timesStatus;
    }
@@ -3038,7 +3041,8 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
    }
 
    if (attr->mask & HGFS_ATTR_VALID_FLAGS) {
-      status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN);
+      status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN,
+                                  newPermissions);
    }
 
    timesStatus = HgfsSetattrTimes(&statBuf, attr, hints,
@@ -3124,8 +3128,20 @@ HgfsConvertToUtf8FormC(char *buffer,         // IN/OUT: name to normalize
 
    return result;
 #else
-   /* NOOP on Linux where the name is already has the correct encoding. */
-   return TRUE;
+   size_t size;
+   /*
+    * Buffer may contain invalid data after the null terminating character.
+    * We need to check the validity of the buffer only till the null
+    * terminating character (if any). Calculate the real size of the
+    * string before calling Unicode_IsBufferValid().
+    */
+   for (size = 0; size < bufferSize ; size++) {
+      if ('\0' == buffer[size]) {
+         break;
+      }
+   }
+
+   return Unicode_IsBufferValid(buffer, size, STRING_ENCODING_UTF8);
 #endif /* defined(__APPLE__) */
 }
 
@@ -3140,6 +3156,10 @@ HgfsConvertToUtf8FormC(char *buffer,         // IN/OUT: name to normalize
  *    using scandir(3) because it makes no provisions for not following
  *    symlinks. Instead, we'll open(2) the directory with O_DIRECTORY and
  *    O_NOFOLLOW, call getdents(2) directly, then close(2) the directory.
+ *
+ *    On Mac OS getdirentries became deprecated starting from 10.6 and
+ *    there is no similar API available. Thus on Mac OS readdir is used that
+ *    returns one directory entry at a time.
  *
  * Results:
  *    Zero on success. numDents contains the number of directory entries found.
@@ -3158,11 +3178,16 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
                   DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
                   int *numDents)            // OUT: Number of DirectoryEntrys
 {
-   int fd = -1, result;
+#if defined(__APPLE__)
+   DIR *fd = NULL;
+#else
+   int fd = -1;
+   int openFlags = O_NONBLOCK | O_RDONLY | O_DIRECTORY | O_NOFOLLOW;
+#endif
+   int result;
    DirectoryEntry **myDents = NULL;
    int myNumDents = 0;
    HgfsInternalStatus status = 0;
-   int openFlags = O_NONBLOCK | O_RDONLY | O_DIRECTORY | O_NOFOLLOW;
 
    /*
     * XXX: glibc uses 8192 (BUFSIZ) when it can't get st_blksize from a stat.
@@ -3170,6 +3195,34 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
     */
    char buffer[8192];
 
+#if defined(__APPLE__)
+   /*
+    * Since opendir does not support O_NOFOLLOW flag need to explicitly verify
+    * that we are not dealing with symlink if follow symlinks is
+    * not allowed.
+    */
+   if (!followSymlinks) {
+      struct stat st;
+      if (lstat(baseDir, &st) == -1) {
+         status = errno;
+         LOG(4, ("%s: error in lstat: %d (%s)\n", __FUNCTION__, status,
+                 strerror(status)));
+         goto exit;
+      }
+      if (S_ISLNK(st.st_mode)) {
+         status = EACCES;
+         LOG(4, ("%s: do not follow symlink\n", __FUNCTION__));
+         goto exit;
+      }
+   }
+   fd = Posix_OpenDir(baseDir);
+   if (NULL ==  fd) {
+      status = errno;
+      LOG(4, ("%s: error in opendir: %d (%s)\n", __FUNCTION__, status,
+              strerror(status)));
+      goto exit;
+   }
+#else
    /* Follow symlinks if config option is set. */
    if (followSymlinks) {
       openFlags &= ~O_NOFOLLOW;
@@ -3184,6 +3237,7 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
       goto exit;
    }
    fd = result;
+#endif
 
    /*
     * Rather than read a single dent at a time, batch up multiple dents
@@ -3247,7 +3301,11 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
    }
 
   exit:
+#if defined(__APPLE__)
+   if (NULL != fd && closedir(fd) < 0) {
+#else
    if (fd != -1 && close(fd) < 0) {
+#endif
       status = errno;
       LOG(4, ("%s: error in close: %d (%s)\n", __FUNCTION__, status,
               strerror(status)));
@@ -3951,7 +4009,7 @@ HgfsPlatformCreateDir(HgfsCreateDirInfo *info,  // IN: direcotry properties
        *  Set hidden attribute when requested.
        *  Do not fail directory creation if setting hidden attribute fails.
        */
-      HgfsSetHiddenXAttr(utf8Name, TRUE);
+      HgfsSetHiddenXAttr(utf8Name, TRUE, permissions);
    }
 
    if (status) {
@@ -4337,7 +4395,8 @@ ChangeInvisibleFlag(uint16 *flags,           // IN: variable that contains flags
 
 static HgfsInternalStatus
 HgfsSetHiddenXAttr(char const *fileName,       // IN: path to the file
-                   Bool value)                 // IN: new value to the invisible attribute
+                   Bool value,                 // IN: new value to the invisible attribute
+                   mode_t permissions)         // IN: permissions of the file
 {
    HgfsInternalStatus err;
    Bool changed = FALSE;
@@ -4374,6 +4433,22 @@ HgfsSetHiddenXAttr(char const *fileName,       // IN: path to the file
       attrList.commonattr = ATTR_CMN_FNDRINFO;
       err = setattrlist(fileName, &attrList, attrBuf.finderInfo,
                         sizeof attrBuf.finderInfo, 0);
+      if (0 != err) {
+         err = errno;
+      }
+      if (EACCES == err) {
+         mode_t mode = permissions | S_IWOTH | S_IWGRP | S_IWUSR;
+         if (chmod(fileName, mode) == 0) {
+            err = setattrlist(fileName, &attrList, attrBuf.finderInfo,
+                              sizeof attrBuf.finderInfo, 0);
+            if (0 != err) {
+               err = errno;
+            }
+            chmod(fileName, permissions);
+         } else {
+            err = errno;
+         }
+      }
    }
    return err;
 }
@@ -4385,12 +4460,12 @@ HgfsSetHiddenXAttr(char const *fileName,       // IN: path to the file
  *
  * HgfsGetHiddenXAttr --
  *
- *    Always returns EINVAL since there is no support for invisible files in Linux
+ *    Always returns 0 since there is no support for invisible files in Linux
  *    HGFS server.
  *
  * Results:
- *    Currently always returns EINVAL.  Will return 0 when support for invisible files
- *    is implemented in Linux server.
+ *    0 always. This is required to allow apps that use the hidden feature to
+ *    continue to work. attribute value is set to FALSE always.
  *
  * Side effects:
  *    None
@@ -4402,7 +4477,8 @@ static HgfsInternalStatus
 HgfsGetHiddenXAttr(char const *fileName,    // IN: File name
                    Bool *attribute)         // OUT: Value of the hidden attribute
 {
-   return EINVAL;
+   *attribute = FALSE;
+   return 0;
 }
 
 
@@ -4412,11 +4488,12 @@ HgfsGetHiddenXAttr(char const *fileName,    // IN: File name
  * HgfsSetHiddenXAttr --
  *
  *    Sets new value for the invisible attribute of a file.
- *    Currently Linux server does not support invisible or hiddden files thus
- *    the function fails when a attempt to mark a file as hidden is made.
+ *    Currently Linux server does not support invisible or hiddden files.
+ *    So this is a nop.
  *
  * Results:
- *    0 if succeeded, error code otherwise.
+ *    0 always. This is required to allow apps that use the hidden feature to
+ *    continue to work.
  *
  * Side effects:
  *    None
@@ -4426,8 +4503,9 @@ HgfsGetHiddenXAttr(char const *fileName,    // IN: File name
 
 static HgfsInternalStatus
 HgfsSetHiddenXAttr(char const *fileName,   // IN: File name
-                   Bool value)             // IN: Value of the attribute to set
+                   Bool value,             // IN: Value of the attribute to set
+                   mode_t permissions)     // IN: permissions of the file
 {
-   return value ? EINVAL : 0;
+   return 0;
 }
 #endif // __APPLE__

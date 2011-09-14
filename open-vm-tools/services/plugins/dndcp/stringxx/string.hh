@@ -279,6 +279,13 @@ operator>=(ConstUnicode lhs, const string &rhs) {
    return string(lhs) >= rhs;
 }
 
+// This lets a utf::string appear on the right side of a stream insertion operator.
+inline std::ostream&
+operator<<(std::ostream& strm, const string& s)
+{
+   strm << s.c_str();
+   return strm;
+}
 
 // ConversionError class for exception
 

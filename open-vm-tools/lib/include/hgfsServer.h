@@ -50,8 +50,9 @@ struct HgfsVaIov {
 }HgfsVaIov;
 
 typedef enum {
-   BUF_READABLE,  /* Establish readable mappings */
-   BUF_WRITEABLE, /* Establish writeable mappings */
+   BUF_READABLE,      /* Establish readable mappings */
+   BUF_WRITEABLE,     /* Establish writeable mappings */
+   BUF_READWRITEABLE, /* Establish read-writeable mappings */
 } MappingType;
 
 typedef
@@ -188,4 +189,6 @@ HgfsRegisterSharedFolderFunc(const char *shareName,
 HgfsSharedFolderHandle HgfsServer_RegisterSharedFolder(const char *shareName,
                                                        const char *sharePath,
                                                        Bool addFolder);
+void HgfsServer_Quiesce(Bool freeze);
+
 #endif // _HGFS_SERVER_H_

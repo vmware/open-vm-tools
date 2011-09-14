@@ -42,6 +42,9 @@ endif
 if HAVE_FUSE
    SUBDIRS += vmblock-fuse
 endif
+if !LINUX
+   SUBDIRS += vmblockmounter
+endif
 SUBDIRS += xferlogs
 if ENABLE_TESTS
    SUBDIRS += tests

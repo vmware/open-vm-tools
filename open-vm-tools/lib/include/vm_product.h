@@ -64,6 +64,7 @@
 #define PRODUCT_WORKSTATION_BRIEF_NAME "Workstation"
 #define PRODUCT_WORKSTATION_ENTERPRISE_BRIEF_NAME \
          PRODUCT_WORKSTATION_BRIEF_NAME " " "ACE Edition"
+#define PRODUCT_WORKSTATION_SERVER_BRIEF_NAME "Workstation Server"
 #define PRODUCT_PLAYER_BRIEF_NAME "Player"
 #define PRODUCT_ACE_PLAYER_BRIEF_NAME "ACE " PRODUCT_PLAYER_BRIEF_NAME
 #define PRODUCT_MAC_DESKTOP_BRIEF_NAME "Fusion"
@@ -87,6 +88,7 @@
 #define PRODUCT_GSX_SMP_NAME MAKE_NAME("Virtual SMP for GSX Server")
 #define PRODUCT_WORKSTATION_NAME MAKE_NAME(PRODUCT_WORKSTATION_BRIEF_NAME)
 #define PRODUCT_WORKSTATION_ENTERPRISE_NAME MAKE_NAME(PRODUCT_WORKSTATION_ENTERPRISE_BRIEF_NAME)
+#define PRODUCT_WORKSTATION_SERVER_NAME MAKE_NAME(PRODUCT_WORKSTATION_SERVER_BRIEF_NAME)
 #define PRODUCT_MUI_NAME MAKE_NAME("Management Interface")
 #define PRODUCT_CONSOLE_NAME MAKE_NAME("Server Console")
 #define PRODUCT_PLAYER_NAME MAKE_NAME(PRODUCT_PLAYER_BRIEF_NAME)
@@ -174,8 +176,8 @@
 /*
  * VMRC ActiveX CLSIDs and ProgIDs
  */
-#define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      0567856D-8D8E-43ad-9241-7772F392B3A3
-#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       AFAD9CB7-273F-4f59-8C78-D8AF13845222
+#define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      291BA977-564B-4626-B868-A968FB8D4591
+#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       70ABCAB7-6B45-4555-ABFC-8BC686E5ACFE
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "VMware.VMwareRemoteConsole"
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED    PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "." \
                                                XSTR(VMRC_PLUGIN_VERSION_BASE)
@@ -192,18 +194,7 @@
 #endif
 
 #define PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE \
-   "application/x-vmware-vmrc;version=" VMRC_PLUGIN_VERSION
-
-/*
- * previously shipped plugin mimetypes (updated as we ship them)
- *
- * XXX It is important that the mimetypes be listed in strictly decreasing
- *     order by version. Server 2.0 Web Access (WBC) only checks the first VMRC
- *     mimetype for compatibility, and others might make the same mistake in
- *     the future.
- */
-#define PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES \
-   "application/x-vmware-vmrc;version=4.0.0.0"
+   "application/x-vmware-remote-console-2011"
 
 /*
  * legacy plugin mimetypes (currently unused but here for reference)
@@ -223,8 +214,7 @@
  * NB: See above for constraints on the ordering of this list.
  */
 #define PRODUCT_VMRC_PLUGIN_MIMETYPES \
-   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES PRODUCT_VMRC_MIMETYPE_TERMINATOR
+   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE PRODUCT_VMRC_MIMETYPE_TERMINATOR
 
 /*
  * VMware USB Arbitration Service version definitions
@@ -425,15 +415,22 @@
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   endif
 
-/* Default for the 'libdir' config variable */
 /*
+ * VMWARE_HOST_DIRECTORY is for host-specific configuration files.
+ * DEFAULT_LIBDIRECTORY is the default for the 'libdir' config variable.
+ *
  * The APIs are installed as separate products and must have their own
  * configuration and library directories.  The remote console checks at
  * run time, and the MUI is not really a separate product.
  */
 #   if defined(__APPLE__)
-#      define VMWARE_HOST_DIRECTORY_PREFIX \
-          "/Library/Application Support/" PRODUCT_SHORT_NAME
+#      if defined VMX86_DESKTOP
+#         define VMWARE_HOST_DIRECTORY_PREFIX \
+             "/Library/Preferences/" PRODUCT_SHORT_NAME
+#      else
+#         define VMWARE_HOST_DIRECTORY_PREFIX \
+             "/Library/Application Support/" PRODUCT_SHORT_NAME
+#      endif
 #   endif
 
 #   if defined(VMX86_API)
@@ -475,22 +472,26 @@
 #   endif
 
 #   if defined(__APPLE__)
+#      if defined VMX86_DESKTOP
 /*
- * Mac OS hosts don't distinguish between an /etc and /usr equivalent,
- * so put both in DEFAULT_LIBDIRECTORY.  Note: If there are filename
- * clashes, we'll need to distinguish the two.
+ * We will remove this definition soon. Fusion's library directory should not
+ * be hardcoded: it prevents Fusion from being relocated. Use
+ * Location_GetLibrary() instead.
  */
-#      define DEFAULT_LIBDIRECTORY VMWARE_HOST_DIRECTORY
+#         define DEFAULT_LIBDIRECTORY \
+             "/Applications/" PRODUCT_SHORT_NAME ".app/Contents/Library"
+#      else
+#         define DEFAULT_LIBDIRECTORY VMWARE_HOST_DIRECTORY
+#      endif
 #   endif
 
-/* For host specific files */
+/* For user-specific files. */
 #   if defined(__APPLE__)
-#      define VMWARE_USER_SUBDIRECTORY "Library/Preferences/" PRODUCT_SHORT_NAME
+#      define VMWARE_USER_DIRECTORY "~/Library/Preferences/" PRODUCT_SHORT_NAME
 #   else
-#      define VMWARE_USER_SUBDIRECTORY "." PRODUCT_GENERIC_NAME_LOWER
+#      define VMWARE_USER_DIRECTORY "~/." PRODUCT_GENERIC_NAME_LOWER
 #   endif
-/* For user specific files */
-#   define VMWARE_USER_DIRECTORY "~/" VMWARE_USER_SUBDIRECTORY
+
 #   define VMWARE_MODULE_NAME "/dev/vmmon"
 #   define VMWARE_CONFIG PRODUCT_GENERIC_NAME_LOWER "-config.pl"
 #   define VMWARE_CONNECT_SOCKET_DIRECTORY "/var/run/" PRODUCT_GENERIC_NAME_LOWER
