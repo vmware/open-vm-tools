@@ -1,3 +1,13 @@
+open-vm-tools 8.6.0 changes:
+	* Release of open-vm-tools matching vSphere 5.0.
+
+	* Branch was cut from commit id 666492c0. Subsequent changes are,
+	for the most part, bug fixes.
+
+	* Some changes from the master branch were cherry-picked to fix
+	build issues on newer compilers and compatibility with newer
+	kernels.
+
 open-vm-tools 2010.08.24 changes:
 	* HGFS and VMCI kernel module bug fixes, and updates to compile
 	in newer Linux kernels.

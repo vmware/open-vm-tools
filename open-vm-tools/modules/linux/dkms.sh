@@ -33,7 +33,7 @@ then
 fi
 
 src=$1
-dst=$2/open-vm-tools-2011.08.29
+dst=$2/open-vm-tools-8.6.0
 
 SHARED_HEADERS="backdoor_def.h"
 SHARED_HEADERS="$SHARED_HEADERS backdoor_types.h"
