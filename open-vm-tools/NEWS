@@ -1,3 +1,13 @@
+open-vm-tools 8.8.0 changes:
+	* Release of open-vm-tools matching the Workstation 8.0 / Fusion 4.0
+	releases.
+
+	* Branch was cut from commit id 2e5c7281, and overwritten with the
+	source code from the released version of VMware Tools.
+
+	* Some changes from the master branch were cherry-picked to fix
+	some build issues.
+
 open-vm-tools 2010.12.19 changes:
 	* New version of DnD code lands in open-vm-tools. The host part
 	of the new DnD protocol is not available yet in VMware products,
