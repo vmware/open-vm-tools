@@ -1020,6 +1020,15 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
       return VMCI_ERROR_NO_ACCESS;
    }
 
+   /*
+    * Creator's context ID for local queue pairs should match the
+    * peer, if a peer is specified.
+    */
+
+   if (isLocal && peer != VMCI_INVALID_ID && contextId != peer) {
+      return VMCI_ERROR_NO_ACCESS;
+   }
+
    entry = VMCI_AllocKernelMem(sizeof *entry, VMCI_MEMORY_ATOMIC);
    if (!entry) {
       return VMCI_ERROR_NO_MEM;
