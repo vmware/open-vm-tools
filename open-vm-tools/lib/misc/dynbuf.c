@@ -204,24 +204,10 @@ DynBufRealloc(DynBuf *b,            // IN
 
    ASSERT(b);
 
-   if (b->data != NULL && new_allocated != 0) {
-      new_data = realloc(b->data, new_allocated);
-      if (new_data == NULL) {
-         /* Not enough memory */
-         return FALSE;
-      }
-   } else {
-      free(b->data);
-      if (new_allocated != 0) {
-         new_data = malloc(new_allocated);
-         if (new_data == NULL) {
-            /* Not enough memory */
-            return FALSE;
-         }
-      } else {
-         /* We now have no buffer. */
-         new_data = NULL;
-      }
+   new_data = realloc(b->data, new_allocated);
+   if (new_data == NULL && new_allocated) {
+      /* Not enough memory */
+      return FALSE;
    }
 
    b->data = new_data;
