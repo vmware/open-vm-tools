@@ -27,6 +27,7 @@
 #include "posix.h"
 #include "auth.h"
 #include "str.h"
+#include "log.h"
 
 #ifdef USE_PAM
 #  include "file.h"
@@ -63,6 +64,7 @@ static typeof(&pam_end) dlpam_end;
 static typeof(&pam_authenticate) dlpam_authenticate;
 static typeof(&pam_setcred) dlpam_setcred;
 static typeof(&pam_acct_mgmt) dlpam_acct_mgmt;
+static typeof(&pam_strerror) dlpam_strerror;
 #if 0  /* These three functions are not used yet */
 static typeof(&pam_open_session) dlpam_open_session;
 static typeof(&pam_close_session) dlpam_close_session;
@@ -286,6 +288,9 @@ Auth_AuthenticateUser(const char *user,  // IN:
        */
 
 #define PAM_BAIL if (pam_error != PAM_SUCCESS) { \
+                  Log_Error("%s:%d: PAM failure - %s (%d)\n", \
+                            __FUNCTION__, __LINE__, \
+                            dlpam_strerror(pamh, pam_error), pam_error); \
                   dlpam_end(pamh, pam_error); \
                   return NULL; \
                  }
@@ -299,8 +304,11 @@ Auth_AuthenticateUser(const char *user,  // IN:
       pam_error = dlpam_start("vmware-authd", PAM_username, &PAM_conversation,
                               &pamh);
 #endif
+      if (pam_error != PAM_SUCCESS) {
+         Log("Failed to start PAM (error = %d).\n", pam_error);
+         return NULL;
+      }
 
-      PAM_BAIL;
       pam_error = dlpam_authenticate(pamh, 0);
       PAM_BAIL;
       pam_error = dlpam_acct_mgmt(pamh, 0);
