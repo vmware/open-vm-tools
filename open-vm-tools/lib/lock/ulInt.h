@@ -380,13 +380,18 @@ MXUserGetThreadID(void)
 {
    /* All thread types must fit into a uintptr_t  */
 
+   ASSERT_ON_COMPILE(sizeof(VThreadID) <= sizeof (void *));
+   return (void *) (uintptr_t) VThread_CurID();
+
+/*
 #if defined(_WIN32)
-   ASSERT_ON_COMPILE(sizeof(DWORD) <= sizeof (void *));
-   return (void *) (uintptr_t) GetCurrentThreadId();
+   ASSERT_ON_COMPILE(sizeof(VThreadID) <= sizeof (void *));
+   return (void *) (uintptr_t) VThread_CurID();
 #else
    ASSERT_ON_COMPILE(sizeof(pthread_t) <= sizeof (void *));
    return (void *) (uintptr_t) pthread_self();
 #endif
+*/
 }
 
 
