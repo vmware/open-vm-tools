@@ -322,10 +322,10 @@ MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
    }
 
    if (acquired) {
+      MXRecLockIncCount(lock, 1);
+
       ASSERT((MXRecLockCount(lock) > 0) &&
              (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
-
-      MXRecLockIncCount(lock, 1);
    }
 
    return acquired;
