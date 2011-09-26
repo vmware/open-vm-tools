@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -1020,6 +1020,10 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
       return VMCI_ERROR_NO_ACCESS;
    }
 
+   if (VMCI_CONTEXT_IS_VM(contextId) && VMCI_CONTEXT_IS_VM(peer)) {
+      return VMCI_ERROR_DST_UNREACHABLE;
+   }
+
    /*
     * Creator's context ID for local queue pairs should match the
     * peer, if a peer is specified.
@@ -1214,6 +1218,10 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
 
    ASSERT(entry->qp.refCount < 2);
    ASSERT(entry->attachId == VMCI_INVALID_ID);
+
+   if (VMCI_CONTEXT_IS_VM(contextId) && VMCI_CONTEXT_IS_VM(entry->createId)) {
+      return VMCI_ERROR_DST_UNREACHABLE;
+   }
 
    /*
     * If we are attaching from a restricted context then the queuepair

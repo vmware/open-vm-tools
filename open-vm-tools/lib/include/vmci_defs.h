@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -246,6 +246,9 @@ static const VMCIHandle VMCI_INVALID_HANDLE = {VMCI_INVALID_ID,
  * Context ID used by host endpoints.
  */
 #define VMCI_HOST_CONTEXT_ID  2
+
+#define VMCI_CONTEXT_IS_VM(_cid) (VMCI_INVALID_ID != _cid && \
+                                  _cid > VMCI_HOST_CONTEXT_ID)
 
 /*
  * The VMCI_CONTEXT_RESOURCE_ID is used together with VMCI_MAKE_HANDLE to make

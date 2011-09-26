@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,8 +25,8 @@
 #ifndef _VMCI_VERSION_H_
 #define _VMCI_VERSION_H_
 
-#define VMCI_DRIVER_VERSION          9.3.10.0
-#define VMCI_DRIVER_VERSION_COMMAS   9,3,10,0
-#define VMCI_DRIVER_VERSION_STRING   "9.3.10.0"
+#define VMCI_DRIVER_VERSION          9.3.11.0
+#define VMCI_DRIVER_VERSION_COMMAS   9,3,11,0
+#define VMCI_DRIVER_VERSION_STRING   "9.3.11.0"
 
 #endif /* _VMCI_VERSION_H_ */

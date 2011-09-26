@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -1288,6 +1288,14 @@ VMCIContext_AddNotification(VMCIId contextID,  // IN:
       return VMCI_ERROR_NOT_FOUND;
    }
 
+   if (VMCI_CONTEXT_IS_VM(contextID) && VMCI_CONTEXT_IS_VM(remoteCID)) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Context removed notifications for other VMs not "
+                         "supported (src=0x%x, remote=0x%x).\n",
+                         contextID, remoteCID));
+      result = VMCI_ERROR_DST_UNREACHABLE;
+      goto out;
+   }
+
    if (context->privFlags & VMCI_PRIVILEGE_FLAG_RESTRICTED) {
       result = VMCI_ERROR_NO_ACCESS;
       goto out;
@@ -1937,6 +1945,14 @@ VMCIContext_NotifyDoorbell(VMCIId srcCID,                   // IN
 
    if (srcCID != handle.context) {
       VMCIPrivilegeFlags dstPrivFlags;
+
+      if (VMCI_CONTEXT_IS_VM(srcCID) && VMCI_CONTEXT_IS_VM(handle.context)) {
+         VMCI_DEBUG_LOG(4, (LGPFX"Doorbell notification from VM to VM not "
+                            "supported (src=0x%x, dst=0x%x).\n",
+                            srcCID, handle.context));
+         result = VMCI_ERROR_DST_UNREACHABLE;
+         goto out;
+      }
 
       result = VMCIDoorbellGetPrivFlags(handle, &dstPrivFlags);
       if (result < VMCI_SUCCESS) {

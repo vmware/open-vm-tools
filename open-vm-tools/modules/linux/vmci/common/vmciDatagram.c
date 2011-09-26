@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -658,13 +658,26 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
          }
       }
    } else {
-      /* Route to destination VM context. */
+      /*
+       * Route to destination VM context.
+       */
+
       VMCIDatagram *newDG;
 
-      if (contextID != dg->dst.context &&
-         VMCIDenyInteraction(srcPrivFlags,
-                             VMCIContext_GetPrivFlags(dg->dst.context))) {
-         return VMCI_ERROR_NO_ACCESS;
+      if (contextID != dg->dst.context) {
+         if (VMCIDenyInteraction(srcPrivFlags,
+                                 VMCIContext_GetPrivFlags(dg->dst.context))) {
+            return VMCI_ERROR_NO_ACCESS;
+         } else if (VMCI_CONTEXT_IS_VM(contextID)) {
+            /*
+             * If the sending context is a VM, it cannot reach another VM.
+             */
+
+            VMCI_DEBUG_LOG(4, (LGPFX"Datagram communication between VMs not"
+                               "supported (src=0x%x, dst=0x%x).\n",
+                               contextID, dg->dst.context));
+            return VMCI_ERROR_DST_UNREACHABLE;
+         }
       }
 
       /* We make a copy to enqueue. */
@@ -771,6 +784,9 @@ VMCIDatagram_Dispatch(VMCIId contextID,
 
    retval = VMCI_Route(&dg->src, &dg->dst, fromGuest, &route);
    if (retval < VMCI_SUCCESS) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Failed to route datagram (src=0x%x, dst=0x%x, "
+                         "err=%d)\n.", dg->src.context, dg->dst.context,
+                         retval));
       return retval;
    }
 

@@ -197,6 +197,18 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
                return VMCI_ERROR_INVALID_ARGS;
             }
             src->context = VMCI_HOST_CONTEXT_ID;
+         } else if (VMCI_CONTEXT_IS_VM(src->context) &&
+                    src->context != dst->context) {
+            /*
+             * VM to VM communication is not allowed. Since we catch
+             * all communication destined for the host above, this
+             * must be destined for a VM since there is a valid
+             * context.
+             */
+
+            ASSERT(VMCI_CONTEXT_IS_VM(dst->context));
+
+            return VMCI_ERROR_DST_UNREACHABLE;
          }
 
          /* Pass it up to the guest. */
@@ -206,8 +218,10 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
    }
 
    /*
-    * We must be a guest trying to send to another guest, which means we
-    * need to send it down to the host.
+    * We must be a guest trying to send to another guest, which means
+    * we need to send it down to the host. We do not filter out VM to
+    * VM communication here, since we want to be able to use the guest
+    * driver on older versions that do support VM to VM communication.
     */
 
    if (!hasGuestDevice) {
