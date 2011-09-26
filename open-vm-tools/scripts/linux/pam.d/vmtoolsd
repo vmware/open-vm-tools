@@ -1,5 +1,5 @@
 #%PAM-1.0
-auth       sufficient       pam_unix2.so shadow nullok
+auth       sufficient       pam_unix2.so nullok
 auth       sufficient       pam_unix.so shadow nullok
 auth       required         pam_unix_auth.so shadow nullok
 account    sufficient       pam_unix2.so
