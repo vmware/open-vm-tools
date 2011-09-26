@@ -230,8 +230,10 @@ void Log_SetAlwaysKeep(Bool alwaysKeep);
 Bool Log_RemoveFile(Bool alwaysRemove);
 void Log_DisableThrottling(void);
 void Log_EnableStderrWarnings(Bool stderrOutput);
-void Log_BackupOldFiles(const char *fileName, Bool noRename);
-Bool Log_CopyFile(const char *fileName, struct MsgList **errs);
+void Log_BackupOldFiles(const char *fileName,
+                        Bool noRename);
+Bool Log_CopyFile(const char *fileName,
+                  struct MsgList **errs);
 uint32 Log_MaxLineLength(void);
 
 void Log_RegisterOutputFunction(LogOutputFunc *func);
@@ -247,10 +249,10 @@ size_t Log_MakeTimeString(Bool millisec,
                           char *buf,
                           size_t max);
 
-
 /* Logging that uses the custom guest throttling configuration. */
 void GuestLog_Init(void);
-void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
+void GuestLog_Log(const char *fmt,
+                  ...) PRINTF_DECL(1, 2);
 
 
 /*
