@@ -249,6 +249,12 @@ size_t Log_MakeTimeString(Bool millisec,
                           char *buf,
                           size_t max);
 
+typedef Bool (LogOwnerFunc)(void *userData,
+                            const char *fileName);
+
+Bool Log_BoundNumFiles(LogOwnerFunc *func,
+                       void *userData);
+
 /* Logging that uses the custom guest throttling configuration. */
 void GuestLog_Init(void);
 void GuestLog_Log(const char *fmt,
