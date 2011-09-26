@@ -107,8 +107,9 @@
  * when either side of the queue pair detaches. If the guest side detaches first,
  * the queue pair will enter the VMCIQPB_SHUTDOWN_NO_MEM state, where the content
  * of the queue pair will no longer be available. If the host side detaches first,
- * the queue pair will enter the VMCIQPB_SHUTDOWN_MEM, since the guest memory
- * will still be around.
+ * the queue pair will either enter the VMCIQPB_SHUTDOWN_MEM, if the guest memory
+ * is currently mapped, or VMCIQPB_SHUTDOWN_NO_MEM, if the guest memory is not
+ * mapped (e.g., the host detaches while a guest is stunned).
  *
  * New-style VMX'en will also unmap guest memory, if the guest is quiesced, e.g.,
  * during a snapshot operation. In that case, the guest memory will no longer be
@@ -131,7 +132,9 @@ typedef enum {
    VMCIQPB_GONE
 } QPBrokerState;
 
-
+#define QPBROKERSTATE_HAS_MEM(_qpb) (_qpb->state == VMCIQPB_CREATED_MEM || \
+                                     _qpb->state == VMCIQPB_ATTACHED_MEM || \
+                                     _qpb->state == VMCIQPB_SHUTDOWN_MEM)
 /*
  * The context that creates the QueuePair becomes producer of produce queue,
  * and consumer of consume queue. The context on other end for the QueuePair
@@ -1527,7 +1530,6 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
    if (contextId != VMCI_HOST_CONTEXT_ID) {
       int result;
 
-      ASSERT(entry->state != VMCIQPB_SHUTDOWN_NO_MEM);
       ASSERT(!isLocal);
 
       /*
@@ -1536,9 +1538,7 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
        * more recent VMX'en may detach from a queue pair in the quiesced state.
        */
 
-      if (entry->state != VMCIQPB_ATTACHED_NO_MEM &&
-          entry->state != VMCIQPB_CREATED_NO_MEM) {
-
+      if (QPBROKERSTATE_HAS_MEM(entry)) {
          VMCI_AcquireQueueMutex(entry->produceQ);
          result = VMCIHost_UnmapQueueHeaders(INVALID_VMCI_GUEST_MEM_ID,
                                              entry->produceQ,
@@ -1584,7 +1584,7 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
    } else {
       ASSERT(peerId != VMCI_INVALID_ID);
       QueuePairNotifyPeer(FALSE, handle, contextId, peerId);
-      if (contextId == VMCI_HOST_CONTEXT_ID) {
+      if (contextId == VMCI_HOST_CONTEXT_ID && QPBROKERSTATE_HAS_MEM(entry)) {
          entry->state = VMCIQPB_SHUTDOWN_MEM;
       } else {
          entry->state = VMCIQPB_SHUTDOWN_NO_MEM;

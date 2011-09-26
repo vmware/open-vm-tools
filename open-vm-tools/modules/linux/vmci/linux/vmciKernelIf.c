@@ -1723,6 +1723,7 @@ VMCIReleasePages(struct page **pages,  // IN
          set_page_dirty(pages[i]);
       }
       page_cache_release(pages[i]);
+      pages[i] = NULL;
    }
 }
 
