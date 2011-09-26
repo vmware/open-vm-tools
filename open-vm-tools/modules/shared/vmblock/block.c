@@ -284,7 +284,7 @@ static void
 BlockDropReference(BlockInfo *block)
 {
    if (os_atomic_dec_and_test(&block->refcount)) {
-      LOG(4, "Dropped last reference for block on [%s]\n", filename);
+      LOG(4, "Dropped last reference for block on [%s]\n", block->filename);
       FreeBlock(blockInfoCache, block);
    }
 }
@@ -366,7 +366,7 @@ BlockDoRemoveBlock(BlockInfo *block)
 
    /* Wake up waiters, if any */
    LOG(4, "Completing block on [%s] (%d waiters)\n",
-       filename, block->refcount - 1);
+       block->filename, os_atomic_read(&block->refcount) - 1);
    os_complete_all(&block->completion);
 
    /* Now drop our reference */
