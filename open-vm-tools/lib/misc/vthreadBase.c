@@ -1022,13 +1022,7 @@ VThreadBaseSimpleNoID(void)
    }
 
    if (Atomic_Read(&vthreadBaseGlobals.numThreads) > 1) {
-      /*
-       * We actually know that there are many binaries that used to link
-       * lib/nothread but are multithreaded anyway.  This log message and
-       * (presently disabled) ASSERT are intended to flush out such usages.
-       */
       LOG_ONCE(("VThreadBase detected multiple threads.\n"));
-      //ASSERT(FALSE);
    }
 }
 
