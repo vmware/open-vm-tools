@@ -32,7 +32,11 @@
 #  include "file.h"
 #  include "config.h"
 #  include "localconfig.h"
-#  include <security/pam_appl.h>
+#if defined(__APPLE__) && (MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5)
+#include <pam/pam_appl.h>
+#else
+#include <security/pam_appl.h>
+#endif
 #  include <dlfcn.h>
 #endif
 
@@ -48,6 +52,8 @@
 #define CURRENT_PAM_LIBRARY	"libpam.so.1"
 #elif defined(__FreeBSD__)
 #define CURRENT_PAM_LIBRARY	"libpam.so"
+#elif defined(__APPLE__)
+#define CURRENT_PAM_LIBRARY	"libpam.dylib"
 #else
 #define CURRENT_PAM_LIBRARY	"libpam.so.0"
 #endif

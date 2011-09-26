@@ -38,6 +38,7 @@
 #include <locale.h>
 #include <sys/stat.h>
 #endif
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -61,6 +62,11 @@
 #include <limits.h>
 #include <paths.h>
 #include <sys/sysctl.h>
+#endif
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#include "posix.h"
 #endif
 #include "vmware.h"
 #include "procMgr.h"
@@ -116,6 +122,12 @@ static Bool ProcMgrWaitForProcCompletion(pid_t pid,
 static Bool ProcMgrKill(pid_t pid,
                         int sig,
                         int timeout);
+
+#if defined(__APPLE__)
+static int ProcMgrGetCommandLineArgs(long pid,
+                                     size_t cmdlineLen,
+                                     DynBuf *argsBuf);
+#endif
 
 #ifdef sun
 #define  SOLARIS_BASH_PATH "/usr/bin/bash"
@@ -178,13 +190,12 @@ setresgid(gid_t ruid,
  *----------------------------------------------------------------------
  */
 
-#if !defined(sun) && !defined(__FreeBSD__)
+#if !defined(sun) && !defined(__FreeBSD__) && !defined(__APPLE__)
 int
 ProcMgr_ReadProcFile(int fd,                       // IN
                      char **contents)              // OUT
 {
    int size = 0;
-#if !defined(__APPLE__)
    char tmp[512];
    int numRead;
 
@@ -230,11 +241,10 @@ ProcMgr_ReadProcFile(int fd,                       // IN
       DynBuf_Destroy(&dbuf);
    }
 done:
-#endif
    return size;
 }
 
-#endif   // !sun && !FreeBSD
+#endif   // !sun && !FreeBSD && !APPLE
 
 /*
  *----------------------------------------------------------------------
@@ -254,12 +264,11 @@ done:
  *----------------------------------------------------------------------
  */
 
-#if !defined(sun) && !defined(__FreeBSD__)
+#if !defined(sun) && !defined(__FreeBSD__) && !defined(__APPLE__)
 ProcMgr_ProcList *
 ProcMgr_ListProcesses(void)
 {
    ProcMgr_ProcList *procList = NULL;
-#if !defined(__APPLE__)
    Bool failed = FALSE;
    DynBuf dbProcId;
    DynBuf dbProcCmd;
@@ -602,11 +611,10 @@ abort:
       ProcMgr_FreeProcList(procList);
       procList = NULL;
    }
-#endif // !defined(__APPLE__)
 
    return procList;
 }
-#endif // !defined(sun) & !defined(__FreeBSD__)
+#endif // !defined(sun) & !defined(__FreeBSD__) && !defined(__APPLE__)
 
 
 /*
@@ -808,6 +816,349 @@ abort:
 }
 #endif // defined(__FreeBSD__)
 
+
+#if defined(__APPLE__)
+/*
+ *----------------------------------------------------------------------
+ *
+ * ProcMgrGetCommandLineArgs --
+ *
+ *      Fetch all the command line arguments for a given process id.
+ *      The argument names shall all be UTF-8 encoded.
+ *
+ * Results:
+ *      Number of arguments retrieved.
+ *      Buffer is returned with argument names, if any.
+ *
+ * Side effects:
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
+                          size_t cmdlineLen,      // IN:  max command line length
+                          DynBuf *argsBuf)        // OUT: Buffer with arguments
+{
+   int argCount = 0;
+   int argNum;
+   char *argUnicode = NULL;
+   char *cmdLineRaw = NULL;
+   char *cmdLineTemp;
+   char *cmdLineEnd;
+   int argName[] = {CTL_KERN, KERN_PROCARGS2, pid};
+
+   /*
+    * Fetch the raw command line
+    */
+   cmdLineRaw = (char *) Util_SafeCalloc(cmdlineLen, sizeof *cmdLineRaw);
+   if (sysctl(argName, ARRAYSIZE(argName), cmdLineRaw, &cmdlineLen, NULL, 0) < 0) {
+      Debug("%s: No command line args for pid = %ld\n", __FUNCTION__, pid);
+      goto abort;
+   }
+   cmdLineEnd = &cmdLineRaw[cmdlineLen];
+
+   /*
+    * Format of the raw command line (without line breaks):
+    * <argc value><full command path>
+    * <one or more '\0' for alignment of first arg>
+    * <arg-0 = command as typed><'\0'>
+    * <arg-1><'\0'>... <arg-(argc-1))><'\0'>
+    * <env-0><'\0'>... <env-n><'\0'>
+    * where:
+    * arg = command line args we want.
+    * env = environment vars we ignore.
+    */
+
+   /*
+    * Save the number of arguments.
+    */
+   memcpy(&argNum, cmdLineRaw, sizeof argNum);
+   if (0 >= argNum) {
+      Debug("%s: Invalid number of command line args (=%d) for pid = %ld\n",
+             __FUNCTION__, argNum, pid);
+      goto abort;
+   }
+
+   /*
+    * Skip over the number of args (argc value) and
+    * full path to command name in the command line.
+    * (Please refer to format in comment above.)
+    */
+   cmdLineTemp = cmdLineRaw + sizeof argNum;
+   cmdLineTemp += strlen(cmdLineTemp) + 1;
+
+   /*
+    * Save the arguments one by one
+    */
+   while (cmdLineTemp < cmdLineEnd && argCount < argNum) {
+      /*
+       * Skip over leading '\0' chars to reach new arg.
+       */
+      while (cmdLineTemp < cmdLineEnd && '\0' == *cmdLineTemp) {
+         ++cmdLineTemp;
+      }
+      /*
+       * If we are pointing to a valid arg, save it.
+       */
+      if (cmdLineTemp < cmdLineEnd && '\0' != *cmdLineTemp) {
+         /*
+          * KERN_PROCARGS2 is not guaranteed to provide argument names in UTF-8.
+          * As long as we find UTF-8 argument names, we keep adding to our list.
+          * As soon as we see any non UTF-8 argument, we ignore that argument
+          * and return the list we have built so far.
+          * NOTE: On MacOS, STRING_ENCODING_DEFAULT will default to UTF-8.
+          */
+         if (Unicode_IsBufferValid(cmdLineTemp, -1, STRING_ENCODING_DEFAULT) &&
+             (argUnicode = Unicode_Alloc(cmdLineTemp,
+                                          STRING_ENCODING_DEFAULT)) != NULL) {
+            /*
+             * Add the whitespace between arguments.
+             */
+            if (0 < argCount) {
+               if (!DynBuf_Append(argsBuf, " ", 1)) {
+                  Warning("%s: failed to append ' ' in DynBuf\
+                           - no memory\n", __FUNCTION__);
+                  goto abort;
+               }
+            }
+            /*
+             * Add the argument.
+             */
+            if (!DynBuf_Append(argsBuf, argUnicode, strlen(argUnicode))) {
+               Warning("%s: failed to append cmd/args in DynBuf\
+                        - no memory\n", __FUNCTION__);
+               goto abort;
+            }
+            free(argUnicode);
+            argUnicode = NULL;
+         } else {
+            break;
+         }
+         ++argCount;
+      }
+      /*
+       * Skip over the current arg that we just saved.
+       */
+      while (cmdLineTemp < cmdLineEnd && '\0' != *cmdLineTemp) {
+         ++cmdLineTemp;
+      }
+   }
+
+   /*
+    * Add the NULL term.
+    */
+   if (!DynBuf_Append(argsBuf, "", 1)) {
+      Warning("%s: failed to append NUL in DynBuf - out of memory\n",
+              __FUNCTION__);
+      goto abort;
+   }
+   DynBuf_Trim(argsBuf);
+
+abort:
+   free(cmdLineRaw);
+   free(argUnicode);
+
+   return argCount;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ProcMgr_ListProcesses --
+ *
+ *      List all the processes that the calling client has privilege to
+ *      enumerate. The strings in the returned structure should be all
+ *      UTF-8 encoded, although we do not enforce it right now.
+ *
+ * Results:
+ *      A ProcMgr_ProcList.
+ *
+ * Side effects:
+ *
+ *----------------------------------------------------------------------
+ */
+
+ProcMgr_ProcList *
+ProcMgr_ListProcesses(void)
+{
+   ProcMgr_ProcList *procList = NULL;
+   Bool failed = TRUE;
+   char *userName = NULL;
+   char *cmdLine = NULL;
+   struct kinfo_proc *kptmp;
+   struct kinfo_proc *kp = NULL;
+   size_t maxargs;
+   size_t maxargsSize;
+   size_t procsize;
+   size_t procCount = 0;
+   size_t ownerCount = 0;
+   size_t cmdCount = 0;
+   int i;
+   int nentries;
+   DynBuf dbProcId;
+   DynBuf dbProcCmd;
+   DynBuf dbProcStartTime;
+   DynBuf dbProcOwner;
+
+   /*
+    * Different multi-level names used for sysctl calls.
+    */
+   int maxargsName[] = {CTL_KERN, KERN_ARGMAX};
+   int procName[] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL};
+
+   DynBuf_Init(&dbProcId);
+   DynBuf_Init(&dbProcCmd);
+   DynBuf_Init(&dbProcStartTime);
+   DynBuf_Init(&dbProcOwner);
+
+   procList = (ProcMgr_ProcList *) Util_SafeCalloc(1, sizeof *procList);
+   /*
+    * Get the sysctl kern argmax.
+    */
+   maxargsSize = sizeof maxargs;
+   if (sysctl(maxargsName, ARRAYSIZE(maxargsName),
+              &maxargs, &maxargsSize, NULL, 0) < 0) {
+      Warning("%s: failed to get the kernel max args with errno = %d\n",
+               __FUNCTION__, errno);
+      goto abort;
+   }
+   /*
+    * Get the number of process info structs in the entire list.
+    */
+   if (sysctl(procName, ARRAYSIZE(procName), NULL, &procsize, NULL, 0) < 0) {
+      Warning("%s: failed to get the size of the process struct\
+               list with errno = %d\n", __FUNCTION__, errno);
+      goto abort;
+   }
+   nentries = (int)(procsize / sizeof *kp);
+   /*
+    * Get the list of process info structs.
+    */
+   kp = (struct kinfo_proc *) Util_SafeCalloc(nentries, sizeof *kp);
+   if (sysctl(procName, ARRAYSIZE(procName), kp, &procsize, NULL, 0) < 0) {
+      Warning("%s: failed to get the process struct list (errno = %d)\n",
+               __FUNCTION__, errno);
+      goto abort;
+   }
+   /*
+    * Recalculate the number of entries as they may have changed.
+    */
+   nentries = (int)(procsize / sizeof *kp);
+   /*
+    * Iterate through the list of process entries
+    */
+   for (i = 0, kptmp = kp; i < nentries; ++i, ++kptmp) {
+      DynBuf argsBuf;
+      time_t processStartTime;
+      char buffer[BUFSIZ];
+      struct passwd pw;
+      struct passwd *ppw = &pw;
+      int error;
+
+      /*
+       * Store the pid of the process
+       */
+      if (!DynBuf_Append(&dbProcId, &(kptmp->kp_proc.p_pid),
+                         sizeof kptmp->kp_proc.p_pid)) {
+         Warning("%s: failed to append pid in DynBuf - out of memory\n",
+                 __FUNCTION__);
+         goto abort;
+      }
+      procCount++;
+      /*
+       * Store the owner of the process.
+       */
+      error = Posix_Getpwuid_r(kptmp->kp_eproc.e_pcred.p_ruid,
+                               &pw, buffer, sizeof buffer, &ppw);
+      userName = (0 != error || NULL == ppw)
+                 ? Str_SafeAsprintf(NULL, "%d",
+                                    (int) kptmp->kp_eproc.e_pcred.p_ruid)
+                 : Unicode_Alloc(ppw->pw_name, STRING_ENCODING_DEFAULT);
+      if (!DynBuf_Append(&dbProcOwner, &userName, sizeof userName)) {
+         Warning("%s: failed to append username in DynBuf - out of memory\n",
+                 __FUNCTION__);
+         goto abort;
+      }
+      userName = NULL;
+      ownerCount++;
+      /*
+       * Get the command line arguments of the process.
+       * If no arguments are found, use the full command name.
+       */
+      DynBuf_Init(&argsBuf);
+      if (ProcMgrGetCommandLineArgs(kptmp->kp_proc.p_pid, maxargs, &argsBuf) > 0) {
+         cmdLine = DynBuf_Detach(&argsBuf);
+      } else {
+         cmdLine = Unicode_Alloc(kptmp->kp_proc.p_comm, STRING_ENCODING_DEFAULT);
+      }
+      DynBuf_Destroy(&argsBuf);
+      /*
+       * Store the command line string of the process.
+       */
+      if (!DynBuf_Append(&dbProcCmd, &cmdLine, sizeof cmdLine)) {
+         Warning("%s: failed to append cmdline in DynBuf - out of memory\n",
+                 __FUNCTION__);
+         goto abort;
+      }
+      cmdLine = NULL;
+      cmdCount++;
+      /*
+       * Store the start time of the process
+       */
+      processStartTime = kptmp->kp_proc.p_starttime.tv_sec;
+      if (!DynBuf_Append(&dbProcStartTime, &processStartTime,
+                         sizeof processStartTime)) {
+         Warning("%s: failed to append start time in DynBuf - out of memory\n",
+                  __FUNCTION__);
+         goto abort;
+      }
+   }
+
+   if (0 < procCount) {
+      failed = FALSE;
+   }
+
+abort:
+   /*
+    * We're done adding to DynBuf.  Trim off any unused allocated space.
+    * DynBuf_Trim() followed by DynBuf_Detach() avoids a memcpy().
+    */
+   DynBuf_Trim(&dbProcId);
+   DynBuf_Trim(&dbProcCmd);
+   DynBuf_Trim(&dbProcStartTime);
+   DynBuf_Trim(&dbProcOwner);
+
+   /*
+    * Populate fields of ProcMgr_ProcList
+    */
+   procList->procCount = procCount;
+   procList->ownerCount = ownerCount;
+   procList->cmdCount = cmdCount;
+   procList->procIdList = (pid_t *) DynBuf_Detach(&dbProcId);
+   procList->procCmdList = (char **) DynBuf_Detach(&dbProcCmd);
+   procList->startTime = (time_t *) DynBuf_Detach(&dbProcStartTime);
+   procList->procOwnerList = (char **) DynBuf_Detach(&dbProcOwner);
+
+   DynBuf_Destroy(&dbProcId);
+   DynBuf_Destroy(&dbProcCmd);
+   DynBuf_Destroy(&dbProcStartTime);
+   DynBuf_Destroy(&dbProcOwner);
+
+   free(kp);
+   free(userName);
+   free(cmdLine);
+
+   if (failed) {
+      ProcMgr_FreeProcList(procList);
+      procList = NULL;
+   }
+
+   return procList;
+}
+#endif // defined(__APPLE__)
+
 /*
  *----------------------------------------------------------------------
  *
@@ -833,10 +1184,24 @@ ProcMgr_FreeProcList(ProcMgr_ProcList *procList)
       return;
    }
 
+#if defined(__APPLE__)
+   /*
+    * We need to do the following for other OSes as well.
+    * Each list shall have its own counter to address
+    * error conditions while building the list.
+    */
+   for (i = 0; i < procList->cmdCount; i++) {
+      free(procList->procCmdList[i]);
+   }
+   for (i = 0; i < procList->ownerCount; i++) {
+      free(procList->procOwnerList[i]);
+   }
+#else
    for (i = 0; i < procList->procCount; i++) {
       free(procList->procCmdList[i]);
       free(procList->procOwnerList[i]);
    }
+#endif
 
    free(procList->procIdList);
    free(procList->procCmdList);
@@ -1641,7 +2006,7 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
    free(asyncProc);
 }
 
-#if defined(linux) || defined(__FreeBSD__)
+#if defined(linux) || defined(__FreeBSD__) || defined(__APPLE__)
 
 /*
  *----------------------------------------------------------------------
@@ -1701,9 +2066,13 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
    }
 
    // first change group
+#if defined(__APPLE__)
+   ret = setregid(ppw->pw_gid, ppw->pw_gid);
+#else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, root_gid);
+#endif
    if (ret < 0) {
-      Warning("Failed to setresgid() for user %s\n", user);
+      Warning("Failed to set gid for user %s\n", user);
       return FALSE;
    }
    ret = initgroups(ppw->pw_name, ppw->pw_gid);
@@ -1712,9 +2081,13 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
       goto failure;
    }
    // now user
+#if defined(__APPLE__)
+   ret = setreuid(ppw->pw_uid, ppw->pw_uid);
+#else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
+#endif
    if (ret < 0) {
-      Warning("Failed to setresuid() for user %s\n", user);
+      Warning("Failed to set uid for user %s\n", user);
       goto failure;
    }
 
@@ -1768,16 +2141,24 @@ ProcMgr_ImpersonateUserStop(void)
    }
 
    // first change back user
+#if defined(__APPLE__)
+   ret = setreuid(ppw->pw_uid, ppw->pw_uid);
+#else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
+#endif
    if (ret < 0) {
-      Warning("Failed to setresuid() for root\n");
+      Warning("Failed to set uid for root\n");
       return FALSE;
    }
 
    // now group
+#if defined(__APPLE__)
+   ret = setregid(ppw->pw_gid, ppw->pw_gid);
+#else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, ppw->pw_gid);
+#endif
    if (ret < 0) {
-      Warning("Failed to setresgid() for root\n");
+      Warning("Failed to set gid for root\n");
       return FALSE;
    }
    ret = initgroups(ppw->pw_name, ppw->pw_gid);
@@ -1840,4 +2221,4 @@ ProcMgr_GetImpersonatedUserInfo(char **userName,            // OUT
    return TRUE;
 }
 
-#endif // linux || __FreeBSD__
+#endif // linux || __FreeBSD__ || __APPLE__

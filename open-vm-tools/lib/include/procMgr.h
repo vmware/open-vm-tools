@@ -48,6 +48,8 @@ typedef struct ProcMgr_AsyncProc ProcMgr_AsyncProc;
 
 typedef struct ProcMgr_ProcList {
    size_t         procCount;
+   size_t cmdCount;
+   size_t ownerCount;
 
    ProcMgr_Pid *procIdList;
    char        **procCmdList;    // UTF-8
