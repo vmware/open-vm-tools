@@ -506,7 +506,6 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
       tempHandle = VMCIHandleArray_RemoveTail(context->wellKnownArray);
    }
 
-#ifndef VMKERNEL
    /*
     * Cleanup all queue pair resources attached to context.  If the VM dies
     * without cleaning up, this code will make sure that no resources are
@@ -516,7 +515,7 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
    tempHandle = VMCIHandleArray_GetEntry(context->queuePairArray, 0);
    while (!VMCI_HANDLE_EQUAL(tempHandle, VMCI_INVALID_HANDLE)) {
       VMCIQPBroker_Lock();
-      if (VMCIQPBroker_Detach(tempHandle, context, TRUE) < VMCI_SUCCESS) {
+      if (VMCIQPBroker_Detach(tempHandle, context) < VMCI_SUCCESS) {
          /*
           * When VMCIQPBroker_Detach() succeeds it removes the handle from the
           * array.  If detach fails, we must remove the handle ourselves.
@@ -526,16 +525,6 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
       VMCIQPBroker_Unlock();
       tempHandle = VMCIHandleArray_GetEntry(context->queuePairArray, 0);
    }
-#else
-   /*
-    * On ESX, all entries in the queuePairArray have been cleaned up
-    * either by the regular VMCI device destroy path or by the world
-    * cleanup destroy path. We assert that no resources are leaked.
-    */
-
-   ASSERT(VMCI_HANDLE_EQUAL(VMCIHandleArray_GetEntry(context->queuePairArray, 0),
-                            VMCI_INVALID_HANDLE));
-#endif /* !VMKERNEL */
 
    /*
     * It is fine to destroy this without locking the callQueue, as
@@ -1050,6 +1039,7 @@ VMCIContext_FindAndUpdateSrcFSR(VMCIId migrateCid,      // IN
  *
  *----------------------------------------------------------------------
  */
+
 Bool
 VMCIContext_IsActiveHnd(VMCIContext *context, // IN
                         uintptr_t eventHnd)   // IN
@@ -1062,6 +1052,36 @@ VMCIContext_IsActiveHnd(VMCIContext *context, // IN
    isActive = VMCIHost_IsActiveHnd(&context->hostContext, eventHnd);
    VMCI_ReleaseLock(&context->lock, flags);
    return isActive;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_GetActiveHnd --
+ *
+ *      Returns the curent event handle.
+ *
+ * Results:
+ *      The current active handle.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+uintptr_t
+VMCIContext_GetActiveHnd(VMCIContext *context) // IN
+{
+   VMCILockFlags flags;
+   uintptr_t activeHnd;
+
+   ASSERT(context);
+   VMCI_GrabLock(&context->lock, &flags);
+   activeHnd = VMCIHost_GetActiveHnd(&context->hostContext);
+   VMCI_ReleaseLock(&context->lock, flags);
+   return activeHnd;
 }
 
 
@@ -2393,7 +2413,7 @@ VMCI_IsContextOwner(VMCIId contextID,   // IN
  *      by this caller.
  *
  * Results:
- *      VMCI_SUCCESS on success, error code otherwise.
+ *      TRUE if context supports host queue pairs, FALSE otherwise.
  *
  * Side effects:
  *      None.
@@ -2411,5 +2431,50 @@ VMCIContext_SupportsHostQP(VMCIContext *context)    // IN: Context structure
       return FALSE;
    }
    return TRUE;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_ReleaseGuestMem --
+ *
+ *      Releases all the contexts references to guest memory.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
+                            VMCIGuestMemID gid)   // IN: reference to guest
+{
+#ifdef VMKERNEL
+   uint32 numQueuePairs;
+   uint32 cur;
+
+   numQueuePairs = VMCIHandleArray_GetSize(context->queuePairArray);
+   for (cur = 0; cur < numQueuePairs; cur++) {
+      VMCIHandle handle;
+      handle = VMCIHandleArray_GetEntry(context->queuePairArray, cur);
+      if (!VMCI_HANDLE_EQUAL(handle, VMCI_INVALID_HANDLE)) {
+         int res;
+
+         VMCIQPBroker_Lock();
+         res = VMCIQPBroker_Unmap(handle, context, gid);
+         if (res < VMCI_SUCCESS) {
+            VMCI_WARNING(("Failed to unmap guest memory for queue pair "
+                          "(handle=0x%x:0x%x, res=%d).\n",
+                          handle.context, handle.resource, res));
+         }
+         VMCIQPBroker_Unlock();
+      }
+   }
 #endif
 }

@@ -68,6 +68,11 @@
 
 struct VMCIQueueKernelIf {
    struct page **page;
+   struct page **headerPage;
+   VMCIMutex __mutex;
+   VMCIMutex *mutex;
+   Bool host;
+   size_t numPages;
 };
 
 typedef struct VMCIDelayedWorkInfo {
@@ -706,8 +711,8 @@ VMCI_SignalEvent(VMCIEvent *event)  // IN:
 
 void
 VMCI_WaitOnEvent(VMCIEvent *event,              // IN:
-		 VMCIEventReleaseCB releaseCB,  // IN:
-		 void *clientData)              // IN:
+                 VMCIEventReleaseCB releaseCB,  // IN:
+                 void *clientData)              // IN:
 {
    /*
     * XXX Should this be a TASK_UNINTERRUPTIBLE wait? I'm leaving it
@@ -910,8 +915,10 @@ VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
    queue = (VMCIQueue *)((uint8 *)qHeader + PAGE_SIZE);
    queue->qHeader = qHeader;
    queue->kernelIf = (VMCIQueueKernelIf *)((uint8 *)queue + sizeof *queue);
+   queue->kernelIf->headerPage = NULL; // Unused in guest.
    queue->kernelIf->page = (struct page **)((uint8 *)queue->kernelIf +
                                             sizeof *(queue->kernelIf));
+   queue->kernelIf->host = FALSE;
 
    for (i = 0; i < numDataPages; i++) {
       queue->kernelIf->page[i] = alloc_pages(GFP_KERNEL, 0);
@@ -1318,6 +1325,65 @@ VMCIMemcpyFromQueue(void *dest,             // OUT:
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIMemcpyToQueueLocal --
+ *
+ *      Copies from a given buffer to a local VMCI queue. On Linux, this is the
+ *      same as a regular copy.
+ *
+ * Results:
+ *      Zero on success, negative error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCIMemcpyToQueueLocal(VMCIQueue *queue,         // OUT
+                       uint64 queueOffset,       // IN
+                       const void *src,          // IN
+                       size_t srcOffset,         // IN
+                       size_t size,              // IN
+                       int bufType)  // IN
+{
+   return __VMCIMemcpyToQueue(queue, queueOffset,
+                              (uint8 *)src + srcOffset, size, FALSE);;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIMemcpyFromQueueLocal --
+ *
+ *      Copies to a given buffer from a VMCI Queue.
+ *
+ * Results:
+ *      Zero on success, negative error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCIMemcpyFromQueueLocal(void *dest,             // OUT:
+                         size_t destOffset,      // IN:
+                         const VMCIQueue *queue, // IN:
+                         uint64 queueOffset,     // IN:
+                         size_t size,            // IN:
+                         int bufType)            // IN: Unused
+{
+   return __VMCIMemcpyFromQueue((uint8 *)dest + destOffset,
+                                queue, queueOffset, size, FALSE);
+}
+
+
+/*
  *----------------------------------------------------------------------------
  *
  * VMCIMemcpyToQueueV --
@@ -1440,12 +1506,21 @@ VMCIQueue *
 VMCIHost_AllocQueue(uint64 size) // IN:
 {
    VMCIQueue *queue;
-   const uint queueSize = sizeof *queue + sizeof *(queue->kernelIf);
+   const size_t numPages = CEILING(size, PAGE_SIZE) + 1;
+   const size_t queueSize = sizeof *queue + sizeof *(queue->kernelIf);
+   const size_t queuePageSize = numPages * sizeof *queue->kernelIf->page;
 
-   queue = VMCI_AllocKernelMem(queueSize, VMCI_MEMORY_NORMAL);
+   queue = VMCI_AllocKernelMem(queueSize + queuePageSize, VMCI_MEMORY_NORMAL);
    if (queue) {
       queue->qHeader = NULL;
       queue->kernelIf = (VMCIQueueKernelIf *)((uint8 *)queue + sizeof *queue);
+      queue->kernelIf->host = TRUE;
+      queue->kernelIf->mutex = NULL;
+      queue->kernelIf->numPages = numPages;
+      queue->kernelIf->headerPage = (struct page **)((uint8*)queue + queueSize);
+      queue->kernelIf->page = &queue->kernelIf->headerPage[1];
+      memset(queue->kernelIf->headerPage, 0,
+             sizeof *queue->kernelIf->headerPage * queue->kernelIf->numPages);
    }
 
    return queue;
@@ -1476,6 +1551,142 @@ VMCIHost_FreeQueue(VMCIQueue *queue,   // IN:
    if (queue) {
       const uint queueSize = sizeof *queue + sizeof *(queue->kernelIf);
       VMCI_FreeKernelMem(queue, queueSize);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCI_InitQueueMutex()
+ *
+ *       Initialize the mutex for the pair of queues.  This mutex is used to
+ *       protect the qHeader and the buffer from changing out from under any
+ *       users of either queue.  Of course, it's only any good if the mutexes
+ *       are actually acquired.  Queue structure must lie on non-paged memory
+ *       or we cannot guarantee access to the mutex.
+ *
+ * Results:
+ *       None.
+ *
+ * Side Effects:
+ *       None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+VMCI_InitQueueMutex(VMCIQueue *produceQ, // IN/OUT
+                    VMCIQueue *consumeQ) // IN/OUT
+{
+   ASSERT(produceQ);
+   ASSERT(consumeQ);
+   ASSERT(produceQ->kernelIf);
+   ASSERT(consumeQ->kernelIf);
+
+   /*
+    * Only the host queue has shared state - the guest queues do not
+    * need to synchronize access using a queue mutex.
+    */
+
+   if (produceQ->kernelIf->host) {
+      produceQ->kernelIf->mutex = &produceQ->kernelIf->__mutex;
+      consumeQ->kernelIf->mutex = &produceQ->kernelIf->__mutex;
+      sema_init(produceQ->kernelIf->mutex, 1);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCI_CleanupQueueMutex()
+ *
+ *       Cleans up the mutex for the pair of queues.
+ *
+ * Results:
+ *       None.
+ *
+ * Side Effects:
+ *       None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+VMCI_CleanupQueueMutex(VMCIQueue *produceQ, // IN/OUT
+                       VMCIQueue *consumeQ) // IN/OUT
+{
+   ASSERT(produceQ);
+   ASSERT(consumeQ);
+   ASSERT(produceQ->kernelIf);
+   ASSERT(consumeQ->kernelIf);
+
+   if (produceQ->kernelIf->host) {
+      produceQ->kernelIf->mutex = NULL;
+      consumeQ->kernelIf->mutex = NULL;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCI_AcquireQueueMutex()
+ *
+ *       Acquire the mutex for the queue.  Note that the produceQ and
+ *       the consumeQ share a mutex.  So, only one of the two need to
+ *       be passed in to this routine.  Either will work just fine.
+ *
+ * Results:
+ *       None.
+ *
+ * Side Effects:
+ *       May block the caller.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+VMCI_AcquireQueueMutex(VMCIQueue *queue) // IN
+{
+   ASSERT(queue);
+   ASSERT(queue->kernelIf);
+
+   if (queue->kernelIf->host) {
+      ASSERT(queue->kernelIf->mutex);
+      down(queue->kernelIf->mutex);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCI_ReleaseQueueMutex()
+ *
+ *       Release the mutex for the queue.  Note that the produceQ and
+ *       the consumeQ share a mutex.  So, only one of the two need to
+ *       be passed in to this routine.  Either will work just fine.
+ *
+ * Results:
+ *       None.
+ *
+ * Side Effects:
+ *       May block the caller.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+VMCI_ReleaseQueueMutex(VMCIQueue *queue) // IN
+{
+   ASSERT(queue);
+   ASSERT(queue->kernelIf);
+
+   if (queue->kernelIf->host) {
+      ASSERT(queue->kernelIf->mutex);
+      up(queue->kernelIf->mutex);
    }
 }
 
@@ -1517,7 +1728,181 @@ VMCIReleasePages(struct page **pages,  // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * VMCIHost_RegisterUserMemory --
+ *
+ *       Registers the specification of the user pages used for backing a queue
+ *       pair. Enough information to map in pages is stored in the OS specific
+ *       part of the VMCIQueue structure.
+ *
+ * Results:
+ *       VMCI_SUCCESS on sucess, negative error code on failure.
+ *
+ * Side Effects:
+ *       None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCIHost_RegisterUserMemory(QueuePairPageStore *pageStore,  // IN
+                            VMCIQueue *produceQ,            // OUT
+                            VMCIQueue *consumeQ)            // OUT
+{
+   VA64 produceUVA;
+   VA64 consumeUVA;
+
+   ASSERT(produceQ->kernelIf->headerPage && consumeQ->kernelIf->headerPage);
+
+   /*
+    * The new style and the old style mapping only differs in that we either
+    * get a single or two UVAs, so we split the single UVA range at the
+    * appropriate spot.
+    */
+
+   produceUVA = pageStore->pages;
+   consumeUVA = pageStore->pages + produceQ->kernelIf->numPages * PAGE_SIZE;
+   return VMCIHost_GetUserMemory(produceUVA, consumeUVA, produceQ, consumeQ);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIHost_UnregisterUserMemory --
+ *
+ *       Releases and removes the references to user pages stored in the attach
+ *       struct.
+ *
+ * Results:
+ *       None
+ *
+ * Side Effects:
+ *       Pages are released from the page cache and may become
+ *       swappable again.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VMCIHost_UnregisterUserMemory(VMCIQueue *produceQ,         // IN/OUT
+                              VMCIQueue *consumeQ)         // IN/OUT
+{
+   ASSERT(produceQ->kernelIf);
+   ASSERT(consumeQ->kernelIf);
+   ASSERT(!produceQ->qHeader && !consumeQ->qHeader);
+
+   VMCIReleasePages(produceQ->kernelIf->headerPage, produceQ->kernelIf->numPages, TRUE);
+   memset(produceQ->kernelIf->headerPage, 0,
+          sizeof *produceQ->kernelIf->headerPage * produceQ->kernelIf->numPages);
+   VMCIReleasePages(consumeQ->kernelIf->headerPage, consumeQ->kernelIf->numPages, TRUE);
+   memset(consumeQ->kernelIf->headerPage, 0,
+          sizeof *consumeQ->kernelIf->headerPage * consumeQ->kernelIf->numPages);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIHost_MapQueueHeaders --
+ *
+ *       Once VMCIHost_RegisterUserMemory has been performed on a
+ *       queue, the queue pair headers can be mapped into the
+ *       kernel. Once mapped, they must be unmapped with
+ *       VMCIHost_UnmapQueueHeaders prior to calling
+ *       VMCIHost_UnregisterUserMemory.
+ *
+ * Results:
+ *       VMCI_SUCCESS if pages are mapped, appropriate error code otherwise.
+ *
+ * Side Effects:
+ *       Pages are pinned.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCIHost_MapQueueHeaders(VMCIQueue *produceQ,  // IN/OUT
+                         VMCIQueue *consumeQ)  // IN/OUT
+{
+   int result;
+
+   if (!produceQ->qHeader || !consumeQ->qHeader) {
+      struct page *headers[2];
+
+      if (produceQ->qHeader != consumeQ->qHeader) {
+         return VMCI_ERROR_QUEUEPAIR_MISMATCH;
+      }
+
+      if (produceQ->kernelIf->headerPage == NULL ||
+          *produceQ->kernelIf->headerPage == NULL) {
+         return VMCI_ERROR_UNAVAILABLE;
+      }
+
+      ASSERT(*produceQ->kernelIf->headerPage && *consumeQ->kernelIf->headerPage);
+
+      headers[0] = *produceQ->kernelIf->headerPage;
+      headers[1] = *consumeQ->kernelIf->headerPage;
+
+      produceQ->qHeader = vmap(headers, 2, VM_MAP, PAGE_KERNEL);
+      if (produceQ->qHeader != NULL) {
+         consumeQ->qHeader =
+            (VMCIQueueHeader *)((uint8 *)produceQ->qHeader + PAGE_SIZE);
+         result = VMCI_SUCCESS;
+      } else {
+         Log("vmap failed\n");
+         result = VMCI_ERROR_NO_MEM;
+     }
+   } else {
+      result = VMCI_SUCCESS;
+   }
+
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIHost_UnmapQueueHeaders --
+ *
+ *       Unmaps previously mapped queue pair headers from the kernel.
+ *
+ * Results:
+ *       VMCI_SUCCESS always.
+ *
+ * Side Effects:
+ *       Pages are unpinned.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCIHost_UnmapQueueHeaders(VMCIGuestMemID gid,   // IN
+                           VMCIQueue *produceQ,  // IN/OUT
+                           VMCIQueue *consumeQ)  // IN/OUT
+{
+   if (produceQ->qHeader) {
+      ASSERT(consumeQ->qHeader);
+
+      if (produceQ->qHeader < consumeQ->qHeader) {
+         vunmap(produceQ->qHeader);
+      } else {
+         vunmap(consumeQ->qHeader);
+      }
+      produceQ->qHeader = NULL;
+      consumeQ->qHeader = NULL;
+   }
+
+   return VMCI_SUCCESS;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VMCIHost_GetUserMemory --
+ *
+ *
  *       Lock the user pages referenced by the {produce,consume}Buffer
  *       struct into memory and populate the {produce,consume}Pages
  *       arrays in the attach structure with them.
@@ -1532,93 +1917,46 @@ VMCIReleasePages(struct page **pages,  // IN
  */
 
 int
-VMCIHost_GetUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
-                       VMCIQueue *produceQ,              // OUT
-                       VMCIQueue *consumeQ)              // OUT
+VMCIHost_GetUserMemory(VA64 produceUVA,       // IN
+                       VA64 consumeUVA,       // IN
+                       VMCIQueue *produceQ,   // OUT
+                       VMCIQueue *consumeQ)   // OUT
 {
    int retval;
    int err = VMCI_SUCCESS;
 
-
-   attach->producePages =
-      VMCI_AllocKernelMem(attach->numProducePages * sizeof attach->producePages[0],
-                          VMCI_MEMORY_NORMAL);
-   if (attach->producePages == NULL) {
-      return VMCI_ERROR_NO_MEM;
-   }
-   attach->consumePages =
-      VMCI_AllocKernelMem(attach->numConsumePages * sizeof attach->consumePages[0],
-                          VMCI_MEMORY_NORMAL);
-   if (attach->consumePages == NULL) {
-      err = VMCI_ERROR_NO_MEM;
-      goto errorDealloc;
-   }
-
    down_write(&current->mm->mmap_sem);
    retval = get_user_pages(current,
                            current->mm,
-                           (VA)attach->produceBuffer,
-                           attach->numProducePages,
+                           (VA)produceUVA,
+                           produceQ->kernelIf->numPages,
                            1, 0,
-                           attach->producePages,
+                           produceQ->kernelIf->headerPage,
                            NULL);
-   if (retval < attach->numProducePages) {
-      Log("get_user_pages(produce) failed: %d\n", retval);
-      VMCIReleasePages(attach->producePages, retval, FALSE);
+   if (retval < produceQ->kernelIf->numPages) {
+      Log("get_user_pages(produce) failed (retval=%d)\n", retval);
+      VMCIReleasePages(produceQ->kernelIf->headerPage, retval, FALSE);
       err = VMCI_ERROR_NO_MEM;
       goto out;
    }
 
    retval = get_user_pages(current,
                            current->mm,
-                           (VA)attach->consumeBuffer,
-                           attach->numConsumePages,
+                           (VA)consumeUVA,
+                           consumeQ->kernelIf->numPages,
                            1, 0,
-                           attach->consumePages,
+                           consumeQ->kernelIf->headerPage,
                            NULL);
-   if (retval < attach->numConsumePages) {
-      Log("get_user_pages(consume) failed: %d\n", retval);
-      VMCIReleasePages(attach->consumePages, retval, FALSE);
-      VMCIReleasePages(attach->producePages, attach->numProducePages, FALSE);
+   if (retval < consumeQ->kernelIf->numPages) {
+      Log("get_user_pages(consume) failed (retval=%d)\n", retval);
+      VMCIReleasePages(consumeQ->kernelIf->headerPage, retval, FALSE);
+      VMCIReleasePages(produceQ->kernelIf->headerPage,
+                       produceQ->kernelIf->numPages, FALSE);
       err = VMCI_ERROR_NO_MEM;
    }
 
 out:
    up_write(&current->mm->mmap_sem);
-
-   if (err == VMCI_SUCCESS) {
-      struct page *headers[2];
-
-      headers[0] = attach->producePages[0];
-      headers[1] = attach->consumePages[0];
-
-      produceQ->qHeader = vmap(headers, 2, VM_MAP, PAGE_KERNEL);
-      if (produceQ->qHeader != NULL) {
-         consumeQ->qHeader =
-            (VMCIQueueHeader *)((uint8 *)produceQ->qHeader + PAGE_SIZE);
-         produceQ->kernelIf->page = &attach->producePages[1];
-         consumeQ->kernelIf->page = &attach->consumePages[1];
-      } else {
-         Log("vmap failed\n");
-         VMCIReleasePages(attach->producePages, attach->numProducePages, FALSE);
-         VMCIReleasePages(attach->consumePages, attach->numConsumePages, FALSE);
-         err = VMCI_ERROR_NO_MEM;
-     }
-   }
-
-errorDealloc:
-   if (err < VMCI_SUCCESS) {
-      if (attach->producePages != NULL) {
-         VMCI_FreeKernelMem(attach->producePages,
-                            attach->numProducePages *
-                            sizeof attach->producePages[0]);
-      }
-      if (attach->consumePages != NULL) {
-         VMCI_FreeKernelMem(attach->consumePages,
-                            attach->numConsumePages *
-                            sizeof attach->consumePages[0]);
-      }
-   }
 
    return err;
 }
@@ -1642,25 +1980,12 @@ errorDealloc:
  */
 
 void
-VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
-                           VMCIQueue *produceQ,              // OUT
-                           VMCIQueue *consumeQ)              // OUT
+VMCIHost_ReleaseUserMemory(VMCIQueue *produceQ,  // IN/OUT
+                           VMCIQueue *consumeQ)  // IN/OUT
 {
-   ASSERT(attach->producePages);
-   ASSERT(attach->consumePages);
-   ASSERT(produceQ->qHeader);
+   ASSERT(produceQ->kernelIf->headerPage);
 
-   vunmap(produceQ->qHeader);
-
-   VMCIReleasePages(attach->producePages, attach->numProducePages, TRUE);
-   VMCIReleasePages(attach->consumePages, attach->numConsumePages, TRUE);
-
-   VMCI_FreeKernelMem(attach->producePages,
-                      attach->numProducePages *
-                      sizeof attach->producePages[0]);
-   VMCI_FreeKernelMem(attach->consumePages,
-                      attach->numConsumePages *
-                      sizeof attach->consumePages[0]);
+   VMCIHost_UnregisterUserMemory(produceQ, consumeQ);
 }
 
 
@@ -1682,9 +2007,9 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
 
 void
 VMCI_ReadPortBytes(VMCIIoHandle handle,  // IN: Unused
-		   VMCIIoPort port,      // IN
-		   uint8 *buffer,        // OUT
-		   size_t bufferLength)  // IN
+                   VMCIIoPort port,      // IN
+                   uint8 *buffer,        // OUT
+                   size_t bufferLength)  // IN
 {
    insb(port, buffer, bufferLength);
 }

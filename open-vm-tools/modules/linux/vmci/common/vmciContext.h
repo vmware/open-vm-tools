@@ -35,6 +35,7 @@
 #include "vmci_call_defs.h"
 #include "vmci_handle_array.h"
 #include "vmci_infrastructure.h"
+#include "vmci_kernel_if.h"
 
 #define MAX_QUEUED_GUESTCALLS_PER_VM  100
 
@@ -57,10 +58,9 @@ void VMCIContext_SetFSRState(VMCIContext *context,
 VMCIContext *VMCIContext_FindAndUpdateSrcFSR(VMCIId migrateCid,
                                              uintptr_t eventHnd,
                                              uintptr_t *srcEventHnd);
-Bool VMCIContext_IsActiveHnd(VMCIContext *context,
-                             uintptr_t eventHnd);
-void VMCIContext_SetInactiveHnd(VMCIContext *context,
-                                uintptr_t eventHnd);
+Bool VMCIContext_IsActiveHnd(VMCIContext *context, uintptr_t eventHnd);
+uintptr_t VMCIContext_GetActiveHnd(VMCIContext *context);
+void VMCIContext_SetInactiveHnd(VMCIContext *context, uintptr_t eventHnd);
 Bool VMCIContext_RemoveHnd(VMCIContext *context,
                            uintptr_t eventHnd,
                            uint32 *numOld,
@@ -91,6 +91,8 @@ int VMCIContext_GetCheckpointState(VMCIId contextID, uint32 cptType,
                                    uint32 *numCIDs, char **cptBufPtr);
 int VMCIContext_SetCheckpointState(VMCIId contextID, uint32 cptType,
                                    uint32 numCIDs, char *cptBuf);
+void VMCIContext_ReleaseGuestMem(VMCIContext *context, VMCIGuestMemID gid);
+
 #ifndef VMX86_SERVER
 void VMCIContext_CheckAndSignalNotify(VMCIContext *context);
 #  ifdef __linux__

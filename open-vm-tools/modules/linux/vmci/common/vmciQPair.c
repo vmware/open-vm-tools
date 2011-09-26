@@ -87,8 +87,43 @@ struct VMCIQPair {
    Bool guestEndpoint;
 };
 
-#define VMCI_QPAIR_NO_QUEUE(_qp) (!(_qp)->produceQ->qHeader || \
-                                  !(_qp)->consumeQ->qHeader)
+static int VMCIQPairMapQueueHeaders(VMCIQueue *produceQ, VMCIQueue *consumeQ);
+
+#define VMCI_QPAIR_NO_QUEUE(_qp) (VMCIQPairMapQueueHeaders(_qp->produceQ, \
+                                  _qp->consumeQ) != VMCI_SUCCESS)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQPairMapQueueHeaders --
+ *
+ *      The queue headers may not be mapped at all times. If a queue is
+ *      currently not mapped, it will be attempted to do so.
+ *
+ * Results:
+ *      VMCI_SUCCESS if queues were validated, appropriate error code otherwise.
+ *
+ * Side effects:
+ *      Windows blocking call.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+VMCIQPairMapQueueHeaders(VMCIQueue *produceQ, // IN
+                         VMCIQueue *consumeQ) // IN
+{
+   int result;
+
+   if (NULL == produceQ->qHeader || NULL == consumeQ->qHeader) {
+      result = VMCIHost_MapQueueHeaders(produceQ, consumeQ);
+      if (result < VMCI_SUCCESS) {
+         return result;
+      }
+   }
+
+   return VMCI_SUCCESS;
+}
 
 
 /*
@@ -632,7 +667,7 @@ VMCIQPair_ConsumeBufReady(const VMCIQPair *qpair) // IN
 
 static INLINE ssize_t
 EnqueueLocked(VMCIQueue *produceQ,                   // IN
-              const VMCIQueue *consumeQ,             // IN
+              VMCIQueue *consumeQ,                   // IN
               const uint64 produceQSize,             // IN
               const void *buf,                       // IN
               size_t bufSize,                        // IN
@@ -649,7 +684,7 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
       return (ssize_t) bufSize;
    }
 
-   if (UNLIKELY(!produceQ->qHeader || !consumeQ->qHeader)) {
+   if (UNLIKELY(VMCIQPairMapQueueHeaders(produceQ, consumeQ) != VMCI_SUCCESS)) {
       return VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
    }
 #endif
@@ -714,7 +749,7 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
 
 static INLINE ssize_t
 DequeueLocked(VMCIQueue *produceQ,                        // IN
-              const VMCIQueue *consumeQ,                  // IN
+              VMCIQueue *consumeQ,                        // IN
               const uint64 consumeQSize,                  // IN
               void *buf,                                  // IN
               size_t bufSize,                             // IN
@@ -728,8 +763,7 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
    ssize_t result;
 
 #if !defined VMX86_VMX
-   if (UNLIKELY(!produceQ->qHeader ||
-                !consumeQ->qHeader)) {
+   if (UNLIKELY(VMCIQPairMapQueueHeaders(produceQ, consumeQ) != VMCI_SUCCESS)) {
       return VMCI_ERROR_QUEUEPAIR_NODATA;
    }
 #endif
@@ -809,6 +843,8 @@ VMCIQPair_Enqueue(VMCIQPair *qpair,        // IN
                           qpair->consumeQ,
                           qpair->produceQSize,
                           buf, bufSize, bufType,
+                          qpair->flags & VMCI_QPFLAG_LOCAL?
+                          VMCIMemcpyToQueueLocal:
                           VMCIMemcpyToQueue);
 
    VMCIQPairUnlock(qpair);
@@ -853,6 +889,8 @@ VMCIQPair_Dequeue(VMCIQPair *qpair,        // IN
                           qpair->consumeQ,
                           qpair->consumeQSize,
                           buf, bufSize, bufType,
+                          qpair->flags & VMCI_QPFLAG_LOCAL?
+                          VMCIMemcpyFromQueueLocal:
                           VMCIMemcpyFromQueue,
                           TRUE);
 
@@ -899,6 +937,8 @@ VMCIQPair_Peek(VMCIQPair *qpair,    // IN
                           qpair->consumeQ,
                           qpair->consumeQSize,
                           buf, bufSize, bufType,
+                          qpair->flags & VMCI_QPFLAG_LOCAL?
+                          VMCIMemcpyFromQueueLocal:
                           VMCIMemcpyFromQueue,
                           FALSE);
 

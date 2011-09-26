@@ -410,7 +410,7 @@ vmci_host_init(void)
    if (retval) {
       Warning(LGPFX"Module registration error "
               "(name=%s,major=%d,minor=%d,err=%d).\n",
-	      linuxState.deviceName, -retval, linuxState.major,
+              linuxState.deviceName, -retval, linuxState.major,
               linuxState.minor);
       goto exit;
    }
@@ -524,7 +524,7 @@ LinuxDriver_Close(struct inode *inode, // IN
 
 static unsigned int
 LinuxDriverPoll(struct file *filp,
-		poll_table *wait)
+                poll_table *wait)
 {
    VMCILockFlags flags;
    VMCILinux *vmciLinux = (VMCILinux *) filp->private_data;
@@ -591,6 +591,62 @@ VMCICopyHandleArrayToUser(void *userBufUVA,             // IN
    }
 
    return VMCI_SUCCESS;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIDoQPBrokerAlloc --
+ *
+ *      Helper function for creating queue pair and copying the result
+ *      to user memory.
+ *
+ * Results:
+ *      0 if result value was copied to user memory, -EFAULT otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+VMCIDoQPBrokerAlloc(VMCIHandle handle,
+                    VMCIId peer,
+                    uint32 flags,
+                    uint64 produceSize,
+                    uint64 consumeSize,
+                    QueuePairPageStore *pageStore,
+                    VMCIContext *context,
+                    Bool vmToVm,
+                    void *resultUVA)
+{
+   VMCIId cid;
+   int result;
+   int retval;
+
+   cid = VMCIContext_GetId(context);
+
+   VMCIQPBroker_Lock();
+   result = VMCIQPBroker_Alloc(handle, peer, flags, VMCI_NO_PRIVILEGE_FLAGS,
+                               produceSize, consumeSize, pageStore, context);
+   if (result == VMCI_SUCCESS && vmToVm) {
+      result = VMCI_SUCCESS_QUEUEPAIR_CREATE;
+   }
+   Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_ALLOC (cid=%u,result=%d).\n", cid, result);
+   retval = copy_to_user(resultUVA, &result, sizeof result);
+   if (retval) {
+      retval = -EFAULT;
+      if (result >= VMCI_SUCCESS) {
+         result = VMCIQPBroker_Detach(handle, context);
+         ASSERT(result >= VMCI_SUCCESS);
+      }
+   }
+
+   VMCIQPBroker_Unlock();
+
+   return retval;
 }
 
 
@@ -694,11 +750,11 @@ LinuxDriver_Ioctl(struct inode *inode,
       initBlock.cid = VMCIContext_GetId(vmciLinux->context);
       retval = copy_to_user((void *)ioarg, &initBlock, sizeof initBlock);
       if (retval != 0) {
-	 VMCIContext_ReleaseContext(vmciLinux->context);
-	 vmciLinux->context = NULL;
-	 Log(LGPFX"Error writing init block.\n");
-	 retval = -EFAULT;
-	 goto init_release;
+         VMCIContext_ReleaseContext(vmciLinux->context);
+         vmciLinux->context = NULL;
+         Log(LGPFX"Error writing init block.\n");
+         retval = -EFAULT;
+         goto init_release;
       }
       ASSERT(initBlock.cid != VMCI_INVALID_ID);
 
@@ -731,14 +787,14 @@ LinuxDriver_Ioctl(struct inode *inode,
 
       if (sendInfo.len > VMCI_MAX_DG_SIZE) {
          Warning(LGPFX"Datagram too big (size=%d).\n", sendInfo.len);
-	 retval = -EINVAL;
-	 break;
+         retval = -EINVAL;
+         break;
       }
 
       if (sendInfo.len < sizeof *dg) {
          Warning(LGPFX"Datagram too small (size=%d).\n", sendInfo.len);
-	 retval = -EINVAL;
-	 break;
+         retval = -EINVAL;
+         break;
       }
 
       dg = VMCI_AllocKernelMem(sendInfo.len, VMCI_MEMORY_NORMAL);
@@ -799,70 +855,121 @@ LinuxDriver_Ioctl(struct inode *inode,
                                                     &size, &dg);
 
       if (recvInfo.result >= VMCI_SUCCESS) {
-	 ASSERT(dg);
-	 retval = copy_to_user((void *) ((uintptr_t) recvInfo.addr), dg,
-			       VMCI_DG_SIZE(dg));
-	 VMCI_FreeKernelMem(dg, VMCI_DG_SIZE(dg));
-	 if (retval != 0) {
-	    break;
-	 }
+         ASSERT(dg);
+         retval = copy_to_user((void *) ((uintptr_t) recvInfo.addr), dg,
+                               VMCI_DG_SIZE(dg));
+         VMCI_FreeKernelMem(dg, VMCI_DG_SIZE(dg));
+         if (retval != 0) {
+            break;
+         }
       }
       retval = copy_to_user((void *)ioarg, &recvInfo, sizeof recvInfo);
       break;
    }
 
    case IOCTL_VMCI_QUEUEPAIR_ALLOC: {
-      VMCIQueuePairAllocInfo queuePairAllocInfo;
-      VMCIQueuePairAllocInfo *info = (VMCIQueuePairAllocInfo *)ioarg;
-      int32 result;
-      VMCIId cid;
-
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
          Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_ALLOC only valid for contexts.\n");
          retval = -EINVAL;
          break;
       }
 
-      retval = copy_from_user(&queuePairAllocInfo, (void *)ioarg,
-                              sizeof queuePairAllocInfo);
+      if (vmciLinux->userVersion < VMCI_VERSION_NOVMVM) {
+         VMCIQueuePairAllocInfo_VMToVM queuePairAllocInfo;
+         VMCIQueuePairAllocInfo_VMToVM *info = (VMCIQueuePairAllocInfo_VMToVM *)ioarg;
+
+         retval = copy_from_user(&queuePairAllocInfo, (void *)ioarg,
+                                 sizeof queuePairAllocInfo);
+         if (retval) {
+            retval = -EFAULT;
+            break;
+         }
+
+         retval = VMCIDoQPBrokerAlloc(queuePairAllocInfo.handle,
+                                      queuePairAllocInfo.peer,
+                                      queuePairAllocInfo.flags,
+                                      queuePairAllocInfo.produceSize,
+                                      queuePairAllocInfo.consumeSize,
+                                      NULL,
+                                      vmciLinux->context,
+                                      TRUE, // VM to VM style create
+                                      &info->result);
+      } else {
+         VMCIQueuePairAllocInfo queuePairAllocInfo;
+         VMCIQueuePairAllocInfo *info = (VMCIQueuePairAllocInfo *)ioarg;
+         QueuePairPageStore pageStore;
+
+         retval = copy_from_user(&queuePairAllocInfo, (void *)ioarg,
+                                 sizeof queuePairAllocInfo);
+         if (retval) {
+            retval = -EFAULT;
+            break;
+         }
+
+         pageStore.pages = queuePairAllocInfo.ppnVA;
+         pageStore.len = queuePairAllocInfo.numPPNs;
+
+         retval = VMCIDoQPBrokerAlloc(queuePairAllocInfo.handle,
+                                      queuePairAllocInfo.peer,
+                                      queuePairAllocInfo.flags,
+                                      queuePairAllocInfo.produceSize,
+                                      queuePairAllocInfo.consumeSize,
+                                      &pageStore,
+                                      vmciLinux->context,
+                                      FALSE, // Not VM to VM style create
+                                      &info->result);
+      }
+      break;
+   }
+
+   case IOCTL_VMCI_QUEUEPAIR_SETVA: {
+      VMCIQueuePairSetVAInfo setVAInfo;
+      VMCIQueuePairSetVAInfo *info = (VMCIQueuePairSetVAInfo *)ioarg;
+      int32 result;
+
+      if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
+         Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETVA only valid for contexts.\n");
+         retval = -EINVAL;
+         break;
+      }
+
+      if (vmciLinux->userVersion < VMCI_VERSION_NOVMVM) {
+         Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETVA not supported for this VMX version.\n");
+         retval = -EINVAL;
+         break;
+      }
+
+      retval = copy_from_user(&setVAInfo, (void *)ioarg, sizeof setVAInfo);
       if (retval) {
          retval = -EFAULT;
          break;
       }
 
-      cid = VMCIContext_GetId(vmciLinux->context);
-      VMCIQPBroker_Lock();
+      if (setVAInfo.va) {
+         /*
+          * VMX is passing down a new VA for the queue pair mapping.
+          */
 
-      {
-	 QueuePairPageStore pageStore = { TRUE,
-					  queuePairAllocInfo.producePageFile,
-					  queuePairAllocInfo.consumePageFile,
-					  queuePairAllocInfo.producePageFileSize,
-					  queuePairAllocInfo.consumePageFileSize,
-					  0,
-					  0 };
+         VMCIQPBroker_Lock();
+         result = VMCIQPBroker_Map(setVAInfo.handle, vmciLinux->context, setVAInfo.va);
+         VMCIQPBroker_Unlock();
+         Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETVA - map (result=%d).\n", result);
+      } else {
+         /*
+          * The queue pair is about to be unmapped by the VMX.
+          */
 
-	 result = VMCIQPBroker_Alloc(queuePairAllocInfo.handle,
-                                     queuePairAllocInfo.peer,
-                                     queuePairAllocInfo.flags,
-                                     VMCI_NO_PRIVILEGE_FLAGS,
-                                     queuePairAllocInfo.produceSize,
-                                     queuePairAllocInfo.consumeSize,
-                                     &pageStore,
-                                     vmciLinux->context);
+         VMCIQPBroker_Lock();
+         result = VMCIQPBroker_Unmap(setVAInfo.handle, vmciLinux->context, 0);
+         VMCIQPBroker_Unlock();
+         Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETVA - unmap (result=%d).\n", result);
       }
-      Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_ALLOC (cid=%u,result=%d).\n", cid, result);
+
       retval = copy_to_user(&info->result, &result, sizeof result);
       if (retval) {
          retval = -EFAULT;
-         if (result >= VMCI_SUCCESS) {
-            result = VMCIQPBroker_Detach(queuePairAllocInfo.handle,
-                                         vmciLinux->context, TRUE);
-            ASSERT(result >= VMCI_SUCCESS);
-         }
       }
 
-      VMCIQPBroker_Unlock();
       break;
    }
 
@@ -871,8 +978,14 @@ LinuxDriver_Ioctl(struct inode *inode,
       VMCIQueuePairPageFileInfo *info = (VMCIQueuePairPageFileInfo *)ioarg;
       int32 result;
       VMCIId cid;
-      Bool useUVA;
-      int size;
+
+      if (vmciLinux->userVersion < VMCI_VERSION_HOSTQP ||
+          vmciLinux->userVersion >= VMCI_VERSION_NOVMVM) {
+         Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE not supported this VMX "
+             "(version=%d).\n", vmciLinux->userVersion);
+         retval = -EINVAL;
+         break;
+      }
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
          Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE only valid for contexts.\n");
@@ -880,20 +993,7 @@ LinuxDriver_Ioctl(struct inode *inode,
          break;
       }
 
-      if (VMCIContext_SupportsHostQP(vmciLinux->context)) {
-         useUVA = TRUE;
-         size = sizeof *info;
-      } else {
-         /*
-          * An older VMX version won't supply the UVA of the page
-          * files backing the queue pair contents (and headers)
-          */
-
-         useUVA = FALSE;
-         size = sizeof(VMCIQueuePairPageFileInfo_NoHostQP);
-      }
-
-      retval = copy_from_user(&pageFileInfo, (void *)ioarg, size);
+      retval = copy_from_user(&pageFileInfo, (void *)ioarg, sizeof *info);
       if (retval) {
          retval = -EFAULT;
          break;
@@ -919,27 +1019,19 @@ LinuxDriver_Ioctl(struct inode *inode,
       result = VMCI_SUCCESS;
       retval = copy_to_user(&info->result, &result, sizeof result);
       if (retval == 0) {
-         cid = VMCIContext_GetId(vmciLinux->context);
          VMCIQPBroker_Lock();
 
-         {
-            QueuePairPageStore pageStore = { TRUE,
-                                             pageFileInfo.producePageFile,
-                                             pageFileInfo.consumePageFile,
-                                             pageFileInfo.producePageFileSize,
-                                             pageFileInfo.consumePageFileSize,
-                                             useUVA ? pageFileInfo.produceVA : 0,
-                                             useUVA ? pageFileInfo.consumeVA : 0 };
+         result = VMCIQPBroker_SetPageStore(pageFileInfo.handle,
+                                            pageFileInfo.produceVA,
+                                            pageFileInfo.consumeVA,
+                                            vmciLinux->context);
 
-            result = VMCIQPBroker_SetPageStore(pageFileInfo.handle,
-                                               &pageStore,
-                                               vmciLinux->context);
-         }
          VMCIQPBroker_Unlock();
+         cid = VMCIContext_GetId(vmciLinux->context);
+         Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE (cid=%u,result=%d).\n",
+             cid, result);
 
          if (result < VMCI_SUCCESS) {
-            Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE (cid=%u,result=%d).\n",
-                cid, result);
 
             retval = copy_to_user(&info->result, &result, sizeof result);
             if (retval != 0) {
@@ -994,32 +1086,21 @@ LinuxDriver_Ioctl(struct inode *inode,
 
       cid = VMCIContext_GetId(vmciLinux->context);
       VMCIQPBroker_Lock();
-      result = VMCIQPBroker_Detach(detachInfo.handle, vmciLinux->context,
-                                FALSE); /* Probe detach operation. */
+      result = VMCIQPBroker_Detach(detachInfo.handle, vmciLinux->context);
       Log(LGPFX"IOCTL_VMCI_QUEUEPAIR_DETACH (cid=%u,result=%d).\n",
           cid, result);
+      VMCIQPBroker_Unlock();
+
+      if (result == VMCI_SUCCESS &&
+          vmciLinux->userVersion < VMCI_VERSION_NOVMVM) {
+         result = VMCI_SUCCESS_LAST_DETACH;
+      }
 
       retval = copy_to_user(&info->result, &result, sizeof result);
       if (retval) {
-         /* Could not copy to userland, don't perform the actual detach. */
          retval = -EFAULT;
-      } else {
-         if (result >= VMCI_SUCCESS) {
-            /* Now perform the actual detach. */
-            int32 result2 = VMCIQPBroker_Detach(detachInfo.handle,
-                                             vmciLinux->context, TRUE);
-            if (UNLIKELY(result != result2)) {
-               /*
-                * This should never happen.  But it's better to log a warning
-                * than to crash the host.
-                */
-               Warning(LGPFX"VMCIQPBroker_Detach returned different results:  "
-                       "(previous=%d,current=%d).\n", result, result2);
-            }
-         }
       }
 
-      VMCIQPBroker_Unlock();
       break;
    }
 
@@ -1043,7 +1124,7 @@ LinuxDriver_Ioctl(struct inode *inode,
 
       cid = VMCIContext_GetId(vmciLinux->context);
       result = VMCIDatagramRequestWellKnownMap(mapInfo.wellKnownID, cid,
-					       VMCIContext_GetPrivFlags(cid));
+                                               VMCIContext_GetPrivFlags(cid));
       retval = copy_to_user(&info->result, &result, sizeof result);
       if (retval) {
          retval = -EFAULT;
@@ -1116,7 +1197,7 @@ LinuxDriver_Ioctl(struct inode *inode,
 
       if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
          Log(LGPFX"IOCTL_VMCI_CTX_REMOVE_NOTIFICATION only valid for "
-	     "contexts.\n");
+             "contexts.\n");
          retval = -EINVAL;
          break;
       }
@@ -1156,16 +1237,16 @@ LinuxDriver_Ioctl(struct inode *inode,
 
       cid = VMCIContext_GetId(vmciLinux->context);
       getInfo.result = VMCIContext_GetCheckpointState(cid, getInfo.cptType,
-						      &getInfo.bufSize,
-						      &cptBuf);
+                                                      &getInfo.bufSize,
+                                                      &cptBuf);
       if (getInfo.result == VMCI_SUCCESS && getInfo.bufSize) {
-	 retval = copy_to_user((void *)(VA)getInfo.cptBuf, cptBuf,
-			       getInfo.bufSize);
-	 VMCI_FreeKernelMem(cptBuf, getInfo.bufSize);
-	 if (retval) {
-	    retval = -EFAULT;
-	    break;
-	 }
+         retval = copy_to_user((void *)(VA)getInfo.cptBuf, cptBuf,
+                               getInfo.bufSize);
+         VMCI_FreeKernelMem(cptBuf, getInfo.bufSize);
+         if (retval) {
+            retval = -EFAULT;
+            break;
+         }
       }
       retval = copy_to_user((void *)ioarg, &getInfo, sizeof getInfo);
       if (retval) {
@@ -1195,21 +1276,21 @@ LinuxDriver_Ioctl(struct inode *inode,
       cptBuf = VMCI_AllocKernelMem(setInfo.bufSize, VMCI_MEMORY_NORMAL);
       if (cptBuf == NULL) {
          Log(LGPFX"Cannot allocate memory to set cpt state (type=%d).\n",
-	     setInfo.cptType);
+             setInfo.cptType);
          retval = -ENOMEM;
          break;
       }
       retval = copy_from_user(cptBuf, (void *)(VA)setInfo.cptBuf,
-			      setInfo.bufSize);
+                              setInfo.bufSize);
       if (retval) {
-	 VMCI_FreeKernelMem(cptBuf, setInfo.bufSize);
+         VMCI_FreeKernelMem(cptBuf, setInfo.bufSize);
          retval = -EFAULT;
          break;
       }
 
       cid = VMCIContext_GetId(vmciLinux->context);
       setInfo.result = VMCIContext_SetCheckpointState(cid, setInfo.cptType,
-						      setInfo.bufSize, cptBuf);
+                                                      setInfo.bufSize, cptBuf);
       VMCI_FreeKernelMem(cptBuf, setInfo.bufSize);
       retval = copy_to_user((void *)ioarg, &setInfo, sizeof setInfo);
       if (retval) {
@@ -2254,7 +2335,7 @@ dispatch_datagrams(unsigned long data)
 
    if (dev == NULL) {
       printk(KERN_DEBUG "vmci: dispatch_datagrams(): no vmci device"
-	     "present.\n");
+             "present.\n");
       return;
    }
 
@@ -2265,7 +2346,7 @@ dispatch_datagrams(unsigned long data)
 
 
    VMCI_ReadDatagramsFromPort((VMCIIoHandle) 0, dev->ioaddr + VMCI_DATA_IN_ADDR,
-			      data_buffer, data_buffer_size);
+                              data_buffer, data_buffer_size);
 }
 
 
@@ -2293,7 +2374,7 @@ process_bitmap(unsigned long data)
 
    if (dev == NULL) {
       printk(KERN_DEBUG "vmci: process_bitmaps(): no vmci device"
-	     "present.\n");
+             "present.\n");
       return;
    }
 
@@ -2506,7 +2587,7 @@ MODULE_PARM_DESC(disable_msi, "Disable MSI use in driver - (default=0)");
 
 module_param_named(disable_msix, vmci_disable_msix, bool, 0);
 MODULE_PARM_DESC(disable_msix, "Disable MSI-X use in driver - (default="
-		 __stringify(VMCI_DISABLE_MSIX) ")");
+                 __stringify(VMCI_DISABLE_MSIX) ")");
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Machine Communication Interface (VMCI).");

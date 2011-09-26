@@ -57,6 +57,7 @@
 #  include "splock.h"
 #  include "semaphore_ext.h"
 #  include "vmkapi.h"
+#  include "world.h"
 #endif
 
 #ifdef SOLARIS
@@ -102,6 +103,7 @@
   typedef Semaphore VMCIMutex;
   typedef World_ID VMCIHostVmID;
   typedef uint32 VMCIHostUser;
+  typedef PPN *VMCIQPGuestMem;
 #elif defined(linux)
   typedef spinlock_t VMCILock;
   typedef unsigned long VMCILockFlags;
@@ -109,6 +111,7 @@
   typedef struct semaphore VMCIMutex;
   typedef PPN *VMCIPpnList; /* List of PPNs in produce/consume queue. */
   typedef uid_t VMCIHostUser;
+  typedef VA64 VMCIQPGuestMem;
 #elif defined(__APPLE__)
   typedef IOLock *VMCILock;
   typedef unsigned long VMCILockFlags;
@@ -120,6 +123,7 @@
   typedef IOLock *VMCIMutex;
   typedef void *VMCIPpnList; /* Actually a pointer to the C++ Object IOMemoryDescriptor */
   typedef uid_t VMCIHostUser;
+  typedef VA64 *VMCIQPGuestMem;
 #elif defined(_WIN32)
   typedef KSPIN_LOCK VMCILock;
   typedef KIRQL VMCILockFlags;
@@ -127,6 +131,7 @@
   typedef FAST_MUTEX VMCIMutex;
   typedef PMDL VMCIPpnList; /* MDL to map the produce/consume queue. */
   typedef PSID VMCIHostUser;
+  typedef VA64 *VMCIQPGuestMem;
 #elif defined(SOLARIS)
   typedef kmutex_t VMCILock;
   typedef unsigned long VMCILockFlags;
@@ -134,6 +139,7 @@
   typedef kmutex_t VMCIMutex;
   typedef PPN *VMCIPpnList; /* List of PPNs in produce/consume queue. */
   typedef uid_t VMCIHostUser;
+  typedef VA64 VMCIQPGuestMem;
 #endif // VMKERNEL
 
 /* Callback needed for correctly waiting on events. */
@@ -325,49 +331,71 @@ int VMCI_PopulatePPNList(uint8 *callBuf, const PPNSet *ppnSet);
 
 struct VMCIQueue;
 
-#if !defined(VMKERNEL)
 struct PageStoreAttachInfo;
 struct VMCIQueue *VMCIHost_AllocQueue(uint64 queueSize);
 void VMCIHost_FreeQueue(struct VMCIQueue *queue, uint64 queueSize);
 
-int VMCIHost_GetUserMemory(struct PageStoreAttachInfo *attach,
-                           struct VMCIQueue *produceQ,
-                           struct VMCIQueue *detachQ);
-void VMCIHost_ReleaseUserMemory(struct PageStoreAttachInfo *attach,
-                                struct VMCIQueue *produceQ,
-                                struct VMCIQueue *detachQ);
-#endif // VMKERNEL
+#if defined(VMKERNEL)
+typedef World_Handle *VMCIGuestMemID;
+#define INVALID_VMCI_GUEST_MEM_ID  NULL
+#else
+typedef uint32 VMCIGuestMemID;
+#define INVALID_VMCI_GUEST_MEM_ID  0
+#endif
 
-#ifdef _WIN32
-/*
- * Special routine used on the Windows platform to save a queue when
- * its backing memory goes away.
- */
-
-void VMCIHost_SaveProduceQ(struct PageStoreAttachInfo *attach,
-                           struct VMCIQueue *produceQ,
-                           struct VMCIQueue *detachQ,
-                           const uint64 produceQSize);
-#endif // _WIN32
-
-#ifdef _WIN32
-void VMCI_InitQueueMutex(struct VMCIQueue *produceQ,
-                             struct VMCIQueue *consumeQ);
-void VMCI_AcquireQueueMutex(struct VMCIQueue *queue);
-void VMCI_ReleaseQueueMutex(struct VMCIQueue *queue);
-Bool VMCI_EnqueueToDevNull(struct VMCIQueue *queue);
-int VMCI_ConvertToLocalQueue(struct VMCIQueue *queueInfo,
-                             struct VMCIQueue *otherQueueInfo,
-                             uint64 size, Bool keepContent,
-                             void **oldQueue);
-void VMCI_RevertToNonLocalQueue(struct VMCIQueue *queueInfo,
-                                void *nonLocalQueue, uint64 size);
-void VMCI_FreeQueueBuffer(void *queue, uint64 size);
-Bool VMCI_CanCreate(void);
-#else // _WIN32
+#if defined(VMKERNEL) || defined(__linux__)  || defined(_WIN32) || \
+    defined(__APPLE__)
+  struct QueuePairPageStore;
+  int VMCIHost_RegisterUserMemory(struct QueuePairPageStore *pageStore,
+                                  struct VMCIQueue *produceQ,
+                                  struct VMCIQueue *consumeQ);
+  void VMCIHost_UnregisterUserMemory(struct VMCIQueue *produceQ,
+                                     struct VMCIQueue *consumeQ);
+  int VMCIHost_MapQueueHeaders(struct VMCIQueue *produceQ,
+                               struct VMCIQueue *consumeQ);
+  int VMCIHost_UnmapQueueHeaders(VMCIGuestMemID gid,
+                                 struct VMCIQueue *produceQ,
+                                 struct VMCIQueue *consumeQ);
+  void VMCI_InitQueueMutex(struct VMCIQueue *produceQ,
+                           struct VMCIQueue *consumeQ);
+  void VMCI_CleanupQueueMutex(struct VMCIQueue *produceQ,
+                              struct VMCIQueue *consumeQ);
+  void VMCI_AcquireQueueMutex(struct VMCIQueue *queue);
+  void VMCI_ReleaseQueueMutex(struct VMCIQueue *queue);
+#else // Below are the guest OS'es without host side support.
 #  define VMCI_InitQueueMutex(_pq, _cq)
+#  define VMCI_CleanupQueueMutex(_pq, _cq)
 #  define VMCI_AcquireQueueMutex(_q)
 #  define VMCI_ReleaseQueueMutex(_q)
+#  define VMCIHost_RegisterUserMemory(_ps, _pq, _cq) VMCI_ERROR_UNAVAILABLE
+#  define VMCIHost_UnregisterUserMemory(_pq, _cq)
+#  define VMCIHost_MapQueueHeaders(_pq, _cq) VMCI_SUCCESS
+#  define VMCIHost_UnmapQueueHeaders(_gid, _pq, _cq) VMCI_SUCCESS
+#endif
+
+#if (!defined(VMKERNEL) && defined(__linux__)) || defined(_WIN32) ||  \
+   defined(__APPLE__) || defined(SOLARIS)
+  int VMCIHost_GetUserMemory(VA64 produceUVA, VA64 consumeUVA,
+                             struct VMCIQueue *produceQ,
+                             struct VMCIQueue *consumeQ);
+  void VMCIHost_ReleaseUserMemory(struct VMCIQueue *produceQ,
+                                  struct VMCIQueue *consumeQ);
+#else
+#  define VMCIHost_GetUserMemory(_puva, _cuva, _pq, _cq) VMCI_ERROR_UNAVAILABLE
+#  define VMCIHost_ReleaseUserMemory(_pq, _cq) ASSERT_NOT_IMPLEMENTED(FALSE)
+#endif
+
+#if defined(_WIN32)
+    Bool VMCI_EnqueueToDevNull(struct VMCIQueue *queue);
+    int VMCI_ConvertToLocalQueue(struct VMCIQueue *queueInfo,
+                                 struct VMCIQueue *otherQueueInfo,
+                                 uint64 size, Bool keepContent,
+                                 void **oldQueue);
+    void VMCI_RevertToNonLocalQueue(struct VMCIQueue *queueInfo,
+                                    void *nonLocalQueue, uint64 size);
+    void VMCI_FreeQueueBuffer(void *queue, uint64 size);
+    Bool VMCI_CanCreate(void);
+#else // _WIN32
 #  define VMCI_EnqueueToDevNull(_q) FALSE
 #  define VMCI_ConvertToLocalQueue(_pq, _cq, _s, _oq, _kc) VMCI_ERROR_UNAVAILABLE
 #  define VMCI_RevertToNonLocalQueue(_q, _nlq, _s)

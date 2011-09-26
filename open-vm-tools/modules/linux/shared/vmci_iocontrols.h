@@ -115,6 +115,12 @@ VMCIPtrToVA64(void const *ptr) // IN
  * versions are ways of detecting previous versions of the connecting
  * application (i.e., VMX).
  *
+ * VMCI_VERSION_NOVMVM: This version removed support for VM to VM
+ * communication.
+ *
+ * VMCI_VERSION_NOTIFY: This version introduced doorbell notification
+ * support.
+ *
  * VMCI_VERSION_HOSTQP: This version introduced host end point support
  * for hosted products.
  *
@@ -127,7 +133,8 @@ VMCIPtrToVA64(void const *ptr) // IN
  * driver.
  */
 
-#define VMCI_VERSION                VMCI_VERSION_NOTIFY
+#define VMCI_VERSION                VMCI_VERSION_NOVMVM
+#define VMCI_VERSION_NOVMVM         VMCI_MAKE_VERSION(11, 0)
 #define VMCI_VERSION_NOTIFY         VMCI_MAKE_VERSION(10, 0)
 #define VMCI_VERSION_HOSTQP         VMCI_MAKE_VERSION(9, 0)
 #define VMCI_VERSION_PREHOSTQP      VMCI_MAKE_VERSION(8, 0)
@@ -206,19 +213,20 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(RESERVED2),
 
    /*
-    * The following two used to be for shared memory.  They are now unused and
-    * and are reserved for future use.  They will fail if issued.
+    * The following used to be for shared memory. It is now unused and and is
+    * reserved for future use. It will fail if issued.
     */
    IOCTLCMD(RESERVED3),
-   IOCTLCMD(RESERVED4),
 
    /*
-    * The follwoing two were also used to be for shared memory. An old
-    * WS6 user-mode client might try to use them with the new driver,
-    * but since we ensure that only contexts created by VMX'en of the
-    * appropriate version (VMCI_VERSION_NOTIFY) or higher use this
-    * ioctl, everything is fine.
+    * The follwoing three were also used to be for shared memory. An
+    * old WS6 user-mode client might try to use them with the new
+    * driver, but since we ensure that only contexts created by VMX'en
+    * of the appropriate version (VMCI_VERSION_NOTIFY or
+    * VMCI_VERSION_NEWQP) or higher use these ioctl, everything is
+    * fine.
     */
+   IOCTLCMD(QUEUEPAIR_SETVA),
    IOCTLCMD(NOTIFY_RESOURCE),
    IOCTLCMD(NOTIFICATIONS_RECEIVE),
    IOCTLCMD(VERSION2),
@@ -383,6 +391,8 @@ enum IOCTLCmd_VMCIWin32 {
                VMCIIOCTL_BUFFERED(VERSION2)
 #define IOCTL_VMCI_QUEUEPAIR_ALLOC  \
                VMCIIOCTL_BUFFERED(QUEUEPAIR_ALLOC)
+#define IOCTL_VMCI_QUEUEPAIR_SETVA  \
+               VMCIIOCTL_BUFFERED(QUEUEPAIR_SETVA)
 #define IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE  \
                VMCIIOCTL_BUFFERED(QUEUEPAIR_SETPAGEFILE)
 #define IOCTL_VMCI_QUEUEPAIR_DETACH  \
@@ -469,7 +479,7 @@ typedef struct VMCISharedMemInfo {
    char       pageFileName[VMCI_PATH_MAX];
 } VMCISharedMemInfo;
 
-typedef struct VMCIQueuePairAllocInfo {
+typedef struct VMCIQueuePairAllocInfo_VMToVM {
    VMCIHandle handle;
    VMCIId     peer;
    uint32     flags;
@@ -486,7 +496,31 @@ typedef struct VMCIQueuePairAllocInfo {
 #endif
    int32      result;
    uint32     _pad;
+} VMCIQueuePairAllocInfo_VMToVM;
+
+typedef struct VMCIQueuePairAllocInfo {
+   VMCIHandle handle;
+   VMCIId     peer;
+   uint32     flags;
+   uint64     produceSize;
+   uint64     consumeSize;
+#if !defined(VMX86_SERVER) && !defined(VMKERNEL)
+   VA64       ppnVA; /* Start VA of queue pair PPNs. */
+#else
+   PPN *      PPNs;
+#endif
+   uint64     numPPNs;
+   int32      result;
+   uint32     version;
 } VMCIQueuePairAllocInfo;
+
+typedef struct VMCIQueuePairSetVAInfo {
+   VMCIHandle handle;
+   VA64       va; /* Start VA of queue pair PPNs. */
+   uint64     numPPNs;
+   uint32     version;
+   int32      result;
+} VMCIQueuePairSetVAInfo;
 
 /*
  * For backwards compatibility, here is a version of the
@@ -693,6 +727,7 @@ enum VMCrossTalkSockOpt {
    VMCI_SO_NOTIFICATIONS_RECEIVE    = IOCTL_VMCI_NOTIFICATIONS_RECEIVE,
    VMCI_SO_VERSION2                 = IOCTL_VMCI_VERSION2,
    VMCI_SO_QUEUEPAIR_ALLOC          = IOCTL_VMCI_QUEUEPAIR_ALLOC,
+   VMCI_SO_QUEUEPAIR_SETVA          = IOCTL_VMCI_QUEUEPAIR_SETVA,
    VMCI_SO_QUEUEPAIR_SETPAGEFILE    = IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE,
    VMCI_SO_QUEUEPAIR_DETACH         = IOCTL_VMCI_QUEUEPAIR_DETACH,
    VMCI_SO_DATAGRAM_SEND            = IOCTL_VMCI_DATAGRAM_SEND,

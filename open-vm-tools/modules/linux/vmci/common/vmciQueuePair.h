@@ -32,80 +32,23 @@
 #include "includeCheck.h"
 
 #include "vmci_defs.h"
-#include "vmciContext.h"
 #include "vmci_iocontrols.h"
+#include "vmci_kernel_if.h"
+#include "vmciContext.h"
 #include "vmciQueue.h"
-#ifdef VMKERNEL
-#include "vm_atomic.h"
-#include "util_copy_dist.h"
-#include "shm.h"
 
 /*
- * On vmkernel, the queue pairs are either backed by shared memory or
- * kernel memory allocated on the VMCI heap. Shared memory is used for
- * guest to guest and guest to host queue pairs, whereas the heap
- * allocated queue pairs are used for host local queue pairs.
+ * QueuePairPageStore describes how the memory of a given queue pair
+ * is backed. When the queue pair is between the host and a guest, the
+ * page store consists of references to the guest pages. On vmkernel,
+ * this is a list of PPNs, and on hosted, it is a user VA where the
+ * queue pair is mapped into the VMX address space.
  */
 
 typedef struct QueuePairPageStore {
-   Bool shared; // Indicates whether the pages are stored in shared memory
-   union {
-      Shm_ID   shmID;
-      void    *ptr;
-   } store;
+   VMCIQPGuestMem pages;  // Reference to pages backing the queue pair.
+   uint32 len;            // Length of pageList/virtual addres range (in pages).
 } QueuePairPageStore;
-
-#else
-
-typedef struct QueuePairPageStore {
-   Bool user;                  // Whether the page file strings are userspace pointers
-   VA64 producePageFile;       // Name of the file
-   VA64 consumePageFile;       // Name of the file
-   uint64 producePageFileSize; // Size of the string
-   uint64 consumePageFileSize; // Size of the string
-   VA64 producePageUVA;        // User space VA of the mapped file in VMX
-   VA64 consumePageUVA;        // User space VA of the mapped file in VMX
-} QueuePairPageStore;
-
-#endif // !VMKERNEL
-
-#if (defined(__linux__) || defined(_WIN32) || defined(__APPLE__) || \
-     defined(SOLARIS)) && !defined(VMKERNEL)
-struct VMCIQueue;
-
-typedef struct PageStoreAttachInfo {
-   char producePageFile[VMCI_PATH_MAX];
-   char consumePageFile[VMCI_PATH_MAX];
-   uint64 numProducePages;
-   uint64 numConsumePages;
-
-   /* User VAs in the VMX task */
-   VA64   produceBuffer;
-   VA64   consumeBuffer;
-
-   /*
-    * Platform-specific references to the physical pages backing the
-    * queue. These include a page for the header.
-    *
-    * PR361589 tracks this, too.
-    */
-
-#if defined(__linux__)
-   struct page **producePages;
-   struct page **consumePages;
-#elif defined(_WIN32)
-   void *kmallocPtr;
-   size_t kmallocSize;
-   PMDL produceMDL;
-   PMDL consumeMDL;
-#elif defined(__APPLE__)
-   /*
-    * All the Mac OS X fields are members of the VMCIQueue
-    */
-#endif
-} PageStoreAttachInfo;
-
-#endif // (__linux__ || _WIN32 || __APPLE__) && !VMKERNEL
 
 
 /*
@@ -128,13 +71,7 @@ typedef struct PageStoreAttachInfo {
 static INLINE Bool
 VMCI_QP_PAGESTORE_IS_WELLFORMED(QueuePairPageStore *pageStore) // IN
 {
-#ifdef VMKERNEL
-   return (pageStore->shared && pageStore->store.shmID != SHM_INVALID_ID) ||
-          (!pageStore->shared && pageStore->store.ptr != NULL);
-#else
-   return pageStore->producePageFile && pageStore->consumePageFile &&
-          pageStore->producePageFileSize && pageStore->consumePageFileSize;
-#endif // !VMKERNEL
+  return pageStore->len >= 2;
 }
 
 int VMCIQPBroker_Init(void);
@@ -146,10 +83,9 @@ int VMCIQPBroker_Alloc(VMCIHandle handle, VMCIId peer, uint32 flags,
                        uint64 produceSize, uint64 consumeSize,
                        QueuePairPageStore *pageStore,
                        VMCIContext *context);
-int VMCIQPBroker_SetPageStore(VMCIHandle handle,
-                              QueuePairPageStore *pageStore,
+int VMCIQPBroker_SetPageStore(VMCIHandle handle, VA64 produceUVA, VA64 consumeUVA,
                               VMCIContext *context);
-int VMCIQPBroker_Detach(VMCIHandle handle, VMCIContext *context, Bool detach);
+int VMCIQPBroker_Detach(VMCIHandle handle, VMCIContext *context);
 
 int VMCIQPGuestEndpoints_Init(void);
 void VMCIQPGuestEndpoints_Exit(void);
@@ -161,6 +97,8 @@ int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
                         uint64 consumeSize, VMCIId peer, uint32 flags,
                         VMCIPrivilegeFlags privFlags, Bool guestEndpoint);
 int VMCIQueuePair_Detach(VMCIHandle handle, Bool guestEndpoint);
+int VMCIQPBroker_Map(VMCIHandle  handle, VMCIContext *context, VMCIQPGuestMem guestMem);
+int VMCIQPBroker_Unmap(VMCIHandle  handle, VMCIContext *context, VMCIGuestMemID gid);
 
 
 #endif /* !_VMCI_QUEUE_PAIR_H_ */

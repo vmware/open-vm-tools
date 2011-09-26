@@ -138,6 +138,11 @@ int VMCIMemcpyToQueue(VMCIQueue *queue, uint64 queueOffset, const void *src,
 int VMCIMemcpyFromQueue(void *dest, size_t destOffset, const VMCIQueue *queue,
                         uint64 queueOffset, size_t size, BUF_TYPE bufType);
 
+int VMCIMemcpyToQueueLocal(VMCIQueue *queue, uint64 queueOffset, const void *src,
+                           size_t srcOffset, size_t size, BUF_TYPE bufType);
+int VMCIMemcpyFromQueueLocal(void *dest, size_t destOffset, const VMCIQueue *queue,
+                             uint64 queueOffset, size_t size, BUF_TYPE bufType);
+
 #if defined VMKERNEL || defined (SOLARIS)         || \
    (defined(__APPLE__) && !defined (VMX86_TOOLS)) || \
    (defined(__linux__) && defined(__KERNEL__))    || \
