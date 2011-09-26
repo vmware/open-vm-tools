@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include "str.h"
+#include "log.h"
 
 
 /*
@@ -33,18 +34,30 @@
  * the functions of the real library, but not all.
  */
 #if !defined(NO_LOG_STUB)
+
+void
+LogV(uint32 unused,
+     const char *fmt,
+     va_list args)
+{
+   char *str;
+
+   str = Str_Vasprintf(NULL, fmt, args);
+   if (str != NULL) {
+      fputs(str, stderr);
+      // what about freeing the allocatred str???
+   }
+}
+
+
 void
 Log(const char *fmt,
     ...)
 {
-   char *str;
    va_list args;
 
    va_start(args, fmt);
-   str = Str_Vasprintf(NULL, fmt, args);
-   if (str != NULL) {
-      fputs(str, stderr);
-   }
+   LogV(VMW_LOG_INFO, fmt, args);
    va_end(args);
 }
 #endif
