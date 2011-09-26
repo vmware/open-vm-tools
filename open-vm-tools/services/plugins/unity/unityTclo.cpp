@@ -36,7 +36,10 @@
  *    @li UnityRpcGH
  */
 
+#include <glib.h>
+#include <glib-object.h>
 #include "vmware/tools/plugin.h"
+#include "vmware/tools/unityevents.h"
 
 extern "C" {
    #include "vmware.h"
@@ -123,7 +126,7 @@ Bool UnityXdrSendRpc(const char *rpcName, UnityXdrEncodeFunc encodeFn, void *arg
  */
 
 static DynBuf gTcloUpdate;
-
+static gpointer gServiceObj = NULL;
 
 /*
  *----------------------------------------------------------------------------
@@ -143,13 +146,24 @@ static DynBuf gTcloUpdate;
  */
 
 void
-UnityTcloInit()
+UnityTcloInit(gpointer serviceObj)
 {
    /*
     * Init our global dynbuf used to send results back.
     */
    DynBuf_Init(&gTcloUpdate);
 
+   gServiceObj = serviceObj;
+   g_signal_new(UNITY_SIG_ENTER_LEAVE_UNITY,
+                G_OBJECT_TYPE(gServiceObj),
+                (GSignalFlags) 0,
+                0,
+                NULL,
+                NULL,
+                g_cclosure_marshal_VOID__BOOLEAN,
+                G_TYPE_NONE,
+                1,
+                G_TYPE_BOOLEAN);
 }
 
 
@@ -174,6 +188,7 @@ void
 UnityTcloCleanup()
 {
    DynBuf_Destroy(&gTcloUpdate);
+   gServiceObj = NULL;
 }
 
 
@@ -213,11 +228,17 @@ UnityTcloEnter(RpcInData *data)         //  IN/OUT
 
    Debug("%s\n", __FUNCTION__);
 
-   if (!Unity_Enter()) {
-      return RPCIN_SETRETVALS(data, "Could not enter unity", FALSE);
-   }
+   if (!Unity_IsActive()) {
+      if (!Unity_Enter()) {
+         return RPCIN_SETRETVALS(data, "Could not enter unity", FALSE);
+      }
 
-   UnityUpdateState();
+      UnityUpdateState();
+
+      if (NULL != gServiceObj) {
+         g_signal_emit_by_name(gServiceObj, UNITY_SIG_ENTER_LEAVE_UNITY, TRUE);
+      }
+   }
 
    return RPCIN_SETRETVALS(data, "", TRUE);
 }
@@ -250,9 +271,15 @@ UnityTcloExit(RpcInData *data)   // IN/OUT
 
    Debug("UnityTcloExit.\n");
 
-   Unity_Exit();
+   if (Unity_IsActive()) {
+      Unity_Exit();
+      UnityUpdateState();
 
-   UnityUpdateState();
+      if (NULL != gServiceObj) {
+         g_signal_emit_by_name(gServiceObj, UNITY_SIG_ENTER_LEAVE_UNITY, FALSE);
+      }
+   }
+
    return RPCIN_SETRETVALS(data, "", TRUE);
 }
 

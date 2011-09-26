@@ -31,7 +31,7 @@ extern "C" {
 
 namespace vmware { namespace tools {
 
-void UnityTcloInit();
+void UnityTcloInit(gpointer serviceObj);
 void UnityTcloCleanup();
 
 UnityUpdateChannel *UnityUpdateChannelInit(void);

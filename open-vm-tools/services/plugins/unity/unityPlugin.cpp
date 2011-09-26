@@ -115,7 +115,7 @@ UnityPlugin::Initialize()
    unityHostCallbacks.sendWindowContents = &UnitySendWindowContents;
    unityHostCallbacks.sendRequestMinimizeOperation = &UnitySendRequestMinimizeOperation;
    unityHostCallbacks.shouldShowTaskbar = &UnityShouldShowTaskbar;
-   UnityTcloInit();
+   UnityTcloInit(mCtx->serviceObj);
 
    /*
     * Initialize the update channel.
@@ -127,7 +127,7 @@ UnityPlugin::Initialize()
    }
    unityHostCallbacks.updateCbCtx = mUnityUpdateChannel;
 
-   Unity_Init(unityHostCallbacks, mCtx->serviceObj);
+   Unity_Init(unityHostCallbacks);
 
    GHITcloInit();
    GHIHostCallbacks ghiHostCallbacks;

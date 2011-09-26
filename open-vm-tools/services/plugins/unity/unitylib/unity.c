@@ -39,14 +39,11 @@
  *    @li UnityRpcGH
  */
 
-#include <glib.h>
-#include <glib-object.h>
 #include "vmware.h"
 #include "debug.h"
 #include "unityDebug.h"
 #include "unityInt.h"
 #include "unityPlatform.h"
-#include "vmware/tools/unityevents.h"
 
 /*
  * Singleton object for tracking the state of the service.
@@ -60,7 +57,6 @@ static void UnityUpdateCallbackFn(void *param, UnityUpdate *update);
 static void UnitySetAddHiddenWindows(Bool enabled);
 static void UnitySetInterlockMinimizeOperation(Bool enabled);
 static void UnitySetSendWindowContents(Bool enabled);
-static void FireEnterUnitySignal(gpointer serviceObj, gboolean entered);
 static void UnitySetDisableCompositing(Bool disabled);
 
 /*
@@ -190,8 +186,7 @@ Unity_IsActive(void)
  */
 
 void
-Unity_Init(UnityHostCallbacks hostCallbacks,                       // IN
-           gpointer serviceObj)                                    // IN
+Unity_Init(UnityHostCallbacks hostCallbacks) // IN
 {
    Debug("Unity_Init\n");
 
@@ -212,29 +207,12 @@ Unity_Init(UnityHostCallbacks hostCallbacks,                       // IN
     */
    UnityWindowTracker_Init(&unity.tracker, UnityUpdateCallbackFn);
 
-
    /*
     * Initialize the platform-specific portion of the unity service.
     */
-   unity.up = UnityPlatformInit(&unity.tracker,
-                                unity.hostCallbacks);
+   unity.up = UnityPlatformInit(&unity.tracker, unity.hostCallbacks);
 
    unity.virtDesktopArray.desktopCount = 0;
-
-   /*
-    * Cache the service object and use it to create the enter/exit Unity signal.
-    */
-   unity.serviceObj = serviceObj;
-   g_signal_new(UNITY_SIG_ENTER_LEAVE_UNITY,
-                G_OBJECT_TYPE(serviceObj),
-                (GSignalFlags) 0,
-                0,
-                NULL,
-                NULL,
-                g_cclosure_marshal_VOID__BOOLEAN,
-                G_TYPE_NONE,
-                1,
-                G_TYPE_BOOLEAN);
 }
 
 
@@ -266,8 +244,6 @@ Unity_Cleanup()
     * Exit Unity.
     */
    Unity_Exit();
-
-   unity.serviceObj = NULL;
 
    /*
     * Do one-time final platform-specific cleanup.
@@ -365,7 +341,6 @@ Unity_Exit(void)
       UnityPlatformRestoreSystemSettings(unity.up);
 
       unity.isEnabled = FALSE;
-      FireEnterUnitySignal(unity.serviceObj, FALSE);
    }
 }
 
@@ -415,7 +390,6 @@ Unity_Enter(void)
        *    catched for Unity DnD.
        */
       UnityPlatformUpdateDnDDetWnd(unity.up, TRUE);
-      FireEnterUnitySignal(unity.serviceObj, TRUE);
       unity.isEnabled = TRUE;
    }
    return TRUE;
@@ -1288,22 +1262,4 @@ void
 Unity_InitializeDebugger(void)
 {
    UnityDebug_Init(&unity.tracker);
-}
-
-
-/**
- * Fire signal to broadcast when unity is entered and exited.
- *
- * @param[in] ctx tools application context
- * @param[in] enter if TRUE, unity was entered. If FALSE, unity has exited.
- */
-
-static void
-FireEnterUnitySignal(gpointer serviceObj,
-                     gboolean enter)
-{
-   Debug("%s: enter. enter argument is set to %s\n", __FUNCTION__, enter ? "true" : "false");
-   g_signal_emit_by_name(serviceObj,
-                         UNITY_SIG_ENTER_LEAVE_UNITY,
-                         enter);
 }

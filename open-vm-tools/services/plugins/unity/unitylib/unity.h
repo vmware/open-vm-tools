@@ -140,8 +140,7 @@ typedef struct UnityHostCallbacks {
 extern "C" {
 #endif // __cplusplus
 
-void Unity_Init(UnityHostCallbacks hostCallbacks,
-                gpointer serviceObj);
+void Unity_Init(UnityHostCallbacks hostCallbacks);
 Bool Unity_IsActive(void);
 Bool Unity_IsSupported(void);
 Bool Unity_Enter(void);

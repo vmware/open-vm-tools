@@ -47,7 +47,6 @@ typedef struct UnityState {
    UnityVirtualDesktopArray virtDesktopArray;   // Virtual desktop configuration
    UnityHostCallbacks hostCallbacks;   // Callbacks to the host for unity updates
    UnityPlatform *up; // Platform-specific state
-   gpointer serviceObj; // 'Plugin' Host service object - used for signaling Unity state
 } UnityState;
 
 extern UnityState unity;
