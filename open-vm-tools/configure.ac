@@ -382,25 +382,23 @@ AC_VMW_CHECK_LIB([fuse],
 #
 # Check for PAM.
 #
-if test "$os" = "linux"; then
-   AC_ARG_WITH([pam],
-      [AS_HELP_STRING([--without-pam],
-      [compiles without PAM support.])],
-      [],
-      [with_pam=yes])
+AC_ARG_WITH([pam],
+   [AS_HELP_STRING([--without-pam],
+   [compiles without PAM support.])],
+   [],
+   [with_pam=yes])
 
-   if test "$with_pam" = "yes"; then
-      AC_VMW_DEFAULT_FLAGS([PAM])
-      AC_VMW_CHECK_LIB([pam],
-                       [PAM],
-                       [],
-                       [],
-                       [],
-                       [security/pam_appl.h],
-                       [pam_start],
-                       [PAM_CPPFLAGS="$PAM_CPPFLAGS -DUSE_PAM"],
-                       [AC_VMW_LIB_ERROR([PAM], [pam])])
-   fi
+if test "$with_pam" = "yes"; then
+   AC_VMW_DEFAULT_FLAGS([PAM])
+   AC_VMW_CHECK_LIB([pam],
+                    [PAM],
+                    [],
+                    [],
+                    [],
+                    [security/pam_appl.h],
+                    [pam_start],
+                    [PAM_CPPFLAGS="$PAM_CPPFLAGS -DUSE_PAM"],
+                    [AC_VMW_LIB_ERROR([PAM], [pam])])
 fi
 
 #
