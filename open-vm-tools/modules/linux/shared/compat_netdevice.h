@@ -196,16 +196,6 @@ compat_alloc_netdev(int priv_size,
 #   define COMPAT_NETDEV_TX_BUSY  1
 #endif
 
-/* Keep compat_* defines for now */
-#define compat_netif_start_queue(dev)   netif_start_queue(dev)
-#define compat_netif_stop_queue(dev)    netif_stop_queue(dev)
-#define compat_netif_queue_stopped(dev) netif_queue_stopped(dev)
-#define compat_netif_wake_queue(dev)    netif_wake_queue(dev)
-#define compat_netif_running(dev)       netif_running(dev)
-#define compat_netif_carrier_ok(dev)    netif_carrier_ok(dev)
-#define compat_netif_carrier_on(dev)    netif_carrier_on(dev)
-#define compat_netif_carrier_off(dev)   netif_carrier_off(dev)
-
 /* unregister_netdevice_notifier was not safe prior to 2.6.17 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 17) && \
     !defined(ATOMIC_NOTIFIER_INIT)
