@@ -57,7 +57,7 @@
 #  include "splock.h"
 #  include "semaphore_ext.h"
 #  include "vmkapi.h"
-#  include "world.h"
+#  include "world_dist.h"
 #endif
 
 #ifdef SOLARIS
