@@ -199,7 +199,7 @@ typedef enum GuestOSFamilyType {
 
 /* vmkernel (ESX) */
 #define STR_OS_ESX_4               "VMware ESX 4"
-#define STR_OS_ESX_5               "VMware ESX 5"
+#define STR_OS_ESX_5               "VMware ESXi 5"
 
 /* Linux */
 #define STR_OS_ANNVIX              "Annvix"
