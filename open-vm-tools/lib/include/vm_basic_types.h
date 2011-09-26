@@ -861,7 +861,7 @@ typedef void * UserVA;
 #   endif
 
 #else
-#   ifndef _SIZE_T
+#   if !defined(_SIZE_T) && !defined(_SIZE_T_DEFINED)
 #      ifdef VM_I386
 #         define _SIZE_T
 #         ifdef VM_X86_64
@@ -877,7 +877,8 @@ typedef void * UserVA;
 
 #   if !defined(FROBOS) && !defined(_SSIZE_T) && !defined(_SSIZE_T_) && \
        !defined(ssize_t) && !defined(__ssize_t_defined) && \
-       !defined(_SSIZE_T_DECLARED) && !defined(_SSIZE_T_DEFINED_)
+       !defined(_SSIZE_T_DECLARED) && !defined(_SSIZE_T_DEFINED) && \
+       !defined(_SSIZE_T_DEFINED_)
 #      ifdef VM_I386
 #         define _SSIZE_T
 #         define __ssize_t_defined
