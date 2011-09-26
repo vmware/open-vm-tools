@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -475,7 +475,7 @@ FLAG(  81,  0, ECX, AMD,     5,  1, ABM,                           YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,     6,  1, SSE4A,                         YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,     7,  1, MISALIGNED_SSE,                YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,     8,  1, 3DNPREFETCH,                   YES, TRUE)  \
-FLAG(  81,  0, ECX, AMD,     9,  1, OSVW,                          YES, FALSE) \
+FLAG(  81,  0, ECX, AMD,     9,  1, OSVW,                          ANY, FALSE) \
 FLAG(  81,  0, ECX, AMD,    10,  1, IBS,                           NO,  FALSE) \
 FLAG(  81,  0, ECX, AMD,    11,  1, XOP,                           YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,    12,  1, SKINIT,                        NO,  FALSE) \
