@@ -56,9 +56,11 @@ struct MsgList {
 
 EXTERN MsgList *MsgList_Create(const char *idFmt, ...);
 EXTERN MsgList *MsgList_VCreate(const char *idFmt, va_list args);
+EXTERN MsgList *MsgList_CreateStr(const char *id);
 
 EXTERN void MsgList_Append(MsgList **tail, const char *idFmt, ...);
 EXTERN void MsgList_VAppend(MsgList **tail, const char *idFmt, va_list args);
+EXTERN void MsgList_AppendStr(MsgList **tail, const char *id);
 
 EXTERN void MsgList_Log(const MsgList *messages);
 EXTERN char *MsgList_ToString(const MsgList *messages);
