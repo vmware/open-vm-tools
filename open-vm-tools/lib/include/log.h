@@ -253,22 +253,23 @@ size_t Log_MakeTimeString(Bool millisec,
 void GuestLog_Init(void);
 void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 
-
 /*
  * How many old log files to keep around.
  *
  * ESX needs more old log files for bug fixing (and vmotion).
  */
 
+
 #if defined(VMX86_SERVER)
-#define LOG_DEFAULT_KEEPOLD 6
+#define LOG_RECOMMENDED_KEEPOLD 6
 #else
-#define LOG_DEFAULT_KEEPOLD 3
+#define LOG_RECOMMENDED_KEEPOLD 3
 #endif
 
-#define LOG_NO_BPS_LIMIT               0xFFFFFFFF
+#define LOG_NO_KEEPOLD                 0
 #define LOG_NO_ROTATION_SIZE           0
 #define LOG_NO_THROTTLE_THRESHOLD      0
+#define LOG_NO_BPS_LIMIT               0xFFFFFFFF
 
 #if defined(VMX86_RELEASE)
 #define LOG_DEFAULT_THROTTLE_BPS       1000
