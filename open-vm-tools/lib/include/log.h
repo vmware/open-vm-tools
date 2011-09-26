@@ -253,31 +253,23 @@ size_t Log_MakeTimeString(Bool millisec,
 void GuestLog_Init(void);
 void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 
+
 /*
- * How many old log files to keep around.
+ * Default values for the log are obtained via Log_GetStaticDefaults.
  *
- * ESX needs more old log files for bug fixing (and vmotion).
+ * These values represent commonly used override values.
  */
 
-
 #if defined(VMX86_SERVER)
-#define LOG_RECOMMENDED_KEEPOLD 6
+#define LOG_KEEPOLD 6  // Old log files to keep around; ESX value
 #else
-#define LOG_RECOMMENDED_KEEPOLD 3
+#define LOG_KEEPOLD 3  // Old log files to keep around; non-ESX value
 #endif
 
-#define LOG_NO_KEEPOLD                 0
-#define LOG_NO_ROTATION_SIZE           0
-#define LOG_NO_THROTTLE_THRESHOLD      0
-#define LOG_NO_BPS_LIMIT               0xFFFFFFFF
-
-#if defined(VMX86_RELEASE)
-#define LOG_DEFAULT_THROTTLE_BPS       1000
-#else
-#define LOG_DEFAULT_THROTTLE_BPS       LOG_NO_BPS_LIMIT
-#endif
-
-#define LOG_DEFAULT_THROTTLE_THRESHOLD 1000000
+#define LOG_NO_KEEPOLD                 0  // Keep no old log files
+#define LOG_NO_ROTATION_SIZE           0  // Do not rotate based on file size
+#define LOG_NO_THROTTLE_THRESHOLD      0  // No threshold before throttling
+#define LOG_NO_BPS_LIMIT               0xFFFFFFFF  // unlimited input rate
 
 
 /*
