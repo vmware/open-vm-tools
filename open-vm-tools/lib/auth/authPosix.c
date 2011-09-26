@@ -81,6 +81,7 @@ static struct {
    IMPORT_SYMBOL(pam_authenticate),
    IMPORT_SYMBOL(pam_setcred),
    IMPORT_SYMBOL(pam_acct_mgmt),
+   IMPORT_SYMBOL(pam_strerror),
 #undef IMPORT_SYMBOL
 };
 
