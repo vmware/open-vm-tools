@@ -4562,6 +4562,7 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                if (VIX_OK != err) {
                   goto abort;
                }
+               break;
             }
             epList = epList->next;
          }
@@ -4592,20 +4593,20 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
     */
    if (numPids > 0) {
       for (i = 0; i < numPids; i++) {
+         // ignore it if its on the exited list -- we added it above
+         if (VixToolsFindExitedProgramState(pids[i])) {
+            continue;
+         }
          for (j = 0; j < procList->procCount; j++) {
-            // ignore it if its on the exited list -- we added it above
-            if (VixToolsFindExitedProgramState(pids[i])) {
-               continue;
-            }
             if (pids[i] == procList->procIdList[j]) {
                err = VixToolsPrintProcInfoEx(&dynBuffer,
-                                             procList->procCmdList[i],
-                                             procList->procIdList[i],
+                                             procList->procCmdList[j],
+                                             procList->procIdList[j],
                                              (NULL == procList->procOwnerList
-                                              || NULL == procList->procOwnerList[i])
-                                             ? "" : procList->procOwnerList[i],
+                                              || NULL == procList->procOwnerList[j])
+                                             ? "" : procList->procOwnerList[j],
                                              (NULL == procList->startTime)
-                                             ? 0 : (int) procList->startTime[i],
+                                             ? 0 : (int) procList->startTime[j],
                                              0, 0);
                if (VIX_OK != err) {
                   goto abort;
