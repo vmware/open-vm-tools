@@ -135,10 +135,15 @@ typedef enum {
 #define QPBROKERSTATE_HAS_MEM(_qpb) (_qpb->state == VMCIQPB_CREATED_MEM || \
                                      _qpb->state == VMCIQPB_ATTACHED_MEM || \
                                      _qpb->state == VMCIQPB_SHUTDOWN_MEM)
+
 /*
- * The context that creates the QueuePair becomes producer of produce queue,
- * and consumer of consume queue. The context on other end for the QueuePair
- * has roles reversed for these two queues.
+ * In the queue pair broker, we always use the guest point of view for
+ * the produce and consume queue values and references, e.g., the
+ * produce queue size stored is the guests produce queue size. The
+ * host endpoint will need to swap these around. The only exception is
+ * the local queue pairs on the host, in which case the host endpoint
+ * that creates the queue pair will have the right orientation, and
+ * the attaching host endpoint will need to swap.
  */
 
 typedef struct QueuePairEntry {
@@ -995,6 +1000,8 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
    const VMCIId contextId = VMCIContext_GetId(context);
    Bool isLocal = flags & VMCI_QPFLAG_LOCAL;
    int result;
+   uint64 guestProduceSize;
+   uint64 guestConsumeSize;
 
    /*
     * Do not create if the caller asked not to.
@@ -1018,12 +1025,28 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
       return VMCI_ERROR_NO_MEM;
    }
 
+   if (VMCIContext_GetId(context) == VMCI_HOST_CONTEXT_ID && !isLocal) {
+      /*
+       * The queue pair broker entry stores values from the guest
+       * point of view, so a creating host side endpoint should swap
+       * produce and consume values -- unless it is a local queue
+       * pair, in which case no swapping is necessary, since the local
+       * attacher will swap queues.
+       */
+
+      guestProduceSize = consumeSize;
+      guestConsumeSize = produceSize;
+   } else {
+      guestProduceSize = produceSize;
+      guestConsumeSize = consumeSize;
+   }
+
    memset(entry, 0, sizeof *entry);
    entry->qp.handle = handle;
    entry->qp.peer = peer;
    entry->qp.flags = flags;
-   entry->qp.produceSize = produceSize;
-   entry->qp.consumeSize = consumeSize;
+   entry->qp.produceSize = guestProduceSize;
+   entry->qp.consumeSize = guestConsumeSize;
    entry->qp.refCount = 1;
    entry->createId = contextId;
    entry->attachId = VMCI_INVALID_ID;
@@ -1035,12 +1058,12 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
    entry->vmciPageFiles = FALSE;
    entry->wakeupCB = wakeupCB;
    entry->clientData = clientData;
-   entry->produceQ = VMCIHost_AllocQueue(produceSize);
+   entry->produceQ = VMCIHost_AllocQueue(guestProduceSize);
    if (entry->produceQ == NULL) {
       result = VMCI_ERROR_NO_MEM;
       goto error;
    }
-   entry->consumeQ = VMCIHost_AllocQueue(consumeSize);
+   entry->consumeQ = VMCIHost_AllocQueue(guestConsumeSize);
    if (entry->consumeQ == NULL) {
       result = VMCI_ERROR_NO_MEM;
       goto error;
@@ -1105,10 +1128,10 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
 error:
    if (entry != NULL) {
       if (entry->produceQ != NULL) {
-         VMCIHost_FreeQueue(entry->produceQ, produceSize);
+         VMCIHost_FreeQueue(entry->produceQ, guestProduceSize);
       }
       if (entry->consumeQ != NULL) {
-         VMCIHost_FreeQueue(entry->consumeQ, consumeSize);
+         VMCIHost_FreeQueue(entry->consumeQ, guestConsumeSize);
       }
       VMCI_FreeKernelMem(entry, sizeof *entry);
    }
@@ -1241,9 +1264,23 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
       }
    }
 
-   if (entry->qp.produceSize != consumeSize ||
-       entry->qp.consumeSize != produceSize ||
-       entry->qp.flags != (flags & ~VMCI_QPFLAG_ATTACH_ONLY)) {
+   if (entry->qp.flags != (flags & ~VMCI_QPFLAG_ATTACH_ONLY)) {
+      return VMCI_ERROR_QUEUEPAIR_MISMATCH;
+   }
+
+   if (contextId != VMCI_HOST_CONTEXT_ID) {
+      /*
+       * The queue pair broker entry stores values from the guest
+       * point of view, so an attaching guest should match the values
+       * stored in the entry.
+       */
+
+      if (entry->qp.produceSize != produceSize ||
+          entry->qp.consumeSize != consumeSize) {
+         return VMCI_ERROR_QUEUEPAIR_MISMATCH;
+      }
+   } else if (entry->qp.produceSize != consumeSize ||
+              entry->qp.consumeSize != produceSize) {
       return VMCI_ERROR_QUEUEPAIR_MISMATCH;
    }
 
