@@ -34,8 +34,11 @@
 
 
 typedef struct HashTable HashTable;
+
 typedef void (*HashTableFreeEntryFn)(void *clientData);
-typedef int (*HashTableForEachCallback)(const char *key, void *value, 
+
+typedef int (*HashTableForEachCallback)(const char *key,
+                                        void *value, 
                                         void *clientData);
 
 #define HASH_STRING_KEY		0	// case-sensitive string key
