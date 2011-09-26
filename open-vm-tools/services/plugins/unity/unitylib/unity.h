@@ -84,9 +84,6 @@ typedef struct UnityVirtualDesktopArray {
    UnityVirtualDesktop desktops[MAX_VIRT_DESK];      // array of desktops
 } UnityVirtualDesktopArray;
 
-/* Forward reference. */
-typedef struct DesktopSwitchCallbackManager DesktopSwitchCallbackManager;
-
 /*
  * Callback functions for outbound updates from the guest to the host.
  * The Unity library requires these functions to be provided so that the host
