@@ -914,6 +914,7 @@ VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
 
    queue = (VMCIQueue *)((uint8 *)qHeader + PAGE_SIZE);
    queue->qHeader = qHeader;
+   queue->savedHeader = NULL;
    queue->kernelIf = (VMCIQueueKernelIf *)((uint8 *)queue + sizeof *queue);
    queue->kernelIf->headerPage = NULL; // Unused in guest.
    queue->kernelIf->page = (struct page **)((uint8 *)queue->kernelIf +
@@ -1513,6 +1514,7 @@ VMCIHost_AllocQueue(uint64 size) // IN:
    queue = VMCI_AllocKernelMem(queueSize + queuePageSize, VMCI_MEMORY_NORMAL);
    if (queue) {
       queue->qHeader = NULL;
+      queue->savedHeader = NULL;
       queue->kernelIf = (VMCIQueueKernelIf *)((uint8 *)queue + sizeof *queue);
       queue->kernelIf->host = TRUE;
       queue->kernelIf->mutex = NULL;

@@ -296,6 +296,8 @@ static const VMCIHandle VMCI_INVALID_HANDLE = {VMCI_INVALID_ID,
 #define VMCI_ERROR_BUSMEM_INVALIDATION   (-37)
 #define VMCI_ERROR_MODULE_NOT_LOADED     (-38)
 #define VMCI_ERROR_DEVICE_NOT_FOUND      (-39)
+#define VMCI_ERROR_QUEUEPAIR_NOT_READY   (-40)
+#define VMCI_ERROR_WOULD_BLOCK           (-41)
 
 /* VMCI clients should return error code withing this range */
 #define VMCI_ERROR_CLIENT_MIN     (-500)

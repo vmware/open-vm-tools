@@ -2438,6 +2438,51 @@ VMCIContext_SupportsHostQP(VMCIContext *context)    // IN: Context structure
 /*
  *----------------------------------------------------------------------
  *
+ * VMCIContext_RegisterGuestMem --
+ *
+ *      Tells the context that guest memory is available for access.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Notifies host side endpoints of queue pairs that the queue pairs
+ *      can be accessed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCIContext_RegisterGuestMem(VMCIContext *context) // IN: Context structure
+{
+#ifdef VMKERNEL
+   uint32 numQueuePairs;
+   uint32 cur;
+
+   VMCIQPBroker_Lock();
+   numQueuePairs = VMCIHandleArray_GetSize(context->queuePairArray);
+   for (cur = 0; cur < numQueuePairs; cur++) {
+      VMCIHandle handle;
+      handle = VMCIHandleArray_GetEntry(context->queuePairArray, cur);
+      if (!VMCI_HANDLE_EQUAL(handle, VMCI_INVALID_HANDLE)) {
+         int res;
+
+         res = VMCIQPBroker_Map(handle, context, NULL);
+         if (res < VMCI_SUCCESS) {
+            VMCI_WARNING(("Failed to map guest memory for queue pair "
+                          "(handle=0x%x:0x%x, res=%d).\n",
+                          handle.context, handle.resource, res));
+         }
+      }
+   }
+   VMCIQPBroker_Unlock();
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * VMCIContext_ReleaseGuestMem --
  *
  *      Releases all the contexts references to guest memory.

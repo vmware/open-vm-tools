@@ -158,6 +158,10 @@ typedef struct QPBrokerEntry {
    Bool                 vmciPageFiles;  // Created by VMX using VMCI page files
    VMCIQueue           *produceQ;
    VMCIQueue           *consumeQ;
+   VMCIQueueHeader      savedProduceQ;
+   VMCIQueueHeader      savedConsumeQ;
+   VMCIEventReleaseCB   wakeupCB;
+   void                *clientData;
    void                *localMem; // Kernel memory for local queue pair
 } QPBrokerEntry;
 
@@ -206,6 +210,8 @@ static int VMCIQPBrokerAllocInt(VMCIHandle handle, VMCIId peer,
                                 uint64 consumeSize,
                                 QueuePairPageStore *pageStore,
                                 VMCIContext *context,
+                                VMCIEventReleaseCB wakeupCB,
+                                void *clientData,
                                 QPBrokerEntry **ent,
                                 Bool *swap);
 static int VMCIQPBrokerAttach(QPBrokerEntry *entry,
@@ -216,6 +222,8 @@ static int VMCIQPBrokerAttach(QPBrokerEntry *entry,
                               uint64 consumeSize,
                               QueuePairPageStore *pageStore,
                               VMCIContext *context,
+                              VMCIEventReleaseCB wakeupCB,
+                              void *clientData,
                               QPBrokerEntry **ent);
 static int VMCIQPBrokerCreate(VMCIHandle handle,
                               VMCIId peer,
@@ -225,13 +233,20 @@ static int VMCIQPBrokerCreate(VMCIHandle handle,
                               uint64 consumeSize,
                               QueuePairPageStore *pageStore,
                               VMCIContext *context,
+                              VMCIEventReleaseCB wakeupCB,
+                              void *clientData,
                               QPBrokerEntry **ent);
 static int VMCIQueuePairAllocHostWork(VMCIHandle *handle, VMCIQueue **produceQ,
                                       uint64 produceSize, VMCIQueue **consumeQ,
                                       uint64 consumeSize,
                                       VMCIId peer, uint32 flags,
-                                      VMCIPrivilegeFlags privFlags);
+                                      VMCIPrivilegeFlags privFlags,
+                                      VMCIEventReleaseCB wakeupCB,
+                                      void *clientData);
 static int VMCIQueuePairDetachHostWork(VMCIHandle handle);
+
+static int QueuePairSaveHeaders(QPBrokerEntry *entry);
+static void QueuePairResetSavedHeaders(QPBrokerEntry *entry);
 
 #if !defined(VMKERNEL)
 
@@ -286,7 +301,9 @@ VMCIQueuePair_Alloc(VMCIHandle *handle,           // IN/OUT
                     VMCIId     peer,              // IN
                     uint32     flags,             // IN
                     VMCIPrivilegeFlags privFlags, // IN
-                    Bool       guestEndpoint)     // IN
+                    Bool       guestEndpoint,     // IN
+                    VMCIEventReleaseCB wakeupCB,  // IN
+                    void *clientData)             // IN
 {
    if (!handle || !produceQ || !consumeQ || (!produceSize && !consumeSize) ||
        (flags & ~VMCI_QP_ALL_FLAGS)) {
@@ -302,7 +319,8 @@ VMCIQueuePair_Alloc(VMCIHandle *handle,           // IN/OUT
 #endif
    } else {
       return VMCIQueuePairAllocHostWork(handle, produceQ, produceSize, consumeQ,
-                                        consumeSize, peer, flags, privFlags);
+                                        consumeSize, peer, flags, privFlags,
+                                        wakeupCB, clientData);
    }
 }
 
@@ -699,7 +717,8 @@ VMCIQPBroker_Alloc(VMCIHandle handle,             // IN
 {
    return VMCIQPBrokerAllocInt(handle, peer, flags, privFlags,
                                produceSize, consumeSize,
-                               pageStore, context, NULL, NULL);
+                               pageStore, context, NULL, NULL,
+                               NULL, NULL);
 }
 
 
@@ -801,7 +820,9 @@ VMCIQueuePairAllocHostWork(VMCIHandle *handle,           // IN/OUT
                            uint64 consumeSize,           // IN
                            VMCIId peer,                  // IN
                            uint32 flags,                 // IN
-                           VMCIPrivilegeFlags privFlags) // IN
+                           VMCIPrivilegeFlags privFlags, // IN
+                           VMCIEventReleaseCB wakeupCB,  // IN
+                           void *clientData)             // IN
 {
    VMCIContext *context;
    QPBrokerEntry *entry;
@@ -822,7 +843,8 @@ VMCIQueuePairAllocHostWork(VMCIHandle *handle,           // IN/OUT
    entry = NULL;
    VMCIQPBroker_Lock();
    result = VMCIQPBrokerAllocInt(*handle, peer, flags, privFlags, produceSize,
-                                 consumeSize, NULL, context, &entry, &swap);
+                                 consumeSize, NULL, context, wakeupCB, clientData,
+                                 &entry, &swap);
    if (result == VMCI_SUCCESS) {
       if (swap) {
          /*
@@ -908,6 +930,8 @@ VMCIQPBrokerAllocInt(VMCIHandle handle,             // IN
                      uint64 consumeSize,            // IN
                      QueuePairPageStore *pageStore, // IN/OUT
                      VMCIContext *context,          // IN: Caller
+                     VMCIEventReleaseCB wakeupCB,   // IN
+                     void *clientData,              // IN
                      QPBrokerEntry **ent,           // OUT
                      Bool *swap)                    // OUT: swap queues?
 {
@@ -949,11 +973,13 @@ VMCIQPBrokerAllocInt(VMCIHandle handle,             // IN
    if (!entry) {
       create = TRUE;
       result = VMCIQPBrokerCreate(handle, peer, flags, privFlags, produceSize,
-                                  consumeSize, pageStore, context, ent);
+                                  consumeSize, pageStore, context, wakeupCB,
+                                  clientData, ent);
    } else {
       create = FALSE;
       result = VMCIQPBrokerAttach(entry, peer, flags, privFlags, produceSize,
-                                  consumeSize, pageStore, context, ent);
+                                  consumeSize, pageStore, context, wakeupCB,
+                                  clientData, ent);
    }
 
    if (swap) {
@@ -1004,6 +1030,8 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
                    uint64 consumeSize,            // IN
                    QueuePairPageStore *pageStore, // IN
                    VMCIContext *context,          // IN: Caller
+                   VMCIEventReleaseCB wakeupCB,   // IN
+                   void *clientData,              // IN
                    QPBrokerEntry **ent)           // OUT
 {
    QPBrokerEntry *entry = NULL;
@@ -1057,12 +1085,13 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
    entry->createdByTrusted =
       (privFlags & VMCI_PRIVILEGE_FLAG_TRUSTED) ? TRUE : FALSE;
    entry->vmciPageFiles = FALSE;
+   entry->wakeupCB = wakeupCB;
+   entry->clientData = clientData;
    entry->produceQ = VMCIHost_AllocQueue(produceSize);
    if (entry->produceQ == NULL) {
       result = VMCI_ERROR_NO_MEM;
       goto error;
    }
-
    entry->consumeQ = VMCIHost_AllocQueue(consumeSize);
    if (entry->consumeQ == NULL) {
       result = VMCI_ERROR_NO_MEM;
@@ -1181,6 +1210,8 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
                    uint64 consumeSize,            // IN
                    QueuePairPageStore *pageStore, // IN/OUT
                    VMCIContext *context,          // IN: Caller
+                   VMCIEventReleaseCB wakeupCB,   // IN
+                   void *clientData,              // IN
                    QPBrokerEntry **ent)           // OUT
 {
    const VMCIId contextId = VMCIContext_GetId(context);
@@ -1335,6 +1366,11 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
 
    entry->attachId = contextId;
    entry->qp.refCount++;
+   if (wakeupCB) {
+      ASSERT(!entry->wakeupCB);
+      entry->wakeupCB = wakeupCB;
+      entry->clientData = clientData;
+   }
 
    /*
     * When attaching to local queue pairs, the context already has
@@ -1581,6 +1617,18 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
             VMCIHost_UnregisterUserMemory(entry->produceQ, entry->consumeQ);
          }
          VMCI_ReleaseQueueMutex(entry->produceQ);
+      } else {
+         VMCI_AcquireQueueMutex(entry->produceQ);
+         QueuePairResetSavedHeaders(entry);
+         VMCI_ReleaseQueueMutex(entry->produceQ);
+         if (entry->wakeupCB) {
+            entry->wakeupCB(entry->clientData);
+         }
+      }
+   } else {
+      if (entry->wakeupCB) {
+         entry->wakeupCB = NULL;
+         entry->clientData = NULL;
       }
    }
 
@@ -1642,11 +1690,6 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
    Bool isLocal = FALSE;
    int result;
 
-   if (vmkernel) {
-      ASSERT(FALSE);
-      return VMCI_ERROR_UNAVAILABLE;
-   }
-
    if (VMCI_HANDLE_INVALID(handle) || !context || contextId == VMCI_INVALID_ID) {
       return VMCI_ERROR_INVALID_ARGS;
    }
@@ -1672,7 +1715,20 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
 
    isLocal = entry->qp.flags & VMCI_QPFLAG_LOCAL;
 
-   if (contextId != VMCI_HOST_CONTEXT_ID) {
+   if (vmkernel) {
+      /*
+       * On vmkernel, the readiness of the queue pair can be signalled
+       * immediately since the guest memory is already registered.
+       */
+
+      VMCI_AcquireQueueMutex(entry->produceQ);
+      QueuePairResetSavedHeaders(entry);
+      VMCI_ReleaseQueueMutex(entry->produceQ);
+      if (entry->wakeupCB) {
+         entry->wakeupCB(entry->clientData);
+      }
+      result = VMCI_SUCCESS;
+   } else  if (contextId != VMCI_HOST_CONTEXT_ID) {
       QueuePairPageStore pageStore;
 
       ASSERT(entry->state == VMCIQPB_CREATED_NO_MEM ||
@@ -1684,8 +1740,9 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
       pageStore.len = QPE_NUM_PAGES(entry->qp);
 
       VMCI_AcquireQueueMutex(entry->produceQ);
-
+      QueuePairResetSavedHeaders(entry);
       result = VMCIHost_RegisterUserMemory(&pageStore, entry->produceQ, entry->consumeQ);
+      VMCI_ReleaseQueueMutex(entry->produceQ);
       if (result == VMCI_SUCCESS) {
          /*
           * Move state from *_NO_MEM to *_MEM.
@@ -1696,14 +1753,82 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
          ASSERT(entry->state == VMCIQPB_CREATED_MEM ||
                 entry->state == VMCIQPB_SHUTDOWN_MEM ||
                 entry->state == VMCIQPB_ATTACHED_MEM);
+
+         if (entry->wakeupCB) {
+            entry->wakeupCB(entry->clientData);
+         }
       }
-      VMCI_ReleaseQueueMutex(entry->produceQ);
    } else {
       result = VMCI_SUCCESS;
    }
 
    return result;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * QueuePairSaveHeaders --
+ *
+ *      Saves a snapshot of the queue headers for the given QP broker
+ *      entry. Should be used when guest memory is unmapped.
+ *
+ * Results:
+ *      VMCI_SUCCESS on success, appropriate error code if guest memory
+ *      can't be accessed..
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+QueuePairSaveHeaders(QPBrokerEntry *entry) // IN
+{
+   int result;
+
+   if (NULL == entry->produceQ->qHeader || NULL == entry->consumeQ->qHeader) {
+      result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
+      if (result < VMCI_SUCCESS) {
+         return result;
+      }
+   }
+   memcpy(&entry->savedProduceQ, entry->produceQ->qHeader, sizeof entry->savedProduceQ);
+   entry->produceQ->savedHeader = &entry->savedProduceQ;
+   memcpy(&entry->savedConsumeQ, entry->consumeQ->qHeader, sizeof entry->savedConsumeQ);
+   entry->consumeQ->savedHeader = &entry->savedConsumeQ;
+
+   return VMCI_SUCCESS;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * QueuePairResetSavedHeaders --
+ *
+ *      Resets saved queue headers for the given QP broker
+ *      entry. Should be used when guest memory becomes available
+ *      again, or the guest detaches.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+QueuePairResetSavedHeaders(QPBrokerEntry *entry) // IN
+{
+   entry->produceQ->savedHeader = NULL;
+   entry->consumeQ->savedHeader = NULL;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1759,13 +1884,20 @@ VMCIQPBroker_Unmap(VMCIHandle  handle,   // IN
    isLocal = entry->qp.flags & VMCI_QPFLAG_LOCAL;
 
    if (contextId != VMCI_HOST_CONTEXT_ID) {
+      int result;
+
       ASSERT(entry->state != VMCIQPB_CREATED_NO_MEM &&
              entry->state != VMCIQPB_SHUTDOWN_NO_MEM &&
              entry->state != VMCIQPB_ATTACHED_NO_MEM);
       ASSERT(!isLocal);
 
       VMCI_AcquireQueueMutex(entry->produceQ);
-
+      result = QueuePairSaveHeaders(entry);
+      if (result < VMCI_SUCCESS) {
+         VMCI_WARNING((LGPFX"Failed to save queue headers for queue pair "
+                       "(handle=0x%x:0x%x,result=%d).\n", handle.context,
+                       handle.resource, result));
+      }
       VMCIHost_UnmapQueueHeaders(gid,
                                  entry->produceQ,
                                  entry->consumeQ);

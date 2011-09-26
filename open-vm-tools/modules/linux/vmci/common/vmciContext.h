@@ -91,6 +91,7 @@ int VMCIContext_GetCheckpointState(VMCIId contextID, uint32 cptType,
                                    uint32 *numCIDs, char **cptBufPtr);
 int VMCIContext_SetCheckpointState(VMCIId contextID, uint32 cptType,
                                    uint32 numCIDs, char *cptBuf);
+void VMCIContext_RegisterGuestMem(VMCIContext *context);
 void VMCIContext_ReleaseGuestMem(VMCIContext *context, VMCIGuestMemID gid);
 
 #ifndef VMX86_SERVER

@@ -64,6 +64,7 @@ typedef struct VMCIQueueKernelIf VMCIQueueKernelIf;
 
 typedef struct VMCIQueue {
    VMCIQueueHeader *qHeader;
+   VMCIQueueHeader *savedHeader;
    VMCIQueueKernelIf *kernelIf;
 } VMCIQueue;
 

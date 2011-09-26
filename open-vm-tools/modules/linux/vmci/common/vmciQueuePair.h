@@ -95,7 +95,8 @@ void VMCIQPGuestEndpoints_Convert(Bool toLocal, Bool deviceReset);
 int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
                         uint64 produceSize, VMCIQueue **consumeQ,
                         uint64 consumeSize, VMCIId peer, uint32 flags,
-                        VMCIPrivilegeFlags privFlags, Bool guestEndpoint);
+                        VMCIPrivilegeFlags privFlags, Bool guestEndpoint,
+                        VMCIEventReleaseCB wakeupCB, void *clientData);
 int VMCIQueuePair_Detach(VMCIHandle handle, Bool guestEndpoint);
 int VMCIQPBroker_Map(VMCIHandle  handle, VMCIContext *context, VMCIQPGuestMem guestMem);
 int VMCIQPBroker_Unmap(VMCIHandle  handle, VMCIContext *context, VMCIGuestMemID gid);
