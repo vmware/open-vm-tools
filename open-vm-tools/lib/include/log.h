@@ -222,7 +222,6 @@ void Log_UpdatePerLine(Bool perLineTimeStamps,
                        Bool perLineThreadNames);
 
 void Log_Exit(void);
-void Log_SetConfigDir(const char *configDir);
 
 Bool Log_Outputting(void);
 const char *Log_GetFileName(void);
