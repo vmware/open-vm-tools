@@ -184,6 +184,7 @@ MXUserUp(NativeSemaphore *sema)  // IN:
 {
    return ReleaseSemaphore(*sema, 1, NULL) ? 0 : GetLastError();
 }
+
 #elif defined(__APPLE__)
 static int
 MXUserInit(NativeSemaphore *sema)  // IN:
@@ -280,8 +281,8 @@ MXUserUp(NativeSemaphore *sema)  // IN:
 {
     return semaphore_signal(*sema);
 }
-#else
 
+#else
 static int
 MXUserInit(NativeSemaphore *sema)  // IN:
 {
