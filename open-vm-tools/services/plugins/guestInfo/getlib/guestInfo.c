@@ -395,6 +395,34 @@ GuestInfoSockaddrToTypedIpAddress(const struct sockaddr *sa,
       XDRUTIL_SAFESETOPAQUE(&typedIp->ipAddressAddr, InetAddress,
                             &sin6->sin6_addr.s6_addr,
                             sizeof sin6->sin6_addr.s6_addr);
+
+      /*
+       * Some TCP stacks (hello Apple and FreeBSD!) deviate from the RFC and
+       * embed the scope id in link-local IPv6 addresses. This breaks things
+       * since the address with the scope id does not work on the wire. For
+       * example:
+       *
+       *    fe80:4::20c:29ff:fece:3dcf
+       *
+       * Is an invalid IPv6 address because the "4" violates the RFC. But that's
+       * what SIOCGIFCONF returns on these platforms.
+       *
+       * Detect link-local addresses here and make sure they comply with the
+       * RFC. Just for reference, link local addresses start with '1111111010'
+       * and have 54 zero bits after that:
+       *
+       * http://tools.ietf.org/html/rfc4291#section-2.5.6
+       */
+      {
+         uint64  ip6_ll_test = 0x80FE;
+         uint64  ip6_ll_mask = 0xC0FF;
+         uint64 *ip6 = (uint64 *) typedIp->ipAddressAddr.InetAddress_val;
+
+         if ((*ip6 & ip6_ll_mask) == ip6_ll_test) {
+            *ip6 &= ip6_ll_mask;
+         }
+      }
+
       break;
    default:
       NOT_REACHED();
