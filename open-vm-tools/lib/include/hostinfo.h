@@ -74,11 +74,37 @@ extern char *Hostinfo_GetOSName(void);
 extern char *Hostinfo_GetOSGuestString(void);
 
 extern Bool Hostinfo_OSIsSMP(void);
+
 #if defined(_WIN32)
 extern Bool Hostinfo_OSIsWinNT(void);
 extern Bool Hostinfo_OSIsWow64(void);
 DWORD Hostinfo_OpenProcessBits(void);
+#else
+extern void Hostinfo_ResetProcessState(const int *keepFds,
+                                       size_t numKeepFds);
+
+extern int Hostinfo_Execute(const char *path,
+                            char * const *args,
+                            Bool wait,
+                            const int *keepFds,
+                            size_t numKeepFds);
+
+typedef enum HostinfoDaemonizeFlags {
+   HOSTINFO_DAEMONIZE_DEFAULT = 0,
+   HOSTINFO_DAEMONIZE_NOCHDIR = (1 << 0),
+   HOSTINFO_DAEMONIZE_NOCLOSE = (1 << 1),
+   HOSTINFO_DAEMONIZE_EXIT    = (1 << 2),
+   HOSTINFO_DAEMONIZE_LOCKPID = (1 << 3),
+} HostinfoDaemonizeFlags;
+
+extern Bool Hostinfo_Daemonize(const char *path,
+                               char * const *args,
+                               HostinfoDaemonizeFlags flags,
+                               const char *pidPath,
+                               const int *keepFds,
+                               size_t numKeepFds);
 #endif
+
 extern Bool Hostinfo_NestingSupported(void);
 extern Bool Hostinfo_VCPUInfoBackdoor(unsigned bit);
 extern Bool Hostinfo_SLC64Supported(void);
@@ -93,28 +119,6 @@ extern char *Hostinfo_HypervisorCPUIDSig(void);
 #define HGMP_NO_PRIVILEGE 1
 extern Unicode Hostinfo_GetModulePath(uint32 priv);
 extern char *Hostinfo_GetLibraryPath(void *addr);
-
-#if !defined(_WIN32)
-extern void Hostinfo_ResetProcessState(const int *keepFds, size_t numKeepFds);
-extern int Hostinfo_Execute(const char *path,
-                            char * const *args,
-                            Bool wait,
-                            const int *keepFds,
-                            size_t numKeepFds);
-typedef enum HostinfoDaemonizeFlags {
-   HOSTINFO_DAEMONIZE_DEFAULT = 0,
-   HOSTINFO_DAEMONIZE_NOCHDIR = (1 << 0),
-   HOSTINFO_DAEMONIZE_NOCLOSE = (1 << 1),
-   HOSTINFO_DAEMONIZE_EXIT    = (1 << 2),
-   HOSTINFO_DAEMONIZE_LOCKPID = (1 << 3),
-} HostinfoDaemonizeFlags;
-extern Bool Hostinfo_Daemonize(const char *path,
-                               char * const *args,
-                               HostinfoDaemonizeFlags flags,
-                               const char *pidPath,
-                               const int *keepFds,
-                               size_t numKeepFds);
-#endif
 
 extern Unicode Hostinfo_GetUser(void);
 extern void Hostinfo_LogMemUsage(void);
@@ -145,7 +149,9 @@ extern char *Hostinfo_GetCpuidStr(void);
 extern Bool Hostinfo_GetCpuid(HostinfoCpuIdInfo *info);
 
 #if !defined(VMX86_SERVER)
-extern Bool Hostinfo_CPUCounts(uint32 *logical, uint32 *cores, uint32 *pkgs);
+extern Bool Hostinfo_CPUCounts(uint32 *logical,
+                               uint32 *cores,
+                               uint32 *pkgs);
 #endif
 
 #if defined(_WIN32)
@@ -193,23 +199,22 @@ OS_DETAIL_TYPE Hostinfo_GetOSDetailType(void);
 
 Bool Hostinfo_GetPCFrequency(uint64 *pcHz);
 Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber,
-				uint32 *currentMhz, uint32 *maxMhz);
+				uint32 *currentMhz,
+                                uint32 *maxMhz);
 uint64 Hostinfo_SystemIdleTime(void);
 Bool Hostinfo_GetAllCpuid(CPUIDQuery *query);
+
+static INLINE Bool
+Hostinfo_AtLeastVista(void)
+{
+   return (Hostinfo_GetOSType() >= OS_VISTA);
+}
 #endif
 void Hostinfo_LogLoadAverage(void);
 Bool Hostinfo_GetLoadAverage(uint32 *l);
 
 #ifdef __APPLE__
 size_t Hostinfo_GetKernelZoneElemSize(char const *name);
-#endif
-
-#ifdef _WIN32
-static INLINE Bool
-Hostinfo_AtLeastVista(void)
-{
-   return (Hostinfo_GetOSType() >= OS_VISTA);
-}
 #endif
 
 #endif /* ifndef _HOSTINFO_H_ */
