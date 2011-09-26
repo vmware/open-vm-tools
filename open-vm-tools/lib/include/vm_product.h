@@ -58,7 +58,7 @@
 /*
  * Brief names are used when the VMware prefix is not wanted.
  */
-#define PRODUCT_SCALABLE_SERVER_BRIEF_NAME "ESXi"
+#define PRODUCT_SCALABLE_SERVER_BRIEF_NAME "ESX"
 #define PRODUCT_WGS_BRIEF_NAME "Server"
 #define PRODUCT_GSX_BRIEF_NAME "GSX Server"
 #define PRODUCT_WORKSTATION_BRIEF_NAME "Workstation"
@@ -82,7 +82,7 @@
 #define VMWARE_TOOLS_SHORT_NAME MAKE_NAME("Tools")
 
 #define PRODUCT_SCALABLE_SERVER_NAME MAKE_NAME(PRODUCT_SCALABLE_SERVER_BRIEF_NAME)
-#define PRODUCT_ESX_SMP_NAME MAKE_NAME("Virtual SMP for ESXi Server")
+#define PRODUCT_ESX_SMP_NAME MAKE_NAME("Virtual SMP for ESX Server")
 #define PRODUCT_WGS_NAME MAKE_NAME(PRODUCT_WGS_BRIEF_NAME)
 #define PRODUCT_GSX_NAME MAKE_NAME(PRODUCT_GSX_BRIEF_NAME)
 #define PRODUCT_GSX_SMP_NAME MAKE_NAME("Virtual SMP for GSX Server")
@@ -131,7 +131,7 @@
 
 #define PRODUCT_SDK_NAME MAKE_NAME("SDK")
 
-#define PRODUCT_DDK_NAME MAKE_NAME("ESXi DDK")
+#define PRODUCT_DDK_NAME MAKE_NAME("ESX DDK")
 
 // XXX I think these are dead and can be removed -clayton
 // #define PRODUCT_VDM_SHORT_NAME "VDM"
@@ -405,7 +405,7 @@
  * file.
  */
 #   if defined(VMX86_SERVER)
-#      define PRODUCT_NAME_FOR_LICENSE "VMware ESXi Server"
+#      define PRODUCT_NAME_FOR_LICENSE "VMware ESX Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE PRODUCT_ESX_SMP_NAME
 #   elif defined(VMX86_DESKTOP)
 #      if defined(__APPLE__)
