@@ -573,7 +573,7 @@ FIELD( 8A,  0, EBX, AMD,     0, 32, SVM_NUM_ASIDS,                 YES, FALSE) \
 FIELD( 8A,  0, ECX, AMD,     0, 32, SVMECX_RSVD,                   NO,  FALSE) \
 FLAG(  8A,  0, EDX, AMD,     0,  1, SVM_NPT,                       YES, FALSE) \
 FLAG(  8A,  0, EDX, AMD,     1,  1, SVM_LBR,                       NO,  FALSE) \
-FLAG(  8A,  0, EDX, AMD,     2,  1, SVM_LOCK,                      YES, FALSE) \
+FLAG(  8A,  0, EDX, AMD,     2,  1, SVM_LOCK,                      ANY, FALSE) \
 FLAG(  8A,  0, EDX, AMD,     3,  1, SVM_NRIP,                      YES, FALSE) \
 FLAG(  8A,  0, EDX, AMD,     4,  1, SVM_TSC_RATE_MSR,              NO,  FALSE) \
 FLAG(  8A,  0, EDX, AMD,     5,  1, SVM_VMCB_CLEAN,                YES, FALSE) \
