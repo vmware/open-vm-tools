@@ -44,6 +44,7 @@
 #if defined(G_PLATFORM_WIN32)
 #  include "coreDump.h"
 #endif
+#include "str.h"
 #include "system.h"
 
 #define MAX_DOMAIN_LEN        64
@@ -905,11 +906,15 @@ VMToolsLogWrapper(GLogLevelFlags level,
                   va_list args)
 {
    if (gPanicCount == 0) {
-      g_logv(gLogDomain, level, fmt, args);
+      char *msg = Str_Vasprintf(NULL, fmt, args);
+      if (msg != NULL) {
+         g_log(gLogDomain, level, "%s", msg);
+         free(msg);
+      }
    } else {
       /* Try to avoid malloc() since we're aborting. */
       gchar msg[256];
-      g_vsnprintf(msg, sizeof msg, fmt, args);
+      Str_Vsnprintf(msg, sizeof msg, fmt, args);
       VMToolsLog(gLogDomain, level, msg, gDefaultData);
    }
 }
@@ -1009,7 +1014,11 @@ Panic(const char *fmt, ...)
 
    va_start(args, fmt);
    if (gPanicCount == 0) {
-      g_logv(gLogDomain, G_LOG_LEVEL_ERROR, fmt, args);
+      char *msg = Str_Vasprintf(NULL, fmt, args);
+      if (msg != NULL) {
+         g_log(gLogDomain, G_LOG_LEVEL_ERROR, "%s", msg);
+         free(msg);
+      }
       /*
        * In case an user-installed custom handler doesn't panic on error, force a
        * core dump. Also force a dump in the recursive case.
@@ -1021,7 +1030,7 @@ Panic(const char *fmt, ...)
        * probably already in a weird state.
        */
       gchar msg[1024];
-      g_vsnprintf(msg, sizeof msg, fmt, args);
+      Str_Vsnprintf(msg, sizeof msg, fmt, args);
       fprintf(stderr, "Recursive panic: %s\n", msg);
       VMToolsLogPanic();
    } else {
