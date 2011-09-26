@@ -86,6 +86,9 @@
 #include "vm_basic_types.h"
 #include "vm_basic_defs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * Internal macros, functions, and strings
@@ -372,5 +375,8 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
       assertions \
    }
 
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* ifndef _VM_ASSERT_H_ */

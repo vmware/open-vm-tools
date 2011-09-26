@@ -259,16 +259,16 @@
 #define NETDUMP_FILE_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VDDK_VERSION          "5.1.0"
 #define VDDK_FILE_VERSION      5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define OVFTOOL_VERSION "2.1.0"
+#define OVFTOOL_VERSION "e.x.p"
 #define VDM_CLIENT_VERSION "e.x.p"
 #define VGAUTH_VERSION "e.x.p"
 #define VIEWY_VERSION "e.x.p"
 #define VMCFSDK_VERSION "e.x.p"
 #define PCOIP_VERSION "e.x.p"
 #define VIEW_VERSION "0.0.0"
+#define HOSTD_VERSION "e.x.p"
 
 
-// VMRC_PLUGIN_VERSION should match PLAYER_VERSION but can't be e.x.p
 #ifndef MAKESTR
 #define MAKESTR(x) #x
 #define XSTR(x) MAKESTR(x)
@@ -277,7 +277,7 @@
 // This extra version define is here so the Makefiles can easily pick it up.
 // See the VMRC_PLUGIN_VERSION section in /mk/defs-onetime.mk
 
-#define VMRC_PLUGIN_VERSION_MAJOR 4
+#define VMRC_PLUGIN_VERSION_MAJOR 5
 #define VMRC_PLUGIN_VERSION_MINOR 0
 #define VMRC_PLUGIN_VERSION_Z     0
 
@@ -286,7 +286,7 @@
  * #define VMRC_PLUGIN_VERSION_NUMBER       \
  *         XSTR(VMRC_PLUGIN_VERSION_MAJOR) "." XSTR(VMRC_PLUGIN_VERSION_MINOR) "." XSTR(VMRC_PLUGIN_VERSION_Z)
  */
-#define VMRC_PLUGIN_VERSION_NUMBER "4.0.0"
+#define VMRC_PLUGIN_VERSION_NUMBER "5.0.0"
 
 /* this version number should always match real VMRC & plugin version number */
 #define VMRC_VERSION VMRC_PLUGIN_VERSION_NUMBER
@@ -305,7 +305,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 9
 #define USB_ARBITRATOR_VERSION_MINOR 0
-#define USB_ARBITRATOR_VERSION_Z     33
+#define USB_ARBITRATOR_VERSION_Z     38
 
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
@@ -321,7 +321,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.33"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.38"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
