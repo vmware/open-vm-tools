@@ -159,7 +159,8 @@ enum {
 };
 
 
-/* SVM CPUID feature leaf */
+/* Named feature leaves */
+#define CPUID_MWAIT_FEATURES       5
 #define CPUID_SVM_FEATURES         0x8000000a
 
 
