@@ -548,7 +548,7 @@ ParseDmask(const char *option,         // IN:  option string along with value
    ASSERT(option);
    ASSERT(mountInfo);
 
-   if (ParseMask(option, &mountInfo->fmask)) {
+   if (ParseMask(option, &mountInfo->dmask)) {
       LOG("Setting mount dmask to %o\n", mountInfo->dmask);
       return TRUE;
    }
