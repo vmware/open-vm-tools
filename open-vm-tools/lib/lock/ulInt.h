@@ -302,25 +302,30 @@ MXRecLockAcquire(MXRecLock *lock)  // IN/OUT:
 static INLINE Bool
 MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 {
-   int err;
    Bool acquired;
 
-   err = MXRecLockTryAcquireInternal(lock);
+   if ((MXRecLockCount(lock) != 0) && MXRecLockIsOwner(lock)) {
+      acquired = TRUE;
+   } else {
+      int err = MXRecLockTryAcquireInternal(lock);
 
-   if (err == 0) {
-      MXRecLockIncCount(lock, 1);
+      if (err == 0) {
+         acquired = TRUE;
+      } else {
+         if (vmx86_debug && (err != EBUSY)) {
+            Panic("%s: MXRecLockTryAcquireInternal returned %d\n",
+                  __FUNCTION__, err);
+         }
 
+         acquired = FALSE;
+      }
+   }
+
+   if (acquired) {
       ASSERT((MXRecLockCount(lock) > 0) &&
              (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
 
-      acquired = TRUE;
-   } else {
-      if (vmx86_debug && (err != EBUSY)) {
-         Panic("%s: MXRecLockTryAcquireInternal returned %d\n", __FUNCTION__,
-               err);
-      }
-
-      acquired = FALSE;
+      MXRecLockIncCount(lock, 1);
    }
 
    return acquired;
@@ -364,7 +369,8 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
  * MXUserGetThreadID --
  *
  *      Obtains a unique thread identifier (ID) which can be stored in a
- *      pointer.
+ *      pointer. These thread ID values are NOT necessarily used within
+ *      the MXecLock implementation.
  *
  * Results:
  *      As above
@@ -382,16 +388,6 @@ MXUserGetThreadID(void)
 
    ASSERT_ON_COMPILE(sizeof(VThreadID) <= sizeof (void *));
    return (void *) (uintptr_t) VThread_CurID();
-
-/*
-#if defined(_WIN32)
-   ASSERT_ON_COMPILE(sizeof(VThreadID) <= sizeof (void *));
-   return (void *) (uintptr_t) VThread_CurID();
-#else
-   ASSERT_ON_COMPILE(sizeof(pthread_t) <= sizeof (void *));
-   return (void *) (uintptr_t) pthread_self();
-#endif
-*/
 }
 
 
