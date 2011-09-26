@@ -45,8 +45,7 @@
 static void VMCIContextFreeContext(VMCIContext *context);
 static Bool VMCIContextExists(VMCIId cid);
 static int VMCIContextFireNotification(VMCIId contextID,
-                                       VMCIPrivilegeFlags privFlags,
-                                       const char *domain);
+                                       VMCIPrivilegeFlags privFlags);
 
 /*
  * List of current VMCI contexts.
@@ -174,36 +173,6 @@ VMCIContext_CheckAndSignalNotify(VMCIContext *context) // IN:
    VMCI_ReleaseLock(&contextList.lock, flags);
 }
 #endif
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCIContextGetDomainName --
- *
- *      Internal function for retrieving a context domain name, if
- *      supported by the platform. The returned pointer can only be
- *      assumed valid while a reference count is held on the given
- *      context.
- *
- * Results:
- *      Pointer to name if appropriate. NULL otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE char *
-VMCIContextGetDomainName(VMCIContext *context) // IN
-{
-#ifdef VMKERNEL
-   return context->domainName;
-#else
-   return NULL;
-#endif
-}
 
 
 /*
@@ -386,10 +355,6 @@ VMCIContext_InitContext(VMCIId cid,                   // IN
    VMCI_ReleaseLock(&contextList.lock, flags);
 
 #ifdef VMKERNEL
-   /*
-    * Set default domain name.
-    */
-   VMCIContext_SetDomainName(context, "");
    VMCIContext_SetFSRState(context, FALSE, VMCI_INVALID_ID, eventHnd, FALSE);
 #endif
 
@@ -482,8 +447,7 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
    VMCIHandle tempHandle;
 
    /* Fire event to all contexts interested in knowing this context is dying. */
-   VMCIContextFireNotification(context->cid, context->privFlags,
-                               VMCIContextGetDomainName(context));
+   VMCIContextFireNotification(context->cid, context->privFlags);
 
    /*
     * Cleanup all queue pair resources attached to context.  If the VM dies
@@ -1407,8 +1371,7 @@ VMCIContext_RemoveNotification(VMCIId contextID,  // IN:
 
 static int
 VMCIContextFireNotification(VMCIId contextID,             // IN
-                            VMCIPrivilegeFlags privFlags, // IN
-                            const char *domain)           // IN
+                            VMCIPrivilegeFlags privFlags) // IN
 {
    uint32 i, arraySize;
    VMCIListItem *next;
@@ -1443,8 +1406,7 @@ VMCIContextFireNotification(VMCIId contextID,             // IN
        */
 
       if (VMCIHandleArray_HasEntry(subCtx->notifierArray, contextHandle) &&
-          !VMCIDenyInteraction(privFlags, subCtx->privFlags, domain,
-                               VMCIContextGetDomainName(subCtx))) {
+          !VMCIDenyInteraction(privFlags, subCtx->privFlags)) {
          VMCIHandleArray_AppendEntry(&subscriberArray,
                                      VMCI_MAKE_HANDLE(subCtx->cid,
                                                       VMCI_EVENT_HANDLER));
@@ -1975,18 +1937,7 @@ VMCIContext_NotifyDoorbell(VMCIId srcCID,                   // IN
 
    if (srcCID != handle.context) {
       VMCIPrivilegeFlags dstPrivFlags;
-#if !defined(VMKERNEL)
-      char *srcDomain = NULL;
-#else
-      char srcDomain[VMCI_DOMAIN_NAME_MAXLEN];
 
-      result = VMCIContext_GetDomainName(srcCID, srcDomain, sizeof srcDomain);
-      if (result < VMCI_SUCCESS) {
-         VMCI_WARNING((LGPFX"Failed to get domain name for source context "
-                       "(ID=0x%x).\n", srcCID));
-         goto out;
-      }
-#endif
       result = VMCIDoorbellGetPrivFlags(handle, &dstPrivFlags);
       if (result < VMCI_SUCCESS) {
          VMCI_WARNING((LGPFX"Failed to get privilege flags for destination "
@@ -2000,8 +1951,7 @@ VMCIContext_NotifyDoorbell(VMCIId srcCID,                   // IN
          srcPrivFlags = VMCIContext_GetPrivFlags(srcCID);
       }
 
-      if (VMCIDenyInteraction(srcPrivFlags, dstPrivFlags, srcDomain,
-                              VMCIContextGetDomainName(dstContext))) {
+      if (VMCIDenyInteraction(srcPrivFlags, dstPrivFlags)) {
          result = VMCI_ERROR_NO_ACCESS;
          goto out;
       }
@@ -2126,92 +2076,6 @@ VMCIContext_SignalPendingDatagrams(VMCIId contextID)
 
    VMCIContext_Release(context);
 }
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCIContext_SetDomainName --
- *
- *      Sets the domain name of the given context.
- *
- * Results:
- *      VMCI_SUCCESS on success, error code otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-VMCIContext_SetDomainName(VMCIContext *context,   // IN;
-                          const char *domainName) // IN:
-{
-   size_t domainNameLen;
-
-   if (!context || !domainName) {
-      return VMCI_ERROR_INVALID_ARGS;
-   }
-
-   domainNameLen = strlen(domainName);
-   if (domainNameLen >= sizeof context->domainName) {
-      return VMCI_ERROR_NO_MEM;
-   }
-
-   memcpy(context->domainName, domainName, domainNameLen + 1);
-
-   return VMCI_SUCCESS;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCIContext_GetDomainName --
- *
- *      Returns the domain name of the given context.
- *
- * Results:
- *      VMCI_SUCCESS on success, error code otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-VMCIContext_GetDomainName(VMCIId contextID,         // IN:
-                          char *domainName,         // OUT:
-                          size_t domainNameBufSize) // IN:
-{
-   VMCIContext *context;
-   int rv = VMCI_SUCCESS;
-   size_t domainNameLen;
-
-   if (contextID == VMCI_INVALID_ID || !domainName || !domainNameBufSize) {
-      return VMCI_ERROR_INVALID_ARGS;
-   }
-
-   context = VMCIContext_Get(contextID);
-   if (!context) {
-      return VMCI_ERROR_NOT_FOUND;
-   }
-
-   domainNameLen = strlen(context->domainName);
-   if (domainNameLen >= domainNameBufSize) {
-      rv = VMCI_ERROR_NO_MEM;
-      goto out;
-   }
-
-   memcpy(domainName, context->domainName, domainNameLen + 1);
-
-out:
-   VMCIContext_Release(context);
-   return rv;
-}
-
 
 #endif // defined(VMKERNEL)
 

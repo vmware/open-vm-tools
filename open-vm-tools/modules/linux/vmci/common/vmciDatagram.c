@@ -545,8 +545,6 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
    int retval;
    size_t dgSize;
    VMCIPrivilegeFlags srcPrivFlags;
-   char srcDomain[VMCI_DOMAIN_NAME_MAXLEN]; /* Not used on hosted. */
-   char dstDomain[VMCI_DOMAIN_NAME_MAXLEN]; /* Not used on hosted. */
 
    ASSERT(dg);
    ASSERT(VMCI_HostPersonalityActive());
@@ -587,24 +585,6 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
       return retval;
    }
 
-#ifdef VMKERNEL
-   /*
-    * In the vmkernel, all communicating contexts except the
-    * hypervisor context must belong to the same domain. If the
-    * hypervisor is the source, the domain doesn't matter.
-    */
-
-   if (contextID != VMCI_HYPERVISOR_CONTEXT_ID) {
-      retval = VMCIContext_GetDomainName(contextID, srcDomain,
-                                         sizeof srcDomain);
-      if (retval < VMCI_SUCCESS) {
-         VMCI_WARNING((LGPFX"Failed to get domain name for context (ID=0x%x).\n",
-                       contextID));
-         return retval;
-      }
-   }
-#endif
-
    /* Determine if we should route to host or guest destination. */
    if (dg->dst.context == VMCI_HOST_CONTEXT_ID) {
       /* Route to host datagram entry. */
@@ -624,18 +604,7 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
          return VMCI_ERROR_INVALID_RESOURCE;
       }
       dstEntry = RESOURCE_CONTAINER(resource, DatagramEntry, resource);
-#ifdef VMKERNEL
-      retval = VMCIContext_GetDomainName(VMCI_HOST_CONTEXT_ID, dstDomain,
-                                         sizeof dstDomain);
-      if (retval < VMCI_SUCCESS) {
-         VMCI_WARNING((LGPFX"Failed to get domain name for context (ID=0x%x).\n",
-                       VMCI_HOST_CONTEXT_ID));
-         VMCIResource_Release(resource);
-         return retval;
-      }
-#endif
-      if (VMCIDenyInteraction(srcPrivFlags, dstEntry->privFlags, srcDomain,
-                              dstDomain)) {
+      if (VMCIDenyInteraction(srcPrivFlags, dstEntry->privFlags)) {
          VMCIResource_Release(resource);
          return VMCI_ERROR_NO_ACCESS;
       }
@@ -692,19 +661,9 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
       /* Route to destination VM context. */
       VMCIDatagram *newDG;
 
-#ifdef VMKERNEL
-      retval = VMCIContext_GetDomainName(dg->dst.context, dstDomain,
-                                         sizeof dstDomain);
-      if (retval < VMCI_SUCCESS) {
-         VMCI_DEBUG_LOG(4, (LGPFX"Failed to get domain name for context "
-                            "(ID=0x%x).\n", dg->dst.context));
-         return retval;
-      }
-#endif
       if (contextID != dg->dst.context &&
          VMCIDenyInteraction(srcPrivFlags,
-                             VMCIContext_GetPrivFlags(dg->dst.context),
-                             srcDomain, dstDomain)) {
+                             VMCIContext_GetPrivFlags(dg->dst.context))) {
          return VMCI_ERROR_NO_ACCESS;
       }
 

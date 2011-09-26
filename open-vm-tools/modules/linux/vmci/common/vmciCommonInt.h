@@ -85,7 +85,6 @@ struct VMCIContext {
    VMCIHostUser       user;
    Bool               validUser;
 #ifdef VMKERNEL
-   char               domainName[VMCI_DOMAIN_NAME_MAXLEN];
    Bool               isQuiesced;       /* Whether current VM is quiesced */
    VMCIId             migrateCid;       /* The migrate cid if it is migrating */
 #endif
@@ -105,8 +104,7 @@ struct VMCIContext {
  *
  *     Utilility function that checks whether two entities are allowed
  *     to interact. If one of them is restricted, the other one must
- *     be trusted. On ESX, the vmci domain must match for unrestricted
- *     domains.
+ *     be trusted.
  *
  *  Result:
  *     TRUE if the two entities are not allowed to interact. FALSE otherwise.
@@ -119,46 +117,12 @@ struct VMCIContext {
 
 static INLINE Bool
 VMCIDenyInteraction(VMCIPrivilegeFlags partOne,  // IN
-                    VMCIPrivilegeFlags partTwo,  // IN
-                    const char *srcDomain,       // IN:  Unused on hosted
-                    const char *dstDomain)       // IN:  Unused on hosted
+                    VMCIPrivilegeFlags partTwo)  // IN
 {
-#ifndef VMKERNEL
    return (((partOne & VMCI_PRIVILEGE_FLAG_RESTRICTED) &&
             !(partTwo & VMCI_PRIVILEGE_FLAG_TRUSTED)) ||
            ((partTwo & VMCI_PRIVILEGE_FLAG_RESTRICTED) &&
             !(partOne & VMCI_PRIVILEGE_FLAG_TRUSTED)));
-#else
-   /*
-    * If source or destination is trusted (hypervisor), we allow the
-    * communication.
-    */
-   if ((partOne & VMCI_PRIVILEGE_FLAG_TRUSTED) ||
-       (partTwo & VMCI_PRIVILEGE_FLAG_TRUSTED)) {
-      return FALSE;
-   }
-   /*
-    * If source or destination is restricted, we deny the communication.
-    */
-   if ((partOne & VMCI_PRIVILEGE_FLAG_RESTRICTED) ||
-       (partTwo & VMCI_PRIVILEGE_FLAG_RESTRICTED)) {
-      return TRUE;
-   }
-   /*
-    * We are here, means that neither of source or destination are trusted, and
-    * both are unrestricted.
-    */
-   ASSERT(!(partOne & VMCI_PRIVILEGE_FLAG_TRUSTED) &&
-          !(partTwo & VMCI_PRIVILEGE_FLAG_TRUSTED));
-   ASSERT(!(partOne & VMCI_PRIVILEGE_FLAG_RESTRICTED) &&
-          !(partTwo & VMCI_PRIVILEGE_FLAG_RESTRICTED));
-   /*
-    * We now compare the source and destination domain names, and allow
-    * communication iff they match.
-    */
-   return strcmp(srcDomain, dstDomain) ? TRUE : /* Deny. */
-                                         FALSE; /* Allow. */
-#endif
 }
 
 #endif /* _VMCI_COMMONINT_H_ */

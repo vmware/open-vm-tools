@@ -47,9 +47,6 @@ int VMCIContext_InitContext(VMCIId cid, VMCIPrivilegeFlags flags,
                             uintptr_t eventHnd, int version,
                             VMCIHostUser *user, VMCIContext **context);
 #ifdef VMKERNEL
-int VMCIContext_SetDomainName(VMCIContext *context, const char *domainName);
-int VMCIContext_GetDomainName(VMCIId contextID, char *domainName,
-                              size_t domainNameBufSize);
 void VMCIContext_SetFSRState(VMCIContext *context,
                              Bool isQuiesced,
                              VMCIId migrateCid,

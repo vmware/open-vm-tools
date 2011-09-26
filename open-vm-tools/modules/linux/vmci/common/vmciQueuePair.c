@@ -586,52 +586,6 @@ QueuePairList_GetHead(QueuePairList *qpList)
 /*
  *-----------------------------------------------------------------------------
  *
- * QueuePairDenyConnection --
- *
- *      On ESX we check if the domain names of the two contexts match.
- *      Otherwise we deny the connection.  We always allow the connection on
- *      hosted.
- *
- * Results:
- *      Boolean result.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE Bool
-QueuePairDenyConnection(VMCIId contextId, // IN:  Unused on hosted
-                        VMCIId peerId)    // IN:  Unused on hosted
-{
-#ifndef VMKERNEL
-   return FALSE; /* Allow on hosted. */
-#else
-   char contextDomain[VMCI_DOMAIN_NAME_MAXLEN];
-   char peerDomain[VMCI_DOMAIN_NAME_MAXLEN];
-
-   ASSERT(contextId != VMCI_INVALID_ID);
-   if (peerId == VMCI_INVALID_ID) {
-      return FALSE; /* Allow. */
-   }
-   if (VMCIContext_GetDomainName(contextId, contextDomain,
-                                 sizeof contextDomain) != VMCI_SUCCESS) {
-      return TRUE; /* Deny. */
-   }
-   if (VMCIContext_GetDomainName(peerId, peerDomain, sizeof peerDomain) !=
-       VMCI_SUCCESS) {
-      return TRUE; /* Deny. */
-   }
-   return strcmp(contextDomain, peerDomain) ? TRUE : /* Deny. */
-                                              FALSE; /* Allow. */
-#endif
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * VMCIQPBroker_Init --
  *
  *      Initalizes queue pair broker state.
@@ -1052,16 +1006,7 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
     * must allow the context in handle's context ID as the "peer".
     */
 
-   if ((handle.context != contextId && handle.context != peer) ||
-       QueuePairDenyConnection(contextId, peer)) {
-      return VMCI_ERROR_NO_ACCESS;
-   }
-
-   /*
-    * Check if we should allow this QueuePair connection.
-    */
-
-   if (QueuePairDenyConnection(contextId, peer)) {
+   if (handle.context != contextId && handle.context != peer) {
       return VMCI_ERROR_NO_ACCESS;
    }
 
@@ -1263,14 +1208,6 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
     */
 
    if (entry->qp.peer != VMCI_INVALID_ID && entry->qp.peer != contextId) {
-      return VMCI_ERROR_NO_ACCESS;
-   }
-
-   /*
-    * Check if we should allow this QueuePair connection.
-    */
-
-   if (QueuePairDenyConnection(contextId, entry->createId)) {
       return VMCI_ERROR_NO_ACCESS;
    }
 
