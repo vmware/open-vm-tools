@@ -76,10 +76,6 @@ void VMCIContext_Release(VMCIContext *context);
 Bool VMCIContext_Exists(VMCIId cid);
 
 VMCIId VMCIContext_GetId(VMCIContext *context);
-int VMCIContext_AddGroupEntry(VMCIContext *context,
-                              VMCIHandle entryHandle);
-VMCIHandle VMCIContext_RemoveGroupEntry(VMCIContext *context,
-                                        VMCIHandle entryHandle);
 int VMCIContext_AddNotification(VMCIId contextID, VMCIId remoteCID);
 int VMCIContext_RemoveNotification(VMCIId contextID, VMCIId remoteCID);
 int VMCIContext_GetCheckpointState(VMCIId contextID, uint32 cptType,
@@ -88,6 +84,10 @@ int VMCIContext_SetCheckpointState(VMCIId contextID, uint32 cptType,
                                    uint32 numCIDs, char *cptBuf);
 void VMCIContext_RegisterGuestMem(VMCIContext *context);
 void VMCIContext_ReleaseGuestMem(VMCIContext *context, VMCIGuestMemID gid);
+
+int VMCIContext_QueuePairCreate(VMCIContext *context, VMCIHandle handle);
+int VMCIContext_QueuePairDestroy(VMCIContext *context, VMCIHandle handle);
+Bool VMCIContext_QueuePairExists(VMCIContext *context, VMCIHandle handle);
 
 #ifndef VMX86_SERVER
 void VMCIContext_CheckAndSignalNotify(VMCIContext *context);

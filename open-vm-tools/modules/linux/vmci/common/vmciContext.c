@@ -457,7 +457,6 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
 
    tempHandle = VMCIHandleArray_GetEntry(context->queuePairArray, 0);
    while (!VMCI_HANDLE_EQUAL(tempHandle, VMCI_INVALID_HANDLE)) {
-      VMCIQPBroker_Lock();
       if (VMCIQPBroker_Detach(tempHandle, context) < VMCI_SUCCESS) {
          /*
           * When VMCIQPBroker_Detach() succeeds it removes the handle from the
@@ -465,7 +464,6 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
           */
          VMCIHandleArray_RemoveEntry(context->queuePairArray, tempHandle);
       }
-      VMCIQPBroker_Unlock();
       tempHandle = VMCIHandleArray_GetEntry(context->queuePairArray, 0);
    }
 
@@ -2232,12 +2230,133 @@ VMCIContext_SupportsHostQP(VMCIContext *context)    // IN: Context structure
 }
 
 
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_QueuePairCreate --
+ *
+ *      Registers that a new queue pair handle has been allocated by
+ *      the context.
+ *
+ * Results:
+ *      VMCI_SUCCESS on success, appropriate error code otherewise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+VMCIContext_QueuePairCreate(VMCIContext *context, // IN: Context structure
+                            VMCIHandle handle)    // IN
+{
+   VMCILockFlags flags;
+   int result;
+
+   if (context == NULL || VMCI_HANDLE_INVALID(handle)) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   VMCI_GrabLock(&context->lock, &flags);
+   if (!VMCIHandleArray_HasEntry(context->queuePairArray, handle)) {
+      VMCIHandleArray_AppendEntry(&context->queuePairArray, handle);
+      result = VMCI_SUCCESS;
+   } else {
+      result = VMCI_ERROR_DUPLICATE_ENTRY;
+   }
+   VMCI_ReleaseLock(&context->lock, flags);
+
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_QueuePairDestroy --
+ *
+ *      Unregisters a queue pair handle that was previously registered
+ *      with VMCIContext_QueuePairCreate.
+ *
+ * Results:
+ *      VMCI_SUCCESS on success, appropriate error code otherewise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+VMCIContext_QueuePairDestroy(VMCIContext *context, // IN: Context structure
+                             VMCIHandle handle)    // IN
+{
+   VMCILockFlags flags;
+   VMCIHandle removedHandle;
+
+   if (context == NULL || VMCI_HANDLE_INVALID(handle)) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   VMCI_GrabLock(&context->lock, &flags);
+   removedHandle = VMCIHandleArray_RemoveEntry(context->queuePairArray, handle);
+   VMCI_ReleaseLock(&context->lock, flags);
+
+   if (VMCI_HANDLE_INVALID(removedHandle)) {
+      return VMCI_ERROR_NOT_FOUND;
+   } else {
+      return VMCI_SUCCESS;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_QueuePairExists --
+ *
+ *      Determines whether a given queue pair handle is registered
+ *      with the given context.
+ *
+ * Results:
+ *      TRUE, if queue pair is registered with context. FALSE, otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+VMCIContext_QueuePairExists(VMCIContext *context, // IN: Context structure
+                            VMCIHandle handle)    // IN
+{
+   VMCILockFlags flags;
+   Bool result;
+
+   if (context == NULL || VMCI_HANDLE_INVALID(handle)) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   VMCI_GrabLock(&context->lock, &flags);
+   result = VMCIHandleArray_HasEntry(context->queuePairArray, handle);
+   VMCI_ReleaseLock(&context->lock, flags);
+
+   return result;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
  * VMCIContext_RegisterGuestMem --
  *
- *      Tells the context that guest memory is available for access.
+ *      Tells the context that guest memory is available for
+ *      access. This should only be used when unquiescing the VMCI
+ *      device of a guest.
  *
  * Results:
  *      None.
@@ -2256,7 +2375,12 @@ VMCIContext_RegisterGuestMem(VMCIContext *context) // IN: Context structure
    uint32 numQueuePairs;
    uint32 cur;
 
-   VMCIQPBroker_Lock();
+   /*
+    * It is safe to access the queue pair array here, since no changes
+    * to the queuePairArray can take place until after the unquiescing
+    * is complete.
+    */
+
    numQueuePairs = VMCIHandleArray_GetSize(context->queuePairArray);
    for (cur = 0; cur < numQueuePairs; cur++) {
       VMCIHandle handle;
@@ -2272,7 +2396,6 @@ VMCIContext_RegisterGuestMem(VMCIContext *context) // IN: Context structure
          }
       }
    }
-   VMCIQPBroker_Unlock();
 #endif
 }
 
@@ -2282,7 +2405,9 @@ VMCIContext_RegisterGuestMem(VMCIContext *context) // IN: Context structure
  *
  * VMCIContext_ReleaseGuestMem --
  *
- *      Releases all the contexts references to guest memory.
+ *      Releases all the contexts references to guest memory. This
+ *      should only be used when qiescing or cleaning up the VMCI
+ *      device of a guest.
  *
  * Results:
  *      None.
@@ -2301,6 +2426,12 @@ VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
    uint32 numQueuePairs;
    uint32 cur;
 
+   /*
+    * It is safe to access the queue pair array here, since no changes
+    * to the queuePairArray can take place when the the quiescing
+    * has been initiated.
+    */
+
    numQueuePairs = VMCIHandleArray_GetSize(context->queuePairArray);
    for (cur = 0; cur < numQueuePairs; cur++) {
       VMCIHandle handle;
@@ -2308,14 +2439,12 @@ VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
       if (!VMCI_HANDLE_EQUAL(handle, VMCI_INVALID_HANDLE)) {
          int res;
 
-         VMCIQPBroker_Lock();
          res = VMCIQPBroker_Unmap(handle, context, gid);
          if (res < VMCI_SUCCESS) {
             VMCI_WARNING(("Failed to unmap guest memory for queue pair "
                           "(handle=0x%x:0x%x, res=%d).\n",
                           handle.context, handle.resource, res));
          }
-         VMCIQPBroker_Unlock();
       }
    }
 #endif

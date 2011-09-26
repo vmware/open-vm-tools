@@ -76,8 +76,6 @@ VMCI_QP_PAGESTORE_IS_WELLFORMED(QueuePairPageStore *pageStore) // IN
 
 int VMCIQPBroker_Init(void);
 void VMCIQPBroker_Exit(void);
-void VMCIQPBroker_Lock(void);
-void VMCIQPBroker_Unlock(void);
 int VMCIQPBroker_Alloc(VMCIHandle handle, VMCIId peer, uint32 flags,
                        VMCIPrivilegeFlags privFlags,
                        uint64 produceSize, uint64 consumeSize,

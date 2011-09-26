@@ -201,6 +201,9 @@ static QueuePairList qpBrokerList;
   static VMCILock hibernateFailedListLock;
 #endif
 
+static void VMCIQPBrokerLock(void);
+static  void VMCIQPBrokerUnlock(void);
+
 static QueuePairEntry *QueuePairList_FindEntry(QueuePairList *qpList,
                                                VMCIHandle handle);
 static void QueuePairList_AddEntry(QueuePairList *qpList,
@@ -426,7 +429,7 @@ QueuePairList_Destroy(QueuePairList *qpList)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPBroker_Lock --
+ * VMCIQPBrokerLock --
  *
  *      Acquires the mutex protecting a VMCI queue pair broker transaction.
  *
@@ -439,8 +442,8 @@ QueuePairList_Destroy(QueuePairList *qpList)
  *-----------------------------------------------------------------------------
  */
 
-void
-VMCIQPBroker_Lock(void)
+static void
+VMCIQPBrokerLock(void)
 {
    VMCIMutex_Acquire(&qpBrokerList.mutex);
 }
@@ -449,7 +452,7 @@ VMCIQPBroker_Lock(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPBroker_Unlock --
+ * VMCIQPBrokerUnlock --
  *
  *      Releases the mutex protecting a VMCI queue pair broker transaction.
  *
@@ -462,8 +465,8 @@ VMCIQPBroker_Lock(void)
  *-----------------------------------------------------------------------------
  */
 
-void
-VMCIQPBroker_Unlock(void)
+static void
+VMCIQPBrokerUnlock(void)
 {
    VMCIMutex_Release(&qpBrokerList.mutex);
 }
@@ -635,14 +638,14 @@ VMCIQPBroker_Exit(void)
 {
    QPBrokerEntry *entry;
 
-   VMCIQPBroker_Lock();
+   VMCIQPBrokerLock();
 
    while ((entry = (QPBrokerEntry *)QueuePairList_GetHead(&qpBrokerList))) {
       QueuePairList_RemoveEntry(&qpBrokerList, &entry->qp);
       VMCI_FreeKernelMem(entry, sizeof *entry);
    }
 
-   VMCIQPBroker_Unlock();
+   VMCIQPBrokerUnlock();
    QueuePairList_Destroy(&qpBrokerList);
 }
 
@@ -803,7 +806,6 @@ VMCIQueuePairAllocHostWork(VMCIHandle *handle,           // IN/OUT
    ASSERT(context);
 
    entry = NULL;
-   VMCIQPBroker_Lock();
    result = VMCIQPBrokerAllocInt(*handle, peer, flags, privFlags, produceSize,
                                  consumeSize, NULL, context, wakeupCB, clientData,
                                  &entry, &swap);
@@ -825,7 +827,6 @@ VMCIQueuePairAllocHostWork(VMCIHandle *handle,           // IN/OUT
       VMCI_DEBUG_LOG(4, (LGPFX"queue pair broker failed to alloc (result=%d).\n",
                          result));
    }
-   VMCIQPBroker_Unlock();
    VMCIContext_Release(context);
    return result;
 }
@@ -856,9 +857,7 @@ VMCIQueuePairDetachHostWork(VMCIHandle handle) // IN
 
    context = VMCIContext_Get(VMCI_HOST_CONTEXT_ID);
 
-   VMCIQPBroker_Lock();
    result = VMCIQPBroker_Detach(handle, context);
-   VMCIQPBroker_Unlock();
 
    VMCIContext_Release(context);
    return result;
@@ -924,10 +923,13 @@ VMCIQPBrokerAllocInt(VMCIHandle handle,             // IN
 
    ASSERT(vmkernel || !isLocal);
 
-   if (!isLocal && VMCIHandleArray_HasEntry(context->queuePairArray, handle)) {
+   VMCIQPBrokerLock();
+
+   if (!isLocal && VMCIContext_QueuePairExists(context, handle)) {
       VMCI_DEBUG_LOG(4, (LGPFX"Context (ID=0x%x) already attached to queue pair "
                          "(handle=0x%x:0x%x).\n",
                          contextId, handle.context, handle.resource));
+      VMCIQPBrokerUnlock();
       return VMCI_ERROR_ALREADY_EXISTS;
    }
 
@@ -943,6 +945,8 @@ VMCIQPBrokerAllocInt(VMCIHandle handle,             // IN
                                   consumeSize, pageStore, context, wakeupCB,
                                   clientData, ent);
    }
+
+   VMCIQPBrokerUnlock();
 
    if (swap) {
       *swap = (contextId == VMCI_HOST_CONTEXT_ID) && !(create && isLocal);
@@ -1133,8 +1137,7 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
       *ent = entry;
    }
 
-   ASSERT(!VMCIHandleArray_HasEntry(context->queuePairArray, handle));
-   VMCIHandleArray_AppendEntry(&context->queuePairArray, handle);
+   VMCIContext_QueuePairCreate(context, handle);
 
    return VMCI_SUCCESS;
 
@@ -1372,10 +1375,9 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
     */
 
    if (!isLocal) {
-      VMCIHandleArray_AppendEntry(&context->queuePairArray, entry->qp.handle);
+      VMCIContext_QueuePairCreate(context, entry->qp.handle);
    } else {
-      ASSERT(VMCIHandleArray_HasEntry(context->queuePairArray,
-                                      entry->qp.handle));
+      ASSERT(VMCIContext_QueuePairExists(context, entry->qp.handle));
    }
    if (ent != NULL) {
       *ent = entry;
@@ -1428,14 +1430,6 @@ VMCIQPBroker_SetPageStore(VMCIHandle handle,      // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   if (!VMCIHandleArray_HasEntry(context->queuePairArray, handle)) {
-      VMCI_WARNING((LGPFX"Context (ID=0x%x) not attached to queue pair "
-                    "(handle=0x%x:0x%x).\n", contextId, handle.context,
-                    handle.resource));
-      result = VMCI_ERROR_NOT_FOUND;
-      goto out;
-   }
-
    /*
     * We only support guest to host queue pairs, so the VMX must
     * supply UVAs for the mapped page files.
@@ -1443,6 +1437,16 @@ VMCIQPBroker_SetPageStore(VMCIHandle handle,      // IN
 
    if (produceUVA == 0 || consumeUVA == 0) {
       return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   VMCIQPBrokerLock();
+
+   if (!VMCIContext_QueuePairExists(context, handle)) {
+      VMCI_WARNING((LGPFX"Context (ID=0x%x) not attached to queue pair "
+                    "(handle=0x%x:0x%x).\n", contextId, handle.context,
+                    handle.resource));
+      result = VMCI_ERROR_NOT_FOUND;
+      goto out;
    }
 
    entry = (QPBrokerEntry *)QueuePairList_FindEntry(&qpBrokerList, handle);
@@ -1501,8 +1505,8 @@ VMCIQPBroker_SetPageStore(VMCIHandle handle,      // IN
    }
 
    result = VMCI_SUCCESS;
-
 out:
+   VMCIQPBrokerUnlock();
    return result;
 }
 
@@ -1546,16 +1550,20 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
    const VMCIId contextId = VMCIContext_GetId(context);
    VMCIId peerId;
    Bool isLocal = FALSE;
+   int result;
 
    if (VMCI_HANDLE_INVALID(handle) || !context || contextId == VMCI_INVALID_ID) {
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   if (!VMCIHandleArray_HasEntry(context->queuePairArray, handle)) {
+   VMCIQPBrokerLock();
+
+   if (!VMCIContext_QueuePairExists(context, handle)) {
       VMCI_DEBUG_LOG(4, (LGPFX"Context (ID=0x%x) not attached to queue pair "
                          "(handle=0x%x:0x%x).\n",
                          contextId, handle.context, handle.resource));
-      return VMCI_ERROR_NOT_FOUND;
+      result = VMCI_ERROR_NOT_FOUND;
+      goto out;
    }
 
    entry = (QPBrokerEntry *)QueuePairList_FindEntry(&qpBrokerList, handle);
@@ -1563,11 +1571,13 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
       VMCI_DEBUG_LOG(4, (LGPFX"Context (ID=0x%x) reports being attached to queue pair "
                          "(handle=0x%x:0x%x) that isn't present in broker.\n",
                          contextId, handle.context, handle.resource));
-      return VMCI_ERROR_NOT_FOUND;
+      result = VMCI_ERROR_NOT_FOUND;
+      goto out;
    }
 
    if (contextId != entry->createId && contextId != entry->attachId) {
-      return VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+      result = VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+      goto out;
    }
 
    if (contextId == entry->createId) {
@@ -1634,7 +1644,7 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
       VMCIHost_FreeQueue(entry->consumeQ, entry->qp.consumeSize);
       VMCI_FreeKernelMem(entry, sizeof *entry);
 
-      VMCIHandleArray_RemoveEntry(context->queuePairArray, handle);
+      VMCIContext_QueuePairDestroy(context, handle);
    } else {
       ASSERT(peerId != VMCI_INVALID_ID);
       QueuePairNotifyPeer(FALSE, handle, contextId, peerId);
@@ -1644,11 +1654,13 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
          entry->state = VMCIQPB_SHUTDOWN_NO_MEM;
       }
       if (!isLocal) {
-         VMCIHandleArray_RemoveEntry(context->queuePairArray, handle);
+         VMCIContext_QueuePairDestroy(context, handle);
       }
    }
-
-   return VMCI_SUCCESS;
+   result = VMCI_SUCCESS;
+out:
+   VMCIQPBrokerUnlock();
+   return result;
 }
 
 
@@ -1685,11 +1697,14 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   if (!VMCIHandleArray_HasEntry(context->queuePairArray, handle)) {
+   VMCIQPBrokerLock();
+
+   if (!VMCIContext_QueuePairExists(context, handle)) {
       VMCI_DEBUG_LOG(4, (LGPFX"Context (ID=0x%x) not attached to queue pair "
                          "(handle=0x%x:0x%x).\n",
                          contextId, handle.context, handle.resource));
-      return VMCI_ERROR_NOT_FOUND;
+      result = VMCI_ERROR_NOT_FOUND;
+      goto out;
    }
 
    entry = (QPBrokerEntry *)QueuePairList_FindEntry(&qpBrokerList, handle);
@@ -1697,11 +1712,13 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
       VMCI_DEBUG_LOG(4, (LGPFX"Context (ID=0x%x) reports being attached to queue pair "
                          "(handle=0x%x:0x%x) that isn't present in broker.\n",
                          contextId, handle.context, handle.resource));
-      return VMCI_ERROR_NOT_FOUND;
+      result = VMCI_ERROR_NOT_FOUND;
+      goto out;
    }
 
    if (contextId != entry->createId && contextId != entry->attachId) {
-      return VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+      result = VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+      goto out;
    }
 
    isLocal = entry->qp.flags & VMCI_QPFLAG_LOCAL;
@@ -1753,6 +1770,8 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
       result = VMCI_SUCCESS;
    }
 
+out:
+   VMCIQPBrokerUnlock();
    return result;
 }
 
@@ -1848,16 +1867,19 @@ VMCIQPBroker_Unmap(VMCIHandle  handle,   // IN
    QPBrokerEntry *entry;
    const VMCIId contextId = VMCIContext_GetId(context);
    Bool isLocal = FALSE;
+   int result;
 
    if (VMCI_HANDLE_INVALID(handle) || !context || contextId == VMCI_INVALID_ID) {
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   if (!VMCIHandleArray_HasEntry(context->queuePairArray, handle)) {
+   VMCIQPBrokerLock();
+   if (!VMCIContext_QueuePairExists(context, handle)) {
       VMCI_DEBUG_LOG(4, (LGPFX"Context (ID=0x%x) not attached to queue pair "
                          "(handle=0x%x:0x%x).\n",
                          contextId, handle.context, handle.resource));
-      return VMCI_ERROR_NOT_FOUND;
+      result = VMCI_ERROR_NOT_FOUND;
+      goto out;
    }
 
    entry = (QPBrokerEntry *)QueuePairList_FindEntry(&qpBrokerList, handle);
@@ -1865,18 +1887,18 @@ VMCIQPBroker_Unmap(VMCIHandle  handle,   // IN
       VMCI_DEBUG_LOG(4, (LGPFX"Context (ID=0x%x) reports being attached to queue pair "
                          "(handle=0x%x:0x%x) that isn't present in broker.\n",
                          contextId, handle.context, handle.resource));
-      return VMCI_ERROR_NOT_FOUND;
+      result = VMCI_ERROR_NOT_FOUND;
+      goto out;
    }
 
    if (contextId != entry->createId && contextId != entry->attachId) {
-      return VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+      result = VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+      goto out;
    }
 
    isLocal = entry->qp.flags & VMCI_QPFLAG_LOCAL;
 
    if (contextId != VMCI_HOST_CONTEXT_ID) {
-      int result;
-
       ASSERT(entry->state != VMCIQPB_CREATED_NO_MEM &&
              entry->state != VMCIQPB_SHUTDOWN_NO_MEM &&
              entry->state != VMCIQPB_ATTACHED_NO_MEM);
@@ -1914,7 +1936,10 @@ VMCIQPBroker_Unmap(VMCIHandle  handle,   // IN
       VMCI_ReleaseQueueMutex(entry->produceQ);
    }
 
-   return VMCI_SUCCESS;
+   result = VMCI_SUCCESS;
+out:
+   VMCIQPBrokerUnlock();
+   return result;
 }
 
 #if !defined(VMKERNEL)
