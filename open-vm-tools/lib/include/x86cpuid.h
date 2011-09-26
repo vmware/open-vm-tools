@@ -298,7 +298,6 @@ FLAG(   1,  0, ECX, INTEL,  2,   1, DTES64,                        NO,  FALSE) \
 FLAG(   1,  0, ECX, COMMON, 3,   1, MWAIT,                         ANY, FALSE) \
 FLAG(   1,  0, ECX, INTEL,  4,   1, DSCPL,                         NO,  FALSE) \
 FLAG(   1,  0, ECX, INTEL,  5,   1, VMX,                           YES, FALSE) \
-FLAG(   1,  0, ECX, VIA,    5,   1, VIA_VMX,                       YES, FALSE) \
 FLAG(   1,  0, ECX, INTEL,  6,   1, SMX,                           NO,  FALSE) \
 FLAG(   1,  0, ECX, INTEL,  7,   1, EIST,                          NO,  FALSE) \
 FLAG(   1,  0, ECX, INTEL,  8,   1, TM2,                           NO,  FALSE) \
@@ -472,7 +471,7 @@ FLAG(  81,  0, ECX, AMD,     5,  1, ABM,                           YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,     6,  1, SSE4A,                         YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,     7,  1, MISALIGNED_SSE,                YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,     8,  1, 3DNPREFETCH,                   YES, TRUE)  \
-FLAG(  81,  0, ECX, AMD,     9,  1, OSVW,                          ANY, FALSE) \
+FLAG(  81,  0, ECX, AMD,     9,  1, OSVW,                          YES, FALSE) \
 FLAG(  81,  0, ECX, AMD,    10,  1, IBS,                           NO,  FALSE) \
 FLAG(  81,  0, ECX, AMD,    11,  1, XOP,                           YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,    12,  1, SKINIT,                        NO,  FALSE) \
