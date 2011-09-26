@@ -54,7 +54,7 @@
 #include <unistd.h>
 #endif
 
-#if defined(sun) || defined(__FreeBSD__)
+#if defined(sun) || defined(__FreeBSD__) || defined(__APPLE__)
 #include <sys/stat.h>
 #endif
 
@@ -102,11 +102,7 @@
 #include "netutil.h"
 #endif
 
-/* All but MacOS use impersonation functions. */
-#if !defined(__APPLE__)
 #include "impersonate.h"
-#endif
-
 #include "vixOpenSource.h"
 #include "vixToolsInt.h"
 
@@ -336,7 +332,7 @@ static const char *fileExtendedInfoWindowsFormatString = "<fxi>"
                                           "<ct>%"FMT64"u</ct>"
                                           "<at>%"FMT64"u</at>"
                                           "</fxi>";
-#elif !defined(__APPLE__)
+#else
 static const char *fileExtendedInfoLinuxFormatString = "<fxi>"
                                           "<Name>%s</Name>"
                                           "<ft>%d</ft>"
@@ -5782,7 +5778,7 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
 
 #ifdef _WIN32
    fileExtendedInfoBufferSize = strlen(fileExtendedInfoWindowsFormatString);
-#elif !defined(__APPLE__)
+#else
    fileExtendedInfoBufferSize = strlen(fileExtendedInfoLinuxFormatString);
 #endif
 
@@ -5790,7 +5786,7 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
    fileExtendedInfoBufferSize += 10 + 20 + (20 * 2); // properties + size + times
 #ifdef _WIN32
    fileExtendedInfoBufferSize += 20;                // createTime
-#elif !defined(__APPLE__)
+#else
    fileExtendedInfoBufferSize += 10 * 3;            // uid, gid, perms
 #endif
 
@@ -5920,7 +5916,6 @@ abort:
 VixError
 VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
 {
-#if !defined(__APPLE__)
    VixError err = VIX_OK;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
@@ -6134,9 +6129,6 @@ abort:
    VixToolsLogoutUser(userToken);
 
    return err;
-#else
-   return VIX_E_NOT_SUPPORTED;
-#endif
 } // VixToolsSetGuestFileAttributes
 
 
@@ -6220,7 +6212,6 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                               char **destPtr,               // IN/OUT
                               char *endDestPtr)             // IN
 {
-#if !defined(__APPLE__)
    int64 fileSize = 0;
    VmTimeType modTime = 0;
    VmTimeType accessTime = 0;
@@ -6337,7 +6328,6 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    free(symlinkTarget);
 #endif
    free(escapedFileName);
-#endif   // !defined(__APPLE__)
 } // VixToolsPrintFileExtendedInfo
 
 
