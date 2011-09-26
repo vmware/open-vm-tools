@@ -130,6 +130,7 @@ typedef char *                          os_blocker_id_t;
 #define os_atomic_dec(atomic)           g_atomic_int_add((atomic), -1)
 #define os_atomic_inc(atomic)           g_atomic_int_inc(atomic)
 #define os_atomic_set(atomic, val)      g_atomic_int_set((atomic), (val))
+#define os_atomic_read(atomic)          g_atomic_int_get(atomic)
 
 /*
  * Extra stuff fuse port needs defined (ie not in os.h for other ports).
