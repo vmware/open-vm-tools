@@ -29,9 +29,6 @@ if HAVE_X11
    SUBDIRS += resolutionSet
 endif
 SUBDIRS += timeSync
-if ENABLE_UNITY
-   SUBDIRS += unity
-endif
 SUBDIRS += vix
 SUBDIRS += vmbackup
 

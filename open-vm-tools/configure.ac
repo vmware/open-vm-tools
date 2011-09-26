@@ -175,14 +175,6 @@ AC_ARG_ENABLE(
    [enable_multimon="$enableval"],
    [enable_multimon="yes"])
 
-AC_ARG_ENABLE(
-   unity,
-   AS_HELP_STRING(
-      [--disable-unity],
-      [disables Unity, enabled by default]),
-   [enable_unity="$enableval"],
-   [enable_unity="yes"])
-
 AC_ARG_WITH(
    gtk2,
    AS_HELP_STRING(
@@ -214,11 +206,6 @@ AC_ARG_ENABLE(
       [disable compilation of test code.]),
    [enable_tests="$enableval"],
    [enable_tests="auto"])
-
-# If we're not going to use Gtk 2.0, disable Unity.
-if test "$with_gtk2" != "yes"; then
-   enable_unity="no"
-fi
 
 AM_INIT_AUTOMAKE
 
@@ -427,7 +414,6 @@ fi
 # If the user explicitly disables X11, then don't try to detect the X-related libraries
 if test "$have_x" = "disabled"; then
    enable_multimon="no"
-   enable_unity="no"
 elif test "$have_x" != "yes"; then
    AC_MSG_ERROR(
       [The X11 libraries were not found. Please configure without X11 (using --without-x), or install the libX11 devel package(s).])
@@ -459,11 +445,6 @@ else
 	 [AC_MSG_ERROR(
 	    [libXinerama not found. Please configure without multimon (using --disable-multimon), configure without X11 (using --without-x), or install the libXinerama devel package(s).])],
 	 [$COMMON_XLIBS])
-   else
-      if test "$enable_unity" != "no"; then
-         AC_MSG_WARN([Disabling Unity due to --disable-multimon.])
-         enable_unity="no"
-      fi
    fi
 
    AC_CHECK_LIB(
@@ -527,73 +508,6 @@ else
       have_xcomposite="yes"
    fi
 
-   # If we're building with support for Unity, we'll need a few additional
-   # libraries.
-   if test "$enable_unity" != "no"; then
-           # Unity needs the X11 Screen Saver extension library. It should be
-	   # in the same place as the X11 libraries, so no need for any fancy
-	   # path checking.
-	   AC_VMW_CHECK_X11_LIB(
-	      [Xss],
-	      [X11/extensions/scrnsaver.h],
-	      [XScreenSaverQueryExtension],
-	      [AC_MSG_ERROR([libXss or headers not found. Please configure without Unity (using --disable-unity) or install the libXss devel package.])])
-
-           # Check for the uriparser library and headers. The upstream uriparser
-           # doesn't appear to ship with either a pkg-config file or a
-           # uriparser-config binary, so we'll look for it the old-fashioned
-           # way.
-           #
-           # Note that we look for uriFreeQueryListA because it's a relatively
-           # new symbol that our code needs (it isn't present in the uriparser
-           # that shipped with Ubuntu Hardy).
-           AC_VMW_DEFAULT_FLAGS([URIPARSER], [uriparser])
-           AC_VMW_CHECK_LIB([uriparser],
-                            [URIPARSER],
-                            [],
-                            [],
-                            [],
-                            [Uri.h],
-                            [uriFreeQueryListA],
-                            [],
-                            [AC_MSG_ERROR([uriparser library not found or is too old. Please configure without Unity (using --disable-unity) or install the liburiparser devel package.])])
-
-           # Check for libpng.
-           AC_VMW_CHECK_LIB([png12],
-                            [LIBPNG],
-                            [libpng12],
-                            [libpng-config],
-                            [],
-                            [png.h],
-                            [png_access_version_number],
-                            [],
-                            [AC_MSG_ERROR([libpng not found. Please configure without Unity (using --disable-unity) or install the libpng devel package])])
-
-           # Check for the zlib library and headers. Like uriparser, there
-           # isn't a pkg-config or zlib-config file.
-           AC_VMW_DEFAULT_FLAGS([ZLIB])
-           AC_VMW_CHECK_LIB([z],
-                            [ZLIB],
-                            [],
-                            [],
-                            [],
-                            [zlib.h],
-                            [zlibVersion],
-                            [],
-                            [AC_MSG_ERROR([zlib library not found. Please configure without Unity (using --disable-unity) or install the zlib devel package.])])
-
-           # Check for gio 2.24.
-           AC_VMW_CHECK_LIB([gio-2.0],
-                            [GIO],
-                            [gio-unix-2.0],
-                            [],
-                            [2.24.0],
-                            [gio/gio.h],
-                            [g_desktop_app_info_get_filename],
-                            [],
-                            [AC_MSG_ERROR([GLib/GIO 2.24+ not found.  Please configure without Unity (using --disable-unity) or upgrade the Glib devel package.])])
-   fi # End of library checks for Unity.
-
    # Check whether we have gtk+ 2.0.
    if test "$with_gtk2" != "no"; then
       # gdk_display_get_default_group (added in gtk+ 2.4.0) is function currently
@@ -607,17 +521,6 @@ else
                        [gdk_display_get_default_group],
                        [GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK2"],
                        [AC_MSG_ERROR([Gtk+ 2.0 library not found or too old. Please configure without Gtk+ support (using --without-gtk2) or install the Gtk+ 2.0 devel package.])])
-
-      # Unity requires libgdk_pixbuf_xlib, which most systems don't seem to
-      # provide via "pkg-config --libs gtk+-2.0".
-      if test "$enable_unity" != "no"; then
-         AC_CHECK_LIB(
-            [gdk_pixbuf_xlib-2.0],
-            [gdk_pixbuf_xlib_init],
-            [GTK_LIBS="$GTK_LIBS -lgdk_pixbuf_xlib-2.0"],
-            [AC_MSG_ERROR([gdk_pixbuf_xlib-2.0 not found. Make sure your Gtk 2.0 installation is sane, or configure without Unity (using --disable-unity).])],
-            [$GTK_LIBS])
-      fi
    fi
 
    #
@@ -1111,7 +1014,6 @@ AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
 AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(HAVE_XSM, test "$have_xsm" = "yes")
 AM_CONDITIONAL(HAVE_XCOMPOSITE, test "$have_xcomposite" = "yes")
-AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 AM_CONDITIONAL(ENABLE_TESTS, test "$have_cunit" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
 AM_CONDITIONAL(HAVE_DNET, test "$have_dnet" = "yes")
@@ -1245,7 +1147,6 @@ AC_CONFIG_FILES([                      \
    lib/hgfsServer/Makefile             \
    lib/hgfsServerManagerGuest/Makefile \
    lib/hgfsServerPolicyGuest/Makefile  \
-   lib/image/Makefile                  \
    lib/impersonate/Makefile            \
    lib/lock/Makefile                   \
    lib/message/Makefile                \
@@ -1255,8 +1156,6 @@ AC_CONFIG_FILES([                      \
    lib/panicDefault/Makefile           \
    lib/printer/Makefile                \
    lib/procMgr/Makefile                \
-   lib/raster/Makefile                 \
-   lib/region/Makefile                 \
    lib/rpcChannel/Makefile             \
    lib/rpcIn/Makefile                  \
    lib/rpcOut/Makefile                 \
@@ -1283,7 +1182,6 @@ AC_CONFIG_FILES([                      \
    services/plugins/powerOps/Makefile  \
    services/plugins/resolutionSet/Makefile \
    services/plugins/timeSync/Makefile  \
-   services/plugins/unity/Makefile     \
    services/plugins/vix/Makefile       \
    services/plugins/vmbackup/Makefile  \
    vmware-user-suid-wrapper/Makefile   \

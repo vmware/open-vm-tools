@@ -34,9 +34,6 @@ SUBDIRS += hgfsHelper
 SUBDIRS += hgfsServer
 SUBDIRS += hgfsServerManagerGuest
 SUBDIRS += hgfsServerPolicyGuest
-if ENABLE_UNITY
-   SUBDIRS += image
-endif
 SUBDIRS += impersonate
 SUBDIRS += lock
 SUBDIRS += message
@@ -46,10 +43,6 @@ SUBDIRS += panic
 SUBDIRS += panicDefault
 SUBDIRS += printer
 SUBDIRS += procMgr
-if ENABLE_UNITY
-   SUBDIRS += raster
-   SUBDIRS += region
-endif
 SUBDIRS += rpcChannel
 SUBDIRS += rpcIn
 SUBDIRS += rpcOut
