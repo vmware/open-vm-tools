@@ -370,7 +370,7 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
  *
  *      Obtains a unique thread identifier (ID) which can be stored in a
  *      pointer. These thread ID values are NOT necessarily used within
- *      the MXecLock implementation.
+ *      the MXRecLock implementation.
  *
  * Results:
  *      As above
