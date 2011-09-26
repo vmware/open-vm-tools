@@ -210,7 +210,6 @@ VMCIResource_Add(VMCIResource *resource,                // IN
    resource->type = resourceType;
    resource->containerFreeCB = containerFreeCB;
    resource->containerObject = containerObject;
-   resource->handle = resourceHandle;
 
    /* Add resource to hashtable. */
    result = VMCIHashTable_AddEntry(resourceTable, &resource->hashEntry);
@@ -374,6 +373,30 @@ VMCIResource_Release(VMCIResource *resource)
     * whether entry was freed.
     */
    return result;
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * VMCIResource_Handle --
+ *
+ *      Get the handle for the given resource.
+ *
+ * Results:
+ *      The resource's associated handle.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+VMCIHandle
+VMCIResource_Handle(VMCIResource *resource)
+{
+   ASSERT(resource);
+   return resource->hashEntry.handle;
 }
 
 

@@ -981,17 +981,17 @@ VMCIDoorbell_Hibernate(Bool enterHibernate)
    for (bucket = 0; bucket < ARRAYSIZE(vmciDoorbellIT.entries); bucket++) {
       VMCIList_Scan(iter, &vmciDoorbellIT.entries[bucket]) {
          int result;
+         VMCIHandle h;
          VMCIDoorbellEntry *cur;
 
          cur = VMCIList_Entry(iter, VMCIDoorbellEntry, idxListItem);
-         result = VMCIDoorbellLink(cur->resource.handle, cur->isDoorbell,
-                                   cur->idx);
+         h = VMCIResource_Handle(&cur->resource);
+         result = VMCIDoorbellLink(h, cur->isDoorbell, cur->idx);
          if (result != VMCI_SUCCESS && result != VMCI_ERROR_DUPLICATE_ENTRY) {
             VMCI_WARNING((LGPFX"Failed to reregister doorbell "
                           "(handle=0x%x:0x%x) of resource %s to index "
-                          "(error: %d).\n",
-                          cur->resource.handle.context,
-                          cur->resource.handle.resource,
+                          "(error=%d).\n",
+                          h.context, h.resource,
                           cur->isDoorbell ? "doorbell" : "queue pair", result));
          }
       }

@@ -55,7 +55,6 @@ typedef struct VMCIResource {
    VMCIResourceFreeCB    containerFreeCB;    // Callback to free container
                                              // object when refCount is 0.
    void                  *containerObject;   // Container object reference.
-   VMCIHandle            handle;
 } VMCIResource;
 
 
@@ -74,6 +73,7 @@ VMCIResource *VMCIResource_Get(VMCIHandle resourceHandle,
                                VMCIResourceType resourceType);
 void VMCIResource_Hold(VMCIResource *resource);
 int VMCIResource_Release(VMCIResource *resource);
+VMCIHandle VMCIResource_Handle(VMCIResource *resource);
 
 
 #endif // _VMCI_RESOURCE_H_
