@@ -633,14 +633,11 @@ ToolsDaemonSyncDriverThawCallback(void *clientData) // IN (ignored)
    Debug(">ToolsDaemonSyncDriverThawCallback\n");
    Debug("ToolsDaemonSyncDriverThawCallback: Timed out waiting for thaw.\n");
 
-   /* Don't bother calling freeze if no drives are frozen. */
-   if (gSyncDriverHandle == SYNCDRIVER_INVALID_HANDLE ||
-       !SyncDriver_DrivesAreFrozen()) {
+   if (gSyncDriverHandle == SYNCDRIVER_INVALID_HANDLE) {
       Debug("<ToolsDaemonSyncDriverThawCallback\n");
       Debug("ToolsDaemonSyncDriverThawCallback: No drives are frozen.\n");
       goto exit;
    }
-
    if (!SyncDriver_Thaw(gSyncDriverHandle)) {
       Debug("ToolsDaemonSyncDriverThawCallback: Failed to thaw.\n");
    }
@@ -685,8 +682,7 @@ ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
 
    Debug("SYNCDRIVE: Got request to thaw\n");
 
-   if (gSyncDriverHandle == SYNCDRIVER_INVALID_HANDLE ||
-       !SyncDriver_DrivesAreFrozen()) {
+   if (gSyncDriverHandle == SYNCDRIVER_INVALID_HANDLE) {
       err = VIX_E_GUEST_VOLUMES_NOT_FROZEN;
       sysError = SYNCDRIVERERROR;
       Debug("ToolsDaemonTcloSyncDriverThaw: No drives are frozen.\n");

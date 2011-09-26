@@ -22,59 +22,24 @@
  *   Interface to the Sync Driver for non-Windows guests.
  */
 
-#include <sys/ioctl.h>
-#include <sys/poll.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-#include "vm_basic_types.h"
-#include "vm_assert.h"
+#include <stdio.h>
+#include <sys/param.h>
+#include <sys/mount.h>
+#include "vmware.h"
 #include "debug.h"
 #include "dynbuf.h"
 #include "str.h"
-#include "strutil.h"
-#include "syncDriver.h"
+#include "syncDriverInt.h"
 #include "util.h"
-
-#if defined(linux)
-#include "syncDriverIoc.h"
 #include "mntinfo.h"
-#endif
 
-
-#define SYNC_PROC_PATH "/proc/driver/vmware-sync"
-
-
+static SyncFreezeFn gBackends[] = {
 #if defined(linux)
-/*
- *-----------------------------------------------------------------------------
- *
- * SyncDriverDebug --
- *
- *    Calls Debug(), preserving the value of errno.
- *
- * Results:
- *    None
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-SyncDriverDebug(const char *msg)
-{
-   int savedErrno = errno;
-   Debug("SyncDriver: %s (%d: %s)\n", msg, errno, strerror(errno));
-   errno = savedErrno;
-}
-
+   LinuxDriver_Freeze,
+   VmSync_Freeze,
+   NullDriver_Freeze,
+#endif
+};
 
 
 /*
@@ -105,11 +70,10 @@ SyncDriverListMounts(void)
 {
    char *paths = NULL;
    DynBuf buf;
-   FILE *mounts;
+   MNTHANDLE mounts;
    DECLARE_MNTINFO(mntinfo);
 
    if ((mounts = OPEN_MNTFILE("r")) == NULL) {
-      SyncDriverDebug("error opening mtab file");
       return NULL;
    }
 
@@ -124,70 +88,23 @@ SyncDriverListMounts(void)
           || !DynBuf_Append(&buf,
                             MNTINFO_MNTPT(mntinfo),
                             strlen(MNTINFO_MNTPT(mntinfo)))) {
-         Debug("SyncDriver: failed to append to buffer\n");
          goto exit;
       }
    }
 
    if (!DynBuf_Append(&buf, "\0", 1)) {
-      Debug("SyncDriver: failed to append to buffer\n");
       goto exit;
    }
 
    paths = DynBuf_AllocGet(&buf);
    if (paths == NULL) {
-      Debug("SyncDriver: failed to allocate path list.\n");
+      Debug(LGPFX "Failed to allocate path list.\n");
    }
 
 exit:
    DynBuf_Destroy(&buf);
    (void) CLOSE_MNTFILE(mounts);
    return paths;
-}
-#endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * SyncDriver_DrivesAreFrozen --
- *
- *    Report whether any drives are currently frozen. The handle can be
- *    invalid, in which case the function will try to open the driver
- *    proc node for querying and close it afterwards.
- *
- * Results:
- *    Whether there are frozen devices.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-SyncDriver_DrivesAreFrozen(void)
-{
-#if defined(linux)
-   int ret;
-   int file;
-   int32 active = 0;
-
-   file = open(SYNC_PROC_PATH, O_RDONLY);
-   if (file == -1) {
-      return FALSE;
-   }
-
-   ret = ioctl(file, SYNC_IOC_QUERY, &active);
-   if (ret == -1) {
-      active = 0;
-   }
-
-   close(file);
-   return (active > 0);
-#else
-   return FALSE;
-#endif
 }
 
 
@@ -196,11 +113,11 @@ SyncDriver_DrivesAreFrozen(void)
  *
  * SyncDriver_Init --
  *
- *    Checks whether the sync driver is loaded.
+ *    Checks whether a sync backend is available.
  *
  * Results:
- *    TRUE if driver is loaded (proc node exists)
- *    FALSE otherwise
+ *    TRUE if there are sync backends available.
+ *    FALSE otherwise.
  *
  * Side effects:
  *    None
@@ -211,17 +128,7 @@ SyncDriver_DrivesAreFrozen(void)
 Bool
 SyncDriver_Init(void)
 {
-#if defined(linux)
-   struct stat info;
-
-   if (stat(SYNC_PROC_PATH, &info) == 0) {
-      return S_ISREG(info.st_mode);
-   } else {
-      return FALSE;
-   }
-#else
-   return FALSE;
-#endif
+   return ARRAYSIZE(gBackends) > 0;
 }
 
 
@@ -235,6 +142,12 @@ SyncDriver_Init(void)
  *    Freeze operations are currently synchronous in POSIX systems, but
  *    clients should still call SyncDriver_QueryStatus to maintain future
  *    compatibility in case that changes.
+ *
+ *    This function will try different available sync implementations. It will
+ *    follow the order in the "gBackends" array, and keep on trying different
+ *    backends while SD_UNAVAILABLE is returned. If all backends are
+ *    unavailable (unlikely given the "null" backend), the the function returns
+ *    error.
  *
  * Results:
  *    TRUE on success
@@ -250,20 +163,19 @@ Bool
 SyncDriver_Freeze(const char *userPaths,     // IN
                   SyncDriverHandle *handle)  // OUT
 {
-#if defined(linux)
-   int ret = -1;
-   int file;
    char *paths = NULL;
+   SyncDriverErr err = SD_UNAVAILABLE;
+   size_t i = 0;
 
-   file = open(SYNC_PROC_PATH, O_RDONLY);
-   if (file == -1) {
-      goto exit;
-   }
-
+   /*
+    * First, convert the given path list to something the backends will
+    * understand: a colon-separated list of paths.
+    */
    if (userPaths == NULL || Str_Strncmp(userPaths, "all", sizeof "all") == 0) {
       paths = SyncDriverListMounts();
       if (paths == NULL) {
-         goto exit;
+         Debug(LGPFX "Failed to list mount points.\n");
+         return SD_ERROR;
       }
    } else {
       /*
@@ -279,22 +191,12 @@ SyncDriver_Freeze(const char *userPaths,     // IN
       }
    }
 
-   ret = ioctl(file, SYNC_IOC_FREEZE, paths);
-
-exit:
-   if (ret == -1) {
-      SyncDriverDebug("SYNC_IOC_FREEZE failed");
-      if (file != -1) {
-         close(file);
-         file = -1;
-      }
+   while (err == SD_UNAVAILABLE && i < ARRAYSIZE(gBackends)) {
+      err = gBackends[i++](paths, handle);
    }
+
    free(paths);
-   *handle = file;
-   return (ret != -1);
-#else
-   NOT_IMPLEMENTED();
-#endif
+   return err == SD_SUCCESS;
 }
 
 
@@ -318,21 +220,10 @@ exit:
 Bool
 SyncDriver_Thaw(const SyncDriverHandle handle) // IN
 {
-#if defined(linux)
-   int ret;
-   ASSERT(handle != SYNCDRIVER_INVALID_HANDLE);
-
-   ret = ioctl(handle, SYNC_IOC_THAW);
-   if (ret == -1) {
-      int _errno = errno;
-      SyncDriverDebug("SYNC_IOC_THAW ioctl failed");
-      errno = _errno;
+   if (handle->thaw != NULL) {
+      return handle->thaw(handle) == SD_SUCCESS;
    }
-
-   return (ret != -1);
-#else
-   NOT_IMPLEMENTED();
-#endif
+   return TRUE;
 }
 
 
@@ -379,10 +270,11 @@ SyncDriver_QueryStatus(const SyncDriverHandle handle, // IN
 void
 SyncDriver_CloseHandle(SyncDriverHandle *handle)   // IN/OUT
 {
-   ASSERT(handle != NULL);
-   if (*handle != SYNCDRIVER_INVALID_HANDLE) {
-      close(*handle);
-      *handle = SYNCDRIVER_INVALID_HANDLE;
+   if (*handle != NULL) {
+      if ((*handle)->close != NULL) {
+         (*handle)->close(*handle);
+      }
+      *handle = NULL;
    }
 }
 

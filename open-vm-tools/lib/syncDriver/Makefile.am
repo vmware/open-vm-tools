@@ -19,3 +19,10 @@ noinst_LTLIBRARIES = libSyncDriver.la
 
 libSyncDriver_la_SOURCES =
 libSyncDriver_la_SOURCES += syncDriverPosix.c
+
+if LINUX
+   libSyncDriver_la_SOURCES += nullDriver.c
+   libSyncDriver_la_SOURCES += syncDriverLinux.c
+   libSyncDriver_la_SOURCES += vmSyncDriver.c
+endif
+

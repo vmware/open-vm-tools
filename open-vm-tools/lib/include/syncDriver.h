@@ -27,13 +27,6 @@
 
 #include "vm_basic_types.h"
 
-/*
- * SyncDriverHandle is a different thing depending on the platform we're
- * running: on Windows it's a thread handle, used to monitor the status
- * of the thread used to asynchronously freeze devices. On POSIX systems,
- * it's a file descriptor, used to send commands to the driver via ioctls.
- */
-
 #ifdef _WIN32 /* { */
 
 # include <windows.h>
@@ -43,8 +36,9 @@ typedef HANDLE SyncDriverHandle;
 #else /* }{ POSIX */
 
 # define INFINITE -1
-# define SYNCDRIVER_INVALID_HANDLE -1
-typedef int SyncDriverHandle;
+# define SYNCDRIVER_INVALID_HANDLE NULL
+
+typedef struct SyncHandle * SyncDriverHandle;
 
 #endif /* } */
 
@@ -57,7 +51,6 @@ typedef enum {
 Bool SyncDriver_Init(void);
 Bool SyncDriver_Freeze(const char *drives, SyncDriverHandle *handle);
 Bool SyncDriver_Thaw(const SyncDriverHandle handle);
-Bool SyncDriver_DrivesAreFrozen(void);
 SyncDriverStatus SyncDriver_QueryStatus(const SyncDriverHandle handle,
                                         int32 timeout);
 void SyncDriver_CloseHandle(SyncDriverHandle *handle);
