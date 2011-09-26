@@ -295,7 +295,7 @@ FIELD(  1,  0, EBX, COMMON, 24,  8, APICID,                        ANY, FALSE) \
 FLAG(   1,  0, ECX, COMMON, 0,   1, SSE3,                          YES, TRUE)  \
 FLAG(   1,  0, ECX, COMMON, 1,   1, PCLMULQDQ,                     YES, TRUE)  \
 FLAG(   1,  0, ECX, INTEL,  2,   1, DTES64,                        NO,  FALSE) \
-FLAG(   1,  0, ECX, COMMON, 3,   1, MWAIT,                         ANY, FALSE) \
+FLAG(   1,  0, ECX, COMMON, 3,   1, MWAIT,                         YES, FALSE) \
 FLAG(   1,  0, ECX, INTEL,  4,   1, DSCPL,                         NO,  FALSE) \
 FLAG(   1,  0, ECX, INTEL,  5,   1, VMX,                           YES, FALSE) \
 FLAG(   1,  0, ECX, INTEL,  6,   1, SMX,                           NO,  FALSE) \
