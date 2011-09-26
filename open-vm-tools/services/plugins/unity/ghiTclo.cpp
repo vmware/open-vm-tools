@@ -439,6 +439,9 @@ GHITcloOpenStartMenu(RpcInData *data)        // IN/OUT
    DynBuf *buf = &gTcloUpdate;
    uint32 flags = 0;
    uint32 index = 0;
+   uint32 menuHandle = 0;
+   uint32 numItems = 0;
+
    Bool ret = TRUE;
 
    /* Check our arguments. */
@@ -485,13 +488,19 @@ GHITcloOpenStartMenu(RpcInData *data)        // IN/OUT
    }
 
    DynBuf_SetSize(buf, 0);
-   if (!GHI_OpenStartMenuTree(rootUtf8, flags, buf)) {
+#if !defined(OPEN_VM_TOOLS)
+   if (!GHI_OpenStartMenuTree(rootUtf8, flags, menuHandle, numItems)) {
       Debug("%s: Could not open start menu.\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data,
                              "Could not get start menu count",
                              FALSE);
       goto exit;
+   } else {
+       char temp[256];
+       Str_Sprintf(temp, sizeof temp, "%d %d", menuHandle, numItems);
+       DynBuf_AppendString(buf, temp);
    }
+#endif // OPEN_VM_TOOLS
 
    /*
     * Write the final result into the result out parameters and return!
@@ -533,6 +542,12 @@ GHITcloGetStartMenuItem(RpcInData *data)        // IN/OUT
    Bool ret = TRUE;
    uint32 itemIndex = 0;
    uint32 handle = 0;
+#if !defined(OPEN_VM_TOOLS)
+   Bool isSubmenu;
+   utf::string menuPath;
+   utf::string itemPathURI;
+   utf::string itemName;
+#endif // OPEN_VM_TOOLS
 
    /* Check our arguments. */
    ASSERT(data);
@@ -567,12 +582,24 @@ GHITcloGetStartMenuItem(RpcInData *data)        // IN/OUT
    }
 
    DynBuf_SetSize(buf, 0);
-   if (!GHI_GetStartMenuItem(handle, itemIndex, buf)) {
+#if !defined(OPEN_VM_TOOLS)
+   if (!GHI_GetStartMenuItem(handle, itemIndex,
+                             isSubmenu, menuPath, itemPathURI, itemName)) {
       Debug("%s: Could not get start menu item.\n", __FUNCTION__);
       return RPCIN_SETRETVALS(data,
                               "Could not get start menu item",
                               FALSE);
    }
+
+   DynBuf_AppendString(buf, menuPath.c_str());
+   DynBuf_AppendString(buf, isSubmenu ? "1" : "0");
+   DynBuf_AppendString(buf, itemPathURI.c_str());
+   DynBuf_AppendString(buf, itemName.c_str());
+#else
+   return RPCIN_SETRETVALS(data,
+                           "Could not get start menu item",
+                           FALSE);
+#endif // OPEN_VM_TOOLS
 
    /*
     * Write the final result into the result out parameters and return!
@@ -631,7 +658,9 @@ GHITcloCloseStartMenu(RpcInData *data)        // IN/OUT
                               FALSE);
    }
 
+#if !defined(OPEN_VM_TOOLS)
    GHI_CloseStartMenuTree(handle);
+#endif // OPEN_VM_TOOLS
 
    return RPCIN_SETRETVALS(data, "", TRUE);
 }

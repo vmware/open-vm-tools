@@ -204,7 +204,6 @@ GHI_GetBinaryHandlers(const char *pathUtf8)   // IN: full path to the executable
 {
    return GHIPlatformGetBinaryHandlers(ghiPlatformData, pathUtf8);
 }
-#endif // !OPEN_VM_TOOLS && !__FreeBSD__ && !sun && !__APPLE__
 
 
 /*
@@ -227,12 +226,12 @@ GHI_GetBinaryHandlers(const char *pathUtf8)   // IN: full path to the executable
  *----------------------------------------------------------------------------
  */
 
-Bool
-GHI_OpenStartMenuTree(const char *rootUtf8,     // IN: root of the tree
-                     uint32 flags,             // IN: flags from VMX
-                     DynBuf *buf)              // OUT: number of items
+Bool GHI_OpenStartMenuTree(const char *rootUtf8,        // IN:
+                           uint32 flags,                // IN:
+                           uint32 &handle,              // OUT: handle for menu
+                           uint32 &numItems)            // OUT: number of items in menu
 {
-   return GHIPlatformOpenStartMenuTree(ghiPlatformData, rootUtf8, flags, buf);
+   return GHIPlatformOpenStartMenuTree(ghiPlatformData, rootUtf8, flags, handle, numItems);
 }
 
 
@@ -256,11 +255,15 @@ GHI_OpenStartMenuTree(const char *rootUtf8,     // IN: root of the tree
  */
 
 Bool
-GHI_GetStartMenuItem(uint32 handle,       // IN: tree handle
-                     uint32 itemIndex,    // IN: the index of the item in the tree
-                     DynBuf *buf)         // OUT: item
+GHI_GetStartMenuItem(uint32 handle,            // IN: tree handle
+                     uint32 itemIndex,         // IN: the index of the item in the tree
+                     Bool &isSubmenu,          // OUT: True if this item is a submenu
+                     utf::string &menuPath,    // OUT: Path to the submenu (if this item is a submenu)
+                     utf::string &itemPathURI, // OUT: URI for the item (empty if this is a submenu)
+                     utf::string &itemName)    // OUT: The name/label for the item
 {
-   return GHIPlatformGetStartMenuItem(ghiPlatformData, handle, itemIndex, buf);
+   return GHIPlatformGetStartMenuItem(ghiPlatformData, handle, itemIndex,
+                                      isSubmenu, menuPath, itemPathURI, itemName);
 }
 
 
@@ -286,6 +289,7 @@ GHI_CloseStartMenuTree(uint32 handle)     // IN: handle to the tree to be closed
 {
    return GHIPlatformCloseStartMenuTree(ghiPlatformData, handle);
 }
+#endif // !OPEN_VM_TOOLS && !__FreeBSD__ && !sun && !__APPLE__
 
 
 /*

@@ -42,16 +42,6 @@ typedef struct _GHIPlatform GHIPlatform;
 Bool GHIPlatformIsSupported(void);
 GHIPlatform *GHIPlatformInit(GMainLoop *mainLoop, const char **envp, GHIHostCallbacks hostcallbacks);
 void GHIPlatformCleanup(GHIPlatform *ghip);
-Bool GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,
-                                  const char *rootUtf8,
-                                  uint32 flags,
-                                  DynBuf *buf);
-Bool GHIPlatformGetStartMenuItem(GHIPlatform *ghip,
-                                 uint32 handle,
-                                 uint32 itemIndex,
-                                 DynBuf *buf);
-Bool GHIPlatformCloseStartMenuTree(GHIPlatform *ghip,
-                                   uint32 handle);
 Bool GHIPlatformShellOpen(GHIPlatform *ghip,
                           const char *fileUtf8);
 Bool GHIPlatformShellAction(GHIPlatform *ghip,
@@ -128,6 +118,21 @@ void GHIPlatformUnregisterNotifyIconCallback(vmware::tools::NotifyIconCallback *
 
 #if !defined(OPEN_VM_TOOLS)  && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 const FileTypeList& GHIPlatformGetBinaryHandlers(GHIPlatform *ghip, const char *pathUtf8);
+
+Bool GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,
+                                  const char *rootUtf8,
+                                  uint32 flags,
+                                  uint32 &handle,
+                                  uint32 &numItems);
+Bool GHIPlatformGetStartMenuItem(GHIPlatform *ghip,
+                                 uint32 handle,
+                                 uint32 itemIndex,
+                                 Bool &isSubmenu,
+                                 utf::string &menuPath,
+                                 utf::string &itemPathURI,
+                                 utf::string &itemName);
+Bool GHIPlatformCloseStartMenuTree(GHIPlatform *ghip,
+                                   uint32 handle);
 #endif // !OPEN_VM_TOOLS && !__FreeBSD__ && !sun && !__APPLE__
 
 Bool GHIPlatformGetBinaryInfo(GHIPlatform *ghip, const char *pathUriUtf8, std::string &friendlyName, std::list<GHIBinaryIconInfo> &iconList);

@@ -594,7 +594,6 @@ GHIPlatformGetBinaryHandlers(GHIPlatform *ghip,      // IN: platform-specific st
 {
    return sEmptyFileTypeList;
 }
-#endif // OPEN_VM_TOOLS
 
 
 /*
@@ -624,22 +623,101 @@ Bool
 GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,        // IN: platform-specific state
                              const char *rootUtf8,     // IN: root of the tree
                              uint32 flags,             // IN: flags
-                             DynBuf *buf)              // OUT: number of items
+                             uint32 &handle,           // OUT: menu handle
+                             uint32 &numItems)         // OUT: number of items
 {
    Bool success = FALSE;
 
 #ifdef REDIST_GMENU
    std::pair<uint32,uint32> descriptor;
    if (ghip->menuItemManager->OpenMenuTree(rootUtf8, &descriptor)) {
-      char tmp[2 * sizeof MAKESTR(UINT_MAX)];
-      Str_Sprintf(tmp, sizeof tmp, "%u %u", descriptor.first, descriptor.second);
-      DynBuf_AppendString(buf, tmp);
+      handle = descriptor.first;
+      numItems = descriptor.second;
       success = TRUE;
    }
 #endif
 
    return success;
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * GHIPlatformGetStartMenuItem --
+ *
+ *      Get start menu item at a given index. This function should be called
+ *      in the loop to get all items for a menu sub-tree.
+ *      If there are no more items, the function will return FALSE.
+ *
+ * Results:
+ *      TRUE if there's an item at a given index, FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+GHIPlatformGetStartMenuItem(GHIPlatform *ghip,        // IN: platform-specific state
+                            uint32 handle,            // IN: tree handle
+                            uint32 itemIndex,         // IN: the index of the item in the tree
+                            Bool &isSubmenu,          // OUT: True if this item is a submenu
+                            utf::string &menuPath,    // OUT: Path to the submenu (if this item is a submenu)
+                            utf::string &itemPathURI, // OUT: URI for the item (empty if this is a submenu)
+                            utf::string &itemName)    // OUT: The name/label for the item
+{
+   Bool success = FALSE;
+
+#ifdef REDIST_GMENU
+   const MenuItem* menuItem;
+   const Glib::ustring* path;
+
+   if (ghip->menuItemManager->GetMenuItem(handle, itemIndex, &menuItem, &path)) {
+      Glib::ustring key = *path + "/" + menuItem->key;
+      menuPath = key;
+
+      isSubmenu = menuItem->isFolder;
+
+      itemPathURI = menuItem->execPath.c_str();
+      itemName = menuItem->displayName.c_str();
+      success = TRUE;
+   }
+#endif
+
+   return success;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * GHIPlatformCloseStartMenu --
+ *
+ *      Free all memory associated with this start menu tree and cleanup.
+ *
+ * Results:
+ *      TRUE if the handle is valid
+ *      FALSE otherwise
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+GHIPlatformCloseStartMenuTree(GHIPlatform *ghip, // IN: platform-specific state
+                              uint32 handle)     // IN: handle to the tree to be closed
+{
+#ifdef REDIST_GMENU
+   return ghip->menuItemManager->CloseMenuTree(handle);
+#else
+   return FALSE;
+#endif
+}
+#endif // OPEN_VM_TOOLS
 
 
 /*
@@ -718,89 +796,6 @@ GHIPlatformMenuItemToURI(GHIPlatform *ghip, // IN
    }
 
    return g_strdup_printf("%s?%s", uriString, queryString);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * GHIPlatformGetStartMenuItem --
- *
- *      Get start menu item at a given index. This function should be called
- *      in the loop to get all items for a menu sub-tree.
- *      If there are no more items, the function will return FALSE.
- *
- *      Upon returning, 'buf' will hold a nul-delimited array of strings:
- *         1. User-visible item name.
- *         2. UNITY_START_MENU_ITEM_* flag.
- *         3. Executable path.
- *         4. Localized user-visible item name.
- *
- * Results:
- *      TRUE if there's an item at a given index, FALSE otherwise.
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
-                            uint32 handle,     // IN: tree handle
-                            uint32 itemIndex,  // IN: the index of the item in the tree
-                            DynBuf *buf)       // OUT: item
-{
-   Bool success = FALSE;
-
-#ifdef REDIST_GMENU
-   const MenuItem* menuItem;
-   const Glib::ustring* path;
-
-   if (ghip->menuItemManager->GetMenuItem(handle, itemIndex, &menuItem, &path)) {
-      Glib::ustring key = *path + "/" + menuItem->key;
-      DynBuf_AppendString(buf, key.c_str());
-
-      char tmp[sizeof MAKESTR(UINT_MAX)];
-      Str_Sprintf(tmp, sizeof tmp, "%u", menuItem->isFolder ? 1 : 0);
-      DynBuf_AppendString(buf, tmp);
-
-      DynBuf_AppendString(buf, menuItem->execPath.c_str());
-      DynBuf_AppendString(buf, menuItem->displayName.c_str());
-      success = TRUE;
-   }
-#endif
-
-   return success;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * GHIPlatformCloseStartMenu --
- *
- *      Free all memory associated with this start menu tree and cleanup.
- *
- * Results:
- *      TRUE if the handle is valid
- *      FALSE otherwise
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-GHIPlatformCloseStartMenuTree(GHIPlatform *ghip, // IN: platform-specific state
-                              uint32 handle)     // IN: handle to the tree to be closed
-{
-#ifdef REDIST_GMENU
-   return ghip->menuItemManager->CloseMenuTree(handle);
-#else
-   return FALSE;
-#endif
 }
 
 

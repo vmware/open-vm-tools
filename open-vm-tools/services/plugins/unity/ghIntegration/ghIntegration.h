@@ -28,7 +28,9 @@
 #if defined(__cplusplus)
 #if !defined(OPEN_VM_TOOLS) && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 #include "appUtilFileTypes.h"
+#include "stringxx/string.hh"
 #endif // !OPEN_VM_TOOLS && !__FREEBSD__ && !sun && !__APPLE__
+
 #include <vector>
 #include <string>
 #include <list>
@@ -54,10 +56,6 @@ typedef struct GHIHostCallbacks {
 Bool GHI_IsSupported(void);
 void GHI_Init(GMainLoop *mainLoop, const char **envp, GHIHostCallbacks hostCallbacks);
 void GHI_Cleanup(void);
-
-Bool GHI_OpenStartMenuTree(const char *rootUtf8, uint32 flags, DynBuf *buf);
-Bool GHI_GetStartMenuItem(uint32 handle, uint32 itemIndex, DynBuf *buf);
-Bool GHI_CloseStartMenuTree(uint32 handle);
 
 Bool GHI_ShellOpen(const char *fileURIUtf8);
 Bool GHI_ShellAction(const char *actionURI,
@@ -112,6 +110,17 @@ typedef struct GHIBinaryIconInfo {
 } GHIBinaryIconInfo;
 
 Bool GHI_GetBinaryInfo(const char *pathUriUtf8, std::string &friendlyName, std::list<GHIBinaryIconInfo> &iconList);
+
+#if !defined(OPEN_VM_TOOLS) && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
+Bool GHI_OpenStartMenuTree(const char *rootUtf8, uint32 flags, uint32 &handle, uint32 &numItems);
+Bool GHI_GetStartMenuItem(uint32 handle,
+                          uint32 itemIndex,
+                          Bool &isSubmenu,
+                          utf::string &menuPath,
+                          utf::string &itemPathURI,
+                          utf::string &itemName);
+Bool GHI_CloseStartMenuTree(uint32 handle);
+#endif // !OPEN_VM_TOOLS && !__FreeBSD__ && !sun && !__APPLE__
 #endif // __cplusplus
 
 #endif // _GH_INTEGRATION_H_
