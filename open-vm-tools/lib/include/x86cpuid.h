@@ -467,7 +467,7 @@ FIELD( 81,  0, EBX, INTEL,   0, 32, UNKNOWN81EBX,                  ANY, FALSE) \
 FIELD( 81,  0, EBX, AMD,     0, 16, LEAF81_BRAND_ID,               ANY, FALSE) \
 FIELD( 81,  0, EBX, AMD,    16, 16, UNDEF,                         ANY, FALSE) \
 FLAG(  81,  0, ECX, COMMON,  0,  1, LAHF64,                        YES, TRUE)  \
-FLAG(  81,  0, ECX, AMD,     1,  1, CMPLEGACY,                     NO,  FALSE) \
+FLAG(  81,  0, ECX, AMD,     1,  1, CMPLEGACY,                     ANY, FALSE) \
 FLAG(  81,  0, ECX, AMD,     2,  1, SVM,                           YES, FALSE) \
 FLAG(  81,  0, ECX, AMD,     3,  1, EXTAPICSPC,                    YES, FALSE) \
 FLAG(  81,  0, ECX, AMD,     4,  1, CR8AVAIL,                      YES, FALSE) \
