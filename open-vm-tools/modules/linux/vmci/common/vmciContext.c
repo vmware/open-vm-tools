@@ -1940,7 +1940,7 @@ VMCIContext_NotifyDoorbell(VMCIId srcCID,                   // IN
    dstContext = VMCIContext_Get(handle.context);
    if (dstContext == NULL) {
       VMCI_DEBUG_LOG(4, (LGPFX"Invalid context (ID=0x%x).\n", handle.context));
-      return VMCI_ERROR_INVALID_ARGS;
+      return VMCI_ERROR_NOT_FOUND;
    }
 
    if (srcCID != handle.context) {

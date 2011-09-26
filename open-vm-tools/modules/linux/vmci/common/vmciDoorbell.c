@@ -227,7 +227,9 @@ VMCIDoorbellReleaseCB(void *clientData) // IN: doorbell entry
  *    handle. Hypervisor endpoints are not yet supported.
  *
  * Result:
- *    VMCI_SUCCESS on success, VMCI_ERROR_INVALID_ARGS if handle is invalid.
+ *    VMCI_SUCCESS on success,
+ *    VMCI_ERROR_NOT_FOUND if handle isn't found,
+ *    VMCI_ERROR_INVALID_ARGS if handle is invalid.
  *
  * Side effects:
  *    None.
@@ -249,7 +251,7 @@ VMCIDoorbellGetPrivFlags(VMCIHandle handle,             // IN
 
       resource = VMCIResource_Get(handle, VMCI_RESOURCE_TYPE_DOORBELL);
       if (resource == NULL) {
-         return VMCI_ERROR_INVALID_ARGS;
+         return VMCI_ERROR_NOT_FOUND;
       }
       entry = RESOURCE_CONTAINER(resource, VMCIDoorbellEntry, resource);
       *privFlags = entry->privFlags;
@@ -897,12 +899,19 @@ VMCIDoorbellHostContextNotify(VMCIId srcCID,     // IN
 
    ASSERT(VMCI_HostPersonalityActive());
 
-   resource = VMCIResource_Get(handle, VMCI_RESOURCE_TYPE_DOORBELL);
-   if (resource == NULL) {
+   if (VMCI_HANDLE_INVALID(handle)) {
       VMCI_DEBUG_LOG(4,
                      (LGPFX"Notifying an invalid doorbell (handle=0x%x:0x%x).\n",
                       handle.context, handle.resource));
       return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   resource = VMCIResource_Get(handle, VMCI_RESOURCE_TYPE_DOORBELL);
+   if (resource == NULL) {
+      VMCI_DEBUG_LOG(4,
+                     (LGPFX"Notifying an unknown doorbell (handle=0x%x:0x%x).\n",
+                      handle.context, handle.resource));
+      return VMCI_ERROR_NOT_FOUND;
    }
    entry = RESOURCE_CONTAINER(resource, VMCIDoorbellEntry, resource);
 
