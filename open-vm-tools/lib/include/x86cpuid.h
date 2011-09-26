@@ -390,9 +390,13 @@ FIELD(  6,  0, EBX, INTEL,   0,  4, NUM_INTR_THRESHOLDS,           NA,  FALSE) \
 FLAG(   6,  0, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,             NA,  FALSE) \
 FLAG(   6,  0, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,              NA,  FALSE)
 
+
+#define CPUID_7_EBX_3
+
 /*    LEVEL, SUB-LEVEL, REG, VENDOR, POS, SIZE, NAME,        MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
 FLAG(   7,  0, EBX, INTEL,   0,  1, FSGSBASE,                      YES, FALSE) \
+CPUID_7_EBX_3 \
 FLAG(   7,  0, EBX, INTEL,   7,  1, SMEP,                          YES, FALSE) \
 FLAG(   7,  0, EBX, INTEL,   9,  1, ENFSTRG,                       YES, FALSE)
 
@@ -508,6 +512,8 @@ FLAG(  81,  0, EDX, COMMON, 29,  1, LM,                            YES, FALSE) \
 FLAG(  81,  0, EDX, AMD,    30,  1, 3DNOWPLUS,                     YES, TRUE)  \
 FLAG(  81,  0, EDX, AMD,    31,  1, 3DNOW,                         YES, TRUE)
 
+#define CPUID_8A_EDX_11 \
+FLAG(  8A,  0, EDX, AMD,    11,  1, SVMEDX_RSVD1,                      NO,  FALSE)
 #define CPUID_8A_EDX_13_31 \
 FIELD( 8A,  0, EDX, AMD,    13, 19, SVMEDX_RSVD2,                      NO,  FALSE)
 
@@ -575,7 +581,7 @@ FLAG(  8A,  0, EDX, AMD,     6,  1, SVM_FLUSH_BY_ASID,             YES, FALSE) \
 FLAG(  8A,  0, EDX, AMD,     7,  1, SVM_DECODE_ASSISTS,            YES, FALSE) \
 FIELD( 8A,  0, EDX, AMD,     8,  2, SVMEDX_RSVD0,                  NO,  FALSE) \
 FLAG(  8A,  0, EDX, AMD,    10,  1, SVM_PAUSE_FILTER,              NO,  FALSE) \
-FLAG(  8A,  0, EDX, AMD,    11,  1, SVMEDX_RSVD1,                  NO,  FALSE) \
+CPUID_8A_EDX_11 \
 FLAG(  8A,  0, EDX, AMD,    12,  1, SVM_PAUSE_THRESHOLD,           NO,  FALSE) \
 CPUID_8A_EDX_13_31
 
