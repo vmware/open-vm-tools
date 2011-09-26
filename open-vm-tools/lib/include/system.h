@@ -70,7 +70,6 @@ typedef struct MonListNode {
 BOOL System_SetProcessPrivilege(wchar_t *privName, Bool enable);
 int32 System_GetSPVersion(void);
 Bool System_IsLoginScreenActive(void);
-Bool System_IsProcessElevated(void);
 Bool System_IsScreenSaverActive(void);
 Bool System_IsScreenSaverRunning(void);
 Bool System_IsSecureDesktopActive(void);
