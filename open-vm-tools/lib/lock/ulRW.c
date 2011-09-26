@@ -657,7 +657,7 @@ static HolderContext *
 MXUserGetHolderContext(MXUserRWLock *lock)  // IN:
 {
    HolderContext *result;
-   void *threadID = MXUserGetNativeTID();
+   void *threadID = MXUserGetThreadID();
 
    ASSERT(lock->holderTable);
 

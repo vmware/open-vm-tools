@@ -361,13 +361,13 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserGetNativeTID --
+ * MXUserGetThreadID --
  *
- *      Gets a native representation of the thread ID, which can be stored
- *      in a pointer.
+ *      Obtains a unique thread identifier (ID) which can be stored in a
+ *      pointer.
  *
  * Results:
- *      Native representation of a thread ID.
+ *      As above
  *
  * Side effects:
  *      None.
@@ -376,7 +376,7 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
  */
 
 static INLINE void *
-MXUserGetNativeTID(void)
+MXUserGetThreadID(void)
 {
    /* All thread types must fit into a uintptr_t  */
 
