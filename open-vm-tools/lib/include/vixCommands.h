@@ -877,6 +877,20 @@ VixMsgHotRemoveDeviceRequest;
 
 /*
  * **********************************************************
+ * Change monitor type of a running VM.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgHotChangeMonitorTypeRequest {
+   VixCommandRequestHeader header;
+   int32                   monitorType;
+}
+#include "vmware_pack_end.h"
+VixMsgHotChangeMonitorTypeRequest;
+
+
+/*
+ * **********************************************************
  * Hot plug begin batch.
  */
 typedef
@@ -2262,6 +2276,7 @@ enum {
    VIX_COMMAND_TERMINATE_PROCESS                = 193,
    VIX_COMMAND_DELETE_GUEST_FILE_EX             = 194,
    VIX_COMMAND_DELETE_GUEST_DIRECTORY_EX        = 195,
+   VIX_COMMAND_HOT_CHANGE_MONITOR_TYPE          = 196,
 
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
@@ -2273,7 +2288,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg/foundryMsg.c as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 196,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 197,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
