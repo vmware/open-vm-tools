@@ -34,7 +34,6 @@
 #include "vmciEvent.h"
 #include "vmciKernelAPI.h"
 #include "vmciQueuePair.h"
-#include "vmciResource.h"
 #if defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
@@ -231,13 +230,13 @@ VMCIContext_Init(void)
    VMCIList_Init(&contextList.head);
 
    err = VMCI_InitLock(&contextList.lock, "VMCIContextListLock",
-                       VMCI_LOCK_RANK_HIGHER);
+                       VMCI_LOCK_RANK_CONTEXTLIST);
    if (err < VMCI_SUCCESS) {
       return err;
    }
 
    err = VMCI_InitLock(&contextList.firingLock, "VMCIContextFiringLock",
-                       VMCI_LOCK_RANK_MIDDLE_LOW);
+                       VMCI_LOCK_RANK_CONTEXTFIRE);
    if (err < VMCI_SUCCESS) {
       VMCI_CleanupLock(&contextList.lock);
    }
@@ -351,7 +350,7 @@ VMCIContext_InitContext(VMCIId cid,                   // IN
    }
 
    result = VMCI_InitLock(&context->lock, "VMCIContextLock",
-                          VMCI_LOCK_RANK_HIGHER);
+                          VMCI_LOCK_RANK_CONTEXT);
    if (result < VMCI_SUCCESS) {
       goto error;
    }

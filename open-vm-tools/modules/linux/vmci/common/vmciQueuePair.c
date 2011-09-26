@@ -97,25 +97,10 @@ typedef struct QPGuestEndpoint {
 } QPGuestEndpoint;
 #endif
 
-#ifdef VMKERNEL
-typedef VMCILock VMCIQPLock;
-# define VMCIQPLock_Init(_l, _r) \
-   _r = VMCI_InitLock(_l, "VMCIQPLock", VMCI_LOCK_RANK_HIGH)
-# define VMCIQPLock_Destroy(_l)  VMCI_CleanupLock(_l)
-# define VMCIQPLock_Acquire(_l)  VMCI_GrabLock(_l, NULL)
-# define VMCIQPLock_Release(_l)  VMCI_ReleaseLock(_l, 0)
-#else
-typedef VMCIMutex VMCIQPLock;
-# define VMCIQPLock_Init(_l, _r) _r = VMCIMutex_Init(_l)
-# define VMCIQPLock_Destroy(_l)  VMCIMutex_Destroy(_l)
-# define VMCIQPLock_Acquire(_l)  VMCIMutex_Acquire(_l)
-# define VMCIQPLock_Release(_l)  VMCIMutex_Release(_l)
-#endif
-
 typedef struct QueuePairList {
    VMCIList       head;
    Atomic_uint32  hibernate;
-   VMCIQPLock     lock;
+   VMCIMutex      mutex;
 } QueuePairList;
 
 static QueuePairList qpBrokerList;
@@ -275,8 +260,8 @@ QueuePairList_Init(QueuePairList *qpList)  // IN
 
    VMCIList_Init(&qpList->head);
    Atomic_Write(&qpList->hibernate, 0);
-   VMCIQPLock_Init(&qpList->lock, ret);
-
+   ret = VMCIMutex_Init(&qpList->mutex, "VMCIQPListLock",
+                        VMCI_SEMA_RANK_QUEUEPAIRLIST);
    return ret;
 }
 
@@ -286,7 +271,7 @@ QueuePairList_Init(QueuePairList *qpList)  // IN
  *
  * QueuePairList_Destroy --
  *
- *      Destroy the list's lock.
+ *      Destroy the list's mutex.
  *
  * Results:
  *      None.
@@ -300,7 +285,7 @@ QueuePairList_Init(QueuePairList *qpList)  // IN
 static INLINE void
 QueuePairList_Destroy(QueuePairList *qpList)
 {
-   VMCIQPLock_Destroy(&qpList->lock);
+   VMCIMutex_Destroy(&qpList->mutex);
    VMCIList_Init(&qpList->head);
 }
 
@@ -310,7 +295,7 @@ QueuePairList_Destroy(QueuePairList *qpList)
  *
  * VMCIQPBroker_Lock --
  *
- *      Acquires the lock protecting a VMCI queue pair broker transaction.
+ *      Acquires the mutex protecting a VMCI queue pair broker transaction.
  *
  * Results:
  *      None.
@@ -324,7 +309,7 @@ QueuePairList_Destroy(QueuePairList *qpList)
 void
 VMCIQPBroker_Lock(void)
 {
-   VMCIQPLock_Acquire(&qpBrokerList.lock);
+   VMCIMutex_Acquire(&qpBrokerList.mutex);
 }
 
 
@@ -333,7 +318,7 @@ VMCIQPBroker_Lock(void)
  *
  * VMCIQPBroker_Unlock --
  *
- *      Releases the lock protecting a VMCI queue pair broker transaction.
+ *      Releases the mutex protecting a VMCI queue pair broker transaction.
  *
  * Results:
  *      None.
@@ -347,7 +332,7 @@ VMCIQPBroker_Lock(void)
 void
 VMCIQPBroker_Unlock(void)
 {
-   VMCIQPLock_Release(&qpBrokerList.lock);
+   VMCIMutex_Release(&qpBrokerList.mutex);
 }
 
 
@@ -1659,7 +1644,7 @@ VMCIQueuePairDetachHostWork(VMCIHandle handle) // IN
  *      guest endpoints.
  *
  * Results:
- *      None.
+ *      VMCI_SUCCESS on success and appropriate failure code otherwise.
  *
  * Side effects:
  *      None.
@@ -1690,7 +1675,7 @@ VMCIQPGuestEndpoints_Init(void)
     */
 
    err = VMCI_InitLock(&hibernateFailedListLock, "VMCIQPHibernateFailed",
-                       VMCI_LOCK_RANK_MIDDLE_BH);
+                       VMCI_LOCK_RANK_QPHIBERNATE);
    if (err < VMCI_SUCCESS) {
       VMCIHandleArray_Destroy(hibernateFailedList);
       hibernateFailedList = NULL;
@@ -1725,7 +1710,7 @@ VMCIQPGuestEndpoints_Exit(void)
 {
    QPGuestEndpoint *entry;
 
-   VMCIQPLock_Acquire(&qpGuestEndpoints.lock);
+   VMCIMutex_Acquire(&qpGuestEndpoints.mutex);
 
    while ((entry = (QPGuestEndpoint *)QueuePairList_GetHead(&qpGuestEndpoints))) {
       /*
@@ -1743,7 +1728,7 @@ VMCIQPGuestEndpoints_Exit(void)
    }
 
    Atomic_Write(&qpGuestEndpoints.hibernate, 0);
-   VMCIQPLock_Release(&qpGuestEndpoints.lock);
+   VMCIMutex_Release(&qpGuestEndpoints.mutex);
    QueuePairList_Destroy(&qpGuestEndpoints);
    VMCI_CleanupLock(&hibernateFailedListLock);
    VMCIHandleArray_Destroy(hibernateFailedList);
@@ -1770,8 +1755,8 @@ VMCIQPGuestEndpoints_Exit(void)
 void
 VMCIQPGuestEndpoints_Sync(void)
 {
-   VMCIQPLock_Acquire(&qpGuestEndpoints.lock);
-   VMCIQPLock_Release(&qpGuestEndpoints.lock);
+   VMCIMutex_Acquire(&qpGuestEndpoints.mutex);
+   VMCIMutex_Release(&qpGuestEndpoints.mutex);
 }
 
 
@@ -1783,7 +1768,7 @@ VMCIQPGuestEndpoints_Sync(void)
  *      Allocates and initializes a QPGuestEndpoint structure.
  *      Allocates a QueuePair rid (and handle) iff the given entry has
  *      an invalid handle.  0 through VMCI_RESERVED_RESOURCE_ID_MAX
- *      are reserved handles.  Assumes that the QP list lock is held
+ *      are reserved handles.  Assumes that the QP list mutex is held
  *      by the caller.
  *
  * Results:
@@ -1995,7 +1980,7 @@ VMCIQueuePairAllocGuestWork(VMCIHandle *handle,           // IN/OUT
       return VMCI_ERROR_NO_ACCESS;
    }
 
-   VMCIQPLock_Acquire(&qpGuestEndpoints.lock);
+   VMCIMutex_Acquire(&qpGuestEndpoints.mutex);
 
    /* Check if creation/attachment of a queuepair is allowed. */
    if (!VMCI_CanCreate()) {
@@ -2138,12 +2123,12 @@ out:
       VMCIQueueHeader_Init((*consumeQ)->qHeader, *handle);
    }
 
-   VMCIQPLock_Release(&qpGuestEndpoints.lock);
+   VMCIMutex_Release(&qpGuestEndpoints.mutex);
 
    return VMCI_SUCCESS;
 
 error:
-   VMCIQPLock_Release(&qpGuestEndpoints.lock);
+   VMCIMutex_Release(&qpGuestEndpoints.mutex);
    if (queuePairEntry) {
       /* The queues will be freed inside the destroy routine. */
       QPGuestEndpointDestroy(queuePairEntry);
@@ -2160,7 +2145,7 @@ error:
 errorKeepEntry:
    /* This path should only be used when an existing entry was found. */
    ASSERT(queuePairEntry->qp.refCount > 0);
-   VMCIQPLock_Release(&qpGuestEndpoints.lock);
+   VMCIMutex_Release(&qpGuestEndpoints.mutex);
    return result;
 }
 
@@ -2223,11 +2208,11 @@ VMCIQueuePairDetachGuestWork(VMCIHandle handle)   // IN
 
    ASSERT(!VMCI_HANDLE_INVALID(handle));
 
-   VMCIQPLock_Acquire(&qpGuestEndpoints.lock);
+   VMCIMutex_Acquire(&qpGuestEndpoints.mutex);
 
    entry = (QPGuestEndpoint *)QueuePairList_FindEntry(&qpGuestEndpoints, handle);
    if (!entry) {
-      VMCIQPLock_Release(&qpGuestEndpoints.lock);
+      VMCIMutex_Release(&qpGuestEndpoints.mutex);
       return VMCI_ERROR_NOT_FOUND;
    }
 
@@ -2275,7 +2260,7 @@ VMCIQueuePairDetachGuestWork(VMCIHandle handle)   // IN
           * fail?).
           */
 
-         VMCIQPLock_Release(&qpGuestEndpoints.lock);
+         VMCIMutex_Release(&qpGuestEndpoints.mutex);
          return result;
       }
    }
@@ -2297,7 +2282,7 @@ VMCIQueuePairDetachGuestWork(VMCIHandle handle)   // IN
                                    * compiler.
                                    */
 
-   VMCIQPLock_Release(&qpGuestEndpoints.lock);
+   VMCIMutex_Release(&qpGuestEndpoints.mutex);
 
    if (refCount == 0) {
       QPGuestEndpointDestroy(entry);
@@ -2358,7 +2343,7 @@ QueuePairNotifyPeerLocal(Bool attach,           // IN: attach or detach?
  *
  *      Helper function that marks a queue pair entry as not being
  *      converted to a local version during hibernation. Must be
- *      called with the queue pair list lock held.
+ *      called with the queue pair list mutex held.
  *
  * Results:
  *      None.
@@ -2491,7 +2476,7 @@ VMCIQPGuestEndpoints_Convert(Bool toLocal,     // IN
    if (toLocal) {
       VMCIListItem *next;
 
-      VMCIQPLock_Acquire(&qpGuestEndpoints.lock);
+      VMCIMutex_Acquire(&qpGuestEndpoints.mutex);
 
       VMCIList_Scan(next, &qpGuestEndpoints.head) {
          QPGuestEndpoint *entry = (QPGuestEndpoint *)VMCIList_Entry(
@@ -2572,7 +2557,7 @@ VMCIQPGuestEndpoints_Convert(Bool toLocal,     // IN
       }
       Atomic_Write(&qpGuestEndpoints.hibernate, 1);
 
-      VMCIQPLock_Release(&qpGuestEndpoints.lock);
+      VMCIMutex_Release(&qpGuestEndpoints.mutex);
    } else {
       VMCILockFlags flags;
       VMCIHandle handle;

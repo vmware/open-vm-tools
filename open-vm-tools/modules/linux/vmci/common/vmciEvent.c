@@ -61,21 +61,6 @@ static int VMCIEventRegisterSubscription(VMCISubscription *sub,
                                          void *callbackData);
 static VMCISubscription *VMCIEventUnregisterSubscription(VMCIId subID);
 
-
-#if defined(VMKERNEL)
-   /* VMK doesn't need BH locks, so use lower ranks. */
-#  define VMCIEventInitLock(_lock, _name) \
-   VMCI_InitLock(_lock, _name, VMCI_LOCK_RANK_HIGHER)
-#  define VMCIEventGrabLock(_lock, _flags)    VMCI_GrabLock(_lock, _flags)
-#  define VMCIEventReleaseLock(_lock, _flags) VMCI_ReleaseLock(_lock, _flags)
-#else // VMKERNEL
-#  define VMCIEventInitLock(_lock, _name) \
-   VMCI_InitLock(_lock, _name, VMCI_LOCK_RANK_HIGHER_BH)
-#  define VMCIEventGrabLock(_lock, _flags)    VMCI_GrabLock_BH(_lock, _flags)
-#  define VMCIEventReleaseLock(_lock, _flags) VMCI_ReleaseLock_BH(_lock, _flags)
-#endif // VMKERNEL
-
-
 static VMCIList subscriberArray[VMCI_EVENT_MAX];
 static VMCILock subscriberLock;
 
@@ -93,7 +78,7 @@ typedef struct VMCIDelayedEventInfo {
  *      General init code.
  *
  * Results:
- *      None.
+ *      VMCI_SUCCESS on success, appropriate error code otherwise.
  *
  * Side effects:
  *      None.
@@ -110,7 +95,8 @@ VMCIEvent_Init(void)
       VMCIList_Init(&subscriberArray[i]);
    }
 
-   return VMCIEventInitLock(&subscriberLock, "VMCIEventSubscriberLock");
+   return VMCI_InitLock(&subscriberLock, "VMCIEventSubscriberLock",
+                        VMCI_LOCK_RANK_EVENT);
 }
 
 
@@ -181,8 +167,8 @@ void
 VMCIEvent_Sync(void)
 {
    VMCILockFlags lockFlags;
-   VMCIEventGrabLock(&subscriberLock, &lockFlags);
-   VMCIEventReleaseLock(&subscriberLock, lockFlags);
+   VMCI_GrabLock_BH(&subscriberLock, &lockFlags);
+   VMCI_ReleaseLock_BH(&subscriberLock, lockFlags);
 }
 
 
@@ -291,9 +277,9 @@ EventReleaseCB(void *clientData) // IN
 
    ASSERT(sub);
 
-   VMCIEventGrabLock(&subscriberLock, &flags);
+   VMCI_GrabLock_BH(&subscriberLock, &flags);
    VMCIEventRelease(sub);
-   VMCIEventReleaseLock(&subscriberLock, flags);
+   VMCI_ReleaseLock_BH(&subscriberLock, flags);
 
    return 0;
 }
@@ -369,9 +355,9 @@ VMCIEventDelayedDispatchCB(void *data) // IN
 
    sub->callback(sub->id, ed, sub->callbackData);
 
-   VMCIEventGrabLock(&subscriberLock, &flags);
+   VMCI_GrabLock_BH(&subscriberLock, &flags);
    VMCIEventRelease(sub);
-   VMCIEventReleaseLock(&subscriberLock, flags);
+   VMCI_ReleaseLock_BH(&subscriberLock, flags);
 
    VMCI_FreeKernelMem(eventInfo, sizeof *eventInfo);
 }
@@ -402,7 +388,7 @@ VMCIEventDeliver(VMCIEventMsg *eventMsg)  // IN
 
    ASSERT(eventMsg);
 
-   VMCIEventGrabLock(&subscriberLock, &flags);
+   VMCI_GrabLock_BH(&subscriberLock, &flags);
    VMCIList_Scan(iter, &subscriberArray[eventMsg->eventData.event]) {
       VMCI_EventData *ed;
       VMCISubscription *cur = VMCIList_Entry(iter, VMCISubscription,
@@ -445,7 +431,7 @@ VMCIEventDeliver(VMCIEventMsg *eventMsg)  // IN
    }
 
 out:
-   VMCIEventReleaseLock(&subscriberLock, flags);
+   VMCI_ReleaseLock_BH(&subscriberLock, flags);
 
    return err;
 }
@@ -577,7 +563,7 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    sub->callbackData = callbackData;
    VMCIList_InitEntry(&sub->subscriberListItem);
 
-   VMCIEventGrabLock(&subscriberLock, &lockFlags);
+   VMCI_GrabLock_BH(&subscriberLock, &lockFlags);
 
    /* Check if creation of a new event is allowed. */
    if (!VMCI_CanCreate()) {
@@ -615,7 +601,7 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    }
 
 exit:
-   VMCIEventReleaseLock(&subscriberLock, lockFlags);
+   VMCI_ReleaseLock_BH(&subscriberLock, lockFlags);
    return result;
 #  undef VMCI_EVENT_MAX_ATTEMPTS
 }
@@ -644,13 +630,13 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
    VMCILockFlags flags;
    VMCISubscription *s;
 
-   VMCIEventGrabLock(&subscriberLock, &flags);
+   VMCI_GrabLock_BH(&subscriberLock, &flags);
    s = VMCIEventFind(subID);
    if (s != NULL) {
       VMCIEventRelease(s);
       VMCIList_Remove(&s->subscriberListItem);
    }
-   VMCIEventReleaseLock(&subscriberLock, flags);
+   VMCI_ReleaseLock_BH(&subscriberLock, flags);
 
    if (s != NULL) {
       VMCI_WaitOnEvent(&s->destroyEvent, EventReleaseCB, s);

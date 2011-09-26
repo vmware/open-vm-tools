@@ -779,7 +779,9 @@ VMCI_WaitOnEventInterruptible(VMCIEvent *event,              // IN:
  */
 
 int
-VMCIMutex_Init(VMCIMutex *mutex) // IN:
+VMCIMutex_Init(VMCIMutex *mutex,  // IN
+               char *name,        // IN: Unused
+               VMCILockRank rank) // IN: Unused
 {
    sema_init(mutex, 1);
    return VMCI_SUCCESS;

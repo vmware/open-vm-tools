@@ -140,55 +140,42 @@
 typedef int (*VMCIEventReleaseCB)(void *clientData);
 
 /*
- * The VMCI locks use a ranking scheme similar to the one used by
- * vmkernel. While holding a lock L1 with rank R1, only locks with
- * rank higher than R1 may be grabbed. The available ranks for VMCI
- * locks are (in descending order):
- * - VMCI_LOCK_RANK_HIGH_BH : to be used for locks grabbed while executing
- *   in a bottom half and not held while grabbing other locks.
- * - VMCI_LOCK_RANK_MIDDLE_BH : to be for locks grabbed while executing in a
- *   bottom half and held while grabbing locks of rank VMCI_LOCK_RANK_HIGH_BH.
- * - VMCI_LOCK_RANK_LOW_BH : to be for locks grabbed while executing in a
- *   bottom half and held while grabbing locks of rank
- *   VMCI_LOCK_RANK_MIDDLE_BH.
- * - VMCI_LOCK_RANK_HIGHEST : to be used for locks that are not held while
- *   grabbing other locks except system locks with higher ranks and bottom
- *   half locks.
- * - VMCI_LOCK_RANK_HIGHER : to be used for locks that are held while
- *   grabbing locks of rank VMCI_LOCK_RANK_HIGHEST or higher.
- * - VMCI_LOCK_RANK_HIGH : to be used for locks that are held while
- *   grabbing locks of rank VMCI_LOCK_RANK_HIGHER or higher. This is
- *   the highest lock rank used by core VMCI services
- * - VMCI_LOCK_RANK_MIDDLE : to be used for locks that are held while
- *   grabbing locks of rank VMCI_LOCK_RANK_HIGH or higher.
- * - VMCI_LOCK_RANK_LOW : to be used for locks that are held while
- *   grabbing locks of rank VMCI_LOCK_RANK_MIDDLE or higher.
- * - VMCI_LOCK_RANK_LOWEST : to be used for locks that are held while
- *   grabbing locks of rank VMCI_LOCK_RANK_LOW or higher.
+ * Internal locking dependencies within VMCI:
+ * * CONTEXTFIRE < CONTEXT, CONTEXTLIST, EVENT, HASHTABLE
+ * * DOORBELL < HASHTABLE
+ * * QPHIBERNATE < EVENT
  */
+
 #ifdef VMKERNEL
   typedef SP_Rank VMCILockRank;
+  typedef SemaRank VMCISemaRank;
 
-  #define VMCI_LOCK_RANK_HIGH_BH        SP_RANK_IRQ_LEAF
-  #define VMCI_LOCK_RANK_MIDDLE_BH      (SP_RANK_IRQ_LEAF-1)
-  #define VMCI_LOCK_RANK_LOW_BH         SP_RANK_IRQ_LOWEST
-  #define VMCI_LOCK_RANK_HIGHEST        SP_RANK_SHM_MGR-1
+  #define VMCI_SEMA_RANK_QPHEADER       (SEMA_RANK_LEAF - 1)
+
+  #define VMCI_LOCK_RANK_MAX            (MIN(SP_RANK_WAIT, \
+                                             SP_RANK_HEAPLOCK_DYNAMIC) - 1)
 #else
   typedef unsigned long VMCILockRank;
+  typedef unsigned long VMCISemaRank;
 
-  #define VMCI_LOCK_RANK_HIGHER_BH      0x8000
-  #define VMCI_LOCK_RANK_HIGH_BH        0x4000
-  #define VMCI_LOCK_RANK_MIDDLE_BH      0x2000
-  #define VMCI_LOCK_RANK_LOW_BH         0x1000
-  #define VMCI_LOCK_RANK_HIGHEST        0x0fff
+  #define VMCI_LOCK_RANK_MAX            0x0fff
+
+  #define VMCI_SEMA_RANK_QPHEADER       0x0fff
 #endif // VMKERNEL
-#define VMCI_LOCK_RANK_HIGHER      (VMCI_LOCK_RANK_HIGHEST-1)
-#define VMCI_LOCK_RANK_HIGH        (VMCI_LOCK_RANK_HIGHER-1)
-#define VMCI_LOCK_RANK_MIDDLE_HIGH (VMCI_LOCK_RANK_HIGH-1)
-#define VMCI_LOCK_RANK_MIDDLE      (VMCI_LOCK_RANK_MIDDLE_HIGH-1)
-#define VMCI_LOCK_RANK_MIDDLE_LOW  (VMCI_LOCK_RANK_MIDDLE-1)
-#define VMCI_LOCK_RANK_LOW         (VMCI_LOCK_RANK_MIDDLE_LOW-1)
-#define VMCI_LOCK_RANK_LOWEST      (VMCI_LOCK_RANK_LOW-1)
+#define VMCI_LOCK_RANK_CONTEXT          VMCI_LOCK_RANK_MAX
+#define VMCI_LOCK_RANK_CONTEXTLIST      VMCI_LOCK_RANK_MAX
+#define VMCI_LOCK_RANK_DATAGRAMVMK      VMCI_LOCK_RANK_MAX
+#define VMCI_LOCK_RANK_EVENT            VMCI_LOCK_RANK_MAX
+#define VMCI_LOCK_RANK_HASHTABLE        VMCI_LOCK_RANK_MAX
+#define VMCI_LOCK_RANK_RESOURCE         VMCI_LOCK_RANK_MAX
+#define VMCI_LOCK_RANK_DOORBELL         (VMCI_LOCK_RANK_HASHTABLE - 1)
+#define VMCI_LOCK_RANK_CONTEXTFIRE      (MIN(VMCI_LOCK_RANK_CONTEXT, \
+                                         MIN(VMCI_LOCK_RANK_CONTEXTLIST, \
+                                         MIN(VMCI_LOCK_RANK_EVENT, \
+                                             VMCI_LOCK_RANK_HASHTABLE))) - 1)
+#define VMCI_LOCK_RANK_QPHIBERNATE      (VMCI_LOCK_RANK_EVENT - 1)
+
+#define VMCI_SEMA_RANK_QUEUEPAIRLIST    (VMCI_SEMA_RANK_QPHEADER - 1)
 
 /*
  * Host specific struct used for signalling.
@@ -306,7 +293,7 @@ typedef void (VMCIWorkFn)(void *data);
 Bool VMCI_CanScheduleDelayedWork(void);
 int VMCI_ScheduleDelayedWork(VMCIWorkFn *workFn, void *data);
 
-int VMCIMutex_Init(VMCIMutex *mutex);
+int VMCIMutex_Init(VMCIMutex *mutex, char *name, VMCILockRank rank);
 void VMCIMutex_Destroy(VMCIMutex *mutex);
 void VMCIMutex_Acquire(VMCIMutex *mutex);
 void VMCIMutex_Release(VMCIMutex *mutex);

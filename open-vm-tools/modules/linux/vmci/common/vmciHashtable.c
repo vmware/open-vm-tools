@@ -39,22 +39,8 @@
 
 #define LGPFX "VMCIHashTable: "
 
-#if defined(VMKERNEL)
-   /* VMK doesn't need BH locks, so use lower ranks. */
-#  define VMCIHashTableInitLock(_l, _n) \
-   VMCI_InitLock(_l, _n, VMCI_LOCK_RANK_HIGHEST)
-#  define VMCIHashTableGrabLock(_l, _f)      VMCI_GrabLock(_l, _f)
-#  define VMCIHashTableReleaseLock(_l, _f)   VMCI_ReleaseLock(_l, _f)
-#else // VMKERNEL
-#  define VMCIHashTableInitLock(_l, _n) \
-   VMCI_InitLock(_l, _n, VMCI_LOCK_RANK_HIGH_BH)
-#  define VMCIHashTableGrabLock(_l, _f)      VMCI_GrabLock_BH(_l, _f)
-#  define VMCIHashTableReleaseLock(_l, _f)   VMCI_ReleaseLock_BH(_l, _f)
-#endif // VMKERNEL
-
 #define VMCI_HASHTABLE_HASH(_h, _sz) \
    VMCI_HashId(VMCI_HANDLE_TO_RESOURCE_ID(_h), (_sz))
-
 
 static int HashTableUnlinkEntry(VMCIHashTable *table, VMCIHashEntry *entry);
 static Bool VMCIHashTableEntryExistsLocked(VMCIHashTable *table,
@@ -66,10 +52,10 @@ static Bool VMCIHashTableEntryExistsLocked(VMCIHashTable *table,
  *
  *  VMCIHashTable_Create --
  *     XXX Factor out the hashtable code to be shared amongst host and guest.
- * 
+ *
  *  Result:
  *     None.
- *     
+ *
  *------------------------------------------------------------------------------
  */
 
@@ -90,8 +76,8 @@ VMCIHashTable_Create(int size)
    }
    memset(table->entries, 0, sizeof *table->entries * size);
    table->size = size;
-
-   if (VMCIHashTableInitLock(&table->lock, "VMCIHashTableLock") < VMCI_SUCCESS) {
+   if (VMCI_InitLock(&table->lock, "VMCIHashTableLock",
+                     VMCI_LOCK_RANK_HASHTABLE) < VMCI_SUCCESS) {
       VMCI_FreeKernelMem(table->entries, sizeof *table->entries * size);
       VMCI_FreeKernelMem(table, sizeof *table);
       return NULL;
@@ -109,10 +95,10 @@ VMCIHashTable_Create(int size)
  *     We rely on the module ref count to insure that no one is accessing any
  *     hash table entries at this point in time. Hence we should be able to just
  *     remove all entries from the hash table.
- * 
+ *
  *  Result:
  *     None.
- *     
+ *
  *------------------------------------------------------------------------------
  */
 
@@ -127,7 +113,7 @@ VMCIHashTable_Destroy(VMCIHashTable *table)
 
    ASSERT(table);
 
-   VMCIHashTableGrabLock(&table->lock, &flags);
+   VMCI_GrabLock_BH(&table->lock, &flags);
 #if 0
 #ifdef VMX86_DEBUG
    for (i = 0; i < table->size; i++) {
@@ -145,7 +131,7 @@ VMCIHashTable_Destroy(VMCIHashTable *table)
 #endif
    VMCI_FreeKernelMem(table->entries, sizeof *table->entries * table->size);
    table->entries = NULL;
-   VMCIHashTableReleaseLock(&table->lock, flags);
+   VMCI_ReleaseLock_BH(&table->lock, flags);
    VMCI_CleanupLock(&table->lock);
    VMCI_FreeKernelMem(table, sizeof *table);
 }
@@ -156,10 +142,10 @@ VMCIHashTable_Destroy(VMCIHashTable *table)
  *
  *  VMCIHashTable_InitEntry --
  *     Initializes a hash entry;
- * 
+ *
  *  Result:
  *     None.
- *     
+ *
  *------------------------------------------------------------------------------
  */
 void
@@ -194,18 +180,18 @@ VMCIHashTable_AddEntry(VMCIHashTable *table,   // IN
    ASSERT(entry);
    ASSERT(table);
 
-   VMCIHashTableGrabLock(&table->lock, &flags);
+   VMCI_GrabLock_BH(&table->lock, &flags);
 
    /* Check if creation of a new hashtable entry is allowed. */
    if (!VMCI_CanCreate()) {
-      VMCIHashTableReleaseLock(&table->lock, flags);
+      VMCI_ReleaseLock_BH(&table->lock, flags);
       return VMCI_ERROR_UNAVAILABLE;
    }
 
    if (VMCIHashTableEntryExistsLocked(table, entry->handle)) {
       VMCI_DEBUG_LOG(4, (LGPFX"Entry (handle=0x%x:0x%x) already exists.\n",
                          entry->handle.context, entry->handle.resource));
-      VMCIHashTableReleaseLock(&table->lock, flags);
+      VMCI_ReleaseLock_BH(&table->lock, flags);
       return VMCI_ERROR_DUPLICATE_ENTRY;
    }
 
@@ -216,7 +202,7 @@ VMCIHashTable_AddEntry(VMCIHashTable *table,   // IN
    entry->refCount++;
    entry->next = table->entries[idx];
    table->entries[idx] = entry;
-   VMCIHashTableReleaseLock(&table->lock, flags);
+   VMCI_ReleaseLock_BH(&table->lock, flags);
 
    return VMCI_SUCCESS;
 }
@@ -226,12 +212,12 @@ VMCIHashTable_AddEntry(VMCIHashTable *table,   // IN
  *------------------------------------------------------------------------------
  *
  *  VMCIHashTable_RemoveEntry --
- *     XXX Factor out the hashtable code to shared amongst API and perhaps 
+ *     XXX Factor out the hashtable code to shared amongst API and perhaps
  *     host and guest.
  *
  *  Result:
  *     None.
- *     
+ *
  *------------------------------------------------------------------------------
  */
 
@@ -245,7 +231,7 @@ VMCIHashTable_RemoveEntry(VMCIHashTable *table, // IN
    ASSERT(table);
    ASSERT(entry);
 
-   VMCIHashTableGrabLock(&table->lock, &flags);
+   VMCI_GrabLock_BH(&table->lock, &flags);
 
    /* First unlink the entry. */
    result = HashTableUnlinkEntry(table, entry);
@@ -262,7 +248,7 @@ VMCIHashTable_RemoveEntry(VMCIHashTable *table, // IN
    }
 
   done:
-   VMCIHashTableReleaseLock(&table->lock, flags);
+   VMCI_ReleaseLock_BH(&table->lock, flags);
 
    return result;
 }
@@ -272,7 +258,7 @@ VMCIHashTable_RemoveEntry(VMCIHashTable *table, // IN
  *------------------------------------------------------------------------------
  *
  *  VMCIHashTableGetEntryLocked --
- *     
+ *
  *       Looks up an entry in the hash table, that is already locked.
  *
  *  Result:
@@ -281,7 +267,7 @@ VMCIHashTable_RemoveEntry(VMCIHashTable *table, // IN
  *
  *  Side effects:
  *       The reference count of the returned element is increased.
- *     
+ *
  *------------------------------------------------------------------------------
  */
 
@@ -323,12 +309,12 @@ VMCIHashTableGetEntryLocked(VMCIHashTable *table,  // IN
  *------------------------------------------------------------------------------
  *
  *  VMCIHashTable_GetEntry --
- *     XXX Factor out the hashtable code to shared amongst API and perhaps 
+ *     XXX Factor out the hashtable code to shared amongst API and perhaps
  *     host and guest.
  *
  *  Result:
  *     None.
- *     
+ *
  *------------------------------------------------------------------------------
  */
 
@@ -345,9 +331,9 @@ VMCIHashTable_GetEntry(VMCIHashTable *table,  // IN
 
    ASSERT(table);
 
-   VMCIHashTableGrabLock(&table->lock, &flags);
+   VMCI_GrabLock_BH(&table->lock, &flags);
    entry = VMCIHashTableGetEntryLocked(table, handle);
-   VMCIHashTableReleaseLock(&table->lock, flags);
+   VMCI_ReleaseLock_BH(&table->lock, flags);
 
    return entry;
 }
@@ -380,9 +366,9 @@ VMCIHashTable_HoldEntry(VMCIHashTable *table, // IN
    ASSERT(table);
    ASSERT(entry);
 
-   VMCIHashTableGrabLock(&table->lock, &flags);
+   VMCI_GrabLock_BH(&table->lock, &flags);
    entry->refCount++;
-   VMCIHashTableReleaseLock(&table->lock, flags);
+   VMCI_ReleaseLock_BH(&table->lock, flags);
 }
 
 
@@ -439,12 +425,12 @@ VMCIHashTableReleaseEntryLocked(VMCIHashTable *table,  // IN
  *------------------------------------------------------------------------------
  *
  *  VMCIHashTable_ReleaseEntry --
- *     XXX Factor out the hashtable code to shared amongst API and perhaps 
+ *     XXX Factor out the hashtable code to shared amongst API and perhaps
  *     host and guest.
  *
  *  Result:
  *     None.
- *     
+ *
  *------------------------------------------------------------------------------
  */
 
@@ -456,9 +442,9 @@ VMCIHashTable_ReleaseEntry(VMCIHashTable *table,  // IN
    int result;
 
    ASSERT(table);
-   VMCIHashTableGrabLock(&table->lock, &flags);
+   VMCI_GrabLock_BH(&table->lock, &flags);
    result = VMCIHashTableReleaseEntryLocked(table, entry);
-   VMCIHashTableReleaseLock(&table->lock, flags);
+   VMCI_ReleaseLock_BH(&table->lock, flags);
 
    return result;
 }
@@ -489,9 +475,9 @@ VMCIHashTable_EntryExists(VMCIHashTable *table,  // IN
 
    ASSERT(table);
 
-   VMCIHashTableGrabLock(&table->lock, &flags);
+   VMCI_GrabLock_BH(&table->lock, &flags);
    exists = VMCIHashTableEntryExistsLocked(table, handle);
-   VMCIHashTableReleaseLock(&table->lock, flags);
+   VMCI_ReleaseLock_BH(&table->lock, flags);
 
    return exists;
 }
@@ -501,7 +487,7 @@ VMCIHashTable_EntryExists(VMCIHashTable *table,  // IN
  *------------------------------------------------------------------------------
  *
  *  VMCIHashTableEntryExistsLocked --
- *     
+ *
  *     Unlocked version of VMCIHashTable_EntryExists.
  *
  *  Result:
@@ -547,19 +533,19 @@ VMCIHashTableEntryExistsLocked(VMCIHashTable *table,   // IN
  *------------------------------------------------------------------------------
  *
  *  HashTableUnlinkEntry --
- *     XXX Factor out the hashtable code to shared amongst API and perhaps 
+ *     XXX Factor out the hashtable code to shared amongst API and perhaps
  *     host and guest.
  *     Assumes caller holds table lock.
  *
  *  Result:
  *     None.
- *     
+ *
  *------------------------------------------------------------------------------
  */
 
 static int
 HashTableUnlinkEntry(VMCIHashTable *table, // IN
-                     VMCIHashEntry *entry) // IN 
+                     VMCIHashEntry *entry) // IN
 {
    int result;
    VMCIHashEntry *prev, *cur;
@@ -616,6 +602,6 @@ VMCIHashTable_Sync(VMCIHashTable *table)
 {
    VMCILockFlags flags;
    ASSERT(table);
-   VMCIHashTableGrabLock(&table->lock, &flags);
-   VMCIHashTableReleaseLock(&table->lock, flags);
+   VMCI_GrabLock_BH(&table->lock, &flags);
+   VMCI_ReleaseLock_BH(&table->lock, flags);
 }

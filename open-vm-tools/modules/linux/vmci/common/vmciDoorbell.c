@@ -43,19 +43,6 @@
 
 #if !defined(SOLARIS) && !defined(__APPLE__)
 
-#if defined(VMKERNEL)
-   /* VMK doesn't need BH locks, so use lower ranks. */
-#  define VMCIDoorbellInitLock(_l, _n) \
-   VMCI_InitLock(_l, _n, VMCI_LOCK_RANK_HIGHER)
-#  define VMCIDoorbellGrabLock(_l, _f)       VMCI_GrabLock(_l, _f)
-#  define VMCIDoorbellReleaseLock(_l, _f)    VMCI_ReleaseLock(_l, _f)
-#else // VMKERNEL
-#  define VMCIDoorbellInitLock(_l, _n) \
-   VMCI_InitLock(_l, _n, VMCI_LOCK_RANK_MIDDLE_BH)
-#  define VMCIDoorbellGrabLock(_l, _f)       VMCI_GrabLock_BH(_l, _f)
-#  define VMCIDoorbellReleaseLock(_l, _f)    VMCI_ReleaseLock_BH(_l, _f)
-#endif // VMKERNEL
-
 #define VMCI_DOORBELL_INDEX_TABLE_SIZE 64
 #define VMCI_DOORBELL_HASH(_idx) \
    VMCI_HashId((_idx), VMCI_DOORBELL_INDEX_TABLE_SIZE)
@@ -128,7 +115,7 @@ static void VMCIDoorbellDelayedDispatchCB(void *data);
  *    General init code.
  *
  * Result:
- *    None.
+ *    VMCI_SUCCESS on success, lock allocation error otherwise.
  *
  * Side effects:
  *    None.
@@ -145,8 +132,8 @@ VMCIDoorbell_Init(void)
       VMCIList_Init(&vmciDoorbellIT.entries[bucket]);
    }
 
-   return VMCIDoorbellInitLock(&vmciDoorbellIT.lock,
-                               "VMCIDoorbellIndexTableLock");
+   return VMCI_InitLock(&vmciDoorbellIT.lock, "VMCIDoorbellIndexTableLock",
+                        VMCI_LOCK_RANK_DOORBELL);
 }
 
 
@@ -347,7 +334,7 @@ VMCIDoorbellIndexTableAdd(VMCIDoorbellEntry *entry) // IN/OUT
 
    VMCIResource_Hold(&entry->resource);
 
-   VMCIDoorbellGrabLock(&vmciDoorbellIT.lock, &flags);
+   VMCI_GrabLock_BH(&vmciDoorbellIT.lock, &flags);
 
    /*
     * Below we try to allocate an index in the notification bitmap with "not
@@ -389,7 +376,7 @@ VMCIDoorbellIndexTableAdd(VMCIDoorbellEntry *entry) // IN/OUT
    bucket = VMCI_DOORBELL_HASH(entry->idx);
    VMCIList_Insert(&entry->idxListItem, &vmciDoorbellIT.entries[bucket]);
 
-   VMCIDoorbellReleaseLock(&vmciDoorbellIT.lock, flags);
+   VMCI_ReleaseLock_BH(&vmciDoorbellIT.lock, flags);
 }
 
 
@@ -418,7 +405,7 @@ VMCIDoorbellIndexTableRemove(VMCIDoorbellEntry *entry) // IN/OUT
    ASSERT(entry);
    ASSERT(VMCI_GuestPersonalityActive());
 
-   VMCIDoorbellGrabLock(&vmciDoorbellIT.lock, &flags);
+   VMCI_GrabLock_BH(&vmciDoorbellIT.lock, &flags);
 
    VMCIList_Remove(&entry->idxListItem);
 
@@ -438,7 +425,7 @@ VMCIDoorbellIndexTableRemove(VMCIDoorbellEntry *entry) // IN/OUT
    }
    lastNotifyIdxReleased = entry->idx;
 
-   VMCIDoorbellReleaseLock(&vmciDoorbellIT.lock, flags);
+   VMCI_ReleaseLock_BH(&vmciDoorbellIT.lock, flags);
 
    VMCIResource_Release(&entry->resource);
 }
@@ -976,7 +963,7 @@ VMCIDoorbell_Hibernate(Bool enterHibernate)
       return;
    }
 
-   VMCIDoorbellGrabLock(&vmciDoorbellIT.lock, &flags);
+   VMCI_GrabLock_BH(&vmciDoorbellIT.lock, &flags);
 
    for (bucket = 0; bucket < ARRAYSIZE(vmciDoorbellIT.entries); bucket++) {
       VMCIList_Scan(iter, &vmciDoorbellIT.entries[bucket]) {
@@ -997,7 +984,7 @@ VMCIDoorbell_Hibernate(Bool enterHibernate)
       }
    }
 
-   VMCIDoorbellReleaseLock(&vmciDoorbellIT.lock, flags);
+   VMCI_ReleaseLock_BH(&vmciDoorbellIT.lock, flags);
 }
 
 
@@ -1022,8 +1009,8 @@ void
 VMCIDoorbell_Sync(void)
 {
    VMCILockFlags flags;
-   VMCIDoorbellGrabLock(&vmciDoorbellIT.lock, &flags);
-   VMCIDoorbellReleaseLock(&vmciDoorbellIT.lock, flags);
+   VMCI_GrabLock_BH(&vmciDoorbellIT.lock, &flags);
+   VMCI_ReleaseLock_BH(&vmciDoorbellIT.lock, flags);
    VMCIResource_Sync();
 }
 
@@ -1099,7 +1086,7 @@ VMCIDoorbellFireEntries(uint32 notifyIdx) // IN
 
    ASSERT(VMCI_GuestPersonalityActive());
 
-   VMCIDoorbellGrabLock(&vmciDoorbellIT.lock, &flags);
+   VMCI_GrabLock_BH(&vmciDoorbellIT.lock, &flags);
 
    VMCIList_Scan(iter, &vmciDoorbellIT.entries[bucket]) {
       VMCIDoorbellEntry *cur =
@@ -1125,7 +1112,7 @@ VMCIDoorbellFireEntries(uint32 notifyIdx) // IN
    }
 
 out:
-   VMCIDoorbellReleaseLock(&vmciDoorbellIT.lock, flags);
+   VMCI_ReleaseLock_BH(&vmciDoorbellIT.lock, flags);
 }
 
 

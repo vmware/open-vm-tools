@@ -73,7 +73,7 @@ int
 VMCIResource_Init(void)
 {
    int err = VMCI_InitLock(&resourceIdLock, "VMCIRIDLock",
-                           VMCI_LOCK_RANK_HIGHEST);
+                           VMCI_LOCK_RANK_RESOURCE);
    if (err < VMCI_SUCCESS) {
       return err;
    }
