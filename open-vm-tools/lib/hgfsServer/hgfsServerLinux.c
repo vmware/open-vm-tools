@@ -1096,7 +1096,8 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
 
    /* Set the rest of the Windows specific attributes if necessary. */
    if (needToSetAttribute) {
-      HgfsSetHiddenXAttr(openInfo->utf8Name, openInfo->attr & HGFS_ATTR_HIDDEN,
+      HgfsSetHiddenXAttr(openInfo->utf8Name,
+                         (openInfo->attr & HGFS_ATTR_HIDDEN) != 0,
                          fileStat.st_mode);
    }
 
@@ -2848,7 +2849,8 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
        char *localName;
        size_t localNameSize;
        if (HgfsHandle2FileName(file, session, &localName, &localNameSize)) {
-          status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN,
+          status = HgfsSetHiddenXAttr(localName,
+                                      (attr->flags & HGFS_ATTR_HIDDEN) != 0,
                                       newPermissions);
           free(localName);
        }
@@ -3036,7 +3038,8 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
    }
 
    if (attr->mask & HGFS_ATTR_VALID_FLAGS) {
-      status = HgfsSetHiddenXAttr(localName, attr->flags & HGFS_ATTR_HIDDEN,
+      status = HgfsSetHiddenXAttr(localName,
+                                  (attr->flags & HGFS_ATTR_HIDDEN) != 0,
                                   newPermissions);
    }
 
@@ -4336,7 +4339,7 @@ HgfsGetHiddenXAttr(char const *fileName,   // IN: File name
  * ChangeInvisibleFlag --
  *
  *    Changes value of the invisible bit in a flags variable to a value defined
- *    by setFlag parameter.
+ *    by setHidden parameter.
  *
  * Results:
  *    TRUE flag has been changed, FALSE otherwise.
@@ -4348,8 +4351,8 @@ HgfsGetHiddenXAttr(char const *fileName,   // IN: File name
  */
 
 static Bool
-ChangeInvisibleFlag(uint16 *flags,           // IN: variable that contains flags
-                    Bool setFlag)            // IN: new value for the invisible flag
+ChangeInvisibleFlag(uint16 *flags,           // IN/OUT: variable that contains flags
+                    Bool setHidden)          // IN: new value for the invisible flag
 {
    Bool changed = FALSE;
    /*
@@ -4358,15 +4361,19 @@ ChangeInvisibleFlag(uint16 *flags,           // IN: variable that contains flags
     * and then convert back to big endian before saving
     */
    uint16 finderFlags = CFSwapInt16BigToHost(*flags);
-   Bool isInvisible = (finderFlags & kIsInvisible) != 0;
-   if (setFlag != isInvisible) {
-      if (setFlag) {
+   Bool isHidden = (finderFlags & kIsInvisible) != 0;
+   if (setHidden) {
+      if (!isHidden) {
          finderFlags |= kIsInvisible;
-      } else {
-         finderFlags &= ~kIsInvisible;
+         changed = TRUE;
       }
-      *flags = CFSwapInt16HostToBig(finderFlags);
+   } else if (isHidden) {
+      finderFlags &= ~kIsInvisible;
       changed = TRUE;
+   }
+
+   if (changed) {
+      *flags = CFSwapInt16HostToBig(finderFlags);
    }
    return changed;
 }
@@ -4390,7 +4397,7 @@ ChangeInvisibleFlag(uint16 *flags,           // IN: variable that contains flags
 
 static HgfsInternalStatus
 HgfsSetHiddenXAttr(char const *fileName,       // IN: path to the file
-                   Bool value,                 // IN: new value to the invisible attribute
+                   Bool setHidden,             // IN: new value to the invisible attribute
                    mode_t permissions)         // IN: permissions of the file
 {
    HgfsInternalStatus err;
@@ -4408,12 +4415,12 @@ HgfsSetHiddenXAttr(char const *fileName,       // IN: path to the file
       switch (attrBuf.objType) {
       case VREG: {
          FileInfo *info = (FileInfo*) attrBuf.finderInfo;
-         changed = ChangeInvisibleFlag(&info->finderFlags, value);
+         changed = ChangeInvisibleFlag(&info->finderFlags, setHidden);
          break;
       }
       case VDIR: {
          FolderInfo *info = (FolderInfo*) attrBuf.finderInfo;
-         changed = ChangeInvisibleFlag(&info->finderFlags, value);
+         changed = ChangeInvisibleFlag(&info->finderFlags, setHidden);
          break;
       }
       default:
