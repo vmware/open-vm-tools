@@ -319,12 +319,6 @@ VMCIContext_InitContext(VMCIId cid,                   // IN
 
    context->userVersion = userVersion;
 
-   context->wellKnownArray = VMCIHandleArray_Create(0);
-   if (context->wellKnownArray == NULL) {
-      result = VMCI_ERROR_NO_MEM;
-      goto error;
-   }
-
    context->queuePairArray = VMCIHandleArray_Create(0);
    if (!context->queuePairArray) {
       result = VMCI_ERROR_NO_MEM;
@@ -413,9 +407,6 @@ error:
    if (context->notifierArray) {
       VMCIHandleArray_Destroy(context->notifierArray);
    }
-   if (context->wellKnownArray) {
-      VMCIHandleArray_Destroy(context->wellKnownArray);
-   }
    if (context->queuePairArray) {
       VMCIHandleArray_Destroy(context->queuePairArray);
    }
@@ -495,18 +486,6 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
                                VMCIContextGetDomainName(context));
 
    /*
-    * Cleanup all wellknown mappings owned by context. Ideally these would
-    * be removed already but we maintain this list to make sure no resources
-    * are leaked. It is updated by the VMCIDatagramAdd/RemoveWellKnownMap.
-    */
-   ASSERT(context->wellKnownArray);
-   tempHandle = VMCIHandleArray_RemoveTail(context->wellKnownArray);
-   while (!VMCI_HANDLE_EQUAL(tempHandle, VMCI_INVALID_HANDLE)) {
-      VMCIDatagramRemoveWellKnownMap(tempHandle.resource, context->cid);
-      tempHandle = VMCIHandleArray_RemoveTail(context->wellKnownArray);
-   }
-
-   /*
     * Cleanup all queue pair resources attached to context.  If the VM dies
     * without cleaning up, this code will make sure that no resources are
     * leaked.
@@ -541,7 +520,6 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
    }
 
    VMCIHandleArray_Destroy(context->notifierArray);
-   VMCIHandleArray_Destroy(context->wellKnownArray);
    VMCIHandleArray_Destroy(context->queuePairArray);
    VMCIHandleArray_Destroy(context->doorbellArray);
    VMCIHandleArray_Destroy(context->pendingDoorbellArray);
@@ -1319,81 +1297,6 @@ VMCIContext_GetPrivFlags(VMCIId contextID)  // IN
 /*
  *----------------------------------------------------------------------
  *
- * VMCIContext_AddWellKnown --
- *
- *      Wrapper to call VMCIHandleArray_AppendEntry().
- *
- * Results:
- *      VMCI_SUCCESS on success, error code otherwise.
- *
- * Side effects:
- *      As in VMCIHandleArray_AppendEntry().
- *
- *----------------------------------------------------------------------
- */
-
-int
-VMCIContext_AddWellKnown(VMCIId contextID,    // IN:
-                         VMCIId wellKnownID)  // IN:
-{
-   VMCILockFlags flags;
-   VMCIHandle wkHandle;
-   VMCIContext *context = VMCIContext_Get(contextID);
-   if (context == NULL) {
-      return VMCI_ERROR_NOT_FOUND;
-   }
-   wkHandle = VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID, wellKnownID);
-   VMCI_GrabLock(&context->lock, &flags);
-   VMCIHandleArray_AppendEntry(&context->wellKnownArray, wkHandle);
-   VMCI_ReleaseLock(&context->lock, flags);
-   VMCIContext_Release(context);
-
-   return VMCI_SUCCESS;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCIContext_RemoveWellKnown --
- *
- *      Wrapper to call VMCIHandleArray_RemoveEntry().
- *
- * Results:
- *      VMCI_SUCCESS if removed, error code otherwise.
- *
- * Side effects:
- *      As in VMCIHandleArray_RemoveEntry().
- *
- *----------------------------------------------------------------------
- */
-
-int
-VMCIContext_RemoveWellKnown(VMCIId contextID,    // IN:
-                            VMCIId wellKnownID)  // IN:
-{
-   VMCILockFlags flags;
-   VMCIHandle wkHandle, tmpHandle;
-   VMCIContext *context = VMCIContext_Get(contextID);
-   if (context == NULL) {
-      return VMCI_ERROR_NOT_FOUND;
-   }
-   wkHandle = VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID, wellKnownID);
-   VMCI_GrabLock(&context->lock, &flags);
-   tmpHandle = VMCIHandleArray_RemoveEntry(context->wellKnownArray, wkHandle);
-   VMCI_ReleaseLock(&context->lock, flags);
-   VMCIContext_Release(context);
-
-   if (VMCI_HANDLE_EQUAL(tmpHandle, VMCI_INVALID_HANDLE)) {
-      return VMCI_ERROR_NOT_FOUND;
-   }
-   return VMCI_SUCCESS;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * VMCIContext_AddNotification --
  *
  *      Add remoteCID to list of contexts current contexts wants
@@ -1629,9 +1532,15 @@ VMCIContext_GetCheckpointState(VMCIId contextID,    // IN:
       array = context->notifierArray;
       getContextID = TRUE;
    } else if (cptType == VMCI_WELLKNOWN_CPT_STATE) {
-      ASSERT(context->wellKnownArray);
-      array = context->wellKnownArray;
-      getContextID = FALSE;
+      /*
+       * For compatibility with VMX'en with VM to VM communication, we
+       * always return zero wellknown handles.
+       */
+
+      *bufSize = 0;
+      *cptBufPtr = NULL;
+      result = VMCI_SUCCESS;
+      goto release;
    } else if (cptType == VMCI_DOORBELL_CPT_STATE) {
       ASSERT(context->doorbellArray);
       array = context->doorbellArray;
@@ -1715,19 +1624,27 @@ VMCIContext_SetCheckpointState(VMCIId contextID, // IN:
    uint32 numIDs = bufSize / sizeof(VMCIId);
    ASSERT(cptBuf);
 
-   if (cptType != VMCI_NOTIFICATION_CPT_STATE &&
-       cptType != VMCI_WELLKNOWN_CPT_STATE) {
+   if (cptType == VMCI_WELLKNOWN_CPT_STATE && numIDs > 0) {
+      /*
+       * We would end up here if VMX with VM to VM communication
+       * attempts to restore a checkpoint with wellknown handles.
+       */
+
+      VMCI_WARNING((LGPFX"Attempt to restore checkpoint with obsolete "
+                    "wellknown handles.\n"));
+      return VMCI_ERROR_OBSOLETE;
+   }
+
+   if (cptType != VMCI_NOTIFICATION_CPT_STATE) {
       VMCI_DEBUG_LOG(4, (LGPFX"Invalid cpt state (type=%d).\n", cptType));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
    for (i = 0; i < numIDs && result == VMCI_SUCCESS; i++) {
       currentID = ((VMCIId *)cptBuf)[i];
-      if (cptType == VMCI_NOTIFICATION_CPT_STATE) {
-         result = VMCIContext_AddNotification(contextID, currentID);
-      } else if (cptType == VMCI_WELLKNOWN_CPT_STATE) {
-         result = VMCIDatagramRequestWellKnownMap(currentID, contextID,
-                                                  VMCIContext_GetPrivFlags(contextID));
+      result = VMCIContext_AddNotification(contextID, currentID);
+      if (result != VMCI_SUCCESS) {
+         break;
       }
    }
    if (result != VMCI_SUCCESS) {

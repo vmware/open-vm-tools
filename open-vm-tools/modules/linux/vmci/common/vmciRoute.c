@@ -93,19 +93,6 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   /*
-    * If we are acting as a host and the datagram is from or for a well-known
-    * context (which also means it must have been passed down from a guest),
-    * then we can assume it is intended for a guest on this host.
-    */
-
-   if (fromGuest && hasHostDevice &&
-       (VMCI_WELL_KNOWN_CONTEXT_ID == src->context ||
-        VMCI_WELL_KNOWN_CONTEXT_ID == dst->context)) {
-      *route = VMCI_ROUTE_AS_HOST;
-      return VMCI_SUCCESS;
-   }
-
    /* Anywhere to hypervisor. */
    if (VMCI_HYPERVISOR_CONTEXT_ID == dst->context) {
       /*

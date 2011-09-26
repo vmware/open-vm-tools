@@ -98,9 +98,10 @@ typedef struct VMCIDatagram {
     1024 * (sizeof(VMCIDatagram) + sizeof(VMCIEventData_Max)))
 
 /*
- * Struct for sending VMCI_DATAGRAM_REQUEST_MAP and VMCI_DATAGRAM_REMOVE_MAP
- * datagrams. Struct size is 32 bytes. All fields in struct are aligned to
- * their natural alignment.
+ * Struct for sending VMCI_DATAGRAM_REQUEST_MAP and
+ * VMCI_DATAGRAM_REMOVE_MAP datagrams. Struct size is 32 bytes. All
+ * fields in struct are aligned to their natural alignment. These
+ * datagrams are obsoleted by the removal of VM to VM communication.
  */
 typedef struct VMCIDatagramWellKnownMapMsg {
    VMCIDatagram hdr;

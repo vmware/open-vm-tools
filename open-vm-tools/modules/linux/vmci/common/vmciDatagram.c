@@ -58,12 +58,6 @@ typedef struct DatagramEntry {
    VMCIPrivilegeFlags  privFlags;
 } DatagramEntry;
 
-/* Mapping between wellknown resource and context. */
-typedef struct DatagramWKMapping {
-   VMCIHashEntry entry;
-   VMCIId        contextID;
-} DatagramWKMapping;
-
 typedef struct VMCIDelayedDatagramInfo {
    Bool inDGHostQueue;
    DatagramEntry *entry;
@@ -71,18 +65,12 @@ typedef struct VMCIDelayedDatagramInfo {
 } VMCIDelayedDatagramInfo;
 
 
-/* Wellknown mapping hashtable. */
-static VMCIHashTable *wellKnownTable = NULL;
-
 static Atomic_uint32 delayedDGHostQueueSize;
 
 static int VMCIDatagramGetPrivFlagsInt(VMCIId contextID, VMCIHandle handle,
                                        VMCIPrivilegeFlags *privFlags);
 static void DatagramFreeCB(void *resource);
 static int DatagramReleaseCB(void *clientData);
-
-static DatagramWKMapping *DatagramGetWellKnownMap(VMCIId wellKnownID);
-static void DatagramReleaseWellKnownMap(DatagramWKMapping *wkMap);
 
 
 /*------------------------------ Helper functions ----------------------------*/
@@ -254,12 +242,6 @@ DatagramCreateHnd(VMCIId resourceID,            // IN:
 int
 VMCIDatagram_Init(void)
 {
-   /* Create hash table for wellknown mappings. */
-   wellKnownTable = VMCIHashTable_Create(32);
-   if (wellKnownTable == NULL) {
-      return VMCI_ERROR_NO_RESOURCES;
-   }
-
    Atomic_Write(&delayedDGHostQueueSize, 0);
    return VMCI_SUCCESS;
 }
@@ -284,10 +266,6 @@ VMCIDatagram_Init(void)
 void
 VMCIDatagram_Exit(void)
 {
-   if (wellKnownTable != NULL) {
-      VMCIHashTable_Destroy(wellKnownTable);
-      wellKnownTable = NULL;
-   }
 }
 
 
@@ -415,10 +393,6 @@ VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
     * above.
     */
    VMCI_WaitOnEvent(&entry->destroyEvent, DatagramReleaseCB, entry);
-
-   if ((entry->flags & VMCI_FLAG_WELLKNOWN_DG_HND) != 0) {
-      VMCIDatagramRemoveWellKnownMap(handle.resource, VMCI_HOST_CONTEXT_ID);
-   }
 
    /*
     * We know that we are now the only reference to the above entry so
@@ -570,7 +544,6 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
 {
    int retval;
    size_t dgSize;
-   VMCIId dstContext;
    VMCIPrivilegeFlags srcPrivFlags;
    char srcDomain[VMCI_DOMAIN_NAME_MAXLEN]; /* Not used on hosted. */
    char dstDomain[VMCI_DOMAIN_NAME_MAXLEN]; /* Not used on hosted. */
@@ -597,45 +570,10 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
     * Check that source handle matches sending context.
     */
    if (dg->src.context != contextID) {
-      if (dg->src.context == VMCI_WELL_KNOWN_CONTEXT_ID) {
-         /* Determine mapping. */
-         DatagramWKMapping *wkMap = DatagramGetWellKnownMap(dg->src.resource);
-         if (wkMap == NULL) {
-            VMCI_DEBUG_LOG(4, (LGPFX"Sending from invalid well-known resource "
-                               "(handle=0x%x:0x%x).\n",
-                               dg->src.context, dg->src.resource));
-            return VMCI_ERROR_INVALID_RESOURCE;
-         }
-         if (wkMap->contextID != contextID) {
-            VMCI_DEBUG_LOG(4, (LGPFX"Sender context (ID=0x%x) is not owner of "
-                               "well-known src datagram entry "
-                               "(handle=0x%x:0x%x).\n",
-                               contextID, dg->src.context, dg->src.resource));
-            DatagramReleaseWellKnownMap(wkMap);
-            return VMCI_ERROR_NO_ACCESS;
-         }
-         DatagramReleaseWellKnownMap(wkMap);
-      } else {
-         VMCI_DEBUG_LOG(4, (LGPFX"Sender context (ID=0x%x) is not owner of src "
-                            "datagram entry (handle=0x%x:0x%x).\n",
-                            contextID, dg->src.context, dg->src.resource));
-         return VMCI_ERROR_NO_ACCESS;
-      }
-   }
-
-   if (dg->dst.context == VMCI_WELL_KNOWN_CONTEXT_ID) {
-      /* Determine mapping. */
-      DatagramWKMapping *wkMap = DatagramGetWellKnownMap(dg->dst.resource);
-      if (wkMap == NULL) {
-         VMCI_DEBUG_LOG(4, (LGPFX"Sending to invalid wellknown destination "
-                            "(handle=0x%x:0x%x).\n",
-                            dg->dst.context, dg->dst.resource));
-         return VMCI_ERROR_DST_UNREACHABLE;
-      }
-      dstContext = wkMap->contextID;
-      DatagramReleaseWellKnownMap(wkMap);
-   } else {
-      dstContext = dg->dst.context;
+      VMCI_DEBUG_LOG(4, (LGPFX"Sender context (ID=0x%x) is not owner of src "
+                         "datagram entry (handle=0x%x:0x%x).\n",
+                         contextID, dg->src.context, dg->src.resource));
+      return VMCI_ERROR_NO_ACCESS;
    }
 
    /*
@@ -668,7 +606,7 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
 #endif
 
    /* Determine if we should route to host or guest destination. */
-   if (dstContext == VMCI_HOST_CONTEXT_ID) {
+   if (dg->dst.context == VMCI_HOST_CONTEXT_ID) {
       /* Route to host datagram entry. */
       DatagramEntry *dstEntry;
       VMCIResource *resource;
@@ -755,16 +693,17 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
       VMCIDatagram *newDG;
 
 #ifdef VMKERNEL
-      retval = VMCIContext_GetDomainName(dstContext, dstDomain,
+      retval = VMCIContext_GetDomainName(dg->dst.context, dstDomain,
                                          sizeof dstDomain);
       if (retval < VMCI_SUCCESS) {
          VMCI_DEBUG_LOG(4, (LGPFX"Failed to get domain name for context "
-                            "(ID=0x%x).\n", dstContext));
+                            "(ID=0x%x).\n", dg->dst.context));
          return retval;
       }
 #endif
-      if (contextID != dstContext &&
-         VMCIDenyInteraction(srcPrivFlags, VMCIContext_GetPrivFlags(dstContext),
+      if (contextID != dg->dst.context &&
+         VMCIDenyInteraction(srcPrivFlags,
+                             VMCIContext_GetPrivFlags(dg->dst.context),
                              srcDomain, dstDomain)) {
          return VMCI_ERROR_NO_ACCESS;
       }
@@ -775,7 +714,7 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
          return VMCI_ERROR_NO_MEM;
       }
       memcpy(newDG, dg, dgSize);
-      retval = VMCIContext_EnqueueDatagram(dstContext, newDG);
+      retval = VMCIContext_EnqueueDatagram(dg->dst.context, newDG);
       if (retval < VMCI_SUCCESS) {
          VMCI_FreeKernelMem(newDG, dgSize);
          return retval;
@@ -992,158 +931,6 @@ VMCIDatagram_Send(VMCIDatagram *msg) // IN
    }
 
    return VMCIDatagram_Dispatch(VMCI_INVALID_ID, msg, FALSE);
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * DatagramGetWellKnownMap --
- *
- *      Gets a mapping between handle and wellknown resource.
- *
- * Results:
- *      DatagramWKMapping * if found, NULL if not.
- *
- * Side effects:
- *      None.
- *
- *------------------------------------------------------------------------------
- */
-
-static DatagramWKMapping *
-DatagramGetWellKnownMap(VMCIId wellKnownID)  // IN:
-{
-   VMCIHashEntry *entry;
-   DatagramWKMapping *wkMap = NULL;
-   VMCIHandle wkHandle = VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID,
-                                          wellKnownID);
-   entry = VMCIHashTable_GetEntry(wellKnownTable, wkHandle);
-   if (entry != NULL) {
-      wkMap = RESOURCE_CONTAINER(entry, DatagramWKMapping, entry);
-   }
-   return wkMap;
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * DatagramReleaseWellKnownMap --
- *
- *      Releases a wellknown mapping.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *------------------------------------------------------------------------------
- */
-
-static void
-DatagramReleaseWellKnownMap(DatagramWKMapping *wkMap)  // IN:
-{
-   if (VMCIHashTable_ReleaseEntry(wellKnownTable, &wkMap->entry) ==
-       VMCI_SUCCESS_ENTRY_DEAD) {
-      VMCI_FreeKernelMem(wkMap, sizeof *wkMap);
-   }
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * VMCIDatagramRequestWellKnownMap --
- *
- *      Creates a mapping between handle and wellknown resource. If resource
- *      is already used we fail the request.
- *
- * Results:
- *      VMCI_SUCCESS if created, negative errno value otherwise.
- *
- * Side effects:
- *      None.
- *
- *------------------------------------------------------------------------------
- */
-
-int
-VMCIDatagramRequestWellKnownMap(VMCIId wellKnownID,           // IN:
-                                VMCIId contextID,             // IN:
-                                VMCIPrivilegeFlags privFlags) // IN:
-{
-   int result;
-   DatagramWKMapping *wkMap;
-   VMCIHandle wkHandle = VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID,
-                                          wellKnownID);
-
-   if (privFlags & VMCI_PRIVILEGE_FLAG_RESTRICTED ||
-       !VMCIWellKnownID_AllowMap(wellKnownID, privFlags)) {
-      return VMCI_ERROR_NO_ACCESS;
-   }
-
-   wkMap = VMCI_AllocKernelMem(sizeof *wkMap, VMCI_MEMORY_NONPAGED);
-   if (wkMap == NULL) {
-      return VMCI_ERROR_NO_MEM;
-   }
-
-   VMCIHashTable_InitEntry(&wkMap->entry, wkHandle);
-   wkMap->contextID = contextID;
-
-   /* Fails if wkHandle (wellKnownID) already exists. */
-   result = VMCIHashTable_AddEntry(wellKnownTable, &wkMap->entry);
-   if (result != VMCI_SUCCESS) {
-      VMCI_FreeKernelMem(wkMap, sizeof *wkMap);
-      return result;
-   }
-   result = VMCIContext_AddWellKnown(contextID, wellKnownID);
-   if (UNLIKELY(result < VMCI_SUCCESS)) {
-      VMCIHashTable_RemoveEntry(wellKnownTable, &wkMap->entry);
-      VMCI_FreeKernelMem(wkMap, sizeof *wkMap);
-   }
-   return result;
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * VMCIDatagramRemoveWellKnownMap --
- *
- *      Removes a mapping between handle and wellknown resource. Checks if
- *      mapping belongs to calling context.
- *
- * Results:
- *      VMCI_SUCCESS if removed, negative errno value otherwise.
- *
- * Side effects:
- *      None.
- *
- *------------------------------------------------------------------------------
- */
-
-int
-VMCIDatagramRemoveWellKnownMap(VMCIId wellKnownID,  // IN:
-                               VMCIId contextID)    // IN:
-{
-   int result = VMCI_ERROR_NO_ACCESS;
-   DatagramWKMapping *wkMap = DatagramGetWellKnownMap(wellKnownID);
-   if (wkMap == NULL) {
-      VMCI_DEBUG_LOG(4, (LGPFX"Failed to remove well-known mapping between "
-                         "resource (ID=0x%x) and context (ID=0x%x).\n",
-                         wellKnownID, contextID));
-      return VMCI_ERROR_NOT_FOUND;
-   }
-
-   if (contextID == wkMap->contextID) {
-      VMCIHashTable_RemoveEntry(wellKnownTable, &wkMap->entry);
-      VMCIContext_RemoveWellKnown(contextID, wellKnownID);
-      result = VMCI_SUCCESS;
-   }
-   DatagramReleaseWellKnownMap(wkMap);
-   return result;
 }
 
 

@@ -52,11 +52,6 @@ int VMCIDatagram_GetPrivFlags(VMCIHandle handle, VMCIPrivilegeFlags *privFlags);
 void VMCIDatagram_Sync(void);
 Bool VMCIDatagram_CheckHostCapabilities(void);
 
-/* Non public datagram API. */
-int VMCIDatagramRequestWellKnownMap(VMCIId wellKnownID, VMCIId contextID,
-                                    VMCIPrivilegeFlags privFlags);
-int VMCIDatagramRemoveWellKnownMap(VMCIId wellKnownID, VMCIId contextID);
-
 #endif // _VMCI_DATAGRAM_H_
 
 

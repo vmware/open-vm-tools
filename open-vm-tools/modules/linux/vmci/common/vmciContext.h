@@ -83,8 +83,6 @@ int VMCIContext_AddGroupEntry(VMCIContext *context,
                               VMCIHandle entryHandle);
 VMCIHandle VMCIContext_RemoveGroupEntry(VMCIContext *context,
                                         VMCIHandle entryHandle);
-int VMCIContext_AddWellKnown(VMCIId contextID, VMCIId wellKnownID);
-int VMCIContext_RemoveWellKnown(VMCIId contextID, VMCIId wellKnownID);
 int VMCIContext_AddNotification(VMCIId contextID, VMCIId remoteCID);
 int VMCIContext_RemoveNotification(VMCIId contextID, VMCIId remoteCID);
 int VMCIContext_GetCheckpointState(VMCIId contextID, uint32 cptType,

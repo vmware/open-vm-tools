@@ -112,6 +112,10 @@ typedef uint32 VMCI_Resource;
 #define VMCI_DOORBELL_LINK        3
 #define VMCI_DOORBELL_UNLINK      4
 #define VMCI_DOORBELL_NOTIFY      5
+/*
+ * VMCI_DATAGRAM_REQUEST_MAP and VMCI_DATAGRAM_REMOVE_MAP are
+ * obsoleted by the removal of VM to VM communication.
+ */
 #define VMCI_DATAGRAM_REQUEST_MAP 6
 #define VMCI_DATAGRAM_REMOVE_MAP  7
 #define VMCI_EVENT_SUBSCRIBE      8
@@ -228,12 +232,14 @@ static const VMCIHandle VMCI_INVALID_HANDLE = {VMCI_INVALID_ID,
 #define VMCI_HYPERVISOR_CONTEXT_ID 0
 
 /*
- * Well-known context id, a logical context that contains
- * a set of well-known services.
+ * Well-known context id, a logical context that contains a set of
+ * well-known services. This context ID is now obsolete.
  */
 #define VMCI_WELL_KNOWN_CONTEXT_ID 1
 
-/* Todo: Change host context id to dynamic/random id. */
+/*
+ * Context ID used by host endpoints.
+ */
 #define VMCI_HOST_CONTEXT_ID  2
 
 /*

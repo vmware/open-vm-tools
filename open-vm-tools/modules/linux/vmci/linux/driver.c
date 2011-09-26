@@ -1104,63 +1104,6 @@ LinuxDriver_Ioctl(struct inode *inode,
       break;
    }
 
-   case IOCTL_VMCI_DATAGRAM_REQUEST_MAP: {
-      VMCIDatagramMapInfo mapInfo;
-      VMCIDatagramMapInfo *info = (VMCIDatagramMapInfo *)ioarg;
-      int32 result;
-      VMCIId cid;
-
-      if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log(LGPFX"IOCTL_VMCI_REQUEST_MAP only valid for contexts.\n");
-         retval = -EINVAL;
-         break;
-      }
-
-      retval = copy_from_user(&mapInfo, (void *)ioarg, sizeof mapInfo);
-      if (retval) {
-         retval = -EFAULT;
-         break;
-      }
-
-      cid = VMCIContext_GetId(vmciLinux->context);
-      result = VMCIDatagramRequestWellKnownMap(mapInfo.wellKnownID, cid,
-                                               VMCIContext_GetPrivFlags(cid));
-      retval = copy_to_user(&info->result, &result, sizeof result);
-      if (retval) {
-         retval = -EFAULT;
-         break;
-      }
-      break;
-   }
-
-   case IOCTL_VMCI_DATAGRAM_REMOVE_MAP: {
-      VMCIDatagramMapInfo mapInfo;
-      VMCIDatagramMapInfo *info = (VMCIDatagramMapInfo *)ioarg;
-      int32 result;
-      VMCIId cid;
-
-      if (vmciLinux->ctType != VMCIOBJ_CONTEXT) {
-         Log(LGPFX"IOCTL_VMCI_REMOVE_MAP only valid for contexts.\n");
-         retval = -EINVAL;
-         break;
-      }
-
-      retval = copy_from_user(&mapInfo, (void *)ioarg, sizeof mapInfo);
-      if (retval) {
-         retval = -EFAULT;
-         break;
-      }
-
-      cid = VMCIContext_GetId(vmciLinux->context);
-      result = VMCIDatagramRemoveWellKnownMap(mapInfo.wellKnownID, cid);
-      retval = copy_to_user(&info->result, &result, sizeof result);
-      if (retval) {
-         retval = -EFAULT;
-         break;
-      }
-      break;
-   }
-
    case IOCTL_VMCI_CTX_ADD_NOTIFICATION: {
       VMCINotifyAddRemoveInfo arInfo;
       VMCINotifyAddRemoveInfo *info = (VMCINotifyAddRemoveInfo *)ioarg;

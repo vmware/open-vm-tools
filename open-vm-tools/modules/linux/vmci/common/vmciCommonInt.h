@@ -67,7 +67,6 @@ struct VMCIContext {
                                          * this context; e.g., VMX.
                                          */
    VMCILock           lock;             /* Locks callQueue and handleArrays. */
-   VMCIHandleArray    *wellKnownArray;  /* WellKnown mappings owned by context. */
    VMCIHandleArray    *queuePairArray;  /*
                                          * QueuePairs attached to.  The array of
                                          * handles for queue pairs is accessed
