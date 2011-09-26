@@ -133,10 +133,8 @@ int LogLevel_Set(const char *extension, const char *module, int val);
 
 #ifdef VMX86_DEVEL
    #define LOG_DEVEL(_x) (Log _x)
-   #define LOG_DEVEL_DB(_x) (LogDB _x)
 #else
    #define LOG_DEVEL(_x)
-   #define LOG_DEVEL_DB(_x)
 #endif
 
 

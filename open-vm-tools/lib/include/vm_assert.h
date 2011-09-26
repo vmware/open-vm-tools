@@ -88,17 +88,6 @@
 
 
 /*
- * XXX old file code
- */
-
-#ifdef FILECODEINT
-#error "Don't define FILECODEINT.  It is obsolete."
-#endif
-#ifdef FILECODE
-#error "Don't define FILECODE.  It is obsolete."
-#endif
-
-/*
  * Internal macros, functions, and strings
  *
  * The monitor wants to save space at call sites, so it has specialized
@@ -164,12 +153,6 @@ EXTERN void LogThrottled(uint32 *count, const char *fmt, ...)
             PRINTF_DECL(2, 3);
 EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
             PRINTF_DECL(2, 3);
-
-/* DB family:  messages which are parsed by logfile database system */
-#define WarningDB Warning
-#define LogDB Log
-#define WarningThrottledDB WarningThrottled
-#define LogThrottledDB LogThrottled
 
 
 /*
