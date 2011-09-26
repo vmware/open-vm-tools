@@ -237,6 +237,7 @@ stageLinux()
    addfile /etc/services
 
    # Commands to run ($1) and redirect to logs ($2) for inclusion.
+   runcmd "ps auwwx" "/tmp/ps-auwwx.$$.txt"
    runcmd "lspci -H1 -M" "/tmp/lspci1.$$.txt"
    runcmd "lspci -H1 -M -vn" "/tmp/lspci2.$$.txt"
    runcmd "/sbin/lsmod" "/tmp/modules.$$.txt"
