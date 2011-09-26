@@ -185,12 +185,14 @@
 
 /*
  * VMRC ActiveX CLSIDs and ProgIDs
+ *
+ * VMRC is versioned x.y.z - ProgID is intentionally built using only x.y
  */
 #define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      6FB1850B-AC2A-4AEA-9847-EBCE6AB2A62E
 #define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       EC950991-C7CE-455C-ABF3-12FC11F9C136
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "VMware.RemoteConsole"
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED    PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "." \
-                                               VMRC_PLUGIN_VERSION_NUMBER
+                                               XSTR(VMRC_PLUGIN_VERSION_BASE)
 
 /*
  * VMRC MIME types
