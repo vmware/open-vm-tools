@@ -716,7 +716,7 @@ FileLockProcessDescriptor(pid_t pid)  // IN:
 
       q = strrchr(p + 1, ')');
       if (q == NULL) {
-         argc = 0;
+         goto bail;
       }
 
       rest = q + 1;
