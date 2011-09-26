@@ -3343,3 +3343,46 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
    return NULL;
 #endif
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_QueryProcessExistence --
+ *
+ *      Determine if a PID is "alive" or "dead". Failing to be able to
+ *      do this perfectly, do not make any assumption - say the answer
+ *      is unknown.
+ *
+ * Results:
+ *      HOSTINFO_PROCESS_QUERY_ALIVE    Process is alive
+ *      HOSTINFO_PROCESS_QUERY_DEAD     Process is dead
+ *      HOSTINFO_PROCESS_QUERY_UNKNOWN  Don't know
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HostinfoProcessQuery
+Hostinfo_QueryProcessExistence(int pid)  // IN:
+{
+   HostinfoProcessQuery ret;
+   int err = (kill(pid, 0) == -1) ? errno : 0;
+
+   switch (err) {
+   case 0:
+   case EPERM:
+      ret = HOSTINFO_PROCESS_QUERY_ALIVE;
+      break;
+   case ESRCH:
+      ret = HOSTINFO_PROCESS_QUERY_DEAD;
+      break;
+   default:
+      ret = HOSTINFO_PROCESS_QUERY_UNKNOWN;
+      break;
+   }
+
+   return ret;
+}

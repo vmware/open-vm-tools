@@ -34,6 +34,14 @@
 #include "x86cpuid.h"
 #include "unicodeTypes.h"
 
+typedef enum {
+   HOSTINFO_PROCESS_QUERY_DEAD,    // Procss is dead (does not exist)
+   HOSTINFO_PROCESS_QUERY_ALIVE,   // Process is alive (does exist)
+   HOSTINFO_PROCESS_QUERY_UNKNOWN  // Process existence cannot be determined
+} HostinfoProcessQuery;
+
+extern HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
+
 extern Unicode Hostinfo_NameGet(void);	/* don't free result */
 extern Unicode Hostinfo_HostName(void);	/* free result */
 

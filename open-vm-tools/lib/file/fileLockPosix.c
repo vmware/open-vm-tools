@@ -316,30 +316,13 @@ GetLockFileValues(const char *lockFileName,  // IN:
 static Bool
 FileLockIsValidProcess(int pid)  // IN:
 {
-   uid_t uid;
-   int err;
-   Bool ret;
+   HostinfoProcessQuery value = Hostinfo_QueryProcessExistence(pid);
 
-   uid = Id_BeginSuperUser();
-   err = (kill(pid, 0) == -1) ? errno : 0;
-   Id_EndSuperUser(uid);
-
-   switch (err) {
-   case 0:
-   case EPERM:
-      ret = TRUE;
-      break;
-   case ESRCH:
-      ret = FALSE;
-      break;
-   default:
-      Log(LGPFX" %s Unexpected errno (%d), assuming valid.\n",
-          __FUNCTION__, err);
-      ret = TRUE;
-      break;
+   if (value == HOSTINFO_PROCESS_QUERY_UNKNOWN) {
+      return TRUE;  // Err on the side of caution
    }
 
-   return ret;
+   return (value == HOSTINFO_PROCESS_QUERY_ALIVE) ? TRUE : FALSE;
 }
 
 
