@@ -19,7 +19,3 @@ SUBDIRS =
 SUBDIRS += vmtoolsd
 SUBDIRS += plugins
 
-install-exec-local:
-	mkdir -p $(DESTDIR)/etc/vmware-tools
-	ln -sf `dirname $(VMSVC_PLUGIN_INSTALLDIR)` $(DESTDIR)/etc/vmware-tools/plugins
-
