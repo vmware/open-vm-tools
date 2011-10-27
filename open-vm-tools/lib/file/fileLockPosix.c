@@ -1141,7 +1141,16 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
    }
 
    if (tokenPtr == NULL) {
-      FileLockAppendMessage(msgs, res);
+      int errnoValue;
+
+      if (res == 0) {
+         errnoValue = EAGAIN;  // Thank you for playing; try again
+         /* Failed to acquire the lock; another has possession of it */
+      } else {
+         errnoValue = res;
+      }
+
+      FileLockAppendMessage(msgs, errnoValue);
    }
 
    return tokenPtr;
