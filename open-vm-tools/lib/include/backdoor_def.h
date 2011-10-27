@@ -155,7 +155,9 @@
 #  define BDOOR_CMD_FE_INSUFFICIENT_MEM       0
 #  define BDOOR_CMD_FE_EXCEPTION              1
 #define   BDOOR_CMD_VMK_INFO                 72
-#define   BDOOR_CMD_MAX                      73
+#define   BDOOR_CMD_EFI_BOOT_CONFIG          73 /* CPL 0 only. */
+#  define BDOOR_CMD_EBC_CSM_ENABLED           0
+#define   BDOOR_CMD_MAX                      74
 
 
 /* 
