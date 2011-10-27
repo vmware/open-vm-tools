@@ -852,7 +852,7 @@ for TEST_CFLAG in -Wno-pointer-sign -Wno-unused-value -fno-strict-aliasing \
    CFLAGS="$ORIGINAL_CFLAGS$NEW_CFLAG"
 done
 CPPFLAGS="$CPPFLAGS -DVMX86_TOOLS"
-CPPFLAGS="$CPPFLAGS -DNO_CORE_ICU"
+CPPFLAGS="$CPPFLAGS"
 
 # -fvisibility is used by "core service" plugins, but not required.
 ORIGINAL_CFLAGS="$CFLAGS"

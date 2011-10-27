@@ -41,38 +41,6 @@
 #endif
 
 
-/*
- * NO_CORE_ICU is currently only used by oddball Tools builds
- * (non-Linux, non-Windows, non-Mac, source). It means "don't compile
- * our borrowed ICU source". Even if we don't do that, however, it's
- * still possible to use the system ICU libraries if USE_ICU is
- * defined (currently only for open-source tools builds.
- *
- * Since codeset.c is the ICU layer over codesetOld.c, if we are NOT
- * using either variety of ICU, then we won't be compiling codeset.c,
- * and thus need to transparently convert codeset calls to old codeset
- * calls.
- */
-
-#if defined(NO_CORE_ICU) && !defined(USE_ICU)
-#define CodeSetOld_GenericToGenericDb CodeSet_GenericToGenericDb
-#define CodeSetOld_GenericToGeneric CodeSet_GenericToGeneric
-#define CodeSetOld_Utf8ToCurrent CodeSet_Utf8ToCurrent
-#define CodeSetOld_CurrentToUtf8 CodeSet_CurrentToUtf8
-#define CodeSetOld_Utf16leToUtf8Db CodeSet_Utf16leToUtf8Db
-#define CodeSetOld_Utf16leToUtf8 CodeSet_Utf16leToUtf8
-#define CodeSetOld_Utf8ToUtf16le CodeSet_Utf8ToUtf16le
-#define CodeSetOld_CurrentToUtf16le CodeSet_CurrentToUtf16le
-#define CodeSetOld_Utf16leToCurrent CodeSet_Utf16leToCurrent
-#define CodeSetOld_Utf16beToCurrent CodeSet_Utf16beToCurrent
-#define CodeSetOld_Utf8FormDToUtf8FormC CodeSet_Utf8FormDToUtf8FormC
-#define CodeSetOld_Utf8FormCToUtf8FormD CodeSet_Utf8FormCToUtf8FormD
-#define CodeSetOld_GetCurrentCodeSet CodeSet_GetCurrentCodeSet
-#define CodeSetOld_IsEncodingSupported CodeSet_IsEncodingSupported
-#define CodeSetOld_Validate CodeSet_Validate
-#define CodeSetOld_Init CodeSet_Init
-#endif
-
 Bool
 CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
                               char const *bufIn,   // IN
