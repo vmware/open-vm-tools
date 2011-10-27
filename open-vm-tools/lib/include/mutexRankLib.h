@@ -86,7 +86,8 @@
  * disklib and I/O related locks
  */
 #define RANK_diskLibLock             (RANK_libLockBase + 0x5001)
-#define RANK_nasPluginLock           (RANK_libLockBase + 0x5009)
+#define RANK_nasPluginLock           (RANK_libLockBase + 0x5007)
+#define RANK_nasPluginMappingLock    (RANK_libLockBase + 0x5008)
 #define RANK_diskLibPluginLock       (RANK_libLockBase + 0x5010)
 #define RANK_vmioPluginRootLock      (RANK_libLockBase + 0x5020)
 #define RANK_vmioPluginEvtLock       (RANK_libLockBase + 0x5030)
@@ -94,6 +95,7 @@
 #define RANK_fsCmdLock               (RANK_libLockBase + 0x5050)
 #define RANK_scsiStateLock           (RANK_libLockBase + 0x5060)
 #define RANK_parInitLock             (RANK_libLockBase + 0x5070)
+#define RANK_namespaceLock           (RANK_libLockBase + 0x5080)
 
 /*
  * VMDB range:
