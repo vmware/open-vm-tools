@@ -26,6 +26,7 @@
 
 #if defined(__FreeBSD__)
 # include <sys/param.h>
+# include <sys/mount.h>
 #else
 # if !defined(__APPLE__)
 #  include <sys/vfs.h>
@@ -147,7 +148,7 @@ FileRemoveDirectory(ConstUnicode pathName)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * FileRename --
+ * File_Rename --
  *
  *	Rename a file.
  *
@@ -162,10 +163,19 @@ FileRemoveDirectory(ConstUnicode pathName)  // IN:
  */
 
 int
-FileRename(ConstUnicode oldName,  // IN:
-           ConstUnicode newName)  // IN:
+File_Rename(ConstUnicode oldName,  // IN:
+            ConstUnicode newName)  // IN:
 {
    return (Posix_Rename(oldName, newName) == -1) ? errno : 0;
+}
+
+
+int
+File_RenameRetry(ConstUnicode oldFile,    // IN:
+                 ConstUnicode newFile,    // IN:
+                 uint32 msecMaxWaitTime)  // IN: Unused.
+{
+   return File_Rename(oldFile, newFile);
 }
 
 
@@ -1792,6 +1802,9 @@ FilePosixNearestExistingAncestor(char const *path)  // IN: File path
 }
 
 
+#endif /* !FreeBSD && !sun */
+
+
 /*
  *----------------------------------------------------------------------------
  *
@@ -1824,8 +1837,10 @@ File_IsSameFile(ConstUnicode path1,  // IN:
 {
    struct stat st1;
    struct stat st2;
+#if !defined(sun)  // Solaris does not have statfs
    struct statfs stfs1;
    struct statfs stfs2;
+#endif
 
    ASSERT(path1);
    ASSERT(path2);
@@ -1865,6 +1880,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
       return TRUE;
    }
 
+#if !defined(sun)  // Solaris does not have statfs
    if (Posix_Statfs(path1, &stfs1) != 0) {
       return FALSE;
    }
@@ -1873,7 +1889,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
       return FALSE;
    }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__FreeBSD__) 
    if ((stfs1.f_flags & MNT_LOCAL) && (stfs2.f_flags & MNT_LOCAL)) {
       return TRUE;
    }
@@ -1882,6 +1898,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
        (stfs2.f_type != NFS_SUPER_MAGIC)) {
       return TRUE;
    }
+#endif
 #endif
 
    /*
@@ -1911,9 +1928,6 @@ File_IsSameFile(ConstUnicode path1,  // IN:
 
    return FALSE;
 }
-
-
-#endif /* !FreeBSD && !sun */
 
 
 /*

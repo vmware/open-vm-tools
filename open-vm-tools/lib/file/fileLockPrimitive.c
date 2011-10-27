@@ -1474,7 +1474,7 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
       return EIO;
    }
 
-   err = FileRename(entryFilePath, memberFilePath);
+   err = File_Rename(entryFilePath, memberFilePath);
 
    if (err != 0) {
       Warning(LGPFX" %s FileRename of '%s' to '%s' failed: %s\n",

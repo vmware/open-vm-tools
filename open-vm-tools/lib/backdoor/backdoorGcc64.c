@@ -139,7 +139,7 @@ Backdoor_InOut(Backdoor_proto *myBp) // IN/OUT
 void
 BackdoorHbIn(Backdoor_proto_hb *myBp) // IN/OUT
 {
-   uint32 dummy;
+   uint64 dummy;
 
    __asm__ __volatile__(
         "pushq %%rbp"           "\n\t"

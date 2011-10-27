@@ -350,6 +350,8 @@ int64   FileIO_GetSizeByPath(ConstUnicode pathName);
 
 Bool    FileIO_Close(FileIODescriptor *file);
 
+Bool    FileIO_CloseAndUnlink(FileIODescriptor *file);
+
 uint32  FileIO_GetFlags(FileIODescriptor *file);
 
 Bool    FileIO_GetVolumeSectorSize(const char *name,

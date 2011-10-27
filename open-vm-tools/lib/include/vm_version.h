@@ -203,6 +203,7 @@
 #define VMSERVER_VERSION "e.x.p"
 #define WORKSTATION_VERSION_NUMBER "8.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
+#define WORKSTATION_RELEASE_DESCRIPTION ""
 #define WORKSTATION_ENTERPRISE_VERSION "e.x.p"
 #define ACE_MANAGEMENT_SERVER_VERSION "e.x.p"
 #define MUI_VERSION "4.1.0"
@@ -305,7 +306,7 @@
 
 #define USB_ARBITRATOR_VERSION_MAJOR 9
 #define USB_ARBITRATOR_VERSION_MINOR 0
-#define USB_ARBITRATOR_VERSION_Z     38
+#define USB_ARBITRATOR_VERSION_Z     44
 
 #define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
                                      USB_ARBITRATOR_VERSION_MINOR
@@ -321,7 +322,7 @@
  * USB Arbitrator Component version. This version is used by the linux
  * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.38"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "9.0.44"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

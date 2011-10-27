@@ -104,6 +104,7 @@ Bool FileMacos_IsOnSparseDmg(int fd);
 Bool FileMacos_IsSliceDevice(char const *bsdDev);
 
 char *FileMacos_DiskDevToUserFriendlyName(char const *bsdDiskDev);
+char *FileMacos_DiskDevToVolumeName(char const *bsdDiskDev);
 
 char *FileMacos_DiskDeviceToUniqueID(char const *bsdPath);
 char *FileMacos_UniqueIDToDiskDevice(char const *identifier);
@@ -276,6 +277,13 @@ Bool File_CopyTree(ConstUnicode srcName,
 Bool File_Replace(ConstUnicode oldFile,
                   ConstUnicode newFile);
 
+int File_Rename(ConstUnicode oldFile,
+                ConstUnicode newFile);
+
+int File_RenameRetry(ConstUnicode oldFile,
+                     ConstUnicode newFile,
+                     uint32 msecMaxWaitTime);
+
 Bool File_Move(ConstUnicode oldFile,
                ConstUnicode newFile,
                Bool *asRename);
@@ -284,6 +292,13 @@ void File_Rotate(const char *pathName,
                  int n,
                  Bool noRename,
                  char **newFileName);
+
+int File_GetFSMountInfo(ConstUnicode pathName,
+                        char **fsType,
+                        uint32 *version,
+                        char **remoteIP,
+                        char **remoteMountPoint,
+                        char **localMountPoint);
 
 /* Get size only for regular file. */
 int64 File_GetSize(ConstUnicode pathName);

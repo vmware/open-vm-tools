@@ -425,6 +425,39 @@ FileIO_Filename(FileIODescriptor *fd)  // IN:
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_CloseAndUnlink
+ *
+ *      Closes and unlinks the file associated with a FileIODescriptor.
+ *
+ * Results:
+ *      TRUE: An error occurred.
+ *      FALSE: The file was closed and unlinked.
+ *
+ * Side effects:
+ *      File is probably closed and unlinked.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
+{
+   Unicode path;
+   Bool ret;
+
+   ASSERT(fd);
+
+   path = Unicode_Duplicate(fd->fileName);
+   ret = FileIO_Close(fd) || File_Unlink(path);
+   Unicode_Free(path);
+
+   return ret;
+}
+
+
 #if defined(_WIN32) || defined(__linux__) || defined(__APPLE__) || \
     defined(__FreeBSD__) || defined(sun)
 /*

@@ -69,6 +69,10 @@ typedef struct VMCIDelayedEventInfo {
    uint8 eventPayload[sizeof(VMCIEventData_Max)];
 } VMCIDelayedEventInfo;
 
+typedef struct VMCIEventRef {
+   VMCISubscription *sub;
+   VMCIListItem   listItem;
+} VMCIEventRef;
 
 /*
  *----------------------------------------------------------------------
@@ -386,11 +390,13 @@ VMCIEventDeliver(VMCIEventMsg *eventMsg)  // IN
    VMCIListItem *iter;
    VMCILockFlags flags;
 
+   VMCIList noDelayList;
+   VMCIList_Init(&noDelayList);
+
    ASSERT(eventMsg);
 
    VMCI_GrabLock_BH(&subscriberLock, &flags);
    VMCIList_Scan(iter, &subscriberArray[eventMsg->eventData.event]) {
-      VMCI_EventData *ed;
       VMCISubscription *cur = VMCIList_Entry(iter, VMCISubscription,
                                              subscriberListItem);
       ASSERT(cur && cur->event == eventMsg->eventData.event);
@@ -419,6 +425,40 @@ VMCIEventDeliver(VMCIEventMsg *eventMsg)  // IN
          }
 
       } else {
+         VMCIEventRef *eventRef;
+
+         /*
+          * To avoid possible lock rank voilation when holding
+          * subscriberLock, we construct a local list of
+          * subscribers and release subscriberLock before
+          * invokes the callbacks. This is similar to delayed
+          * callbacks, but callbacks is invoked right away here.
+          */
+         if ((eventRef = VMCI_AllocKernelMem(sizeof *eventRef,
+                                             (VMCI_MEMORY_ATOMIC |
+                                              VMCI_MEMORY_NONPAGED))) == NULL) {
+            err = VMCI_ERROR_NO_MEM;
+            goto out;
+         }
+
+         VMCIEventGet(cur);
+         eventRef->sub = cur;
+         VMCIList_InitEntry(&eventRef->listItem);
+         VMCIList_Insert(&eventRef->listItem, &noDelayList);
+      }
+   }
+
+out:
+   VMCI_ReleaseLock_BH(&subscriberLock, flags);
+
+   if (!VMCIList_Empty(&noDelayList)) {
+      VMCI_EventData *ed;
+      VMCIListItem *iter2;
+
+      VMCIList_ScanSafe(iter, iter2, &noDelayList) {
+         VMCIEventRef *eventRef = VMCIList_Entry(iter, VMCIEventRef,
+                                                 listItem);
+         VMCISubscription *cur = eventRef->sub;
          uint8 eventPayload[sizeof(VMCIEventData_Max)];
 
          /* We set event data before each callback to ensure isolation. */
@@ -427,11 +467,13 @@ VMCIEventDeliver(VMCIEventMsg *eventMsg)  // IN
                 (size_t)eventMsg->hdr.payloadSize);
          ed = (VMCI_EventData *)eventPayload;
          cur->callback(cur->id, ed, cur->callbackData);
+
+         VMCI_GrabLock_BH(&subscriberLock, &flags);
+         VMCIEventRelease(cur);
+         VMCI_ReleaseLock_BH(&subscriberLock, flags);
+         VMCI_FreeKernelMem(eventRef, sizeof *eventRef);
       }
    }
-
-out:
-   VMCI_ReleaseLock_BH(&subscriberLock, flags);
 
    return err;
 }

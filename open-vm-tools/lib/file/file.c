@@ -1286,7 +1286,7 @@ File_Move(ConstUnicode oldFile,  // IN:
    Bool ret;
    Bool duringRename;
 
-   if (FileRename(oldFile, newFile) == 0) {
+   if (File_Rename(oldFile, newFile) == 0) {
       duringRename = TRUE;
       ret = TRUE;
       Err_SetErrno(0);
@@ -1356,7 +1356,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
       return FALSE;
    }
 
-   if (FileRename(srcName, dstName) == 0) {
+   if (File_Rename(srcName, dstName) == 0) {
       ret = TRUE;
    } else {
       struct stat statbuf;
@@ -2349,3 +2349,40 @@ File_Rotate(const char *fileName,  // IN: original file
 
    free(baseName);
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_GetFSMountInfo --
+ *
+ *      Platform-independent wrapper around File_GetVMFSMountInfo
+ *
+ * Results:
+ *      On failure return -1.  Otherwise, return fsType, version,
+ *      remoteIP, remoteMountPoint, and localMountPoint.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int 
+File_GetFSMountInfo(ConstUnicode pathName,
+                    char **fsType,
+                    uint32 *version,
+                    char **remoteIP,
+                    char **remoteMountPoint,
+                    char **localMountPoint)
+{
+#if defined VMX86_SERVER
+   return  File_GetVMFSMountInfo(pathName, fsType, version,
+                                 remoteIP, remoteMountPoint,
+                                 localMountPoint);
+#else 
+   return -1;
+#endif
+}
+
+
