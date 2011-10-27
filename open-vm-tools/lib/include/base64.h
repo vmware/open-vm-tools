@@ -32,6 +32,9 @@ Bool Base64_Encode(uint8 const *src, size_t srcLength,
 Bool Base64_Decode(char const *src,
                    uint8 *target, size_t targSize,
                    size_t *dataLength);
+Bool Base64_ChunkDecode(char const *src, size_t inSize,
+                        uint8 *target, size_t targSize,
+                        size_t *dataLength);
 Bool Base64_ValidEncoding(char const *src, size_t srcLength);
 size_t Base64_EncodedLength(uint8 const *src, size_t srcLength);
 size_t Base64_DecodedLength(char const *src, size_t srcLength);

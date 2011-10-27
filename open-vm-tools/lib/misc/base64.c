@@ -266,7 +266,7 @@ main()
             bufMax = sizeof buf;
          }
 
-         printf("\nBuffer size %d:\n", bufMax);
+         printf("\nBuffer size %ld:\n", bufMax);
 
          test = tests;
          for (; test->in; ++test) {
@@ -274,24 +274,31 @@ main()
 
             r = Base64_Decode(test->in, buf, bufMax, &bufSize);
 
-            if (bufSize != strlen(test->out) ||
-                strncmp(test->out, buf, bufSize) != 0) {
-               printf("Decoding of %s failed.  Got %s (%d), not %s\n",
+            if ((bufMax > strlen(test->out)) && (bufSize < strlen(test->out))) {
+               printf("Decoding of %s failed. Decoded size %ld < expected %ld\n",
+                      test->in, bufSize, strlen(test->out));
+            }
+            if (memcmp(test->out, buf, bufSize) != 0) {
+               printf("Decoding of %s failed.  Got %s (%ld), not %s\n",
                       test->in, buf, bufSize, test->out);
             } else {
-               printf("Good: %s -> %s (%d)\n", test->in, buf, bufSize);
+               printf("Good: %s -> %s (%ld)\n", test->in, buf, bufSize);
             }
 
             r = Base64_Encode(test->out, strlen(test->out),
                               buf, bufMax, &bufSize);
             buf[bufMax] = 0;
 
-            if (!r || bufSize != strlen(test->in) ||
-                strncmp(test->in, buf, bufSize) != 0) {
-               printf("Encoding of %s failed.  Got %s (%d), not %s\n",
-                      test->out, buf, bufSize, test->in);
+            if (bufMax <= strlen(test->in) && r == 0) {
+               printf("Good: %s. Failed for bufMax %ld (required %ld)\n", test->out, bufMax, strlen(test->in));
             } else {
-               printf("Good: %s -> %s (%d)\n", test->out, buf, bufSize);
+                if (!r || bufSize != strlen(test->in) ||
+                    strncmp(test->in, buf, bufSize) != 0) {
+                   printf("Encoding of %s failed.  r = %d. Got %s (%ld), not %s\n",
+                          test->out, r, buf, bufSize, test->in);
+                } else {
+                   printf("Good: %s -> %s (%ld)\n", test->out, buf, bufSize);
+                }
             }
          }
       }
@@ -338,27 +345,69 @@ Base64_Decode(char const *in,      // IN:
               size_t outSize,      // IN:
               size_t *dataLength)  // OUT:
 {
+   return Base64_ChunkDecode(in, -1, out, outSize, dataLength);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Base64_ChunkDecode --
+ *
+ *       Skips all whitespace anywhere. Converts characters, four at
+ *       a time, starting at (or after) src from base - 64 numbers into three
+ *       8 bit bytes in the target area. Conversion stops after inSize (which
+ *       must be a multiple of 4) characters, or an EOM marker. Returns the
+ *       number of data bytes stored at the target in the provided out parameter.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+Base64_ChunkDecode(char const *in,      // IN:
+                   size_t inSize,       // IN:
+                   uint8 *out,          // OUT:
+                   size_t outSize,      // IN:
+                   size_t *dataLength)  // OUT:
+{
    uint32 b = 0;
    int n = 0;
    uintptr_t i = 0;
+   size_t inputIndex = 0;
 
    ASSERT(in);
    ASSERT(out || outSize == 0);
    ASSERT(dataLength);
-
+   ASSERT((inSize == -1) || (inSize % 4) == 0);
    *dataLength = 0;
 
    i = 0;
-   for (;;) {
-      int p = base64Reverse[*(unsigned char *)in++];
+   for (;inputIndex < inSize;) {
+      int p = base64Reverse[(unsigned char)in[inputIndex]];
 
       if (UNLIKELY(p < 0)) {
          switch (p) {
-         case ILLEGAL: return FALSE;
-         case WS: continue;
-         case EOM: *dataLength = i; return TRUE;
+         case WS:
+            inputIndex++;
+            break;
+         case EOM:
+            inputIndex = (inputIndex + 3) & ~3;
+            b = 0;
+            n = 0;
+            *dataLength = i;
+            return TRUE;
+         case ILLEGAL:
+         default:
+            return FALSE;
          }
       } else {
+         inputIndex++;
          if (UNLIKELY(i >= outSize)) {
             return FALSE;
          }
@@ -370,6 +419,8 @@ Base64_Decode(char const *in,      // IN:
          }
       }
    }
+   *dataLength = i;
+   return TRUE;
 }
 
 
