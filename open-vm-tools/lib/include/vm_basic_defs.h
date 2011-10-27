@@ -160,6 +160,14 @@ Max(int a, int b)
 
 #define MASK(n)		((1 << (n)) - 1)	    /* make an n-bit mask */
 #define MASK64(n)	((CONST64U(1) << (n)) - 1)  /* make an n-bit mask */
+/*
+ * MASKRANGE64 makes a bit vector starting at bit lo and ending at bit hi.  No
+ * checking for lo < hi is done.
+ */
+#define MASKRANGE64(hi, lo)      (MASK64((hi) - (lo) + 1) << (lo))
+
+/* SIGNEXT64 sign extends a value from bit position "pos" up to bit 63. */
+#define SIGNEXT64(val, pos)     (((int64)(val) << (63 - (pos))) >> (63 - (pos)))
 
 #define DWORD_ALIGN(x)          ((((x) + 3) >> 2) << 2)
 #define QWORD_ALIGN(x)          ((((x) + 7) >> 3) << 3)
