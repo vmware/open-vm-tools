@@ -564,6 +564,7 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
    struct passwd *ppw;
    gid_t root_gid;
    int ret;
+   char *userLocal;
 
    ppw = &pw;
    if ((ppw = getpwuid_r(0, &pw, buffer, sizeof buffer)) == NULL) {
@@ -572,7 +573,18 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
 
    root_gid = ppw->pw_gid;
 
-   if ((ppw = getpwnam_r(user, &pw, buffer, sizeof buffer)) == NULL) {
+   /* convert user name to local character set */
+   userLocal = (char *)Unicode_GetAllocBytes(user, Unicode_GetCurrentEncoding());
+   if (!userLocal) {
+       Warning("Failed to convert user name %s to local character set.\n", user);
+       return FALSE;
+   }
+
+   ppw = getpwnam_r(userLocal, &pw, buffer, sizeof buffer);
+
+   free(userLocal);
+
+   if (ppw == NULL) {
       return FALSE;
    }
 
