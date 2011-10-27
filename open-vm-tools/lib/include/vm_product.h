@@ -155,6 +155,7 @@
 #define PRODUCT_VIEW_NAME MAKE_NAME("View")
 #define PRODUCT_VIEW_NAME_FOR_LICENSE PRODUCT_VIEW_NAME
 
+#define PRODUCT_VMCF_NAME MAKE_NAME("VMCF")
 
 // XXX VMvisor is the underlying technology for possibly several products,
 // XXX not the product. Fix when names are decided.
@@ -269,7 +270,8 @@
       || defined(VMX86_VDDK)     \
       || defined(VMX86_NETDUMP) \
       || defined(VMX86_BOOMERANG) \
-      || defined(VMX86_HBR_SERVER))
+      || defined(VMX86_HBR_SERVER) \
+      || defined(VMX86_VMCF))
 #   if defined(_WIN32) || defined(__APPLE__)
       /*
        * XXX Make the product be Workstation by default if none of the defines
@@ -350,6 +352,8 @@
 # define PRODUCT_SHORT_NAME PRODUCT_HBR_SERVER_NAME
 #elif defined(VMX86_VIEW)
 # define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
+#elif defined(VMX86_VMCF)
+# define PRODUCT_SHORT_NAME PRODUCT_VMCF_NAME
 #endif
 
 
