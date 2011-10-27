@@ -78,7 +78,7 @@ typedef struct {
  * MXRecLockSetNoOwner          Set lock as owner by "nobody"
  * MXRecLockSetOwner            Set lock owner
  * MXRecLockAcquireInternal     Lock the lock
- * MXRecLockTryAcquireInternal  conditionally acquire the lock
+ * MXRecLockTryAcquireInternal  Conditionally acquire the lock
  * MXRecLockReleaseInternal     Unlock the lock
  *
  * Windows has a native recursive lock, the CRITICAL_SECTION. POSIXen,
