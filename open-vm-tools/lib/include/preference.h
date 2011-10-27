@@ -23,10 +23,11 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#include "vm_basic_types.h"
+
 struct KeyLocatorState;
 
 extern void Preference_DisableUserPreferences(void);
-extern void Preference_IDontWantPoll(void);
 extern Bool Preference_Init(void);
 extern Bool Preference_InitEx(struct KeyLocatorState *klState);
 extern void Preference_Exit(void);
