@@ -166,8 +166,8 @@ Max(int a, int b)
  */
 #define MASKRANGE64(hi, lo)      (MASK64((hi) - (lo) + 1) << (lo))
 
-/* SIGNEXT64 sign extends a value from bit position "pos" up to bit 63. */
-#define SIGNEXT64(val, pos)     (((int64)(val) << (63 - (pos))) >> (63 - (pos)))
+/* SIGNEXT64 sign extends a n-bit value to 64-bits. */
+#define SIGNEXT64(val, n)       (((int64)(val) << (64 - (n))) >> (64 - (n)))
 
 #define DWORD_ALIGN(x)          ((((x) + 3) >> 2) << 2)
 #define QWORD_ALIGN(x)          ((((x) + 7) >> 3) << 3)
