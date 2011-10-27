@@ -156,8 +156,7 @@ Log_Trivia(const char *fmt,
 struct MsgList;
 
 typedef void (LogOutputFunc)(int level,
-                             const char *fmt,
-                             va_list args);
+                             const char *msg);
 
 
 typedef enum {
