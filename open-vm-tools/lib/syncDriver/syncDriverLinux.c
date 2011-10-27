@@ -191,7 +191,6 @@ LinuxDriver_Freeze(const char *paths,
       LinuxFiThaw(&sync->driver);
       LinuxFiClose(&sync->driver);
       DynBuf_Destroy(&fds);
-      free(sync);
    } else {
       sync->fds = DynBuf_Detach(&fds);
       sync->fdCnt = count;
