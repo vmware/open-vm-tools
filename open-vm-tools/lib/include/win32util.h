@@ -231,5 +231,7 @@ Bool W32Util_DismountVolumes(uint16 drive,
                              void **handle);
 void W32Util_CloseDismountHandle(void *handle);
 
+Bool W32Util_EnableSafePathSearching(void);
+
 #endif // _WIN32
 #endif // WIN32UTIL_H_
