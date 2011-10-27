@@ -43,11 +43,11 @@
 
 typedef struct MsgList MsgList;
 struct MsgList {
-   MsgList *next;
-   char *id;
-   char *format;
-   MsgFmt_Arg *args;
-   int numArgs;
+   MsgList     *next;
+   char        *id;
+   char        *format;
+   MsgFmt_Arg  *args;
+   int          numArgs;
 };
 
 /*
