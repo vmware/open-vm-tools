@@ -1417,7 +1417,7 @@ HostinfoGetLoadAverage(float *avg0,  // IN/OUT:
                        float *avg1,  // IN/OUT:
                        float *avg2)  // IN/OUT:
 {
-#if defined(__linux__) || defined(__APPLE__)
+#if (defined(__linux__) && !defined(__UCLIBC__)) || defined(__APPLE__)
    double avg[3];
    int res;
 

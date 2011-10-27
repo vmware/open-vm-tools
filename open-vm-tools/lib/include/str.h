@@ -61,7 +61,7 @@
  * This does not mean it has bsd_vsnwprintf().
  */
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
-    defined __linux__ || defined __APPLE__
+    (defined __linux__ && !defined __UCLIBC__) || defined __APPLE__
 #define HAS_BSD_PRINTF 1
 #endif
 

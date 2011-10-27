@@ -133,7 +133,7 @@ static int ProcMgrGetCommandLineArgs(long pid,
 #define  SOLARIS_BASH_PATH "/usr/bin/bash"
 #endif
 
-#if defined(linux) && !defined(GLIBC_VERSION_23)
+#if defined(linux) && !defined(GLIBC_VERSION_23) && !defined(__UCLIBC__)
 /*
  * Implements the system calls (they are not wrapped by glibc til 2.3.2).
  *

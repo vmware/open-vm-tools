@@ -800,6 +800,14 @@ if test "$enable_multimon" != "no"; then
        #include <X11/Xmd.h>])
 fi
 
+bsdPrintfWrappers=no
+if test "$os" = "linux"; then
+   AC_CHECK_LIB([c],
+                [ecvt],
+                [bsdPrintfWrappers=yes],
+                [])
+fi
+
 ###
 ### Typdefs, structs, and compiler quarks.
 ###
@@ -1023,6 +1031,7 @@ AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "os" = "linux" -a "$have_glib_2_14" = "yes")
+AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])

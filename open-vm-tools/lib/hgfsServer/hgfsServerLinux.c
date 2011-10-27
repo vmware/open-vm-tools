@@ -1966,7 +1966,7 @@ HgfsGetCreationTime(const struct stat *stats)
     * Linux: Glibc 2.3+ has st_Xtim.  Glibc 2.1/2.2 has st_Xtime/__unusedX on
     *        same place (see below).  We do not support Glibc 2.0 or older.
     */
-#   if (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 3)
+#   if (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 3) && !defined(__UCLIBC__)
    /*
     * stat structure is same between glibc 2.3 and older glibcs, just
     * these __unused fields are always zero. If we'll use __unused*
@@ -2432,7 +2432,7 @@ HgfsStatToFileAttr(struct stat *stats,       // IN: stat information
     * Linux: Glibc 2.3+ has st_Xtim.  Glibc 2.1/2.2 has st_Xtime/__unusedX on
     *        same place (see below).  We do not support Glibc 2.0 or older.
     */
-#   if (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 3)
+#   if (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 3) && !defined(__UCLIBC__)
    /*
     * stat structure is same between glibc 2.3 and older glibcs, just
     * these __unused fields are always zero. If we'll use __unused*
