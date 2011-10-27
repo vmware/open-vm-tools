@@ -344,7 +344,7 @@ FLAG(   1,  0, EDX, COMMON, 17,  1, PSE36,                         YES, FALSE) \
 FLAG(   1,  0, EDX, INTEL,  18,  1, PSN,                           YES, FALSE) \
 FLAG(   1,  0, EDX, COMMON, 19,  1, CLFSH,                         YES, TRUE)  \
 FLAG(   1,  0, EDX, INTEL,  21,  1, DS,                            YES, FALSE) \
-FLAG(   1,  0, EDX, INTEL,  22,  1, ACPI,                          YES, FALSE) \
+FLAG(   1,  0, EDX, INTEL,  22,  1, ACPI,                          ANY, FALSE) \
 FLAG(   1,  0, EDX, COMMON, 23,  1, MMX,                           YES, TRUE)  \
 FLAG(   1,  0, EDX, COMMON, 24,  1, FXSR,                          YES, TRUE)  \
 FLAG(   1,  0, EDX, COMMON, 25,  1, SSE,                           YES, TRUE)  \
