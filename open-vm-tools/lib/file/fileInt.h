@@ -236,6 +236,9 @@ Bool FileLockValidExecutionID(const char *executionID);
 
 Bool FileLockValidName(ConstUnicode fileName);
 
+void FileLockAppendMessage(MsgList **msgs,
+                           int err);
+
 Bool FileIsWritableDir(ConstUnicode dirName);
 
 UnicodeIndex FileFirstSlashIndex(ConstUnicode pathName,

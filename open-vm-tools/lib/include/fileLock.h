@@ -29,6 +29,7 @@
 #include "includeCheck.h"
 
 #include "unicodeTypes.h"
+#include "msgList.h"
 
 // The default time, in msec, to wait for a lock before giving up
 #define	FILELOCK_DEFAULT_WAIT 2500
@@ -49,19 +50,29 @@
 // File locking functions
 typedef struct FileLockToken FileLockToken;
 
+Unicode FileLock_TokenPathName(const FileLockToken *fileLockToken);
+
 FileLockToken *FileLock_Lock(ConstUnicode filePath,
                              const Bool readOnly,
                              const uint32 msecMaxWaitTime,
-                             int *err);
+                             int *err,
+                             MsgList **msgs);
 
-Unicode FileLock_TokenPathName(const FileLockToken *fileLockToken);
-int FileLock_Unlock(const FileLockToken *lockToken);
+Bool FileLock_Unlock(const FileLockToken *lockToken,
+                     int *err,
+                     MsgList **msgs);
 
 Bool FileLock_IsLocked(ConstUnicode filePath,
-                       int *err);
+                       int *err,
+                       MsgList **msgs);
 
-int FileLock_Remove(ConstUnicode filePath);
-int FileLock_CleanupVM(ConstUnicode cfgfilePath);
+Bool FileLock_Remove(ConstUnicode filePath,
+                     int *err,
+                     MsgList **msgs);
+
+Bool FileLock_CleanupVM(ConstUnicode cfgfilePath,
+                        int *err,
+                        MsgList **msgs);
 
 // Device locking functions, for compatibility
 int FileLock_LockDevice(const char *device);

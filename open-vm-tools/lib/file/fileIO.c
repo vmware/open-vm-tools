@@ -269,14 +269,15 @@ FileIO_Lock(FileIODescriptor *file,  // IN/OUT:
 
 #if !defined(__FreeBSD__) && !defined(sun)
    if (access & FILEIO_OPEN_LOCKED) {
-      int err;
+      int err = 0;
 
       ASSERT(file->lockToken == NULL);
 
       file->lockToken = FileLock_Lock(file->fileName,
                                       (access & FILEIO_OPEN_ACCESS_WRITE) == 0,
                                       FILELOCK_DEFAULT_WAIT,
-                                      &err);
+                                      &err,
+                                      NULL);
 
       if (file->lockToken == NULL) {
          /* Describe the lock not acquired situation in detail */
@@ -338,11 +339,9 @@ FileIO_Unlock(FileIODescriptor *file)  // IN/OUT:
 
 #if !defined(__FreeBSD__) && !defined(sun)
    if (file->lockToken != NULL) {
-      int err;
+      int err = 0;
 
-      err = FileLock_Unlock(file->lockToken);
-
-      if (err != 0) {
+      if (!FileLock_Unlock(file->lockToken, &err, NULL)) {
          Warning(LGPFX" %s on '%s' failed: %s\n",
                  __FUNCTION__, UTF8(file->fileName), strerror(err));
 

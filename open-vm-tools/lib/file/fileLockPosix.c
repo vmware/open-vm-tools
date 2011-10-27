@@ -573,6 +573,33 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
    return TRUE;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileLockAppendMessage --
+ *
+ *      Append a detailed error message to the MsgList.
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      Memory is allocated
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+FileLockAppendMessage(MsgList **msgs,  // IN/OPT:
+                      int err)         // IN: errno
+{
+   MsgList_Append(msgs, MSGID(fileLock.posix)
+                  "A file locking error (%d) has occurred: %s",
+                  err, Err_Errno2String(err));
+}
+
+
 #if defined(linux)
 /*
  *----------------------------------------------------------------------
@@ -1072,9 +1099,8 @@ FileLockNormalizePath(ConstUnicode filePath)  // IN:
  *      specifies "waiting forever" to acquire the lock.
  *
  * Results:
- *      NULL    Lock not acquired. Check err.
- *              err     0       Lock Timed Out
- *              err     !0      errno
+ *      NULL    Lock not acquired
+ *              errno to *err, msg to **msgs - when appropriate
  *      !NULL   Lock Acquired. This is the "lockToken" for an unlock.
  *
  * Side effects:
@@ -1087,8 +1113,10 @@ FileLockToken *
 FileLock_Lock(ConstUnicode filePath,         // IN:
               const Bool readOnly,           // IN:
               const uint32 msecMaxWaitTime,  // IN:
-              int *err)                      // OUT:
+              int *err,                      // OUT/OPT: returns errno
+              MsgList **msgs)                // OUT/OPT: add error message
 {
+   int res = 0;
    Unicode normalizedPath;
    FileLockToken *tokenPtr;
 
@@ -1096,15 +1124,24 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
    ASSERT(err);
 
    normalizedPath = FileLockNormalizePath(filePath);
+
    if (normalizedPath == NULL) {
-      *err = EINVAL;
+      res = EINVAL;
 
       tokenPtr = NULL;
    } else {
       tokenPtr = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
-                                   err);
+                                   &res);
 
       Unicode_Free(normalizedPath);
+   }
+
+   if (err != NULL) {
+      *err = res;
+   }
+
+   if (tokenPtr == NULL) {
+      FileLockAppendMessage(msgs, res);
    }
 
    return tokenPtr;
@@ -1119,35 +1156,41 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
  *      Is a file currently locked (at the time of the call)?
  *
  * Results:
- *      TRUE    YES
- *      FALSE   NO; if err is not NULL may check *err for an error
- *
- * Side effects:
- *      None.
+ *      TRUE   YES
+ *      FALSE  Failure (errno to *err, msg to **msgs - when appropriate)
  *
  *----------------------------------------------------------------------
  */
 
 Bool
 FileLock_IsLocked(ConstUnicode filePath,  // IN:
-                  int *err)               // OUT:
+                int *err,                 // OUT/OPT: returns errno
+                MsgList **msgs)           // OUT/OPT: add error message
 {
+   int res = 0;
    Bool isLocked;
    Unicode normalizedPath;
 
    ASSERT(filePath);
 
    normalizedPath = FileLockNormalizePath(filePath);
+
    if (normalizedPath == NULL) {
-      if (err != NULL) {
-         *err = EINVAL;
-      }
+      res = EINVAL;
 
       isLocked = FALSE;
    } else {
-      isLocked = FileLockIsLocked(normalizedPath, err);
+      isLocked = FileLockIsLocked(normalizedPath, &res);
 
       Unicode_Free(normalizedPath);
+   }
+
+   if (err != NULL) {
+      *err = res;
+   }
+
+   if (res != 0) {
+      FileLockAppendMessage(msgs, res);
    }
 
    return isLocked;
@@ -1162,8 +1205,8 @@ FileLock_IsLocked(ConstUnicode filePath,  // IN:
  *      Release the lock held on the specified file.
  *
  * Results:
- *      0       unlocked
- *      >0      errno
+ *      TRUE   Success
+ *      FALSE  Failure (errno to *err, msg to **msgs - when appropriate)
  *
  * Side effects:
  *      Changes the host file system.
@@ -1171,12 +1214,26 @@ FileLock_IsLocked(ConstUnicode filePath,  // IN:
  *----------------------------------------------------------------------
  */
 
-int
-FileLock_Unlock(const FileLockToken *lockToken)  // IN:
+Bool
+FileLock_Unlock(const FileLockToken *lockToken,  // IN:
+                int *err,                        // OUT/OPT: returns errno
+                MsgList **msgs)                  // OUT/OPT: add error message
 {
+   int res;
+
    ASSERT(lockToken);
 
-   return FileUnlockIntrinsic((FileLockToken *) lockToken);
+   res = FileUnlockIntrinsic((FileLockToken *) lockToken);
+
+   if (err != NULL) {
+      *err = res;
+   }
+
+   if (res != 0) {
+      FileLockAppendMessage(msgs, res);
+   }
+
+   return (res == 0);
 }
 
 #else
