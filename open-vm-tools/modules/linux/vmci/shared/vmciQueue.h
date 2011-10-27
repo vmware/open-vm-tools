@@ -97,10 +97,12 @@ typedef struct VMCIQueue {
  */
 typedef int VMCIMemcpyToQueueFunc(VMCIQueue *queue, uint64 queueOffset,
                                   const void *src, size_t srcOffset,
-                                  size_t size, BUF_TYPE bufType);
+                                  size_t size, BUF_TYPE bufType,
+                                  Bool canBlock);
 typedef int VMCIMemcpyFromQueueFunc(void *dest, size_t destOffset,
                                     const VMCIQueue *queue, uint64 queueOffset,
-                                    size_t size, BUF_TYPE bufType);
+                                    size_t size, BUF_TYPE bufType,
+                                    Bool canBlock);
 
 
 #if defined(_WIN32) && defined(WINNT_DDK)
@@ -118,7 +120,7 @@ typedef struct iovec {
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIMemcpy{To,From}Queue[v]() prototypes
+ * VMCIMemcpy{To,From}Queue[V][Local]() prototypes
  *
  * Note that these routines are NOT SAFE to call on a host end-point
  * until the guest end of the queue pair has attached -AND-
@@ -135,23 +137,68 @@ typedef struct iovec {
  */
 
 int VMCIMemcpyToQueue(VMCIQueue *queue, uint64 queueOffset, const void *src,
-                      size_t srcOffset, size_t size, BUF_TYPE bufType);
+                      size_t srcOffset, size_t size, BUF_TYPE bufType,
+                      Bool canBlock);
 int VMCIMemcpyFromQueue(void *dest, size_t destOffset, const VMCIQueue *queue,
-                        uint64 queueOffset, size_t size, BUF_TYPE bufType);
+                        uint64 queueOffset, size_t size, BUF_TYPE bufType,
+                        Bool canBlock);
 
 int VMCIMemcpyToQueueLocal(VMCIQueue *queue, uint64 queueOffset, const void *src,
-                           size_t srcOffset, size_t size, BUF_TYPE bufType);
+                           size_t srcOffset, size_t size, BUF_TYPE bufType,
+                           Bool canBlock);
 int VMCIMemcpyFromQueueLocal(void *dest, size_t destOffset, const VMCIQueue *queue,
-                             uint64 queueOffset, size_t size, BUF_TYPE bufType);
+                             uint64 queueOffset, size_t size, BUF_TYPE bufType,
+                             Bool canBlock);
 
 #if defined VMKERNEL || defined (SOLARIS)         || \
    (defined(__APPLE__) && !defined (VMX86_TOOLS)) || \
    (defined(__linux__) && defined(__KERNEL__))    || \
    (defined(_WIN32) && defined(WINNT_DDK))
 int VMCIMemcpyToQueueV(VMCIQueue *queue, uint64 queueOffset, const void *src,
-                       size_t srcOffset, size_t size, BUF_TYPE bufType);
+                       size_t srcOffset, size_t size, BUF_TYPE bufType,
+                       Bool canBlock);
 int VMCIMemcpyFromQueueV(void *dest, size_t destOffset, const VMCIQueue *queue,
-                         uint64 queueOffset, size_t size, BUF_TYPE bufType);
+                         uint64 queueOffset, size_t size, BUF_TYPE bufType,
+                         Bool canBlock);
+#  if defined(VMKERNEL)
+int VMCIMemcpyToQueueVLocal(VMCIQueue *queue, uint64 queueOffset,
+                            const void *src, size_t srcOffset, size_t size,
+                            BUF_TYPE bufType, Bool canBlock);
+int VMCIMemcpyFromQueueVLocal(void *dest, size_t destOffset,
+                              const VMCIQueue *queue, uint64 queueOffset,
+                              size_t size, BUF_TYPE bufType, Bool canBlock);
+#  else
+/*
+ * For non-vmkernel platforms, the local versions are identical to the
+ * non-local ones.
+ */
+
+static INLINE int
+VMCIMemcpyToQueueVLocal(VMCIQueue *queue,   // IN/OUT
+                        uint64 queueOffset, // IN
+                        const void *src,    // IN: iovec
+                        size_t srcOffset,   // IN
+                        size_t size,        // IN
+                        BUF_TYPE bufType,   // IN
+                        Bool canBlock)      // IN
+{
+   return VMCIMemcpyToQueueV(queue, queueOffset, src, srcOffset, size, bufType,
+                             canBlock);
+}
+
+static INLINE int
+VMCIMemcpyFromQueueVLocal(void *dest,              // IN/OUT: iovec
+                          size_t destOffset,       // IN
+                          const VMCIQueue *queue,  // IN
+                          uint64 queueOffset,      // IN
+                          size_t size,             // IN
+                          BUF_TYPE bufType,        // IN
+                          Bool canBlock)           // IN
+{
+   return VMCIMemcpyFromQueueV(dest, destOffset, queue, queueOffset, size, bufType,
+                               canBlock);
+}
+#  endif /* !VMKERNEL */
 #endif /* Does the O/S support iovec? */
 
 

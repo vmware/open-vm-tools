@@ -66,6 +66,7 @@
 #include "vmci_handle_array.h"
 #include "vmci_defs.h"
 #include "vmciKernelAPI.h"
+#include "vmciQueue.h"
 #include "vmciQueuePair.h"
 #include "vmciRoute.h"
 
@@ -90,7 +91,8 @@ struct VMCIQPair {
    VMCIEvent event;
 };
 
-static int VMCIQPairMapQueueHeaders(VMCIQueue *produceQ, VMCIQueue *consumeQ);
+static int VMCIQPairMapQueueHeaders(VMCIQueue *produceQ, VMCIQueue *consumeQ,
+                                    Bool canBlock);
 static int VMCIQPairGetQueueHeaders(const VMCIQPair *qpair,
                                     VMCIQueueHeader **produceQHeader,
                                     VMCIQueueHeader **consumeQHeader);
@@ -107,7 +109,8 @@ static Bool VMCIQPairWaitForReadyQueue(VMCIQPair *qpair);
  *      Helper routine that will lock the QPair before subsequent operations.
  *
  * Results:
- *      None.
+ *      VMCI_SUCCESS if lock acquired. VMCI_ERROR_WOULD_BLOCK if queue mutex
+ *      couldn't be acquired and qpair isn't allowed to block.
  *
  * Side effects:
  *      May block.
@@ -115,11 +118,14 @@ static Bool VMCIQPairWaitForReadyQueue(VMCIQPair *qpair);
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static INLINE int
 VMCIQPairLock(const VMCIQPair *qpair) // IN
 {
 #if !defined VMX86_VMX
-   VMCI_AcquireQueueMutex(qpair->produceQ);
+   return VMCI_AcquireQueueMutex(qpair->produceQ,
+                                 !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
+#else
+   return VMCI_SUCCESS
 #endif
 }
 
@@ -152,6 +158,67 @@ VMCIQPairUnlock(const VMCIQPair *qpair) // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * VMCIQPairHeaderLock --
+ *
+ *      Helper routine that will lock the queue pair header before subsequent
+ *      operations. If the queue pair is non blocking, a spinlock will be used.
+ *      Otherwise, a regular mutex locking the complete queue pair will be used.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      May block.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VMCIQPairLockHeader(const VMCIQPair *qpair) // IN
+{
+#if !defined VMX86_VMX
+   if (qpair->flags & VMCI_QPFLAG_NONBLOCK) {
+      VMCI_LockQueueHeader(qpair->produceQ);
+   } else {
+      VMCIQPairLock(qpair);
+   }
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQPairUnlockHeader --
+ *
+ *      Helper routine that unlocks the queue pair header after calling
+ *      VMCIQPairHeaderLock.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VMCIQPairUnlockHeader(const VMCIQPair *qpair) // IN
+{
+#if !defined VMX86_VMX
+   if (qpair->flags & VMCI_QPFLAG_NONBLOCK) {
+      VMCI_UnlockQueueHeader(qpair->produceQ);
+   } else {
+      VMCIQPairUnlock(qpair);
+   }
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VMCIQPairGetQueueHeaders --
  *
  *      Helper routine that will retrieve the produce and consume
@@ -176,7 +243,8 @@ VMCIQPairGetQueueHeaders(const VMCIQPair *qpair,            // IN
 {
    int result;
 
-   result = VMCIQPairMapQueueHeaders(qpair->produceQ, qpair->consumeQ);
+   result = VMCIQPairMapQueueHeaders(qpair->produceQ, qpair->consumeQ,
+                                     !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
    if (result == VMCI_SUCCESS) {
       *produceQHeader = qpair->produceQ->qHeader;
       *consumeQHeader = qpair->consumeQ->qHeader;
@@ -210,12 +278,17 @@ VMCIQPairGetQueueHeaders(const VMCIQPair *qpair,            // IN
 
 static int
 VMCIQPairMapQueueHeaders(VMCIQueue *produceQ, // IN
-                         VMCIQueue *consumeQ) // IN
+                         VMCIQueue *consumeQ, // IN
+                         Bool canBlock)       // IN
 {
    int result;
 
    if (NULL == produceQ->qHeader || NULL == consumeQ->qHeader) {
-      result = VMCIHost_MapQueueHeaders(produceQ, consumeQ);
+      if (canBlock) {
+         result = VMCIHost_MapQueueHeaders(produceQ, consumeQ);
+      } else {
+         result = VMCI_ERROR_QUEUEPAIR_NOT_READY;
+      }
       if (result < VMCI_SUCCESS) {
          if (produceQ->savedHeader && consumeQ->savedHeader) {
             return VMCI_ERROR_QUEUEPAIR_NOT_READY;
@@ -386,6 +459,10 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
       return VMCI_ERROR_NO_RESOURCES;
    }
 
+   if ((flags & VMCI_QPFLAG_NONBLOCK) && !vmkernel) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
    myQPair = VMCI_AllocKernelMem(sizeof *myQPair, VMCI_MEMORY_NONPAGED);
    if (!myQPair) {
       return VMCI_ERROR_NO_MEM;
@@ -531,13 +608,13 @@ VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair, // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   VMCIQPairLockHeader(qpair);
    result = VMCIQPairGetQueueHeaders(qpair, &produceQHeader, &consumeQHeader);
    if (result == VMCI_SUCCESS) {
       VMCIQueueHeader_GetPointers(produceQHeader, consumeQHeader,
                                   producerTail, consumerHead);
    }
-   VMCIQPairUnlock(qpair);
+   VMCIQPairUnlockHeader(qpair);
 
    if (result == VMCI_SUCCESS &&
        ((producerTail && *producerTail >= qpair->produceQSize) ||
@@ -581,13 +658,13 @@ VMCIQPair_GetConsumeIndexes(const VMCIQPair *qpair, // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   VMCIQPairLockHeader(qpair);
    result = VMCIQPairGetQueueHeaders(qpair, &produceQHeader, &consumeQHeader);
    if (result == VMCI_SUCCESS) {
       VMCIQueueHeader_GetPointers(consumeQHeader, produceQHeader,
                                   consumerTail, producerHead);
    }
-   VMCIQPairUnlock(qpair);
+   VMCIQPairUnlockHeader(qpair);
 
    if (result == VMCI_SUCCESS &&
        ((consumerTail && *consumerTail >= qpair->consumeQSize) ||
@@ -631,7 +708,7 @@ VMCIQPair_ProduceFreeSpace(const VMCIQPair *qpair) // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   VMCIQPairLockHeader(qpair);
    result = VMCIQPairGetQueueHeaders(qpair, &produceQHeader, &consumeQHeader);
    if (result == VMCI_SUCCESS) {
       result = VMCIQueueHeader_FreeSpace(produceQHeader, consumeQHeader,
@@ -639,7 +716,7 @@ VMCIQPair_ProduceFreeSpace(const VMCIQPair *qpair) // IN
    } else {
       result = 0;
    }
-   VMCIQPairUnlock(qpair);
+   VMCIQPairUnlockHeader(qpair);
 
    return result;
 }
@@ -678,7 +755,7 @@ VMCIQPair_ConsumeFreeSpace(const VMCIQPair *qpair) // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   VMCIQPairLockHeader(qpair);
    result = VMCIQPairGetQueueHeaders(qpair, &produceQHeader, &consumeQHeader);
    if (result == VMCI_SUCCESS) {
       result = VMCIQueueHeader_FreeSpace(consumeQHeader, produceQHeader,
@@ -686,7 +763,7 @@ VMCIQPair_ConsumeFreeSpace(const VMCIQPair *qpair) // IN
    } else {
       result = 0;
    }
-   VMCIQPairUnlock(qpair);
+   VMCIQPairUnlockHeader(qpair);
 
    return result;
 }
@@ -725,7 +802,7 @@ VMCIQPair_ProduceBufReady(const VMCIQPair *qpair) // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   VMCIQPairLockHeader(qpair);
    result = VMCIQPairGetQueueHeaders(qpair, &produceQHeader, &consumeQHeader);
    if (result == VMCI_SUCCESS) {
       result = VMCIQueueHeader_BufReady(produceQHeader, consumeQHeader,
@@ -733,7 +810,7 @@ VMCIQPair_ProduceBufReady(const VMCIQPair *qpair) // IN
    } else {
       result = 0;
    }
-   VMCIQPairUnlock(qpair);
+   VMCIQPairUnlockHeader(qpair);
 
    return result;
 }
@@ -771,7 +848,7 @@ VMCIQPair_ConsumeBufReady(const VMCIQPair *qpair) // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   VMCIQPairLockHeader(qpair);
    result = VMCIQPairGetQueueHeaders(qpair, &produceQHeader, &consumeQHeader);
    if (result == VMCI_SUCCESS) {
       result = VMCIQueueHeader_BufReady(consumeQHeader, produceQHeader,
@@ -779,7 +856,7 @@ VMCIQPair_ConsumeBufReady(const VMCIQPair *qpair) // IN
    } else {
       result = 0;
    }
-   VMCIQPairUnlock(qpair);
+   VMCIQPairUnlockHeader(qpair);
 
    return result;
 }
@@ -818,7 +895,8 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
               const void *buf,                       // IN
               size_t bufSize,                        // IN
               int bufType,                           // IN
-              VMCIMemcpyToQueueFunc memcpyToQueue)   // IN
+              VMCIMemcpyToQueueFunc memcpyToQueue,   // IN
+              Bool canBlock)                         // IN
 {
    int64 freeSpace;
    uint64 tail;
@@ -830,7 +908,7 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
       return (ssize_t) bufSize;
    }
 
-   result = VMCIQPairMapQueueHeaders(produceQ, consumeQ);
+   result = VMCIQPairMapQueueHeaders(produceQ, consumeQ, canBlock);
    if (UNLIKELY(result != VMCI_SUCCESS)) {
       return result;
    }
@@ -850,15 +928,17 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
    written = (size_t)(freeSpace > bufSize ? bufSize : freeSpace);
    tail = VMCIQueueHeader_ProducerTail(produceQ->qHeader);
    if (LIKELY(tail + written < produceQSize)) {
-      result = memcpyToQueue(produceQ, tail, buf, 0, written, bufType);
+      result = memcpyToQueue(produceQ, tail, buf, 0, written, bufType,
+                             canBlock);
    } else {
       /* Tail pointer wraps around. */
 
       const size_t tmp = (size_t)(produceQSize - tail);
 
-      result = memcpyToQueue(produceQ, tail, buf, 0, tmp, bufType);
+      result = memcpyToQueue(produceQ, tail, buf, 0, tmp, bufType, canBlock);
       if (result >= VMCI_SUCCESS) {
-         result = memcpyToQueue(produceQ, 0, buf, tmp, written - tmp, bufType);
+         result = memcpyToQueue(produceQ, 0, buf, tmp, written - tmp, bufType,
+                                canBlock);
       }
    }
 
@@ -902,7 +982,8 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
               size_t bufSize,                             // IN
               int bufType,                                // IN
               VMCIMemcpyFromQueueFunc memcpyFromQueue,    // IN
-              Bool updateConsumer)                        // IN
+              Bool updateConsumer,                        // IN
+              Bool canBlock)                              // IN
 {
    int64 bufReady;
    uint64 head;
@@ -910,7 +991,7 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
    ssize_t result;
 
 #if !defined VMX86_VMX
-   result = VMCIQPairMapQueueHeaders(produceQ, consumeQ);
+   result = VMCIQPairMapQueueHeaders(produceQ, consumeQ, canBlock);
    if (UNLIKELY(result != VMCI_SUCCESS)) {
       return result;
    }
@@ -929,15 +1010,16 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
    read = (size_t)(bufReady > bufSize ? bufSize : bufReady);
    head = VMCIQueueHeader_ConsumerHead(produceQ->qHeader);
    if (LIKELY(head + read < consumeQSize)) {
-      result = memcpyFromQueue(buf, 0, consumeQ, head, read, bufType);
+      result = memcpyFromQueue(buf, 0, consumeQ, head, read, bufType, canBlock);
    } else {
       /* Head pointer wraps around. */
 
       const size_t tmp = (size_t)(consumeQSize - head);
 
-      result = memcpyFromQueue(buf, 0, consumeQ, head, tmp, bufType);
+      result = memcpyFromQueue(buf, 0, consumeQ, head, tmp, bufType, canBlock);
       if (result >= VMCI_SUCCESS) {
-         result = memcpyFromQueue(buf, tmp, consumeQ, 0, read - tmp, bufType);
+         result = memcpyFromQueue(buf, tmp, consumeQ, 0, read - tmp, bufType,
+                                  canBlock);
       }
    }
 
@@ -985,7 +1067,10 @@ VMCIQPair_Enqueue(VMCIQPair *qpair,        // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   result = VMCIQPairLock(qpair);
+   if (result != VMCI_SUCCESS) {
+      return result;
+   }
 
    do {
       result = EnqueueLocked(qpair->produceQ,
@@ -994,7 +1079,8 @@ VMCIQPair_Enqueue(VMCIQPair *qpair,        // IN
                              buf, bufSize, bufType,
                              qpair->flags & VMCI_QPFLAG_LOCAL?
                              VMCIMemcpyToQueueLocal:
-                             VMCIMemcpyToQueue);
+                             VMCIMemcpyToQueue,
+                             !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
       if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY) {
          if (!VMCIQPairWaitForReadyQueue(qpair)) {
             result = VMCI_ERROR_WOULD_BLOCK;
@@ -1038,7 +1124,10 @@ VMCIQPair_Dequeue(VMCIQPair *qpair,        // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   result = VMCIQPairLock(qpair);
+   if (result != VMCI_SUCCESS) {
+      return result;
+   }
 
    do {
       result = DequeueLocked(qpair->produceQ,
@@ -1048,7 +1137,7 @@ VMCIQPair_Dequeue(VMCIQPair *qpair,        // IN
                              qpair->flags & VMCI_QPFLAG_LOCAL?
                              VMCIMemcpyFromQueueLocal:
                              VMCIMemcpyFromQueue,
-                             TRUE);
+                             TRUE, !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
       if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY) {
          if (!VMCIQPairWaitForReadyQueue(qpair)) {
             result = VMCI_ERROR_WOULD_BLOCK;
@@ -1093,7 +1182,10 @@ VMCIQPair_Peek(VMCIQPair *qpair,    // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   result = VMCIQPairLock(qpair);
+   if (result != VMCI_SUCCESS) {
+      return result;
+   }
 
    do {
       result = DequeueLocked(qpair->produceQ,
@@ -1103,7 +1195,7 @@ VMCIQPair_Peek(VMCIQPair *qpair,    // IN
                              qpair->flags & VMCI_QPFLAG_LOCAL?
                              VMCIMemcpyFromQueueLocal:
                              VMCIMemcpyFromQueue,
-                             FALSE);
+                             FALSE, !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
       if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY) {
          if (!VMCIQPairWaitForReadyQueue(qpair)) {
             result = VMCI_ERROR_WOULD_BLOCK;
@@ -1151,14 +1243,20 @@ VMCIQPair_EnqueueV(VMCIQPair *qpair,        // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   result = VMCIQPairLock(qpair);
+   if (result != VMCI_SUCCESS) {
+      return result;
+   }
 
    do {
       result = EnqueueLocked(qpair->produceQ,
                              qpair->consumeQ,
                              qpair->produceQSize,
                              iov, iovSize, bufType,
-                             VMCIMemcpyToQueueV);
+                             qpair->flags & VMCI_QPFLAG_LOCAL?
+                             VMCIMemcpyToQueueVLocal:
+                             VMCIMemcpyToQueueV,
+                             !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
       if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY) {
          if (!VMCIQPairWaitForReadyQueue(qpair)) {
             result = VMCI_ERROR_WOULD_BLOCK;
@@ -1198,7 +1296,10 @@ VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
 {
    ssize_t result;
 
-   VMCIQPairLock(qpair);
+   result = VMCIQPairLock(qpair);
+   if (result != VMCI_SUCCESS) {
+      return result;
+   }
 
    if (!qpair || !iov) {
       return VMCI_ERROR_INVALID_ARGS;
@@ -1209,8 +1310,10 @@ VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
                              qpair->consumeQ,
                              qpair->consumeQSize,
                              iov, iovSize, bufType,
+                             qpair->flags & VMCI_QPFLAG_LOCAL?
+                             VMCIMemcpyFromQueueVLocal:
                              VMCIMemcpyFromQueueV,
-                             TRUE);
+                             TRUE, !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
       if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY) {
          if (!VMCIQPairWaitForReadyQueue(qpair)) {
             result = VMCI_ERROR_WOULD_BLOCK;
@@ -1255,15 +1358,20 @@ VMCIQPair_PeekV(VMCIQPair *qpair,           // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCIQPairLock(qpair);
+   result = VMCIQPairLock(qpair);
+   if (result != VMCI_SUCCESS) {
+      return result;
+   }
 
    do {
       result = DequeueLocked(qpair->produceQ,
                              qpair->consumeQ,
                              qpair->consumeQSize,
                              iov, iovSize, bufType,
+                             qpair->flags & VMCI_QPFLAG_LOCAL?
+                             VMCIMemcpyFromQueueVLocal:
                              VMCIMemcpyFromQueueV,
-                             FALSE);
+                             FALSE, !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
       if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY) {
          if (!VMCIQPairWaitForReadyQueue(qpair)) {
             result = VMCI_ERROR_WOULD_BLOCK;

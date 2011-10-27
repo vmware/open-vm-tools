@@ -37,6 +37,19 @@
 #include "fileInt.h"
 #include "msg.h"
 #include "unicodeOperations.h"
+#include "hostType.h"
+#if defined(_WIN32)
+#include <io.h>
+#else
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+#if defined(VMX86_SERVER)
+#include "fs_public.h"
+#endif
 
 
 /*
@@ -559,3 +572,290 @@ FileIO_IsSuccess(FileIOResult res)  // IN:
    return res == FILEIO_SUCCESS;
 }
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileIOAtomicTempPath
+ *
+ *      Return a temp path name in the same directory as the argument file.
+ *      The path is the full path of the source file with a '~' appended.
+ *      The caller must free the path when done.
+ *
+ * Results:
+ *      Unicode path if successful, NULL on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Unicode 
+FileIOAtomicTempPath(FileIODescriptor *fileFD)  // IN:
+{
+   Unicode path;
+   Unicode srcPath;
+
+   ASSERT(FileIO_IsValid(fileFD));
+
+   srcPath = File_FullPath(FileIO_Filename(fileFD));
+   if (!srcPath) {
+      return NULL;
+   }
+   path = Unicode_Join(srcPath, "~", NULL);
+   Unicode_Free(srcPath);
+
+   return path;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileIO_AtomicTempFile
+ *
+ *      Create a temp file in the same directory as the argument file. 
+ *      On non-Windows attempts to create the temp file with the same
+ *      permissions and owner/group as the argument file.
+ *
+ * Results:
+ *      TRUE if successful, FALSE on failure.
+ *
+ * Side effects:
+ *      Creates a new file.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
+                      FileIODescriptor *tempFD)  // OUT:
+{
+   Unicode tempPath = NULL;
+   int permissions;
+   FileIOResult status;
+#if !defined(_WIN32)
+   struct stat stbuf;
+#endif
+
+   ASSERT(FileIO_IsValid(fileFD));
+   ASSERT(tempFD && !FileIO_IsValid(tempFD));
+
+   tempPath = FileIOAtomicTempPath(fileFD);
+   if (!tempPath) {
+      goto bail;
+   }
+
+#if defined(_WIN32)
+   permissions = 0;
+   File_UnlinkIfExists(tempPath);
+#else
+   if (fstat(fileFD->posix, &stbuf)) {
+      ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
+
+      goto bail;
+   }
+   permissions = stbuf.st_mode;
+   Posix_Unlink(tempPath);
+#endif
+
+   status = FileIO_Create(tempFD, tempPath,
+                          FILEIO_ACCESS_READ | FILEIO_ACCESS_WRITE,
+                          FILEIO_OPEN_CREATE, permissions);
+   if (!FileIO_IsSuccess(status)) {
+      Log("%s: Failed to create temporary file\n", __FUNCTION__);
+#if defined(VMX86_SERVER)
+      ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
+#endif
+      ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
+      goto bail;
+   }
+
+#if !defined(_WIN32)
+   if (fchmod(tempFD->posix, stbuf.st_mode)) {
+      Log("%s: Failed to chmod temporary file, errno: %d\n",
+          __FUNCTION__, errno);
+      ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
+      goto bail;
+   }
+   if (fchown(tempFD->posix, stbuf.st_uid, stbuf.st_gid)) {
+      Log("%s: Failed to chown temporary file, errno: %d\n",
+          __FUNCTION__, errno);
+      ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
+      goto bail;
+   }
+#endif
+
+   Unicode_Free(tempPath);
+   return TRUE;
+
+bail:
+   if (FileIO_IsValid(tempFD)) {
+      FileIO_Close(tempFD);
+      File_Unlink(tempPath);
+   }
+   Unicode_Free(tempPath);
+   return FALSE;
+}
+   
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileIO_AtomicExchangeFiles --
+ *
+ *      On ESX, exchanges the contents of two files using code modeled from
+ *      VmkfsLib_SwapFiles.  Both "curr" and "new" are left open.
+ *
+ *      On Hosted replaces "curr" with "new" using rename/link.
+ *      Path to "new" no longer exists on success.
+ *
+ * Results:
+ *      TRUE if successful, FALSE on failure.
+ *
+ * Side effects:
+ *      Disk I/O.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+
+Bool
+FileIO_AtomicExchangeFiles(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
+                           FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
+{
+   char *currPath;
+   char *newPath;
+   uint32 currAccess;
+   uint32 newAccess;
+   Bool ret = FALSE;
+   FileIOResult status;
+
+   ASSERT(FileIO_IsValid(newFD));
+   ASSERT(FileIO_IsValid(currFD));
+
+   if (HostType_OSIsVMK()) {
+#if defined(VMX86_SERVER)
+      FS_SwapFilesArgs *args = NULL;
+      char *dirName = NULL;
+      char *fileName = NULL;
+      char *dstDirName = NULL;
+      char *dstFileName = NULL;
+      int fd;
+
+      currPath = File_FullPath(FileIO_Filename(currFD));
+      newPath = File_FullPath(FileIO_Filename(newFD));
+
+      ASSERT(currPath);
+      ASSERT(newPath);
+
+      File_GetPathName(newPath, &dirName, &fileName);
+      File_GetPathName(currPath, &dstDirName, &dstFileName);
+
+      ASSERT(dirName && *dirName);
+      ASSERT(fileName && *fileName);
+      ASSERT(dstDirName && *dstDirName);
+      ASSERT(dstFileName && *dstFileName);
+      ASSERT(!strcmp(dirName, dstDirName));
+
+      args = (FS_SwapFilesArgs *) Util_SafeCalloc(1, sizeof(*args));
+      if (Str_Snprintf(args->srcFile, sizeof(args->srcFile), "%s",
+                       fileName) < 0) {
+         Log("%s: Path too long \"%s\".\n", __FUNCTION__, fileName);
+         goto swapdone;
+      }
+      if (Str_Snprintf(args->dstFilePath, sizeof(args->dstFilePath), "%s/%s",
+                       dstDirName, dstFileName) < 0) {
+         Log("%s: Path too long \"%s\".\n", __FUNCTION__, dstFileName);
+         goto swapdone;
+      }
+
+      /*
+       * Issue the ioctl on the directory rather than on the file,
+       * because the file could be open.
+       */
+
+      fd = Posix_Open(dirName, O_RDONLY);
+      if (fd < 0) {
+         Log("%s: Open failed \"%s\" %d.\n", __FUNCTION__, dirName,
+             errno);
+         ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
+         goto swapdone;
+      }
+
+      if (ioctl(fd, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
+         Log("%s: ioctl failed %d.\n", __FUNCTION__, errno);
+         ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
+      } else {
+         ret = TRUE;
+      }
+
+      close(fd);
+
+swapdone:
+      free(args);
+      free(dirName);
+      free(fileName);
+      free(dstDirName);
+      free(dstFileName);
+      free(currPath);
+      free(newPath);
+
+      return ret;
+#else
+      NOT_REACHED();
+#endif
+   }
+
+   currPath = Unicode_Duplicate(FileIO_Filename(currFD));
+   newPath = Unicode_Duplicate(FileIO_Filename(newFD));
+
+   newAccess = newFD->flags;
+   currAccess = currFD->flags;
+
+   FileIO_Close(newFD);
+
+   /*
+    * The current file needs to be closed and reopened,
+    * but we don't want to drop the file lock by calling 
+    * FileIO_Close() on it.  Instead, use native close primitives.
+    * We'll reopen it later with a temp FileIODescriptor, and
+    * swap the file descriptor/handle.  Set the descriptor/handle
+    * to an invalid value while we're in the middle of transferring
+    * ownership.
+    */
+
+#if defined(_WIN32)
+   CloseHandle(currFD->win32);
+   currFD->win32 = INVALID_HANDLE_VALUE;
+#else
+   close(currFD->posix);
+   currFD->posix = -1;
+#endif
+   if (File_RenameRetry(newPath, currPath, 10)) {
+      goto bail;
+   }
+
+   ret = TRUE;
+   
+bail:
+
+   /*
+    * XXX - We shouldn't drop the file lock here.
+    *       Need to implement FileIO_Reopen to close
+    *       and reopen without dropping the lock.
+    */
+
+   FileIO_Close(currFD);  // XXX - PR 769296
+
+   status = FileIO_Open(currFD, currPath, currAccess, 0);
+   if (!FileIO_IsSuccess(status)) {
+      Panic("Failed to reopen dictionary file.\n");
+   }
+
+   Unicode_Free(currPath);
+   Unicode_Free(newPath);
+   return ret;
+}

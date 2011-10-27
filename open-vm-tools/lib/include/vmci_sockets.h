@@ -56,6 +56,7 @@
 #define SO_VMCI_SERVICE_LABEL               4
 #define SO_VMCI_TRUSTED                     5
 #define SO_VMCI_CONNECT_TIMEOUT             6
+#define SO_VMCI_NONBLOCK_TXRX               7
 
 /*
  * The VMCI sockets address equivalents of INADDR_ANY.  The first works for

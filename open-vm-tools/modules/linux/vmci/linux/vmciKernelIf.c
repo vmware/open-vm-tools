@@ -1289,8 +1289,11 @@ VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
                   const void *src,    // IN:
                   size_t srcOffset,   // IN:
                   size_t size,        // IN:
-                  int bufType)        // IN: Unused
+                  int bufType,        // IN: Unused
+                  Bool canBlock)      // IN: Unused
 {
+   ASSERT(canBlock);
+
    return __VMCIMemcpyToQueue(queue, queueOffset,
                               (uint8 *)src + srcOffset, size, FALSE);
 }
@@ -1318,8 +1321,11 @@ VMCIMemcpyFromQueue(void *dest,             // OUT:
                     const VMCIQueue *queue, // IN:
                     uint64 queueOffset,     // IN:
                     size_t size,            // IN:
-                    int bufType)            // IN: Unused
+                    int bufType,            // IN: Unused
+                    Bool canBlock)          // IN: Unused
 {
+   ASSERT(canBlock);
+
    return __VMCIMemcpyFromQueue((uint8 *)dest + destOffset,
                                 queue, queueOffset, size, FALSE);
 }
@@ -1343,13 +1349,16 @@ VMCIMemcpyFromQueue(void *dest,             // OUT:
  */
 
 int
-VMCIMemcpyToQueueLocal(VMCIQueue *queue,         // OUT
-                       uint64 queueOffset,       // IN
-                       const void *src,          // IN
-                       size_t srcOffset,         // IN
-                       size_t size,              // IN
-                       int bufType)  // IN
+VMCIMemcpyToQueueLocal(VMCIQueue *queue,     // OUT
+                       uint64 queueOffset,   // IN
+                       const void *src,      // IN
+                       size_t srcOffset,     // IN
+                       size_t size,          // IN
+                       int bufType,          // IN: Unused
+                       Bool canBlock)        // IN: Unused
 {
+   ASSERT(canBlock);
+
    return __VMCIMemcpyToQueue(queue, queueOffset,
                               (uint8 *)src + srcOffset, size, FALSE);;
 }
@@ -1377,8 +1386,11 @@ VMCIMemcpyFromQueueLocal(void *dest,             // OUT:
                          const VMCIQueue *queue, // IN:
                          uint64 queueOffset,     // IN:
                          size_t size,            // IN:
-                         int bufType)            // IN: Unused
+                         int bufType,            // IN: Unused
+                         Bool canBlock)          // IN: Unused
 {
+   ASSERT(canBlock);
+
    return __VMCIMemcpyFromQueue((uint8 *)dest + destOffset,
                                 queue, queueOffset, size, FALSE);
 }
@@ -1406,8 +1418,10 @@ VMCIMemcpyToQueueV(VMCIQueue *queue,      // OUT:
                    const void *src,       // IN: iovec
                    size_t srcOffset,      // IN: ignored
                    size_t size,           // IN:
-                   int bufType)           // IN: ignored
+                   int bufType,           // IN: Unused
+                   Bool canBlock)         // IN: Unused
 {
+   ASSERT(canBlock);
 
    /*
     * We ignore srcOffset because src is really a struct iovec * and will
@@ -1439,8 +1453,11 @@ VMCIMemcpyFromQueueV(void *dest,              // OUT: iovec
                      const VMCIQueue *queue,  // IN:
                      uint64 queueOffset,      // IN:
                      size_t size,             // IN:
-                     int bufType)             // IN: ignored
+                     int bufType,             // IN: Unused
+                     Bool canBlock)           // IN: Unused
 {
+   ASSERT(canBlock);
+
    /*
     * We ignore destOffset because dest is really a struct iovec * and will
     * maintain offset internally.
@@ -1641,7 +1658,7 @@ VMCI_CleanupQueueMutex(VMCIQueue *produceQ, // IN/OUT
  *       be passed in to this routine.  Either will work just fine.
  *
  * Results:
- *       None.
+ *       VMCI_SUCCESS always.
  *
  * Side Effects:
  *       May block the caller.
@@ -1649,16 +1666,20 @@ VMCI_CleanupQueueMutex(VMCIQueue *produceQ, // IN/OUT
  *----------------------------------------------------------------------------
  */
 
-void
-VMCI_AcquireQueueMutex(VMCIQueue *queue) // IN
+int
+VMCI_AcquireQueueMutex(VMCIQueue *queue, // IN
+                       Bool canBlock)    // IN: Unused
 {
    ASSERT(queue);
    ASSERT(queue->kernelIf);
+   ASSERT(canBlock);
 
    if (queue->kernelIf->host) {
       ASSERT(queue->kernelIf->mutex);
       down(queue->kernelIf->mutex);
    }
+
+   return VMCI_SUCCESS;
 }
 
 

@@ -290,6 +290,12 @@ FileIOResult FileIO_Write(FileIODescriptor *file,
                           size_t requested,
                           size_t *actual);
 
+Bool FileIO_AtomicTempFile(FileIODescriptor *fileFD,
+                           FileIODescriptor *tempFD);
+
+Bool FileIO_AtomicExchangeFiles(FileIODescriptor *newFD,
+                                FileIODescriptor *currFD);
+
 #if !defined(VMX86_TOOLS) || !defined(__FreeBSD__)
 
 FileIOResult FileIO_Readv(FileIODescriptor *fd,
