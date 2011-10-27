@@ -125,6 +125,9 @@
 # if !defined(ENOSYS)
 #  define ENOSYS              WSAEOPNOTSUPP
 # endif
+# if !defined(EAGAIN)
+#  define EAGAIN              WSAEWOULDBLOCK
+# endif
 #  define EWOULDBLOCK         WSAEWOULDBLOCK
 #  define EINPROGRESS         WSAEINPROGRESS
 #  define EALREADY            WSAEALREADY
