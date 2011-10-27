@@ -397,9 +397,6 @@ Base64_ChunkDecode(char const *in,      // IN:
             inputIndex++;
             break;
          case EOM:
-            inputIndex = (inputIndex + 3) & ~3;
-            b = 0;
-            n = 0;
             *dataLength = i;
             return TRUE;
          case ILLEGAL:
