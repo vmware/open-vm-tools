@@ -604,6 +604,8 @@ FileIOAtomicTempPath(FileIODescriptor *fileFD)  // IN:
 
    srcPath = File_FullPath(FileIO_Filename(fileFD));
    if (!srcPath) {
+      Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__,
+          FileIO_Filename(fileFD));
       return NULL;
    }
    path = Unicode_Join(srcPath, "~", NULL);
@@ -623,7 +625,7 @@ FileIOAtomicTempPath(FileIODescriptor *fileFD)  // IN:
  *      permissions and owner/group as the argument file.
  *
  * Results:
- *      TRUE if successful, FALSE on failure.
+ *      FileIOResult of call that failed or FILEIO_SUCCESS
  *
  * Side effects:
  *      Creates a new file.
@@ -631,7 +633,7 @@ FileIOAtomicTempPath(FileIODescriptor *fileFD)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-Bool
+FileIOResult
 FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
                       FileIODescriptor *tempFD)  // OUT:
 {
@@ -647,6 +649,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
 
    tempPath = FileIOAtomicTempPath(fileFD);
    if (!tempPath) {
+      status = FILEIO_ERROR;
       goto bail;
    }
 
@@ -655,8 +658,10 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    File_UnlinkIfExists(tempPath);
 #else
    if (fstat(fileFD->posix, &stbuf)) {
+      Log("%s: Failed to fstat '%s', errno: %d.\n", __FUNCTION__,
+          FileIO_Filename(fileFD), errno);
       ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
-
+      status = FILEIO_ERROR;
       goto bail;
    }
    permissions = stbuf.st_mode;
@@ -668,9 +673,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
                           FILEIO_OPEN_CREATE, permissions);
    if (!FileIO_IsSuccess(status)) {
       Log("%s: Failed to create temporary file\n", __FUNCTION__);
-#if defined(VMX86_SERVER)
       ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
-#endif
       ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
       goto bail;
    }
@@ -698,7 +701,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
 #endif
 
    Unicode_Free(tempPath);
-   return TRUE;
+   return FILEIO_SUCCESS;
 
 bail:
    if (FileIO_IsValid(tempFD)) {
@@ -706,7 +709,7 @@ bail:
       File_Unlink(tempPath);
    }
    Unicode_Free(tempPath);
-   return FALSE;
+   return status;
 }
    
 
