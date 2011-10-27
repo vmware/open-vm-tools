@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -138,7 +138,7 @@
 // #define PRODUCT_VDM_NAME MAKE_NAME("Virtual Desktop Manager")
 
 #define PRODUCT_VDDK_SHORT_NAME "VDDK"
-#define PRODUCT_VDDK_NAME MAKE_NAME("VMware Virtual Disk Development Kit")
+#define PRODUCT_VDDK_NAME MAKE_NAME("Virtual Disk Development Kit")
 
 #define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("View Client")
 #define PRODUCT_VDM_CLIENT_NAME_FOR_LICENSE PRODUCT_VDM_CLIENT_NAME
@@ -189,7 +189,7 @@
  * VMRC is versioned x.y.z - ProgID is intentionally built using only x.y
  */
 #define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      6FB1850B-AC2A-4AEA-9847-EBCE6AB2A62E
-#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       EC950991-C7CE-455C-ABF3-12FC11F9C136
+#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       EF9A6976-4861-49B5-AFED-05281B5887C5
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "VMware.RemoteConsole"
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED    PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "." \
                                                XSTR(VMRC_PLUGIN_VERSION_BASE)
