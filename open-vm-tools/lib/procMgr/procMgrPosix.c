@@ -78,6 +78,7 @@
 #undef offsetof
 #include "file.h"
 #include "dynbuf.h"
+#include "dynarray.h"
 #include "su.h"
 #include "str.h"
 #include "fileIO.h"
@@ -125,7 +126,6 @@ static Bool ProcMgrKill(pid_t pid,
 
 #if defined(__APPLE__)
 static int ProcMgrGetCommandLineArgs(long pid,
-                                     size_t cmdlineLen,
                                      DynBuf *argsBuf);
 #endif
 
@@ -257,33 +257,30 @@ done:
  *
  * Results:
  *      
- *      A ProcMgr_ProcList.
+ *      A ProcMgrProcInfoArray.
  *
  * Side effects:
  *
  *----------------------------------------------------------------------
  */
 
-#if !defined(sun) && !defined(__FreeBSD__) && !defined(__APPLE__)
-ProcMgr_ProcList *
+#if defined(linux)
+ProcMgrProcInfoArray *
 ProcMgr_ListProcesses(void)
 {
-   ProcMgr_ProcList *procList = NULL;
-   Bool failed = FALSE;
-   DynBuf dbProcId;
-   DynBuf dbProcCmd;
-   DynBuf dbProcStartTime;
-   DynBuf dbProcOwner;
+   ProcMgrProcInfoArray *procList = NULL;
+   ProcMgrProcInfo procInfo;
+   Bool failed = TRUE;
    DIR *dir;
    struct dirent *ent;
    static time_t hostStartTime = 0;
    static unsigned long long hertz = 100;
    int numberFound;
 
-   DynBuf_Init(&dbProcId);
-   DynBuf_Init(&dbProcCmd);
-   DynBuf_Init(&dbProcStartTime);
-   DynBuf_Init(&dbProcOwner);
+   procList = Util_SafeCalloc(1, sizeof *procList);
+   ProcMgrProcInfoArray_Init(procList, 0);
+   procInfo.procCmd = NULL;
+   procInfo.procOwner = NULL;
 
    /*
     * Figure out when the system started.  We need this number to
@@ -339,7 +336,6 @@ ProcMgr_ListProcesses(void)
    dir = opendir("/proc");
    if (NULL == dir) {
       Warning("ProcMgr_ListProcesses unable to open /proc\n");
-      failed = TRUE;
       goto abort;
    }
 
@@ -349,18 +345,14 @@ ProcMgr_ListProcesses(void)
       int statResult;
       int numRead = 0;   /* number of bytes that read() actually read */
       int cmdFd;
-      pid_t pid;
       int replaceLoop;
       struct passwd *pwd;
       char *cmdLineTemp = NULL;
       char *cmdStatTemp = NULL;
-      char *cmdLine;
-      char *userName = NULL;
       size_t strLen = 0;
       unsigned long long dummy;
       unsigned long long relativeStartTime;
       char *stringBegin;
-      time_t processStartTime;
 
       /*
        * We only care about dirs that look like processes.
@@ -530,82 +522,59 @@ ProcMgr_ListProcesses(void)
       if (20 != numberFound) {
          goto next_entry;
       }
-      processStartTime = hostStartTime + (relativeStartTime / hertz);
 
       /*
        * Store the command line string pointer in dynbuf.
        */
       if (cmdLineTemp) {
-         cmdLine = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
+         procInfo.procCmd = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
       } else {
-         cmdLine = Unicode_Alloc("", STRING_ENCODING_UTF8);
+         procInfo.procCmd = Unicode_Alloc("", STRING_ENCODING_UTF8);
       }
-      DynBuf_Append(&dbProcCmd, &cmdLine, sizeof cmdLine);
 
       /*
        * Store the pid in dynbuf.
        */
-      pid = (pid_t) atoi(ent->d_name);
-      DynBuf_Append(&dbProcId, &pid, sizeof pid);
+      procInfo.procId = (pid_t) atoi(ent->d_name);
 
       /*
        * Store the owner of the process.
        */
       pwd = getpwuid(fileStat.st_uid);
-      userName = (NULL == pwd)
-                 ? Str_Asprintf(&strLen, "%d", (int) fileStat.st_uid)
-                 : Unicode_Alloc(pwd->pw_name, STRING_ENCODING_DEFAULT);
-      DynBuf_Append(&dbProcOwner, &userName, sizeof userName);
+      procInfo.procOwner = (NULL == pwd)
+                           ? Str_SafeAsprintf(&strLen, "%d", (int) fileStat.st_uid)
+                           : Unicode_Alloc(pwd->pw_name, STRING_ENCODING_DEFAULT);
 
       /*
        * Store the time that the process started.
        */
-      DynBuf_Append(&dbProcStartTime,
-                    &processStartTime,
-                    sizeof processStartTime);
+      procInfo.procStartTime = hostStartTime + (relativeStartTime / hertz);
+
+      /*
+       * Store the process info pointer into a list buffer.
+       */
+      if (!ProcMgrProcInfoArray_Push(procList, procInfo)) {
+         Warning("%s: failed to expand DynArray - out of memory\n",
+                 __FUNCTION__);
+         goto abort;
+      }
+      procInfo.procCmd = NULL;
+      procInfo.procOwner = NULL;
 
 next_entry:
       free(cmdLineTemp);
       free(cmdStatTemp);
    } // while readdir
 
-   closedir(dir);
-
-   if (0 == DynBuf_GetSize(&dbProcId)) {
-      failed = TRUE;
-      goto abort;
+   if (0 < ProcMgrProcInfoArray_Count(procList)) {
+      failed = FALSE;
    }
 
-   /*
-    * We're done adding to DynBuf.  Trim off any unused allocated space.
-    * DynBuf_Trim() followed by DynBuf_Detach() avoids a memcpy().
-    */
-   DynBuf_Trim(&dbProcId);
-   DynBuf_Trim(&dbProcCmd);
-   DynBuf_Trim(&dbProcStartTime);
-   DynBuf_Trim(&dbProcOwner);
-   /*
-    * Create a ProcMgr_ProcList and populate its fields.
-    */
-   procList = (ProcMgr_ProcList *) calloc(1, sizeof(ProcMgr_ProcList));
-   ASSERT_NOT_IMPLEMENTED(procList);
-
-   procList->procCount = DynBuf_GetSize(&dbProcId) / sizeof(pid_t);
-
-   procList->procIdList = (pid_t *) DynBuf_Detach(&dbProcId);
-   ASSERT_NOT_IMPLEMENTED(procList->procIdList);
-   procList->procCmdList = (char **) DynBuf_Detach(&dbProcCmd);
-   ASSERT_NOT_IMPLEMENTED(procList->procCmdList);
-   procList->startTime = (time_t *) DynBuf_Detach(&dbProcStartTime);
-   ASSERT_NOT_IMPLEMENTED(procList->startTime);
-   procList->procOwnerList = (char **) DynBuf_Detach(&dbProcOwner);
-   ASSERT_NOT_IMPLEMENTED(procList->procOwnerList);
-
 abort:
-   DynBuf_Destroy(&dbProcId);
-   DynBuf_Destroy(&dbProcCmd);
-   DynBuf_Destroy(&dbProcStartTime);
-   DynBuf_Destroy(&dbProcOwner);
+   closedir(dir);
+
+   free(procInfo.procCmd);
+   free(procInfo.procOwner);
 
    if (failed) {
       ProcMgr_FreeProcList(procList);
@@ -614,7 +583,7 @@ abort:
 
    return procList;
 }
-#endif // !defined(sun) & !defined(__FreeBSD__) && !defined(__APPLE__)
+#endif // defined(linux)
 
 
 /*
@@ -628,7 +597,7 @@ abort:
  *
  * Results:
  *
- *      A ProcMgr_ProcList.
+ *      A ProcMgrProcInfoArray.
  *
  * Side effects:
  *
@@ -636,24 +605,22 @@ abort:
  */
 
 #if defined(__FreeBSD__)
-ProcMgr_ProcList *
+ProcMgrProcInfoArray *
 ProcMgr_ListProcesses(void)
 {
-   ProcMgr_ProcList *procList = NULL;
+   ProcMgrProcInfoArray *procList = NULL;
+   ProcMgrProcInfo procInfo;
    Bool failed = TRUE;
    static kvm_t *kd;
    struct kinfo_proc *kp;
    char errbuf[_POSIX2_LINE_MAX];
-   int i, nentries=-1, flag=0;
-   DynBuf dbProcId;
-   DynBuf dbProcCmd;
-   DynBuf dbProcStartTime;
-   DynBuf dbProcOwner;
+   int i;
+   int nentries=-1;
+   int flag=0;
 
-   DynBuf_Init(&dbProcId);
-   DynBuf_Init(&dbProcCmd);
-   DynBuf_Init(&dbProcStartTime);
-   DynBuf_Init(&dbProcOwner);
+   procList = Util_SafeCalloc(1, sizeof *procList);
+   procInfo.procCmd = NULL;
+   procInfo.procOwner = NULL;
 
    /*
     * Get the handle to the Kernel Virtual Memory
@@ -668,9 +635,18 @@ ProcMgr_ListProcesses(void)
     * Get the list of process info structs
     */
    kp = kvm_getprocs(kd, KERN_PROC_PROC, flag, &nentries);
-   if ((kp == NULL && nentries > 0) || (kp != NULL && nentries < 0)) {
+   if (kp == NULL || nentries <= 0) {
       Warning("%s: failed to get proc infos with error: %s\n",
               __FUNCTION__, kvm_geterr(kd));
+      goto abort;
+   }
+
+   /*
+    * Pre-allocate the dynamic array of required size.
+    */
+   if (!ProcMgrProcInfoArray_Init(procList, nentries)) {
+      Warning("%s: failed to create DynArray - out of memory\n",
+              __FUNCTION__);
       goto abort;
    }
 
@@ -679,32 +655,20 @@ ProcMgr_ListProcesses(void)
     */
    for (i = 0; i < nentries; ++i, ++kp) {
       struct passwd *pwd;
-      char *userName = NULL;
-      char *cmdLine = NULL;
       char **cmdLineTemp = NULL;
-      time_t processStartTime;
 
       /*
        * Store the pid of the process
        */
-      if (!DynBuf_Append(&dbProcId, &(kp->ki_pid), sizeof(kp->ki_pid))) {
-         Warning("%s: failed to append pid in DynBuf - out of memory\n",
-                 __FUNCTION__);
-         goto abort;
-      }
+      procInfo.procId = kp->ki_pid;
 
       /*
        * Store the owner of the process.
        */
       pwd = getpwuid(kp->ki_uid);
-      userName = (NULL == pwd)
-                 ? Str_SafeAsprintf(NULL, "%d", (int) kp->ki_uid)
-                 : Unicode_Alloc(pwd->pw_name, STRING_ENCODING_DEFAULT);
-      if (!DynBuf_Append(&dbProcOwner, &userName, sizeof userName)) {
-         Warning("%s: failed to append username in DynBuf - out of memory\n",
-                 __FUNCTION__);
-         goto abort;
-      }
+      procInfo.procOwner = (NULL == pwd)
+                           ? Str_SafeAsprintf(NULL, "%d", (int) kp->ki_uid)
+                           : Unicode_Alloc(pwd->pw_name, STRING_ENCODING_DEFAULT);
 
       /*
        * Store the command line string of the process
@@ -738,74 +702,35 @@ ProcMgr_ListProcesses(void)
             goto abort;
          }
          DynBuf_Trim(&dbuf);
-         cmdLine = DynBuf_Detach(&dbuf);
+         procInfo.procCmd = DynBuf_Detach(&dbuf);
          DynBuf_Destroy(&dbuf);
       } else {
-         cmdLine = Unicode_Alloc(kp->ki_comm, STRING_ENCODING_DEFAULT);
-      }
-      if (!DynBuf_Append(&dbProcCmd, &cmdLine, sizeof cmdLine)) {
-         Warning("%s: failed to append cmdline in DynBuf - out of memory\n",
-                 __FUNCTION__);
-         goto abort;
+         procInfo.procCmd = Unicode_Alloc(kp->ki_comm, STRING_ENCODING_DEFAULT);
       }
 
       /*
        * Store the start time of the process
        */
-      processStartTime = kp->ki_start.tv_sec;
-      if (!DynBuf_Append(&dbProcStartTime,
-                    &processStartTime,
-                    sizeof processStartTime)) {
-         Warning("%s: failed to append start time in DynBuf - out of memory\n",
-                 __FUNCTION__);
-         goto abort;
-      }
+      procInfo.procStartTime = kp->ki_start.tv_sec;
+
+      /*
+       * Store the process info pointer into a list buffer.
+       */
+      *ProcMgrProcInfoArray_AddressOf(procList, i) = procInfo;
+      procInfo.procCmd = NULL;
+      procInfo.procOwner = NULL;
 
    } // for nentries
 
-   if (0 == DynBuf_GetSize(&dbProcId)) {
-      goto abort;
-   }
-
-   /*
-    * We're done adding to DynBuf.  Trim off any unused allocated space.
-    * DynBuf_Trim() followed by DynBuf_Detach() avoids a memcpy().
-    */
-   DynBuf_Trim(&dbProcId);
-   DynBuf_Trim(&dbProcCmd);
-   DynBuf_Trim(&dbProcStartTime);
-   DynBuf_Trim(&dbProcOwner);
-
-   /*
-    * Create a ProcMgr_ProcList and populate its fields.
-    */
-   procList = (ProcMgr_ProcList *) Util_SafeCalloc(1, sizeof(ProcMgr_ProcList));
-   ASSERT_NOT_IMPLEMENTED(procList);
-
-   procList->procCount = DynBuf_GetSize(&dbProcId) / sizeof(pid_t);
-
-   procList->procIdList = (pid_t *) DynBuf_Detach(&dbProcId);
-   ASSERT_NOT_IMPLEMENTED(procList->procIdList);
-   procList->procCmdList = (char **) DynBuf_Detach(&dbProcCmd);
-   ASSERT_NOT_IMPLEMENTED(procList->procCmdList);
-   procList->startTime = (time_t *) DynBuf_Detach(&dbProcStartTime);
-   ASSERT_NOT_IMPLEMENTED(procList->startTime);
-   procList->procOwnerList = (char **) DynBuf_Detach(&dbProcOwner);
-   ASSERT_NOT_IMPLEMENTED(procList->procOwnerList);
-
    failed = FALSE;
-abort:
-   DynBuf_Destroy(&dbProcId);
-   DynBuf_Destroy(&dbProcCmd);
-   DynBuf_Destroy(&dbProcStartTime);
-   DynBuf_Destroy(&dbProcOwner);
 
+abort:
    if (kd != NULL) {
-      /*
-       * Wrap up: also deallocates memory (if) allocated by kvm_getargv()
-       */
       kvm_close(kd);
    }
+
+   free(procInfo.procCmd);
+   free(procInfo.procOwner);
 
    if (failed) {
       ProcMgr_FreeProcList(procList);
@@ -837,7 +762,6 @@ abort:
 
 static int
 ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
-                          size_t cmdlineLen,      // IN:  max command line length
                           DynBuf *argsBuf)        // OUT: Buffer with arguments
 {
    int argCount = 0;
@@ -846,17 +770,31 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
    char *cmdLineRaw = NULL;
    char *cmdLineTemp;
    char *cmdLineEnd;
+   size_t maxargs = 0;
+   size_t maxargsSize;
+   int maxargsName[] = {CTL_KERN, KERN_ARGMAX};
    int argName[] = {CTL_KERN, KERN_PROCARGS2, pid};
+
+   /*
+    * Get the sysctl kern argmax.
+    */
+   maxargsSize = sizeof maxargs;
+   if (sysctl(maxargsName, ARRAYSIZE(maxargsName),
+              &maxargs, &maxargsSize, NULL, 0) < 0) {
+      Warning("%s: failed to get the kernel max args with errno = %d\n",
+               __FUNCTION__, errno);
+      goto abort;
+   }
 
    /*
     * Fetch the raw command line
     */
-   cmdLineRaw = (char *) Util_SafeCalloc(cmdlineLen, sizeof *cmdLineRaw);
-   if (sysctl(argName, ARRAYSIZE(argName), cmdLineRaw, &cmdlineLen, NULL, 0) < 0) {
+   cmdLineRaw = Util_SafeCalloc(maxargs, sizeof *cmdLineRaw);
+   if (sysctl(argName, ARRAYSIZE(argName), cmdLineRaw, &maxargs, NULL, 0) < 0) {
       Debug("%s: No command line args for pid = %ld\n", __FUNCTION__, pid);
       goto abort;
    }
-   cmdLineEnd = &cmdLineRaw[cmdlineLen];
+   cmdLineEnd = &cmdLineRaw[maxargs];
 
    /*
     * Format of the raw command line (without line breaks):
@@ -973,57 +911,30 @@ abort:
  *      UTF-8 encoded, although we do not enforce it right now.
  *
  * Results:
- *      A ProcMgr_ProcList.
+ *      A ProcMgrProcInfoArray.
  *
  * Side effects:
  *
  *----------------------------------------------------------------------
  */
 
-ProcMgr_ProcList *
+ProcMgrProcInfoArray *
 ProcMgr_ListProcesses(void)
 {
-   ProcMgr_ProcList *procList = NULL;
+   ProcMgrProcInfoArray *procList = NULL;
+   ProcMgrProcInfo procInfo;
    Bool failed = TRUE;
-   char *userName = NULL;
-   char *cmdLine = NULL;
    struct kinfo_proc *kptmp;
    struct kinfo_proc *kp = NULL;
-   size_t maxargs;
-   size_t maxargsSize;
    size_t procsize;
-   size_t procCount = 0;
-   size_t ownerCount = 0;
-   size_t cmdCount = 0;
    int i;
    int nentries;
-   DynBuf dbProcId;
-   DynBuf dbProcCmd;
-   DynBuf dbProcStartTime;
-   DynBuf dbProcOwner;
-
-   /*
-    * Different multi-level names used for sysctl calls.
-    */
-   int maxargsName[] = {CTL_KERN, KERN_ARGMAX};
    int procName[] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL};
 
-   DynBuf_Init(&dbProcId);
-   DynBuf_Init(&dbProcCmd);
-   DynBuf_Init(&dbProcStartTime);
-   DynBuf_Init(&dbProcOwner);
+   procList = Util_SafeCalloc(1, sizeof *procList);
+   procInfo.procCmd = NULL;
+   procInfo.procOwner = NULL;
 
-   procList = (ProcMgr_ProcList *) Util_SafeCalloc(1, sizeof *procList);
-   /*
-    * Get the sysctl kern argmax.
-    */
-   maxargsSize = sizeof maxargs;
-   if (sysctl(maxargsName, ARRAYSIZE(maxargsName),
-              &maxargs, &maxargsSize, NULL, 0) < 0) {
-      Warning("%s: failed to get the kernel max args with errno = %d\n",
-               __FUNCTION__, errno);
-      goto abort;
-   }
    /*
     * Get the number of process info structs in the entire list.
     */
@@ -1036,7 +947,7 @@ ProcMgr_ListProcesses(void)
    /*
     * Get the list of process info structs.
     */
-   kp = (struct kinfo_proc *) Util_SafeCalloc(nentries, sizeof *kp);
+   kp = Util_SafeCalloc(nentries, sizeof *kp);
    if (sysctl(procName, ARRAYSIZE(procName), kp, &procsize, NULL, 0) < 0) {
       Warning("%s: failed to get the process struct list (errno = %d)\n",
                __FUNCTION__, errno);
@@ -1045,13 +956,22 @@ ProcMgr_ListProcesses(void)
    /*
     * Recalculate the number of entries as they may have changed.
     */
-   nentries = (int)(procsize / sizeof *kp);
+   if (0 >= (nentries = (int)(procsize / sizeof *kp))) {
+      goto abort;
+   }
+   /*
+    * Pre-allocate the dynamic array of required size.
+    */
+   if (!ProcMgrProcInfoArray_Init(procList, nentries)) {
+      Warning("%s: failed to create DynArray - out of memory\n",
+              __FUNCTION__);
+      goto abort;
+   }
    /*
     * Iterate through the list of process entries
     */
    for (i = 0, kptmp = kp; i < nentries; ++i, ++kptmp) {
       DynBuf argsBuf;
-      time_t processStartTime;
       char buffer[BUFSIZ];
       struct passwd pw;
       struct passwd *ppw = &pw;
@@ -1060,95 +980,46 @@ ProcMgr_ListProcesses(void)
       /*
        * Store the pid of the process
        */
-      if (!DynBuf_Append(&dbProcId, &(kptmp->kp_proc.p_pid),
-                         sizeof kptmp->kp_proc.p_pid)) {
-         Warning("%s: failed to append pid in DynBuf - out of memory\n",
-                 __FUNCTION__);
-         goto abort;
-      }
-      procCount++;
+      procInfo.procId = kptmp->kp_proc.p_pid;
       /*
        * Store the owner of the process.
        */
       error = Posix_Getpwuid_r(kptmp->kp_eproc.e_pcred.p_ruid,
                                &pw, buffer, sizeof buffer, &ppw);
-      userName = (0 != error || NULL == ppw)
-                 ? Str_SafeAsprintf(NULL, "%d",
-                                    (int) kptmp->kp_eproc.e_pcred.p_ruid)
-                 : Unicode_Alloc(ppw->pw_name, STRING_ENCODING_DEFAULT);
-      if (!DynBuf_Append(&dbProcOwner, &userName, sizeof userName)) {
-         Warning("%s: failed to append username in DynBuf - out of memory\n",
-                 __FUNCTION__);
-         goto abort;
-      }
-      userName = NULL;
-      ownerCount++;
+      procInfo.procOwner = (0 != error || NULL == ppw)
+                           ? Str_SafeAsprintf(NULL, "%d", (int) kptmp->kp_eproc.e_pcred.p_ruid)
+                           : Unicode_Alloc(ppw->pw_name, STRING_ENCODING_DEFAULT);
+
       /*
-       * Get the command line arguments of the process.
+       * Store the command line arguments of the process.
        * If no arguments are found, use the full command name.
        */
       DynBuf_Init(&argsBuf);
-      if (ProcMgrGetCommandLineArgs(kptmp->kp_proc.p_pid, maxargs, &argsBuf) > 0) {
-         cmdLine = DynBuf_Detach(&argsBuf);
+      if (ProcMgrGetCommandLineArgs(kptmp->kp_proc.p_pid, &argsBuf) > 0) {
+         procInfo.procCmd = DynBuf_Detach(&argsBuf);
       } else {
-         cmdLine = Unicode_Alloc(kptmp->kp_proc.p_comm, STRING_ENCODING_DEFAULT);
+         procInfo.procCmd = Unicode_Alloc(kptmp->kp_proc.p_comm, STRING_ENCODING_DEFAULT);
       }
       DynBuf_Destroy(&argsBuf);
       /*
-       * Store the command line string of the process.
-       */
-      if (!DynBuf_Append(&dbProcCmd, &cmdLine, sizeof cmdLine)) {
-         Warning("%s: failed to append cmdline in DynBuf - out of memory\n",
-                 __FUNCTION__);
-         goto abort;
-      }
-      cmdLine = NULL;
-      cmdCount++;
-      /*
        * Store the start time of the process
        */
-      processStartTime = kptmp->kp_proc.p_starttime.tv_sec;
-      if (!DynBuf_Append(&dbProcStartTime, &processStartTime,
-                         sizeof processStartTime)) {
-         Warning("%s: failed to append start time in DynBuf - out of memory\n",
-                  __FUNCTION__);
-         goto abort;
-      }
-   }
+      procInfo.procStartTime = kptmp->kp_proc.p_starttime.tv_sec;
+      /*
+       * Store the process info pointer into a list buffer.
+       */
+      *ProcMgrProcInfoArray_AddressOf(procList, i) = procInfo;
+      procInfo.procCmd = NULL;
+      procInfo.procOwner = NULL;
 
-   if (0 < procCount) {
-      failed = FALSE;
-   }
+   } // nentries
+
+   failed = FALSE;
 
 abort:
-   /*
-    * We're done adding to DynBuf.  Trim off any unused allocated space.
-    * DynBuf_Trim() followed by DynBuf_Detach() avoids a memcpy().
-    */
-   DynBuf_Trim(&dbProcId);
-   DynBuf_Trim(&dbProcCmd);
-   DynBuf_Trim(&dbProcStartTime);
-   DynBuf_Trim(&dbProcOwner);
-
-   /*
-    * Populate fields of ProcMgr_ProcList
-    */
-   procList->procCount = procCount;
-   procList->ownerCount = ownerCount;
-   procList->cmdCount = cmdCount;
-   procList->procIdList = (pid_t *) DynBuf_Detach(&dbProcId);
-   procList->procCmdList = (char **) DynBuf_Detach(&dbProcCmd);
-   procList->startTime = (time_t *) DynBuf_Detach(&dbProcStartTime);
-   procList->procOwnerList = (char **) DynBuf_Detach(&dbProcOwner);
-
-   DynBuf_Destroy(&dbProcId);
-   DynBuf_Destroy(&dbProcCmd);
-   DynBuf_Destroy(&dbProcStartTime);
-   DynBuf_Destroy(&dbProcOwner);
-
    free(kp);
-   free(userName);
-   free(cmdLine);
+   free(procInfo.procCmd);
+   free(procInfo.procOwner);
 
    if (failed) {
       ProcMgr_FreeProcList(procList);
@@ -1164,7 +1035,7 @@ abort:
  *
  * ProcMgr_FreeProcList --
  *
- *      Free the memory occupied by ProcMgr_ProcList.
+ *      Free the memory occupied by ProcMgrProcInfoArray.
  *
  * Results:
  *      
@@ -1176,37 +1047,25 @@ abort:
  */
 
 void
-ProcMgr_FreeProcList(ProcMgr_ProcList *procList)
+ProcMgr_FreeProcList(ProcMgrProcInfoArray *procList)
 {
    int i;
+   size_t procCount;
 
    if (NULL == procList) {
       return;
    }
 
-#if defined(__APPLE__)
-   /*
-    * We need to do the following for other OSes as well.
-    * Each list shall have its own counter to address
-    * error conditions while building the list.
-    */
-   for (i = 0; i < procList->cmdCount; i++) {
-      free(procList->procCmdList[i]);
-   }
-   for (i = 0; i < procList->ownerCount; i++) {
-      free(procList->procOwnerList[i]);
-   }
-#else
-   for (i = 0; i < procList->procCount; i++) {
-      free(procList->procCmdList[i]);
-      free(procList->procOwnerList[i]);
-   }
-#endif
+   procCount = ProcMgrProcInfoArray_Count(procList);
+   for (i = 0; i < procCount; i++) {
+      ProcMgrProcInfo *procInfo;
 
-   free(procList->procIdList);
-   free(procList->procCmdList);
-   free(procList->startTime);
-   free(procList->procOwnerList);
+      procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
+      free(procInfo->procCmd);
+      free(procInfo->procOwner);
+   }
+
+   ProcMgrProcInfoArray_Destroy(procList);
    free(procList);
 }
 

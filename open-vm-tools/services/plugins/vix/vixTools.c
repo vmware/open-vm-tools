@@ -69,6 +69,7 @@
 #include "timeutil.h"
 #include "vm_version.h"
 #include "message.h"
+#include "dynarray.h"
 
 #define G_LOG_DOMAIN  "vix"
 #define Debug         g_debug
@@ -4319,7 +4320,8 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    VixError err = VIX_OK;
    int i;
    static char resultBuffer[GUESTMSG_MAX_IN_SIZE];
-   ProcMgr_ProcList *procList = NULL;
+   ProcMgrProcInfoArray *procList = NULL;
+   ProcMgrProcInfo *procInfo;
    char *destPtr;
    char *endDestPtr;
    char *procBufPtr = NULL;
@@ -4329,6 +4331,7 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    Bool escapeStrs;
    char *escapedName = NULL;
    char *escapedUser = NULL;
+   size_t procCount;
 
    ASSERT(maxBufferSize <= GUESTMSG_MAX_IN_SIZE);
 
@@ -4357,32 +4360,34 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
                              VIX_XML_ESCAPED_TAG);
    }
 
-   for (i = 0; i < procList->procCount; i++) {
+   procCount = ProcMgrProcInfoArray_Count(procList);
+   for (i = 0; i < procCount; i++) {
       const char *name;
       const char *user;
 
+      procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
+
       if (escapeStrs) {
          name = escapedName =
-            VixToolsEscapeXMLString(procList->procCmdList[i]);
+            VixToolsEscapeXMLString(procInfo->procCmd);
          if (NULL == escapedName) {
             err = VIX_E_OUT_OF_MEMORY;
             goto abort;
          }
       } else {
-         name = procList->procCmdList[i];
+         name = procInfo->procCmd;
       }
 
-      if ((NULL != procList->procOwnerList) &&
-          (NULL != procList->procOwnerList[i])) {
+      if (NULL != procInfo->procOwner) {
          if (escapeStrs) {
             user = escapedUser =
-               VixToolsEscapeXMLString(procList->procOwnerList[i]);
+               VixToolsEscapeXMLString(procInfo->procOwner);
             if (NULL == escapedUser) {
                err = VIX_E_OUT_OF_MEMORY;
                goto abort;
             }
          } else {
-            user = procList->procOwnerList[i];
+            user = procInfo->procOwner;
          }
       } else {
          user = "";
@@ -4395,14 +4400,12 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
 #endif
                              "<user>%s</user><start>%d</start></proc>",
                              name,
-                             (int) procList->procIdList[i],
+                             (int) procInfo->procId,
 #if defined(_WIN32)
-                             (int) procList->procDebugged[i],
+                             (int) procInfo->procDebugged,
 #endif
                              user,
-                             (NULL == procList->startTime)
-                                 ? 0
-                                 : (int) procList->startTime[i]);
+                             (int) procInfo->procStartTime);
       if (NULL == procBufPtr) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
@@ -4521,12 +4524,14 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                                     char **resultBuffer)     // OUT
 {
    VixError err = VIX_OK;
-   ProcMgr_ProcList *procList = NULL;
+   ProcMgrProcInfoArray *procList = NULL;
+   ProcMgrProcInfo *procInfo;
    DynBuf dynBuffer;
    VixToolsExitedProgramState *epList;
    int i;
    int j;
    Bool bRet;
+   size_t procCount;
 
    DynBuf_Init(&dynBuffer);
 
@@ -4591,22 +4596,22 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
     * the Vix side with GetNthProperty, and can have a mix of live and
     * dead processes.
     */
+   procCount = ProcMgrProcInfoArray_Count(procList);
    if (numPids > 0) {
       for (i = 0; i < numPids; i++) {
          // ignore it if its on the exited list -- we added it above
          if (VixToolsFindExitedProgramState(pids[i])) {
             continue;
          }
-         for (j = 0; j < procList->procCount; j++) {
-            if (pids[i] == procList->procIdList[j]) {
+         for (j = 0; j < procCount; j++) {
+            procInfo = ProcMgrProcInfoArray_AddressOf(procList, j);
+            if (pids[i] == procInfo->procId) {
                err = VixToolsPrintProcInfoEx(&dynBuffer,
-                                             procList->procCmdList[j],
-                                             procList->procIdList[j],
-                                             (NULL == procList->procOwnerList
-                                              || NULL == procList->procOwnerList[j])
-                                             ? "" : procList->procOwnerList[j],
-                                             (NULL == procList->startTime)
-                                             ? 0 : (int) procList->startTime[j],
+                                             procInfo->procCmd,
+                                             procInfo->procId,
+                                             (NULL == procInfo->procOwner)
+                                             ? "" : procInfo->procOwner,
+                                             (int) procInfo->procStartTime,
                                              0, 0);
                if (VIX_OK != err) {
                   goto abort;
@@ -4615,19 +4620,18 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
          }
       }
    } else {
-      for (i = 0; i < procList->procCount; i++) {
+      for (i = 0; i < procCount; i++) {
+         procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
          // ignore it if its on the exited list -- we added it above
-         if (VixToolsFindExitedProgramState(procList->procIdList[i])) {
+         if (VixToolsFindExitedProgramState(procInfo->procId)) {
             continue;
          }
          err = VixToolsPrintProcInfoEx(&dynBuffer,
-                                       procList->procCmdList[i],
-                                       procList->procIdList[i],
-                                       (NULL == procList->procOwnerList
-                                        || NULL == procList->procOwnerList[i])
-                                       ? "" : procList->procOwnerList[i],
-                                       (NULL == procList->startTime)
-                                       ? 0 : (int) procList->startTime[i],
+                                       procInfo->procCmd,
+                                       procInfo->procId,
+                                       (NULL == procInfo->procOwner)
+                                       ? "" : procInfo->procOwner,
+                                       (int) procInfo->procStartTime,
                                        0, 0);
          if (VIX_OK != err) {
             goto abort;

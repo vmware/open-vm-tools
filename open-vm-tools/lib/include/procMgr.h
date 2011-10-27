@@ -30,6 +30,7 @@
 
 #include "vm_basic_types.h"
 #include "auth.h"
+#include "dynarray.h"
 #if !defined(_WIN32)
 #  include <sys/types.h>
 #endif
@@ -46,19 +47,23 @@ typedef struct ProcMgr_AsyncProc ProcMgr_AsyncProc;
    typedef pid_t ProcMgr_Pid;
 #endif
 
-typedef struct ProcMgr_ProcList {
-   size_t         procCount;
-   size_t cmdCount;
-   size_t ownerCount;
+/*
+ * Process information structure.
+ * This holds basic information we return per process
+ * when listing process information inside the guest.
+ */
 
-   ProcMgr_Pid *procIdList;
-   char        **procCmdList;    // UTF-8
-   char        **procOwnerList;  // UTF-8
+typedef struct ProcMgrProcInfo {
+   ProcMgr_Pid procId;
+   char *procCmd;      // UTF-8
+   char *procOwner;    // UTF-8
 #if defined(_WIN32)
-   Bool        *procDebugged;
+   Bool procDebugged;
 #endif
-   time_t      *startTime;
-} ProcMgr_ProcList;
+   time_t procStartTime;
+} ProcMgrProcInfo;
+
+DEFINE_DYNARRAY_TYPE(ProcMgrProcInfo);
 
 
 typedef struct ProcMgr_ProcArgs {
@@ -127,8 +132,8 @@ typedef HANDLE Selectable;
 typedef int Selectable;
 #endif
 
-ProcMgr_ProcList *ProcMgr_ListProcesses(void);
-void ProcMgr_FreeProcList(ProcMgr_ProcList *procList);
+ProcMgrProcInfoArray *ProcMgr_ListProcesses(void);
+void ProcMgr_FreeProcList(ProcMgrProcInfoArray *procList);
 Bool ProcMgr_KillByPid(ProcMgr_Pid procId);
 
 
