@@ -155,8 +155,8 @@ Log_Trivia(const char *fmt,
 /* Forward decl */
 struct MsgList;
 
-typedef void (LogOutputFunc)(int level,
-                             const char *msg);
+typedef void (LogOverrideFunc)(int level,
+                               const char *msg);
 
 
 typedef enum {
@@ -235,7 +235,7 @@ Bool Log_CopyFile(const char *fileName,
                   struct MsgList **errs);
 uint32 Log_MaxLineLength(void);
 
-void Log_RegisterOutputFunction(LogOutputFunc *func);
+void Log_OverrideFunction(LogOverrideFunc *func);
 
 Bool Log_SetOutput(const char *fileName,
                    const char *config,
