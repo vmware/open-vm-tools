@@ -1593,6 +1593,7 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
 
    if (contextId != VMCI_HOST_CONTEXT_ID) {
       int result;
+      Bool headersMapped;
 
       ASSERT(!isLocal);
 
@@ -1602,8 +1603,9 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
        * more recent VMX'en may detach from a queue pair in the quiesced state.
        */
 
+      VMCI_AcquireQueueMutex(entry->produceQ);
+      headersMapped = entry->produceQ->qHeader || entry->consumeQ->qHeader;
       if (QPBROKERSTATE_HAS_MEM(entry)) {
-         VMCI_AcquireQueueMutex(entry->produceQ);
          result = VMCIHost_UnmapQueueHeaders(INVALID_VMCI_GUEST_MEM_ID,
                                              entry->produceQ,
                                              entry->consumeQ);
@@ -1617,14 +1619,13 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
          } else {
             VMCIHost_UnregisterUserMemory(entry->produceQ, entry->consumeQ);
          }
-         VMCI_ReleaseQueueMutex(entry->produceQ);
-      } else {
-         VMCI_AcquireQueueMutex(entry->produceQ);
+      }
+      if (!headersMapped) {
          QueuePairResetSavedHeaders(entry);
-         VMCI_ReleaseQueueMutex(entry->produceQ);
-         if (entry->wakeupCB) {
-            entry->wakeupCB(entry->clientData);
-         }
+      }
+      VMCI_ReleaseQueueMutex(entry->produceQ);
+      if (!headersMapped && entry->wakeupCB) {
+         entry->wakeupCB(entry->clientData);
       }
    } else {
       if (entry->wakeupCB) {
