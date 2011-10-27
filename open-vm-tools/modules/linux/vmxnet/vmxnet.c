@@ -3040,9 +3040,6 @@ vmxnet_set_mac_address(struct net_device *dev, void *p)
    unsigned int ioaddr = dev->base_addr;
    int i;
 
-   if (netif_running(dev))
-      return -EBUSY;
-
    memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
    for (i = 0; i < ETH_ALEN; i++) {
