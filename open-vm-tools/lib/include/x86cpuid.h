@@ -454,6 +454,10 @@ FIELD( 80,  0, EAX, COMMON,  0, 32, NUM_EXT_LEVELS,                NA,  FALSE) \
 FIELD( 80,  0, EBX, AMD,     0, 32, LEAF80_VENDOR1,                NA,  FALSE) \
 FIELD( 80,  0, ECX, AMD,     0, 32, LEAF80_VENDOR3,                NA,  FALSE) \
 FIELD( 80,  0, EDX, AMD,     0, 32, LEAF80_VENDOR2,                NA,  FALSE)
+
+#define CPUID_81_ECX_17
+#define CPUID_81_ECX_21
+
                                                         
 /*    LEVEL, SUB-LEVEL, REG, VENDOR, POS, SIZE, NAME,        MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_81                                              \
@@ -483,7 +487,9 @@ FLAG(  81,  0, ECX, AMD,    12,  1, SKINIT,                        NO,  FALSE) \
 FLAG(  81,  0, ECX, AMD,    13,  1, WATCHDOG,                      NO,  FALSE) \
 FLAG(  81,  0, ECX, AMD,    15,  1, LWP,                           NO,  FALSE) \
 FLAG(  81,  0, ECX, AMD,    16,  1, FMA4,                          YES, TRUE)  \
+CPUID_81_ECX_17 \
 FLAG(  81,  0, ECX, AMD,    19,  1, NODEID_MSR,                    NO,  FALSE) \
+CPUID_81_ECX_21 \
 FLAG(  81,  0, ECX, AMD,    22,  1, TOPOLOGY,                      NO,  FALSE) \
 FLAG(  81,  0, EDX, AMD,     0,  1, LEAF81_FPU,                    YES, TRUE)  \
 FLAG(  81,  0, EDX, AMD,     1,  1, LEAF81_VME,                    YES, FALSE) \
