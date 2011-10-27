@@ -447,7 +447,6 @@ typedef uint8 *TCA;  /* Pointer into TC (usually). */
  */
 typedef uint8 Percent;
 #define AsPercent(v)	((Percent)(v))
-#define CHOOSE_PERCENT  AsPercent(101)
 
 
 typedef uintptr_t VA;
