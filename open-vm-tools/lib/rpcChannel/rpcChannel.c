@@ -205,7 +205,8 @@ RpcChannelXdrWrapper(RpcInData *data,
       }
 
       memset(xdrData, 0, rpc->xdrInSize);
-      if (!XdrUtil_Deserialize(data->args + 1, data->argsSize, rpc->xdrIn, xdrData)) {
+      if (!XdrUtil_Deserialize(data->args + 1, data->argsSize - 1,
+                               rpc->xdrIn, xdrData)) {
          ret = RPCIN_SETRETVALS(data, "XDR deserialization failed.", FALSE);
          free(xdrData);
          goto exit;
