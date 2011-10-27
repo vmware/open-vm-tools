@@ -979,6 +979,8 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
    lock->header.statsFunc = NULL;
 
    Atomic_WritePtr(&lock->statsMem, NULL);
+   Atomic_Write(&lock->destroyRefCount, 1);
+   Atomic_Write(&lock->destroyWasCalled, 0);
 
    lock->vmmLock = mutex;
 
