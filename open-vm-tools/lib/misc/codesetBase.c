@@ -25,7 +25,33 @@
 #include <stdlib.h>
 #include "vmware.h"
 #include "codeset.h"
+#include "codesetOld.h"
 #include "util.h"
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_GetCurrentCodeSet --
+ *
+ *    Return native code set name. Always calls down to
+ *    CodeSetOld_GetCurrentCodeSet. See there for more details.
+ *
+ * Results:
+ *    See CodeSetOld_GetCurrentCodeSet.
+ *
+ * Side effects:
+ *    See CodeSetOld_GetCurrentCodeSet.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const char *
+CodeSet_GetCurrentCodeSet(void)
+{
+   return CodeSetOld_GetCurrentCodeSet();
+}
+
 
 /*
  *-----------------------------------------------------------------------------

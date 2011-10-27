@@ -74,9 +74,11 @@
 #include "vmware.h"
 #include "vm_product.h"
 #include "vm_atomic.h"
-#include "unicode/ucnv.h"
-#include "unicode/udata.h"
-#include "unicode/putil.h"
+#if !defined(NO_ICU)
+#  include "unicode/ucnv.h"
+#  include "unicode/udata.h"
+#  include "unicode/putil.h"
+#endif
 #include "file.h"
 #include "util.h"
 #include "codeset.h"
@@ -136,6 +138,8 @@ static Bool dontUseIcu = TRUE;
 /*
  * Functions
  */
+
+#if !defined NO_ICU
 
 #ifdef _WIN32
 
@@ -274,6 +278,8 @@ CodeSetGetModulePath(uint32 priv)
 
 #endif // _WIN32
 
+#endif // !NO_ICU
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -383,6 +389,10 @@ Bool
 CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current code page.
                                      //     Default is used if NULL.
 {
+#ifdef NO_ICU
+   /* Nothing required if not using ICU. */
+   return TRUE;
+#else // NO_ICU
    DynBuf dbpath;
 #ifdef _WIN32
    DWORD attribs;
@@ -690,6 +700,7 @@ found:
    DynBuf_Destroy(&dbpath);
 
    return ret;
+#endif
 }
 
 
@@ -840,30 +851,6 @@ CodeSet_Utf8Normalize(const char *bufIn,     // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSet_GetCurrentCodeSet --
- *
- *    Return native code set name. Always calls down to
- *    CodeSetOld_GetCurrentCodeSet. See there for more details.
- *
- * Results:
- *    See CodeSetOld_GetCurrentCodeSet.
- *
- * Side effects:
- *    See CodeSetOld_GetCurrentCodeSet.
- *
- *-----------------------------------------------------------------------------
- */
-
-const char *
-CodeSet_GetCurrentCodeSet(void)
-{
-   return CodeSetOld_GetCurrentCodeSet();
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * CodeSet_GenericToGenericDb --
  *
  *    Append the content of a buffer (that uses the specified encoding) to a
@@ -887,6 +874,10 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
                            unsigned int flags,  // IN
                            DynBuf *db)          // IN/OUT
 {
+#if defined(NO_ICU)
+   return CodeSetOld_GenericToGenericDb(codeIn, bufIn, sizeIn, codeOut,
+                                        flags, db);
+#else
    Bool result = FALSE;
    UErrorCode uerr;
    const char *bufInCur;
@@ -1055,6 +1046,7 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
    }
 
    return result;
+#endif
 }
 
 
@@ -1604,6 +1596,9 @@ CodeSet_Utf16beToCurrent(const char *bufIn,  // IN
 Bool
 CodeSet_IsEncodingSupported(const char *name) // IN
 {
+#if defined(NO_ICU)
+   return CodeSetOld_IsEncodingSupported(name);
+#else
    UConverter *cv;
    UErrorCode uerr;
 
@@ -1626,6 +1621,7 @@ CodeSet_IsEncodingSupported(const char *name) // IN
    }
 
    return FALSE;
+#endif
 }
 
 
@@ -1651,6 +1647,9 @@ CodeSet_Validate(const char *buf,   // IN: the string
                  size_t size,	    // IN: length of string
                  const char *code)  // IN: encoding
 {
+#if defined(NO_ICU)
+   return CodeSetOld_Validate(buf, size, code);
+#else
    UConverter *cv;
    UErrorCode uerr;
 
@@ -1685,5 +1684,6 @@ CodeSet_Validate(const char *buf,   // IN: the string
    ucnv_close(cv);
 
    return uerr == U_BUFFER_OVERFLOW_ERROR;
+#endif
 }
 

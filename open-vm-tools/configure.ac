@@ -744,6 +744,8 @@ if test "$with_icu" = "yes"; then
 
    # Easier to give all modules the ICU defines/includes...
    CPPFLAGS="$CPPFLAGS $ICU_CPPFLAGS"
+else
+   CPPFLAGS="$CPPFLAGS -DNO_ICU"
 fi
 
 AC_PATH_PROG(
