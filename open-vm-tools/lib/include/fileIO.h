@@ -148,6 +148,10 @@ typedef enum {
  */
 #define FILEIO_OPEN_MULTIWRITER_LOCK     (1 << 14)
 /*
+ * Flag the file to be cached by the vBlob caching layer
+ */
+#define FILEIO_OPEN_USE_AIO_CACHE        (1 << 15)
+/*
  * Valid only for MacOS. It eventually results into O_EXLOCK flag passed to open
  * system call.
  *

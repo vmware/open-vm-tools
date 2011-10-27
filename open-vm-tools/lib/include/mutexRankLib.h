@@ -67,6 +67,12 @@
 #define RANK_slpv2GlobalLock         (RANK_libLockBase + 0x4305)
 
 /*
+ * vigor (must be < VMDB range and < disklib, see bug 741290)
+ */
+#define RANK_vigorClientLock         (RANK_libLockBase + 0x4400)
+#define RANK_vigorOfflineClientLock  (RANK_libLockBase + 0x4410)
+
+/*
  * NFC lib lock
  */
 #define RANK_nfcLibLock              (RANK_libLockBase + 0x4505)
@@ -75,12 +81,6 @@
  * policy ops pending list lock
  */
 #define RANK_popPendingListLock      (RANK_libLockBase + 0x4605)
-
-/*
- * vigor (must be < VMDB range and < disklib, see bug 741290)
- */
-#define RANK_vigorClientLock         (RANK_libLockBase + 0x4700)
-#define RANK_vigorOfflineClientLock  (RANK_libLockBase + 0x4710)
 
 /*
  * disklib and I/O related locks

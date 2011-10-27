@@ -676,17 +676,24 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    }
 
 #if !defined(_WIN32)
-   if (fchmod(tempFD->posix, stbuf.st_mode)) {
-      Log("%s: Failed to chmod temporary file, errno: %d\n",
-          __FUNCTION__, errno);
-      ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
-      goto bail;
-   }
-   if (fchown(tempFD->posix, stbuf.st_uid, stbuf.st_gid)) {
-      Log("%s: Failed to chown temporary file, errno: %d\n",
-          __FUNCTION__, errno);
-      ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
-      goto bail;
+   /*
+    * On ESX we always use the vmkernel atomic file swap primitive, so
+    * there's no need to set the permissions and owner of the temp file.
+    */
+
+   if (!HostType_OSIsVMK()) {
+      if (fchmod(tempFD->posix, stbuf.st_mode)) {
+         Log("%s: Failed to chmod temporary file, errno: %d\n",
+             __FUNCTION__, errno);
+         status = FILEIO_ERROR;
+         goto bail;
+      }
+      if (fchown(tempFD->posix, stbuf.st_uid, stbuf.st_gid)) {
+         Log("%s: Failed to chown temporary file, errno: %d\n",
+             __FUNCTION__, errno);
+         status = FILEIO_ERROR;
+         goto bail;
+      }
    }
 #endif
 

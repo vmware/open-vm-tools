@@ -77,6 +77,7 @@
    LOGLEVEL_VAR(vusbkeyboard), \
    LOGLEVEL_VAR(vusbhid), \
    LOGLEVEL_VAR(vusbtablet), \
+   LOGLEVEL_VAR(vusbaudio), \
    LOGLEVEL_VAR(hidQueue), \
    LOGLEVEL_VAR(pci_1394), \
    LOGLEVEL_VAR(1394), \
@@ -249,6 +250,13 @@
    LOGLEVEL_VAR(serviceUser), /* lib/serviceUser */ \
    LOGLEVEL_VAR(ssl), \
    LOGLEVEL_VAR(vmrc), \
+   LOGLEVEL_VAR(namespaceDb), \
+   LOGLEVEL_VAR(namespaceMgr), \
+   LOGLEVEL_VAR(blobMgr), \
+   LOGLEVEL_VAR(vblobbe), \
+   LOGLEVEL_VAR(blobFileBE), \
+   LOGLEVEL_VAR(blobPythonBE), \
+   LOGLEVEL_VAR(grainTrack), \
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
