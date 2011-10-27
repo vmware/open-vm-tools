@@ -245,9 +245,12 @@ FileIO_Cleanup(FileIODescriptor *fd)  // IN/OUT:
  *      Call the FileLock module to lock the given file.
  *
  * Results:
- *      FILEIO_SUCCESS      All is well
- *      FILEIO_LOCK_FAILED  Requested lock on file was not acquired
- *      FILEIO_ERROR        A serious error occured.
+ *      FILEIO_ERROR               A serious error occured.
+ *      FILEIO_SUCCESS             All is well
+ *      FILEIO_LOCK_FAILED         Requested lock on file was not acquired
+ *      FILEIO_FILE_NOT_FOUND      Unable to find the specified file
+ *      FILEIO_NO_PERMISSION       Permissions issues
+ *      FILEIO_FILE_NAME_TOO_LONG  The path name is too long
  *
  * Side effects:
  *      None
