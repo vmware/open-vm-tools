@@ -23,7 +23,7 @@
  */
 
 
-#if !defined(VMX86_TOOLS) && !defined(__APPLE__)
+#if !defined(VMX86_TOOLS) && !defined(__APPLE__) && !defined(sun)
 #define FILEIO_SUPPORT_ODIRECT
 #define _GNU_SOURCE
 #endif
