@@ -1367,7 +1367,8 @@ CPUID_IsHypervisorLevel(uint32 level)
 
 static INLINE Bool
 CPUID_LevelUsesEcx(uint32 level) {
-   return level == 4 || level == 7 || level == 0xb || level == 0xd;
+   return level == 4 || level == 7 || level == 0xb || level == 0xd ||
+          level == 0x8000001d;
 }
 
 /*
