@@ -31,3 +31,8 @@ libStubsCS_la_SOURCES =
 libStubsCS_la_SOURCES += stub-config.c
 libStubsCS_la_SOURCES += stub-user-msg.c
 libStubsCS_la_SOURCES += stub-user-panic.c
+
+if !LINUX
+   libStubsCS_la_SOURCES += stub-msgfmt-fbsd.c
+endif
+
