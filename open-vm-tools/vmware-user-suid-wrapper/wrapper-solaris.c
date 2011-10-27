@@ -69,8 +69,8 @@ BuildExecPath(char *execPath,           // OUT: Path to executable for isaexec()
    }
 
    /*
-    * We will use isaexec(3C) below so we specify the base directory in our
-    * tarball that contains the ISA directories with actual binaries.
+    * The wrapper script now emulates the work done by the isaexec command hence
+    * we will simply call execve(2) below and allow the wrapper to do the rest.
     */
    if (strlcat(execPath,
                "/bin/vmware-user-wrapper", execPathSize) >= execPathSize) {
@@ -102,6 +102,6 @@ BuildExecPath(char *execPath,           // OUT: Path to executable for isaexec()
 Bool
 CompatExec(const char *path, char * const argv[], char * const envp[])
 {
-   isaexec(path, argv, envp);
+   execve(path, argv, envp);
    return FALSE;
 }
