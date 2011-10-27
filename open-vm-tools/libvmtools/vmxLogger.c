@@ -26,9 +26,9 @@
 #include "vmware/tools/guestrpc.h"
 
 typedef struct VMXLoggerData {
-   LogHandlerData    handler;
-   GStaticMutex      lock;
-   RpcChannel       *chan;
+   GlibLogger     handler;
+   GStaticMutex   lock;
+   RpcChannel    *chan;
 } VMXLoggerData;
 
 
@@ -47,26 +47,21 @@ typedef struct VMXLoggerData {
  * @param[in] domain    Unused.
  * @param[in] level     Log level.
  * @param[in] message   Message to log.
- * @param[in] _data     VMX logger data.
- * @param[in] errfn     Unused.
- *
- * @return TRUE if successfully logged the message.
+ * @param[in] data      VMX logger data.
  *
  *******************************************************************************
  */
 
-static gboolean
+static void
 VMXLoggerLog(const gchar *domain,
              GLogLevelFlags level,
              const gchar *message,
-             LogHandlerData *_data,
-             LogErrorFn errfn)
+             gpointer data)
 {
-   gboolean ret = FALSE;
-   VMXLoggerData *data = (VMXLoggerData *) _data;
+   VMXLoggerData *logger = data;
 
-   g_static_mutex_lock(&data->lock);
-   if (RpcChannel_Start(data->chan)) {
+   g_static_mutex_lock(&logger->lock);
+   if (RpcChannel_Start(logger->chan)) {
       gchar *msg;
       gint cnt = VMToolsAsprintf(&msg, "log %s", message);
 
@@ -75,14 +70,12 @@ VMXLoggerLog(const gchar *domain,
        * cause this to blow up. Hopefully we won't hit those too often since
        * we're stopping / starting the channel for each log message.
        */
-      ret = RpcChannel_Send(data->chan, msg, cnt, NULL, NULL);
+      RpcChannel_Send(logger->chan, msg, cnt, NULL, NULL);
 
       g_free(msg);
-      RpcChannel_Stop(data->chan);
+      RpcChannel_Stop(logger->chan);
    }
-   g_static_mutex_unlock(&data->lock);
-
-   return ret;
+   g_static_mutex_unlock(&logger->lock);
 }
 
 
@@ -92,49 +85,39 @@ VMXLoggerLog(const gchar *domain,
  *
  * Cleans up the internal state of a VMX logger.
  *
- * @param[in] _data     VMX logger data.
+ * @param[in] data   VMX logger data.
  *
  *******************************************************************************
  */
 
 static void
-VMXLoggerDestroy(LogHandlerData *_data)
+VMXLoggerDestroy(gpointer data)
 {
-   VMXLoggerData *data = (VMXLoggerData *) _data;
-   RpcChannel_Destroy(data->chan);
-   g_static_mutex_free(&data->lock);
-   g_free(data);
+   VMXLoggerData *logger = data;
+   RpcChannel_Destroy(logger->chan);
+   g_static_mutex_free(&logger->lock);
+   g_free(logger);
 }
 
 
 /*
  *******************************************************************************
- * VMXLoggerConfig --                                                     */ /**
+ * VMToolsCreateVMXLogger --                                              */ /**
  *
  * Configures a new VMX logger.
- *
- * @param[in] defaultDomain   Unused.
- * @param[in] domain          Unused.
- * @param[in] name            Unused.
- * @param[in] cfg             Unused.
  *
  * @return The VMX logger data.
  *
  *******************************************************************************
  */
 
-LogHandlerData *
-VMXLoggerConfig(const gchar *defaultDomain,
-                const gchar *domain,
-                const gchar *name,
-                GKeyFile *cfg)
+GlibLogger *
+VMToolsCreateVMXLogger(void)
 {
    VMXLoggerData *data = g_new0(VMXLoggerData, 1);
    data->handler.logfn = VMXLoggerLog;
-   data->handler.convertToLocal = FALSE;
-   data->handler.timestamp = FALSE;
+   data->handler.addsTimestamp = TRUE;
    data->handler.shared = TRUE;
-   data->handler.copyfn = NULL;
    data->handler.dtor = VMXLoggerDestroy;
    g_static_mutex_init(&data->lock);
    data->chan = BackdoorChannel_New();

@@ -27,6 +27,7 @@ SUBDIRS += dynxdr
 SUBDIRS += err
 SUBDIRS += file
 SUBDIRS += foundryMsg
+SUBDIRS += glibUtils
 SUBDIRS += guestApp
 SUBDIRS += hgfs
 SUBDIRS += hgfsBd

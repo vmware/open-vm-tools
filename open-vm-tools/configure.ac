@@ -1150,6 +1150,7 @@ AC_CONFIG_FILES([                      \
    lib/err/Makefile                    \
    lib/file/Makefile                   \
    lib/foundryMsg/Makefile             \
+   lib/glibUtils/Makefile              \
    lib/guestApp/Makefile               \
    lib/guestRpc/Makefile               \
    lib/hgfs/Makefile                   \

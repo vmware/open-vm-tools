@@ -24,6 +24,7 @@ libvmtools_la_LIBADD += ../lib/dict/libDict.la
 libvmtools_la_LIBADD += ../lib/dynxdr/libDynxdr.la
 libvmtools_la_LIBADD += ../lib/err/libErr.la
 libvmtools_la_LIBADD += ../lib/file/libFile.la
+libvmtools_la_LIBADD += ../lib/glibUtils/libGlibUtils.la
 libvmtools_la_LIBADD += ../lib/guestApp/libGuestApp.la
 libvmtools_la_LIBADD += ../lib/guestRpc/libGuestRpc.la
 libvmtools_la_LIBADD += ../lib/message/libMessage.la
@@ -53,12 +54,9 @@ libvmtools_la_LIBADD += ../lib/slashProc/libSlashProc.la
 endif
 
 libvmtools_la_SOURCES =
-libvmtools_la_SOURCES += fileLogger.c
 libvmtools_la_SOURCES += i18n.c
 libvmtools_la_SOURCES += monotonicTimer.c
 libvmtools_la_SOURCES += signalSource.c
-libvmtools_la_SOURCES += stdLogger.c
-libvmtools_la_SOURCES += sysLogger.c
 libvmtools_la_SOURCES += vmtools.c
 libvmtools_la_SOURCES += vmtoolsConfig.c
 libvmtools_la_SOURCES += vmtoolsLog.c
