@@ -1123,6 +1123,18 @@ CPUID_MODEL_IS_WESTMERE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 
+static INLINE Bool
+CPUID_MODEL_IS_SANDYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
+
+   return CPUID_FAMILY_IS_P6(v) &&
+          (effectiveModel == CPUID_MODEL_SANDYBRIDGE_2A ||
+           effectiveModel == CPUID_MODEL_SANDYBRIDGE_2D);
+}
+
+
 
 
 static INLINE Bool
