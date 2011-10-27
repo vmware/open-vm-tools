@@ -89,7 +89,7 @@ EXTERN void IOV_WriteIovToBuf(struct iovec* entries,
                               uint8* bufOut,
                               size_t bufSize);
 
-EXTERN void IOV_WriteBufToIov(uint8* bufIn,
+EXTERN void IOV_WriteBufToIov(const uint8* bufIn,
                               size_t bufSize,
                               struct iovec* entries,
                               int numEntries);
