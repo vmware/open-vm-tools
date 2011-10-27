@@ -932,7 +932,13 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_PIII_0A    10
 
 /* AMD model information */
-#define CPUID_MODEL_BARCELONA_02 0x02 // Barcelona (both Opteron & Phenom kind)
+#define CPUID_MODEL_BARCELONA_02      0x02 // Barcelona (Opteron & Phenom)
+#define CPUID_MODEL_SHANGHAI_04       0x04 // Shanghai RB
+#define CPUID_MODEL_SHANGHAI_05       0x05 // Shanghai BL
+#define CPUID_MODEL_SHANGHAI_06       0x06 // Shanghai DA
+#define CPUID_MODEL_ISTANBUL_MAGNY_08 0x08 // Istanbul (6 core) & Magny-cours (12) HY
+#define CPUID_MODEL_ISTANBUL_MAGNY_09 0x09 // HY - G34 package
+#define CPUID_MODEL_PHAROAH_HOUND_0A  0x0A // Pharoah Hound
 
 /* VIA model information */
 #define CPUID_MODEL_NANO       15     // Isaiah
@@ -1089,6 +1095,31 @@ CPUID_UARCH_IS_SANDYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
 
 
 static INLINE Bool
+CPUID_UARCH_IS_ATOM(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
+
+   return CPUID_FAMILY_IS_P6(v) &&
+          effectiveModel == CPUID_MODEL_ATOM_1C;
+}
+
+
+static INLINE Bool
+CPUID_MODEL_IS_WESTMERE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
+
+   return CPUID_FAMILY_IS_P6(v) &&
+          (effectiveModel == CPUID_MODEL_NEHALEM_25 || // Clarkdale
+           effectiveModel == CPUID_MODEL_NEHALEM_2C);  // Westmere-EP
+}
+
+
+
+
+static INLINE Bool
 CPUID_FAMILY_IS_K7(uint32 eax)
 {
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_K7;
@@ -1116,6 +1147,12 @@ CPUID_FAMILY_IS_K8L(uint32 eax)
 {
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_K8L ||
           CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_LLANO;
+}
+
+static INLINE Bool
+CPUID_FAMILY_IS_LLANO(uint32 eax)
+{
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_LLANO;
 }
 
 static INLINE Bool
@@ -1158,6 +1195,45 @@ CPUID_MODEL_IS_BARCELONA(uint32 v) // IN: %eax from CPUID with %eax=1.
    return CPUID_EFFECTIVE_FAMILY(v) == CPUID_FAMILY_K8L &&
           CPUID_EFFECTIVE_MODEL(v)  == CPUID_MODEL_BARCELONA_02;
 }
+
+
+static INLINE Bool
+CPUID_MODEL_IS_SHANGHAI(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is AMD. */
+   return CPUID_EFFECTIVE_FAMILY(v) == CPUID_FAMILY_K8L &&
+          (CPUID_MODEL_SHANGHAI_04  <= CPUID_EFFECTIVE_MODEL(v) && 
+           CPUID_EFFECTIVE_MODEL(v) <= CPUID_MODEL_SHANGHAI_06);
+}
+
+
+static INLINE Bool
+CPUID_MODEL_IS_ISTANBUL_MAGNY(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is AMD. */
+   return CPUID_EFFECTIVE_FAMILY(v) == CPUID_FAMILY_K8L &&
+          (CPUID_MODEL_ISTANBUL_MAGNY_08 <= CPUID_EFFECTIVE_MODEL(v) &&
+           CPUID_EFFECTIVE_MODEL(v)      <= CPUID_MODEL_ISTANBUL_MAGNY_09);
+}
+
+
+static INLINE Bool
+CPUID_MODEL_IS_PHAROAH_HOUND(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is AMD. */
+   return CPUID_EFFECTIVE_FAMILY(v) == CPUID_FAMILY_K8L &&
+          CPUID_EFFECTIVE_MODEL(v)  == CPUID_MODEL_PHAROAH_HOUND_0A;
+}
+
+
+static INLINE Bool
+CPUID_MODEL_IS_BULLDOZER(uint32 eax)
+{
+   /* Bulldozer is models 0x00 - 0x0f of family 0x15. */
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER && 
+          CPUID_EFFECTIVE_MODEL(eax) < 0x10;
+}
+
 
 
 #define CPUID_TYPE_PRIMARY     0
