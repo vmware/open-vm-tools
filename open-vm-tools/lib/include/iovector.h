@@ -49,11 +49,11 @@ struct iovec {
  * An I/O Vector.
  */
 typedef struct VMIOVec {
-   Bool read;                   /* is it a readv operation? else it's write */
    SectorType startSector;
    SectorType numSectors;
    uint64 numBytes;             /* Total bytes from all of the entries */
    uint32 numEntries;           /* Total number of entries */
+   Bool read;                   /* is it a readv operation? else it's write */
    struct iovec *entries;       /* Array of entries (dynamically allocated) */
    struct iovec *allocEntries;  /* The original array that can be passed to free(). 
                                  * NULL if entries is on a stack. */

@@ -236,3 +236,87 @@ Util_SafeInternalStrndup(int bugNumber,        // IN:
 
    return (char *) memcpy(copy, s, size);
 }
+
+void *
+Util_Memcpy(void *dest,
+            const void *src,
+            size_t count)
+{
+   uintptr_t align = ((uintptr_t)dest | (uintptr_t)src | count);
+
+#if defined __GNUC__
+
+   #if defined(__x86_64__)
+
+      size_t dummy0;
+      void *dummy1;
+      void *dummy2;
+
+      if ((align & 7) == 0) {
+         __asm__ __volatile__("\t"
+                               "cld"            "\n\t"
+                               "rep ; movsq"    "\n"
+                               : "=c" (dummy0), "=D" (dummy1), "=S" (dummy2)
+                               : "0" (count >> 3), "1" (dest), "2" (src)
+                               : "memory", "cc"
+            );
+         return dest;
+      } else if ((align & 3) == 0) {
+         __asm__ __volatile__("\t"
+                               "cld"            "\n\t"
+                               "rep ; movsd"    "\n"
+                               : "=c" (dummy0), "=D" (dummy1), "=S" (dummy2)
+                               : "0" (count >> 2), "1" (dest), "2" (src)
+                               : "memory", "cc"
+            );
+         return dest;
+      }
+
+   #elif defined(__i386__)
+
+      size_t dummy0;
+      void *dummy1;
+      void *dummy2;
+
+      if ((align & 3) == 0) {
+         __asm__ __volatile__("\t"
+                               "cld"            "\n\t"
+                               "rep ; movsd"    "\n"
+                               : "=c" (dummy0), "=D" (dummy1), "=S" (dummy2)
+                               : "0" (count >> 2), "1" (dest), "2" (src)
+                               : "memory", "cc"
+            );
+         return dest;
+      }
+
+   #endif
+  
+#elif defined _MSC_VER
+
+   #if defined(__x86_64__)
+
+      if ((align & 7) == 0) {
+         __movsq((uint64 *)dest, (uint64 *)src, count >> 3);
+         return dest;
+      } else if ((align & 3) == 0) {
+         __movsd((unsigned long *)dest, (unsigned long *)src, count >> 2);
+         return dest;
+      }
+
+   #elif defined(__i386__)
+
+      if ((((uintptr_t)dest | (uintptr_t)src | count) & 3) == 0) {
+         __movsd((unsigned long *)dest, (unsigned long *)src, count >> 2);
+         return dest;
+      }
+
+   #endif
+
+
+#endif
+
+   memcpy(dest, src, count);
+   return dest;
+}
+            
+

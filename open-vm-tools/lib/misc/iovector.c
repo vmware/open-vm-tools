@@ -177,7 +177,7 @@ IOV_DuplicateStatic(VMIOVec *iovIn,                     // IN
    ASSERT(iovIn);
    ASSERT(iovOut);
 
-   memcpy(iovOut, iovIn, sizeof *iovOut);
+   Util_Memcpy(iovOut, iovIn, sizeof *iovOut);
    if (iovIn->numEntries <= numStaticEntries) {
       iovOut->allocEntries = NULL;
       iovOut->entries = staticEntries;
@@ -186,7 +186,7 @@ IOV_DuplicateStatic(VMIOVec *iovIn,                     // IN
                                              sizeof(struct iovec));
       iovOut->entries = iovOut->allocEntries;
    }
-   memcpy(iovOut->entries, iovIn->entries, 
+   Util_Memcpy(iovOut->entries, iovIn->entries, 
           iovIn->numEntries * sizeof(struct iovec));
 }
 
@@ -389,7 +389,7 @@ IOV_Split(VMIOVec *origV,         // IN/OUT: VMIOVec for whole xfer
 
    v = Util_SafeMalloc(sizeof *v + origV->numEntries * sizeof(struct iovec));
    iov = &v->iov;
-   memcpy(iov, origV, sizeof *iov);
+   Util_Memcpy(iov, origV, sizeof *iov);
    iov->allocEntries = NULL;
    iov->numSectors = numSectors;
 
@@ -402,7 +402,7 @@ IOV_Split(VMIOVec *origV,         // IN/OUT: VMIOVec for whole xfer
 
       ASSERT(origV->numEntries == 1);
       iov->entries = v->e;
-      memcpy(iov->entries, origV->entries, sizeof(struct iovec));
+      Util_Memcpy(iov->entries, origV->entries, sizeof(struct iovec));
 
       iov->numBytes = iov->numSectors * sectorSize;
 
@@ -417,7 +417,7 @@ IOV_Split(VMIOVec *origV,         // IN/OUT: VMIOVec for whole xfer
    if (origV->numSectors == numSectors) {
       cpySize = origV->numEntries * sizeof *origV->entries;
       iov->entries = v->e;
-      memcpy(iov->entries, origV->entries, cpySize);
+      Util_Memcpy(iov->entries, origV->entries, cpySize);
 
       origV->startSector += numSectors;
       origV->numSectors = 0;
@@ -437,7 +437,7 @@ IOV_Split(VMIOVec *origV,         // IN/OUT: VMIOVec for whole xfer
       cpySize = iov->numEntries * sizeof *iov->entries;
       tmpPtr = iov->entries;
       iov->entries = v->e;
-      memcpy(iov->entries, tmpPtr, cpySize);
+      Util_Memcpy(iov->entries, tmpPtr, cpySize);
 
       origV->numEntries -= iov->numEntries;
       if (overlap.iov_len != 0) { 
@@ -490,7 +490,7 @@ IOV_WriteIovToBuf(struct iovec* entries,   // IN
 
       numBytes = MIN(bufSize - count, entries[i].iov_len);
 
-      memcpy(&bufOut[count], entries[i].iov_base, numBytes);
+      Util_Memcpy(&bufOut[count], entries[i].iov_base, numBytes);
       count += numBytes;
 
       if (count >= bufSize) {
@@ -525,10 +525,10 @@ IOV_Duplicate(VMIOVec* iovIn)     // IN
    struct VMIOVecAndEntries* v;
 
    v = Util_SafeMalloc(sizeof *v + iovIn->numEntries * sizeof(struct iovec));
-   memcpy(&v->iov, iovIn, sizeof *iovIn);
+   Util_Memcpy(&v->iov, iovIn, sizeof *iovIn);
    v->iov.allocEntries = NULL;
    v->iov.entries = v->e;
-   memcpy(v->iov.entries, iovIn->entries,
+   Util_Memcpy(v->iov.entries, iovIn->entries,
           iovIn->numEntries * sizeof(struct iovec));
 
    return &v->iov;
@@ -600,7 +600,7 @@ IOV_WriteBufToIov(const uint8* bufIn,           // IN
 
       numBytes = MIN(bufSize - count, entries[i].iov_len);
 
-      memcpy(entries[i].iov_base, &bufIn[count], numBytes);
+      Util_Memcpy(entries[i].iov_base, &bufIn[count], numBytes);
       count += numBytes;
       if (count >= bufSize) {
          return;
@@ -702,15 +702,18 @@ IOV_WriteIovToBufPlus(struct iovec* entries,    // IN
    i = IOVFindFirstEntryOffset(entries, numEntries, iovOffset, &entryOffset);
 
    for (; count && (i < numEntries); i++) {
+      char *base = (char *)(entries[i].iov_base) + entryOffset;
+      size_t iov_len = entries[i].iov_len;
+
       ASSERT(entries[i].iov_base || entries[i].iov_len == 0);
       ASSERT(entries[i].iov_base != LAZY_ALLOC_MAGIC);
 
-      if (entries[i].iov_len <= 0) {
+      if (iov_len <= 0) {
          continue;
       }
-      entryLen = MIN(count, entries[i].iov_len - entryOffset);
+      entryLen = MIN(count, iov_len - entryOffset);
 
-      memcpy(bufOut, (char *)(entries[i].iov_base) + entryOffset, entryLen);
+      Util_Memcpy(bufOut, base, entryLen);
 
       count -= entryLen;
       bufOut += entryLen;
@@ -758,15 +761,18 @@ IOV_WriteBufToIovPlus(uint8* bufIn,             // IN
    i = IOVFindFirstEntryOffset(entries, numEntries, iovOffset, &entryOffset);
 
    for (; count && (i < numEntries); i++) {
+      char *base = (char *)(entries[i].iov_base) + entryOffset;
+      size_t iov_len = entries[i].iov_len;
+
       ASSERT_BUG(33859, entries[i].iov_base || entries[i].iov_len == 0);
       ASSERT(entries[i].iov_base != LAZY_ALLOC_MAGIC);
 
-      if (entries[i].iov_len <= 0) {
+      if (iov_len <= 0) {
          continue;
       }
-      entryLen = MIN(count, entries[i].iov_len - entryOffset);
-
-      memcpy((char *)(entries[i].iov_base) + entryOffset, bufIn, entryLen);
+      entryLen = MIN(count, iov_len - entryOffset);
+      
+      Util_Memcpy(base, bufIn, entryLen);
 
       count -= entryLen;
       bufIn += entryLen;
@@ -811,7 +817,10 @@ IOV_WriteIovToIov(VMIOVec *srcIov,        // IN
    size_t entryLen = 0, srcEntryOffset, copyLen, retval;
    uint64 srcStartByte, dstStartByte, startByte, endByte;
    int64 count, srcIovOffset, dstIovOffset;
-   struct iovec *srcEntries;
+   struct iovec *srcEntries = srcIov->entries;
+   uint32 srcNumEntries = srcIov->numEntries;
+   struct iovec *dstEntries = dstIov->entries;
+   uint32 dstNumEntries = dstIov->numEntries;
    int i;
 
    ASSERT(srcIov);
@@ -854,22 +863,24 @@ IOV_WriteIovToIov(VMIOVec *srcIov,        // IN
    retval = (size_t)count;
 
    /* first find the src entry where to start */
-   i = IOVFindFirstEntryOffset(srcEntries, srcIov->numEntries,
+   i = IOVFindFirstEntryOffset(srcEntries, srcNumEntries,
                                (size_t) srcIovOffset, &srcEntryOffset);
 
-   for (; count && (i < srcIov->numEntries); i++) {
+   for (; count && (i < srcNumEntries); i++) {
+      size_t iov_len = srcEntries[i].iov_len;
+
       ASSERT(srcEntries[i].iov_base || srcEntries[i].iov_len == 0);
       ASSERT(srcEntries[i].iov_base != LAZY_ALLOC_MAGIC);
 
-      if (srcEntries[i].iov_len <= 0) {
+      if (iov_len <= 0) {
          continue;
       }
-      entryLen = MIN(count, srcEntries[i].iov_len - srcEntryOffset);
+      entryLen = MIN(count, iov_len - srcEntryOffset);
 
       copyLen = IOV_WriteBufToIovPlus(
                            (uint8 *)(srcEntries[i].iov_base) + srcEntryOffset,
-                                      entryLen, dstIov->entries,
-                                      dstIov->numEntries, dstIovOffset);
+                                      entryLen, dstEntries,
+                                      dstNumEntries, dstIovOffset);
 
       if (copyLen == 0) {  /* finished */
          break;

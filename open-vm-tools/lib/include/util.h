@@ -317,6 +317,8 @@ EXTERN char *Util_SafeInternalStrdup(int bugNumber, const char *s,
 EXTERN char *Util_SafeInternalStrndup(int bugNumber, const char *s, size_t n,
                                       const char *file, int lineno);
 
+EXTERN void *Util_Memcpy(void *dest, const void *src, size_t count);
+
 #define Util_SafeMalloc(_size) \
    Util_SafeInternalMalloc(-1, (_size), __FILE__, __LINE__)
 
@@ -547,4 +549,5 @@ Util_FreeStringList(char **list,      // IN/OUT: the list to free
 {
    Util_FreeList((void **) list, length);
 }
+
 #endif /* UTIL_H */
