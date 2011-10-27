@@ -90,12 +90,13 @@ typedef enum {
  */
 
 static WiperState
-ShrinkGetWiperState(void) {
-   char *result;
+ShrinkGetWiperState(void)
+{
+   char *result = NULL;
    size_t resultLen;
    WiperState state = WIPER_UNAVAILABLE;
 
-   if (ToolsCmd_SendRPC(WIPER_STATE_CMD, sizeof WIPER_STATE_CMD,
+   if (ToolsCmd_SendRPC(WIPER_STATE_CMD, sizeof WIPER_STATE_CMD - 1,
                         &result, &resultLen)) {
       if (resultLen == 1 && strcmp(result, "1") == 0) {
          state = WIPER_ENABLED;
@@ -127,7 +128,7 @@ ShrinkGetWiperState(void) {
 static Bool
 ShrinkGetMountPoints(WiperPartition_List *pl) // OUT: Known mount points
 {
-   if (ShrinkGetWiperState() != WIPER_UNAVAILABLE) {
+   if (ShrinkGetWiperState() == WIPER_UNAVAILABLE) {
       ToolsCmd_PrintErr("%s",
                         SU_(disk.shrink.unavailable, SHRINK_FEATURE_ERR));
    } else if (!WiperPartition_Open(pl)) {
@@ -209,6 +210,7 @@ ShrinkList(void)
    WiperPartition_List plist;
    DblLnkLst_Links *curr;
    uint32 countShrink = 0;
+   WiperState wstate = ShrinkGetWiperState();
 
    if (!ShrinkGetMountPoints(&plist)) {
       return EX_TEMPFAIL;
@@ -217,7 +219,7 @@ ShrinkList(void)
    DblLnkLst_ForEach(curr, &plist.link) {
       WiperPartition *p = DblLnkLst_Container(curr, WiperPartition, link);
       if (p->type != PARTITION_UNSUPPORTED &&
-          (ShrinkGetWiperState() == WIPER_ENABLED || Wiper_IsWipeSupported(p))) {
+          (wstate == WIPER_ENABLED || Wiper_IsWipeSupported(p))) {
          g_print("%s\n", p->mountPoint);
          countShrink++;
       }
@@ -302,6 +304,7 @@ ShrinkDoAllDiskShrinkOnly(void)
    WiperPartition_List plist;
    DblLnkLst_Links *curr;
    Bool canShrink = FALSE;
+   WiperState wstate = ShrinkGetWiperState();
 
 #ifndef _WIN32
    signal(SIGINT, ShrinkWiperDestroy);
@@ -314,7 +317,7 @@ ShrinkDoAllDiskShrinkOnly(void)
    DblLnkLst_ForEach(curr, &plist.link) {
       WiperPartition *p = DblLnkLst_Container(curr, WiperPartition, link);
       if (p->type != PARTITION_UNSUPPORTED &&
-          (ShrinkGetWiperState() == WIPER_ENABLED || Wiper_IsWipeSupported(p))) {
+          (wstate == WIPER_ENABLED || Wiper_IsWipeSupported(p))) {
          canShrink = TRUE;
          break;
       }
@@ -370,7 +373,9 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
    WiperPartition *part;
    int rc;
 
-#ifndef _WIN32
+#if defined(_WIN32)
+   DWORD currPriority = GetPriorityClass(GetCurrentProcess());
+#else
    signal(SIGINT, ShrinkWiperDestroy);
 #endif
 
@@ -404,6 +409,16 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
 
    wiper = Wiper_Start(part, MAX_WIPER_FILE_SIZE);
 
+#if defined(_WIN32)
+   /*
+    * On Win32, lower the process priority during wipe, so other applications
+    * can still run (sort of) normally while we're filling the disk.
+    */
+   if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
+      g_debug("Unable to lower process priority: %u.", GetLastError());
+   }
+#endif
+
    while (progress < 100 && wiper != NULL) {
       err = Wiper_Next(&wiper, &progress);
       if (strlen(err) > 0) {
@@ -428,6 +443,13 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
          fflush(stdout);
       }
    }
+
+#if defined(_WIN32)
+   /* Go back to our original priority. */
+   if (!SetPriorityClass(GetCurrentProcess(), currPriority)) {
+      g_debug("Unable to restore process priority: %u.", GetLastError());
+   }
+#endif
 
    rc = EXIT_SUCCESS;
    if (progress >= 100 && performShrink) {
