@@ -394,6 +394,15 @@ VThreadBaseGetKey(void)
 #else
       Bool success = pthread_key_create(&newKey, 
                                         &VThreadBaseSafeDeleteTLS) == 0;
+      if (success && newKey == 0) {
+         /* 
+          * Leak TLS key 0.  System libraries have a habit of destroying
+          * it.  See bugs 702818 and 773420.
+          */
+
+         success = pthread_key_create(&newKey, 
+                                      &VThreadBaseSafeDeleteTLS) == 0;
+      }
       ASSERT_NOT_IMPLEMENTED(success);
 #endif
 
