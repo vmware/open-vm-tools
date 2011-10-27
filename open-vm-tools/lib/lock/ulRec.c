@@ -42,6 +42,8 @@ struct MXUserRecLock
    MXUserHeader         header;
    MXRecLock            recursiveLock;
    Atomic_Ptr           statsMem;
+   Atomic_uint32        destroyRefCount;
+   Atomic_uint32        destroyWasCalled;
 
    /*
     * This is the MX recursive lock override pointer. It is used within the
@@ -326,6 +328,8 @@ MXUserCreateRecLock(const char *userName,  // IN:
    }
 
    lock->vmmLock = NULL;
+   Atomic_Write(&lock->destroyRefCount, 1);
+   Atomic_Write(&lock->destroyWasCalled, 0);
 
    lock->header.signature = MXUSER_REC_SIGNATURE;
    lock->header.name = properName;
@@ -404,16 +408,17 @@ MXUser_CreateRecLock(const char *userName,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_DestroyRecLock --
+ * MXUserCondDestroyRecLock --
  *
- *      Destroy a recursive lock.
+ *      Destroy a recursive lock -- but only if its reference count is zero.
  *
  *      When the lock is bound to a MX lock, only the MXUser "wrapper" is
  *      freed. The caller is responsible for calling MX_DestroyLockRec() on
  *      the MX lock before calling this routine.
  *
  * Results:
- *      Lock is destroyed. Don't use the pointer again.
+ *      Lock is destroyed upon correct reference count. Don't use the
+ *      pointer again.
  *
  * Side effects:
  *      None
@@ -421,15 +426,15 @@ MXUser_CreateRecLock(const char *userName,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-void
-MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
+static void
+MXUserCondDestroyRecLock(MXUserRecLock *lock)  // IN:
 {
-   if (lock != NULL) {
-      MXUserStats *stats;
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
 
-      ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
-
+   if (Atomic_FetchAndDec(&lock->destroyRefCount) == 1) {
       if (lock->vmmLock == NULL) {
+         MXUserStats *stats;
+
          if (MXRecLockCount(&lock->recursiveLock) > 0) {
             MXUserDumpAndPanic(&lock->header,
                                "%s: Destroy of an acquired recursive lock\n",
@@ -459,11 +464,34 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
    }
 }
 
+void
+MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
+{
+   if (lock != NULL) {
+      ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
+
+      /*
+       * May not call destroy on a lock more than once
+       *
+       * That the code can get here may only occur if the reference count
+       * mechanism is used.
+       */
+
+      if (Atomic_FetchAndInc(&lock->destroyWasCalled) != 0) {
+         MXUserDumpAndPanic(&lock->header,
+                            "%s: Destroy of a destroyed recursive lock\n",
+                            __FUNCTION__);
+      }
+
+      MXUserCondDestroyRecLock(lock);
+   }
+}
+
 
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_AcquireRecLock --
+ * MXUserAcquireRecLock --
  *
  *      An acquisition is made (lock is taken) on the specified recursive lock.
  *
@@ -478,8 +506,8 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-void
-MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
+static void
+MXUserAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
    ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
 
@@ -519,6 +547,17 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
          MXRecLockAcquire(&lock->recursiveLock);
       }
    }
+}
+
+
+void
+MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
+{
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+
+   ASSERT(Atomic_Read(&lock->destroyWasCalled) == 0);
+
+   MXUserAcquireRecLock(lock);
 }
 
 
@@ -608,6 +647,10 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
    Bool success;
 
    ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+
+   if (UNLIKELY(Atomic_Read(&lock->destroyWasCalled) != 0)) {
+      return FALSE;
+   }
 
    if (lock->vmmLock) {
       ASSERT(MXUserMX_TryLockRec);
@@ -940,6 +983,91 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
    lock->vmmLock = mutex;
 
    return lock;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_IncRefRecLock --
+ *
+ *      Add a reference to the lock to prevent an immediate destory from
+ *      succeeding.
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUser_IncRefRecLock(MXUserRecLock *lock)  // IN:
+{
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+
+   Atomic_Inc(&lock->destroyRefCount);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_DecRefRecLock --
+ *
+ *      Remove a reference to the lock. If the reference count is zero,
+ *      the lock is destroyed.
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUser_DecRefRecLock(MXUserRecLock *lock)  // IN:
+{
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+
+   MXUserCondDestroyRecLock(lock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_AcquireWeakRefRecLock --
+ *
+ *      Acquire a lock only if destroy has not be called on it. This is 
+ *      special implementation that will have limited lifetime. Once Poll
+ *      is upgraded to use trylock this implementation will go away.
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUser_AcquireWeakRefRecLock(MXUserRecLock *lock)  // IN:
+{
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+
+   if (Atomic_Read(&lock->destroyWasCalled) != 0) {
+      return FALSE;
+   } else {
+      MXUserAcquireRecLock(lock);
+
+      return TRUE;
+   }
 }
 
 

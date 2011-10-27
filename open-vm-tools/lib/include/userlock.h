@@ -106,6 +106,13 @@ void MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,
                                     MXUserCondVar *condVar,
                                     uint32 msecWait);
 
+void MXUser_IncRefRecLock(MXUserRecLock *lock);
+
+void MXUser_DecRefRecLock(MXUserRecLock *lock);
+
+Bool MXUser_AcquireWeakRefRecLock(MXUserRecLock *lock);
+
+
 /*
  * Read-write lock
  */
@@ -211,7 +218,6 @@ MXUserRecLock *MXUser_InitFromMXRec(const char *name,
                                     struct MX_MutexRec *mutex,
                                     MX_Rank rank,
                                     Bool isBelowBull);
-
 #endif
 
 #if defined(VMX86_DEBUG) && !defined(DISABLE_MXUSER_DEBUG)
