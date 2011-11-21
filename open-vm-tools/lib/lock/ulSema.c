@@ -594,7 +594,7 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
          free(stats);
       }
 
-      sema->header.signature = 0;  // just in case...
+      MXUserClearSignature(&sema->header);  // just in case...
       free(sema->header.name);
       sema->header.name = NULL;
       free(sema);

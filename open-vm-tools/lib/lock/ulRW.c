@@ -629,7 +629,7 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
       }
 
       HashTable_FreeUnsafe(lock->holderTable);
-      lock->header.signature = 0;  // just in case...
+      MXUserClearSignature(&lock->header);  // just in case...
       free(lock->header.name);
       lock->header.name = NULL;
       free(lock);

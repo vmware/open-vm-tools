@@ -462,7 +462,7 @@ MXUserCondDestroyRecLock(MXUserRecLock *lock)  // IN:
          }
       }
 
-      lock->header.signature = 0;  // just in case...
+      MXUserClearSignature(&lock->header);  // just in case...
       free(lock->header.name);
       lock->header.name = NULL;
       free(lock);

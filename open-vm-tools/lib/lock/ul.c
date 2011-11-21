@@ -536,6 +536,29 @@ MXUserSetSignature(MXUserHeader *header,  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * MXUserClearSignature --
+ *
+ *      Remove any sign of a valid signature
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserClearSignature(MXUserHeader *header)  // IN/OUT:
+{
+   header->signature = 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * MXUserDumpAndPanic --
  *
  *      Dump a lock, print a message and die

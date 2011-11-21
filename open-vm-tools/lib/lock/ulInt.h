@@ -420,6 +420,8 @@ MXRecLock *MXUserInternalSingleton(Atomic_Ptr *storage);
 void MXUserSetSignature(MXUserHeader *header,
                         uint32 salt);
 
+void MXUserClearSignature(MXUserHeader *header);
+
 #if defined(MXUSER_DEBUG)
 void MXUserAcquisitionTracking(MXUserHeader *header,
                            Bool checkRank);
