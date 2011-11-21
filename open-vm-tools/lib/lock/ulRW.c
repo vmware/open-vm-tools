@@ -604,6 +604,8 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
                             __FUNCTION__);
       }
 
+      MXUserClearSignature(&lock->header);  // just in case...
+
       if (LIKELY(lock->useNative)) {
          int err = MXUserNativeRWDestroy(&lock->nativeLock);
 
@@ -629,7 +631,6 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
       }
 
       HashTable_FreeUnsafe(lock->holderTable);
-      MXUserClearSignature(&lock->header);  // just in case...
       free(lock->header.name);
       lock->header.name = NULL;
       free(lock);

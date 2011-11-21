@@ -352,6 +352,8 @@ MXUser_DestroyExclLock(MXUserExclLock *lock)  // IN:
                             __FUNCTION__);
       }
 
+      MXUserClearSignature(&lock->header);  // just in case...
+
       MXRecLockDestroy(&lock->recursiveLock);
 
       MXUserRemoveFromList(&lock->header);
@@ -367,7 +369,6 @@ MXUser_DestroyExclLock(MXUserExclLock *lock)  // IN:
          free(stats);
       }
 
-      MXUserClearSignature(&lock->header);  // just in case...
       free(lock->header.name);
       lock->header.name = NULL;
       free(lock);

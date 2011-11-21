@@ -732,16 +732,17 @@ void
 MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN:
 {
    if (condVar != NULL) {
-      ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
+      ASSERT(condVar->signature == MXUSER_CONDVAR_SIGNATURE);
 
       if (Atomic_Read(&condVar->referenceCount) != 0) {
          Panic("%s: Attempted destroy on active condVar (%p; %s)\n",
                __FUNCTION__, condVar, condVar->header->name);
       }
 
+      condVar->signature = 0;  // just in case...
+
       MXUserDestroyInternal(condVar);
 
-      condVar->signature = 0;  // just in case...
       condVar->header = NULL;
       condVar->ownerLock = NULL;
 
