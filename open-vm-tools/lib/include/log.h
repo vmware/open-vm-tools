@@ -54,7 +54,8 @@
 #define VMW_LOG_DEBUG_09 (VMW_LOG_DEBUG_00 +  9)
 #define VMW_LOG_DEBUG_10 (VMW_LOG_DEBUG_00 + 10) // lowest priority; least noisy
 
-#define VMW_LOG_NO_ROUTE 0x80000000  // Force routing to Log
+#define VMW_LOG_NO_ROUTE        0x80000000  // Force routing to Log
+#define VMW_LOG_NO_ROUTE_STDERR 0x40000000  // Allow stderr on suitable msgs
 
 void LogV(uint32 routing,
           const char *fmt,
