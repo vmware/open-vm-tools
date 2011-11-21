@@ -610,7 +610,7 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
  *
  * MXUser_DownSemaphore --
  *
- *      Perform an down (P; probeer te verlagen; "try to reduce") operation
+ *      Perform a down (P; probeer te verlagen; "try to reduce") operation
  *      on a semaphore.
  *
  * Results:
@@ -683,7 +683,7 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
  *
  * MXUser_TimedDownSemaphore --
  *
- *      Perform an down (P; probeer te verlagen; "try to reduce") operation
+ *      Perform a down (P; probeer te verlagen; "try to reduce") operation
  *      on a semaphore with a timeout. The wait time will always have elapsed
  *      before the routine returns.
  *
@@ -765,7 +765,7 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
  *
  * MXUser_TryDownSemaphore --
  *
- *      Perform an try down (P; probeer te verlagen; "try to reduce") operation
+ *      Perform a try down (P; probeer te verlagen; "try to reduce") operation
  *      on a semaphore.
  *
  * Results:
