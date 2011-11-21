@@ -85,6 +85,32 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserGetSignature --
+ *
+ *      Return a signature appropriate for the specified object type.
+ *
+ *      TODO: this will combine random syndrome bits (making each lib/lock
+ *            unique) and bits representing the objectType.
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+uint32
+MXUserGetSignature(MXUserObjectType objectType)  // IN:
+{
+   return objectType;  // Unity mapping, for now
+}
+
+
 #if defined(MXUSER_DEBUG)
 #define MXUSER_MAX_LOCKS_PER_THREAD (2 * MXUSER_MAX_REC_DEPTH)
 
@@ -479,13 +505,20 @@ MXUser_TryAcquireFailureControl(Bool (*func)(const char *name))  // IN:
  */
 
 void
-MXUserValidateHeader(MXUserHeader *header,  // IN:
-                     uint32 objectID)       // IN:
+MXUserValidateHeader(MXUserHeader *header,         // IN:
+                     MXUserObjectType objectType)  // IN:
 {
-   if (header->signature != objectID) {
-      MXUserDumpAndPanic(header, "%s: expected %X observed %X\n", __FUNCTION__,
-                         objectID, header->signature);
+   uint32 expected = MXUserGetSignature(objectType);
+
+   if (header->signature != expected) {
+      MXUserDumpAndPanic(header,
+                         "%s: signature failure! expected %X observed %X\n",
+                         __FUNCTION__, expected, header->signature);
    }
+
+//   if (header->serialNumber == 0) {
+//      MXUserDumpAndPanic(header, "%s: Invalid serial number!", __FUNCTION__);
+//   }
 }
 #endif
 

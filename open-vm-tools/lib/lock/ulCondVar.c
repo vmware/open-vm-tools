@@ -587,7 +587,7 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
    MXUserCondVar *condVar = Util_SafeCalloc(1, sizeof(*condVar));
 
    if (MXUserCreateInternal(condVar)) {
-      condVar->signature = MXUSER_TYPE_CONDVAR;
+      condVar->signature = MXUserGetSignature(MXUSER_TYPE_CONDVAR);
       condVar->header = header;
       condVar->ownerLock = lock;
    } else {
@@ -624,7 +624,8 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
 {
    ASSERT(header);
    ASSERT(lock);
-   ASSERT(condVar && (condVar->signature == MXUSER_TYPE_CONDVAR));
+   ASSERT(condVar);
+   ASSERT(condVar->signature == MXUserGetSignature(MXUSER_TYPE_CONDVAR));
 
    if (condVar->ownerLock != lock) {
       Panic("%s: invalid use of lock %s with condVar (%p; %s)\n",
@@ -664,7 +665,8 @@ MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
 {
    int err;
 
-   ASSERT(condVar && (condVar->signature == MXUSER_TYPE_CONDVAR));
+   ASSERT(condVar);
+   ASSERT(condVar->signature == MXUserGetSignature(MXUSER_TYPE_CONDVAR));
 
    err = MXUserSignalInternal(condVar);
 
@@ -697,7 +699,8 @@ MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
 {
    int err;
 
-   ASSERT(condVar && (condVar->signature == MXUSER_TYPE_CONDVAR));
+   ASSERT(condVar);
+   ASSERT(condVar->signature == MXUserGetSignature(MXUSER_TYPE_CONDVAR));
 
    err = MXUserBroadcastInternal(condVar);
 
@@ -730,7 +733,7 @@ void
 MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN:
 {
    if (condVar != NULL) {
-      ASSERT(condVar->signature == MXUSER_TYPE_CONDVAR);
+      ASSERT(condVar->signature == MXUserGetSignature(MXUSER_TYPE_CONDVAR));
 
       if (Atomic_Read(&condVar->referenceCount) != 0) {
          Panic("%s: Attempted destroy on active condVar (%p; %s)\n",

@@ -514,7 +514,7 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
    if (LIKELY(MXUserInit(&sema->nativeSemaphore) == 0)) {
       MXUserStats *stats;
 
-      sema->header.signature = MXUSER_TYPE_SEMA;
+      sema->header.signature = MXUserGetSignature(MXUSER_TYPE_SEMA);
       sema->header.name = properName;
       sema->header.rank = rank;
       sema->header.serialNumber = MXUserAllocSerialNumber();

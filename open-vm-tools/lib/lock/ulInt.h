@@ -391,13 +391,19 @@ MXUserGetThreadID(void)
    return (void *) (uintptr_t) VThread_CurID();  // unsigned
 }
 
-#define MXUSER_TYPE_RW 0x57524B4C // 'LKRW' in memory
-#define MXUSER_TYPE_REC 0x43524B4C // 'LKRC' in memory
-#define MXUSER_TYPE_RANK 0x4E4B5241 // 'RANK' in memory
-#define MXUSER_TYPE_EXCL 0x58454B4C // 'LKEX' in memory
-#define MXUSER_TYPE_SEMA 0x414D4553 // 'SEMA' in memory
-#define MXUSER_TYPE_CONDVAR 0x444E4F43 // 'COND' in memory
-#define MXUSER_TYPE_BARRIER 0x52524142 // 'BARR' in memory
+/*
+ * MXUser object type ID values.
+ */
+
+typedef enum {
+   MXUSER_TYPE_RW = 0x57524B4C,  // *MUST* *NEVER* start at zero
+   MXUSER_TYPE_REC = 0x43524B4C,
+   MXUSER_TYPE_RANK = 0x4E4B5241,
+   MXUSER_TYPE_EXCL = 0x58454B4C,
+   MXUSER_TYPE_SEMA = 0x414D4553,
+   MXUSER_TYPE_CONDVAR = 0x444E4F43,
+   MXUSER_TYPE_BARRIER = 0x52524142
+} MXUserObjectType;
 
 /*
  * MXUser header - all MXUser objects start with this
@@ -424,6 +430,8 @@ void MXUserDumpAndPanic(MXUserHeader *header,
 
 MXRecLock *MXUserInternalSingleton(Atomic_Ptr *storage);
 
+uint32 MXUserGetSignature(MXUserObjectType objectType);
+
 #if defined(MXUSER_DEBUG)
 void MXUserAcquisitionTracking(MXUserHeader *header,
                            Bool checkRank);
@@ -431,7 +439,7 @@ void MXUserAcquisitionTracking(MXUserHeader *header,
 void MXUserReleaseTracking(MXUserHeader *header);
 
 void MXUserValidateHeader(MXUserHeader *header,
-                          uint32 objectID);
+                          MXUserObjectType objectType);
 #else
 static INLINE void
 MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
@@ -447,8 +455,8 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN:
 }
 
 static INLINE void
-MXUserValidateHeader(MXUserHeader *header,  // IN:
-                     uint32 objectID)       // IN:
+MXUserValidateHeader(MXUserHeader *header,         // IN:
+                     MXUserObjectType objectType)  // IN:
 {
    return;
 }
