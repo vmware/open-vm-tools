@@ -162,8 +162,8 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
 
       Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
-      Warning("\towner 0x%p\n",
-              (void *)(uintptr_t)lock->recursiveLock.nativeThreadID);
+      Warning("\taddress of owner data 0x%p\n",
+              &lock->recursiveLock.nativeThreadID);
 
       if (stats && (stats->holder != NULL)) {
          Warning("\tholder %p\n", stats->holder);
