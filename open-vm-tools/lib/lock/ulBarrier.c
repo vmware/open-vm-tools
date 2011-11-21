@@ -154,7 +154,7 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
    barrier->configCount = count;
    barrier->curContext = 0;
 
-   barrier->header.signature = MXUserGetSignature(MXUSER_TYPE_BARRIER);
+   barrier->header.signature = MXUSER_TYPE_BARRIER;
    barrier->header.name = properName;
    barrier->header.rank = rank;
    barrier->header.serialNumber = MXUserAllocSerialNumber();

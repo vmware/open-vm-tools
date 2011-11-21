@@ -529,7 +529,7 @@ MXUser_CreateRWLock(const char *userName,  // IN:
       properName = Util_SafeStrdup(userName);
    }
 
-   lock->header.signature = MXUserGetSignature(MXUSER_TYPE_RW);
+   lock->header.signature = MXUSER_TYPE_RW;
    lock->header.name = properName;
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();
