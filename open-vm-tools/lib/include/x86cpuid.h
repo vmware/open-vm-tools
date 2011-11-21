@@ -309,7 +309,7 @@ FLAG(   1,  0, ECX, INTEL,  17,  1, PCID,                          YES, FALSE) \
 FLAG(   1,  0, ECX, INTEL,  18,  1, DCA,                           NO,  FALSE) \
 FLAG(   1,  0, ECX, COMMON, 19,  1, SSE41,                         YES, TRUE)  \
 FLAG(   1,  0, ECX, COMMON, 20,  1, SSE42,                         YES, TRUE)  \
-FLAG(   1,  0, ECX, INTEL,  21,  1, x2APIC,                        ANY, FALSE) \
+FLAG(   1,  0, ECX, COMMON, 21,  1, x2APIC,                        ANY, FALSE) \
 FLAG(   1,  0, ECX, INTEL,  22,  1, MOVBE,                         YES, TRUE)  \
 FLAG(   1,  0, ECX, COMMON, 23,  1, POPCNT,                        YES, TRUE)  \
 FLAG(   1,  0, ECX, COMMON, 24,  1, TSC_DEADLINE,                  NO,  FALSE) \
