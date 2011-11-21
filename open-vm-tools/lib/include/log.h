@@ -27,7 +27,7 @@
 #include <stdarg.h>
 
 /*
- * The bora/lib Log Facility log level model.
+ * The bora/lig Log Facility log level model.
  * This the same as the vmacore/hostd Log Facility.
  *
  * The VMW_LOG_BASE is chosen to ensure that on all platforms commonly
