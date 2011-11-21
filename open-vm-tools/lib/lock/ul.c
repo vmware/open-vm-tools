@@ -220,6 +220,149 @@ MXUserGetSignature(MXUserObjectType objectType)  // IN:
    return signature;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserDumpAndPanic --
+ *
+ *      Dump a lock, print a message and die
+ *
+ * Results:
+ *      A panic.
+ *
+ * Side effects:
+ *      Manifold.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserDumpAndPanic(MXUserHeader *header,  // IN:
+                   const char *fmt,       // IN:
+                   ...)                   // IN:
+{
+   char *msg;
+   va_list ap;
+
+   ASSERT((header != NULL) && (header->dumpFunc != NULL));
+
+   (*header->dumpFunc)(header);
+
+   va_start(ap, fmt);
+   msg = Str_SafeVasprintf(NULL, fmt, ap);
+   va_end(ap);
+
+   Panic("%s", msg);
+}
+
+
+/*
+ *---------------------------------------------------------------------
+ * 
+ *  MXUser_SetInPanic --
+ *	Notify the locking system that a panic is occurring.
+ *
+ *      This is the "out of the monitor" - userland - implementation. The "in
+ *      the monitor" implementation lives in mutex.c.
+ *
+ *  Results:
+ *     Set the internal "in a panic" global variable.
+ *
+ *  Side effects:
+ *     None
+ *
+ *---------------------------------------------------------------------
+ */
+
+void
+MXUser_SetInPanic(void)
+{
+   mxInPanic = TRUE;
+}
+
+
+/*
+ *---------------------------------------------------------------------
+ * 
+ *  MXUser_InPanic --
+ *	Is the caller in the midst of a panic?
+ *
+ *      This is the "out of the monitor" - userland - implementation. The "in
+ *      the monitor" implementation lives in mutex.c.
+ *
+ *  Results:
+ *     TRUE   Yes
+ *     FALSE  No
+ *
+ *  Side effects:
+ *     None
+ *
+ *---------------------------------------------------------------------
+ */
+
+Bool
+MXUser_InPanic(void)
+{
+   return mxInPanic;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserInstallMxHooks --
+ *
+ *      The MX facility may notify the MXUser facility that it is place and
+ *      that MXUser should check with it. This function should be called from
+ *      MX_Init.
+ *
+ * Results:
+ *      As Above.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserInstallMxHooks(void (*theLockListFunc)(void),
+                     MX_Rank (*theRankFunc)(void),
+                     void (*theLockFunc)(struct MX_MutexRec *lock),
+                     void (*theUnlockFunc)(struct MX_MutexRec *lock),
+                     Bool (*theTryLockFunc)(struct MX_MutexRec *lock),
+                     Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock))
+{
+   /*
+    * This function can be called more than once but the second and later
+    * invocations must be attempting to install the same hook functions as
+    * the first invocation.
+    */
+
+   if ((MXUserMxLockLister == NULL) &&
+       (MXUserMxCheckRank == NULL) &&
+       (MXUserMX_LockRec == NULL) &&
+       (MXUserMX_UnlockRec == NULL) &&
+       (MXUserMX_TryLockRec == NULL) &&
+       (MXUserMX_IsLockedByCurThreadRec == NULL)) {
+      MXUserMxLockLister = theLockListFunc;
+      MXUserMxCheckRank = theRankFunc;
+      MXUserMX_LockRec = theLockFunc;
+      MXUserMX_UnlockRec = theUnlockFunc;
+      MXUserMX_TryLockRec = theTryLockFunc;
+      MXUserMX_IsLockedByCurThreadRec = theIsLockedFunc;
+   } else {
+      ASSERT((MXUserMxLockLister == theLockListFunc) &&
+             (MXUserMxCheckRank == theRankFunc) &&
+             (MXUserMX_LockRec == theLockFunc) &&
+             (MXUserMX_UnlockRec == theUnlockFunc) &&
+             (MXUserMX_TryLockRec == theTryLockFunc) &&
+             (MXUserMX_IsLockedByCurThreadRec == theIsLockedFunc)
+            );
+   }
+}
+
 #if defined(MXUSER_DEBUG)
 #define MXUSER_MAX_LOCKS_PER_THREAD (2 * MXUSER_MAX_REC_DEPTH)
 
@@ -676,146 +819,3 @@ MXUserValidateHeader(MXUserHeader *header,         // IN:
    }
 }
 #endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUserDumpAndPanic --
- *
- *      Dump a lock, print a message and die
- *
- * Results:
- *      A panic.
- *
- * Side effects:
- *      Manifold.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-MXUserDumpAndPanic(MXUserHeader *header,  // IN:
-                   const char *fmt,       // IN:
-                   ...)                   // IN:
-{
-   char *msg;
-   va_list ap;
-
-   ASSERT((header != NULL) && (header->dumpFunc != NULL));
-
-   (*header->dumpFunc)(header);
-
-   va_start(ap, fmt);
-   msg = Str_SafeVasprintf(NULL, fmt, ap);
-   va_end(ap);
-
-   Panic("%s", msg);
-}
-
-
-/*
- *---------------------------------------------------------------------
- * 
- *  MXUser_SetInPanic --
- *	Notify the locking system that a panic is occurring.
- *
- *      This is the "out of the monitor" - userland - implementation. The "in
- *      the monitor" implementation lives in mutex.c.
- *
- *  Results:
- *     Set the internal "in a panic" global variable.
- *
- *  Side effects:
- *     None
- *
- *---------------------------------------------------------------------
- */
-
-void
-MXUser_SetInPanic(void)
-{
-   mxInPanic = TRUE;
-}
-
-
-/*
- *---------------------------------------------------------------------
- * 
- *  MXUser_InPanic --
- *	Is the caller in the midst of a panic?
- *
- *      This is the "out of the monitor" - userland - implementation. The "in
- *      the monitor" implementation lives in mutex.c.
- *
- *  Results:
- *     TRUE   Yes
- *     FALSE  No
- *
- *  Side effects:
- *     None
- *
- *---------------------------------------------------------------------
- */
-
-Bool
-MXUser_InPanic(void)
-{
-   return mxInPanic;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUserInstallMxHooks --
- *
- *      The MX facility may notify the MXUser facility that it is place and
- *      that MXUser should check with it. This function should be called from
- *      MX_Init.
- *
- * Results:
- *      As Above.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-MXUserInstallMxHooks(void (*theLockListFunc)(void),
-                     MX_Rank (*theRankFunc)(void),
-                     void (*theLockFunc)(struct MX_MutexRec *lock),
-                     void (*theUnlockFunc)(struct MX_MutexRec *lock),
-                     Bool (*theTryLockFunc)(struct MX_MutexRec *lock),
-                     Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock))
-{
-   /*
-    * This function can be called more than once but the second and later
-    * invocations must be attempting to install the same hook functions as
-    * the first invocation.
-    */
-
-   if ((MXUserMxLockLister == NULL) &&
-       (MXUserMxCheckRank == NULL) &&
-       (MXUserMX_LockRec == NULL) &&
-       (MXUserMX_UnlockRec == NULL) &&
-       (MXUserMX_TryLockRec == NULL) &&
-       (MXUserMX_IsLockedByCurThreadRec == NULL)) {
-      MXUserMxLockLister = theLockListFunc;
-      MXUserMxCheckRank = theRankFunc;
-      MXUserMX_LockRec = theLockFunc;
-      MXUserMX_UnlockRec = theUnlockFunc;
-      MXUserMX_TryLockRec = theTryLockFunc;
-      MXUserMX_IsLockedByCurThreadRec = theIsLockedFunc;
-   } else {
-      ASSERT((MXUserMxLockLister == theLockListFunc) &&
-             (MXUserMxCheckRank == theRankFunc) &&
-             (MXUserMX_LockRec == theLockFunc) &&
-             (MXUserMX_UnlockRec == theUnlockFunc) &&
-             (MXUserMX_TryLockRec == theTryLockFunc) &&
-             (MXUserMX_IsLockedByCurThreadRec == theIsLockedFunc)
-            );
-   }
-}
