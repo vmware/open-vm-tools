@@ -179,6 +179,10 @@ typedef struct {
 
 static Atomic_Ptr hashTableMem;
 
+#if defined(_WIN32) && !defined(VMX86_VMX)
+static Atomic_Ptr hashLockMem;
+#endif
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -208,8 +212,18 @@ MXUserGetPerThread(void *tid,      // IN: thread ID
    HashTable *hash;
    MXUserPerThread *perThread = NULL;
 
+#if defined(_WIN32) && !defined(VMX86_VMX)
+   MXRecLock *hashLock = MXUserInternalSingleton(&hashLockMem);
+
+   ASSERT(hashLock);
+
+   hash = HashTable_AllocOnce(&hashTableMem, 1024, HASH_INT_KEY, NULL);
+
+   MXRecLockAcquire(hashLock);
+#else
    hash = HashTable_AllocOnce(&hashTableMem, 1024,
                               HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL);
+#endif
 
    if (!HashTable_Lookup(hash, tid, (void **) &perThread)) {
       /* No entry for this tid was found, allocate one? */
@@ -234,6 +248,10 @@ MXUserGetPerThread(void *tid,      // IN: thread ID
          perThread = NULL;
       }
    }
+
+#if defined(_WIN32) && !defined(VMX86_VMX)
+   MXRecLockRelease(hashLock);
+#endif
 
    return perThread;
 }
@@ -516,6 +534,34 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 
    perThread->lockArray[lastEntry] = NULL;  // tidy up memory
    perThread->locksHeld--;
+
+#if defined(_WIN32) && !defined(VMX86_VMX)
+   /*
+    * On Windows thread IDs aren't greedily recycled. If a process creates and
+    * destroys many threads this can cause a memory leak of perThread data
+    * (and its overhead). We avoid this by atomically (via a lock) creating
+    * (upon first lock acquired) and deleting (upon last lock release) a
+    * perThread.
+    *
+    * Yes, this is a performance cost but it only affects Windows debug
+    * builds and then not by very much - we tend to run for a long time
+    * with either no locks held or at least one lock held.
+    */
+
+   if (perThread->locksHeld == 0) {
+      HashTable *hash = Atomic_ReadPtr(&hashTableMem);
+      MXRecLock *hashLock = MXUserInternalSingleton(&hashLockMem);
+
+      ASSERT(hash);
+      ASSERT(hashLock);
+
+      MXRecLockAcquire(hashLock);
+      HashTable_Delete(hash, tid);
+      MXRecLockRelease(hashLock);
+
+      free(perThread);
+   }
+#endif
 }
 
 
