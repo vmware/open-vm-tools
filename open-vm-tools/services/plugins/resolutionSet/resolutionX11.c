@@ -148,9 +148,12 @@ ResolutionSetResolution(uint32 width,
                         uint32 height)
 {
    ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+   Bool ret;
+
    ASSERT(resolutionInfo.canSetResolution);
 
-   if (resInfoX->canUseVMwareCtrl && !resInfoX->canUseRandR12) {
+   XGrabServer(resInfoX->display);
+   if (resInfoX->canUseVMwareCtrl) {
       /*
        * If so, use the VMWARE_CTRL extension to provide a custom resolution
        * which we'll find as an exact match from XRRConfigSizes() (unless
@@ -158,12 +161,24 @@ ResolutionSetResolution(uint32 width,
        *
        * As such, we don't care if this succeeds or fails, we'll make a best
        * effort attempt to change resolution anyway.
+       *
+       * On vmwgfx, this is routed through the X server down to the
+       * kernel modesetting system to provide a preferred mode with
+       * correcte width and height.
        */
       VMwareCtrl_SetRes(resInfoX->display, DefaultScreen(resInfoX->display),
 			width, height);
    }
 
-   return SelectResolution(width, height);
+   /*
+    * Use legacy RandR (vmwlegacy) or RandR12 (vmwgfx) to select the
+    * desired mode.
+    */
+   ret = SelectResolution(width, height);
+   XUngrabServer(resInfoX->display);
+   XFlush(resInfoX->display);
+
+   return ret;
 }
 
 
@@ -239,19 +254,46 @@ ResolutionSetTopology(unsigned int ndisplays,
       displays[i].y_org -= minY;
    }
 
+   /*
+    * Grab server to avoid potential races between setting GUI topology
+    * and setting FB topology.
+    */
+   XGrabServer(resInfoX->display);
+
+   /*
+    * First, call vmwarectrl to update the connection info
+    * and resolution capabilities of connected monitors,
+    * according to the host GUI layout on vmwgfx. On vmwlegacy this
+    * sets the driver's exported Xinerama topology.
+    *
+    * For vmwgfx, this might be replaced with a direct kernel driver call
+    * in upcoming versions.
+    */
+   if (resInfoX->canUseVMwareCtrlTopologySet) {
+      if (!VMwareCtrl_SetTopology(resInfoX->display,
+				  DefaultScreen(resInfoX->display),
+                                  displays, ndisplays)) {
+         g_debug("Failed to set topology in the driver.\n");
+         goto out;
+      }
+   }
+
    if (resInfoX->canUseRandR12) {
+       /*
+	* For vmwgfx, use RandR12 to set the FB layout to a 1:1 mapping
+	* of the host GUI layout.
+	*/
       success = RandR12_SetTopology(resInfoX->display,
                                     DefaultScreen(resInfoX->display),
                                     resInfoX->rootWindow,
                                     ndisplays, displays,
                                     maxX - minX, maxY - minY);
    } else if (resInfoX->canUseVMwareCtrlTopologySet) {
-      if (!VMwareCtrl_SetTopology(resInfoX->display, DefaultScreen(resInfoX->display),
-                                  displays, ndisplays)) {
-         g_debug("Failed to set topology in the driver.\n");
-         goto out;
-      }
-
+      /*
+       * For vmwlegacy, use legacy RandR to set the backing framebuffer
+       * size. We don't do this unless we were able to set a new
+       * topology using vmwarectrl.
+       */
       if (!SelectResolution(maxX - minX, maxY - minY)) {
          g_debug("Failed to set new resolution.\n");
          goto out;
@@ -261,6 +303,9 @@ ResolutionSetTopology(unsigned int ndisplays,
    }
 
 out:
+   XUngrabServer(resInfoX->display);
+   XFlush(resInfoX->display);
+
    free(displays);
    return success;
 #endif
@@ -459,7 +504,8 @@ TopologyCanSet(void)
       resInfoX->canUseVMwareCtrlTopologySet = FALSE;
    }
 
-   return resInfoX->canUseVMwareCtrlTopologySet || resInfoX->canUseRandR12;
+   return resInfoX->canUseVMwareCtrlTopologySet ||
+      (resInfoX->canUseRandR12 && resInfoX->canUseVMwareCtrl);
 #endif
 }
 

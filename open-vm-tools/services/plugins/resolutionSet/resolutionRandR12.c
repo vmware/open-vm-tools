@@ -997,7 +997,6 @@ RandR12_SetTopology(Display *dpy,           // IN/OUT: The display connection
       return FALSE;
    }
 
-   XGrabServer(dpy);
    info = RandR12GetInfo(dpy, rootWin);
    if (!info) {
       g_warning("%s: Setup info struct failed.\n", __func__);
@@ -1047,7 +1046,6 @@ RandR12_SetTopology(Display *dpy,           // IN/OUT: The display connection
    RandR12DeleteModes(dpy, info);
 
    XSync(dpy, FALSE);
-   XUngrabServer(dpy);
    RandR12FreeInfo(info);
 
    LOG_STOP;
