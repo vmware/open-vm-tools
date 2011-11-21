@@ -30,6 +30,7 @@
 #  include <process.h>
 #  include <windows.h>
 #else
+#  include <fcntl.h>
 #  include <unistd.h>
 #endif
 
@@ -45,6 +46,56 @@ typedef struct FileLogger {
    gboolean       error;
    GStaticMutex   lock;
 } FileLogger;
+
+
+#if !defined(_WIN32)
+/*
+ *******************************************************************************
+ * FileLoggerIsValid --                                                   */ /**
+ *
+ * Checks that the file descriptor backing this logger is still valid.
+ *
+ * This is a racy workaround for an issue with glib code; or, rather, two
+ * issues. The first issue is that we can't intercept G_LOG_FLAG_RECURSION,
+ * and glib just aborts when that happens (see gnome bug 618956). The second
+ * is that if a GIOChannel channel write fails, that calls
+ * g_io_channel_error_from_errno, which helpfully logs stuff, causing recursion.
+ * Don't get me started on why that's, well, at least questionable.
+ *
+ * This is racy because between the check and the actual GIOChannel operation,
+ * the state of the FD may have changed. In reality, since the bug this is
+ * fixing happens in very special situations where code outside this file is
+ * doing weird things like closing random fds, it should be OK.
+ *
+ * We may still get other write errors from the GIOChannel than EBADF, but
+ * those would be harder to work around. Hopefully this handles the most usual
+ * cases.
+ *
+ * See bug 783999 for some details about what triggers the bug.
+ *
+ * @param[in] logger The logger instance.
+ *
+ * @return TRUE if the I/O channel is still valid.
+ *
+ *******************************************************************************
+ */
+
+static gboolean
+FileLoggerIsValid(FileLogger *logger)
+{
+   if (logger->file != NULL) {
+      int fd = g_io_channel_unix_get_fd(logger->file);
+      return fcntl(fd, F_GETFD) >= 0;
+   }
+
+   return FALSE;
+}
+
+#else
+
+#define FileLoggerIsValid(logger) TRUE
+
+#endif
 
 
 /*
@@ -266,6 +317,11 @@ FileLoggerLog(const gchar *domain,
          logger->error = TRUE;
          goto exit;
       }
+   }
+
+   if (!FileLoggerIsValid(logger)) {
+      logger->error = TRUE;
+      goto exit;
    }
 
    /* Write the log file and do log rotation accounting. */
