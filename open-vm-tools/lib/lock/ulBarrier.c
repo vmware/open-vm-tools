@@ -204,7 +204,7 @@ MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
       MXUser_DestroyCondVar(barrier->contexts[1].condVar);
       MXUser_DestroyExclLock(barrier->lock);
 
-      barrier->header.signature = 0;  // just in case...
+      MXUserClearSignature(&barrier->header.signature);  // just in case...
       free(barrier->header.name);
       barrier->header.name = NULL;
       free(barrier);

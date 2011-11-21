@@ -1009,7 +1009,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
 
    lock = Util_SafeCalloc(1, sizeof(*lock));
 
-   lock->header.signature = MXUSER_REC_SIGNATURE;
+   MXUserSetSignature(&lock->header.signature, MXUSER_REC_SIGNATURE);
    lock->header.name = Str_SafeAsprintf(NULL, "MX_%p", mutex);
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();
