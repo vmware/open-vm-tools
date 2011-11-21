@@ -122,12 +122,10 @@ MXUserGetPerThread(void *tid,      // IN: thread ID
                    Bool mayAlloc)  // IN: alloc perThread if not present?
 {
    HashTable *hash;
-   MXUserPerThread *perThread;
+   MXUserPerThread *perThread = NULL;
 
    hash = HashTable_AllocOnce(&hashTableMem, 1024,
                               HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL);
-
-   perThread = NULL;
 
    if (!HashTable_Lookup(hash, tid, (void **) &perThread)) {
       /* No entry for this tid was found, allocate one? */
@@ -291,9 +289,7 @@ MX_Rank
 MXUserCurrentRank(void)
 {
    MX_Rank maxRank;
-   MXUserPerThread *perThread; 
-
-   perThread = MXUserGetPerThread(MXUserGetThreadID(), FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(), FALSE);
 
    if (perThread == NULL) {
       maxRank = RANK_UNRANKED;
