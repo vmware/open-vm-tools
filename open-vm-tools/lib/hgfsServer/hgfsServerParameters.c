@@ -267,7 +267,7 @@ HgfsGetPayloadSize(char const *packetIn,        // IN: request packet
 
 Bool
 HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
-                 HgfsSessionInfo *session,   // IN: current session
+                 HgfsTransportSessionInfo *transportSession,   // IN: current session
                  HgfsInputParam **input,     // OUT: request parameters
                  HgfsInternalStatus *status) // OUT: error code
 {
@@ -275,9 +275,12 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
    size_t packetSize;
    HgfsInternalStatus result = HGFS_ERROR_SUCCESS;
    HgfsInputParam *localInput;
+   HgfsSessionInfo *session = NULL;
 
-   request = (HgfsRequest *) HSPU_GetMetaPacket(packet, &packetSize, session);
+   request = (HgfsRequest *) HSPU_GetMetaPacket(packet, &packetSize, transportSession);
    ASSERT_DEVEL(request);
+
+   LOG(4, ("%s: Recieved a request with opcode %d.\n", __FUNCTION__, (int) request->op));
 
    if (!request) {
       /*
@@ -293,8 +296,9 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
    memset(localInput, 0, sizeof *localInput);
    localInput->metaPacket = (char *)request;
    localInput->metaPacketSize = packetSize;
-   localInput->session = session;
+   localInput->transportSession = transportSession;
    localInput->packet = packet;
+   localInput->session = NULL;
 
    /*
     * Error out if less than HgfsRequest size.
@@ -329,15 +333,18 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
       localInput->id = header->requestId;
 
       if (packetSize >= offsetof(HgfsHeader, sessionId) + sizeof header->sessionId) {
-         if (header->sessionId != session->sessionId &&
-            header->op != HGFS_OP_CREATE_SESSION_V4) {
+         if (header->op != HGFS_OP_CREATE_SESSION_V4) {
+            session = HgfsServerTransportGetSessionInfo(transportSession,
+                                                        header->sessionId);
+            if (!session || session->state != HGFS_SESSION_STATE_OPEN) {
                LOG(4, ("%s: HGFS packet with invalid session id!\n", __FUNCTION__));
                result = HGFS_ERROR_STALE_SESSION;
+            }
          } else if (packetSize < header->packetSize ||
             header->packetSize < header->headerSize) {
-               LOG(4, ("%s: Malformed HGFS packet received - inconsistent header"
-                  " and packet sizes!\n", __FUNCTION__));
-               result = HGFS_ERROR_PROTOCOL;
+            LOG(4, ("%s: Malformed HGFS packet received - inconsistent header"
+               " and packet sizes!\n", __FUNCTION__));
+            result = HGFS_ERROR_PROTOCOL;
          }
       } else {
          LOG(4, ("%s: Malformed HGFS packet received - header is too small!\n",
@@ -359,6 +366,13 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
       LOG(4, ("%s: Malformed HGFS packet received!\n", __FUNCTION__));
    }
 
+   if (!session) {
+      session = HgfsServerTransportGetSessionInfo(transportSession,
+                                                  transportSession->defaultSessionId);
+   }
+   ASSERT(session);
+
+   localInput->session = session;
    localInput->payloadOffset = (char *)localInput->payload -
                                (char *)localInput->metaPacket;
    *status = result;
@@ -4321,7 +4335,7 @@ HgfsUnpackWriteRequest(HgfsInputParam *input,   // IN: Input params
          if (result) {
             *data = HSPU_GetDataPacketBuf(input->packet,
                                           BUF_READABLE,
-                                          input->session);
+                                          input->transportSession);
             if (NULL == *data) {
                LOG(4, ("%s: Failed to get data in guest memory\n", __FUNCTION__));
                result = FALSE;

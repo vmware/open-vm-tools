@@ -222,6 +222,11 @@ typedef struct HgfsSharedFolderProperties {
    Bool markedForDeletion;
 } HgfsSharedFolderProperties;
 
+static void HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSession,
+                                                     HgfsSessionInfo *sessionInfo);
+
+static void HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,
+                                                HgfsSessionInfo *sessionInfo);
 /*
  *    Limit payload to 16M + header.
  *    This limit ensures that list of shared pages fits into VMCI datagram.
@@ -231,6 +236,9 @@ typedef struct HgfsSharedFolderProperties {
 
 /* Local functions. */
 
+static Bool HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
+                                      uint32 channelCapabilities,
+                                      HgfsSessionInfo **sessionData);
 static void HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,
                                          HgfsSessionInfo *session);
 static Bool HgfsAddToCacheInternal(HgfsHandle handle,
@@ -361,8 +369,71 @@ static void
 HgfsServerSessionPut(HgfsSessionInfo *session)   // IN: session context
 {
    ASSERT(session);
+
    if (Atomic_FetchAndDec(&session->refCount) == 1) {
       HgfsServerExitSessionInternal(session);
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportSessionGet --
+ *
+ *      Increment transport session reference count.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+HgfsServerTransportSessionGet(HgfsTransportSessionInfo *transportSession)   // IN: session context
+{
+   ASSERT(transportSession);
+   Atomic_Inc(&transportSession->refCount);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportSessionPut --
+ *
+ *      Decrement transport session reference count.
+ *
+ *      Free session info data if no reference.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerTransportSessionPut(HgfsTransportSessionInfo *transportSession)   // IN: transport session context
+{
+   ASSERT(transportSession);
+   if (Atomic_FetchAndDec(&transportSession->refCount) == 1) {
+      DblLnkLst_Links *curr, *next;
+
+      MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+
+      DblLnkLst_ForEachSafe(curr, next,  &transportSession->sessionArray) {
+         HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+         HgfsServerTransportRemoveSessionFromList(transportSession, session);
+         HgfsServerSessionPut(session);
+      }
+
+      MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
    }
 }
 
@@ -2861,7 +2932,7 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       replySize = sizeof *header + replyPayloadSize;
       replyPacketSize = replySize;
       header = HSPU_GetReplyPacket(input->packet, &replyPacketSize,
-                                   input->session);
+                                   input->transportSession);
       packetOut = (char *)header;
 
       ASSERT_DEVEL(header && (replySize <= replyPacketSize));
@@ -2882,7 +2953,7 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       }
       replyPacketSize = replySize;
       reply = HSPU_GetReplyPacket(input->packet, &replyPacketSize,
-                                  input->session);
+                                  input->transportSession);
       packetOut = (char *)reply;
 
       ASSERT_DEVEL(reply && (replySize <= replyPacketSize));
@@ -2892,12 +2963,13 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       }
    }
    if (!HgfsPacketSend(input->packet, packetOut, replySize,
-                       input->session, 0)) {
+                       input->transportSession, 0)) {
       /* Send failed. Drop the reply. */
       LOG(4, ("Error sending reply\n"));
    }
 
    HgfsServerSessionPut(input->session);
+   HgfsServerTransportSessionPut(input->transportSession);
    free(input);
 }
 
@@ -2925,7 +2997,7 @@ HgfsServerProcessRequest(void *context)
    if (!input->metaPacket) {
       input->metaPacket = HSPU_GetMetaPacket(input->packet,
                                              &input->metaPacketSize,
-                                             input->session);
+                                             input->transportSession);
    }
 
    input->payload = (char *)input->metaPacket + input->payloadOffset;
@@ -2968,24 +3040,24 @@ static void
 HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
                          void *clientData)        // IN: session info
 {
-   HgfsSessionInfo *session = (HgfsSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession = (HgfsTransportSessionInfo *)clientData;
    HgfsInternalStatus status;
    HgfsInputParam *input = NULL;
 
-   ASSERT(session);
+   ASSERT(transportSession);
 
-   if (session->state == HGFS_SESSION_STATE_CLOSED) {
+   if (transportSession->state == HGFS_SESSION_STATE_CLOSED) {
       LOG(4, ("%s: %d: Received packet after disconnected.\n", __FUNCTION__,
               __LINE__));
       return;
    }
 
-   HgfsServerSessionGet(session);
+   HgfsServerTransportSessionGet(transportSession);
 
-   if (!HgfsParseRequest(packet, session, &input, &status)) {
+   if (!HgfsParseRequest(packet, transportSession, &input, &status)) {
       LOG(4, ("%s: %d: Can't generate any response for the guest, just exit.\n ",
               __FUNCTION__, __LINE__));
-      HgfsServerSessionPut(session);
+      HgfsServerTransportSessionPut(transportSession);
       return;
    }
 
@@ -3008,7 +3080,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
              * Asynchronous processing is supported by the transport.
              * We can release mappings here and reacquire when needed.
              */
-            HSPU_PutMetaPacket(packet, session);
+            HSPU_PutMetaPacket(packet, transportSession);
             input->metaPacket = NULL;
             Atomic_Inc(&gHgfsAsyncCounter);
 
@@ -3045,6 +3117,111 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
       LOG(4, ("Error %d occured parsing the packet\n", (uint32)status));
       HgfsServerCompleteRequest(status, 0, input);
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportGetSessionInfo --
+ *
+ *   Scans the list of sessions and return the session with the specified
+ *   session id.
+ *
+ * Results:
+ *    A valid pointer to HgfsSessionInfo if there is a session with the
+ *    specified session id. NULL, otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+HgfsSessionInfo *
+HgfsServerTransportGetSessionInfo(HgfsTransportSessionInfo *transportSession,       // IN: transport session info
+                                  uint64 sessionId)                                 // IN: session id
+{
+   DblLnkLst_Links *curr;
+   HgfsSessionInfo *session = NULL;
+
+   ASSERT(transportSession);
+
+   MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+
+   DblLnkLst_ForEach(curr, &transportSession->sessionArray) {
+      session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+      if (session->sessionId == sessionId) {
+         HgfsServerSessionGet(session);
+         break;
+      }
+      session = NULL;
+   }
+
+   MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+
+   return session;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportRemoveSessionFromList --
+ *
+ *   Unlinks the specified session info from the list.
+ *
+ *   Note: The caller must acquire the sessionArrayLock in transportSession
+ *   before calling this function.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSession,   // IN: transport session info
+                                         HgfsSessionInfo *session)                     // IN: session info
+{
+   ASSERT(transportSession);
+   ASSERT(session);
+
+   DblLnkLst_Unlink1(&session->links);
+   HgfsServerSessionPut(session);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportAddSessionToList --
+ *
+ *   Links the specified session info to the list.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,       // IN: transport session info
+                                    HgfsSessionInfo *session)                         // IN: session info
+{
+   ASSERT(transportSession);
+   ASSERT(session);
+
+   MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+   DblLnkLst_LinkLast(&transportSession->sessionArray, &session->links);
+   HgfsServerSessionGet(session);
+   MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
 }
 
 
@@ -3508,6 +3685,79 @@ HgfsServerEnumerateSharedFolders(void)
  *
  *    Initialize a new client session.
  *
+ *    Allocate HgfsTransportSessionInfo and initialize it.
+ *
+ * Results:
+ *    TRUE on success, FALSE otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsServerSessionConnect(void *transportData,                         // IN: transport session context
+                         HgfsServerChannelCallbacks *channelCbTable,  // IN: Channel callbacks
+                         uint32 channelCapabilities,                  // IN: channel capabilities
+                         void **transportSessionData)                 // OUT: server session context
+{
+   HgfsTransportSessionInfo *transportSession;
+   HgfsSessionInfo *defaultSession;
+
+   ASSERT(transportSessionData);
+
+   LOG(4, ("%s: initting.\n", __FUNCTION__));
+
+   transportSession = Util_SafeCalloc(1, sizeof *transportSession);
+   transportSession->transportData = transportData;
+   transportSession->channelCbTable = channelCbTable;
+   transportSession->maxPacketSize = MAX_SERVER_PACKET_SIZE_V4;
+   transportSession->type = HGFS_SESSION_TYPE_REGULAR;
+   transportSession->state = HGFS_SESSION_STATE_OPEN;
+   transportSession->channelCapabilities = channelCapabilities;
+
+   transportSession->sessionArrayLock =
+         MXUser_CreateExclLock("HgfsSessionArrayLock",
+                               RANK_hgfsSessionArrayLock);
+   if (transportSession->sessionArrayLock == NULL) {
+      LOG(4, ("%s: Could not create session sync mutex.\n", __FUNCTION__));
+      free(transportSession);
+      return FALSE;
+   }
+
+   DblLnkLst_Init(&transportSession->sessionArray);
+
+   if (!HgfsServerAllocateSession(transportSession,
+                                  channelCapabilities,
+                                  &defaultSession)) {
+      MXUser_DestroyExclLock(transportSession->sessionArrayLock);
+      free(transportSession);
+      return FALSE;
+   }
+
+   defaultSession->type = HGFS_SESSION_TYPE_INTERNAL;
+   HgfsServerTransportAddSessionToList(transportSession, defaultSession);
+
+   transportSession->defaultSessionId = defaultSession->sessionId;
+
+   Atomic_Write(&transportSession->refCount, 0);
+
+   /* Give our session a reference to hold while we are open. */
+   HgfsServerTransportSessionGet(transportSession);
+
+   *transportSessionData = transportSession;
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAllocateSession --
+ *
+ *    Initialize a new Hgfs session.
+ *
  *    Allocate HgfsSessionInfo and initialize it. Create the nodeArray and
  *    searchArray for the session.
  *
@@ -3521,17 +3771,16 @@ HgfsServerEnumerateSharedFolders(void)
  */
 
 static Bool
-HgfsServerSessionConnect(void *transportData,                         // IN: transport session context
-                         HgfsServerChannelCallbacks *channelCbTable,  // IN: Channel callbacks
-                         uint32 channelCapabililies,                  // IN: channel capabilities
-                         void **sessionData)                          // OUT: server session context
+HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
+                          uint32 channelCapabilities,                 // IN:
+                          HgfsSessionInfo **sessionData)              // OUT:
 {
    int i;
-   HgfsSessionInfo *session = Util_SafeMalloc(sizeof *session);
+   HgfsSessionInfo *session;
 
-   ASSERT(sessionData);
+   ASSERT(transportSession);
 
-   LOG(4, ("%s: initting.\n", __FUNCTION__));
+   session = Util_SafeCalloc(1, sizeof *session);
 
    /*
     * Initialize all our locks first as these can fail.
@@ -3540,9 +3789,8 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
    session->fileIOLock = MXUser_CreateExclLock("HgfsFileIOLock",
                                                RANK_hgfsFileIOLock);
    if (session->fileIOLock == NULL) {
-      free(session);
       LOG(4, ("%s: Could not create node array sync mutex.\n", __FUNCTION__));
-
+      free(session);
       return FALSE;
    }
 
@@ -3550,9 +3798,8 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
                                                   RANK_hgfsNodeArrayLock);
    if (session->nodeArrayLock == NULL) {
       MXUser_DestroyExclLock(session->fileIOLock);
-      free(session);
       LOG(4, ("%s: Could not create node array sync mutex.\n", __FUNCTION__));
-
+      free(session);
       return FALSE;
    }
 
@@ -3561,16 +3808,20 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
    if (session->searchArrayLock == NULL) {
       MXUser_DestroyExclLock(session->fileIOLock);
       MXUser_DestroyExclLock(session->nodeArrayLock);
-      free(session);
       LOG(4, ("%s: Could not create search array sync mutex.\n",
               __FUNCTION__));
-
+      free(session);
       return FALSE;
    }
 
    session->sessionId = HgfsGenerateSessionId();
+   session->type = HGFS_SESSION_TYPE_REGULAR;
+   session->state = HGFS_SESSION_STATE_OPEN;
+   DblLnkLst_Init(&session->links);
    session->maxPacketSize = MAX_SERVER_PACKET_SIZE_V4;
    session->activeNotification = FALSE;
+   session->transportSession = transportSession;
+
    /*
     * Initialize the node handling components.
     */
@@ -3598,6 +3849,11 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
    /* Initialize search freelist. */
    DblLnkLst_Init(&session->searchFreeList);
 
+   Atomic_Write(&session->refCount, 0);
+
+   /* Give our session a reference to hold while we are open. */
+   HgfsServerSessionGet(session);
+
    /* Allocate array of searches and add them to free list. */
    session->numSearches = NUM_SEARCHES;
    session->searchArray = Util_SafeCalloc(session->numSearches,
@@ -3610,25 +3866,11 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
                          &session->searchArray[i].links);
    }
 
-   /*
-    * Initialize the general session stuff.
-    */
-
-   session->type = HGFS_SESSION_TYPE_REGULAR;
-   session->state = HGFS_SESSION_STATE_OPEN;
-   session->transportData = transportData;
-   session->channelCbTable = channelCbTable;
-   Atomic_Write(&session->refCount, 0);
-
    /* Get common to all sessions capabiities. */
    HgfsServerGetDefaultCapabilities(session->hgfsSessionCapabilities,
                                     &session->numberOfCapabilities);
 
-   /* Give our session a reference to hold while we are open. */
-   HgfsServerSessionGet(session);
-   *sessionData = session;
-
-   if (channelCapabililies & HGFS_CHANNEL_SHARED_MEM) {
+   if (channelCapabilities & HGFS_CHANNEL_SHARED_MEM) {
       HgfsServerSetSessionCapability(HGFS_OP_READ_FAST_V4,
                                      HGFS_REQUEST_SUPPORTED, session);
       HgfsServerSetSessionCapability(HGFS_OP_WRITE_FAST_V4,
@@ -3651,7 +3893,42 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
                                      HGFS_REQUEST_SUPPORTED, session);
    }
 
+   *sessionData = session;
+
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsDisconnectSessionInt --
+ *
+ *    Disconnect a client session.
+ *
+ *    Mark the session as closed as we are in the process of teardown
+ *    of the session. No more new requests should be processed. We would
+ *    start draining any outstanding pending operations at this point.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsDisconnectSessionInt(HgfsSessionInfo *session)    // IN: session context
+{
+
+   ASSERT(session);
+   ASSERT(session->nodeArray);
+   ASSERT(session->searchArray);
+   if (session->activeNotification) {
+      HgfsNotify_CleanupSession(session);
+   }
 }
 
 
@@ -3678,16 +3955,22 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
 static void
 HgfsServerSessionDisconnect(void *clientData)    // IN: session context
 {
-   HgfsSessionInfo *session = (HgfsSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession = (HgfsTransportSessionInfo *)clientData;
+   DblLnkLst_Links *curr, *next;
 
-   ASSERT(session);
-   ASSERT(session->nodeArray);
-   ASSERT(session->searchArray);
-   if (session->activeNotification) {
-      HgfsNotify_CleanupSession(session);
+   ASSERT(transportSession);
+
+   MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+
+   DblLnkLst_ForEachSafe(curr, next, &transportSession->sessionArray) {
+      HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+
+      HgfsDisconnectSessionInt(session);
    }
 
-   session->state = HGFS_SESSION_STATE_CLOSED;
+   MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+
+   transportSession->state = HGFS_SESSION_STATE_CLOSED;
 }
 
 
@@ -3713,16 +3996,13 @@ HgfsServerSessionDisconnect(void *clientData)    // IN: session context
 static void
 HgfsServerSessionClose(void *clientData)    // IN: session context
 {
-   HgfsSessionInfo *session = (HgfsSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession = (HgfsTransportSessionInfo *)clientData;
 
-   ASSERT(session);
-   ASSERT(session->nodeArray);
-   ASSERT(session->searchArray);
-
-   ASSERT(session->state == HGFS_SESSION_STATE_CLOSED);
+   ASSERT(transportSession);
+   ASSERT(transportSession->state == HGFS_SESSION_STATE_CLOSED);
 
    /* Remove, typically, the last reference, will teardown everything. */
-   HgfsServerSessionPut(session);
+   HgfsServerTransportSessionPut(transportSession);
 }
 
 
@@ -3797,6 +4077,7 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
    MXUser_DestroyExclLock(session->nodeArrayLock);
    MXUser_DestroyExclLock(session->searchArrayLock);
    MXUser_DestroyExclLock(session->fileIOLock);
+
    free(session);
 }
 
@@ -3864,19 +4145,20 @@ HgfsServer_SetHandleCounter(uint32 newHandleCounter)
  * Side effects:
  *    Frees the packet buffer.
  *
- *----------------------------------------------------------------------------
+ *---------------------------------------------------------------------------
  */
 
 void
 HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
                               void *clientData)     // IN: session info
 {
-   HgfsSessionInfo *session = (HgfsSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession =
+         (HgfsTransportSessionInfo *)clientData;
 
    if (packet->guestInitiated) {
-      HSPU_PutMetaPacket(packet, session);
-      HSPU_PutReplyPacket(packet, session);
-      HSPU_PutDataPacketBuf(packet, session);
+      HSPU_PutMetaPacket(packet, transportSession);
+      HSPU_PutReplyPacket(packet, transportSession);
+      HSPU_PutDataPacketBuf(packet, transportSession);
    } else {
       free(packet->metaPacket);
       free(packet);
@@ -3981,19 +4263,19 @@ Bool
 HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
                char *packetOut,               // IN: output buffer
                size_t packetOutLen,           // IN: packet size
-               HgfsSessionInfo *session,      // IN: session info
+               HgfsTransportSessionInfo *transportSession,      // IN: session info
                HgfsSendFlags flags)           // IN: flags for how to process
 {
    Bool result = FALSE;
    Bool notificationNeeded = packet->guestInitiated && packet->processedAsync;
 
    ASSERT(packet);
-   ASSERT(session);
+   ASSERT(transportSession);
 
-   if (session->state == HGFS_SESSION_STATE_OPEN) {
+   if (transportSession->state == HGFS_SESSION_STATE_OPEN) {
       packet->replyPacketSize = packetOutLen;
-      ASSERT(session->type == HGFS_SESSION_TYPE_REGULAR);
-      result = session->channelCbTable->send(session->transportData,
+      ASSERT(transportSession->type == HGFS_SESSION_TYPE_REGULAR);
+      result = transportSession->channelCbTable->send(transportSession->transportData,
                                              packet, packetOut,
                                              packetOutLen, flags);
    }
@@ -4146,11 +4428,23 @@ HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,  // IN: List of new shares
 
 void
 HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
-                                    DblLnkLst_Links *shares)  // IN: List of new shares
+                                   DblLnkLst_Links *shares)  // IN: List of new shares
 {
-   HgfsSessionInfo *session = (HgfsSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession =
+         (HgfsTransportSessionInfo *)clientData;
+   DblLnkLst_Links *curr;
 
-   HgfsInvalidateSessionObjects(shares, session);
+   ASSERT(transportSession);
+   MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+
+   DblLnkLst_ForEach(curr, &transportSession->sessionArray) {
+      HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+      HgfsServerSessionGet(session);
+      HgfsInvalidateSessionObjects(shares, session);
+      HgfsServerSessionPut(session);
+   }
+
+   MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
 }
 
 
@@ -5206,7 +5500,7 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
       headerSize = sizeof(HgfsReply);
    }
    replyPacketSize = headerSize + payloadSize;
-   reply = HSPU_GetReplyPacket(packet, &replyPacketSize, session);
+   reply = HSPU_GetReplyPacket(packet, &replyPacketSize, session->transportSession);
 
    if (reply && (replyPacketSize >= headerSize + payloadSize)) {
       memset(reply, 0, headerSize + payloadSize);
@@ -5273,7 +5567,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
                   payload = &reply->payload[0];
                } else {
                   payload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
-                                                  input->session);
+                                                  input->transportSession);
                }
                if (payload) {
                   status = HgfsPlatformReadFile(file, input->session, offset,
@@ -7689,7 +7983,7 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
 
          if (inlineDataSize == 0) {
             info.replyPayload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
-                                                      input->session);
+                                                      input->transportSession);
          } else {
             info.replyPayload = (char *)info.reply + baseReplySize;
          }
@@ -7793,20 +8087,23 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
 
    if (HgfsUnpackCreateSessionRequest(input->payload, input->payloadSize,
                                       input->op, &info)) {
+      HgfsSessionInfo *session;
       LOG(4, ("%s: create session\n", __FUNCTION__));
+
+      if (!HgfsServerAllocateSession(input->transportSession,
+                                     input->transportSession->channelCapabilities,
+                                     &session)) {
+         status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+         goto abort;
+      } else {
+         HgfsServerTransportAddSessionToList(input->transportSession, session);
+      }
+
       if (info.maxPacketSize < input->session->maxPacketSize) {
          input->session->maxPacketSize = info.maxPacketSize;
       }
       if (HgfsPackCreateSessionReply(input->packet, input->metaPacket,
-                                     &replyPayloadSize, input->session)) {
-
-         /*
-          * XXX - TO BE RESTORED on session support implementation
-          * completion.
-          */
-#if defined HGFS_SESSION_SUPPORT
-         HgfsServerSessionGet(input->session);
-#endif
+                                     &replyPayloadSize, session)) {
          status = HGFS_ERROR_SUCCESS;
       } else {
          status = HGFS_ERROR_INTERNAL;
@@ -7815,6 +8112,7 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
       status = HGFS_ERROR_PROTOCOL;
    }
 
+abort:
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
 }
 
@@ -7838,16 +8136,41 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
 static void
 HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
 {
+   HgfsTransportSessionInfo *transportSession;
+   HgfsSessionInfo *session;
+
    HGFS_ASSERT_INPUT(input);
 
-   HgfsServerCompleteRequest(HGFS_ERROR_SUCCESS, 0, input);
+   transportSession = input->transportSession;
+   session = input->session;
+
+   if ((session->sessionId == transportSession->defaultSessionId) ||
+       (session->type != HGFS_SESSION_TYPE_REGULAR)) {
+
+      /*
+       * In each transport session, there will be a default session. This
+       * default session should be in opened state till the end of the
+       * transport session. If we receive a destroy session request for
+       * default session, then we are receiving the requests for a malformed
+       * client. Return an error.
+       */
+      HgfsServerCompleteRequest(HGFS_STATUS_PROTOCOL_ERROR, 0, input);
+      return;
+   }
+
+   session->state = HGFS_SESSION_STATE_CLOSED;
+
    /*
-    * XXX - TO BE RESTORED on session support implementation
-    * completion.
-      */
-#if defined HGFS_SESSION_SUPPORT
-   HgfsServerSessionPut(input->session);
-#endif
+    * Remove the session from the list. By doing that, the refcount of
+    * the session will be decremented. Later, we will be invoking
+    * HgfsServerCompleteRequest which will decrement the session's
+    * refcount and cleanup the session
+    */
+   MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+   HgfsServerTransportRemoveSessionFromList(transportSession, session);
+   MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+   HgfsServerCompleteRequest(HGFS_ERROR_SUCCESS, 0, input);
+   HgfsServerSessionPut(session);
 }
 
 
@@ -8000,7 +8323,7 @@ Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder, // IN: shared fol
 
       HgfsPackChangeNotificationRequest(packetHeader, subscriber, shareName, fileName, mask,
                                         flags, session, &sizeNeeded);
-      if (!HgfsPacketSend(packet, (char *)packetHeader,  sizeNeeded, session, 0)) {
+      if (!HgfsPacketSend(packet, (char *)packetHeader,  sizeNeeded, session->transportSession, 0)) {
          LOG(4, ("%s: failed to send notification to the host\n", __FUNCTION__));
       }
 

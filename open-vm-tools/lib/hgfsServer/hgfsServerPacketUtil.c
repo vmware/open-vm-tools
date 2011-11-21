@@ -53,9 +53,9 @@
 void *
 HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                     size_t *replyPacketSize,   // IN/OUT: Size of reply Packet
-                    HgfsSessionInfo *session)  // IN: Session Info
+                    HgfsTransportSessionInfo *transportSession)  // IN: Session Info
 {
-   ASSERT(session);
+   ASSERT(transportSession);
    if (packet->replyPacket) {
       /*
        * When we are transferring packets over backdoor, reply packet
@@ -64,7 +64,7 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       LOG(4, ("Exising reply packet %s %Zu %Zu\n", __FUNCTION__,
               *replyPacketSize, packet->replyPacketSize));
       ASSERT_DEVEL(*replyPacketSize <= packet->replyPacketSize);
-   } else if (session->channelCbTable && session->channelCbTable->getWriteVa) {
+   } else if (transportSession->channelCbTable && transportSession->channelCbTable->getWriteVa) {
      /* Can we write directly into guest memory ? */
       ASSERT_DEVEL(packet->metaPacket);
       if (packet->metaPacket) {
@@ -79,7 +79,7 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                                            packet->metaPacketSize,
                                            &packet->metaPacketIsAllocated,
                                            BUF_WRITEABLE,
-                                           session);
+                                           transportSession);
          /*
           * Really this can never happen, we would have caught bad physical address
           * during getMetaPacket.
@@ -117,7 +117,7 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 
 void
 HSPU_PutReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                    HgfsSessionInfo *session)  // IN: Session Info
+                    HgfsTransportSessionInfo *transportSession)  // IN: Session Info
 {
    if (packet->replyPacketIsAllocated) {
       LOG(10, ("%s Freeing reply packet", __FUNCTION__));
@@ -148,13 +148,13 @@ HSPU_PutReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 void *
 HSPU_GetMetaPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                    size_t *metaPacketSize,    // OUT: Size of metaPacket
-                   HgfsSessionInfo *session)  // IN: Session Info
+                   HgfsTransportSessionInfo *transportSession)  // IN: Session Info
 {
    *metaPacketSize = packet->metaPacketSize;
    return HSPU_GetBuf(packet, 0, &packet->metaPacket,
                       packet->metaPacketSize,
                       &packet->metaPacketIsAllocated,
-                      BUF_READWRITEABLE, session);
+                      BUF_READWRITEABLE, transportSession);
 }
 
 
@@ -176,7 +176,7 @@ HSPU_GetMetaPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 
 void *
 HSPU_GetDataPacketIov(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
-                      HgfsSessionInfo *session, // IN: Session Info
+                      HgfsTransportSessionInfo *transportSession, // IN: Session Info
                       HgfsVaIov iov)            // OUT: I/O vector
 {
    NOT_IMPLEMENTED();
@@ -204,12 +204,12 @@ HSPU_GetDataPacketIov(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
 void *
 HSPU_GetDataPacketBuf(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
                       MappingType mappingType,  // IN: Writeable/Readable
-                      HgfsSessionInfo *session) // IN: Session Info
+                      HgfsTransportSessionInfo *transportSession) // IN: Session Info
 {
    packet->dataMappingType = mappingType;
    return HSPU_GetBuf(packet, packet->dataPacketIovIndex,
                       &packet->dataPacket, packet->dataPacketSize,
-                      &packet->dataPacketIsAllocated, mappingType, session);
+                      &packet->dataPacketIsAllocated, mappingType, transportSession);
 }
 
 
@@ -236,7 +236,7 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
             size_t  bufSize,              // IN: Size of buffer
             Bool *isAllocated,            // OUT: Was buffer allocated ?
             MappingType mappingType,      // IN: Readable/Writeable ?
-            HgfsSessionInfo *session)     // IN: Session Info
+            HgfsTransportSessionInfo *transportSession)     // IN: Session Info
 {
    uint32 iovCount;
    uint32 iovMapped = 0;
@@ -251,16 +251,16 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
       return NULL;
    }
 
-   if (!session->channelCbTable) {
+   if (!transportSession->channelCbTable) {
       return NULL;
    }
 
    if (mappingType == BUF_WRITEABLE ||
        mappingType == BUF_READWRITEABLE) {
-      func = session->channelCbTable->getWriteVa;
+      func = transportSession->channelCbTable->getWriteVa;
    } else {
       ASSERT(mappingType == BUF_READABLE);
-      func = session->channelCbTable->getReadVa;
+      func = transportSession->channelCbTable->getReadVa;
    }
 
    /* Looks like we are in the middle of poweroff. */
@@ -329,7 +329,7 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
 
 freeMem:
    for (i = startIndex; i < iovCount; i++) {
-      session->channelCbTable->putVa(&packet->iov[i].token);
+      transportSession->channelCbTable->putVa(&packet->iov[i].token);
       packet->iov[i].va = NULL;
    }
 
@@ -355,13 +355,13 @@ freeMem:
 
 void
 HSPU_PutMetaPacket(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
-                   HgfsSessionInfo *session) // IN: Session Info
+                   HgfsTransportSessionInfo *transportSession) // IN: Session Info
 {
    LOG(4, ("%s Hgfs Putting Meta packet\n", __FUNCTION__));
    HSPU_PutBuf(packet, 0, &packet->metaPacket,
                &packet->metaPacketSize,
                &packet->metaPacketIsAllocated,
-               BUF_WRITEABLE, session);
+               BUF_WRITEABLE, transportSession);
 }
 
 
@@ -405,14 +405,14 @@ HSPU_PutDataPacketIov()
 
 void
 HSPU_PutDataPacketBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                      HgfsSessionInfo *session)  // IN: Session Info
+                      HgfsTransportSessionInfo *transportSession)  // IN: Session Info
 {
 
    LOG(4, ("%s Hgfs Putting Data packet\n", __FUNCTION__));
    HSPU_PutBuf(packet, packet->dataPacketIovIndex,
                &packet->dataPacket, &packet->dataPacketSize,
                &packet->dataPacketIsAllocated,
-               packet->dataMappingType, session);
+               packet->dataMappingType, transportSession);
 }
 
 
@@ -438,23 +438,23 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
             size_t *bufSize,           // IN: Size of the buffer
             Bool *isAllocated,         // IN: Was buffer allocated ?
             MappingType mappingType,   // IN: Readable / Writeable ?
-            HgfsSessionInfo *session)  // IN: Session info
+            HgfsTransportSessionInfo *transportSession)  // IN: Session info
 {
    uint32 iovCount = 0;
    int size = *bufSize;
    ASSERT(buf);
 
-   if (!session->channelCbTable) {
+   if (!transportSession->channelCbTable) {
       return;
    }
 
-   if (!session->channelCbTable->putVa || *buf == NULL) {
+   if (!transportSession->channelCbTable->putVa || *buf == NULL) {
       return;
    }
 
    if (*isAllocated) {
       if (mappingType == BUF_WRITEABLE) {
-         HSPU_CopyBufToIovec(packet, startIndex, *buf, *bufSize, session);
+         HSPU_CopyBufToIovec(packet, startIndex, *buf, *bufSize, transportSession);
       }
       LOG(10, ("%s: Hgfs Freeing buffer \n", __FUNCTION__));
       free(*buf);
@@ -464,7 +464,7 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
            iovCount < packet->iovCount && size > 0;
            iovCount++) {
          ASSERT_DEVEL(packet->iov[iovCount].token);
-         session->channelCbTable->putVa(&packet->iov[iovCount].token);
+         transportSession->channelCbTable->putVa(&packet->iov[iovCount].token);
          size -= packet->iov[iovCount].len;
       }
       LOG(10, ("%s: Hgfs bufSize = %d \n", __FUNCTION__, size));
@@ -493,9 +493,9 @@ void
 HSPU_CopyBufToMetaIovec(HgfsPacket *packet,      // IN/OUT: Hgfs packet
                         void *buf,               // IN: Buffer to copy from
                         size_t bufSize,          // IN: Size of buffer
-                        HgfsSessionInfo *session)// IN: Session Info
+                        HgfsTransportSessionInfo *transportSession)// IN: Session Info
 {
-   HSPU_CopyBufToIovec(packet, 0, buf, bufSize, session);
+   HSPU_CopyBufToIovec(packet, 0, buf, bufSize, transportSession);
 }
 
 
@@ -518,10 +518,10 @@ void
 HSPU_CopyBufToDataIovec(HgfsPacket *packet,   // IN: Hgfs packet
                         void *buf,            // IN: Buffer to copy from
                         uint32 bufSize,       // IN: Size of buffer
-                        HgfsSessionInfo *session)
+                        HgfsTransportSessionInfo *transportSession)
 {
    HSPU_CopyBufToIovec(packet, packet->dataPacketIovIndex, buf, bufSize,
-                       session);
+                       transportSession);
 }
 
 
@@ -545,7 +545,7 @@ HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
                     uint32 startIndex,        // IN: start index into iov
                     void *buf,                // IN: Contigous Buffer
                     size_t bufSize,           // IN: Size of buffer
-                    HgfsSessionInfo *session) // IN: Session Info
+                    HgfsTransportSessionInfo *transportSession) // IN: Session Info
 {
    uint32 iovCount;
    size_t remainingSize = bufSize;
@@ -555,12 +555,12 @@ HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
    ASSERT(packet);
    ASSERT(buf);
 
-   if (!session->channelCbTable) {
+   if (!transportSession->channelCbTable) {
       return;
    }
 
-   ASSERT_DEVEL(session->channelCbTable->getWriteVa);
-   if (!session->channelCbTable->getWriteVa) {
+   ASSERT_DEVEL(transportSession->channelCbTable->getWriteVa);
+   if (!transportSession->channelCbTable->getWriteVa) {
       return;
    }
 
@@ -575,13 +575,13 @@ HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
       ASSERT_DEVEL(packet->iov[iovCount].len <=
                   (PAGE_SIZE - PAGE_OFFSET(packet->iov[iovCount].pa)));
 
-      packet->iov[iovCount].va = session->channelCbTable->getWriteVa(packet->iov[iovCount].pa,
+      packet->iov[iovCount].va = transportSession->channelCbTable->getWriteVa(packet->iov[iovCount].pa,
                                                      packet->iov[iovCount].len,
                                                      &packet->iov[iovCount].token);
       ASSERT_DEVEL(packet->iov[iovCount].va);
       if (packet->iov[iovCount].va != NULL) {
          memcpy(packet->iov[iovCount].va, (char *)buf + copiedAmount, copyAmount);
-         session->channelCbTable->putVa(&packet->iov[iovCount].token);
+         transportSession->channelCbTable->putVa(&packet->iov[iovCount].token);
          remainingSize -= copyAmount;
          copiedAmount += copyAmount;
       } else {
