@@ -151,23 +151,19 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
 
    Warning("%s: Recursive lock @ 0x%p\n", __FUNCTION__, lock);
 
-   Warning("\tsignature (0x%X, 0x%X)\n", lock->header.signature[0],
-           lock->header.signature[1]);
+   Warning("\tsignature 0x%X\n", lock->header.signature);
    Warning("\tname %s\n", lock->header.name);
    Warning("\trank 0x%X\n", lock->header.rank);
    Warning("\tserial number %u\n", lock->header.serialNumber);
-
    Warning("\treference count %u\n", Atomic_Read(&lock->refCount));
 
    if (lock->vmmLock == NULL) {
       MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
-      Warning("\tdepth count %u\n", MXRecLockCount(&lock->recursiveLock));
+      Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
-      Warning("\taddress of native owner data 0x%p\n",
+      Warning("\taddress of owner data 0x%p\n",
               &lock->recursiveLock.nativeThreadID);
-
-      Warning("\towner 0x%u\n", lock->recursiveLock.vmwThreadID);
 
       if (stats && (stats->holder != NULL)) {
          Warning("\tholder %p\n", stats->holder);
@@ -441,8 +437,6 @@ MXUserCondDestroyRecLock(MXUserRecLock *lock)  // IN:
    MXUserValidateSignature(&lock->header, MXUSER_REC_SIGNATURE);
 
    if (Atomic_FetchAndDec(&lock->refCount) == 1) {
-      MXUserClearSignature(&lock->header);  // just in case...
-
       if (lock->vmmLock == NULL) {
          MXUserStats *stats;
 
@@ -468,6 +462,7 @@ MXUserCondDestroyRecLock(MXUserRecLock *lock)  // IN:
          }
       }
 
+      MXUserClearSignature(&lock->header);  // just in case...
       free(lock->header.name);
       lock->header.name = NULL;
       free(lock);

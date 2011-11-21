@@ -66,8 +66,7 @@ MXUserDumpBarrier(MXUserHeader *header)  // IN:
 
    Warning("%s: Barrier @ 0x%p\n", __FUNCTION__, barrier);
 
-   Warning("\tsignature (0x%X, 0x%X)\n", barrier->header.signature[0],
-           barrier->header.signature[1]);
+   Warning("\tsignature 0x%X\n", barrier->header.signature);
    Warning("\tname %s\n", barrier->header.name);
    Warning("\trank 0x%X\n", barrier->header.rank);
    Warning("\tserial number %u\n", barrier->header.serialNumber);
@@ -199,14 +198,13 @@ MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
                             __FUNCTION__);
       }
 
-      MXUserClearSignature(&barrier->header);  // just in case...
-
       MXUserRemoveFromList(&barrier->header);
 
       MXUser_DestroyCondVar(barrier->contexts[0].condVar);
       MXUser_DestroyCondVar(barrier->contexts[1].condVar);
       MXUser_DestroyExclLock(barrier->lock);
 
+      MXUserClearSignature(&barrier->header);  // just in case...
       free(barrier->header.name);
       barrier->header.name = NULL;
       free(barrier);

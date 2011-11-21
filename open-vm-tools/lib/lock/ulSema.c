@@ -467,9 +467,7 @@ MXUserDumpSemaphore(MXUserHeader *header)  // IN:
 
    Warning("%s: semaphore @ 0x%p\n", __FUNCTION__, sema);
 
-   Warning("\tsignature (0x%X, 0x%X)\n", sema->header.signature[0],
-           sema->header.signature[1]);
-
+   Warning("\tsignature 0x%X\n", sema->header.signature);
    Warning("\tname %s\n", sema->header.name);
    Warning("\trank 0x%X\n", sema->header.rank);
    Warning("\tserial number %u\n", sema->header.serialNumber);
@@ -578,8 +576,6 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
                             __FUNCTION__);
       }
 
-      MXUserClearSignature(&sema->header);  // just in case...
-
       err = MXUserDestroy(&sema->nativeSemaphore);
 
       if (UNLIKELY(err != 0)) {
@@ -598,6 +594,7 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
          free(stats);
       }
 
+      MXUserClearSignature(&sema->header);  // just in case...
       free(sema->header.name);
       sema->header.name = NULL;
       free(sema);
