@@ -29,8 +29,6 @@
 #include "hostinfo.h"
 #include "ulInt.h"
 
-#define MXUSER_RW_SIGNATURE 0x57524B4C // 'LKRW' in memory
-
 static void
 MXUserFreeHashEntry(void *data)  // IN:
 {
@@ -404,7 +402,7 @@ MXUser_ControlRWLock(MXUserRWLock *lock,  // IN/OUT:
    Bool result;
 
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_RW_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    switch (command) {
    case MXUSER_CONTROL_ACQUISITION_HISTO: {
@@ -531,7 +529,7 @@ MXUser_CreateRWLock(const char *userName,  // IN:
       properName = Util_SafeStrdup(userName);
    }
 
-   lock->header.signature = MXUSER_RW_SIGNATURE;
+   lock->header.signature = MXUSER_TYPE_RW;
    lock->header.name = properName;
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();
@@ -596,7 +594,7 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
    if (LIKELY(lock != NULL)) {
       MXUserStats *stats;
 
-      MXUserValidateHeader(&lock->header, MXUSER_RW_SIGNATURE);
+      MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
       if (Atomic_Read(&lock->holderCount) != 0) {
          MXUserDumpAndPanic(&lock->header,
@@ -708,7 +706,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    HolderContext *myContext;
 
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_RW_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    MXUserAcquisitionTracking(&lock->header, TRUE);
 
@@ -857,7 +855,7 @@ MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
    HolderContext *myContext;
 
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_RW_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    myContext = MXUserGetHolderContext(lock);
 
@@ -900,7 +898,7 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    HolderContext *myContext;
 
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_RW_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    myContext = MXUserGetHolderContext(lock);
 

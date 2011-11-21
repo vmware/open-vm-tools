@@ -55,8 +55,6 @@ struct MXUserCondVar {
 #endif
 };
 
-#define MXUSER_CONDVAR_SIGNATURE 0x444E4F43 // 'COND' in memory
-
 #if defined(_WIN32)
 typedef VOID (WINAPI *InitializeConditionVariableFn)(PCONDITION_VARIABLE cv);
 typedef BOOL (WINAPI *SleepConditionVariableCSFn)(PCONDITION_VARIABLE cv,
@@ -589,7 +587,7 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
    MXUserCondVar *condVar = Util_SafeCalloc(1, sizeof(*condVar));
 
    if (MXUserCreateInternal(condVar)) {
-      condVar->signature = MXUSER_CONDVAR_SIGNATURE;
+      condVar->signature = MXUSER_TYPE_CONDVAR;
       condVar->header = header;
       condVar->ownerLock = lock;
    } else {
@@ -626,7 +624,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
 {
    ASSERT(header);
    ASSERT(lock);
-   ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
+   ASSERT(condVar && (condVar->signature == MXUSER_TYPE_CONDVAR));
 
    if (condVar->ownerLock != lock) {
       Panic("%s: invalid use of lock %s with condVar (%p; %s)\n",
@@ -666,7 +664,7 @@ MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
 {
    int err;
 
-   ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
+   ASSERT(condVar && (condVar->signature == MXUSER_TYPE_CONDVAR));
 
    err = MXUserSignalInternal(condVar);
 
@@ -699,7 +697,7 @@ MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
 {
    int err;
 
-   ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
+   ASSERT(condVar && (condVar->signature == MXUSER_TYPE_CONDVAR));
 
    err = MXUserBroadcastInternal(condVar);
 
@@ -732,7 +730,7 @@ void
 MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN:
 {
    if (condVar != NULL) {
-      ASSERT(condVar->signature == MXUSER_CONDVAR_SIGNATURE);
+      ASSERT(condVar->signature == MXUSER_TYPE_CONDVAR);
 
       if (Atomic_Read(&condVar->referenceCount) != 0) {
          Panic("%s: Attempted destroy on active condVar (%p; %s)\n",

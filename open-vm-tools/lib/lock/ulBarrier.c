@@ -22,8 +22,6 @@
 #include "userlock.h"
 #include "ulInt.h"
 
-#define MXUSER_BARRIER_SIGNATURE 0x52524142 // 'BARR' in memory
-
 struct BarrierContext
 {
    uint32           count;    // Number of threads currently in this context
@@ -156,7 +154,7 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
    barrier->configCount = count;
    barrier->curContext = 0;
 
-   barrier->header.signature = MXUSER_BARRIER_SIGNATURE;
+   barrier->header.signature = MXUSER_TYPE_BARRIER;
    barrier->header.name = properName;
    barrier->header.rank = rank;
    barrier->header.serialNumber = MXUserAllocSerialNumber();
@@ -189,7 +187,7 @@ void
 MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
 {
    if (LIKELY(barrier != NULL)) {
-      MXUserValidateHeader(&barrier->header, MXUSER_BARRIER_SIGNATURE);
+      MXUserValidateHeader(&barrier->header, MXUSER_TYPE_BARRIER);
 
       if ((barrier->contexts[0].count != 0) ||
           (barrier->contexts[1].count != 0)) {
@@ -242,7 +240,7 @@ MXUser_EnterBarrier(MXUserBarrier *barrier)  // IN/OUT:
    uint32 context;
 
    ASSERT(barrier);
-   MXUserValidateHeader(&barrier->header, MXUSER_BARRIER_SIGNATURE);
+   MXUserValidateHeader(&barrier->header, MXUSER_TYPE_BARRIER);
 
    MXUser_AcquireExclLock(barrier->lock);
 

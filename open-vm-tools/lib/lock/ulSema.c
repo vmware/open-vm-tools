@@ -44,7 +44,6 @@
 #include "win32u.h"
 #endif
 
-#define MXUSER_SEMA_SIGNATURE 0x414D4553 // 'SEMA' in memory
 #define MXUSER_A_BILLION (1000 * 1000 * 1000)
 
 #if defined(_WIN32)
@@ -515,7 +514,7 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
    if (LIKELY(MXUserInit(&sema->nativeSemaphore) == 0)) {
       MXUserStats *stats;
 
-      sema->header.signature = MXUSER_SEMA_SIGNATURE;
+      sema->header.signature = MXUSER_TYPE_SEMA;
       sema->header.name = properName;
       sema->header.rank = rank;
       sema->header.serialNumber = MXUserAllocSerialNumber();
@@ -568,7 +567,7 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
       int err;
       MXUserStats *stats;
 
-      MXUserValidateHeader(&sema->header, MXUSER_SEMA_SIGNATURE);
+      MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
       if (Atomic_Read(&sema->activeUserCount) != 0) {
          MXUserDumpAndPanic(&sema->header,
@@ -628,7 +627,7 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    MXUserStats *stats;
 
    ASSERT(sema);
-   MXUserValidateHeader(&sema->header, MXUSER_SEMA_SIGNATURE);
+   MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
 
@@ -704,7 +703,7 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
    Bool downOccurred = FALSE;
 
    ASSERT(sema);
-   MXUserValidateHeader(&sema->header, MXUSER_SEMA_SIGNATURE);
+   MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
 
@@ -788,7 +787,7 @@ MXUser_TryDownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    Bool downOccurred = FALSE;
 
    ASSERT(sema);
-   MXUserValidateHeader(&sema->header, MXUSER_SEMA_SIGNATURE);
+   MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
 
@@ -835,7 +834,7 @@ MXUser_UpSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    int err;
 
    ASSERT(sema);
-   MXUserValidateHeader(&sema->header, MXUSER_SEMA_SIGNATURE);
+   MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
 

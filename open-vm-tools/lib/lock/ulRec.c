@@ -35,8 +35,6 @@ typedef struct
    Atomic_Ptr              heldHisto;
 } MXUserStats;
 
-#define MXUSER_REC_SIGNATURE 0x43524B4C // 'LKRC' in memory
-
 struct MXUserRecLock
 {
    MXUserHeader         header;
@@ -199,7 +197,7 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
    Bool result;
 
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    Atomic_Inc(&lock->refCount);
 
@@ -335,7 +333,7 @@ MXUserCreateRecLock(const char *userName,  // IN:
    lock->vmmLock = NULL;
    Atomic_Write(&lock->refCount, 1);
 
-   lock->header.signature = MXUSER_REC_SIGNATURE;
+   lock->header.signature = MXUSER_TYPE_REC;
    lock->header.name = properName;
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();
@@ -434,7 +432,7 @@ static void
 MXUserCondDestroyRecLock(MXUserRecLock *lock)  // IN:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    if (Atomic_FetchAndDec(&lock->refCount) == 1) {
       if (lock->vmmLock == NULL) {
@@ -500,7 +498,7 @@ void
 MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    Atomic_Inc(&lock->refCount);
 
@@ -567,7 +565,7 @@ void
 MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    Atomic_Inc(&lock->refCount);
 
@@ -644,7 +642,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
    Bool success;
 
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    Atomic_Inc(&lock->refCount);
 
@@ -706,7 +704,7 @@ MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock)  // IN:
    Bool result;
 
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    Atomic_Inc(&lock->refCount);
 
@@ -795,7 +793,7 @@ MXUser_CreateCondVarRecLock(MXUserRecLock *lock)
    MXUserCondVar *condVar;
 
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    Atomic_Inc(&lock->refCount);
@@ -834,7 +832,7 @@ MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                           MXUserCondVar *condVar)  // IN:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    Atomic_Inc(&lock->refCount);
@@ -873,7 +871,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                                uint32 msecWait)         // IN:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    Atomic_Inc(&lock->refCount);
@@ -906,7 +904,7 @@ void
 MXUser_DumpRecLock(MXUserRecLock *lock)  // IN:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    Atomic_Inc(&lock->refCount);
 
@@ -938,7 +936,7 @@ struct MX_MutexRec *
 MXUser_GetRecLockVmm(MXUserRecLock *lock)  // IN:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    return lock->vmmLock;
 }
@@ -964,7 +962,7 @@ MX_Rank
 MXUser_GetRecLockRank(MXUserRecLock *lock)  // IN:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    return lock->header.rank;
 }
@@ -1016,7 +1014,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
 
    lock = Util_SafeCalloc(1, sizeof(*lock));
 
-   lock->header.signature = MXUSER_REC_SIGNATURE;
+   lock->header.signature = MXUSER_TYPE_REC;
    lock->header.name = Str_SafeAsprintf(NULL, "MX_%p", mutex);
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();
@@ -1053,7 +1051,7 @@ void
 MXUser_IncRefRecLock(MXUserRecLock *lock)  // IN:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    Atomic_Inc(&lock->refCount);
 }
@@ -1080,7 +1078,7 @@ void
 MXUser_DecRefRecLock(MXUserRecLock *lock)  // IN:
 {
    ASSERT(lock);
-   MXUserValidateHeader(&lock->header, MXUSER_REC_SIGNATURE);
+   MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    MXUserCondDestroyRecLock(lock);
 }
