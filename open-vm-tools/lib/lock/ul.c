@@ -85,7 +85,7 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
    return lock;
 }
 
-//#define MXUSER_SYNDROME
+
 #if defined(MXUSER_SYNDROME)
 /*
  *-----------------------------------------------------------------------------
