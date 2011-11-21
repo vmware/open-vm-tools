@@ -323,7 +323,7 @@ FLAG(   1,  0, ECX, COMMON, 27,  1, OSXSAVE,                       ANY, FALSE) \
 FLAG(   1,  0, ECX, COMMON, 28,  1, AVX,                           YES, FALSE) \
 CPUID_1_ECX_29                                                                 \
 FLAG(   1,  0, ECX, COMMON, 30,  1, RDRAND,                        YES, TRUE)  \
-FLAG(   1,  0, ECX, COMMON, 31,  1, HYPERVISOR,                    ANY, FALSE) \
+FLAG(   1,  0, ECX, COMMON, 31,  1, HYPERVISOR,                    ANY, TRUE)  \
 FLAG(   1,  0, EDX, COMMON, 0,   1, FPU,                           YES, TRUE)  \
 FLAG(   1,  0, EDX, COMMON, 1,   1, VME,                           YES, FALSE) \
 FLAG(   1,  0, EDX, COMMON, 2,   1, DE,                            YES, FALSE) \
