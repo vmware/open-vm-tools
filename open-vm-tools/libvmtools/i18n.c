@@ -580,7 +580,7 @@ MsgLoadCatalog(const char *path)
           * If currently name is not NULL, then check if this is a continuation
           * line and, if it is, just append the contents to the current value.
           */
-         if (name != NULL && line[term - 1] == '"') {
+         if (term > 0 && name != NULL && line[term - 1] == '"') {
             for (i = 0; i < len; i++) {
                if (line[i] == '"') {
                   /* OK, looks like a continuation line. */
