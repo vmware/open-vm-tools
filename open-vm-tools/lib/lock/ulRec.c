@@ -651,7 +651,8 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       MXUserStats *stats;
 
       if (MXUserTryAcquireFail(lock->header.name)) {
-         return FALSE;
+         success = FALSE;
+         go bail;
       }
 
       success = MXRecLockTryAcquire(&lock->recursiveLock);
@@ -667,6 +668,8 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
                                  !success, 0ULL);
       }
    }
+
+bail:
 
    if (Atomic_FetchAndDec(&lock->refCount) == 1) {
       Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
