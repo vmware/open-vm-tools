@@ -91,7 +91,6 @@
 #define RANK_nasPluginMappingLock    (RANK_libLockBase + 0x5008)
 #define RANK_diskLibPluginLock       (RANK_libLockBase + 0x5010)
 #define RANK_vmioPluginRootLock      (RANK_libLockBase + 0x5020)
-#define RANK_vmioPluginEvtLock       (RANK_libLockBase + 0x5030)
 #define RANK_vmioPluginSysLock       (RANK_libLockBase + 0x5040)
 #define RANK_fsCmdLock               (RANK_libLockBase + 0x5050)
 #define RANK_scsiStateLock           (RANK_libLockBase + 0x5060)
