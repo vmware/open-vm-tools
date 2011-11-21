@@ -459,7 +459,78 @@ MXUser_TryAcquireFailureControl(Bool (*func)(const char *name))  // IN:
 {
    MXUserTryAcquireForceFail = func;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserValidateSignature --
+ *
+ *      Validate an MXUser object signature
+ *
+ * Results:
+ *      Return  All is well
+ *      Panic   All is NOT well
+ *
+ * Side effects:
+ *      Always entertaining...
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserValidateSignature(MXUserHeader *header,  // IN:
+                        uint32 salt)           // IN:
+{
+   if (header->signature != salt) {
+      MXUserDumpAndPanic(header, "%s: expected %X observed %X\n", __FUNCTION__,
+                         salt, header->signature);
+   }
+}
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserSetSignature --
+ *
+ *      Set the signature of an MXUser object header
+ *
+ *      A release build does not validate signatures but it does generate
+ *      them; should a release build lock get to debug build code the debug
+ *      build code will notice.
+ *
+ *      A debug build generates and validates signatures. It will detect
+ *      problems with its own locks and lock problems for any other source.
+ *
+ *      Dynamically altering the lock signature at run time allows the
+ *      run time code to detect that a lock "owned" by one library has
+ *      leaked and is being manipulated by another library. Even if the
+ *      libraries were compatible/identical that the lock escaped is a
+ *      problem.
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserSetSignature(MXUserHeader *header,  // IN/OUT:
+                   uint32 salt)           // IN:
+{
+   ASSERT(header);
+
+#if defined(MXUSER_DEBUG)
+   header->signature = salt;  // TODO: use salt + time: make runtime unique
+#else
+   header->signature = salt;
+#endif
+}
 
 
 /*

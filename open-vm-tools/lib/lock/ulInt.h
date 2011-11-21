@@ -417,10 +417,17 @@ void MXUserDumpAndPanic(MXUserHeader *header,
 
 MXRecLock *MXUserInternalSingleton(Atomic_Ptr *storage);
 
+void MXUserSetSignature(MXUserHeader *header,
+                        uint32 salt);
+
 #if defined(MXUSER_DEBUG)
 void MXUserAcquisitionTracking(MXUserHeader *header,
                            Bool checkRank);
+
 void MXUserReleaseTracking(MXUserHeader *header);
+
+void MXUserValidateSignature(MXUserHeader *header,
+                             uint32 salt);
 #else
 static INLINE void
 MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
@@ -431,6 +438,13 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
 
 static INLINE void
 MXUserReleaseTracking(MXUserHeader *header)  // IN:
+{
+   return;
+}
+
+static INLINE void
+MXUserValidateSignature(MXUserHeader *header,  // IN:
+                        uint32 salt)           // IN:
 {
    return;
 }

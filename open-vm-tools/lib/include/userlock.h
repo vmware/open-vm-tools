@@ -241,6 +241,6 @@ Bool MXUser_InPanic(void);
 
 MXUserRecLock       *MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,
                                            MX_Rank rank);
-struct MX_MutexRec  *MXUser_GetRecLockVmm(const MXUserRecLock *lock);
-MX_Rank              MXUser_GetRecLockRank(const MXUserRecLock *lock);
+struct MX_MutexRec  *MXUser_GetRecLockVmm(MXUserRecLock *lock);
+MX_Rank              MXUser_GetRecLockRank(MXUserRecLock *lock);
 #endif  // _USERLOCK_H_

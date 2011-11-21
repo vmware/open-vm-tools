@@ -179,7 +179,7 @@ MXUser_ControlExclLock(MXUserExclLock *lock,  // IN/OUT:
    Bool result;
 
    ASSERT(lock);
-   ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
+   MXUserValidateSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
 
    switch (command) {
    case MXUSER_CONTROL_ACQUISITION_HISTO: {
@@ -303,7 +303,7 @@ MXUser_CreateExclLock(const char *userName,  // IN:
       return NULL;
    }
 
-   lock->header.signature = MXUSER_EXCL_SIGNATURE;
+   MXUserSetSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
    lock->header.name = properName;
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();
@@ -344,7 +344,7 @@ MXUser_DestroyExclLock(MXUserExclLock *lock)  // IN:
    if (lock != NULL) {
       MXUserStats *stats;
 
-      ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
+      MXUserValidateSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
 
       if (MXRecLockCount(&lock->recursiveLock) > 0) {
          MXUserDumpAndPanic(&lock->header,
@@ -397,7 +397,7 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
    MXUserStats *stats;
 
    ASSERT(lock);
-   ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
+   MXUserValidateSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
 
    stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
@@ -461,7 +461,7 @@ MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
    MXUserStats *stats;
 
    ASSERT(lock);
-   ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
+   MXUserValidateSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
 
    stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
@@ -522,7 +522,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
    MXUserStats *stats;
 
    ASSERT(lock);
-   ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
+   MXUserValidateSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
 
    if (MXUserTryAcquireFail(lock->header.name)) {
       return FALSE;
@@ -572,7 +572,7 @@ Bool
 MXUser_IsCurThreadHoldingExclLock(MXUserExclLock *lock)  // IN:
 {
    ASSERT(lock);
-   ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
+   MXUserValidateSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
 
    return MXRecLockIsOwner(&lock->recursiveLock);
 }
@@ -646,7 +646,7 @@ MXUserCondVar *
 MXUser_CreateCondVarExclLock(MXUserExclLock *lock)
 {
    ASSERT(lock);
-   ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
+   MXUserValidateSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
 
    return MXUserCreateCondVar(&lock->header, &lock->recursiveLock);
 }
@@ -676,7 +676,7 @@ MXUser_WaitCondVarExclLock(MXUserExclLock *lock,    // IN:
                            MXUserCondVar *condVar)  // IN:
 {
    ASSERT(lock);
-   ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
+   MXUserValidateSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
 
    MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
                      MXUSER_WAIT_INFINITE);
@@ -708,7 +708,7 @@ MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,    // IN:
                                 uint32 msecWait)         // IN:
 {
    ASSERT(lock);
-   ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
+   MXUserValidateSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
 
    MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar, msecWait);
 }

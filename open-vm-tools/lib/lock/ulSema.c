@@ -515,7 +515,7 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
    if (LIKELY(MXUserInit(&sema->nativeSemaphore) == 0)) {
       MXUserStats *stats;
 
-      sema->header.signature = MXUSER_SEMA_SIGNATURE;
+      MXUserSetSignature(&sema->header, MXUSER_SEMA_SIGNATURE);
       sema->header.name = properName;
       sema->header.rank = rank;
       sema->header.serialNumber = MXUserAllocSerialNumber();
@@ -568,7 +568,7 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
       int err;
       MXUserStats *stats;
 
-      ASSERT(sema->header.signature == MXUSER_SEMA_SIGNATURE);
+      MXUserValidateSignature(&sema->header, MXUSER_SEMA_SIGNATURE);
 
       if (Atomic_Read(&sema->activeUserCount) != 0) {
          MXUserDumpAndPanic(&sema->header,
@@ -627,7 +627,7 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    MXUserStats *stats;
 
    ASSERT(sema);
-   ASSERT(sema->header.signature == MXUSER_SEMA_SIGNATURE);
+   MXUserValidateSignature(&sema->header, MXUSER_SEMA_SIGNATURE);
 
    Atomic_Inc(&sema->activeUserCount);
 
@@ -703,7 +703,7 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
    Bool downOccurred = FALSE;
 
    ASSERT(sema);
-   ASSERT(sema->header.signature == MXUSER_SEMA_SIGNATURE);
+   MXUserValidateSignature(&sema->header, MXUSER_SEMA_SIGNATURE);
 
    Atomic_Inc(&sema->activeUserCount);
 
@@ -787,7 +787,7 @@ MXUser_TryDownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    Bool downOccurred = FALSE;
 
    ASSERT(sema);
-   ASSERT(sema->header.signature == MXUSER_SEMA_SIGNATURE);
+   MXUserValidateSignature(&sema->header, MXUSER_SEMA_SIGNATURE);
 
    Atomic_Inc(&sema->activeUserCount);
 
@@ -834,7 +834,7 @@ MXUser_UpSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    int err;
 
    ASSERT(sema);
-   ASSERT(sema->header.signature == MXUSER_SEMA_SIGNATURE);
+   MXUserValidateSignature(&sema->header, MXUSER_SEMA_SIGNATURE);
 
    Atomic_Inc(&sema->activeUserCount);
 

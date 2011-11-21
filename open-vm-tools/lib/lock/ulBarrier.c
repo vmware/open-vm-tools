@@ -111,8 +111,8 @@ MXUserDumpBarrier(MXUserHeader *header)  // IN:
  */
 
 MXUserBarrier *
-MXUser_CreateBarrier(const char *userName,  // IN:
-                     MX_Rank rank,          // IN:
+MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
+                     MX_Rank rank,          // IN: internal lock's rank
                      uint32 count)          // IN:
 {
    char *properName;
@@ -156,7 +156,7 @@ MXUser_CreateBarrier(const char *userName,  // IN:
    barrier->configCount = count;
    barrier->curContext = 0;
 
-   barrier->header.signature = MXUSER_BARRIER_SIGNATURE;
+   MXUserSetSignature(&barrier->header, MXUSER_BARRIER_SIGNATURE);
    barrier->header.name = properName;
    barrier->header.rank = rank;
    barrier->header.serialNumber = MXUserAllocSerialNumber();
@@ -189,7 +189,7 @@ void
 MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
 {
    if (LIKELY(barrier != NULL)) {
-      ASSERT(barrier->header.signature == MXUSER_BARRIER_SIGNATURE);
+      MXUserValidateSignature(&barrier->header, MXUSER_BARRIER_SIGNATURE);
 
       if ((barrier->contexts[0].count != 0) ||
           (barrier->contexts[1].count != 0)) {
@@ -241,7 +241,7 @@ MXUser_EnterBarrier(MXUserBarrier *barrier)  // IN/OUT:
    uint32 context;
 
    ASSERT(barrier);
-   ASSERT(barrier->header.signature == MXUSER_BARRIER_SIGNATURE);
+   MXUserValidateSignature(&barrier->header, MXUSER_BARRIER_SIGNATURE);
 
    MXUser_AcquireExclLock(barrier->lock);
 
