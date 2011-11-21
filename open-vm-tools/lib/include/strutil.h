@@ -43,6 +43,7 @@ Bool StrUtil_DecimalStrToUint(unsigned int *out, const char **str);
 Bool StrUtil_StrToInt(int32 *out, const char *str);
 Bool StrUtil_StrToUint(uint32 *out, const char *str);
 Bool StrUtil_StrToInt64(int64 *out, const char *str);
+Bool StrUtil_StrToUint64(uint64 *out, const char *str);
 Bool StrUtil_StrToSizet(size_t *out, const char *str);
 Bool StrUtil_StrToDouble(double *out, const char *str);
 Bool StrUtil_CapacityToSectorType(SectorType *out, const char *str,

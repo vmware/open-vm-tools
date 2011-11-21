@@ -395,6 +395,46 @@ StrUtil_StrToInt64(int64 *out,      // OUT: The output value
 /*
  *-----------------------------------------------------------------------------
  *
+ * StrUtil_StrToUint64 --
+ *
+ *      Convert a string into an unsigned 64bit integer.
+ *
+ * Results:
+ *      TRUE if conversion was successful, FALSE otherwise.
+ *      Value is stored in 'out', which is left undefined in the FALSE case.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_StrToUint64(uint64 *out,     // OUT: The output value
+                    const char *str) // IN : String to parse
+{
+   char *ptr;
+
+   ASSERT(out);
+   ASSERT(str);
+
+   errno = 0;
+
+#if defined(_WIN32)
+   *out = _strtoui64(str, &ptr, 0);
+#elif defined(__FreeBSD__)
+   *out = strtouq(str, &ptr, 0);
+#else
+   *out = strtoull(str, &ptr, 0);
+#endif
+
+   return ptr[0] == '\0' && errno != ERANGE && errno != EINVAL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * StrUtil_StrToSizet --
  *
  *      Convert a string into an unsigned integer that is either 32-bits or
