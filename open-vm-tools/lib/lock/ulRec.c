@@ -338,7 +338,7 @@ MXUserCreateRecLock(const char *userName,  // IN:
    lock->header.signature = MXUSER_REC_SIGNATURE;
    lock->header.name = properName;
    lock->header.rank = rank;
-   lock->header.serialNumber = MXUserAllocSerialNumber(MXUSER_REC_SIGNATURE);
+   lock->header.serialNumber = MXUserAllocSerialNumber();
    lock->header.dumpFunc = MXUserDumpRecLock;
 
    if (beSilent || !MXUserStatsEnabled()) {
@@ -1019,7 +1019,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
    lock->header.signature = MXUSER_REC_SIGNATURE;
    lock->header.name = Str_SafeAsprintf(NULL, "MX_%p", mutex);
    lock->header.rank = rank;
-   lock->header.serialNumber = MXUserAllocSerialNumber(MXUSER_REC_SIGNATURE);
+   lock->header.serialNumber = MXUserAllocSerialNumber();
    lock->header.dumpFunc = NULL;
    lock->header.statsFunc = NULL;
 

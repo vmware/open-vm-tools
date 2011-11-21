@@ -534,7 +534,7 @@ MXUser_CreateRWLock(const char *userName,  // IN:
    lock->header.signature = MXUSER_RW_SIGNATURE;
    lock->header.name = properName;
    lock->header.rank = rank;
-   lock->header.serialNumber = MXUserAllocSerialNumber(MXUSER_RW_SIGNATURE);
+   lock->header.serialNumber = MXUserAllocSerialNumber();
    lock->header.dumpFunc = MXUserDumpRWLock;
 
    /*
