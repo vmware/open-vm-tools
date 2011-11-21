@@ -445,8 +445,8 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN:
 }
 
 static INLINE void
-MXUserValidateSignature(MXUserHeader *header,  // IN:
-                        uint32 objectID)       // IN:
+MXUserValidateHeader(MXUserHeader *header,  // IN:
+                     uint32 objectID)       // IN:
 {
    return;
 }
