@@ -159,7 +159,8 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
    barrier->header.signature = MXUSER_BARRIER_SIGNATURE;
    barrier->header.name = properName;
    barrier->header.rank = rank;
-   barrier->header.serialNumber = MXUserAllocSerialNumber();
+   barrier->header.serialNumber =
+                             MXUserAllocSerialNumber(MXUSER_BARRIER_SIGNATURE);
    barrier->header.dumpFunc = MXUserDumpBarrier;
    barrier->header.statsFunc = NULL;
 

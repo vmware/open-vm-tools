@@ -488,7 +488,7 @@ typedef struct {
    MXUserBasicStats  basicStats;       // total held statistics
 } MXUserReleaseStats;
 
-uint32 MXUserAllocSerialNumber(void);
+uint32 MXUserAllocSerialNumber(uint32 objectID);
 
 void MXUserAddToList(MXUserHeader *header);
 void MXUserRemoveFromList(MXUserHeader *header);

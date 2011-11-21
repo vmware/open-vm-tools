@@ -518,7 +518,8 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
       sema->header.signature = MXUSER_SEMA_SIGNATURE;
       sema->header.name = properName;
       sema->header.rank = rank;
-      sema->header.serialNumber = MXUserAllocSerialNumber();
+      sema->header.serialNumber =
+                                MXUserAllocSerialNumber(MXUSER_SEMA_SIGNATURE);
       sema->header.dumpFunc = MXUserDumpSemaphore;
 
       if (MXUserStatsEnabled()) {

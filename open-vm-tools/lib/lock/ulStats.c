@@ -1053,7 +1053,7 @@ MXUser_PerLockData(void)
  */
 
 uint32
-MXUserAllocSerialNumber(void)
+MXUserAllocSerialNumber(uint32 objectID)  // IN:
 {
    static Atomic_uint32 firstFreeSerialNumber = { 1 };  // must start not zero
 

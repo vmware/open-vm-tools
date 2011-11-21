@@ -306,7 +306,7 @@ MXUser_CreateExclLock(const char *userName,  // IN:
    lock->header.signature = MXUSER_EXCL_SIGNATURE;
    lock->header.name = properName;
    lock->header.rank = rank;
-   lock->header.serialNumber = MXUserAllocSerialNumber();
+   lock->header.serialNumber = MXUserAllocSerialNumber(MXUSER_EXCL_SIGNATURE);
    lock->header.dumpFunc = MXUserDumpExclLock;
 
    if (MXUserStatsEnabled()) {
