@@ -20,6 +20,8 @@
 #ifndef _DND_GUEST_H_
 #define _DND_GUEST_H_
 
+#include "vm_basic_types.h"
+
 #if defined(_WIN32)
 
 typedef struct {
