@@ -605,9 +605,13 @@ MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
       MXRecLockRelease(&lock->recursiveLock);
    }
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
-      Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
-   }
+   /*
+    * Don't screw up the reference count! When this is the last reference
+    * the lock will self destruct on a release if it is the last "hold"
+    * of the lock.
+    */
+
+   MXUserCondDestroyRecLock(lock);
 }
 
 
