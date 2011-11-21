@@ -706,7 +706,11 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
 bail:
    if (FileIO_IsValid(tempFD)) {
       FileIO_Close(tempFD);
-      File_Unlink(tempPath);
+#if defined(_WIN32)
+      File_UnlinkIfExists(tempPath);
+#else
+      Posix_Unlink(tempPath);
+#endif
    }
    Unicode_Free(tempPath);
    return status;
