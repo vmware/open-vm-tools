@@ -108,7 +108,7 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
  *      lock and need to record data in the perThread.
  *
  * Results:
- *      NULL   mayAlloc was FALSE and the thread doesn't have a perThread (yet)
+ *      NULL   mayAlloc was FALSE and the thread doesn't have a perThread
  *     !NULL   the perThread of the specified thread
  *
  * Side effects:
@@ -118,7 +118,7 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
  */
 
 static MXUserPerThread *
-MXUserGetPerThread(void *tid,      // IN: native thread ID
+MXUserGetPerThread(void *tid,      // IN: thread ID
                    Bool mayAlloc)  // IN: alloc perThread if not present?
 {
    HashTable *hash;
@@ -237,7 +237,7 @@ MXUser_IsCurThreadHoldingLocks(void)
  *-----------------------------------------------------------------------------
  */
 
-MX_Rank
+static MX_Rank
 MXUserThreadRank(MXUserPerThread *perThread,  // IN:
                  MXUserHeader *header,        // IN:
                  Bool *firstUse)              // OUT:

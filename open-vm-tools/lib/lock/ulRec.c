@@ -162,12 +162,8 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
 
       Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
-#if defined(_WIN32)
-      Warning("\towner %u\n", lock->recursiveLock.nativeThreadID);
-#else
       Warning("\towner 0x%p\n",
               (void *)(uintptr_t)lock->recursiveLock.nativeThreadID);
-#endif
 
       if (stats && (stats->holder != NULL)) {
          Warning("\tholder %p\n", stats->holder);
