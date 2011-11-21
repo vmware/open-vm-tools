@@ -26,13 +26,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "safetime.h"
 #include <errno.h>
 
 #if defined(_WIN32)
 typedef DWORD MXUserThreadID;
 #define MXUSER_INVALID_OWNER 0xFFFFFFFF
 #else
+#include "safetime.h"
 #include <pthread.h>
 typedef pthread_t MXUserThreadID;
 #endif
