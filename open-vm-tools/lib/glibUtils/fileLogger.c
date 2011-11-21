@@ -36,7 +36,7 @@
 
 typedef struct FileLogger {
    GlibLogger     handler;
-   FILE          *file;
+   GIOChannel    *file;
    gchar         *path;
    gint           logSize;
    guint64        maxSize;
@@ -154,10 +154,10 @@ FileLoggerGetPath(FileLogger *data,
  *******************************************************************************
  */
 
-static FILE *
+static GIOChannel *
 FileLoggerOpen(FileLogger *data)
 {
-   FILE *logfile = NULL;
+   GIOChannel *logfile = NULL;
    gchar *path;
 
    g_return_val_if_fail(data != NULL, NULL);
@@ -225,8 +225,13 @@ FileLoggerOpen(FileLogger *data)
       }
    }
 
-   logfile = g_fopen(path, data->append ? "a" : "w");
+   logfile = g_io_channel_new_file(path, data->append ? "a" : "w", NULL);
    g_free(path);
+
+   if (logfile != NULL) {
+      g_io_channel_set_encoding(logfile, NULL, NULL);
+   }
+
    return logfile;
 }
 
@@ -253,6 +258,7 @@ FileLoggerLog(const gchar *domain,
               gpointer data)
 {
    FileLogger *logger = data;
+   gsize written;
 
    g_static_rw_lock_reader_lock(&logger->lock);
 
@@ -279,29 +285,26 @@ FileLoggerLog(const gchar *domain,
    }
 
    /* Write the log file and do log rotation accounting. */
-   if (fputs(message, logger->file) >= 0) {
+   if (g_io_channel_write_chars(logger->file, message, -1, &written, NULL) ==
+       G_IO_STATUS_NORMAL) {
       if (logger->maxSize > 0) {
-         g_atomic_int_add(&logger->logSize, (gint) strlen(message));
-#if defined(_WIN32)
-         /* Account for \r. */
-         g_atomic_int_add(&logger->logSize, 1);
-#endif
+         g_atomic_int_add(&logger->logSize, (gint) written);
          if (g_atomic_int_get(&logger->logSize) >= logger->maxSize) {
             /* Drop the reader lock, grab the writer lock and re-check. */
             g_static_rw_lock_reader_unlock(&logger->lock);
             g_static_rw_lock_writer_lock(&logger->lock);
             if (g_atomic_int_get(&logger->logSize) >= logger->maxSize) {
-               fclose(logger->file);
+               g_io_channel_unref(logger->file);
                logger->append = FALSE;
                logger->file = FileLoggerOpen(logger);
             }
             g_static_rw_lock_writer_unlock(&logger->lock);
             g_static_rw_lock_reader_lock(&logger->lock);
          } else {
-            fflush(logger->file);
+            g_io_channel_flush(logger->file, NULL);
          }
       } else {
-         fflush(logger->file);
+         g_io_channel_flush(logger->file, NULL);
       }
    }
 
@@ -326,7 +329,7 @@ FileLoggerDestroy(gpointer data)
 {
    FileLogger *logger = data;
    if (logger->file != NULL) {
-      fclose(logger->file);
+      g_io_channel_unref(logger->file);
    }
    g_static_rw_lock_free(&logger->lock);
    g_free(logger->path);
