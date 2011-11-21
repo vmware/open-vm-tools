@@ -1028,9 +1028,10 @@ ClearBit64(uint64 *var, uint64 index)
    _bittestandreset64((__int64 *)var, index);
 #endif
 }
+#endif /* VM_X86_64 */
 
 static INLINE Bool
-TestBit32(uint32 *var, uint32 index)
+TestBit32(const uint32 *var, uint32 index)
 {
 #ifdef __GNUC__
    Bool bit;
@@ -1042,15 +1043,15 @@ TestBit32(uint32 *var, uint32 index)
       : "cc"
    );
    return bit;
-#elif defined _MSC_VER
+#else
    return (*var & (1 << index)) != 0;
 #endif
 }
 
 static INLINE Bool
-TestBit64(uint64 *var, uint64 index)
+TestBit64(const uint64 *var, uint64 index)
 {
-#ifdef __GNUC__
+#if defined __GNUC__ && defined VM_X86_64
    Bool bit;
    __asm__ (
       "bt %[index], %[var] \n"
@@ -1060,11 +1061,10 @@ TestBit64(uint64 *var, uint64 index)
       : "cc"
    );
    return bit;
-#elif defined _MSC_VER
+#else
    return (*var & (CONST64U(1) << index)) != 0;
 #endif
 }
-#endif /* VM_X86_64 */
 
 /*
  *-----------------------------------------------------------------------------
