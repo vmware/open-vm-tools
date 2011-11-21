@@ -11,6 +11,7 @@
 #    lifted from detectDE() routine found in many Portland xdg-* scripts.
 #
 
+#   Copyright 2010-2011, VMware, Inc.  All rights reserved.
 #   Copyright 2009-2010, Fathi Boudra <fabo@freedesktop.org>
 #   Copyright 2009-2010, Rex Dieter <rdieter@fedoraproject.org>
 #   Copyright 2006, Kevin Krammer <kevin.krammer@gmx.at>
@@ -42,18 +43,59 @@
 # Checks for known desktop environments
 # set variable DE to the desktop environments name, lowercase
 
-if [ x"$KDE_FULL_SESSION" = x"true" ]; then
-   DE=KDE;
-elif [ x"$GNOME_DESKTOP_SESSION_ID" != x"" ]; then
-   DE=GNOME;
-elif `dbus-send --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.GetNameOwner string:org.gnome.SessionManager >/dev/null 2>&1` ; then
-   DE=GNOME;
-elif xprop -root _DT_SAVE_MODE 2> /dev/null | grep ' = \"xfce4\"$' >/dev/null 2>&1; then
-   DE=XFCE;
+# see https://bugs.freedesktop.org/show_bug.cgi?id=34164
+unset GREP_OPTIONS
+
+if [ -n "${XDG_CURRENT_DESKTOP}" ]; then
+  #
+  # This script deals in (case sensitive) desktop environment names as found in
+  # menu-spec (http://standards.freedesktop.org/menu-spec/latest/apb.html),
+  #
+  xdgDE="${XDG_CURRENT_DESKTOP}"
+  DE=`echo "${XDG_CURRENT_DESKTOP}" | tr '[:upper:]' '[:lower:]'`
+fi
+
+if [ x"$DE" = x"" ]; then
+  # classic fallbacks
+  if [ x"$KDE_FULL_SESSION" = x"true" ]; then DE=kde;
+  elif [ x"$GNOME_DESKTOP_SESSION_ID" != x"" ]; then DE=gnome;
+  elif `dbus-send --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.GetNameOwner string:org.gnome.SessionManager > /dev/null 2>&1` ; then DE=gnome;
+  elif xprop -root _DT_SAVE_MODE 2> /dev/null | grep ' = \"xfce4\"$' >/dev/null 2>&1; then DE=xfce;
+  elif xprop -root 2> /dev/null | grep -i '^xfce_desktop_window' >/dev/null 2>&1; then DE=xfce
+  fi
+fi
+
+if [ x"$DE" = x"" ]; then
+  # fallback to checking $DESKTOP_SESSION
+  case "$DESKTOP_SESSION" in
+     gnome)
+       DE=gnome;
+       ;;
+     LXDE)
+       DE=lxde;
+       ;;
+     xfce|xfce4)
+       DE=xfce;
+       ;;
+  esac
 fi
 
 if [ x"$DE" = x ]; then
    exit 1
 fi
 
-echo $DE
+if [ -z "$xdgDE" ]; then
+   case "$DE" in
+   gnome)
+      xdgDE=GNOME
+      ;;
+   kde)
+      xdgDE=KDE
+      ;;
+   xfce)
+      xdgDE=XFCE
+      ;;
+   esac
+fi
+
+echo $xdgDE

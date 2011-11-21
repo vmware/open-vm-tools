@@ -25,8 +25,11 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <glib.h>
 
 #include "vmware.h"
 #include "vmstdio.h"
@@ -57,10 +60,10 @@ static const char xdgDetectDEExec[] = "vmware-xdg-detect-de";
  *
  * Results:
  *      Returns a pointer to a string specifying the desktop environment on
- *      success or NULL on failure.
+ *      success or "" on failure.
  *
  *      This function only guarantees that the returned string matches the
- *      pattern ^[A-Z]*$.
+ *      pattern ^[A-Za-z0-9]*$.
  *
  * Side effects:
  *      Allocates memory for outbuf on first call for duration of program.
@@ -83,13 +86,13 @@ Xdg_DetectDesktopEnv(void)
          size_t outLen;         // Doesn't include NUL.
          int status;
 
-         if (StdIO_ReadNextLine(cmdPipe, &outbuf, maxSize, &outLen)
+         if (   StdIO_ReadNextLine(cmdPipe, &outbuf, maxSize, &outLen)
              == StdIO_Success) {
-            char *i;
+            int i;
 
-            for (i = outbuf; i < &outbuf[outLen]; i++) {
-               /* We expect a string in all capitals. */
-               if (*i < 'A' || *i > 'Z') {
+            for (i = 0; i < outLen; i++) {
+               if (!isalnum(outbuf[i])) {
+                  g_debug("%s: received malformed input\n", __func__);
                   free(outbuf);
                   outbuf = NULL;
                   break;
@@ -99,9 +102,15 @@ Xdg_DetectDesktopEnv(void)
 
          status = pclose(cmdPipe);
          if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            g_debug("%s: %s did not exit cleanly (%x/%x)\n", __func__, xdgDetectDEExec,
+                    status, WEXITSTATUS(status));
             free(outbuf);
             outbuf = NULL;
          }
+      }
+
+      if (outbuf == NULL) {
+         outbuf = "";
       }
    }
 
