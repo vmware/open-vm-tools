@@ -418,7 +418,7 @@ void MXUserDumpAndPanic(MXUserHeader *header,
 MXRecLock *MXUserInternalSingleton(Atomic_Ptr *storage);
 
 void MXUserSetSignature(MXUserHeader *header,
-                        uint32 salt);
+                        uint32 objectID);
 
 void MXUserClearSignature(MXUserHeader *header);
 
@@ -428,8 +428,8 @@ void MXUserAcquisitionTracking(MXUserHeader *header,
 
 void MXUserReleaseTracking(MXUserHeader *header);
 
-void MXUserValidateSignature(MXUserHeader *header,
-                             uint32 salt);
+void MXUserValidateHeader(MXUserHeader *header,
+                          uint32 objectID);
 #else
 static INLINE void
 MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
@@ -446,7 +446,7 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN:
 
 static INLINE void
 MXUserValidateSignature(MXUserHeader *header,  // IN:
-                        uint32 salt)           // IN:
+                        uint32 objectID)       // IN:
 {
    return;
 }

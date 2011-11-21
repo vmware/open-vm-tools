@@ -464,9 +464,9 @@ MXUser_TryAcquireFailureControl(Bool (*func)(const char *name))  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserValidateSignature --
+ * MXUserValidateHeader --
  *
- *      Validate an MXUser object signature
+ *      Validate an MXUser object header
  *
  * Results:
  *      Return  All is well
@@ -479,12 +479,12 @@ MXUser_TryAcquireFailureControl(Bool (*func)(const char *name))  // IN:
  */
 
 void
-MXUserValidateSignature(MXUserHeader *header,  // IN:
-                        uint32 salt)           // IN:
+MXUserValidateHeader(MXUserHeader *header,  // IN:
+                     uint32 objectID)       // IN:
 {
-   if (header->signature != salt) {
+   if (header->signature != objectID) {
       MXUserDumpAndPanic(header, "%s: expected %X observed %X\n", __FUNCTION__,
-                         salt, header->signature);
+                         objectID, header->signature);
    }
 }
 #endif
@@ -521,14 +521,14 @@ MXUserValidateSignature(MXUserHeader *header,  // IN:
 
 void
 MXUserSetSignature(MXUserHeader *header,  // IN/OUT:
-                   uint32 salt)           // IN:
+                   uint32 objectID)       // IN:
 {
    ASSERT(header);
 
 #if defined(MXUSER_DEBUG)
-   header->signature = salt;  // TODO: use salt + time: make runtime unique
+   header->signature = objectID;  // TODO: use objectID + (unique) syndrome
 #else
-   header->signature = salt;
+   header->signature = objectID;
 #endif
 }
 

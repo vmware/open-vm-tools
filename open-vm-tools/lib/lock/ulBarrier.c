@@ -189,7 +189,7 @@ void
 MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
 {
    if (LIKELY(barrier != NULL)) {
-      MXUserValidateSignature(&barrier->header, MXUSER_BARRIER_SIGNATURE);
+      MXUserValidateHeader(&barrier->header, MXUSER_BARRIER_SIGNATURE);
 
       if ((barrier->contexts[0].count != 0) ||
           (barrier->contexts[1].count != 0)) {
@@ -241,7 +241,7 @@ MXUser_EnterBarrier(MXUserBarrier *barrier)  // IN/OUT:
    uint32 context;
 
    ASSERT(barrier);
-   MXUserValidateSignature(&barrier->header, MXUSER_BARRIER_SIGNATURE);
+   MXUserValidateHeader(&barrier->header, MXUSER_BARRIER_SIGNATURE);
 
    MXUser_AcquireExclLock(barrier->lock);
 
