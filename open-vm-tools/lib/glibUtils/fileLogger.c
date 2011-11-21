@@ -43,7 +43,7 @@ typedef struct FileLogger {
    guint          maxFiles;
    gboolean       append;
    gboolean       error;
-   GStaticRWLock  lock;
+   GStaticMutex   lock;
 } FileLogger;
 
 
@@ -166,14 +166,10 @@ FileLoggerOpen(FileLogger *data)
    if (g_file_test(path, G_FILE_TEST_EXISTS)) {
       struct stat fstats;
       if (g_stat(path, &fstats) > -1) {
-#if GLIB_CHECK_VERSION(2, 10, 0)
-         g_atomic_int_set(&data->logSize, (gint) fstats.st_size);
-#else
          data->logSize = (gint) fstats.st_size;
-#endif
       }
 
-      if (!data->append || g_atomic_int_get(&data->logSize) >= data->maxSize) {
+      if (!data->append || data->logSize >= data->maxSize) {
          /*
           * Find the last log file and iterate back, changing the indices as we go,
           * so that the oldest log file has the highest index (the new log file
@@ -216,11 +212,7 @@ FileLoggerOpen(FileLogger *data)
             g_free(g_ptr_array_index(logfiles, id));
          }
          g_ptr_array_free(logfiles, TRUE);
-#if GLIB_CHECK_VERSION(2, 10, 0)
-         g_atomic_int_set(&data->logSize, 0);
-#else
          data->logSize = 0;
-#endif
          data->append = FALSE;
       }
    }
@@ -260,24 +252,16 @@ FileLoggerLog(const gchar *domain,
    FileLogger *logger = data;
    gsize written;
 
-   g_static_rw_lock_reader_lock(&logger->lock);
+   g_static_mutex_lock(&logger->lock);
 
    if (logger->error) {
       goto exit;
    }
 
    if (logger->file == NULL) {
-      /*
-       * We need to drop the read lock and acquire a write lock to open
-       * the log file.
-       */
-      g_static_rw_lock_reader_unlock(&logger->lock);
-      g_static_rw_lock_writer_lock(&logger->lock);
       if (logger->file == NULL) {
          logger->file = FileLoggerOpen(data);
       }
-      g_static_rw_lock_writer_unlock(&logger->lock);
-      g_static_rw_lock_reader_lock(&logger->lock);
       if (logger->file == NULL) {
          logger->error = TRUE;
          goto exit;
@@ -288,18 +272,11 @@ FileLoggerLog(const gchar *domain,
    if (g_io_channel_write_chars(logger->file, message, -1, &written, NULL) ==
        G_IO_STATUS_NORMAL) {
       if (logger->maxSize > 0) {
-         g_atomic_int_add(&logger->logSize, (gint) written);
-         if (g_atomic_int_get(&logger->logSize) >= logger->maxSize) {
-            /* Drop the reader lock, grab the writer lock and re-check. */
-            g_static_rw_lock_reader_unlock(&logger->lock);
-            g_static_rw_lock_writer_lock(&logger->lock);
-            if (g_atomic_int_get(&logger->logSize) >= logger->maxSize) {
-               g_io_channel_unref(logger->file);
-               logger->append = FALSE;
-               logger->file = FileLoggerOpen(logger);
-            }
-            g_static_rw_lock_writer_unlock(&logger->lock);
-            g_static_rw_lock_reader_lock(&logger->lock);
+         logger->logSize += (gint) written;
+         if (logger->logSize >= logger->maxSize) {
+            g_io_channel_unref(logger->file);
+            logger->append = FALSE;
+            logger->file = FileLoggerOpen(logger);
          } else {
             g_io_channel_flush(logger->file, NULL);
          }
@@ -309,7 +286,7 @@ FileLoggerLog(const gchar *domain,
    }
 
 exit:
-   g_static_rw_lock_reader_unlock(&logger->lock);
+   g_static_mutex_unlock(&logger->lock);
 }
 
 
@@ -331,7 +308,7 @@ FileLoggerDestroy(gpointer data)
    if (logger->file != NULL) {
       g_io_channel_unref(logger->file);
    }
-   g_static_rw_lock_free(&logger->lock);
+   g_static_mutex_free(&logger->lock);
    g_free(logger->path);
    g_free(logger);
 }
@@ -378,7 +355,7 @@ GlibUtils_CreateFileLogger(const char *path,
    data->append = append;
    data->maxSize = maxSize * 1024 * 1024;
    data->maxFiles = maxFiles + 1; /* To account for the active log file. */
-   g_static_rw_lock_init(&data->lock);
+   g_static_mutex_init(&data->lock);
 
    return &data->handler;
 }
