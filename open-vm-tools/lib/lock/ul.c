@@ -123,8 +123,39 @@ MXUserSyndrome(void)
    syndrome = Atomic_Read(&syndromeMem);
 
    if (syndrome == 0) {
-      while (Random_Crypto(sizeof syndrome, &syndrome) && (syndrome == 0))
-         ;
+#if defined(VMX86_SERVER)
+      /*
+       * On ESX Random_Crypto may hang (PR 787027). Ask for the time, in
+       * seconds since the epoch.
+       *
+       * XXX PR filed to get ESX to fix this.
+       */
+
+      syndrome = time(NULL) & 0xFFFFFFFF;
+#else
+      uint32 retries = 25;
+
+      /*
+       * Do not assume that the source of bits from the host OS are sane.
+       * Perhaps its random bits service is not working or always returns
+       * zero or something is misconfigured. Only perform a small number
+       * of retries attempting to appropriate the required bits.
+       */
+
+      do {
+         /* Only changes syndrome on success. No need to check for errors */
+         Random_Crypto(sizeof syndrome, &syndrome);
+
+         if (syndrome != 0) {
+            break;
+         }
+      } while (retries--);
+#endif
+
+      /*
+       * If the source was unable to provide the appropriate bits, switch
+       * to plan B.
+       */
 
       if (syndrome == 0) {
          syndrome++;  // Fudge in case of failure
@@ -134,8 +165,9 @@ MXUserSyndrome(void)
       Atomic_ReadIfEqualWrite(&syndromeMem, 0, syndrome);
 
       syndrome = Atomic_Read(&syndromeMem);
-      ASSERT(syndrome);
    }
+
+   ASSERT(syndrome);
 
    return syndrome;
 }
@@ -163,7 +195,8 @@ MXUserGetSignature(MXUserObjectType objectType)  // IN:
 {
    uint32 signature;
 
-   ASSERT((objectType != MXUSER_TYPE_NEVER_USE) && (objectType < 16));
+   ASSERT((objectType >= 0) && (objectType < 16) &&
+          (objectType != MXUSER_TYPE_NEVER_USE));
 
 #if defined(MXUSER_SYNDROME)
    /*
