@@ -306,9 +306,7 @@ MX_Rank
 MXUserCurrentRank(void)
 {
    MX_Rank maxRank;
-   MXUserPerThread *perThread; 
-
-   perThread = MXUserGetPerThread(MXUserGetThreadID(), FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(), FALSE);
 
    if (perThread == NULL) {
       maxRank = RANK_UNRANKED;
