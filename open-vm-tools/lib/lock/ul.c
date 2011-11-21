@@ -122,32 +122,32 @@ MXUserSyndrome(void)
    syndrome = Atomic_Read(&syndromeMem);
 
    if (syndrome == 0) {
-       void *token;
+      void *token;
 
-       /*
-        * It is extremely rare for malloc/calloc to be diverted into multiple
-        * heaps or to fail in our environment - one heap per program; addresses
-        * must be unique. Attempt a small allocation and use its address for
-        * the syndrome bits.
-        *
-        * This is an intentional "leak" albeit only once per program (or
-        * copy of MXUser).
-        */
+      /*
+       * It is extremely rare for malloc/calloc to be diverted into multiple
+       * heaps or to fail in our environment - one heap per program; addresses
+       * must be unique. Attempt a small allocation and use its address for
+       * the syndrome bits.
+       *
+       * This is an intentional "leak" albeit only once per program (or
+       * copy of MXUser).
+       */
 
-       token = malloc(4);
+      token = malloc(4);
 
-       syndrome = ((uintptr_t) token) & 0xFFFFFFFF;
+      syndrome = ((uintptr_t) token) & 0xFFFFFFFF;
 
-       if (UNLIKELY(syndrome == 0)) {
-          syndrome++;  // live with the exceedingly rare outcome
-       }
+      if (UNLIKELY(syndrome == 0)) {
+         syndrome++;  // live with the exceedingly rare outcome
+      }
 
-       if (Atomic_ReadIfEqualWrite(&syndromeMem, 0, syndrome)) {
-          free(token);
-       }
+      if (Atomic_ReadIfEqualWrite(&syndromeMem, 0, syndrome)) {
+         free(token);
+      }
 
-       syndrome = Atomic_Read(&syndromeMem);
-       ASSERT(syndrome);
+      syndrome = Atomic_Read(&syndromeMem);
+      ASSERT(syndrome);
    }
 
    return syndrome;
