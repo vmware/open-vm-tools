@@ -33,7 +33,6 @@
 #   include <fcntl.h>
 #   include <unistd.h>
 
-#   define ESX_RANDOM_DEVICE     "/vmfs/devices/char/vmkdriver/urandom"
 #   define GENERIC_RANDOM_DEVICE "/dev/urandom"
 #endif
 
@@ -91,7 +90,8 @@ RandomBytesWin32(unsigned int size,  // IN:
  *
  * RandomBytesPosix --
  *
- *      Generate 'size' bytes of random bits in 'buffer'.
+ *      Generate 'size' bytes of cryptographically strong random bits in
+ *      'buffer'.
  *
  * Results:
  *      TRUE   success
@@ -155,9 +155,7 @@ RandomBytesPosix(const char *name,   // IN:
  *      external to the application.
  *
  *      DO NOT USE THIS FUNCTION UNLESS YOU HAVE AN ABSOLUTE, EXPLICIT
- *      NEED FOR CRYPTOGRAPHICALLY VALID RANDOM NUMBERS. SEE BELOW.
- *
- *      THIS ROUTINE MAY BLOCK WAITING FOR SUFFICIENT ENTROPY.
+ *      NEED FOR CRYPTOGRAPHICALLY VALID RANDOM NUMBERS.
  *
  * Results:
  *      TRUE   success
@@ -181,30 +179,7 @@ Random_Crypto(unsigned int size,  // IN:
     * because it cannot block. --hpreg
     */
 
-   if (vmx86_server) {
-      /*
-       * ESX: attempt to use the wonderful random device.
-       */
-
-      if (RandomBytesPosix(ESX_RANDOM_DEVICE, size, buffer)) {
-         return TRUE;
-      }
-   }
-
-   /*
-    * On ESX developer builds attempt to fall back to the generic random
-    * device, even if it is much slower. This has a nice side-effect -
-    * some things built for ESX will actually work in a Linux hosted
-    * environment.
-    */
-
-   if ((vmx86_server && vmx86_devel) || !vmx86_server) {
-      if (RandomBytesPosix(GENERIC_RANDOM_DEVICE, size, buffer)) {
-         return TRUE;
-      }
-   }
-
-   return FALSE;
+   return RandomBytesPosix(GENERIC_RANDOM_DEVICE, size, buffer);
 #endif
 }
 
