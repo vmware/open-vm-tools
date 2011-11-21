@@ -85,6 +85,7 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
    return lock;
 }
 
+//#define MXUSER_SYNDROME
 #if defined(MXUSER_SYNDROME)
 /*
  *-----------------------------------------------------------------------------
@@ -190,7 +191,7 @@ MXUserGetSignature(MXUserObjectType objectType)  // IN:
       break;
 
    case MXUSER_TYPE_RANK:
-     signature = 0x4E4B5241;
+      signature = 0x4E4B5241;
       break;
 
    case MXUSER_TYPE_EXCL:
