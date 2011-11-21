@@ -213,4 +213,8 @@ Hostinfo_AtLeastVista(void)
 }
 #endif
 
+#ifdef __APPLE__
+char *Hostinfo_GetHardwareModel(void);
+#endif
+
 #endif /* ifndef _HOSTINFO_H_ */

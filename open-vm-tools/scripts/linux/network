@@ -145,19 +145,38 @@ rescue_NIC() {
 #    None.
 #
 
-TranquilizeNetworkManager() {
+TranquilizeNetworkManager()
+{
    # `which' may be a bit noisy, so we'll shush it.
    dbusSend=`which dbus-send 2>/dev/null`
-   if [ $? -eq 0 ]; then
-      # NetworkManager 0.6
-      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
-         /org/freedesktop/NetworkManager                                \
-         org.freedesktop.NetworkManager.sleep
+   rc=$?
+   if [ $rc = 0 ]; then
+      # NetworkManager 0.8.0
+      $dbusSend --system --print-reply          \
+         --dest=org.freedesktop.NetworkManager  \
+         /org/freedesktop/NetworkManager        \
+         org.freedesktop.NetworkManager.Enable boolean:false
+      rc=$?
+      if [ $rc = 0 ]; then
+         return $rc
+      fi
       # NetworkManager 0.7.0
-      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
-         /org/freedesktop/NetworkManager                                \
+      $dbusSend --system --print-reply          \
+         --dest=org.freedesktop.NetworkManager  \
+         /org/freedesktop/NetworkManager        \
          org.freedesktop.NetworkManager.Sleep boolean:true
+      rc=$?
+      if [ $rc = 0 ]; then
+         return $rc
+      fi
+      # NetworkManager 0.6
+      $dbusSend --system --print-reply          \
+         --dest=org.freedesktop.NetworkManager  \
+         /org/freedesktop/NetworkManager        \
+         org.freedesktop.NetworkManager.sleep
+      rc=$?
    fi
+   return $rc
 }
 
 
@@ -175,19 +194,38 @@ TranquilizeNetworkManager() {
 #    None.
 #
 
-WakeNetworkManager() {
+WakeNetworkManager()
+{
    # `which' may be a bit noisy, so we'll shush it.
    dbusSend=`which dbus-send 2>/dev/null`
-   if [ $? -eq 0 ]; then
-      # NetworkManager 0.6
-      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
-         /org/freedesktop/NetworkManager                                \
-         org.freedesktop.NetworkManager.wake
+   rc=$?
+   if [ $rc = 0 ]; then
+      # NetworkManager 0.8.0
+      $dbusSend --system --print-reply          \
+         --dest=org.freedesktop.NetworkManager  \
+         /org/freedesktop/NetworkManager        \
+         org.freedesktop.NetworkManager.Enable boolean:true
+      rc=$?
+      if [ $rc = 0 ]; then
+         return $rc
+      fi
       # NetworkManager 0.7.0
-      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
-         /org/freedesktop/NetworkManager                                \
+      $dbusSend --system --print-reply          \
+         --dest=org.freedesktop.NetworkManager  \
+         /org/freedesktop/NetworkManager        \
          org.freedesktop.NetworkManager.Sleep boolean:false
+      rc=$?
+      if [ $rc = 0 ]; then
+         return $rc
+      fi
+      # NetworkManager 0.6
+      $dbusSend --system --print-reply          \
+         --dest=org.freedesktop.NetworkManager  \
+         /org/freedesktop/NetworkManager        \
+         org.freedesktop.NetworkManager.wake
+      rc=$?
    fi
+   return $rc
 }
 
 
@@ -218,30 +256,38 @@ main() {
          rm -f $activeList
          ;;
       suspend-vm)
-         save_active_NIC_list
-         "$networkScript" stop
          TranquilizeNetworkManager
+         exitCode=$?
+         if [ $exitCode != 0 ]; then
+            save_active_NIC_list
+            "$networkScript" stop
+            exitCode=$?
+         fi
          ;;
       resume-vm)
-         # According to hfu, "/etc/init.d/networking restart" on Debian 5.0
-         # may bring down ethernet interfaces tagged as "allow-hotplug" without
-         # bringing them back up.
-         #
-         # This is especially a problem when reverting to a live, running
-         # VM snapshot where an active NIC list hadn't yet been generated,
-         # resulting in sudden loss of an otherwise operational NIC.
-         #
-         # So, if the active list doesn't exist, assume we're coming back to
-         # a live snapshot and capture the current active list now for
-         # rescue later.
-         if [ ! -s $activeList ]; then
-            save_active_NIC_list
-         fi
          WakeNetworkManager
-         # XXX Do we really want restart or is start sufficient?  Like, would
-         # using start avoid the problem mentioned above?
-         "$networkScript" restart
-         rescue_NIC
+         exitCode=$?
+         if [ $exitCode != 0 ]; then
+            # According to hfu, "/etc/init.d/networking restart" on Debian 5.0
+            # may bring down ethernet interfaces tagged as "allow-hotplug" without
+            # bringing them back up.
+            #
+            # This is especially a problem when reverting to a live, running
+            # VM snapshot where an active NIC list hadn't yet been generated,
+            # resulting in sudden loss of an otherwise operational NIC.
+            #
+            # So, if the active list doesn't exist, assume we're coming back to
+            # a live snapshot and capture the current active list now for
+            # rescue later.
+            if [ ! -s $activeList ]; then
+               save_active_NIC_list
+            fi
+            # XXX Do we really want restart or is start sufficient?  Like, would
+            # using start avoid the problem mentioned above?
+            "$networkScript" restart
+            rescue_NIC
+            exitCode=$?
+         fi
          ;;
       *) ;;
    esac

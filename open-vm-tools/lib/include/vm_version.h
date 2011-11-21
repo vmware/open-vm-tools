@@ -83,7 +83,7 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_DESKTOP)
-   #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    8,0,1,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VCB)
@@ -94,7 +94,7 @@
    /* this should be kept in sync with the corresponding vpx branch. */
    #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
-   #define PRODUCT_VERSION    4,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    4,0,1,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
 #endif
 
 /*
@@ -197,19 +197,19 @@
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
 #define GSX_VERSION "e.x.p"
 #define VMSERVER_VERSION "e.x.p"
-#define WORKSTATION_VERSION_NUMBER "8.0.0" /* this version number should always match real WS version number */
-#define WORKSTATION_VERSION "8.0.0"
-#define WORKSTATION_ENTERPRISE_VERSION "8.0.0"
+#define WORKSTATION_VERSION_NUMBER "8.0.1" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION "8.0.1"
+#define WORKSTATION_ENTERPRISE_VERSION "8.0.1"
 #define ACE_MANAGEMENT_SERVER_VERSION "e.x.p"
 #define MUI_VERSION "4.1.0"
 #define CONSOLE_VERSION "4.1.0"
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
-#define PLAYER_VERSION_NUMBER "4.0.0" /* this version number should always match real Player version number */
-#define PLAYER_VERSION "4.0.0"
+#define PLAYER_VERSION_NUMBER "4.0.1" /* this version number should always match real Player version number */
+#define PLAYER_VERSION "4.0.1"
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0
-#define FUSION_VERSION "4.0.2"
+#define FUSION_VERSION "4.1.0"
 
 // These must match VIE_FILEVERSION above
 #define SYSIMAGE_VERSION "5.0.0"
@@ -223,8 +223,8 @@
 #define SVA_VERSION "1.0.0"
 #define WBC_VERSION "5.0.0"
 #define SDK_VERSION "4.1.0"
-#define FOUNDRY_VERSION "1.11.0"
-#define FOUNDRY_FILE_VERSION 1,11,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define FOUNDRY_VERSION "1.11.1"
+#define FOUNDRY_FILE_VERSION 1,11,1,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
 #define VLICENSE_VERSION "1.1.2"
 #define DDK_VERSION "e.x.p"

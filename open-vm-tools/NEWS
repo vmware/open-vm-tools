@@ -1,3 +1,7 @@
+open-vm-tools 8.8.1 changes:
+	* Updated code for compatibility with newer Linux kernel releases
+	and with newer NetworkManager releases.
+
 open-vm-tools 8.8.0 changes:
 	* Release of open-vm-tools matching the Workstation 8.0 / Fusion 4.0
 	releases.

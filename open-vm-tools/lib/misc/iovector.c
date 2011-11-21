@@ -581,7 +581,7 @@ IOV_Free(VMIOVec* iov)     // IN
  */
 
 void
-IOV_WriteBufToIov(uint8* bufIn,                 // IN
+IOV_WriteBufToIov(const uint8* bufIn,           // IN
                   size_t bufSize,               // IN
                   struct iovec* entries,        // OUT
                   int numEntries)               // IN

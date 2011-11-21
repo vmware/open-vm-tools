@@ -41,7 +41,6 @@ static void ShrinkWiperDestroy(int signal);
 
 static Wiper_State *wiper = NULL;
 
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -193,7 +192,9 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
    WiperPartition *part;
    int rc;
 
-#ifndef _WIN32
+#if defined(_WIN32)
+   DWORD currPriority = GetPriorityClass(GetCurrentProcess());
+#else
    signal(SIGINT, ShrinkWiperDestroy);
 #endif
 
@@ -227,6 +228,16 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
 
    wiper = Wiper_Start(part, MAX_WIPER_FILE_SIZE);
 
+#if defined(_WIN32)
+   /*
+    * On Win32, lower the process priority during wipe, so other applications
+    * can still run (sort of) normally while we're filling the disk.
+    */
+   if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
+      g_debug("Unable to lower process priority: %u.", GetLastError());
+   }
+#endif
+
    while (progress < 100 && wiper != NULL) {
       err = Wiper_Next(&wiper, &progress);
       if (strlen(err) > 0) {
@@ -250,6 +261,13 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
          fflush(stdout);
       }
    }
+
+#if defined(_WIN32)
+   /* Go back to our original priority. */
+   if (!SetPriorityClass(GetCurrentProcess(), currPriority)) {
+      g_debug("Unable to restore process priority: %u.", GetLastError());
+   }
+#endif
 
    if (progress >= 100) {
       char *result;
