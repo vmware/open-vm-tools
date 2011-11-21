@@ -29,11 +29,11 @@
 #include <errno.h>
 
 #if defined(_WIN32)
-typedef DWORD MXThreadID;
+typedef DWORD MXUserThreadID;
 #define MXUSER_INVALID_OWNER 0xFFFFFFFF
 #else
 #include <pthread.h>
-typedef pthread_t MXThreadID;
+typedef pthread_t MXUserThreadID;
 #endif
 
 #include "vm_basic_types.h"
@@ -58,7 +58,7 @@ typedef struct {
 #endif
 
    int              referenceCount;   // Acquisition count
-   MXThreadID       nativeThreadID;   // Native thread ID
+   MXUserThreadID   nativeThreadID;   // Native thread ID
 } MXRecLock;
 
 
@@ -369,8 +369,12 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
  * MXUserGetThreadID --
  *
  *      Obtains a unique thread identifier (ID) which can be stored in a
- *      pointer. These thread ID values are NOT necessarily used within
- *      the MXRecLock implementation.
+ *      pointer; typically these thread ID values are used for tracking
+ *      purposes.
+ *
+ *      These values are not typically used with the MXUser MXRecLock
+ *      implementation. Native constructs that are very low overhead are
+ *      used.
  *
  * Results:
  *      As above
@@ -384,10 +388,7 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 static INLINE void *
 MXUserGetThreadID(void)
 {
-   /* All thread types must fit into a uintptr_t  */
-
-   ASSERT_ON_COMPILE(sizeof(VThreadID) <= sizeof (void *));
-   return (void *) (uintptr_t) VThread_CurID();
+   return (void *) (uintptr_t) VThread_CurID();  // unsigned
 }
 
 
