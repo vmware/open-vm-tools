@@ -2405,7 +2405,7 @@ Hostinfo_GetRatedCpuMhz(int32 cpuNumber,  // IN:
    uint32 hz;
    size_t hzSize = sizeof hz;
 
-   /* 'cpuNumber' is ignored: Intel Macs are always perfectly symetric. */
+   /* 'cpuNumber' is ignored: Intel Macs are always perfectly symmetric. */
 
    if (sysctlbyname(CPUMHZ_SYSCTL_NAME, &hz, &hzSize, NULL, 0) == -1) {
       return FALSE;
@@ -2435,6 +2435,50 @@ Hostinfo_GetRatedCpuMhz(int32 cpuNumber,  // IN:
 }
 
 
+#if defined(__APPLE__) || defined(__FreeBSD__)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoGetSysctlStringAlloc --
+ *
+ *      Obtains the value of a string-type host sysctl.
+ *
+ * Results:
+ *      On success: Allocated, NUL-terminated string.
+ *      On failure: NULL.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+HostinfoGetSysctlStringAlloc(char const *sysctlName) // IN
+{
+   char *desc;
+   size_t descSize;
+
+   if (sysctlbyname(sysctlName, NULL, &descSize, NULL, 0) == -1) {
+      return NULL;
+   }
+
+   desc = malloc(descSize);
+   if (!desc) {
+      return NULL;
+   }
+
+   if (sysctlbyname(sysctlName, desc, &descSize, NULL, 0) == -1) {
+      free(desc);
+
+      return NULL;
+   }
+
+   return desc;
+}
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2455,34 +2499,11 @@ Hostinfo_GetRatedCpuMhz(int32 cpuNumber,  // IN:
 char *
 Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
 {
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#  if defined(__APPLE__)
-#     define CPUDESC_SYSCTL_NAME "machdep.cpu.brand_string"
-#  else
-#     define CPUDESC_SYSCTL_NAME "hw.model"
-#  endif
-
-   char *desc;
-   size_t descSize;
-
-   /* 'cpuNumber' is ignored: Intel Macs are always perfectly symetric. */
-
-   if (sysctlbyname(CPUDESC_SYSCTL_NAME, NULL, &descSize, NULL, 0) == -1) {
-      return NULL;
-   }
-
-   desc = malloc(descSize);
-   if (!desc) {
-      return NULL;
-   }
-
-   if (sysctlbyname(CPUDESC_SYSCTL_NAME, desc, &descSize, NULL, 0) == -1) {
-      free(desc);
-
-      return NULL;
-   }
-
-   return desc;
+#if defined(__APPLE__)
+   /* 'cpuNumber' is ignored: Intel Macs are always perfectly symmetric. */
+   return HostinfoGetSysctlStringAlloc("machdep.cpu.brand_string");
+#elif defined(__FreeBSD__)
+   return HostinfoGetSysctlStringAlloc("hw.model");
 #else
 #ifdef VMX86_SERVER
    if (HostType_OSIsVMK()) {
@@ -2492,7 +2513,7 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
       mName[0] = '\0';
       if (VMKernel_GetCPUModelName(cpuNumber, mName,
                                    sizeof(mName)) == VMK_OK) {
-	 mName[sizeof(mName) - 1] = '\0';
+         mName[sizeof(mName) - 1] = '\0';
 
          return strdup(mName);
       }
@@ -2722,6 +2743,30 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
    munmap((void *)shared, sizeof *shared);
 
    return retval;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetHardwareModel --
+ *
+ *      Obtains the hardware model identifier (i.e. "MacPro5,1") from the host.
+ *
+ * Results:
+ *      On success: Allocated, NUL-terminated string.
+ *      On failure: NULL.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Hostinfo_GetHardwareModel(void)
+{
+   return HostinfoGetSysctlStringAlloc("hw.model");
 }
 #endif /* __APPLE__ */
 

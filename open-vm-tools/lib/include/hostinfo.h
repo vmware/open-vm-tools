@@ -226,6 +226,7 @@ Bool Hostinfo_GetLoadAverage(uint32 *l);
 
 #ifdef __APPLE__
 size_t Hostinfo_GetKernelZoneElemSize(char const *name);
+char *Hostinfo_GetHardwareModel(void);
 #endif
 
 #endif /* ifndef _HOSTINFO_H_ */
