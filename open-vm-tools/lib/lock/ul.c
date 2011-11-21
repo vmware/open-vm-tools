@@ -130,7 +130,8 @@ MXUserSyndrome(void)
 
        do {
           if (!Random_Crypto(sizeof(syndrome), &syndrome)) {
-             syndrome = Hostinfo_SystemUpTime() & 0xFFFFFFFF;
+//             syndrome = Hostinfo_SystemUpTime() & 0xFFFFFFFF;
+             syndrome = 1;  // work around tools build
           }
        } while (syndrome == 0);  // syndrome bits must be non-zero
 
