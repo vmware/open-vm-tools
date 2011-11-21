@@ -29,7 +29,7 @@
 #define _XOPEN_SOURCE 600
 #endif
 #include <semaphore.h>
-#include <time.h>
+#include "safetime.h"
 #include <sys/time.h>
 #endif
 #endif
