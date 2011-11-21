@@ -590,6 +590,15 @@ RpcInLoop(void *clientData) // IN
    in->inLoop = TRUE;
 
    /*
+    * Workaround for bug 780404. Remove if we ever figure out the root cause.
+    * Note that the ASSERT above catches this on non-release builds.
+    */
+   if (in->channel == NULL) {
+      errmsg = "RpcIn: Channel is not active";
+      goto error;
+   }
+
+   /*
     * This is very important: this is the only way to signal the existence of
     * this guest application to VMware.
     */
