@@ -548,15 +548,29 @@ DnD_TryInitVmblock(const char *vmbFsName,          // IN
 {
    Bool found = FALSE;
    int blockFd = -1;
+   char *realMntPoint;
    MNTHANDLE fp;
    DECLARE_MNTINFO(mnt);
+
+   ASSERT(vmbFsName);
+   ASSERT(vmbMntPoint);
+   ASSERT(vmbDevice);
+
+   /* Resolve desired mount point in case it is symlinked somewhere */
+   realMntPoint = Posix_RealPath(vmbMntPoint);
+   if (!realMntPoint) {
+      /*
+       * If resolve failed for some reason try to fall back to
+       * original mount point specification.
+       */
+      realMntPoint = Util_SafeStrdup(vmbMntPoint);
+   }
 
    /* Make sure the vmblock file system is mounted. */
    fp = OPEN_MNTFILE("r");
    if (fp == NULL) {
       LOG(1, ("%s: could not open mount file\n", __func__));
-
-      return -1;
+      goto out;
    }
 
    while (GETNEXT_MNTINFO(fp, mnt)) {
@@ -566,7 +580,7 @@ DnD_TryInitVmblock(const char *vmbFsName,          // IN
        */
 
       if (strcmp(MNTINFO_FSTYPE(mnt), vmbFsName) == 0 &&
-          strcmp(MNTINFO_MNTPT(mnt), vmbMntPoint) == 0) {
+          strcmp(MNTINFO_MNTPT(mnt), realMntPoint) == 0) {
          found = TRUE;
          break;
       }
@@ -592,6 +606,8 @@ DnD_TryInitVmblock(const char *vmbFsName,          // IN
       }
    }
 
+out:
+   free(realMntPoint);
    return blockFd;
 }
 
