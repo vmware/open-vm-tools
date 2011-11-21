@@ -51,6 +51,54 @@ static Atomic_Ptr hashTableMem;
 /*
  *-----------------------------------------------------------------------------
  *
+ * MXUserInternalSingleton --
+ *
+ *      A "singleton" function for the MXUser internal recursive lock.
+ *
+ *      Internal MXUser recursive locks have no statistics gathering or
+ *      tracking abilities. They need to used with care and rarely.
+ *
+ * Results:
+ *      NULL    Failure
+ *      !NULL   A pointer to an initialized MXRecLock
+ *
+ * Side effects:
+ *      Manifold.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MXRecLock *
+MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
+{
+   MXRecLock *lock = (MXRecLock *) Atomic_ReadPtr(storage);
+
+   if (UNLIKELY(lock == NULL)) {
+      MXRecLock *newLock = Util_SafeMalloc(sizeof(MXRecLock));
+
+      if (MXRecLockInit(newLock)) {
+         lock = (MXRecLock *) Atomic_ReadIfEqualWritePtr(storage, NULL,
+                                                         (void *) newLock);
+
+         if (lock) {
+            MXRecLockDestroy(newLock);
+            free(newLock);
+         } else {
+            lock = Atomic_ReadPtr(storage);
+         }
+      } else {
+         free(newLock);
+         lock = Atomic_ReadPtr(storage);  // maybe another thread succeeded
+      }
+   }
+
+   return lock;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * MXUserGetPerThread --
  *
  *      Return a pointer to the per thread data for the specified thread.
@@ -416,54 +464,6 @@ MXUser_TryAcquireFailureControl(Bool (*func)(const char *name))  // IN:
    MXUserTryAcquireForceFail = func;
 }
 #endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUserInternalSingleton --
- *
- *      A "singleton" function for the MXUser internal recursive lock.
- *
- *      Internal MXUser recursive locks have no statistics gathering or
- *      tracking abilities. They need to used with care and rarely.
- *
- * Results:
- *      NULL    Failure
- *      !NULL   A pointer to an initialized MXRecLock
- *
- * Side effects:
- *      Manifold.
- *
- *-----------------------------------------------------------------------------
- */
-
-MXRecLock *
-MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
-{
-   MXRecLock *lock = (MXRecLock *) Atomic_ReadPtr(storage);
-
-   if (UNLIKELY(lock == NULL)) {
-      MXRecLock *newLock = Util_SafeMalloc(sizeof(MXRecLock));
-
-      if (MXRecLockInit(newLock)) {
-         lock = (MXRecLock *) Atomic_ReadIfEqualWritePtr(storage, NULL,
-                                                         (void *) newLock);
-
-         if (lock) {
-            MXRecLockDestroy(newLock);
-            free(newLock);
-         } else {
-            lock = Atomic_ReadPtr(storage);
-         }
-      } else {
-         free(newLock);
-         lock = Atomic_ReadPtr(storage);  // maybe another thread succeeded
-      }
-   }
-
-   return lock;
-}
 
 
 /*
