@@ -157,11 +157,11 @@ MXUserSyndrome(void)
  */
 
 uint32
-MXUserGetSignature(uint32 objectType)  // IN:
+MXUserGetSignature(MXUserObjectType objectType)  // IN:
 {
    uint32 signature;
 
-   ASSERT(objectType < 16);  // 4 bits of object type
+   ASSERT((objectType != 0) && (objectType < 16));
 
    signature = (MXUserSyndrome() & 0x0FFFFFFF) | (objectType << 28);
    ASSERT(signature);
@@ -563,14 +563,19 @@ MXUser_TryAcquireFailureControl(Bool (*func)(const char *name))  // IN:
  */
 
 void
-MXUserValidateHeader(MXUserHeader *header,  // IN:
-                     uint32 objectType)     // IN:
+MXUserValidateHeader(MXUserHeader *header,         // IN:
+                     MXUserObjectType objectType)  // IN:
 {
    uint32 expected = MXUserGetSignature(objectType);
 
    if (header->signature != expected) {
-      MXUserDumpAndPanic(header, "%s: expected %X observed %X\n", __FUNCTION__,
-                         expected, header->signature);
+      MXUserDumpAndPanic(header,
+                         "%s: signature failure! expected %X observed %X\n",
+                         __FUNCTION__, expected, header->signature);
+   }
+
+   if (header->serialNumber == 0) {
+      MXUserDumpAndPanic(header, "%s: Invalid serial number!", __FUNCTION__);
    }
 }
 #endif
