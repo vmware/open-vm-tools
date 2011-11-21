@@ -59,6 +59,7 @@ typedef struct {
 
    int              referenceCount;   // Acquisition count
    MXThreadID       nativeThreadID;   // Native thread ID
+   VThreadID        vmwThreadID;      // VMW thread ID
 } MXRecLock;
 
 
@@ -123,6 +124,7 @@ static INLINE void
 MXRecLockSetNoOwner(MXRecLock *lock)  // IN:
 {
    lock->nativeThreadID = MXUSER_INVALID_OWNER;
+   lock->vmwThreadID = VTHREAD_INVALID_ID;
 }
 
 
@@ -130,6 +132,7 @@ static INLINE void
 MXRecLockSetOwner(MXRecLock *lock)  // IN/OUT:
 {
    lock->nativeThreadID = GetCurrentThreadId();
+   lock->vmwThreadID = VThread_CurID();
 }
 
 
@@ -183,6 +186,7 @@ MXRecLockSetNoOwner(MXRecLock *lock)  // IN/OUT:
 {
    /* a hack but it works portably */
    memset((void *) &lock->nativeThreadID, 0xFF, sizeof(lock->nativeThreadID));
+   lock->vmwThreadID = VTHREAD_INVALID_ID;
 }
 
 
@@ -190,6 +194,7 @@ static INLINE void
 MXRecLockSetOwner(MXRecLock *lock)  // IN:
 {
    lock->nativeThreadID = pthread_self();
+   lock->vmwThreadID = VThread_CurID();
 }
 
 
@@ -387,7 +392,18 @@ MXUserGetThreadID(void)
    /* All thread types must fit into a uintptr_t  */
 
    ASSERT_ON_COMPILE(sizeof(VThreadID) <= sizeof (void *));
-   return (void *) (uintptr_t) VThread_CurID();
+
+   /*
+    * We must use native (OS provided) thread IDs which are guaranteed to
+    * always be unique. Any ID system that could possibly alias, under
+    * an circumstances, is unacceptable.
+    */
+
+#if defined(_WIN32)
+   return (void *) (uintptr_t) GetCurrentThreadId();
+#else
+   return (void *) (uintptr_t) pthread_self();
+#endif
 }
 
 
