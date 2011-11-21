@@ -2418,17 +2418,37 @@ Hostinfo_GetRatedCpuMhz(int32 cpuNumber,  // IN:
    return FALSE;
 #  endif
 #else
-   float fMhz = 0;
-   char *readVal = HostinfoGetCpuInfo(cpuNumber, "cpu MHz");
+#if defined(VMX86_SERVER)
+   if (HostType_OSIsVMK()) {
+      uint32 tscKhzEstimate;
+      VMK_ReturnStatus status = VMKernel_GetTSCkhzEstimate(&tscKhzEstimate);
 
-   if (readVal == NULL) {
-      return FALSE;
-   }
+      /*
+       * The TSC frequency matches the CPU frequency in all modern CPUs.
+       * Regardless, the TSC frequency is a much better estimate of
+       * reality than failing or returning zero.
+       */
 
-   if (sscanf(readVal, "%f", &fMhz) == 1) {
-      *mHz = (unsigned int)(fMhz + 0.5);
+      *mHz = tscKhzEstimate / 1000;
+
+      return (status == VMK_OK);
    }
-   free(readVal);
+#endif
+
+   {
+      float fMhz = 0;
+      char *readVal = HostinfoGetCpuInfo(cpuNumber, "cpu MHz");
+
+      if (readVal == NULL) {
+         return FALSE;
+      }
+
+      if (sscanf(readVal, "%f", &fMhz) == 1) {
+         *mHz = (unsigned int)(fMhz + 0.5);
+      }
+
+      free(readVal);
+   }
 
    return TRUE;
 #endif
