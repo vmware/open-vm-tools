@@ -51,7 +51,7 @@ void MXUser_AcquireExclLock(MXUserExclLock *lock);
 Bool MXUser_TryAcquireExclLock(MXUserExclLock *lock);
 void MXUser_ReleaseExclLock(MXUserExclLock *lock);
 void MXUser_DestroyExclLock(MXUserExclLock *lock);
-Bool MXUser_IsCurThreadHoldingExclLock(const MXUserExclLock *lock);
+Bool MXUser_IsCurThreadHoldingExclLock(MXUserExclLock *lock);
 
 MXUserExclLock *MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,
                                                const char *name,
@@ -85,7 +85,7 @@ void MXUser_AcquireRecLock(MXUserRecLock *lock);
 Bool MXUser_TryAcquireRecLock(MXUserRecLock *lock);
 void MXUser_ReleaseRecLock(MXUserRecLock *lock);
 void MXUser_DestroyRecLock(MXUserRecLock *lock);
-Bool MXUser_IsCurThreadHoldingRecLock(const MXUserRecLock *lock);
+Bool MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock);
 
 MXUserRecLock *MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,
                                              const char *name,
@@ -109,9 +109,6 @@ void MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,
 void MXUser_IncRefRecLock(MXUserRecLock *lock);
 
 void MXUser_DecRefRecLock(MXUserRecLock *lock);
-
-Bool MXUser_AcquireWeakRefRecLock(MXUserRecLock *lock);
-
 
 /*
  * Read-write lock

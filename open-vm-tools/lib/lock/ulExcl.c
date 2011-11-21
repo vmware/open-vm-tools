@@ -569,7 +569,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
  */
 
 Bool
-MXUser_IsCurThreadHoldingExclLock(const MXUserExclLock *lock)  // IN:
+MXUser_IsCurThreadHoldingExclLock(MXUserExclLock *lock)  // IN:
 {
    ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
