@@ -37,17 +37,6 @@ Bool (*MXUserMX_TryLockRec)(struct MX_MutexRec *lock) = NULL;
 Bool (*MXUserMX_IsLockedByCurThreadRec)(const struct MX_MutexRec *lock) = NULL;
 
 
-#if defined(MXUSER_DEBUG)
-#define MXUSER_MAX_LOCKS_PER_THREAD (2 * MXUSER_MAX_REC_DEPTH)
-
-typedef struct {
-   uint32         locksHeld;
-   MXUserHeader  *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
-} MXUserPerThread;
-
-static Atomic_Ptr hashTableMem;
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -94,6 +83,17 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
 
    return lock;
 }
+
+
+#if defined(MXUSER_DEBUG)
+#define MXUSER_MAX_LOCKS_PER_THREAD (2 * MXUSER_MAX_REC_DEPTH)
+
+typedef struct {
+   uint32         locksHeld;
+   MXUserHeader  *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
+} MXUserPerThread;
+
+static Atomic_Ptr hashTableMem;
 
 
 /*
