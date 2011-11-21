@@ -270,10 +270,6 @@ typedef enum {
    CPUID_NUM_FIELD_SUPPORTEDS
 } CpuidFieldSupported;
 
-
-#define CPUID_1_ECX_29
-
-
 /*    LEVEL, SUB-LEVEL, REG, VENDOR, POS, SIZE, NAME,        MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_0                                               \
 FIELD(  0,  0, EAX, COMMON,  0, 32, NUMLEVELS,                     ANY, FALSE) \
@@ -321,7 +317,7 @@ FLAG(   1,  0, ECX, COMMON, 25,  1, AES,                           YES, TRUE)  \
 FLAG(   1,  0, ECX, COMMON, 26,  1, XSAVE,                         YES, FALSE) \
 FLAG(   1,  0, ECX, COMMON, 27,  1, OSXSAVE,                       ANY, FALSE) \
 FLAG(   1,  0, ECX, COMMON, 28,  1, AVX,                           YES, FALSE) \
-CPUID_1_ECX_29                                                                 \
+FLAG(   1,  0, ECX, COMMON, 29,  1, F16C,                          YES, TRUE)  \
 FLAG(   1,  0, ECX, COMMON, 30,  1, RDRAND,                        YES, TRUE)  \
 FLAG(   1,  0, ECX, COMMON, 31,  1, HYPERVISOR,                    ANY, TRUE)  \
 FLAG(   1,  0, EDX, COMMON, 0,   1, FPU,                           YES, TRUE)  \
