@@ -120,6 +120,7 @@ EXTERN Msg_String const Msg_Severities[];
 
 EXTERN void Msg_Append(const char *idFmt, ...)
        PRINTF_DECL(1, 2);
+EXTERN void Msg_AppendStr(const char *id);
 EXTERN void Msg_Post(MsgSeverity severity, const char *idFmt, ...)
        PRINTF_DECL(2, 3);
 EXTERN void Msg_PostMsgList(MsgSeverity severity, const MsgList *msgs);
