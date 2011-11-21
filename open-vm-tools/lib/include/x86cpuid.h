@@ -433,8 +433,19 @@ FLAG(   D,  0, EAX, COMMON,  2,  1, XCR0_MASTER_YMM_H,             YES, FALSE) \
 FIELD(  D,  0, EAX, COMMON,  3, 29, XCR0_MASTER_LOWER,             NO,  FALSE) \
 FIELD(  D,  0, EBX, COMMON,  0, 32, XSAVE_ENABLED_SIZE,            ANY, FALSE) \
 FIELD(  D,  0, ECX, COMMON,  0, 32, XSAVE_MAX_SIZE,                YES, FALSE) \
-FIELD(  D,  0, EDX, COMMON,  0, 32, XCR0_MASTER_UPPER,             NO,  FALSE) \
-FLAG(   D,  1, EAX, COMMON,  0,  1, XSAVEOPT,                      NO,  FALSE)
+FIELD(  D,  0, EDX, COMMON,  0, 29, XCR0_MASTER_UPPER,             NO,  FALSE) \
+FLAG(   D,  0, EDX, AMD,     30, 1, XCR0_MASTER_LWP,               NO,  FALSE) \
+FLAG(   D,  0, EDX, COMMON,  31, 1, XCR0_MASTER_EXTENDED_XSAVE,    NO,  FALSE) \
+FLAG(   D,  1, EAX, COMMON,  0,  1, XSAVEOPT,                      NO,  FALSE) \
+FIELD(  D,  2, EAX, COMMON,  0, 32, XSAVE_YMM_SIZE,                YES, FALSE) \
+FIELD(  D,  2, EBX, COMMON,  0, 32, XSAVE_YMM_OFFSET,              YES, FALSE) \
+FIELD(  D,  2, ECX, COMMON,  0, 32, XSAVE_YMM_RSVD1,               YES, FALSE) \
+FIELD(  D,  2, EDX, COMMON,  0, 32, XSAVE_YMM_RSVD2,               YES, FALSE) \
+FIELD(  D, 62, EAX, AMD,     0, 32, XSAVE_LWP_SIZE,                NO,  FALSE) \
+FIELD(  D, 62, EBX, AMD,     0, 32, XSAVE_LWP_OFFSET,              NO,  FALSE) \
+FIELD(  D, 62, ECX, AMD,     0, 32, XSAVE_LWP_RSVD1,               NO,  FALSE) \
+FIELD(  D, 62, EDX, AMD,     0, 32, XSAVE_LWP_RSVD2,               NO,  FALSE)
+
 
 /*    LEVEL, SUB-LEVEL, REG, VENDOR, POS, SIZE, NAME,        MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_400                                             \
