@@ -243,6 +243,7 @@ static GHashTable *listProcessesResultsTable = NULL;
 typedef struct VixToolsCachedListProcessesResult {
    char *resultBuffer;
    size_t resultBufferLen;
+   int key;
 #ifdef _WIN32
    wchar_t *userName;
 #else
@@ -565,7 +566,7 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
    HgfsServerManager_Register(&gVixHgfsBkdrConn);
 
    listProcessesResultsTable = g_hash_table_new_full(g_int_hash, g_int_equal,
-                                                     free,
+                                                     NULL,
                                                      VixToolsFreeCachedResult);
 
 
@@ -4489,13 +4490,12 @@ VixToolsFreeCachedResult(gpointer ptr)          // IN
 static gboolean
 VixToolsListProcCacheCleanup(void *clientData) // IN
 {
-   int32 *key = (int32 *)clientData;
+   int key = (int)(intptr_t)clientData;
    gboolean ret;
 
-   ret = g_hash_table_remove(listProcessesResultsTable, key);
+   ret = g_hash_table_remove(listProcessesResultsTable, &key);
    Debug("%s: list proc cache timed out, purged key %d (found? %d)\n",
-         __FUNCTION__, *key, ret);
-   free(key);
+         __FUNCTION__, key, ret);
 
    return FALSE;
 }
@@ -4736,9 +4736,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
    uint32 offset;
    int len;
    VixToolsCachedListProcessesResult *cachedResult = NULL;
-   uint32 *keyBuf;
    GSource *timer;
-   int32 *timerData;
 #ifdef _WIN32
    Bool bRet;
    wchar_t *userName = NULL;
@@ -4792,7 +4790,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
 
       // find the cached data
       cachedResult = g_hash_table_lookup(listProcessesResultsTable,
-                                        &key);
+                                         &key);
       if (NULL == cachedResult) {
          Debug("%s: failed to find cached data with key %d\n", __FUNCTION__, key);
          err = VIX_E_FAIL;
@@ -4864,12 +4862,11 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
          /*
           * Save it off in the hashtable.
           */
-         keyBuf = Util_SafeMalloc(sizeof(uint32));
          key = listProcessesResultsKey++;
-         *keyBuf = key;
-         cachedResult = Util_SafeMalloc(sizeof(VixToolsCachedListProcessesResult));
+         cachedResult = Util_SafeMalloc(sizeof(*cachedResult));
          cachedResult->resultBufferLen = fullResultSize;
          cachedResult->resultBuffer = fullResultBuffer;
+         cachedResult->key = key;
 #ifdef _WIN32
          bRet = VixToolsGetUserName(&cachedResult->userName);
          if (!bRet) {
@@ -4880,16 +4877,16 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
          cachedResult->euid = Id_GetEUid();
 #endif
 
-         g_hash_table_insert(listProcessesResultsTable, keyBuf, cachedResult);
+         g_hash_table_replace(listProcessesResultsTable, &cachedResult->key,
+                              cachedResult);
 
          /*
           * Set timer callback to clean this up in case the Vix side
           * never finishes
           */
-         timerData = Util_SafeMalloc(sizeof(int32));
-         *timerData = *keyBuf;
          timer = g_timeout_source_new(SECONDS_UNTIL_LISTPROC_CACHE_CLEANUP * 1000);
-         g_source_set_callback(timer, VixToolsListProcCacheCleanup, timerData, NULL);
+         g_source_set_callback(timer, VixToolsListProcCacheCleanup,
+                               (void *)(intptr_t) key, NULL);
          g_source_attach(timer, g_main_loop_get_context(eventQueue));
          g_source_unref(timer);
       }
