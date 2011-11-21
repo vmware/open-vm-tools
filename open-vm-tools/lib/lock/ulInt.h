@@ -57,8 +57,9 @@ typedef struct {
    pthread_mutex_t  nativeLock;       // Native lock object
 #endif
 
-   int              referenceCount;   // Acquisition count
+   int              depthCount;       // Acquisition count
    MXUserThreadID   nativeThreadID;   // Native thread ID
+   VThreadID        vmwThreadID;      // VMW thread ID
 } MXRecLock;
 
 
@@ -123,6 +124,7 @@ static INLINE void
 MXRecLockSetNoOwner(MXRecLock *lock)  // IN:
 {
    lock->nativeThreadID = MXUSER_INVALID_OWNER;
+   lock->vmwThreadID = VTHREAD_INVALID_ID;
 }
 
 
@@ -130,6 +132,7 @@ static INLINE void
 MXRecLockSetOwner(MXRecLock *lock)  // IN/OUT:
 {
    lock->nativeThreadID = GetCurrentThreadId();
+   lock->vmwThreadID = VThread_CurID();
 }
 
 
@@ -183,6 +186,7 @@ MXRecLockSetNoOwner(MXRecLock *lock)  // IN/OUT:
 {
    /* a hack but it works portably */
    memset((void *) &lock->nativeThreadID, 0xFF, sizeof(lock->nativeThreadID));
+   lock->vmwThreadID = VTHREAD_INVALID_ID;
 }
 
 
@@ -190,6 +194,7 @@ static INLINE void
 MXRecLockSetOwner(MXRecLock *lock)  // IN:
 {
    lock->nativeThreadID = pthread_self();
+   lock->vmwThreadID = VThread_CurID();
 }
 
 
@@ -223,7 +228,7 @@ MXRecLockInit(MXRecLock *lock)  // IN/OUT:
    if (success) {
       MXRecLockSetNoOwner(lock);
 
-      lock->referenceCount = 0;
+      lock->depthCount = 0;
    }
 
    return success;
@@ -244,7 +249,7 @@ MXRecLockDestroy(MXRecLock *lock)  // IN/OUT:
 static INLINE uint32
 MXRecLockCount(const MXRecLock *lock)  // IN:
 {
-   return lock->referenceCount;
+   return lock->depthCount;
 }
 
 
@@ -256,7 +261,7 @@ MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
       MXRecLockSetOwner(lock);
    }
 
-   lock->referenceCount += count;
+   lock->depthCount += count;
 }
 
 
@@ -290,7 +295,7 @@ MXRecLockAcquire(MXRecLock *lock)  // IN/OUT:
                err);
       }
 
-      ASSERT(lock->referenceCount == 0);
+      ASSERT(lock->depthCount == 0);
    }
 
    MXRecLockIncCount(lock, 1);
@@ -335,8 +340,8 @@ static INLINE void
 MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
                   uint32 count)     // IN:
 {
-   ASSERT(count <= lock->referenceCount);
-   lock->referenceCount -= count;
+   ASSERT(count <= lock->depthCount);
+   lock->depthCount -= count;
 
    if (MXRecLockCount(lock) == 0) {
       MXRecLockSetNoOwner(lock);
@@ -388,7 +393,22 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 static INLINE void *
 MXUserGetThreadID(void)
 {
+#if defined(_WIN32)
+   /*
+    * On Windows there is a problem with using VThread_CurID() - it doesn't
+    * maintain unique thread ID values (PR 780775). Native thread ID values
+    * and special handling are used to resolve issues.
+    */
+
+   return (void *) (uintptr_t) GetCurrentThreadId();  // DWORD
+#else
+   /*
+    * Outside of Windows there are no known issues with using VThread_CurID
+    * so that is what is used.
+    */
+
    return (void *) (uintptr_t) VThread_CurID();  // unsigned
+#endif
 }
 
 
@@ -397,13 +417,13 @@ MXUserGetThreadID(void)
  */
 
 typedef struct MXUserHeader {
-   uint32       signature;
+   uint32       signature[2];
    char        *name;
-   MX_Rank      rank;
-   uint32       serialNumber;
    void       (*dumpFunc)(struct MXUserHeader *);
    void       (*statsFunc)(struct MXUserHeader *);
    ListItem     item;
+   uint32       serialNumber;
+   MX_Rank      rank;
 } MXUserHeader;
 
 

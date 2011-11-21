@@ -364,7 +364,8 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
 
    Warning("%s: Read-write lock @ 0x%p\n", __FUNCTION__, lock);
 
-   Warning("\tsignature 0x%X\n", lock->header.signature);
+   Warning("\tsignature (0x%X, 0x%X)\n", lock->header.signature[0],
+           lock->header.signature[1]);
    Warning("\tname %s\n", lock->header.name);
    Warning("\trank 0x%X\n", lock->header.rank);
    Warning("\tserial number %u\n", lock->header.serialNumber);
@@ -372,7 +373,7 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
    if (LIKELY(lock->useNative)) {
       Warning("\tnativeLock 0x%p\n", &lock->nativeLock);
    } else {
-      Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
+      Warning("\tdepth count %u\n", MXRecLockCount(&lock->recursiveLock));
    }
 
    Warning("\tholderCount %d\n", Atomic_Read(&lock->holderCount));
@@ -604,6 +605,8 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
                             __FUNCTION__);
       }
 
+      MXUserClearSignature(&lock->header);  // just in case...
+
       if (LIKELY(lock->useNative)) {
          int err = MXUserNativeRWDestroy(&lock->nativeLock);
 
@@ -629,7 +632,6 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
       }
 
       HashTable_FreeUnsafe(lock->holderTable);
-      MXUserClearSignature(&lock->header);  // just in case...
       free(lock->header.name);
       lock->header.name = NULL;
       free(lock);
