@@ -626,7 +626,8 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    int err;
    MXUserStats *stats;
 
-   ASSERT(sema && (sema->header.signature == MXUSER_SEMA_SIGNATURE));
+   ASSERT(sema);
+   ASSERT(sema->header.signature == MXUSER_SEMA_SIGNATURE);
 
    Atomic_Inc(&sema->activeUserCount);
 
@@ -701,7 +702,8 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
    MXUserStats *stats;
    Bool downOccurred = FALSE;
 
-   ASSERT(sema && (sema->header.signature == MXUSER_SEMA_SIGNATURE));
+   ASSERT(sema);
+   ASSERT(sema->header.signature == MXUSER_SEMA_SIGNATURE);
 
    Atomic_Inc(&sema->activeUserCount);
 
@@ -784,7 +786,8 @@ MXUser_TryDownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    MXUserStats *stats;
    Bool downOccurred = FALSE;
 
-   ASSERT(sema && (sema->header.signature == MXUSER_SEMA_SIGNATURE));
+   ASSERT(sema);
+   ASSERT(sema->header.signature == MXUSER_SEMA_SIGNATURE);
 
    Atomic_Inc(&sema->activeUserCount);
 
@@ -830,7 +833,8 @@ MXUser_UpSemaphore(MXUserSemaphore *sema)  // IN/OUT:
 {
    int err;
 
-   ASSERT(sema && (sema->header.signature == MXUSER_SEMA_SIGNATURE));
+   ASSERT(sema);
+   ASSERT(sema->header.signature == MXUSER_SEMA_SIGNATURE);
 
    Atomic_Inc(&sema->activeUserCount);
 

@@ -198,7 +198,8 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
 {
    Bool result;
 
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    Atomic_Inc(&lock->refCount);
 
@@ -432,7 +433,8 @@ MXUser_CreateRecLock(const char *userName,  // IN:
 static void
 MXUserCondDestroyRecLock(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    if (Atomic_FetchAndDec(&lock->refCount) == 1) {
       if (lock->vmmLock == NULL) {
@@ -497,7 +499,8 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 void
 MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    Atomic_Inc(&lock->refCount);
 
@@ -563,7 +566,8 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 void
 MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    Atomic_Inc(&lock->refCount);
 
@@ -635,7 +639,8 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
    Bool success;
 
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    Atomic_Inc(&lock->refCount);
 
@@ -693,7 +698,8 @@ MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock)  // IN:
 {
    Bool result;
 
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    Atomic_Inc(&lock->refCount);
 
@@ -781,7 +787,8 @@ MXUser_CreateCondVarRecLock(MXUserRecLock *lock)
 {
    MXUserCondVar *condVar;
 
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    Atomic_Inc(&lock->refCount);
@@ -819,7 +826,8 @@ void
 MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                           MXUserCondVar *condVar)  // IN:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    Atomic_Inc(&lock->refCount);
@@ -857,7 +865,8 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                                MXUserCondVar *condVar,  // IN:
                                uint32 msecWait)         // IN:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    Atomic_Inc(&lock->refCount);
@@ -889,7 +898,8 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
 void
 MXUser_DumpRecLock(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    Atomic_Inc(&lock->refCount);
 
@@ -920,7 +930,8 @@ MXUser_DumpRecLock(MXUserRecLock *lock)  // IN:
 struct MX_MutexRec *
 MXUser_GetRecLockVmm(const MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    return lock->vmmLock;
 }
@@ -945,7 +956,8 @@ MXUser_GetRecLockVmm(const MXUserRecLock *lock)  // IN:
 MX_Rank
 MXUser_GetRecLockRank(const MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    return lock->header.rank;
 }
@@ -1033,7 +1045,8 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
 void
 MXUser_IncRefRecLock(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    Atomic_Inc(&lock->refCount);
 }
@@ -1059,7 +1072,8 @@ MXUser_IncRefRecLock(MXUserRecLock *lock)  // IN:
 void
 MXUser_DecRefRecLock(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
    MXUserCondDestroyRecLock(lock);
 }

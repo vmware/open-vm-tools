@@ -240,7 +240,8 @@ MXUser_EnterBarrier(MXUserBarrier *barrier)  // IN/OUT:
    BarrierContext *ptr;
    uint32 context;
 
-   ASSERT(barrier && (barrier->header.signature == MXUSER_BARRIER_SIGNATURE));
+   ASSERT(barrier);
+   ASSERT(barrier->header.signature == MXUSER_BARRIER_SIGNATURE);
 
    MXUser_AcquireExclLock(barrier->lock);
 

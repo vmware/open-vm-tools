@@ -403,7 +403,8 @@ MXUser_ControlRWLock(MXUserRWLock *lock,  // IN/OUT:
 {
    Bool result;
 
-   ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_RW_SIGNATURE);
 
    switch (command) {
    case MXUSER_CONTROL_ACQUISITION_HISTO: {
@@ -705,7 +706,8 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    MXUserStats *stats;
    HolderContext *myContext;
 
-   ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_RW_SIGNATURE);
 
    MXUserAcquisitionTracking(&lock->header, TRUE);
 
@@ -853,7 +855,8 @@ MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
 {
    HolderContext *myContext;
 
-   ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_RW_SIGNATURE);
 
    myContext = MXUserGetHolderContext(lock);
 
@@ -895,7 +898,8 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    MXUserStats *stats;
    HolderContext *myContext;
 
-   ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
+   ASSERT(lock);
+   ASSERT(lock->header.signature == MXUSER_RW_SIGNATURE);
 
    myContext = MXUserGetHolderContext(lock);
 
