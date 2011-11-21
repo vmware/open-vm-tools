@@ -23,7 +23,6 @@
 #include "ulInt.h"
 #include "ulIntShared.h"
 #include "hashTable.h"
-#include "random.h"
 #include "hostinfo.h"
 
 
@@ -123,26 +122,32 @@ MXUserSyndrome(void)
    syndrome = Atomic_Read(&syndromeMem);
 
    if (syndrome == 0) {
-       /*
-        * Use the cryto quality source of bytes. This comes from the
-        * host system. Should take somehow fail use the host's uptime
-        */
-
-       do {
-          if (!Random_Crypto(sizeof(syndrome), &syndrome)) {
-//             syndrome = Hostinfo_SystemUpTime() & 0xFFFFFFFF;
-             syndrome = 1;  // work around tools build
-          }
-       } while (syndrome == 0);  // syndrome bits must be non-zero
+       void *token;
 
        /*
-        * Attempt to update the syndrome value with the computed value using
-        * a blind conditional write. One thread or another will have updated
-        * the value.
+        * It is extremely rare for malloc/calloc to be diverted into multiple
+        * heaps or to fail in our environment - one heap per program; addresses
+        * must be unique. Attempt a small allocation and use its address for
+        * the syndrome bits.
+        *
+        * This is an intentional "leak" albeit only once per program (or
+        * copy of MXUser).
         */
 
-       Atomic_ReadIfEqualWrite(&syndromeMem, 0, syndrome);
+       token = malloc(4);
+
+       syndrome = ((uintptr_t) token) & 0xFFFFFFFF;
+
+       if (UNLIKELY(syndrome == 0)) {
+          syndrome++;  // live with the exceedingly rare outcome
+       }
+
+       if (Atomic_ReadIfEqualWrite(&syndromeMem, 0, syndrome)) {
+          free(token);
+       }
+
        syndrome = Atomic_Read(&syndromeMem);
+       ASSERT(syndrome);
    }
 
    return syndrome;
