@@ -652,7 +652,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 
       if (MXUserTryAcquireFail(lock->header.name)) {
          success = FALSE;
-         go bail;
+         goto bail;
       }
 
       success = MXRecLockTryAcquire(&lock->recursiveLock);
