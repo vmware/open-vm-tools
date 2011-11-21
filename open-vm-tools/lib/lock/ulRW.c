@@ -531,7 +531,7 @@ MXUser_CreateRWLock(const char *userName,  // IN:
       properName = Util_SafeStrdup(userName);
    }
 
-   MXUserSetSignature(&lock->header, MXUSER_RW_SIGNATURE);
+   lock->header.signature = MXUSER_RW_SIGNATURE;
    lock->header.name = properName;
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();
@@ -604,8 +604,6 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
                             __FUNCTION__);
       }
 
-      MXUserClearSignature(&lock->header);  // just in case...
-
       if (LIKELY(lock->useNative)) {
          int err = MXUserNativeRWDestroy(&lock->nativeLock);
 
@@ -614,6 +612,8 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
                                __FUNCTION__, err);
          }
       }
+
+      lock->header.signature = 0;  // just in case...
 
       MXRecLockDestroy(&lock->recursiveLock);  
 

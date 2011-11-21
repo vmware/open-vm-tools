@@ -303,7 +303,7 @@ MXUser_CreateExclLock(const char *userName,  // IN:
       return NULL;
    }
 
-   MXUserSetSignature(&lock->header, MXUSER_EXCL_SIGNATURE);
+   lock->header.signature = MXUSER_EXCL_SIGNATURE;
    lock->header.name = properName;
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();
@@ -352,7 +352,7 @@ MXUser_DestroyExclLock(MXUserExclLock *lock)  // IN:
                             __FUNCTION__);
       }
 
-      MXUserClearSignature(&lock->header);  // just in case...
+      lock->header.signature = 0;  // just in case...
 
       MXRecLockDestroy(&lock->recursiveLock);
 

@@ -335,7 +335,7 @@ MXUserCreateRecLock(const char *userName,  // IN:
    lock->vmmLock = NULL;
    Atomic_Write(&lock->refCount, 1);
 
-   MXUserSetSignature(&lock->header, MXUSER_REC_SIGNATURE);
+   lock->header.signature = MXUSER_REC_SIGNATURE;
    lock->header.name = properName;
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();
@@ -462,7 +462,7 @@ MXUserCondDestroyRecLock(MXUserRecLock *lock)  // IN:
          }
       }
 
-      MXUserClearSignature(&lock->header);  // just in case...
+      lock->header.signature = 0;  // just in case...
       free(lock->header.name);
       lock->header.name = NULL;
       free(lock);
@@ -1016,7 +1016,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
 
    lock = Util_SafeCalloc(1, sizeof(*lock));
 
-   MXUserSetSignature(&lock->header, MXUSER_REC_SIGNATURE);
+   lock->header.signature = MXUSER_REC_SIGNATURE;
    lock->header.name = Str_SafeAsprintf(NULL, "MX_%p", mutex);
    lock->header.rank = rank;
    lock->header.serialNumber = MXUserAllocSerialNumber();

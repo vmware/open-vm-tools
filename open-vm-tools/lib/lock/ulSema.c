@@ -515,7 +515,7 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
    if (LIKELY(MXUserInit(&sema->nativeSemaphore) == 0)) {
       MXUserStats *stats;
 
-      MXUserSetSignature(&sema->header, MXUSER_SEMA_SIGNATURE);
+      sema->header.signature = MXUSER_SEMA_SIGNATURE;
       sema->header.name = properName;
       sema->header.rank = rank;
       sema->header.serialNumber = MXUserAllocSerialNumber();
@@ -576,14 +576,14 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
                             __FUNCTION__);
       }
 
-      MXUserClearSignature(&sema->header);  // just in case...
-
       err = MXUserDestroy(&sema->nativeSemaphore);
 
       if (UNLIKELY(err != 0)) {
          MXUserDumpAndPanic(&sema->header, "%s: Internal error (%d)\n",
                             __FUNCTION__, err);
       }
+
+      sema->header.signature = 0;  // just in case...
 
       MXUserRemoveFromList(&sema->header);
 

@@ -156,7 +156,7 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
    barrier->configCount = count;
    barrier->curContext = 0;
 
-   MXUserSetSignature(&barrier->header, MXUSER_BARRIER_SIGNATURE);
+   barrier->header.signature = MXUSER_BARRIER_SIGNATURE;
    barrier->header.name = properName;
    barrier->header.rank = rank;
    barrier->header.serialNumber = MXUserAllocSerialNumber();
@@ -198,13 +198,14 @@ MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
                             __FUNCTION__);
       }
 
+      barrier->header.signature = 0;  // just in case...
+
       MXUserRemoveFromList(&barrier->header);
 
       MXUser_DestroyCondVar(barrier->contexts[0].condVar);
       MXUser_DestroyCondVar(barrier->contexts[1].condVar);
       MXUser_DestroyExclLock(barrier->lock);
 
-      MXUserClearSignature(&barrier->header);  // just in case...
       free(barrier->header.name);
       barrier->header.name = NULL;
       free(barrier);
