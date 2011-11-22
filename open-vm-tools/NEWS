@@ -1,3 +1,10 @@
+open-vm-tools 2011.11.20 changes:
+	* Updates for new Linux kernel releases.
+
+	* Better Unity and DnD compatibility with newer Linux distros.
+
+	* Other minor fixes and cleanups.
+
 open-vm-tools 2011.10.26 changes:
 	* Mostly cleanups and bug fixes.
 
