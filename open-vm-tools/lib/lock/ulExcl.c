@@ -147,7 +147,7 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
            &lock->recursiveLock.nativeThreadID);
 
    if (stats && (stats->holder != NULL)) {
-      Warning("\tholder %p\n", stats->holder);
+      Warning("\tholder 0x%p\n", stats->holder);
    }
 }
 
