@@ -514,7 +514,7 @@ MXUserListLocks(void)
       for (i = 0; i < perThread->locksHeld; i++) {
          MXUserHeader *hdr = perThread->lockArray[i];
 
-         Warning("\tMXUser lock %s (@%p) rank 0x%x\n", hdr->name, hdr,
+         Warning("\tMXUser lock %s (@0x%p) rank 0x%x\n", hdr->name, hdr,
                  hdr->rank);
       }
    }
@@ -735,7 +735,7 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 
    /* MXUserAcquisitionTracking should have already created a perThread */
    if (UNLIKELY(perThread == NULL)) {
-      MXUserDumpAndPanic(header, "%s: perThread not found! (thread %p)\n",
+      MXUserDumpAndPanic(header, "%s: perThread not found! (thread 0x%p)\n",
                          __FUNCTION__, tid);
    }
 
@@ -748,7 +748,8 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 
    /* The argument lock had better be in the perThread */
    if (UNLIKELY(i >= perThread->locksHeld)) {
-      MXUserDumpAndPanic(header, "%s: lock not found! (thread %p; count %u)\n",
+      MXUserDumpAndPanic(header,
+                         "%s: lock not found! (thread 0x%p; count %u)\n",
                          __FUNCTION__, tid, perThread->locksHeld);
    }
 
