@@ -641,6 +641,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    int permissions;
    FileIOResult status;
 #if !defined(_WIN32)
+   int ret;
    struct stat stbuf;
 #endif
 
@@ -665,16 +666,22 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
       goto bail;
    }
    permissions = stbuf.st_mode;
-   Posix_Unlink(tempPath);
+
+   /* Do a "cleanup" unlink in case some previous process left a temp file around */
+   ret = Posix_Unlink(tempPath);
+   if (ret != 0 && errno != ENOENT) { /* ENOENT is expected, file should not exist */
+      Log("%s: Failed to unlink temporary file, errno: %d\n",
+          __FUNCTION__, errno);
+      /* Fall through; FileIO_Create will report the actual error */
+   }
 #endif
 
    status = FileIO_Create(tempFD, tempPath,
                           FILEIO_ACCESS_READ | FILEIO_ACCESS_WRITE,
-                          FILEIO_OPEN_CREATE, permissions);
+                          FILEIO_OPEN_CREATE_SAFE, permissions);
    if (!FileIO_IsSuccess(status)) {
-      Log("%s: Failed to create temporary file\n", __FUNCTION__);
-      ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
-      ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
+      Log("%s: Failed to create temporary file, err: %d\n", __FUNCTION__,
+          Err_Errno());
       goto bail;
    }
 
@@ -704,12 +711,18 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    return FILEIO_SUCCESS;
 
 bail:
+   ASSERT(!FileIO_IsSuccess(status));
    if (FileIO_IsValid(tempFD)) {
       FileIO_Close(tempFD);
 #if defined(_WIN32)
       File_UnlinkIfExists(tempPath);
 #else
-      Posix_Unlink(tempPath);
+      ret = Posix_Unlink(tempPath);
+      if (ret != 0) {
+         Log("%s: Failed to clean up temporary file, errno: %d\n",
+             __FUNCTION__, errno);
+      }
+      ASSERT(ret == 0);
 #endif
    }
    Unicode_Free(tempPath);
