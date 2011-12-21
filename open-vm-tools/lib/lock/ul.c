@@ -86,6 +86,7 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
 }
 
 
+#define MXUSER_SYNDROME
 #if defined(MXUSER_SYNDROME)
 /*
  *-----------------------------------------------------------------------------
@@ -844,7 +845,7 @@ MXUserValidateHeader(MXUserHeader *header,         // IN:
 
    if (header->signature != expected) {
       MXUserDumpAndPanic(header,
-                         "%s: signature failure! expected %X observed %X\n",
+                        "%s: signature failure! expected 0x%X observed 0x%X\n",
                          __FUNCTION__, expected, header->signature);
    }
 
