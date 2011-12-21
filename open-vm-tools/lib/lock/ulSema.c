@@ -471,7 +471,7 @@ MXUserDumpSemaphore(MXUserHeader *header)  // IN:
    Warning("\tserial number %u\n", sema->header.serialNumber);
 
    Warning("\treference count %u\n", Atomic_Read(&sema->activeUserCount));
-   Warning("\tnative semaphore 0x%p\n", &sema->nativeSemaphore);
+   Warning("\taddress of native semaphore 0x%p\n", &sema->nativeSemaphore);
 }
 
 

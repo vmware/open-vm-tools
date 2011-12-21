@@ -368,7 +368,7 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
    Warning("\tserial number %u\n", lock->header.serialNumber);
 
    if (LIKELY(lock->useNative)) {
-      Warning("\tnativeLock 0x%p\n", &lock->nativeLock);
+      Warning("\taddress of native lock 0x%p\n", &lock->nativeLock);
    } else {
       Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
    }
