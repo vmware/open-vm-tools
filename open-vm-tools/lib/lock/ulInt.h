@@ -60,6 +60,7 @@ typedef struct {
 
    int              referenceCount;   // Acquisition count
    MXUserThreadID   nativeThreadID;   // Native thread ID
+   VThreadID        vmwThreadID;      // VMW thread ID
 } MXRecLock;
 
 
@@ -124,6 +125,7 @@ static INLINE void
 MXRecLockSetNoOwner(MXRecLock *lock)  // IN:
 {
    lock->nativeThreadID = MXUSER_INVALID_OWNER;
+   lock->vmwThreadID = VTHREAD_INVALID_ID;
 }
 
 
@@ -131,6 +133,7 @@ static INLINE void
 MXRecLockSetOwner(MXRecLock *lock)  // IN/OUT:
 {
    lock->nativeThreadID = GetCurrentThreadId();
+   lock->vmwThreadID = VThread_CurID();
 }
 
 
@@ -184,6 +187,7 @@ MXRecLockSetNoOwner(MXRecLock *lock)  // IN/OUT:
 {
    /* a hack but it works portably */
    memset((void *) &lock->nativeThreadID, 0xFF, sizeof(lock->nativeThreadID));
+   lock->vmwThreadID = VTHREAD_INVALID_ID;
 }
 
 
@@ -191,6 +195,7 @@ static INLINE void
 MXRecLockSetOwner(MXRecLock *lock)  // IN:
 {
    lock->nativeThreadID = pthread_self();
+   lock->vmwThreadID = VThread_CurID();
 }
 
 
