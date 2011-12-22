@@ -331,20 +331,24 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
       HgfsHeader *header = (HgfsHeader *)request;
       localInput->v4header = TRUE;
       localInput->id = header->requestId;
+      localInput->op = header->op;
 
       if (packetSize >= offsetof(HgfsHeader, sessionId) + sizeof header->sessionId) {
-         if (header->op != HGFS_OP_CREATE_SESSION_V4) {
+         if (packetSize < header->packetSize ||
+            header->packetSize < header->headerSize) {
+            LOG(4, ("%s: Malformed HGFS packet received - inconsistent header"
+               " and packet sizes!\n", __FUNCTION__));
+            result = HGFS_ERROR_PROTOCOL;
+         }
+
+         if ((HGFS_ERROR_SUCCESS == result) &&
+             (header->op != HGFS_OP_CREATE_SESSION_V4)) {
             session = HgfsServerTransportGetSessionInfo(transportSession,
                                                         header->sessionId);
             if (!session || session->state != HGFS_SESSION_STATE_OPEN) {
                LOG(4, ("%s: HGFS packet with invalid session id!\n", __FUNCTION__));
                result = HGFS_ERROR_STALE_SESSION;
             }
-         } else if (packetSize < header->packetSize ||
-            header->packetSize < header->headerSize) {
-            LOG(4, ("%s: Malformed HGFS packet received - inconsistent header"
-               " and packet sizes!\n", __FUNCTION__));
-            result = HGFS_ERROR_PROTOCOL;
          }
       } else {
          LOG(4, ("%s: Malformed HGFS packet received - header is too small!\n",
@@ -353,7 +357,6 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
       }
 
       if (HGFS_ERROR_SUCCESS == result) { // Passed all tests
-         localInput->op = header->op;
          localInput->payload = (char *)request + header->headerSize;
          localInput->payloadSize = header->packetSize - header->headerSize;
       }
