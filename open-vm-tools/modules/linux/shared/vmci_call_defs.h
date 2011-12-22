@@ -281,9 +281,14 @@ VMCIEventMsgPayload(VMCIEventMsg *eMsg) // IN:
 #define VMCI_QPFLAG_ATTACH_ONLY 0x1 /* Fail alloc if QP not created by peer. */
 #define VMCI_QPFLAG_LOCAL       0x2 /* Only allow attaches from local context. */
 #define VMCI_QPFLAG_NONBLOCK    0x4 /* Host won't block when guest is quiesced. */
+#define VMCI_QPFLAG_PINNED      0x8 /* Keep all data pages pinned.  This flag */
+                                    /* must be combined with NONBLOCK. */
+/* For asymmetric queuepairs, update as new flags are added. */
+#define VMCI_QP_ASYMM           (VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED)
+#define VMCI_QP_ASYMM_PEER      (VMCI_QPFLAG_ATTACH_ONLY | VMCI_QP_ASYMM)
 /* Update the following (bitwise OR flags) while adding new flags. */
 #define VMCI_QP_ALL_FLAGS       (VMCI_QPFLAG_ATTACH_ONLY | VMCI_QPFLAG_LOCAL | \
-                                 VMCI_QPFLAG_NONBLOCK)
+                                 VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED)
 
 /*
  * Structs used for QueuePair alloc and detach messages.  We align fields of

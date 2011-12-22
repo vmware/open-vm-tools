@@ -153,7 +153,7 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
  */
 
 #ifdef VMKERNEL
-  typedef SP_Rank VMCILockRank;
+  typedef Lock_Rank VMCILockRank;
   typedef SemaRank VMCISemaRank;
 
   #define VMCI_SEMA_RANK_QPHEADER       (SEMA_RANK_FS - 1)
@@ -181,9 +181,13 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
                                          MIN(VMCI_LOCK_RANK_EVENT, \
                                              VMCI_LOCK_RANK_HASHTABLE))) - 1)
 #define VMCI_LOCK_RANK_QPHIBERNATE      (VMCI_LOCK_RANK_EVENT - 1)
+#define VMCI_LOCK_RANK_PACKET_QP        (VMCI_LOCK_RANK_QPHEADER - 1)
+//#define VMCI_LOCK_RANK_PACKET_QP        0xffd /* For vVol */
 
 #define VMCI_SEMA_RANK_QUEUEPAIRLIST    (VMCI_SEMA_RANK_QPHEADER - 1)
 #define VMCI_SEMA_RANK_GUESTMEM         (VMCI_SEMA_RANK_QUEUEPAIRLIST - 1)
+#define VMCI_SEMA_RANK_PACKET_QP        (VMCI_SEMA_RANK_QPHEADER - 1)
+//#define VMCI_SEMA_RANK_PACKET_QP        0xffd /* For vVol */
 
 /*
  * Host specific struct used for signalling.
@@ -316,7 +320,7 @@ void VMCIKernelIf_DrainDelayedWork(void);
 
 #if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
                            defined(SOLARIS) || defined(__APPLE__))
-void *VMCI_AllocQueue(uint64 size);
+void *VMCI_AllocQueue(uint64 size, uint32 flags);
 void VMCI_FreeQueue(void *q, uint64 size);
 typedef struct PPNSet {
   uint64      numProducePages;
@@ -353,11 +357,12 @@ typedef uint32 VMCIGuestMemID;
                                   struct VMCIQueue *consumeQ);
   void VMCIHost_UnregisterUserMemory(struct VMCIQueue *produceQ,
                                      struct VMCIQueue *consumeQ);
-  int VMCIHost_MapQueueHeaders(struct VMCIQueue *produceQ,
-                               struct VMCIQueue *consumeQ);
-  int VMCIHost_UnmapQueueHeaders(VMCIGuestMemID gid,
-                                 struct VMCIQueue *produceQ,
-                                 struct VMCIQueue *consumeQ);
+  int VMCIHost_MapQueues(struct VMCIQueue *produceQ,
+                         struct VMCIQueue *consumeQ,
+                         uint32 flags);
+  int VMCIHost_UnmapQueues(VMCIGuestMemID gid,
+                           struct VMCIQueue *produceQ,
+                           struct VMCIQueue *consumeQ);
   void VMCI_InitQueueMutex(struct VMCIQueue *produceQ,
                            struct VMCIQueue *consumeQ);
   void VMCI_CleanupQueueMutex(struct VMCIQueue *produceQ,
@@ -371,8 +376,8 @@ typedef uint32 VMCIGuestMemID;
 #  define VMCI_ReleaseQueueMutex(_q)
 #  define VMCIHost_RegisterUserMemory(_ps, _pq, _cq) VMCI_ERROR_UNAVAILABLE
 #  define VMCIHost_UnregisterUserMemory(_pq, _cq)
-#  define VMCIHost_MapQueueHeaders(_pq, _cq) VMCI_SUCCESS
-#  define VMCIHost_UnmapQueueHeaders(_gid, _pq, _cq) VMCI_SUCCESS
+#  define VMCIHost_MapQueues(_pq, _cq, _f) VMCI_SUCCESS
+#  define VMCIHost_UnmapQueues(_gid, _pq, _cq) VMCI_SUCCESS
 #endif
 
 #if defined(VMKERNEL)
@@ -380,11 +385,15 @@ typedef uint32 VMCIGuestMemID;
                                     struct VMCIQueue *consumeQ);
   void VMCIHost_MarkQueuesUnavailable(struct VMCIQueue *produceQ,
                                       struct VMCIQueue *consumeQ);
-  void VMCI_LockQueueHeader(struct VMCIQueue *queue);
-  void VMCI_UnlockQueueHeader(struct VMCIQueue *queue);
 #else
 #  define VMCIHost_MarkQueuesAvailable(_q, _p) while(0) { }
 #  define VMCIHost_MarkQueuesUnavailable(_q, _p) while(0) { }
+#endif
+
+#if defined(VMKERNEL) || defined(__linux__)
+   void VMCI_LockQueueHeader(struct VMCIQueue *queue);
+   void VMCI_UnlockQueueHeader(struct VMCIQueue *queue);
+#else
 #  define VMCI_LockQueueHeader(_q) ASSERT_NOT_IMPLEMENTED(FALSE)
 #  define VMCI_UnlockQueueHeader(_q) ASSERT_NOT_IMPLEMENTED(FALSE)
 #endif

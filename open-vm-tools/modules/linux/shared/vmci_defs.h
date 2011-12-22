@@ -96,6 +96,13 @@ typedef enum VMCIIntrType {
 #define VMCI_MAX_GUEST_QP_MEMORY (128 * 1024 * 1024)
 
 /*
+ * Queues with pre-mapped data pages must be small, so that we don't pin
+ * too much kernel memory (especially on vmkernel).  We limit a queuepair to
+ * 32 KB, or 16 KB per queue for symmetrical pairs.
+ */
+#define VMCI_MAX_PINNED_QP_MEMORY (32 * 1024)
+
+/*
  * We have a fixed set of resource IDs available in the VMX.
  * This allows us to have a very simple implementation since we statically
  * know how many will create datagram handles. If a new caller arrives and

@@ -104,7 +104,7 @@ static Bool VMCIQPairWaitForReadyQueue(VMCIQPair *qpair);
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_Lock --
+ * VMCIQPairLock --
  *
  *      Helper routine that will lock the QPair before subsequent operations.
  *
@@ -122,6 +122,10 @@ static INLINE int
 VMCIQPairLock(const VMCIQPair *qpair) // IN
 {
 #if !defined VMX86_VMX
+   if (qpair->flags & VMCI_QPFLAG_PINNED) {
+      VMCI_LockQueueHeader(qpair->produceQ);
+      return VMCI_SUCCESS;
+   }
    return VMCI_AcquireQueueMutex(qpair->produceQ,
                                  !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
 #else
@@ -133,7 +137,7 @@ VMCIQPairLock(const VMCIQPair *qpair) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_Unlock --
+ * VMCIQPairUnlock --
  *
  *      Helper routine that will unlock the QPair after various operations.
  *
@@ -150,7 +154,11 @@ static INLINE void
 VMCIQPairUnlock(const VMCIQPair *qpair) // IN
 {
 #if !defined VMX86_VMX
-   VMCI_ReleaseQueueMutex(qpair->produceQ);
+   if (qpair->flags & VMCI_QPFLAG_PINNED) {
+      VMCI_UnlockQueueHeader(qpair->produceQ);
+   } else {
+      VMCI_ReleaseQueueMutex(qpair->produceQ);
+   }
 #endif
 }
 
@@ -180,7 +188,8 @@ VMCIQPairLockHeader(const VMCIQPair *qpair) // IN
    if (qpair->flags & VMCI_QPFLAG_NONBLOCK) {
       VMCI_LockQueueHeader(qpair->produceQ);
    } else {
-      VMCIQPairLock(qpair);
+      (void)VMCI_AcquireQueueMutex(qpair->produceQ,
+                                   !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
    }
 #endif
 }
@@ -210,7 +219,7 @@ VMCIQPairUnlockHeader(const VMCIQPair *qpair) // IN
    if (qpair->flags & VMCI_QPFLAG_NONBLOCK) {
       VMCI_UnlockQueueHeader(qpair->produceQ);
    } else {
-      VMCIQPairUnlock(qpair);
+      VMCI_ReleaseQueueMutex(qpair->produceQ);
    }
 #endif
 }
@@ -285,7 +294,7 @@ VMCIQPairMapQueueHeaders(VMCIQueue *produceQ, // IN
 
    if (NULL == produceQ->qHeader || NULL == consumeQ->qHeader) {
       if (canBlock) {
-         result = VMCIHost_MapQueueHeaders(produceQ, consumeQ);
+         result = VMCIHost_MapQueues(produceQ, consumeQ, 0);
       } else {
          result = VMCI_ERROR_QUEUEPAIR_NOT_READY;
       }
@@ -459,8 +468,41 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
       return VMCI_ERROR_NO_RESOURCES;
    }
 
-   if ((flags & VMCI_QPFLAG_NONBLOCK) && !vmkernel) {
-      return VMCI_ERROR_INVALID_ARGS;
+   retval = VMCI_Route(&src, &dst, FALSE, &route);
+   if (retval < VMCI_SUCCESS) {
+      if (VMCI_GuestPersonalityActive()) {
+         route = VMCI_ROUTE_AS_GUEST;
+      } else {
+         route = VMCI_ROUTE_AS_HOST;
+      }
+   }
+
+   if ((flags & (VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED)) && !vmkernel) {
+#if defined(linux)
+      if (VMCI_ROUTE_AS_GUEST != route)
+#endif // linux
+      {
+         return VMCI_ERROR_INVALID_ARGS;
+      }
+   }
+
+   if (flags & VMCI_QPFLAG_PINNED) {
+      /*
+       * Pinned pages implies non-blocking mode.  Technically it doesn't
+       * have to, but there doesn't seem much point in pinning the pages if you
+       * can block since the queues will be small, so there's no performance
+       * gain to be had.
+       */
+
+      if (!(flags & VMCI_QPFLAG_NONBLOCK)) {
+         return VMCI_ERROR_INVALID_ARGS;
+      }
+
+      /* Limit the amount of memory that can be pinned. */
+
+      if (produceQSize + consumeQSize > VMCI_MAX_PINNED_QP_MEMORY) {
+         return VMCI_ERROR_NO_RESOURCES;
+      }
    }
 
    myQPair = VMCI_AllocKernelMem(sizeof *myQPair, VMCI_MEMORY_NONPAGED);
@@ -474,14 +516,6 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
    myQPair->peer = peer;
    myQPair->flags = flags;
    myQPair->privFlags = privFlags;
-   retval = VMCI_Route(&src, &dst, FALSE, &route);
-   if (retval < VMCI_SUCCESS) {
-      if (VMCI_GuestPersonalityActive()) {
-         route = VMCI_ROUTE_AS_GUEST;
-      } else {
-         route = VMCI_ROUTE_AS_HOST;
-      }
-   }
 
    wakeupCB = clientData = NULL;
    if (VMCI_ROUTE_AS_HOST == route) {

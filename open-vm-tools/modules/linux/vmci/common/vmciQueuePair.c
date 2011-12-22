@@ -1285,8 +1285,7 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
       }
    }
 
-   if ((entry->qp.flags & ~VMCI_QPFLAG_NONBLOCK) !=
-       (flags & ~(VMCI_QPFLAG_ATTACH_ONLY | VMCI_QPFLAG_NONBLOCK))) {
+   if ((entry->qp.flags & ~VMCI_QP_ASYMM) != (flags & ~VMCI_QP_ASYMM_PEER)) {
       return VMCI_ERROR_QUEUEPAIR_MISMATCH;
    }
 
@@ -1336,7 +1335,8 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
          }
          VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
          if (entry->qp.flags & VMCI_QPFLAG_NONBLOCK) {
-            result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
+            result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ,
+                                        entry->qp.flags);
             if (result < VMCI_SUCCESS) {
                VMCIHost_ReleaseUserMemory(entry->produceQ, entry->consumeQ);
                return result;
@@ -1362,11 +1362,11 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
        */
 
       if (flags & VMCI_QPFLAG_NONBLOCK) {
-         result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
+         result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ, flags);
          if (result < VMCI_SUCCESS) {
             return result;
          }
-         entry->qp.flags |= VMCI_QPFLAG_NONBLOCK;
+         entry->qp.flags |= flags & (VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED);
       }
 
       /*
@@ -1506,7 +1506,7 @@ VMCIQPBroker_SetPageStore(VMCIHandle handle,      // IN
       goto out;
    }
    VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
-   result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
+   result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ, FALSE);
    if (result < VMCI_SUCCESS) {
      VMCIHost_ReleaseUserMemory(entry->produceQ, entry->consumeQ);
      goto out;
@@ -1631,9 +1631,9 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
       VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
       headersMapped = entry->produceQ->qHeader || entry->consumeQ->qHeader;
       if (QPBROKERSTATE_HAS_MEM(entry)) {
-         result = VMCIHost_UnmapQueueHeaders(INVALID_VMCI_GUEST_MEM_ID,
-                                             entry->produceQ,
-                                             entry->consumeQ);
+         result = VMCIHost_UnmapQueues(INVALID_VMCI_GUEST_MEM_ID,
+                                       entry->produceQ,
+                                       entry->consumeQ);
          if (result < VMCI_SUCCESS) {
             VMCI_WARNING((LGPFX"Failed to unmap queue headers for queue pair "
                           "(handle=0x%x:0x%x,result=%d).\n", handle.context,
@@ -1759,7 +1759,8 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
       VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
       VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
       if (entry->qp.flags & VMCI_QPFLAG_NONBLOCK) {
-         result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
+         result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ,
+                                     entry->qp.flags);
       } else {
          result = VMCI_SUCCESS;
       }
@@ -1847,7 +1848,7 @@ QueuePairSaveHeaders(QPBrokerEntry *entry) // IN
       return VMCI_SUCCESS;
    }
    if (NULL == entry->produceQ->qHeader || NULL == entry->consumeQ->qHeader) {
-      result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
+      result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ, FALSE);
       if (result < VMCI_SUCCESS) {
          return result;
       }
@@ -1966,7 +1967,7 @@ VMCIQPBroker_Unmap(VMCIHandle  handle,   // IN
                        "(handle=0x%x:0x%x,result=%d).\n", handle.context,
                        handle.resource, result));
       }
-      VMCIHost_UnmapQueueHeaders(gid, entry->produceQ, entry->consumeQ);
+      VMCIHost_UnmapQueues(gid, entry->produceQ, entry->consumeQ);
       VMCIHost_MarkQueuesUnavailable(entry->produceQ, entry->consumeQ);
       if (!vmkernel) {
          /*
@@ -2400,14 +2401,14 @@ VMCIQueuePairAllocGuestWork(VMCIHandle *handle,           // IN/OUT
       goto errorKeepEntry;
    }
 
-   myProduceQ = VMCI_AllocQueue(produceSize);
+   myProduceQ = VMCI_AllocQueue(produceSize, flags);
    if (!myProduceQ) {
       VMCI_WARNING((LGPFX"Error allocating pages for produce queue.\n"));
       result = VMCI_ERROR_NO_MEM;
       goto error;
    }
 
-   myConsumeQ = VMCI_AllocQueue(consumeSize);
+   myConsumeQ = VMCI_AllocQueue(consumeSize, flags);
    if (!myConsumeQ) {
       VMCI_WARNING((LGPFX"Error allocating pages for consume queue.\n"));
       result = VMCI_ERROR_NO_MEM;

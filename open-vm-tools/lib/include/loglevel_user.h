@@ -129,6 +129,7 @@
    LOGLEVEL_VAR(mksHostCursor), \
    LOGLEVEL_VAR(mksHostOps), \
    LOGLEVEL_VAR(mksGLManager), \
+   LOGLEVEL_VAR(mksGLFBO), \
    LOGLEVEL_VAR(mksGLShader), \
    LOGLEVEL_VAR(mksGLState), \
    LOGLEVEL_VAR(vdpPlugin), \
