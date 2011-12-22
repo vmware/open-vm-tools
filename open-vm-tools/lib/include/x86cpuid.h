@@ -1420,4 +1420,23 @@ CPUID_IsValidDSubleaf(uint32 subleaf)  // IN: subleaf to check
 {
    return subleaf <= 63;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUID_SupportsMsrPlatformInfo --
+ *
+ *    Uses vendor and cpuid.1.0.eax to determine if the processor
+ *    supports MSR_PLATFORM_INFO.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE Bool
+CPUID_SupportsMsrPlatformInfo(CpuidVendor vendor, uint32 version)
+{
+   return vendor == CPUID_VENDOR_INTEL &&
+          (CPUID_UARCH_IS_NEHALEM(version) ||
+           CPUID_UARCH_IS_SANDYBRIDGE(version));
+}
+
 #endif
