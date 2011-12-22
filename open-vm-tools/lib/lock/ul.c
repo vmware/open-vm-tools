@@ -429,11 +429,11 @@ static Atomic_Ptr hashTableMem;
  */
 
 static MXUserPerThread *
-MXUserGetPerThread(void *tid,      // IN: thread ID
-                   Bool mayAlloc)  // IN: alloc perThread if not present?
+MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
 {
    HashTable *hash;
    MXUserPerThread *perThread = NULL;
+   void *tid = MXUserCastedThreadID();
 
    hash = HashTable_AllocOnce(&hashTableMem, 1024,
                               HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL);
@@ -487,8 +487,7 @@ MXUserGetPerThread(void *tid,      // IN: thread ID
 void
 MXUserListLocks(void)
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
-                                                   FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
 
    if (perThread != NULL) {
       uint32 i;
@@ -523,8 +522,7 @@ MXUserListLocks(void)
 Bool
 MXUser_IsCurThreadHoldingLocks(void)
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
-                                                   FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
 
    return (perThread == NULL) ? FALSE : (perThread->locksHeld != 0);
 }
@@ -600,8 +598,7 @@ MX_Rank
 MXUserCurrentRank(void)
 {
    MX_Rank maxRank;
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
-                                                   FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
 
    if (perThread == NULL) {
       maxRank = RANK_UNRANKED;
@@ -634,8 +631,7 @@ void
 MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
                           Bool checkRank)        // IN:
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
-                                                   TRUE);
+   MXUserPerThread *perThread = MXUserGetPerThread(TRUE);
 
    ASSERT_NOT_IMPLEMENTED(perThread->locksHeld < MXUSER_MAX_LOCKS_PER_THREAD);
 
@@ -714,13 +710,12 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 {
    uint32 i;
    uint32 lastEntry;
-   void *tid = MXUserCastedThreadID();
-   MXUserPerThread *perThread = MXUserGetPerThread(tid, FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
 
    /* MXUserAcquisitionTracking should have already created a perThread */
    if (UNLIKELY(perThread == NULL)) {
       MXUserDumpAndPanic(header, "%s: perThread not found! (thread 0x%p)\n",
-                         __FUNCTION__, tid);
+                         __FUNCTION__, MXUserCastedThreadID());
    }
 
    /* Search the perThread for the argument lock */
@@ -734,7 +729,8 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
    if (UNLIKELY(i >= perThread->locksHeld)) {
       MXUserDumpAndPanic(header,
                          "%s: lock not found! (thread 0x%p; count %u)\n",
-                         __FUNCTION__, tid, perThread->locksHeld);
+                         __FUNCTION__, MXUserCastedThreadID(),
+                         perThread->locksHeld);
    }
 
    /* Remove the argument lock from the perThread */
