@@ -1,3 +1,15 @@
+open-vm-tools 2011.12.20 changes:
+	* Updates for new Linux kernel releases, including some fixes for
+	Fedora's re-versioned 3.x kernels.
+
+	* VMCI sockets has some changes for a new socket type, targeted
+	at replacing the "backdoor" communication used by the tools services.
+
+	* HGFS has better session support.
+
+	* Miscelaneous bug fixes and small enhancements in other parts
+	of the code.
+
 open-vm-tools 2011.11.20 changes:
 	* Updates for new Linux kernel releases.
 
