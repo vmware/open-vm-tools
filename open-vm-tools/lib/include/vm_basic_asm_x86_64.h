@@ -53,24 +53,6 @@
 #error "This file is x86-64 only!"
 #endif
 
-#ifdef _MSC_VER
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-uint64 _umul128(uint64 multiplier, uint64 multiplicand, 
-                uint64 *highProduct);
-int64 _mul128(int64 multiplier, int64 multiplicand, 
-              int64 *highProduct);
-uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
-#ifdef __cplusplus
-}
-#endif
-
-#pragma intrinsic(_umul128, _mul128, __shiftright128)
-
-#endif // _MSC_VER
-
 /*
  * GET_CURRENT_RIP
  *

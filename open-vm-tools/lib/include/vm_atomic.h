@@ -67,61 +67,6 @@ typedef struct  Atomic_uint64 {
 
 
 /*
- * Prototypes for msft atomics.  These are defined & inlined by the
- * compiler so no function definition is needed.  The prototypes are
- * needed for c++.  Since amd64 compiler doesn't support inline asm we
- * have to use these.  Unfortunately, we still have to use some inline asm
- * for the 32 bit code since the and/or/xor implementations didn't show up
- * untill xp or 2k3.
- *
- * The declarations for the intrinsic functions were taken from ntddk.h
- * in the DDK. The declarations must match otherwise the 64-bit c++
- * compiler will complain about second linkage of the intrinsic functions.
- * We define the intrinsic using the basic types corresponding to the
- * Windows typedefs. This avoids having to include windows header files
- * to get to the windows types.
- */
-#if defined(_MSC_VER) && _MSC_VER >= 1310
-#ifdef __cplusplus
-extern "C" {
-#endif
-long  _InterlockedExchange(long volatile*, long);
-long  _InterlockedCompareExchange(long volatile*, long, long);
-long  _InterlockedExchangeAdd(long volatile*, long);
-long  _InterlockedDecrement(long volatile*);
-long  _InterlockedIncrement(long volatile*);
-#pragma intrinsic(_InterlockedExchange, _InterlockedCompareExchange)
-#pragma intrinsic(_InterlockedExchangeAdd, _InterlockedDecrement)
-#pragma intrinsic(_InterlockedIncrement)
-
-#if defined(VM_X86_64)
-long     _InterlockedAnd(long volatile*, long);
-__int64  _InterlockedAnd64(__int64 volatile*, __int64);
-long     _InterlockedOr(long volatile*, long);
-__int64  _InterlockedOr64(__int64 volatile*, __int64);
-long     _InterlockedXor(long volatile*, long);
-__int64  _InterlockedXor64(__int64 volatile*, __int64);
-__int64  _InterlockedExchangeAdd64(__int64 volatile*, __int64);
-__int64  _InterlockedIncrement64(__int64 volatile*);
-__int64  _InterlockedDecrement64(__int64 volatile*);
-__int64  _InterlockedExchange64(__int64 volatile*, __int64);
-__int64  _InterlockedCompareExchange64(__int64 volatile*, __int64, __int64);
-#if !defined(_WIN64)
-#pragma intrinsic(_InterlockedAnd, _InterlockedAnd64)
-#pragma intrinsic(_InterlockedOr, _InterlockedOr64)
-#pragma intrinsic(_InterlockedXor, _InterlockedXor64)
-#pragma intrinsic(_InterlockedExchangeAdd64, _InterlockedIncrement64)
-#pragma intrinsic(_InterlockedDecrement64, _InterlockedExchange64)
-#pragma intrinsic(_InterlockedCompareExchange64)
-#endif /* !_WIN64 */
-#endif /* __x86_64__ */
-
-#ifdef __cplusplus
-}
-#endif
-#endif /* _MSC_VER */
-
-/*
  * LDREX without STREX or CLREX may cause problems in environments where the
  * context switch may not clear the reference monitor - according ARM manual
  * the reference monitor should be cleared after a context switch, but some
@@ -400,19 +345,7 @@ Atomic_ReadWrite(Atomic_uint32 *var, // IN
    return val;
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    return _InterlockedExchange((long *)&var->value, (long)val);
-#else
-#pragma warning(push)
-#pragma warning(disable : 4035)         // disable no-return warning
-   {
-      __asm mov eax, val
-      __asm mov ebx, var
-      __asm xchg [ebx]Atomic_uint32.value, eax
-      // eax is the return value, this is documented to work - edward
-   }
-#pragma warning(pop)
-#endif // _MSC_VER >= 1310
 #else
 #error No compiler defined for Atomic_ReadWrite
 #endif // __GNUC__
@@ -479,24 +412,9 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN
    return val;
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    return _InterlockedCompareExchange((long *)&var->value,
 				      (long)newVal,
 				      (long)oldVal);
-#else
-#pragma warning(push)
-#pragma warning(disable : 4035)         // disable no-return warning
-   {
-      __asm mov eax, oldVal
-      __asm mov ebx, var
-      __asm mov ecx, newVal
-      __asm lock cmpxchg [ebx]Atomic_uint32.value, ecx
-      // eax is the return value, this is documented to work - edward
-   }
-#pragma warning(pop)
-#endif
-#else
-#error No compiler defined for Atomic_ReadIfEqualWrite
 #endif
 }
 #define Atomic_ReadIfEqualWrite32 Atomic_ReadIfEqualWrite
@@ -623,13 +541,7 @@ Atomic_And(Atomic_uint32 *var, // IN
    AtomicEpilogue();
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if defined(__x86_64__)
    _InterlockedAnd((long *)&var->value, (long)val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock and [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_And
 #endif
@@ -687,13 +599,7 @@ Atomic_Or(Atomic_uint32 *var, // IN
    AtomicEpilogue();
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if defined(__x86_64__)
    _InterlockedOr((long *)&var->value, (long)val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock or [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_Or
 #endif
@@ -751,13 +657,7 @@ Atomic_Xor(Atomic_uint32 *var, // IN
    AtomicEpilogue();
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if defined(__x86_64__)
    _InterlockedXor((long *)&var->value, (long)val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock xor [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_Xor
 #endif
@@ -854,13 +754,7 @@ Atomic_Add(Atomic_uint32 *var, // IN
    AtomicEpilogue();
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    _InterlockedExchangeAdd((long *)&var->value, (long)val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock add [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_Add
 #endif
@@ -957,13 +851,7 @@ Atomic_Sub(Atomic_uint32 *var, // IN
    AtomicEpilogue();
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    _InterlockedExchangeAdd((long *)&var->value, (long)-val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock sub [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_Sub
 #endif
@@ -1043,12 +931,7 @@ Atomic_Inc(Atomic_uint32 *var) // IN
    AtomicEpilogue();
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    _InterlockedIncrement((long *)&var->value);
-#else
-   __asm mov ebx, var
-   __asm lock inc [ebx]Atomic_uint32.value
-#endif
 #else
 #error No compiler defined for Atomic_Inc
 #endif
@@ -1089,12 +972,7 @@ Atomic_Dec(Atomic_uint32 *var) // IN
    AtomicEpilogue();
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    _InterlockedDecrement((long *)&var->value);
-#else
-   __asm mov ebx, var
-   __asm lock dec [ebx]Atomic_uint32.value
-#endif
 #else
 #error No compiler defined for Atomic_Dec
 #endif
@@ -1291,18 +1169,7 @@ Atomic_FetchAndAddUnfenced(Atomic_uint32 *var, // IN
    return val;
 #endif // VM_ARM_V7
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    return _InterlockedExchangeAdd((long *)&var->value, (long)val);
-#else
-#pragma warning(push)
-#pragma warning(disable : 4035)         // disable no-return warning
-   {
-      __asm mov eax, val
-      __asm mov ebx, var
-      __asm lock xadd [ebx]Atomic_uint32.value, eax
-   }
-#pragma warning(pop)
-#endif
 #else
 #error No compiler defined for Atomic_FetchAndAdd
 #endif
@@ -1667,28 +1534,9 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    return equal;
 #endif //VM_ARM_V7
 #elif defined _MSC_VER
-#if defined(__x86_64__)
    return (__int64)*oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
                                                             (__int64)*newVal,
                                                             (__int64)*oldVal);
-#else
-#pragma warning(push)
-#pragma warning(disable : 4035)		// disable no-return warning
-   {
-      __asm mov esi, var
-      __asm mov edx, oldVal
-      __asm mov ecx, newVal
-      __asm mov eax, [edx]S_uint64.lowValue
-      __asm mov edx, [edx]S_uint64.highValue
-      __asm mov ebx, [ecx]S_uint64.lowValue
-      __asm mov ecx, [ecx]S_uint64.highValue
-      __asm lock cmpxchg8b [esi]
-      __asm sete al
-      __asm movzx eax, al
-      // eax is the return value, this is documented to work - edward
-   }
-#pragma warning(pop)
-#endif
 #else
 #error No compiler defined for Atomic_CMPXCHG64
 #endif // !GNUC
@@ -1807,6 +1655,7 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
     */
    return var->value;
 #elif defined (_MSC_VER) && defined(__i386__)
+// _InterlockedCompareExchange64 is not optimal here, see the comment for gcc.
 #   pragma warning(push)
 #   pragma warning(disable : 4035)		// disable no-return warning
    {
@@ -2250,12 +2099,8 @@ Atomic_SetBit64(Atomic_uint64 *var, // IN/OUT
    );
    AtomicEpilogue();
 #elif defined _MSC_VER
-   uint64 oldVal;
-   uint64 newVal;
-   do {
-      oldVal = var->value;
-      newVal = oldVal | (CONST64U(1) << bit);
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+   // It also works as a memory barrier for MSVC (_ReadWriteBarrier).
+   _interlockedbittestandset64((__int64*)&var->value, (__int64)bit);
 #else
 #error No compiler defined for Atomic_SetBit64
 #endif
@@ -2301,12 +2146,8 @@ Atomic_ClearBit64(Atomic_uint64 *var, // IN/OUT
    );
    AtomicEpilogue();
 #elif defined _MSC_VER
-   uint64 oldVal;
-   uint64 newVal;
-   do {
-      oldVal = var->value;
-      newVal = oldVal & ~(CONST64U(1) << bit);
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+   // It also works as a memory barrier for MSVC (_ReadWriteBarrier).
+   _interlockedbittestandreset64((__int64*) &var->value, (__int64)bit);
 #else
 #error No compiler defined for Atomic_ClearBit64
 #endif
@@ -2354,7 +2195,7 @@ Atomic_TestBit64(Atomic_uint64 *var, // IN
    );
    return out;
 #elif defined _MSC_VER
-   return (var->value & (CONST64U(1) << bit)) != 0;
+   return _bittest64((__int64*)&var->value, (__int64)bit);
 #else
 #error No compiler defined for Atomic_TestBit64
 #endif

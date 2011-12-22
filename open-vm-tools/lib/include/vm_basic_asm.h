@@ -60,89 +60,6 @@
 #include "vm_basic_asm_x86.h"
 #endif
 
-/*
- * x86-64 windows doesn't support inline asm so we have to use these
- * intrinsic functions defined in the compiler.  Not all of these are well
- * documented.  There is an array in the compiler dll (c1.dll) which has
- * an array of the names of all the intrinsics minus the leading
- * underscore.  Searching around in the ntddk.h file can also be helpful.
- *
- * The declarations for the intrinsic functions were taken from the DDK. 
- * Our declarations must match the ddk's otherwise the 64-bit c++ compiler
- * will complain about second linkage of the intrinsic functions.
- * We define the intrinsic using the basic types corresponding to the 
- * Windows typedefs. This avoids having to include windows header files
- * to get to the windows types.
- */
-#ifdef _MSC_VER
-#ifdef __cplusplus
-extern "C" {
-#endif
-/*
- * It seems x86 & x86-64 windows still implements these intrinsic
- * functions.  The documentation for the x86-64 suggest the
- * __inbyte/__outbyte intrinsics even though the _in/_out work fine and
- * __inbyte/__outbyte aren't supported on x86.
- */
-int            _inp(unsigned short);
-unsigned short _inpw(unsigned short);
-unsigned long  _inpd(unsigned short);
-
-int            _outp(unsigned short, int);
-unsigned short _outpw(unsigned short, unsigned short);
-unsigned long  _outpd(uint16, unsigned long);
-#pragma intrinsic(_inp, _inpw, _inpd, _outp, _outpw, _outpw, _outpd)
-
-/*
- * Prevents compiler from re-ordering reads, writes and reads&writes.
- * These functions do not add any instructions thus only affect
- * the compiler ordering.
- *
- * See:
- * `Lockless Programming Considerations for Xbox 360 and Microsoft Windows'
- * http://msdn.microsoft.com/en-us/library/bb310595(VS.85).aspx
- */
-void _ReadBarrier(void);
-void _WriteBarrier(void);
-void _ReadWriteBarrier(void);
-#pragma intrinsic(_ReadBarrier, _WriteBarrier, _ReadWriteBarrier)
-
-void _mm_mfence(void);
-void _mm_lfence(void);
-#pragma intrinsic(_mm_mfence, _mm_lfence)
-
-#ifdef VM_X86_64
-/*
- * intrinsic functions only supported by x86-64 windows as of 2k3sp1
- */
-unsigned __int64 __rdtsc(void);
-void             __stosw(unsigned short *, unsigned short, size_t);
-void             __stosd(unsigned long *, unsigned long, size_t);
-void             _mm_pause(void);
-#pragma intrinsic(__rdtsc, __stosw, __stosd, _mm_pause)
-
-unsigned char  _BitScanForward64(unsigned long *, unsigned __int64);
-unsigned char  _BitScanReverse64(unsigned long *, unsigned __int64);
-#pragma intrinsic(_BitScanForward64, _BitScanReverse64)
-#endif /* VM_X86_64 */
-
-unsigned char  _BitScanForward(unsigned long *, unsigned long);
-unsigned char  _BitScanReverse(unsigned long *, unsigned long);
-#pragma intrinsic(_BitScanForward, _BitScanReverse)
-
-unsigned char  _bittestandset(long *, long);
-unsigned char  _bittestandreset(long *, long);
-#pragma intrinsic(_bittestandset, _bittestandreset)
-#ifdef VM_X86_64
-unsigned char  _bittestandset64(__int64 *, __int64);
-unsigned char  _bittestandreset64(__int64 *, __int64);
-#pragma intrinsic(_bittestandset64, _bittestandreset64)
-#endif /* VM_X86_64 */
-#ifdef __cplusplus
-}
-#endif
-#endif /* _MSC_VER */
-
 
 #ifdef __GNUC__ // {
 #if defined(__i386__) || defined(__x86_64__) // Only on x86*
@@ -196,54 +113,39 @@ __GCC_IN(l, uint32, IN32)
 #define OUTW(port, val) __GCC_OUT(w, w, port, val)
 #define OUT32(port, val) __GCC_OUT(l, , port, val)
 
-#define GET_CURRENT_EIP(_eip) \
-      __asm__ __volatile("call 0\n\tpopl %0" : "=r" (_eip): );
-
 #endif // x86*
 
 #elif defined(_MSC_VER) // } {
 static INLINE  uint8
 INB(uint16 port)
 {
-   return (uint8)_inp(port);
+   return __inbyte(port);
 }
 static INLINE void
 OUTB(uint16 port, uint8 value)
 {
-   _outp(port, value);
+   __outbyte(port, value);
 }
 static INLINE uint16
 INW(uint16 port)
 {
-   return _inpw(port);
+   return __inword(port);
 }
 static INLINE void
 OUTW(uint16 port, uint16 value)
 {
-   _outpw(port, value);
+   __outword(port, value);
 }
 static INLINE  uint32
 IN32(uint16 port)
 {
-   return _inpd(port);
+   return __indword(port);
 }
 static INLINE void
 OUT32(uint16 port, uint32 value)
 {
-   _outpd(port, value);
+   __outdword(port, value);
 }
-
-#ifndef VM_X86_64
-#ifdef NEAR
-#undef NEAR
-#endif
-
-#define GET_CURRENT_EIP(_eip) do { \
-   __asm call NEAR PTR $+5 \
-   __asm pop eax \
-   __asm mov _eip, eax \
-} while (0)
-#endif // VM_X86_64
 
 #else // } {
 #error
@@ -674,36 +576,14 @@ uint32set(void *dst, uint32 val, size_t count)
 static INLINE void *
 uint16set(void *dst, uint16 val, size_t count)
 {
-#ifdef VM_X86_64
    __stosw((uint16*)dst, val, count);
-#else
-   __asm { pushf;
-           mov ax, val;
-           mov ecx, count;
-           mov edi, dst;
-           cld;
-           rep stosw;
-           popf;
-   }
-#endif
    return dst;
 }
 
 static INLINE void *
 uint32set(void *dst, uint32 val, size_t count)
 {
-#ifdef VM_X86_64
    __stosd((unsigned long*)dst, (unsigned long)val, count);
-#else
-   __asm { pushf;
-           mov eax, val;
-           mov ecx, count;
-           mov edi, dst;
-           cld;
-           rep stosd;
-           popf;
-   }
-#endif
    return dst;
 }
 
@@ -816,17 +696,9 @@ PAUSE(void)
 #endif
 }
 #elif defined(_MSC_VER)
-#ifdef VM_X86_64
 {
    _mm_pause();
 }
-#else /* VM_X86_64 */
-#pragma warning( disable : 4035)
-{
-   __asm _emit 0xf3 __asm _emit 0x90
-}
-#pragma warning (default: 4035)
-#endif /* VM_X86_64 */
 #else  /* __GNUC__  */
 #error No compiler defined for PAUSE
 #endif
@@ -868,17 +740,9 @@ RDTSC(void)
 #endif
 }
 #elif defined(_MSC_VER)
-#ifdef VM_X86_64
 {
    return __rdtsc();
 }
-#else
-#pragma warning( disable : 4035)
-{
-   __asm _emit 0x0f __asm _emit 0x31
-}
-#pragma warning (default: 4035)
-#endif /* VM_X86_64 */
 #else  /* __GNUC__  */
 #error No compiler defined for RDTSC
 #endif /* __GNUC__  */

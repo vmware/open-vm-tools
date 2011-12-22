@@ -134,6 +134,42 @@ typedef char           Bool;
 
 #endif
 
+// Intrinsic funtions. WDK/DDK has its own pragmas for intrinsic functions.
+#if defined(_MSC_VER) && !defined (WINNT_DDK)
+#ifndef _IVEC_H_INCLUDED
+#define _IVEC_H_INCLUDED
+#define _IVEC_H_INCLUDED_2
+#endif
+
+#ifndef _FVEC_H_INCLUDED
+#define _FVEC_H_INCLUDED
+#define _FVEC_H_INCLUDED_2
+#endif
+
+#ifndef _DVEC_H_INCLUDED
+#define _DVEC_H_INCLUDED
+#define _DVEC_H_INCLUDED_2
+#endif
+
+#include <intrin.h> 
+
+#ifdef _IVEC_H_INCLUDED_2
+#undef _IVEC_H_INCLUDED
+#undef _IVEC_H_INCLUDED_2
+#endif
+
+#ifdef _FVEC_H_INCLUDED_2
+#undef _FVEC_H_INCLUDED
+#undef _FVEC_H_INCLUDED_2
+#endif
+
+#ifdef _DVEC_H_INCLUDED_2
+#undef _DVEC_H_INCLUDED
+#undef _DVEC_H_INCLUDED_2
+#endif
+#endif /* _MSC_VER */
+
+
 #if defined(__APPLE__) || defined(HAVE_STDINT_H)
 
 /*
