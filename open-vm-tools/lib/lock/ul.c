@@ -146,11 +146,13 @@ MXUserSyndrome(void)
        * to plan B.
        */
 
+      if (syndrome == 0) {
 #if defined(_WIN32)
-      syndrome = GetTickCount();
+         syndrome = GetTickCount();
 #else
-      syndrome = time(NULL) & 0xFFFFFFFF;
+         syndrome = time(NULL) & 0xFFFFFFFF;
 #endif
+      }
 
       /*
        * Protect against a total failure.
