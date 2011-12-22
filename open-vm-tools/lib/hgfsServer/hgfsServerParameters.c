@@ -362,17 +362,36 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
               __FUNCTION__));
       result = HGFS_ERROR_PROTOCOL;
    }
+
    if (HGFS_ERROR_SUCCESS != result) {
       LOG(4, ("%s: Malformed HGFS packet received!\n", __FUNCTION__));
-   }
-
-   if (!session) {
+   } else if ((NULL == session) && (!localInput->v4header)) {
       session = HgfsServerTransportGetSessionInfo(transportSession,
                                                   transportSession->defaultSessionId);
+      if (NULL == session) {
+         /*
+          * Create a new session if the default session doesn't exist.
+          */
+         if (!HgfsServerAllocateSession(transportSession,
+                                        transportSession->channelCapabilities,
+                                        &session)) {
+            result = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+         } else {
+            result = HgfsServerTransportAddSessionToList(transportSession,
+                                                         session);
+            if (HGFS_ERROR_SUCCESS != result) {
+               LOG(4, ("%s: Could not add session to the list.\n", __FUNCTION__));
+            } else {
+               transportSession->defaultSessionId = session->sessionId;
+               HgfsServerSessionGet(session);
+            }
+         }
+      }
    }
-   ASSERT(session);
 
-   session->isInactive = FALSE;
+   if (session) {
+      session->isInactive = FALSE;
+   }
    localInput->session = session;
    localInput->payloadOffset = (char *)localInput->payload -
                                (char *)localInput->metaPacket;

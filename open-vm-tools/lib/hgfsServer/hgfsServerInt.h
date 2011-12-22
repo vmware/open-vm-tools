@@ -335,9 +335,6 @@ typedef struct HgfsSessionInfo {
    /* Current state of the session. */
    HgfsSessionInfoState state;
 
-   /* Session is dynamic or internal. */
-   HgfsSessionInfoType type;
-
    /* Lock to ensure some fileIO requests are atomic for a handle. */
    MXUserExclLock *fileIOLock;
 
@@ -615,6 +612,16 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
                            HgfsSessionInfo *session,     // IN: Session info
                            HgfsHandle *handle);          // OUT: Search handle
 
+/* Allocate/Add sessions helper functions. */
+
+Bool HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
+                               uint32 channelCapabilities,
+                               HgfsSessionInfo **sessionData);
+
+void HgfsServerSessionGet(HgfsSessionInfo *session);
+
+HgfsInternalStatus HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,
+                                                       HgfsSessionInfo *sessionInfo);
 
 /* Unpack/pack requests/reply helper functions. */
 

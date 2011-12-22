@@ -1789,7 +1789,7 @@ struct HgfsRequestCreateSessionV4 {
 #include "vmware_pack_end.h"
 HgfsRequestCreateSessionV4;
 
-#define HGFS_INVALID_SESSION_ID 0xffffffff
+#define HGFS_INVALID_SESSION_ID     (~((uint64)0))
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyCreateSessionV4 {
