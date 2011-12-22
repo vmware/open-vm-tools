@@ -1905,7 +1905,9 @@ FileLockIsLockedMandatory(ConstUnicode lockFile,  // IN:
    result = FileIOCreateRetry(&desc, lockFile, access, FILEIO_OPEN, 0644, 0);
 
    if (FileIO_IsSuccess(result)) {
-      Bool ret = FileIO_Close(&desc);
+      Bool ret;
+
+      ret = FileIO_Close(&desc);
 
       ASSERT(!ret);
       return FALSE;
