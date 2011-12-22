@@ -105,7 +105,7 @@ HashTable_Delete(HashTable  *hashTable,
 Bool
 HashTable_LookupAndDelete(HashTable  *hashTable,
                           const void *keyStr,
-			  void      **clientData);
+                          void      **clientData);
 
 void
 HashTable_Clear(HashTable *ht);
@@ -127,5 +127,45 @@ int
 HashTable_ForEach(const HashTable          *ht,
                   HashTableForEachCallback  cb,
                   void                     *clientData);
+
+/*
+ * Specialize hash table that uses the callers data structure as its
+ * hash entry as well, the hash key being an address that must be unique.
+ */
+
+typedef struct PtrHashEntry
+{
+   struct PtrHashEntry  *next;
+   void                 *ptr;
+} PtrHashEntry;
+
+/*
+ * PTRHASH_CONTAINER - get the struct for this entry (like PtrHashEntry)
+ * @ptr: the &struct PtrHashEntry pointer.
+ * @type:   the type of the struct this is embedded in.
+ * @member: the name of the list struct within the struct.
+ */
+
+#define PTRHASH_CONTAINER(ptr, type, member) \
+   ((type *)((char *)(ptr) - offsetof(type, member)))
+
+typedef int (*PtrHashForEachCallback)(PtrHashEntry *entry,
+                                      const void *clientData);
+
+HashTable *PtrHash_Alloc(uint32 numBuckets);
+
+void PtrHash_Free(HashTable *hashTable);
+
+size_t PtrHash_GetNumElements(const HashTable *ht);
+
+int PtrHash_ForEach(const HashTable *ht,
+                    PtrHashForEachCallback cb,
+                    const void *clientData);
+
+PtrHashEntry *PtrHash_LookupAndDelete(HashTable *hashTable,
+                                      const void *ptr);
+
+Bool PtrHash_Insert(HashTable *hashTable,
+                    PtrHashEntry *entry);
 
 #endif
