@@ -25,6 +25,7 @@
 #include "hashTable.h"
 #include "random.h"
 
+
 static Bool mxInPanic = FALSE;  // track when involved in a panic
 
 Bool (*MXUserTryAcquireForceFail)() = NULL;
@@ -398,159 +399,12 @@ MXUserInstallMxHooks(void (*theLockListFunc)(void),
 #if defined(MXUSER_DEBUG)
 #define MXUSER_MAX_LOCKS_PER_THREAD (2 * MXUSER_MAX_REC_DEPTH)
 
-typedef struct MXUserPerThread {
-   struct MXUserPerThread  *next;
-   uint32                   locksHeld;
-   MXUserHeader            *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
+typedef struct {
+   uint32         locksHeld;
+   MXUserHeader  *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
 } MXUserPerThread;
 
-static Atomic_Ptr perThreadLockMem;
-static MXUserPerThread *perThreadFreeList = NULL;
-
-#if defined(_WIN32)
-static Atomic_uint32 MXUserTlsMem = { TLS_OUT_OF_INDEXES };
-#else
 static Atomic_Ptr hashTableMem;
-#endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUserAllocPerThread --
- *
- *     Allocate a perThread structure.
- *
- *     Memory is allocated for the specified thread as necessary. Use a
- *     victim cache in front of malloc to provide a slight performance
- *     advantage. The lock here is equivalent to the lock buried inside
- *     malloc but no complex calculations are necessary to perform an
- *     allocation most of the time.
- *
- *     The maximum size of the list will be roughly the maximum number of
- *     threads having taken locks at the same time - a bounded number less
- *     than or equal to the maximum of threads created.
- *
- * Results:
- *     As above.
- *
- * Side effects:
- *      Memory may be allocated.
- *
- *-----------------------------------------------------------------------------
- */
-
-static MXUserPerThread *
-MXUserAllocPerThread(void)
-{
-   MXUserPerThread *perThread;
-   MXRecLock *perThreadLock = MXUserInternalSingleton(&perThreadLockMem);
-
-   ASSERT(perThreadLock);
-
-   MXRecLockAcquire(perThreadLock);
-
-   if (perThreadFreeList == NULL) {
-      perThread = Util_SafeMalloc(sizeof *perThread);
-   } else {
-      perThread = perThreadFreeList;
-      perThreadFreeList = perThread->next;
-   }
-
-   MXRecLockRelease(perThreadLock);
-
-   ASSERT(perThread);
-
-   memset(perThread, 0, sizeof *perThread);  // ensure all zeros
-
-   return perThread;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUserFreePerThread --
- *
- *     Free a perThread structure.
- *
- *     The structure is placed on the free list -- for "later".
- *
- * Results:
- *     As above.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-MXUserFreePerThread(MXUserPerThread *perThread)  // IN:
-{
-   MXRecLock *perThreadLock;
-
-   ASSERT(perThread);
-   ASSERT(perThread->next == NULL);
-
-   perThreadLock = MXUserInternalSingleton(&perThreadLockMem);
-   ASSERT(perThreadLock);
-
-   MXRecLockAcquire(perThreadLock);
-   perThread->next = perThreadFreeList;
-   perThreadFreeList = perThread;
-   MXRecLockRelease(perThreadLock);
-}
-
-
-#if defined(_WIN32)
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUserObtainTlsIndex --
- *
- *      Allocate a TLS slot, if necessary, for the MXUser functionality.
- *
- * Results:
- *      A TLS slot index
- *
- * Side effects:
- *      One TLS slot will be consumed.
- *
- *-----------------------------------------------------------------------------
- */
-
-static DWORD
-MXUserObtainTlsIndex(void)
-{
-   DWORD index = Atomic_Read(&MXUserTlsMem);
-
-   if (index == TLS_OUT_OF_INDEXES) {
-      DWORD newIndex = TlsAlloc();
-
-      ASSERT_NOT_IMPLEMENTED(newIndex != TLS_OUT_OF_INDEXES);
-
-      /*
-       * The memory associated with the index is NULL in all existing threads
-       * and will be NULL in any future threads. It can only become not NULL
-       * via an explicit write (via TlsSetValue).
-       */
-
-      index = Atomic_ReadIfEqualWrite(&MXUserTlsMem, TLS_OUT_OF_INDEXES,
-                                      newIndex);
-
-      if (index != TLS_OUT_OF_INDEXES) {
-         TlsFree(newIndex);
-      }
-
-      index = Atomic_Read(&MXUserTlsMem);
-   }
-
-   ASSERT(index != TLS_OUT_OF_INDEXES);
-
-   return index;
-}
-#endif
 
 
 /*
@@ -560,7 +414,9 @@ MXUserObtainTlsIndex(void)
  *
  *      Return a pointer to the per thread data for the specified thread.
  *
- *      Memory is allocated for the specified thread as necessary.
+ *      Memory is allocated for the specified thread as necessary. This memory
+ *      is never released since it it is highly likely a thread will use a
+ *      lock and need to record data in the perThread.
  *
  * Results:
  *      NULL   mayAlloc was FALSE and the thread doesn't have a perThread
@@ -573,35 +429,11 @@ MXUserObtainTlsIndex(void)
  */
 
 static MXUserPerThread *
-MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
+MXUserGetPerThread(void *tid,      // IN: thread ID
+                   Bool mayAlloc)  // IN: alloc perThread if not present?
 {
-   MXUserPerThread *perThread;
-
-#if defined(_WIN32)
-   DWORD index = MXUserObtainTlsIndex();
-
-   /*
-    * Using TLS ensures that each thread has its own area without the
-    * need of MXUser having tracking structures - the native thread
-    * implemenation does this for us.
-    */
-
-   perThread = TlsGetValue(index);
-   ASSERT_NOT_IMPLEMENTED(GetLastError() == ERROR_SUCCESS);
-
-   if ((perThread == NULL) && mayAlloc) {
-      BOOL ok;
-
-      perThread = MXUserAllocPerThread();
-
-      ok = TlsSetValue(index, (LPVOID) perThread);
-      ASSERT_NOT_IMPLEMENTED(ok);
-   }
-#else
    HashTable *hash;
-   void *tid = MXUserCastedThreadID();
-
-   perThread = NULL;
+   MXUserPerThread *perThread = NULL;
 
    hash = HashTable_AllocOnce(&hashTableMem, 1024,
                               HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL);
@@ -610,7 +442,8 @@ MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
       /* No entry for this tid was found, allocate one? */
 
       if (mayAlloc) {
-         MXUserPerThread *newEntry = MXUserAllocPerThread();
+         MXUserPerThread *newEntry = Util_SafeCalloc(1,
+                                                     sizeof(MXUserPerThread));
 
          /*
           * Attempt to (racey) insert a perThread on behalf of the specified
@@ -622,13 +455,12 @@ MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
          ASSERT(perThread);
 
          if (perThread != newEntry) {
-            MXUserFreePerThread(newEntry);
+            free(newEntry);
          }
       } else {
          perThread = NULL;
       }
    }
-#endif
 
    return perThread;
 }
@@ -655,7 +487,8 @@ MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
 void
 MXUserListLocks(void)
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
+                                                   FALSE);
 
    if (perThread != NULL) {
       uint32 i;
@@ -690,7 +523,8 @@ MXUserListLocks(void)
 Bool
 MXUser_IsCurThreadHoldingLocks(void)
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
+                                                   FALSE);
 
    return (perThread == NULL) ? FALSE : (perThread->locksHeld != 0);
 }
@@ -766,7 +600,8 @@ MX_Rank
 MXUserCurrentRank(void)
 {
    MX_Rank maxRank;
-   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
+                                                   FALSE);
 
    if (perThread == NULL) {
       maxRank = RANK_UNRANKED;
@@ -799,7 +634,8 @@ void
 MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
                           Bool checkRank)        // IN:
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(TRUE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
+                                                   TRUE);
 
    ASSERT_NOT_IMPLEMENTED(perThread->locksHeld < MXUSER_MAX_LOCKS_PER_THREAD);
 
@@ -878,12 +714,13 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 {
    uint32 i;
    uint32 lastEntry;
-   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
+   void *tid = MXUserCastedThreadID();
+   MXUserPerThread *perThread = MXUserGetPerThread(tid, FALSE);
 
    /* MXUserAcquisitionTracking should have already created a perThread */
    if (UNLIKELY(perThread == NULL)) {
       MXUserDumpAndPanic(header, "%s: perThread not found! (thread 0x%p)\n",
-                         __FUNCTION__, MXUserCastedThreadID());
+                         __FUNCTION__, tid);
    }
 
    /* Search the perThread for the argument lock */
@@ -897,8 +734,7 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
    if (UNLIKELY(i >= perThread->locksHeld)) {
       MXUserDumpAndPanic(header,
                          "%s: lock not found! (thread 0x%p; count %u)\n",
-                         __FUNCTION__, MXUserCastedThreadID(),
-                         perThread->locksHeld);
+                         __FUNCTION__, tid, perThread->locksHeld);
    }
 
    /* Remove the argument lock from the perThread */
@@ -910,33 +746,6 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 
    perThread->lockArray[lastEntry] = NULL;  // tidy up memory
    perThread->locksHeld--;
-
-#if defined(_WIN32)
-   /*
-    * On Windows thread IDs aren't greedily recycled. If a process creates and
-    * destroys many threads this can cause a memory leak of perThread data
-    * (and its overhead). We avoid this by releasing the perThread memory
-    * and cleaning up the TLS entry when the number of outstanding locks
-    * for the thread goes to zero. If a thread dies/exits with locks held
-    * that's a serious problem that doesn't need to be solved within the
-    * MXUser Facility.
-    *
-    * Yes, this is a performance cost but it only affects Windows debug
-    * builds and then not by very much - we tend to run for a long time
-    * with either no locks held or at least one lock held.
-    */
-
-   if (perThread->locksHeld == 0) {
-      BOOL ok;
-      DWORD index = Atomic_Read(&MXUserTlsMem);
-
-      ASSERT(index != TLS_OUT_OF_INDEXES);
-
-      ok = TlsSetValue(index, (LPVOID) NULL);
-      ASSERT_NOT_IMPLEMENTED(ok);
-      MXUserFreePerThread(perThread);
-   }
-#endif
 }
 
 
