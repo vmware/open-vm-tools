@@ -56,6 +56,29 @@ typedef uint8 Eth_Address[ETH_ADDR_LENGTH];
 #define ETH_ADDR_FMT_STR     "%02x:%02x:%02x:%02x:%02x:%02x"
 #define ETH_ADDR_FMT_ARGS(a) ((uint8 *)a)[0], ((uint8 *)a)[1], ((uint8 *)a)[2], \
                              ((uint8 *)a)[3], ((uint8 *)a)[4], ((uint8 *)a)[5]
+
+#define ETH_MAX_EXACT_MULTICAST_ADDRS 32
+
+typedef enum Eth_RxMode {
+   ETH_FILTER_UNICAST   = 0x0001,   // pass unicast (directed) frames
+   ETH_FILTER_MULTICAST = 0x0002,   // pass some multicast frames
+   ETH_FILTER_ALLMULTI  = 0x0004,   // pass *all* multicast frames
+   ETH_FILTER_BROADCAST = 0x0008,   // pass broadcast frames
+   ETH_FILTER_PROMISC   = 0x0010,   // pass all frames (ie no filter)
+   ETH_FILTER_USE_LADRF = 0x0020,   // use the LADRF for multicast filtering
+   ETH_FILTER_SINK      = 0x10000   // pass not-matched unicast frames
+} Eth_RxMode;
+
+// filter flags printf helpers
+#define ETH_FILTER_FLAG_FMT_STR     "%s%s%s%s%s%s%s"
+#define ETH_FILTER_FLAG_FMT_ARGS(f) (f) & ETH_FILTER_UNICAST   ? "  UNICAST"   : "", \
+                                    (f) & ETH_FILTER_MULTICAST ? "  MULTICAST" : "", \
+                                    (f) & ETH_FILTER_ALLMULTI  ? "  ALLMULTI"  : "", \
+                                    (f) & ETH_FILTER_BROADCAST ? "  BROADCAST" : "", \
+                                    (f) & ETH_FILTER_PROMISC   ? "  PROMISC"   : "", \
+                                    (f) & ETH_FILTER_USE_LADRF ? "  USE_LADRF" : "", \
+                                    (f) & ETH_FILTER_SINK      ? "  SINK"      : ""
+
 // Ethernet header type
 typedef enum {
    ETH_HEADER_TYPE_DIX,

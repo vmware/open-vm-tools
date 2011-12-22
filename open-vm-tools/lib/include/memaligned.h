@@ -106,13 +106,59 @@ AlignedMallocImpl(size_t size) // IN
    alignedResult = (void **)PAGE_ROUND_UP(buf + 1);
    *(alignedResult - 1) = buf;
 
-#undef PAGE_MASK
-#undef PAGE_ROUND_DOWN
-#undef PAGE_ROUND_UP
-
    return alignedResult;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AlignedReallocImpl --
+ *
+ *      Internal implementation of page-aligned memory for operating systems
+ *      that lack a working page-aligned allocation function.
+ *
+ *      Resulting pointer needs to be freed with AlignedFreeImpl.
+ *
+ * Result:
+ *      A pointer.  NULL on out of memory condition.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+AlignedReallocImpl(void *oldbuf,    // IN
+                   size_t newsize)  // IN
+{
+   size_t paddedSize;
+   void **buf;
+   void **alignedResult;
+   void *oldptr = NULL;
+
+   if (oldbuf) {
+      oldptr = (*((void **)oldbuf - 1));
+   }
+
+   paddedSize = PAGE_SIZE + sizeof *buf + newsize;
+
+   // Check for overflow.
+   if (paddedSize < newsize) {
+      return NULL;
+   }
+
+   buf = (void **)realloc(oldptr, paddedSize);
+   if (!buf) {
+      return NULL;
+   }
+
+   alignedResult = (void **)PAGE_ROUND_UP(buf + 1);
+   *(alignedResult - 1) = buf;
+
+   return alignedResult;
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -265,5 +311,72 @@ Aligned_Free(void *buf)  // IN
 #endif
 }
 
-#endif
 
+/*
+ *---------------------------------------------------------------------------
+ *
+ * Aligned_UnsafeRealloc --
+ *
+ *      This function is not implemented because it cannot be done safely and
+ *      portably.  See https://reviewboard.eng.vmware.com/r/284303/ for
+ *      discussion.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * Aligned_Realloc --
+ *
+ *      Realloc a chunk of memory aligned on a page boundary, potentially
+ *      copying the previous data to a new buffer if necessary.  Resulting
+ *      pointer needs to be freed with Aligned_Free.  You should never use this
+ *      function.  Especially if size was derived from guest provided data.
+ *
+ * Result:
+ *      A pointer.
+ *
+ * Side effects:
+ *      Old buf may be freed.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+static INLINE void*
+Aligned_Realloc(void *buf,   // IN
+                size_t size) // IN
+{
+#if defined MEMALIGNED_USE_INTERNAL_IMPL
+   return AlignedReallocImpl(buf, size);
+#elif defined _WIN32
+   return _aligned_realloc(buf, size, PAGE_SIZE);
+#else
+   /*
+    * Some valloc(3) manpages claim that realloc(3) on a buffer allocated by
+    * valloc() will return an aligned buffer.  If so, we have a fast path;
+    * simply realloc, validate the alignment, and return.  For realloc()s that
+    * do not maintain the alignment (such as glibc 2.13 x64 for allocations of
+    * 16 pages or less) then we fall back to a slowpath and copy the data.
+    * Note that we can't avoid the realloc overhead in this case: on entry to
+    * Aligned_Realloc we have no way to find out how big the source buffer is!
+    * Only after the realloc do we know a safe range to copy.  We may copy more
+    * data than necessary -- consider the case of resizing from one page to
+    * 100 pages -- but that is safe, just slow.
+    */
+   buf = realloc(buf, size);
+   if (((uintptr_t)buf % PAGE_SIZE) != 0) {
+      void *newbuf;
+
+      newbuf = Aligned_UnsafeMalloc(size);
+      ASSERT_MEM_ALLOC(newbuf);
+      memcpy(newbuf, buf, size);
+      free(buf);
+      return newbuf;
+   }
+   return buf;
+#endif
+}
+
+#endif

@@ -464,6 +464,7 @@ FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
    Bool ret;
 
    ASSERT(fd);
+   ASSERT(FileIO_IsValid(fd));
 
    path = Unicode_Duplicate(fd->fileName);
    ret = FileIO_Close(fd) || File_Unlink(path);
@@ -728,18 +729,23 @@ bail:
    Unicode_Free(tempPath);
    return status;
 }
-   
+
 
 /*
  *-----------------------------------------------------------------------------
  *
- * FileIO_AtomicExchangeFiles --
+ * FileIO_AtomicUpdate --
  *
- *      On ESX, exchanges the contents of two files using code modeled from
- *      VmkfsLib_SwapFiles.  Both "curr" and "new" are left open.
+ *      On ESX when the target files reside on vmfs, exchanges the contents
+ *      of two files using code modeled from VmkfsLib_SwapFiles.  Both "curr"
+ *      and "new" are left open.
  *
- *      On Hosted replaces "curr" with "new" using rename/link.
- *      Path to "new" no longer exists on success.
+ *      On ESX when the target files reside on NFS, and on hosted products,
+ *      uses rename to swap files, so "new" becomes "curr", and path to "new"
+ *      no longer exists on success.
+ *
+ *      On success the caller must call FileIO_IsValid on newFD to verify it
+ *	is still open before using it again.
  *
  * Results:
  *      TRUE if successful, FALSE on failure.
@@ -752,8 +758,8 @@ bail:
 
 
 Bool
-FileIO_AtomicExchangeFiles(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
-                           FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
+FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
+                    FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
 {
    char *currPath;
    char *newPath;
@@ -772,6 +778,7 @@ FileIO_AtomicExchangeFiles(FileIODescriptor *newFD,   // IN/OUT: file IO descrip
       char *fileName = NULL;
       char *dstDirName = NULL;
       char *dstFileName = NULL;
+      int savedErrno;
       int fd;
 
       currPath = File_FullPath(FileIO_Filename(currFD));
@@ -814,14 +821,45 @@ FileIO_AtomicExchangeFiles(FileIODescriptor *newFD,   // IN/OUT: file IO descrip
          goto swapdone;
       }
 
+      savedErrno = 0;
       if (ioctl(fd, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
-         Log("%s: ioctl failed %d.\n", __FUNCTION__, errno);
-         ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
+         savedErrno = errno;
+         if (errno != ENOSYS) {
+            Log("%s: ioctl failed %d.\n", __FUNCTION__, errno);
+            ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
+         }
       } else {
          ret = TRUE;
       }
 
       close(fd);
+
+      /*
+       * Did we fail because we are on NFS?
+       */
+      if (savedErrno == ENOSYS) {
+         /*
+          * NFS allows renames of locked files, even if both files
+          * are locked.  The file lock follows the file handle, not
+          * the name, so after the rename we can swap the underlying
+          * file descriptors instead of closing and reopening the
+          * target file.
+          *
+          * This is different than the hosted path below because
+          * ESX uses native file locks and hosted does not.
+          */
+
+         if (File_Rename(newPath, currPath)) {
+            Log("%s: rename of '%s' to '%s' failed %d.\n",
+                newPath, currPath, __FUNCTION__, errno);
+            goto swapdone;
+         }
+         ret = TRUE;
+         fd = newFD->posix;
+         newFD->posix = currFD->posix;
+         currFD->posix = fd;
+         FileIO_Close(newFD);
+      }
 
 swapdone:
       free(args);

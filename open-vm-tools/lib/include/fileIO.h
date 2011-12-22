@@ -297,8 +297,8 @@ FileIOResult FileIO_Write(FileIODescriptor *file,
 FileIOResult FileIO_AtomicTempFile(FileIODescriptor *fileFD,
                                    FileIODescriptor *tempFD);
 
-Bool FileIO_AtomicExchangeFiles(FileIODescriptor *newFD,
-                                FileIODescriptor *currFD);
+Bool FileIO_AtomicUpdate(FileIODescriptor *newFD,
+                         FileIODescriptor *currFD);
 
 #if !defined(VMX86_TOOLS) || !defined(__FreeBSD__)
 
