@@ -240,6 +240,57 @@ FileIO_Cleanup(FileIODescriptor *fd)  // IN/OUT:
 /*
  *----------------------------------------------------------------------
  *
+ * FileIOResolveLockBits --
+ *
+ *      Resolve the multitude of lock bits from historical public names
+ *      to newer internal names.
+ *
+ *      Input flags: FILEIO_OPEN_LOCKED a.k.a. FILEIO_OPEN_LOCK_BEST,
+ *                   FILEIO_OPEN_EXCLUSIVE_LOCK
+ *      Output flags: FILEIO_OPEN_LOCK_MANDATORY, FILEIO_OPEN_LOCK_ADVISORY
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      Only output flags are set in *access.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+FileIOResolveLockBits(int *access)  // IN/OUT: FILEIO_OPEN_* bits
+{
+   /*
+    * Lock types:
+    *    none: no locking at all
+    *    advisory: open() ignores lock, FileIO_ respects lock.
+    *    mandatory: open() and FileIO_ respect lock.
+    *    "best": downgrades to advisory or mandatory based on OS support
+    */
+   if ((*access & FILEIO_OPEN_EXCLUSIVE_LOCK) != 0) {
+      *access &= ~FILEIO_OPEN_EXCLUSIVE_LOCK;
+      *access |= FILEIO_OPEN_LOCK_MANDATORY;
+   }
+   if ((*access & FILEIO_OPEN_LOCK_BEST) != 0) {
+      /* "Best effort" bit: mandatory if OS supports, advisory otherwise */
+      *access &= ~FILEIO_OPEN_LOCK_BEST;
+      if (HostType_OSIsVMK()) {
+         *access |= FILEIO_OPEN_LOCK_MANDATORY;
+      } else {
+         *access |= FILEIO_OPEN_LOCK_ADVISORY;
+      }
+   }
+
+   /* Only one lock type (or none at all) allowed */
+   ASSERT(((*access & FILEIO_OPEN_LOCK_ADVISORY) == 0) ||
+          ((*access & FILEIO_OPEN_LOCK_MANDATORY) == 0));
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * FileIO_Lock --
  *
  *      Call the FileLock module to lock the given file.
@@ -269,12 +320,17 @@ FileIO_Lock(FileIODescriptor *file,  // IN/OUT:
     */
 
    ASSERT(file);
+   ASSERT(file->lockToken == NULL);
+
+   FileIOResolveLockBits(&access);
+   ASSERT((access & FILEIO_OPEN_LOCKED) == 0);
 
 #if !defined(__FreeBSD__) && !defined(sun)
-   if (access & FILEIO_OPEN_LOCKED) {
+   if ((access & FILEIO_OPEN_LOCK_MANDATORY) != 0) {
+      /* Mandatory file locks are available only when opening a file */
+      ret = FILEIO_LOCK_FAILED;
+   } else if ((access & FILEIO_OPEN_LOCK_ADVISORY) != 0) {
       int err = 0;
-
-      ASSERT(file->lockToken == NULL);
 
       file->lockToken = FileLock_Lock(file->fileName,
                                       (access & FILEIO_OPEN_ACCESS_WRITE) == 0,
@@ -308,8 +364,6 @@ FileIO_Lock(FileIODescriptor *file,  // IN/OUT:
          }
       }
    }
-#else
-   ASSERT(file->lockToken == NULL);
 #endif // !__FreeBSD__ && !sun
 
    return ret;

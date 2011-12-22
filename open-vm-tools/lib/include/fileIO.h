@@ -178,6 +178,21 @@ typedef enum {
  * Valid only on Windows. Set FILE_SHARE_DELETE.
  */
 #define FILEIO_OPEN_SHARE_DELETE (1 << 19)
+/*
+ * Strengths of file lock.
+ * Advisory:
+ *   Must use FileIO plus lock flags to get locking.
+ *   Never uses kernel/fs-level lock, so naked open() bypasses locking.
+ * Mandatory:
+ *   Requires kernel/fs-level, so naked open() respects lock.
+ *   Kernel/fs-level locks are available on ESX but not hosted.
+ * Best:
+ *   Adaptively picks between mandatory and advisory.
+ * Almost all cases should use the "best" lock.
+ */
+#define FILEIO_OPEN_LOCK_BEST      FILEIO_OPEN_LOCKED /* historical */
+#define FILEIO_OPEN_LOCK_ADVISORY  (1 << 20)
+#define FILEIO_OPEN_LOCK_MANDATORY (1 << 21)
 
 /*
  * Flag passed to open() to not attempt to get the lun attributes as part of
