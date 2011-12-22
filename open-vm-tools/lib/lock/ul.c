@@ -25,7 +25,6 @@
 #include "hashTable.h"
 #include "random.h"
 
-
 static Bool mxInPanic = FALSE;  // track when involved in a panic
 
 Bool (*MXUserTryAcquireForceFail)() = NULL;
@@ -399,12 +398,105 @@ MXUserInstallMxHooks(void (*theLockListFunc)(void),
 #if defined(MXUSER_DEBUG)
 #define MXUSER_MAX_LOCKS_PER_THREAD (2 * MXUSER_MAX_REC_DEPTH)
 
-typedef struct {
-   uint32         locksHeld;
-   MXUserHeader  *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
+typedef struct MXUserPerThread {
+   struct MXUserPerThread  *next;
+   uint32                   locksHeld;
+   MXUserHeader            *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
 } MXUserPerThread;
 
+static Atomic_Ptr perThreadLockMem;
+static MXUserPerThread *perThreadFreeList = NULL;
+
 static Atomic_Ptr hashTableMem;
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserAllocPerThread --
+ *
+ *     Allocate a perThread structure.
+ *
+ *     Memory is allocated for the specified thread as necessary. Use a
+ *     victim cache in front of malloc to provide a slight performance
+ *     advantage. The lock here is equivalent to the lock buried inside
+ *     malloc but no complex calculations are necessary to perform an
+ *     allocation most of the time.
+ *
+ *     The maximum size of the list will be roughly the maximum number of
+ *     threads having taken locks at the same time - a bounded number less
+ *     than or equal to the maximum of threads created.
+ *
+ * Results:
+ *     As above.
+ *
+ * Side effects:
+ *      Memory may be allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static MXUserPerThread *
+MXUserAllocPerThread(void)
+{
+   MXUserPerThread *perThread;
+   MXRecLock *perThreadLock = MXUserInternalSingleton(&perThreadLockMem);
+
+   ASSERT(perThreadLock);
+
+   MXRecLockAcquire(perThreadLock);
+
+   if (perThreadFreeList == NULL) {
+      perThread = Util_SafeMalloc(sizeof *perThread);
+   } else {
+      perThread = perThreadFreeList;
+      perThreadFreeList = perThread->next;
+   }
+
+   MXRecLockRelease(perThreadLock);
+
+   ASSERT(perThread);
+
+   memset(perThread, 0, sizeof *perThread);  // ensure all zeros
+
+   return perThread;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserFreePerThread --
+ *
+ *     Free a perThread structure.
+ *
+ *     The structure is placed on the free list -- for "later".
+ *
+ * Results:
+ *     As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+MXUserFreePerThread(MXUserPerThread *perThread)  // IN:
+{
+   MXRecLock *perThreadLock;
+
+   ASSERT(perThread);
+   ASSERT(perThread->next == NULL);
+
+   perThreadLock = MXUserInternalSingleton(&perThreadLockMem);
+   ASSERT(perThreadLock);
+
+   MXRecLockAcquire(perThreadLock);
+   perThread->next = perThreadFreeList;
+   perThreadFreeList = perThread;
+   MXRecLockRelease(perThreadLock);
+}
 
 
 /*
@@ -442,8 +534,7 @@ MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
       /* No entry for this tid was found, allocate one? */
 
       if (mayAlloc) {
-         MXUserPerThread *newEntry = Util_SafeCalloc(1,
-                                                     sizeof(MXUserPerThread));
+         MXUserPerThread *newEntry = MXUserAllocPerThread();
 
          /*
           * Attempt to (racey) insert a perThread on behalf of the specified
@@ -455,7 +546,7 @@ MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
          ASSERT(perThread);
 
          if (perThread != newEntry) {
-            free(newEntry);
+            MXUserFreePerThread(newEntry);
          }
       } else {
          perThread = NULL;
