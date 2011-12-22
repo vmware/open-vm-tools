@@ -29,6 +29,7 @@
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
+#include "msgidDefs.h"
 
 #include "vm_basic_defs.h"
 
@@ -36,32 +37,6 @@
 #include <string.h>
 #endif
 
-
-/*
- * Message ID macros
- *
- * Use as in
- *	Msg_Append(MSGID(file.openFailed) "Failed to open file %s: %s.\n"
- *		   fileName, Msg_ErrString())
- *	Msg_Append(MSGID(mks.powerOnFailed) "Power on failed.\n")
- * or
- *	Msg_Hint(TRUE, HINT_OK,
- *		 MSGID(mks.noDGA) "No full screen mode.\n").
- *
- * Don't make MSG_MAGIC_LEN (sizeof MSG_MAGIC - 1), since
- * that may cause the string to be in the object file, even
- * when it's not used at run time.  And we are trying
- * to avoid littering the output with the magic string.
- *
- * -- edward
- */
-
-#define MSG_MAGIC	"@&!*@*@"
-#define MSG_MAGIC_LEN	7
-#define MSGID(id)	MSG_MAGIC "(msg." #id ")"
-#define MSG_BUTTON_ID "(button."
-#define MSG_BUTTON_ID_LEN 8
-#define BUTTONID(id)	MSG_MAGIC MSG_BUTTON_ID #id ")"
 
 // the X hides MSG_MAGIC so it won't appear in the object file
 #define MSG_MAGICAL(s)	(strncmp(s, MSG_MAGIC"X", MSG_MAGIC_LEN) == 0)
