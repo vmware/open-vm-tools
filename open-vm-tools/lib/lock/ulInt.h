@@ -389,22 +389,7 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 static INLINE void *
 MXUserGetThreadID(void)
 {
-#if defined(_WIN32)
-   /*
-    * On Windows there is a problem with using VThread_CurID() - it doesn't
-    * maintain unique thread ID values (PR 780775). Native thread ID values
-    * and special handling are used to resolve issues.
-    */
-
-   return (void *) (uintptr_t) GetCurrentThreadId();  // DWORD
-#else
-   /*
-    * Outside of Windows there are no known issues with using VThread_CurID
-    * so that is what is used.
-    */
-
    return (void *) (uintptr_t) VThread_CurID();  // unsigned
-#endif
 }
 
 /*
