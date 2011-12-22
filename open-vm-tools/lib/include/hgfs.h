@@ -175,6 +175,7 @@ typedef enum {
     * Server must never retun these codes for legacy clients.
     */
    HGFS_STATUS_STALE_SESSION,
+   HGFS_STATUS_TOO_MANY_SESSIONS,
 } HgfsStatus;
 
 /*
