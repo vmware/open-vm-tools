@@ -143,9 +143,7 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
 
    Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
-   Warning("\tVThreadID %u\n", lock->recursiveLock.vmwThreadID);
-
-   Warning("\taddress of native owner data 0x%p\n",
+   Warning("\taddress of owner data 0x%p\n",
            &lock->recursiveLock.nativeThreadID);
 
    if (stats && (stats->holder != NULL)) {
