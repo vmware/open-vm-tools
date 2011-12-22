@@ -39,6 +39,7 @@ new plugin containers.
 
    - @ref vmtools_plugins
    - @ref vmtools_guestrpc
+   - @ref vmtools_vmcf
 
 @section tc_main_utils     Miscelaneous Utilities
 
