@@ -64,21 +64,15 @@ RandomBytesWin32(unsigned int size,  // IN:
 
    if (CryptAcquireContext(&csp, NULL, NULL, PROV_RSA_FULL,
                            CRYPT_VERIFYCONTEXT) == FALSE) {
-      Log("%s: CryptAcquireContext failed %d\n", __FUNCTION__, GetLastError());
-
       return FALSE;
    }
 
    if (CryptGenRandom(csp, size, buffer) == FALSE) {
       CryptReleaseContext(csp, 0);
-      Log("%s: CryptGenRandom failed %d\n", __FUNCTION__, GetLastError());
-
       return FALSE;
    }
 
    if (CryptReleaseContext(csp, 0) == FALSE) {
-      Log("%s: CryptReleaseContext failed %d\n", __FUNCTION__, GetLastError());
-
       return FALSE;
    }
 
@@ -108,9 +102,6 @@ RandomBytesPosix(const char *name,   // IN:
    int fd = open(name, O_RDONLY);
 
    if (fd == -1) {
-      Log("%s: Failed to open random device %s: %d\n", __FUNCTION__, name,
-          errno);
-
       return FALSE;
    }
 
@@ -120,8 +111,6 @@ RandomBytesPosix(const char *name,   // IN:
       ssize_t bytesRead = read(fd, buffer, size);
 
       if ((bytesRead == 0) || ((bytesRead == -1) && (errno != EINTR))) {
-         Log("%s: Short read: %d\n", __FUNCTION__, errno);
-
          close(fd);
 
          return FALSE;
@@ -134,8 +123,6 @@ RandomBytesPosix(const char *name,   // IN:
    }
 
    if (close(fd) == -1) {
-      Log("%s: Failed to close: %d\n", __FUNCTION__, errno);
-
       return FALSE;
    }
 
