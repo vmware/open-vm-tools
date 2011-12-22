@@ -32,6 +32,7 @@
 #include <linux/in.h>
 #include <linux/net.h>
 #include <linux/inet.h>
+#include <linux/moduleparam.h>
 #include <linux/errno.h>
 #include <linux/kthread.h>
 
