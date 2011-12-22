@@ -124,16 +124,6 @@ MXUserSyndrome(void)
    syndrome = Atomic_Read(&syndromeMem);
 
    if (syndrome == 0) {
-#if defined(VMX86_SERVER)
-      /*
-       * On ESX Random_Crypto may hang (PR 787027). Ask for the time, in
-       * seconds since the epoch.
-       *
-       * XXX PR filed to get ESX to fix this.
-       */
-
-      syndrome = time(NULL) & 0xFFFFFFFF;
-#else
       uint32 retries = 25;
 
       /*
@@ -151,15 +141,24 @@ MXUserSyndrome(void)
             break;
          }
       } while (retries--);
-#endif
 
       /*
        * If the source was unable to provide the appropriate bits, switch
        * to plan B.
        */
 
+#if defined(_WIN32)
+      syndrome = GetTickCount();
+#else
+      syndrome = time(NULL) & 0xFFFFFFFF;
+#endif
+
+      /*
+       * Protect against a total failure.
+       */
+
       if (syndrome == 0) {
-         syndrome++;  // Fudge in case of failure
+         syndrome++;
       }
 
       /* blind write; if racing one thread or the other will do */
