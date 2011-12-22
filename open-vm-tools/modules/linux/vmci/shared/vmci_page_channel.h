@@ -144,15 +144,6 @@ int VPageChannel_CreateInVM(VPageChannel **channel,
                             int defaultRecvBuffers,
                             int maxRecvBuffers);
 
-/*
- * Send a packet to the hypervisor. The message is copied and the buffers
- * represented by the scatter-gather list of (pa, le) are sent to the
- * hypervisor. The buffers belong to the hypervisor until it sends a completion
- * notification using VPageChannel_CompletionNotify().
- */
-
-int VPageChannel_SendInVM(VPageChannel *channel, VPageChannelPacket *packet);
-
 #else // VMKERNEL
 
 int VPageChannel_CreateInVMK(VPageChannel **channel,
