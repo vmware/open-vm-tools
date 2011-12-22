@@ -193,6 +193,7 @@ typedef struct AlignedPool {
    unsigned        numBusy;
 } AlignedPool;
 
+static Atomic_Ptr alignedPoolLockStorage;
 static AlignedPool alignedPool;
 #endif
 
@@ -2518,8 +2519,7 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
  *
  * FileIOAligned_PoolInit --
  *
- *      Initialize alignedPool.  Must be called before FileIOAligned_PoolMalloc.
- *      This is not thread-safe and must be protected from multiple entry.
+ *      Initialize alignedPool. Must be called before FileIOAligned_PoolMalloc.
  *
  * Result:
  *      None.
@@ -2533,8 +2533,10 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
 void
 FileIOAligned_PoolInit(void)
 {
-   ASSERT(!alignedPool.lock);
-   alignedPool.lock = MXUser_CreateExclLock("alignedPoolLock", RANK_LEAF);
+   alignedPool.lock = MXUser_CreateSingletonExclLock(&alignedPoolLockStorage,
+                                                     "alignedPoolLock",
+                                                     RANK_LEAF);
+   ASSERT_NOT_IMPLEMENTED(alignedPool.lock);
 }
 
 
