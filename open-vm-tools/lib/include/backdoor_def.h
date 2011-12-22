@@ -156,7 +156,8 @@
 #  define BDOOR_CMD_FE_EXCEPTION              1
 #define   BDOOR_CMD_VMK_INFO                 72
 #define   BDOOR_CMD_EFI_BOOT_CONFIG          73 /* CPL 0 only. */
-#  define BDOOR_CMD_EBC_CSM_ENABLED           0
+#  define BDOOR_CMD_EBC_LEGACYBOOT_ENABLED    0
+#  define BDOOR_CMD_EBC_GET_ORDER             1
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
 #define   BDOOR_CMD_MAX                      75
 
@@ -191,6 +192,11 @@
 #define NESTING_CONTROL_OPEN_BACKDOOR     1
 #define NESTING_CONTROL_QUERY             2
 #define NESTING_CONTROL_MAX               2
+
+/* EFI Boot Order options, nibble-sized. */
+#define EFI_BOOT_ORDER_TYPE_EFI           0x0
+#define EFI_BOOT_ORDER_TYPE_LEGACY        0x1
+#define EFI_BOOT_ORDER_TYPE_NONE          0xf
 
 /* High-bandwidth backdoor port. --hpreg */
 
