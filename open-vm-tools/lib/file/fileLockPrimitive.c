@@ -1898,14 +1898,15 @@ FileLockIsLockedMandatory(ConstUnicode lockFile,  // IN:
     * Check for lock by actually locking file, and dropping
     * lock quickly if open was successful.
     */
+
    access = FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE |
             FILEIO_OPEN_EXCLUSIVE_LOCK;
-   result = FileIOCreateRetry(&desc, lockFile, access,
-                              FILEIO_OPEN, 0644,
-                              0);
+
+   result = FileIOCreateRetry(&desc, lockFile, access, FILEIO_OPEN, 0644, 0);
+
    if (FileIO_IsSuccess(result)) {
-      Bool ret;
-      ret = FileIO_Close(&desc);
+      Bool ret = FileIO_Close(&desc);
+
       ASSERT(!ret);
       return FALSE;
    } else if (result == FILEIO_LOCK_FAILED) {
@@ -1914,6 +1915,7 @@ FileLockIsLockedMandatory(ConstUnicode lockFile,  // IN:
       return FALSE;  // no lock file means unlocked
    } else {
       *err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+
       return FALSE;
    }
 }
