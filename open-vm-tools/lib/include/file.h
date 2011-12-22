@@ -127,6 +127,8 @@ Bool File_SupportsZeroedThick(ConstUnicode pathName);
 
 Bool File_SupportsMultiWriter(ConstUnicode pathName);
 
+Bool File_SupportsMandatoryLock(ConstUnicode pathName);
+
 Bool File_Exists(ConstUnicode pathName);
 
 int File_Unlink(ConstUnicode pathName);

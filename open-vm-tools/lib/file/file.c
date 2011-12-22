@@ -63,6 +63,7 @@
 #include "base64.h"
 #include "timeutil.h"
 #include "hostinfo.h"
+#include "hostType.h"
 #include "vm_atomic.h"
 
 #include "unicodeOperations.h"
@@ -127,6 +128,36 @@ File_UnlinkIfExists(ConstUnicode pathName)  // IN:
    }
 
    return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_SupportsMandatoryLock --
+ *
+ *      Determines if the underlying filesystem for a particular location
+ *      can support mandatory locking. Mandatory locking is used within
+ *      FileLock to make the advisory FileLock self-cleaning in the event
+ *      of host failure.
+ *
+ * Results:
+ *      TRUE if FILEIO_OPEN_EXCLUSIVE_LOCK will work, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_SupportsMandatoryLock(ConstUnicode pathName) // IN: file to be locked
+{
+   /*
+    * For now, "know" that all ESX filesystems support mandatory locks
+    * and no non-ESX filesystems support mandatory locks.
+    */
+   return HostType_OSIsVMK();
 }
 
 

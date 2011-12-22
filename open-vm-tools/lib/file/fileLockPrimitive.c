@@ -53,6 +53,7 @@
 #include "random.h"
 #include "vm_atomic.h"
 #include "util.h"
+#include "hostType.h"
 
 #include "unicodeOperations.h"
 
@@ -86,8 +87,16 @@ typedef struct parse_table
 struct FileLockToken
 {
    uint32  signature;
+   Bool    portable;
    Unicode pathName;
-   Unicode lockFilePath;  // &implicitReadToken for implicit read locks
+   union {
+      struct {
+         FileIODescriptor lockFd;
+      } mandatory;
+      struct {
+         Unicode lockFilePath;  // &implicitReadToken for implicit read locks
+      } portable;
+   } u;
 };
 
 
@@ -979,54 +988,66 @@ FileLockScanner(ConstUnicode lockDir,    // IN:
 int
 FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
 {
-   int err;
+   int err = 0;
 
    ASSERT(tokenPtr && (tokenPtr->signature == FILELOCK_TOKEN_SIGNATURE));
 
    LOG(1, ("Requesting unlock on %s\n", UTF8(tokenPtr->pathName)));
 
-   /*
-    * If the lockFilePath (a pointer) is the fixed-address token representing
-    * an implicit read lock, there is no lock file and the token can simply
-    * be discarded.
-    */
-
-   if (tokenPtr->lockFilePath == &implicitReadToken) {
-      err = 0;
-
-      free(tokenPtr->pathName);
-   } else {
-      Unicode lockDir;
-
-      /* The lock directory path */
-      lockDir = Unicode_Append(tokenPtr->pathName, FILELOCK_SUFFIX);
+   if (tokenPtr->portable) {
 
       /*
-       * TODO: under vmx86_debug validate the contents of the lock file as
-       *       matching the machineID and executionID.
+       * If the lockFilePath (a pointer) is the fixed-address token representing
+       * an implicit read lock, there is no lock file and the token can simply
+       * be discarded.
        */
 
-      err = FileDeletionRobust(tokenPtr->lockFilePath, FALSE);
+      if (tokenPtr->u.portable.lockFilePath != &implicitReadToken) {
+         Unicode lockDir;
 
-      if (err && vmx86_debug) {
-         Log(LGPFX" %s failed for '%s': %s\n", __FUNCTION__,
-             UTF8(tokenPtr->lockFilePath), strerror(err));
+         /* The lock directory path */
+         lockDir = Unicode_Append(tokenPtr->pathName, FILELOCK_SUFFIX);
+
+         /*
+          * TODO: under vmx86_debug validate the contents of the lock file as
+          *       matching the machineID and executionID.
+          */
+
+         err = FileDeletionRobust(tokenPtr->u.portable.lockFilePath, FALSE);
+
+         FileRemoveDirectoryRobust(lockDir); // just in case we can clean up
+
+         if (err && vmx86_debug) {
+            Log(LGPFX" %s failed for '%s': %s\n", __FUNCTION__,
+                UTF8(tokenPtr->u.portable.lockFilePath), strerror(err));
+         }
+         Unicode_Free(lockDir);
+         Unicode_Free(tokenPtr->u.portable.lockFilePath);
       }
 
-      /*
-       * Attempt to clean up the locking directory.
-       */
+      tokenPtr->u.portable.lockFilePath = NULL;  // Just in case...
+   } else {
+      ASSERT(FileIO_IsValid(&tokenPtr->u.mandatory.lockFd));
 
-      FileRemoveDirectoryRobust(lockDir); // just in case we can clean up
-
-      Unicode_Free(lockDir);
-      Unicode_Free(tokenPtr->pathName);
-      Unicode_Free(tokenPtr->lockFilePath);
+     if (FileIO_CloseAndUnlink(&tokenPtr->u.mandatory.lockFd)) {
+        /*
+         * Should succeed, but there is an unavoidable race:
+         * close() must preceed unlink(), but another locker could acquire
+         * lock between close() and unlink(). Solution: treat EBUSY as
+         * success.
+         */
+        if (Err_Errno() == EBUSY) {
+           LOG(0, ("Tolerating EBUSY on unlink of advisory lock at %s\n",
+                   UTF8(tokenPtr->pathName)));
+        } else {
+           err = Err_Errno();
+        }
+      }
    }
 
+   Unicode_Free(tokenPtr->pathName);
    tokenPtr->signature = 0;        // Just in case...
    tokenPtr->pathName = NULL;      // Just in case...
-   tokenPtr->lockFilePath = NULL;  // Just in case...
    free(tokenPtr);
 
    return err;
@@ -1263,7 +1284,7 @@ FileLockCreateEntryDirectory(ConstUnicode lockDir,     // IN:
             Log(LGPFX" %s: '%s' exists; an old style lock file?\n",
                       __FUNCTION__, UTF8(lockDir));
 
-            err = EAGAIN;
+            err = EBUSY;
             break;
         }
 
@@ -1501,9 +1522,13 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * FileLockIntrinsic --
+ * FileLockIntrinsicMandatory --
  *
  *      Obtain a lock on a file; shared or exclusive access.
+ *
+ *      This implementation uses the FILEIO_OPEN_LOCK_MANDATORY flag,
+ *      which requires kernel support for mandatory locking. Such locks
+ *      are automatically broken if the host holding the lock fails.
  *
  *      msecMaxWaitTime specifies the maximum amount of time, in
  *      milliseconds, to wait for the lock before returning the "not
@@ -1524,43 +1549,99 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
  *-----------------------------------------------------------------------------
  */
 
-FileLockToken *
-FileLockIntrinsic(ConstUnicode pathName,   // IN:
-                  Bool exclusivity,        // IN:
-                  uint32 msecMaxWaitTime,  // IN:
-                  int *err)                // OUT:
+static FileLockToken *
+FileLockIntrinsicMandatory(ConstUnicode pathName,   // IN:
+                           ConstUnicode lockFile,   // IN:
+                           LockValues *myValues,    // IN/OUT:
+                           int *err)                // OUT:
 {
    int access;
-   LockValues myValues;
+   int loopCount = 0;
+   FileIOResult result;
+   FileLockToken *tokenPtr = Util_SafeMalloc(sizeof(FileLockToken));
+
+   tokenPtr->signature = FILELOCK_TOKEN_SIGNATURE;
+   tokenPtr->portable = FALSE;
+   tokenPtr->pathName = Unicode_Duplicate(pathName);
+   FileIO_Invalidate(&tokenPtr->u.mandatory.lockFd);
+
+   access = myValues->exclusivity ? FILEIO_OPEN_ACCESS_WRITE
+                                  : FILEIO_OPEN_ACCESS_READ;
+   access |= FILEIO_OPEN_EXCLUSIVE_LOCK;
+
+   do {
+      result = FileIOCreateRetry(&tokenPtr->u.mandatory.lockFd,
+                                 lockFile, access,
+                                 FILEIO_OPEN_CREATE, 0600,
+                                 0);
+      if (result != FILEIO_LOCK_FAILED) {
+         break;
+      }
+   } while (FileLockSleeper(myValues, &loopCount) == 0);
+
+   if (FileIO_IsSuccess(result)) {
+      ASSERT(FileIO_IsValid(&tokenPtr->u.mandatory.lockFd));
+      *err = 0;
+
+      return tokenPtr;
+   } else {
+      *err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+      Unicode_Free(tokenPtr->pathName);
+      ASSERT(!FileIO_IsValid(&tokenPtr->u.mandatory.lockFd));
+      free(tokenPtr);
+
+      return NULL;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileLockIntrinsicPortable --
+ *
+ *      Obtain a lock on a file; shared or exclusive access.
+ *
+ *      This implementation uses a HIGHLY portable directory-namespace +
+ *      Lamport bakery scheme that works on all filesystems that provide atomicity
+ *      of the directory namespace. (That is, all known filesystems.)
+ *      The various files involved are hidden within a "pathName.lck/"
+ *      subdirectory.
+ *
+ *      The lock can be broken by removing the subdirectory. The lock
+ *      is self-cleaning on the same host (e.g. will detect a dead process
+ *      and will break the lock), but NOT self-cleaning across hosts. The
+ *      lock does not require any sort of time-based leases or heartbeats.
+ *
+ * Results:
+ *      NULL    Lock not acquired. Check err.
+ *              err     0       Lock Timed Out
+ *              err     > 0     errno
+ *      !NULL   Lock Acquired. This is the "lockToken" for an unlock.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static FileLockToken *
+FileLockIntrinsicPortable(ConstUnicode pathName,   // IN:
+                          ConstUnicode lockDir,    // IN:
+                          LockValues *myValues,    // IN/OUT:
+                          int *err)                // OUT:
+{
+   int access;
    FileIOResult result;
    FileIODescriptor desc;
    FileLockToken *tokenPtr;
 
-   Unicode lockDir = NULL;
    Unicode entryFilePath = NULL;
    Unicode memberFilePath = NULL;
    Unicode entryDirectory = NULL;
 
    ASSERT(pathName);
    ASSERT(err);
-
-   /* Construct the locking directory path */
-   lockDir = Unicode_Append(pathName, FILELOCK_SUFFIX);
-
-   /* establish our values */
-
-   myValues.machineID = (char *) FileLockGetMachineID(); // don't free this!
-   myValues.executionID = FileLockGetExecutionID();      // free this!
-   myValues.lockType = exclusivity ? LOCK_EXCLUSIVE : LOCK_SHARED;
-   myValues.lamportNumber = 0;
-   myValues.locationChecksum = FileLockLocationChecksum(lockDir); // free this!
-   myValues.waitTime = 0;
-   myValues.msecMaxWaitTime = msecMaxWaitTime;
-   myValues.memberName = NULL;
-
-   LOG(1, ("Requesting %s lock on %s (%s, %s, %u).\n",
-       myValues.lockType, UTF8(pathName), myValues.machineID,
-       myValues.executionID, myValues.msecMaxWaitTime));
 
    /*
     * Attempt to create the locking and entry directories; obtain the
@@ -1569,7 +1650,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
 
    *err = FileLockCreateEntryDirectory(lockDir, &entryDirectory,
                                        &entryFilePath, &memberFilePath,
-                                       &myValues.memberName);
+                                       &myValues->memberName);
 
    switch (*err) {
    case 0:
@@ -1578,7 +1659,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    case EROFS:
       /* FALL THROUGH */
    case EACCES:
-      if (!exclusivity) {
+      if (!myValues->exclusivity) {
          /*
           * Lock is for read/shared access however the lock directory could
           * not be created. Grant an implicit read lock whenever possible.
@@ -1626,7 +1707,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    }
 
    /* what is max(Number[1]... Number[all lockers])? */
-   *err = FileLockScanner(lockDir, FileLockNumberScan, &myValues, FALSE);
+   *err = FileLockScanner(lockDir, FileLockNumberScan, myValues, FALSE);
 
    if (*err != 0) {
       /* clean up */
@@ -1639,10 +1720,10 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    }
 
    /* Number[i] = 1 + max([Number[1]... Number[all lockers]) */
-   myValues.lamportNumber++;
+   myValues->lamportNumber++;
 
    /* Attempt to create the member file */
-   *err = FileLockCreateMemberFile(&desc, &myValues, entryFilePath,
+   *err = FileLockCreateMemberFile(&desc, myValues, entryFilePath,
                                    memberFilePath);
 
    /* Remove entry directory; it has done its job */
@@ -1659,7 +1740,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
 
    /* Attempt to acquire the lock */
    *err = FileLockScanner(lockDir, FileLockWaitForPossession,
-                          &myValues, TRUE);
+                          myValues, TRUE);
 
    switch (*err) {
    case 0:
@@ -1677,19 +1758,16 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
 
 bail:
 
-   Unicode_Free(lockDir);
    Unicode_Free(entryDirectory);
    Unicode_Free(entryFilePath);
-   Unicode_Free(myValues.memberName);
-   free(myValues.locationChecksum);
-   free(myValues.executionID);
 
    if (*err == 0) {
       tokenPtr = Util_SafeMalloc(sizeof(FileLockToken));
 
       tokenPtr->signature = FILELOCK_TOKEN_SIGNATURE;
+      tokenPtr->portable = TRUE;
       tokenPtr->pathName = Unicode_Duplicate(pathName);
-      tokenPtr->lockFilePath = memberFilePath;
+      tokenPtr->u.portable.lockFilePath = memberFilePath;
    } else {
       Unicode_Free(memberFilePath);
       tokenPtr = NULL;
@@ -1700,6 +1778,205 @@ bail:
    }
 
    return tokenPtr;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileLockIntrinsic --
+ *
+ *      Obtain a lock on a file; shared or exclusive access.
+ *
+ *      All FileLock_-based locks are advisory locks (i.e. the
+ *      lock is maintained separately from the file so only FileLock_
+ *      callers experience locking). Advisory locks have an inherent problem
+ *      that they are difficult to break in the event one of the cooperating
+ *      entities fails, particularly across distributed filesystems.
+ *
+ *      This wrapper function will adaptively switch between a scheme
+ *      implemented via mandatory locks and a more portable scheme depending
+ *      on host OS support.
+ *
+ *      msecMaxWaitTime specifies the maximum amount of time, in
+ *      milliseconds, to wait for the lock before returning the "not
+ *      acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
+ *      equivalent of a "try lock" - the lock will be acquired only if
+ *      there is no contention. A value of FILELOCK_INFINITE_WAIT
+ *      specifies "waiting forever" to acquire the lock.
+ *
+ * Results:
+ *      NULL    Lock not acquired. Check err.
+ *              err     0       Lock Timed Out
+ *              err     > 0     errno
+ *      !NULL   Lock Acquired. This is the "lockToken" for an unlock.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+FileLockToken *
+FileLockIntrinsic(ConstUnicode pathName,   // IN:
+                  Bool exclusivity,        // IN:
+                  uint32 msecMaxWaitTime,  // IN:
+                  int *err)                // OUT:
+{
+   Unicode lockBase;
+   LockValues myValues = { 0 };
+   FileLockToken *tokenPtr;
+
+   /* Construct the locking directory path */
+   lockBase = Unicode_Append(pathName, FILELOCK_SUFFIX);
+
+   myValues.lockType = exclusivity ? LOCK_EXCLUSIVE : LOCK_SHARED;
+   myValues.waitTime = 0;
+   myValues.msecMaxWaitTime = msecMaxWaitTime;
+
+   if (File_SupportsMandatoryLock(pathName)) {
+      LOG(1, ("Requesting %s lock on %s (mandatory, %u).\n",
+          myValues.lockType, UTF8(pathName), myValues.msecMaxWaitTime));
+
+      tokenPtr = FileLockIntrinsicMandatory(pathName, lockBase, &myValues, err);
+   } else {
+      myValues.machineID = (char *) FileLockGetMachineID(); // don't free this!
+      myValues.executionID = FileLockGetExecutionID();      // free this!
+      myValues.lamportNumber = 0;
+      myValues.locationChecksum = FileLockLocationChecksum(lockBase); // free this!
+      myValues.memberName = NULL;
+
+      LOG(1, ("Requesting %s lock on %s (%s, %s, %u).\n",
+          myValues.lockType, UTF8(pathName), myValues.machineID,
+          myValues.executionID, myValues.msecMaxWaitTime));
+
+      tokenPtr = FileLockIntrinsicPortable(pathName, lockBase, &myValues, err);
+
+      Unicode_Free(myValues.memberName);
+      free(myValues.locationChecksum);
+      free(myValues.executionID);
+   }
+
+   Unicode_Free(lockBase);
+
+   return tokenPtr;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileLockIsLockedMandatory --
+ *
+ *      Is a file currently locked (at the time of the call)?
+ *
+ *      The only way to check for a mandatory lock is to try opening
+ *      the file (and quickly closing it again). If the lock is held,
+ *      attempting to open the file will return FILEIO_LOCK_FAILED.
+ *
+ * Results:
+ *      TRUE    YES
+ *      FALSE   NO; if err is not NULL may check *err for an error
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+FileLockIsLockedMandatory(ConstUnicode lockFile,  // IN:
+                          int *err)               // OUT:
+{
+   int access;
+   FileIOResult result;
+   FileIODescriptor desc;
+
+   FileIO_Invalidate(&desc);
+
+   /*
+    * Check for lock by actually locking file, and dropping
+    * lock quickly if open was successful.
+    */
+   access = FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE |
+            FILEIO_OPEN_EXCLUSIVE_LOCK;
+   result = FileIOCreateRetry(&desc, lockFile, access,
+                              FILEIO_OPEN, 0644,
+                              0);
+   if (FileIO_IsSuccess(result)) {
+      Bool ret;
+      ret = FileIO_Close(&desc);
+      ASSERT(!ret);
+      return FALSE;
+   } else if (result == FILEIO_LOCK_FAILED) {
+      return TRUE;   // locked
+   } else if (result == FILEIO_FILE_NOT_FOUND) {
+      return FALSE;  // no lock file means unlocked
+   } else {
+      *err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+      return FALSE;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileLockIsLockedPortable --
+ *
+ *      Is a file currently locked (at the time of the call)?
+ *
+ *      The "portable" lock is held if the lock directory exists and
+ *      there are any "M" entries (representing held locks).
+ *
+ *      FileLocks implemented via mandatory locking are reported
+ *      as held locks (errno == ENOTDIR).
+ *
+ * Results:
+ *      TRUE    YES
+ *      FALSE   NO; if err is not NULL may check *err for an error
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+FileLockIsLockedPortable(ConstUnicode lockDir,  // IN:
+                         int *err)              // OUT:
+{
+   uint32 i;
+   int numEntries;
+   Bool isLocked = FALSE;
+   Unicode *fileList = NULL;
+
+   numEntries = FileListDirectoryRobust(lockDir, &fileList);
+
+   if (numEntries == -1 && errno != ENOENT) {
+      /*
+       * If the lock directory doesn't exist, we should not count this
+       * as an error.  This is expected if the file isn't locked.
+       */
+      if (err != NULL) {
+         *err = errno;
+      }
+      return FALSE;
+   }
+
+   for (i = 0; i < numEntries; i++) {
+      if (Unicode_StartsWith(fileList[i], "M")) {
+         isLocked = TRUE;
+         break;
+      }
+   }
+
+   for (i = 0; i < numEntries; i++) {
+      Unicode_Free(fileList[i]);
+   }
+   free(fileList);
+
+   return isLocked;
 }
 
 
@@ -1724,49 +2001,16 @@ Bool
 FileLockIsLocked(ConstUnicode pathName,  // IN:
                  int *err)               // OUT:
 {
-   uint32 i;
-   int numEntries;
-   Unicode lockDir;
+   Unicode lockBase = Unicode_Append(pathName, FILELOCK_SUFFIX);
+   Bool isLocked;
 
-   int errValue = 0;
-   Bool isLocked = FALSE;
-   Unicode *fileList = NULL;
-
-   lockDir = Unicode_Append(pathName, FILELOCK_SUFFIX);
-
-   numEntries = FileListDirectoryRobust(lockDir, &fileList);
-
-   if (numEntries == -1) {
-      /*
-       * If the lock directory doesn't exist, we should not count this
-       * as an error.  This is expected if the file isn't locked.
-       */
-      if (errno != ENOENT) {
-         errValue = errno;
-      }
-
-      goto bail;
+   if (File_SupportsMandatoryLock(pathName)) {
+      isLocked = FileLockIsLockedMandatory(lockBase, err);
+   } else {
+      isLocked = FileLockIsLockedPortable(lockBase, err);
    }
 
-   for (i = 0; i < numEntries; i++) {
-      if (Unicode_StartsWith(fileList[i], "M")) {
-         isLocked = TRUE;
-         break;
-      }
-   }
-
-   for (i = 0; i < numEntries; i++) {
-      Unicode_Free(fileList[i]);
-   }
-
-   free(fileList);
-
-bail:
-   Unicode_Free(lockDir);
-
-   if (err != NULL) {
-      *err = errValue;
-   }
+   Unicode_Free(lockBase);
 
    return isLocked;
 }
