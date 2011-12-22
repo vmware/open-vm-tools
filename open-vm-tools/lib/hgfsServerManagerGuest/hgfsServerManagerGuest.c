@@ -116,7 +116,7 @@ HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
  *    Sends a request to invalidate all the inactive HGFS server sessions.
  *
  * Results:
- *    None.
+ *    Number of active sessions remaining inside the HGFS server.
  *
  * Side effects:
  *    None.
@@ -124,12 +124,12 @@ HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
  *----------------------------------------------------------------------------
  */
 
-void
+uint32
 HgfsServerManager_InvalidateInactiveSessions(HgfsServerMgrData *mgrData)  // IN: RpcIn channel
 {
    ASSERT(mgrData);
 
-   HgfsChannelGuest_InvalidateInactiveSessions(mgrData);
+   return HgfsChannelGuest_InvalidateInactiveSessions(mgrData);
 }
 
 

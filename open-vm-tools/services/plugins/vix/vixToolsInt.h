@@ -55,8 +55,7 @@ typedef void (*VixToolsReportProgramDoneProcType)(const char *requestName,
 VixError VixTools_Initialize(Bool thisProcessRunsAsRootArg,
                              const char * const *originalEnvp,
                              VixToolsReportProgramDoneProcType reportProgramDoneProc,
-                             void *clientData,
-                             GMainLoop *eventQueue);
+                             void *clientData);
 
 void VixTools_Uninitialize(void);
 

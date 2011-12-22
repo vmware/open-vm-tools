@@ -187,7 +187,7 @@ static void HgfsServerSessionDisconnect(void *clientData);
 static void HgfsServerSessionClose(void *clientData);
 static void HgfsServerSessionInvalidateObjects(void *clientData,
                                                DblLnkLst_Links *shares);
-static void HgfsServerSessionInvalidateInactiveSessions(void *clientData);
+static uint32 HgfsServerSessionInvalidateInactiveSessions(void *clientData);
 static void HgfsServerSessionSendComplete(HgfsPacket *packet, void *clientData);
 
 /*
@@ -4496,7 +4496,7 @@ HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
  *      needed.
  *
  * Results:
- *      None
+ *      Number of active sessions remaining inside the HGFS server.
  *
  * Side effects:
  *      None
@@ -4504,11 +4504,12 @@ HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
  *-----------------------------------------------------------------------------
  */
 
-void
+uint32
 HgfsServerSessionInvalidateInactiveSessions(void *clientData)         // IN:
 {
    HgfsTransportSessionInfo *transportSession =
          (HgfsTransportSessionInfo *)clientData;
+   uint32 numActiveSessionsLeft = 0;
    DblLnkLst_Links shares, *curr, *next;
 
    ASSERT(transportSession);
@@ -4518,6 +4519,8 @@ HgfsServerSessionInvalidateInactiveSessions(void *clientData)         // IN:
 
    DblLnkLst_ForEachSafe(curr, next,  &transportSession->sessionArray) {
       HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+      Bool removedFromList = FALSE;
+      Bool sessionInvalidated = FALSE;
 
       HgfsServerSessionGet(session);
 
@@ -4540,6 +4543,7 @@ HgfsServerSessionInvalidateInactiveSessions(void *clientData)         // IN:
          if (session->numInvalidationAttempts == MAX_SESSION_INVALIDATION_ATTEMPTS) {
             HgfsServerTransportRemoveSessionFromList(transportSession,
                                                      session);
+            removedFromList = TRUE;
             /*
              * We need to reduce the refcount by 1 since we want to
              * destroy the session.
@@ -4547,15 +4551,40 @@ HgfsServerSessionInvalidateInactiveSessions(void *clientData)         // IN:
             HgfsServerSessionPut(session);
          } else {
             HgfsInvalidateSessionObjects(&shares, session);
+            sessionInvalidated = TRUE;
          }
       } else {
          session->isInactive = TRUE;
          session->numInvalidationAttempts = 0;
       }
+
+      /*
+       * This is slightly complicated. The caller of this function should
+       * use the return value to decide whether to call the invalidator one
+       * more time or not. So, the return value should reflect the total number
+       * of sessions that still need to be either invalidated or destroyed.
+       */
+      if (session->type == HGFS_SESSION_TYPE_REGULAR) {
+         if (!removedFromList) {
+            numActiveSessionsLeft++;
+         }
+      } else {
+         /*
+          * The default session must exist until the end of the transport
+          * session. So, increment the count only if the default session
+          * was not invalidated.
+          */
+         if (!sessionInvalidated) {
+            numActiveSessionsLeft++;
+         }
+      }
+
       HgfsServerSessionPut(session);
    }
 
    MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+
+   return numActiveSessionsLeft;
 }
 
 
