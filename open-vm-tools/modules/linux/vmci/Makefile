@@ -55,7 +55,7 @@ endif
 BUILD_DIR = $(HEADER_DIR)/..
 
 DRIVER := vmci
-PRODUCT := tools
+PRODUCT := tools-source
 
 # Grep program
 GREP = /bin/grep
@@ -127,9 +127,9 @@ prebuild:: ;
 postbuild:: ;
 
 $(DRIVER_KO): prebuild
-	make -C $(BUILD_DIR) SUBDIRS=$$PWD SRCROOT=$$PWD/$(SRCROOT) \
+	$(MAKE) -C $(BUILD_DIR) SUBDIRS=$$PWD SRCROOT=$$PWD/$(SRCROOT) \
 	  MODULEBUILDDIR=$(MODULEBUILDDIR) modules
-	make -C $$PWD SRCROOT=$$PWD/$(SRCROOT) \
+	$(MAKE) -C $$PWD SRCROOT=$$PWD/$(SRCROOT) \
 	  MODULEBUILDDIR=$(MODULEBUILDDIR) postbuild
 endif
 
