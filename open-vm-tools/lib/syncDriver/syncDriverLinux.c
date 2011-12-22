@@ -186,6 +186,7 @@ LinuxDriver_Freeze(const char *paths,
       }
 
       if (ioctl(fd, FIFREEZE) == -1) {
+         int ioctlerr = errno;
          /*
           * If the ioctl does not exist, Linux will return ENOTTY. If it's not
           * supported on the device, we get EOPNOTSUPP. Ignore the latter,
@@ -193,8 +194,8 @@ LinuxDriver_Freeze(const char *paths,
           * Linux fs drivers may not have been hooked up in the running kernel.
           */
          close(fd);
-         if (errno != EOPNOTSUPP) {
-            Debug(LGPFX "ioctl failed: %d (%s)\n", errno, strerror(errno));
+         if (ioctlerr != EOPNOTSUPP) {
+            Debug(LGPFX "ioctl failed: %d (%s)\n", ioctlerr, strerror(ioctlerr));
             err = first ? SD_UNAVAILABLE : SD_ERROR;
             break;
          }
