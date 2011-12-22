@@ -65,6 +65,7 @@
 #include "hostinfo.h"
 #include "hostType.h"
 #include "vm_atomic.h"
+#include "fileLock.h"
 
 #include "unicodeOperations.h"
 
@@ -95,6 +96,12 @@
 Bool
 File_Exists(ConstUnicode pathName)  // IN: May be NULL.
 {
+   if (pathName == NULL) {
+      Log("%s: NULL pathName\n", __FUNCTION__);
+   } else {
+      FileLock_IsLocked(pathName, NULL, NULL);
+   }
+
    return FileIO_IsSuccess(FileIO_Access(pathName, FILEIO_ACCESS_EXISTS));
 }
 
@@ -119,9 +126,7 @@ File_Exists(ConstUnicode pathName)  // IN: May be NULL.
 int
 File_UnlinkIfExists(ConstUnicode pathName)  // IN:
 {
-   int ret;
-
-   ret = FileDeletion(pathName, TRUE);
+   int ret = FileDeletion(pathName, TRUE);
 
    if (ret != 0) {
       ret = (ret == ENOENT) ? 0 : -1;

@@ -1959,14 +1959,14 @@ FileLockIsLockedPortable(ConstUnicode lockDir,  // IN:
 
    numEntries = FileListDirectoryRobust(lockDir, &fileList);
 
-   if (numEntries == -1 && errno != ENOENT) {
+   if (numEntries == -1) {
       /*
        * If the lock directory doesn't exist, we should not count this
        * as an error.  This is expected if the file isn't locked.
        */
 
       if (err != NULL) {
-         *err = errno;
+         *err = (errno == ENOENT) ? 0 : errno;
       }
 
       return FALSE;
@@ -1982,6 +1982,7 @@ FileLockIsLockedPortable(ConstUnicode lockDir,  // IN:
    for (i = 0; i < numEntries; i++) {
       Unicode_Free(fileList[i]);
    }
+
    free(fileList);
 
    return isLocked;
@@ -2009,8 +2010,12 @@ Bool
 FileLockIsLocked(ConstUnicode pathName,  // IN:
                  int *err)               // OUT/OPT:
 {
-   Unicode lockBase = Unicode_Append(pathName, FILELOCK_SUFFIX);
    Bool isLocked;
+   Unicode lockBase;
+
+   ASSERT(pathName);
+
+   lockBase = Unicode_Append(pathName, FILELOCK_SUFFIX);
 
    if (File_SupportsMandatoryLock(pathName)) {
       isLocked = FileLockIsLockedMandatory(lockBase, err);
