@@ -228,8 +228,8 @@ typedef struct HgfsSharedFolderProperties {
 static void HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSession,
                                                      HgfsSessionInfo *sessionInfo);
 
-static void HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,
-                                                HgfsSessionInfo *sessionInfo);
+static HgfsInternalStatus HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,
+                                                              HgfsSessionInfo *sessionInfo);
 /*
  *    Limit payload to 16M + header.
  *    This limit ensures that list of shared pages fits into VMCI datagram.
@@ -3194,6 +3194,7 @@ HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSess
    ASSERT(session);
 
    DblLnkLst_Unlink1(&session->links);
+   transportSession->numSessions--;
    HgfsServerSessionPut(session);
 }
 
@@ -3203,10 +3204,12 @@ HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSess
  *
  * HgfsServerTransportAddSessionToList --
  *
- *   Links the specified session info to the list.
+ *    Links the specified session info to the list.
  *
  * Results:
- *    None
+ *    HGFS_ERROR_SUCCESS if the session is successfully added to the list,
+ *    HGFS_ERROR_TOO_MANY_SESSIONS if maximum number of sessions were already
+ *                                 added to the list.
  *
  * Side effects:
  *    None
@@ -3214,17 +3217,29 @@ HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSess
  *-----------------------------------------------------------------------------
  */
 
-void
+HgfsInternalStatus
 HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,       // IN: transport session info
                                     HgfsSessionInfo *session)                         // IN: session info
 {
+   HgfsInternalStatus status = HGFS_ERROR_TOO_MANY_SESSIONS;
+
    ASSERT(transportSession);
    ASSERT(session);
 
    MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+
+   if (transportSession->numSessions == MAX_SESSION_COUNT) {
+      goto abort;
+   }
+
    DblLnkLst_LinkLast(&transportSession->sessionArray, &session->links);
+   transportSession->numSessions++;
    HgfsServerSessionGet(session);
+   status = HGFS_ERROR_SUCCESS;
+
+abort:
    MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+   return status;
 }
 
 
@@ -3719,6 +3734,7 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
    transportSession->type = HGFS_SESSION_TYPE_REGULAR;
    transportSession->state = HGFS_SESSION_STATE_OPEN;
    transportSession->channelCapabilities = channelCapabilities;
+   transportSession->numSessions = 0;
 
    transportSession->sessionArrayLock =
          MXUser_CreateExclLock("HgfsSessionArrayLock",
@@ -3740,7 +3756,14 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
    }
 
    defaultSession->type = HGFS_SESSION_TYPE_INTERNAL;
-   HgfsServerTransportAddSessionToList(transportSession, defaultSession);
+
+   if(HGFS_ERROR_SUCCESS != HgfsServerTransportAddSessionToList(transportSession, defaultSession)) {
+      LOG(4, ("%s: Could not add session to the list.\n", __FUNCTION__));
+      HgfsServerSessionPut(defaultSession);
+      MXUser_DestroyExclLock(transportSession->sessionArrayLock);
+      free(transportSession);
+      return FALSE;
+   }
 
    transportSession->defaultSessionId = defaultSession->sessionId;
 
@@ -3825,6 +3848,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
    session->activeNotification = FALSE;
    session->isInactive = TRUE;
    session->transportSession = transportSession;
+   session->numInvalidationAttempts = 0;
 
    /*
     * Initialize the node handling components.
@@ -4485,14 +4509,14 @@ HgfsServerSessionInvalidateInactiveSessions(void *clientData)         // IN:
 {
    HgfsTransportSessionInfo *transportSession =
          (HgfsTransportSessionInfo *)clientData;
-   DblLnkLst_Links shares, *curr;
+   DblLnkLst_Links shares, *curr, *next;
 
    ASSERT(transportSession);
    MXUser_AcquireExclLock(transportSession->sessionArrayLock);
 
    DblLnkLst_Init(&shares);
 
-   DblLnkLst_ForEach(curr, &transportSession->sessionArray) {
+   DblLnkLst_ForEachSafe(curr, next,  &transportSession->sessionArray) {
       HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
 
       HgfsServerSessionGet(session);
@@ -4502,9 +4526,31 @@ HgfsServerSessionInvalidateInactiveSessions(void *clientData)         // IN:
        * invalidate the session objects.
        */
       if (session->isInactive) {
-         HgfsInvalidateSessionObjects(&shares, session);
+
+         if (session->type == HGFS_SESSION_TYPE_REGULAR) {
+            /*
+             * Each transport session will have one default session. This
+             * default session should exist till the end of the transport
+             * session. So, increase the attempts count only for
+             * non-default sessions.
+             */
+            session->numInvalidationAttempts++;
+         }
+
+         if (session->numInvalidationAttempts == MAX_SESSION_INVALIDATION_ATTEMPTS) {
+            HgfsServerTransportRemoveSessionFromList(transportSession,
+                                                     session);
+            /*
+             * We need to reduce the refcount by 1 since we want to
+             * destroy the session.
+             */
+            HgfsServerSessionPut(session);
+         } else {
+            HgfsInvalidateSessionObjects(&shares, session);
+         }
       } else {
          session->isInactive = TRUE;
+         session->numInvalidationAttempts = 0;
       }
       HgfsServerSessionPut(session);
    }
@@ -8161,7 +8207,13 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
          status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
          goto abort;
       } else {
-         HgfsServerTransportAddSessionToList(input->transportSession, session);
+         status = HgfsServerTransportAddSessionToList(input->transportSession,
+                                                      session);
+         if (HGFS_ERROR_SUCCESS != status) {
+            LOG(4, ("%s: Could not add session to the list.\n", __FUNCTION__));
+            HgfsServerSessionPut(session);
+            goto abort;
+         }
       }
 
       if (info.maxPacketSize < input->session->maxPacketSize) {
