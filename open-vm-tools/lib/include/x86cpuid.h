@@ -1123,7 +1123,8 @@ CPUID_MODEL_IS_WESTMERE(uint32 v) // IN: %eax from CPUID with %eax=1.
 
    return CPUID_FAMILY_IS_P6(v) &&
           (effectiveModel == CPUID_MODEL_NEHALEM_25 || // Clarkdale
-           effectiveModel == CPUID_MODEL_NEHALEM_2C);  // Westmere-EP
+           effectiveModel == CPUID_MODEL_NEHALEM_2C || // Westmere-EP
+           effectiveModel == CPUID_MODEL_NEHALEM_2F);  // Westmere-EX
 }
 
 
