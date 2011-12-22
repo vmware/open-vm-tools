@@ -71,8 +71,9 @@ typedef struct {
  *     - exclusive (non-recursive) locks catch the recursion and panic
  *       rather than deadlock.
  *
- * There are 8 environment specific primitives:
+ * There are 9 environment specific primitives:
  *
+ * MXUserNativeThreadID         Return native thread ID
  * MXRecLockCreateInternal      Create lock before use
  * MXRecLockDestroyInternal     Destroy lock after use
  * MXRecLockIsOwner             Is lock owned by the caller?
@@ -113,10 +114,17 @@ MXRecLockDestroyInternal(MXRecLock *lock)  // IN/OUT:
 }
 
 
+static INLINE MXUserThreadID
+MXUserNativeThreadID(void)
+{
+   return GetCurrentThreadId();
+}
+
+
 static INLINE Bool
 MXRecLockIsOwner(const MXRecLock *lock)  // IN:
 {
-   return lock->nativeThreadID == GetCurrentThreadId();
+   return lock->nativeThreadID == MXUserNativeThreadID();
 }
 
 
@@ -130,7 +138,7 @@ MXRecLockSetNoOwner(MXRecLock *lock)  // IN:
 static INLINE void
 MXRecLockSetOwner(MXRecLock *lock)  // IN/OUT:
 {
-   lock->nativeThreadID = GetCurrentThreadId();
+   lock->nativeThreadID = MXUserNativeThreadID();
 }
 
 
@@ -172,10 +180,17 @@ MXRecLockDestroyInternal(MXRecLock *lock)  // IN:
 }
 
 
+static INLINE MXUserThreadID
+MXUserNativeThreadID(void)
+{
+   return pthread_self();
+}
+
+
 static INLINE Bool
 MXRecLockIsOwner(const MXRecLock *lock)  // IN:
 {
-   return pthread_equal(lock->nativeThreadID, pthread_self());
+   return pthread_equal(lock->nativeThreadID, MXUserNativeThreadID());
 }
 
 
@@ -190,7 +205,7 @@ MXRecLockSetNoOwner(MXRecLock *lock)  // IN/OUT:
 static INLINE void
 MXRecLockSetOwner(MXRecLock *lock)  // IN:
 {
-   lock->nativeThreadID = pthread_self();
+   lock->nativeThreadID = MXUserNativeThreadID();
 }
 
 
@@ -367,7 +382,7 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserGetThreadID --
+ * MXUserCastedThreadID --
  *
  *      Obtains a unique thread identifier (ID) which can be stored in a
  *      pointer; typically these thread ID values are used for tracking
@@ -387,7 +402,7 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
  */
 
 static INLINE void *
-MXUserGetThreadID(void)
+MXUserCastedThreadID(void)
 {
    return (void *) (uintptr_t) VThread_CurID();  // unsigned
 }

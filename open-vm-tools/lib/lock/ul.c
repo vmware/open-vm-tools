@@ -487,7 +487,7 @@ MXUserGetPerThread(void *tid,      // IN: thread ID
 void
 MXUserListLocks(void)
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(),
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
                                                    FALSE);
 
    if (perThread != NULL) {
@@ -523,7 +523,7 @@ MXUserListLocks(void)
 Bool
 MXUser_IsCurThreadHoldingLocks(void)
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(),
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
                                                    FALSE);
 
    return (perThread == NULL) ? FALSE : (perThread->locksHeld != 0);
@@ -600,7 +600,8 @@ MX_Rank
 MXUserCurrentRank(void)
 {
    MX_Rank maxRank;
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(), FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
+                                                   FALSE);
 
    if (perThread == NULL) {
       maxRank = RANK_UNRANKED;
@@ -633,7 +634,8 @@ void
 MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
                           Bool checkRank)        // IN:
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(), TRUE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserCastedThreadID(),
+                                                   TRUE);
 
    ASSERT_NOT_IMPLEMENTED(perThread->locksHeld < MXUSER_MAX_LOCKS_PER_THREAD);
 
@@ -712,7 +714,7 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 {
    uint32 i;
    uint32 lastEntry;
-   void *tid = MXUserGetThreadID();
+   void *tid = MXUserCastedThreadID();
    MXUserPerThread *perThread = MXUserGetPerThread(tid, FALSE);
 
    /* MXUserAcquisitionTracking should have already created a perThread */
