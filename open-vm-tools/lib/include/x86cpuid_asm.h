@@ -49,9 +49,40 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#include "vm_basic_types.h"
 #include "vm_basic_asm.h"
 #include "x86cpuid.h"
+
+
+/*
+ * x86-64 windows doesn't support inline asm so we have to use these
+ * intrinsic functions defined in the compiler.  Not all of these are well
+ * documented.  There is an array in the compiler dll (c1.dll) which has
+ * an array of the names of all the intrinsics minus the leading
+ * underscore.  Searching around in the ntddk.h file can also be helpful.
+ *
+ * The declarations for the intrinsic functions were taken from the DDK. 
+ * Our declarations must match the ddk's otherwise the 64-bit c++ compiler
+ * will complain about second linkage of the intrinsic functions.
+ * We define the intrinsic using the basic types corresponding to the 
+ * Windows typedefs. This avoids having to include windows header files
+ * to get to the windows types.
+ */
+#ifdef _MSC_VER
+#ifdef __cplusplus
+extern "C" {
+#endif
+#ifdef VM_X86_64
+/*
+ * intrinsic functions only supported by x86-64 windows as of 2k3sp1
+ */
+void             __cpuid(unsigned int*, unsigned int);
+#pragma intrinsic(__cpuid)
+#endif /* VM_X86_64 */
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* _MSC_VER */
 
 
 #ifdef __GNUC__ // {
@@ -205,54 +236,208 @@ __GET_EAX_FROM_CPUID4(int ecx) // IN
 static INLINE void
 __GET_CPUID(int input, CPUIDRegs *regs)
 {
-   __cpuid((int *)regs, input);
+#ifdef VM_X86_64
+   __cpuid((unsigned int *)regs, input);
+#else
+   __asm push esi
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm mov  esi, regs
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov 0x0[esi], eax
+   __asm mov 0x4[esi], ebx
+   __asm mov 0x8[esi], ecx
+   __asm mov 0xC[esi], edx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+   __asm pop esi
+#endif
 }
+
+#ifdef VM_X86_64
+
+/*
+ * No inline assembly in Win64. Implemented in bora/lib/misc in
+ * cpuidMasm64.asm.
+ */
+
+extern void
+__GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs);
+
+#else // VM_X86_64
 
 static INLINE void
 __GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs)
 {
-   __cpuidex((int *)regs, inputEax, inputEcx);
+   __asm push esi
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, inputEax
+   __asm mov  ecx, inputEcx
+   __asm mov  esi, regs
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov 0x0[esi], eax
+   __asm mov 0x4[esi], ebx
+   __asm mov 0x8[esi], ecx
+   __asm mov 0xC[esi], edx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+   __asm pop esi
 }
+#endif
 
 static INLINE uint32
 __GET_EAX_FROM_CPUID(int input)
 {
+#ifdef VM_X86_64
    CPUIDRegs regs;
-   __cpuid((int *)&regs, input);
+   __cpuid((unsigned int *)&regs, input);
    return regs.eax;
+#else
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, eax
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
+#endif
 }
 
 static INLINE uint32
 __GET_EBX_FROM_CPUID(int input)
 {
+#ifdef VM_X86_64
    CPUIDRegs regs;
-   __cpuid((int *)&regs, input);
+   __cpuid((unsigned int *)&regs, input);
    return regs.ebx;
+#else
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, ebx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
+#endif
 }
 
 static INLINE uint32
 __GET_ECX_FROM_CPUID(int input)
 {
+#ifdef VM_X86_64
    CPUIDRegs regs;
-   __cpuid((int *)&regs, input);
+   __cpuid((unsigned int *)&regs, input);
    return regs.ecx;
+#else
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, ecx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
+#endif
 }
 
 static INLINE uint32
 __GET_EDX_FROM_CPUID(int input)
 {
+#ifdef VM_X86_64
    CPUIDRegs regs;
-   __cpuid(( int *)&regs, input);
+   __cpuid((unsigned int *)&regs, input);
    return regs.edx;
+#else
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, edx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
+#endif
 }
+
+#ifdef VM_X86_64
+
+/*
+ * No inline assembly in Win64. Implemented in bora/lib/misc in
+ * cpuidMasm64.asm.
+ */
+
+extern uint32
+__GET_EAX_FROM_CPUID4(int inputEcx);
+
+#else // VM_X86_64
 
 static INLINE uint32
 __GET_EAX_FROM_CPUID4(int inputEcx)
 {
-   CPUIDRegs regs;
-   __GET_CPUID2(4, inputEcx, &regs);
-   return regs.eax;
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, 4
+   __asm mov  ecx, inputEcx
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, eax
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
 }
+
+#endif // VM_X86_64
 
 #else // }
 #error 
