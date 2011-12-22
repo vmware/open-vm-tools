@@ -744,6 +744,30 @@ string::empty()
 /*
  *-----------------------------------------------------------------------------
  *
+ * utf::string::isASCII --
+ *
+ *      Test if every character in the string is in the ASCII range.
+ *
+ * Results:
+ *      true if all ASCII, otherwise false.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+bool
+string::isASCII()
+   const
+{
+   return mUstr.is_ascii();
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * utf::string::size --
  *
  * Results:

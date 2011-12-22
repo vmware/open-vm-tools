@@ -130,6 +130,7 @@ public:
    void swap(string &s);
    void resize(size_type n, value_type c = '\0');
    bool empty() const;
+   bool isASCII() const;
    size_type size() const;
    size_type w_size() const;
    size_type length() const;
