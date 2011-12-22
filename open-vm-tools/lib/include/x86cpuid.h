@@ -1252,9 +1252,7 @@ CPUID_MODEL_IS_PHAROAH_HOUND(uint32 v) // IN: %eax from CPUID with %eax=1.
 static INLINE Bool
 CPUID_MODEL_IS_BULLDOZER(uint32 eax)
 {
-   /* Bulldozer is models 0x00 - 0x0f of family 0x15. */
-   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER && 
-          CPUID_EFFECTIVE_MODEL(eax) < 0x10;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
 }
 
 
