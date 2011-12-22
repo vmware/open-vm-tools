@@ -740,7 +740,8 @@ Bswap16(uint16 v)
 static INLINE uint32
 Bswap32(uint32 v) // IN
 {
-#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) || defined(__arm__) // {
+#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) || \
+   (defined(__arm__) && !defined(__ANDROID__))  // {
 #ifdef __arm__
     __asm__("rev %0, %0" : "+r"(v));
     return v;
