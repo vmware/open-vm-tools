@@ -162,10 +162,16 @@ int PtrHash_ForEach(const HashTable *ht,
                     PtrHashForEachCallback cb,
                     const void *clientData);
 
+PtrHashEntry *PtrHash_Lookup(HashTable *hashTable,
+                             const void *keyPtr);
+
 PtrHashEntry *PtrHash_LookupAndDelete(HashTable *hashTable,
-                                      const void *ptr);
+                                      const void *keyPtr);
 
 Bool PtrHash_Insert(HashTable *hashTable,
                     PtrHashEntry *entry);
+
+Bool PtrHash_Delete(HashTable *hashTable,
+                    const void *keyPtr);
 
 #endif
