@@ -1886,7 +1886,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
 
 static Bool
 FileLockIsLockedMandatory(ConstUnicode lockFile,  // IN:
-                          int *err)               // OUT:
+                          int *err)               // OUT/OPT:
 {
    int access;
    FileIOResult result;
@@ -1914,7 +1914,9 @@ FileLockIsLockedMandatory(ConstUnicode lockFile,  // IN:
    } else if (result == FILEIO_FILE_NOT_FOUND) {
       return FALSE;  // no lock file means unlocked
    } else {
-      *err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+      if (err != NULL) {
+         *err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+      }
 
       return FALSE;
    }
@@ -1946,7 +1948,7 @@ FileLockIsLockedMandatory(ConstUnicode lockFile,  // IN:
 
 static Bool
 FileLockIsLockedPortable(ConstUnicode lockDir,  // IN:
-                         int *err)              // OUT:
+                         int *err)              // OUT/OPT:
 {
    uint32 i;
    int numEntries;
@@ -1960,9 +1962,11 @@ FileLockIsLockedPortable(ConstUnicode lockDir,  // IN:
        * If the lock directory doesn't exist, we should not count this
        * as an error.  This is expected if the file isn't locked.
        */
+
       if (err != NULL) {
          *err = errno;
       }
+
       return FALSE;
    }
 
@@ -2001,7 +2005,7 @@ FileLockIsLockedPortable(ConstUnicode lockDir,  // IN:
 
 Bool
 FileLockIsLocked(ConstUnicode pathName,  // IN:
-                 int *err)               // OUT:
+                 int *err)               // OUT/OPT:
 {
    Unicode lockBase = Unicode_Append(pathName, FILELOCK_SUFFIX);
    Bool isLocked;
