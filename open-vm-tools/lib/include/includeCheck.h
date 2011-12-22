@@ -115,13 +115,14 @@
 #undef INCLUDE_ALLOW_VMCORE
 
 #if defined VMX86_VMX && !defined VMCORE && \
-    !(defined INCLUDE_ALLOW_VMX || defined INCLUDE_ALLOW_USERLEVEL)
+    !defined INCLUDE_ALLOW_VMX && !defined INCLUDE_ALLOW_USERLEVEL && \
+    !defined INCLUDE_ALLOW_MKS
 #error "The surrounding include file is not allowed in the VMX."
 #endif
 #undef INCLUDE_ALLOW_VMX
 
 #if defined USERLEVEL && !defined VMX86_VMX && !defined VMCORE && \
-    !defined INCLUDE_ALLOW_USERLEVEL
+    !defined INCLUDE_ALLOW_USERLEVEL && !defined INCLUDE_ALLOW_MKS
 #error "The surrounding include file is not allowed at userlevel."
 #endif
 #undef INCLUDE_ALLOW_USERLEVEL
