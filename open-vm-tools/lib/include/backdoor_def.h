@@ -159,7 +159,8 @@
 #  define BDOOR_CMD_EBC_LEGACYBOOT_ENABLED    0
 #  define BDOOR_CMD_EBC_GET_ORDER             1
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
-#define   BDOOR_CMD_MAX                      75
+#define   BDOOR_CMD_GET_SVGA_CAPABILITIES    75 /* CPL 0 only. */
+#define   BDOOR_CMD_MAX                      76
 
 
 /* 
