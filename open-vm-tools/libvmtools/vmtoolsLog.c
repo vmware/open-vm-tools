@@ -516,7 +516,7 @@ VMToolsConfigLogDomain(const gchar *domain,
          guint i;
          for (i = 0; i < oldDomains->len; i++) {
             LogHandler *old = g_ptr_array_index(oldDomains, i);
-            if (!old->inherited && strcmp(old->domain, domain) == 0) {
+            if (old != NULL && !old->inherited && strcmp(old->domain, domain) == 0) {
                if (strcmp(old->type, handler) == 0) {
                   data = old;
                   oldDomains->pdata[i] = NULL;
