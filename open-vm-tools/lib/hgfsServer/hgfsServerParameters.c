@@ -308,7 +308,7 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
          localInput->id = request->id;
       }
       ASSERT_DEVEL(0);
-      return HGFS_ERROR_PROTOCOL;
+      return FALSE;
    }
 
    if (request->op < HGFS_OP_OPEN_V3) {

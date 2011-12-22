@@ -2924,7 +2924,11 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
    size_t replyPacketSize;
    size_t replySize;
 
-   HGFS_ASSERT_INPUT(input);
+   if (HGFS_ERROR_SUCCESS == status) {
+      HGFS_ASSERT_INPUT(input);
+   } else {
+      ASSERT(input);
+   }
 
    if (input->v4header) {
       HgfsHeader *header;
