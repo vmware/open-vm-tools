@@ -96,12 +96,6 @@
 Bool
 File_Exists(ConstUnicode pathName)  // IN: May be NULL.
 {
-   if (pathName == NULL) {
-      Log("%s: NULL pathName\n", __FUNCTION__);
-   } else {
-      FileLock_IsLocked(pathName, NULL, NULL);
-   }
-
    return FileIO_IsSuccess(FileIO_Access(pathName, FILEIO_ACCESS_EXISTS));
 }
 
