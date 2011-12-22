@@ -717,3 +717,39 @@ HgfsChannelGuest_Receive(HgfsServerMgrData *mgrData, // IN/OUT : conn manager
 
    return result;
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsChannelGuest_InvalidateInactiveSessions -
+ *
+ *    Sends a request to invalidate all the inactive HGFS server sessions.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+HgfsChannelGuest_InvalidateInactiveSessions(HgfsServerMgrData *mgrData) // IN: conn manager
+{
+   HgfsChannelData *channel = NULL;
+
+   ASSERT(NULL != mgrData);
+   ASSERT(NULL != mgrData->connection);
+   ASSERT(NULL != mgrData->appName);
+
+   channel = mgrData->connection;
+
+   Debug("%s: %s Channel. Invalidating inactive sessions.\n",
+         __FUNCTION__, mgrData->appName);
+
+   if (HgfsChannelIsChannelActive(channel)) {
+      channel->ops->invalidateInactiveSessions(channel->connection);
+   }
+}

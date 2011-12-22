@@ -111,6 +111,31 @@ HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
 /*
  *----------------------------------------------------------------------------
  *
+ * HgfsServerManager_InvalidateInactiveSessions --
+ *
+ *    Sends a request to invalidate all the inactive HGFS server sessions.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+HgfsServerManager_InvalidateInactiveSessions(HgfsServerMgrData *mgrData)  // IN: RpcIn channel
+{
+   ASSERT(mgrData);
+
+   HgfsChannelGuest_InvalidateInactiveSessions(mgrData);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * HgfsServerManager_Unregister --
  *
  *    Cleans up the hgfs server.

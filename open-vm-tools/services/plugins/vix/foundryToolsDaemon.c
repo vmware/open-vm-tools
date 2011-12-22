@@ -368,7 +368,8 @@ FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx)
                               NULL,        // envp
 #endif
                               ToolsDaemonTcloReportProgramCompleted,
-                              ctx);
+                              ctx,
+                              ctx->mainLoop);
 
 #if !defined(__APPLE__)
    if (thisProcessRunsAsRoot) {

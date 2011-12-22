@@ -318,6 +318,8 @@ typedef struct HgfsSessionInfo {
 
    DblLnkLst_Links links;
 
+   Bool isInactive;
+
    /* Unique session id. */
    uint64 sessionId;
 

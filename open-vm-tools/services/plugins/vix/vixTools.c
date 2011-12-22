@@ -289,6 +289,8 @@ static HashTable *userEnvironmentTable = NULL;
 #endif
 static HgfsServerMgrData gVixHgfsBkdrConn;
 
+#define SECONDS_BETWEEN_INVALIDATING_HGFS_SESSIONS    120
+
 static VixError VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,
                                     char **result);
 
@@ -296,6 +298,11 @@ static VixError VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg);
 
 static gboolean VixToolsMonitorAsyncProc(void *clientData);
 static gboolean VixToolsMonitorStartProgram(void *clientData);
+static void VixToolsRegisterHgfsSessionInvalidator(void *clientData);
+static gboolean VixToolsInvalidateInactiveHGFSSessions(void *clientData);
+
+static GSource *gHgfsSessionInvalidatorTimer = NULL;
+static guint gHgfsSessionInvalidatorTimerId;
 
 static void VixToolsPrintFileInfo(const char *filePathName,
                                   char *fileName,
@@ -533,7 +540,8 @@ VixError
 VixTools_Initialize(Bool thisProcessRunsAsRootParam,                                // IN
                     const char * const *originalEnvp,                               // IN
                     VixToolsReportProgramDoneProcType reportProgramDoneProcParam,   // IN
-                    void *clientData)                                               // IN
+                    void *clientData,                                               // IN
+                    GMainLoop *eventQueue)                                          // IN
 {
    VixError err = VIX_OK;
 
@@ -565,6 +573,14 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
                               NULL);   // rpc callback
    HgfsServerManager_Register(&gVixHgfsBkdrConn);
 
+   if (eventQueue != NULL) {
+      /*
+       * Register a timer to periodically invalidate all the inactive
+       * HGFS sessions.
+       */
+      VixToolsRegisterHgfsSessionInvalidator(eventQueue);
+   }
+
    listProcessesResultsTable = g_hash_table_new_full(g_int_hash, g_int_equal,
                                                      NULL,
                                                      VixToolsFreeCachedResult);
@@ -592,6 +608,9 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
 void
 VixTools_Uninitialize(void) // IN
 {
+   g_source_remove(gHgfsSessionInvalidatorTimerId);
+   g_source_unref(gHgfsSessionInvalidatorTimer);
+
    HgfsServerManager_Unregister(&gVixHgfsBkdrConn);
 }
 
@@ -1662,6 +1681,69 @@ done:
    free(requestName);
    return FALSE;
 } // VixToolsMonitorAsyncProc
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VixToolsInvalidateInactiveHGFSSessions --
+ *
+ *    Send a request to HGFS server to invalidate inactive sessions.
+ *    Registers a timer to call the invalidator.
+ *
+ * Return value:
+ *    TRUE
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static gboolean
+VixToolsInvalidateInactiveHGFSSessions(void *clientData)   // IN:
+{
+   HgfsServerManager_InvalidateInactiveSessions(&gVixHgfsBkdrConn); // connection
+
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VixToolsRegisterHgfsSessionInvalidator --
+ *
+ *    Check bug 783263 for more details. This function is designed to
+ *    cleanup any hgfs state left by remote clients that got
+ *    disconnected abruptly during a file copy process.
+ *
+ * Return value:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VixToolsRegisterHgfsSessionInvalidator(void *clientData)    // IN:
+{
+   ASSERT(clientData);
+
+   gHgfsSessionInvalidatorTimer =
+         g_timeout_source_new(SECONDS_BETWEEN_INVALIDATING_HGFS_SESSIONS * 1000);
+
+   g_source_set_callback(gHgfsSessionInvalidatorTimer,
+                         VixToolsInvalidateInactiveHGFSSessions,
+                         NULL,
+                         NULL);
+
+   gHgfsSessionInvalidatorTimerId =
+         g_source_attach(gHgfsSessionInvalidatorTimer,
+                         g_main_loop_get_context((GMainLoop *) clientData));
+}
 
 
 /*

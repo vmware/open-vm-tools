@@ -372,6 +372,7 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
    }
    ASSERT(session);
 
+   session->isInactive = FALSE;
    localInput->session = session;
    localInput->payloadOffset = (char *)localInput->payload -
                                (char *)localInput->metaPacket;

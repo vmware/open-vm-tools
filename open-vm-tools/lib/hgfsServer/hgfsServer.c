@@ -41,6 +41,7 @@
 #include "hgfsEscape.h"
 #include "codeset.h"
 #include "config.h"
+#include "dbllnklst.h"
 #include "file.h"
 #include "util.h"
 #include "wiper.h"
@@ -186,6 +187,7 @@ static void HgfsServerSessionDisconnect(void *clientData);
 static void HgfsServerSessionClose(void *clientData);
 static void HgfsServerSessionInvalidateObjects(void *clientData,
                                                DblLnkLst_Links *shares);
+static void HgfsServerSessionInvalidateInactiveSessions(void *clientData);
 static void HgfsServerSessionSendComplete(HgfsPacket *packet, void *clientData);
 
 /*
@@ -197,6 +199,7 @@ HgfsServerSessionCallbacks hgfsServerSessionCBTable = {
    HgfsServerSessionClose,
    HgfsServerSessionReceive,
    HgfsServerSessionInvalidateObjects,
+   HgfsServerSessionInvalidateInactiveSessions,
    HgfsServerSessionSendComplete,
 };
 
@@ -3820,6 +3823,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
    DblLnkLst_Init(&session->links);
    session->maxPacketSize = MAX_SERVER_PACKET_SIZE_V4;
    session->activeNotification = FALSE;
+   session->isInactive = TRUE;
    session->transportSession = transportSession;
 
    /*
@@ -4441,6 +4445,67 @@ HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
       HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
       HgfsServerSessionGet(session);
       HgfsInvalidateSessionObjects(shares, session);
+      HgfsServerSessionPut(session);
+   }
+
+   MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerSessionInvalidateInactiveSessions --
+ *
+ *      Iterates over all sessions and invalidate all inactive session objects.
+ *
+ *      Following clock algorithm is used to determine whether the session object
+ *      is inactive or not.
+ *
+ *      When this function is called, the HGFS server manager will iterate
+ *      over all the sessions belonging to this manager. Each session is marked
+ *      as inactive. Whenever a message is processed for a session, that
+ *      session is marked as active. When this function is called the next time,
+ *      any sessions that are still inactive will be invalidated.
+ *
+ *      Caller guarantees that the sessions won't go away under us, so no locks
+ *      needed.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsServerSessionInvalidateInactiveSessions(void *clientData)         // IN:
+{
+   HgfsTransportSessionInfo *transportSession =
+         (HgfsTransportSessionInfo *)clientData;
+   DblLnkLst_Links shares, *curr;
+
+   ASSERT(transportSession);
+   MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+
+   DblLnkLst_Init(&shares);
+
+   DblLnkLst_ForEach(curr, &transportSession->sessionArray) {
+      HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+
+      HgfsServerSessionGet(session);
+
+      /*
+       * Check if the session is inactive. If the session is inactive, then
+       * invalidate the session objects.
+       */
+      if (session->isInactive) {
+         HgfsInvalidateSessionObjects(&shares, session);
+      } else {
+         session->isInactive = TRUE;
+      }
       HgfsServerSessionPut(session);
    }
 
