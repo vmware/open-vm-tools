@@ -111,5 +111,21 @@
 #   define KERNEL_2_5_5
 #endif
 
+/* Linux kernel 3.0 can be called 2.6.40, and 3.1 can be 2.6.41...
+ * Use COMPAT_LINUX_VERSION_CHECK_LT iff you need to compare running kernel to
+ * versions 3.0 and above.
+ *
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)
+   /* Straight forward comparison if kernel version is 3.0.0 and beyond */
+#   define COMPAT_LINUX_VERSION_CHECK_LT(a, b, c) LINUX_VERSION_CODE < KERNEL_VERSION (a, b, c)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 40)
+   /* Use b of the check to calculate corresponding c of kernel
+    *  version to compare */
+#   define COMPAT_LINUX_VERSION_CHECK_LT(a, b, c) LINUX_VERSION_CODE < KERNEL_VERSION (2, 6, (b + 40))
+#else
+    /* This is anyways lesser than any 3.x versions */
+#   define COMPAT_LINUX_VERSION_CHECK_LT(a, b, c) 1
+#endif
 
 #endif /* __COMPAT_VERSION_H__ */
