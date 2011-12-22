@@ -827,7 +827,7 @@ VixTools_SetConsoleUserPolicy(Bool allowConsoleUserOpsParam)     // IN
  * VixTools_SetRunProgramCallback --
  *
  * Register a callback that reports when a program has completed.
- * Different clients of this library will use different IPC mechanisms for 
+ * Different clients of this library will use different IPC mechanisms for
  * sending this message. For example, it may use the backdoor or a socket.
  * Different sockets may use different message protocols, such as the backdoor-on-a-socket
  * or the Foundry network message.
@@ -914,12 +914,12 @@ VixTools_RunProgram(VixCommandRequestHeader *requestMsg, // IN
    if (runProgramRequest->runProgramOptions & VIX_RUNPROGRAM_RUN_AS_LOCAL_SYSTEM) {
       if (!VixToolsUserIsMemberOfAdministratorGroup(requestMsg)) {
          err = VIX_E_GUEST_USER_PERMISSIONS;
-         goto abort; 
+         goto abort;
       }
       userToken = PROCESS_CREATOR_USER_TOKEN;
    }
 #endif
-  
+
    if (NULL == userToken) {
       err = VixToolsImpersonateUser(requestMsg, &userToken);
       if (VIX_OK != err) {
@@ -935,7 +935,7 @@ VixTools_RunProgram(VixCommandRequestHeader *requestMsg, // IN
                                 userToken,
                                 eventQueue,
                                 &pid);
-   
+
 abort:
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
@@ -1203,14 +1203,14 @@ VixToolsRunProgramImpl(char *requestName,      // IN
     * On linux, we run the program by exec'ing /bin/sh, and that does not
     * return a clear error code indicating that the program does not exist
     * or cannot be executed.
-    * This is a common and user-correctable error, however, so we want to 
+    * This is a common and user-correctable error, however, so we want to
     * check for it and return a specific error code in this case.
     *
     */
 
    programExists = File_Exists(startProgramFileName);
-   programIsExecutable = 
-      (FileIO_Access(startProgramFileName, FILEIO_ACCESS_EXEC) == 
+   programIsExecutable =
+      (FileIO_Access(startProgramFileName, FILEIO_ACCESS_EXEC) ==
                                                        FILEIO_SUCCESS);
 
    free(tempCommandLine);
@@ -2139,7 +2139,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    packageList = "";
 
    if (confDictRef != NULL) {
-      powerOffScript = g_key_file_get_string(confDictRef, "powerops", 
+      powerOffScript = g_key_file_get_string(confDictRef, "powerops",
                                              CONFNAME_POWEROFFSCRIPT, NULL);
       powerOnScript = g_key_file_get_string(confDictRef, "powerops",
                                             CONFNAME_POWERONSCRIPT, NULL);
@@ -2936,7 +2936,7 @@ VixToolsDeleteObject(VixCommandRequestHeader *requestMsg)  // IN
        * if pathName is an invalid symbolic link, we still want to delete it.
        */
       if (FALSE == File_IsSymLink(pathName)) {
-         if (!(File_Exists(pathName))) {      
+         if (!(File_Exists(pathName))) {
             err = VIX_E_FILE_NOT_FOUND;
             goto abort;
          }
@@ -3828,7 +3828,7 @@ VixToolsWriteVariable(VixCommandRequestHeader *requestMsg)   // IN
          goto abort;
       }
 #endif
-      /* 
+      /*
        * At this point, we want to set environmental variable for current
        * user, even if the current user is root/administrator
        */
@@ -3862,7 +3862,7 @@ VixToolsWriteVariable(VixCommandRequestHeader *requestMsg)   // IN
    default:
       err = VIX_E_OP_NOT_SUPPORTED_ON_GUEST;
       break;
-   } // switch (readRequest->variableType)   
+   } // switch (readRequest->variableType)
 
 abort:
    if (impersonatingVMWareUser) {
@@ -5962,7 +5962,7 @@ VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,    // IN
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
-   
+
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -6287,8 +6287,8 @@ VixToolsPrintFileInfo(const char *filePathName,     // IN
       ASSERT_MEM_ALLOC(NULL != escapedFileName);
    }
 
-   *destPtr += Str_Sprintf(*destPtr, 
-                           endDestPtr - *destPtr, 
+   *destPtr += Str_Sprintf(*destPtr,
+                           endDestPtr - *destPtr,
                            fileInfoFormatString,
                            fileName,
                            fileProperties,
@@ -6611,7 +6611,7 @@ if (0 == *interpreterName) {
       interpreterName = "/bin/sh";
 #endif
    }
-   
+
    if (*interpreterName) {
       programExists = File_Exists(interpreterName);
 
@@ -6620,7 +6620,7 @@ if (0 == *interpreterName) {
        * thinking.
        */
 
-      programIsExecutable = 
+      programIsExecutable =
          (FileIO_Access(interpreterName, FILEIO_ACCESS_EXEC) ==
                                                    FILEIO_SUCCESS);
       if (!programExists) {
@@ -6632,7 +6632,7 @@ if (0 == *interpreterName) {
          goto abort;
       }
    }
-   
+
    /*
     * Create a temporary file that we can run as a script.
     * TODO: Plumb a file suffix/extention throught to the File
@@ -6643,7 +6643,7 @@ if (0 == *interpreterName) {
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
       err = VixToolsGetUserTmpDir(userToken, &tempDirPath);
 
-      /* 
+      /*
        * Don't give up if VixToolsGetUserTmpDir() failed. It might just
        * have failed to load DLLs, so we might be running on Win 9x.
        * Just fall through to use the old fashioned File_GetSafeTmpDir().
@@ -6662,17 +6662,17 @@ if (0 == *interpreterName) {
    }
    for (var = 0; var <= 0xFFFFFFFF; var++) {
       free(tempScriptFilePath);
-      tempScriptFilePath = Str_Asprintf(NULL, 
-                                        "%s"DIRSEPS"%s%d%s", 
-                                        tempDirPath, 
-                                        scriptFileBaseName, 
-                                        var, 
+      tempScriptFilePath = Str_Asprintf(NULL,
+                                        "%s"DIRSEPS"%s%d%s",
+                                        tempDirPath,
+                                        scriptFileBaseName,
+                                        var,
                                         fileSuffix);
       if (NULL == tempScriptFilePath) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
-      
+
       fd = Posix_Open(tempScriptFilePath, // UTF-8
                       O_CREAT | O_EXCL
 #if defined(_WIN32)
@@ -6727,7 +6727,7 @@ if (0 == *interpreterName) {
 
    if (writeResult < 0) {
       /*
-       * Yes, I'm duplicating code by running this check before the call to 
+       * Yes, I'm duplicating code by running this check before the call to
        * close(), but if close() succeeds it will clobber the errno, causing
        * something confusing to be reported to the user.
        */
@@ -6756,13 +6756,13 @@ if (0 == *interpreterName) {
 
    if ((NULL != interpreterName) && (*interpreterName)) {
       fullCommandLine = Str_Asprintf(NULL, // resulting string length
-                                     "\"%s\" %s \"%s\"", 
+                                     "\"%s\" %s \"%s\"",
                                      interpreterName,
                                      interpreterFlags,
                                      tempScriptFilePath);
    } else {
       fullCommandLine = Str_Asprintf(NULL,  // resulting string length
-                                     "\"%s\"", 
+                                     "\"%s\"",
                                      tempScriptFilePath);
    }
 
@@ -6890,7 +6890,9 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
 
    credentialType = requestMsg->userCredentialType;
 
-   if (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType) {
+   switch (credentialType) {
+   case VIX_USER_CREDENTIAL_TICKETED_SESSION:
+   {
       VixCommandTicketedSession *commandTicketedSession = (VixCommandTicketedSession *) credentialField;
       size_t ticketLength = commandTicketedSession->ticketLength;
 
@@ -6905,15 +6907,21 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
                                           credentialType,
                                           credentialField,
                                           userToken);
-
-   } else if (VIX_USER_CREDENTIAL_SSPI == credentialType) {
-      /*
-       * SSPI currently only supported in ticketed sessions
-       */
-      err = VIX_E_NOT_SUPPORTED;
-
-   } else {
-      VixCommandNamePassword *namePasswordStruct = (VixCommandNamePassword *) credentialField;
+      break;
+   }
+   case VIX_USER_CREDENTIAL_ROOT:
+   case VIX_USER_CREDENTIAL_CONSOLE_USER:
+      err = VixToolsImpersonateUserImplEx(NULL,
+                                          credentialType,
+                                          NULL,
+                                          userToken);
+      break;
+   case VIX_USER_CREDENTIAL_NAME_PASSWORD:
+   case VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED:
+   case VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER:
+   {
+      VixCommandNamePassword *namePasswordStruct =
+         (VixCommandNamePassword *) credentialField;
       credentialField += sizeof(*namePasswordStruct);
 
       err = VixToolsImpersonateUserImplEx(NULL,
@@ -6921,8 +6929,8 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
                                           credentialField,
                                           userToken);
       if ((VIX_OK != err)
-            && ((VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED == credentialType)
-                  || (VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType))) {
+          && ((VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED == credentialType)
+              || (VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType))) {
          /*
           * Windows does not allow you to login with an empty password. Only
           * the console allows this login, which means the console does not
@@ -6938,6 +6946,15 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
          }
 #endif
       }
+      break;
+   }
+   case VIX_USER_CREDENTIAL_SSPI:
+      /*
+       * SSPI currently only supported in ticketed sessions
+       */
+   default:
+      Debug("%s: credentialType = %d\n", __FUNCTION__, credentialType);
+      err = VIX_E_NOT_SUPPORTED;
    }
 
    Debug("<%s\n", __FUNCTION__);
@@ -6951,7 +6968,7 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
  *
  * VixToolsImpersonateUserImpl --
  *
- *    Little compatability wrapper for legacy Foundry Tools implementations. 
+ *    Little compatability wrapper for legacy Foundry Tools implementations.
  *
  * Return value:
  *    TRUE on success
@@ -6982,14 +6999,14 @@ VixToolsImpersonateUserImpl(char const *credentialTypeStr,         // IN
  * VixToolsImpersonateUserImplEx --
  *
  *   On Windows:
- *   To retrieve the security context of another user 
- *   call LogonUser to log the user whom you want to impersonate on to the 
- *   local computer, specifying the name of the user account, the user's 
- *   domain, and the user's password. This function returns a pointer to 
+ *   To retrieve the security context of another user
+ *   call LogonUser to log the user whom you want to impersonate on to the
+ *   local computer, specifying the name of the user account, the user's
+ *   domain, and the user's password. This function returns a pointer to
  *   a handle to the access token of the logged-on user as an out parameter.
- *   Call ImpersonateLoggedOnUser using the handle to the access token obtained 
+ *   Call ImpersonateLoggedOnUser using the handle to the access token obtained
  *   in the call to LogonUser.
- *   Run RegEdt32 to load the registry hive of the impersonated user manually. 
+ *   Run RegEdt32 to load the registry hive of the impersonated user manually.
  *
  * Return value:
  *    VIX_OK on success, or an appropriate error code on failure.
@@ -8098,7 +8115,7 @@ VixToolsReleaseCredentials(VixCommandRequestHeader *requestMsg)    // IN
  */
 
 #if defined(__linux__) || defined(_WIN32)
-VixError 
+VixError
 VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,   // IN
                                  char **resultBuffer,                   // OUT
                                  size_t *resultBufferLength)            // OUT
@@ -8196,7 +8213,7 @@ abort:
  */
 
 #if defined(_WIN32)
-VixError 
+VixError
 VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
 {
    VixError err = VIX_OK;
@@ -8206,16 +8223,16 @@ VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
    VixPropertyListImpl propList;
    VixPropertyValue *propertyPtr = NULL;
    char *messageBody = NULL;
-   char ipAddr[IP_ADDR_SIZE]; 
+   char ipAddr[IP_ADDR_SIZE];
    char subnetMask[IP_ADDR_SIZE];
    Bool dhcpEnabled = FALSE;
    HRESULT hrErr;
 
    ASSERT(NULL != requestMsg);
 
-   ipAddr[0] = '\0';  
+   ipAddr[0] = '\0';
    subnetMask[0] = '\0';
-   
+
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -8226,8 +8243,8 @@ VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
    messageBody = (char *) requestMsg + sizeof(*setGuestNetworkingConfigRequest);
 
    VixPropertyList_Initialize(&propList);
-   err = VixPropertyList_Deserialize(&propList, 
-                                     messageBody, 
+   err = VixPropertyList_Deserialize(&propList,
+                                     messageBody,
                                      setGuestNetworkingConfigRequest -> bufferSize,
                                      VIX_PROPERTY_LIST_BAD_ENCODING_ERROR);
    if (VIX_OK != err) {
@@ -8239,16 +8256,16 @@ VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
       switch (propertyPtr->propertyID) {
       ///////////////////////////////////////////
       case VIX_PROPERTY_VM_DHCP_ENABLED:
-         if (propertyPtr->value.boolValue) { 
+         if (propertyPtr->value.boolValue) {
             dhcpEnabled = TRUE;
          }
          break;
 
-      /////////////////////////////////////////// 
+      ///////////////////////////////////////////
       case VIX_PROPERTY_VM_IP_ADDRESS:
          if (strlen(propertyPtr->value.strValue) < sizeof ipAddr) {
             Str_Strcpy(ipAddr,
-                       propertyPtr->value.strValue, 
+                       propertyPtr->value.strValue,
                        sizeof ipAddr);
             } else {
                err = VIX_E_INVALID_ARG;
@@ -8259,22 +8276,22 @@ VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
       ///////////////////////////////////////////
       case VIX_PROPERTY_VM_SUBNET_MASK:
          if (strlen(propertyPtr->value.strValue) < sizeof subnetMask) {
-            Str_Strcpy(subnetMask, 
+            Str_Strcpy(subnetMask,
                        propertyPtr->value.strValue,
-                       sizeof subnetMask); 
+                       sizeof subnetMask);
          } else {
             err = VIX_E_INVALID_ARG;
             goto abort;
          }
-         break;   
-         
+         break;
+
       ///////////////////////////////////////////
       default:
          /*
           * Be more tolerant.  Igonore unknown properties.
           */
          break;
-      } // switch 
+      } // switch
 
       propertyPtr = propertyPtr->next;
    } // while {propList.properties != NULL)
@@ -8283,7 +8300,7 @@ VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
       hrErr = VixToolsEnableDHCPOnPrimary();
    } else {
       if (('\0' != ipAddr[0]) ||
-          ('\0' != subnetMask[0])) { 
+          ('\0' != subnetMask[0])) {
          hrErr = VixToolsEnableStaticOnPrimary(ipAddr, subnetMask);
       } else {
          /*
@@ -8298,7 +8315,7 @@ VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
          err = Vix_TranslateCOMError(hrErr);
       } else {
          err = Vix_TranslateSystemError(hrErr);
-      } 
+      }
    }
 
 abort:
@@ -8473,13 +8490,13 @@ abort:
    struct passwd *ppwd = &pwd;
    char *buffer = NULL; // a pool of memory for Posix_Getpwnam_r() to use.
    size_t bufferSize;
-   
+
    /*
     * For POSIX systems, look up the uid of 'username', and compare
     * it to the uid of the owner of this process. This handles systems
     * where multiple usernames map to the name user.
     */
-   
+
    /*
     * Get the maximum size buffer needed by getpwuid_r.
     * Multiply by 4 to compensate for the conversion to UTF-8 by
@@ -8491,7 +8508,7 @@ abort:
 
    if (Posix_Getpwnam_r(username, &pwd, buffer, bufferSize, &ppwd) != 0 ||
        NULL == ppwd) {
-      /* 
+      /*
        * This username should exist, since it should have already
        * been validated by guestd. Assume it is a system error.
        */
@@ -8518,7 +8535,7 @@ abort:
    Util_ZeroFree(buffer, bufferSize);
 
 #endif
-   
+
    return err;
 }
 
@@ -8751,7 +8768,7 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
    size_t resultValueLength = 0;
    Bool mustSetResultValueLength = TRUE;
    Bool deleteResultValue = FALSE;
-  
+
 
    if (NULL != resultBuffer) {
       *resultBuffer = NULL;
@@ -8958,8 +8975,8 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
                                                 &resultValueLength);
          if (VIX_FAILED(err)) {
             /*
-             * VixToolsGetGuestNetworkingConfig() failed, so resultVal is still NULL, 
-             * so let it get replaced with the empty string at the abort label.  
+             * VixToolsGetGuestNetworkingConfig() failed, so resultVal is still NULL,
+             * so let it get replaced with the empty string at the abort label.
              */
             goto abort;
          }
@@ -9212,7 +9229,7 @@ abort:
  *-----------------------------------------------------------------------------
  *
  * VixToolsEnableDHCPOnPrimary --
- *      
+ *
  *      Enable DHCP on primary NIC. A primary NIC is the
  *      first interface you get using ipconfig. You can change the order
  *      of NIC cards on a computer via Windows GUI.
@@ -9222,7 +9239,7 @@ abort:
  *
  * Side effects:
  *      None.
- * 
+ *
  *-----------------------------------------------------------------------------
  */
 
@@ -9249,17 +9266,17 @@ VixToolsEnableDHCPOnPrimary(void)
  *-----------------------------------------------------------------------------
  *
  * VixToolsEnableStaticOnPrimary --
- *      
- *      Set the IP address and/or subnet mask of the primary NIC. A primary NIC 
+ *
+ *      Set the IP address and/or subnet mask of the primary NIC. A primary NIC
  *      is the first interface you get using ipconfig. You can change the order
- *      of NIC cards on a computer via Windows GUI.  
+ *      of NIC cards on a computer via Windows GUI.
  *
  * Results:
  *      S_OK on success.  COM error codes on failure.
  *
  * Side effects:
  *      None.
- * 
+ *
  *-----------------------------------------------------------------------------
  */
 
@@ -9273,7 +9290,7 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
    char actualIpAddress[IP_ADDR_SIZE];
    char actualSubnetMask[IP_ADDR_SIZE];
 
-   if ((NULL == ipAddr) || 
+   if ((NULL == ipAddr) ||
        (NULL == subnetMask)) {
       return E_INVALIDARG;
    }
@@ -9289,9 +9306,9 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
    /*
     * Set IP address if client provides it.
     */
-   
+
    primaryIp = &primaryNic->ips.ips_val[0];
- 
+
    if ('\0' != ipAddr[0]) {
       Str_Strcpy(actualIpAddress,
                  ipAddr,
@@ -9307,7 +9324,7 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
     */
    if ('\0' != subnetMask[0]) {
       Str_Strcpy(actualSubnetMask,
-                 subnetMask, 
+                 subnetMask,
                  sizeof actualSubnetMask);
    } else {
       Str_Strcpy(actualSubnetMask,
@@ -9315,8 +9332,8 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
                  sizeof actualSubnetMask);
    }
 
-   ret = WMI_EnableStatic(primaryNic->macAddress, 
-                          actualIpAddress, 
+   ret = WMI_EnableStatic(primaryNic->macAddress,
+                          actualIpAddress,
                           actualSubnetMask);
 
    VMX_XDR_FREE(xdr_GuestNic, primaryNic);

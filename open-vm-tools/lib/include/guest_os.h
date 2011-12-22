@@ -415,19 +415,40 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_EIGHT     "windows8"
 #define STR_OS_WIN_EIGHT_X64 "windows8-64"
 
-/* Full names will eventually go here, similar to Windows 7 */
+#define STR_OS_WIN_EIGHT_GENERIC           "Windows 8"
 
-/* Windows 8 based server - whatever it will be called */
+/*
+ * XXX - These need to be updated when MS announces official Win 8 names.
+ *       For now they are unused, see: lib/misc/hostinfoWin32.c
+ */
+
+#define STR_OS_WIN_EIGHT_STARTER_FULL      "Windows 8 Starter"
+#define STR_OS_WIN_EIGHT_HOME_BASIC_FULL   "Windows 8 Home Basic"
+#define STR_OS_WIN_EIGHT_HOME_PREMIUM_FULL "Windows 8 Home Premium"
+#define STR_OS_WIN_EIGHT_ULTIMATE_FULL     "Windows 8 Ultimate"
+#define STR_OS_WIN_EIGHT_PROFESSIONAL_FULL "Windows 8 Professional"
+#define STR_OS_WIN_EIGHT_ENTERPRISE_FULL   "Windows 8 Enterprise"
+
+/* Windows Server 2012 */
 
 #define STR_OS_WIN_EIGHTSERVER_X64 "windows8srv-64"
 
-/* Full names will eventually go here, similar to Windows Server 2008 R2 */
+#define STR_OS_WIN_2012_FOUNDATION_FULL "Windows Server 2012 Foundation Edition"
+#define STR_OS_WIN_2012_STANDARD_FULL   "Windows Server 2012 Standard Edition"
+#define STR_OS_WIN_2012_ENTERPRISE_FULL "Windows Server 2012 Enterprise Edition"
+#define STR_OS_WIN_2012_DATACENTER_FULL "Windows Server 2012 Datacenter Edition"
+#define STR_OS_WIN_2012_WEB_SERVER_FULL "Windows Web Server 2012 Edition"
 
-/* XXX */
+/* Windows Future/Unknown */
+
+#define STR_OS_WIN_FUTURE                   "windowsUnknown"
+#define STR_OS_WIN_FUTURE_X64               "windowsUnknown-64"
+#define STR_OS_WIN_FUTURE_GENERIC           "Windows Unknown"
+
 #define STR_OS_HYPERV "winHyperV"
 #define STR_OS_HYPERV_FULL "Hyper-V Server"
 
-/* Modifiers for Windows Vista and Windows Server 2008 */
+/* Modifiers for Windows Vista, Windows Server 2008, and later. */
 #define STR_OS_WIN_32_BIT_EXTENSION ", 32-bit"
 #define STR_OS_WIN_64_BIT_EXTENSION ", 64-bit"
 

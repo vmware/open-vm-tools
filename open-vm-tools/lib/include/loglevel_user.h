@@ -245,6 +245,7 @@
    LOGLEVEL_VAR(digestlib), \
    LOGLEVEL_VAR(inputdevtap), \
    LOGLEVEL_VAR(objlib), \
+   LOGLEVEL_VAR(vsanobj), \
    LOGLEVEL_VAR(svgadevtap), \
    LOGLEVEL_VAR(masReceipt), /* lib/masReceipt */ \
    LOGLEVEL_VAR(serviceImpl), /* lib/serviceImpl */ \

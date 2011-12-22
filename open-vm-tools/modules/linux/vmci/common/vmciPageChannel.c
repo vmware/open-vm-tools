@@ -19,13 +19,13 @@
 /*
  * vmciPacket.c --
  *
- *     Implementation of VMCI packet for guest kernels.
+ *     Implementation of vPageChannel for guest kernels.
  */
 
 #include "vmci_kernel_if.h"
 #include "vm_assert.h"
 #include "vmci_defs.h"
-#include "vmci_packet.h"
+#include "vmci_page_channel.h"
 #include "vmciDriver.h"
 #include "vmciKernelAPI.h"
 
@@ -33,7 +33,7 @@
 #error "Wrong platform."
 #endif // !linux || VMKERNEL
 
-#define LGPFX "VMCIPacket: "
+#define LGPFX "vPageChannel: "
 
 /*
  * This threshold is to account for packets being in-flight.  We can't keep
@@ -45,17 +45,17 @@
 
 
 /*
- * Packet channel.  This is opaque to clients.
+ * Page channel.  This is opaque to clients.
  */
 
-struct VMCIPacketChannel {
+struct VPageChannel {
    VMCIHandle dgHandle;
-   VMCIPacketRecvCB recvCB;
+   VPageChannelRecvCB recvCB;
    void *clientRecvData;
    Bool notifyOnly;
-   VMCIPacketAllocSgElemFn elemAllocFn;
+   VPageChannelAllocElemFn elemAllocFn;
    void *allocClientData;
-   VMCIPacketFreeSgElemFn elemFreeFn;
+   VPageChannelFreeElemFn elemFreeFn;
    void *freeClientData;
 
    /*
@@ -95,17 +95,17 @@ struct VMCIPacketChannel {
 };
 
 
-static int VMCIPacketChannelSendControl(VMCIPacketChannel *channel,
-                                        char *message,
-                                        int len,
-                                        VMCIPacketType type,
-                                        int numElems,
-                                        VMCISgElem *sgElems);
+static int VPageChannelSendControl(VPageChannel *channel,
+                                   char *message,
+                                   int len,
+                                   VPageChannelPacketType type,
+                                   int numElems,
+                                   VPageChannelElem *elems);
 
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannelAcquireSendLock
+ * VPageChannelAcquireSendLock
  *
  *      Acquire the channel's send lock.
  *
@@ -119,7 +119,7 @@ static int VMCIPacketChannelSendControl(VMCIPacketChannel *channel,
  */
 
 static void
-VMCIPacketChannelAcquireSendLock(VMCIPacketChannel *channel) // IN
+VPageChannelAcquireSendLock(VPageChannel *channel) // IN
 {
    ASSERT(channel);
    VMCIMutex_Acquire(&channel->qpSendMutex);
@@ -129,7 +129,7 @@ VMCIPacketChannelAcquireSendLock(VMCIPacketChannel *channel) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannelReleaseSendLock
+ * VPageChannelReleaseSendLock
  *
  *      Release the channel's send lock.
  *
@@ -143,7 +143,7 @@ VMCIPacketChannelAcquireSendLock(VMCIPacketChannel *channel) // IN
  */
 
 static void
-VMCIPacketChannelReleaseSendLock(VMCIPacketChannel *channel) // IN
+VPageChannelReleaseSendLock(VPageChannel *channel) // IN
 {
    ASSERT(channel);
    VMCIMutex_Release(&channel->qpSendMutex);
@@ -153,7 +153,7 @@ VMCIPacketChannelReleaseSendLock(VMCIPacketChannel *channel) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannelAcquireRecvLock
+ * VPageChannelAcquireRecvLock
  *
  *      Acquire the channel's receive lock.
  *
@@ -167,7 +167,7 @@ VMCIPacketChannelReleaseSendLock(VMCIPacketChannel *channel) // IN
  */
 
 static void
-VMCIPacketChannelAcquireRecvLock(VMCIPacketChannel *channel) // IN
+VPageChannelAcquireRecvLock(VPageChannel *channel) // IN
 {
    ASSERT(channel);
    VMCIMutex_Acquire(&channel->qpRecvMutex);
@@ -177,7 +177,7 @@ VMCIPacketChannelAcquireRecvLock(VMCIPacketChannel *channel) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannelReleaseRecvLock
+ * VPageChannelReleaseRecvLock
  *
  *      Release the channel's receive lock.
  *
@@ -191,7 +191,7 @@ VMCIPacketChannelAcquireRecvLock(VMCIPacketChannel *channel) // IN
  */
 
 static void
-VMCIPacketChannelReleaseRecvLock(VMCIPacketChannel *channel) // IN
+VPageChannelReleaseRecvLock(VPageChannel *channel) // IN
 {
    ASSERT(channel);
    VMCIMutex_Release(&channel->qpRecvMutex);
@@ -201,7 +201,7 @@ VMCIPacketChannelReleaseRecvLock(VMCIPacketChannel *channel) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannelSetRecvBuffers --
+ * VPageChannelSetRecvBuffers --
  *
  *      Set the receiving buffers for the channel.
  *
@@ -215,19 +215,20 @@ VMCIPacketChannelReleaseRecvLock(VMCIPacketChannel *channel) // IN
  */
 
 static int
-VMCIPacketChannelSetRecvBuffers(VMCIPacketChannel *channel,     // IN
-                                int numElems,                   // IN
-                                Bool byControl)                 // IN
+VPageChannelSetRecvBuffers(VPageChannel *channel,     // IN
+                           int numElems,              // IN
+                           Bool byControl)            // IN
 {
    int retval;
    int allocNum;
-   size_t size = sizeof(VMCIPacket) + numElems * sizeof(VMCISgElem);
-   VMCIPacket *packet;
-   VMCISgElem *sgElems;
+   size_t size = sizeof(VPageChannelPacket) +
+      numElems * sizeof(VPageChannelElem);
+   VPageChannelElem *elems;
+   VPageChannelPacket *packet;
 
    ASSERT(channel);
 
-   packet = (VMCIPacket *)VMCI_AllocKernelMem(size, VMCI_MEMORY_ATOMIC);
+   packet = (VPageChannelPacket *)VMCI_AllocKernelMem(size, VMCI_MEMORY_ATOMIC);
    if (packet == NULL) {
       VMCI_WARNING((LGPFX"Failed to allocate packet (channel=%p) "
                     "(size=%"FMTSZ"u).\n",
@@ -236,12 +237,12 @@ VMCIPacketChannelSetRecvBuffers(VMCIPacketChannel *channel,     // IN
       return VMCI_ERROR_NO_MEM;
    }
 
-   packet->type = VMCIPacket_SetRecvBuffer;
+   packet->type = VPCPacket_SetRecvBuffer;
    packet->msgLen = 0;
-   packet->numSgElems = numElems;
+   packet->numElems = numElems;
 
-   sgElems = VMCI_PACKET_SG_ELEMS(packet);
-   allocNum = channel->elemAllocFn(channel->allocClientData, sgElems, numElems);
+   elems = VPAGECHANNEL_PACKET_ELEMS(packet);
+   allocNum = channel->elemAllocFn(channel->allocClientData, elems, numElems);
    if (allocNum != numElems) {
       VMCI_WARNING((LGPFX"Failed to allocate receive buffer (channel=%p) "
                     "(expected=%d) (actual=%d).\n",
@@ -253,11 +254,11 @@ VMCIPacketChannelSetRecvBuffers(VMCIPacketChannel *channel,     // IN
    }
 
    if (byControl || !channel->qpConnected) {
-      retval = VMCIPacketChannelSendControl(channel, NULL, 0,
-                                            VMCIPacket_SetRecvBuffer,
-                                            numElems, sgElems);
+      retval = VPageChannelSendControl(channel, NULL, 0,
+                                            VPCPacket_SetRecvBuffer,
+                                            numElems, elems);
    } else {
-      retval = VMCIPacketChannel_SendPacket(channel, packet);
+      retval = VPageChannel_SendPacket(channel, packet);
    }
    if (retval < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to set receive buffers (channel=%p) "
@@ -276,7 +277,7 @@ VMCIPacketChannelSetRecvBuffers(VMCIPacketChannel *channel,     // IN
  error:
    if (packet != NULL) {
       if (allocNum) {
-         channel->elemFreeFn(channel->freeClientData, sgElems, allocNum);
+         channel->elemFreeFn(channel->freeClientData, elems, allocNum);
       }
       VMCI_FreeKernelMem(packet, size);
    }
@@ -288,7 +289,7 @@ VMCIPacketChannelSetRecvBuffers(VMCIPacketChannel *channel,     // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannelRecvPacket --
+ * VPageChannelRecvPacket --
  *
  *      Process a VMCI packet.
  *
@@ -302,18 +303,18 @@ VMCIPacketChannelSetRecvBuffers(VMCIPacketChannel *channel,     // IN
  */
 
 static int
-VMCIPacketChannelRecvPacket(VMCIPacketChannel *channel,         // IN
-                            VMCIPacket *packet)                 // IN
+VPageChannelRecvPacket(VPageChannel *channel,         // IN
+                       VPageChannelPacket *packet)    // IN
 {
    int recvBufsTarget;
 
    ASSERT(channel);
    ASSERT(packet);
 
-   if (packet->type != VMCIPacket_Data &&
-       packet->type != VMCIPacket_Completion_Notify &&
-       packet->type != VMCIPacket_RequestBuffer &&
-       packet->type != VMCIPacket_HyperConnect) {
+   if (packet->type != VPCPacket_Data &&
+       packet->type != VPCPacket_Completion_Notify &&
+       packet->type != VPCPacket_RequestBuffer &&
+       packet->type != VPCPacket_HyperConnect) {
       VMCI_WARNING((LGPFX"Received invalid packet (channel=%p) "
                     "(type=%d).\n",
                     channel,
@@ -326,10 +327,10 @@ VMCIPacketChannelRecvPacket(VMCIPacketChannel *channel,         // IN
                    "(elems=%d).\n",
                    channel,
                    packet->type,
-                   packet->numSgElems));
+                   packet->numElems));
 
-   if (packet->type == VMCIPacket_HyperConnect) {
-      VMCIPacketHyperConnectMessage *message;
+   if (packet->type == VPCPacket_HyperConnect) {
+      VPageChannelHyperConnectMessage *message;
 
       if (packet->msgLen < sizeof *message) {
          VMCI_WARNING((LGPFX"Received invalid hypervisor connection message "
@@ -339,7 +340,8 @@ VMCIPacketChannelRecvPacket(VMCIPacketChannel *channel,         // IN
          return VMCI_ERROR_INVALID_ARGS;
       }
 
-      message = (VMCIPacketHyperConnectMessage *)VMCI_PACKET_MESSAGE(packet);
+      message = (VPageChannelHyperConnectMessage *)
+         VPAGECHANNEL_PACKET_MESSAGE(packet);
       channel->peerDoorbellHandle = message->doorbellHandle;
 
       VMCI_DEBUG_LOG(10,
@@ -355,7 +357,7 @@ VMCIPacketChannelRecvPacket(VMCIPacketChannel *channel,         // IN
    recvBufsTarget = channel->recvBufsTarget;
 
    switch (packet->type) {
-   case VMCIPacket_RequestBuffer:
+   case VPCPacket_RequestBuffer:
       /*
        * Increase the number of receive buffers by channel->defaultRecvBufs
        * if the hypervisor requests it.
@@ -374,12 +376,12 @@ VMCIPacketChannelRecvPacket(VMCIPacketChannel *channel,         // IN
       }
       break;
 
-   case VMCIPacket_Data:
+   case VPCPacket_Data:
       channel->recvCB(channel->clientRecvData, packet);
-      channel->curRecvBufs -= packet->numSgElems;
+      channel->curRecvBufs -= packet->numElems;
       break;
 
-   case VMCIPacket_Completion_Notify:
+   case VPCPacket_Completion_Notify:
       channel->recvCB(channel->clientRecvData, packet);
       break;
 
@@ -400,7 +402,7 @@ VMCIPacketChannelRecvPacket(VMCIPacketChannel *channel,         // IN
       int numElems = recvBufsTarget + VMCI_PACKET_RECV_THRESHOLD -
          channel->curRecvBufs;
 
-      if (VMCIPacketChannelSetRecvBuffers(channel, numElems, FALSE) ==
+      if (VPageChannelSetRecvBuffers(channel, numElems, FALSE) ==
           VMCI_SUCCESS) {
          channel->recvBufsTarget = recvBufsTarget;
       }
@@ -413,7 +415,7 @@ VMCIPacketChannelRecvPacket(VMCIPacketChannel *channel,         // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannelDgRecvFunc --
+ * VPageChannelDgRecvFunc --
  *
  *      Callback function to receive a VMCI packet.  This is only used until
  *      the connection is made; after that, packets are received over the
@@ -429,10 +431,10 @@ VMCIPacketChannelRecvPacket(VMCIPacketChannel *channel,         // IN
  */
 
 static int
-VMCIPacketChannelDgRecvFunc(void *clientData,         // IN
-                            VMCIDatagram *dg)         // IN
+VPageChannelDgRecvFunc(void *clientData,         // IN
+                       VMCIDatagram *dg)         // IN
 {
-   VMCIPacketChannel *channel = (VMCIPacketChannel *)clientData;
+   VPageChannel *channel = (VPageChannel *)clientData;
 
    ASSERT(channel);
    ASSERT(dg);
@@ -447,7 +449,7 @@ VMCIPacketChannelDgRecvFunc(void *clientData,         // IN
        return VMCI_ERROR_NO_ACCESS;
    }
 
-   if (dg->payloadSize < sizeof (VMCIPacket)) {
+   if (dg->payloadSize < sizeof (VPageChannelPacket)) {
       VMCI_WARNING((LGPFX"Received invalid packet (channel=%p) "
                     "(size=%"FMT64"u).\n",
                     channel,
@@ -455,7 +457,7 @@ VMCIPacketChannelDgRecvFunc(void *clientData,         // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   return VMCIPacketChannelRecvPacket(channel, VMCI_DG_PAYLOAD(dg));
+   return VPageChannelRecvPacket(channel, VMCI_DG_PAYLOAD(dg));
 }
 
 
@@ -480,10 +482,10 @@ VMCIPacketChannelDgRecvFunc(void *clientData,         // IN
  */
 
 static void
-VMCIPacketDoDoorbellCallback(VMCIPacketChannel *channel) // IN/OUT
+VMCIPacketDoDoorbellCallback(VPageChannel *channel) // IN/OUT
 {
    Bool inUse;
-   VMCIPacket packetHeader;
+   VPageChannelPacket packetHeader;
 
    ASSERT(channel);
 
@@ -493,10 +495,10 @@ VMCIPacketDoDoorbellCallback(VMCIPacketChannel *channel) // IN/OUT
       return;
    }
 
-   VMCIPacketChannelAcquireRecvLock(channel);
+   VPageChannelAcquireRecvLock(channel);
    inUse = channel->inPoll;
    channel->inPoll = TRUE;
-   VMCIPacketChannelReleaseRecvLock(channel);
+   VPageChannelReleaseRecvLock(channel);
 
    if (inUse) {
       return;
@@ -505,7 +507,7 @@ VMCIPacketDoDoorbellCallback(VMCIPacketChannel *channel) // IN/OUT
 retry:
    while (VMCIQPair_ConsumeBufReady(channel->qpair) >= sizeof packetHeader) {
       ssize_t retSize, totalSize;
-      VMCIPacket *packet;
+      VPageChannelPacket *packet;
 
       retSize = VMCIQPair_Peek(channel->qpair, &packetHeader,
                                sizeof packetHeader,
@@ -525,7 +527,7 @@ retry:
       }
 
       totalSize = sizeof packetHeader + packetHeader.msgLen +
-         packetHeader.numSgElems * sizeof(VMCISgElem);
+         packetHeader.numElems * sizeof(VPageChannelElem);
 
       retSize = VMCIQPair_ConsumeBufReady(channel->qpair);
       if (retSize < totalSize) {
@@ -539,13 +541,14 @@ retry:
                        channel,
                        packetHeader.type,
                        packetHeader.msgLen,
-                       packetHeader.numSgElems,
+                       packetHeader.numElems,
                        retSize,
                        totalSize));
          break;
       }
 
-      packet = (VMCIPacket *)VMCI_AllocKernelMem(totalSize, VMCI_MEMORY_ATOMIC);
+      packet = (VPageChannelPacket *)
+         VMCI_AllocKernelMem(totalSize, VMCI_MEMORY_ATOMIC);
       if (!packet) {
          VMCI_WARNING((LGPFX"Failed to allocate packet (channel=%p) "
                        "(size=%"FMTSZ"d).\n",
@@ -572,11 +575,11 @@ retry:
          break;
       }
 
-      VMCIPacketChannelRecvPacket(channel, packet);
+      VPageChannelRecvPacket(channel, packet);
       VMCI_FreeKernelMem(packet, totalSize);
    }
 
-   VMCIPacketChannelAcquireRecvLock(channel);
+   VPageChannelAcquireRecvLock(channel);
 
    /*
     * The doorbell may have been notified between when we we finished reading
@@ -587,12 +590,12 @@ retry:
     */
 
    if (VMCIQPair_ConsumeBufReady(channel->qpair) >= sizeof packetHeader) {
-      VMCIPacketChannelReleaseRecvLock(channel);
+      VPageChannelReleaseRecvLock(channel);
       goto retry;
    }
 
    channel->inPoll = FALSE;
-   VMCIPacketChannelReleaseRecvLock(channel);
+   VPageChannelReleaseRecvLock(channel);
 }
 
 
@@ -616,7 +619,7 @@ retry:
 static void
 VMCIPacketDoorbellCallback(void *clientData) // IN/OUT
 {
-   VMCIPacketChannel *channel = (VMCIPacketChannel *)clientData;
+   VPageChannel *channel = (VPageChannel *)clientData;
 
    ASSERT(channel);
 
@@ -631,7 +634,7 @@ VMCIPacketDoorbellCallback(void *clientData) // IN/OUT
 /*
  *----------------------------------------------------------------------------
  *
- * VMCIPacketChannelSendConnectionMessage --
+ * VPageChannelSendConnectionMessage --
  *
  *    Send a connection control message to the hypervisor.
  *
@@ -645,9 +648,9 @@ VMCIPacketDoorbellCallback(void *clientData) // IN/OUT
  */
 
 static int
-VMCIPacketChannelSendConnectionMessage(VMCIPacketChannel *channel) // IN
+VPageChannelSendConnectionMessage(VPageChannel *channel) // IN
 {
-   VMCIPacketGuestConnectMessage message;
+   VPageChannelGuestConnectMessage message;
 
    ASSERT(channel);
 
@@ -665,9 +668,9 @@ VMCIPacketChannelSendConnectionMessage(VMCIPacketChannel *channel) // IN
                    channel->qpHandle.context,
                    channel->qpHandle.resource));
 
-   return VMCIPacketChannelSendControl(channel,
-                                       (char *)&message, sizeof message,
-                                       VMCIPacket_GuestConnect, 0, NULL);
+   return VPageChannelSendControl(channel,
+                                  (char *)&message, sizeof message,
+                                  VPCPacket_GuestConnect, 0, NULL);
 }
 
 
@@ -682,23 +685,23 @@ VMCIPacketChannelSendConnectionMessage(VMCIPacketChannel *channel) // IN
  *    None.
  *
  * Side effects:
- *    May modify VMCI packet channel state.
+ *    May modify page channel state.
  *
  *----------------------------------------------------------------------------
  */
 
 static void
-VMCIPacketChannelPeerAttachCB(VMCIId subId,             // IN
-                              VMCI_EventData *eData,    // IN
-                              void *clientData)         // IN
+VPageChannelPeerAttachCB(VMCIId subId,             // IN
+                         VMCI_EventData *eData,    // IN
+                         void *clientData)         // IN
 {
-   VMCIPacketChannel *channel;
+   VPageChannel *channel;
    VMCIEventPayload_QP *ePayload;
 
    ASSERT(eData);
    ASSERT(clientData);
 
-   channel = (VMCIPacketChannel *)clientData;
+   channel = (VPageChannel *)clientData;
    ePayload = VMCIEventDataPayload(eData);
 
    if (VMCI_HANDLE_EQUAL(channel->qpHandle, ePayload->handle)) {
@@ -724,23 +727,23 @@ VMCIPacketChannelPeerAttachCB(VMCIId subId,             // IN
  *    None.
  *
  * Side effects:
- *    May modify VMCI packet channel state.
+ *    May modify page channel state.
  *
  *----------------------------------------------------------------------------
  */
 
 static void
-VMCIPacketChannelPeerDetachCB(VMCIId subId,             // IN
-                              VMCI_EventData *eData,    // IN
-                              void *clientData)         // IN
+VPageChannelPeerDetachCB(VMCIId subId,             // IN
+                         VMCI_EventData *eData,    // IN
+                         void *clientData)         // IN
 {
-   VMCIPacketChannel *channel;
+   VPageChannel *channel;
    VMCIEventPayload_QP *ePayload;
 
    ASSERT(eData);
    ASSERT(clientData);
 
-   channel = (VMCIPacketChannel *)clientData;
+   channel = (VPageChannel *)clientData;
    ePayload = VMCIEventDataPayload(eData);
 
    if (VMCI_HANDLE_EQUAL(channel->qpHandle, ePayload->handle)) {
@@ -758,7 +761,7 @@ VMCIPacketChannelPeerDetachCB(VMCIId subId,             // IN
 /*
  *----------------------------------------------------------------------------
  *
- * VMCIPacketChannelDestroyQueuePair --
+ * VPageChannelDestroyQueuePair --
  *
  *    Destroy the channel's queuepair, along with the event subscriptions.
  *
@@ -766,13 +769,13 @@ VMCIPacketChannelPeerDetachCB(VMCIId subId,             // IN
  *    None.
  *
  * Side effects:
- *    May modify VMCI packet channel state.
+ *    May modify page channel state.
  *
  *----------------------------------------------------------------------------
  */
 
 static void
-VMCIPacketChannelDestroyQueuePair(VMCIPacketChannel *channel) // IN/OUT
+VPageChannelDestroyQueuePair(VPageChannel *channel) // IN/OUT
 {
    ASSERT(channel);
 
@@ -803,7 +806,7 @@ VMCIPacketChannelDestroyQueuePair(VMCIPacketChannel *channel) // IN/OUT
 /*
  *----------------------------------------------------------------------------
  *
- * VMCIPacketChannelCreateQueuePair --
+ * VPageChannelCreateQueuePair --
  *
  *    Create queuepair for data communication.
  *
@@ -811,13 +814,13 @@ VMCIPacketChannelDestroyQueuePair(VMCIPacketChannel *channel) // IN/OUT
  *    VMCI_SUCCESS if the queuepair is created, negative values on failure.
  *
  * Side effects:
- *    May modify VMCI packet channel state.
+ *    May modify page channel state.
  *
  *----------------------------------------------------------------------------
  */
 
 static int
-VMCIPacketChannelCreateQueuePair(VMCIPacketChannel *channel) // IN/OUT
+VPageChannelCreateQueuePair(VPageChannel *channel) // IN/OUT
 {
    int err;
    uint32 flags;
@@ -847,7 +850,7 @@ VMCIPacketChannelCreateQueuePair(VMCIPacketChannel *channel) // IN/OUT
 
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_ATTACH,
                              VMCI_FLAG_EVENT_NONE,
-                             VMCIPacketChannelPeerAttachCB,
+                             VPageChannelPeerAttachCB,
                              channel, &channel->attachSubId);
    if (err < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to subscribe to attach event "
@@ -859,7 +862,7 @@ VMCIPacketChannelCreateQueuePair(VMCIPacketChannel *channel) // IN/OUT
 
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_DETACH,
                              VMCI_FLAG_EVENT_NONE,
-                             VMCIPacketChannelPeerDetachCB,
+                             VPageChannelPeerDetachCB,
                              channel, &channel->detachSubId);
    if (err < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to subscribe to detach event "
@@ -892,7 +895,7 @@ VMCIPacketChannelCreateQueuePair(VMCIPacketChannel *channel) // IN/OUT
    return VMCI_SUCCESS;
 
 error:
-   VMCIPacketChannelDestroyQueuePair(channel);
+   VPageChannelDestroyQueuePair(channel);
    return err;
 }
 
@@ -900,9 +903,9 @@ error:
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannel_CreateInVM --
+ * VPageChannel_CreateInVM --
  *
- *     Create a packet channel in the guest kernel.
+ *     Create a page channel in the guest kernel.
  *
  * Results:
  *     VMCI_SUCCESS if created, negative errno value otherwise.
@@ -914,33 +917,33 @@ error:
  */
 
 int
-VMCIPacketChannel_CreateInVM(VMCIPacketChannel **channel,         // IN/OUT
-                             VMCIId resourceId,                   // IN
-                             VMCIId peerResourceId,               // IN
-                             uint64 produceQSize,                 // IN
-                             uint64 consumeQSize,                 // IN
-                             VMCIPacketRecvCB recvCB,             // IN
-                             void *clientRecvData,                // IN
-                             Bool notifyOnly,                     // IN
-                             VMCIPacketAllocSgElemFn elemAllocFn, // IN
-                             void *allocClientData,               // IN
-                             VMCIPacketFreeSgElemFn elemFreeFn,   // IN
-                             void *freeClientData,                // IN
-                             int defaultRecvBuffers,              // IN
-                             int maxRecvBuffers)                  // IN
+VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
+                        VMCIId resourceId,                   // IN
+                        VMCIId peerResourceId,               // IN
+                        uint64 produceQSize,                 // IN
+                        uint64 consumeQSize,                 // IN
+                        VPageChannelRecvCB recvCB,           // IN
+                        void *clientRecvData,                // IN
+                        Bool notifyOnly,                     // IN
+                        VPageChannelAllocElemFn elemAllocFn, // IN
+                        void *allocClientData,               // IN
+                        VPageChannelFreeElemFn elemFreeFn,   // IN
+                        void *freeClientData,                // IN
+                        int defaultRecvBuffers,              // IN
+                        int maxRecvBuffers)                  // IN
 {
    int retval;
    int flags;
-   VMCIPacketChannel *packetChannel;
+   VPageChannel *pageChannel;
 
    ASSERT(channel);
    ASSERT(VMCI_INVALID_ID != resourceId);
    ASSERT(VMCI_INVALID_ID != peerResourceId);
    ASSERT(recvCB);
 
-   packetChannel =
-      VMCI_AllocKernelMem(sizeof *packetChannel, VMCI_MEMORY_NONPAGED);
-   if (!packetChannel) {
+   pageChannel =
+      VMCI_AllocKernelMem(sizeof *pageChannel, VMCI_MEMORY_NONPAGED);
+   if (!pageChannel) {
       return VMCI_ERROR_NO_MEM;
    }
 
@@ -948,31 +951,31 @@ VMCIPacketChannel_CreateInVM(VMCIPacketChannel **channel,         // IN/OUT
     * XXX, we should support a default internal allocation function.
     */
 
-   memset(packetChannel, 0, sizeof *packetChannel);
-   packetChannel->dgHandle = VMCI_INVALID_HANDLE;
-   packetChannel->attachSubId = VMCI_INVALID_ID;
-   packetChannel->detachSubId = VMCI_INVALID_ID;
-   packetChannel->qpHandle = VMCI_INVALID_HANDLE;
-   packetChannel->qpair = NULL;
-   packetChannel->doorbellHandle = VMCI_INVALID_HANDLE;
-   packetChannel->peerDoorbellHandle = VMCI_INVALID_HANDLE;
-   packetChannel->qpConnected = FALSE;
-   packetChannel->recvCB = recvCB;
-   packetChannel->clientRecvData = clientRecvData;
-   packetChannel->notifyOnly = notifyOnly;
-   packetChannel->elemAllocFn = elemAllocFn;
-   packetChannel->allocClientData = allocClientData;
-   packetChannel->elemFreeFn = elemFreeFn;
-   packetChannel->freeClientData = freeClientData;
-   packetChannel->resourceId = resourceId;
-   packetChannel->peerDgHandle = VMCI_MAKE_HANDLE(VMCI_HOST_CONTEXT_ID,
+   memset(pageChannel, 0, sizeof *pageChannel);
+   pageChannel->dgHandle = VMCI_INVALID_HANDLE;
+   pageChannel->attachSubId = VMCI_INVALID_ID;
+   pageChannel->detachSubId = VMCI_INVALID_ID;
+   pageChannel->qpHandle = VMCI_INVALID_HANDLE;
+   pageChannel->qpair = NULL;
+   pageChannel->doorbellHandle = VMCI_INVALID_HANDLE;
+   pageChannel->peerDoorbellHandle = VMCI_INVALID_HANDLE;
+   pageChannel->qpConnected = FALSE;
+   pageChannel->recvCB = recvCB;
+   pageChannel->clientRecvData = clientRecvData;
+   pageChannel->notifyOnly = notifyOnly;
+   pageChannel->elemAllocFn = elemAllocFn;
+   pageChannel->allocClientData = allocClientData;
+   pageChannel->elemFreeFn = elemFreeFn;
+   pageChannel->freeClientData = freeClientData;
+   pageChannel->resourceId = resourceId;
+   pageChannel->peerDgHandle = VMCI_MAKE_HANDLE(VMCI_HOST_CONTEXT_ID,
                                                   peerResourceId);
-   packetChannel->curRecvBufs = 0;
-   packetChannel->recvBufsTarget = defaultRecvBuffers;
-   packetChannel->defaultRecvBufs = defaultRecvBuffers;
-   packetChannel->maxRecvBufs = maxRecvBuffers + VMCI_PACKET_RECV_THRESHOLD;
-   packetChannel->produceQSize = produceQSize;
-   packetChannel->consumeQSize = consumeQSize;
+   pageChannel->curRecvBufs = 0;
+   pageChannel->recvBufsTarget = defaultRecvBuffers;
+   pageChannel->defaultRecvBufs = defaultRecvBuffers;
+   pageChannel->maxRecvBufs = maxRecvBuffers + VMCI_PACKET_RECV_THRESHOLD;
+   pageChannel->produceQSize = produceQSize;
+   pageChannel->consumeQSize = consumeQSize;
 
    /*
     * Create a datagram handle over which we will connection handshake packets
@@ -981,8 +984,8 @@ VMCIPacketChannel_CreateInVM(VMCIPacketChannel **channel,         // IN/OUT
 
    flags = VMCI_FLAG_DG_DELAYED_CB;
    retval = VMCIDatagram_CreateHnd(resourceId, flags,
-                                   VMCIPacketChannelDgRecvFunc, packetChannel,
-                                   &packetChannel->dgHandle);
+                                   VPageChannelDgRecvFunc, pageChannel,
+                                   &pageChannel->dgHandle);
    if (retval < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to create datagram handle "
                     "(channel=%p) (err=%d).\n",
@@ -995,18 +998,18 @@ VMCIPacketChannel_CreateInVM(VMCIPacketChannel **channel,         // IN/OUT
                   (LGPFX"Created datagram (channel=%p) "
                    "(handle=0x%x:0x%x).\n",
                    channel,
-                   packetChannel->dgHandle.context,
-                   packetChannel->dgHandle.resource));
+                   pageChannel->dgHandle.context,
+                   pageChannel->dgHandle.resource));
 
    /*
     * Create a doorbell handle.  This is used by the peer to signal the
     * arrival of packets in the queuepair.
     */
 
-   retval = VMCIDoorbell_Create(&packetChannel->doorbellHandle,
+   retval = VMCIDoorbell_Create(&pageChannel->doorbellHandle,
                                 VMCI_FLAG_DELAYED_CB,
                                 VMCI_PRIVILEGE_FLAG_RESTRICTED,
-                                VMCIPacketDoorbellCallback, packetChannel);
+                                VMCIPacketDoorbellCallback, pageChannel);
    if (retval < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to create doorbell "
                     "(channel=%p) (err=%d).\n",
@@ -1019,14 +1022,14 @@ VMCIPacketChannel_CreateInVM(VMCIPacketChannel **channel,         // IN/OUT
                   (LGPFX"Created doorbell (channel=%p) "
                    "(handle=0x%x:0x%x).\n",
                    channel,
-                   packetChannel->doorbellHandle.context,
-                   packetChannel->doorbellHandle.resource));
+                   pageChannel->doorbellHandle.context,
+                   pageChannel->doorbellHandle.resource));
 
    /*
     * Now create the queuepair, over which we can pass data packets.
     */
 
-   retval = VMCIPacketChannelCreateQueuePair(packetChannel);
+   retval = VPageChannelCreateQueuePair(pageChannel);
    if (retval < VMCI_SUCCESS) {
       goto error;
    }
@@ -1039,40 +1042,40 @@ VMCIPacketChannel_CreateInVM(VMCIPacketChannel **channel,         // IN/OUT
 
    if (defaultRecvBuffers) {
       int numElems = defaultRecvBuffers + VMCI_PACKET_RECV_THRESHOLD;
-      retval = VMCIPacketChannelSetRecvBuffers(packetChannel, numElems, TRUE);
+      retval = VPageChannelSetRecvBuffers(pageChannel, numElems, TRUE);
       if (retval < VMCI_SUCCESS) {
          goto error;
       }
    }
 
-   retval = VMCIPacketChannelSendConnectionMessage(packetChannel);
+   retval = VPageChannelSendConnectionMessage(pageChannel);
    if (retval < VMCI_SUCCESS) {
       goto error;
    }
 
    VMCI_DEBUG_LOG(10,
                   (LGPFX"Created (channel=%p) (handle=0x%x:0x%x).\n",
-                   packetChannel,
-                   packetChannel->dgHandle.context,
-                   packetChannel->dgHandle.resource));
+                   pageChannel,
+                   pageChannel->dgHandle.context,
+                   pageChannel->dgHandle.resource));
 
-   *channel = packetChannel;
+   *channel = pageChannel;
 
    return retval;
 
  error:
-   VMCIPacketChannel_Destroy(packetChannel);
+   VPageChannel_Destroy(pageChannel);
    return retval;
 }
-EXPORT_SYMBOL(VMCIPacketChannel_CreateInVM);
+EXPORT_SYMBOL(VPageChannel_CreateInVM);
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannel_Destroy --
+ * VPageChannel_Destroy --
  *
- *      Destroy the packet channel.
+ *      Destroy the page channel.
  *
  * Results:
  *      None.
@@ -1084,11 +1087,11 @@ EXPORT_SYMBOL(VMCIPacketChannel_CreateInVM);
  */
 
 void
-VMCIPacketChannel_Destroy(VMCIPacketChannel *channel) // IN/OUT
+VPageChannel_Destroy(VPageChannel *channel) // IN/OUT
 {
    ASSERT(channel);
 
-   VMCIPacketChannelDestroyQueuePair(channel);
+   VPageChannelDestroyQueuePair(channel);
 
    if (!VMCI_HANDLE_INVALID(channel->doorbellHandle)) {
       VMCIDoorbell_Destroy(channel->doorbellHandle);
@@ -1104,7 +1107,7 @@ VMCIPacketChannel_Destroy(VMCIPacketChannel *channel) // IN/OUT
                   (LGPFX"Destroyed (channel=%p).\n",
                    channel));
 }
-EXPORT_SYMBOL(VMCIPacketChannel_Destroy);
+EXPORT_SYMBOL(VPageChannel_Destroy);
 
 
 /*
@@ -1129,10 +1132,10 @@ EXPORT_SYMBOL(VMCIPacketChannel_Destroy);
  */
 
 static int
-VMCIPacketAllocDatagram(VMCIPacketChannel *channel,       // IN
-                        size_t messageLen,                // IN
-                        int numSgElems,                   // IN
-                        VMCIDatagram **outDg)             // OUT
+VPageChannelAllocDatagram(VPageChannel *channel,       // IN
+                          size_t messageLen,           // IN
+                          int numElems,                // IN
+                          VMCIDatagram **outDg)        // OUT
 {
    size_t size;
    VMCIDatagram *dg;
@@ -1142,8 +1145,8 @@ VMCIPacketAllocDatagram(VMCIPacketChannel *channel,       // IN
 
    *outDg = NULL;
 
-   size = VMCI_DG_HEADERSIZE + sizeof(VMCIPacket) + messageLen +
-      numSgElems * sizeof (VMCISgElem);
+   size = VMCI_DG_HEADERSIZE + sizeof(VPageChannelPacket) + messageLen +
+      numElems * sizeof (VPageChannelElem);
 
    if (size > VMCI_MAX_DG_SIZE) {
       VMCI_WARNING((LGPFX"Requested datagram size too large (channel=%p) "
@@ -1179,7 +1182,7 @@ VMCIPacketAllocDatagram(VMCIPacketChannel *channel,       // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannelSendControl --
+ * VPageChannelSendControl --
  *
  *      A packet is constructed to send the message and buffer to the guest
  *      via the control channel (datagram).  This is only necessary until the
@@ -1196,42 +1199,42 @@ VMCIPacketAllocDatagram(VMCIPacketChannel *channel,       // IN
  */
 
 static int
-VMCIPacketChannelSendControl(VMCIPacketChannel *channel, // IN
-                             char *message,              // IN
-                             int len,                    // IN
-                             VMCIPacketType type,        // IN
-                             int numSgElems,             // IN
-                             VMCISgElem *sgElems)        // IN
+VPageChannelSendControl(VPageChannel *channel,       // IN
+                        char *message,               // IN
+                        int len,                     // IN
+                        VPageChannelPacketType type, // IN
+                        int numElems,                // IN
+                        VPageChannelElem *elems)     // IN
 {
    int retval;
-   VMCIPacket *packet;
+   VPageChannelPacket *packet;
    VMCIDatagram *dg;
 
    ASSERT(channel);
-   ASSERT(type == VMCIPacket_Data ||
-          type == VMCIPacket_GuestConnect ||
-          type == VMCIPacket_SetRecvBuffer);
+   ASSERT(type == VPCPacket_Data ||
+          type == VPCPacket_GuestConnect ||
+          type == VPCPacket_SetRecvBuffer);
 
    dg = NULL;
-   retval = VMCIPacketAllocDatagram(channel, len, numSgElems, &dg);
+   retval = VPageChannelAllocDatagram(channel, len, numElems, &dg);
    if (retval < VMCI_SUCCESS) {
       return retval;
    }
 
-   packet = (VMCIPacket *)VMCI_DG_PAYLOAD(dg);
+   packet = (VPageChannelPacket *)VMCI_DG_PAYLOAD(dg);
    packet->type = type;
    packet->msgLen = len;
-   packet->numSgElems = numSgElems;
+   packet->numElems = numElems;
 
    if (len) {
       ASSERT(message);
-      memcpy(VMCI_PACKET_MESSAGE(packet), message, len);
+      memcpy(VPAGECHANNEL_PACKET_MESSAGE(packet), message, len);
    }
 
-   if (numSgElems) {
-      ASSERT(sgElems);
-      memcpy(VMCI_PACKET_SG_ELEMS(packet), sgElems,
-             numSgElems * sizeof (VMCISgElem));
+   if (numElems) {
+      ASSERT(elems);
+      memcpy(VPAGECHANNEL_PACKET_ELEMS(packet), elems,
+             numElems * sizeof (VPageChannelElem));
    }
 
    retval = VMCIDatagram_Send(dg);
@@ -1260,7 +1263,7 @@ VMCIPacketChannelSendControl(VMCIPacketChannel *channel, // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannel_SendPacket --
+ * VPageChannel_SendPacket --
  *
  *     Send a VMCI packet to the hypervisor.
  *
@@ -1277,8 +1280,8 @@ VMCIPacketChannelSendControl(VMCIPacketChannel *channel, // IN
  */
 
 int
-VMCIPacketChannel_SendPacket(VMCIPacketChannel *channel,         // IN
-                             VMCIPacket *packet)                 // IN
+VPageChannel_SendPacket(VPageChannel *channel,         // IN
+                        VPageChannelPacket *packet)    // IN
 {
    int retval;
    ssize_t totalSize, sentSize, curSize;
@@ -1295,10 +1298,10 @@ VMCIPacketChannel_SendPacket(VMCIPacketChannel *channel,         // IN
 
    ASSERT(packet);
 
-   totalSize = sizeof(VMCIPacket) + packet->msgLen +
-      packet->numSgElems * sizeof(VMCISgElem);
+   totalSize = sizeof(VPageChannelPacket) + packet->msgLen +
+      packet->numElems * sizeof(VPageChannelElem);
 
-   VMCIPacketChannelAcquireSendLock(channel);
+   VPageChannelAcquireSendLock(channel);
 
    freeSpace = VMCIQPair_ProduceFreeSpace(channel->qpair);
    if (freeSpace < totalSize) {
@@ -1329,7 +1332,7 @@ VMCIPacketChannel_SendPacket(VMCIPacketChannel *channel,         // IN
       }
    }
 
-   VMCIPacketChannelReleaseSendLock(channel);
+   VPageChannelReleaseSendLock(channel);
 
    if (sentSize < totalSize) {
       /*
@@ -1353,19 +1356,19 @@ VMCIPacketChannel_SendPacket(VMCIPacketChannel *channel,         // IN
    return VMCI_SUCCESS;
 
 unlock:
-   VMCIPacketChannelReleaseSendLock(channel);
+   VPageChannelReleaseSendLock(channel);
 error:
    return retval;
 }
-EXPORT_SYMBOL(VMCIPacketChannel_SendPacket);
+EXPORT_SYMBOL(VPageChannel_SendPacket);
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannel_Send --
+ * VPageChannel_Send --
  *
- *      VMCIPacket is constructed to send the message and buffer to the guest.
+ *      A packet is constructed to send the message and buffer to the guest.
  *
  *      XXX, this is now identical to the function of the same name in
  *      modules/vmkernel/vmci/vmciPacketVMK.c.  We should share this code.
@@ -1381,16 +1384,16 @@ EXPORT_SYMBOL(VMCIPacketChannel_SendPacket);
  */
 
 int
-VMCIPacketChannel_Send(VMCIPacketChannel *channel, // IN/OUT
-                       VMCIPacketType type,        // IN
-                       char *message,              // IN
-                       int len,                    // IN
-                       VMCIPacketBuffer *buffer)   // IN
+VPageChannel_Send(VPageChannel *channel,       // IN/OUT
+                  VPageChannelPacketType type, // IN
+                  char *message,               // IN
+                  int len,                     // IN
+                  VPageChannelBuffer *buffer)  // IN
 {
    int retval;
-   int numSgElems;
+   int numElems;
    ssize_t totalSize;
-   VMCIPacket *packet;
+   VPageChannelPacket *packet;
 
    ASSERT(channel);
 
@@ -1401,13 +1404,15 @@ VMCIPacketChannel_Send(VMCIPacketChannel *channel, // IN/OUT
    }
 
    if (buffer) {
-      numSgElems = buffer->numSgElems;
+      numElems = buffer->numElems;
    } else {
-      numSgElems = 0;
+      numElems = 0;
    }
 
-   totalSize = sizeof(VMCIPacket) + len + numSgElems * sizeof(VMCISgElem);
-   packet = (VMCIPacket *)VMCI_AllocKernelMem(totalSize, VMCI_MEMORY_NORMAL);
+   totalSize = sizeof(VPageChannelPacket) + len +
+      numElems * sizeof(VPageChannelElem);
+   packet = (VPageChannelPacket *)
+      VMCI_AllocKernelMem(totalSize, VMCI_MEMORY_NORMAL);
    if (!packet) {
       VMCI_WARNING((LGPFX"Failed to allocate packet (channel=%p) "
                     "(size=%"FMTSZ"d).",
@@ -1418,33 +1423,33 @@ VMCIPacketChannel_Send(VMCIPacketChannel *channel, // IN/OUT
 
    packet->type = type;
    packet->msgLen = len;
-   packet->numSgElems = numSgElems;
+   packet->numElems = numElems;
 
    if (len) {
       ASSERT(message);
-      memcpy(VMCI_PACKET_MESSAGE(packet), message, len);
+      memcpy(VPAGECHANNEL_PACKET_MESSAGE(packet), message, len);
    }
 
-   if (numSgElems) {
+   if (numElems) {
       ASSERT(buffer);
       ASSERT(buffer->elems);
-      memcpy(VMCI_PACKET_SG_ELEMS(packet), buffer->elems,
-             numSgElems * sizeof (VMCISgElem));
+      memcpy(VPAGECHANNEL_PACKET_ELEMS(packet), buffer->elems,
+             numElems * sizeof (VPageChannelElem));
    }
 
-   retval = VMCIPacketChannel_SendPacket(channel, packet);
+   retval = VPageChannel_SendPacket(channel, packet);
 
    VMCI_FreeKernelMem(packet, totalSize);
 
    return retval;
 }
-EXPORT_SYMBOL(VMCIPacketChannel_Send);
+EXPORT_SYMBOL(VPageChannel_Send);
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketChannel_PollTx --
+ * VPageChannel_PollTx --
  *
  *      The caller does its own coalescing and notifies us that it starts tx.
  *
@@ -1458,10 +1463,10 @@ EXPORT_SYMBOL(VMCIPacketChannel_Send);
  */
 
 void
-VMCIPacketChannel_PollRecvQ(VMCIPacketChannel *channel)     // IN
+VPageChannel_PollRecvQ(VPageChannel *channel)     // IN
 {
    if (channel->qpConnected) {
       VMCIPacketDoDoorbellCallback(channel);
    }
 }
-EXPORT_SYMBOL(VMCIPacketChannel_PollRecvQ);
+EXPORT_SYMBOL(VPageChannel_PollRecvQ);
