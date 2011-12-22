@@ -56,7 +56,7 @@ typedef struct SignalHandler {
    siginfo_t               currSignal;
 } SignalHandler;
 
-static SignalHandler gHandler = { FALSE, };
+static SignalHandler gHandler;
 G_LOCK_DEFINE_STATIC(gLock);
 
 typedef struct SignalSource {
@@ -270,7 +270,6 @@ VMTools_NewSignalSource(int signum)
 
    G_LOCK(gLock);
    if (!gHandler.initialized) {
-      memset(&gHandler, 0, sizeof gHandler);
       if (pipe(gHandler.wakeupPipe) == -1 ||
           fcntl(gHandler.wakeupPipe[0], F_SETFL, O_RDONLY | O_NONBLOCK) < 0 ||
           fcntl(gHandler.wakeupPipe[1], F_SETFL, O_WRONLY | O_NONBLOCK) < 0) {
@@ -280,6 +279,7 @@ VMTools_NewSignalSource(int signum)
       gHandler.wakeupFd.events = G_IO_IN | G_IO_ERR;
       gHandler.handler.sa_sigaction = SignalSourceSigHandler;
       gHandler.handler.sa_flags = SA_SIGINFO;
+      gHandler.initialized = TRUE;
    }
    G_UNLOCK(gLock);
 
