@@ -74,6 +74,7 @@
  *	INCLUDE_ALLOW_VMK_MODULE
  *      INCLUDE_ALLOW_VMKDRIVERS
  *      INCLUDE_ALLOW_VMIROM
+ *      INCLUDE_ALLOW_MKS
  *
  * Then include this file.
  *
@@ -157,3 +158,8 @@
 #error "The surrounding include file is not allowed in vmirom."
 #endif
 #undef INCLUDE_ALLOW_VMIROM
+
+#if defined INCLUDE_ALLOW_MKS && !defined LOCALMKS && !defined REMOTEMKS
+#error "The surrounding include file is not allowed outside of the MKS."
+#endif
+#undef INCLUDE_ALLOW_MKS
