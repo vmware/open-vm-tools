@@ -1120,6 +1120,7 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
       if (result < VMCI_SUCCESS) {
          goto error;
       }
+      VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
       entry->state = VMCIQPB_CREATED_MEM;
    } else {
       /*
@@ -1333,6 +1334,7 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
          if (result < VMCI_SUCCESS) {
             return result;
          }
+         VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
          if (entry->qp.flags & VMCI_QPFLAG_NONBLOCK) {
             result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
             if (result < VMCI_SUCCESS) {
@@ -1503,7 +1505,7 @@ VMCIQPBroker_SetPageStore(VMCIHandle handle,      // IN
    if (result < VMCI_SUCCESS) {
       goto out;
    }
-
+   VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
    result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
    if (result < VMCI_SUCCESS) {
      VMCIHost_ReleaseUserMemory(entry->produceQ, entry->consumeQ);
@@ -1637,6 +1639,7 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
                           "(handle=0x%x:0x%x,result=%d).\n", handle.context,
                           handle.resource, result));
          }
+         VMCIHost_MarkQueuesUnavailable(entry->produceQ, entry->consumeQ);
          if (entry->vmciPageFiles) {
             VMCIHost_ReleaseUserMemory(entry->produceQ, entry->consumeQ);
          } else {
@@ -1754,6 +1757,7 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
        */
 
       VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
+      VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
       if (entry->qp.flags & VMCI_QPFLAG_NONBLOCK) {
          result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
       } else {
@@ -1782,6 +1786,7 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
       VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
       QueuePairResetSavedHeaders(entry);
       result = VMCIHost_RegisterUserMemory(&pageStore, entry->produceQ, entry->consumeQ);
+      VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
       VMCI_ReleaseQueueMutex(entry->produceQ);
       if (result == VMCI_SUCCESS) {
          /*
@@ -1831,15 +1836,27 @@ QueuePairSaveHeaders(QPBrokerEntry *entry) // IN
 {
    int result;
 
+   if (entry->produceQ->savedHeader != NULL &&
+       entry->consumeQ->savedHeader != NULL) {
+      /*
+       *  If the headers have already been saved, we don't need to do
+       *  it again, and we don't want to map in the headers
+       *  unnecessarily.
+       */
+
+      return VMCI_SUCCESS;
+   }
    if (NULL == entry->produceQ->qHeader || NULL == entry->consumeQ->qHeader) {
       result = VMCIHost_MapQueueHeaders(entry->produceQ, entry->consumeQ);
       if (result < VMCI_SUCCESS) {
          return result;
       }
    }
-   memcpy(&entry->savedProduceQ, entry->produceQ->qHeader, sizeof entry->savedProduceQ);
+   memcpy(&entry->savedProduceQ, entry->produceQ->qHeader,
+          sizeof entry->savedProduceQ);
    entry->produceQ->savedHeader = &entry->savedProduceQ;
-   memcpy(&entry->savedConsumeQ, entry->consumeQ->qHeader, sizeof entry->savedConsumeQ);
+   memcpy(&entry->savedConsumeQ, entry->consumeQ->qHeader,
+          sizeof entry->savedConsumeQ);
    entry->consumeQ->savedHeader = &entry->savedConsumeQ;
 
    return VMCI_SUCCESS;
@@ -1949,10 +1966,8 @@ VMCIQPBroker_Unmap(VMCIHandle  handle,   // IN
                        "(handle=0x%x:0x%x,result=%d).\n", handle.context,
                        handle.resource, result));
       }
-      VMCIHost_UnmapQueueHeaders(gid,
-                                 entry->produceQ,
-                                 entry->consumeQ);
-
+      VMCIHost_UnmapQueueHeaders(gid, entry->produceQ, entry->consumeQ);
+      VMCIHost_MarkQueuesUnavailable(entry->produceQ, entry->consumeQ);
       if (!vmkernel) {
          /*
           * On hosted, when we unmap queue pairs, the VMX will also

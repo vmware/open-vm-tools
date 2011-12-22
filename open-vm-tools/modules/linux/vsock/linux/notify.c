@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -603,7 +603,7 @@ VSockVmciNotifyPktSocketDestruct(struct sock *sk) // IN
 
 static int32
 VSockVmciNotifyPktPollIn(struct sock *sk,    // IN
-                         int target,         // IN
+                         size_t target,      // IN
                          Bool *dataReadyNow) // IN
 {
    VSockVmciSock *vsk;
@@ -652,7 +652,7 @@ VSockVmciNotifyPktPollIn(struct sock *sk,    // IN
 
 static int32
 VSockVmciNotifyPktPollOut(struct sock *sk,     // IN
-                          int target,          // IN
+                          size_t target,       // IN
                           Bool *spaceAvailNow) // IN
 {
    int64 produceQFreeSpace;
@@ -705,7 +705,7 @@ VSockVmciNotifyPktPollOut(struct sock *sk,     // IN
 
 static int32
 VSockVmciNotifyPktRecvInit(struct sock *sk,               // IN
-                           int target,                    // IN
+                           size_t target,                 // IN
                            VSockVmciRecvNotifyData *data) // IN
 {
    VSockVmciSock *vsk;
@@ -769,7 +769,7 @@ VSockVmciNotifyPktRecvInit(struct sock *sk,               // IN
 
 static int32
 VSockVmciNotifyPktRecvPreBlock(struct sock *sk,               // IN
-                               int target,                    // IN
+                               size_t target,                 // IN
                                VSockVmciRecvNotifyData *data) // IN
 {
    int err;
@@ -817,7 +817,7 @@ VSockVmciNotifyPktRecvPreBlock(struct sock *sk,               // IN
 
 static int32
 VSockVmciNotifyPktRecvPreDequeue(struct sock *sk,               // IN
-                                 int target,                    // IN
+                                 size_t target,                 // IN
                                  VSockVmciRecvNotifyData *data) // IN
 {
    VSockVmciSock *vsk;
@@ -859,7 +859,7 @@ VSockVmciNotifyPktRecvPreDequeue(struct sock *sk,               // IN
 
 static int32
 VSockVmciNotifyPktRecvPostDequeue(struct sock *sk,               // IN
-                                  int target,                    // IN
+                                  size_t target,                 // IN
                                   ssize_t copied,                // IN
                                   Bool dataRead,                 // IN
                                   VSockVmciRecvNotifyData *data) // IN

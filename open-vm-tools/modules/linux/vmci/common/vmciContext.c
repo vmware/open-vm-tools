@@ -46,6 +46,10 @@ static void VMCIContextFreeContext(VMCIContext *context);
 static Bool VMCIContextExists(VMCIId cid);
 static int VMCIContextFireNotification(VMCIId contextID,
                                        VMCIPrivilegeFlags privFlags);
+#if defined(VMKERNEL)
+static void VMCIContextReleaseGuestMemLocked(VMCIContext *context,
+                                             VMCIGuestMemID gid);
+#endif
 
 /*
  * List of current VMCI contexts.
@@ -319,6 +323,16 @@ VMCIContext_InitContext(VMCIId cid,                   // IN
    }
    Atomic_Write(&context->refCount, 1);
 
+#if defined(VMKERNEL)
+   result = VMCIMutex_Init(&context->guestMemMutex, "VMCIGuestMem",
+                           VMCI_SEMA_RANK_GUESTMEM);
+   if (result < VMCI_SUCCESS) {
+      VMCI_CleanupLock(&context->lock);
+      goto error;
+   }
+   context->curGuestMemID = INVALID_VMCI_GUEST_MEM_ID;
+#endif
+
    /* Inititialize host-specific VMCI context. */
    VMCIHost_InitContext(&context->hostContext, eventHnd);
 
@@ -486,6 +500,9 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
    VMCIHandleArray_Destroy(context->doorbellArray);
    VMCIHandleArray_Destroy(context->pendingDoorbellArray);
    VMCI_CleanupLock(&context->lock);
+#if defined(VMKERNEL)
+   VMCIMutex_Destroy(&context->guestMemMutex);
+#endif
    VMCIHost_ReleaseContext(&context->hostContext);
 #ifndef VMX86_SERVER
 #  ifdef __linux__
@@ -2369,11 +2386,38 @@ VMCIContext_QueuePairExists(VMCIContext *context, // IN: Context structure
  */
 
 void
-VMCIContext_RegisterGuestMem(VMCIContext *context) // IN: Context structure
+VMCIContext_RegisterGuestMem(VMCIContext *context, // IN: Context structure
+                             VMCIGuestMemID gid)   // IN: Reference to guest
 {
 #ifdef VMKERNEL
    uint32 numQueuePairs;
    uint32 cur;
+
+   VMCIMutex_Acquire(&context->guestMemMutex);
+
+   if (context->curGuestMemID != INVALID_VMCI_GUEST_MEM_ID) {
+      if (context->curGuestMemID != gid) {
+         /*
+          * The guest memory has been registered with a different guest
+          * memory ID. This is possible if we attempt to continue the
+          * execution of the source VMX following a failed FSR.
+          */
+
+         VMCIContextReleaseGuestMemLocked(context, context->curGuestMemID);
+      } else {
+         /*
+          * When unquiescing the device during a restore sync not part
+          * of an FSR, we will already have registered the guest
+          * memory when creating the device, so we don't need to do it
+          * again. Also, there are no active queue pairs at this
+          * point, so nothing to do.
+          */
+
+         ASSERT(VMCIHandleArray_GetSize(context->queuePairArray) == 0);
+         goto out;
+      }
+   }
+   context->curGuestMemID = gid;
 
    /*
     * It is safe to access the queue pair array here, since no changes
@@ -2396,18 +2440,21 @@ VMCIContext_RegisterGuestMem(VMCIContext *context) // IN: Context structure
          }
       }
    }
+
+out:
+   VMCIMutex_Release(&context->guestMemMutex);
 #endif
 }
 
 
+#ifdef VMKERNEL
 /*
  *----------------------------------------------------------------------
  *
- * VMCIContext_ReleaseGuestMem --
+ * VMCIContextReleaseGuestMemLocked --
  *
- *      Releases all the contexts references to guest memory. This
- *      should only be used when qiescing or cleaning up the VMCI
- *      device of a guest.
+ *      A version of VMCIContext_ReleaseGuestMem that assumes that the
+ *      guest mem lock is already held.
  *
  * Results:
  *      None.
@@ -2418,11 +2465,10 @@ VMCIContext_RegisterGuestMem(VMCIContext *context) // IN: Context structure
  *----------------------------------------------------------------------
  */
 
-void
-VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
-                            VMCIGuestMemID gid)   // IN: reference to guest
+static void
+VMCIContextReleaseGuestMemLocked(VMCIContext *context, // IN: Context structure
+                                 VMCIGuestMemID gid)   // IN: Reference to guest
 {
-#ifdef VMKERNEL
    uint32 numQueuePairs;
    uint32 cur;
 
@@ -2447,5 +2493,50 @@ VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
          }
       }
    }
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_ReleaseGuestMem --
+ *
+ *      Releases all the contexts references to guest memory, if the
+ *      caller identified by the gid was the last one to register the
+ *      guest memory. This should only be used when quiescing or
+ *      cleaning up the VMCI device of a guest.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
+                            VMCIGuestMemID gid)   // IN: Reference to guest
+{
+#ifdef VMKERNEL
+   VMCIMutex_Acquire(&context->guestMemMutex);
+
+   if (context->curGuestMemID == gid) {
+      /*
+       * In the case of an FSR, we may have multiple VMX'en
+       * registering and releasing guest memory concurrently. The
+       * common case is that the source will clean up its device state
+       * after a successful FSR, where the destination may already
+       * have registered guest memory. So we only release guest
+       * memory, if this is the same gid, that registered the memory.
+       */
+
+      VMCIContextReleaseGuestMemLocked(context, gid);
+      context->curGuestMemID = INVALID_VMCI_GUEST_MEM_ID;
+   }
+
+   VMCIMutex_Release(&context->guestMemMutex);
 #endif
 }
