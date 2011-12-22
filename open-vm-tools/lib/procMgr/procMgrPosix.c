@@ -130,7 +130,9 @@ static int ProcMgrGetCommandLineArgs(long pid,
 #endif
 
 #ifdef sun
-#define  SOLARIS_BASH_PATH "/usr/bin/bash"
+#define  BASH_PATH "/usr/bin/bash"
+#else
+#define  BASH_PATH "/bin/bash"
 #endif
 
 #if defined(linux) && !defined(GLIBC_VERSION_23) && !defined(__UCLIBC__)
@@ -1163,40 +1165,36 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
    if (pid == -1) {
       Warning("Unable to fork: %s.\n\n", strerror(errno));
    } else if (pid == 0) {
-#ifdef sun
-      /*
-       * On Solaris, /bin/sh is the Bourne shell, and it
-       * doesn't appear to have the optimization that bash does -- when
-       * called with -c, bash appears to just use exec() to replace itself.
-       * Bourne shell does a fork & exec, so 2 processes are started.
-       * This is bad for us because we then see the PID of the shell, not the
-       * app that it starts.  When this PID is returned to a user to
-       * watch, they'll watch the wrong process.
-       *
-       * So for Solaris, use bash instead if possible.  We support
-       * Solaris 10 and better; it contains bash, but not in its
-       * minimal 'core' package, so it may not exist.
-       */
-      static const char bashShellPath[] = SOLARIS_BASH_PATH;
+      static const char bashShellPath[] = BASH_PATH;
       char *bashArgs[] = { "bash", "-c", cmdCurrent, NULL };
       static const char bourneShellPath[] = "/bin/sh";
       char *bourneArgs[] = { "sh", "-c", cmdCurrent, NULL };
       const char *shellPath;
       char **args;
-#else
-      static const char shellPath[] = "/bin/sh";
-      char *args[] = { "sh", "-c", cmdCurrent, NULL };
-#endif
 
-#ifdef sun
-      if (File_Exists(SOLARIS_BASH_PATH)) {
+      /*
+       * Check bug 772203. To start the program, we start the shell
+       * and specify the program using the option '-c'. We should return the
+       * PID of the app that gets started.
+       *
+       * When the option '-c' is specified,
+       * - bash shell just uses exec() to replace itself. So, 'bash' returns
+       * the PID of the new application that is started.
+       *
+       * - bourne shell does a fork & exec. So two processes are started. We
+       * see the PID of the shell and not the app that it starts. When the PID
+       * is returned to a user to watch, they'll watch the wrong process.
+       *
+       * In order to return the proper PID, use bash if possible. If bash
+       * is not available, then use the bourne shell.
+       */
+      if (File_Exists(bashShellPath)) {
          shellPath = bashShellPath;
          args = bashArgs;
       } else {
          shellPath = bourneShellPath;
          args = bourneArgs;
       }
-#endif
 
       /*
        * Child
