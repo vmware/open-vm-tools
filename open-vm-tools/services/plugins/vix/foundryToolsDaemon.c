@@ -1132,7 +1132,7 @@ abort:
    if ((NULL != requestMsg)
          && (requestMsg->commonHeader.commonFlags & VIX_COMMAND_GUEST_RETURNS_BINARY)) {
       *(destPtr++) = '#';
-      data->resultLen = destPtr - tcloBuffer + sizeof '#' + resultValueLength;
+      data->resultLen = destPtr - tcloBuffer + resultValueLength;
    }
 
    /*
