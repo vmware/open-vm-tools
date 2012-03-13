@@ -2568,11 +2568,13 @@ VixToolsGetAPIDisabledFromConf(GKeyFile *confDictRef,            // IN
    /*
     * Make sure vgauth related stuff does not show as enabled.
     */
-   if ((strcmp(varName, VIX_TOOLS_CONFIG_API_ADD_AUTH_PRINCIPAL_NAME) == 0) ||
-       (strcmp(varName, VIX_TOOLS_CONFIG_API_REMOVE_AUTH_PRINCIPAL_NAME) == 0) ||
-       (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_AUTH_PRINCIPALS_NAME) == 0) ||
-       (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_MAPPED_PRINCIPALS_NAME) == 0)) {
-      disabled = TRUE;
+   if (NULL != varName) {
+      if ((strcmp(varName, VIX_TOOLS_CONFIG_API_ADD_AUTH_PRINCIPAL_NAME) == 0) ||
+          (strcmp(varName, VIX_TOOLS_CONFIG_API_REMOVE_AUTH_PRINCIPAL_NAME) == 0) ||
+          (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_AUTH_PRINCIPALS_NAME) == 0) ||
+          (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_MAPPED_PRINCIPALS_NAME) == 0)) {
+         disabled = TRUE;
+      }
    }
 #endif
 
