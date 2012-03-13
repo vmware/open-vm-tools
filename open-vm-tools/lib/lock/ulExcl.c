@@ -249,7 +249,7 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
    Warning("\trank 0x%X\n", lock->header.rank);
    Warning("\tserial number %u\n", lock->header.serialNumber);
 
-   Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
+   Warning("\tcount %d\n", MXRecLockCount(&lock->recursiveLock));
 
    Warning("\taddress of owner data 0x%p\n",
            &lock->recursiveLock.nativeThreadID);

@@ -479,7 +479,7 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
    if (LIKELY(lock->useNative)) {
       Warning("\taddress of native lock 0x%p\n", &lock->nativeLock);
    } else {
-      Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
+      Warning("\tcount %d\n", MXRecLockCount(&lock->recursiveLock));
    }
 
    Warning("\tholderCount %d\n", Atomic_Read(&lock->holderCount));

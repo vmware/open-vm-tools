@@ -255,10 +255,10 @@ MXRecLockDestroy(MXRecLock *lock)  // IN/OUT:
    if (vmx86_debug && (err != 0)) {
       Panic("%s: MXRecLockDestroyInternal returned %d\n", __FUNCTION__, err);
    }
-} 
+}
 
 
-static INLINE uint32
+static INLINE int
 MXRecLockCount(const MXRecLock *lock)  // IN:
 {
    return lock->referenceCount;
@@ -269,6 +269,8 @@ static INLINE void
 MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
                   uint32 count)     // IN:
 {
+   ASSERT(MXRecLockCount(lock) >= 0);
+
    if (MXRecLockCount(lock) == 0) {
       MXRecLockSetOwner(lock);
    }
@@ -315,7 +317,7 @@ MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
                err);
       }
 
-      ASSERT(lock->referenceCount == 0);
+      ASSERT(MXRecLockCount(lock) == 0);
    }
 
    MXRecLockIncCount(lock, 1);
@@ -358,8 +360,9 @@ static INLINE void
 MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
                   uint32 count)     // IN:
 {
-   ASSERT(count <= lock->referenceCount);
+   ASSERT(count <= MXRecLockCount(lock));
    lock->referenceCount -= count;
+   ASSERT(MXRecLockCount(lock) >= 0);
 
    if (MXRecLockCount(lock) == 0) {
       MXRecLockSetNoOwner(lock);
