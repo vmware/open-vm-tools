@@ -119,6 +119,10 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, A,  0xA)                   \
    CPUIDLEVEL(TRUE,  D,  0xD)                   \
    CPUIDLEVEL(FALSE,400, 0x40000000)            \
+   CPUIDLEVEL(FALSE,401, 0x40000001)            \
+   CPUIDLEVEL(FALSE,402, 0x40000002)            \
+   CPUIDLEVEL(FALSE,403, 0x40000003)            \
+   CPUIDLEVEL(FALSE,404, 0x40000004)            \
    CPUIDLEVEL(FALSE,410, 0x40000010)            \
    CPUIDLEVEL(FALSE, 80, 0x80000000)            \
    CPUIDLEVEL(TRUE,  81, 0x80000001)            \
