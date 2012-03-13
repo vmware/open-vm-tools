@@ -521,23 +521,18 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       MXUserAcquisitionTracking(&lock->header, TRUE);
 
       if (vmx86_stats) {
-         Bool contended;
-         VmTimeType start = 0;
+         VmTimeType value = 0;
          MXUserStats *stats = Atomic_ReadPtr(&lock->statsMem);
 
-         if (LIKELY(stats != NULL)) {
-            start = Hostinfo_SystemTimerNS();
-         }
-
-         contended = MXRecLockAcquire(&lock->recursiveLock);
+         MXRecLockAcquire(&lock->recursiveLock,
+                          (stats == NULL) ? NULL : &value);
 
          if (LIKELY(stats != NULL)) {
             if (MXRecLockCount(&lock->recursiveLock) == 1) {
                MXUserHisto *histo;
-               VmTimeType value = Hostinfo_SystemTimerNS() - start;
 
                MXUserAcquisitionSample(&stats->acquisitionStats, TRUE,
-                                       contended, value);
+                                       value != 0, value);
 
                histo = Atomic_ReadPtr(&stats->acquisitionHisto);
 
@@ -549,7 +544,8 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
             }
          }
       } else {
-         MXRecLockAcquire(&lock->recursiveLock);
+         MXRecLockAcquire(&lock->recursiveLock,
+                          NULL);  // non-stats
       }
    }
 

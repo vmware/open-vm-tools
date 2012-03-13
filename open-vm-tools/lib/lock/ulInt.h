@@ -39,6 +39,7 @@ typedef pthread_t MXUserThreadID;
 
 #include "vm_basic_types.h"
 #include "vthreadBase.h"
+#include "hostinfo.h"
 
 #include "circList.h"
 
@@ -271,7 +272,7 @@ static INLINE void
 MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
                   int count)        // IN:
 {
-   ASSERT(count > 0);
+   ASSERT(count >= 0);
 
    if (MXRecLockCount(lock) == 0) {
       MXRecLockSetOwner(lock);
@@ -281,15 +282,21 @@ MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
 }
 
 
-static INLINE Bool
-MXRecLockAcquire(MXRecLock *lock)  // IN/OUT:
+static INLINE void
+MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
+                 VmTimeType *duration)  // OUT/OPT:
 {
    int err;
+   VmTimeType start = 0;
 
    if ((MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
       MXRecLockIncCount(lock, 1);
 
-      return FALSE;  // Not contended
+      if (duration != NULL) {
+         *duration = 0ULL;
+      }
+
+      return;  // Uncontended
    }
 
    err = MXRecLockTryAcquireInternal(lock);
@@ -297,14 +304,26 @@ MXRecLockAcquire(MXRecLock *lock)  // IN/OUT:
    if (err == 0) {
       MXRecLockIncCount(lock, 1);
 
-      return FALSE;  // Not contended
+      if (duration != NULL) {
+         *duration = 0ULL;
+      }
+
+      return;  // Uncontended
    }
 
    if (vmx86_debug && (err != EBUSY)) {
       Panic("%s: MXRecLockTryAcquireInternal error %d\n", __FUNCTION__, err);
    }
 
+   if (duration != NULL) {
+      start = Hostinfo_SystemTimerNS();
+   }
+
    err = MXRecLockAcquireInternal(lock);
+
+   if (duration != NULL) {
+      *duration = Hostinfo_SystemTimerNS() - start;
+   }
 
    if (vmx86_debug && (err != 0)) {
       Panic("%s: MXRecLockAcquireInternal error %d\n", __FUNCTION__, err);
@@ -314,7 +333,7 @@ MXRecLockAcquire(MXRecLock *lock)  // IN/OUT:
 
    MXRecLockIncCount(lock, 1);
 
-   return TRUE;  // Contended
+   return;  // Contended
 }
 
 
@@ -348,7 +367,7 @@ static INLINE void
 MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
                   int count)        // IN:
 {
-   ASSERT(count > 0);
+   ASSERT(count >= 0);
 
    lock->referenceCount -= count;
 
