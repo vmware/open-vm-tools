@@ -51,4 +51,10 @@ typedef struct ethtool_value compat_ethtool_value;
 #   endif
 #endif
 
+#if COMPAT_LINUX_VERSION_CHECK_LT(3, 3, 0)
+#   define compat_ethtool_rxfh_indir_default(i, num_queues) (i % num_queues)
+#else
+#   define compat_ethtool_rxfh_indir_default(i, num_queues) ethtool_rxfh_indir_default(i, num_queues)
+#endif
+
 #endif /* _COMPAT_ETHTOOL_H */
