@@ -1609,8 +1609,15 @@ HostinfoSystemTimerMach(VmTimeType *result)  // OUT
 {
 #if __APPLE__
 #  define vmx86_apple 1
+
+   typedef struct {
+      mach_timebase_info_data_t timeBase;
+      double                    scalingFactor;
+      Bool                      unity;
+   } timerData;
+
    VmTimeType raw;
-   mach_timebase_info_data_t *ptr;
+   timerData *ptr;
    static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
 
    /*
@@ -1619,31 +1626,33 @@ HostinfoSystemTimerMach(VmTimeType *result)  // OUT
     */
 
    /* Ensure that the time base values are correct. */
-   ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
+   ptr = Atomic_ReadPtr(&atomic);
 
    if (UNLIKELY(ptr == NULL)) {
-      char *p;
+      timerData *new = Util_SafeMalloc(sizeof *new);
 
-      p = Util_SafeMalloc(sizeof(mach_timebase_info_data_t));
+      mach_timebase_info(&new->timeBase);
 
-      mach_timebase_info((mach_timebase_info_data_t *) p);
+      new->scalingFactor = ((double) new->timeBase.numer) /
+                           ((double) new->timeBase.denom);
 
-      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
-         free(p);
+      new->unity = ((new->timeBase.numer == 1) && (new->timeBase.denom == 1));
+
+      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, new)) {
+         free(new);
       }
 
-      ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
+      ptr = Atomic_ReadPtr(&atomic);
    }
 
    raw = mach_absolute_time();
 
-   if ((ptr->numer == 1) && (ptr->denom == 1)) {
-      /* The scaling values are unity, save some time/arithmetic */
+   if (LIKELY(ptr->unity)) {
       *result = raw;
    } else {
-      /* The scaling values are not unity. Prevent overflow when scaling */
-      *result = ((double) raw) * (((double) ptr->numer) / ((double) ptr->denom));
+      *result = ((double) raw) * ptr->scalingFactor;
    }
+
    return TRUE;
 #else
 #  define vmx86_apple 0
