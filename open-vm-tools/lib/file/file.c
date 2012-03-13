@@ -1876,9 +1876,11 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
    char *cur;
    char *tok;
    Bool found;
+   Bool full;
    char *saveptr = NULL;
    char *sp = NULL;
-   char *file = NULL;
+   Unicode dir = NULL;
+   Unicode file = NULL;
 
    ASSERT(fileIn);
    ASSERT(cwd);
@@ -1888,7 +1890,8 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
     * First check the usual places - the fullpath or the cwd.
     */
 
-   if (File_IsFullPath(fileIn)) {
+   full = File_IsFullPath(fileIn);
+   if (full) {
       cur = Util_SafeStrdup(fileIn);
    } else {
       cur = Str_SafeAsprintf(NULL, "%s%s%s", cwd, DIRSEPS, fileIn);
@@ -1904,12 +1907,23 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
    free(cur);
    cur = NULL;
 
+   if (full) {
+      goto done;
+   }
+
+   File_GetPathName(fileIn, &dir, &file);
+
+   /*
+    * Search path applies only if filename is simple basename.
+    */
+   if (Unicode_LengthInCodePoints(dir) != 0) {
+      goto done;
+   }
+
    /*
     * Didn't find it in the usual places so strip it to its bare minimum and
     * start searching.
     */
-
-   File_GetPathName(fileIn, NULL, &file);
 
    sp = Util_SafeStrdup(searchPath);
    tok = strtok_r(sp, FILE_SEARCHPATHTOKEN, &saveptr);
@@ -1961,7 +1975,8 @@ done:
    }
 
    free(sp);
-   free(file);
+   Unicode_Free(dir);
+   Unicode_Free(file);
 
    return found;
 }
