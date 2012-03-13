@@ -161,14 +161,14 @@ help.timesync =
    "サブコマンド:\n"
    "   enable: 時間同期を有効にする\n"
    "   disable: 時間同期を無効にする\n"
-   "status: 時間同期ステータスを出力\n"
+   "   status: 時間同期ステータスを出力\n"
 
 help.upgrade =
    "%1$s: VMware Tools のアップグレードに関連する機能。\n"
    "使用方法: %2$s %3$s <サブコマンド> [引数]\n"
    "サブコマンド:\n"
    "   status: VMware Tools のアップグレード ステータスを確認\n"
-   "start: VMware Tools の自動アップグレードを開始\n"
+   "   start: VMware Tools の自動アップグレードを開始\n"
    "\n"
    "アップグレードが機能するには、VMware Tools サービスを実行している必要があります。\n"
 
@@ -221,3 +221,4 @@ upgrade.error.unknown_reply = "予期しないホスト応答: %1$s\n"
 upgrade.started = "アップグレードが開始されました。\n"
 
 upgrade.uptodate = "VMware Tools は最新です。\n"
+

@@ -69,10 +69,10 @@ struct VPageChannel {
    VMCIId attachSubId;
    VMCIId detachSubId;
    Bool qpConnected;
-   VMCILock qpRecvLock;
-   VMCILock qpSendLock;
-   VMCIMutex qpRecvMutex;
-   VMCIMutex qpSendMutex;
+   spinlock_t qpRecvLock;
+   spinlock_t qpSendLock;
+   struct semaphore qpRecvMutex;
+   struct semaphore qpSendMutex;
 
    /*
     * Doorbell info.
@@ -121,14 +121,16 @@ static int VPageChannelSendControl(VPageChannel *channel,
  */
 
 static void
-VPageChannelAcquireSendLock(VPageChannel *channel) // IN
+VPageChannelAcquireSendLock(VPageChannel *channel, // IN
+                            unsigned long *flags)  // OUT
 {
    ASSERT(channel);
 
+   *flags = 0; /* Make compiler happy about it being unused in some paths. */
    if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      VMCIMutex_Acquire(&channel->qpSendMutex);
+      down(&channel->qpSendMutex);
    } else {
-      VMCI_GrabLock_BH(&channel->qpSendLock, NULL);
+      spin_lock_irqsave(&channel->qpSendLock, *flags);
    }
 }
 
@@ -150,14 +152,15 @@ VPageChannelAcquireSendLock(VPageChannel *channel) // IN
  */
 
 static void
-VPageChannelReleaseSendLock(VPageChannel *channel) // IN
+VPageChannelReleaseSendLock(VPageChannel *channel, // IN
+                            unsigned long flags)   // IN
 {
    ASSERT(channel);
 
    if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      VMCIMutex_Release(&channel->qpSendMutex);
+      up(&channel->qpSendMutex);
    } else {
-      VMCI_ReleaseLock_BH(&channel->qpSendLock, 0);
+      spin_unlock_irqrestore(&channel->qpSendLock, flags);
    }
 }
 
@@ -179,14 +182,17 @@ VPageChannelReleaseSendLock(VPageChannel *channel) // IN
  */
 
 static void
-VPageChannelAcquireRecvLock(VPageChannel *channel) // IN
+VPageChannelAcquireRecvLock(VPageChannel *channel, // IN
+                            unsigned long *flags)  // OUT
 {
    ASSERT(channel);
+   ASSERT(flags);
 
+   *flags = 0; /* Make compiler happy about it being unused in some paths. */
    if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      VMCIMutex_Acquire(&channel->qpRecvMutex);
+      down(&channel->qpRecvMutex);
    } else {
-      VMCI_GrabLock_BH(&channel->qpRecvLock, NULL);
+      spin_lock_irqsave(&channel->qpRecvLock, *flags);
    }
 }
 
@@ -208,14 +214,15 @@ VPageChannelAcquireRecvLock(VPageChannel *channel) // IN
  */
 
 static void
-VPageChannelReleaseRecvLock(VPageChannel *channel) // IN
+VPageChannelReleaseRecvLock(VPageChannel *channel, // IN
+                            unsigned long flags)   // IN
 {
    ASSERT(channel);
 
    if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      VMCIMutex_Release(&channel->qpRecvMutex);
+      up(&channel->qpRecvMutex);
    } else {
-      VMCI_ReleaseLock_BH(&channel->qpRecvLock, 0);
+      spin_unlock_irqrestore(&channel->qpRecvLock, flags);
    }
 }
 
@@ -486,7 +493,7 @@ VPageChannelDgRecvFunc(void *clientData,         // IN
 /*
  *----------------------------------------------------------------------------
  *
- * VMCIPacketDoDoorbellCallback --
+ * VPageChannelDoDoorbellCallback
  *
  *    Process a doorbell notification.  Will read packets from the queuepair
  *    until empty.
@@ -504,9 +511,10 @@ VPageChannelDgRecvFunc(void *clientData,         // IN
  */
 
 static void
-VMCIPacketDoDoorbellCallback(VPageChannel *channel) // IN/OUT
+VPageChannelDoDoorbellCallback(VPageChannel *channel) // IN/OUT
 {
    Bool inUse;
+   unsigned long flags;
    VPageChannelPacket packetHeader;
 
    ASSERT(channel);
@@ -517,10 +525,10 @@ VMCIPacketDoDoorbellCallback(VPageChannel *channel) // IN/OUT
       return;
    }
 
-   VPageChannelAcquireRecvLock(channel);
+   VPageChannelAcquireRecvLock(channel, &flags);
    inUse = channel->inPoll;
    channel->inPoll = TRUE;
-   VPageChannelReleaseRecvLock(channel);
+   VPageChannelReleaseRecvLock(channel, flags);
 
    if (inUse) {
       return;
@@ -601,7 +609,7 @@ retry:
       VMCI_FreeKernelMem(packet, totalSize);
    }
 
-   VPageChannelAcquireRecvLock(channel);
+   VPageChannelAcquireRecvLock(channel, &flags);
 
    /*
     * The doorbell may have been notified between when we we finished reading
@@ -612,19 +620,19 @@ retry:
     */
 
    if (VMCIQPair_ConsumeBufReady(channel->qpair) >= sizeof packetHeader) {
-      VPageChannelReleaseRecvLock(channel);
+      VPageChannelReleaseRecvLock(channel, flags);
       goto retry;
    }
 
    channel->inPoll = FALSE;
-   VPageChannelReleaseRecvLock(channel);
+   VPageChannelReleaseRecvLock(channel, flags);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * VMCIPacketDoorbellCallback --
+ * VPageChannelDoorbellCallback --
  *
  *    Callback for doorbell notification.  Will invoke the channel's receive
  *    function directly or process the packets in the queuepair.
@@ -639,7 +647,7 @@ retry:
  */
 
 static void
-VMCIPacketDoorbellCallback(void *clientData) // IN/OUT
+VPageChannelDoorbellCallback(void *clientData) // IN/OUT
 {
    VPageChannel *channel = (VPageChannel *)clientData;
 
@@ -648,7 +656,7 @@ VMCIPacketDoorbellCallback(void *clientData) // IN/OUT
    if (channel->flags & VPAGECHANNEL_FLAGS_NOTIFY_ONLY) {
       channel->recvCB(channel->clientRecvData, NULL);
    } else {
-      VMCIPacketDoDoorbellCallback(channel);
+      VPageChannelDoDoorbellCallback(channel);
    }
 }
 
@@ -699,7 +707,7 @@ VPageChannelSendConnectionMessage(VPageChannel *channel) // IN
 /*
  *----------------------------------------------------------------------------
  *
- * VMCIPacketPeerAttachCB --
+ * VPageChannelPeerAttachCB --
  *
  *    Invoked when a peer attaches to a queue pair.
  *
@@ -741,7 +749,7 @@ VPageChannelPeerAttachCB(VMCIId subId,             // IN
 /*
  *----------------------------------------------------------------------------
  *
- * VMCIPacketPeerDetachCB --
+ * VPageChannelPeerDetachCB --
  *
  *    Invoked when a peer detaches from a queue pair.
  *
@@ -851,13 +859,11 @@ VPageChannelCreateQueuePair(VPageChannel *channel) // IN/OUT
    ASSERT(VMCI_INVALID_ID == channel->attachSubId);
 
    if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      /* Mutex creation can't fail on Linux. */
-      (void)VMCIMutex_Init(&channel->qpSendMutex, "VPageChannelSendMutex", 0);
-      (void)VMCIMutex_Init(&channel->qpRecvMutex, "VPageChannelRecvMutex", 0);
+      sema_init(&channel->qpSendMutex, 1);
+      sema_init(&channel->qpRecvMutex, 1);
    } else {
-      /* Similarly, spinlock creation can't fail on Linux. */
-      (void)VMCI_InitLock(&channel->qpSendLock, "VPageChannelSendLock", 0);
-      (void)VMCI_InitLock(&channel->qpRecvLock, "VPageChannelRecvLock", 0);
+      spin_lock_init(&channel->qpSendLock);
+      spin_lock_init(&channel->qpRecvLock);
    }
 
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_ATTACH,
@@ -1045,7 +1051,7 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
       VMCI_FLAG_DELAYED_CB : 0;
    retval = VMCIDoorbell_Create(&pageChannel->doorbellHandle,
                                 flags, VMCI_PRIVILEGE_FLAG_RESTRICTED,
-                                VMCIPacketDoorbellCallback, pageChannel);
+                                VPageChannelDoorbellCallback, pageChannel);
    if (retval < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to create doorbell "
                     "(channel=%p) (err=%d).\n",
@@ -1149,7 +1155,7 @@ EXPORT_SYMBOL(VPageChannel_Destroy);
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIPacketAllocDatagram --
+ * VPageChannelAllocDatagram --
  *
  *      Allocate a datagram for the packet.  This is only used until the
  *      connection is made; after that, packets are passed over the queuepair.
@@ -1319,17 +1325,16 @@ int
 VPageChannel_SendPacket(VPageChannel *channel,         // IN
                         VPageChannelPacket *packet)    // IN
 {
-   int retval;
    ssize_t totalSize, sentSize, curSize;
    ssize_t freeSpace;
+   unsigned long flags;
 
    ASSERT(channel);
 
    if (!channel->qpConnected) {
       VMCI_WARNING((LGPFX"Not connected (channel=%p).\n",
                     channel));
-      retval = VMCI_ERROR_DST_UNREACHABLE;
-      goto error;
+      return VMCI_ERROR_DST_UNREACHABLE;
    }
 
    ASSERT(packet);
@@ -1337,7 +1342,7 @@ VPageChannel_SendPacket(VPageChannel *channel,         // IN
    totalSize = sizeof(VPageChannelPacket) + packet->msgLen +
       packet->numElems * sizeof(VPageChannelElem);
 
-   VPageChannelAcquireSendLock(channel);
+   VPageChannelAcquireSendLock(channel, &flags);
 
    freeSpace = VMCIQPair_ProduceFreeSpace(channel->qpair);
    if (freeSpace < totalSize) {
@@ -1346,14 +1351,15 @@ VPageChannel_SendPacket(VPageChannel *channel,         // IN
                     channel,
                     totalSize,
                     freeSpace));
-      retval = VMCI_ERROR_NO_MEM;
-      goto unlock;
+      VPageChannelReleaseSendLock(channel, flags);
+      return VMCI_ERROR_NO_MEM;
    }
 
    sentSize = VMCIQPair_Enqueue(channel->qpair, packet, totalSize, 0);
    curSize = VMCIQPair_ProduceBufReady(channel->qpair);
 
    if (curSize == sentSize) {
+      int retval;
       retval = VMCIDoorbell_Notify(channel->peerDoorbellHandle,
                                    /* XXX, TRUSTED for VMKernel. */
                                    VMCI_PRIVILEGE_FLAG_RESTRICTED);
@@ -1364,11 +1370,12 @@ VPageChannel_SendPacket(VPageChannel *channel,         // IN
                        channel->peerDoorbellHandle.context,
                        channel->peerDoorbellHandle.resource,
                        retval));
-         goto unlock;
+         VPageChannelReleaseSendLock(channel, flags);
+         return retval;
       }
    }
 
-   VPageChannelReleaseSendLock(channel);
+   VPageChannelReleaseSendLock(channel, flags);
 
    if (sentSize < totalSize) {
       /*
@@ -1380,8 +1387,7 @@ VPageChannel_SendPacket(VPageChannel *channel,         // IN
                     channel,
                     totalSize,
                     sentSize));
-      retval = VMCI_ERROR_NO_MEM;
-      goto error;
+      return VMCI_ERROR_NO_MEM;
    }
 
    VMCI_DEBUG_LOG(10,
@@ -1390,11 +1396,6 @@ VPageChannel_SendPacket(VPageChannel *channel,         // IN
                    sentSize));
 
    return VMCI_SUCCESS;
-
-unlock:
-   VPageChannelReleaseSendLock(channel);
-error:
-   return retval;
 }
 EXPORT_SYMBOL(VPageChannel_SendPacket);
 
@@ -1502,7 +1503,7 @@ void
 VPageChannel_PollRecvQ(VPageChannel *channel)     // IN
 {
    if (channel->qpConnected) {
-      VMCIPacketDoDoorbellCallback(channel);
+      VPageChannelDoDoorbellCallback(channel);
    }
 }
 EXPORT_SYMBOL(VPageChannel_PollRecvQ);

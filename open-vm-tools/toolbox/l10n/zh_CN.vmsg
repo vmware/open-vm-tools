@@ -39,10 +39,17 @@ disk.shrink.canceled = "磁盘缩小已取消。\n"
 disk.shrink.complete = "磁盘缩小完成。\n"
 
 disk.shrink.conflict =
-   "错误，工具箱认为已启用磁盘压缩，而主机认为<hi-break>已禁用磁盘压缩。\n<hi-break>\n<hi-break>请关闭再重新打开工具箱，使之与主机同步。\n"
+   "错误，工具箱认为已启用磁盘压缩，而主机认为"
+   "已禁用磁盘压缩。\n"
+   "\n"
+   "请关闭再重新打开工具箱，使之与主机同步。\n"
 
 disk.shrink.disabled =
-   "该虚拟机的压缩磁盘功能已禁用。\n<hi-break>\n<hi-break>由于链接克隆、链接克隆的父级、\n<hi-break>预分配磁盘、快照或其他因素，压缩已禁用。\n<hi-break>有关详细信息，请参见用户手册。\n"
+   "该虚拟机的压缩磁盘功能已禁用。\n"
+   "\n"
+   "由于链接克隆、链接克隆的父级、\n"
+   "预分配磁盘、快照或其他因素，压缩已禁用。\n"
+   "有关详细信息，请参见用户手册。\n"
 
 disk.shrink.error = "缩小时出现错误: %1$s\n"
 
@@ -55,7 +62,16 @@ disk.shrink.partition.notfound = "无法找到分区 %1$s\n"
 disk.shrink.partition.unsupported = "分区 %1$s 不可缩小\n"
 
 disk.shrink.unavailable =
-   "压缩功能不可用，\n<hi-break>\n<hi-break>这是由于您正在运行低版本的 VMware 产品，或者由于<hi-break>打开了过多通信通道。\n<hi-break>\n<hi-break>如果您正在运行低版本的 VMware 产品，您应当考虑<hi-break>进行升级。\n<hi-break>\n<hi-break>如果打开了过多通信通道，您应当关闭虚拟机的电源，<hi-break>然后重新打开虚拟机的电源。\n"
+   "压缩功能不可用，\n"
+   "\n"
+   "这是由于您正在运行低版本的 VMware 产品，或者由于"
+   "打开了过多通信通道。\n"
+   "\n"
+   "如果您正在运行低版本的 VMware 产品，您应当考虑"
+   "进行升级。\n"
+   "\n"
+   "如果打开了过多通信通道，您应当关闭虚拟机的电源，"
+   "然后重新打开虚拟机的电源。\n"
 
 disk.wiper.error = "错误: %1$s"
 
@@ -66,34 +82,95 @@ error.missing = "%1$s: 缺失 %2$s\n"
 error.noadmin.posix = "%1$s: 您必须是 root 用户才能执行 %2$s 操作。\n"
 
 error.noadmin.win =
-   "%1$s: 需要有管理员权限才能执行 %2$s 操作。\n<hi-break>使用管理员命令提示符完成这些任务。\n"
+   "%1$s: 需要有管理员权限才能执行 %2$s 操作。\n"
+   "使用管理员命令提示符完成这些任务。\n"
 
 error.novirtual = "%1$s 必须在虚拟机内部运行。\n"
 
 error.unknown = "%1$s: %2$s“%3$s”未知\n"
 
 help.device =
-   "%1$s: 与虚拟机的硬件设备相关的功能\n<hi-break>用法: %2$s %3$s <子命令> [参数]\n<hi-break>dev 是设备的名称。\n<hi-break>\n<hi-break>子命令:\n<hi-break>enable <设备>: 启用设备 dev\n<hi-break>disable <设备>: 禁用设备 dev\n<hi-break>list: 列出所有可用设备\n<hi-break>status <设备>: 打印设备的状态\n"
+   "%1$s: 与虚拟机的硬件设备相关的功能\n"
+   "用法: %2$s %3$s <子命令> [参数]\n"
+   "dev 是设备的名称。\n"
+   "\n"
+   "子命令:\n"
+   "   enable <设备>: 启用设备 dev\n"
+   "   disable <设备>: 禁用设备 dev\n"
+   "   list: 列出所有可用设备\n"
+   "   status <设备>: 打印设备的状态\n"
 
 help.disk =
-   "%1$s: 执行磁盘压缩操作\n<hi-break>用法: %2$s %3$s <子命令> [参数]\n<hi-break>\n<hi-break>子命令:\n<hi-break>   list: 列出可用位置\n<hi-break>   shrink <位置>: 在指定位置擦除和压缩文件系统\n<hi-break>   shrinkonly: 压缩所有磁盘\n<hi-break>   wipe <位置>: 在指定位置擦除文件系统\n"
+   "%1$s: 执行磁盘压缩操作\n"
+   "用法: %2$s %3$s <子命令> [参数]\n"
+   "\n"
+   "子命令:\n"
+   "   list: 列出可用位置\n"
+   "   shrink <位置>: 在指定位置擦除和压缩文件系统\n"
+   "   shrinkonly: 压缩所有磁盘\n"
+   "   wipe <位置>: 在指定位置擦除文件系统\n"
 
 help.hint = "有关详细信息，请尝试“%1$s %2$s%3$s%4$s”。\n"
 
 help.main =
-   "用法: %1$s <命令> [选项] [子命令]\n<hi-break>键入“%2$s %3$s <命令>”以获取有关特定命令的帮助。\n<hi-break>键入“%4$s -v”查看 VMware Tools 版本。\n<hi-break>使用“-q”选项可取消 stdout 输出。\n<hi-break>大多数命令都有子命令。\n<hi-break>\n<hi-break>可用命令:\n<hi-break>device\n<hi-break>disk\n<hi-break>script\n<hi-break>stat\n<hi-break>timesync\n<hi-break>upgrade (并非所有操作系统都支持)\n<hi-break>\n<hi-break>有关其他信息，请访问 http://www.vmware.com/support/\n<hi-break>\n"
+   "用法: %1$s <命令> [选项] [子命令]\n"
+   "键入“%2$s %3$s <命令>”以获取有关特定命令的帮助。\n"
+   "键入“%4$s -v”查看 VMware Tools 版本。\n"
+   "使用“-q”选项可取消 stdout 输出。\n"
+   "大多数命令都有子命令。\n"
+   "\n"
+   "可用命令:\n"
+   "   device\n"
+   "   disk\n"
+   "   script\n"
+   "   stat\n"
+   "   timesync\n"
+   "   upgrade (并非所有操作系统都支持)\n"
 
 help.script =
-   "%1$s: 控制脚本运行以响应打开电源操作\n<hi-break>用法: %2$s %3$s <power|resume|suspend|shutdown> <子命令> [参数]\n<hi-break>\n<hi-break>子命令:\n<hi-break>enable: 启用给定脚本，并将其路径还原为默认值\n<hi-break>disable: 禁用给定脚本\n<hi-break>set <完整路径>: 将给定脚本设置为给定路径\n<hi-break>default: 打印给定脚本的默认路径\n<hi-break>current: 打印给定脚本的当前路径\n"
+   "%1$s: 控制脚本运行以响应打开电源操作\n"
+   "用法: %2$s %3$s <power|resume|suspend|shutdown> <子命令> [参数]\n"
+   "\n"
+   "子命令:\n"
+   "   enable: 启用给定脚本，并将其路径还原为默认值\n"
+   "   disable: 禁用给定脚本\n"
+   "   set <完整路径>: 将给定脚本设置为给定路径\n"
+   "   default: 打印给定脚本的默认路径\n"
+   "   current: 打印给定脚本的当前路径\n"
 
 help.stat =
-   "%1$s: 打印有用的客户机和主机信息\n<hi-break>用法: %2$s %3$s <子命令>\n<hi-break>\n<hi-break>子命令:\n<hi-break>hosttime: 打印主机时间\n<hi-break>speed: 以 MHz 为单位打印 CPU 速度\n<hi-break>仅 ESX 客户机子命令:\n<hi-break>sessionid: 打印当前的会话 ID\n<hi-break>balloon: 打印内存虚拟增长信息\n<hi-break>swap: 打印内存交换信息\n<hi-break>memlimit: 打印内存限制信息\n<hi-break>memres: 打印内存预留信息\n<hi-break>cpures: 打印 CPU 预留信息\n<hi-break>cpulimit: 打印 CPU 限制信息\n"
+   "%1$s: 打印有用的客户机和主机信息\n"
+   "用法: %2$s %3$s <子命令>\n"
+   "\n"
+   "子命令:\n"
+   "   hosttime: 打印主机时间\n"
+   "   speed: 以 MHz 为单位打印 CPU 速度\n"
+   "仅 ESX 客户机子命令:\n"
+   "   sessionid: 打印当前的会话 ID\n"
+   "   balloon: 打印内存虚拟增长信息\n"
+   "   swap: 打印内存交换信息\n"
+   "   memlimit: 打印内存限制信息\n"
+   "   memres: 打印内存预留信息\n"
+   "   cpures: 打印 CPU 预留信息\n"
+   "   cpulimit: 打印 CPU 限制信息\n"
 
 help.timesync =
-   "%1$s: 用于控制客户机操作系统上的时间同步的功能\n<hi-break>用法: %2$s %3$s <子命令>\n<hi-break>\n<hi-break>子命令:\n<hi-break>enable: 启用时间同步\n<hi-break>disable: 禁用时间同步\n<hi-break>status: 打印时间同步状态\n"
+   "%1$s: 用于控制客户机操作系统上的时间同步的功能\n"
+   "用法: %2$s %3$s <子命令>\n"
+   "\n"
+   "子命令:\n"
+   "   enable: 启用时间同步\n"
+   "   disable: 禁用时间同步\n"
+   "   status: 打印时间同步状态\n"
 
 help.upgrade =
-   "%1$s: 与升级 VMware Tools 相关的功能。\n<hi-break>用法: %2$s %3$s <子命令> [参数]\n<hi-break>子命令:\n<hi-break>status: 检查 VMware Tools 升级状态。\n<hi-break>start: 启动 VMware Tools 自动升级。\n<hi-break>\n<hi-break>要进行升级，需要运行 VMware Tools 服务。\n"
+   "%1$s: 与升级 VMware Tools 相关的功能。\n"
+   "用法: %2$s %3$s <子命令> [参数]\n"
+   "子命令:\n"
+   "   status: 检查 VMware Tools 升级状态。\n"
+   "   start: 启动 VMware Tools 自动升级。\n"
+   "\n"
+   "要进行升级，需要运行 VMware Tools 服务。\n"
 
 option.disabled = "已禁用"
 

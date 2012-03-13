@@ -435,9 +435,9 @@
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_DESKTOP)
 #    if defined(__APPLE__)
-#      define PRODUCT_LICENSE_VERSION "4.0+"
+#      define PRODUCT_LICENSE_VERSION "5.0"
 #    else
-#      define PRODUCT_LICENSE_VERSION "8.0+"
+#      define PRODUCT_LICENSE_VERSION "9.0"
 #    endif
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "5.0"

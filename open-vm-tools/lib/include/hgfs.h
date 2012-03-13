@@ -152,6 +152,7 @@ typedef enum {
  * HgfsLookup to fail unexpectedly (normally HGFS_STATUS_INVALID_NAME is
  * converted to -ENOENT, an expected result in HgfsLookup).
  */
+
 typedef enum {
    HGFS_STATUS_SUCCESS,
    HGFS_STATUS_NO_SUCH_FILE_OR_DIR,
@@ -176,6 +177,8 @@ typedef enum {
     */
    HGFS_STATUS_STALE_SESSION,
    HGFS_STATUS_TOO_MANY_SESSIONS,
+
+   HGFS_STATUS_TRANSPORT_ERROR,
 } HgfsStatus;
 
 /*
