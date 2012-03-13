@@ -700,6 +700,19 @@ typedef void * UserVA;
 #endif
 
 /*
+ * Used when a function has no effects except the return value and the
+ * return value depends only on the parameters and/or global variables
+ * Such a function can be subject to common subexpression elimination
+ * and loop optimization just as an arithmetic operator would be. 
+ */
+
+#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
+#define SIDE_EFFECT_FREE __attribute__((__pure__))
+#else
+#define SIDE_EFFECT_FREE
+#endif
+
+/*
  * Attributes placed on function declarations to tell the compiler
  * that the function never returns.
  */

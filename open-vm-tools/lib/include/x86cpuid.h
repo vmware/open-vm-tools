@@ -395,9 +395,11 @@ FLAG(   6,  0, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,              NA,  FALSE)
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
 FLAG(   7,  0, EBX, INTEL,   0,  1, FSGSBASE,                      YES, FALSE) \
 FLAG(   7,  0, EBX, AMD,     3,  1, BMI1,                          YES, TRUE ) \
+FLAG(   7,  0, EBX, INTEL,   4,  1, HLE,                           YES, TRUE)  \
 FLAG(   7,  0, EBX, INTEL,   7,  1, SMEP,                          YES, FALSE) \
 FLAG(   7,  0, EBX, INTEL,   9,  1, ENFSTRG,                       YES, FALSE) \
-FLAG(   7,  0, EBX, INTEL,  10,  1, INVPCID,                       NO,  FALSE)
+FLAG(   7,  0, EBX, INTEL,  10,  1, INVPCID,                       NO,  FALSE) \
+FLAG(   7,  0, EBX, INTEL,  11,  1, RTM,                           NO,  TRUE)
 
 /*    LEVEL, SUB-LEVEL, REG, VENDOR, POS, SIZE, NAME,        MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
