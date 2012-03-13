@@ -572,7 +572,7 @@ typedef void * UserVA;
 #define PHYSMEM_MAX_PPN   ((PPN)0xffffffff)
 #define MAX_PPN           ((PPN)0x1fffffff) /* Maximal observable PPN value. */
 #define INVALID_PPN       ((PPN)0xffffffff)
-#define APIC_DISABLED_PPN ((PPN)0xfffffffe)
+#define APIC_INVALID_PPN  ((PPN)0xfffffffe)
 
 #define INVALID_BPN       ((BPN)0x1fffffff)
 
