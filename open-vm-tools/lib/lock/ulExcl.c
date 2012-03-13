@@ -29,7 +29,6 @@ typedef struct
    MXUserAcquisitionStats  acquisitionStats;
    Atomic_Ptr              acquisitionHisto;
 
-   void                   *holder;
    VmTimeType              holdStart;
    MXUserBasicStats        heldStats;
    Atomic_Ptr              heldHisto;
@@ -242,7 +241,6 @@ static void
 MXUserDumpExclLock(MXUserHeader *header)  // IN:
 {
    MXUserExclLock *lock = (MXUserExclLock *) header;
-   MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
    Warning("%s: Exclusive lock @ 0x%p\n", __FUNCTION__, lock);
 
@@ -255,10 +253,6 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
 
    Warning("\taddress of owner data 0x%p\n",
            &lock->recursiveLock.nativeThreadID);
-
-   if (stats && (stats->holder != NULL)) {
-      Warning("\tholder 0x%p\n", stats->holder);
-   }
 }
 
 
@@ -413,13 +407,13 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
                               value != 0,  // True if contended
                               value);
 
-      stats->holder = GetReturnAddress();
-
       histo = Atomic_ReadPtr(&stats->acquisitionHisto);
 
       if (UNLIKELY(histo != NULL)) {
-         MXUserHistoSample(histo, value, stats->holder);
+         MXUserHistoSample(histo, value, GetReturnAddress());
       }
+
+      stats->holdStart = Hostinfo_SystemTimerNS();
    } else {
       MXRecLockAcquire(&lock->recursiveLock,
                        NULL);                 // non-stats
@@ -429,10 +423,6 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
       MXUserDumpAndPanic(&lock->header,
                          "%s: Acquire on an acquired exclusive lock\n",
                          __FUNCTION__);
-   }
-
-   if (stats) {
-      stats->holdStart = Hostinfo_SystemTimerNS();
    }
 }
 
@@ -472,8 +462,7 @@ MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
       histo = Atomic_ReadPtr(&stats->heldHisto);
 
       if (UNLIKELY(histo != NULL)) {
-         MXUserHistoSample(histo, value, stats->holder);
-         stats->holder = NULL;
+         MXUserHistoSample(histo, value, GetReturnAddress());
       }
    }
 
@@ -531,7 +520,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
    if (success) {
       MXUserAcquisitionTracking(&lock->header, FALSE);
 
-      if (MXRecLockCount(&lock->recursiveLock) > 1) {
+      if (vmx86_debug && (MXRecLockCount(&lock->recursiveLock) > 1)) {
          MXUserDumpAndPanic(&lock->header,
                             "%s: Acquire on an acquired exclusive lock\n",
                             __FUNCTION__);

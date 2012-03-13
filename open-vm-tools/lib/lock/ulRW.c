@@ -242,7 +242,6 @@ typedef enum {
 
 typedef struct {
    HolderState   state;
-   void         *holder;
    VmTimeType    holdStart;
 } HolderContext;
 
@@ -665,7 +664,6 @@ MXUserGetHolderContext(MXUserRWLock *lock)  // IN:
       HolderContext *newContext = Util_SafeMalloc(sizeof(HolderContext));
 
       newContext->holdStart = 0;
-      newContext->holder = NULL;
       newContext->state = RW_UNLOCKED;
 
       result = HashTable_LookupOrInsert(lock->holderTable, threadID,
@@ -767,6 +765,8 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
       if (forRead && lock->useNative) {
          MXRecLockRelease(&lock->recursiveLock);
       }
+
+      myContext->holdStart = Hostinfo_SystemTimerNS();
    } else {
       if (LIKELY(lock->useNative)) {
          int err = 0;
@@ -789,11 +789,6 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
 
    Atomic_Inc(&lock->holderCount);
    myContext->state = forRead ? RW_LOCKED_FOR_READ : RW_LOCKED_FOR_WRITE;
-
-   if (stats) {
-      myContext->holder = GetReturnAddress();
-      myContext->holdStart = Hostinfo_SystemTimerNS();
-   }
 }
 
 
@@ -938,8 +933,7 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
       histo = Atomic_ReadPtr(&stats->heldHisto);
 
       if (UNLIKELY(histo != NULL)) {
-         MXUserHistoSample(histo, duration, myContext->holder);
-         myContext->holder = NULL;
+         MXUserHistoSample(histo, duration, GetReturnAddress());
       }
 
       if ((myContext->state == RW_LOCKED_FOR_READ) && lock->useNative) {

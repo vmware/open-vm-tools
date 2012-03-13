@@ -29,7 +29,6 @@ typedef struct
    MXUserAcquisitionStats  acquisitionStats;
    Atomic_Ptr              acquisitionHisto;
 
-   void                   *holder;
    uint64                  holdStart;
    MXUserBasicStats        heldStats;
    Atomic_Ptr              heldHisto;
@@ -271,16 +270,10 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
    Warning("\treference count %u\n", Atomic_Read(&lock->refCount));
 
    if (lock->vmmLock == NULL) {
-      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
-
       Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
       Warning("\taddress of owner data 0x%p\n",
               &lock->recursiveLock.nativeThreadID);
-
-      if (stats && (stats->holder != NULL)) {
-         Warning("\tholder 0x%p\n", stats->holder);
-      }
    } else {
       Warning("\tvmmLock 0x%p\n", lock->vmmLock);
    }
@@ -524,12 +517,10 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
                                     value != 0,  // True if contended
                                     value);
 
-            stats->holder = GetReturnAddress();
-
             histo = Atomic_ReadPtr(&stats->acquisitionHisto);
 
             if (UNLIKELY(histo != NULL)) {
-               MXUserHistoSample(histo, value, stats->holder);
+               MXUserHistoSample(histo, value, GetReturnAddress());
             }
 
             stats->holdStart = Hostinfo_SystemTimerNS();
@@ -584,8 +575,7 @@ MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
             MXUserBasicStatsSample(&stats->heldStats, value);
 
             if (UNLIKELY(histo != NULL)) {
-               MXUserHistoSample(histo, value, stats->holder);
-               stats->holder = NULL;
+               MXUserHistoSample(histo, value, GetReturnAddress());
             }
          }
       }
