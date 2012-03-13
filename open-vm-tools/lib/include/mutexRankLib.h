@@ -36,6 +36,15 @@
  */
 
 /*
+ * workerLib default completion lock
+ *
+ * Used for workerLib callers who don't provide their own lock. Held
+ * around arbitrary completion callbacks so it probably makes sense to
+ * be of a low rank.
+ */
+#define RANK_workerLibCmplLock      RANK_libLockBase
+
+/*
  * hostDeviceInfo HAL lock
  *
  * Must be < vmhs locks since this is held around the RANK_vmhsHDILock
