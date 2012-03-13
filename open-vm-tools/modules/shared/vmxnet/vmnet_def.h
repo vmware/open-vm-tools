@@ -49,7 +49,7 @@
 #include "includeCheck.h"
 
 #define VMNET_NAME_BUFFER_LEN  128 /* Increased for i18n. */
-#define VMNET_COAL_SCHEME_NAME_LEN 16
+#define VMNET_COAL_STRING_LEN 16
 
 
 /*

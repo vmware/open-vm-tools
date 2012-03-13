@@ -316,7 +316,7 @@ CheckEthernet(struct ifaddrs *ifp,  // IN:
  */
 
 static int
-ObtainHardwareID(uint64 *hardwareID)  // OUT:
+ObtainHardwareID(uint64 *hardwareID)  // OUT: uint64[8]
 {
    uint32 i;
    struct ifaddrs *p;
@@ -337,22 +337,7 @@ ObtainHardwareID(uint64 *hardwareID)  // OUT:
       p = CheckEthernet(ifp, i);
 
       if (p != NULL) {
-         union bytes {
-            uint64 data;
-            char   bytes[8];
-         } x;
-
-         x.bytes[0] = p->ifa_addr->sa_data[9]  & 0xFF;	//XXX: hack!
-         x.bytes[1] = p->ifa_addr->sa_data[10] & 0xFF;	//XXX: hack!
-         x.bytes[2] = p->ifa_addr->sa_data[11] & 0xFF;	//XXX: hack!
-         x.bytes[3] = p->ifa_addr->sa_data[12] & 0xFF;	//XXX: hack!
-         x.bytes[4] = p->ifa_addr->sa_data[13] & 0xFF;	//XXX: hack!
-         x.bytes[5] = p->ifa_addr->sa_data[14] & 0xFF;	//XXX: hack!
-         x.bytes[6] = '\0';
-         x.bytes[7] = '\0';
-
-         *hardwareID = x.data;
-
+         memcpy(hardwareID, &p->ifa_addr->sa_data[9], 6); //XXX: Hack!
          break;
       }
    }

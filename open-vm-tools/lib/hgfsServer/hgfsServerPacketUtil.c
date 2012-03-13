@@ -61,7 +61,7 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
        * When we are transferring packets over backdoor, reply packet
        * is a static buffer. Backdoor should always return from here.
        */
-      LOG(4, ("Exising reply packet %s %Zu %Zu\n", __FUNCTION__,
+      LOG(4, ("Existing reply packet %s %"FMTSZ"u %"FMTSZ"u\n", __FUNCTION__,
               *replyPacketSize, packet->replyPacketSize));
       ASSERT_DEVEL(*replyPacketSize <= packet->replyPacketSize);
    } else if (transportSession->channelCbTable && transportSession->channelCbTable->getWriteVa) {

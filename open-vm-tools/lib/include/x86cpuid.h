@@ -789,7 +789,7 @@ enum {
  * other compilers.
  */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 
 #define CPUID_MASK(eaxIn, reg, flag)                                    \
    ({                                                                   \

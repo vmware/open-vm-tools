@@ -799,6 +799,47 @@ Bswap64(uint64 v) // IN
 
 
 /*
+ *----------------------------------------------------------------------
+ *
+ * COMPILER_FORCED_LOAD_AND_MEM_BARRIER --
+ *
+ *        This macro prevents the compiler from re-ordering memory references
+ *        across the barrier. In addition it emits a forced load from the given
+ *        memory reference. The memory reference has to be either 1, 2, 4 or 8
+ *        bytes wide.
+ *        The forced load of a memory reference can be used exploit details of a
+ *        given CPUs memory model. For example x86 CPUs won't reorder stores to
+ *        a memory location x with loads from a memory location x.
+ *        NOTE: It does not generate any fencing instruction, so the CPU is free
+ *              to reorder instructions according to its memory model.
+ *
+ * Results:
+ *        None
+ *
+ * Side Effects:
+ *        None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+#ifdef VM_X86_64
+#ifdef __GNUC__
+
+#define COMPILER_FORCED_LOAD_AND_MEM_BARRIER(_memory_reference)               \
+   do {                                                                       \
+      typeof(_memory_reference) _dummy;                                       \
+                                                                              \
+      asm volatile("mov %1, %0\n\t"                                           \
+                   : "=r" (_dummy) /* Let compiler choose reg for _dummy */   \
+                   : "m" (_memory_reference)                                  \
+                   : "memory");                                               \
+   } while(0)
+
+#endif /* __GNUC__ */
+#endif /* VM_X86_64 */
+
+
+/*
  * PAUSE is a P4 instruction that improves spinlock power+performance;
  * on non-P4 IA32 systems, the encoding is interpreted as a REPZ-NOP.
  * Use volatile to avoid NOP removal.

@@ -612,7 +612,7 @@ Eth_IsBeaconSap(const Eth_Header *eh, const uint8 sap)
 {
    Eth_HdrType type = Eth_HeaderType(eh);
 
-   if ((type == ETH_HEADER_TYPE_802_3)) {
+   if (type == ETH_HEADER_TYPE_802_3) {
       if ((eh->e802_3.llc.dsap == sap) && (eh->e802_3.llc.ssap == sap)) {
          if (eh->e802_3.lenNBO != 0) {
             return TRUE;
