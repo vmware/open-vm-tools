@@ -302,52 +302,98 @@ EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
  *--------------------------------------------------------------------------
  */
 
-EXTERN void *Util_SafeInternalMalloc(int bugNumber, size_t size,
-                                     const char *file, int lineno);
+EXTERN void *UtilSafeMalloc0(size_t size);
+EXTERN void *UtilSafeMalloc1(size_t size,
+                             int bugNumber, const char *file, int lineno);
 
-EXTERN void *Util_SafeInternalRealloc(int bugNumber, void *ptr, size_t size,
-                                      const char *file, int lineno);
+EXTERN void *UtilSafeRealloc0(void *ptr, size_t size);
+EXTERN void *UtilSafeRealloc1(void *ptr, size_t size,
+                             int bugNumber, const char *file, int lineno);
 
-EXTERN void *Util_SafeInternalCalloc(int bugNumber, size_t nmemb,
-                                     size_t size, const char *file, int lineno);
+EXTERN void *UtilSafeCalloc0(size_t nmemb, size_t size);
+EXTERN void *UtilSafeCalloc1(size_t nmemb, size_t size,
+                             int bugNumber, const char *file, int lineno);
 
-EXTERN char *Util_SafeInternalStrdup(int bugNumber, const char *s,
-                                     const char *file, int lineno);
+EXTERN char *UtilSafeStrdup0(const char *s);
+EXTERN char *UtilSafeStrdup1(const char *s,
+                             int bugNumber, const char *file, int lineno);
 
-EXTERN char *Util_SafeInternalStrndup(int bugNumber, const char *s, size_t n,
-                                      const char *file, int lineno);
+EXTERN char *UtilSafeStrndup0(const char *s, size_t n);
+EXTERN char *UtilSafeStrndup1(const char *s, size_t n,
+                             int bugNumber, const char *file, int lineno);
 
-EXTERN void *Util_Memcpy(void *dest, const void *src, size_t count);
+/* 
+ * Debug builds carry extra arguments into the allocation functions for
+ * better error reporting. Non-debug builds don't pay this extra overhead.
+ */
+#ifdef VMX86_DEBUG
 
 #define Util_SafeMalloc(_size) \
-   Util_SafeInternalMalloc(-1, (_size), __FILE__, __LINE__)
+   UtilSafeMalloc1((_size), -1, __FILE__, __LINE__)
 
 #define Util_SafeMallocBug(_bugNr, _size) \
-   Util_SafeInternalMalloc((_bugNr), (_size), __FILE__, __LINE__)
+   UtilSafeMalloc1((_size),(_bugNr), __FILE__, __LINE__)
 
 #define Util_SafeRealloc(_ptr, _size) \
-   Util_SafeInternalRealloc(-1, (_ptr), (_size), __FILE__, __LINE__)
+   UtilSafeRealloc1((_ptr), (_size), -1, __FILE__, __LINE__)
 
 #define Util_SafeReallocBug(_bugNr, _ptr, _size) \
-   Util_SafeInternalRealloc((_bugNr), (_ptr), (_size), __FILE__, __LINE__)
+   UtilSafeRealloc1((_ptr), (_size), (_bugNr), __FILE__, __LINE__)
 
 #define Util_SafeCalloc(_nmemb, _size) \
-   Util_SafeInternalCalloc(-1, (_nmemb), (_size), __FILE__, __LINE__)
+   UtilSafeCalloc1((_nmemb), (_size), -1, __FILE__, __LINE__)
 
 #define Util_SafeCallocBug(_bugNr, _nmemb, _size) \
-   Util_SafeInternalCalloc((_bugNr), (_nmemb), (_size), __FILE__, __LINE__)
+   UtilSafeCalloc1((_nmemb), (_size), (_bugNr), __FILE__, __LINE__)
 
 #define Util_SafeStrndup(_str, _size) \
-   Util_SafeInternalStrndup(-1, (_str), (_size), __FILE__, __LINE__)
+   UtilSafeStrndup1((_str), (_size), -1, __FILE__, __LINE__)
 
 #define Util_SafeStrndupBug(_bugNr, _str, _size) \
-   Util_SafeInternalStrndup((_bugNr), (_str), (_size), __FILE__, __LINE__)
+   UtilSafeStrndup1((_str), (_size), (_bugNr), __FILE__, __LINE__)
 
 #define Util_SafeStrdup(_str) \
-   Util_SafeInternalStrdup(-1, (_str), __FILE__, __LINE__)
+   UtilSafeStrdup1((_str), -1, __FILE__, __LINE__)
 
 #define Util_SafeStrdupBug(_bugNr, _str) \
-   Util_SafeInternalStrdup((_bugNr), (_str), __FILE__, __LINE__)
+   UtilSafeStrdup1((_str), (_bugNr), __FILE__, __LINE__)
+
+#else  /* VMX86_DEBUG */
+
+#define Util_SafeMalloc(_size) \
+   UtilSafeMalloc0((_size))
+
+#define Util_SafeMallocBug(_bugNr, _size) \
+   UtilSafeMalloc0((_size))
+
+#define Util_SafeRealloc(_ptr, _size) \
+   UtilSafeRealloc0((_ptr), (_size))
+
+#define Util_SafeReallocBug(_ptr, _size) \
+   UtilSafeRealloc0((_ptr), (_size))
+
+#define Util_SafeCalloc(_nmemb, _size) \
+   UtilSafeCalloc0((_nmemb), (_size))
+
+#define Util_SafeCallocBug(_bugNr, _nmemb, _size) \
+   UtilSafeCalloc0((_nmemb), (_size))
+
+#define Util_SafeStrndup(_str, _size) \
+   UtilSafeStrndup0((_str), (_size))
+
+#define Util_SafeStrndupBug(_bugNr, _str, _size) \
+   UtilSafeStrndup0((_str), (_size))
+
+#define Util_SafeStrdup(_str) \
+   UtilSafeStrdup0((_str))
+
+#define Util_SafeStrdupBug(_bugNr, _str) \
+   UtilSafeStrdup0((_str))
+
+#endif  /* VMX86_DEBUG */
+
+
+EXTERN void *Util_Memcpy(void *dest, const void *src, size_t count);
 
 
 /*
