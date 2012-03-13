@@ -24,6 +24,8 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#include "guest_os_tables.h"
+
 /*
  * There's a max of 64 guests that can be defined in this list below.
  * Be conservative and only declare entries in this list if you need to refer
@@ -34,68 +36,10 @@
 
 typedef enum GuestOSType {
    GUEST_OS_BASE                = 0x5000,
-
-   GUEST_OS_ANY                 = GUEST_OS_BASE + 0,
-   GUEST_OS_DOS                 = GUEST_OS_BASE + 1,
-   GUEST_OS_WIN31               = GUEST_OS_BASE + 2,
-   GUEST_OS_WIN95               = GUEST_OS_BASE + 3,
-   GUEST_OS_WIN98               = GUEST_OS_BASE + 4,
-   GUEST_OS_WINME               = GUEST_OS_BASE + 5,
-   GUEST_OS_WINNT               = GUEST_OS_BASE + 6,
-   GUEST_OS_WIN2000             = GUEST_OS_BASE + 7,
-   GUEST_OS_WINXP               = GUEST_OS_BASE + 8,
-   GUEST_OS_WINXPPRO_64         = GUEST_OS_BASE + 9,
-   GUEST_OS_WINNET              = GUEST_OS_BASE + 10,
-   GUEST_OS_WINNET_64           = GUEST_OS_BASE + 11,
-   GUEST_OS_LONGHORN            = GUEST_OS_BASE + 12,
-   GUEST_OS_LONGHORN_64         = GUEST_OS_BASE + 13,
-   GUEST_OS_WINVISTA            = GUEST_OS_BASE + 14,
-   GUEST_OS_WINVISTA_64         = GUEST_OS_BASE + 15,
-   GUEST_OS_UBUNTU              = GUEST_OS_BASE + 16,
-   GUEST_OS_OTHER24XLINUX       = GUEST_OS_BASE + 17,
-   GUEST_OS_OTHER24XLINUX_64    = GUEST_OS_BASE + 18,
-   GUEST_OS_OTHER26XLINUX       = GUEST_OS_BASE + 19,
-   GUEST_OS_OTHER26XLINUX_64    = GUEST_OS_BASE + 20,
-   GUEST_OS_OTHERLINUX          = GUEST_OS_BASE + 21,
-   GUEST_OS_OTHERLINUX_64       = GUEST_OS_BASE + 22,
-   GUEST_OS_OS2                 = GUEST_OS_BASE + 23,
-   GUEST_OS_OTHER               = GUEST_OS_BASE + 24,
-   GUEST_OS_OTHER_64            = GUEST_OS_BASE + 25,
-   GUEST_OS_FREEBSD             = GUEST_OS_BASE + 26,
-   GUEST_OS_FREEBSD_64          = GUEST_OS_BASE + 27,
-   GUEST_OS_NETWARE4            = GUEST_OS_BASE + 28,
-   GUEST_OS_NETWARE5            = GUEST_OS_BASE + 29,
-   GUEST_OS_NETWARE6            = GUEST_OS_BASE + 30,
-   GUEST_OS_SOLARIS6            = GUEST_OS_BASE + 31,
-   GUEST_OS_SOLARIS7            = GUEST_OS_BASE + 32,
-   GUEST_OS_SOLARIS8            = GUEST_OS_BASE + 33,
-   GUEST_OS_SOLARIS9            = GUEST_OS_BASE + 34,
-   GUEST_OS_SOLARIS10           = GUEST_OS_BASE + 35,
-   GUEST_OS_SOLARIS10_64        = GUEST_OS_BASE + 36,
-   GUEST_OS_VMKERNEL            = GUEST_OS_BASE + 37, // ESX 4.x
-   GUEST_OS_DARWIN9             = GUEST_OS_BASE + 38, // Mac OS 10.5
-   GUEST_OS_DARWIN9_64          = GUEST_OS_BASE + 39,
-   GUEST_OS_DARWIN10            = GUEST_OS_BASE + 40, // Mac OS 10.6
-   GUEST_OS_DARWIN10_64         = GUEST_OS_BASE + 41,
-   GUEST_OS_OPENSERVER5         = GUEST_OS_BASE + 42,
-   GUEST_OS_OPENSERVER6         = GUEST_OS_BASE + 43,
-   GUEST_OS_UNIXWARE7           = GUEST_OS_BASE + 44,
-   GUEST_OS_DEBIAN45            = GUEST_OS_BASE + 45,
-   GUEST_OS_DEBIAN45_64         = GUEST_OS_BASE + 46,
-   GUEST_OS_WINSEVEN            = GUEST_OS_BASE + 47, // Windows 7
-   GUEST_OS_WINSEVEN_64         = GUEST_OS_BASE + 48, // Windows 7
-   GUEST_OS_WIN2008R2           = GUEST_OS_BASE + 49, // Server 2008 R2
-   GUEST_OS_WIN2008R2_64        = GUEST_OS_BASE + 50, // Server 2008 R2
-   GUEST_OS_ECOMSTATION         = GUEST_OS_BASE + 51, // OS/2 variant; 1.x
-   GUEST_OS_RHEL6               = GUEST_OS_BASE + 52,
-   GUEST_OS_RHEL6_64            = GUEST_OS_BASE + 53,
-   GUEST_OS_WINEIGHT            = GUEST_OS_BASE + 54, // Windows 8
-   GUEST_OS_WINEIGHT_64         = GUEST_OS_BASE + 55, // Windows 8 x64
-   GUEST_OS_WINEIGHTSERVER_64   = GUEST_OS_BASE + 56, // Windows 8 Server X64
-   GUEST_OS_VMKERNEL5           = GUEST_OS_BASE + 57, // ESX 5.x and later
-   GUEST_OS_DARWIN11            = GUEST_OS_BASE + 58, // Mac OS 10.7
-   GUEST_OS_DARWIN11_64         = GUEST_OS_BASE + 59,
-   GUEST_OS_ECOMSTATION2        = GUEST_OS_BASE + 60, // OS/2 variant; 2.x
+   GUEST_OS_BASE_MINUS_ONE      = 0x4fff, /* So that ANY is equal to BASE */
+#define GOT(_name) _name,
+GUEST_OS_TYPE_GEN
+#undef GOT
 } GuestOSType;
 
 
@@ -149,6 +93,9 @@ typedef enum GuestOSFamilyType {
 #define ALLWINEIGHT32   BS(WINEIGHT)
 #define ALLWINEIGHT64   BS(WINEIGHT_64)
 #define ALLWINEIGHT     (ALLWINEIGHT32 | ALLWINEIGHT64)
+
+#define ALLWINVISTA_OR_HIGHER (ALLWINVISTA | ALLWINLONGHORN | ALLWIN2008R2 | \
+                               ALLWINSEVEN | ALLWINEIGHTSERVER | ALLWINEIGHT)
 
 
 #define ALLWINNT32	(BS(WINNT) | ALLWIN2000 | ALLWINXP32 | ALLWINNET32 | \
