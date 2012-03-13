@@ -85,7 +85,9 @@
    GOT(GUEST_OS_VMKERNEL5)         /* ESX 5.x and later */    \
    GOT(GUEST_OS_DARWIN11)          /* Mac OS 10.7 */          \
    GOT(GUEST_OS_DARWIN11_64)                                  \
-   GOT(GUEST_OS_ECOMSTATION2)      /* OS/2 variant; 2.x */
+   GOT(GUEST_OS_ECOMSTATION2)      /* OS/2 variant; 2.x */    \
+   GOT(GUEST_OS_RHEL7)                                        \
+   GOT(GUEST_OS_RHEL7_64)                                     \
 
 
 #define GUEST_OS_LIST_GEN                                                           \
@@ -153,6 +155,8 @@
    GOSL(STR_OS_RED_HAT_EN "5-64",                    GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_RED_HAT_EN "6",                       GUEST_OS_RHEL6)                \
    GOSL(STR_OS_RED_HAT_EN "6-64",                    GUEST_OS_RHEL6_64)             \
+   GOSL(STR_OS_RED_HAT_EN "7",                       GUEST_OS_RHEL7)                \
+   GOSL(STR_OS_RED_HAT_EN "7-64",                    GUEST_OS_RHEL7_64)             \
    GOSL(STR_OS_CENTOS,                               GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_CENTOS "-64",                         GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_ORACLE,                               GUEST_OS_OTHER26XLINUX)        \
