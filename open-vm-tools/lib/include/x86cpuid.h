@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -862,15 +862,17 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 
 #define CPUID_SET(eaxIn, reg, flag, dataPtr)                            \
    do {                                                                 \
-      ASSERT_ON_COMPILE((uint32)eaxIn == (uint32)CPUID_INTERNAL_EAXIN_##flag && \
-              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+      ASSERT_ON_COMPILE(                                                \
+         (uint32)eaxIn   == (uint32)CPUID_INTERNAL_EAXIN_##flag &&      \
+         CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);       \
       *(dataPtr) |= CPUID_INTERNAL_MASK_##flag;                         \
    } while (0)
 
 #define CPUID_CLEAR(eaxIn, reg, flag, dataPtr)                          \
    do {                                                                 \
-      ASSERT_ON_COMPILE((uint32)eaxIn == (uint32)CPUID_INTERNAL_EAXIN_##flag && \
-              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+      ASSERT_ON_COMPILE(                                                \
+         (uint32)eaxIn   == (uint32)CPUID_INTERNAL_EAXIN_##flag &&      \
+         CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);       \
       *(dataPtr) &= ~CPUID_INTERNAL_MASK_##flag;                        \
    } while (0)
 
@@ -878,12 +880,25 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
    do {                                                                 \
       uint32 _v = val;                                                  \
       uint32 *_d = dataPtr;                                             \
-      ASSERT_ON_COMPILE((uint32)eaxIn == (uint32)CPUID_INTERNAL_EAXIN_##field && \
-              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##field); \
+      ASSERT_ON_COMPILE(                                                \
+         (uint32)eaxIn   == (uint32)CPUID_INTERNAL_EAXIN_##field &&     \
+         CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##field);      \
       *_d = (*_d & ~CPUID_INTERNAL_MASK_##field) |                      \
          (_v << CPUID_INTERNAL_SHIFT_##field);                          \
       ASSERT(_v == (*_d & CPUID_INTERNAL_MASK_##field) >>               \
              CPUID_INTERNAL_SHIFT_##field);                             \
+   } while (0)
+
+#define CPUID_SETTO_SAFE(eaxIn, reg, field, dataPtr, val)               \
+   do {                                                                 \
+      uint32 _v = val &                                                 \
+         (CPUID_INTERNAL_MASK_##field >> CPUID_INTERNAL_SHIFT_##field); \
+      uint32 *_d = dataPtr;                                             \
+      ASSERT_ON_COMPILE(                                                \
+         (uint32)eaxIn   == (uint32)CPUID_INTERNAL_EAXIN_##field &&     \
+         CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##field);      \
+      *_d = (*_d & ~CPUID_INTERNAL_MASK_##field) |                      \
+         (_v << CPUID_INTERNAL_SHIFT_##field);                          \
    } while (0)
 
 
