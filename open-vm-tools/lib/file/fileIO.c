@@ -634,9 +634,9 @@ FileIO_IsSuccess(FileIOResult res)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * FileIOAtomicTempPath
+ * FileIO_AtomicTempPath
  *
- *      Return a temp path name in the same directory as the argument file.
+ *      Return a temp path name in the same directory as the argument path.
  *      The path is the full path of the source file with a '~' appended.
  *      The caller must free the path when done.
  *
@@ -649,24 +649,21 @@ FileIO_IsSuccess(FileIOResult res)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-static Unicode 
-FileIOAtomicTempPath(FileIODescriptor *fileFD)  // IN:
+Unicode
+FileIO_AtomicTempPath(ConstUnicode path)  // IN:
 {
-   Unicode path;
    Unicode srcPath;
+   Unicode retPath;
 
-   ASSERT(FileIO_IsValid(fileFD));
-
-   srcPath = File_FullPath(FileIO_Filename(fileFD));
+   srcPath = File_FullPath(path);
    if (!srcPath) {
-      Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__,
-          FileIO_Filename(fileFD));
+      Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__, path);
       return NULL;
    }
-   path = Unicode_Join(srcPath, "~", NULL);
+   retPath = Unicode_Join(srcPath, "~", NULL);
    Unicode_Free(srcPath);
 
-   return path;
+   return retPath;
 }
 
 
@@ -703,7 +700,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    ASSERT(FileIO_IsValid(fileFD));
    ASSERT(tempFD && !FileIO_IsValid(tempFD));
 
-   tempPath = FileIOAtomicTempPath(fileFD);
+   tempPath = FileIO_AtomicTempPath(FileIO_Filename(fileFD));
    if (!tempPath) {
       status = FILEIO_ERROR;
       goto bail;

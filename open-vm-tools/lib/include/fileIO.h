@@ -309,6 +309,8 @@ FileIOResult FileIO_Write(FileIODescriptor *file,
                           size_t requested,
                           size_t *actual);
 
+Unicode FileIO_AtomicTempPath(ConstUnicode path);
+
 FileIOResult FileIO_AtomicTempFile(FileIODescriptor *fileFD,
                                    FileIODescriptor *tempFD);
 
