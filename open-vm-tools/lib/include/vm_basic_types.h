@@ -574,7 +574,7 @@ typedef void * UserVA;
 #define INVALID_PPN       ((PPN)0xffffffff)
 #define APIC_INVALID_PPN  ((PPN)0xfffffffe)
 
-#define INVALID_BPN       ((BPN)0x1fffffff)
+#define INVALID_BPN       ((BPN)0x3fffffff)
 
 #define RESERVED_MPN      ((MPN) 0)
 #define INVALID_MPN       ((MPN)-1)
