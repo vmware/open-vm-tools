@@ -47,34 +47,69 @@ echo
 #
 
 find_networking_script() {
-    local script="error"
-    for dir in "/etc/init.d" "/sbin/init.d" "/etc" "/etc/rc.d" ; do
-        if [ -d "$dir/rc0.d" ] &&
-	    [ -d "$dir/rc1.d" ] &&
-	    [ -d "$dir/rc2.d" ] &&
-	    [ -d "$dir/rc3.d" ] &&
-	    [ -d "$dir/rc4.d" ] &&
-	    [ -d "$dir/rc5.d" ] &&
-	    [ -d "$dir/rc6.d" ]; then
+   local script="error"
+   for dir in "/etc/init.d" "/sbin/init.d" "/etc" "/etc/rc.d" ; do
+      if [ -d "$dir/rc0.d" ] &&
+         [ -d "$dir/rc1.d" ] &&
+         [ -d "$dir/rc2.d" ] &&
+         [ -d "$dir/rc3.d" ] &&
+         [ -d "$dir/rc4.d" ] &&
+         [ -d "$dir/rc5.d" ] &&
+         [ -d "$dir/rc6.d" ]; then
 
-	    # Now find the appropriate networking script.
-	    if [ -d "$dir/init.d" ]; then
-		if [ -x "$dir/init.d/network" ]; then
-		    script="$dir/init.d/network"
-		elif [ -x "$dir/init.d/networking" ]; then
-		    script="$dir/init.d/networking"
-		fi
-	    else
-		if [ -x "$dir/network" ]; then
-		    script="$dir/network"
-		elif [ -x "$dir/networking" ]; then
-		    script="$dir/networking"
-		fi
-	    fi
-        fi
-    done
+         # Now find the appropriate networking script.
+         if [ -d "$dir/init.d" ]; then
+            if [ -x "$dir/init.d/network" ]; then
+               script="$dir/init.d/network"
+            elif [ -x "$dir/init.d/networking" ]; then
+               script="$dir/init.d/networking"
+            fi
+         else
+            if [ -x "$dir/network" ]; then
+               script="$dir/network"
+            elif [ -x "$dir/networking" ]; then
+               script="$dir/networking"
+            fi
+         fi
+      fi
+   done
 
-    echo "$script"
+   echo "$script"
+}
+
+
+#
+# run_network_script --
+#
+# Finds out how to run the system's script used to control networking, and
+# runs it with the given argument (which should be one of the usual SysV
+# init script arguments).
+#
+run_network_script()
+{
+   # Do we have SysV "service"? If we do, check whether the network service
+   # is called "network" or "networking".
+   service=`which service 2>/dev/null`
+   serviceName=
+   if [ $? = 0 -a -n "$service" ]; then
+      if $service network status 1>/dev/null 2>/dev/null; then
+         serviceName=network
+      elif $service networking status 1>/dev/null 2>/dev/null; then
+         serviceName=networking
+      fi
+   fi
+
+   if [ -n "$serviceName" ]; then
+      $service $serviceName $1
+      return $?
+   fi
+
+   # If we failed to detect things using the "service" way, fall back to
+   # brute force.
+   script=`find_networking_script`
+   [ "$script" != "error" ] || Panic "Cannot find system networking script."
+
+   "$script" $1
 }
 
 
@@ -243,9 +278,6 @@ main() {
    exitCode=0
    activeList=/var/run/vmware-active-nics
 
-   networkScript=`find_networking_script`
-   [ "$networkScript" != "error" ] || Panic "Cannot find system networking script."
-
    # XXX Are these really necessary?  If so, we should have seen customer
    # complaints by now.
    which ifup >/dev/null 2>&1      || Panic "ifup not in search path."
@@ -260,7 +292,7 @@ main() {
          exitCode=$?
          if [ $exitCode != 0 ]; then
             save_active_NIC_list
-            "$networkScript" stop
+            run_network_script stop
             exitCode=$?
          fi
          ;;
@@ -284,7 +316,7 @@ main() {
             fi
             # XXX Do we really want restart or is start sufficient?  Like, would
             # using start avoid the problem mentioned above?
-            "$networkScript" restart
+            run_network_script restart
             rescue_NIC
             exitCode=$?
          fi
