@@ -412,10 +412,10 @@ typedef enum GuestOSFamilyType {
 
 /* Windows 8 */
 
-#define STR_OS_WIN_EIGHT     "windows8"
-#define STR_OS_WIN_EIGHT_X64 "windows8-64"
-
-#define STR_OS_WIN_EIGHT_GENERIC           "Windows 8"
+#define STR_OS_WIN_EIGHT               "windows8"
+#define STR_OS_WIN_EIGHT_X64           "windows8-64"
+#define STR_OS_WIN_EIGHT_GENERIC       "Windows 8"
+#define STR_OS_WIN_EIGHTSERVER_GENERIC "Windows 8 Server"
 
 /*
  * XXX - These need to be updated when MS announces official Win 8 names.
