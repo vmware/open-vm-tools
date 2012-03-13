@@ -150,11 +150,22 @@ static void process_bitmap(unsigned long data);
 #  define VMCI_DISABLE_MSIX   1
 #endif
 
+/*
+ * Linux kernel < 2.6.31 takes 'int' for 'bool' module parameters.
+ * Linux kernel >= 3.3.0 takes 'bool' for 'bool' module parameters.
+ * Kernels between the two take either.  So flip switch at 3.0.0.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)
+#  define compat_bool bool
+#else
+#  define compat_bool int
+#endif
+
 static vmci_device vmci_dev;
-static int vmci_disable_host = 0;
-static int vmci_disable_guest = 0;
-static int vmci_disable_msi;
-static int vmci_disable_msix = VMCI_DISABLE_MSIX;
+static compat_bool vmci_disable_host = 0;
+static compat_bool vmci_disable_guest = 0;
+static compat_bool vmci_disable_msi;
+static compat_bool vmci_disable_msix = VMCI_DISABLE_MSIX;
 
 DECLARE_TASKLET(vmci_dg_tasklet, dispatch_datagrams,
                 (unsigned long)&vmci_dev);
