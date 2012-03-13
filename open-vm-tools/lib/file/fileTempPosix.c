@@ -419,7 +419,7 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
          break;
       }
       
-      tmpDir = Str_Asprintf(NULL, "%s"DIRSEPS"%s-%s-%u", baseTmpDir,
+      tmpDir = Str_Asprintf(NULL, "%s%s%s-%s-%u", baseTmpDir, DIRSEPS,
                             PRODUCT_GENERIC_NAME_LOWER, userName, suffix);
       
       if (!tmpDir) {
@@ -528,7 +528,7 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
       }
    }
    
-   tmpDir = Str_Asprintf(NULL, "%s"DIRSEPS"%s-%s", baseTmpDir,
+   tmpDir = Str_Asprintf(NULL, "%s%s%s-%s", baseTmpDir, DIRSEPS,
                          PRODUCT_GENERIC_NAME_LOWER, userName);
    
    if (!tmpDir) {
