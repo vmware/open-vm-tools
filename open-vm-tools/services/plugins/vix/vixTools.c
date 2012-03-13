@@ -5534,7 +5534,7 @@ VixToolsCreateDirectory(VixCommandRequestHeader *requestMsg)  // IN
    }
 
    if (createParentDirectories) {
-      if (!(File_CreateDirectoryHierarchy(dirPathName))) {
+      if (!(File_CreateDirectoryHierarchy(dirPathName, NULL))) {
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }

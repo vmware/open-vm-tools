@@ -158,7 +158,8 @@ Bool File_EnsureDirectory(ConstUnicode pathName);
 
 Bool File_DeleteEmptyDirectory(ConstUnicode pathName);
 
-Bool File_CreateDirectoryHierarchy(ConstUnicode pathName);
+Bool File_CreateDirectoryHierarchy(ConstUnicode pathName,
+                                   Unicode *topmostCreated);
 
 Bool File_DeleteDirectoryTree(ConstUnicode pathName);
 

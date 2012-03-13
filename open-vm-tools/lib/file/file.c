@@ -1396,7 +1396,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
          int err = Err_Errno();
 
          if (ENOENT == err) {
-            if (!File_CreateDirectoryHierarchy(dstName)) {
+            if (!File_CreateDirectoryHierarchy(dstName, NULL)) {
                Msg_Append(MSGID(File.MoveTree.dst.couldntCreate)
                           "Could not create '%s'.\n\n", UTF8(dstName));
 
@@ -1649,9 +1649,18 @@ File_GetSizeByPath(ConstUnicode pathName)  // IN:
  * File_CreateDirectoryHierarchy --
  *
  *      Create a directory including any parents that don't already exist.
+ *      Returns the topmost directory which was created, to allow calling code
+ *      to remove it after in case later operations fail.
  *
  * Results:
  *      TRUE on success, FALSE on failure.
+ *
+ *      If topmostCreated is not NULL, it returns the result of the hierarchy
+ *      creation. If no directory was created, *topmostCreated is set to NULL.
+ *      Otherwise *topmostCreated is set to the topmost directory which was
+ *      created. *topmostCreated is set even in case of failure.
+ *
+ *      The caller most Unicode_Free the resulting string.
  *
  * Side effects:
  *      Only the obvious.
@@ -1660,11 +1669,16 @@ File_GetSizeByPath(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_CreateDirectoryHierarchy(ConstUnicode pathName)  // IN:
+File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
+                              Unicode *topmostCreated) // OUT:
 {
    Unicode volume;
    UnicodeIndex index;
    UnicodeIndex length;
+
+   if (topmostCreated != NULL) {
+      *topmostCreated = NULL;
+   }
 
    if (pathName == NULL) {
       return TRUE;
@@ -1700,22 +1714,31 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName)  // IN:
 
       index = FileFirstSlashIndex(pathName, index + 1);
 
-      if (index == UNICODE_INDEX_NOT_FOUND) {
-         break;
+      temp = Unicode_Substr(pathName, 0, (index == UNICODE_INDEX_NOT_FOUND) ? -1 : index);
+
+      if (File_IsDirectory(temp)) {
+         failed = FALSE;
+      } else {
+         failed = !File_CreateDirectory(temp);
+         if (!failed && topmostCreated != NULL && *topmostCreated == NULL) {
+            *topmostCreated = temp;
+            temp = NULL;
+         }
       }
-
-      temp = Unicode_Substr(pathName, 0, index);
-
-      failed = !File_IsDirectory(temp) && !File_CreateDirectory(temp);
 
       Unicode_Free(temp);
 
       if (failed) {
          return FALSE;
       }
+
+      if (index == UNICODE_INDEX_NOT_FOUND) {
+         break;
+      }
+
    }
 
-   return File_IsDirectory(pathName) || File_CreateDirectory(pathName);
+   return TRUE;
 }
 
 
