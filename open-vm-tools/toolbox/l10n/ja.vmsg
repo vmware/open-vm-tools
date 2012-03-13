@@ -67,7 +67,7 @@ disk.shrink.unavailable =
    "実行している VMware 製品のバージョンが古いか、 "
    "開いている通信チャネルが多すぎることが原因として考えられます。\n"
    "\n"
-   " VMware 製品のバージョンが古い場合は、 "
+   "VMware 製品のバージョンが古い場合は、 "
    "アップグレードを検討してください。\n"
    "\n"
    "多数の通信チャネルを開いている場合は、仮想マシンを "
@@ -105,8 +105,10 @@ help.disk =
    "使用方法: %2$s %3$s <サブコマンド> [引数]\n"
    "\n"
    "サブコマンド:\n"
-   "   list: 使用可能なマウントポイントを一覧表示\n"
-   "   shrink <マウントポイント>: 指定されたマウントポイントでファイル システムを圧縮\n"
+   "   list：使用可能な場所を一覧表示\n"
+   "   shrink <場所>：指定された場所のファイル システムをワイプおよび圧縮\n"
+   "   shrinkonly：すべてのディスクを圧縮\n"
+   "   wipe <場所>：指定された場所のファイル システムをワイプ\n"
 
 help.hint = "詳細については、「%1$s %2$s%3$s%4$s」を参照してください。\n"
 
@@ -124,9 +126,6 @@ help.main =
    "   stat\n"
    "   timesync\n"
    "   upgrade (OS によっては使用できない場合もあります)\n"
-   "\n"
-   "詳細については、http://www.vmware.com/jp/support/ を参照してください。\n"
-   "\n"
 
 help.script =
    "%1$s: 電源操作に対応して実行されるスクリプトを制御\n"
@@ -162,14 +161,14 @@ help.timesync =
    "サブコマンド:\n"
    "   enable: 時間同期を有効にする\n"
    "   disable: 時間同期を無効にする\n"
-   "   status: 時間同期ステータスを出力\n"
+   "status: 時間同期ステータスを出力\n"
 
 help.upgrade =
    "%1$s: VMware Tools のアップグレードに関連する機能。\n"
    "使用方法: %2$s %3$s <サブコマンド> [引数]\n"
    "サブコマンド:\n"
    "   status: VMware Tools のアップグレード ステータスを確認\n"
-   "   start: VMware Tools の自動アップグレードを開始\n"
+   "start: VMware Tools の自動アップグレードを開始\n"
    "\n"
    "アップグレードが機能するには、VMware Tools サービスを実行している必要があります。\n"
 
@@ -222,4 +221,3 @@ upgrade.error.unknown_reply = "予期しないホスト応答: %1$s\n"
 upgrade.started = "アップグレードが開始されました。\n"
 
 upgrade.uptodate = "VMware Tools は最新です。\n"
-

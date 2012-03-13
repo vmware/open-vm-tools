@@ -40,7 +40,7 @@ cmdline.install.args = "args"
 
 cmdline.kill = "실행 중인 VMware Tools 서비스의 인스턴스를 중지합니다."
 
-cmdline.log = "로깅을 실행합니다. 구성 파일을 재정의합니다."
+cmdline.log = "무시되며, 이전 버전과의 호환성을 위해 유지됩니다."
 
 cmdline.name = "시작될 서비스의 이름입니다."
 
