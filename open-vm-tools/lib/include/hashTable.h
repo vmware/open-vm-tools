@@ -156,6 +156,8 @@ HashTable *PtrHash_Alloc(uint32 numBuckets);
 
 void PtrHash_Free(HashTable *hashTable);
 
+size_t PtrHash_AllocSize(HashTable *ht);
+
 size_t PtrHash_GetNumElements(const HashTable *ht);
 
 int PtrHash_ForEach(const HashTable *ht,
