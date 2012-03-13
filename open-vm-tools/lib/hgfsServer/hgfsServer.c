@@ -2966,8 +2966,7 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
 
       ASSERT_DEVEL(reply && (replySize <= replyPacketSize));
       if (reply && (sizeof *reply <= replyPacketSize)) {
-         reply->id = input->id;
-         reply->status = HgfsConvertFromInternalStatus(status);
+         HgfsPackLegacyReplyHeader(status, input->id, reply);
       }
    }
    if (!HgfsPacketSend(input->packet, packetOut, replySize,
@@ -8375,8 +8374,8 @@ HgfsBuildRelativePath(const char* source,    // IN: source file name
  *    to a event.
  *
  *    The function builds directory notification packet and queues it to be sent
- *    to the client. It processes one notification at a time. It relies on transport
- *    to perform coalescing.
+ *    to the client. It processes one notification at a time. Any consolidation of
+ *    packets is expected to occur at the transport layer.
  *
  * Results:
  *    None.
@@ -8394,41 +8393,59 @@ Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder, // IN: shared fol
                           uint32 mask,                         // IN: event type
                           struct HgfsSessionInfo *session)     // IN: session info
 {
-   HgfsPacket *packet;
-   size_t sizeNeeded;
-   char *shareName;
+   HgfsPacket *packet = NULL;
+   HgfsHeader *packetHeader = NULL;
+   char *shareName = NULL;
    size_t shareNameLen;
-   HgfsHeader *packetHeader;
+   size_t sizeNeeded;
    uint32 flags;
 
-   if (HgfsServerGetShareName(sharedFolder, &shareNameLen, &shareName)) {
-
-      sizeNeeded = HgfsPackCalculateNotificationSize(shareName, fileName);
-
-      packetHeader = Util_SafeCalloc(1, sizeNeeded);
-      packet = Util_SafeCalloc(1, sizeof *packet);
-      packet->guestInitiated = FALSE;
-      packet->metaPacketSize = sizeNeeded;
-      packet->metaPacket = packetHeader;
-      packet->dataPacketIsAllocated = TRUE;
-      flags = 0;
-      if (mask & HGFS_NOTIFY_EVENTS_DROPPED) {
-         flags |= HGFS_NOTIFY_FLAG_OVERFLOW;
-      }
-
-      HgfsPackChangeNotificationRequest(packetHeader, subscriber, shareName, fileName, mask,
-                                        flags, session, &sizeNeeded);
-      if (!HgfsPacketSend(packet, (char *)packetHeader,  sizeNeeded, session->transportSession, 0)) {
-         LOG(4, ("%s: failed to send notification to the host\n", __FUNCTION__));
-      }
-
-      LOG(4, ("%s: notification for folder: %d index: %d file name %s "
-              " mask %x\n", __FUNCTION__, sharedFolder,
-              (int)subscriber, fileName, mask));
-      free(shareName);
-   } else {
+   if (!HgfsServerGetShareName(sharedFolder, &shareNameLen, &shareName)) {
       LOG(4, ("%s: failed to find shared folder for a handle %x\n",
               __FUNCTION__, sharedFolder));
+      goto exit;
+   }
+
+   sizeNeeded = HgfsPackCalculateNotificationSize(shareName, fileName);
+
+   packetHeader = Util_SafeCalloc(1, sizeNeeded);
+   packet = Util_SafeCalloc(1, sizeof *packet);
+   packet->guestInitiated = FALSE;
+   packet->metaPacketSize = sizeNeeded;
+   packet->metaPacket = packetHeader;
+   packet->dataPacketIsAllocated = TRUE;
+   flags = 0;
+   if (mask & HGFS_NOTIFY_EVENTS_DROPPED) {
+      flags |= HGFS_NOTIFY_FLAG_OVERFLOW;
+   }
+
+   if (!HgfsPackChangeNotificationRequest(packetHeader, subscriber, shareName, fileName, mask,
+                                          flags, session, &sizeNeeded)) {
+      LOG(4, ("%s: failed to pack notification request\n", __FUNCTION__));
+      goto exit;
+   }
+
+   if (!HgfsPacketSend(packet, (char *)packetHeader,  sizeNeeded, session->transportSession, 0)) {
+      LOG(4, ("%s: failed to send notification to the host\n", __FUNCTION__));
+      goto exit;
+   }
+
+   /* The transport will call the server send complete callback to release the packets. */
+   packet = NULL;
+   packetHeader = NULL;
+
+   LOG(4, ("%s: notification for folder: %d index: %"FMT64"u file name %s mask %x\n",
+           __FUNCTION__, sharedFolder, subscriber, fileName, mask));
+
+exit:
+   if (shareName) {
+      free(shareName);
+   }
+   if (packet) {
+      free(packet);
+   }
+   if (packetHeader) {
+      free(packetHeader);
    }
 }
 
