@@ -175,6 +175,13 @@ memchr(const void *s, int c, size_t n)
 
 #endif // }
 
+#if defined __ANDROID__
+/*
+ * Android doesn't support dtoa().
+ */
+#define NO_DTOA
+#endif
+
 
 /*
  * Local data
@@ -1965,7 +1972,7 @@ MsgFmtSnprintfWork(char **outbuf, size_t bufSize, const char *fmt0,
     */
    char *decimal_point;   /* locale specific decimal point */
 #if defined __ANDROID__
-   static const char dp = '.';
+   static char dp = '.';
 #endif
    int signflag;      /* true if float is negative */
    union {         /* floating point arguments %[aAeEfFgG] */
@@ -2396,9 +2403,17 @@ MsgFmtSnprintfWork(char **outbuf, size_t bufSize, const char *fmt0,
 	    goto error;
 	 }
 	 fparg.dbl = a->v.float64;
+#if defined NO_DTOA
+         NOT_TESTED();
+         dtoaresult = NULL;
+         sbuf.error = TRUE;
+
+         goto error;
+#else
 	 dtoaresult = cp =
 	    dtoa(fparg.dbl, expchar ? 2 : 3, prec,
 		 &expt, &signflag, &dtoaend);
+#endif
 	 if (expt == 9999)
 	    expt = INT_MAX;
          if (signflag)

@@ -63,7 +63,7 @@ ErrErrno2String(Err_Number errorNumber, // IN
 {
    char *p;
 
-#if defined(linux)
+#if defined(linux) && !defined(N_PLAT_NLM) && !defined(__ANDROID__)
    p = strerror_r(errorNumber, buf, bufSize);
 #else
    p = strerror(errorNumber);

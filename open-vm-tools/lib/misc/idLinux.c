@@ -29,8 +29,14 @@
 #include <unistd.h>
 #ifdef __APPLE__
 #include <sys/socket.h>
+#include <TargetConditionals.h>
+#if !defined TARGET_OS_IPHONE
+#define TARGET_OS_IPHONE 0
+#endif
+#if !TARGET_OS_IPHONE
 #include <Security/Authorization.h>
 #include <Security/AuthorizationTags.h>
+#endif
 #endif
 #if defined __ANDROID__
 #include <syscall-android.h>
@@ -74,7 +80,7 @@ static int uid32 = 1;
 #endif
 #endif // __linux__
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !TARGET_OS_IPHONE
 #include <sys/kauth.h>
 
 static AuthorizationRef IdAuthCreate(void);
@@ -338,7 +344,7 @@ Id_SetREGid(gid_t gid,		// IN: new gid
 #endif
 
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !TARGET_OS_IPHONE
 /*
  *----------------------------------------------------------------------------
  *
@@ -842,7 +848,11 @@ Id_BeginSuperUser(void)
       uid = (uid_t) -1; // already root; nothing to do
    } else {
 #if defined(__APPLE__)
+#if TARGET_OS_IPHONE
+      Warning("XXXIOS: implement %s\n", __func__);
+#else
       syscall(SYS_settid, KAUTH_UID_NONE, KAUTH_GID_NONE /* Ignored. */);
+#endif
 #else
       Id_SetRESUid((uid_t) -1, (uid_t) 0, (uid_t) -1); // effectively root
 #endif

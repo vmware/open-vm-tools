@@ -31,6 +31,14 @@
 
 #include "vm_assert.h"
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if !defined TARGET_OS_IPHONE
+#define TARGET_OS_IPHONE 0
+#endif
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -242,6 +250,7 @@ Util_Memcpy(void *dest,
             const void *src,
             size_t count)
 {
+#if !defined(__ANDROID__) && !defined(TARGET_OS_IPHONE)
    uintptr_t align = ((uintptr_t)dest | (uintptr_t)src | count);
 
 #if defined __GNUC__
@@ -313,6 +322,7 @@ Util_Memcpy(void *dest,
    #endif
 
 
+#endif
 #endif
 
    memcpy(dest, src, count);

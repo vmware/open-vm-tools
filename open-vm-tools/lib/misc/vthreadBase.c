@@ -119,7 +119,12 @@ typedef DWORD VThreadBaseKeyType;
 #define VTHREADBASE_INVALID_KEY (VThreadBaseKeyType)(TLS_OUT_OF_INDEXES)
 #else
 typedef pthread_key_t VThreadBaseKeyType;
+/* PTHREAD_KEYS_MAX not defined on Android. */
+#if defined __linux__ && !defined PTHREAD_KEYS_MAX
+#define VTHREADBASE_INVALID_KEY (VThreadBaseKeyType)(1024)
+#else
 #define VTHREADBASE_INVALID_KEY (VThreadBaseKeyType)(PTHREAD_KEYS_MAX)
+#endif
 #endif
 
 static void VThreadBaseSimpleNoID(void);

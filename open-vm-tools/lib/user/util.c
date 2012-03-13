@@ -54,7 +54,7 @@
 #  include <dlfcn.h>
 #endif
 
-#if defined(__linux__) && !defined(VMX86_TOOLS)
+#if defined(__linux__) && !defined(VMX86_TOOLS) && !defined(__ANDROID__)
 #  include <link.h>
 #endif
 
@@ -428,7 +428,7 @@ UtilBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwind cont
    return _URC_END_OF_STACK;
 }
 
-#if !defined(_WIN32) && !defined(VMX86_TOOLS)
+#if !defined(_WIN32) && !defined(VMX86_TOOLS) && !defined(__ANDROID__)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -575,7 +575,7 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
 #elif !defined(VM_X86_64)
    uintptr_t *x = basePtr;
    int i;
-#if !defined(_WIN32) && !defined(VMX86_TOOLS)
+#if !defined(_WIN32) && !defined(VMX86_TOOLS) && !defined(__ANDROID__)
    Dl_info dli;
 #endif
 
@@ -588,7 +588,7 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
       x = (uintptr_t *) x[0];
    }
 
-#if !defined(_WIN32) && !defined(VMX86_TOOLS)
+#if !defined(_WIN32) && !defined(VMX86_TOOLS) && !defined(__ANDROID__)
    /* 
     * We do a separate pass here that includes symbols in order to
     * make sure the base backtrace that does not call dladdr() etc.

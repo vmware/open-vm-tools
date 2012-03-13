@@ -75,6 +75,7 @@ AlignedMallocImpl(size_t size) // IN
    void **buf;
    void **alignedResult;
 
+#undef PAGE_MASK
 #define PAGE_MASK (PAGE_SIZE - 1)
 #define PAGE_ROUND_DOWN(_value) ((uintptr_t)(_value) & ~PAGE_MASK)
 #define PAGE_ROUND_UP(_value) PAGE_ROUND_DOWN((uintptr_t)(_value) + PAGE_MASK)

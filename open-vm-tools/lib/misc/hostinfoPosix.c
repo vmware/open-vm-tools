@@ -66,10 +66,8 @@
 #if !defined(USING_AUTOCONF) || defined(HAVE_SYS_VFS_H)
 #include <sys/vfs.h>
 #endif
-#if !defined(sun) && (!defined(USING_AUTOCONF) || (defined(HAVE_SYS_IO_H) && defined(HAVE_SYS_SYSINFO_H)))
-# ifndef __ANDROID__
-# include <sys/io.h>
-# endif
+#if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || (defined(HAVE_SYS_IO_H) && defined(HAVE_SYS_SYSINFO_H)))
+#include <sys/io.h>
 #include <sys/sysinfo.h>
 #ifndef HAVE_SYSINFO
 #define HAVE_SYSINFO 1
@@ -203,6 +201,14 @@ static const DistroInfo distroArray[] = {
    {"Yellow Dog",         "/etc/yellowdog-release"},
    {NULL, NULL},
 };
+
+#if defined __ANDROID__
+/*
+ * Android doesn't support getloadavg() or iopl().
+ */
+#define NO_GETLOADAVG
+#define NO_IOPL
+#endif
 
 
 /*
@@ -1417,7 +1423,7 @@ HostinfoGetLoadAverage(float *avg0,  // IN/OUT:
                        float *avg1,  // IN/OUT:
                        float *avg2)  // IN/OUT:
 {
-#if (defined(__linux__) && !defined(__UCLIBC__)) || defined(__APPLE__)
+#if !defined(NO_GETLOADAVG) && (defined(__linux__) && !defined(__UCLIBC__)) || defined(__APPLE__)
    double avg[3];
    int res;
 
@@ -1871,7 +1877,12 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
          privileges --hpreg */
       ASSERT(euid != 0 || getuid() == 0);
       Id_SetEUid(0);
+#if defined NO_IOPL
+      NOT_IMPLEMENTED();
+      errno = ENOSYS;
+#else
       err = iopl(0);
+#endif
       Id_SetEUid(euid);
       ASSERT_NOT_IMPLEMENTED(err == 0);
    }

@@ -44,9 +44,22 @@
  * These headers are needed to get __USE_LARGEFILE, __USE_LARGEFILE64,
  * and SYS__llseek.
  */
+#   ifdef ANDROID_X86
+#      undef _GNU_SOURCE
+#   endif
 #   include <features.h>
+#   ifndef _GNU_SOURCE
+#      define _GNU_SOURCE
+#   endif
 #   include <linux/unistd.h>
+#ifdef ANDROID_X86
+#   include <sys/syscall.h>
+#else
 #   include <syscall.h>
+#endif
+#endif
+#if defined __ANDROID__
+#   include <sys/syscall.h>
 #endif
 #include <sys/stat.h>
 #include "su.h"
@@ -1856,8 +1869,15 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
             goto exit;
          }
          if (retval < leftToWrite) {
-            LOG_ONCE((LGPFX" %s wrote %"FMTSZ"d out of %"FMTSZ"u bytes.\n",
-                      __FUNCTION__, retval, leftToWrite));
+            /*
+             * Using %zd on Android generated a warning about
+             * expecting a "signed size_t" argument; casting retval to
+             * "signed size_t" generated an error, though. We've
+             * already checked for retval == -1 above, so the cast
+             * below should be OK. Refer to bug 817761.
+             */
+            LOG_ONCE((LGPFX" %s wrote %"FMTSZ"u out of %"FMTSZ"u bytes.\n",
+                      __FUNCTION__, (size_t)retval, leftToWrite));
          }
 
          buf += retval;

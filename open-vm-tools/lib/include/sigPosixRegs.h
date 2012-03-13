@@ -69,7 +69,9 @@
 #endif
 
 #include <signal.h>
+#ifndef __ANDROID__
 #include <sys/ucontext.h>
+#endif
 
 #if __linux__
 #  if defined(__x86_64__)
@@ -205,6 +207,16 @@
 #define SC_ESP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[ESP])
 #define SC_EIP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[EIP])
 #endif
+#elif defined(ANDROID_X86)
+#define SC_EAX(uc) ((unsigned long) (uc)->uc_mcontext.eax)
+#define SC_EBX(uc) ((unsigned long) (uc)->uc_mcontext.ebx)
+#define SC_ECX(uc) ((unsigned long) (uc)->uc_mcontext.ecx)
+#define SC_EDX(uc) ((unsigned long) (uc)->uc_mcontext.edx)
+#define SC_EDI(uc) ((unsigned long) (uc)->uc_mcontext.edi)
+#define SC_ESI(uc) ((unsigned long) (uc)->uc_mcontext.esi)
+#define SC_EBP(uc) ((unsigned long) (uc)->uc_mcontext.ebp)
+#define SC_ESP(uc) ((unsigned long) (uc)->uc_mcontext.esp)
+#define SC_EIP(uc) ((unsigned long) (uc)->uc_mcontext.eip)
 #else
 #ifdef __x86_64__
 #define SC_EAX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_RAX])

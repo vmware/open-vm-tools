@@ -73,6 +73,15 @@
 #include "convertutf.h"
 #include "str.h"
 
+
+#if defined __ANDROID__
+/*
+ * Android doesn't support dtoa() or ldtoa().
+ */
+#define NO_DTOA
+#define NO_LDTOA
+#endif
+
 static char   *__ultoa(u_long, char *, int, int, const char *, int, char,
                        const char *);
 static void   __find_arguments(const char *, va_list, union arg **);
@@ -453,6 +462,9 @@ bsd_vsnprintf_core(char **outbuf,
     * D:   expchar holds this character; '\0' if no exponent, e.g. %f
     * F:   at least two digits for decimal, at least one digit for hex
     */
+#if defined __ANDROID__
+   static char dp = '.';
+#endif
    int signflag;      /* true if float is negative */
    union {         /* floating point arguments %[aAeEfFgG] */
       double dbl;
@@ -615,6 +627,15 @@ bsd_vsnprintf_core(char **outbuf,
    convbuf = NULL;
 #if !defined(NO_FLOATING_POINT)
    dtoaresult = NULL;
+#if !defined __ANDROID__
+   decimal_point = localeconv()->decimal_point;
+#else
+   /*
+    * Struct lconv is not working! For decimal_point,
+    * using '.' instead is a workaround.
+    */
+   decimal_point = &dp;
+#endif
 #endif
 
    fmt = (char *)fmt0;
@@ -733,9 +754,15 @@ bsd_vsnprintf_core(char **outbuf,
          goto rflag;
       case '\'':
          flags |= GROUPING;
+#if !defined __ANDROID__
          thousands_sep = thousands_sepIn;
          grouping = groupingIn;
-
+#else
+         /*
+          * Struct lconv is not working! The code below is a workaround.
+          */
+         thousands_sep = ',';
+#endif
 	 /*
 	  * Grouping should not begin with 0, but it nevertheless does (see
           * bug 281072) and makes the formatting code behave badly, so we
@@ -901,12 +928,32 @@ bsd_vsnprintf_core(char **outbuf,
          }
          if (flags & LLONGINT) {
             fparg.ldbl = GETARG(long double);
+#if defined NO_LDTOA
+            dtoaresult = NULL;
+            /*
+             * Below is to keep compiler happy
+             */
+            signflag = -1;
+            expt = 0;
+            dtoaend = NULL;
+#else
             dtoaresult = cp = ldtoa(&fparg.ldbl, expchar ? 2 : 3, prec,
                                      &expt, &signflag, &dtoaend);
+#endif
          } else {
             fparg.dbl = GETARG(double);
+#if defined NO_DTOA
+            dtoaresult = NULL;
+            /*
+             * Below is to keep compiler happy
+             */
+            signflag = -1;
+            expt = 0;
+            dtoaend = NULL;
+#else
             dtoaresult = cp = dtoa(fparg.dbl, expchar ? 2 : 3, prec,
                                    &expt, &signflag, &dtoaend);
+#endif
          }
 
          /* Our dtoa / ldtoa call strdup(), which can fail. PR319844 */

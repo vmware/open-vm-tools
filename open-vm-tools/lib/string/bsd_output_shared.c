@@ -40,7 +40,7 @@
 
 //#include <sys/cdefs.h>
 
-#if !defined(STR_NO_WIN32_LIBS) && !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__)
+#if !defined(STR_NO_WIN32_LIBS) && !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__) && !defined(__ANDROID__)
 
 #include <stdio.h>
 #include <stdlib.h>

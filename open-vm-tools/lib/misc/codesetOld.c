@@ -81,6 +81,25 @@ static Bool CodeSetOldIso88591ToUtf8Db(char const *bufIn, size_t sizeIn,
                                        unsigned int flags, DynBuf *db);
 #endif
 
+#if defined __ANDROID__
+#include "vm_basic_asm.h"
+/*
+ * Android doesn't have swab().
+ */
+void
+swab(const void *__restrict src,  // IN/OUT
+     void *__restrict dest,       // IN/OUT
+     ssize_t nbytes)              // IN
+{
+   const uint16 *p = src;
+   uint16 *q = dest;
+   ssize_t i;
+
+   for (i = 0; i < nbytes / sizeof(*p); i++) {
+      q[i] = Bswap16(p[i]);
+   }
+}
+#endif
 
 #if defined(CURRENT_IS_UTF8) || defined(_WIN32)
 /*
