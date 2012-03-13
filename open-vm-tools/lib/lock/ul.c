@@ -446,8 +446,7 @@ MXUserAllocPerThread(void)
 
    ASSERT(perThreadLock);
 
-   MXRecLockAcquire(perThreadLock,
-                    NULL);          // non-stats
+   MXRecLockAcquire(perThreadLock);
 
    if (perThreadFreeList == NULL) {
       perThread = Util_SafeMalloc(sizeof *perThread);
@@ -495,8 +494,7 @@ MXUserFreePerThread(MXUserPerThread *perThread)  // IN:
    perThreadLock = MXUserInternalSingleton(&perThreadLockMem);
    ASSERT(perThreadLock);
 
-   MXRecLockAcquire(perThreadLock,
-                    NULL);          // non-stats
+   MXRecLockAcquire(perThreadLock);
    perThread->next = perThreadFreeList;
    perThreadFreeList = perThread;
    MXRecLockRelease(perThreadLock);

@@ -87,8 +87,7 @@ MXUserAddToList(MXUserHeader *header)  // IN:
 
    /* Tolerate a failure. This is too low down to log */
    if (listLock) {
-      MXRecLockAcquire(listLock,
-                       NULL);     // non-stats
+      MXRecLockAcquire(listLock);
       LIST_QUEUE(&header->item, &mxUserLockList);
       MXRecLockRelease(listLock);
    }
@@ -118,8 +117,7 @@ MXUserRemoveFromList(MXUserHeader *header)  // IN:
 
    /* Tolerate a failure. This is too low down to log */
    if (listLock) {
-      MXRecLockAcquire(listLock,
-                       NULL);     // non-stats
+      MXRecLockAcquire(listLock);
       LIST_DEL(&header->item, &mxUserLockList);
       MXRecLockRelease(listLock);
    }

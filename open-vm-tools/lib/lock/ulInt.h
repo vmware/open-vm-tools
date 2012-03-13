@@ -39,7 +39,6 @@ typedef pthread_t MXUserThreadID;
 
 #include "vm_basic_types.h"
 #include "vthreadBase.h"
-#include "hostinfo.h"
 
 #include "circList.h"
 
@@ -282,77 +281,67 @@ MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
 }
 
 
-static INLINE void
-MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
-                 VmTimeType *duration)  // IN/OPT: !NULL for stats
+static INLINE Bool
+MXRecLockAcquire(MXRecLock *lock)  // IN/OUT:
 {
-   if (duration != NULL) {
-      *duration = 0ULL;
-   }
+   int err;
 
    if ((MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
       MXRecLockIncCount(lock, 1);
-   } else {
-      int err = MXRecLockTryAcquireInternal(lock);
 
-      if (err != 0) {
-         VmTimeType start;
-
-         if (vmx86_debug && (err != EBUSY)) {
-            Panic("%s: MXRecLockTryAcquireInternal returned %d\n",
-                  __FUNCTION__, err);
-         }
-
-         if (duration != NULL) {
-            start = Hostinfo_SystemTimerNS();
-         }
-
-         err = MXRecLockAcquireInternal(lock);
-
-         if (duration != NULL) {
-            *duration = Hostinfo_SystemTimerNS() - start;
-         }
-      }
-
-      if (vmx86_debug && (err != 0)) {
-         Panic("%s: MXRecLockAcquireInternal returned %d\n", __FUNCTION__,
-               err);
-      }
-
-      ASSERT(MXRecLockCount(lock) == 0);
-
-      MXRecLockIncCount(lock, 1);
+      return FALSE;  // Not contended
    }
+
+   err = MXRecLockTryAcquireInternal(lock);
+
+   if (err == 0) {
+      MXRecLockIncCount(lock, 1);
+
+      return FALSE;  // Not contended
+   }
+
+   if (vmx86_debug && (err != EBUSY)) {
+      Panic("%s: MXRecLockTryAcquireInternal error %d\n", __FUNCTION__, err);
+   }
+
+   err = MXRecLockAcquireInternal(lock);
+
+   if (vmx86_debug && (err != 0)) {
+      Panic("%s: MXRecLockAcquireInternal error %d\n", __FUNCTION__, err);
+   }
+
+   ASSERT(MXRecLockCount(lock) == 0);
+
+   MXRecLockIncCount(lock, 1);
+
+   return TRUE;  // Contended
 }
 
 
 static INLINE Bool
 MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 {
-   Bool acquired;
+   int err;
 
    if ((MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
-      acquired = TRUE;
-   } else {
-      int err = MXRecLockTryAcquireInternal(lock);
-
-      if (err == 0) {
-         acquired = TRUE;
-      } else {
-         if (vmx86_debug && (err != EBUSY)) {
-            Panic("%s: MXRecLockTryAcquireInternal returned %d\n",
-                  __FUNCTION__, err);
-         }
-
-         acquired = FALSE;
-      }
-   }
-
-   if (acquired) {
       MXRecLockIncCount(lock, 1);
+
+      return TRUE;  // Was acquired
    }
 
-   return acquired;
+   err = MXRecLockTryAcquireInternal(lock);
+
+   if (err == 0) {
+      MXRecLockIncCount(lock, 1);
+
+      return TRUE;  // Was acquired
+   }
+
+   if (vmx86_debug && (err != EBUSY)) {
+      Panic("%s: MXRecLockTryAcquireInternal error %d\n", __FUNCTION__, err);
+   }
+
+   return FALSE;  // Was not acquired
 }
 
 static INLINE void

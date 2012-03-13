@@ -300,8 +300,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
          LeaveCriticalSection(&condVar->x.compat.condVarLock);
       } while (!done);
 
-      MXRecLockAcquire(lock,
-                       NULL);  // non-stats
+      MXRecLockAcquire(lock);
 
       MXRecLockIncCount(lock, lockCount - 1);
 
