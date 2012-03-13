@@ -87,29 +87,17 @@ find_networking_script() {
 #
 run_network_script()
 {
-   # Do we have SysV "service"? If we do, check whether the network service
-   # is called "network" or "networking".
-   service=`which service 2>/dev/null`
-   serviceName=
-   if [ $? = 0 -a -n "$service" ]; then
-      if $service network status 1>/dev/null 2>/dev/null; then
-         serviceName=network
-      elif $service networking status 1>/dev/null 2>/dev/null; then
-         serviceName=networking
-      fi
-   fi
-
-   if [ -n "$serviceName" ]; then
-      $service $serviceName $1
-      return $?
-   fi
-
-   # If we failed to detect things using the "service" way, fall back to
-   # brute force.
    script=`find_networking_script`
    [ "$script" != "error" ] || Panic "Cannot find system networking script."
 
-   "$script" $1
+   # Using SysV "service" if it exists, otherwise fall back to run the script directly
+   service=`which service 2>/dev/null`
+   if [ $? = 0 -a -n "$service" ]; then
+      serviceName=`basename "$script"`
+      "$service" "$serviceName" "$1"
+   else
+      "$script" "$1"
+   fi
 }
 
 
