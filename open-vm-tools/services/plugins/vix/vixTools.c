@@ -546,6 +546,20 @@ static VixError VixToolsRewriteError(uint32 opCode,
 
 static size_t VixToolsXMLStringEscapedLen(const char *str, Bool escapeStr);
 
+static Bool GuestAuthEnabled(void);
+
+VixError GuestAuthPasswordAuthenticateImpersonate(
+   char const *obfuscatedNamePassword,
+   void **userToken);
+
+void GuestAuthUnimpersonate();
+
+#if SUPPORT_VGAUTH
+
+VGAuthError TheVGAuthContext(VGAuthContext **ctx);
+
+#endif
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -7305,6 +7319,22 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
          goto abort;
       }
 
+      /*
+       * Use the GuestAuth library to do name-password authentication
+       * and impersonation.
+       */
+
+      if (GuestAuthEnabled() &&
+          ((VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType) ||
+           (VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED == credentialType))) {
+         err =
+            GuestAuthPasswordAuthenticateImpersonate(obfuscatedNamePassword,
+                                                     userToken);
+
+         goto abort;
+      }
+
+      /* Get the authToken and impersonate */
       if (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType) {
 #ifdef _WIN32
          char *username;
@@ -7381,7 +7411,9 @@ abort:
 void
 VixToolsUnimpersonateUser(void *userToken)
 {
-   if (PROCESS_CREATOR_USER_TOKEN != userToken) {
+   if (VGAUTH_GENERIC_USER_TOKEN == userToken) {
+      GuestAuthUnimpersonate();
+   } else if (PROCESS_CREATOR_USER_TOKEN != userToken) {
 #if defined(_WIN32)
       Impersonate_Undo();
 #else
@@ -7408,7 +7440,8 @@ VixToolsUnimpersonateUser(void *userToken)
 void
 VixToolsLogoutUser(void *userToken)    // IN
 {
-   if (PROCESS_CREATOR_USER_TOKEN == userToken) {
+   if (PROCESS_CREATOR_USER_TOKEN == userToken ||
+       VGAUTH_GENERIC_USER_TOKEN == userToken) {
       return;
    }
 
@@ -8595,7 +8628,7 @@ VixToolsAddAuthPrincipal(VixCommandRequestHeader *requestMsg)    // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   vgErr = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, 0, &ctx);
+   vgErr = TheVGAuthContext(&ctx);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -8612,7 +8645,6 @@ VixToolsAddAuthPrincipal(VixCommandRequestHeader *requestMsg)    // IN
    }
 
 abort:
-   VGAuth_Shutdown(ctx);
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
@@ -8711,7 +8743,7 @@ VixToolsRemoveAuthPrincipal(VixCommandRequestHeader *requestMsg)    // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   vgErr = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, 0, &ctx);
+   vgErr = TheVGAuthContext(&ctx);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -8731,7 +8763,6 @@ VixToolsRemoveAuthPrincipal(VixCommandRequestHeader *requestMsg)    // IN
    }
 
 abort:
-   VGAuth_Shutdown(ctx);
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
@@ -8819,7 +8850,7 @@ VixToolsListAuthPrincipals(VixCommandRequestHeader *requestMsg, // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   vgErr = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, 0, &ctx);
+   vgErr = TheVGAuthContext(&ctx);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -8915,7 +8946,6 @@ abort:
    free(escapedStr);
    free(escapedStr2);
    VGAuth_FreeIdProviderList(num, idList);
-   VGAuth_Shutdown(ctx);
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
@@ -8991,7 +9021,7 @@ VixToolsListMappedPrincipals(VixCommandRequestHeader *requestMsg, // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   vgErr = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, 0, &ctx);
+   vgErr = TheVGAuthContext(&ctx);
    if (vgErr != VGAUTH_E_OK) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -9081,7 +9111,6 @@ abort:
    free(escapedStr);
    free(escapedStr2);
    VGAuth_FreeMappedIdentityList(num, miList);
-   VGAuth_Shutdown(ctx);
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
@@ -10235,3 +10264,174 @@ VixToolsXMLStringEscapedLen(const char *str,    // IN
       return strlen(str);
    }
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestAuthEnabled --
+ *
+ *      Returns whether we use the guest auth library.
+ *
+ * Results:
+ *      TRUE if we do. FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+GuestAuthEnabled(void)
+{
+#if SUPPORT_VGAUTH
+   return TRUE;
+#else
+   return FALSE;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestAuthPasswordAuthenticateImpersonate
+ *
+ *      Do name-password authentication and impersonation using
+ *      the GuestAuth library.
+ *
+ * Results:
+ *      VIX_OK if successful.Other VixError code otherwise.
+ *
+ * Side effects:
+ *      Current process impersonates.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+GuestAuthPasswordAuthenticateImpersonate(
+   char const *obfuscatedNamePassword, // IN
+   void **userToken)                   // OUT
+{
+#if SUPPORT_VGAUTH
+   VixError err;
+   char *username;
+   char *password;
+   VGAuthContext *ctx = NULL;
+   VGAuthError vgErr;
+   VGAuthUserHandle *newHandle = NULL;
+
+   err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
+                                        &username,
+                                        &password);
+   if (err != VIX_OK) {
+      goto done;
+   }
+
+   err = VIX_E_INVALID_LOGIN_CREDENTIALS;
+
+   vgErr = TheVGAuthContext(&ctx);
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   }
+
+   vgErr = VGAuth_ValidateUsernamePassword(ctx, username, password,
+                                           &newHandle);
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   }
+
+   vgErr = VGAuth_Impersonate(ctx, newHandle);
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   }
+
+   *userToken = VGAUTH_GENERIC_USER_TOKEN;
+
+   err = VIX_OK;
+
+done:
+
+   if (newHandle) {
+      VGAuth_UserHandleFree(newHandle);
+   }
+
+   return err;
+#else
+   return VIX_E_NOT_SUPPORTED;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestAuthUnimpersonate
+ *
+ *      End the current impersonation using the VGAuth library.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      Current process un-impersonates.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+GuestAuthUnimpersonate(void)
+{
+#if SUPPORT_VGAUTH
+   VGAuthContext *ctx;
+   VGAuthError vgErr = TheVGAuthContext(&ctx);
+   ASSERT(vgErr == VGAUTH_E_OK);
+
+   vgErr = VGAuth_EndImpersonation(ctx);
+   ASSERT(vgErr == VGAUTH_E_OK);
+#else
+   ASSERT(0);
+#endif
+}
+
+
+#if SUPPORT_VGAUTH
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TheVGAuthContext
+ *
+ *      Get the global VGAuthContext object.
+ *      Lazily create the global VGAuthContext when needed.
+ *      Creating the global context may also cause the VGAuth Service to
+ *      be started.
+ *
+ * Results:
+ *      VGAUTH_E_OK if successful, the global context object is returned in
+ *      the OUT parameter ctx.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VGAuthError
+TheVGAuthContext(VGAuthContext **ctx) // OUT
+{
+   static VGAuthContext *vgaCtx = NULL;
+   VGAuthError vgaCode = VGAUTH_E_OK;
+
+   if (vgaCtx == NULL) {
+      vgaCode = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, 0, &vgaCtx);
+   }
+
+   *ctx = vgaCtx;
+   return vgaCode;
+}
+#endif

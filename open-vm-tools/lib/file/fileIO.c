@@ -716,7 +716,6 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    if (fstat(fileFD->posix, &stbuf)) {
       Log("%s: Failed to fstat '%s', errno: %d.\n", __FUNCTION__,
           FileIO_Filename(fileFD), errno);
-      ASSERT(!vmx86_server); // For APD, hosted can fall-back and write directly
       status = FILEIO_ERROR;
       goto bail;
    }
@@ -803,6 +802,7 @@ bail:
  *
  * Results:
  *      TRUE if successful, FALSE on failure.
+ *      errno is preserved.
  *
  * Side effects:
  *      Disk I/O.
@@ -822,6 +822,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
    Bool ret = FALSE;
    FileIOResult status;
    FileIODescriptor tmpFD;
+   int savedErrno = 0;
 
    ASSERT(FileIO_IsValid(newFD));
    ASSERT(FileIO_IsValid(currFD));
@@ -833,7 +834,6 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       char *fileName = NULL;
       char *dstDirName = NULL;
       char *dstFileName = NULL;
-      int savedErrno;
       int fd;
 
       currPath = File_FullPath(FileIO_Filename(currFD));
@@ -855,11 +855,13 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       if (Str_Snprintf(args->srcFile, sizeof(args->srcFile), "%s",
                        fileName) < 0) {
          Log("%s: Path too long \"%s\".\n", __FUNCTION__, fileName);
+         savedErrno = ENAMETOOLONG;
          goto swapdone;
       }
       if (Str_Snprintf(args->dstFilePath, sizeof(args->dstFilePath), "%s/%s",
                        dstDirName, dstFileName) < 0) {
          Log("%s: Path too long \"%s\".\n", __FUNCTION__, dstFileName);
+         savedErrno = ENAMETOOLONG;
          goto swapdone;
       }
 
@@ -873,10 +875,10 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
          Log("%s: Open failed \"%s\" %d.\n", __FUNCTION__, dirName,
              errno);
          ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
+         savedErrno = errno;
          goto swapdone;
       }
 
-      savedErrno = 0;
       if (ioctl(fd, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
          savedErrno = errno;
          if (errno != ENOSYS) {
@@ -907,6 +909,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
          if (File_Rename(newPath, currPath)) {
             Log("%s: rename of '%s' to '%s' failed %d.\n",
                 newPath, currPath, __FUNCTION__, errno);
+            savedErrno = errno;
             goto swapdone;
          }
          ret = TRUE;
@@ -925,6 +928,7 @@ swapdone:
       free(currPath);
       free(newPath);
 
+      errno = savedErrno;
       return ret;
 #else
       NOT_REACHED();
@@ -956,6 +960,7 @@ swapdone:
    currFD->posix = -1;
 #endif
    if (File_RenameRetry(newPath, currPath, 10)) {
+      savedErrno = errno;
       goto bail;
    }
 
@@ -988,5 +993,7 @@ bail:
    FileIO_Cleanup(&tmpFD);
    Unicode_Free(currPath);
    Unicode_Free(newPath);
+   errno = savedErrno;
+
    return ret;
 }
