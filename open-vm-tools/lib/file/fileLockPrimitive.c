@@ -1833,6 +1833,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    lockBase = Unicode_Append(pathName, FILELOCK_SUFFIX);
 
    myValues.lockType = exclusivity ? LOCK_EXCLUSIVE : LOCK_SHARED;
+   myValues.exclusivity = exclusivity;
    myValues.waitTime = 0;
    myValues.msecMaxWaitTime = msecMaxWaitTime;
 
