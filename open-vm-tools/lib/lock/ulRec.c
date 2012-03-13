@@ -590,7 +590,7 @@ MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
          }
       }
 
-      if (!MXRecLockIsOwner(&lock->recursiveLock)) {
+      if (vmx86_debug && !MXRecLockIsOwner(&lock->recursiveLock)) {
          uint32 lockCount = MXRecLockCount(&lock->recursiveLock);
 
          MXUserDumpAndPanic(&lock->header,

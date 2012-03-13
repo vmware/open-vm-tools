@@ -425,7 +425,7 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
                        NULL);                 // non-stats
    }
 
-   if (MXRecLockCount(&lock->recursiveLock) > 1) {
+   if (vmx86_debug && (MXRecLockCount(&lock->recursiveLock) > 1)) {
       MXUserDumpAndPanic(&lock->header,
                          "%s: Acquire on an acquired exclusive lock\n",
                          __FUNCTION__);
@@ -477,7 +477,7 @@ MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
       }
    }
 
-   if (!MXRecLockIsOwner(&lock->recursiveLock)) {
+   if (vmx86_debug && !MXRecLockIsOwner(&lock->recursiveLock)) {
       uint32 lockCount = MXRecLockCount(&lock->recursiveLock);
 
       MXUserDumpAndPanic(&lock->header,
