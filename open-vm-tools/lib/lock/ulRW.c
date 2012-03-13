@@ -342,44 +342,6 @@ MXUserStatsActionRW(MXUserHeader *header)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserDumpRWLock --
- *
- *      Dump an read-write lock.
- *
- * Results:
- *      A dump.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-MXUserDumpRWLock(MXUserHeader *header)  // IN:
-{
-   MXUserRWLock *lock = (MXUserRWLock *) header;
-
-   Warning("%s: Read-write lock @ 0x%p\n", __FUNCTION__, lock);
-
-   Warning("\tsignature 0x%X\n", lock->header.signature);
-   Warning("\tname %s\n", lock->header.name);
-   Warning("\trank 0x%X\n", lock->header.rank);
-   Warning("\tserial number %u\n", lock->header.serialNumber);
-
-   if (LIKELY(lock->useNative)) {
-      Warning("\taddress of native lock 0x%p\n", &lock->nativeLock);
-   } else {
-      Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
-   }
-
-   Warning("\tholderCount %d\n", Atomic_Read(&lock->holderCount));
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * MXUser_ControlRWLock --
  *
  *      Perform the specified command on the specified lock.
@@ -484,6 +446,44 @@ MXUser_ControlRWLock(MXUserRWLock *lock,  // IN/OUT:
    }
 
    return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserDumpRWLock --
+ *
+ *      Dump an read-write lock.
+ *
+ * Results:
+ *      A dump.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserDumpRWLock(MXUserHeader *header)  // IN:
+{
+   MXUserRWLock *lock = (MXUserRWLock *) header;
+
+   Warning("%s: Read-write lock @ 0x%p\n", __FUNCTION__, lock);
+
+   Warning("\tsignature 0x%X\n", lock->header.signature);
+   Warning("\tname %s\n", lock->header.name);
+   Warning("\trank 0x%X\n", lock->header.rank);
+   Warning("\tserial number %u\n", lock->header.serialNumber);
+
+   if (LIKELY(lock->useNative)) {
+      Warning("\taddress of native lock 0x%p\n", &lock->nativeLock);
+   } else {
+      Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
+   }
+
+   Warning("\tholderCount %d\n", Atomic_Read(&lock->holderCount));
 }
 
 

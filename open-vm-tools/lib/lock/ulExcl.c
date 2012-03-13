@@ -115,46 +115,6 @@ MXUserStatsActionExcl(MXUserHeader *header)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserDumpExclLock --
- *
- *      Dump an exclusive lock.
- *
- * Results:
- *      A dump.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-MXUserDumpExclLock(MXUserHeader *header)  // IN:
-{
-   MXUserExclLock *lock = (MXUserExclLock *) header;
-   MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
-
-   Warning("%s: Exclusive lock @ 0x%p\n", __FUNCTION__, lock);
-
-   Warning("\tsignature 0x%X\n", lock->header.signature);
-   Warning("\tname %s\n", lock->header.name);
-   Warning("\trank 0x%X\n", lock->header.rank);
-   Warning("\tserial number %u\n", lock->header.serialNumber);
-
-   Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
-
-   Warning("\taddress of owner data 0x%p\n",
-           &lock->recursiveLock.nativeThreadID);
-
-   if (stats && (stats->holder != NULL)) {
-      Warning("\tholder 0x%p\n", stats->holder);
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * MXUser_ControlExclLock --
  *
  *      Perform the specified command on the specified lock.
@@ -259,6 +219,46 @@ MXUser_ControlExclLock(MXUserExclLock *lock,  // IN/OUT:
    }
 
    return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserDumpExclLock --
+ *
+ *      Dump an exclusive lock.
+ *
+ * Results:
+ *      A dump.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+MXUserDumpExclLock(MXUserHeader *header)  // IN:
+{
+   MXUserExclLock *lock = (MXUserExclLock *) header;
+   MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
+   Warning("%s: Exclusive lock @ 0x%p\n", __FUNCTION__, lock);
+
+   Warning("\tsignature 0x%X\n", lock->header.signature);
+   Warning("\tname %s\n", lock->header.name);
+   Warning("\trank 0x%X\n", lock->header.rank);
+   Warning("\tserial number %u\n", lock->header.serialNumber);
+
+   Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
+
+   Warning("\taddress of owner data 0x%p\n",
+           &lock->recursiveLock.nativeThreadID);
+
+   if (stats && (stats->holder != NULL)) {
+      Warning("\tholder 0x%p\n", stats->holder);
+   }
 }
 
 
