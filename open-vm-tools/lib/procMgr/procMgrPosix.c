@@ -81,6 +81,7 @@
 #include "dynarray.h"
 #include "su.h"
 #include "str.h"
+#include "strutil.h"
 #include "fileIO.h"
 #include "codeset.h"
 #include "unicode.h"
@@ -126,7 +127,8 @@ static Bool ProcMgrKill(pid_t pid,
 
 #if defined(__APPLE__)
 static int ProcMgrGetCommandLineArgs(long pid,
-                                     DynBuf *argsBuf);
+                                     DynBuf *argsBuf,
+                                     char **procCmdName);
 #endif
 
 #ifdef sun
@@ -192,7 +194,7 @@ setresgid(gid_t ruid,
  *----------------------------------------------------------------------
  */
 
-#if !defined(sun) && !defined(__FreeBSD__) && !defined(__APPLE__)
+#if defined(linux)
 int
 ProcMgr_ReadProcFile(int fd,                       // IN
                      char **contents)              // OUT
@@ -246,7 +248,6 @@ done:
    return size;
 }
 
-#endif   // !sun && !FreeBSD && !APPLE
 
 /*
  *----------------------------------------------------------------------
@@ -266,7 +267,6 @@ done:
  *----------------------------------------------------------------------
  */
 
-#if defined(linux)
 ProcMgrProcInfoArray *
 ProcMgr_ListProcesses(void)
 {
@@ -281,7 +281,8 @@ ProcMgr_ListProcesses(void)
 
    procList = Util_SafeCalloc(1, sizeof *procList);
    ProcMgrProcInfoArray_Init(procList, 0);
-   procInfo.procCmd = NULL;
+   procInfo.procCmdName = NULL;
+   procInfo.procCmdLine = NULL;
    procInfo.procOwner = NULL;
 
    /*
@@ -355,6 +356,8 @@ ProcMgr_ListProcesses(void)
       unsigned long long dummy;
       unsigned long long relativeStartTime;
       char *stringBegin;
+      char *cmdNameBegin;
+      Bool cmdNameLookup = TRUE;
 
       /*
        * We only care about dirs that look like processes.
@@ -406,6 +409,24 @@ ProcMgr_ListProcesses(void)
           */
          for (replaceLoop = 0 ; replaceLoop < (numRead - 1) ; replaceLoop++) {
             if ('\0' == cmdLineTemp[replaceLoop]) {
+               if (cmdNameLookup) {
+                  /*
+                   * Store the command name.
+                   * Find the last path separator, to get the cmd name.
+                   * If no separator is found, then use the whole name.
+                   */
+                  cmdNameBegin = strrchr(cmdLineTemp, '/');
+                  if (NULL == cmdNameBegin) {
+                     cmdNameBegin = cmdLineTemp;
+                  } else {
+                     /*
+                      * Skip over the last separator.
+                      */
+                     cmdNameBegin++;
+                  }
+                  procInfo.procCmdName = Unicode_Alloc(cmdNameBegin, STRING_ENCODING_DEFAULT);
+                  cmdNameLookup = FALSE;
+               }
                cmdLineTemp[replaceLoop] = ' ';
             }
          }
@@ -456,6 +477,10 @@ ProcMgr_ListProcesses(void)
                *(copyItr++) = *(nameStart++);
             }
             *copyItr = '\0';
+            /*
+             * Store the command name.
+             */
+            procInfo.procCmdName = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
          }
       }
 
@@ -529,9 +554,9 @@ ProcMgr_ListProcesses(void)
        * Store the command line string pointer in dynbuf.
        */
       if (cmdLineTemp) {
-         procInfo.procCmd = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
+         procInfo.procCmdLine = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
       } else {
-         procInfo.procCmd = Unicode_Alloc("", STRING_ENCODING_UTF8);
+         procInfo.procCmdLine = Unicode_Alloc("", STRING_ENCODING_UTF8);
       }
 
       /*
@@ -560,7 +585,8 @@ ProcMgr_ListProcesses(void)
                  __FUNCTION__);
          goto abort;
       }
-      procInfo.procCmd = NULL;
+      procInfo.procCmdName = NULL;
+      procInfo.procCmdLine = NULL;
       procInfo.procOwner = NULL;
 
 next_entry:
@@ -575,7 +601,8 @@ next_entry:
 abort:
    closedir(dir);
 
-   free(procInfo.procCmd);
+   free(procInfo.procCmdName);
+   free(procInfo.procCmdLine);
    free(procInfo.procOwner);
 
    if (failed) {
@@ -621,7 +648,8 @@ ProcMgr_ListProcesses(void)
    int flag=0;
 
    procList = Util_SafeCalloc(1, sizeof *procList);
-   procInfo.procCmd = NULL;
+   procInfo.procCmdName = NULL;
+   procInfo.procCmdLine = NULL;
    procInfo.procOwner = NULL;
 
    /*
@@ -658,9 +686,11 @@ ProcMgr_ListProcesses(void)
    for (i = 0; i < nentries; ++i, ++kp) {
       struct passwd *pwd;
       char **cmdLineTemp = NULL;
+      char *cmdNameBegin = NULL;
+      Bool cmdNameLookup = TRUE;
 
       /*
-       * Store the pid of the process
+       * Store the pid of the process.
        */
       procInfo.procId = kp->ki_pid;
 
@@ -673,11 +703,23 @@ ProcMgr_ListProcesses(void)
                            : Unicode_Alloc(pwd->pw_name, STRING_ENCODING_DEFAULT);
 
       /*
-       * Store the command line string of the process
+       * If the command name in the kinfo_proc struct is strictly less than the
+       * maximum allowed size, then we can save it right now. Else we shall
+       * need to try and parse it from the entire command line.
+       */
+      if (strlen(kp->ki_comm) + 1 < sizeof kp->ki_comm) {
+         procInfo.procCmdName = Unicode_Alloc(kp->ki_comm, STRING_ENCODING_DEFAULT);
+         cmdNameLookup = FALSE;
+      }
+
+      /*
+       * Store the command line string of the process.
        */
       cmdLineTemp = kvm_getargv(kd, kp, 0);
       if (cmdLineTemp != NULL) {
-         // flatten the argument list to get cmd & all params
+         /*
+          * Flatten the argument list to get cmd & all params.
+          */
          DynBuf dbuf;
 
          DynBuf_Init(&dbuf);
@@ -687,9 +729,29 @@ ProcMgr_ListProcesses(void)
                        __FUNCTION__);
                goto abort;
             }
+            if (cmdNameLookup) {
+               /*
+                * Store the command name of the process.
+                * Find the last path separator, to get the cmd name.
+                * If no separator is found, then use the whole name.
+                */
+               cmdNameBegin = strrchr(*cmdLineTemp, '/');
+               if (NULL == cmdNameBegin) {
+                  cmdNameBegin = *cmdLineTemp;
+               } else {
+                  /*
+                   * Skip over the last separator.
+                   */
+                  cmdNameBegin++;
+               }
+               procInfo.procCmdName = Unicode_Alloc(cmdNameBegin, STRING_ENCODING_DEFAULT);
+               cmdNameLookup = FALSE;
+            }
             cmdLineTemp++;
             if (*cmdLineTemp != NULL) {
-               // add the whitespace between arguments
+               /*
+                * Add the whitespace between arguments.
+                */
                if (!DynBuf_Append(&dbuf, " ", 1)) {
                   Warning("%s: failed to append ' ' in DynBuf - no memory\n",
                           __FUNCTION__);
@@ -697,17 +759,23 @@ ProcMgr_ListProcesses(void)
                }
             }
          }
-         // add the NUL term
+         /*
+          * Add the NUL term.
+          */
          if (!DynBuf_Append(&dbuf, "", 1)) {
             Warning("%s: failed to append NUL in DynBuf - out of memory\n",
                     __FUNCTION__);
             goto abort;
          }
          DynBuf_Trim(&dbuf);
-         procInfo.procCmd = DynBuf_Detach(&dbuf);
+         procInfo.procCmdLine = DynBuf_Detach(&dbuf);
          DynBuf_Destroy(&dbuf);
       } else {
-         procInfo.procCmd = Unicode_Alloc(kp->ki_comm, STRING_ENCODING_DEFAULT);
+         procInfo.procCmdLine = Unicode_Alloc(kp->ki_comm, STRING_ENCODING_DEFAULT);
+         if (cmdNameLookup) {
+            procInfo.procCmdName = Unicode_Alloc(kp->ki_comm, STRING_ENCODING_DEFAULT);
+            cmdNameLookup = FALSE;
+         }
       }
 
       /*
@@ -719,7 +787,8 @@ ProcMgr_ListProcesses(void)
        * Store the process info pointer into a list buffer.
        */
       *ProcMgrProcInfoArray_AddressOf(procList, i) = procInfo;
-      procInfo.procCmd = NULL;
+      procInfo.procCmdLine = NULL;
+      procInfo.procCmdName = NULL;
       procInfo.procOwner = NULL;
 
    } // for nentries
@@ -731,7 +800,8 @@ abort:
       kvm_close(kd);
    }
 
-   free(procInfo.procCmd);
+   free(procInfo.procCmdLine);
+   free(procInfo.procCmdName);
    free(procInfo.procOwner);
 
    if (failed) {
@@ -756,6 +826,7 @@ abort:
  * Results:
  *      Number of arguments retrieved.
  *      Buffer is returned with argument names, if any.
+ *      Command name is returned.
  *
  * Side effects:
  *
@@ -764,11 +835,13 @@ abort:
 
 static int
 ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
-                          DynBuf *argsBuf)        // OUT: Buffer with arguments
+                          DynBuf *argsBuf,        // OUT: Buffer with arguments
+                          char **procCmdName)     // OUT: Command name string
 {
    int argCount = 0;
    int argNum;
    char *argUnicode = NULL;
+   char *cmdNameBegin = NULL;
    char *cmdLineRaw = NULL;
    char *cmdLineTemp;
    char *cmdLineEnd;
@@ -776,6 +849,12 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
    size_t maxargsSize;
    int maxargsName[] = {CTL_KERN, KERN_ARGMAX};
    int argName[] = {CTL_KERN, KERN_PROCARGS2, pid};
+   Bool cmdNameLookup = TRUE;
+   Bool failed = TRUE;
+
+   if (NULL != procCmdName) {
+      *procCmdName = NULL;
+   }
 
    /*
     * Get the sysctl kern argmax.
@@ -876,6 +955,27 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
             break;
          }
          ++argCount;
+         /*
+          * If this is the command name, retrieve it.
+          */
+         if (NULL != procCmdName && cmdNameLookup) {
+            /*
+             * Store the command name of the process.
+             * Find the last path separator, to get the cmd name.
+             * If no separator is found, then use the whole name.
+             */
+            cmdNameBegin = strrchr(cmdLineTemp, '/');
+            if (NULL == cmdNameBegin) {
+               cmdNameBegin = cmdLineTemp;
+            } else {
+               /*
+                * Skip over the last separator.
+                */
+               cmdNameBegin++;
+            }
+            *procCmdName = Unicode_Alloc(cmdNameBegin, STRING_ENCODING_DEFAULT);
+            cmdNameLookup = FALSE;
+         }
       }
       /*
        * Skip over the current arg that we just saved.
@@ -895,9 +995,17 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
    }
    DynBuf_Trim(argsBuf);
 
+   failed = FALSE;
 abort:
    free(cmdLineRaw);
    free(argUnicode);
+   if (failed) {
+      if (NULL != procCmdName) {
+         free(*procCmdName);
+         *procCmdName = NULL;
+      }
+      argCount = 0;
+   }
 
    return argCount;
 }
@@ -934,7 +1042,8 @@ ProcMgr_ListProcesses(void)
    int procName[] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL};
 
    procList = Util_SafeCalloc(1, sizeof *procList);
-   procInfo.procCmd = NULL;
+   procInfo.procCmdLine = NULL;
+   procInfo.procCmdName = NULL;
    procInfo.procOwner = NULL;
 
    /*
@@ -946,6 +1055,7 @@ ProcMgr_ListProcesses(void)
       goto abort;
    }
    nentries = (int)(procsize / sizeof *kp);
+
    /*
     * Get the list of process info structs.
     */
@@ -955,12 +1065,14 @@ ProcMgr_ListProcesses(void)
                __FUNCTION__, errno);
       goto abort;
    }
+
    /*
     * Recalculate the number of entries as they may have changed.
     */
    if (0 >= (nentries = (int)(procsize / sizeof *kp))) {
       goto abort;
    }
+
    /*
     * Pre-allocate the dynamic array of required size.
     */
@@ -969,6 +1081,7 @@ ProcMgr_ListProcesses(void)
               __FUNCTION__);
       goto abort;
    }
+
    /*
     * Iterate through the list of process entries
     */
@@ -978,11 +1091,14 @@ ProcMgr_ListProcesses(void)
       struct passwd pw;
       struct passwd *ppw = &pw;
       int error;
+      int argCount = 0;
+      Bool cmdNameLookup = TRUE;
 
       /*
        * Store the pid of the process
        */
       procInfo.procId = kptmp->kp_proc.p_pid;
+
       /*
        * Store the owner of the process.
        */
@@ -993,25 +1109,52 @@ ProcMgr_ListProcesses(void)
                            : Unicode_Alloc(ppw->pw_name, STRING_ENCODING_DEFAULT);
 
       /*
+       * If the command name in the kinfo_proc struct is strictly less than the
+       * maximum allowed size, then we can save it right now. Else we shall
+       * need to try and parse it from the entire command line.
+       */
+      if (strlen(kptmp->kp_proc.p_comm) + 1 < sizeof kptmp->kp_proc.p_comm) {
+         procInfo.procCmdName = Unicode_Alloc(kptmp->kp_proc.p_comm, STRING_ENCODING_DEFAULT);
+         cmdNameLookup = FALSE;
+      }
+
+      /*
        * Store the command line arguments of the process.
        * If no arguments are found, use the full command name.
        */
       DynBuf_Init(&argsBuf);
-      if (ProcMgrGetCommandLineArgs(kptmp->kp_proc.p_pid, &argsBuf) > 0) {
-         procInfo.procCmd = DynBuf_Detach(&argsBuf);
+      if (cmdNameLookup) {
+         argCount = ProcMgrGetCommandLineArgs(kptmp->kp_proc.p_pid, &argsBuf, &procInfo.procCmdName);
       } else {
-         procInfo.procCmd = Unicode_Alloc(kptmp->kp_proc.p_comm, STRING_ENCODING_DEFAULT);
+         argCount = ProcMgrGetCommandLineArgs(kptmp->kp_proc.p_pid, &argsBuf, NULL);
+      }
+      if (0 < argCount) {
+         procInfo.procCmdLine = DynBuf_Detach(&argsBuf);
+         /*
+          * cmdName would have been filled up by the function ProcMgrGetCommandLineArgs().
+          */
+         cmdNameLookup = FALSE;
+      } else {
+         procInfo.procCmdLine = Unicode_Alloc(kptmp->kp_proc.p_comm, STRING_ENCODING_DEFAULT);
+         if (cmdNameLookup) {
+            procInfo.procCmdName = Unicode_Alloc(kptmp->kp_proc.p_comm, STRING_ENCODING_DEFAULT);
+            cmdNameLookup = FALSE;
+         }
       }
       DynBuf_Destroy(&argsBuf);
+
       /*
        * Store the start time of the process
        */
       procInfo.procStartTime = kptmp->kp_proc.p_starttime.tv_sec;
+
       /*
        * Store the process info pointer into a list buffer.
        */
       *ProcMgrProcInfoArray_AddressOf(procList, i) = procInfo;
-      procInfo.procCmd = NULL;
+
+      procInfo.procCmdLine = NULL;
+      procInfo.procCmdName = NULL;
       procInfo.procOwner = NULL;
 
    } // nentries
@@ -1020,7 +1163,8 @@ ProcMgr_ListProcesses(void)
 
 abort:
    free(kp);
-   free(procInfo.procCmd);
+   free(procInfo.procCmdLine);
+   free(procInfo.procCmdName);
    free(procInfo.procOwner);
 
    if (failed) {
@@ -1060,10 +1204,9 @@ ProcMgr_FreeProcList(ProcMgrProcInfoArray *procList)
 
    procCount = ProcMgrProcInfoArray_Count(procList);
    for (i = 0; i < procCount; i++) {
-      ProcMgrProcInfo *procInfo;
-
-      procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
-      free(procInfo->procCmd);
+      ProcMgrProcInfo *procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
+      free(procInfo->procCmdName);
+      free(procInfo->procCmdLine);
       free(procInfo->procOwner);
    }
 

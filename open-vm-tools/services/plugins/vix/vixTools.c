@@ -232,15 +232,16 @@ typedef struct VixToolsStartProgramState {
  * (VIX_TOOLS_EXITED_PROGRAM_REAP_TIME) in the VMODL.
  */
 typedef struct VixToolsExitedProgramState {
-   char                                *fullCommandLine;
-   char                                *user;
-   uint64                              pid;
-   time_t                              startTime;
-   int                                 exitCode;
-   time_t                              endTime;
-   Bool                                isRunning;
-   ProcMgr_AsyncProc                   *procState;
-   struct VixToolsExitedProgramState   *next;
+   char *cmdName;
+   char *fullCommandLine;
+   char *user;
+   uint64 pid;
+   time_t startTime;
+   int exitCode;
+   time_t endTime;
+   Bool isRunning;
+   ProcMgr_AsyncProc *procState;
+   struct VixToolsExitedProgramState *next;
 } VixToolsExitedProgramState;
 
 static VixToolsExitedProgramState *exitedProcessList = NULL;
@@ -438,6 +439,7 @@ static VixError VixToolsListProcesses(VixCommandRequestHeader *requestMsg,
                                       char **result);
 
 static VixError VixToolsPrintProcInfoEx(DynBuf *dstBuffer,
+                                        const char *cmd,
                                         const char *name,
                                         uint64 pid,
                                         const char *user,
@@ -1028,6 +1030,7 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
    const char *workingDir = NULL;
    const char **envVars = NULL;
    const char *bp = NULL;
+   const char *cmdNameBegin = NULL;
    Bool impersonatingVMWareUser = FALSE;
    int64 pid = -1;
    int i;
@@ -1143,16 +1146,39 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
        * Linux.
        */
       if (NULL != arguments) {
-         exitState->fullCommandLine = Str_Asprintf(NULL,
+         exitState->fullCommandLine = Str_SafeAsprintf(NULL,
                                         "\"%s\" %s",
                                         programPath,
                                         arguments);
       } else {
-         exitState->fullCommandLine = Str_Asprintf(NULL,
+         exitState->fullCommandLine = Str_SafeAsprintf(NULL,
                                         "\"%s\"",
                                         programPath);
       }
-
+#if defined(_WIN32)
+      /*
+       * For windows, we let the VIX client parse the
+       * command line to get the real command name.
+       */
+      exitState->cmdName = NULL;
+#else
+      /*
+       * Find the last path separator, to get the cmd name.
+       * If no separator is found, then use the whole name.
+       */
+      cmdNameBegin = strrchr(programPath, '/');
+      if (NULL == cmdNameBegin) {
+         cmdNameBegin = programPath;
+      } else {
+         /*
+          * Skip over the last separator.
+          */
+         cmdNameBegin++;
+      }
+      exitState->cmdName = Str_SafeAsprintf(NULL,
+                                            "%s",
+                                            cmdNameBegin);
+#endif
       exitState->user = VixToolsGetImpersonatedUsername(&userToken);
       exitState->pid = (uint64) pid;
       exitState->startTime = time(NULL);
@@ -1280,12 +1306,12 @@ VixToolsRunProgramImpl(char *requestName,      // IN
     * Linux.
     */
    if (NULL != commandLineArgs) {
-      fullCommandLine = Str_Asprintf(NULL,
+      fullCommandLine = Str_SafeAsprintf(NULL,
                                      "\"%s\" %s",
                                      commandLine,
                                      commandLineArgs);
    } else {
-      fullCommandLine = Str_Asprintf(NULL,
+      fullCommandLine = Str_SafeAsprintf(NULL,
                                      "\"%s\"",
                                      commandLine);
    }
@@ -1525,12 +1551,12 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * Linux.
     */
    if (NULL != arguments) {
-      fullCommandLine = Str_Asprintf(NULL,
+      fullCommandLine = Str_SafeAsprintf(NULL,
                                      "\"%s\" %s",
                                      programPath,
                                      arguments);
    } else {
-      fullCommandLine = Str_Asprintf(NULL,
+      fullCommandLine = Str_SafeAsprintf(NULL,
                                      "\"%s\"",
                                      programPath);
    }
@@ -1879,6 +1905,7 @@ done:
     * and endTime.
     */
    exitState = Util_SafeMalloc(sizeof(VixToolsExitedProgramState));
+   exitState->cmdName = NULL;
    exitState->fullCommandLine = NULL;
    exitState->user = NULL;
    exitState->pid = pid;
@@ -2023,6 +2050,7 @@ VixToolsFreeExitedProgramState(VixToolsExitedProgramState *exitState) // IN
       return;
    }
 
+   free(exitState->cmdName);
    free(exitState->fullCommandLine);
    free(exitState->user);
 
@@ -2904,7 +2932,7 @@ VixToolsReadRegistry(VixCommandRequestHeader *requestMsg,  // IN
          goto abort;
       }
 
-      valueStr = Str_Asprintf(NULL, "%d", valueInt);
+      valueStr = Str_SafeAsprintf(NULL, "%d", valueInt);
       if (NULL == valueStr) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
@@ -3805,7 +3833,7 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
          free(value);
          value = tmpVal;
 
-         resultLocal = Str_Asprintf(NULL, "%s<ev>%s=%s</ev>",
+         resultLocal = Str_SafeAsprintf(NULL, "%s<ev>%s=%s</ev>",
                                     tmp, escapedName, value);
          free(tmp);
          if (NULL == resultLocal) {
@@ -3934,7 +3962,7 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
       }
       envVar = tmpVal;
 
-      resultLocal = Str_Asprintf(NULL, "%s<ev>%s</ev>", tmp, envVar);
+      resultLocal = Str_SafeAsprintf(NULL, "%s<ev>%s</ev>", tmp, envVar);
       free(tmp);
       free(envVar);
       if (NULL == resultLocal) {
@@ -4611,6 +4639,7 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    ProcMgrProcInfo *procInfo;
    char *destPtr;
    char *endDestPtr;
+   char *cmdNamePtr = NULL;
    char *procBufPtr = NULL;
    size_t procBufSize;
    Bool impersonatingVMWareUser = FALSE;
@@ -4618,6 +4647,7 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    Bool escapeStrs;
    char *escapedName = NULL;
    char *escapedUser = NULL;
+   char *escapedCmd = NULL;
    size_t procCount;
 
    ASSERT(maxBufferSize <= GUESTMSG_MAX_IN_SIZE);
@@ -4654,15 +4684,35 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
 
       procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
 
+      if (NULL != procInfo->procCmdName) {
+         if (escapeStrs) {
+            escapedCmd =
+            VixToolsEscapeXMLString(procInfo->procCmdName);
+            if (NULL == escapedCmd) {
+               err = VIX_E_OUT_OF_MEMORY;
+               goto abort;
+            }
+            cmdNamePtr = Str_SafeAsprintf(NULL,
+                                          "<cmd>%s</cmd>",
+                                          escapedCmd);
+         } else {
+            cmdNamePtr = Str_SafeAsprintf(NULL,
+                                          "<cmd>%s</cmd>",
+                                          procInfo->procCmdName);
+         }
+      } else {
+         cmdNamePtr = Util_SafeStrdup("");
+      }
+
       if (escapeStrs) {
          name = escapedName =
-            VixToolsEscapeXMLString(procInfo->procCmd);
+            VixToolsEscapeXMLString(procInfo->procCmdLine);
          if (NULL == escapedName) {
             err = VIX_E_OUT_OF_MEMORY;
             goto abort;
          }
       } else {
-         name = procInfo->procCmd;
+         name = procInfo->procCmdLine;
       }
 
       if (NULL != procInfo->procOwner) {
@@ -4680,19 +4730,22 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
          user = "";
       }
 
-      procBufPtr = Str_Asprintf(&procBufSize,
-                             "<proc><name>%s</name><pid>%d</pid>"
+      procBufPtr = Str_SafeAsprintf(&procBufSize,
+                                    "<proc>"
+                                    "%s"              // has <cmd>...</cmd> tags if there is cmd, else "";
+                                    "<name>%s</name>"
+                                    "<pid>%d</pid>"
 #if defined(_WIN32)
-                             "<debugged>%d</debugged>"
+                                    "<debugged>%d</debugged>"
 #endif
-                             "<user>%s</user><start>%d</start></proc>",
-                             name,
-                             (int) procInfo->procId,
+                                    "<user>%s</user>"
+                                    "<start>%d</start>"
+                                    "</proc>",
+                                    cmdNamePtr, name, (int) procInfo->procId,
 #if defined(_WIN32)
-                             (int) procInfo->procDebugged,
+                                    (int) procInfo->procDebugged,
 #endif
-                             user,
-                             (int) procInfo->procStartTime);
+                                    user, (int) procInfo->procStartTime);
       if (NULL == procBufPtr) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
@@ -4701,15 +4754,19 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
          destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
                                 "%s", procBufPtr);
       } else { // out of space
-         free(procBufPtr);
          Log("%s: proc list results too large, truncating", __FUNCTION__);
          goto abort;
       }
+      free(cmdNamePtr);
+      cmdNamePtr = NULL;
       free(procBufPtr);
+      procBufPtr = NULL;
       free(escapedName);
       escapedName = NULL;
       free(escapedUser);
       escapedUser = NULL;
+      free(escapedCmd);
+      escapedCmd = NULL;
    }
 
 abort:
@@ -4718,8 +4775,11 @@ abort:
    }
    VixToolsLogoutUser(userToken);
    ProcMgr_FreeProcList(procList);
+   free(cmdNamePtr);
+   free(procBufPtr);
    free(escapedName);
    free(escapedUser);
+   free(escapedCmd);
 
    *result = resultBuffer;
 
@@ -4844,6 +4904,7 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
          while (epList) {
             if (pids[i] == epList->pid) {
                err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                             epList->cmdName,
                                              epList->fullCommandLine,
                                              epList->pid,
                                              epList->user,
@@ -4862,6 +4923,7 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
       epList = exitedProcessList;
       while (epList) {
          err = VixToolsPrintProcInfoEx(&dynBuffer,
+                                       epList->cmdName,
                                        epList->fullCommandLine,
                                        epList->pid,
                                        epList->user,
@@ -4893,7 +4955,8 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
             procInfo = ProcMgrProcInfoArray_AddressOf(procList, j);
             if (pids[i] == procInfo->procId) {
                err = VixToolsPrintProcInfoEx(&dynBuffer,
-                                             procInfo->procCmd,
+                                             procInfo->procCmdName,
+                                             procInfo->procCmdLine,
                                              procInfo->procId,
                                              (NULL == procInfo->procOwner)
                                              ? "" : procInfo->procOwner,
@@ -4913,7 +4976,8 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
             continue;
          }
          err = VixToolsPrintProcInfoEx(&dynBuffer,
-                                       procInfo->procCmd,
+                                       procInfo->procCmdName,
+                                       procInfo->procCmdLine,
                                        procInfo->procId,
                                        (NULL == procInfo->procOwner)
                                        ? "" : procInfo->procOwner,
@@ -5270,6 +5334,7 @@ abort:
 
 static VixError
 VixToolsPrintProcInfoEx(DynBuf *dstBuffer,             // IN/OUT
+                        const char *cmd,               // IN
                         const char *name,              // IN
                         uint64 pid,                    // IN
                         const char *user,              // IN
@@ -5278,11 +5343,24 @@ VixToolsPrintProcInfoEx(DynBuf *dstBuffer,             // IN/OUT
                         int exitTime)                  // IN
 {
    VixError err;
-   char *escapedName;
+   char *escapedName = NULL;
+   char *escapedCmd = NULL;
    char *escapedUser = NULL;
+   char *cmdNamePtr = NULL;
    size_t bytesPrinted;
    char *procInfoEntry;
    Bool success;
+
+   if (NULL != cmd) {
+      escapedCmd = VixToolsEscapeXMLString(cmd);
+      if (NULL == escapedCmd) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+      cmdNamePtr = Str_SafeAsprintf(NULL, "<cmd>%s</cmd>", escapedCmd);
+   } else {
+      cmdNamePtr = Util_SafeStrdup("");
+   }
 
    escapedName = VixToolsEscapeXMLString(name);
    if (NULL == escapedName) {
@@ -5296,13 +5374,18 @@ VixToolsPrintProcInfoEx(DynBuf *dstBuffer,             // IN/OUT
       goto abort;
    }
 
-   procInfoEntry = Str_Asprintf(&bytesPrinted,
-                                "<proc><name>%s</name><pid>%"FMT64"d</pid>"
-                                "<user>%s</user><start>%d</start>"
-                                "<eCode>%d</eCode><eTime>%d</eTime>"
-                                "</proc>",
-                                escapedName, pid, escapedUser, start, exitCode,
-                                exitTime);
+   procInfoEntry = Str_SafeAsprintf(&bytesPrinted,
+                                    "<proc>"
+                                    "%s"              // has <cmd>...</cmd> tags if there is cmd, else "";
+                                    "<name>%s</name>"
+                                    "<pid>%"FMT64"d</pid>"
+                                    "<user>%s</user>"
+                                    "<start>%d</start>"
+                                    "<eCode>%d</eCode>"
+                                    "<eTime>%d</eTime>"
+                                    "</proc>",
+                                    cmdNamePtr, escapedName, pid, escapedUser,
+                                    start, exitCode, exitTime);
    if (NULL == procInfoEntry) {
       err = VIX_E_OUT_OF_MEMORY;
       goto abort;
@@ -5318,8 +5401,10 @@ VixToolsPrintProcInfoEx(DynBuf *dstBuffer,             // IN/OUT
    err = VIX_OK;
 
 abort:
+   free(cmdNamePtr);
    free(escapedName);
    free(escapedUser);
+   free(escapedCmd);
 
    return err;
 }
@@ -6844,12 +6929,12 @@ if (0 == *interpreterName) {
    }
    for (var = 0; var <= 0xFFFFFFFF; var++) {
       free(tempScriptFilePath);
-      tempScriptFilePath = Str_Asprintf(NULL,
-                                        "%s"DIRSEPS"%s%d%s",
-                                        tempDirPath,
-                                        scriptFileBaseName,
-                                        var,
-                                        fileSuffix);
+      tempScriptFilePath = Str_SafeAsprintf(NULL,
+                                            "%s"DIRSEPS"%s%d%s",
+                                            tempDirPath,
+                                            scriptFileBaseName,
+                                            var,
+                                            fileSuffix);
       if (NULL == tempScriptFilePath) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
@@ -6937,13 +7022,13 @@ if (0 == *interpreterName) {
    }
 
    if ((NULL != interpreterName) && (*interpreterName)) {
-      fullCommandLine = Str_Asprintf(NULL, // resulting string length
+      fullCommandLine = Str_SafeAsprintf(NULL, // resulting string length
                                      "\"%s\" %s \"%s\"",
                                      interpreterName,
                                      interpreterFlags,
                                      tempScriptFilePath);
    } else {
-      fullCommandLine = Str_Asprintf(NULL,  // resulting string length
+      fullCommandLine = Str_SafeAsprintf(NULL,  // resulting string length
                                      "\"%s\"",
                                      tempScriptFilePath);
    }

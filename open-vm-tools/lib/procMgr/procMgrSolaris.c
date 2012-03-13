@@ -61,7 +61,8 @@ ExtractArgStringFromAddressSpaceFile(FileIODescriptor asFd,
                                      uintptr_t offset);
 
 static char *
-ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo);
+ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo,
+                                       char **procCmdName);
 
 /*
  *----------------------------------------------------------------------------
@@ -97,7 +98,8 @@ ProcMgr_ListProcesses(void)
    procList = Util_SafeCalloc(1, sizeof *procList);
    ProcMgrProcInfoArray_Init(procList, 0);
    processInfo.procOwner = NULL;
-   processInfo.procCmd = NULL;
+   processInfo.procCmdLine = NULL;
+   processInfo.procCmdName = NULL;
 
    dir = opendir("/proc");
    if (NULL == dir) {
@@ -106,6 +108,9 @@ ProcMgr_ListProcesses(void)
    }
 
    while (TRUE) {
+      char *tmp;
+      char *cmdNameBegin = NULL;
+      char *cmdNameEnd = NULL;
       struct passwd *pwd;
       char tempPath[MAXPATHLEN];
       psinfo_t procInfo;
@@ -113,6 +118,7 @@ ProcMgr_ListProcesses(void)
       size_t numRead = 0;
       FileIODescriptor psInfoFd;
       FileIOResult res;
+      Bool cmdNameLookup = TRUE;
 
       errno = 0;
       FileIO_Invalidate(&psInfoFd);
@@ -155,30 +161,80 @@ ProcMgr_ListProcesses(void)
       processInfo.procStartTime = procInfo.pr_start.tv_sec;
 
       /*
-       * Command line strings in procInfo.pr_psargs are truncated to PRARGZ
-       * bytes. In this case we extract the arguments from the /proc/<pid>/as
-       * file. Since most command line strings are expected to fit within
-       * PRARGSZ bytes, we avoid calling
-       * ExtractCommandLineFromAddressSpaceFile for every process.
+       * If the command name in the ps info struct is strictly less than the
+       * maximum allowed size, then we can save it right now. Else we shall
+       * need to try and parse it from the entire command line, to avoid
+       * saving a truncated command name.
        */
-      if (strlen(procInfo.pr_psargs) + 1 == PRARGSZ) {
-         char *tmp;
-
-         tmp = ExtractCommandLineFromAddressSpaceFile(&procInfo);
-         if (tmp != NULL) {
-            processInfo.procCmd = Unicode_Alloc(tmp, STRING_ENCODING_DEFAULT);
-            free(tmp);
-         } else {
-            processInfo.procCmd = Unicode_Alloc(procInfo.pr_psargs,
-                                                STRING_ENCODING_DEFAULT);
-         }
-      } else {
-         processInfo.procCmd = Unicode_Alloc(procInfo.pr_psargs,
-                                             STRING_ENCODING_DEFAULT);
+      if (strlen(procInfo.pr_fname) + 1 < sizeof procInfo.pr_fname) {
+         processInfo.procCmdName = Unicode_Alloc(procInfo.pr_fname,
+                                                 STRING_ENCODING_DEFAULT);
+         cmdNameLookup = FALSE;
       }
 
       /*
-       * Store the pid in dynbuf.
+       * The logic below is this:
+       * 1. If we are looking for the explicit command name, we need to
+       *    extract the arguments from the /proc/<pid>/as file and save argv[0].
+       * 2. If we are not looking for the explicit command name, but the command
+       *    line in the ps info struct is not strictly less than the maximum
+       *    allowed size, we still need to extract the arguments from the
+       *    /proc/<pid>/as file, to avoid saving truncated comand line.
+       * 3. Else we can save the command line directly from the ps info struct.
+       */
+      if (cmdNameLookup) {
+         tmp = ExtractCommandLineFromAddressSpaceFile(&procInfo, &processInfo.procCmdName);
+      } else if (strlen(procInfo.pr_psargs) + 1 >= sizeof procInfo.pr_psargs) {
+         tmp = ExtractCommandLineFromAddressSpaceFile(&procInfo, NULL);
+      } else {
+         tmp = NULL;
+      }
+
+      if (tmp != NULL) {
+         processInfo.procCmdLine = Unicode_Alloc(tmp, STRING_ENCODING_DEFAULT);
+         cmdNameLookup = FALSE;
+      } else {
+         /*
+          * We had some issues reading procfs, mostly due to lack of
+          * permissions for certain system owned precesses. So let's resort to
+          * what the procinfo structure provides as a last resort.
+          */
+         processInfo.procCmdLine = Unicode_Alloc(procInfo.pr_psargs,
+                                                 STRING_ENCODING_DEFAULT);
+
+         if (cmdNameLookup) {
+            /*
+             * Now let's try and get the best effort command name from the entire
+             * command line. The method below does not take care of spaces in folder
+             * names and executable file names. This is the best we can do at this
+             * point, considering that spaces are not common in either file or
+             * folder names in Solaris, specially when owned by the system.
+             */
+            char *tmp2 = Unicode_Alloc(procInfo.pr_psargs, STRING_ENCODING_DEFAULT);
+            cmdNameBegin = tmp2;
+            /*
+             * Assuming the command name to end at the first blank space.
+             */
+            cmdNameEnd = cmdNameBegin;
+            while ('\0' != *cmdNameEnd) {
+               if ('/' == *cmdNameEnd) {
+                  cmdNameBegin = cmdNameEnd + 1;
+               }
+               if (' ' == *cmdNameEnd) {
+                  break;
+               }
+               cmdNameEnd++;
+            }
+            *cmdNameEnd = '\0';
+            processInfo.procCmdName = Str_SafeAsprintf(NULL, "%s", cmdNameBegin);
+            free(tmp2);
+         }
+      }
+      free(tmp);
+      tmp = NULL;
+
+      /*
+       * Store the pid.
        */
       processInfo.procId = procInfo.pr_pid;
 
@@ -198,7 +254,8 @@ ProcMgr_ListProcesses(void)
                  __FUNCTION__);
          goto exit;
       }
-      processInfo.procCmd = NULL;
+      processInfo.procCmdName = NULL;
+      processInfo.procCmdLine = NULL;
       processInfo.procOwner = NULL;
    } // while (TRUE)
 
@@ -210,7 +267,8 @@ exit:
    closedir(dir);
 
    free(processInfo.procOwner);
-   free(processInfo.procCmd);
+   free(processInfo.procCmdLine);
+   free(processInfo.procCmdName);
 
    if (failed) {
       ProcMgr_FreeProcList(procList);
@@ -243,7 +301,8 @@ exit:
  */
 
 static char *
-ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo) //IN: psinfo struct
+ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo, //IN: psinfo struct
+                                       char **procCmdName) //OUT: command name
 {
    int argc;
    int i;
@@ -254,7 +313,11 @@ ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo) //IN: psinfo struct
    DynBuf cmdLine;
    DynBufArray args;
    pid_t pid;
+   char *cmdNameBegin;
 
+   if (NULL != procCmdName) {
+      *procCmdName = NULL;
+   }
    FileIO_Invalidate(&asFd);
    pid = procInfo->pr_pid;
 
@@ -286,6 +349,23 @@ ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo) //IN: psinfo struct
          DynBuf_Append(&cmdLine, buf, strlen(buf));
          if (i + 1 < argc) {
             DynBuf_Append(&cmdLine, " ", 1);
+         }
+         if (NULL != procCmdName && 0 == i) {
+            /*
+             * Store the command name of the process.
+             * Find the last path separator, to get the cmd name.
+             * If no separator is found, then use the whole name.
+             */
+            cmdNameBegin = strrchr(buf, '/');
+            if (NULL == cmdNameBegin) {
+               cmdNameBegin = buf;
+            } else {
+               /*
+                * Skip over the last separator.
+                */
+               cmdNameBegin++;
+            }
+            *procCmdName = Unicode_Alloc(cmdNameBegin, STRING_ENCODING_DEFAULT);
          }
          DynBuf_Destroy(DynBufArray_AddressOf(&args, i));
       }
