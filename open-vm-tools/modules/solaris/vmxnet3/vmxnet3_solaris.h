@@ -40,7 +40,7 @@
 #include <sys/pattr.h>
 #include <sys/mac.h>
 #include <sys/sockio.h>
-#ifdef OPEN_SOLARIS
+#if defined(OPEN_SOLARIS) || defined(SOL11)
 #  include <sys/mac_provider.h>
 #endif
 #include <sys/mac_ether.h>

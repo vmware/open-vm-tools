@@ -47,7 +47,9 @@ static mac_callbacks_t vmxnet3_mac_callbacks = {
    .mc_unicst = vmxnet3_unicst,
    .mc_tx = vmxnet3_tx,
 #ifndef OPEN_SOLARIS
+#ifndef SOL11
    .mc_resources = NULL,
+#endif
 #endif
    .mc_ioctl = vmxnet3_ioctl,
    .mc_getcapab = *vmxnet3_getcapab,
