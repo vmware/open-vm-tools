@@ -61,6 +61,10 @@ void LogV(uint32 routing,
           const char *fmt,
           va_list args);
 
+void Log_Level(uint32 routing,
+               const char *fmt,
+               ...) PRINTF_DECL(2, 3);
+
 
 /*
  * Handy wrapper functions.
@@ -70,27 +74,6 @@ void LogV(uint32 routing,
  *
  * TODO: even Log and Warning become wrapper functions around LogV.
  */
-
-static INLINE void PRINTF_DECL(2, 3)
-Log_Level(uint32 routing,
-          const char *fmt,
-          ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(routing, fmt, ap);
-   va_end(ap);
-}
-
-
-static INLINE void
-Log_String(uint32 routing,
-           const char *string)
-{
-   Log_Level(routing, "%s", string);
-}
-
 
 static INLINE void PRINTF_DECL(1, 2)
 Log_Panic(const char *fmt,
