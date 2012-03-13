@@ -127,6 +127,8 @@
 
 #define PRODUCT_FDM_NAME MAKE_NAME("Fault Domain Manager")
 
+#define PRODUCT_HA_NAME MAKE_NAME("High Availability Extension")
+
 #define PRODUCT_WBC_NAME MAKE_NAME("WebCenter")
 
 #define PRODUCT_SDK_NAME MAKE_NAME("SDK")
@@ -315,7 +317,9 @@
 #     define PRODUCT_SHORT_NAME PRODUCT_API_SCRIPTING_PERL_NAME
 #  endif
 #elif defined(VMX86_VPX)
-#  if defined(CSI_FDM)
+#  if defined(CSI_HA)
+#     define PRODUCT_SHORT_NAME PRODUCT_HA_NAME     
+#  elif defined(CSI_FDM)
 #     define PRODUCT_SHORT_NAME PRODUCT_FDM_NAME
 #  elif defined(VPXA)
 #     define PRODUCT_SHORT_NAME PRODUCT_VPXA_NAME

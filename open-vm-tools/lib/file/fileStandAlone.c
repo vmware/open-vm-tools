@@ -344,21 +344,6 @@ File_PathJoin(ConstUnicode dirName,   // IN:
    ASSERT(dirName);
    ASSERT(baseName);
 
-   /*
-    * This code concatenates two strings together and omits a
-    * redundant directory separator between the two. It does not
-    * treat a fully qualified baseName the way one would expect:
-    * File_PathJoin("C:\temp", C:thing") -> "C:\temp\C:thing"
-    * File_PathJoin("/var/tmp", "/tempfile-123") -> "/var/tmp//tempfile-123"
-    * We ASSERT here to catch unintentional common-case coding errors on
-    * non-release builds, but we'll still return weird results if we're
-    * dealing with unusual user contributed data on release builds.
-    *
-    * The alternative is to return baseName if (File_IsFullPath(baseName)),
-    * but that was not the original intent of this function.
-    */
-   ASSERT(!File_IsFullPath(baseName));
-
    if (Unicode_EndsWith(dirName, DIRSEPS)) {
       result = Unicode_Append(dirName, baseName);
    } else {
