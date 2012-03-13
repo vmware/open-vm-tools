@@ -637,9 +637,11 @@ typedef int pid_t;
 #ifdef _WIN32
 #define WIN32_ONLY(x) x
 #define POSIX_ONLY(x)
+#define vmx86_win32 1
 #else
 #define WIN32_ONLY(x)
 #define POSIX_ONLY(x) x
+#define vmx86_win32 0
 #endif
 
 #ifdef __linux__

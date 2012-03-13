@@ -570,7 +570,7 @@ typedef void * UserVA;
  * for any region other than buserror.
  */
 #define PHYSMEM_MAX_PPN   ((PPN)0xffffffff)
-#define MAX_PPN           ((PPN)0x1fffffff) /* Maximal observable PPN value. */
+#define MAX_PPN           ((PPN)0x3fffffff) /* Maximal observable PPN value. */
 #define INVALID_PPN       ((PPN)0xffffffff)
 #define APIC_INVALID_PPN  ((PPN)0xfffffffe)
 

@@ -321,7 +321,7 @@ Util_Memcpy(void *dest,
             const void *src,
             size_t count)
 {
-#if !defined(__ANDROID__) && !defined(TARGET_OS_IPHONE)
+#if defined(__x86_64__) || defined(__i386__)
    uintptr_t align = ((uintptr_t)dest | (uintptr_t)src | count);
 
 #if defined __GNUC__
