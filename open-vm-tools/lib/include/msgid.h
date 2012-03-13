@@ -39,7 +39,8 @@
 
 
 // the X hides MSG_MAGIC so it won't appear in the object file
-#define MSG_MAGICAL(s)	(strncmp(s, MSG_MAGIC"X", MSG_MAGIC_LEN) == 0)
+#define MSG_MAGICAL(s) \
+   (s != NULL && strncmp(s, MSG_MAGIC"X", MSG_MAGIC_LEN) == 0)
 
 // Start after MSG_MAGIC so it won't appear in the object file either.
 #define MSG_HAS_BUTTONID(s) \
