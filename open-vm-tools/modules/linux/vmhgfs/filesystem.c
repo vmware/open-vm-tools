@@ -477,6 +477,10 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
    sb->s_magic = HGFS_SUPER_MAGIC;
    sb->s_op = &HgfsSuperOperations;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+   sb->s_d_op = &HgfsDentryOperations;
+#endif
+
    /*
     * If s_maxbytes isn't initialized, the generic write path may fail. In
     * most kernels, s_maxbytes is initialized by the kernel's superblock

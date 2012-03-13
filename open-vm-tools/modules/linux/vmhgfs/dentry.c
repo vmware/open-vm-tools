@@ -27,6 +27,7 @@
 
 #include "compat_fs.h"
 #include "compat_kernel.h"
+#include "compat_namei.h"
 #include "compat_version.h"
 
 #include "inode.h"
@@ -78,10 +79,22 @@ HgfsDentryRevalidate(struct dentry *dentry,  // IN: Dentry to revalidate
 
    ASSERT(dentry);
 
+#if defined(LOOKUP_RCU) /* Introduced in 2.6.38 */
+   if (nd && (nd->flags & LOOKUP_RCU)) {
+      return -ECHILD;
+   }
+#endif
+
    /* Just call HgfsRevaliate, which does the right thing. */
    error = HgfsRevalidate(dentry);
    if (error) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDentryRevalidate: invalid\n"));
+
+      if (dentry->d_inode && S_ISDIR(dentry->d_inode->i_mode)) {
+         shrink_dcache_parent(dentry);
+      }
+      d_drop(dentry);
+
       return 0;
    }
 
