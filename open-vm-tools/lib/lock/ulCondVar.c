@@ -634,7 +634,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
              __FUNCTION__, header->name, condVar, condVar->header->name);
    }
 
-   if (!MXRecLockIsOwner(lock)) {
+   if (vmx86_debug && !MXRecLockIsOwner(lock)) {
       Panic("%s: lock %s for condVar (0x%p) not owned\n",
             __FUNCTION__, condVar->header->name, condVar);
    }

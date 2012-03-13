@@ -66,8 +66,7 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
       MXRecLock *newLock = Util_SafeMalloc(sizeof(MXRecLock));
 
       if (MXRecLockInit(newLock)) {
-         lock = (MXRecLock *) Atomic_ReadIfEqualWritePtr(storage, NULL,
-                                                         (void *) newLock);
+         lock = Atomic_ReadIfEqualWritePtr(storage, NULL, (void *) newLock);
 
          if (lock) {
             MXRecLockDestroy(newLock);

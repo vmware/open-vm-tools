@@ -232,6 +232,7 @@ void MXUser_StatisticsControl(double contentionRatio,
 void MXUser_PerLockData(void);
 void MXUser_SetStatsFunc(void *context,
                          uint32 maxLineLength,
+                         Bool trackHeldTime,
                          void (*statsFunc)(void *context,
                                            const char *fmt,
                                            va_list ap));
