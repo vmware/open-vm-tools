@@ -261,15 +261,18 @@ MXRecLockDestroy(MXRecLock *lock)  // IN/OUT:
 static INLINE int
 MXRecLockCount(const MXRecLock *lock)  // IN:
 {
+   ASSERT(lock->referenceCount >= 0);
+   ASSERT(lock->referenceCount < MXUSER_MAX_REC_DEPTH);
+
    return lock->referenceCount;
 }
 
 
 static INLINE void
 MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
-                  uint32 count)     // IN:
+                  int count)        // IN:
 {
-   ASSERT(MXRecLockCount(lock) >= 0);
+   ASSERT(count > 0);
 
    if (MXRecLockCount(lock) == 0) {
       MXRecLockSetOwner(lock);
@@ -287,9 +290,8 @@ MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
       *duration = 0ULL;
    }
 
-   if ((MXRecLockCount(lock) != 0) && MXRecLockIsOwner(lock)) {
-      ASSERT((MXRecLockCount(lock) > 0) &&
-             (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
+   if ((MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
+      MXRecLockIncCount(lock, 1);
    } else {
       int err = MXRecLockTryAcquireInternal(lock);
 
@@ -318,9 +320,9 @@ MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
       }
 
       ASSERT(MXRecLockCount(lock) == 0);
-   }
 
-   MXRecLockIncCount(lock, 1);
+      MXRecLockIncCount(lock, 1);
+   }
 }
 
 
@@ -329,7 +331,7 @@ MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 {
    Bool acquired;
 
-   if ((MXRecLockCount(lock) != 0) && MXRecLockIsOwner(lock)) {
+   if ((MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
       acquired = TRUE;
    } else {
       int err = MXRecLockTryAcquireInternal(lock);
@@ -348,9 +350,6 @@ MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 
    if (acquired) {
       MXRecLockIncCount(lock, 1);
-
-      ASSERT((MXRecLockCount(lock) > 0) &&
-             (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
    }
 
    return acquired;
@@ -358,11 +357,11 @@ MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 
 static INLINE void
 MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
-                  uint32 count)     // IN:
+                  int count)        // IN:
 {
-   ASSERT(count <= MXRecLockCount(lock));
+   ASSERT(count > 0);
+
    lock->referenceCount -= count;
-   ASSERT(MXRecLockCount(lock) >= 0);
 
    if (MXRecLockCount(lock) == 0) {
       MXRecLockSetNoOwner(lock);
@@ -373,9 +372,6 @@ MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
 static INLINE void
 MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 {
-   ASSERT((MXRecLockCount(lock) > 0) &&
-          (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
-
    MXRecLockDecCount(lock, 1);
 
    if (MXRecLockCount(lock) == 0) {

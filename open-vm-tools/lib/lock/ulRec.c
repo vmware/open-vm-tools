@@ -581,7 +581,7 @@ MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
       }
 
       if (vmx86_debug && !MXRecLockIsOwner(&lock->recursiveLock)) {
-         uint32 lockCount = MXRecLockCount(&lock->recursiveLock);
+         int lockCount = MXRecLockCount(&lock->recursiveLock);
 
          MXUserDumpAndPanic(&lock->header,
                             "%s: Non-owner release of an %s recursive lock\n",

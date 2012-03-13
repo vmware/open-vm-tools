@@ -232,7 +232,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
                    MXUserCondVar *condVar,  // IN:
                    uint32 msecWait)         // IN:
 {
-   uint32 lockCount = MXRecLockCount(lock);
+   int lockCount = MXRecLockCount(lock);
    DWORD waitTime = (msecWait == MXUSER_WAIT_INFINITE) ? INFINITE : msecWait;
 
    if (pSleepConditionVariableCS) {
@@ -463,7 +463,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
                    uint32 msecWait)         // IN:
 {
    int err;
-   uint32 lockCount = MXRecLockCount(lock);
+   int lockCount = MXRecLockCount(lock);
 
    /*
     * When using the native lock found within the MXUser lock, be sure to
