@@ -66,7 +66,11 @@ struct VMCIContext {
                                          * Version of the code that created
                                          * this context; e.g., VMX.
                                          */
-   VMCILock           lock;             /* Locks callQueue and handleArrays. */
+   VMCILock           lock;             /*
+                                         * Locks datagramQueue, doorbellArray,
+                                         * pendingDoorbellArray and
+                                         * notifierArray.
+                                         */
    VMCIHandleArray    *queuePairArray;  /*
                                          * QueuePairs attached to.  The array of
                                          * handles for queue pairs is accessed
@@ -75,7 +79,7 @@ struct VMCIContext {
                                          * is also accessed from the context
                                          * clean up path, which does not
                                          * require a lock.  VMCILock is not
-                                         * used to protect the QP array field.
+                                         * used to protect the QP array.
                                          */
    VMCIHandleArray    *doorbellArray;   /* Doorbells created by context. */
    VMCIHandleArray    *pendingDoorbellArray; /* Doorbells pending for context. */

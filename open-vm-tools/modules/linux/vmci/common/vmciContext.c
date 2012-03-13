@@ -482,7 +482,7 @@ VMCIContextFreeContext(VMCIContext *context)  // IN
    }
 
    /*
-    * It is fine to destroy this without locking the callQueue, as
+    * It is fine to destroy this without locking the datagramQueue, as
     * this is the only thread having a reference to the context.
     */
 
@@ -2270,21 +2270,18 @@ int
 VMCIContext_QueuePairCreate(VMCIContext *context, // IN: Context structure
                             VMCIHandle handle)    // IN
 {
-   VMCILockFlags flags;
    int result;
 
    if (context == NULL || VMCI_HANDLE_INVALID(handle)) {
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCI_GrabLock(&context->lock, &flags);
    if (!VMCIHandleArray_HasEntry(context->queuePairArray, handle)) {
       VMCIHandleArray_AppendEntry(&context->queuePairArray, handle);
       result = VMCI_SUCCESS;
    } else {
       result = VMCI_ERROR_DUPLICATE_ENTRY;
    }
-   VMCI_ReleaseLock(&context->lock, flags);
 
    return result;
 }
@@ -2311,16 +2308,13 @@ int
 VMCIContext_QueuePairDestroy(VMCIContext *context, // IN: Context structure
                              VMCIHandle handle)    // IN
 {
-   VMCILockFlags flags;
    VMCIHandle removedHandle;
 
    if (context == NULL || VMCI_HANDLE_INVALID(handle)) {
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCI_GrabLock(&context->lock, &flags);
    removedHandle = VMCIHandleArray_RemoveEntry(context->queuePairArray, handle);
-   VMCI_ReleaseLock(&context->lock, flags);
 
    if (VMCI_HANDLE_INVALID(removedHandle)) {
       return VMCI_ERROR_NOT_FOUND;
@@ -2351,16 +2345,13 @@ Bool
 VMCIContext_QueuePairExists(VMCIContext *context, // IN: Context structure
                             VMCIHandle handle)    // IN
 {
-   VMCILockFlags flags;
    Bool result;
 
    if (context == NULL || VMCI_HANDLE_INVALID(handle)) {
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   VMCI_GrabLock(&context->lock, &flags);
    result = VMCIHandleArray_HasEntry(context->queuePairArray, handle);
-   VMCI_ReleaseLock(&context->lock, flags);
 
    return result;
 }
