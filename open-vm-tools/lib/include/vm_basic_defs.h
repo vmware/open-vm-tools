@@ -142,6 +142,9 @@ Max(int a, int b)
 }
 #endif
 
+#define VMW_CLAMP(x, min, max) \
+   ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
+
 #define ROUNDUP(x,y)		(((x) + (y) - 1) / (y) * (y))
 #define ROUNDDOWN(x,y)		((x) / (y) * (y))
 #define ROUNDUPBITS(x, bits)	(((uintptr_t) (x) + MASK(bits)) & ~MASK(bits))
