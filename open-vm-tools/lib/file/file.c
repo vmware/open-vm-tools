@@ -1122,7 +1122,7 @@ File_CopyTree(ConstUnicode srcName,    // IN:
    if (!File_IsDirectory(srcName)) {
       err = Err_Errno();
       Msg_Append(MSGID(File.CopyTree.source.notDirectory)
-                 "The source path '%s' is not a directory.\n\n",
+                 "Source path '%s' is not a directory.",
                  UTF8(srcName));
       Err_SetErrno(err);
       return FALSE;
@@ -1131,7 +1131,7 @@ File_CopyTree(ConstUnicode srcName,    // IN:
    if (!File_IsDirectory(dstName)) {
       err = Err_Errno();
       Msg_Append(MSGID(File.CopyTree.dest.notDirectory)
-                 "The destination path '%s' is not a directory.\n\n",
+                 "Destination path '%s' is not a directory.",
                  UTF8(dstName));
       Err_SetErrno(err);
       return FALSE;
@@ -1381,7 +1381,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
 
    if (!File_IsDirectory(srcName)) {
       Msg_Append(MSGID(File.MoveTree.source.notDirectory)
-                 "The source path '%s' is not a directory.\n\n",
+                 "Source path '%s' is not a directory.",
                  UTF8(srcName));
 
       return FALSE;

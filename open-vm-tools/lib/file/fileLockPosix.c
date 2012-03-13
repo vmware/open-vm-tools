@@ -595,7 +595,7 @@ FileLockAppendMessage(MsgList **msgs,  // IN/OPT:
                       int err)         // IN: errno
 {
    MsgList_Append(msgs, MSGID(fileLock.posix)
-                  "A file locking error (%d) has occurred: %s",
+                  "A file locking error (%d) has occurred: %s.",
                   err, Err_Errno2String(err));
 }
 
