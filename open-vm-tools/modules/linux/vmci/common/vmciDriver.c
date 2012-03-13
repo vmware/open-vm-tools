@@ -90,7 +90,7 @@ VMCI_HostInit(void)
       goto hostContextExit;
    }
 
-   VMCI_LOG((LGPFX"host components initialized.\n"));
+   VMCI_DEBUG_LOG(0, (LGPFX"host components initialized.\n"));
    return VMCI_SUCCESS;
 
 hostContextExit:
@@ -365,7 +365,12 @@ VMCI_CheckHostCapabilities(void)
    result &= VMCIDatagram_CheckHostCapabilities();
    result &= VMCIUtilCheckHostCapabilities();
 
-   VMCI_LOG((LGPFX"Host capability check: %s.\n", result ? "PASSED" : "FAILED"));
+   if (!result) {
+      /* If it failed, then make sure this goes to the system event log. */
+      VMCI_WARNING((LGPFX"Host capability checked failed.\n"));
+   } else {
+      VMCI_DEBUG_LOG(0, (LGPFX"Host capability check passed.\n"));
+   }
 
    return result;
 }
@@ -635,7 +640,7 @@ VMCI_SharedInit(void)
       goto eventExit;
    }
 
-   VMCI_LOG((LGPFX"shared components initialized.\n"));
+   VMCI_DEBUG_LOG(0, (LGPFX"shared components initialized.\n"));
    return VMCI_SUCCESS;
 
 eventExit:
