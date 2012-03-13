@@ -512,16 +512,16 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       MXUserAcquisitionTracking(&lock->header, TRUE);
 
       if (stats) {
-         Bool contended;
-         VmTimeType begin = Hostinfo_SystemTimerNS();
+         VmTimeType value = 0;
 
-         contended = MXRecLockAcquire(&lock->recursiveLock);
+         MXRecLockAcquire(&lock->recursiveLock, &value);
 
          if (MXRecLockCount(&lock->recursiveLock) == 1) {
             MXUserHisto *histo;
-            VmTimeType value = Hostinfo_SystemTimerNS() - begin;
 
-            MXUserAcquisitionSample(&stats->acquisitionStats, TRUE, contended,
+            MXUserAcquisitionSample(&stats->acquisitionStats,
+                                    TRUE,
+                                    value != 0,  // True if contended
                                     value);
 
             stats->holder = GetReturnAddress();
@@ -535,7 +535,8 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
             stats->holdStart = Hostinfo_SystemTimerNS();
          }
       } else {
-         MXRecLockAcquire(&lock->recursiveLock);
+         MXRecLockAcquire(&lock->recursiveLock,
+                          NULL);                 /* non-stats */
       }
    }
 

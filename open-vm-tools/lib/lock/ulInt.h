@@ -39,6 +39,7 @@ typedef pthread_t MXUserThreadID;
 
 #include "vm_basic_types.h"
 #include "vthreadBase.h"
+#include "hostinfo.h"
 
 #include "circList.h"
 
@@ -276,29 +277,37 @@ MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
 }
 
 
-static INLINE Bool
-MXRecLockAcquire(MXRecLock *lock)  // IN/OUT:
+static INLINE void
+MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
+                 VmTimeType *duration)  // IN/OPT: !NULL for stats
 {
-   Bool contended;
+   if (duration != NULL) {
+      *duration = 0ULL;
+   }
 
    if ((MXRecLockCount(lock) != 0) && MXRecLockIsOwner(lock)) {
       ASSERT((MXRecLockCount(lock) > 0) &&
              (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
-
-      contended = FALSE;
    } else {
       int err = MXRecLockTryAcquireInternal(lock);
 
-      if (err == 0) {
-         contended = FALSE;
-      } else {
+      if (err != 0) {
+         VmTimeType start;
+
          if (vmx86_debug && (err != EBUSY)) {
             Panic("%s: MXRecLockTryAcquireInternal returned %d\n",
                   __FUNCTION__, err);
          }
 
+         if (duration != NULL) {
+            start = Hostinfo_SystemTimerNS();
+         }
+
          err = MXRecLockAcquireInternal(lock);
-         contended = TRUE;
+
+         if (duration != NULL) {
+            *duration = Hostinfo_SystemTimerNS() - start;
+         }
       }
 
       if (vmx86_debug && (err != 0)) {
@@ -310,8 +319,6 @@ MXRecLockAcquire(MXRecLock *lock)  // IN/OUT:
    }
 
    MXRecLockIncCount(lock, 1);
-
-   return contended;
 }
 
 

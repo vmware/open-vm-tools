@@ -700,8 +700,6 @@ static INLINE void
 MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
                   Bool forRead)        // IN:
 {
-   int err = 0;
-   Bool contended;
    MXUserStats *stats;
    HolderContext *myContext;
 
@@ -724,31 +722,40 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
    if (stats) {
-      VmTimeType begin = Hostinfo_SystemTimerNS();
       VmTimeType value;
       MXUserHisto *histo;
 
-      contended = lock->useNative ? MXUserNativeRWAcquire(&lock->nativeLock,
-                                                          forRead, &err) :
-                                    MXRecLockAcquire(&lock->recursiveLock);
+      if (lock->useNative) {
+         int err = 0;
+         Bool contended;
+         VmTimeType begin = Hostinfo_SystemTimerNS();
 
-      value = Hostinfo_SystemTimerNS() - begin;
+         contended = MXUserNativeRWAcquire(&lock->nativeLock, forRead, &err);
 
-      if (UNLIKELY(err != 0)) {
-         MXUserDumpAndPanic(&lock->header, "%s: Error %d: contended %d\n",
-                            __FUNCTION__, err, contended);
+         value = contended ? Hostinfo_SystemTimerNS() - begin : 0;
+
+         if (UNLIKELY(err != 0)) {
+            MXUserDumpAndPanic(&lock->header, "%s: Error %d: contended %d\n",
+                               __FUNCTION__, err, contended);
+         }
+      } else {
+         value = 0;
+
+         MXRecLockAcquire(&lock->recursiveLock, &value);
       }
 
       /*
-       * The statistics are not atomically safe so protect them when
-       * necessary
+       * The statistics are not atomically safe so protect them when necessary.
        */
 
       if (forRead && lock->useNative) {
-         MXRecLockAcquire(&lock->recursiveLock);
+         MXRecLockAcquire(&lock->recursiveLock,
+                          NULL);                 // non-stats
       }
 
-      MXUserAcquisitionSample(&stats->acquisitionStats, TRUE, contended,
+      MXUserAcquisitionSample(&stats->acquisitionStats,
+                              TRUE,
+                              value != 0,  // True when contended
                               value);
 
       histo = Atomic_ReadPtr(&stats->acquisitionHisto);
@@ -762,9 +769,17 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
       }
    } else {
       if (LIKELY(lock->useNative)) {
+         int err = 0;
+
          MXUserNativeRWAcquire(&lock->nativeLock, forRead, &err);
+
+         if (UNLIKELY(err != 0)) {
+            MXUserDumpAndPanic(&lock->header, "%s: Error %d\n",
+                               __FUNCTION__, err);
+         }
       } else {
-         MXRecLockAcquire(&lock->recursiveLock);
+         MXRecLockAcquire(&lock->recursiveLock,
+                          NULL);                 // non-stats
       }
    }
 
@@ -914,7 +929,8 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
        */
 
       if ((myContext->state == RW_LOCKED_FOR_READ) && lock->useNative) {
-         MXRecLockAcquire(&lock->recursiveLock);
+         MXRecLockAcquire(&lock->recursiveLock,
+                          NULL);                 // non-stats
       }
 
       MXUserBasicStatsSample(&stats->heldStats, duration);
