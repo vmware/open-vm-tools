@@ -47,6 +47,12 @@
 #include "hgfsUtil.h"
 #include "vmware.h"
 #include "vm_basic_asm.h"
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#ifndef TARGET_OS_IPHONE
+#define TARGET_OS_IPHONE 0
+#endif
+#endif
 
 #ifndef _WIN32
 /*
@@ -109,7 +115,7 @@ int
 HgfsConvertFromNtTimeNsec(struct timespec *unixTime, // OUT: Time in UNIX format
 			  uint64 ntTime) // IN: Time in Windows NT format
 {
-#ifndef VM_X86_64
+#if !defined(VM_X86_64) && !defined(__ANDROID__) && !TARGET_OS_IPHONE
    uint32 sec;
    uint32 nsec;
 
@@ -134,7 +140,7 @@ HgfsConvertFromNtTimeNsec(struct timespec *unixTime, // OUT: Time in UNIX format
       return -1;
    }
 
-#ifndef VM_X86_64
+#if !defined(VM_X86_64) && !defined(__ANDROID__) && !TARGET_OS_IPHONE
    Div643232(ntTime - UNIX_EPOCH, 10000000, &sec, &nsec);
    unixTime->tv_sec = sec;
    unixTime->tv_nsec = nsec * 100;
