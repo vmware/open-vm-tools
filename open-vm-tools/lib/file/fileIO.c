@@ -821,6 +821,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
    uint32 newAccess;
    Bool ret = FALSE;
    FileIOResult status;
+   FileIODescriptor tmpFD;
 
    ASSERT(FileIO_IsValid(newFD));
    ASSERT(FileIO_IsValid(currFD));
@@ -940,12 +941,11 @@ swapdone:
 
    /*
     * The current file needs to be closed and reopened,
-    * but we don't want to drop the file lock by calling 
+    * but we don't want to drop the file lock by calling
     * FileIO_Close() on it.  Instead, use native close primitives.
-    * We'll reopen it later with a temp FileIODescriptor, and
-    * swap the file descriptor/handle.  Set the descriptor/handle
-    * to an invalid value while we're in the middle of transferring
-    * ownership.
+    * We'll reopen it later with FileIO_Open.  Set the 
+    * descriptor/handle to an invalid value while we're in the
+    * middle of transferring ownership.
     */
 
 #if defined(_WIN32)
@@ -960,22 +960,32 @@ swapdone:
    }
 
    ret = TRUE;
-   
+
 bail:
 
+   FileIO_Invalidate(&tmpFD);
+
    /*
-    * XXX - We shouldn't drop the file lock here.
-    *       Need to implement FileIO_Reopen to close
-    *       and reopen without dropping the lock.
+    * Clear the locking bits from the requested access so that reopening
+    * the file ignores the advisory lock.
     */
 
-   FileIO_Close(currFD);  // XXX - PR 769296
-
-   status = FileIO_Open(currFD, currPath, currAccess, 0);
+   ASSERT((currAccess & FILEIO_OPEN_LOCK_MANDATORY) == 0);
+   currAccess &= ~(FILEIO_OPEN_LOCK_MANDATORY | FILEIO_OPEN_LOCK_ADVISORY |
+                   FILEIO_OPEN_LOCK_BEST | FILEIO_OPEN_LOCKED);
+   status = FileIO_Open(&tmpFD, currPath, currAccess, FILEIO_OPEN);
    if (!FileIO_IsSuccess(status)) {
       Panic("Failed to reopen dictionary file.\n");
    }
+   ASSERT(tmpFD.lockToken == NULL);
 
+#if defined(_WIN32)
+   currFD->win32 = tmpFD.win32;
+#else
+   currFD->posix = tmpFD.posix;
+#endif
+
+   FileIO_Cleanup(&tmpFD);
    Unicode_Free(currPath);
    Unicode_Free(newPath);
    return ret;

@@ -568,7 +568,7 @@ HgfsServerGetOpenFlags(HgfsOpenFlags flagsIn, // IN
 
    arraySize = ARRAYSIZE(HgfsServerOpenFlags);
 
-   if (flagsIn < 0 || flagsIn >= arraySize) {
+   if ((unsigned int)flagsIn >= arraySize) {
       Log("%s: Invalid HgfsOpenFlags %d\n", __FUNCTION__, flagsIn);
 
       return FALSE;

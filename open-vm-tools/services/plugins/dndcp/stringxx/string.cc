@@ -1864,11 +1864,15 @@ string::endsWith(const string &s, // IN
  *
  *      Return a vector of utf::strings.  The vector contains the elements of
  *      the string split by the passed in separator. Empty tokens are not
- *      skipped.
+ *      skipped. If maxStrings is zero, any number of strings will be returned,
+ *      otherwise parsing stops after maxStrings - 1 matches of the separator.
+ *      In that case, the last string returned includes the rest of the
+ *      original string.
  *
  *      "1,2,3".split(",") -> ["1", "2", "3"]
  *      "1,,".split(",") -> ["1", "", ""]
  *      "1".split(",") -> ["1"]
+ *      "1,2,3".split(",", 2) -> ["1", "2,3"]
  *
  *      XXX If this is to be used for things like command line parsing, support
  *      for quoted strings needs to be added.
@@ -1883,18 +1887,21 @@ string::endsWith(const string &s, // IN
  */
 
 std::vector<string>
-string::split(const string &sep) // IN
+string::split(const string &sep, // IN
+              size_t maxStrings) // IN/OPT
    const
 {
    std::vector<string> splitStrings;
    size_type sIndex = 0;
    size_type sepLen = sep.length();
+   size_t count = 0;
 
    ASSERT(sepLen > 0);
 
    while (true) {
       size_type index = find(sep, sIndex);
-      if (index == npos) {
+      count++;
+      if (count == maxStrings || index == npos) {
          splitStrings.push_back(substr(sIndex));
          break;
       }

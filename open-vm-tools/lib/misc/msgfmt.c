@@ -990,23 +990,15 @@ MsgFmt_GetArgsWithBuf(const char *fmt,	  // IN: format string
 	 if (p == NULL) {
 	    a->v.ptr = NULL;
 	 } else {
-	    if ((n = a->p.precision) < 0) {
+	    if (a->p.precision < 0) {
 	       n = wcslen(p);
 	    } else {
-#ifndef _WIN32
-	       const wchar_t *q = wmemchr(p, 0, n);
-	       if (q != NULL) {
-		  n = q - p;
-	       }
-#else
-	       // XXX no wmemchar()
-	       // fix this when we get new compiler -- edward
-	       const wchar_t *e = p + n;
 	       const wchar_t *q;
-	       for (q = p; q < e && *q != 0; q++) {
+	       n = a->p.precision;
+	       q = wmemchr(p, 0, n);
+	       if (q != NULL) {
+	          n = q - p;
 	       }
-	       n = q - p;
-#endif
 	    }
 	    a->v.ptr = MsgFmtAlloc(&state, sizeof (wchar_t) * (n + 1));
 	    if (a->v.ptr == NULL) {

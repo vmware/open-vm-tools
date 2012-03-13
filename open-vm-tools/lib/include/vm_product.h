@@ -135,6 +135,12 @@
 
 #define PRODUCT_DDK_NAME MAKE_NAME("ESX DDK")
 
+#define PRODUCT_NGCINSTALLER_NAME MAKE_NAME("vSphere Web Client")
+
+#define PRODUCT_SSOINSTALLER_NAME MAKE_NAME("Single Sign On")
+
+#define PRODUCT_SSOREGMM_NAME MAKE_NAME("vCenter Registration Tool")
+
 // XXX I think these are dead and can be removed -clayton
 // #define PRODUCT_VDM_SHORT_NAME "VDM"
 // #define PRODUCT_VDM_NAME MAKE_NAME("Virtual Desktop Manager")
@@ -325,6 +331,12 @@
 #     define PRODUCT_SHORT_NAME PRODUCT_VPXA_NAME
 #  elif defined(XVP)
 #     define PRODUCT_SHORT_NAME PRODUCT_XVP_NAME
+#  elif defined(INSTALL_NGC)
+#     define PRODUCT_SHORT_NAME PRODUCT_NGCINSTALLER_NAME
+#  elif defined(INSTALL_SSO)
+#     define PRODUCT_SHORT_NAME PRODUCT_SSOINSTALLER_NAME
+#  elif defined(INSTALL_SSOREGMM)
+#     define PRODUCT_SHORT_NAME PRODUCT_SSOREGMM_NAME
 #  else
 #     define PRODUCT_SHORT_NAME PRODUCT_VPX_NAME
 #  endif

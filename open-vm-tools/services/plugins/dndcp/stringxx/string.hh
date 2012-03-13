@@ -201,7 +201,7 @@ public:
    // Some helper functions that are nice to have
    bool startsWith(const string &s, bool ignoreCase = false) const;
    bool endsWith(const string &s, bool ignoreCase = false) const;
-   std::vector<string> split(const string &sep) const;
+   std::vector<string> split(const string &sep, size_t maxStrings = 0) const;
 
    // Overloaded operators
    string operator+(const string &rhs) const;

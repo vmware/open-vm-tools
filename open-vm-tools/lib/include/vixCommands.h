@@ -1680,6 +1680,79 @@ struct VixMsgReadEnvironmentVariablesRequest {
 #include "vmware_pack_end.h"
 VixMsgReadEnvironmentVariablesRequest;
 
+/* IdProvider support */
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgAddAuthPrincipalRequest {
+   VixCommandRequestHeader header;
+
+   uint32                  options;
+
+   uint32                  userNameLen;
+   uint32                  pemCertLen;
+   Bool                    addMapping;
+
+   int32                   principalType;    // one of VixGuestAuthPrincipalType
+   uint32                  principalNameLen;
+   uint32                  principalCommentLen;
+
+   /* Followed by the NUL-terminated string arguments. */
+   /* char[]               userName; */
+   /* char[]               pemCert; */
+   /* char[]               principalName; */
+   /* char[]               principalComment; */
+}
+#include "vmware_pack_end.h"
+VixMsgAddAuthPrincipalRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgRemoveAuthPrincipalRequest {
+   VixCommandRequestHeader header;
+
+   uint32                  options;
+
+   uint32                  userNameLen;
+   uint32                  pemCertLen;
+
+   // special case for RemoveProvider:
+   // if principalType is NONE, then all principals will be removed.
+   int32                   principalType;    // one of VixGuestAuthPrincipalType
+   uint32                  principalNameLen;
+
+   /* Followed by the NUL-terminated string arguments. */
+   /* char[]               userName; */
+   /* char[]               pemCert; */
+   /* char[]               principalName; */
+}
+#include "vmware_pack_end.h"
+VixMsgRemoveAuthPrincipalRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgListAuthPrincipalsRequest {
+   VixCommandRequestHeader header;
+
+   uint32                  options;
+
+   uint32                  userNameLen;
+
+   /* char[]               userName; */
+}
+#include "vmware_pack_end.h"
+VixMsgListAuthPrincipalsRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgListMappedPrincipalsRequest {
+   VixCommandRequestHeader header;
+
+   uint32                  options;
+}
+#include "vmware_pack_end.h"
+VixMsgListMappedPrincipalsRequest;
+
 
 /*
  * HOWTO: Adding a new Vix Command. Step 3.
@@ -2186,6 +2259,11 @@ enum {
    VIX_COMMAND_DELETE_GUEST_DIRECTORY_EX        = 195,
    VIX_COMMAND_HOT_CHANGE_MONITOR_TYPE          = 196,
 
+   VIX_COMMAND_ADD_AUTH_PRINCIPAL               = 197,
+   VIX_COMMAND_REMOVE_AUTH_PRINCIPAL            = 198,
+   VIX_COMMAND_LIST_AUTH_PROVIDER_PRINCIPALS    = 199,
+   VIX_COMMAND_LIST_AUTH_MAPPED_PRINCIPALS      = 200,
+
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2196,7 +2274,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg/foundryMsg.c as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 197,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 201,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

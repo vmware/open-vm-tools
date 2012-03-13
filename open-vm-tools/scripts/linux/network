@@ -302,9 +302,11 @@ main() {
             if [ ! -s $activeList ]; then
                save_active_NIC_list
             fi
-            # XXX Do we really want restart or is start sufficient?  Like, would
-            # using start avoid the problem mentioned above?
-            run_network_script restart
+
+            # We shall use start not restart here. Otherwise we may not be able
+            # to bring back active list on distros like sles11sp2
+            # -- PR 816791
+            run_network_script start
             rescue_NIC
             exitCode=$?
          fi
