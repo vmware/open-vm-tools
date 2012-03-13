@@ -222,6 +222,8 @@
    GOSL(STR_OS_MACOS "10-64",                GUEST_OS_DARWIN10_64)          \
    GOSL(STR_OS_MACOS "11",                   GUEST_OS_DARWIN11)             \
    GOSL(STR_OS_MACOS "11-64",                GUEST_OS_DARWIN11_64)          \
+   GOSL(STR_OS_MACOS "12",                   GUEST_OS_DARWIN11)             \
+   GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN11_64)          \
    GOSL("other",                             GUEST_OS_OTHER)                \
    GOSL("other-64",                          GUEST_OS_OTHER_64)             \
    GOSL("vmkernel",                          GUEST_OS_VMKERNEL)             \
