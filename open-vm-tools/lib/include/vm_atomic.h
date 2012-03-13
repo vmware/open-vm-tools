@@ -2397,7 +2397,7 @@ Atomic_TestBit64(Atomic_uint64 *var, // IN
       "bt %2, %1; setc %0"
       : "=rm"(out)
       : "m" (var->value),
-        "ri" (bit)
+        "rJ" (bit)
       : "cc"
    );
    return out;
