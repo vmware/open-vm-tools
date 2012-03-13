@@ -1753,6 +1753,161 @@ struct VixMsgListMappedPrincipalsRequest {
 #include "vmware_pack_end.h"
 VixMsgListMappedPrincipalsRequest;
 
+/*
+ * Windows Registry Management Support.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgCreateRegKeyRequest {
+   VixCommandRequestHeader header;
+
+   uint32 options;
+
+   uint32 pathLength;
+   uint32 wowBitness;
+   Bool isVolatile;
+   uint32 classTypeLength;
+
+   /*
+    * Followed by NUL-terminated string arguments.
+    * char[] path;
+    * char[] classType;
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgCreateRegKeyRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgListRegKeysRequest {
+   VixCommandRequestHeader header;
+
+   uint32 options;
+
+   /*
+    * If we need multiple roundtrips, this is the index
+    * used to identify the result being processed.
+    */
+   uint32 index;
+
+   /*
+    * If we need multiple roundtrips, this is the offset
+    * in the reply from which to send the next chunk.
+    */
+   uint32 offset;
+
+   uint32 pathLength;
+   uint32 wowBitness;
+   Bool recursive;
+   uint32 matchPatternLength;
+
+   /*
+    * Followed by NUL-terminated string arguments.
+    * char[] path;
+    * char[] matchPattern;
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgListRegKeysRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgDeleteRegKeyRequest {
+   VixCommandRequestHeader header;
+
+   uint32 options;
+
+   uint32 pathLength;
+   uint32 wowBitness;
+   Bool recursive;
+
+   /*
+    * Followed by NUL-terminated string arguments.
+    * char[] path;
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgDeleteRegKeyRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgSetRegValueRequest {
+   VixCommandRequestHeader header;
+
+   uint32 options;
+
+   uint32 pathLength;
+   uint32 wowBitness;
+   uint32 nameLength;
+   uint32 dataBlobType;
+   uint32 dataBlobLength;
+
+   /*
+    * Followed by NUL-terminated string arguments.
+    * char[] path;
+    * char[] name;
+    *
+    * Followed by a data blob of specified length
+    * containing information of specified type.
+    * void *dataBlob;
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgSetRegValueRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgListRegValuesRequest {
+   VixCommandRequestHeader header;
+
+   uint32 options;
+
+   /*
+    * If we need multiple roundtrips, this is the index
+    * used to identify the result being processed.
+    */
+   uint32 index;
+
+   /*
+    * If we need multiple roundtrips, this is the offset
+    * in the reply from which to send the next chunk.
+    */
+   uint32 offset;
+
+   uint32 pathLength;
+   uint32 wowBitness;
+   Bool expandStrings;
+   uint32 matchPatternLength;
+
+   /*
+    * Followed by NUL-terminated string arguments.
+    * char[] path;
+    * char[] matchPattern;
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgListRegValuesRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgDeleteRegValueRequest {
+   VixCommandRequestHeader header;
+
+   uint32 options;
+
+   uint32 pathLength;
+   uint32 wowBitness;
+   uint32 nameLength;
+
+   /*
+    * Followed by NUL-terminated string arguments.
+    * char[] path;
+    * char[] name;
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgDeleteRegValueRequest;
+
 
 /*
  * HOWTO: Adding a new Vix Command. Step 3.
@@ -2264,6 +2419,13 @@ enum {
    VIX_COMMAND_LIST_AUTH_PROVIDER_PRINCIPALS    = 199,
    VIX_COMMAND_LIST_AUTH_MAPPED_PRINCIPALS      = 200,
 
+   VIX_COMMAND_CREATE_REGISTRY_KEY              = 201,
+   VIX_COMMAND_LIST_REGISTRY_KEYS               = 202,
+   VIX_COMMAND_DELETE_REGISTRY_KEY              = 203,
+   VIX_COMMAND_SET_REGISTRY_VALUE               = 204,
+   VIX_COMMAND_LIST_REGISTRY_VALUES             = 205,
+   VIX_COMMAND_DELETE_REGISTRY_VALUE            = 206,
+
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2274,7 +2436,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg/foundryMsg.c as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 201,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 207,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

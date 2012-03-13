@@ -188,6 +188,13 @@
 #define VIX_TOOLS_CONFIG_API_LIST_AUTH_PRINCIPALS_NAME    "ListAuthPrincipals"
 #define VIX_TOOLS_CONFIG_API_LIST_MAPPED_PRINCIPALS_NAME  "ListMappedPrincipals"
 
+#define  VIX_TOOLS_CONFIG_API_CREATE_REGISTRY_KEY_NAME     "CreateRegistryKey"
+#define  VIX_TOOLS_CONFIG_API_LIST_REGISTRY_KEYS_NAME      "ListRegistryKeys"
+#define  VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_KEY_NAME     "DeleteRegistryKey"
+#define  VIX_TOOLS_CONFIG_API_SET_REGISTRY_VALUE_NAME      "SetRegistryValue"
+#define  VIX_TOOLS_CONFIG_API_LIST_REGISTRY_VALUES_NAME    "ListRegistryValues"
+#define  VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_VALUE_NAME   "DeleteRegistryValue"
+
 /*
  * State of a single asynch runProgram.
  */
@@ -403,9 +410,6 @@ static VixError VixToolsStartProgramImpl(const char *requestName,
                                          void *eventQueue,
                                          int64 *pid);
 
-static VixError VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,
-                                        void **userToken);
-
 static char *VixToolsGetImpersonatedUsername(void *userToken);
 
 static const char *scriptFileBaseName = "vixScript";
@@ -497,6 +501,24 @@ static VixError VixToolsAcquireCredentials(VixCommandRequestHeader *requestMsg,
                                            char **result);
 
 static VixError VixToolsReleaseCredentials(VixCommandRequestHeader *requestMsg);
+
+static VixError VixToolsCreateRegKey(VixCommandRequestHeader *requestMsg);
+
+static VixError VixToolsListRegKeys(VixCommandRequestHeader *requestMsg,
+                                    size_t maxBufferSize,
+                                    void *eventQueue,
+                                    char **result);
+
+static VixError VixToolsDeleteRegKey(VixCommandRequestHeader *requestMsg);
+
+static VixError VixToolsSetRegValue(VixCommandRequestHeader *requestMsg);
+
+static VixError VixToolsListRegValues(VixCommandRequestHeader *requestMsg,
+                                      size_t maxBufferSize,
+                                      void *eventQueue,
+                                      char **result);
+
+static VixError VixToolsDeleteRegValue(VixCommandRequestHeader *requestMsg);
 
 #if defined(__linux__) || defined(_WIN32)
 static VixError VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,
@@ -597,16 +619,8 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
 
 #ifndef _WIN32
    VixToolsBuildUserEnvironmentTable(originalEnvp);
-#else
-   /*
-    * Ensure that we never allow more SSPI sessions than ticketed sessions
-    * because there must be a ticketed session available for each SSPI session.
-    */
-   ASSERT_ON_COMPILE(VIX_TOOLS_MAX_TICKETED_SESSIONS >= VIX_TOOLS_MAX_SSPI_SESSIONS);
-
-   VixToolsInitSspiSessionList(VIX_TOOLS_MAX_SSPI_SESSIONS);
-   VixToolsInitTicketedSessionList(VIX_TOOLS_MAX_TICKETED_SESSIONS);
 #endif
+
    /* Register a straight through connection with the Hgfs server. */
    HgfsServerManager_DataInit(&gVixHgfsBkdrConn,
                               VIX_BACKDOORCOMMAND_COMMAND,
@@ -618,13 +632,19 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
                                                      NULL,
                                                      VixToolsFreeCachedResult);
 
-
 #if SUPPORT_VGAUTH
    /*
     * We don't set up the VGAuth log handler, since the default
     * does what we want, and trying to redirect VGAuth messages
     * to Log() causes recursion and a crash.
     */
+#endif
+
+#ifdef _WIN32
+   err = VixToolsInitializeWin32();
+   if (VIX_FAILED(err)) {
+      return err;
+   }
 #endif
 
    return(err);
@@ -2852,6 +2872,54 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
       goto exit;
    }
 
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_CREATE_REGISTRY_KEY_ENABLED,
+                                 VixToolsComputeEnabledProperty(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_CREATE_REGISTRY_KEY_NAME));
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_LIST_REGISTRY_KEYS_ENABLED,
+                                 VixToolsComputeEnabledProperty(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_LIST_REGISTRY_KEYS_NAME));
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_DELETE_REGISTRY_KEY_ENABLED,
+                                 VixToolsComputeEnabledProperty(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_KEY_NAME));
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_SET_REGISTRY_VALUE_ENABLED,
+                                 VixToolsComputeEnabledProperty(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_SET_REGISTRY_VALUE_NAME));
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_LIST_REGISTRY_VALUES_ENABLED,
+                                 VixToolsComputeEnabledProperty(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_LIST_REGISTRY_VALUES_NAME));
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_DELETE_REGISTRY_VALUE_ENABLED,
+                                 VixToolsComputeEnabledProperty(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_VALUE_NAME));
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
 exit:
    Debug("finished %s, err %"FMT64"d\n", __FUNCTION__, err);
    return err;
@@ -5005,49 +5073,6 @@ abort:
    ProcMgr_FreeProcList(procList);
    return err;
 }
-
-
-#ifdef _WIN32
-/*
- *-----------------------------------------------------------------------------
- *
- * VixToolsGetUserName --
- *
- *    Returns as unique a name as possible.  For our case, that's just
- *    a domain name, since the only way to get the truly unique values
- *    requires the process to be running inside a domain, which we
- *    can't expect.
- *
- * Return value:
- *    FALSE on error
- *
- * Side effects:
- *    Return value is allocated and must be freed.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-VixToolsGetUserName(wchar_t **userName)                     // OUT
-{
-   WCHAR userTmp[UNLEN + 1];
-   Bool bRet;
-   ULONG uLen = ARRAYSIZE(userTmp);
-
-   *userName = '\0';
-
-   bRet = GetUserNameExW(NameSamCompatible, userTmp, &uLen);
-   if (!bRet) {
-      Warning("%s: GetUserNameExW() failed %d\n", __FUNCTION__, GetLastError());
-      return bRet;
-   }
-   *userName = Util_SafeMalloc((uLen + 1) * sizeof(wchar_t));
-
-   wcscpy(*userName, userTmp);
-
-   return TRUE;
-}
-#endif
 
 
 /*
@@ -9211,6 +9236,174 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsCreateRegKey --
+ *
+ *    Calls the function to create a new Windows Registry Key.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    May affect applications reading the key.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsCreateRegKey(VixCommandRequestHeader *requestMsg)    // IN
+{
+#ifdef _WIN32
+   return VixToolsCreateRegKeyImpl(requestMsg);
+#else
+   return VIX_E_OP_NOT_SUPPORTED_ON_GUEST;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListRegKeys --
+ *
+ *    Calls the function to list all subkeys for a given Windows Registry Key.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsListRegKeys(VixCommandRequestHeader *requestMsg,    // IN
+                    size_t maxBufferSize,                   // IN
+                    void *eventQueue,                       // IN
+                    char **result)                          // OUT
+{
+#ifdef _WIN32
+   return VixToolsListRegKeysImpl(requestMsg, maxBufferSize, eventQueue, result);
+#else
+   return VIX_E_OP_NOT_SUPPORTED_ON_GUEST;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsDeleteRegKey --
+ *
+ *    Calls the function to delete a Windows Registry Key.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    May affect applications reading the key.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsDeleteRegKey(VixCommandRequestHeader *requestMsg)    // IN
+{
+#ifdef _WIN32
+   return VixToolsDeleteRegKeyImpl(requestMsg);
+#else
+   return VIX_E_OP_NOT_SUPPORTED_ON_GUEST;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsSetRegValue --
+ *
+ *    Calls the function to set/create a Windows Registry Value for a given Key.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    May affect applications reading the key.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsSetRegValue(VixCommandRequestHeader *requestMsg)    // IN
+{
+#ifdef _WIN32
+   return VixToolsSetRegValueImpl(requestMsg);
+#else
+   return VIX_E_OP_NOT_SUPPORTED_ON_GUEST;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListRegValues --
+ *
+ *    Calls the function to list all values for a given Windows Registry Key.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsListRegValues(VixCommandRequestHeader *requestMsg,    // IN
+                      size_t maxBufferSize,                   // IN
+                      void *eventQueue,                       // IN
+                      char **result)                          // OUT
+{
+#ifdef _WIN32
+   return VixToolsListRegValuesImpl(requestMsg, maxBufferSize, eventQueue, result);
+#else
+   return VIX_E_OP_NOT_SUPPORTED_ON_GUEST;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsDeleteRegValue --
+ *
+ *    Calls the function to delete a Windows Registry Value for a given Key.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    May affect applications reading the key.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsDeleteRegValue(VixCommandRequestHeader *requestMsg)    // IN
+{
+#ifdef _WIN32
+   return VixToolsDeleteRegValueImpl(requestMsg);
+#else
+   return VIX_E_OP_NOT_SUPPORTED_ON_GUEST;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixToolsDoesUsernameMatchCurrentUser --
  *
  *    Check if the provider username matches the current user.
@@ -9596,6 +9789,35 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
                               VIX_TOOLS_CONFIG_API_LIST_MAPPED_PRINCIPALS_NAME);
          break;
 
+      case VIX_COMMAND_CREATE_REGISTRY_KEY:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_CREATE_REGISTRY_KEY_NAME);
+         break;
+
+      case VIX_COMMAND_LIST_REGISTRY_KEYS:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_LIST_REGISTRY_KEYS_NAME);
+         break;
+
+      case VIX_COMMAND_DELETE_REGISTRY_KEY:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_KEY_NAME);
+         break;
+
+      case VIX_COMMAND_SET_REGISTRY_VALUE:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_SET_REGISTRY_VALUE_NAME);
+         break;
+
+      case VIX_COMMAND_LIST_REGISTRY_VALUES:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_LIST_REGISTRY_VALUES_NAME);
+         break;
+
+      case VIX_COMMAND_DELETE_REGISTRY_VALUE:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_VALUE_NAME);
+         break;
 
       /*
        * None of these opcode have a matching config entry (yet),
@@ -9961,6 +10183,44 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          // resultValue is static. Do not free it.
          break;
 #endif
+
+      ////////////////////////////////////
+      case VIX_COMMAND_CREATE_REGISTRY_KEY:
+         err = VixToolsCreateRegKey(requestMsg);
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_LIST_REGISTRY_KEYS:
+         err = VixToolsListRegKeys(requestMsg,
+                                   maxResultBufferSize,
+                                   eventQueue,
+                                   &resultValue);
+         deleteResultValue = TRUE;
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_DELETE_REGISTRY_KEY:
+         err = VixToolsDeleteRegKey(requestMsg);
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_SET_REGISTRY_VALUE:
+         err = VixToolsSetRegValue(requestMsg);
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_LIST_REGISTRY_VALUES:
+         err = VixToolsListRegValues(requestMsg,
+                                     maxResultBufferSize,
+                                     eventQueue,
+                                     &resultValue);
+         deleteResultValue = TRUE;
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_DELETE_REGISTRY_VALUE:
+         err = VixToolsDeleteRegValue(requestMsg);
+         break;
 
       ////////////////////////////////////
       default:

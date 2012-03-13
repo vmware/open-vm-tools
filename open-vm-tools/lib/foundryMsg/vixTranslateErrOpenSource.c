@@ -19,7 +19,7 @@
 
 /*
  * vixTranslateErrorOpenSource.c --
- * 
+ *
  * Routines which translate between various other error code systems
  * into foundry errors.
  *
@@ -28,7 +28,7 @@
  * which is NOT being released as open source. We do not want to include
  * any unnecessary error functions, since those use lots of different
  * error code definitions, and that would drag in a lot of headers from
- * bora/lib/public. 
+ * bora/lib/public.
  */
 
 #include "vmware.h"
@@ -44,9 +44,56 @@
 /*
  *-----------------------------------------------------------------------------
  *
+ * Vix_TranslateGuestRegistryError --
+ *
+ *     Translate a guest windows registry error to a Foundry error.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+Vix_TranslateGuestRegistryError(int systemError) // IN
+{
+   VixError err = VIX_E_FAIL;
+#ifdef _WIN32
+   Unicode msg;
+
+   switch (systemError) {
+   case ERROR_INVALID_PARAMETER:
+   case ERROR_FILE_NOT_FOUND:
+      err = VIX_E_REG_KEY_INVALID;
+      break;
+   case ERROR_ACCESS_DENIED:
+      err = VIX_E_GUEST_USER_PERMISSIONS;
+      break;
+   default:
+      return Vix_TranslateSystemError(systemError);
+   }
+   msg = Win32U_FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+                              NULL, systemError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                              NULL);
+
+   Log("Foundry operation failed with guest windows registry error: %s (%d), translated to %"FMT64"d\n",
+       msg, systemError, err);
+   Unicode_Free(msg);
+
+#endif
+   return err;
+} // Vix_TranslateGuestRegistryError
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Vix_TranslateSystemError --
  *
- *     Translate a System error to a Foundry error. 
+ *     Translate a System error to a Foundry error.
  *
  * Results:
  *      VixError
@@ -55,7 +102,7 @@
  *
  *-----------------------------------------------------------------------------
  */
- 
+
 VixError
 Vix_TranslateSystemError(int systemError) // IN
 {
@@ -77,7 +124,7 @@ Vix_TranslateSystemError(int systemError) // IN
    case ERROR_PATH_NOT_FOUND:
    case ERROR_BAD_PATHNAME:
    case ERROR_DIRECTORY:
-   case ERROR_BUFFER_OVERFLOW: 
+   case ERROR_BUFFER_OVERFLOW:
       err = VIX_E_FILE_NOT_FOUND;
       break;
    case ERROR_DIR_NOT_EMPTY:
@@ -114,7 +161,7 @@ Vix_TranslateSystemError(int systemError) // IN
       err = VIX_E_NOT_SUPPORTED;
       break;
    case ERROR_NO_DATA:
-   case ERROR_INVALID_DATA: 
+   case ERROR_INVALID_DATA:
       err = VIX_E_NOT_FOUND;
       break;
    case ERROR_NOT_ENOUGH_MEMORY:
@@ -144,7 +191,7 @@ Vix_TranslateSystemError(int systemError) // IN
  *
  * Vix_TranslateCOMError --
  *
- *     Translate a COM (Windows) error to a Foundry error. 
+ *     Translate a COM (Windows) error to a Foundry error.
  *
  * Results:
  *     VixError.
@@ -197,7 +244,7 @@ Vix_TranslateCOMError(HRESULT hrError) // IN
    default:
       err = VIX_E_FAIL;
    }
-  
+
    return err;
 } // Vix_TranslateCOMError
 #endif
@@ -208,7 +255,7 @@ Vix_TranslateCOMError(HRESULT hrError) // IN
  *
  * Vix_TranslateCryptoError --
  *
- *     Translate a Crypto error to a Foundry error. 
+ *     Translate a Crypto error to a Foundry error.
  *
  * Results:
  *      VixError
@@ -217,7 +264,7 @@ Vix_TranslateCOMError(HRESULT hrError) // IN
  *
  *-----------------------------------------------------------------------------
  */
- 
+
 VixError
 Vix_TranslateCryptoError(CryptoError cryptoError) // IN
 {

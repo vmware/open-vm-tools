@@ -87,6 +87,7 @@ VixError Vix_TranslateErrno(int systemError);
 
 #ifdef _WIN32
 VixError Vix_TranslateCOMError(HRESULT comError);
+VixError Vix_TranslateGuestRegistryError(int systemError);
 #endif
 
 #endif // VIX_HIDE_BORA_DEPENDENCIES
@@ -107,6 +108,10 @@ enum {
 
    VIX_E_GUEST_AUTH_MULIPLE_MAPPINGS               = 20007,
 
+   /* Guest Reg Errors */
+   VIX_E_REG_KEY_INVALID                           = 20008,
+   VIX_E_REG_KEY_HAS_SUBKEYS                       = 20009,
+   VIX_E_REG_VALUE_NOT_FOUND                       = 20010,
 
    /* Reg Errors*/
    VIX_E_REG_INCORRECT_VALUE_TYPE                  = 25000
@@ -188,6 +193,12 @@ enum {
    VIX_PROPERTY_GUEST_REMOVE_AUTH_PRINICPAL_ENABLED      = 4559,
    VIX_PROPERTY_GUEST_LIST_AUTH_PRINICPALS_ENABLED       = 4560,
    VIX_PROPERTY_GUEST_LIST_MAPPED_PRINICPALS_ENABLED     = 4561,
+   VIX_PROPERTY_GUEST_CREATE_REGISTRY_KEY_ENABLED      = 4562,
+   VIX_PROPERTY_GUEST_LIST_REGISTRY_KEYS_ENABLED       = 4563,
+   VIX_PROPERTY_GUEST_DELETE_REGISTRY_KEY_ENABLED      = 4564,
+   VIX_PROPERTY_GUEST_SET_REGISTRY_VALUE_ENABLED       = 4565,
+   VIX_PROPERTY_GUEST_LIST_REGISTRY_VALUES_ENABLED     = 4566,
+   VIX_PROPERTY_GUEST_DELETE_REGISTRY_VALUE_ENABLED    = 4567,
 };
 
 
@@ -492,6 +503,44 @@ typedef enum VixGuestAuthPrincipalType {
    VIX_GUEST_AUTH_PRINCIPAL_TYPE_ANY               = 2,
 } VixGuestAuthPrincipalType;
 
+/*
+ * Types for Windows Registry Management.
+ */
+
+/*
+ * In a 64 bit Windows OS, the registry has two views: 32 bit and 64 bit.
+ * Normally using "registry redirection", 32 bit applications automatically
+ * access the 32 bit view, while 64 bit applications access 64 bit view.
+ * However, applications can pass a flag to specifically access either 32
+ * or 64 bit registry view, irrespective of their own bitness.
+ *
+ * NOTE: 32 bit windows will ignore these flags if passed.
+ *
+ * Based on the above, and on the fact that in our case 32 bit tools run only
+ * on 32 bit windows and 64 bit tools run only on 64 bit windows, we get the
+ * following registry view access matrix:
+ * Application      wowNative            wow32             wow64
+ * -----------      --------             -----             -----
+ * 32 bit tools     32 bit view          32 bit view       32 bit view
+ * 64 bit tools     64 bit view          32 bit view       64 bit view
+ * So in essence, we always access 32 bit view UNLESS its 64 bit tools and user
+ * has specified either wowNative or wow64 as the registry access flag.
+ */
+
+typedef enum VixRegKeyWowBitness {
+   VIX_REGISTRY_KEY_WOW_NATIVE        = 0,
+   VIX_REGISTRY_KEY_WOW_32            = 1,
+   VIX_REGISTRY_KEY_WOW_64            = 2,
+} VixRegKeyWowBitness;
+
+typedef enum VixRegValueDataType {
+   VIX_REGISTRY_VALUE_DWORD           = 0,
+   VIX_REGISTRY_VALUE_QWORD           = 1,
+   VIX_REGISTRY_VALUE_STRING          = 2,
+   VIX_REGISTRY_VALUE_EXPAND_STRING   = 3,
+   VIX_REGISTRY_VALUE_MULTI_STRING    = 4,
+   VIX_REGISTRY_VALUE_BINARY          = 5,
+} VixRegValueDataType;
 
 /*
  *-----------------------------------------------------------------------------

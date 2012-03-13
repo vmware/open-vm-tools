@@ -164,11 +164,11 @@ help.timesync =
 "   status: Ausgabe des Status der Uhrzeitsynchronisierung\n"
 
 help.upgrade =
-   "%1$s: Funktionen für das Upgrade der VMware Tools.\n"
+   "%1$s: Funktionen für das Upgrade von VMware Tools.\n"
 "Nutzung: %2$s %3$s <Unterbefehl> [args]\n"
 "Unterbefehle:\n"
 "   status: Überprüfen des Upgrade-Status für VMware Tools.\n"
-"   start: Starten eines automatischen Upgrades der VMware Tools.\n"
+"   start: Starten eines automatischen Upgrades von VMware Tools.\n"
 "\n"
 "Damit die Upgrades funktionieren, muss der VMware Tools-Dienst ausgeführt werden.\n"
 
@@ -214,7 +214,7 @@ upgrade.error.check_error = "Fehler beim Überprüfen der Verfügbarkeit von Upg
 
 upgrade.error.error = "Fehler beim Starten des Upgrades von VMware Tools.\n"
 
-upgrade.error.not_supported = "Der Host unterstützt kein automatisches Upgrade der VMware Tools.\n"
+upgrade.error.not_supported = "Der Host unterstützt kein automatisches Upgrade von VMware Tools.\n"
 
 upgrade.error.unknown_reply = "Unerwartete Antwort vom Host: %1$s\n"
 

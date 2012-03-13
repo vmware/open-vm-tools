@@ -718,12 +718,12 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    }
    permissions = stbuf.st_mode;
 
-   /* Do a "cleanup" unlink in case some previous process left a temp file around */
+   /* Clean up a previously created temp file; if one exists. */
    ret = Posix_Unlink(tempPath);
-   if (ret != 0 && errno != ENOENT) { /* ENOENT is expected, file should not exist */
+   if (ret != 0 && errno != ENOENT) {
       Log("%s: Failed to unlink temporary file, errno: %d\n",
           __FUNCTION__, errno);
-      /* Fall through; FileIO_Create will report the actual error */
+      /* Fall through; FileIO_Create will report the actual error. */
    }
 #endif
 
@@ -731,8 +731,8 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
                           FILEIO_ACCESS_READ | FILEIO_ACCESS_WRITE,
                           FILEIO_OPEN_CREATE_SAFE, permissions);
    if (!FileIO_IsSuccess(status)) {
-      Log("%s: Failed to create temporary file, err: %d\n", __FUNCTION__,
-          Err_Errno());
+      Log("%s: Failed to create temporary file, %s (%d). errno: %d\n",
+          __FUNCTION__, FileIO_ErrorEnglish(status), status, Err_Errno());
       goto bail;
    }
 
@@ -795,7 +795,7 @@ bail:
  *      no longer exists on success.
  *
  *      On success the caller must call FileIO_IsValid on newFD to verify it
- *	is still open before using it again.
+ *      is still open before using it again.
  *
  * Results:
  *      TRUE if successful, FALSE on failure.
@@ -905,7 +905,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
 
          if (File_Rename(newPath, currPath)) {
             Log("%s: rename of '%s' to '%s' failed %d.\n",
-                newPath, currPath, __FUNCTION__, errno);
+                __FUNCTION__, newPath, currPath, errno);
             savedErrno = errno;
             goto swapdone;
          }
@@ -944,7 +944,7 @@ swapdone:
     * The current file needs to be closed and reopened,
     * but we don't want to drop the file lock by calling
     * FileIO_Close() on it.  Instead, use native close primitives.
-    * We'll reopen it later with FileIO_Open.  Set the 
+    * We'll reopen it later with FileIO_Open.  Set the
     * descriptor/handle to an invalid value while we're in the
     * middle of transferring ownership.
     */
@@ -956,14 +956,12 @@ swapdone:
    close(currFD->posix);
    currFD->posix = -1;
 #endif
-   if (File_RenameRetry(newPath, currPath, 10)) {
+   if (File_RenameRetry(newPath, currPath, 10) == 0) {
+      ret = TRUE;
+   } else {
       savedErrno = errno;
-      goto bail;
+      ASSERT(!ret);
    }
-
-   ret = TRUE;
-
-bail:
 
    FileIO_Invalidate(&tmpFD);
 
@@ -977,7 +975,9 @@ bail:
                    FILEIO_OPEN_LOCK_BEST | FILEIO_OPEN_LOCKED);
    status = FileIO_Open(&tmpFD, currPath, currAccess, FILEIO_OPEN);
    if (!FileIO_IsSuccess(status)) {
-      Panic("Failed to reopen dictionary file.\n");
+      Panic("Failed to reopen dictionary after renaming "
+            "\"%s\" to \"%s\": %s (%d)\n", newPath, currPath,
+            FileIO_ErrorEnglish(status), status);
    }
    ASSERT(tmpFD.lockToken == NULL);
 

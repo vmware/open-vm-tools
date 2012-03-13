@@ -110,6 +110,10 @@ char *FileMacos_DiskDeviceToUniqueID(char const *bsdPath);
 char *FileMacos_UniqueIDToDiskDevice(char const *identifier);
 
 #elif defined VMX86_SERVER
+struct FS_PartitionListResult;
+
+int File_GetVMFSAttributes(ConstUnicode pathName,
+                           struct FS_PartitionListResult **fsAttrs);
 int File_GetVMFSVersion(ConstUnicode pathName,
                         uint32 *versionNum);
 int File_GetVMFSBlockSize(ConstUnicode pathName,

@@ -1078,7 +1078,7 @@ File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
  *----------------------------------------------------------------------
  */
 
-static int
+int
 File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
                        FS_PartitionListResult **fsAttrs)  // IN/OUT: VMFS Info
 {

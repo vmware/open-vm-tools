@@ -43,6 +43,17 @@
 
 #define VMCI_PACKET_RECV_THRESHOLD 150
 
+/*
+ * All flags.  We use this to check the validity of the flags, so put it here
+ * instead of in the header, otherwise people might assume we mean for them
+ * to use it.
+ */
+
+#define VPAGECHANNEL_FLAGS_ALL             \
+   (VPAGECHANNEL_FLAGS_NOTIFY_ONLY       | \
+    VPAGECHANNEL_FLAGS_RECV_DELAYED      | \
+    VPAGECHANNEL_FLAGS_SEND_WHILE_ATOMIC)
+
 
 /*
  * Page channel.  This is opaque to clients.
@@ -69,6 +80,7 @@ struct VPageChannel {
    VMCIId attachSubId;
    VMCIId detachSubId;
    Bool qpConnected;
+   Bool useSpinLock;
    spinlock_t qpRecvLock;
    spinlock_t qpSendLock;
    struct semaphore qpRecvMutex;
@@ -127,10 +139,10 @@ VPageChannelAcquireSendLock(VPageChannel *channel, // IN
    ASSERT(channel);
 
    *flags = 0; /* Make compiler happy about it being unused in some paths. */
-   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      down(&channel->qpSendMutex);
-   } else {
+   if (channel->useSpinLock) {
       spin_lock_irqsave(&channel->qpSendLock, *flags);
+   } else {
+      down(&channel->qpSendMutex);
    }
 }
 
@@ -157,10 +169,10 @@ VPageChannelReleaseSendLock(VPageChannel *channel, // IN
 {
    ASSERT(channel);
 
-   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      up(&channel->qpSendMutex);
-   } else {
+   if (channel->useSpinLock) {
       spin_unlock_irqrestore(&channel->qpSendLock, flags);
+   } else {
+      up(&channel->qpSendMutex);
    }
 }
 
@@ -189,10 +201,10 @@ VPageChannelAcquireRecvLock(VPageChannel *channel, // IN
    ASSERT(flags);
 
    *flags = 0; /* Make compiler happy about it being unused in some paths. */
-   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      down(&channel->qpRecvMutex);
-   } else {
+   if (channel->useSpinLock) {
       spin_lock_irqsave(&channel->qpRecvLock, *flags);
+   } else {
+      down(&channel->qpRecvMutex);
    }
 }
 
@@ -219,10 +231,10 @@ VPageChannelReleaseRecvLock(VPageChannel *channel, // IN
 {
    ASSERT(channel);
 
-   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      up(&channel->qpRecvMutex);
-   } else {
+   if (channel->useSpinLock) {
       spin_unlock_irqrestore(&channel->qpRecvLock, flags);
+   } else {
+      up(&channel->qpRecvMutex);
    }
 }
 
@@ -858,12 +870,14 @@ VPageChannelCreateQueuePair(VPageChannel *channel) // IN/OUT
    ASSERT(VMCI_INVALID_ID == channel->detachSubId);
    ASSERT(VMCI_INVALID_ID == channel->attachSubId);
 
-   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
-      sema_init(&channel->qpSendMutex, 1);
-      sema_init(&channel->qpRecvMutex, 1);
-   } else {
+   if (channel->flags & VPAGECHANNEL_FLAGS_SEND_WHILE_ATOMIC ||
+       !(channel->flags & VPAGECHANNEL_FLAGS_RECV_DELAYED)) {
+      channel->useSpinLock = TRUE;
       spin_lock_init(&channel->qpSendLock);
       spin_lock_init(&channel->qpRecvLock);
+   } else {
+      sema_init(&channel->qpSendMutex, 1);
+      sema_init(&channel->qpRecvMutex, 1);
    }
 
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_ATTACH,
@@ -890,10 +904,9 @@ VPageChannelCreateQueuePair(VPageChannel *channel) // IN/OUT
       goto error;
    }
 
-   if (channel->flags & VPAGECHANNEL_FLAGS_PINNED) {
+   if (channel->useSpinLock) {
       flags = VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED;
    } else {
-      ASSERT(channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB);
       flags = 0;
    }
    err = VMCIQPair_Alloc(&channel->qpair, &channel->qpHandle,
@@ -970,14 +983,6 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   if (!(channelFlags & VPAGECHANNEL_FLAGS_PINNED) &&
-       !(channelFlags & VPAGECHANNEL_FLAGS_DELAYED_CB)) {
-      VMCI_WARNING((LGPFX"Cannot use on-demand mapping with non-delayed "
-                    "callbacks (flags=0x%x).\n",
-                    channelFlags));
-      return VMCI_ERROR_INVALID_ARGS;
-   }
-
    pageChannel =
       VMCI_AllocKernelMem(sizeof *pageChannel, VMCI_MEMORY_NONPAGED);
    if (!pageChannel) {
@@ -1047,7 +1052,7 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
     * callback depending on the channel flags.
     */
 
-   flags = channelFlags & VPAGECHANNEL_FLAGS_DELAYED_CB ?
+   flags = channelFlags & VPAGECHANNEL_FLAGS_RECV_DELAYED ?
       VMCI_FLAG_DELAYED_CB : 0;
    retval = VMCIDoorbell_Create(&pageChannel->doorbellHandle,
                                 flags, VMCI_PRIVILEGE_FLAG_RESTRICTED,
