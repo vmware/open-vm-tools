@@ -44,7 +44,15 @@
 #if defined(__FreeBSD__) || defined(__APPLE__)
 # include <sys/sysctl.h>
 #endif
+#if !defined(__APPLE__)
+#define TARGET_OS_IPHONE 0
+#endif
 #if defined(__APPLE__)
+#include <assert.h>
+#include <TargetConditionals.h>
+#if !TARGET_OS_IPHONE
+#include <CoreServices/CoreServices.h>
+#endif
 #include <mach-o/dyld.h>
 #include <mach/mach_host.h>
 #include <mach/mach_init.h>
