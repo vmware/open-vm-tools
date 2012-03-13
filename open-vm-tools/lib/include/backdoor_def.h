@@ -142,6 +142,7 @@
 #  define BDOOR_CMD_FAS_GET_PLATFORM_NAME     2
 #  define BDOOR_CMD_FAS_GET_PCIE_OSC_MASK     3
 #  define BDOOR_CMD_FAS_GET_APIC_ROUTING      4
+#  define BDOOR_CMD_FAS_GET_TABLE_SKIP        5
 #define   BDOOR_CMD_SENDPSHAREHINTS          66
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
