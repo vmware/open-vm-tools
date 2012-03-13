@@ -123,7 +123,8 @@
  * No support for open-vm-tools.
  */
 #if (defined(_WIN32) || defined(linux)) && !defined(OPEN_VM_TOOLS)
-#define SUPPORT_VGAUTH 1
+// XXX Disabled until VGAuth API signature changes work through GoBuild
+#define SUPPORT_VGAUTH 0
 #else
 #define SUPPORT_VGAUTH 0
 #endif
