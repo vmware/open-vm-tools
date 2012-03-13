@@ -110,6 +110,15 @@
 #define RANK_vmdbMemMapLock          (RANK_libLockBase + 0x5580)
 
 /*
+ * USB range:
+ * (RANK_libLockBase + 0x6500, RANK_libLockBase + 0x6600)
+ */
+
+#define RANK_usbArbCliClientLock     (RANK_libLockBase + 0x6505)
+#define RANK_usbArbCliGlobalLock     (RANK_libLockBase + 0x6506)
+
+
+/*
  * misc locks
  *
  * Assuming ordering is important here for the listed locks. Other
