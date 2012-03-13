@@ -1611,9 +1611,8 @@ HostinfoSystemTimerMach(VmTimeType *result)  // OUT
 #  define vmx86_apple 1
 
    typedef struct {
-      mach_timebase_info_data_t timeBase;
-      double                    scalingFactor;
-      Bool                      unity;
+      double  scalingFactor;
+      Bool    unity;
    } timerData;
 
    VmTimeType raw;
@@ -1629,17 +1628,18 @@ HostinfoSystemTimerMach(VmTimeType *result)  // OUT
    ptr = Atomic_ReadPtr(&atomic);
 
    if (UNLIKELY(ptr == NULL)) {
-      timerData *new = Util_SafeMalloc(sizeof *new);
+      mach_timebase_info_data_t timeBase;
+      timerData *try = Util_SafeMalloc(sizeof *try);
 
-      mach_timebase_info(&new->timeBase);
+      mach_timebase_info(&timeBase);
 
-      new->scalingFactor = ((double) new->timeBase.numer) /
-                           ((double) new->timeBase.denom);
+      try->scalingFactor = ((double) timeBase.numer) /
+                           ((double) timeBase.denom);
 
-      new->unity = ((new->timeBase.numer == 1) && (new->timeBase.denom == 1));
+      try->unity = ((timeBase.numer == 1) && (timeBase.denom == 1));
 
-      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, new)) {
-         free(new);
+      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, try)) {
+         free(try);
       }
 
       ptr = Atomic_ReadPtr(&atomic);
