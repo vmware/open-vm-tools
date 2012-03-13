@@ -56,6 +56,7 @@
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
 #define PCI_DEVICE_ID_VMWARE_SVGA2              0x0405
 #define PCI_DEVICE_ID_VMWARE_SVGA               0x0710
+#define PCI_DEVICE_ID_VMWARE_VGA                0x0711
 #define PCI_DEVICE_ID_VMWARE_NET                0x0720
 #define PCI_DEVICE_ID_VMWARE_SCSI               0x0730
 #define PCI_DEVICE_ID_VMWARE_VMCI               0x0740
