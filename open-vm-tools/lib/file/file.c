@@ -1383,6 +1383,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
       Msg_Append(MSGID(File.MoveTree.source.notDirectory)
                  "The source path '%s' is not a directory.\n\n",
                  UTF8(srcName));
+
       return FALSE;
    }
 
@@ -1390,6 +1391,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
       ret = TRUE;
    } else {
       struct stat statbuf;
+
       if (-1 == Posix_Stat(dstName, &statbuf)) {
          int err = Err_Errno();
 
@@ -1397,6 +1399,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
             if (!File_CreateDirectoryHierarchy(dstName)) {
                Msg_Append(MSGID(File.MoveTree.dst.couldntCreate)
                           "Could not create '%s'.\n\n", UTF8(dstName));
+
                return FALSE;
             }
 
@@ -1405,6 +1408,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
             Msg_Append(MSGID(File.MoveTree.statFailed)
                        "%d:Failed to stat destination '%s'.\n\n",
                        err, UTF8(dstName));
+
             return FALSE;
          }
       } else {
@@ -1412,12 +1416,14 @@ File_MoveTree(ConstUnicode srcName,   // IN:
             Msg_Append(MSGID(File.MoveTree.dest.notDirectory)
                        "The destination path '%s' is not a directory.\n\n",
                        UTF8(dstName));
+
             return FALSE;
          }
       }
 
       if (File_CopyTree(srcName, dstName, overwriteExisting, FALSE)) {
          ret = TRUE;
+
          if (!File_DeleteDirectoryTree(srcName)) {
             Msg_Append(MSGID(File.MoveTree.cleanupFailed)
                        "Forced to copy '%s' into '%s' but unable to remove "
