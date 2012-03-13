@@ -45,6 +45,36 @@
 #define VPAGECHANNEL_PACKET_MESSAGE(packet) \
    (char *)((char *)(packet) + sizeof(VPageChannelPacket))
 
+/*
+ * Flags for channel creation.
+ *
+ * NOTIFY_ONLY means invoke the channel's receive callback directly when a
+ * notification is received.  If not specified, then when a notification is
+ * received, packets are read from the queuepair and the callback invoked for
+ * each one separately.  Not applicable on VMKernel.
+ *
+ * DELAYED_CB means that all callbacks run in a delayed context, and
+ * semaphores are used to lock send/receive operations.  If not specified,
+ * then callbacks run in interrupt context,  and spinlocks are used to lock
+ * operations.  This can only be specified on the guest side for now.
+ *
+ * PINNED means that all queuepair memory is permanently pinned and mapped.
+ * If not specified, then queuepair memory is mapped on-demand.  Note that
+ * if queuepairs are not pinned, callbacks MUST be delayed, i.e., you must
+ * specify DELAYED_CB if not using PINNED.  This can only be specified on
+ * the guest side for now; on VMKernel, a channel's queuepair is ALWAYS
+ * pinned.  Using PINNED will limit the total size of the channel's queuepair
+ * to VMCI_MAX_PINNED_QP_MEMORY.
+ */
+
+#define VPAGECHANNEL_FLAGS_NOTIFY_ONLY 0x1
+#define VPAGECHANNEL_FLAGS_DELAYED_CB  0x2
+#define VPAGECHANNEL_FLAGS_PINNED      0x4
+#define VPAGECHANNEL_FLAGS_ALL       \
+   (VPAGECHANNEL_FLAGS_NOTIFY_ONLY | \
+    VPAGECHANNEL_FLAGS_DELAYED_CB  | \
+    VPAGECHANNEL_FLAGS_PINNED)
+
 
 typedef
 #include "vmware_pack_begin.h"
@@ -134,9 +164,9 @@ int VPageChannel_CreateInVM(VPageChannel **channel,
                             VMCIId peerResourceId,
                             uint64 produceQSize,
                             uint64 consumeQSize,
+                            uint32 flags,
                             VPageChannelRecvCB recvCB,
                             void *clientRecvData,
-                            Bool notifyOnly,
                             VPageChannelAllocElemFn elemAlloc,
                             void *allocClientData,
                             VPageChannelFreeElemFn elemFree,

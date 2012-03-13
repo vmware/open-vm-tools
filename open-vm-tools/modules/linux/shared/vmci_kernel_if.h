@@ -186,8 +186,6 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
 
 #define VMCI_SEMA_RANK_QUEUEPAIRLIST    (VMCI_SEMA_RANK_QPHEADER - 1)
 #define VMCI_SEMA_RANK_GUESTMEM         (VMCI_SEMA_RANK_QUEUEPAIRLIST - 1)
-#define VMCI_SEMA_RANK_PACKET_QP        (VMCI_SEMA_RANK_QPHEADER - 1)
-//#define VMCI_SEMA_RANK_PACKET_QP        0xffd /* For vVol */
 
 /*
  * Host specific struct used for signalling.

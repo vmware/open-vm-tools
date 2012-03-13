@@ -50,9 +50,9 @@
 
 struct VPageChannel {
    VMCIHandle dgHandle;
+   uint32 flags;
    VPageChannelRecvCB recvCB;
    void *clientRecvData;
-   Bool notifyOnly;
    VPageChannelAllocElemFn elemAllocFn;
    void *allocClientData;
    VPageChannelFreeElemFn elemFreeFn;
@@ -69,6 +69,8 @@ struct VPageChannel {
    VMCIId attachSubId;
    VMCIId detachSubId;
    Bool qpConnected;
+   VMCILock qpRecvLock;
+   VMCILock qpSendLock;
    VMCIMutex qpRecvMutex;
    VMCIMutex qpSendMutex;
 
@@ -122,7 +124,12 @@ static void
 VPageChannelAcquireSendLock(VPageChannel *channel) // IN
 {
    ASSERT(channel);
-   VMCIMutex_Acquire(&channel->qpSendMutex);
+
+   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
+      VMCIMutex_Acquire(&channel->qpSendMutex);
+   } else {
+      VMCI_GrabLock_BH(&channel->qpSendLock, NULL);
+   }
 }
 
 
@@ -146,7 +153,12 @@ static void
 VPageChannelReleaseSendLock(VPageChannel *channel) // IN
 {
    ASSERT(channel);
-   VMCIMutex_Release(&channel->qpSendMutex);
+
+   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
+      VMCIMutex_Release(&channel->qpSendMutex);
+   } else {
+      VMCI_ReleaseLock_BH(&channel->qpSendLock, 0);
+   }
 }
 
 
@@ -170,7 +182,12 @@ static void
 VPageChannelAcquireRecvLock(VPageChannel *channel) // IN
 {
    ASSERT(channel);
-   VMCIMutex_Acquire(&channel->qpRecvMutex);
+
+   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
+      VMCIMutex_Acquire(&channel->qpRecvMutex);
+   } else {
+      VMCI_GrabLock_BH(&channel->qpRecvLock, NULL);
+   }
 }
 
 
@@ -194,7 +211,12 @@ static void
 VPageChannelReleaseRecvLock(VPageChannel *channel) // IN
 {
    ASSERT(channel);
-   VMCIMutex_Release(&channel->qpRecvMutex);
+
+   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
+      VMCIMutex_Release(&channel->qpRecvMutex);
+   } else {
+      VMCI_ReleaseLock_BH(&channel->qpRecvLock, 0);
+   }
 }
 
 
@@ -623,7 +645,7 @@ VMCIPacketDoorbellCallback(void *clientData) // IN/OUT
 
    ASSERT(channel);
 
-   if (channel->notifyOnly) {
+   if (channel->flags & VPAGECHANNEL_FLAGS_NOTIFY_ONLY) {
       channel->recvCB(channel->clientRecvData, NULL);
    } else {
       VMCIPacketDoDoorbellCallback(channel);
@@ -796,9 +818,6 @@ VPageChannelDestroyQueuePair(VPageChannel *channel) // IN/OUT
       channel->qpair = NULL;
    }
 
-   VMCIMutex_Destroy(&channel->qpRecvMutex);
-   VMCIMutex_Destroy(&channel->qpSendMutex);
-
    channel->qpConnected = FALSE;
 }
 
@@ -831,21 +850,14 @@ VPageChannelCreateQueuePair(VPageChannel *channel) // IN/OUT
    ASSERT(VMCI_INVALID_ID == channel->detachSubId);
    ASSERT(VMCI_INVALID_ID == channel->attachSubId);
 
-   err = VMCIMutex_Init(&channel->qpSendMutex, "VMCIPacketSendMutex",
-                        VMCI_SEMA_RANK_PACKET_QP);
-   if (err < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to initialize send mutex (channel=%p).\n",
-                    channel));
-      return err;
-   }
-
-   err = VMCIMutex_Init(&channel->qpRecvMutex, "VMCIPacketRecvMutex",
-                        VMCI_SEMA_RANK_PACKET_QP);
-   if (err < VMCI_SUCCESS) {
-      VMCI_WARNING((LGPFX"Failed to initialize revc mutex (channel=%p).\n",
-                    channel));
-      VMCIMutex_Destroy(&channel->qpSendMutex);
-      return err;
+   if (channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB) {
+      /* Mutex creation can't fail on Linux. */
+      (void)VMCIMutex_Init(&channel->qpSendMutex, "VPageChannelSendMutex", 0);
+      (void)VMCIMutex_Init(&channel->qpRecvMutex, "VPageChannelRecvMutex", 0);
+   } else {
+      /* Similarly, spinlock creation can't fail on Linux. */
+      (void)VMCI_InitLock(&channel->qpSendLock, "VPageChannelSendLock", 0);
+      (void)VMCI_InitLock(&channel->qpRecvLock, "VPageChannelRecvLock", 0);
    }
 
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_ATTACH,
@@ -872,7 +884,12 @@ VPageChannelCreateQueuePair(VPageChannel *channel) // IN/OUT
       goto error;
    }
 
-   flags = 0;
+   if (channel->flags & VPAGECHANNEL_FLAGS_PINNED) {
+      flags = VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED;
+   } else {
+      ASSERT(channel->flags & VPAGECHANNEL_FLAGS_DELAYED_CB);
+      flags = 0;
+   }
    err = VMCIQPair_Alloc(&channel->qpair, &channel->qpHandle,
                          channel->produceQSize, channel->consumeQSize,
                          VMCI_HOST_CONTEXT_ID, flags, VMCI_NO_PRIVILEGE_FLAGS);
@@ -922,9 +939,9 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
                         VMCIId peerResourceId,               // IN
                         uint64 produceQSize,                 // IN
                         uint64 consumeQSize,                 // IN
+                        uint32 channelFlags,                 // IN
                         VPageChannelRecvCB recvCB,           // IN
                         void *clientRecvData,                // IN
-                        Bool notifyOnly,                     // IN
                         VPageChannelAllocElemFn elemAllocFn, // IN
                         void *allocClientData,               // IN
                         VPageChannelFreeElemFn elemFreeFn,   // IN
@@ -941,9 +958,24 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
    ASSERT(VMCI_INVALID_ID != peerResourceId);
    ASSERT(recvCB);
 
+   if (channelFlags & ~(VPAGECHANNEL_FLAGS_ALL)) {
+      VMCI_WARNING((LGPFX"Invalid argument (flags=0x%x).\n",
+                    channelFlags));
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   if (!(channelFlags & VPAGECHANNEL_FLAGS_PINNED) &&
+       !(channelFlags & VPAGECHANNEL_FLAGS_DELAYED_CB)) {
+      VMCI_WARNING((LGPFX"Cannot use on-demand mapping with non-delayed "
+                    "callbacks (flags=0x%x).\n",
+                    channelFlags));
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
    pageChannel =
       VMCI_AllocKernelMem(sizeof *pageChannel, VMCI_MEMORY_NONPAGED);
    if (!pageChannel) {
+      VMCI_WARNING((LGPFX"Failed to allocate channel memory.\n"));
       return VMCI_ERROR_NO_MEM;
    }
 
@@ -960,9 +992,9 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
    pageChannel->doorbellHandle = VMCI_INVALID_HANDLE;
    pageChannel->peerDoorbellHandle = VMCI_INVALID_HANDLE;
    pageChannel->qpConnected = FALSE;
+   pageChannel->flags = channelFlags;
    pageChannel->recvCB = recvCB;
    pageChannel->clientRecvData = clientRecvData;
-   pageChannel->notifyOnly = notifyOnly;
    pageChannel->elemAllocFn = elemAllocFn;
    pageChannel->allocClientData = allocClientData;
    pageChannel->elemFreeFn = elemFreeFn;
@@ -980,6 +1012,8 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
    /*
     * Create a datagram handle over which we will connection handshake packets
     * (once the queuepair is created we can send packets over that instead).
+    * This handle has a delayed callback regardless of the channel flags,
+    * because we may have to create a queuepair inside the callback.
     */
 
    flags = VMCI_FLAG_DG_DELAYED_CB;
@@ -1003,12 +1037,14 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
 
    /*
     * Create a doorbell handle.  This is used by the peer to signal the
-    * arrival of packets in the queuepair.
+    * arrival of packets in the queuepair.  This handle has a delayed
+    * callback depending on the channel flags.
     */
 
+   flags = channelFlags & VPAGECHANNEL_FLAGS_DELAYED_CB ?
+      VMCI_FLAG_DELAYED_CB : 0;
    retval = VMCIDoorbell_Create(&pageChannel->doorbellHandle,
-                                VMCI_FLAG_DELAYED_CB,
-                                VMCI_PRIVILEGE_FLAG_RESTRICTED,
+                                flags, VMCI_PRIVILEGE_FLAG_RESTRICTED,
                                 VMCIPacketDoorbellCallback, pageChannel);
    if (retval < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to create doorbell "
