@@ -1,3 +1,14 @@
+open-vm-tools 2012.03.13 changes:
+	* Updates for newer Linux kernel releases (3.3).
+
+	* Updates for Solaris 11.
+
+	* Updates for FreeBSD 9.0.
+
+	* Translation updates.
+
+	* Other fixes and cleanups.
+
 open-vm-tools 2011.12.20 changes:
 	* Updates for new Linux kernel releases, including some fixes for
 	Fedora's re-versioned 3.x kernels.
