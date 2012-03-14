@@ -162,7 +162,8 @@
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_SVGA_CAPABILITIES    75 /* CPL 0 only. */
 #define	  BDOOR_CMD_GET_FORCE_X2APIC         76 /* CPL 0 only  */
-#define   BDOOR_CMD_MAX                      77
+#define   BDOOR_CMD_SET_PCI_HOLE             77 /* CPL 0 only  */
+#define   BDOOR_CMD_MAX                      78
 
 
 /* 

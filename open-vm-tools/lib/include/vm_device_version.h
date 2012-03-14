@@ -87,6 +87,8 @@
 #define PCI_DEVICE_VMI_INTERFACE        0x00
 #define PCI_DEVICE_VMI_REVISION         0x01
 
+#define PCI_DEVICE_ID_VMWARE_DUMMY      0x0809
+
 /* From linux/pci_ids.h:
  *   AMD Lance Ethernet controller
  *   BusLogic SCSI controller
