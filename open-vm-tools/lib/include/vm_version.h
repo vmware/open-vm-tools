@@ -209,7 +209,7 @@
 #define PLAYER_VERSION "4.0.1"
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0
-#define FUSION_VERSION "4.1.0"
+#define FUSION_VERSION "4.1.1"
 
 // These must match VIE_FILEVERSION above
 #define SYSIMAGE_VERSION "5.0.0"
