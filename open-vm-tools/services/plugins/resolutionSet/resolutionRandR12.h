@@ -36,8 +36,7 @@
 #include <X11/Xmd.h>
 #include <X11/extensions/panoramiXproto.h>
 
-#define RR12_OUTPUT_FORMAT "LVDS%u"
-
+#define RR12_OUTPUT_FORMAT "Virtual%u"
 
 /*
  * Global functions
