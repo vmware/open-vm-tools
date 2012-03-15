@@ -237,13 +237,16 @@ static void OnMenusChanged(GHIPlatform* ghip);
 Bool
 GHIPlatformIsSupported(void)
 {
-   const char *desktopEnv = Xdg_DetectDesktopEnv();
-   Bool supported = (g_strcmp0(desktopEnv, "GNOME") == 0) ||
-                    (g_strcmp0(desktopEnv, "KDE") == 0) ||
-                    (g_strcmp0(desktopEnv, "XFCE") == 0);
+   // XXX gnome3, lxde, unity
+   Glib::ustring desktopEnv(Xdg_DetectDesktopEnv());
+   Bool supported =    desktopEnv == "GNOME"
+                    || desktopEnv == "KDE"
+                    || desktopEnv == "XFCE"
+                    || desktopEnv == "Unity"
+                    || desktopEnv == "LXDE";
    if (!supported) {
       g_message("GHI not available under unsupported desktop environment %s\n",
-                desktopEnv ? desktopEnv : "(nil)");
+                desktopEnv.c_str());
    }
    return supported;
 }
@@ -950,7 +953,7 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
          }
       } else {
          std::vector<Glib::ustring> argv;
-         Glib::ustring de = Xdg_DetectDesktopEnv();
+         Glib::ustring de(Xdg_DetectDesktopEnv());
          // XXX Really we should just use xdg-open exclusively, but xdg-open
          // as shipped with xdg-utils 1.0.2 is broken.  It is fixed
          // in portland CVS, but we need to import into modsource and
