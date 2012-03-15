@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="8.8.1"
+TOOLS_VERSION="8.8.2"
 AC_INIT(
    [open-vm-tools],
-   [8.8.1],
+   [8.8.2],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where

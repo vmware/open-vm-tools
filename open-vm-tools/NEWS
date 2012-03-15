@@ -1,3 +1,8 @@
+open-vm-tools 8.8.2 changes:
+	* Updated code for compatibility with newer Linux kernel releases.
+
+	* Minor tweaks in Unity and Resolution set plugins.
+
 open-vm-tools 8.8.1 changes:
 	* Updated code for compatibility with newer Linux kernel releases
 	and with newer NetworkManager releases.
