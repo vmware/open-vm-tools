@@ -62,6 +62,31 @@ static int HgfsPackGetattrRequest(HgfsReq *req,
  * Private function implementations.
  */
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 2, 0)
+/*
+ *----------------------------------------------------------------------------
+ *
+ * set_nlink --
+ *
+ *    Set an inode's link count.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static inline void
+set_nlink(struct inode *inode, unsigned int nlink)
+{
+   inode->i_nlink = nlink;
+}
+#endif
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -607,7 +632,7 @@ HgfsChangeFileAttributes(struct inode *inode,          // IN/OUT: Inode
     * account for '.' and ".."), and find printed a hard link error. So until
     * we have getattr support for nlink, everyone gets 1.
     */
-   inode->i_nlink = 1;
+   set_nlink(inode, 1);
 
    /*
     * Use the stored uid and gid if we were given them at mount-time, or if
