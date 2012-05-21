@@ -734,10 +734,10 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
     */
    FILE *mtab;
    struct mntent *mnt;
-   Bool vmhgfsMntFound = FALSE;
    if ((mtab = setmntent(_PATH_MOUNTED, "r")) == NULL) {
       err = VIX_E_FAIL;
    } else {
+      Bool vmhgfsMntFound = FALSE;
       while ((mnt = getmntent(mtab)) != NULL) {
          if ((strcmp(mnt->mnt_fsname, ".host:/") == 0) &&
              (strcmp(mnt->mnt_type, HGFS_NAME) == 0) &&
@@ -747,19 +747,19 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
          }
       }
       endmntent(mtab);
-   }
 
-   if (!vmhgfsMntFound) {
-   /*
-    * We need to call the mount program, not the mount system call. The
-    * mount program does several additional things, like compute the mount
-    * options from the contents of /etc/fstab, and invoke custom mount
-    * programs like the one needed for HGFS.
-    */
-      int ret = system("mount -t vmhgfs .host:/ /mnt/hgfs");
-      if (ret == -1 || WIFSIGNALED(ret) ||
-          (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
-         err = VIX_E_FAIL;
+      if (!vmhgfsMntFound) {
+         /*
+          * We need to call the mount program, not the mount system call. The
+          * mount program does several additional things, like compute the mount
+          * options from the contents of /etc/fstab, and invoke custom mount
+          * programs like the one needed for HGFS.
+          */
+         int ret = system("mount -t vmhgfs .host:/ /mnt/hgfs");
+         if (ret == -1 || WIFSIGNALED(ret) ||
+             (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
+            err = VIX_E_HGFS_MOUNT_FAIL;
+         }
       }
    }
 #endif
@@ -1050,7 +1050,7 @@ gboolean
 ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
-   uint32 additionalError;
+   uint32 additionalError = 0;
    char *requestName = NULL;
    VixCommandRequestHeader *requestMsg = NULL;
    size_t maxResultBufferSize;
@@ -1100,6 +1100,18 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
                                     &resultValueLength,
                                     &deleteResultValue);
 
+   /*
+    * NOTE: We have always been returning an additional 32 bit error (errno,
+    * or GetLastError() for Windows) along with the 64 bit VixError. The VMX
+    * side has been dropping the higher order 32 bits of VixError (by copying
+    * it onto a 32 bit error). They do save the additional error but as far
+    * as we can tell, it was not getting used by foundry. So at this place,
+    * for certain guest commands that have extra error information tucked into
+    * the higher order 32 bits of the VixError, we use that extra error as the
+    * additional error to be sent back to VMX.
+    */
+   additionalError = VixTools_GetAdditionalError(requestMsg->opCode, err);
+   Debug("%s: additionalError = %u\n", __FUNCTION__, additionalError);
 
 abort:
    tcloBufferLen = resultValueLength + vixPrefixDataSize;
@@ -1118,17 +1130,7 @@ abort:
    /*
     * All Foundry tools commands return results that start with a foundry error
     * and a guest-OS-specific error.
-    *
-    * NOTE: We have always been returning an additional 32 bit error (errno,
-    * or GetLastError() for Windows) along with the 64 bit VixError. The VMX
-    * side has been dropping the higher order 32 bits of VixError (by copying
-    * it onto a 32 bit error). They do save the additional error but as far
-    * as we can tell, it was not getting used by foundry. So at this place,
-    * for certain guest commands that have extra error information tucked into
-    * the higher order 32 bits of the VixError, we use that extra error as the
-    * additional error to be sent back to VMX.
     */
-   additionalError = VixTools_GetAdditionalError(requestMsg->opCode, err);
    Str_Sprintf(tcloBuffer,
                sizeof tcloBuffer,
                "%"FMT64"d %d ",

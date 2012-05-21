@@ -196,6 +196,9 @@ enum {
    VIX_E_REG_VALUE_NOT_FOUND                       = 20010,
    VIX_E_REG_KEY_ALREADY_EXISTS                    = 20011,
 
+   /* Generic Guest Errors */
+   VIX_E_HGFS_MOUNT_FAIL                           = 20050,
+
    /* Reg Errors*/
    VIX_E_REG_INCORRECT_VALUE_TYPE                  = 25000
    /* WARNING. Do not exceed 2**16 */
