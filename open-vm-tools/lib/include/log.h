@@ -168,6 +168,7 @@ typedef struct
    Bool           fastRotation;         // ESX log rotation optimization
    Bool           preventRemove;        // prevent Log_RemoveFile(FALSE)
    Bool           syncAfterWrite;       // Sync after a write. Expensive!
+   Bool           systemAreaTemp;       // temp logs to system/user area
 
    int32          stderrMinLevel;       // This level and above to stderr
    int32          logMinLevel;          // This level and above to log
