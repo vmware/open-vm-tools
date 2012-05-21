@@ -988,11 +988,15 @@ RDTSC_BARRIER(void)
  *-----------------------------------------------------------------------------
  */
 
-#ifdef _MSC_VER
-#define DEBUGBREAK()   __debugbreak()
+#ifdef __arm__
+#define DEBUGBREAK() __asm__("bkpt")
 #else
-#define DEBUGBREAK()   __asm__ (" int $3 ")
+#ifdef _MSC_VER
+#define DEBUGBREAK() __debugbreak()
+#else
+#define DEBUGBREAK() __asm__("int $3")
 #endif
+#endif // __arm__
 #endif // defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 
 
