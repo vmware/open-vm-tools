@@ -26,6 +26,14 @@
  */
 
 struct HgfsSessionInfo;
+/*
+ * Resume and suspend flags passed to the suspend/resume APIs.
+ */
+typedef enum {
+   HGFS_NOTIFY_REASON_SERVER_SYNC,
+   HGFS_NOTIFY_REASON_SUBSCRIBERS,
+} HgfsNotifyActivateReason;
+
 /* This is a callback that is implemented in hgfsServer.c */
 typedef void HgfsNotifyEventReceiveCb(HgfsSharedFolderHandle sharedFolder,
                                       HgfsSubscriberHandle subscriber,
@@ -33,9 +41,9 @@ typedef void HgfsNotifyEventReceiveCb(HgfsSharedFolderHandle sharedFolder,
                                       uint32 mask,
                                       struct HgfsSessionInfo *session);
 HgfsInternalStatus HgfsNotify_Init(void);
-void HgfsNotify_Shutdown(void);
-void HgfsNotify_Suspend(void);
-void HgfsNotify_Resume(void);
+void HgfsNotify_Exit(void);
+void HgfsNotify_Deactivate(HgfsNotifyActivateReason mode);
+void HgfsNotify_Activate(HgfsNotifyActivateReason mode);
 
 HgfsSharedFolderHandle HgfsNotify_AddSharedFolder(const char *path,
                                                   const char *shareName);
@@ -48,9 +56,6 @@ HgfsSubscriberHandle HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolde
 
 Bool HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder);
 Bool HgfsNotify_RemoveSubscriber(HgfsSubscriberHandle subscriber);
-void HgfsNotify_CleanupSession(struct HgfsSessionInfo *session);
-Bool HgfsNotify_GetShareName(HgfsSharedFolderHandle sharedFolder,
-                             size_t *shareNameLen,
-                             char **shareName);
+void HgfsNotify_RemoveSessionSubscribers(struct HgfsSessionInfo *session);
 
 #endif // _HGFS_DIRNOTIFY_H
