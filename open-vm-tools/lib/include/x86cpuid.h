@@ -1127,6 +1127,8 @@ CPUID_UARCH_IS_SANDYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 
+
+
 static INLINE Bool
 CPUID_UARCH_IS_ATOM(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
