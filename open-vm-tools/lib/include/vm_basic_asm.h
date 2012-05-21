@@ -130,9 +130,11 @@ unsigned char  _BitScanForward(unsigned long *, unsigned long);
 unsigned char  _BitScanReverse(unsigned long *, unsigned long);
 #pragma intrinsic(_BitScanForward, _BitScanReverse)
 
+unsigned char  _bittest(const long *, long);
 unsigned char  _bittestandset(long *, long);
 unsigned char  _bittestandreset(long *, long);
-#pragma intrinsic(_bittestandset, _bittestandreset)
+unsigned char  _bittestandcomplement(long *, long);
+#pragma intrinsic(_bittest, _bittestandset, _bittestandreset, _bittestandcomplement)
 #ifdef VM_X86_64
 unsigned char  _bittestandset64(__int64 *, __int64);
 unsigned char  _bittestandreset64(__int64 *, __int64);
@@ -997,7 +999,7 @@ RDTSC_BARRIER(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * {Clear,Set}Bit{32,64} --
+ * {Clear,Set,Test}Bit{32,64} --
  *
  *    Sets or clears a specified single bit in the provided variable.  
  *    The index input value specifies which bit to modify and is 0-based. 
@@ -1105,6 +1107,101 @@ TestBit64(const uint64 *var, uint64 index)
    return bit;
 #else
    return (*var & (CONST64U(1) << index)) != 0;
+#endif
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * {Clear,Set,Complement,Test}BitVector --
+ *
+ *    Sets, clears, complements, or tests a specified single bit in the
+ *    provided array.  The index input value specifies which bit to modify
+ *    and is 0-based.  Bit number can be +-2Gb (+-128MB) relative from 'var'
+ *    variable.
+ *
+ *    All functions return value of the bit before modification was performed.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+SetBitVector(void *var, int32 index)
+{
+#ifdef __GNUC__
+   Bool bit;
+   __asm__ (
+      "bts %2, %1;"
+      "setc %0"
+      : "=rm" (bit), "+m" (*(volatile uint32 *)var)
+      : "rI" (index)
+      : "memory"
+   );
+   return bit;
+#elif defined(_MSC_VER)
+   return _bittestandset((long *)var, index) != 0;
+#else
+#error No compiler defined for SetBitVector
+#endif
+}
+
+static INLINE Bool
+ClearBitVector(void *var, int32 index)
+{
+#ifdef __GNUC__
+   Bool bit;
+   __asm__ (
+      "btr %2, %1;"
+      "setc %0"
+      : "=rm" (bit), "+m" (*(volatile uint32 *)var)
+      : "rI" (index)
+      : "cc"
+   );
+   return bit;
+#elif defined(_MSC_VER)
+   return _bittestandreset((long *)var, index) != 0;
+#else
+#error No compiler defined for ClearBitVector
+#endif
+}
+
+static INLINE Bool
+ComplementBitVector(void *var, int32 index)
+{
+#ifdef __GNUC__
+   Bool bit;
+   __asm__ (
+      "btc %2, %1;"
+      "setc %0"
+      : "=rm" (bit), "+m" (*(volatile uint32 *)var)
+      : "rI" (index)
+      : "cc"
+   );
+   return bit;
+#elif defined(_MSC_VER)
+   return _bittestandcomplement((long *)var, index) != 0;
+#else
+#error No compiler defined for ComplementBitVector
+#endif
+}
+
+static INLINE Bool
+TestBitVector(const void *var, int32 index)
+{
+#ifdef __GNUC__
+   Bool bit;
+   __asm__ (
+      "bt %2, %1;"
+      "setc %0"
+      : "=rm" (bit)
+      : "m" (*(volatile uint32 *)var), "rI" (index)
+      : "cc"
+   );
+   return bit;
+#elif defined _MSC_VER
+   return _bittest((long *)var, index) != 0;
+#else
+#error No compiler defined for TestBitVector
 #endif
 }
 
