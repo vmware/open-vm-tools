@@ -1287,16 +1287,17 @@ Atomic_FetchAndAddUnfenced(Atomic_uint32 *var, // IN
 #ifdef VM_ARM_V7
    register volatile uint32 res;
    register volatile uint32 retVal;
+   register volatile uint32 tmp;
 
    dmb();
 
    __asm__ __volatile__(
       "1: ldrex %[retVal], [%[var]] \n\t"
-      "add %[val], %[val], %[retVal] \n\t"
-      "strex %[res], %[val], [%[var]] \n\t"
+      "add %[tmp], %[val], %[retVal] \n\t"
+      "strex %[res], %[tmp], [%[var]] \n\t"
       "teq %[res], #0 \n\t"
       "bne 1b"
-      : [res] "=&r" (res), [retVal] "=&r" (retVal)
+      : [tmp] "=&r" (tmp), [res] "=&r" (res), [retVal] "=&r" (retVal)
       : [var] "r" (&var->value), [val] "r" (val)
       : "cc"
    );
