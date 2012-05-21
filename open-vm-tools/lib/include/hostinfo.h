@@ -86,6 +86,7 @@ extern Bool Hostinfo_OSIsSMP(void);
 #if defined(_WIN32)
 extern Bool Hostinfo_OSIsWinNT(void);
 extern Bool Hostinfo_OSIsWow64(void);
+extern Bool Hostinfo_TSCInvariant(void);
 DWORD Hostinfo_OpenProcessBits(void);
 DWORD Hostinfo_OpenThreadBits(void);
 #else

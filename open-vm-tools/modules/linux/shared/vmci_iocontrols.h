@@ -318,7 +318,7 @@ enum IOCTLCmd_VMCI {
  */
 #include "vmware_pack_begin.h"
 struct IOCTLCmd_VMCIMacOS_PrivSyms {
-   char data[336];
+   char data[344];
 }
 #include "vmware_pack_end.h"
 ;
