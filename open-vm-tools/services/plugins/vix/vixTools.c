@@ -106,6 +106,7 @@
 #include "impersonate.h"
 #include "vixOpenSource.h"
 #include "vixToolsInt.h"
+#include "vmware/tools/plugin.h"
 
 #ifdef _WIN32
 #include "registryWin32.h"
@@ -123,8 +124,7 @@
  * No support for open-vm-tools.
  */
 #if (defined(_WIN32) || defined(linux)) && !defined(OPEN_VM_TOOLS)
-// XXX Disabled until VGAuth API signature changes work through GoBuild
-#define SUPPORT_VGAUTH 0
+#define SUPPORT_VGAUTH 1
 #else
 #define SUPPORT_VGAUTH 0
 #endif
@@ -137,7 +137,19 @@
 #include "VGAuthIdProvider.h"
 
 #define VMTOOLSD_APP_NAME "vmtoolsd"
+
+#define VIXTOOLS_CONFIG_USE_VGAUTH_NAME "useVGAuth"
+/*
+ * XXX Leave this off by default until the VGAuth service is being
+ * officially installed.
+ */
+#define USE_VGAUTH_DEFAULT FALSE
+
+static gboolean gSupportVGAuth = USE_VGAUTH_DEFAULT;
+static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);
+
 #endif
+
 
 #define SECONDS_BETWEEN_POLL_TEST_FINISHED     1
 
@@ -576,6 +588,10 @@ VixError GuestAuthPasswordAuthenticateImpersonate(
    char const *obfuscatedNamePassword,
    void **userToken);
 
+VixError GuestAuthSAMLAuthenticateAndImpersonate(
+   char const *obfuscatedNamePassword,
+   void **userToken);
+
 void GuestAuthUnimpersonate();
 
 #if SUPPORT_VGAUTH
@@ -607,6 +623,9 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
                     void *clientData)                                               // IN
 {
    VixError err = VIX_OK;
+#if SUPPORT_VGAUTH
+   ToolsAppCtx *ctx = (ToolsAppCtx *) clientData;
+#endif
 
    /*
     * Run unit tests on DEVEL builds.
@@ -638,6 +657,10 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
     * does what we want, and trying to redirect VGAuth messages
     * to Log() causes recursion and a crash.
     */
+#endif
+
+#if SUPPORT_VGAUTH
+   gSupportVGAuth = QueryVGAuthConfig(ctx->config);
 #endif
 
 #ifdef _WIN32
@@ -2230,6 +2253,9 @@ VixToolsTranslateVGAuthError(VGAuthError vgErr)
               __FUNCTION__, vgErr);
       break;
    }
+   Debug("%s: translated VGAuth err "VGAUTHERR_FMT64X" to Vix err %"FMT64"d\n",
+         __FUNCTION__, vgErr, err);
+
 
    return err;
 }
@@ -7240,6 +7266,18 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
       }
       break;
    }
+   case VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN:
+   {
+      VixCommandSAMLToken *samlStruct =
+         (VixCommandSAMLToken *) credentialField;
+      credentialField += sizeof(*samlStruct);
+
+      err = VixToolsImpersonateUserImplEx(NULL,
+                                          credentialType,
+                                          credentialField,
+                                          userToken);
+      break;
+   }
    case VIX_USER_CREDENTIAL_SSPI:
       /*
        * SSPI currently only supported in ticketed sessions
@@ -7424,10 +7462,15 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
        */
       if ((VIX_USER_CREDENTIAL_NAME_PASSWORD != credentialType)
             && (VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED != credentialType)
-            && (VIX_USER_CREDENTIAL_TICKETED_SESSION != credentialType)) {
+            && (VIX_USER_CREDENTIAL_TICKETED_SESSION != credentialType)
+#if SUPPORT_VGAUTH
+            && (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN != credentialType)
+#endif
+            ) {
          err = VIX_E_NOT_SUPPORTED;
          goto abort;
       }
+
 
       /*
        * Use the GuestAuth library to do name-password authentication
@@ -7441,6 +7484,16 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
             GuestAuthPasswordAuthenticateImpersonate(obfuscatedNamePassword,
                                                      userToken);
 
+         goto abort;
+      }
+
+      if (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType) {
+         if (GuestAuthEnabled()) {
+            err = GuestAuthSAMLAuthenticateAndImpersonate(obfuscatedNamePassword,
+                                                          userToken);
+         } else {
+            err = VIX_E_NOT_SUPPORTED;
+         }
          goto abort;
       }
 
@@ -8749,7 +8802,8 @@ VixToolsAddAuthPrincipal(VixCommandRequestHeader *requestMsg)    // IN
    si.subject.val.name = (char *) principalName;
    si.comment = (char *) principalComment;
 
-   vgErr = VGAuth_AddSubject(ctx, userName, req->addMapping, pemCert, &si);
+   vgErr = VGAuth_AddSubject(ctx, userName, req->addMapping, pemCert, &si,
+                             0, NULL);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
    }
@@ -8860,13 +8914,13 @@ VixToolsRemoveAuthPrincipal(VixCommandRequestHeader *requestMsg)    // IN
    }
 
    if (VIX_GUEST_AUTH_PRINCIPAL_TYPE_NONE == req->principalType) {
-      vgErr = VGAuth_RemoveCert(ctx, userName, pemCert);
+      vgErr = VGAuth_RemoveCert(ctx, userName, pemCert, 0, NULL);
    } else {
       subj.type = (req->principalType == VIX_GUEST_AUTH_PRINCIPAL_TYPE_NAMED) ?
          VGAUTH_SUBJECT_NAMED : VGAUTH_SUBJECT_ANY;
       subj.val.name = (char *) principalName;
 
-      vgErr = VGAuth_RemoveSubject(ctx, userName, pemCert, &subj);
+      vgErr = VGAuth_RemoveSubject(ctx, userName, pemCert, &subj, 0, NULL);
    }
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
@@ -8966,7 +9020,7 @@ VixToolsListAuthPrincipals(VixCommandRequestHeader *requestMsg, // IN
       goto abort;
    }
 
-   vgErr = VGAuth_QueryIdProviders(ctx, userName, &num, &idList);
+   vgErr = VGAuth_QueryIdProviders(ctx, userName, 0, NULL, &num, &idList);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -9137,7 +9191,7 @@ VixToolsListMappedPrincipals(VixCommandRequestHeader *requestMsg, // IN
       goto abort;
    }
 
-   vgErr = VGAuth_QueryMappedIdentities(ctx, &num, &miList);
+   vgErr = VGAuth_QueryMappedIdentities(ctx, 0, NULL, &num, &miList);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -10300,8 +10354,6 @@ VixToolsRewriteError(uint32 opCode,          // IN
 {
    VixError newError = origError;
 
-   ASSERT(VIX_ERROR_CODE(origError) == origError);
-
    switch (opCode) {
       /*
        * This should include all non-VI guest operations.
@@ -10334,6 +10386,7 @@ VixToolsRewriteError(uint32 opCode,          // IN
    case VIX_COMMAND_LIST_FILESYSTEMS:
    case VIX_COMMAND_WAIT_FOR_TOOLS:
    case VIX_COMMAND_CAPTURE_SCREEN:
+      ASSERT(VIX_ERROR_CODE(origError) == origError);
       switch (origError) {
       case VIX_E_INVALID_LOGIN_CREDENTIALS:
          newError = VIX_E_GUEST_USER_PERMISSIONS;
@@ -10343,6 +10396,48 @@ VixToolsRewriteError(uint32 opCode,          // IN
    }
 
    return newError;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixTools_GetAdditionalError --
+ *
+ *    Gets the vix extra/additional error if any.
+ *
+ *    Some errors returned by tools may have extra error in
+ *    the higher order 32 bits. We need to pass that back.
+ *
+ * Results:
+ *      uint32
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+uint32
+VixTools_GetAdditionalError(uint32 opCode,    // IN
+                            VixError error)   // IN
+{
+   uint32 err;
+
+   switch (opCode) {
+      case VIX_COMMAND_CREATE_REGISTRY_KEY:
+      case VIX_COMMAND_LIST_REGISTRY_KEYS:
+      case VIX_COMMAND_DELETE_REGISTRY_KEY:
+      case VIX_COMMAND_SET_REGISTRY_VALUE:
+      case VIX_COMMAND_LIST_REGISTRY_VALUES:
+      case VIX_COMMAND_DELETE_REGISTRY_VALUE:
+         err = VIX_ERROR_EXTRA_ERROR(error);
+         break;
+      default:
+        err = Err_Errno();
+   }
+
+   return err;
 }
 
 
@@ -10631,7 +10726,7 @@ static Bool
 GuestAuthEnabled(void)
 {
 #if SUPPORT_VGAUTH
-   return TRUE;
+   return gSupportVGAuth;
 #else
    return FALSE;
 #endif
@@ -10684,13 +10779,14 @@ GuestAuthPasswordAuthenticateImpersonate(
    }
 
    vgErr = VGAuth_ValidateUsernamePassword(ctx, username, password,
+                                           0, NULL,
                                            &newHandle);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
    }
 
-   vgErr = VGAuth_Impersonate(ctx, newHandle);
+   vgErr = VGAuth_Impersonate(ctx, newHandle, 0, NULL);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
@@ -10705,6 +10801,88 @@ done:
    if (newHandle) {
       VGAuth_UserHandleFree(newHandle);
    }
+
+   return err;
+#else
+   return VIX_E_NOT_SUPPORTED;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestAuthSAMLAuthenticateAndImpersonate
+ *
+ *      Do SAML bearer token authentication and impersonation using
+ *      the GuestAuth library.
+ *
+ * Results:
+ *      VIX_OK if successful.  Other VixError code otherwise.
+ *
+ * Side effects:
+ *      Current process impersonates.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+GuestAuthSAMLAuthenticateAndImpersonate(
+   char const *obfuscatedNamePassword, // IN
+   void **userToken)                   // OUT
+{
+#if SUPPORT_VGAUTH
+   VixError err;
+   char *token;
+   char *username;
+   VGAuthContext *ctx = NULL;
+   VGAuthError vgErr;
+   VGAuthUserHandle *newHandle = NULL;
+
+   Debug(">%s\n", __FUNCTION__);
+   err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
+                                        &token,
+                                        &username);
+   if (err != VIX_OK) {
+      goto done;
+   }
+
+   err = VIX_E_INVALID_LOGIN_CREDENTIALS;
+
+   vgErr = TheVGAuthContext(&ctx);
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   }
+
+   vgErr = VGAuth_ValidateSamlBearerToken(ctx,
+                                          token,
+                                          username,
+                                          0,
+                                          NULL,
+                                          &newHandle);
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   }
+
+   vgErr = VGAuth_Impersonate(ctx, newHandle, 0, NULL);
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   }
+
+   *userToken = VGAUTH_GENERIC_USER_TOKEN;
+
+   err = VIX_OK;
+
+done:
+
+   if (newHandle) {
+      VGAuth_UserHandleFree(newHandle);
+   }
+
+   Debug("<%s\n", __FUNCTION__);
 
    return err;
 #else
@@ -10749,6 +10927,54 @@ GuestAuthUnimpersonate(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * QueryVGAuthConfig
+ *
+ *      Check the tools configuration to see if VGAuth should be used.
+ *
+ * Results:
+ *      TRUE if vgauth should be used, FALSE if not.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static gboolean
+QueryVGAuthConfig(GKeyFile *confDictRef)                       // IN
+{
+   gboolean useVGAuth;
+   gboolean retVal = USE_VGAUTH_DEFAULT;
+   GError *gErr = NULL;
+
+   if (confDictRef != NULL) {
+      useVGAuth = g_key_file_get_boolean(confDictRef,
+                                         VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                         VIXTOOLS_CONFIG_USE_VGAUTH_NAME,
+                                         &gErr);
+
+      /*
+       * g_key_file_get_boolean() will return FALSE and set an error
+       * if the value isn't in config, so use the default in that
+       * case.
+       */
+      if (!useVGAuth && (NULL != gErr)) {
+         g_error_free(gErr);
+         retVal = USE_VGAUTH_DEFAULT;
+      } else {
+         retVal = useVGAuth;
+      }
+   }
+
+   Debug("%s: vgauth usage is: %d\n", __FUNCTION__, retVal);
+
+   return retVal;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * TheVGAuthContext
  *
  *      Get the global VGAuthContext object.
@@ -10772,8 +10998,16 @@ TheVGAuthContext(VGAuthContext **ctx) // OUT
    static VGAuthContext *vgaCtx = NULL;
    VGAuthError vgaCode = VGAUTH_E_OK;
 
+   /*
+    * XXX This needs to handle errors better -- if the service gets
+    * reset, the context will point to junk and anything using it will
+    * fail.
+    *
+    * Maybe add a no-op API here to poke it?  Or make the underlying
+    * VGAuth code smarter.
+    */
    if (vgaCtx == NULL) {
-      vgaCode = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, 0, &vgaCtx);
+      vgaCode = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, &vgaCtx);
    }
 
    *ctx = vgaCtx;

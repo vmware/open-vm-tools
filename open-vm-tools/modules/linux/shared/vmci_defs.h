@@ -99,8 +99,12 @@ typedef enum VMCIIntrType {
  * Queues with pre-mapped data pages must be small, so that we don't pin
  * too much kernel memory (especially on vmkernel).  We limit a queuepair to
  * 32 KB, or 16 KB per queue for symmetrical pairs.
+ *
+ * XXX, we are raising this limit to 4MB to support high-throughput workloads
+ * with vioi-filter.  Once we switch to rings instead of queuepairs for the
+ * page channel, we will drop this limit again.  See PR 852983.
  */
-#define VMCI_MAX_PINNED_QP_MEMORY (32 * 1024)
+#define VMCI_MAX_PINNED_QP_MEMORY (4 * 1024 * 1024)
 
 /*
  * We have a fixed set of resource IDs available in the VMX.
@@ -148,6 +152,12 @@ typedef uint32 VMCI_Resource;
  * VMCI_QUEUEPAIR_DETACH and below.
  */
 #define VMCI_CORE_DEVICE_RESOURCE_MAX  VMCI_QUEUEPAIR_DETACH
+
+/*
+ * VMCI reserved host datagram resource IDs.
+ * vsock control channel has resource id 1.
+ */
+#define VMCI_DVFILTER_DATA_PATH_DATAGRAM 2
 
 /* VMCI Ids. */
 typedef uint32 VMCIId;

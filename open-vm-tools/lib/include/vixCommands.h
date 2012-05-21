@@ -61,6 +61,7 @@
 #define VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER    8
 #define VIX_USER_CREDENTIAL_TICKETED_SESSION          9
 #define VIX_USER_CREDENTIAL_SSPI                      10
+#define VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN         11
 
 #define VIX_SHARED_SECRET_CONFIG_USER_NAME          "__VMware_Vix_Shared_Secret_1__"
 
@@ -314,6 +315,20 @@ struct VixCommandSSPI {
 #include "vmware_pack_end.h"
 VixCommandSSPI;
 
+
+/*
+ * **********************************************************
+ * This is a SAML bearer token with optional userName to specify
+ * an IdProvider store.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixCommandSAMLToken {
+   uint32    tokenLength;
+   uint32    nameLength;
+}
+#include "vmware_pack_end.h"
+VixCommandSAMLToken;
 
 /*
  * **********************************************************

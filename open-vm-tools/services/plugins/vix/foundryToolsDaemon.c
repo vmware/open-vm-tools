@@ -1050,6 +1050,7 @@ gboolean
 ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
+   uint32 additionalError;
    char *requestName = NULL;
    VixCommandRequestHeader *requestMsg = NULL;
    size_t maxResultBufferSize;
@@ -1117,12 +1118,22 @@ abort:
    /*
     * All Foundry tools commands return results that start with a foundry error
     * and a guest-OS-specific error.
+    *
+    * NOTE: We have always been returning an additional 32 bit error (errno,
+    * or GetLastError() for Windows) along with the 64 bit VixError. The VMX
+    * side has been dropping the higher order 32 bits of VixError (by copying
+    * it onto a 32 bit error). They do save the additional error but as far
+    * as we can tell, it was not getting used by foundry. So at this place,
+    * for certain guest commands that have extra error information tucked into
+    * the higher order 32 bits of the VixError, we use that extra error as the
+    * additional error to be sent back to VMX.
     */
+   additionalError = VixTools_GetAdditionalError(requestMsg->opCode, err);
    Str_Sprintf(tcloBuffer,
                sizeof tcloBuffer,
                "%"FMT64"d %d ",
                err,
-               Err_Errno());
+               additionalError);
    destPtr = tcloBuffer + strlen(tcloBuffer);
 
    /*

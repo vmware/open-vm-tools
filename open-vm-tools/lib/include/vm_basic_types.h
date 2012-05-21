@@ -587,6 +587,7 @@ typedef void * UserVA;
 #define INVALID_LPN64     ((LPN64)-1)
 #define INVALID_PAGENUM   ((PageNum)-1)
 
+#define INVALID_MPN64     ((MPN64)-1)
 
 /*
  * Format modifier for printing VA, LA, and VPN.

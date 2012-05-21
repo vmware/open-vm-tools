@@ -92,6 +92,8 @@ VixError VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,
                                     size_t *resultLen,
                                     Bool *deleteResultBufferResult);
 
+uint32 VixTools_GetAdditionalError(uint32 opCode,
+                                   VixError error);
 
 Bool VixToolsImpersonateUserImpl(char const *credentialTypeStr,
                                  int credentialType,

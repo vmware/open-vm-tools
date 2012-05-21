@@ -92,6 +92,88 @@ VixError Vix_TranslateGuestRegistryError(int systemError);
 
 #endif // VIX_HIDE_BORA_DEPENDENCIES
 
+
+/*
+ * This is an expanded view of a VixError
+ * Every VixError is a 64-bit int, so it can fit into this struct.
+ *
+ * The flags, extraErrorType, and extraError are all optional. They
+ * do not have to be set for any error. In fact, these are guaranteed
+ * to be all 0 when the error is VIX_OK. This means that any program
+ * that checks (VIX_OK == err) or (VIX_OK != err) will always work.
+ *
+ * The basic error field is a Vix error value, and it's the lsb
+ * of the new struct. This means that a 64-bit error can be assigned
+ * enum constant, like an integer. For example, err = VIX_E_FAIL; works.
+ * This just leaves the flags and extraError fields as 0.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixErrorFields {
+   uint16   error;
+
+   uint8    flags;
+
+   uint8    extraErrorType;
+   uint32   extraError;
+}
+#include "vmware_pack_end.h"
+VixErrorFields;
+
+/*
+ * These are the flags for a Vix error.
+ */
+enum {
+   VIX_ERRORFLAG_GUEST         = 0x0001,
+   VIX_ERRORFLAG_REMOTE        = 0x0002,
+};
+
+/*
+ * These are the types of extra error in a Vix error.
+ */
+enum {
+   VIX_ERROREXTRATYPE_NONE          = 0,
+   VIX_ERROREXTRATYPE_SNAPSHOT      = 1,
+   VIX_ERROREXTRATYPE_DISKLIB       = 2,
+   VIX_ERROREXTRATYPE_WINDOWS       = 3,
+   VIX_ERROREXTRATYPE_LINUX         = 4,
+   VIX_ERROREXTRATYPE_FILE          = 5,
+   VIX_ERROREXTRATYPE_VMDB          = 6,
+   VIX_ERROREXTRATYPE_AIO           = 7,
+   VIX_ERROREXTRATYPE_CRYPTO        = 8,
+   VIX_ERROREXTRATYPE_KEYSAFE       = 9,
+   VIX_ERROREXTRATYPE_BLOCKLIST     = 10,
+   VIX_ERROREXTRATYPE_V2I           = 11,
+   VIX_ERROREXTRATYPE_MSGPOST       = 12,
+};
+
+
+/*
+ * These are the types of extra error in a Vix error.
+ */
+#define VIX_ERROR_BASE_ERROR(err) ((VixErrorFields *) &err)->error
+#define VIX_ERROR_EXTRA_ERROR(err) ((VixErrorFields *) &err)->extraError
+#define VIX_ERROR_EXTRA_ERROR_TYPE(err) ((VixErrorFields *) &err)->extraErrorType
+#define VIX_ERROR_FROM_GUEST(err) (((VixErrorFields *) &err)->flags & VIX_ERRORFLAG_GUEST)
+#define VIX_ERROR_FROM_REMOTE(err) (((VixErrorFields *) &err)->flags & VIX_ERRORFLAG_REMOTE)
+#define VIX_ERROR_SET_FROM_GUEST(err) (((VixErrorFields *) &err)->flags |= VIX_ERRORFLAG_GUEST)
+#define VIX_ERROR_SET_FROM_REMOTE(err) (((VixErrorFields *) &err)->flags |= VIX_ERRORFLAG_REMOTE)
+
+#define VIX_SET_GUEST_WINDOWS_ERROR(err, vixError, winError)          \
+   do {                                                               \
+      err = 0;                                                        \
+      VIX_ERROR_BASE_ERROR(err) = vixError;                           \
+      VIX_ERROR_EXTRA_ERROR(err) = winError;                          \
+      VIX_ERROR_EXTRA_ERROR_TYPE(err) = VIX_ERROREXTRATYPE_WINDOWS;   \
+      VIX_ERROR_SET_FROM_GUEST(err);                                  \
+   } while (0)
+
+#define VIX_ERROR_SET_ADDITIONAL_ERROR(err, vixError, additionalError)   \
+   do {                                                                 \
+      err = additionalError;                                             \
+      err = (err << 32) | vixError;                                     \
+   } while (0)
+
 /*
  * This defines additional error codes.
  * The public error codes are defined in vix.h
@@ -112,6 +194,7 @@ enum {
    VIX_E_REG_KEY_INVALID                           = 20008,
    VIX_E_REG_KEY_HAS_SUBKEYS                       = 20009,
    VIX_E_REG_VALUE_NOT_FOUND                       = 20010,
+   VIX_E_REG_KEY_ALREADY_EXISTS                    = 20011,
 
    /* Reg Errors*/
    VIX_E_REG_INCORRECT_VALUE_TYPE                  = 25000

@@ -1410,6 +1410,30 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN
 #error No compiler defined for Atomic_ReadAdd64
 #endif
 }
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadSub64 --
+ *
+ *      Atomic read (returned), sub a value, write.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+Atomic_ReadSub64(Atomic_uint64 *var, // IN
+                 uint64 val)         // IN
+{
+   // Do an sub by an add and a overflow
+   return Atomic_ReadAdd64(var, -val);
+}
 #endif
 
 
