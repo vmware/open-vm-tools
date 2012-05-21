@@ -33,7 +33,6 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <sys/timeb.h>
 #include <pwd.h>
 #include <pthread.h>
 #include <sys/resource.h>
