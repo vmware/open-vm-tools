@@ -1194,7 +1194,7 @@ TestBitVector(const void *var, int32 index)
       "bt %2, %1;"
       "setc %0"
       : "=rm" (bit)
-      : "m" (*(volatile uint32 *)var), "rI" (index)
+      : "m" (*(const uint32 *)var), "rI" (index)
       : "cc"
    );
    return bit;
