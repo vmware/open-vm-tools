@@ -27,12 +27,12 @@
 #define STRUTIL_H
 
 #include <stdarg.h>
+#include "vm_basic_types.h"
 
-#include "fileIO.h"
-#include "dynbuf.h"
+struct DynBuf;
 
-char * StrUtil_GetNextToken(unsigned int *index, const char *str,
-                            const char *delimiters);
+char *StrUtil_GetNextToken(unsigned int *index, const char *str,
+                           const char *delimiters);
 Bool StrUtil_GetNextIntToken(int32 *out, unsigned int *index, const char *str,
                              const char *delimiters);
 Bool StrUtil_GetNextUintToken(uint32 *out, unsigned int *index, const char *str,
@@ -48,7 +48,7 @@ Bool StrUtil_StrToSizet(size_t *out, const char *str);
 Bool StrUtil_StrToDouble(double *out, const char *str);
 Bool StrUtil_CapacityToSectorType(SectorType *out, const char *str,
                                   unsigned int bytes);
-char * StrUtil_FormatSizeInBytesUnlocalized(uint64 size);
+char *StrUtil_FormatSizeInBytesUnlocalized(uint64 size);
 
 size_t StrUtil_GetLongestLineLength(const char *buf, size_t bufLength);
 
@@ -56,8 +56,8 @@ Bool StrUtil_StartsWith(const char *s, const char *prefix);
 Bool StrUtil_CaselessStartsWith(const char *s, const char *prefix);
 Bool StrUtil_EndsWith(const char *s, const char *suffix);
 
-Bool StrUtil_VDynBufPrintf(DynBuf *b, const char *fmt, va_list args);
-Bool StrUtil_DynBufPrintf(DynBuf *b, const char *fmt, ...);
-void StrUtil_SafeDynBufPrintf(DynBuf *b, const char *fmt, ...);
+Bool StrUtil_VDynBufPrintf(struct DynBuf *b, const char *fmt, va_list args);
+Bool StrUtil_DynBufPrintf(struct DynBuf *b, const char *fmt, ...);
+void StrUtil_SafeDynBufPrintf(struct DynBuf *b, const char *fmt, ...);
 
 #endif /* STRUTIL_H */

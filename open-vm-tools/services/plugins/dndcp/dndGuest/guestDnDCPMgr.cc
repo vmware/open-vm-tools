@@ -23,11 +23,7 @@
  */
 
 #include "guestDnDCPMgr.hh"
-#ifdef DND_USING_VMCF
-#   include "dndCPTransportVMCF.hh"
-#else
-#   include "dndCPTransportGuestRpc.hpp"
-#endif
+#include "dndCPTransportGuestRpc.hpp"
 
 extern "C" {
    #include "debug.h"
@@ -112,9 +108,7 @@ GuestDnDCPMgr::Init(ToolsAppCtx *ctx)
 {
    mToolsAppCtx = ctx;
 
-#if !defined(DND_USING_VMCF)
    ASSERT(mToolsAppCtx);
-#endif
 
    if (mFileTransfer) {
       delete mFileTransfer;
@@ -169,26 +163,7 @@ GuestDnDCPMgr::GetTransport(void)
 {
    if (!mTransport) {
       ASSERT(mToolsAppCtx);
-#ifdef DND_USING_VMCF
-      GKeyFile *confDictRef = NULL;
-      const char *brokerAddr = NULL;
-
-      confDictRef = mToolsAppCtx->config;
-      if (confDictRef) {
-         brokerAddr = g_key_file_get_string(confDictRef,
-                                            "vmcf.broker",
-                                            "addr",
-                                            NULL);
-      }
-      if (!brokerAddr) {
-
-         /* We are executing in the simulator, so hardcode the brokerAddr. */
-         brokerAddr = "tcp:host=127.0.0.1,port=8672,family=ipv4";
-      }
-      mTransport = new DnDCPTransportVMCF(brokerAddr, NULL, false);
-#else
       mTransport = new DnDCPTransportGuestRpc(mToolsAppCtx->rpc);
-#endif
    }
    return mTransport;
 }

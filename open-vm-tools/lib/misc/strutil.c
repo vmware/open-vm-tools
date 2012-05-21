@@ -32,7 +32,7 @@
 #include "vmware.h"
 #include "strutil.h"
 #include "str.h"
-
+#include "dynbuf.h"
 
 
 /*

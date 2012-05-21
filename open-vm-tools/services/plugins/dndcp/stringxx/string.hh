@@ -288,6 +288,13 @@ operator<<(std::ostream& strm, const string& s)
    return strm;
 }
 
+inline std::wostream&
+operator<<(std::wostream& strm, const string& s)
+{
+   strm << s.w_str();
+   return strm;
+}
+
 // ConversionError class for exception
 
 class ConversionError {};
