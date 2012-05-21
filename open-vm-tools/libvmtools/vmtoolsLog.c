@@ -163,6 +163,8 @@ VMToolsLogFormat(const gchar *message,
    char *msg = NULL;
    const char *slevel;
    size_t len = 0;
+   gboolean shared = TRUE;
+   gboolean addsTimestamp = TRUE;
 
    if (domain == NULL) {
       domain = gLogDomain;
@@ -205,11 +207,16 @@ VMToolsLogFormat(const gchar *message,
       slevel = "unknown";
    }
 
-   if (!data->logger->addsTimestamp) {
+   if (data->logger != NULL) {
+      shared = data->logger->shared;
+      addsTimestamp = data->logger->addsTimestamp;
+   }
+
+   if (!addsTimestamp) {
       char *tstamp;
 
       tstamp = System_GetTimeAsString();
-      if (data->logger->shared) {
+      if (shared) {
          len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] %s\n",
                                (tstamp != NULL) ? tstamp : "no time",
                                slevel, gLogDomain, domain, message);
@@ -220,7 +227,7 @@ VMToolsLogFormat(const gchar *message,
       }
       free(tstamp);
    } else {
-      if (data->logger->shared) {
+      if (shared) {
          len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] %s\n",
                                slevel, gLogDomain, domain, message);
       } else {
@@ -303,7 +310,7 @@ VMToolsLog(const gchar *domain,
 
       if (data->logger != NULL) {
          data->logger->logfn(domain, level, msg, data->logger);
-      } else {
+      } else if (gErrorData->logger != NULL) {
          gErrorData->logger->logfn(domain, level, msg, gErrorData->logger);
       }
       g_free(msg);
@@ -393,6 +400,10 @@ VMToolsGetLogHandler(const gchar *handler,
 #endif
    } else {
       g_warning("Invalid handler for domain '%s': %s", domain, handler);
+   }
+
+   if (NULL == glogger) {
+      g_warning("Failed to create a logger for handler: '%s'", handler);
    }
 
    logger = g_new0(LogHandler, 1);
