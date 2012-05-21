@@ -185,8 +185,8 @@
  *
  * VMRC is versioned x.y.z - ProgID is intentionally built using only x.y
  */
-#define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      6FB1850B-AC2A-4AEA-9847-EBCE6AB2A62E
-#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       EF9A6976-4861-49B5-AFED-05281B5887C5
+#define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      4AEA1010-0A0C-405E-9B74-767FC8A998CB
+#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       E82F3B76-A628-4486-B197-03780F86063A
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "VMware.RemoteConsole"
 #define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED    PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "." \
                                                XSTR(VMRC_PLUGIN_VERSION_BASE)
@@ -203,19 +203,7 @@
 #endif
 
 #define PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE \
-   "application/x-vmware-remote-console"
-
-/*
- * legacy plugin mimetypes (currently unused but here for reference)
- */
-#define PRODUCT_VMRC_PLUGIN_LEGACY_MIMETYPES \
-   "application/x-vmware-vmrc;version=2.5.0.199067" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   "application/x-vmware-vmrc;version=2.5.0.158248" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   "application/x-vmware-vmrc;version=2.5.0.116460" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   "application/x-vmware-vmrc;version=2.5.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   "application/x-vmware-mks;version=2.1.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   "application/x-vmware-mks;version=2.0.1.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   "application/x-vmware-mks;version=2.0.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR
+   "application/x-vmware-remote-console-2012"
 
 /*
  * All supported plugin mimetypes
