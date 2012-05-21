@@ -48,6 +48,7 @@
    GOT(GUEST_OS_WINEIGHT)          /* Windows 8 */            \
    GOT(GUEST_OS_WINEIGHT_64)       /* Windows 8 x64 */        \
    GOT(GUEST_OS_WINEIGHTSERVER_64) /* Windows 8 Server X64 */ \
+   GOT(GUEST_OS_HYPER_V)           /* Microsoft Hyper-V */    \
    GOT(GUEST_OS_OS2)                                          \
    GOT(GUEST_OS_ECOMSTATION)       /* OS/2 variant; 1.x */    \
    GOT(GUEST_OS_ECOMSTATION2)      /* OS/2 variant; 2.x */    \
@@ -231,6 +232,7 @@
    GOSL(STR_OS_ECOMSTATION "2",              GUEST_OS_ECOMSTATION2)         \
    GOSL(STR_OS_WIN_EIGHT,                    GUEST_OS_WINEIGHT)             \
    GOSL(STR_OS_WIN_EIGHT_X64,                GUEST_OS_WINEIGHT_64)          \
-   GOSL(STR_OS_WIN_EIGHTSERVER_X64,          GUEST_OS_WINEIGHTSERVER_64)
+   GOSL(STR_OS_WIN_EIGHTSERVER_X64,          GUEST_OS_WINEIGHTSERVER_64)    \
+   GOSL(STR_OS_HYPER_V,                      GUEST_OS_HYPER_V)              \
 
 #endif
