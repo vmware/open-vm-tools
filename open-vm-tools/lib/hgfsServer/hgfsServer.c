@@ -287,11 +287,11 @@ static Bool HgfsHandle2NotifyInfo(HgfsHandle handle,
                                   char **fileName,
                                   size_t *fileNameSize,
                                   HgfsSharedFolderHandle *folderHandle);
-static void Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder,
-                                      HgfsSubscriberHandle subscriber,
-                                      char* fileName,
-                                      uint32 mask,
-                                      struct HgfsSessionInfo *session);
+static void HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder,
+                                    HgfsSubscriberHandle subscriber,
+                                    char* fileName,
+                                    uint32 mask,
+                                    struct HgfsSessionInfo *session);
 static void HgfsFreeSearchDirents(HgfsSearch *search);
 
 
@@ -6889,7 +6889,7 @@ HgfsServerSetDirWatchByHandle(HgfsInputParam *input,         // IN: Input params
    if (HgfsHandle2NotifyInfo(dir, input->session, &fileName, &fileNameSize,
                              &sharedFolder)) {
       *watchId = HgfsNotify_AddSubscriber(sharedFolder, fileName, events, watchTree,
-                                          Hgfs_NotificationCallback, input->session);
+                                          HgfsServerDirWatchEvent, input->session);
       status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                               HGFS_ERROR_SUCCESS;
    } else {
@@ -6969,7 +6969,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
                                             &tempSize, &tempPtr);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
                *watchId = HgfsNotify_AddSubscriber(sharedFolder, tempBuf, events,
-                                                   watchTree, Hgfs_NotificationCallback,
+                                                   watchTree, HgfsServerDirWatchEvent,
                                                    input->session);
                 status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
                                               HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
@@ -6980,7 +6980,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
             }
          } else {
             *watchId = HgfsNotify_AddSubscriber(sharedFolder, "", events, watchTree,
-                                                Hgfs_NotificationCallback,
+                                                HgfsServerDirWatchEvent,
                                                 input->session);
             status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                                     HGFS_ERROR_SUCCESS;
@@ -8368,7 +8368,7 @@ HgfsBuildRelativePath(const char* source,    // IN: source file name
 /*
  *-----------------------------------------------------------------------------
  *
- * Hgfs_NotificationCallback --
+ * HgfsServerDirWatchEvent --
  *
  *    Callback which is called by directory notification package when in response
  *    to a event.
@@ -8386,12 +8386,12 @@ HgfsBuildRelativePath(const char* source,    // IN: source file name
  *-----------------------------------------------------------------------------
  */
 
-void
-Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder, // IN: shared folder
-                          HgfsSubscriberHandle subscriber,     // IN: subsciber
-                          char* fileName,                      // IN: name of the file
-                          uint32 mask,                         // IN: event type
-                          struct HgfsSessionInfo *session)     // IN: session info
+static void
+HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folder
+                        HgfsSubscriberHandle subscriber,     // IN: subsciber
+                        char* fileName,                      // IN: name of the file
+                        uint32 mask,                         // IN: event type
+                        struct HgfsSessionInfo *session)     // IN: session info
 {
    HgfsPacket *packet = NULL;
    HgfsHeader *packetHeader = NULL;

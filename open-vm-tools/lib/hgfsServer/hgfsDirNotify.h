@@ -27,11 +27,11 @@
 
 struct HgfsSessionInfo;
 /* This is a callback that is implemented in hgfsServer.c */
-typedef void HgfsNotificationCallbackFunc(HgfsSharedFolderHandle sharedFolder,
-                                          HgfsSubscriberHandle subscriber,
-                                          char *name,
-                                          uint32 mask,
-                                          struct HgfsSessionInfo *session);
+typedef void HgfsNotifyEventReceiveCb(HgfsSharedFolderHandle sharedFolder,
+                                      HgfsSubscriberHandle subscriber,
+                                      char *name,
+                                      uint32 mask,
+                                      struct HgfsSessionInfo *session);
 HgfsInternalStatus HgfsNotify_Init(void);
 void HgfsNotify_Shutdown(void);
 void HgfsNotify_Suspend(void);
@@ -43,7 +43,7 @@ HgfsSubscriberHandle HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolde
                                               const char *path,
                                               uint32 eventFilter,
                                               uint32 recursive,
-                                              HgfsNotificationCallbackFunc notify,
+                                              HgfsNotifyEventReceiveCb notify,
                                               struct HgfsSessionInfo *session);
 
 Bool HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder);

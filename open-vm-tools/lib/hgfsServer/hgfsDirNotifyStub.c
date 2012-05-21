@@ -171,7 +171,7 @@ HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder, // IN: shared fold
                          const char *path,                    // IN: relative path
                          uint32 eventFilter,                  // IN: event filter
                          uint32 recursive,                    // IN: look in subfolders
-                         HgfsNotificationCallbackFunc notify, // IN notification callback
+                         HgfsNotifyEventReceiveCb eventCb,    // IN notification callback
                          struct HgfsSessionInfo *session)     // IN: server context
 {
    return HGFS_INVALID_SUBSCRIBER_HANDLE;
