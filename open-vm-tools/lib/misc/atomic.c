@@ -27,8 +27,10 @@
 
 #include "vmware.h"
 #include "vm_atomic.h"
+#if defined(__i386__) || defined(__x86_64__)
 #include "x86cpuid.h"
 #include "x86cpuid_asm.h"
+#endif
 #include "vm_basic_asm.h"
 #include "vmk_exports.h"
 

@@ -1273,7 +1273,21 @@ RoundUpPow2C32(uint32 value)
 static INLINE uint32
 RoundUpPow2Asm32(uint32 value)
 {
+#ifdef __arm__
+   uint32 out = 1;
+   // Note: None Thumb only!
+   //       The value of the argument "value"
+   //       will be affected!
+   __asm__("sub %[in], %[in], #1;"         // r1 = value - 1 . if value == 0 then r1 = 0xFFFFFFFF
+           "clz %[in], %[in];"             // r1 = log2(value - 1) if value != 1
+                                           // if value == 0 then r1 = 0
+                                           // if value == 1 then r1 = 32
+           "mov %[out], %[out], ror %[in]" // out = 2^(32 - r1)
+                                           // if out == 2^32 then out = 1 as it is right rotate
+       : [in]"+r"(value),[out]"+r"(out));
+#else
    uint32 out = 2;
+
    __asm__("lea -1(%[in]), %%ecx;"      // ecx = value - 1.  Preserve original.
            "bsr %%ecx, %%ecx;"          // ecx = log2(value - 1) if value != 1
                                         // if value == 0, then ecx = 31
@@ -1284,6 +1298,7 @@ RoundUpPow2Asm32(uint32 value)
                                         // zf is always unmodified
            "cmovz %[in], %[out]"        // if value == 1 (zf == 1), write 1 to out.
        : [out]"+r"(out) : [in]"r"(value) : "%ecx", "cc");
+#endif
    return out;
 }
 #endif // __GNUC__
