@@ -62,14 +62,11 @@
    GOT(GUEST_OS_UBUNTU)                                       \
    GOT(GUEST_OS_DEBIAN45)                                     \
    GOT(GUEST_OS_DEBIAN45_64)                                  \
-   GOT(GUEST_OS_RHEL6)                                        \
-   GOT(GUEST_OS_RHEL6_64)                                     \
-   GOT(GUEST_OS_RHEL7)                                        \
-   GOT(GUEST_OS_RHEL7_64)                                     \
+   GOT(GUEST_OS_RHEL)                                         \
+   GOT(GUEST_OS_RHEL_64)                                      \
    GOT(GUEST_OS_FREEBSD)                                      \
    GOT(GUEST_OS_FREEBSD_64)                                   \
-   GOT(GUEST_OS_SOLARIS6)                                     \
-   GOT(GUEST_OS_SOLARIS7)                                     \
+   GOT(GUEST_OS_SOLARIS_6_AND_7)                              \
    GOT(GUEST_OS_SOLARIS8)                                     \
    GOT(GUEST_OS_SOLARIS9)                                     \
    GOT(GUEST_OS_SOLARIS10)                                    \
@@ -80,8 +77,7 @@
    GOT(GUEST_OS_DARWIN10_64)                                  \
    GOT(GUEST_OS_DARWIN11)          /* Mac OS 10.7 */          \
    GOT(GUEST_OS_DARWIN11_64)                                  \
-   GOT(GUEST_OS_OPENSERVER5)                                  \
-   GOT(GUEST_OS_OPENSERVER6)                                  \
+   GOT(GUEST_OS_OPENSERVER_5_AND_6)                           \
    GOT(GUEST_OS_UNIXWARE7)                                    \
    GOT(GUEST_OS_NETWARE4)                                     \
    GOT(GUEST_OS_NETWARE5)                                     \
@@ -153,10 +149,10 @@
    GOSL(STR_OS_RED_HAT_EN "4-64",            GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_RED_HAT_EN "5",               GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_RED_HAT_EN "5-64",            GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_RED_HAT_EN "6",               GUEST_OS_RHEL6)                \
-   GOSL(STR_OS_RED_HAT_EN "6-64",            GUEST_OS_RHEL6_64)             \
-   GOSL(STR_OS_RED_HAT_EN "7",               GUEST_OS_RHEL7)                \
-   GOSL(STR_OS_RED_HAT_EN "7-64",            GUEST_OS_RHEL7_64)             \
+   GOSL(STR_OS_RED_HAT_EN "6",               GUEST_OS_RHEL)                 \
+   GOSL(STR_OS_RED_HAT_EN "6-64",            GUEST_OS_RHEL_64)              \
+   GOSL(STR_OS_RED_HAT_EN "7",               GUEST_OS_RHEL)                 \
+   GOSL(STR_OS_RED_HAT_EN "7-64",            GUEST_OS_RHEL_64)              \
    GOSL(STR_OS_CENTOS,                       GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_CENTOS "-64",                 GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_ORACLE,                       GUEST_OS_OTHER26XLINUX)        \
@@ -197,8 +193,8 @@
    GOSL(STR_OS_DEBIAN_5 "-64",               GUEST_OS_DEBIAN45_64)          \
    GOSL(STR_OS_DEBIAN_6,                     GUEST_OS_DEBIAN45)             \
    GOSL(STR_OS_DEBIAN_6 "-64",               GUEST_OS_DEBIAN45_64)          \
-   GOSL(STR_OS_SOLARIS "6",                  GUEST_OS_SOLARIS6)             \
-   GOSL(STR_OS_SOLARIS "7",                  GUEST_OS_SOLARIS7)             \
+   GOSL(STR_OS_SOLARIS "6",                  GUEST_OS_SOLARIS_6_AND_7)      \
+   GOSL(STR_OS_SOLARIS "7",                  GUEST_OS_SOLARIS_6_AND_7)      \
    GOSL(STR_OS_SOLARIS "8",                  GUEST_OS_SOLARIS8)             \
    GOSL(STR_OS_SOLARIS "9",                  GUEST_OS_SOLARIS9)             \
    GOSL(STR_OS_SOLARIS "10",                 GUEST_OS_SOLARIS10)            \
@@ -228,8 +224,8 @@
    GOSL("other-64",                          GUEST_OS_OTHER_64)             \
    GOSL("vmkernel",                          GUEST_OS_VMKERNEL)             \
    GOSL("vmkernel5",                         GUEST_OS_VMKERNEL5)            \
-   GOSL("openserver5",                       GUEST_OS_OPENSERVER5)          \
-   GOSL("openserver6",                       GUEST_OS_OPENSERVER6)          \
+   GOSL("openserver5",                       GUEST_OS_OPENSERVER_5_AND_6)   \
+   GOSL("openserver6",                       GUEST_OS_OPENSERVER_5_AND_6)   \
    GOSL("unixware7",                         GUEST_OS_UNIXWARE7)            \
    GOSL(STR_OS_ECOMSTATION,                  GUEST_OS_ECOMSTATION)          \
    GOSL(STR_OS_ECOMSTATION "2",              GUEST_OS_ECOMSTATION2)         \
