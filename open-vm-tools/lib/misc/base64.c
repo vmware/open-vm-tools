@@ -75,7 +75,7 @@ enum {
  *  }
  */
 
-static const char base64Reverse[256] = {
+static const signed char base64Reverse[256] = {
    EOM,     ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 00-07 */
    ILLEGAL, WS,      WS,      WS,      WS,      WS,      ILLEGAL, ILLEGAL,   /* 08-0F */
    ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 10-17 */
