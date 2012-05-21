@@ -397,6 +397,7 @@ FLAG(   6,  0, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,              NA,  FALSE)
 FLAG(   7,  0, EBX, INTEL,   0,  1, FSGSBASE,                      YES, FALSE) \
 FLAG(   7,  0, EBX, COMMON,  3,  1, BMI1,                          YES, TRUE ) \
 FLAG(   7,  0, EBX, INTEL,   4,  1, HLE,                           YES, TRUE)  \
+FLAG(   7,  0, EBX, INTEL,   5,  1, AVX2,                          YES, TRUE)  \
 FLAG(   7,  0, EBX, INTEL,   7,  1, SMEP,                          YES, FALSE) \
 FLAG(   7,  0, EBX, INTEL,   8,  1, BMI2,                          YES, TRUE)  \
 FLAG(   7,  0, EBX, INTEL,   9,  1, ENFSTRG,                       YES, FALSE) \
