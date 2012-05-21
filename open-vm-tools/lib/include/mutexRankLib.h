@@ -125,6 +125,9 @@
 
 #define RANK_usbArbCliClientLock     (RANK_libLockBase + 0x6505)
 #define RANK_usbArbCliGlobalLock     (RANK_libLockBase + 0x6506)
+#define RANK_usbEnumClientsLock      (RANK_libLockBase + 0x6507)
+#define RANK_usbEnumBackendsLock     (RANK_libLockBase + 0x6508)
+#define RANK_usbEnumBackendLock      (RANK_libLockBase + 0x6509)
 
 
 /*
@@ -143,6 +146,7 @@
  *    licenseCheck < preference
  */
 
+#define RANK_vigorConnLock           (RANK_libLockBase + 0x7010)
 #define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7020)
 #define RANK_batteryLock             (RANK_libLockBase + 0x7030)
 #define RANK_buttonLock              (RANK_libLockBase + 0x7040)

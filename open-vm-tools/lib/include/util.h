@@ -121,6 +121,11 @@ void Util_BacktraceWithFunc(int bugNr,
 void Util_BacktraceToBuffer(uintptr_t *basePtr,
                             uintptr_t *buffer, int len);
 
+// sleep functions
+
+void Util_Usleep(long usec);
+void Util_Sleep(unsigned int sec);
+
 int Util_CompareDotted(const char *s1, const char *s2);
 
 /*
