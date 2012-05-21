@@ -532,6 +532,7 @@ SelectResolution(uint32 width,
    uint32 bestFitIndex = 0;
    uint64 bestFitSize = 0;
    uint64 potentialSize;
+   Bool perfectMatch;
 
 #ifndef NO_MULTIMON
    if (resInfoX->canUseRandR12) {
@@ -551,7 +552,7 @@ SelectResolution(uint32 width,
 
    xrrConfig = XRRGetScreenInfo(resInfoX->display, resInfoX->rootWindow);
    xrrSizes = XRRConfigSizes(xrrConfig, &xrrNumSizes);
-   XRRConfigCurrentConfiguration(xrrConfig, &xrrCurRotation);
+   bestFitIndex = XRRConfigCurrentConfiguration(xrrConfig, &xrrCurRotation);
 
    /*
     * Iterate thru the list finding the best fit that is still <= in both width
@@ -567,18 +568,24 @@ SelectResolution(uint32 width,
    }
 
    if (bestFitSize > 0) {
+      Status rc;
+
       g_debug("Setting guest resolution to: %dx%d (requested: %d, %d)\n",
               xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height, width, height);
-      XRRSetScreenConfig(resInfoX->display, xrrConfig, resInfoX->rootWindow,
-                         bestFitIndex, xrrCurRotation, GDK_CURRENT_TIME);
+      rc = XRRSetScreenConfig(resInfoX->display, xrrConfig, resInfoX->rootWindow,
+                              bestFitIndex, xrrCurRotation, GDK_CURRENT_TIME);
+      g_debug("XRRSetScreenConfig returned %d (result: %dx%d)\n", rc,
+              xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height);
    } else {
       g_debug("Can't find a suitable guest resolution, ignoring request for %dx%d\n",
               width, height);
    }
 
+   perfectMatch = xrrSizes[bestFitIndex].width == width &&
+                  xrrSizes[bestFitIndex].height == height;
    XRRFreeScreenConfigInfo(xrrConfig);
-   return xrrSizes[bestFitIndex].width == width &&
-          xrrSizes[bestFitIndex].height == height;
+
+   return perfectMatch;
 }
 
 /**
