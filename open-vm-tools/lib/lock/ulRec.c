@@ -317,7 +317,7 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
    Warning("\treference count %u\n", Atomic_Read(&lock->refCount));
 
    if (lock->vmmLock == NULL) {
-      Warning("\tcount %d\n", MXRecLockCount(&lock->recursiveLock));
+      Warning("\tlock count %d\n", MXRecLockCount(&lock->recursiveLock));
 
       Warning("\taddress of owner data %p\n",
               &lock->recursiveLock.nativeThreadID);
