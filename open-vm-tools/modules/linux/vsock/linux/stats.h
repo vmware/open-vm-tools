@@ -35,10 +35,11 @@
 
 /*
  * Define VSOCK_GATHER_STATISTICS to turn on statistics gathering.
- * Currently this consists of 2 types of stats:
+ * Currently this consists of 3 types of stats:
  * 1. The number of control datagram messages sent.
  * 2. The level of queuepair fullness (in 10% buckets) whenever data is
  *    about to be enqueued or dequeued from the queuepair.
+ * 3. The total number of bytes enqueued/dequeued.
  */
 
 //#define VSOCK_GATHER_STATISTICS 1
@@ -49,26 +50,31 @@
 extern uint64 vSockStatsCtlPktCount[VSOCK_PACKET_TYPE_MAX];
 extern uint64 vSockStatsConsumeQueueHist[VSOCK_NUM_QUEUE_LEVEL_BUCKETS];
 extern uint64 vSockStatsProduceQueueHist[VSOCK_NUM_QUEUE_LEVEL_BUCKETS];
+extern Atomic_uint64 vSockStatsConsumeTotal;
+extern Atomic_uint64 vSockStatsProduceTotal;
 
 #define VSOCK_STATS_STREAM_CONSUME_HIST(vsk)                            \
-   VSockVmciStatsUpdateQueueBucketCount((vsk)->consumeQ,                \
-                                        (vsk)->produceQ,                \
+   VSockVmciStatsUpdateQueueBucketCount((vsk)->qpair,                   \
                                         (vsk)->consumeSize,             \
+                               VMCIQPair_ConsumeBufReady((vsk)->qpair), \
                                         vSockStatsConsumeQueueHist)
 #define VSOCK_STATS_STREAM_PRODUCE_HIST(vsk)                            \
-   VSockVmciStatsUpdateQueueBucketCount((vsk)->produceQ,                \
-                                        (vsk)->consumeQ,                \
+   VSockVmciStatsUpdateQueueBucketCount((vsk)->qpair,                   \
                                         (vsk)->produceSize,             \
+                               VMCIQPair_ProduceBufReady((vsk)->qpair), \
                                         vSockStatsProduceQueueHist)
 #define VSOCK_STATS_CTLPKT_LOG(pktType)                                 \
-do {                                                                    \
-   ++vSockStatsCtlPktCount[pktType];                                    \
-} while (0)
-#define VSOCK_STATS_CTLPKT_DUMP_ALL()                                   \
-   VSockVmciStatsCtlPktDumpAll()
-#define VSOCK_STATS_HIST_DUMP_ALL()                                     \
-   VSockVmciStatsHistDumpAll()
-#define VSOCK_STATS_RESET() VSockVmciStatsReset
+   do {                                                                 \
+      ++vSockStatsCtlPktCount[pktType];                                 \
+   } while (0)
+#define VSOCK_STATS_STREAM_CONSUME(bytes)                               \
+   Atomic_FetchAndAdd64(&vSockStatsConsumeTotal, bytes)
+#define VSOCK_STATS_STREAM_PRODUCE(bytes)                               \
+   Atomic_FetchAndAdd64(&vSockStatsProduceTotal, bytes)
+#define VSOCK_STATS_CTLPKT_DUMP_ALL() VSockVmciStatsCtlPktDumpAll()
+#define VSOCK_STATS_HIST_DUMP_ALL()   VSockVmciStatsHistDumpAll()
+#define VSOCK_STATS_TOTALS_DUMP_ALL() VSockVmciStatsTotalsDumpAll()
+#define VSOCK_STATS_RESET()           VSockVmciStatsReset()
 
 /*
  *----------------------------------------------------------------------------
@@ -88,23 +94,25 @@ do {                                                                    \
  */
 
 static INLINE void
-VSockVmciStatsUpdateQueueBucketCount(VMCIQueue *mainQueue,  // IN
-                                     VMCIQueue *otherQueue, // IN
-                                     uint64 mainQueueSize,  // IN
-                                     uint64 queueHist[])    // IN
+VSockVmciStatsUpdateQueueBucketCount(VMCIQPair *qpair,   // IN
+                                     uint64 queueSize,   // IN
+                                     uint64 dataReady,   // IN
+                                     uint64 queueHist[]) // IN/OUT
 {
    uint64 bucket = 0;
    uint32 remainder = 0;
-   uint64 dataReady = VMCIQueue_BufReady(mainQueue,
-                                         otherQueue,
-                                         mainQueueSize);
+
+   ASSERT(qpair);
+   ASSERT(queueHist);
+
    /*
-    * We can't do 64 / 64 = 64 bit divides on linux because it requires a libgcc
-    * which is not linked into the kernel module. Since this code is only used by
-    * developers we just limit the mainQueueSize to be less than MAX_UINT for now.
-v    */
-   ASSERT(mainQueueSize <= MAX_UINT32);
-   Div643264(dataReady * 10, mainQueueSize, &bucket, &remainder);
+    * We can't do 64 / 64 = 64 bit divides on linux because it requires a
+    * libgcc which is not linked into the kernel module. Since this code is
+    * only used by developers we just limit the queueSize to be less than
+    * MAX_UINT for now.
+    */
+   ASSERT(queueSize <= MAX_UINT32);
+   Div643264(dataReady * 10, queueSize, &bucket, &remainder);
    ASSERT(bucket < VSOCK_NUM_QUEUE_LEVEL_BUCKETS);
    ++queueHist[bucket];
 }
@@ -180,6 +188,32 @@ VSockVmciStatsHistDumpAll(void)
 /*
  *----------------------------------------------------------------------------
  *
+ * VSockVmciStatsTotalsDumpAll --
+ *
+ *      Prints the produce and consume totals.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VSockVmciStatsTotalsDumpAll(void)
+{
+   Warning("Produced %"FMT64"u total bytes\n",
+           Atomic_Read64(&vSockStatsProduceTotal));
+   Warning("Consumed %"FMT64"u total bytes\n",
+           Atomic_Read64(&vSockStatsConsumeTotal));
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * VSockVmciStatsReset --
  *
  *      Reset all VSock statistics.
@@ -209,14 +243,20 @@ VSockVmciStatsReset(void)
    VSOCK_RESET_ARRAY(vSockStatsConsumeQueueHist);
 
    #undef VSOCK_RESET_ARRAY
+
+   Atomic_Write64(&vSockStatsConsumeTotal, 0);
+   Atomic_Write64(&vSockStatsProduceTotal, 0);
 }
 
 #else
 #define VSOCK_STATS_STREAM_CONSUME_HIST(vsk)
 #define VSOCK_STATS_STREAM_PRODUCE_HIST(vsk)
+#define VSOCK_STATS_STREAM_PRODUCE(bytes)
+#define VSOCK_STATS_STREAM_CONSUME(bytes)
 #define VSOCK_STATS_CTLPKT_LOG(pktType)
 #define VSOCK_STATS_CTLPKT_DUMP_ALL()
 #define VSOCK_STATS_HIST_DUMP_ALL()
+#define VSOCK_STATS_TOTALS_DUMP_ALL()
 #define VSOCK_STATS_RESET()
 #endif // VSOCK_GATHER_STATISTICS
 

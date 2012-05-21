@@ -3301,6 +3301,7 @@ VSockVmciSkDestruct(struct sock *sk) // IN
 
    VSOCK_STATS_CTLPKT_DUMP_ALL();
    VSOCK_STATS_HIST_DUMP_ALL();
+   VSOCK_STATS_TOTALS_DUMP_ALL();
 }
 
 
@@ -5212,6 +5213,7 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
 
 outWait:
    if (totalWritten > 0) {
+      VSOCK_STATS_STREAM_PRODUCE(totalWritten);
       err = totalWritten;
    }
    finish_wait(sk_sleep(sk), &wait);
@@ -5597,6 +5599,8 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
        */
 
       if (!(flags & MSG_PEEK)) {
+         VSOCK_STATS_STREAM_CONSUME(copied);
+
          /*
           * If the other side has shutdown for sending and there is nothing more
           * to read, then modify the socket state.
