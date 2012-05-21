@@ -740,6 +740,10 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    /*
     * On ESX we always use the vmkernel atomic file swap primitive, so
     * there's no need to set the permissions and owner of the temp file.
+    *
+    * XXX this comment is not true for NFS on ESX -- we use rename rather
+    * than "vmkernel atomic file swap primitive" -- but we do not care
+    * because files are always owned by root.  Sigh.  Bug 839283.
     */
 
    if (!HostType_OSIsVMK()) {
@@ -790,15 +794,22 @@ bail:
  *      of two files using code modeled from VmkfsLib_SwapFiles.  Both "curr"
  *      and "new" are left open.
  *
- *      On ESX when the target files reside on NFS, and on hosted products,
- *      uses rename to swap files, so "new" becomes "curr", and path to "new"
- *      no longer exists on success.
+ *      On hosted products, uses rename to swap files, so "new" becomes "curr",
+ *      and path to "new" no longer exists on success.
+ *
+ *      On ESX on NFS:
+ *
+ *      If renameOnNFS is TRUE, use rename, like on hosted.
+ *
+ *      If renameOnNFS is FALSE, returns -1 rather than trying to use rename,
+ *      to avoid various bugs in the vmkernel NFSv3 client.  Bug 839283,
+ *      bug 862647, bug 841185, bug 856752.
  *
  *      On success the caller must call FileIO_IsValid on newFD to verify it
  *      is still open before using it again.
  *
  * Results:
- *      TRUE if successful, FALSE on failure.
+ *      1 if successful, 0 on failure, -1 if not supported on this filesystem.
  *      errno is preserved.
  *
  * Side effects:
@@ -807,16 +818,16 @@ bail:
  *-----------------------------------------------------------------------------
  */
 
-
-Bool
+int
 FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
-                    FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
+                    FileIODescriptor *currFD,  // IN/OUT: file IO descriptor
+                    Bool renameOnNFS)          // IN: fall back to rename on NFS
 {
    char *currPath;
    char *newPath;
    uint32 currAccess;
    uint32 newAccess;
-   Bool ret = FALSE;
+   int ret = 0;
    FileIOResult status;
    FileIODescriptor tmpFD;
    int savedErrno = 0;
@@ -883,7 +894,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
             ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
          }
       } else {
-         ret = TRUE;
+         ret = 1;
       }
 
       close(fd);
@@ -892,28 +903,32 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
        * Did we fail because we are on NFS?
        */
       if (savedErrno == ENOSYS) {
-         /*
-          * NFS allows renames of locked files, even if both files
-          * are locked.  The file lock follows the file handle, not
-          * the name, so after the rename we can swap the underlying
-          * file descriptors instead of closing and reopening the
-          * target file.
-          *
-          * This is different than the hosted path below because
-          * ESX uses native file locks and hosted does not.
-          */
+         if (renameOnNFS) {
+            /*
+             * NFS allows renames of locked files, even if both files
+             * are locked.  The file lock follows the file handle, not
+             * the name, so after the rename we can swap the underlying
+             * file descriptors instead of closing and reopening the
+             * target file.
+             *
+             * This is different than the hosted path below because
+             * ESX uses native file locks and hosted does not.
+             */
 
-         if (File_Rename(newPath, currPath)) {
-            Log("%s: rename of '%s' to '%s' failed %d.\n",
-                __FUNCTION__, newPath, currPath, errno);
-            savedErrno = errno;
-            goto swapdone;
+            if (File_Rename(newPath, currPath)) {
+               Log("%s: rename of '%s' to '%s' failed %d.\n",
+                   __FUNCTION__, newPath, currPath, errno);
+               savedErrno = errno;
+               goto swapdone;
+            }
+            ret = 1;
+            fd = newFD->posix;
+            newFD->posix = currFD->posix;
+            currFD->posix = fd;
+            FileIO_Close(newFD);
+         } else {
+            ret = -1;
          }
-         ret = TRUE;
-         fd = newFD->posix;
-         newFD->posix = currFD->posix;
-         currFD->posix = fd;
-         FileIO_Close(newFD);
       }
 
 swapdone:
