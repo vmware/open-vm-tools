@@ -276,17 +276,14 @@ Auth_AuthenticateUser(const char *user,  // IN:
    }
 
 #ifdef USE_PAM
-#ifdef ACCEPT_XXX_PASS
-   if (strcmp("XXX", pass) != 0) {
-#endif
-      if (!AuthLoadPAM()) {
-         return NULL;
-      }
+   if (!AuthLoadPAM()) {
+      return NULL;
+   }
 
-      /*
-       * XXX PAM can blow away our syslog level settings so we need
-       * to call Log_InitEx() again before doing any more Log()s
-       */
+   /*
+    * XXX PAM can blow away our syslog level settings so we need
+    * to call Log_InitEx() again before doing any more Log()s
+    */
 
 #define PAM_BAIL if (pam_error != PAM_SUCCESS) { \
                   Log_Error("%s:%d: PAM failure - %s (%d)\n", \
@@ -295,32 +292,29 @@ Auth_AuthenticateUser(const char *user,  // IN:
                   dlpam_end(pamh, pam_error); \
                   return NULL; \
                  }
-      PAM_username = user;
-      PAM_password = pass;
+   PAM_username = user;
+   PAM_password = pass;
 
 #if defined(VMX86_TOOLS)
-      pam_error = dlpam_start("vmtoolsd", PAM_username, &PAM_conversation,
-                              &pamh);
+   pam_error = dlpam_start("vmtoolsd", PAM_username, &PAM_conversation,
+                           &pamh);
 #else
-      pam_error = dlpam_start("vmware-authd", PAM_username, &PAM_conversation,
-                              &pamh);
+   pam_error = dlpam_start("vmware-authd", PAM_username, &PAM_conversation,
+                           &pamh);
 #endif
-      if (pam_error != PAM_SUCCESS) {
-         Log("Failed to start PAM (error = %d).\n", pam_error);
-         return NULL;
-      }
-
-      pam_error = dlpam_authenticate(pamh, 0);
-      PAM_BAIL;
-      pam_error = dlpam_acct_mgmt(pamh, 0);
-      PAM_BAIL;
-      pam_error = dlpam_setcred(pamh, PAM_ESTABLISH_CRED);
-      PAM_BAIL;
-      dlpam_end(pamh, PAM_SUCCESS);
-
-#if ACCEPT_XXX_PASS
+   if (pam_error != PAM_SUCCESS) {
+      Log("Failed to start PAM (error = %d).\n", pam_error);
+      return NULL;
    }
-#endif
+
+   pam_error = dlpam_authenticate(pamh, 0);
+   PAM_BAIL;
+   pam_error = dlpam_acct_mgmt(pamh, 0);
+   PAM_BAIL;
+   pam_error = dlpam_setcred(pamh, PAM_ESTABLISH_CRED);
+   PAM_BAIL;
+   dlpam_end(pamh, PAM_SUCCESS);
+
    /* If this point is reached, the user has been authenticated. */
    setpwent();
    pwd = Posix_Getpwnam(user);
@@ -344,11 +338,7 @@ Auth_AuthenticateUser(const char *user,  // IN:
    if (*pwd->pw_passwd != '\0') {
       char *namep = (char *) crypt(pass, pwd->pw_passwd);
 
-      if (strcmp(namep, pwd->pw_passwd)
-#ifdef ACCEPT_XXX_PASS
-          && strcmp("XXX", pass) != 0
-#endif
-          ) {
+      if (strcmp(namep, pwd->pw_passwd) != 0) {
          // Incorrect password
          return NULL;
       }
