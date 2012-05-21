@@ -688,7 +688,11 @@ typedef int pid_t;
 #ifdef _WIN32
 #ifndef USES_OLD_WINDDK
 #if defined(VMX86_LOG)
+#ifdef _WIN64
+#define WinDrvPrint(arg, ...) DbgPrintEx(DPFLTR_IHVDRIVER_ID, ~0, arg, __VA_ARGS__)
+#else
 #define WinDrvPrint(arg, ...) DbgPrint(arg, __VA_ARGS__)
+#endif
 #define WinDrvEngPrint(arg, ...) EngDbgPrint(arg, __VA_ARGS__)
 #else
 #define WinDrvPrint(arg, ...)
