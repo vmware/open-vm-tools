@@ -2960,10 +2960,11 @@ vmxnet_load_multicast (struct net_device *dev)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 34)
     struct netdev_hw_addr *dmi;
 #else
+    int i=0;
     struct dev_mc_list *dmi = dev->mc_list;
 #endif
     u8 *addrs;
-    int i = 0, j, bit, byte;
+    int j, bit, byte;
     u32 crc, poly = CRC_POLYNOMIAL_LE;
 
     /* clear the multicast filter */
@@ -3001,7 +3002,11 @@ vmxnet_load_multicast (struct net_device *dev)
 	 crc = crc >> 26;
 	 mcast_table [crc >> 4] |= 1 << (crc & 0xf);
     }
-    return i;
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 34)
+	return netdev_mc_count(dev);
+#else
+	return i;
+#endif
 }
 
 /*
