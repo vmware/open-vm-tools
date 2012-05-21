@@ -52,6 +52,14 @@
     sizeof(VPageChannelElem))
 
 /*
+ * Maximum number of elements in a PAGE-sized packet (as above).
+ */
+
+#define VMCI_PACKET_PAGE_MAX_ELEMS \
+   ((PAGE_SIZE - sizeof(VPageChannelPacket)) / \
+    sizeof(VPageChannelElem))
+
+/*
  * All flags.  We use this to check the validity of the flags, so put it here
  * instead of in the header, otherwise people might assume we mean for them
  * to use it.
@@ -120,10 +128,12 @@ struct VPageChannel {
 
 static int VPageChannelSendControl(VPageChannel *channel,
                                    VPageChannelPacketType type,
-                                   char *message,
-                                   int len,
-                                   int numElems,
+                                   char *message, int len, int numElems,
                                    VPageChannelElem *elems);
+static int VPageChannelSignal(VPageChannel *channel);
+static int VPageChannelSendPacket(VPageChannel *channel,
+                                  VPageChannelPacket *packet,
+                                  Bool needsLock, Bool signalPending);
 
 /*
  *-----------------------------------------------------------------------------
@@ -255,8 +265,14 @@ VPageChannelReleaseRecvLock(VPageChannel *channel, // IN
  *
  *      Add receiving buffers for the channel.  This will ask the client to
  *      to allocate the required elements and then pass those to the peer.
- *      If "byControl" is TRUE, then the DGRAM control channel will be used,
- *      and multiple packets will be sent if necessary.
+ *
+ *      If "onInit" is TRUE (which is is during channel initialization) then
+ *      the DGRAM control channel will be used, and multiple packets will be
+ *      sent if necessary.  Also, the packet allocation will be blocking.
+ *
+ *      If "onInit" is FALSE, then the queuepair will be used, multiple
+ *      packets may be sent, and the packet allocation may be atomic,
+ *      depending on how the channel is configured.
  *
  * Results:
  *      The number of buffers actually sent to the peer.
@@ -270,11 +286,14 @@ VPageChannelReleaseRecvLock(VPageChannel *channel, // IN
 static int
 VPageChannelAddRecvBuffers(VPageChannel *channel,     // IN
                            int numElems,              // IN
-                           Bool byControl)            // IN
+                           Bool onInit)               // IN
 {
    int n;
    int sent;
+   int maxElems;
+   Bool isAtomic;
    size_t size;
+   unsigned long flags;
    VPageChannelElem *elems;
    VPageChannelPacket *packet;
 
@@ -285,7 +304,31 @@ VPageChannelAddRecvBuffers(VPageChannel *channel,     // IN
    elems = NULL;
    packet = NULL;
 
-   n = min_t(int, VMCI_PACKET_DGRAM_MAX_ELEMS, numElems);
+   if (onInit || (channel->flags & VPAGECHANNEL_FLAGS_RECV_DELAYED)) {
+      /*
+       * If we are initializing the channel, or we are running in a delayed
+       * context (recv() in this case), then we can using blocking allocation
+       * and we can allocate large packets.  Also, no need to take the
+       * send lock here, we can just take it for each packet.
+       */
+
+      isAtomic = FALSE;
+      maxElems = VMCI_PACKET_DGRAM_MAX_ELEMS;
+      flags = 0; /* Silence compiler. */
+   } else {
+      /*
+       * We're in an atomic context.  We must allocate page-sized packets
+       * atomically and send them over the queuepair.  Since this can
+       * cause a lot of signalling, we optimize by taking the send lock
+       * once for all packets, and only signalling when we are done.
+       */
+
+      isAtomic = TRUE;
+      maxElems = VMCI_PACKET_PAGE_MAX_ELEMS;
+      VPageChannelAcquireSendLock(channel, &flags);
+   }
+
+   n = min_t(int, maxElems, numElems);
    while (n > 0) {
       int retval;
       int allocNum;
@@ -298,7 +341,8 @@ VPageChannelAddRecvBuffers(VPageChannel *channel,     // IN
       if (NULL == packet) {
          size = sizeof(VPageChannelPacket) + (n * sizeof(VPageChannelElem));
          packet = (VPageChannelPacket *)
-            VMCI_AllocKernelMem(size, VMCI_MEMORY_ATOMIC);
+            VMCI_AllocKernelMem(size,
+                        isAtomic ? VMCI_MEMORY_ATOMIC : VMCI_MEMORY_NORMAL);
          if (packet == NULL) {
             VMCI_WARNING((LGPFX"Failed to allocate packet (channel=%p) "
                           "(size=%"FMTSZ"u).\n",
@@ -334,11 +378,20 @@ VPageChannelAddRecvBuffers(VPageChannel *channel,     // IN
 
       packet->numElems = allocNum;
 
-      if (byControl || VPCState_Connected != channel->state) {
+      if (onInit) {
          retval = VPageChannelSendControl(channel, VPCPacket_SetRecvBuffer,
                                           NULL, 0, allocNum, elems);
       } else {
-         retval = VPageChannel_SendPacket(channel, packet);
+         /*
+          * Do not ask for the lock here if we are atomic, we take care of
+          * that ourselves.  Similarly, if we are atomic then we will do our
+          * own signalling, so inform the send that there is a signal already
+          * pending.
+          */
+
+         retval = VPageChannelSendPacket(channel, packet,
+                                     isAtomic ? FALSE : TRUE,  // needsLock
+                                     isAtomic ? TRUE : FALSE); // signalPending
          /*
           * XXX, what if this is a non-blocking queuepair and we fail to
           * send because it's full and we can't wait?  Is it even worth it
@@ -363,10 +416,20 @@ VPageChannelAddRecvBuffers(VPageChannel *channel,     // IN
 
       sent += allocNum;
       numElems -= allocNum;
-      n = min_t(int, VMCI_PACKET_DGRAM_MAX_ELEMS, numElems);
+      n = min_t(int, maxElems, numElems);
    }
 
 exit:
+   if (isAtomic) {
+      /*
+       * We're done sending packets, so now we can signal.  Even if we only
+       * sent some of the requested buffers, we must signal anyway, otherwise
+       * the peer won't know about the ones we did send.
+       */
+
+      (void)VPageChannelSignal(channel);
+      VPageChannelReleaseSendLock(channel, flags);
+   }
    if (NULL != packet) {
       VMCI_FreeKernelMem(packet, size);
    }
@@ -1384,6 +1447,154 @@ VPageChannelSendControl(VPageChannel *channel,       // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * VPageChannelSignal --
+ *
+ *     Signal the channel's peer via the doorbell.
+ *
+ * Results:
+ *     VMCI_SUCCESS if signalled, negative error number otherwise.
+ *
+ * Side effects:
+ *     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+VPageChannelSignal(VPageChannel *channel) // IN
+{
+   int retval;
+
+   ASSERT(channel);
+
+   retval = VMCIDoorbell_Notify(channel->peerDoorbellHandle,
+                                /* XXX, TRUSTED for VMKernel. */
+                                VMCI_PRIVILEGE_FLAG_RESTRICTED);
+   if (retval < VMCI_SUCCESS) {
+      VMCI_WARNING((LGPFX"Failed to notify doorbell (channel=%p) "
+               "(handle=0x%x:0x%x) (err=%d).\n",
+               channel,
+               channel->peerDoorbellHandle.context,
+               channel->peerDoorbellHandle.resource,
+               retval));
+   }
+
+   return retval;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VPageChannel_SendPacket --
+ *
+ *     Send a VMCI packet to the hypervisor.
+ *
+ *     XXX, this is now identical to the function of the same name in
+ *     modules/vmkernel/vmci/vmciPacketVMK.c.  We should share this code.
+ *
+ *     "needsLock" indicates whether this function should acquire the send
+ *     lock.  If TRUE, then it will be acquired; if FALSE, then it is the
+ *     caller's responsibility.  This is internal only.
+ *
+ *     "signalPending" indicates whether the caller will take care of
+ *     signalling/the caller knows that there is already a signal pending,
+ *     in which case this function will not check for/send one.  This is
+ *     internal only, clients cannot specify this.
+ *
+ * Results:
+ *     VMCI_SUCCESS if sent, negative error number otherwise.
+ *
+ * Side effects:
+ *     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+VPageChannelSendPacket(VPageChannel *channel,         // IN
+                       VPageChannelPacket *packet,    // IN
+                       Bool needsLock,                // IN
+                       Bool signalPending)            // IN
+{
+   int retval;
+   ssize_t totalSize, sentSize;
+   ssize_t freeSpace;
+   unsigned long flags;
+
+   ASSERT(channel);
+
+   if (VPCState_Connected != channel->state) {
+      VMCI_WARNING((LGPFX"Not connected (channel=%p).\n",
+                    channel));
+      return VMCI_ERROR_DST_UNREACHABLE;
+   }
+
+   ASSERT(packet);
+
+   totalSize = sizeof(VPageChannelPacket) + packet->msgLen +
+      packet->numElems * sizeof(VPageChannelElem);
+
+   if (needsLock) {
+      VPageChannelAcquireSendLock(channel, &flags);
+   } else {
+      flags = 0; /* Silence compiler. */
+   }
+
+   freeSpace = VMCIQPair_ProduceFreeSpace(channel->qpair);
+   if (freeSpace < totalSize) {
+      VMCI_WARNING((LGPFX"No free space in queuepair (channel=%p) "
+                    "(required=%"FMTSZ"d) (actual=%"FMTSZ"d).\n",
+                    channel,
+                    totalSize,
+                    freeSpace));
+      retval = VMCI_ERROR_NO_MEM;
+      goto exit;
+   }
+
+   sentSize = VMCIQPair_Enqueue(channel->qpair, packet, totalSize, 0);
+
+   if (!signalPending) {
+      if (sentSize == VMCIQPair_ProduceBufReady(channel->qpair)) {
+         retval = VPageChannelSignal(channel);
+         if (retval < VMCI_SUCCESS) {
+            goto exit;
+         }
+      }
+   }
+
+   if (sentSize < totalSize) {
+      /*
+       * XXX, deal with partial sending.
+       */
+
+      VMCI_WARNING((LGPFX"No free space in queuepair (channel=%p) "
+                    "(required=%"FMTSZ"d) (actual=%"FMTSZ"d).\n",
+                    channel,
+                    totalSize,
+                    sentSize));
+      retval = VMCI_ERROR_NO_MEM;
+      goto exit;
+   }
+
+   VMCI_DEBUG_LOG(10,
+                  (LGPFX"Sent packet (channel=%p) (size=%"FMTSZ"d).\n",
+                   channel,
+                   sentSize));
+
+   retval = VMCI_SUCCESS;
+
+exit:
+   if (needsLock) {
+      VPageChannelReleaseSendLock(channel, flags);
+   }
+   return retval;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VPageChannel_SendPacket --
  *
  *     Send a VMCI packet to the hypervisor.
@@ -1404,77 +1615,7 @@ int
 VPageChannel_SendPacket(VPageChannel *channel,         // IN
                         VPageChannelPacket *packet)    // IN
 {
-   ssize_t totalSize, sentSize, curSize;
-   ssize_t freeSpace;
-   unsigned long flags;
-
-   ASSERT(channel);
-
-   if (VPCState_Connected != channel->state) {
-      VMCI_WARNING((LGPFX"Not connected (channel=%p).\n",
-                    channel));
-      return VMCI_ERROR_DST_UNREACHABLE;
-   }
-
-   ASSERT(packet);
-
-   totalSize = sizeof(VPageChannelPacket) + packet->msgLen +
-      packet->numElems * sizeof(VPageChannelElem);
-
-   VPageChannelAcquireSendLock(channel, &flags);
-
-   freeSpace = VMCIQPair_ProduceFreeSpace(channel->qpair);
-   if (freeSpace < totalSize) {
-      VMCI_WARNING((LGPFX"No free space in queuepair (channel=%p) "
-                    "(required=%"FMTSZ"d) (actual=%"FMTSZ"d).\n",
-                    channel,
-                    totalSize,
-                    freeSpace));
-      VPageChannelReleaseSendLock(channel, flags);
-      return VMCI_ERROR_NO_MEM;
-   }
-
-   sentSize = VMCIQPair_Enqueue(channel->qpair, packet, totalSize, 0);
-   curSize = VMCIQPair_ProduceBufReady(channel->qpair);
-
-   if (curSize == sentSize) {
-      int retval;
-      retval = VMCIDoorbell_Notify(channel->peerDoorbellHandle,
-                                   /* XXX, TRUSTED for VMKernel. */
-                                   VMCI_PRIVILEGE_FLAG_RESTRICTED);
-      if (retval < VMCI_SUCCESS) {
-         VMCI_WARNING((LGPFX"Failed to notify doorbell (channel=%p) "
-                       "(handle=0x%x:0x%x) (err=%d).\n",
-                       channel,
-                       channel->peerDoorbellHandle.context,
-                       channel->peerDoorbellHandle.resource,
-                       retval));
-         VPageChannelReleaseSendLock(channel, flags);
-         return retval;
-      }
-   }
-
-   VPageChannelReleaseSendLock(channel, flags);
-
-   if (sentSize < totalSize) {
-      /*
-       * XXX, deal with partial sending.
-       */
-
-      VMCI_WARNING((LGPFX"No free space in queuepair (channel=%p) "
-                    "(required=%"FMTSZ"d) (actual=%"FMTSZ"d).\n",
-                    channel,
-                    totalSize,
-                    sentSize));
-      return VMCI_ERROR_NO_MEM;
-   }
-
-   VMCI_DEBUG_LOG(10,
-                  (LGPFX"Sent packet (channel=%p) (size=%"FMTSZ"d).\n",
-                   channel,
-                   sentSize));
-
-   return VMCI_SUCCESS;
+   return VPageChannelSendPacket(channel, packet, TRUE, FALSE);
 }
 EXPORT_SYMBOL(VPageChannel_SendPacket);
 
@@ -1528,7 +1669,9 @@ VPageChannel_Send(VPageChannel *channel,       // IN/OUT
    totalSize = sizeof(VPageChannelPacket) + len +
       numElems * sizeof(VPageChannelElem);
    packet = (VPageChannelPacket *)
-      VMCI_AllocKernelMem(totalSize, VMCI_MEMORY_NORMAL);
+      VMCI_AllocKernelMem(totalSize,
+                        channel->flags & VPAGECHANNEL_FLAGS_SEND_WHILE_ATOMIC ?
+                        VMCI_MEMORY_ATOMIC : VMCI_MEMORY_NORMAL);
    if (!packet) {
       VMCI_WARNING((LGPFX"Failed to allocate packet (channel=%p) "
                     "(size=%"FMTSZ"d).",

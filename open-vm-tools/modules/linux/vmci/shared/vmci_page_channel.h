@@ -393,6 +393,23 @@ int VPageChannel_CreateInVM(VPageChannel **channel,
 
 #else // VMKERNEL
 
+/**
+ * \brief Type of VM memory access off callback.
+ *
+ * This callback is invoked when the memory of the VM containing the peer
+ * endpoint becomes inaccessible, for example due to a crash.  When this
+ * occurs, the client should unmap any guest pages and cleanup any state.
+ * This callback runs in a blockable context.  The client is not allowed to
+ * call VPageChannel_Destroy() from inside the callback, or it will deadlock,
+ * since that function will wait for the callback to complete.
+ *
+ * \note Only applicable on VMKernel.
+ *
+ * \see VPageChannel_CreateInVMK()
+ */
+
+typedef void (*VPageChannelMemAccessOffCB)(void *clientData);
+
 /*
  ************************************************************************
  * VPageChannel_CreateInVMK                                        */ /**
@@ -413,6 +430,8 @@ int VPageChannel_CreateInVM(VPageChannel **channel,
  *                               control channel.
  * \param[in]  recvCB            Client's receive callback.
  * \param[in]  clientRecvData    Client data for receive callback.
+ * \param[in]  memAccessOffCB    Client's mem access off callback.
+ * \param[in]  memAccessOffData  Client data for mem access off.
  *
  * \retval     VMCI_SUCCESS      Creation succeeded, \c *channel
  *                               contains a pointer to a valid channel.
@@ -424,7 +443,9 @@ int VPageChannel_CreateInVM(VPageChannel **channel,
 int VPageChannel_CreateInVMK(VPageChannel **channel,
                              VMCIId resourceId,
                              VPageChannelRecvCB recvCB,
-                             void *clientRecvData);
+                             void *clientRecvData,
+                             VPageChannelMemAccessOffCB memAccessOffCB,
+                             void *memAccessOffData);
 
 /*
  ************************************************************************
