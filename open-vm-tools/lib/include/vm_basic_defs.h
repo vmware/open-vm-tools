@@ -113,6 +113,9 @@
 #endif
 #endif // __APPLE__
 
+#define VMW_CONTAINER_OF(ptr, type, member) \
+   ((type *)((char *)(ptr) - offsetof(type, member)))
+
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(a) (sizeof (a) / sizeof *(a))
 #endif
