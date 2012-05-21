@@ -86,50 +86,50 @@ typedef struct TimeUtil_Expiration {
 } TimeUtil_Expiration;
 
 
-EXTERN time_t TimeUtil_MakeTime(const TimeUtil_Date *d);
+time_t TimeUtil_MakeTime(const TimeUtil_Date *d);
 
-EXTERN Bool TimeUtil_StringToDate(TimeUtil_Date *d,    // IN/OUT
-                                  char const *date);   // IN: 'YYYYMMDD' or 'YYYY/MM/DD' or 'YYYY-MM-DD'
+Bool TimeUtil_StringToDate(TimeUtil_Date *d,    // IN/OUT
+                           char const *date);   // IN: 'YYYYMMDD' or 'YYYY/MM/DD' or 'YYYY-MM-DD'
 
-EXTERN Bool TimeUtil_DaysSubtract(TimeUtil_Date *d,  // IN/OUT
-                                  unsigned int nr);  // IN
+Bool TimeUtil_DaysSubtract(TimeUtil_Date *d,  // IN/OUT
+                           unsigned int nr);  // IN
 
-EXTERN int TimeUtil_DeltaDays(TimeUtil_Date const *left,   // IN
-                              TimeUtil_Date const *right); // IN
+int TimeUtil_DeltaDays(TimeUtil_Date const *left,   // IN
+                       TimeUtil_Date const *right); // IN
 
-EXTERN void TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
-                             unsigned int nr); // IN
+void TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
+                      unsigned int nr); // IN
 
-EXTERN void TimeUtil_PopulateWithCurrent(Bool local,        // IN
-                                         TimeUtil_Date *d); // OUT
+void TimeUtil_PopulateWithCurrent(Bool local,        // IN
+                                  TimeUtil_Date *d); // OUT
 
-EXTERN void TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *d); // OUT
+void TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *d); // OUT
 
-EXTERN unsigned int TimeUtil_DaysLeft(TimeUtil_Date const *d); // IN
+unsigned int TimeUtil_DaysLeft(TimeUtil_Date const *d); // IN
 
-EXTERN Bool TimeUtil_ExpirationLowerThan(TimeUtil_Expiration const *left,   // IN
-                                         TimeUtil_Expiration const *right); // IN
+Bool TimeUtil_ExpirationLowerThan(TimeUtil_Expiration const *left,   // IN
+                                  TimeUtil_Expiration const *right); // IN
 
-EXTERN Bool TimeUtil_DateLowerThan(TimeUtil_Date const *left,   // IN
-                                   TimeUtil_Date const *right); // IN
+Bool TimeUtil_DateLowerThan(TimeUtil_Date const *left,   // IN
+                            TimeUtil_Date const *right); // IN
 
-EXTERN void TimeUtil_ProductExpiration(TimeUtil_Expiration *e); // OUT
+void TimeUtil_ProductExpiration(TimeUtil_Expiration *e); // OUT
 
-EXTERN char * TimeUtil_GetTimeFormat(int64 utcTime,  // IN
-                                     Bool showDate,  // IN
-                                     Bool showTime); // IN
+char * TimeUtil_GetTimeFormat(int64 utcTime,  // IN
+                              Bool showDate,  // IN
+                              Bool showTime); // IN
 
-EXTERN int TimeUtil_NtTimeToUnixTime(struct timespec *unixTime, // OUT
-                                     VmTimeType ntTime);        // IN
+int TimeUtil_NtTimeToUnixTime(struct timespec *unixTime, // OUT
+                              VmTimeType ntTime);        // IN
 
-EXTERN VmTimeType TimeUtil_UnixTimeToNtTime(struct timespec unixTime); // IN
+VmTimeType TimeUtil_UnixTimeToNtTime(struct timespec unixTime); // IN
 
 
 #ifdef _WIN32
-EXTERN Bool TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,    // IN
-                                         SYSTEMTIME *systemTime);     // OUT
+Bool TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,    // IN
+                                  SYSTEMTIME *systemTime);     // OUT
 #endif
 
-EXTERN int TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName);
+int TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName);
 
 #endif // _TIMEUTIL_H_

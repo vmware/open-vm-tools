@@ -111,85 +111,90 @@ VMX86_EXTERN_DATA Msg_String const Msg_RetryCancelButtons[];
 VMX86_EXTERN_DATA Msg_String const Msg_OKCancelButtons[];
 VMX86_EXTERN_DATA Msg_String const Msg_RetryAbortButtons[];
 
-EXTERN Msg_String const Msg_Severities[];
+extern Msg_String const Msg_Severities[];
 
 
 /*
  * Functions
  */
 
-EXTERN void Msg_Append(const char *idFmt, ...)
-       PRINTF_DECL(1, 2);
-EXTERN void Msg_AppendStr(const char *id);
-EXTERN void Msg_Post(MsgSeverity severity, const char *idFmt, ...)
-       PRINTF_DECL(2, 3);
-EXTERN void Msg_PostMsgList(MsgSeverity severity, const MsgList *msgs);
+void Msg_Append(const char *idFmt,
+                ...) PRINTF_DECL(1, 2);
+void Msg_AppendStr(const char *id);
+void Msg_Post(MsgSeverity severity,
+              const char *idFmt,
+              ...) PRINTF_DECL(2, 3);
+void Msg_PostMsgList(MsgSeverity severity,
+                     const MsgList *msgs);
 
-EXTERN char *Msg_Format(const char *idFmt, ...)
-       PRINTF_DECL(1, 2);
-EXTERN char *Msg_VFormat(const char *idFmt, va_list arguments);
-EXTERN unsigned Msg_Question(Msg_String const *buttons,
-                             int defaultAnswer, const char *idFmt, ...)
-       PRINTF_DECL(3, 4);
-EXTERN void Msg_AppendMsgList(const MsgList *msgs);
+char *Msg_Format(const char *idFmt,
+                 ...) PRINTF_DECL(1, 2);
+char *Msg_VFormat(const char *idFmt,
+                  va_list arguments);
+unsigned Msg_Question(Msg_String const *buttons,
+                      int defaultAnswer,
+                      const char *idFmt, ...) PRINTF_DECL(3, 4);
+void Msg_AppendMsgList(const MsgList *msgs);
 
 /*
  * Unfortunately, gcc warns about both NULL and "" being passed as format
  * strings, and callers of Msg_Progress() like to do that.  So I'm removing
  * the PRINTF_DECL() for now.  --Jeremy.
  */
-EXTERN int Msg_Progress(int percentDone, Bool cancelButton, const char *idFmt,
-                        ...);
-EXTERN int Msg_ProgressScaled(int percentDone, int opsDone, int opsTotal,
-                              Bool cancelButton);
+int Msg_Progress(int percentDone, Bool cancelButton, const char *idFmt,
+                 ...);
+int Msg_ProgressScaled(int percentDone, int opsDone, int opsTotal,
+                       Bool cancelButton);
 
-EXTERN void *Msg_LazyProgressStart(Bool allowCancel,
-                                   const char *idFmt,
-                                   ...)
-       PRINTF_DECL(2, 3);
-EXTERN Bool Msg_LazyProgress(void *handle,
-                             Bool allowCancel,
-                             int percent,
-                             const char *idFmt,
-                             ...)
-       PRINTF_DECL(4, 5);
-EXTERN void Msg_LazyProgressEnd(void *handle);
+void *Msg_LazyProgressStart(Bool allowCancel,
+                            const char *idFmt,
+                            ...) PRINTF_DECL(2, 3);
+
+Bool Msg_LazyProgress(void *handle,
+                      Bool allowCancel,
+                      int percent,
+                      const char *idFmt,
+                      ...) PRINTF_DECL(4, 5);
+
+void Msg_LazyProgressEnd(void *handle);
 
 
-EXTERN HintResult Msg_Hint(Bool defaultShow, HintOptions options,
-                           const char *idFmt, ...)
-       PRINTF_DECL(3, 4);
-EXTERN HintResult Msg_HintMsgList(Bool defaultShow, HintOptions options,
-                                  MsgList *msg);
-EXTERN int Msg_CompareAnswer(Msg_String const *buttons, unsigned answer,
-			     const char *string);
-EXTERN char *Msg_GetString(const char *idString);
-EXTERN char *Msg_GetStringSafe(const char *idString);
-EXTERN char *Msg_GetPlainButtonText(const char *idString);
-EXTERN char *Msg_GetLocale(void);
-EXTERN void Msg_SetLocale(const char *locale, const char *binaryName);
-EXTERN void Msg_SetLocaleEx(const char *locale, const char *binaryName,
-                            const char *baseDirPath);
-EXTERN char *Msg_FormatFloat(double value, unsigned int precision);
-EXTERN char *Msg_FormatSizeInBytes(uint64 size);
-EXTERN Bool Msg_LoadMessageFile(const char *locale, const char *fileName);
-EXTERN void Msg_ForceUnblock(void);
+HintResult Msg_Hint(Bool defaultShow,
+                    HintOptions options,
+                    const char *idFmt,
+                    ...) PRINTF_DECL(3, 4);
+
+HintResult Msg_HintMsgList(Bool defaultShow, HintOptions options,
+                           MsgList *msg);
+int Msg_CompareAnswer(Msg_String const *buttons, unsigned answer,
+                      const char *string);
+char *Msg_GetString(const char *idString);
+char *Msg_GetStringSafe(const char *idString);
+char *Msg_GetPlainButtonText(const char *idString);
+char *Msg_GetLocale(void);
+void Msg_SetLocale(const char *locale, const char *binaryName);
+void Msg_SetLocaleEx(const char *locale, const char *binaryName,
+                     const char *baseDirPath);
+char *Msg_FormatFloat(double value, unsigned int precision);
+char *Msg_FormatSizeInBytes(uint64 size);
+Bool Msg_LoadMessageFile(const char *locale, const char *fileName);
+void Msg_ForceUnblock(void);
 
 
 /*
  * Message buffer management
  */
 
-EXTERN const char *Msg_GetMessages(void);
-EXTERN const char *Msg_GetMessagesAndReset(void);
-EXTERN void Msg_LogAndReset(void);
-EXTERN MsgList *Msg_GetMsgList(void);
-EXTERN MsgList *Msg_GetMsgListAndReset(void);
-EXTERN char *Msg_LocalizeList(const MsgList *messages);
-EXTERN void Msg_Reset(Bool log);
-EXTERN Bool Msg_Present(void);
-EXTERN void Msg_ExitThread(void);
-EXTERN void Msg_Exit(void);
+const char *Msg_GetMessages(void);
+const char *Msg_GetMessagesAndReset(void);
+void Msg_LogAndReset(void);
+MsgList *Msg_GetMsgList(void);
+MsgList *Msg_GetMsgListAndReset(void);
+char *Msg_LocalizeList(const MsgList *messages);
+void Msg_Reset(Bool log);
+Bool Msg_Present(void);
+void Msg_ExitThread(void);
+void Msg_Exit(void);
 
 
 /*
@@ -224,11 +229,11 @@ EXTERN void Msg_Exit(void);
  * To implement message dialogs
  */
 
-EXTERN void Msg_SetCallback(MsgCallback *cb);
-EXTERN void Msg_SetThreadCallback(MsgCallback *cb);
+void Msg_SetCallback(MsgCallback *cb);
+void Msg_SetThreadCallback(MsgCallback *cb);
 
-EXTERN void Msg_GetCallback(MsgCallback *cb);
-EXTERN void Msg_GetThreadCallback(MsgCallback *cb);
+void Msg_GetCallback(MsgCallback *cb);
+void Msg_GetThreadCallback(MsgCallback *cb);
 
 
 /*
@@ -240,7 +245,7 @@ EXTERN void Msg_GetThreadCallback(MsgCallback *cb);
     Err_Errno2String(errorNumber) )
 
 #ifdef _WIN32
-EXTERN const char *Msg_HResult2String(long hr);
+const char *Msg_HResult2String(long hr);
 #endif
 
 #endif // ifndef _MSG_H_

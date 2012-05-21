@@ -203,52 +203,52 @@ typedef struct DnDBlockControl {
 /*
  * Windows-specific functions
  */
-EXTERN Unicode DnD_GetClipboardFormatName(UINT cf);
-EXTERN HGLOBAL DnD_CopyStringToGlobal(ConstUnicode str);
-EXTERN HGLOBAL DnD_CopyDWORDToGlobal(DWORD *pDWORD);
-EXTERN HGLOBAL DnD_CreateHDrop(ConstUnicode path, ConstUnicode fileList);
-EXTERN HGLOBAL DnD_CreateHDropForGuest(ConstUnicode path,
-                                       ConstUnicode fileList);
-EXTERN size_t DnD_CPStringToLocalString(ConstUnicode bufIn,
-                                        utf16_t **bufOut);
-EXTERN size_t DnD_LocalStringToCPString(utf16_t *bufIn,
-                                        char **bufOut);
-EXTERN Bool DnD_SetCPClipboardFromLocalText(CPClipboard *clip,
-                                            utf16_t *bufIn);
-EXTERN Bool DnD_SetCPClipboardFromLocalRtf(CPClipboard *clip,
-                                           char *bufIn);
-EXTERN Bool DnD_SetCPClipboardFromBMPInfo(CPClipboard *clip,
-                                          const LPBITMAPINFOHEADER bmi,
-                                          DND_CPFORMAT fmt);
-EXTERN Bool DnD_SetCPClipboardFromHBITMAP(CPClipboard *clip,
-                                          HBITMAP hBitmap,
-                                          DND_CPFORMAT fmt);
-EXTERN Bool DnD_PNGToLocalFormat(const unsigned char *pngData,
-                                 unsigned int pngDataLen,
-                                 int pngReadFlags,
-                                 DynBuf *bmpData,
-                                 HBITMAP *hBitmap);
-EXTERN Bool DnD_FakeMouseEvent(DWORD flag);
-EXTERN Bool DnD_FakeMouseState(DWORD key, Bool isDown);
-EXTERN Bool DnD_FakeEscapeKey(void);
-EXTERN Bool DnD_DeleteLocalDirectory(ConstUnicode localDir);
-EXTERN Bool DnD_SetClipboard(UINT format, char *buffer, int len);
-EXTERN Bool DnD_GetFileList(HDROP hDrop,
-                            char **remoteFiles,
-                            int *remoteLength,
-                            char **localFiles,
-                            int *localLength,
-                            uint64 *totalSize);
+Unicode DnD_GetClipboardFormatName(UINT cf);
+HGLOBAL DnD_CopyStringToGlobal(ConstUnicode str);
+HGLOBAL DnD_CopyDWORDToGlobal(DWORD *pDWORD);
+HGLOBAL DnD_CreateHDrop(ConstUnicode path, ConstUnicode fileList);
+HGLOBAL DnD_CreateHDropForGuest(ConstUnicode path,
+                                ConstUnicode fileList);
+size_t DnD_CPStringToLocalString(ConstUnicode bufIn,
+                                 utf16_t **bufOut);
+size_t DnD_LocalStringToCPString(utf16_t *bufIn,
+                                 char **bufOut);
+Bool DnD_SetCPClipboardFromLocalText(CPClipboard *clip,
+                                     utf16_t *bufIn);
+Bool DnD_SetCPClipboardFromLocalRtf(CPClipboard *clip,
+                                    char *bufIn);
+Bool DnD_SetCPClipboardFromBMPInfo(CPClipboard *clip,
+                                   const LPBITMAPINFOHEADER bmi,
+                                   DND_CPFORMAT fmt);
+Bool DnD_SetCPClipboardFromHBITMAP(CPClipboard *clip,
+                                   HBITMAP hBitmap,
+                                   DND_CPFORMAT fmt);
+Bool DnD_PNGToLocalFormat(const unsigned char *pngData,
+                          unsigned int pngDataLen,
+                          int pngReadFlags,
+                          DynBuf *bmpData,
+                          HBITMAP *hBitmap);
+Bool DnD_FakeMouseEvent(DWORD flag);
+Bool DnD_FakeMouseState(DWORD key, Bool isDown);
+Bool DnD_FakeEscapeKey(void);
+Bool DnD_DeleteLocalDirectory(ConstUnicode localDir);
+Bool DnD_SetClipboard(UINT format, char *buffer, int len);
+Bool DnD_GetFileList(HDROP hDrop,
+                     char **remoteFiles,
+                     int *remoteLength,
+                     char **localFiles,
+                     int *localLength,
+                     uint64 *totalSize);
 
 #else
 /*
  * Posix-specific functions
  */
 
-EXTERN char *DnD_UriListGetNextFile(char const *uriList,
-                                    size_t *index,
-                                    size_t *length);
-EXTERN Bool DnD_UriIsNonFileSchemes(char const *uri);
+char *DnD_UriListGetNextFile(char const *uriList,
+                             size_t *index,
+                             size_t *length);
+Bool DnD_UriIsNonFileSchemes(char const *uri);
 #endif
 
 /*

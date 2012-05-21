@@ -61,54 +61,54 @@ typedef struct VMIOVec {
 
 #define LAZY_ALLOC_MAGIC      ((void*)0xF0F0)
 
-EXTERN VMIOVec* IOV_Split(VMIOVec *regionV,
-                          SectorType numSectors,
-                          uint32 sectorSize);
+VMIOVec* IOV_Split(VMIOVec *regionV,
+                   SectorType numSectors,
+                   uint32 sectorSize);
 
-EXTERN void IOV_Log(const VMIOVec *iov);
-EXTERN void IOV_Zero(VMIOVec *iov);
-EXTERN Bool IOV_IsZero(VMIOVec* iov);
-EXTERN VMIOVec* IOV_Duplicate(VMIOVec* iovIn);
-EXTERN VMIOVec* IOV_Allocate(int numEntries);
-EXTERN void IOV_Free(VMIOVec* iov);
-EXTERN void IOV_DuplicateStatic(VMIOVec *iovIn,
-                                int numStaticEntries,
-                                struct iovec *staticEntries,
-                                VMIOVec *iovOut);
+void IOV_Log(const VMIOVec *iov);
+void IOV_Zero(VMIOVec *iov);
+Bool IOV_IsZero(VMIOVec* iov);
+VMIOVec* IOV_Duplicate(VMIOVec* iovIn);
+VMIOVec* IOV_Allocate(int numEntries);
+void IOV_Free(VMIOVec* iov);
+void IOV_DuplicateStatic(VMIOVec *iovIn,
+                         int numStaticEntries,
+                         struct iovec *staticEntries,
+                         VMIOVec *iovOut);
 
-EXTERN void IOV_MakeSingleIOV(VMIOVec* v,
-                              struct iovec* iov,
-                              SectorType startSector,
-                              SectorType dataLen,
-                              uint32 sectorSize,
-                              uint8* buffer,
-                              Bool read);
+void IOV_MakeSingleIOV(VMIOVec* v,
+                       struct iovec* iov,
+                       SectorType startSector,
+                       SectorType dataLen,
+                       uint32 sectorSize,
+                       uint8* buffer,
+                       Bool read);
 
-EXTERN void IOV_WriteIovToBuf(struct iovec* entries,
-                              int numEntries,
-                              uint8* bufOut,
-                              size_t bufSize);
+void IOV_WriteIovToBuf(struct iovec* entries,
+                       int numEntries,
+                       uint8* bufOut,
+                       size_t bufSize);
 
-EXTERN void IOV_WriteBufToIov(const uint8* bufIn,
-                              size_t bufSize,
-                              struct iovec* entries,
-                              int numEntries);
+void IOV_WriteBufToIov(const uint8* bufIn,
+                       size_t bufSize,
+                       struct iovec* entries,
+                       int numEntries);
 
-EXTERN size_t
+size_t
 IOV_WriteIovToBufPlus(struct iovec* entries,
                       int numEntries,
                       uint8* bufOut,
                       size_t bufSize,
                       size_t iovOffset);
 
-EXTERN size_t
+size_t
 IOV_WriteBufToIovPlus(uint8* bufIn,
                       size_t bufSize,
                       struct iovec* entries,
                       int numEntries,
                       size_t iovOffset);
 
-EXTERN size_t
+size_t
 IOV_WriteIovToIov(VMIOVec *srcIov,
                   VMIOVec *dstIov,
                   uint32 sectorSizeShift);
@@ -133,8 +133,8 @@ IOV_WriteIovToIov(VMIOVec *srcIov,
 
 #if VMX86_DEBUG
 #define IOV_ASSERT(IOVEC, NUM_ENTRIES) IOV_Assert(IOVEC, NUM_ENTRIES)
-EXTERN void IOV_Assert(struct iovec *iov,       // IN: iovector
-                       uint32 numEntries);      // IN: # of entries in 'iov'
+void IOV_Assert(struct iovec *iov,       // IN: iovector
+                uint32 numEntries);      // IN: # of entries in 'iov'
 #else
 #define IOV_ASSERT(IOVEC, NUM_ENTRIES) ((void) 0)
 #endif

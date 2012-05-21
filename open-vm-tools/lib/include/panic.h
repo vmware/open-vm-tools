@@ -33,7 +33,7 @@
  * Initialize module to read custom behavior from config files.
  */
 
-EXTERN void Panic_Init(void);
+void Panic_Init(void);
 
 /*
  * If you want the Panic module to just handle everything: implement Panic()
@@ -42,41 +42,41 @@ EXTERN void Panic_Init(void);
  * desired and get the default implementation of each feature.
  */
 
-EXTERN NORETURN void Panic_Panic(const char *format, va_list args);
+NORETURN void Panic_Panic(const char *format, va_list args);
 
 /*
  * On panic, post a UI dialog about the panic and how to diagnose it:
  */
 
-EXTERN void Panic_SetPanicMsgPost(Bool postMsg);
-EXTERN Bool Panic_GetPanicMsgPost(void);
-EXTERN void Panic_PostPanicMsg(const char *format, ...);
+void Panic_SetPanicMsgPost(Bool postMsg);
+Bool Panic_GetPanicMsgPost(void);
+void Panic_PostPanicMsg(const char *format, ...);
 
 /*
  * On panic, break into a debugger or enter an infinite loop until a
  * debugger stops it:
  */
 
-EXTERN void Panic_SetBreakOnPanic(Bool breakOnPanic);
-EXTERN Bool Panic_GetBreakOnPanic(void);
-EXTERN void Panic_BreakOnPanic(void);
-EXTERN void Panic_LoopOnPanic(void);
+void Panic_SetBreakOnPanic(Bool breakOnPanic);
+Bool Panic_GetBreakOnPanic(void);
+void Panic_BreakOnPanic(void);
+void Panic_LoopOnPanic(void);
 
 /*
  * On panic, dump core; Panic is also the place where various pieces of
  * back end stash information about the core dump.
  */
 
-EXTERN void Panic_SetCoreDumpOnPanic(Bool dumpCore);
-EXTERN Bool Panic_GetCoreDumpOnPanic(void);
-EXTERN void Panic_SetCoreDumpFileName(const char *fileName);
-EXTERN int  Panic_GetCoreDumpFlags(void);
-EXTERN void Panic_SetCoreDumpFlags(int flags);
+void Panic_SetCoreDumpOnPanic(Bool dumpCore);
+Bool Panic_GetCoreDumpOnPanic(void);
+void Panic_SetCoreDumpFileName(const char *fileName);
+int  Panic_GetCoreDumpFlags(void);
+void Panic_SetCoreDumpFlags(int flags);
 
 /*
  * Extra debugging information that Panic module knows how to dump.
  */
-EXTERN void Panic_DumpGuiResources(void);
+void Panic_DumpGuiResources(void);
 
 
 #endif //  _PANIC_H_

@@ -36,79 +36,79 @@
 struct CryptoKey;
 struct KeySafeUserRing;
 
-EXTERN void Config_SetAny(const char *value,
+void Config_SetAny(const char *value,
+                   const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetString(const char *value,
+                      const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetStringPlain(const char *value,
+                           const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetBool(Bool value, const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetBoolPlain(Bool value, const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetLong(int32 value,
+                    const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetInt64(int64 value,
+                     const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetLongPlain(int32 value,
+                         const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetDouble(double value,
+                      const char *fmt, ...) PRINTF_DECL(2, 3);
+
+char *Config_GetString(const char *defaultValue,
+                       const char *fmt, ...) PRINTF_DECL(2, 3);
+char *Config_GetStringPlain(const char *defaultValue,
+                            const char *fmt, ...) PRINTF_DECL(2, 3);
+char *Config_GetAsString(const char *fmt, ...) PRINTF_DECL(1, 2);
+char *Config_GetStringEnum(const char *defaultValue,
+                           const char **choices,
+                           const char *fmt, ...) PRINTF_DECL(3, 4);
+
+int Config_CompareVersion(const char *version);
+int Config_CompareVersions(const char *version1, const char *version2);
+char *Config_GetPathName(const char *defaultValue,
+                         const char *fmt, ...) PRINTF_DECL(2, 3);
+Bool Config_GetBool(Bool defaultValue,
+                    const char *fmt, ...) PRINTF_DECL(2, 3);
+Bool Config_GetBoolPlain(Bool defaultValue,
+                         const char *fmt, ...) PRINTF_DECL(2, 3);
+int32 Config_GetLong(int32 defaultValue,
+                     const char *fmt, ...) PRINTF_DECL(2, 3);
+int64 Config_GetInt64(int64 defaultValue,
+                      const char *fmt, ...) PRINTF_DECL(2, 3);
+int32 Config_GetLongPlain(int32 defaultValue,
                           const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN void Config_SetString(const char *value,
-                             const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN void Config_SetStringPlain(const char *value,
-                                  const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN void Config_SetBool(Bool value, const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN void Config_SetBoolPlain(Bool value, const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN void Config_SetLong(int32 value,
-                           const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN void Config_SetInt64(int64 value,
-                            const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN void Config_SetLongPlain(int32 value,
-                                const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN void Config_SetDouble(double value,
-                             const char *fmt, ...) PRINTF_DECL(2, 3);
+int32 Config_GetTriState(int32 defaultValue,
+                         const char *fmt, ...) PRINTF_DECL(2, 3);
+double Config_GetDouble(double defaultValue,
+                        const char *fmt, ...) PRINTF_DECL(2, 3);
+Bool Config_NotSet(const char *fmt, ...) PRINTF_DECL(1, 2);
+void Config_Unset(const char *fmt, ...) PRINTF_DECL(1, 2);
+void Config_UnsetWithPrefix(const char *fmt, ...) PRINTF_DECL(1, 2);
 
-EXTERN char *Config_GetString(const char *defaultValue,
-                              const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN char *Config_GetStringPlain(const char *defaultValue,
-                                   const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN char *Config_GetAsString(const char *fmt, ...) PRINTF_DECL(1, 2);
-EXTERN char *Config_GetStringEnum(const char *defaultValue,
-                                  const char **choices,
-                                  const char *fmt, ...) PRINTF_DECL(3, 4);
-
-EXTERN int Config_CompareVersion(const char *version);
-EXTERN int Config_CompareVersions(const char *version1, const char *version2);
-EXTERN char *Config_GetPathName(const char *defaultValue,
-				const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN Bool Config_GetBool(Bool defaultValue,
-                           const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN Bool Config_GetBoolPlain(Bool defaultValue,
-                                const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN int32 Config_GetLong(int32 defaultValue,
-                            const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN int64 Config_GetInt64(int64 defaultValue,
-                             const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN int32 Config_GetLongPlain(int32 defaultValue,
-                                 const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN int32 Config_GetTriState(int32 defaultValue,
-                                const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN double Config_GetDouble(double defaultValue,
-                               const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN Bool Config_NotSet(const char *fmt, ...) PRINTF_DECL(1, 2);
-EXTERN void Config_Unset(const char *fmt, ...) PRINTF_DECL(1, 2);
-EXTERN void Config_UnsetWithPrefix(const char *fmt, ...) PRINTF_DECL(1, 2);
-
-EXTERN void Config_Set(void *value, int type,
-                       const char *fmt, ...) PRINTF_DECL(3, 4);
+void Config_Set(void *value, int type,
+                const char *fmt, ...) PRINTF_DECL(3, 4);
 
 /*
  * This is tricky to call because it returns allocated storage. Use
  * the typed wrappers instead (Config_Get*).
  */
-EXTERN void *Config_Get(const void *pDefaultValue, int type,
-                        const char *fmt, ...) PRINTF_DECL(3, 4);
+void *Config_Get(const void *pDefaultValue, int type,
+                 const char *fmt, ...) PRINTF_DECL(3, 4);
 
-EXTERN void Config_MarkModified(const char *fmt, ...) PRINTF_DECL(1, 2);
-EXTERN Bool Config_Load(const char *filename);
-EXTERN Bool Config_Write(const char *dummy);
-EXTERN Bool Config_WriteNoMsg(void);
+void Config_MarkModified(const char *fmt, ...) PRINTF_DECL(1, 2);
+Bool Config_Load(const char *filename);
+Bool Config_Write(const char *dummy);
+Bool Config_WriteNoMsg(void);
 
-EXTERN Bool  Config_FileIsPresent(void);
-EXTERN Bool  Config_FileIsWritable(void);
+Bool  Config_FileIsPresent(void);
+Bool  Config_FileIsWritable(void);
 
-EXTERN uint32 Config_GetMask(uint32 defaultMask, const char *optionName);
-EXTERN uint64 Config_GetMask64(uint64 defaultMask, const char *optionName);
+uint32 Config_GetMask(uint32 defaultMask, const char *optionName);
+uint64 Config_GetMask64(uint64 defaultMask, const char *optionName);
 
-EXTERN Bool Config_GetDataFileKey(struct CryptoKey **key,
-                                  struct KeySafeUserRing **userRing);
+Bool Config_GetDataFileKey(struct CryptoKey **key,
+                           struct KeySafeUserRing **userRing);
 
-EXTERN Bool Config_GetDataFileKeys(struct KeySafeUserRing **parentKeys,
-                                   struct KeySafeUserRing **allKeys);
+Bool Config_GetDataFileKeys(struct KeySafeUserRing **parentKeys,
+                            struct KeySafeUserRing **allKeys);
 
 #endif // _CONFIG_H_

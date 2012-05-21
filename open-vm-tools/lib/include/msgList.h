@@ -54,19 +54,19 @@ struct MsgList {
  * Functions
  */
 
-EXTERN MsgList *MsgList_Create(const char *idFmt, ...);
-EXTERN MsgList *MsgList_VCreate(const char *idFmt, va_list args);
-EXTERN MsgList *MsgList_CreateStr(const char *id);
+MsgList *MsgList_Create(const char *idFmt, ...);
+MsgList *MsgList_VCreate(const char *idFmt, va_list args);
+MsgList *MsgList_CreateStr(const char *id);
 
-EXTERN void MsgList_Append(MsgList **tail, const char *idFmt, ...);
-EXTERN void MsgList_VAppend(MsgList **tail, const char *idFmt, va_list args);
-EXTERN void MsgList_AppendStr(MsgList **tail, const char *id);
+void MsgList_Append(MsgList **tail, const char *idFmt, ...);
+void MsgList_VAppend(MsgList **tail, const char *idFmt, va_list args);
+void MsgList_AppendStr(MsgList **tail, const char *id);
 
-EXTERN void MsgList_Log(const MsgList *messages);
-EXTERN char *MsgList_ToString(const MsgList *messages);
-EXTERN MsgList *MsgList_Copy(const MsgList *src);
-EXTERN void MsgList_Free(MsgList *messages);
+void MsgList_Log(const MsgList *messages);
+char *MsgList_ToString(const MsgList *messages);
+MsgList *MsgList_Copy(const MsgList *src);
+void MsgList_Free(MsgList *messages);
 
-EXTERN const char *MsgList_GetMsgID(const MsgList *messages);
+const char *MsgList_GetMsgID(const MsgList *messages);
 
 #endif // ifndef _MSGLIST_H_

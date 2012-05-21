@@ -61,39 +61,39 @@ typedef pid_t Util_ThreadID;
 #endif
 
 
-EXTERN uint32 CRC_Compute(const uint8 *buf, int len);
-EXTERN uint32 Util_Checksum32(const uint32 *buf, int len);
-EXTERN uint32 Util_Checksum(const uint8 *buf, int len);
-EXTERN uint32 Util_Checksumv(void *iov, int numEntries);
-EXTERN uint32 Util_HashString(const char *str);
-EXTERN Unicode Util_ExpandString(ConstUnicode fileName);
-EXTERN void Util_ExitThread(int);
-EXTERN NORETURN void Util_ExitProcessAbruptly(int);
-EXTERN int Util_HasAdminPriv(void);
+uint32 CRC_Compute(const uint8 *buf, int len);
+uint32 Util_Checksum32(const uint32 *buf, int len);
+uint32 Util_Checksum(const uint8 *buf, int len);
+uint32 Util_Checksumv(void *iov, int numEntries);
+uint32 Util_HashString(const char *str);
+Unicode Util_ExpandString(ConstUnicode fileName);
+void Util_ExitThread(int);
+NORETURN void Util_ExitProcessAbruptly(int);
+int Util_HasAdminPriv(void);
 #if defined _WIN32 && defined USERLEVEL
-EXTERN int Util_TokenHasAdminPriv(HANDLE token);
-EXTERN int Util_TokenHasInteractPriv(HANDLE token);
+int Util_TokenHasAdminPriv(HANDLE token);
+int Util_TokenHasInteractPriv(HANDLE token);
 #endif
-EXTERN Bool Util_Data2Buffer(char *buf, size_t bufSize, const void *data0,
-                             size_t dataSize);
-EXTERN char *Util_GetCanonicalPath(const char *path);
+Bool Util_Data2Buffer(char *buf, size_t bufSize, const void *data0,
+                      size_t dataSize);
+char *Util_GetCanonicalPath(const char *path);
 #ifdef _WIN32
-EXTERN char *Util_CompatGetCanonicalPath(const char *path);
-EXTERN char *Util_GetCanonicalPathForHash(const char *path);
-EXTERN char *Util_CompatGetLowerCaseCanonicalPath(const char* path);
+char *Util_CompatGetCanonicalPath(const char *path);
+char *Util_GetCanonicalPathForHash(const char *path);
+char *Util_CompatGetLowerCaseCanonicalPath(const char* path);
 #endif
-EXTERN int Util_BumpNoFds(uint32 *cur, uint32 *wanted);
-EXTERN Bool Util_CanonicalPathsIdentical(const char *path1, const char *path2);
-EXTERN Bool Util_IsAbsolutePath(const char *path);
-EXTERN unsigned Util_GetPrime(unsigned n0);
-EXTERN Util_ThreadID Util_GetCurrentThreadId(void);
+int Util_BumpNoFds(uint32 *cur, uint32 *wanted);
+Bool Util_CanonicalPathsIdentical(const char *path1, const char *path2);
+Bool Util_IsAbsolutePath(const char *path);
+unsigned Util_GetPrime(unsigned n0);
+Util_ThreadID Util_GetCurrentThreadId(void);
 
-EXTERN char *Util_DeriveFileName(const char *source,
-                                 const char *name,
-                                 const char *ext);
+char *Util_DeriveFileName(const char *source,
+                          const char *name,
+                          const char *ext);
 
-EXTERN char *Util_CombineStrings(char **sources, int count);
-EXTERN char **Util_SeparateStrings(char *source, int *count);
+char *Util_CombineStrings(char **sources, int count);
+char **Util_SeparateStrings(char *source, int *count);
 
 typedef struct UtilSingleUseResource UtilSingleUseResource;
 UtilSingleUseResource *Util_SingleUseAcquire(const char *name);
@@ -101,7 +101,7 @@ void Util_SingleUseRelease(UtilSingleUseResource *res);
 
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
-EXTERN Bool Util_GetProcessName(pid_t pid, char *bufOut, size_t bufOutSize);
+Bool Util_GetProcessName(pid_t pid, char *bufOut, size_t bufOutSize);
 #endif
 
 // backtrace functions and utilities
@@ -151,8 +151,8 @@ Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
 /*
  * In util_shared.h
  */
-EXTERN Bool Util_Throttle(uint32 count);
-EXTERN uint32 Util_FastRand(uint32 seed);
+Bool Util_Throttle(uint32 count);
+uint32 Util_FastRand(uint32 seed);
 
 
 /*
@@ -255,8 +255,8 @@ Util_BufferIsEmpty(void const *base,  // IN:
 }
 
 
-EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
-                                                unsigned int mode);
+Bool Util_MakeSureDirExistsAndAccessible(char const *path,
+                                         unsigned int mode);
 
 #if _WIN32
 #   define DIRSEPS	      "\\"
@@ -307,25 +307,25 @@ EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
  *--------------------------------------------------------------------------
  */
 
-EXTERN void *UtilSafeMalloc0(size_t size);
-EXTERN void *UtilSafeMalloc1(size_t size,
-                             int bugNumber, const char *file, int lineno);
+void *UtilSafeMalloc0(size_t size);
+void *UtilSafeMalloc1(size_t size,
+                      int bugNumber, const char *file, int lineno);
 
-EXTERN void *UtilSafeRealloc0(void *ptr, size_t size);
-EXTERN void *UtilSafeRealloc1(void *ptr, size_t size,
-                             int bugNumber, const char *file, int lineno);
+void *UtilSafeRealloc0(void *ptr, size_t size);
+void *UtilSafeRealloc1(void *ptr, size_t size,
+                      int bugNumber, const char *file, int lineno);
 
-EXTERN void *UtilSafeCalloc0(size_t nmemb, size_t size);
-EXTERN void *UtilSafeCalloc1(size_t nmemb, size_t size,
-                             int bugNumber, const char *file, int lineno);
+void *UtilSafeCalloc0(size_t nmemb, size_t size);
+void *UtilSafeCalloc1(size_t nmemb, size_t size,
+                      int bugNumber, const char *file, int lineno);
 
-EXTERN char *UtilSafeStrdup0(const char *s);
-EXTERN char *UtilSafeStrdup1(const char *s,
-                             int bugNumber, const char *file, int lineno);
+char *UtilSafeStrdup0(const char *s);
+char *UtilSafeStrdup1(const char *s,
+                      int bugNumber, const char *file, int lineno);
 
-EXTERN char *UtilSafeStrndup0(const char *s, size_t n);
-EXTERN char *UtilSafeStrndup1(const char *s, size_t n,
-                             int bugNumber, const char *file, int lineno);
+char *UtilSafeStrndup0(const char *s, size_t n);
+char *UtilSafeStrndup1(const char *s, size_t n,
+                      int bugNumber, const char *file, int lineno);
 
 /* 
  * Debug builds carry extra arguments into the allocation functions for
@@ -398,7 +398,7 @@ EXTERN char *UtilSafeStrndup1(const char *s, size_t n,
 #endif  /* VMX86_DEBUG */
 
 
-EXTERN void *Util_Memcpy(void *dest, const void *src, size_t count);
+void *Util_Memcpy(void *dest, const void *src, size_t count);
 
 
 /*

@@ -88,30 +88,30 @@
  */
 
 #ifdef HAS_BSD_PRINTF
-EXTERN int Str_Sprintf_C_Locale(char *buf, size_t max,
-                                const char *fmt, ...) PRINTF_DECL(3, 4);
+int Str_Sprintf_C_Locale(char *buf, size_t max,
+                         const char *fmt, ...) PRINTF_DECL(3, 4);
 #endif
 
-EXTERN int Str_Sprintf(char *buf, size_t max,
-                       const char *fmt, ...) PRINTF_DECL(3, 4);
-EXTERN int Str_Snprintf(char *buf, size_t len,
-			const char *fmt, ...) PRINTF_DECL(3, 4);
-EXTERN int Str_Vsnprintf(char *buf, size_t len,
-			 const char *fmt, va_list args);
-EXTERN size_t Str_Strlen(const char *src, size_t maxLen);
-EXTERN char *Str_Strnstr(const char *src, const char *sub, size_t n);
-EXTERN char *Str_Strcpy(char *dst, const char *src, size_t maxLen);
-EXTERN char *Str_Strcat(char *dst, const char *src, size_t maxLen);
-EXTERN char *Str_Strncat(char *buf, size_t bufSize, const char *src, size_t n);
+int Str_Sprintf(char *buf, size_t max,
+                const char *fmt, ...) PRINTF_DECL(3, 4);
+int Str_Snprintf(char *buf, size_t len,
+                 const char *fmt, ...) PRINTF_DECL(3, 4);
+int Str_Vsnprintf(char *buf, size_t len,
+                  const char *fmt, va_list args);
+size_t Str_Strlen(const char *src, size_t maxLen);
+char *Str_Strnstr(const char *src, const char *sub, size_t n);
+char *Str_Strcpy(char *dst, const char *src, size_t maxLen);
+char *Str_Strcat(char *dst, const char *src, size_t maxLen);
+char *Str_Strncat(char *buf, size_t bufSize, const char *src, size_t n);
 
-EXTERN char *Str_Asprintf(size_t *length,
-                          const char *format, ...) PRINTF_DECL(2, 3);
-EXTERN char *Str_Vasprintf(size_t *length, const char *format,
-                           va_list arguments);
-EXTERN char *Str_SafeAsprintf(size_t *length,
-                              const char *format, ...) PRINTF_DECL(2, 3);
-EXTERN char *Str_SafeVasprintf(size_t *length, const char *format,
-                               va_list arguments);
+char *Str_Asprintf(size_t *length,
+                   const char *format, ...) PRINTF_DECL(2, 3);
+char *Str_Vasprintf(size_t *length, const char *format,
+                    va_list arguments);
+char *Str_SafeAsprintf(size_t *length,
+                       const char *format, ...) PRINTF_DECL(2, 3);
+char *Str_SafeVasprintf(size_t *length, const char *format,
+                        va_list arguments);
 
 #if defined(_WIN32) || defined(__linux__) // {
 
@@ -128,25 +128,25 @@ EXTERN char *Str_SafeVasprintf(size_t *length, const char *format,
  * strings of "wchar_t" units, regardless of platform.
  */
 
-EXTERN int Str_Swprintf(wchar_t *buf, size_t max,
-                        const wchar_t *fmt, ...);
-EXTERN int Str_Snwprintf(wchar_t *buf, size_t len,
-                         const wchar_t *fmt, ...);
-EXTERN int Str_Vsnwprintf(wchar_t *buf, size_t len,
-                          const wchar_t *fmt, va_list args);
-EXTERN wchar_t *Str_Wcscpy(wchar_t *dst, const wchar_t *src, size_t maxLen);
-EXTERN wchar_t *Str_Wcscat(wchar_t *dst, const wchar_t *src, size_t maxLen);
-EXTERN wchar_t *Str_Wcsncat(wchar_t *buf, size_t bufSize, const wchar_t *src,
-                            size_t n);
+int Str_Swprintf(wchar_t *buf, size_t max,
+                 const wchar_t *fmt, ...);
+int Str_Snwprintf(wchar_t *buf, size_t len,
+                  const wchar_t *fmt, ...);
+int Str_Vsnwprintf(wchar_t *buf, size_t len,
+                   const wchar_t *fmt, va_list args);
+wchar_t *Str_Wcscpy(wchar_t *dst, const wchar_t *src, size_t maxLen);
+wchar_t *Str_Wcscat(wchar_t *dst, const wchar_t *src, size_t maxLen);
+wchar_t *Str_Wcsncat(wchar_t *buf, size_t bufSize, const wchar_t *src,
+                     size_t n);
 
-EXTERN wchar_t *Str_Aswprintf(size_t *length,
-                              const wchar_t *format, ...);
-EXTERN wchar_t *Str_Vaswprintf(size_t *length, const wchar_t *format,
-                               va_list arguments);
-EXTERN wchar_t *Str_SafeAswprintf(size_t *length,
-                                  const wchar_t *format, ...);
-EXTERN wchar_t *Str_SafeVaswprintf(size_t *length, const wchar_t *format,
-                                   va_list arguments);
+wchar_t *Str_Aswprintf(size_t *length,
+                       const wchar_t *format, ...);
+wchar_t *Str_Vaswprintf(size_t *length, const wchar_t *format,
+                        va_list arguments);
+wchar_t *Str_SafeAswprintf(size_t *length,
+                           const wchar_t *format, ...);
+wchar_t *Str_SafeVaswprintf(size_t *length, const wchar_t *format,
+                            va_list arguments);
 
 unsigned char *Str_Mbscpy(char *buf, const char *src,
                           size_t maxSize);
