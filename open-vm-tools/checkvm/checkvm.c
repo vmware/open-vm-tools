@@ -115,16 +115,8 @@ main(int argc,
          * obtained from getVersion().
          */
          switch (version[1]) {
-         case VMX_TYPE_EXPRESS:
-            printf("Express\n");
-            break;
-
          case VMX_TYPE_SCALABLE_SERVER:
             printf("ESX Server\n");
-            break;
-
-         case VMX_TYPE_WGS:
-            printf("VMware Server\n");
             break;
 
          case VMX_TYPE_WORKSTATION:

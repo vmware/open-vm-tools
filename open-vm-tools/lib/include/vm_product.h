@@ -59,8 +59,6 @@
  * Brief names are used when the VMware prefix is not wanted.
  */
 #define PRODUCT_SCALABLE_SERVER_BRIEF_NAME "ESX"
-#define PRODUCT_WGS_BRIEF_NAME "Server"
-#define PRODUCT_GSX_BRIEF_NAME "GSX Server"
 #define PRODUCT_WORKSTATION_BRIEF_NAME "Workstation"
 #define PRODUCT_WORKSTATION_ENTERPRISE_BRIEF_NAME \
          PRODUCT_WORKSTATION_BRIEF_NAME " " "ACE Edition"
@@ -83,9 +81,6 @@
 
 #define PRODUCT_SCALABLE_SERVER_NAME MAKE_NAME(PRODUCT_SCALABLE_SERVER_BRIEF_NAME)
 #define PRODUCT_ESX_SMP_NAME MAKE_NAME("Virtual SMP for ESX Server")
-#define PRODUCT_WGS_NAME MAKE_NAME(PRODUCT_WGS_BRIEF_NAME)
-#define PRODUCT_GSX_NAME MAKE_NAME(PRODUCT_GSX_BRIEF_NAME)
-#define PRODUCT_GSX_SMP_NAME MAKE_NAME("Virtual SMP for GSX Server")
 #define PRODUCT_WORKSTATION_NAME MAKE_NAME(PRODUCT_WORKSTATION_BRIEF_NAME)
 #define PRODUCT_WORKSTATION_ENTERPRISE_NAME MAKE_NAME(PRODUCT_WORKSTATION_ENTERPRISE_BRIEF_NAME)
 #define PRODUCT_WORKSTATION_SERVER_NAME MAKE_NAME(PRODUCT_WORKSTATION_SERVER_BRIEF_NAME)
@@ -113,13 +108,6 @@
 
 #define PRODUCT_VCB_SHORT_NAME "VCB"
 #define PRODUCT_VCB_NAME MAKE_NAME("Consolidated Backup")
-
-#define PRODUCT_API_SCRIPTING_COM_SHORT_NAME "VmCOM"
-#define PRODUCT_API_SCRIPTING_PERL_SHORT_NAME "VmPerl"
-
-#define PRODUCT_API_SCRIPTING_COM_NAME MAKE_NAME(PRODUCT_API_SCRIPTING_COM_SHORT_NAME " Scripting API")
-
-#define PRODUCT_API_SCRIPTING_PERL_NAME MAKE_NAME(PRODUCT_API_SCRIPTING_PERL_SHORT_NAME " Scripting API")
 
 #define PRODUCT_VPX_NAME MAKE_NAME("VirtualCenter")
 
@@ -258,12 +246,10 @@
 
 
 #if !(   defined(VMX86_SERVER)   \
-      || defined(VMX86_WGS)      \
       || defined(VMX86_DESKTOP)  \
       || defined(VMX86_ENTERPRISE_DESKTOP) \
       || defined(VMX86_VIEW)     \
       || defined(VMX86_MUI)      \
-      || defined(VMX86_API)      \
       || defined(VMX86_VPX)      \
       || defined(VMX86_WBC)      \
       || defined(VMX86_SDK)      \
@@ -296,14 +282,8 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VMVISOR_NAME
 #elif defined(VMX86_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_SCALABLE_SERVER_NAME
-#elif defined(VMX86_WGS_MIGRATION)
-# define PRODUCT_SHORT_NAME PRODUCT_WGS_MIGRATION_NAME
-#elif defined(VMX86_WGS)
-#  if defined(VMX86_CONSOLE)
-#     define PRODUCT_SHORT_NAME PRODUCT_CONSOLE_NAME
-#  else
-#     define PRODUCT_SHORT_NAME PRODUCT_WGS_NAME
-#  endif
+#elif defined(VMX86_CONSOLE)
+# define PRODUCT_SHORT_NAME PRODUCT_CONSOLE_NAME
 #elif defined(VMX86_MUI)
 # define PRODUCT_SHORT_NAME PRODUCT_MUI_NAME
 #elif defined(VMX86_ENTERPRISE_DESKTOP)
@@ -316,12 +296,6 @@
 # endif
 #elif defined(VMX86_TOOLS)
 # define PRODUCT_SHORT_NAME VMWARE_TOOLS_SHORT_NAME
-#elif defined(VMX86_API)
-#  ifdef _WIN32
-#     define PRODUCT_SHORT_NAME PRODUCT_API_SCRIPTING_COM_NAME
-#  else
-#     define PRODUCT_SHORT_NAME PRODUCT_API_SCRIPTING_PERL_NAME
-#  endif
 #elif defined(VMX86_VPX)
 #  if defined(CSI_HA)
 #     define PRODUCT_SHORT_NAME PRODUCT_HA_NAME     
@@ -439,12 +413,6 @@
 #   elif defined(VMX86_VPX)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_WGS_MIGRATION)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " for " PRODUCT_OS
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_WGS)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_GSX_NAME " for " PRODUCT_OS
-#      define PRODUCT_SMP_NAME_FOR_LICENSE PRODUCT_GSX_SMP_NAME " for " PRODUCT_OS
 #   elif defined(VMX86_SYSIMAGE)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
@@ -460,9 +428,8 @@
  * VMWARE_HOST_DIRECTORY is for host-specific configuration files.
  * DEFAULT_LIBDIRECTORY is the default for the 'libdir' config variable.
  *
- * The APIs are installed as separate products and must have their own
- * configuration and library directories.  The remote console checks at
- * run time, and the MUI is not really a separate product.
+ * The remote console checks at run time, and the MUI is not really a separate
+ * product.
  */
 #   if defined(__APPLE__)
 #      if defined VMX86_DESKTOP
@@ -474,14 +441,7 @@
 #      endif
 #   endif
 
-#   if defined(VMX86_API)
-#      if defined(__APPLE__)
-#         define VMWARE_HOST_DIRECTORY VMWARE_HOST_DIRECTORY_PREFIX " API"
-#      else
-#         define VMWARE_HOST_DIRECTORY "/etc/" PRODUCT_GENERIC_NAME_LOWER "-api"
-#         define DEFAULT_LIBDIRECTORY "/usr/lib/" PRODUCT_GENERIC_NAME_LOWER "-api"
-#      endif
-#   elif defined (VMX86_CONSOLE)
+#   if defined (VMX86_CONSOLE)
 #      if defined(__APPLE__)
 #         define VMWARE_HOST_DIRECTORY VMWARE_HOST_DIRECTORY_PREFIX " Console"
 #      else
@@ -562,12 +522,6 @@
 #   elif defined(VMX86_VPX)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_WGS_MIGRATION)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " for Win32"
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_WGS)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_GSX_NAME " for Win32"
-#      define PRODUCT_SMP_NAME_FOR_LICENSE PRODUCT_GSX_SMP_NAME " for Win32"
 #   else
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_REG_NAME
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None

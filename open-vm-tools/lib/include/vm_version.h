@@ -148,21 +148,6 @@
  */
 
 /*
- * This is the Scripting API (VmCOM, VmPerl, VmXXX) version number.
- * It is independent of the main VMX product version number.
- * The first released Scripting API from branch server02 has
- * version 2.0.0 to distinguish it from the legacy Perl API.
- *
- * Rules for updating the version:
- * - New features bump either major or minor version, depending on
- *   the magnitude of the change.
- * - A change that deprecates or obsoletes any existing interfaces
- *   requires a major version bump.
- */
-#define API_SCRIPTING_VERSION "4.1.0"
-#define API_VMDB_VERSION "4.1.0"
-
-/*
  * When updating the ESX_VERSION* and ESX_RELEASE* macros, you will also
  * need to update:
  *
@@ -199,7 +184,6 @@
 #define ESX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define ESX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
-#define GSX_VERSION "e.x.p"
 #define VMSERVER_VERSION "e.x.p"
 #define WORKSTATION_VERSION_NUMBER "8.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
@@ -315,17 +299,10 @@
 
 #define VIM_EESX_PRODUCT_LINE_ID "embeddedEsx"
 #define VIM_ESX_PRODUCT_LINE_ID "esx"
-#define VIM_GSX_PRODUCT_LINE_ID "gsx"
 #define VIM_WS_PRODUCT_LINE_ID "ws"
-
-#define PRODUCT_API_SCRIPTING_VERSION API_SCRIPTING_VERSION " " BUILD_NUMBER
 
 #if defined(VMX86_SERVER)
 #  define PRODUCT_VERSION_NUMBER ESX_VERSION
-#elif defined(VMX86_WGS_MIGRATION)
-#  define PRODUCT_VERSION_NUMBER GSX_MIGRATION_VERSION
-#elif defined(VMX86_WGS)
-#  define PRODUCT_VERSION_NUMBER VMSERVER_VERSION
 #elif defined(VMX86_MUI)
 #  define PRODUCT_VERSION_NUMBER MUI_VERSION
 #elif defined(VMX86_ENTERPRISE_DESKTOP)
@@ -336,8 +313,6 @@
 #  else
 #    define PRODUCT_VERSION_NUMBER WORKSTATION_VERSION
 #  endif
-#elif defined(VMX86_API)
-#  define PRODUCT_VERSION_NUMBER API_SCRIPTING_VERSION
 #elif defined(VMX86_VPX)
 #  if defined(XVP)
 #     define PRODUCT_VERSION_NUMBER XVP_VERSION
@@ -494,10 +469,9 @@
 #define PRODUCT_VERSION_SCALABLE_SERVER_31 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 3.5"
 #define PRODUCT_VERSION_SCALABLE_SERVER_40 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 4.x"
 #define PRODUCT_VERSION_SCALABLE_SERVER_50 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 5.0"
-#define PRODUCT_VERSION_WGS_1 PRODUCT_WGS_BRIEF_NAME " 1.x"
-#define PRODUCT_VERSION_WGS_2 PRODUCT_WGS_BRIEF_NAME " 2.x"
-#define PRODUCT_VERSION_GSX_2 PRODUCT_GSX_BRIEF_NAME " 2.x"
-#define PRODUCT_VERSION_GSX_3 PRODUCT_GSX_BRIEF_NAME " 3.x"
+#define PRODUCT_VERSION_WGS_1 "Server 1.x"
+#define PRODUCT_VERSION_WGS_2 "Server 2.x"
+#define PRODUCT_VERSION_GSX_3 "GSX Server 3.x"
 #define PRODUCT_VERSION_WORKSTATION_4 PRODUCT_WORKSTATION_BRIEF_NAME " 4.x"
 #define PRODUCT_VERSION_WORKSTATION_5 PRODUCT_WORKSTATION_BRIEF_NAME " 5.x"
 #define PRODUCT_VERSION_WORKSTATION_6 PRODUCT_WORKSTATION_BRIEF_NAME " 6.0"
@@ -527,7 +501,7 @@ typedef enum {
    VMX_TYPE_UNSET,
    VMX_TYPE_EXPRESS, /* This deprecated type was used for VMware Express */
    VMX_TYPE_SCALABLE_SERVER,
-   VMX_TYPE_WGS,
+   VMX_TYPE_WGS, /* This deprecated type was used for VMware Server */
    VMX_TYPE_WORKSTATION,
    VMX_TYPE_WORKSTATION_ENTERPRISE /* This deprecated type was used for ACE 1.x */
 } VMX_Type;

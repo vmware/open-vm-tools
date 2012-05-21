@@ -618,14 +618,6 @@ typedef int pid_t;
 #define HOSTED_ONLY(x) x
 #endif
 
-#ifdef VMX86_WGS
-#define vmx86_wgs 1
-#define WGS_ONLY(x) x
-#else
-#define vmx86_wgs 0
-#define WGS_ONLY(x) 
-#endif
-
 #ifdef VMKERNEL
 #define vmkernel 1
 #define VMKERNEL_ONLY(x) x
