@@ -63,14 +63,71 @@ namespace vmware { namespace tools {
 static NotifyIconRpcCallback gNotifyIconCallback;
 #endif // G_PLATFORM_WIN32
 
-/**
- * Constructor for the Unity plugin, initialized Unity, and common options values
+/*
+ *------------------------------------------------------------------------------
  *
- * @param[in]  ctx      Host application context.
+ * UnityPlugin::UnityPlugin --
  *
+ *      Constructor.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *------------------------------------------------------------------------------
  */
 
-UnityPlugin::UnityPlugin(ToolsAppCtx *ctx) : mUnityUpdateChannel(NULL)
+UnityPlugin::UnityPlugin()
+   : mUnityUpdateChannel(NULL),
+     mInitialized(false)
+{
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * UnityPlugin::~UnityPlugin --
+ *
+ *      Destructor.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *------------------------------------------------------------------------------
+ */
+
+UnityPlugin::~UnityPlugin()
+{
+   if (mInitialized) {
+      Cleanup();
+   }
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * UnityPlugin::Initialize --
+ *
+ *      Initializes the plugin.
+ *
+ * Results:
+ *      Returns true on success.
+ *
+ * Side effects:
+ *      None
+ *
+ *------------------------------------------------------------------------------
+ */
+
+gboolean
+UnityPlugin::Initialize(ToolsAppCtx *ctx) // IN
 {
    ASSERT(ctx);
 
@@ -89,7 +146,7 @@ UnityPlugin::UnityPlugin(ToolsAppCtx *ctx) : mUnityUpdateChannel(NULL)
    mUnityUpdateChannel = UnityUpdateChannelInit();
    if (NULL == mUnityUpdateChannel) {
       Warning("%s: Unable to initialize Unity update channel.\n", __FUNCTION__);
-      return;
+      return FALSE;
    }
 
    Unity_Init(NULL, mUnityUpdateChannel, unityHostCallbacks, ctx->serviceObj);
@@ -127,15 +184,35 @@ UnityPlugin::UnityPlugin(ToolsAppCtx *ctx) : mUnityUpdateChannel(NULL)
                      /* blue */ 0xdc << 16;
    }
    Unity_SetConfigDesktopColor(desktopColor);
+
+   mInitialized = true;
+   return TRUE;
 }
 
 
-/**
- * Destructor for the Unity plugin, cleanup Unity
+/*
+ *------------------------------------------------------------------------------
+ *
+ * UnityPlugin::Cleanup --
+ *
+ *      Cleans up the plugin.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *------------------------------------------------------------------------------
  */
 
-UnityPlugin::~UnityPlugin()
+void
+UnityPlugin::Cleanup()
 {
+   if (!mInitialized) {
+      return;
+   }
+
    Unity_Cleanup();
    UnityUpdateChannelCleanup(mUnityUpdateChannel);
    UnityTcloCleanup();
@@ -144,7 +221,10 @@ UnityPlugin::~UnityPlugin()
 #endif // G_PLATFORM_WIN32
    GHI_Cleanup();
    GHITcloCleanup();
+
+   mInitialized = false;
 }
+
 
 /**
  * Called by the service core when the host requests the capabilities supported

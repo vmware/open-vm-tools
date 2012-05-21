@@ -192,8 +192,8 @@
                     ESX_VERSION_MAINT
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
                                 ESX_VERSION_MAINT
-#define ESX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
-#define ESX_RELEASE_PATCH "0"  /* 0 = experimental */
+#define ESX_RELEASE_UPDATE "1" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define ESX_RELEASE_PATCH "11"  /* 0 = experimental */
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
 #define GSX_VERSION "e.x.p"
 #define VMSERVER_VERSION "e.x.p"
@@ -219,7 +219,7 @@
 #define VCB_FILE_VERSION 4,0,0,0
 #define VIM_VERSION "5.0.0"
 #define VPX_VERSION "5.0.0"
-#define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define VPX_RELEASE_UPDATE "1" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define SVA_VERSION "1.0.0"
 #define WBC_VERSION "5.0.0"
 #define SDK_VERSION "4.1.0"

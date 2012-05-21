@@ -86,7 +86,7 @@ typedef enum GuestOSType {
    GUEST_OS_WINSEVEN_64         = GUEST_OS_BASE + 48, // Windows 7
    GUEST_OS_WIN2008R2           = GUEST_OS_BASE + 49, // Server 2008 R2
    GUEST_OS_WIN2008R2_64        = GUEST_OS_BASE + 50, // Server 2008 R2
-   GUEST_OS_ECOMSTATION         = GUEST_OS_BASE + 51, // OS/2 variant
+   GUEST_OS_ECOMSTATION         = GUEST_OS_BASE + 51, // OS/2 variant; 1.x
    GUEST_OS_RHEL6               = GUEST_OS_BASE + 52,
    GUEST_OS_RHEL6_64            = GUEST_OS_BASE + 53,
    GUEST_OS_WINEIGHT            = GUEST_OS_BASE + 54, // Windows 8
@@ -95,6 +95,7 @@ typedef enum GuestOSType {
    GUEST_OS_VMKERNEL5           = GUEST_OS_BASE + 57, // ESX 5.x and later
    GUEST_OS_DARWIN11            = GUEST_OS_BASE + 58, // Mac OS 10.7
    GUEST_OS_DARWIN11_64         = GUEST_OS_BASE + 59,
+   GUEST_OS_ECOMSTATION2        = GUEST_OS_BASE + 60, // OS/2 variant; 2.x
 } GuestOSType;
 
 
@@ -187,7 +188,8 @@ typedef enum GuestOSFamilyType {
                          BS(SOLARIS10_64) | BS(FREEBSD_64) | \
                          ALLDARWIN64 | BS(OTHER_64) | ALLVMKERNEL)
 
-#define ALLOS2          (BS(OS2) | BS(ECOMSTATION))
+#define ALLECOMSTATION  (BS(ECOMSTATION) | BS(ECOMSTATION2))
+#define ALLOS2          (BS(OS2) | ALLECOMSTATION)
 
 
 /*

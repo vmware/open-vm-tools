@@ -187,9 +187,11 @@ public:
 
 class UnityPlugin  : public ToolsPlugin {
 public:
-   UnityPlugin(ToolsAppCtx *ctx);
+   UnityPlugin();
    virtual ~UnityPlugin();
 
+   virtual gboolean Initialize(ToolsAppCtx *ctx);
+   virtual void Cleanup();
    virtual gboolean Reset(gpointer src) { return TRUE; }
    virtual void Shutdown(gpointer src) {};
    virtual gboolean SetOption(gpointer src, const std::string &option, const std::string &value)
@@ -201,12 +203,13 @@ public:
 
 protected:
    UnityUpdateChannel *mUnityUpdateChannel;
+   bool mInitialized;
 };
 
 #ifdef _WIN32
 class UnityPluginWin32 : public UnityPlugin {
 public:
-   UnityPluginWin32(ToolsAppCtx *ctx) : UnityPlugin(ctx) {};
+   UnityPluginWin32() : UnityPlugin() {};
    virtual ~UnityPluginWin32() {};
 
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set);

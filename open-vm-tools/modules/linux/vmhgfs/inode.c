@@ -127,6 +127,10 @@ static int HgfsSymlink(struct inode *dir,
 static int HgfsPermission(struct inode *inode,
                           int mask,
                           struct nameidata *nameidata);
+#elif defined(IPERM_FLAG_RCU) /* introduced in 2.6.38 */
+static int HgfsPermission(struct inode *inode,
+                          int mask,
+                          unsigned int flags);
 #else
 static int HgfsPermission(struct inode *inode,
                           int mask);
@@ -1832,14 +1836,17 @@ HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
  *----------------------------------------------------------------------
  */
 
+static int
+HgfsPermission(struct inode *inode, 
+               int mask
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
-static int
-HgfsPermission(struct inode *inode, int mask, struct nameidata *nd)
-#else
-static int
-HgfsPermission(struct inode *inode, int mask)
+               , struct nameidata *nd
 #endif
+#ifdef IPERM_FLAG_RCU /* introduced in 2.6.38 */
+               , unsigned int flags
+#endif
+               )
 {
    LOG(8, ("VMware hgfs: %s: inode->mode: %8x mask: %8x\n", __func__,
            inode->i_mode, mask));
@@ -1861,10 +1868,25 @@ HgfsPermission(struct inode *inode, int mask)
       int dcount = 0;
       struct dentry *dentry = NULL;
 
+#ifdef IPERM_FLAG_RCU
+      /*
+       * In 2.6.38 path walk is done in 2 distinct modes: rcu-walk and
+       * ref-walk. Ref-walk is the classic one; rcu is lockless and is
+       * not allowed to sleep. We insist on using ref-walk since our
+       * transports may sleep.
+       */
+      if (flags & IPERM_FLAG_RCU)
+         return -ECHILD;
+#endif
+
       /* Find a dentry with valid d_count. Refer bug 587789. */
       list_for_each(pos, &inode->i_dentry) {
          dentry = list_entry(pos, struct dentry, d_alias);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 38)
          dcount = atomic_read(&dentry->d_count);
+#else
+         dcount = dentry->d_count;
+#endif
          if (dcount) {
             LOG(4, ("Found %s %d \n", (dentry)->d_name.name, dcount));
             break;

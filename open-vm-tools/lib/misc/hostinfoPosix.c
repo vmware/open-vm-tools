@@ -820,6 +820,7 @@ HostinfoOSData(void)
    struct utsname buf;
    unsigned int lastCharPos;
    const char *lsbCmd = "lsb_release -sd 2>/dev/null";
+   char *lsbOutput = NULL;
 
    char osName[MAX_OS_NAME_LEN];
    char osNameFull[MAX_OS_FULLNAME_LEN];
@@ -854,26 +855,23 @@ HostinfoOSData(void)
    if (strstr(osNameFull, "Linux")) {
       char distro[DISTRO_BUF_SIZE];
       char distroShort[DISTRO_BUF_SIZE];
-      static int const distroSize = sizeof distro;
-      char *lsbOutput;
       int i = 0;
-      int majorVersion;
+      int distroSize = sizeof distro;
 
       /*
        * Write default distro string depending on the kernel version. If
        * later we find more detailed information this will get overwritten.
        */
 
-      majorVersion = Hostinfo_OSVersion(0);
-      if (majorVersion < 2 || (majorVersion == 2 && Hostinfo_OSVersion(1) < 4)) {
-         Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
-      } else if (majorVersion == 2 && Hostinfo_OSVersion(1) < 6) {
+      if (StrUtil_StartsWith(buf.release, "2.4.")) {
          Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
-      } else {
+      } else if (StrUtil_StartsWith(buf.release, "2.6.")) {
          Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
+      } else {
+         Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
       }
 
       /*
@@ -990,7 +988,6 @@ HostinfoOSData(void)
        * PITA. Get the output of system_profiler instead; downside is that any
        * changes to the format of the output of system_profiler may break this.
        */
-      SInt32 major;
       const char *cmd = "/usr/sbin/system_profiler SPSoftwareDataType | "
                         "/usr/bin/grep 'System Version:' | "
                         "/usr/bin/cut -d : -f 2";
@@ -1006,22 +1003,8 @@ HostinfoOSData(void)
          Log("%s: Failed to get output of system_profiler.\n", __FUNCTION__);
       }
 
-      if (Gestalt(gestaltSystemVersionMajor, &major) == 0) {
-         /*
-          * XXX: some places in the code refer to Mac OS X Lion (10.7?)
-          * as "darwin11", which is not what this code is doing. Once it's
-          * released and we support it, this code may need some tweaking.
-          */
-         Str_Snprintf(osName, sizeof osName, "%s%d", STR_OS_MACOS, (int) major);
-      } else if (Gestalt(gestaltSystemVersion, &major) == 0) {
-         /* Pre 10.3 Mac OS doesn't have gestaltSystemVersionMajor. */
-         NOT_TESTED();
-         major = (major & 0xFF00) >> 8;
-         Str_Snprintf(osName, sizeof osName, "%s%x", STR_OS_MACOS, (int) major);
-      } else {
-         Log("Call to Gestalt() failed!\n");
-         Str_Snprintf(osName, sizeof osName, "%s", STR_OS_MACOS);
-      }
+      Str_Snprintf(osName, sizeof osName, "%s%d", STR_OS_MACOS,
+                   Hostinfo_OSVersion(0));
 #endif
    }
 
@@ -3458,8 +3441,7 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
 #endif
 
    // "/proc/self/exe" only exists on Linux 2.2+.
-   ASSERT(Hostinfo_OSVersion(0) > 2 ||
-          (Hostinfo_OSVersion(0) == 2 && Hostinfo_OSVersion(1) >= 2));
+   ASSERT(Hostinfo_OSVersion(0) >= 2 && Hostinfo_OSVersion(1) >= 2);
 
    if (priv == HGMP_PRIVILEGE) {
       uid = Id_BeginSuperUser();

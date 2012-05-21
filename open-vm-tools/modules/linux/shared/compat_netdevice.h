@@ -179,20 +179,12 @@ compat_alloc_netdev(int priv_size,
 #endif
 
 /*
- * All compat_* business is good but when we can we should just provide
- * missing implementation to ease upstreaming task.
+ * In 3.1 merge window feature maros were removed from mainline,
+ * so let's add back ones we care about.
  */
-#ifndef HAVE_ALLOC_NETDEV
-#define alloc_netdev(sz, name, setup)  compat_alloc_netdev(sz, name, setup)
-#define alloc_etherdev(sz)             compat_alloc_etherdev(sz)
-#endif
-
-#ifndef HAVE_FREE_NETDEV
-#define free_netdev(dev)               kfree(dev)
-#endif
-
-#ifndef HAVE_NETDEV_PRIV
-#define netdev_priv(dev)               ((dev)->priv)
+#if !defined(HAVE_NET_DEVICE_OPS) && \
+         LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)
+#   define HAVE_NET_DEVICE_OPS 1
 #endif
 
 #if defined(NETDEV_TX_OK)
@@ -201,55 +193,6 @@ compat_alloc_netdev(int priv_size,
 #else
 #   define COMPAT_NETDEV_TX_OK    0
 #   define COMPAT_NETDEV_TX_BUSY  1
-#endif
-
-#ifndef HAVE_NETIF_QUEUE
-static inline void
-netif_start_queue(struct device *dev)
-{
-   clear_bit(0, &dev->tbusy);
-}
-
-static inline void
-netif_stop_queue(struct device *dev)
-{
-   set_bit(0, &dev->tbusy);
-}
-
-static inline int
-netif_queue_stopped(struct device *dev)
-{
-   return test_bit(0, &dev->tbusy);
-}
-
-static inline void
-netif_wake_queue(struct device *dev)
-{
-   clear_bit(0, &dev->tbusy);
-   mark_bh(NET_BH);
-}
-
-static inline int
-netif_running(struct device *dev)
-{
-   return dev->start == 0;
-}
-
-static inline int
-netif_carrier_ok(struct device *dev)
-{
-   return 1;
-}
-
-static inline void
-netif_carrier_on(struct device *dev)
-{
-}
-
-static inline void
-netif_carrier_off(struct device *dev)
-{
-}
 #endif
 
 /* Keep compat_* defines for now */
@@ -327,6 +270,13 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 
 #endif
 
+#ifdef NETIF_F_TSO6
+#  define COMPAT_NETIF_F_TSO (NETIF_F_TSO6 | NETIF_F_TSO)
+#else
+#  define COMPAT_NETIF_F_TSO (NETIF_F_TSO)
+#endif
+
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 18)
 #   define compat_netif_tx_lock(dev) netif_tx_lock(dev)
 #   define compat_netif_tx_unlock(dev) netif_tx_unlock(dev)
@@ -342,8 +292,52 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 #   define COMPAT_VLAN_GROUP_ARRAY_LEN VLAN_N_VID
+#   define compat_flush_scheduled_work(work) cancel_work_sync(work)
 #else
 #   define COMPAT_VLAN_GROUP_ARRAY_LEN VLAN_GROUP_ARRAY_LEN
+#   define compat_flush_scheduled_work(work) flush_scheduled_work()
+#endif
+
+
+
+/*
+ * For kernel versions older than 2.6.29, where pci_msi_enabled is not
+ * available, check if
+ *	1. CONFIG_PCI_MSI is present
+ *	2. kernel version is newer than 2.6.25 (because multiqueue is not
+ *	   supporter) in kernels older than that)
+ *	3. msi can be enabled. If it fails it means that MSI is not available.
+ * When all the above are true, return non-zero so that multiple queues will be
+ * allowed in the driver.
+ */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
+#   define compat_multiqueue_allowed(dev) pci_msi_enabled()
+#else
+#   if defined CONFIG_PCI_MSI && LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 25)
+static inline int
+compat_multiqueue_allowed(struct pci_dev *dev)
+{
+   int ret;
+
+   if (!pci_enable_msi(dev))
+      ret = 1;
+   else
+      ret = 0;
+
+   pci_disable_msi(dev);
+   return ret;
+}
+
+#   else
+#      define compat_multiqueue_allowed(dev) (0)
+#   endif
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
+#   define compat_vlan_get_protocol(skb) vlan_get_protocol(skb)
+#else
+#   define compat_vlan_get_protocol(skb) (skb->protocol)
 #endif
 
 #endif /* __COMPAT_NETDEVICE_H__ */

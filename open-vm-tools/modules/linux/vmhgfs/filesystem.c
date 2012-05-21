@@ -65,11 +65,11 @@
 #define HGFS_BD_THREAD_NAME "VMware hgfs backdoor handler"
 
 /* Synchronization primitives. */
-spinlock_t hgfsBigLock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(hgfsBigLock);
 
 /* Other variables. */
-compat_kmem_cache *hgfsReqCache = NULL;
-compat_kmem_cache *hgfsInodeCache = NULL;
+compat_kmem_cache *hgfsReqCache;
+compat_kmem_cache *hgfsInodeCache;
 
 /* Global protocol version switch. */
 HgfsOp hgfsVersionOpen;
@@ -100,7 +100,12 @@ static void HgfsResetOps(void);
 
 /* HGFS filesystem high-level operations. */
 #if KERNEL_25_FS /* { */
-#   if defined VMW_GETSB_2618
+#   if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+static struct dentry *HgfsMount(struct file_system_type *fs_type,
+                                int flags,
+                                const char *dev_name,
+                                void *rawData);
+#   elif defined(VMW_GETSB_2618)
 static int HgfsGetSb(struct file_system_type *fs_type,
                      int flags,
                      const char *dev_name,
@@ -130,7 +135,11 @@ static struct file_system_type hgfsType = {
 
    .fs_flags     = FS_BINARY_MOUNTDATA,
 #if KERNEL_25_FS
+#  if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+   .mount        = HgfsMount,
+#  else
    .get_sb       = HgfsGetSb,
+#  endif
    .kill_sb      = kill_anon_super,
 #else
    .read_super   = HgfsReadSuper24,
@@ -460,7 +469,33 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
  */
 
 #if KERNEL_25_FS
-#if defined VMW_GETSB_2618
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsMount --
+ *
+ *    Invokes generic kernel code to mount a deviceless filesystem.
+ *
+ * Results:
+ *    Mount's root dentry structure on success
+ *    ERR_PTR()-encoded negative error code on failure
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+struct dentry *
+HgfsMount(struct file_system_type *fs_type, // IN: file system type of mount
+          int flags,                        // IN: mount flags
+          const char *dev_name,             // IN: device mounting on
+          void *rawData)                    // IN: mount arguments
+{
+   return mount_nodev(fs_type, flags, rawData, HgfsReadSuper);
+}
+#elif defined VMW_GETSB_2618
 /*
  *-----------------------------------------------------------------------------
  *

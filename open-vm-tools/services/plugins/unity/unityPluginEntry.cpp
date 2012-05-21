@@ -117,12 +117,10 @@ UnityPluginShutdown(gpointer src,
                     ToolsPluginData *plugin)
 {
    g_debug("%s: shutdown signal.\n", __FUNCTION__);
-
-   ToolsPlugin *pluginInstance = reinterpret_cast<ToolsPlugin*>(plugin->_private);
+   UnityPlugin *pluginInstance = reinterpret_cast<UnityPlugin*>(plugin->_private);
    ASSERT(pluginInstance);
-
    pluginInstance->Shutdown(src);
-
+   pluginInstance->Cleanup();
    delete pluginInstance;
    plugin->_private = NULL;
 }
@@ -183,18 +181,23 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          { TOOLS_CORE_SIG_SET_OPTION, (void *) UnityPluginSetOption, &regData },
       };
 
-      ToolsPlugin *pluginInstance = NULL;
+      UnityPlugin *pluginInstance = NULL;
 
 #if WIN32
-      pluginInstance = new UnityPluginWin32(ctx);
+      pluginInstance = new UnityPluginWin32();
 #else // Linux
-      pluginInstance = new UnityPlugin(ctx);
+      pluginInstance = new UnityPlugin();
 #endif
 
-      if (!pluginInstance) {
-         // There's nothing we can do if we can't construct the plugin instance
+      if (NULL == pluginInstance) {
          return NULL;
       }
+
+      if (!pluginInstance->Initialize(ctx)) {
+         delete pluginInstance;
+         return NULL;
+      }
+
       regData._private = pluginInstance;
 
       std::vector<RpcChannelCallback> rpcs = pluginInstance->GetRpcCallbackList();
@@ -211,4 +214,3 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    return NULL;
 }
-

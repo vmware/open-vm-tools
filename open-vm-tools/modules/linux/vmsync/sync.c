@@ -227,7 +227,7 @@ VmSyncAddPath(const VmSyncState *state,   // IN
    struct nameidata nd;
    VmSyncBlockDevice *dev;
 
-   if ((result = path_lookup(path, LOOKUP_FOLLOW, &nd)) != 0) {
+   if ((result = compat_path_lookup(path, LOOKUP_FOLLOW, &nd)) != 0) {
       goto exit;
    }
    inode = compat_vmw_nd_to_dentry(nd)->d_inode;

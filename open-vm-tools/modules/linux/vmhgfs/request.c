@@ -42,7 +42,7 @@
 #include "vm_assert.h"
 
 static uint64 hgfsIdCounter = 0;
-static spinlock_t hgfsIdLock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(hgfsIdLock);
 
 
 /*

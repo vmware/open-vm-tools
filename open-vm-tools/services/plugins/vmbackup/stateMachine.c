@@ -358,9 +358,9 @@ VmBackupAbortTimer(gpointer data)
 {
    ASSERT(gBackupState != NULL);
    g_warning("Aborting backup operation due to timeout.");
-   VmBackupDoAbort();
    g_source_unref(gBackupState->abortTimer);
    gBackupState->abortTimer = NULL;
+   VmBackupDoAbort();
    return FALSE;
 }
 

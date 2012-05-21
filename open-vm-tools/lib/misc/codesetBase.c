@@ -231,7 +231,7 @@ CodeSet_UTF8ToUTF32(const char *utf8,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSet_UTF32ToUTF8 --
+ * CodeSet_UTF8ToUTF32 --
  *
  *    Convert a UTF32 string into a UTF8 string. The result is returned as a
  *    dynamically allocated string that the caller is responsible for.
@@ -339,4 +339,3 @@ CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
 
    return TRUE;
 }
-

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2005 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1032,9 +1032,16 @@ typedef uint32 ToolsVersion;
 #define   TOOLS_VERSION_ESX50_RELEASE_V_MNR  6
 #define   TOOLS_VERSION_ESX50_RELEASE_V_BASE 0
 
-#define   TOOLS_VERSION_CURRENT        TOOLS_VERSION_ESX50_RELEASE
-#define   TOOLS_VERSION_CURRENT_STR    TOOLS_VERSION_TO_STR(TOOLS_VERSION_ESX50_RELEASE)
-#define   TOOLS_VERSION_CURRENT_CSV    TOOLS_VERSION_TO_CSV(TOOLS_VERSION_ESX50_RELEASE)
+#ifndef RC_INVOKED
+#define   TOOLS_VERSION_ESX50_UPDATE1 TOOLS_VERSION_TO_UINT(TOOLS_VERSION_ESX50_UPDATE1_V)
+#endif /* RC_INVOKED */
+#define   TOOLS_VERSION_ESX50_UPDATE1_V_MJR  8
+#define   TOOLS_VERSION_ESX50_UPDATE1_V_MNR  6
+#define   TOOLS_VERSION_ESX50_UPDATE1_V_BASE 5
+
+#define   TOOLS_VERSION_CURRENT        TOOLS_VERSION_ESX50_UPDATE1
+#define   TOOLS_VERSION_CURRENT_STR    TOOLS_VERSION_TO_STR(TOOLS_VERSION_ESX50_UPDATE1)
+#define   TOOLS_VERSION_CURRENT_CSV    TOOLS_VERSION_TO_CSV(TOOLS_VERSION_ESX50_UPDATE1)
 
 /*
  * The extended Tools version is the current Tools version with the

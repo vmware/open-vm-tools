@@ -1,3 +1,11 @@
+open-vm-tools 8.6.5 changes:
+	* Release of open-vm-tools matching vSphere 5.0 update 1.
+
+	* Adjustments to allow compiling for newer versions of Linux
+	kernels.
+
+	* Other bugfixes.
+
 open-vm-tools 8.6.0 changes:
 	* Release of open-vm-tools matching vSphere 5.0.
 
