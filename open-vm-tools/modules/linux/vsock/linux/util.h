@@ -47,6 +47,8 @@
  * vsockBindTable[VSOCK_HASH_SIZE - 1] are for bound sockets and
  * vsockBindTable[VSOCK_HASH_SIZE] is for unbound sockets.  The hash function
  * mods with VSOCK_HASH_SIZE - 1 to ensure this.
+ *
+ * Connected sequential sockets are put in the seq table.
  */
 #define VSOCK_HASH_SIZE         251
 #define LAST_RESERVED_PORT      1023
@@ -54,8 +56,10 @@
 
 extern struct list_head vsockBindTable[VSOCK_HASH_SIZE + 1];
 extern struct list_head vsockConnectedTable[VSOCK_HASH_SIZE];
+extern struct list_head vsockSeqTable[VSOCK_HASH_SIZE];
 
 extern spinlock_t vsockTableLock;
+extern spinlock_t vsockSeqTableLock;
 
 #define VSOCK_HASH(addr)        ((addr)->svm_port % (VSOCK_HASH_SIZE - 1))
 #define vsockBoundSockets(addr) (&vsockBindTable[VSOCK_HASH(addr)])
@@ -68,6 +72,11 @@ extern spinlock_t vsockTableLock;
    (&vsockConnectedTable[VSOCK_CONN_HASH(src, dst)])
 #define vsockConnectedSocketsVsk(vsk)    \
    vsockConnectedSockets(&(vsk)->remoteAddr, &(vsk)->localAddr)
+#define VSOCK_SEQ_HASH(src, dst) VSOCK_CONN_HASH(src, dst)
+#define vsockSeqSockets(src, dst) \
+   (&vsockSeqTable[VSOCK_SEQ_HASH(src, dst)])
+#define vsockSeqSocketsVsk(vsk) \
+   vsockSeqSockets(&(vsk)->remoteAddr, &(vsk)->localAddr)
 
 /*
  * Prototypes.
@@ -78,13 +87,16 @@ void VSockVmciLogPkt(char const *function, uint32 line, VSockPacket *pkt);
 void VSockVmciInitTables(void);
 void __VSockVmciInsertBound(struct list_head *list, struct sock *sk);
 void __VSockVmciInsertConnected(struct list_head *list, struct sock *sk);
+void __VSockVmciInsertSeq(struct list_head *list, struct sock *sk);
 void __VSockVmciRemoveBound(struct sock *sk);
 void __VSockVmciRemoveConnected(struct sock *sk);
+void __VSockVmciRemoveSeq(struct sock *sk);
 struct sock *__VSockVmciFindBoundSocket(struct sockaddr_vm *addr);
 struct sock *__VSockVmciFindConnectedSocket(struct sockaddr_vm *src,
                                             struct sockaddr_vm *dst);
 Bool __VSockVmciInBoundTable(struct sock *sk);
 Bool __VSockVmciInConnectedTable(struct sock *sk);
+Bool __VSockVmciInSeqTable(struct sock *sk);
 
 struct sock *VSockVmciGetPending(struct sock *listener, VSockPacket *pkt);
 void VSockVmciReleasePending(struct sock *pending);
@@ -99,13 +111,16 @@ Bool VSockVmciIsPending(struct sock *sk);
 
 static INLINE void VSockVmciInsertBound(struct list_head *list, struct sock *sk);
 static INLINE void VSockVmciInsertConnected(struct list_head *list, struct sock *sk);
+static INLINE void VSockVmciInsertSeq(struct list_head *list, struct sock *sk);
 static INLINE void VSockVmciRemoveBound(struct sock *sk);
 static INLINE void VSockVmciRemoveConnected(struct sock *sk);
+static INLINE void VSockVmciRemoveSeq(struct sock *sk);
 static INLINE struct sock *VSockVmciFindBoundSocket(struct sockaddr_vm *addr);
 static INLINE struct sock *VSockVmciFindConnectedSocket(struct sockaddr_vm *src,
                                                         struct sockaddr_vm *dst);
 static INLINE Bool VSockVmciInBoundTable(struct sock *sk);
 static INLINE Bool VSockVmciInConnectedTable(struct sock *sk);
+static INLINE Bool VSockVmciInSeqTable(struct sock *sk);
 
 
 /*
@@ -175,6 +190,38 @@ VSockVmciInsertConnected(struct list_head *list,    // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * VSockVmciInsertSeq --
+ *
+ *    Inserts socket into the sequential table.
+ *
+ *    Note that it is important to invoke the bottom-half versions of the
+ *    spinlock functions since these may be called from tasklets.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    vsockSeqTableLock is acquired and released.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VSockVmciInsertSeq(struct list_head *list, // IN
+                   struct sock *sk)        // IN
+{
+   ASSERT(list);
+   ASSERT(sk);
+
+   spin_lock_bh(&vsockSeqTableLock);
+   __VSockVmciInsertSeq(list, sk);
+   spin_unlock_bh(&vsockSeqTableLock);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * VSockVmciRemoveBound --
  *
  *    Removes socket from the bound list.
@@ -229,6 +276,36 @@ VSockVmciRemoveConnected(struct sock *sk)                  // IN
    spin_lock_bh(&vsockTableLock);
    __VSockVmciRemoveConnected(sk);
    spin_unlock_bh(&vsockTableLock);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciRemoveSeq --
+ *
+ *    Removes socket from the sequential list.
+ *
+ *    Note that it is important to invoke the bottom-half versions of the
+ *    spinlock functions since these may be called from tasklets.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    vsockSeqTableLock is acquired and released.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VSockVmciRemoveSeq(struct sock *sk) // IN
+{
+   ASSERT(sk);
+
+   spin_lock_bh(&vsockSeqTableLock);
+   __VSockVmciRemoveSeq(sk);
+   spin_unlock_bh(&vsockSeqTableLock);
 }
 
 
@@ -378,5 +455,40 @@ VSockVmciInConnectedTable(struct sock *sk)  // IN
 
    return ret;
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciInSeqTable --
+ *
+ *    Determines whether the provided socket is in the sequential table.
+ *
+ *    Note that it is important to invoke the bottom-half versions of the
+ *    spinlock functions since these may be called from tasklets.
+ *
+ * Results:
+ *    TRUE is socket is in sequential table, FALSE otherwise.
+ *
+ * Side effects:
+ *    vsockSeqTableLock is acquired and released.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+VSockVmciInSeqTable(struct sock *sk)  // IN
+{
+   Bool ret;
+
+   ASSERT(sk);
+
+   spin_lock_bh(&vsockSeqTableLock);
+   ret = __VSockVmciInSeqTable(sk);
+   spin_unlock_bh(&vsockSeqTableLock);
+
+   return ret;
+}
+
 
 #endif /* __UTIL_H__ */

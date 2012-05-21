@@ -218,7 +218,7 @@ exit:
  *      Get the local and remote addresses from the given packet.
  *
  * Results:
- *      None
+ *      None.
  *
  * Side effects:
  *      None.
@@ -239,5 +239,50 @@ VSockPacket_GetAddresses(VSockPacket *pkt,           // IN
 }
 
 
-#endif // _VSOCK_PACKET_H_
+/*
+ * SEQPACKET packets.
+ */
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VSockSeqPacket_Init
+ *
+ *      Initialize the given packet.  This will use the current version and
+ *      set the offset to point after the current (combined) structure.  The
+ *      length will be set to include the combined structure.  To add data
+ *      after calling this function, do "pkt->hdr.dg.payloadSize += dataLen".
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VSockSeqPacket_Init(VSockSeqPacket *pkt,     // IN/OUT
+                    struct sockaddr_vm *src, // IN
+                    struct sockaddr_vm *dst, // IN
+                    uint8 type,              // IN
+                    int32 val)               // IN
+{
+   ASSERT(pkt);
+   VSOCK_ADDR_NOFAMILY_ASSERT(src);
+   VSOCK_ADDR_NOFAMILY_ASSERT(dst);
+
+   pkt->hdr.dg.src = VMCI_MAKE_HANDLE(src->svm_cid, src->svm_port);
+   pkt->hdr.dg.dst = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
+                                      dst->svm_port);
+   pkt->hdr.dg.payloadSize = sizeof *pkt - sizeof pkt->hdr.dg;
+   pkt->hdr.version = VSOCK_SEQ_PACKET_VERSION;
+   pkt->hdr.type = type;
+   pkt->hdr.offset = sizeof *pkt;
+   pkt->hdr.val = val;
+}
+
+
+#endif // _VSOCK_PACKET_H_
