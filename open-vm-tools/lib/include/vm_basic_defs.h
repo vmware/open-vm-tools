@@ -637,8 +637,10 @@ typedef int pid_t;
 #endif
 
 #ifdef __linux__
+#define vmx86_linux 1
 #define LINUX_ONLY(x) x
 #else
+#define vmx86_linux 0
 #define LINUX_ONLY(x)
 #endif
 
