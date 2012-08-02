@@ -66,6 +66,7 @@
 #include "hostType.h"
 #include "vm_atomic.h"
 #include "fileLock.h"
+#include "userlock.h"
 
 #include "unicodeOperations.h"
 
@@ -2112,9 +2113,6 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
  *
  *      Return a random number in the range of 0 and 2^32-1.
  *
- *      This isn't thread safe but it's more than good enough for the
- *      purposes required of it.
- *
  * Results:
  *      Random number is returned.
  *
@@ -2127,20 +2125,19 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
 uint32
 FileSimpleRandom(void)
 {
-   static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
-   rqContext *context;
+   static Atomic_Ptr lckStorage;
+   static rqContext *context = NULL;
+   uint32 result;
+   MXUserExclLock *lck = MXUser_CreateSingletonExclLock(&lckStorage,
+                                                        "fileSimpleRandomLock",
+                                                        RANK_LEAF);
 
-   context = Atomic_ReadPtr(&atomic);
+   ASSERT_NOT_IMPLEMENTED(lck != NULL);
+
+   MXUser_AcquireExclLock(lck);
 
    if (UNLIKELY(context == NULL)) {
-      rqContext *newContext;
       uint32 value;
-
-      /*
-       * Threads will hash up this RNG - this isn't officially thread safe
-       * which is just fine - but ensure that different processes have
-       * different answer streams.
-       */
 
 #if defined(_WIN32)
       value = GetCurrentProcessId();
@@ -2148,17 +2145,15 @@ FileSimpleRandom(void)
       value = getpid();
 #endif
 
-      newContext = Random_QuickSeed(value);
-
-      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, (void *) newContext)) {
-         free(newContext);
-      }
-
-      context = Atomic_ReadPtr(&atomic);
+      context = Random_QuickSeed(value);
       ASSERT(context);
    }
 
-   return Random_Quick(context);
+   result = Random_Quick(context);
+
+   MXUser_ReleaseExclLock(lck);
+
+   return result;
 }
 
 
