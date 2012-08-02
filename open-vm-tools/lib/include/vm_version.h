@@ -83,7 +83,7 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_DESKTOP)
-   #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    9,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VCB)
@@ -92,13 +92,13 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    6,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_BOOMERANG)
    #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VIEW)
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
-   #define PRODUCT_VERSION    4,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
 #endif
 
 /*
@@ -125,7 +125,7 @@
  * VMI 2.0      : 3.1.0
  * P2VA 3.0     : 3.?.?
  */
-#define VIE_FILEVERSION 5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VIE_FILEVERSION 6,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 /*
  * This string can be a little more "free form".  The license
@@ -185,7 +185,7 @@
 #define ESX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
 #define VMSERVER_VERSION "e.x.p"
-#define WORKSTATION_VERSION_NUMBER "8.0.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION_NUMBER "9.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
 #define WORKSTATION_RELEASE_DESCRIPTION ""
 #define WORKSTATION_ENTERPRISE_VERSION "e.x.p"
@@ -196,7 +196,7 @@
 #define CONSOLE_VERSION "4.1.0"
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
-#define PLAYER_VERSION_NUMBER "4.0.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION_NUMBER "5.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
 
 /*
@@ -209,17 +209,17 @@
 #define HBR_SERVER_VERSION "e.x.p"
 
 // These must match VIE_FILEVERSION above
-#define SYSIMAGE_VERSION "5.1.0"
+#define SYSIMAGE_VERSION "6.0.0"
 #define SYSIMAGE_FILE_VERSION VIE_FILEVERSION
 
 #define VCB_VERSION "4.0.0"
 #define VCB_FILE_VERSION 4,0,0,0
-#define VIM_VERSION "5.1.0"
+#define VIM_VERSION "6.0.0"
 
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "5.1.0"
-#define VPX_VERSION_MAJOR "5"
-#define VPX_VERSION_MINOR "1"
+#define VPX_VERSION "6.0.0"
+#define VPX_VERSION_MAJOR "6"
+#define VPX_VERSION_MINOR "0"
 #define VPX_VERSION_MAINT "0"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT

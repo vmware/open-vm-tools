@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -172,6 +172,7 @@ typedef struct
 
    int32          stderrMinLevel;       // This level and above to stderr
    int32          logMinLevel;          // This level and above to log
+   int            permissions;          // Permissions for log files
 
    uint32         keepOld;              // Number of old logs to keep
    uint32         throttleThreshold;    // Threshold for throttling
@@ -193,6 +194,8 @@ Bool Log_InitWithFile(const char *fileName,
                       const char *appPrefix);
 
 Bool Log_InitWithConfig(const char *appPrefix);
+
+void Log_UpdateFilePermissions(int permissions);
 
 void Log_UpdateFileControl(Bool append,
                            unsigned keepOld,

@@ -1699,7 +1699,7 @@ VixMsgReadEnvironmentVariablesRequest;
 
 typedef
 #include "vmware_pack_begin.h"
-struct VixMsgAddAuthPrincipalRequest {
+struct VixMsgAddAliasRequest {
    VixCommandRequestHeader header;
 
    uint32                  options;
@@ -1708,22 +1708,22 @@ struct VixMsgAddAuthPrincipalRequest {
    uint32                  pemCertLen;
    Bool                    addMapping;
 
-   int32                   principalType;    // one of VixGuestAuthPrincipalType
-   uint32                  principalNameLen;
-   uint32                  principalCommentLen;
+   int32                   subjectType;    // one of VixGuestAuthSubjectType
+   uint32                  subjectNameLen;
+   uint32                  aliasCommentLen;
 
    /* Followed by the NUL-terminated string arguments. */
    /* char[]               userName; */
    /* char[]               pemCert; */
-   /* char[]               principalName; */
-   /* char[]               principalComment; */
+   /* char[]               subjectName; */
+   /* char[]               aliasComment; */
 }
 #include "vmware_pack_end.h"
-VixMsgAddAuthPrincipalRequest;
+VixMsgAddAuthAliasRequest;
 
 typedef
 #include "vmware_pack_begin.h"
-struct VixMsgRemoveAuthPrincipalRequest {
+struct VixMsgRemoveAuthAliasRequest {
    VixCommandRequestHeader header;
 
    uint32                  options;
@@ -1731,22 +1731,22 @@ struct VixMsgRemoveAuthPrincipalRequest {
    uint32                  userNameLen;
    uint32                  pemCertLen;
 
-   // special case for RemoveProvider:
-   // if principalType is NONE, then all principals will be removed.
-   int32                   principalType;    // one of VixGuestAuthPrincipalType
-   uint32                  principalNameLen;
+   // special case for RemoveAliasByCert:
+   // if subjectType is NONE, then all aliases will be removed.
+   int32                   subjectType;    // one of VixGuestAuthSubjectType
+   uint32                  subjectNameLen;
 
    /* Followed by the NUL-terminated string arguments. */
    /* char[]               userName; */
    /* char[]               pemCert; */
-   /* char[]               principalName; */
+   /* char[]               subjectName; */
 }
 #include "vmware_pack_end.h"
-VixMsgRemoveAuthPrincipalRequest;
+VixMsgRemoveAuthAliasRequest;
 
 typedef
 #include "vmware_pack_begin.h"
-struct VixMsgListAuthPrincipalsRequest {
+struct VixMsgListAuthAliasesRequest {
    VixCommandRequestHeader header;
 
    uint32                  options;
@@ -1756,17 +1756,17 @@ struct VixMsgListAuthPrincipalsRequest {
    /* char[]               userName; */
 }
 #include "vmware_pack_end.h"
-VixMsgListAuthPrincipalsRequest;
+VixMsgListAuthAliasesRequest;
 
 typedef
 #include "vmware_pack_begin.h"
-struct VixMsgListMappedPrincipalsRequest {
+struct VixMsgListMappedAliasesRequest {
    VixCommandRequestHeader header;
 
    uint32                  options;
 }
 #include "vmware_pack_end.h"
-VixMsgListMappedPrincipalsRequest;
+VixMsgListMappedAliasesRequest;
 
 /*
  * Windows Registry Management Support.
@@ -2429,10 +2429,10 @@ enum {
    VIX_COMMAND_DELETE_GUEST_DIRECTORY_EX        = 195,
    VIX_COMMAND_HOT_CHANGE_MONITOR_TYPE          = 196,
 
-   VIX_COMMAND_ADD_AUTH_PRINCIPAL               = 197,
-   VIX_COMMAND_REMOVE_AUTH_PRINCIPAL            = 198,
-   VIX_COMMAND_LIST_AUTH_PROVIDER_PRINCIPALS    = 199,
-   VIX_COMMAND_LIST_AUTH_MAPPED_PRINCIPALS      = 200,
+   VIX_COMMAND_ADD_AUTH_ALIAS                   = 197,
+   VIX_COMMAND_REMOVE_AUTH_ALIAS                = 198,
+   VIX_COMMAND_LIST_AUTH_PROVIDER_ALIASES       = 199,
+   VIX_COMMAND_LIST_AUTH_MAPPED_ALIASES         = 200,
 
    VIX_COMMAND_CREATE_REGISTRY_KEY              = 201,
    VIX_COMMAND_LIST_REGISTRY_KEYS               = 202,
