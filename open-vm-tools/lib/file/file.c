@@ -1446,6 +1446,33 @@ File_MoveTree(ConstUnicode srcName,   // IN:
          }
       }
 
+#if !defined(__FreeBSD__) && !defined(sun)
+      /*
+       * File_GetFreeSpace is not defined for FreeBSD
+       */
+      if (createdDir) {
+         /*
+          * Check for free space on destination filesystem.
+          * We only check for free space if the destination directory
+          * did not exist. In this case, we will not be overwriting any existing
+          * paths, so we need as much space as srcName.
+          */
+         int64 srcSize;
+         int64 freeSpace;
+         srcSize = File_GetSizeEx(srcName);
+         freeSpace = File_GetFreeSpace(dstName, TRUE);
+         if (freeSpace < srcSize) {
+            Unicode spaceStr = Msg_FormatSizeInBytes(srcSize);
+            Msg_Append(MSGID(File.MoveTree.dst.insufficientSpace)
+                  "There is not enough space in the file system to "
+                  "move the directory tree. Free %s and try again.",
+                  spaceStr);
+            free(spaceStr);
+            return FALSE;
+         }
+      }
+#endif
+
       if (File_CopyTree(srcName, dstName, overwriteExisting, FALSE)) {
          ret = TRUE;
 

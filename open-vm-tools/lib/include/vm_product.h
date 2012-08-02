@@ -90,6 +90,7 @@
 #define PRODUCT_PLAYER_NAME_FOR_LICENSE PRODUCT_PLAYER_NAME
 #define PRODUCT_ACE_PLAYER_NAME MAKE_NAME(PRODUCT_ACE_PLAYER_BRIEF_NAME)
 #define PRODUCT_ACE_MANAGEMENT_SERVER_NAME MAKE_NAME(PRODUCT_ACE_MANAGEMENT_SERVER_BRIEF_NAME)
+#define PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE "VMware Fusion for Mac OS"
 
 #define PRODUCT_VMLS_SHORT_NAME "VMLS"
 #define PRODUCT_VMLS_NAME MAKE_NAME("License Server")
@@ -393,7 +394,7 @@
 #      define PRODUCT_SMP_NAME_FOR_LICENSE PRODUCT_ESX_SMP_NAME
 #   elif defined(VMX86_DESKTOP)
 #      if defined(__APPLE__)
-#         define PRODUCT_NAME_FOR_LICENSE "VMware Fusion for Mac OS"
+#         define PRODUCT_NAME_FOR_LICENSE PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE
 #      else
 #         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
 #      endif
@@ -502,7 +503,7 @@
  */
 #   if defined(VMX86_DESKTOP)
 #      if defined(__APPLE__)
-#         define PRODUCT_NAME_FOR_LICENSE "VMware Fusion for Mac OS"
+#         define PRODUCT_NAME_FOR_LICENSE PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE
 #      else
 #         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
 #      endif

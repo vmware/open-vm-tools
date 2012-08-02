@@ -181,8 +181,13 @@
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
 #define	SCSI_MAX_DEVICES	 16	  // BT-958 emulates only 16
 #define PVSCSI_MAX_DEVICES       255      // 255 (including the controller)
+
+/************* SATA implementation limits ********************************/
+#define SATA_MAX_CONTROLLERS   4
+#define SATA_MAX_DEVICES       30
+
 /*
- * VSCSI_BV_INTS is the number of uint32's needed for a bit vector 
+ * VSCSI_BV_INTS is the number of uint32's needed for a bit vector
  * to cover all scsi devices per target.
  */
 #define VSCSI_BV_INTS            CEILING(PVSCSI_MAX_DEVICES, 8 * sizeof (uint32))
