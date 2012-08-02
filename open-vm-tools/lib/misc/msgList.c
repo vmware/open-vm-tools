@@ -531,3 +531,26 @@ MsgList_Log(const MsgList *messages)  // IN:
       free(formatted);
    }
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MsgList_Present --
+ *
+ *      Tests if the MsgList is empty.
+ *
+ * Results:
+ *      TRUE if there are appended messages; FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+MsgList_Present(const MsgList *messages)  // IN:
+{
+   return messages != NULL;
+}

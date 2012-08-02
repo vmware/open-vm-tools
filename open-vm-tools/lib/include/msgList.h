@@ -69,4 +69,6 @@ void MsgList_Free(MsgList *messages);
 
 const char *MsgList_GetMsgID(const MsgList *messages);
 
+Bool MsgList_Present(const MsgList *messages);
+
 #endif // ifndef _MSGLIST_H_
