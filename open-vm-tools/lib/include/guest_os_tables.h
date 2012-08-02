@@ -78,6 +78,7 @@
    GOT(GUEST_OS_DARWIN10_64)                                  \
    GOT(GUEST_OS_DARWIN11)          /* Mac OS 10.7 */          \
    GOT(GUEST_OS_DARWIN11_64)                                  \
+   GOT(GUEST_OS_DARWIN12_64)       /* Mac OS 10.8 */          \
    GOT(GUEST_OS_OPENSERVER_5_AND_6)                           \
    GOT(GUEST_OS_UNIXWARE7)                                    \
    GOT(GUEST_OS_NETWARE4)                                     \
@@ -131,7 +132,7 @@
    GOSL(STR_OS_WIN_2008_ENTERPRISE_CORE_X64, GUEST_OS_LONGHORN_64)          \
    GOSL(STR_OS_WIN_2008_SMALL_BUSINESS_X64,  GUEST_OS_LONGHORN_64)          \
    GOSL(STR_OS_WIN_2008_SMALL_BUSINESS_PREMIUM_X64, GUEST_OS_LONGHORN_64)   \
-   GOSL(STR_OS_WIN_2008_STANDARD_X64,    GUEST_OS_LONGHORN_64)              \
+   GOSL(STR_OS_WIN_2008_STANDARD_X64,        GUEST_OS_LONGHORN_64)          \
    GOSL(STR_OS_WIN_2008_STANDARD_CORE_X64,   GUEST_OS_LONGHORN_64)          \
    GOSL(STR_OS_WIN_2008_WEB_SERVER_X64,      GUEST_OS_LONGHORN_64)          \
    GOSL("winLonghorn64Guest",                GUEST_OS_LONGHORN_64)          \
@@ -219,8 +220,7 @@
    GOSL(STR_OS_MACOS "10-64",                GUEST_OS_DARWIN10_64)          \
    GOSL(STR_OS_MACOS "11",                   GUEST_OS_DARWIN11)             \
    GOSL(STR_OS_MACOS "11-64",                GUEST_OS_DARWIN11_64)          \
-   GOSL(STR_OS_MACOS "12",                   GUEST_OS_DARWIN11)             \
-   GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN11_64)          \
+   GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN12_64)          \
    GOSL("other",                             GUEST_OS_OTHER)                \
    GOSL("other-64",                          GUEST_OS_OTHER_64)             \
    GOSL("vmkernel",                          GUEST_OS_VMKERNEL)             \

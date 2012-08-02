@@ -52,7 +52,8 @@ typedef enum GuestOSFamilyType {
    GUEST_OS_FAMILY_WIN2000     = 0x0010,
    GUEST_OS_FAMILY_WINXP       = 0x0020,
    GUEST_OS_FAMILY_WINNET      = 0x0040,
-   GUEST_OS_FAMILY_NETWARE     = 0x0080
+   GUEST_OS_FAMILY_NETWARE     = 0x0080,
+   GUEST_OS_FAMILY_DARWIN      = 0x0100
 } GuestOSFamilyType;
 
 #define ALLOS           (~CONST64U(0))
@@ -131,8 +132,9 @@ typedef enum GuestOSFamilyType {
 #define ALLLINUX64      (BS(OTHER24XLINUX_64) | ALL26XLINUX64 | \
                          BS(OTHERLINUX_64))
 #define ALLLINUX        (ALLLINUX32 | ALLLINUX64)
-#define ALLDARWIN32     (BS(DARWIN9) | BS(DARWIN10) | BS(DARWIN11))
-#define ALLDARWIN64     (BS(DARWIN9_64) | BS(DARWIN10_64) | BS(DARWIN11_64))
+#define ALLDARWIN32     (BS(DARWIN9)  | BS(DARWIN10) | BS(DARWIN11))
+#define ALLDARWIN64     (BS(DARWIN9_64)  | BS(DARWIN10_64) | \
+                         BS(DARWIN11_64) | BS(DARWIN12_64))
 #define ALLDARWIN       (ALLDARWIN32 | ALLDARWIN64)
 #define ALL64           (ALLWIN64 | ALLLINUX64 | \
                          BS(SOLARIS10_64) | BS(FREEBSD_64) | \
