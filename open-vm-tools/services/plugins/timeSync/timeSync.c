@@ -783,8 +783,12 @@ TimeSyncSetOption(gpointer src,
             return FALSE;
          }
 
-      } else if (!start && data->state == TIMESYNC_RUNNING) {
-         TimeSyncStopLoop(ctx, data);
+      } else if (!start) {
+         if (data->state == TIMESYNC_RUNNING) {
+            TimeSyncStopLoop(ctx, data);
+         } else {
+            data->state = TIMESYNC_STOPPED;
+         }
       }
 
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_SLEWCORRECTION) == 0) {
