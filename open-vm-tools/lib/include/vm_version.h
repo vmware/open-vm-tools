@@ -204,7 +204,8 @@
  * lastVersion{Major,Minor,Patch} in bora/scons/package/fusion/fusion.sc
  * which controls what versions are allowed to automatically update for free.
  */
-#define FUSION_VERSION "e.x.p"
+#define FUSION_VERSION "5.0.0"
+
 #define BOOMERANG_VERSION "e.x.p"
 #define HBR_SERVER_VERSION "e.x.p"
 

@@ -1095,7 +1095,7 @@ string::assign(const string &s) // IN
 
 string&
 string::insert(size_type i,      // IN
-               const string &s)  // IN
+               const string& s)  // IN
 {
    InvalidateCache();
    mUstr.insert(i, s.mUstr);
@@ -1110,6 +1110,16 @@ string::insert(size_type i,      // IN
 {
    InvalidateCache();
    mUstr.insert(i, n, uc);
+   return *this;
+}
+
+
+string&
+string::insert(iterator p,    // IN
+               value_type uc) // IN
+{
+   InvalidateCache();
+   mUstr.insert(p, uc);
    return *this;
 }
 
@@ -1256,7 +1266,7 @@ string::erase(iterator pbegin,    // IN
 string&
 string::replace(size_type i,     // IN
                 size_type n,     // IN
-                const string &s) // IN
+                const string& s) // IN
 {
    InvalidateCache();
    mUstr.replace(i, n, s.mUstr);
@@ -1282,8 +1292,8 @@ string::replace(size_type i,     // IN
  */
 
 string&
-string::replace(const string &from, // IN
-                const string &to)   // IN
+string::replace(const string& from, // IN
+                const string& to)   // IN
 {
    size_type end;
    size_type start = 0;

@@ -54,6 +54,7 @@ public:
    ubstr_t(const char *s);
    ubstr_t(const wchar_t *s);
    ubstr_t(const _variant_t& var);
+   explicit ubstr_t(const _bstr_t& bstr);
    ubstr_t(BSTR bstr, bool copy);
    ubstr_t(const ubstr_t& s);
 
@@ -275,6 +276,14 @@ ubstr_t::ubstr_t(const wchar_t *s) // IN
 inline
 ubstr_t::ubstr_t(const _variant_t& var) // IN
    : mBstr(var),
+     mUTF8()
+{
+}
+
+
+inline
+ubstr_t::ubstr_t(const _bstr_t& bstr) // IN
+   : mBstr(bstr),
      mUTF8()
 {
 }

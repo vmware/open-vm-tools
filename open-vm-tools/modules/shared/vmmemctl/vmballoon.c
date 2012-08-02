@@ -77,24 +77,12 @@ extern "C" {
 #endif
 
 /*
- * Compile-Time Options
- */
-
-#define BALLOON_RATE_ADAPT      1
-
-#define BALLOON_DEBUG           1
-#define BALLOON_DEBUG_VERBOSE   0
-
-#define BALLOON_STATS
-
-/*
  * Includes
  */
 
 #include "os.h"
 #include "backdoor.h"
 #include "backdoor_balloon.h"
-#include "dbllnklst.h"
 #include "vmballoon.h"
 
 /*
@@ -105,21 +93,7 @@ extern "C" {
 #define NULL 0
 #endif
 
-#define BALLOON_PROTOCOL_VERSION        BALLOON_PROTOCOL_VERSION_3
-
 #define BALLOON_CHUNK_PAGES             1000
-
-#define BALLOON_NOSLEEP_ALLOC_MAX       16384
-
-#define BALLOON_RATE_ALLOC_MIN          512
-#define BALLOON_RATE_ALLOC_MAX          2048
-#define BALLOON_RATE_ALLOC_INC          16
-
-#define BALLOON_RATE_FREE_MIN           512
-#define BALLOON_RATE_FREE_MAX           16384
-#define BALLOON_RATE_FREE_INC           16
-
-#define BALLOON_ERROR_PAGES             16
 
 /*
  * When guest is under memory pressure, use a reduced page allocation
@@ -127,17 +101,8 @@ extern "C" {
  */
 #define SLOW_PAGE_ALLOCATION_CYCLES     4
 
-/*
- * Move it to bora/public/balloon_def.h later, if needed. Note that
- * BALLOON_PAGE_ALLOC_FAILURE is an internal error code used for
- * distinguishing page allocation failures from monitor-backdoor errors.
- * We use value 1000 because all monitor-backdoor error codes are < 1000.
- */
-#define BALLOON_PAGE_ALLOC_FAILURE      1000
-
 /* Maximum number of page allocations without yielding processor */
 #define BALLOON_ALLOC_YIELD_THRESHOLD   1024
-
 
 /*
  * Types
@@ -148,42 +113,6 @@ typedef struct BalloonChunk {
    uint32 pageCount;
    DblLnkLst_Links node;
 } BalloonChunk;
-
-typedef struct {
-   PageHandle page[BALLOON_ERROR_PAGES];
-   uint32 pageCount;
-} BalloonErrorPages;
-
-typedef struct {
-   /* sets of reserved physical pages */
-   DblLnkLst_Links chunks;
-   int nChunks;
-
-   /* transient list of non-balloonable pages */
-   BalloonErrorPages errors;
-
-   BalloonGuest guestType;
-
-   /* balloon size */
-   int nPages;
-   int nPagesTarget;
-
-   /* reset flag */
-   int resetFlag;
-
-   /* adjustment rates (pages per second) */
-   int rateAlloc;
-   int rateFree;
-
-   /* slowdown page allocations for next few cycles */
-   int slowPageAllocationCycles;
-
-   /* statistics */
-   BalloonStats stats;
-
-   /* balloon protocol to use */
-   uint32 hypervisorProtocolVersion;
-} Balloon;
 
 /*
  * Globals
@@ -198,25 +127,6 @@ static int  BalloonPageAlloc(Balloon *b, BalloonPageAllocType allocType);
 static int  BalloonPageFree(Balloon *b, int monitorUnlock);
 static int  BalloonAdjustSize(Balloon *b, uint32 target);
 static void BalloonReset(Balloon *b);
-
-/*
- * Backdoor Operations
- */
-static int BalloonMonitorStart(Balloon *b);
-static int BalloonMonitorGuestType(Balloon *b);
-static int BalloonMonitorGetTarget(Balloon *b, uint32 *nPages);
-static int BalloonMonitorLockPage(Balloon *b, PageHandle handle);
-static int BalloonMonitorUnlockPage(Balloon *b, PageHandle handle);
-
-/*
- * Macros
- */
-
-#ifdef  BALLOON_STATS
-#define STATS_INC(stat) (stat)++
-#else
-#define STATS_INC(stat)
-#endif
 
 
 /*
@@ -380,13 +290,13 @@ BalloonReset(Balloon *b) // IN
    Balloon_Deallocate(b);
 
    /* send start command */
-   status = BalloonMonitorStart(b);
+   status = Backdoor_MonitorStart(b);
    if (status == BALLOON_SUCCESS) {
       /* clear flag */
       b->resetFlag = 0;
 
       /* report guest type */
-      (void) BalloonMonitorGuestType(b);
+      (void) Backdoor_MonitorGuestType(b);
    }
 }
 
@@ -425,7 +335,7 @@ Balloon_QueryAndExecute(void)
    }
 
    /* contact monitor via backdoor */
-   status = BalloonMonitorGetTarget(b, &target);
+   status = Backdoor_MonitorGetTarget(b, &target);
 
    /* decrement slowPageAllocationCycles counter */
    if (b->slowPageAllocationCycles > 0) {
@@ -593,6 +503,7 @@ BalloonPageAlloc(Balloon *b,                     // IN
                  BalloonPageAllocType allocType) // IN
 {
    PageHandle page;
+   PPN pagePPN;
    BalloonChunk *chunk = NULL;
    Bool locked;
    int status;
@@ -627,7 +538,8 @@ BalloonPageAlloc(Balloon *b,                     // IN
       }
 
       /* inform monitor via backdoor */
-      status = BalloonMonitorLockPage(b, page);
+      pagePPN = OS_ReservedPageGetPPN(page);
+      status = Backdoor_MonitorLockPage(b, pagePPN);
       locked = status == BALLOON_SUCCESS;
       if (!locked) {
          if (status == BALLOON_ERROR_RESET ||
@@ -707,7 +619,8 @@ BalloonPageFree(Balloon *b,        // IN
 
    /* inform monitor via backdoor */
    if (monitorUnlock) {
-      status = BalloonMonitorUnlockPage(b, page);
+      PPN pagePPN = OS_ReservedPageGetPPN(page);
+      status = Backdoor_MonitorUnlockPage(b, pagePPN);
       if (status != BALLOON_SUCCESS) {
          /* reset next pointer, fail */
          chunk->pageCount++;
@@ -931,341 +844,6 @@ BalloonAdjustSize(Balloon *b,    // IN
    }
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * BalloonMonitorGetProto --
- *
- *      Get the best protocol to communicate with the host.
- *
- * Results:
- *      Returns BALLOON_SUCCESS if successful, otherwise error code.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-BalloonMonitorGetProto(Balloon *b) // IN
-{
-   uint32 status;
-   Backdoor_proto bp;
-
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_GET_PROTO_V3;
-
-   Backdoor_Balloon(&bp);
-
-   status = bp.out.ax.word;
-   if (status == BALLOON_SUCCESS) {
-      b->hypervisorProtocolVersion = bp.out.cx.word;
-   } else if (status == BALLOON_ERROR_CMD_INVALID) {
-      /*
-       * Let's assume that if the GET_PROTO command doesn't exist, then
-       * the hypervisor uses the v2 protocol.
-       */
-      b->hypervisorProtocolVersion = BALLOON_PROTOCOL_VERSION_2;
-      status = BALLOON_SUCCESS;
-   }
-
-   return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * BalloonMonitorStart --
- *
- *      Attempts to contact monitor via backdoor to begin operation.
- *
- * Results:
- *      Returns BALLOON_SUCCESS if successful, otherwise error code.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-BalloonMonitorStart(Balloon *b) // IN
-{
-   uint32 status;
-   Backdoor_proto bp;
-
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_START;
-   bp.in.size = BALLOON_PROTOCOL_VERSION;
-
-   /* invoke backdoor */
-   Backdoor_Balloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-
-   /*
-    * If return code is BALLOON_SUCCESS_V3, then ESX is informing us
-    * that CMD_GET_PROTO is available, which we can use to gather the
-    * best protocol to use.
-    */
-   if (status == BALLOON_SUCCESS_V3) {
-      status = BalloonMonitorGetProto(b);
-   } else if (status == BALLOON_SUCCESS) {
-      b->hypervisorProtocolVersion = BALLOON_PROTOCOL_VERSION_2;
-   }
-
-   /* update stats */
-   STATS_INC(b->stats.start);
-   if (status != BALLOON_SUCCESS) {
-      STATS_INC(b->stats.startFail);
-   }
-
-   return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * BalloonMonitorGuestType --
- *
- *      Attempts to contact monitor and report guest OS identity.
- *
- * Results:
- *      Returns BALLOON_SUCCESS if successful, otherwise error code.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-BalloonMonitorGuestType(Balloon *b) // IN
-{
-   uint32 status, target;
-   Backdoor_proto bp;
-
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_GUEST_ID;
-   bp.in.size = b->guestType;
-
-   /* invoke backdoor */
-   Backdoor_Balloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-   target = bp.out.bx.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
-
-   /* update stats */
-   STATS_INC(b->stats.guestType);
-   if (status != BALLOON_SUCCESS) {
-      STATS_INC(b->stats.guestTypeFail);
-   }
-
-   return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * BalloonMonitorGetTarget --
- *
- *      Attempts to contact monitor via backdoor to obtain desired
- *      balloon size.
- *
- *      Predicts the maximum achievable balloon size and sends it
- *      to vmm => vmkernel via vEbx register.
- *
- *      OS_ReservedPageGetLimit() returns either predicted max balloon
- *      pages or BALLOON_MAX_SIZE_USE_CONFIG. In the later scenario,
- *      vmkernel uses global config options for determining a guest's max
- *      balloon size. Note that older vmballoon drivers set vEbx to
- *      BALLOON_MAX_SIZE_USE_CONFIG, i.e., value 0 (zero). So vmkernel
- *      will fallback to config-based max balloon size estimation.
- *
- * Results:
- *      If successful, sets "target" to value obtained from monitor,
- *      and returns BALLOON_SUCCESS. Otherwise returns error code.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-BalloonMonitorGetTarget(Balloon *b,     // IN
-                         uint32 *target) // OUT
-{
-   Backdoor_proto bp;
-   unsigned long limit;
-   uint32 limit32;
-   uint32 status;
-
-   limit = OS_ReservedPageGetLimit();
-
-   /* Ensure limit fits in 32-bits */
-   limit32 = (uint32)limit;
-   if (limit32 != limit) {
-      return BALLOON_FAILURE;
-   }
-
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_TARGET;
-   bp.in.size = limit;
-
-   /* invoke backdoor */
-   Backdoor_Balloon(&bp);
-
-   /* parse return values */
-   status  = bp.out.ax.word;
-   *target = bp.out.bx.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
-
-   /* update stats */
-   STATS_INC(b->stats.target);
-   if (status != BALLOON_SUCCESS) {
-      STATS_INC(b->stats.targetFail);
-   }
-
-   return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * BalloonMonitorLockPage --
- *
- *      Attempts to contact monitor and add PPN corresponding to
- *      the page handle to set of "balloon locked" pages.
- *
- * Results:
- *      Returns BALLOON_SUCCESS if successful, otherwise error code.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-BalloonMonitorLockPage(Balloon *b,        // IN
-                        PageHandle handle) // IN
-{
-   unsigned long ppn;
-   uint32 ppn32;
-   uint32 status, target;
-   Backdoor_proto bp;
-
-   ppn = OS_ReservedPageGetPPN(handle);
-
-   /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
-   ppn32 = (uint32)ppn;
-   if (ppn32 != ppn) {
-      return BALLOON_ERROR_PPN_INVALID;
-   }
-
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_LOCK;
-   bp.in.size = ppn32;
-
-   /* invoke backdoor */
-   Backdoor_Balloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-   target = bp.out.bx.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
-
-   /* update stats */
-   STATS_INC(b->stats.lock);
-   if (status != BALLOON_SUCCESS) {
-      STATS_INC(b->stats.lockFail);
-   }
-
-   return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * BalloonMonitorUnlockPage --
- *
- *      Attempts to contact monitor and remove PPN corresponding to
- *      the page handle from set of "balloon locked" pages.
- *
- * Results:
- *      Returns BALLOON_SUCCESS if successful, otherwise error code.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-BalloonMonitorUnlockPage(Balloon *b,        // IN
-                          PageHandle handle) // IN
-{
-   unsigned long ppn;
-   uint32 ppn32;
-   uint32 status, target;
-   Backdoor_proto bp;
-
-   ppn = OS_ReservedPageGetPPN(handle);
-
-   /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
-   ppn32 = (uint32)ppn;
-   if (ppn32 != ppn) {
-      return BALLOON_ERROR_PPN_INVALID;
-   }
-
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_UNLOCK;
-   bp.in.size = ppn32;
-
-   /* invoke backdoor */
-   Backdoor_Balloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-   target = bp.out.bx.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
-
-   /* update stats */
-   STATS_INC(b->stats.unlock);
-   if (status != BALLOON_SUCCESS) {
-      STATS_INC(b->stats.unlockFail);
-   }
-
-   return status;
-}
-
-
 /*
  *----------------------------------------------------------------------
  *
@@ -1328,7 +906,7 @@ Balloon_Cleanup(void)
     * Reset connection before deallocating memory to avoid potential for
     * additional spurious resets from guest touching deallocated pages.
     */
-   BalloonMonitorStart(b);
+   Backdoor_MonitorStart(b);
    Balloon_Deallocate(b);
 }
 

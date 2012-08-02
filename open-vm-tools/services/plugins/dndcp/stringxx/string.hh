@@ -155,11 +155,12 @@ public:
    void zero_clear();
    string& insert(size_type i, const string& s);
    string& insert(size_type i, size_type n, value_type uc);
+   string& insert(iterator p, value_type uc);
    string& erase(size_type i, size_type n = npos);
    iterator erase(iterator p);
    iterator erase(iterator pbegin, iterator pend);
    string& replace(size_type i, size_type n, const string& s);
-   string& replace(const string &from, const string &to);
+   string& replace(const string& from, const string& to);
    string replace_copy(const string& from, const string& to) const;
 
    int compare(const string &s, bool ignoreCase = false) const;

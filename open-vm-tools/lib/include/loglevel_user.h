@@ -263,6 +263,7 @@
    LOGLEVEL_VAR(shim3D), \
    LOGLEVEL_VAR(crc32), \
    LOGLEVEL_VAR(vmkmgmtlib), \
+   LOGLEVEL_VAR(vflash), \
    LOGLEVEL_VAR(vva),  /* apps/rde/vva */ \
    /* end of list */
 

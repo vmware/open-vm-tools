@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -57,112 +57,50 @@
  * and limitations under the License.
  *
  *********************************************************/
-
-/* 
- * vmballoon.h: Definitions and macros for vmballoon driver.
- */
-
-#ifndef	VMBALLOON_H
-#define	VMBALLOON_H
-
-#include "balloonInt.h"
-#include "vm_basic_types.h"
-#include "dbllnklst.h"
-#include "os.h"
+#ifndef BALLOONINT_H_
+# define BALLOONINT_H_
 
 /*
- * Page allocation flags
+ * Compile-Time Options
  */
-typedef enum BalloonPageAllocType {
-   BALLOON_PAGE_ALLOC_NOSLEEP = 0,
-   BALLOON_PAGE_ALLOC_CANSLEEP = 1,
-   BALLOON_PAGE_ALLOC_TYPES_NR,	// total number of alloc types
-} BalloonPageAllocType;
+
+#define BALLOON_NAME                    "vmmemctl"
+#define BALLOON_NAME_VERBOSE            "VMware memory control driver"
+
+#define BALLOON_PROTOCOL_VERSION        BALLOON_PROTOCOL_VERSION_3
+
+#define BALLOON_RATE_ADAPT      1
+
+#define BALLOON_DEBUG           1
+#define BALLOON_DEBUG_VERBOSE   0
+
+#define BALLOON_POLL_PERIOD             1 /* sec */
+#define BALLOON_NOSLEEP_ALLOC_MAX       16384
+
+#define BALLOON_RATE_ALLOC_MIN          512
+#define BALLOON_RATE_ALLOC_MAX          2048
+#define BALLOON_RATE_ALLOC_INC          16
+
+#define BALLOON_RATE_FREE_MIN           512
+#define BALLOON_RATE_FREE_MAX           16384
+#define BALLOON_RATE_FREE_INC           16
 
 /*
- * Types
+ * Move it to bora/public/balloon_def.h later, if needed. Note that
+ * BALLOON_PAGE_ALLOC_FAILURE is an internal error code used for
+ * distinguishing page allocation failures from monitor-backdoor errors.
+ * We use value 1000 because all monitor-backdoor error codes are < 1000.
  */
+#define BALLOON_PAGE_ALLOC_FAILURE      1000
 
-typedef struct {
-   /* current status */
-   uint32 nPages;
-   uint32 nPagesTarget;
+#define BALLOON_STATS
 
-   /* adjustment rates */
-   uint32 rateNoSleepAlloc;
-   uint32 rateAlloc;
-   uint32 rateFree;
+#ifdef	BALLOON_STATS
+#define	STATS_INC(stat)	(stat)++
+#define	STATS_DEC(stat)	(stat)--
+#else
+#define	STATS_INC(stat)
+#define	STATS_DEC(stat)
+#endif
 
-   /* high-level operations */
-   uint32 timer;
-
-   /* primitives */
-   uint32 primAlloc[BALLOON_PAGE_ALLOC_TYPES_NR];
-   uint32 primAllocFail[BALLOON_PAGE_ALLOC_TYPES_NR];
-   uint32 primFree;
-   uint32 primErrorPageAlloc;
-   uint32 primErrorPageFree;
-
-   /* monitor operations */
-   uint32 lock;
-   uint32 lockFail;
-   uint32 unlock;
-   uint32 unlockFail;
-   uint32 target;
-   uint32 targetFail;
-   uint32 start;
-   uint32 startFail;
-   uint32 guestType;
-   uint32 guestTypeFail;
-} BalloonStats;
-
-#define BALLOON_ERROR_PAGES             16
-
-typedef struct {
-   PageHandle page[BALLOON_ERROR_PAGES];
-   uint32 pageCount;
-} BalloonErrorPages;
-
-typedef struct {
-   /* sets of reserved physical pages */
-   DblLnkLst_Links chunks;
-   int nChunks;
-
-   /* transient list of non-balloonable pages */
-   BalloonErrorPages errors;
-
-   BalloonGuest guestType;
-
-   /* balloon size */
-   int nPages;
-   int nPagesTarget;
-
-   /* reset flag */
-   int resetFlag;
-
-   /* adjustment rates (pages per second) */
-   int rateAlloc;
-   int rateFree;
-
-   /* slowdown page allocations for next few cycles */
-   int slowPageAllocationCycles;
-
-   /* statistics */
-   BalloonStats stats;
-
-   /* balloon protocol to use */
-   uint32 hypervisorProtocolVersion;
-} Balloon;
-
-/*
- * Operations
- */
-
-Bool Balloon_Init(BalloonGuest guestType);
-void Balloon_Cleanup(void);
-
-void Balloon_QueryAndExecute(void);
-
-const BalloonStats *Balloon_GetStats(void);
-
-#endif	/* VMBALLOON_H */
+#endif /* !BALLOONINT_H_ */
