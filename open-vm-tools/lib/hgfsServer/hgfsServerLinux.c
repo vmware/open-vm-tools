@@ -99,6 +99,7 @@
 #   include "sig.h"
 #endif
 
+
 /*
  * On Linux, we must wrap getdents64, as glibc does not wrap it for us. We use getdents64
  * (rather than getdents) because with the latter, we'll get 64-bit offsets and inode
@@ -300,6 +301,12 @@ static int HgfsStat(const char* fileName,
 static int HgfsFStat(int fd,
                      struct stat *stats,
                      uint64 *creationTime);
+
+static void HgfsGetSequentialOnlyFlagFromName(const char *fileName,
+                                              HgfsFileAttrInfo *attr);
+
+static void HgfsGetSequentialOnlyFlagFromFd(int fd,
+                                            HgfsFileAttrInfo *attr);
 
 static int HgfsConvertComponentCase(char *currentComponent,
                                     const char *dirPath,
@@ -2094,6 +2101,107 @@ HgfsFStat(int fd,                 // IN: file descriptor
 
 
 /*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsGetSequentialOnlyFlagFromName --
+ *
+ *    Certain files like 'kallsyms' residing in /proc/ filesystem can be
+ *    copied only if they are opened in sequential mode. Check for such files
+ *    and set the 'sequential only' flag. This is done by trying to read the file
+ *    content using 'pread'. If 'pread' fails with ESPIPE then they are
+ *    tagged as 'sequential only' files.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+HgfsGetSequentialOnlyFlagFromName(const char *fileName,        // IN
+                                  HgfsFileAttrInfo *attr)      // IN/OUT
+{
+#if defined(__linux) || defined(__APPLE__)
+   int fd;
+
+   if ((NULL == fileName) || (NULL == attr)) {
+      return;
+   }
+
+   fd = Posix_Open(fileName, O_RDONLY);
+   if (fd < 0) {
+      LOG(4, ("%s: Couldn't open the file \"%s\"\n", __FUNCTION__, fileName));
+      return;
+   }
+   HgfsGetSequentialOnlyFlagFromFd(fd, attr);
+   close(fd);
+   return;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsGetSequentialOnlyFlagFromFd --
+ *
+ *    Certain files like 'kallsyms' residing in /proc/ filesystem can be
+ *    copied only if they are opened in sequential mode. Check for such files
+ *    and set the 'sequential only' flag. This is done by trying to read the file
+ *    content using 'pread'. If 'pread' fails with ESPIPE then they are
+ *    tagged as 'sequential only' files.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+HgfsGetSequentialOnlyFlagFromFd(int fd,                     // IN
+                                HgfsFileAttrInfo *attr)     // IN/OUT
+{
+#if defined(__linux) || defined(__APPLE__)
+   int error;
+   char buffer[2];
+   struct stat stats;
+
+   if (NULL == attr) {
+      return;
+   }
+
+   if (fstat(fd, &stats) < 0) {
+      return;
+   }
+
+   if (S_ISDIR(stats.st_mode) || S_ISLNK(stats.st_mode)) {
+      return;
+   }
+
+   /*
+    * At this point in the code, we are not reading any amount of data from the
+    * file. We just want to check the behavior of pread. Since we are not
+    * reading any data, we can call pread with size specified as 0.
+    */
+   error = pread(fd, buffer, 0, 0);
+   LOG(4, ("%s: pread returned %d, errno %d\n", __FUNCTION__, error, errno));
+   if ((-1 == error) && (ESPIPE == errno)) {
+      LOG(4, ("%s: Marking the file as 'Sequential only' file\n", __FUNCTION__));
+      attr->flags |= HGFS_ATTR_SEQUENTIAL_ONLY;
+   }
+
+   return;
+#endif
+}
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * HgfsPlatformGetattrFromName --
@@ -2274,6 +2382,8 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN/OUT:  Input fi
     */
    HgfsGetHiddenAttr(fileName, attr);
 
+   HgfsGetSequentialOnlyFlagFromName(fileName, attr);
+
    /* Get effective permissions if we can */
    if (!(S_ISLNK(stats.st_mode))) {
       HgfsOpenMode shareMode;
@@ -2392,6 +2502,8 @@ HgfsPlatformGetattrFromFd(fileDesc fileDesc,        // IN:  file descriptor
     * This will be ignored by Linux, Solaris clients.
     */
    HgfsGetHiddenAttr(fileName, attr);
+
+   HgfsGetSequentialOnlyFlagFromFd(fileDesc, attr);
 
    if (shareMode == HGFS_OPEN_MODE_READ_ONLY) {
       /*

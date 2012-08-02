@@ -396,6 +396,8 @@ typedef uint64 HgfsAttrFlags;
 #define HGFS_ATTR_SPARSE                (1 << 9)
 #define HGFS_ATTR_TEMPORARY             (1 << 10)
 
+#define HGFS_ATTR_SEQUENTIAL_ONLY       (1 << 11)
+
 /*
  * Specifies which open request fields contain
  * valid values.
