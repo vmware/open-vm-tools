@@ -3544,12 +3544,28 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
       return EBADF;
    }
 
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
    /* Write to the file. */
    if (sequentialOpen) {
       error = write(fd, payload, requiredSize);
    } else {
       error = pwrite(fd, payload, requiredSize, offset);
+   }
+#elif defined(__APPLE__)
+   {
+      Bool appendMode;
+
+      if (!HgfsHandle2AppendFlag(file, session, &appendMode)) {
+         LOG(4, ("%s: Could not get append mode\n", __FUNCTION__));
+         return EBADF;
+      }
+
+      /* Write to the file. */
+      if (sequentialOpen || appendMode) {
+         error = write(fd, payload, requiredSize);
+      } else {
+         error = pwrite(fd, payload, requiredSize, offset);
+      }
    }
 #else
    /*
