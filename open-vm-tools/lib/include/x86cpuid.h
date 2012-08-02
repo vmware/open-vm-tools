@@ -392,6 +392,9 @@ FIELD(  6,  0, EBX, INTEL,   0,  4, NUM_INTR_THRESHOLDS,           NA,  FALSE) \
 FLAG(   6,  0, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,             NA,  FALSE) \
 FLAG(   6,  0, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,              NA,  FALSE)
 
+
+#define CPUID_7_EBX_13
+
 /*    LEVEL, SUB-LEVEL, REG, VENDOR, POS, SIZE, NAME,        MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
 FLAG(   7,  0, EBX, INTEL,   0,  1, FSGSBASE,                      YES, FALSE) \
@@ -402,7 +405,8 @@ FLAG(   7,  0, EBX, INTEL,   7,  1, SMEP,                          YES, FALSE) \
 FLAG(   7,  0, EBX, INTEL,   8,  1, BMI2,                          YES, TRUE)  \
 FLAG(   7,  0, EBX, INTEL,   9,  1, ENFSTRG,                       YES, FALSE) \
 FLAG(   7,  0, EBX, INTEL,  10,  1, INVPCID,                       NO,  FALSE) \
-FLAG(   7,  0, EBX, INTEL,  11,  1, RTM,                           NO,  TRUE)
+FLAG(   7,  0, EBX, INTEL,  11,  1, RTM,                           NO,  TRUE)  \
+CPUID_7_EBX_13
 
 /*    LEVEL, SUB-LEVEL, REG, VENDOR, POS, SIZE, NAME,        MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
