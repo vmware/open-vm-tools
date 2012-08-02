@@ -731,7 +731,7 @@ File_GetTimes(ConstUnicode pathName,       // IN:
       timeBuf.tv_nsec = statBuf.__unused3;
       *attrChangeTime = TimeUtil_UnixTimeToNtTime(timeBuf);
    }
-#   elif defined(ANDROID_X86)
+#   elif defined(__ANDROID__)
    {
       struct timespec timeBuf;
 

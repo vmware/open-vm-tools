@@ -43,7 +43,7 @@
  * leading to a (potentially undetected) mismatch.
  */
 
-#if defined(linux) && !defined(ANDROID_X86) && \
+#if defined(linux) && !defined(__ANDROID__) && \
     (!defined(_LARGEFILE64_SOURCE) || _FILE_OFFSET_BITS != 64)
 #error LFS support is not enabled!
 #endif

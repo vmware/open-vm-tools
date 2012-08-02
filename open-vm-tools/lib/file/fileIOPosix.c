@@ -52,7 +52,7 @@
 #      define _GNU_SOURCE
 #   endif
 #   include <linux/unistd.h>
-#ifdef ANDROID_X86
+#ifdef __ANDROID__
 #   include <sys/syscall.h>
 #else
 #   include <syscall.h>

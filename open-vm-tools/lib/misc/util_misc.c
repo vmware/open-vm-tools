@@ -400,10 +400,10 @@ Util_GetPrime(unsigned n0)  // IN:
 }
 
 
-#if defined(linux) && !defined(ANDROID_X86)
+#if defined(linux) && !defined(__ANDROID__)
 /*
- * Android x86 has its own gettid. gettid has been declared on
- * <sys/linux-unistd.h> and defined as an extern function on <unistd.h>.
+ * Android has its own gettid. gettid has been declared in
+ * <sys/linux-unistd.h> and defined as an extern function in <unistd.h>.
  */
 
 /*
