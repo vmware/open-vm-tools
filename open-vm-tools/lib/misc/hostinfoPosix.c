@@ -169,6 +169,7 @@ typedef struct distro_info {
 } DistroInfo;
 
 static const DistroInfo distroArray[] = {
+   {"OracleLinux",        "/etc/oracle-release"},
    {"RedHat",             "/etc/redhat-release"},
    {"RedHat",             "/etc/redhat_version"},
    {"Sun",                "/etc/sun-release"},
