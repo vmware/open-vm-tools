@@ -211,6 +211,21 @@ static AlignedPool alignedPool;
 #endif
 
 /*
+ * Although, support for preadv()/pwrite() first appeared in Linux 2.6.30,
+ * library support was added in glibc 2.10. Hence these functions
+ * are not available in any header file.
+ */
+
+#if defined(__linux__)
+
+extern ssize_t preadv(int fd, const struct iovec *iov, int iovcnt,
+                      off_t offset) __attribute__ ((weak));
+extern ssize_t pwritev(int fd, const struct iovec *iov, int iovcnt,
+                       off_t offset) __attribute__ ((weak));
+
+#endif /* defined(__linux__) */
+
+/*
  *-----------------------------------------------------------------------------
  *
  * FileIOErrno2Result --
@@ -1672,6 +1687,10 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
       retval = writev(fd->posix, vPtr, numVec);
 
       if (retval == -1) {
+         if (errno == EINTR) {
+            NOT_TESTED();
+            continue;
+         }
          fret = FileIOErrno2Result(errno);
          break;
       }
@@ -1716,9 +1735,10 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * FileIO_Preadv --
+ * FileIOPreadvCoalesced --
  *
- *      Implementation of vector pread. The incoming vectors are
+ *      This function implements vector pread for platforms that do not
+ *      support the preadv system call. The incoming vectors are
  *      coalesced to a single buffer to issue only one pread()
  *      system call which reads from a specified offset. The
  *      vectors are then decoalesced before return.
@@ -1732,25 +1752,20 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
  *----------------------------------------------------------------------
  */
 
-FileIOResult
-FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
-              struct iovec *entries,  // IN: Vector to read into
-              int numEntries,         // IN: Number of vector entries
-              uint64 offset,          // IN: Offset to start reading
-              size_t totalSize)       // IN: totalSize (bytes) in entries
+static FileIOResult
+FileIOPreadvCoalesced(FileIODescriptor *fd,  // IN: File descriptor
+                      struct iovec *entries, // IN: Vector to read into
+                      int numEntries,        // IN: Number of vector entries
+                      uint64 offset,         // IN: Offset to start reading
+                      size_t totalSize)      // IN: totalSize(bytes) in entries
 {
-   size_t sum = 0;
    struct iovec *vPtr;
    struct iovec coV;
    int count;
    uint64 fileOffset;
    FileIOResult fret;
    Bool didCoalesce;
-
-   ASSERT(fd);
-   ASSERT(entries);
-   ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
-   ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
+   size_t sum = 0;
 
    didCoalesce = FileIOCoalesce(entries, numEntries, totalSize, FALSE,
                                 TRUE /* force coalescing */, fd->flags, &coV);
@@ -1804,9 +1819,10 @@ exit:
 /*
  *----------------------------------------------------------------------
  *
- * FileIO_Pwritev --
+ * FileIOPwritevCoalesced --
  *
- *      Implementation of vector pwrite. The incoming vectors are
+ *      This function implements vector pwrite for platforms that do not
+ *      support the pwritev system call. The incoming vectors are
  *      coalesced to a single buffer to issue only one pwrite()
  *      system call which writes from a specified offset. The
  *      vectors are then decoalesced before return.
@@ -1820,25 +1836,20 @@ exit:
  *----------------------------------------------------------------------
  */
 
-FileIOResult
-FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
-               struct iovec *entries,  // IN: Vector to write from
-               int numEntries,         // IN: Number of vector entries
-               uint64 offset,          // IN: Offset to start writing
-               size_t totalSize)       // IN: Total size (bytes) in entries
+static FileIOResult
+FileIOPwritevCoalesced(FileIODescriptor *fd,  // IN: File descriptor
+                       struct iovec *entries, // IN: Vector to write from
+                       int numEntries,        // IN: Number of vector entries
+                       uint64 offset,         // IN: Offset to start writing
+                       size_t totalSize)      // IN: Total size(bytes)
 {
    struct iovec coV;
    Bool didCoalesce;
    struct iovec *vPtr;
    int count;
-   size_t sum = 0;
    uint64 fileOffset;
    FileIOResult fret;
-
-   ASSERT(fd);
-   ASSERT(entries);
-   ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
-   ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
+   size_t sum = 0;
 
    didCoalesce = FileIOCoalesce(entries, numEntries, totalSize, TRUE,
                                 TRUE /* force coalescing */, fd->flags, &coV);
@@ -1895,9 +1906,325 @@ exit:
    if (didCoalesce) {
       FileIODecoalesce(&coV, entries, numEntries, sum, TRUE, fd->flags);
    }
-
    return fret;
 }
+
+#endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||
+          defined(sun) */
+
+
+#if defined(__linux__ )
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIOPreadvInternal --
+ *
+ *      This function implements vector pread for linux builds. Although,
+ *      support for preadv() first appeared in Linux 2.6.30,
+ *      library support was added in glibc 2.10.
+ *      Hence using weak linkage technique, we try to call the more
+ *      optimized preadv system call. If the system does not support
+ *      this, we fall back to earlier unoptimized techique.
+ *
+ *      Note that in linux, preadv can succeed on the first N vectors,
+ *      and return a positive value in spite of the fact that there was
+ *      an error on the N+1st vector. There is no way to query the exact
+ *      error that happened. So, we retry in a loop (for a max of
+ *      MAX_RWV_RETRIES), same as FileIO_Readv().
+ *
+ *      XXX: If we retried MAX_RWV_RETRIES times and gave up, we will
+ *      return FILEIO_ERROR even if errno is undefined.
+ *
+ * Results:
+ *      FILEIO_SUCCESS, FILEIO_ERROR
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static FileIOResult
+FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
+                     struct iovec *entries,  // IN: Vector to read into
+                     int numEntries,         // IN: Number of vector entries
+                     uint64 offset,          // IN: Offset to start reading
+                     size_t totalSize)       // IN: totalSize(bytes) in entries
+{  struct iovec *vPtr;
+   int numVec;
+   size_t bytesRead = 0;
+   size_t sum = 0;
+   int nRetries = 0;
+   int maxRetries = numEntries;
+   FileIOResult fret = FILEIO_ERROR;
+
+   numVec = numEntries;
+   vPtr = entries;
+
+   while (nRetries < maxRetries) {
+      ssize_t retval = 0;
+
+      ASSERT(numVec > 0);
+      if (preadv != NULL) {
+         retval = preadv(fd->posix, vPtr, numVec, offset);
+      } else {
+         fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
+                                      totalSize);
+         break;
+      }
+      if (retval == -1) {
+         if (errno == EINTR) {
+            NOT_TESTED();
+            continue;
+         }
+         if (errno == ENOSYS) {
+            /*
+             * Function not supported by system. Fallback to unoptimized
+             * function.
+             */
+            ASSERT (nRetries == 0);
+            fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
+                                         totalSize);
+            break;
+         }
+         fret = FileIOErrno2Result(errno);
+         break;
+      }
+      bytesRead += retval;
+      if (retval == 0) {
+         fret = FILEIO_READ_ERROR_EOF;
+         break;
+      }
+      if (bytesRead == totalSize) {
+         fret =  FILEIO_SUCCESS;
+         break;
+      }
+      /*
+       * This is an ambiguous case in linux preadv implementation.
+       * If the bytesRead matches an exact iovector boundary, we need
+       * to retry from the next iovec. However, if it does not match,
+       * EOF is the only error possible. Linux 3.4.4 continues to have
+       * this behaviour.
+       * NOTE: If Linux preadv implementation changes, this
+       * ambiguity handling may need to change.
+       */
+
+      for (; sum <= bytesRead; vPtr++, numVec--) {
+         sum += vPtr->iov_len;
+
+         /*
+          * In each syscall, we will process atleast one iovec
+          * or get an error back. We will therefore retry at most
+          * count times. If multiple iovecs were processed before
+          * an error hit, we will retry a lesser number of times.
+          */
+
+         nRetries++;
+      }
+      if (sum > bytesRead) {
+         // A partially filled iovec can ONLY mean EOF
+         fret = FILEIO_READ_ERROR_EOF;
+         break;
+      }
+   }
+   return fret;
+
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIOPwritevInternal --
+ *
+ *      This function implements vector pwrite for linux builds. Although,
+ *      support for pwritev() first appeared in Linux 2.6.30, library
+ *      support was added in glibc 2.10.
+ *      Hence using weak linkage technique, we try to call the more
+ *      optimized pwritev system call. If the system does not support
+ *      this, we fall back to earlier unoptimized techique.
+ *
+ *      Note that in linux, pwritev can succeed on the first N vectors,
+ *      and return a positive value in spite of the fact that there was
+ *      an error on the N+1st vector. There is no way to query the exact
+ *      error that happened. So, we retry in a loop (for a max of
+ *      MAX_RWV_RETRIES), same as FileIO_Writev().
+ *
+ *      XXX: If we retried MAX_RWV_RETRIES times and gave up, we will
+ *      return FILEIO_ERROR even if errno is undefined.
+ *
+ * Results:
+ *      FILEIO_SUCCESS, FILEIO_ERROR
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static FileIOResult
+FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
+                      struct iovec *entries, // IN: Vector to write from
+                      int numEntries,        // IN: Number of vector entries
+                      uint64 offset,         // IN: Offset to start writing
+                      size_t totalSize)      // IN: Total size(bytes)in entries
+{
+   struct iovec *vPtr;
+   int numVec;
+   size_t bytesWritten = 0;
+   size_t sum = 0;
+   int nRetries = 0;
+   int maxRetries = numEntries;
+   FileIOResult fret = FILEIO_ERROR;
+
+   numVec = numEntries;
+   vPtr = entries;
+   while (nRetries < maxRetries) {
+      ssize_t retval = 0;
+
+      ASSERT(numVec > 0);
+
+      if (pwritev != NULL) {
+         retval = pwritev(fd->posix, vPtr, numVec, offset);
+      } else {
+         fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
+                                       totalSize);
+         break;
+      }
+      if (retval == -1) {
+         if (errno == EINTR) {
+            NOT_TESTED();
+            continue;
+         }
+         if (errno == ENOSYS) {
+            /*
+             * Function not supported by system. Fallback to unoptimized
+             * function.
+             */
+            ASSERT (nRetries == 0);
+            fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
+                                          totalSize);
+            break;
+         }
+         fret = FileIOErrno2Result(errno);
+         break;
+      }
+
+      bytesWritten += retval;
+      if (bytesWritten == totalSize) {
+         fret =  FILEIO_SUCCESS;
+         break;
+      }
+      NOT_TESTED();
+      for (; sum <= bytesWritten; vPtr++, numVec--) {
+         sum += vPtr->iov_len;
+         nRetries++;
+      }
+
+      /*
+       * pwritev produces a partial iovec when the disk is
+       * out of space.  Just call it an error.
+       */
+
+      if (sum != bytesWritten) {
+         fret = FILEIO_WRITE_ERROR_NOSPC;
+         break;
+      }
+   }
+   return fret;
+}
+
+#endif /* defined(__linux__ ) */
+
+
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||\
+    defined(sun)
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_Preadv --
+ *
+ *      Implementation of vector pread.The function checks for the support
+ *      of system call preadv with the version of glibc and calls the
+ *      optimized system call. If the system call is not supported,
+ *      we fall back to the earlier technique of coalescing the vectors
+ *      and calling a single pread and decoalescing again.
+ *
+ * Results:
+ *      FILEIO_SUCCESS, FILEIO_ERROR
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+FileIOResult
+FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
+              struct iovec *entries,  // IN: Vector to read into
+              int numEntries,         // IN: Number of vector entries
+              uint64 offset,          // IN: Offset to start reading
+              size_t totalSize)       // IN: totalSize (bytes) in entries
+{
+   FileIOResult fret;
+
+   ASSERT(fd);
+   ASSERT(entries);
+   ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
+   ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
+
+#if defined(__linux__ )
+   fret = FileIOPreadvInternal(fd, entries, numEntries, offset, totalSize);
+#else
+   fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset, totalSize);
+#endif /* defined(__linux__ ) */
+   return fret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_Pwritev --
+ *
+ *      Implementation of vector pwrite.The function checks for the support
+ *      of system call pwritev with the version of glibc and calls the
+ *      optimized system call. If the system call is not supported,
+ *      we fall back to the earlier technique of coalescing the vectors and
+ *      calling a single pread and decoalescing again.
+ *
+ * Results:
+ *      FILEIO_SUCCESS, FILEIO_ERROR
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+FileIOResult
+FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
+               struct iovec *entries,  // IN: Vector to write from
+               int numEntries,         // IN: Number of vector entries
+               uint64 offset,          // IN: Offset to start writing
+               size_t totalSize)       // IN: Total size (bytes) in entries
+{
+   FileIOResult fret;
+
+   ASSERT(fd);
+   ASSERT(entries);
+   ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
+   ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
+
+#if defined(__linux__ )
+   fret = FileIOPwritevInternal(fd, entries, numEntries, offset, totalSize);
+#else
+   fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset, totalSize);
+#endif /* defined(__linux__ ) */
+   return fret;
+}
+
 #endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||
           defined(sun) */
 
