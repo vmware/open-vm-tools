@@ -252,6 +252,9 @@ typedef struct VMBlockIoctlArgs VMBlockIoctlArgs;
 struct vop_vector VMBlockVnodeOps = {
    .vop_bypass =                  VMBlockVopBypass,
    .vop_access =                  VMBlockVopAccess,
+#if __FreeBSD_version >= 900013
+   .vop_advlockpurge =            vop_stdadvlockpurge,
+#endif
    .vop_bmap =                    VOP_EOPNOTSUPP,
    .vop_getattr =                 VMBlockVopGetAttr,
    .vop_getwritemount =           VMBlockVopGetWriteMount,
