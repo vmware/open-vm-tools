@@ -154,4 +154,67 @@ VSockPtrToVA64(void const *ptr) // IN
 }
 
 
+#if defined(_WIN32) && !defined(WINNT_DDK)
+/* VSock transport provider structures */
+__declspec(selectany) extern const WSAPROTOCOL_INFOW vsockProtocolInfos[] = {
+   {
+      (XP1_CONNECTIONLESS |      /* No connection required. */
+       XP1_MESSAGE_ORIENTED),    /* Message. */
+      0,                         /* Reserved. */
+      0,                         /* Reserved. */
+      0,                         /* Reserved. */
+      PFL_MATCHES_PROTOCOL_ZERO, /* Always protocol 0. */
+      { 0 },                     /* None. */
+      0,                         /* Assigned by Winsock. */
+      { 1, 0 },                  /* Base provider. */
+      0,                         /* Version 0. */
+      VMCI_SOCKETS_AF_VALUE,     /* VMCI sockets protocol. */
+      16,                        /* Maximum address length in bytes. */
+      16,                        /* Minimum address length in bytes. */
+      SOCK_DGRAM,                /* STREAM. */
+      0,                         /* Protocol. */
+      0,                         /* Protocol max offset. */
+      BIGENDIAN,                 /* Network byte order. */
+      SECURITY_PROTOCOL_NONE,    /* No security. */
+      0,                         /* Message size unimportant. */
+      0,                         /* None. */
+      L"VMCI sockets DGRAM"      /* Protocol name. */
+   },
+   {
+      (XP1_GUARANTEED_DELIVERY | /* Guaranteed delivery. */
+       XP1_GUARANTEED_ORDER |    /* Guaranteed order. */
+       XP1_GRACEFUL_CLOSE),      /* Graceful close. */
+      0,                         /* Reserved. */
+      0,                         /* Reserved. */
+      0,                         /* Reserved. */
+      PFL_MATCHES_PROTOCOL_ZERO, /* Always protocol 0. */
+      { 0 },                     /* None. */
+      0,                         /* Assigned by Winsock. */
+      { 1, 0 },                  /* Base provider. */
+      0,                         /* Version 0. */
+      VMCI_SOCKETS_AF_VALUE,     /* VMCI sockets protocol. */
+      16,                        /* Maximum address length in bytes. */
+      16,                        /* Minimum address length in bytes. */
+      SOCK_STREAM,               /* STREAM. */
+      0,                         /* Protocol. */
+      0,                         /* Protocol max offset. */
+      BIGENDIAN,                 /* Network byte order. */
+      SECURITY_PROTOCOL_NONE,    /* No security. */
+      0,                         /* Message size unimportant. */
+      0,                         /* None. */
+      L"VMCI sockets STREAM"     /* Protocol name. */
+   },
+};
+
+__declspec(selectany) extern const
+size_t numVSockProtocolInfos = ARRAYSIZE(vsockProtocolInfos);
+
+/* {570ADC4B-67B2-42ce-92B2-ACD33D88D842} */
+__declspec(selectany) extern const GUID vsockProviderID = {
+   0x570adc4b, 0x67b2, 0x42ce,
+   { 0x92, 0xb2, 0xac, 0xd3, 0x3d, 0x88, 0xd8, 0x42 }
+};
+#endif // _WIN32 && !WINNT_DDK
+
+
 #endif // _VSOCK_COMMON_H_
