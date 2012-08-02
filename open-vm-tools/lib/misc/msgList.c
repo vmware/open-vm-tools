@@ -138,8 +138,10 @@ MsgList_AppendStr(MsgList **list,  // IN reference to existing list
    ASSERT(id != NULL);
 
    /* Silently upgrade system errors to real MSGIDs. */
-   if (!Msg_HasMsgID(id) && Err_String2Errno(id) != ERR_INVALID) {
-      MsgList_Append(list, MSGID(systemerror) "%s", id);
+   if (!Msg_HasMsgID(id)) {
+      ASSERT(Err_String2Errno(id) != ERR_INVALID);
+      /* On release builds, tolerate other messages that lack MSGIDs. */
+      MsgList_Append(list, MSGID(literal) "%s", id);
       return;
    }
 
@@ -198,9 +200,10 @@ MsgList_VAppend(MsgList **list,     // IN reference to existing list
 {
    ASSERT(idFmt != NULL);
 
-   /* Silently upgrade system errors to real MSGIDs. */
-   if (!Msg_HasMsgID(idFmt) && Err_String2Errno(idFmt) != ERR_INVALID) {
-      MsgList_Append(list, MSGID(systemerror) "%s", idFmt);
+   if (!Msg_HasMsgID(idFmt)) {
+      ASSERT(Err_String2Errno(idFmt) != ERR_INVALID);
+      /* On release builds, tolerate other messages that lack MSGIDs. */
+      MsgList_Append(list, MSGID(literal) "%s", idFmt);
       return;
    }
 
