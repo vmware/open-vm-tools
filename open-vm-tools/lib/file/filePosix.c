@@ -125,6 +125,9 @@ struct WalkDirContextImpl
 #define NO_ENDMNTENT
 #endif
 
+/* Long path chunk growth size */
+#define FILE_PATH_GROW_SIZE 1024
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -459,9 +462,8 @@ File_IsSymLink(ConstUnicode pathName)  // IN:
  *
  * File_Cwd --
  *
- *      Find the current directory on drive DRIVE.
- *      DRIVE is either NULL (current drive) or a string
- *      starting with [A-Za-z].
+ *      Find the current directory on drive DRIVE. DRIVE is either NULL
+ *      (current drive) or a string starting with [A-Za-z].
  *
  * Results:
  *      NULL if error.
@@ -475,26 +477,51 @@ File_IsSymLink(ConstUnicode pathName)  // IN:
 Unicode
 File_Cwd(ConstUnicode drive)  // IN:
 {
-   char buffer[FILE_MAXPATH];
+   size_t size;
+   char *buffer;
+   Unicode path;
 
    if ((drive != NULL) && !Unicode_IsEmpty(drive)) {
       Warning(LGPFX" %s: Drive letter %s on Linux?\n", __FUNCTION__,
               UTF8(drive));
    }
 
-   if (getcwd(buffer, FILE_MAXPATH) == NULL) {
+   size = FILE_PATH_GROW_SIZE;
+   buffer = Util_SafeMalloc(size);
+
+   while (TRUE) {
+      if (getcwd(buffer, size) != NULL) {
+         break;
+      }
+
+      free(buffer);
+      buffer = NULL;
+
+      if (errno != ENAMETOOLONG) {
+         break;
+      }
+
+      size += FILE_PATH_GROW_SIZE;
+      buffer = Util_SafeMalloc(size);
+   }
+
+   if (buffer == NULL) {
       Msg_Append(MSGID(filePosix.getcwd)
                  "Unable to retrieve the current working directory: %s. "
-                 "Check if the directory has been deleted or "
-                 "unmounted.\n",
+                 "Check if the directory has been deleted or unmounted.\n",
                  Msg_ErrString());
+
       Warning(LGPFX" %s: getcwd() failed: %s\n", __FUNCTION__,
               Msg_ErrString());
 
       return NULL;
-   };
+   }
 
-   return Unicode_Alloc(buffer, STRING_ENCODING_DEFAULT);
+   path = Unicode_Alloc(buffer, STRING_ENCODING_DEFAULT);
+
+   free(buffer);
+
+   return path;
 }
 
 
