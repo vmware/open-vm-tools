@@ -62,4 +62,8 @@ Bool StrUtil_VDynBufPrintf(struct DynBuf *b, const char *fmt, va_list args);
 Bool StrUtil_DynBufPrintf(struct DynBuf *b, const char *fmt, ...);
 void StrUtil_SafeDynBufPrintf(struct DynBuf *b, const char *fmt, ...);
 
+void StrUtil_SafeStrcat(char **prefix, const char *str);
+void StrUtil_SafeStrcatFV(char **prefix, const char *fmt, va_list args);
+void StrUtil_SafeStrcatF(char **prefix, const char *fmt, ...) PRINTF_DECL(2, 3);
+
 #endif /* STRUTIL_H */

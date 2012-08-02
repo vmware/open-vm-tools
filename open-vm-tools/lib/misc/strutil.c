@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1058,4 +1058,98 @@ StrUtil_SafeDynBufPrintf(DynBuf *b,        // IN/OUT
    va_end(args);
 
    ASSERT_MEM_ALLOC(success);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_SafeStrcat --
+ *
+ *      Given an input buffer, append another string and return the resulting
+ *      string. The input buffer is freed along the way. A fancy strcat().
+ *
+ * Results:
+ *      New buffer returned via 'prefix'
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+StrUtil_SafeStrcat(char **prefix,    // IN/OUT
+                   const char *str)  // IN
+{
+   char *tmp;
+   size_t plen = *prefix != NULL ? strlen(*prefix) : 0;
+   size_t slen = strlen(str);
+
+   /* Check for overflow */
+   ASSERT_NOT_IMPLEMENTED((size_t)-1 - plen > slen + 1);
+
+   tmp = realloc(*prefix, plen + slen + 1 /* NUL */);
+   ASSERT_MEM_ALLOC(tmp);
+
+   memcpy(tmp + plen, str, slen + 1 /* NUL */);
+   *prefix = tmp;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_SafeStrcatFV --
+ *
+ *      Given an input buffer, append another string and return the resulting
+ *      string. The input buffer is freed along the way. A fancy vasprintf().
+ *
+ * Results:
+ *      New buffer returned via 'prefix'
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+StrUtil_SafeStrcatFV(char **prefix,    // IN/OUT
+                     const char *fmt,  // IN
+                     va_list args)     // IN
+{
+   char *str = Str_SafeVasprintf(NULL, fmt, args);
+   StrUtil_SafeStrcat(prefix, str);
+   free(str);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_SafeStrcatF --
+ *
+ *      Given an input buffer, append another string and return the resulting
+ *      string. The input buffer is freed along the way. A fancy asprintf().
+ *
+ * Results:
+ *      New buffer returned via 'prefix'
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+StrUtil_SafeStrcatF(char **prefix,    // IN/OUT
+                    const char *fmt,  // IN
+                    ...)              // IN
+{
+   va_list args;
+
+   va_start(args, fmt);
+   StrUtil_SafeStrcatFV(prefix, fmt, args);
+   va_end(args);
 }
