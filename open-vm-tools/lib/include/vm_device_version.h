@@ -207,6 +207,9 @@
 /************* PCI Passthrough implementation limits ********************/
 #define MAX_PCI_PASSTHRU_DEVICES 6
 
+/************* Test device implementation limits ********************/
+#define MAX_PCI_TEST_DEVICES 2
+
 /************* USB implementation limits ********************************/
 #define MAX_USB_DEVICES_PER_HOST_CONTROLLER 127
 

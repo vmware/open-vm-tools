@@ -155,6 +155,10 @@ Bool Util_Throttle(uint32 count);
 uint32 Util_FastRand(uint32 seed);
 
 
+// Not thread safe!
+void Util_OverrideHomeDir(const char *path);
+
+
 /*
  *-----------------------------------------------------------------------------
  *

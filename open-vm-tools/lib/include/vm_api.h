@@ -40,9 +40,9 @@
  *    included by all headers that export/import symbols:
  *     #include <vm_api.h>
  *     #ifdef FOO_COMPILING_DYNAMIC
- *     #  define FOO_API VMW_EXPORT
+ *     #  define FOO_API VMW_LIB_DYNAMIC
  *     #else
- *     #  define FOO_API VMW_IMPORT
+ *     #  define FOO_API VMW_LIB_CLIENT
  *     #endif // FOO_COMPILING_DYNAMIC
  *
  *    For example:
@@ -57,32 +57,32 @@
 
  *     #endif // FOO_OBJECT_H
  *
- * 3) libfoo can now use FOO_API for all symbols it would like to export,
- *    which resolves to VMW_EXPORT, while compiling libfoo as a dynamic shared
+ * 3) libfoo can now use FOO_API for all symbols it would like to export, which
+ *    resolves to VMW_LIB_DYNAMIC, while compiling libfoo as a dynamic shared
  *    library.
  *
  * 4) Whenever a client of libfoo includes its headers, these symbols will be
- *    marked with VMW_IMPORT, since FOO_COMPILING_DYNAMIC is not defined for
+ *    marked with VMW_LIB_CLIENT, since FOO_COMPILING_DYNAMIC is not defined for
  *    the client.
  *
  * NOTE: By default, symbols are hidden when compiling with MSC and exported
  * when compiling with GCC.  Thus, it's best to compile with GCC's
  * -fvisibility=hidden and -fvisibility-inlines-hidden flags, so that only
- * symbols explicitly marked with VMW_EXPORT are exported.  Also note that
+ * symbols explicitly marked with VMW_LIB_DYNAMIC are exported.  Also note that
  * these flags, as well as the attributes, are available in GCC 4 and later.
  */
 #ifdef _MSC_VER
-#  define VMW_IMPORT    __declspec(dllimport)
-#  define VMW_EXPORT    __declspec(dllexport)
-#  define VMW_STATIC
+#  define VMW_LIB_CLIENT   __declspec(dllimport)
+#  define VMW_LIB_DYNAMIC  __declspec(dllexport)
+#  define VMW_LIB_STATIC
 #elif defined __GNUC__ && __GNUC__ >= 4 /* !_MSC_VER */
-#  define VMW_IMPORT    __attribute__ ((visibility ("default")))
-#  define VMW_EXPORT    __attribute__ ((visibility ("default")))
-#  define VMW_STATIC    __attribute__ ((visibility ("hidden")))
+#  define VMW_LIB_CLIENT   __attribute__ ((visibility ("default")))
+#  define VMW_LIB_DYNAMIC  __attribute__ ((visibility ("default")))
+#  define VMW_LIB_STATIC   __attribute__ ((visibility ("hidden")))
 #else
-#  define VMW_IMPORT
-#  define VMW_EXPORT
-#  define VMW_STATIC
+#  define VMW_LIB_CLIENT
+#  define VMW_LIB_DYNAMIC
+#  define VMW_LIB_STATIC
 #endif /* _MSC_VER */
 
 

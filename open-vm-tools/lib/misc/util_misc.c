@@ -26,6 +26,7 @@
 #include <winsock2.h> // also includes windows.h
 #include <io.h>
 #include <process.h>
+#define getpid() _getpid()
 #endif
 
 #include "vm_ctype.h"
@@ -73,6 +74,10 @@
 #include "hostType.h"
 #include "user_layout.h"
 #endif
+
+
+char *gHomeDirOverride = NULL;
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -125,7 +130,7 @@ Util_GetCanonicalPath(const char *path)  // IN:
     */
 
    if (remoteDrive) {
-      canonicalPath = strdup(path);
+      canonicalPath = Util_SafeStrdup(path);
    } else {
       canonicalPath = W32Util_RobustGetLongPath(path);
    }
@@ -622,18 +627,20 @@ UtilDoTildeSubst(ConstUnicode user)  // IN: name of user
    Unicode str = NULL;
    struct passwd *pwd = NULL;
 
+   if (gHomeDirOverride) {
+      /*
+       * Allow code to override the tilde expansion for things like unit tests.
+       * See: Util_OverrideHomeDir
+       */
+      return Util_SafeStrdup(gHomeDirOverride);
+   }
+
    if (*user == '\0') {
 #if defined(__APPLE__)
       /*
        * The HOME environment variable is not always set on Mac OS.
        * (was bug 841728)
        */
-#if defined(VMX86_DEVEL)
-      /*
-       * Allow code to override the tilde expansion for things like unit tests.
-       */
-      str = Unicode_Duplicate(Posix_Getenv("VMWARE_HOMEDIR_OVERRIDE"));
-#endif // defined(VMX86_DEVEL)
       if (str == NULL) {
          pwd = Posix_Getpwuid(getuid());
          if (pwd == NULL) {
@@ -831,8 +838,8 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
 	    expand = Unicode_Duplicate("unknown");
 	 }
       } else {
-	 Warning("Environment variable '%s' not defined in '%s'.\n",
-		 cp + 1, fileName);
+         Log("Environment variable '%s' not defined in '%s'.\n",
+             cp + 1, fileName);
 #if !defined(_WIN32)
          /*
           * Strip off the env variable string from the pathname.
@@ -910,4 +917,35 @@ out:
    free(copy);
 
    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_OverrideHomeDir --
+ *
+ *      This function changes the behavior of Util_ExpandPath so that
+ *      it will expand "~" to the provided path rather than the current
+ *      user's home directory.
+ *
+ *      This function is not thread safe, so a best practice is to
+ *      invoke it once at the begining of program execution, much like
+ *      an *_Init() function. It should also never be called more than
+ *      once.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      Future calls to Util_ExpandPath will substitute "~" with the
+ *      given path.
+ *
+ *----------------------------------------------------------------------
+ */
+void
+Util_OverrideHomeDir(const char *path) // IN
+{
+   ASSERT(!gHomeDirOverride);
+   gHomeDirOverride = Util_SafeStrdup(path);
 }
