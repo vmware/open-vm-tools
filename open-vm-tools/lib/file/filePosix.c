@@ -1305,7 +1305,7 @@ File_GetVMFSMountInfo(ConstUnicode pathName,   // IN:
  *----------------------------------------------------------------------
  */
 
-Bool
+static Bool
 FileIsVMFS(ConstUnicode pathName)  // IN:
 {
    Bool result = FALSE;
@@ -1315,8 +1315,9 @@ FileIsVMFS(ConstUnicode pathName)  // IN:
    FS_PartitionListResult *fsAttrs = NULL;
 
    if (File_GetVMFSAttributes(pathName, &fsAttrs) >= 0) {
+      /* We want to match anything that starts with VMFS */
       result = strncmp(fsAttrs->fsType, FS_VMFS_ON_ESX,
-                       sizeof(FS_VMFS_ON_ESX)) == 0;
+                       strlen(FS_VMFS_ON_ESX)) == 0;
    } else {
       Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
    }

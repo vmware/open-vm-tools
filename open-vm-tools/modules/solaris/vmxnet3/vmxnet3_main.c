@@ -965,6 +965,9 @@ vmxnet3_change_mtu(vmxnet3_softc_t *dp, uint32_t new_mtu)
 {
    int ret = 0, do_reset = 0;
    ASSERT(dp);
+
+   VMXNET3_DEBUG(dp, 2, "New MTU: %d current MTU: %d\n", new_mtu, dp->cur_mtu);
+
    if (new_mtu == dp->cur_mtu) {
       VMXNET3_WARN(dp, "New MTU is same as old mtu : %d.\n", new_mtu);
       return 0;
@@ -973,6 +976,11 @@ vmxnet3_change_mtu(vmxnet3_softc_t *dp, uint32_t new_mtu)
    if (new_mtu < VMXNET3_MIN_MTU || new_mtu > VMXNET3_MAX_MTU) {
       VMXNET3_WARN(dp, "New MTU not in valid range [%d, %d].\n",
                    VMXNET3_MIN_MTU, VMXNET3_MAX_MTU);
+      return EINVAL;
+   } else if (new_mtu > ETHERMTU && !dp->allow_jumbo) {
+
+      VMXNET3_WARN(dp, "MTU cannot be greater than %d because accept-jumbo "
+                   "is not enabled.\n", ETHERMTU);
       return EINVAL;
    }
 
@@ -983,6 +991,9 @@ vmxnet3_change_mtu(vmxnet3_softc_t *dp, uint32_t new_mtu)
    }
 
    dp->cur_mtu = new_mtu;
+#if defined (SOL11) || defined (OPEN_SOLARIS)
+   mac_maxsdu_update(dp->mac, new_mtu);
+#endif
 
    if (do_reset)
       ret = vmxnet3_start(dp);
@@ -998,7 +1009,7 @@ vmxnet3_change_mtu(vmxnet3_softc_t *dp, uint32_t new_mtu)
  *
  *    DDI/DDK callback to handle IOCTL in driver. Currently it only handles
  *    ND_SET ioctl. Rest all are ignored. The ND_SET is used to set/reset
- *    accept-jumbo ndd parameted for the interface.
+ *    accept-jumbo ndd parameter for the interface.
  *
  * Results:
  *    Nothing is returned directly. An ACK or NACK is conveyed to the calling
@@ -1070,11 +1081,15 @@ vmxnet3_ioctl(void *arg, queue_t *wq, mblk_t *mp)
 
       if (strcmp("accept-jumbo", param) == 0) {
          if (data == 1) {
-            VMXNET3_DEBUG(dp, 2, "Accepting jumbo frames\n");
-            ret = vmxnet3_change_mtu(dp, VMXNET3_MAX_MTU);
+            VMXNET3_DEBUG(dp, 1, "Accepting jumbo frames\n");
+            dp->allow_jumbo = 1;
+            vmxnet3_change_mtu(dp, VMXNET3_MAX_MTU);
+            ret = 0;
          } else if (data == 0) {
-            VMXNET3_DEBUG(dp, 2, "Rejecting jumbo frames\n");
-            ret = vmxnet3_change_mtu(dp, ETHERMTU);
+            dp->allow_jumbo = 0;
+            vmxnet3_change_mtu(dp, ETHERMTU);
+            VMXNET3_DEBUG(dp, 1, "Rejecting jumbo frames\n");
+            ret = 0;
          } else {
             VMXNET3_WARN(dp, "Invalid data value to be set, use 1 or 0.\n");
             ret = -1;
@@ -1143,6 +1158,7 @@ vmxnet3_getcapab(void *data, mac_capab_t capab, void *arg)
 
    return ret;
 }
+
 
 /*
  *---------------------------------------------------------------------------
@@ -1417,7 +1433,12 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
    macr->m_dst_addr = NULL;
    macr->m_callbacks = &vmxnet3_mac_callbacks;
    macr->m_min_sdu = VMXNET3_MIN_MTU;
-   macr->m_max_sdu = VMXNET3_MAX_MTU;
+#if defined(SOL9) || defined (SOL10)
+   macr->m_max_sdu = vmxnet3_getprop(dp, "MTU", VMXNET3_MIN_MTU,
+                                     VMXNET3_MAX_MTU, ETHERMTU);
+#else
+   macr->m_max_sdu = ETHERMTU;
+#endif
    macr->m_pdata = NULL;
    macr->m_pdata_size = 0;
 

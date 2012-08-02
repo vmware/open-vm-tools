@@ -105,7 +105,7 @@ extern "C" {
 #define NULL 0
 #endif
 
-#define BALLOON_PROTOCOL_VERSION        2
+#define BALLOON_PROTOCOL_VERSION        BALLOON_PROTOCOL_VERSION_3
 
 #define BALLOON_CHUNK_PAGES             1000
 
@@ -180,6 +180,9 @@ typedef struct {
 
    /* statistics */
    BalloonStats stats;
+
+   /* balloon protocol to use */
+   uint32 hypervisorProtocolVersion;
 } Balloon;
 
 /*
@@ -932,6 +935,48 @@ BalloonAdjustSize(Balloon *b,    // IN
 /*
  *----------------------------------------------------------------------
  *
+ * BalloonMonitorGetProto --
+ *
+ *      Get the best protocol to communicate with the host.
+ *
+ * Results:
+ *      Returns BALLOON_SUCCESS if successful, otherwise error code.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+BalloonMonitorGetProto(Balloon *b) // IN
+{
+   uint32 status;
+   Backdoor_proto bp;
+
+   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_GET_PROTO_V3;
+
+   Backdoor_Balloon(&bp);
+
+   status = bp.out.ax.word;
+   if (status == BALLOON_SUCCESS) {
+      b->hypervisorProtocolVersion = bp.out.cx.word;
+   } else if (status == BALLOON_ERROR_CMD_INVALID) {
+      /*
+       * Let's assume that if the GET_PROTO command doesn't exist, then
+       * the hypervisor uses the v2 protocol.
+       */
+      b->hypervisorProtocolVersion = BALLOON_PROTOCOL_VERSION_2;
+      status = BALLOON_SUCCESS;
+   }
+
+   return status;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * BalloonMonitorStart --
  *
  *      Attempts to contact monitor via backdoor to begin operation.
@@ -948,7 +993,7 @@ BalloonAdjustSize(Balloon *b,    // IN
 static int
 BalloonMonitorStart(Balloon *b) // IN
 {
-   uint32 status, target;
+   uint32 status;
    Backdoor_proto bp;
 
    /* prepare backdoor args */
@@ -960,7 +1005,17 @@ BalloonMonitorStart(Balloon *b) // IN
 
    /* parse return values */
    status = bp.out.ax.word;
-   target = bp.out.bx.word;
+
+   /*
+    * If return code is BALLOON_SUCCESS_V3, then ESX is informing us
+    * that CMD_GET_PROTO is available, which we can use to gather the
+    * best protocol to use.
+    */
+   if (status == BALLOON_SUCCESS_V3) {
+      status = BalloonMonitorGetProto(b);
+   } else if (status == BALLOON_SUCCESS) {
+      b->hypervisorProtocolVersion = BALLOON_PROTOCOL_VERSION_2;
+   }
 
    /* update stats */
    STATS_INC(b->stats.start);

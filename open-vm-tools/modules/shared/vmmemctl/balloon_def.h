@@ -80,6 +80,10 @@
  * constants
  */
 
+/* protocol versions */
+#define BALLOON_PROTOCOL_VERSION_2      (2)
+#define BALLOON_PROTOCOL_VERSION_3      (3)
+
 /* backdoor port */
 #define BALLOON_BDOOR_PORT              (0x5670)
 #define BALLOON_BDOOR_MAGIC             (0x456c6d6f)
@@ -90,6 +94,15 @@
 #define BALLOON_BDOOR_CMD_LOCK          (2)
 #define BALLOON_BDOOR_CMD_UNLOCK        (3)
 #define BALLOON_BDOOR_CMD_GUEST_ID      (4)
+
+/*
+ * Helps to negotiate the best protocol version to use between guest and
+ * host.
+ *
+ * The protocol version sent by ESX should never be higher than the
+ * protocol version of the guest.
+ */
+#define BALLOON_BDOOR_CMD_GET_PROTO_V3  (5)
 
 /* use config value for max balloon size */
 #define BALLOON_MAX_SIZE_USE_CONFIG     (0)
@@ -121,5 +134,10 @@ typedef enum {
 #define BALLOON_ERROR_PPN_NOTNEEDED     (6)
 #define BALLOON_ERROR_RESET             (7)
 #define BALLOON_ERROR_BUSY              (8)
+/*
+ * Sent on CMD_START to inform the guest to use the protocol v3 or
+ * higher.
+ */
+#define BALLOON_SUCCESS_V3              (0x03000000)
 
 #endif  /* _BALLOON_DEF_H */

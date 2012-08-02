@@ -9046,7 +9046,7 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
-      for (j = 0; j < uaList->numInfos; j++) {
+      for (j = 0; j < uaList[i].numInfos; j++) {
          if (uaList[i].infos[j].comment) {
             escapedStr = VixToolsEscapeXMLString(uaList[i].infos[j].comment);
             if (escapedStr == NULL) {
@@ -9222,7 +9222,7 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
-      for (j = 0; j < maList->numSubjects; j++) {
+      for (j = 0; j < maList[i].numSubjects; j++) {
          if (maList[i].subjects[j].type == VGAUTH_SUBJECT_NAMED) {
             escapedStr = VixToolsEscapeXMLString(maList[i].subjects[j].val.name);
             if (escapedStr == NULL) {

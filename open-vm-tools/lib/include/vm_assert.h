@@ -116,9 +116,13 @@ extern "C" {
            Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
 #endif /* VMKERNEL */
 
-#define AssertLengthFmt     _AssertLengthFmt
-#define AssertUnexpectedFmt _AssertUnexpectedFmt
-#define AssertNotTestedFmt  _AssertNotTestedFmt
+#ifdef VMX86_DEVEL
+#   define _ASSERT_WARNING(name) \
+           Warning(_##name##Fmt "\n", __FILE__, __LINE__)
+#else
+#   define _ASSERT_WARNING(name) \
+           Log(_##name##Fmt "\n", __FILE__, __LINE__)
+#endif
 
 #endif // }
 
@@ -129,11 +133,7 @@ extern "C" {
 #define _AssertNotImplementedFmt   "NOT_IMPLEMENTED %s:%d"
 #define _AssertNotReachedFmt       "NOT_REACHED %s:%d"
 #define _AssertMemAllocFmt         "MEM_ALLOC %s:%d"
-
-// these are complete formats with newline
-#define _AssertLengthFmt           "LENGTH %s:%d r=%#x e=%#x\n"
-#define _AssertUnexpectedFmt       "UNEXPECTED %s:%d bugNr=%d\n"
-#define _AssertNotTestedFmt        "NOT_TESTED %s:%d\n"
+#define _AssertNotTestedFmt        "NOT_TESTED %s:%d"
 
 
 
@@ -234,14 +234,6 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
            ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertMemAlloc))
 
 #ifdef VMX86_DEVEL
-   #define ASSERT_LENGTH(real, expected) \
-              ASSERT_IFNOT((real) == (expected), \
-                 Panic(AssertLengthFmt, __FILE__, __LINE__, real, expected))
-#else
-   #define ASSERT_LENGTH(real, expected) ASSERT((real) == (expected))
-#endif
-
-#ifdef VMX86_DEVEL
    #define ASSERT_DEVEL(cond) ASSERT(cond)
 #else
    #define ASSERT_DEVEL(cond) ((void) 0)
@@ -250,23 +242,8 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
 #define ASSERT_NO_INTERRUPTS()  ASSERT(!INTERRUPTS_ENABLED())
 #define ASSERT_HAS_INTERRUPTS() ASSERT(INTERRUPTS_ENABLED())
 
-#define ASSERT_LOG_UNEXPECTED(bug, cond) \
-           (UNLIKELY(!(cond)) ? LOG_UNEXPECTED(bug) : (void)0)
-#ifdef VMX86_DEVEL
-   #define LOG_UNEXPECTED(bug) \
-              Warning(AssertUnexpectedFmt, __FILE__, __LINE__, bug)
-#else
-   #define LOG_UNEXPECTED(bug) \
-              Log(AssertUnexpectedFmt, __FILE__, __LINE__, bug)
-#endif
-
+#define NOT_TESTED() _ASSERT_WARNING(AssertNotTested)
 #define ASSERT_NOT_TESTED(cond) (UNLIKELY(!(cond)) ? NOT_TESTED() : (void)0)
-#ifdef VMX86_DEVEL
-   #define NOT_TESTED() Warning(AssertNotTestedFmt, __FILE__, __LINE__)
-#else
-   #define NOT_TESTED() Log(AssertNotTestedFmt, __FILE__, __LINE__)
-#endif
-
 #define NOT_TESTED_ONCE() DO_ONCE(NOT_TESTED())
 
 #define NOT_TESTED_1024()                                               \
