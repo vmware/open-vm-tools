@@ -399,6 +399,23 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
       goto out;
    }
 
+   /*
+    * During the initial 'wipe' process, the Toolbox CLI first fills the
+    * entire guest's disk space with files filled with zeroes. During this step,
+    * user may notice few warning messages related to 'low disk space' in the
+    * guest operating system. We need to print a warning message to disregard
+    * such warnings in the guest operating system.
+    */
+   if (performShrink) {
+      ToolsCmd_Print("%s", SU_(disk.shrink.ignoreFreeSpaceWarnings,
+                               "Please disregard any warnings about disk space "
+                               "for the duration of shrink process.\n"));
+   } else {
+      ToolsCmd_Print("%s", SU_(disk.wipe.ignoreFreeSpaceWarnings,
+                               "Please disregard any warnings about disk space "
+                               "for the duration of wipe process.\n"));
+   }
+
    wiper = Wiper_Start(part, MAX_WIPER_FILE_SIZE);
 
 #if defined(_WIN32)
