@@ -1751,7 +1751,7 @@ HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
       }
 
       if ((effectivePermissions & mask) != mask) {
-         ret = -EPERM;
+         ret = -EACCES;
       }
       LOG(8, ("VMware Hgfs: %s: effectivePermissions: %d, ret: %d\n",
               __func__, effectivePermissions, ret));
