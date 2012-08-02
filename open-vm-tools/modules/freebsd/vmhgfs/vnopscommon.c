@@ -104,15 +104,20 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
    uint32 repSize;
    int ret;
 
-   DEBUG(VM_DEBUG_LOG, "Trace enter.\n");
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s -> %.*s/%.*s).\n",
+         HGFS_VP_TO_FILENAME_LENGTH(fvp), HGFS_VP_TO_FILENAME(fvp),
+         HGFS_VP_TO_FILENAME_LENGTH(tdvp), HGFS_VP_TO_FILENAME(tdvp),
+         (int)tcnp->cn_namelen, tcnp->cn_nameptr);
+
    /* No cross-device renaming. */
    if (HGFS_VP_TO_MP(fvp) != HGFS_VP_TO_MP(tdvp)) {
-      return EXDEV;
+      ret = EXDEV;
+      goto out;
    }
 
    req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ret;
+      goto out;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
@@ -216,7 +221,6 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
    }
 
    /* Successfully renamed file on the server. */
-    DEBUG(VM_DEBUG_DONE, "done.\n");
 
 destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
@@ -225,6 +229,7 @@ out:
    if (dstFullPath != NULL) {
       os_free(dstFullPath, MAXPATHLEN);
    }
+   DEBUG(VM_DEBUG_EXIT, "Exit(%d).\n", ret);
    return ret;
 }
 
@@ -267,11 +272,13 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
    char *fullName = NULL;       /* Hashed to generate inode number */
    int ret = 0;
 
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n",  HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
+
    /* uio_offset is a signed quantity. */
    if (HGFS_UIOP_TO_OFFSET(uiop) < 0) {
       DEBUG(VM_DEBUG_FAIL, "fed negative offset.\n");
-      return EINVAL;
+      ret = EINVAL;
+      goto out;
    }
 
    /*
@@ -291,7 +298,8 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
    ret = HgfsGetOpenFileHandle(vp, &handle);
    if (ret) {
       DEBUG(VM_DEBUG_FAIL, "could not get handle.\n");
-      return EINVAL;
+      ret = EINVAL;
+      goto out;
    }
 
    /*
@@ -299,7 +307,8 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
     */
    fullName = os_malloc(MAXPATHLEN, M_WAITOK);
    if (!fullName) {
-      return ENOMEM;
+      ret = ENOMEM;
+      goto out;
    }
 
    /*
@@ -439,12 +448,13 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
     */
    HGFS_UIOP_SET_OFFSET(uiop, offset);
 
-   DEBUG(VM_DEBUG_DONE, "done (ret=%d, *eofp=%d).\n", ret, *eofp);
+   DEBUG(VM_DEBUG_EXIT, "done (ret=%d, *eofp=%d).\n", ret, *eofp);
 out:
    if (fullName != NULL) {
       os_free(fullName, MAXPATHLEN);
    }
-   DEBUG(VM_DEBUG_ENTRY, "exiting %s.\n", HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -474,7 +484,8 @@ HgfsGetattrInt(struct vnode *vp,      // IN : vnode of the file
    HgfsAttrV2 hgfsAttrV2;
    int ret = 0;
 
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
+
    /* XXX It would be nice to do a GetattrByHandle when possible here. */
    ret = HgfsDoGetattrByName(HGFS_VP_TO_FILENAME(vp), sip, &hgfsAttrV2);
 
@@ -487,7 +498,8 @@ HgfsGetattrInt(struct vnode *vp,      // IN : vnode of the file
       HgfsAttrToBSD(vp, &hgfsAttrV2, vap);
    }
 
-   DEBUG(VM_DEBUG_LOG, "Exit %s -> %d.\n",  HGFS_VP_TO_FILENAME(vp), ret);
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -524,13 +536,13 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
    uint32 fullPathLen;
    int ret;
 
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
    ASSERT(vp);
    ASSERT(vap);
 
    req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ret;
+      goto out;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
@@ -608,10 +620,10 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
    }
 
 destroyOut:
-   DEBUG(VM_DEBUG_DONE, "done with ret = %d\n", ret);
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -643,19 +655,18 @@ HgfsRmdirInt(struct vnode *dvp,          // IN: parent directory
 	     struct componentname *cnp)  // IN: Only used for debugging
 {
    int ret = 0;
-
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(dvp);
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(vp));
 
-   DEBUG(VM_DEBUG_ENTRY, "HgfsRmdir().\n");
-
-   DEBUG(VM_DEBUG_ENTRY, "dvp=%p (%s), nm=%s, vp=%p (%s)\n",
-         dvp, (HGFS_VP_TO_FP(dvp)) ? HGFS_VP_TO_FILENAME(dvp) : "dvp->v_data null",
-         cnp->cn_nameptr, vp,
-         (HGFS_VP_TO_FP(vp)) ? HGFS_VP_TO_FILENAME(vp) : "vp->v_data null");
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s/%.*s)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
+         HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
 
    ret = HgfsDelete(sip, HGFS_VP_TO_FILENAME(vp), HGFS_OP_DELETE_DIR_V3);
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s/%.*s -> %d)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
+         HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
+
    return ret;
 }
 
@@ -685,11 +696,11 @@ int HgfsRemoveInt(struct vnode *vp) // IN: Vnode to delete
 
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
 
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(vp));
-   DEBUG(VM_DEBUG_ENTRY, "HgfsRemove().\n");
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
 
    /* Removing directories is a no-no; save that for VNOP_RMDIR. */
    if (HGFS_VP_TO_VTYPE(vp) == VDIR) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsRemove(). on dir ret EPERM\n");
       ret = EPERM;
       goto out;
    }
@@ -701,7 +712,8 @@ int HgfsRemoveInt(struct vnode *vp) // IN: Vnode to delete
    ret = HgfsDelete(sip, HGFS_VP_TO_FILENAME(vp), HGFS_OP_DELETE_FILE_V3);
 
 out:
-   DEBUG(VM_DEBUG_LOG, "Exit %s -> %d.\n",  HGFS_VP_TO_FILENAME(vp), ret);
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -720,7 +732,7 @@ out:
  *      (Solaris Internals, p536)
  *
  * Results:
- *      Returns 0 on success and an error code on error.
+ *      Always returns 0 success.
  *
  * Side effects:
  *      None.
@@ -734,7 +746,9 @@ HgfsCloseInt(struct vnode *vp, // IN: Vnode to close.
 {
    int ret = 0;
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(vp));
+
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s, %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+        mode);
 
    /*
     * If we are closing a directory we need to send a SEARCH_CLOSE request,
@@ -757,7 +771,8 @@ HgfsCloseInt(struct vnode *vp, // IN: Vnode to close.
       ret = EINVAL;
       break;
    }
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d -> 0)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+        ret);
    return 0;
 }
 
@@ -792,33 +807,38 @@ HgfsOpenInt(struct vnode *vp,           // IN: Vnode to open.
             HgfsOpenType openType)      // IN: TRUE if called outside of VNOP_OPEN.
 {
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   int ret = 0;
+
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s, %d, %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         mode, openType);
 
    switch(HGFS_VP_TO_VTYPE(vp)) {
    case VDIR:
-      DEBUG(VM_DEBUG_COMM, "opening a directory\n");
-      return HgfsDirOpen(sip, vp, openType);
+      DEBUG(VM_DEBUG_LOG, "opening a directory\n");
+      ret = HgfsDirOpen(sip, vp, openType);
+      break;
 
    case VREG:
-      {
-         /*
-          * If HgfsCreate() was called prior to this then is would set permissions
-          * in HgfsFile that we need to pass to HgfsFileOpen.
-          * If HgfsCreate has not been called then file already exists and permissions
-          * are ignored by HgfsFileOpen.
-          */
-         DEBUG(VM_DEBUG_COMM, "opening a file with flag %x\n", mode);
-         return HgfsFileOpen(sip, vp, mode, HGFS_VP_TO_PERMISSIONS(vp), openType);
-      }
+      /*
+       * If HgfsCreate() was called prior to this then is would set permissions
+       * in HgfsFile that we need to pass to HgfsFileOpen.
+       * If HgfsCreate has not been called then file already exists and permissions
+       * are ignored by HgfsFileOpen.
+       */
+      DEBUG(VM_DEBUG_LOG, "opening a file with flag %x\n", mode);
+      ret = HgfsFileOpen(sip, vp, mode, HGFS_VP_TO_PERMISSIONS(vp), openType);
+      break;
 
    default:
       DEBUG(VM_DEBUG_FAIL,
             "HgfsOpen: unrecognized file of type %d.\n", HGFS_VP_TO_VTYPE(vp));
-      return EINVAL;
+      ret = EINVAL;
+      break;
    }
 
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
-   return 0;
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp),
+         HGFS_VP_TO_FILENAME(vp), ret);
+   return ret;
 }
 
 
@@ -854,13 +874,11 @@ HgfsLookupInt(struct vnode *dvp,         // IN : directory vnode
    int ret = 0;
    int len = 0;
 
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(dvp));
-
    ASSERT(dvp);
    ASSERT(vpp);
    ASSERT(cnp);
 
-   DEBUG(VM_DEBUG_ENTRY, "HgfsLookupInt(%.*s, %.*s).\n",
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s, %.*s).\n",
          HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
          (int)cnp->cn_namelen, cnp->cn_nameptr);
 
@@ -944,12 +962,14 @@ HgfsLookupInt(struct vnode *dvp,         // IN : directory vnode
       if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
           cnp->cn_flags & ISLASTCN) {
          ret = EJUSTRETURN;
+         DEBUG(VM_DEBUG_FAIL, "GetattrByName error %d for \"%s\".\n", ret, path);
 	 goto out;
       }
    }
 
    /* Got an error from HgfsDoGetattrByName, return it to the caller. */
    if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "GetattrByName error %d for \"%s\".\n", ret, path);
       goto out;
    }
 
@@ -983,7 +1003,9 @@ out:
    if (path != NULL) {
       os_free(path, MAXPATHLEN);
    }
-   DEBUG(VM_DEBUG_LOG, "Exit %d for %s.\n", ret, HGFS_VP_TO_FILENAME(dvp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s, %.*s -> %d)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
+         (int)cnp->cn_namelen, cnp->cn_nameptr, ret);
    return ret;
 }
 
@@ -1011,20 +1033,23 @@ out:
  *----------------------------------------------------------------------------
  */
 
-int HgfsCreateInt(struct vnode *dvp,         // IN : Directory vnode
-		  struct vnode **vpp,        // OUT: Pointer to new vnode
-		  struct componentname *cnp, // IN : Location to create new vnode
-		  int mode)                  // IN : Mode of vnode being created.
+int
+HgfsCreateInt(struct vnode *dvp,         // IN : Directory vnode
+              struct vnode **vpp,        // OUT: Pointer to new vnode
+              struct componentname *cnp, // IN : Location to create new vnode
+              int mode)                  // IN : Mode of vnode being created.
 {
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(dvp);
    char *fullname = NULL;       // allocated from M_TEMP; free when done.
    int ret = 0;
 
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(dvp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s/%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
+         (int)cnp->cn_namelen, cnp->cn_nameptr);
 
    if (*vpp != NULL) {
-      DEBUG(VM_DEBUG_ALWAYS, "vpp (%p) not null\n", vpp);
-      return EEXIST;
+      DEBUG(VM_DEBUG_FAIL, "vpp (%p) not null\n", vpp);
+      ret = EEXIST;
+      goto out;
    }
 
    /* If we have gotten to this point then we know that we need to create a
@@ -1033,7 +1058,8 @@ int HgfsCreateInt(struct vnode *dvp,         // IN : Directory vnode
     */
    fullname = os_malloc(MAXPATHLEN, M_WAITOK);
    if (!fullname) {
-      return ENOMEM;
+      ret = ENOMEM;
+      goto out;
    }
 
    ret = HgfsMakeFullName(HGFS_VP_TO_FILENAME(dvp),  // Name of directory to create in
@@ -1068,10 +1094,13 @@ int HgfsCreateInt(struct vnode *dvp,         // IN : Directory vnode
       ret = ENAMETOOLONG;
    }
 
+out:
    if (fullname != NULL) {
       os_free(fullname, MAXPATHLEN);
    }
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(dvp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s/%.*s -> %d)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
+         (int)cnp->cn_namelen, cnp->cn_nameptr, ret);
    return ret;
 }
 
@@ -1111,10 +1140,11 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
    uint64_t offset;
    int ret;
 
-   DEBUG(VM_DEBUG_ENTRY, "entry %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
 
    /* We can't read from directories, that's what readdir() is for. */
    if (HGFS_VP_TO_VTYPE(vp) != VREG) {
+      DEBUG(VM_DEBUG_FAIL, "Can only read regular files.\n");
       ret = (HGFS_VP_TO_VTYPE(vp) == VDIR) ? EISDIR : EPERM;
       DEBUG(VM_DEBUG_FAIL, "Read not a reg file type %d ret %d.\n", HGFS_VP_TO_VTYPE(vp), ret);
       return ret;
@@ -1175,7 +1205,7 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
 
       if (size == 0) {
          /* For a zero byte length read we return success. */
-         DEBUG(VM_DEBUG_DONE, "size of 0 ret -> 0.\n");
+         DEBUG(VM_DEBUG_EXIT, "size of 0 ret -> 0.\n");
          return 0;
       }
 
@@ -1183,7 +1213,7 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
       ret = HgfsDoRead(sip, handle, offset, size, uiop);
       if (ret == 0) {
          /* On end of file we return success */
-         DEBUG(VM_DEBUG_DONE, "end of file reached.\n");
+         DEBUG(VM_DEBUG_EXIT, "end of file reached.\n");
          return 0;
       } else if (ret == -EBADF) { // Stale host handle
          ret = HgfsRefreshHandle(vp, sip, &handle);
@@ -1213,7 +1243,7 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
    } while (HGFS_UIOP_TO_RESID(uiop));
 
    /* We fulfilled the user's read request, so return success. */
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> 0)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
    return 0;
 }
 
@@ -1246,15 +1276,16 @@ HgfsWriteInt(struct vnode *vp, // IN    : the vnode of the file
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
    HgfsHandle handle;
    uint64_t offset;
-   int ret;
+   int ret = 0;
    int error = 0;
 
-   DEBUG(VM_DEBUG_ENTRY, "entry. (vp=%p)\n", vp);
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
 
    /* Skip write requests for 0 bytes. */
    if (HGFS_UIOP_TO_RESID(uiop) == 0) {
       DEBUG(VM_DEBUG_INFO, "write of 0 bytes requested.\n");
-      return 0;
+      error = 0;
+      goto out;
    }
 
    DEBUG(VM_DEBUG_INFO, "file is %s\n", HGFS_VP_TO_FILENAME(vp));
@@ -1262,7 +1293,8 @@ HgfsWriteInt(struct vnode *vp, // IN    : the vnode of the file
    /* Off_t is a signed type. */
    if (HGFS_UIOP_TO_OFFSET(uiop) < 0) {
       DEBUG(VM_DEBUG_FAIL, "given negative offset.\n");
-      return EINVAL;
+      error = EINVAL;
+      goto out;
    }
 
    /* This is where the user will begin writing into the file. */
@@ -1272,7 +1304,8 @@ HgfsWriteInt(struct vnode *vp, // IN    : the vnode of the file
    ret = HgfsGetOpenFileHandle(vp, &handle);
    if (ret) {
       DEBUG(VM_DEBUG_FAIL, "could not get handle.\n");
-      return EINVAL;
+      error = EINVAL;
+      goto out;
    }
 
    /* Flush mmaped data to maintain data coherence between mmap and read. */
@@ -1339,8 +1372,11 @@ HgfsWriteInt(struct vnode *vp, // IN    : the vnode of the file
          os_SetSize(vp, oldSize + writtenData);
       }
    }
+
+out:
    /* We have completed the user's write request, so return. */
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp), error);
 
    return error;
 }
@@ -1382,9 +1418,9 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
    uint32 fullNameLen;
    int ret;
 
-   DEBUG(VM_DEBUG_ENTRY, "dvp=%p (%s), dirname=%s, vpp=%p\n",
-                         dvp, HGFS_VP_TO_FILENAME(dvp), cnp->cn_nameptr,
-                         *vpp);
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s/%.*s,%d)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
+         (int)cnp->cn_namelen, cnp->cn_nameptr, mode);
 
    /*
     * We need to construct the full path of the directory to create then send
@@ -1397,7 +1433,8 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
    /* Construct the complete path of the directory to create. */
    fullName = os_malloc(MAXPATHLEN, M_WAITOK);
    if (!fullName) {
-      return ENOMEM;
+      ret = ENOMEM;
+      goto out;
    }
 
    ret = HgfsMakeFullName(HGFS_VP_TO_FILENAME(dvp),        // Parent directory
@@ -1480,6 +1517,7 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
                       mode, 0);
    if (ret) {
       ret = EIO;
+      DEBUG(VM_DEBUG_FAIL, "Error encountered creating vnode ret = %d\n", ret);
       goto destroyOut;
    }
 
@@ -1492,7 +1530,9 @@ out:
    if (fullName != NULL) {
       os_free(fullName, MAXPATHLEN);
    }
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(dvp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s/%.*s -> %d)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
+         (int)cnp->cn_namelen, cnp->cn_nameptr, ret);
    return ret;
 }
 
@@ -1532,7 +1572,8 @@ HgfsDirOpen(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    fp = HGFS_VP_TO_FP(vp);
    ASSERT(fp);
 
-   DEBUG(VM_DEBUG_ENTRY, "opening dir \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s,%d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         openType);
 
    /*
     *  If the directory is already opened then we are done.
@@ -1561,7 +1602,9 @@ HgfsDirOpen(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    }
    os_rw_lock_unlock_exclusive(fp->handleLock);
 
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -1601,10 +1644,15 @@ HgfsRequestHostFileHandle(HgfsSuperInfo *sip,   // IN: Superinfo pointer
    fullPath = HGFS_VP_TO_FILENAME(vp);
    fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
 
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s, %d, %d, %o)\n", fullPathLen, fullPath,
+         *openMode, openFlags, permissions);
+
    /* First see if we can get the most permissive read/write open mode */
    ret = HgfsSendOpenRequest(sip, HGFS_OPEN_MODE_READ_WRITE, openFlags,
                              permissions, fullPath, fullPathLen, handle);
    if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "Open failed %d, re-submitting original mode = %d.\n",
+            ret, *openMode);
       if (ret == EACCES && HGFS_OPEN_MODE_READ_WRITE != *openMode) {
          /*
           * Failed to open in read/write open mode because of denied access.
@@ -1621,6 +1669,7 @@ HgfsRequestHostFileHandle(HgfsSuperInfo *sip,   // IN: Superinfo pointer
    } else {
       *openMode = HGFS_OPEN_MODE_READ_WRITE;
    }
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", fullPathLen, fullPath, ret);
    return ret;
 }
 
@@ -1664,7 +1713,9 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    fp = HGFS_VP_TO_FP(vp);
    ASSERT(fp);
 
-   DEBUG(VM_DEBUG_ENTRY, "opening \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s,%d,%d,%o)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         flag, openType, permissions);
 
    /*
     * Check if the user is trying to create a new share. This check was
@@ -1680,7 +1731,8 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
     */
    if (HgfsAttemptToCreateShare(HGFS_VP_TO_FILENAME(vp), flag)) {
       DEBUG (VM_DEBUG_LOG, "An attempt to create a new share was made.\n");
-      return EACCES;
+      ret = EACCES;
+      goto out;
    }
 
    /* Convert FreeBSD modes to Hgfs modes */
@@ -1722,7 +1774,8 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    os_rw_lock_unlock_exclusive(fp->handleLock);
 
 out:
-   DEBUG(VM_DEBUG_LOG, "Exit (%d) %s.\n", ret,  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -1757,7 +1810,8 @@ HgfsRefreshHandle(struct vnode *vp,          // IN: Vnode of file to open
    fp = HGFS_VP_TO_FP(vp);
    ASSERT(fp);
 
-   DEBUG(VM_DEBUG_ENTRY, "Refresh handle\n");
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
+
    os_rw_lock_lock_exclusive(fp->handleLock);
    if (fp->handle != *handle) {
       /* Handle has been refreshed in another thread. */
@@ -1782,6 +1836,8 @@ HgfsRefreshHandle(struct vnode *vp,          // IN: Vnode of file to open
 out:
    os_rw_lock_unlock_exclusive(fp->handleLock);
 
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -1814,7 +1870,7 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    ASSERT(sip);
    ASSERT(vp);
 
-   DEBUG(VM_DEBUG_ENTRY, "closing \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
 
    /*
     * Check to see if we should close the file handle on the host ( which happen when
@@ -1823,7 +1879,8 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    if (HgfsReleaseOpenFileHandle(vp, OPENREQ_OPEN, &handleToClose) == 0) {
       ret = HgfsCloseServerDirHandle(sip, handleToClose);
    }
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -1857,7 +1914,8 @@ HgfsFileClose(HgfsSuperInfo *sip,       // IN: Superinfo pointer
    ASSERT(sip);
    ASSERT(vp);
 
-   DEBUG(VM_DEBUG_ENTRY, "closing file \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s,%d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         flags);
 
    /*
     * Check to see if we should close the file handle on the host ( which happen when
@@ -1866,7 +1924,8 @@ HgfsFileClose(HgfsSuperInfo *sip,       // IN: Superinfo pointer
    if (HgfsReleaseOpenFileHandle(vp, OPENREQ_OPEN, &handleToClose) == 0) {
       ret = HgfsCloseServerFileHandle(sip, handleToClose);
    }
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -1916,11 +1975,12 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
    ASSERT(uiop);
    ASSERT(size <= HGFS_IO_MAX); // HgfsRead() should guarantee this
 
-   DEBUG(VM_DEBUG_ENTRY, "entry.\n");
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%u,%"FMT64"u,%u)\n", handle, offset, size);
 
    req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return -ret;
+      ret = -ret;
+      goto out;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
@@ -1994,10 +2054,10 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
 
 success:
    ret = reply->actualSize;
-   DEBUG(VM_DEBUG_DONE, "successfully read %d bytes to user.\n", ret);
 destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
+   DEBUG(VM_DEBUG_EXIT, "Exit(%u -> %d)\n", handle, ret);
    return ret;
 }
 
@@ -2045,14 +2105,16 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
    uint32 repSize;
    int ret;
 
-   DEBUG(VM_DEBUG_LOG, "Trace enter.\n");
    ASSERT(sip);
    ASSERT(uiop);
    ASSERT(size <= HGFS_IO_MAX); // HgfsWrite() guarantees this
 
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%u,%d,%"FMT64"u,%u)\n", handle, ioflag, offset, size);
+
    req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return -ret;
+      ret = -ret;
+      goto out;
    }
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
@@ -2114,7 +2176,7 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
 
    if (HgfsKReq_GetPayloadSize(req) != repSize) {
       DEBUG(VM_DEBUG_FAIL,
-            "HgfsDoWrite: invalid size of reply on successful reply.\n");
+            "Error: invalid size of reply on successful reply.\n");
       ret = -EPROTO;
       goto destroyOut;
    }
@@ -2123,11 +2185,11 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
 
    /* The write was completed successfully, so return the amount written. */
    ret = reply->actualSize;
-   DEBUG(VM_DEBUG_DONE, "wrote %d bytes.\n", ret);
 
 destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
+   DEBUG(VM_DEBUG_EXIT, "Exit(%u -> %d)\n", handle, ret);
    return ret;
 }
 
@@ -2167,11 +2229,11 @@ HgfsDelete(HgfsSuperInfo *sip,          // IN: Superinfo
    ASSERT(filename);
    ASSERT((op == HGFS_OP_DELETE_FILE_V3) || (op == HGFS_OP_DELETE_DIR_V3));
 
-   DEBUG(VM_DEBUG_ENTRY, "HgfsDelete().\n");
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%s,%d)\n", filename, op);
 
    req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ret;
+      goto out;
    }
 
    /* Initialize the request's contents. */
@@ -2228,11 +2290,10 @@ HgfsDelete(HgfsSuperInfo *sip,          // IN: Superinfo
       goto destroyOut;
    }
 
-   DEBUG(VM_DEBUG_DONE, "done.\n");
-
 destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
+   DEBUG(VM_DEBUG_EXIT, "Exit(%s -> %d)\n", filename, ret);
    return ret;
 }
 
@@ -2275,8 +2336,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    uint32 repSize;
    int ret;
 
-   DEBUG(VM_DEBUG_ENTRY,
-         "HgfsGetNextDirEntry: handle=%d, offset=%d.\n", handle, offset);
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%u,%u)\n", handle, offset);
 
    ASSERT(sip);
    ASSERT(nameOut);
@@ -2285,7 +2345,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
       DEBUG(VM_DEBUG_FAIL, "couldn't get req.\n");
-      return ret;
+      goto out;
    }
 
    /*
@@ -2338,7 +2398,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
 
    /* See if there are no more filenames to read */
    if (dirent->fileName.length <= 0) {
-      DEBUG(VM_DEBUG_DONE, "no more directory entries.\n");
+      DEBUG(VM_DEBUG_LOG, "no more directory entries.\n");
       *done = TRUE;
       ret = 0;         /* return success */
       goto destroyOut;
@@ -2363,10 +2423,10 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    *type = dirent->attr.type;
    ret = 0;
 
-   DEBUG(VM_DEBUG_DONE, "done.\n");
 destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
+   DEBUG(VM_DEBUG_EXIT, "Exit(%u -> %d)\n", handle, ret);
    return ret;
 }
 
@@ -2391,60 +2451,73 @@ int
 HgfsReadlinkInt(struct vnode *vp,   // IN : File vnode
                 struct uio *uiop)   // OUT: Attributes from hgfs server
 {
-   HgfsKReqHandle req;
+   HgfsKReqHandle req = NULL;
    int ret = 0;
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(vp));
+   HgfsReplyGetattrV3 *reply;
+   HgfsReply *replyHeader;
+   uint32 outLength;
+   char* outBuffer = NULL;
+
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
+
    /* This operation is valid only for symbolic links. */
    if (HGFS_VP_TO_VTYPE(vp) != VLNK) {
       DEBUG(VM_DEBUG_FAIL, "Must be a symbolic link.\n");
-      return EINVAL;
+      ret = EINVAL;
+      goto out;
    }
 
    req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
    if (!req) {
-      return ret;
+      goto out;
    }
 
    ret = HgfsQueryAttrInt(HGFS_VP_TO_FILENAME(vp), 0, sip, req);
-   if (ret == 0) {
-      HgfsReplyGetattrV3 *reply;
-      HgfsReply *replyHeader;
-      uint32 outLength;
-      char* outBuffer;
-      outLength = HGFS_UIOP_TO_RESID(uiop);
-      outBuffer = os_malloc(outLength, M_WAITOK);
-      if (outBuffer != NULL) {
-         replyHeader = (HgfsReply *)HgfsKReq_GetPayload(req);
-         reply = (HgfsReplyGetattrV3 *)HGFS_REP_GET_PAYLOAD_V3(replyHeader);
-         if (reply->symlinkTarget.name[reply->symlinkTarget.length - 1] == '\0') {
-            ret = EINVAL; // Not a well formed name
-         } else {
-            ret = HgfsNameFromWireEncoding(reply->symlinkTarget.name,
-                                           reply->symlinkTarget.length,
-                                           outBuffer, outLength);
-            if (ret >= 0) {
-               ret = uiomove(outBuffer, MIN(ret, outLength), uiop);
-               if (ret != 0) {
-                  DEBUG(VM_DEBUG_FAIL, "Failed %d copying into user buffer.\n", ret);
-               }
-            } else {
-               ret = -ret;  // HgfsNameFromWireEncoding returns negative error code
-               DEBUG(VM_DEBUG_FAIL, "Failed %d converting link from wire format.\n", ret);
-               DEBUG(VM_DEBUG_FAIL, "Link length is %d, name is %s\n",
-                     reply->symlinkTarget.length, reply->symlinkTarget.name);
-            }
-         }
-         os_free(outBuffer, outLength);
-      } else {
-         DEBUG(VM_DEBUG_FAIL, "No memory for symlink name.\n");
-         ret = ENOMEM;
-      }
-      HgfsKReq_ReleaseRequest(sip->reqs, req);
-   } else {
+   if (ret != 0) {
       DEBUG(VM_DEBUG_FAIL, "Error %d reading symlink name.\n", ret);
+      goto out;
    }
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
+
+   outLength = HGFS_UIOP_TO_RESID(uiop);
+   outBuffer = os_malloc(outLength, M_WAITOK);
+   if (outBuffer != NULL) {
+      DEBUG(VM_DEBUG_FAIL, "No memory for symlink name.\n");
+      ret = ENOMEM;
+      goto out;
+   }
+
+   replyHeader = (HgfsReply *)HgfsKReq_GetPayload(req);
+   reply = (HgfsReplyGetattrV3 *)HGFS_REP_GET_PAYLOAD_V3(replyHeader);
+   if (reply->symlinkTarget.name[reply->symlinkTarget.length - 1] == '\0') {
+      ret = EINVAL; // Not a well formed name
+      goto out;
+   }
+
+   ret = HgfsNameFromWireEncoding(reply->symlinkTarget.name,
+                                  reply->symlinkTarget.length,
+                                  outBuffer, outLength);
+   if (ret < 0) {
+      ret = -ret;  // HgfsNameFromWireEncoding returns negative error code
+      DEBUG(VM_DEBUG_FAIL, "Error converting link wire format length is %d, name is %s\n",
+            reply->symlinkTarget.length, reply->symlinkTarget.name);
+      goto out;
+   }
+
+   ret = uiomove(outBuffer, MIN(ret, outLength), uiop);
+   if (ret != 0) {
+      DEBUG(VM_DEBUG_FAIL, "Failed %d copying into user buffer.\n", ret);
+   }
+
+out:
+   if (outBuffer != NULL) {
+      os_free(outBuffer, outLength);
+   }
+   if (req != NULL) {
+      HgfsKReq_ReleaseRequest(sip->reqs, req);
+   }
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
+         ret);
    return ret;
 }
 
@@ -2486,10 +2559,10 @@ HgfsSymlinkInt(struct vnode *dvp,         // IN : directory vnode
    HgfsFileNameV3 *fileNameP;
    int nameOffset;
 
-   DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(dvp));
-   DEBUG(VM_DEBUG_ENTRY, "dvp=%p (%s), dirname=%s, vpp=%p\n",
-                         dvp, HGFS_VP_TO_FILENAME(dvp), cnp->cn_nameptr,
-                         *vpp);
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s/%.*s,%s)\n",
+                         HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
+                         (int)cnp->cn_namelen, cnp->cn_nameptr,
+                         targetName);
 
    fullName = os_malloc(MAXPATHLEN, M_WAITOK);
    if (!fullName) {
@@ -2559,14 +2632,14 @@ HgfsSymlinkInt(struct vnode *dvp,         // IN : directory vnode
     * Currently we have different name formats for file names and for symbolic
     * link targets. Flie names are always absolute and on-wire representation does
     * not include leading path separator. HgfsNameToWireEncoding removes
-	* leading path separator from the name. However symbolic link targets may be
-	* either absolute or relative. To distinguish between them the leading path separator
-	* must be preserved for absolute symbolic link target.
-	* In the long term we should fix the protocol and have only one name
-	* format which is suitable for all names.
-	* The following code compensates for this problem before there is such
-	* universal name representation.
-	*/
+    * leading path separator from the name. However symbolic link targets may be
+    * either absolute or relative. To distinguish between them the leading path separator
+    * must be preserved for absolute symbolic link target.
+    * In the long term we should fix the protocol and have only one name
+    * format which is suitable for all names.
+    * The following code compensates for this problem before there is such
+    * universal name representation.
+    */
    if (*targetName == '/') {
       fileNameP->length = 1;
       reqSize += 1;
@@ -2627,7 +2700,10 @@ out:
    if (fullName != NULL) {
       os_free(fullName, MAXPATHLEN);
    }
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(dvp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s/%.*s -> %d)\n",
+         HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
+         (int)cnp->cn_namelen, cnp->cn_nameptr,
+         ret);
    return ret;
 }
 
@@ -2655,8 +2731,11 @@ HgfsDoGetattrByName(const char *path,       // IN : Path to get attributes for
 		    HgfsSuperInfo *sip,     // IN : SuperInfo block of hgfs mount.
 		    HgfsAttrV2 *hgfsAttrV2) // OUT: Attributes from hgfs server
 {
-   DEBUG(VM_DEBUG_LOG, "Trace enter.\n");
-   return HgfsDoGetattrInt(path, 0, sip, hgfsAttrV2);
+   int ret;
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%s)\n", path);
+   ret = HgfsDoGetattrInt(path, 0, sip, hgfsAttrV2);
+   DEBUG(VM_DEBUG_EXIT, "Exit(%s -> %d)\n", path, ret);
+   return ret;
 }
 
 
@@ -2684,7 +2763,10 @@ HgfsDoGetattrByHandle(HgfsHandle handle,      // IN : Hgfs handle for attr reque
 		      HgfsSuperInfo *sip,     // IN : SuperInfo block for hgfs mount
 		      HgfsAttrV2 *hgfsAttrV2) // OUT: Attributes from hgfs server
 {
-   return HgfsDoGetattrInt(NULL, handle, sip, hgfsAttrV2);
+   int ret;
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%u)\n", handle);
+   ret =  HgfsDoGetattrInt(NULL, handle, sip, hgfsAttrV2);
+   DEBUG(VM_DEBUG_EXIT, "Exit(%u -> %d)\n", handle, ret);
 }
 #endif
 
@@ -2719,7 +2801,7 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
    HgfsKReqHandle req;
    int ret = 0;
 
-   DEBUG(VM_DEBUG_LOG, "Trace enter, %s.\n", path);
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%s,%u)\n", (path != NULL ? path : "null"), handle);
    ASSERT(hgfsAttrV2);
 
    req = HgfsKReq_AllocateRequest(sip->reqs, &ret);
@@ -2738,6 +2820,7 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
       memcpy(hgfsAttrV2, &reply->attr, sizeof *hgfsAttrV2);
       HgfsKReq_ReleaseRequest(sip->reqs, req);
    }
+   DEBUG(VM_DEBUG_EXIT, "Exit(%s,%u -> %d)\n", (path != NULL ? path : "null"), handle, ret);
    return ret;
 }
 
@@ -2779,7 +2862,7 @@ HgfsQueryAttrInt(const char *path,       // IN : Path to get attributes for
    uint32 reqBufferSize;
    int ret = 0;
 
-   DEBUG(VM_DEBUG_LOG, "Trace enter.\n");
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%s,%u)\n", (path != NULL ? path : "null"), handle);
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
    request = (HgfsRequestGetattrV3 *)HGFS_REQ_GET_PAYLOAD_V3(requestHeader);
 
@@ -2881,6 +2964,7 @@ destroyOut:
    }
 
 out:
+   DEBUG(VM_DEBUG_EXIT, "Exit(%s,%u -> %d)\n", (path != NULL ? path : "null"), handle, ret);
    return ret;
 }
 
@@ -2966,7 +3050,8 @@ HgfsAccessInt(struct vnode *vp,     // IN: Vnode to check access for
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
    HgfsAttrV2 hgfsAttrV2;
 
-   DEBUG(VM_DEBUG_ENTRY, "HgfsAccessInt is called\n");
+   DEBUG(VM_DEBUG_ENTRY, "HgfsAccessInt(%.*s,%d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp),
+         HGFS_VP_TO_FILENAME(vp), mode);
 
    ret = HgfsDoGetattrByName(HGFS_VP_TO_FILENAME(vp), sip, &hgfsAttrV2);
    if (ret == 0) {
@@ -2993,6 +3078,9 @@ HgfsAccessInt(struct vnode *vp,     // IN: Vnode to check access for
       DEBUG(VM_DEBUG_FAIL, "HgfsAccessInt failed getting attrib: %s (%d)\n",
             HGFS_VP_TO_FILENAME(vp), ret);
    }
+
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp),
+         HGFS_VP_TO_FILENAME(vp), ret);
    return ret;
 }
 
@@ -3026,7 +3114,8 @@ HgfsMmapInt(struct vnode *vp,
 
    ASSERT(fp);
 
-   DEBUG(VM_DEBUG_ENTRY, "mmapping \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s,%d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp),
+         HGFS_VP_TO_FILENAME(vp), accessMode);
 
    /*
     *  If the directory is already opened then we are done.
@@ -3036,7 +3125,8 @@ HgfsMmapInt(struct vnode *vp,
 
    ret = HgfsCheckAndReferenceHandle(vp, accessMode, OPENREQ_MMAP);
    os_rw_lock_unlock_exclusive(fp->handleLock);
-   DEBUG(VM_DEBUG_LOG, "Exit (%d) %s.\n", ret,  HGFS_VP_TO_FILENAME(vp));
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d).\n", HGFS_VP_TO_FILENAME_LENGTH(vp),
+         HGFS_VP_TO_FILENAME(vp), ret);
    return ret;
 }
 
@@ -3061,19 +3151,23 @@ HgfsMmapInt(struct vnode *vp,
 int
 HgfsMnomapInt(struct vnode *vp)
 {
-   int error = 0;
+   int ret = 0;
    HgfsHandle handleToClose;
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
 
    ASSERT(vp);
-   DEBUG(VM_DEBUG_ENTRY, "unmmapping \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
+
+   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp),
+         HGFS_VP_TO_FILENAME(vp));
 
    /*
     * Check to see if we should close the file handle on the host, which happen when
     * the reference count of the current handle become 0.
     */
    if (HgfsReleaseOpenFileHandle(vp, OPENREQ_MMAP, &handleToClose) == 0) {
-      error = HgfsCloseServerFileHandle(sip, handleToClose);
+      ret = HgfsCloseServerFileHandle(sip, handleToClose);
    }
-   return error;
+   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d).\n", HGFS_VP_TO_FILENAME_LENGTH(vp),
+         HGFS_VP_TO_FILENAME(vp), ret);
+   return ret;
 }
