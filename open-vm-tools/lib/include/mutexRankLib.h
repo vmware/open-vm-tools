@@ -123,13 +123,10 @@
  * (RANK_libLockBase + 0x6500, RANK_libLockBase + 0x6600)
  */
 
-#define RANK_usbArbLibClientLock     (RANK_libLockBase + 0x6505)
-#define RANK_usbEnumClientsLock      (RANK_libLockBase + 0x6506)
-#define RANK_usbArbLibGlobalLock     (RANK_libLockBase + 0x6507)
-#define RANK_usbArbLibAsockLock      (RANK_libLockBase + 0x6508)
-#define RANK_usbEnumBackendsLock     (RANK_libLockBase + 0x6509)
-#define RANK_usbEnumBackendLock      (RANK_libLockBase + 0x6510)
-
+#define RANK_usbArbLibGlobalLock     (RANK_libLockBase + 0x6505)
+#define RANK_usbEnumGlobalLock       (RANK_libLockBase + 0x6506)
+#define RANK_usbArbLibAsockLock      (RANK_libLockBase + 0x6507)
+#define RANK_usbEnumBackendLock      (RANK_libLockBase + 0x6508)
 
 /*
  * misc locks
