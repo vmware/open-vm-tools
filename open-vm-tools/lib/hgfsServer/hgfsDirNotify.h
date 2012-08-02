@@ -25,9 +25,24 @@
  *	Function definitions for directory change notification.
  */
 
+#include "hgfsServer.h" // for HgfsSharedFolderHandle
+#include "hgfsProto.h"  // for HgfsSubscriberHandle
+#include "hgfsUtil.h"   // for HgfsInternalStatus
+
 struct HgfsSessionInfo;
 /*
- * Resume and suspend flags passed to the suspend/resume APIs.
+ * Activate and deactivate reason.
+ * Currently, there are two scenarios:
+ * 1) HGFS server is check point synchronizing: the file system event
+ * generation is deactivated at the start and activated at the end.
+ * 2) The client has added the first subscriber or removed the last
+ * subscriber. The file system event generation is activated on the
+ * addition of the first subscriber and deactivated on removal of
+ * the last one.
+ *
+ * Note, in case 1 above, if there are no subscribers even at the end
+ * of the HGFS server check point syncing, the activation will not
+ * activate the file system events.
  */
 typedef enum {
    HGFS_NOTIFY_REASON_SERVER_SYNC,
