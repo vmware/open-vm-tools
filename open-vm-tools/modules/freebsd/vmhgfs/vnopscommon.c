@@ -37,9 +37,9 @@
 int HgfsGetNextDirEntry(HgfsSuperInfo *sip, HgfsHandle handle,
                                uint32_t offset, char *nameOut, size_t nameSize,
                                HgfsFileType *type, Bool *done);
-int HgfsDirOpen(HgfsSuperInfo *sip, struct vnode *vp);
+int HgfsDirOpen(HgfsSuperInfo *sip, struct vnode *vp, HgfsOpenType openType);
 int HgfsFileOpen(HgfsSuperInfo *sip, struct vnode *vp,
-                        int flag, int permissions, Bool implicit);
+                 int flag, int permissions, HgfsOpenType openType);
 int HgfsDirClose(HgfsSuperInfo *sip, struct vnode *vp);
 int HgfsFileClose(HgfsSuperInfo *sip, struct vnode *vp, int flag);
 int HgfsDoRead(HgfsSuperInfo *sip, HgfsHandle handle, uint64_t offset,
@@ -787,9 +787,9 @@ HgfsCloseInt(struct vnode *vp, // IN: Vnode to close.
  */
 
 int
-HgfsOpenInt(struct vnode *vp, // IN: Vnode to open.
-            int mode,         // IN: Mode of vnode being opened.
-            Bool implicit)    // IN: TRUE if called outside of VNOP_OPEN.
+HgfsOpenInt(struct vnode *vp,           // IN: Vnode to open.
+            int mode,                   // IN: Mode of vnode being opened.
+            HgfsOpenType openType)      // IN: TRUE if called outside of VNOP_OPEN.
 {
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
    DEBUG(VM_DEBUG_LOG, "Enter %s.\n",  HGFS_VP_TO_FILENAME(vp));
@@ -797,7 +797,7 @@ HgfsOpenInt(struct vnode *vp, // IN: Vnode to open.
    switch(HGFS_VP_TO_VTYPE(vp)) {
    case VDIR:
       DEBUG(VM_DEBUG_COMM, "opening a directory\n");
-      return HgfsDirOpen(sip, vp);
+      return HgfsDirOpen(sip, vp, openType);
 
    case VREG:
       {
@@ -808,7 +808,7 @@ HgfsOpenInt(struct vnode *vp, // IN: Vnode to open.
           * are ignored by HgfsFileOpen.
           */
          DEBUG(VM_DEBUG_COMM, "opening a file with flag %x\n", mode);
-         return HgfsFileOpen(sip, vp, mode, HGFS_VP_TO_PERMISSIONS(vp), implicit);
+         return HgfsFileOpen(sip, vp, mode, HGFS_VP_TO_PERMISSIONS(vp), openType);
       }
 
    default:
@@ -860,7 +860,7 @@ HgfsLookupInt(struct vnode *dvp,         // IN : directory vnode
    ASSERT(vpp);
    ASSERT(cnp);
 
-   DEBUG(VM_DEBUG_ENTRY, "HgfsVnopLookup(%.*s, %.*s).\n",
+   DEBUG(VM_DEBUG_ENTRY, "HgfsLookupInt(%.*s, %.*s).\n",
          HGFS_VP_TO_FILENAME_LENGTH(dvp), HGFS_VP_TO_FILENAME(dvp),
          (int)cnp->cn_namelen, cnp->cn_nameptr);
 
@@ -983,7 +983,7 @@ out:
    if (path != NULL) {
       os_free(path, MAXPATHLEN);
    }
-   DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(dvp));
+   DEBUG(VM_DEBUG_LOG, "Exit %d for %s.\n", ret, HGFS_VP_TO_FILENAME(dvp));
    return ret;
 }
 
@@ -1516,8 +1516,9 @@ out:
  */
 
 int
-HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
-            struct vnode *vp)   // IN: Vnode of directory to open
+HgfsDirOpen(HgfsSuperInfo *sip,         // IN: Superinfo pointer
+            struct vnode *vp,           // IN: Vnode of directory to open
+            HgfsOpenType openType)      // IN: type of VNOP_OPEN.
 {
    char *fullPath;
    uint32 fullPathLen;
@@ -1538,7 +1539,7 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
     *  There is no different open modes for directories thus the handle is compatible.
     */
    os_rw_lock_lock_exclusive(fp->handleLock);
-   ret = HgfsCheckAndReferenceHandle(vp, FALSE, 0);
+   ret = HgfsCheckAndReferenceHandle(vp, 0, openType);
    if (ret ==  ENOENT) {  // Handle is not set, need to get one from the host
 
       if (HGFS_IS_ROOT_VNODE(sip, vp)) {
@@ -1555,7 +1556,7 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
           * We successfully received a reply, so we need to save the handle in
           * this file's HgfsOpenFile and return success.
           */
-         HgfsSetOpenFileHandle(vp, handle, HGFS_OPEN_MODE_READ_ONLY, FALSE);
+         HgfsSetOpenFileHandle(vp, handle, HGFS_OPEN_MODE_READ_ONLY, openType);
       }
    }
    os_rw_lock_unlock_exclusive(fp->handleLock);
@@ -1649,7 +1650,7 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
              struct vnode *vp,          // IN: Vnode of file to open
              int flag,                  // IN: Flags of open
              int permissions,           // IN: Permissions of open (only when creating)
-             Bool implicit)             // IN: TRUE if called outside of HgfsOpenInt
+             HgfsOpenType openType)     // IN: initiator type for the open
 {
    int ret;
    int openMode;
@@ -1705,7 +1706,7 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
     *  If it is true then add reference to vnode and grant the access, otherwise
     *  deny the access.
     */
-   ret = HgfsCheckAndReferenceHandle(vp, FALSE, openMode);
+   ret = HgfsCheckAndReferenceHandle(vp, openMode, openType);
    if (ret == ENOENT) {  // Handle is not set, need to get one from the host
       ret = HgfsRequestHostFileHandle(sip, vp, &openMode, openFlags,
                                       permissions, &handle);
@@ -1714,7 +1715,7 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
        * this file's HgfsOpenFile and return success.
        */
       if (ret == 0) {
-         HgfsSetOpenFileHandle(vp, handle, openMode, implicit);
+         HgfsSetOpenFileHandle(vp, handle, openMode, openType);
       }
    }
 
@@ -1819,7 +1820,7 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
     * Check to see if we should close the file handle on the host ( which happen when
     * the reference count of the current handle become 0.
     */
-   if (HgfsReleaseOpenFileHandle(vp, FALSE, &handleToClose) == 0) {
+   if (HgfsReleaseOpenFileHandle(vp, OPENREQ_OPEN, &handleToClose) == 0) {
       ret = HgfsCloseServerDirHandle(sip, handleToClose);
    }
    DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
@@ -1862,7 +1863,7 @@ HgfsFileClose(HgfsSuperInfo *sip,       // IN: Superinfo pointer
     * Check to see if we should close the file handle on the host ( which happen when
     * the reference count of the current handle become 0.
     */
-   if (HgfsReleaseOpenFileHandle(vp, FALSE, &handleToClose) == 0) {
+   if (HgfsReleaseOpenFileHandle(vp, OPENREQ_OPEN, &handleToClose) == 0) {
       ret = HgfsCloseServerFileHandle(sip, handleToClose);
    }
    DEBUG(VM_DEBUG_LOG, "Exit %s.\n",  HGFS_VP_TO_FILENAME(vp));
@@ -3017,11 +3018,26 @@ int
 HgfsMmapInt(struct vnode *vp,
             int accessMode)
 {
+   int ret;
+   HgfsFile *fp;
+
    ASSERT(vp);
+   fp = HGFS_VP_TO_FP(vp);
+
+   ASSERT(fp);
 
    DEBUG(VM_DEBUG_ENTRY, "mmapping \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
 
-   return HgfsCheckAndReferenceHandle(vp, TRUE, accessMode);
+   /*
+    *  If the directory is already opened then we are done.
+    *  There is no different open modes for directories thus the handle is compatible.
+    */
+   os_rw_lock_lock_exclusive(fp->handleLock);
+
+   ret = HgfsCheckAndReferenceHandle(vp, accessMode, OPENREQ_MMAP);
+   os_rw_lock_unlock_exclusive(fp->handleLock);
+   DEBUG(VM_DEBUG_LOG, "Exit (%d) %s.\n", ret,  HGFS_VP_TO_FILENAME(vp));
+   return ret;
 }
 
 
@@ -3056,7 +3072,7 @@ HgfsMnomapInt(struct vnode *vp)
     * Check to see if we should close the file handle on the host, which happen when
     * the reference count of the current handle become 0.
     */
-   if (HgfsReleaseOpenFileHandle(vp, TRUE, &handleToClose) == 0) {
+   if (HgfsReleaseOpenFileHandle(vp, OPENREQ_MMAP, &handleToClose) == 0) {
       error = HgfsCloseServerFileHandle(sip, handleToClose);
    }
    return error;

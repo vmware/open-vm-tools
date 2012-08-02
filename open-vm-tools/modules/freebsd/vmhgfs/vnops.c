@@ -216,7 +216,7 @@ struct vop_open_args {
    struct vnode *vp = ap->a_vp;
    int mode = ap->a_mode;
 
-   return HgfsOpenInt(vp, mode, FALSE);
+   return HgfsOpenInt(vp, mode, OPENREQ_OPEN);
 }
 
 
