@@ -1086,7 +1086,7 @@ TestBit32(const uint32 *var, uint32 index)
    __asm__ (
       "bt %[index], %[var] \n"
       "setc %[bit]"
-      : [bit] "=rm" (bit)
+      : [bit] "=qQm" (bit)
       : [index] "rI" (index), [var] "r" (*var)
       : "cc"
    );
@@ -1104,7 +1104,7 @@ TestBit64(const uint64 *var, uint64 index)
    __asm__ (
       "bt %[index], %[var] \n"
       "setc %[bit]"
-      : [bit] "=rm" (bit)
+      : [bit] "=qQm" (bit)
       : [index] "rJ" (index), [var] "r" (*var)
       : "cc"
    );
@@ -1137,9 +1137,9 @@ SetBitVector(void *var, int32 index)
    __asm__ (
       "bts %2, %1;"
       "setc %0"
-      : "=rm" (bit), "+m" (*(volatile uint32 *)var)
+      : "=qQm" (bit), "+m" (*(volatile uint32 *)var)
       : "rI" (index)
-      : "memory"
+      : "memory", "cc"
    );
    return bit;
 #elif defined(_MSC_VER)
@@ -1157,7 +1157,7 @@ ClearBitVector(void *var, int32 index)
    __asm__ (
       "btr %2, %1;"
       "setc %0"
-      : "=rm" (bit), "+m" (*(volatile uint32 *)var)
+      : "=qQm" (bit), "+m" (*(volatile uint32 *)var)
       : "rI" (index)
       : "cc"
    );
@@ -1177,7 +1177,7 @@ ComplementBitVector(void *var, int32 index)
    __asm__ (
       "btc %2, %1;"
       "setc %0"
-      : "=rm" (bit), "+m" (*(volatile uint32 *)var)
+      : "=qQm" (bit), "+m" (*(volatile uint32 *)var)
       : "rI" (index)
       : "cc"
    );
@@ -1197,7 +1197,7 @@ TestBitVector(const void *var, int32 index)
    __asm__ (
       "bt %2, %1;"
       "setc %0"
-      : "=rm" (bit)
+      : "=qQm" (bit)
       : "m" (*(const uint32 *)var), "rI" (index)
       : "cc"
    );
