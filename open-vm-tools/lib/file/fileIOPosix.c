@@ -217,12 +217,15 @@ static AlignedPool alignedPool;
  */
 
 #if defined(__linux__)
-
-extern ssize_t preadv(int fd, const struct iovec *iov, int iovcnt,
-                      off_t offset) __attribute__ ((weak));
-extern ssize_t pwritev(int fd, const struct iovec *iov, int iovcnt,
-                       off_t offset) __attribute__ ((weak));
-
+   #if defined(_FILE_OFFSET_BITS) && (_FILE_OFFSET_BITS == 64)
+      extern ssize_t preadv64(int fd, const struct iovec *iov, int iovcnt,
+                            off64_t offset) __attribute__ ((weak));
+      
+      extern ssize_t pwritev64(int fd, const struct iovec *iov, int iovcnt,
+                             off64_t offset) __attribute__ ((weak));
+   #else
+      #error "Large file support unavailable. Aborting."
+   #endif
 #endif /* defined(__linux__) */
 
 /*
@@ -1965,8 +1968,8 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
-      if (preadv != NULL) {
-         retval = preadv(fd->posix, vPtr, numVec, offset);
+      if (preadv64 != NULL) {
+         retval = preadv64(fd->posix, vPtr, numVec, offset);
       } else {
          fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
                                       totalSize);
@@ -2084,8 +2087,8 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
 
       ASSERT(numVec > 0);
 
-      if (pwritev != NULL) {
-         retval = pwritev(fd->posix, vPtr, numVec, offset);
+      if (pwritev64 != NULL) {
+         retval = pwritev64(fd->posix, vPtr, numVec, offset);
       } else {
          fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
                                        totalSize);
