@@ -3888,9 +3888,15 @@ VSockVmciSeqConnect(struct socket *sock,   // IN
       goto out;
    }
 
-   if (!VSockAddr_SocketContextDgram(remoteAddr->svm_cid,
-                                     remoteAddr->svm_port)) {
-      err = -EINVAL;
+   /*
+    * No need to call SocketContextDgram() here, we already do specific checks
+    * on the context and port above.  All we have to do here is ensure that
+    * only the superuser gets access to the privileged RPC handler.
+    */
+
+   if (VMCI_RPC_PRIVILEGED == remoteAddr->svm_port &&
+       !capable(CAP_SYS_ADMIN)) {
+      err = -EACCES;
       goto out;
    }
 
