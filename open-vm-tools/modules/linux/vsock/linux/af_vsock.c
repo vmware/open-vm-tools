@@ -3449,7 +3449,6 @@ VSockVmciRegisterAddressFamily(void)
       vsockVmciFamilyOps.family = i;
       err = sock_register(&vsockVmciFamilyOps);
       if (err) {
-         Warning("Could not register address family %d.\n", i);
          vsockVmciFamilyOps.family = VSOCK_INVALID_FAMILY;
       } else {
          vsockVmciDgramOps.family = i;
@@ -3458,6 +3457,10 @@ VSockVmciRegisterAddressFamily(void)
          err = i;
          break;
       }
+   }
+
+   if (VSOCK_INVALID_FAMILY == vsockVmciFamilyOps.family) {
+      Warning("Could not register address family.\n");
    }
 
    return err;
