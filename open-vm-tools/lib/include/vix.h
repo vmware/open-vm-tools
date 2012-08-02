@@ -441,6 +441,7 @@ enum {
    /* VIX_HANDLETYPE_HOST properties */
    VIX_PROPERTY_HOST_HOSTTYPE                         = 50,
    VIX_PROPERTY_HOST_API_VERSION                      = 51,
+   VIX_PROPERTY_HOST_SOFTWARE_VERSION                 = 52,
 
    /* VIX_HANDLETYPE_VM properties */
    VIX_PROPERTY_VM_NUM_VCPUS                          = 101,
