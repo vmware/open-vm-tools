@@ -2235,6 +2235,10 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
    int i;
    int result;
 
+   if (newFileName != NULL) {
+      *newFileName = NULL;
+   }
+
    for (i = n; i >= 0; i--) {
       src = (i == 0) ? (char *) fileName :
                        Str_SafeAsprintf(NULL, "%s-%d%s", baseName, i - 1, ext);
@@ -2259,8 +2263,8 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
          }
       }
 
-      if ((src == fileName) && (newFileName != NULL)) {
-         *newFileName = result == -1 ? NULL : strdup(dst);
+      if ((src == fileName) && (newFileName != NULL) && (result == 0)) {
+         *newFileName = Util_SafeStrdup(dst);
       }
 
       ASSERT(dst != fileName);
@@ -2333,6 +2337,10 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    uint32 *fileNumbers = NULL;
    int result;
 
+   if (newFilePath != NULL) {
+      *newFilePath = NULL;
+   }
+
    fullPathNoExt = File_FullPath(filePathNoExt);
    if (fullPathNoExt == NULL) {
       Log(LGPFX" %s: failed to get full path for '%s'.\n", __FUNCTION__,
@@ -2396,7 +2404,6 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
 
    if (newFilePath != NULL) {
       if (result == -1) {
-         *newFilePath = NULL;
          free(tmp);
       } else {
          *newFilePath = tmp;
