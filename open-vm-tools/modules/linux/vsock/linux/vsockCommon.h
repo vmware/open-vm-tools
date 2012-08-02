@@ -204,6 +204,31 @@ __declspec(selectany) extern const WSAPROTOCOL_INFOW vsockProtocolInfos[] = {
       0,                         /* None. */
       L"VMCI sockets STREAM"     /* Protocol name. */
    },
+   {
+      /* XXX, should this also be XP1_MESSAGE_ORIENTED? */
+      (XP1_GUARANTEED_DELIVERY | /* Guaranteed delivery. */
+       XP1_GUARANTEED_ORDER |    /* Guaranteed order. */
+       XP1_GRACEFUL_CLOSE),      /* Graceful close. */
+      0,                         /* Reserved. */
+      0,                         /* Reserved. */
+      0,                         /* Reserved. */
+      PFL_MATCHES_PROTOCOL_ZERO, /* Always protocol 0. */
+      { 0 },                     /* None. */
+      0,                         /* Assigned by Winsock. */
+      { 1, 0 },                  /* Base provider. */
+      0,                         /* Version 0. */
+      VMCI_SOCKETS_AF_VALUE,     /* VMCI sockets protocol. */
+      16,                        /* Maximum address length in bytes. */
+      16,                        /* Minimum address length in bytes. */
+      SOCK_SEQPACKET,            /* SEQPACKET. */
+      0,                         /* Protocol. */
+      0,                         /* Protocol max offset. */
+      BIGENDIAN,                 /* Network byte order. */
+      SECURITY_PROTOCOL_NONE,    /* No security. */
+      0,                         /* Message size unimportant. */
+      0,                         /* None. */
+      L"VMCI sockets SEQPACKET"  /* Protocol name. */
+   },
 };
 
 __declspec(selectany) extern const
