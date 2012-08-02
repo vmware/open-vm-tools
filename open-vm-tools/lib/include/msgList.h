@@ -54,7 +54,7 @@ struct MsgList {
  * Functions
  */
 
-MsgList *MsgList_Create(const char *idFmt, ...);
+MsgList *MsgList_Create(const char *idFmt, ...) PRINTF_DECL(1, 2);
 MsgList *MsgList_VCreate(const char *idFmt, va_list args);
 MsgList *MsgList_CreateStr(const char *id);
 
