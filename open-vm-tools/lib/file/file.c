@@ -287,9 +287,35 @@ File_UnlinkNoFollow(ConstUnicode pathName)  // IN:
 /*
  *----------------------------------------------------------------------
  *
+ * File_CreateDirectoryEx --
+ *
+ *      Creates the specified directory with the specified permissions.
+ *
+ * Results:
+ *      True if the directory is successfully created, false otherwise.
+ *
+ * Side effects:
+ *      Creates the directory on disk.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_CreateDirectoryEx(ConstUnicode pathName,  // IN:
+                       int mask)               // IN:
+{
+   int err = FileCreateDirectory(pathName, mask);
+
+   return err == 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * File_CreateDirectory --
  *
- *      Creates the specified directory.
+ *      Creates the specified directory with 0777 permissions.
  *
  * Results:
  *      True if the directory is successfully created, false otherwise.
@@ -303,9 +329,7 @@ File_UnlinkNoFollow(ConstUnicode pathName)  // IN:
 Bool
 File_CreateDirectory(ConstUnicode pathName)  // IN:
 {
-   int err = FileCreateDirectory(pathName, 0777);
-
-   return err == 0;
+   return File_CreateDirectoryEx(pathName, 0777);
 }
 
 
@@ -1646,9 +1670,10 @@ File_GetSizeByPath(ConstUnicode pathName)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * File_CreateDirectoryHierarchy --
+ * File_CreateDirectoryHierarchyEx --
  *
  *      Create a directory including any parents that don't already exist.
+ *      All the created directories are tagged with the specified permission.
  *      Returns the topmost directory which was created, to allow calling code
  *      to remove it after in case later operations fail.
  *
@@ -1669,8 +1694,9 @@ File_GetSizeByPath(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
-                              Unicode *topmostCreated) // OUT:
+File_CreateDirectoryHierarchyEx(ConstUnicode pathName,   // IN:
+                                int mask,                // IN
+                                Unicode *topmostCreated) // OUT:
 {
    Unicode volume;
    UnicodeIndex index;
@@ -1719,7 +1745,7 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
       if (File_IsDirectory(temp)) {
          failed = FALSE;
       } else {
-         failed = !File_CreateDirectory(temp);
+         failed = !File_CreateDirectoryEx(temp, mask);
          if (!failed && topmostCreated != NULL && *topmostCreated == NULL) {
             *topmostCreated = temp;
             temp = NULL;
@@ -1739,6 +1765,42 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
    }
 
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_CreateDirectoryHierarchy --
+ *
+ *      Create a directory including any parents that don't already exist.
+ *      All the created directories are tagged with 0777 permissions.
+ *      Returns the topmost directory which was created, to allow calling code
+ *      to remove it after in case later operations fail.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ *      If topmostCreated is not NULL, it returns the result of the hierarchy
+ *      creation. If no directory was created, *topmostCreated is set to NULL.
+ *      Otherwise *topmostCreated is set to the topmost directory which was
+ *      created. *topmostCreated is set even in case of failure.
+ *
+ *      The caller most Unicode_Free the resulting string.
+ *
+ * Side effects:
+ *      Only the obvious.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
+                              Unicode *topmostCreated) // OUT:
+{
+   return File_CreateDirectoryHierarchyEx(pathName,
+                                          0777,
+                                          topmostCreated);
 }
 
 
