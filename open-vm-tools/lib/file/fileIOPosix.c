@@ -1994,14 +1994,15 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
          break;
       }
       bytesRead += retval;
-      if (retval == 0) {
-         fret = FILEIO_READ_ERROR_EOF;
-         break;
-      }
       if (bytesRead == totalSize) {
          fret =  FILEIO_SUCCESS;
          break;
       }
+      if (retval == 0) {
+         fret = FILEIO_READ_ERROR_EOF;
+         break;
+      }
+
       /*
        * This is an ambiguous case in linux preadv implementation.
        * If the bytesRead matches an exact iovector boundary, we need
