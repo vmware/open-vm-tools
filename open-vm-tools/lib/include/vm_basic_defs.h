@@ -566,6 +566,9 @@ typedef int pid_t;
 #if __GLIBC_PREREQ(2, 5) && !defined GLIBC_VERSION_25
 #define GLIBC_VERSION_25
 #endif
+#if __GLIBC_PREREQ(2, 12) && !defined GLIBC_VERSION_212
+#define GLIBC_VERSION_212
+#endif
 #endif
 
 /*
