@@ -600,9 +600,6 @@ VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
    if (!(oldQPair->guestEndpoint || (oldQPair->flags & VMCI_QPFLAG_LOCAL))) {
       VMCI_DestroyEvent(&oldQPair->event);
    }
-   memset(oldQPair, 0, sizeof *oldQPair);
-   oldQPair->handle = VMCI_INVALID_HANDLE;
-   oldQPair->peer = VMCI_INVALID_ID;
    VMCI_FreeKernelMem(oldQPair, sizeof *oldQPair);
    *qpair = NULL;
 
