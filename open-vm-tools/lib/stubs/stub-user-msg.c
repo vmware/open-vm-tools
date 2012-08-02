@@ -36,6 +36,7 @@ Msg_AppendMsgList(const MsgList *msgs)
 {
    while (msgs != NULL) {
       Warning("%s [STUB]: %s\n", __FUNCTION__, msgs->id);
+      msgs = msgs->next;
    }
 }
 
