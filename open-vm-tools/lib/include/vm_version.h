@@ -189,6 +189,8 @@
 #define WORKSTATION_VERSION "e.x.p"
 #define WORKSTATION_RELEASE_DESCRIPTION ""
 #define WORKSTATION_ENTERPRISE_VERSION "e.x.p"
+#define WSX_SERVER_VERSION_NUMBER "1.0.0"
+#define WSX_SERVER_VERSION "e.x.p"
 #define ACE_MANAGEMENT_SERVER_VERSION "e.x.p"
 #define MUI_VERSION "4.1.0"
 #define CONSOLE_VERSION "4.1.0"
@@ -196,8 +198,7 @@
 #define P2V_FILE_VERSION 3,0,0,0
 #define PLAYER_VERSION_NUMBER "4.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
-#define V2V_VERSION "e.x.p"
-#define V2V_FILE_VERSION 1,0,0,0
+
 /*
  * When updating FUSION_VERSION from e.x.p to GA, you will also need to update
  * lastVersion{Major,Minor,Patch} in bora/scons/package/fusion/fusion.sc
@@ -325,8 +326,6 @@
 #  define PRODUCT_VERSION_NUMBER SDK_VERSION
 #elif defined(VMX86_P2V)
 #  define PRODUCT_VERSION_NUMBER P2V_VERSION
-#elif defined(VMX86_V2V)
-#  define PRODUCT_VERSION_NUMBER V2V_VERSION
 #elif defined(VMX86_VIPERL)
 #  define PRODUCT_VERSION_NUMBER VIPERL_VERSION
 #elif defined(VMX86_SYSIMAGE)
@@ -401,8 +400,6 @@
 #  elif defined(VMX86_SDK)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_P2V)
-#    define PRODUCT_LICENSE_VERSION "1.0"
-#  elif defined(VMX86_V2V)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  else
 #    define PRODUCT_LICENSE_VERSION "0.0"

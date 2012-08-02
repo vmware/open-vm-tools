@@ -601,16 +601,16 @@ UtilGetLoginName(struct passwd *pwd) // IN/OPT: user passwd struct
  *
  * UtilDoTildeSubst --
  *
- *	Given a string following a tilde, this routine returns the
- *	corresponding home directory.
+ *      Given a string following a tilde, this routine returns the
+ *      corresponding home directory.
  *
  * Results:
- *	The result is a pointer to a static string containing the home
- *	directory in native format.  The returned string is a newly
- *      allocated string which may/must be freed by the caller
+ *      A string containing the home directory in native format. The
+ *      returned string is a newly allocated string which may/must be
+ *      freed by the caller.
  *
  * Side effects:
- *	Information may be left in resultPtr.
+ *      None.
  *
  * Credit: derived from J.K.Ousterhout's Tcl
  *----------------------------------------------------------------------
@@ -628,9 +628,17 @@ UtilDoTildeSubst(ConstUnicode user)  // IN: name of user
        * The HOME environment variable is not always set on Mac OS.
        * (was bug 841728)
        */
-      pwd = Posix_Getpwuid(getuid());
-      if (pwd == NULL) {
-         Log("Could not get passwd for current user.\n");
+#if defined(VMX86_DEVEL)
+      /*
+       * Allow code to override the tilde expansion for things like unit tests.
+       */
+      str = Unicode_Duplicate(Posix_Getenv("VMWARE_HOMEDIR_OVERRIDE"));
+#endif // defined(VMX86_DEVEL)
+      if (str == NULL) {
+         pwd = Posix_Getpwuid(getuid());
+         if (pwd == NULL) {
+            Log("Could not get passwd for current user.\n");
+         }
       }
 #else // !defined(__APPLE__)
       str = Unicode_Duplicate(Posix_Getenv("HOME"));

@@ -164,7 +164,9 @@ enum {
 
 
 /* Named feature leaves */
+#define CPUID_FEATURE_INFORMATION  0x01
 #define CPUID_MWAIT_FEATURES       5
+#define CPUID_HYPERVISOR_LEVEL_0   0x40000000
 #define CPUID_SVM_FEATURES         0x8000000a
 
 

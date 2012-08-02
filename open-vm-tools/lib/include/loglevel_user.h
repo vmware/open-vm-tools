@@ -262,6 +262,7 @@
    LOGLEVEL_VAR(grainTrack), \
    LOGLEVEL_VAR(shim3D), \
    LOGLEVEL_VAR(crc32), \
+   LOGLEVEL_VAR(vmkmgmtlib), \
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
