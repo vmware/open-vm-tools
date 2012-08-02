@@ -46,6 +46,8 @@ Bool StrUtil_StrToInt64(int64 *out, const char *str);
 Bool StrUtil_StrToUint64(uint64 *out, const char *str);
 Bool StrUtil_StrToSizet(size_t *out, const char *str);
 Bool StrUtil_StrToDouble(double *out, const char *str);
+Bool StrUtil_CapacityToBytes(SectorType *out, const char *str,
+                             unsigned int bytes);
 Bool StrUtil_CapacityToSectorType(SectorType *out, const char *str,
                                   unsigned int bytes);
 char *StrUtil_FormatSizeInBytesUnlocalized(uint64 size);

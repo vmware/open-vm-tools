@@ -124,10 +124,7 @@
  * No support for open-vm-tools.
  */
 #if (defined(_WIN32) || defined(linux)) && !defined(OPEN_VM_TOOLS)
-/*
- * XXX Turn off until VGAuth name changes flush through.
- */
-#define SUPPORT_VGAUTH 0
+#define SUPPORT_VGAUTH 1
 #else
 #define SUPPORT_VGAUTH 0
 #endif

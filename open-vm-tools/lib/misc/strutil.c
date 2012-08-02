@@ -520,12 +520,12 @@ StrUtil_StrToDouble(double *out,      // OUT: The output value
 /*
  *-----------------------------------------------------------------------------
  *
- * StrUtil_CapacityToSectorType --
+ * StrUtil_CapacityToBytes --
  *
- *      Converts a string containing a measure of disk capacity (such as
- *      "100MB" or "1.5k") into an unadorned and primitive quantity of sector
+ *      Converts a string containing a measure of capacity (such as
+ *      "100MB" or "1.5k") into an unadorned and primitive quantity of bytes
  *      capacity. The comment before the switch statement describes the kinds
- *      of disk capacity expressible.
+ *      of capacity expressible.
  *
  * Results:
  *      TRUE if conversion was successful, FALSE otherwise.
@@ -538,10 +538,10 @@ StrUtil_StrToDouble(double *out,      // OUT: The output value
  */
 
 Bool
-StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
-                             const char *str,    // IN: String to parse
-                             unsigned int bytes) // IN: Bytes per unit in an
-                                                 //     unadorned string
+StrUtil_CapacityToBytes(uint64 *out,        // OUT: The output value
+                        const char *str,    // IN: String to parse
+                        unsigned int bytes) // IN: Bytes per unit in an
+                                            //     unadorned string
 
 {
    double quantity;
@@ -601,6 +601,44 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
       quantity *= bytes;
    }
 
+   *out = quantity;
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_CapacityToSectorType --
+ *
+ *      Converts a string containing a measure of disk capacity (such as
+ *      "100MB" or "1.5k") into an unadorned and primitive quantity of sector
+ *      capacity.
+ *
+ * Results:
+ *      TRUE if conversion was successful, FALSE otherwise.
+ *      Value is stored in 'out', which is left undefined in the FALSE case.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
+                             const char *str,    // IN: String to parse
+                             unsigned int bytes) // IN: Bytes per unit in an
+                                                 //     unadorned string
+
+{
+   uint64 quantityInBytes;
+
+   if (StrUtil_CapacityToBytes(&quantityInBytes, str, bytes) == FALSE) {
+      return FALSE;
+   }
+ 
    /*
     * Convert from "number of bytes" to "number of sectors", rounding up or
     * down appropriately.
@@ -609,7 +647,7 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
     * disklib header dependencies in this file?
     *
     */
-   *out = (SectorType)((quantity + 256) / 512);
+   *out = (SectorType)((quantityInBytes + 256) / 512);
 
    return TRUE;
 }

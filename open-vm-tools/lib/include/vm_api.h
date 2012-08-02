@@ -74,12 +74,15 @@
 #ifdef _MSC_VER
 #  define VMW_IMPORT    __declspec(dllimport)
 #  define VMW_EXPORT    __declspec(dllexport)
+#  define VMW_STATIC
 #elif defined __GNUC__ && __GNUC__ >= 4 /* !_MSC_VER */
-#  define VMW_IMPORT
+#  define VMW_IMPORT    __attribute__ ((visibility ("default")))
 #  define VMW_EXPORT    __attribute__ ((visibility ("default")))
+#  define VMW_STATIC    __attribute__ ((visibility ("hidden")))
 #else
 #  define VMW_IMPORT
 #  define VMW_EXPORT
+#  define VMW_STATIC
 #endif /* _MSC_VER */
 
 
