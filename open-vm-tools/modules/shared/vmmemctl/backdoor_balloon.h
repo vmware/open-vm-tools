@@ -72,7 +72,6 @@
 #include "backdoor.h"
 #include "balloon_def.h"
 
-int Backdoor_MonitorGetProto(Balloon *b);
 int Backdoor_MonitorStart(Balloon *b);
 int Backdoor_MonitorGuestType(Balloon *b);
 int Backdoor_MonitorGetTarget(Balloon *b, uint32 *target);

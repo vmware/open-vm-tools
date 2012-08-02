@@ -86,47 +86,6 @@ void BackdoorBalloon(Backdoor_proto *myBp) // IN/OUT
    Backdoor_InOut(myBp);
 }
 
-/*
- *----------------------------------------------------------------------
- *
- * Backdoor_MonitorGetProto --
- *
- *      Get the best protocol to communicate with the host.
- *
- * Results:
- *      Returns BALLOON_SUCCESS if successful, otherwise error code.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Backdoor_MonitorGetProto(Balloon *b) // IN
-{
-   uint32 status;
-   Backdoor_proto bp;
-
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_GET_PROTO_V3;
-
-   BackdoorBalloon(&bp);
-
-   status = bp.out.ax.word;
-   if (status == BALLOON_SUCCESS) {
-      b->hypervisorProtocolVersion = bp.out.cx.word;
-   } else if (status == BALLOON_ERROR_CMD_INVALID) {
-      /*
-       * Let's assume that if the GET_PROTO command doesn't exist, then
-       * the hypervisor uses the v2 protocol.
-       */
-      b->hypervisorProtocolVersion = BALLOON_PROTOCOL_VERSION_2;
-      status = BALLOON_SUCCESS;
-   }
-
-   return status;
-}
-
 
 /*
  *----------------------------------------------------------------------
@@ -161,12 +120,12 @@ Backdoor_MonitorStart(Balloon *b) // IN
    status = bp.out.ax.word;
 
    /*
-    * If return code is BALLOON_SUCCESS_V3, then ESX is informing us
-    * that CMD_GET_PROTO is available, which we can use to gather the
-    * best protocol to use.
+    * If return code is BALLOON_SUCCESS_WITH_VERSION, then ESX is
+    * sending the protocol version to be used into cx.
     */
-   if (status == BALLOON_SUCCESS_V3) {
-      status = Backdoor_MonitorGetProto(b);
+   if (status == BALLOON_SUCCESS_WITH_VERSION) {
+      b->hypervisorProtocolVersion = bp.out.cx.word;
+      status = BALLOON_SUCCESS;
    } else if (status == BALLOON_SUCCESS) {
       b->hypervisorProtocolVersion = BALLOON_PROTOCOL_VERSION_2;
    }

@@ -95,15 +95,6 @@
 #define BALLOON_BDOOR_CMD_UNLOCK        (3)
 #define BALLOON_BDOOR_CMD_GUEST_ID      (4)
 
-/*
- * Helps to negotiate the best protocol version to use between guest and
- * host.
- *
- * The protocol version sent by ESX should never be higher than the
- * protocol version of the guest.
- */
-#define BALLOON_BDOOR_CMD_GET_PROTO_V3  (5)
-
 /* use config value for max balloon size */
 #define BALLOON_MAX_SIZE_USE_CONFIG     (0)
 
@@ -138,6 +129,6 @@ typedef enum {
  * Sent on CMD_START to inform the guest to use the protocol v3 or
  * higher.
  */
-#define BALLOON_SUCCESS_V3              (0x03000000)
+#define BALLOON_SUCCESS_WITH_VERSION     (0x03000000)
 
 #endif  /* _BALLOON_DEF_H */
