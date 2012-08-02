@@ -268,14 +268,20 @@ UtilSafeStrndup0(const char *s,        // IN:
    size_t size;
    char *copy;
    const char *null;
+   size_t newSize;
 
    if (s == NULL) {
       return NULL;
    }
 
-   null = (char *) memchr(s, '\0', n);
+   null = memchr(s, '\0', n);
    size = null ? null - s : n;
-   copy = (char *) malloc(size + 1);
+   newSize = size + 1;
+   if (newSize < size) {  // Prevent integer overflow
+      copy = NULL;
+   } else {
+      copy = malloc(newSize);
+   }
 
    if (copy == NULL) {
       UtilAllocationFailure0();
@@ -297,14 +303,20 @@ UtilSafeStrndup1(const char *s,        // IN:
    size_t size;
    char *copy;
    const char *null;
+   size_t newSize;
 
    if (s == NULL) {
       return NULL;
    }
 
-   null = (char *) memchr(s, '\0', n);
+   null = memchr(s, '\0', n);
    size = null ? null - s : n;
-   copy = (char *) malloc(size + 1);
+   newSize = size + 1;
+   if (newSize < size) {  // Prevent integer overflow
+      copy = NULL;
+   } else {
+      copy = malloc(newSize);
+   }
 
    if (copy == NULL) {
       UtilAllocationFailure1(bugNumber, file, lineno);
