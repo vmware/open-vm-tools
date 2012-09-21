@@ -1,3 +1,9 @@
+open-vm-tools 9.0.0 changes:
+	* Release of open-vm-tools matching vSphere 5.1.
+
+	* Branch was cut from commit id e611d054aa26d88f92 (tagged as
+	2011.11.20-535097).
+
 open-vm-tools 2011.11.20 changes:
 	* Updates for new Linux kernel releases.
 

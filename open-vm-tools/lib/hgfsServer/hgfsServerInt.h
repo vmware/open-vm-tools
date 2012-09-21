@@ -297,6 +297,9 @@ typedef struct HgfsTransportSessionInfo {
    /* Max packet size that is supported by both client and server. */
    uint32 maxPacketSize;
 
+   /* Total number of sessions present this transport session*/
+   uint32 numSessions;
+
    /* Transport session context. */
    void *transportData;
 
@@ -318,6 +321,8 @@ typedef struct HgfsSessionInfo {
 
    DblLnkLst_Links links;
 
+   Bool isInactive;
+
    /* Unique session id. */
    uint64 sessionId;
 
@@ -330,11 +335,10 @@ typedef struct HgfsSessionInfo {
    /* Current state of the session. */
    HgfsSessionInfoState state;
 
-   /* Session is dynamic or internal. */
-   HgfsSessionInfoType type;
-
    /* Lock to ensure some fileIO requests are atomic for a handle. */
    MXUserExclLock *fileIOLock;
+
+   int numInvalidationAttempts;
 
    Atomic_uint32 refCount;    /* Reference count for session. */
 
@@ -390,6 +394,22 @@ typedef struct HgfsSessionInfo {
 
    Bool activeNotification;
 } HgfsSessionInfo;
+
+/*
+ * This represents the maximum number of HGFS sessions that can be
+ * created in a HGFS transport session. We picked a random value
+ * for this variable. There is no specific reason behind picking
+ * this value.
+ */
+#define MAX_SESSION_COUNT 1024
+
+/*
+ * This represents the maximum number attempts made by the HGFS
+ * invalidator before completely destroying the HGFS session. We
+ * picked a random value and there is no specific reason behind
+ * the value 4 for thie variable.
+ */
+#define MAX_SESSION_INVALIDATION_ATTEMPTS 4
 
 /*
  * These structs represent information about file open requests, file
@@ -592,6 +612,16 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
                            HgfsSessionInfo *session,     // IN: Session info
                            HgfsHandle *handle);          // OUT: Search handle
 
+/* Allocate/Add sessions helper functions. */
+
+Bool HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
+                               uint32 channelCapabilities,
+                               HgfsSessionInfo **sessionData);
+
+void HgfsServerSessionGet(HgfsSessionInfo *session);
+
+HgfsInternalStatus HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,
+                                                       HgfsSessionInfo *sessionInfo);
 
 /* Unpack/pack requests/reply helper functions. */
 

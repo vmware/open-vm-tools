@@ -25,7 +25,6 @@
 #include "hashTable.h"
 #include "random.h"
 
-
 static Bool mxInPanic = FALSE;  // track when involved in a panic
 
 Bool (*MXUserTryAcquireForceFail)() = NULL;
@@ -86,6 +85,7 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
 }
 
 
+#define MXUSER_SYNDROME
 #if defined(MXUSER_SYNDROME)
 /*
  *-----------------------------------------------------------------------------
@@ -123,16 +123,6 @@ MXUserSyndrome(void)
    syndrome = Atomic_Read(&syndromeMem);
 
    if (syndrome == 0) {
-#if defined(VMX86_SERVER)
-      /*
-       * On ESX Random_Crypto may hang (PR 787027). Ask for the time, in
-       * seconds since the epoch.
-       *
-       * XXX PR filed to get ESX to fix this.
-       */
-
-      syndrome = time(NULL) & 0xFFFFFFFF;
-#else
       uint32 retries = 25;
 
       /*
@@ -150,7 +140,6 @@ MXUserSyndrome(void)
             break;
          }
       } while (retries--);
-#endif
 
       /*
        * If the source was unable to provide the appropriate bits, switch
@@ -158,7 +147,19 @@ MXUserSyndrome(void)
        */
 
       if (syndrome == 0) {
-         syndrome++;  // Fudge in case of failure
+#if defined(_WIN32)
+         syndrome = GetTickCount();
+#else
+         syndrome = time(NULL) & 0xFFFFFFFF;
+#endif
+      }
+
+      /*
+       * Protect against a total failure.
+       */
+
+      if (syndrome == 0) {
+         syndrome++;
       }
 
       /* blind write; if racing one thread or the other will do */
@@ -399,16 +400,107 @@ MXUserInstallMxHooks(void (*theLockListFunc)(void),
 #if defined(MXUSER_DEBUG)
 #define MXUSER_MAX_LOCKS_PER_THREAD (2 * MXUSER_MAX_REC_DEPTH)
 
-typedef struct {
-   uint32         locksHeld;
-   MXUserHeader  *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
+typedef struct MXUserPerThread {
+   struct MXUserPerThread  *next;
+   uint32                   locksHeld;
+   MXUserHeader            *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
 } MXUserPerThread;
+
+static Atomic_Ptr perThreadLockMem;
+static MXUserPerThread *perThreadFreeList = NULL;
 
 static Atomic_Ptr hashTableMem;
 
-#if defined(_WIN32) && !defined(VMX86_VMX)
-static Atomic_Ptr hashLockMem;
-#endif
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserAllocPerThread --
+ *
+ *     Allocate a perThread structure.
+ *
+ *     Memory is allocated for the specified thread as necessary. Use a
+ *     victim cache in front of malloc to provide a slight performance
+ *     advantage. The lock here is equivalent to the lock buried inside
+ *     malloc but no complex calculations are necessary to perform an
+ *     allocation most of the time.
+ *
+ *     The maximum size of the list will be roughly the maximum number of
+ *     threads having taken locks at the same time - a bounded number less
+ *     than or equal to the maximum of threads created.
+ *
+ * Results:
+ *     As above.
+ *
+ * Side effects:
+ *      Memory may be allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static MXUserPerThread *
+MXUserAllocPerThread(void)
+{
+   MXUserPerThread *perThread;
+   MXRecLock *perThreadLock = MXUserInternalSingleton(&perThreadLockMem);
+
+   ASSERT(perThreadLock);
+
+   MXRecLockAcquire(perThreadLock,
+                    NULL);          // non-stats
+
+   if (perThreadFreeList == NULL) {
+      perThread = Util_SafeMalloc(sizeof *perThread);
+   } else {
+      perThread = perThreadFreeList;
+      perThreadFreeList = perThread->next;
+   }
+
+   MXRecLockRelease(perThreadLock);
+
+   ASSERT(perThread);
+
+   memset(perThread, 0, sizeof *perThread);  // ensure all zeros
+
+   return perThread;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserFreePerThread --
+ *
+ *     Free a perThread structure.
+ *
+ *     The structure is placed on the free list -- for "later".
+ *
+ * Results:
+ *     As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+MXUserFreePerThread(MXUserPerThread *perThread)  // IN:
+{
+   MXRecLock *perThreadLock;
+
+   ASSERT(perThread);
+   ASSERT(perThread->next == NULL);
+
+   perThreadLock = MXUserInternalSingleton(&perThreadLockMem);
+   ASSERT(perThreadLock);
+
+   MXRecLockAcquire(perThreadLock,
+                    NULL);          // non-stats
+   perThread->next = perThreadFreeList;
+   perThreadFreeList = perThread;
+   MXRecLockRelease(perThreadLock);
+}
 
 
 /*
@@ -433,31 +525,20 @@ static Atomic_Ptr hashLockMem;
  */
 
 static MXUserPerThread *
-MXUserGetPerThread(void *tid,      // IN: thread ID
-                   Bool mayAlloc)  // IN: alloc perThread if not present?
+MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
 {
    HashTable *hash;
    MXUserPerThread *perThread = NULL;
+   void *tid = MXUserCastedThreadID();
 
-#if defined(_WIN32) && !defined(VMX86_VMX)
-   MXRecLock *hashLock = MXUserInternalSingleton(&hashLockMem);
-
-   ASSERT(hashLock);
-
-   hash = HashTable_AllocOnce(&hashTableMem, 1024, HASH_INT_KEY, NULL);
-
-   MXRecLockAcquire(hashLock);
-#else
    hash = HashTable_AllocOnce(&hashTableMem, 1024,
                               HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL);
-#endif
 
    if (!HashTable_Lookup(hash, tid, (void **) &perThread)) {
       /* No entry for this tid was found, allocate one? */
 
       if (mayAlloc) {
-         MXUserPerThread *newEntry = Util_SafeCalloc(1,
-                                                     sizeof(MXUserPerThread));
+         MXUserPerThread *newEntry = MXUserAllocPerThread();
 
          /*
           * Attempt to (racey) insert a perThread on behalf of the specified
@@ -469,16 +550,12 @@ MXUserGetPerThread(void *tid,      // IN: thread ID
          ASSERT(perThread);
 
          if (perThread != newEntry) {
-            free(newEntry);
+            MXUserFreePerThread(newEntry);
          }
       } else {
          perThread = NULL;
       }
    }
-
-#if defined(_WIN32) && !defined(VMX86_VMX)
-   MXRecLockRelease(hashLock);
-#endif
 
    return perThread;
 }
@@ -505,8 +582,7 @@ MXUserGetPerThread(void *tid,      // IN: thread ID
 void
 MXUserListLocks(void)
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(),
-                                                   FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
 
    if (perThread != NULL) {
       uint32 i;
@@ -541,8 +617,7 @@ MXUserListLocks(void)
 Bool
 MXUser_IsCurThreadHoldingLocks(void)
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(),
-                                                   FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
 
    return (perThread == NULL) ? FALSE : (perThread->locksHeld != 0);
 }
@@ -618,7 +693,7 @@ MX_Rank
 MXUserCurrentRank(void)
 {
    MX_Rank maxRank;
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(), FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
 
    if (perThread == NULL) {
       maxRank = RANK_UNRANKED;
@@ -651,7 +726,7 @@ void
 MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
                           Bool checkRank)        // IN:
 {
-   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetThreadID(), TRUE);
+   MXUserPerThread *perThread = MXUserGetPerThread(TRUE);
 
    ASSERT_NOT_IMPLEMENTED(perThread->locksHeld < MXUSER_MAX_LOCKS_PER_THREAD);
 
@@ -700,7 +775,7 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
 
          MXUserListLocks();
 
-         MXUserDumpAndPanic(header, "%s: rank violation\n", __FUNCTION__);
+         MXUserDumpAndPanic(header, "%s: rank violation maxRank=0x%x\n", __FUNCTION__, maxRank);
       }
    }
 
@@ -730,13 +805,12 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 {
    uint32 i;
    uint32 lastEntry;
-   void *tid = MXUserGetThreadID();
-   MXUserPerThread *perThread = MXUserGetPerThread(tid, FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(FALSE);
 
    /* MXUserAcquisitionTracking should have already created a perThread */
    if (UNLIKELY(perThread == NULL)) {
       MXUserDumpAndPanic(header, "%s: perThread not found! (thread 0x%p)\n",
-                         __FUNCTION__, tid);
+                         __FUNCTION__, MXUserCastedThreadID());
    }
 
    /* Search the perThread for the argument lock */
@@ -750,7 +824,8 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
    if (UNLIKELY(i >= perThread->locksHeld)) {
       MXUserDumpAndPanic(header,
                          "%s: lock not found! (thread 0x%p; count %u)\n",
-                         __FUNCTION__, tid, perThread->locksHeld);
+                         __FUNCTION__, MXUserCastedThreadID(),
+                         perThread->locksHeld);
    }
 
    /* Remove the argument lock from the perThread */
@@ -762,34 +837,6 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 
    perThread->lockArray[lastEntry] = NULL;  // tidy up memory
    perThread->locksHeld--;
-
-#if defined(_WIN32) && !defined(VMX86_VMX)
-   /*
-    * On Windows thread IDs aren't greedily recycled. If a process creates and
-    * destroys many threads this can cause a memory leak of perThread data
-    * (and its overhead). We avoid this by atomically (via a lock) creating
-    * (upon first lock acquired) and deleting (upon last lock release) a
-    * perThread.
-    *
-    * Yes, this is a performance cost but it only affects Windows debug
-    * builds and then not by very much - we tend to run for a long time
-    * with either no locks held or at least one lock held.
-    */
-
-   if (perThread->locksHeld == 0) {
-      HashTable *hash = Atomic_ReadPtr(&hashTableMem);
-      MXRecLock *hashLock = MXUserInternalSingleton(&hashLockMem);
-
-      ASSERT(hash);
-      ASSERT(hashLock);
-
-      MXRecLockAcquire(hashLock);
-      HashTable_Delete(hash, tid);
-      MXRecLockRelease(hashLock);
-
-      free(perThread);
-   }
-#endif
 }
 
 
@@ -844,7 +891,7 @@ MXUserValidateHeader(MXUserHeader *header,         // IN:
 
    if (header->signature != expected) {
       MXUserDumpAndPanic(header,
-                         "%s: signature failure! expected %X observed %X\n",
+                        "%s: signature failure! expected 0x%X observed 0x%X\n",
                          __FUNCTION__, expected, header->signature);
    }
 

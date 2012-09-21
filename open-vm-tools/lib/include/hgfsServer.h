@@ -136,6 +136,7 @@ typedef struct HgfsServerSessionCallbacks {
    void (*close)(void *);
    void (*receive)(HgfsPacket *packet, void *);
    void (*invalidateObjects)(void *, DblLnkLst_Links *);
+   uint32 (*invalidateInactiveSessions)(void *);
    void (*sendComplete)(HgfsPacket *, void *);
 } HgfsServerSessionCallbacks;
 

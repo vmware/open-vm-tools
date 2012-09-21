@@ -34,7 +34,7 @@
  * Use UTF8_COPYRIGHT_STRING_BASE when the COMPANY_NAME must be separated out
  * to create a hyperlink.
  */
-#define COPYRIGHT_YEARS    "1998-2011"
+#define COPYRIGHT_YEARS    "1998-2012"
 #define COPYRIGHT_STRING   "Copyright \251 " COPYRIGHT_YEARS " " COMPANY_NAME
 #define UTF8_COPYRIGHT_STRING_BASE   "Copyright \302\251 " COPYRIGHT_YEARS
 #define UTF8_COPYRIGHT_STRING   UTF8_COPYRIGHT_STRING_BASE " " COMPANY_NAME
@@ -50,7 +50,7 @@
 #define PATENTS_FMT_STRING PATENTS_STRING_BASE "%s."
 #define PATENTS_URL "http://www.vmware.com/go/patents"
 
-#define TRADEMARK_STRING   "VMware, the VMware \"boxes\" logo and design, Virtual SMP and vMotion are\nregistered trademarks or trademarks of VMware, Inc. in the United States\nand/or other jurisdictions."
+#define TRADEMARK_STRING "VMware is a registered trademark or trademark of VMware, Inc. in the\nUnited States and/or other jurisdictions."
 #define GENERIC_TRADEMARK_STRING "All other marks and names mentioned herein may be trademarks of their\nrespective companies."
 
 #endif /* VM_LEGAL_H */

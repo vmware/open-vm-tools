@@ -186,20 +186,33 @@ LinuxDriver_Freeze(const char *paths,
       }
 
       if (ioctl(fd, FIFREEZE) == -1) {
+         int ioctlerr = errno;
          /*
           * If the ioctl does not exist, Linux will return ENOTTY. If it's not
           * supported on the device, we get EOPNOTSUPP. Ignore the latter,
           * since freezing does not make sense for all fs types, and some
           * Linux fs drivers may not have been hooked up in the running kernel.
+          *
+          * Also ignore EBUSY since we may try to freeze the same superblock
+          * more than once depending on the OS configuration (e.g., usage of
+          * bind mounts).
           */
          close(fd);
-         if (errno != EOPNOTSUPP) {
-            Debug(LGPFX "ioctl failed: %d (%s)\n", errno, strerror(errno));
-            err = first ? SD_UNAVAILABLE : SD_ERROR;
+         if (ioctlerr != EBUSY && ioctlerr != EOPNOTSUPP) {
+            Debug(LGPFX "failed to freeze '%s': %d (%s)\n",
+                  path, ioctlerr, strerror(ioctlerr));
+            err = first && ioctlerr == ENOTTY ? SD_UNAVAILABLE : SD_ERROR;
+            free(path);
             break;
          }
       } else {
+         Debug(LGPFX "successfully froze '%s'.\n", path);
          if (!DynBuf_Append(&fds, &fd, sizeof fd)) {
+            if (ioctl(fd, FITHAW) == -1) {
+               Warning(LGPFX "failed to thaw '%s': %d (%s)\n",
+                       path, errno, strerror(errno));
+            }
+            free(path);
             close(fd);
             err = SD_ERROR;
             break;
@@ -207,6 +220,7 @@ LinuxDriver_Freeze(const char *paths,
          count++;
       }
 
+      free(path);
       first = FALSE;
    }
 

@@ -193,6 +193,7 @@ typedef struct AlignedPool {
    unsigned        numBusy;
 } AlignedPool;
 
+static Atomic_Ptr alignedPoolLockStorage;
 static AlignedPool alignedPool;
 #endif
 
@@ -811,43 +812,46 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    ASSERT(file->lockToken == NULL);
    ASSERT_ON_COMPILE(FILEIO_ERROR_LAST < 16); /* See comment in fileIO.h */
 
+   FileIOResolveLockBits(&access);
+   ASSERT((access & FILEIO_OPEN_LOCKED) == 0 &&
+          (access & FILEIO_OPEN_EXCLUSIVE_LOCK) == 0);
+   /* Only ESX implements mandatory locking */
+   ASSERT((access & FILEIO_OPEN_LOCK_MANDATORY) == 0 ||
+          File_SupportsMandatoryLock(pathName));
+
 #if defined(__APPLE__)
    if (access & FILEIO_OPEN_EXCLUSIVE_LOCK_MACOS) {
       flags |= O_EXLOCK;
    }
-#elif !defined(__FreeBSD__) && !defined(sun)
-   /*
-    * If FILEIO_OPEN_EXCLUSIVE_LOCK or FILEIO_OPEN_MULTIWRITER_LOCK or
-    * (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_LOCKED) are passed, and we are
-    * on VMFS, then pass in special flags to get exclusive, multiwriter, or
-    * cross-host read-only mode.  The first if statement is to avoid calling
-    * HostType_OSIsVMK() unless really necessary.
-    *
-    * If the above conditions are met FILEIO_OPEN_LOCKED, is filtered out --
-    * vmfs will be handling the locking, so there is no need to create
-    * lockfiles.
-    */
-   if ((access & (FILEIO_OPEN_EXCLUSIVE_LOCK |
-                  FILEIO_OPEN_MULTIWRITER_LOCK)) != 0 ||
-       (access & (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE |
-                  FILEIO_OPEN_LOCKED)) ==
-       (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_LOCKED)) {
-      if (HostType_OSIsVMK()) {
-         access &= ~FILEIO_OPEN_LOCKED;
-
-         if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
-            flags |= O_MULTIWRITER_LOCK;
-         } else {
-            flags |= O_EXCLUSIVE_LOCK;
-         }
+#elif defined(__linux__)
+   if (((access & (FILEIO_OPEN_LOCK_MANDATORY |
+                   FILEIO_OPEN_MULTIWRITER_LOCK)) != 0) &&
+       HostType_OSIsVMK()) {
+      /* These flags are only supported on vmkernel */
+      if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
+         flags |= O_MULTIWRITER_LOCK;
+      } else if ((access & FILEIO_OPEN_LOCK_MANDATORY) != 0) {
+         flags |= O_EXCLUSIVE_LOCK;
       }
    }
 #endif
 
+   /*
+    * Locking implementation note: this can be recursive. On ESX:
+    * FileIOCreateRetry("foo", ...ADVISORY...)
+    *  -> FileIO_Lock("foo", ...ADVISORY...)
+    *     -> FileLock_Lock("foo", ...ADVISORY...)
+    *        -> FileIOCreateRetry("foo.lck", ...MANDATORY...)
+    *           -> open("foo.lck", ...O_EXCLUSIVE_LOCK...)
+    */
+
    FileIO_Init(file, pathName);
-   ret = FileIO_Lock(file, access);
-   if (!FileIO_IsSuccess(ret)) {
-      goto error;
+   /* Mandatory file locks are only available at open() itself */
+   if ((access & FILEIO_OPEN_LOCK_ADVISORY) != 0) {
+      ret = FileIO_Lock(file, access);
+      if (!FileIO_IsSuccess(ret)) {
+         goto error;
+      }
    }
 
    if ((access & (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE)) ==
@@ -2518,8 +2522,7 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
  *
  * FileIOAligned_PoolInit --
  *
- *      Initialize alignedPool.  Must be called before FileIOAligned_PoolMalloc.
- *      This is not thread-safe and must be protected from multiple entry.
+ *      Initialize alignedPool. Must be called before FileIOAligned_PoolMalloc.
  *
  * Result:
  *      None.
@@ -2533,8 +2536,10 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
 void
 FileIOAligned_PoolInit(void)
 {
-   ASSERT(!alignedPool.lock);
-   alignedPool.lock = MXUser_CreateExclLock("alignedPoolLock", RANK_LEAF);
+   alignedPool.lock = MXUser_CreateSingletonExclLock(&alignedPoolLockStorage,
+                                                     "alignedPoolLock",
+                                                     RANK_LEAF);
+   ASSERT_NOT_IMPLEMENTED(alignedPool.lock);
 }
 
 

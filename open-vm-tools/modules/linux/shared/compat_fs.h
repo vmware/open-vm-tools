@@ -248,4 +248,10 @@
 #define VMW_FSYNC_OLD
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0)
+typedef umode_t compat_umode_t;
+#else
+typedef int compat_umode_t;
+#endif
+
 #endif /* __COMPAT_FS_H__ */

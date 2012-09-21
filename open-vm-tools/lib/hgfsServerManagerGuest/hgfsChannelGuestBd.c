@@ -68,11 +68,13 @@ static Bool HgfsChannelGuestBdReceive(HgfsGuestConn *data,
                                       size_t packetInSize,
                                       char *packetOut,
                                       size_t *packetOutSize);
+static uint32 HgfsChannelGuestBdInvalidateInactiveSessions(HgfsGuestConn *data);
 
 HgfsGuestChannelCBTable gGuestBackdoorOps = {
    HgfsChannelGuestBdInit,
    HgfsChannelGuestBdExit,
    HgfsChannelGuestBdReceive,
+   HgfsChannelGuestBdInvalidateInactiveSessions,
 };
 
 /* Private functions. */
@@ -566,6 +568,45 @@ HgfsChannelGuestBdReceive(HgfsGuestConn *connData,    // IN: connection
 
 exit:
    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsChannelGuestBdInvalidateInactiveSessions --
+ *
+ *    Sends a request to invalidate all the inactive HGFS server sessions.
+ *
+ * Results:
+ *    Number of active sessions remaining inside the HGFS server.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+uint32
+HgfsChannelGuestBdInvalidateInactiveSessions(HgfsGuestConn *connData)  // IN: connection
+{
+   ASSERT(NULL != connData);
+
+   if (NULL == connData) {
+      return 0;
+   }
+
+   if (connData->state == HGFS_GST_CONN_UNINITIALIZED) {
+      /* The connection was closed as we are exiting, so bail. */
+      return 0;
+   }
+
+   /* The server will perform a synchronous processing of requests. */
+   if (connData->serverSession) {
+      return connData->serverCbTable->invalidateInactiveSessions(connData->serverSession);
+   }
+
+   return 0;
 }
 
 

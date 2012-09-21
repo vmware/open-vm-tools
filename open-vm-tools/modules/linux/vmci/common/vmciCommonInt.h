@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -87,6 +87,11 @@ struct VMCIContext {
 #ifdef VMKERNEL
    Bool               isQuiesced;       /* Whether current VM is quiesced */
    VMCIId             migrateCid;       /* The migrate cid if it is migrating */
+   VMCIMutex          guestMemMutex;    /*
+                                         * Coordinates guest memory
+                                         * registration/release during FSR.
+                                         */
+   VMCIGuestMemID     curGuestMemID;    /* ID of current registered guest mem */
 #endif
 #ifndef VMX86_SERVER
    Bool               *notify;          /* Notify flag pointer - hosted only. */

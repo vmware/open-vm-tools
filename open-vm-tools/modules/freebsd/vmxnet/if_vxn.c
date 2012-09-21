@@ -135,7 +135,9 @@ typedef struct vxn_softc {
 static void vxn_init(void *);
 static void vxn_start(struct ifnet *);
 static int vxn_ioctl(struct ifnet *, u_long, caddr_t);
+#if __FreeBSD_version < 900000
 static void vxn_watchdog(struct ifnet *);
+#endif
 static void vxn_intr (void *);
 
 static void vxn_rx(vxn_softc_t *sc);
@@ -471,7 +473,9 @@ vxn_attach(device_t dev)
    ifp->if_ioctl = vxn_ioctl;
    ifp->if_output = ether_output;
    ifp->if_start = vxn_start;
+#if __FreeBSD_version < 900000
    ifp->if_watchdog = vxn_watchdog;
+#endif
    ifp->if_init = vxn_init;
    ifp->if_baudrate = 1000000000;
    ifp->if_snd.ifq_maxlen = sc->vxn_num_tx_bufs;
@@ -1146,6 +1150,7 @@ vxn_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
    return error;
 }
 
+#if __FreeBSD_version < 900000
 /*
  *-----------------------------------------------------------------------------
  * vxn_watchdog --
@@ -1163,6 +1168,7 @@ vxn_watchdog(struct ifnet *ifp)
 {
    printf("vxn%d: watchdog\n", VXN_IF_UNIT(ifp));
 }
+#endif
 
 /*
  *-----------------------------------------------------------------------------

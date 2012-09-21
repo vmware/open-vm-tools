@@ -50,7 +50,6 @@ extern "C" {
 #define IsXExtensionPointer 4
 #endif
 
-#include "dndGuest.h"
 #include "copyPasteDnDWrapper.h"
 
 /**

@@ -289,7 +289,12 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
          Str_Sprintf(macAddress, sizeof macAddress, "%s",
                      addr_ntoa(&entry->intf_link_addr));
          nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
-         ASSERT_MEM_ALLOC(nic);
+         if (NULL == nic) {
+            /*
+             * We reached maximum number of NICs we can report to the host.
+             */
+            return 0;
+         }
 
          /* Record the "primary" address. */
          if (entry->intf_addr.addr_type == ADDR_TYPE_IP ||
@@ -668,15 +673,16 @@ RecordRoutingInfoIPv6(NicInfoV3 *nicInfo)
  * RecordRoutingInfo --                                                  */ /**
  *
  * @brief Query the routing subsystem and pack up contents into
- * InetCidrRouteEntries.
+ * InetCidrRouteEntries when either of IPv4 or IPV6 is configured.
  *
  * @param[out] nicInfo  NicInfoV3 container.
  *
  * @note Do not call this routine without first populating @a nicInfo 's NIC
  * list.
  *
- * @retval TRUE         Values collected, attached to @a nicInfo.
- * @retval FALSE        Something went wrong.
+ * @retval TRUE         Values collected(either IPv4 or IPv6 or both),
+ *                      attached to @a nicInfo.
+ * @retval FALSE        Something went wrong(neither IPv4 nor IPv6 configured).
  *
  ******************************************************************************
  */
@@ -684,19 +690,20 @@ RecordRoutingInfoIPv6(NicInfoV3 *nicInfo)
 static Bool
 RecordRoutingInfo(NicInfoV3 *nicInfo)
 {
-   Bool ret = TRUE;
+   Bool retIPv4 = TRUE;
+   Bool retIPv6 = TRUE;
 
    if (File_Exists("/proc/net/route") && !RecordRoutingInfoIPv4(nicInfo)) {
       g_warning("%s: Unable to collect IPv4 routing table.\n", __func__);
-      ret = FALSE;
+      retIPv4 = FALSE;
    }
 
    if (File_Exists("/proc/net/ipv6_route") && !RecordRoutingInfoIPv6(nicInfo)) {
       g_warning("%s: Unable to collect IPv6 routing table.\n", __func__);
-      ret = FALSE;
+      retIPv6 = FALSE;
    }
 
-   return ret;
+   return (retIPv4 || retIPv6);
 }
 
 #else                                           // ifdef USE_SLASH_PROC

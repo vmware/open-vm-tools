@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -183,6 +183,7 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
 #define VMCI_LOCK_RANK_QPHIBERNATE      (VMCI_LOCK_RANK_EVENT - 1)
 
 #define VMCI_SEMA_RANK_QUEUEPAIRLIST    (VMCI_SEMA_RANK_QPHEADER - 1)
+#define VMCI_SEMA_RANK_GUESTMEM         (VMCI_SEMA_RANK_QUEUEPAIRLIST - 1)
 
 /*
  * Host specific struct used for signalling.
@@ -375,9 +376,15 @@ typedef uint32 VMCIGuestMemID;
 #endif
 
 #if defined(VMKERNEL)
+  void VMCIHost_MarkQueuesAvailable(struct VMCIQueue *produceQ,
+                                    struct VMCIQueue *consumeQ);
+  void VMCIHost_MarkQueuesUnavailable(struct VMCIQueue *produceQ,
+                                      struct VMCIQueue *consumeQ);
   void VMCI_LockQueueHeader(struct VMCIQueue *queue);
   void VMCI_UnlockQueueHeader(struct VMCIQueue *queue);
 #else
+#  define VMCIHost_MarkQueuesAvailable(_q, _p) while(0) { }
+#  define VMCIHost_MarkQueuesUnavailable(_q, _p) while(0) { }
 #  define VMCI_LockQueueHeader(_q) ASSERT_NOT_IMPLEMENTED(FALSE)
 #  define VMCI_UnlockQueueHeader(_q) ASSERT_NOT_IMPLEMENTED(FALSE)
 #endif

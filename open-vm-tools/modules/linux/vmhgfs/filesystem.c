@@ -83,7 +83,7 @@ HgfsOp hgfsVersionCreateSymlink;
 static inline unsigned long HgfsComputeBlockBits(unsigned long blockSize);
 static compat_kmem_cache_ctor HgfsInodeCacheCtor;
 static HgfsSuperInfo *HgfsInitSuperInfo(HgfsMountInfo *mountInfo);
-static struct dentry *HgfsGetRootDentry(struct super_block *sb);
+static int HgfsGetRootDentry(struct super_block *sb, struct dentry **rootDentry);
 static int HgfsReadSuper(struct super_block *sb,
                          void *rawData,
                          int flags);
@@ -334,7 +334,8 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
  *    Gets the root dentry for a given super block.
  *
  * Results:
- *    A valid root dentry on success, NULL otherwise.
+ *    zero and a valid root dentry on success
+ *    negative value on failure
  *
  * Side effects:
  *    None.
@@ -342,63 +343,78 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
  *----------------------------------------------------------------------------
  */
 
-static struct dentry *
-HgfsGetRootDentry(struct super_block *sb)       // IN: Super block object
+static int
+HgfsGetRootDentry(struct super_block *sb,       // IN: Super block object
+                  struct dentry **rootDentry)   // OUT: Root dentry
 {
-   struct dentry *rootDentry = NULL;
+   int result = -ENOMEM;
    struct inode *rootInode;
+   struct dentry *tempRootDentry = NULL;
+   struct HgfsAttrInfo rootDentryAttr;
+   HgfsInodeInfo *iinfo;
 
    ASSERT(sb);
+   ASSERT(rootDentry);
 
    LOG(6, (KERN_DEBUG "VMware hgfs: %s: entered\n", __func__));
 
    rootInode = HgfsGetInode(sb, HGFS_ROOT_INO);
-   if (rootInode) {
-      HgfsInodeInfo *iinfo;
-      static const HgfsAttrInfo attr = {
-         .type             = HGFS_FILE_TYPE_DIRECTORY,
-         .size             = 4192,
-         .specialPerms     = 0,
-         .ownerPerms       = HGFS_PERM_READ | HGFS_PERM_EXEC,
-         .groupPerms       = HGFS_PERM_READ | HGFS_PERM_EXEC,
-         .otherPerms       = HGFS_PERM_READ | HGFS_PERM_EXEC,
-         .mask             = HGFS_ATTR_VALID_TYPE |
-                             HGFS_ATTR_VALID_SIZE |
-                             HGFS_ATTR_VALID_SPECIAL_PERMS |
-                             HGFS_ATTR_VALID_OWNER_PERMS |
-                             HGFS_ATTR_VALID_GROUP_PERMS |
-                             HGFS_ATTR_VALID_OTHER_PERMS,
-      };
-
-      /*
-       * On an allocation failure in read_super, the inode will have been
-       * marked "bad". If it was, we certainly don't want to start playing with
-       * the HgfsInodeInfo. So quietly put the inode back and fail.
-       */
-      if (is_bad_inode(rootInode)) {
-         LOG(6, (KERN_DEBUG "VMware hgfs: %s: encountered bad inode\n",
-                 __func__));
-         iput(rootInode);
-         goto exit;
-      }
-
-      HgfsChangeFileAttributes(rootInode, &attr);
-
-      iinfo = INODE_GET_II_P(rootInode);
-      iinfo->isFakeInodeNumber = FALSE;
-      iinfo->isReferencedInode = TRUE;
+   if (rootInode == NULL) {
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: Could not get the root inode\n",
+             __func__));
+      goto exit;
    }
 
-   rootDentry = d_alloc_root(rootInode);
-   if (rootDentry == NULL) {
+   /*
+    * On an allocation failure in read_super, the inode will have been
+    * marked "bad". If it was, we certainly don't want to start playing with
+    * the HgfsInodeInfo. So quietly put the inode back and fail.
+    */
+   if (is_bad_inode(rootInode)) {
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: encountered bad inode\n",
+             __func__));
+      goto exit;
+   }
+
+   tempRootDentry = d_alloc_root(rootInode);
+   if (tempRootDentry == NULL) {
       LOG(4, (KERN_WARNING "VMware hgfs: %s: Could not get "
               "root dentry\n", __func__));
       goto exit;
    }
 
+   rootInode = NULL;
+
+   result = HgfsPrivateGetattr(tempRootDentry, &rootDentryAttr, NULL);
+   if (result) {
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsReadSuper: Could not"
+             "instantiate the root dentry\n"));
+      goto exit;
+   }
+
+   iinfo = INODE_GET_II_P(tempRootDentry->d_inode);
+   iinfo->isFakeInodeNumber = FALSE;
+   iinfo->isReferencedInode = TRUE;
+
+   if (rootDentryAttr.mask & HGFS_ATTR_VALID_FILEID) {
+      iinfo->hostFileId = rootDentryAttr.hostFileId;
+   }
+
+   HgfsChangeFileAttributes(tempRootDentry->d_inode, &rootDentryAttr);
+   HgfsDentryAgeReset(tempRootDentry);
+   tempRootDentry->d_op = &HgfsDentryOperations;
+
+   *rootDentry = tempRootDentry;
+   result = 0;
+
    LOG(6, (KERN_DEBUG "VMware hgfs: %s: finished\n", __func__));
 exit:
-   return rootDentry;
+   if (result) {
+      iput(rootInode);
+      dput(tempRootDentry);
+      *rootDentry = NULL;
+   }
+   return result;
 }
 
 
@@ -461,6 +477,10 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
    sb->s_magic = HGFS_SUPER_MAGIC;
    sb->s_op = &HgfsSuperOperations;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+   sb->s_d_op = &HgfsDentryOperations;
+#endif
+
    /*
     * If s_maxbytes isn't initialized, the generic write path may fail. In
     * most kernels, s_maxbytes is initialized by the kernel's superblock
@@ -478,13 +498,13 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
    sb->s_blocksize_bits = HgfsComputeBlockBits(HGFS_BLOCKSIZE);
    sb->s_blocksize = 1 << sb->s_blocksize_bits;
 
-   rootDentry = HgfsGetRootDentry(sb);
-   if (rootDentry == NULL) {
+   result = HgfsGetRootDentry(sb, &rootDentry);
+   if (result) {
       LOG(4, (KERN_WARNING "VMware hgfs: HgfsReadSuper: Could not instantiate "
               "root dentry\n"));
-      result = -ENOMEM;
       goto exit;
    }
+
    sb->s_root = rootDentry;
 
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReadSuper: finished %s\n", si->shareName));

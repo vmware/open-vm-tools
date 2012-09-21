@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -4787,9 +4787,8 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    struct sock *sk;
    VSockVmciSock *vsk;
    int err;
-   int target;
+   size_t target;
    ssize_t copied;
-   int64 ready;
    long timeout;
 
    VSockVmciRecvNotifyData recvData;
@@ -4862,10 +4861,8 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
 
    prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
-   while ((ready = VSockVmciStreamHasData(vsk)) < target &&
-          sk->sk_err == 0 &&
-          !(sk->sk_shutdown & RCV_SHUTDOWN) &&
-          !(vsk->peerShutdown & SEND_SHUTDOWN)) {
+   while (1) {
+      int64 ready = VSockVmciStreamHasData(vsk);
 
       if (ready < 0) {
          /*
@@ -4874,94 +4871,101 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
           */
 
          err = -ENOMEM;
-         goto out;
-      }
-
-      /* Don't wait for non-blocking sockets. */
-      if (timeout == 0) {
-         err = -EAGAIN;
          goto outWait;
+      } else if (ready > 0) {
+         ssize_t read;
+
+         VSOCK_STATS_STREAM_CONSUME_HIST(vsk);
+
+         NOTIFYCALLRET(vsk, err, recvPreDequeue, sk, target, &recvData);
+         if (err < 0) {
+            break;
+         }
+
+         if (flags & MSG_PEEK) {
+            read = VMCIQPair_PeekV(vsk->qpair, msg->msg_iov, len - copied, 0);
+         } else {
+            read = VMCIQPair_DequeueV(vsk->qpair, msg->msg_iov, len - copied, 0);
+         }
+
+         if (read < 0) {
+            err = -ENOMEM;
+            break;
+         }
+
+         ASSERT(read <= INT_MAX);
+         copied += read;
+
+         NOTIFYCALLRET(vsk, err, recvPostDequeue, sk, target, read,
+                       !(flags & MSG_PEEK), &recvData);
+         if (err < 0) {
+            goto outWait;
+         }
+
+         if (read >= target || flags & MSG_PEEK) {
+            break;
+         }
+         target -= read;
+      } else {
+         if (sk->sk_err != 0 || (sk->sk_shutdown & RCV_SHUTDOWN) ||
+             (vsk->peerShutdown & SEND_SHUTDOWN)) {
+            break;
+         }
+         /* Don't wait for non-blocking sockets. */
+         if (timeout == 0) {
+            err = -EAGAIN;
+            break;
+         }
+
+         NOTIFYCALLRET(vsk, err, recvPreBlock, sk, target, &recvData);
+         if (err < 0) {
+            break;
+         }
+
+         release_sock(sk);
+         timeout = schedule_timeout(timeout);
+         lock_sock(sk);
+
+         if (signal_pending(current)) {
+            err = sock_intr_errno(timeout);
+            break;
+         } else if (timeout == 0) {
+            err = -EAGAIN;
+            break;
+         }
+
+         prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
       }
-
-      NOTIFYCALLRET(vsk, err, recvPreBlock, sk, target, &recvData);
-      if (err < 0) {
-         goto outWait;
-      }
-
-      release_sock(sk);
-      timeout = schedule_timeout(timeout);
-      lock_sock(sk);
-
-      if (signal_pending(current)) {
-         err = sock_intr_errno(timeout);
-         goto outWait;
-      } else if (timeout == 0) {
-         err = -EAGAIN;
-         goto outWait;
-      }
-
-      prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
    }
 
    if (sk->sk_err) {
       err = -sk->sk_err;
-      goto outWait;
    } else if (sk->sk_shutdown & RCV_SHUTDOWN) {
       err = 0;
-      goto outWait;
-   } else if ((vsk->peerShutdown & SEND_SHUTDOWN) &&
-              VSockVmciStreamHasData(vsk) < target) {
-      err = 0;
-      goto outWait;
    }
 
-   VSOCK_STATS_STREAM_CONSUME_HIST(vsk);
-
-   NOTIFYCALLRET(vsk, err, recvPreDequeue, sk, target, &recvData);
-   if (err < 0) {
-      goto outWait;
-   }
-
-   if (flags & MSG_PEEK) {
-      copied = VMCIQPair_PeekV(vsk->qpair, msg->msg_iov, len, 0);
-   } else {
-      copied = VMCIQPair_DequeueV(vsk->qpair, msg->msg_iov, len, 0);
-   }
-
-   if (copied < 0) {
-      err = -ENOMEM;
-      goto outWait;
-   }
-
-   ASSERT(copied >= target);
-
-   /*
-    * We only do these additional bookkeeping/notification steps if we actually
-    * copied something out of the queue pair instead of just peeking ahead.
-    */
-   if (!(flags & MSG_PEEK)) {
-
+   if (copied > 0) {
       /*
-       * If the other side has shutdown for sending and there is nothing more to
-       * read, then modify the socket state.
+       * We only do these additional bookkeeping/notification steps if we
+       * actually copied something out of the queue pair instead of just peeking
+       * ahead.
        */
-      if (vsk->peerShutdown & SEND_SHUTDOWN) {
-         if (VSockVmciStreamHasData(vsk) <= 0) {
-            sk->sk_state = SS_UNCONNECTED;
-            sock_set_flag(sk, SOCK_DONE);
-            sk->sk_state_change(sk);
+
+      if (!(flags & MSG_PEEK)) {
+         /*
+          * If the other side has shutdown for sending and there is nothing more
+          * to read, then modify the socket state.
+          */
+         if (vsk->peerShutdown & SEND_SHUTDOWN) {
+            if (VSockVmciStreamHasData(vsk) <= 0) {
+               sk->sk_state = SS_UNCONNECTED;
+               sock_set_flag(sk, SOCK_DONE);
+               sk->sk_state_change(sk);
+            }
          }
       }
+      err = copied;
    }
-
-   NOTIFYCALLRET(vsk, err, recvPostDequeue, sk, target, copied,
-                 !(flags & MSG_PEEK), &recvData);
-   if (err < 0) {
-      goto outWait;
-   }
-
-   ASSERT(copied <= INT_MAX);
-   err = copied;
 
 outWait:
    finish_wait(sk_sleep(sk), &wait);

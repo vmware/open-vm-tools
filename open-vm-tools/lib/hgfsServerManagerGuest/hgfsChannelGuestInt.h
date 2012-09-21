@@ -44,6 +44,7 @@ typedef struct HgfsGuestChannelCBTable {
    Bool (*init)(HgfsServerSessionCallbacks *, void *, void *, struct HgfsGuestConn **);
    void (*exit)(struct HgfsGuestConn *);
    Bool (*receive)(struct HgfsGuestConn *, char const *, size_t, char *, size_t *);
+   uint32 (*invalidateInactiveSessions)(struct HgfsGuestConn *);
 } HgfsGuestChannelCBTable;
 
 /* The guest channels callback tables. */
@@ -57,6 +58,7 @@ Bool HgfsChannelGuest_Receive(HgfsServerMgrData *data,
                               size_t packetInSize,
                               char *packetOut,
                               size_t *packetOutSize);
+uint32 HgfsChannelGuest_InvalidateInactiveSessions(HgfsServerMgrData *data);
 
 #endif /* _HGFSCHANNELGUESTINT_H_ */
 

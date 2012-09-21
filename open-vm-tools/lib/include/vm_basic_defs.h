@@ -723,5 +723,14 @@ typedef int pid_t;
       }                                                                 \
    } while (0)
 
+/*
+ * Bug 827422 and 838523.
+ */
+
+#if defined __GNUC__ && __GNUC__ >= 4
+#define VISIBILITY_HIDDEN __attribute__((visibility("hidden")))
+#else
+#define VISIBILITY_HIDDEN /* nothing */
+#endif
 
 #endif // ifndef _VM_BASIC_DEFS_H_

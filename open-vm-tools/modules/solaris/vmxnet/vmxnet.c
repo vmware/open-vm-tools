@@ -2380,7 +2380,11 @@ static   struct dev_ops vxn_ops = {
    nodev,               /* devo_reset */
    &cb_vxn_ops,         /* devo_cb_ops */
    NULL,                /* devo_bus_ops */
+#ifdef SOL11
+	NULL,
+#else
    ddi_power            /* devo_power */
+#endif
 };
 
 static struct modldrv modldrv = {

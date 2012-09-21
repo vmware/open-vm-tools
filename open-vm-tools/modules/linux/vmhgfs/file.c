@@ -83,7 +83,7 @@ static loff_t HgfsSeek(struct file *file,
 static int HgfsFsync(struct file *file,
 #if defined VMW_FSYNC_OLD
                      struct dentry *dentry,
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0)
+#elif defined VMW_FSYNC_31
                      loff_t start,
                      loff_t end,
 #endif
@@ -992,7 +992,7 @@ static int
 HgfsFsync(struct file *file,		// IN: File we operate on
 #if defined VMW_FSYNC_OLD
           struct dentry *dentry,        // IN: Dentry for this file
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0)
+#elif defined VMW_FSYNC_31
           loff_t start,                 // IN: start of range to sync
           loff_t end,                   // IN: end of range to sync
 #endif

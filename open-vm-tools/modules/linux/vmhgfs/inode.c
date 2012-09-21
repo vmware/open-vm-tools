@@ -61,7 +61,7 @@ static int HgfsPackSetattrRequest(struct iattr *iattr,
                                   HgfsReq *req,
                                   Bool *changed);
 static int HgfsPackCreateDirRequest(struct dentry *dentry,
-                                    int mode,
+                                    compat_umode_t mode,
 				    HgfsOp opUsed,
                                     HgfsReq *req);
 static int HgfsTruncatePages(struct inode *inode,
@@ -74,14 +74,14 @@ static int HgfsPackSymlinkCreateRequest(struct dentry *dentry,
 /* HGFS inode operations. */
 static int HgfsCreate(struct inode *dir,
                       struct dentry *dentry,
-                      int mode,
+                      compat_umode_t mode,
                       struct nameidata *nd);
 static struct dentry *HgfsLookup(struct inode *dir,
                                  struct dentry *dentry,
                                  struct nameidata *nd);
 static int HgfsMkdir(struct inode *dir,
                      struct dentry *dentry,
-                     int mode);
+                     compat_umode_t mode);
 static int HgfsRmdir(struct inode *dir,
                      struct dentry *dentry);
 static int HgfsUnlink(struct inode *dir,
@@ -729,7 +729,7 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
 static int
 HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
-                         int mode,              // IN: Mode to assign dir
+                         compat_umode_t mode,   // IN: Mode to assign dir
                          HgfsOp opUsed,         // IN: Op to be used.
                          HgfsReq *req)          // IN/OUT: Packet to write into
 {
@@ -951,7 +951,7 @@ HgfsTruncatePages(struct inode *inode, // IN: Inode whose page to truncate
 static int
 HgfsCreate(struct inode *dir,     // IN: Parent dir to create in
            struct dentry *dentry, // IN: Dentry containing name to create
-           int mode,              // IN: Mode of file to be created
+           compat_umode_t mode,   // IN: Mode of file to be created
 	   struct nameidata *nd)  // IN: Intent, vfsmount, ...
 {
    HgfsAttrInfo attr;
@@ -1107,7 +1107,7 @@ error:
 static int
 HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
           struct dentry *dentry, // IN: Dentry with name to be created
-          int mode)              // IN: Mode of dir to be created
+          compat_umode_t mode)   // IN: Mode of dir to be created
 {
    HgfsReq *req;
    HgfsStatus replyStatus;

@@ -131,6 +131,12 @@ typedef uint32 VMCI_Resource;
 #define VMCI_UNITY_PBRPC_REGISTER 14
 #define VMCI_RESOURCE_MAX         15
 
+/*
+ * VMCI reserved host datagram resource IDs.
+ * vsock control channel has resource id 1.
+ */
+#define VMCI_DVFILTER_DATA_PATH_DATAGRAM 2
+
 /* VMCI Ids. */
 typedef uint32 VMCIId;
 

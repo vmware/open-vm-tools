@@ -738,9 +738,8 @@ VMTools_BindTextDomain(const char *domain,
       dfltdir = Util_SafeStrdup(VMTOOLS_DATA_DIR);
 #else
       dfltdir = GuestApp_GetInstallPath();
-      ASSERT_MEM_ALLOC(dfltdir);
 #endif
-      catdir = dfltdir;
+      catdir = (dfltdir) ? dfltdir : ".";
    }
 
    file = g_strdup_printf("%s%smessages%s%s%s%s.vmsg",

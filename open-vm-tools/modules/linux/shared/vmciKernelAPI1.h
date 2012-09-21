@@ -49,6 +49,11 @@
 #define VMCI_MAJOR_VERSION(v) (((v) >> 16) & 0xffff)
 #define VMCI_MINOR_VERSION(v) ((v) & 0xffff)
 
+#if defined(_WIN32)
+/* Path to callback object in object manager, for Windows only. */
+#define VMCI_CALLBACK_OBJECT_PATH L"\\Callback\\VMCIDetachCB"
+#endif // _WIN32
+
 /* VMCI Device Usage API. */
 
 typedef void (VMCI_DeviceShutdownFn)(void *deviceRegistration,
@@ -57,6 +62,11 @@ typedef void (VMCI_DeviceShutdownFn)(void *deviceRegistration,
 Bool VMCI_DeviceGet(uint32 *apiVersion, VMCI_DeviceShutdownFn *deviceShutdownCB,
                     void *userData, void **deviceRegistration);
 void VMCI_DeviceRelease(void *deviceRegistration);
+
+#if defined(_WIN32)
+/* Called when the client is unloading, for Windows only. */
+void VMCI_Exit(void);
+#endif // _WIN32
 
 /* VMCI Datagram API. */
 

@@ -30,72 +30,21 @@
 #  include <process.h>
 #  include <windows.h>
 #else
-#  include <fcntl.h>
 #  include <unistd.h>
 #endif
 
 
 typedef struct FileLogger {
    GlibLogger     handler;
-   GIOChannel    *file;
+   FILE          *file;
    gchar         *path;
    gint           logSize;
    guint64        maxSize;
    guint          maxFiles;
    gboolean       append;
    gboolean       error;
-   GStaticMutex   lock;
+   GStaticRWLock  lock;
 } FileLogger;
-
-
-#if !defined(_WIN32)
-/*
- *******************************************************************************
- * FileLoggerIsValid --                                                   */ /**
- *
- * Checks that the file descriptor backing this logger is still valid.
- *
- * This is a racy workaround for an issue with glib code; or, rather, two
- * issues. The first issue is that we can't intercept G_LOG_FLAG_RECURSION,
- * and glib just aborts when that happens (see gnome bug 618956). The second
- * is that if a GIOChannel channel write fails, that calls
- * g_io_channel_error_from_errno, which helpfully logs stuff, causing recursion.
- * Don't get me started on why that's, well, at least questionable.
- *
- * This is racy because between the check and the actual GIOChannel operation,
- * the state of the FD may have changed. In reality, since the bug this is
- * fixing happens in very special situations where code outside this file is
- * doing weird things like closing random fds, it should be OK.
- *
- * We may still get other write errors from the GIOChannel than EBADF, but
- * those would be harder to work around. Hopefully this handles the most usual
- * cases.
- *
- * See bug 783999 for some details about what triggers the bug.
- *
- * @param[in] logger The logger instance.
- *
- * @return TRUE if the I/O channel is still valid.
- *
- *******************************************************************************
- */
-
-static gboolean
-FileLoggerIsValid(FileLogger *logger)
-{
-   if (logger->file != NULL) {
-      int fd = g_io_channel_unix_get_fd(logger->file);
-      return fcntl(fd, F_GETFD) >= 0;
-   }
-
-   return FALSE;
-}
-
-#else
-
-#define FileLoggerIsValid(logger) TRUE
-
-#endif
 
 
 /*
@@ -205,10 +154,10 @@ FileLoggerGetPath(FileLogger *data,
  *******************************************************************************
  */
 
-static GIOChannel *
+static FILE *
 FileLoggerOpen(FileLogger *data)
 {
-   GIOChannel *logfile = NULL;
+   FILE *logfile = NULL;
    gchar *path;
 
    g_return_val_if_fail(data != NULL, NULL);
@@ -217,10 +166,14 @@ FileLoggerOpen(FileLogger *data)
    if (g_file_test(path, G_FILE_TEST_EXISTS)) {
       struct stat fstats;
       if (g_stat(path, &fstats) > -1) {
+#if GLIB_CHECK_VERSION(2, 10, 0)
+         g_atomic_int_set(&data->logSize, (gint) fstats.st_size);
+#else
          data->logSize = (gint) fstats.st_size;
+#endif
       }
 
-      if (!data->append || data->logSize >= data->maxSize) {
+      if (!data->append || g_atomic_int_get(&data->logSize) >= data->maxSize) {
          /*
           * Find the last log file and iterate back, changing the indices as we go,
           * so that the oldest log file has the highest index (the new log file
@@ -263,18 +216,17 @@ FileLoggerOpen(FileLogger *data)
             g_free(g_ptr_array_index(logfiles, id));
          }
          g_ptr_array_free(logfiles, TRUE);
+#if GLIB_CHECK_VERSION(2, 10, 0)
+         g_atomic_int_set(&data->logSize, 0);
+#else
          data->logSize = 0;
+#endif
          data->append = FALSE;
       }
    }
 
-   logfile = g_io_channel_new_file(path, data->append ? "a" : "w", NULL);
+   logfile = g_fopen(path, data->append ? "a" : "w");
    g_free(path);
-
-   if (logfile != NULL) {
-      g_io_channel_set_encoding(logfile, NULL, NULL);
-   }
-
    return logfile;
 }
 
@@ -301,48 +253,60 @@ FileLoggerLog(const gchar *domain,
               gpointer data)
 {
    FileLogger *logger = data;
-   gsize written;
 
-   g_static_mutex_lock(&logger->lock);
+   g_static_rw_lock_reader_lock(&logger->lock);
 
    if (logger->error) {
       goto exit;
    }
 
    if (logger->file == NULL) {
+      /*
+       * We need to drop the read lock and acquire a write lock to open
+       * the log file.
+       */
+      g_static_rw_lock_reader_unlock(&logger->lock);
+      g_static_rw_lock_writer_lock(&logger->lock);
       if (logger->file == NULL) {
          logger->file = FileLoggerOpen(data);
       }
+      g_static_rw_lock_writer_unlock(&logger->lock);
+      g_static_rw_lock_reader_lock(&logger->lock);
       if (logger->file == NULL) {
          logger->error = TRUE;
          goto exit;
       }
    }
 
-   if (!FileLoggerIsValid(logger)) {
-      logger->error = TRUE;
-      goto exit;
-   }
-
    /* Write the log file and do log rotation accounting. */
-   if (g_io_channel_write_chars(logger->file, message, -1, &written, NULL) ==
-       G_IO_STATUS_NORMAL) {
+   if (fputs(message, logger->file) >= 0) {
       if (logger->maxSize > 0) {
-         logger->logSize += (gint) written;
-         if (logger->logSize >= logger->maxSize) {
-            g_io_channel_unref(logger->file);
-            logger->append = FALSE;
-            logger->file = FileLoggerOpen(logger);
+         g_atomic_int_add(&logger->logSize, (gint) strlen(message));
+#if defined(_WIN32)
+         /* Account for \r. */
+         g_atomic_int_add(&logger->logSize, 1);
+#endif
+         if (g_atomic_int_get(&logger->logSize) >= logger->maxSize) {
+            /* Drop the reader lock, grab the writer lock and re-check. */
+            g_static_rw_lock_reader_unlock(&logger->lock);
+            g_static_rw_lock_writer_lock(&logger->lock);
+            if (g_atomic_int_get(&logger->logSize) >= logger->maxSize) {
+               fclose(logger->file);
+               logger->append = FALSE;
+               logger->file = FileLoggerOpen(logger);
+            }
+            g_static_rw_lock_writer_unlock(&logger->lock);
+            g_static_rw_lock_reader_lock(&logger->lock);
          } else {
-            g_io_channel_flush(logger->file, NULL);
+            fflush(logger->file);
          }
       } else {
-         g_io_channel_flush(logger->file, NULL);
+         fflush(logger->file);
       }
    }
 
 exit:
-   g_static_mutex_unlock(&logger->lock);
+   g_static_rw_lock_reader_unlock(&logger->lock);
 }
 
 
@@ -362,9 +326,9 @@ FileLoggerDestroy(gpointer data)
 {
    FileLogger *logger = data;
    if (logger->file != NULL) {
-      g_io_channel_unref(logger->file);
+      fclose(logger->file);
    }
-   g_static_mutex_free(&logger->lock);
+   g_static_rw_lock_free(&logger->lock);
    g_free(logger->path);
    g_free(logger);
 }
@@ -411,7 +375,7 @@ GlibUtils_CreateFileLogger(const char *path,
    data->append = append;
    data->maxSize = maxSize * 1024 * 1024;
    data->maxFiles = maxFiles + 1; /* To account for the active log file. */
-   g_static_mutex_init(&data->lock);
+   g_static_rw_lock_init(&data->lock);
 
    return &data->handler;
 }

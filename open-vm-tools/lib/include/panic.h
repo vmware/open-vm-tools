@@ -70,7 +70,6 @@ EXTERN void Panic_LoopOnPanic(void);
 EXTERN void Panic_SetCoreDumpOnPanic(Bool dumpCore);
 EXTERN Bool Panic_GetCoreDumpOnPanic(void);
 EXTERN void Panic_SetCoreDumpFileName(const char *fileName);
-EXTERN const char *Panic_GetCoreDumpFileName(void);
 EXTERN int  Panic_GetCoreDumpFlags(void);
 EXTERN void Panic_SetCoreDumpFlags(int flags);
 

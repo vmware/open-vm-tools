@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -49,7 +49,7 @@
 #include "includeCheck.h"
 
 #define VMNET_NAME_BUFFER_LEN  128 /* Increased for i18n. */
-#define VMNET_COAL_SCHEME_NAME_LEN 16
+#define VMNET_COAL_STRING_LEN 16
 
 
 /*
@@ -81,11 +81,12 @@
 #define VMNET_CAP_TSO256k      0x200000	/* Can do TSO segmentation offload for pkts up to 256kB. */
 #define VMNET_CAP_UPT          0x400000	/* Support UPT */
 #define VMNET_CAP_RDONLY_INETHDRS 0x800000 /* Modifies inet headers for TSO/CSUm */
-#define VMNET_CAP_NPA         0x1000000	/* Support NPA */
+#define VMNET_CAP_ENCAP         0x1000000   /* NPA not used, so redefining for ENCAP support */
 #define VMNET_CAP_DCB         0x2000000	/* Support DCB */
 #define VMNET_CAP_OFFLOAD_8OFFSET 0x4000000 /* supports 8bit parameterized offsets */ 
 #define VMNET_CAP_OFFLOAD_16OFFSET 0x8000000 /* supports 16bit parameterized offsets */ 
 #define VMNET_CAP_IP6_CSUM_EXT_HDRS 0x10000000 /* support csum of ip6 ext hdrs */
 #define VMNET_CAP_TSO6_EXT_HDRS 0x20000000 /* support TSO for ip6 ext hdrs */
 #define VMNET_CAP_SCHED       0x40000000 /* compliant with network scheduling */
+#define VMNET_CAP_SRIOV       0x80000000 /* Supports SR-IOV */
 #endif // _VMNET_DEF_H_

@@ -130,6 +130,7 @@ public:
    void swap(string &s);
    void resize(size_type n, value_type c = '\0');
    bool empty() const;
+   bool isASCII() const;
    size_type size() const;
    size_type w_size() const;
    size_type length() const;
@@ -200,7 +201,7 @@ public:
    // Some helper functions that are nice to have
    bool startsWith(const string &s, bool ignoreCase = false) const;
    bool endsWith(const string &s, bool ignoreCase = false) const;
-   std::vector<string> split(const string &sep) const;
+   std::vector<string> split(const string &sep, size_t maxStrings = 0) const;
 
    // Overloaded operators
    string operator+(const string &rhs) const;
@@ -284,6 +285,13 @@ inline std::ostream&
 operator<<(std::ostream& strm, const string& s)
 {
    strm << s.c_str();
+   return strm;
+}
+
+inline std::wostream&
+operator<<(std::wostream& strm, const string& s)
+{
+   strm << s.w_str();
    return strm;
 }
 

@@ -104,6 +104,8 @@ typedef struct FileData {
 
 #define FILE_MAX_WAIT_TIME_MS 2000  // maximum wait time in milliseconds
 
+void FileIOResolveLockBits(int *access);
+
 #if defined(_WIN32)
 int FileMapErrorToErrno(const char *functionName,
                         Err_Number status);
@@ -193,6 +195,7 @@ typedef struct lock_values
    char         *locationChecksum;
    Unicode       memberName;
    unsigned int  lamportNumber;
+   Bool          exclusivity;
    uint32        waitTime;
    uint32        msecMaxWaitTime;
    ActiveLock   *lockList;

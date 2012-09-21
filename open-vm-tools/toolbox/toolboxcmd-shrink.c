@@ -30,6 +30,7 @@
 #   include <signal.h>
 #endif
 
+#include "vm_assert.h"
 #include "toolboxCmdInt.h"
 #include "guestApp.h"
 #include "wiper.h"
@@ -128,16 +129,33 @@ ShrinkGetWiperState(void)
 static Bool
 ShrinkGetMountPoints(WiperPartition_List *pl) // OUT: Known mount points
 {
-   if (ShrinkGetWiperState() == WIPER_UNAVAILABLE) {
+   WiperState state = ShrinkGetWiperState();
+
+   switch (state) {
+   case WIPER_UNAVAILABLE:
       ToolsCmd_PrintErr("%s",
                         SU_(disk.shrink.unavailable, SHRINK_FEATURE_ERR));
-   } else if (!WiperPartition_Open(pl)) {
+      break;
+
+   case WIPER_DISABLED:
+      ToolsCmd_PrintErr("%s",
+                        SU_(disk.shrink.disabled, SHRINK_DISABLED_ERR));
+      break;
+
+   case WIPER_ENABLED:
+      if (WiperPartition_Open(pl)) {
+         return TRUE;
+      }
+
       ToolsCmd_PrintErr("%s",
                         SU_(disk.shrink.partition.error,
                            "Unable to collect partition data.\n"));
-   } else {
-      return TRUE;
+      break;
+
+   default:
+      NOT_REACHED();
    }
+
    return FALSE;
 }
 

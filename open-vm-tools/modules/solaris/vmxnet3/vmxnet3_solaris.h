@@ -40,7 +40,7 @@
 #include <sys/pattr.h>
 #include <sys/mac.h>
 #include <sys/sockio.h>
-#ifdef OPEN_SOLARIS
+#if defined(OPEN_SOLARIS) || defined(SOL11)
 #  include <sys/mac_provider.h>
 #endif
 #include <sys/mac_ether.h>
@@ -129,6 +129,7 @@ typedef struct vmxnet3_softc_t {
    boolean_t            devEnabled;
    uint8_t              macaddr[6];
    uint32_t             cur_mtu;
+   uint8_t		allow_jumbo;
    link_state_t         linkState;
    uint64_t             linkSpeed;
    vmxnet3_dmabuf_t     sharedData;

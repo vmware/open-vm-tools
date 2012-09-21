@@ -87,6 +87,7 @@ extern Bool Hostinfo_OSIsSMP(void);
 extern Bool Hostinfo_OSIsWinNT(void);
 extern Bool Hostinfo_OSIsWow64(void);
 DWORD Hostinfo_OpenProcessBits(void);
+DWORD Hostinfo_OpenThreadBits(void);
 #else
 extern void Hostinfo_ResetProcessState(const int *keepFds,
                                        size_t numKeepFds);

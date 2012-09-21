@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,16 +17,31 @@
  *********************************************************/
 
 /*
- * vmxnet_version.h --
- *
- * Version definitions for the Linux vmxnet driver.
+ * Linux v3.1 added 2 params to fsync for fine-grained locking control.
+ * But SLES11 SP2 has backported the change to its 3.0 kernel,
+ * so we can't rely solely on kernel version to determine number of
+ * arguments.
  */
 
-#ifndef _VMXNET_VERSION_H_
-#define _VMXNET_VERSION_H_
+#include "compat_version.h"
+#include "compat_autoconf.h"
 
-#define VMXNET_DRIVER_VERSION          2.0.14.0
-#define VMXNET_DRIVER_VERSION_COMMAS   2,0,14,0
-#define VMXNET_DRIVER_VERSION_STRING   "2.0.14.0"
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+#   error This compile test intentionally fails.
+#else
 
-#endif /* _VMXNET_VERSION_H_ */
+#include <linux/fs.h>
+#include <linux/types.h>  /* loff_t */
+
+static int TestFsync(struct file *file,
+                     loff_t start, loff_t end,
+                      int datasync)
+{
+   return 0;
+}
+
+struct file_operations testFO = {
+   .fsync = TestFsync,
+};
+
+#endif

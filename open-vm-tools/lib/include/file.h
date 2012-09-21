@@ -110,6 +110,10 @@ char *FileMacos_DiskDeviceToUniqueID(char const *bsdPath);
 char *FileMacos_UniqueIDToDiskDevice(char const *identifier);
 
 #elif defined VMX86_SERVER
+struct FS_PartitionListResult;
+
+int File_GetVMFSAttributes(ConstUnicode pathName,
+                           struct FS_PartitionListResult **fsAttrs);
 int File_GetVMFSVersion(ConstUnicode pathName,
                         uint32 *versionNum);
 int File_GetVMFSBlockSize(ConstUnicode pathName,
@@ -126,6 +130,8 @@ int File_GetVMFSMountInfo(ConstUnicode pathName,
 Bool File_SupportsZeroedThick(ConstUnicode pathName);
 
 Bool File_SupportsMultiWriter(ConstUnicode pathName);
+
+Bool File_SupportsMandatoryLock(ConstUnicode pathName);
 
 Bool File_Exists(ConstUnicode pathName);
 
@@ -156,7 +162,8 @@ Bool File_EnsureDirectory(ConstUnicode pathName);
 
 Bool File_DeleteEmptyDirectory(ConstUnicode pathName);
 
-Bool File_CreateDirectoryHierarchy(ConstUnicode pathName);
+Bool File_CreateDirectoryHierarchy(ConstUnicode pathName,
+                                   Unicode *topmostCreated);
 
 Bool File_DeleteDirectoryTree(ConstUnicode pathName);
 

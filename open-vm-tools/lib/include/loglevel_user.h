@@ -129,6 +129,7 @@
    LOGLEVEL_VAR(mksHostCursor), \
    LOGLEVEL_VAR(mksHostOps), \
    LOGLEVEL_VAR(mksGLManager), \
+   LOGLEVEL_VAR(mksGLFBO), \
    LOGLEVEL_VAR(mksGLShader), \
    LOGLEVEL_VAR(mksGLState), \
    LOGLEVEL_VAR(vdpPlugin), \
@@ -244,6 +245,7 @@
    LOGLEVEL_VAR(digestlib), \
    LOGLEVEL_VAR(inputdevtap), \
    LOGLEVEL_VAR(objlib), \
+   LOGLEVEL_VAR(vsanobj), \
    LOGLEVEL_VAR(svgadevtap), \
    LOGLEVEL_VAR(masReceipt), /* lib/masReceipt */ \
    LOGLEVEL_VAR(serviceImpl), /* lib/serviceImpl */ \
@@ -257,6 +259,7 @@
    LOGLEVEL_VAR(blobFileBE), \
    LOGLEVEL_VAR(blobPythonBE), \
    LOGLEVEL_VAR(grainTrack), \
+   LOGLEVEL_VAR(shim3D), \
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

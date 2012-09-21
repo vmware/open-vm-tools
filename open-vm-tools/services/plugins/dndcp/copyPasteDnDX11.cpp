@@ -35,11 +35,7 @@ GtkWidget *gUserMainWidget;
 
 extern "C" {
 #include "copyPasteCompat.h"
-#include "dndGuest.h"
 #include "vmware/tools/plugin.h"
-#if defined(NOT_YET)
-#include "unity.h"
-#endif
 
 void CopyPaste_Register(GtkWidget *mainWnd, ToolsAppCtx *ctx);
 void CopyPaste_Unregister(GtkWidget *mainWnd);
@@ -189,27 +185,6 @@ BlockService::Shutdown()
 }
 
 
-extern "C" {
-
-/**
- *
- * Enter or leave unity mode.
- *
- * @param[in] mode enter unity mode if TRUE, else leave.
- */
-
-#if defined(NOT_YET)
-void
-CopyPasteDnDX11_SetUnityMode(Bool mode)
-{
-   CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
-   ASSERT(wrapper);
-
-   wrapper->SetUnityMode(mode);
-}
-#endif
-}
-
 /**
  *
  * Constructor.
@@ -357,12 +332,6 @@ CopyPasteDnDX11::RegisterDnD()
          BlockService *bs = BlockService::GetInstance();
          m_dndUI->SetBlockControl(bs->GetBlockCtrl());
          if (m_dndUI->Init()) {
-#if defined(NOT_YET)
-            UnityDnD state;
-            state.detWnd = m_dndUI->GetDetWndAsWidget();
-            state.setMode = CopyPasteDnDX11_SetUnityMode;
-            Unity_SetActiveDnDDetWnd(&state);
-#endif
             wrapper->SetDnDIsRegistered(TRUE);
             m_dndUI->SetDnDAllowed(TRUE);
             int version = wrapper->GetDnDVersion();
@@ -414,14 +383,6 @@ CopyPasteDnDX11::UnregisterDnD()
    g_debug("%s: enter\n", __FUNCTION__);
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    if (wrapper->IsDnDRegistered()) {
-      /*
-       * Detach the DnD detection window from Unity.
-       */
-#if defined(NOT_YET)
-      UnityDnD state = { NULL, NULL };
-      Unity_SetActiveDnDDetWnd(&state);
-#endif
-
       if (m_dndUI) {
          delete m_dndUI;
          m_dndUI = NULL;

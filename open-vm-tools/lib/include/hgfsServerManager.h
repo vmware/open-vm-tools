@@ -60,6 +60,7 @@ Bool HgfsServerManager_ProcessPacket(HgfsServerMgrData *mgrData,
                                      size_t packetInSize,
                                      char *packetOut,
                                      size_t *packetOutSize);
+uint32 HgfsServerManager_InvalidateInactiveSessions(HgfsServerMgrData *mgrData);
 #endif
 
 #endif // _HGFS_SERVER_MANAGER_H_

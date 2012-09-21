@@ -27,6 +27,7 @@ EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector.c, -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector1.c, -DVMW_KMEMCR_CTOR_HAS_2_ARGS, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/file_operations_fsync.c, -DVMW_FSYNC_31, )
 
 # Note: These tests are inverted
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/getsb1.c,, -DVMW_GETSB_2618)

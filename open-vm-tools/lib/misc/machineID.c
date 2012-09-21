@@ -248,6 +248,8 @@ ObtainHardwareID(uint64 *hardwareID) // OUT:
 #elif defined(__APPLE__)	// MacOS X
 #include <sys/socket.h>
 #include <ifaddrs.h>
+#include <net/if_dl.h>
+#include <net/ethernet.h>
 
 
 /*
@@ -337,22 +339,7 @@ ObtainHardwareID(uint64 *hardwareID)  // OUT:
       p = CheckEthernet(ifp, i);
 
       if (p != NULL) {
-         union bytes {
-            uint64 data;
-            char   bytes[8];
-         } x;
-
-         x.bytes[0] = p->ifa_addr->sa_data[9]  & 0xFF;	//XXX: hack!
-         x.bytes[1] = p->ifa_addr->sa_data[10] & 0xFF;	//XXX: hack!
-         x.bytes[2] = p->ifa_addr->sa_data[11] & 0xFF;	//XXX: hack!
-         x.bytes[3] = p->ifa_addr->sa_data[12] & 0xFF;	//XXX: hack!
-         x.bytes[4] = p->ifa_addr->sa_data[13] & 0xFF;	//XXX: hack!
-         x.bytes[5] = p->ifa_addr->sa_data[14] & 0xFF;	//XXX: hack!
-         x.bytes[6] = '\0';
-         x.bytes[7] = '\0';
-
-         *hardwareID = x.data;
-
+         memcpy(hardwareID, LLADDR((struct sockaddr_dl *)p->ifa_addr), ETHER_ADDR_LEN);
          break;
       }
    }

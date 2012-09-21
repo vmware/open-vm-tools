@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2011 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -97,18 +97,18 @@ typedef struct VSockVmciSendNotifyData {
 typedef struct VSockVmciNotifyOps {
    void  (*socketInit)(struct sock *sk);
    void  (*socketDestruct)(struct sock *sk);
-   int32 (*pollIn)(struct sock *sk, int target, Bool *dataReadyNow);
-   int32 (*pollOut)(struct sock *sk, int target, Bool *spaceAvailNow);
+   int32 (*pollIn)(struct sock *sk, size_t target, Bool *dataReadyNow);
+   int32 (*pollOut)(struct sock *sk, size_t target, Bool *spaceAvailNow);
    void  (*handleNotifyPkt)(struct sock *sk, VSockPacket *pkt,
                             Bool bottomHalf, struct sockaddr_vm *dst,
                             struct sockaddr_vm *src, Bool *pktProcessed);
-   int32 (*recvInit)(struct sock *sk, int target,
+   int32 (*recvInit)(struct sock *sk, size_t target,
                      VSockVmciRecvNotifyData *data);
-   int32 (*recvPreBlock)(struct sock *sk, int target,
+   int32 (*recvPreBlock)(struct sock *sk, size_t target,
                          VSockVmciRecvNotifyData *data);
-   int32 (*recvPreDequeue)(struct sock *sk, int target,
+   int32 (*recvPreDequeue)(struct sock *sk, size_t target,
                            VSockVmciRecvNotifyData *data);
-   int32 (*recvPostDequeue)(struct sock *sk, int target, ssize_t copied,
+   int32 (*recvPostDequeue)(struct sock *sk, size_t target, ssize_t copied,
                             Bool dataRead, VSockVmciRecvNotifyData *data);
    int32 (*sendInit)(struct sock *sk,
                      VSockVmciSendNotifyData *data);

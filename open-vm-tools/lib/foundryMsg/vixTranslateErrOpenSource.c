@@ -85,6 +85,7 @@ Vix_TranslateSystemError(int systemError) // IN
       break;
    case ERROR_TOO_MANY_OPEN_FILES:
    case ERROR_NO_MORE_FILES:
+   case ERROR_WRITE_PROTECT:
    case ERROR_WRITE_FAULT:
    case ERROR_READ_FAULT:
    case ERROR_SHARING_VIOLATION:

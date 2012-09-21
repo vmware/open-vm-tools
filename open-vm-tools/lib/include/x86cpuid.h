@@ -119,6 +119,10 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, A,  0xA)                   \
    CPUIDLEVEL(TRUE,  D,  0xD)                   \
    CPUIDLEVEL(FALSE,400, 0x40000000)            \
+   CPUIDLEVEL(FALSE,401, 0x40000001)            \
+   CPUIDLEVEL(FALSE,402, 0x40000002)            \
+   CPUIDLEVEL(FALSE,403, 0x40000003)            \
+   CPUIDLEVEL(FALSE,404, 0x40000004)            \
    CPUIDLEVEL(FALSE,410, 0x40000010)            \
    CPUIDLEVEL(FALSE, 80, 0x80000000)            \
    CPUIDLEVEL(TRUE,  81, 0x80000001)            \
@@ -387,13 +391,10 @@ FIELD(  6,  0, EBX, INTEL,   0,  4, NUM_INTR_THRESHOLDS,           NA,  FALSE) \
 FLAG(   6,  0, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,             NA,  FALSE) \
 FLAG(   6,  0, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,              NA,  FALSE)
 
-
-#define CPUID_7_EBX_3
-
 /*    LEVEL, SUB-LEVEL, REG, VENDOR, POS, SIZE, NAME,        MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
 FLAG(   7,  0, EBX, INTEL,   0,  1, FSGSBASE,                      YES, FALSE) \
-CPUID_7_EBX_3 \
+FLAG(   7,  0, EBX, AMD,     3,  1, BMI1,                          YES, TRUE ) \
 FLAG(   7,  0, EBX, INTEL,   7,  1, SMEP,                          YES, FALSE) \
 FLAG(   7,  0, EBX, INTEL,   9,  1, ENFSTRG,                       YES, FALSE) \
 FLAG(   7,  0, EBX, INTEL,  10,  1, INVPCID,                       NO,  FALSE)
@@ -464,7 +465,6 @@ FIELD( 80,  0, ECX, AMD,     0, 32, LEAF80_VENDOR3,                NA,  FALSE) \
 FIELD( 80,  0, EDX, AMD,     0, 32, LEAF80_VENDOR2,                NA,  FALSE)
 
 #define CPUID_81_ECX_17
-#define CPUID_81_ECX_21
 
                                                         
 /*    LEVEL, SUB-LEVEL, REG, VENDOR, POS, SIZE, NAME,        MON SUPP, CPL3 */
@@ -497,7 +497,7 @@ FLAG(  81,  0, ECX, AMD,    15,  1, LWP,                           NO,  FALSE) \
 FLAG(  81,  0, ECX, AMD,    16,  1, FMA4,                          YES, TRUE)  \
 CPUID_81_ECX_17 \
 FLAG(  81,  0, ECX, AMD,    19,  1, NODEID_MSR,                    NO,  FALSE) \
-CPUID_81_ECX_21 \
+FLAG(  81,  0, ECX, AMD,    21,  1, TBM,                           YES, TRUE)  \
 FLAG(  81,  0, ECX, AMD,    22,  1, TOPOLOGY,                      NO,  FALSE) \
 FLAG(  81,  0, EDX, AMD,     0,  1, LEAF81_FPU,                    YES, TRUE)  \
 FLAG(  81,  0, EDX, AMD,     1,  1, LEAF81_VME,                    YES, FALSE) \
@@ -793,7 +793,7 @@ enum {
  * other compilers.
  */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
 
 #define CPUID_MASK(eaxIn, reg, flag)                                    \
    ({                                                                   \
@@ -1127,7 +1127,8 @@ CPUID_MODEL_IS_WESTMERE(uint32 v) // IN: %eax from CPUID with %eax=1.
 
    return CPUID_FAMILY_IS_P6(v) &&
           (effectiveModel == CPUID_MODEL_NEHALEM_25 || // Clarkdale
-           effectiveModel == CPUID_MODEL_NEHALEM_2C);  // Westmere-EP
+           effectiveModel == CPUID_MODEL_NEHALEM_2C || // Westmere-EP
+           effectiveModel == CPUID_MODEL_NEHALEM_2F);  // Westmere-EX
 }
 
 
@@ -1255,9 +1256,7 @@ CPUID_MODEL_IS_PHAROAH_HOUND(uint32 v) // IN: %eax from CPUID with %eax=1.
 static INLINE Bool
 CPUID_MODEL_IS_BULLDOZER(uint32 eax)
 {
-   /* Bulldozer is models 0x00 - 0x0f of family 0x15. */
-   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER && 
-          CPUID_EFFECTIVE_MODEL(eax) < 0x10;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
 }
 
 
@@ -1425,4 +1424,23 @@ CPUID_IsValidDSubleaf(uint32 subleaf)  // IN: subleaf to check
 {
    return subleaf <= 63;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUID_SupportsMsrPlatformInfo --
+ *
+ *    Uses vendor and cpuid.1.0.eax to determine if the processor
+ *    supports MSR_PLATFORM_INFO.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE Bool
+CPUID_SupportsMsrPlatformInfo(CpuidVendor vendor, uint32 version)
+{
+   return vendor == CPUID_VENDOR_INTEL &&
+          (CPUID_UARCH_IS_NEHALEM(version) ||
+           CPUID_UARCH_IS_SANDYBRIDGE(version));
+}
+
 #endif

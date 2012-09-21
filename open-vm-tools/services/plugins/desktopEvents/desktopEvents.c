@@ -98,6 +98,14 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    size_t i;
 
 #if defined(_WIN32)
+   /*
+    * If we aren't running in a VM (e.g., running in bootcamp natively on
+    * a Mac), then return NULL to disable the plugin.
+    */
+   if (!ctx->isVMware) {
+      return NULL;
+   }
+
    g_return_val_if_fail(gPluginHandle != NULL, NULL);
 #endif
 

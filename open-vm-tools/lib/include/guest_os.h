@@ -34,6 +34,7 @@
 
 typedef enum GuestOSType {
    GUEST_OS_BASE                = 0x5000,
+   GUEST_OS_BASE_MINUS_ONE      = 0x4fff, /* So that ANY is equal to BASE */
 
    GUEST_OS_ANY                 = GUEST_OS_BASE + 0,
    GUEST_OS_DOS                 = GUEST_OS_BASE + 1,
@@ -51,51 +52,51 @@ typedef enum GuestOSType {
    GUEST_OS_LONGHORN_64         = GUEST_OS_BASE + 13,
    GUEST_OS_WINVISTA            = GUEST_OS_BASE + 14,
    GUEST_OS_WINVISTA_64         = GUEST_OS_BASE + 15,
-   GUEST_OS_UBUNTU              = GUEST_OS_BASE + 16,
-   GUEST_OS_OTHER24XLINUX       = GUEST_OS_BASE + 17,
-   GUEST_OS_OTHER24XLINUX_64    = GUEST_OS_BASE + 18,
-   GUEST_OS_OTHER26XLINUX       = GUEST_OS_BASE + 19,
-   GUEST_OS_OTHER26XLINUX_64    = GUEST_OS_BASE + 20,
-   GUEST_OS_OTHERLINUX          = GUEST_OS_BASE + 21,
-   GUEST_OS_OTHERLINUX_64       = GUEST_OS_BASE + 22,
-   GUEST_OS_OS2                 = GUEST_OS_BASE + 23,
-   GUEST_OS_OTHER               = GUEST_OS_BASE + 24,
-   GUEST_OS_OTHER_64            = GUEST_OS_BASE + 25,
-   GUEST_OS_FREEBSD             = GUEST_OS_BASE + 26,
-   GUEST_OS_FREEBSD_64          = GUEST_OS_BASE + 27,
-   GUEST_OS_NETWARE4            = GUEST_OS_BASE + 28,
-   GUEST_OS_NETWARE5            = GUEST_OS_BASE + 29,
-   GUEST_OS_NETWARE6            = GUEST_OS_BASE + 30,
-   GUEST_OS_SOLARIS6            = GUEST_OS_BASE + 31,
-   GUEST_OS_SOLARIS7            = GUEST_OS_BASE + 32,
-   GUEST_OS_SOLARIS8            = GUEST_OS_BASE + 33,
-   GUEST_OS_SOLARIS9            = GUEST_OS_BASE + 34,
-   GUEST_OS_SOLARIS10           = GUEST_OS_BASE + 35,
-   GUEST_OS_SOLARIS10_64        = GUEST_OS_BASE + 36,
-   GUEST_OS_VMKERNEL            = GUEST_OS_BASE + 37, // ESX 4.x
-   GUEST_OS_DARWIN9             = GUEST_OS_BASE + 38, // Mac OS 10.5
-   GUEST_OS_DARWIN9_64          = GUEST_OS_BASE + 39,
-   GUEST_OS_DARWIN10            = GUEST_OS_BASE + 40, // Mac OS 10.6
-   GUEST_OS_DARWIN10_64         = GUEST_OS_BASE + 41,
-   GUEST_OS_OPENSERVER5         = GUEST_OS_BASE + 42,
-   GUEST_OS_OPENSERVER6         = GUEST_OS_BASE + 43,
-   GUEST_OS_UNIXWARE7           = GUEST_OS_BASE + 44,
-   GUEST_OS_DEBIAN45            = GUEST_OS_BASE + 45,
-   GUEST_OS_DEBIAN45_64         = GUEST_OS_BASE + 46,
-   GUEST_OS_WINSEVEN            = GUEST_OS_BASE + 47, // Windows 7
-   GUEST_OS_WINSEVEN_64         = GUEST_OS_BASE + 48, // Windows 7
-   GUEST_OS_WIN2008R2           = GUEST_OS_BASE + 49, // Server 2008 R2
-   GUEST_OS_WIN2008R2_64        = GUEST_OS_BASE + 50, // Server 2008 R2
-   GUEST_OS_ECOMSTATION         = GUEST_OS_BASE + 51, // OS/2 variant; 1.x
-   GUEST_OS_RHEL6               = GUEST_OS_BASE + 52,
-   GUEST_OS_RHEL6_64            = GUEST_OS_BASE + 53,
-   GUEST_OS_WINEIGHT            = GUEST_OS_BASE + 54, // Windows 8
-   GUEST_OS_WINEIGHT_64         = GUEST_OS_BASE + 55, // Windows 8 x64
-   GUEST_OS_WINEIGHTSERVER_64   = GUEST_OS_BASE + 56, // Windows 8 Server X64
-   GUEST_OS_VMKERNEL5           = GUEST_OS_BASE + 57, // ESX 5.x and later
-   GUEST_OS_DARWIN11            = GUEST_OS_BASE + 58, // Mac OS 10.7
-   GUEST_OS_DARWIN11_64         = GUEST_OS_BASE + 59,
-   GUEST_OS_ECOMSTATION2        = GUEST_OS_BASE + 60, // OS/2 variant; 2.x
+   GUEST_OS_WINSEVEN            = GUEST_OS_BASE + 16, // Windows 7
+   GUEST_OS_WINSEVEN_64         = GUEST_OS_BASE + 17, // Windows 7
+   GUEST_OS_WIN2008R2           = GUEST_OS_BASE + 18, // Server 2008 R2
+   GUEST_OS_WIN2008R2_64        = GUEST_OS_BASE + 19, // Server 2008 R2
+   GUEST_OS_WINEIGHT            = GUEST_OS_BASE + 20, // Windows 8
+   GUEST_OS_WINEIGHT_64         = GUEST_OS_BASE + 21, // Windows 8 x64
+   GUEST_OS_WINEIGHTSERVER_64   = GUEST_OS_BASE + 22, // Windows 8 Server X64
+   GUEST_OS_HYPER_V             = GUEST_OS_BASE + 23, // Microsoft Hyper-V 
+   GUEST_OS_OS2                 = GUEST_OS_BASE + 24,
+   GUEST_OS_ECOMSTATION         = GUEST_OS_BASE + 25, // OS/2 variant; 1.x
+   GUEST_OS_ECOMSTATION2        = GUEST_OS_BASE + 26, // OS/2 variant; 2.x
+   GUEST_OS_OTHER24XLINUX       = GUEST_OS_BASE + 27,
+   GUEST_OS_OTHER24XLINUX_64    = GUEST_OS_BASE + 28,
+   GUEST_OS_OTHER26XLINUX       = GUEST_OS_BASE + 29,
+   GUEST_OS_OTHER26XLINUX_64    = GUEST_OS_BASE + 30,
+   GUEST_OS_OTHERLINUX          = GUEST_OS_BASE + 31,
+   GUEST_OS_OTHERLINUX_64       = GUEST_OS_BASE + 32,
+   GUEST_OS_OTHER               = GUEST_OS_BASE + 33,
+   GUEST_OS_OTHER_64            = GUEST_OS_BASE + 34,
+   GUEST_OS_UBUNTU              = GUEST_OS_BASE + 35,
+   GUEST_OS_DEBIAN45            = GUEST_OS_BASE + 36,
+   GUEST_OS_DEBIAN45_64         = GUEST_OS_BASE + 37,
+   GUEST_OS_RHEL                = GUEST_OS_BASE + 38,
+   GUEST_OS_RHEL_64             = GUEST_OS_BASE + 39,
+   GUEST_OS_FREEBSD             = GUEST_OS_BASE + 40,
+   GUEST_OS_FREEBSD_64          = GUEST_OS_BASE + 41,
+   GUEST_OS_SOLARIS_6_AND_7     = GUEST_OS_BASE + 42,
+   GUEST_OS_SOLARIS8            = GUEST_OS_BASE + 43,
+   GUEST_OS_SOLARIS9            = GUEST_OS_BASE + 44,
+   GUEST_OS_SOLARIS10           = GUEST_OS_BASE + 45,
+   GUEST_OS_SOLARIS10_64        = GUEST_OS_BASE + 46,
+   GUEST_OS_DARWIN9             = GUEST_OS_BASE + 47, // Mac OS 10.5
+   GUEST_OS_DARWIN9_64          = GUEST_OS_BASE + 48,
+   GUEST_OS_DARWIN10            = GUEST_OS_BASE + 49, // Mac OS 10.6
+   GUEST_OS_DARWIN10_64         = GUEST_OS_BASE + 50,
+   GUEST_OS_DARWIN11            = GUEST_OS_BASE + 51, // Mac OS 10.7
+   GUEST_OS_DARWIN11_64         = GUEST_OS_BASE + 52,
+   GUEST_OS_DARWIN12_64         = GUEST_OS_BASE + 53,
+   GUEST_OS_OPENSERVER_5_AND_6  = GUEST_OS_BASE + 54,
+   GUEST_OS_UNIXWARE7           = GUEST_OS_BASE + 55,
+   GUEST_OS_NETWARE4            = GUEST_OS_BASE + 56,
+   GUEST_OS_NETWARE5            = GUEST_OS_BASE + 57,
+   GUEST_OS_NETWARE6            = GUEST_OS_BASE + 58,
+   GUEST_OS_VMKERNEL            = GUEST_OS_BASE + 59, // ESX 4.x
+   GUEST_OS_VMKERNEL5           = GUEST_OS_BASE + 60, // ESX 5.x and later
 } GuestOSType;
 
 
@@ -108,7 +109,8 @@ typedef enum GuestOSFamilyType {
    GUEST_OS_FAMILY_WIN2000     = 0x0010,
    GUEST_OS_FAMILY_WINXP       = 0x0020,
    GUEST_OS_FAMILY_WINNET      = 0x0040,
-   GUEST_OS_FAMILY_NETWARE     = 0x0080
+   GUEST_OS_FAMILY_NETWARE     = 0x0080,
+   GUEST_OS_FAMILY_DARWIN      = 0x0100
 } GuestOSFamilyType;
 
 #define ALLOS           (~CONST64U(0))
@@ -150,6 +152,7 @@ typedef enum GuestOSFamilyType {
 #define ALLWINEIGHT64   BS(WINEIGHT_64)
 #define ALLWINEIGHT     (ALLWINEIGHT32 | ALLWINEIGHT64)
 
+#define ALLHYPER_V      BS(HYPER_V)
 
 #define ALLWINNT32	(BS(WINNT) | ALLWIN2000 | ALLWINXP32 | ALLWINNET32 | \
                          ALLWINVISTA32 | ALLWINLONGHORN32 | \
@@ -159,20 +162,21 @@ typedef enum GuestOSFamilyType {
 #define ALLWINNT64	(ALLWINXP64 | ALLWINNET64 | \
                          ALLWINVISTA64 | ALLWINLONGHORN64 | \
                          ALLWINSEVEN64 | ALLWIN2008R2_64 | \
-                         ALLWINEIGHT64 | ALLWINEIGHTSERVER)
+                         ALLWINEIGHT64 | ALLWINEIGHTSERVER | \
+                         ALLHYPER_V)
 
 #define ALLWINNT	(ALLWINNT32 | ALLWINNT64)
 
 #define ALLWIN32	(ALLWIN9X | ALLWINNT32)
 #define ALLWIN64	 ALLWINNT64
 #define ALLWIN          (ALLWIN32 | ALLWIN64)
-#define ALLSOLARIS      (BS(SOLARIS6) | BS(SOLARIS7) | BS(SOLARIS8) | \
-                         BS(SOLARIS9) | BS(SOLARIS10) | BS(SOLARIS10_64))
+#define ALLSOLARIS      (BS(SOLARIS_6_AND_7) | BS(SOLARIS8) | BS(SOLARIS9) | \
+                        BS(SOLARIS10) | BS(SOLARIS10_64))
 #define ALLSOLARIS10    (BS(SOLARIS10) | BS(SOLARIS10_64))
 #define ALLNETWARE      (BS(NETWARE4) | BS(NETWARE5) | BS(NETWARE6))
-#define ALL26XLINUX32   (BS(OTHER26XLINUX) | BS(DEBIAN45) | BS(RHEL6) | \
+#define ALL26XLINUX32   (BS(OTHER26XLINUX) | BS(DEBIAN45) | BS(RHEL) | \
                          BS(UBUNTU))
-#define ALL26XLINUX64   (BS(OTHER26XLINUX_64) | BS(DEBIAN45_64) | BS(RHEL6_64))
+#define ALL26XLINUX64   (BS(OTHER26XLINUX_64) | BS(DEBIAN45_64) | BS(RHEL_64))
 
 #define ALLVMKERNEL     (BS(VMKERNEL) | BS(VMKERNEL5))
 
@@ -181,8 +185,9 @@ typedef enum GuestOSFamilyType {
 #define ALLLINUX64      (BS(OTHER24XLINUX_64) | ALL26XLINUX64 | \
                          BS(OTHERLINUX_64))
 #define ALLLINUX        (ALLLINUX32 | ALLLINUX64)
-#define ALLDARWIN32     (BS(DARWIN9) | BS(DARWIN10) | BS(DARWIN11))
-#define ALLDARWIN64     (BS(DARWIN9_64) | BS(DARWIN10_64) | BS(DARWIN11_64))
+#define ALLDARWIN32     (BS(DARWIN9)  | BS(DARWIN10) | BS(DARWIN11))
+#define ALLDARWIN64     (BS(DARWIN9_64)  | BS(DARWIN10_64) | \
+                         BS(DARWIN11_64) | BS(DARWIN12_64))
 #define ALLDARWIN       (ALLDARWIN32 | ALLDARWIN64)
 #define ALL64           (ALLWIN64 | ALLLINUX64 | \
                          BS(SOLARIS10_64) | BS(FREEBSD_64) | \
@@ -412,22 +417,44 @@ typedef enum GuestOSFamilyType {
 
 /* Windows 8 */
 
-#define STR_OS_WIN_EIGHT     "windows8"
-#define STR_OS_WIN_EIGHT_X64 "windows8-64"
+#define STR_OS_WIN_EIGHT               "windows8"
+#define STR_OS_WIN_EIGHT_X64           "windows8-64"
+#define STR_OS_WIN_EIGHT_GENERIC       "Windows 8"
+#define STR_OS_WIN_EIGHTSERVER_GENERIC "Windows 8 Server"
 
-/* Full names will eventually go here, similar to Windows 7 */
+/*
+ * XXX - These need to be updated when MS announces official Win 8 names.
+ *       For now they are unused, see: lib/misc/hostinfoWin32.c
+ */
 
-/* Windows 8 based server - whatever it will be called */
+#define STR_OS_WIN_EIGHT_STARTER_FULL      "Windows 8 Starter"
+#define STR_OS_WIN_EIGHT_HOME_BASIC_FULL   "Windows 8 Home Basic"
+#define STR_OS_WIN_EIGHT_HOME_PREMIUM_FULL "Windows 8 Home Premium"
+#define STR_OS_WIN_EIGHT_ULTIMATE_FULL     "Windows 8 Ultimate"
+#define STR_OS_WIN_EIGHT_PROFESSIONAL_FULL "Windows 8 Professional"
+#define STR_OS_WIN_EIGHT_ENTERPRISE_FULL   "Windows 8 Enterprise"
+
+/* Windows Server 2012 */
 
 #define STR_OS_WIN_EIGHTSERVER_X64 "windows8srv-64"
 
-/* Full names will eventually go here, similar to Windows Server 2008 R2 */
+#define STR_OS_WIN_2012_FOUNDATION_FULL "Windows Server 2012 Foundation Edition"
+#define STR_OS_WIN_2012_STANDARD_FULL   "Windows Server 2012 Standard Edition"
+#define STR_OS_WIN_2012_ENTERPRISE_FULL "Windows Server 2012 Enterprise Edition"
+#define STR_OS_WIN_2012_DATACENTER_FULL "Windows Server 2012 Datacenter Edition"
+#define STR_OS_WIN_2012_WEB_SERVER_FULL "Windows Web Server 2012 Edition"
 
-/* XXX */
-#define STR_OS_HYPERV "winHyperV"
-#define STR_OS_HYPERV_FULL "Hyper-V Server"
+/* Microsoft Hyper-V */
+#define STR_OS_HYPER_V "winHyperV"
+#define STR_OS_HYPER_V_FULL "Hyper-V Server"
 
-/* Modifiers for Windows Vista and Windows Server 2008 */
+/* Windows Future/Unknown */
+
+#define STR_OS_WIN_FUTURE                   "windowsUnknown"
+#define STR_OS_WIN_FUTURE_X64               "windowsUnknown-64"
+#define STR_OS_WIN_FUTURE_GENERIC           "Windows Unknown"
+
+/* Modifiers for Windows Vista, Windows Server 2008, and later. */
 #define STR_OS_WIN_32_BIT_EXTENSION ", 32-bit"
 #define STR_OS_WIN_64_BIT_EXTENSION ", 64-bit"
 

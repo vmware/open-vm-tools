@@ -320,16 +320,28 @@ File_SplitName(ConstUnicode pathName,  // IN:
  *
  * File_PathJoin --
  *
- *      Join the dirName and baseName together to create a (full) path but
- *      don't add a DIRSEPS unless necessary.
+ *      Join the dirName and baseName together to create a (full) path.
  *
- *      File_PathJoin("a", "b")  -> "a/b"
- *      File_PathJoin("a/", "b") -> "a/b"
+ *      This code concatenates two strings together and omits a redundant
+ *      directory separator between the two. It does not treat a fully qualified
+ *      baseName the way one would expect:
  *
- * Results: 
+ *      File_PathJoin("", "b")            -> "/b"
+ *      File_PathJoin("/", "b")           -> "/b"
+ *      File_PathJoin("a", "b")           -> "a/b"
+ *      File_PathJoin("a/", "b")          -> "a/b"
+ *      File_PathJoin("a/////", "b")      -> "a/b"
+ *      File_PathJoin("a", "")            -> "a/"
+ *      File_PathJoin("a", "/")           -> "a/"  (only posix)
+ *      File_PathJoin("a", "/b")          -> "a/b" (only posix)
+ *      File_PathJoin("a", "/////b")      -> "a/b" (only posix)
+ *      File_PathJoin("a/", "/b")         -> "a/b" (only posix)
+ *      File_PathJoin("a/////", "/////b") -> "a/b" (only posix)
+ *
+ * Results:
  *      The constructed path which must be freed by the caller.
  *
- * Side effects: 
+ * Side effects:
  *      None
  *
  *---------------------------------------------------------------------------
@@ -340,30 +352,33 @@ File_PathJoin(ConstUnicode dirName,   // IN:
               ConstUnicode baseName)  // IN:
 {
    Unicode result;
+   Unicode newDir = NULL;
 
    ASSERT(dirName);
    ASSERT(baseName);
 
+#if defined(_WIN32)
+   ASSERT(!Unicode_StartsWith(baseName, DIRSEPS));
+   ASSERT(!Unicode_StartsWith(baseName, "/"));
+   ASSERT(Unicode_LengthInCodePoints(baseName) < 2 ||
+          Unicode_FindSubstrInRange(baseName, 1, 1, ":", 0, 1) ==
+          UNICODE_INDEX_NOT_FOUND);
+#else
    /*
-    * This code concatenates two strings together and omits a
-    * redundant directory separator between the two. It does not
-    * treat a fully qualified baseName the way one would expect:
-    * File_PathJoin("C:\temp", C:thing") -> "C:\temp\C:thing"
-    * File_PathJoin("/var/tmp", "/tempfile-123") -> "/var/tmp//tempfile-123"
-    * We ASSERT here to catch unintentional common-case coding errors on
-    * non-release builds, but we'll still return weird results if we're
-    * dealing with unusual user contributed data on release builds.
-    *
-    * The alternative is to return baseName if (File_IsFullPath(baseName)),
-    * but that was not the original intent of this function.
+    * Remove ALL directory separators from baseName begin.
     */
-   ASSERT(!File_IsFullPath(baseName));
-
-   if (Unicode_EndsWith(dirName, DIRSEPS)) {
-      result = Unicode_Append(dirName, baseName);
-   } else {
-      result = Unicode_Join(dirName, DIRSEPS, baseName, NULL);
+   while(Unicode_StartsWith(baseName, DIRSEPS)) {
+      baseName++;
    }
+#endif
+
+   /*
+    * Remove ALL directory separators from dirName end.
+    */
+   newDir = File_StripSlashes(dirName);
+
+   result = Unicode_Join(newDir, DIRSEPS, baseName, NULL);
+   Unicode_Free(newDir);
 
    return result;
 }

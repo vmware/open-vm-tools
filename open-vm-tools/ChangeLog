@@ -1,3 +1,7 @@
+9.0.0  Dmitry Torokhov <dtor@vmware.com>
+	Release matching the vSphere 5.1 release.
+
+
 2011.11.20  Marcelo Vanzin  <mvanzin@vmware.com>
 	This release tag contains commits up to the following id:
 	6c197b8e5eccf32bfee0e2452d8926968182aada

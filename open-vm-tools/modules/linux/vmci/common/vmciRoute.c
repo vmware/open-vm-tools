@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -214,6 +214,13 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
          /* Pass it up to the guest. */
          *route = VMCI_ROUTE_AS_HOST;
          return VMCI_SUCCESS;
+      } else if (!hasGuestDevice) {
+         /*
+          * The host is attempting to reach a CID without an active context, and
+          * we can't send it down, since we have no guest device.
+          */
+
+         return VMCI_ERROR_DST_UNREACHABLE;
       }
    }
 
@@ -225,6 +232,14 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
     */
 
    if (!hasGuestDevice) {
+      /*
+       * Ending up here means we have neither guest nor host device. That
+       * shouldn't happen, since any VMCI client in the kernel should have done
+       * a successful VMCI_DeviceGet.
+       */
+
+      ASSERT(FALSE);
+
       return VMCI_ERROR_DEVICE_NOT_FOUND;
    }
 
