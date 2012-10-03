@@ -219,6 +219,8 @@ MXUser_ControlExclLock(MXUserExclLock *lock,  // IN/OUT:
       } else {
          result = FALSE;
       }
+
+      break;
    }
 
    default:

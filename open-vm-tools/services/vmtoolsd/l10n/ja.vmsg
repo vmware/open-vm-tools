@@ -40,7 +40,7 @@ cmdline.install.args = "args"
 
 cmdline.kill = "ツール サービスの実行中のインスタンスを停止します。"
 
-cmdline.log = "無視されます。後方互換性のために保持されています。"
+cmdline.log = "無視して後方互換性を保持します。"
 
 cmdline.name = "開始されているサービスの名前です。"
 

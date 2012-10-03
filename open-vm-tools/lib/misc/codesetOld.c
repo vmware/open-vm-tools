@@ -91,11 +91,7 @@ static Bool CodeSetOldIso88591ToUtf8Db(char const *bufIn, size_t sizeIn,
  *    Duplicate input string, appending zero terminator to its end.  Only
  *    used on Windows and on platforms where current encoding is always
  *    UTF-8, on other iconv-capable platforms we just use iconv even for
- *    UTF-8 to UTF-8 translation.  Note that this function is more like
- *    memdup() than strdup(), so it can be used for duplicating UTF-16
- *    strings as well - string is always terminated by wide character NUL,
- *    which is supposed to be longest NUL character occuring on specified
- *    host.
+ *    UTF-8 to UTF-8 translation.
  *
  * Results:
  *    TRUE on success
@@ -108,20 +104,25 @@ static Bool CodeSetOldIso88591ToUtf8Db(char const *bufIn, size_t sizeIn,
  */
 
 static Bool
-CodeSetOldDuplicateStr(const char   *bufIn,  // IN: Input string
-                       size_t  sizeIn,       // IN: Input string length
-                       char **bufOut,        // OUT: "Converted" string
-                       size_t *sizeOut)      // OUT: Length of string
+CodeSetOldDuplicateStr(const char *bufIn,  // IN: Input string
+                       size_t  sizeIn,     // IN: Input string length
+                       char **bufOut,      // OUT: "Converted" string
+                       size_t *sizeOut)    // OUT/OPT: Length of string
 {
    char *myBufOut;
+   size_t newSize = sizeIn + sizeof *myBufOut;
 
-   myBufOut = malloc(sizeIn + sizeof nul);
+   if (newSize < sizeIn) {   // Prevent integer overflow
+      return FALSE;
+   }
+
+   myBufOut = malloc(newSize);
    if (myBufOut == NULL) {
       return FALSE;
    }
 
    memcpy(myBufOut, bufIn, sizeIn);
-   memset(myBufOut + sizeIn, 0, sizeof nul);
+   myBufOut[sizeIn] = '\0';
 
    *bufOut = myBufOut;
    if (sizeOut) {
@@ -156,7 +157,7 @@ static Bool
 CodeSetOldDynBufFinalize(Bool ok,          // IN: Earlier steps succeeded
                          DynBuf *db,       // IN: Buffer with converted string
                          char **bufOut,    // OUT: Converted string
-                         size_t *sizeOut)  // OUT: Length of string in bytes
+                         size_t *sizeOut)  // OUT/OPT: Length of string in bytes
 {
    if (!ok || !DynBuf_Append(db, &nul, sizeof nul) || !DynBuf_Trim(db)) {
       DynBuf_Destroy(db);
@@ -873,6 +874,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,   // IN:
 
    for (;;) {
       size_t size;
+      size_t newSize;
       char *out;
       char *outOrig;
       size_t outLeft;
@@ -893,7 +895,13 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,   // IN:
        */
 
       size = DynBuf_GetSize(db);
-      if (DynBuf_Enlarge(db, size + 4) == FALSE) {
+      newSize = size + 4;
+
+      if (newSize < size) {  // Prevent integer overflow.
+         goto error;
+      }
+
+      if (DynBuf_Enlarge(db, newSize) == FALSE) {
          goto error;
       }
 
@@ -1361,6 +1369,7 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,  // IN
       uint32 codePoint;
       uint8 *dbBytes;
       size_t size;
+      size_t newSize;
 
       if (utf16In[codeUnitIndex] < 0xD800 ||
           utf16In[codeUnitIndex] > 0xDFFF) {
@@ -1413,10 +1422,12 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,  // IN
       }
 
       size = DynBuf_GetSize(db);
+      newSize = size + 4;
 
       // We'll need at most 4 more bytes for this code point.
-      if (DynBuf_GetAllocatedSize(db) < size + 4 &&
-          DynBuf_Enlarge(db, size + 4) == FALSE) {
+      if ((newSize < size) ||  // Prevent integer overflow
+          (DynBuf_GetAllocatedSize(db) < newSize &&
+           DynBuf_Enlarge(db, newSize) == FALSE)) {
          return FALSE;
       }
 

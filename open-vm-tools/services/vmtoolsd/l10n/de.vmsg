@@ -40,7 +40,7 @@ cmdline.install.args = "args"
 
 cmdline.kill = "Stoppt eine laufende Instanz eines Tools-Dienstes."
 
-cmdline.log = "Ignoriert; für Abwärtskompatibilität beibehalten."
+cmdline.log = "Ignoriert, wird zur Gewährleistung der Abwärtskompatibilität beibehalten."
 
 cmdline.name = "Name des Dienstes, der gestartet wird."
 

@@ -376,14 +376,19 @@ HgfsGetRootDentry(struct super_block *sb,       // IN: Super block object
       goto exit;
    }
 
-   tempRootDentry = d_alloc_root(rootInode);
+   tempRootDentry = d_make_root(rootInode);
+   /*
+    * d_make_root() does iput() on failure; if d_make_root() completes
+    * successfully then subsequent dput() will do iput() for us, so we
+    * should just ignore root inode from now on.
+    */
+   rootInode = NULL;
+
    if (tempRootDentry == NULL) {
       LOG(4, (KERN_WARNING "VMware hgfs: %s: Could not get "
               "root dentry\n", __func__));
       goto exit;
    }
-
-   rootInode = NULL;
 
    result = HgfsPrivateGetattr(tempRootDentry, &rootDentryAttr, NULL);
    if (result) {

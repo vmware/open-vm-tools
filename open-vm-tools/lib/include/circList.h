@@ -70,7 +70,7 @@ typedef struct ListItem {
  * @member: the name of the list struct within the struct.
  */
 #define LIST_CONTAINER(ptr, type, member) \
-   ((type *)((char *)(ptr) - offsetof(type, member)))
+   VMW_CONTAINER_OF(ptr, type, member)
 
 /*
  * delete item from the list

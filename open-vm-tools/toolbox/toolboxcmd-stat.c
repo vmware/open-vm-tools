@@ -101,7 +101,7 @@ StatProcessorSpeed(void)
                         SU_(stat.getspeed.failed, "Unable to get processor speed.\n"));
       return EX_TEMPFAIL;
    }
-   g_print("%u MHz\n", speed);
+   g_print(SU_(stat.processorSpeed.info, "%u MHz\n"), speed);
    return EXIT_SUCCESS;
 }
 
@@ -252,7 +252,7 @@ StatGetMemoryBallooned(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      g_print("%u MB\n", memBallooned);
+      g_print(SU_(stat.memoryBalloon.info, "%u MB\n"), memBallooned);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -296,7 +296,7 @@ StatGetMemoryReservation(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      g_print("%u MB\n", memReservation);
+      g_print(SU_(stat.memoryReservation.info, "%u MB\n"), memReservation);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -341,7 +341,7 @@ StatGetMemorySwapped(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      g_print("%u MB\n", memSwapped);
+      g_print(SU_(stat.memorySwapped.info, "%u MB\n"), memSwapped);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -385,7 +385,7 @@ StatGetMemoryLimit(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      g_print("%u MB\n", memLimit);
+      g_print(SU_(stat.memoryLimit.info, "%u MB\n"), memLimit);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -429,7 +429,7 @@ StatGetCpuReservation(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      g_print("%u MHz\n", cpuReservation);
+      g_print(SU_(stat.cpuReservation.info, "%u MHz\n"), cpuReservation);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;
@@ -473,7 +473,7 @@ StatGetCpuLimit(void)
                         VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
-      g_print("%u MHz\n", cpuLimit);
+      g_print(SU_(stat.cpuLimit.info, "%u MHz\n"), cpuLimit);
    }
    VMGuestLib_CloseHandle(glHandle);
    return exitStatus;

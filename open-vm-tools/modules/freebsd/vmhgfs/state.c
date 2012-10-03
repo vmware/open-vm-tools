@@ -441,47 +441,68 @@ HgfsFileHashTableIsEmpty(HgfsSuperInfo *sip,            // IN: Superinfo
  */
 
 int
-HgfsCheckAndReferenceHandle(struct vnode *vp,       // IN: Vnode to check handle of
-                            Bool mmap,              // IN: True if it is mmap call
-                            int requestedOpenMode)  // IN: Requested open mode
+HgfsCheckAndReferenceHandle(struct vnode *vp,         // IN: Vnode to check handle of
+                            int requestedOpenMode,    // IN: Requested open mode
+                            HgfsOpenType openType)    // IN: Requested open type
 {
    HgfsFile *fp;
-   int ret;
+   int ret = 0;
 
    ASSERT(vp);
 
    fp = HGFS_VP_TO_FP(vp);
    ASSERT(fp);
 
-   ret = fp->handleRefCount ? 0 : ENOENT;
-   if (ret == 0) {
-      if (HgfsIsModeCompatible(requestedOpenMode, fp->mode)) {
-         DEBUG(VM_DEBUG_LOG, "Handle exists, %d %d %d\n",
-               mmap, fp->mmapped, fp->handleRefCount);
-         /*
-          * Do nothing for subsequent mmap requests since OS invokes mnomap only once
-          * for multiple mmap calls. 
-          */
-         if (!mmap || !fp->mmapped) {
-            if (fp->implicitlyOpened) {
-               /*
-                * Consider it a regular open from now on.
-                * Handle already had been referenced, no need to increment
-                * count.
-                */
-               fp->implicitlyOpened = FALSE;
-               DEBUG(VM_DEBUG_LOG, "Clear implicitly opened flag\n");
-            } else {
-               fp->handleRefCount++;
-            }
-            fp->mmapped = fp->mmapped || mmap;
-         }
-      } else {
-         ret = EACCES;
-         DEBUG(VM_DEBUG_LOG, "Incompatible modes: %d %d\n", requestedOpenMode, fp->mode);
-      }
+   if (0 == fp->handleRefCount && 0 == fp->intHandleRefCount) {
+      ret = ENOENT;
+      DEBUG(VM_DEBUG_LOG, "No handle: mode %d type %d\n", requestedOpenMode, openType);
+      goto exit;
    }
 
+   if (!HgfsIsModeCompatible(requestedOpenMode, fp->mode)) {
+      ret = EACCES;
+      DEBUG(VM_DEBUG_LOG, "Incompatible modes: %d %d\n", requestedOpenMode, fp->mode);
+      goto exit;
+   }
+
+   DEBUG(VM_DEBUG_LOG, "Compatible handle: type %d mapped %d count %d\n",
+         openType, fp->mmapped, fp->handleRefCount);
+
+   /*
+    * Do nothing for subsequent mmap/read reference requests.
+    * For mmap the OS layer invokes mnomap only once
+    * for multiple mmap calls.
+    * For read we only need to reference the first real need to open, i.e. ENOENT
+    * is returned when there isn't a compatible handle.
+    */
+   if (OPENREQ_MMAP == openType && fp->mmapped) {
+      DEBUG(VM_DEBUG_LOG, "Mmapped: already referenced %d %d\n", requestedOpenMode, fp->mode);
+      goto exit;
+   }
+
+   if (OPENREQ_READ == openType) {
+      DEBUG(VM_DEBUG_LOG, "Open for Read: already referenced %d %d\n", requestedOpenMode, fp->mode);
+      goto exit;
+   }
+
+   /*
+    * Reference the handle for the open.
+    * For the regular open and memory map calls we increment the normal
+    * count, for all others (e.g. create) it is an internal increment.
+    */
+   if (OPENREQ_OPEN != openType && OPENREQ_MMAP != openType) {
+      fp->intHandleRefCount++;
+      DEBUG(VM_DEBUG_LOG, "Internal Handle Ref Cnt %d\n", fp->intHandleRefCount);
+   } else {
+      fp->handleRefCount++;
+      DEBUG(VM_DEBUG_LOG, "Handle Ref Cnt %d\n", fp->handleRefCount);
+   }
+
+   if (!(fp->mmapped) && OPENREQ_MMAP == openType) {
+      fp->mmapped = TRUE;
+   }
+
+exit:
    return ret;
  }
 
@@ -509,7 +530,7 @@ void
 HgfsSetOpenFileHandle(struct vnode *vp,          // IN: Vnode to set handle for
                       HgfsHandle handle,         // IN: Value of handle
                       HgfsMode openMode,         // IN: Mode assosiated with the handle
-                      Bool implicit)             // IN: TRUE if not in VNOP_OPEN context
+                      HgfsOpenType openType)     // IN: type of open for VNOP_ call
 {
    HgfsFile *fp;
 
@@ -521,10 +542,13 @@ HgfsSetOpenFileHandle(struct vnode *vp,          // IN: Vnode to set handle for
    fp->handle = handle;
    fp->mode = openMode;
    fp->handleRefCount = 1;
-   fp->implicitlyOpened = implicit;
-
-   DEBUG(VM_DEBUG_STATE, "HgfsSetOpenFileHandle: set handle for %s to %d\n",
-         HGFS_VP_TO_FILENAME(vp), fp->handle);
+   if (OPENREQ_OPEN == openType) {
+      fp->handleRefCount = 1;
+   } else {
+      fp->intHandleRefCount = 1;
+   }
+   DEBUG(VM_DEBUG_STATE, "File %s handle %d ref Cnt %d Int Ref Cnt %d\n",
+         HGFS_VP_TO_FILENAME(vp), fp->handle, fp->handleRefCount, fp->intHandleRefCount);
 }
 
 
@@ -595,7 +619,7 @@ HgfsGetOpenFileHandle(struct vnode *vp,          // IN:  Vnode to get handle for
 
 int
 HgfsReleaseOpenFileHandle(struct vnode *vp,            // IN: correspondent vnode
-                          Bool mnomap,                 // IN: True if called from mnomap
+                          HgfsOpenType openType,       // IN: open type to release
                           HgfsHandle *handleToClose)   // OUT: Host handle to close
 {
    int ret = -1;
@@ -609,23 +633,35 @@ HgfsReleaseOpenFileHandle(struct vnode *vp,            // IN: correspondent vnod
    os_rw_lock_lock_exclusive(fp->handleLock);
 
    /* Make sure the reference count is not going negative! */
-   ASSERT(fp->handleRefCount >= 0);
+   ASSERT(fp->handleRefCount >= 0 || fp->intHandleRefCount > 0);
 
-   if (fp->handleRefCount > 0) {
-      --fp->handleRefCount;
+   if (fp->handleRefCount > 0 || fp->intHandleRefCount > 0) {
+      if (fp->handleRefCount > 0) {
+         --fp->handleRefCount;
+      }
+      /*
+       * We don't issue explicit closes for internal opens (read/create), so
+       * always decrement the internal count here.
+       */
+      if (fp->intHandleRefCount > 0) {
+         --fp->intHandleRefCount;
+      }
+      /* Return the real not internal count. */
       ret = fp->handleRefCount;
-      if (mnomap) {
+      /* If unmapping clear our flag. */
+      if (OPENREQ_MMAP == openType) {
          fp->mmapped = FALSE;
       }
 
       /* If the reference count has gone to zero, clear the handle. */
       if (ret == 0) {
-         DEBUG(VM_DEBUG_LOG, "closing directory handle\n");
+         DEBUG(VM_DEBUG_LOG, "Last open closing handle %d\n", fp->handle);
          *handleToClose = fp->handle;
          fp->handle = 0;
+         fp->intHandleRefCount = 0;
       } else {
-         DEBUG(VM_DEBUG_LOG, "ReleaseOpenFileHandle with a refcount of: %d\n",
-	            fp->handleRefCount);
+         DEBUG(VM_DEBUG_LOG, "ReleaseOpenFileHandle: refCount: %d intRefCount %d\n",
+               fp->handleRefCount, fp->intHandleRefCount);
       }
    }
    os_rw_lock_unlock_exclusive(fp->handleLock);
@@ -1171,8 +1207,8 @@ HgfsInitFile(HgfsFile *fp,              // IN: File to initialize
    fp->modeIsSet = FALSE;
 
    fp->handleRefCount = 0;
+   fp->intHandleRefCount = 0;
    fp->handle = 0;
-   fp->implicitlyOpened = FALSE;
    fp->mmapped = FALSE;
    fp->fileSize = fileSize;
 
@@ -1258,32 +1294,6 @@ HgfsFreeFile(HgfsFile *fp)   // IN: HgfsFile structure to free
    os_free(fp, sizeof *fp);
 }
 
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsMarkFileMmapped --
- *
- *      Sets/Clears mmap flag in HgfsFile structure
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-HgfsMarkFileMmapped(struct vnode *vp,    // vnode which state is being changed
-                    Bool mmapped)        // New mapping state
-{
-   HgfsFile *fp;
-   ASSERT(vp);
-   fp = HGFS_VP_TO_FP(vp);
-   fp->mmapped = mmapped;
-}
 
 /* Adding/finding/removing file state from hash table */
 

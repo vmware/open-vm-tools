@@ -254,4 +254,13 @@ typedef umode_t compat_umode_t;
 typedef int compat_umode_t;
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
+#define d_make_root(inode) ({                      \
+   struct dentry * ____res = d_alloc_root(inode);  \
+   if (!____res) {                                 \
+      iput(inode);                                 \
+   }                                               \
+   ____res;                                        \
+})
+#endif
 #endif /* __COMPAT_FS_H__ */

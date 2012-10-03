@@ -163,52 +163,6 @@ ShrinkGetMountPoints(WiperPartition_List *pl) // OUT: Known mount points
 /*
  *-----------------------------------------------------------------------------
  *
- * ShrinkGetPartition  --
- *
- *      Finds the WiperPartion whose mountpoint is given.
- *
- * Results:
- *      The WiperPatition.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static WiperPartition*
-ShrinkGetPartition(char *mountPoint)
-{
-   WiperPartition_List plist;
-   WiperPartition *p, *part = NULL;
-   DblLnkLst_Links *curr;
-
-   if (!ShrinkGetMountPoints(&plist)) {
-      return NULL;
-   }
-
-   DblLnkLst_ForEach(curr, &plist.link) {
-      p = DblLnkLst_Container(curr, WiperPartition, link);
-      if (toolbox_strcmp(p->mountPoint, mountPoint) == 0) {
-         part = p;
-         /*
-          * Detach the element we are interested in so it is not
-          * destroyed when we call WiperPartition_Close.
-          */
-         DblLnkLst_Unlink1(&part->link);
-         break;
-      }
-   }
-
-   WiperPartition_Close(&plist);
-
-   return part;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * ShrinkList  --
  *
  *      Prints mount points to stdout.
@@ -388,7 +342,8 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
    int i;
    int progress = 0;
    unsigned char *err;
-   WiperPartition *part;
+   WiperPartition *part = NULL;
+   WiperPartition_List plist;
    int rc;
 
 #if defined(_WIN32)
@@ -397,7 +352,26 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
    signal(SIGINT, ShrinkWiperDestroy);
 #endif
 
-   part = ShrinkGetPartition(mountPoint);
+   if (ShrinkGetMountPoints(&plist)) {
+      DblLnkLst_Links *curr, *nextElem;
+      DblLnkLst_ForEachSafe(curr, nextElem, &plist.link) {
+         WiperPartition *p = DblLnkLst_Container(curr, WiperPartition, link);
+         if (toolbox_strcmp(p->mountPoint, mountPoint) == 0) {
+            WiperSinglePartition_Close(part);
+            part = p;
+            /*
+             * Detach the element we are interested in so it is not
+             * destroyed when we call WiperPartition_Close.
+             */
+            DblLnkLst_Unlink1(&part->link);
+            if (part->type != PARTITION_UNSUPPORTED) {
+               break;
+            }
+         }
+      }
+      WiperPartition_Close(&plist);
+   }
+
    if (part == NULL) {
       ToolsCmd_PrintErr(SU_(disk.shrink.partition.notfound,
                             "Unable to find partition %s\n"),
@@ -423,6 +397,23 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
                         SU_(disk.shrink.disabled, SHRINK_DISABLED_ERR));
       rc = EX_TEMPFAIL;
       goto out;
+   }
+
+   /*
+    * During the initial 'wipe' process, the Toolbox CLI first fills the
+    * entire guest's disk space with files filled with zeroes. During this step,
+    * user may notice few warning messages related to 'low disk space' in the
+    * guest operating system. We need to print a warning message to disregard
+    * such warnings in the guest operating system.
+    */
+   if (performShrink) {
+      ToolsCmd_Print("%s", SU_(disk.shrink.ignoreFreeSpaceWarnings,
+                               "Please disregard any warnings about disk space "
+                               "for the duration of shrink process.\n"));
+   } else {
+      ToolsCmd_Print("%s", SU_(disk.wipe.ignoreFreeSpaceWarnings,
+                               "Please disregard any warnings about disk space "
+                               "for the duration of wipe process.\n"));
    }
 
    wiper = Wiper_Start(part, MAX_WIPER_FILE_SIZE);

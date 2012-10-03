@@ -322,7 +322,7 @@ Mul64x6464(uint64 multiplicand,
    uint64 result, dummy;
 
    __asm__("mulq    %3      \n\t"
-           "shrdq   %1, %0  \n\t"
+           "shrdq   %b4, %1, %0  \n\t"
            : "=a" (result),
              "=d" (dummy)
            : "0"  (multiplier),
@@ -380,7 +380,7 @@ Muls64x64s64(int64 multiplicand, int64 multiplier, uint32 shift)
    int64 result, dummy;
 
    __asm__("imulq   %3      \n\t"
-       "shrdq   %1, %0  \n\t"
+       "shrdq   %b4, %1, %0  \n\t"
        : "=a" (result),
          "=d" (dummy)
        : "0"  (multiplier),

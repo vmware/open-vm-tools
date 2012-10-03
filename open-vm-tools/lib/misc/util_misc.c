@@ -26,6 +26,7 @@
 #include <winsock2.h> // also includes windows.h
 #include <io.h>
 #include <process.h>
+#define getpid() _getpid()
 #endif
 
 #include "vm_ctype.h"
@@ -74,6 +75,10 @@
 #include "user_layout.h"
 #endif
 
+
+char *gHomeDirOverride = NULL;
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -119,13 +124,13 @@ Util_GetCanonicalPath(const char *path)  // IN:
     * If the path is *potentially* a path to remote share, we do not
     * call GetLongPathName, because if the remote server is unreachable,
     * that function could hang. We sacrifice two things by doing so:
-    * 1. The UNC path could refer to the local host and we incorrectly 
+    * 1. The UNC path could refer to the local host and we incorrectly
     *    assume remote.
     * 2. We do not resolve 8.3 names for remote paths.
     */
 
    if (remoteDrive) {
-      canonicalPath = strdup(path);
+      canonicalPath = Util_SafeStrdup(path);
    } else {
       canonicalPath = W32Util_RobustGetLongPath(path);
    }
@@ -148,7 +153,7 @@ Util_GetCanonicalPath(const char *path)  // IN:
  *      for use as a seed to hash functions.
  *
  * Results:
- *       Canonicalized UTF-8 pathname suitable for use in hashing. 
+ *       Canonicalized UTF-8 pathname suitable for use in hashing.
  *
  * Side effects:
  *      None.
@@ -161,11 +166,11 @@ Util_GetCanonicalPathForHash(const char *path)  // IN: UTF-8
 {
    char *ret = NULL;
    char *cpath = Util_GetCanonicalPath(path);
-   
+
    if (cpath != NULL) {
       ret = Unicode_FoldCase(cpath);
       free(cpath);
-   }   
+   }
 
    return ret;
 }
@@ -182,9 +187,9 @@ Util_GetCanonicalPathForHash(const char *path)  // IN: UTF-8
  *      encoding.  Hence, the use of WideCharToMultiByte().
  *
  * Results:
- *      An allocated string in legacy encoding (MBCS when applicable).  
+ *      An allocated string in legacy encoding (MBCS when applicable).
  *      NULL on failure.
- *      
+ *
  * Side effects:
  *      None.
  *
@@ -196,19 +201,19 @@ UtilGetLegacyEncodedString(const char *path)  // IN: UTF-8
 {
    char *ret = NULL;
    char *cpath = Util_GetCanonicalPath(path);
-  
+
    if (cpath != NULL) {
       char *apath = NULL;
       int retlen;
       WCHAR *wcpath = Unicode_GetAllocUTF16(cpath);
 
       /* First get the length of multibyte string */
-      int alen = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wcpath, -1, 
+      int alen = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wcpath, -1,
                                      NULL, 0, NULL, NULL);
       if (alen > 0) {
          /* Now get the converted string */
          ret = Util_SafeMalloc(alen);
-         retlen = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wcpath, -1, 
+         retlen = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wcpath, -1,
                                       ret, alen, NULL, NULL);
          if (retlen != alen) {
             free(ret);
@@ -218,7 +223,7 @@ UtilGetLegacyEncodedString(const char *path)  // IN: UTF-8
       free(cpath);
       free(wcpath);
    }
-  
+
    return ret;
 }
 
@@ -250,7 +255,7 @@ Util_CompatGetCanonicalPath(const char *path)  // IN: UTF-8
       ret = UtilGetLegacyEncodedString(cpath);
       free(cpath);
    }
-   
+
    return ret;
 }
 #endif
@@ -262,7 +267,7 @@ Util_CompatGetCanonicalPath(const char *path)  // IN: UTF-8
  * Util_CanonicalPathsIdentical --
  *
  *      Utility function to compare two paths that have already been made
- *      canonical. This function exists to mask platform differences in 
+ *      canonical. This function exists to mask platform differences in
  *      path case-sensitivity.
  *
  *      XXX: This implementation makes assumptions about the host filesystem's
@@ -510,7 +515,7 @@ Util_GetCurrentThreadId(void)
  *
  * UtilIsAlphaOrNum --
  *
- *      Checks if character is a numeric digit or a letter of the 
+ *      Checks if character is a numeric digit or a letter of the
  *      english alphabet.
  *
  * Results:
@@ -542,34 +547,25 @@ UtilIsAlphaOrNum(char ch) //IN
  *
  * UtilGetHomeDirectory --
  *
- *      Unicode wrapper for posix getpwnam call for working directory.
+ *      Retrieves the home directory for a user, given their passwd struct.
  *
  * Results:
- *      Returns initial working directory or NULL if it fails.
+ *      Returns user's home directory or NULL if it fails.
  *
  * Side effects:
- *	     None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
 static char *
-UtilGetHomeDirectory(const char *name) // IN: user name
+UtilGetHomeDirectory(struct passwd *pwd) // IN/OPT: user passwd struct
 {
-   char *dir;
-   struct passwd *pwd;
-
-   ASSERT(name);
-
-   pwd = Posix_Getpwnam(name);
    if (pwd && pwd->pw_dir) {
-      dir = Util_SafeStrdup(pwd->pw_dir);
+      return Util_SafeStrdup(pwd->pw_dir);
    } else {
-      dir = NULL;
+      return NULL;
    }
-   endpwent();
-
-   return dir;
 }
 
 
@@ -578,32 +574,25 @@ UtilGetHomeDirectory(const char *name) // IN: user name
  *
  * UtilGetLoginName --
  *
- *      Unicode wrapper for posix getpwnam call for working directory.
+ *      Retrieves the login name for a user, given their passwd struct.
  *
  * Results:
  *      Returns user's login name or NULL if it fails.
  *
  * Side effects:
- *	     None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
 static char *
-UtilGetLoginName(int uid) //IN: user id
+UtilGetLoginName(struct passwd *pwd) // IN/OPT: user passwd struct
 {
-   char *name;
-   struct passwd *pwd;
-
-   pwd = Posix_Getpwuid(uid);
    if (pwd && pwd->pw_name) {
-      name = Util_SafeStrdup(pwd->pw_name);
+      return Util_SafeStrdup(pwd->pw_name);
    } else {
-      name = NULL;
+      return NULL;
    }
-   endpwent();
-
-   return name;
 }
 
 
@@ -612,35 +601,64 @@ UtilGetLoginName(int uid) //IN: user id
  *
  * UtilDoTildeSubst --
  *
- *	Given a string following a tilde, this routine returns the
- *	corresponding home directory.
+ *      Given a string following a tilde, this routine returns the
+ *      corresponding home directory.
  *
  * Results:
- *	The result is a pointer to a static string containing the home
- *	directory in native format.  The returned string is a newly
- *      allocated string which may/must be freed by the caller
+ *      A string containing the home directory in native format. The
+ *      returned string is a newly allocated string which may/must be
+ *      freed by the caller.
  *
  * Side effects:
- *	Information may be left in resultPtr.
+ *      None.
  *
  * Credit: derived from J.K.Ousterhout's Tcl
  *----------------------------------------------------------------------
  */
 
 static Unicode
-UtilDoTildeSubst(Unicode user)  // IN - name of user
+UtilDoTildeSubst(ConstUnicode user)  // IN: name of user
 {
    Unicode str = NULL;
+   struct passwd *pwd = NULL;
+
+   if (gHomeDirOverride) {
+      /*
+       * Allow code to override the tilde expansion for things like unit tests.
+       * See: Util_OverrideHomeDir
+       */
+      return Util_SafeStrdup(gHomeDirOverride);
+   }
 
    if (*user == '\0') {
+#if defined(__APPLE__)
+      /*
+       * The HOME environment variable is not always set on Mac OS.
+       * (was bug 841728)
+       */
+      if (str == NULL) {
+         pwd = Posix_Getpwuid(getuid());
+         if (pwd == NULL) {
+            Log("Could not get passwd for current user.\n");
+         }
+      }
+#else // !defined(__APPLE__)
       str = Unicode_Duplicate(Posix_Getenv("HOME"));
       if (str == NULL) {
          Log("Could not expand environment variable HOME.\n");
       }
+#endif // !defined(__APPLE__)
    } else {
-      str = UtilGetHomeDirectory(user);
+      pwd = Posix_Getpwnam(user);
+      if (pwd == NULL) {
+         Log("Could not get passwd for user '%s'.\n", user);
+      }
+   }
+   if (str == NULL && pwd != NULL) {
+      str = UtilGetHomeDirectory(pwd);
+      endpwent();
       if (str == NULL) {
-         Log("Could not get information for user '%s'.\n", user);
+         Log("Could not get home directory for user.\n");
       }
    }
    return str;
@@ -696,7 +714,7 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
    /*
     * quick exit
     */
-   if (!Unicode_StartsWith(fileName, "~") && 
+   if (!Unicode_StartsWith(fileName, "~") &&
        Unicode_Find(fileName, "$") == UNICODE_INDEX_NOT_FOUND) {
       return copy;
    }
@@ -802,8 +820,9 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
 	 expand = Util_SafeStrdup(buf);
       } else if (strcasecmp(cp + 1, "USER") == 0) {
 #if !defined(_WIN32)
-	 int uid = getuid();
-	 expand = UtilGetLoginName(uid);
+         struct passwd *pwd = Posix_Getpwuid(getuid());
+         expand = UtilGetLoginName(pwd);
+         endpwent();
 #else
 	 DWORD n = ARRAYSIZE(bufW);
 	 if (GetUserNameW(bufW, &n)) {
@@ -814,8 +833,8 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
 	    expand = Unicode_Duplicate("unknown");
 	 }
       } else {
-	 Warning("Environment variable '%s' not defined in '%s'.\n",
-		 cp + 1, fileName);
+         Log("Environment variable '%s' not defined in '%s'.\n",
+             cp + 1, fileName);
 #if !defined(_WIN32)
          /*
           * Strip off the env variable string from the pathname.
@@ -893,4 +912,35 @@ out:
    free(copy);
 
    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_OverrideHomeDir --
+ *
+ *      This function changes the behavior of Util_ExpandPath so that
+ *      it will expand "~" to the provided path rather than the current
+ *      user's home directory.
+ *
+ *      This function is not thread safe, so a best practice is to
+ *      invoke it once at the begining of program execution, much like
+ *      an *_Init() function. It should also never be called more than
+ *      once.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      Future calls to Util_ExpandPath will substitute "~" with the
+ *      given path.
+ *
+ *----------------------------------------------------------------------
+ */
+void
+Util_OverrideHomeDir(const char *path) // IN
+{
+   ASSERT(!gHomeDirOverride);
+   gHomeDirOverride = Util_SafeStrdup(path);
 }

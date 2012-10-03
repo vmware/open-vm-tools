@@ -88,3 +88,10 @@ Msg_Reset(Bool log)
    NOT_IMPLEMENTED();
 }
 
+char *
+Msg_FormatSizeInBytes(uint64 size)
+{
+   return NULL;
+}
+
+

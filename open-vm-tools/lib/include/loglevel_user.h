@@ -260,6 +260,7 @@
    LOGLEVEL_VAR(blobPythonBE), \
    LOGLEVEL_VAR(grainTrack), \
    LOGLEVEL_VAR(shim3D), \
+   LOGLEVEL_VAR(vva),  /* apps/rde/vva */ \
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

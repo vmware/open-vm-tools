@@ -26,6 +26,43 @@
  *    http://www.jwz.org/doc/x-cut-and-paste.html
  */
 
+
+/*
+ * A Word on Selection Timestamps
+ *
+ * ICCCM §2.6.2 Target Atoms
+ *    The TIMESTAMP property is an INTEGER.
+ *
+ * ICCCM §2.7 Use of Selection Properties
+ *    The format of INTEGER is 32.
+ *
+ * XGetWindowProperty(3)
+ *    “If the returned format is 32, the property will be stored as an
+ *    array of longs (which in a 64-bit application will be 64-bit values
+ *    that are padded in the upper 4 bytes).”
+ *
+ * For all intents and purposes, on x86 and x86_64 X selection timestamps
+ * are a 32-bit quantity. (X11/Xproto.h's xSetSelectionOwnerReq defines the
+ * “time” member as the lower 32 bits of type Time.) X clients, on the
+ * other hand, operate on Time as either a CARD32 (uint32) or an unsigned
+ * long (i.e., on a 64-bit machine Time may occupy 8 bytes).
+ *
+ * Breaking it down:
+ *   · When Gtk+ provides a X11 selection via Gtk::SelectionData, on a
+ *     32-bit machine we'll have 4 bytes of raw data.  Everything's copacetic.
+ *   · On a 64-bit machine, even if the source client provides on 32 bits
+ *     of timestamp data, Gtk+ will decode as an unsigned long and provide 8
+ *     bytes of raw data.
+ *   · On a 64-bit machine with a wacky application which actually tries
+ *     to record a full 64 bits of timestamp data, Gtk+ will provide 16 bytes:
+ *     <low 32 bits> <32 bits of 0s> <high 32 bits> <32 bits of 0s>.  (See
+ *     PR 882322, mrxvt.)
+ *
+ *   In all instances, we're interested in _only_ the lowest 32 bits, so we'll
+ *   ignore everything else.
+ */
+
+
 #define G_LOG_DOMAIN "dndcp"
 
 #include <sys/time.h>
@@ -579,16 +616,19 @@ void
 CopyPasteUIX11::LocalClipboardTimestampCB(const Gtk::SelectionData& sd)  // IN
 {
    int length = sd.get_length();
-   g_debug("%s: enter sd.get_length() %d.\n", __FUNCTION__,
-         length);
-   if (length == 4) {
-      mClipTime = ((uint32*) sd.get_data())[0];
-      g_debug("%s: mClipTime: %"FMT64"u.", __FUNCTION__, mClipTime);
-   } else if (length == 8) {
-      mClipTime = ((uint64*) sd.get_data())[0];
-      g_debug("%s: mClipTime: %"FMT64"u.", __FUNCTION__, mClipTime);
+
+   /*
+    * See “A Word on Selection Timestamps” above.
+    */
+   if (   sd.get_data_type().compare("INTEGER") == 0
+       && sd.get_format() == 32
+       && length >= 4 /* sizeof uint32 */) {
+      mClipTime = reinterpret_cast<const uint32*>(sd.get_data())[0];
    } else {
-      g_debug("%s: Unable to get mClipTime.", __FUNCTION__);
+      g_debug("%s: Unable to get mClipTime (sd: len %d, type %s, fmt %d).",
+              __FUNCTION__, length,
+              length >= 0 ? sd.get_data_type().c_str() : "(n/a)",
+              sd.get_format());
    }
 
    Glib::RefPtr<Gtk::Clipboard> refClipboard
@@ -619,15 +659,19 @@ void
 CopyPasteUIX11::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
 {
    int length = sd.get_length();
-   g_debug("%s: enter sd.get_length() is %d.\n", __FUNCTION__, length);
-   if (length == 4) {
-      mPrimTime = ((uint32*) sd.get_data())[0];
-      g_debug("%s: mPrimTime: %"FMT64"u.", __FUNCTION__, mPrimTime);
-   } else if (length == 8) {
-      mPrimTime = ((uint64*) sd.get_data())[0];
-      g_debug("%s: mPrimTime: %"FMT64"u.", __FUNCTION__, mPrimTime);
+
+   /*
+    * See “A Word on Selection Timestamps” above.
+    */
+   if (   sd.get_data_type().compare("INTEGER") == 0
+       && sd.get_format() == 32
+       && length >= 4 /* sizeof uint32 */) {
+      mPrimTime = reinterpret_cast<const uint32*>(sd.get_data())[0];
    } else {
-      g_debug("%s: Unable to get mPrimTime.", __FUNCTION__);
+      g_debug("%s: Unable to get mPrimTime (sd: len %d, type %s, fmt %d).",
+              __FUNCTION__, length,
+              length >= 0 ? sd.get_data_type().c_str() : "(n/a)",
+              sd.get_format());
    }
 
    if (mGetTimestampOnly) {

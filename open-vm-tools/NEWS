@@ -1,3 +1,10 @@
+open-vm-tools 9.2.0 changes:
+	* Release of open-vm-tools matching Workstation 9.0.
+
+	* Branch was cut from commit id d84ff325e0a00fda99 (tagged as
+	stable-9.0.0) and clobbered with changes from Workstation
+	branch.
+
 open-vm-tools 9.0.0 changes:
 	* Release of open-vm-tools matching vSphere 5.1.
 

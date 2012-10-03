@@ -463,6 +463,8 @@ ToolsCoreRegisterSignal(ToolsAppCtx *ctx,
       return TRUE;
    }
 
+   g_debug("Plugin '%s' unable to connect to signal '%s'.\n", plugin->name,
+           sig->signame);
    return FALSE;
 }
 

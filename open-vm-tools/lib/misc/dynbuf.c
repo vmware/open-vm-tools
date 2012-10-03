@@ -198,20 +198,20 @@ DynBuf_Detach(DynBuf *b) // IN
 
 static Bool
 DynBufRealloc(DynBuf *b,            // IN
-              size_t new_allocated) // IN
+              size_t newAllocated) // IN
 {
    void *new_data;
 
    ASSERT(b);
 
-   new_data = realloc(b->data, new_allocated);
-   if (new_data == NULL && new_allocated) {
+   new_data = realloc(b->data, newAllocated);
+   if (new_data == NULL && newAllocated) {
       /* Not enough memory */
       return FALSE;
    }
 
    b->data = new_data;
-   b->allocated = new_allocated;
+   b->allocated = newAllocated;
 
    return TRUE;
 }
@@ -223,7 +223,7 @@ DynBufRealloc(DynBuf *b,            // IN
  * DynBuf_Enlarge --
  *
  *      Enlarge a dynamic buffer. The resulting dynamic buffer is guaranteed to
- *      be larger than the one you passed, and at least 'size' bytes
+ *      be larger than the one you passed, and at least 'minSize' bytes
  *      large --hpreg
  *
  * Results:
@@ -237,19 +237,19 @@ DynBufRealloc(DynBuf *b,            // IN
  */
 
 Bool
-DynBuf_Enlarge(DynBuf *b,       // IN
-               size_t min_size) // IN
+DynBuf_Enlarge(DynBuf *b,       // IN:
+               size_t minSize)  // IN:
 {
-   size_t new_allocated;
+   size_t newAllocated;
 
    ASSERT(b);
 
-   new_allocated = b->allocated
+   newAllocated = b->allocated
                       ?
 #if defined(DYNBUF_DEBUG)
                         b->allocated + 1
 #else
-                        /* 
+                        /*
                          * Double the previously allocated size if it is less
                          * than 256KB; otherwise grow it linearly by 256KB
                          */
@@ -268,11 +268,21 @@ DynBuf_Enlarge(DynBuf *b,       // IN
 #endif
                       ;
 
-   if (min_size > new_allocated) {
-      new_allocated = min_size;
+   if (minSize > newAllocated) {
+      newAllocated = minSize;
    }
 
-   return DynBufRealloc(b, new_allocated);
+   /*
+    * Prevent integer overflow. We can use this form of checking specifically
+    * because a multiple by 2 is used (in the worst case). This type of
+    * checking does not work in the general case.
+    */
+
+   if (newAllocated < b->allocated) {
+      return FALSE;
+   }
+
+   return DynBufRealloc(b, newAllocated);
 }
 
 
@@ -310,6 +320,11 @@ DynBuf_Append(DynBuf *b,        // IN
    ASSERT(data);
 
    new_size = b->size + size;
+
+   if (new_size < b->size) {  // Prevent integer overflow
+      return FALSE;
+   }
+
    if (new_size > b->allocated) {
       /* Not enough room */
       if (DynBuf_Enlarge(b, new_size) == FALSE) {
@@ -409,13 +424,14 @@ DynBuf_Copy(DynBuf *src,   // IN
    ASSERT(dest);
    ASSERT(!dest->data);
 
-   dest->size      = src->size;
-   dest->allocated = src->allocated;
-   dest->data      = malloc(src->allocated);
+   dest->data = malloc(src->allocated);
 
-   if (!dest->data) {
+   if (dest->data == NULL) {
       return FALSE;
    }
+
+   dest->size = src->size;
+   dest->allocated = src->allocated;
 
    memcpy(dest->data, src->data, src->size);
 

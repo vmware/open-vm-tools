@@ -5355,12 +5355,12 @@ VixToolsCreateDirectory(VixCommandRequestHeader *requestMsg)  // IN
    }
 
    if (createParentDirectories) {
-      if (!(File_CreateDirectoryHierarchy(dirPathName, NULL))) {
+      if (!(File_CreateDirectoryHierarchyEx(dirPathName, 0700, NULL))) {
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }
    } else {
-      if (!(File_CreateDirectory(dirPathName))) {
+      if (!(File_CreateDirectoryEx(dirPathName, 0700))) {
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }

@@ -66,7 +66,6 @@
 #include "hostType.h"
 #include "vm_atomic.h"
 #include "fileLock.h"
-#include "userlock.h"
 
 #include "unicodeOperations.h"
 
@@ -288,9 +287,35 @@ File_UnlinkNoFollow(ConstUnicode pathName)  // IN:
 /*
  *----------------------------------------------------------------------
  *
+ * File_CreateDirectoryEx --
+ *
+ *      Creates the specified directory with the specified permissions.
+ *
+ * Results:
+ *      True if the directory is successfully created, false otherwise.
+ *
+ * Side effects:
+ *      Creates the directory on disk.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_CreateDirectoryEx(ConstUnicode pathName,  // IN:
+                       int mask)               // IN:
+{
+   int err = FileCreateDirectory(pathName, mask);
+
+   return err == 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * File_CreateDirectory --
  *
- *      Creates the specified directory.
+ *      Creates the specified directory with 0777 permissions.
  *
  * Results:
  *      True if the directory is successfully created, false otherwise.
@@ -304,9 +329,7 @@ File_UnlinkNoFollow(ConstUnicode pathName)  // IN:
 Bool
 File_CreateDirectory(ConstUnicode pathName)  // IN:
 {
-   int err = FileCreateDirectory(pathName, 0777);
-
-   return err == 0;
+   return File_CreateDirectoryEx(pathName, 0777);
 }
 
 
@@ -1416,6 +1439,32 @@ File_MoveTree(ConstUnicode srcName,   // IN:
             return FALSE;
          }
       }
+#if !defined(__FreeBSD__) && !defined(sun)
+      /*
+       * File_GetFreeSpace is not defined for FreeBSD
+       */
+      if (createdDir) {
+         /*
+          * Check for free space on destination filesystem.
+          * We only check for free space if the destination directory
+          * did not exist. In this case, we will not be overwriting any existing
+          * paths, so we need as much space as srcName.
+          */
+         int64 srcSize;
+         int64 freeSpace;
+         srcSize = File_GetSizeEx(srcName);
+         freeSpace = File_GetFreeSpace(dstName, TRUE);
+         if (freeSpace < srcSize) {
+            Unicode spaceStr = Msg_FormatSizeInBytes(srcSize);
+            Msg_Append(MSGID(File.MoveTree.dst.insufficientSpace)
+                  "There is not enough space in the file system to "
+                  "move the directory tree. Free %s and try again.",
+                  spaceStr);
+            free(spaceStr);
+            return FALSE;
+         }
+      }
+#endif
 
       if (File_CopyTree(srcName, dstName, overwriteExisting, FALSE)) {
          ret = TRUE;
@@ -1641,9 +1690,10 @@ File_GetSizeByPath(ConstUnicode pathName)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * File_CreateDirectoryHierarchy --
+ * File_CreateDirectoryHierarchyEx --
  *
  *      Create a directory including any parents that don't already exist.
+ *      All the created directories are tagged with the specified permission.
  *      Returns the topmost directory which was created, to allow calling code
  *      to remove it after in case later operations fail.
  *
@@ -1664,8 +1714,9 @@ File_GetSizeByPath(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
-                              Unicode *topmostCreated) // OUT:
+File_CreateDirectoryHierarchyEx(ConstUnicode pathName,   // IN:
+                                int mask,                // IN
+                                Unicode *topmostCreated) // OUT:
 {
    Unicode volume;
    UnicodeIndex index;
@@ -1714,7 +1765,7 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
       if (File_IsDirectory(temp)) {
          failed = FALSE;
       } else {
-         failed = !File_CreateDirectory(temp);
+         failed = !File_CreateDirectoryEx(temp, mask);
          if (!failed && topmostCreated != NULL && *topmostCreated == NULL) {
             *topmostCreated = temp;
             temp = NULL;
@@ -1734,6 +1785,42 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
    }
 
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_CreateDirectoryHierarchy --
+ *
+ *      Create a directory including any parents that don't already exist.
+ *      All the created directories are tagged with 0777 permissions.
+ *      Returns the topmost directory which was created, to allow calling code
+ *      to remove it after in case later operations fail.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ *      If topmostCreated is not NULL, it returns the result of the hierarchy
+ *      creation. If no directory was created, *topmostCreated is set to NULL.
+ *      Otherwise *topmostCreated is set to the topmost directory which was
+ *      created. *topmostCreated is set even in case of failure.
+ *
+ *      The caller most Unicode_Free the resulting string.
+ *
+ * Side effects:
+ *      Only the obvious.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
+                              Unicode *topmostCreated) // OUT:
+{
+   return File_CreateDirectoryHierarchyEx(pathName,
+                                          0777,
+                                          topmostCreated);
 }
 
 
@@ -2045,6 +2132,9 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
  *
  *      Return a random number in the range of 0 and 2^32-1.
  *
+ *      This isn't thread safe but it's more than good enough for the
+ *      purposes required of it.
+ *
  * Results:
  *      Random number is returned.
  *
@@ -2057,19 +2147,20 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
 uint32
 FileSimpleRandom(void)
 {
-   static Atomic_Ptr lckStorage;
-   static rqContext *context = NULL;
-   uint32 result;
-   MXUserExclLock *lck = MXUser_CreateSingletonExclLock(&lckStorage,
-                                                        "fileSimpleRandomLock",
-                                                        RANK_LEAF);
+   static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
+   rqContext *context;
 
-   ASSERT_NOT_IMPLEMENTED(lck != NULL);
-
-   MXUser_AcquireExclLock(lck);
+   context = Atomic_ReadPtr(&atomic);
 
    if (UNLIKELY(context == NULL)) {
+      rqContext *newContext;
       uint32 value;
+
+      /*
+       * Threads will hash up this RNG - this isn't officially thread safe
+       * which is just fine - but ensure that different processes have
+       * different answer streams.
+       */
 
 #if defined(_WIN32)
       value = GetCurrentProcessId();
@@ -2077,15 +2168,17 @@ FileSimpleRandom(void)
       value = getpid();
 #endif
 
-      context = Random_QuickSeed(value);
+      newContext = Random_QuickSeed(value);
+
+      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, (void *) newContext)) {
+         free(newContext);
+      }
+
+      context = Atomic_ReadPtr(&atomic);
       ASSERT(context);
    }
 
-   result = Random_Quick(context);
-
-   MXUser_ReleaseExclLock(lck);
-
-   return result;
+   return Random_Quick(context);
 }
 
 

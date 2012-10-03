@@ -105,6 +105,9 @@ enum {
    /* File Errors */
    VIX_E_DIRECTORY_NOT_EMPTY                       = 20006,
 
+   /* Generic Guest Errors */
+   VIX_E_HGFS_MOUNT_FAIL                           = 20050,
+
    /* Reg Errors*/
    VIX_E_REG_INCORRECT_VALUE_TYPE                  = 25000
    /* WARNING. Do not exceed 2**16 */

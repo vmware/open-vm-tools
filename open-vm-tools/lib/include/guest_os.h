@@ -154,12 +154,16 @@ typedef enum GuestOSFamilyType {
 
 #define ALLHYPER_V      BS(HYPER_V)
 
+#define ALLWINVISTA_OR_HIGHER (ALLWINVISTA | ALLWINLONGHORN | ALLWIN2008R2 | \
+                               ALLWINSEVEN | ALLWINEIGHTSERVER | \
+                               ALLWINEIGHT | ALLHYPER_V)
+
 #define ALLWINNT32	(BS(WINNT) | ALLWIN2000 | ALLWINXP32 | ALLWINNET32 | \
                          ALLWINVISTA32 | ALLWINLONGHORN32 | \
                          ALLWINSEVEN32 | ALLWIN2008R2_32 | \
                          ALLWINEIGHT32)
 
-#define ALLWINNT64	(ALLWINXP64 | ALLWINNET64 | \
+#define ALLWINNT64	(ALLWINXP64    | ALLWINNET64 | \
                          ALLWINVISTA64 | ALLWINLONGHORN64 | \
                          ALLWINSEVEN64 | ALLWIN2008R2_64 | \
                          ALLWINEIGHT64 | ALLWINEIGHTSERVER | \

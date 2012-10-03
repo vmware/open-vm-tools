@@ -113,6 +113,9 @@
 #endif
 #endif // __APPLE__
 
+#define VMW_CONTAINER_OF(ptr, type, member) \
+   ((type *)((char *)(ptr) - offsetof(type, member)))
+
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(a) (sizeof (a) / sizeof *(a))
 #endif
@@ -268,6 +271,14 @@ Max(int a, int b)
 
 #ifndef PAGES_2_MBYTES
 #define PAGES_2_MBYTES(_npages) ((_npages) >> (20 - PAGE_SHIFT))
+#endif
+
+#ifndef GBYTES_2_PAGES
+#define GBYTES_2_PAGES(_nbytes) ((_nbytes) << (30 - PAGE_SHIFT))
+#endif
+
+#ifndef PAGES_2_GBYTES
+#define PAGES_2_GBYTES(_npages) ((_npages) >> (30 - PAGE_SHIFT))
 #endif
 
 #ifndef BYTES_2_MBYTES
@@ -615,14 +626,6 @@ typedef int pid_t;
 #define HOSTED_ONLY(x) x
 #endif
 
-#ifdef VMX86_WGS
-#define vmx86_wgs 1
-#define WGS_ONLY(x) x
-#else
-#define vmx86_wgs 0
-#define WGS_ONLY(x) 
-#endif
-
 #ifdef VMKERNEL
 #define vmkernel 1
 #define VMKERNEL_ONLY(x) x
@@ -634,14 +637,18 @@ typedef int pid_t;
 #ifdef _WIN32
 #define WIN32_ONLY(x) x
 #define POSIX_ONLY(x)
+#define vmx86_win32 1
 #else
 #define WIN32_ONLY(x)
 #define POSIX_ONLY(x) x
+#define vmx86_win32 0
 #endif
 
 #ifdef __linux__
+#define vmx86_linux 1
 #define LINUX_ONLY(x) x
 #else
+#define vmx86_linux 0
 #define LINUX_ONLY(x)
 #endif
 
@@ -691,7 +698,11 @@ typedef int pid_t;
 #ifdef _WIN32
 #ifndef USES_OLD_WINDDK
 #if defined(VMX86_LOG)
+#ifdef _WIN64
+#define WinDrvPrint(arg, ...) DbgPrintEx(DPFLTR_IHVDRIVER_ID, (ULONG)~0, arg, __VA_ARGS__)
+#else
 #define WinDrvPrint(arg, ...) DbgPrint(arg, __VA_ARGS__)
+#endif
 #define WinDrvEngPrint(arg, ...) EngDbgPrint(arg, __VA_ARGS__)
 #else
 #define WinDrvPrint(arg, ...)

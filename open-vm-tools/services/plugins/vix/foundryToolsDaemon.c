@@ -734,10 +734,10 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
     */
    FILE *mtab;
    struct mntent *mnt;
-   Bool vmhgfsMntFound = FALSE;
    if ((mtab = setmntent(_PATH_MOUNTED, "r")) == NULL) {
       err = VIX_E_FAIL;
    } else {
+      Bool vmhgfsMntFound = FALSE;
       while ((mnt = getmntent(mtab)) != NULL) {
          if ((strcmp(mnt->mnt_fsname, ".host:/") == 0) &&
              (strcmp(mnt->mnt_type, HGFS_NAME) == 0) &&
@@ -747,19 +747,19 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
          }
       }
       endmntent(mtab);
-   }
 
-   if (!vmhgfsMntFound) {
-   /*
-    * We need to call the mount program, not the mount system call. The
-    * mount program does several additional things, like compute the mount
-    * options from the contents of /etc/fstab, and invoke custom mount
-    * programs like the one needed for HGFS.
-    */
-      int ret = system("mount -t vmhgfs .host:/ /mnt/hgfs");
-      if (ret == -1 || WIFSIGNALED(ret) ||
-          (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
-         err = VIX_E_FAIL;
+      if (!vmhgfsMntFound) {
+         /*
+          * We need to call the mount program, not the mount system call. The
+          * mount program does several additional things, like compute the mount
+          * options from the contents of /etc/fstab, and invoke custom mount
+          * programs like the one needed for HGFS.
+          */
+         int ret = system("mount -t vmhgfs .host:/ /mnt/hgfs");
+         if (ret == -1 || WIFSIGNALED(ret) ||
+             (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
+            err = VIX_E_HGFS_MOUNT_FAIL;
+         }
       }
    }
 #endif

@@ -129,7 +129,6 @@ typedef struct vmxnet3_softc_t {
    boolean_t            devEnabled;
    uint8_t              macaddr[6];
    uint32_t             cur_mtu;
-   uint8_t		allow_jumbo;
    link_state_t         linkState;
    uint64_t             linkSpeed;
    vmxnet3_dmabuf_t     sharedData;

@@ -247,6 +247,17 @@ struct FInfoAttrBuf {
    char finderInfo[32];
 };
 #endif
+
+/*
+ * Taken from WinNT.h.
+ * For verifying the Windows client which can ask for delete access as well as the
+ * standard read, write, execute permissions.
+ * XXX - should probably be moved into a header file and may need to be expanded if
+ * Posix looks at the access mode more thoroughly or we expand the set of cross-platform
+ * access mode flags.
+ */
+#define DELETE                           (0x00010000L)
+
 /*
  * Server open flags, indexed by HgfsOpenFlags. Stolen from
  * lib/fileIOPosix.c
@@ -1008,8 +1019,20 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
     */
    status = 0;
    if (!openInfo->shareInfo.writePermissions) {
+      Bool deleteAccess = FALSE;
+      /*
+       * If a valid desiredAccess field specified by the Windows client, we use that
+       * as the desiredAccess field has more data such as delete than is contained
+       * in the mode.
+       */
+      if ((0 != (openInfo->mask & HGFS_OPEN_VALID_DESIRED_ACCESS)) &&
+          (0 != (openInfo->desiredAccess & DELETE))) {
+         deleteAccess = TRUE;
+      }
+
       if ((openFlags & (O_APPEND | O_CREAT | O_TRUNC)) ||
-          (openMode & (O_WRONLY | O_RDWR))) {
+          (openMode & (O_WRONLY | O_RDWR)) ||
+          deleteAccess) {
          status = Posix_Access(openInfo->utf8Name, F_OK);
          if (status < 0) {
             status = errno;
@@ -3521,12 +3544,28 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
       return EBADF;
    }
 
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
    /* Write to the file. */
    if (sequentialOpen) {
       error = write(fd, payload, requiredSize);
    } else {
       error = pwrite(fd, payload, requiredSize, offset);
+   }
+#elif defined(__APPLE__)
+   {
+      Bool appendMode;
+
+      if (!HgfsHandle2AppendFlag(file, session, &appendMode)) {
+         LOG(4, ("%s: Could not get append mode\n", __FUNCTION__));
+         return EBADF;
+      }
+
+      /* Write to the file. */
+      if (sequentialOpen || appendMode) {
+         error = write(fd, payload, requiredSize);
+      } else {
+         error = pwrite(fd, payload, requiredSize, offset);
+      }
    }
 #else
    /*

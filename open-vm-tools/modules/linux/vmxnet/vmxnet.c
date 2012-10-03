@@ -2050,10 +2050,10 @@ vmxnet_map_pkt(struct sk_buff *skb,
       for ( ; nextFrag < skb_shinfo(skb)->nr_frags; nextFrag++){
          int fragSize;
          frag = &skb_shinfo(skb)->frags[nextFrag];
-#if COMPAT_LINUX_VERSION_CHECK_LT(3, 1, 0)
-        fragSize = frag->size;
+#if COMPAT_LINUX_VERSION_CHECK_LT(3, 2, 0)
+         fragSize = frag->size;
 #else
-	fragSize = skb_frag_size(frag);
+         fragSize = skb_frag_size(frag);
 #endif
 
          // skip those frags that are completely copied
@@ -2062,7 +2062,7 @@ vmxnet_map_pkt(struct sk_buff *skb,
          } else {
             // map the part of the frag that is not copied
             dma = pci_map_page(lp->pdev,
-#if COMPAT_LINUX_VERSION_CHECK_LT(3, 1, 0)
+#if COMPAT_LINUX_VERSION_CHECK_LT(3, 2, 0)
                                frag->page,
 #else
                                frag->page.p,
@@ -2085,14 +2085,14 @@ vmxnet_map_pkt(struct sk_buff *skb,
    for ( ; nextFrag < skb_shinfo(skb)->nr_frags; nextFrag++) {
       int fragSize;
       frag = &skb_shinfo(skb)->frags[nextFrag];
-#if COMPAT_LINUX_VERSION_CHECK_LT(3, 1, 0)
+#if COMPAT_LINUX_VERSION_CHECK_LT(3, 2, 0)
       fragSize = frag->size;
 #else
       fragSize = skb_frag_size(frag);
 #endif
-     
+
       dma = pci_map_page(lp->pdev,
-#if COMPAT_LINUX_VERSION_CHECK_LT(3, 1, 0)
+#if COMPAT_LINUX_VERSION_CHECK_LT(3, 2, 0)
                          frag->page,
 #else
                          frag->page.p,
@@ -2594,7 +2594,7 @@ vmxnet_rx_frags(Vmxnet_Private *lp, struct sk_buff *skb)
          }
 
          pci_unmap_page(pdev, rre2->paddr, PAGE_SIZE, PCI_DMA_FROMDEVICE);
-#if COMPAT_LINUX_VERSION_CHECK_LT(3, 1, 0)
+#if COMPAT_LINUX_VERSION_CHECK_LT(3, 2, 0)
          skb_shinfo(skb)->frags[numFrags].page = lp->rxPages[dd->rxDriverNext2];
 #else
          __skb_frag_set_page(&skb_shinfo(skb)->frags[numFrags],

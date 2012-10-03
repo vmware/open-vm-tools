@@ -213,14 +213,20 @@ Util_SafeInternalStrndup(int bugNumber,        // IN:
    size_t size;
    char *copy;
    const char *null;
+   size_t newSize;
 
    if (s == NULL) {
       return NULL;
    }
 
-   null = (char *) memchr(s, '\0', n);
+   null = memchr(s, '\0', n);
    size = null ? null - s: n;
-   copy = (char *) malloc(size + 1);
+   newSize = size + 1;
+   if (newSize < size) {  // Prevent integer overflow
+      copy = NULL;
+   } else {
+      copy = malloc(newSize);
+   }
 
    if (copy == NULL) {
       if (bugNumber == -1) {
@@ -242,6 +248,7 @@ Util_Memcpy(void *dest,
             const void *src,
             size_t count)
 {
+#if defined(__x86_64__) || defined(__i386__)
    uintptr_t align = ((uintptr_t)dest | (uintptr_t)src | count);
 
 #if defined __GNUC__
@@ -313,6 +320,7 @@ Util_Memcpy(void *dest,
    #endif
 
 
+#endif
 #endif
 
    memcpy(dest, src, count);

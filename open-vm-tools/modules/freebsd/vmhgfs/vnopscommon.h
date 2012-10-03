@@ -69,7 +69,7 @@ int HgfsRmdirInt(struct vnode *dvp, struct vnode *vp,
 		 struct componentname *cnp);
 int HgfsRemoveInt(struct vnode *vp);
 int HgfsCloseInt(struct vnode *vp, int mode);
-int HgfsOpenInt(struct vnode *vp, int fflag, Bool implicit);
+int HgfsOpenInt(struct vnode *vp, int fflag, HgfsOpenType openType);
 int HgfsLookupInt(struct vnode *dvp, struct vnode **vpp,
 		  struct componentname *cnp);
 int HgfsCreateInt(struct vnode *dvp, struct vnode **vpp,

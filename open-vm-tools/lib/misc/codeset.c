@@ -170,7 +170,7 @@ CodeSetGetModulePath(HANDLE hModule) // IN
    while (TRUE) {
       DWORD res;
 
-      pathW = realloc(pathW, size * sizeof(wchar_t));
+      pathW = realloc(pathW, size * (sizeof *pathW));
       if (!pathW) {
          return NULL;
       }
@@ -181,7 +181,13 @@ CodeSetGetModulePath(HANDLE hModule) // IN
          /* fatal error */
          goto exit;
       } else if (res == size) {
-         /* buffer too small */
+         /*
+          * The buffer is too small; double its size. The maximum path length
+          * on Windows is ~64KB so doubling will not push a DWORD into
+          * integer overflow before success or error due to another reason
+          * will occur.
+          */
+
          size *= 2;
       } else {
          /* success */
@@ -206,7 +212,7 @@ CodeSetGetModulePath(HANDLE hModule) // IN
  *	use before ICU is initialized.
  *
  * Results:
- *      On success: The allocated, NUL-terminated file path.  
+ *      On success: The allocated, NUL-terminated file path.
  *         Note: This path can be a symbolic or hard link; it's just one
  *         possible path to access the executable.
  *         
@@ -307,11 +313,14 @@ CodeSet_GetAltPathName(const utf16_t *pathW) // IN
 {
    char *path = NULL;
 #if defined(_WIN32)
+   DWORD res;
    utf16_t shortPathW[_MAX_PATH];
 
    ASSERT(pathW);
 
-   if (GetShortPathNameW(pathW, shortPathW, ARRAYSIZE(shortPathW)) == 0) {
+   res = GetShortPathNameW(pathW, shortPathW, ARRAYSIZE(shortPathW));
+
+   if ((res == 0) || (res >= ARRAYSIZE(shortPathW))) {
       goto exit;
    }
 
@@ -727,17 +736,22 @@ static Bool
 CodeSetDuplicateUtf8Str(const char *bufIn,  // IN: Input string
                         size_t sizeIn,      // IN: Input string length
                         char **bufOut,      // OUT: "Converted" string
-                        size_t *sizeOut)    // OUT: Length of string
+                        size_t *sizeOut)    // OUT/OPT: Length of string
 {
    char *myBufOut;
+   size_t newSize = sizeIn + sizeof *myBufOut;
 
-   myBufOut = malloc(sizeIn + 1);
+   if (newSize < sizeIn) {   // Prevent integer overflow
+      return FALSE;
+   }
+
+   myBufOut = malloc(newSize);
    if (myBufOut == NULL) {
       return FALSE;
    }
 
    memcpy(myBufOut, bufIn, sizeIn);
-   memset(myBufOut + sizeIn, 0, 1);
+   myBufOut[sizeIn] = '\0';
 
    *bufOut = myBufOut;
    if (sizeOut) {
@@ -772,7 +786,7 @@ static Bool
 CodeSetDynBufFinalize(Bool ok,          // IN: Earlier steps succeeded
                       DynBuf *db,       // IN: Buffer with converted string
                       char **bufOut,    // OUT: Converted string
-                      size_t *sizeOut)  // OUT: Length of string in bytes
+                      size_t *sizeOut)  // OUT/OPT: Length of string in bytes
 {
    /*
     * NUL can be as long as 4 bytes if UTF-32, make no assumptions.
@@ -889,6 +903,7 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
    char *bufOut;
    char *bufOutCur;
    char *bufOutEnd;
+   size_t newSize;
    size_t bufOutSize;
    size_t bufOutOffset;
    UConverter *cvin = NULL;
@@ -980,7 +995,11 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
 
    bufInCur = bufIn;
    bufInEnd = bufIn + sizeIn;
-   bufOutSize = sizeIn + 4;
+   newSize = sizeIn + 4;
+   if (newSize < sizeIn) {  // Prevent integer overflow
+      goto exit;
+   }
+   bufOutSize = newSize;
    bufOutOffset = 0;
    bufPivSource = bufPiv;
    bufPivTarget = bufPiv;
@@ -1003,11 +1022,8 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
 
       if (!U_FAILURE(uerr)) {
          /*
-          * "This was a triumph.
-          *  I'm making a note here:
-          *  HUGE SUCCESS.
-          *  It's hard to overstate
-          *  my satisfaction."
+          * "This was a triumph. I'm making a note here: HUGE SUCCESS. It's
+          * hard to overstate my satisfaction."
           */
 
          break;
@@ -1024,7 +1040,19 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
        * based on bufOutOffset.
        */
 
-      bufOutSize *= 2;
+      newSize = 2 * bufOutSize;
+
+      /*
+       * Prevent integer overflow. We can use this form of checking
+       * specifically because a multiple by 2 is used. This type of checking
+       * does not work in the general case.
+       */
+
+      if (newSize < bufOutSize) {
+         goto exit;
+      }
+
+      bufOutSize = newSize;
       bufOutOffset = bufOutCur - bufOut;
    }
 

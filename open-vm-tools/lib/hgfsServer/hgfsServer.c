@@ -287,11 +287,11 @@ static Bool HgfsHandle2NotifyInfo(HgfsHandle handle,
                                   char **fileName,
                                   size_t *fileNameSize,
                                   HgfsSharedFolderHandle *folderHandle);
-static void Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder,
-                                      HgfsSubscriberHandle subscriber,
-                                      char* fileName,
-                                      uint32 mask,
-                                      struct HgfsSessionInfo *session);
+static void HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder,
+                                    HgfsSubscriberHandle subscriber,
+                                    char* fileName,
+                                    uint32 mask,
+                                    struct HgfsSessionInfo *session);
 static void HgfsFreeSearchDirents(HgfsSearch *search);
 
 
@@ -3330,7 +3330,8 @@ HgfsServer_RegisterSharedFolder(const char *shareName,   // IN: shared folder na
    HgfsSharedFolderHandle result = HGFS_INVALID_FOLDER_HANDLE;
 
    if (!gHgfsDirNotifyActive) {
-      return HGFS_INVALID_FOLDER_HANDLE;
+      LOG(8, ("%s: notification disabled\n", __FUNCTION__));
+      goto exit;
    }
 
    if (NULL == shareName) {
@@ -3340,7 +3341,7 @@ HgfsServer_RegisterSharedFolder(const char *shareName,   // IN: shared folder na
        * Need to delete all shared folders that were marked for deletion.
        */
       HgfsServerCleanupDeletedFolders();
-      return HGFS_INVALID_FOLDER_HANDLE;
+      goto exit;
    }
 
    MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
@@ -3367,6 +3368,11 @@ HgfsServer_RegisterSharedFolder(const char *shareName,   // IN: shared folder na
       }
    }
    MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+
+exit:
+   LOG(8, ("%s: %s, %s, %s exit %#x\n",__FUNCTION__,
+           (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
+           (addFolder ? "add" : "remove"), result));
    return result;
 }
 
@@ -3531,6 +3537,8 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
       *callbackTable = &hgfsServerSessionCBTable;
       if (Config_GetBool(TRUE, "isolation.tools.hgfs.notify.enable")) {
          gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
+         Log("%s: initialized notification %s.\n", __FUNCTION__,
+             (gHgfsDirNotifyActive ? "active" : "inactive"));
       }
       gHgfsInitialized = TRUE;
    } else {
@@ -3567,8 +3575,9 @@ HgfsServer_ExitState(void)
    gHgfsInitialized = FALSE;
 
    if (gHgfsDirNotifyActive) {
-      HgfsNotify_Shutdown();
+      HgfsNotify_Exit();
       gHgfsDirNotifyActive = FALSE;
+      Log("%s: exit notification - inactive.\n", __FUNCTION__);
    }
 
    if (NULL != gHgfsSharedFoldersLock) {
@@ -3795,6 +3804,8 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
    int i;
    HgfsSessionInfo *session;
 
+   LOG(8, ("%s: entered\n", __FUNCTION__));
+
    ASSERT(transportSession);
 
    session = Util_SafeCalloc(1, sizeof *session);
@@ -3906,6 +3917,8 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
             HgfsServerSetSessionCapability(HGFS_OP_REMOVE_WATCH_V4,
                                            HGFS_REQUEST_NOT_SUPPORTED, session);
          }
+         LOG(8, ("%s: session notify capability is %s\n", __FUNCTION__,
+                 (session->activeNotification ? "enabled" : "disabled")));
       }
       HgfsServerSetSessionCapability(HGFS_OP_SEARCH_READ_V4,
                                      HGFS_REQUEST_SUPPORTED, session);
@@ -3913,6 +3926,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
 
    *sessionData = session;
 
+   LOG(8, ("%s: exit TRUE\n", __FUNCTION__));
    return TRUE;
 }
 
@@ -3945,7 +3959,7 @@ HgfsDisconnectSessionInt(HgfsSessionInfo *session)    // IN: session context
    ASSERT(session->nodeArray);
    ASSERT(session->searchArray);
    if (session->activeNotification) {
-      HgfsNotify_CleanupSession(session);
+      HgfsNotify_RemoveSessionSubscribers(session);
    }
 }
 
@@ -3976,6 +3990,8 @@ HgfsServerSessionDisconnect(void *clientData)    // IN: session context
    HgfsTransportSessionInfo *transportSession = (HgfsTransportSessionInfo *)clientData;
    DblLnkLst_Links *curr, *next;
 
+   LOG(8, ("%s: entered\n", __FUNCTION__));
+
    ASSERT(transportSession);
 
    MXUser_AcquireExclLock(transportSession->sessionArrayLock);
@@ -3989,6 +4005,7 @@ HgfsServerSessionDisconnect(void *clientData)    // IN: session context
    MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
 
    transportSession->state = HGFS_SESSION_STATE_CLOSED;
+   LOG(8, ("%s: exit\n", __FUNCTION__));
 }
 
 
@@ -4215,7 +4232,7 @@ HgfsServer_Quiesce(Bool freeze)  // IN:
    if (freeze) {
       /* Suspend background activity. */
       if (gHgfsDirNotifyActive) {
-         HgfsNotify_Suspend();
+         HgfsNotify_Deactivate(HGFS_NOTIFY_REASON_SERVER_SYNC);
       }
       /* Wait for outstanding asynchronous requests to complete. */
       MXUser_AcquireExclLock(gHgfsAsyncLock);
@@ -4226,7 +4243,7 @@ HgfsServer_Quiesce(Bool freeze)  // IN:
    } else {
       /* Resume background activity. */
       if (gHgfsDirNotifyActive) {
-         HgfsNotify_Resume();
+         HgfsNotify_Activate(HGFS_NOTIFY_REASON_SERVER_SYNC);
       }
    }
 }
@@ -6884,18 +6901,21 @@ HgfsServerSetDirWatchByHandle(HgfsInputParam *input,         // IN: Input params
    size_t fileNameSize;
    HgfsSharedFolderHandle sharedFolder = HGFS_INVALID_FOLDER_HANDLE;
 
+   LOG(8, ("%s: entered\n", __FUNCTION__));
+
    ASSERT(watchId != NULL);
 
    if (HgfsHandle2NotifyInfo(dir, input->session, &fileName, &fileNameSize,
                              &sharedFolder)) {
       *watchId = HgfsNotify_AddSubscriber(sharedFolder, fileName, events, watchTree,
-                                          Hgfs_NotificationCallback, input->session);
+                                          HgfsServerDirWatchEvent, input->session);
       status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                               HGFS_ERROR_SUCCESS;
    } else {
       status = HGFS_ERROR_INTERNAL;
    }
    free(fileName);
+   LOG(8, ("%s: exit %u\n", __FUNCTION__, status));
    return status;
 }
 
@@ -6935,6 +6955,8 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
    ASSERT(cpName != NULL);
    ASSERT(watchId != NULL);
 
+   LOG(8, ("%s: entered\n",__FUNCTION__));
+
    nameStatus = HgfsServerGetShareInfo(cpName, cpNameSize, caseFlags, &shareInfo,
                                        &utf8Name, &utf8NameLen);
    if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
@@ -6969,7 +6991,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
                                             &tempSize, &tempPtr);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
                *watchId = HgfsNotify_AddSubscriber(sharedFolder, tempBuf, events,
-                                                   watchTree, Hgfs_NotificationCallback,
+                                                   watchTree, HgfsServerDirWatchEvent,
                                                    input->session);
                 status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
                                               HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
@@ -6980,7 +7002,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
             }
          } else {
             *watchId = HgfsNotify_AddSubscriber(sharedFolder, "", events, watchTree,
-                                                Hgfs_NotificationCallback,
+                                                HgfsServerDirWatchEvent,
                                                 input->session);
             status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                                     HGFS_ERROR_SUCCESS;
@@ -6998,6 +7020,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
       status = HgfsPlatformConvertFromNameStatus(nameStatus);
    }
    free(utf8Name);
+   LOG(8, ("%s: exit %u\n",__FUNCTION__, status));
    return status;
 }
 
@@ -7034,6 +7057,8 @@ HgfsServerSetDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
 
    HGFS_ASSERT_INPUT(input);
 
+   LOG(8, ("%s: entered\n", __FUNCTION__));
+
    /*
     * If the active session does not support directory change notification - bail out
     * with an error immediately. Otherwise setting watch may succeed but no notification
@@ -7065,6 +7090,7 @@ HgfsServerSetDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
    }
 
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
+   LOG(8, ("%s: exit %u\n", __FUNCTION__, status));
 }
 
 
@@ -7091,6 +7117,7 @@ HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
    HgfsInternalStatus status;
    size_t replyPayloadSize = 0;
 
+   LOG(8, ("%s: entered\n", __FUNCTION__));
    HGFS_ASSERT_INPUT(input);
 
    if (HgfsUnpackRemoveWatchRequest(input->payload, input->payloadSize, input->op,
@@ -7111,6 +7138,7 @@ HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
    }
 
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
+   LOG(8, ("%s: exit result %u\n", __FUNCTION__, status));
 }
 
 
@@ -8368,10 +8396,11 @@ HgfsBuildRelativePath(const char* source,    // IN: source file name
 /*
  *-----------------------------------------------------------------------------
  *
- * Hgfs_NotificationCallback --
+ * HgfsServerDirWatchEvent --
  *
- *    Callback which is called by directory notification package when in response
- *    to a event.
+ *    The callback is invoked by the file system change notification component
+ *    in response to a change event when the client has set at least one watch
+ *    on a directory.
  *
  *    The function builds directory notification packet and queues it to be sent
  *    to the client. It processes one notification at a time. Any consolidation of
@@ -8386,12 +8415,12 @@ HgfsBuildRelativePath(const char* source,    // IN: source file name
  *-----------------------------------------------------------------------------
  */
 
-void
-Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder, // IN: shared folder
-                          HgfsSubscriberHandle subscriber,     // IN: subsciber
-                          char* fileName,                      // IN: name of the file
-                          uint32 mask,                         // IN: event type
-                          struct HgfsSessionInfo *session)     // IN: session info
+static void
+HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folder
+                        HgfsSubscriberHandle subscriber,     // IN: subsciber
+                        char* fileName,                      // IN: name of the file
+                        uint32 mask,                         // IN: event type
+                        struct HgfsSessionInfo *session)     // IN: session info
 {
    HgfsPacket *packet = NULL;
    HgfsHeader *packetHeader = NULL;
@@ -8399,6 +8428,9 @@ Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder, // IN: shared fol
    size_t shareNameLen;
    size_t sizeNeeded;
    uint32 flags;
+
+   LOG(4, ("%s:Entered shr hnd %u hnd %"FMT64"x file %s mask %u\n",
+         __FUNCTION__, sharedFolder, subscriber, fileName, mask));
 
    if (!HgfsServerGetShareName(sharedFolder, &shareNameLen, &shareName)) {
       LOG(4, ("%s: failed to find shared folder for a handle %x\n",
@@ -8434,7 +8466,7 @@ Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder, // IN: shared fol
    packet = NULL;
    packetHeader = NULL;
 
-   LOG(4, ("%s: notification for folder: %d index: %"FMT64"u file name %s mask %x\n",
+   LOG(4, ("%s: Sent notify for: %u index: %"FMT64"u file name %s mask %x\n",
            __FUNCTION__, sharedFolder, subscriber, fileName, mask));
 
 exit:

@@ -39,7 +39,7 @@
  *
  * HgfsNotify_Init --
  *
- *    One time initialization of the library.
+ *    Initialization for the notification component.
  *
  * Results:
  *    Invalid value error.
@@ -60,9 +60,9 @@ HgfsNotify_Init(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsNotify_Shutdown --
+ * HgfsNotify_Exit --
  *
- *    Performs nesessary cleanup.
+ *    Exit for the notification component.
  *
  * Results:
  *    None.
@@ -74,7 +74,7 @@ HgfsNotify_Init(void)
  */
 
 void
-HgfsNotify_Shutdown(void)
+HgfsNotify_Exit(void)
 {
 }
 
@@ -82,9 +82,9 @@ HgfsNotify_Shutdown(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsNotify_Suspend --
+ * HgfsNotify_Deactivate --
  *
- *    Suspends sending notifications.
+ *    Deactivates generating file system change notifications.
  *
  * Results:
  *    None.
@@ -96,7 +96,7 @@ HgfsNotify_Shutdown(void)
  */
 
 void
-HgfsNotify_Suspend(void)
+HgfsNotify_Deactivate(HgfsNotifyActivateReason reason) // IN: reason unused
 {
 }
 
@@ -104,9 +104,9 @@ HgfsNotify_Suspend(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsNotify_Resume --
+ * HgfsNotify_Activate --
  *
- *    Resumes sending notifications.
+ *    Activates generating file system change notifications.
  *
  * Results:
  *    None.
@@ -118,7 +118,7 @@ HgfsNotify_Suspend(void)
  */
 
 void
-HgfsNotify_Resume(void)
+HgfsNotify_Activate(HgfsNotifyActivateReason reason) // IN: reason unused
 {
 }
 
@@ -171,7 +171,7 @@ HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder, // IN: shared fold
                          const char *path,                    // IN: relative path
                          uint32 eventFilter,                  // IN: event filter
                          uint32 recursive,                    // IN: look in subfolders
-                         HgfsNotificationCallbackFunc notify, // IN notification callback
+                         HgfsNotifyEventReceiveCb eventCb,    // IN notification callback
                          struct HgfsSessionInfo *session)     // IN: server context
 {
    return HGFS_INVALID_SUBSCRIBER_HANDLE;
@@ -228,7 +228,7 @@ HgfsNotify_RemoveSubscriber(HgfsSubscriberHandle subscriber) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsNotify_CleanupSession --
+ * HgfsNotify_RemoveSessionSubscribers --
  *
  *    Removes all entries that are related to a particular session.
  *
@@ -242,6 +242,6 @@ HgfsNotify_RemoveSubscriber(HgfsSubscriberHandle subscriber) // IN
  */
 
 void
-HgfsNotify_CleanupSession(struct HgfsSessionInfo *session) // IN
+HgfsNotify_RemoveSessionSubscribers(struct HgfsSessionInfo *session) // IN
 {
 }

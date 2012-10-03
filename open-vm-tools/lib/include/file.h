@@ -158,12 +158,19 @@ Unicode File_PathJoin(ConstUnicode dirName,
                       ConstUnicode baseName);
 
 Bool File_CreateDirectory(ConstUnicode pathName);
+
+Bool File_CreateDirectoryEx(ConstUnicode pathName, int mask);
+
 Bool File_EnsureDirectory(ConstUnicode pathName);
 
 Bool File_DeleteEmptyDirectory(ConstUnicode pathName);
 
 Bool File_CreateDirectoryHierarchy(ConstUnicode pathName,
                                    Unicode *topmostCreated);
+
+Bool File_CreateDirectoryHierarchyEx(ConstUnicode pathName,
+                                     int mask,
+                                     Unicode *topmostCreated);
 
 Bool File_DeleteDirectoryTree(ConstUnicode pathName);
 

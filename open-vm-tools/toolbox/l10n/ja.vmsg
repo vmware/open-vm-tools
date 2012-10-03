@@ -32,7 +32,7 @@ device.connect.error = "デバイス %1$s に接続できません。\n"
 
 device.disconnect.error = "デバイス %1$s を切断できません。\n"
 
-device.notfound = "インターフェイス情報の取得中のエラー： デバイスが見つかりませんでした。\n"
+device.notfound = "インターフェイス情報の取得中のエラー: デバイスが見つかりませんでした。\n"
 
 disk.shrink.canceled = "ディスク圧縮がキャンセルされました。\n"
 
@@ -51,7 +51,7 @@ disk.shrink.disabled =
    "事前割り当て済みのディスク、スナップショット、またはその他の要因により、圧縮は無効になっています。\n"
    "詳細については、ユーザー マニュアルを参照してください。\n"
 
-disk.shrink.error = "圧縮中にエラーが発生しました： %1$s\n"
+disk.shrink.error = "圧縮中にエラーが発生しました: %1$s\n"
 
 disk.shrink.incomplete = "圧縮が完了しませんでした。\n"
 
@@ -73,53 +73,53 @@ disk.shrink.unavailable =
    "多数の通信チャネルを開いている場合は、仮想マシンを "
    "いったん落としてから電源を入れなおしてください。\n"
 
-disk.wiper.error = "エラー： %1$s"
+disk.wiper.error = "エラー: %1$s"
 
 disk.wiper.file.error = "エラー。ワイパー ファイルを作成できません。\n"
 
-error.missing = "%1$s： %2$s が見つかりません\n"
+error.missing = "%1$s: %2$s が見つかりません\n"
 
-error.noadmin.posix = "%1$s： %2$s 操作を実行するには、root ユーザーである必要があります。\n"
+error.noadmin.posix = "%1$s: %2$s 操作を実行するには、root ユーザーである必要があります。\n"
 
 error.noadmin.win =
-   "%1$s： %2$s 操作を実行するには、管理者権限が必要です。\n"
+   "%1$s: %2$s 操作を実行するには、管理者権限が必要です。\n"
    "これらのタスクを実行するには、管理者コマンド プロンプトを使用してください。\n"
 
 error.novirtual = "%1$s は仮想マシン内で実行する必要があります。\n"
 
-error.unknown = "%1$s： 不明な %2$s「%3$s」\n"
+error.unknown = "%1$s: 不明な %2$s「%3$s」\n"
 
 help.device =
-   "%1$s： 仮想マシンのハードウェア デバイスに関連する機能\n"
-   "使用方法： %2$s %3$s <サブコマンド> [引数]\n"
+   "%1$s: 仮想マシンのハードウェア デバイスに関連する機能\n"
+   "使用方法: %2$s %3$s <サブコマンド> [引数]\n"
    "dev にはデバイス名を指定します。\n"
    "\n"
-   "サブコマンド：\n"
-   "   enable <デバイス>： デバイス dev を有効にする\n"
-   "   disable <デバイス>： デバイス dev を無効にする\n"
-   "   list： 有効なデバイスを一覧表示\n"
-   "   status <デバイス>： デバイスのステータスを出力\n"
+   "サブコマンド:\n"
+   "   enable <dev>: デバイス dev を有効にする\n"
+   "   disable <dev>: デバイス dev を無効にする\n"
+   "   list: 有効なデバイスを一覧表示\n"
+   "   status <dev>: デバイスのステータスを出力\n"
 
 help.disk =
-   "%1$s： ディスク圧縮操作を実行\n"
-   "使用方法： %2$s %3$s <サブコマンド> [引数]\n"
+   "%1$s: ディスク圧縮操作を実行\n"
+   "使用方法: %2$s %3$s <サブコマンド> [引数]\n"
    "\n"
-   "サブコマンド：\n"
-   "   list：使用可能な場所を一覧表示\n"
-   "   shrink <場所>：指定された場所のファイル システムをワイプおよび圧縮\n"
-   "   shrinkonly：すべてのディスクを圧縮\n"
-   "   wipe <場所>：指定された場所のファイル システムをワイプ\n"
+   "サブコマンド:\n"
+   "   list: 使用できる場所をリストする\n"
+   "   shrink <location>: 指定した場所でファイル システムをワイプおよびシュリンクする\n"
+   "   shrinkonly: すべてのディスクをシュリンクする\n"
+   "   wipe <location>: 指定した場所でファイル システムをワイプする\n"
 
 help.hint = "詳細については、「%1$s %2$s%3$s%4$s」を参照してください。\n"
 
 help.main =
-   "用途： %1$s <コマンド> [オプション] [サブコマンド]\n"
+   "用途: %1$s <command> [options] [subcommand]\n"
    "「%2$s %3$s <コマンド>」と入力すると、そのコマンドのヘルプを表示できます。\n"
    "VMware Tools のバージョンを確認するには、「'%4$s -v」と入力します。\n"
    "stdout 出力を抑止するには、「-q」オプションを使用します。\n"
    "ほとんどのコマンドではサブコマンドも使用されます。\n"
    "\n"
-   "使用可能なコマンド：\n"
+   "使用可能なコマンド:\n"
    "   device\n"
    "   disk\n"
    "   script\n"
@@ -128,47 +128,47 @@ help.main =
    "   upgrade (OS によっては使用できない場合もあります)\n"
 
 help.script =
-   "%1$s： 電源操作に対応して実行されるスクリプトを制御\n"
-   "使用方法： %2$s %3$s <power|resume|suspend|shutdown> <サブコマンド> [引数]\n"
+   "%1$s: 電源操作に対応して実行されるスクリプトを制御\n"
+   "使用方法: %2$s %3$s <power|resume|suspend|shutdown> <サブコマンド> [引数]\n"
    "\n"
-   "サブコマンド：\n"
-   "   enable： 指定されたスクリプトを有効にして、そのパスをデフォルトに復元\n"
-   "   disable： 指定されたスクリプトを無効にする\n"
-   "   set <完全パス>： 指定されたスクリプトを指定されたパスに設定\n"
-   "   default： 指定されたスクリプトのデフォルトのパスを出力\n"
-   "   current： 指定されたスクリプトの現在のパスを出力\n"
+   "サブコマンド:\n"
+   "   enable: 指定されたスクリプトを有効にして、そのパスをデフォルトに復元\n"
+   "   disable: 指定されたスクリプトを無効にする\n"
+   "   set <完全パス>: 指定されたスクリプトを指定されたパスに設定\n"
+   "   default: 指定されたスクリプトのデフォルトのパスを出力\n"
+   "   current: 指定されたスクリプトの現在のパスを出力\n"
 
 help.stat =
-   "%1$s： 役に立つゲストおよびホスト情報を印刷\n"
-   "使用方法： %2$s %3$s <サブコマンド>\n"
+   "%1$s: 役に立つゲストおよびホスト情報を印刷\n"
+   "使用方法: %2$s %3$s <サブコマンド>\n"
    "\n"
-   "サブコマンド：\n"
-   "   hosttime： ホスト時間を出力\n"
-   "   speed： CPU 速度を MHz 単位で出力\n"
-   "ESX ゲスト専用サブコマンド：\n"
-   "   sessionid： 現在のセッション ID を出力\n"
-   "   balloon： メモリ バルーン情報を出力\n"
-   "   swap： メモリ スワップ情報を出力\n"
-   "   memlimit： メモリ リミット情報を出力\n"
-   "   memres： メモリ予約情報を出力\n"
-   "   cpures： CPU 予約情報を出力\n"
-   "   cpulimit： CPU リミット情報を出力\n"
+   "サブコマンド:\n"
+   "   hosttime: ホスト時間を出力\n"
+   "   speed: CPU 速度を MHz 単位で出力\n"
+   "ESX ゲスト専用サブコマンド:\n"
+   "   sessionid: 現在のセッション ID を出力\n"
+   "   balloon: メモリ バルーン情報を出力\n"
+   "   swap: メモリ スワップ情報を出力\n"
+   "   memlimit: メモリ リミット情報を出力\n"
+   "   memres: メモリ予約情報を出力\n"
+   "   cpures: CPU 予約情報を出力\n"
+   "   cpulimit: CPU リミット情報を出力\n"
 
 help.timesync =
-   "%1$s： ゲスト OS の時刻同期を制御する機能\n"
-   "使用方法： %2$s %3$s <サブコマンド>\n"
+   "%1$s: ゲスト OS の時刻同期を制御する機能\n"
+   "使用方法: %2$s %3$s <サブコマンド>\n"
    "\n"
-   "サブコマンド：\n"
-   "   enable： 時間同期を有効にする\n"
-   "   disable： 時間同期を無効にする\n"
-   "   status： 時間同期ステータスを出力\n"
+   "サブコマンド:\n"
+   "   enable: 時間同期を有効にする\n"
+   "   disable: 時間同期を無効にする\n"
+   "   status: 時間同期ステータスを出力\n"
 
 help.upgrade =
-   "%1$s： VMware Tools のアップグレードに関連する機能。\n"
-   "使用方法： %2$s %3$s <サブコマンド> [引数]\n"
-   "サブコマンド：\n"
-   "   status： VMware Tools のアップグレード ステータスを確認\n"
-   "   start： VMware Tools の自動アップグレードを開始\n"
+   "%1$s: VMware Tools のアップグレードに関連する機能。\n"
+   "使用方法: %2$s %3$s <サブコマンド> [引数]\n"
+   "サブコマンド:\n"
+   "   status: VMware Tools のアップグレード ステータスを確認\n"
+   "   start: VMware Tools の自動アップグレードを開始\n"
    "\n"
    "アップグレードが機能するには、VMware Tools サービスを実行している必要があります。\n"
 
@@ -182,31 +182,45 @@ script.operation = "操作"
 
 script.unknownop = "操作 %1$s のスクリプトがありません。\n"
 
-script.write.error = "構成書き込みエラー： %1$s\n"
+script.write.error = "構成書き込みエラー: %1$s\n"
 
-stat.balloon.failed = "バルーン メモリの取得に失敗しました： %1$s\n"
+stat.balloon.failed = "バルーン メモリの取得に失敗しました: %1$s\n"
 
-stat.cpumax.failed = "CPU 制限の取得に失敗しました： %1$s\n"
+stat.cpumax.failed = "CPU 制限の取得に失敗しました: %1$s\n"
 
-stat.cpumin.failed = "CPU 最小値の取得に失敗しました： %1$s\n"
+stat.cpumin.failed = "CPU 最小値の取得に失敗しました: %1$s\n"
 
 stat.formattime.failed = "ホスト時刻をフォーマットできません。\n"
 
-stat.getsession.failed = "セッション ID の取得に失敗しました： %1$s\n"
+stat.getsession.failed = "セッション ID の取得に失敗しました: %1$s\n"
 
-stat.getspeed.failed = "プロセッサ速度を取得できません。\n"
+stat.getspeed.failed = "プロセッサ速度を取得できません。\\n"
 
 stat.gettime.failed = "ホスト時刻を取得できません。\n"
 
-stat.maxmem.failed = "メモリ制限の取得に失敗しました： %1$s\n"
+stat.maxmem.failed = "メモリ制限の取得に失敗しました: %1$s\n"
 
-stat.memres.failed = "メモリ予約の取得に失敗しました： %1$s\n"
+stat.memres.failed = "メモリ予約の取得に失敗しました: %1$s\n"
 
-stat.memswap.failed = "スワップ メモリの取得に失敗しました： %1$s\n"
+stat.memswap.failed = "スワップ メモリの取得に失敗しました: %1$s\n"
 
-stat.openhandle.failed = "OpenHandle が失敗しました： %1$s\n"
+stat.openhandle.failed = "OpenHandle が失敗しました: %1$s\n"
 
-stat.update.failed = "UpdateInfo が失敗しました： %1$s\n"
+stat.update.failed = "UpdateInfo が失敗しました: %1$s\n"
+
+stat.processorSpeed.info = "%1$u MHz\n"
+
+stat.memoryBalloon.info = "%1$u MB\n"
+
+stat.memoryReservation.info = "%1$u MB\n"
+
+stat.memorySwapped.info = "%1$u MB\n"
+
+stat.memoryLimit.info = "%1$u MB\n"
+
+stat.cpuReservation.info = "%1$u MHz\n"
+
+stat.cpuLimit.info = "%1$u MHz\n"
 
 upgrade.available = "VMware Tools の新しいバージョンを利用できます。\n"
 
@@ -216,7 +230,7 @@ upgrade.error.error = "VMware Tools のアップグレードの開始中にエ�
 
 upgrade.error.not_supported = "ホストは、VMware Tools の自動アップグレードをサポートしていません。\n"
 
-upgrade.error.unknown_reply = "予期しないホスト応答： %1$s\n"
+upgrade.error.unknown_reply = "予期しないホスト応答: %1$s\n"
 
 upgrade.started = "アップグレードが開始されました。\n"
 
