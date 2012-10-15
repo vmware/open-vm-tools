@@ -55,6 +55,11 @@ Config_GetString(const char *defaultValue,
    return (defaultValue == NULL) ? NULL : strdup(defaultValue);
 }
 
+Bool
+Preference_Init(void)
+{
+   return TRUE;
+}
 
 Bool
 Preference_GetBool(Bool defaultValue,
