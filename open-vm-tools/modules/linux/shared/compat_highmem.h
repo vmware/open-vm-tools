@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,22 +19,14 @@
 #ifndef __COMPAT_HIGHMEM_H__
 #   define __COMPAT_HIGHMEM_H__
 
+#include <linux/highmem.h>
 
-/*
- *  BIGMEM  (4 GB)         support appeared in 2.3.16: kmap() API added
- *  HIGHMEM (4 GB + 64 GB) support appeared in 2.3.23: kmap() API modified
- *  In 2.3.27, kmap() API modified again
- *
- *   --hpreg
- */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 27)
-#   include <linux/highmem.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+#   define compat_kmap_atomic(_page)   kmap_atomic(_page)
+#   define compat_kunmap_atomic(_page) kunmap_atomic(_page)
 #else
-/* For page_address --hpreg */
-#   include <linux/pagemap.h>
-
-#   define kmap(_page) (void*)page_address(_page)
-#   define kunmap(_page)
+#   define compat_kmap_atomic(_page)   kmap_atomic((_page), KM_USER0)
+#   define compat_kunmap_atomic(_page) kunmap_atomic((_page), KM_USER0)
 #endif
 
 #endif /* __COMPAT_HIGHMEM_H__ */

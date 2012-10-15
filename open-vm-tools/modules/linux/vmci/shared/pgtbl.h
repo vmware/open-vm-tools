@@ -20,7 +20,8 @@
 #   define __PGTBL_H__
 
 
-#include "compat_highmem.h"
+#include <linux/highmem.h>
+
 #include "compat_pgtable.h"
 #include "compat_spinlock.h"
 #include "compat_page.h"
