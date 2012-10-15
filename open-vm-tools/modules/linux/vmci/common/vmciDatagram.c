@@ -553,6 +553,7 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
 
    if (contextID == VMCI_HOST_CONTEXT_ID &&
        dg->dst.context == VMCI_HYPERVISOR_CONTEXT_ID) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Host cannot talk to hypervisor\n"));
       return VMCI_ERROR_DST_UNREACHABLE;
    }
 
@@ -667,28 +668,35 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
       if (contextID != dg->dst.context) {
          if (VMCIDenyInteraction(srcPrivFlags,
                                  VMCIContext_GetPrivFlags(dg->dst.context))) {
+            VMCI_DEBUG_LOG(4, (LGPFX"Interaction denied (%X/%X - %X/%X)\n",
+                           contextID, srcPrivFlags,
+                           dg->dst.context, VMCIContext_GetPrivFlags(dg->dst.context)));
             return VMCI_ERROR_NO_ACCESS;
          } else if (VMCI_CONTEXT_IS_VM(contextID)) {
             /*
              * If the sending context is a VM, it cannot reach another VM.
              */
 
-            VMCI_DEBUG_LOG(4, (LGPFX"Datagram communication between VMs not"
-                               "supported (src=0x%x, dst=0x%x).\n",
-                               contextID, dg->dst.context));
-            return VMCI_ERROR_DST_UNREACHABLE;
+            if (!vmkernel) {
+               VMCI_DEBUG_LOG(4, (LGPFX"Datagram communication between VMs not "
+                                  "supported (src=0x%x, dst=0x%x).\n",
+                                  contextID, dg->dst.context));
+               return VMCI_ERROR_DST_UNREACHABLE;
+            }
          }
       }
 
       /* We make a copy to enqueue. */
       newDG = VMCI_AllocKernelMem(dgSize, VMCI_MEMORY_NORMAL);
       if (newDG == NULL) {
+         VMCI_DEBUG_LOG(4, (LGPFX"No memory for datagram\n"));
          return VMCI_ERROR_NO_MEM;
       }
       memcpy(newDG, dg, dgSize);
       retval = VMCIContext_EnqueueDatagram(dg->dst.context, newDG);
       if (retval < VMCI_SUCCESS) {
          VMCI_FreeKernelMem(newDG, dgSize);
+         VMCI_DEBUG_LOG(4, (LGPFX"Enqueue failed\n"));
          return retval;
       }
    }

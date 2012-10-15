@@ -120,10 +120,14 @@
 #endif
 
 /*
- * Only support Linux and Windows right now.
+ * Only support Linux right now.
+ *
+ * On Windows, the SAML impersonation story is too shaky to trust,
+ * and without that, there's no reason to support AliasManager APIs.
+ *
  * No support for open-vm-tools.
  */
-#if (defined(_WIN32) || defined(linux)) && !defined(OPEN_VM_TOOLS)
+#if defined(linux) && !defined(OPEN_VM_TOOLS)
 #define SUPPORT_VGAUTH 1
 #else
 #define SUPPORT_VGAUTH 0
@@ -147,6 +151,25 @@
 
 static gboolean gSupportVGAuth = USE_VGAUTH_DEFAULT;
 static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);
+
+/*
+ * XXX
+ *
+ * Holds the current impersonation token.
+ *
+ * This is a hack, dependent on there only being one impersonation
+ * possible at a time anyways.  We need the HANDLE from inside the
+ * VGAuthUserHandle to pass to other functions, so we can't throw
+ * it out until Unimpersonate().
+ *
+ * A cleaner solution would be to not treat the userToken as a void *
+ * (which is really a HANDLE on Windows) but instead make a small wrapper
+ * struct containing a type and an optional HANDLE.  But this would
+ * require massive changes all over, and make it very hard to turn off
+ * VGAuth compilation.
+ */
+
+static VGAuthUserHandle *currentUserHandle = NULL;
 
 #endif
 
@@ -7577,9 +7600,13 @@ abort:
 void
 VixToolsUnimpersonateUser(void *userToken)
 {
-   if (VGAUTH_GENERIC_USER_TOKEN == userToken) {
+#if SUPPORT_VGAUTH
+   if (NULL != currentUserHandle) {
       GuestAuthUnimpersonate();
-   } else if (PROCESS_CREATOR_USER_TOKEN != userToken) {
+      return;
+   }
+#endif
+   if (PROCESS_CREATOR_USER_TOKEN != userToken) {
 #if defined(_WIN32)
       Impersonate_Undo();
 #else
@@ -7606,10 +7633,21 @@ VixToolsUnimpersonateUser(void *userToken)
 void
 VixToolsLogoutUser(void *userToken)    // IN
 {
-   if (PROCESS_CREATOR_USER_TOKEN == userToken ||
-       VGAUTH_GENERIC_USER_TOKEN == userToken) {
+   if (PROCESS_CREATOR_USER_TOKEN == userToken) {
       return;
    }
+
+#if SUPPORT_VGAUTH
+   if (NULL != currentUserHandle) {
+#ifdef _WIN32
+      // close the handle we copied out
+      CloseHandle((HANDLE) userToken);
+#endif
+      VGAuth_UserHandleFree(currentUserHandle);
+      currentUserHandle = NULL;
+      return;
+   }
+#endif
 
    if (NULL != userToken) {
       AuthToken authToken = (AuthToken) userToken;
@@ -7638,6 +7676,21 @@ VixToolsGetImpersonatedUsername(void *userToken)
 {
    char *userName = NULL;
    char *homeDir = NULL;
+
+#if SUPPORT_VGAUTH
+   if (NULL != currentUserHandle) {
+      VGAuthContext *ctx;
+      VGAuthError vgErr = TheVGAuthContext(&ctx);
+      ASSERT(vgErr == VGAUTH_E_OK);
+
+      vgErr = VGAuth_UserHandleUsername(ctx, currentUserHandle, &userName);
+      if (VGAUTH_FAILED(vgErr)) {
+         Warning("%s: Unable to get username from userhandle %p\n",
+                 __FUNCTION__, currentUserHandle);
+      }
+      return userName;
+   }
+#endif
 
    if (!ProcMgr_GetImpersonatedUserInfo(&userName, &homeDir)) {
       return Util_SafeStrdup("XXX failed to get username XXX");
@@ -9241,6 +9294,12 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
       goto abort;
    }
 
+   vgErr = VGAuth_QueryMappedAliases(ctx, 0, NULL, &num, &maList);
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto abort;
+   }
+
    endDestPtr = resultBuffer + maxBufferSize;
    destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr, "%s",
                           VIX_XML_ESCAPED_TAG);
@@ -10819,6 +10878,7 @@ GuestAuthPasswordAuthenticateImpersonate(
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
 
+   Debug(">%s\n", __FUNCTION__);
    err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                         &username,
                                         &password);
@@ -10848,15 +10908,22 @@ GuestAuthPasswordAuthenticateImpersonate(
       goto done;
    }
 
-   *userToken = VGAUTH_GENERIC_USER_TOKEN;
+#ifdef _WIN32
+   // this is making a copy of the token, be sure to close it
+   err = VGAuth_UserHandleAccessToken(ctx, newHandle, userToken);
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   }
+#endif
+
+   currentUserHandle = newHandle;
 
    err = VIX_OK;
 
 done:
 
-   if (newHandle) {
-      VGAuth_UserHandleFree(newHandle);
-   }
+   Debug("<%s\n", __FUNCTION__);
 
    return err;
 #else
@@ -10928,15 +10995,21 @@ GuestAuthSAMLAuthenticateAndImpersonate(
       goto done;
    }
 
-   *userToken = VGAUTH_GENERIC_USER_TOKEN;
+#ifdef _WIN32
+   // this is making a copy of the token, be sure to close it
+   err = VGAuth_UserHandleAccessToken(ctx, newHandle, userToken);
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   }
+#endif
+
+   currentUserHandle = newHandle;
+
 
    err = VIX_OK;
 
 done:
-
-   if (newHandle) {
-      VGAuth_UserHandleFree(newHandle);
-   }
 
    Debug("<%s\n", __FUNCTION__);
 
@@ -10973,6 +11046,7 @@ GuestAuthUnimpersonate(void)
 
    vgErr = VGAuth_EndImpersonation(ctx);
    ASSERT(vgErr == VGAUTH_E_OK);
+
 #else
    ASSERT(0);
 #endif

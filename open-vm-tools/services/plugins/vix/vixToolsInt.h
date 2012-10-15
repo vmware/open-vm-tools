@@ -33,7 +33,6 @@
 
 
 #define PROCESS_CREATOR_USER_TOKEN       ((void *)1)
-#define VGAUTH_GENERIC_USER_TOKEN        ((void *)2)
 
 #ifdef _WIN32
 

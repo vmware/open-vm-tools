@@ -219,7 +219,9 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
 
             ASSERT(VMCI_CONTEXT_IS_VM(dst->context));
 
-            return VMCI_ERROR_DST_UNREACHABLE;
+            if (!vmkernel) {
+               return VMCI_ERROR_DST_UNREACHABLE;
+            }
          }
 
          /* Pass it up to the guest. */

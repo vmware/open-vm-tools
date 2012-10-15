@@ -383,6 +383,12 @@ enum {
    VIX_E_MNTAPI_OPEN_FAILURE                    = 24321,
    VIX_E_MNTAPI_VOLUME_NOT_WRITABLE             = 24322,
 
+   /* Success on operation that completes asynchronously */
+   VIX_ASYNC                                    = 25000,
+
+   /* Async errors */
+   VIX_E_ASYNC_MIXEDMODE_UNSUPPORTED            = 26000,
+
    /* Network Errors */
    VIX_E_NET_HTTP_UNSUPPORTED_PROTOCOL     = 30001,
    VIX_E_NET_HTTP_URL_MALFORMAT            = 30003,

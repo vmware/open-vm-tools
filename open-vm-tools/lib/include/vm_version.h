@@ -375,6 +375,8 @@
  * a parameter that no longer match the content of the dormant license
  * file.
  */
+#define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "5.0"
+
 #if defined(VMX86_TOOLS)
 /* This product doesn't use a license */
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE ""
@@ -390,7 +392,7 @@
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_DESKTOP)
 #    if defined(__APPLE__)
-#      define PRODUCT_LICENSE_VERSION "5.0"
+#      define PRODUCT_LICENSE_VERSION PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE
 #    else
 #      define PRODUCT_LICENSE_VERSION "9.0"
 #    endif

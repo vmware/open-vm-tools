@@ -59,24 +59,24 @@
  *            --------------  NEW  -------------
  *            |                                |
  *           \_/                              \_/
- *     CREATED_NO_MEM <-----------------> CREATED_MEM
+ *     CREATED (nomem) <-----------------> CREATED
  *            |    |                           |
  *            |    o-----------------------o   |
  *            |                            |   |
  *           \_/                          \_/ \_/
- *     ATTACHED_NO_MEM <----------------> ATTACHED_MEM
+ *     ATTACHED (nomem) <----------------> ATTACHED
  *            |                            |   |
  *            |     o----------------------o   |
  *            |     |                          |
  *           \_/   \_/                        \_/
- *     SHUTDOWN_NO_MEM <----------------> SHUTDOWN_MEM
+ *     SHUTDOWN (nomem) <----------------> SHUTDOWN
  *            |                                |
  *            |                                |
  *            -------------> gone <-------------
  *
  * In more detail. When a VMCI queue pair is first created, it will be in the
  * VMCIQPB_NEW state. It will then move into one of the following states:
- * - VMCIQPB_CREATED_NO_MEM: this state indicates that either:
+ * - VMCIQPB_CREATED with hasMem[0] FALSE: this state indicates that either:
  *     - the created was performed by a host endpoint, in which case there is no
  *       backing memory yet.
  *     - the create was initiated by an old-style VMX, that uses
@@ -84,57 +84,51 @@
  *       later point in time. This state can be distinguished from the one above
  *       by the context ID of the creator. A host side is not allowed to attach
  *       until the page store has been set.
- * - VMCIQPB_CREATED_MEM: this state is the result when the queue pair is created
- *     by a VMX using the queue pair device backend that sets the UVAs of the
- *     queue pair immediately and stores the information for later attachers. At
- *     this point, it is ready for the host side to attach to it.
+ * - VMCIQPB_CREATED with hasMem[0] TRUE: this state is the result when the
+ *     queue pair is created by a VMX using the queue pair device backend that
+ *     sets the UVAs of the queue pair immediately and stores the information
+ *     for later attachers. At this point, it is ready for the host side to attach
+ *     to it.
  * Once the queue pair is in one of the created states (with the exception of the
  * case mentioned for older VMX'en above), it is possible to attach to the queue
  * pair. Again we have two new states possible:
- * - VMCIQPB_ATTACHED_MEM: this state can be reached through the following paths:
- *     - from VMCIQPB_CREATED_NO_MEM when a new-style VMX allocates a queue pair,
+ * - VMCIQPB_ATTACHED with hasMem[0] TRUE: this state can be reached through
+ *   the following paths:
+ *     - from VMCIQPB_CREATED without memory when a new-style VMX allocates a queue pair,
  *       and attaches to a queue pair previously created by the host side.
- *     - from VMCIQPB_CREATED_MEM when the host side attaches to a queue pair
+ *     - from VMCIQPB_CREATED with memory when the host side attaches to a queue pair
  *       already created by a guest.
- *     - from VMCIQPB_ATTACHED_NO_MEM, when an old-style VMX calls
+ *     - from VMCIQPB_ATTACHED without memory, when an old-style VMX calls
  *       VMCIQPBroker_SetPageStore (see below).
- * - VMCIQPB_ATTACHED_NO_MEM: If the queue pair already was in the
- *     VMCIQPB_CREATED_NO_MEM due to a host side create, an old-style VMX will
- *     bring the queue pair into this state. Once VMCIQPBroker_SetPageStore is
- *     called to register the user memory, the VMCIQPB_ATTACH_MEM state will be
+ * - VMCIQPB_ATTACHED with hasMem[0] FALSE: If the queue pair already was in the
+ *     VMCIQPB_CREATED without memory due to a host side create, an old-style VMX
+ *     will bring the queue pair into this state. Once VMCIQPBroker_SetPageStore is
+ *     called to register the user memory, the VMCIQPB_ATTACH with memory state will be
  *     entered.
  * From the attached queue pair, the queue pair can enter the shutdown states
  * when either side of the queue pair detaches. If the guest side detaches first,
- * the queue pair will enter the VMCIQPB_SHUTDOWN_NO_MEM state, where the content
+ * the queue pair will enter the VMCIQPB_SHUTDOWN without memory state, where the content
  * of the queue pair will no longer be available. If the host side detaches first,
- * the queue pair will either enter the VMCIQPB_SHUTDOWN_MEM, if the guest memory
- * is currently mapped, or VMCIQPB_SHUTDOWN_NO_MEM, if the guest memory is not
+ * the queue pair will either enter the VMCIQPB_SHUTDOWN with memory, if the guest memory
+ * is currently mapped, or VMCIQPB_SHUTDOWN without memory, if the guest memory is not
  * mapped (e.g., the host detaches while a guest is stunned).
  *
  * New-style VMX'en will also unmap guest memory, if the guest is quiesced, e.g.,
  * during a snapshot operation. In that case, the guest memory will no longer be
- * available, and the queue pair will transition from *_MEM state to a *_NO_MEM
- * state. The VMX may later map the memory once more, in which case the queue
- * pair will transition from the *_NO_MEM state at that point back to the *_MEM
- * state. Note that the *_NO_MEM state may have changed, since the peer may have
- * either attached or detached in the meantime. The values are laid out such that
- * ++ on a state will move from a *_NO_MEM to a *_MEM state, and vice versa.
+ * available, and the queue pair will transition from memory to memory-less state.
+ * The VMX may later map the memory once more, in which case the queue
+ * pair will transition from the memory-less state at that point back to the memory
+ * state.
  */
 
 typedef enum {
    VMCIQPB_NEW,
-   VMCIQPB_CREATED_NO_MEM,
-   VMCIQPB_CREATED_MEM,
-   VMCIQPB_ATTACHED_NO_MEM,
-   VMCIQPB_ATTACHED_MEM,
-   VMCIQPB_SHUTDOWN_NO_MEM,
-   VMCIQPB_SHUTDOWN_MEM,
+   VMCIQPB_CREATED,
+   VMCIQPB_ATTACHED,
+   VMCIQPB_SHUTDOWN,
    VMCIQPB_GONE
 } QPBrokerState;
 
-#define QPBROKERSTATE_HAS_MEM(_qpb) (_qpb->state == VMCIQPB_CREATED_MEM || \
-                                     _qpb->state == VMCIQPB_ATTACHED_MEM || \
-                                     _qpb->state == VMCIQPB_SHUTDOWN_MEM)
 
 /*
  * In the queue pair broker, we always use the guest point of view for
@@ -160,7 +154,8 @@ typedef struct QPBrokerEntry {
    QueuePairEntry       qp;
    VMCIId               createId;
    VMCIId               attachId;
-   QPBrokerState        state;
+   QPBrokerState        stateQP;
+   Bool                 hasMem[2];
    Bool                 requireTrustedAttach;
    Bool                 createdByTrusted;
    Bool                 vmciPageFiles;  // Created by VMX using VMCI page files
@@ -171,6 +166,7 @@ typedef struct QPBrokerEntry {
    VMCIEventReleaseCB   wakeupCB;
    void                *clientData;
    void                *localMem; // Kernel memory for local queue pair
+   Bool                 isVM2VM;
 } QPBrokerEntry;
 
 #if !defined(VMKERNEL)
@@ -256,7 +252,7 @@ static int VMCIQueuePairAllocHostWork(VMCIHandle *handle, VMCIQueue **produceQ,
                                       void *clientData);
 static int VMCIQueuePairDetachHostWork(VMCIHandle handle);
 
-static int QueuePairSaveHeaders(QPBrokerEntry *entry);
+static int QueuePairSaveHeaders(QPBrokerEntry *entry, VMCIId contextId);
 static void QueuePairResetSavedHeaders(QPBrokerEntry *entry);
 
 #if !defined(VMKERNEL)
@@ -283,6 +279,32 @@ static void VMCIQPUnmarkHibernateFailed(QPGuestEndpoint *entry);
 extern int VMCI_SendDatagram(VMCIDatagram *);
 
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQPBEGetIndex --
+ *
+ *      Retrieve index into host's queue structures for queue entry.
+ *
+ * Results:
+ *      0 or 1.  Or crash.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static unsigned int
+VMCIQPBEGetIndex(const QPBrokerEntry *entry,      // IN
+                 VMCIId               contextId)  // IN
+{
+   ASSERT(entry->createId == contextId || entry->attachId == contextId);
+
+   return (entry->isVM2VM && entry->createId != contextId) ? 1 : 0;
+}
 
 
 /*
@@ -909,10 +931,12 @@ VMCIQPBrokerAllocInt(VMCIHandle handle,             // IN
        !(produceSize || consumeSize) ||
        !context || contextId == VMCI_INVALID_ID ||
        handle.context == VMCI_INVALID_ID) {
+      VMCI_DEBUG_LOG(5, ("Invalid argument - handle, flags, whatever\n"));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
    if (pageStore && !VMCI_QP_PAGESTORE_IS_WELLFORMED(pageStore)) {
+      VMCI_DEBUG_LOG(5, ("Invalid argument - page store\n"));
       return VMCI_ERROR_INVALID_ARGS;
    }
 
@@ -1006,12 +1030,14 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
    int result;
    uint64 guestProduceSize;
    uint64 guestConsumeSize;
+   Bool isVM2VM;
 
    /*
     * Do not create if the caller asked not to.
     */
 
    if (flags & VMCI_QPFLAG_ATTACH_ONLY) {
+      VMCI_DEBUG_LOG(5, ("QP Create - attach only\n"));
       return VMCI_ERROR_NOT_FOUND;
    }
 
@@ -1021,10 +1047,14 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
     */
 
    if (handle.context != contextId && handle.context != peer) {
+      VMCI_DEBUG_LOG(5, ("QP Create - contextId fail, %x != %x, %x\n",
+                         handle.context, contextId, peer));
       return VMCI_ERROR_NO_ACCESS;
    }
 
-   if (VMCI_CONTEXT_IS_VM(contextId) && VMCI_CONTEXT_IS_VM(peer)) {
+   isVM2VM = VMCI_CONTEXT_IS_VM(contextId) && VMCI_CONTEXT_IS_VM(peer);
+   if (!vmkernel && isVM2VM) {
+      VMCI_DEBUG_LOG(5, ("QP Create - VM2VM\n"));
       return VMCI_ERROR_DST_UNREACHABLE;
    }
 
@@ -1034,11 +1064,14 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
     */
 
    if (isLocal && peer != VMCI_INVALID_ID && contextId != peer) {
+      VMCI_DEBUG_LOG(5, ("QP Create - peer %x, context %x\n",
+                         peer, contextId));
       return VMCI_ERROR_NO_ACCESS;
    }
 
    entry = VMCI_AllocKernelMem(sizeof *entry, VMCI_MEMORY_ATOMIC);
    if (!entry) {
+      VMCI_DEBUG_LOG(5, ("QP Create - no memory\n"));
       return VMCI_ERROR_NO_MEM;
    }
 
@@ -1067,7 +1100,7 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
    entry->qp.refCount = 1;
    entry->createId = contextId;
    entry->attachId = VMCI_INVALID_ID;
-   entry->state = VMCIQPB_NEW;
+   entry->stateQP = VMCIQPB_NEW;
    entry->requireTrustedAttach =
       (context->privFlags & VMCI_PRIVILEGE_FLAG_RESTRICTED) ? TRUE : FALSE;
    entry->createdByTrusted =
@@ -1075,14 +1108,17 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
    entry->vmciPageFiles = FALSE;
    entry->wakeupCB = wakeupCB;
    entry->clientData = clientData;
+   entry->isVM2VM = FALSE;   /* It is not VM2VM until VM attaches... */
    entry->produceQ = VMCIHost_AllocQueue(guestProduceSize);
    if (entry->produceQ == NULL) {
       result = VMCI_ERROR_NO_MEM;
+      VMCI_DEBUG_LOG(5, ("QP Create - no memory PQ\n"));
       goto error;
    }
    entry->consumeQ = VMCIHost_AllocQueue(guestConsumeSize);
    if (entry->consumeQ == NULL) {
       result = VMCI_ERROR_NO_MEM;
+      VMCI_DEBUG_LOG(5, ("QP Create - no memory CQ\n"));
       goto error;
    }
 
@@ -1097,9 +1133,11 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
                                             VMCI_MEMORY_NONPAGED);
       if (entry->localMem == NULL) {
          result = VMCI_ERROR_NO_MEM;
+         VMCI_DEBUG_LOG(5, ("QP Create - no memory LM\n"));
          goto error;
       }
-      entry->state = VMCIQPB_CREATED_MEM;
+      entry->stateQP = VMCIQPB_CREATED;
+      entry->hasMem[0] = TRUE;
       entry->produceQ->qHeader = entry->localMem;
       entry->consumeQ->qHeader =
          (VMCIQueueHeader *)((uint8 *)entry->localMem +
@@ -1107,21 +1145,23 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
       VMCIQueueHeader_Init(entry->produceQ->qHeader, handle);
       VMCIQueueHeader_Init(entry->consumeQ->qHeader, handle);
    } else if (pageStore) {
-      ASSERT(entry->createId != VMCI_HOST_CONTEXT_ID || isLocal);
+      ASSERT(entry->createId != VMCI_HOST_CONTEXT_ID);
 
       /*
        * The VMX already initialized the queue pair headers, so no
        * need for the kernel side to do that.
        */
 
-      result = VMCIHost_RegisterUserMemory(pageStore,
+      result = VMCIHost_RegisterUserMemory(0, pageStore,
                                            entry->produceQ,
                                            entry->consumeQ);
       if (result < VMCI_SUCCESS) {
+         VMCI_DEBUG_LOG(5, ("QP Create - cannot register user memory\n"));
          goto error;
       }
-      VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
-      entry->state = VMCIQPB_CREATED_MEM;
+      VMCIHost_MarkQueuesAvailable(0, entry->produceQ, entry->consumeQ);
+      entry->stateQP = VMCIQPB_CREATED;
+      entry->hasMem[0] = TRUE;
    } else {
       /*
        * A create without a pageStore may be either a host side create (in which
@@ -1130,7 +1170,7 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
        * call as the next step).
        */
 
-      entry->state = VMCIQPB_CREATED_NO_MEM;
+      entry->stateQP = VMCIQPB_CREATED;
    }
 
    QueuePairList_AddEntry(&qpBrokerList, &entry->qp);
@@ -1205,25 +1245,32 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
    const VMCIId contextId = VMCIContext_GetId(context);
    Bool isLocal = flags & VMCI_QPFLAG_LOCAL;
    int result;
+   Bool isVM2VM;
 
-   if (entry->state != VMCIQPB_CREATED_NO_MEM &&
-       entry->state != VMCIQPB_CREATED_MEM) {
+   if (entry->stateQP != VMCIQPB_CREATED) {
+      VMCI_DEBUG_LOG(5, ("QP Attach - state is %x\n", entry->stateQP));
       return VMCI_ERROR_UNAVAILABLE;
    }
 
    if (isLocal) {
       if (!(entry->qp.flags & VMCI_QPFLAG_LOCAL) ||
           contextId != entry->createId) {
+         VMCI_DEBUG_LOG(5, ("QP Attach - invalid args, ctx=%x, createId=%x\n",
+                            contextId, entry->createId));
          return VMCI_ERROR_INVALID_ARGS;
       }
    } else if (contextId == entry->createId || contextId == entry->attachId) {
+      VMCI_DEBUG_LOG(5, ("QP Attach - already, ctx=%x, create=%x, attach=%x\n",
+                         contextId, entry->createId, entry->attachId));
       return VMCI_ERROR_ALREADY_EXISTS;
    }
 
    ASSERT(entry->qp.refCount < 2);
    ASSERT(entry->attachId == VMCI_INVALID_ID);
 
-   if (VMCI_CONTEXT_IS_VM(contextId) && VMCI_CONTEXT_IS_VM(entry->createId)) {
+   isVM2VM = VMCI_CONTEXT_IS_VM(contextId) && VMCI_CONTEXT_IS_VM(entry->createId);
+   if (!vmkernel && isVM2VM) {
+      VMCI_DEBUG_LOG(5, ("QP Attach - VM2VM\n"));
       return VMCI_ERROR_DST_UNREACHABLE;
    }
 
@@ -1234,6 +1281,7 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
 
    if (context->privFlags & VMCI_PRIVILEGE_FLAG_RESTRICTED) {
       if (!entry->createdByTrusted) {
+         VMCI_DEBUG_LOG(5, ("QP Attach - restricted vs trusted\n"));
          return VMCI_ERROR_NO_ACCESS;
       }
    }
@@ -1245,6 +1293,7 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
 
    if (entry->requireTrustedAttach) {
       if (!(privFlags & VMCI_PRIVILEGE_FLAG_TRUSTED)) {
+         VMCI_DEBUG_LOG(5, ("QP Attach - trusted attach required\n"));
          return VMCI_ERROR_NO_ACCESS;
       }
    }
@@ -1255,6 +1304,8 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
     */
 
    if (entry->qp.peer != VMCI_INVALID_ID && entry->qp.peer != contextId) {
+      VMCI_DEBUG_LOG(5, ("QP Attach - bad peer id %x != %x\n",
+                         contextId, entry->qp.peer));
       return VMCI_ERROR_NO_ACCESS;
    }
 
@@ -1265,6 +1316,7 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
        */
 
       if (!VMCIContext_SupportsHostQP(context)) {
+         VMCI_DEBUG_LOG(5, ("QP Attach - no attach to host qp\n"));
          return VMCI_ERROR_INVALID_RESOURCE;
       }
    } else if (contextId == VMCI_HOST_CONTEXT_ID) {
@@ -1281,15 +1333,17 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
       VMCIContext_Release(createContext);
 
       if (!supportsHostQP) {
+         VMCI_DEBUG_LOG(5, ("QP Attach - no host attach to qp\n"));
          return VMCI_ERROR_INVALID_RESOURCE;
       }
    }
 
    if ((entry->qp.flags & ~VMCI_QP_ASYMM) != (flags & ~VMCI_QP_ASYMM_PEER)) {
+      VMCI_DEBUG_LOG(5, ("QP Attach - flags mismatch\n"));
       return VMCI_ERROR_QUEUEPAIR_MISMATCH;
    }
 
-   if (contextId != VMCI_HOST_CONTEXT_ID) {
+   if (contextId != VMCI_HOST_CONTEXT_ID && !isVM2VM) {
       /*
        * The queue pair broker entry stores values from the guest
        * point of view, so an attaching guest should match the values
@@ -1298,10 +1352,12 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
 
       if (entry->qp.produceSize != produceSize ||
           entry->qp.consumeSize != consumeSize) {
+         VMCI_DEBUG_LOG(5, ("QP Attach - queue size mismatch\n"));
          return VMCI_ERROR_QUEUEPAIR_MISMATCH;
       }
    } else if (entry->qp.produceSize != consumeSize ||
               entry->qp.consumeSize != produceSize) {
+      VMCI_DEBUG_LOG(5, ("QP Attach - host queue size mismatch\n"));
       return VMCI_ERROR_QUEUEPAIR_MISMATCH;
    }
 
@@ -1316,43 +1372,64 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
        * any memory associated with it already.
        */
 
-      if (entry->state != VMCIQPB_CREATED_NO_MEM) {
-         return VMCI_ERROR_INVALID_ARGS;
+      if (isVM2VM) {
+         if (!pageStore || entry->stateQP != VMCIQPB_CREATED) {
+            VMCI_DEBUG_LOG(5, ("QP Attach - bad QP state for VM2VM, %x, %p\n", entry->stateQP, pageStore));
+            return VMCI_ERROR_INVALID_ARGS;
+         }
+      } else {
+         if (entry->stateQP != VMCIQPB_CREATED || entry->hasMem[0]) {
+            VMCI_DEBUG_LOG(5, ("QP Attach - bad QP state, %x\n", entry->stateQP));
+            return VMCI_ERROR_INVALID_ARGS;
+         }
       }
 
       if (pageStore != NULL) {
+         unsigned int index;
+
+         ASSERT(entry->isVM2VM == FALSE);
+         entry->isVM2VM = isVM2VM;
+
          /*
           * Patch up host state to point to guest supplied memory. The VMX
           * already initialized the queue pair headers, so no need for the
           * kernel side to do that.
           */
 
-         result = VMCIHost_RegisterUserMemory(pageStore,
+         index = isVM2VM ? 1 : 0;
+         result = VMCIHost_RegisterUserMemory(index,
+                                              pageStore,
                                               entry->produceQ,
                                               entry->consumeQ);
          if (result < VMCI_SUCCESS) {
+            VMCI_DEBUG_LOG(5, ("QP Attach - cannot register memory\n"));
+            entry->isVM2VM = FALSE;
             return result;
          }
-         VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
+         VMCIHost_MarkQueuesAvailable(index, entry->produceQ, entry->consumeQ);
          if (entry->qp.flags & VMCI_QPFLAG_NONBLOCK) {
-            result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ,
+            result = VMCIHost_MapQueues(index, entry->produceQ, entry->consumeQ,
                                         entry->qp.flags);
             if (result < VMCI_SUCCESS) {
-               VMCIHost_ReleaseUserMemory(entry->produceQ, entry->consumeQ);
+               VMCIHost_ReleaseUserMemory(index, entry->produceQ, entry->consumeQ);
+               entry->isVM2VM = FALSE;
+               VMCI_DEBUG_LOG(5, ("QP Attach - cannot map queues\n"));
                return result;
             }
          }
-         entry->state = VMCIQPB_ATTACHED_MEM;
+         entry->stateQP = VMCIQPB_ATTACHED;
+         entry->hasMem[index] = TRUE;
       } else {
-         entry->state = VMCIQPB_ATTACHED_NO_MEM;
+         entry->stateQP = VMCIQPB_ATTACHED;
       }
-   } else if (entry->state == VMCIQPB_CREATED_NO_MEM) {
+   } else if (entry->stateQP == VMCIQPB_CREATED && !entry->hasMem[0]) {
       /*
        * The host side is attempting to attach to a queue pair that doesn't have
        * any memory associated with it. This must be a pre NOVMVM vmx that hasn't
        * set the page store information yet, or a quiesced VM.
        */
 
+      VMCI_DEBUG_LOG(5, ("QP Attach - QP without memory\n"));
       return VMCI_ERROR_UNAVAILABLE;
    } else {
       /*
@@ -1362,9 +1439,19 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
        */
 
       if (flags & VMCI_QPFLAG_NONBLOCK) {
-         result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ, flags);
-         if (result < VMCI_SUCCESS) {
-            return result;
+         /*
+          * We only have to do work here if this is a host-to-VM queuepair.
+          * Otherwise there's nothing to map, since the pages backing the
+          * queues are allocated directly out of host memory.
+          */
+
+         if (!isLocal) {
+            VMCIHost_MarkQueuesAvailable(0, entry->produceQ, entry->consumeQ);
+            result = VMCIHost_MapQueues(0, entry->produceQ, entry->consumeQ, flags);
+            if (result < VMCI_SUCCESS) {
+               VMCI_DEBUG_LOG(5, ("QP Attach - cannot map queues for host\n"));
+               return result;
+            }
          }
          entry->qp.flags |= flags & (VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED);
       }
@@ -1373,10 +1460,10 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
        * The host side has successfully attached to a queue pair.
        */
 
-      entry->state = VMCIQPB_ATTACHED_MEM;
+      entry->stateQP = VMCIQPB_ATTACHED;
    }
 
-   if (entry->state == VMCIQPB_ATTACHED_MEM) {
+   if (entry->stateQP == VMCIQPB_ATTACHED && entry->hasMem[0] && (!entry->isVM2VM || entry->hasMem[1])) {
       result = QueuePairNotifyPeer(TRUE, entry->qp.handle, contextId,
                                    entry->createId);
       if (result < VMCI_SUCCESS) {
@@ -1450,6 +1537,7 @@ VMCIQPBroker_SetPageStore(VMCIHandle handle,      // IN
    QPBrokerEntry *entry;
    int result;
    const VMCIId contextId = VMCIContext_GetId(context);
+   unsigned int index;
 
    if (VMCI_HANDLE_INVALID(handle) || !context || contextId == VMCI_INVALID_ID) {
       return VMCI_ERROR_INVALID_ARGS;
@@ -1494,33 +1582,30 @@ VMCIQPBroker_SetPageStore(VMCIHandle handle,      // IN
       goto out;
    }
 
-   if (entry->state != VMCIQPB_CREATED_NO_MEM &&
-       entry->state != VMCIQPB_ATTACHED_NO_MEM) {
+   index = VMCIQPBEGetIndex(entry, contextId);
+
+   if (entry->hasMem[index] ||
+       (entry->stateQP != VMCIQPB_CREATED && entry->stateQP == VMCIQPB_ATTACHED)) {
       result = VMCI_ERROR_UNAVAILABLE;
       goto out;
    }
 
-   result = VMCIHost_GetUserMemory(produceUVA, consumeUVA,
+   result = VMCIHost_GetUserMemory(index, produceUVA, consumeUVA,
                                    entry->produceQ, entry->consumeQ);
    if (result < VMCI_SUCCESS) {
       goto out;
    }
-   VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
-   result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ, FALSE);
+   VMCIHost_MarkQueuesAvailable(index, entry->produceQ, entry->consumeQ);
+   result = VMCIHost_MapQueues(index, entry->produceQ, entry->consumeQ, 0);
    if (result < VMCI_SUCCESS) {
-     VMCIHost_ReleaseUserMemory(entry->produceQ, entry->consumeQ);
+     VMCIHost_ReleaseUserMemory(index, entry->produceQ, entry->consumeQ);
      goto out;
    }
 
-   if (entry->state == VMCIQPB_CREATED_NO_MEM) {
-      entry->state = VMCIQPB_CREATED_MEM;
-   } else {
-      ASSERT(entry->state == VMCIQPB_ATTACHED_NO_MEM);
-      entry->state = VMCIQPB_ATTACHED_MEM;
-   }
+   entry->hasMem[index] = TRUE;
    entry->vmciPageFiles = TRUE;
 
-   if (entry->state == VMCIQPB_ATTACHED_MEM) {
+   if (entry->stateQP == VMCIQPB_ATTACHED && entry->hasMem[0] && (!entry->isVM2VM || entry->hasMem[1])) {
       result = QueuePairNotifyPeer(TRUE, handle, contextId, entry->createId);
       if (result < VMCI_SUCCESS) {
          VMCI_WARNING((LGPFX"Failed to notify peer (ID=0x%x) of attach to queue "
@@ -1576,6 +1661,7 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
    VMCIId peerId;
    Bool isLocal = FALSE;
    int result;
+   unsigned int index;
 
    if (VMCI_HANDLE_INVALID(handle) || !context || contextId == VMCI_INVALID_ID) {
       return VMCI_ERROR_INVALID_ARGS;
@@ -1605,6 +1691,8 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
       goto out;
    }
 
+   index = VMCIQPBEGetIndex(entry, contextId);
+
    if (contextId == entry->createId) {
       peerId = entry->attachId;
       entry->createId = VMCI_INVALID_ID;
@@ -1630,8 +1718,9 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
 
       VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
       headersMapped = entry->produceQ->qHeader || entry->consumeQ->qHeader;
-      if (QPBROKERSTATE_HAS_MEM(entry)) {
-         result = VMCIHost_UnmapQueues(INVALID_VMCI_GUEST_MEM_ID,
+      if (entry->hasMem[index]) {
+         VMCIHost_MarkQueuesUnavailable(index, entry->produceQ, entry->consumeQ);
+         result = VMCIHost_UnmapQueues(index, INVALID_VMCI_GUEST_MEM_ID,
                                        entry->produceQ,
                                        entry->consumeQ);
          if (result < VMCI_SUCCESS) {
@@ -1639,15 +1728,18 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
                           "(handle=0x%x:0x%x,result=%d).\n", handle.context,
                           handle.resource, result));
          }
-         VMCIHost_MarkQueuesUnavailable(entry->produceQ, entry->consumeQ);
          if (entry->vmciPageFiles) {
-            VMCIHost_ReleaseUserMemory(entry->produceQ, entry->consumeQ);
+            VMCIHost_ReleaseUserMemory(index, entry->produceQ, entry->consumeQ);
          } else {
-            VMCIHost_UnregisterUserMemory(entry->produceQ, entry->consumeQ);
+            VMCIHost_UnregisterUserMemory(index, entry->produceQ, entry->consumeQ);
          }
+         entry->hasMem[index] = FALSE;
       }
       if (!headersMapped) {
          QueuePairResetSavedHeaders(entry);
+      }
+      if (index == 1) {
+         entry->isVM2VM = FALSE;
       }
       VMCI_ReleaseQueueMutex(entry->produceQ);
       if (!headersMapped && entry->wakeupCB) {
@@ -1665,7 +1757,10 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
 
       if (isLocal) {
          VMCI_FreeKernelMem(entry->localMem, QPE_NUM_PAGES(entry->qp) * PAGE_SIZE);
+         entry->hasMem[0] = FALSE;
       }
+      ASSERT(entry->hasMem[0] == FALSE);
+      ASSERT(entry->hasMem[1] == FALSE);
       VMCI_CleanupQueueMutex(entry->produceQ, entry->consumeQ);
       VMCIHost_FreeQueue(entry->produceQ, entry->qp.produceSize);
       VMCIHost_FreeQueue(entry->consumeQ, entry->qp.consumeSize);
@@ -1675,11 +1770,7 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
    } else {
       ASSERT(peerId != VMCI_INVALID_ID);
       QueuePairNotifyPeer(FALSE, handle, contextId, peerId);
-      if (contextId == VMCI_HOST_CONTEXT_ID && QPBROKERSTATE_HAS_MEM(entry)) {
-         entry->state = VMCIQPB_SHUTDOWN_MEM;
-      } else {
-         entry->state = VMCIQPB_SHUTDOWN_NO_MEM;
-      }
+      entry->stateQP = VMCIQPB_SHUTDOWN;
       if (!isLocal) {
          VMCIContext_QueuePairDestroy(context, handle);
       }
@@ -1719,6 +1810,8 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
    const VMCIId contextId = VMCIContext_GetId(context);
    Bool isLocal = FALSE;
    int result;
+   unsigned int endpoint;
+   unsigned int index;
 
    if (VMCI_HANDLE_INVALID(handle) || !context || contextId == VMCI_INVALID_ID) {
       return VMCI_ERROR_INVALID_ARGS;
@@ -1747,6 +1840,8 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
       result = VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
       goto out;
    }
+   index = VMCIQPBEGetIndex(entry, contextId);
+   endpoint = contextId == entry->createId ? 0 : 1;
 
    isLocal = entry->qp.flags & VMCI_QPFLAG_LOCAL;
 
@@ -1757,9 +1852,9 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
        */
 
       VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
-      VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
+      VMCIHost_MarkQueuesAvailable(index, entry->produceQ, entry->consumeQ);
       if (entry->qp.flags & VMCI_QPFLAG_NONBLOCK) {
-         result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ,
+         result = VMCIHost_MapQueues(index, entry->produceQ, entry->consumeQ,
                                      entry->qp.flags);
       } else {
          result = VMCI_SUCCESS;
@@ -1776,9 +1871,9 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
    } else  if (contextId != VMCI_HOST_CONTEXT_ID) {
       QueuePairPageStore pageStore;
 
-      ASSERT(entry->state == VMCIQPB_CREATED_NO_MEM ||
-             entry->state == VMCIQPB_SHUTDOWN_NO_MEM ||
-             entry->state == VMCIQPB_ATTACHED_NO_MEM);
+      ASSERT((entry->stateQP == VMCIQPB_CREATED ||
+              entry->stateQP == VMCIQPB_SHUTDOWN ||
+              entry->stateQP == VMCIQPB_ATTACHED) && !entry->hasMem[0]);
       ASSERT(!isLocal);
 
       pageStore.pages = guestMem;
@@ -1786,20 +1881,11 @@ VMCIQPBroker_Map(VMCIHandle  handle,      // IN
 
       VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
       QueuePairResetSavedHeaders(entry);
-      result = VMCIHost_RegisterUserMemory(&pageStore, entry->produceQ, entry->consumeQ);
-      VMCIHost_MarkQueuesAvailable(entry->produceQ, entry->consumeQ);
+      result = VMCIHost_RegisterUserMemory(index, &pageStore, entry->produceQ, entry->consumeQ);
+      VMCIHost_MarkQueuesAvailable(index, entry->produceQ, entry->consumeQ);
       VMCI_ReleaseQueueMutex(entry->produceQ);
       if (result == VMCI_SUCCESS) {
-         /*
-          * Move state from *_NO_MEM to *_MEM.
-          */
-
-         entry->state++;
-
-         ASSERT(entry->state == VMCIQPB_CREATED_MEM ||
-                entry->state == VMCIQPB_SHUTDOWN_MEM ||
-                entry->state == VMCIQPB_ATTACHED_MEM);
-
+         entry->hasMem[index] = TRUE;
          if (entry->wakeupCB) {
             entry->wakeupCB(entry->clientData);
          }
@@ -1833,7 +1919,8 @@ out:
  */
 
 static int
-QueuePairSaveHeaders(QPBrokerEntry *entry) // IN
+QueuePairSaveHeaders(QPBrokerEntry *entry, // IN
+                     VMCIId contextId)     // IN
 {
    int result;
 
@@ -1844,11 +1931,21 @@ QueuePairSaveHeaders(QPBrokerEntry *entry) // IN
        *  it again, and we don't want to map in the headers
        *  unnecessarily.
        */
-
       return VMCI_SUCCESS;
    }
    if (NULL == entry->produceQ->qHeader || NULL == entry->consumeQ->qHeader) {
-      result = VMCIHost_MapQueues(entry->produceQ, entry->consumeQ, FALSE);
+      unsigned int index;
+
+      /*
+       * If this is second VM, do not save headers: qHeader is for VM which
+       * created queue pair only.  And no API which uses savedHeader should
+       * be used together with VM2VM queue pair anyway.
+       */
+      index = VMCIQPBEGetIndex(entry, contextId);
+      if (index != 0) {
+         return VMCI_SUCCESS;
+      }
+      result = VMCIHost_MapQueues(index, entry->produceQ, entry->consumeQ, 0);
       if (result < VMCI_SUCCESS) {
          return result;
       }
@@ -1924,6 +2021,7 @@ VMCIQPBroker_Unmap(VMCIHandle  handle,   // IN
    const VMCIId contextId = VMCIContext_GetId(context);
    Bool isLocal = FALSE;
    int result;
+   unsigned int index;
 
    if (VMCI_HANDLE_INVALID(handle) || !context || contextId == VMCI_INVALID_ID) {
       return VMCI_ERROR_INVALID_ARGS;
@@ -1951,24 +2049,22 @@ VMCIQPBroker_Unmap(VMCIHandle  handle,   // IN
       result = VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
       goto out;
    }
-
+   index = VMCIQPBEGetIndex(entry, contextId);
    isLocal = entry->qp.flags & VMCI_QPFLAG_LOCAL;
 
    if (contextId != VMCI_HOST_CONTEXT_ID) {
-      ASSERT(entry->state != VMCIQPB_CREATED_NO_MEM &&
-             entry->state != VMCIQPB_SHUTDOWN_NO_MEM &&
-             entry->state != VMCIQPB_ATTACHED_NO_MEM);
+      ASSERT(entry->hasMem[index]);
       ASSERT(!isLocal);
 
       VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
-      result = QueuePairSaveHeaders(entry);
+      result = QueuePairSaveHeaders(entry, contextId);
       if (result < VMCI_SUCCESS) {
          VMCI_WARNING((LGPFX"Failed to save queue headers for queue pair "
                        "(handle=0x%x:0x%x,result=%d).\n", handle.context,
                        handle.resource, result));
       }
-      VMCIHost_UnmapQueues(gid, entry->produceQ, entry->consumeQ);
-      VMCIHost_MarkQueuesUnavailable(entry->produceQ, entry->consumeQ);
+      VMCIHost_MarkQueuesUnavailable(index, entry->produceQ, entry->consumeQ);
+      VMCIHost_UnmapQueues(index, gid, entry->produceQ, entry->consumeQ);
       if (!vmkernel) {
          /*
           * On hosted, when we unmap queue pairs, the VMX will also
@@ -1978,13 +2074,8 @@ VMCIQPBroker_Unmap(VMCIHandle  handle,   // IN
           * memory with a possibly new user VA.
           */
 
-         VMCIHost_UnregisterUserMemory(entry->produceQ, entry->consumeQ);
-
-         /*
-          * Move state from *_MEM to *_NO_MEM.
-          */
-
-         entry->state--;
+         VMCIHost_UnregisterUserMemory(index, entry->produceQ, entry->consumeQ);
+         entry->hasMem[index] = FALSE;
       }
 
       VMCI_ReleaseQueueMutex(entry->produceQ);

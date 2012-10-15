@@ -1886,13 +1886,15 @@ VMCIReleasePages(struct page **pages,  // IN
  */
 
 int
-VMCIHost_RegisterUserMemory(QueuePairPageStore *pageStore,  // IN
+VMCIHost_RegisterUserMemory(unsigned int index,             // IN
+                            QueuePairPageStore *pageStore,  // IN
                             VMCIQueue *produceQ,            // OUT
                             VMCIQueue *consumeQ)            // OUT
 {
    VA64 produceUVA;
    VA64 consumeUVA;
 
+   ASSERT(index == 0);
    ASSERT(produceQ->kernelIf->headerPage && consumeQ->kernelIf->headerPage);
 
    /*
@@ -1903,7 +1905,7 @@ VMCIHost_RegisterUserMemory(QueuePairPageStore *pageStore,  // IN
 
    produceUVA = pageStore->pages;
    consumeUVA = pageStore->pages + produceQ->kernelIf->numPages * PAGE_SIZE;
-   return VMCIHost_GetUserMemory(produceUVA, consumeUVA, produceQ, consumeQ);
+   return VMCIHost_GetUserMemory(index, produceUVA, consumeUVA, produceQ, consumeQ);
 }
 
 
@@ -1926,9 +1928,11 @@ VMCIHost_RegisterUserMemory(QueuePairPageStore *pageStore,  // IN
  */
 
 void
-VMCIHost_UnregisterUserMemory(VMCIQueue *produceQ,         // IN/OUT
+VMCIHost_UnregisterUserMemory(unsigned int index,          // IN
+                              VMCIQueue *produceQ,         // IN/OUT
                               VMCIQueue *consumeQ)         // IN/OUT
 {
+   ASSERT(index == 0);
    ASSERT(produceQ->kernelIf);
    ASSERT(consumeQ->kernelIf);
    ASSERT(!produceQ->qHeader && !consumeQ->qHeader);
@@ -1963,12 +1967,14 @@ VMCIHost_UnregisterUserMemory(VMCIQueue *produceQ,         // IN/OUT
  */
 
 int
-VMCIHost_MapQueues(VMCIQueue *produceQ,  // IN/OUT
+VMCIHost_MapQueues(unsigned int index,   // IN
+                   VMCIQueue *produceQ,  // IN/OUT
                    VMCIQueue *consumeQ,  // IN/OUT
                    uint32 flags)         // UNUSED
 {
    int result;
 
+   ASSERT(index == 0);
    if (!produceQ->qHeader || !consumeQ->qHeader) {
       struct page *headers[2];
 
@@ -2020,10 +2026,12 @@ VMCIHost_MapQueues(VMCIQueue *produceQ,  // IN/OUT
  */
 
 int
-VMCIHost_UnmapQueues(VMCIGuestMemID gid,   // IN
+VMCIHost_UnmapQueues(unsigned int index,   // IN
+                     VMCIGuestMemID gid,   // IN
                      VMCIQueue *produceQ,  // IN/OUT
                      VMCIQueue *consumeQ)  // IN/OUT
 {
+   ASSERT(index == 0);
    if (produceQ->qHeader) {
       ASSERT(consumeQ->qHeader);
 
@@ -2060,7 +2068,8 @@ VMCIHost_UnmapQueues(VMCIGuestMemID gid,   // IN
  */
 
 int
-VMCIHost_GetUserMemory(VA64 produceUVA,       // IN
+VMCIHost_GetUserMemory(unsigned int index,    // IN
+                       VA64 produceUVA,       // IN
                        VA64 consumeUVA,       // IN
                        VMCIQueue *produceQ,   // OUT
                        VMCIQueue *consumeQ)   // OUT
@@ -2068,6 +2077,7 @@ VMCIHost_GetUserMemory(VA64 produceUVA,       // IN
    int retval;
    int err = VMCI_SUCCESS;
 
+   ASSERT(index == 0);
    down_write(&current->mm->mmap_sem);
    retval = get_user_pages(current,
                            current->mm,
@@ -2123,12 +2133,14 @@ out:
  */
 
 void
-VMCIHost_ReleaseUserMemory(VMCIQueue *produceQ,  // IN/OUT
+VMCIHost_ReleaseUserMemory(unsigned int index,   // IN
+                           VMCIQueue *produceQ,  // IN/OUT
                            VMCIQueue *consumeQ)  // IN/OUT
 {
+   ASSERT(index == 0);
    ASSERT(produceQ->kernelIf->headerPage);
 
-   VMCIHost_UnregisterUserMemory(produceQ, consumeQ);
+   VMCIHost_UnregisterUserMemory(index, produceQ, consumeQ);
 }
 
 

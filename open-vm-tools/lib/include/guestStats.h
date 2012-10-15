@@ -30,6 +30,8 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
+#include "vm_basic_types.h"
+
 typedef
 #include "vmware_pack_begin.h"
 struct GuestMemInfo {

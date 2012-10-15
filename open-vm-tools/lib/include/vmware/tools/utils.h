@@ -131,6 +131,9 @@ typedef gboolean (*SignalSourceCb)(const siginfo_t *, gpointer);
 GSource *
 VMTools_NewSignalSource(int signum);
 
+gchar *
+VMTools_GetLibdir(void);
+
 #endif
 
 GSource *
