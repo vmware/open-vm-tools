@@ -391,7 +391,7 @@ Backdoor_MonitorUnlockPagesBatched(Balloon *b,          // IN
                                    PPN64 ppn,           // IN
                                    uint32 nPages)       // IN
 {
-   int status = BackdoorCmd(BALLOON_BDOOR_CMD_BATCHED_LOCK,
+   int status = BackdoorCmd(BALLOON_BDOOR_CMD_BATCHED_UNLOCK,
                             (size_t)ppn, nPages, NULL, &b->resetFlag);
 
    /* update stats */
