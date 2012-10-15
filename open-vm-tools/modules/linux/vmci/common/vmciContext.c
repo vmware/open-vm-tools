@@ -171,11 +171,11 @@ VMCIContext_CheckAndSignalNotify(VMCIContext *context) // IN:
    VMCILockFlags flags;
 
    ASSERT(context);
-   VMCI_GrabLock(&contextList.lock, &flags);
+   VMCI_GrabLock(&context->lock, &flags);
    if (context->pendingDatagrams) {
       VMCIContextSignalNotify(context);
    }
-   VMCI_ReleaseLock(&contextList.lock, flags);
+   VMCI_ReleaseLock(&context->lock, flags);
 }
 #endif
 
