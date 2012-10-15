@@ -27,24 +27,24 @@
 
 struct KeyLocatorState;
 
-extern void Preference_DisableUserPreferences(void);
-extern Bool Preference_Init(void);
-extern Bool Preference_InitEx(struct KeyLocatorState *klState);
-extern void Preference_Exit(void);
-extern Bool Preference_GetBool(Bool defaultValue, const char *fmt);
-extern int32 Preference_GetTriState(int32 defaultValue, const char *fmt);
-extern int32 Preference_GetLong(int32 defaultValue, const char *fmt);
-extern int64 Preference_GetInt64(int64 defaultvalue, const char *fmt);
-extern double Preference_GetDouble(double defaultValue, const char *fmt);
-extern char *Preference_GetString(const char *defaultValue, const char *fmt);
-extern char *Preference_GetStringPlain(const char *defaultValue, const char *fmt);
-extern char *Preference_GetStringEnum(const void *defaultValue,
-                                      const char **choices,
-                                      const char *name);
-extern int32 Preference_Generation(void);
-extern void Preference_Log(void);
-extern char *Preference_GetPathName(const char *defaultValue, const char *fmt);
-extern void Preference_SetFromString(const char *string, Bool overwrite);
-extern Bool Preference_NotSet(const char *fmt);
+void Preference_DisableUserPreferences(void);
+Bool Preference_Init(void);
+Bool Preference_InitEx(struct KeyLocatorState *klState);
+void Preference_Exit(void);
+Bool Preference_GetBool(Bool defaultValue, const char *fmt);
+int32 Preference_GetTriState(int32 defaultValue, const char *fmt);
+int32 Preference_GetLong(int32 defaultValue, const char *fmt);
+int64 Preference_GetInt64(int64 defaultvalue, const char *fmt);
+double Preference_GetDouble(double defaultValue, const char *fmt);
+char *Preference_GetString(const char *defaultValue, const char *fmt);
+char *Preference_GetStringPlain(const char *defaultValue, const char *fmt);
+char *Preference_GetStringEnum(const void *defaultValue,
+                               const char **choices,
+                               const char *name);
+int32 Preference_Generation(void);
+void Preference_Log(void);
+char *Preference_GetPathName(const char *defaultValue, const char *fmt);
+void Preference_SetFromString(const char *string, Bool overwrite);
+Bool Preference_NotSet(const char *fmt);
 
 #endif

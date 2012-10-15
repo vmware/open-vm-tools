@@ -40,27 +40,27 @@ typedef enum {
    HOSTINFO_PROCESS_QUERY_UNKNOWN  // Process existence cannot be determined
 } HostinfoProcessQuery;
 
-extern HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
+HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
 
-extern Unicode Hostinfo_NameGet(void);	/* don't free result */
-extern Unicode Hostinfo_HostName(void);	/* free result */
+Unicode Hostinfo_NameGet(void);	/* don't free result */
+Unicode Hostinfo_HostName(void);	/* free result */
 
-extern void Hostinfo_MachineID(uint32 *hostNameHash,
-                               uint64 *hostHardwareID);
+void Hostinfo_MachineID(uint32 *hostNameHash,
+                        uint64 *hostHardwareID);
 
-extern Bool Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,
-                                          unsigned int *maxSize,
-				          unsigned int *currentSize);
+Bool Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,
+                                   unsigned int *maxSize,
+       unsigned int *currentSize);
 #ifdef __linux__
-extern Bool Hostinfo_GetSwapInfoInPages(unsigned int *totalSwap,
-                                        unsigned int *freeSwap);
+Bool Hostinfo_GetSwapInfoInPages(unsigned int *totalSwap,
+                                 unsigned int *freeSwap);
 #endif
-extern Bool Hostinfo_GetRatedCpuMhz(int32 cpuNumber,
-                                    uint32 *mHz);
-extern char *Hostinfo_GetCpuDescription(uint32 cpuNumber);
-extern void Hostinfo_GetTimeOfDay(VmTimeType *time);
-extern VmTimeType Hostinfo_SystemUpTime(void);
-extern VmTimeType Hostinfo_SystemTimerNS(void);
+Bool Hostinfo_GetRatedCpuMhz(int32 cpuNumber,
+                             uint32 *mHz);
+char *Hostinfo_GetCpuDescription(uint32 cpuNumber);
+void Hostinfo_GetTimeOfDay(VmTimeType *time);
+VmTimeType Hostinfo_SystemUpTime(void);
+VmTimeType Hostinfo_SystemTimerNS(void);
 
 static INLINE VmTimeType
 Hostinfo_SystemTimerUS(void)
@@ -74,30 +74,30 @@ Hostinfo_SystemTimerMS(void)
    return Hostinfo_SystemTimerNS() / 1000000ULL;
 }
 
-extern int Hostinfo_OSVersion(unsigned int i);
-extern int Hostinfo_GetSystemBitness(void);
-extern const char *Hostinfo_OSVersionString(void);
+int Hostinfo_OSVersion(unsigned int i);
+int Hostinfo_GetSystemBitness(void);
+const char *Hostinfo_OSVersionString(void);
 
-extern char *Hostinfo_GetOSName(void);
-extern char *Hostinfo_GetOSGuestString(void);
+char *Hostinfo_GetOSName(void);
+char *Hostinfo_GetOSGuestString(void);
 
-extern Bool Hostinfo_OSIsSMP(void);
+Bool Hostinfo_OSIsSMP(void);
 
 #if defined(_WIN32)
-extern Bool Hostinfo_OSIsWinNT(void);
-extern Bool Hostinfo_OSIsWow64(void);
-extern Bool Hostinfo_TSCInvariant(void);
+Bool Hostinfo_OSIsWinNT(void);
+Bool Hostinfo_OSIsWow64(void);
+Bool Hostinfo_TSCInvariant(void);
 DWORD Hostinfo_OpenProcessBits(void);
 DWORD Hostinfo_OpenThreadBits(void);
 #else
-extern void Hostinfo_ResetProcessState(const int *keepFds,
-                                       size_t numKeepFds);
+void Hostinfo_ResetProcessState(const int *keepFds,
+                                size_t numKeepFds);
 
-extern int Hostinfo_Execute(const char *path,
-                            char * const *args,
-                            Bool wait,
-                            const int *keepFds,
-                            size_t numKeepFds);
+int Hostinfo_Execute(const char *path,
+                     char * const *args,
+                     Bool wait,
+                     const int *keepFds,
+                     size_t numKeepFds);
 
 typedef enum HostinfoDaemonizeFlags {
    HOSTINFO_DAEMONIZE_DEFAULT = 0,
@@ -107,31 +107,31 @@ typedef enum HostinfoDaemonizeFlags {
    HOSTINFO_DAEMONIZE_LOCKPID = (1 << 3),
 } HostinfoDaemonizeFlags;
 
-extern Bool Hostinfo_Daemonize(const char *path,
-                               char * const *args,
-                               HostinfoDaemonizeFlags flags,
-                               const char *pidPath,
-                               const int *keepFds,
-                               size_t numKeepFds);
+Bool Hostinfo_Daemonize(const char *path,
+                        char * const *args,
+                        HostinfoDaemonizeFlags flags,
+                        const char *pidPath,
+                        const int *keepFds,
+                        size_t numKeepFds);
 #endif
 
-extern Bool Hostinfo_NestingSupported(void);
-extern Bool Hostinfo_VCPUInfoBackdoor(unsigned bit);
-extern Bool Hostinfo_SLC64Supported(void);
-extern Bool Hostinfo_SynchronizedVTSCs(void);
-extern Bool Hostinfo_NestedHVReplaySupported(void);
-extern Bool Hostinfo_TouchBackDoor(void);
-extern Bool Hostinfo_TouchVirtualPC(void);
-extern Bool Hostinfo_TouchXen(void);
-extern char *Hostinfo_HypervisorCPUIDSig(void);
+Bool Hostinfo_NestingSupported(void);
+Bool Hostinfo_VCPUInfoBackdoor(unsigned bit);
+Bool Hostinfo_SLC64Supported(void);
+Bool Hostinfo_SynchronizedVTSCs(void);
+Bool Hostinfo_NestedHVReplaySupported(void);
+Bool Hostinfo_TouchBackDoor(void);
+Bool Hostinfo_TouchVirtualPC(void);
+Bool Hostinfo_TouchXen(void);
+char *Hostinfo_HypervisorCPUIDSig(void);
 
 #define HGMP_PRIVILEGE    0
 #define HGMP_NO_PRIVILEGE 1
-extern Unicode Hostinfo_GetModulePath(uint32 priv);
-extern char *Hostinfo_GetLibraryPath(void *addr);
+Unicode Hostinfo_GetModulePath(uint32 priv);
+char *Hostinfo_GetLibraryPath(void *addr);
 
-extern Unicode Hostinfo_GetUser(void);
-extern void Hostinfo_LogMemUsage(void);
+Unicode Hostinfo_GetUser(void);
+void Hostinfo_LogMemUsage(void);
 
 
 /*
@@ -154,14 +154,14 @@ typedef struct {
 } HostinfoCpuIdInfo;
 
 
-extern uint32 Hostinfo_NumCPUs(void);
-extern char *Hostinfo_GetCpuidStr(void);
-extern Bool Hostinfo_GetCpuid(HostinfoCpuIdInfo *info);
+uint32 Hostinfo_NumCPUs(void);
+char *Hostinfo_GetCpuidStr(void);
+Bool Hostinfo_GetCpuid(HostinfoCpuIdInfo *info);
 
 #if !defined(VMX86_SERVER)
-extern Bool Hostinfo_CPUCounts(uint32 *logical,
-                               uint32 *cores,
-                               uint32 *pkgs);
+Bool Hostinfo_CPUCounts(uint32 *logical,
+                        uint32 *cores,
+                        uint32 *pkgs);
 #endif
 
 #if defined(_WIN32)
