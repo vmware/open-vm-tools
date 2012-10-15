@@ -225,10 +225,12 @@
    GOSL(STR_OS_MACOS "11",                   GUEST_OS_DARWIN11)             \
    GOSL(STR_OS_MACOS "11-64",                GUEST_OS_DARWIN11_64)          \
    GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN12_64)          \
+   GOSL(STR_OS_MACOS "13-64",                GUEST_OS_DARWIN12_64)          \
    GOSL("other",                             GUEST_OS_OTHER)                \
    GOSL("other-64",                          GUEST_OS_OTHER_64)             \
    GOSL("vmkernel",                          GUEST_OS_VMKERNEL)             \
    GOSL("vmkernel5",                         GUEST_OS_VMKERNEL5)            \
+   GOSL("vmkernel6",                         GUEST_OS_VMKERNEL5)            \
    GOSL("openserver5",                       GUEST_OS_OPENSERVER_5_AND_6)   \
    GOSL("openserver6",                       GUEST_OS_OPENSERVER_5_AND_6)   \
    GOSL("unixware7",                         GUEST_OS_UNIXWARE7)            \
