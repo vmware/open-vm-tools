@@ -133,12 +133,12 @@ static void VThreadBaseSimpleFreeID(void *tlsData);
 static void VThreadBaseSafeDeleteTLS(void *data);
 
 static struct {
-   Atomic_Int key;
-   Atomic_Int dynamicID;
-   Atomic_Int numThreads;
-   Atomic_Ptr nativeHash;
-   void (*noIDFunc)(void);
-   void (*freeIDFunc)(void *);
+   Atomic_Int   key;
+   Atomic_Int   dynamicID;
+   Atomic_Int   numThreads;
+   Atomic_Ptr   nativeHash;
+   void       (*noIDFunc)(void);
+   void       (*freeIDFunc)(void *);
 } vthreadBaseGlobals = {
    { VTHREADBASE_INVALID_KEY },
    { VTHREAD_ALLOCSTART_ID },
@@ -933,16 +933,23 @@ VThreadBaseNativeIsAlive(void *native)
    HANDLE hThread = OpenThread(Hostinfo_OpenThreadBits(), FALSE,
                                (DWORD)(uintptr_t)native);
 
-   if (hThread != NULL) {
-      DWORD exitCode;
-      BOOL success;
+   if (hThread == NULL) {
+      /*
+       * An access denied error tells us that the process is alive despite
+       * the inability of accessing its information. Commonly, access denied
+       * occurs when a process is trying to completely protect itself (e.g.
+       * a virus checker).
+       */
 
-      success = GetExitCodeThread(hThread, &exitCode);
+      return (GetLastError() == ERROR_ACCESS_DENIED) ? TRUE : FALSE;
+   } else {
+      DWORD exitCode;
+      BOOL success = GetExitCodeThread(hThread, &exitCode);
+
       ASSERT(success);  /* No known ways GetExitCodeThread can fail */
       CloseHandle(hThread);
+
       return exitCode == STILL_ACTIVE;
-   } else {
-      return FALSE;
    }
 }
 #endif
