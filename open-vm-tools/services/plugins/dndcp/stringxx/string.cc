@@ -297,12 +297,6 @@ string::string(const char *s,           // IN
  *
  *      Constructor.
  *
- *      XXX: When initializing mUstr, we do a deep copy of the string data
- *      instead of just calling mUstr(s). This is because Glib::ustring is very
- *      smart about sharing storage, and zero_clear is very dumb. Once we get
- *      rid of zero_clear and have a separate sensitive-string class, this can
- *      go back to being simple.
- *
  * Results:
  *      None.
  *
@@ -313,11 +307,7 @@ string::string(const char *s,           // IN
  */
 
 string::string(const Glib::ustring& s) // IN
-#ifdef I_LOVE_STRICT_SENSITIVESTRING
    : mUstr(s),
-#else
-   : mUstr(s.c_str()),
-#endif
      mUtf16Cache(NULL),
      mUtf16Length(npos)
 {
@@ -332,12 +322,6 @@ string::string(const Glib::ustring& s) // IN
  *
  *      Copy constructor.
  *
- *      XXX: When initializing mUstr, we do a deep copy of the string data
- *      instead of just calling mUstr(s). This is because Glib::ustring is very
- *      smart about sharing storage, and zero_clear is very dumb. Once we get
- *      rid of zero_clear and have a separate sensitive-string class, this can
- *      go back to being simple.
- *
  * Results:
  *      None.
  *
@@ -348,11 +332,7 @@ string::string(const Glib::ustring& s) // IN
  */
 
 string::string(const string& s) // IN
-#ifdef I_LOVE_STRICT_SENSITIVESTRING
    : mUstr(s.mUstr),
-#else
-   : mUstr(s.mUstr.c_str()),
-#endif
      mUtf16Cache(NULL),
      mUtf16Length(npos)
 {
@@ -1130,48 +1110,6 @@ string::clear()
    InvalidateCache();
    mUstr.clear();
 }
-
-
-#ifndef I_LOVE_STRICT_SENSITIVESTRING
-/*
- *-----------------------------------------------------------------------------
- *
- * utf::string::zero_clear --
- *
- *      Zeroes and clears this string.
- *
- *      XXX: This is temporary until we have a separate string class for
- *      passwords.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-string::zero_clear()
-{
-   if (mUtf16Cache != NULL) {
-      Util_ZeroFree(mUtf16Cache,
-                    Unicode_UTF16Strlen(mUtf16Cache) * sizeof *mUtf16Cache);
-      mUtf16Cache = NULL;
-   }
-
-   /*
-    * This is a best effort.  We aren't guaranteed that Glib::ustring doesn't
-    * leave behind any internal copies of the string.
-    */
-   if (mUstr.c_str() != mUstr.data()) {
-      Util_Zero(const_cast<char *>(mUstr.c_str()), mUstr.bytes());
-   }
-   Util_Zero(const_cast<char *>(mUstr.data()), mUstr.bytes());
-   mUstr.clear();
-}
-#endif // I_LOVE_STRICT_SENSITIVESTRING
 
 
 /*
