@@ -25,7 +25,7 @@ export vmsyncdir := $(MODULES_DIR)/drivers/misc
 export vmxnetdir := $(MODULES_DIR)/drivers/net
 export vsockdir := $(MODULES_DIR)/net/vsock
 if WITH_ROOT_PRIVILEGES
-export DEPMOD := depmod -a
+export DEPMOD := depmod -a $(KERNEL_RELEASE)
 endif WITH_ROOT_PRIVILEGES
 
 include_HEADERS = $(top_srcdir)/lib/include/vmci_sockets.h
