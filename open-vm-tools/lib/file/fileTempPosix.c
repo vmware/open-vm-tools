@@ -456,12 +456,9 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
  *
  *      Return a safe temporary directory (i.e. a temporary directory which
  *      is not prone to symlink attacks, because it is only writable by the
- *      current effective user).
- *
- *      Guaranteed to return the same directory every time it is
- *      called during the lifetime of the current process, for the
- *      current effective user ID. (Barring the user manually deleting
- *      or renaming the directory.)
+ *      current effective user). Guaranteed to return the same directory
+ *      every time it is called during the lifetime of the current process
+ *      (unless that directory is deleted while the process is running).
  *
  * Results:
  *      The allocated directory path on success.
