@@ -271,8 +271,8 @@ void GuestLog_Log(const char *fmt,
  */
 
 void Log_HexDump(const char *prefix,
-                 const uint8 *data,
-                 int size);
+                 const void *data,
+                 size_t size);
 
 void Log_Time(VmTimeType *time,
               int count,
