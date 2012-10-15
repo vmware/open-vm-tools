@@ -54,12 +54,13 @@
  * Tools options.
  */
 
-#define TOOLSOPTION_COPYPASTE                "copypaste"
-#define TOOLSOPTION_AUTOHIDE                 "autohide"
-#define TOOLSOPTION_BROADCASTIP              "broadcastIP"
-#define TOOLSOPTION_ENABLEDND                "enableDnD"
-#define TOOLSOPTION_MAP_ROOT_HGFS_SHARE      "mapRootHgfsShare"
-#define TOOLSOPTION_LINK_ROOT_HGFS_SHARE     "linkRootHgfsShare"
+#define TOOLSOPTION_COPYPASTE                     "copypaste"
+#define TOOLSOPTION_AUTOHIDE                      "autohide"
+#define TOOLSOPTION_BROADCASTIP                   "broadcastIP"
+#define TOOLSOPTION_ENABLEDND                     "enableDnD"
+#define TOOLSOPTION_MAP_ROOT_HGFS_SHARE           "mapRootHgfsShare"
+#define TOOLSOPTION_LINK_ROOT_HGFS_SHARE          "linkRootHgfsShare"
+#define TOOLSOPTION_ENABLE_MESSAGE_BUS_TUNNEL     "enableMessageBusTunnel"
 
 /*
  * Auto-upgrade commands.

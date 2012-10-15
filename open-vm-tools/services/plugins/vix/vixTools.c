@@ -2227,7 +2227,7 @@ VixToolsTranslateVGAuthError(VGAuthError vgErr)
       err = VIX_E_INVALID_ARG;
       break;
    case VGAUTH_E_AUTHENTICATION_DENIED:
-      err = VIX_E_GUEST_USER_PERMISSIONS;
+      err = VIX_E_INVALID_LOGIN_CREDENTIALS;
       break;
    case VGAUTH_E_INVALID_TICKET:
       err = VIX_E_INVALID_ARG;
@@ -7858,12 +7858,11 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
          goto abort;
       }
 
-      directoryPath = Util_SafeStrdup(tempPtr);
-
       if (VIX_COMMAND_CREATE_TEMPORARY_DIRECTORY == requestMsg->opCode) {
          createTempFile = FALSE;
       }
 
+      directoryPath = Util_SafeStrdup(tempPtr);
    } else {
       data.filePrefix = Util_SafeStrdup("");
       data.fileSuffix = Util_SafeStrdup("");
@@ -7894,12 +7893,6 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
           */
          err = VIX_OK;
       }
-
-      /*
-       * Don't give up if VixToolsGetUserTmpDir() failed. It might just
-       * have failed to load DLLs, so we might be running on Win 9x.
-       * Just fall through to use the old fashioned File_MakeTemp().
-       */
 
       if (VIX_SUCCEEDED(err)) {
 
@@ -7935,8 +7928,17 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
             err = Vix_TranslateErrno(errno);
             goto abort;
          }
+      } else {
+         /*
+          * Don't give up if VixToolsGetUserTmpDir() failed. It might just
+          * have failed to load DLLs, so we might be running on Win 9x.
+          * Just fall through to use the old fashioned File_GetSafeTmpDir().
+          */
+
+         ASSERT(directoryPath == NULL);
+         directoryPath = Util_SafeStrdup("");
+         err = VIX_OK;
       }
-      err = VIX_OK;
    }
 #endif
 
@@ -8794,7 +8796,11 @@ VixToolsAddAuthAlias(VixCommandRequestHeader *requestMsg)    // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   vgErr = TheVGAuthContext(&ctx);
+   /*
+    * For aliasStore APIs, make a fresh context so we know
+    * the security is correct.
+    */
+   vgErr = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, &ctx);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -8812,6 +8818,14 @@ VixToolsAddAuthAlias(VixCommandRequestHeader *requestMsg)    // IN
    }
 
 abort:
+   if (ctx) {
+      vgErr = VGAuth_Shutdown(ctx);
+      if (VGAUTH_FAILED(vgErr)) {
+         err = VixToolsTranslateVGAuthError(vgErr);
+         // fall thru
+      }
+   }
+
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
@@ -8910,7 +8924,11 @@ VixToolsRemoveAuthAlias(VixCommandRequestHeader *requestMsg)    // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   vgErr = TheVGAuthContext(&ctx);
+   /*
+    * For aliasStore APIs, make a fresh context so we know
+    * the security is correct.
+    */
+   vgErr = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, &ctx);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -8930,6 +8948,13 @@ VixToolsRemoveAuthAlias(VixCommandRequestHeader *requestMsg)    // IN
    }
 
 abort:
+   if (ctx) {
+      vgErr = VGAuth_Shutdown(ctx);
+      if (VGAUTH_FAILED(vgErr)) {
+         err = VixToolsTranslateVGAuthError(vgErr);
+         // fall thru
+      }
+   }
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
@@ -9017,7 +9042,11 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   vgErr = TheVGAuthContext(&ctx);
+   /*
+    * For aliasStore APIs, make a fresh context so we know
+    * the security is correct.
+    */
+   vgErr = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, &ctx);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -9113,6 +9142,14 @@ abort:
    free(escapedStr);
    free(escapedStr2);
    VGAuth_FreeUserAliasList(num, uaList);
+   if (ctx) {
+      vgErr = VGAuth_Shutdown(ctx);
+      if (VGAUTH_FAILED(vgErr)) {
+         err = VixToolsTranslateVGAuthError(vgErr);
+         goto abort;
+      }
+   }
+
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
@@ -9194,7 +9231,11 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
       goto abort;
    }
 
-   vgErr = VGAuth_QueryMappedAliases(ctx, 0, NULL, &num, &maList);
+   /*
+    * For aliasStore APIs, make a fresh context so we know
+    * the security is correct.
+    */
+   vgErr = VGAuth_Init(VMTOOLSD_APP_NAME, 0, NULL, &ctx);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto abort;
@@ -9282,6 +9323,14 @@ abort:
    free(escapedStr);
    free(escapedStr2);
    VGAuth_FreeMappedAliasList(num, maList);
+   if (ctx) {
+      vgErr = VGAuth_Shutdown(ctx);
+      if (VGAUTH_FAILED(vgErr)) {
+         err = VixToolsTranslateVGAuthError(vgErr);
+         // fall thru
+      }
+   }
+
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
@@ -10985,9 +11034,18 @@ QueryVGAuthConfig(GKeyFile *confDictRef)                       // IN
  * TheVGAuthContext
  *
  *      Get the global VGAuthContext object.
+ *
  *      Lazily create the global VGAuthContext when needed.
+ *      We need a single shared context to handle authentication in order to
+ *      properly share the SSPI handshake state(s).
+ *
  *      Creating the global context may also cause the VGAuth Service to
  *      be started.
+ *
+ *      This context should only be used when not impersonating, since it
+ *      will be running over the SUPER_USER connection and can cause
+ *      security issues if used when impersonating.
+ *
  *
  * Results:
  *      VGAUTH_E_OK if successful, the global context object is returned in
