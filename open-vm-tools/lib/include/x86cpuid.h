@@ -411,7 +411,7 @@ FLAG(   7,  0, EBX,  7,  1, SMEP,                                   YES, FALSE) 
 FLAG(   7,  0, EBX,  8,  1, BMI2,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX,  9,  1, ENFSTRG,                                YES, FALSE) \
 FLAG(   7,  0, EBX, 10,  1, INVPCID,                                NO,  FALSE) \
-FLAG(   7,  0, EBX, 11,  1, RTM,                                    NO,  TRUE)  \
+FLAG(   7,  0, EBX, 11,  1, RTM,                                    YES, TRUE)  \
 CPUID_7_EBX_13
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                   MON SUPP, CPL3 */

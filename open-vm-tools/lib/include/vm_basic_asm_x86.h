@@ -58,6 +58,24 @@
 #error "x86-64 not supported"
 #endif
 
+/*
+ * XTEST
+ *     Return TRUE if processor is in transaction region.
+ *
+ */
+#if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
+static INLINE Bool
+xtest(void)
+{
+   uint8 al;
+   __asm__ __volatile__(".byte 0x0f, 0x01, 0xd6    # xtest \n"
+                        "setnz %%al\n"
+                        : "=a"(al) : : "cc");
+   return al;
+}
+
+#endif /* __GNUC__ */
+
 
 /*
  * FXSAVE/FXRSTOR

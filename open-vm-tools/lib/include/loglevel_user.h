@@ -133,6 +133,7 @@
    LOGLEVEL_VAR(mksGLFBO), \
    LOGLEVEL_VAR(mksGLShader), \
    LOGLEVEL_VAR(mksGLState), \
+   LOGLEVEL_VAR(mksGLWindow), \
    LOGLEVEL_VAR(vdpPlugin), \
    \
    /* user/sound */ \

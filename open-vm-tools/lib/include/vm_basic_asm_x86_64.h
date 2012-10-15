@@ -287,6 +287,23 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
 
 #endif /* __GNUC__ */
 
+/*
+ * XTEST
+ *     Return TRUE if processor is in transaction region.
+ *
+ */
+#if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
+static INLINE Bool
+xtest(void)
+{
+   uint8 al;
+   __asm__ __volatile__(".byte 0x0f, 0x01, 0xd6    # xtest \n"
+                        "setnz %%al\n"
+                        : "=a"(al) : : "cc"); 
+   return al;
+}
+
+#endif /* __GNUC__ */
 
 /*
  *-----------------------------------------------------------------------------
