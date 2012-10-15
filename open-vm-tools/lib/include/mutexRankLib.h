@@ -103,6 +103,7 @@
 #define RANK_scsiStateLock           (RANK_libLockBase + 0x5060)
 #define RANK_parInitLock             (RANK_libLockBase + 0x5070)
 #define RANK_namespaceLock           (RANK_libLockBase + 0x5080)
+#define RANK_vvolLibLock             (RANK_libLockBase + 0x5090)
 
 /*
  * VMDB range:

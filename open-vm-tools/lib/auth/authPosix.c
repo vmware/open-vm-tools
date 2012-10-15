@@ -30,15 +30,20 @@
 #include "log.h"
 
 #ifdef USE_PAM
-#  include "file.h"
-#  include "config.h"
-#  include "localconfig.h"
-#if defined(__APPLE__) && (MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5)
-#include <pam/pam_appl.h>
-#else
-#include <security/pam_appl.h>
-#endif
-#  include <dlfcn.h>
+#   include "file.h"
+#   include "config.h"
+#   include "localconfig.h"
+#   if defined __APPLE__
+#      include <AvailabilityMacros.h>
+#      if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5
+#         include <pam/pam_appl.h>
+#      else
+#         include <security/pam_appl.h>
+#      endif
+#   else
+#      include <security/pam_appl.h>
+#   endif
+#   include <dlfcn.h>
 #endif
 
 #if defined(HAVE_CONFIG_H) || defined(sun)
@@ -158,7 +163,7 @@ AuthLoadPAM(void)
       if (!symbol) {
          Log("PAM library does not contain required function: %s\n",
              dlerror());
-
+         dlclose(pam_library);
          return FALSE;
       }
 

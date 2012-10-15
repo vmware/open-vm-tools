@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -516,7 +516,6 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
    if (!myQPair) {
       return VMCI_ERROR_NO_MEM;
    }
-   memset(myQPair, 0, sizeof *myQPair);
 
    myQPair->produceQSize = produceQSize;
    myQPair->consumeQSize = consumeQSize;
@@ -926,7 +925,7 @@ VMCIQPair_ConsumeBufReady(const VMCIQPair *qpair) // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE ssize_t
+static ssize_t
 EnqueueLocked(VMCIQueue *produceQ,                   // IN
               VMCIQueue *consumeQ,                   // IN
               const uint64 produceQSize,             // IN
@@ -1012,7 +1011,7 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE ssize_t
+static ssize_t
 DequeueLocked(VMCIQueue *produceQ,                        // IN
               VMCIQueue *consumeQ,                        // IN
               const uint64 consumeQSize,                  // IN

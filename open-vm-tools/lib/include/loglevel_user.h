@@ -268,6 +268,7 @@
    LOGLEVEL_VAR(vflash), \
    LOGLEVEL_VAR(vva),  /* apps/rde/vva */ \
    LOGLEVEL_VAR(ftConfig), /*lib/ftConfig */ \
+   LOGLEVEL_VAR(vmname),  /* lib/vmname */ \
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

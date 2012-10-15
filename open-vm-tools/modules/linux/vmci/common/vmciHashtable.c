@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -271,7 +271,7 @@ VMCIHashTable_RemoveEntry(VMCIHashTable *table, // IN
  *------------------------------------------------------------------------------
  */
 
-static INLINE VMCIHashEntry *
+static VMCIHashEntry *
 VMCIHashTableGetEntryLocked(VMCIHashTable *table,  // IN
                             VMCIHandle handle)     // IN
 {
@@ -391,7 +391,7 @@ VMCIHashTable_HoldEntry(VMCIHashTable *table, // IN
  *------------------------------------------------------------------------------
  */
 
-static INLINE int
+static int
 VMCIHashTableReleaseEntryLocked(VMCIHashTable *table,  // IN
                                 VMCIHashEntry *entry)  // IN
 {

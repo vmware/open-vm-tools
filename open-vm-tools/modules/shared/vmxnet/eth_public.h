@@ -89,22 +89,24 @@ typedef enum {
 
 // DIX type fields we care about
 typedef enum {
-   ETH_TYPE_IPV4        = 0x0800,  
-   ETH_TYPE_IPV6        = 0x86DD,  
-   ETH_TYPE_ARP         = 0x0806,  
+   ETH_TYPE_IPV4        = 0x0800,
+   ETH_TYPE_IPV6        = 0x86DD,
+   ETH_TYPE_ARP         = 0x0806,
    ETH_TYPE_RARP        = 0x8035,
    ETH_TYPE_LLDP        = 0x88CC,
+   ETH_TYPE_CDP         = 0x2000,
    ETH_TYPE_AKIMBI      = 0x88DE,
    ETH_TYPE_VMWARE      = 0x8922,
    ETH_TYPE_802_1PQ     = 0x8100,  // not really a DIX type, but used as such
    ETH_TYPE_LLC         = 0xFFFF,  // 0xFFFF is IANA reserved, used to mark LLC
 } Eth_DixType;
 typedef enum {
-   ETH_TYPE_IPV4_NBO    = 0x0008,  
-   ETH_TYPE_IPV6_NBO    = 0xDD86,  
-   ETH_TYPE_ARP_NBO     = 0x0608,  
+   ETH_TYPE_IPV4_NBO    = 0x0008,
+   ETH_TYPE_IPV6_NBO    = 0xDD86,
+   ETH_TYPE_ARP_NBO     = 0x0608,
    ETH_TYPE_RARP_NBO    = 0x3580,
    ETH_TYPE_LLDP_NBO    = 0xCC88,
+   ETH_TYPE_CDP_NBO     = 0x0020,
    ETH_TYPE_AKIMBI_NBO  = 0xDE88,
    ETH_TYPE_VMWARE_NBO  = 0x2289,
    ETH_TYPE_802_1PQ_NBO = 0x0081,  // not really a DIX type, but used as such

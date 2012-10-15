@@ -266,6 +266,40 @@ MsgList_Append(MsgList **list,     // IN reference to existing list
 /*
  *-----------------------------------------------------------------------------
  *
+ * MsgList_AppendMsgList --
+ *
+ *      Append the 'messages' to an existing MsgList, 'list'. Memory
+ *      owner ship is transfered to 'list'.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Callers are responsible to free the returned MsgList.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MsgList_AppendMsgList(MsgList **list,     // IN/OUT
+                      MsgList *messages)  // IN
+{
+   if (list != NULL && messages != NULL) {
+      MsgList *head = messages;
+      while (messages->next != NULL) {
+         messages = messages->next;
+      }
+      messages->next = *list;
+      *list = head;
+   } else {
+      MsgList_Free(messages);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * MsgList_VCreate --
  *
  *     Create the MsgList item from the message.

@@ -69,7 +69,6 @@ VSockAddr_Init(struct sockaddr_vm *addr, // OUT
                uint32 port)              // IN
 {
    ASSERT(addr);
-   memset(addr, 0, sizeof *addr);
    VSockAddr_InitNoFamily(addr, cid, port);
    addr->svm_family = VMCISockGetAFValueInt();
    VSOCK_ADDR_ASSERT(addr);
@@ -102,12 +101,11 @@ VSockAddr_InitNoFamily(struct sockaddr_vm *addr, // OUT
                        uint32 port)              // IN
 {
    ASSERT(addr);
-   memset(addr, 0, sizeof *addr);
 
+   memset(addr, 0, sizeof *addr);
 #if defined(__APPLE__)
    addr->svm_len = sizeof *addr;
 #endif
-
    addr->svm_cid = cid;
    addr->svm_port = port;
    VSOCK_ADDR_NOFAMILY_ASSERT(addr);

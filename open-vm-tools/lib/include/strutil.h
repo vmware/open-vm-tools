@@ -60,8 +60,8 @@ Bool StrUtil_EndsWith(const char *s, const char *suffix);
 Bool StrUtil_IsASCII(const char *s);
 
 Bool StrUtil_VDynBufPrintf(struct DynBuf *b, const char *fmt, va_list args);
-Bool StrUtil_DynBufPrintf(struct DynBuf *b, const char *fmt, ...);
-void StrUtil_SafeDynBufPrintf(struct DynBuf *b, const char *fmt, ...);
+Bool StrUtil_DynBufPrintf(struct DynBuf *b, const char *fmt, ...) PRINTF_DECL(2, 3);
+void StrUtil_SafeDynBufPrintf(struct DynBuf *b, const char *fmt, ...) PRINTF_DECL(2, 3);
 
 void StrUtil_SafeStrcat(char **prefix, const char *str);
 void StrUtil_SafeStrcatFV(char **prefix, const char *fmt, va_list args);

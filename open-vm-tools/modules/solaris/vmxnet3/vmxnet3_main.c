@@ -1154,7 +1154,7 @@ vmxnet3_getcapab(void *data, mac_capab_t capab, void *arg)
          ret = B_FALSE;
    }
 
-   VMXNET3_DEBUG(dp, 2, "getcapab(0x%x) -> %s\n", capab, ret ? "yes" : "no");
+   VMXNET3_DEBUG(dp, 3, "getcapab(0x%x) -> %s\n", capab, ret ? "yes" : "no");
 
    return ret;
 }

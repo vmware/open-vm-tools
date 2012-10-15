@@ -36,6 +36,7 @@
 #include "system.h"
 #include "util.h"
 #include "vmcheck.h"
+#include "vm_tools_version.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
@@ -381,6 +382,11 @@ ToolsCore_Setup(ToolsServiceState *state)
    }
 
    ToolsCore_ReloadConfig(state, FALSE);
+
+   /*
+    * Useful for debugging purposes. Log the vesion and build information.
+    */
+   g_message("Tools Version: %s (%s)\n", TOOLS_VERSION_EXT_CURRENT_STR, BUILD_NUMBER);
 
    /* Initializes the app context. */
    gctx = g_main_context_default();

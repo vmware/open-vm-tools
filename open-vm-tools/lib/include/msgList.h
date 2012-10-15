@@ -61,6 +61,7 @@ MsgList *MsgList_CreateStr(const char *id);
 void MsgList_Append(MsgList **tail, const char *idFmt, ...) PRINTF_DECL(2, 3);
 void MsgList_VAppend(MsgList **tail, const char *idFmt, va_list args);
 void MsgList_AppendStr(MsgList **tail, const char *id);
+void MsgList_AppendMsgList(MsgList **tail, MsgList *messages);
 
 void MsgList_Log(const MsgList *messages);
 char *MsgList_ToString(const MsgList *messages);

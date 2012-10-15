@@ -84,6 +84,7 @@
 #define ACRONIS_EXTENSION "tib"
 #define OPEN_VM_FORMAT_EXTENSION "ovf"
 #define ARCHIVED_OPEN_VM_FORMAT_EXTENSION "ova"
+#define NAMESPACEDB_EXTENSION "db"
 // "xvm" // VMware console configuration file
 
 /*
