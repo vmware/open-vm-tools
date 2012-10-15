@@ -50,8 +50,9 @@
  *
  * 'f' should be a string with the field name.
  */
+#define XDRUTIL_COUNT(ptr, field) ((ptr)->field.field##_len)
 #define XDRUTIL_FOREACH(counter, ptr, field)                               \
-   for ((counter) = 0; (counter) < (ptr)->field.field##_len; (counter)++)
+   for ((counter) = 0; (counter) < XDRUTIL_COUNT(ptr, field); (counter)++)
 
 #define XDRUTIL_GETITEM(ptr, field, idx) &((ptr)->field.field##_val[idx])
 

@@ -860,8 +860,7 @@ VMCIQueueHeader_BufReady(const VMCIQueueHeader *consumeQHeader, // IN:
 #define VMCI_FP_DOORBELL     (VMCI_FP_QUEUEPAIR + 1)
 #define VMCI_FP_DATAGRAM     (VMCI_FP_DOORBELL + 1)
 #define VMCI_FP_STREAMSOCK   (VMCI_FP_DATAGRAM + 1)
-#define VMCI_FP_SEQPACKET    (VMCI_FP_STREAMSOCK + 1)
-#define VMCI_FP_MAX          (VMCI_FP_SEQPACKET + 1)
+#define VMCI_FP_MAX          (VMCI_FP_STREAMSOCK + 1)
 
 #define VMCI_FD_INVALID  -1
 #define VMCI_FD_GUEST     0

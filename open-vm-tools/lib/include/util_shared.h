@@ -22,6 +22,9 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
+#include "vm_assert.h"
+#include "vm_basic_types.h"
+
 /*
  * Defines util functions shared between the userlevel code and the monitor.
  */
