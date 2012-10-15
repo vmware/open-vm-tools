@@ -1,3 +1,20 @@
+open-vm-tools 2012.10.14 changes:
+	* Changes and cleanups to VMCI driver
+
+	* Changes to HGFS to allow compiling on newer kernels
+
+	* Fix MTU handling in vmxnet3 for Solaris driver.
+
+	* Updates to the vmballon driver to handle new protocol.
+
+	* Fix for FreeBSD version of vmblock driver to stop kernel
+	  panics on unload on FreeBSD 9.0
+
+	* Fix to guestinfo plugin causing vmtoolsd to crash when
+	  guest had too many NICs.
+
+	* Other fixes and cleanups.
+
 open-vm-tools 2012.05.21 changes:
 	* Updates for newer Linux kernel releases (3.4).
 
