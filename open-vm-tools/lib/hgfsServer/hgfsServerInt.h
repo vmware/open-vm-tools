@@ -883,7 +883,7 @@ HgfsPackCreateSessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                            size_t *payloadSize,       // OUT: size of packet
                            HgfsSessionInfo *session); // IN: Session Info
 Bool
-HgfsPackDestorySessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
+HgfsPackDestroySessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                             char const *packetHeader,  // IN: packet header
                             size_t *payloadSize,       // OUT: size of packet
                             HgfsSessionInfo *session); // IN: Session Info

@@ -8302,6 +8302,8 @@ HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
 {
    HgfsTransportSessionInfo *transportSession;
    HgfsSessionInfo *session;
+   size_t replyPayloadSize = 0;
+   HgfsInternalStatus status;
 
    HGFS_ASSERT_INPUT(input);
 
@@ -8323,7 +8325,15 @@ HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
    MXUser_AcquireExclLock(transportSession->sessionArrayLock);
    HgfsServerTransportRemoveSessionFromList(transportSession, session);
    MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
-   HgfsServerCompleteRequest(HGFS_ERROR_SUCCESS, 0, input);
+   if (HgfsPackDestroySessionReply(input->packet,
+                                   input->metaPacket,
+                                   &replyPayloadSize,
+                                   session)) {
+      status = HGFS_ERROR_SUCCESS;
+   } else {
+      status = HGFS_ERROR_INTERNAL;
+   }
+   HgfsServerCompleteRequest(status, replyPayloadSize, input);
    HgfsServerSessionPut(session);
 }
 
