@@ -1760,7 +1760,8 @@ FileIOPreadvCoalesced(FileIODescriptor *fd,  // IN: File descriptor
                       struct iovec *entries, // IN: Vector to read into
                       int numEntries,        // IN: Number of vector entries
                       uint64 offset,         // IN: Offset to start reading
-                      size_t totalSize)      // IN: totalSize(bytes) in entries
+                      size_t totalSize,      // IN: totalSize(bytes) in entries
+                      size_t *actual)        // OUT: number of bytes read
 {
    struct iovec *vPtr;
    struct iovec coV;
@@ -1814,6 +1815,9 @@ exit:
    if (didCoalesce) {
       FileIODecoalesce(&coV, entries, numEntries, sum, FALSE, fd->flags);
    }
+   if (actual) {
+      *actual = sum;
+   }
 
    return fret;
 }
@@ -1844,7 +1848,8 @@ FileIOPwritevCoalesced(FileIODescriptor *fd,  // IN: File descriptor
                        struct iovec *entries, // IN: Vector to write from
                        int numEntries,        // IN: Number of vector entries
                        uint64 offset,         // IN: Offset to start writing
-                       size_t totalSize)      // IN: Total size(bytes)
+                       size_t totalSize,      // IN: Total size(bytes)
+                       size_t *actual)        // OUT: number of bytes written
 {
    struct iovec coV;
    Bool didCoalesce;
@@ -1909,6 +1914,9 @@ exit:
    if (didCoalesce) {
       FileIODecoalesce(&coV, entries, numEntries, sum, TRUE, fd->flags);
    }
+   if (actual) {
+      *actual = sum;
+   }
    return fret;
 }
 
@@ -1952,7 +1960,8 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
                      struct iovec *entries,  // IN: Vector to read into
                      int numEntries,         // IN: Number of vector entries
                      uint64 offset,          // IN: Offset to start reading
-                     size_t totalSize)       // IN: totalSize(bytes) in entries
+                     size_t totalSize,       // IN: totalSize(bytes) in entries
+                     size_t *actual)         // OUT: number of bytes read
 {  struct iovec *vPtr;
    int numVec;
    size_t bytesRead = 0;
@@ -1972,7 +1981,7 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
          retval = preadv64(fd->posix, vPtr, numVec, offset);
       } else {
          fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
-                                      totalSize);
+                                      totalSize, &bytesRead);
          break;
       }
       if (retval == -1) {
@@ -1987,7 +1996,7 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
              */
             ASSERT (nRetries == 0);
             fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
-                                         totalSize);
+                                         totalSize, &bytesRead);
             break;
          }
          fret = FileIOErrno2Result(errno);
@@ -2031,8 +2040,11 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
          break;
       }
    }
-   return fret;
+   if (actual) {
+      *actual = bytesRead;
+   }
 
+   return fret;
 }
 
 
@@ -2071,7 +2083,8 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
                       struct iovec *entries, // IN: Vector to write from
                       int numEntries,        // IN: Number of vector entries
                       uint64 offset,         // IN: Offset to start writing
-                      size_t totalSize)      // IN: Total size(bytes)in entries
+                      size_t totalSize,      // IN: Total size(bytes)in entries
+                      size_t *actual)         // OUT: number of bytes written
 {
    struct iovec *vPtr;
    int numVec;
@@ -2092,7 +2105,7 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
          retval = pwritev64(fd->posix, vPtr, numVec, offset);
       } else {
          fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
-                                       totalSize);
+                                       totalSize, &bytesWritten);
          break;
       }
       if (retval == -1) {
@@ -2107,7 +2120,7 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
              */
             ASSERT (nRetries == 0);
             fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
-                                          totalSize);
+                                          totalSize, &bytesWritten);
             break;
          }
          fret = FileIOErrno2Result(errno);
@@ -2134,6 +2147,9 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
          fret = FILEIO_WRITE_ERROR_NOSPC;
          break;
       }
+   }
+   if (actual) {
+      *actual = bytesWritten;
    }
    return fret;
 }
@@ -2169,7 +2185,8 @@ FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
               struct iovec *entries,  // IN: Vector to read into
               int numEntries,         // IN: Number of vector entries
               uint64 offset,          // IN: Offset to start reading
-              size_t totalSize)       // IN: totalSize (bytes) in entries
+              size_t totalSize,       // IN: totalSize (bytes) in entries
+              size_t *actual)         // OUT: number of bytes read
 {
    FileIOResult fret;
 
@@ -2179,9 +2196,11 @@ FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
 
 #if defined(__linux__ )
-   fret = FileIOPreadvInternal(fd, entries, numEntries, offset, totalSize);
+   fret = FileIOPreadvInternal(fd, entries, numEntries, offset, totalSize,
+                               actual);
 #else
-   fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset, totalSize);
+   fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset, totalSize,
+                                actual);
 #endif /* defined(__linux__ ) */
    return fret;
 }
@@ -2212,7 +2231,8 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
                struct iovec *entries,  // IN: Vector to write from
                int numEntries,         // IN: Number of vector entries
                uint64 offset,          // IN: Offset to start writing
-               size_t totalSize)       // IN: Total size (bytes) in entries
+               size_t totalSize,       // IN: Total size (bytes) in entries
+               size_t *actual)         // OUT: number of bytes written
 {
    FileIOResult fret;
 
@@ -2222,9 +2242,11 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
 
 #if defined(__linux__ )
-   fret = FileIOPwritevInternal(fd, entries, numEntries, offset, totalSize);
+   fret = FileIOPwritevInternal(fd, entries, numEntries, offset, totalSize,
+                                actual);
 #else
-   fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset, totalSize);
+   fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset, totalSize,
+                                 actual);
 #endif /* defined(__linux__ ) */
    return fret;
 }

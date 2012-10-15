@@ -337,13 +337,15 @@ FileIOResult FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
                            struct iovec *entries,  // IN: Vector to read into
                            int numEntries,         // IN: Number of vector entries
                            uint64 offset,          // IN: Offset to start reading
-                           size_t totalSize);      // IN: totalSize (bytes) in entries
+                           size_t totalSize,       // IN: totalSize (bytes) in entries
+                           size_t *actual);        // OUT: number of bytes read
 
 FileIOResult FileIO_Pwritev(FileIODescriptor *fd,  // IN: File descriptor
                             struct iovec *entries, // IN: Vector to write from
                             int numEntries,        // IN: Number of vector entries
                             uint64 offset,         // IN: Offset to start writing
-                            size_t totalSize);     // IN: Total size (bytes) in entries
+                            size_t totalSize,      // IN: Total size (bytes) in entries
+                            size_t *actual);       // OUT: number of bytes written
 
 FileIOResult FileIO_Pread(FileIODescriptor *fd,    // IN: File descriptor
                           void *buf,               // IN: Buffer to read into

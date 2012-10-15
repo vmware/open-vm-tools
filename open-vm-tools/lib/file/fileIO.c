@@ -562,7 +562,7 @@ FileIO_Pread(FileIODescriptor *fd,  // IN: File descriptor
    iov.iov_base = buf;
    iov.iov_len = len;
 
-   return FileIO_Preadv(fd, &iov, 1, offset, len);
+   return FileIO_Preadv(fd, &iov, 1, offset, len, NULL);
 }
 
 
@@ -599,7 +599,7 @@ FileIO_Pwrite(FileIODescriptor *fd,  // IN: File descriptor
    iov.iov_base = (void *)buf;
    iov.iov_len = len;
 
-   return FileIO_Pwritev(fd, &iov, 1, offset, len);
+   return FileIO_Pwritev(fd, &iov, 1, offset, len, NULL);
 }
 #endif
 
