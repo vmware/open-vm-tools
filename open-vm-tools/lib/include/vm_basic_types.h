@@ -727,6 +727,21 @@ typedef void * UserVA;
 #endif
 
 /*
+ * Static profiling hints for functions.
+ *    A function can be either hot, cold, or neither.
+ *    It is an error to specify both hot and cold for the same function.
+ *    Note that there is no annotation for "neither."
+ */
+
+#if defined __GNUC__ && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
+#define HOT __attribute__((hot))
+#define COLD __attribute__((cold))
+#else
+#define HOT
+#define COLD
+#endif
+
+/*
  * Branch prediction hints:
  *     LIKELY(exp)   - Expression exp is likely TRUE.
  *     UNLIKELY(exp) - Expression exp is likely FALSE.
