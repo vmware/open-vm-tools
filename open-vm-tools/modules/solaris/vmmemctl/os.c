@@ -221,13 +221,13 @@ OS_ReservedPageGetLimit(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * OS_ReservedPageGetPPN --
+ * OS_ReservedPageGetPA --
  *
  *      Convert a page handle (of a physical page previously reserved with
- *      OS_ReservedPageAlloc()) to a ppn.
+ *      OS_ReservedPageAlloc()) to a pa.
  *
  * Results:
- *      The ppn.
+ *      The pa.
  *
  * Side effects:
  *      None.
@@ -235,10 +235,10 @@ OS_ReservedPageGetLimit(void)
  *-----------------------------------------------------------------------------
  */
 
-PPN64
-OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
+PA64
+OS_ReservedPageGetPA(PageHandle handle) // IN: A valid page handle
 {
-   return page_pptonum(((os_page *)handle)->pp);
+   return ptob(page_pptonum(((os_page *)handle)->pp));
 }
 
 
@@ -247,7 +247,7 @@ OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
  *
  * OS_ReservedPageGetHandle --
  *
- *      Convert a ppn (of a physical page previously reserved with
+ *      Convert a pa (of a physical page previously reserved with
  *      OS_ReservedPageAlloc()) to a page handle.
  *
  * Results:
@@ -263,9 +263,9 @@ OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
  */
 
 PageHandle
-OS_ReservedPageGetHandle(PPN64 ppn)     // IN
+OS_ReservedPageGetHandle(PA64 pa)     // IN
 {
-   // Solaris does not use protocol v3.
+   // Solaris does not use batched commands.
    NOT_IMPLEMENTED();
 }
 
@@ -293,7 +293,7 @@ OS_ReservedPageGetHandle(PPN64 ppn)     // IN
 Mapping
 OS_MapPageHandle(PageHandle handle)     // IN
 {
-   // Solaris does not use protocol v3.
+   // Solaris does not use batched commands.
    NOT_IMPLEMENTED();
 }
 
@@ -321,7 +321,7 @@ OS_MapPageHandle(PageHandle handle)     // IN
 void *
 OS_Mapping2Addr(Mapping mapping)        // IN
 {
-   // Solaris does not use protocol v3.
+   // Solaris does not use batched commands.
    NOT_IMPLEMENTED();
 }
 
@@ -381,7 +381,7 @@ OS_UnmapPage(Mapping mapping)   // IN
  *      eliminate some of this.
  *
  * Results:
- *      On success: A valid page handle that can be passed to OS_ReservedPageGetPPN()
+ *      On success: A valid page handle that can be passed to OS_ReservedPageGetPA()
  *                  or OS_ReservedPageFree().
  *      On failure: PAGE_HANDLE_INVALID
  *

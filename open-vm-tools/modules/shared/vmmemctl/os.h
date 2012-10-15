@@ -93,8 +93,8 @@ extern void OS_Free(void *ptr, size_t size);
 extern void OS_Yield(void);
 
 extern unsigned long OS_ReservedPageGetLimit(void);
-extern PPN64         OS_ReservedPageGetPPN(PageHandle handle);
-extern PageHandle    OS_ReservedPageGetHandle(PPN64 ppn);
+extern PA64          OS_ReservedPageGetPA(PageHandle handle);
+extern PageHandle    OS_ReservedPageGetHandle(PA64 pa);
 extern PageHandle    OS_ReservedPageAlloc(int canSleep);
 extern void          OS_ReservedPageFree(PageHandle handle);
 

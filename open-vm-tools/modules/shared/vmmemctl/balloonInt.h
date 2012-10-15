@@ -68,9 +68,13 @@
 #define BALLOON_NAME_VERBOSE            "VMware memory control driver"
 
 #if defined __linux__ || defined __FreeBSD__ || defined _WIN32
-#define BALLOON_PROTOCOL_VERSION        BALLOON_PROTOCOL_VERSION_3
+/*
+ * FIXME: Even if the driver support batched commands keep using the
+ * non-batched one until more testing has been done.
+ */
+#define BALLOON_CAPABILITIES    BALLOON_BASIC_CMDS
 #else
-#define BALLOON_PROTOCOL_VERSION        BALLOON_PROTOCOL_VERSION_2
+#define BALLOON_CAPABILITIES    BALLOON_BASIC_CMDS
 #endif
 
 #define BALLOON_RATE_ADAPT      1
@@ -106,5 +110,8 @@
 #define	STATS_INC(stat)
 #define	STATS_DEC(stat)
 #endif
+
+#define PPN_2_PA(_ppn)  ((_ppn) << PAGE_SHIFT)
+#define PA_2_PPN(_pa)   ((_pa) >> PAGE_SHIFT)
 
 #endif /* !BALLOONINT_H_ */

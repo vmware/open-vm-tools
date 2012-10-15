@@ -121,14 +121,15 @@ Backdoor_MonitorStart(Balloon *b,               // IN
    status = bp.out.ax.word;
 
    /*
-    * If return code is BALLOON_SUCCESS_WITH_VERSION, then ESX is
-    * sending the protocol version to be used into cx.
+    * If return code is BALLOON_SUCCESS_WITH_CAPABILITY, then ESX is
+    * sending the common capabilities supported by the monitor and the
+    * guest in cx.
     */
-   if (status == BALLOON_SUCCESS_WITH_VERSION) {
-      b->hypervisorProtocolVersion = bp.out.cx.word;
+   if (status == BALLOON_SUCCESS_WITH_CAPABILITIES) {
+      b->hypervisorCapabilities = bp.out.cx.word;
       status = BALLOON_SUCCESS;
    } else if (status == BALLOON_SUCCESS) {
-      b->hypervisorProtocolVersion = BALLOON_PROTOCOL_VERSION_2;
+      b->hypervisorCapabilities = BALLOON_BASIC_CMDS;
    }
 
    /* update stats */
@@ -285,13 +286,11 @@ Backdoor_MonitorLockPage(Balloon *b,    // IN
 {
    uint32 status;
    Backdoor_proto bp;
+   uint32 ppn32 = (uint32)ppn;
 
-   if (b->hypervisorProtocolVersion == BALLOON_PROTOCOL_VERSION_2) {
-      /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
-      uint32 ppn32 = (uint32)ppn;
-      if (ppn32 != ppn) {
-         return BALLOON_ERROR_PPN_INVALID;
-      }
+   /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
+   if (ppn32 != ppn) {
+      return BALLOON_ERROR_PPN_INVALID;
    }
 
    /* prepare backdoor args */
@@ -343,18 +342,114 @@ Backdoor_MonitorUnlockPage(Balloon *b,  // IN
 {
    uint32 status;
    Backdoor_proto bp;
+   uint32 ppn32 = (uint32)ppn;
 
-   if (b->hypervisorProtocolVersion == BALLOON_PROTOCOL_VERSION_2) {
-      /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
-      uint32 ppn32 = (uint32)ppn;
-      if (ppn32 != ppn) {
-         return BALLOON_ERROR_PPN_INVALID;
-      }
+   /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
+   if (ppn32 != ppn) {
+      return BALLOON_ERROR_PPN_INVALID;
    }
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_UNLOCK;
    bp.in.size = (size_t)ppn;
+
+   /* invoke backdoor */
+   BackdoorBalloon(&bp);
+
+   /* parse return values */
+   status = bp.out.ax.word;
+
+   /* set flag if reset requested */
+   if (status == BALLOON_ERROR_RESET) {
+      b->resetFlag = 1;
+   }
+
+   /* update stats */
+   STATS_INC(b->stats.unlock);
+   if (status != BALLOON_SUCCESS) {
+      STATS_INC(b->stats.unlockFail);
+   }
+
+   return status;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Backdoor_MonitorLockPagesBatched --
+ *
+ *      Balloon all PPNs listed in the batch page.
+ *
+ * Results:
+ *      Returns BALLOON_SUCCESS if successful, otherwise error code.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Backdoor_MonitorLockPagesBatched(Balloon *b,    // IN
+                                 PPN64 ppn,     // IN
+                                 uint32 nPages) // IN
+{
+   uint32 status;
+   Backdoor_proto bp;
+
+   /* prepare backdoor args */
+   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_BATCHED_LOCK;
+   bp.in.size = (size_t)ppn;
+   bp.in.si.word = nPages;
+
+   /* invoke backdoor */
+   BackdoorBalloon(&bp);
+
+   /* parse return values */
+   status = bp.out.ax.word;
+
+   /* set flag if reset requested */
+   if (status == BALLOON_ERROR_RESET) {
+      b->resetFlag = 1;
+   }
+
+   /* update stats */
+   STATS_INC(b->stats.lock);
+   if (status != BALLOON_SUCCESS) {
+      STATS_INC(b->stats.lockFail);
+   }
+
+   return status;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Backdoor_MonitorUnlockPagesBatched --
+ *
+ *      Unballoon all PPNs listed in the batch page.
+ *
+ * Results:
+ *      Returns BALLOON_SUCCESS if successful, otherwise error code.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Backdoor_MonitorUnlockPagesBatched(Balloon *b,          // IN
+                                   PPN64 ppn,           // IN
+                                   uint32 nPages)       // IN
+{
+   uint32 status;
+   Backdoor_proto bp;
+
+   /* prepare backdoor args */
+   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_BATCHED_UNLOCK;
+   bp.in.size = (size_t)ppn;
+   bp.in.si.word = nPages;
 
    /* invoke backdoor */
    BackdoorBalloon(&bp);

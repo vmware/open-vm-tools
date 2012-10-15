@@ -230,13 +230,13 @@ OS_ReservedPageGetLimit(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * OS_ReservedPageGetPPN --
+ * OS_ReservedPageGetPA --
  *
  *      Convert a page handle (of a physical page previously reserved with
- *      OS_ReservedPageAlloc()) to a ppn.
+ *      OS_ReservedPageAlloc()) to a pa.
  *
  * Results:
- *      The ppn.
+ *      The pa.
  *
  * Side effects:
  *      None.
@@ -244,10 +244,10 @@ OS_ReservedPageGetLimit(void)
  *-----------------------------------------------------------------------------
  */
 
-PPN64
-OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
+PA64
+OS_ReservedPageGetPA(PageHandle handle) // IN: A valid page handle
 {
-   return (((vm_page_t)handle)->phys_addr) >> PAGE_SHIFT;
+   return (((vm_page_t)handle)->phys_addr);
 }
 
 
@@ -256,7 +256,7 @@ OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
  *
  * OS_ReservedPageGetHandle --
  *
- *      Convert a ppn (of a physical page previously reserved with
+ *      Convert a pa (of a physical page previously reserved with
  *      OS_ReservedPageAlloc()) to a page handle.
  *
  * Results:
@@ -269,9 +269,9 @@ OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
  */
 
 PageHandle
-OS_ReservedPageGetHandle(PPN64 ppn)     // IN
+OS_ReservedPageGetHandle(PA64 pa)     // IN
 {
-   return (PageHandle)PHYS_TO_VM_PAGE(ppn << PAGE_SHIFT);
+   return (PageHandle)PHYS_TO_VM_PAGE(pa);
 }
 
 
@@ -516,7 +516,7 @@ os_balloonobject_create(void)
  *      Reserve a physical page for the exclusive use of this driver.
  *
  * Results:
- *      On success: A valid page handle that can be passed to OS_ReservedPageGetPPN()
+ *      On success: A valid page handle that can be passed to OS_ReservedPageGetPA()
  *                  or OS_ReservedPageFree().
  *      On failure: PAGE_HANDLE_INVALID
  *

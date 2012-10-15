@@ -160,10 +160,10 @@ typedef struct {
    /* statistics */
    BalloonStats stats;
 
-   /* balloon protocol to use */
-   uint32 hypervisorProtocolVersion;
+   /* hypervisor exposed capabilities */
+   BalloonCapabilities hypervisorCapabilities;
 
-   /* balloon operations, tied to the protocol version */
+   /* balloon operations, tied to the capabilities */
    const struct BalloonOps *balloonOps;
 
    /* Either the batch page handle, or the page to lock on v2 */
