@@ -1000,7 +1000,8 @@ BalloonLock(Balloon *b,       // IN
    chunk = BalloonGetChunk(b);
    if (chunk == NULL) {
       OS_ReservedPageFree(b->pageHandle);
-      return BALLOON_PAGE_ALLOC_FAILURE;
+      status = BALLOON_PAGE_ALLOC_FAILURE;
+      goto out;
    }
 
    /* inform monitor via backdoor */
@@ -1012,17 +1013,18 @@ BalloonLock(Balloon *b,       // IN
       if (status == BALLOON_ERROR_RESET ||
           status == BALLOON_ERROR_PPN_NOTNEEDED) {
          OS_ReservedPageFree(b->pageHandle);
-         return status;
+         goto out;
       }
 
       /* place on list of non-balloonable pages, retry allocation */
       status = BalloonErrorPageStore(b, b->pageHandle);
       if (status != BALLOON_SUCCESS) {
          OS_ReservedPageFree(b->pageHandle);
-         return status;
+         goto out;
       }
 
-      return old_status;
+      status = old_status;
+      goto out;
    }
 
    /* track allocated page */
@@ -1031,6 +1033,8 @@ BalloonLock(Balloon *b,       // IN
    /* update balloon size */
    b->nPages++;
 
+out:
+   b->pageHandle = PAGE_HANDLE_INVALID;
    return status;
 }
 
@@ -1071,6 +1075,7 @@ BalloonUnlock(Balloon *b,     // IN
    b->nPages--;
 
 out:
+   b->pageHandle = PAGE_HANDLE_INVALID;
    if (b->fallbackChunk != NULL) {
       BalloonChunk_Destroy(b->fallbackChunk);
       b->fallbackChunk = NULL;
@@ -1099,6 +1104,7 @@ BalloonAddPage(Balloon *b,            // IN
                uint16 idx,            // IN
                PageHandle page)       // IN
 {
+   ASSERT(b->pageHandle == PAGE_HANDLE_INVALID);
    b->pageHandle = page;
 }
 
@@ -1251,6 +1257,8 @@ Balloon_Init(BalloonGuest guestType)
 
    /* initialize reset flag */
    b->resetFlag = TRUE;
+
+   b->hypervisorCapabilities = 0;
 
    b->pageHandle = PAGE_HANDLE_INVALID;
    b->batchPageMapping = MAPPING_INVALID;
