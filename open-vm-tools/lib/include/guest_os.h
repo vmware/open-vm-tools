@@ -80,9 +80,8 @@ typedef enum GuestOSFamilyType {
 #define ALLWINVISTA64   BS(WINVISTA_64)
 #define ALLWINVISTA     (ALLWINVISTA32 | ALLWINVISTA64)
 
-#define ALLWIN2008R2_32 BS(WIN2008R2)
 #define ALLWIN2008R2_64 BS(WIN2008R2_64)
-#define ALLWIN2008R2    (ALLWIN2008R2_32 | ALLWIN2008R2_64)
+#define ALLWIN2008R2    ALLWIN2008R2_64
 
 #define ALLWINSEVEN32   BS(WINSEVEN)
 #define ALLWINSEVEN64   BS(WINSEVEN_64)
@@ -103,12 +102,11 @@ typedef enum GuestOSFamilyType {
 
 #define ALLWINNT32	(BS(WINNT) | ALLWIN2000 | ALLWINXP32 | ALLWINNET32 | \
                          ALLWINVISTA32 | ALLWINLONGHORN32 | \
-                         ALLWINSEVEN32 | ALLWIN2008R2_32 | \
-                         ALLWINEIGHTCLIENT32)
+                         ALLWINSEVEN32 | ALLWINEIGHTCLIENT32)
 
 #define ALLWINNT64	(ALLWINXP64          | ALLWINNET64 | \
                          ALLWINVISTA64       | ALLWINLONGHORN64 | \
-                         ALLWINSEVEN64       | ALLWIN2008R2_64 | \
+                         ALLWINSEVEN64       | \
                          ALLWINEIGHTCLIENT64 | ALLWINEIGHTSERVER | \
                          ALLHYPER_V)
 
@@ -356,7 +354,6 @@ typedef enum GuestOSFamilyType {
 
 /* Windows Server 2008 R2 (based on Windows 7) */
 
-#define STR_OS_WIN_2008R2     "windows7srv"
 #define STR_OS_WIN_2008R2_X64 "windows7srv-64"
 
 #define STR_OS_WIN_2008R2_FOUNDATION_FULL "Windows Server 2008 R2 Foundation Edition"

@@ -43,7 +43,6 @@
    GOT(GUEST_OS_WINVISTA_64)                                  \
    GOT(GUEST_OS_WINSEVEN)          /* Windows 7 */            \
    GOT(GUEST_OS_WINSEVEN_64)       /* Windows 7 */            \
-   GOT(GUEST_OS_WIN2008R2)         /* Server 2008 R2 */       \
    GOT(GUEST_OS_WIN2008R2_64)      /* Server 2008 R2 */       \
    GOT(GUEST_OS_WINEIGHT)          /* Windows 8 */            \
    GOT(GUEST_OS_WINEIGHT_64)       /* Windows 8 x64 */        \
@@ -140,7 +139,6 @@
    GOSL(STR_OS_WIN_VISTA_X64,                GUEST_OS_WINVISTA_64)          \
    GOSL(STR_OS_WIN_SEVEN,                    GUEST_OS_WINSEVEN)             \
    GOSL(STR_OS_WIN_SEVEN_X64,                GUEST_OS_WINSEVEN_64)          \
-   GOSL(STR_OS_WIN_2008R2,                   GUEST_OS_WIN2008R2)            \
    GOSL(STR_OS_WIN_2008R2_X64,               GUEST_OS_WIN2008R2_64)         \
    GOSL("windows7Server64Guest",             GUEST_OS_WIN2008R2_64)         \
    GOSL(STR_OS_RED_HAT,                      GUEST_OS_OTHER26XLINUX)        \
