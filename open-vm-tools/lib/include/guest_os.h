@@ -106,7 +106,7 @@ typedef enum GuestOSFamilyType {
 
 #define ALLWINNT64	(ALLWINXP64          | ALLWINNET64 | \
                          ALLWINVISTA64       | ALLWINLONGHORN64 | \
-                         ALLWINSEVEN64       | \
+                         ALLWINSEVEN64       | ALLWIN2008R2_64 | \
                          ALLWINEIGHTCLIENT64 | ALLWINEIGHTSERVER | \
                          ALLHYPER_V)
 
