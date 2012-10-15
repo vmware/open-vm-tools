@@ -87,6 +87,8 @@ static const char *gHgfsOperationNames[] = {
 };
 
 #if defined VMX86_DEVEL
+uint32_t gHgfsVmDebugLevel = VM_DEBUG_DEFAULT_LEV;
+
 static uint32 HgfsDebugGetSequenceNumber(void);
 static int HgfsDebugGetProcessInfo(char *pidName, size_t pidNameBufsize);
 static void *HgfsDebugGetCurrentThread(void);
@@ -114,7 +116,7 @@ HgfsDebugPrint(int type, const char *funcname, unsigned int linenum, const char 
 {
 #if defined VMX86_DEVEL
 #if defined __APPLE__
-   if (0 != (type & VM_DEBUG_LEV) ||
+   if (0 != (type & gHgfsVmDebugLevel) ||
        VM_DEBUG_ALWAYS == type) {
       char *fmsg;
       size_t fmsgLen;

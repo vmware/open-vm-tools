@@ -74,13 +74,14 @@
 #define VM_DEBUG_ALL            (~0)
 
 #if defined VMX86_DEVEL
-#define VM_DEBUG_LEV (VM_DEBUG_ALWAYS | VM_DEBUG_ENTRY | VM_DEBUG_EXIT | VM_DEBUG_FAIL)
+extern uint32_t gHgfsVmDebugLevel;
+#define VM_DEBUG_DEFAULT_LEV (VM_DEBUG_ALWAYS | VM_DEBUG_ENTRY | VM_DEBUG_EXIT | VM_DEBUG_FAIL)
 #endif
 
-#ifdef VM_DEBUG_LEV
+#ifdef VMX86_DEVEL
 #  if defined __FreeBSD__
 #    define DEBUG(type, fmt, ...)                                         \
-               ((type & VM_DEBUG_LEV) ?                                   \
+               ((type & gHgfsVmDebugLevel) ?                              \
                 (log(LOG_NOTICE, "%s:%u: " fmt,                           \
                      __func__, __LINE__, ##__VA_ARGS__))                  \
                 : 0)
