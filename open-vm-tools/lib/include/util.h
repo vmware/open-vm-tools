@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,25 +41,26 @@
    #endif
 #else
    #include <sys/types.h>
+   #include "errno.h"
 #endif
-
 #include "vm_assert.h"
 #include "unicodeTypes.h"
 
 
 /*
- * Define the Util_ThreadID type.
+ * Define the Util_ThreadID type, and assorted standard bits.
  */
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#include <pthread.h>
-typedef pthread_t Util_ThreadID;
-#elif defined(_WIN32)
-typedef DWORD Util_ThreadID;
-#else // Linux et al
-#include <unistd.h>
-typedef pid_t Util_ThreadID;
+#if defined(_WIN32)
+   typedef DWORD Util_ThreadID;
+#else
+   #include <unistd.h>
+   #if defined(__APPLE__) || defined(__FreeBSD__)
+      #include <pthread.h>
+      typedef pthread_t Util_ThreadID;
+   #else // Linux et al
+      typedef pid_t Util_ThreadID;
+   #endif
 #endif
-
 
 uint32 CRC_Compute(const uint8 *buf, int len);
 uint32 Util_Checksum32(const uint32 *buf, int len);
@@ -604,5 +605,30 @@ Util_FreeStringList(char **list,      // IN/OUT: the list to free
 {
    Util_FreeList((void **) list, length);
 }
+
+#ifndef _WIN32
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_IsFileDescriptorOpen --
+ *
+ *      Check if given file descriptor is open.
+ *
+ * Results:
+ *      TRUE if fd is open.
+ *
+ * Side effects:
+ *      Clobbers errno.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Util_IsFileDescriptorOpen(int fd)   // IN
+{
+   lseek(fd, 0L, SEEK_CUR);
+   return errno != EBADF;
+}
+#endif /* !_WIN32 */
 
 #endif /* UTIL_H */
