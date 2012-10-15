@@ -774,7 +774,8 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
 
          MXUserListLocks();
 
-         MXUserDumpAndPanic(header, "%s: rank violation maxRank=0x%x\n", __FUNCTION__, maxRank);
+         MXUserDumpAndPanic(header, "%s: rank violation maxRank=0x%x\n",
+                            __FUNCTION__, maxRank);
       }
    }
 
