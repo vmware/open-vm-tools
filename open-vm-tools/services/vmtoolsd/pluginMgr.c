@@ -547,6 +547,7 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
       }
 
 #ifdef USE_APPLOADER
+      /* Trying loading the plugins with system libraries */
       if (!LoadDependencies(path, FALSE)) {
          g_warning("Loading of library dependencies for %s failed.\n", entry);
          goto next;
@@ -554,6 +555,17 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
 #endif
 
       module = g_module_open(path, G_MODULE_BIND_LOCAL);
+#ifdef USE_APPLOADER
+      if (module == NULL) {
+         /* Falling back to the shipped libraries */
+         if (!LoadDependencies(path, TRUE)) {
+            g_warning("Loading of shipped library dependencies for %s failed.\n",
+                     entry);
+            goto next;
+         }
+         module = g_module_open(path, G_MODULE_BIND_LOCAL);
+      }
+#endif
       if (module == NULL) {
          g_warning("Opening plugin '%s' failed: %s.\n", entry, g_module_error());
          goto next;
