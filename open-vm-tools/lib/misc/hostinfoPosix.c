@@ -524,8 +524,11 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_OPENSUSE, distroShortSize);
    } else if (strstr(distroLower, "suse")) {
       if (strstr(distroLower, "enterprise")) {
-         if (strstr(distroLower, "server 11") ||
-             strstr(distroLower, "desktop 11")) {
+         if (strstr(distroLower, "server 12") ||
+             strstr(distroLower, "desktop 12")) {
+            Str_Strcpy(distroShort, STR_OS_SLES_12, distroShortSize);
+         } else if (strstr(distroLower, "server 11") ||
+                    strstr(distroLower, "desktop 11")) {
             Str_Strcpy(distroShort, STR_OS_SLES_11, distroShortSize);
          } else if (strstr(distroLower, "server 10") ||
                     strstr(distroLower, "desktop 10")) {
@@ -575,6 +578,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_DEBIAN_5, distroShortSize);
       } else if (strstr(distroLower, "6.0")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_6, distroShortSize);
+      } else if (strstr(distroLower, "7.0")) {
+         Str_Strcpy(distroShort, STR_OS_DEBIAN_7, distroShortSize);
       }
    } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
               StrUtil_StartsWith(distroLower, "oracle")) {

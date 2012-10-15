@@ -169,6 +169,8 @@
    GOSL(STR_OS_SLES "10-64",                 GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_SLES "11",                    GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_SLES "11-64",                 GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_SLES "12",                    GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_SLES "12-64",                 GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_NOVELL,                       GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_SUN_DESK,                     GUEST_OS_OTHER24XLINUX)        \
    GOSL(STR_OS_MANDRAKE,                     GUEST_OS_OTHER26XLINUX)        \
@@ -195,6 +197,8 @@
    GOSL(STR_OS_DEBIAN_5 "-64",               GUEST_OS_DEBIAN45_64)          \
    GOSL(STR_OS_DEBIAN_6,                     GUEST_OS_DEBIAN45)             \
    GOSL(STR_OS_DEBIAN_6 "-64",               GUEST_OS_DEBIAN45_64)          \
+   GOSL(STR_OS_DEBIAN_7,                     GUEST_OS_DEBIAN45)             \
+   GOSL(STR_OS_DEBIAN_7 "-64",               GUEST_OS_DEBIAN45_64)          \
    GOSL(STR_OS_SOLARIS "6",                  GUEST_OS_SOLARIS_6_AND_7)      \
    GOSL(STR_OS_SOLARIS "7",                  GUEST_OS_SOLARIS_6_AND_7)      \
    GOSL(STR_OS_SOLARIS "8",                  GUEST_OS_SOLARIS8)             \
