@@ -173,6 +173,8 @@ static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);
 
 /*
  * Individual API names for configuration.
+ *
+ * These match the WSDL names in the vSphere API.
  */
 #define  VIX_TOOLS_CONFIG_API_START_PROGRAM_NAME      "StartProgramInGuest"
 #define  VIX_TOOLS_CONFIG_API_LIST_PROCESSES_NAME     "ListProcessesInGuest"
@@ -195,17 +197,18 @@ static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);
 #define  VIX_TOOLS_CONFIG_API_ACQUIRE_CREDENTIALS_NAME   "AcquireCredentialsInGuest"
 #define  VIX_TOOLS_CONFIG_API_RELEASE_CREDENTIALS_NAME   "ReleaseCredentialsInGuest"
 
-#define VIX_TOOLS_CONFIG_API_ADD_AUTH_ALIAS_NAME      "AddAuthAlias"
-#define VIX_TOOLS_CONFIG_API_REMOVE_AUTH_ALIAS_NAME   "RemoveAuthAlias"
-#define VIX_TOOLS_CONFIG_API_LIST_AUTH_ALIASES_NAME    "ListAuthAliases"
-#define VIX_TOOLS_CONFIG_API_LIST_MAPPED_ALIASES_NAME  "ListMappedAliases"
+#define VIX_TOOLS_CONFIG_API_ADD_GUEST_ALIAS_NAME      "AddGuestAlias"
+// controls both RemoveGuestAlias and RemoveGuestAliasByCert
+#define VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_NAME   "RemoveGuestAlias"
+#define VIX_TOOLS_CONFIG_API_LIST_GUEST_ALIASES_NAME    "ListGuestAliases"
+#define VIX_TOOLS_CONFIG_API_LIST_GUEST_MAPPED_ALIASES_NAME  "ListGuestMappedAliases"
 
-#define  VIX_TOOLS_CONFIG_API_CREATE_REGISTRY_KEY_NAME     "CreateRegistryKey"
-#define  VIX_TOOLS_CONFIG_API_LIST_REGISTRY_KEYS_NAME      "ListRegistryKeys"
-#define  VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_KEY_NAME     "DeleteRegistryKey"
-#define  VIX_TOOLS_CONFIG_API_SET_REGISTRY_VALUE_NAME      "SetRegistryValue"
-#define  VIX_TOOLS_CONFIG_API_LIST_REGISTRY_VALUES_NAME    "ListRegistryValues"
-#define  VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_VALUE_NAME   "DeleteRegistryValue"
+#define  VIX_TOOLS_CONFIG_API_CREATE_REGISTRY_KEY_NAME     "CreateRegistryKeyInGuest"
+#define  VIX_TOOLS_CONFIG_API_LIST_REGISTRY_KEYS_NAME      "ListRegistryKeysInGuest"
+#define  VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_KEY_NAME     "DeleteRegistryKeyInGuest"
+#define  VIX_TOOLS_CONFIG_API_SET_REGISTRY_VALUE_NAME      "SetRegistryValueInGuest"
+#define  VIX_TOOLS_CONFIG_API_LIST_REGISTRY_VALUES_NAME    "ListRegistryValuesInGuest"
+#define  VIX_TOOLS_CONFIG_API_DELETE_REGISTRY_VALUE_NAME   "DeleteRegistryValueInGuest"
 
 /*
  * State of a single asynch runProgram.
@@ -2657,10 +2660,10 @@ VixToolsGetAPIDisabledFromConf(GKeyFile *confDictRef,            // IN
     * Make sure vgauth related stuff does not show as enabled.
     */
    if (NULL != varName) {
-      if ((strcmp(varName, VIX_TOOLS_CONFIG_API_ADD_AUTH_ALIAS_NAME) == 0) ||
-          (strcmp(varName, VIX_TOOLS_CONFIG_API_REMOVE_AUTH_ALIAS_NAME) == 0) ||
-          (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_AUTH_ALIASES_NAME) == 0) ||
-          (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_MAPPED_ALIASES_NAME) == 0)) {
+      if ((strcmp(varName, VIX_TOOLS_CONFIG_API_ADD_GUEST_ALIAS_NAME) == 0) ||
+          (strcmp(varName, VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_NAME) == 0) ||
+          (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_GUEST_ALIASES_NAME) == 0) ||
+          (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_GUEST_MAPPED_ALIASES_NAME) == 0)) {
          disabled = TRUE;
       }
    }
@@ -2872,28 +2875,28 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_ADD_AUTH_ALIAS_ENABLED,
                                  VixToolsComputeEnabledProperty(confDictRef,
-                                    VIX_TOOLS_CONFIG_API_ADD_AUTH_ALIAS_NAME));
+                                    VIX_TOOLS_CONFIG_API_ADD_GUEST_ALIAS_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_REMOVE_AUTH_ALIAS_ENABLED,
                                  VixToolsComputeEnabledProperty(confDictRef,
-                                    VIX_TOOLS_CONFIG_API_REMOVE_AUTH_ALIAS_NAME));
+                                    VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_LIST_AUTH_ALIASES_ENABLED,
                                  VixToolsComputeEnabledProperty(confDictRef,
-                                    VIX_TOOLS_CONFIG_API_LIST_AUTH_ALIASES_NAME));
+                                    VIX_TOOLS_CONFIG_API_LIST_GUEST_ALIASES_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_LIST_MAPPED_ALIASES_ENABLED,
                                  VixToolsComputeEnabledProperty(confDictRef,
-                                    VIX_TOOLS_CONFIG_API_LIST_MAPPED_ALIASES_NAME));
+                                    VIX_TOOLS_CONFIG_API_LIST_GUEST_MAPPED_ALIASES_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
@@ -9215,6 +9218,10 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
                              "<userName>%s</userName>",
                              escapedStr,
                              escapedStr2);
+      g_free(escapedStr2);
+      g_free(escapedStr);
+      escapedStr = NULL;
+      escapedStr2 = NULL;
       if (tmpBuf2 == NULL) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
@@ -9251,11 +9258,11 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
                                "%s</record>",
                                tmpBuf);
       free(tmpBuf);
+      tmpBuf = tmpBuf2 = NULL;
       if (recordBuf == NULL) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
-      tmpBuf = tmpBuf2 = NULL;
       if ((destPtr + recordSize) < endDestPtr) {
          destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
                                 "%s", recordBuf);
@@ -9825,22 +9832,22 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
 
       case VIX_COMMAND_ADD_AUTH_ALIAS:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
-                                VIX_TOOLS_CONFIG_API_ADD_AUTH_ALIAS_NAME);
+                                VIX_TOOLS_CONFIG_API_ADD_GUEST_ALIAS_NAME);
          break;
 
       case VIX_COMMAND_REMOVE_AUTH_ALIAS:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
-                               VIX_TOOLS_CONFIG_API_REMOVE_AUTH_ALIAS_NAME);
+                               VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_NAME);
          break;
 
       case VIX_COMMAND_LIST_AUTH_PROVIDER_ALIASES:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
-                                VIX_TOOLS_CONFIG_API_LIST_AUTH_ALIASES_NAME);
+                                VIX_TOOLS_CONFIG_API_LIST_GUEST_ALIASES_NAME);
          break;
 
       case VIX_COMMAND_LIST_AUTH_MAPPED_ALIASES:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
-                              VIX_TOOLS_CONFIG_API_LIST_MAPPED_ALIASES_NAME);
+                              VIX_TOOLS_CONFIG_API_LIST_GUEST_MAPPED_ALIASES_NAME);
          break;
 
       case VIX_COMMAND_CREATE_REGISTRY_KEY:
