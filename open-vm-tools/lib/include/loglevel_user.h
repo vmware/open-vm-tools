@@ -87,7 +87,7 @@
    LOGLEVEL_VAR(pci_hyper), \
    LOGLEVEL_VAR(pcibridge), \
    LOGLEVEL_VAR(vide), \
-   LOGLEVEL_VAR(ideCdrom), \
+   LOGLEVEL_VAR(atapiCdrom), \
    LOGLEVEL_VAR(hostonly), \
    LOGLEVEL_VAR(oprom), \
    LOGLEVEL_VAR(http), \
@@ -166,6 +166,7 @@
    LOGLEVEL_VAR(buslogic), \
    LOGLEVEL_VAR(lsilogic), \
    LOGLEVEL_VAR(pvscsi), \
+   LOGLEVEL_VAR(ahci), \
    LOGLEVEL_VAR(diskVmnix), \
    LOGLEVEL_VAR(hbaCommon), \
    LOGLEVEL_VAR(backdoor), \

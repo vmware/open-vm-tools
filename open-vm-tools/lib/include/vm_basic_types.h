@@ -810,31 +810,6 @@ typedef void * UserVA;
 #endif
 
 /*
- * REGPARM defaults to REGPARM3; i.e., a request that gcc
- * put the first three arguments in registers.  (It is fine
- * if the function has fewer than three arguments.)  Gcc only.
- * Syntactically, put REGPARM where you'd put INLINE or NORETURN.
- *
- * Note that 64-bit code already puts the first six arguments in
- * registers, so these attributes are only useful for 32-bit code.
- */
-
-#if defined(__GNUC__)
-# define REGPARM0 __attribute__((regparm(0)))
-# define REGPARM1 __attribute__((regparm(1)))
-# define REGPARM2 __attribute__((regparm(2)))
-# define REGPARM3 __attribute__((regparm(3)))
-# define REGPARM REGPARM3
-#else
-# define REGPARM0
-# define REGPARM1
-# define REGPARM2
-# define REGPARM3
-# define REGPARM
-#endif
-
-
-/*
  * gcc can warn us if we're ignoring returns
  */
 #if defined(__GNUC__)

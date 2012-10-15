@@ -31,7 +31,7 @@
 /*
  * These describe the format of the message objects.
  * This will change when the client/vmx support different
- * structures for the message header. Hopefully, that won't 
+ * structures for the message header. Hopefully, that won't
  * happen.
  */
 #define VIX_COMMAND_MAGIC_WORD        0xd00d0001
@@ -41,11 +41,18 @@
  * These give upper bounds for how big any VIX IPC meesage
  * should be. There are for sanity checks and to ignore maliciously
  * large messages that may be part of an DoS attack. The may need to
- * be revised if large messages are added to the protocol. 
+ * be revised if large messages are added to the protocol.
  */
 
-#define VIX_COMMAND_MAX_SIZE           (16 * 1024 * 1024)  
+#define VIX_COMMAND_MAX_SIZE           (16 * 1024 * 1024)
 #define VIX_COMMAND_MAX_REQUEST_SIZE   65536
+
+/*
+ * We don't want to allow guest ops commands with input size too large.
+ * Limit it to the max request size with enough room for the credentials.
+ * Check bugs 824773, 926819 for more details.
+ */
+#define VIX_COMMAND_MAX_USER_INPUT_SIZE (VIX_COMMAND_MAX_REQUEST_SIZE - 5000)
 
 /*
  * The types of credential we can pass with any request.

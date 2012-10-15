@@ -29,6 +29,7 @@
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"
+#include "vm_atomic.h"
 #include "unicodeTypes.h"
 
 #ifdef _WIN32
@@ -232,6 +233,8 @@ Bool W32Util_DismountVolumes(uint16 drive,
 Bool W32Util_CloseDismountHandle(void *handle);
 
 Bool W32Util_EnableSafePathSearching(void);
+
+CRITICAL_SECTION *W32Util_GetSingletonCriticalSection(Atomic_Ptr *csMemory);
 
 #endif // _WIN32
 #endif // WIN32UTIL_H_

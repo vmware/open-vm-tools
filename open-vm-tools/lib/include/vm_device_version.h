@@ -65,7 +65,8 @@
 #define PCI_DEVICE_ID_VMWARE_82546EB            0x0760 /* dual port   */
 #define PCI_DEVICE_ID_VMWARE_EHCI               0x0770
 #define PCI_DEVICE_ID_VMWARE_UHCI               0x0774
-#define PCI_DEVICE_ID_VMWARE_XHCI               0x0778
+#define PCI_DEVICE_ID_VMWARE_XHCI_0096          0x0778
+#define PCI_DEVICE_ID_VMWARE_XHCI_0100          0x0779
 #define PCI_DEVICE_ID_VMWARE_1394               0x0780
 #define PCI_DEVICE_ID_VMWARE_BRIDGE             0x0790
 #define PCI_DEVICE_ID_VMWARE_ROOTPORT           0x07A0
@@ -73,6 +74,7 @@
 #define PCI_DEVICE_ID_VMWARE_VMXWIFI            0x07B8
 #define PCI_DEVICE_ID_VMWARE_PVSCSI             0x07C0
 #define PCI_DEVICE_ID_VMWARE_82574              0x07D0
+#define PCI_DEVICE_ID_VMWARE_AHCI               0x07E0
 #define PCI_DEVICE_ID_VMWARE_HDAUDIO_CODEC      0x1975
 #define PCI_DEVICE_ID_VMWARE_HDAUDIO_CONTROLLER 0x1977
 
@@ -155,6 +157,11 @@
 #define PCI_REVISION_NEC_UPD720200      0x03
 #define PCI_FIRMWARE_NEC_UPD720200      0x3015
 
+#define SATA_ID_SERIAL_STR "00000000000000000001"  /* Must be 20 Bytes */
+#define SATA_ID_FIRMWARE_STR  "00000001"    /* Must be 8 Bytes */
+
+#define AHCI_ATA_MODEL_STR PRODUCT_GENERIC_NAME " Virtual SATA Hard Drive"
+#define AHCI_ATAPI_MODEL_STR PRODUCT_GENERIC_NAME " Virtual SATA CDRW Drive"
 
 /************* Strings for IDE Identity Fields **************************/
 #define VIDE_ID_SERIAL_STR	"00000000000000000001"	/* Must be 20 Bytes */
@@ -187,6 +194,8 @@
 /************* SATA implementation limits ********************************/
 #define SATA_MAX_CONTROLLERS   4
 #define SATA_MAX_DEVICES       30
+#define AHCI_MIN_PORTS         1
+#define AHCI_MAX_PORTS SATA_MAX_DEVICES
 
 /*
  * VSCSI_BV_INTS is the number of uint32's needed for a bit vector
@@ -195,7 +204,15 @@
 #define VSCSI_BV_INTS            CEILING(PVSCSI_MAX_DEVICES, 8 * sizeof (uint32))
 #define SCSI_IDE_CHANNEL         SCSI_MAX_CONTROLLERS
 #define SCSI_IDE_HOSTED_CHANNEL  (SCSI_MAX_CONTROLLERS + 1)
-#define SCSI_MAX_CHANNELS        (SCSI_MAX_CONTROLLERS + 2)
+#define SCSI_SATA_CHANNEL_FIRST  (SCSI_IDE_HOSTED_CHANNEL + 1)
+#define SCSI_MAX_CHANNELS        (SCSI_SATA_CHANNEL_FIRST + SATA_MAX_CONTROLLERS)
+
+/************* SCSI-SATA channel IDs********************************/
+#define SATA_ID_TO_SCSI_ID(sataId)    \
+   (SCSI_SATA_CHANNEL_FIRST + (sataId))
+
+#define SCSI_ID_TO_SATA_ID(scsiId)    \
+   ((scsiId) - SCSI_SATA_CHANNEL_FIRST)
 
 /************* Strings for the VESA BIOS Identity Fields *****************/
 #define VBE_OEM_STRING COMPANY_NAME " SVGA"
@@ -212,10 +229,10 @@
 #define MAX_FLOPPY_DRIVES      2
 
 /************* PCI Passthrough implementation limits ********************/
-#define MAX_PCI_PASSTHRU_DEVICES 6
+#define MAX_PCI_PASSTHRU_DEVICES 16
 
 /************* Test device implementation limits ********************/
-#define MAX_PCI_TEST_DEVICES 2
+#define MAX_PCI_TEST_DEVICES 16
 
 /************* USB implementation limits ********************************/
 #define MAX_USB_DEVICES_PER_HOST_CONTROLLER 127
