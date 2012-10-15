@@ -34,7 +34,6 @@
 #endif // Win32 vs Posix
 
 #include "vmware.h"
-#include "vm_version.h"
 #include "log.h"
 #include "panic.h"
 #include "msg.h"

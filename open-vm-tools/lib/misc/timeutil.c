@@ -34,8 +34,6 @@
 #include <ctype.h>
 
 #include "vmware.h"
-/* For HARD_EXPIRE --hpreg */
-#include "vm_version.h"
 #include "vm_basic_asm.h"
 #include "timeutil.h"
 #include "str.h"

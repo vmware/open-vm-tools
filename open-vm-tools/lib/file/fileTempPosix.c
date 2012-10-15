@@ -47,7 +47,7 @@
 #include "su.h"
 #include "vm_atomic.h"
 #include "str.h"
-#include "vm_version.h"
+#include "vm_product.h"
 #include "random.h"
 #include "userlock.h"
 #include "unicodeOperations.h"

@@ -22,7 +22,7 @@
 #include <unistd.h> // for access, crypt, etc.
 
 #include "vmware.h"
-#include "vm_version.h"
+#include "vm_product.h"
 #include "codeset.h"
 #include "posix.h"
 #include "auth.h"

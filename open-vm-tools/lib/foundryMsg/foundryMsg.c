@@ -26,7 +26,6 @@
  */
 
 #include "vmware.h"
-#include "vm_version.h"
 #include "util.h"
 #include "str.h"
 #include "base64.h"
