@@ -109,6 +109,7 @@
  *    Intel 82545EM (e1000, server adapter, single port)
  *    Intel 82546EB (e1000, server adapter, dual port)
  *    Intel HECI (as embedded in ich9m)
+ *    Intel XHCI (as embedded in PANTHERPOINT)
  */
 #define PCI_VENDOR_ID_INTEL             0x8086
 #define PCI_DEVICE_ID_INTEL_82439TX     0x7100
@@ -124,6 +125,7 @@
 #define PCI_DEVICE_ID_INTEL_82574       0x10d3
 #define PCI_DEVICE_ID_INTEL_82574_APPLE 0x10f6
 #define PCI_DEVICE_ID_INTEL_HECI        0x2a74
+#define PCI_DEVICE_ID_INTEL_PANTHERPOINT_XHCI 0x1e31
 
 #define E1000E_PCI_DEVICE_ID_CONFIG_STR "e1000e.pci.deviceID"
 #define E1000E_PCI_SUB_VENDOR_ID_CONFIG_STR "e1000e.pci.subVendorID"

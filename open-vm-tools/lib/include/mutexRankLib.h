@@ -144,7 +144,7 @@
  *    licenseCheck < preference
  */
 
-#define RANK_vigorConnLock           (RANK_libLockBase + 0x7010)
+#define RANK_vigorTransportListLock  (RANK_libLockBase + 0x7010)
 #define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7020)
 #define RANK_batteryLock             (RANK_libLockBase + 0x7030)
 #define RANK_buttonLock              (RANK_libLockBase + 0x7040)
