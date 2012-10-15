@@ -6428,7 +6428,7 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
    impersonatingVMWareUser = TRUE;
 
    if (!(File_Exists(filePathName))) {
-      err = VIX_E_FILE_NOT_FOUND;
+      err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
    }
 
