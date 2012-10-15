@@ -1067,6 +1067,9 @@ BalloonUnlock(Balloon *b,     // IN
    OS_ReservedPageFree(b->pageHandle);
    STATS_INC(b->stats.primFree);
 
+   /* update balloon size */
+   b->nPages--;
+
 out:
    if (b->fallbackChunk != NULL) {
       BalloonChunk_Destroy(b->fallbackChunk);
