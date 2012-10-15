@@ -299,7 +299,13 @@ GuestInfoGather(gpointer data)
    /* Get NIC information. */
    if (!GuestInfo_GetNicInfo(&nicInfo)) {
       g_warning("Failed to get nic info.\n");
-   } else if (GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
+      /*
+       * Return an empty nic info.
+       */
+      nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
+   }
+
+   if (GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
       g_debug("Nic info not changed.\n");
       GuestInfo_FreeNicInfo(nicInfo);
    } else if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo)) {
@@ -1234,6 +1240,7 @@ GuestInfoServerSetOption(gpointer src,
 {
    char *ip;
    Bool ret = FALSE;
+   gchar *msg;
 
    if (strcmp(option, TOOLSOPTION_BROADCASTIP) != 0) {
       goto exit;
@@ -1249,14 +1256,17 @@ GuestInfoServerSetOption(gpointer src,
    }
 
    ip = NetUtil_GetPrimaryIP();
-
-   if (ip != NULL) {
-      gchar *msg;
-      msg = g_strdup_printf("info-set guestinfo.ip %s", ip);
-      ret = RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL);
-      vm_free(ip);
-      g_free(msg);
+   if (ip == NULL) {
+      /*
+       * If there is any error, then return a blank string.
+       */
+      ip = Util_SafeStrdup("");
    }
+
+   msg = g_strdup_printf("info-set guestinfo.ip %s", ip);
+   ret = RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL);
+   vm_free(ip);
+   g_free(msg);
 
 exit:
    return (gboolean) ret;
