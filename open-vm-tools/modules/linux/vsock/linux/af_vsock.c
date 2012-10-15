@@ -1431,6 +1431,16 @@ VSockVmciPeerAttachCB(VMCIId subId,             // IN
 
    vsk = vsock_sk(sk);
 
+   /*
+    * We don't ask for delayed CBs when we subscribe to this event (we pass 0
+    * as flags to VMCIEvent_Subscribe()).  VMCI makes no guarantees in that
+    * case about what context we might be running in, so it could be BH or
+    * process, blockable or non-blockable.  And bh_lock_sock() is very
+    * particular about how it gets called (it's *not* the same as
+    * spin_lock_bh(), it expands directly into a spin_lock()).  So we need to
+    * account for all possible contexts here.
+    */
+   local_bh_disable();
    bh_lock_sock(sk);
 
    /*
@@ -1447,6 +1457,7 @@ VSockVmciPeerAttachCB(VMCIId subId,             // IN
 
 out:
    bh_unlock_sock(sk);
+   local_bh_enable();
 }
 
 
@@ -1547,16 +1558,19 @@ VSockVmciPeerDetachCB(VMCIId subId,             // IN
       return;
    }
 
+   /* Same rules for locking as for PeerAttachCB(). */
+   local_bh_disable();
+   bh_lock_sock(sk);
+
    /*
     * XXX This is lame, we should provide a way to lookup sockets by qpHandle.
     */
-   bh_lock_sock(sk);
-
    if (VMCI_HANDLE_EQUAL(vsk->qpHandle, ePayload->handle)) {
       VSockVmciHandleDetach(sk);
    }
 
    bh_unlock_sock(sk);
+   local_bh_enable();
 }
 
 
