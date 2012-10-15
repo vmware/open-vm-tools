@@ -163,8 +163,9 @@ typedef uint32 VMCI_Resource;
 typedef uint32 VMCIId;
 
 typedef struct VMCIIdRange {
-   VMCIId begin;
-   VMCIId end;
+   int8 action;   // VMCI_FA_X, for use in filters.
+   VMCIId begin;  // Beginning of range
+   VMCIId end;    // End of range
 } VMCIIdRange;
 
 typedef struct VMCIHandle {
@@ -172,9 +173,9 @@ typedef struct VMCIHandle {
    VMCIId resource;
 } VMCIHandle;
 
-static INLINE
-VMCIHandle VMCI_MAKE_HANDLE(VMCIId cid,
-			    VMCIId rid)
+static INLINE VMCIHandle
+VMCI_MAKE_HANDLE(VMCIId cid,  // IN:
+                 VMCIId rid)  // IN:
 {
    VMCIHandle h;
    h.context = cid;
@@ -849,10 +850,16 @@ VMCIQueueHeader_BufReady(const VMCIQueueHeader *consumeQHeader, // IN:
 
 /*
  * Defines for the VMCI traffic filter:
+ * - VMCI_FA_<name> defines the filter action values
  * - VMCI_FP_<name> defines the filter protocol values
  * - VMCI_FD_<name> defines the direction values (guest or host)
  * - VMCI_FT_<name> are the type values (allow or deny)
  */
+
+#define VMCI_FA_INVALID -1
+#define VMCI_FA_ALLOW    0
+#define VMCI_FA_DENY     (VMCI_FA_ALLOW + 1)
+#define VMCI_FA_MAX      (VMCI_FA_DENY + 1)
 
 #define VMCI_FP_INVALID     -1
 #define VMCI_FP_HYPERVISOR   0
@@ -860,17 +867,14 @@ VMCIQueueHeader_BufReady(const VMCIQueueHeader *consumeQHeader, // IN:
 #define VMCI_FP_DOORBELL     (VMCI_FP_QUEUEPAIR + 1)
 #define VMCI_FP_DATAGRAM     (VMCI_FP_DOORBELL + 1)
 #define VMCI_FP_STREAMSOCK   (VMCI_FP_DATAGRAM + 1)
-#define VMCI_FP_MAX          (VMCI_FP_STREAMSOCK + 1)
+#define VMCI_FP_ANY          (VMCI_FP_STREAMSOCK + 1)
+#define VMCI_FP_MAX          (VMCI_FP_ANY + 1)
 
 #define VMCI_FD_INVALID  -1
 #define VMCI_FD_GUEST     0
 #define VMCI_FD_HOST      (VMCI_FD_GUEST + 1)
-#define VMCI_FD_MAX       (VMCI_FD_HOST + 1)
-
-#define VMCI_FT_INVALID  -1
-#define VMCI_FT_ALLOW     0
-#define VMCI_FT_DENY      (VMCI_FT_ALLOW + 1)
-#define VMCI_FT_MAX       (VMCI_FT_DENY + 1)
+#define VMCI_FD_ANY       (VMCI_FD_HOST + 1)
+#define VMCI_FD_MAX       (VMCI_FD_ANY + 1)
 
 /*
  * The filter list tracks VMCI Id ranges for a given filter.
@@ -892,7 +896,6 @@ typedef struct {
    uint32 len;    // Length of list
    uint8  dir;    // VMCI_FD_X
    uint8  proto;  // VMCI_FP_X
-   uint8  type;   // VMCI_FT_X
 } VMCIFilterInfo;
 
 /*
@@ -901,7 +904,7 @@ typedef struct {
  * direction. The VMCIFilters type captures all filters.
  */
 
-typedef VMCIFilterList VMCIProtoFilters[VMCI_FP_MAX][VMCI_FT_MAX];
+typedef VMCIFilterList VMCIProtoFilters[VMCI_FP_MAX];
 typedef VMCIProtoFilters VMCIFilters[VMCI_FD_MAX];
 
-#endif
+#endif // _VMCI_DEF_H_
