@@ -40,6 +40,7 @@ VMMCTL_OBJS := vmballoon.o
 VMMCTL_OBJS += vmballoon_kstats.o
 VMMCTL_OBJS += os.o
 VMMCTL_OBJS += backdoor_balloon.o
+VMMCTL_OBJS += kernelStubsSolaris.o
 
 VMMCTL_32_OBJS := $(addprefix i386/, $(VMMCTL_OBJS))
 VMMCTL_32_OBJS += i386/backdoorGcc32.o

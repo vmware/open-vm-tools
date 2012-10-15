@@ -24,6 +24,7 @@
 SRCS	:= os.c
 SRCS	+= vmballoon.c
 SRCS	+= backdoor_balloon.c
+SRCS	+= kernelStubsBSD.c
 
 .if $(MACHINE_ARCH) == "amd64"
 SRCS    += backdoorGcc64.c

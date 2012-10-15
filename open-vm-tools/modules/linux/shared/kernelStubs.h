@@ -53,7 +53,6 @@
 #   include <sys/kernel.h>
 #   include <machine/stdarg.h>
 #   include <sys/libkern.h>
-#   include "vm_assert.h"
 #elif defined(__APPLE__)
 #   include "vm_basic_types.h"
 #   ifndef KERNEL
