@@ -72,10 +72,10 @@
 #include "backdoor.h"
 #include "balloon_def.h"
 
-int Backdoor_MonitorStart(Balloon *b);
+int Backdoor_MonitorStart(Balloon *b, uint32 protoVersion);
 int Backdoor_MonitorGuestType(Balloon *b);
 int Backdoor_MonitorGetTarget(Balloon *b, uint32 *target);
-int Backdoor_MonitorLockPage(Balloon *b, PPN ppn);
-int Backdoor_MonitorUnlockPage(Balloon *b, PPN ppn);
+int Backdoor_MonitorLockPage(Balloon *b, PPN64 ppn);
+int Backdoor_MonitorUnlockPage(Balloon *b, PPN64 ppn);
 
 #endif /* _BACKDOOR_BALLOON_H_ */

@@ -58,7 +58,7 @@
  *
  *********************************************************/
 
-/* 
+/*
  * vmballoon.h: Definitions and macros for vmballoon driver.
  */
 
@@ -123,6 +123,16 @@ typedef struct {
    uint32 pageCount;
 } BalloonErrorPages;
 
+#define BALLOON_CHUNK_PAGES             1000
+
+typedef struct BalloonChunk {
+   PageHandle page[BALLOON_CHUNK_PAGES];
+   uint32 pageCount;
+   DblLnkLst_Links node;
+} BalloonChunk;
+
+struct BalloonOps;
+
 typedef struct {
    /* sets of reserved physical pages */
    DblLnkLst_Links chunks;
@@ -152,7 +162,24 @@ typedef struct {
 
    /* balloon protocol to use */
    uint32 hypervisorProtocolVersion;
+
+   /* balloon operations, tied to the protocol version */
+   const struct BalloonOps *balloonOps;
+
+   /* Either the batch page handle, or the page to lock on v2 */
+   PageHandle pageHandle;
+   Mapping batchPageMapping;
+   BalloonBatchPage *batchPage;
+   uint16 batchMaxPages;
+
+   BalloonChunk *fallbackChunk;
 } Balloon;
+
+typedef struct BalloonOps {
+   void (*addPage)(Balloon *b, uint16 idx, PageHandle page);
+   int (*lock)(Balloon *b, uint16 nPages);
+   int (*unlock)(Balloon *b, uint16 nPages);
+} BalloonOps;
 
 /*
  * Operations

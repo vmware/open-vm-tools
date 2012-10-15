@@ -104,14 +104,15 @@ void BackdoorBalloon(Backdoor_proto *myBp) // IN/OUT
  */
 
 int
-Backdoor_MonitorStart(Balloon *b) // IN
+Backdoor_MonitorStart(Balloon *b,               // IN
+                      uint32 protoVersion)      // IN
 {
    uint32 status;
    Backdoor_proto bp;
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_START;
-   bp.in.size = BALLOON_PROTOCOL_VERSION;
+   bp.in.size = protoVersion;
 
    /* invoke backdoor */
    BackdoorBalloon(&bp);
@@ -266,6 +267,8 @@ Backdoor_MonitorGetTarget(Balloon *b,     // IN
  *
  *      Attempts to contact monitor and add PPN corresponding to
  *      the page handle to set of "balloon locked" pages.
+ *      If the current protocol support batching, it will balloon all
+ *      PPNs listed in the batch page.
  *
  * Results:
  *      Returns BALLOON_SUCCESS if successful, otherwise error code.
@@ -278,28 +281,28 @@ Backdoor_MonitorGetTarget(Balloon *b,     // IN
 
 int
 Backdoor_MonitorLockPage(Balloon *b,    // IN
-                         PPN ppn)       // IN
+                         PPN64 ppn)     // IN
 {
-   uint32 ppn32;
-   uint32 status, target;
+   uint32 status;
    Backdoor_proto bp;
 
-   /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
-   ppn32 = (uint32)ppn;
-   if (ppn32 != ppn) {
-      return BALLOON_ERROR_PPN_INVALID;
+   if (b->hypervisorProtocolVersion == BALLOON_PROTOCOL_VERSION_2) {
+      /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
+      uint32 ppn32 = (uint32)ppn;
+      if (ppn32 != ppn) {
+         return BALLOON_ERROR_PPN_INVALID;
+      }
    }
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_LOCK;
-   bp.in.size = ppn32;
+   bp.in.size = (size_t)ppn;
 
    /* invoke backdoor */
    BackdoorBalloon(&bp);
 
    /* parse return values */
    status = bp.out.ax.word;
-   target = bp.out.bx.word;
 
    /* set flag if reset requested */
    if (status == BALLOON_ERROR_RESET) {
@@ -315,7 +318,6 @@ Backdoor_MonitorLockPage(Balloon *b,    // IN
    return status;
 }
 
-
 /*
  *----------------------------------------------------------------------
  *
@@ -323,6 +325,8 @@ Backdoor_MonitorLockPage(Balloon *b,    // IN
  *
  *      Attempts to contact monitor and remove PPN corresponding to
  *      the page handle from set of "balloon locked" pages.
+ *      If the current protocol support batching, it will remove all
+ *      the PPNs listed in the batch page.
  *
  * Results:
  *      Returns BALLOON_SUCCESS if successful, otherwise error code.
@@ -335,28 +339,28 @@ Backdoor_MonitorLockPage(Balloon *b,    // IN
 
 int
 Backdoor_MonitorUnlockPage(Balloon *b,  // IN
-                           PPN ppn)     // IN
+                           PPN64 ppn)   // IN
 {
-   uint32 ppn32;
-   uint32 status, target;
+   uint32 status;
    Backdoor_proto bp;
 
-   /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
-   ppn32 = (uint32)ppn;
-   if (ppn32 != ppn) {
-      return BALLOON_ERROR_PPN_INVALID;
+   if (b->hypervisorProtocolVersion == BALLOON_PROTOCOL_VERSION_2) {
+      /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
+      uint32 ppn32 = (uint32)ppn;
+      if (ppn32 != ppn) {
+         return BALLOON_ERROR_PPN_INVALID;
+      }
    }
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_UNLOCK;
-   bp.in.size = ppn32;
+   bp.in.size = (size_t)ppn;
 
    /* invoke backdoor */
    BackdoorBalloon(&bp);
 
    /* parse return values */
    status = bp.out.ax.word;
-   target = bp.out.bx.word;
 
    /* set flag if reset requested */
    if (status == BALLOON_ERROR_RESET) {

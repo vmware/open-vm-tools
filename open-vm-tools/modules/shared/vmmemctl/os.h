@@ -75,8 +75,10 @@
  */
 
 typedef uintptr_t PageHandle;
+typedef uintptr_t Mapping;
 
-#define PAGE_HANDLE_INVALID 0
+#define PAGE_HANDLE_INVALID     0
+#define MAPPING_INVALID         0
 
 /*
  * Operations
@@ -91,8 +93,13 @@ extern void OS_Free(void *ptr, size_t size);
 extern void OS_Yield(void);
 
 extern unsigned long OS_ReservedPageGetLimit(void);
-extern unsigned long OS_ReservedPageGetPPN(PageHandle handle);
+extern PPN64         OS_ReservedPageGetPPN(PageHandle handle);
+extern PageHandle    OS_ReservedPageGetHandle(PPN64 ppn);
 extern PageHandle    OS_ReservedPageAlloc(int canSleep);
 extern void          OS_ReservedPageFree(PageHandle handle);
+
+extern Mapping       OS_MapPageHandle(PageHandle handle);
+extern void          *OS_Mapping2Addr(Mapping mapping);
+extern void          OS_UnmapPage(Mapping mapping);
 
 #endif  /* OS_H */

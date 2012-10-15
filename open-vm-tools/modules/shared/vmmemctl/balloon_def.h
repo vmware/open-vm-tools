@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -75,6 +75,8 @@
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"
+#include "vm_basic_defs.h"
+#include "vm_assert.h"
 
 /*
  * constants
@@ -87,6 +89,30 @@
 /* backdoor port */
 #define BALLOON_BDOOR_PORT              (0x5670)
 #define BALLOON_BDOOR_MAGIC             (0x456c6d6f)
+
+/*
+ * Backdoor commands availability:
+ *
+ * +====================+===============+
+ * |    CMD             |   Protocol    |
+ * +--------------------+---------------+
+ * | START              |      2 (*)    |
+ * | TARGET             |      2        |
+ * | LOCK               |      2 (*)    |
+ * | UNLOCK             |      2 (*)    |
+ * | GUEST_ID           |      2        |
+ * +====================+===============+
+ *
+ * (*) The START, LOCK and UNLOCK has been slightly modified when
+ * protocol v3 is used:
+ *  - START now returns BALLOON_SUCCESS_WITH_VERSION, with the protocol
+ *    version stored in %ecx, only if guest also support protocol v3 or
+ *    up.
+ *  - LOCK and UNLOCK are now taking a PPN of a page that contains a
+ *    BalloonBatchPage, instead of directly taking the PPN to
+ *    lock/unlock.
+ *
+ */
 
 /* backdoor command numbers */
 #define BALLOON_BDOOR_CMD_START         (0)
@@ -130,5 +156,197 @@ typedef enum {
  * higher.
  */
 #define BALLOON_SUCCESS_WITH_VERSION     (0x03000000)
+
+/*
+ * BatchPage.
+ */
+#define BALLOON_BATCH_MAX_PAGES         \
+   ((PAGE_SIZE - sizeof(uint64)) / sizeof(PPN64))
+
+#define BALLOON_BATCH_STATUS_SHIFT      56
+
+typedef struct BalloonBatchPage {
+   uint64 nPages;
+   PPN64 pages[BALLOON_BATCH_MAX_PAGES];
+} BalloonBatchPage;
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Balloon_BatchInit --
+ *
+ * Results:
+ *      Return the number of pages that can be embedded inside the batch
+ *      page. If the protocol does not support batching, return 0.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE uint16
+Balloon_BatchInit(uint32 protoVersion)  // IN
+{
+   switch (protoVersion) {
+   case BALLOON_PROTOCOL_VERSION_3:
+      return BALLOON_BATCH_MAX_PAGES;
+   case BALLOON_PROTOCOL_VERSION_2:
+   default:
+      return 0;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Balloon_BatchGetNumPages --
+ *
+ *      Return the number of pages contained in the batch page.
+ *
+ * Results:
+ *      See above.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE uint64
+Balloon_BatchGetNumPages(BalloonBatchPage *batchPage)    // IN
+{
+   return batchPage->nPages;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Balloon_BatchSetNumPages --
+ *
+ *      Set the number of pages contained in the batch page.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE void
+Balloon_BatchSetNumPages(BalloonBatchPage *batchPage,      // IN
+                         uint64 nPages)                    // IN
+{
+   ASSERT(nPages <= BALLOON_BATCH_MAX_PAGES);
+   batchPage->nPages = nPages;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Balloon_BatchGetPPN --
+ *
+ *      Get the page stored in the batch page at idx.
+ *
+ * Results:
+ *      See above.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE PPN64
+Balloon_BatchGetPPN(BalloonBatchPage *batchPage,          // IN
+                    uint16 idx)                           // IN
+{
+   ASSERT(idx < batchPage->nPages);
+   return batchPage->pages[idx] & MASK64(BALLOON_BATCH_STATUS_SHIFT);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Balloon_BatchGetStatus --
+ *
+ *      Get the error code associated with a page.
+ *
+ * Results:
+ *      See above.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE uint8
+Balloon_BatchGetStatus(BalloonBatchPage *batchPage,     // IN
+                       uint16 idx)                      // IN
+{
+   ASSERT(idx < batchPage->nPages);
+   return (uint8)(batchPage->pages[idx] >> BALLOON_BATCH_STATUS_SHIFT);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Balloon_BatchSetPPN --
+ *
+ *      Store the page in the batch page at idx.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE void
+Balloon_BatchSetPPN(BalloonBatchPage *batchPage,           // IN
+                    uint16 idx,                            // IN
+                    PPN64 ppn)                             // IN
+{
+   ASSERT(idx < BALLOON_BATCH_MAX_PAGES);
+   batchPage->pages[idx] = ppn;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Balloon_BatchSetStatus --
+ *
+ *      Set the error code associated with a page.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE void
+Balloon_BatchSetStatus(BalloonBatchPage *batchPage,      // IN
+                       uint16 idx,                       // IN
+                       int error)                        // IN
+{
+   PPN64 ppn;
+
+   ASSERT(idx < BALLOON_BATCH_MAX_PAGES);
+   ppn = Balloon_BatchGetPPN(batchPage, idx);
+   ppn |=  ((PPN64)error << BALLOON_BATCH_STATUS_SHIFT);
+   batchPage->pages[idx] = ppn;
+}
+
+MY_ASSERTS(BALLOON_BATCH_SIZE,
+           ASSERT_ON_COMPILE(sizeof(BalloonBatchPage) == PAGE_SIZE);
+)
 
 #endif  /* _BALLOON_DEF_H */

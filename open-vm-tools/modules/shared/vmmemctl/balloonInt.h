@@ -67,7 +67,11 @@
 #define BALLOON_NAME                    "vmmemctl"
 #define BALLOON_NAME_VERBOSE            "VMware memory control driver"
 
+#if defined __linux__ || defined __FreeBSD__ || defined _WIN32
 #define BALLOON_PROTOCOL_VERSION        BALLOON_PROTOCOL_VERSION_3
+#else
+#define BALLOON_PROTOCOL_VERSION        BALLOON_PROTOCOL_VERSION_2
+#endif
 
 #define BALLOON_RATE_ADAPT      1
 
