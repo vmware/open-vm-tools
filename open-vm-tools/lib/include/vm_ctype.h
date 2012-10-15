@@ -23,6 +23,7 @@
 #ifndef _VM_CTYPE_H_
 #define _VM_CTYPE_H_
 
+#define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
@@ -39,7 +40,7 @@
 #define CType_IsAlnum(c) isalnum((c) & 0xFF)
 #define CType_IsAlpha(c) isalpha((c) & 0xFF)
 #define CType_IsAscii(c) isascii((c) & 0xFF)
-#define CType_IsBlank(c) isblank((c) & 0xFF)
+static __inline int CType_IsBlank(int c) { return c == ' ' || c == '\t'; }
 #define CType_IsCntrl(c) iscntrl((c) & 0xFF)
 #define CType_IsDigit(c) isdigit((c) & 0xFF)
 #define CType_IsGraph(c) isgraph((c) & 0xFF)
