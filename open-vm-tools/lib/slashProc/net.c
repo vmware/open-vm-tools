@@ -783,7 +783,7 @@ badIteration:
    }
 
    if (myArray && myIoStatus != G_IO_STATUS_EOF) {
-      g_ptr_array_free(myArray, TRUE);
+      SlashProcNet_FreeRoute6(myArray);
       myArray = NULL;
    }
 

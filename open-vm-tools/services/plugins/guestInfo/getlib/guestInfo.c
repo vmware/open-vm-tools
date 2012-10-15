@@ -106,7 +106,7 @@ GuestInfo_GetNicInfo(NicInfoV3 **nicInfo)
 
    retval = GuestInfoGetNicInfo(*nicInfo);
    if (!retval) {
-      free(*nicInfo);
+      GuestInfo_FreeNicInfo(*nicInfo);
       *nicInfo = NULL;
    }
 
