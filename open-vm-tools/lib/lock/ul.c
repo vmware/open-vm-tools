@@ -292,7 +292,7 @@ MXUserDumpAndPanic(MXUserHeader *header,  // IN:
 
 /*
  *---------------------------------------------------------------------
- * 
+ *
  *  MXUser_SetInPanic --
  *	Notify the locking system that a panic is occurring.
  *
@@ -317,7 +317,7 @@ MXUser_SetInPanic(void)
 
 /*
  *---------------------------------------------------------------------
- * 
+ *
  *  MXUser_InPanic --
  *	Is the caller in the midst of a panic?
  *
@@ -757,7 +757,7 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
        *
        * Recursive locks are rank checked only upon their first acquisition...
        * just like MX locks.
-       * 
+       *
        * Exclusive locks will have a second entry added into the tracking
        * system but will immediately panic due to the run time checking - no
        * (real) harm done.

@@ -575,7 +575,7 @@ MXUserBasicStatsSetUp(MXUserBasicStats *stats,
 void
 MXUserBasicStatsSample(MXUserBasicStats *stats,
                        uint64 value);
- 
+
 void MXUserDumpBasicStats(MXUserBasicStats *stats,
                           MXUserHeader *header);
 

@@ -920,24 +920,24 @@ MXUser_AcquireForWrite(MXUserRWLock *lock)  // IN/OUT:
 }
 
 
-/*      
+/*
  *-----------------------------------------------------------------------------
- *      
+ *
  * MXUser_IsCurThreadHolding --
  *
  *      Is the read-write lock held in the mode queried?
- *      
+ *
  * Results:
  *      TRUE   Yes
  *      FALSE  No
  *
  * Side effects:
  *      None
- *      
+ *
  *-----------------------------------------------------------------------------
- */     
-        
-Bool    
+ */
+
+Bool
 MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
                                 uint32 queryType)    // IN:
 {
@@ -951,16 +951,16 @@ MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
    switch (queryType) {
    case MXUSER_RW_FOR_READ:
       return myContext->state == RW_LOCKED_FOR_READ;
-        
+
    case MXUSER_RW_FOR_WRITE:
       return myContext->state == RW_LOCKED_FOR_WRITE;
-        
+
    case MXUSER_RW_LOCKED:
       return myContext->state != RW_UNLOCKED;
 
    default:
       Panic("%s: unknown query type %d\n", __FUNCTION__, queryType);
-   }    
+   }
 }
 
 

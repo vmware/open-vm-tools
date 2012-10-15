@@ -124,7 +124,7 @@ MXUserTimedDown(NativeSemaphore *sema,  // IN:
 
     status = WaitForSingleObject(*sema, msecWait);
 
-    switch (status) { 
+    switch (status) {
        case WAIT_OBJECT_0:  // The down (decrement) occurred
           *downOccurred = TRUE;
           err = 0;
@@ -828,7 +828,7 @@ MXUser_TryDownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
  * MXUser_UpSemaphore --
  *
  *      Perform an up (V; verhogen; "increase") operation on a semaphore.
- * 
+ *
  * Results:
  *      The semaphore count is incremented. Any thread waiting on the
  *      semaphore is awoken.

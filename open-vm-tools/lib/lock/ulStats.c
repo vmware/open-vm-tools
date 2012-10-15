@@ -156,7 +156,7 @@ MXUserHistoIndex(uint64 value)  // IN:
       uint32 numerator = 0;
       uint32 denominator = 0;
 
-      LogFixed_Base10(value, &numerator, &denominator); 
+      LogFixed_Base10(value, &numerator, &denominator);
 
       index = (BINS_PER_DECADE * numerator) / denominator;
    }
