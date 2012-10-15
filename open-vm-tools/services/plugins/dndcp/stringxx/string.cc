@@ -312,8 +312,12 @@ string::string(const char *s,           // IN
  *-----------------------------------------------------------------------------
  */
 
-string::string(const Glib::ustring &s)    // IN
+string::string(const Glib::ustring& s) // IN
+#ifdef I_LOVE_STRICT_SENSITIVESTRING
+   : mUstr(s),
+#else
    : mUstr(s.c_str()),
+#endif
      mUtf16Cache(NULL),
      mUtf16Length(npos)
 {
@@ -343,8 +347,12 @@ string::string(const Glib::ustring &s)    // IN
  *-----------------------------------------------------------------------------
  */
 
-string::string(const string &s) // IN
+string::string(const string& s) // IN
+#ifdef I_LOVE_STRICT_SENSITIVESTRING
+   : mUstr(s.mUstr),
+#else
    : mUstr(s.mUstr.c_str()),
+#endif
      mUtf16Cache(NULL),
      mUtf16Length(npos)
 {
@@ -624,30 +632,6 @@ string::empty()
    const
 {
    return mUstr.empty();
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * utf::string::isASCII --
- *
- *      Test if every character in the string is in the ASCII range.
- *
- * Results:
- *      true if all ASCII, otherwise false.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-bool
-string::isASCII()
-   const
-{
-   return mUstr.is_ascii();
 }
 
 
@@ -1148,6 +1132,7 @@ string::clear()
 }
 
 
+#ifndef I_LOVE_STRICT_SENSITIVESTRING
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1186,6 +1171,7 @@ string::zero_clear()
    Util_Zero(const_cast<char *>(mUstr.data()), mUstr.bytes());
    mUstr.clear();
 }
+#endif // I_LOVE_STRICT_SENSITIVESTRING
 
 
 /*

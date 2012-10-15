@@ -33,6 +33,7 @@
 #include "strutil.h"
 #include "str.h"
 #include "dynbuf.h"
+#include "vm_ctype.h"
 
 
 /*
@@ -894,6 +895,37 @@ StrUtil_EndsWith(const char *s,      // IN
    }
 
    return strcmp(s + slen - suffixlen, suffix) == 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_IsASCII --
+ *
+ * Results:
+ *      Returns TRUE if the string contains only ASCII characters, FALSE
+ *      otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_IsASCII(const char *s) // IN
+{
+   ASSERT(s != NULL);
+
+   while (*s != '\0') {
+      if (!CType_IsAscii(*s)) {
+         return FALSE;
+      }
+      s++;
+   }
+
+   return TRUE;
 }
 
 

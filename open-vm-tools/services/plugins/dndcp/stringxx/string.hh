@@ -128,7 +128,6 @@ public:
    void swap(string &s);
    void resize(size_type n, value_type c = '\0');
    bool empty() const;
-   bool isASCII() const;
    size_type size() const;
    size_type w_size() const;
    size_type length() const;
@@ -152,7 +151,9 @@ public:
    string& assign(const string &s);
    void push_back(value_type uc);
    void clear();
+#ifndef I_LOVE_STRICT_SENSITIVESTRING
    void zero_clear();
+#endif
    string& insert(size_type i, const string& s);
    string& insert(size_type i, size_type n, value_type uc);
    string& insert(iterator p, value_type uc);

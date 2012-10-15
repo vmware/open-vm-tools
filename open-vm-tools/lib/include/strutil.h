@@ -57,6 +57,7 @@ size_t StrUtil_GetLongestLineLength(const char *buf, size_t bufLength);
 Bool StrUtil_StartsWith(const char *s, const char *prefix);
 Bool StrUtil_CaselessStartsWith(const char *s, const char *prefix);
 Bool StrUtil_EndsWith(const char *s, const char *suffix);
+Bool StrUtil_IsASCII(const char *s);
 
 Bool StrUtil_VDynBufPrintf(struct DynBuf *b, const char *fmt, va_list args);
 Bool StrUtil_DynBufPrintf(struct DynBuf *b, const char *fmt, ...);

@@ -213,8 +213,10 @@ Max(int a, int b)
  * Wide versions of string constants.
  */
 
+#ifndef WSTR
 #define WSTR_(X)     L ## X
 #define WSTR(X)      WSTR_(X)
+#endif
 
 
 /*

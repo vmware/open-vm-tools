@@ -29,17 +29,32 @@
  */
 #include "vm_version.h"
 
+#ifndef WSTR
+#define WSTR_(x) L ## x
+#define WSTR(x) WSTR_(x)
+#endif
+
+
+#define COPYRIGHT_YEARS    "1998-2012"
+#define COPYRIGHT_STRING   "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
+#define RIGHT_RESERVED     "All rights reserved."
 
 /*
  * Use UTF8_COPYRIGHT_STRING_BASE when the COMPANY_NAME must be separated out
  * to create a hyperlink.
  */
-#define COPYRIGHT_YEARS    "1998-2012"
-#define COPYRIGHT_STRING   "Copyright \251 " COPYRIGHT_YEARS " " COMPANY_NAME
 #define UTF8_COPYRIGHT_STRING_BASE   "Copyright \302\251 " COPYRIGHT_YEARS
 #define UTF8_COPYRIGHT_STRING   UTF8_COPYRIGHT_STRING_BASE " " COMPANY_NAME
-#define GENERIC_COPYRIGHT_STRING   "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
-#define RIGHT_RESERVED     "All rights reserved."
+
+/*
+ * A UTF-16 version of the copyright string.  wchar_t is an
+ * implementation-defined type, but we can expect it to be UTF-16 on
+ * Windows. (Only Windows cares about UTF-16 anyway.)
+ */
+#ifdef _WIN32
+#define UTF16_COPYRIGHT_STRING L"Copyright \x00A9 " WSTR(COPYRIGHT_YEARS) L" " WSTR(COMPANY_NAME)
+#endif
+
 
 /*
  * Use PATENTS_STRING for showing the patents string in plaintext form.

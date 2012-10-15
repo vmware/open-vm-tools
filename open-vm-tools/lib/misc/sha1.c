@@ -163,9 +163,11 @@ _SHA1Transform(uint32 state[5], unsigned char buffer[64])
 }
 
 #ifdef SHA1HANDSOFF
-void SHA1Transform(uint32 state[5], const unsigned char buffer[64])
+static void
+SHA1Transform(uint32 state[5], const unsigned char buffer[64])
 #else
-void SHA1Transform(uint32 state[5], unsigned char buffer[64])
+static void
+SHA1Transform(uint32 state[5], unsigned char buffer[64])
 #endif
 {
 #ifdef SHA1HANDSOFF

@@ -49,6 +49,24 @@
 /* for uint32 */
 #include "vm_basic_types.h"
 
+
+#if defined __APPLE__ && defined USERLEVEL
+
+/*
+ * Apple provides basic crypto functions in its system runtime that are
+ * maintained for both speed and security. Use those instead.
+ */
+
+#include <CommonCrypto/CommonDigest.h>
+
+#define SHA1_HASH_LEN CC_SHA1_DIGEST_LENGTH
+#define SHA1_CTX      CC_SHA1_CTX
+#define SHA1Init      CC_SHA1_Init
+#define SHA1Update    CC_SHA1_Update
+#define SHA1Final     CC_SHA1_Final
+
+#else
+
 /*
 SHA-1 in C
 By Steve Reid <steve@edmweb.com>
@@ -90,6 +108,6 @@ void SHA1Update(SHA1_CTX* context,
 #endif
 void SHA1Final(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
 
-void SHA1Transform(uint32 state[5], const unsigned char buffer[64]);
+#endif // defined __APPLE__ && defined USERLEVEL
 
 #endif // ifndef _SHA1_H_
