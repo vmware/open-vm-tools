@@ -65,12 +65,13 @@
 /*
  *----------------------------------------------------------------------
  *
- * BackdoorBalloon --
+ * BackdoorCmd --
  *
  *      Do the balloon hypercall to the vmkernel.
  *
  * Results:
- *      vmkernel response returned in myBp.
+ *      Hypercall status will be returned and out will be filled
+ *      if it's not NULL, either by bx or cx depending on the command.
  *
  * Side effects:
  *      None.
@@ -78,12 +79,41 @@
  *----------------------------------------------------------------------
  */
 
-static
-void BackdoorBalloon(Backdoor_proto *myBp) // IN/OUT
+static int
+BackdoorCmd(uint16 cmd,     // IN
+            size_t arg1,    // IN
+            uint32 arg2,    // IN
+            uint32 *out,    // OUT
+            int *resetFlag) // OUT
 {
-   myBp->in.ax.word = BALLOON_BDOOR_MAGIC;
-   myBp->in.dx.halfs.low = BALLOON_BDOOR_PORT;
-   Backdoor_InOut(myBp);
+   Backdoor_proto bp;
+   int status;
+
+   /* prepare backdoor args */
+   bp.in.cx.halfs.low = cmd;
+   bp.in.size = arg1;
+   bp.in.si.word = arg2;
+
+   /* invoke backdoor */
+   bp.in.ax.word = BALLOON_BDOOR_MAGIC;
+   bp.in.dx.halfs.low = BALLOON_BDOOR_PORT;
+   Backdoor_InOut(&bp);
+
+   status = bp.out.ax.word;
+   /* set flag if reset requested */
+   if (status == BALLOON_ERROR_RESET) {
+      *resetFlag = 1;
+   }
+
+   if (out) {
+      if (cmd == BALLOON_BDOOR_CMD_START) {
+         *out = bp.out.cx.word;
+      } else {
+         *out = bp.out.bx.word;
+      }
+   }
+
+   return status;
 }
 
 
@@ -107,26 +137,16 @@ int
 Backdoor_MonitorStart(Balloon *b,               // IN
                       uint32 protoVersion)      // IN
 {
-   uint32 status;
-   Backdoor_proto bp;
-
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_START;
-   bp.in.size = protoVersion;
-
-   /* invoke backdoor */
-   BackdoorBalloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-
+   uint32 capabilities;
+   int status = BackdoorCmd(BALLOON_BDOOR_CMD_START, protoVersion, 0,
+                            &capabilities, &b->resetFlag);
    /*
     * If return code is BALLOON_SUCCESS_WITH_CAPABILITY, then ESX is
     * sending the common capabilities supported by the monitor and the
     * guest in cx.
     */
    if (status == BALLOON_SUCCESS_WITH_CAPABILITIES) {
-      b->hypervisorCapabilities = bp.out.cx.word;
+      b->hypervisorCapabilities = capabilities;
       status = BALLOON_SUCCESS;
    } else if (status == BALLOON_SUCCESS) {
       b->hypervisorCapabilities = BALLOON_BASIC_CMDS;
@@ -161,24 +181,8 @@ Backdoor_MonitorStart(Balloon *b,               // IN
 int
 Backdoor_MonitorGuestType(Balloon *b) // IN
 {
-   uint32 status, target;
-   Backdoor_proto bp;
-
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_GUEST_ID;
-   bp.in.size = b->guestType;
-
-   /* invoke backdoor */
-   BackdoorBalloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-   target = bp.out.bx.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
+   int status = BackdoorCmd(BALLOON_BDOOR_CMD_GUEST_ID, b->guestType, 0,
+                            NULL, &b->resetFlag);
 
    /* update stats */
    STATS_INC(b->stats.guestType);
@@ -222,10 +226,9 @@ int
 Backdoor_MonitorGetTarget(Balloon *b,     // IN
                           uint32 *target) // OUT
 {
-   Backdoor_proto bp;
    unsigned long limit;
    uint32 limit32;
-   uint32 status;
+   int status;
 
    limit = OS_ReservedPageGetLimit();
 
@@ -235,21 +238,8 @@ Backdoor_MonitorGetTarget(Balloon *b,     // IN
       return BALLOON_FAILURE;
    }
 
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_TARGET;
-   bp.in.size = limit;
-
-   /* invoke backdoor */
-   BackdoorBalloon(&bp);
-
-   /* parse return values */
-   status  = bp.out.ax.word;
-   *target = bp.out.bx.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
+   status = BackdoorCmd(BALLOON_BDOOR_CMD_TARGET, limit, 0, target,
+                        &b->resetFlag);
 
    /* update stats */
    STATS_INC(b->stats.target);
@@ -284,8 +274,7 @@ int
 Backdoor_MonitorLockPage(Balloon *b,    // IN
                          PPN64 ppn)     // IN
 {
-   uint32 status;
-   Backdoor_proto bp;
+   int status;
    uint32 ppn32 = (uint32)ppn;
 
    /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
@@ -293,20 +282,8 @@ Backdoor_MonitorLockPage(Balloon *b,    // IN
       return BALLOON_ERROR_PPN_INVALID;
    }
 
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_LOCK;
-   bp.in.size = (size_t)ppn;
-
-   /* invoke backdoor */
-   BackdoorBalloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
+   status = BackdoorCmd(BALLOON_BDOOR_CMD_LOCK, ppn32, 0, NULL,
+                        &b->resetFlag);
 
    /* update stats */
    STATS_INC(b->stats.lock);
@@ -340,8 +317,7 @@ int
 Backdoor_MonitorUnlockPage(Balloon *b,  // IN
                            PPN64 ppn)   // IN
 {
-   uint32 status;
-   Backdoor_proto bp;
+   int status;
    uint32 ppn32 = (uint32)ppn;
 
    /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
@@ -349,20 +325,8 @@ Backdoor_MonitorUnlockPage(Balloon *b,  // IN
       return BALLOON_ERROR_PPN_INVALID;
    }
 
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_UNLOCK;
-   bp.in.size = (size_t)ppn;
-
-   /* invoke backdoor */
-   BackdoorBalloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
+   status = BackdoorCmd(BALLOON_BDOOR_CMD_UNLOCK, ppn32, 0, NULL,
+                        &b->resetFlag);
 
    /* update stats */
    STATS_INC(b->stats.unlock);
@@ -394,24 +358,8 @@ Backdoor_MonitorLockPagesBatched(Balloon *b,    // IN
                                  PPN64 ppn,     // IN
                                  uint32 nPages) // IN
 {
-   uint32 status;
-   Backdoor_proto bp;
-
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_BATCHED_LOCK;
-   bp.in.size = (size_t)ppn;
-   bp.in.si.word = nPages;
-
-   /* invoke backdoor */
-   BackdoorBalloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
+   int status = BackdoorCmd(BALLOON_BDOOR_CMD_BATCHED_LOCK,
+                            (size_t)ppn, nPages, NULL, &b->resetFlag);
 
    /* update stats */
    STATS_INC(b->stats.lock);
@@ -443,24 +391,8 @@ Backdoor_MonitorUnlockPagesBatched(Balloon *b,          // IN
                                    PPN64 ppn,           // IN
                                    uint32 nPages)       // IN
 {
-   uint32 status;
-   Backdoor_proto bp;
-
-   /* prepare backdoor args */
-   bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_BATCHED_UNLOCK;
-   bp.in.size = (size_t)ppn;
-   bp.in.si.word = nPages;
-
-   /* invoke backdoor */
-   BackdoorBalloon(&bp);
-
-   /* parse return values */
-   status = bp.out.ax.word;
-
-   /* set flag if reset requested */
-   if (status == BALLOON_ERROR_RESET) {
-      b->resetFlag = 1;
-   }
+   int status = BackdoorCmd(BALLOON_BDOOR_CMD_BATCHED_LOCK,
+                            (size_t)ppn, nPages, NULL, &b->resetFlag);
 
    /* update stats */
    STATS_INC(b->stats.unlock);
