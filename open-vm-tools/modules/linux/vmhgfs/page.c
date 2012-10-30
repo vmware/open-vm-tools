@@ -32,6 +32,7 @@
 #include "compat_fs.h"
 #include "compat_kernel.h"
 #include "compat_pagemap.h"
+#include "compat_highmem.h"
 #include <linux/writeback.h>
 
 #include "cpName.h"
@@ -893,7 +894,7 @@ HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
     */
    if ((offset >= currentFileSize) ||
        ((pageFrom == 0) && (offset + pageTo) >= currentFileSize)) {
-      void *kaddr = kmap_atomic(page, KM_USER0);
+      void *kaddr = compat_kmap_atomic(page);
 
       if (pageFrom) {
          memset(kaddr, 0, pageFrom);
@@ -901,7 +902,7 @@ HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
       if (pageTo < PAGE_CACHE_SIZE) {
          memset(kaddr + pageTo, 0, PAGE_CACHE_SIZE - pageTo);
       }
-      kunmap_atomic(kaddr, KM_USER0);
+      compat_kunmap_atomic(kaddr);
       flush_dcache_page(page);
    }
 }

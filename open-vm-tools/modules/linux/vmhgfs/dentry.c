@@ -36,7 +36,12 @@
 
 /* HGFS dentry operations. */
 static int HgfsDentryRevalidate(struct dentry *dentry,
-                                struct nameidata *nd);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+                                unsigned int flags
+#else
+                                struct nameidata *nd
+#endif
+);
 
 /* HGFS dentry operations structure. */
 struct dentry_operations HgfsDentryOperations = {
@@ -71,7 +76,12 @@ struct dentry_operations HgfsDentryOperations = {
 
 static int
 HgfsDentryRevalidate(struct dentry *dentry,  // IN: Dentry to revalidate
-                     struct nameidata *nd)   // IN: Lookup flags & intent
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+                     unsigned int flags      // IN: Lookup flags & intent
+#else
+                     struct nameidata *nd    // IN: Lookup flags & intent
+#endif
+)
 {
    int error;
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDentryRevalidate: calling "
@@ -79,7 +89,11 @@ HgfsDentryRevalidate(struct dentry *dentry,  // IN: Dentry to revalidate
 
    ASSERT(dentry);
 
-#if defined(LOOKUP_RCU) /* Introduced in 2.6.38 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+   if (flags & LOOKUP_RCU) {
+      return -ECHILD;
+   }
+#elif defined(LOOKUP_RCU) /* Introduced in 2.6.38 */
    if (nd && (nd->flags & LOOKUP_RCU)) {
       return -ECHILD;
    }

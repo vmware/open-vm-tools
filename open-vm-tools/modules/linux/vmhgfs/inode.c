@@ -30,10 +30,10 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
 #include <linux/namei.h>
 #endif
+#include <linux/highmem.h>
 
 #include "compat_cred.h"
 #include "compat_fs.h"
-#include "compat_highmem.h"
 #include "compat_kernel.h"
 #include "compat_mm.h"
 #include "compat_page-flags.h"
@@ -75,10 +75,20 @@ static int HgfsPackSymlinkCreateRequest(struct dentry *dentry,
 static int HgfsCreate(struct inode *dir,
                       struct dentry *dentry,
                       compat_umode_t mode,
-                      struct nameidata *nd);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+                      bool excl
+#else
+                      struct nameidata *nd
+#endif
+);
 static struct dentry *HgfsLookup(struct inode *dir,
                                  struct dentry *dentry,
-                                 struct nameidata *nd);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+                                 unsigned int flags
+#else
+                                 struct nameidata *nd
+#endif
+);
 static int HgfsMkdir(struct inode *dir,
                      struct dentry *dentry,
                      compat_umode_t mode);
@@ -97,7 +107,7 @@ static int HgfsSymlink(struct inode *dir,
 static int HgfsPermission(struct inode *inode,
                           int mask,
                           struct nameidata *nameidata);
-#elif defined(IPERM_FLAG_RCU) /* introduced in 2.6.38 */
+#elif defined(IPERM_FLAG_RCU)
 static int HgfsPermission(struct inode *inode,
                           int mask,
                           unsigned int flags);
@@ -952,7 +962,12 @@ static int
 HgfsCreate(struct inode *dir,     // IN: Parent dir to create in
            struct dentry *dentry, // IN: Dentry containing name to create
            compat_umode_t mode,   // IN: Mode of file to be created
-	   struct nameidata *nd)  // IN: Intent, vfsmount, ...
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+           bool excl              // IN: O_EXCL
+#else
+           struct nameidata *nd   // IN: Intent, vfsmount, ...
+#endif
+           )
 {
    HgfsAttrInfo attr;
    int result;
@@ -1025,7 +1040,12 @@ HgfsCreate(struct inode *dir,     // IN: Parent dir to create in
 static struct dentry *
 HgfsLookup(struct inode *dir,      // IN: Inode of parent directory
            struct dentry *dentry,  // IN: Dentry containing name to look up
-           struct nameidata *nd)   // IN: Intent, vfsmount, ...
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+           unsigned int flags
+#else
+           struct nameidata *nd    // IN: Intent, vfsmount, ...
+#endif
+           )
 {
    HgfsAttrInfo attr;
    struct inode *inode;
@@ -1778,14 +1798,45 @@ HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
  *
  *----------------------------------------------------------------------
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+static int
+HgfsPermission(struct inode *inode,
+               int mask)
+{
+   LOG(8, ("VMware hgfs: %s: inode->mode: %8x mask: %8x\n", __func__,
+           inode->i_mode, mask));
+   /*
+    * For sys_access, we go to the host for permission checking;
+    * otherwise return 0.
+    */
+   if (mask & MAY_ACCESS) { /* For sys_access. */
+      struct dentry *dentry;
+      struct hlist_node *p;
+      int dcount = 0;
 
+      if (mask & MAY_NOT_BLOCK)
+         return -ECHILD;
+
+      /* Find a dentry with valid d_count. Refer bug 587879. */
+      hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
+         dcount = dentry->d_count;
+         if (dcount) {
+            LOG(4, ("Found %s %d \n", dentry->d_name.name, dcount));
+            break;
+         }
+      }
+      ASSERT(dcount);
+      return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
+   }
+   return 0;
+}
+#else
 static int
 HgfsPermission(struct inode *inode,
                int mask
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
                , struct nameidata *nd
-#endif
-#ifdef IPERM_FLAG_RCU /* introduced in 2.6.38 */
+#elif defined(IPERM_FLAG_RCU)
                , unsigned int flags
 #endif
                )
@@ -1805,18 +1856,22 @@ HgfsPermission(struct inode *inode,
       int dcount = 0;
       struct dentry *dentry = NULL;
 
-#ifdef IPERM_FLAG_RCU
       /*
        * In 2.6.38 path walk is done in 2 distinct modes: rcu-walk and
        * ref-walk. Ref-walk is the classic one; rcu is lockless and is
        * not allowed to sleep. We insist on using ref-walk since our
-       * transports may sleep.
+       * transports may sleep. In 3.1 IPERM_FLAG_RCU was replaced with
+       * MAY_NOT_BLOCK.
        */
+#if defined(MAY_NOT_BLOCK)
+      if (mask & MAY_NOT_BLOCK)
+         return -ECHILD;
+#elif defined(IPERM_FLAG_RCU)
       if (flags & IPERM_FLAG_RCU)
          return -ECHILD;
 #endif
 
-      /* Find a dentry with valid d_count. Refer bug 587789. */
+      /* Find a dentry with valid d_count. Refer bug 587879. */
       list_for_each(pos, &inode->i_dentry) {
          dentry = list_entry(pos, struct dentry, d_alias);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 38)
@@ -1834,6 +1889,7 @@ HgfsPermission(struct inode *inode,
    }
    return 0;
 }
+#endif
 
 
 /*
