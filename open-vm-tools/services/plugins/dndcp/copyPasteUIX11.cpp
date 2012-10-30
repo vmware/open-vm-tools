@@ -620,7 +620,8 @@ CopyPasteUIX11::LocalClipboardTimestampCB(const Gtk::SelectionData& sd)  // IN
    /*
     * See “A Word on Selection Timestamps” above.
     */
-   if (   sd.get_data_type().compare("INTEGER") == 0
+   if (   (   sd.get_data_type().compare("INTEGER") == 0
+           || sd.get_data_type().compare("TIMESTAMP") == 0)
        && sd.get_format() == 32
        && length >= 4 /* sizeof uint32 */) {
       mClipTime = reinterpret_cast<const uint32*>(sd.get_data())[0];
@@ -663,7 +664,8 @@ CopyPasteUIX11::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
    /*
     * See “A Word on Selection Timestamps” above.
     */
-   if (   sd.get_data_type().compare("INTEGER") == 0
+   if (   (   sd.get_data_type().compare("INTEGER") == 0
+           || sd.get_data_type().compare("TIMESTAMP") == 0)
        && sd.get_format() == 32
        && length >= 4 /* sizeof uint32 */) {
       mPrimTime = reinterpret_cast<const uint32*>(sd.get_data())[0];
