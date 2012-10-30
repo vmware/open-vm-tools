@@ -3281,6 +3281,8 @@ HgfsServerCleanupDeletedFolders(void)
       HgfsSharedFolderProperties *folder =
          DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
       if (folder->markedForDeletion) {
+         LOG(8, ("%s: removing shared folder handle %#x\n",
+                 __FUNCTION__, folder->notificationHandle));
          if (!HgfsNotify_RemoveSharedFolder(folder->notificationHandle)) {
             LOG(4, ("Problem removing %d shared folder handle\n",
                     folder->notificationHandle));
@@ -3329,10 +3331,18 @@ HgfsServer_RegisterSharedFolder(const char *shareName,   // IN: shared folder na
    DblLnkLst_Links *link, *nextElem;
    HgfsSharedFolderHandle result = HGFS_INVALID_FOLDER_HANDLE;
 
+   LOG(8, ("%s: %s, %s, %s\n", __FUNCTION__,
+           (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
+           (addFolder ? "add" : "remove")));
+
    if (!gHgfsDirNotifyActive) {
       LOG(8, ("%s: notification disabled\n", __FUNCTION__));
       goto exit;
    }
+
+   LOG(8, ("%s: %s, %s, %s - active notification\n", __FUNCTION__,
+           (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
+           (addFolder ? "add" : "remove")));
 
    if (NULL == shareName) {
       /*
@@ -3683,6 +3693,7 @@ HgfsServerEnumerateSharedFolders(void)
    void *state;
    Bool success = FALSE;
 
+   LOG(8, ("%s: entered\n", __FUNCTION__));
    state = HgfsServerPolicy_GetSharesInit();
    if (NULL != state) {
       Bool done;
@@ -3702,15 +3713,18 @@ HgfsServerEnumerateSharedFolders(void)
                                                        HGFS_OPEN_MODE_READ_ONLY,
                                                        &sharePathLen, &sharePath);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
+               LOG(8, ("%s: registering share %s path %s\n", __FUNCTION__, shareName, sharePath));
                handle = HgfsServer_RegisterSharedFolder(shareName, sharePath,
                                                         TRUE);
                success = handle != HGFS_INVALID_FOLDER_HANDLE;
+               LOG(8, ("%s: registering share %s hnd %#x\n", __FUNCTION__, shareName, handle));
             }
          }
       } while (!done && success);
 
       HgfsServerPolicy_GetSharesCleanup(state);
    }
+   LOG(8, ("%s: exit %d\n", __FUNCTION__, success));
    return success;
 }
 
@@ -3905,6 +3919,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
       HgfsServerSetSessionCapability(HGFS_OP_WRITE_FAST_V4,
                                      HGFS_REQUEST_SUPPORTED, session);
       if (gHgfsDirNotifyActive) {
+         LOG(8, ("%s: notify is enabled\n", __FUNCTION__));
          if (HgfsServerEnumerateSharedFolders()) {
             HgfsServerSetSessionCapability(HGFS_OP_SET_WATCH_V4,
                                            HGFS_REQUEST_SUPPORTED, session);
@@ -3954,13 +3969,17 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
 static void
 HgfsDisconnectSessionInt(HgfsSessionInfo *session)    // IN: session context
 {
+   LOG(8, ("%s: entered\n", __FUNCTION__));
 
    ASSERT(session);
    ASSERT(session->nodeArray);
    ASSERT(session->searchArray);
+
    if (session->activeNotification) {
+      LOG(8, ("%s: calling notify component to disconnect\n", __FUNCTION__));
       HgfsNotify_RemoveSessionSubscribers(session);
    }
+   LOG(8, ("%s: exit\n", __FUNCTION__));
 }
 
 
@@ -6907,10 +6926,14 @@ HgfsServerSetDirWatchByHandle(HgfsInputParam *input,         // IN: Input params
 
    if (HgfsHandle2NotifyInfo(dir, input->session, &fileName, &fileNameSize,
                              &sharedFolder)) {
+      LOG(4, ("%s: adding a subscriber on shared folder handle %#x\n", __FUNCTION__,
+               sharedFolder));
       *watchId = HgfsNotify_AddSubscriber(sharedFolder, fileName, events, watchTree,
                                           HgfsServerDirWatchEvent, input->session);
       status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                               HGFS_ERROR_SUCCESS;
+      LOG(4, ("%s: result of add subscriber id %"FMT64"x status %u\n", __FUNCTION__,
+               *watchId, status));
    } else {
       status = HGFS_ERROR_INTERNAL;
    }
@@ -6990,22 +7013,28 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
             nameStatus = CPName_ConvertFrom((char const **) &next, &nameSize,
                                             &tempSize, &tempPtr);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
+               LOG(8, ("%s: adding subscriber on share hnd %#x\n", __FUNCTION__, sharedFolder));
                *watchId = HgfsNotify_AddSubscriber(sharedFolder, tempBuf, events,
                                                    watchTree, HgfsServerDirWatchEvent,
                                                    input->session);
                 status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
                                               HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
+               LOG(8, ("%s: adding subscriber on share hnd %#x result %u\n", __FUNCTION__,
+                       sharedFolder, status));
             } else {
                LOG(4, ("%s: Conversion to platform specific name failed\n",
                        __FUNCTION__));
                status = HgfsPlatformConvertFromNameStatus(nameStatus);
             }
          } else {
+            LOG(8, ("%s: adding subscriber on share hnd %#x\n", __FUNCTION__, sharedFolder));
             *watchId = HgfsNotify_AddSubscriber(sharedFolder, "", events, watchTree,
                                                 HgfsServerDirWatchEvent,
                                                 input->session);
             status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                                     HGFS_ERROR_SUCCESS;
+            LOG(8, ("%s: adding subscriber on share hnd %#x result %u\n", __FUNCTION__,
+                     sharedFolder, status));
          }
       } else if (HGFS_NAME_STATUS_INCOMPLETE_BASE == nameStatus) {
          LOG(4, ("%s: Notification for root share is not supported yet\n",
@@ -7122,11 +7151,14 @@ HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
 
    if (HgfsUnpackRemoveWatchRequest(input->payload, input->payloadSize, input->op,
                                     &watchId)) {
+      LOG(8, ("%s: remove subscriber on subscr id %"FMT64"x\n", __FUNCTION__, watchId));
       if (HgfsNotify_RemoveSubscriber(watchId)) {
          status = HGFS_ERROR_SUCCESS;
       } else {
          status = HGFS_ERROR_INTERNAL;
       }
+      LOG(8, ("%s: remove subscriber on subscr id %"FMT64"x result %u\n", __FUNCTION__,
+               watchId, status));
    } else {
       status = HGFS_ERROR_PROTOCOL;
    }
