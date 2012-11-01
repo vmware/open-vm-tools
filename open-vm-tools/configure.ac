@@ -942,8 +942,11 @@ if test "$os" = "linux"; then
 
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrt"
 
-   MODULES="$MODULES vmsync vmci vsock"
+   MODULES="$MODULES vmci vsock"
    MODULES="$MODULES vmxnet vmblock vmhgfs"
+   if test "$osVersion" -lt 300000; then
+      MODULES="$MODULES vmsync"
+   fi
    buildHgfsmounter=yes
 fi
 
