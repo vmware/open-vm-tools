@@ -1,3 +1,14 @@
+open-vm-tools 9.2.2 changes:
+	* Release of open-vm-tools matching Workstation 9.0.1
+
+	* Fixes for HGFS driver to compile on newer kernels (3.6)
+
+	* vmsync driver is disabled on kernels 3.0+ as vmbackup
+	plugin uses FIFREEZE/FITHAW standard ioctls
+
+	* Fixes for Copy/Paste (and C&P is temporarily disabled on
+	Solaris due to C++ library issues).
+
 open-vm-tools 9.2.0 changes:
 	* Release of open-vm-tools matching Workstation 9.0.
 
