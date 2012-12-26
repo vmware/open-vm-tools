@@ -2334,11 +2334,13 @@ HgfsFreeSearchDirents(HgfsSearch *search)       // IN/OUT: search
 {
    unsigned int i;
 
-   if (search->dents) {
+   if (NULL != search->dents) {
       for (i = 0; i < search->numDents; i++) {
          free(search->dents[i]);
+         search->dents[i] = NULL;
       }
       free(search->dents);
+      search->dents = NULL;
    }
 }
 
@@ -2375,6 +2377,12 @@ HgfsRemoveSearchInternal(HgfsSearch *search,       // IN: search
    free(search->utf8Dir);
    free(search->utf8ShareName);
    free((char*)search->shareInfo.rootDir);
+   search->utf8DirLen = 0;
+   search->utf8Dir = NULL;
+   search->utf8ShareNameLen = 0;
+   search->utf8ShareName = NULL;
+   search->shareInfo.rootDirLen = 0;
+   search->shareInfo.rootDir = NULL;
 
    /* Prepend at the beginning of the list */
    DblLnkLst_LinkFirst(&session->searchFreeList, &search->links);
@@ -5017,42 +5025,50 @@ HgfsServerDumpDents(HgfsHandle searchHandle,  // IN: Handle to dump dents from
  *-----------------------------------------------------------------------------
  */
 
-static int
-HgfsServerScanvdir(HgfsGetNameFunc getName,     // IN: Function to get name
-                   HgfsInitFunc initName,       // IN: Setup function
-                   HgfsCleanupFunc cleanupName, // IN: Cleanup function
-                   DirectoryEntry ***dents)     // OUT: Array of DirectoryEntrys
+static HgfsInternalStatus
+HgfsServerScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get name
+                   HgfsInitFunc enumNamesInit,       // IN: Setup function
+                   HgfsCleanupFunc enumNamesExit,    // IN: Cleanup function
+                   DirectoryEntry ***dents,          // OUT: Array of DirectoryEntrys
+                   uint32 *numDents)                 // OUT: total number of directory entrys
 {
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
    uint32 totalDents = 0;   // Number of allocated dents
-   uint32 numDents = 0;     // Current actual number of dents
-   DirectoryEntry **myDents = NULL; // So realloc is happy w/ zero numDents
-   void *state;
+   uint32 myNumDents = 0;     // Current actual number of dents
+   DirectoryEntry **myDents = NULL; // So realloc is happy w/ zero myNumDents
+   void *enumNamesHandle;
 
-   state = initName();
-   if (!state) {
-      LOG(4, ("%s: Couldn't init state\n", __FUNCTION__));
-      goto error_free;
+   ASSERT(NULL != enumNamesInit);
+   ASSERT(NULL != enumNamesGet);
+   ASSERT(NULL != enumNamesExit);
+
+   enumNamesHandle = enumNamesInit();
+   if (NULL == enumNamesHandle) {
+      status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+      LOG(4, ("%s: Error: init state ret %u\n", __FUNCTION__, status));
+      goto exit;
    }
 
    for (;;) {
-      DirectoryEntry *pDirEntry;
-      char const *name;
-      size_t len;
+      DirectoryEntry *currentEntry;
+      char const *currentEntryName;
+      size_t currentEntryNameLen;
+      size_t currentEntryLen;
+      size_t maxNameLen;
       Bool done = FALSE;
-      size_t newDirEntryLen;
-      size_t maxLen;
 
       /* Add '.' and ".." as the first dents. */
-      if (numDents == 0) {
-         name = ".";
-         len = 1;
-      } else if (numDents == 1) {
-         name = "..";
-         len = 2;
+      if (myNumDents == 0) {
+         currentEntryName = ".";
+         currentEntryNameLen = 1;
+      } else if (myNumDents == 1) {
+         currentEntryName = "..";
+         currentEntryNameLen = 2;
       } else {
-         if (!getName(state, &name, &len, &done)) {
-            LOG(4, ("%s: Couldn't get next name\n", __FUNCTION__));
-            goto error;
+         if (!enumNamesGet(enumNamesHandle, &currentEntryName, &currentEntryNameLen, &done)) {
+            status = HGFS_ERROR_INVALID_PARAMETER;
+            LOG(4, ("%s: Error: get next entry name ret %u\n", __FUNCTION__, status));
+            goto exit;
          }
       }
 
@@ -5068,17 +5084,17 @@ HgfsServerScanvdir(HgfsGetNameFunc getName,     // IN: Function to get name
        * our purposes, so we use PATH_MAX as a reasonable upper bound on the
        * length of the name.
        */
-      maxLen = PATH_MAX;
+      maxNameLen = PATH_MAX;
 #else
-      maxLen = sizeof pDirEntry->d_name;
+      maxNameLen = sizeof currentEntry->d_name;
 #endif
-      if (len >= maxLen) {
-         Log("%s: Error: Name \"%s\" is too long.\n", __FUNCTION__, name);
+      if (currentEntryNameLen >= maxNameLen) {
+         Log("%s: Error: Name \"%s\" is too long.\n", __FUNCTION__, currentEntryName);
          continue;
       }
 
       /* See if we need to allocate more memory */
-      if (numDents == totalDents) {
+      if (myNumDents == totalDents) {
          void *p;
 
          if (totalDents != 0) {
@@ -5087,15 +5103,16 @@ HgfsServerScanvdir(HgfsGetNameFunc getName,     // IN: Function to get name
             totalDents = 100;
          }
          p = realloc(myDents, totalDents * sizeof *myDents);
-         if (!p) {
-            LOG(4, ("%s: Couldn't reallocate array memory\n", __FUNCTION__));
-            goto error;
+         if (NULL == p) {
+            status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+            LOG(4, ("%s:  Error: realloc growing array memory ret %u\n", __FUNCTION__, status));
+            goto exit;
          }
-         myDents = (DirectoryEntry **)p;
+         myDents = p;
       }
 
       /* This file/directory can be added to the list. */
-      LOG(4, ("%s: Nextfilename = \"%s\"\n", __FUNCTION__, name));
+      LOG(4, ("%s: Nextfilename = \"%s\"\n", __FUNCTION__, currentEntryName));
 
       /*
        * Start with the size of the DirectoryEntry struct, subtract the static
@@ -5103,60 +5120,56 @@ HgfsServerScanvdir(HgfsGetNameFunc getName,     // IN: Function to get name
        * back just enough space for the UTF-8 name and nul terminator.
        */
 
-      newDirEntryLen = sizeof *pDirEntry - sizeof pDirEntry->d_name + len + 1;
-      pDirEntry = (DirectoryEntry *)malloc(newDirEntryLen);
-      if (!pDirEntry) {
-         LOG(4, ("%s: Couldn't allocate dentry memory\n", __FUNCTION__));
-         goto error;
+      currentEntryLen = offsetof(DirectoryEntry, d_name) + currentEntryNameLen + 1;
+      currentEntry = malloc(currentEntryLen);
+      if (NULL == currentEntry) {
+         status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+         LOG(4, ("%s:  Error: allocate dentry memory ret %u\n", __FUNCTION__, status));
+         goto exit;
       }
-      pDirEntry->d_reclen = (unsigned short)newDirEntryLen;
-      memcpy(pDirEntry->d_name, name, len);
-      pDirEntry->d_name[len] = 0;
+      currentEntry->d_reclen = (unsigned short)currentEntryLen;
+      memcpy(currentEntry->d_name, currentEntryName, currentEntryNameLen);
+      currentEntry->d_name[currentEntryNameLen] = 0;
 
-      myDents[numDents] = pDirEntry;
-      numDents++;
-   }
-
-   /* We are done; cleanup the state */
-   if (!cleanupName(state)) {
-      LOG(4, ("%s: Non-error cleanup failed\n", __FUNCTION__));
-      goto error_free;
+      myDents[myNumDents] = currentEntry;
+      myNumDents++;
    }
 
    /* Trim extra memory off of dents */
    {
       void *p;
 
-      p = realloc(myDents, numDents * sizeof *myDents);
-      if (!p) {
-         LOG(4, ("%s: Couldn't realloc less array memory\n", __FUNCTION__));
-         *dents = myDents;
+      p = realloc(myDents, myNumDents * sizeof *myDents);
+      if (NULL != p) {
+         myDents = p;
       } else {
-         *dents = (DirectoryEntry **)p;
+         LOG(4, ("%s: Error: realloc trimming array memory\n", __FUNCTION__));
       }
    }
 
-   return numDents;
+   *dents = myDents;
+   *numDents = myNumDents;
 
-error:
-   /* Cleanup the callback state */
-   if (!cleanupName(state)) {
-      LOG(4, ("%s: Error cleanup failed\n", __FUNCTION__));
+exit:
+   if (NULL != enumNamesHandle) {
+      /* Call the exit callback to teardown any state. */
+      if (!enumNamesExit(enumNamesHandle)) {
+         LOG(4, ("%s: Error cleanup failed\n", __FUNCTION__));
+      }
    }
 
-error_free:
-   /* Free whatever has been allocated so far */
-   {
+   if (HGFS_ERROR_SUCCESS != status) {
       unsigned int i;
 
-      for (i = 0; i < numDents; i++) {
+      /* Free whatever has been allocated so far */
+      for (i = 0; i < myNumDents; i++) {
          free(myDents[i]);
       }
 
       free(myDents);
    }
 
-   return -1;
+   return status;
 }
 
 
@@ -5195,7 +5208,6 @@ HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
    HgfsSearch *search = NULL;
    HgfsInternalStatus status = 0;
    HgfsNameStatus nameStatus;
-   int numDents;
    Bool followSymlinks;
    HgfsShareOptions configOptions;
 
@@ -5227,14 +5239,13 @@ HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
                                                       HGFS_SHARE_FOLLOW_SYMLINKS);
 
    status = HgfsPlatformScandir(baseDir, baseDirLen, followSymlinks,
-                                &search->dents, &numDents);
-   if (status != 0) {
+                                &search->dents, &search->numDents);
+   if (HGFS_ERROR_SUCCESS != status) {
       LOG(4, ("%s: couldn't scandir\n", __FUNCTION__));
       HgfsRemoveSearchInternal(search, session);
       goto out;
    }
 
-   search->numDents = numDents;
    *handle = HgfsSearch2SearchHandle(search);
 
   out:
@@ -5274,7 +5285,6 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
 {
    HgfsInternalStatus status = 0;
    HgfsSearch *search = NULL;
-   int scanDirResult;
 
    ASSERT(getName);
    ASSERT(initName);
@@ -5290,15 +5300,17 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
       goto out;
    }
 
-   scanDirResult = HgfsServerScanvdir(getName, initName, cleanupName, &search->dents);
-   if (scanDirResult < 0) {
+   status = HgfsServerScanvdir(getName,
+                               initName,
+                               cleanupName,
+                               &search->dents,
+                               &search->numDents);
+   if (HGFS_ERROR_SUCCESS != status) {
       LOG(4, ("%s: couldn't get dents\n", __FUNCTION__));
       HgfsRemoveSearchInternal(search, session);
-      status = HGFS_ERROR_INTERNAL;
       goto out;
    }
 
-   search->numDents = scanDirResult;
    *handle = HgfsSearch2SearchHandle(search);
 
   out:
@@ -5337,7 +5349,6 @@ HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enum
 {
    HgfsInternalStatus status = 0;
    HgfsSearch *vdirSearch;
-   int scanDirResult;
 
    ASSERT(getName);
    ASSERT(initName);
@@ -5356,18 +5367,17 @@ HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enum
    HgfsFreeSearchDirents(vdirSearch);
 
    /* Restart by rescanning the virtual directory. */
-   scanDirResult = HgfsServerScanvdir(getName,
-                                      initName,
-                                      cleanupName,
-                                      &vdirSearch->dents);
-   if (scanDirResult < 0) {
+   status = HgfsServerScanvdir(getName,
+                               initName,
+                               cleanupName,
+                               &vdirSearch->dents,
+                               &vdirSearch->numDents);
+   if (HGFS_ERROR_SUCCESS != status) {
       ASSERT_DEVEL(0);
-      LOG(4, ("%s: couldn't get root dents\n", __FUNCTION__));
-      vdirSearch->numDents = 0;
-      status = HGFS_ERROR_INTERNAL;
+      LOG(4, ("%s: couldn't get root dents %u\n", __FUNCTION__, status));
+      goto exit;
    }
 
-   vdirSearch->numDents = scanDirResult;
    /* Clear the flag to indicate that the client has read the entries. */
    vdirSearch->flags &= ~HGFS_SEARCH_FLAG_READ_ALL_ENTRIES;
 
