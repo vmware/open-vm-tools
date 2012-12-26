@@ -134,7 +134,7 @@ BackdoorCmd(uint16 cmd,     // IN
  */
 
 int
-Backdoor_MonitorStart(Balloon *b,               // IN
+Backdoor_MonitorStart(Balloon *b,               // IN/OUT
                       uint32 protoVersion)      // IN
 {
    uint32 capabilities;
@@ -179,7 +179,7 @@ Backdoor_MonitorStart(Balloon *b,               // IN
  */
 
 int
-Backdoor_MonitorGuestType(Balloon *b) // IN
+Backdoor_MonitorGuestType(Balloon *b) // IN/OUT
 {
    int status = BackdoorCmd(BALLOON_BDOOR_CMD_GUEST_ID, b->guestType, 0,
                             NULL, &b->resetFlag);
@@ -223,7 +223,7 @@ Backdoor_MonitorGuestType(Balloon *b) // IN
  */
 
 int
-Backdoor_MonitorGetTarget(Balloon *b,     // IN
+Backdoor_MonitorGetTarget(Balloon *b,     // IN/OUT
                           uint32 *target) // OUT
 {
    unsigned long limit;
@@ -271,7 +271,7 @@ Backdoor_MonitorGetTarget(Balloon *b,     // IN
  */
 
 int
-Backdoor_MonitorLockPage(Balloon *b,     // IN
+Backdoor_MonitorLockPage(Balloon *b,     // IN/OUT
                          PPN64 ppn,      // IN
                          uint32 *target) // OUT
 {
@@ -315,7 +315,7 @@ Backdoor_MonitorLockPage(Balloon *b,     // IN
  */
 
 int
-Backdoor_MonitorUnlockPage(Balloon *b,     // IN
+Backdoor_MonitorUnlockPage(Balloon *b,     // IN/OUT
                            PPN64 ppn,      // IN
                            uint32 *target) // OUT
 {
@@ -356,7 +356,7 @@ Backdoor_MonitorUnlockPage(Balloon *b,     // IN
  */
 
 int
-Backdoor_MonitorLockPagesBatched(Balloon *b,     // IN
+Backdoor_MonitorLockPagesBatched(Balloon *b,     // IN/OUT
                                  PPN64 ppn,      // IN
                                  uint32 nPages,  // IN
                                  uint32 *target) // OUT
@@ -390,7 +390,7 @@ Backdoor_MonitorLockPagesBatched(Balloon *b,     // IN
  */
 
 int
-Backdoor_MonitorUnlockPagesBatched(Balloon *b,          // IN
+Backdoor_MonitorUnlockPagesBatched(Balloon *b,          // IN/OUT
                                    PPN64 ppn,           // IN
                                    uint32 nPages,       // IN
                                    uint32 *target)      // OUT
