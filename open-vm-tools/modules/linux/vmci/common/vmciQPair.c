@@ -1333,13 +1333,13 @@ VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
 {
    ssize_t result;
 
+   if (!qpair || !iov) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
    result = VMCIQPairLock(qpair);
    if (result != VMCI_SUCCESS) {
       return result;
-   }
-
-   if (!qpair || !iov) {
-      return VMCI_ERROR_INVALID_ARGS;
    }
 
    do {
