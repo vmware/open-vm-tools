@@ -314,9 +314,8 @@ Unicode FileIO_AtomicTempPath(ConstUnicode path);
 FileIOResult FileIO_AtomicTempFile(FileIODescriptor *fileFD,
                                    FileIODescriptor *tempFD);
 
-int FileIO_AtomicUpdate(FileIODescriptor *newFD,
-                        FileIODescriptor *currFD,
-                        Bool renameOnNFS);
+Bool FileIO_AtomicUpdate(FileIODescriptor *newFD,
+                         FileIODescriptor *currFD);
 
 #if !defined(VMX86_TOOLS) || !defined(__FreeBSD__)
 

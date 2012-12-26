@@ -288,16 +288,17 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(SOCKETS_SEND_TO),
    IOCTLCMD(SOCKETS_SET_SOCK_OPT),
    IOCTLCMD(SOCKETS_SHUTDOWN),
-   IOCTLCMD(SOCKETS_SOCKET), /* 1990 on Linux. */
+   IOCTLCMD(SOCKETS_SOCKET),
+   IOCTLCMD(SOCKETS_UUID_2_CID), /* 1991 on Linux. */
    /* END VMCI SOCKETS */
 
    /*
-    * We reserve a range of 4 ioctls for VMCI Sockets to grow.  We cannot
+    * We reserve a range of 3 ioctls for VMCI Sockets to grow.  We cannot
     * reserve many ioctls here since we are close to overlapping with vmmon
     * ioctls.  Define a meta-ioctl if running out of this binary space.
     */
    // Must be last.
-   IOCTLCMD(SOCKETS_LAST) = IOCTLCMD(SOCKETS_SOCKET) + 4, /* 1994 on Linux. */
+   IOCTLCMD(SOCKETS_LAST) = IOCTLCMD(SOCKETS_UUID_2_CID) + 3, /* 1994 on Linux. */
    /*
     * The VSockets ioctls occupy the block above.  We define a new range of
     * VMCI ioctls to maintain binary compatibility between the user land and

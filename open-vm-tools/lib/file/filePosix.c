@@ -1145,6 +1145,8 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
       Log(LGPFX" %s: could not open %s: %s\n", __func__, UTF8(pathName),
           Err_Errno2String(errno));
       ret = -1;
+      free(*fsAttrs);
+      *fsAttrs = NULL;
       goto bail;
    }
 
@@ -1154,6 +1156,8 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
    if (ret == -1) {
       Log(LGPFX" %s: Could not get volume attributes (ret = %d): %s\n",
           __func__, ret, Err_Errno2String(errno));
+      free(*fsAttrs);
+      *fsAttrs = NULL;
    }
 
 bail:
@@ -1286,7 +1290,7 @@ File_GetVMFSMountInfo(ConstUnicode pathName,   // IN:
 {
    int ret;
    int len;
-   FS_PartitionListResult *fsAttrs;
+   FS_PartitionListResult *fsAttrs = NULL;
 
    *localMountPoint = File_GetUniqueFileSystemID(pathName);
 
@@ -1309,9 +1313,9 @@ File_GetVMFSMountInfo(ConstUnicode pathName,   // IN:
          *remoteIP = NULL;
          *remoteMountPoint = NULL;   
       }  
-   }
 
-   free(fsAttrs);
+      free(fsAttrs);
+   }
 
    return ret;
 }

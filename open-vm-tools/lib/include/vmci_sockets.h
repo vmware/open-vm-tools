@@ -410,6 +410,13 @@ struct sockaddr_vm {
    /** \endcond */
 };
 
+/** \cond PRIVATE */
+struct uuid_2_cid {
+   unsigned int u2c_context_id;
+   unsigned int u2c_pad;
+   char u2c_uuid_string[128];
+};
+/** \endcond */
 
 #if defined(_WIN32)
 #  if !defined(NT_INCLUDED)
@@ -418,6 +425,7 @@ struct sockaddr_vm {
 #     define VMCI_SOCKETS_VERSION         0x81032058
 #     define VMCI_SOCKETS_GET_AF_VALUE    0x81032068
 #     define VMCI_SOCKETS_GET_LOCAL_CID   0x8103206c
+#     define VMCI_SOCKETS_UUID_2_CID      0x810320a4
 
       static __inline unsigned int __VMCISock_DeviceIoControl(DWORD cmd)
       {
@@ -459,6 +467,24 @@ struct sockaddr_vm {
       {
          return __VMCISock_DeviceIoControl(VMCI_SOCKETS_GET_LOCAL_CID);
       }
+
+      static __inline unsigned int VMCISock_Uuid2ContextId(const char *uuidString)
+      {
+         struct uuid_2_cid io;
+         HANDLE device = CreateFileW(VMCI_SOCKETS_DEVICE, GENERIC_READ, 0, NULL,
+                                     OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+         io.u2c_context_id = VMADDR_CID_ANY;
+         if (INVALID_HANDLE_VALUE != device) {
+            DWORD ioReturn;
+            strncpy_s(io.u2c_uuid_string, sizeof io.u2c_uuid_string,
+                      uuidString, _TRUNCATE);
+            DeviceIoControl(device, VMCI_SOCKETS_UUID_2_CID, &io, sizeof io,
+                            &io, sizeof io, &ioReturn, NULL);
+            CloseHandle(device);
+            device = INVALID_HANDLE_VALUE;
+         }
+         return io.u2c_context_id;
+      }
 #  endif // !NT_INCLUDED
 #else // _WIN32
 #if (defined(linux) && !defined(VMKERNEL)) || (defined(__APPLE__))
@@ -470,13 +496,13 @@ struct sockaddr_vm {
 #  elif defined(__APPLE__) && (KERNEL)
    /* Nothing to define here. */
 #  else // __KERNEL__
-#  include <sys/types.h>
-#  include <sys/stat.h>
 #  include <fcntl.h>
-#  include <sys/ioctl.h>
-#  include <unistd.h>
-
 #  include <stdio.h>
+#  include <string.h>
+#  include <sys/ioctl.h>
+#  include <sys/stat.h>
+#  include <sys/types.h>
+#  include <unistd.h>
 
 /** \cond PRIVATE */
 #  define VMCI_SOCKETS_DEFAULT_DEVICE      "/dev/vsock"
@@ -485,11 +511,13 @@ struct sockaddr_vm {
 #     define VMCI_SOCKETS_VERSION       1972
 #     define VMCI_SOCKETS_GET_AF_VALUE  1976
 #     define VMCI_SOCKETS_GET_LOCAL_CID 1977
+#     define VMCI_SOCKETS_UUID_2_CID    1991
 #  elif defined(__APPLE__)
 #     include <sys/ioccom.h>
-#     define VMCI_SOCKETS_VERSION       _IOR('V', 21,  unsigned)
-#     define VMCI_SOCKETS_GET_AF_VALUE  _IOR('V', 25 , int)
-#     define VMCI_SOCKETS_GET_LOCAL_CID _IOR('V', 26 , unsigned)
+#     define VMCI_SOCKETS_VERSION       _IOR( 'V', 21, unsigned)
+#     define VMCI_SOCKETS_GET_AF_VALUE  _IOR( 'V', 25, int)
+#     define VMCI_SOCKETS_GET_LOCAL_CID _IOR( 'V', 26, unsigned)
+#     define VMCI_SOCKETS_UUID_2_CID    _IOWR('V', 40, struct uuid_2_cid)
 #endif
 /** \endcond */
 
@@ -728,6 +756,60 @@ struct sockaddr_vm {
 
       close(fd);
       return contextId;
+   }
+
+   /*
+    ***********************************************************************
+    * VMCISock_Uuid2ContextId                                        */ /**
+    *
+    * \brief Retrieve the context ID of a running VM, given a VM's UUID.
+    *
+    * Retrieves the context ID of a running virtual machine given that virtual
+    * machines's unique identifier.  The identifier is local to the host and
+    * its meaning is platform-specific.  On ESX, which is currently the only
+    * supported platform, it is the "bios.uuid" field as specified in the VM's
+    * VMX file.
+    *
+    * \see VMADDR_CID_ANY
+    *
+    * \retval  VMADDR_CID_ANY    Not available.
+    * \retval  other             The VM's context ID.
+    *
+    * \note Only available for ESX (userworld) endpoints.
+    *
+    * An example is given below.
+    *
+    * \code
+    * int vmciFd;
+    * int af = VMCISock_GetAFValueFd(&vmciFd);
+    * unsigned int cid = VMCISock_Uuid2ContextId(
+    *    "56 4d 07 d8 cc d5 c4 0d-98 44 dc 1e 8f e0 da f3");
+    * VMCISock_ReleaseAFValueFd(vmciFd);
+    * \endcode
+    *
+    ***********************************************************************
+    */
+
+   static inline unsigned int VMCISock_Uuid2ContextId(const char *uuidString)
+   {
+      int fd;
+      struct uuid_2_cid io;
+
+      fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDWR);
+      if (fd < 0) {
+         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDWR);
+         if (fd < 0) {
+            return VMADDR_CID_ANY;
+         }
+      }
+
+      strncpy(io.u2c_uuid_string, uuidString, sizeof io.u2c_uuid_string);
+      if (ioctl(fd, VMCI_SOCKETS_UUID_2_CID, &io) < 0) {
+         io.u2c_context_id = VMADDR_CID_ANY;
+      }
+
+      close(fd);
+      return io.u2c_context_id;
    }
 #  endif // __KERNEL__
 #endif // linux && !VMKERNEL

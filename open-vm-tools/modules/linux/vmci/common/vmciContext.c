@@ -2557,7 +2557,6 @@ VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
 }
 
 #if defined(VMKERNEL)
-
 /*
  *----------------------------------------------------------------------
  *
@@ -2637,5 +2636,56 @@ VMCIContextInFilterCleanup(VMCIContext *context)
    }
 }
 
-#endif
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_Uuid2ContextId --
+ *
+ *      Given a running VM's UUID, retrieve the VM's VMCI context ID.
+ *      The given UUID is local to the host; it is _not_ the UUID
+ *      handed out by VC.  It comes from the "bios.uuid" field in the
+ *      VMX file.  We walk the context list and try to match the given
+ *      UUID against each context.  If we get a match, we return the
+ *      contexts's VMCI ID.
+ *
+ * Results:
+ *      VMCI_SUCCESS if found and *contextID contains the CID.
+ *      VMCI_ERROR_INVALID_ARGS for bad parameters.
+ *      VMCI_ERROR_NOT_FOUND if no match.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+VMCI_Uuid2ContextId(const char *uuidString, // IN
+                    VMCIId *contextID)      // OUT
+{
+   int err;
+   VMCIListItem *next;
+   VMCILockFlags flags;
+
+   if (!uuidString || *uuidString == '\0' || !contextID) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   err = VMCI_ERROR_NOT_FOUND;
+
+   VMCI_GrabLock(&contextList.lock, &flags);
+   VMCIList_Scan(next, &contextList.head) {
+      VMCIContext *context = VMCIList_Entry(next, VMCIContext, listItem);
+      if (VMCIHost_ContextHasUuid(&context->hostContext, uuidString) ==
+          VMCI_SUCCESS) {
+         *contextID = context->cid;
+         err = VMCI_SUCCESS;
+         break;
+      }
+   }
+   VMCI_ReleaseLock(&contextList.lock, flags);
+
+   return err;
+}
+#endif // VMKERNEL

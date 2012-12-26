@@ -252,6 +252,7 @@ Bool VMCIHost_WaitForCallLocked(VMCIHost *hostContext,
                                 Bool useBH);
 #ifdef VMKERNEL
 int VMCIHost_ContextToHostVmID(VMCIHost *hostContext, VMCIHostVmID *hostVmID);
+int VMCIHost_ContextHasUuid(VMCIHost *hostContext, const char *uuid);
 void VMCIHost_SetActiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
 Bool VMCIHost_RemoveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
 Bool VMCIHost_IsActiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
