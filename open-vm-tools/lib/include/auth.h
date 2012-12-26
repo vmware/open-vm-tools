@@ -59,6 +59,11 @@ BOOL Auth_DeleteAccountInformationStoredForVMs();
 uint32 Auth_RetrieveAccountInformationForVM(const char *filename, uint32 *attributes,
 					    char **username, char **password);
 
+#else
+
+AuthToken Auth_GetPwnam(const char *user);
+AuthToken Auth_AuthenticateSelf(void);
+
 #endif
 
 AuthToken Auth_AuthenticateUser(ConstUnicode user, ConstUnicode pass);
