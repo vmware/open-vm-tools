@@ -889,7 +889,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
 
       if (ioctl(fd, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
          savedErrno = errno;
-         if (errno != ENOSYS) {
+         if (errno != ENOSYS && errno != ENOTTY) {
             Log("%s: ioctl failed %d.\n", __FUNCTION__, errno);
             ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
          }
@@ -900,9 +900,13 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       close(fd);
 
       /*
-       * Did we fail because we are on NFS?
+       * Did we fail because we are on a file system that does not
+       * support the IOCTLCMD_VMFS_SWAP_FILES ioctl? If so fallback to
+       * using rename.
+       *
+       * Check for both ENOSYS and ENOTTY. PR 957695
        */
-      if (savedErrno == ENOSYS) {
+      if (savedErrno == ENOSYS || savedErrno == ENOTTY) {
          if (renameOnNFS) {
             /*
              * NFS allows renames of locked files, even if both files
@@ -913,6 +917,9 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
              *
              * This is different than the hosted path below because
              * ESX uses native file locks and hosted does not.
+             *
+             * We assume that all ESX file systems that support rename
+             * have the same file lock semantics as NFS.
              */
 
             if (File_Rename(newPath, currPath)) {

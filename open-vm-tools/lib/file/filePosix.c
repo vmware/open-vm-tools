@@ -67,6 +67,9 @@
 #include "hostType.h"
 #include "vmfs.h"
 
+#define LOGLEVEL_MODULE main
+#include "loglevel_user.h"
+
 #include "unicodeOperations.h"
 
 #if !defined(__FreeBSD__) && !defined(sun)
@@ -2060,16 +2063,21 @@ bail:
 /*
  *----------------------------------------------------------------------
  *
- * FilePosixCreateTestFileSize --
+ * FilePosixGetMaxOrSupportsFileSize --
  *
- *      See if the given directory is on a file system that supports
- *      large files.  We just create an empty file and pass it to the
- *      FileIO_SupportsFileSize which does actual job of determining
- *      file size support.
+ *      Given a file descriptor to a file on a volume, either find out the
+ *      max file size for the volume on which the file is located or check
+ *      if the volume supports the given file size.
+ *      If getMaxFileSize is set then find out the max file size and store it
+ *      in *maxFileSize on success, otherwise figure out if *fileSize is
+ *      supported.
  *
  * Results:
- *      TRUE if FS supports files of specified size
- *      FALSE otherwise (no support, invalid path, ...)
+ *      If getMaxFileSize was set:
+ *        TRUE with max file size stored in *fileSize.
+ *      Otherwise:
+ *        TRUE fileSize is supported.
+ *        FALSE fileSize not supported or could not figure out the answer.
  *
  * Side effects:
  *      None.
@@ -2078,8 +2086,63 @@ bail:
  */
 
 static Bool
-FilePosixCreateTestFileSize(ConstUnicode dirName,  // IN: test directory
-                            uint64 fileSize)       // IN: test file size
+FilePosixGetMaxOrSupportsFileSize(FileIODescriptor *fd,  // IN:
+                                  uint64 *fileSize,      // IN/OUT:
+                                  Bool getMaxFileSize)   // IN:
+{
+   uint64 value = 0;
+   uint64 mask;
+
+   ASSERT(fd);
+   ASSERT(fileSize);
+
+   if (!getMaxFileSize) {
+      return FileIO_SupportsFileSize(fd, *fileSize);
+   }
+
+   /*
+    * Try to do a binary search and figure out the max supported file size.
+    */
+   for (mask = (1ULL << 62); mask != 0; mask >>= 1) {
+      if (FileIO_SupportsFileSize(fd, value | mask)) {
+         value |= mask;
+      }
+   }
+   *fileSize = value;
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FilePosixCreateTestGetMaxOrSupportsFileSize --
+ *
+ *      Given a path to a dir on a volume, either find out the max file size
+ *      for the volume on which the dir is located or check if the volume
+ *      supports the given file size.
+ *      If getMaxFileSize is set then find out the max file size and store it
+ *      in *maxFileSize on success, otherwise figure out if *fileSize is
+ *      supported.
+ *
+ * Results:
+ *      If getMaxFileSize was set:
+ *        TRUE if figured out the max file size.
+ *        FALSE failed to figure out the max file size.
+ *      Otherwise:
+ *        TRUE fileSize is supported.
+ *        FALSE fileSize not supported or could not figure out the answer.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+FilePosixCreateTestGetMaxOrSupportsFileSize(ConstUnicode dirName,// IN: test dir
+                                            uint64 *fileSize,    // IN/OUT:
+                                            Bool getMaxFileSize) // IN:
 {
    Bool retVal;
    int posixFD;
@@ -2087,17 +2150,23 @@ FilePosixCreateTestFileSize(ConstUnicode dirName,  // IN: test directory
    Unicode path;
    FileIODescriptor fd;
 
+   ASSERT(fileSize);
+
    temp = Unicode_Append(dirName, "/.vmBigFileTest");
    posixFD = File_MakeSafeTemp(temp, &path);
    Unicode_Free(temp);
 
    if (posixFD == -1) {
+      Log(LGPFX" %s: Failed to create temporary file in dir: %s\n", __func__,
+          UTF8(dirName));
+
       return FALSE;
    }
 
    fd = FileIO_CreateFDPosix(posixFD, O_RDWR);
 
-   retVal = FileIO_SupportsFileSize(&fd, fileSize);
+   retVal = FilePosixGetMaxOrSupportsFileSize(&fd, fileSize,
+                                              getMaxFileSize);
    /* Eventually perform destructive tests here... */
 
    FileIO_Close(&fd);
@@ -2107,23 +2176,20 @@ FilePosixCreateTestFileSize(ConstUnicode dirName,  // IN: test directory
    return retVal;
 }
 
+
+#ifdef VMX86_SERVER
 /*
  *----------------------------------------------------------------------
  *
- * File_VMFSSupportsFileSize --
+ * FileVMKGetMaxFileSize --
  *
- *      Check if the given file is on a VMFS supports such a file size
- *
- *      In the case of VMFS3, the largest supported file size is
- *         256 * 1024 * B bytes
- *      VMFS5 supports larger file sizes.
- *
- *      where B represents the blocksize in bytes
- *
+ *      Given a path to a file on a volume, find out the max file size for
+ *      the volume on which the file is located.
+ *      Max file size gets stored in *maxFileSize on success.
  *
  * Results:
- *      TRUE if VMFS supports such file size
- *      FALSE otherwise (file size not supported)
+ *      TRUE if figured out the max file size.
+ *      FALSE failed to figure out the max file size.
  *
  * Side effects:
  *      None
@@ -2132,13 +2198,115 @@ FilePosixCreateTestFileSize(ConstUnicode dirName,  // IN: test directory
  */
 
 static Bool
-File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
-                          uint64 fileSize)        // IN:
+FileVMKGetMaxFileSize(ConstUnicode pathName,  // IN:
+                      uint64 *maxFileSize)    // OUT:
+{
+   int fd;
+   Bool retval = TRUE;
+   Unicode fullPath;
+
+   Unicode dirPath = NULL;
+
+   ASSERT(maxFileSize);
+
+   fullPath = File_FullPath(pathName);
+   if (fullPath == NULL) {
+      Log(LGPFX" %s: Failed to get the full path for %s\n", __func__,
+          UTF8(pathName));
+      retval = FALSE;
+      goto bail;
+   }
+
+   if (File_IsDirectory(fullPath)) {
+      dirPath = Unicode_Duplicate(fullPath);
+   } else {
+      dirPath = NULL;
+      File_SplitName(fullPath, NULL, &dirPath, NULL);
+   }
+
+   /*
+    * We always try to open the dir in order to avoid any contention on VMDK
+    * descriptor file with those threads which already have descriptor file
+    * opened for writing.
+    */
+   fd = Posix_Open(dirPath, O_RDONLY, 0);
+   if (fd == -1) {
+      Log(LGPFX" %s: could not open %s: %s\n", __func__, UTF8(dirPath),
+          Err_Errno2String(errno));
+      retval = FALSE;
+      goto bail;
+   }
+
+   if(ioctl(fd, IOCTLCMD_VMFS_GET_MAX_FILE_SIZE, maxFileSize) == -1) {
+      Log(LGPFX" %s: Could not get max file size for path: %s, error: %s\n",
+          __func__, UTF8(pathName), Err_Errno2String(errno));
+      retval = FALSE;
+   }
+   close(fd);
+
+bail:
+   Unicode_Free(fullPath);
+   Unicode_Free(dirPath);
+
+   return retval;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileVMKGetMaxOrSupportsFileSize --
+ *
+ *      Given a path to a file on a volume, either find out the max file size
+ *      for the volume on which the file is located or check if the volume
+ *      supports the given file size.
+ *      If getMaxFileSize is set then find out the max file size and store it
+ *      in *maxFileSize on success, otherwise figure out if *fileSize is
+ *      supported.
+ *
+ * Results:
+ *      If getMaxFileSize was set:
+ *        TRUE if figured out the max file size.
+ *        FALSE failed to figure out the max file size.
+ *      Otherwise:
+ *        TRUE fileSize is supported.
+ *        FALSE fileSize not supported or could not figure out the answer.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+FileVMKGetMaxOrSupportsFileSize(ConstUnicode pathName,  // IN:
+                                uint64 *fileSize,       // IN/OUT:
+                                Bool getMaxFileSize)    // IN:
 {
 #if defined(VMX86_SERVER)
-   uint64 maxFileSize = -1;
-   Bool supported;
    FS_PartitionListResult *fsAttrs = NULL;
+   uint64 maxFileSize;
+
+   /*
+    * Let's first try IOCTL to figure out max file size.
+    */
+   if (FileVMKGetMaxFileSize(pathName, &maxFileSize)) {
+      if (getMaxFileSize) {
+         *fileSize = maxFileSize;
+
+         return TRUE;
+      }
+      return (*fileSize <= maxFileSize);
+   }
+
+   /*
+    * Try the old way if IOCTL failed.
+    */
+   LOG(0, (LGPFX" %s: Failed to figure out max file size via "
+           "IOCTLCMD_VMFS_GET_MAX_FILE_SIZE. Falling back to old method.\n",
+           __func__));
+   maxFileSize = -1;
 
    if (File_GetVMFSAttributes(pathName, &fsAttrs) < 0) {
       Log(LGPFX" %s: File_GetVMFSAttributes Failed\n", __func__);
@@ -2160,22 +2328,25 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
          return FALSE;
       }
 
-      if (fileSize <= maxFileSize && maxFileSize != -1) {
-         free(fsAttrs);
+      free(fsAttrs);
+      if (maxFileSize == -1) {
+         Log(LGPFX" %s: Failed to figure out the max file size for %s\n",
+             __func__, pathName);
+         return FALSE;
+      }
 
+      if (getMaxFileSize) {
+         *fileSize = maxFileSize;
          return TRUE;
       } else {
-         Log(LGPFX" %s: Requested file size (%"FMT64"d) larger than maximum "
-             "supported filesystem file size (%"FMT64"d)\n", __FUNCTION__,
-             fileSize, maxFileSize);
-         free(fsAttrs);
-
-         return FALSE;
+         return *fileSize <= maxFileSize;
       }
    } else {
       Unicode fullPath;
       Unicode parentPath;
+      Bool supported;
 
+      Log(LGPFX" %s: Trying create file and seek approach.\n", __func__);
       fullPath = File_FullPath(pathName);
 
       if (fullPath == NULL) {
@@ -2187,7 +2358,9 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
 
       File_GetPathName(fullPath, &parentPath, NULL);
 
-      supported = FilePosixCreateTestFileSize(parentPath, fileSize);
+      supported = FilePosixCreateTestGetMaxOrSupportsFileSize(parentPath,
+                                                              fileSize,
+                                                              getMaxFileSize);
 
       free(fsAttrs);
       Unicode_Free(fullPath);
@@ -2202,16 +2375,26 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
    return FALSE; /* happy compiler */
 }
 
+
 /*
  *----------------------------------------------------------------------
  *
- * File_SupportsFileSize --
+ * FileGetMaxOrSupportsFileSize --
  *
- *      Check if the given file is on an FS that supports such file size
+ *      Given a path to a file on a volume, either find out the max file size
+ *      for the volume on which the file is located or check if the volume
+ *      supports the given file size.
+ *      If getMaxFileSize is set then find out the max file size and store it
+ *      in *maxFileSize on success, otherwise figure out if *fileSize is
+ *      supported.
  *
  * Results:
- *      TRUE if FS supports such file size
- *      FALSE otherwise (file size not supported, invalid path, read-only, ...)
+ *      If getMaxFileSize was set:
+ *        TRUE if figured out the max file size.
+ *        FALSE failed to figure out the max file size.
+ *      Otherwise:
+ *        TRUE fileSize is supported.
+ *        FALSE fileSize not supported or could not figure out the answer.
  *
  * Side effects:
  *      None
@@ -2220,51 +2403,46 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
  */
 
 Bool
-File_SupportsFileSize(ConstUnicode pathName,  // IN:
-                      uint64 fileSize)        // IN:
+FileGetMaxOrSupportsFileSize(ConstUnicode pathName,  // IN:
+                             uint64 *fileSize,       // IN/OUT:
+                             Bool getMaxFileSize)    // IN:
 {
    Unicode fullPath;
    Unicode folderPath;
+   Bool retval = FALSE;
 
-   Bool supported = FALSE;
+   ASSERT(fileSize);
 
-   /* All supported filesystems can hold at least 2GB - 1 files. */
-   if (fileSize <= 0x7FFFFFFF) {
-      return TRUE;
-   }
-
-   /* 
-    * We acquire the full path name for testing in 
-    * FilePosixCreateTestFileSize().  This is also done in the event that
-    * a user tries to create a virtual disk in the directory that they want
-    * a vmdk created in (setting filePath only to the disk name, not the
-    * entire path.
+   /*
+    * We acquire the full path name for testing in
+    * FilePosixCreateTestGetMaxOrSupportsFileSize().  This is also done in the
+    * event that a user tries to create a virtual disk in the directory that
+    * they want a vmdk created in (setting filePath only to the disk name,
+    * not the entire path.).
     */
 
    fullPath = File_FullPath(pathName);
    if (fullPath == NULL) {
-      Log(LGPFX" %s: Error acquiring full path\n", __func__);
+      Log(LGPFX" %s: Error acquiring full path for path: %s.\n", __func__,
+          pathName);
       goto out;
    }
-
-   /* 
-    * We know that VMFS supports large files - But they have limitations
-    * See function File_VMFSSupportsFileSize() - PR 146965
-    */
 
    if (HostType_OSIsVMK()) {
-      supported = File_VMFSSupportsFileSize(pathName, fileSize);
+      retval = FileVMKGetMaxOrSupportsFileSize(fullPath, fileSize,
+                                               getMaxFileSize);
       goto out;
    }
 
-   if (File_IsFile(pathName)) {
+   if (File_IsFile(fullPath)) {
       FileIOResult res;
       FileIODescriptor fd;
 
       FileIO_Invalidate(&fd);
-      res = FileIO_Open(&fd, pathName, FILEIO_OPEN_ACCESS_READ, FILEIO_OPEN);
+      res = FileIO_Open(&fd, fullPath, FILEIO_OPEN_ACCESS_READ, FILEIO_OPEN);
       if (FileIO_IsSuccess(res)) {
-         supported = FileIO_SupportsFileSize(&fd, fileSize);
+         retval = FilePosixGetMaxOrSupportsFileSize(&fd, fileSize,
+                                                    getMaxFileSize);
          FileIO_Close(&fd);
          goto out;
       }
@@ -2282,12 +2460,77 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
       File_SplitName(fullPath, NULL, &folderPath, NULL);
    }
 
-   supported = FilePosixCreateTestFileSize(folderPath, fileSize);
+   retval = FilePosixCreateTestGetMaxOrSupportsFileSize(folderPath, fileSize,
+                                                        getMaxFileSize);
    Unicode_Free(folderPath);
 
 out:
    Unicode_Free(fullPath);
-   return supported;
+
+   return retval;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_GetMaxFileSize --
+ *
+ *      Given a path to a file on a volume, return the max file size for that
+ *      volume. The max file size is stored on *maxFileSize on success.
+ *
+ * Results:
+ *      TRUE on success.
+ *      FALSE failed to figure out max file size due to some reasons.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_GetMaxFileSize(ConstUnicode pathName,  // IN:
+                    uint64 *maxFileSize)    // OUT:
+{
+   if (!maxFileSize) {
+      Log(LGPFX" %s: maxFileSize passed as NULL.\n", __func__);
+
+      return FALSE;
+   }
+
+   return FileGetMaxOrSupportsFileSize(pathName, maxFileSize, TRUE);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_SupportsFileSize --
+ *
+ *      Check if the given file is on an FS that supports such file size.
+ *
+ * Results:
+ *      TRUE if FS supports such file size.
+ *      FALSE otherwise (file size not supported, invalid path, read-only, ...)
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_SupportsFileSize(ConstUnicode pathName,  // IN:
+                      uint64 fileSize)        // IN:
+{
+   /*
+    * All supported filesystems can hold at least 2GB-1 bytes files.
+    */
+   if (fileSize <= 0x7FFFFFFF) {
+      return TRUE;
+   }
+   return FileGetMaxOrSupportsFileSize(pathName, &fileSize, FALSE);
 }
 
 
