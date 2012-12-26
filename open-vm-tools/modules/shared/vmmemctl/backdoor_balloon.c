@@ -271,8 +271,9 @@ Backdoor_MonitorGetTarget(Balloon *b,     // IN
  */
 
 int
-Backdoor_MonitorLockPage(Balloon *b,    // IN
-                         PPN64 ppn)     // IN
+Backdoor_MonitorLockPage(Balloon *b,     // IN
+                         PPN64 ppn,      // IN
+                         uint32 *target) // OUT
 {
    int status;
    uint32 ppn32 = (uint32)ppn;
@@ -282,7 +283,7 @@ Backdoor_MonitorLockPage(Balloon *b,    // IN
       return BALLOON_ERROR_PPN_INVALID;
    }
 
-   status = BackdoorCmd(BALLOON_BDOOR_CMD_LOCK, ppn32, 0, NULL,
+   status = BackdoorCmd(BALLOON_BDOOR_CMD_LOCK, ppn32, 0, target,
                         &b->resetFlag);
 
    /* update stats */
@@ -314,8 +315,9 @@ Backdoor_MonitorLockPage(Balloon *b,    // IN
  */
 
 int
-Backdoor_MonitorUnlockPage(Balloon *b,  // IN
-                           PPN64 ppn)   // IN
+Backdoor_MonitorUnlockPage(Balloon *b,     // IN
+                           PPN64 ppn,      // IN
+                           uint32 *target) // OUT
 {
    int status;
    uint32 ppn32 = (uint32)ppn;
@@ -325,7 +327,7 @@ Backdoor_MonitorUnlockPage(Balloon *b,  // IN
       return BALLOON_ERROR_PPN_INVALID;
    }
 
-   status = BackdoorCmd(BALLOON_BDOOR_CMD_UNLOCK, ppn32, 0, NULL,
+   status = BackdoorCmd(BALLOON_BDOOR_CMD_UNLOCK, ppn32, 0, target,
                         &b->resetFlag);
 
    /* update stats */
@@ -354,12 +356,13 @@ Backdoor_MonitorUnlockPage(Balloon *b,  // IN
  */
 
 int
-Backdoor_MonitorLockPagesBatched(Balloon *b,    // IN
-                                 PPN64 ppn,     // IN
-                                 uint32 nPages) // IN
+Backdoor_MonitorLockPagesBatched(Balloon *b,     // IN
+                                 PPN64 ppn,      // IN
+                                 uint32 nPages,  // IN
+                                 uint32 *target) // OUT
 {
    int status = BackdoorCmd(BALLOON_BDOOR_CMD_BATCHED_LOCK,
-                            (size_t)ppn, nPages, NULL, &b->resetFlag);
+                            (size_t)ppn, nPages, target, &b->resetFlag);
 
    /* update stats */
    STATS_INC(b->stats.lock);
@@ -389,10 +392,11 @@ Backdoor_MonitorLockPagesBatched(Balloon *b,    // IN
 int
 Backdoor_MonitorUnlockPagesBatched(Balloon *b,          // IN
                                    PPN64 ppn,           // IN
-                                   uint32 nPages)       // IN
+                                   uint32 nPages,       // IN
+                                   uint32 *target)      // OUT
 {
    int status = BackdoorCmd(BALLOON_BDOOR_CMD_BATCHED_UNLOCK,
-                            (size_t)ppn, nPages, NULL, &b->resetFlag);
+                            (size_t)ppn, nPages, target, &b->resetFlag);
 
    /* update stats */
    STATS_INC(b->stats.unlock);

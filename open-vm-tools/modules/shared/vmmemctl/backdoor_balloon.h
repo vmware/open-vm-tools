@@ -75,9 +75,11 @@
 int Backdoor_MonitorStart(Balloon *b, uint32 protoVersion);
 int Backdoor_MonitorGuestType(Balloon *b);
 int Backdoor_MonitorGetTarget(Balloon *b, uint32 *target);
-int Backdoor_MonitorLockPage(Balloon *b, PPN64 ppn);
-int Backdoor_MonitorUnlockPage(Balloon *b, PPN64 ppn);
-int Backdoor_MonitorLockPagesBatched(Balloon *b, PPN64 ppn, uint32 nPages);
-int Backdoor_MonitorUnlockPagesBatched(Balloon *b, PPN64 ppn, uint32 nPages);
+int Backdoor_MonitorLockPage(Balloon *b, PPN64 ppn, uint32 *target);
+int Backdoor_MonitorUnlockPage(Balloon *b, PPN64 ppn, uint32 *target);
+int Backdoor_MonitorLockPagesBatched(Balloon *b, PPN64 ppn, uint32 nPages,
+                                     uint32 *target);
+int Backdoor_MonitorUnlockPagesBatched(Balloon *b, PPN64 ppn, uint32 nPages,
+                                       uint32 *target);
 
 #endif /* _BACKDOOR_BALLOON_H_ */
