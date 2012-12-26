@@ -55,6 +55,8 @@
    GOT(GUEST_OS_OTHER24XLINUX_64)                             \
    GOT(GUEST_OS_OTHER26XLINUX)                                \
    GOT(GUEST_OS_OTHER26XLINUX_64)                             \
+   GOT(GUEST_OS_OTHER3XLINUX)                                 \
+   GOT(GUEST_OS_OTHER3XLINUX_64)                              \
    GOT(GUEST_OS_OTHERLINUX)                                   \
    GOT(GUEST_OS_OTHERLINUX_64)                                \
    GOT(GUEST_OS_OTHER)                                        \
@@ -187,6 +189,8 @@
    GOSL(STR_OS_OTHER_24 "-64",               GUEST_OS_OTHER24XLINUX_64)     \
    GOSL(STR_OS_OTHER_26,                     GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_OTHER_26 "-64",               GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_OTHER_3X,                     GUEST_OS_OTHER3XLINUX)         \
+   GOSL(STR_OS_OTHER_3X "-64",               GUEST_OS_OTHER3XLINUX_64)      \
    GOSL(STR_OS_OTHER,                        GUEST_OS_OTHERLINUX)           \
    GOSL(STR_OS_OTHER "-64",                  GUEST_OS_OTHERLINUX_64)        \
    GOSL(STR_OS_DEBIAN_4,                     GUEST_OS_DEBIAN45)             \

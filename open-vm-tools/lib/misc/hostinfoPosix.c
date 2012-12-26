@@ -916,9 +916,12 @@ HostinfoOSData(void)
       } else if (majorVersion == 2 && Hostinfo_OSVersion(1) < 6) {
          Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
-      } else {
+      } else if (majorVersion == 2) {
          Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
+      } else {
+         Str_Strcpy(distro, STR_OS_OTHER_3X_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
       }
 
       /*
