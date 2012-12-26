@@ -4928,46 +4928,39 @@ HgfsServerIsSharedFolderOnly(char const *cpName,// IN:  Cross-platform filename 
 }
 
 
+#ifdef VMX86_LOG
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerDumpDents --
+ * HgfsServerDirDumpDents --
  *
  *    Dump a set of directory entries (debugging code)
  *
  * Results:
- *    None
+ *    None.
  *
  * Side effects:
- *    None
+ *    None.
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-HgfsServerDumpDents(HgfsHandle searchHandle,  // IN: Handle to dump dents from
-                    HgfsSessionInfo *session) // IN: Session info
+HgfsServerDirDumpDents(HgfsHandle searchHandle,  // IN: Handle to dump dents from
+                       HgfsSessionInfo *session) // IN: Session info
 {
-#ifdef VMX86_LOG
-   unsigned int i;
    HgfsSearch *search;
 
    MXUser_AcquireExclLock(session->searchArrayLock);
 
    search = HgfsSearchHandle2Search(searchHandle, session);
    if (search != NULL) {
-      Log("%s: %u dents in \"%s\"\n", __FUNCTION__, search->numDents,
-          search->utf8Dir);
-
-      Log("Dumping dents:\n");
-      for (i = 0; i < search->numDents; i++) {
-         Log("\"%s\"\n", search->dents[i]->d_name);
-      }
+      HgfsPlatformDirDumpDents(search);
    }
 
    MXUser_ReleaseExclLock(session->searchArrayLock);
-#endif
 }
+#endif
 
 
 /*

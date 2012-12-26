@@ -561,9 +561,20 @@ Bool
 HgfsRemoveSearch(HgfsHandle searchHandle,
                  HgfsSessionInfo *session);
 
+#ifdef VMX86_LOG
+#define HGFS_SERVER_DIR_DUMP_DENTS(_searchHandle, _session) do {    \
+      if (DOLOG(4)) {                                               \
+         HgfsServerDirDumpDents(_searchHandle, _session);           \
+      }                                                             \
+   } while (0)
+
 void
-HgfsServerDumpDents(HgfsHandle searchHandle,   // IN: Handle to dump dents from
-                    HgfsSessionInfo *session); // IN: Session info
+HgfsServerDirDumpDents(HgfsHandle searchHandle,   // IN: Handle to dump dents from
+                       HgfsSessionInfo *session); // IN: Session info
+#else
+#define HGFS_SERVER_DIR_DUMP_DENTS(_searchHandle, _session) do {} while (0)
+#endif
+
 
 DirectoryEntry *
 HgfsGetSearchResult(HgfsHandle handle,        // IN: Handle to search
@@ -1173,6 +1184,11 @@ HgfsInternalStatus
 HgfsPlatformRestartSearchDir(HgfsHandle handle,               // IN: search handle
                              HgfsSessionInfo *session,        // IN: session info
                              DirectorySearchType searchType); // IN: Kind of search
+#ifdef VMX86_LOG
+void
+HgfsPlatformDirDumpDents(HgfsSearch *search);         // IN: search
+#endif
+
 HgfsInternalStatus
 HgfsPlatformReadFile(HgfsHandle file,             // IN: Hgfs file handle
                      HgfsSessionInfo *session,    // IN: session info

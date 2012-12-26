@@ -3180,6 +3180,40 @@ HgfsPlatformVDirStatsFs(HgfsSessionInfo *session,  // IN: session info
 }
 
 
+#ifdef VMX86_LOG
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPlatformDirDumpDents --
+ *
+ *    Dump a set of directory entries (debugging code).
+ *    Note: this must be called with the session search lock acquired.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsPlatformDirDumpDents(HgfsSearch *search)         // IN: search
+{
+   unsigned int i;
+
+   ASSERT(search != NULL);
+
+   Log("%s: %u dents in \"%s\"\n", __FUNCTION__, search->numDents, search->utf8Dir);
+
+   for (i = 0; i < search->numDents; i++) {
+      Log("\"%s\"\n", search->dents[i]->d_name);
+   }
+}
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -4243,8 +4277,8 @@ HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
       status = HgfsPlatformConvertFromNameStatus(nameStatus);
    }
 
-   if (DOLOG(4)) {
-      HgfsServerDumpDents(*handle, session);
+   if (status == 0) {
+      HGFS_SERVER_DIR_DUMP_DENTS(*handle, session);
    }
 
    return status;
