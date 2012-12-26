@@ -3632,6 +3632,51 @@ HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsPlatformRestartSearchDir --
+ *
+ *    Handle platform specific restarting of a directory search.
+ *
+ * Results:
+ *    ERROR_SUCCESS or an appropriate Win32 error code.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+HgfsInternalStatus
+HgfsPlatformRestartSearchDir(HgfsHandle handle,               // IN: search handle
+                             HgfsSessionInfo *session,        // IN: session info
+                             DirectorySearchType searchType)  // IN: Kind of search
+{
+   HgfsInternalStatus status;
+
+   switch (searchType) {
+   case DIRECTORY_SEARCH_TYPE_BASE:
+      /* Entries are shares */
+      status = HgfsServerRestartSearchVirtualDir(HgfsServerPolicy_GetShares,
+                                                 HgfsServerPolicy_GetSharesInit,
+                                                 HgfsServerPolicy_GetSharesCleanup,
+                                                 session,
+                                                 handle);
+      break;
+   case DIRECTORY_SEARCH_TYPE_OTHER:
+      /* Entries of this type are unknown and not supported for this platform. */
+   case DIRECTORY_SEARCH_TYPE_DIR:
+      /* Entries are files and subdirectories: currently not implemented! */
+   default:
+      status = EINVAL;
+      break;
+   }
+
+   return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsPlatformHandleIncompleteName --
  *
  *   Returns platform error that matches HgfsNameStatus.

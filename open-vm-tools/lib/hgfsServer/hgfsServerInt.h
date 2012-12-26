@@ -240,6 +240,9 @@ typedef struct HgfsSearch {
    /* Links to place the object on various lists */
    DblLnkLst_Links links;
 
+   /* Flags to track state and information: see below. */
+   uint32 flags;
+
    /* HGFS handle uniquely identifying this search. */
    HgfsHandle handle;
 
@@ -271,6 +274,11 @@ typedef struct HgfsSearch {
    /* Parameters associated with the share. */
    HgfsShareInfo shareInfo;
 } HgfsSearch;
+
+/* HgfsSearch flags. */
+
+/* TRUE if opened in append mode */
+#define HGFS_SEARCH_FLAG_READ_ALL_ENTRIES      (1 << 0)
 
 /* HgfsSessionInfo flags. */
 typedef enum {
@@ -604,6 +612,13 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
                            DirectorySearchType type,     // IN: Kind of search
                            HgfsSessionInfo *session,     // IN: Session info
                            HgfsHandle *handle);          // OUT: Search handle
+
+HgfsInternalStatus
+HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
+                                  HgfsInitFunc *initName,       // IN: Init function
+                                  HgfsCleanupFunc *cleanupName, // IN: Cleanup function
+                                  HgfsSessionInfo *session,     // IN: Session info
+                                  HgfsHandle searchHandle);     // IN: search to restart
 
 /* Allocate/Add sessions helper functions. */
 
@@ -1127,9 +1142,9 @@ HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
                       HgfsSessionInfo *session,        // IN: session info
                       HgfsHandle *handle);             // OUT: search handle
 HgfsInternalStatus
-HgfsAccess(char *fileName,         // IN: local file path
-           char *shareName,        // IN: Name of the share
-           size_t shareNameLen);   // IN: Length of the share name
+HgfsPlatformRestartSearchDir(HgfsHandle handle,               // IN: search handle
+                             HgfsSessionInfo *session,        // IN: session info
+                             DirectorySearchType searchType); // IN: Kind of search
 HgfsInternalStatus
 HgfsPlatformReadFile(HgfsHandle file,             // IN: Hgfs file handle
                      HgfsSessionInfo *session,    // IN: session info

@@ -2292,6 +2292,7 @@ HgfsAddNewSearch(char const *utf8Dir,       // IN: UTF8 name of dir to search in
 
    newSearch->dents = NULL;
    newSearch->numDents = 0;
+   newSearch->flags = 0;
    newSearch->type = type;
    newSearch->handle = HgfsServerGetNextHandleCounter();
 
@@ -2416,6 +2417,86 @@ HgfsRemoveSearch(HgfsHandle handle,        // IN: search
    MXUser_ReleaseExclLock(session->searchArrayLock);
 
    return success;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsSearchHasReadAllEntries --
+ *
+ *    Return whether the client has read all the search entries or not.
+ *
+ * Results:
+ *    TRUE on success, FALSE on failure.  readAllEntries is filled in on
+ *    success.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsSearchHasReadAllEntries(HgfsHandle handle,        // IN:  Hgfs file handle
+                            HgfsSessionInfo *session, // IN: Session info
+                            Bool *readAllEntries)     // OUT: If open was sequential
+{
+   HgfsSearch *search;
+   Bool success = FALSE;
+
+   ASSERT(NULL != readAllEntries);
+
+   MXUser_AcquireExclLock(session->searchArrayLock);
+
+   search = HgfsSearchHandle2Search(handle, session);
+   if (NULL == search) {
+      goto exit;
+   }
+
+   *readAllEntries = search->flags & HGFS_SEARCH_FLAG_READ_ALL_ENTRIES;
+   success = TRUE;
+
+exit:
+   MXUser_ReleaseExclLock(session->searchArrayLock);
+
+   return success;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsSearchSetReadAllEntries --
+ *
+ *    Set the flag to indicate the client has read all the search entries.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+HgfsSearchSetReadAllEntries(HgfsHandle handle,        // IN:  Hgfs file handle
+                            HgfsSessionInfo *session) // IN: Session info
+{
+   HgfsSearch *search;
+
+   MXUser_AcquireExclLock(session->searchArrayLock);
+
+   search = HgfsSearchHandle2Search(handle, session);
+   if (NULL == search) {
+      goto exit;
+   }
+
+   search->flags |= HGFS_SEARCH_FLAG_READ_ALL_ENTRIES;
+
+exit:
+   MXUser_ReleaseExclLock(session->searchArrayLock);
 }
 
 
@@ -4917,7 +4998,9 @@ HgfsServerDumpDents(HgfsHandle searchHandle,  // IN: Handle to dump dents from
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerGetDents --
+ * HgfsServerScanvdir --
+ *
+ *    Perform a scandir on our virtual directory.
  *
  *    Get directory entry names from the given callback function, and
  *    build an array of DirectoryEntrys of all the names. Somewhat similar to
@@ -4934,7 +5017,7 @@ HgfsServerDumpDents(HgfsHandle searchHandle,  // IN: Handle to dump dents from
  */
 
 static int
-HgfsServerGetDents(HgfsGetNameFunc getName,     // IN: Function to get name
+HgfsServerScanvdir(HgfsGetNameFunc getName,     // IN: Function to get name
                    HgfsInitFunc initName,       // IN: Setup function
                    HgfsCleanupFunc cleanupName, // IN: Cleanup function
                    DirectoryEntry ***dents)     // OUT: Array of DirectoryEntrys
@@ -5190,7 +5273,7 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
 {
    HgfsInternalStatus status = 0;
    HgfsSearch *search = NULL;
-   int result = 0;
+   int scanDirResult;
 
    ASSERT(getName);
    ASSERT(initName);
@@ -5206,20 +5289,91 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
       goto out;
    }
 
-   result = HgfsServerGetDents(getName, initName, cleanupName, &search->dents);
-   if (result < 0) {
+   scanDirResult = HgfsServerScanvdir(getName, initName, cleanupName, &search->dents);
+   if (scanDirResult < 0) {
       LOG(4, ("%s: couldn't get dents\n", __FUNCTION__));
       HgfsRemoveSearchInternal(search, session);
       status = HGFS_ERROR_INTERNAL;
       goto out;
    }
 
-   search->numDents = result;
+   search->numDents = scanDirResult;
    *handle = HgfsSearch2SearchHandle(search);
 
   out:
    MXUser_ReleaseExclLock(session->searchArrayLock);
 
+   return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerRestartSearchVirtualDir --
+ *
+ *    Restart a search on a virtual directory (i.e. one that does not
+ *    really exist on the server). Takes a pointer to an enumerator
+ *    for the directory's contents and returns a handle to a search that is
+ *    correctly set up with the virtual directory's entries.
+ *
+ * Results:
+ *    Zero on success, returns a handle to the created search.
+ *    Non-zero on failure.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+HgfsInternalStatus
+HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
+                                  HgfsInitFunc *initName,       // IN: Init function
+                                  HgfsCleanupFunc *cleanupName, // IN: Cleanup function
+                                  HgfsSessionInfo *session,     // IN: Session info
+                                  HgfsHandle searchHandle)      // IN: search to restart
+{
+   HgfsInternalStatus status = 0;
+   HgfsSearch *vdirSearch;
+   int scanDirResult;
+
+   ASSERT(getName);
+   ASSERT(initName);
+   ASSERT(cleanupName);
+   ASSERT(searchHandle);
+
+   MXUser_AcquireExclLock(session->searchArrayLock);
+
+   vdirSearch = HgfsSearchHandle2Search(searchHandle, session);
+   if (NULL == vdirSearch) {
+      status = HGFS_ERROR_INVALID_HANDLE;
+      goto exit;
+   }
+
+   /* Release the virtual directory's old set of entries. */
+   HgfsFreeSearchDirents(vdirSearch);
+
+   /* Restart by rescanning the virtual directory. */
+   scanDirResult = HgfsServerScanvdir(getName,
+                                      initName,
+                                      cleanupName,
+                                      &vdirSearch->dents);
+   if (scanDirResult < 0) {
+      ASSERT_DEVEL(0);
+      LOG(4, ("%s: couldn't get root dents\n", __FUNCTION__));
+      vdirSearch->numDents = 0;
+      status = HGFS_ERROR_INTERNAL;
+   }
+
+   vdirSearch->numDents = scanDirResult;
+   /* Clear the flag to indicate that the client has read the entries. */
+   vdirSearch->flags &= ~HGFS_SEARCH_FLAG_READ_ALL_ENTRIES;
+
+exit:
+   MXUser_ReleaseExclLock(session->searchArrayLock);
+
+   LOG(4, ("%s: refreshing dents return %d\n", __FUNCTION__, status));
    return status;
 }
 
@@ -7851,6 +8005,7 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,     // IN: ID for search data
       *nameLength = 0;
       *moreEntries = FALSE;
       info->replyFlags |= HGFS_SEARCH_READ_REPLY_FINAL_ENTRY;
+      HgfsSearchSetReadAllEntries(hgfsSearchHandle, session);
    }
    return status;
 }
@@ -8055,27 +8210,35 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
                      status = HGFS_ERROR_FILE_NOT_FOUND;
                   }
                } else if (0 == info.startIndex) {
-                  HgfsSearch *rootSearch;
+                  Bool readAllEntries = FALSE;
 
-                  MXUser_AcquireExclLock(input->session->searchArrayLock);
-
-                  rootSearch = HgfsSearchHandle2Search(hgfsSearchHandle, input->session);
-                  ASSERT(NULL != rootSearch);
-                  HgfsFreeSearchDirents(rootSearch);
-
-                  rootSearch->numDents =
-                     HgfsServerGetDents(HgfsServerPolicy_GetShares,
-                                        HgfsServerPolicy_GetSharesInit,
-                                        HgfsServerPolicy_GetSharesCleanup,
-                                        &rootSearch->dents);
-                  if (((int) (rootSearch->numDents)) < 0) {
-                     ASSERT_DEVEL(0);
-                     LOG(4, ("%s: couldn't get root dents\n", __FUNCTION__));
-                     rootSearch->numDents = 0;
+                  /*
+                   * Reading the first entry, we check if this is a second scan
+                   * of the directory. If so, in some cases we restart the scan
+                   * by refreshing the entries first.
+                   */
+                  if (!HgfsSearchHasReadAllEntries(hgfsSearchHandle,
+                                                   input->session,
+                                                   &readAllEntries)) {
                      status = HGFS_ERROR_INTERNAL;
                   }
 
-                  MXUser_ReleaseExclLock(input->session->searchArrayLock);
+                  if (readAllEntries) {
+                     /*
+                      * XXX - a hack that is now required until Fusion 5.0 end
+                      * of lifes see bug 710697.
+                      * The coder modified the server instead of the OS X client
+                      * for the shares directory refresh needed by OS X clients in
+                      * order to work around handles remaining open by Finder.
+                      * This was fixed CLN 1988575 in the OS X client for 5.0.2.
+                      * However, Fusion 4.0 and Fusion 5.0 tools will rely on this hack.
+                      * At least now it works correctly without breaking everything
+                      * else.
+                      */
+                     status = HgfsPlatformRestartSearchDir(hgfsSearchHandle,
+                                                           input->session,
+                                                           search.type);
+                  }
                }
 
                if (HGFS_ERROR_SUCCESS == status) {
