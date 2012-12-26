@@ -110,7 +110,7 @@ Str_Vsnprintf(char *str,          // OUT
    ASSERT(str != NULL);
    ASSERT(format != NULL);
 
-#ifdef HAS_BSD_PRINTF
+#if defined HAS_BSD_PRINTF && !defined __ANDROID__
    retval = bsd_vsnprintf(&str, size, format, ap);
 #else
    retval = vsnprintf(str, size, format, ap);
@@ -588,7 +588,7 @@ StrVasprintfInternal(size_t *length,       // OUT:
    char *buf = NULL;
    int ret;
 
-#ifdef HAS_BSD_PRINTF
+#if defined HAS_BSD_PRINTF && !defined __ANDROID__
    ret = bsd_vsnprintf(&buf, 0, format, arguments);
 
 #elif !defined sun && !defined STR_NO_WIN32_LIBS
