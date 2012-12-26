@@ -33,10 +33,8 @@
 
 struct list_head vsockBindTable[VSOCK_HASH_SIZE + 1];
 struct list_head vsockConnectedTable[VSOCK_HASH_SIZE];
-struct list_head vsockSeqTable[VSOCK_HASH_SIZE];
 
 DEFINE_SPINLOCK(vsockTableLock);
-DEFINE_SPINLOCK(vsockSeqTableLock);
 
 
 /*
@@ -194,10 +192,6 @@ VSockVmciInitTables(void)
    for (i = 0; i < ARRAYSIZE(vsockConnectedTable); i++) {
       INIT_LIST_HEAD(&vsockConnectedTable[i]);
    }
-
-   for (i = 0; i < ARRAYSIZE(vsockSeqTable); i++) {
-      INIT_LIST_HEAD(&vsockSeqTable[i]);
-   }
 }
 
 
@@ -272,40 +266,6 @@ __VSockVmciInsertConnected(struct list_head *list,   // IN
 /*
  *----------------------------------------------------------------------------
  *
- * __VSockVmciInsertSeq --
- *
- *    Inserts socket into the sequential table.
- *
- *    Note that this assumes any necessary locks are held.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    The reference count for sk is incremented.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-__VSockVmciInsertSeq(struct list_head *list,   // IN
-                     struct sock *sk)          // IN
-{
-   VSockVmciSock *vsk;
-
-   ASSERT(list);
-   ASSERT(sk);
-
-   vsk = vsock_sk(sk);
-
-   sock_hold(sk);
-   list_add(&vsk->seqTable, list);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
  * __VSockVmciRemoveBound --
  *
  *    Removes socket from the bound table.
@@ -365,39 +325,6 @@ __VSockVmciRemoveConnected(struct sock *sk)  // IN
    vsk = vsock_sk(sk);
 
    list_del_init(&vsk->connectedTable);
-   sock_put(sk);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * __VSockVmciRemoveSeq --
- *
- *    Removes socket from the sequential table.
- *
- *    Note that this assumes any necessary locks are held.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    The reference count for sk is decremented.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-__VSockVmciRemoveSeq(struct sock *sk)  // IN
-{
-   VSockVmciSock *vsk;
-
-   ASSERT(sk);
-   ASSERT(__VSockVmciInSeqTable(sk));
-
-   vsk = vsock_sk(sk);
-
-   list_del_init(&vsk->seqTable);
    sock_put(sk);
 }
 
@@ -546,35 +473,6 @@ __VSockVmciInConnectedTable(struct sock *sk)     // IN
    vsk = vsock_sk(sk);
 
    return !list_empty(&vsk->connectedTable);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * __VSockVmciInSeqTable --
- *
- *    Determines whether the provided socket is in the sequential table.
- *
- * Results:
- *    TRUE is socket is in sequential table, FALSE otherwise.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-__VSockVmciInSeqTable(struct sock *sk)     // IN
-{
-   VSockVmciSock *vsk;
-
-   ASSERT(sk);
-
-   vsk = vsock_sk(sk);
-
-   return !list_empty(&vsk->seqTable);
 }
 
 

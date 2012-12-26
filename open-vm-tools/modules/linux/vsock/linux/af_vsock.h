@@ -50,10 +50,9 @@ typedef struct VSockVmciSock {
    struct sock  sk;
    struct sockaddr_vm localAddr;
    struct sockaddr_vm remoteAddr;
-   /* Links for the global tables of bound, connected and sequential sockets. */
+   /* Links for the global tables of bound and connected sockets. */
    struct list_head boundTable;
    struct list_head connectedTable;
-   struct list_head seqTable;
    /*
     * Accessed without the socket lock held. This means it can never be
     * modified outsided of socket create or destruct.
