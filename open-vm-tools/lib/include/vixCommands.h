@@ -25,7 +25,6 @@
 #ifndef _VIX_COMMANDS_H_
 #define _VIX_COMMANDS_H_
 
-#include "vm_version.h"
 #include "vixOpenSource.h"
 
 /*
