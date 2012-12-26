@@ -7904,13 +7904,24 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,     // IN: ID for search data
                    * problems on the host, the server still enumerates it and
                    * returns to the client.
                    */
+#if defined(_WIN32)
                   /*
-                   * XXX: We will open a new handle for this, but it should be safe
-                   * from oplock-induced deadlock because these are all directories,
-                   * and thus cannot have oplocks placed on them.
+                   * For Windows hosts an empty share path has special meaning and we
+                   * treat it the same as another virtual folder. E.g. Drive or UNC.
                    */
-                  status = HgfsPlatformGetattrFromName(sharePath, configOptions,
-                                                       dent->d_name, attr, NULL);
+                  if (0 == sharePathLen) {
+                     HgfsPlatformGetDefaultDirAttrs(attr);
+                  } else
+#endif
+                  {
+                     /*
+                      * XXX: We will open a new handle for this, but it should be safe
+                      * from oplock-induced deadlock because these are all directories,
+                      * and thus cannot have oplocks placed on them.
+                      */
+                     status = HgfsPlatformGetattrFromName(sharePath, configOptions,
+                                                          dent->d_name, attr, NULL);
+                  }
 
                   /*
                    * For some reason, Windows marks drives as hidden and system. So
