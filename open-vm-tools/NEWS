@@ -15,6 +15,7 @@ open-vm-tools 2012.10.14 changes:
 
 	* Other fixes and cleanups.
 
+
 open-vm-tools 2012.05.21 changes:
 	* Updates for newer Linux kernel releases (3.4).
 
