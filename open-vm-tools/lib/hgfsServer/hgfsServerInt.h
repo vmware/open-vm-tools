@@ -595,6 +595,13 @@ HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check
                              size_t inSize);  // IN:  Size of name in
 
 HgfsInternalStatus
+HgfsServerGetDirEntry(HgfsHandle handle,         // IN: Handle to search
+                      HgfsSessionInfo *session,  // IN: Session info
+                      uint32 index,              // IN: index to retrieve at
+                      Bool remove,               // IN: If true, removes the result
+                      DirectoryEntry **dirEntry);// OUT: directory entry
+
+HgfsInternalStatus
 HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
                         size_t baseDirLen,        // IN: Length of directory
                         char const *shareName,    // IN: Share name
@@ -1185,6 +1192,12 @@ HgfsPlatformWriteWin32Stream(HgfsHandle file,           // IN: packet header
                              Bool doSecurity,           // IN: write ACL
                              uint32  *actualSize,       // OUT: written data size
                              HgfsSessionInfo *session); // IN: session info
+HgfsInternalStatus
+HgfsPlatformVDirStatsFs(HgfsSessionInfo *session,  // IN: session info
+                        HgfsNameStatus nameStatus, // IN:
+                        VolumeInfoType infoType,   // IN:
+                        uint64 *outFreeBytes,      // OUT:
+                        uint64 *outTotalBytes);    // OUT:
 Bool
 HgfsValidatePacket(char const *packetIn, // IN: HGFS packet
                    size_t packetSize,    // IN: HGFS packet size

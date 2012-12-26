@@ -5651,10 +5651,13 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsQueryVolume --
+ * HgfsServerQueryVolInt --
  *
- *    Performs actual work to get free space and capacity for a volume or
- *    a group of volumes.
+ *    Internal function to query the volume's free space and capacity.
+ *    The volume queried can be:
+ *    - real taken from the file path of a real file or folder
+ *    - virtual taken from one of the HGFS virtual folders which can span
+ *      multiple volumes.
  *
  * Results:
  *    Zero on success.
@@ -5666,13 +5669,13 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
  *
  *-----------------------------------------------------------------------------
  */
-HgfsInternalStatus
-HgfsQueryVolume(HgfsSessionInfo *session,   // IN: session info
-                char *fileName,             // IN: cpName for the volume
-                size_t fileNameLength,      // IN: cpName length
-                uint32 caseFlags,           // IN: case sensitive/insensitive name
-                uint64 *freeBytes,          // OUT: free space in bytes
-                uint64 *totalBytes)         // OUT: capacity in bytes
+static HgfsInternalStatus
+HgfsServerQueryVolInt(HgfsSessionInfo *session,   // IN: session info
+                      char *fileName,             // IN: cpName for the volume
+                      size_t fileNameLength,      // IN: cpName length
+                      uint32 caseFlags,           // IN: case sensitive/insensitive name
+                      uint64 *freeBytes,          // OUT: free space in bytes
+                      uint64 *totalBytes)         // OUT: capacity in bytes
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
    uint64 outFreeBytes = 0;
@@ -5680,15 +5683,8 @@ HgfsQueryVolume(HgfsSessionInfo *session,   // IN: session info
    char *utf8Name = NULL;
    size_t utf8NameLen;
    HgfsNameStatus nameStatus;
-   Bool firstShare = TRUE;
    HgfsShareInfo shareInfo;
-   HgfsHandle handle;
    VolumeInfoType infoType;
-   DirectoryEntry *dent;
-   size_t failed = 0;
-   size_t shares = 0;
-   HgfsInternalStatus firstErr = HGFS_ERROR_SUCCESS;
-   Bool success;
 
    /* It is now safe to read the file name field. */
    nameStatus = HgfsServerGetShareInfo(fileName,
@@ -5698,147 +5694,10 @@ HgfsQueryVolume(HgfsSessionInfo *session,   // IN: session info
                                        &utf8Name,
                                        &utf8NameLen);
 
-   switch (nameStatus) {
-   case HGFS_NAME_STATUS_INCOMPLETE_BASE:
-      /*
-       * This is the base of our namespace. Clients can request a
-       * QueryVolumeInfo on it, on individual shares, or on just about
-       * any pathname.
-       */
+   /* Check if we have a real path and if so handle it here. */
+   if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
+      Bool success;
 
-      LOG(4,("%s: opened search on base\n", __FUNCTION__));
-      status = HgfsServerSearchVirtualDir(HgfsServerPolicy_GetShares,
-                                          HgfsServerPolicy_GetSharesInit,
-                                          HgfsServerPolicy_GetSharesCleanup,
-                                          DIRECTORY_SEARCH_TYPE_BASE,
-                                          session,
-                                          &handle);
-      if (status != HGFS_ERROR_SUCCESS) {
-         return status;
-      }
-
-      /*
-       * If we're outside the Tools, find out if we're to compute the minimum
-       * values across all shares, or the maximum values.
-       */
-      infoType = VOLUME_INFO_TYPE_MIN;
-      if (0 == (gHgfsCfgSettings.flags & HGFS_CONFIG_VOL_INFO_MIN)) {
-         /* Using the maximum volume size and space values. */
-         infoType = VOLUME_INFO_TYPE_MAX;
-      }
-
-      /*
-       * Now go through all shares and get share paths on the server.
-       * Then retrieve space info for each share's volume.
-       */
-      while ((status = HgfsServerGetDirEntry(handle, session, 0,
-                                             TRUE, &dent)) == HGFS_ERROR_SUCCESS) {
-         char const *sharePath;
-         size_t sharePathLen;
-         uint64 currentFreeBytes  = 0;
-         uint64 currentTotalBytes = 0;
-         size_t length;
-
-         if (NULL == dent) {
-            break;
-         }
-
-         length = strlen(dent->d_name);
-
-         /*
-          * Now that the server is passing '.' and ".." around as dents, we
-          * need to make sure to handle them properly. In particular, they
-          * should be ignored within QueryVolume, as they're not real shares.
-          */
-         if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, "..")) {
-            LOG(4, ("%s: Skipping fake share %s\n", __FUNCTION__,
-                    dent->d_name));
-            free(dent);
-            continue;
-         }
-
-         /*
-          * The above check ignores '.' and '..' so we do not include them in
-          * the share count here.
-          */
-         shares++;
-
-         /*
-          * Check permission on the share and get the share path.  It is not
-          * fatal if these do not succeed.  Instead we ignore the failures
-          * (apart from logging them) until we have processed all shares.  Only
-          * then do we check if there were any failures; if all shares failed
-          * to process then we bail out with an error code.
-          */
-
-         nameStatus = HgfsServerPolicy_GetSharePath(dent->d_name, length,
-                                                    HGFS_OPEN_MODE_READ_ONLY,
-                                                    &sharePathLen,
-                                                    &sharePath);
-         free(dent);
-         if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
-            LOG(4, ("%s: No such share or access denied\n", __FUNCTION__));
-            if (0 == firstErr) {
-               firstErr = HgfsPlatformConvertFromNameStatus(nameStatus);
-            }
-            failed++;
-            continue;
-         }
-
-         /*
-          * Pick the drive with amount of space available and return that
-          * according to different volume info type.
-          */
-
-
-         if (!HgfsServerStatFs(sharePath, sharePathLen,
-                               &currentFreeBytes, &currentTotalBytes)) {
-            LOG(4, ("%s: error getting volume information\n",
-                    __FUNCTION__));
-            if (0 == firstErr) {
-               firstErr = HGFS_ERROR_IO;
-            }
-            failed++;
-            continue;
-         }
-
-         /*
-          * Pick the drive with amount of space available and return that
-          * according to different volume info type.
-          */
-         switch (infoType) {
-         case VOLUME_INFO_TYPE_MIN:
-            if ((outFreeBytes > currentFreeBytes) || firstShare) {
-               firstShare = FALSE;
-               outFreeBytes  = currentFreeBytes;
-               outTotalBytes = currentTotalBytes;
-            }
-            break;
-         case VOLUME_INFO_TYPE_MAX:
-            if ((outFreeBytes < currentFreeBytes)) {
-               outFreeBytes  = currentFreeBytes;
-               outTotalBytes = currentTotalBytes;
-            }
-            break;
-         default:
-            NOT_IMPLEMENTED();
-         }
-      }
-      if (!HgfsRemoveSearch(handle, session)) {
-         LOG(4, ("%s: could not close search on base\n", __FUNCTION__));
-      }
-      if (shares == failed) {
-         if (firstErr != 0) {
-            /*
-             * We failed to query any of the shares.  We return the error]
-             * from the first share failure.
-             */
-            status = firstErr;
-         }
-         /* No shares but no error, return zero for sizes and success. */
-      }
-      break;
-   case HGFS_NAME_STATUS_COMPLETE:
       ASSERT(utf8Name);
       LOG(4,("%s: querying path %s\n", __FUNCTION__, utf8Name));
       success = HgfsServerStatFs(utf8Name, utf8NameLen,
@@ -5848,12 +5707,27 @@ HgfsQueryVolume(HgfsSessionInfo *session,   // IN: session info
          LOG(4, ("%s: error getting volume information\n", __FUNCTION__));
          status = HGFS_ERROR_IO;
       }
-      break;
-   default:
-      LOG(4,("%s: file access check failed\n", __FUNCTION__));
-      status = HgfsPlatformConvertFromNameStatus(nameStatus);
+      goto exit;
    }
 
+    /*
+     * If we're outside the Tools, find out if we're to compute the minimum
+     * values across all shares, or the maximum values.
+     */
+   infoType = VOLUME_INFO_TYPE_MIN;
+   /* We have a virtual folder path and if so pass it over to the platform code. */
+   if (0 == (gHgfsCfgSettings.flags & HGFS_CONFIG_VOL_INFO_MIN)) {
+      /* Using the maximum volume size and space values. */
+      infoType = VOLUME_INFO_TYPE_MAX;
+   }
+
+   status = HgfsPlatformVDirStatsFs(session,
+                                    nameStatus,
+                                    infoType,
+                                    &outFreeBytes,
+                                    &outTotalBytes);
+
+exit:
    *freeBytes  = outFreeBytes;
    *totalBytes = outTotalBytes;
    LOG(4, ("%s: return %"FMT64"u bytes Free %"FMT64"u bytes\n", __FUNCTION__,
@@ -5913,8 +5787,12 @@ HgfsServerQueryVolume(HgfsInputParam *input)  // IN: Input params
          LOG(4, ("%s: Doesn't support file handle.\n", __FUNCTION__));
          status = HGFS_ERROR_INVALID_PARAMETER;
       } else {
-         status = HgfsQueryVolume(input->session, fileName, fileNameLength, caseFlags,
-                                  &freeBytes, &totalBytes);
+         status = HgfsServerQueryVolInt(input->session,
+                                        fileName,
+                                        fileNameLength,
+                                        caseFlags,
+                                        &freeBytes,
+                                        &totalBytes);
          if (HGFS_ERROR_SUCCESS == status) {
             if (!HgfsPackQueryVolumeReply(input->packet, input->metaPacket,
                                           input->op, freeBytes, totalBytes,

@@ -3007,6 +3007,179 @@ HgfsPlatformWriteWin32Stream(HgfsHandle file,        // IN: packet header
    return EPROTO;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPlatformVDirStatsFs --
+ *
+ *    Handle a statfs (query volume information) request for a virtual folder.
+ *
+ * Results:
+ *    HGFS_ERROR_SUCCESS or an appropriate error code.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+HgfsInternalStatus
+HgfsPlatformVDirStatsFs(HgfsSessionInfo *session,  // IN: session info
+                        HgfsNameStatus nameStatus, // IN:
+                        VolumeInfoType infoType,   // IN:
+                        uint64 *outFreeBytes,      // OUT:
+                        uint64 *outTotalBytes)     // OUT:
+{
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
+   HgfsInternalStatus firstErr = HGFS_ERROR_SUCCESS;
+   Bool firstShare = TRUE;
+   size_t failed = 0;
+   size_t shares = 0;
+   DirectoryEntry *dent;
+   HgfsHandle handle;
+
+   ASSERT(nameStatus != HGFS_NAME_STATUS_COMPLETE);
+
+   switch (nameStatus) {
+   case HGFS_NAME_STATUS_INCOMPLETE_BASE:
+      /*
+       * This is the base of our namespace. Clients can request a
+       * QueryVolumeInfo on it, on individual shares, or on just about
+       * any pathname.
+       */
+
+      LOG(4,("%s: opened search on base\n", __FUNCTION__));
+      status = HgfsServerSearchVirtualDir(HgfsServerPolicy_GetShares,
+                                          HgfsServerPolicy_GetSharesInit,
+                                          HgfsServerPolicy_GetSharesCleanup,
+                                          DIRECTORY_SEARCH_TYPE_BASE,
+                                          session,
+                                          &handle);
+      if (status != HGFS_ERROR_SUCCESS) {
+         break;
+      }
+
+      /*
+       * Now go through all shares and get share paths on the server.
+       * Then retrieve space info for each share's volume.
+       */
+      while ((status = HgfsServerGetDirEntry(handle, session, 0,
+                                             TRUE, &dent)) == HGFS_ERROR_SUCCESS) {
+         char const *sharePath;
+         size_t sharePathLen;
+         uint64 currentFreeBytes  = 0;
+         uint64 currentTotalBytes = 0;
+         size_t length;
+
+         if (NULL == dent) {
+            break;
+         }
+
+         length = strlen(dent->d_name);
+
+         /*
+          * Now that the server is passing '.' and ".." around as dents, we
+          * need to make sure to handle them properly. In particular, they
+          * should be ignored within QueryVolume, as they're not real shares.
+          */
+         if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, "..")) {
+            LOG(4, ("%s: Skipping fake share %s\n", __FUNCTION__,
+                    dent->d_name));
+            free(dent);
+            continue;
+         }
+
+         /*
+          * The above check ignores '.' and '..' so we do not include them in
+          * the share count here.
+          */
+         shares++;
+
+         /*
+          * Check permission on the share and get the share path.  It is not
+          * fatal if these do not succeed.  Instead we ignore the failures
+          * (apart from logging them) until we have processed all shares.  Only
+          * then do we check if there were any failures; if all shares failed
+          * to process then we bail out with an error code.
+          */
+
+         nameStatus = HgfsServerPolicy_GetSharePath(dent->d_name, length,
+                                                    HGFS_OPEN_MODE_READ_ONLY,
+                                                    &sharePathLen,
+                                                    &sharePath);
+         free(dent);
+         if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+            LOG(4, ("%s: No such share or access denied\n", __FUNCTION__));
+            if (0 == firstErr) {
+               firstErr = HgfsPlatformConvertFromNameStatus(nameStatus);
+            }
+            failed++;
+            continue;
+         }
+
+         /*
+          * Pick the drive with amount of space available and return that
+          * according to different volume info type.
+          */
+
+
+         if (!HgfsServerStatFs(sharePath, sharePathLen,
+                               &currentFreeBytes, &currentTotalBytes)) {
+            LOG(4, ("%s: error getting volume information\n",
+                    __FUNCTION__));
+            if (0 == firstErr) {
+               firstErr = HGFS_ERROR_IO;
+            }
+            failed++;
+            continue;
+         }
+
+         /*
+          * Pick the drive with amount of space available and return that
+          * according to different volume info type.
+          */
+         switch (infoType) {
+         case VOLUME_INFO_TYPE_MIN:
+            if ((*outFreeBytes > currentFreeBytes) || firstShare) {
+               firstShare = FALSE;
+               *outFreeBytes  = currentFreeBytes;
+               *outTotalBytes = currentTotalBytes;
+            }
+            break;
+         case VOLUME_INFO_TYPE_MAX:
+            if ((*outFreeBytes < currentFreeBytes)) {
+               *outFreeBytes  = currentFreeBytes;
+               *outTotalBytes = currentTotalBytes;
+            }
+            break;
+         default:
+            NOT_IMPLEMENTED();
+         }
+      }
+      if (!HgfsRemoveSearch(handle, session)) {
+         LOG(4, ("%s: could not close search on base\n", __FUNCTION__));
+      }
+      if (shares == failed) {
+         if (firstErr != 0) {
+            /*
+             * We failed to query any of the shares.  We return the error]
+             * from the first share failure.
+             */
+            status = firstErr;
+         }
+         /* No shares but no error, return zero for sizes and success. */
+      }
+      break;
+   default:
+      LOG(4,("%s: file access check failed\n", __FUNCTION__));
+      status = HgfsPlatformConvertFromNameStatus(nameStatus);
+   }
+
+   return status;
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *
