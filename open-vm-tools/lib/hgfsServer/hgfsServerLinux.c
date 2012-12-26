@@ -3064,7 +3064,7 @@ HgfsPlatformVDirStatsFs(HgfsSessionInfo *session,  // IN: session info
        * Now go through all shares and get share paths on the server.
        * Then retrieve space info for each share's volume.
        */
-      while ((status = HgfsServerGetDirEntry(handle, session, 0,
+      while ((status = HgfsServerGetDirEntry(handle, session, HGFS_SEARCH_LAST_ENTRY_INDEX,
                                              TRUE, &dent)) == HGFS_ERROR_SUCCESS) {
          char const *sharePath;
          size_t sharePathLen;
@@ -3288,9 +3288,11 @@ HgfsPlatformGetDirEntry(HgfsSearch *search,        // IN: search
        */
       dent = search->dents[index];
 
-      /* Shift up the remaining results */
-      memmove(&search->dents[index], &search->dents[index + 1],
-              (search->numDents - (index + 1)) * sizeof search->dents[0]);
+      if (index < search->numDents - 1) {
+         /* Shift up the remaining results */
+         memmove(&search->dents[index], &search->dents[index + 1],
+                 (search->numDents - (index + 1)) * sizeof search->dents[0]);
+      }
 
       /* Decrement the number of results */
       search->numDents--;

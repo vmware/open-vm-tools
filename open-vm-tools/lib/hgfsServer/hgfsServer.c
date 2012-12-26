@@ -2545,6 +2545,11 @@ HgfsServerGetDirEntry(HgfsHandle handle,         // IN: Handle to search
       goto out;
    }
 
+   if (HGFS_SEARCH_LAST_ENTRY_INDEX == index) {
+      /* Set the index to the final entry. */
+      index = search->numDents - 1;
+   }
+
    status = HgfsPlatformGetDirEntry(search,
                                     session,
                                     index,

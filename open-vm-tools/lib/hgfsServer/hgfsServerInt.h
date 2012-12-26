@@ -115,6 +115,9 @@ typedef enum {
                                        "root/drive" or contents of "root" */
 } DirectorySearchType;
 
+#define HGFS_SEARCH_LAST_ENTRY_INDEX         ((uint32)~((uint32)0))
+
+
 /* Two possible volume info type */
 typedef enum {
    VOLUME_INFO_TYPE_MIN,
