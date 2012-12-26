@@ -1132,6 +1132,12 @@ HgfsPlatformScandir(char const *baseDir,      // IN: Directory to search in
                     DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
                     int *numDents);           // OUT: Number of DirectoryEntrys
 HgfsInternalStatus
+HgfsPlatformScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get name
+                     HgfsInitFunc enumNamesInit,       // IN: Setup function
+                     HgfsCleanupFunc enumNamesExit,    // IN: Cleanup function
+                     DirectoryEntry ***dents,          // OUT: Array of DirectoryEntrys
+                     uint32 *numDents);                // OUT: total number of directory entrys
+HgfsInternalStatus
 HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
                       char *dirName,                   // IN: relative directory name
                       uint32 dirNameLength,            // IN: length of dirName

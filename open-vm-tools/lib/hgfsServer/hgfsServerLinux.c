@@ -3254,6 +3254,175 @@ HgfsPlatformScandir(char const *baseDir,      // IN: Directory to search in
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPlatformScanvdir --
+ *
+ *    Perform a scandir on our virtual directory.
+ *
+ *    Get directory entry names from the given callback function, and
+ *    build an array of DirectoryEntrys of all the names. Somewhat similar to
+ *    scandir(3) on linux, but more general.
+ *
+ * Results:
+ *    On success, the number of directory entries found.
+ *    On failure, negative error.
+ *
+ * Side effects:
+ *    Memory allocation.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+HgfsInternalStatus
+HgfsPlatformScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get name
+                     HgfsInitFunc enumNamesInit,       // IN: Setup function
+                     HgfsCleanupFunc enumNamesExit,    // IN: Cleanup function
+                     DirectoryEntry ***dents,          // OUT: Array of DirectoryEntrys
+                     uint32 *numDents)                 // OUT: total number of directory entrys
+{
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
+   uint32 totalDents = 0;   // Number of allocated dents
+   uint32 myNumDents = 0;     // Current actual number of dents
+   DirectoryEntry **myDents = NULL; // So realloc is happy w/ zero myNumDents
+   void *enumNamesHandle;
+
+   ASSERT(NULL != enumNamesInit);
+   ASSERT(NULL != enumNamesGet);
+   ASSERT(NULL != enumNamesExit);
+
+   enumNamesHandle = enumNamesInit();
+   if (NULL == enumNamesHandle) {
+      status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+      LOG(4, ("%s: Error: init state ret %u\n", __FUNCTION__, status));
+      goto exit;
+   }
+
+   for (;;) {
+      DirectoryEntry *currentEntry;
+      char const *currentEntryName;
+      size_t currentEntryNameLen;
+      size_t currentEntryLen;
+      size_t maxNameLen;
+      Bool done = FALSE;
+
+      /* Add '.' and ".." as the first dents. */
+      if (myNumDents == 0) {
+         currentEntryName = ".";
+         currentEntryNameLen = 1;
+      } else if (myNumDents == 1) {
+         currentEntryName = "..";
+         currentEntryNameLen = 2;
+      } else {
+         if (!enumNamesGet(enumNamesHandle, &currentEntryName, &currentEntryNameLen, &done)) {
+            status = HGFS_ERROR_INVALID_PARAMETER;
+            LOG(4, ("%s: Error: get next entry name ret %u\n", __FUNCTION__, status));
+            goto exit;
+         }
+      }
+
+      if (done) {
+         LOG(4, ("%s: No more names\n", __FUNCTION__));
+         break;
+      }
+
+#if defined(sun)
+      /*
+       * Solaris lacks a single definition of NAME_MAX and using pathconf(), to
+       * determine NAME_MAX for the current directory, is too cumbersome for
+       * our purposes, so we use PATH_MAX as a reasonable upper bound on the
+       * length of the name.
+       */
+      maxNameLen = PATH_MAX;
+#else
+      maxNameLen = sizeof currentEntry->d_name;
+#endif
+      if (currentEntryNameLen >= maxNameLen) {
+         Log("%s: Error: Name \"%s\" is too long.\n", __FUNCTION__, currentEntryName);
+         continue;
+      }
+
+      /* See if we need to allocate more memory */
+      if (myNumDents == totalDents) {
+         void *p;
+
+         if (totalDents != 0) {
+            totalDents *= 2;
+         } else {
+            totalDents = 100;
+         }
+         p = realloc(myDents, totalDents * sizeof *myDents);
+         if (NULL == p) {
+            status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+            LOG(4, ("%s:  Error: realloc growing array memory ret %u\n", __FUNCTION__, status));
+            goto exit;
+         }
+         myDents = p;
+      }
+
+      /* This file/directory can be added to the list. */
+      LOG(4, ("%s: Nextfilename = \"%s\"\n", __FUNCTION__, currentEntryName));
+
+      /*
+       * Start with the size of the DirectoryEntry struct, subtract the static
+       * length of the d_name buffer (256 in Linux, 1 in Solaris, etc) and add
+       * back just enough space for the UTF-8 name and nul terminator.
+       */
+
+      currentEntryLen = offsetof(DirectoryEntry, d_name) + currentEntryNameLen + 1;
+      currentEntry = malloc(currentEntryLen);
+      if (NULL == currentEntry) {
+         status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+         LOG(4, ("%s:  Error: allocate dentry memory ret %u\n", __FUNCTION__, status));
+         goto exit;
+      }
+      currentEntry->d_reclen = (unsigned short)currentEntryLen;
+      memcpy(currentEntry->d_name, currentEntryName, currentEntryNameLen);
+      currentEntry->d_name[currentEntryNameLen] = 0;
+
+      myDents[myNumDents] = currentEntry;
+      myNumDents++;
+   }
+
+   /* Trim extra memory off of dents */
+   {
+      void *p;
+
+      p = realloc(myDents, myNumDents * sizeof *myDents);
+      if (NULL != p) {
+         myDents = p;
+      } else {
+         LOG(4, ("%s: Error: realloc trimming array memory\n", __FUNCTION__));
+      }
+   }
+
+   *dents = myDents;
+   *numDents = myNumDents;
+
+exit:
+   if (NULL != enumNamesHandle) {
+      /* Call the exit callback to teardown any state. */
+      if (!enumNamesExit(enumNamesHandle)) {
+         LOG(4, ("%s: Error cleanup failed\n", __FUNCTION__));
+      }
+   }
+
+   if (HGFS_ERROR_SUCCESS != status) {
+      unsigned int i;
+
+      /* Free whatever has been allocated so far */
+      for (i = 0; i < myNumDents; i++) {
+         free(myDents[i]);
+      }
+
+      free(myDents);
+   }
+
+   return status;
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * Request Handler Functions
