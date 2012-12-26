@@ -1126,6 +1126,21 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN: file name
                             HgfsFileAttrInfo *attr,         // OUT: file attributes
                             char **targetName);             // OUT: Symlink target
 HgfsInternalStatus
+HgfsPlatformGetDirEntry(HgfsSearch *search,         // IN: search
+                        HgfsSessionInfo *session,   // IN: Session info
+                        uint32 offset,              // IN: Offset to retrieve at
+                        Bool remove,                // IN: If true, removes the result
+                        DirectoryEntry **dirEntry); // OUT: dirent
+HgfsInternalStatus
+HgfsPlatformSetDirEntry(HgfsSearch *search,          // IN: search
+                        HgfsShareOptions configOptions,  // IN: share configuration settings
+                        HgfsSessionInfo *session,    // IN: session info
+                        DirectoryEntry *dirEntry,    // IN: the indexed dirent
+                        Bool getAttr,                // IN: get the entry attributes
+                        HgfsFileAttrInfo *entryAttr, // OUT: entry attributes, optional
+                        char **entryName,            // OUT: entry name
+                        uint32 *entryNameLength);    // OUT: entry name length
+HgfsInternalStatus
 HgfsPlatformScandir(char const *baseDir,      // IN: Directory to search in
                     size_t baseDirLen,        // IN: Length of directory
                     Bool followSymlinks,      // IN: followSymlinks config option
