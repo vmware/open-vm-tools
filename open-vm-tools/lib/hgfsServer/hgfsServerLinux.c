@@ -3682,7 +3682,8 @@ HgfsPlatformScandir(char const *baseDir,      // IN: Directory to search in
             goto exit;
          }
 
-         if (HgfsConvertToUtf8FormC(newDent->d_name, sizeof newDent->d_name)) {
+         if (HgfsConvertToUtf8FormC(newDent->d_name,
+                                    newDent->d_reclen - offsetof(DirectoryEntry, d_name))) {
             memcpy(myDents[myNumDents], newDent, newDent->d_reclen);
             /*
              * Dent is done. Bump the offset to the batched buffer to process the
