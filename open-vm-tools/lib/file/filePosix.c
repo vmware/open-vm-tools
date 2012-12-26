@@ -137,11 +137,11 @@ struct WalkDirContextImpl
  *
  * FileRemoveDirectory --
  *
- *	Delete a directory.
+ *      Delete a directory.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0 success
+ *    > 0 failure (errno)
  *
  * Side effects:
  *      May change the host file system.
@@ -161,11 +161,11 @@ FileRemoveDirectory(ConstUnicode pathName)  // IN:
  *
  * File_Rename --
  *
- *	Rename a file.
+ *      Rename a file.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *        0  success
+ *      > 0  failure (errno)
  *
  * Side effects:
  *      May change the host file system.
@@ -198,8 +198,8 @@ File_RenameRetry(ConstUnicode oldFile,    // IN:
  *      and errno will be set to EFAULT.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *        0  success
+ *      > 0  failure (errno)
  *
  * Side effects:
  *      May change the host file system.  errno may be set.
@@ -219,7 +219,7 @@ FileDeletion(ConstUnicode pathName,  // IN:
 
       return errno;
    } else if ((primaryPath = Unicode_GetAllocBytes(pathName,
-                               STRING_ENCODING_DEFAULT)) == NULL) {
+                                          STRING_ENCODING_DEFAULT)) == NULL) {
       Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
           __FUNCTION__, UTF8(pathName));
       errno = UNICODE_CONVERSION_ERRNO;
@@ -301,11 +301,11 @@ File_UnlinkDelayed(ConstUnicode pathName)  // IN:
  *
  * FileAttributes --
  *
- *	Return the attributes of a file. Time units are in OS native time.
+ *      Return the attributes of a file. Time units are in OS native time.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0    success
+ *    > 0  failure (errno)
  *
  * Side effects:
  *      None
@@ -642,7 +642,7 @@ File_FullPath(ConstUnicode pathName)  // IN:
 
       if (ret == NULL) {
          ret = FileStripFwdSlashes(path);
-      } 
+      }
       Unicode_Free(path);
    }
 
@@ -1014,8 +1014,8 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
  *      on each level until it succeeds.
  *
  * Results:
- *      TRUE	statfs succeeded
- *	FALSE	unable to statfs anything along the path
+ *      TRUE    statfs succeeded
+ *      FALSE   unable to statfs anything along the path
  *
  * Side effects:
  *      None
@@ -1204,7 +1204,7 @@ File_GetVMFSVersion(ConstUnicode pathName,  // IN: File name to test
       errno = EINVAL;
       goto exit;
    }
-   
+
    ret = File_GetVMFSAttributes(pathName, &fsAttrs);
 
    if (ret < 0) {
@@ -1413,7 +1413,7 @@ File_SupportsZeroedThick(ConstUnicode pathName)  // IN:
  *----------------------------------------------------------------------
  *
  * File_SupportsMultiWriter --
- *  
+ *
  *      Check if the given file is on an FS supports opening files
  *      in multi-writer mode.
  *      Currently only VMFS on ESX supports multi-writer mode, but
@@ -1597,30 +1597,30 @@ retry:
    while (Posix_Getmntent_r(f, &mnt, buf, size) != NULL) {
 
       /*
-       * Our Posix_Getmntent_r graciously sets errno when the buffer 
+       * Our Posix_Getmntent_r graciously sets errno when the buffer
        * is too small, but on UTF-8 based platforms Posix_Getmntent_r
-       * is #defined to the system's getmntent_r, which can simply 
-       * truncate the strings with no other indication.  See how much 
+       * is #defined to the system's getmntent_r, which can simply
+       * truncate the strings with no other indication.  See how much
        * space it used and increase the buffer size if needed.  Note
        * that if some of the strings are empty, they may share a
-       * common nul in the buffer, and the resulting size calculation 
+       * common nul in the buffer, and the resulting size calculation
        * will be a little over-zealous.
        */
 
-      used = 0;  
+      used = 0;
       if (mnt.mnt_fsname) {
          used += strlen(mnt.mnt_fsname) + 1;
-      } 
+      }
       if (mnt.mnt_dir) {
          used += strlen(mnt.mnt_dir) + 1;
-      } 
+      }
       if (mnt.mnt_type) {
          used += strlen(mnt.mnt_type) + 1;
-      } 
+      }
       if (mnt.mnt_opts) {
          used += strlen(mnt.mnt_opts) + 1;
-      } 
-      if (used >= size || !mnt.mnt_fsname || !mnt.mnt_dir || 
+      }
+      if (used >= size || !mnt.mnt_fsname || !mnt.mnt_dir ||
           !mnt.mnt_type || !mnt.mnt_opts) {
          size += 4 * FILE_MAXPATH;
          ASSERT(size <= 32 * FILE_MAXPATH);
@@ -1652,7 +1652,7 @@ retry:
 
          ret = Util_SafeStrdup(mnt.mnt_fsname);
 
-	 break;
+         break;
       }
    }
 
@@ -1884,7 +1884,7 @@ FilePosixNearestExistingAncestor(char const *path)  // IN: File path
  *
  *      Determine whether both paths point to the same file.
  *
- *      Caveats - While local files are matched based on inode and device 
+ *      Caveats - While local files are matched based on inode and device
  *      ID, some older versions of NFS return buggy device IDs, so the
  *      determination cannot be done with 100% confidence across NFS.
  *      Paths that traverse NFS mounts are matched based on device, inode
@@ -1892,7 +1892,7 @@ FilePosixNearestExistingAncestor(char const *path)  // IN: File path
  *      This introduces a race condition in that if the target files are not
  *      locked, they can change out from underneath this function yielding
  *      false negative results.  Cloned files sytems mounted across an old
- *      version of NFS may yield a false positive.  
+ *      version of NFS may yield a false positive.
  *
  * Results:
  *      TRUE if both paths point to the same file, FALSE otherwise.
@@ -1961,7 +1961,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
       return FALSE;
    }
 
-#if defined(__APPLE__) || defined(__FreeBSD__) 
+#if defined(__APPLE__) || defined(__FreeBSD__)
    if ((stfs1.f_flags & MNT_LOCAL) && (stfs2.f_flags & MNT_LOCAL)) {
       return TRUE;
    }
@@ -1978,7 +1978,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
     * implementations can set st_dev incorrectly. Do some extra checks of the
     * stat structure to increase our confidence. Since the st_ino numbers had
     * to match to get this far, the overwhelming odds are the two files are
-    * the same.  
+    * the same.
     *
     * If another process was actively writing or otherwise modifying the file
     * while we stat'd it, then the following test could fail and we could
@@ -2561,11 +2561,11 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
  *
  * FileCreateDirectory --
  *
- *	Create a directory. The umask is honored.
+ *      Create a directory. The umask is honored.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0    success
+ *    > 0  failure (errno)
  *
  * Side effects:
  *      May change the host file system.
@@ -2878,13 +2878,13 @@ File_WalkDirectoryEnd(WalkDirContext context)  // IN:
  *
  * FileIsGroupsMember --
  *
- *	Determine if a gid is in the gid list of the current process
+ *      Determine if a gid is in the gid list of the current process
  *
  * Results:
- *	FALSE if error (reported to the user)
+ *      FALSE if error (reported to the user)
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -2946,19 +2946,19 @@ end:
  *
  * FileIsWritableDir --
  *
- *	Determine in a non-intrusive way if the user can create a file in a
- *	directory
+ *      Determine in a non-intrusive way if the user can create a file in a
+ *      directory
  *
  * Results:
- *	FALSE if error (reported to the user)
+ *      FALSE if error (reported to the user)
  *
  * Side effects:
- *	None
+ *      None
  *
  * Bug:
- *	It would be cleaner to use the POSIX access(2), which deals well
- *	with read-only filesystems. Unfortunately, access(2) doesn't deal with
- *	the effective [u|g]ids.
+ *      It would be cleaner to use the POSIX access(2), which deals well
+ *      with read-only filesystems. Unfortunately, access(2) doesn't deal with
+ *      the effective [u|g]ids.
  *
  *----------------------------------------------------------------------
  */
@@ -3001,16 +3001,16 @@ FileIsWritableDir(ConstUnicode dirName)  // IN:
  *
  * File_MakeCfgFileExecutable --
  *
- *	Make a .vmx file executable. This is sometimes necessary 
+ *      Make a .vmx file executable. This is sometimes necessary
  *      to enable MKS access to the VM.
  *
  *      Owner always gets rwx.  Group/other get x where r is set.
  *
  * Results:
- *	FALSE if error
+ *      FALSE if error
  *
  * Side effects:
- *	errno is set on error
+ *      errno is set on error
  *
  *----------------------------------------------------------------------
  */

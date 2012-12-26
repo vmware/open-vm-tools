@@ -32,7 +32,7 @@
 #endif
 
 
-#define COPYRIGHT_YEARS    "1998-2012"
+#define COPYRIGHT_YEARS    "1998-2013"
 #define COPYRIGHT_STRING   "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
 #define RIGHT_RESERVED     "All rights reserved."
 
