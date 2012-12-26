@@ -2730,7 +2730,7 @@ HgfsServerClose(HgfsInputParam *input)  // IN: Input params
 
       if (!HgfsRemoveFromCache(file, input->session)) {
          LOG(4, ("%s: Could not remove the node from cache.\n", __FUNCTION__));
-         status = HGFS_ERROR_INTERNAL;
+         status = HGFS_ERROR_INVALID_HANDLE;
       } else {
          HgfsFreeFileNode(file, input->session);
          if (!HgfsPackCloseReply(input->packet, input->metaPacket, input->op,
@@ -2787,7 +2787,7 @@ HgfsServerSearchClose(HgfsInputParam *input)  // IN: Input params
       } else {
          /* Invalid handle */
          LOG(4, ("%s: invalid handle %u\n", __FUNCTION__, search));
-         status = HGFS_ERROR_INTERNAL;
+         status = HGFS_ERROR_INVALID_HANDLE;
       }
    } else {
       status = HGFS_ERROR_INTERNAL;
@@ -3914,7 +3914,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
 
    *sessionData = session;
 
-   LOG(8, ("%s: exit TRUE\n", __FUNCTION__));
+   Log("%s: init session %p id %"FMT64"x\n", __FUNCTION__, session, session->sessionId);
    return TRUE;
 }
 
@@ -4064,7 +4064,8 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
 
    MXUser_AcquireExclLock(session->nodeArrayLock);
 
-   LOG(4, ("%s: exiting.\n", __FUNCTION__));
+   Log("%s: exit session %p id %"FMT64"x\n", __FUNCTION__, session, session->sessionId);
+
    /* Recycle all nodes that are still in use, then destroy the node pool. */
    for (i = 0; i < session->numNodes; i++) {
       HgfsHandle handle;
@@ -7059,14 +7060,15 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
             nameStatus = CPName_ConvertFrom((char const **) &next, &nameSize,
                                             &tempSize, &tempPtr);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
-               LOG(8, ("%s: adding subscriber on share hnd %#x\n", __FUNCTION__, sharedFolder));
+               LOG(8, ("%s: session %p id %"FMT64"x on share hnd %#x\n", __FUNCTION__,
+                       input->session, input->session->sessionId, sharedFolder));
                *watchId = HgfsNotify_AddSubscriber(sharedFolder, tempBuf, events,
                                                    watchTree, HgfsServerDirWatchEvent,
                                                    input->session);
-                status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
-                                              HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
-               LOG(8, ("%s: adding subscriber on share hnd %#x result %u\n", __FUNCTION__,
-                       sharedFolder, status));
+               status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
+                        HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
+               LOG(8, ("%s: watchId %"FMT64"x result %u\n", __FUNCTION__,
+                       *watchId, status));
             } else {
                LOG(4, ("%s: Conversion to platform specific name failed\n",
                        __FUNCTION__));
