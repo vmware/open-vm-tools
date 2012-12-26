@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -705,6 +705,19 @@ typedef void * UserVA;
 #define SIDE_EFFECT_FREE __attribute__((__pure__))
 #else
 #define SIDE_EFFECT_FREE
+#endif
+
+/*
+ * Used when a function exmaines no input other than its arguments and
+ * has no side effects other than its return value.  Stronger than
+ * SIDE_EFFECT_FREE as the function is not allowed to read from global
+ * memory.
+ */
+
+#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
+#define CONST_FUNCTION __attribute__((__const__))
+#else
+#define CONST_FUNCTION
 #endif
 
 /*

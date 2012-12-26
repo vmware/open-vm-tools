@@ -152,6 +152,7 @@ Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
 /*
  * In util_shared.h
  */
+#define UTIL_FASTRAND_SEED_MAX (0x7fffffff)
 Bool Util_Throttle(uint32 count);
 uint32 Util_FastRand(uint32 seed);
 

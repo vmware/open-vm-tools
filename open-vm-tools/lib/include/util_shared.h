@@ -80,8 +80,6 @@ Util_Throttle(uint32 count)  // IN:
  *----------------------------------------------------------------------
  */
 
-#define UTIL_FASTRAND_SEED_MAX (0x7fffffff)
-
 uint32
 Util_FastRand(uint32 seed)
 {
