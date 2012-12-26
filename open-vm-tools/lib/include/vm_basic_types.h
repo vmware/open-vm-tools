@@ -564,12 +564,6 @@ typedef void * UserVA;
 #endif
 
 
-/*
- * Maximal possible PPN value (errors too) that PhysMem can handle.
- * Must be at least as large as MAX_PPN which is the maximum PPN
- * for any region other than buserror.
- */
-#define PHYSMEM_MAX_PPN   ((PPN)0xffffffff)
 #define MAX_PPN           ((PPN)0x3fffffff) /* Maximal observable PPN value. */
 #define INVALID_PPN       ((PPN)0xffffffff)
 #define APIC_INVALID_PPN  ((PPN)0xfffffffe)
