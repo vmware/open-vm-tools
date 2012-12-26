@@ -331,6 +331,7 @@ static Bool HgfsSetattrOwnership(HgfsFileAttrInfo *attr,
 static HgfsInternalStatus HgfsSetattrTimes(struct stat *statBuf,
                                            HgfsFileAttrInfo *attr,
                                            HgfsAttrHint hints,
+                                           Bool useHostTime,
                                            struct timeval *accessTime,
                                            struct timeval *modTime,
                                            Bool *timesChanged);
@@ -2553,6 +2554,7 @@ static HgfsInternalStatus
 HgfsSetattrTimes(struct stat *statBuf,       // IN: stat info
                  HgfsFileAttrInfo *attr,     // IN: attrs to set
                  HgfsAttrHint hints,         // IN: attr hints
+                 Bool useHostTime,           // IN: use the current host time
                  struct timeval *accessTime, // OUT: access time
                  struct timeval *modTime,    // OUT: modification time
                  Bool *timesChanged)         // OUT: times changed
@@ -2597,11 +2599,11 @@ HgfsSetattrTimes(struct stat *statBuf,       // IN: stat info
       /*
        * If times need updating, we either use the guest-provided time or the
        * host time.  HGFS_ATTR_HINT_SET_x_TIME_ will be set if we should use
-       * the guest time, and alwaysUseHostTime will be TRUE if the config
+       * the guest time, and useHostTime will be TRUE if the config
        * option to always use host time is set.
        */
       if (attr->mask & HGFS_ATTR_VALID_ACCESS_TIME) {
-         if (!alwaysUseHostTime && (hints & HGFS_ATTR_HINT_SET_ACCESS_TIME)) {
+         if (!useHostTime && (hints & HGFS_ATTR_HINT_SET_ACCESS_TIME)) {
             /* Use the guest-provided time */
             struct timespec ts;
 
@@ -2626,7 +2628,7 @@ HgfsSetattrTimes(struct stat *statBuf,       // IN: stat info
       }
 
       if (attr->mask & HGFS_ATTR_VALID_WRITE_TIME) {
-         if (!alwaysUseHostTime && (hints & HGFS_ATTR_HINT_SET_WRITE_TIME)) {
+         if (!useHostTime && (hints & HGFS_ATTR_HINT_SET_WRITE_TIME)) {
             struct timespec ts;
 
             HgfsConvertFromNtTimeNsec(&ts, attr->writeTime);
@@ -2676,7 +2678,8 @@ HgfsInternalStatus
 HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
                           HgfsSessionInfo *session, // IN: session info
                           HgfsFileAttrInfo *attr,   // OUT: attrs to set
-                          HgfsAttrHint hints)       // IN: attr hints
+                          HgfsAttrHint hints,       // IN: attr hints
+                          Bool useHostTime)         // IN: use current host time
 {
    HgfsInternalStatus status = 0, timesStatus;
    int error;
@@ -2782,7 +2785,7 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
        }
    }
 
-   timesStatus = HgfsSetattrTimes(&statBuf, attr, hints,
+   timesStatus = HgfsSetattrTimes(&statBuf, attr, hints, useHostTime,
                                   &times[0], &times[1], &timesChanged);
    if (timesStatus == 0 && timesChanged) {
       uid_t uid = (uid_t)-1;
@@ -2868,7 +2871,8 @@ HgfsInternalStatus
 HgfsPlatformSetattrFromName(char *localName,                // IN: Name
                             HgfsFileAttrInfo *attr,         // IN: attrs to set
                             HgfsShareOptions configOptions, // IN: share options
-                            HgfsAttrHint hints)             // IN: attr hints
+                            HgfsAttrHint hints,             // IN: attr hints
+                            Bool useHostTime)               // IN: use current host time
 {
    HgfsInternalStatus status = 0, timesStatus;
    struct stat statBuf;
@@ -2969,8 +2973,8 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
                                   newPermissions);
    }
 
-   timesStatus = HgfsSetattrTimes(&statBuf, attr, hints,
-                             &times[0], &times[1], &timesChanged);
+   timesStatus = HgfsSetattrTimes(&statBuf, attr, hints, useHostTime,
+                                  &times[0], &times[1], &timesChanged);
    if (timesStatus == 0 && timesChanged) {
       /*
        * XXX Newer glibc provide also lutimes() and futimes()

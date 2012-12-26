@@ -39,7 +39,6 @@
 #include "hgfsUtil.h"
 #include "hgfsVirtualDir.h"
 #include "codeset.h"
-#include "config.h"
 #include "dbllnklst.h"
 #include "file.h"
 #include "util.h"
@@ -110,10 +109,6 @@
 #define HGFS_ASSERT_MINIMUM_OP(op)
 #endif
 
-#ifdef VMX86_TOOLS
-#define Config_GetBool(defaultValue,fmt) (defaultValue)
-#endif
-
 /*
  * This ensures that the hgfs name conversion code never fails on long
  * filenames by using a buffer that is too small. If anything, we will
@@ -128,17 +123,17 @@
 #define NUM_FILE_NODES 100
 #define NUM_SEARCHES 100
 
-/* Default maximum number of open nodes. */
-#define MAX_CACHED_FILENODES 30
-
 /* Default maximun number of open nodes that have server locks. */
 #define MAX_LOCKED_FILENODES 10
 
-/* Maximum number of cached open nodes. */
-static unsigned int maxCachedOpenNodes;
-
-/* Value of config option to require using host timestamps */
-Bool alwaysUseHostTime = FALSE;
+/*
+ * The HGFS server configurable settings.
+ * (Note: the guest sets these to all defaults only modifiable from the VMX.)
+ */
+static HgfsServerConfig gHgfsCfgSettings = {
+   (HGFS_CONFIG_NOTIFY_ENABLED | HGFS_CONFIG_VOL_INFO_MIN),
+   HGFS_MAX_CACHED_FILENODES
+};
 
 /*
  * Monotonically increasing handle counter used to dish out HgfsHandles.
@@ -1797,7 +1792,7 @@ HgfsAddToCacheInternal(HgfsHandle handle,         // IN: HGFS file handle
    }
 
    /* Remove the LRU node if the list is full. */
-   if (session->numCachedOpenNodes == maxCachedOpenNodes) {
+   if (session->numCachedOpenNodes == gHgfsCfgSettings.maxCachedOpenNodes) {
       if (!HgfsRemoveLruNode(session)) {
          LOG(4, ("%s: Unable to remove LRU node from cache.\n",
                  __FUNCTION__));
@@ -1806,7 +1801,7 @@ HgfsAddToCacheInternal(HgfsHandle handle,         // IN: HGFS file handle
       }
    }
 
-   ASSERT_BUG(36244, session->numCachedOpenNodes < maxCachedOpenNodes);
+   ASSERT_BUG(36244, session->numCachedOpenNodes < gHgfsCfgSettings.maxCachedOpenNodes);
 
    node = HgfsHandle2FileNode(handle, session);
    ASSERT(node);
@@ -1904,7 +1899,7 @@ HgfsRemoveFromCacheInternal(HgfsHandle handle,        // IN: Hgfs handle to the 
       * we have a problem (see bug 36244).
       */
 
-      ASSERT(session->numCachedOpenNodes < maxCachedOpenNodes);
+      ASSERT(session->numCachedOpenNodes < gHgfsCfgSettings.maxCachedOpenNodes);
    }
 
    return TRUE;
@@ -3440,6 +3435,7 @@ HgfsServerGetShareName(HgfsSharedFolderHandle sharedFolder, // IN: Notify handle
 
 Bool
 HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our callbacks
+                     HgfsServerConfig *serverCfgData,             // IN: configurable settings
                      HgfsServerStateLogger *serverMgrData)        // IN: mgr callback
 {
    Bool result = TRUE;
@@ -3449,10 +3445,9 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
    /* Save any server manager data for logging state updates.*/
    hgfsMgrData = serverMgrData;
 
-   maxCachedOpenNodes = Config_GetLong(MAX_CACHED_FILENODES,
-                                       "hgfs.fdCache.maxNodes");
-
-   alwaysUseHostTime = Config_GetBool(FALSE, "hgfs.alwaysUseHostTime");
+   if (NULL != serverCfgData) {
+      gHgfsCfgSettings = *serverCfgData;
+   }
 
    /*
     * Initialize the globals for handling the active shared folders.
@@ -3491,7 +3486,8 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
 
    if (result) {
       *callbackTable = &hgfsServerSessionCBTable;
-      if (Config_GetBool(TRUE, "isolation.tools.hgfs.notify.enable")) {
+
+      if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_NOTIFY_ENABLED)) {
          gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
          Log("%s: initialized notification %s.\n", __FUNCTION__,
              (gHgfsDirNotifyActive ? "active" : "inactive"));
@@ -5726,16 +5722,10 @@ HgfsQueryVolume(HgfsSessionInfo *session,   // IN: session info
        * values across all shares, or the maximum values.
        */
       infoType = VOLUME_INFO_TYPE_MIN;
-#ifndef VMX86_TOOLS
-      {
-         char *volumeInfoType = Config_GetString("min",
-                                                 "tools.hgfs.volumeInfoType");
-         if (!Str_Strcasecmp(volumeInfoType, "max")) {
-            infoType = VOLUME_INFO_TYPE_MAX;
-         }
-         free(volumeInfoType);
+      if (0 == (gHgfsCfgSettings.flags & HGFS_CONFIG_VOL_INFO_MIN)) {
+         /* Using the maximum volume size and space values. */
+         infoType = VOLUME_INFO_TYPE_MAX;
       }
-#endif
 
       /*
        * Now go through all shares and get share paths on the server.
@@ -7193,11 +7183,17 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
 
    if (HgfsUnpackSetattrRequest(input->payload, input->payloadSize, input->op, &attr,
                                 &hints, &cpName, &cpNameSize, &file, &caseFlags)) {
+      Bool useHostTime = 0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_USE_HOST_TIME);
+
       /* Client wants us to reuse an existing handle. */
       if (hints & HGFS_ATTR_HINT_USE_FILE_DESC) {
          if (HgfsHandle2ShareMode(file, input->session, &shareMode)) {
             if (HGFS_OPEN_MODE_READ_ONLY != shareMode) {
-               status = HgfsPlatformSetattrFromFd(file, input->session, &attr, hints);
+               status = HgfsPlatformSetattrFromFd(file,
+                                                  input->session,
+                                                  &attr,
+                                                  hints,
+                                                  useHostTime);
             } else {
                status = HGFS_ERROR_ACCESS_DENIED;
             }
@@ -7237,7 +7233,11 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
                       __FUNCTION__));
                status = HGFS_ERROR_PATH_BUSY;
             } else {
-               status = HgfsPlatformSetattrFromName(utf8Name, &attr, configOptions, hints);
+               status = HgfsPlatformSetattrFromName(utf8Name,
+                                                    &attr,
+                                                    configOptions,
+                                                    hints,
+                                                    useHostTime);
             }
             free(utf8Name);
          } else {

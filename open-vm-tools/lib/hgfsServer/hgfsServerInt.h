@@ -88,9 +88,6 @@
 #define HGFS_OPLOCKS
 #endif
 
-/* Value of config option to require using host timestamps */
-extern Bool alwaysUseHostTime;
-
 /* Identifier for a local file */
 typedef struct HgfsLocalId {
    uint64 volumeId;
@@ -1247,12 +1244,14 @@ HgfsInternalStatus
 HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
                           HgfsSessionInfo *session, // IN: session info
                           HgfsFileAttrInfo *attr,   // IN: attrs to set
-                          HgfsAttrHint hints);      // IN: attr hints
+                          HgfsAttrHint hints,       // IN: attr hints
+                          Bool useHostTime);        // IN: use current host time
 HgfsInternalStatus
 HgfsPlatformSetattrFromName(char *utf8Name,                 // IN: local file path
                             HgfsFileAttrInfo *attr,         // IN: attrs to set
                             HgfsShareOptions configOptions, // IN: share options
-                            HgfsAttrHint hints);            // IN: attr hints
+                            HgfsAttrHint hints,             // IN: attr hints
+                            Bool useHostTime);              // IN: use current host time
 HgfsInternalStatus
 HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
                          Bool followLinks,           // IN: follow symlinks on the host
