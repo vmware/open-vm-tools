@@ -23,7 +23,6 @@
  */
 
 #include <stdio.h>
-#include <errno.h>
 
 #include "vmware.h"
 #include "vm_basic_types.h"
@@ -53,7 +52,7 @@
 HgfsInternalStatus
 HgfsNotify_Init(void)
 {
-   return EINVAL;
+   return HGFS_ERROR_NOT_SUPPORTED;
 }
 
 
