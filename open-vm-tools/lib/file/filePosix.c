@@ -212,7 +212,6 @@ FileDeletion(ConstUnicode pathName,  // IN:
              const Bool handleLink)  // IN:
 {
    int err;
-   char *linkPath = NULL;
    char *primaryPath;
 
    if (pathName == NULL) {
@@ -237,22 +236,31 @@ FileDeletion(ConstUnicode pathName,  // IN:
       }
 
       if (S_ISLNK(statbuf.st_mode)) {
-         linkPath = Util_SafeMalloc(statbuf.st_size + 1);
+         ssize_t len;
+         char *linkPath;
 
-         if (readlink(primaryPath, linkPath,
-                      statbuf.st_size) != statbuf.st_size) {
+         linkPath = Util_SafeMalloc(statbuf.st_size + 1);
+         len = readlink(primaryPath, linkPath, statbuf.st_size + 1);
+         if (len < 0) {
             err = errno;
+            free(linkPath);
             goto bail;
          }
-
-         linkPath[statbuf.st_size] = '\0';
+         if (len != statbuf.st_size) {
+            err = ESTALE;
+            free(linkPath);
+            goto bail;
+         }
+         linkPath[len] = '\0';
 
          if (unlink(linkPath) == -1) {
             if (errno != ENOENT) {
                err = errno;
+               free(linkPath);
                goto bail;
             }
          }
+         free(linkPath);
       }
    }
 
@@ -260,7 +268,6 @@ FileDeletion(ConstUnicode pathName,  // IN:
 
 bail:
    free(primaryPath);
-   free(linkPath);
 
    return err;
 }
@@ -1268,28 +1275,27 @@ exit:
  *
  *      Acquire the FS mount point info such as fsType, major version,
  *      local mount point (/vmfs/volumes/xyz), and for NFS,
- *      remote IP and remote mount point for a given file.     
+ *      remote IP and remote mount point for a given file.
  *
  * Results:
  *      Integer return value and allocated data
  *
  * Side effects:
- *      Only implemented on ESX. Will fail on other platforms. 
- *      remoteIP and remoteMountPoint are only populated for files on NFS.   
+ *      Only implemented on ESX. Will fail on other platforms.
+ *      remoteIP and remoteMountPoint are only populated for files on NFS.
  *
  *----------------------------------------------------------------------
  */
 
-int 
+int
 File_GetVMFSMountInfo(ConstUnicode pathName,   // IN:
-                     char **fsType,            // OUT:
-                     uint32 *version,          // OUT:
-                     char **remoteIP,          // OUT:
-                     char **remoteMountPoint,  // OUT:
-                     char **localMountPoint)   // OUT:
+                      char **fsType,           // OUT:
+                      uint32 *version,         // OUT:
+                      char **remoteIP,         // OUT:
+                      char **remoteMountPoint, // OUT:
+                      char **localMountPoint)  // OUT:
 {
    int ret;
-   int len;
    FS_PartitionListResult *fsAttrs = NULL;
 
    *localMountPoint = File_GetUniqueFileSystemID(pathName);
@@ -1299,27 +1305,39 @@ File_GetVMFSMountInfo(ConstUnicode pathName,   // IN:
    }
 
    // Get file IP and mount point
-   ret = File_GetVMFSAttributes(pathName, &fsAttrs);  
-   if (ret >= 0 && fsAttrs) { 
+   ret = File_GetVMFSAttributes(pathName, &fsAttrs);
+   if (ret >= 0 && fsAttrs) {
       *version = fsAttrs->versionNumber;
       *fsType = Util_SafeStrdup(fsAttrs->fsType);
- 
-      if (strncmp(fsAttrs->fsType, FS_NFS_ON_ESX, sizeof(FS_NFS_ON_ESX)) == 0) {
-         len = strlen(fsAttrs->logicalDevice);
-         *remoteIP = Util_SafeMalloc(len);
-         *remoteMountPoint = Util_SafeMalloc(len);
-         sscanf(fsAttrs->logicalDevice, "%s %s", *remoteIP, *remoteMountPoint);
+
+      if (memcmp(fsAttrs->fsType, FS_NFS_ON_ESX, sizeof(FS_NFS_ON_ESX)) == 0) {
+         /*
+          * logicalDevice from NFS3 client contains remote IP and remote
+          * mount point, separate by space.  Split them out.  If there is
+          * no space then this is probably NFS41 client, and we cannot
+          * obtain its remote mount point details at this time.
+          */
+         char *sep = strchr(fsAttrs->logicalDevice, ' ');
+
+         if (sep) {
+            *sep++ = 0;
+            *remoteIP = Util_SafeStrdup(fsAttrs->logicalDevice);
+            *remoteMountPoint = Util_SafeStrdup(sep);
+         } else {
+            *remoteIP = NULL;
+            *remoteMountPoint = NULL;
+         }
       } else {
          *remoteIP = NULL;
-         *remoteMountPoint = NULL;   
-      }  
+         *remoteMountPoint = NULL;
+      }
 
       free(fsAttrs);
    }
 
    return ret;
 }
-#endif 
+#endif
 
 
 /*
@@ -1360,7 +1378,7 @@ FileIsVMFS(ConstUnicode pathName)  // IN:
       free(fsAttrs);
    }
 #endif
- 
+
    return result;
 }
 

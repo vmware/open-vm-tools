@@ -257,7 +257,7 @@ CodeSetGetModulePath(uint32 priv)
       uid = Id_BeginSuperUser();
    }
 
-   size = readlink("/proc/self/exe", path, sizeof path);
+   size = readlink("/proc/self/exe", path, sizeof path - 1);
    if (-1 == size) {
       if (priv == HGMP_PRIVILEGE) {
          Id_EndSuperUser(uid);
