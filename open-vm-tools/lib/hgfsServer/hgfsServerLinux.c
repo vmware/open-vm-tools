@@ -503,7 +503,7 @@ HgfsServerGetOpenFlags(HgfsOpenFlags flagsIn, // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerPlatformInit --
+ * HgfsPlatformInit --
  *
  *      Set up any state needed to start Linux HGFS server.
  *
@@ -517,7 +517,7 @@ HgfsServerGetOpenFlags(HgfsOpenFlags flagsIn, // IN
  */
 
 Bool
-HgfsServerPlatformInit(void)
+HgfsPlatformInit(void)
 {
    return TRUE;
 }
@@ -526,7 +526,7 @@ HgfsServerPlatformInit(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerPlatformDestroy --
+ * HgfsPlatformDestroy --
  *
  *      Tear down any state used for Linux HGFS server.
  *
@@ -540,7 +540,7 @@ HgfsServerPlatformInit(void)
  */
 
 void
-HgfsServerPlatformDestroy(void)
+HgfsPlatformDestroy(void)
 {
 }
 
@@ -600,7 +600,7 @@ HgfsServerGetOpenMode(HgfsFileOpenInfo *openInfo, // IN:  Open info to examine
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsCloseFile --
+ * HgfsPlatformCloseFile --
  *
  *    Closes the file descriptor and release the file context.
  *
@@ -615,8 +615,8 @@ HgfsServerGetOpenMode(HgfsFileOpenInfo *openInfo, // IN:  Open info to examine
  */
 
 HgfsInternalStatus
-HgfsCloseFile(fileDesc fileDesc, // IN: File descriptor
-              void *fileCtx)     // IN: File context
+HgfsPlatformCloseFile(fileDesc fileDesc, // IN: File descriptor
+                      void *fileCtx)     // IN: File context
 {
    if (close(fileDesc) != 0) {
       int error = errno;
@@ -748,7 +748,7 @@ HgfsPlatformGetFd(HgfsHandle hgfsHandle,    // IN:  HGFS file handle
        * mode.
        */
       if (append && !(node.flags & HGFS_FILE_NODE_APPEND_FL)) {
-         status = HgfsCloseFile(node.fileDesc, node.fileCtx);
+         status = HgfsPlatformCloseFile(node.fileDesc, node.fileCtx);
          if (status != 0) {
             LOG(4, ("%s: Couldn't close file \"%s\" for reopening\n",
                     __FUNCTION__, node.utf8Name));
@@ -1584,9 +1584,14 @@ exit:
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerConvertCase --
+ * HgfsPlatformFilenameLookup --
  *
- *    Converts the fileName to appropriate case depending upon flags.
+ *    Perform a fileName lookup of the fileName if requested.
+ *
+ *    The type of lookup depends on the flags passed. Currently,
+ *    case insensitive is checked and if set we lookup the file name.
+ *    Otherwise this function assumes the file system is the default
+ *    of case sensitive and returns a copy of the passed name.
  *
  * Results:
  *    Returns HGFS_NAME_STATUS_COMPLETE if successful and converted
@@ -1605,13 +1610,13 @@ exit:
  */
 
 HgfsNameStatus
-HgfsServerConvertCase(const char *sharePath,              // IN
-                      size_t sharePathLength,             // IN
-                      char *fileName,                     // IN
-                      size_t fileNameLength,              // IN
-                      uint32 caseFlags,                   // IN
-                      char **convertedFileName,           // OUT
-                      size_t *convertedFileNameLength)    // OUT
+HgfsPlatformFilenameLookup(const char *sharePath,              // IN
+                           size_t sharePathLength,             // IN
+                           char *fileName,                     // IN
+                           size_t fileNameLength,              // IN
+                           uint32 caseFlags,                   // IN
+                           char **convertedFileName,           // OUT
+                           size_t *convertedFileNameLength)    // OUT
 {
    int error = 0;
    HgfsNameStatus nameStatus = HGFS_NAME_STATUS_COMPLETE;
@@ -1677,9 +1682,9 @@ HgfsServerConvertCase(const char *sharePath,              // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerCaseConversionRequired --
+ * HgfsPlatformDoFilenameLookup --
  *
- *   Determines if the case conversion is required for this platform.
+ *   Determines if the file name lookup depending on case flags is required.
  *
  * Results:
  *   TRUE on Linux / Apple.
@@ -1691,7 +1696,7 @@ HgfsServerConvertCase(const char *sharePath,              // IN
  */
 
 Bool
-HgfsServerCaseConversionRequired()
+HgfsPlatformDoFilenameLookup(void)
 {
    return TRUE;
 }
@@ -2100,7 +2105,7 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN/OUT:  Input fi
           * to relative path. Converting to a relative path produces a symlink
           * that points to the target file in the guest OS. If the target lies
           * outside the shared folder then treat it the same way as if alias
-          * has not been resolved.
+          * has not been resolved - we drop the error and treat as a regular file!
           */
          HgfsNameStatus nameStatus;
          size_t sharePathLen;
@@ -2114,9 +2119,11 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN/OUT:  Input fi
              sharePathLen < strlen(myTargetName) &&
              Str_Strncmp(sharePath, myTargetName, sharePathLen) == 0) {
             char *relativeName;
-            relativeName = HgfsBuildRelativePath(fileName, myTargetName);
+
+            relativeName = HgfsServerGetTargetRelativePath(fileName, myTargetName);
             free(myTargetName);
             myTargetName = relativeName;
+
             if (myTargetName != NULL) {
                /*
                 * Let's mangle the permissions and size of the file so that
@@ -3066,7 +3073,7 @@ HgfsConvertToUtf8FormC(char *buffer,         // IN/OUT: name to normalize
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerScandir --
+ * HgfsPlatformScandir --
  *
  *    The cross-platform HGFS server code will call into this function
  *    in order to populate a list of dents. In the Linux case, we want to avoid
@@ -3089,11 +3096,11 @@ HgfsConvertToUtf8FormC(char *buffer,         // IN/OUT: name to normalize
  */
 
 HgfsInternalStatus
-HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
-                  size_t baseDirLen,        // IN: Ignored
-                  Bool followSymlinks,      // IN: followSymlinks config option
-                  DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
-                  int *numDents)            // OUT: Number of DirectoryEntrys
+HgfsPlatformScandir(char const *baseDir,      // IN: Directory to search in
+                    size_t baseDirLen,        // IN: Ignored
+                    Bool followSymlinks,      // IN: followSymlinks config option
+                    DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
+                    int *numDents)            // OUT: Number of DirectoryEntrys
 {
 #if defined(__APPLE__)
    DIR *fd = NULL;
@@ -3990,7 +3997,7 @@ HgfsPlatformSymlinkCreate(char *localSymlinkName,   // IN: symbolic link file na
 /*
  *----------------------------------------------------------------------
  *
- * HgfsServerHasSymlink --
+ * HgfsPlatformPathHasSymlink --
  *
  *      This function determines if any of the intermediate components of the
  *      fileName makes references outside the actual shared path. We do not
@@ -4032,10 +4039,10 @@ HgfsPlatformSymlinkCreate(char *localSymlinkName,   // IN: symbolic link file na
  */
 
 HgfsNameStatus
-HgfsServerHasSymlink(const char *fileName,	// IN
-                     size_t fileNameLength,     // IN
-                     const char *sharePath,	// IN
-                     size_t sharePathLength)    // IN
+HgfsPlatformPathHasSymlink(const char *fileName,      // IN
+                           size_t fileNameLength,     // IN
+                           const char *sharePath,     // IN
+                           size_t sharePathLength)    // IN
 {
    char *resolvedFileDirPath = NULL;
    char *fileDirName = NULL;

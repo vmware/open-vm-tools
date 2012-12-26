@@ -590,13 +590,6 @@ HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check
                              size_t inSize);  // IN:  Size of name in
 
 HgfsInternalStatus
-HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
-                  size_t baseDirLen,        // IN: Length of directory
-                  Bool followSymlinks,      // IN: followSymlinks config option
-                  DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
-                  int *numDents);           // OUT: Number of DirectoryEntrys
-
-HgfsInternalStatus
 HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
                         size_t baseDirLen,        // IN: Length of directory
                         char const *shareName,    // IN: Share name
@@ -1033,10 +1026,6 @@ HgfsGetSearchCopy(HgfsHandle handle,        // IN: Hgfs search handle
                   HgfsSessionInfo *session, // IN: Session info
                   HgfsSearch *copy);        // IN/OUT: Copy of the search
 
-HgfsInternalStatus
-HgfsCloseFile(fileDesc fileDesc,            // IN: OS handle of the file
-              void *fileCtx);               // IN: file context
-
 Bool
 HgfsServerGetOpenMode(HgfsFileOpenInfo *openInfo, // IN:  Open info to examine
                       uint32 *modeOut);           // OUT: Local mode
@@ -1046,32 +1035,9 @@ HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
                       HgfsSessionInfo *session,     // IN: Session info
                       HgfsLockType *serverLock);    // IN/OUT: Oplock asked for/granted
 
-Bool
-HgfsServerPlatformInit(void);
-
-void
-HgfsServerPlatformDestroy(void);
-
-HgfsNameStatus
-HgfsServerHasSymlink(const char *fileName,      // IN: fileName to be checked
-                     size_t fileNameLength,     // IN
-                     const char *sharePath,     // IN: share path in question
-                     size_t sharePathLen);      // IN
-HgfsNameStatus
-HgfsServerConvertCase(const char *sharePath,             // IN: share path in question
-                      size_t sharePathLength,            // IN
-                      char *fileName,                    // IN: filename to be looked up
-                      size_t fileNameLength,             // IN
-                      uint32 caseFlags,                  // IN: case-sensitivity flags
-                      char **convertedFileName,          // OUT: case-converted filename
-                      size_t *convertedFileNameLength);  // OUT
-
-Bool
-HgfsServerCaseConversionRequired(void);
-
 char*
-HgfsBuildRelativePath(const char* source,    // IN: source file name
-                      const char* target);   // IN: target file name
+HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
+                                const char* target);   // IN: target file name
 
 /* All oplock-specific functionality is defined here. */
 #ifdef HGFS_OPLOCKS
@@ -1109,8 +1075,32 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
 Bool
 HgfsServerCheckOpenFlagsForShare(HgfsFileOpenInfo *openInfo, // IN: Hgfs file handle
                                  HgfsOpenFlags *flags);      // IN/OUT: open mode
+
+/* Platform specific exports. */
+Bool
+HgfsPlatformInit(void);
+void
+HgfsPlatformDestroy(void);
+HgfsInternalStatus
+HgfsPlatformCloseFile(fileDesc fileDesc,            // IN: OS handle of the file
+                      void *fileCtx);               // IN: file context
+Bool
+HgfsPlatformDoFilenameLookup(void);
+HgfsNameStatus
+HgfsPlatformFilenameLookup(const char *sharePath,             // IN: share path in question
+                           size_t sharePathLength,            // IN
+                           char *fileName,                    // IN: filename to be looked up
+                           size_t fileNameLength,             // IN
+                           uint32 caseFlags,                  // IN: case-sensitivity flags
+                           char **convertedFileName,          // OUT: case-converted filename
+                           size_t *convertedFileNameLength);  // OUT
 HgfsInternalStatus
 HgfsPlatformConvertFromNameStatus(HgfsNameStatus status);  // IN: name status
+HgfsNameStatus
+HgfsPlatformPathHasSymlink(const char *fileName,      // IN: fileName to be checked
+                           size_t fileNameLength,     // IN
+                           const char *sharePath,     // IN: share path in question
+                           size_t sharePathLen);      // IN
 HgfsInternalStatus
 HgfsPlatformSymlinkCreate(char *localSymlinkName,   // IN: symbolic link file name
                           char *localTargetName);   // IN: symlink target name
@@ -1120,6 +1110,12 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN: file name
                             char *shareName,                // IN: share name
                             HgfsFileAttrInfo *attr,         // OUT: file attributes
                             char **targetName);             // OUT: Symlink target
+HgfsInternalStatus
+HgfsPlatformScandir(char const *baseDir,      // IN: Directory to search in
+                    size_t baseDirLen,        // IN: Length of directory
+                    Bool followSymlinks,      // IN: followSymlinks config option
+                    DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
+                    int *numDents);           // OUT: Number of DirectoryEntrys
 HgfsInternalStatus
 HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
                       char *dirName,                   // IN: relative directory name

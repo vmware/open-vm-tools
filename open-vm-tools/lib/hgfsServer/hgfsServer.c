@@ -1883,7 +1883,7 @@ HgfsRemoveFromCacheInternal(HgfsHandle handle,        // IN: Hgfs handle to the 
       /*
        * XXX: From this point and up in the call chain (i.e. this function and
        * all callers), Bool is returned instead of the HgfsInternalStatus.
-       * HgfsCloseFile returns HgfsInternalStatus, which is far more granular,
+       * HgfsPlatformCloseFile returns HgfsInternalStatus, which is far more granular,
        * but modifying this stack to use HgfsInternalStatus instead of Bool is
        * not worth it, as we'd have to #define per-platform error codes for
        * things like "ran out of memory", "bad file handle", etc.
@@ -1891,7 +1891,7 @@ HgfsRemoveFromCacheInternal(HgfsHandle handle,        // IN: Hgfs handle to the 
        * Instead, we'll just await the lobotomization of the node cache to
        * really fix this.
        */
-      if (HgfsCloseFile(node->fileDesc, node->fileCtx)) {
+      if (HgfsPlatformCloseFile(node->fileDesc, node->fileCtx)) {
          LOG(4, ("%s: Could not close fd %u\n", __FUNCTION__, node->fileDesc));
 
          return FALSE;
@@ -3417,7 +3417,7 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
       if (NULL != gHgfsAsyncLock) {
          gHgfsAsyncVar = MXUser_CreateCondVarExclLock(gHgfsAsyncLock);
          if (NULL != gHgfsAsyncVar) {
-            if (!HgfsServerPlatformInit()) {
+            if (!HgfsPlatformInit()) {
                LOG(4, ("Could not initialize server platform specific \n"));
                result = FALSE;
             }
@@ -3497,7 +3497,7 @@ HgfsServer_ExitState(void)
       gHgfsAsyncVar = NULL;
    }
 
-   HgfsServerPlatformDestroy();
+   HgfsPlatformDestroy();
 }
 
 
@@ -4753,24 +4753,24 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
 #endif /* defined(__APPLE__) */
 
    /*
-    * Convert file name to proper case if host default config option is not set
-    * and case conversion is required for this platform.
+    * Look up the file name using the proper case if the config option is not set
+    * to use the host default and lookup is supported for this platform.
     */
 
    if (!HgfsServerPolicy_IsShareOptionSet(shareOptions,
                                           HGFS_SHARE_HOST_DEFAULT_CASE) &&
-       HgfsServerCaseConversionRequired()) {
-      nameStatus = HgfsServerConvertCase(shareInfo->rootDir, shareInfo->rootDirLen,
-                                         myBufOut, myBufOutLen, caseFlags,
-                                         &convertedMyBufOut,
-                                         &convertedMyBufOutLen);
+       HgfsPlatformDoFilenameLookup()) {
+      nameStatus = HgfsPlatformFilenameLookup(shareInfo->rootDir, shareInfo->rootDirLen,
+                                              myBufOut, myBufOutLen, caseFlags,
+                                              &convertedMyBufOut,
+                                              &convertedMyBufOutLen);
 
       /*
-       * On success, use the converted file names for further operations.
+       * On successful lookup, use the found matching file name for further operations.
        */
 
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
-         LOG(4, ("%s: HgfsServerConvertCase failed.\n", __FUNCTION__));
+         LOG(4, ("%s: HgfsPlatformFilenameLookup failed.\n", __FUNCTION__));
          goto error;
       }
 
@@ -4792,8 +4792,8 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
        * We should use the resolved file path for further file system
        * operations, instead of using the one passed from the client.
        */
-      nameStatus = HgfsServerHasSymlink(myBufOut, myBufOutLen, shareInfo->rootDir,
-                                        shareInfo->rootDirLen);
+      nameStatus = HgfsPlatformPathHasSymlink(myBufOut, myBufOutLen, shareInfo->rootDir,
+                                              shareInfo->rootDirLen);
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
          LOG(4, ("%s: parent path failed to be resolved: %d\n",
                  __FUNCTION__, nameStatus));
@@ -5142,8 +5142,8 @@ HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
    followSymlinks = HgfsServerPolicy_IsShareOptionSet(configOptions,
                                                       HGFS_SHARE_FOLLOW_SYMLINKS);
 
-   status = HgfsServerScandir(baseDir, baseDirLen, followSymlinks,
-                              &search->dents, &numDents);
+   status = HgfsPlatformScandir(baseDir, baseDirLen, followSymlinks,
+                                &search->dents, &numDents);
    if (status != 0) {
       LOG(4, ("%s: couldn't scandir\n", __FUNCTION__));
       HgfsRemoveSearchInternal(search, session);
@@ -5443,13 +5443,13 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    len = CPName_GetComponent(openInfo->cpName, inEnd, &next);
    if (len < 0) {
       LOG(4, ("%s: get first component failed\n", __FUNCTION__));
-      HgfsCloseFile(fileDesc, NULL);
+      HgfsPlatformCloseFile(fileDesc, NULL);
       return FALSE;
    }
 
    /* See if we are dealing with the base of the namespace */
    if (!len) {
-      HgfsCloseFile(fileDesc, NULL);
+      HgfsPlatformCloseFile(fileDesc, NULL);
       return FALSE;
    }
 
@@ -5466,14 +5466,14 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       LOG(4, ("%s: Failed to add new node.\n", __FUNCTION__));
       MXUser_ReleaseExclLock(session->nodeArrayLock);
 
-      HgfsCloseFile(fileDesc, NULL);
+      HgfsPlatformCloseFile(fileDesc, NULL);
       return FALSE;
    }
    handle = HgfsFileNode2Handle(node);
 
    if (!HgfsAddToCacheInternal(handle, session)) {
       HgfsFreeFileNodeInternal(handle, session);
-      HgfsCloseFile(fileDesc, NULL);
+      HgfsPlatformCloseFile(fileDesc, NULL);
 
       LOG(4, ("%s: Failed to add node to the cache.\n", __FUNCTION__));
       MXUser_ReleaseExclLock(session->nodeArrayLock);
@@ -8233,7 +8233,7 @@ HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsBuildRelativePath --
+ * HgfsServerGetTargetRelativePath --
  *
  *    Generates relative file path which need to be used a symbolic link
  *    target which would generate target name defined in "target" if the path
@@ -8251,8 +8251,8 @@ HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
  */
 
 char*
-HgfsBuildRelativePath(const char* source,    // IN: source file name
-                      const char* target)    // IN: target file name
+HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
+                                const char* target)    // IN: target file name
 {
    const char *relativeSource = source;
    const char *relativeTarget = target;
