@@ -40,8 +40,6 @@
  */
 #if !defined(_WIN32) && !defined(__APPLE__)
 
-#include "vm_version.h"
-
 #define VM_EMBED_VERSION(ver)                                    \
 const char vm_version[]                                          \
    __attribute__((section(".modinfo"), unused)) = "version=" ver

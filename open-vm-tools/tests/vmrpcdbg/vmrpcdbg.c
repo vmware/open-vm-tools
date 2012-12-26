@@ -31,6 +31,7 @@
 #include "util.h"
 #include "vmrpcdbgInt.h"
 
+#include "vm_version.h"
 #include "embed_version.h"
 #include "vmtoolsd_version.h"
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);

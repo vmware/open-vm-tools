@@ -39,6 +39,7 @@
 #endif
 
 #include "checkvm_version.h"
+#include "vm_version.h"
 #include "embed_version.h"
 VM_EMBED_VERSION(CHECKVM_VERSION_STRING);
 

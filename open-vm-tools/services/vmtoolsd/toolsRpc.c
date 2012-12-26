@@ -34,7 +34,7 @@
 #include "toolsCoreInt.h"
 #include "vm_tools_version.h"
 #include "vmware/tools/utils.h"
-
+#include "vm_version.h"
 
 /**
  * Take action after an RPC channel reset.

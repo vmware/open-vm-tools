@@ -30,7 +30,6 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#include "buildNumber.h"
 #include "vm_basic_types.h"
 #endif /* RC_INVOKED */
 

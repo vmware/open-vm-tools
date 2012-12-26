@@ -55,6 +55,7 @@
 #include "strutil.h"
 
 #include "xferlogs_version.h"
+#include "vm_version.h"
 #include "embed_version.h"
 VM_EMBED_VERSION(XFERLOGS_VERSION_STRING);
 
