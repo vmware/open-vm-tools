@@ -85,6 +85,25 @@
 #include <sys/vnode.h>      // for VERG / VDIR
 #endif
 
+#ifdef linux
+typedef struct DirectoryEntry {
+   uint64 d_ino;
+   uint64 d_off;
+   uint16 d_reclen;
+   uint8  d_type;
+   char   d_name[256];
+} DirectoryEntry;
+#else
+#include <dirent.h>
+typedef struct DirectoryEntry {
+   uint64 d_ino;
+   uint16 d_reclen;
+   uint16 d_namlen;
+   uint8  d_type;
+   char   d_name[1024];
+} DirectoryEntry;
+#endif
+
 /*
  * ALLPERMS (mode 07777) and ACCESSPERMS (mode 0777) are not defined in the
  * Solaris version of <sys/stat.h>.
@@ -173,8 +192,18 @@ getdents_apple(DIR *fd,               // IN
    struct dirent *dirEntry;
    dirEntry = readdir(fd);
    if (NULL != dirEntry) {
-      memcpy(dirp, dirEntry, dirEntry->d_reclen);
-      res =  dirEntry->d_reclen;
+      /*
+       * Assert that the hgfs DirectoryEntry version and system dirent
+       * name fields are of the same size. Since that is where it was taken from.
+       */
+      ASSERT_ON_COMPILE(sizeof dirp->d_name == sizeof dirEntry->d_name);
+
+      dirp->d_ino    = dirEntry->d_ino;
+      dirp->d_type   = dirEntry->d_type;
+      dirp->d_namlen = dirEntry->d_namlen;
+      memcpy(dirp->d_name, dirEntry->d_name, dirEntry->d_namlen + 1);
+      dirp->d_reclen = offsetof(DirectoryEntry, d_name) + dirp->d_namlen + 1;
+      res = dirp->d_reclen;
    }
    return res;
 }
@@ -3300,11 +3329,11 @@ HgfsConvertToUtf8FormC(char *buffer,         // IN/OUT: name to normalize
  */
 
 HgfsInternalStatus
-HgfsPlatformGetDirEntry(HgfsSearch *search,        // IN: search
-                        HgfsSessionInfo *session,  // IN: Session info
-                        uint32 index,              // IN: Offset to retrieve at
-                        Bool remove,               // IN: If true, removes the result
-                        DirectoryEntry **dirEntry) // OUT: dirent
+HgfsPlatformGetDirEntry(HgfsSearch *search,               // IN: search
+                        HgfsSessionInfo *session,         // IN: Session info
+                        uint32 index,                     // IN: Offset to retrieve at
+                        Bool remove,                      // IN: If true, removes the result
+                        struct DirectoryEntry **dirEntry) // OUT: dirent
 {
    DirectoryEntry *dent = NULL;
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
@@ -3385,14 +3414,14 @@ out:
  */
 
 HgfsInternalStatus
-HgfsPlatformSetDirEntry(HgfsSearch *search,          // IN: partially valid search
+HgfsPlatformSetDirEntry(HgfsSearch *search,              // IN: partially valid search
                         HgfsShareOptions configOptions,  // IN: share configuration settings
-                        HgfsSessionInfo *session,    // IN: session info
-                        DirectoryEntry *dirEntry,    // IN: the indexed dirent
-                        Bool getAttr,                // IN: get the entry attributes
-                        HgfsFileAttrInfo *entryAttr, // OUT: entry attributes, optional
-                        char **entryName,            // OUT: entry name
-                        uint32 *entryNameLength)     // OUT: entry name length
+                        HgfsSessionInfo *session,        // IN: session info
+                        struct DirectoryEntry *dirEntry, // IN: the indexed dirent
+                        Bool getAttr,                    // IN: get the entry attributes
+                        HgfsFileAttrInfo *entryAttr,     // OUT: entry attributes, optional
+                        char **entryName,                // OUT: entry name
+                        uint32 *entryNameLength)         // OUT: entry name length
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
    unsigned int length;
@@ -3583,11 +3612,11 @@ HgfsPlatformSetDirEntry(HgfsSearch *search,          // IN: partially valid sear
  */
 
 HgfsInternalStatus
-HgfsPlatformScandir(char const *baseDir,      // IN: Directory to search in
-                    size_t baseDirLen,        // IN: Ignored
-                    Bool followSymlinks,      // IN: followSymlinks config option
-                    DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
-                    int *numDents)            // OUT: Number of DirectoryEntrys
+HgfsPlatformScandir(char const *baseDir,            // IN: Directory to search in
+                    size_t baseDirLen,              // IN: Ignored
+                    Bool followSymlinks,            // IN: followSymlinks config option
+                    struct DirectoryEntry ***dents, // OUT: Array of DirectoryEntrys
+                    int *numDents)                  // OUT: Number of DirectoryEntrys
 {
 #if defined(__APPLE__)
    DIR *fd = NULL;
@@ -3766,7 +3795,7 @@ HgfsInternalStatus
 HgfsPlatformScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get name
                      HgfsInitFunc enumNamesInit,       // IN: Setup function
                      HgfsCleanupFunc enumNamesExit,    // IN: Cleanup function
-                     DirectoryEntry ***dents,          // OUT: Array of DirectoryEntrys
+                     struct DirectoryEntry ***dents,   // OUT: Array of DirectoryEntrys
                      uint32 *numDents)                 // OUT: total number of directory entrys
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;

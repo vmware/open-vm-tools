@@ -22,50 +22,13 @@
 
 #include "vm_basic_types.h"
 
-/*
- * Definitions of wrapped internal primitives.
- *
- * We wrap open file handles and directory entries so that cross-platform HGFS
- * server code can use them without platform-specific pre-processing.
- *
- * On Linux, we use dirent64 from the kernel headers so as to alleviate any
- * confusion between what the kernel will give us from the getdents64()
- * syscall and what userspace will expect. Note that to avoid depending on
- * kernel headers directly, I've copied the dirent struct, replacing certain
- * kernel basic types with our own.
- *
- * On Windows, we define our own DirectoryEntry struct with d_reclen and
- * d_name, as those are the only two fields we're interested in. It's not
- * essential that it match the dirents from another platform, because we
- * control how they get created and populated, and they never pass down a wire.
- *
- * Otherwise, we use the native dirent struct provided by the platform's libc,
- * as nobody else seems to suffer from the 32-bit vs. 64-bit ino_t and off_t
- * insanity that plagues Linux.
- */
+struct DirectoryEntry;
+
 #ifndef _WIN32
-#  ifdef linux
-   typedef struct DirectoryEntry {
-      uint64 d_ino;
-      uint64 d_off;
-      uint16 d_reclen;
-      uint8  d_type;
-      char   d_name[256];
-   } DirectoryEntry;
-#  else
-#    include <dirent.h>
-     typedef struct dirent DirectoryEntry;
-#  endif
    typedef int fileDesc;
 #else
 #  include <windows.h>
    typedef HANDLE fileDesc;
-   typedef struct DirectoryEntry {
-      unsigned short d_reclen;      /* The total length of this record. */
-      char d_name[PATH_MAX * 4];    /* 4 bytes is the maximum size of a utf8 */
-                                    /* representation of utf-16 encoded */
-                                    /* unicode character in the BMP */
-   } DirectoryEntry;
 #endif
 
 #include "dbllnklst.h"
@@ -259,7 +222,7 @@ typedef struct HgfsSearch {
    size_t utf8ShareNameLen;
 
    /* Directory entries for this search */
-   DirectoryEntry **dents;
+   struct DirectoryEntry **dents;
 
    /* Number of dents */
    uint32 numDents;
@@ -576,7 +539,7 @@ HgfsServerDirDumpDents(HgfsHandle searchHandle,   // IN: Handle to dump dents fr
 #endif
 
 
-DirectoryEntry *
+struct DirectoryEntry *
 HgfsGetSearchResult(HgfsHandle handle,        // IN: Handle to search
                     HgfsSessionInfo *session, // IN: Session info
                     uint32 offset,            // IN: Offset to retrieve at
@@ -609,11 +572,11 @@ HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check
                              size_t inSize);  // IN:  Size of name in
 
 HgfsInternalStatus
-HgfsServerGetDirEntry(HgfsHandle handle,         // IN: Handle to search
-                      HgfsSessionInfo *session,  // IN: Session info
-                      uint32 index,              // IN: index to retrieve at
-                      Bool remove,               // IN: If true, removes the result
-                      DirectoryEntry **dirEntry);// OUT: directory entry
+HgfsServerGetDirEntry(HgfsHandle handle,                // IN: Handle to search
+                      HgfsSessionInfo *session,         // IN: Session info
+                      uint32 index,                     // IN: index to retrieve at
+                      Bool remove,                      // IN: If true, removes the result
+                      struct DirectoryEntry **dirEntry);// OUT: directory entry
 
 HgfsInternalStatus
 HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
@@ -1144,31 +1107,31 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN: file name
                             HgfsFileAttrInfo *attr,         // OUT: file attributes
                             char **targetName);             // OUT: Symlink target
 HgfsInternalStatus
-HgfsPlatformGetDirEntry(HgfsSearch *search,         // IN: search
-                        HgfsSessionInfo *session,   // IN: Session info
-                        uint32 offset,              // IN: Offset to retrieve at
-                        Bool remove,                // IN: If true, removes the result
-                        DirectoryEntry **dirEntry); // OUT: dirent
+HgfsPlatformGetDirEntry(HgfsSearch *search,                // IN: search
+                        HgfsSessionInfo *session,          // IN: Session info
+                        uint32 offset,                     // IN: Offset to retrieve at
+                        Bool remove,                       // IN: If true, removes the result
+                        struct DirectoryEntry **dirEntry); // OUT: dirent
 HgfsInternalStatus
-HgfsPlatformSetDirEntry(HgfsSearch *search,          // IN: search
+HgfsPlatformSetDirEntry(HgfsSearch *search,              // IN: search
                         HgfsShareOptions configOptions,  // IN: share configuration settings
-                        HgfsSessionInfo *session,    // IN: session info
-                        DirectoryEntry *dirEntry,    // IN: the indexed dirent
-                        Bool getAttr,                // IN: get the entry attributes
-                        HgfsFileAttrInfo *entryAttr, // OUT: entry attributes, optional
-                        char **entryName,            // OUT: entry name
-                        uint32 *entryNameLength);    // OUT: entry name length
+                        HgfsSessionInfo *session,        // IN: session info
+                        struct DirectoryEntry *dirEntry, // IN: the indexed dirent
+                        Bool getAttr,                    // IN: get the entry attributes
+                        HgfsFileAttrInfo *entryAttr,     // OUT: entry attributes, optional
+                        char **entryName,                // OUT: entry name
+                        uint32 *entryNameLength);        // OUT: entry name length
 HgfsInternalStatus
-HgfsPlatformScandir(char const *baseDir,      // IN: Directory to search in
-                    size_t baseDirLen,        // IN: Length of directory
-                    Bool followSymlinks,      // IN: followSymlinks config option
-                    DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
-                    int *numDents);           // OUT: Number of DirectoryEntrys
+HgfsPlatformScandir(char const *baseDir,             // IN: Directory to search in
+                    size_t baseDirLen,               // IN: Length of directory
+                    Bool followSymlinks,             // IN: followSymlinks config option
+                    struct DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
+                    int *numDents);                  // OUT: Number of DirectoryEntrys
 HgfsInternalStatus
 HgfsPlatformScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get name
                      HgfsInitFunc enumNamesInit,       // IN: Setup function
                      HgfsCleanupFunc enumNamesExit,    // IN: Cleanup function
-                     DirectoryEntry ***dents,          // OUT: Array of DirectoryEntrys
+                     struct DirectoryEntry ***dents,   // OUT: Array of DirectoryEntrys
                      uint32 *numDents);                // OUT: total number of directory entrys
 HgfsInternalStatus
 HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status

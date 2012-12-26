@@ -2522,14 +2522,14 @@ exit:
  */
 
 HgfsInternalStatus
-HgfsServerGetDirEntry(HgfsHandle handle,         // IN: Handle to search
-                      HgfsSessionInfo *session,  // IN: Session info
-                      uint32 index,              // IN: index to retrieve at
-                      Bool remove,               // IN: If true, removes the result
-                      DirectoryEntry **dirEntry) // OUT: directory entry
+HgfsServerGetDirEntry(HgfsHandle handle,                // IN: Handle to search
+                      HgfsSessionInfo *session,         // IN: Session info
+                      uint32 index,                     // IN: index to retrieve at
+                      Bool remove,                      // IN: If true, removes the result
+                      struct DirectoryEntry **dirEntry) // OUT: directory entry
 {
    HgfsSearch *search;
-   DirectoryEntry *dent = NULL;
+   struct DirectoryEntry *dent = NULL;
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
 
    MXUser_AcquireExclLock(session->searchArrayLock);
@@ -7434,7 +7434,7 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,     // IN: ID for search data
                 Bool *moreEntries)               // OUT: any more entries
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
-   DirectoryEntry *dent;
+   struct DirectoryEntry *dent;
    HgfsSearchReadMask infoRetrieved;
    HgfsSearchReadMask infoRequested;
    HgfsFileAttrInfo *entryAttr;
