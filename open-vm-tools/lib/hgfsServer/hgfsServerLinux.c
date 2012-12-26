@@ -376,7 +376,7 @@ HgfsServerSigOplockBreak(int sigNum,       // IN: Signal number
 {
    ServerLockData *lockData;
    int newLease, fd;
-   HgfsServerLock newServerLock;
+   HgfsLockType newServerLock;
 
    ASSERT(sigNum == SIGIO);
    ASSERT(info);
@@ -971,7 +971,7 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    int error;
    int openMode = 0, openFlags = 0;
    mode_t openPerms;
-   HgfsServerLock serverLock;
+   HgfsLockType serverLock;
    HgfsInternalStatus status = 0;
    Bool needToSetAttribute = FALSE;
 
@@ -1179,10 +1179,10 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
 Bool
 HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
                       HgfsSessionInfo *session,     // IN: session info
-                      HgfsServerLock *serverLock)   // IN/OUT: Oplock asked for/granted
+                      HgfsLockType *serverLock)     // IN/OUT: Oplock asked for/granted
 {
 #ifdef HGFS_OPLOCKS
-   HgfsServerLock desiredLock;
+   HgfsLockType desiredLock;
    int leaseType, error;
 
    ASSERT(serverLock);
@@ -2898,7 +2898,7 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
    Bool timesChanged = FALSE;
    Bool idChanged = FALSE;
    int fd;
-   HgfsServerLock serverLock;
+   HgfsLockType serverLock;
 
    ASSERT(session);
    ASSERT(file != HGFS_INVALID_HANDLE);
@@ -4389,10 +4389,10 @@ HgfsServerWriteWin32Stream(char const *packetIn,     // IN: incoming packet
 
 void
 HgfsAckOplockBreak(ServerLockData *lockData, // IN: server lock info
-                   HgfsServerLock replyLock) // IN: client has this lock
+                   HgfsLockType replyLock)   // IN: client has this lock
 {
    int fileDesc, newLock;
-   HgfsServerLock actualLock;
+   HgfsLockType actualLock;
 
    ASSERT(lockData);
    fileDesc = lockData->fileDesc;

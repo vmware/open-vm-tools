@@ -199,7 +199,7 @@ typedef struct HgfsFileNode {
    uint32 shareAccess;
 
    /* The server lock that the node currently has. */
-   HgfsServerLock serverLock;
+   HgfsLockType serverLock;
 
    /* File node state on lists */
    FileNodeState state;
@@ -435,8 +435,8 @@ typedef struct HgfsFileOpenInfo {
    uint64 allocationSize;            /* How much space to pre-allocate during creation */
    uint32 desiredAccess;             /* Extended support for windows access modes */
    uint32 shareAccess;               /* Windows only, share access modes */
-   HgfsServerLock desiredLock;       /* The type of lock desired by the client */
-   HgfsServerLock acquiredLock;      /* The type of lock acquired by the server */
+   HgfsLockType desiredLock;         /* The type of lock desired by the client */
+   HgfsLockType acquiredLock;        /* The type of lock acquired by the server */
    uint32 cpNameSize;
    char *cpName;
    char *utf8Name;
@@ -515,7 +515,7 @@ typedef struct HgfsCreateSessionInfo {
 typedef struct {
    fileDesc fileDesc;
    int32 event;
-   HgfsServerLock serverLock;
+   HgfsLockType serverLock;
 } ServerLockData;
 
 typedef struct HgfsInputParam {
@@ -989,7 +989,7 @@ HgfsHandle2LocalId(HgfsHandle handle,        // IN: Hgfs file handle
 Bool
 HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
                       HgfsSessionInfo *session, // IN: session info
-                      HgfsServerLock *lock);    // OUT: Server lock
+                      HgfsLockType *lock);      // OUT: Server lock
 
 Bool
 HgfsUpdateNodeFileDesc(HgfsHandle handle,        // IN: Hgfs file handle
@@ -1000,7 +1000,7 @@ HgfsUpdateNodeFileDesc(HgfsHandle handle,        // IN: Hgfs file handle
 Bool
 HgfsUpdateNodeServerLock(fileDesc fd,                // IN: OS handle
                          HgfsSessionInfo *session,   // IN: session info
-                         HgfsServerLock serverLock); // IN: new oplock
+                         HgfsLockType serverLock);   // IN: new oplock
 
 Bool
 HgfsUpdateNodeAppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
@@ -1010,7 +1010,7 @@ HgfsUpdateNodeAppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
 Bool
 HgfsFileHasServerLock(const char *utf8Name,             // IN: Name in UTF8
                       HgfsSessionInfo *session,         // IN: Session info
-                      HgfsServerLock *serverLock,       // OUT: Existing oplock
+                      HgfsLockType *serverLock,         // OUT: Existing oplock
                       fileDesc   *fileDesc);            // OUT: Existing fd
 Bool
 HgfsGetNodeCopy(HgfsHandle handle,        // IN: Hgfs file handle
@@ -1044,7 +1044,7 @@ HgfsServerGetOpenMode(HgfsFileOpenInfo *openInfo, // IN:  Open info to examine
 Bool
 HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
                       HgfsSessionInfo *session,     // IN: Session info
-                      HgfsServerLock *serverLock);  // IN/OUT: Oplock asked for/granted
+                      HgfsLockType *serverLock);    // IN/OUT: Oplock asked for/granted
 
 Bool
 HgfsServerPlatformInit(void);
@@ -1080,7 +1080,7 @@ HgfsServerOplockBreak(ServerLockData *data); // IN: server lock info
 
 void
 HgfsAckOplockBreak(ServerLockData *lockData,  // IN: server lock info
-                   HgfsServerLock replyLock); // IN: client has this lock
+                   HgfsLockType replyLock);   // IN: client has this lock
 
 #endif
 

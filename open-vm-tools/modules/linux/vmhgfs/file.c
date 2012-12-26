@@ -50,7 +50,7 @@ static int HgfsPackOpenRequest(struct inode *inode,
 static int HgfsUnpackOpenReply(HgfsReq *req,
                                HgfsOp opUsed,
                                HgfsHandle *file,
-                               HgfsServerLock *lock);
+                               HgfsLockType *lock);
 static int HgfsGetOpenFlags(uint32 flags);
 
 /* HGFS file operations for files. */
@@ -374,7 +374,7 @@ static int
 HgfsUnpackOpenReply(HgfsReq *req,          // IN: Packet with reply inside
                     HgfsOp opUsed,         // IN: What request op did we send
                     HgfsHandle *file,      // OUT: Handle in reply packet
-                    HgfsServerLock *lock)  // OUT: The server lock we got
+                    HgfsLockType *lock)    // OUT: The server lock we got
 {
    HgfsReplyOpenV3 *replyV3;
    HgfsReplyOpenV2 *replyV2;
@@ -547,7 +547,7 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
    HgfsOp opUsed;
    HgfsStatus replyStatus;
    HgfsHandle replyFile;
-   HgfsServerLock replyLock;
+   HgfsLockType replyLock;
    HgfsInodeInfo *iinfo;
    int result = 0;
 

@@ -296,7 +296,7 @@ typedef enum {
    HGFS_LOCK_OPPORTUNISTIC,
    HGFS_LOCK_EXCLUSIVE,
    HGFS_LOCK_SHARED,
-} HgfsServerLock;
+} HgfsLockType;
 
 
 /*
@@ -715,7 +715,7 @@ struct HgfsRequestOpenV2 {
    uint64 allocationSize;        /* How much space to pre-allocate during creation */
    uint32 desiredAccess;         /* Extended support for windows access modes */
    uint32 shareAccess;           /* Windows only, share access modes */
-   HgfsServerLock desiredLock;   /* The type of lock desired by the client */
+   HgfsLockType desiredLock;     /* The type of lock desired by the client */
    uint64 reserved1;             /* Reserved for future use */
    uint64 reserved2;             /* Reserved for future use */
    HgfsFileName fileName;
@@ -740,7 +740,7 @@ struct HgfsRequestOpenV3 {
    uint64 allocationSize;        /* How much space to pre-allocate during creation */
    uint32 desiredAccess;         /* Extended support for windows access modes */
    uint32 shareAccess;           /* Windows only, share access modes */
-   HgfsServerLock desiredLock;   /* The type of lock desired by the client */
+   HgfsLockType desiredLock;     /* The type of lock desired by the client */
    uint64 reserved1;             /* Reserved for future use */
    uint64 reserved2;             /* Reserved for future use */
    HgfsFileNameV3 fileName;
@@ -768,7 +768,7 @@ typedef
 struct HgfsReplyOpenV2 {
    HgfsReply header;
    HgfsHandle file;                  /* Opaque file ID used by the server */
-   HgfsServerLock acquiredLock;      /* The type of lock acquired by the server */
+   HgfsLockType acquiredLock;        /* The type of lock acquired by the server */
 }
 #include "vmware_pack_end.h"
 HgfsReplyOpenV2;
@@ -780,7 +780,7 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyOpenV3 {
    HgfsHandle file;                  /* Opaque file ID used by the server */
-   HgfsServerLock acquiredLock;      /* The type of lock acquired by the server */
+   HgfsLockType acquiredLock;        /* The type of lock acquired by the server */
    uint64 reserved;                  /* Reserved for future use */
 }
 #include "vmware_pack_end.h"
@@ -1590,7 +1590,7 @@ typedef
 struct HgfsRequestServerLockChange {
    HgfsRequest header;
    HgfsHandle file;
-   HgfsServerLock newServerLock;
+   HgfsLockType newServerLock;
 }
 #include "vmware_pack_end.h"
 HgfsRequestServerLockChange;
@@ -1600,7 +1600,7 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyServerLockChange {
    HgfsReply header;
-   HgfsServerLock serverLock;
+   HgfsLockType serverLock;
 }
 #include "vmware_pack_end.h"
 HgfsReplyServerLockChange;

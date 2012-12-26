@@ -786,7 +786,7 @@ exit:
 Bool
 HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
                       HgfsSessionInfo *session, // IN: Session info
-                      HgfsServerLock *lock)     // OUT: Server lock
+                      HgfsLockType *lock)       // OUT: Server lock
 {
 #ifdef HGFS_OPLOCKS
    Bool found = FALSE;
@@ -1076,7 +1076,7 @@ HgfsHandle2NotifyInfo(HgfsHandle handle,                    // IN: Hgfs file han
 Bool
 HgfsFileHasServerLock(const char *utf8Name,             // IN: Name in UTF8
                       HgfsSessionInfo *session,         // IN: Session info
-                      HgfsServerLock *serverLock,       // OUT: Existing oplock
+                      HgfsLockType *serverLock,         // OUT: Existing oplock
                       fileDesc   *fileDesc)             // OUT: Existing fd
 {
 #ifdef HGFS_OPLOCKS
@@ -1333,7 +1333,7 @@ exit:
 Bool
 HgfsUpdateNodeServerLock(fileDesc fd,                // IN: OS handle
                          HgfsSessionInfo *session,   // IN: Session info
-                         HgfsServerLock serverLock)  // IN: new oplock
+                         HgfsLockType serverLock)    // IN: new oplock
 {
    unsigned int i;
    HgfsFileNode *existingFileNode = NULL;
@@ -6326,7 +6326,7 @@ HgfsValidateRenameFile(Bool useHandle,            // IN:
 {
    HgfsInternalStatus status;
    Bool sharedFolderOpen = FALSE;
-   HgfsServerLock serverLock = HGFS_LOCK_NONE;
+   HgfsLockType serverLock = HGFS_LOCK_NONE;
    HgfsNameStatus nameStatus;
 
 
@@ -6643,7 +6643,7 @@ HgfsServerDeleteFile(HgfsInputParam *input)  // IN: Input params
 {
    char *cpName;
    size_t cpNameSize;
-   HgfsServerLock serverLock = HGFS_LOCK_NONE;
+   HgfsLockType serverLock = HGFS_LOCK_NONE;
    fileDesc fileDesc;
    HgfsHandle file;
    HgfsDeleteHint hints = 0;
@@ -7358,7 +7358,7 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
                                              &utf8Name, &utf8NameLen);
          if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
             fileDesc hFile;
-            HgfsServerLock serverLock = HGFS_LOCK_NONE;
+            HgfsLockType serverLock = HGFS_LOCK_NONE;
             HgfsShareOptions configOptions;
 
             /*
@@ -7528,7 +7528,7 @@ HgfsServerOpen(HgfsInputParam *input)  // IN: Input params
    HgfsLocalId localId;
    HgfsFileOpenInfo openInfo;
    fileDesc fileDesc;
-   HgfsServerLock serverLock = HGFS_LOCK_NONE;
+   HgfsLockType serverLock = HGFS_LOCK_NONE;
    size_t replyPayloadSize = 0;
 
    HGFS_ASSERT_INPUT(input);
@@ -7738,7 +7738,7 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,     // IN: ID for search data
       char *sharePath;
       size_t sharePathLen;
       size_t fullNameLen;
-      HgfsServerLock serverLock = HGFS_LOCK_NONE;
+      HgfsLockType serverLock = HGFS_LOCK_NONE;
       fileDesc fileDesc;
 
       length = strlen(dent->d_name);
@@ -8635,7 +8635,7 @@ HgfsServerOplockBreak(ServerLockData *lockData)
    HgfsHandle hgfsHandle;
    char *requestBuffer = NULL;
    HgfsRequestServerLockChange *request;
-   HgfsServerLock lock;
+   HgfsLockType lock;
 
    LOG(4, ("%s: entered\n", __FUNCTION__));
 
