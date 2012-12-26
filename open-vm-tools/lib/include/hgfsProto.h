@@ -296,6 +296,8 @@ typedef enum {
    HGFS_LOCK_OPPORTUNISTIC,
    HGFS_LOCK_EXCLUSIVE,
    HGFS_LOCK_SHARED,
+   HGFS_LOCK_BATCH,
+   HGFS_LOCK_LEASE,
 } HgfsLockType;
 
 
@@ -2111,18 +2113,11 @@ HgfsReplyUnlockRangeV4;
  * HGFS_OPLOCK_BATCH: batch oplock. Read/Write and Open caching is allowed.
  */
 
-typedef enum {
-   HGFS_OPLOCK_NONE,
-   HGFS_OPLOCK_SHARED,
-   HGFS_OPLOCK_EXCLUSIVE,
-   HGFS_OPLOCK_BATCH,
-} HgfsOpportunisticLock;
-
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestServerLockChangeV2 {
    HgfsHandle fid;                    /* File to take lock on. */
-   HgfsOpportunisticLock serverLock;  /* Lock type. */
+   HgfsLockType serverLock;           /* Lock type. */
    uint64 reserved;
 }
 #include "vmware_pack_end.h"
@@ -2131,7 +2126,7 @@ HgfsRequestServerLockChangeV2;
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyServerLockChangeV2 {
-   HgfsOpportunisticLock serverLock;  /* Lock granted. */
+   HgfsLockType serverLock;            /* Lock granted. */
    uint64 reserved;
 }
 #include "vmware_pack_end.h"
@@ -2146,7 +2141,7 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestOplockBreakV4 {
    HgfsHandle fid;                    /* File handle. */
-   HgfsOpportunisticLock serverLock;  /* Lock downgraded to this type. */
+   HgfsLockType serverLock;           /* Lock downgraded to this type. */
    uint64 reserved;                   /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
@@ -2305,7 +2300,7 @@ struct HgfsRequestOpenV4 {
    uint32 desiredAccess;         /* Extended support for windows access modes */
    uint32 shareAccess;           /* Windows only, share access modes */
    HgfsOpenCreateOptions createOptions; /* Various options. */
-   HgfsOpportunisticLock requestedLock;   /* The type of lock desired by the client */
+   HgfsLockType requestedLock;   /* The type of lock desired by the client */
    HgfsFileNameV3 fileName;      /* fid can be used only for relative open,
                                   * i.e. to open named stream.
                                   */
@@ -2350,7 +2345,7 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyOpenV4 {
    HgfsHandle file;                   /* Opaque file ID used by the server */
-   HgfsOpportunisticLock grantedLock; /* The type of lock acquired by the server */
+   HgfsLockType grantedLock;          /* The type of lock acquired by the server */
    HgfsOpenResult openResult;         /* Opened/overwritten or a new file created? */
    uint32 grantedAccess;              /* Granted access rights. */
    uint64 fileId;                     /* Persistent volume-wide unique file id. */
