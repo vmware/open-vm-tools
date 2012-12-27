@@ -130,6 +130,9 @@ case "$host_os" in
    [freebsd*])
       os="freebsd"
       ;;
+   [kfreebsd*-gnu])
+      os="kfreebsd-gnu"
+      ;;
    [solaris*])
       os="solaris"
       ;;
@@ -950,7 +953,7 @@ if test "$os" = "linux"; then
    buildHgfsmounter=yes
 fi
 
-if test "$os" = "freebsd"; then
+if test "$os" = "freebsd" || test "$os" = "kfreebsd-gnu"; then
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lkvm"
    MODULES_DIR="/boot/modules"
 
@@ -1019,8 +1022,9 @@ fi
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
-AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd")
-AM_CONDITIONAL(FREEBSD_CUSTOM_SYSDIR, test "$os" = "freebsd" -a -n "$SYSDIR")
+AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd" -o "$os" = "kfreebsd-gnu")
+AM_CONDITIONAL(FREEBSD_CUSTOM_SYSDIR,
+               test \( "$os" = "freebsd" -o "$os" = "kfreebsd-gnu" \) -a -n "$SYSDIR")
 AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
