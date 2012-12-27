@@ -1,3 +1,16 @@
+open-vm-tools 2012.12.26 changes:
+	* vmsync is not longer being compiled on newer (3.0+) Linux
+	  kernels since they support FIFREEZE/FITHAW ioctls.
+
+	* vmblock is not longer being compiled on newer (3.0+) Linux
+	  kernels, such systems should use vmblock-fuse.
+
+	* The draft SOCK_SEQPACKET code is removed from VSOCK driver.
+
+	* Fixes for the vmballoon driver.
+
+	* Other fixes and cleanups.
+
 open-vm-tools 2012.10.14 changes:
 	* Changes and cleanups to VMCI driver
 
@@ -14,7 +27,6 @@ open-vm-tools 2012.10.14 changes:
 	  guest had too many NICs.
 
 	* Other fixes and cleanups.
-
 
 open-vm-tools 2012.05.21 changes:
 	* Updates for newer Linux kernel releases (3.4).
