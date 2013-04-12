@@ -1618,7 +1618,7 @@ RpcInOpenChannel(RpcIn *in,                 // IN
          break;
       }
       in->conn->in = in;
-      asock = AsyncSocket_ConnectVMCI(VMCI_HOST_CONTEXT_ID,
+      asock = AsyncSocket_ConnectVMCI(VMCI_HYPERVISOR_CONTEXT_ID,
                                       GUESTRPC_VSOCK_LISTEN_PORT,
                                       RpcInConnectDone,
                                       in->conn, 0, NULL, &res);
