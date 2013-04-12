@@ -356,9 +356,8 @@ __VSockVmciFindBoundSocket(struct sockaddr_vm *addr)  // IN
 
    ASSERT(addr);
 
-
    list_for_each_entry(vsk, vsockBoundSockets(addr), boundTable) {
-      if (VSockAddr_EqualsAddrAny(addr, &vsk->localAddr)) {
+      if (addr->svm_port == vsk->localAddr.svm_port) {
          sk = sk_vsock(vsk);
 
          /* We only store stream sockets in the bound table. */
@@ -406,7 +405,7 @@ __VSockVmciFindConnectedSocket(struct sockaddr_vm *src,    // IN
 
    list_for_each_entry(vsk, vsockConnectedSockets(src, dst), connectedTable) {
       if (VSockAddr_EqualsAddr(src, &vsk->remoteAddr) &&
-          VSockAddr_EqualsAddr(dst, &vsk->localAddr)) {
+          dst->svm_port == vsk->localAddr.svm_port) {
          sk = sk_vsock(vsk);
          goto found;
       }
@@ -502,21 +501,18 @@ VSockVmciGetPending(struct sock *listener,      // IN: listening socket
    VSockVmciSock *vlistener;
    VSockVmciSock *vpending;
    struct sock *pending;
+   struct sockaddr_vm src;
 
    ASSERT(listener);
    ASSERT(pkt);
 
+   VSockAddr_Init(&src, VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src), pkt->srcPort);
+
    vlistener = vsock_sk(listener);
 
    list_for_each_entry(vpending, &vlistener->pendingLinks, pendingLinks) {
-      struct sockaddr_vm src;
-      struct sockaddr_vm dst;
-
-      VSockAddr_Init(&src, VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src), pkt->srcPort);
-      VSockAddr_Init(&dst, VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.dst), pkt->dstPort);
-
       if (VSockAddr_EqualsAddr(&src, &vpending->remoteAddr) &&
-          VSockAddr_EqualsAddr(&dst, &vpending->localAddr)) {
+          pkt->dstPort == vpending->localAddr.svm_port) {
          pending = sk_vsock(vpending);
          sock_hold(pending);
          goto found;
@@ -526,7 +522,6 @@ VSockVmciGetPending(struct sock *listener,      // IN: listening socket
    pending = NULL;
 found:
    return pending;
-
 }
 
 

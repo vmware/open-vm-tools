@@ -41,7 +41,6 @@ int32 VSockAddr_ValidateNoFamily(const struct sockaddr_vm *addr);
 Bool VSockAddr_Bound(struct sockaddr_vm *addr);
 void VSockAddr_Unbind(struct sockaddr_vm *addr);
 Bool VSockAddr_EqualsAddr(struct sockaddr_vm *addr, struct sockaddr_vm *other);
-Bool VSockAddr_EqualsAddrAny(struct sockaddr_vm *addr, struct sockaddr_vm *other);
 Bool VSockAddr_EqualsHandlePort(struct sockaddr_vm *addr, VMCIHandle handle,
                                 uint32 port);
 int32 VSockAddr_Cast(const struct sockaddr *addr, int32 len,

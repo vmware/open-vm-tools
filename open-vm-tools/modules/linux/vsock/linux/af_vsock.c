@@ -373,7 +373,6 @@ static int vsockVmciKernClientCount = 0;
 static Bool vmciDevicePresent = FALSE;
 static VMCIHandle vmciStreamHandle = { VMCI_INVALID_ID, VMCI_INVALID_ID };
 static VMCIId qpResumedSubId = VMCI_INVALID_ID;
-static VMCIId ctxUpdatedSubId = VMCI_INVALID_ID;
 
 static int PROTOCOL_OVERRIDE = -1;
 
@@ -1132,8 +1131,14 @@ VSockVmciRecvStreamCB(void *data,           // IN
     */
    bh_lock_sock(sk);
 
-   if (!sock_owned_by_user(sk) && sk->sk_state == SS_CONNECTED) {
-      NOTIFYCALL(vsk, handleNotifyPkt, sk, pkt, TRUE, &dst, &src, &bhProcessPkt);
+   if (!sock_owned_by_user(sk)) {
+      /* The local context ID may be out of date. */
+      vsk->localAddr.svm_cid = dst.svm_cid;
+
+      if (sk->sk_state == SS_CONNECTED) {
+         NOTIFYCALL(vsk, handleNotifyPkt, sk, pkt, TRUE, &dst, &src,
+                    &bhProcessPkt);
+      }
    }
 
    bh_unlock_sock(sk);
@@ -1515,6 +1520,9 @@ VSockVmciRecvPktWork(compat_work_arg work)  // IN
 
    lock_sock(sk);
 
+   /* The local context ID may be out of date. */
+   vsock_sk(sk)->localAddr.svm_cid = VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.dst);
+
    switch (sk->sk_state) {
    case SS_LISTEN:
       VSockVmciRecvListen(sk, pkt);
@@ -1597,6 +1605,11 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    pending = VSockVmciGetPending(sk, pkt);
    if (pending) {
       lock_sock(pending);
+
+      /* The local context ID may be out of date. */
+      vsock_sk(pending)->localAddr.svm_cid =
+         VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.dst);
+
       switch (pending->sk_state) {
       case SS_CONNECTING:
          err = VSockVmciRecvConnectingServer(sk, pending, pkt);
@@ -3327,11 +3340,6 @@ VSockVmciUnregisterWithVmci(void)
    if (qpResumedSubId != VMCI_INVALID_ID) {
       vmci_event_unsubscribe(qpResumedSubId);
       qpResumedSubId = VMCI_INVALID_ID;
-   }
-
-   if (ctxUpdatedSubId != VMCI_INVALID_ID) {
-      vmci_event_unsubscribe(ctxUpdatedSubId);
-      ctxUpdatedSubId = VMCI_INVALID_ID;
    }
 
    vmci_device_release(NULL);
