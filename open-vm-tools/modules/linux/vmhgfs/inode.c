@@ -1810,6 +1810,7 @@ HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
  *
  *----------------------------------------------------------------------
  */
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
 static int
 HgfsPermission(struct inode *inode,
@@ -1823,13 +1824,20 @@ HgfsPermission(struct inode *inode,
     */
    if (mask & MAY_ACCESS) { /* For sys_access. */
       struct dentry *dentry;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
       struct hlist_node *p;
+#endif
 
       if (mask & MAY_NOT_BLOCK)
          return -ECHILD;
 
       /* Find a dentry with valid d_count. Refer bug 587879. */
-      hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
+      hlist_for_each_entry(dentry,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+                           p,
+#endif
+                           &inode->i_dentry,
+                           d_alias) {
          int dcount = dentry->d_count;
          if (dcount) {
             LOG(4, ("Found %s %d \n", dentry->d_name.name, dcount));
