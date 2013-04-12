@@ -46,7 +46,17 @@ extern "C" {
 
 #include "guestCopyPaste.hh"
 
+/*
+ * Make sure exception types are public and therefore shared between libg*mm
+ * and this plugin. 
+ *
+ * See
+ * http://gcc.gnu.org/wiki/Visibility#Problems_with_C.2B-.2B-_exceptions_.28please_read.21.29
+ */
+#pragma GCC visibility push(default)
 #include <gtkmm.h>
+#pragma GCC visibility pop
+
 #include <list>
 #include <vector>
 

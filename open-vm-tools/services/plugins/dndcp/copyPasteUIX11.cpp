@@ -67,6 +67,7 @@
 
 #include <sys/time.h>
 #include <time.h>
+#include <cxxabi.h>
 #include "copyPasteDnDWrapper.h"
 #include "copyPasteUIX11.h"
 #include "dndFileList.hh"
@@ -212,20 +213,20 @@ CopyPasteUIX11::~CopyPasteUIX11()
        !mHGStagingDir.empty()) {
       uint64 totalSize = File_GetSizeEx(mHGStagingDir.c_str());
       if (mTotalFileSize != totalSize) {
-	 g_debug("%s: deleting %s, expecting %"FMT64"d, finished %"FMT64"d\n",
-	         __FUNCTION__, mHGStagingDir.c_str(),
-	         mTotalFileSize, totalSize);
-	 DnD_DeleteStagingFiles(mHGStagingDir.c_str(), FALSE);
+         g_debug("%s: deleting %s, expecting %"FMT64"d, finished %"FMT64"d\n",
+                 __FUNCTION__, mHGStagingDir.c_str(),
+                 mTotalFileSize, totalSize);
+         DnD_DeleteStagingFiles(mHGStagingDir.c_str(), FALSE);
       } else {
-	 g_debug("%s: file size match %s\n",
-	         __FUNCTION__, mHGStagingDir.c_str());
+         g_debug("%s: file size match %s\n",
+                 __FUNCTION__, mHGStagingDir.c_str());
       }
    }
    if (mBlockAdded) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
       /* We need to make sure block subsystem has not been shut off. */
       if (DnD_BlockIsReady(mBlockCtrl)) {
-	 mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
+         mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
       }
       mBlockAdded = false;
    }
@@ -250,7 +251,7 @@ CopyPasteUIX11::~CopyPasteUIX11()
 
 void
 CopyPasteUIX11::VmxCopyPasteVersionChanged(RpcChannel *chan,    // IN
-	                                   uint32 version)      // IN
+                                           uint32 version)      // IN
 {
    ASSERT(mCP);
    g_debug("%s: new version is %d\n", __FUNCTION__, version);
@@ -356,7 +357,7 @@ CopyPasteUIX11::GetCurrentTime(void)
 
 void
 CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
-	                              guint info)                    // IN:
+                                      guint info)                    // IN:
 {
    g_debug("%s: enter.\n", __FUNCTION__);
    VmTimeType curTime;
@@ -370,19 +371,19 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
     */
    if ((curTime - mHGGetListTime) < FCP_COPY_DELAY) {
       g_debug("%s: time delta less than FCP_COPY_DELAY, returning.\n",
-	    __FUNCTION__);
+            __FUNCTION__);
       return;
    }
 
    if (!mIsClipboardOwner || !mCP->IsCopyPasteAllowed()) {
       g_debug("%s: not clipboard ownder, or copy paste not allowed, returning.\n",
-	    __FUNCTION__);
+            __FUNCTION__);
       sd.set(sd.get_target().c_str(), "");
       return;
    }
 
    g_debug("%s: Got paste request, target is %s\n", __FUNCTION__,
-	 sd.get_target().c_str());
+         sd.get_target().c_str());
 
    if (mHGGetFileStatus != DND_FILE_TRANSFER_NOT_STARTED) {
       /*
@@ -390,7 +391,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
        * we are already getting files.
        */
       g_debug("%s: GetFiles already started, returning uriList [%s]\n",
-	      __FUNCTION__, mHGCopiedUriList.c_str());
+              __FUNCTION__, mHGCopiedUriList.c_str());
       sd.set(sd.get_target().c_str(), mHGCopiedUriList.c_str());
       return;
    } else {
@@ -403,64 +404,64 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
 
       hgStagingDir = static_cast<utf::string>(mCP->SrcUIRequestFiles());
       g_debug("%s: Getting files. Staging dir: %s", __FUNCTION__,
-	    hgStagingDir.c_str());
+            hgStagingDir.c_str());
 
       if (0 == hgStagingDir.bytes()) {
-	 g_debug("%s: Can not create staging directory\n", __FUNCTION__);
-	 sd.set(sd.get_target().c_str(), "");
-	 return;
+         g_debug("%s: Can not create staging directory\n", __FUNCTION__);
+         sd.set(sd.get_target().c_str(), "");
+         return;
       }
       mHGGetFileStatus = DND_FILE_TRANSFER_IN_PROGRESS;
 
       mBlockAdded = false;
       if (DnD_BlockIsReady(mBlockCtrl) && mBlockCtrl->AddBlock(mBlockCtrl->fd, hgStagingDir.c_str())) {
-	 g_debug("%s: add block for %s.\n",
-	       __FUNCTION__, hgStagingDir.c_str());
-	 mBlockAdded = true;
+         g_debug("%s: add block for %s.\n",
+               __FUNCTION__, hgStagingDir.c_str());
+         mBlockAdded = true;
       } else {
-	 g_debug("%s: unable to add block for %s.\n",
-	       __FUNCTION__, hgStagingDir.c_str());
+         g_debug("%s: unable to add block for %s.\n",
+               __FUNCTION__, hgStagingDir.c_str());
       }
 
       mHGStagingDir = hgStagingDir;
 
       /* Provide URIs for each path in the guest's file list. */
       if (FCP_TARGET_INFO_GNOME_COPIED_FILES == info) {
-	 mHGCopiedUriList = "copy\n";
-	 pre = FCP_GNOME_LIST_PRE;
-	 post = FCP_GNOME_LIST_POST;
+         mHGCopiedUriList = "copy\n";
+         pre = FCP_GNOME_LIST_PRE;
+         post = FCP_GNOME_LIST_POST;
       } else if (FCP_TARGET_INFO_URI_LIST == info) {
-	 pre = DND_URI_LIST_PRE_KDE;
-	 post = DND_URI_LIST_POST;
+         pre = DND_URI_LIST_PRE_KDE;
+         post = DND_URI_LIST_POST;
       } else {
-	 g_debug("%s: Unknown request target: %s\n", __FUNCTION__,
-	       sd.get_target().c_str());
-	 sd.set(sd.get_target().c_str(), "");
-	 return;
+         g_debug("%s: Unknown request target: %s\n", __FUNCTION__,
+               sd.get_target().c_str());
+         sd.set(sd.get_target().c_str(), "");
+         return;
       }
 
       /* Provide path within vmblock file system instead of actual path. */
       stagingDirName = GetLastDirName(hgStagingDir);
       if (0 == stagingDirName.bytes()) {
-	 g_debug("%s: Can not get staging directory name\n", __FUNCTION__);
-	 sd.set(sd.get_target().c_str(), "");
-	 return;
+         g_debug("%s: Can not get staging directory name\n", __FUNCTION__);
+         sd.set(sd.get_target().c_str(), "");
+         return;
       }
 
       while ((str = GetNextPath(mHGFCPData, index).c_str()).bytes() != 0) {
-	 g_debug("%s: Path: %s", __FUNCTION__, str.c_str());
-	 mHGCopiedUriList += pre;
-	 if (mBlockAdded) {
-	    mHGCopiedUriList += mBlockCtrl->blockRoot;
-	    mHGCopiedUriList += DIRSEPS + stagingDirName + DIRSEPS + str + post;
-	 } else {
-	    mHGCopiedUriList += DIRSEPS + hgStagingDir + DIRSEPS + str + post;
-	 }
+         g_debug("%s: Path: %s", __FUNCTION__, str.c_str());
+         mHGCopiedUriList += pre;
+         if (mBlockAdded) {
+            mHGCopiedUriList += mBlockCtrl->blockRoot;
+            mHGCopiedUriList += DIRSEPS + stagingDirName + DIRSEPS + str + post;
+         } else {
+            mHGCopiedUriList += DIRSEPS + hgStagingDir + DIRSEPS + str + post;
+         }
       }
 
       /* Nautilus does not expect FCP_GNOME_LIST_POST after the last uri. See bug 143147. */
       if (FCP_TARGET_INFO_GNOME_COPIED_FILES == info) {
-	 mHGCopiedUriList.erase(mHGCopiedUriList.size() - 1, 1);
+         mHGCopiedUriList.erase(mHGCopiedUriList.size() - 1, 1);
       }
    }
 
@@ -489,23 +490,23 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
       ToolsAppCtx *ctx = wrapper->GetToolsAppCtx();
       while (mHGGetFileStatus == DND_FILE_TRANSFER_IN_PROGRESS) {
-	 struct timeval tv;
+         struct timeval tv;
 
-	 tv.tv_sec = 0;
-	 g_main_context_iteration(g_main_loop_get_context(ctx->mainLoop),
-	                          FALSE);
-	 if (select(0, NULL, NULL, NULL, &tv) == -1) {
-	    g_debug("%s: error in select (%s).\n", __FUNCTION__,
-	          strerror(errno));
-	    sd.set(sd.get_target().c_str(), "");
-	    return;
-	 }
+         tv.tv_sec = 0;
+         g_main_context_iteration(g_main_loop_get_context(ctx->mainLoop),
+                                  FALSE);
+         if (select(0, NULL, NULL, NULL, &tv) == -1) {
+            g_debug("%s: error in select (%s).\n", __FUNCTION__,
+                  strerror(errno));
+            sd.set(sd.get_target().c_str(), "");
+            return;
+         }
       }
       g_debug("%s: file transfer done!\n", __FUNCTION__);
    }
 
    g_debug("%s: providing file list [%s]\n", __FUNCTION__,
-	 mHGCopiedUriList.c_str());
+         mHGCopiedUriList.c_str());
 
    sd.set(sd.get_target().c_str(), mHGCopiedUriList.c_str());
 }
@@ -530,7 +531,7 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
 
 void
 CopyPasteUIX11::LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, // IN/OUT
-	                                   guint info)             // Ignored
+                                           guint info)             // Ignored
 {
    sd.set(sd.get_target().c_str(), "");
 
@@ -541,17 +542,17 @@ CopyPasteUIX11::LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, // IN/OUT
    const utf::string target = sd.get_target().c_str();
 
    g_debug("%s: Got paste request, target is %s\n",
-	 __FUNCTION__, target.c_str());
+         __FUNCTION__, target.c_str());
 
    if (target == TARGET_NAME_APPLICATION_RTF ||
        target == TARGET_NAME_TEXT_RICHTEXT) {
       if (0 == mHGRTFData.size()) {
-	 g_debug("%s: Can not get valid RTF data\n", __FUNCTION__);
-	 return;
+         g_debug("%s: Can not get valid RTF data\n", __FUNCTION__);
+         return;
       }
 
       g_debug("%s: providing RTF data, size %"FMTSZ"u\n",
-	    __FUNCTION__, mHGRTFData.size());
+            __FUNCTION__, mHGRTFData.size());
 
       sd.set(target.c_str(), mHGRTFData.c_str());
    }
@@ -561,11 +562,11 @@ CopyPasteUIX11::LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, // IN/OUT
        target == TARGET_NAME_UTF8_STRING ||
        target == TARGET_NAME_COMPOUND_TEXT) {
       if (0 == mHGTextData.bytes()) {
-	 g_debug("%s: Can not get valid text data\n", __FUNCTION__);
-	 return;
+         g_debug("%s: Can not get valid text data\n", __FUNCTION__);
+         return;
       }
       g_debug("%s: providing plain text, size %"FMTSZ"u\n",
-	    __FUNCTION__, mHGTextData.bytes());
+            __FUNCTION__, mHGTextData.bytes());
 
       sd.set(target.c_str(), mHGTextData.c_str());
    }
@@ -621,15 +622,15 @@ CopyPasteUIX11::LocalClipboardTimestampCB(const Gtk::SelectionData& sd)  // IN
     * See “A Word on Selection Timestamps” above.
     */
    if (   (   sd.get_data_type().compare("INTEGER") == 0
-	   || sd.get_data_type().compare("TIMESTAMP") == 0)
+           || sd.get_data_type().compare("TIMESTAMP") == 0)
        && sd.get_format() == 32
        && length >= 4 /* sizeof uint32 */) {
       mClipTime = reinterpret_cast<const uint32*>(sd.get_data())[0];
    } else {
       g_debug("%s: Unable to get mClipTime (sd: len %d, type %s, fmt %d).",
-	      __FUNCTION__, length,
-	      length >= 0 ? sd.get_data_type().c_str() : "(n/a)",
-	      sd.get_format());
+              __FUNCTION__, length,
+              length >= 0 ? sd.get_data_type().c_str() : "(n/a)",
+              sd.get_format());
    }
 
    Glib::RefPtr<Gtk::Clipboard> refClipboard
@@ -665,15 +666,15 @@ CopyPasteUIX11::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
     * See “A Word on Selection Timestamps” above.
     */
    if (   (   sd.get_data_type().compare("INTEGER") == 0
-	   || sd.get_data_type().compare("TIMESTAMP") == 0)
+           || sd.get_data_type().compare("TIMESTAMP") == 0)
        && sd.get_format() == 32
        && length >= 4 /* sizeof uint32 */) {
       mPrimTime = reinterpret_cast<const uint32*>(sd.get_data())[0];
    } else {
       g_debug("%s: Unable to get mPrimTime (sd: len %d, type %s, fmt %d).",
-	      __FUNCTION__, length,
-	      length >= 0 ? sd.get_data_type().c_str() : "(n/a)",
-	      sd.get_format());
+              __FUNCTION__, length,
+              length >= 0 ? sd.get_data_type().c_str() : "(n/a)",
+              sd.get_format());
    }
 
    if (mGetTimestampOnly) {
@@ -685,17 +686,17 @@ CopyPasteUIX11::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
    if (mClipTime > mPrimTime) {
       mGHSelection = GDK_SELECTION_CLIPBOARD;
       if (mClipTime > 0 && mClipTime == mLastTimestamp) {
-	 g_debug("%s: clip is not changed\n", __FUNCTION__);
-	 SendClipNotChanged();
-	 return;
+         g_debug("%s: clip is not changed\n", __FUNCTION__);
+         SendClipNotChanged();
+         return;
       }
       mLastTimestamp = mClipTime;
    } else {
       mGHSelection = GDK_SELECTION_PRIMARY;
       if (mPrimTime > 0 && mPrimTime == mLastTimestamp) {
-	 g_debug("%s: clip is not changed\n", __FUNCTION__);
-	 SendClipNotChanged();
-	 return;
+         g_debug("%s: clip is not changed\n", __FUNCTION__);
+         SendClipNotChanged();
+         return;
       }
       mLastTimestamp = mPrimTime;
    }
@@ -707,7 +708,7 @@ again:
    refClipboard = Gtk::Clipboard::get(mGHSelection);
 
    g_debug("%s: trying %s selection.\n", __FUNCTION__,
-	  mGHSelection == GDK_SELECTION_PRIMARY ? "Primary" : "Clip");
+          mGHSelection == GDK_SELECTION_PRIMARY ? "Primary" : "Clip");
 
    CPClipboard_Clear(&mClipboard);
 
@@ -724,8 +725,8 @@ again:
 
    if (haveURIs) {
       refClipboard->request_contents(format,
-	                             sigc::mem_fun(this,
-	                                           &CopyPasteUIX11::LocalReceivedFileListCB));
+                                     sigc::mem_fun(this,
+                                                   &CopyPasteUIX11::LocalReceivedFileListCB));
       return;
    }
 
@@ -772,14 +773,14 @@ again:
       Gtk::SelectionData sdata = refClipboard->wait_for_contents(format);
       bufSize = sdata.get_length();
       if (bufSize > 0  &&
-	  bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
-	  CPClipboard_SetItem(&mClipboard, CPFORMAT_RTF,
-	                      (const void *)sdata.get_data(), bufSize + 1)) {
-	 validDataInClip = true;
-	 g_debug("%s: Got RTF\n", __FUNCTION__);
+          bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
+          CPClipboard_SetItem(&mClipboard, CPFORMAT_RTF,
+                              (const void *)sdata.get_data(), bufSize + 1)) {
+         validDataInClip = true;
+         g_debug("%s: Got RTF\n", __FUNCTION__);
       } else {
-	 g_debug("%s: Failed to get RTF size %d max %d\n",
-	       __FUNCTION__, (int) bufSize, (int)CPCLIPITEM_MAX_SIZE_V3);
+         g_debug("%s: Failed to get RTF size %d max %d\n",
+               __FUNCTION__, (int) bufSize, (int)CPCLIPITEM_MAX_SIZE_V3);
       }
    }
 
@@ -790,13 +791,13 @@ again:
       Glib::ustring str = refClipboard->wait_for_text();
       bufSize = str.bytes();
       if (bufSize > 0  &&
-	  bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
-	  CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT,
-	                      (const void *)str.data(), bufSize + 1)) {
-	 validDataInClip = true;
-	 g_debug("%s: Got TEXT: %"FMTSZ"u\n", __FUNCTION__, bufSize);
+          bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
+          CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT,
+                              (const void *)str.data(), bufSize + 1)) {
+         validDataInClip = true;
+         g_debug("%s: Got TEXT: %"FMTSZ"u\n", __FUNCTION__, bufSize);
       } else {
-	 g_debug("%s: Failed to get TEXT\n", __FUNCTION__);
+         g_debug("%s: Failed to get TEXT\n", __FUNCTION__);
       }
    }
 
@@ -811,14 +812,14 @@ again:
        * try the other selection.
        */
       g_debug("%s: got nothing for this selection, try the other.\n",
-	    __FUNCTION__);
+            __FUNCTION__);
       mGHSelection = mGHSelection == GDK_SELECTION_PRIMARY ?
-	             GDK_SELECTION_CLIPBOARD : GDK_SELECTION_PRIMARY;
+                     GDK_SELECTION_CLIPBOARD : GDK_SELECTION_PRIMARY;
       flipped = true;
       goto again;
    } else {
       g_debug("%s: got nothing, send empty clip back.\n",
-	    __FUNCTION__);
+            __FUNCTION__);
       mCP->DestUISendClip(&mClipboard);
    }
 }
@@ -882,7 +883,7 @@ CopyPasteUIX11::LocalReceivedFileListCB(const Gtk::SelectionData& sd)        // 
 
 void
 CopyPasteUIX11::LocalGetFileContentsRequestCB(Gtk::SelectionData& sd, // IN
-	                                      guint info)             // IN
+                                              guint info)             // IN
 {
    std::vector<utf::string>::const_iterator iter;
    utf::string uriList = "";
@@ -908,13 +909,13 @@ CopyPasteUIX11::LocalGetFileContentsRequestCB(Gtk::SelectionData& sd, // IN
       post = DND_URI_LIST_POST;
    } else {
       g_debug("%s: Unknown request target: %s\n",
-	    __FUNCTION__, sd.get_target().c_str());
+            __FUNCTION__, sd.get_target().c_str());
       return;
    }
 
    for (iter = mHGFileContentsList.begin();
-	iter != mHGFileContentsList.end();
-	iter++) {
+        iter != mHGFileContentsList.end();
+        iter++) {
       uriList += pre + *iter + post;
    }
 
@@ -984,28 +985,28 @@ CopyPasteUIX11::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // 
    }
 
    while (source.bytes() > 0 &&
-	  (source[0] == '\n' || source[0] == '\r' || source[0] == ' ')) {
+          (source[0] == '\n' || source[0] == '\r' || source[0] == ' ')) {
       source = source.erase(0, 1);
    }
 
    while ((newPath = DnD_UriListGetNextFile(source.c_str(),
-	                                    &index,
-	                                    &newPathLen)) != NULL) {
+                                            &index,
+                                            &newPathLen)) != NULL) {
 #if defined(linux)
       if (DnD_UriIsNonFileSchemes(newPath)) {
-	 /* Try to get local file path for non file uri. */
-	 GFile *file = g_file_new_for_uri(newPath);
-	 free(newPath);
-	 if (!file) {
-	    g_debug("%s: g_file_new_for_uri failed\n", __FUNCTION__);
-	    return;
-	 }
-	 newPath = g_file_get_path(file);
-	 g_object_unref(file);
-	 if (!newPath) {
-	    g_debug("%s: g_file_get_path failed\n", __FUNCTION__);
-	    return;
-	 }
+         /* Try to get local file path for non file uri. */
+         GFile *file = g_file_new_for_uri(newPath);
+         free(newPath);
+         if (!file) {
+            g_debug("%s: g_file_new_for_uri failed\n", __FUNCTION__);
+            return;
+         }
+         newPath = g_file_get_path(file);
+         g_object_unref(file);
+         if (!newPath) {
+            g_debug("%s: g_file_get_path failed\n", __FUNCTION__);
+            return;
+         }
       }
 #endif
 
@@ -1016,13 +1017,13 @@ CopyPasteUIX11::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // 
 
       /* Keep track of how big the fcp files are. */
       if ((size = File_GetSizeEx(newPath)) >= 0) {
-	 totalSize += size;
+         totalSize += size;
       } else {
-	 g_debug("%s: Unable to get file size for %s\n", __FUNCTION__, newPath);
+         g_debug("%s: Unable to get file size for %s\n", __FUNCTION__, newPath);
       }
 
       g_debug("%s: Adding newPath '%s' newRelPath '%s'\n", __FUNCTION__,
-	    newPath, newRelPath);
+            newPath, newRelPath);
       fileList.AddFile(newPath, newRelPath);
       free(newPath);
    }
@@ -1032,7 +1033,7 @@ CopyPasteUIX11::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // 
    g_debug("%s: totalSize is %"FMT64"u\n", __FUNCTION__, totalSize);
    fileList.ToCPClipboard(&buf, false);
    CPClipboard_SetItem(&mClipboard, CPFORMAT_FILELIST, DynBuf_Get(&buf),
-	               DynBuf_GetSize(&buf));
+                       DynBuf_GetSize(&buf));
    DynBuf_Destroy(&buf);
 }
 
@@ -1098,7 +1099,7 @@ CopyPasteUIX11::GetLastDirName(const utf::string &str)     // IN
 
 utf::utf8string
 CopyPasteUIX11::GetNextPath(utf::utf8string& str, // IN: NUL-delimited path list
-	                    size_t& index)        // IN/OUT: current index into string
+                            size_t& index)        // IN/OUT: current index into string
 {
    utf::utf8string ret;
    size_t start;
@@ -1114,22 +1115,22 @@ CopyPasteUIX11::GetNextPath(utf::utf8string& str, // IN: NUL-delimited path list
        * replacement approach.
        */
       static char const Dec2Hex[] = {
-	 '0', '1', '2', '3', '4', '5', '6', '7',
-	 '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+         '0', '1', '2', '3', '4', '5', '6', '7',
+         '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
       };
 
       unsigned char ubyte = str[index];
 
       if (ubyte == '#' ||   /* Fragment identifier delimiter */
-	  ubyte == '?' ||   /* Query string delimiter */
-	  ubyte == '*' ||   /* "Special significance within specific schemes" */
-	  ubyte == '!' ||   /* "Special significance within specific schemes" */
-	  ubyte == '%' ||   /* Escape character */
-	  ubyte >= 0x80) {  /* UTF-8 encoding bytes */
-	 str.replace(index, 1, "%");
-	 str.insert(index + 1, 1, Dec2Hex[ubyte >> 4]);
-	 str.insert(index + 2, 1, Dec2Hex[ubyte & 0xF]);
-	 index += 2;
+          ubyte == '?' ||   /* Query string delimiter */
+          ubyte == '*' ||   /* "Special significance within specific schemes" */
+          ubyte == '!' ||   /* "Special significance within specific schemes" */
+          ubyte == '%' ||   /* Escape character */
+          ubyte >= 0x80) {  /* UTF-8 encoding bytes */
+         str.replace(index, 1, "%");
+         str.insert(index + 1, 1, Dec2Hex[ubyte >> 4]);
+         str.insert(index + 2, 1, Dec2Hex[ubyte & 0xF]);
+         index += 2;
       }
    }
 
@@ -1196,87 +1197,74 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
        * accept paste.
        */
       if (CPClipboard_GetItem(clip, CPFORMAT_RTF, &buf, &sz)) {
-	 g_debug("%s: RTF data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
-	 Gtk::TargetEntry appRtf(TARGET_NAME_APPLICATION_RTF);
-	 Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RICHTEXT);
+         g_debug("%s: RTF data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
+         Gtk::TargetEntry appRtf(TARGET_NAME_APPLICATION_RTF);
+         Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RICHTEXT);
 
-	 targets.push_back(appRtf);
-	 targets.push_back(textRtf);
-	 mHGRTFData = std::string((const char *)buf);
-	 mIsClipboardOwner = true;
+         targets.push_back(appRtf);
+         targets.push_back(textRtf);
+         mHGRTFData = std::string((const char *)buf);
+         mIsClipboardOwner = true;
       }
 
       if (CPClipboard_GetItem(clip, CPFORMAT_TEXT, &buf, &sz)) {
-	 Gtk::TargetEntry stringText(TARGET_NAME_STRING);
-	 Gtk::TargetEntry plainText(TARGET_NAME_TEXT_PLAIN);
-	 Gtk::TargetEntry utf8Text(TARGET_NAME_UTF8_STRING);
-	 Gtk::TargetEntry compountText(TARGET_NAME_COMPOUND_TEXT);
+         Gtk::TargetEntry stringText(TARGET_NAME_STRING);
+         Gtk::TargetEntry plainText(TARGET_NAME_TEXT_PLAIN);
+         Gtk::TargetEntry utf8Text(TARGET_NAME_UTF8_STRING);
+         Gtk::TargetEntry compountText(TARGET_NAME_COMPOUND_TEXT);
 
-	 g_debug("%s: Text data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
-	 targets.push_back(stringText);
-	 targets.push_back(plainText);
-	 targets.push_back(utf8Text);
-	 targets.push_back(compountText);
-	 mHGTextData = utf::string(reinterpret_cast<char *>(buf),
-	                           STRING_ENCODING_UTF8);
-	 mIsClipboardOwner = true;
+         g_debug("%s: Text data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
+         targets.push_back(stringText);
+         targets.push_back(plainText);
+         targets.push_back(utf8Text);
+         targets.push_back(compountText);
+         mHGTextData = utf::string(reinterpret_cast<char *>(buf),
+                                   STRING_ENCODING_UTF8);
+         mIsClipboardOwner = true;
       }
 
       refClipboard->set(targets,
-	                sigc::mem_fun(this, &CopyPasteUIX11::LocalGetTextOrRTFRequestCB),
-	                sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
+                        sigc::mem_fun(this, &CopyPasteUIX11::LocalGetTextOrRTFRequestCB),
+                        sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
       refPrimary->set(targets,
-	              sigc::mem_fun(this, &CopyPasteUIX11::LocalGetTextOrRTFRequestCB),
-	              sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
+                      sigc::mem_fun(this, &CopyPasteUIX11::LocalGetTextOrRTFRequestCB),
+                      sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
       return;
    }
 
-   /*
-    * PR 919414 Something is awry in Gdk::PixbufLoader and libstdc++ on Solaris
-    * 11.
-    *
-    * 1.  Gdk::PixbufLoader throws a Gdk::PixbufError exception, but somehow it
-    *     isn't caught by the `catch (...)` below.
-    * 2.  Even a simple `try { throw 4 } catch (...) { }` ends up bypassing the
-    *     catch block and hitting libstdc++'s default handler.
-    *
-    * For WS 9.0.1, to stave off crashes whenever the VM is grabbed while the
-    * clipboard contains PNG data, I'm #ifndef sun'ng it out.
-    */
-#ifndef sun
    if (CPClipboard_GetItem(clip, CPFORMAT_IMG_PNG, &buf, &sz)) {
       g_debug("%s: PNG data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
       /* Try to load buf into pixbuf, and write to local clipboard. */
       try {
-	 Glib::RefPtr<Gdk::PixbufLoader> loader = Gdk::PixbufLoader::create();
-	 loader->write((const guint8 *)buf, sz);
-	 loader->close();
+         Glib::RefPtr<Gdk::PixbufLoader> loader = Gdk::PixbufLoader::create();
+         loader->write((const guint8 *)buf, sz);
+         loader->close();
 
-	 refClipboard->set_image(loader->get_pixbuf());
-	 refPrimary->set_image(loader->get_pixbuf());
+         refClipboard->set_image(loader->get_pixbuf());
+         refPrimary->set_image(loader->get_pixbuf());
 
-	 /*
-	  * Record current clipboard timestamp to prevent unexpected clipboard
-	  * exchange.
-	  *
-	  * XXX We should do this for all formats.
-	  */
-	 mClipTime = 0;
-	 mPrimTime = 0;
-	 mGetTimestampOnly = true;
-	 refClipboard->request_contents(TARGET_NAME_TIMESTAMP,
-	    sigc::mem_fun(this, &CopyPasteUIX11::LocalClipboardTimestampCB));
+         /*
+          * Record current clipboard timestamp to prevent unexpected clipboard
+          * exchange.
+          *
+          * XXX We should do this for all formats.
+          */
+         mClipTime = 0;
+         mPrimTime = 0;
+         mGetTimestampOnly = true;
+         refClipboard->request_contents(TARGET_NAME_TIMESTAMP,
+            sigc::mem_fun(this, &CopyPasteUIX11::LocalClipboardTimestampCB));
       } catch (const Gdk::PixbufError& e) {
-	 g_debug("%s: caught Gdk::PixbufError %s (domain %d, code %d)\n",
-                 __FUNCTION__, e.what().c_str(), e.domain(), e.code());
-      } catch (const std::exception& e) {
-         g_debug("%s: caught std::exception %s\n", __FUNCTION__, e.what());
+         g_message("%s: caught Gdk::PixbufError %s\n", __FUNCTION__, e.what().c_str());
+      } catch (std::exception& e) {
+         g_message("%s: caught std::exception %s\n", __FUNCTION__, e.what());
       } catch (...) {
-	 g_debug("%s: caught unknown exception\n", __FUNCTION__);
+         g_message("%s: caught unknown exception (typename %s)\n", __FUNCTION__,
+                   __cxxabiv1::__cxa_current_exception_type()->name());
       }
       return;
    }
-#endif
+
    if (CPClipboard_GetItem(clip, CPFORMAT_FILELIST, &buf, &sz)) {
       g_debug("%s: File data.\n", __FUNCTION__);
       DnDFileList flist;
@@ -1285,11 +1273,11 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
       mHGFCPData = flist.GetRelPathsStr();
 
       refClipboard->set(mListTargets,
-	                sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileRequestCB),
-	                sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
+                        sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileRequestCB),
+                        sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
       refPrimary->set(mListTargets,
-	              sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileRequestCB),
-	              sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
+                      sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileRequestCB),
+                      sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
 
       mIsClipboardOwner = true;
       mHGGetListTime = GetCurrentTime();
@@ -1300,13 +1288,13 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
    if (CPClipboard_ItemExists(clip, CPFORMAT_FILECONTENTS)) {
       g_debug("%s: File contents data\n", __FUNCTION__);
       if (LocalPrepareFileContents(clip)) {
-	 refClipboard->set(mListTargets,
-	                   sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileContentsRequestCB),
-	                   sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
-	 refPrimary->set(mListTargets,
-	                 sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileContentsRequestCB),
-	                 sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
-	 mIsClipboardOwner = true;
+         refClipboard->set(mListTargets,
+                           sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileContentsRequestCB),
+                           sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
+         refPrimary->set(mListTargets,
+                         sigc::mem_fun(this, &CopyPasteUIX11::LocalGetFileContentsRequestCB),
+                         sigc::mem_fun(this, &CopyPasteUIX11::LocalClearClipboardCB));
+         mIsClipboardOwner = true;
       }
    }
 }
@@ -1398,9 +1386,9 @@ CopyPasteUIX11::LocalPrepareFileContents(const CPClipboard *clip) // IN
       VmTimeType attrChangeTime = -1;
 
       if (!fileItem[i].cpName.cpName_val ||
-	  0 == fileItem[i].cpName.cpName_len) {
-	 g_debug("%s: invalid fileItem[%"FMTSZ"u].cpName.\n", __FUNCTION__, i);
-	 goto exit;
+          0 == fileItem[i].cpName.cpName_len) {
+         g_debug("%s: invalid fileItem[%"FMTSZ"u].cpName.\n", __FUNCTION__, i);
+         goto exit;
       }
 
       /*
@@ -1411,79 +1399,79 @@ CopyPasteUIX11::LocalPrepareFileContents(const CPClipboard *clip) // IN
        * is NUL terminated.
        */
       CPNameUtil_CharReplace(fileItem[i].cpName.cpName_val,
-	                     fileItem[i].cpName.cpName_len - 1,
-	                     '\0',
-	                     DIRSEPC);
+                             fileItem[i].cpName.cpName_len - 1,
+                             '\0',
+                             DIRSEPC);
       fileName = fileItem[i].cpName.cpName_val;
       filePathName = tempDir;
       filePathName += DIRSEPS + fileName;
 
       if (fileItem[i].validFlags & CP_FILE_VALID_TYPE &&
-	  CP_FILE_TYPE_DIRECTORY == fileItem[i].type) {
-	 if (!File_CreateDirectory(filePathName.c_str())) {
-	    goto exit;
-	 }
-	 g_debug("%s: created directory [%s].\n",
-	           __FUNCTION__, filePathName.c_str());
+          CP_FILE_TYPE_DIRECTORY == fileItem[i].type) {
+         if (!File_CreateDirectory(filePathName.c_str())) {
+            goto exit;
+         }
+         g_debug("%s: created directory [%s].\n",
+                   __FUNCTION__, filePathName.c_str());
       } else if (fileItem[i].validFlags & CP_FILE_VALID_TYPE &&
-	         CP_FILE_TYPE_REGULAR == fileItem[i].type) {
-	 FileIODescriptor file;
-	 FileIOResult fileErr;
+                 CP_FILE_TYPE_REGULAR == fileItem[i].type) {
+         FileIODescriptor file;
+         FileIOResult fileErr;
 
-	 FileIO_Invalidate(&file);
+         FileIO_Invalidate(&file);
 
-	 fileErr = FileIO_Open(&file,
-	                       filePathName.c_str(),
-	                       FILEIO_ACCESS_WRITE,
-	                       FILEIO_OPEN_CREATE_EMPTY);
-	 if (!FileIO_IsSuccess(fileErr)) {
-	    goto exit;
-	 }
+         fileErr = FileIO_Open(&file,
+                               filePathName.c_str(),
+                               FILEIO_ACCESS_WRITE,
+                               FILEIO_OPEN_CREATE_EMPTY);
+         if (!FileIO_IsSuccess(fileErr)) {
+            goto exit;
+         }
 
-	 fileErr = FileIO_Write(&file,
-	                        fileItem[i].content.content_val,
-	                        fileItem[i].content.content_len,
-	                        NULL);
+         fileErr = FileIO_Write(&file,
+                                fileItem[i].content.content_val,
+                                fileItem[i].content.content_len,
+                                NULL);
 
-	 FileIO_Close(&file);
-	 g_debug("%s: created file [%s].\n", __FUNCTION__, filePathName.c_str());
+         FileIO_Close(&file);
+         g_debug("%s: created file [%s].\n", __FUNCTION__, filePathName.c_str());
       } else {
-	 /*
-	  * Right now only Windows can provide CPFORMAT_FILECONTENTS data.
-	  * Symlink file is not expected. Continue with next file if the
-	  * type is not valid.
-	  */
-	 continue;
+         /*
+          * Right now only Windows can provide CPFORMAT_FILECONTENTS data.
+          * Symlink file is not expected. Continue with next file if the
+          * type is not valid.
+          */
+         continue;
       }
 
       /* Update file time attributes. */
       createTime = fileItem->validFlags & CP_FILE_VALID_CREATE_TIME ?
-	 fileItem->createTime: -1;
+         fileItem->createTime: -1;
       accessTime = fileItem->validFlags & CP_FILE_VALID_ACCESS_TIME ?
-	 fileItem->accessTime: -1;
+         fileItem->accessTime: -1;
       writeTime = fileItem->validFlags & CP_FILE_VALID_WRITE_TIME ?
-	 fileItem->writeTime: -1;
+         fileItem->writeTime: -1;
       attrChangeTime = fileItem->validFlags & CP_FILE_VALID_CHANGE_TIME ?
-	 fileItem->attrChangeTime: -1;
+         fileItem->attrChangeTime: -1;
 
       if (!File_SetTimes(filePathName.c_str(),
-	                 createTime,
-	                 accessTime,
-	                 writeTime,
-	                 attrChangeTime)) {
-	 /* Not a critical error, only log it. */
-	 g_debug("%s: File_SetTimes failed with file [%s].\n",
-	       __FUNCTION__, filePathName.c_str());
+                         createTime,
+                         accessTime,
+                         writeTime,
+                         attrChangeTime)) {
+         /* Not a critical error, only log it. */
+         g_debug("%s: File_SetTimes failed with file [%s].\n",
+               __FUNCTION__, filePathName.c_str());
       }
 
       /* Update file permission attributes. */
       if (fileItem->validFlags & CP_FILE_VALID_PERMS) {
-	 if (Posix_Chmod(filePathName.c_str(),
-	                 fileItem->permissions) < 0) {
-	    /* Not a critical error, only log it. */
-	    g_debug("%s: Posix_Chmod failed with file [%s].\n",
-	          __FUNCTION__, filePathName.c_str());
-	 }
+         if (Posix_Chmod(filePathName.c_str(),
+                         fileItem->permissions) < 0) {
+            /* Not a critical error, only log it. */
+            g_debug("%s: Posix_Chmod failed with file [%s].\n",
+                  __FUNCTION__, filePathName.c_str());
+         }
       }
 
       /*
@@ -1491,7 +1479,7 @@ CopyPasteUIX11::LocalPrepareFileContents(const CPClipboard *clip) // IN
        * top level one. We only put top level name into uri list.
        */
       if (fileName.find(DIRSEPS, 0) == utf::string::npos) {
-	 mHGFileContentsList.push_back(filePathName);
+         mHGFileContentsList.push_back(filePathName);
       }
    }
    g_debug("%s: created uri list\n", __FUNCTION__);
@@ -1535,7 +1523,7 @@ CopyPasteUIX11::GetLocalFilesDone(bool success)
       g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
       /* We need to make sure block subsystem has not been shut off. */
       if (DnD_BlockIsReady(mBlockCtrl)) {
-	 mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
+         mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
       }
       mBlockAdded = false;
    }
