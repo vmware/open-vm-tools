@@ -120,14 +120,9 @@
 #endif
 
 /*
- * Only support Linux right now.
- *
- * On Windows, the SAML impersonation story is too shaky to trust,
- * and without that, there's no reason to support AliasManager APIs.
- *
  * No support for open-vm-tools.
  */
-#if defined(linux) && !defined(OPEN_VM_TOOLS)
+#if (defined(_WIN32) ||  defined(linux)) && !defined(OPEN_VM_TOOLS)
 #define SUPPORT_VGAUTH 1
 #else
 #define SUPPORT_VGAUTH 0
