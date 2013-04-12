@@ -514,6 +514,7 @@ CPUID_81_ECX_17 \
 FLAG(  81,  0, ECX, 19,  1, NODEID_MSR,                             NO,  FALSE) \
 FLAG(  81,  0, ECX, 21,  1, TBM,                                    YES, TRUE)  \
 FLAG(  81,  0, ECX, 22,  1, TOPOLOGY,                               NO,  FALSE) \
+FLAG(  81,  0, ECX, 23,  1, PERFCORE,                               ANY, TRUE)  \
 FLAG(  81,  0, EDX,  0,  1, LEAF81_FPU,                             YES, TRUE)  \
 FLAG(  81,  0, EDX,  1,  1, LEAF81_VME,                             YES, FALSE) \
 FLAG(  81,  0, EDX,  2,  1, LEAF81_DE,                              YES, FALSE) \
