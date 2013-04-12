@@ -167,24 +167,6 @@ HgfsTransportSetupNewChannel(void)
 
    USE_VMCI = 0;
 
-   newChannel = HgfsGetVSocketChannel();
-   if (newChannel != NULL) {
-      if (HgfsTransportOpenChannel(newChannel)) {
-         hgfsChannel = newChannel;
-         LOG(10, ("CHANNEL: Vsocket channel\n"));
-         return TRUE;
-      }
-   }
-
-   newChannel = HgfsGetTcpChannel();
-   if (newChannel != NULL) {
-      if (HgfsTransportOpenChannel(newChannel)) {
-         hgfsChannel = newChannel;
-         LOG(10, ("CHANNEL: Tcp channel\n"));
-         return TRUE;
-      }
-   }
-
    newChannel = HgfsGetBdChannel();
    LOG(10, ("CHANNEL: Bd channel\n"));
    ASSERT(newChannel);

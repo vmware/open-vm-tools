@@ -67,8 +67,6 @@ void HgfsTransportFlushRequests(void);
 void HgfsTransportMarkDead(void);
 
 HgfsTransportChannel* HgfsGetVmciChannel(void);
-HgfsTransportChannel* HgfsGetTcpChannel(void);
-HgfsTransportChannel* HgfsGetVSocketChannel(void);
 HgfsTransportChannel *HgfsGetBdChannel(void);
 
 #endif // _HGFS_DRIVER_TRANSPORT_H_
