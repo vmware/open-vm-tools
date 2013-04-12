@@ -698,6 +698,11 @@ VmBackupStartCommon(RpcInData *data,
    return RPCIN_SETRETVALS(data, "", TRUE);
 
 error:
+   if (gBackupState->keepAlive != NULL) {
+      g_source_destroy(gBackupState->keepAlive);
+      g_source_unref(gBackupState->keepAlive);
+      gBackupState->keepAlive = NULL;
+   }
    if (gBackupState->provider) {
       gBackupState->provider->release(gBackupState->provider);
    }
