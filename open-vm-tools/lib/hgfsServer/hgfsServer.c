@@ -44,6 +44,7 @@
 #include "util.h"
 #include "wiper.h"
 #include "hgfsServer.h"
+#include "hgfsServerParameters.h"
 #include "hgfsServerOplock.h"
 #include "hgfsDirNotify.h"
 #include "hgfsTransport.h"
