@@ -75,6 +75,9 @@ struct HgfsPacket {
    size_t replyPacketSize;
    Bool replyPacketIsAllocated;
 
+   /* Iov for the packet private to the channel. */
+   HgfsVmxIov channelIov[2];
+
    uint32 iovCount;
    HgfsVmxIov iov[1];
 
