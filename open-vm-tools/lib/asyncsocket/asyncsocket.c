@@ -2549,6 +2549,71 @@ bye:
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncSocketCheckAndDispatchRecv --
+ *
+ *      Check if the recv buffer is full and dispatch the client callback.
+ *
+ *      Handles the possibility that the client registers a new receive buffer
+ *      or closes the socket in their callback.
+ *
+ * Results:
+ *      TRUE if the socket was closed or the receive was cancelled,
+ *      FALSE if the caller should continue to try to receive data.
+ *
+ * Side effects:
+ *      Could fire recv completion or trigger socket destruction.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+AsyncSocketCheckAndDispatchRecv(AsyncSocket *s,  // IN
+                                int *result)     // OUT
+{
+   ASSERT(s);
+   ASSERT(result);
+
+   if (s->recvPos == s->recvLen || s->recvFireOnPartial) {
+      void *recvBuf = s->recvBuf;
+      ASOCKLOG(3, s, ("recv buffer full, calling recvFn\n"));
+
+      /*
+       * We do this dance in case the handler frees the buffer (so
+       * that there's no possible window where there are dangling
+       * references here.  Obviously if the handler frees the buffer,
+       * but them fails to register a new one, we'll put back the
+       * dangling reference in the automatic reset case below, but
+       * there's currently a limit to how far we go to shield clients
+       * who use our API in a broken way.
+       */
+
+      s->recvBuf = NULL;
+      s->recvFn(recvBuf, s->recvPos, s, s->clientData);
+      if (s->state == AsyncSocketClosed) {
+         ASOCKLG0(s, ("owner closed connection in recv callback\n"));
+         *result = ASOCKERR_CLOSED;
+         return TRUE;
+      } else if (s->recvFn == NULL && s->recvLen == 0) {
+         /*
+          * Further recv is cancelled from within the last recvFn, see
+          * AsyncSocket_CancelRecv(). So exit from the loop.
+          */
+         *result = ASOCKERR_SUCCESS;
+         return TRUE;
+      } else if (s->recvLen - s->recvPos == 0) {
+         /* Automatically reset keeping the current handler */
+         s->recvPos = 0;
+         s->recvBuf = recvBuf;
+      }
+   }
+
+   return FALSE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncSocketFillRecvBuffer --
  *
  *      Called when an asock has data ready to be read via the poll callback.
@@ -2628,38 +2693,8 @@ AsyncSocketFillRecvBuffer(AsyncSocket *s)
       if (recvd > 0) {
          s->sslConnected = TRUE;
          s->recvPos += recvd;
-         if (s->recvPos == s->recvLen || s->recvFireOnPartial) {
-            void *recvBuf = s->recvBuf;
-            ASOCKLOG(3, s, ("recv buffer full, calling recvFn\n"));
-
-            /*
-             * We do this dance in case the handler frees the buffer (so
-             * that there's no possible window where there are dangling
-             * references here.  Obviously if the handler frees the buffer,
-             * but them fails to register a new one, we'll put back the
-             * dangling reference in the automatic reset case below, but
-             * there's currently a limit to how far we go to shield clients
-             * who use our API in a broken way.
-             */
-
-            s->recvBuf = NULL;
-            s->recvFn(recvBuf, s->recvPos, s, s->clientData);
-            if (s->state == AsyncSocketClosed) {
-               ASOCKLG0(s, ("owner closed connection in recv callback\n"));
-               result = ASOCKERR_CLOSED;
-               goto exit;
-            } else if (s->recvFn == NULL && s->recvLen == 0) {
-               /*
-                * Further recv is cancelled from within the last recvFn, see
-                * AsyncSocket_CancelRecv(). So exit from the loop.
-                */
-
-               break;
-            } else if (s->recvLen - s->recvPos == 0) {
-               /* Automatically reset keeping the current handler */
-               s->recvPos = 0;
-               s->recvBuf = recvBuf;
-            }
+         if (AsyncSocketCheckAndDispatchRecv(s, &result)) {
+            goto exit;
          }
       } else if (recvd == 0) {
          ASOCKLG0(s, ("recv detected client closed connection\n"));

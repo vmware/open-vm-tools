@@ -260,6 +260,8 @@ struct AsyncSocket {
       struct VSockSocket *socket;
       Bool signalCb;
       uint32 opMask;
+      void *partialRecvBuf;
+      uint32 partialRecvLen;
    } vmci;
 };
 
@@ -305,6 +307,7 @@ Bool AsyncSocketIsLocked(AsyncSocket *asock);
 void AsyncSocketHandleError(AsyncSocket *asock, int asockErr);
 int AsyncSocketFillRecvBuffer(AsyncSocket *s);
 void AsyncSocketDispatchSentBuffer(AsyncSocket *s);
+Bool AsyncSocketCheckAndDispatchRecv(AsyncSocket *s, int *error);
 int AsyncSocketSendInternal(AsyncSocket *asock, void *buf, int len,
                             AsyncSocketSendFn sendFn, void *clientData,
                             Bool *bufferListWasEmpty);
