@@ -789,7 +789,7 @@ HgfsPlatformScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get na
                      uint32 *numDents);                // OUT: total number of directory entrys
 HgfsInternalStatus
 HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
-                      char *dirName,                   // IN: relative directory name
+                      const char *dirName,             // IN: relative directory name
                       uint32 dirNameLength,            // IN: length of dirName
                       uint32 caseFlags,                // IN: case flags
                       HgfsShareInfo *shareInfo,        // IN: sharfed folder information

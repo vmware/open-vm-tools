@@ -4225,7 +4225,7 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
 
 HgfsInternalStatus
 HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
-                      char *dirName,                   // IN: relative directory name
+                      const char *dirName,             // IN: relative directory name
                       uint32 dirNameLength,            // IN: length of dirName
                       uint32 caseFlags,                // IN: case flags
                       HgfsShareInfo *shareInfo,        // IN: sharfed folder information
@@ -4238,8 +4238,8 @@ HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
    switch (nameStatus) {
    case HGFS_NAME_STATUS_COMPLETE:
    {
-      char *inEnd;
-      char *next;
+      const char *inEnd;
+      const char *next;
       int len;
 
       ASSERT(baseDir);
@@ -4249,16 +4249,17 @@ HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
       inEnd = dirName + dirNameLength;
 
       /* Get the first component. */
-      len = CPName_GetComponent(dirName, inEnd, (char const **) &next);
+      len = CPName_GetComponent(dirName, inEnd, &next);
       if (len >= 0) {
          if (*inEnd != '\0') {
+            LOG(4, ("%s: dir name not nul-terminated!\n", __FUNCTION__));
             /*
              * NT4 clients can send the name without a nul-terminator.
-             * The space for the  nul is included and tested for in the size
+             * The space for the nul is included and tested for in the size
              * calculations above. Size of structure (includes a single
              * character of the name) and the full dirname length.
              */
-            *inEnd = '\0';
+            *(char *)inEnd = '\0';
          }
 
          LOG(4, ("%s: dirName: %s.\n", __FUNCTION__, dirName));

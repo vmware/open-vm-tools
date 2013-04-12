@@ -4610,8 +4610,8 @@ HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filen
                            size_t *outLen)          // OUT: Length of name out optional
 {
    HgfsNameStatus nameStatus;
-   char const *inEnd;
-   char *next;
+   const char *inEnd;
+   const char *next;
    char *myBufOut;
    char *convertedMyBufOut;
    char *out;
@@ -4639,7 +4639,7 @@ HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filen
    /*
     * Get first component.
     */
-   len = CPName_GetComponent(cpName, inEnd, (char const **) &next);
+   len = CPName_GetComponent(cpName, inEnd, &next);
    if (len < 0) {
       LOG(4, ("%s: get first component failed\n", __FUNCTION__));
 
@@ -5995,7 +5995,7 @@ HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
                                    &dirName, &dirNameLength, &caseFlags)) {
       nameStatus = HgfsServerGetLocalNameInfo(dirName, dirNameLength, caseFlags,
                                               &shareInfo, &baseDir, &baseDirLen);
-      status = HgfsPlatformSearchDir(nameStatus, (char *)dirName, dirNameLength, caseFlags,
+      status = HgfsPlatformSearchDir(nameStatus, dirName, dirNameLength, caseFlags,
                                      &shareInfo, baseDir, baseDirLen,
                                      input->session, &search);
       if (HGFS_ERROR_SUCCESS == status) {
