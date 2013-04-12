@@ -5613,7 +5613,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
    HgfsInternalStatus status;
    HgfsWriteFlags flags;
    uint64 offset;
-   char *dataToWrite;
+   const char *dataToWrite;
    uint32 replyActualSize;
    size_t replyPayloadSize = 0;
    HgfsHandle file;
@@ -5624,7 +5624,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
                               &flags, &dataToWrite)) {
 
       status = HgfsPlatformWriteFile(file, input->session, offset, numberBytesToWrite,
-                                     flags, dataToWrite, &replyActualSize);
+                                     flags, (void *)dataToWrite, &replyActualSize);
       if (HGFS_ERROR_SUCCESS == status) {
           if (!HgfsPackWriteReply(input->packet, input->metaPacket, input->op,
                                   replyActualSize, &replyPayloadSize, input->session)) {
@@ -5662,7 +5662,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
  */
 static HgfsInternalStatus
 HgfsServerQueryVolInt(HgfsSessionInfo *session,   // IN: session info
-                      char *fileName,             // IN: cpName for the volume
+                      const char *fileName,       // IN: cpName for the volume
                       size_t fileNameLength,      // IN: cpName length
                       uint32 caseFlags,           // IN: case sensitive/insensitive name
                       uint64 *freeBytes,          // OUT: free space in bytes
@@ -5677,8 +5677,11 @@ HgfsServerQueryVolInt(HgfsSessionInfo *session,   // IN: session info
    HgfsShareInfo shareInfo;
    VolumeInfoType infoType;
 
-   /* It is now safe to read the file name field. */
-   nameStatus = HgfsServerGetShareInfo(fileName,
+   /*
+    * XXX - make the filename const!
+    * It is now safe to read the file name field.
+    */
+   nameStatus = HgfsServerGetShareInfo((char *)fileName,
                                        fileNameLength,
                                        caseFlags,
                                        &shareInfo,
@@ -5758,7 +5761,7 @@ HgfsServerQueryVolume(HgfsInputParam *input)  // IN: Input params
    HgfsInternalStatus status;
    size_t replyPayloadSize = 0;
    HgfsHandle file;
-   char *fileName;
+   const char *fileName;
    size_t fileNameLength;
    uint32 caseFlags;
    Bool useHandle;
@@ -5821,10 +5824,10 @@ HgfsServerQueryVolume(HgfsInputParam *input)  // IN: Input params
 
 HgfsInternalStatus
 HgfsSymlinkCreate(HgfsSessionInfo *session, // IN: session info,
-                  char *srcFileName,        // IN: symbolic link file name
+                  const char *srcFileName,  // IN: symbolic link file name
                   uint32 srcFileNameLength, // IN: symbolic link name length
                   uint32 srcCaseFlags,      // IN: symlink case flags
-                  char *trgFileName,        // IN: symbolic link target name
+                  const char *trgFileName,  // IN: symbolic link target name
                   uint32 trgFileNameLength, // IN: target name length
                   uint32 trgCaseFlags)      // IN: target case flags
 {
@@ -5841,7 +5844,7 @@ HgfsSymlinkCreate(HgfsSessionInfo *session, // IN: session info,
     * "targetName" field
     */
 
-   nameStatus = HgfsServerGetShareInfo(srcFileName,
+   nameStatus = HgfsServerGetShareInfo((char *)srcFileName,
                                        srcFileNameLength,
                                        srcCaseFlags,
                                        &shareInfo,
@@ -5911,12 +5914,12 @@ HgfsServerSymlinkCreate(HgfsInputParam *input)  // IN: Input params
 {
    HgfsInternalStatus status;
    HgfsHandle srcFile;
-   char *srcFileName;
+   const char *srcFileName;
    size_t srcFileNameLength;
    uint32 srcCaseFlags;
    Bool srcUseHandle;
    HgfsHandle trgFile;
-   char *trgFileName;
+   const char *trgFileName;
    size_t trgFileNameLength;
    uint32 trgCaseFlags;
    Bool trgUseHandle;
@@ -5976,7 +5979,7 @@ HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
 {
    HgfsInternalStatus status;
    size_t replyPayloadSize = 0;
-   char *dirName;
+   const char *dirName;
    uint32 dirNameLength;
    uint32 caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
    HgfsHandle search;
@@ -5989,9 +5992,9 @@ HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
 
    if (HgfsUnpackSearchOpenRequest(input->payload, input->payloadSize, input->op,
                                    &dirName, &dirNameLength, &caseFlags)) {
-      nameStatus = HgfsServerGetShareInfo(dirName, dirNameLength, caseFlags, &shareInfo,
-                                          &baseDir, &baseDirLen);
-      status = HgfsPlatformSearchDir(nameStatus, dirName, dirNameLength, caseFlags,
+      nameStatus = HgfsServerGetShareInfo((char *)dirName, dirNameLength, caseFlags,
+                                          &shareInfo, &baseDir, &baseDirLen);
+      status = HgfsPlatformSearchDir(nameStatus, (char *)dirName, dirNameLength, caseFlags,
                                      &shareInfo, baseDir, baseDirLen,
                                      input->session, &search);
       if (HGFS_ERROR_SUCCESS == status) {
@@ -6029,7 +6032,7 @@ HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
 HgfsInternalStatus
 HgfsValidateRenameFile(Bool useHandle,            // IN:
                        HgfsHandle fileHandle,     // IN:
-                       char *cpName,              // IN:
+                       const char *cpName,        // IN:
                        size_t cpNameLength,       // IN:
                        uint32 caseFlags,          // IN:
                        HgfsSessionInfo *session,  // IN: Session info
@@ -6068,7 +6071,7 @@ HgfsValidateRenameFile(Bool useHandle,            // IN:
          status = HGFS_ERROR_ACCESS_DENIED;
       }
    } else {
-      nameStatus = HgfsServerGetShareInfo(cpName,
+      nameStatus = HgfsServerGetShareInfo((char *)cpName,
                                           cpNameLength,
                                           caseFlags,
                                           shareInfo,
@@ -6136,9 +6139,9 @@ HgfsServerRename(HgfsInputParam *input)  // IN: Input params
    size_t utf8OldNameLen;
    char *utf8NewName = NULL;
    size_t utf8NewNameLen;
-   char *cpOldName;
+   const char *cpOldName;
    size_t cpOldNameLen;
-   char *cpNewName;
+   const char *cpNewName;
    size_t cpNewNameLen;
    HgfsInternalStatus status;
    fileDesc srcFileDesc;
@@ -6355,7 +6358,7 @@ HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
 static void
 HgfsServerDeleteFile(HgfsInputParam *input)  // IN: Input params
 {
-   char *cpName;
+   const char *cpName;
    size_t cpNameSize;
    HgfsLockType serverLock = HGFS_LOCK_NONE;
    fileDesc fileDesc;
@@ -6377,7 +6380,7 @@ HgfsServerDeleteFile(HgfsInputParam *input)  // IN: Input params
          char *utf8Name = NULL;
          size_t utf8NameLen;
 
-         nameStatus = HgfsServerGetShareInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+         nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
                                              &utf8Name, &utf8NameLen);
          if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
             /*
@@ -6447,7 +6450,7 @@ HgfsServerDeleteFile(HgfsInputParam *input)  // IN: Input params
 static void
 HgfsServerDeleteDir(HgfsInputParam *input)  // IN: Input params
 {
-   char *cpName;
+   const char *cpName;
    size_t cpNameSize;
    HgfsInternalStatus status;
    HgfsNameStatus nameStatus;
@@ -6487,7 +6490,7 @@ HgfsServerDeleteDir(HgfsInputParam *input)  // IN: Input params
          char *utf8Name = NULL;
          size_t utf8NameLen;
 
-         nameStatus = HgfsServerGetShareInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+         nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
                                              &utf8Name, &utf8NameLen);
          if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
             ASSERT(utf8Name);
@@ -6580,7 +6583,7 @@ HgfsServerWriteWin32Stream(HgfsInputParam *input)  // IN: Input params
    uint32  actualSize;
    HgfsInternalStatus status;
    HgfsHandle file;
-   char *dataToWrite;
+   const char *dataToWrite;
    Bool doSecurity;
    size_t replyPayloadSize = 0;
    size_t requiredSize;
@@ -6589,7 +6592,7 @@ HgfsServerWriteWin32Stream(HgfsInputParam *input)  // IN: Input params
 
    if (HgfsUnpackWriteWin32StreamRequest(input->payload, input->payloadSize, input->op, &file,
                                          &dataToWrite, &requiredSize, &doSecurity)) {
-      status = HgfsPlatformWriteWin32Stream(file, dataToWrite, (uint32)requiredSize,
+      status = HgfsPlatformWriteWin32Stream(file, (char *)dataToWrite, (uint32)requiredSize,
                                             doSecurity, &actualSize, input->session);
       if (HGFS_ERROR_SUCCESS == status) {
          if (!HgfsPackWriteWin32StreamReply(input->packet, input->metaPacket, input->op,
@@ -6675,7 +6678,7 @@ HgfsServerSetDirWatchByHandle(HgfsInputParam *input,         // IN: Input params
 
 static HgfsInternalStatus
 HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
-                            char *cpName,                  // IN: directory name
+                            const char *cpName,            // IN: directory name
                             uint32 cpNameSize,             // IN: directory name length
                             uint32 caseFlags,              // IN: case flags
                             uint32 events,                 // IN: event types to report
@@ -6694,7 +6697,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
 
    LOG(8, ("%s: entered\n",__FUNCTION__));
 
-   nameStatus = HgfsServerGetShareInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+   nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
                                        &utf8Name, &utf8NameLen);
    if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
       char const *inEnd = cpName + cpNameSize;
@@ -6788,7 +6791,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
 static void
 HgfsServerSetDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
 {
-   char *cpName;
+   const char *cpName;
    size_t cpNameSize;
    HgfsInternalStatus status;
    HgfsHandle dir;
@@ -6925,7 +6928,7 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
    HgfsFileAttrInfo attr;
    HgfsInternalStatus status = 0;
    HgfsNameStatus nameStatus;
-   char *cpName;
+   const char *cpName;
    size_t cpNameSize;
    char *targetName = NULL;
    uint32 targetNameLen = 0;
@@ -6957,7 +6960,7 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
           * Depending on whether this file/dir is real or virtual, either
           * forge its attributes or look them up in the actual filesystem.
           */
-         nameStatus = HgfsServerGetShareInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+         nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
                                              &localName, &localNameLen);
          switch (nameStatus) {
          case HGFS_NAME_STATUS_INCOMPLETE_BASE:
@@ -6978,7 +6981,7 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
             nameStatus = HgfsServerPolicy_GetShareOptions(cpName, cpNameSize,
                                                           &configOptions);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
-               status = HgfsPlatformGetattrFromName(localName, configOptions, cpName, &attr,
+               status = HgfsPlatformGetattrFromName(localName, configOptions, (char *)cpName, &attr,
                                                     &targetName);
             } else {
                LOG(4, ("%s: no matching share: %s.\n", __FUNCTION__, cpName));
@@ -7051,7 +7054,7 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
    HgfsNameStatus nameStatus;
    HgfsFileAttrInfo attr;
-   char *cpName;
+   const char *cpName;
    size_t cpNameSize = 0;
    HgfsAttrHint hints = 0;
    HgfsOpenMode shareMode;
@@ -7087,7 +7090,7 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
          char *utf8Name = NULL;
          size_t utf8NameLen;
 
-         nameStatus = HgfsServerGetShareInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+         nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
                                              &utf8Name, &utf8NameLen);
          if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
             fileDesc hFile;

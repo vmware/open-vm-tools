@@ -31,6 +31,7 @@
 #include "util.h"
 #include "wiper.h"
 #include "vm_basic_asm.h"
+#include "hgfsServerParameters.h"
 
 #define LOGLEVEL_MODULE hgfs
 #include "loglevel_user.h"
@@ -147,14 +148,14 @@ HgfsValidatePacket(char const *packetIn,  // IN: request packet
                    size_t packetSize,     // IN: request packet size
                    Bool v4header)         // IN: HGFS header type
 {
-   HgfsRequest *request = (HgfsRequest *)packetIn;
+   const HgfsRequest *request = (const HgfsRequest *)packetIn;
    Bool result = TRUE;
    if (packetSize < sizeof *request) {
       LOG(4, ("%s: Malformed HGFS packet received - packet too small!\n", __FUNCTION__));
       return FALSE;
    }
    if (v4header) {
-      HgfsHeader *header = (HgfsHeader *)packetIn;
+      const HgfsHeader *header = (const HgfsHeader *)packetIn;
       ASSERT(packetSize >= header->packetSize);
       ASSERT(header->packetSize >= header->headerSize);
       result = packetSize >= offsetof(HgfsHeader, requestId) &&
@@ -420,10 +421,10 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackOpenPayloadV1(HgfsRequestOpen *requestV1, // IN: request payload
-                        size_t payloadSize,         // IN: request payload size
-                        HgfsFileOpenInfo *openInfo) // IN/OUT: open info struct
+static Bool
+HgfsUnpackOpenPayloadV1(const HgfsRequestOpen *requestV1, // IN: request payload
+                        size_t payloadSize,               // IN: request payload size
+                        HgfsFileOpenInfo *openInfo)       // IN/OUT: open info struct
 {
    size_t extra;
 
@@ -451,7 +452,7 @@ HgfsUnpackOpenPayloadV1(HgfsRequestOpen *requestV1, // IN: request payload
                     HGFS_OPEN_VALID_OWNER_PERMS |
                     HGFS_OPEN_VALID_FILE_NAME;
    openInfo->mode = requestV1->mode;
-   openInfo->cpName = requestV1->fileName.name;
+   openInfo->cpName = (char *)requestV1->fileName.name;
    openInfo->cpNameSize = requestV1->fileName.length;
    openInfo->flags = requestV1->flags;
    openInfo->ownerPerms = requestV1->permissions;
@@ -477,10 +478,10 @@ HgfsUnpackOpenPayloadV1(HgfsRequestOpen *requestV1, // IN: request payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackOpenPayloadV2(HgfsRequestOpenV2 *requestV2, // IN: request payload
-                        size_t payloadSize,           // IN: request payload size
-                        HgfsFileOpenInfo *openInfo)   // IN/OUT: open info struct
+static Bool
+HgfsUnpackOpenPayloadV2(const HgfsRequestOpenV2 *requestV2, // IN: request payload
+                        size_t payloadSize,                 // IN: request payload size
+                        HgfsFileOpenInfo *openInfo)         // IN/OUT: open info struct
 {
    size_t extra;
 
@@ -516,7 +517,7 @@ HgfsUnpackOpenPayloadV2(HgfsRequestOpenV2 *requestV2, // IN: request payload
 
    openInfo->mask = requestV2->mask;
    openInfo->mode = requestV2->mode;
-   openInfo->cpName = requestV2->fileName.name;
+   openInfo->cpName = (char *)requestV2->fileName.name;
    openInfo->cpNameSize = requestV2->fileName.length;
    openInfo->flags = requestV2->flags;
    openInfo->specialPerms = requestV2->specialPerms;
@@ -550,10 +551,10 @@ HgfsUnpackOpenPayloadV2(HgfsRequestOpenV2 *requestV2, // IN: request payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackOpenPayloadV3(HgfsRequestOpenV3 *requestV3, // IN: request payload
-                        size_t payloadSize,           // IN: request payload size
-                        HgfsFileOpenInfo *openInfo)   // IN/OUT: open info struct
+static Bool
+HgfsUnpackOpenPayloadV3(const HgfsRequestOpenV3 *requestV3, // IN: request payload
+                        size_t payloadSize,                 // IN: request payload size
+                        HgfsFileOpenInfo *openInfo)         // IN/OUT: open info struct
 {
    size_t extra;
 
@@ -588,7 +589,7 @@ HgfsUnpackOpenPayloadV3(HgfsRequestOpenV3 *requestV3, // IN: request payload
     */
    openInfo->mask = requestV3->mask;
    openInfo->mode = requestV3->mode;
-   openInfo->cpName = requestV3->fileName.name;
+   openInfo->cpName = (char *)requestV3->fileName.name;
    openInfo->cpNameSize = requestV3->fileName.length;
    openInfo->caseFlags = requestV3->fileName.caseType;
    openInfo->flags = requestV3->flags;
@@ -639,21 +640,21 @@ HgfsUnpackOpenRequest(void const *packet,         // IN: HGFS packet
 
    switch (op) {
    case HGFS_OP_OPEN_V3: {
-         HgfsRequestOpenV3 *requestV3 = (HgfsRequestOpenV3 *)packet;
+         const HgfsRequestOpenV3 *requestV3 = packet;
          LOG(4, ("%s: HGFS_OP_OPEN_V3\n", __FUNCTION__));
 
          result = HgfsUnpackOpenPayloadV3(requestV3, packetSize, openInfo);
          break;
       }
    case HGFS_OP_OPEN_V2: {
-         HgfsRequestOpenV2 *requestV2 = (HgfsRequestOpenV2 *)packet;
+         const HgfsRequestOpenV2 *requestV2 = packet;
          LOG(4, ("%s: HGFS_OP_OPEN_V2\n", __FUNCTION__));
 
          result = HgfsUnpackOpenPayloadV2(requestV2, packetSize, openInfo);
          break;
       }
    case HGFS_OP_OPEN: {
-         HgfsRequestOpen *requestV1 = (HgfsRequestOpen *)packet;
+         const HgfsRequestOpen *requestV1 = packet;
          LOG(4, ("%s: HGFS_OP_OPEN\n", __FUNCTION__));
 
          result = HgfsUnpackOpenPayloadV1(requestV1, packetSize, openInfo);
@@ -908,10 +909,10 @@ HgfsPackOpenReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackClosePayload(HgfsRequestClose *request,   // IN: payload
-                       size_t payloadSize,          // IN: payload size
-                       HgfsHandle* file)            // OUT: HGFS handle to close
+static Bool
+HgfsUnpackClosePayload(const HgfsRequestClose *request,   // IN: payload
+                       size_t payloadSize,                // IN: payload size
+                       HgfsHandle* file)                  // OUT: HGFS handle to close
 {
    LOG(4, ("%s: HGFS_OP_CLOSE\n", __FUNCTION__));
    if (payloadSize >= sizeof *request) {
@@ -939,10 +940,10 @@ HgfsUnpackClosePayload(HgfsRequestClose *request,   // IN: payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackClosePayloadV3(HgfsRequestCloseV3 *requestV3, // IN: payload
-                         size_t payloadSize,            // IN: payload size
-                         HgfsHandle* file)              // OUT: HGFS handle to close
+static Bool
+HgfsUnpackClosePayloadV3(const HgfsRequestCloseV3 *requestV3, // IN: payload
+                         size_t payloadSize,                  // IN: payload size
+                         HgfsHandle* file)                    // OUT: HGFS handle to close
 {
    LOG(4, ("%s: HGFS_OP_CLOSE_V3\n", __FUNCTION__));
    if (payloadSize >= sizeof *requestV3) {
@@ -981,23 +982,23 @@ HgfsUnpackCloseRequest(void const *packet,  // IN: request packet
 
    switch (op) {
    case HGFS_OP_CLOSE_V3: {
-         HgfsRequestCloseV3 *requestV3 = (HgfsRequestCloseV3 *)packet;
+      const HgfsRequestCloseV3 *requestV3 = packet;
 
-         if (!HgfsUnpackClosePayloadV3(requestV3, packetSize, file)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+      if (!HgfsUnpackClosePayloadV3(requestV3, packetSize, file)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      break;
+   }
    case HGFS_OP_CLOSE: {
-         HgfsRequestClose *requestV1 = (HgfsRequestClose *)packet;
+      const HgfsRequestClose *requestV1 = packet;
 
-         if (!HgfsUnpackClosePayload(requestV1, packetSize, file)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+      if (!HgfsUnpackClosePayload(requestV1, packetSize, file)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      break;
+   }
    default:
       NOT_REACHED();
       return FALSE;
@@ -1085,10 +1086,10 @@ HgfsPackCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackSearchClosePayload(HgfsRequestSearchClose *request, // IN: payload
-                             size_t payloadSize,              // IN: payload size
-                             HgfsHandle* search)              // OUT: search to close
+static Bool
+HgfsUnpackSearchClosePayload(const HgfsRequestSearchClose *request, // IN: payload
+                             size_t payloadSize,                    // IN: payload size
+                             HgfsHandle* search)                    // OUT: search to close
 {
    LOG(4, ("%s: HGFS_OP_SEARCH_CLOSE\n", __FUNCTION__));
    if (payloadSize >= sizeof *request) {
@@ -1118,10 +1119,10 @@ HgfsUnpackSearchClosePayload(HgfsRequestSearchClose *request, // IN: payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackSearchClosePayloadV3(HgfsRequestSearchCloseV3 *requestV3, // IN: payload
-                               size_t payloadSize,                  // IN: payload size
-                               HgfsHandle* search)                  // OUT: search
+static Bool
+HgfsUnpackSearchClosePayloadV3(const HgfsRequestSearchCloseV3 *requestV3, // IN: payload
+                               size_t payloadSize,                        // IN: payload size
+                               HgfsHandle* search)                        // OUT: search
 {
    LOG(4, ("%s: HGFS_OP_SEARCH_CLOSE_V3\n", __FUNCTION__));
    if (payloadSize >= sizeof *requestV3) {
@@ -1160,23 +1161,23 @@ HgfsUnpackSearchCloseRequest(void const *packet,   // IN: request packet
 
    switch (op) {
    case HGFS_OP_SEARCH_CLOSE_V3: {
-         HgfsRequestSearchCloseV3 *requestV3 = (HgfsRequestSearchCloseV3 *)packet;
+      const HgfsRequestSearchCloseV3 *requestV3 = packet;
 
-         if (!HgfsUnpackSearchClosePayloadV3(requestV3, packetSize, search)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+      if (!HgfsUnpackSearchClosePayloadV3(requestV3, packetSize, search)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      break;
+   }
    case HGFS_OP_SEARCH_CLOSE: {
-         HgfsRequestSearchClose *requestV1 = (HgfsRequestSearchClose *)packet;
+      const HgfsRequestSearchClose *requestV1 = packet;
 
-         if (!HgfsUnpackSearchClosePayload(requestV1, packetSize, search)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+      if (!HgfsUnpackSearchClosePayload(requestV1, packetSize, search)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      break;
+   }
    default:
       NOT_REACHED();
       return FALSE;
@@ -1265,11 +1266,11 @@ HgfsPackSearchCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackFileName(HgfsFileName *name,     // IN: file name
-                   size_t maxNameSize,     // IN: space allocated for the name
-                   char **cpName,          // OUT: CP name
-                   size_t *cpNameSize)     // OUT: CP name size
+static Bool
+HgfsUnpackFileName(const HgfsFileName *name,     // IN: file name
+                   size_t maxNameSize,           // IN: space allocated for the name
+                   const char **cpName,          // OUT: CP name
+                   size_t *cpNameSize)           // OUT: CP name size
 {
    /*
     * The request file name length is user-provided, so this test must be
@@ -1303,14 +1304,14 @@ HgfsUnpackFileName(HgfsFileName *name,     // IN: file name
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackFileNameV3(HgfsFileNameV3 *name,   // IN: file name
-                     size_t maxNameSize,     // IN: space allocated for the name
-                     Bool *useHandle,        // OUT: file name or handle returned?
-                     char **cpName,          // OUT: CP name
-                     size_t *cpNameSize,     // OUT: CP name size
-                     HgfsHandle *file,       // OUT: HGFS file handle
-                     uint32 *caseFlags)      // OUT: case-sensitivity flags
+static Bool
+HgfsUnpackFileNameV3(const HgfsFileNameV3 *name,   // IN: file name
+                     size_t maxNameSize,           // IN: space allocated for the name
+                     Bool *useHandle,              // OUT: file name or handle returned?
+                     const char **cpName,          // OUT: CP name
+                     size_t *cpNameSize,           // OUT: CP name size
+                     HgfsHandle *file,             // OUT: HGFS file handle
+                     uint32 *caseFlags)            // OUT: case-sensitivity flags
 {
    /*
     * If we've been asked to reuse a handle, we don't need to look at, let
@@ -1366,14 +1367,14 @@ HgfsUnpackFileNameV3(HgfsFileNameV3 *name,   // IN: file name
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackDeletePayloadV3(HgfsRequestDeleteV3 *requestV3, // IN: request payload
-                          size_t payloadSize,             // IN: payload size
-                          char **cpName,                  // OUT: cpName
-                          size_t *cpNameSize,             // OUT: cpName size
-                          HgfsDeleteHint *hints,          // OUT: delete hints
-                          HgfsHandle *file,               // OUT: file handle
-                          uint32 *caseFlags)              // OUT: case-sensitivity flags
+static Bool
+HgfsUnpackDeletePayloadV3(const HgfsRequestDeleteV3 *requestV3, // IN: request payload
+                          size_t payloadSize,                   // IN: payload size
+                          const char **cpName,                  // OUT: cpName
+                          size_t *cpNameSize,                   // OUT: cpName size
+                          HgfsDeleteHint *hints,                // OUT: delete hints
+                          HgfsHandle *file,                     // OUT: file handle
+                          uint32 *caseFlags)                    // OUT: case-sensitivity flags
 {
    Bool result;
    Bool useHandle;
@@ -1423,13 +1424,13 @@ HgfsUnpackDeletePayloadV3(HgfsRequestDeleteV3 *requestV3, // IN: request payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackDeletePayloadV2(HgfsRequestDeleteV2 *requestV2, // IN: request payload
-                          size_t payloadSize,             // IN: payload size
-                          char **cpName,                  // OUT: cpName
-                          size_t *cpNameSize,             // OUT: cpName size
-                          HgfsDeleteHint *hints,          // OUT: delete hints
-                          HgfsHandle *file)               // OUT: file handle
+static Bool
+HgfsUnpackDeletePayloadV2(const HgfsRequestDeleteV2 *requestV2, // IN: request payload
+                          size_t payloadSize,                   // IN: payload size
+                          const char **cpName,                  // OUT: cpName
+                          size_t *cpNameSize,                   // OUT: cpName size
+                          HgfsDeleteHint *hints,                // OUT: delete hints
+                          HgfsHandle *file)                     // OUT: file handle
 {
    Bool result = TRUE;
 
@@ -1480,11 +1481,11 @@ HgfsUnpackDeletePayloadV2(HgfsRequestDeleteV2 *requestV2, // IN: request payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackDeletePayloadV1(HgfsRequestDelete *requestV1,   // IN: request payload
-                          size_t payloadSize,             // IN: payload size
-                          char **cpName,                  // OUT: cpName
-                          size_t *cpNameSize)             // OUT: cpName size
+static Bool
+HgfsUnpackDeletePayloadV1(const HgfsRequestDelete *requestV1,   // IN: request payload
+                          size_t payloadSize,                   // IN: payload size
+                          const char **cpName,                  // OUT: cpName
+                          size_t *cpNameSize)                   // OUT: cpName size
 {
    return HgfsUnpackFileName(&requestV1->fileName,
                              payloadSize - sizeof *requestV1,
@@ -1521,7 +1522,7 @@ Bool
 HgfsUnpackDeleteRequest(void const *packet,      // IN: HGFS packet
                         size_t packetSize,       // IN: request packet size
                         HgfsOp op,               // IN: requested operation
-                        char **cpName,           // OUT: cpName
+                        const char **cpName,     // OUT: cpName
                         size_t *cpNameSize,      // OUT: cpName size
                         HgfsDeleteHint *hints,   // OUT: delete hints
                         HgfsHandle *file,        // OUT: file handle
@@ -1541,7 +1542,7 @@ HgfsUnpackDeleteRequest(void const *packet,      // IN: HGFS packet
    switch (op) {
    case HGFS_OP_DELETE_FILE_V3:
    case HGFS_OP_DELETE_DIR_V3: {
-      HgfsRequestDeleteV3 *requestV3 = (HgfsRequestDeleteV3 *)packet;
+      const HgfsRequestDeleteV3 *requestV3 = packet;
 
       if (!HgfsUnpackDeletePayloadV3(requestV3,
                                      packetSize,
@@ -1557,7 +1558,7 @@ HgfsUnpackDeleteRequest(void const *packet,      // IN: HGFS packet
    }
    case HGFS_OP_DELETE_FILE_V2:
    case HGFS_OP_DELETE_DIR_V2: {
-      HgfsRequestDeleteV2 *requestV2 = (HgfsRequestDeleteV2 *)packet;
+      const HgfsRequestDeleteV2 *requestV2 = packet;
 
       if (!HgfsUnpackDeletePayloadV2(requestV2,
                                      packetSize,
@@ -1572,7 +1573,7 @@ HgfsUnpackDeleteRequest(void const *packet,      // IN: HGFS packet
    }
    case HGFS_OP_DELETE_FILE:
    case HGFS_OP_DELETE_DIR: {
-      HgfsRequestDelete *requestV1 = (HgfsRequestDelete *)packet;
+      const HgfsRequestDelete *requestV1 = packet;
 
       if (!HgfsUnpackDeletePayloadV1(requestV1,
                                      packetSize,
@@ -1682,21 +1683,21 @@ HgfsPackDeleteReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackRenamePayloadV3(HgfsRequestRenameV3 *requestV3, // IN: request payload
-                          size_t payloadSize,             // IN: payload size
-                          char **cpOldName,               // OUT: rename src
-                          size_t *cpOldNameLen,           // OUT: rename src size
-                          char **cpNewName,               // OUT: rename dst
-                          size_t *cpNewNameLen,           // OUT: rename dst size
-                          HgfsRenameHint *hints,          // OUT: rename hints
-                          HgfsHandle *srcFile,            // OUT: src file handle
-                          HgfsHandle *targetFile,         // OUT: target file handle
-                          uint32 *oldCaseFlags,           // OUT: source case flags
-                          uint32 *newCaseFlags)           // OUT: dest. case flags
+static Bool
+HgfsUnpackRenamePayloadV3(const HgfsRequestRenameV3 *requestV3, // IN: request payload
+                          size_t payloadSize,                   // IN: payload size
+                          const char **cpOldName,               // OUT: rename src
+                          size_t *cpOldNameLen,                 // OUT: rename src size
+                          const char **cpNewName,               // OUT: rename dst
+                          size_t *cpNewNameLen,                 // OUT: rename dst size
+                          HgfsRenameHint *hints,                // OUT: rename hints
+                          HgfsHandle *srcFile,                  // OUT: src file handle
+                          HgfsHandle *targetFile,               // OUT: target file handle
+                          uint32 *oldCaseFlags,                 // OUT: source case flags
+                          uint32 *newCaseFlags)                 // OUT: dest. case flags
 {
    size_t extra;
-   HgfsFileNameV3 *newName;
+   const HgfsFileNameV3 *newName;
    Bool useHandle;
 
    LOG(4, ("%s: HGFS_OP_RENAME_V3\n", __FUNCTION__));
@@ -1738,7 +1739,7 @@ HgfsUnpackRenamePayloadV3(HgfsRequestRenameV3 *requestV3, // IN: request payload
       *hints |= HGFS_RENAME_HINT_USE_SRCFILE_DESC;
       newName = &requestV3->newName;
    } else {
-      newName = (HgfsFileNameV3 *)(requestV3->oldName.name + 1 + *cpOldNameLen);
+      newName = (const HgfsFileNameV3 *)(requestV3->oldName.name + 1 + *cpOldNameLen);
       extra -= *cpOldNameLen;
    }
    if (!HgfsUnpackFileNameV3(newName,
@@ -1779,18 +1780,18 @@ HgfsUnpackRenamePayloadV3(HgfsRequestRenameV3 *requestV3, // IN: request payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackRenamePayloadV2(HgfsRequestRenameV2 *requestV2, // IN: request payload
-                          size_t payloadSize,             // IN: payload size
-                          char **cpOldName,               // OUT: rename src
-                          size_t *cpOldNameLen,           // OUT: rename src size
-                          char **cpNewName,               // OUT: rename dst
-                          size_t *cpNewNameLen,           // OUT: rename dst size
-                          HgfsRenameHint *hints,          // OUT: rename hints
-                          HgfsHandle *srcFile,            // OUT: src file handle
-                          HgfsHandle *targetFile)         // OUT: target file handle
+static Bool
+HgfsUnpackRenamePayloadV2(const HgfsRequestRenameV2 *requestV2, // IN: request payload
+                          size_t payloadSize,                   // IN: payload size
+                          const char **cpOldName,               // OUT: rename src
+                          size_t *cpOldNameLen,                 // OUT: rename src size
+                          const char **cpNewName,               // OUT: rename dst
+                          size_t *cpNewNameLen,                 // OUT: rename dst size
+                          HgfsRenameHint *hints,                // OUT: rename hints
+                          HgfsHandle *srcFile,                  // OUT: src file handle
+                          HgfsHandle *targetFile)               // OUT: target file handle
 {
-   HgfsFileName *newName;
+   const HgfsFileName *newName;
    size_t extra;
 
    /* Enforced by the dispatch function. */
@@ -1828,8 +1829,8 @@ HgfsUnpackRenamePayloadV2(HgfsRequestRenameV2 *requestV2, // IN: request payload
       *cpNewName = NULL;
       *cpNewNameLen = 0;
    } else {
-      newName = (HgfsFileName *)((char *)(&requestV2->oldName + 1)
-                                             + *cpOldNameLen);
+      newName = (const HgfsFileName *)((char *)(&requestV2->oldName + 1)
+                                       + *cpOldNameLen);
       if (!HgfsUnpackFileName(newName,
                               extra,
                               cpNewName,
@@ -1860,15 +1861,15 @@ HgfsUnpackRenamePayloadV2(HgfsRequestRenameV2 *requestV2, // IN: request payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackRenamePayloadV1(HgfsRequestRename *requestV1, // IN: request payload
-                          size_t payloadSize,           // IN: payload size
-                          char **cpOldName,             // OUT: rename src
-                          size_t *cpOldNameLen,         // OUT: rename src size
-                          char **cpNewName,             // OUT: rename dst
-                          size_t *cpNewNameLen)         // OUT: rename dst size
+static Bool
+HgfsUnpackRenamePayloadV1(const HgfsRequestRename *requestV1, // IN: request payload
+                          size_t payloadSize,                 // IN: payload size
+                          const char **cpOldName,             // OUT: rename src
+                          size_t *cpOldNameLen,               // OUT: rename src size
+                          const char **cpNewName,             // OUT: rename dst
+                          size_t *cpNewNameLen)               // OUT: rename dst size
 {
-   HgfsFileName *newName;
+   const HgfsFileName *newName;
    uint32 extra;
 
    if (payloadSize < sizeof *requestV1) {
@@ -1886,8 +1887,8 @@ HgfsUnpackRenamePayloadV1(HgfsRequestRename *requestV1, // IN: request payload
    }
 
    extra -= requestV1->oldName.length;
-   newName = (HgfsFileName *)((char *)(&requestV1->oldName + 1)
-                              + requestV1->oldName.length);
+   newName = (const HgfsFileName *)((char *)(&requestV1->oldName + 1)
+                                    + requestV1->oldName.length);
 
    return HgfsUnpackFileName(newName, extra, cpNewName, cpNewNameLen);
 }
@@ -1917,9 +1918,9 @@ Bool
 HgfsUnpackRenameRequest(void const *packet,       // IN: HGFS packet
                         size_t packetSize,        // IN: request packet size
                         HgfsOp op,                // IN: requested operation
-                        char **cpOldName,         // OUT: rename src
+                        const char **cpOldName,   // OUT: rename src
                         size_t *cpOldNameLen,     // OUT: rename src size
-                        char **cpNewName,         // OUT: rename dst
+                        const char **cpNewName,   // OUT: rename dst
                         size_t *cpNewNameLen,     // OUT: rename dst size
                         HgfsRenameHint *hints,    // OUT: rename hints
                         HgfsHandle *srcFile,      // OUT: src file handle
@@ -1944,9 +1945,8 @@ HgfsUnpackRenameRequest(void const *packet,       // IN: HGFS packet
    *hints = 0;
 
    switch (op) {
-   case HGFS_OP_RENAME_V3:
-   {
-      HgfsRequestRenameV3 *requestV3 = (HgfsRequestRenameV3 *)packet;
+   case HGFS_OP_RENAME_V3: {
+      const HgfsRequestRenameV3 *requestV3 = packet;
 
       if (!HgfsUnpackRenamePayloadV3(requestV3,
                                      packetSize,
@@ -1964,9 +1964,8 @@ HgfsUnpackRenameRequest(void const *packet,       // IN: HGFS packet
       }
       break;
    }
-   case HGFS_OP_RENAME_V2:
-   {
-      HgfsRequestRenameV2 *requestV2 = (HgfsRequestRenameV2 *)packet;
+   case HGFS_OP_RENAME_V2: {
+      const HgfsRequestRenameV2 *requestV2 = packet;
 
       if (!HgfsUnpackRenamePayloadV2(requestV2,
                                      packetSize,
@@ -1983,9 +1982,8 @@ HgfsUnpackRenameRequest(void const *packet,       // IN: HGFS packet
       break;
    }
 
-   case HGFS_OP_RENAME:
-   {
-      HgfsRequestRename *requestV1 = (HgfsRequestRename *)packet;
+   case HGFS_OP_RENAME: {
+      const HgfsRequestRename *requestV1 = packet;
 
       if (!HgfsUnpackRenamePayloadV1(requestV1,
                                      packetSize,
@@ -2096,14 +2094,14 @@ HgfsPackRenameReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackGetattrPayloadV3(HgfsRequestGetattrV3 *requestV3,// IN: request payload
-                           size_t payloadSize,             // IN: payload size
-                           char **cpName,                  // OUT: cpName
-                           size_t *cpNameSize,             // OUT: cpName size
-                           HgfsAttrHint *hints,            // OUT: getattr hints
-                           HgfsHandle *file,               // OUT: file handle
-                           uint32 *caseFlags)              // OUT: case-sensitivity flags
+static Bool
+HgfsUnpackGetattrPayloadV3(const HgfsRequestGetattrV3 *requestV3,// IN: request payload
+                           size_t payloadSize,                   // IN: payload size
+                           const char **cpName,                  // OUT: cpName
+                           size_t *cpNameSize,                   // OUT: cpName size
+                           HgfsAttrHint *hints,                  // OUT: getattr hints
+                           HgfsHandle *file,                     // OUT: file handle
+                           uint32 *caseFlags)                    // OUT: case-sensitivity flags
 {
    Bool result;
    Bool useHandle;
@@ -2149,13 +2147,13 @@ HgfsUnpackGetattrPayloadV3(HgfsRequestGetattrV3 *requestV3,// IN: request payloa
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackGetattrPayloadV2(HgfsRequestGetattrV2 *requestV2,// IN: request payload
-                           size_t payloadSize,             // IN: payload size
-                           char **cpName,                  // OUT: cpName
-                           size_t *cpNameSize,             // OUT: cpName size
-                           HgfsAttrHint *hints,            // OUT: delete hints
-                           HgfsHandle *file)               // OUT: file handle
+static Bool
+HgfsUnpackGetattrPayloadV2(const HgfsRequestGetattrV2 *requestV2,// IN: request payload
+                           size_t payloadSize,                   // IN: payload size
+                           const char **cpName,                  // OUT: cpName
+                           size_t *cpNameSize,                   // OUT: cpName size
+                           HgfsAttrHint *hints,                  // OUT: delete hints
+                           HgfsHandle *file)                     // OUT: file handle
 {
    Bool result = TRUE;
 
@@ -2204,11 +2202,11 @@ HgfsUnpackGetattrPayloadV2(HgfsRequestGetattrV2 *requestV2,// IN: request payloa
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackGetattrPayloadV1(HgfsRequestGetattr *requestV1,  // IN: request payload
-                           size_t payloadSize,             // IN: payload size
-                           char **cpName,                  // OUT: cpName
-                           size_t *cpNameSize)             // OUT: cpName size
+static Bool
+HgfsUnpackGetattrPayloadV1(const HgfsRequestGetattr *requestV1,  // IN: request payload
+                           size_t payloadSize,                   // IN: payload size
+                           const char **cpName,                  // OUT: cpName
+                           size_t *cpNameSize)                   // OUT: cpName size
 {
    return HgfsUnpackFileName(&requestV1->fileName,
                              payloadSize - sizeof *requestV1,
@@ -2233,9 +2231,9 @@ HgfsUnpackGetattrPayloadV1(HgfsRequestGetattr *requestV1,  // IN: request payloa
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 HgfsPackAttrV2(HgfsFileAttrInfo *attr,     // IN: attr stucture
-              HgfsAttrV2 *attr2)          // OUT: attr in payload
+               HgfsAttrV2 *attr2)          // OUT: attr in payload
 {
    attr2->mask = attr->mask;
    attr2->type = attr->type;
@@ -2274,9 +2272,9 @@ HgfsPackAttrV2(HgfsFileAttrInfo *attr,     // IN: attr stucture
  *-----------------------------------------------------------------------------
  */
 
-void
-HgfsUnpackAttrV2(HgfsAttrV2 *attr2,          // IN: attr in payload
-                HgfsFileAttrInfo *attr)     // OUT: attr stucture
+static void
+HgfsUnpackAttrV2(const HgfsAttrV2 *attr2,    // IN: attr in payload
+                 HgfsFileAttrInfo *attr)     // OUT: attr stucture
 {
    attr->mask = attr2->mask;
    attr->type = attr2->type;
@@ -2315,7 +2313,7 @@ HgfsUnpackAttrV2(HgfsAttrV2 *attr2,          // IN: attr in payload
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 HgfsInitFileAttr(HgfsOp op,                // IN: request type
                  HgfsFileAttrInfo *attr)   // OUT: attr stucture
 {
@@ -2344,7 +2342,7 @@ HgfsInitFileAttr(HgfsOp op,                // IN: request type
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 HgfsPackGetattrReplyPayloadV3(HgfsFileAttrInfo *attr,     // IN: attr stucture
                               const char *utf8TargetName, // IN: optional target name
                               uint32 utf8TargetNameLen,   // IN: file name length
@@ -2386,7 +2384,7 @@ HgfsPackGetattrReplyPayloadV3(HgfsFileAttrInfo *attr,     // IN: attr stucture
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 HgfsPackGetattrReplyPayloadV2(HgfsFileAttrInfo *attr,       // IN: attr stucture
                               const char *utf8TargetName,   // IN: optional target name
                               uint32 utf8TargetNameLen,     // IN: file name length
@@ -2422,7 +2420,7 @@ HgfsPackGetattrReplyPayloadV2(HgfsFileAttrInfo *attr,       // IN: attr stucture
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 HgfsPackGetattrReplyPayloadV1(HgfsFileAttrInfo *attr,       // IN: attr stucture
                               HgfsReplyGetattr *reply)      // OUT: reply info
 {
@@ -2472,7 +2470,7 @@ HgfsUnpackGetattrRequest(void const *packet,         // IN: HGFS packet
                          HgfsOp op,                  // IN request type
                          HgfsFileAttrInfo *attrInfo, // IN/OUT: getattr info
                          HgfsAttrHint *hints,        // OUT: getattr hints
-                         char **cpName,              // OUT: cpName
+                         const char **cpName,        // OUT: cpName
                          size_t *cpNameSize,         // OUT: cpName size
                          HgfsHandle *file,           // OUT: file handle
                          uint32 *caseType)           // OUT: case-sensitivity flags
@@ -2493,7 +2491,7 @@ HgfsUnpackGetattrRequest(void const *packet,         // IN: HGFS packet
 
    switch (op) {
    case HGFS_OP_GETATTR_V3: {
-      HgfsRequestGetattrV3 *requestV3 = (HgfsRequestGetattrV3 *)packet;
+      const HgfsRequestGetattrV3 *requestV3 = packet;
 
       if (!HgfsUnpackGetattrPayloadV3(requestV3,
                                       packetSize,
@@ -2510,7 +2508,7 @@ HgfsUnpackGetattrRequest(void const *packet,         // IN: HGFS packet
    }
 
    case HGFS_OP_GETATTR_V2: {
-      HgfsRequestGetattrV2 *requestV2 = (HgfsRequestGetattrV2 *)packet;
+      const HgfsRequestGetattrV2 *requestV2 = packet;
 
       if (!HgfsUnpackGetattrPayloadV2(requestV2,
                                       packetSize,
@@ -2525,7 +2523,7 @@ HgfsUnpackGetattrRequest(void const *packet,         // IN: HGFS packet
    }
 
    case HGFS_OP_GETATTR: {
-      HgfsRequestGetattr *requestV1 = (HgfsRequestGetattr *)packet;
+      const HgfsRequestGetattr *requestV1 = packet;
 
       if (!HgfsUnpackGetattrPayloadV1(requestV1, packetSize, cpName, cpNameSize)) {
          LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
@@ -2993,7 +2991,7 @@ HgfsUnpackSearchReadRequest(const void *packet,           // IN: request packet
 
    switch (op) {
    case HGFS_OP_SEARCH_READ_V4: {
-      HgfsRequestSearchReadV4 *request = (HgfsRequestSearchReadV4 *)packet;
+      const HgfsRequestSearchReadV4 *request = packet;
 
       /* Enforced by the dispatch function. */
       ASSERT(packetSize >= sizeof *request);
@@ -3021,7 +3019,7 @@ HgfsUnpackSearchReadRequest(const void *packet,           // IN: request packet
    }
 
    case HGFS_OP_SEARCH_READ_V3: {
-      HgfsRequestSearchReadV3 *request = (HgfsRequestSearchReadV3 *)packet;
+      const HgfsRequestSearchReadV3 *request = packet;
 
       /* Enforced by the dispatch function. */
       ASSERT(packetSize >= sizeof *request);
@@ -3049,7 +3047,7 @@ HgfsUnpackSearchReadRequest(const void *packet,           // IN: request packet
     * HgfsRequestSearchRead, so drop through.
     */
    case HGFS_OP_SEARCH_READ: {
-      HgfsRequestSearchRead *request = (HgfsRequestSearchRead *)packet;
+      const HgfsRequestSearchRead *request = packet;
 
       /* Enforced by the dispatch function. */
       ASSERT(packetSize >= sizeof *request);
@@ -3294,15 +3292,15 @@ HgfsPackSearchReadReplyHeader(HgfsSearchReadInfo *info,    // IN: request info
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackSetattrPayloadV3(HgfsRequestSetattrV3 *requestV3,// IN: request payload
-                           size_t payloadSize,             // IN: payload size
-                           HgfsFileAttrInfo *attr,         // OUT: setattr info
-                           char **cpName,                  // OUT: cpName
-                           size_t *cpNameSize,             // OUT: cpName size
-                           HgfsAttrHint *hints,            // OUT: getattr hints
-                           HgfsHandle *file,               // OUT: file handle
-                           uint32 *caseFlags)              // OUT: case-sensitivity flags
+static Bool
+HgfsUnpackSetattrPayloadV3(const HgfsRequestSetattrV3 *requestV3,// IN: request payload
+                           size_t payloadSize,                   // IN: payload size
+                           HgfsFileAttrInfo *attr,               // OUT: setattr info
+                           const char **cpName,                  // OUT: cpName
+                           size_t *cpNameSize,                   // OUT: cpName size
+                           HgfsAttrHint *hints,                  // OUT: getattr hints
+                           HgfsHandle *file,                     // OUT: file handle
+                           uint32 *caseFlags)                    // OUT: case-sensitivity flags
 {
    Bool result;
    Bool useHandle;
@@ -3352,14 +3350,14 @@ HgfsUnpackSetattrPayloadV3(HgfsRequestSetattrV3 *requestV3,// IN: request payloa
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackSetattrPayloadV2(HgfsRequestSetattrV2 *requestV2,// IN: request payload
-                           size_t payloadSize,             // IN: payload size
-                           HgfsFileAttrInfo *attr,         // OUT: setattr info
-                           char **cpName,                  // OUT: cpName
-                           size_t *cpNameSize,             // OUT: cpName size
-                           HgfsAttrHint *hints,            // OUT: delete hints
-                           HgfsHandle *file)               // OUT: file handle
+static Bool
+HgfsUnpackSetattrPayloadV2(const HgfsRequestSetattrV2 *requestV2,// IN: request payload
+                           size_t payloadSize,                   // IN: payload size
+                           HgfsFileAttrInfo *attr,               // OUT: setattr info
+                           const char **cpName,                  // OUT: cpName
+                           size_t *cpNameSize,                   // OUT: cpName size
+                           HgfsAttrHint *hints,                  // OUT: delete hints
+                           HgfsHandle *file)                     // OUT: file handle
 {
    Bool result = TRUE;
 
@@ -3407,13 +3405,13 @@ HgfsUnpackSetattrPayloadV2(HgfsRequestSetattrV2 *requestV2,// IN: request payloa
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackSetattrPayloadV1(HgfsRequestSetattr *requestV1,  // IN: request payload
-                           size_t payloadSize,             // IN: payload size
-                           HgfsFileAttrInfo *attr,         // OUT: setattr info
-                           char **cpName,                  // OUT: cpName
-                           size_t *cpNameSize,             // OUT: cpName size
-                           HgfsAttrHint *hints)            // OUT: setattr hints
+static Bool
+HgfsUnpackSetattrPayloadV1(const HgfsRequestSetattr *requestV1,  // IN: request payload
+                           size_t payloadSize,                   // IN: payload size
+                           HgfsFileAttrInfo *attr,               // OUT: setattr info
+                           const char **cpName,                  // OUT: cpName
+                           size_t *cpNameSize,                   // OUT: cpName size
+                           HgfsAttrHint *hints)                  // OUT: setattr hints
 {
    LOG(4, ("%s: unpacking HGFS_OP_SETATTR\n", __FUNCTION__));
 
@@ -3473,7 +3471,7 @@ HgfsUnpackSetattrRequest(void const *packet,       // IN: HGFS packet
                          HgfsOp op,                // IN: request type
                          HgfsFileAttrInfo *attr,   // OUT: setattr info
                          HgfsAttrHint *hints,      // OUT: setattr hints
-                         char **cpName,            // OUT: cpName
+                         const char **cpName,      // OUT: cpName
                          size_t *cpNameSize,       // OUT: cpName size
                          HgfsHandle *file,         // OUT: server file ID
                          uint32 *caseType)         // OUT: case-sensitivity flags
@@ -3493,52 +3491,49 @@ HgfsUnpackSetattrRequest(void const *packet,       // IN: HGFS packet
    *file = HGFS_INVALID_HANDLE;
 
    switch (op) {
-   case HGFS_OP_SETATTR_V3:
-      {
-         HgfsRequestSetattrV3 *requestV3 = (HgfsRequestSetattrV3 *)packet;
-         if (!HgfsUnpackSetattrPayloadV3(requestV3,
-                                         packetSize,
-                                         attr,
-                                         cpName,
-                                         cpNameSize,
-                                         hints,
-                                         file,
-                                         caseType)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+   case HGFS_OP_SETATTR_V3: {
+      const HgfsRequestSetattrV3 *requestV3 = packet;
+      if (!HgfsUnpackSetattrPayloadV3(requestV3,
+                                       packetSize,
+                                       attr,
+                                       cpName,
+                                       cpNameSize,
+                                       hints,
+                                       file,
+                                       caseType)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      break;
+   }
 
-   case HGFS_OP_SETATTR_V2:
-      {
-         HgfsRequestSetattrV2 *requestV2 = (HgfsRequestSetattrV2 *)packet;
-         if (!HgfsUnpackSetattrPayloadV2(requestV2,
-                                         packetSize,
-                                         attr,
-                                         cpName,
-                                         cpNameSize,
-                                         hints,
-                                         file)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+   case HGFS_OP_SETATTR_V2: {
+      const HgfsRequestSetattrV2 *requestV2 = packet;
+      if (!HgfsUnpackSetattrPayloadV2(requestV2,
+                                       packetSize,
+                                       attr,
+                                       cpName,
+                                       cpNameSize,
+                                       hints,
+                                       file)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
-   case HGFS_OP_SETATTR:
-      {
-         HgfsRequestSetattr *requestV1 = (HgfsRequestSetattr *)packet;
-         if (!HgfsUnpackSetattrPayloadV1(requestV1,
-                                         packetSize,
-                                         attr,
-                                         cpName,
-                                         cpNameSize,
-                                         hints)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+      break;
+   }
+   case HGFS_OP_SETATTR: {
+      const HgfsRequestSetattr *requestV1 = packet;
+      if (!HgfsUnpackSetattrPayloadV1(requestV1,
+                                       packetSize,
+                                       attr,
+                                       cpName,
+                                       cpNameSize,
+                                       hints)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      break;
+   }
    default:
       LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
       NOT_REACHED();
@@ -3632,10 +3627,10 @@ HgfsPackSetattrReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackCreateDirPayloadV3(HgfsRequestCreateDirV3 *requestV3, // IN: request payload
-                             size_t payloadSize,                // IN: payload size
-                             HgfsCreateDirInfo *info)           // IN/OUT: info struct
+static Bool
+HgfsUnpackCreateDirPayloadV3(const HgfsRequestCreateDirV3 *requestV3, // IN: request payload
+                             size_t payloadSize,                      // IN: payload size
+                             HgfsCreateDirInfo *info)                 // IN/OUT: info struct
 {
    /*
     * The request file name length is user-provided, so this test must be
@@ -3661,7 +3656,7 @@ HgfsUnpackCreateDirPayloadV3(HgfsRequestCreateDirV3 *requestV3, // IN: request p
     */
 
    info->mask = requestV3->mask;
-   info->cpName = requestV3->fileName.name;
+   info->cpName = (char *)requestV3->fileName.name;
    info->cpNameSize = requestV3->fileName.length;
    info->caseFlags = requestV3->fileName.caseType;
    info->specialPerms = requestV3->specialPerms;
@@ -3691,10 +3686,10 @@ HgfsUnpackCreateDirPayloadV3(HgfsRequestCreateDirV3 *requestV3, // IN: request p
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackCreateDirPayloadV2(HgfsRequestCreateDirV2 *requestV2, // IN: request payload
-                             size_t payloadSize,                // IN: payload size
-                             HgfsCreateDirInfo *info)           // IN/OUT: info struct
+static Bool
+HgfsUnpackCreateDirPayloadV2(const HgfsRequestCreateDirV2 *requestV2, // IN: request payload
+                             size_t payloadSize,                      // IN: payload size
+                             HgfsCreateDirInfo *info)                 // IN/OUT: info struct
 {
    /*
     * The request file name length is user-provided, so this test must be
@@ -3720,7 +3715,7 @@ HgfsUnpackCreateDirPayloadV2(HgfsRequestCreateDirV2 *requestV2, // IN: request p
     */
 
    info->mask = requestV2->mask;
-   info->cpName = requestV2->fileName.name;
+   info->cpName = (char *)requestV2->fileName.name;
    info->cpNameSize = requestV2->fileName.length;
    info->specialPerms = requestV2->specialPerms;
    info->ownerPerms = requestV2->ownerPerms;
@@ -3749,10 +3744,10 @@ HgfsUnpackCreateDirPayloadV2(HgfsRequestCreateDirV2 *requestV2, // IN: request p
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackCreateDirPayloadV1(HgfsRequestCreateDir *requestV1, // IN: request payload
-                             size_t payloadSize,              // IN: payload size
-                             HgfsCreateDirInfo *info)         // IN/OUT: info struct
+static Bool
+HgfsUnpackCreateDirPayloadV1(const HgfsRequestCreateDir *requestV1, // IN: request payload
+                             size_t payloadSize,                    // IN: payload size
+                             HgfsCreateDirInfo *info)               // IN/OUT: info struct
 {
    /*
     * The request file name length is user-provided, so this test must be
@@ -3769,7 +3764,7 @@ HgfsUnpackCreateDirPayloadV1(HgfsRequestCreateDir *requestV1, // IN: request pay
 
    /* For CreateDirV1 requests, we know exactly what fields we expect. */
    info->mask = HGFS_CREATE_DIR_VALID_OWNER_PERMS | HGFS_CREATE_DIR_VALID_FILE_NAME;
-   info->cpName = requestV1->fileName.name;
+   info->cpName = (char *)requestV1->fileName.name;
    info->cpNameSize = requestV1->fileName.length;
    info->ownerPerms = requestV1->permissions;
    info->fileAttr = 0;
@@ -3810,40 +3805,37 @@ HgfsUnpackCreateDirRequest(void const *packet,      // IN: incoming packet
    info->caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
 
    switch (op) {
-   case HGFS_OP_CREATE_DIR_V3:
-      {
-         HgfsRequestCreateDirV3 *requestV3 = (HgfsRequestCreateDirV3 *)packet;
-         if (!HgfsUnpackCreateDirPayloadV3(requestV3,
-                                           packetSize,
-                                           info)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+   case HGFS_OP_CREATE_DIR_V3: {
+      const HgfsRequestCreateDirV3 *requestV3 = packet;
+      if (!HgfsUnpackCreateDirPayloadV3(requestV3,
+                                          packetSize,
+                                          info)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      break;
+   }
 
-   case HGFS_OP_CREATE_DIR_V2:
-      {
-         HgfsRequestCreateDirV2 *requestV2 = (HgfsRequestCreateDirV2 *)packet;
-         if (!HgfsUnpackCreateDirPayloadV2(requestV2,
-                                           packetSize,
-                                           info)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+   case HGFS_OP_CREATE_DIR_V2: {
+      const HgfsRequestCreateDirV2 *requestV2 = packet;
+      if (!HgfsUnpackCreateDirPayloadV2(requestV2,
+                                          packetSize,
+                                          info)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
-   case HGFS_OP_CREATE_DIR:
-      {
-         HgfsRequestCreateDir *requestV1 = (HgfsRequestCreateDir *)packet;
-         if (!HgfsUnpackCreateDirPayloadV1(requestV1,
-                                           packetSize,
-                                           info)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+      break;
+   }
+   case HGFS_OP_CREATE_DIR: {
+      const HgfsRequestCreateDir *requestV1 = packet;
+      if (!HgfsUnpackCreateDirPayloadV1(requestV1,
+                                          packetSize,
+                                          info)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      break;
+   }
    default:
       LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
       NOT_REACHED();
@@ -3942,13 +3934,13 @@ HgfsPackCreateDirReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackWriteWin32StreamPayloadV3(HgfsRequestWriteWin32StreamV3 *requestV3, // IN:
-                                    size_t payloadSize,                       // IN:
-                                    HgfsHandle *file,                         // OUT:
-                                    char **data,                              // OUT:
-                                    size_t *dataSize,                         // OUT:
-                                    Bool *doSecurity)                         // OUT:
+static Bool
+HgfsUnpackWriteWin32StreamPayloadV3(const HgfsRequestWriteWin32StreamV3 *requestV3, // IN:
+                                    size_t payloadSize,                             // IN:
+                                    HgfsHandle *file,                               // OUT:
+                                    const char **data,                              // OUT:
+                                    size_t *dataSize,                               // OUT:
+                                    Bool *doSecurity)                               // OUT:
 {
    LOG(4, ("%s: HGFS_OP_WRITE_WIN32_STREAM_V3\n", __FUNCTION__));
    if (payloadSize < sizeof *requestV3) {
@@ -3991,7 +3983,7 @@ HgfsUnpackWriteWin32StreamRequest(void const *packet, // IN: incoming packet
                                   size_t packetSize,  // IN: size of packet
                                   HgfsOp op,          // IN: request type
                                   HgfsHandle *file,   // OUT: file to write to
-                                  char **data,        // OUT: data to write
+                                  const char **data,  // OUT: data to write
                                   size_t *dataSize,   // OUT: size of data
                                   Bool *doSecurity)   // OUT: restore sec.str.
 {
@@ -4008,7 +4000,7 @@ HgfsUnpackWriteWin32StreamRequest(void const *packet, // IN: incoming packet
       return FALSE;
    }
 
-   return HgfsUnpackWriteWin32StreamPayloadV3((HgfsRequestWriteWin32StreamV3 *)packet,
+   return HgfsUnpackWriteWin32StreamPayloadV3(packet,
                                               packetSize,
                                               file,
                                               data,
@@ -4038,8 +4030,8 @@ Bool
 HgfsPackWriteWin32StreamReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                               char const *packetHeader,  // IN: packet header
                               HgfsOp op,                 // IN: request type
-			                     uint32 actualSize,         // IN: amount written
-			                     size_t *payloadSize,       // OUT: size of packet
+                              uint32 actualSize,         // IN: amount written
+                              size_t *payloadSize,       // OUT: size of packet
                               HgfsSessionInfo *session)  // IN: Session info
 {
    HgfsReplyWriteWin32StreamV3 *reply;
@@ -4083,12 +4075,12 @@ HgfsPackWriteWin32StreamReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackReadPayload(HgfsRequestRead *request,    // IN: payload
-                      size_t payloadSize,          // IN: payload size
-                      HgfsHandle* file,            // OUT: HGFS handle to close
-                      uint64 *offset,              // OUT: offset to read from
-                      uint32 *length)              // OUT: length of data to read
+static Bool
+HgfsUnpackReadPayload(const HgfsRequestRead *request,    // IN: payload
+                      size_t payloadSize,                // IN: payload size
+                      HgfsHandle* file,                  // OUT: HGFS handle to close
+                      uint64 *offset,                    // OUT: offset to read from
+                      uint32 *length)                    // OUT: length of data to read
 {
    LOG(4, ("%s: HGFS_OP_READ\n", __FUNCTION__));
    if (payloadSize >= sizeof *request) {
@@ -4119,12 +4111,12 @@ HgfsUnpackReadPayload(HgfsRequestRead *request,    // IN: payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackReadPayloadV3(HgfsRequestReadV3 *requestV3,  // IN: payload
-                        size_t payloadSize,            // IN: payload size
-                        HgfsHandle* file,              // OUT: HGFS handle to close
-                        uint64 *offset,                // OUT: offset to read from
-                        uint32 *length)                // OUT: length of data to read
+static Bool
+HgfsUnpackReadPayloadV3(const HgfsRequestReadV3 *requestV3,  // IN: payload
+                        size_t payloadSize,                  // IN: payload size
+                        HgfsHandle* file,                    // OUT: HGFS handle to close
+                        uint64 *offset,                      // OUT: offset to read from
+                        uint32 *length)                      // OUT: length of data to read
 {
    LOG(4, ("%s: HGFS_OP_READ_V3\n", __FUNCTION__));
    if (payloadSize >= sizeof *requestV3) {
@@ -4170,13 +4162,13 @@ HgfsUnpackReadRequest(void const *packet,     // IN: HGFS request
    switch (op) {
    case HGFS_OP_READ_FAST_V4:
    case HGFS_OP_READ_V3: {
-         HgfsRequestReadV3 *requestV3 = (HgfsRequestReadV3 *)packet;
+         const HgfsRequestReadV3 *requestV3 = packet;
 
          result = HgfsUnpackReadPayloadV3(requestV3, packetSize, file, offset, length);
          break;
       }
    case HGFS_OP_READ: {
-         HgfsRequestRead *requestV1 = (HgfsRequestRead *)packet;
+         const HgfsRequestRead *requestV1 = packet;
 
          result = HgfsUnpackReadPayload(requestV1, packetSize, file, offset, length);
          break;
@@ -4212,14 +4204,14 @@ HgfsUnpackReadRequest(void const *packet,     // IN: HGFS request
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackWritePayload(HgfsRequestWrite *request,    // IN: request payload
-                       size_t payloadSize,           // IN: request payload size
-                       HgfsHandle* file,             // OUT: HGFS handle to write to
-                       uint64 *offset,               // OUT: offset to read from
-                       uint32 *length,               // OUT: length of data to write
-                       HgfsWriteFlags *flags,        // OUT: write flags
-                       char **data)                  // OUT: data to be written
+static Bool
+HgfsUnpackWritePayload(const HgfsRequestWrite *request,    // IN: request payload
+                       size_t payloadSize,                 // IN: request payload size
+                       HgfsHandle* file,                   // OUT: HGFS handle to write to
+                       uint64 *offset,                     // OUT: offset to read from
+                       uint32 *length,                     // OUT: length of data to write
+                       HgfsWriteFlags *flags,              // OUT: write flags
+                       const char **data)                  // OUT: data to be written
 {
    LOG(4, ("%s: HGFS_OP_WRITE\n", __FUNCTION__));
    if (payloadSize >= sizeof *request) {
@@ -4254,14 +4246,14 @@ HgfsUnpackWritePayload(HgfsRequestWrite *request,    // IN: request payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackWritePayloadV3(HgfsRequestWriteV3 *requestV3, // IN: payload
-                         size_t payloadSize,            // IN: request payload size
-                         HgfsHandle* file,              // OUT: HGFS handle write to
-                         uint64 *offset,                // OUT: offset to read from
-                         uint32 *length,                // OUT: length of data to write
-                         HgfsWriteFlags *flags,         // OUT: write flags
-                         char **data)                   // OUT: data to be written
+static Bool
+HgfsUnpackWritePayloadV3(const HgfsRequestWriteV3 *requestV3, // IN: payload
+                         size_t payloadSize,                  // IN: request payload size
+                         HgfsHandle* file,                    // OUT: HGFS handle write to
+                         uint64 *offset,                      // OUT: offset to read from
+                         uint32 *length,                      // OUT: length of data to write
+                         HgfsWriteFlags *flags,               // OUT: write flags
+                         const char **data)                   // OUT: data to be written
 {
    LOG(4, ("%s: HGFS_OP_WRITE_V3\n", __FUNCTION__));
    if (payloadSize >= sizeof *requestV3) {
@@ -4298,13 +4290,13 @@ HgfsUnpackWritePayloadV3(HgfsRequestWriteV3 *requestV3, // IN: payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackWriteFastPayloadV4(HgfsRequestWriteV3 *requestV3, // IN: payload
-                             size_t payloadSize,            // IN: request payload size
-                             HgfsHandle* file,              // OUT: HGFS handle write to
-                             uint64 *offset,                // OUT: offset to write to
-                             uint32 *length,                // OUT: size of data to write
-                             HgfsWriteFlags *flags)         // OUT: write flags
+static Bool
+HgfsUnpackWriteFastPayloadV4(const HgfsRequestWriteV3 *requestV3, // IN: payload
+                             size_t payloadSize,                  // IN: request payload size
+                             HgfsHandle* file,                    // OUT: HGFS handle write to
+                             uint64 *offset,                      // OUT: offset to write to
+                             uint32 *length,                      // OUT: size of data to write
+                             HgfsWriteFlags *flags)               // OUT: write flags
 {
    LOG(4, ("%s: HGFS_OP_WRITE_V3\n", __FUNCTION__));
    if (payloadSize >= sizeof *requestV3) {
@@ -4342,7 +4334,7 @@ HgfsUnpackWriteRequest(HgfsInputParam *input,   // IN: Input params
                        uint64 *offset,          // OUT: offset to write to
                        uint32 *length,          // OUT: length of data to write
                        HgfsWriteFlags *flags,   // OUT: write flags
-                       char **data)             // OUT: data to be written
+                       const char **data)       // OUT: data to be written
 {
    Bool result;
 
@@ -4350,35 +4342,35 @@ HgfsUnpackWriteRequest(HgfsInputParam *input,   // IN: Input params
 
    switch (input->op) {
    case HGFS_OP_WRITE_FAST_V4: {
-         HgfsRequestWriteV3 *requestV3 = (HgfsRequestWriteV3 *)input->payload;
+      const HgfsRequestWriteV3 *requestV3 = input->payload;
 
-         result = HgfsUnpackWriteFastPayloadV4(requestV3, input->payloadSize, file,
-                                               offset, length, flags);
-         if (result) {
-            *data = HSPU_GetDataPacketBuf(input->packet,
-                                          BUF_READABLE,
-                                          input->transportSession);
-            if (NULL == *data) {
-               LOG(4, ("%s: Failed to get data in guest memory\n", __FUNCTION__));
-               result = FALSE;
-            }
+      result = HgfsUnpackWriteFastPayloadV4(requestV3, input->payloadSize, file,
+                                            offset, length, flags);
+      if (result) {
+         *data = HSPU_GetDataPacketBuf(input->packet,
+                                       BUF_READABLE,
+                                       input->transportSession);
+         if (NULL == *data) {
+            LOG(4, ("%s: Failed to get data in guest memory\n", __FUNCTION__));
+            result = FALSE;
          }
-         break;
       }
+      break;
+   }
    case HGFS_OP_WRITE_V3: {
-         HgfsRequestWriteV3 *requestV3 = (HgfsRequestWriteV3 *)input->payload;
+      const HgfsRequestWriteV3 *requestV3 = input->payload;
 
-         result = HgfsUnpackWritePayloadV3(requestV3, input->payloadSize, file, offset,
-                                           length, flags, data);
-         break;
-      }
+      result = HgfsUnpackWritePayloadV3(requestV3, input->payloadSize, file, offset,
+                                        length, flags, data);
+      break;
+   }
    case HGFS_OP_WRITE: {
-         HgfsRequestWrite *requestV1 = (HgfsRequestWrite *)input->payload;
+      const HgfsRequestWrite *requestV1 = input->payload;
 
-         result = HgfsUnpackWritePayload(requestV1, input->payloadSize, file, offset,
-                                         length, flags, data);
-         break;
-      }
+      result = HgfsUnpackWritePayload(requestV1, input->payloadSize, file, offset,
+                                      length, flags, data);
+      break;
+   }
    default:
       LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, input->op));
       NOT_REACHED();
@@ -4473,11 +4465,11 @@ HgfsPackWriteReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackQueryVolumePayload(HgfsRequestQueryVolume *request, // IN: request payload
-                             size_t payloadSize,              // IN: request payload size
-                             char **fileName,                 // OUT: volume name
-                             size_t *nameLength)              // OUT: volume name length
+static Bool
+HgfsUnpackQueryVolumePayload(const HgfsRequestQueryVolume *request, // IN: request payload
+                             size_t payloadSize,                    // IN: request payload size
+                             const char **fileName,                 // OUT: volume name
+                             size_t *nameLength)                    // OUT: volume name length
 {
    LOG(4, ("%s: HGFS_OP_QUERY_VOLUME_INFO\n", __FUNCTION__));
    if (payloadSize >= sizeof *request) {
@@ -4508,14 +4500,14 @@ HgfsUnpackQueryVolumePayload(HgfsRequestQueryVolume *request, // IN: request pay
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackQueryVolumePayloadV3(HgfsRequestQueryVolumeV3 *requestV3, // IN: payload
-                               size_t payloadSize,                  // IN: payload size
-                               Bool *useHandle,                     // OUT: use handle
-                               HgfsHandle* file,                    // OUT: HGFS handle
-                               char **fileName,                     // OUT: volume name
-                               size_t *nameLength,                  // OUT: name length
-                               uint32 * caseFlags)                  // OUT: case flags
+static Bool
+HgfsUnpackQueryVolumePayloadV3(const HgfsRequestQueryVolumeV3 *requestV3, // IN: payload
+                               size_t payloadSize,                        // IN: payload size
+                               Bool *useHandle,                           // OUT: use handle
+                               HgfsHandle* file,                          // OUT: HGFS handle
+                               const char **fileName,                     // OUT: volume name
+                               size_t *nameLength,                        // OUT: name length
+                               uint32 * caseFlags)                        // OUT: case flags
 {
    LOG(4, ("%s: HGFS_OP_QUERY_VOLUME_INFO_V3\n", __FUNCTION__));
    if (payloadSize >= sizeof *requestV3) {
@@ -4555,7 +4547,7 @@ HgfsUnpackQueryVolumeRequest(void const *packet,     // IN: HGFS packet
                              size_t packetSize,      // IN: request packet size
                              HgfsOp op,              // IN: request type
                              Bool *useHandle,        // OUT: use handle
-                             char **fileName,        // OUT: file name
+                             const char **fileName,  // OUT: file name
                              size_t *fileNameLength, // OUT: file name length
                              uint32 *caseFlags,      // OUT: case sensitivity
                              HgfsHandle *file)       // OUT: Handle to the volume
@@ -4564,28 +4556,28 @@ HgfsUnpackQueryVolumeRequest(void const *packet,     // IN: HGFS packet
 
    switch (op) {
    case HGFS_OP_QUERY_VOLUME_INFO_V3: {
-         HgfsRequestQueryVolumeV3 *requestV3 = (HgfsRequestQueryVolumeV3 *)packet;
+      const HgfsRequestQueryVolumeV3 *requestV3 = packet;
 
-         if (!HgfsUnpackQueryVolumePayloadV3(requestV3, packetSize, useHandle, file,
-                                             fileName, fileNameLength, caseFlags)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+      if (!HgfsUnpackQueryVolumePayloadV3(requestV3, packetSize, useHandle, file,
+                                          fileName, fileNameLength, caseFlags)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      break;
+   }
    case HGFS_OP_QUERY_VOLUME_INFO: {
-         HgfsRequestQueryVolume *requestV1 = (HgfsRequestQueryVolume *)packet;
+      const HgfsRequestQueryVolume *requestV1 = packet;
 
-         if (!HgfsUnpackQueryVolumePayload(requestV1, packetSize, fileName,
-                                           fileNameLength)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         *file = HGFS_INVALID_HANDLE;
-         *caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
-         *useHandle = FALSE;
-         break;
+      if (!HgfsUnpackQueryVolumePayload(requestV1, packetSize, fileName,
+                                        fileNameLength)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      *file = HGFS_INVALID_HANDLE;
+      *caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
+      *useHandle = FALSE;
+      break;
+   }
    default:
       LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
       NOT_REACHED();
@@ -4679,13 +4671,13 @@ HgfsPackQueryVolumeReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackSymlinkCreatePayload(HgfsRequestSymlinkCreate *request, // IN: request payload
-                               size_t payloadSize,                // IN: payload size
-                               char **srcFileName,                // OUT: link file name
-                               size_t *srcNameLength,             // OUT: file name length
-                               char **tgFileName,                 // OUT: target file name
-                               size_t *tgNameLength)              // OUT: target name length
+static Bool
+HgfsUnpackSymlinkCreatePayload(const HgfsRequestSymlinkCreate *request, // IN: request payload
+                               size_t payloadSize,                      // IN: payload size
+                               const char **srcFileName,                // OUT: link file name
+                               size_t *srcNameLength,                   // OUT: file name length
+                               const char **tgFileName,                 // OUT: target file name
+                               size_t *tgNameLength)                    // OUT: target name length
 {
    uint32 prefixSize;
 
@@ -4696,14 +4688,15 @@ HgfsUnpackSymlinkCreatePayload(HgfsRequestSymlinkCreate *request, // IN: request
                              payloadSize - prefixSize,
                              srcFileName,
                              srcNameLength)) {
-         HgfsFileName *targetName = (HgfsFileName *)(*srcFileName + 1 + *srcNameLength);
+         const HgfsFileName *targetName =
+            (const HgfsFileName *)(*srcFileName + 1 + *srcNameLength);
          prefixSize = ((char *)targetName - (char *)request) + offsetof(HgfsFileName, name);
 
          return HgfsUnpackFileName(targetName,
                                    payloadSize - prefixSize,
                                    tgFileName,
                                    tgNameLength);
-      };
+      }
    }
    return FALSE;
 }
@@ -4726,19 +4719,19 @@ HgfsUnpackSymlinkCreatePayload(HgfsRequestSymlinkCreate *request, // IN: request
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackSymlinkCreatePayloadV3(HgfsRequestSymlinkCreateV3 *requestV3, // IN:
-                                 size_t payloadSize,                    // IN:
-                                 Bool *srcUseHandle,                    // OUT:
-                                 HgfsHandle* srcFile,                   // OUT:
-                                 char **srcFileName,                    // OUT:
-                                 size_t *srcNameLength,                 // OUT:
-                                 uint32 *srcCaseFlags,                  // OUT:
-                                 Bool *tgUseHandle,                     // OUT:
-                                 HgfsHandle* tgFile,                    // OUT:
-                                 char **tgFileName,                     // OUT:
-                                 size_t *tgNameLength,                  // OUT:
-                                 uint32 * tgCaseFlags)                  // OUT:
+static Bool
+HgfsUnpackSymlinkCreatePayloadV3(const HgfsRequestSymlinkCreateV3 *requestV3, // IN:
+                                 size_t payloadSize,                          // IN:
+                                 Bool *srcUseHandle,                          // OUT:
+                                 HgfsHandle* srcFile,                         // OUT:
+                                 const char **srcFileName,                    // OUT:
+                                 size_t *srcNameLength,                       // OUT:
+                                 uint32 *srcCaseFlags,                        // OUT:
+                                 Bool *tgUseHandle,                           // OUT:
+                                 HgfsHandle* tgFile,                          // OUT:
+                                 const char **tgFileName,                     // OUT:
+                                 size_t *tgNameLength,                        // OUT:
+                                 uint32 * tgCaseFlags)                        // OUT:
 {
    uint32 prefixSize;
 
@@ -4793,12 +4786,12 @@ HgfsUnpackSymlinkCreateRequest(void const *packet,        // IN: HGFS packet
                                size_t packetSize,         // IN: request packet size
                                HgfsOp op,                 // IN: request type
                                Bool *srcUseHandle,        // OUT: use source handle
-                               char **srcFileName,        // OUT: source file name
+                               const char **srcFileName,  // OUT: source file name
                                size_t *srcFileNameLength, // OUT: source file name length
                                uint32 *srcCaseFlags,      // OUT: source case sensitivity
                                HgfsHandle *srcFile,       // OUT: source file handle
                                Bool *tgUseHandle,         // OUT: use target handle
-                               char **tgFileName,         // OUT: target file name
+                               const char **tgFileName,   // OUT: target file name
                                size_t *tgFileNameLength,  // OUT: target file name length
                                uint32 *tgCaseFlags,       // OUT: target case sensitivity
                                HgfsHandle *tgFile)        // OUT: target file handle
@@ -4807,34 +4800,34 @@ HgfsUnpackSymlinkCreateRequest(void const *packet,        // IN: HGFS packet
 
    switch (op) {
    case HGFS_OP_CREATE_SYMLINK_V3: {
-         HgfsRequestSymlinkCreateV3 *requestV3 = (HgfsRequestSymlinkCreateV3 *)packet;
+      const HgfsRequestSymlinkCreateV3 *requestV3 = packet;
 
-         if (!HgfsUnpackSymlinkCreatePayloadV3(requestV3, packetSize,
-                                               srcUseHandle, srcFile,
-                                               srcFileName, srcFileNameLength, srcCaseFlags,
-                                               tgUseHandle, tgFile,
-                                               tgFileName, tgFileNameLength, tgCaseFlags)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         break;
+      if (!HgfsUnpackSymlinkCreatePayloadV3(requestV3, packetSize,
+                                            srcUseHandle, srcFile,
+                                            srcFileName, srcFileNameLength, srcCaseFlags,
+                                            tgUseHandle, tgFile,
+                                            tgFileName, tgFileNameLength, tgCaseFlags)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+         break;
+   }
    case HGFS_OP_CREATE_SYMLINK: {
-         HgfsRequestSymlinkCreate *requestV1 = (HgfsRequestSymlinkCreate *)packet;
+      const HgfsRequestSymlinkCreate *requestV1 = packet;
 
-         if (!HgfsUnpackSymlinkCreatePayload(requestV1, packetSize, srcFileName,
-                                             srcFileNameLength, tgFileName, tgFileNameLength)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
-            return FALSE;
-         }
-         *srcFile = HGFS_INVALID_HANDLE;
-         *srcCaseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
-         *srcUseHandle = FALSE;
-         *tgFile = HGFS_INVALID_HANDLE;
-         *tgCaseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
-         *tgUseHandle = FALSE;
-         break;
+      if (!HgfsUnpackSymlinkCreatePayload(requestV1, packetSize, srcFileName,
+                                          srcFileNameLength, tgFileName, tgFileNameLength)) {
+         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         return FALSE;
       }
+      *srcFile = HGFS_INVALID_HANDLE;
+      *srcCaseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
+      *srcUseHandle = FALSE;
+      *tgFile = HGFS_INVALID_HANDLE;
+      *tgCaseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
+      *tgUseHandle = FALSE;
+      break;
+   }
    default:
       LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
       NOT_REACHED();
@@ -4924,11 +4917,11 @@ HgfsPackSymlinkCreateReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackSearchOpenPayload(HgfsRequestSearchOpen *request, // IN: payload
-                            size_t payloadSize,             // IN: payload size
-                            char **dirName,                 // OUT: directory name
-                            uint32 *dirNameLength)          // OUT: name length
+static Bool
+HgfsUnpackSearchOpenPayload(const HgfsRequestSearchOpen *request, // IN: payload
+                            size_t payloadSize,                   // IN: payload size
+                            const char **dirName,                 // OUT: directory name
+                            uint32 *dirNameLength)                // OUT: name length
 {
    LOG(4, ("%s: HGFS_OP_SEARCH_OPEN\n", __FUNCTION__));
    if (payloadSize >= sizeof *request) {
@@ -4961,12 +4954,12 @@ HgfsUnpackSearchOpenPayload(HgfsRequestSearchOpen *request, // IN: payload
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackSearchOpenPayloadV3(HgfsRequestSearchOpenV3 *requestV3, // IN: payload
-                              size_t payloadSize,                 // IN: payload size
-                              char **dirName,                     // OUT: directory name
-                              uint32 *dirNameLength,              // OUT: name length
-                              uint32 *caseFlags)                  // OUT: case flags
+static Bool
+HgfsUnpackSearchOpenPayloadV3(const HgfsRequestSearchOpenV3 *requestV3, // IN: payload
+                              size_t payloadSize,                       // IN: payload size
+                              const char **dirName,                     // OUT: directory name
+                              uint32 *dirNameLength,                    // OUT: name length
+                              uint32 *caseFlags)                        // OUT: case flags
 {
    LOG(4, ("%s: HGFS_OP_SEARCH_OPEN_V3\n", __FUNCTION__));
    if (payloadSize >= sizeof *requestV3) {
@@ -5003,7 +4996,7 @@ Bool
 HgfsUnpackSearchOpenRequest(void const *packet,      // IN: HGFS packet
                             size_t packetSize,       // IN: request packet size
                             HgfsOp op,               // IN: request type
-                            char **dirName,          // OUT: directory name
+                            const char **dirName,    // OUT: directory name
                             uint32 *dirNameLength,   // OUT: name length
                             uint32 *caseFlags)       // OUT: case flags
 {
@@ -5011,7 +5004,7 @@ HgfsUnpackSearchOpenRequest(void const *packet,      // IN: HGFS packet
 
    switch (op) {
    case HGFS_OP_SEARCH_OPEN_V3: {
-         HgfsRequestSearchOpenV3 *requestV3 = (HgfsRequestSearchOpenV3 *)packet;
+         const HgfsRequestSearchOpenV3 *requestV3 = packet;
 
          if (!HgfsUnpackSearchOpenPayloadV3(requestV3, packetSize, dirName,
                                             dirNameLength, caseFlags)) {
@@ -5021,10 +5014,10 @@ HgfsUnpackSearchOpenRequest(void const *packet,      // IN: HGFS packet
          break;
       }
    case HGFS_OP_SEARCH_OPEN: {
-         HgfsRequestSearchOpen *requestV1 = (HgfsRequestSearchOpen *)packet;
+         const HgfsRequestSearchOpen *requestV1 = packet;
 
          if (!HgfsUnpackSearchOpenPayload(requestV1, packetSize, dirName,
-                                            dirNameLength)) {
+                                          dirNameLength)) {
             LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
             return FALSE;
          }
@@ -5120,10 +5113,10 @@ HgfsPackSearchOpenReply(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsUnpackCreateSessionPayloadV4(HgfsRequestCreateSessionV4 *requestV4, // IN: payload
-                                 size_t payloadSize,                    // IN:
-                                 HgfsCreateSessionInfo *info)           // IN/OUT: info
+static Bool
+HgfsUnpackCreateSessionPayloadV4(const HgfsRequestCreateSessionV4 *requestV4, // IN: payload
+                                 size_t payloadSize,                          // IN:
+                                 HgfsCreateSessionInfo *info)                 // IN/OUT: info
 {
    LOG(4, ("%s: HGFS_OP_CREATE_SESSION_V4\n", __FUNCTION__));
    if (payloadSize  < offsetof(HgfsRequestCreateSessionV4, reserved)) {
@@ -5169,14 +5162,14 @@ HgfsUnpackCreateSessionRequest(void const *packet,          // IN: HGFS packet
                                HgfsOp op,                   // IN: request type
                                HgfsCreateSessionInfo *info) // IN/OUT: info struct
 {
-   HgfsRequestCreateSessionV4 *requestV4;
+   const HgfsRequestCreateSessionV4 *requestV4;
 
    ASSERT(packet);
    ASSERT(info);
 
    ASSERT(op == HGFS_OP_CREATE_SESSION_V4);
 
-   requestV4 = (HgfsRequestCreateSessionV4 *)packet;
+   requestV4 = packet;
    if (!HgfsUnpackCreateSessionPayloadV4(requestV4, packetSize, info)) {
       LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
       return FALSE;
@@ -5391,15 +5384,15 @@ HgfsPackSetWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
  */
 
 static Bool
-HgfsUnpackSetWatchPayloadV4(HgfsRequestSetWatchV4 *requestV4, // IN: request payload
-                            size_t payloadSize,               // IN: payload size
-                            Bool *useHandle,                  // OUT: handle or cpName
-                            uint32 *flags,                    // OUT: watch flags
-                            uint32 *events,                   // OUT: event filter
-                            char **cpName,                    // OUT: cpName
-                            size_t *cpNameSize,               // OUT: cpName size
-                            HgfsHandle *dir,                  // OUT: directory handle
-                            uint32 *caseFlags)                // OUT: case-sensitivity
+HgfsUnpackSetWatchPayloadV4(const HgfsRequestSetWatchV4 *requestV4, // IN: request payload
+                            size_t payloadSize,                     // IN: payload size
+                            Bool *useHandle,                        // OUT: handle or cpName
+                            uint32 *flags,                          // OUT: watch flags
+                            uint32 *events,                         // OUT: event filter
+                            const char **cpName,                    // OUT: cpName
+                            size_t *cpNameSize,                     // OUT: cpName size
+                            HgfsHandle *dir,                        // OUT: directory handle
+                            uint32 *caseFlags)                      // OUT: case-sensitivity
 {
    if (payloadSize < sizeof *requestV4) {
       return FALSE;
@@ -5441,14 +5434,14 @@ HgfsUnpackSetWatchRequest(void const *packet,      // IN: HGFS packet
                           size_t packetSize,       // IN: request packet size
                           HgfsOp op,               // IN: requested operation
                           Bool *useHandle,         // OUT: handle or cpName
-                          char **cpName,           // OUT: cpName
+                          const char **cpName,     // OUT: cpName
                           size_t *cpNameSize,      // OUT: cpName size
                           uint32 *flags,           // OUT: flags for the new watch
                           uint32 *events,          // OUT: event filter
                           HgfsHandle *dir,         // OUT: direrctory handle
                           uint32 *caseFlags)       // OUT: case-sensitivity flags
 {
-   HgfsRequestSetWatchV4 *requestV4 = (HgfsRequestSetWatchV4 *)packet;
+   const HgfsRequestSetWatchV4 *requestV4 = packet;
    Bool result;
 
    ASSERT(packet);
@@ -5538,9 +5531,9 @@ HgfsPackRemoveWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
  */
 
 static Bool
-HgfsUnpackRemoveWatchPayloadV4(HgfsRequestRemoveWatchV4 *requestV4, // IN: request payload
-                               size_t payloadSize,                  // IN: payload size
-                               HgfsSubscriberHandle *watchId)       // OUT: watch id
+HgfsUnpackRemoveWatchPayloadV4(const HgfsRequestRemoveWatchV4 *requestV4, // IN: request payload
+                               size_t payloadSize,                        // IN: payload size
+                               HgfsSubscriberHandle *watchId)             // OUT: watch id
 {
    if (payloadSize < sizeof *requestV4) {
       return FALSE;
@@ -5574,7 +5567,7 @@ HgfsUnpackRemoveWatchRequest(void const *packet,            // IN: HGFS packet
                              HgfsOp op,                     // IN: requested operation
                              HgfsSubscriberHandle *watchId) // OUT: watch Id to remove
 {
-   HgfsRequestRemoveWatchV4 *requestV4 = (HgfsRequestRemoveWatchV4 *)packet;
+   const HgfsRequestRemoveWatchV4 *requestV4 = packet;
 
    ASSERT(packet);
    ASSERT(watchId);
@@ -5745,6 +5738,84 @@ HgfsPackOplockBreakRequest(void *packet,                    // IN/OUT: Hgfs Pack
                          header);
 
 exit:
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsUnpackOplockBreakAckPayloadV4 --
+ *
+ *    Unpack HGFS oplock break acknowledge payload version 4.
+ *
+ * Results:
+ *    TRUE on success.
+ *    FALSE on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsUnpackOplockBreakAckPayloadV4(const HgfsReplyOplockBreakV4 *opBrkAck,  // IN: request payload
+                                  size_t payloadSize,                      // IN: payload size
+                                  HgfsHandle *fileId,                      // OUT: file Id to remove
+                                  HgfsLockType *serverLock)                // OUT: lock type
+{
+   if (payloadSize < sizeof *opBrkAck) {
+      return FALSE;
+   }
+
+   *fileId     = opBrkAck->fid;
+   *serverLock = opBrkAck->serverLock;
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsUnpackOplockBreakAckReply --
+ *
+ *    Unpack hgfs oplock break acknowledge reply.
+ *
+ * Results:
+ *    TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsUnpackOplockBreakAckReply(void const *packet,            // IN: HGFS packet
+                              size_t packetSize,             // IN: reply packet size
+                              HgfsOp op,                     // IN: operation version
+                              HgfsHandle *fileId,            // OUT: file Id to remove
+                              HgfsLockType *serverLock)      // OUT: lock type
+{
+   const HgfsReplyOplockBreakV4 *replyV4 = packet;
+   Bool result = FALSE;
+
+   ASSERT(fileId);
+   ASSERT(serverLock);
+
+   ASSERT(HGFS_OP_OPLOCK_BREAK_V4 == op);
+
+   if (HGFS_OP_OPLOCK_BREAK_V4 == op) {
+      result = HgfsUnpackOplockBreakAckPayloadV4(replyV4,
+                                                 packetSize,
+                                                 fileId,
+                                                 serverLock);
+   }
+
+   if (!result) {
+      LOG(4, ("%s: Error unpacking packet\n", __FUNCTION__));
+   }
    return result;
 }
 
@@ -5926,8 +5997,8 @@ HgfsPackChangeNotifyRequestV4(HgfsSubscriberHandle watchId,  // IN: watch
       reply->count = 1;
       notificationOffset = offsetof(HgfsRequestNotifyV4, events);
       size = HgfsPackChangeNotifyEventV4(mask, shareName, fileName,
-                                          bufferSize - notificationOffset,
-                                          reply->events);
+                                         bufferSize - notificationOffset,
+                                         reply->events);
       if (size != 0) {
          size += notificationOffset;
       } else {

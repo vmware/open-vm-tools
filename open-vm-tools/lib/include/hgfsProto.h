@@ -2163,7 +2163,9 @@ HgfsRequestOplockBreakV4;
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyOplockBreakV4 {
-   uint64 reserved;                 /* Reserved for future use. */
+   HgfsHandle fid;                    /* File handle. */
+   HgfsLockType serverLock;           /* Lock type. */
+   uint64 reserved;                   /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
 HgfsReplyOplockBreakV4;

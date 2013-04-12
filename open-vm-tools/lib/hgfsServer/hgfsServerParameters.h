@@ -66,7 +66,7 @@ HgfsUnpackGetattrRequest(void const *packetHeader,   // IN: packet header
                          HgfsOp op,                   // IN: request type
                          HgfsFileAttrInfo *attrInfo, // IN/OUT: unpacked attr struct
                          HgfsAttrHint *hints,        // OUT: getattr hints
-                         char **cpName,              // OUT: cpName
+                         const char **cpName,        // OUT: cpName
                          size_t *cpNameSize,         // OUT: cpName size
                          HgfsHandle *file,           // OUT: file handle
                          uint32 *caseFlags);         // OUT: case-sensitivity flags
@@ -75,7 +75,7 @@ Bool
 HgfsUnpackDeleteRequest(void const *packet,         // IN: request packet
                         size_t packetSize,          // IN: request packet size
                         HgfsOp  op,                 // IN: requested operation
-                        char **cpName,              // OUT: cpName
+                        const char **cpName,        // OUT: cpName
                         size_t *cpNameSize,         // OUT: cpName size
                         HgfsDeleteHint *hints,      // OUT: delete hints
                         HgfsHandle *file,           // OUT: file handle
@@ -92,9 +92,9 @@ Bool
 HgfsUnpackRenameRequest(void const *packet,         // IN: request packet
                         size_t packetSize,          // IN: request packet size
                         HgfsOp op,                  // IN: requested operation
-                        char **cpOldName,           // OUT: rename src
+                        const char **cpOldName,     // OUT: rename src
                         size_t *cpOldNameLen,       // OUT: rename src size
-                        char **cpNewName,           // OUT: rename dst
+                        const char **cpNewName,     // OUT: rename dst
                         size_t *cpNewNameLen,       // OUT: rename dst size
                         HgfsRenameHint *hints,      // OUT: rename hints
                         HgfsHandle *srcFile,        // OUT: src file handle
@@ -148,7 +148,7 @@ HgfsUnpackSetattrRequest(void const *packet,            // IN: request packet
                          HgfsOp op,                     // IN: requested operation
                          HgfsFileAttrInfo *attr,        // IN/OUT: getattr info
                          HgfsAttrHint *hints,           // OUT: setattr hints
-                         char **cpName,                 // OUT: cpName
+                         const char **cpName,           // OUT: cpName
                          size_t *cpNameSize,            // OUT: cpName size
                          HgfsHandle *file,              // OUT: server file ID
                          uint32 *caseFlags);            // OUT: case-sensitivity flags
@@ -186,7 +186,7 @@ HgfsUnpackQueryVolumeRequest(void const *packet,     // IN: HGFS packet
                              size_t packetSize,      // IN: request packet size
                              HgfsOp op,              // IN: request type
                              Bool *useHandle,        // OUT: use handle
-                             char **fileName,        // OUT: file name
+                             const char **fileName,  // OUT: file name
                              size_t *fileNameLength, // OUT: file name length
                              uint32 *caseFlags,      // OUT: case sensitivity
                              HgfsHandle *file);      // OUT: Handle to the volume
@@ -195,12 +195,12 @@ HgfsUnpackSymlinkCreateRequest(void const *packet,        // IN: request packet
                                size_t packetSize,         // IN: request packet size
                                HgfsOp op,                 // IN: request type
                                Bool *srcUseHandle,        // OUT: use source handle
-                               char **srcFileName,        // OUT: source file name
+                               const char **srcFileName,  // OUT: source file name
                                size_t *srcFileNameLength, // OUT: source file name length
                                uint32 *srcCaseFlags,      // OUT: source case sensitivity
                                HgfsHandle *srcFile,       // OUT: source file handle
                                Bool *tgUseHandle,         // OUT: use target handle
-                               char **tgFileName,         // OUT: target file name
+                               const char **tgFileName,   // OUT: target file name
                                size_t *tgFileNameLength,  // OUT: target file name length
                                uint32 *tgCaseFlags,       // OUT: target case sensitivity
                                HgfsHandle *tgFile);        // OUT: target file handle
@@ -209,7 +209,7 @@ HgfsUnpackWriteWin32StreamRequest(void const *packet,   // IN: HGFS packet
                                   size_t packetSize,    // IN: size of packet
                                   HgfsOp op,            // IN: request type
                                   HgfsHandle *file,     // OUT: file to write to
-                                  char **payload,       // OUT: data to write
+                                  const char **payload, // OUT: data to write
                                   size_t *requiredSize, // OUT: size of data
                                   Bool *doSecurity);    // OUT: restore sec.str.
 Bool
@@ -234,7 +234,7 @@ Bool
 HgfsUnpackSearchOpenRequest(void const *packet,      // IN: HGFS packet
                             size_t packetSize,       // IN: request packet size
                             HgfsOp op,               // IN: request type
-                            char **dirName,          // OUT: directory name
+                            const char **dirName,    // OUT: directory name
                             uint32 *dirNameLength,   // OUT: name length
                             uint32 *caseFlags);      // OUT: case flags
 Bool
@@ -282,7 +282,7 @@ HgfsUnpackWriteRequest(HgfsInputParam *input,   // IN: Input params
                        uint64 *offset,          // OUT: offset to write to
                        uint32 *length,          // OUT: length of data to write
                        HgfsWriteFlags *flags,   // OUT: write flags
-                       char **data);            // OUT: data to be written
+                       const char **data);      // OUT: data to be written
 Bool
 HgfsPackCreateSessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                            char const *packetHeader,  // IN: packet header
@@ -301,7 +301,7 @@ HgfsUnpackSetWatchRequest(void const *packet,      // IN: HGFS packet
                           size_t packetSize,       // IN: request packet size
                           HgfsOp op,               // IN: requested operation
                           Bool *useHandle,         // OUT: handle or cpName
-                          char **cpName,           // OUT: cpName
+                          const char **cpName,     // OUT: cpName
                           size_t *cpNameSize,      // OUT: cpName size
                           uint32 *flags,           // OUT: flags for the new watch
                           uint32 *events,          // OUT: event filter
