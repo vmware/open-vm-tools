@@ -120,6 +120,7 @@ enum VixResponseFlagsValues {
    VIX_RESPONSE_TRUNCATED                 = 0x0004,
    VIX_RESPONSE_FSR                       = 0x0008,
    VIX_RESPONSE_VMDB_NOTIFICATION_POSTED  = 0x0010,
+   VIX_RESPONSE_VIGOR_COMMAND             = 0x0020,
 };
 
 
@@ -1152,32 +1153,6 @@ struct VixMsgDebuggerEvent {
 }
 #include "vmware_pack_end.h"
 VixMsgDebuggerEvent;
-
-/*
- * Fault Tolerance Automation
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgFaultToleranceControlRequest {
-   VixCommandRequestHeader    requestHeader;
-
-   int32                      command;
-   char                       uuid[48];
-   uint32                     vmxPathLen;
-   char                       vmxFilePath[1];
-} 
-#include "vmware_pack_end.h"
-VixMsgFaultToleranceControlRequest;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixFaultToleranceControlResponse {
-   VixCommandResponseHeader header;
-   uint32 propertyListBufferSize;
-   // Followed by a serialized property list containing error context.
-}
-#include "vmware_pack_end.h"
-VixFaultToleranceControlResponse;
 
 
 /*
@@ -2318,10 +2293,10 @@ enum {
    VIX_COMMAND_GET_GUEST_NETWORKING_CONFIG      = 116,
    VIX_COMMAND_SET_GUEST_NETWORKING_CONFIG      = 117,
 
-   VIX_COMMAND_FAULT_TOLERANCE_REGISTER         = 118,
-   VIX_COMMAND_FAULT_TOLERANCE_UNREGISTER       = 119,
-   VIX_COMMAND_FAULT_TOLERANCE_CONTROL          = 120,
-   VIX_COMMAND_FAULT_TOLERANCE_QUERY_SECONDARY  = 121,
+   /* DEPRECATED VIX_COMMAND_FAULT_TOLERANCE_REGISTER         = 118, */
+   /* DEPRECATED VIX_COMMAND_FAULT_TOLERANCE_UNREGISTER       = 119, */
+   /* DEPRECATED VIX_COMMAND_FAULT_TOLERANCE_CONTROL          = 120, */
+   /* DEPRECATED VIX_COMMAND_FAULT_TOLERANCE_QUERY_SECONDARY  = 121, */
 
    VIX_COMMAND_VM_PAUSE                         = 122,
    VIX_COMMAND_VM_UNPAUSE                       = 123,

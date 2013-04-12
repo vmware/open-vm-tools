@@ -578,7 +578,7 @@ FileStripFwdSlashes(ConstUnicode pathName)  // IN:
  *
  * FileVMFSGetCanonicalPath --
  *
- *    Given an absolute pathname of a VM directory, return its canonical
+ *    Given an absolute pathname of a VM directory/file, return its canonical
  *    pathname.
  *
  *    Canonical name for a VM directory has a special significance only for
@@ -597,6 +597,15 @@ FileStripFwdSlashes(ConstUnicode pathName)  // IN:
  *    directory. It will climb up one directory at a time looking for an
  *    NFS config VVol. The max number of directory components it'll check
  *    is MAX_SUBDIR_LEVEL.
+ *
+ *    It can also be called with 'absVMDirName' referring to a file
+ *    (typically vmdk) and not a directory. The file can even be non-existent,
+ *    f.e. it can correctly resolve
+ *    /vmfs/volumes/nfs_pe_2/vvol36/meta_vvol36/DataVVol.vmdk to
+ *    /vmfs/volumes/vvol:26acd2ae55ea49c3-87dd47a44e4f327/rfc4122.d140c97a-7208-474e-95c7-a4ee6cac7f15/DataVVol.vmdk
+ *    for non-existent file DataVVol.vmdk.
+ *    This workflow is typical when a new vmdk is being created
+ *    f.e. by diskCreate.
  *
  * Note:
  *    'absVMDirName' should not have extra slashes in the name. This will
@@ -638,9 +647,11 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
    Unicode currDir = NULL;
    /*
     * This holds the path fragment after the NFS config VVol. This will be
-    * non-empty only in the case when absVMDirName refers to some subdir
-    * inside the NFS config VVol directory. We keep collecting the path
-    * components as we change currDir one level at a time.
+    * non-empty in the case when absVMDirName refers to some subdir
+    * inside the NFS config VVol directory or it refers to a file (and not
+    * a directory). We keep collecting the path components as we change
+    * currDir one level at a time, and in the end append it to the resolved
+    * pathname before returning to the caller.
     */
    Unicode dirPath = NULL;
    Unicode canonPath = NULL;  /* result */
@@ -653,10 +664,27 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
    }
 
    /*
+    * If not already a directory, get the containing directory since the
+    * rest of the code works best on the containing directory, for following
+    * reasons:
+    *
+    * 1. File may be non-existent (diskCreate workflow).
+    * 2. File open may fail because of exclusive open by another process.
+    *    Directory open does not have this problem.
+    */
+   if (!File_IsDirectory(absVMDirName)) {
+      File_GetPathName(absVMDirName, &currDir, &dirPath);
+      ASSERT(currDir);
+      ASSERT(dirPath);
+   }
+
+   /*
     * Only NFS config vvols can have a canonical name different from the
     * absolute pathname provided. This will do the validity check also.
+    * Note that we make use of the fact that a file is on the same filesystem
+    * as it's containing directory.
     */
-   if (File_GetVMFSFSType(absVMDirName, -1, &fsType) != 0 ||
+   if (File_GetVMFSFSType(currDir ? currDir : absVMDirName, -1, &fsType) != 0 ||
        (fsType != NFSCLIENT_FSTYPENUM && fsType != NFS41CLIENT_FSTYPENUM)) {
       goto use_same_path;
    }
@@ -669,17 +697,6 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
    ctrlfd = Posix_Open(VVOL_NAMESPACE_CONTROL_NODE, O_RDONLY);
    if (ctrlfd < 0) {
       goto use_same_path;
-   }
-
-   /*
-    * If the user has passed a filename (instead of a dirname) we
-    * cannot pass it as-is to the ioctl as it works on a directory
-    * name.
-    */
-   if (!File_IsDirectory(absVMDirName)) {
-      File_GetPathName(absVMDirName, &currDir, &dirPath);
-      ASSERT(currDir);
-      ASSERT(dirPath);
    }
 
    /*
@@ -703,7 +720,7 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
       Unicode pathname, basename;
 
       Unicode_CopyBytes(getCanonArgs->absNFSPath,
-                        currDir ? : absVMDirName,
+                        currDir ? currDir : absVMDirName,
                         sizeof(getCanonArgs->absNFSPath),
                         NULL, STRING_ENCODING_UTF8);
 
@@ -729,7 +746,7 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
       /*
        * Try the next level dir.
        */
-      File_GetPathName(currDir ? : absVMDirName, &pathname, &basename);
+      File_GetPathName(currDir ? currDir : absVMDirName, &pathname, &basename);
       Unicode_Free(currDir);
       currDir = pathname;
       /*
@@ -753,7 +770,8 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
       }
    } while (searchDepth-- > 0);
 
-   canonPath = Unicode_Format("%s%s", getCanonArgs->canonPath, dirPath ? : "");
+   canonPath = Unicode_Format("%s%s", getCanonArgs->canonPath,
+                              dirPath ? dirPath : "");
 
 done:
    close(ctrlfd);
