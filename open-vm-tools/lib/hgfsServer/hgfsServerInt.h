@@ -403,7 +403,7 @@ typedef struct HgfsFileOpenInfo {
    HgfsLockType desiredLock;         /* The type of lock desired by the client */
    HgfsLockType acquiredLock;        /* The type of lock acquired by the server */
    uint32 cpNameSize;
-   char *cpName;
+   const char *cpName;
    char *utf8Name;
    uint32 caseFlags;                 /* Case-sensitivity flags. */
    HgfsShareInfo shareInfo;          /* Parameters associated with the share. */
@@ -466,7 +466,7 @@ typedef struct HgfsCreateDirInfo {
    HgfsPermissions groupPerms;   /* Group permissions bits. Ignored by Windows */
    HgfsPermissions otherPerms;   /* Other permissions bits. Ignored by Windows */
    uint32 cpNameSize;
-   char *cpName;
+   const char *cpName;
    uint32 caseFlags;             /* Case-sensitivity flags. */
    HgfsAttrFlags fileAttr;       /* Various flags and Windows 'attributes' */
 } HgfsCreateDirInfo;
@@ -545,14 +545,6 @@ HgfsServerGetAccess(char *in,                    // IN:  CP filename to check
                     uint32 caseFlags,            // IN:  Case-sensitivity flags
                     char **bufOut,               // OUT: File name in local fs
                     size_t *outLen);             // OUT: Length of name out
-
-HgfsNameStatus
-HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename to check
-                       size_t cpNameSize,       // IN:  Size of name cpName
-                       uint32 caseFlags,        // IN:  Case-sensitivity flags
-                       HgfsShareInfo* shareInfo,// OUT: Shared folder properties
-                       char **bufOut,           // OUT: File name in local fs
-                       size_t *outLen);         // OUT: Length of name out
 
 Bool
 HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check

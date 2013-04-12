@@ -4583,12 +4583,13 @@ HgfsServerStatFs(const char *pathName, // IN: Path we're interested in
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerGetShareInfo --
+ * HgfsServerGetLocalNameInfo --
  *
- *    Construct local name based on the crossplatform CPName for the file.
+ *    Construct local name based on the crossplatform CPName for the file and the
+ *    share information.
+ *
  *    The name returned is allocated and must be freed by the caller.
- *
- *    outLen can be NULL, in which case the length is not returned.
+ *    The name length is optionally returned.
  *
  * Results:
  *    A status code indicating either success (correspondent share exists) or
@@ -4600,13 +4601,13 @@ HgfsServerStatFs(const char *pathName, // IN: Path we're interested in
  *-----------------------------------------------------------------------------
  */
 
-HgfsNameStatus
-HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename to check
-                       size_t cpNameSize,       // IN:  Size of name cpName
-                       uint32 caseFlags,        // IN:  Case-sensitivity flags
-                       HgfsShareInfo *shareInfo,// OUT: properties of the shared folder
-                       char **bufOut,           // OUT: File name in local fs
-                       size_t *outLen)          // OUT: Length of name out
+static HgfsNameStatus
+HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filename to check
+                           size_t cpNameSize,       // IN:  Size of name cpName
+                           uint32 caseFlags,        // IN:  Case-sensitivity flags
+                           HgfsShareInfo *shareInfo,// OUT: properties of the shared folder
+                           char **bufOut,           // OUT: File name in local fs
+                           size_t *outLen)          // OUT: Length of name out optional
 {
    HgfsNameStatus nameStatus;
    char const *inEnd;
@@ -4702,7 +4703,7 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
        */
       tempSize = sizeof tempBuf;
       tempPtr = tempBuf;
-      nameStatus = CPName_ConvertFromRoot((char const **) &cpName,
+      nameStatus = CPName_ConvertFromRoot(&cpName,
                                           &cpNameSize, &tempSize, &tempPtr);
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
          LOG(4, ("%s: ConvertFromRoot not complete\n", __FUNCTION__));
@@ -4742,7 +4743,7 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
    tempPtr = tempBuf;
 
 
-   if (CPName_ConvertFrom((char const **) &cpName, &cpNameSize, &tempSize,
+   if (CPName_ConvertFrom(&cpName, &cpNameSize, &tempSize,
                           &tempPtr) < 0) {
       LOG(4, ("%s: CP name conversion failed\n", __FUNCTION__));
       nameStatus = HGFS_NAME_STATUS_FAILURE;
@@ -4888,7 +4889,7 @@ error:
  *
  *    This function assumes that CPName_GetComponent() will always succeed
  *    with a size greater than 0, so it must ONLY be called after a call to
- *    HgfsServerGetShareInfo() that returns HGFS_NAME_STATUS_COMPLETE.
+ *    HgfsServerGetLocalNameInfo() that returns HGFS_NAME_STATUS_COMPLETE.
  *
  * Results:
  *    True if it is a shared folder only, otherwise false
@@ -5681,12 +5682,12 @@ HgfsServerQueryVolInt(HgfsSessionInfo *session,   // IN: session info
     * XXX - make the filename const!
     * It is now safe to read the file name field.
     */
-   nameStatus = HgfsServerGetShareInfo((char *)fileName,
-                                       fileNameLength,
-                                       caseFlags,
-                                       &shareInfo,
-                                       &utf8Name,
-                                       &utf8NameLen);
+   nameStatus = HgfsServerGetLocalNameInfo(fileName,
+                                           fileNameLength,
+                                           caseFlags,
+                                           &shareInfo,
+                                           &utf8Name,
+                                           &utf8NameLen);
 
    /* Check if we have a real path and if so handle it here. */
    if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
@@ -5844,12 +5845,12 @@ HgfsSymlinkCreate(HgfsSessionInfo *session, // IN: session info,
     * "targetName" field
     */
 
-   nameStatus = HgfsServerGetShareInfo((char *)srcFileName,
-                                       srcFileNameLength,
-                                       srcCaseFlags,
-                                       &shareInfo,
-                                       &localSymlinkName,
-                                       &localSymlinkNameLen);
+   nameStatus = HgfsServerGetLocalNameInfo(srcFileName,
+                                           srcFileNameLength,
+                                           srcCaseFlags,
+                                           &shareInfo,
+                                           &localSymlinkName,
+                                           &localSymlinkNameLen);
    if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
       if (shareInfo.writePermissions ) {
          /* Get the config options. */
@@ -5992,8 +5993,8 @@ HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
 
    if (HgfsUnpackSearchOpenRequest(input->payload, input->payloadSize, input->op,
                                    &dirName, &dirNameLength, &caseFlags)) {
-      nameStatus = HgfsServerGetShareInfo((char *)dirName, dirNameLength, caseFlags,
-                                          &shareInfo, &baseDir, &baseDirLen);
+      nameStatus = HgfsServerGetLocalNameInfo(dirName, dirNameLength, caseFlags,
+                                              &shareInfo, &baseDir, &baseDirLen);
       status = HgfsPlatformSearchDir(nameStatus, (char *)dirName, dirNameLength, caseFlags,
                                      &shareInfo, baseDir, baseDirLen,
                                      input->session, &search);
@@ -6071,12 +6072,12 @@ HgfsValidateRenameFile(Bool useHandle,            // IN:
          status = HGFS_ERROR_ACCESS_DENIED;
       }
    } else {
-      nameStatus = HgfsServerGetShareInfo((char *)cpName,
-                                          cpNameLength,
-                                          caseFlags,
-                                          shareInfo,
-                                          localFileName,
-                                          localNameLength);
+      nameStatus = HgfsServerGetLocalNameInfo(cpName,
+                                              cpNameLength,
+                                              caseFlags,
+                                              shareInfo,
+                                              localFileName,
+                                              localNameLength);
       if (HGFS_NAME_STATUS_COMPLETE != nameStatus) {
          LOG(4, ("%s: access check failed\n", __FUNCTION__));
          status = HgfsPlatformConvertFromNameStatus(nameStatus);
@@ -6274,8 +6275,8 @@ HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
 
    if (HgfsUnpackCreateDirRequest(input->payload, input->payloadSize,
                                   input->op, &info)) {
-      nameStatus = HgfsServerGetShareInfo(info.cpName, info.cpNameSize, info.caseFlags,
-                                          &shareInfo, &utf8Name, &utf8NameLen);
+      nameStatus = HgfsServerGetLocalNameInfo(info.cpName, info.cpNameSize, info.caseFlags,
+                                              &shareInfo, &utf8Name, &utf8NameLen);
       if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
          ASSERT(utf8Name);
 
@@ -6380,8 +6381,8 @@ HgfsServerDeleteFile(HgfsInputParam *input)  // IN: Input params
          char *utf8Name = NULL;
          size_t utf8NameLen;
 
-         nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
-                                             &utf8Name, &utf8NameLen);
+         nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+                                                 &utf8Name, &utf8NameLen);
          if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
             /*
              * Deleting a file needs both read and write permssions.
@@ -6490,8 +6491,8 @@ HgfsServerDeleteDir(HgfsInputParam *input)  // IN: Input params
          char *utf8Name = NULL;
          size_t utf8NameLen;
 
-         nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
-                                             &utf8Name, &utf8NameLen);
+         nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+                                                 &utf8Name, &utf8NameLen);
          if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
             ASSERT(utf8Name);
             /* Guest OS is not allowed to delete shared folder. */
@@ -6697,8 +6698,8 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
 
    LOG(8, ("%s: entered\n",__FUNCTION__));
 
-   nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
-                                       &utf8Name, &utf8NameLen);
+   nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+                                           &utf8Name, &utf8NameLen);
    if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
       char const *inEnd = cpName + cpNameSize;
       char const *next;
@@ -6960,8 +6961,8 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
           * Depending on whether this file/dir is real or virtual, either
           * forge its attributes or look them up in the actual filesystem.
           */
-         nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
-                                             &localName, &localNameLen);
+         nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+                                                 &localName, &localNameLen);
          switch (nameStatus) {
          case HGFS_NAME_STATUS_INCOMPLETE_BASE:
             /*
@@ -7090,8 +7091,12 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
          char *utf8Name = NULL;
          size_t utf8NameLen;
 
-         nameStatus = HgfsServerGetShareInfo((char *)cpName, cpNameSize, caseFlags, &shareInfo,
-                                             &utf8Name, &utf8NameLen);
+         nameStatus = HgfsServerGetLocalNameInfo(cpName,
+                                                 cpNameSize,
+                                                 caseFlags,
+                                                 &shareInfo,
+                                                 &utf8Name,
+                                                 &utf8NameLen);
          if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
             fileDesc hFile;
             HgfsLockType serverLock = HGFS_LOCK_NONE;
@@ -7175,12 +7180,12 @@ HgfsServerValidateOpenParameters(HgfsFileOpenInfo *openInfo, // IN/OUT: openfile
    if ((openInfo->mask & HGFS_OPEN_VALID_MODE)) {
       HgfsNameStatus nameStatus;
       /* It is now safe to read the file name. */
-      nameStatus = HgfsServerGetShareInfo(openInfo->cpName,
-                                          openInfo->cpNameSize,
-                                          openInfo->caseFlags,
-                                          &openInfo->shareInfo,
-                                          &openInfo->utf8Name,
-                                          &utf8NameLen);
+      nameStatus = HgfsServerGetLocalNameInfo(openInfo->cpName,
+                                              openInfo->cpNameSize,
+                                              openInfo->caseFlags,
+                                              &openInfo->shareInfo,
+                                              &openInfo->utf8Name,
+                                              &utf8NameLen);
       if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
          if (openInfo->mask & HGFS_OPEN_VALID_FLAGS) {
             HgfsOpenFlags savedOpenFlags = openInfo->flags;

@@ -452,7 +452,7 @@ HgfsUnpackOpenPayloadV1(const HgfsRequestOpen *requestV1, // IN: request payload
                     HGFS_OPEN_VALID_OWNER_PERMS |
                     HGFS_OPEN_VALID_FILE_NAME;
    openInfo->mode = requestV1->mode;
-   openInfo->cpName = (char *)requestV1->fileName.name;
+   openInfo->cpName = requestV1->fileName.name;
    openInfo->cpNameSize = requestV1->fileName.length;
    openInfo->flags = requestV1->flags;
    openInfo->ownerPerms = requestV1->permissions;
@@ -517,7 +517,7 @@ HgfsUnpackOpenPayloadV2(const HgfsRequestOpenV2 *requestV2, // IN: request paylo
 
    openInfo->mask = requestV2->mask;
    openInfo->mode = requestV2->mode;
-   openInfo->cpName = (char *)requestV2->fileName.name;
+   openInfo->cpName = requestV2->fileName.name;
    openInfo->cpNameSize = requestV2->fileName.length;
    openInfo->flags = requestV2->flags;
    openInfo->specialPerms = requestV2->specialPerms;
@@ -589,7 +589,7 @@ HgfsUnpackOpenPayloadV3(const HgfsRequestOpenV3 *requestV3, // IN: request paylo
     */
    openInfo->mask = requestV3->mask;
    openInfo->mode = requestV3->mode;
-   openInfo->cpName = (char *)requestV3->fileName.name;
+   openInfo->cpName = requestV3->fileName.name;
    openInfo->cpNameSize = requestV3->fileName.length;
    openInfo->caseFlags = requestV3->fileName.caseType;
    openInfo->flags = requestV3->flags;
@@ -3656,7 +3656,7 @@ HgfsUnpackCreateDirPayloadV3(const HgfsRequestCreateDirV3 *requestV3, // IN: req
     */
 
    info->mask = requestV3->mask;
-   info->cpName = (char *)requestV3->fileName.name;
+   info->cpName = requestV3->fileName.name;
    info->cpNameSize = requestV3->fileName.length;
    info->caseFlags = requestV3->fileName.caseType;
    info->specialPerms = requestV3->specialPerms;
@@ -3715,7 +3715,7 @@ HgfsUnpackCreateDirPayloadV2(const HgfsRequestCreateDirV2 *requestV2, // IN: req
     */
 
    info->mask = requestV2->mask;
-   info->cpName = (char *)requestV2->fileName.name;
+   info->cpName = requestV2->fileName.name;
    info->cpNameSize = requestV2->fileName.length;
    info->specialPerms = requestV2->specialPerms;
    info->ownerPerms = requestV2->ownerPerms;
@@ -3764,7 +3764,7 @@ HgfsUnpackCreateDirPayloadV1(const HgfsRequestCreateDir *requestV1, // IN: reque
 
    /* For CreateDirV1 requests, we know exactly what fields we expect. */
    info->mask = HGFS_CREATE_DIR_VALID_OWNER_PERMS | HGFS_CREATE_DIR_VALID_FILE_NAME;
-   info->cpName = (char *)requestV1->fileName.name;
+   info->cpName = requestV1->fileName.name;
    info->cpNameSize = requestV1->fileName.length;
    info->ownerPerms = requestV1->permissions;
    info->fileAttr = 0;
@@ -3808,8 +3808,8 @@ HgfsUnpackCreateDirRequest(void const *packet,      // IN: incoming packet
    case HGFS_OP_CREATE_DIR_V3: {
       const HgfsRequestCreateDirV3 *requestV3 = packet;
       if (!HgfsUnpackCreateDirPayloadV3(requestV3,
-                                          packetSize,
-                                          info)) {
+                                        packetSize,
+                                        info)) {
          LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
          return FALSE;
       }
@@ -3819,8 +3819,8 @@ HgfsUnpackCreateDirRequest(void const *packet,      // IN: incoming packet
    case HGFS_OP_CREATE_DIR_V2: {
       const HgfsRequestCreateDirV2 *requestV2 = packet;
       if (!HgfsUnpackCreateDirPayloadV2(requestV2,
-                                          packetSize,
-                                          info)) {
+                                        packetSize,
+                                        info)) {
          LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
          return FALSE;
       }
@@ -3829,8 +3829,8 @@ HgfsUnpackCreateDirRequest(void const *packet,      // IN: incoming packet
    case HGFS_OP_CREATE_DIR: {
       const HgfsRequestCreateDir *requestV1 = packet;
       if (!HgfsUnpackCreateDirPayloadV1(requestV1,
-                                          packetSize,
-                                          info)) {
+                                        packetSize,
+                                        info)) {
          LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
          return FALSE;
       }
