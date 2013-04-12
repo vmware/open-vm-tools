@@ -84,7 +84,14 @@ int vmci_datagram_send(VMCIDatagram *msg);
 /* VMCI Utility API. */
 
 VMCIId vmci_get_context_id(void);
+
+#if defined(linux) && !defined(VMKERNEL)
+/* Returned value is a bool, 0 for false, 1 for true. */
+int vmci_is_context_owner(VMCIId contextID, uid_t uid);
+#else // !linux || VMKERNEL
+/* Returned value is a VMCI error code. */
 int vmci_is_context_owner(VMCIId contextID, void *hostUser);
+#endif // !linux || VMKERNEL
 
 uint32 vmci_version(void);
 int vmci_cid_2_host_vm_id(VMCIId contextID, void *hostVmID,
@@ -95,7 +102,10 @@ int vmci_cid_2_host_vm_id(VMCIId contextID, void *hostVmID,
 typedef void (*VMCI_EventCB)(VMCIId subID, VMCI_EventData *ed,
                              void *clientData);
 
-int vmci_event_subscribe(VMCI_Event event, uint32 flags,
+int vmci_event_subscribe(VMCI_Event event,
+#if !defined(linux) || defined(VMKERNEL)
+                         uint32 flags,
+#endif // !linux || VMKERNEL
                          VMCI_EventCB callback,
                          void *callbackData, VMCIId *subID);
 int vmci_event_unsubscribe(VMCIId subID);

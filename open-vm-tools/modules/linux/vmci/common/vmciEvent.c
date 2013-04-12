@@ -715,12 +715,17 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
 VMCI_EXPORT_SYMBOL(vmci_event_subscribe)
 int
 vmci_event_subscribe(VMCI_Event event,        // IN
+#if !defined(linux) || defined(VMKERNEL)
                      uint32 flags,            // IN
+#endif // !linux || VMKERNEL
                      VMCI_EventCB callback,   // IN
                      void *callbackData,      // IN
                      VMCIId *subscriptionID)  // OUT
 {
    int retval;
+#if defined(linux) && !defined(VMKERNEL)
+   uint32 flags = VMCI_FLAG_EVENT_NONE;
+#endif // linux && !VMKERNEL
    VMCISubscription *s = NULL;
 
    if (subscriptionID == NULL) {

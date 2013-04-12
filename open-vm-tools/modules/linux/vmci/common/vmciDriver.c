@@ -252,7 +252,10 @@ VMCIUtil_Init(void)
     * We subscribe to the VMCI_EVENT_CTX_ID_UPDATE here so we can update the
     * internal context id when needed.
     */
-   if (vmci_event_subscribe(VMCI_EVENT_CTX_ID_UPDATE, VMCI_FLAG_EVENT_NONE,
+   if (vmci_event_subscribe(VMCI_EVENT_CTX_ID_UPDATE,
+#if !defined(linux) || defined(VMKERNEL)
+                            VMCI_FLAG_EVENT_NONE,
+#endif // !linux || VMKERNEL
                             VMCIUtilCidUpdate, NULL,
                             &ctxUpdateSubID) < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to subscribe to event (type=%d).\n",

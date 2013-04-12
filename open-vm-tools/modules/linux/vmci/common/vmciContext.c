@@ -2195,7 +2195,8 @@ vmci_cid_2_host_vm_id(VMCIId contextID,    // IN
  *      user is the owner of the VM/VMX.
  *
  * Results:
- *      VMCI_SUCCESS if the hostUser is owner, error code otherwise.
+ *      Linux: 1 (true) if hostUser is owner, 0 (false) otherwise.
+ *      Other: VMCI_SUCCESS if the hostUser is owner, error code otherwise.
  *
  * Side effects:
  *      None.
@@ -2204,6 +2205,29 @@ vmci_cid_2_host_vm_id(VMCIId contextID,    // IN
  */
 
 VMCI_EXPORT_SYMBOL(vmci_is_context_owner)
+#if defined(linux) && !defined(VMKERNEL)
+int
+vmci_is_context_owner(VMCIId contextID,   // IN
+                      uid_t uid)          // IN
+{
+   int isOwner = 0;
+
+   if (VMCI_HostPersonalityActive()) {
+      VMCIContext *context = VMCIContext_Get(contextID);
+      if (context) {
+         if (context->validUser) {
+            if (VMCIHost_CompareUser((VMCIHostUser *)&uid,
+                                     &context->user) == VMCI_SUCCESS) {
+               isOwner = 1;
+            }
+         }
+         VMCIContext_Release(context);
+      }
+   }
+
+   return isOwner;
+}
+#else // !linux || VMKERNEL
 int
 vmci_is_context_owner(VMCIId contextID,   // IN
                       void *hostUser)     // IN
@@ -2237,6 +2261,7 @@ vmci_is_context_owner(VMCIId contextID,   // IN
    }
    return VMCI_ERROR_UNAVAILABLE;
 }
+#endif // !linux || VMKERNEL
 
 
 /*

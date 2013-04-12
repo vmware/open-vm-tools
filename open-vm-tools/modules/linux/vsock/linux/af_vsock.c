@@ -541,15 +541,7 @@ Bool
 VSockVmciTrusted(VSockVmciSock *vsock, // IN: Local socket
                  VMCIId peerCid)       // IN: Context ID of peer
 {
-   int res;
-
-   if (vsock->trusted) {
-      return TRUE;
-   }
-
-   res = vmci_is_context_owner(peerCid, &vsock->owner);
-
-   return res == VMCI_SUCCESS;
+   return vsock->trusted || vmci_is_context_owner(peerCid, vsock->owner);
 }
 
 
@@ -1848,7 +1840,6 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
     * specifying the ATTACH_ONLY flag below.
     */
    err = vmci_event_subscribe(VMCI_EVENT_QP_PEER_DETACH,
-                              VMCI_FLAG_EVENT_NONE,
                               VSockVmciPeerDetachCB,
                               pending,
                               &detachSubId);
@@ -2196,7 +2187,6 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
     * once and add a way to lookup sockets by queue pair handle.
     */
    err = vmci_event_subscribe(VMCI_EVENT_QP_PEER_ATTACH,
-                              VMCI_FLAG_EVENT_NONE,
                               VSockVmciPeerAttachCB,
                               sk,
                               &attachSubId);
@@ -2206,7 +2196,6 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    }
 
    err = vmci_event_subscribe(VMCI_EVENT_QP_PEER_DETACH,
-                              VMCI_FLAG_EVENT_NONE,
                               VSockVmciPeerDetachCB,
                               sk,
                               &detachSubId);
@@ -3284,7 +3273,6 @@ VSockVmciRegisterWithVmci(void)
    }
 
    err = vmci_event_subscribe(VMCI_EVENT_QP_RESUMED,
-                              VMCI_FLAG_EVENT_NONE,
                               VSockVmciQPResumedCB,
                               NULL,
                               &qpResumedSubId);
