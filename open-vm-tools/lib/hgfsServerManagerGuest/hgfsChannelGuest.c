@@ -105,6 +105,11 @@ static HgfsChannelData gHgfsChannels[] = {
    { "guest", &gGuestBackdoorOps, 0, NULL, NULL, {0} },
 };
 
+static HgfsServerConfig gHgfsGuestCfgSettings = {
+   (HGFS_CONFIG_SHARE_ALL_HOST_DRIVES_ENABLED | HGFS_CONFIG_VOL_INFO_MIN),
+   HGFS_MAX_CACHED_FILENODES
+};
+
 /* HGFS server info state. Referenced by each separate channel that uses it. */
 static HgfsChannelServerData gHgfsChannelServerInfo = { NULL, {0} };
 
@@ -200,7 +205,7 @@ HgfsChannelInitServer(HgfsChannelServerData *serverInfo)   // IN/OUT: ref count
    Debug("%s: Initialize Hgfs server.\n", __FUNCTION__);
 
    /* If we have a new connection initialize the server session with default settings. */
-   result = HgfsServer_InitState(&serverInfo->serverCBTable, NULL, NULL);
+   result = HgfsServer_InitState(&serverInfo->serverCBTable, &gHgfsGuestCfgSettings, NULL);
    if (!result) {
       Debug("%s: Could not init Hgfs server.\n", __FUNCTION__);
    }

@@ -4934,6 +4934,13 @@ HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filen
    if (shareInfo->rootDirLen == 0) {
       size_t prefixLen;
 
+      /* Are root shares allowed? If not, we exit with an error. */
+      if (0 == (gHgfsCfgSettings.flags & HGFS_CONFIG_SHARE_ALL_HOST_DRIVES_ENABLED)) {
+         LOG(4, ("%s: Root share being used\n", __FUNCTION__));
+         nameStatus = HGFS_NAME_STATUS_ACCESS_DENIED;
+         goto error;
+      }
+
       /*
        * This is a "root" share. Interpret the input appropriately as
        * either a drive letter or UNC name and append it to the output
