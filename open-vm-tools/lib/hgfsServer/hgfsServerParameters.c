@@ -5249,6 +5249,7 @@ HgfsUnpackCreateSessionPayloadV4(const HgfsRequestCreateSessionV4 *requestV4, //
    }
 
    info->maxPacketSize = requestV4->maxPacketSize;
+   info->flags = requestV4->flags;
    return TRUE;
 }
 

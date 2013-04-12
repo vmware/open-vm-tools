@@ -473,6 +473,7 @@ typedef struct HgfsCreateDirInfo {
 
 typedef struct HgfsCreateSessionInfo {
    uint32 maxPacketSize;
+   HgfsSessionFlags flags;       /* Session capability flags. */
 } HgfsCreateSessionInfo;
 
 

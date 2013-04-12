@@ -1786,17 +1786,6 @@ struct HgfsIdentity {
 #include "vmware_pack_end.h"
 HgfsIdentity;
 
-typedef
-#include "vmware_pack_begin.h"
-struct HgfsRequestCreateSessionV4 {
-   uint32 numCapabilities;            /* Number of capabilities to follow. */
-   uint32 maxPacketSize;              /* Maximum packet size supported. */
-   uint64 reserved;                   /* Reserved for future use. */
-   HgfsCapability capabilities[1];    /* Array of HgfsCapabilities. */
-}
-#include "vmware_pack_end.h"
-HgfsRequestCreateSessionV4;
-
 #define HGFS_INVALID_SESSION_ID     (~((uint64)0))
 
 /*
@@ -1809,6 +1798,19 @@ typedef uint32 HgfsSessionFlags;
 
 #define HGFS_SESSION_MAXPACKETSIZE_VALID    (1 << 0)
 #define HGFS_SESSION_CHANGENOTIFY_ENABLED   (1 << 1)
+#define HGFS_SESSION_OPLOCK_ENABLED         (1 << 2)
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestCreateSessionV4 {
+   uint32 numCapabilities;            /* Number of capabilities to follow. */
+   uint32 maxPacketSize;              /* Maximum packet size supported. */
+   HgfsSessionFlags flags;            /* Session capability flags. */
+   uint32 reserved;                   /* Reserved for future use. */
+   HgfsCapability capabilities[1];    /* Array of HgfsCapabilities. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestCreateSessionV4;
 
 typedef
 #include "vmware_pack_begin.h"

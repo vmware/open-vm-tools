@@ -3722,6 +3722,11 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
          Log("%s: initialized notification %s.\n", __FUNCTION__,
              (gHgfsDirNotifyActive ? "active" : "inactive"));
       }
+      if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED)) {
+         if (!HgfsServerOplockInit()) {
+            gHgfsCfgSettings.flags &= ~HGFS_CONFIG_OPLOCK_ENABLED;
+         }
+      }
       gHgfsInitialized = TRUE;
    } else {
       HgfsServer_ExitState(); // Cleanup partially initialized state
@@ -3756,6 +3761,9 @@ HgfsServer_ExitState(void)
 {
    gHgfsInitialized = FALSE;
 
+   if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED)) {
+      HgfsServerOplockDestroy();
+   }
    if (gHgfsDirNotifyActive) {
       HgfsNotify_Exit();
       gHgfsDirNotifyActive = FALSE;
@@ -8062,6 +8070,17 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
       if (info.maxPacketSize < session->maxPacketSize) {
          session->maxPacketSize = info.maxPacketSize;
       }
+
+      /*
+       * If the server is enabled for processing oplocks and the client
+       * is requesting to use them, then report back to the client oplocks
+       * are enabled by propagating the session flag.
+       */
+      if ((0 != (info.flags & HGFS_SESSION_OPLOCK_ENABLED)) &&
+          (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED))) {
+         session->flags |= HGFS_SESSION_OPLOCK_ENABLED;
+      }
+
       if (HgfsPackCreateSessionReply(input->packet, input->metaPacket,
                                      &replyPayloadSize, session)) {
          status = HGFS_ERROR_SUCCESS;
