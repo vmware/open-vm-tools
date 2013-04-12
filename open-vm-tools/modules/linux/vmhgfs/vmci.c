@@ -223,7 +223,7 @@ HgfsRequestAsyncShmemDispatch(HgfsAsyncIov *iov, // IN: request vectors
  *      Passes down free pages to the hgfs Server. HgfsServer will use this pages
  *      for sending change notification, oplock breaks etc.
  *
- *      XXX It seems safe to call VMCIDatagram_Send in atomic context.
+ *      XXX It seems safe to call vmci_datagram_send in atomic context.
  *
  * Results:
  *      None
@@ -281,7 +281,7 @@ HgfsVmciChannelPassGuestPages(HgfsTransportChannel *channel) // IN:
    transportHeader->pktType = HGFS_TH_REP_GET_PAGES;
 
    LOG(10, (KERN_WARNING "Sending %d Guest pages \n", i));
-   if ((ret = VMCIDatagram_Send(dg)) < VMCI_SUCCESS) {
+   if ((ret = vmci_datagram_send(dg)) < VMCI_SUCCESS) {
       if (ret == HGFS_VMCI_TRANSPORT_ERROR) {
          LOG(0, (KERN_WARNING "HGFS Transport error occured. Don't blame VMCI\n"));
       }
@@ -447,11 +447,12 @@ HgfsVmciChannelOpen(HgfsTransportChannel *channel) // IN: Channel
       goto error;
    }
 
-   ret = VMCIDatagram_CreateHnd(VMCI_INVALID_ID,        /* Resource ID */
-                                VMCI_FLAG_DG_NONE,      /* Flags */
-                                HgfsVmciChannelCallback,/* Datagram Recv Callback */
-                                NULL,                   /* Callback data */
-                                channel->priv);         /* VMCI outhandle */
+   ret = vmci_datagram_create_handle(
+                          VMCI_INVALID_ID,        /* Resource ID */
+                          VMCI_FLAG_DG_NONE,      /* Flags */
+                          HgfsVmciChannelCallback,/* Datagram Recv Callback */
+                          NULL,                   /* Callback data */
+                          channel->priv);         /* VMCI outhandle */
    if (ret != VMCI_SUCCESS) {
       LOG(1, (KERN_WARNING "Failed to create VMCI handle %d\n", ret));
       goto error;
@@ -542,7 +543,7 @@ HgfsVmciChannelTerminateSession(HgfsTransportChannel *channel) {
    transportHeader->pktType = HGFS_TH_TERMINATE_SESSION;
 
    LOG(1, (KERN_WARNING "Terminating session with host \n"));
-   if ((ret = VMCIDatagram_Send(dg)) < VMCI_SUCCESS) {
+   if ((ret = vmci_datagram_send(dg)) < VMCI_SUCCESS) {
       if (ret == HGFS_VMCI_TRANSPORT_ERROR) {
          LOG(0, (KERN_WARNING "HGFS Transport error occured. Don't blame VMCI\n"));
       }
@@ -580,7 +581,7 @@ HgfsVmciChannelClose(HgfsTransportChannel *channel) // IN: Channel
 {
    ASSERT(channel->priv != NULL);
    HgfsVmciChannelTerminateSession(channel);
-   VMCIDatagram_DestroyHnd(*(VMCIHandle *)channel->priv);
+   vmci_datagram_destroy_handle(*(VMCIHandle *)channel->priv);
    kfree(channel->priv);
    kfree(gHgfsShmemPages.list);
    channel->priv = NULL;
@@ -754,14 +755,14 @@ HgfsVmciChannelSend(HgfsTransportChannel *channel, // IN: Channel
    transportStatus->size = req->bufferSize + sizeof (HgfsVmciTransportStatus);
 
    /*
-    * Don't try to set req->state after VMCIDatagram_Send().
+    * Don't try to set req->state after vmci_datagram_send().
     * It may be too late then. We could have received a datagram by then and
     * datagram handler expects request's state to be submitted.
     */
    req->state = HGFS_REQ_STATE_SUBMITTED;
    id = req->id;
 
-   if ((ret = VMCIDatagram_Send(dg)) < VMCI_SUCCESS) {
+   if ((ret = vmci_datagram_send(dg)) < VMCI_SUCCESS) {
       if (ret == HGFS_VMCI_TRANSPORT_ERROR) {
          LOG(0, (KERN_WARNING "HGFS Transport error occured. Don't blame VMCI\n"));
       } else if (ret == HGFS_VMCI_VERSION_MISMATCH) {

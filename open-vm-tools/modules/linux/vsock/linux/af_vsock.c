@@ -547,7 +547,7 @@ VSockVmciTrusted(VSockVmciSock *vsock, // IN: Local socket
       return TRUE;
    }
 
-   res = VMCI_IsContextOwner(peerCid, &vsock->owner);
+   res = vmci_is_context_owner(peerCid, &vsock->owner);
 
    return res == VMCI_SUCCESS;
 }
@@ -578,7 +578,8 @@ VSockVmciAllowDgram(VSockVmciSock *vsock, // IN: Local socket
    if (vsock->cachedPeer != peerCid) {
       vsock->cachedPeer = peerCid;
       if (!VSockVmciTrusted(vsock, peerCid) &&
-          (VMCIContext_GetPrivFlags(peerCid) & VMCI_PRIVILEGE_FLAG_RESTRICTED)) {
+          (vmci_context_get_priv_flags(peerCid) &
+           VMCI_PRIVILEGE_FLAG_RESTRICTED)) {
          vsock->cachedPeerAllowDgram = FALSE;
       } else {
          vsock->cachedPeerAllowDgram = TRUE;
@@ -668,7 +669,7 @@ VMCISock_GetLocalCID(void)
       goto exit;
    }
 
-   cid = VMCI_GetContextID();
+   cid = vmci_get_context_id();
 
 exit:
    compat_mutex_unlock(&registrationMutex);
@@ -833,15 +834,15 @@ VSockVmciQueuePairAlloc(VMCIQPair **qpair,    // OUT
        * if vsock is running in the host.
        */
 
-      err = VMCIQPair_Alloc(qpair, handle, produceSize, consumeSize,
-                            peer, flags, VMCI_PRIVILEGE_FLAG_TRUSTED);
+      err = vmci_qpair_alloc(qpair, handle, produceSize, consumeSize,
+                             peer, flags, VMCI_PRIVILEGE_FLAG_TRUSTED);
       if (err != VMCI_ERROR_NO_ACCESS) {
          goto out;
       }
    }
 
-   err = VMCIQPair_Alloc(qpair, handle, produceSize, consumeSize,
-                         peer, flags, VMCI_NO_PRIVILEGE_FLAGS);
+   err = vmci_qpair_alloc(qpair, handle, produceSize, consumeSize,
+                          peer, flags, VMCI_NO_PRIVILEGE_FLAGS);
 out:
    if (err < 0) {
       Log("Could not attach to queue pair with %d\n", err);
@@ -884,15 +885,13 @@ VSockVmciDatagramCreateHnd(VMCIId resourceID,            // IN
     * if vsock is running in the host.
     */
 
-   err = VMCIDatagram_CreateHndPriv(resourceID, flags,
-                                    VMCI_PRIVILEGE_FLAG_TRUSTED,
-                                    recvCB, clientData,
-                                    outHandle);
+   err = vmci_datagram_create_handle_priv(resourceID, flags,
+                                          VMCI_PRIVILEGE_FLAG_TRUSTED,
+                                          recvCB, clientData, outHandle);
 
    if (err == VMCI_ERROR_NO_ACCESS) {
-      err = VMCIDatagram_CreateHnd(resourceID, flags,
-                                   recvCB, clientData,
-                                   outHandle);
+      err = vmci_datagram_create_handle(resourceID, flags, recvCB, clientData,
+                                        outHandle);
    }
 
    return err;
@@ -1839,11 +1838,11 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
     * We don't care about attach since we ensure the other side has attached by
     * specifying the ATTACH_ONLY flag below.
     */
-   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_DETACH,
-                             VMCI_FLAG_EVENT_NONE,
-                             VSockVmciPeerDetachCB,
-                             pending,
-                             &detachSubId);
+   err = vmci_event_subscribe(VMCI_EVENT_QP_PEER_DETACH,
+                              VMCI_FLAG_EVENT_NONE,
+                              VSockVmciPeerDetachCB,
+                              pending,
+                              &detachSubId);
    if (err < VMCI_SUCCESS) {
       VSOCK_SEND_RESET(pending, pkt);
       err = VSockVmci_ErrorToVSockError(err);
@@ -2187,21 +2186,21 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
     * to find the socket (it's provided), but later we should only subscribe
     * once and add a way to lookup sockets by queue pair handle.
     */
-   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_ATTACH,
-                             VMCI_FLAG_EVENT_NONE,
-                             VSockVmciPeerAttachCB,
-                             sk,
-                             &attachSubId);
+   err = vmci_event_subscribe(VMCI_EVENT_QP_PEER_ATTACH,
+                              VMCI_FLAG_EVENT_NONE,
+                              VSockVmciPeerAttachCB,
+                              sk,
+                              &attachSubId);
    if (err < VMCI_SUCCESS) {
       err = VSockVmci_ErrorToVSockError(err);
       goto destroy;
    }
 
-   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_DETACH,
-                             VMCI_FLAG_EVENT_NONE,
-                             VSockVmciPeerDetachCB,
-                             sk,
-                             &detachSubId);
+   err = vmci_event_subscribe(VMCI_EVENT_QP_PEER_DETACH,
+                              VMCI_FLAG_EVENT_NONE,
+                              VSockVmciPeerDetachCB,
+                              sk,
+                              &detachSubId);
    if (err < VMCI_SUCCESS) {
       err = VSockVmci_ErrorToVSockError(err);
       goto destroy;
@@ -2243,18 +2242,18 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
 
 destroy:
    if (attachSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(attachSubId);
+      vmci_event_unsubscribe(attachSubId);
       ASSERT(vsk->attachSubId == VMCI_INVALID_ID);
    }
 
    if (detachSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(detachSubId);
+      vmci_event_unsubscribe(detachSubId);
       ASSERT(vsk->detachSubId == VMCI_INVALID_ID);
    }
 
    if (!VMCI_HANDLE_INVALID(handle)) {
       ASSERT(vsk->qpair);
-      VMCIQPair_Detach(&qpair);
+      vmci_qpair_detach(&qpair);
       ASSERT(VMCI_HANDLE_INVALID(vsk->qpHandle));
    }
 
@@ -2444,7 +2443,7 @@ __VSockVmciSendControlPkt(VSockPacket *pkt,           // IN
    VSockPacket_Init(pkt, src, dst, type, size, mode, wait, proto, handle);
    LOG_PACKET(pkt);
    VSOCK_STATS_CTLPKT_LOG(pkt->type);
-   err = VMCIDatagram_Send(&pkt->dg);
+   err = vmci_datagram_send(&pkt->dg);
    if (convertError && (err < 0)) {
       return VSockVmci_ErrorToVSockError(err);
    }
@@ -2645,7 +2644,7 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
     */
    VSockAddr_Init(&newAddr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
 
-   cid = VMCI_GetContextID();
+   cid = vmci_get_context_id();
    if (addr->svm_cid != cid &&
        addr->svm_cid != VMADDR_CID_ANY) {
       return -EADDRNOTAVAIL;
@@ -2934,7 +2933,7 @@ __VSockVmciRelease(struct sock *sk) // IN
       }
 
       if (!VMCI_HANDLE_INVALID(vsk->dgHandle)) {
-         VMCIDatagram_DestroyHnd(vsk->dgHandle);
+         vmci_datagram_destroy_handle(vsk->dgHandle);
          vsk->dgHandle = VMCI_INVALID_HANDLE;
       }
 
@@ -2987,18 +2986,18 @@ VSockVmciSkDestruct(struct sock *sk) // IN
    vsk = vsock_sk(sk);
 
    if (vsk->attachSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(vsk->attachSubId);
+      vmci_event_unsubscribe(vsk->attachSubId);
       vsk->attachSubId = VMCI_INVALID_ID;
    }
 
    if (vsk->detachSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(vsk->detachSubId);
+      vmci_event_unsubscribe(vsk->detachSubId);
       vsk->detachSubId = VMCI_INVALID_ID;
    }
 
    if (!VMCI_HANDLE_INVALID(vsk->qpHandle)) {
       ASSERT(vsk->qpair);
-      VMCIQPair_Detach(&vsk->qpair);
+      vmci_qpair_detach(&vsk->qpair);
       vsk->qpHandle = VMCI_INVALID_HANDLE;
       ASSERT(vsk->qpair == NULL);
       vsk->produceSize = vsk->consumeSize = 0;
@@ -3255,7 +3254,7 @@ VSockVmciRegisterWithVmci(void)
     * present.
     */
    apiVersion = VMCI_KERNEL_API_VERSION_1;
-   vmciDevicePresent = VMCI_DeviceGet(&apiVersion, NULL, NULL, NULL);
+   vmciDevicePresent = vmci_device_get(&apiVersion, NULL, NULL, NULL);
    if (!vmciDevicePresent) {
       Warning("VMCI device not present.\n");
       return -1;
@@ -3275,11 +3274,11 @@ VSockVmciRegisterWithVmci(void)
       goto out;
    }
 
-   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_RESUMED,
-                             VMCI_FLAG_EVENT_NONE,
-                             VSockVmciQPResumedCB,
-                             NULL,
-                             &qpResumedSubId);
+   err = vmci_event_subscribe(VMCI_EVENT_QP_RESUMED,
+                              VMCI_FLAG_EVENT_NONE,
+                              VSockVmciQPResumedCB,
+                              NULL,
+                              &qpResumedSubId);
    if (err < VMCI_SUCCESS) {
       Warning("Unable to subscribe to QP resumed event. (%d)\n", err);
       err = VSockVmci_ErrorToVSockError(err);
@@ -3322,23 +3321,23 @@ VSockVmciUnregisterWithVmci(void)
    }
 
    if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
-      if (VMCIDatagram_DestroyHnd(vmciStreamHandle) != VMCI_SUCCESS) {
+      if (vmci_datagram_destroy_handle(vmciStreamHandle) != VMCI_SUCCESS) {
          Warning("Could not destroy VMCI datagram handle.\n");
       }
       vmciStreamHandle = VMCI_INVALID_HANDLE;
    }
 
    if (qpResumedSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(qpResumedSubId);
+      vmci_event_unsubscribe(qpResumedSubId);
       qpResumedSubId = VMCI_INVALID_ID;
    }
 
    if (ctxUpdatedSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(ctxUpdatedSubId);
+      vmci_event_unsubscribe(ctxUpdatedSubId);
       ctxUpdatedSubId = VMCI_INVALID_ID;
    }
 
-   VMCI_DeviceRelease(NULL);
+   vmci_device_release(NULL);
    vmciDevicePresent = FALSE;
 }
 
@@ -3367,7 +3366,7 @@ VSockVmciStreamHasData(VSockVmciSock *vsk) // IN
 {
    ASSERT(vsk);
 
-   return VMCIQPair_ConsumeBufReady(vsk->qpair);
+   return vmci_qpair_consume_buf_ready(vsk->qpair);
 }
 
 
@@ -3395,7 +3394,7 @@ VSockVmciStreamHasSpace(VSockVmciSock *vsk) // IN
 {
    ASSERT(vsk);
 
-   return VMCIQPair_ProduceFreeSpace(vsk->qpair);
+   return vmci_qpair_produce_free_space(vsk->qpair);
 }
 
 
@@ -4250,7 +4249,7 @@ VSockVmciDgramSendmsg(struct kiocb *kiocb,          // UNUSED
       /* Ensure this address is of the right type and is a valid destination. */
       // XXXAB Temporary to handle test program
       if (remoteAddr->svm_cid == VMADDR_CID_ANY) {
-         remoteAddr->svm_cid = VMCI_GetContextID();
+         remoteAddr->svm_cid = vmci_get_context_id();
       }
 
       if (!VSockAddr_Bound(remoteAddr)) {
@@ -4261,7 +4260,7 @@ VSockVmciDgramSendmsg(struct kiocb *kiocb,          // UNUSED
       remoteAddr = &vsk->remoteAddr;
       // XXXAB Temporary to handle test program
       if (remoteAddr->svm_cid == VMADDR_CID_ANY) {
-         remoteAddr->svm_cid = VMCI_GetContextID();
+         remoteAddr->svm_cid = vmci_get_context_id();
       }
 
       /* XXX Should connect() or this function ensure remoteAddr is bound? */
@@ -4305,7 +4304,7 @@ VSockVmciDgramSendmsg(struct kiocb *kiocb,          // UNUSED
 
    dg->payloadSize = len;
 
-   err = VMCIDatagram_Send(dg);
+   err = vmci_datagram_send(dg);
    kfree(dg);
    if (err < 0) {
       err = VSockVmci_ErrorToVSockError(err);
@@ -4658,8 +4657,8 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
        * able to send.
        */
 
-      written = VMCIQPair_EnqueueV(vsk->qpair, msg->msg_iov,
-                                   len - totalWritten, 0);
+      written = vmci_qpair_enquev(vsk->qpair, msg->msg_iov,
+                                  len - totalWritten, 0);
       if (written < 0) {
          err = -ENOMEM;
          goto outWait;
@@ -4901,9 +4900,9 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
          }
 
          if (flags & MSG_PEEK) {
-            read = VMCIQPair_PeekV(vsk->qpair, msg->msg_iov, len - copied, 0);
+            read = vmci_qpair_peekv(vsk->qpair, msg->msg_iov, len - copied, 0);
          } else {
-            read = VMCIQPair_DequeueV(vsk->qpair, msg->msg_iov, len - copied, 0);
+            read = vmci_qpair_dequev(vsk->qpair, msg->msg_iov, len - copied, 0);
          }
 
          if (read < 0) {
@@ -5274,7 +5273,7 @@ VSockVmciDevIoctl(struct inode *inode,     // IN
    }
 
    case IOCTL_VMCI_SOCKETS_GET_LOCAL_CID: {
-      VMCIId cid = VMCI_GetContextID();
+      VMCIId cid = vmci_get_context_id();
       if (copy_to_user((void *)ioarg, &cid, sizeof cid) != 0) {
          retval = -EFAULT;
       }

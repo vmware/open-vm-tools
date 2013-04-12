@@ -1256,7 +1256,7 @@ VMCIContext_GetId(VMCIContext *context) // IN:
 /*
  *----------------------------------------------------------------------
  *
- * VMCIContext_GetPrivFlags --
+ * vmci_context_get_priv_flags --
  *
  *      Retrieves the privilege flags of the given VMCI context ID.
  *
@@ -1269,9 +1269,9 @@ VMCIContext_GetId(VMCIContext *context) // IN:
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIContext_GetPrivFlags)
+VMCI_EXPORT_SYMBOL(vmci_context_get_priv_flags)
 VMCIPrivilegeFlags
-VMCIContext_GetPrivFlags(VMCIId contextID)  // IN
+vmci_context_get_priv_flags(VMCIId contextID)  // IN
 {
    if (VMCI_HostPersonalityActive()) {
       VMCIPrivilegeFlags flags;
@@ -1996,7 +1996,7 @@ VMCIContext_NotifyDoorbell(VMCIId srcCID,                   // IN
 
       if (srcCID != VMCI_HOST_CONTEXT_ID ||
           srcPrivFlags == VMCI_NO_PRIVILEGE_FLAGS) {
-         srcPrivFlags = VMCIContext_GetPrivFlags(srcCID);
+         srcPrivFlags = vmci_context_get_priv_flags(srcCID);
       }
 
       if (VMCIDenyInteraction(srcPrivFlags, dstPrivFlags)) {
@@ -2138,7 +2138,7 @@ VMCIContext_SignalPendingDatagrams(VMCIId contextID)
 /*
  *----------------------------------------------------------------------
  *
- * VMCI_ContextID2HostVmID --
+ * vmci_cid_2_host_vm_id --
  *
  *      Maps a context ID to the host specific (process/world) ID
  *      of the VM/VMX.
@@ -2152,11 +2152,11 @@ VMCIContext_SignalPendingDatagrams(VMCIId contextID)
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCI_ContextID2HostVmID)
+VMCI_EXPORT_SYMBOL(vmci_cid_2_host_vm_id)
 int
-VMCI_ContextID2HostVmID(VMCIId contextID,    // IN
-                        void *hostVmID,      // OUT
-                        size_t hostVmIDLen)  // IN
+vmci_cid_2_host_vm_id(VMCIId contextID,    // IN
+                      void *hostVmID,      // OUT
+                      size_t hostVmIDLen)  // IN
 {
 #if defined(VMKERNEL)
    VMCIContext *context;
@@ -2189,7 +2189,7 @@ VMCI_ContextID2HostVmID(VMCIId contextID,    // IN
 /*
  *----------------------------------------------------------------------
  *
- * VMCI_IsContextOwner --
+ * vmci_is_context_owner --
  *
  *      Determines whether a given host OS specific representation of
  *      user is the owner of the VM/VMX.
@@ -2203,10 +2203,10 @@ VMCI_ContextID2HostVmID(VMCIId contextID,    // IN
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCI_IsContextOwner)
+VMCI_EXPORT_SYMBOL(vmci_is_context_owner)
 int
-VMCI_IsContextOwner(VMCIId contextID,   // IN
-                    void *hostUser)     // IN
+vmci_is_context_owner(VMCIId contextID,   // IN
+                      void *hostUser)     // IN
 {
    if (VMCI_HostPersonalityActive()) {
       VMCIContext *context;

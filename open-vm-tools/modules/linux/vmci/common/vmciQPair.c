@@ -418,7 +418,7 @@ VMCIQPairWaitForReadyQueue(VMCIQPair *qpair)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_Alloc --
+ * vmci_qpair_alloc --
  *
  *      This is the client interface for allocating the memory for a
  *      VMCIQPair structure and then attaching to the underlying
@@ -436,15 +436,15 @@ VMCIQPairWaitForReadyQueue(VMCIQPair *qpair)
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_Alloc)
+VMCI_EXPORT_SYMBOL(vmci_qpair_alloc)
 int
-VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
-                VMCIHandle *handle,           // OUT
-                uint64 produceQSize,          // IN
-                uint64 consumeQSize,          // IN
-                VMCIId peer,                  // IN
-                uint32 flags,                 // IN
-                VMCIPrivilegeFlags privFlags) // IN
+vmci_qpair_alloc(VMCIQPair **qpair,            // OUT
+                 VMCIHandle *handle,           // OUT
+                 uint64 produceQSize,          // IN
+                 uint64 consumeQSize,          // IN
+                 VMCIId peer,                  // IN
+                 uint32 flags,                 // IN
+                 VMCIPrivilegeFlags privFlags) // IN
 {
    VMCIQPair *myQPair;
    int retval;
@@ -566,7 +566,7 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_Detach --
+ * vmci_qpair_detach --
  *
  *      This is the client interface for detaching from a VMCIQPair.
  *      Note that this routine will free the memory allocated for the
@@ -581,9 +581,9 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_Detach)
+VMCI_EXPORT_SYMBOL(vmci_qpair_detach)
 int
-VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
+vmci_qpair_detach(VMCIQPair **qpair) // IN/OUT
 {
    int result;
    VMCIQPair *oldQPair;
@@ -616,7 +616,7 @@ VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_GetProduceIndexes --
+ * vmci_qpair_get_produce_indexes --
  *
  *      This is the client interface for getting the current indexes of the
  *      QPair from the point of the view of the caller as the producer.
@@ -631,11 +631,11 @@ VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_GetProduceIndexes)
+VMCI_EXPORT_SYMBOL(vmci_qpair_get_produce_indexes)
 int
-VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair, // IN
-                            uint64 *producerTail,   // OUT
-                            uint64 *consumerHead)   // OUT
+vmci_qpair_get_produce_indexes(const VMCIQPair *qpair, // IN
+                               uint64 *producerTail,   // OUT
+                               uint64 *consumerHead)   // OUT
 {
    VMCIQueueHeader *produceQHeader;
    VMCIQueueHeader *consumeQHeader;
@@ -666,7 +666,7 @@ VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair, // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_GetConsumeIndexes --
+ * vmci_qpair_get_consume_indexes --
  *
  *      This is the client interface for getting the current indexes of the
  *      QPair from the point of the view of the caller as the consumer.
@@ -681,11 +681,11 @@ VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair, // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_GetConsumeIndexes)
+VMCI_EXPORT_SYMBOL(vmci_qpair_get_consume_indexes)
 int
-VMCIQPair_GetConsumeIndexes(const VMCIQPair *qpair, // IN
-                            uint64 *consumerTail,   // OUT
-                            uint64 *producerHead)   // OUT
+vmci_qpair_get_consume_indexes(const VMCIQPair *qpair, // IN
+                               uint64 *consumerTail,   // OUT
+                               uint64 *producerHead)   // OUT
 {
    VMCIQueueHeader *produceQHeader;
    VMCIQueueHeader *consumeQHeader;
@@ -716,7 +716,7 @@ VMCIQPair_GetConsumeIndexes(const VMCIQPair *qpair, // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_ProduceFreeSpace --
+ * vmci_qpair_produce_free_space --
  *
  *      This is the client interface for getting the amount of free
  *      space in the QPair from the point of the view of the caller as
@@ -733,9 +733,9 @@ VMCIQPair_GetConsumeIndexes(const VMCIQPair *qpair, // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_ProduceFreeSpace)
+VMCI_EXPORT_SYMBOL(vmci_qpair_produce_free_space)
 int64
-VMCIQPair_ProduceFreeSpace(const VMCIQPair *qpair) // IN
+vmci_qpair_produce_free_space(const VMCIQPair *qpair) // IN
 {
    VMCIQueueHeader *produceQHeader;
    VMCIQueueHeader *consumeQHeader;
@@ -762,7 +762,7 @@ VMCIQPair_ProduceFreeSpace(const VMCIQPair *qpair) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_ConsumeFreeSpace --
+ * vmci_qpair_consume_free_space --
  *
  *      This is the client interface for getting the amount of free
  *      space in the QPair from the point of the view of the caller as
@@ -780,9 +780,9 @@ VMCIQPair_ProduceFreeSpace(const VMCIQPair *qpair) // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_ConsumeFreeSpace)
+VMCI_EXPORT_SYMBOL(vmci_qpair_consume_free_space)
 int64
-VMCIQPair_ConsumeFreeSpace(const VMCIQPair *qpair) // IN
+vmci_qpair_consume_free_space(const VMCIQPair *qpair) // IN
 {
    VMCIQueueHeader *produceQHeader;
    VMCIQueueHeader *consumeQHeader;
@@ -809,7 +809,7 @@ VMCIQPair_ConsumeFreeSpace(const VMCIQPair *qpair) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_ProduceBufReady --
+ * vmci_qpair_produce_buf_ready --
  *
  *      This is the client interface for getting the amount of
  *      enqueued data in the QPair from the point of the view of the
@@ -827,9 +827,9 @@ VMCIQPair_ConsumeFreeSpace(const VMCIQPair *qpair) // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_ProduceBufReady)
+VMCI_EXPORT_SYMBOL(vmci_qpair_produce_buf_ready)
 int64
-VMCIQPair_ProduceBufReady(const VMCIQPair *qpair) // IN
+vmci_qpair_produce_buf_ready(const VMCIQPair *qpair) // IN
 {
    VMCIQueueHeader *produceQHeader;
    VMCIQueueHeader *consumeQHeader;
@@ -856,7 +856,7 @@ VMCIQPair_ProduceBufReady(const VMCIQPair *qpair) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_ConsumeBufReady --
+ * vmci_qpair_consume_buf_ready --
  *
  *      This is the client interface for getting the amount of
  *      enqueued data in the QPair from the point of the view of the
@@ -873,9 +873,9 @@ VMCIQPair_ProduceBufReady(const VMCIQPair *qpair) // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_ConsumeBufReady)
+VMCI_EXPORT_SYMBOL(vmci_qpair_consume_buf_ready)
 int64
-VMCIQPair_ConsumeBufReady(const VMCIQPair *qpair) // IN
+vmci_qpair_consume_buf_ready(const VMCIQPair *qpair) // IN
 {
    VMCIQueueHeader *produceQHeader;
    VMCIQueueHeader *consumeQHeader;
@@ -1077,7 +1077,7 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_Enqueue --
+ * vmci_qpair_enqueue --
  *
  *      This is the client interface for enqueueing data into the queue.
  *
@@ -1091,12 +1091,12 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_Enqueue)
+VMCI_EXPORT_SYMBOL(vmci_qpair_enqueue)
 ssize_t
-VMCIQPair_Enqueue(VMCIQPair *qpair,        // IN
-                  const void *buf,         // IN
-                  size_t bufSize,          // IN
-                  int bufType)             // IN
+vmci_qpair_enqueue(VMCIQPair *qpair,        // IN
+                   const void *buf,         // IN
+                   size_t bufSize,          // IN
+                   int bufType)             // IN
 {
    ssize_t result;
 
@@ -1134,7 +1134,7 @@ VMCIQPair_Enqueue(VMCIQPair *qpair,        // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_Dequeue --
+ * vmci_qpair_dequeue --
  *
  *      This is the client interface for dequeueing data from the queue.
  *
@@ -1148,12 +1148,12 @@ VMCIQPair_Enqueue(VMCIQPair *qpair,        // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_Dequeue)
+VMCI_EXPORT_SYMBOL(vmci_qpair_dequeue)
 ssize_t
-VMCIQPair_Dequeue(VMCIQPair *qpair,        // IN
-                  void *buf,               // IN
-                  size_t bufSize,          // IN
-                  int bufType)             // IN
+vmci_qpair_dequeue(VMCIQPair *qpair,        // IN
+                   void *buf,               // IN
+                   size_t bufSize,          // IN
+                   int bufType)             // IN
 {
    ssize_t result;
 
@@ -1191,7 +1191,7 @@ VMCIQPair_Dequeue(VMCIQPair *qpair,        // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_Peek --
+ * vmci_qpair_peek --
  *
  *      This is the client interface for peeking into a queue.  (I.e.,
  *      copy data from the queue without updating the head pointer.)
@@ -1206,12 +1206,12 @@ VMCIQPair_Dequeue(VMCIQPair *qpair,        // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_Peek)
+VMCI_EXPORT_SYMBOL(vmci_qpair_peek)
 ssize_t
-VMCIQPair_Peek(VMCIQPair *qpair,    // IN
-               void *buf,           // IN
-               size_t bufSize,      // IN
-               int bufType)         // IN
+vmci_qpair_peek(VMCIQPair *qpair,    // IN
+                void *buf,           // IN
+                size_t bufSize,      // IN
+                int bufType)         // IN
 {
    ssize_t result;
 
@@ -1253,7 +1253,7 @@ VMCIQPair_Peek(VMCIQPair *qpair,    // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_EnqueueV --
+ * vmci_qpair_enquev --
  *
  *      This is the client interface for enqueueing data into the queue.
  *
@@ -1267,12 +1267,12 @@ VMCIQPair_Peek(VMCIQPair *qpair,    // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_EnqueueV)
+VMCI_EXPORT_SYMBOL(vmci_qpair_enquev)
 ssize_t
-VMCIQPair_EnqueueV(VMCIQPair *qpair,        // IN
-                   void *iov,               // IN
-                   size_t iovSize,          // IN
-                   int bufType)             // IN
+vmci_qpair_enquev(VMCIQPair *qpair,        // IN
+                  void *iov,               // IN
+                  size_t iovSize,          // IN
+                  int bufType)             // IN
 {
    ssize_t result;
 
@@ -1310,7 +1310,7 @@ VMCIQPair_EnqueueV(VMCIQPair *qpair,        // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_DequeueV --
+ * vmci_qpair_dequev --
  *
  *      This is the client interface for dequeueing data from the queue.
  *
@@ -1324,12 +1324,12 @@ VMCIQPair_EnqueueV(VMCIQPair *qpair,        // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_DequeueV)
+VMCI_EXPORT_SYMBOL(vmci_qpair_dequev)
 ssize_t
-VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
-                   void *iov,                // IN
-                   size_t iovSize,           // IN
-                   int bufType)              // IN
+vmci_qpair_dequev(VMCIQPair *qpair,         // IN
+                  void *iov,                // IN
+                  size_t iovSize,           // IN
+                  int bufType)              // IN
 {
    ssize_t result;
 
@@ -1367,7 +1367,7 @@ VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_PeekV --
+ * vmci_qpair_peekv --
  *
  *      This is the client interface for peeking into a queue.  (I.e.,
  *      copy data from the queue without updating the head pointer.)
@@ -1382,12 +1382,12 @@ VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIQPair_PeekV)
+VMCI_EXPORT_SYMBOL(vmci_qpair_peekv)
 ssize_t
-VMCIQPair_PeekV(VMCIQPair *qpair,           // IN
-                void *iov,                  // IN
-                size_t iovSize,             // IN
-                int bufType)                // IN
+vmci_qpair_peekv(VMCIQPair *qpair,           // IN
+                 void *iov,                  // IN
+                 size_t iovSize,             // IN
+                 int bufType)                // IN
 {
    ssize_t result;
 

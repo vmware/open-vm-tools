@@ -676,14 +676,14 @@ VPageChannelDoDoorbellCallback(VPageChannel *channel) // IN/OUT
    }
 
 retry:
-   while (VMCIQPair_ConsumeBufReady(channel->qpair) >= sizeof packetHeader) {
+   while (vmci_qpair_consume_buf_ready(channel->qpair) >= sizeof packetHeader) {
       ssize_t retSize, totalSize;
       VPageChannelPacket *packet;
 
-      retSize = VMCIQPair_Peek(channel->qpair, &packetHeader,
-                               sizeof packetHeader,
-                               /* XXX, UTIL_VMKERNEL_BUFFER for VMKernel. */
-                               0);
+      retSize = vmci_qpair_peek(channel->qpair, &packetHeader,
+                                sizeof packetHeader,
+                                /* XXX, UTIL_VMKERNEL_BUFFER for VMKernel. */
+                                0);
       if (retSize < sizeof packetHeader) {
          /*
           * XXX, deal with partial read.
@@ -700,7 +700,7 @@ retry:
       totalSize = sizeof packetHeader + packetHeader.msgLen +
          packetHeader.numElems * sizeof(VPageChannelElem);
 
-      retSize = VMCIQPair_ConsumeBufReady(channel->qpair);
+      retSize = vmci_qpair_consume_buf_ready(channel->qpair);
       if (retSize < totalSize) {
          /*
           * XXX, deal with partial read.
@@ -728,10 +728,10 @@ retry:
          break;
       }
 
-      retSize = VMCIQPair_Dequeue(channel->qpair, packet,
-                                  totalSize,
-                                  /* XXX, UTIL_VMKERNEL_BUFFER for VMKernel. */
-                                  0);
+      retSize = vmci_qpair_dequeue(channel->qpair, packet,
+                                   totalSize,
+                                   /* XXX, UTIL_VMKERNEL_BUFFER for VMKernel. */
+                                   0);
       if (retSize < totalSize) {
          /*
           * XXX, deal with partial read.
@@ -760,7 +760,7 @@ retry:
     * the lock for any data that might have arrived.
     */
 
-   if (VMCIQPair_ConsumeBufReady(channel->qpair) >= sizeof packetHeader) {
+   if (vmci_qpair_consume_buf_ready(channel->qpair) >= sizeof packetHeader) {
       VPageChannelReleaseRecvLock(channel, flags);
       goto retry;
    }
@@ -952,18 +952,18 @@ VPageChannelDestroyQueuePair(VPageChannel *channel) // IN/OUT
    ASSERT(channel);
 
    if (channel->attachSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(channel->attachSubId);
+      vmci_event_unsubscribe(channel->attachSubId);
       channel->attachSubId = VMCI_INVALID_ID;
    }
 
    if (channel->detachSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(channel->detachSubId);
+      vmci_event_unsubscribe(channel->detachSubId);
       channel->detachSubId = VMCI_INVALID_ID;
    }
 
    if (!VMCI_HANDLE_INVALID(channel->qpHandle)) {
       ASSERT(channel->qpair);
-      VMCIQPair_Detach(&channel->qpair);
+      vmci_qpair_detach(&channel->qpair);
       channel->qpHandle = VMCI_INVALID_HANDLE;
       channel->qpair = NULL;
    }
@@ -1010,10 +1010,10 @@ VPageChannelCreateQueuePair(VPageChannel *channel) // IN/OUT
       sema_init(&channel->qpRecvMutex, 1);
    }
 
-   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_ATTACH,
-                             VMCI_FLAG_EVENT_NONE,
-                             VPageChannelPeerAttachCB,
-                             channel, &channel->attachSubId);
+   err = vmci_event_subscribe(VMCI_EVENT_QP_PEER_ATTACH,
+                              VMCI_FLAG_EVENT_NONE,
+                              VPageChannelPeerAttachCB,
+                              channel, &channel->attachSubId);
    if (err < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to subscribe to attach event "
                     "(channel=%p) (err=%d).\n",
@@ -1022,10 +1022,10 @@ VPageChannelCreateQueuePair(VPageChannel *channel) // IN/OUT
       goto error;
    }
 
-   err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_DETACH,
-                             VMCI_FLAG_EVENT_NONE,
-                             VPageChannelPeerDetachCB,
-                             channel, &channel->detachSubId);
+   err = vmci_event_subscribe(VMCI_EVENT_QP_PEER_DETACH,
+                              VMCI_FLAG_EVENT_NONE,
+                              VPageChannelPeerDetachCB,
+                              channel, &channel->detachSubId);
    if (err < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to subscribe to detach event "
                     "(channel=%p) (err=%d).\n",
@@ -1039,9 +1039,10 @@ VPageChannelCreateQueuePair(VPageChannel *channel) // IN/OUT
    } else {
       flags = 0;
    }
-   err = VMCIQPair_Alloc(&channel->qpair, &channel->qpHandle,
-                         channel->produceQSize, channel->consumeQSize,
-                         VMCI_HOST_CONTEXT_ID, flags, VMCI_NO_PRIVILEGE_FLAGS);
+   err = vmci_qpair_alloc(&channel->qpair, &channel->qpHandle,
+                          channel->produceQSize, channel->consumeQSize,
+                          VMCI_HOST_CONTEXT_ID, flags,
+                          VMCI_NO_PRIVILEGE_FLAGS);
    if (err < 0) {
       VMCI_WARNING((LGPFX"Could not create queue pair (err=%d).\n",
                     err));
@@ -1158,9 +1159,9 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
     */
 
    flags = VMCI_FLAG_DG_DELAYED_CB;
-   retval = VMCIDatagram_CreateHnd(resourceId, flags,
-                                   VPageChannelDgRecvFunc, pageChannel,
-                                   &pageChannel->dgHandle);
+   retval = vmci_datagram_create_handle(resourceId, flags,
+                                        VPageChannelDgRecvFunc, pageChannel,
+                                        &pageChannel->dgHandle);
    if (retval < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to create datagram handle "
                     "(channel=%p) (err=%d).\n",
@@ -1184,9 +1185,9 @@ VPageChannel_CreateInVM(VPageChannel **channel,              // IN/OUT
 
    flags = channelFlags & VPAGECHANNEL_FLAGS_RECV_DELAYED ?
       VMCI_FLAG_DELAYED_CB : 0;
-   retval = VMCIDoorbell_Create(&pageChannel->doorbellHandle,
-                                flags, VMCI_PRIVILEGE_FLAG_RESTRICTED,
-                                VPageChannelDoorbellCallback, pageChannel);
+   retval = vmci_doorbell_create(&pageChannel->doorbellHandle,
+                                 flags, VMCI_PRIVILEGE_FLAG_RESTRICTED,
+                                 VPageChannelDoorbellCallback, pageChannel);
    if (retval < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to create doorbell "
                     "(channel=%p) (err=%d).\n",
@@ -1276,11 +1277,11 @@ VPageChannel_Destroy(VPageChannel *channel) // IN/OUT
    VPageChannelDestroyQueuePair(channel);
 
    if (!VMCI_HANDLE_INVALID(channel->doorbellHandle)) {
-      VMCIDoorbell_Destroy(channel->doorbellHandle);
+      vmci_doorbell_destroy(channel->doorbellHandle);
    }
 
    if (!VMCI_HANDLE_INVALID(channel->dgHandle)) {
-      VMCIDatagram_DestroyHnd(channel->dgHandle);
+      vmci_datagram_destroy_handle(channel->dgHandle);
    }
 
    channel->state = VPCState_Free;
@@ -1421,7 +1422,7 @@ VPageChannelSendControl(VPageChannel *channel,       // IN
              numElems * sizeof (VPageChannelElem));
    }
 
-   retval = VMCIDatagram_Send(dg);
+   retval = vmci_datagram_send(dg);
    if (retval < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to send packet (channel=%p) to "
                     "(handle=0x%x:0x%x) (err=%d).\n",
@@ -1467,9 +1468,9 @@ VPageChannelSignal(VPageChannel *channel) // IN
 
    ASSERT(channel);
 
-   retval = VMCIDoorbell_Notify(channel->peerDoorbellHandle,
-                                /* XXX, TRUSTED for VMKernel. */
-                                VMCI_PRIVILEGE_FLAG_RESTRICTED);
+   retval = vmci_doorbell_notify(channel->peerDoorbellHandle,
+                                 /* XXX, TRUSTED for VMKernel. */
+                                 VMCI_PRIVILEGE_FLAG_RESTRICTED);
    if (retval < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to notify doorbell (channel=%p) "
                "(handle=0x%x:0x%x) (err=%d).\n",
@@ -1541,7 +1542,7 @@ VPageChannelSendPacket(VPageChannel *channel,         // IN
       flags = 0; /* Silence compiler. */
    }
 
-   freeSpace = VMCIQPair_ProduceFreeSpace(channel->qpair);
+   freeSpace = vmci_qpair_produce_free_space(channel->qpair);
    if (freeSpace < totalSize) {
       VMCI_WARNING((LGPFX"No free space in queuepair (channel=%p) "
                     "(required=%"FMTSZ"d) (actual=%"FMTSZ"d).\n",
@@ -1552,10 +1553,10 @@ VPageChannelSendPacket(VPageChannel *channel,         // IN
       goto exit;
    }
 
-   sentSize = VMCIQPair_Enqueue(channel->qpair, packet, totalSize, 0);
+   sentSize = vmci_qpair_enqueue(channel->qpair, packet, totalSize, 0);
 
    if (!signalPending) {
-      if (sentSize == VMCIQPair_ProduceBufReady(channel->qpair)) {
+      if (sentSize == vmci_qpair_produce_buf_ready(channel->qpair)) {
          retval = VPageChannelSignal(channel);
          if (retval < VMCI_SUCCESS) {
             goto exit;

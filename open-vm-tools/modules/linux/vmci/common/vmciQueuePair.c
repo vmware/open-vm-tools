@@ -2252,7 +2252,7 @@ QPGuestEndpointCreate(VMCIHandle handle,  // IN
    ASSERT((produceSize || consumeSize) && produceQ && consumeQ);
 
    if (VMCI_HANDLE_INVALID(handle)) {
-      VMCIId contextID = VMCI_GetContextID();
+      VMCIId contextID = vmci_get_context_id();
       VMCIId oldRID = queuePairRID;
 
       /*
@@ -2528,7 +2528,7 @@ VMCIQueuePairAllocGuestWork(VMCIHandle *handle,           // IN/OUT
     */
    if (queuePairEntry->qp.flags & VMCI_QPFLAG_LOCAL) {
       /* Local create case. */
-      VMCIId contextId = VMCI_GetContextID();
+      VMCIId contextId = vmci_get_context_id();
 
       /*
        * Enforce similar checks on local queue pairs as we do for regular ones.
@@ -2771,9 +2771,7 @@ QueuePairNotifyPeerLocal(Bool attach,           // IN: attach or detach?
    VMCIEventPayload_QP *ePayload;
    /* buf is only 48 bytes. */
    char buf[sizeof *eMsg + sizeof *ePayload];
-   VMCIId contextId;
-
-   contextId = VMCI_GetContextID();
+   VMCIId contextId = vmci_get_context_id();
 
    eMsg = (VMCIEventMsg *)buf;
    ePayload = VMCIEventMsgPayload(eMsg);
