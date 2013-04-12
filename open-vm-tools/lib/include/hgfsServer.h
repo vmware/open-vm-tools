@@ -135,6 +135,7 @@ typedef uint32 HgfsConfigFlags;
 #define HGFS_CONFIG_USE_HOST_TIME   (1 << 0)
 #define HGFS_CONFIG_NOTIFY_ENABLED  (1 << 1)
 #define HGFS_CONFIG_VOL_INFO_MIN    (1 << 2)
+#define HGFS_CONFIG_OPLOCK_ENABLED  (1 << 3)
 
 typedef struct HgfsServerConfig {
    HgfsConfigFlags flags;
