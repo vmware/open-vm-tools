@@ -233,6 +233,37 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
 #define ASSERT_MEM_ALLOC(cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertMemAlloc))
 
+#ifdef FROBOS
+
+#undef ASSERT
+#undef NOT_IMPLEMENTED
+#undef NOT_REACHED
+#undef ASSERT_MEM_ALLOC
+
+EXTERN void Test_Panic(const char *filename, int lineno, const char *fmt, ...)
+            PRINTF_DECL(3, 4);
+
+#define ASSERT(_cond)                                           \
+do {                                                            \
+   if (UNLIKELY(!(_cond))) {                                    \
+      Test_Panic(__FILE__, __LINE__, "ASSERT(%s)", #_cond);     \
+   }                                                            \
+} while (0)
+
+#define NOT_IMPLEMENTED() \
+do {                                                            \
+   Test_Panic(__FILE__, __LINE__, "NOT_IMPLEMENTED");           \
+} while (0)
+
+#define ASSERT_MEM_ALLOC(_cond) ASSERT(_cond)
+
+#define NOT_REACHED()                                       \
+do {                                                        \
+   Test_Panic(__FILE__, __LINE__, "NOT_REACHED executed");   \
+} while (0)
+
+#endif	/* FROBOS */
+
 #ifdef VMX86_DEVEL
    #define ASSERT_DEVEL(cond) ASSERT(cond)
 #else
