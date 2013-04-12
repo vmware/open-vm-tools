@@ -627,9 +627,7 @@ bsd_vsnprintf_core(char **outbuf,
    convbuf = NULL;
 #if !defined(NO_FLOATING_POINT)
    dtoaresult = NULL;
-#if !defined __ANDROID__
-   decimal_point = localeconv()->decimal_point;
-#else
+#ifdef __ANDROID__
    /*
     * Struct lconv is not working! For decimal_point,
     * using '.' instead is a workaround.
