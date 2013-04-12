@@ -381,7 +381,8 @@ typedef uint32 VMCI_Event;
 #define VMCI_EVENT_VALID(_event) (_event < VMCI_EVENT_MAX)
 #else // VMX86_SERVER
 #define VMCI_EVENT_VALID(_event) (_event < VMCI_EVENT_MAX && \
-                                  !VMCI_EVENT_VALID_VMX(_event))
+                                  _event != VMCI_EVENT_MEM_ACCESS_ON && \
+                                  _event != VMCI_EVENT_MEM_ACCESS_OFF)
 #endif // VMX86_SERVER
 
 /* Reserved guest datagram resource ids. */
