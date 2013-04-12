@@ -94,12 +94,10 @@ void Config_Set(void *value, int type,
 void *Config_Get(const void *pDefaultValue, int type,
                  const char *fmt, ...) PRINTF_DECL(3, 4);
 
-void Config_MarkModified(const char *fmt, ...) PRINTF_DECL(1, 2);
 Bool Config_Load(const char *filename);
 Bool Config_Write(const char *dummy);
 Bool Config_WriteNoMsg(void);
 
-Bool  Config_FileIsPresent(void);
 Bool  Config_FileIsWritable(void);
 
 uint32 Config_GetMask(uint32 defaultMask, const char *optionName);
