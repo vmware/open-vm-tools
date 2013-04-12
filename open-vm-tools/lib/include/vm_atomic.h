@@ -536,6 +536,46 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN
 #define Atomic_ReadIfEqualWrite32 Atomic_ReadIfEqualWrite
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadIfEqualWriteLockAcquire --
+ *
+ *      Compare exchange: Read variable, if equal to oldVal, write newVal
+ *      using hint to elide the hardware lock.
+ *
+ * Results:
+ *      The value of the atomic variable before the write.
+ *
+ * Side effects:
+ *      The variable may be modified.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint32
+Atomic_ReadIfEqualWriteLockAcquire(Atomic_uint32 *var, // IN
+				   uint32 oldVal,      // IN
+				   uint32 newVal)      // IN
+{
+#if !defined(FAKE_ATOMIC) && defined(__GNUC__) && defined(__x86_64__)
+   uint32 val;
+   __asm__ __volatile__(
+      "repnz; lock; cmpxchgl %2, %1"
+      : "=a" (val),
+	"+m" (var->value)
+      : "r" (newVal),
+	"0" (oldVal)
+      : "cc"
+   );
+   AtomicEpilogue();
+   return val;
+#else
+   return Atomic_ReadIfEqualWrite(var, oldVal, newVal);
+#endif
+}
+
+
 #if defined(__x86_64__) || defined(VM_ARM_V7)
 /*
  *-----------------------------------------------------------------------------
@@ -1362,6 +1402,49 @@ Atomic_FetchAndAddUnfenced(Atomic_uint32 *var, // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * Atomic_FetchAndAddLockReleaseUnfenced --
+ *
+ *      Atomic read (returned), add a value, write
+ *      using hint to elide the hardware lock.
+ *
+ *      If you have to implement FetchAndAdd() on an architecture other than
+ *      x86 or x86-64, you might want to consider doing something similar to
+ *      Atomic_FetchAndOr().
+ *
+ *      The "Unfenced" version of Atomic_FetchAndInc never executes
+ *      "lfence" after the interlocked operation.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint32
+Atomic_FetchAndAddLockReleaseUnfenced(Atomic_uint32 *var, // IN
+				      uint32 val)         // IN
+{
+#if !defined(FAKE_ATOMIC) && defined(__GNUC__) && defined(__x86_64__)
+   __asm__ __volatile__(
+      "repz; lock; xaddl %0, %1"
+      : "=r" (val),
+	"+m" (var->value)
+      : "0" (val)
+      : "cc"
+   );
+   return val;
+#else
+   return Atomic_FetchAndAddUnfenced(var, val);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Atomic_FetchAndAdd --
  *
  *      Atomic read (returned), add a value, write.
@@ -1392,6 +1475,44 @@ Atomic_FetchAndAdd(Atomic_uint32 *var, // IN
    return val;
 #else
    return Atomic_FetchAndAddUnfenced(var, val);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_FetchAndAddLockRelease --
+ *
+ *      Atomic read (returned), add a value, write
+ *      using hint to elide the hardware lock.
+ *
+ *      If you have to implement FetchAndAdd() on an architecture other than
+ *      x86 or x86-64, you might want to consider doing something similar to
+ *      Atomic_FetchAndOr().
+ *
+ *      Unlike "Unfenced" version, this one may execute the "lfence" after
+ *      interlocked operation.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint32
+Atomic_FetchAndAddLockRelease(Atomic_uint32 *var, // IN
+			      uint32 val)         // IN
+{
+#if defined(__GNUC__) && !defined(VM_ARM_V7) && !defined(FAKE_ATOMIC)
+   val = Atomic_FetchAndAddLockReleaseUnfenced(var, val);
+   AtomicEpilogue();
+   return val;
+#else
+   return Atomic_FetchAndAddLockReleaseUnfenced(var, val);
 #endif
 }
 
