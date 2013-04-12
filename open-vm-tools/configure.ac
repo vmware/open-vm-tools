@@ -1156,6 +1156,12 @@ AC_CONFIG_FILES([                      \
    lib/appUtil/Makefile                \
    lib/auth/Makefile                   \
    lib/backdoor/Makefile               \
+   lib/asyncsocket/Makefile            \
+   lib/sslStubs/Makefile               \
+   lib/pollGtk/Makefile                \
+   lib/poll/Makefile                   \
+   lib/dataMap/Makefile                \
+   lib/hashMap/Makefile                \
    lib/dict/Makefile                   \
    lib/dynxdr/Makefile                 \
    lib/err/Makefile                    \

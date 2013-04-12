@@ -153,9 +153,17 @@ gboolean
 BlockService::ShutdownSignalHandler(const siginfo_t *siginfo,
                                     gpointer data)
 {
+   ToolsAppCtx *ctx = (ToolsAppCtx *)data;
    g_debug("%s: enter\n", __FUNCTION__);
 
    GetInstance()->Shutdown();
+
+   /* shutdown rpc channel to free up VMCI/VSOCKET module usage */
+   if (ctx->rpc != NULL) {
+      ASSERT(ctx->rpc->shutdown != NULL);
+      ctx->rpc->shutdown(ctx->rpc);
+      ctx->rpc = NULL;
+   }
 
    return FALSE;
 }

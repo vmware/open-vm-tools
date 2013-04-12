@@ -50,6 +50,8 @@
 /** Reply from host when the command is not recognized. */
 #define RPCI_UNKNOWN_COMMAND      "Unknown command"
 
+#define GUESTRPC_VSOCK_LISTEN_PORT      975
+
 /*
  * Tools options.
  */
@@ -114,6 +116,17 @@
 /* When set, toolboxes should not show the cursor options page. */
 #define VMWARE_DISABLE_CURSOR_OPTIONS     0x800
 
+#define  RPCIN_TCLO_PING                 0x1
+
+enum {
+   RPCINPKT_TYPE_DATA = 1,
+   RPCINPKT_TYPE_PING
+};
+
+enum {
+   RPCINPKT_FIELD_TYPE = 1,
+   RPCINPKT_FIELD_PAYLOAD
+};
 
 #endif /* _TCLODEFS_H_ */
 

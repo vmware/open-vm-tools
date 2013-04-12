@@ -44,6 +44,28 @@
 #   include "strutil.h"
 #endif
 
+#include "vm_basic_types.h"
+
+#if (defined(_WIN32) || defined(linux)) && defined(VMTOOLS_USE_GLIB)
+#define VMTOOLS_USE_VSOCKET
+#else
+#undef  VMTOOLS_USE_VSOCKET
+#endif
+
+#if defined(VMTOOLS_USE_VSOCKET)
+#  include <glib.h>
+#  include "poll.h"
+#  include "asyncsocket.h"
+#  include "vmci_defs.h"
+#include "dataMap.h"
+#include "vmware/guestrpc/tclodefs.h"
+#if defined(linux)
+#include <arpa/inet.h>
+#else
+#include <winsock2.h>
+#endif
+#endif
+
 #if defined(VMTOOLS_USE_GLIB)
 #  include "vmware/tools/guestrpc.h"
 #  include "vmware/tools/utils.h"
@@ -52,17 +74,10 @@
 #include "vmware.h"
 #include "message.h"
 #include "rpcin.h"
+#include "util.h"
 
-#if defined(VMTOOLS_USE_GLIB)
 
-#define RPCIN_SCHED_EVENT(in, src) do {                                       \
-   (in)->nextEvent = src;                                                     \
-   g_source_set_callback((in)->nextEvent, RpcInLoop, (in), NULL);             \
-   g_source_attach((in)->nextEvent, (in)->mainCtx);                           \
-} while (0)
-
-#else /* VMTOOLS_USE_GLIB */
-
+#if !defined(VMTOOLS_USE_GLIB)
 #include "eventManager.h"
 
 /* Which event queue should RPC events be added to? */
@@ -83,6 +98,37 @@ typedef struct RpcInCallbackList {
 
 #endif /* VMTOOLS_USE_GLIB */
 
+#if defined(VMTOOLS_USE_VSOCKET)
+
+#define RPCIN_HEARTBEAT_INTERVAL              1000             /* 1 second */
+#define RPCIN_MIN_SEND_BUF_SIZE               (64 * 1024)
+#define RPCIN_MIN_RECV_BUF_SIZE               (64 * 1024)
+
+struct RpcIn;
+
+/*  container for each vsocket connection details */
+typedef struct _ConnInfo {
+   AsyncSocket *asock;
+
+   int32 packetLen;
+   char *recvBuf;
+   int recvBufLen;
+
+   Bool connected;
+   Bool shutDown;
+   Bool recvStopped;
+   int sendQueueLen;
+
+   VmTimeType timestamp;
+
+   struct RpcIn *in;
+} ConnInfo;
+
+static void RpcInConnRecvHeader(ConnInfo *conn);
+static Bool RpcInConnRecvPacket(ConnInfo *conn, const char **errmsg);
+#endif  /* VMTOOLS_USE_VSOCKET */
+
+
 struct RpcIn {
 #if defined(VMTOOLS_USE_GLIB)
    GSource *nextEvent;
@@ -92,6 +138,11 @@ struct RpcIn {
 #else
    RpcInCallbackList *callbacks;
    Event *nextEvent;
+#endif
+
+#if defined(VMTOOLS_USE_VSOCKET)
+   ConnInfo *conn;
+   GSource *heartbeatSrc;
 #endif
 
    Message_Channel *channel;
@@ -126,6 +177,14 @@ struct RpcIn {
    Bool shouldStop; // Stop the channel the next time RpcInLoop exits.
 };
 
+static Bool RpcInSend(RpcIn *in, int flags);
+static Bool RpcInScheduleRecvEvent(RpcIn *in);
+static void RpcInStop(RpcIn *in);
+static Bool RpcInExecRpc(RpcIn *in,            // IN
+                         const char *reply,    // IN
+                         size_t repLen,        // IN
+                         const char **errmsg); // OUT
+static Bool RpcInOpenChannel(RpcIn *in, Bool useBackdoorOnly);
 
 /*
  * The following functions are only needed in the non-glib version of the
@@ -358,6 +417,10 @@ RpcIn_Construct(GMainContext *mainCtx,    // IN
 {
    RpcIn *result;
 
+#if defined(VMTOOLS_USE_VSOCKET)
+   Poll_InitGtk();
+#endif
+
    ASSERT(mainCtx != NULL);
    ASSERT(dispatch != NULL);
 
@@ -398,6 +461,10 @@ RpcIn_Destruct(RpcIn *in) // IN
    ASSERT(in->nextEvent == NULL);
    ASSERT(in->mustSend == FALSE);
 
+#if defined(VMTOOLS_USE_VSOCKET)
+   ASSERT(in->conn == NULL);
+#endif
+
 #if !defined(VMTOOLS_USE_GLIB)
    while (in->callbacks) {
       RpcInCallbackList *p;
@@ -413,6 +480,645 @@ RpcIn_Destruct(RpcIn *in) // IN
 
    free(in);
 }
+
+
+#if defined(VMTOOLS_USE_VSOCKET)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInConnStopRecv --
+ *
+ *    Stop recving from the vsocket connection.
+ *
+ * Result:
+ *    None
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInConnStopRecv(ConnInfo *conn)   // IN
+{
+   if (!(conn->recvStopped)) {
+      int res = AsyncSocket_CancelRecvEx(conn->asock, NULL, NULL, NULL, TRUE);
+      if (res != ASOCKERR_SUCCESS) {
+         /* just log an error, we are closing the socket anyway */
+         Debug("RpcIn: error in stopping recv for conn %d\n",
+               AsyncSocket_GetFd(conn->asock));
+      }
+      conn->recvStopped = TRUE;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInCloseConn --
+ *
+ *      Close vsocket connection.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInCloseConn(ConnInfo *conn) // IN
+{
+   int fd = AsyncSocket_GetFd(conn->asock);
+
+   if (conn->in != NULL) {
+      conn->in->conn = NULL;
+      conn->in = NULL;
+   }
+
+   if (conn->sendQueueLen > 0) {
+      Debug("RpcIn: Shutting down vsocket connection %d.\n", fd);
+      conn->shutDown = TRUE;
+      RpcInConnStopRecv(conn);
+   } else {
+      Debug("RpcIn: Closing vsocket connection %d\n", fd);
+      AsyncSocket_Close(conn->asock);
+      free(conn->recvBuf);
+      free(conn);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInConnSendDoneCb --
+ *
+ *    AsyncSocket callback function for a send completion.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInConnSendDoneCb(void *buf,            // IN
+                    int len,              // IN
+                    AsyncSocket *asock,   // IN
+                    void *clientData)     // IN
+{
+   ConnInfo *conn = (ConnInfo *)clientData;
+
+   free(buf);
+
+   if (AsyncSocket_GetState(asock) == AsyncSocketClosed) {
+      /* the connection is closed or being closed. */
+      return;
+   }
+
+   conn->sendQueueLen -= len;
+   ASSERT(conn->sendQueueLen >= 0);
+
+   if (conn->sendQueueLen == 0 && conn->shutDown) {
+      Debug("RpcIn: Closing connection %d as sendbuffer is now empty.\n",
+            AsyncSocket_GetFd(conn->asock));
+      RpcInCloseConn(conn);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInPackSendData --
+ *
+ *    Helper function for building send packet and serialize it.
+ *
+ * Result:
+ *    TRUE on sucess, FALSE otherwise.
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+RpcInPackSendData(int fd,                      // IN
+                  const char *buf,             // IN
+                  int len,                     // IN
+                  int flags,                   // IN
+                  char **serBuf,               // OUT
+                  int32 *serBufLen)            // OUT
+{
+   DataMap map;
+   ErrorCode res;
+   char *newBuf;
+   gboolean mapCreated = FALSE;
+   int64 pktType = (flags & RPCIN_TCLO_PING) ?
+                   RPCINPKT_TYPE_PING : RPCINPKT_TYPE_DATA;
+
+   res = DataMap_Create(&map);
+   if (res != DMERR_SUCCESS) {
+      goto quit;
+   }
+
+   mapCreated = TRUE;
+   res = DataMap_SetInt64(&map, RPCINPKT_FIELD_TYPE,
+                          pktType, TRUE);
+   if (res != DMERR_SUCCESS) {
+      goto quit;
+   }
+
+   if (buf != NULL && len > 0) {
+      newBuf = malloc(len);
+      if (newBuf == NULL) {
+         Debug("Error in allocating memory for conn %d.\n", fd);
+         goto quit;
+      }
+      memcpy(newBuf, buf, len);
+      res = DataMap_SetString(&map, RPCINPKT_FIELD_PAYLOAD, newBuf,
+                              len, TRUE);
+      if (res != DMERR_SUCCESS) {
+         goto quit;
+      }
+   }
+
+   res = DataMap_Serialize(&map, serBuf, serBufLen);
+   if (res != DMERR_SUCCESS) {
+      goto quit;
+   }
+
+   DataMap_Destroy(&map);
+   return TRUE;
+
+quit:
+   if (mapCreated) {
+      DataMap_Destroy(&map);
+   }
+   Debug("Error in dataMap encoding for conn %d.\n", fd);
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInConnSend --
+ *
+ *    Helper function for writing data to a socket.
+ *    ownership of buffer is untouched.
+ *
+ * Result:
+ *    TRUE on sucess, FALSE otherwise.
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+RpcInConnSend(ConnInfo *conn,              // IN
+              const char *buf,             // IN
+              int len,                     // IN
+              int flags)                   // IN
+{
+   int res;
+   int32 packetLen;
+   char *packetBuf;
+   int fd = AsyncSocket_GetFd(conn->asock);
+
+   Debug("RpcIn: sending msg to conn %d: len=%d\n",
+         AsyncSocket_GetFd(conn->asock), len);
+
+   if (!RpcInPackSendData(fd, buf, len, flags, &packetBuf, &packetLen)) {
+      return FALSE;
+   }
+
+   res = AsyncSocket_Send(conn->asock, packetBuf, packetLen,
+                          RpcInConnSendDoneCb, conn);
+   if (res != ASOCKERR_SUCCESS) {
+      Debug("RpcIn: error in AsyncSocket_Send for socket %d: %s\n",
+            AsyncSocket_GetFd(conn->asock), AsyncSocket_Err2String(res));
+      free(packetBuf);
+      return FALSE;
+   } else {
+      conn->sendQueueLen += packetLen;
+      return TRUE;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInCloseChannel --
+ *
+ *      Close channel on error.
+ *
+ * Result:
+ *      None
+ *
+ * Side-effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInCloseChannel(RpcIn *in,               // IN
+                  char const *errmsg)      // IN
+{
+   /* Call the error routine */
+   (*in->errorFunc)(in->errorData, errmsg);
+   RpcInStop(in);
+   in->shouldStop = FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInHeartbeatCallback --
+ *
+ *      Callback function to send a heartbeat message to VMX.
+ *
+ * Result:
+ *      TRUE to keep the callback, FALSE otherwise.
+ *
+ * Side-effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static gboolean
+RpcInHeartbeatCallback(void *clientData)      // IN
+{
+   RpcIn *in = (RpcIn *)clientData;
+   ASSERT(in);
+   if (in->conn) {
+      ASSERT(!in->mustSend);
+      ASSERT(in->last_result == NULL);
+      ASSERT(in->last_resultLen == 0);
+
+      in->mustSend = TRUE;
+      if (RpcInSend(in, RPCIN_TCLO_PING)) {
+         return TRUE;
+      } else {
+         char *errmsg = "RpcIn: Unable to send";
+         RpcInCloseChannel(in, errmsg);
+         return FALSE;
+      }
+   }
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInRegisterHeartbeatCallback --
+ *
+ *      Register a callback so we can send heartbeat messages periodically, HA
+ *      monitoring depends on this.
+ *
+ * Result:
+ *      None.
+ *
+ * Side-effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInRegisterHeartbeatCallback(RpcIn *in)      // IN
+{
+   ASSERT(in->heartbeatSrc == NULL);
+   in->heartbeatSrc = VMTools_CreateTimer(RPCIN_HEARTBEAT_INTERVAL);
+   if (in->heartbeatSrc != NULL) {
+      g_source_set_callback(in->heartbeatSrc, RpcInHeartbeatCallback, in, NULL);
+      g_source_attach(in->heartbeatSrc, in->mainCtx);
+   } else {
+      Debug("RpcIn: error in scheduling heartbeat callback.\n");
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInDecodePacket --
+ *
+ *    Helper function to decode received packet in DataMap encoding format.
+ *
+ * Result:
+ *    None
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static gboolean
+RpcInDecodePacket(ConnInfo *conn,       // IN
+                  char **payload,       // OUT
+                  int32 *payloadLen)    // OUT
+{
+   ErrorCode res;
+   DataMap map;
+   int fd = AsyncSocket_GetFd(conn->asock);
+   int fullPacketLen = conn->packetLen + sizeof conn->packetLen;
+   char *buf;
+   int32 len;
+
+
+   /* decoding the packet */
+   res = DataMap_Deserialize(conn->recvBuf, fullPacketLen, &map);
+   if (res != DMERR_SUCCESS) {
+      Debug("RpcIn: Error in dataMap decoding for conn %d, error=%d\n",
+            fd, res);
+      return FALSE;
+   }
+
+   res = DataMap_GetString(&map, RPCINPKT_FIELD_PAYLOAD, &buf, &len);
+   if (res == DMERR_SUCCESS) {
+      char *tmpPtr = (char *)malloc(len + 1);
+      if (tmpPtr == NULL) {
+         Debug("RpcIn: Error in allocating memory for conn %d\n", fd);
+         goto exit;
+      }
+      memcpy(tmpPtr, buf, len);
+      /* add a trailing 0 for backward compatible */
+      tmpPtr[len] = '\0';
+
+      *payload = tmpPtr;
+      *payloadLen = len;
+   } else {
+      Debug("RpcIn: Empty payload for conn %d\n", fd);
+      goto exit;
+   }
+
+   DataMap_Destroy(&map);
+   return TRUE;
+
+exit:
+   DataMap_Destroy(&map);
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInConnRecvedCb --
+ *
+ *    AsyncSocket callback function after data is recved.
+ *
+ * Result:
+ *    None
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInConnRecvedCb(void *buf,            // IN
+                  int len,              // IN
+                  AsyncSocket *asock,   // IN
+                  void *clientData)     // IN
+{
+   ConnInfo *conn = (ConnInfo *)clientData;
+   const char *errmsg = NULL;
+
+   ASSERT(conn != NULL);
+
+   if (buf == &conn->packetLen) {
+      /* We just received the packet header*/
+      conn->packetLen = ntohl(conn->packetLen);
+      Debug("RpcIn:: Got packet length %d from conn %d.\n",
+            conn->packetLen, AsyncSocket_GetFd(conn->asock));
+      if (!RpcInConnRecvPacket(conn, &errmsg)) {
+         RpcInCloseChannel(conn->in, errmsg);
+      }
+   } else {
+      char *payload = NULL;
+      int32 payloadLen = 0;
+
+      ASSERT(buf == conn->recvBuf + sizeof conn->packetLen);
+      ASSERT(len <= conn->recvBufLen - sizeof conn->packetLen);
+
+      if (!RpcInDecodePacket(conn, &payload, &payloadLen)) {
+         errmsg = "RpcIn: packet error";
+         RpcInCloseChannel(conn->in, errmsg);
+         return;
+      }
+
+      Debug("RpcIn: Got msg from conn %d: [%s]\n",
+            AsyncSocket_GetFd(conn->asock), payload);
+
+      if (RpcInExecRpc(conn->in, payload, payloadLen, &errmsg)) {
+         conn->in->mustSend = TRUE;
+         if (RpcInSend(conn->in, 0)) {
+            if (conn->in->heartbeatSrc == NULL) {
+               /* Register heartbeat callback after the first successful send
+                * so we do not mess with TCLO protocol. */
+               RpcInRegisterHeartbeatCallback(conn->in);
+            }
+            RpcInConnRecvHeader(conn);
+            free(payload);
+            return;
+         } else {
+            errmsg = "RpcIn: Unable to send";
+         }
+      }
+
+      RpcInCloseChannel(conn->in, errmsg);  /* on error */
+      free(payload);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInConnRecvHeader --
+ *
+ *    Register header recv callback for vsocket connection.
+ *
+ * Result:
+ *    None
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInConnRecvHeader(ConnInfo *conn)   // IN
+{
+   int res;
+   res = AsyncSocket_Recv(conn->asock, &conn->packetLen,
+                          sizeof conn->packetLen,
+                          RpcInConnRecvedCb, conn);
+
+   conn->recvStopped = res != ASOCKERR_SUCCESS;
+   if (res != ASOCKERR_SUCCESS) {
+      Debug("RpcIn: error in recving packet header for conn: %d\n",
+            AsyncSocket_GetFd(conn->asock));
+      RpcInCloseChannel(conn->in, "RpcIn: error in recv");
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInConnRecvPacket --
+ *
+ *    Register packet recv callback for vsocket connection.
+ *
+ * Result:
+ *    TRUE on success, FALSE on failure.
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+RpcInConnRecvPacket(ConnInfo *conn,         // IN
+                    const char **errmsg)    // OUT
+{
+   int res;
+   int32 pktLen = conn->packetLen;
+   int fullPktLen = pktLen + sizeof pktLen;
+
+   if (conn->recvBuf == NULL || conn->recvBufLen < fullPktLen) {
+      // allocate buffer if needed.
+      conn->recvBufLen = fullPktLen;
+      free(conn->recvBuf);
+      conn->recvBuf = malloc(conn->recvBufLen);
+      if (conn->recvBuf == NULL) {
+         Debug("RpcIn: Could not allocate recv buffer for socket %d, "
+               "closing connection.\n", AsyncSocket_GetFd(conn->asock));
+         *errmsg = "Couldn't allocate enough memory";
+         return FALSE;
+      }
+   }
+
+   *((int32 *)(conn->recvBuf)) = htonl(pktLen);
+   res = AsyncSocket_Recv(conn->asock, conn->recvBuf + sizeof pktLen,
+                          pktLen, RpcInConnRecvedCb, conn);
+
+   conn->recvStopped = res != ASOCKERR_SUCCESS;
+   if (res != ASOCKERR_SUCCESS) {
+      Debug("RpcIn: error in recving packet for conn %d, "
+            "closing connection.\n", AsyncSocket_GetFd(conn->asock));
+      *errmsg = "RpcIn: error in recv";
+   }
+   return res == ASOCKERR_SUCCESS;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInConnErrorHandler --
+ *
+ *      Connection error handler for asyncsocket.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInConnErrorHandler(int err,             // IN
+                      AsyncSocket *asock,  // IN
+                      void *clientData)    // IN
+{
+   ConnInfo *conn = (ConnInfo *)clientData;
+   char const *errmsg ="RpcIn: vsocket connection error";
+   RpcIn *in = conn->in;
+
+   Debug("RpcIn: Error in socket %d, closing connection: %s.\n",
+         AsyncSocket_GetFd(asock), AsyncSocket_Err2String(err));
+
+   if (conn->connected) {
+      RpcInCloseChannel(conn->in, errmsg);
+   } else { /* the connection never gets connected */
+      RpcInCloseConn(conn);
+      RpcInOpenChannel(in, TRUE);  /* fall back on backdoor */
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInConnectDone --
+ *
+ *      Callback function for AsyncSocket connect.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInConnectDone(AsyncSocket *asock,   // IN
+                 void *clientData)     // IN
+{
+   ConnInfo *conn = (ConnInfo *)clientData;
+   RpcIn *in = conn->in;
+
+   if (AsyncSocket_GetState(asock) != AsyncSocketConnected) {
+      goto exit;
+   }
+
+
+   if (!AsyncSocket_SetBufferSizes(asock, RPCIN_MIN_SEND_BUF_SIZE,
+                                   RPCIN_MIN_RECV_BUF_SIZE)) {
+      goto exit;
+   }
+
+   conn->connected = TRUE;
+   RpcInConnRecvHeader(conn);
+   return;
+
+exit:
+   Debug("RpcIn: failed to create vsocket connection, using backdoor.\n");
+   RpcInCloseConn(conn);
+   RpcInOpenChannel(in, TRUE);  /* fall back on backdoor */
+}
+
+#endif  /* VMTOOLS_USE_VSOCKET */
 
 
 /*
@@ -433,16 +1139,29 @@ RpcIn_Destruct(RpcIn *in) // IN
  */
 
 static Bool
-RpcInSend(RpcIn *in) // IN
+RpcInSend(RpcIn *in,   // IN
+          int flags)   // IN
 {
    Bool status;
+   Bool useBackdoor = TRUE;
 
    ASSERT(in);
-   ASSERT(in->channel);
    ASSERT(in->mustSend);
 
-   status = Message_Send(in->channel, (unsigned char *)in->last_result,
-                         in->last_resultLen);
+#if defined(VMTOOLS_USE_VSOCKET)
+   if (in->conn != NULL) {
+      useBackdoor = FALSE;
+      status = RpcInConnSend(in->conn, in->last_result, in->last_resultLen,
+                             flags);
+   }
+#endif
+
+   if (useBackdoor) {
+      ASSERT(in->channel);
+      status = Message_Send(in->channel, (unsigned char *)in->last_result,
+                            in->last_resultLen);
+   }
+
    if (status == FALSE) {
       Debug("RpcIn: couldn't send back the last result\n");
    }
@@ -494,7 +1213,7 @@ RpcInStop(RpcIn *in) // IN
       /* The channel is open */
       if (in->mustSend) {
          /* There is a final result to send back. Try to send it */
-         RpcInSend(in);
+         RpcInSend(in, 0);
          ASSERT(in->mustSend == FALSE);
       }
 
@@ -505,6 +1224,22 @@ RpcInStop(RpcIn *in) // IN
 
       in->channel = NULL;
    }
+
+#if defined(VMTOOLS_USE_VSOCKET)
+   if (in->conn != NULL) {
+      if (in->mustSend) {
+         /* There is a final result to send back. Try to send it */
+         RpcInSend(in, 0);
+      }
+      RpcInCloseConn(in->conn);
+   }
+
+   if (in->heartbeatSrc != NULL) {
+      g_source_destroy(in->heartbeatSrc);
+      g_source_unref(in->heartbeatSrc);
+      in->heartbeatSrc = NULL;
+   }
+#endif
 }
 
 
@@ -538,6 +1273,134 @@ RpcIn_stop(RpcIn *in) // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * RpcInExecRpc --
+ *
+ *      Call dispatcher to run the RPC.
+ *
+ * Result:
+ *      TRUE on success, FALSE on error.
+ *
+ * Side-effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+RpcInExecRpc(RpcIn *in,            // IN
+             const char *reply,    // IN
+             size_t repLen,        // IN
+             const char **errmsg)  // OUT
+{
+   unsigned int status;
+   const char *statusStr;
+   unsigned int statusLen;
+   char *result;
+   size_t resultLen;
+   Bool freeResult = FALSE;
+
+   /*
+    * Execute the RPC
+    */
+
+#if defined(VMTOOLS_USE_GLIB)
+   RpcInData data = { NULL, reply, repLen, NULL, 0, FALSE, NULL, in->clientData };
+
+   status = in->dispatch(&data);
+   result = data.result;
+   resultLen = data.resultLen;
+   freeResult = data.freeResult;
+#else
+   char *cmd;
+   unsigned int index = 0;
+   RpcInCallbackList *cb = NULL;
+
+   cmd = StrUtil_GetNextToken(&index, reply, " ");
+   if (cmd != NULL) {
+      cb = RpcInLookupCallback(in, cmd);
+      free(cmd);
+      if (cb) {
+         result = NULL;
+         status = cb->callback((char const **) &result, &resultLen, cb->name,
+                               reply + cb->length, repLen - cb->length,
+                               cb->clientData);
+         ASSERT(result);
+      } else {
+         status = FALSE;
+         result = "Unknown Command";
+         resultLen = strlen(result);
+      }
+   } else {
+      status = FALSE;
+      result = "Bad command";
+      resultLen = strlen(result);
+   }
+#endif
+
+   statusStr = status ? "OK " : "ERROR ";
+   statusLen = strlen(statusStr);
+
+   in->last_result = (char *)malloc(statusLen + resultLen);
+   if (in->last_result == NULL) {
+      *errmsg = "RpcIn: Not enough memory";
+      return FALSE;
+   }
+   memcpy(in->last_result, statusStr, statusLen);
+   memcpy(in->last_result + statusLen, result, resultLen);
+   in->last_resultLen = statusLen + resultLen;
+
+   if (freeResult) {
+      free(result);
+   }
+
+   /*
+    * Run the event pump (in case VMware sends a long sequence of RPCs and
+    * perfoms a time-consuming job) and continue to loop immediately
+    */
+   in->delay = 0;
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInUpdateDelayTime --
+ *
+ *      Calculate new delay time.
+ *      Use an exponential back-off, doubling the time to wait each time up to
+ *      the max delay.
+ *
+ * Result:
+ *      None
+ *
+ * Side-effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcInUpdateDelayTime(RpcIn *in)            // IN
+{
+   if (in->delay < in->maxDelay) {
+      if (in->delay > 0) {
+         /*
+          * Catch overflow.
+          */
+         in->delay = ((in->delay * 2) > in->delay) ? (in->delay * 2) : in->maxDelay;
+      } else {
+         in->delay = 1;
+      }
+      in->delay = MIN(in->delay, in->maxDelay);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * RpcInLoop --
  *
  *      Receives an RPC from the host.
@@ -562,13 +1425,13 @@ static Bool
 RpcInLoop(void *clientData) // IN
 {
    RpcIn *in;
-   char const *errmsg;
+   char const *errmsg = NULL;
    char const *reply;
    size_t repLen;
+   Bool resched = FALSE;
 
 #if defined(VMTOOLS_USE_GLIB)
    unsigned int current;
-   Bool resched = FALSE;
 #endif
 
    in = (RpcIn *)clientData;
@@ -602,7 +1465,7 @@ RpcInLoop(void *clientData) // IN
     * This is very important: this is the only way to signal the existence of
     * this guest application to VMware.
     */
-   if (RpcInSend(in) == FALSE) {
+   if (RpcInSend(in, 0) == FALSE) {
       errmsg = "RpcIn: Unable to send";
       goto error;
    }
@@ -613,77 +1476,9 @@ RpcInLoop(void *clientData) // IN
    }
 
    if (repLen) {
-      unsigned int status;
-      char const *statusStr;
-      unsigned int statusLen;
-      char *result;
-      size_t resultLen;
-      Bool freeResult = FALSE;
-
-      /*
-       * Execute the RPC
-       */
-
-#if defined(VMTOOLS_USE_GLIB)
-      RpcInData data = { NULL, reply, repLen, NULL, 0, FALSE, NULL, in->clientData };
-
-      status = in->dispatch(&data);
-      result = data.result;
-      resultLen = data.resultLen;
-      freeResult = data.freeResult;
-#else
-      char *cmd;
-      unsigned int index = 0;
-      RpcInCallbackList *cb = NULL;
-
-      cmd = StrUtil_GetNextToken(&index, reply, " ");
-      if (cmd != NULL) {
-         cb = RpcInLookupCallback(in, cmd);
-         free(cmd);
-         if (cb) {
-            result = NULL;
-            status = cb->callback((char const **) &result, &resultLen, cb->name,
-                                  reply + cb->length, repLen - cb->length,
-                                  cb->clientData);
-            ASSERT(result);
-         } else {
-            status = FALSE;
-            result = "Unknown Command";
-            resultLen = strlen(result);
-         }
-      } else {
-         status = FALSE;
-         result = "Bad command";
-         resultLen = strlen(result);
-      }
-#endif
-
-      if (status) {
-         statusStr = "OK ";
-         statusLen = 3;
-      } else {
-         statusStr = "ERROR ";
-         statusLen = 6;
-      }
-
-      in->last_result = (char *)malloc(statusLen + resultLen);
-      if (in->last_result == NULL) {
-         errmsg = "RpcIn: Not enough memory";
+      if (!RpcInExecRpc(in, reply, repLen, &errmsg)) {
          goto error;
       }
-      memcpy(in->last_result, statusStr, statusLen);
-      memcpy(in->last_result + statusLen, result, resultLen);
-      in->last_resultLen = statusLen + resultLen;
-
-      if (freeResult) {
-         free(result);
-      }
-
-      /*
-       * Run the event pump (in case VMware sends a long sequence of RPCs and
-       * perfoms a time-consuming job) and continue to loop immediately
-       */
-      in->delay = 0;
    } else {
       /*
        * Nothing to execute
@@ -693,39 +1488,19 @@ RpcInLoop(void *clientData) // IN
       ASSERT(in->last_result == NULL);
       ASSERT(in->last_resultLen == 0);
 
-      /*
-       * Continue to loop in a while. Use an exponential back-off, doubling
-       * the time to wait each time there isn't a new message, up to the max
-       * delay.
-       */
-
-      if (in->delay < in->maxDelay) {
-         if (in->delay > 0) {
-            /*
-             * Catch overflow.
-             */
-            in->delay = ((in->delay * 2) > in->delay) ? (in->delay * 2) : in->maxDelay;
-         } else {
-            in->delay = 1;
-         }
-         in->delay = MIN(in->delay, in->maxDelay);
-      }
+      RpcInUpdateDelayTime(in);
    }
 
    ASSERT(in->mustSend == FALSE);
    in->mustSend = TRUE;
 
    if (!in->shouldStop) {
+      Bool needResched = TRUE;
 #if defined(VMTOOLS_USE_GLIB)
-      if (in->delay != current) {
-         resched = TRUE;
-         g_source_unref(in->nextEvent);
-         RPCIN_SCHED_EVENT(in, VMTools_CreateTimer(in->delay * 10));
-      }
-#else
-      in->nextEvent = EventManager_Add(gTimerEventQueue, in->delay, RpcInLoop, in);
+      resched = in->delay != current;
+      needResched = resched;
 #endif
-      if (in->nextEvent == NULL) {
+      if (needResched && !RpcInScheduleRecvEvent(in)) {
          errmsg = "RpcIn: Unable to run the loop";
          goto error;
       }
@@ -743,17 +1518,154 @@ exit:
 
    in->inLoop = FALSE;
 
-#if defined(VMTOOLS_USE_GLIB)
    return !resched;
-#else
-   return TRUE;
-#endif
 
 error:
    /* Call the error routine */
    (*in->errorFunc)(in->errorData, errmsg);
    in->shouldStop = TRUE;
    goto exit;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInScheduleRecvEvent --
+ *
+ *      Setup corresponding callback functions to recv data.
+ *
+ * Result:
+ *      TRUE on success, FALSE on error.
+ *
+ * Side-effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+RpcInScheduleRecvEvent(RpcIn *in)      // IN
+{
+#if defined(VMTOOLS_USE_GLIB)
+   if (in->nextEvent != NULL) {
+      g_source_unref(in->nextEvent);
+   }
+   in->nextEvent = VMTools_CreateTimer(in->delay * 10);
+   if (in->nextEvent != NULL) {
+      g_source_set_callback(in->nextEvent, RpcInLoop, in, NULL);
+      g_source_attach(in->nextEvent, in->mainCtx);
+   }
+#else
+   in->nextEvent = EventManager_Add(gTimerEventQueue, in->delay, RpcInLoop, in);
+#endif
+   return in->nextEvent != NULL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInOpenChannel --
+ *
+ *    Create backdoor or vsocket channel.
+ *
+ * Result
+ *    TRUE on success
+ *    FALSE on failure
+ *
+ * Side-effects
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+RpcInOpenChannel(RpcIn *in,                 // IN
+                 Bool useBackdoorOnly)      // IN
+{
+#if defined(VMTOOLS_USE_VSOCKET)
+   static Bool first = TRUE;
+   static Bool initOk = TRUE;
+   AsyncSocket *asock;
+   int res;
+
+   ASSERT(in->conn == NULL);
+
+   while (TRUE) {  /* one pass loop */
+      if (useBackdoorOnly) {
+         break;
+      }
+
+      if (first) {
+         first = FALSE;
+         res = AsyncSocket_Init();
+         initOk = (res == ASOCKERR_SUCCESS);
+         if (!initOk) {
+            Debug("RpcIn: Error in socket initialization: %s\n",
+                  AsyncSocket_Err2String(res));
+            break;
+         }
+      }
+
+      if (!initOk) {
+         break;
+      }
+
+      in->conn = calloc(1, sizeof *(in->conn));
+      if (in->conn == NULL) {
+         Debug("RpcIn: Error in allocating memory for vsocket connection.\n");
+         break;
+      }
+      in->conn->in = in;
+      asock = AsyncSocket_ConnectVMCI(VMCI_HOST_CONTEXT_ID,
+                                      GUESTRPC_VSOCK_LISTEN_PORT,
+                                      RpcInConnectDone,
+                                      in->conn, 0, NULL, &res);
+      if (asock == NULL) {
+         Debug("RpcIn: Error in creating vsocket connection: %s\n",
+               AsyncSocket_Err2String(res));
+      } else {
+         res = AsyncSocket_SetErrorFn(asock, RpcInConnErrorHandler, in->conn);
+         if (res != ASOCKERR_SUCCESS) {
+            Debug("RpcIn: Error in setting error handler for vsocket %d\n",
+                  AsyncSocket_GetFd(asock));
+            AsyncSocket_Close(asock);
+         } else {
+            Debug("RpcIn: successfully created vsocket connection %d.\n",
+                  AsyncSocket_GetFd(asock));
+            in->conn->asock = asock;
+            return TRUE;
+         }
+      }
+      break;
+   }
+
+   if (in->conn != NULL) {
+      free(in->conn);
+      in->conn = NULL;
+   }
+
+#endif
+
+   ASSERT(in->channel == NULL);
+   in->channel = Message_Open(0x4f4c4354);
+   if (in->channel == NULL) {
+      Debug("RpcIn: couldn't open channel with TCLO protocol\n");
+      goto error;
+   }
+
+   if (!RpcInScheduleRecvEvent(in)) {
+      Debug("RpcIn_start: couldn't start the loop\n");
+      goto error;
+   }
+
+   in->mustSend = TRUE;
+   return TRUE;
+
+error:
+   RpcInStop(in);
+   return FALSE;
 }
 
 
@@ -797,29 +1709,11 @@ RpcIn_start(RpcIn *in,                    // IN
    in->errorFunc = errorFunc;
    in->errorData = errorData;
 
-   ASSERT(in->channel == NULL);
-   in->channel = Message_Open(0x4f4c4354);
-   if (in->channel == NULL) {
-      Debug("RpcIn_start: couldn't open channel with TCLO protocol\n");
-      goto error;
-   }
-
    /* No initial result */
    ASSERT(in->last_result == NULL);
    ASSERT(in->last_resultLen == 0);
    ASSERT(in->mustSend == FALSE);
-   in->mustSend = TRUE;
-
    ASSERT(in->nextEvent == NULL);
-#if defined(VMTOOLS_USE_GLIB)
-   RPCIN_SCHED_EVENT(in, VMTools_CreateTimer(in->delay * 10));
-#else
-   in->nextEvent = EventManager_Add(gTimerEventQueue, 0, RpcInLoop, in);
-   if (in->nextEvent == NULL) {
-      Debug("RpcIn_start: couldn't start the loop\n");
-      goto error;
-   }
-#endif
 
 #if !defined(VMTOOLS_USE_GLIB)
    /* Register the 'reset' handler */
@@ -830,11 +1724,7 @@ RpcIn_start(RpcIn *in,                    // IN
    RpcIn_RegisterCallback(in, "ping", RpcInPingCallback, NULL);
 #endif
 
-   return TRUE;
-
-error:
-   RpcInStop(in);
-   return FALSE;
+   return RpcInOpenChannel(in, FALSE);
 }
 
 

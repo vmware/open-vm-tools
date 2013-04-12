@@ -22,6 +22,12 @@ if HAVE_X11
 endif
 SUBDIRS += auth
 SUBDIRS += backdoor
+SUBDIRS += asyncsocket
+SUBDIRS += sslStubs
+SUBDIRS += pollGtk
+SUBDIRS += poll
+SUBDIRS += dataMap
+SUBDIRS += hashMap
 SUBDIRS += dict
 SUBDIRS += dynxdr
 SUBDIRS += err
