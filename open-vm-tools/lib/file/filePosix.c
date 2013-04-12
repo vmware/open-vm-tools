@@ -657,6 +657,20 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
    Unicode canonPath = NULL;  /* result */
 
    /*
+    * The very first thing that we do is to open the VVol control node.
+    * This will fail if the VVol module is not loaded. In that case we
+    * short circuit to the failure case. This helps systems which do not
+    * use VVols, as we avoid the extra file opens (by File_IsDirectory
+    * and File_GetVMFSFSType) in those cases.
+    * Note that file opens are especially expensive on NFS.
+    * See PR 1007403.
+    */
+   ctrlfd = Posix_Open(VVOL_NAMESPACE_CONTROL_NODE, O_RDONLY);
+   if (ctrlfd < 0) {
+      goto use_same_path;
+   }
+
+   /*
     * absVMDirName should start with /vmfs/volumes/.
     */
    if (!Unicode_StartsWith(absVMDirName, VCFS_MOUNT_PATH)) {
@@ -686,16 +700,6 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
     */
    if (File_GetVMFSFSType(currDir ? currDir : absVMDirName, -1, &fsType) != 0 ||
        (fsType != NFSCLIENT_FSTYPENUM && fsType != NFS41CLIENT_FSTYPENUM)) {
-      goto use_same_path;
-   }
-
-   /*
-    * The most likely reason this will fail is if the VVol control node is
-    * not present which means VVol module is not loaded. We can not translate
-    * the pathname in that case.
-    */
-   ctrlfd = Posix_Open(VVOL_NAMESPACE_CONTROL_NODE, O_RDONLY);
-   if (ctrlfd < 0) {
       goto use_same_path;
    }
 

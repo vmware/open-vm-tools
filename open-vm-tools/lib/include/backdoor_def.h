@@ -168,7 +168,8 @@
 #define   BDOOR_CMD_SET_PCI_HOLE             77 /* CPL 0 only  */
 #define   BDOOR_CMD_GET_PCI_HOLE             78 /* CPL 0 only  */
 #define   BDOOR_CMD_GET_PCI_BAR              79 /* CPL 0 only  */
-#define   BDOOR_CMD_MAX                      80
+#define   BDOOR_CMD_SHOULD_GENERATE_SYSTEMID 80 /* CPL 0 only  */
+#define   BDOOR_CMD_MAX                      81
 
 
 /* 

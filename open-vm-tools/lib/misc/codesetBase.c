@@ -73,7 +73,7 @@ CodeSet_GetCurrentCodeSet(void)
 int
 CodeSet_GetUtf8(const char *string,  // IN: string
                 const char *end,     // IN: end of string
-                uint32 *uchar)       // OUT: the Unicode character
+                uint32 *uchar)       // OUT/OPT: the Unicode character
 {
    uint8 *p = (uint8 *) string;
    uint8 *e;
@@ -181,8 +181,7 @@ CodeSet_LengthInCodePoints(const char *utf8)  // IN:
    end = p + strlen(utf8);
 
    while (p < end) {
-      uint32 utf32;
-      uint32 len = CodeSet_GetUtf8(p, end, &utf32);
+      uint32 len = CodeSet_GetUtf8(p, end, NULL);
 
       if (len == 0) {
          return -1;
@@ -193,6 +192,55 @@ CodeSet_LengthInCodePoints(const char *utf8)  // IN:
    }
 
    return codePoints;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_CodePointOffsetToByteOffset --
+ *
+ *    Return the byte offset of the character at the given codepoint
+ *    offset.
+ *
+ * Results:
+ *    -1 on error
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+CodeSet_CodePointOffsetToByteOffset(const char *utf8,    // IN
+                                    int codePointOffset) // IN
+{
+   const char *p;
+   const char *end;
+
+   ASSERT(utf8);
+
+   p = utf8;
+   end = p + strlen(utf8);
+
+   while (p < end && codePointOffset > 0) {
+      uint32 utf32;
+      uint32 len = CodeSet_GetUtf8(p, end, &utf32);
+
+      if (len == 0) {
+         return -1;
+      }
+
+      p += len;
+      codePointOffset--;
+   }
+
+   if (codePointOffset == 0) {
+      return p - utf8;
+   } else {
+      return -1;
+   }
 }
 
 

@@ -160,9 +160,7 @@
 #endif
 #undef INCLUDE_ALLOW_VMIROM
 
-#if defined INCLUDE_ALLOW_MKS && \
-    !(defined LOCALMKS  || defined REMOTEMKS || \
-      defined SERVERMKS || defined CLIENTMKS)
+#if defined INCLUDE_ALLOW_MKS && !(defined COREMKS)
 #error "The surrounding include file is not allowed outside of the MKS."
 #endif
 #undef INCLUDE_ALLOW_MKS

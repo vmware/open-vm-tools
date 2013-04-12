@@ -164,10 +164,10 @@ PollClassSet_Include(PollClassSet set, PollClass c)
 #define POLL_CS_MAIN    PollClassSet_Singleton(POLL_CLASS_MAIN)
 #define POLL_CS_PAUSE   PollClassSet_Union(POLL_CS_MAIN,            \
                            PollClassSet_Singleton(POLL_CLASS_PAUSE))
-#define POLL_CS_IPC     PollClassSet_Union(POLL_CS_PAUSE,           \
-                           PollClassSet_Singleton(POLL_CLASS_IPC))
-#define POLL_CS_CPT     PollClassSet_Union(POLL_CS_IPC,             \
+#define POLL_CS_CPT     PollClassSet_Union(POLL_CS_PAUSE,           \
                            PollClassSet_Singleton(POLL_CLASS_CPT))
+#define POLL_CS_IPC     PollClassSet_Union(POLL_CS_CPT,             \
+                           PollClassSet_Singleton(POLL_CLASS_IPC))
 #define POLL_CS_VMDB    POLL_CS_PAUSE /* POLL_CLASS_VMDB is retired */
 #define POLL_CS_MKS	PollClassSet_Singleton(POLL_CLASS_MKS)
 /* 
@@ -185,11 +185,11 @@ PollClassSet_Include(PollClassSet set, PollClass c)
  * POLL_CS_CPT
  *    - Only for callbacks which can trigger intermediate Checkpoint 
  *      transitions.
- *      The ONLY such callbacks are CrossUserRPC and VMotion.
+ *      The ONLY such callback is Migrate.
  * POLL_CS_IPC
  *    - Only for callbacks which can contain Msg_(Post|Hint|Question) 
  *      responses, and for signal handlers (why)?
- *      IPC, VMDB, and Foundry can contain Msg_* responses.
+ *      Vigor, VMDB, and Foundry can contain Msg_* responses.
  * POLL_CS_MKS
  *    - Callback runs in MKS thread.
  * POLL_CS_ALWAYS
