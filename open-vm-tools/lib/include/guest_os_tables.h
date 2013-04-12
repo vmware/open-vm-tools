@@ -73,6 +73,7 @@
    GOT(GUEST_OS_SOLARIS9)                                     \
    GOT(GUEST_OS_SOLARIS10)                                    \
    GOT(GUEST_OS_SOLARIS10_64)                                 \
+   GOT(GUEST_OS_SOLARIS11_64)                                 \
    GOT(GUEST_OS_DARWIN9)           /* Mac OS 10.5 */          \
    GOT(GUEST_OS_DARWIN9_64)                                   \
    GOT(GUEST_OS_DARWIN10)          /* Mac OS 10.6 */          \

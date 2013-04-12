@@ -450,12 +450,11 @@
 #   if defined(__APPLE__)
 #      if defined VMX86_DESKTOP
 /*
- * We will remove this definition soon. Fusion's library directory should not
- * be hardcoded: it prevents Fusion from being relocated. Use
- * Location_GetLibrary() instead.
+ * Fusion can be relocated, so it does not have a default library directory.
+ * To retrieve the Fusion library directory, use Location_GetLibrary() instead.
  */
 #         define DEFAULT_LIBDIRECTORY \
-             "/Applications/" PRODUCT_SHORT_NAME ".app/Contents/Library"
+             "/dev/null/Non-existing DEFAULT_LIBDIRECTORY"
 #      else
 #         define DEFAULT_LIBDIRECTORY VMWARE_HOST_DIRECTORY
 #      endif
