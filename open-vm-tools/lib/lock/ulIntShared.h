@@ -37,6 +37,8 @@ extern void MXUserInstallMxHooks(void (*theLockListFunc)(void),
                                  void (*theLockFunc)(struct MX_MutexRec *lock),
                                  void (*theUnlockFunc)(struct MX_MutexRec *lock),
                                  Bool (*theTryLockFunc)(struct MX_MutexRec *lock),
-                                 Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock));
+                                 Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock),
+                                 void (*theSetInPanicFunc)(void),
+                                 Bool (*theInPanicFunc)(void));
 
 #endif

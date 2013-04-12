@@ -35,6 +35,8 @@ void (*MXUserMX_LockRec)(struct MX_MutexRec *lock) = NULL;
 void (*MXUserMX_UnlockRec)(struct MX_MutexRec *lock) = NULL;
 Bool (*MXUserMX_TryLockRec)(struct MX_MutexRec *lock) = NULL;
 Bool (*MXUserMX_IsLockedByCurThreadRec)(const struct MX_MutexRec *lock) = NULL;
+static void (*MXUserMX_SetInPanic)(void) = NULL;
+static Bool (*MXUserMX_InPanic)(void) = NULL;
 
 
 /*
@@ -296,11 +298,8 @@ MXUserDumpAndPanic(MXUserHeader *header,  // IN:
  *  MXUser_SetInPanic --
  *	Notify the locking system that a panic is occurring.
  *
- *      This is the "out of the monitor" - userland - implementation. The "in
- *      the monitor" implementation lives in mutex.c.
- *
  *  Results:
- *     Set the internal "in a panic" global variable.
+ *     Set the "in a panic" state both in userland, and monitor, if applicable.
  *
  *  Side effects:
  *     None
@@ -312,6 +311,9 @@ void
 MXUser_SetInPanic(void)
 {
    mxInPanic = TRUE;
+   if (MXUserMX_SetInPanic != NULL) {
+      MXUserMX_SetInPanic();
+   }
 }
 
 
@@ -320,9 +322,6 @@ MXUser_SetInPanic(void)
  *
  *  MXUser_InPanic --
  *	Is the caller in the midst of a panic?
- *
- *      This is the "out of the monitor" - userland - implementation. The "in
- *      the monitor" implementation lives in mutex.c.
  *
  *  Results:
  *     TRUE   Yes
@@ -337,7 +336,7 @@ MXUser_SetInPanic(void)
 Bool
 MXUser_InPanic(void)
 {
-   return mxInPanic;
+   return mxInPanic || (MXUserMX_InPanic != NULL && MXUserMX_InPanic());
 }
 
 
@@ -365,7 +364,9 @@ MXUserInstallMxHooks(void (*theLockListFunc)(void),
                      void (*theLockFunc)(struct MX_MutexRec *lock),
                      void (*theUnlockFunc)(struct MX_MutexRec *lock),
                      Bool (*theTryLockFunc)(struct MX_MutexRec *lock),
-                     Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock))
+                     Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock),
+                     void (*theSetInPanicFunc)(void),
+                     Bool (*theInPanicFunc)(void))
 {
    /*
     * This function can be called more than once but the second and later
@@ -378,20 +379,27 @@ MXUserInstallMxHooks(void (*theLockListFunc)(void),
        (MXUserMX_LockRec == NULL) &&
        (MXUserMX_UnlockRec == NULL) &&
        (MXUserMX_TryLockRec == NULL) &&
-       (MXUserMX_IsLockedByCurThreadRec == NULL)) {
+       (MXUserMX_IsLockedByCurThreadRec == NULL) &&
+       (MXUserMX_SetInPanic == NULL) &&
+       (MXUserMX_InPanic == NULL)
+       ) {
       MXUserMxLockLister = theLockListFunc;
       MXUserMxCheckRank = theRankFunc;
       MXUserMX_LockRec = theLockFunc;
       MXUserMX_UnlockRec = theUnlockFunc;
       MXUserMX_TryLockRec = theTryLockFunc;
       MXUserMX_IsLockedByCurThreadRec = theIsLockedFunc;
+      MXUserMX_SetInPanic = theSetInPanicFunc;
+      MXUserMX_InPanic = theInPanicFunc;
    } else {
       ASSERT((MXUserMxLockLister == theLockListFunc) &&
              (MXUserMxCheckRank == theRankFunc) &&
              (MXUserMX_LockRec == theLockFunc) &&
              (MXUserMX_UnlockRec == theUnlockFunc) &&
              (MXUserMX_TryLockRec == theTryLockFunc) &&
-             (MXUserMX_IsLockedByCurThreadRec == theIsLockedFunc)
+             (MXUserMX_IsLockedByCurThreadRec == theIsLockedFunc) &&
+             (MXUserMX_SetInPanic == theSetInPanicFunc) &&
+             (MXUserMX_InPanic == theInPanicFunc)
             );
    }
 }
