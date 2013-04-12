@@ -406,7 +406,6 @@ VSockAddr_SocketContextStream(uint32 cid)  // IN
 {
    uint32 i;
    VMCIId nonSocketContexts[] = {
-      VMCI_HYPERVISOR_CONTEXT_ID,
       VMCI_WELL_KNOWN_CONTEXT_ID,
    };
 

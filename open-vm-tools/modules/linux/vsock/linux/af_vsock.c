@@ -575,6 +575,10 @@ Bool
 VSockVmciAllowDgram(VSockVmciSock *vsock, // IN: Local socket
                     VMCIId peerCid)       // IN: Context ID of peer
 {
+   if (peerCid == VMCI_HYPERVISOR_CONTEXT_ID) {
+      return TRUE;
+   }
+
    if (vsock->cachedPeer != peerCid) {
       vsock->cachedPeer = peerCid;
       if (!VSockVmciTrusted(vsock, peerCid) &&
@@ -1030,6 +1034,7 @@ VSockVmciRecvStreamCB(void *data,           // IN
    struct sockaddr_vm src;
    VSockPacket *pkt;
    VSockVmciSock *vsk;
+   VMCIId expectedSrcRid;
    Bool bhProcessPkt;
    int err;
 
@@ -1045,8 +1050,12 @@ VSockVmciRecvStreamCB(void *data,           // IN
     * aren't vsock implementations.
     */
 
+   expectedSrcRid =
+      VMCI_HYPERVISOR_CONTEXT_ID == VMCI_HANDLE_TO_CONTEXT_ID(dg->src) ?
+      VSOCK_PACKET_HYPERVISOR_RID : VSOCK_PACKET_RID;
+
    if (!VSockAddr_SocketContextStream(VMCI_HANDLE_TO_CONTEXT_ID(dg->src)) ||
-       VSOCK_PACKET_RID != VMCI_HANDLE_TO_RESOURCE_ID(dg->src)) {
+       expectedSrcRid != VMCI_HANDLE_TO_RESOURCE_ID(dg->src)) {
       return VMCI_ERROR_NO_ACCESS;
    }
 

@@ -117,36 +117,34 @@ typedef enum VMCIIntrType {
 typedef uint32 VMCI_Resource;
 
 /* VMCI reserved hypervisor datagram resource IDs. */
-#define VMCI_RESOURCES_QUERY      0
-#define VMCI_GET_CONTEXT_ID       1
-#define VMCI_SET_NOTIFY_BITMAP    2
-#define VMCI_DOORBELL_LINK        3
-#define VMCI_DOORBELL_UNLINK      4
-#define VMCI_DOORBELL_NOTIFY      5
+#define VMCI_RESOURCES_QUERY        0
+#define VMCI_GET_CONTEXT_ID         1
+#define VMCI_SET_NOTIFY_BITMAP      2
+#define VMCI_DOORBELL_LINK          3
+#define VMCI_DOORBELL_UNLINK        4
+#define VMCI_DOORBELL_NOTIFY        5
 /*
  * VMCI_DATAGRAM_REQUEST_MAP and VMCI_DATAGRAM_REMOVE_MAP are
  * obsoleted by the removal of VM to VM communication.
  */
-#define VMCI_DATAGRAM_REQUEST_MAP 6
-#define VMCI_DATAGRAM_REMOVE_MAP  7
-#define VMCI_EVENT_SUBSCRIBE      8
-#define VMCI_EVENT_UNSUBSCRIBE    9
-#define VMCI_QUEUEPAIR_ALLOC      10
-#define VMCI_QUEUEPAIR_DETACH     11
+#define VMCI_DATAGRAM_REQUEST_MAP   6
+#define VMCI_DATAGRAM_REMOVE_MAP    7
+#define VMCI_EVENT_SUBSCRIBE        8
+#define VMCI_EVENT_UNSUBSCRIBE      9
+#define VMCI_QUEUEPAIR_ALLOC        10
+#define VMCI_QUEUEPAIR_DETACH       11
 /*
  * VMCI_VSOCK_VMX_LOOKUP was assigned to 12 for Fusion 3.0/3.1,
  * WS 7.0/7.1 and ESX 4.1
  */
-#define VMCI_HGFS_TRANSPORT       13
-#define VMCI_UNITY_PBRPC_REGISTER 14
+#define VMCI_HGFS_TRANSPORT         13
+#define VMCI_UNITY_PBRPC_REGISTER   14
 /*
- * The next two resources are for RPC calls from guest Tools, to replace the
- * backdoor calls we used previously.  Privileged is for admin/root RPCs,
- * unprivileged is for RPCs from any user.
+ * This resource is used for VMCI socket control packets sent to the
+ * hypervisor (CID 0) because RID 1 is already reserved.
  */
-#define VMCI_RPC_PRIVILEGED       15
-#define VMCI_RPC_UNPRIVILEGED     16
-#define VMCI_RESOURCE_MAX         17
+#define VSOCK_PACKET_HYPERVISOR_RID 15
+#define VMCI_RESOURCE_MAX           16
 /*
  * The core VMCI device functionality only requires the resource IDs of
  * VMCI_QUEUEPAIR_DETACH and below.

@@ -94,6 +94,20 @@
 #include "vsockSocketWrapper.h"
 
 
+/*
+ * Local VSocket control packet resource ID.
+ *
+ * Stream sockets to the hypervisor were added later so VSOCK_PACKET_RID was
+ * already assigned to another application. VSOCK_PACKET_HYPERVISOR_RID is
+ * used instead.
+ */
+#if defined VMX86_VMX
+#  define VSOCK_PACKET_LOCAL_RID  VSOCK_PACKET_HYPERVISOR_RID
+#else
+#  define VSOCK_PACKET_LOCAL_RID  VSOCK_PACKET_RID
+#endif
+
+
 /* Memory allocation flags. */
 #define VSOCK_MEMORY_NORMAL   0
 #define VSOCK_MEMORY_ATOMIC   (1 << 0)
