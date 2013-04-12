@@ -37,11 +37,10 @@
  */
 
 
-Bool
-HgfsParseRequest(HgfsPacket *packet,          // IN: request packet
-                 HgfsTransportSessionInfo *transportSession,    // IN: current session
-                 HgfsInputParam **input,      // OUT: request parameters
-                 HgfsInternalStatus *status); // OUT: error code
+HgfsInternalStatus
+HgfsUnpackPacketParams(HgfsPacket *packet,                         // IN: request packet
+                       HgfsTransportSessionInfo *transportSession, // IN: current session
+                       HgfsInputParam **input);                    // OUT: request parameters
 
 void
 HgfsPackLegacyReplyHeader(HgfsInternalStatus status,    // IN: reply status
@@ -63,7 +62,7 @@ HgfsPackOpenReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
 Bool
 HgfsUnpackGetattrRequest(void const *packetHeader,   // IN: packet header
                          size_t packetSize,          // IN: request packet size
-                         HgfsOp op,                   // IN: request type
+                         HgfsOp op,                  // IN: request type
                          HgfsFileAttrInfo *attrInfo, // IN/OUT: unpacked attr struct
                          HgfsAttrHint *hints,        // OUT: getattr hints
                          const char **cpName,        // OUT: cpName

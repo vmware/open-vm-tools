@@ -3005,9 +3005,10 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
 
    HgfsServerTransportSessionGet(transportSession);
 
-   if (!HgfsParseRequest(packet, transportSession, &input, &status)) {
-      LOG(4, ("%s: %d: Can't generate any response for the guest, just exit.\n ",
-              __FUNCTION__, __LINE__));
+   status = HgfsUnpackPacketParams(packet, transportSession, &input);
+   if (HGFS_ERROR_INTERNAL == status) {
+      LOG(4, ("%s: %d: Error: packet invalid and cannot reply %d.\n ",
+              __FUNCTION__, __LINE__, status));
       HgfsServerTransportSessionPut(transportSession);
       return;
    }
