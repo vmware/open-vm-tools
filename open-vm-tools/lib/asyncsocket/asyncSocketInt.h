@@ -182,6 +182,8 @@ struct AsyncSocket {
    void *errorClientData;
    VmTimeType drainTimeoutUS;
 
+   struct sockaddr localAddr;
+   socklen_t localAddrLen;
    struct sockaddr remoteAddr;
    socklen_t remoteAddrLen;
 

@@ -165,6 +165,11 @@ int AsyncSocket_GetRemoteIPAddress(AsyncSocket *asock,
                                    unsigned int *ip,
                                    const char **ipStr);
 
+int AsyncSocket_GetLocalVMCIAddress(AsyncSocket *asock,
+                                    uint32 *cid, uint32 *port);
+int AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,
+                                     uint32 *cid, uint32 *port);
+
 /*
  * Recv callback fires once previously requested data has been received
  */

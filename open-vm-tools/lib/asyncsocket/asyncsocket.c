@@ -398,6 +398,88 @@ AsyncSocket_GetRemoteIPAddress(AsyncSocket *asock,      // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncSocket_GetLocalVMCIAddress --
+ *
+ *      Given an AsyncSocket object, returns the local VMCI context ID and
+ *      port number associated with it, or an error if the request is
+ *      meaningless for the underlying connection.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS or ASOCKERR_GENERIC.
+ *
+ * Side effects:
+ *
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetLocalVMCIAddress(AsyncSocket *asock,  // IN
+                                uint32 *cid,         // OUT: optional
+                                uint32 *port)        // OUT: optional
+{
+   ASSERT(asock);
+
+   if (asock->localAddrLen != sizeof(struct sockaddr_vm)) {
+      return ASOCKERR_GENERIC;
+   }
+
+   if (cid != NULL) {
+      *cid = ((struct sockaddr_vm *)&asock->localAddr)->svm_cid;
+   }
+
+   if (port != NULL) {
+      *port = ((struct sockaddr_vm *)&asock->localAddr)->svm_port;
+   }
+
+   return ASOCKERR_SUCCESS;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_GetRemoteVMCIAddress --
+ *
+ *      Given an AsyncSocket object, returns the remote VMCI context ID and
+ *      port number associated with it, or an error if the request is
+ *      meaningless for the underlying connection.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS or ASOCKERR_GENERIC.
+ *
+ * Side effects:
+ *
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,  // IN
+                                 uint32 *cid,         // OUT: optional
+                                 uint32 *port)        // OUT: optional
+{
+   ASSERT(asock);
+
+   if (asock->remoteAddrLen != sizeof(struct sockaddr_vm)) {
+      return ASOCKERR_GENERIC;
+   }
+
+   if (cid != NULL) {
+      *cid = ((struct sockaddr_vm *)&asock->remoteAddr)->svm_cid;
+   }
+
+   if (port != NULL) {
+      *port = ((struct sockaddr_vm *)&asock->remoteAddr)->svm_port;
+   }
+
+   return ASOCKERR_SUCCESS;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncSocket_Listen --
  *
  *      Listens on the specified port and accepts new connections. Fires the
