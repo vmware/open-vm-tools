@@ -152,9 +152,9 @@ static void process_bitmap(unsigned long data);
  * Kernels between the two take either.  So flip switch at 3.0.0.
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)
-#  define compat_bool bool
+   typedef bool compat_bool;
 #else
-#  define compat_bool int
+   typedef int compat_bool;
 #endif
 
 static vmci_device vmci_dev;
