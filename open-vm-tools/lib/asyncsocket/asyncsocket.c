@@ -2654,6 +2654,10 @@ AsyncSocketCheckAndDispatchRecv(AsyncSocket *s,  // IN
 {
    ASSERT(s);
    ASSERT(result);
+   ASSERT(s->recvFn);
+   ASSERT(s->recvBuf);
+   ASSERT(s->recvLen > 0);
+   ASSERT(s->recvPos <= s->recvLen);
 
    if (s->recvPos == s->recvLen || s->recvFireOnPartial) {
       void *recvBuf = s->recvBuf;
