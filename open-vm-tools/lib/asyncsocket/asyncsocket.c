@@ -3118,6 +3118,16 @@ AsyncSocketConnectInternal(AsyncSocket *s)
       return ASOCKERR_GENERIC;
    }
 
+   s->localAddrLen = sizeof s->localAddr;
+   if (getsockname(s->fd, &s->localAddr, &s->localAddrLen) != 0) {
+      sysErr = ASOCK_LASTERROR();
+      s->genericErrno = sysErr;
+      Warning(ASOCKPREFIX "getsockname for connect on fd %d failed with "
+              "error %d: %s\n", s->fd, sysErr, Err_Errno2String(sysErr));
+
+      return ASOCKERR_GENERIC;
+   }
+
 done:
    s->state = AsyncSocketConnected;
    s->connectFn(s, s->clientData);
