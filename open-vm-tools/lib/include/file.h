@@ -202,6 +202,8 @@ Bool File_IsSymLink(ConstUnicode pathName);
 
 Bool File_IsCharDevice(ConstUnicode pathName);
 
+Bool File_GetParent(Unicode *canPath);
+
 Bool File_IsRemote(ConstUnicode pathName);
 
 Bool File_IsEmptyDirectory(ConstUnicode pathName);
@@ -232,6 +234,10 @@ int64 File_GetModTime(ConstUnicode pathName);
 char *File_GetModTimeString(ConstUnicode pathName);
 
 char *File_GetUniqueFileSystemID(const char *pathName);
+
+#ifdef _WIN32
+Unicode File_GetVolumeGUID(ConstUnicode pathName);
+#endif
 
 Bool File_GetTimes(ConstUnicode pathName,
                    VmTimeType *createTime,

@@ -105,6 +105,10 @@ void Util_SingleUseRelease(UtilSingleUseResource *res);
 Bool Util_GetProcessName(pid_t pid, char *bufOut, size_t bufOutSize);
 #endif
 
+#if defined __linux__ && !defined VMX86_SERVER
+Bool Util_IsPhysicalSSD(const char* device);
+#endif
+
 // backtrace functions and utilities
 
 #define UTIL_BACKTRACE_LINE_LEN (511)

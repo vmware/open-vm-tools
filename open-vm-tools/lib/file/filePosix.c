@@ -1197,6 +1197,28 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * File_GetParent --
+ *
+ *      The canPath is a canonical file path. Change it in place to the
+ *      canonical file path of its parent directory. See FilePosixGetParent
+ *      for more detail.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_GetParent(Unicode *canPath)  // IN/OUT: Canonical file path
+{
+   return FilePosixGetParent(canPath);
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * FileGetStats --
