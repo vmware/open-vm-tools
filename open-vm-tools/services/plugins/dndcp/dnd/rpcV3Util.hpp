@@ -48,8 +48,6 @@ private:
    RpcBase *mRpc;
    uint32 mVersionMajor;
    uint32 mVersionMinor;
-   uint32 mMsgType;
-   uint32 mMsgSrc;
    DnDTransportBuffer mSendBuf;
    DnDTransportBuffer mRecvBuf;
    uint32 mSeqNum;

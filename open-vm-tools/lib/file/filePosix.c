@@ -623,9 +623,9 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
     */
 #define MAX_SUBDIR_LEVEL   1
 
-   struct statfs statfs_buf;
    VVol_IoctlArgs args;
    VVolGetNFSCanonicalPathArgs *getCanonArgs = NULL;
+   uint16 fsType;
    int ctrlfd = -1;
    int searchDepth = MAX_SUBDIR_LEVEL;
    /*
@@ -646,14 +646,6 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
    Unicode canonPath = NULL;  /* result */
 
    /*
-    * XXX PR 983286 XXX
-    * Posix_Statfs call seems to take non-trivial time (~50msec for each call)
-    * which is introducing delays in "many vm" tests. Short circuiting this
-    * function till we come up with a better alternate.
-    */
-   goto use_same_path;
-
-   /*
     * absVMDirName should start with /vmfs/volumes/.
     */
    if (!Unicode_StartsWith(absVMDirName, VCFS_MOUNT_PATH)) {
@@ -664,9 +656,8 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
     * Only NFS config vvols can have a canonical name different from the
     * absolute pathname provided. This will do the validity check also.
     */
-   if (Posix_Statfs(absVMDirName, &statfs_buf) != 0 ||
-       (statfs_buf.f_type != NFSCLIENT_FSTYPENUM &&
-        statfs_buf.f_type != NFS41CLIENT_FSTYPENUM)) {
+   if (File_GetVMFSFSType(absVMDirName, -1, &fsType) != 0 ||
+       (fsType != NFSCLIENT_FSTYPENUM && fsType != NFS41CLIENT_FSTYPENUM)) {
       goto use_same_path;
    }
 
@@ -756,9 +747,8 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
        * If we have fallen off the NFS filesystem no need to search further,
        * we can never find the config VVol.
        */
-      if (Posix_Statfs(currDir, &statfs_buf) != 0 ||
-          (statfs_buf.f_type != NFSCLIENT_FSTYPENUM &&
-           statfs_buf.f_type != NFS41CLIENT_FSTYPENUM)) {
+      if (File_GetVMFSFSType(currDir, -1, &fsType) != 0 ||
+          (fsType != NFSCLIENT_FSTYPENUM && fsType != NFS41CLIENT_FSTYPENUM)) {
          goto use_same_path;
       }
    } while (searchDepth-- > 0);
@@ -2773,6 +2763,8 @@ out:
  *
  *      Given a path to a file on a volume, return the max file size for that
  *      volume. The max file size is stored on *maxFileSize on success.
+ *      The function caps the max file size to be MAX_SUPPORTED_FILE_SIZE on
+ *      any type of FS.
  *
  * Results:
  *      TRUE on success.
@@ -2788,13 +2780,24 @@ Bool
 File_GetMaxFileSize(ConstUnicode pathName,  // IN:
                     uint64 *maxFileSize)    // OUT:
 {
+   Bool result;
+
    if (!maxFileSize) {
       Log(LGPFX" %s: maxFileSize passed as NULL.\n", __func__);
 
       return FALSE;
    }
 
-   return FileGetMaxOrSupportsFileSize(pathName, maxFileSize, TRUE);
+   result = FileGetMaxOrSupportsFileSize(pathName, maxFileSize, TRUE);
+   if (result) {
+      /*
+       * Cap the max supported file size at MAX_SUPPORTED_FILE_SIZE.
+       */
+      if (*maxFileSize > MAX_SUPPORTED_FILE_SIZE) {
+         *maxFileSize = MAX_SUPPORTED_FILE_SIZE;
+      }
+   }
+   return result;
 }
 
 
@@ -2804,6 +2807,8 @@ File_GetMaxFileSize(ConstUnicode pathName,  // IN:
  * File_SupportsFileSize --
  *
  *      Check if the given file is on an FS that supports such file size.
+ *      The function caps the max supported file size to be
+ *      MAX_SUPPORTED_FILE_SIZE on any type of FS.
  *
  * Results:
  *      TRUE if FS supports such file size.
@@ -2825,6 +2830,14 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
    if (fileSize <= 0x7FFFFFFF) {
       return TRUE;
    }
+
+   /*
+    * Cap the max supported file size at MAX_SUPPORTED_FILE_SIZE.
+    */
+   if (fileSize > MAX_SUPPORTED_FILE_SIZE) {
+      return FALSE;
+   }
+
    return FileGetMaxOrSupportsFileSize(pathName, &fileSize, FALSE);
 }
 

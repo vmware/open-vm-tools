@@ -218,7 +218,7 @@
 // See the VMRC_PLUGIN_VERSION section in /mk/defs-onetime.mk
 
 #define VMRC_PLUGIN_VERSION_MAJOR 5
-#define VMRC_PLUGIN_VERSION_MINOR 1
+#define VMRC_PLUGIN_VERSION_MINOR 5
 #define VMRC_PLUGIN_VERSION_Z     0
 
 /*
@@ -226,7 +226,7 @@
  * #define VMRC_PLUGIN_VERSION_NUMBER       \
  *         XSTR(VMRC_PLUGIN_VERSION_MAJOR) "." XSTR(VMRC_PLUGIN_VERSION_MINOR) "." XSTR(VMRC_PLUGIN_VERSION_Z)
  */
-#define VMRC_PLUGIN_VERSION_NUMBER "5.1.0"
+#define VMRC_PLUGIN_VERSION_NUMBER "5.5.0"
 
 /* this version number should always match real VMRC & plugin version number */
 #define VMRC_VERSION VMRC_PLUGIN_VERSION_NUMBER
@@ -348,7 +348,7 @@
 #    endif
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "5.0"
-#    define PRODUCT_LICENSE_FILE_VERSION "5.1.0.6"
+#    define PRODUCT_LICENSE_FILE_VERSION "5.5.0.0"
 #  elif defined(VMX86_WBC)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_SDK)
