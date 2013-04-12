@@ -5086,6 +5086,7 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
    status = HgfsPlatformScanvdir(getName,
                                  initName,
                                  cleanupName,
+                                 type,
                                  &search->dents,
                                  &search->numDents);
    if (HGFS_ERROR_SUCCESS != status) {
@@ -5153,6 +5154,7 @@ HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enum
    status = HgfsPlatformScanvdir(getName,
                                  initName,
                                  cleanupName,
+                                 vdirSearch->type,
                                  &vdirSearch->dents,
                                  &vdirSearch->numDents);
    if (HGFS_ERROR_SUCCESS != status) {

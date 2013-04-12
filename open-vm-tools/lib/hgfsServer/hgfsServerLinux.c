@@ -3796,6 +3796,7 @@ HgfsInternalStatus
 HgfsPlatformScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get name
                      HgfsInitFunc enumNamesInit,       // IN: Setup function
                      HgfsCleanupFunc enumNamesExit,    // IN: Cleanup function
+                     DirectorySearchType type,         // IN: Kind of search - unused
                      struct DirectoryEntry ***dents,   // OUT: Array of DirectoryEntrys
                      uint32 *numDents)                 // OUT: total number of directory entrys
 {
