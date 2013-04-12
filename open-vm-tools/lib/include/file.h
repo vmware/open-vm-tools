@@ -117,6 +117,9 @@ struct FS_PartitionListResult;
 
 int File_GetVMFSAttributes(ConstUnicode pathName,
                            struct FS_PartitionListResult **fsAttrs);
+int File_GetVMFSFSType(ConstUnicode pathName,
+                       int fd,
+                       uint16 *fsTypeNum);
 int File_GetVMFSVersion(ConstUnicode pathName,
                         uint32 *versionNum);
 int File_GetVMFSBlockSize(ConstUnicode pathName,

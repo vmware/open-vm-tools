@@ -646,6 +646,14 @@ FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
    Unicode canonPath = NULL;  /* result */
 
    /*
+    * XXX PR 983286 XXX
+    * Posix_Statfs call seems to take non-trivial time (~50msec for each call)
+    * which is introducing delays in "many vm" tests. Short circuiting this
+    * function till we come up with a better alternate.
+    */
+   goto use_same_path;
+
+   /*
     * absVMDirName should start with /vmfs/volumes/.
     */
    if (!Unicode_StartsWith(absVMDirName, VCFS_MOUNT_PATH)) {
@@ -1352,8 +1360,6 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
    }
 
    ret = ioctl(fd, IOCTLCMD_VMFS_FS_GET_ATTR, (char *) *fsAttrs);
-
-   close(fd);
    if (ret == -1) {
       Log(LGPFX" %s: Could not get volume attributes (ret = %d): %s\n",
           __func__, ret, Err_Errno2String(errno));
@@ -1361,11 +1367,84 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
       *fsAttrs = NULL;
    }
 
+   close(fd);
+
 bail:
    Unicode_Free(fullPath);
    Unicode_Free(parentPath);
 
    return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_GetVMFSFSType --
+ *
+ *      Get the filesystem type number of the file system on which the
+ *      given file/directory resides.
+ *
+ *      Caller can specify either a pathname or an already opened fd of
+ *      the file/dir whose filesystem he wants to determine.
+ *      'fd' takes precedence over 'pathName' so 'pathName' is used only
+ *      if 'fd' is -1.
+ *
+ * Results:
+ *      On success : return value  0 and file type number in 'fsTypeNum'.
+ *      On failure : return value -1 (errno will be set appropriately).
+ *
+ * Side effects:
+ *      On failure errno will be set.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_GetVMFSFSType(ConstUnicode pathName,  // IN:  File name to test
+                   int fd,                 // IN:  fd of an already opened file
+                   uint16 *fsTypeNum)      // OUT: Filesystem type number
+{
+   int ret, savedErrno;
+   Bool fdArg = (fd >= 0);  /* fd or pathname ? */
+
+   if (!fsTypeNum || (!fdArg && !pathName)) {
+      savedErrno = EINVAL;
+      goto exit;
+   }
+
+   if (!fdArg) {
+      fd = Posix_Open(pathName, O_RDONLY, 0);
+      if (fd < 0) {
+         savedErrno = errno;
+         Log(LGPFX" %s : Could not open %s : %s\n", __func__, UTF8(pathName),
+             Err_Errno2String(savedErrno));
+         goto exit;
+      }
+   }
+
+   ret = ioctl(fd, IOCTLCMD_VMFS_GET_FSTYPE, fsTypeNum);
+   /*
+    * Save errno to avoid close() affecting it.
+    */
+   savedErrno = errno;
+   if (!fdArg) {
+      close(fd);
+   }
+
+   if (ret == -1) {
+      Log(LGPFX" %s : Could not get filesystem type for %s (fd %d) : %s\n",
+          __func__, (!fdArg ? UTF8(pathName) : "__na__"), fd,
+          Err_Errno2String(savedErrno));
+      goto exit;
+   }
+
+   return 0;
+
+exit:
+   errno = savedErrno;
+   ASSERT(errno != 0);
+   return -1;
 }
 
 

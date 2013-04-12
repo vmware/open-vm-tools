@@ -1022,12 +1022,9 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    }
 
    if (UNLIKELY(myContext->state == RW_UNLOCKED)) {
-      uint32 lockCount = Atomic_Read(&lock->holderCount);
-
       MXUserDumpAndPanic(&lock->header,
-                         "%s: Non-owner release of an %s read-write lock\n",
-                         __FUNCTION__,
-                         lockCount == 0 ? "unacquired" : "acquired");
+                         "%s: Release of an unacquired read-write lock\n",
+                         __FUNCTION__);
    }
 
    MXUserReleaseTracking(&lock->header);

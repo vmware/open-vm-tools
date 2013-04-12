@@ -21,7 +21,7 @@
  *
  *	Support for atomic instructions.
  *
- *	This is the user-level version.
+ *	This is the user-level and vmkernel version.
  *	The monitor-only version is in vmcore/vmm/main.
  */
 
@@ -35,10 +35,26 @@
 #include "vmk_exports.h"
 
 
+/*
+ * AMD Rev E/F CPUs suffer from erratum 147 (see AMD docs). Our work-around
+ * is to execute a "fence" after every atomic instruction. Since this is 
+ * expensive we conditionalize on "AtomicUseFence".
+ * ESX no longer supports any of the CPUs, so for SERVER builds neither
+ * the vmx nor the vmkernel define these variables in order to force all 
+ * code in these (performance critical) components to use the constant 
+ * version of AtomicUseFence from vm_atomic.h.
+ * For other components, we continue to define the variables to allow the
+ * code to work whether it is compiled with VMX86_SERVER set or not. This
+ * is conservative but the performance penalty should be minimal. And it
+ * is a (longer term) temporary sitation: when we eventually remove Rev F 
+ * support from our hosted products, this will all go away.
+ */
+#if !defined(VMKERNEL) && !(defined(VMX86_VMX) && defined(VMX86_SERVER))
+#undef AtomicUseFence
+#undef atomicFenceInitialized
 Bool AtomicUseFence;
-VMK_KERNEL_EXPORT(AtomicUseFence);
-
 Bool atomicFenceInitialized;
+#endif
 
 
 /*
@@ -69,7 +85,7 @@ void
 AtomicInitFence(void)
 {
    Bool needFence = FALSE;
-#if defined(__i386__) || defined(__x86_64__)
+#if MAY_NEED_AMD_REVF_WORKAROUND && (defined(__i386__) || defined(__x86_64__))
    {
       CPUIDRegs regs;
 

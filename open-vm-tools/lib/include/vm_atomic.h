@@ -206,13 +206,38 @@ Atomic_VolatileToAtomic64(volatile uint64 *var)
 #define ATOMIC_USE_FENCE
 #endif
 
+/* 
+ * Starting with vSphere 2014, we no longer support ESX on AMD Rev F. 
+ * Thus, we can eliminate all dynamic checks for whether to enable 
+ * the Errata 147 work-around when compiling many of our binaries. 
+ * However, we use an opt-in approach here rather than assuming all 
+ * parts of our builds are safe. For example, the "fdm" binary from 
+ * a new build may time travel back to hosts running older versions 
+ * of ESX on Rev F, so "fdm" continues to require the ability to 
+ * dynamically enable the errata work-around. With vSphere 2017,
+ * this will no longer be required as the oldest version of ESX that 
+ * VC 2017 will support is ESX 2014 (which won't run on Rev F).
+ */
+#if (!defined(VMX86_SERVER) ||                                          \
+      (!defined(VMX86_VMX) && !defined(VMKERNEL) &&                     \
+       !defined(VMM)       && !defined(VMCORE)))
+#define MAY_NEED_AMD_REVF_WORKAROUND 1
+#else
+#define MAY_NEED_AMD_REVF_WORKAROUND 0
+#endif
+
+#if MAY_NEED_AMD_REVF_WORKAROUND
 #if defined(VMATOMIC_IMPORT_DLLDATA)
 VMX86_EXTERN_DATA Bool AtomicUseFence;
 #else
 EXTERN Bool AtomicUseFence;
 #endif
-
 EXTERN Bool atomicFenceInitialized;
+#else   /* MAY_NEED_AMD_REVF_WORKAROUND */
+#define AtomicUseFence         FALSE
+#define atomicFenceInitialized TRUE
+#endif  /* MAY_NEED_AMD_REVF_WORKAROUND */
+
 
 void AtomicInitFence(void);
 
@@ -220,22 +245,20 @@ static INLINE void
 Atomic_Init(void)
 {
 #ifdef ATOMIC_USE_FENCE
-   if (!atomicFenceInitialized) {
+   if (MAY_NEED_AMD_REVF_WORKAROUND && !atomicFenceInitialized) {
       AtomicInitFence();
    }
 #endif
 }
 
 static INLINE void
-Atomic_SetFence(Bool fenceAfterLock) /* IN: TRUE to enable lfence */
-                                     /*     FALSE to disable. */
+Atomic_SetFence(Bool fenceAfterLock)
 {
+   (void)fenceAfterLock;     /* Work around unused parameter. */
+#if MAY_NEED_AMD_REVF_WORKAROUND
    AtomicUseFence = fenceAfterLock;
-#if defined(__VMKERNEL__)
-   extern void Atomic_SetFenceVMKAPI(Bool fenceAfterLock);
-   Atomic_SetFenceVMKAPI(fenceAfterLock);
-#endif
    atomicFenceInitialized = TRUE;
+#endif
 }
 
 
@@ -243,21 +266,21 @@ Atomic_SetFence(Bool fenceAfterLock) /* IN: TRUE to enable lfence */
 static INLINE void
 AtomicEpilogue(void)
 {
-#ifdef ATOMIC_USE_FENCE
+#if MAY_NEED_AMD_REVF_WORKAROUND && defined(ATOMIC_USE_FENCE)
 #ifdef VMM
       /* The monitor conditionally patches out the lfence when not needed.*/
       /* Construct a MonitorPatchTextEntry in the .patchtext section. */
-   asm volatile ("1:\n\t"
-                 "lfence\n\t"
-                 "2:\n\t"
-                 ".pushsection .patchtext\n\t"
-                 ".quad 1b\n\t"
-                 ".quad 2b\n\t"
-                 ".popsection\n\t" ::: "memory");
+      asm volatile ("1:\n\t"
+                    "lfence\n\t"
+                    "2:\n\t"
+                    ".pushsection .patchtext\n\t"
+                    ".quad 1b\n\t"
+                    ".quad 2b\n\t"
+                    ".popsection\n\t" ::: "memory");
 #else
-   if (UNLIKELY(AtomicUseFence)) {
-      asm volatile ("lfence" ::: "memory");
-   }
+      if (UNLIKELY(AtomicUseFence)) {
+         asm volatile ("lfence" ::: "memory");
+      }
 #endif
 #endif
 }

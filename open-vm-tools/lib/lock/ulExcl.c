@@ -542,13 +542,18 @@ MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
       }
    }
 
-   if (vmx86_debug && !MXRecLockIsOwner(&lock->recursiveLock)) {
-      int lockCount = MXRecLockCount(&lock->recursiveLock);
+   if (vmx86_debug) {
+      if (MXRecLockCount(&lock->recursiveLock) == 0) {
+         MXUserDumpAndPanic(&lock->header,
+                            "%s: Release of an unacquired exclusive lock\n",
+                             __FUNCTION__);
+      }
 
-      MXUserDumpAndPanic(&lock->header,
-                         "%s: Non-owner release of an %s exclusive lock\n",
-                         __FUNCTION__,
-                         lockCount == 0 ? "unacquired" : "acquired");
+      if (!MXRecLockIsOwner(&lock->recursiveLock)) {
+         MXUserDumpAndPanic(&lock->header,
+                            "%s: Non-owner release of a exclusive lock\n",
+                            __FUNCTION__);
+      }
    }
 
    MXUserReleaseTracking(&lock->header);
