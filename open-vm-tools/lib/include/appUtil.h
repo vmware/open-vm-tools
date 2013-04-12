@@ -86,6 +86,9 @@ HICON AppUtil_GetWindowIcon(HWND hwnd,
 void AppUtil_BuildGlobalApplicationList(void);
 
 char *AppUtil_ActionURIForCommandLine(const WCHAR *commandLineUtf16);
+Bool  AppUtil_CommandLineForShellCommandURI(const char *shellCommandURI,
+                                            char **executablePath,
+                                            char **commandLine);
 
 Bool AppUtil_GetLinkIconData(const TCHAR *path,
                              AppUtilIconInfo *iconInfo,
