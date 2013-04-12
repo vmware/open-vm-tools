@@ -574,7 +574,9 @@ typedef void * UserVA;
 #define INVALID_MPN       ((MPN)-1)
 #define MEMREF_MPN        ((MPN)-2)
 #define RELEASED_MPN      ((MPN)-3)
-#define MAX_MPN           ((MPN)0x7fffffff)  /* 43 bits of address space. */
+
+/* 0xfffffffc to account for special MPNs defined above. */
+#define MAX_MPN           ((MPN)0xfffffffc)  /* 44 bits of address space. */
 
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
