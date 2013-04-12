@@ -130,7 +130,7 @@
    LOGLEVEL_VAR(mksMouse), \
    LOGLEVEL_VAR(mksHostCursor), \
    LOGLEVEL_VAR(mksCursorPosition), \
-   LOGLEVEL_VAR(mksHostOps), \
+   LOGLEVEL_VAR(mksRenderOps), \
    LOGLEVEL_VAR(mksGLManager), \
    LOGLEVEL_VAR(mksGLFBO), \
    LOGLEVEL_VAR(mksGLShader), \

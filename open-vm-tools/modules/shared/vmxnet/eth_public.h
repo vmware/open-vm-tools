@@ -53,9 +53,12 @@
 typedef uint8 Eth_Address[ETH_ADDR_LENGTH];
 
 // printf helpers
-#define ETH_ADDR_FMT_STR     "%02x:%02x:%02x:%02x:%02x:%02x"
+#define ETH_ADDR_FMT_STR     "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx"
 #define ETH_ADDR_FMT_ARGS(a) ((uint8 *)a)[0], ((uint8 *)a)[1], ((uint8 *)a)[2], \
                              ((uint8 *)a)[3], ((uint8 *)a)[4], ((uint8 *)a)[5]
+#define ETH_ADDR_PTR_FMT_ARGS(a) &((uint8 *)a)[0], &((uint8 *)a)[1], \
+                                 &((uint8 *)a)[2], &((uint8 *)a)[3], \
+                                 &((uint8 *)a)[4], &((uint8 *)a)[5]
 
 #define ETH_MAX_EXACT_MULTICAST_ADDRS 32
 
