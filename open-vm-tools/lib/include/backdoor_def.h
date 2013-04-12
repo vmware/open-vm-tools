@@ -150,6 +150,7 @@
 #  define BDOOR_CMD_VCPU_SLC64                0
 #  define BDOOR_CMD_VCPU_SYNC_VTSCS           1
 #  define BDOOR_CMD_VCPU_HV_REPLAY_OK         2
+#  define BDOOR_CMD_VCPU_LEGACY_X2APIC_OK     3
 #  define BDOOR_CMD_VCPU_RESERVED            31
 #define   BDOOR_CMD_EFI_SERIALCON_CONFIG     69 /* CPL 0 only. */
 #define   BDOOR_CMD_BUG328986                70 /* CPL 0 only. */
