@@ -56,13 +56,17 @@
 
 /* VMCI Device Usage API. */
 
+#if defined(linux) && !defined(VMKERNEL)
+#define vmci_device_get(_a, _b, _c, _d) 1
+#define vmci_device_release(_x)
+#else // !linux
 typedef void (VMCI_DeviceShutdownFn)(void *deviceRegistration,
                                      void *userData);
-
 Bool vmci_device_get(uint32 *apiVersion,
                      VMCI_DeviceShutdownFn *deviceShutdownCB,
                      void *userData, void **deviceRegistration);
 void vmci_device_release(void *deviceRegistration);
+#endif // !linux
 
 #if defined(_WIN32)
 /* Called when the client is unloading, for Windows only. */
