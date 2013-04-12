@@ -970,6 +970,8 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_NEHALEM_2F     0x2f  // Westmere-EX
 #define CPUID_MODEL_SANDYBRIDGE_3A 0x3a  // Ivy Bridge
 #define CPUID_MODEL_SANDYBRIDGE_3E 0x3e  // Ivy Bridge-EP
+#define CPUID_MODEL_HASWELL_3C     0x3c
+#define CPUID_MODEL_HASWELL_45     0x45
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -1140,6 +1142,17 @@ CPUID_UARCH_IS_SANDYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 
+static INLINE Bool
+CPUID_UARCH_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
+
+   return CPUID_FAMILY_IS_P6(v) &&
+          (effectiveModel == CPUID_MODEL_HASWELL_3C ||
+           effectiveModel == CPUID_MODEL_HASWELL_45
+           );
+}
 
 
 static INLINE Bool
@@ -1190,6 +1203,17 @@ CPUID_MODEL_IS_IVYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 
+static INLINE Bool
+CPUID_MODEL_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
+
+   return CPUID_FAMILY_IS_P6(v) &&
+          (effectiveModel == CPUID_MODEL_HASWELL_3C ||
+           effectiveModel == CPUID_MODEL_HASWELL_45
+           );
+}
 
 
 static INLINE Bool
@@ -1488,6 +1512,7 @@ CPUID_SupportsMsrPlatformInfo(CpuidVendor vendor, uint32 version)
 {
    return vendor == CPUID_VENDOR_INTEL &&
           (CPUID_UARCH_IS_NEHALEM(version) ||
+           CPUID_UARCH_IS_HASWELL(version) ||
            CPUID_UARCH_IS_SANDYBRIDGE(version));
 }
 
