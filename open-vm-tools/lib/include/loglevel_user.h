@@ -120,6 +120,7 @@
    LOGLEVEL_VAR(gui), \
    LOGLEVEL_VAR(guiWin32), \
    LOGLEVEL_VAR(mks), \
+   LOGLEVEL_VAR(mksInput), \
    LOGLEVEL_VAR(mksSWB), \
    LOGLEVEL_VAR(mksClient), \
    LOGLEVEL_VAR(mksServer), \
