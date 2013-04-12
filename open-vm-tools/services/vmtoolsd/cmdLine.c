@@ -215,6 +215,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
                            int argc,
                            char *argv[])
 {
+   int i = 0;
+   char *cmdStr = NULL;
    gboolean ret = FALSE;
    gboolean version = FALSE;
 #if defined(G_PLATFORM_WIN32)
@@ -280,6 +282,23 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    state->ctx.blockFD = -1;
 #endif
 
+   /*
+    * Form the commandline for debug log before calling
+    * g_option_context_parse(), because it modifies argv.
+    */
+   cmdStr = Str_SafeAsprintf(NULL, "%s", argv[0]);
+   for (i = 1; i < argc; i++) {
+      char *prefix = cmdStr;
+      cmdStr = Str_SafeAsprintf(NULL, "%s %s", prefix, argv[i]);
+      free(prefix);
+      /*
+       * NOTE: We can't log the cmdStr here, we can
+       * only log it after logging gets configured.
+       * Logging before VMTools_ConfigLogging() call
+       * does not generate the system logs.
+       */
+   }
+
    context = g_option_context_new(NULL);
 #if GLIB_CHECK_VERSION(2, 12, 0)
    g_option_context_set_summary(context, N_("Runs the VMware Tools daemon."));
@@ -310,7 +329,11 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       state->mainService = (strcmp(state->name, VMTOOLS_GUEST_SERVICE) == 0);
    }
 
-   VMTools_ConfigLogging(state->name, NULL, TRUE, TRUE);
+   /* Configure logging system. */
+   ToolsCore_ReloadConfig(state, TRUE);
+
+   /* Log the commandline for debugging purposes. */
+   g_debug("CmdLine: \"%s\"\n", cmdStr);
 
 #if defined(G_PLATFORM_WIN32)
    if (kill) {
@@ -332,6 +355,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    ret = TRUE;
 
 exit:
+   free(cmdStr);
    g_clear_error(&error);
    g_option_context_free(context);
    return ret;
