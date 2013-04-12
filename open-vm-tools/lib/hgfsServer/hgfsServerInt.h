@@ -42,15 +42,6 @@ struct DirectoryEntry;
 
 #define HGFS_DEBUG_ASYNC   (0)
 
-/*
- * Does this platform have oplock support? We define it here to avoid long
- * ifdefs all over the code. For now, Linux and Windows hosts only.
- *
- * XXX: Just kidding, no oplock support yet.
- */
-#if 0
-#define HGFS_OPLOCKS
-#endif
 
 /* Identifier for a local file */
 typedef struct HgfsLocalId {
@@ -484,13 +475,6 @@ typedef struct HgfsCreateSessionInfo {
    uint32 maxPacketSize;
 } HgfsCreateSessionInfo;
 
-
-/* Server lock related structure */
-typedef struct {
-   fileDesc fileDesc;
-   int32 event;
-   HgfsLockType serverLock;
-} ServerLockData;
 
 typedef struct HgfsInputParam {
    const char *metaPacket;
@@ -977,10 +961,6 @@ HgfsHandle2LocalId(HgfsHandle handle,        // IN: Hgfs file handle
                    HgfsSessionInfo *session, // IN: session info
                    HgfsLocalId *localId);    // OUT: Local id info
 
-Bool
-HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
-                      HgfsSessionInfo *session, // IN: session info
-                      HgfsLockType *lock);      // OUT: Server lock
 
 Bool
 HgfsUpdateNodeFileDesc(HgfsHandle handle,        // IN: Hgfs file handle
@@ -998,11 +978,6 @@ HgfsUpdateNodeAppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
                          HgfsSessionInfo *session, // IN: session info
                          Bool appendFlag);         // OUT: Append flag
 
-Bool
-HgfsFileHasServerLock(const char *utf8Name,             // IN: Name in UTF8
-                      HgfsSessionInfo *session,         // IN: Session info
-                      HgfsLockType *serverLock,         // OUT: Existing oplock
-                      fileDesc   *fileDesc);            // OUT: Existing fd
 Bool
 HgfsGetNodeCopy(HgfsHandle handle,        // IN: Hgfs file handle
                 HgfsSessionInfo *session, // IN: session info
@@ -1028,25 +1003,10 @@ Bool
 HgfsServerGetOpenMode(HgfsFileOpenInfo *openInfo, // IN:  Open info to examine
                       uint32 *modeOut);           // OUT: Local mode
 
-Bool
-HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
-                      HgfsSessionInfo *session,     // IN: Session info
-                      HgfsLockType *serverLock);    // IN/OUT: Oplock asked for/granted
 
 char*
 HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
                                 const char* target);   // IN: target file name
-
-/* All oplock-specific functionality is defined here. */
-#ifdef HGFS_OPLOCKS
-void
-HgfsServerOplockBreak(ServerLockData *data); // IN: server lock info
-
-void
-HgfsAckOplockBreak(ServerLockData *lockData,  // IN: server lock info
-                   HgfsLockType replyLock);   // IN: client has this lock
-
-#endif
 
 /* Transport related functions. */
 Bool

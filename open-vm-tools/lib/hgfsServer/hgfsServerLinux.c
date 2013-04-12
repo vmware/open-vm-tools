@@ -54,6 +54,7 @@
 #include "vmware.h"
 #include "hgfsServerPolicy.h" // for security policy
 #include "hgfsServerInt.h"
+#include "hgfsServerOplock.h"
 #include "hgfsEscape.h"
 #include "str.h"
 #include "cpNameLite.h"

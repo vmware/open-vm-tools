@@ -35,6 +35,7 @@
 #include "cpName.h"
 #include "cpNameLite.h"
 #include "hgfsServerInt.h"
+#include "hgfsServerOplockInt.h"
 
 
 
@@ -72,7 +73,7 @@
 Bool
 HgfsServerOplockInit(void)
 {
-   Bool result = TRUE;
+   Bool result = FALSE;
 #ifdef HGFS_OPLOCKS
    result = HgfsPlatformOplockInit();
 #endif

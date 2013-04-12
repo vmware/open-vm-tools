@@ -30,6 +30,7 @@
 
 #include "vmware.h"
 #include "hgfsServerInt.h"
+#include "hgfsServerOplockInt.h"
 
 #ifdef HGFS_OPLOCKS
 #   include <signal.h>
