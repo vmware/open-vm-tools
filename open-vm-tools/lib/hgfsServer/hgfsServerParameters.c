@@ -719,6 +719,7 @@ HgfsUnpackOpenRequest(void const *packet,         // IN: HGFS packet
    return result;
 }
 
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -735,26 +736,34 @@ HgfsUnpackOpenRequest(void const *packet,         // IN: HGFS packet
  *-----------------------------------------------------------------------------
  */
 
-void
-HgfsPackReplyHeaderV4(HgfsInternalStatus status,    // IN: reply status
+static Bool
+HgfsPackReplyHeaderV4(HgfsStatus status,            // IN: reply status
                       uint32 payloadSize,           // IN: size of the reply payload
-                      HgfsOp op,                    // IN: request type
+                      HgfsOp opcode,                // IN: request type
                       uint64 sessionId,             // IN: session id
                       uint32 requestId,             // IN: request id
                       uint32 hdrFlags,              // IN: header flags
-                      HgfsHeader *header)           // OUT: outgoing packet header
+                      size_t hdrPacketSize,         // IN: header packet size
+                      HgfsHeader *hdrPacket)        // OUT: outgoing packet header
 {
-   memset(header, 0, sizeof *header);
-   header->version = HGFS_HEADER_VERSION;
-   header->dummy = HGFS_V4_LEGACY_OPCODE;
-   header->packetSize = payloadSize + sizeof *header;
-   header->headerSize = sizeof *header;
-   header->requestId = requestId;
-   header->op = op;
-   header->status = HgfsConvertFromInternalStatus(status);
-   header->flags = hdrFlags;
-   header->information = status;
-   header->sessionId = sessionId;
+   Bool result = FALSE;
+
+   if (hdrPacketSize >= sizeof *hdrPacket) {
+      memset(hdrPacket, 0, sizeof *hdrPacket);
+
+      hdrPacket->version = HGFS_HEADER_VERSION;
+      hdrPacket->dummy = HGFS_V4_LEGACY_OPCODE;
+      hdrPacket->packetSize = payloadSize + sizeof *hdrPacket;
+      hdrPacket->headerSize = sizeof *hdrPacket;
+      hdrPacket->requestId = requestId;
+      hdrPacket->op = opcode;
+      hdrPacket->status = status;
+      hdrPacket->flags = hdrFlags;
+      hdrPacket->information = status;
+      hdrPacket->sessionId = sessionId;
+      result = TRUE;
+   }
+   return result;
 }
 
 
@@ -774,14 +783,72 @@ HgfsPackReplyHeaderV4(HgfsInternalStatus status,    // IN: reply status
  *-----------------------------------------------------------------------------
  */
 
-void
-HgfsPackLegacyReplyHeader(HgfsInternalStatus status,    // IN: reply status
+static Bool
+HgfsPackLegacyReplyHeader(HgfsStatus status,            // IN: reply status
                           HgfsHandle id,                // IN: original packet id
-                          HgfsReply *header)            // OUT: outgoing packet header
+                          size_t hdrPacketSize,         // IN: header packet size
+                          HgfsReply *hdrPacket)         // OUT: outgoing packet header
 {
-   memset(header, 0, sizeof *header);
-   header->status = HgfsConvertFromInternalStatus(status);
-   header->id = id;
+   Bool result = FALSE;
+
+   if (hdrPacketSize >= sizeof *hdrPacket) {
+      memset(hdrPacket, 0, sizeof *hdrPacket);
+
+      hdrPacket->status = status;
+      hdrPacket->id = id;
+      result = TRUE;
+   }
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackReplyHeader --
+ *
+ *    Pack hgfs header that corresponds to an HGFS protocol packet.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsPackReplyHeader(HgfsInternalStatus status,    // IN: reply status
+                    uint32 payloadSize,           // IN: size of the reply payload
+                    Bool sessionEnabledHeader,    // IN: session enabled header
+                    uint64 sessionId,             // IN: session id
+                    uint32 requestId,             // IN: request id
+                    HgfsOp opcode,                // IN: request operation
+                    uint32 hdrFlags,              // IN: header flags
+                    size_t hdrPacketSize,         // IN: header packet size
+                    void *hdrPacket)              // OUT: outgoing packet header
+{
+   HgfsStatus replyStatus;
+   Bool result;
+
+   if (NULL == hdrPacket) {
+      result = FALSE;
+      goto exit;
+   }
+
+   replyStatus = HgfsConvertFromInternalStatus(status);
+   if (sessionEnabledHeader) {
+      result = HgfsPackReplyHeaderV4(replyStatus, payloadSize, opcode,
+                                     sessionId, requestId, HGFS_PACKET_FLAG_REPLY,
+                                     hdrPacketSize, hdrPacket);
+   } else {
+      result = HgfsPackLegacyReplyHeader(replyStatus, requestId, hdrPacketSize,
+                                         hdrPacket);
+   }
+
+exit:
+   return result;
 }
 
 
@@ -5779,13 +5846,14 @@ HgfsPackOplockBreakRequest(void *packet,                    // IN/OUT: Hgfs Pack
       goto exit;
    }
 
-   HgfsPackReplyHeaderV4(HGFS_ERROR_SUCCESS,
-                         opBreakRequestSize,
-                         HGFS_OP_OPLOCK_BREAK_V4,
-                         sessionId,
-                         0,
-                         HGFS_PACKET_FLAG_REQUEST,
-                         header);
+   result = HgfsPackReplyHeaderV4(HGFS_ERROR_SUCCESS,
+                                  opBreakRequestSize,
+                                  HGFS_OP_OPLOCK_BREAK_V4,
+                                  sessionId,
+                                  0,
+                                  HGFS_PACKET_FLAG_REQUEST,
+                                  *bufferSize,
+                                  header);
 
 exit:
    return result;
@@ -6123,14 +6191,14 @@ HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hg
                                                      *bufferSize - sizeof *header,
                                                      notifyRequest);
    if (0 != notifyRequestSize) {
-      HgfsPackReplyHeaderV4(HGFS_ERROR_SUCCESS,
-                            notifyRequestSize,
-                            HGFS_OP_NOTIFY_V4,
-                            session->sessionId,
-                            0,
-                            HGFS_PACKET_FLAG_REQUEST,
-                            header);
-      result = TRUE;
+      result = HgfsPackReplyHeaderV4(HGFS_ERROR_SUCCESS,
+                                     notifyRequestSize,
+                                     HGFS_OP_NOTIFY_V4,
+                                     session->sessionId,
+                                     0,
+                                     HGFS_PACKET_FLAG_REQUEST,
+                                     *bufferSize,
+                                     header);
    } else {
       result = FALSE;
    }

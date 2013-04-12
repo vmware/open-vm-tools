@@ -47,18 +47,16 @@ HgfsUnpackPacketParams(void const *packet,      // IN: HGFS packet
                        size_t *payloadSize,     // OUT: size of the opcode request
                        const void **payload);    // OUT: pointer to the opcode request
 
-void
-HgfsPackReplyHeaderV4(HgfsInternalStatus status,  // IN: platfrom independent HGFS status code
-                      uint32 payloadSize,         // IN: size of HGFS operational packet
-                      HgfsOp op,                  // IN: request type
-                      uint64 sessionId,           // IN: session id
-                      uint32 requestId,           // IN: request id
-                      uint32 hdrFlags,            // IN: header flags
-                      HgfsHeader *header);        // OUT: packet header
-void
-HgfsPackLegacyReplyHeader(HgfsInternalStatus status,    // IN: reply status
-                          HgfsHandle id,                // IN: original packet id
-                          HgfsReply *header);           // OUT: outgoing packet header
+Bool
+HgfsPackReplyHeader(HgfsInternalStatus status,    // IN: reply status
+                    uint32 payloadSize,           // IN: size of the reply payload
+                    Bool sessionEnabledHeader,    // IN: session enabled header
+                    uint64 sessionId,             // IN: session id
+                    uint32 requestId,             // IN: request id
+                    HgfsOp op,                    // IN: request type
+                    uint32 hdrFlags,              // IN: header flags
+                    size_t hdrPacketSize,         // IN: header packet size
+                    void *hdrPacket);             // OUT: outgoing packet header
 
 Bool
 HgfsUnpackOpenRequest(void const *packet,          // IN: incoming packet

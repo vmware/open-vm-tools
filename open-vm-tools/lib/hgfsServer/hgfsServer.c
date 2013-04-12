@@ -2896,6 +2896,33 @@ HgfsServerInputAllocInit(HgfsPacket *packet,                        // IN: packe
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerInputExit --
+ *
+ *    Tearsdown and frees the input params object with the operation parameters.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerInputExit(HgfsInputParam *params)                        // IN: packet
+{
+   if (NULL != params->session) {
+      HgfsServerSessionPut(params->session);
+   }
+   HgfsServerTransportSessionPut(params->transportSession);
+   free(params);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerGetRequest --
  *
  *    Takes the Hgfs packet and extracts the operation parameters.
@@ -3019,9 +3046,10 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
                           size_t replyPayloadSize,     // IN: sizeof the reply payload
                           HgfsInputParam *input)       // INOUT: request context
 {
-   char *packetOut;
-   size_t replyPacketSize;
+   void *reply;
    size_t replySize;
+   size_t replyTotalSize;
+   uint64 replySessionId;
 
    if (HGFS_ERROR_SUCCESS == status) {
       HGFS_ASSERT_INPUT(input);
@@ -3029,57 +3057,42 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       ASSERT(input);
    }
 
+   replySessionId =  (NULL != input->session) ? input->session->sessionId
+                                              : HGFS_INVALID_SESSION_ID;
+
    if (input->sessionEnabled) {
-      HgfsHeader *header;
-      replySize = sizeof *header + replyPayloadSize;
-      replyPacketSize = replySize;
-      header = HSPU_GetReplyPacket(input->packet, &replyPacketSize,
-                                   input->transportSession);
-      packetOut = (char *)header;
-
-      ASSERT_DEVEL(header && (replySize <= replyPacketSize));
-      if (header && (sizeof *header <= replyPacketSize)) {
-         uint64 replySessionId = HGFS_INVALID_SESSION_ID;
-
-         if (NULL != input->session) {
-            replySessionId = input->session->sessionId;
-         }
-         HgfsPackReplyHeaderV4(status, replyPayloadSize, input->op,
-                               replySessionId, input->id, HGFS_PACKET_FLAG_REPLY,
-                               header);
-      }
+      replySize = sizeof (HgfsHeader) + replyPayloadSize;
    } else {
-      HgfsReply *reply;
-
       /*
        * Starting from HGFS V3 header is not included in the payload size.
        */
       if (input->op < HGFS_OP_OPEN_V3) {
-         replySize = MAX(replyPayloadSize, sizeof *reply);
+         replySize = MAX(replyPayloadSize, sizeof (HgfsReply));
       } else {
-         replySize = sizeof *reply + replyPayloadSize;
-      }
-      replyPacketSize = replySize;
-      reply = HSPU_GetReplyPacket(input->packet, &replyPacketSize,
-                                  input->transportSession);
-      packetOut = (char *)reply;
-
-      ASSERT_DEVEL(reply && (replySize <= replyPacketSize));
-      if (reply && (sizeof *reply <= replyPacketSize)) {
-         HgfsPackLegacyReplyHeader(status, input->id, reply);
+         replySize = sizeof (HgfsReply) + replyPayloadSize;
       }
    }
-   if (!HgfsPacketSend(input->packet, packetOut, replySize,
+
+   replyTotalSize = replySize;
+   reply = HSPU_GetReplyPacket(input->packet, &replyTotalSize,
+                               input->transportSession);
+
+   ASSERT_DEVEL(reply && (replySize <= replyTotalSize));
+   if (!HgfsPackReplyHeader(status, replyPayloadSize, input->sessionEnabled, replySessionId,
+                           input->id, input->op, HGFS_PACKET_FLAG_REPLY, replyTotalSize,
+                           reply)) {
+      Log("%s: Error packing header!\n", __FUNCTION__);
+      goto exit;
+   }
+
+   if (!HgfsPacketSend(input->packet, reply, replySize,
                        input->transportSession, 0)) {
       /* Send failed. Drop the reply. */
-      LOG(4, ("Error sending reply\n"));
+      Log("%s: Error sending reply\n", __FUNCTION__);
    }
 
-   if (NULL != input->session) {
-      HgfsServerSessionPut(input->session);
-   }
-   HgfsServerTransportSessionPut(input->transportSession);
-   free(input);
+exit:
+   HgfsServerInputExit(input);
 }
 
 

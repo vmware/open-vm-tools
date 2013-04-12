@@ -699,15 +699,6 @@ char*
 HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
                                 const char* target);   // IN: target file name
 
-/* Transport related functions. */
-Bool
-HgfsPackAndSendPacket(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                      char *packetOut,              // IN: Output packet to send
-                      size_t packetOutLen,          // IN: Output packet size
-                      HgfsInternalStatus status,    // IN: status
-                      HgfsHandle id,                // IN: id of the request packet
-                      HgfsTransportSessionInfo *transportSession,     // IN: session info
-                      HgfsSendFlags flags);         // IN: flags how to send
 
 /* Get the session with a specific session id */
 HgfsSessionInfo *
