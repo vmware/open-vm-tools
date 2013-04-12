@@ -547,7 +547,13 @@ typedef uint64 LPN64;
 typedef uint64 PA64;
 typedef uint64 PPN64;
 typedef uint64 MA64;
+
+
+#ifdef VMKERNEL
+typedef uint8 * MPN64;
+#else
 typedef uint64 MPN64;
+#endif
 
 /*
  * VA typedefs for user world apps.
@@ -576,14 +582,17 @@ typedef void * UserVA;
 #define RELEASED_MPN      ((MPN)-3)
 
 /* 0xfffffffc to account for special MPNs defined above. */
-#define MAX_MPN           ((MPN)0xfffffffc)  /* 44 bits of address space. */
+#define MAX_MPN           ((MPN)0xfffffffc)    /* 44 bits of address space. */
+#define MAX_MPN64         ((MPN64)0xfffffffc)  /* 44 bits of address space. */
 
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
 #define INVALID_LPN64     ((LPN64)-1)
 #define INVALID_PAGENUM   ((PageNum)-1)
 
-#define INVALID_MPN64     ((MPN64)-1)
+#ifdef VMKERNEL
+#define INVALID_MPN64     ((MPN64)(uintptr_t)INVALID_MPN)
+#endif
 
 /*
  * Format modifier for printing VA, LA, and VPN.
