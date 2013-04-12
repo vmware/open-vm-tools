@@ -943,7 +943,7 @@ HgfsPackOpenV1Reply(HgfsFileOpenInfo *openInfo,   // IN: open info struct
  *    Pack hgfs open reply to the HgfsReplyOpen{V2} structure.
  *
  * Results:
- *    Always TRUE.
+ *    Always TRUE, FALSE if bad opcode.
  *
  * Side effects:
  *    None
@@ -958,7 +958,7 @@ HgfsPackOpenReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
                   size_t *payloadSize,          // OUT: size of packet
                   HgfsSessionInfo *session)     // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    ASSERT(openInfo);
    HGFS_ASSERT_PACK_PARAMS;
@@ -969,34 +969,28 @@ HgfsPackOpenReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    case HGFS_OP_OPEN_V3: {
       HgfsReplyOpenV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         HgfsPackOpenReplyV3(openInfo, reply);
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      HgfsPackOpenReplyV3(openInfo, reply);
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_OPEN_V2: {
       HgfsReplyOpenV2 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         HgfsPackOpenV2Reply(openInfo, reply);
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      HgfsPackOpenV2Reply(openInfo, reply);
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_OPEN: {
       HgfsReplyOpen *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                 (void **)&reply, session);
-      if (result) {
-         HgfsPackOpenV1Reply(openInfo, reply);
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      HgfsPackOpenV1Reply(openInfo, reply);
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -1132,7 +1126,7 @@ HgfsUnpackCloseRequest(void const *packet,  // IN: request packet
  *    Pack hgfs close reply to the HgfsReplyClose(V3) structure.
  *
  * Results:
- *    Always TRUE.
+ *    Always TRUE, FALSE if bad opcode.
  *
  * Side effects:
  *    None
@@ -1147,7 +1141,7 @@ HgfsPackCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
                    size_t *payloadSize,        // OUT: size of packet excluding header
                    HgfsSessionInfo *session)   // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    HGFS_ASSERT_PACK_PARAMS;
 
@@ -1157,23 +1151,19 @@ HgfsPackCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
    case HGFS_OP_CLOSE_V3: {
       HgfsReplyCloseV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         /* Reply consists of a reserved field only. */
-         reply->reserved = 0;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      /* Reply consists of a reserved field only. */
+      reply->reserved = 0;
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_CLOSE: {
       HgfsReplyClose *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                 (void **)&reply, session);
-      if (result) {
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -1327,7 +1317,7 @@ HgfsPackSearchCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
                          size_t *payloadSize,        // OUT: size of packet
                          HgfsSessionInfo *session)   // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    HGFS_ASSERT_PACK_PARAMS;
 
@@ -1337,23 +1327,19 @@ HgfsPackSearchCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
    case HGFS_OP_SEARCH_CLOSE_V3: {
       HgfsReplyCloseV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         /* Reply consists of only a reserved field. */
-         reply->reserved = 0;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      /* Reply consists of only a reserved field. */
+      reply->reserved = 0;
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_SEARCH_CLOSE: {
       HgfsReplyClose *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -1737,7 +1723,7 @@ HgfsPackDeleteReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                     size_t *payloadSize,       // OUT: size of packet
                     HgfsSessionInfo *session)  // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    HGFS_ASSERT_PACK_PARAMS;
 
@@ -1749,11 +1735,9 @@ HgfsPackDeleteReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    case HGFS_OP_DELETE_DIR_V3: {
       HgfsReplyDeleteV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_DELETE_FILE_V2:
@@ -1762,11 +1746,9 @@ HgfsPackDeleteReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    case HGFS_OP_DELETE_DIR: {
       HgfsReplyDelete *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                 (void **)&reply, session);
-      if (result) {
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -2150,7 +2132,7 @@ HgfsPackRenameReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                     size_t *payloadSize,       // OUT: size of packet
                     HgfsSessionInfo *session)  // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    HGFS_ASSERT_PACK_PARAMS;
 
@@ -2160,24 +2142,20 @@ HgfsPackRenameReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    case HGFS_OP_RENAME_V3: {
       HgfsReplyRenameV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         /* Reply consists of only a reserved field. */
-         reply->reserved = 0;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      /* Reply consists of only a reserved field. */
+      reply->reserved = 0;
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_RENAME_V2:
    case HGFS_OP_RENAME: {
       HgfsReplyRename *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -2682,7 +2660,7 @@ HgfsPackGetattrReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
                      size_t *payloadSize,        // OUT: size of packet
                      HgfsSessionInfo *session)   // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    HGFS_ASSERT_PACK_PARAMS;
 
@@ -2693,11 +2671,9 @@ HgfsPackGetattrReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
       HgfsReplyGetattrV3 *reply;
 
       *payloadSize = sizeof *reply + utf8TargetNameLen;
-      result = HgfsAllocInitReply(packet, packetHeader, *payloadSize,
-                                  (void **)&reply, session);
-      if (result) {
-         HgfsPackGetattrReplyPayloadV3(attr, utf8TargetName, utf8TargetNameLen, reply);
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, *payloadSize,
+                                 session);
+      HgfsPackGetattrReplyPayloadV3(attr, utf8TargetName, utf8TargetNameLen, reply);
       break;
    }
 
@@ -2705,26 +2681,22 @@ HgfsPackGetattrReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
       HgfsReplyGetattrV2 *reply;
       *payloadSize = sizeof *reply + utf8TargetNameLen;
 
-      result = HgfsAllocInitReply(packet, packetHeader, *payloadSize,
-                                  (void **)&reply, session);
-      if (result) {
-         HgfsPackGetattrReplyPayloadV2(attr,
-                                       utf8TargetName,
-                                       utf8TargetNameLen,
-                                       reply);
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, *payloadSize,
+                                 session);
+      HgfsPackGetattrReplyPayloadV2(attr,
+                                    utf8TargetName,
+                                    utf8TargetNameLen,
+                                    reply);
       break;
    }
 
    case HGFS_OP_GETATTR: {
       HgfsReplyGetattr *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         HgfsPackGetattrReplyPayloadV1(attr, reply);
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      HgfsPackGetattrReplyPayloadV1(attr, reply);
+      *payloadSize = sizeof *reply;
       break;
    }
 
@@ -3687,7 +3659,7 @@ HgfsPackSetattrReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                      size_t *payloadSize,       // OUT: size of packet
                      HgfsSessionInfo *session)  // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    *payloadSize = 0;
 
@@ -3695,24 +3667,20 @@ HgfsPackSetattrReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    case HGFS_OP_SETATTR_V3: {
       HgfsReplySetattrV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         /* Reply consists of only a reserved field. */
-         reply->reserved = 0;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      /* Reply consists of only a reserved field. */
+      reply->reserved = 0;
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_SETATTR_V2:
    case HGFS_OP_SETATTR: {
       HgfsReplySetattr *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -3985,7 +3953,7 @@ HgfsPackCreateDirReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                        size_t *payloadSize,        // OUT: size of packet
                        HgfsSessionInfo *session)  // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    *payloadSize = 0;
 
@@ -3993,33 +3961,27 @@ HgfsPackCreateDirReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    case HGFS_OP_CREATE_DIR_V3: {
       HgfsReplyCreateDirV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         /* Reply consists of only a reserved field. */
-         reply->reserved = 0;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      /* Reply consists of only a reserved field. */
+      reply->reserved = 0;
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_CREATE_DIR_V2: {
       HgfsReplyCreateDirV2 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_CREATE_DIR: {
       HgfsReplyCreateDir *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -4151,18 +4113,16 @@ HgfsPackWriteWin32StreamReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                               HgfsSessionInfo *session)  // IN: Session info
 {
    HgfsReplyWriteWin32StreamV3 *reply;
-   Bool result;
+   Bool result = TRUE;
 
    *payloadSize = 0;
 
    if (HGFS_OP_WRITE_WIN32_STREAM_V3 == op) {
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                 (void **)&reply, session);
-      if (result) {
-         reply->reserved = 0;
-         reply->actualSize = actualSize;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      reply->reserved = 0;
+      reply->actualSize = actualSize;
+      *payloadSize = sizeof *reply;
    } else {
       LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
       NOT_REACHED();
@@ -4509,7 +4469,7 @@ HgfsUnpackWriteRequest(HgfsInputParam *input,   // IN: Input params
  *    Pack hgfs write reply to the HgfsReplyWrite structure.
  *
  * Results:
- *    TRUE is there are no bugs in the code.
+ *    Always TRUE, FALSE if bad opcode.
  *
  * Side effects:
  *    None
@@ -4525,7 +4485,7 @@ HgfsPackWriteReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
                    size_t *payloadSize,          // OUT: size of packet
                    HgfsSessionInfo *session)     // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    *payloadSize = 0;
 
@@ -4534,24 +4494,20 @@ HgfsPackWriteReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    case HGFS_OP_WRITE_V3: {
       HgfsReplyWriteV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         reply->reserved = 0;
-         reply->actualSize = actualSize;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      reply->reserved = 0;
+      reply->actualSize = actualSize;
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_WRITE: {
       HgfsReplyWrite *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         reply->actualSize = actualSize;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      reply->actualSize = actualSize;
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -4729,7 +4685,7 @@ HgfsPackQueryVolumeReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                          size_t *payloadSize,       // OUT: size of packet
                          HgfsSessionInfo *session)  // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    *payloadSize = 0;
 
@@ -4737,26 +4693,22 @@ HgfsPackQueryVolumeReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    case HGFS_OP_QUERY_VOLUME_INFO_V3: {
       HgfsReplyQueryVolumeV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         reply->reserved = 0;
-         reply->freeBytes = freeBytes;
-         reply->totalBytes = totalBytes;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      reply->reserved = 0;
+      reply->freeBytes = freeBytes;
+      reply->totalBytes = totalBytes;
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_QUERY_VOLUME_INFO: {
       HgfsReplyQueryVolume *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         reply->freeBytes = freeBytes;
-         reply->totalBytes = totalBytes;
-          *payloadSize = sizeof *reply;
-     }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      reply->freeBytes = freeBytes;
+      reply->totalBytes = totalBytes;
+         *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -4977,7 +4929,7 @@ HgfsPackSymlinkCreateReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                            size_t *payloadSize,       // OUT: size of packet
                            HgfsSessionInfo *session)  // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    HGFS_ASSERT_PACK_PARAMS;
 
@@ -4987,23 +4939,19 @@ HgfsPackSymlinkCreateReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    case HGFS_OP_CREATE_SYMLINK_V3: {
       HgfsReplySymlinkCreateV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         /* Reply only consists of a reserved field. */
-         reply->reserved = 0;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      /* Reply only consists of a reserved field. */
+      reply->reserved = 0;
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_CREATE_SYMLINK: {
       HgfsReplySymlinkCreate *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -5174,7 +5122,7 @@ HgfsPackSearchOpenReply(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
                         size_t *payloadSize,         // OUT: size of packet
                         HgfsSessionInfo *session)    // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
 
    HGFS_ASSERT_PACK_PARAMS;
 
@@ -5184,24 +5132,20 @@ HgfsPackSearchOpenReply(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
    case HGFS_OP_SEARCH_OPEN_V3: {
       HgfsReplySearchOpenV3 *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         reply->reserved = 0;
-         reply->search = search;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      reply->reserved = 0;
+      reply->search = search;
+      *payloadSize = sizeof *reply;
       break;
    }
    case HGFS_OP_SEARCH_OPEN: {
       HgfsReplySearchOpen *reply;
 
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         reply->search = search;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      reply->search = search;
+      *payloadSize = sizeof *reply;
       break;
    }
    default:
@@ -5318,7 +5262,6 @@ HgfsPackCreateSessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                            size_t *payloadSize,       // OUT: size of packet
                            HgfsSessionInfo *session)  // IN: Session info
 {
-   Bool result;
    HgfsReplyCreateSessionV4 *reply;
    uint32 numCapabilities = session->numberOfCapabilities;
    uint32 capabilitiesLen = numCapabilities * sizeof *session->hgfsSessionCapabilities;
@@ -5327,19 +5270,16 @@ HgfsPackCreateSessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 
    *payloadSize = offsetof(HgfsReplyCreateSessionV4, capabilities) + capabilitiesLen;
 
-   result = HgfsAllocInitReply(packet, packetHeader, *payloadSize, (void **)&reply,
-                               session);
-   if (result) {
-      reply->sessionId = session->sessionId;
-      reply->numCapabilities = numCapabilities;
-      reply->maxPacketSize = session->maxPacketSize;
-      reply->identityOffset = 0;
-      reply->flags = session->flags;
-      reply->reserved = 0;
-      memcpy(reply->capabilities, session->hgfsSessionCapabilities, capabilitiesLen);
-   }
+   reply = HgfsAllocInitReply(packet, packetHeader, *payloadSize, session);
+   reply->sessionId = session->sessionId;
+   reply->numCapabilities = numCapabilities;
+   reply->maxPacketSize = session->maxPacketSize;
+   reply->identityOffset = 0;
+   reply->flags = session->flags;
+   reply->reserved = 0;
+   memcpy(reply->capabilities, session->hgfsSessionCapabilities, capabilitiesLen);
 
-   return result;
+   return TRUE;
 }
 
 
@@ -5366,21 +5306,18 @@ HgfsPackDestroySessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                             HgfsSessionInfo *session)  // IN: Session info
 {
    HgfsReplyDestroySessionV4 *reply;
-   Bool result;
 
    HGFS_ASSERT_PACK_PARAMS;
 
    *payloadSize = 0;
 
-   result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                               (void **)&reply, session);
-   if (result) {
-      /* Reply only consists of a reserved field. */
-      *payloadSize = sizeof *reply;
-      reply->reserved = 0;
-   }
+   reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                              session);
+   /* Reply only consists of a reserved field. */
+   *payloadSize = sizeof *reply;
+   reply->reserved = 0;
 
-   return result;
+   return TRUE;
 }
 
 
@@ -5459,23 +5396,21 @@ HgfsPackSetWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
                       size_t *payloadSize,          // OUT: size of packet
                       HgfsSessionInfo *session)     // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
    HgfsReplySetWatchV4 *reply;
 
    HGFS_ASSERT_PACK_PARAMS;
 
    *payloadSize = 0;
 
-   if (HGFS_OP_SET_WATCH_V4 != op) {
+   if (HGFS_OP_SET_WATCH_V4 == op) {
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      HgfsPackSetWatchReplyV4(watchId, reply);
+      *payloadSize = sizeof *reply;
+   } else {
       NOT_REACHED();
       result = FALSE;
-   } else {
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                               (void **)&reply, session);
-      if (result) {
-         HgfsPackSetWatchReplyV4(watchId, reply);
-         *payloadSize = sizeof *reply;
-      }
    }
 
    return result;
@@ -5608,7 +5543,7 @@ HgfsPackRemoveWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
                          size_t *payloadSize,          // OUT: size of packet
                          HgfsSessionInfo *session)     // IN: Session info
 {
-   Bool result;
+   Bool result = TRUE;
    HgfsReplyRemoveWatchV4 *reply;
 
    HGFS_ASSERT_PACK_PARAMS;
@@ -5619,12 +5554,10 @@ HgfsPackRemoveWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
       NOT_REACHED();
       result = FALSE;
    } else {
-      result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                                  (void **)&reply, session);
-      if (result) {
-         reply->reserved = 0;
-         *payloadSize = sizeof *reply;
-      }
+      reply = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                                 session);
+      reply->reserved = 0;
+      *payloadSize = sizeof *reply;
    }
    return result;
 }

@@ -591,11 +591,10 @@ void HgfsServerSessionGet(HgfsSessionInfo *session);
 HgfsInternalStatus HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,
                                                        HgfsSessionInfo *sessionInfo);
 
-Bool
+void *
 HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                   char const *packetHeader,     // IN: incoming packet header
-                   size_t payloadSize,           // IN: payload size
-                   void **payload,               // OUT: size of the allocated packet
+                   void const *packetHeader,     // IN: incoming packet header
+                   size_t replyDataSize,         // IN: payload size
                    HgfsSessionInfo *session);    // IN: Session Info
 
 /* Node cache functions. */

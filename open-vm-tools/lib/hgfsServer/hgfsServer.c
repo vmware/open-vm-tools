@@ -5690,10 +5690,11 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
  *
  * HgfsAllocInitReply --
  *
- *    Allocates hgfs reply packet and calculates pointer to HGFS payload.
+ *    Retrieves the hgfs protocol reply data buffer that follows the reply header.
  *
  * Results:
- *    TRUE on success, FALSE on failure.
+ *    Cannot fail, returns the protocol reply data buffer for the corresponding
+ *    processed protocol request.
  *
  * Side effects:
  *    None
@@ -5701,18 +5702,17 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
  *-----------------------------------------------------------------------------
  */
 
-Bool
+void *
 HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                   char const *packetHeader,     // IN: packet header
-                   size_t payloadSize,           // IN: payload size
-                   void **payload,               // OUT: pointer to the reply payload
+                   void const *packetHeader,     // IN: packet header
+                   size_t replyDataSize,         // IN: replyDataSize size
                    HgfsSessionInfo *session)     // IN: Session Info
 {
-   HgfsRequest *request = (HgfsRequest *)packetHeader;
+   const HgfsRequest *request = packetHeader;
    size_t replyPacketSize;
    size_t headerSize = 0; /* Replies prior to V3 do not have a header. */
-   Bool result = FALSE;
-   char *reply;
+   void *replyHeader;
+   void *replyData;
 
    if (HGFS_V4_LEGACY_OPCODE == request->op) {
       headerSize = sizeof(HgfsHeader);
@@ -5720,20 +5720,20 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
               request->op > HGFS_OP_RENAME_V2) {
       headerSize = sizeof(HgfsReply);
    }
-   replyPacketSize = headerSize + payloadSize;
-   reply = HSPU_GetReplyPacket(packet, &replyPacketSize, session->transportSession);
+   replyPacketSize = headerSize + replyDataSize;
+   replyHeader = HSPU_GetReplyPacket(packet, &replyPacketSize, session->transportSession);
 
-   if (reply && (replyPacketSize >= headerSize + payloadSize)) {
-      memset(reply, 0, headerSize + payloadSize);
-      result = TRUE;
-      if (payloadSize > 0) {
-         *payload = reply + headerSize;
-      } else {
-         *payload = NULL;
-      }
+   ASSERT_DEVEL(replyHeader && (replyPacketSize >= headerSize + replyDataSize));
+
+   memset(replyHeader, 0, headerSize + replyDataSize);
+   if (replyDataSize > 0) {
+      replyData = (char *)replyHeader + headerSize;
+   } else {
+      replyData = NULL;
+      ASSERT(FALSE);
    }
 
-   return result;
+   return replyData;
 }
 
 
@@ -5778,50 +5778,41 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
             uint32 inlineDataSize =
                (HGFS_OP_READ_FAST_V4 == input->op) ? 0 : requiredSize;
 
-            if (!HgfsAllocInitReply(input->packet, input->metaPacket,
-                                    sizeof *reply + inlineDataSize, (void **)&reply,
-                                    input->session)) {
-               status = HGFS_ERROR_PROTOCOL;
-               LOG(4, ("%s: V3/V4 Failed to alloc reply -> PROTOCOL_ERROR.\n", __FUNCTION__));
+            reply = HgfsAllocInitReply(input->packet, input->metaPacket,
+                                       sizeof *reply + inlineDataSize, input->session);
+            if (HGFS_OP_READ_V3 == input->op) {
+               payload = &reply->payload[0];
             } else {
-               if (HGFS_OP_READ_V3 == input->op) {
-                  payload = &reply->payload[0];
-               } else {
-                  payload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
-                                                  input->transportSession);
+               payload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
+                                               input->transportSession);
+            }
+            if (payload) {
+               status = HgfsPlatformReadFile(file, input->session, offset,
+                                             requiredSize, payload,
+                                             &reply->actualSize);
+               if (HGFS_ERROR_SUCCESS == status) {
+                  reply->reserved = 0;
+                  replyPayloadSize = sizeof *reply +
+                                       ((inlineDataSize > 0) ? reply->actualSize : 0);
                }
-               if (payload) {
-                  status = HgfsPlatformReadFile(file, input->session, offset,
-                                                requiredSize, payload,
-                                                &reply->actualSize);
-                  if (HGFS_ERROR_SUCCESS == status) {
-                     reply->reserved = 0;
-                     replyPayloadSize = sizeof *reply +
-                                         ((inlineDataSize > 0) ? reply->actualSize : 0);
-                  }
-               } else {
-                  status = HGFS_ERROR_PROTOCOL;
-                  LOG(4, ("%s: V3/V4 Failed to get payload -> PROTOCOL_ERROR.\n", __FUNCTION__));
-               }
+            } else {
+               status = HGFS_ERROR_PROTOCOL;
+               LOG(4, ("%s: V3/V4 Failed to get payload -> PROTOCOL_ERROR.\n", __FUNCTION__));
             }
             break;
          }
       case HGFS_OP_READ: {
             HgfsReplyRead *reply;
 
-            if (HgfsAllocInitReply(input->packet, input->metaPacket,
-                                   sizeof *reply + requiredSize, (void **)&reply,
-                                   input->session)) {
-               status = HgfsPlatformReadFile(file, input->session, offset, requiredSize,
-                                             reply->payload, &reply->actualSize);
-               if (HGFS_ERROR_SUCCESS == status) {
-                  replyPayloadSize = sizeof *reply + reply->actualSize;
-               } else {
-                  LOG(4, ("%s: V1 Failed to read-> %d.\n", __FUNCTION__, status));
-               }
+            reply = HgfsAllocInitReply(input->packet, input->metaPacket,
+                                       sizeof *reply + requiredSize, input->session);
+
+            status = HgfsPlatformReadFile(file, input->session, offset, requiredSize,
+                                          reply->payload, &reply->actualSize);
+            if (HGFS_ERROR_SUCCESS == status) {
+               replyPayloadSize = sizeof *reply + reply->actualSize;
             } else {
-               status = HGFS_ERROR_PROTOCOL;
-               LOG(4, ("%s: V1 Failed to alloc reply -> PROTOCOL_ERROR.\n", __FUNCTION__));
+               LOG(4, ("%s: V1 Failed to read-> %d.\n", __FUNCTION__, status));
             }
             break;
          }
@@ -7938,89 +7929,86 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
       LOG(4, ("%s: read search #%u, offset %u\n", __FUNCTION__,
               hgfsSearchHandle, info.startIndex));
 
-      if (!HgfsAllocInitReply(input->packet, input->metaPacket,
-                              baseReplySize + inlineDataSize, &info.reply,
-                              input->session)) {
+      info.reply = HgfsAllocInitReply(input->packet, input->metaPacket,
+                                      baseReplySize + inlineDataSize,
+                                      input->session);
+
+      if (inlineDataSize == 0) {
+         info.replyPayload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
+                                                   input->transportSession);
+      } else {
+         info.replyPayload = (char *)info.reply + baseReplySize;
+      }
+
+      if (info.replyPayload == NULL) {
+         LOG(4, ("%s: Op %d reply buffer failure\n", __FUNCTION__, input->op));
          status = HGFS_ERROR_PROTOCOL;
       } else {
 
-         if (inlineDataSize == 0) {
-            info.replyPayload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
-                                                      input->transportSession);
-         } else {
-            info.replyPayload = (char *)info.reply + baseReplySize;
-         }
+         if (HgfsGetSearchCopy(hgfsSearchHandle, input->session, &search)) {
+            /* Get the config options. */
+            if (search.utf8ShareNameLen != 0) {
+               nameStatus = HgfsServerPolicy_GetShareOptions(search.utf8ShareName,
+                                                               search.utf8ShareNameLen,
+                                                               &configOptions);
+               if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+                  LOG(4, ("%s: no matching share: %s.\n", __FUNCTION__,
+                           search.utf8ShareName));
+                  status = HGFS_ERROR_FILE_NOT_FOUND;
+               }
+            } else if (0 == info.startIndex) {
+               Bool readAllEntries = FALSE;
 
-         if (info.replyPayload == NULL) {
-            LOG(4, ("%s: Op %d reply buffer failure\n", __FUNCTION__, input->op));
-            status = HGFS_ERROR_PROTOCOL;
-         } else {
+               /*
+                * Reading the first entry, we check if this is a second scan
+                * of the directory. If so, in some cases we restart the scan
+                * by refreshing the entries first.
+                 */
+               if (!HgfsSearchHasReadAllEntries(hgfsSearchHandle,
+                                                input->session,
+                                                &readAllEntries)) {
+                  status = HGFS_ERROR_INTERNAL;
+               }
 
-            if (HgfsGetSearchCopy(hgfsSearchHandle, input->session, &search)) {
-               /* Get the config options. */
-               if (search.utf8ShareNameLen != 0) {
-                  nameStatus = HgfsServerPolicy_GetShareOptions(search.utf8ShareName,
-                                                                search.utf8ShareNameLen,
-                                                                &configOptions);
-                  if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
-                     LOG(4, ("%s: no matching share: %s.\n", __FUNCTION__,
-                             search.utf8ShareName));
-                     status = HGFS_ERROR_FILE_NOT_FOUND;
-                  }
-               } else if (0 == info.startIndex) {
-                  Bool readAllEntries = FALSE;
-
+               if (readAllEntries) {
                   /*
-                   * Reading the first entry, we check if this is a second scan
-                   * of the directory. If so, in some cases we restart the scan
-                   * by refreshing the entries first.
+                   * XXX - a hack that is now required until Fusion 5.0 end
+                   * of lifes see bug 710697.
+                   * The coder modified the server instead of the OS X client
+                   * for the shares directory refresh needed by OS X clients in
+                   * order to work around handles remaining open by Finder.
+                   * This was fixed CLN 1988575 in the OS X client for 5.0.2.
+                   * However, Fusion 4.0 and Fusion 5.0 tools will rely on this hack.
+                   * At least now it works correctly without breaking everything
+                   * else.
                    */
-                  if (!HgfsSearchHasReadAllEntries(hgfsSearchHandle,
-                                                   input->session,
-                                                   &readAllEntries)) {
-                     status = HGFS_ERROR_INTERNAL;
-                  }
-
-                  if (readAllEntries) {
-                     /*
-                      * XXX - a hack that is now required until Fusion 5.0 end
-                      * of lifes see bug 710697.
-                      * The coder modified the server instead of the OS X client
-                      * for the shares directory refresh needed by OS X clients in
-                      * order to work around handles remaining open by Finder.
-                      * This was fixed CLN 1988575 in the OS X client for 5.0.2.
-                      * However, Fusion 4.0 and Fusion 5.0 tools will rely on this hack.
-                      * At least now it works correctly without breaking everything
-                      * else.
-                      */
-                     status = HgfsPlatformRestartSearchDir(hgfsSearchHandle,
-                                                           input->session,
-                                                           search.type);
-                  }
+                  status = HgfsPlatformRestartSearchDir(hgfsSearchHandle,
+                                                         input->session,
+                                                         search.type);
                }
-
-               if (HGFS_ERROR_SUCCESS == status) {
-                  status = HgfsDoSearchRead(hgfsSearchHandle,
-                                            &search,
-                                            configOptions,
-                                            input->session,
-                                            &info,
-                                            &replyInfoSize,
-                                            &replyDirentSize);
-               }
-
-               if (HGFS_ERROR_SUCCESS == status) {
-                  replyPayloadSize = replyInfoSize +
-                                     ((inlineDataSize == 0) ? 0 : replyDirentSize);
-               }
-
-               free(search.utf8Dir);
-               free(search.utf8ShareName);
-
-            } else {
-               LOG(4, ("%s: handle %u is invalid\n", __FUNCTION__, hgfsSearchHandle));
-               status = HGFS_ERROR_INVALID_HANDLE;
             }
+
+            if (HGFS_ERROR_SUCCESS == status) {
+               status = HgfsDoSearchRead(hgfsSearchHandle,
+                                          &search,
+                                          configOptions,
+                                          input->session,
+                                          &info,
+                                          &replyInfoSize,
+                                          &replyDirentSize);
+            }
+
+            if (HGFS_ERROR_SUCCESS == status) {
+               replyPayloadSize = replyInfoSize +
+                                    ((inlineDataSize == 0) ? 0 : replyDirentSize);
+            }
+
+            free(search.utf8Dir);
+            free(search.utf8ShareName);
+
+         } else {
+            LOG(4, ("%s: handle %u is invalid\n", __FUNCTION__, hgfsSearchHandle));
+            status = HGFS_ERROR_INVALID_HANDLE;
          }
       }
    } else {
