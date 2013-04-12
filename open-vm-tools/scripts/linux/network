@@ -173,32 +173,56 @@ TranquilizeNetworkManager()
    # `which' may be a bit noisy, so we'll shush it.
    dbusSend=`which dbus-send 2>/dev/null`
    rc=$?
-   if [ $rc = 0 ]; then
-      # NetworkManager 0.8.0
-      $dbusSend --system --print-reply          \
-         --dest=org.freedesktop.NetworkManager  \
-         /org/freedesktop/NetworkManager        \
-         org.freedesktop.NetworkManager.Enable boolean:false
-      rc=$?
-      if [ $rc = 0 ]; then
-         return $rc
-      fi
-      # NetworkManager 0.7.0
-      $dbusSend --system --print-reply          \
-         --dest=org.freedesktop.NetworkManager  \
-         /org/freedesktop/NetworkManager        \
-         org.freedesktop.NetworkManager.Sleep boolean:true
-      rc=$?
-      if [ $rc = 0 ]; then
-         return $rc
-      fi
-      # NetworkManager 0.6
-      $dbusSend --system --print-reply          \
-         --dest=org.freedesktop.NetworkManager  \
-         /org/freedesktop/NetworkManager        \
-         org.freedesktop.NetworkManager.sleep
-      rc=$?
+   if [ $rc -ne 0 ]; then
+      return $rc
    fi
+
+   # Check NetworkManager state before disabling it.
+   nm_state=`$dbusSend --system --print-reply		\
+             --dest=org.freedesktop.NetworkManager	\
+             /org/freedesktop/NetworkManager		\
+             org.freedesktop.DBus.Properties.Get	\
+             string:'org.freedesktop.NetworkManager'	\
+             string:'State'				\
+             | awk '/variant/ {print $3;}'`
+   if [ -z "$nm_state" ]; then
+      return 1
+   fi
+   # NetworkManager API     0.7/0.8   0.9
+   # NM_STATE_ASLEEP           1      10
+   # NM_STATE_DISCONNECTED     4      20
+   case $nm_state in
+      1|4|10|20)
+         # Nothing needs to be done.
+         return 0
+         ;;
+   esac
+
+   # NetworkManager 0.8.0 and above
+   $dbusSend --system --print-reply          \
+      --dest=org.freedesktop.NetworkManager  \
+      /org/freedesktop/NetworkManager        \
+      org.freedesktop.NetworkManager.Enable boolean:false
+   rc=$?
+   if [ $rc -eq 0 ]; then
+      return $rc
+   fi
+   # NetworkManager 0.7.0
+   $dbusSend --system --print-reply          \
+      --dest=org.freedesktop.NetworkManager  \
+      /org/freedesktop/NetworkManager        \
+      org.freedesktop.NetworkManager.Sleep boolean:true
+   rc=$?
+   if [ $rc -eq 0 ]; then
+      return $rc
+   fi
+   # NetworkManager 0.6
+   $dbusSend --system --print-reply          \
+      --dest=org.freedesktop.NetworkManager  \
+      /org/freedesktop/NetworkManager        \
+      org.freedesktop.NetworkManager.sleep
+   rc=$?
+
    return $rc
 }
 
