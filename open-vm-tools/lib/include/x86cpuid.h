@@ -404,6 +404,7 @@ FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                       NA,  FALSE)
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                                \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                               YES, FALSE) \
+FLAG(   7,  0, EBX,  1,  1, TSC_ADJUST,                             ANY, FALSE) \
 FLAG(   7,  0, EBX,  3,  1, BMI1,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX,  4,  1, HLE,                                    YES, TRUE)  \
 FLAG(   7,  0, EBX,  5,  1, AVX2,                                   YES, TRUE)  \
