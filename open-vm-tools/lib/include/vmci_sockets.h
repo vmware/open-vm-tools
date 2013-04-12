@@ -559,9 +559,9 @@ struct uuid_2_cid {
       int fd;
       unsigned int version;
 
-      fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDWR);
+      fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDONLY);
       if (fd < 0) {
-         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDWR);
+         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDONLY);
          if (fd < 0) {
             return VMCI_SOCKETS_INVALID_VERSION;
          }
@@ -644,9 +644,9 @@ struct uuid_2_cid {
 #undef AF_VSOCK_LOCAL
 #endif // linux
 
-      fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDWR);
+      fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDONLY);
       if (fd < 0) {
-         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDWR);
+         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDONLY);
          if (fd < 0) {
             return -1;
          }
@@ -765,9 +765,9 @@ struct uuid_2_cid {
       int fd;
       unsigned int contextId;
 
-      fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDWR);
+      fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDONLY);
       if (fd < 0) {
-         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDWR);
+         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDONLY);
          if (fd < 0) {
             return VMADDR_CID_ANY;
          }
@@ -818,9 +818,9 @@ struct uuid_2_cid {
       int fd;
       struct uuid_2_cid io;
 
-      fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDWR);
+      fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDONLY);
       if (fd < 0) {
-         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDWR);
+         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDONLY);
          if (fd < 0) {
             return VMADDR_CID_ANY;
          }
