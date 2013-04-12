@@ -1425,25 +1425,34 @@ Posix_RealPath(ConstUnicode pathName)  // IN:
 Unicode
 Posix_ReadLink(ConstUnicode pathName)  // IN:
 {
-   char *path;
-   ssize_t bytes;
+   char *path = NULL;
    Unicode result = NULL;
-   char link[PATH_MAX];
 
-   if (!PosixConvertToCurrent(pathName, &path)) {
-      return NULL;
+   if (PosixConvertToCurrent(pathName, &path)) {
+      size_t size = 2 * 1024;
+
+      while (TRUE) {
+         char *linkPath = Util_SafeMalloc(size);
+         ssize_t len = readlink(path, linkPath, size);
+
+         if (len == -1) {
+            free(linkPath);
+            break;
+         }
+
+         if (len < size) {
+            linkPath[len] = '\0'; // Add the missing NUL to path
+            result = Unicode_Alloc(linkPath, STRING_ENCODING_DEFAULT);
+            free(linkPath);
+            break;
+         }
+         free(linkPath);
+
+         size += 1024;
+      }
    }
-
-   bytes = readlink(path, link, sizeof link - 1);
-   ASSERT_NOT_IMPLEMENTED(bytes < (ssize_t) sizeof link);
 
    free(path);
-
-   if (bytes != -1) {
-      /* add the missing NUL character to path */
-      link[bytes] = '\0';
-      result = Unicode_Alloc(link, STRING_ENCODING_DEFAULT);
-   }
 
    return result;
 }

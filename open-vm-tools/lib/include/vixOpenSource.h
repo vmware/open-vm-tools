@@ -184,6 +184,7 @@ enum {
 
    VIX_E_VI_OP_NOT_SUPPORTED_ON_GUEST              = 3048,
    VIX_E_INVALID_LOGIN_CREDENTIALS                 = 3050,
+   VIX_E_GUEST_AUTHTYPE_DISABLED                   = 3051,
 
    /* File Errors */
    VIX_E_DIRECTORY_NOT_EMPTY                       = 20006,

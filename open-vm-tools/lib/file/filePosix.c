@@ -212,62 +212,38 @@ FileDeletion(ConstUnicode pathName,  // IN:
              const Bool handleLink)  // IN:
 {
    int err;
-   char *primaryPath;
 
    if (pathName == NULL) {
       errno = EFAULT;
 
       return errno;
-   } else if ((primaryPath = Unicode_GetAllocBytes(pathName,
-                                          STRING_ENCODING_DEFAULT)) == NULL) {
-      Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
-          __FUNCTION__, UTF8(pathName));
-      errno = UNICODE_CONVERSION_ERRNO;
-
-      return errno;
    }
 
    if (handleLink) {
-      struct stat statbuf;
+      Unicode linkPath = Posix_ReadLink(pathName);
 
-      if (lstat(primaryPath, &statbuf) == -1) {
+      if (linkPath == NULL) {
+         /* If there is no link involved, continue */
          err = errno;
-         goto bail;
-      }
 
-      if (S_ISLNK(statbuf.st_mode)) {
-         ssize_t len;
-         char *linkPath;
-
-         linkPath = Util_SafeMalloc(statbuf.st_size + 1);
-         len = readlink(primaryPath, linkPath, statbuf.st_size + 1);
-         if (len < 0) {
-            err = errno;
-            free(linkPath);
+         if (err != EINVAL) {
             goto bail;
          }
-         if (len != statbuf.st_size) {
-            err = ESTALE;
-            free(linkPath);
+      } else {
+         err = (Posix_Unlink(linkPath) == -1) ? errno : 0;
+
+         Unicode_Free(linkPath);
+
+         /* Ignore a file that has already disappeared */
+         if (err != ENOENT) {
             goto bail;
          }
-         linkPath[len] = '\0';
-
-         if (unlink(linkPath) == -1) {
-            if (errno != ENOENT) {
-               err = errno;
-               free(linkPath);
-               goto bail;
-            }
-         }
-         free(linkPath);
       }
    }
 
-   err = (unlink(primaryPath) == -1) ? errno : 0;
+   err = (Posix_Unlink(pathName) == -1) ? errno : 0;
 
 bail:
-   free(primaryPath);
 
    return err;
 }

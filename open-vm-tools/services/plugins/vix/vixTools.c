@@ -190,6 +190,17 @@ static VGAuthUserHandle *currentUserHandle = NULL;
 #define  VIX_TOOLS_CONFIG_API_GROUPNAME               "guestoperations"
 
 /*
+ * Authentication configuration.
+ * There are various forms of authentication supported,
+ * e.g. InfrastructureAgents, NamePassword, SSPI, SAML etc.
+ *
+ * NOTE: "InfrastructureAgents" refers to hashed shared
+ * secret form of authentication.
+ */
+#define  VIX_TOOLS_CONFIG_API_AUTHENTICATION          "Authentication"
+#define  VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS             "InfrastructureAgents"
+
+/*
  * The switch that controls all APIs
  */
 #define  VIX_TOOLS_CONFIG_API_ALL_NAME                "disabled"
@@ -346,6 +357,13 @@ static Bool thisProcessRunsAsRoot = FALSE;
 static Bool allowConsoleUserOps = FALSE;
 static VixToolsReportProgramDoneProcType reportProgramDoneProc = NULL;
 static void *reportProgramDoneData = NULL;
+
+/*
+ * Reference to global configuration dictionary.
+ * This reference is initialized right before processing
+ * any VIX command and is reset afterwards.
+ */
+static GKeyFile *gConfDictRef = NULL;
 
 #ifndef _WIN32
 typedef struct VixToolsEnvironmentTableIterator {
@@ -619,6 +637,9 @@ VixError GuestAuthSAMLAuthenticateAndImpersonate(
    void **userToken);
 
 void GuestAuthUnimpersonate();
+
+static Bool VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,
+                                                     const char *typeName);
 
 #if SUPPORT_VGAUTH
 
@@ -7254,6 +7275,20 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
       break;
    }
    case VIX_USER_CREDENTIAL_ROOT:
+   {
+      if ((requestMsg->requestFlags & VIX_REQUESTMSG_HAS_HASHED_SHARED_SECRET) &&
+          !VixToolsCheckIfAuthenticationTypeEnabled(gConfDictRef,
+                                            VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS)) {
+          /*
+           * Don't accept hashed shared secret if disabled.
+           */
+          Debug("%s: Requested authentication type has been disabled.\n",
+                __FUNCTION__);
+          return VIX_E_GUEST_AUTHTYPE_DISABLED;
+      }
+   }
+   // fall through
+
    case VIX_USER_CREDENTIAL_CONSOLE_USER:
       err = VixToolsImpersonateUserImplEx(NULL,
                                           credentialType,
@@ -10028,6 +10063,39 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsCheckIfAuthenticationTypeEnabled --
+ *
+ *    Checks to see if a given authentication type has been
+ *    disabled via the tools configuration.
+ *
+ * Return value:
+ *    TRUE if enabled, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,     // IN
+                                         const char *typeName)      // IN
+{
+   char authenticationType[64]; // Authentication.<AuthenticationType>
+
+   Str_Snprintf(authenticationType, sizeof(authenticationType),
+                VIX_TOOLS_CONFIG_API_AUTHENTICATION ".%s",
+                typeName);
+
+   ASSERT(confDictRef != NULL);
+
+   return !VixToolsGetAPIDisabledFromConf(confDictRef, authenticationType);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixTools_ProcessVixCommand --
  *
  *
@@ -10070,6 +10138,16 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
 
    Debug("%s: command %d\n", __FUNCTION__, requestMsg->opCode);
 
+   /*
+    * Set the global reference to configuration dictionary.
+    * We do this to avoid passing this reference through multiple
+    * interfaces for consumers like VixToolsImpersonateUser().
+    *
+    * ASSUMPTION: We are single threaded here, so we don't need
+    * to acquire any locks for this step.
+    */
+   ASSERT(confDictRef != NULL);
+   gConfDictRef = confDictRef;
 
    if (!VixToolsCheckIfVixCommandEnabled(requestMsg->opCode, confDictRef)) {
       err = VIX_E_OPERATION_DISABLED;
@@ -10437,6 +10515,11 @@ abort:
     * Remaps specific errors for backward compatibility purposes.
     */
    err = VixToolsRewriteError(requestMsg->opCode, err);
+
+   /*
+    * Reset the global reference to configuration dictionary
+    */
+   gConfDictRef = NULL;
 
    return(err);
 } // VixTools_ProcessVixCommand
