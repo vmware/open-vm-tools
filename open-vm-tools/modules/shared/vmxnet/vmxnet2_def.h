@@ -173,7 +173,11 @@ typedef struct Vmxnet2_TxRingEntry {
  * functions below to be used.
  */
 typedef struct Vmxnet2_RxRingInfo {
+#ifdef VMX86_VMX
+   PA                      basePA;     /* starting PA of the ring */
+#else
    Vmxnet2_RxRingEntry    *base;       /* starting addr of the ring */
+#endif
    uint32                  nicNext;    /* next entry to use in the ring */
    uint32                  ringLength; /* # of entries in the ring */
    PA                      startPA;    /* PA of the starting addr of the ring */
@@ -183,7 +187,11 @@ typedef struct Vmxnet2_RxRingInfo {
 } Vmxnet2_RxRingInfo;
 
 typedef struct Vmxnet2_TxRingInfo {
+#ifdef VMX86_VMX
+   PA                      basePA;     /* starting PA of the ring */
+#else
    Vmxnet2_TxRingEntry    *base;       /* starting addr of the ring */
+#endif
    uint32                  nicNext;    /* next entry to use in the ring */
    uint32                  ringLength; /* # of entries in the ring */
    PA                      startPA;    /* PA of the starting addr of the ring */
@@ -349,7 +357,7 @@ typedef struct VmxnetVMKShared {
    uint32  dontPostActions;  
 } VmxnetVMKShared;
 
-#if defined VMX86_VMX || defined VMKERNEL
+#if defined VMKERNEL
 
 /*
  * Inline functions used to assist the implementation of the vmxnet interface.
