@@ -844,6 +844,7 @@ HgfsPackReplyHeaderV4(HgfsInternalStatus status,  // IN: platfrom independent HG
                       HgfsOp op,                  // IN: request type
                       uint64 sessionId,           // IN: session id
                       uint32 requestId,           // IN: request id
+                      uint32 hdrFlags,            // IN: header flags
                       HgfsHeader *header);        // OUT: packet header
 
 HgfsInternalStatus

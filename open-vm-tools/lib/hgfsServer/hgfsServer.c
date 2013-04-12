@@ -2887,7 +2887,8 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
             replySessionId = input->session->sessionId;
          }
          HgfsPackReplyHeaderV4(status, replyPayloadSize, input->op,
-                               replySessionId, input->id, header);
+                               replySessionId, input->id, HGFS_PACKET_FLAG_REPLY,
+                               header);
       }
    } else {
       HgfsReply *reply;
@@ -8035,7 +8036,7 @@ HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folde
    char *shareName = NULL;
    size_t shareNameLen;
    size_t sizeNeeded;
-   uint32 flags;
+   uint32 notifyFlags;
 
    LOG(4, ("%s:Entered shr hnd %u hnd %"FMT64"x file %s mask %u\n",
          __FUNCTION__, sharedFolder, subscriber, fileName, mask));
@@ -8054,13 +8055,13 @@ HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folde
    packet->metaPacketSize = sizeNeeded;
    packet->metaPacket = packetHeader;
    packet->dataPacketIsAllocated = TRUE;
-   flags = 0;
+   notifyFlags = 0;
    if (mask & HGFS_NOTIFY_EVENTS_DROPPED) {
-      flags |= HGFS_NOTIFY_FLAG_OVERFLOW;
+      notifyFlags |= HGFS_NOTIFY_FLAG_OVERFLOW;
    }
 
    if (!HgfsPackChangeNotificationRequest(packetHeader, subscriber, shareName, fileName, mask,
-                                          flags, session, &sizeNeeded)) {
+                                          notifyFlags, session, &sizeNeeded)) {
       LOG(4, ("%s: failed to pack notification request\n", __FUNCTION__));
       goto exit;
    }

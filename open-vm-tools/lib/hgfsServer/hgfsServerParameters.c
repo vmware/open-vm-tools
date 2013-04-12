@@ -676,7 +676,7 @@ HgfsUnpackOpenRequest(void const *packet,         // IN: HGFS packet
  *
  * HgfsPackReplyHeaderV4 --
  *
- *    Pack hgfs header that corresponds an incoming packet.
+ *    Pack hgfs header that corresponds to an HGFS protocol packet.
  *
  * Results:
  *    None.
@@ -693,17 +693,18 @@ HgfsPackReplyHeaderV4(HgfsInternalStatus status,    // IN: reply status
                       HgfsOp op,                    // IN: request type
                       uint64 sessionId,             // IN: session id
                       uint32 requestId,             // IN: request id
+                      uint32 hdrFlags,              // IN: header flags
                       HgfsHeader *header)           // OUT: outgoing packet header
 {
    memset(header, 0, sizeof *header);
-   header->version = 1;
+   header->version = HGFS_HEADER_VERSION;
    header->dummy = HGFS_V4_LEGACY_OPCODE;
    header->packetSize = payloadSize + sizeof *header;
    header->headerSize = sizeof *header;
    header->requestId = requestId;
    header->op = op;
    header->status = HgfsConvertFromInternalStatus(status);
-   header->flags = 0;
+   header->flags = hdrFlags;
    header->information = status;
    header->sessionId = sessionId;
 }
@@ -5730,11 +5731,12 @@ HgfsPackOplockBreakRequest(void *packet,                    // IN/OUT: Hgfs Pack
       goto exit;
    }
 
-   HgfsPackReplyHeaderV4(0,
+   HgfsPackReplyHeaderV4(HGFS_ERROR_SUCCESS,
                          opBreakRequestSize,
                          HGFS_OP_OPLOCK_BREAK_V4,
                          sessionId,
                          0,
+                         HGFS_PACKET_FLAG_REQUEST,
                          header);
 
 exit:
@@ -6038,7 +6040,7 @@ HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hg
                                   char const *shareName,           // IN: share name
                                   char *fileName,                  // IN: relative name
                                   uint32 mask,                     // IN: event mask
-                                  uint32 flags,                    // IN: notify flags
+                                  uint32 notifyFlags,              // IN: notify flags
                                   HgfsSessionInfo *session,        // IN: session
                                   size_t *bufferSize)              // INOUT: size of packet
 {
@@ -6050,7 +6052,7 @@ HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hg
    ASSERT(packet);
    ASSERT(shareName);
    ASSERT(NULL != fileName ||
-          (flags & HGFS_NOTIFY_FLAG_OVERFLOW) == HGFS_NOTIFY_FLAG_OVERFLOW);
+          (notifyFlags & HGFS_NOTIFY_FLAG_OVERFLOW) == HGFS_NOTIFY_FLAG_OVERFLOW);
    ASSERT(session);
    ASSERT(bufferSize);
 
@@ -6066,14 +6068,20 @@ HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hg
     */
    notifyRequest = (HgfsRequestNotifyV4 *)((char *)header + sizeof *header);
    notifyRequestSize = HgfsPackChangeNotifyRequestV4(subscriber,
-                                                     flags,
+                                                     notifyFlags,
                                                      mask,
                                                      shareName,
                                                      fileName,
                                                      *bufferSize - sizeof *header,
                                                      notifyRequest);
    if (0 != notifyRequestSize) {
-      HgfsPackReplyHeaderV4(0, notifyRequestSize, HGFS_OP_NOTIFY_V4, session->sessionId, 0, header);
+      HgfsPackReplyHeaderV4(HGFS_ERROR_SUCCESS,
+                            notifyRequestSize,
+                            HGFS_OP_NOTIFY_V4,
+                            session->sessionId,
+                            0,
+                            HGFS_PACKET_FLAG_REQUEST,
+                            header);
       result = TRUE;
    } else {
       result = FALSE;

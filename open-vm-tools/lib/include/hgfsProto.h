@@ -1654,13 +1654,17 @@ struct HgfsReplySymlinkCreateV3 {
 HgfsReplySymlinkCreateV3;
 
 /* HGFS protocol version 4 definitions. */
+#define HGFS_HEADER_VERSION_1                 1
+#define HGFS_HEADER_VERSION                   HGFS_HEADER_VERSION_1
 
 /*
- * HGFS_PACKET_FLAG_NOTIFICATION set in flags field means that
- * this is a notification or a callback request (not a reply to client request).
+ * Flags to indicate the type of packet following the header and
+ * the overall state of the operation.
  */
 
-#define HGFS_PACKET_FLAG_NOTIFICATION         (1 << 0)
+#define HGFS_PACKET_FLAG_REQUEST              (1 << 0)       // Request packet
+#define HGFS_PACKET_FLAG_REPLY                (1 << 1)       // Reply packet
+#define HGFS_PACKET_FLAG_INFO_EXTERROR        (1 << 2)       // Info has ext error
 
 typedef
 #include "vmware_pack_begin.h"
@@ -1674,7 +1678,7 @@ struct HgfsHeader {
    uint32 requestId;    /* Request ID. */
    uint32 op;           /* Operation. */
    uint32 status;       /* Return value. */
-   uint32 flags;        /* Flags. */
+   uint32 flags;        /* Flags. See above. */
    uint32 information;  /* Generic field, used e.g. for native error code. */
    uint64 sessionId;    /* Session ID. */
    uint64 reserved;     /* Reserved for future use. */

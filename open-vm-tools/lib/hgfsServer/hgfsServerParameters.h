@@ -334,7 +334,7 @@ HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hg
                                   char const *shareName,           // IN: share name
                                   char *fileName,                  // IN: file name
                                   uint32 mask,                     // IN: event mask
-                                  uint32 flags,                    // IN: notify flags
+                                  uint32 notifyFlags,              // IN: notify flags
                                   HgfsSessionInfo *session,        // IN: session
                                   size_t *bufferSize);             // IN/OUT: packet size
 
