@@ -48,10 +48,10 @@
  * long (i.e., on a 64-bit machine Time may occupy 8 bytes).
  *
  * Breaking it down:
- *   · When Gtk+ provides a X11 selection via Gtk::SelectionData, on a
+ *   · When Gtk+ provides an X11 selection via Gtk::SelectionData, on a
  *     32-bit machine we'll have 4 bytes of raw data.  Everything's copacetic.
- *   · On a 64-bit machine, even if the source client provides on 32 bits
- *     of timestamp data, Gtk+ will decode as an unsigned long and provide 8
+ *   · On a 64-bit machine, even if the source client provides 32 bits of
+ *     timestamp data, Gtk+ will decode as an unsigned long and provide 8
  *     bytes of raw data.
  *   · On a 64-bit machine with a wacky application which actually tries
  *     to record a full 64 bits of timestamp data, Gtk+ will provide 16 bytes:
