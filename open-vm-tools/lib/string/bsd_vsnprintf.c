@@ -1468,7 +1468,6 @@ bsd_vsnprintf(char **outbuf,
    /*
     * Struct lconv is not working! The code below is a workaround.
     */
-   NOT_TESTED();
    grouping = NULL;
    thousands_sep = ',';
    decimal_point = &dp;
