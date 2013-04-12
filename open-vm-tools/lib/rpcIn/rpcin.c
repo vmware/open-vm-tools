@@ -1592,6 +1592,8 @@ RpcInOpenChannel(RpcIn *in,                 // IN
 
    ASSERT(in->conn == NULL);
 
+   useBackdoorOnly = TRUE;
+
    while (TRUE) {  /* one pass loop */
       if (useBackdoorOnly) {
          break;
