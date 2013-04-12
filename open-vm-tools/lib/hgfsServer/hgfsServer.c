@@ -6009,6 +6009,7 @@ HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
    }
 
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
+   free(baseDir);
 }
 
 
@@ -6266,7 +6267,7 @@ HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
    HgfsInternalStatus status;
    HgfsNameStatus nameStatus;
    HgfsCreateDirInfo info;
-   char *utf8Name;
+   char *utf8Name = NULL;
    size_t utf8NameLen;
    size_t replyPayloadSize = 0;
    HgfsShareInfo shareInfo;
@@ -6331,6 +6332,7 @@ HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
    }
 
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
+   free(utf8Name);
 }
 
 
@@ -6924,7 +6926,7 @@ HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
 static void
 HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
 {
-   char *localName;
+   char *localName = NULL;
    HgfsAttrHint hints = 0;
    HgfsFileAttrInfo attr;
    HgfsInternalStatus status = 0;
@@ -6988,7 +6990,6 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
                LOG(4, ("%s: no matching share: %s.\n", __FUNCTION__, cpName));
                status = HGFS_ERROR_FILE_NOT_FOUND;
             }
-            free(localName);
 
             if (HGFS_ERROR_SUCCESS == status &&
                 !HgfsServerPolicy_CheckMode(HGFS_OPEN_MODE_READ_ONLY,
@@ -7028,6 +7029,7 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
    }
 
    free(targetName);
+   free(localName);
 
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
 }
