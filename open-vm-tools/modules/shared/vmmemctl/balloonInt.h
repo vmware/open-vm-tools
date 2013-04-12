@@ -68,11 +68,7 @@
 #define BALLOON_NAME_VERBOSE            "VMware memory control driver"
 
 #if defined __linux__ || defined __FreeBSD__ || defined _WIN32
-/*
- * FIXME: Even if the driver support batched commands keep using the
- * non-batched one until more testing has been done.
- */
-#define BALLOON_CAPABILITIES    BALLOON_BASIC_CMDS
+#define BALLOON_CAPABILITIES    (BALLOON_BASIC_CMDS|BALLOON_BATCHED_CMDS)
 #else
 #define BALLOON_CAPABILITIES    BALLOON_BASIC_CMDS
 #endif
