@@ -272,6 +272,7 @@ typedef struct AsyncSocketVTable {
    int (*recv)(AsyncSocket *asock, void *buf, int len);
    PollerFunction recvCallback;
    Bool (*hasDataPending)(AsyncSocket *asock);
+   void (*cancelListenCb)(AsyncSocket *asock);
    void (*cancelRecvCb)(AsyncSocket *asock);
    void (*cancelCbForClose)(AsyncSocket *asock);
    Bool (*cancelCbForConnectingClose)(AsyncSocket *asock);
@@ -313,6 +314,7 @@ AsyncSocket *AsyncSocketCreate(AsyncSocketPollParams *pollParams);
 void AsyncSocketDispatchConnect(AsyncSocket *asock, AsyncSocket *newsock);
 void AsyncSocketRecvCallback(void *clientData);
 int AsyncSocketRecvSocket(AsyncSocket *asock, void *buf, int len);
+void AsyncSocketCancelListenCbSocket(AsyncSocket *asock);
 void AsyncSocketCancelRecvCbSocket(AsyncSocket *asock);
 void AsyncSocketCancelCbForCloseSocket(AsyncSocket *asock);
 Bool AsyncSocketCancelCbForConnectingCloseSocket(AsyncSocket *asock);

@@ -113,6 +113,7 @@ static const AsyncSocketVTable asyncStreamSocketVTable = {
    AsyncSocketRecvSocket,
    AsyncSocketRecvCallback,
    AsyncSocketHasDataPendingSocket,
+   AsyncSocketCancelListenCbSocket,
    AsyncSocketCancelRecvCbSocket,
    AsyncSocketCancelCbForCloseSocket,
    AsyncSocketCancelCbForConnectingCloseSocket,
@@ -128,6 +129,7 @@ static const AsyncSocketVTable asyncDgramSocketVTable = {
    AsyncSocketRecvSocket,
    AsyncSocketRecvUDPCallback,
    AsyncSocketHasDataPendingSocket,
+   AsyncSocketCancelListenCbSocket,
    AsyncSocketCancelRecvCbSocket,
    AsyncSocketCancelCbForCloseSocket,
    AsyncSocketCancelCbForConnectingCloseSocket,
@@ -3361,6 +3363,36 @@ AsyncSocket_SetErrorFn(AsyncSocket *asock,           // IN/OUT
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncSocketCancelListenCbSocket --
+ *
+ *      Socket specific code for canceling callbacks for a listening socket.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+AsyncSocketCancelListenCbSocket(AsyncSocket *asock)  // IN:
+{
+   Bool removed;
+
+   ASSERT(AsyncSocketIsLocked(asock));
+
+   removed = AsyncSocketPollRemove(asock, TRUE,
+                                   POLL_FLAG_READ | POLL_FLAG_PERIODIC,
+                                   AsyncSocketAcceptCallback);
+   ASSERT(removed);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncSocketCancelRecvCbSocket --
  *
  *      Socket specific code for canceling callbacks when a receive
@@ -3677,12 +3709,9 @@ AsyncSocket_Close(AsyncSocket *asock)
 
    switch(oldState) {
    case AsyncSocketListening:
-      ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
       ASOCKLOG(1, asock, ("old state was listening, removing accept callback\n"));
-      removed = AsyncSocketPollRemove(asock, TRUE,
-                                      POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                                      AsyncSocketAcceptCallback);
-      ASSERT(removed);
+      ASSERT(asock->vt->cancelListenCb);
+      asock->vt->cancelListenCb(asock);
       break;
 
    case AsyncSocketConnecting:
