@@ -287,7 +287,8 @@ Bool File_CopyFromNameToName(ConstUnicode srcName,
 
 Bool File_MoveTree(ConstUnicode srcName,
                    ConstUnicode dstName,
-                   Bool overwriteExisting);
+                   Bool overwriteExisting,
+                   Bool *asMove);
 
 Bool File_CopyTree(ConstUnicode srcName,
                    ConstUnicode dstName,

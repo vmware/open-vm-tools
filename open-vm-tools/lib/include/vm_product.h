@@ -59,6 +59,7 @@
  * Brief names are used when the VMware prefix is not wanted.
  */
 #define PRODUCT_SCALABLE_SERVER_BRIEF_NAME "ESX"
+#define PRODUCT_ESXI_BRIEF_NAME "ESXi"
 #define PRODUCT_WORKSTATION_BRIEF_NAME "Workstation"
 #define PRODUCT_WORKSTATION_ENTERPRISE_BRIEF_NAME \
          PRODUCT_WORKSTATION_BRIEF_NAME " " "ACE Edition"

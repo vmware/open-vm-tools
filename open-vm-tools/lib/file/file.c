@@ -1396,13 +1396,18 @@ File_Move(ConstUnicode oldFile,  // IN:
 Bool
 File_MoveTree(ConstUnicode srcName,   // IN:
               ConstUnicode dstName,   // IN:
-              Bool overwriteExisting) // IN:
+              Bool overwriteExisting, // IN:
+              Bool *asMove)           // OUT:
 {
    Bool ret = FALSE;
    Bool createdDir = FALSE;
 
    ASSERT(srcName);
    ASSERT(dstName);
+
+   if (asMove) {
+      *asMove = FALSE;
+   }
 
    if (!File_IsDirectory(srcName)) {
       Msg_Append(MSGID(File.MoveTree.source.notDirectory)
@@ -1413,6 +1418,10 @@ File_MoveTree(ConstUnicode srcName,   // IN:
    }
 
    if (File_Rename(srcName, dstName) == 0) {
+      if (asMove) {
+         *asMove = TRUE;
+      }
+
       ret = TRUE;
    } else {
       struct stat statbuf;
