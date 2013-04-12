@@ -368,39 +368,13 @@ void *_ReturnAddress(void);
 #ifdef __GNUC__
 #ifndef sun
 
-static INLINE_SINGLE_CALLER uintptr_t
-GetFrameAddr(void)
-{
-   uintptr_t bp;
-#if  !(__GNUC__ == 4 && (__GNUC_MINOR__ == 0 || __GNUC_MINOR__ == 1))
-   bp = (uintptr_t)__builtin_frame_address(0);
-#else
-   /*
-    * We use this assembly hack due to a bug discovered in gcc 4.1.1.
-    * The bug was fixed in 4.2.0; assume it originated with 4.0.
-    * PR147638, PR554369.
-    */
-     __asm__ __volatile__(
-#  if defined(VM_X86_64)
-                          "movq %%rbp, %0\n"
-#  else
-                          "movl %%ebp, %0\n"
-#  endif
-                          : "=g" (bp));
-#endif
-   return bp;
-}
-
-
 /*
- * Returns the frame pointer of the calling function.
- * Equivalent to __builtin_frame_address(1).
+ * A bug in __builtin_frame_address was discovered in gcc 4.1.1, and
+ * fixed in 4.2.0; assume it originated in 4.0. PR 147638 and 554369.
  */
-static INLINE_SINGLE_CALLER uintptr_t
-GetCallerFrameAddr(void)
-{
-   return *(uintptr_t*)GetFrameAddr();
-}
+#if  !(__GNUC__ == 4 && (__GNUC_MINOR__ == 0 || __GNUC_MINOR__ == 1))
+#define GetFrameAddr() __builtin_frame_address(0)
+#endif
 
 #endif // sun
 #endif // __GNUC__

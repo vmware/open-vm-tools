@@ -246,7 +246,8 @@ HgfsServerOplockBreakReply(const unsigned char *packetIn, // IN: Reply packet
                            void *clientData)              // IN: From request
 {
    HgfsReplyServerLockChange *reply;
-   ServerLockData *lockData;
+   ServerLockData *lockData = clientData;
+
    ASSERT(packetIn);
    ASSERT(clientData);
 
@@ -254,7 +255,6 @@ HgfsServerOplockBreakReply(const unsigned char *packetIn, // IN: Reply packet
       return;
    }
    reply = (HgfsReplyServerLockChange *)packetIn;
-   lockData = (ServerLockData *)clientData;
 
    /*
     * XXX: It should be safe to ignore the status and id from the actual

@@ -235,6 +235,7 @@ enum {
    ETH_VMWARE_FRAME_TYPE_BEACON     = 1,
    ETH_VMWARE_FRAME_TYPE_COLOR      = 2,
    ETH_VMWARE_FRAME_TYPE_ECHO       = 3,
+   ETH_VMWARE_FRAME_TYPE_LLC        = 4, // XXX: Just re-use COLOR?
 };
 
 typedef

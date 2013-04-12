@@ -105,6 +105,7 @@
 #define VMNET_CAP_SELF_TEST          0x100000000000UL /* Self-test capability */
 #define VMNET_CAP_PAUSE_PARAMS       0x200000000000UL /* Pause frame parameter adjusting */
 #define VMNET_CAP_RESTART_NEG        0x400000000000UL /* Ability to restart negotiation of link speed/duplexity */
+#define VMNET_CAP_LRO                0x800000000000UL /* Hardware supported LRO */
 #define VMNET_CAP_LEGACY             0x8000000000000000UL /* Uplink is compatible with vmklinux drivers */
 
 #endif // _VMNET_DEF_H_

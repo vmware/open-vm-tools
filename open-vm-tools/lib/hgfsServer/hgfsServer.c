@@ -2989,7 +2989,7 @@ static void
 HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
                          void *clientData)        // IN: session info
 {
-   HgfsTransportSessionInfo *transportSession = (HgfsTransportSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession = clientData;
    HgfsInternalStatus status;
    HgfsInputParam *input = NULL;
 
@@ -3946,7 +3946,7 @@ HgfsDisconnectSessionInt(HgfsSessionInfo *session)    // IN: session context
 static void
 HgfsServerSessionDisconnect(void *clientData)    // IN: session context
 {
-   HgfsTransportSessionInfo *transportSession = (HgfsTransportSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession = clientData;
    DblLnkLst_Links *curr, *next;
 
    LOG(8, ("%s: entered\n", __FUNCTION__));
@@ -3990,7 +3990,7 @@ HgfsServerSessionDisconnect(void *clientData)    // IN: session context
 static void
 HgfsServerSessionClose(void *clientData)    // IN: session context
 {
-   HgfsTransportSessionInfo *transportSession = (HgfsTransportSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession = clientData;
 
    ASSERT(transportSession);
    ASSERT(transportSession->state == HGFS_SESSION_STATE_CLOSED);
@@ -4147,8 +4147,7 @@ void
 HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
                               void *clientData)     // IN: session info
 {
-   HgfsTransportSessionInfo *transportSession =
-         (HgfsTransportSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession = clientData;
 
    if (packet->guestInitiated) {
       HSPU_PutMetaPacket(packet, transportSession);
@@ -4425,8 +4424,7 @@ void
 HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
                                    DblLnkLst_Links *shares)  // IN: List of new shares
 {
-   HgfsTransportSessionInfo *transportSession =
-         (HgfsTransportSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession = clientData;
    DblLnkLst_Links *curr;
 
    ASSERT(transportSession);
@@ -4474,8 +4472,7 @@ HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
 uint32
 HgfsServerSessionInvalidateInactiveSessions(void *clientData)         // IN:
 {
-   HgfsTransportSessionInfo *transportSession =
-         (HgfsTransportSessionInfo *)clientData;
+   HgfsTransportSessionInfo *transportSession = clientData;
    uint32 numActiveSessionsLeft = 0;
    DblLnkLst_Links shares, *curr, *next;
 

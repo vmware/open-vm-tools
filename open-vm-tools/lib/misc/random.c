@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if defined(_WIN32)
 #   include <windows.h>
@@ -38,6 +39,7 @@
 
 #include "vmware.h"
 #include "random.h"
+#include "util.h"
 
 
 #if defined(_WIN32)
@@ -57,17 +59,21 @@
  */
  
 static Bool
-RandomBytesWin32(unsigned int size,  // IN:
-                 void *buffer)       // OUT:
+RandomBytesWin32(size_t size,   // IN:
+                 void *buffer)  // OUT:
 {
    HCRYPTPROV csp;
+
+   if (size != (DWORD) size) {
+      return FALSE;
+   }
 
    if (CryptAcquireContext(&csp, NULL, NULL, PROV_RSA_FULL,
                            CRYPT_VERIFYCONTEXT) == FALSE) {
       return FALSE;
    }
 
-   if (CryptGenRandom(csp, size, buffer) == FALSE) {
+   if (CryptGenRandom(csp, (DWORD) size, buffer) == FALSE) {
       CryptReleaseContext(csp, 0);
       return FALSE;
    }
@@ -95,23 +101,36 @@ RandomBytesWin32(unsigned int size,  // IN:
  */
 
 static Bool
-RandomBytesPosix(const char *name,   // IN:
-                 unsigned int size,  // IN:
-                 void *buffer)       // OUT:
+RandomBytesPosix(const char *name,  // IN:
+                 size_t size,       // IN:
+                 void *buffer)      // OUT:
 {
    int fd = open(name, O_RDONLY);
 
    if (fd == -1) {
+      Log("%s: failed to open %s: %s\n", __FUNCTION__, name, strerror(errno));
       return FALSE;
    }
 
-   /* Although /dev/urandom does not block, it can return short reads. */
+   /*
+    * Although /dev/urandom does not block, it can return short reads. That
+    * said, reads returning nothing should not happen. Just in case, track
+    * those any that do appear.
+    */
 
    while (size > 0) {
       ssize_t bytesRead = read(fd, buffer, size);
 
       if ((bytesRead == 0) || ((bytesRead == -1) && (errno != EINTR))) {
          close(fd);
+
+         if (bytesRead == 0) {
+            Log("%s: zero length read while reading from %s\n",
+                __FUNCTION__, name);
+         } else {
+            Log("%s: %"FMTSZ"u byte read failed while reading from %s: %s\n",
+                __FUNCTION__, size, name, strerror(errno));
+         }
 
          return FALSE;
       }
@@ -123,7 +142,7 @@ RandomBytesPosix(const char *name,   // IN:
    }
 
    if (close(fd) == -1) {
-      return FALSE;
+      Log("%s: failed to close %s: %s\n", __FUNCTION__, name, strerror(errno));
    }
 
    return TRUE;
@@ -155,8 +174,8 @@ RandomBytesPosix(const char *name,   // IN:
  */
 
 Bool
-Random_Crypto(unsigned int size,  // IN:
-              void *buffer)       // OUT:
+Random_Crypto(size_t size,   // IN:
+              void *buffer)  // OUT:
 {
 #if defined(_WIN32)
    return RandomBytesWin32(size, buffer);
@@ -220,7 +239,7 @@ Random_QuickSeed(uint32 seed)  // IN:
       0x512C0C03, 0xEA857CCD, 0x4CC1D30F, 0x8891A8A1, 0xA6B7AADB
    };
 
-   rs = (struct rqContext *) malloc(sizeof *rs);
+   rs = (struct rqContext *) Util_SafeMalloc(sizeof *rs);
 
    if (rs != NULL) {
       uint32 i;

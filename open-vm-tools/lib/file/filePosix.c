@@ -483,7 +483,7 @@ File_Cwd(ConstUnicode drive)  // IN:
       free(buffer);
       buffer = NULL;
 
-      if (errno != ENAMETOOLONG) {
+      if (errno != ERANGE) {
          break;
       }
 
@@ -572,6 +572,207 @@ FileStripFwdSlashes(ConstUnicode pathName)  // IN:
 }
 
 
+#if defined(VMX86_SERVER)
+/*
+ *----------------------------------------------------------------------------
+ *
+ * FileVMFSGetCanonicalPath --
+ *
+ *    Given an absolute pathname of a VM directory, return its canonical
+ *    pathname.
+ *
+ *    Canonical name for a VM directory has a special significance only for
+ *    the case of NFS config VVols where the absolute pathname of VM directory
+ *    could be an NFS PE based path.
+ *    f.e. the VM directory on an NFS config VVol could have the absolute
+ *    pathname /vmfs/volumes/nfs_pe_2/vvol36/meta_vvol36/, whereas the
+ *    canonical name would be the one containing the VVol container name,
+ *    f.e. /vmfs/volumes/vvol:26acd2ae55ea49c3-87dd47a44e4f327/rfc4122.d140c97a-7208-474e-95c7-a4ee6cac7f15/
+ *    Both pathnames refer to the same directory (using bind mount), but
+ *    canonical pathname is important as it is used in many places to identify
+ *    object-backed storage from regular filesystem-backed storage.
+ *
+ *    It can also correctly handle cases where 'absVMDirName' is not the
+ *    config-vvol directory but is a sub-directory inside the config-vvol
+ *    directory. It will climb up one directory at a time looking for an
+ *    NFS config VVol. The max number of directory components it'll check
+ *    is MAX_SUBDIR_LEVEL.
+ *
+ * Note:
+ *    'absVMDirName' should not have extra slashes in the name. This will
+ *    be true if we have gotten it from Posix_RealPath or friends.
+ *
+ * Results:
+ *    Returns a unicode string containing the canonical pathname to use.
+ *    For VM directories not on NFS config VVol, this will be the same as
+ *    absVMDirName.
+ *    Caller has to free the returned unicode string using Unicode_Free.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Unicode
+FileVMFSGetCanonicalPath(ConstUnicode absVMDirName)   // IN
+{
+   /*
+    * Max directory level that we will climb looking for an NFS config VVol.
+    * Don't set it very high or else we will hurt the common case.
+    */
+#define MAX_SUBDIR_LEVEL   1
+
+   struct statfs statfs_buf;
+   VVol_IoctlArgs args;
+   VVolGetNFSCanonicalPathArgs *getCanonArgs = NULL;
+   int ctrlfd = -1;
+   int searchDepth = MAX_SUBDIR_LEVEL;
+   /*
+    * Directory that we are currently verifying. This starts as
+    * absVMDirName and then keeps climbing to the parent one level
+    * at a time, till we exhaust searchDepth or we get a successful
+    * translation, indicating that we have hit an NFS config vvol
+    * directory, or we run outside the NFS filesystem.
+    */
+   Unicode currDir = NULL;
+   /*
+    * This holds the path fragment after the NFS config VVol. This will be
+    * non-empty only in the case when absVMDirName refers to some subdir
+    * inside the NFS config VVol directory. We keep collecting the path
+    * components as we change currDir one level at a time.
+    */
+   Unicode dirPath = NULL;
+   Unicode canonPath = NULL;  /* result */
+
+   /*
+    * absVMDirName should start with /vmfs/volumes/.
+    */
+   if (!Unicode_StartsWith(absVMDirName, VCFS_MOUNT_PATH)) {
+      goto use_same_path;
+   }
+
+   /*
+    * Only NFS config vvols can have a canonical name different from the
+    * absolute pathname provided. This will do the validity check also.
+    */
+   if (Posix_Statfs(absVMDirName, &statfs_buf) != 0 ||
+       (statfs_buf.f_type != NFSCLIENT_FSTYPENUM &&
+        statfs_buf.f_type != NFS41CLIENT_FSTYPENUM)) {
+      goto use_same_path;
+   }
+
+   /*
+    * The most likely reason this will fail is if the VVol control node is
+    * not present which means VVol module is not loaded. We can not translate
+    * the pathname in that case.
+    */
+   ctrlfd = Posix_Open(VVOL_NAMESPACE_CONTROL_NODE, O_RDONLY);
+   if (ctrlfd < 0) {
+      goto use_same_path;
+   }
+
+   /*
+    * If the user has passed a filename (instead of a dirname) we
+    * cannot pass it as-is to the ioctl as it works on a directory
+    * name.
+    */
+   if (!File_IsDirectory(absVMDirName)) {
+      File_GetPathName(absVMDirName, &currDir, &dirPath);
+      ASSERT(currDir);
+      ASSERT(dirPath);
+   }
+
+   /*
+    * VM directory is on an NFS fileystem. It could be a regular NFS filesystem
+    * backed storage or an NFS config VVol. We need to check.
+    */
+   getCanonArgs = Util_SafeCalloc(1, sizeof(*getCanonArgs));
+
+   args.type = VVOL_GET_NFS_CANONICAL_PATH;
+   args.data = (uint64)(VA) getCanonArgs;
+   args.length = sizeof(*getCanonArgs);
+
+   /*
+    * Start searching for the NFS config VVol starting from absVMDirName
+    * (or currDir, if absVMDirName is not a directory).
+    * In most case this will be the NFS config VVol directory, but we also
+    * support cases where absVMDirName refers to a subdir inside the NFS
+    * config VVol directory.
+    */
+   do {
+      Unicode pathname, basename;
+
+      Unicode_CopyBytes(getCanonArgs->absNFSPath,
+                        currDir ? : absVMDirName,
+                        sizeof(getCanonArgs->absNFSPath),
+                        NULL, STRING_ENCODING_UTF8);
+
+      if (ioctl(ctrlfd, IOCTLCMD_VMFS_VVOL, &args) == 0) {
+         /*
+          * ioctl successful. currDir refers to an NFS config VVol directory.
+          * getCanonArgs->canonPath contains the canonical path to use.
+          * This is the fastpath.
+          */
+         break;
+      } else if (errno != ENOENT) {
+         /*
+          * ENOENT indicates that the kernel did not find a matching bind
+          * mount. In that case we try climbing up one level and test that
+          * for an NFS config VVol.
+          */
+         goto use_same_path;
+      }
+
+      if (searchDepth == 0) {
+         goto use_same_path;
+      }
+      /*
+       * Try the next level dir.
+       */
+      File_GetPathName(currDir ? : absVMDirName, &pathname, &basename);
+      Unicode_Free(currDir);
+      currDir = pathname;
+      /*
+       * Update dirPath that we eventually need to append to get the full path.
+       */
+      if (dirPath == NULL) {
+         dirPath = basename;
+      } else {
+         Unicode tmpDirPath = Unicode_Join(basename, DIRSEPS, dirPath, NULL);
+         Unicode_Free(basename);
+         Unicode_Free(dirPath);
+         dirPath = tmpDirPath;
+      }
+      /*
+       * If we have fallen off the NFS filesystem no need to search further,
+       * we can never find the config VVol.
+       */
+      if (Posix_Statfs(currDir, &statfs_buf) != 0 ||
+          (statfs_buf.f_type != NFSCLIENT_FSTYPENUM &&
+           statfs_buf.f_type != NFS41CLIENT_FSTYPENUM)) {
+         goto use_same_path;
+      }
+   } while (searchDepth-- > 0);
+
+   canonPath = Unicode_Format("%s%s", getCanonArgs->canonPath, dirPath ? : "");
+
+done:
+   close(ctrlfd);
+   free(getCanonArgs);
+   Unicode_Free(currDir);
+   Unicode_Free(dirPath);
+   ASSERT(canonPath != NULL);
+   return canonPath;
+
+use_same_path:
+   ASSERT(canonPath == NULL);
+   canonPath = Unicode_Alloc(absVMDirName, STRING_ENCODING_DEFAULT);
+   goto done;
+}
+#endif
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -594,6 +795,9 @@ File_FullPath(ConstUnicode pathName)  // IN:
 {
    Unicode cwd;
    Unicode ret;
+#if defined(VMX86_SERVER)
+   Unicode canonPath;
+#endif
 
    if ((pathName != NULL) && File_IsFullPath(pathName)) {
       cwd = NULL;
@@ -624,7 +828,21 @@ File_FullPath(ConstUnicode pathName)  // IN:
 
    Unicode_Free(cwd);
 
+#if defined(VMX86_SERVER)
+   /*
+    * NFS config-VVols introduce a special type of in-kernel link called the
+    * bind mount. Posix_RealPath() doesn't resolve that. We need to resolve
+    * it explicitly.
+    * We don't want to store PE based path in any file. All configuration
+    * files should contain canonical path only.
+    */
+   canonPath = FileVMFSGetCanonicalPath(ret);
+   Unicode_Free(ret);
+
+   return canonPath;
+#else
    return ret;
+#endif
 }
 
 
