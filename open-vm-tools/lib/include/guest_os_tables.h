@@ -81,6 +81,7 @@
    GOT(GUEST_OS_DARWIN11)          /* Mac OS 10.7 */          \
    GOT(GUEST_OS_DARWIN11_64)                                  \
    GOT(GUEST_OS_DARWIN12_64)       /* Mac OS 10.8 */          \
+   GOT(GUEST_OS_DARWIN13_64)       /* Mac OS 10.9 */          \
    GOT(GUEST_OS_OPENSERVER_5_AND_6)                           \
    GOT(GUEST_OS_UNIXWARE7)                                    \
    GOT(GUEST_OS_NETWARE4)                                     \
@@ -228,7 +229,7 @@
    GOSL(STR_OS_MACOS "11",                   GUEST_OS_DARWIN11)             \
    GOSL(STR_OS_MACOS "11-64",                GUEST_OS_DARWIN11_64)          \
    GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN12_64)          \
-   GOSL(STR_OS_MACOS "13-64",                GUEST_OS_DARWIN12_64)          \
+   GOSL(STR_OS_MACOS "13-64",                GUEST_OS_DARWIN13_64)          \
    GOSL("other",                             GUEST_OS_OTHER)                \
    GOSL("other-64",                          GUEST_OS_OTHER_64)             \
    GOSL("vmkernel",                          GUEST_OS_VMKERNEL)             \
