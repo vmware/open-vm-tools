@@ -161,33 +161,6 @@ HSPU_GetMetaPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 /*
  *-----------------------------------------------------------------------------
  *
- * HSPU_GetDataPacketIov --
- *
- *    Get a data packet in an iov form given an hgfs packet.
- *    Guest mappings will be established.
- *
- * Results:
- *    Pointer to data packet iov.
- *
- * Side effects:
- *    Buffer may be allocated.
- *-----------------------------------------------------------------------------
- */
-
-void *
-HSPU_GetDataPacketIov(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
-                      HgfsTransportSessionInfo *transportSession, // IN: Session Info
-                      HgfsVaIov iov)            // OUT: I/O vector
-{
-   NOT_IMPLEMENTED();
-   return NULL;
-
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * HSPU_GetDataPacketBuf --
  *
  *    Get a data packet given an hgfs packet.

@@ -43,12 +43,6 @@ struct HgfsVmxIov {
    char *token;        /* Token for physMem_ APIs */
 } HgfsVmxIov;
 
-typedef
-struct HgfsVaIov {
-   void *va;
-   uint32 len;
-}HgfsVaIov;
-
 typedef enum {
    BUF_READABLE,      /* Establish readable mappings */
    BUF_WRITEABLE,     /* Establish writeable mappings */
