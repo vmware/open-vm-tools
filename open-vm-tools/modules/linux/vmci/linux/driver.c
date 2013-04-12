@@ -124,7 +124,7 @@ static struct pci_driver vmci_driver = {
    .name     = "vmci",
    .id_table = vmci_ids,
    .probe = vmci_probe_device,
-   .remove = __devexit_p(vmci_remove_device),
+   .remove = vmci_remove_device,
 };
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
@@ -1750,7 +1750,7 @@ vmci_enable_msix(struct pci_dev *pdev) // IN
  *-----------------------------------------------------------------------------
  */
 
-static int __devinit
+static int
 vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
                   const struct pci_device_id *id) // IN: matching device ID
 {
@@ -1978,7 +1978,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
  *-----------------------------------------------------------------------------
  */
 
-static void __devexit
+static void
 vmci_remove_device(struct pci_dev* pdev)
 {
    struct vmci_device *dev = pci_get_drvdata(pdev);
@@ -2031,8 +2031,6 @@ vmci_remove_device(struct pci_dev* pdev)
 
    pci_disable_device(pdev);
 }
-
-
 
 
 /*
