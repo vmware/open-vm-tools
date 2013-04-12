@@ -5612,13 +5612,139 @@ size_t
 HgfsPackCalculateNotificationSize(char const *shareName, // IN: shared folder name
                                   char *fileName)        // IN: relative file path
 {
-   size_t result = sizeof(HgfsRequestNotifyV4);
+   size_t result = sizeof (HgfsRequestNotifyV4);
 
    if (NULL != fileName) {
       size_t shareNameLen = strlen(shareName);
       result += strlen(fileName) + 1 + shareNameLen;
    }
-   result += sizeof(HgfsHeader);
+   result += sizeof (HgfsHeader);
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackGetOplockBreakSize --
+ *
+ *    Gets the size needed for the oplock break request.
+ *
+ * Results:
+ *    Size of the oplock break request.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+size_t
+HgfsPackGetOplockBreakSize(void)
+{
+   return sizeof (HgfsRequestOplockBreakV4) + sizeof (HgfsHeader);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackOplockBreakRequestV4( --
+ *
+ *    Pack hgfs oplock break V4 request to be sent to the guest.
+ *
+ * Results:
+ *    Length of the packed structure or 0 if the structure does not fit in the
+ *    the buffer.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static size_t
+HgfsPackOplockBreakRequestV4(HgfsHandle fileId,                // IN: file ID
+                             HgfsLockType serverLock,          // IN: lock type
+                             size_t bufferSize,                // IN: available space
+                             HgfsRequestOplockBreakV4 *reply)  // OUT: notification buffer
+{
+   size_t size = 0;
+
+   if (bufferSize < sizeof *reply) {
+      goto exit;
+   }
+
+   reply->reserved = 0;
+   reply->fid = fileId;
+   reply->serverLock = serverLock;
+   size = sizeof *reply;
+
+exit:
+   return size;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPackOplockBreakRequest --
+ *
+ *    Pack the HGFS protocol Oplock break request.
+ *
+ * Results:
+ *    TRUE if successfully packed the request, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsPackOplockBreakRequest(void *packet,                    // IN/OUT: Hgfs Packet
+                           HgfsHandle fileId,               // IN: file ID
+                           HgfsLockType serverLock,         // IN: lock type
+                           uint64 sessionId,                // IN: session ID
+                           size_t *bufferSize)              // IN/OUT: size of packet
+{
+   size_t opBreakRequestSize;
+   HgfsRequestOplockBreakV4 *opBreakRequest;
+   HgfsHeader *header = packet;
+   Bool result = TRUE;
+
+   ASSERT(packet);
+   ASSERT(bufferSize);
+
+   if (*bufferSize < sizeof *header) {
+      result = FALSE;
+      goto exit;
+   }
+
+   /*
+    *  Initialize notification header.
+    *  Set status and requestId to 0 since these fields are not relevant for
+    *  oplock break requests.
+    *  Initialize payload size to 0 - it is not known yet and will be filled later.
+    */
+   opBreakRequest = (HgfsRequestOplockBreakV4 *)((char *)header + sizeof *header);
+   opBreakRequestSize = HgfsPackOplockBreakRequestV4(fileId,
+                                                     serverLock,
+                                                     *bufferSize - sizeof *header,
+                                                     opBreakRequest);
+   if (0 == opBreakRequestSize) {
+      result = FALSE;
+      goto exit;
+   }
+
+   HgfsPackReplyHeaderV4(0,
+                         opBreakRequestSize,
+                         HGFS_OP_OPLOCK_BREAK_V4,
+                         sessionId,
+                         0,
+                         header);
+
+exit:
    return result;
 }
 
