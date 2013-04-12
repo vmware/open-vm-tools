@@ -125,52 +125,6 @@ static HgfsCapability hgfsDefaultCapabilityTable[] =
    {HGFS_OP_SET_EAS_V4,            HGFS_REQUEST_NOT_SUPPORTED},
 };
 
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsValidatePacket --
- *
- *    Validates that packet is not malformed. Checks consistency of various
- *    fields and sizes.
- *
- * Results:
- *    TRUE if the packet is correct.
- *    FALSE if the packet is malformed.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-HgfsValidatePacket(char const *packetIn,  // IN: request packet
-                   size_t packetSize,     // IN: request packet size
-                   Bool v4header)         // IN: HGFS header type
-{
-   const HgfsRequest *request = (const HgfsRequest *)packetIn;
-   Bool result = TRUE;
-   if (packetSize < sizeof *request) {
-      LOG(4, ("%s: Malformed HGFS packet received - packet too small!\n", __FUNCTION__));
-      return FALSE;
-   }
-   if (v4header) {
-      const HgfsHeader *header = (const HgfsHeader *)packetIn;
-      ASSERT(packetSize >= header->packetSize);
-      ASSERT(header->packetSize >= header->headerSize);
-      result = packetSize >= offsetof(HgfsHeader, requestId) &&
-               header->headerSize >= offsetof(HgfsHeader, reserved) &&
-               header->packetSize >= header->headerSize &&
-               packetSize >= header->packetSize;
-   } else {
-      result = packetSize >= sizeof *request;
-   }
-   if (!result) {
-      LOG(4, ("%s: Malformed HGFS packet received!\n", __FUNCTION__));
-   }
-   return result;
-}
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -251,62 +205,6 @@ HgfsGetPayloadSize(char const *packetIn,        // IN: request packet
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerTransportGetDefaultSession --
- *
- *    Returns default session if there is one, otherwise creates it.
- *    XXX - this function should be moved to the HgfsServer file.
- *
- * Results:
- *    HGFS_ERROR_SUCCESS and the session if found or created successfully
- *    or an appropriate error if no memory or cannot add to the list of sessions.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-static HgfsInternalStatus
-HgfsServerTransportGetDefaultSession(HgfsTransportSessionInfo *transportSession, // IN: transport
-                                     HgfsSessionInfo **session)                  // OUT: session
-{
-   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
-   HgfsSessionInfo *defaultSession;
-
-   defaultSession = HgfsServerTransportGetSessionInfo(transportSession,
-                                                      transportSession->defaultSessionId);
-   if (NULL != defaultSession) {
-      /* The default session already exists, we are done. */
-      goto exit;
-   }
-
-   /*
-    * Create a new session if the default session doesn't exist.
-    */
-   if (!HgfsServerAllocateSession(transportSession,
-                                  &defaultSession)) {
-      status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
-      goto exit;
-   }
-
-   status = HgfsServerTransportAddSessionToList(transportSession,
-                                                defaultSession);
-   if (HGFS_ERROR_SUCCESS != status) {
-      LOG(4, ("%s: Could not add session to the list.\n", __FUNCTION__));
-      goto exit;
-   }
-
-   transportSession->defaultSessionId = defaultSession->sessionId;
-   HgfsServerSessionGet(defaultSession);
-
-exit:
-   *session = defaultSession;
-   return status;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * HgfsUnpackHeaderV1V2 --
  *
  *    Unpack the client request that contains a basic valid HgfsHeader for protocol
@@ -323,7 +221,7 @@ exit:
  */
 
 static HgfsInternalStatus
-HgfsUnpackHeaderV1V2(HgfsRequest *request,        // IN: request header
+HgfsUnpackHeaderV1V2(const HgfsRequest *request,  // IN: request header
                      size_t requestSize,          // IN: request data size
                      uint32 *requestId,           // OUT: unique request id
                      HgfsOp *opcode,              // OUT: request opcode
@@ -358,7 +256,7 @@ HgfsUnpackHeaderV1V2(HgfsRequest *request,        // IN: request header
  */
 
 static HgfsInternalStatus
-HgfsUnpackHeaderV3(HgfsRequest *request,        // IN: request header
+HgfsUnpackHeaderV3(const HgfsRequest *request,  // IN: request header
                    size_t requestSize,          // IN: request data size
                    uint32 *requestId,           // OUT: unique request id
                    HgfsOp *opcode,              // OUT: request opcode
@@ -390,7 +288,7 @@ HgfsUnpackHeaderV3(HgfsRequest *request,        // IN: request header
  *
  * Results:
  *    HGFS_ERROR_SUCCESS if successful or
- *    HGFS_STATUS_PROTOCOL_ERROR for a malformed reply.
+ *    HGFS_ERROR_INTERNAL for a malformed request, and we cannot trust the data.
  *
  * Side effects:
  *    None.
@@ -399,22 +297,22 @@ HgfsUnpackHeaderV3(HgfsRequest *request,        // IN: request header
  */
 
 static HgfsInternalStatus
-HgfsUnpackHeaderV4(HgfsHeader *requestHeader,   // IN: request header
-                   size_t requestSize,          // IN: request data size
-                   uint64 *sessionId,           // OUT: session Id
-                   uint32 *requestId,           // OUT: unique request id
-                   uint32 *hdrFlags,            // OUT: header flags
-                   uint32 *information,         // OUT: generic information
-                   HgfsOp *opcode,              // OUT: request opcode
-                   size_t *payloadSize,         // OUT: size of the payload
-                   const void **payload)        // OUT: pointer to the payload
+HgfsUnpackHeaderV4(const HgfsHeader *requestHeader,   // IN: request header
+                   size_t requestSize,                // IN: request data size
+                   uint64 *sessionId,                 // OUT: session Id
+                   uint32 *requestId,                 // OUT: unique request id
+                   uint32 *hdrFlags,                  // OUT: header flags
+                   uint32 *information,               // OUT: generic information
+                   HgfsOp *opcode,                    // OUT: request opcode
+                   size_t *payloadSize,               // OUT: size of the payload
+                   const void **payload)              // OUT: pointer to the payload
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
 
    if (requestSize < sizeof *requestHeader) {
       LOG(4, ("%s: Malformed HGFS packet received - header is too small!\n",
               __FUNCTION__));
-      status = HGFS_ERROR_PROTOCOL;
+      status = HGFS_ERROR_INTERNAL;
       goto exit;
    }
 
@@ -422,16 +320,18 @@ HgfsUnpackHeaderV4(HgfsHeader *requestHeader,   // IN: request header
        requestHeader->packetSize < requestHeader->headerSize) {
       LOG(4, ("%s: Malformed HGFS packet received - inconsistent header"
               " and packet sizes!\n", __FUNCTION__));
-      status = HGFS_ERROR_PROTOCOL;
+      status = HGFS_ERROR_INTERNAL;
       goto exit;
    }
 
    if (HGFS_HEADER_VERSION_1 > requestHeader->version) {
       LOG(4, ("%s: Malformed HGFS packet received - invalid header version!\n",
               __FUNCTION__));
-      status = HGFS_ERROR_PROTOCOL;
+      status = HGFS_ERROR_INTERNAL;
       goto exit;
    }
+
+   ASSERT(HGFS_V4_LEGACY_OPCODE == requestHeader->dummy);
 
    /* The basics of the header are validated, get the remaining parameters. */
    *sessionId   = requestHeader->sessionId;
@@ -475,85 +375,66 @@ exit:
  */
 
 HgfsInternalStatus
-HgfsUnpackPacketParams(HgfsPacket *packet,                        // IN: packet
-                       HgfsTransportSessionInfo *transportSession,// IN: session
-                       HgfsInputParam **input)                    // OUT: parameters
+HgfsUnpackPacketParams(void const *packet,      // IN: HGFS packet
+                       size_t packetSize,       // IN: request packet size
+                       Bool *sessionEnabled,    // OUT: session enabled request
+                       uint64 *sessionId,       // OUT: session Id
+                       uint32 *requestId,       // OUT: unique request id
+                       HgfsOp *opcode,          // OUT: request opcode
+                       size_t *payloadSize,     // OUT: size of the opcode request
+                       const void **payload)    // OUT: pointer to the opcode request
 {
-   HgfsRequest *request;
-   size_t packetSize;
-   HgfsInputParam *localInput;
-   uint64 sessionId = HGFS_INVALID_SESSION_ID;
-   HgfsSessionInfo *session = NULL;
-   HgfsInternalStatus parseStatus = HGFS_ERROR_SUCCESS;
+   const HgfsRequest *request;
+   HgfsInternalStatus unpackStatus = HGFS_ERROR_SUCCESS;
 
-   request = HSPU_GetMetaPacket(packet, &packetSize, transportSession);
-   ASSERT_DEVEL(request);
+   ASSERT(NULL != packet);
 
-   if (NULL == request) {
-      /*
-       * How can I return error back to the client, clearly the client is either broken or
-       * malicious? We cannot continue from here.
-       */
-      parseStatus = HGFS_ERROR_INTERNAL;
-      goto exit;
-   }
-
+   request = packet;
    LOG(4, ("%s: Received a request with opcode %d.\n", __FUNCTION__, (int) request->op));
-
-   *input = Util_SafeMalloc(sizeof *localInput);
-   localInput = *input;
-
-   memset(localInput, 0, sizeof *localInput);
-   localInput->metaPacket = (char *)request;
-   localInput->metaPacketSize = packetSize;
-   localInput->transportSession = transportSession;
-   localInput->packet = packet;
-   localInput->session = NULL;
 
    /*
     * Error out if less than HgfsRequest size.
     * We cannot continue any further with this packet.
     */
    if (packetSize < sizeof *request) {
-      if (packetSize >= sizeof request->id) {
-         localInput->id = request->id;
-      }
       ASSERT_DEVEL(0);
-      parseStatus = HGFS_ERROR_INTERNAL;
+      unpackStatus = HGFS_ERROR_INTERNAL;
       goto exit;
    }
 
+   *sessionEnabled = FALSE;
+
    if (request->op < HGFS_OP_OPEN_V3) {
-      parseStatus = HgfsUnpackHeaderV1V2(request,
-                                         packetSize,
-                                         &localInput->id,
-                                         &localInput->op,
-                                         &localInput->payloadSize,
-                                         &localInput->payload);
+      unpackStatus = HgfsUnpackHeaderV1V2(request,
+                                          packetSize,
+                                          requestId,
+                                          opcode,
+                                          payloadSize,
+                                          payload);
    } else if (request->op < HGFS_OP_CREATE_SESSION_V4) {
-      parseStatus = HgfsUnpackHeaderV3(request,
-                                       packetSize,
-                                       &localInput->id,
-                                       &localInput->op,
-                                       &localInput->payloadSize,
-                                       &localInput->payload);
+      unpackStatus = HgfsUnpackHeaderV3(request,
+                                        packetSize,
+                                        requestId,
+                                        opcode,
+                                        payloadSize,
+                                        payload);
    } else if (HGFS_V4_LEGACY_OPCODE == request->op) {
       /* The legacy op means a new header but we can have V3 and newer opcodes. */
-      HgfsHeader *requestHdr = (HgfsHeader *)request;
+      const HgfsHeader *requestHdr = packet;
       uint32 hdrFlags = 0;
       uint32 information;
 
-      localInput->v4header = TRUE;
+      *sessionEnabled = TRUE;
 
-      parseStatus = HgfsUnpackHeaderV4(requestHdr,
-                                       packetSize,
-                                       &sessionId,
-                                       &localInput->id,
-                                       &hdrFlags,
-                                       &information,
-                                       &localInput->op,
-                                       &localInput->payloadSize,
-                                       &localInput->payload);
+      unpackStatus = HgfsUnpackHeaderV4(requestHdr,
+                                        packetSize,
+                                        sessionId,
+                                        requestId,
+                                        &hdrFlags,
+                                        &information,
+                                        opcode,
+                                        payloadSize,
+                                        payload);
 
       /* XXX - TBD analyze flags and information. */
       ASSERT(0 == hdrFlags ||
@@ -562,47 +443,11 @@ HgfsUnpackPacketParams(HgfsPacket *packet,                        // IN: packet
    } else {
       LOG(4, ("%s: HGFS packet - unknown opcode == newer client or malformed!\n",
               __FUNCTION__));
-      parseStatus = HGFS_ERROR_PROTOCOL;
+      unpackStatus = HGFS_ERROR_INTERNAL;
    }
 
-   /*
-    * Check for any header parsing issues, and if so bail.
-    */
-   if (HGFS_ERROR_SUCCESS != parseStatus) {
-      goto exit;
-   }
-
-   /*
-    * Every request must be processed within an HGFS session, except create session.
-    * If we don't already have an HGFS session for processing this request,
-    * then use or create the default session.
-    */
-   if (localInput->v4header) {
-      if (localInput->op != HGFS_OP_CREATE_SESSION_V4) {
-         session = HgfsServerTransportGetSessionInfo(transportSession,
-                                                     sessionId);
-         if (NULL == session || session->state != HGFS_SESSION_STATE_OPEN) {
-            LOG(4, ("%s: HGFS packet with invalid session id!\n", __FUNCTION__));
-            parseStatus = HGFS_ERROR_STALE_SESSION;
-         }
-      }
-   } else {
-      ASSERT(NULL == session);
-      parseStatus = HgfsServerTransportGetDefaultSession(transportSession,
-                                                         &session);
-   }
-
-   if (NULL != session) {
-      session->isInactive = FALSE;
-   }
-
-   localInput->session = session;
-   if (NULL != localInput->payload) {
-      localInput->payloadOffset = (char *)localInput->payload -
-                                  (char *)localInput->metaPacket;
-   }
 exit:
-   return parseStatus;
+   return unpackStatus;
 }
 
 

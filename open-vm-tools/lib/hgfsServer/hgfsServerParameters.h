@@ -38,14 +38,28 @@
 
 
 HgfsInternalStatus
-HgfsUnpackPacketParams(HgfsPacket *packet,                         // IN: request packet
-                       HgfsTransportSessionInfo *transportSession, // IN: current session
-                       HgfsInputParam **input);                    // OUT: request parameters
+HgfsUnpackPacketParams(void const *packet,      // IN: HGFS packet
+                       size_t packetSize,       // IN: request packet size
+                       Bool *sessionEnabled,    // OUT: session enabled request
+                       uint64 *sessionId,       // OUT: session Id
+                       uint32 *requestId,       // OUT: unique request id
+                       HgfsOp *opcode,          // OUT: request opcode
+                       size_t *payloadSize,     // OUT: size of the opcode request
+                       const void **payload);    // OUT: pointer to the opcode request
 
+void
+HgfsPackReplyHeaderV4(HgfsInternalStatus status,  // IN: platfrom independent HGFS status code
+                      uint32 payloadSize,         // IN: size of HGFS operational packet
+                      HgfsOp op,                  // IN: request type
+                      uint64 sessionId,           // IN: session id
+                      uint32 requestId,           // IN: request id
+                      uint32 hdrFlags,            // IN: header flags
+                      HgfsHeader *header);        // OUT: packet header
 void
 HgfsPackLegacyReplyHeader(HgfsInternalStatus status,    // IN: reply status
                           HgfsHandle id,                // IN: original packet id
                           HgfsReply *header);           // OUT: outgoing packet header
+
 Bool
 HgfsUnpackOpenRequest(void const *packet,          // IN: incoming packet
                       size_t packetSize,           // IN: size of packet

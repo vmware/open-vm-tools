@@ -477,17 +477,17 @@ typedef struct HgfsCreateSessionInfo {
 
 
 typedef struct HgfsInputParam {
-   const char *metaPacket;
-   size_t metaPacketSize;
-   HgfsSessionInfo *session;
+   const char *metaPacket;       /* Hgfs header followed by operation request */
+   size_t metaPacketSize;        /* Size of Hgfs header and operation request */
+   HgfsSessionInfo *session;     /* Hgfs session data */
    HgfsTransportSessionInfo *transportSession;
-   HgfsPacket *packet;
-   void const *payload;
-   uint32 payloadOffset;
-   size_t payloadSize;
-   HgfsOp op;
-   uint32 id;
-   Bool v4header;
+   HgfsPacket *packet;           /* Public (server/transport) Hgfs packet */
+   void const *payload;          /* Hgfs operation request */
+   uint32 payloadOffset;         /* Offset to start of Hgfs operation request */
+   size_t payloadSize;           /* Hgfs operation request size */
+   HgfsOp op;                    /* Hgfs operation command code */
+   uint32 id;                    /* Request ID to be matched with the reply */
+   Bool sessionEnabled;          /* Requests have session enabled headers */
 } HgfsInputParam;
 
 Bool
@@ -834,18 +834,6 @@ HgfsPlatformVDirStatsFs(HgfsSessionInfo *session,  // IN: session info
                         VolumeInfoType infoType,   // IN:
                         uint64 *outFreeBytes,      // OUT:
                         uint64 *outTotalBytes);    // OUT:
-Bool
-HgfsValidatePacket(char const *packetIn, // IN: HGFS packet
-                   size_t packetSize,    // IN: HGFS packet size
-                   Bool v4header);       // IN: HGFS header type
-void
-HgfsPackReplyHeaderV4(HgfsInternalStatus status,  // IN: platfrom independent HGFS status code
-                      uint32 payloadSize,         // IN: size of HGFS operational packet
-                      HgfsOp op,                  // IN: request type
-                      uint64 sessionId,           // IN: session id
-                      uint32 requestId,           // IN: request id
-                      uint32 hdrFlags,            // IN: header flags
-                      HgfsHeader *header);        // OUT: packet header
 
 HgfsInternalStatus
 HgfsPlatformGetFd(HgfsHandle hgfsHandle,    // IN:  HGFS file handle

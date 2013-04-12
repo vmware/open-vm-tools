@@ -87,11 +87,12 @@
 #define HGFS_ASSERT_CLIENT(op)
 #endif
 
-#define HGFS_ASSERT_INPUT(input) ASSERT(input && input->packet && input->metaPacket && \
-                                        ((!input->v4header && input->session) || \
-                                         (input->v4header && \
-                                          (input->op == HGFS_OP_CREATE_SESSION_V4 || input->session))) && \
-                                        (!input->payloadSize || input->payload))
+#define HGFS_ASSERT_INPUT(input) \
+   ASSERT(input && input->packet && input->metaPacket && \
+          ((!input->sessionEnabled && input->session) || \
+          (input->sessionEnabled && \
+          (input->op == HGFS_OP_CREATE_SESSION_V4 || input->session))) && \
+          (!input->payloadSize || input->payload))
 
 /*
  * Define this to enable an ASSERT if server gets an op lower than
@@ -283,6 +284,9 @@ static void HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder,
                                     struct HgfsSessionInfo *session);
 static void HgfsFreeSearchDirents(HgfsSearch *search);
 
+static HgfsInternalStatus
+HgfsServerTransportGetDefaultSession(HgfsTransportSessionInfo *transportSession,
+                                     HgfsSessionInfo **session);
 
 /*
  * Opcode handlers
@@ -2840,6 +2844,160 @@ static struct {
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerInputAllocInit --
+ *
+ *    Allocates and initializes the input params object with the operation parameters.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerInputAllocInit(HgfsPacket *packet,                        // IN: packet
+                         HgfsTransportSessionInfo *transportSession,// IN: session
+                         HgfsSessionInfo *session,                  // IN: session Id
+                         void const *request,                       // IN: HGFS packet
+                         size_t requestSize,                        // IN: request packet size
+                         Bool sessionEnabled,                       // IN: session enabled request
+                         uint32 requestId,                          // IN: unique request id
+                         HgfsOp requestOp,                          // IN: op
+                         size_t requestOpArgsSize,                  // IN: op args size
+                         const void *requestOpArgs,                 // IN: op args
+                         HgfsInputParam **params)                   // OUT: parameters
+{
+   HgfsInputParam *localParams;
+
+   localParams = Util_SafeCalloc(1, sizeof *localParams);
+
+   localParams->packet = packet;
+   localParams->metaPacket = request;
+   localParams->metaPacketSize = requestSize;
+   localParams->transportSession = transportSession;
+   localParams->session = session;
+   localParams->id = requestId;
+   localParams->sessionEnabled = sessionEnabled;
+   localParams->op = requestOp;
+   localParams->payload = requestOpArgs;
+   localParams->payloadSize = requestOpArgsSize;
+
+   if (NULL != localParams->payload) {
+      localParams->payloadOffset = (char *)localParams->payload -
+                                   (char *)localParams->metaPacket;
+   }
+   *params = localParams;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerGetRequest --
+ *
+ *    Takes the Hgfs packet and extracts the operation parameters.
+ *    This validates the incoming packet as part of the processing.
+ *
+ * Results:
+ *    HGFS_ERROR_SUCCESS if all the request parameters are successfully extracted.
+ *    HGFS_ERROR_INTERNAL if an error occurs without sufficient request data to be
+ *    able to send a reply to the client.
+ *    Any other appropriate error if the incoming packet has errors and there is
+ *    sufficient information to send a response.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsServerGetRequest(HgfsPacket *packet,                        // IN: packet
+                     HgfsTransportSessionInfo *transportSession,// IN: session
+                     HgfsInputParam **input)                    // OUT: parameters
+{
+   HgfsSessionInfo *session = NULL;
+   uint64 sessionId = HGFS_INVALID_SESSION_ID;
+   Bool sessionEnabled = FALSE;
+   uint32 requestId;
+   HgfsOp opcode;
+   const void *request;
+   size_t requestSize;
+   const void *requestOpArgs;
+   size_t requestOpArgsSize;
+   HgfsInternalStatus parseStatus = HGFS_ERROR_SUCCESS;
+
+   request = HSPU_GetMetaPacket(packet, &requestSize, transportSession);
+   ASSERT_DEVEL(request);
+
+   if (NULL == request) {
+      /*
+       * How can I return error back to the client, clearly the client is either broken or
+       * malicious? We cannot continue from here.
+       */
+      parseStatus = HGFS_ERROR_INTERNAL;
+      goto exit;
+   }
+
+   parseStatus = HgfsUnpackPacketParams(request,
+                                        requestSize,
+                                        &sessionEnabled,
+                                        &sessionId,
+                                        &requestId,
+                                        &opcode,
+                                        &requestOpArgsSize,
+                                        &requestOpArgs);
+   if (HGFS_ERROR_INTERNAL == parseStatus) {
+      /* The packet was malformed and we cannot reply. */
+      goto exit;
+   }
+
+   /*
+    * Every request must be processed within an HGFS session, except create session.
+    * If we don't already have an HGFS session for processing this request,
+    * then use or create the default session.
+    */
+   if (sessionEnabled) {
+      if (opcode != HGFS_OP_CREATE_SESSION_V4) {
+         session = HgfsServerTransportGetSessionInfo(transportSession,
+                                                     sessionId);
+         if (NULL == session || session->state != HGFS_SESSION_STATE_OPEN) {
+            LOG(4, ("%s: HGFS packet with invalid session id!\n", __FUNCTION__));
+            parseStatus = HGFS_ERROR_STALE_SESSION;
+         }
+      }
+   } else {
+      parseStatus = HgfsServerTransportGetDefaultSession(transportSession,
+                                                         &session);
+   }
+
+   if (NULL != session) {
+      session->isInactive = FALSE;
+   }
+
+   HgfsServerInputAllocInit(packet,
+                            transportSession,
+                            session,
+                            request,
+                            requestSize,
+                            sessionEnabled,
+                            requestId,
+                            opcode,
+                            requestOpArgsSize,
+                            requestOpArgs,
+                            input);
+
+exit:
+   return parseStatus;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerCompleteRequest --
  *
  *    Performs all necessary action which needed for completing HGFS request:
@@ -2871,7 +3029,7 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       ASSERT(input);
    }
 
-   if (input->v4header) {
+   if (input->sessionEnabled) {
       HgfsHeader *header;
       replySize = sizeof *header + replyPayloadSize;
       replyPacketSize = replySize;
@@ -3005,7 +3163,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
 
    HgfsServerTransportSessionGet(transportSession);
 
-   status = HgfsUnpackPacketParams(packet, transportSession, &input);
+   status = HgfsServerGetRequest(packet, transportSession, &input);
    if (HGFS_ERROR_INTERNAL == status) {
       LOG(4, ("%s: %d: Error: packet invalid and cannot reply %d.\n ",
               __FUNCTION__, __LINE__, status));
@@ -3017,9 +3175,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
    HGFS_ASSERT_MINIMUM_OP(input->op);
    if (HGFS_ERROR_SUCCESS == status) {
       HGFS_ASSERT_INPUT(input);
-      if (HgfsValidatePacket(input->metaPacket, input->metaPacketSize,
-                             input->v4header) &&
-          (input->op < ARRAYSIZE(handlers)) &&
+      if ((input->op < ARRAYSIZE(handlers)) &&
           (handlers[input->op].handler != NULL) &&
           (input->metaPacketSize >= handlers[input->op].minReqSize)) {
          /* Initial validation passed, process the client request now. */
@@ -3117,6 +3273,65 @@ HgfsServerTransportGetSessionInfo(HgfsTransportSessionInfo *transportSession,   
    MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
 
    return session;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportGetDefaultSession --
+ *
+ *    Returns default session if there is one, otherwise creates it.
+ *    XXX - this function should be moved to the HgfsServer file.
+ *
+ * Results:
+ *    HGFS_ERROR_SUCCESS and the session if found or created successfully
+ *    or an appropriate error if no memory or cannot add to the list of sessions.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsServerTransportGetDefaultSession(HgfsTransportSessionInfo *transportSession, // IN: transport
+                                     HgfsSessionInfo **session)                  // OUT: session
+{
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
+   HgfsSessionInfo *defaultSession;
+
+   defaultSession = HgfsServerTransportGetSessionInfo(transportSession,
+                                                      transportSession->defaultSessionId);
+   if (NULL != defaultSession) {
+      /* The default session already exists, we are done. */
+      goto exit;
+   }
+
+   /*
+    * Create a new session if the default session doesn't exist.
+    */
+   if (!HgfsServerAllocateSession(transportSession,
+                                  &defaultSession)) {
+      status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+      goto exit;
+   }
+
+   status = HgfsServerTransportAddSessionToList(transportSession,
+                                                defaultSession);
+   if (HGFS_ERROR_SUCCESS != status) {
+      LOG(4, ("%s: Could not add session to the list.\n", __FUNCTION__));
+      HgfsServerSessionPut(defaultSession);
+      defaultSession = NULL;
+      goto exit;
+   }
+
+   transportSession->defaultSessionId = defaultSession->sessionId;
+   HgfsServerSessionGet(defaultSession);
+
+exit:
+   *session = defaultSession;
+   return status;
 }
 
 
