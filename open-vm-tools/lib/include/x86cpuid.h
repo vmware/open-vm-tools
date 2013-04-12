@@ -409,7 +409,7 @@ FLAG(   7,  0, EBX,  5,  1, AVX2,                                   YES, TRUE)  
 FLAG(   7,  0, EBX,  7,  1, SMEP,                                   YES, FALSE) \
 FLAG(   7,  0, EBX,  8,  1, BMI2,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX,  9,  1, ENFSTRG,                                YES, FALSE) \
-FLAG(   7,  0, EBX, 10,  1, INVPCID,                                NO,  FALSE) \
+FLAG(   7,  0, EBX, 10,  1, INVPCID,                                YES, FALSE) \
 FLAG(   7,  0, EBX, 11,  1, RTM,                                    YES, TRUE)  \
 FLAG(   7,  0, EBX, 13,  1, FP_SEGMENT_ZERO,                        YES, TRUE)
 
