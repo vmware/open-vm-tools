@@ -3192,8 +3192,9 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
           (handlers[input->op].handler != NULL) &&
           (input->metaPacketSize >= handlers[input->op].minReqSize)) {
          /* Initial validation passed, process the client request now. */
-         packet->processedAsync = packet->supportsAsync &&
-                                         (handlers[input->op].reqType == REQ_ASYNC);
+         packet->processedAsync = (handlers[input->op].reqType == REQ_ASYNC) &&
+            (transportSession->channelCapabilities.flags & HGFS_CHANNEL_ASYNC);
+                                         ;
          if (packet->processedAsync) {
             LOG(4, ("%s: %d: @@Async\n", __FUNCTION__, __LINE__));
 #ifndef VMX86_TOOLS

@@ -59,9 +59,6 @@ typedef
 struct HgfsPacket {
    uint64 id;
 
-   /* Does the transport support Async operations ? */
-   Bool supportsAsync;
-
    /* Does transport need to send Async reply ? */
    Bool processedAsync;
 
