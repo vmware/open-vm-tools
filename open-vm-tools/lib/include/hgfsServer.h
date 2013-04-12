@@ -40,7 +40,7 @@ struct HgfsVmxIov {
    void *va;           /* Virtual addr */
    uint64 pa;          /* Physical address passed by the guest */
    uint32 len;         /* length of data; should be <= PAGE_SIZE for VMCI; arbitrary for backdoor */
-   char *token;        /* Token for physMem_ APIs */
+   void *context;      /* Mapping context */
 } HgfsVmxIov;
 
 typedef enum {
@@ -116,11 +116,6 @@ typedef struct HgfsServerChannelData {
    uint32 maxPacketSize;
 }HgfsServerChannelData;
 
-typedef Bool
-HgfsSessionSendFunc(void *opaqueSession,  // IN
-                    char *buffer,         // IN
-                    size_t bufferLen,     // IN
-                    HgfsSendFlags flags); // IN
 
 /* Default maximum number of open nodes. */
 #define HGFS_MAX_CACHED_FILENODES   30
@@ -137,12 +132,19 @@ typedef struct HgfsServerConfig {
    uint32 maxCachedOpenNodes;
 }HgfsServerConfig;
 
+typedef Bool (*HgfsChannelSendFunc)(void *opaqueSession,
+                                    HgfsPacket *packet,
+                                    char *buffer,
+                                    size_t bufferLen,
+                                    HgfsSendFlags flags);
+typedef void * (*HgfsChannelMapVirtAddrFunc)(uint64 pa, uint32 size, void **context);
+typedef void (*HgfsChannelUnmapVirtAddrFunc)(void **context);
+
 typedef struct HgfsServerChannelCallbacks {
-    void* (*getReadVa)(uint64 pa, uint32 size, char **token);
-    void* (*getWriteVa)(uint64 pa, uint32 size, char **token);
-    void (*putVa)(char **token);
-    Bool (*send)(void *opaqueSession, HgfsPacket *packet, char *buffer,
-                 size_t bufferLen, HgfsSendFlags flags);
+    HgfsChannelMapVirtAddrFunc getReadVa;
+    HgfsChannelMapVirtAddrFunc getWriteVa;
+    HgfsChannelUnmapVirtAddrFunc putVa;
+    HgfsChannelSendFunc send;
 }HgfsServerChannelCallbacks;
 
 typedef struct HgfsServerSessionCallbacks {

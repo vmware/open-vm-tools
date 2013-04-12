@@ -215,7 +215,8 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    uint32 iovMapped = 0;
    int32 size = bufSize;
    int i;
-   void* (*func)(uint64, uint32, char **);
+   HgfsChannelMapVirtAddrFunc getVa;
+
    ASSERT(buf);
 
    if (*buf) {
@@ -230,14 +231,14 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
 
    if (mappingType == BUF_WRITEABLE ||
        mappingType == BUF_READWRITEABLE) {
-      func = transportSession->channelCbTable->getWriteVa;
+      getVa = transportSession->channelCbTable->getWriteVa;
    } else {
       ASSERT(mappingType == BUF_READABLE);
-      func = transportSession->channelCbTable->getReadVa;
+      getVa = transportSession->channelCbTable->getReadVa;
    }
 
    /* Looks like we are in the middle of poweroff. */
-   if (func == NULL) {
+   if (getVa == NULL) {
       return NULL;
    }
 
@@ -245,15 +246,15 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    for (iovCount = startIndex; iovCount < packet->iovCount && size > 0;
         iovCount++) {
 
-      packet->iov[iovCount].token = NULL;
+      packet->iov[iovCount].context = NULL;
 
       /* Debugging check: Iov in VMCI should never cross page boundary */
       ASSERT_DEVEL(packet->iov[iovCount].len <=
       (PAGE_SIZE - PAGE_OFFSET(packet->iov[iovCount].pa)));
 
-      packet->iov[iovCount].va = func(packet->iov[iovCount].pa,
-                                      packet->iov[iovCount].len,
-                                      &packet->iov[iovCount].token);
+      packet->iov[iovCount].va = getVa(packet->iov[iovCount].pa,
+                                       packet->iov[iovCount].len,
+                                       &packet->iov[iovCount].context);
       ASSERT_DEVEL(packet->iov[iovCount].va);
       if (packet->iov[iovCount].va == NULL) {
          /* Guest probably passed us bad physical address */
@@ -302,7 +303,7 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
 
 freeMem:
    for (i = startIndex; i < iovCount; i++) {
-      transportSession->channelCbTable->putVa(&packet->iov[i].token);
+      transportSession->channelCbTable->putVa(&packet->iov[i].context);
       packet->iov[i].va = NULL;
    }
 
@@ -436,8 +437,8 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       for (iovCount = startIndex;
            iovCount < packet->iovCount && size > 0;
            iovCount++) {
-         ASSERT_DEVEL(packet->iov[iovCount].token);
-         transportSession->channelCbTable->putVa(&packet->iov[iovCount].token);
+         ASSERT_DEVEL(packet->iov[iovCount].context);
+         transportSession->channelCbTable->putVa(&packet->iov[iovCount].context);
          size -= packet->iov[iovCount].len;
       }
       LOG(10, ("%s: Hgfs bufSize = %d \n", __FUNCTION__, size));
@@ -542,19 +543,20 @@ HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
       copyAmount = remainingSize < packet->iov[iovCount].len ?
                    remainingSize: packet->iov[iovCount].len;
 
-      packet->iov[iovCount].token = NULL;
+      packet->iov[iovCount].context = NULL;
 
       /* Debugging check: Iov in VMCI should never cross page boundary */
       ASSERT_DEVEL(packet->iov[iovCount].len <=
                   (PAGE_SIZE - PAGE_OFFSET(packet->iov[iovCount].pa)));
 
-      packet->iov[iovCount].va = transportSession->channelCbTable->getWriteVa(packet->iov[iovCount].pa,
-                                                     packet->iov[iovCount].len,
-                                                     &packet->iov[iovCount].token);
+      packet->iov[iovCount].va =
+         transportSession->channelCbTable->getWriteVa(packet->iov[iovCount].pa,
+                                                      packet->iov[iovCount].len,
+                                                      &packet->iov[iovCount].context);
       ASSERT_DEVEL(packet->iov[iovCount].va);
       if (packet->iov[iovCount].va != NULL) {
          memcpy(packet->iov[iovCount].va, (char *)buf + copiedAmount, copyAmount);
-         transportSession->channelCbTable->putVa(&packet->iov[iovCount].token);
+         transportSession->channelCbTable->putVa(&packet->iov[iovCount].context);
          remainingSize -= copyAmount;
          copiedAmount += copyAmount;
       } else {
