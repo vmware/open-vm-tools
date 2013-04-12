@@ -621,6 +621,29 @@ struct uuid_2_cid {
       int fd;
       int family;
 
+#if defined(linux)
+      /*
+       * vSockets is now in mainline kernel with address family 40.  As part
+       * of upstreaming, we removed the IOCTL we use below to determine the
+       * address family.  So to handle both a new and old kernel we do this:
+       * 1. Check if our family already exists by making a socket with it.
+       *    Some weird kernel might claim this too, but it's very unlikely
+       *    (Linus' tree has us at 40, and that's what we care about).
+       * 2. If that fails, try the normal IOCTL path, since it's probably an
+       *    older kernel with vSockets from Tools.
+       * 3. If that fails, then vSockets really isn't available.
+       */
+#define AF_VSOCK_LOCAL 40
+      {
+         int s = socket(AF_VSOCK_LOCAL, SOCK_DGRAM, 0);
+         if (s != -1) {
+            close(s);
+            return AF_VSOCK_LOCAL;
+         }
+      }
+#undef AF_VSOCK_LOCAL
+#endif // linux
+
       fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDWR);
       if (fd < 0) {
          fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDWR);
