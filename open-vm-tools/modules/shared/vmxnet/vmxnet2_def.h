@@ -197,7 +197,7 @@ typedef struct Vmxnet2_ImplData {
    Vmxnet2_RxRingInfo    rxRing2;
    Vmxnet2_TxRingInfo    txRing;
 
-   struct PhysMem_Token	  *ddPhysMemToken;
+   struct PhysMem_TokenList  *ddPhysMemTokenList;
 } Vmxnet2_ImplData;
 
 /* 
