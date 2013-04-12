@@ -356,8 +356,8 @@ typedef uint32 VMCI_Event;
 #define VMCI_EVENT_CTX_ID_UPDATE  0  // Only applicable to guest endpoints
 #define VMCI_EVENT_CTX_REMOVED    1  // Applicable to guest and host
 #define VMCI_EVENT_QP_RESUMED     2  // Only applicable to guest endpoints
-#define VMCI_EVENT_QP_PEER_ATTACH 3  // Applicable to guest and host
-#define VMCI_EVENT_QP_PEER_DETACH 4  // Applicable to guest and host
+#define VMCI_EVENT_QP_PEER_ATTACH 3  // Applicable to guest, host and VMX
+#define VMCI_EVENT_QP_PEER_DETACH 4  // Applicable to guest, host and VMX
 #define VMCI_EVENT_MEM_ACCESS_ON  5  // Applicable to VMX and vmk.  On vmk,
                                      // this event has the Context payload type.
 #define VMCI_EVENT_MEM_ACCESS_OFF 6  // Applicable to VMX and vmk.  Same as
@@ -372,7 +372,9 @@ typedef uint32 VMCI_Event;
  * endpoints.
  */
 
-#define VMCI_EVENT_VALID_VMX(_event) (_event == VMCI_EVENT_MEM_ACCESS_ON || \
+#define VMCI_EVENT_VALID_VMX(_event) (_event == VMCI_EVENT_QP_PEER_ATTACH || \
+                                      _event == VMCI_EVENT_QP_PEER_DETACH || \
+                                      _event == VMCI_EVENT_MEM_ACCESS_ON || \
                                       _event == VMCI_EVENT_MEM_ACCESS_OFF)
 
 #if defined(VMX86_SERVER)
