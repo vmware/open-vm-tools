@@ -80,8 +80,7 @@ endif
 C_TARGETS_LINUX  := driver.o vmciKernelIf.o
 C_TARGETS_COMMON := vmciContext.o vmciDatagram.o vmciDriver.o \
                     vmciHashtable.o vmciResource.o \
-                    vmciQueuePair.o vmciPageChannel.o \
-                    vmciEvent.o vmciRoute.o
+                    vmciQueuePair.o vmciEvent.o vmciRoute.o
 
 C_TARGETS_LINUX_D := ${C_TARGETS_LINUX:.o=.d}
 C_TARGETS_COMMON_D := ${C_TARGETS_COMMON:.o=.d}
