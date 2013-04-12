@@ -161,6 +161,7 @@
 #define   BDOOR_CMD_EFI_BOOT_CONFIG          73 /* CPL 0 only. */
 #  define BDOOR_CMD_EBC_LEGACYBOOT_ENABLED    0
 #  define BDOOR_CMD_EBC_GET_ORDER             1
+#  define BDOOR_CMD_EBC_SHELL_ACTIVE          2
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_SVGA_CAPABILITIES    75 /* CPL 0 only. */
 #define	  BDOOR_CMD_GET_FORCE_X2APIC         76 /* CPL 0 only  */
