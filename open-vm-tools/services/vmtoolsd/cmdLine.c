@@ -294,8 +294,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       /*
        * NOTE: We can't log the cmdStr here, we can
        * only log it after logging gets configured.
-       * Logging before VMTools_ConfigLogging() call
-       * does not generate the system logs.
+       * Logging it before ToolsCore_ReloadConfig call
+       * will not generate proper logs.
        */
    }
 
