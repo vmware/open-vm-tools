@@ -130,11 +130,6 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN32	      ALLWIN9X, ALLWINNT32
 #define ALLWIN64              ALLWINNT64
 #define ALLWIN                ALLWIN32, ALLWIN64
-#define ALLWIN_EXCEPT9XAND2000                                       \
-                              ALLWINXP, ALLWINNET, ALLWINLONGHORN,   \
-                              ALLWINVISTA, ALLWIN2008R2, ALLWINSEVEN,\
-                              ALLWINEIGHTSERVER, ALLWINEIGHTCLIENT,  \
-                              ALLHYPER_V, BS(WINNT)
 
 #define ALLSOLARIS            BS(SOLARIS_6_AND_7), BS(SOLARIS8),     \
                               BS(SOLARIS9), BS(SOLARIS10),           \
