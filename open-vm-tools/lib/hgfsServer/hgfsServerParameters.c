@@ -5224,6 +5224,7 @@ HgfsPackCreateSessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       reply->numCapabilities = numCapabilities;
       reply->maxPacketSize = session->maxPacketSize;
       reply->identityOffset = 0;
+      reply->flags = session->flags;
       reply->reserved = 0;
       memcpy(reply->capabilities, session->hgfsSessionCapabilities, capabilitiesLen);
    }

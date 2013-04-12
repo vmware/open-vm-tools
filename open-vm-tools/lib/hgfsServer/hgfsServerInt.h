@@ -295,6 +295,9 @@ typedef struct HgfsSessionInfo {
 
    Bool isInactive;
 
+   /* The sessions state and capabilities. */
+   HgfsSessionFlags flags;
+
    /* Unique session id. */
    uint64 sessionId;
 
@@ -364,7 +367,6 @@ typedef struct HgfsSessionInfo {
 
    uint32 numberOfCapabilities;
 
-   Bool activeNotification;
 } HgfsSessionInfo;
 
 /*

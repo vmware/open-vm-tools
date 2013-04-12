@@ -260,7 +260,7 @@ typedef uint32 HgfsAccessMode;
 #define HGFS_MODE_WRITE_DATA          (1 << 4)  // Ability to writge file data
 #define HGFS_MODE_APPEND_DATA         (1 << 5)  // Appending data to the end of file
 #define HGFS_MODE_DELETE              (1 << 6)  // Ability to delete the file
-#define HGFS_MODE_TRAVERSE_DIRECTORY  (1 << 7)  // Ability to access files in a directory 
+#define HGFS_MODE_TRAVERSE_DIRECTORY  (1 << 7)  // Ability to access files in a directory
 #define HGFS_MODE_LIST_DIRECTORY      (1 << 8)  // Ability to list file names
 #define HGFS_MODE_ADD_SUBDIRECTORY    (1 << 9)  // Ability to create a new subdirectory
 #define HGFS_MODE_ADD_FILE            (1 << 10) // Ability to create a new file
@@ -450,7 +450,7 @@ typedef uint64 HgfsAttrValid;
 #define HGFS_ATTR_VALID_GROUPID           (1 << 13)
 #define HGFS_ATTR_VALID_FILEID            (1 << 14)
 #define HGFS_ATTR_VALID_VOLID             (1 << 15)
-/* 
+/*
  * Add our file and volume identifiers.
  * NOTE: On Windows hosts, the file identifier is not guaranteed to be valid
  *       particularly with FAT. A defrag operation could cause it to change.
@@ -1794,6 +1794,18 @@ struct HgfsRequestCreateSessionV4 {
 HgfsRequestCreateSessionV4;
 
 #define HGFS_INVALID_SESSION_ID     (~((uint64)0))
+
+/*
+ * The HGFS session flags. These determine the state and validity of the session
+ * information.
+ * It is envisaged that flags will be set for notifying the clients of file system
+ * feature support that transcend multiple request types i.e., HGFS opcodes.
+ */
+typedef uint32 HgfsSessionFlags;
+
+#define HGFS_SESSION_MAXPACKETSIZE_VALID    (1 << 0)
+#define HGFS_SESSION_CHANGENOTIFY_ENABLED   (1 << 1)
+
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyCreateSessionV4 {
@@ -1801,7 +1813,8 @@ struct HgfsReplyCreateSessionV4 {
    uint32 numCapabilities;            /* Number of capabilities to follow. */
    uint32 maxPacketSize;              /* Maximum packet size supported. */
    uint32 identityOffset;             /* Offset to HgfsIdentity or 0 if no identity. */
-   uint64 reserved;                   /* Reserved for future use. */
+   HgfsSessionFlags flags;            /* Flags. */
+   uint32 reserved;                   /* Reserved for future use. */
    HgfsCapability capabilities[1];    /* Array of HgfsCapabilities. */
 }
 #include "vmware_pack_end.h"
@@ -2159,7 +2172,7 @@ HgfsReplyOplockBreakV4;
  *  Flusing of a whole volume is not supported.
  *  Flusing of reqular files is supported on all hosts.
  *  Flusing of directories is supproted on POSIX hosts and is
- *  NOOP on Windows hosts. 
+ *  NOOP on Windows hosts.
  */
 typedef
 #include "vmware_pack_begin.h"

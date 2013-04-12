@@ -3798,7 +3798,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
    session->state = HGFS_SESSION_STATE_OPEN;
    DblLnkLst_Init(&session->links);
    session->maxPacketSize = transportSession->channelCapabilities.maxPacketSize;
-   session->activeNotification = FALSE;
+   session->flags |= HGFS_SESSION_MAXPACKETSIZE_VALID;
    session->isInactive = TRUE;
    session->transportSession = transportSession;
    session->numInvalidationAttempts = 0;
@@ -3863,7 +3863,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
                                            HGFS_REQUEST_SUPPORTED, session);
             HgfsServerSetSessionCapability(HGFS_OP_REMOVE_WATCH_V4,
                                            HGFS_REQUEST_SUPPORTED, session);
-            session->activeNotification = TRUE;
+            session->flags |= HGFS_SESSION_CHANGENOTIFY_ENABLED;
          } else {
             HgfsServerSetSessionCapability(HGFS_OP_SET_WATCH_V4,
                                            HGFS_REQUEST_NOT_SUPPORTED, session);
@@ -3871,7 +3871,8 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
                                            HGFS_REQUEST_NOT_SUPPORTED, session);
          }
          LOG(8, ("%s: session notify capability is %s\n", __FUNCTION__,
-                 (session->activeNotification ? "enabled" : "disabled")));
+                 (session->flags & HGFS_SESSION_CHANGENOTIFY_ENABLED ? "enabled" :
+                                                                       "disabled")));
       }
       HgfsServerSetSessionCapability(HGFS_OP_SEARCH_READ_V4,
                                      HGFS_REQUEST_SUPPORTED, session);
@@ -3913,7 +3914,7 @@ HgfsDisconnectSessionInt(HgfsSessionInfo *session)    // IN: session context
    ASSERT(session->nodeArray);
    ASSERT(session->searchArray);
 
-   if (session->activeNotification) {
+   if (session->flags & HGFS_SESSION_CHANGENOTIFY_ENABLED) {
       LOG(8, ("%s: calling notify component to disconnect\n", __FUNCTION__));
       HgfsNotify_RemoveSessionSubscribers(session);
    }
@@ -6803,10 +6804,11 @@ HgfsServerSetDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
 
    /*
     * If the active session does not support directory change notification - bail out
-    * with an error immediately. Otherwise setting watch may succeed but no notification
-    * will be delivered when a change occurs.
+    * with an error immediately.
+    * Clients are expected to check the session capabilities and flags but a malicious
+    * or broken client could still issue this to us.
     */
-   if (!input->session->activeNotification) {
+   if (0 == (input->session->flags & HGFS_SESSION_CHANGENOTIFY_ENABLED)) {
       HgfsServerCompleteRequest(HGFS_ERROR_PROTOCOL, 0, input);
       return;
    }
@@ -6861,6 +6863,17 @@ HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
 
    LOG(8, ("%s: entered\n", __FUNCTION__));
    HGFS_ASSERT_INPUT(input);
+
+   /*
+    * If the active session does not support directory change notification - bail out
+    * with an error immediately.
+    * Clients are expected to check the session capabilities and flags but a malicious
+    * or broken client could still issue this to us.
+    */
+   if (0 == (input->session->flags & HGFS_SESSION_CHANGENOTIFY_ENABLED)) {
+      HgfsServerCompleteRequest(HGFS_ERROR_PROTOCOL, 0, input);
+      return;
+   }
 
    if (HgfsUnpackRemoveWatchRequest(input->payload, input->payloadSize, input->op,
                                     &watchId)) {
