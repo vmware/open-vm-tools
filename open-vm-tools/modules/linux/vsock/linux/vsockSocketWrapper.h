@@ -64,7 +64,7 @@
 #define SO_NONBLOCKING  0x1200
 #endif // __APPLE__
 
-#if defined(_WIN32) || defined(VMKERNEL) || defined(__APPLE__)
+#if defined(_WIN32) || defined(VMKERNEL) || defined(__APPLE__) || defined(VMX86_VMX)
 #  define SS_FREE             0
 #  define SS_UNCONNECTED      1
 #  define SS_CONNECTING       2
@@ -87,7 +87,7 @@
 #  define SOCKET_EVENT_CONNECT FD_CONNECT
 #  define SOCKET_EVENT_CLOSE   FD_CLOSE
 #else
-#if defined(VMKERNEL)  || defined(__APPLE__)
+#if defined(VMKERNEL)  || defined(__APPLE__) || defined(VMX86_VMX)
 #  define SOCKET_EVENT_READ    0x1
 #  define SOCKET_EVENT_WRITE   0x2
 #  define SOCKET_EVENT_ACCEPT  0x8
@@ -218,6 +218,11 @@
 #  define ESYSNOTREADY        EOPNOTSUPP
 #elif defined(linux)
 #  define ESYSNOTREADY        EOPNOTSUPP
+#  define __ELOCALSHUTDOWN    EPIPE
+#  define __ELOCALRCVSHUTDOWN 0
+#  define __EPEERSHUTDOWN     EPIPE
+#  define __ECONNINPROGRESS   EINPROGRESS
+#  define __ESNDRCVTIMEDOUT   EAGAIN
 #endif // _WIN32
 
 

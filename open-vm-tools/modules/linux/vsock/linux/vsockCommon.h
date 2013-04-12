@@ -34,7 +34,14 @@
  * than external kernel modules using VMCI Sockets api inside the kernel.
  */
 
-#if defined _WIN32
+#if defined VMX86_VMX
+   /*
+    * The VMX is a very special case because hypervisor sockets do not go
+    * through the host kernel and thus do not require an address family.
+    */
+#  define VMCI_SOCKETS_AF_VALUE 0
+#  define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
+#elif defined _WIN32
 #  define VMCI_SOCKETS_AF_VALUE 28
 #  if defined WINNT_DDK
 #     define _WIN2K_COMPAT_SLIST_USAGE

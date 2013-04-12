@@ -99,6 +99,7 @@
    LOGLEVEL_VAR(vcpuNUMA), \
    LOGLEVEL_VAR(heci), \
    LOGLEVEL_VAR(vmiopluginlib), \
+   LOGLEVEL_VAR(vsock), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \

@@ -27,12 +27,14 @@
 
 #include "vmci_sockets_packet.h"
 
-#if defined(_WIN32) || defined(VMKERNEL) || defined(__APPLE__)
+#if defined(_WIN32) || defined(VMKERNEL) || defined(__APPLE__) || defined(VMX86_VMX)
 # include "vsockOSInt.h"
 #else
 # define VSockOS_ClearMemory(_dst, _sz)   memset(_dst, 0, _sz)
 # define VSockOS_Memcpy(_dst, _src, _sz)  memcpy(_dst, _src, _sz)
 #endif
+
+#include "vsockCommon.h"
 
 
 /*
