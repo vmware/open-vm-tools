@@ -344,6 +344,10 @@ static Bool
 HgfsChannelGuestConnConnect(HgfsGuestConn *connData)  // IN: our connection data
 {
    Bool result;
+   static HgfsServerChannelData HgfsBdCapData = {
+      0,
+      HGFS_LARGE_PACKET_MAX
+   };
 
    connData->channelCbTable.getWriteVa = NULL;
    connData->channelCbTable.getReadVa = NULL;
@@ -351,7 +355,7 @@ HgfsChannelGuestConnConnect(HgfsGuestConn *connData)  // IN: our connection data
    connData->channelCbTable.send = HgfsChannelGuestBdSend;
    result = connData->serverCbTable->connect(connData,
                                              &connData->channelCbTable,
-                                             0,
+                                             &HgfsBdCapData,
                                              &connData->serverSession);
    if (result) {
       HgfsChannelGuestConnGet(connData);

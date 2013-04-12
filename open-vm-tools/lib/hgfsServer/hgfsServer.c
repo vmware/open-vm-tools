@@ -177,7 +177,7 @@ static void HgfsServerSessionReceive(HgfsPacket *packet,
                                      void *clientData);
 static Bool HgfsServerSessionConnect(void *transportData,
                                      HgfsServerChannelCallbacks *channelCbTable,
-                                     uint32 channelCapabililies,
+                                     HgfsServerChannelData *channelCapabililies,
                                      void **clientData);
 static void HgfsServerSessionDisconnect(void *clientData);
 static void HgfsServerSessionClose(void *clientData);
@@ -223,13 +223,6 @@ typedef struct HgfsSharedFolderProperties {
 
 static void HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSession,
                                                      HgfsSessionInfo *sessionInfo);
-
-/*
- *    Limit payload to 16M + header.
- *    This limit ensures that list of shared pages fits into VMCI datagram.
- *    Client may impose a lower limit in create session request.
- */
-#define MAX_SERVER_PACKET_SIZE_V4         (0x1000000 + sizeof(HgfsHeader))
 
 /* Local functions. */
 static void HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,
@@ -3697,7 +3690,7 @@ HgfsServerEnumerateSharedFolders(void)
 static Bool
 HgfsServerSessionConnect(void *transportData,                         // IN: transport session context
                          HgfsServerChannelCallbacks *channelCbTable,  // IN: Channel callbacks
-                         uint32 channelCapabilities,                  // IN: channel capabilities
+                         HgfsServerChannelData *channelCapabilities,  // IN: channel capabilities
                          void **transportSessionData)                 // OUT: server session context
 {
    HgfsTransportSessionInfo *transportSession;
@@ -3709,10 +3702,9 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
    transportSession = Util_SafeCalloc(1, sizeof *transportSession);
    transportSession->transportData = transportData;
    transportSession->channelCbTable = channelCbTable;
-   transportSession->maxPacketSize = MAX_SERVER_PACKET_SIZE_V4;
    transportSession->type = HGFS_SESSION_TYPE_REGULAR;
    transportSession->state = HGFS_SESSION_STATE_OPEN;
-   transportSession->channelCapabilities = channelCapabilities;
+   transportSession->channelCapabilities = *channelCapabilities;
    transportSession->numSessions = 0;
 
    transportSession->sessionArrayLock =
@@ -3759,7 +3751,6 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
 
 Bool
 HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
-                          uint32 channelCapabilities,                 // IN:
                           HgfsSessionInfo **sessionData)              // OUT:
 {
    int i;
@@ -3806,7 +3797,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
    session->sessionId = HgfsGenerateSessionId();
    session->state = HGFS_SESSION_STATE_OPEN;
    DblLnkLst_Init(&session->links);
-   session->maxPacketSize = MAX_SERVER_PACKET_SIZE_V4;
+   session->maxPacketSize = transportSession->channelCapabilities.maxPacketSize;
    session->activeNotification = FALSE;
    session->isInactive = TRUE;
    session->transportSession = transportSession;
@@ -3860,7 +3851,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
    HgfsServerGetDefaultCapabilities(session->hgfsSessionCapabilities,
                                     &session->numberOfCapabilities);
 
-   if (channelCapabilities & HGFS_CHANNEL_SHARED_MEM) {
+   if (transportSession->channelCapabilities.flags & HGFS_CHANNEL_SHARED_MEM) {
       HgfsServerSetSessionCapability(HGFS_OP_READ_FAST_V4,
                                      HGFS_REQUEST_SUPPORTED, session);
       HgfsServerSetSessionCapability(HGFS_OP_WRITE_FAST_V4,
@@ -7801,7 +7792,6 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
       LOG(4, ("%s: create session\n", __FUNCTION__));
 
       if (!HgfsServerAllocateSession(input->transportSession,
-                                     input->transportSession->channelCapabilities,
                                      &session)) {
          status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
          goto abort;

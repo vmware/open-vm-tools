@@ -38,6 +38,7 @@ struct DirectoryEntry;
 #include "hgfsUtil.h"   // for HgfsInternalStatus
 #include "vm_atomic.h"
 #include "userlock.h"
+#include "hgfsServer.h" // for the server public types
 
 #define HGFS_DEBUG_ASYNC   (0)
 
@@ -285,7 +286,7 @@ typedef struct HgfsTransportSessionInfo {
 
    Atomic_uint32 refCount;    /* Reference count for session. */
 
-   uint32 channelCapabilities;
+   HgfsServerChannelData channelCapabilities;
 } HgfsTransportSessionInfo;
 
 typedef struct HgfsSessionInfo {
@@ -604,7 +605,6 @@ HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enum
 /* Allocate/Add sessions helper functions. */
 
 Bool HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
-                               uint32 channelCapabilities,
                                HgfsSessionInfo **sessionData);
 
 void HgfsServerSessionGet(HgfsSessionInfo *session);

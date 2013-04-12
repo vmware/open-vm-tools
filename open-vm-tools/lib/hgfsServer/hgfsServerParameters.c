@@ -376,7 +376,6 @@ HgfsParseRequest(HgfsPacket *packet,         // IN: request packet
           * Create a new session if the default session doesn't exist.
           */
          if (!HgfsServerAllocateSession(transportSession,
-                                        transportSession->channelCapabilities,
                                         &session)) {
             result = HGFS_ERROR_NOT_ENOUGH_MEMORY;
          } else {
