@@ -793,7 +793,7 @@ DnD_TransportBufGetPacket(DnDTransportBuffer *buf,           // IN/OUT
    buf->offset += payloadSize;
 
    /* This time is used for timeout purpose. */
-   Hostinfo_GetTimeOfDay(&buf->lastUpdateTime);
+   buf->lastUpdateTime = Hostinfo_SystemTimerUS();
 
    return payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE;
 }

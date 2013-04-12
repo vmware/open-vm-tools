@@ -197,8 +197,8 @@ DynBuf_Detach(DynBuf *b) // IN
  */
 
 static Bool
-DynBufRealloc(DynBuf *b,            // IN
-              size_t newAllocated) // IN
+DynBufRealloc(DynBuf *b,            // IN:
+              size_t newAllocated)  // IN:
 {
    void *new_data;
 
