@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -399,8 +399,6 @@ FLAG(   6,  0, ECX,  0,  1, HW_COORD_FEEDBACK,                      NA,  FALSE) 
 FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                       NA,  FALSE)
 
 
-#define CPUID_7_EBX_13
-
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                                \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                               YES, FALSE) \
@@ -413,7 +411,8 @@ FLAG(   7,  0, EBX,  8,  1, BMI2,                                   YES, TRUE)  
 FLAG(   7,  0, EBX,  9,  1, ENFSTRG,                                YES, FALSE) \
 FLAG(   7,  0, EBX, 10,  1, INVPCID,                                NO,  FALSE) \
 FLAG(   7,  0, EBX, 11,  1, RTM,                                    YES, TRUE)  \
-CPUID_7_EBX_13
+FLAG(   7,  0, EBX, 13,  1, FP_SEGMENT_ZERO,                        YES, TRUE)
+
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                   MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_A                                                \
@@ -969,6 +968,7 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_NEHALEM_2E     0x2e  // Nehalem-EX
 #define CPUID_MODEL_NEHALEM_2F     0x2f  // Westmere-EX
 #define CPUID_MODEL_SANDYBRIDGE_3A 0x3a  // Ivy Bridge
+#define CPUID_MODEL_SANDYBRIDGE_3E 0x3e  // Ivy Bridge-EP
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -1134,6 +1134,7 @@ CPUID_UARCH_IS_SANDYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
    return CPUID_FAMILY_IS_P6(v) &&
           (effectiveModel == CPUID_MODEL_SANDYBRIDGE_2A ||
            effectiveModel == CPUID_MODEL_SANDYBRIDGE_2D ||
+           effectiveModel == CPUID_MODEL_SANDYBRIDGE_3E ||
            effectiveModel == CPUID_MODEL_SANDYBRIDGE_3A);
 }
 
@@ -1183,6 +1184,7 @@ CPUID_MODEL_IS_IVYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
    uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
 
    return CPUID_FAMILY_IS_P6(v) && (
+       effectiveModel == CPUID_MODEL_SANDYBRIDGE_3E ||
        effectiveModel == CPUID_MODEL_SANDYBRIDGE_3A);
 }
 
