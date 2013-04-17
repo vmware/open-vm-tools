@@ -293,44 +293,45 @@ if test "$have_libintl" = "no"; then
 fi
 
 #
-# Check for glib 2.6.0 or greater.
+# Check for glib 2.6.14 or greater.
 #
 AC_VMW_CHECK_LIB([glib-2.0],
                  [GLIB2],
                  [glib-2.0],
                  [],
-                 [2.6.0],
+                 [2.14.0],
                  [glib.h],
                  [g_key_file_new],
                  [],
-                 [AC_MSG_ERROR([glib >= 2.6.0 is required.])])
+                 [AC_MSG_ERROR([glib2 >= 2.14.0 is required.])])
+
 AC_VMW_CHECK_LIB([gmodule-2.0],
                  [GMODULE],
                  [gmodule-2.0],
                  [],
-                 [2.6.0],
+                 [2.14.0],
                  [],
                  [],
                  [],
-                 [AC_MSG_ERROR([gmodule >= 2.6.0 is required.])])
+                 [AC_MSG_ERROR([gmodule >= 2.14.0 is required.])])
 AC_VMW_CHECK_LIB([gobject-2.0],
                  [GOBJECT],
                  [gobject-2.0],
                  [],
-                 [2.6.0],
+                 [2.14.0],
                  [glib-object.h],
                  [],
                  [],
-                 [AC_MSG_ERROR([gobject >= 2.6.0 is required.])])
+                 [AC_MSG_ERROR([gobject >= 2.14.0 is required.])])
 AC_VMW_CHECK_LIB([gthread-2.0],
                  [GTHREAD],
                  [gthread-2.0],
                  [],
-                 [2.6.0],
+                 [2.14.0],
                  [],
                  [],
                  [],
-                 [AC_MSG_ERROR([glib >= 2.6.0 is required.])])
+                 [AC_MSG_ERROR([glib >= 2.14.0 is required.])])
 AC_CHECK_PROG([have_genmarshal],
               [glib-genmarshal],
               [yes],
@@ -338,21 +339,6 @@ AC_CHECK_PROG([have_genmarshal],
 
 if test "$have_genmarshal" != "yes"; then
    AC_MSG_ERROR([glib-genmarshal is required; make sure it's available in your path.])
-fi
-
-#
-# Parts of our Linux code require more recent version of glib
-#
-if test "$os" = "linux"; then
-   AC_VMW_CHECK_LIB([glib-2.0],
-                    [GLIB2],
-                    [glib-2.0],
-                    [],
-                    [2.14.0],
-                    [glib.h],
-                    [g_regex_new],
-                    [have_glib_2_14=yes],
-                    [AC_MSG_WARN([glib is not recent enough, some features will be disabled.])])
 fi
 
 #
@@ -857,9 +843,12 @@ AC_C_VOLATILE
 CFLAGS="$CFLAGS -Wall"
 CFLAGS="$CFLAGS -Werror"
 
-# -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident' in Xlib.h on OpenSolaris.
+# -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident'
+# in Xlib.h on OpenSolaris.
+# Glib2 keep changing mutex APIs so we also need to disable 'deprecated'
+# warnings for now (-Wno-deprecated-declarations).
 for TEST_CFLAG in -Wno-pointer-sign -Wno-unused-value -fno-strict-aliasing \
-    -Wno-unknown-pragmas -Wno-uninitialized; do
+    -Wno-unknown-pragmas -Wno-uninitialized -Wno-deprecated-declarations; do
     AC_MSG_CHECKING([for GCC flag $TEST_CFLAG])
     ORIGINAL_CFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS $TEST_CFLAG"
@@ -949,10 +938,6 @@ MODULES_OS="$os"
 TARGET_OS="$os"
 MODULES_DIR=""
 buildHgfsmounter=no
-
-if test "$have_glib_2_14" = "yes"; then
-   CPPFLAGS="$CPPFLAGS -DHAVE_GLIB_REGEX"
-fi
 
 if test "$os" = "linux"; then
    MODULES_DIR="$LINUXDIR/kernel/"
@@ -1063,7 +1048,7 @@ AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
-AM_CONDITIONAL(USE_SLASH_PROC, test "os" = "linux" -a "$have_glib_2_14" = "yes")
+AM_CONDITIONAL(USE_SLASH_PROC, test "os" = "linux")
 AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")
 
 if test "$have_xsm" != "yes"; then
