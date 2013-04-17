@@ -596,35 +596,55 @@ else
 fi
 
 if test "$with_procps" = "yes"; then
-   if test -z "$CUSTOM_PROCPS_NAME"; then
-      CUSTOM_PROCPS_NAME=proc
-   fi
 
-   # XXX: no pkg-config and no procps-config means we need to
-   # hard-code a sensible default.
-   if test -z "$CUSTOM_PROCPS_LIBS"; then
-      CUSTOM_PROCPS_LIBS="-L/lib"
-   fi
-
-   # Some distros provide libproc-${version}.so only, others provide the
-   # libproc.so symlink. Try both to see what sticks (but only try the 3.2.7
-   # and 3.2.8 versions - adding every possible version here would be a mess).
-   #
-   # Users can help by providing CUSTOM_PROCPS_NAME / CUSTOM_PROCPS_LIBS if
-   # necessary.
    have_procps=no
 
-   AC_VMW_CHECK_LIB([$CUSTOM_PROCPS_NAME],
-                    [PROCPS],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [getstat],
-                    [
-                     have_procps=yes;
-                    ],
-                    [])
+   if test -z "$CUSTOM_PROCPS_NAME" && test -z "$CUSTOM_PROCPS_LIBS"; then
+      # See if we have procps-ng (that finally supports pkg-config).
+      AC_VMW_CHECK_LIB([procps-ng],
+                       [PROCPS],
+                       [libprocps],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [
+                        have_procps=yes;
+                       ],
+                       [])
+   fi
+
+   if test "$have_procps" = "no"; then
+      # Let's see if there is an older procps version, one that does not
+      # support pkg-config.
+      if test -z "$CUSTOM_PROCPS_NAME"; then
+         CUSTOM_PROCPS_NAME=proc
+      fi
+
+      # XXX: no pkg-config and no procps-config means we need to
+      # hard-code a sensible default.
+      if test -z "$CUSTOM_PROCPS_LIBS"; then
+         CUSTOM_PROCPS_LIBS="-L/lib"
+      fi
+
+      # Some distros provide libproc-${version}.so only, others provide the
+      # libproc.so symlink. Try both to see what sticks (but only try the 3.2.7
+      # and 3.2.8 versions - adding every possible version here would be a mess).
+      #
+      # Users can help by providing CUSTOM_PROCPS_NAME / CUSTOM_PROCPS_LIBS if
+      # necessary.
+      AC_VMW_CHECK_LIB([$CUSTOM_PROCPS_NAME],
+                       [PROCPS],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [getstat],
+                       [
+                        have_procps=yes;
+                       ],
+                       [])
+   fi
 
    if test "$have_procps" = "no"; then
       AC_VMW_CHECK_LIB([proc-3.2.8],
