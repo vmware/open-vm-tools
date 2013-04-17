@@ -708,28 +708,25 @@ FIELD(81E,  0, ECX,  8,  3, NODES_PER_PKG,                          NA,  FALSE)
  * Define all field and flag values as an enum.  The result is a full
  * set of values taken from the table above in the form:
  *
- * CPUID_FEATURE_<vendor>_ID<level><reg>_<name> == mask for feature
- * CPUID_<vendor>_ID<level><reg>_<name>_MASK    == mask for field
- * CPUID_<vendor>_ID<level><reg>_<name>_SHIFT   == offset of field
+ * CPUID_<name>_MASK  == mask for feature/field
+ * CPUID_<name>_SHIFT == offset of field
  *
- * e.g. - CPUID_FEATURE_COMMON_ID1EDX_FPU     = 0x1
- *      - CPUID_COMMON_ID88EAX_VIRT_BITS_MASK  = 0xff00
- *      - CPUID_COMMON_ID88EAX_VIRT_BITS_SHIFT = 8
+ * e.g. - CPUID_VIRT_BITS_MASK  = 0xff00
+ *      - CPUID_VIRT_BITS_SHIFT = 8
  *
- * Note: The FEATURE/MASK definitions must use some gymnastics to get
+ * Note: The MASK definitions must use some gymnastics to get
  * around a warning when shifting left by 32.
  */
 #define VMW_BIT_MASK(shift)  (((1 << (shift - 1)) << 1) - 1)
 
-#define FIELD(lvl, ecxIn, reg, bitpos, size, name, s, c3)                    \
-   CPUID_ID##lvl##reg##_##name##_SHIFT = bitpos,                             \
-   CPUID_ID##lvl##reg##_##name##_MASK  = VMW_BIT_MASK(size) << bitpos,       \
-   CPUID_FEATURE_ID##lvl##reg##_##name = CPUID_ID##lvl##reg##_##name##_MASK, \
-   CPUID_INTERNAL_SHIFT_##name         = bitpos,                             \
-   CPUID_INTERNAL_MASK_##name          = VMW_BIT_MASK(size) << bitpos,       \
-   CPUID_INTERNAL_REG_##name           = CPUID_REG_##reg,                    \
-   CPUID_INTERNAL_EAXIN_##name         = CPUID_LEVEL_VAL_##lvl,              \
-   CPUID_INTERNAL_ECXIN_##name         = ecxIn,
+#define FIELD(lvl, ecxIn, reg, bitpos, size, name, s, c3)      \
+   CPUID_##name##_SHIFT        = bitpos,                       \
+   CPUID_##name##_MASK         = VMW_BIT_MASK(size) << bitpos, \
+   CPUID_INTERNAL_SHIFT_##name = bitpos,                       \
+   CPUID_INTERNAL_MASK_##name  = VMW_BIT_MASK(size) << bitpos, \
+   CPUID_INTERNAL_REG_##name   = CPUID_REG_##reg,              \
+   CPUID_INTERNAL_EAXIN_##name = CPUID_LEVEL_VAL_##lvl,        \
+   CPUID_INTERNAL_ECXIN_##name = ecxIn,
 
 #define FLAG FIELD
 
@@ -740,9 +737,6 @@ enum {
 #undef VMW_BIT_MASK
 #undef FIELD
 #undef FLAG
-
-/* Level D subleaf 1 eax XSAVEOPT */
-#define CPUID_COMMON_IDDsub1EAX_XSAVEOPT 1
 
 /*
  * Legal CPUID config file mask characters.  For a description of the
