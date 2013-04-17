@@ -1,3 +1,16 @@
+open-vm-tools 2013.04.16 changes:
+	* VMCI/VMSOCK Linux kernel modules are disabled for kernels
+	  3.9 and above.
+
+	* HGFS compilation fixes, performance and other improvements.
+
+	* Disable glib deprecation warnigns on newer Linux
+	  distributions.
+
+	* Configure script will automatically detect procps-ng.
+
+	* Other fixes and cleanups.
+
 open-vm-tools 2012.12.26 changes:
 	* vmsync is not longer being compiled on newer (3.0+) Linux
 	  kernels since they support FIFREEZE/FITHAW ioctls.
