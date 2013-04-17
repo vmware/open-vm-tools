@@ -41,6 +41,7 @@ libMisc_la_SOURCES += msgfmt.c
 libMisc_la_SOURCES += msgList.c
 libMisc_la_SOURCES += posixDlopen.c
 libMisc_la_SOURCES += posixPosix.c
+libMisc_la_SOURCES += posixPwd.c
 libMisc_la_SOURCES += random.c
 libMisc_la_SOURCES += timeutil.c
 libMisc_la_SOURCES += util_misc.c
