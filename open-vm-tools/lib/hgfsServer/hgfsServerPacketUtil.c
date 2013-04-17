@@ -65,27 +65,16 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
               *replyPacketSize, packet->replyPacketSize));
       ASSERT_DEVEL(*replyPacketSize <= packet->replyPacketSize);
    } else if (transportSession->channelCbTable && transportSession->channelCbTable->getWriteVa) {
-     /* Can we write directly into guest memory ? */
+     /* Can we write directly into guest memory? */
       ASSERT_DEVEL(packet->metaPacket);
       if (packet->metaPacket) {
+         /* Use the pre-allocated metapacket buffer for the reply. */
          LOG(10, ("%s Using meta packet for reply packet\n", __FUNCTION__));
          ASSERT_DEVEL(*replyPacketSize <= packet->metaPacketSize);
+
          packet->replyPacket = packet->metaPacket;
          packet->replyPacketSize = packet->metaPacketSize;
-         LOG(10, ("%s Mapping meta packet for reply packet\n", __FUNCTION__));
-         packet->replyPacket = HSPU_GetBuf(packet,
-                                           0,
-                                           &packet->metaPacket,
-                                           packet->metaPacketSize,
-                                           &packet->metaPacketIsAllocated,
-                                           BUF_WRITEABLE,
-                                           transportSession);
-         /*
-          * Really this can never happen, we would have caught bad physical address
-          * during getMetaPacket.
-          */
-         ASSERT(packet->replyPacket);
-         packet->replyPacketSize = packet->metaPacketSize;
+         packet->replyPacketIsAllocated = FALSE;
       }
    } else {
       /* For sockets channel we always need to allocate buffer */
@@ -119,6 +108,11 @@ void
 HSPU_PutReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                     HgfsTransportSessionInfo *transportSession)  // IN: Session Info
 {
+   /*
+    * If there wasn't an allocated buffer for the reply, there is nothing to
+    * do as the reply is in the metapacket buffer which will be handled by the
+    * put on the metapacket.
+    */
    if (packet->replyPacketIsAllocated) {
       LOG(10, ("%s Freeing reply packet", __FUNCTION__));
       free(packet->replyPacket);
@@ -336,28 +330,6 @@ HSPU_PutMetaPacket(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
                &packet->metaPacketSize,
                &packet->metaPacketIsAllocated,
                BUF_WRITEABLE, transportSession);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HSPU_PutDataPacketIov --
- *
- *    Free data packet Iov if allocated.
- *
- * Results:
- *    void.
- *
- * Side effects:
- *    Guest mappings will be released.
- *-----------------------------------------------------------------------------
- */
-
-void
-HSPU_PutDataPacketIov()
-{
-   NOT_IMPLEMENTED();
 }
 
 
