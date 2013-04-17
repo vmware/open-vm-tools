@@ -1,3 +1,20 @@
+open-vm-tools 9.2.3 changes:
+	* Release of open-vm-tools matching Workstation 9.0.2
+
+	* Fixes for HGFS driver to compile on newer kernels (3.9)
+
+	* Fix for HGFS performance regression.
+
+	* vmci/vsock drivers are disabled on kernels 3.9 and above.
+
+	* vmblock driver is disabled on kernels 3.0+.
+
+	* Fix and re-enable Copy/Paste on Solaris.
+
+	* Configure script will detect procsps-ng library.
+
+	* Suppress deprecated warnings coming form newer glib.
+
 open-vm-tools 9.2.2 changes:
 	* Release of open-vm-tools matching Workstation 9.0.1
 
