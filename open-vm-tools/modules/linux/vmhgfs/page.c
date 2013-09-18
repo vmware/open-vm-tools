@@ -667,6 +667,8 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
    ASSERT(page->mapping->host);
    inode = page->mapping->host;
 
+   LOG(4, (KERN_WARNING "VMware hgfs: %s: start writes at %Lu\n",
+           __func__, curOffset));
    /*
     * Call HgfsDoWrite repeatedly until either
     * - HgfsDoWrite returns an error, or
@@ -681,8 +683,8 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
       dataPacket[0].len = nextCount;
       result = HgfsDoWrite(handle, dataPacket, 1, curOffset);
       if (result < 0) {
-         LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWritepage: write error %d\n",
-                 result));
+         LOG(4, (KERN_WARNING "VMware hgfs: %s: write error %d\n",
+                 __func__, result));
          goto out;
       }
       remainingCount -= result;
@@ -696,6 +698,8 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
    } while ((result > 0) && (remainingCount > 0));
 
    result = 0;
+   LOG(4, (KERN_WARNING "VMware hgfs: %s: end writes at %Lu rem %zu\n",
+           __func__, curOffset, remainingCount));
 
   out:
    return result;
@@ -887,6 +891,8 @@ HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
    offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
    currentFileSize = compat_i_size_read(page->mapping->host);
 
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: file size %Lu off %Lu: %u to %u\n", __func__,
+           currentFileSize, offset, pageFrom, pageTo));
    /*
     * If we are doing a partial write into a new page (beyond end of
     * file), then intialize it. This allows other writes to this page
@@ -975,6 +981,11 @@ HgfsWriteBegin(struct file *file,             // IN: File to be written
    unsigned pageTo = pos + len;
    struct page *page;
 
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: (%s/%s(%ld), %u@%lld)\n",
+           __func__, file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name,
+           mapping->host->i_ino, len, (long long) pos));
+
    page = compat_grab_cache_page_write_begin(mapping, index, flags);
    if (page == NULL) {
       return -ENOMEM;
@@ -1024,6 +1035,11 @@ HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
    inode = page->mapping->host;
    currentFileSize = compat_i_size_read(inode);
    offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
+
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: (%s/%s(%ld), from %u to %u@%lld => %u)\n",
+           __func__, file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name,
+           page->mapping->host->i_ino, pageFrom, pageTo, (long long) writeTo, copied));
 
    if (writeTo > currentFileSize) {
       compat_i_size_write(inode, writeTo);
@@ -1150,6 +1166,12 @@ HgfsWriteEnd(struct file *file,              // IN: File to write
    ASSERT(file);
    ASSERT(mapping);
    ASSERT(page);
+
+
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: (%s/%s(%ld), %u@%lld,=>%u)\n",
+           __func__, file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name,
+           mapping->host->i_ino, len, (long long) pos, copied));
 
    ret = HgfsDoWriteEnd(file, page, pageFrom, pageTo, writeTo, copied);
    if (ret == 0) {

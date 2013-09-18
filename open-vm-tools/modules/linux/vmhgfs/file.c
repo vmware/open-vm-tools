@@ -50,7 +50,7 @@
 /* Private functions. */
 static int HgfsPackOpenRequest(struct inode *inode,
                                struct file *file,
-			       HgfsOp opUsed,
+                               HgfsOp opUsed,
                                HgfsReq *req);
 static int HgfsUnpackOpenReply(HgfsReq *req,
                                HgfsOp opUsed,
@@ -178,7 +178,7 @@ struct file_operations HgfsFileFileOperations = {
 static int
 HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
                     struct file *file,   // IN: File pointer for this open
-		    HgfsOp opUsed,       // IN: Op to use
+                    HgfsOp opUsed,       // IN: Op to use
                     HgfsReq *req)        // IN/OUT: Packet to write into
 {
    char *name;
@@ -231,6 +231,8 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
       }
       requestV3->flags = result;
 
+      LOG(4, (KERN_DEBUG "VMware hgfs: %s: mode file %o inode %o -> user %o\n",
+              __func__, file->f_mode, inode->i_mode, (inode->i_mode & S_IRWXU) >> 6));
       /* Set permissions. */
       requestV3->specialPerms = (inode->i_mode & (S_ISUID | S_ISGID | S_ISVTX))
                                 >> 9;
@@ -564,6 +566,10 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
 
    iinfo = INODE_GET_II_P(inode);
 
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s: open file(%s/%s)\n",
+           __func__, file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name));
+
    req = HgfsGetNewRequest();
    if (!req) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: out of memory while "
@@ -748,15 +754,21 @@ HgfsAioRead(struct kiocb *iocb,      // IN:  I/O control block
             loff_t offset)           // IN:  Offset at which to read
 {
    int result;
+   struct dentry *readDentry;
 
    ASSERT(iocb);
    ASSERT(iocb->ki_filp);
    ASSERT(iocb->ki_filp->f_dentry);
    ASSERT(iov);
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsAioRead: was called\n"));
+   readDentry = iocb->ki_filp->f_dentry;
 
-   result = HgfsRevalidate(iocb->ki_filp->f_dentry);
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s: (%s/%s, %lu@%lu)\n",
+           __func__, readDentry->d_parent->d_name.name,
+           readDentry->d_name.name,
+           (unsigned long) iov_length(iov, numSegs), (unsigned long) offset));
+
+   result = HgfsRevalidate(readDentry);
    if (result) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsAioRead: invalid dentry\n"));
       goto out;
@@ -797,15 +809,21 @@ HgfsAioWrite(struct kiocb *iocb,      // IN:  I/O control block
              loff_t offset)           // IN:  Offset at which to read
 {
    int result;
+   struct dentry *writeDentry;
 
    ASSERT(iocb);
    ASSERT(iocb->ki_filp);
    ASSERT(iocb->ki_filp->f_dentry);
    ASSERT(iov);
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsAioWrite: was called\n"));
+   writeDentry = iocb->ki_filp->f_dentry;
 
-   result = HgfsRevalidate(iocb->ki_filp->f_dentry);
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s: (%s/%s, %lu@%Ld)\n",
+          __func__, writeDentry->d_parent->d_name.name,
+          writeDentry->d_name.name,
+          (unsigned long) iov_length(iov, numSegs), (long long) offset));
+
+   result = HgfsRevalidate(writeDentry);
    if (result) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsAioWrite: invalid dentry\n"));
       goto out;
@@ -850,8 +868,9 @@ HgfsRead(struct file *file,  // IN:  File to read from
    ASSERT(buf);
    ASSERT(offset);
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRead: read %Zu bytes from fh %u "
-           "at offset %Lu\n", count, FILE_GET_FI_P(file)->handle, *offset));
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s: (%s/%s,%Zu@%lld)\n",
+           __func__, file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name, count, (long long) *offset));
 
    result = HgfsRevalidate(file->f_dentry);
    if (result) {
@@ -901,8 +920,9 @@ HgfsWrite(struct file *file,      // IN: File to write to
    ASSERT(buf);
    ASSERT(offset);
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsWrite: write %Zu bytes to fh %u "
-           "at offset %Lu\n", count, FILE_GET_FI_P(file)->handle, *offset));
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s: (%s/%s,%Zu@%lld)\n",
+           __func__, file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name, count, (long long) *offset));
 
    result = HgfsRevalidate(file->f_dentry);
    if (result) {
@@ -994,14 +1014,14 @@ HgfsSeek(struct file *file,  // IN:  File to seek
  */
 
 static int
-HgfsFsync(struct file *file,		// IN: File we operate on
+HgfsFsync(struct file *file,            // IN: File we operate on
 #if defined VMW_FSYNC_OLD
           struct dentry *dentry,        // IN: Dentry for this file
 #elif defined VMW_FSYNC_31
           loff_t start,                 // IN: start of range to sync
           loff_t end,                   // IN: end of range to sync
 #endif
-          int datasync)	                // IN: fdatasync or fsync
+          int datasync)                 // IN: fdatasync or fsync
 {
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsFsync: was called\n"));
 
@@ -1029,8 +1049,8 @@ HgfsFsync(struct file *file,		// IN: File we operate on
  */
 
 static int
-HgfsMmap(struct file *file,		// IN: File we operate on
-         struct vm_area_struct *vma)	// IN/OUT: VM area information
+HgfsMmap(struct file *file,            // IN: File we operate on
+         struct vm_area_struct *vma)   // IN/OUT: VM area information
 {
    int result;
 

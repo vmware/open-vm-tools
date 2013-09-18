@@ -222,6 +222,8 @@ HgfsUnpackGetattrReply(HgfsReq *req,        // IN: Reply packet
          memcpy(*fileName, name, length);
          CPNameLite_ConvertFrom(*fileName, length, '/');
          (*fileName)[length] = '\0';
+         LOG(4, (KERN_DEBUG "VMware hgfs: %s: symlink name %s\n",
+                 __func__, *fileName));
       } else {
          *fileName = NULL;
       }
@@ -782,9 +784,10 @@ HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
 
    result = HgfsSendRequest(req);
    if (result == 0) {
-      LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPrivateGetattr: got reply\n"));
       replyStatus = HgfsReplyStatus(req);
       result = HgfsStatusConvertToLinux(replyStatus);
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: reply status %d -> %d\n",
+              __func__, replyStatus, result));
 
       /*
        * If the getattr succeeded on the server, copy the stats
