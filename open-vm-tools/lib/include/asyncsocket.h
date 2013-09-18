@@ -239,7 +239,8 @@ AsyncSocket *AsyncSocket_BindUDP(unsigned short port,
 /*
  * Connect to address:port and fire callback with new asock
  */
-AsyncSocket *AsyncSocket_Connect(const char *hostname,
+AsyncSocket *AsyncSocket_Connect(int socketFamily,
+                                 const char *hostname,
                                  unsigned short port,
                                  AsyncSocketConnectFn connectFn,
                                  void *clientData,
@@ -282,7 +283,8 @@ AsyncSocket_ConnectNamedPipe(char *pipeName,
                              AsyncSocketPollParams *pollParams,
                              int *outError);
 #endif
-AsyncSocket *AsyncSocket_ConnectWebSocket(const char *url,
+AsyncSocket *AsyncSocket_ConnectWebSocket(int socketFamily,
+                                          const char *url,
                                           Bool permitUnverifiedSSL,
                                           const char *cookies,
                                           AsyncSocketConnectFn connectFn,

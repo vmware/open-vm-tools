@@ -1051,8 +1051,8 @@ error:
  *
  * AsyncSocket_Connect --
  *
- *      AsyncSocket AF_INET constructor.  This is just a wrapper for ConnectIP
- *      that does hostname -> IP address lookup.
+ *      AsyncSocket AF_INET/AF_INET6 constructor.  This is just a wrapper for
+ *      ConnectIP that does hostname -> IP address lookup.
  *
  *      NOTE: This function can block.
  *
@@ -1067,7 +1067,8 @@ error:
  */
 
 AsyncSocket *
-AsyncSocket_Connect(const char *hostname,
+AsyncSocket_Connect(int socketFamily,
+                    const char *hostname,
                     unsigned short port,
                     AsyncSocketConnectFn connectFn,
                     void *clientData,
@@ -1091,7 +1092,7 @@ AsyncSocket_Connect(const char *hostname,
     * Resolve the hostname.  Handles dotted decimal strings, too.
     */
 
-   getaddrinfoError = AsyncSocketResolveAddr(hostname, port, AF_INET,
+   getaddrinfoError = AsyncSocketResolveAddr(hostname, port, socketFamily,
                                              SOCK_STREAM, &addr, &ipString);
    if (0 != getaddrinfoError) {
       Log(ASOCKPREFIX "Failed to resolve address '%s' and port %u\n",
