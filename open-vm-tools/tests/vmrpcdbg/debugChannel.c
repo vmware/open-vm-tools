@@ -32,6 +32,7 @@
 #include "strutil.h"
 #include "util.h"
 #include "vmrpcdbgInt.h"
+#include "rpcChannelInt.h"
 #include "vmxrpc.h"
 #include "xdrutil.h"
 #include "vmware/tools/utils.h"
@@ -313,14 +314,20 @@ RpcDebug_NewDebugChannel(ToolsAppCtx *ctx,
 {
    DbgChannelData *cdata;
    RpcChannel *ret;
+   static RpcChannelFuncs funcs = {
+      RpcDebugStart,
+      RpcDebugStop,
+      RpcDebugSend,
+      RpcDebugSetup,
+      RpcDebugShutdown,
+      NULL,
+      NULL,
+      NULL
+   };
 
    ASSERT(data != NULL);
    ret = RpcChannel_Create();
-   ret->start = RpcDebugStart;
-   ret->stop = RpcDebugStop;
-   ret->send = RpcDebugSend;
-   ret->setup = RpcDebugSetup;
-   ret->shutdown = RpcDebugShutdown;
+   ret->funcs = &funcs;
 
    cdata = g_malloc0(sizeof *cdata);
    cdata->plugin = data->debugPlugin;

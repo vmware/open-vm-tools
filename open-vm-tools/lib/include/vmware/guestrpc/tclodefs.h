@@ -50,7 +50,8 @@
 /** Reply from host when the command is not recognized. */
 #define RPCI_UNKNOWN_COMMAND      "Unknown command"
 
-#define GUESTRPC_VSOCK_LISTEN_PORT      975
+#define GUESTRPC_TCLO_VSOCK_LISTEN_PORT      975
+#define GUESTRPC_RPCI_VSOCK_LISTEN_PORT      976
 
 /*
  * Tools options.
@@ -119,13 +120,13 @@
 #define  RPCIN_TCLO_PING                 0x1
 
 enum {
-   RPCINPKT_TYPE_DATA = 1,
-   RPCINPKT_TYPE_PING
+   GUESTRPCPKT_TYPE_DATA = 1,
+   GUESTRPCPKT_TYPE_PING
 };
 
 enum {
-   RPCINPKT_FIELD_TYPE = 1,
-   RPCINPKT_FIELD_PAYLOAD
+   GUESTRPCPKT_FIELD_TYPE = 1,
+   GUESTRPCPKT_FIELD_PAYLOAD
 };
 
 #endif /* _TCLODEFS_H_ */

@@ -625,7 +625,7 @@ RpcInPackSendData(int fd,                      // IN
    char *newBuf;
    gboolean mapCreated = FALSE;
    int64 pktType = (flags & RPCIN_TCLO_PING) ?
-                   RPCINPKT_TYPE_PING : RPCINPKT_TYPE_DATA;
+                   GUESTRPCPKT_TYPE_PING : GUESTRPCPKT_TYPE_DATA;
 
    res = DataMap_Create(&map);
    if (res != DMERR_SUCCESS) {
@@ -633,7 +633,7 @@ RpcInPackSendData(int fd,                      // IN
    }
 
    mapCreated = TRUE;
-   res = DataMap_SetInt64(&map, RPCINPKT_FIELD_TYPE,
+   res = DataMap_SetInt64(&map, GUESTRPCPKT_FIELD_TYPE,
                           pktType, TRUE);
    if (res != DMERR_SUCCESS) {
       goto quit;
@@ -646,9 +646,10 @@ RpcInPackSendData(int fd,                      // IN
          goto quit;
       }
       memcpy(newBuf, buf, len);
-      res = DataMap_SetString(&map, RPCINPKT_FIELD_PAYLOAD, newBuf,
+      res = DataMap_SetString(&map, GUESTRPCPKT_FIELD_PAYLOAD, newBuf,
                               len, TRUE);
       if (res != DMERR_SUCCESS) {
+         free(newBuf);
          goto quit;
       }
    }
@@ -854,7 +855,7 @@ RpcInDecodePacket(ConnInfo *conn,       // IN
       return FALSE;
    }
 
-   res = DataMap_GetString(&map, RPCINPKT_FIELD_PAYLOAD, &buf, &len);
+   res = DataMap_GetString(&map, GUESTRPCPKT_FIELD_PAYLOAD, &buf, &len);
    if (res == DMERR_SUCCESS) {
       char *tmpPtr = (char *)malloc(len + 1);
       if (tmpPtr == NULL) {
@@ -1621,7 +1622,7 @@ RpcInOpenChannel(RpcIn *in,                 // IN
       }
       in->conn->in = in;
       asock = AsyncSocket_ConnectVMCI(VMCI_HYPERVISOR_CONTEXT_ID,
-                                      GUESTRPC_VSOCK_LISTEN_PORT,
+                                      GUESTRPC_TCLO_VSOCK_LISTEN_PORT,
                                       RpcInConnectDone,
                                       in->conn, 0, NULL, &res);
       if (asock == NULL) {

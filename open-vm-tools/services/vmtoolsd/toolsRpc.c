@@ -45,7 +45,7 @@
  */
 
 static void
-ToolsCoreCheckReset(struct RpcChannel *chan,
+ToolsCoreCheckReset(RpcChannel *chan,
                     gboolean success,
                     gpointer _state)
 {
@@ -245,7 +245,7 @@ ToolsCore_InitRpc(ToolsServiceState *state)
                    state->name);
          state->ctx.rpc = NULL;
       } else {
-         state->ctx.rpc = BackdoorChannel_New();
+         state->ctx.rpc = RpcChannel_New();
       }
       app = ToolsCore_GetTcloName(state);
       if (app == NULL) {

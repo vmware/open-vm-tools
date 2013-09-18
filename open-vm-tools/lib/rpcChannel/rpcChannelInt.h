@@ -27,9 +27,45 @@
 
 #include "vmware/tools/guestrpc.h"
 
+/** Max amount of time (in .01s) that the RpcIn loop will sleep for. */
+#define RPCIN_MAX_DELAY    10
+
+struct RpcIn;
+
+/** a list of interface functions for a channel implementation */
+typedef struct _RpcChannelFuncs{
+   gboolean (*start)(RpcChannel *);
+   void (*stop)(RpcChannel *);
+   gboolean (*send)(RpcChannel *, char const *data, size_t dataLen,
+                    char **result, size_t *resultLen);
+   void (*setup)(RpcChannel *chan, GMainContext *mainCtx,
+                 const char *appName, gpointer appCtx);
+   void (*shutdown)(RpcChannel *);
+   RpcChannelType (*getType)(RpcChannel *chan);
+   void (*onStartErr)(RpcChannel *);
+   gboolean (*stopRpcOut)(RpcChannel *);
+} RpcChannelFuncs;
+
+/** Defines the interface between the application and the RPC channel. */
+struct _RpcChannel {
+   const RpcChannelFuncs     *funcs;
+   gpointer                  _private;
+   GMainContext              *mainCtx;
+   const char                *appName;
+   gpointer                  appCtx;
+   GStaticMutex              outLock;
+   struct RpcIn              *in;
+   gboolean                  inStarted;
+   gboolean                  outStarted;
+};
+
 void
 RpcChannel_Error(void *_state,
                  char const *status);
+RpcChannel *VSockChannel_New(void);
+RpcChannel *BackdoorChannel_New(void);
+gboolean
+BackdoorChannel_Fallback(RpcChannel *chan);
 
 #endif /* _RPCCHANNELINT_H_ */
 

@@ -160,8 +160,7 @@ BlockService::ShutdownSignalHandler(const siginfo_t *siginfo,
 
    /* shutdown rpc channel to free up VMCI/VSOCKET module usage */
    if (ctx->rpc != NULL) {
-      ASSERT(ctx->rpc->shutdown != NULL);
-      ctx->rpc->shutdown(ctx->rpc);
+      RpcChannel_Shutdown(ctx->rpc);
       ctx->rpc = NULL;
    }
 
