@@ -2049,9 +2049,11 @@ string::end()
 bool
 Validate(const Glib::ustring& s) // IN
 {
-   bool isValid = s.validate();
+   bool isValid = Unicode_IsBufferValid(s.c_str(), s.bytes(),
+                                        STRING_ENCODING_UTF8);
    if (!isValid) {
-      char *escaped = Unicode_EscapeBuffer(s.c_str(), -1, STRING_ENCODING_UTF8);
+      char *escaped = Unicode_EscapeBuffer(s.c_str(), s.bytes(),
+                                           STRING_ENCODING_UTF8);
       Warning("Invalid UTF-8 string: \"%s\"\n", escaped);
       free(escaped);
    }
