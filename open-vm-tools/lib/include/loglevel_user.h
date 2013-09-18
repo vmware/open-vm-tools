@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -57,6 +57,7 @@
    LOGLEVEL_VAR(serial), \
    LOGLEVEL_VAR(parallel), \
    LOGLEVEL_VAR(chipset), \
+   LOGLEVEL_VAR(smram), \
    LOGLEVEL_VAR(smc), \
    LOGLEVEL_VAR(ich7m), \
    LOGLEVEL_VAR(hpet), \

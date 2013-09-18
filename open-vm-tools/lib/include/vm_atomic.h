@@ -623,7 +623,9 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN
  *      The value of the atomic variable before the write.
  *
  * Side effects:
- *      The variable may be modified.
+ *      The atomic variable may be modified.
+ *      May return in transactional execution mode on TSX enabled CPUs
+ *      IFF the atomic variable is modified.
  *
  *-----------------------------------------------------------------------------
  */
@@ -644,6 +646,10 @@ Atomic_ReadIfEqualWriteLockAcquire(Atomic_uint32 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
+   if (val != oldVal) {
+      /* Leave transactional execution mode if TSX enabled. */
+      __asm__ __volatile__("pause");
+   }
    return val;
 #else
    return Atomic_ReadIfEqualWrite(var, oldVal, newVal);
