@@ -180,11 +180,11 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
     */
 
    #ifdef __GNUC__
-      #define ASSERT_IFNOT(cond, panic)                                              \
-                 ({if (UNLIKELY(!(cond))) { panic; if (0) { if (cond) { ; } } } (void)0;})
+      #define ASSERT_IFNOT(cond, panic)                                       \
+         ({if (UNLIKELY(!(cond))) { panic; if (0) { if (cond) {;}}} (void)0;})
    #else
-      #define ASSERT_IFNOT(cond, panic)                               \
-                 (UNLIKELY(!(cond)) ? (panic) : (void)0)
+      #define ASSERT_IFNOT(cond, panic)                                       \
+         (UNLIKELY(!(cond)) ? (panic) : (void)0)
    #endif
 #endif
 
@@ -196,7 +196,7 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
  * ASSERT() is special cased because of interaction with Windows DDK.
  */
 
-#if defined VMX86_DEBUG || defined ASSERT_ALWAYS_AVAILABLE
+#if defined VMX86_DEBUG
 #undef ASSERT
 #define ASSERT(cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertAssert))
@@ -307,7 +307,7 @@ do {                                                        \
  * Redefine macros that are only in debug versions
  */
 
-#if !defined VMX86_DEBUG && !defined ASSERT_ALWAYS_AVAILABLE // {
+#if !defined VMX86_DEBUG // {
 
 #undef  ASSERT
 #define ASSERT(cond) ((void) 0)
