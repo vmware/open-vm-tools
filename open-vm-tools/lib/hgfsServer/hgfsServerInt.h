@@ -476,21 +476,6 @@ typedef struct HgfsCreateSessionInfo {
    HgfsSessionFlags flags;       /* Session capability flags. */
 } HgfsCreateSessionInfo;
 
-
-typedef struct HgfsInputParam {
-   const void *request;          /* Hgfs header followed by operation request */
-   size_t requestSize;           /* Size of Hgfs header and operation request */
-   HgfsSessionInfo *session;     /* Hgfs session data */
-   HgfsTransportSessionInfo *transportSession;
-   HgfsPacket *packet;           /* Public (server/transport) Hgfs packet */
-   void const *payload;          /* Hgfs operation request */
-   uint32 payloadOffset;         /* Offset to start of Hgfs operation request */
-   size_t payloadSize;           /* Hgfs operation request size */
-   HgfsOp op;                    /* Hgfs operation command code */
-   uint32 id;                    /* Request ID to be matched with the reply */
-   Bool sessionEnabled;          /* Requests have session enabled headers */
-} HgfsInputParam;
-
 Bool
 HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
                            HgfsLocalId const *localId, // IN: Local unique file ID
@@ -810,7 +795,7 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
                       uint64 offset,               // IN: file offset to write to
                       uint32 requiredSize,         // IN: length of data to write
                       HgfsWriteFlags flags,        // IN: write flags
-                      void* payload,               // IN: data to be written
+                      const void *payload,         // IN: data to be written
                       uint32 *actualSize);         // OUT: actual length written
 HgfsInternalStatus
 HgfsPlatformWriteWin32Stream(HgfsHandle file,           // IN: packet header
@@ -897,10 +882,6 @@ void *
 HSPU_GetDataPacketBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                       MappingType mappingType,   // IN: Readable/ Writeable ?
                       HgfsTransportSessionInfo *transportSession); // IN: Session Info
-
-void
-HSPU_PutPacket(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-               HgfsTransportSessionInfo *transportSession);  // IN: Session Info
 
 void
 HSPU_PutDataPacketBuf(HgfsPacket *packet,         // IN/OUT: Hgfs Packet

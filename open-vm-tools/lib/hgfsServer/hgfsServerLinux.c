@@ -4136,7 +4136,7 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
                       uint64 offset,               // IN: file offset to write to
                       uint32 requiredSize,         // IN: length of data to write
                       HgfsWriteFlags flags,        // IN: write flags
-                      void* payload,               // IN: data to be written
+                      const void *payload,         // IN: data to be written
                       uint32 *actualSize)          // OUT: actual length written
 {
    HgfsInternalStatus status;

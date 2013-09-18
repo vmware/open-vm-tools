@@ -129,6 +129,22 @@
 /* Default maximun number of open nodes that have server locks. */
 #define MAX_LOCKED_FILENODES 10
 
+
+/* The input request paramaters object. */
+typedef struct HgfsInputParam {
+   const void *request;          /* Hgfs header followed by operation request */
+   size_t requestSize;           /* Size of Hgfs header and operation request */
+   HgfsSessionInfo *session;     /* Hgfs session data */
+   HgfsTransportSessionInfo *transportSession;
+   HgfsPacket *packet;           /* Public (server/transport) Hgfs packet */
+   void const *payload;          /* Hgfs operation request */
+   uint32 payloadOffset;         /* Offset to start of Hgfs operation request */
+   size_t payloadSize;           /* Hgfs operation request size */
+   HgfsOp op;                    /* Hgfs operation command code */
+   uint32 id;                    /* Request ID to be matched with the reply */
+   Bool sessionEnabled;          /* Requests have session enabled headers */
+} HgfsInputParam;
+
 /*
  * The HGFS server configurable settings.
  * (Note: the guest sets these to all defaults only modifiable from the VMX.)
@@ -5866,28 +5882,44 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
    HgfsInternalStatus status;
    HgfsWriteFlags flags;
    uint64 offset;
-   const char *dataToWrite;
+   const void *dataToWrite;
    uint32 replyActualSize;
    size_t replyPayloadSize = 0;
    HgfsHandle file;
 
    HGFS_ASSERT_INPUT(input);
 
-   if (HgfsUnpackWriteRequest(input, &file, &offset, &numberBytesToWrite,
-                              &flags, &dataToWrite)) {
-
-      status = HgfsPlatformWriteFile(file, input->session, offset, numberBytesToWrite,
-                                     flags, (void *)dataToWrite, &replyActualSize);
-      if (HGFS_ERROR_SUCCESS == status) {
-          if (!HgfsPackWriteReply(input->packet, input->request, input->op,
-                                  replyActualSize, &replyPayloadSize, input->session)) {
-            status = HGFS_ERROR_INTERNAL;
-          }
-      }
-   } else {
+   if (!HgfsUnpackWriteRequest(input->payload, input->payloadSize, input->op,
+                              &file, &offset, &numberBytesToWrite, &flags,
+                              &dataToWrite)) {
+      LOG(4, ("%s: Error: Op %d unpack write request arguments\n", __FUNCTION__, input->op));
       status = HGFS_ERROR_PROTOCOL;
+      goto exit;
    }
 
+   if (NULL == dataToWrite) {
+      /* No inline data to write, get it from the transport shared memory. */
+      dataToWrite = HSPU_GetDataPacketBuf(input->packet, BUF_READABLE,
+                                          input->transportSession);
+      if (NULL == dataToWrite) {
+         LOG(4, ("%s: Error: Op %d mapping write data buffer\n", __FUNCTION__, input->op));
+         status = HGFS_ERROR_PROTOCOL;
+         goto exit;
+      }
+   }
+
+   status = HgfsPlatformWriteFile(file, input->session, offset, numberBytesToWrite,
+                                  flags, dataToWrite, &replyActualSize);
+   if (HGFS_ERROR_SUCCESS != status) {
+      goto exit;
+   }
+
+   if (!HgfsPackWriteReply(input->packet, input->request, input->op,
+                           replyActualSize, &replyPayloadSize, input->session)) {
+      status = HGFS_ERROR_INTERNAL;
+   }
+
+exit:
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
 }
 

@@ -288,12 +288,14 @@ HgfsUnpackReadRequest(void const *packet,     // IN: HGFS request
                       uint64 *offset,         // OUT: offset to read from
                       uint32 *length);        // OUT: length of data to read
 Bool
-HgfsUnpackWriteRequest(HgfsInputParam *input,   // IN: Input params
+HgfsUnpackWriteRequest(void const *writeRequest,// IN: HGFS write request params
+                       size_t writeRequestSize, // IN: write request params size
+                       HgfsOp writeOp,          // IN: request version
                        HgfsHandle *file,        // OUT: Handle to write to
                        uint64 *offset,          // OUT: offset to write to
                        uint32 *length,          // OUT: length of data to write
                        HgfsWriteFlags *flags,   // OUT: write flags
-                       const char **data);      // OUT: data to be written
+                       const void **data);      // OUT: data to be written
 Bool
 HgfsPackCreateSessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                            void const *packetHeader,  // IN: packet header

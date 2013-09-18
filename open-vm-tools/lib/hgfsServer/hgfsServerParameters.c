@@ -4287,7 +4287,7 @@ HgfsUnpackWritePayload(const HgfsRequestWrite *request,    // IN: request payloa
                        uint64 *offset,                     // OUT: offset to read from
                        uint32 *length,                     // OUT: length of data to write
                        HgfsWriteFlags *flags,              // OUT: write flags
-                       const char **data)                  // OUT: data to be written
+                       const void **data)                  // OUT: data to be written
 {
    LOG(4, ("%s: HGFS_OP_WRITE\n", __FUNCTION__));
    if (payloadSize >= sizeof *request) {
@@ -4329,7 +4329,7 @@ HgfsUnpackWritePayloadV3(const HgfsRequestWriteV3 *requestV3, // IN: payload
                          uint64 *offset,                      // OUT: offset to read from
                          uint32 *length,                      // OUT: length of data to write
                          HgfsWriteFlags *flags,               // OUT: write flags
-                         const char **data)                   // OUT: data to be written
+                         const void **data)                   // OUT: data to be written
 {
    LOG(4, ("%s: HGFS_OP_WRITE_V3\n", __FUNCTION__));
    if (payloadSize >= sizeof *requestV3) {
@@ -4405,50 +4405,42 @@ HgfsUnpackWriteFastPayloadV4(const HgfsRequestWriteV3 *requestV3, // IN: payload
  */
 
 Bool
-HgfsUnpackWriteRequest(HgfsInputParam *input,   // IN: Input params
+HgfsUnpackWriteRequest(void const *writeRequest,// IN: write request params
+                       size_t writeRequestSize, // IN: write request params size
+                       HgfsOp writeOp,          // IN: request version
                        HgfsHandle *file,        // OUT: Handle to write to
                        uint64 *offset,          // OUT: offset to write to
                        uint32 *length,          // OUT: length of data to write
                        HgfsWriteFlags *flags,   // OUT: write flags
-                       const char **data)       // OUT: data to be written
+                       const void **data)       // OUT: data to be written
 {
    Bool result;
 
-   ASSERT(input);
-
-   switch (input->op) {
+   switch (writeOp) {
    case HGFS_OP_WRITE_FAST_V4: {
-      const HgfsRequestWriteV3 *requestV3 = input->payload;
+      const HgfsRequestWriteV3 *requestV3 = writeRequest;
 
-      result = HgfsUnpackWriteFastPayloadV4(requestV3, input->payloadSize, file,
+      *data = NULL; /* Write data is retrieved from shared memory. */
+      result = HgfsUnpackWriteFastPayloadV4(requestV3, writeRequestSize, file,
                                             offset, length, flags);
-      if (result) {
-         *data = HSPU_GetDataPacketBuf(input->packet,
-                                       BUF_READABLE,
-                                       input->transportSession);
-         if (NULL == *data) {
-            LOG(4, ("%s: Failed to get data in guest memory\n", __FUNCTION__));
-            result = FALSE;
-         }
-      }
       break;
    }
    case HGFS_OP_WRITE_V3: {
-      const HgfsRequestWriteV3 *requestV3 = input->payload;
+      const HgfsRequestWriteV3 *requestV3 = writeRequest;
 
-      result = HgfsUnpackWritePayloadV3(requestV3, input->payloadSize, file, offset,
+      result = HgfsUnpackWritePayloadV3(requestV3, writeRequestSize, file, offset,
                                         length, flags, data);
       break;
    }
    case HGFS_OP_WRITE: {
-      const HgfsRequestWrite *requestV1 = input->payload;
+      const HgfsRequestWrite *requestV1 = writeRequest;
 
-      result = HgfsUnpackWritePayload(requestV1, input->payloadSize, file, offset,
+      result = HgfsUnpackWritePayload(requestV1, writeRequestSize, file, offset,
                                       length, flags, data);
       break;
    }
    default:
-      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, input->op));
+      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, writeOp));
       NOT_REACHED();
       result = FALSE;
    }
