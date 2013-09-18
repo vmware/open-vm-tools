@@ -472,6 +472,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
       replyStatus = HgfsReplyStatus(req);
       result = HgfsStatusConvertToLinux(replyStatus);
 
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWrite: res %u\n", result));
       switch (result) {
       case 0:
          if (opUsed == HGFS_OP_WRITE_V3 || opUsed == HGFS_OP_WRITE_FAST_V4) {
@@ -598,6 +599,8 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
     */
    if (remainingCount) {
       char *buffer = kmap(page) + pageTo;
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: zeroing last %Zu bytes\n",
+              __func__, remainingCount));
       memset(buffer - remainingCount, 0, remainingCount);
       kunmap(page);
    }
@@ -815,6 +818,8 @@ HgfsWritepage(struct page *page,             // IN: Page to write from
     */
    currentFileSize = compat_i_size_read(inode);
    lastPageIndex = currentFileSize >> PAGE_CACHE_SHIFT;
+   LOG(4, (KERN_WARNING "VMware hgfs: %s: file size lpi %lu pi %lu\n",
+           __func__, lastPageIndex, page->index));
    if (page->index > lastPageIndex) {
       goto exit;
    } else if (page->index == lastPageIndex) {
@@ -902,9 +907,6 @@ HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
        ((pageFrom == 0) && (offset + pageTo) >= currentFileSize)) {
       void *kaddr = compat_kmap_atomic(page);
 
-      if (pageFrom) {
-         memset(kaddr, 0, pageFrom);
-      }
       if (pageTo < PAGE_CACHE_SIZE) {
          memset(kaddr + pageTo, 0, PAGE_CACHE_SIZE - pageTo);
       }
@@ -977,8 +979,8 @@ HgfsWriteBegin(struct file *file,             // IN: File to be written
                void **clientData)             // OUT: Opaque to pass to write_end, unused
 {
    pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-   unsigned pageFrom = pos & (PAGE_CACHE_SHIFT - 1);
-   unsigned pageTo = pos + len;
+   unsigned pageFrom = pos & (PAGE_CACHE_SIZE - 1);
+   unsigned pageTo = pageFrom + len;
    struct page *page;
 
    LOG(6, (KERN_WARNING "VMware hgfs: %s: (%s/%s(%ld), %u@%lld)\n",
