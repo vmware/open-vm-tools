@@ -633,7 +633,8 @@ RpcChannel *
 RpcChannel_New(void)
 {
    RpcChannel *chan;
-#if defined(linux) || defined(_WIN32)
+#if 0   /* defined(linux) || defined(_WIN32)
+           This is a temporarily workaround for bug 1053489 */
    chan = VSockChannel_New();
 #else
    chan = BackdoorChannel_New();
