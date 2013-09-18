@@ -43,9 +43,7 @@
 #include "strutil.h"
 #include "util.h"
 #include "vmBackupSignals.h"
-#if defined(_WIN32)
-#include "vmware/guestrpc/guestQuiesce.h"
-#endif
+#include "guestQuiesce.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
 #include "xdrutil.h"
@@ -572,15 +570,17 @@ VmBackupConfigGetBoolean(GKeyFile *config,
  * Starts the quiesce operation according to the supplied specification unless
  * some unexpected error occurs.
  *
- * @param[in]  data      RPC data.
- * @param[in]  forceVss  Only allow Vss quiescing or no quiescing.
+ * @param[in]  data          RPC data.
+ * @param[in]  forceQuiesce  Only allow Vss quiescing on Windows platform or
+ *                           SyncDriver quiescing on Linux platform ( only file
+ *                           system quiescing )
  *
  * @return TRUE on success.
  */
 
 static gboolean
 VmBackupStartCommon(RpcInData *data,
-                    gboolean forceVss)
+                    gboolean forceQuiesce)
 {
    GError *err = NULL;
    ToolsAppCtx *ctx = data->appCtx;
@@ -600,12 +600,24 @@ VmBackupStartCommon(RpcInData *data,
       { VmBackup_NewNullProvider, NULL },
    };
 
-   if (forceVss) {
+   if (forceQuiesce) {
       if (gBackupState->quiesceApps || gBackupState->quiesceFS) {
-          /* If quiescing is requested, only allow VSS provider */
+         /*
+          * If quiescing is requested on windows platform,
+          * only allow VSS provider
+          */
 #if defined(_WIN32)
-          if (VmBackupConfigGetBoolean(ctx->config, "enableVSS", TRUE)) {
-             provider = VmBackup_NewVssProvider();
+         if (VmBackupConfigGetBoolean(ctx->config, "enableVSS", TRUE)) {
+            provider = VmBackup_NewVssProvider();
+         }
+#elif defined(_LINUX) || defined(__linux__)
+         /*
+          * If quiescing is requested on linux platform,
+          * only allow SyncDriver provider
+          */
+         if (gBackupState->quiesceFS &&
+             VmBackupConfigGetBoolean(ctx->config, "enableSyncDriver", TRUE)) {
+            provider = VmBackup_NewSyncDriverProvider();
           }
 #endif
       } else {
@@ -760,7 +772,6 @@ VmBackupStart(RpcInData *data)
    return VmBackupStartCommon(data, FALSE);
 }
 
-#if defined(_WIN32)
 
 /**
  * Handler for the "vmbackup.startWithOpts" message. Starts processing the
@@ -827,7 +838,6 @@ VmBackupStartWithOpts(RpcInData *data)
    return retval;
 }
 
-#endif
 
 /**
  * Aborts the current operation if one is active, and stops the backup
@@ -973,11 +983,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    RpcChannelCallback rpcs[] = {
       { VMBACKUP_PROTOCOL_START, VmBackupStart, NULL, NULL, NULL, 0 },
-#if defined(_WIN32)
       /* START_WITH_OPTS command supported only on Windows for now */
       { VMBACKUP_PROTOCOL_START_WITH_OPTS, VmBackupStartWithOpts, NULL,
                     xdr_GuestQuiesceParams, NULL, sizeof (GuestQuiesceParams) },
-#endif
       { VMBACKUP_PROTOCOL_ABORT, VmBackupAbort, NULL, NULL, NULL, 0 },
       { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
    };

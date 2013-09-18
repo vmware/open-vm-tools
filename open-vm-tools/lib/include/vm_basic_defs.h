@@ -297,9 +297,17 @@ Max(int a, int b)
 #define MBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << 20)
 #endif
 
+#ifndef BYTES_2_GBYTES
+#define BYTES_2_GBYTES(_nbytes) ((_nbytes) >> 30)
+#endif
+
+#ifndef GBYTES_2_BYTES
+#define GBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << 30)
+#endif
+
 #ifndef VM_PAE_LARGE_PAGE_SHIFT
 #define VM_PAE_LARGE_PAGE_SHIFT 21
-#endif 
+#endif
 
 #ifndef VM_PAE_LARGE_PAGE_SIZE
 #define VM_PAE_LARGE_PAGE_SIZE (1 << VM_PAE_LARGE_PAGE_SHIFT)

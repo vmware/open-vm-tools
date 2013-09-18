@@ -183,6 +183,8 @@ Bool File_DeleteDirectoryTree(ConstUnicode pathName);
 int File_ListDirectory(ConstUnicode pathName,
                        Unicode **ids);
 
+Bool File_IsOsfsVolumeEmpty(ConstUnicode pathName);
+
 /*
  * Simple file-system walk.
  */

@@ -689,6 +689,55 @@ File_IsEmptyDirectory(ConstUnicode pathName)  // IN:
 
 
 /*
+ *----------------------------------------------------------------------------
+ *
+ * File_IsOsfsVolumeEmpty --
+ *
+ *      Check if specified OSFS volume contains no files.
+ *      This method ignore hidden .sf files. *.sf files are VMFS
+ *      metadata files.
+ *
+ *      OSFS based volumes are considered empty even if they
+ *      contain vmfs metadata files. This emptiness can not be
+ *      checked by File_IsEmptyDirectory API (PR 1050328).
+ *
+ * Results:
+ *      Bool - TRUE -> is vmfs empty directory, FALSE -> not an vmfs
+ *      empty directory
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+File_IsOsfsVolumeEmpty(ConstUnicode pathName)  // IN:
+{
+   int i, numFiles;
+   Unicode *fileList = NULL;
+   static const char vmfsSystemFilesuffix[] = ".sf";
+   Bool onlyVmfsSystemFilesFound = TRUE;
+
+   numFiles = File_ListDirectory(pathName, &fileList);
+   if (numFiles == -1) {
+      return FALSE;
+   }
+
+   for (i = 0; i < numFiles; i++) {
+      if (!Unicode_EndsWith(fileList[i], vmfsSystemFilesuffix)) {
+         onlyVmfsSystemFilesFound = FALSE;
+         break;
+      }
+   }
+
+   Unicode_FreeList(fileList, numFiles);
+
+   return onlyVmfsSystemFilesFound;
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * File_IsFile --

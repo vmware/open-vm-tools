@@ -38,13 +38,25 @@ libvmbackup_la_SOURCES += vmBackupSignals.c
 BUILT_SOURCES =
 BUILT_SOURCES += vmBackupSignals.c
 BUILT_SOURCES += vmBackupSignals.h
+BUILT_SOURCES += guestQuiesce.h
+BUILT_SOURCES += guestQuiesce_xdr.c
 
 CLEANFILES =
 CLEANFILES += vmBackupSignals.c
 CLEANFILES += vmBackupSignals.h
+CLEANFILES += guestQuiesce.h
+CLEANFILES += guestQuiesce_xdr.c
 
 EXTRA_DIST =
 EXTRA_DIST += vmBackupSignals.gm
+
+libvmbackup_la_SOURCES += guestQuiesce_xdr.c
+
+guestQuiesce.h: guestQuiesce.x
+		@RPCGEN_WRAPPER@ services/plugins/vmbackup/guestQuiesce.x $@
+
+guestQuiesce_xdr.c: guestQuiesce.x guestQuiesce.h
+		@RPCGEN_WRAPPER@ services/plugins/vmbackup/guestQuiesce.x $@
 
 vmBackupSignals.c: $(top_srcdir)/services/plugins/vmbackup/vmBackupSignals.gm
 	glib-genmarshal --body $(top_srcdir)/services/plugins/vmbackup/vmBackupSignals.gm > \
