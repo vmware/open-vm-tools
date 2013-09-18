@@ -2829,8 +2829,8 @@ static struct {
     * second field is the minimum size for actual HGFS operational request
     * and not the minimum size of operational request with a header.
     */
-   { HgfsServerCreateSession,    offsetof(HgfsRequestCreateSessionV4, reserved),   REQ_SYNC},
-   { HgfsServerDestroySession,   offsetof(HgfsRequestDestroySessionV4, reserved),  REQ_SYNC},
+   { HgfsServerCreateSession,    sizeof (HgfsRequestCreateSessionV4),              REQ_SYNC},
+   { HgfsServerDestroySession,   sizeof (HgfsRequestDestroySessionV4),             REQ_SYNC},
    { HgfsServerRead,             sizeof (HgfsRequestReadV3),                       REQ_SYNC},
    { HgfsServerWrite,            sizeof (HgfsRequestWriteV3),                      REQ_SYNC},
    { HgfsServerSetDirNotifyWatch,    sizeof (HgfsRequestSetWatchV4),               REQ_SYNC},
