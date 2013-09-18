@@ -19,5 +19,6 @@ noinst_LTLIBRARIES = libUser.la
 
 libUser_la_SOURCES =
 libUser_la_SOURCES += util.c
+libUser_la_SOURCES += utilBacktrace.c
 
 AM_CFLAGS = @LIB_USER_CPPFLAGS@
