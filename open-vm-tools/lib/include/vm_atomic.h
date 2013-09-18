@@ -2640,6 +2640,9 @@ Atomic_TestBit64(Atomic_uint64 *var, // IN
  * (void *)val, we have (void *)(uintptr_t)val.
  * The specific problem case is the Windows ddk compiler
  * (as used by the SVGA driver).  -- edward
+ *
+ * NOTE: See the comment in vm_assert.h for why we need UNUSED_TYPE in
+ * AtomicAssertOnCompile(), and why we need to be very careful doing so.
  */
 
 #define MAKE_ATOMIC_TYPE(name, size, in, out, cast)                           \
@@ -2653,7 +2656,7 @@ Atomic_TestBit64(Atomic_uint64 *var, // IN
                                       && 8 * sizeof (out) == size             \
                                       && 8 * sizeof (cast) == size            \
                                          ? 1 : -1 };                          \
-      typedef char AssertOnCompileFailed[AssertOnCompileMisused];             \
+      UNUSED_TYPE(typedef char AssertOnCompileFailed[AssertOnCompileMisused]);\
    }                                                                          \
                                                                               \
                                                                               \
