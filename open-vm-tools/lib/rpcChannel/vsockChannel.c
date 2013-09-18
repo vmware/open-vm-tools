@@ -197,8 +197,7 @@ VSockOutStart(VSockOut *out)      // IN
  *    Close the channel
  *
  * Result
- *    TRUE on success
- *    FALSE on failure
+ *    None
  *
  * Side-effects
  *    None.
@@ -206,7 +205,7 @@ VSockOutStart(VSockOut *out)      // IN
  *-----------------------------------------------------------------------------
  */
 
-static gboolean
+static void
 VSockOutStop(VSockOut *out)    // IN
 {
    ASSERT(out);
@@ -215,8 +214,6 @@ VSockOutStop(VSockOut *out)    // IN
       Socket_Close(out->fd);
       out->fd = INVALID_SOCKET;
    }
-
-   return TRUE;
 }
 
 
@@ -519,7 +516,10 @@ static gboolean
 VSockChannelStopRpcOut(RpcChannel *chan)
 {
    VSockChannel *vsock = chan->_private;
-   return VSockOutStop(vsock->out);
+   VSockOutStop(vsock->out);
+   chan->outStarted = FALSE;
+
+   return TRUE;
 }
 
 

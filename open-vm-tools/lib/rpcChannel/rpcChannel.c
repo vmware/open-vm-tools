@@ -814,6 +814,9 @@ RpcChannel_Send(RpcChannel *chan,
       g_debug(LGPFX "Stop RpcOut channel and try to send again ...\n");
       funcs->stopRpcOut(chan);
       if (RpcChannel_Start(chan)) {
+         /* The channel may get switched from vsocket to backdoor */
+         funcs = chan->funcs;
+         ASSERT(funcs->send);
          ok = funcs->send(chan, data, dataLen, &res, &resLen);
          goto done;
       }
