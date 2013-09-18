@@ -477,7 +477,7 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
 
    iinfo = INODE_GET_II_P(inode);
 
-   LOG(4, (KERN_DEBUG "VMware hgfs: %s: open file(%s/%s)\n",
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s(%s/%s)\n",
            __func__, file->f_dentry->d_parent->d_name.name,
            file->f_dentry->d_name.name));
 
@@ -674,7 +674,7 @@ HgfsAioRead(struct kiocb *iocb,      // IN:  I/O control block
 
    readDentry = iocb->ki_filp->f_dentry;
 
-   LOG(4, (KERN_DEBUG "VMware hgfs: %s: (%s/%s, %lu@%lu)\n",
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s(%s/%s, %lu@%lu)\n",
            __func__, readDentry->d_parent->d_name.name,
            readDentry->d_name.name,
            (unsigned long) iov_length(iov, numSegs), (unsigned long) offset));
@@ -729,7 +729,7 @@ HgfsAioWrite(struct kiocb *iocb,      // IN:  I/O control block
 
    writeDentry = iocb->ki_filp->f_dentry;
 
-   LOG(4, (KERN_DEBUG "VMware hgfs: %s: (%s/%s, %lu@%Ld)\n",
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s(%s/%s, %lu@%Ld)\n",
           __func__, writeDentry->d_parent->d_name.name,
           writeDentry->d_name.name,
           (unsigned long) iov_length(iov, numSegs), (long long) offset));
@@ -779,7 +779,7 @@ HgfsRead(struct file *file,  // IN:  File to read from
    ASSERT(buf);
    ASSERT(offset);
 
-   LOG(4, (KERN_DEBUG "VMware hgfs: %s: (%s/%s,%Zu@%lld)\n",
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s(%s/%s,%Zu@%lld)\n",
            __func__, file->f_dentry->d_parent->d_name.name,
            file->f_dentry->d_name.name, count, (long long) *offset));
 
@@ -831,7 +831,7 @@ HgfsWrite(struct file *file,      // IN: File to write to
    ASSERT(buf);
    ASSERT(offset);
 
-   LOG(4, (KERN_DEBUG "VMware hgfs: %s: (%s/%s,%Zu@%lld)\n",
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s(%s/%s,%Zu@%lld)\n",
            __func__, file->f_dentry->d_parent->d_name.name,
            file->f_dentry->d_name.name, count, (long long) *offset));
 
@@ -877,12 +877,15 @@ HgfsSeek(struct file *file,  // IN:  File to seek
    ASSERT(file);
    ASSERT(file->f_dentry);
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSeek: seek to %Lu bytes from fh %u "
-           "from position %d\n", offset, FILE_GET_FI_P(file)->handle, origin));
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s(%s/%s, %u, %lld, %d)\n",
+           __func__,
+            file->f_dentry->d_parent->d_name.name,
+            file->f_dentry->d_name.name,
+            FILE_GET_FI_P(file)->handle, offset, origin));
 
    result = (loff_t) HgfsRevalidate(file->f_dentry);
    if (result) {
-      LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSeek: invalid dentry\n"));
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: invalid dentry\n", __func__));
       goto out;
    }
 
@@ -934,7 +937,16 @@ HgfsFsync(struct file *file,            // IN: File we operate on
 #endif
           int datasync)                 // IN: fdatasync or fsync
 {
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsFsync: was called\n"));
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s(%s/%s, %lld, %lld, %d)\n",
+           __func__,
+           file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name,
+#if defined VMW_FSYNC_31
+           start, end,
+#else
+           (loff_t)0, (loff_t)0,
+#endif
+           datasync));
 
    return 0;
 }
@@ -969,11 +981,14 @@ HgfsMmap(struct file *file,            // IN: File we operate on
    ASSERT(vma);
    ASSERT(file->f_dentry);
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsMmap: was called\n"));
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s(%s/%s)\n",
+           __func__,
+           file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name));
 
    result = HgfsRevalidate(file->f_dentry);
    if (result) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMmap: invalid dentry\n"));
+      LOG(4, (KERN_DEBUG "VMware hgfs: %s: invalid dentry\n", __func__));
       goto out;
    }
 
@@ -1016,7 +1031,11 @@ HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
    ASSERT(file->f_dentry->d_sb);
 
    handle = FILE_GET_FI_P(file)->handle;
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRelease: close fh %u\n", handle));
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s(%s/%s, %u)\n",
+           __func__,
+           file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name,
+           handle));
 
    /*
     * This may be our last open handle to an inode, so we should flush our
@@ -1198,16 +1217,20 @@ HgfsSpliceRead(struct file *file,            // IN: File to read from
    ASSERT(file);
    ASSERT(file->f_dentry);
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSpliceRead: was called\n"));
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s(%s/%s, %lu@%Lu)\n",
+           __func__,
+           file->f_dentry->d_parent->d_name.name,
+           file->f_dentry->d_name.name,
+           (unsigned long) len, (unsigned long long) *offset));
 
    result = HgfsRevalidate(file->f_dentry);
    if (result) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSpliceRead: invalid dentry\n"));
+      LOG(4, (KERN_DEBUG "VMware hgfs: %s: invalid dentry\n", __func__));
       goto out;
    }
 
    result = generic_file_splice_read(file, offset, pipe, len, flags);
-  out:
+out:
    return result;
 
 }
