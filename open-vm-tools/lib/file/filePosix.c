@@ -2338,8 +2338,8 @@ File_IsSameFile(ConstUnicode path1,  // IN:
  *
  * File_Replace --
  *
- *      Replace old file with new file, and attempt to reproduce
- *      file permissions.  A NULL value for either the oldName or
+ *      Replace old file (destination) with new file (source), and attempt to
+ *      reproduce file permissions.  A NULL value for either the oldName or
  *      newName will result in failure and errno will be set to EFAULT.
  *
  * Results:
