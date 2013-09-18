@@ -90,9 +90,10 @@ long  _InterlockedCompareExchange(long volatile*, long, long);
 long  _InterlockedExchangeAdd(long volatile*, long);
 long  _InterlockedDecrement(long volatile*);
 long  _InterlockedIncrement(long volatile*);
+void  _ReadWriteBarrier(void);
 #pragma intrinsic(_InterlockedExchange, _InterlockedCompareExchange)
 #pragma intrinsic(_InterlockedExchangeAdd, _InterlockedDecrement)
-#pragma intrinsic(_InterlockedIncrement)
+#pragma intrinsic(_InterlockedIncrement, _ReadWriteBarrier)
 
 #if defined(VM_X86_64)
 long     _InterlockedAnd(long volatile*, long);
@@ -2771,6 +2772,16 @@ MAKE_ATOMIC_TYPE(Ptr, 32, void const *, void *, uintptr_t)
 MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
 
 
+/* Prevent the compiler from re-ordering memory references. */
+#ifdef __GNUC__
+#define ATOMIC_COMPILER_BARRIER()   __asm__ __volatile__ ("": : :"memory")
+#elif defined(_MSC_VER)
+#define ATOMIC_COMPILER_BARRIER()   _ReadWriteBarrier()
+#else
+#error No compiler defined for ATOMIC_COMPILER_BARRIER
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2795,7 +2806,13 @@ static INLINE void
 Atomic_MFence(void)
 {
    Atomic_uint32 fence;
+   ATOMIC_COMPILER_BARRIER();
    Atomic_Xor(&fence, 0x1);
+   ATOMIC_COMPILER_BARRIER();
 }
+
+#ifdef ATOMIC_COMPILER_BARRIER
+#undef ATOMIC_COMPILER_BARRIER
+#endif
 
 #endif // ifndef _ATOMIC_H_
