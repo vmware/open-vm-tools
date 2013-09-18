@@ -120,7 +120,7 @@ VMToolsCreateVMXLogger(void)
    data->handler.shared = TRUE;
    data->handler.dtor = VMXLoggerDestroy;
    g_static_mutex_init(&data->lock);
-   data->chan = BackdoorChannel_New();
+   data->chan = RpcChannel_New();
    return &data->handler;
 }
 

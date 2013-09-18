@@ -195,10 +195,6 @@ RpcChannel_SendOneRaw(const char *data,
 RpcChannel *
 RpcChannel_New(void);
 
-/* This is deprecated, call RpcChannel_New instead */
-RpcChannel *
-BackdoorChannel_New(void);
-
 G_END_DECLS
 
 /** @} */

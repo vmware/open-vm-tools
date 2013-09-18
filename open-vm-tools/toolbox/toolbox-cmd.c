@@ -225,7 +225,7 @@ ToolsCmd_SendRPC(const char *rpc,      // IN
                  size_t *resultLen)    // OUT
 {
    char *lrpc = (char *) rpc;
-   RpcChannel *chan = BackdoorChannel_New();
+   RpcChannel *chan = RpcChannel_New();
    gboolean ret = RpcChannel_Start(chan);
 
    if (!ret) {
