@@ -611,16 +611,19 @@ static INLINE void *
 uint16set(void *dst, uint16 val, size_t count)
 {
 #ifdef __arm__
-   if (count <= 0)
-       return dst;
-   __asm__ __volatile__ ("\t"
-                         "1: strh %0, [%1]     \n\t"
-                         "   subs %2, %2, #1   \n\t"
-                         "   bne 1b                "
-                         :: "r" (val), "r" (dst), "r" (count)
-                         : "memory"
-        );
-   return dst;
+   void *tmpDst = dst;
+
+   __asm__ __volatile__ (
+      "cmp     %1, #0\n\t"
+      "beq     2f\n"
+      "1:\n\t"
+      "strh    %2, [%0], #2\n\t"
+      "subs    %1, %1, #1\n\t"
+      "bne     1b\n"
+      "2:"
+      : "+r" (tmpDst), "+r" (count)
+      : "r" (val)
+      : "memory");
 #else
    size_t dummy0;
    void *dummy1;
@@ -632,25 +635,27 @@ uint16set(void *dst, uint16 val, size_t count)
                         : "0" (count), "1" (dst), "a" (val)
                         : "memory", "cc"
       );
-
-   return dst;
 #endif
+   return dst;
 }
 
 static INLINE void *
 uint32set(void *dst, uint32 val, size_t count)
 {
 #ifdef __arm__
-   if (count <= 0)
-       return dst;
-   __asm__ __volatile__ ("\t"
-                         "1: str %0, [%1]     \n\t"
-                         "   subs %2, %2, #1  \n\t"
-                         "   bne 1b               "
-                         :: "r" (val), "r" (dst), "r" (count)
-                         : "memory"
-        );
-   return dst;
+   void *tmpDst = dst;
+
+   __asm__ __volatile__ (
+      "cmp     %1, #0\n\t"
+      "beq     2f\n"
+      "1:\n\t"
+      "str     %2, [%0], #4\n\t"
+      "subs    %1, %1, #1\n\t"
+      "bne     1b\n"
+      "2:"
+      : "+r" (tmpDst), "+r" (count)
+      : "r" (val)
+      : "memory");
 #else
    size_t dummy0;
    void *dummy1;
@@ -662,9 +667,8 @@ uint32set(void *dst, uint32 val, size_t count)
                         : "0" (count), "1" (dst), "a" (val)
                         : "memory", "cc"
       );
-
-   return dst;
 #endif
+   return dst;
 }
 
 #else /* unknown system: rely on C to write */

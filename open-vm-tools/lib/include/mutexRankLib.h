@@ -128,6 +128,7 @@
 #define RANK_usbEnumGlobalLock       (RANK_libLockBase + 0x6506)
 #define RANK_usbArbLibAsockLock      (RANK_libLockBase + 0x6507)
 #define RANK_usbEnumBackendLock      (RANK_libLockBase + 0x6508)
+#define RANK_sensorQueueLock         (RANK_libLockBase + 0x6509)
 
 /*
  * misc locks
@@ -138,15 +139,15 @@
  * At least:
  *    impersonate < pollDefault
  *    keyLocator < preference (for checking AESNI)
- *    keyLocator < ssl (bug 743010)
+ *    keyLocator < sslState (bug 743010)
  *    configDb < keyLocator (for unlocking dictionaries)
  *    battery/button < preference
  *    workerLib < something for sure under VThread_Create
  *    licenseCheck < preference
+ *    sslState < getSafeTmpDir
  */
 
 #define RANK_vigorTransportListLock  (RANK_libLockBase + 0x7010)
-#define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7020)
 #define RANK_batteryLock             (RANK_libLockBase + 0x7030)
 #define RANK_buttonLock              (RANK_libLockBase + 0x7040)
 #define RANK_impersonateLock         (RANK_libLockBase + 0x7045)
@@ -155,6 +156,7 @@
 #define RANK_configDbLock            (RANK_libLockBase + 0x7070)
 #define RANK_keyLocatorLock          (RANK_libLockBase + 0x7080)
 #define RANK_sslStateLock            (RANK_libLockBase + 0x7085)
+#define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7086)
 #define RANK_licenseCheckLock        (RANK_libLockBase + 0x7090)
 #define RANK_preferenceLock          (RANK_libLockBase + 0x7100)
 
