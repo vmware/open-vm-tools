@@ -90,10 +90,10 @@ typedef enum VMCIIntrType {
 
 
 /*
- * A single VMCI device has an upper limit of 1024MB on the amount of
+ * A single VMCI device has an upper limit of 128 MiB on the amount of
  * memory that can be used for queue pairs.
  */
-#define VMCI_MAX_GUEST_QP_MEMORY (1024 * 1024 * 1024)
+#define VMCI_MAX_GUEST_QP_MEMORY (128 * 1024 * 1024)
 
 /*
  * Queues with pre-mapped data pages must be small, so that we don't pin

@@ -1053,7 +1053,7 @@ VMCIQPBrokerCreate(VMCIHandle handle,             // IN
    }
 
    isVM2VM = VMCI_CONTEXT_IS_VM(contextId) && VMCI_CONTEXT_IS_VM(peer);
-   if (!vmkernel && isVM2VM) {
+   if (isVM2VM) {
       VMCI_DEBUG_LOG(5, ("QP Create - VM2VM\n"));
       return VMCI_ERROR_DST_UNREACHABLE;
    }
@@ -1269,7 +1269,7 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
    ASSERT(entry->attachId == VMCI_INVALID_ID);
 
    isVM2VM = VMCI_CONTEXT_IS_VM(contextId) && VMCI_CONTEXT_IS_VM(entry->createId);
-   if (!vmkernel && isVM2VM) {
+   if (isVM2VM) {
       VMCI_DEBUG_LOG(5, ("QP Attach - VM2VM\n"));
       return VMCI_ERROR_DST_UNREACHABLE;
    }
