@@ -45,11 +45,20 @@ static int HgfsFollowlink(struct dentry *dentry,
 static int HgfsReadlink(struct dentry *dentry,
                         char __user *buffer,
                         int buflen);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+static void HgfsPutlink(struct dentry *dentry,
+                        struct nameidata *nd,
+                        void *cookie);
+#else
+static void HgfsPutlink(struct dentry *dentry,
+                        struct nameidata *nd);
+#endif
 
 /* HGFS inode operations structure for symlinks. */
 struct inode_operations HgfsLinkInodeOperations = {
    .follow_link   = HgfsFollowlink,
    .readlink      = HgfsReadlink,
+   .put_link      = HgfsPutlink,
 };
 
 /*
@@ -111,14 +120,12 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsFollowlink: got called "
                  "on something that wasn't a symlink\n"));
          error = -EINVAL;
+         kfree(fileName);
       } else {
-         LOG(6, (KERN_DEBUG "VMware hgfs: %s: calling vfs_follow_link %s\n",
+         LOG(6, (KERN_DEBUG "VMware hgfs: %s: calling nd_set_link %s\n",
                  __func__, fileName));
-         error = vfs_follow_link(nd, fileName);
-         LOG(6, (KERN_DEBUG "VMware hgfs: %s: vfs_follow_link %s ret %d\n",
-                 __func__, fileName, error));
+         nd_set_link(nd, fileName);
       }
-      kfree(fileName);
    }
   out:
 
@@ -185,4 +192,47 @@ HgfsReadlink(struct dentry *dentry,  // IN:  Dentry containing link
       kfree(fileName);
    }
    return error;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsPutlink --
+ *
+ *    Modeled after page_put_link from a 2.6.9 kernel so it'll work
+ *    across all kernel revisions we care about.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+static void
+HgfsPutlink(struct dentry *dentry, // dentry
+            struct nameidata *nd,  // lookup name information
+            void *cookie)          // cookie
+#else
+static void
+HgfsPutlink(struct dentry *dentry, // dentry
+            struct nameidata *nd)  // lookup name information
+#endif
+{
+   char *fileName = NULL;
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: put for %s\n",
+           __func__, dentry->d_name.name));
+
+   fileName = nd_get_link(nd);
+   if (!IS_ERR(fileName)) {
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: putting %s\n",
+              __func__, fileName));
+      kfree(fileName);
+      nd_set_link(nd, NULL);
+   }
 }
