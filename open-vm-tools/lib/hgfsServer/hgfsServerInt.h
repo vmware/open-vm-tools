@@ -643,15 +643,6 @@ char*
 HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
                                 const char* target);   // IN: target file name
 
-
-
-Bool
-HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
-               char *packetOut,               // IN: Output packet buffer
-               size_t packetOutLen,           // IN: Output packet size
-               HgfsTransportSessionInfo *transportSession,      // IN: session info
-               HgfsSendFlags flags);          // IN: flags how to send
-
 Bool
 HgfsServerCheckOpenFlagsForShare(HgfsFileOpenInfo *openInfo, // IN: Hgfs file handle
                                  HgfsOpenFlags *flags);      // IN/OUT: open mode

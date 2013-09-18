@@ -349,6 +349,11 @@ static void HgfsFreeSearchDirents(HgfsSearch *search);
 static HgfsInternalStatus
 HgfsServerTransportGetDefaultSession(HgfsTransportSessionInfo *transportSession,
                                      HgfsSessionInfo **session);
+static Bool HgfsPacketSend(HgfsPacket *packet,
+                           char *packetOut,
+                           size_t packetOutLen,
+                           HgfsTransportSessionInfo *transportSession,
+                           HgfsSendFlags flags);
 
 /*
  * Opcode handlers
@@ -4567,7 +4572,7 @@ HgfsNotifyPacketSent(void)
  *----------------------------------------------------------------------------
  */
 
-Bool
+static Bool
 HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
                char *packetOut,               // IN: output buffer
                size_t packetOutLen,           // IN: packet size
