@@ -208,10 +208,6 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
 #define PANIC()        _ASSERT_PANIC(AssertPanic)
 #define PANIC_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertPanic)
 
-#ifdef VMKERNEL
-#define ASSERT_OR_IN_PANIC(cond) ASSERT((cond) || Panic_IsSystemInPanic())
-#endif
-
 #define ASSERT_NOT_IMPLEMENTED(cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
 #define ASSERT_NOT_IMPLEMENTED_BUG(bug, cond) \
