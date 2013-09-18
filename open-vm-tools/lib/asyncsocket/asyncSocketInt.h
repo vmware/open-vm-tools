@@ -218,6 +218,7 @@ struct AsyncSocket {
    struct {
       char *origin;
       char *host;
+      char *hostname;
       char *protocol;
       char *uri;
       char *cookie;
@@ -243,6 +244,7 @@ struct AsyncSocket {
       size_t hybiCurrentFrameSize;
       WebSocketHybiDecodeState hybiCurrentDecodeState;
       Bool useSSL;
+      Bool permitUnverifiedSSL;
       char *upgradeNonceBase64;
       rqContext *randomContext;
    } webSocket;

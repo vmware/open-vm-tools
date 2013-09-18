@@ -289,6 +289,7 @@ AsyncSocket_ConnectNamedPipe(char *pipeName,
                              int *outError);
 #endif
 AsyncSocket *AsyncSocket_ConnectWebSocket(const char *url,
+                                          Bool permitUnverifiedSSL,
                                           const char *cookies,
                                           AsyncSocketConnectFn connectFn,
                                           void *clientData,
