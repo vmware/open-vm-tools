@@ -4747,6 +4747,9 @@ HgfsServerSessionInvalidateInactiveSessions(void *clientData)         // IN:
       if (session->isInactive) {
 
          if (session->numInvalidationAttempts == MAX_SESSION_INVALIDATION_ATTEMPTS) {
+            LOG(4, ("%s: closing inactive session %"FMT64"x\n", __FUNCTION__,
+                    session->sessionId));
+            session->state = HGFS_SESSION_STATE_CLOSED;
             HgfsServerTransportRemoveSessionFromList(transportSession,
                                                      session);
             /*
