@@ -973,9 +973,9 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_SANDYBRIDGE_3A 0x3a  // Ivy Bridge
 #define CPUID_MODEL_SANDYBRIDGE_3E 0x3e  // Ivy Bridge-EP
 #define CPUID_MODEL_HASWELL_3C     0x3c  // Haswell DT
-#define CPUID_MODEL_HASWELL_3F     0x3f  // Haswell EN/EP/EX
+#define CPUID_MODEL_HASWELL_3F     0x3f  // Haswell EP/EN/EX
 #define CPUID_MODEL_HASWELL_45     0x45  // Haswell Ultrathin
-#define CPUID_MODEL_HASWELL_46     0x46  // CrystalWell
+#define CPUID_MODEL_HASWELL_46     0x46  // Haswell (Crystal Well)
 
 
 
