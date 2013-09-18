@@ -350,8 +350,6 @@ static HgfsInternalStatus
 HgfsServerTransportGetDefaultSession(HgfsTransportSessionInfo *transportSession,
                                      HgfsSessionInfo **session);
 static Bool HgfsPacketSend(HgfsPacket *packet,
-                           char *packetOut,
-                           size_t packetOutLen,
                            HgfsTransportSessionInfo *transportSession,
                            HgfsSendFlags flags);
 
@@ -3153,8 +3151,7 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       goto exit;
    }
 
-   if (!HgfsPacketSend(input->packet, reply, replySize,
-                       input->transportSession, 0)) {
+   if (!HgfsPacketSend(input->packet, input->transportSession, 0)) {
       /* Send failed. Drop the reply. */
       Log("%s: Error sending reply\n", __FUNCTION__);
    }
@@ -4575,8 +4572,6 @@ HgfsNotifyPacketSent(void)
 
 static Bool
 HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
-               char *packetOut,               // IN: output buffer
-               size_t packetOutLen,           // IN: packet size
                HgfsTransportSessionInfo *transportSession,      // IN: session info
                HgfsSendFlags flags)           // IN: flags for how to process
 {
@@ -8418,7 +8413,7 @@ HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folde
       goto exit;
    }
 
-   if (!HgfsPacketSend(packet, (char *)packetHeader,  sizeNeeded, session->transportSession, 0)) {
+   if (!HgfsPacketSend(packet, session->transportSession, 0)) {
       LOG(4, ("%s: failed to send notification to the host\n", __FUNCTION__));
       goto exit;
    }
