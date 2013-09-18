@@ -116,12 +116,15 @@ typedef struct AsyncSocket AsyncSocket;
  * optional AsyncSocketPollParam* argument; if NULL the default behavior is
  * used (callback is registered in POLL_CS_MAIN and locked by the BULL).
  * Or the client can specify its favorite poll class and locking behavior.
+ * Use of IVmdbPoll is only supported for regular sockets and for Attach.
  */
 #include "poll.h"
+struct IVmdbPoll;
 typedef struct AsyncSocketPollParams {
    int flags;               /* Default 0, only POLL_FLAG_NO_BULL is valid */
    MXUserRecLock *lock;     /* Default: none but BULL */
    PollClassSet pollClass;  /* Default is POLL_CS_MAIN */
+   struct IVmdbPoll *iPoll; /* Default NULL: use Poll_Callback */
 } AsyncSocketPollParams;
 
 /*

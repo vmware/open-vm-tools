@@ -245,7 +245,11 @@ typedef enum {
  *
  *     ANY: A feature/field that IS ALWAYS SUPPORTED by the monitor.
  *     Even if the host does not support the feature, the monitor can
- *     expose the feature to the guest.
+ *     expose the feature to the guest. As with "YES", the guest cpuid
+ *     value defaults to the host/evc cpuid value.  But usually the
+ *     guest cpuid value is recomputed at power on, ignoring the default
+ *     value.
+ *     
  *
  *     NA: Only legal for levels not masked/tested by default (see
  *     above for this definition).  Such fields must always be marked
@@ -411,7 +415,7 @@ FLAG(   7,  0, EBX,  8,  1, BMI2,                                  YES, TRUE)  \
 FLAG(   7,  0, EBX,  9,  1, ENFSTRG,                               YES, FALSE) \
 FLAG(   7,  0, EBX, 10,  1, INVPCID,                               YES, FALSE) \
 FLAG(   7,  0, EBX, 11,  1, RTM,                                   YES, TRUE)  \
-FLAG(   7,  0, EBX, 13,  1, FP_SEGMENT_ZERO,                       YES, TRUE)
+FLAG(   7,  0, EBX, 13,  1, FP_SEGMENT_ZERO,                       ANY, TRUE)
 
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */

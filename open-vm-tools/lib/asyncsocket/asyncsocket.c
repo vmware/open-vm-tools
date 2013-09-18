@@ -60,6 +60,9 @@
 #include "msg.h"
 #include "posix.h"
 #include "vmci_sockets.h"
+#ifndef VMX86_TOOLS
+#include "vmdblib.h"
+#endif
 
 #define LOGLEVEL_MODULE asyncsocket
 #include "loglevel_user.h"
@@ -82,7 +85,6 @@ static int AsyncSocketMakeNonBlocking(int fd);
 static void AsyncSocketAcceptCallback(void *clientData);
 static void AsyncSocketConnectCallback(void *clientData);
 static void AsyncSocketRecvUDPCallback(void *clientData);
-static void AsyncSocketSendCallback(void *clientData);
 static int AsyncSocketBlockingWork(AsyncSocket *asock, Bool read, void *buf, int len,
                                    int *completed, int timeoutMS, Bool partial);
 static VMwareStatus AsyncSocketPollAdd(AsyncSocket *asock, Bool socket,
@@ -105,12 +107,21 @@ static int AsyncSocketRecv(AsyncSocket *asock, void *buf, int len,
 static Bool AsyncSocketHasDataPendingSocket(AsyncSocket *asock);
 static void AsyncSocketReleaseSocket(AsyncSocket *s);
 
+static VMwareStatus AsyncSocketIPollAdd(AsyncSocket *asock, Bool socket,
+                                        int flags, PollerFunction callback,
+                                        int info);
+static Bool AsyncSocketIPollRemove(AsyncSocket *asock, Bool socket, int flags,
+                                   PollerFunction callback);
+static void AsyncSocketIPollSendCallback(void *clientData);
+static void AsyncSocketIPollRecvCallback(void *clientData);
+
 
 static const AsyncSocketVTable asyncStreamSocketVTable = {
    AsyncSocketDispatchConnect,
    AsyncSocketSendInternal,
    AsyncSocketSendSocket,
    AsyncSocketRecvSocket,
+   AsyncSocketSendCallback,
    AsyncSocketRecvCallback,
    AsyncSocketHasDataPendingSocket,
    AsyncSocketCancelListenCbSocket,
@@ -127,7 +138,25 @@ static const AsyncSocketVTable asyncDgramSocketVTable = {
    AsyncSocketSendInternal,
    AsyncSocketSendSocket,
    AsyncSocketRecvSocket,
+   AsyncSocketSendCallback,
    AsyncSocketRecvUDPCallback,
+   AsyncSocketHasDataPendingSocket,
+   AsyncSocketCancelListenCbSocket,
+   AsyncSocketCancelRecvCbSocket,
+   AsyncSocketCancelCbForCloseSocket,
+   AsyncSocketCancelCbForConnectingCloseSocket,
+   AsyncSocketCloseSocket,
+   AsyncSocketReleaseSocket,
+};
+
+
+static const AsyncSocketVTable asyncStreamSocketIPollVTable = {
+   AsyncSocketDispatchConnect,
+   AsyncSocketSendInternal,
+   AsyncSocketSendSocket,
+   AsyncSocketRecvSocket,
+   AsyncSocketIPollSendCallback,
+   AsyncSocketIPollRecvCallback,
    AsyncSocketHasDataPendingSocket,
    AsyncSocketCancelListenCbSocket,
    AsyncSocketCancelRecvCbSocket,
@@ -1487,6 +1516,7 @@ AsyncSocketCreate(AsyncSocketPollParams *pollParams) // IN
       s->pollParams.pollClass = POLL_CS_MAIN;
       s->pollParams.flags = 0;
       s->pollParams.lock = NULL;
+      s->pollParams.iPoll = NULL;
    }
 
    return s;
@@ -1536,7 +1566,11 @@ AsyncSocket_AttachToSSLSock(SSLSock sslSock,
    s->fd = fd;
    s->type = SOCK_STREAM;
    s->asockType = ASYNCSOCKET_TYPE_SOCKET;
-   s->vt = &asyncStreamSocketVTable;
+   if (s->pollParams.iPoll == NULL) {
+      s->vt = &asyncStreamSocketVTable;
+   } else {
+      s->vt = &asyncStreamSocketIPollVTable;
+   }
 
    /* From now on socket is ours. */
    SSL_SetCloseOnShutdownFlag(sslSock);
@@ -2326,7 +2360,7 @@ AsyncSocketSendSocket(AsyncSocket *asock,      // IN:
        * already make 0-byte send() to force WSAEWOULDBLOCK.
        */
 
-      if (AsyncSocketPollAdd(asock, FALSE, 0, AsyncSocketSendCallback, 0)
+      if (AsyncSocketPollAdd(asock, FALSE, 0, asock->vt->sendCallback, 0)
           != VMWARE_STATUS_SUCCESS) {
          retVal = ASOCKERR_POLL;
          return retVal;
@@ -2337,7 +2371,7 @@ AsyncSocketSendSocket(AsyncSocket *asock,      // IN:
        */
 
       if (AsyncSocketPollAdd(asock, TRUE, POLL_FLAG_WRITE,
-                             AsyncSocketSendCallback)
+                             asock->vt->sendCallback)
           != VMWARE_STATUS_SUCCESS) {
          retVal = ASOCKERR_POLL;
          return retVal;
@@ -3218,7 +3252,7 @@ AsyncSocket_WaitForConnection(AsyncSocket *s,  // IN:
    */
    if (s->state == AsyncSocketConnecting) {
       removed = AsyncSocketPollRemove(s, TRUE, POLL_FLAG_WRITE,
-         AsyncSocketConnectCallback)
+                                      AsyncSocketConnectCallback)
          || AsyncSocketPollRemove(s, FALSE, 0, AsyncSocketConnectCallback);
       ASSERT(removed);
    }
@@ -3324,7 +3358,7 @@ AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
       removed = AsyncSocketPollRemove(s, TRUE,
                                       POLL_FLAG_READ | POLL_FLAG_PERIODIC,
                                       s->vt->recvCallback);
-      ASSERT(removed);
+      ASSERT(removed || s->pollParams.iPoll);
 
       s->inBlockingRecv++;
       AsyncSocketUnlock(s); /* We may sleep in poll. */
@@ -3560,7 +3594,7 @@ AsyncSocketCancelRecvCbSocket(AsyncSocket *asock)  // IN:
       removed = AsyncSocketPollRemove(asock, TRUE,
                                       POLL_FLAG_READ | POLL_FLAG_PERIODIC,
                                       asock->vt->recvCallback);
-      ASSERT_NOT_IMPLEMENTED(removed);
+      ASSERT_NOT_IMPLEMENTED(removed || asock->pollParams.iPoll);
       asock->recvCb = FALSE;
    }
 }
@@ -3624,7 +3658,7 @@ AsyncSocketCancelCbForCloseSocket(AsyncSocket *asock)  // IN:
        * Callback might be temporarily removed in AsyncSocket_DoOneMsg.
        */
 
-      ASSERT_NOT_TESTED(removed);
+      ASSERT_NOT_TESTED(removed || asock->pollParams.iPoll);
 
       /*
        * We may still have the RTime callback, try to remove if it exists
@@ -3645,9 +3679,9 @@ AsyncSocketCancelCbForCloseSocket(AsyncSocket *asock)  // IN:
        */
 
       removed = AsyncSocketPollRemove(asock, TRUE, POLL_FLAG_WRITE,
-                                      AsyncSocketSendCallback)
-         || AsyncSocketPollRemove(asock, FALSE, 0, AsyncSocketSendCallback);
-      ASSERT(removed);
+                                      asock->vt->sendCallback)
+         || AsyncSocketPollRemove(asock, FALSE, 0, asock->vt->sendCallback);
+      ASSERT(removed || asock->pollParams.iPoll);
       asock->sendCb = FALSE;
    }
 }
@@ -4197,6 +4231,7 @@ AsyncSocketAcceptCallback(void *clientData)
 
    ASSERT(asock);
    ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
+   ASSERT(asock->pollParams.iPoll == NULL);
    ASSERT(AsyncSocketIsLocked(asock));
 
    AsyncSocketAddRef(asock);
@@ -4238,6 +4273,7 @@ AsyncSocketConnectCallback(void *clientData)
 
    ASSERT(asock);
    ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
+   ASSERT(asock->pollParams.iPoll == NULL);
    ASSERT(AsyncSocketIsLocked(asock));
 
    AsyncSocketAddRef(asock);
@@ -4285,6 +4321,63 @@ AsyncSocketRecvCallback(void *clientData)
    }
 
    AsyncSocketRelease(asock, FALSE);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocketIPollRecvCallback --
+ *
+ *      Poll callback for input waiting on the socket.  IVmdbPoll does not
+ *      handle callback locks, so this function first locks the asyncsocket
+ *      and verify that the recv callback has not been cancelled before
+ *      calling AsyncSocketFillRecvBuffer to do the real work.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Reads data, could fire recv completion or trigger socket destruction.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+AsyncSocketIPollRecvCallback(void *clientData)  // IN:
+{
+#ifdef VMX86_TOOLS
+   NOT_IMPLEMENTED();
+#else
+   AsyncSocket *asock = (AsyncSocket *) clientData;
+   int error;
+
+   ASSERT(asock);
+   ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
+   ASSERT(asock->pollParams.lock == NULL ||
+          !MXUser_IsCurThreadHoldingRecLock(asock->pollParams.lock));
+
+   AsyncSocketLock(asock);
+   if (!asock->recvCb) {
+      MXUserRecLock *lock = asock->pollParams.lock;
+
+      /* Release the reference added when registering this callback. */
+      AsyncSocketRelease(asock, TRUE);
+      if (lock != NULL) {
+         MXUser_DecRefRecLock(lock);
+      }
+      return;
+   }
+
+   AsyncSocketAddRef(asock);
+
+   error = AsyncSocketFillRecvBuffer(asock);
+   if (error == ASOCKERR_GENERIC || error == ASOCKERR_REMOTE_DISCONNECT) {
+      AsyncSocketHandleError(asock, error);
+   }
+
+   AsyncSocketRelease(asock, TRUE);
+#endif
 }
 
 
@@ -4363,7 +4456,7 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-static void
+void
 AsyncSocketSendCallback(void *clientData)
 {
    AsyncSocket *s = (AsyncSocket *) clientData;
@@ -4395,18 +4488,76 @@ AsyncSocketSendCallback(void *clientData)
 
       if (!s->sslConnected) {
          pollStatus = AsyncSocketPollAdd(s, FALSE, 0,
-                                         AsyncSocketSendCallback, 100000);
+                                         s->vt->sendCallback, 100000);
          ASSERT_NOT_IMPLEMENTED(pollStatus == VMWARE_STATUS_SUCCESS);
       } else
 #endif
       {
          pollStatus = AsyncSocketPollAdd(s, TRUE, POLL_FLAG_WRITE,
-                                         AsyncSocketSendCallback);
+                                         s->vt->sendCallback);
          ASSERT_NOT_IMPLEMENTED(pollStatus == VMWARE_STATUS_SUCCESS);
       }
       s->sendCb = TRUE;
    }
    AsyncSocketRelease(s, FALSE);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocketIPollSendCallback --
+ *
+ *      IVmdbPoll callback for output socket buffer space available.  IVmdbPoll
+ *      does not handle callback locks, so this function first locks the
+ *      asyncsocket and verify that the send callback has not been cancelled.
+ *      IVmdbPoll only has periodic callbacks, so this function unregisters
+ *      itself before calling AsyncSocketSendCallback to do the real work.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Writes data, could trigger write completion or socket destruction.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+AsyncSocketIPollSendCallback(void *clientData)  // IN:
+{
+#ifdef VMX86_TOOLS
+   NOT_IMPLEMENTED();
+#else
+   AsyncSocket *s = (AsyncSocket *) clientData;
+   Bool removed;
+
+   ASSERT(s);
+   ASSERT(s->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
+
+   AsyncSocketLock(s);
+   if (!s->sendCb) {
+      MXUserRecLock *lock = s->pollParams.lock;
+
+      /* Release the reference added when registering this callback. */
+      AsyncSocketRelease(s, TRUE);
+      if (lock != NULL) {
+         MXUser_DecRefRecLock(lock);
+      }
+      return;
+   }
+
+   AsyncSocketAddRef(s);
+
+   /* Unregister this callback as we want the non-periodic behavior. */
+   removed = AsyncSocketIPollRemove(s, TRUE, POLL_FLAG_WRITE,
+                                    AsyncSocketIPollSendCallback) ||
+             AsyncSocketIPollRemove(s, FALSE, 0, AsyncSocketIPollSendCallback);
+
+   AsyncSocketSendCallback(s);
+
+   AsyncSocketRelease(s, TRUE);
+#endif
 }
 
 
@@ -4545,6 +4696,10 @@ AsyncSocketPollAdd(AsyncSocket *asock,
       va_end(marker);
    }
 
+   if (asock->pollParams.iPoll != NULL) {
+      return AsyncSocketIPollAdd(asock, socket, flags, callback, info);
+   }
+
    return Poll_Callback(asock->pollParams.pollClass,
                         flags | asock->pollParams.flags,
                         callback, asock, type, info,
@@ -4579,6 +4734,10 @@ AsyncSocketPollRemove(AsyncSocket *asock,
 
    ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
 
+   if (asock->pollParams.iPoll != NULL) {
+      return AsyncSocketIPollRemove(asock, socket, flags, callback);
+   }
+
    if (socket) {
       type = POLL_DEVICE;
       flags |= POLL_FLAG_SOCKET;
@@ -4590,6 +4749,134 @@ AsyncSocketPollRemove(AsyncSocket *asock,
                               flags | asock->pollParams.flags,
                               callback, asock, type);
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AsyncSocketIPollAdd --
+ *
+ *    Add a poll callback.  Wrapper for IVmdbPoll.Register[Timer].
+ *
+ *    If socket is FALSE, user has to pass in the timeout value
+ *
+ * Results:
+ *    VMwareStatus result code.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VMwareStatus
+AsyncSocketIPollAdd(AsyncSocket *asock,
+                    Bool socket,
+                    int flags,
+                    PollerFunction callback,
+                    int info)
+{
+#ifdef VMX86_TOOLS
+   return VMWARE_STATUS_ERROR;
+#else
+   VMwareStatus status = VMWARE_STATUS_SUCCESS;
+   VmdbRet ret;
+   IVmdbPoll *poll;
+
+   ASSERT(asock->pollParams.iPoll);
+   ASSERT(AsyncSocketIsLocked(asock));
+
+   /* Protect asyncsocket and lock from disappearing */
+   AsyncSocketAddRef(asock);
+   if (asock->pollParams.lock != NULL) {
+      MXUser_IncRefRecLock(asock->pollParams.lock);
+   }
+
+   poll = asock->pollParams.iPoll;
+
+   if (socket) {
+      int pollFlags = (flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
+                                                    : VMDB_PRF_WRITE;
+
+      ret = poll->Register(poll, pollFlags, callback, asock, info);
+   } else {
+      ret = poll->RegisterTimer(poll, callback, asock, info);
+   }
+
+   if (ret != VMDB_S_OK) {
+      Log(ASOCKPREFIX "failed to register callback (%s %d): error %d\n",
+          socket ? "socket" : "delay", info, ret);
+      if (asock->pollParams.lock != NULL) {
+         MXUser_DecRefRecLock(asock->pollParams.lock);
+      }
+      AsyncSocketRelease(asock, FALSE);
+      status = VMWARE_STATUS_ERROR;
+   }
+
+   return status;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AsyncSocketIPollRemove --
+ *
+ *    Remove a poll callback.  Wrapper for IVmdbPoll.Unregister[Timer].
+ *
+ * Results:
+ *    TRUE  if the callback was registered and has been cancelled successfully.
+ *    FALSE if the callback was not registered, or the callback is already
+ *          scheduled to fire (and is guaranteed to fire).
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+AsyncSocketIPollRemove(AsyncSocket *asock,
+                       Bool socket,
+                       int flags,
+                       PollerFunction callback)
+{
+#ifdef VMX86_TOOLS
+   return FALSE;
+#else
+   IVmdbPoll *poll;
+   Bool ret;
+
+   ASSERT(asock->pollParams.iPoll);
+   ASSERT(AsyncSocketIsLocked(asock));
+
+   poll = asock->pollParams.iPoll;
+
+   if (socket) {
+      int pollFlags = (flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
+                                                    : VMDB_PRF_WRITE;
+
+      ret = poll->Unregister(poll, pollFlags, callback, asock);
+   } else {
+      ret = poll->UnregisterTimer(poll, callback, asock);
+   }
+
+   if (ret) {
+      MXUserRecLock *lock = asock->pollParams.lock;
+
+      /* Release the reference taken when registering the callback. */
+      AsyncSocketRelease(asock, FALSE);
+      if (lock != NULL) {
+         MXUser_DecRefRecLock(lock);
+      }
+   }
+
+   return ret;
+#endif
+}
+
+
 
 
 /*
@@ -4832,6 +5119,7 @@ AsyncSocketSslAcceptCallback(void *clientData)
    VMwareStatus pollStatus;
 
    ASSERT(asock);
+   ASSERT(asock->pollParams.iPoll == NULL);
    ASSERT(AsyncSocketIsLocked(asock));
 
    AsyncSocketAddRef(asock);

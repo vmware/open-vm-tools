@@ -108,8 +108,7 @@ static char *FilePosixNearestExistingAncestor(char const *path);
 #if CAN_USE_FTS
 # include <fts.h>
 
-struct WalkDirContextImpl
-{
+struct WalkDirContextImpl {
    FTS *fts;
 };
 
@@ -119,6 +118,7 @@ struct WalkDirContextImpl
 #define FS_NFS_ON_ESX "NFS"
 /* A string for VMFS on ESX file system type */
 #define FS_VMFS_ON_ESX "VMFS"
+#define FS_VSAN_URI_PREFIX      "vsan:"
 
 #if defined __ANDROID__
 /*
@@ -254,13 +254,13 @@ bail:
  *
  * File_UnlinkDelayed --
  *
- *    Same as File_Unlink for POSIX systems since we can unlink anytime.
+ *      Same as File_Unlink for POSIX systems since we can unlink anytime.
  *
  * Results:
- *    Return 0 if the unlink is successful.   Otherwise, returns -1.
+ *      Return 0 if the unlink is successful.   Otherwise, returns -1.
  *
  * Side effects:
- *    None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -1339,7 +1339,7 @@ File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
  *
  * File_GetVMFSAttributes --
  *
- *      Acquire the attributes for a given file on a VMFS volume.
+ *      Acquire the attributes for a given file or directory on a VMFS volume.
  *
  * Results:
  *      Integer return value and populated FS_PartitionListResult
@@ -1352,14 +1352,13 @@ File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
  */
 
 int
-File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
+File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File/dir to test
                        FS_PartitionListResult **fsAttrs)  // IN/OUT: VMFS Info
 {
    int fd;
    int ret;
    Unicode fullPath;
-
-   Unicode parentPath = NULL;
+   Unicode directory = NULL;
 
    fullPath = File_FullPath(pathName);
    if (fullPath == NULL) {
@@ -1367,7 +1366,11 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
       goto bail;
    }
 
-   File_SplitName(fullPath, NULL, &parentPath, NULL);
+   if (File_IsDirectory(fullPath)) {
+      directory = Unicode_Duplicate(fullPath);
+   } else {
+      File_SplitName(fullPath, NULL, &directory, NULL);
+   }
 
    if (!HostType_OSIsVMK()) {
       Log(LGPFX" %s: File %s not on VMFS volume\n", __func__, UTF8(pathName));
@@ -1382,7 +1385,7 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
    (*fsAttrs)->ioctlAttr.maxPartitions = FS_PLIST_DEF_MAX_PARTITIONS;
    (*fsAttrs)->ioctlAttr.getAttrSpec = FS_ATTR_SPEC_BASIC;
 
-   fd = Posix_Open(parentPath, O_RDONLY, 0);
+   fd = Posix_Open(directory, O_RDONLY, 0);
 
    if (fd == -1) {
       Log(LGPFX" %s: could not open %s: %s\n", __func__, UTF8(pathName),
@@ -1405,7 +1408,7 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
 
 bail:
    Unicode_Free(fullPath);
-   Unicode_Free(parentPath);
+   Unicode_Free(directory);
 
    return ret;
 }
@@ -1620,7 +1623,7 @@ File_GetVMFSMountInfo(ConstUnicode pathName,   // IN:
       if (memcmp(fsAttrs->fsType, FS_NFS_ON_ESX, sizeof(FS_NFS_ON_ESX)) == 0) {
          /*
           * logicalDevice from NFS3 client contains remote IP and remote
-          * mount point, separate by space.  Split them out.  If there is
+          * mount point, separated by space.  Split them out.  If there is
           * no space then this is probably NFS41 client, and we cannot
           * obtain its remote mount point details at this time.
           */
@@ -1813,40 +1816,61 @@ File_GetCapacity(ConstUnicode pathName)  // IN: Path name
 char *
 File_GetUniqueFileSystemID(char const *path)  // IN: File path
 {
-   if (HostType_OSIsVMK()) {
-      char *canPath;
-      char *existPath;
+#ifdef VMX86_SERVER
+   char vmfsVolumeName[FILE_MAXPATH];
+   char *existPath;
+   char *canPath;
 
-      existPath = FilePosixNearestExistingAncestor(path);
-      canPath = Posix_RealPath(existPath);
-      free(existPath);
+   existPath = FilePosixNearestExistingAncestor(path);
+   canPath = Posix_RealPath(existPath);
+   free(existPath);
 
-      if (canPath == NULL) {
-         return NULL;
-      }
-
-      /*
-       * VCFS doesn't have real mount points, so the mount point lookup below
-       * returns "/vmfs", instead of the VCFS mount point.
-       *
-       * See bug 61646 for why we care.
-       */
-
-      if (strncmp(canPath, VCFS_MOUNT_POINT, strlen(VCFS_MOUNT_POINT)) == 0) {
-         char vmfsVolumeName[FILE_MAXPATH];
-
-         if (sscanf(canPath, VCFS_MOUNT_PATH "%[^/]%*s",
-                    vmfsVolumeName) == 1) {
-            free(canPath);
-
-            return Str_SafeAsprintf(NULL, "%s/%s", VCFS_MOUNT_POINT,
-                                    vmfsVolumeName);
-         }
-      }
-
-      free(canPath);
+   if (canPath == NULL) {
+      return NULL;
    }
 
+   /*
+    * VCFS doesn't have real mount points, so the mount point lookup below
+    * returns "/vmfs", instead of the VCFS mount point.
+    *
+    * See bug 61646 for why we care.
+    */
+   if (strncmp(canPath, VCFS_MOUNT_POINT, strlen(VCFS_MOUNT_POINT)) != 0 ||
+       sscanf(canPath, VCFS_MOUNT_PATH "%[^/]%*s", vmfsVolumeName) != 1) {
+      free(canPath);
+      goto exit;
+   }
+
+   /*
+    * If the path points to a file or directory that is on a vsan datastore,
+    * we have to determine which namespace object is involved.
+    */
+   if (strncmp(vmfsVolumeName, FS_VSAN_URI_PREFIX,
+               strlen(FS_VSAN_URI_PREFIX)) == 0) {
+      FS_PartitionListResult *fsAttrs = NULL;
+      int res;
+
+      res = File_GetVMFSAttributes(canPath, &fsAttrs);
+
+      if (res >= 0 && fsAttrs != NULL &&
+          strncmp(fsAttrs->fsType, FS_VMFS_ON_ESX,
+                  strlen(FS_VMFS_ON_ESX)) == 0) {
+         char *unique;
+         unique = Str_SafeAsprintf(NULL, "%s/%s/%s",
+                                   VCFS_MOUNT_POINT, vmfsVolumeName,
+                                   fsAttrs->name);
+         free(fsAttrs);
+         free(canPath);
+         return unique;
+      }
+      free(fsAttrs);
+   }
+   free(canPath);
+
+   return Str_SafeAsprintf(NULL, "%s/%s", VCFS_MOUNT_POINT,
+                           vmfsVolumeName);
+exit:
+#endif
    return FilePosixGetBlockDevice(path);
 }
 
@@ -2331,7 +2355,7 @@ Bool
 File_Replace(ConstUnicode oldName,  // IN: old file
              ConstUnicode newName)  // IN: new file
 {
-   int status;
+   int status = 0;
    Bool result = FALSE;
    char *newPath = NULL;
    char *oldPath = NULL;
@@ -2369,8 +2393,9 @@ File_Replace(ConstUnicode oldName,  // IN: old file
       goto bail;
    }
 
-   status = (rename(newPath, oldPath) == -1) ? errno : 0;
-   if (status != 0) {
+
+   if (rename(newPath, oldPath) < 0) {
+      status = errno;
       Msg_Append(MSGID(filePosix.replaceRenameFailed)
                  "Failed to rename \"%s\" to \"%s\": %s\n",
                  newName, oldName, Msg_ErrString());
@@ -3331,7 +3356,7 @@ FileIsWritableDir(ConstUnicode dirName)  // IN:
  *
  * File_MakeCfgFileExecutable --
  *
- *      Make a .vmx file executable. This is sometimes necessary
+ *	Make a .vmx file executable. This is sometimes necessary
  *      to enable MKS access to the VM.
  *
  *      Owner always gets rwx.  Group/other get x where r is set.
