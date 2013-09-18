@@ -52,6 +52,10 @@ CLEANFILES += $(BUILT_SOURCES)
 
 CFLAGS += -Wno-unused
 
+libguestlib_la_CPPFLAGS =
+libguestlib_la_CPPFLAGS += -DVMTOOLS_USE_GLIB
+libguestlib_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+
 EXTRA_DIST = vmguestlib.pc.in
 
 pkgconfigdir   = $(libdir)/pkgconfig

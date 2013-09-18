@@ -139,6 +139,9 @@ VMTools_GetLibdir(void);
 GSource *
 VMTools_CreateTimer(gint timeout);
 
+void
+VMTools_SetGuestSDKMode(void);
+
 GArray *
 VMTools_WrapArray(gconstpointer data,
                   guint elemSize,

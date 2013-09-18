@@ -52,5 +52,17 @@ VMToolsAsprintf(gchar **string,
                 gchar const *format,
                 ...)  PRINTF_DECL(2, 3);
 
+void
+GuestSDK_Debug(const char *fmt, ...);
+
+void
+GuestSDK_Log(const char *fmt, ...);
+
+void
+GuestSDK_Warning(const char *fmt, ...);
+
+void
+GuestSDK_Panic(const char *fmt, ...);
+
 #endif /* _VMTOOLSINT_H_ */
 

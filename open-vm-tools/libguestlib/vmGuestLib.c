@@ -27,7 +27,7 @@
 #include "vmGuestLib.h"
 #include "vmGuestLibInt.h"
 #include "str.h"
-#include "rpcout.h"
+#include "vmware/tools/guestrpc.h"
 #include "vmcheck.h"
 #include "util.h"
 #include "debug.h"
@@ -259,6 +259,8 @@ VMGuestLib_OpenHandle(VMGuestLibHandle *handle) // OUT
 {
    VMGuestLibHandleType *data;
 
+   VMTools_SetGuestSDKMode();
+
    if (!VmCheck_IsVirtualWorld()) {
       Debug("VMGuestLib_OpenHandle: Not in a VM.\n");
       return VMGUESTLIB_ERROR_NOT_RUNNING_IN_VM;
@@ -379,7 +381,7 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
                   hostVersion);
 
       /* Send the request. */
-      if (RpcOut_sendOne(&reply, &replyLen, commandBuf)) {
+      if (RpcChannel_SendOne(&reply, &replyLen, commandBuf)) {
          VMGuestLibDataV2 *v2reply = (VMGuestLibDataV2 *)reply;
          VMSessionId sessionId = HANDLE_SESSIONID(handle);
 
@@ -1798,7 +1800,8 @@ VMGuestLibIoctl(const GuestLibIoctlParam *param,
       DynXdr_Destroy(&xdrs, TRUE);
       return FALSE;
    }
-   ret = RpcOut_SendOneRaw(DynXdr_Get(&xdrs), xdr_getpos(&xdrs), reply, replySize);
+   ret = RpcChannel_SendOneRaw(DynXdr_Get(&xdrs), xdr_getpos(&xdrs),
+                               reply, replySize);
    DynXdr_Destroy(&xdrs, TRUE);
    return ret;
 }
