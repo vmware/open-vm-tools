@@ -138,11 +138,7 @@
 #define VMTOOLSD_APP_NAME "vmtoolsd"
 
 #define VIXTOOLS_CONFIG_USE_VGAUTH_NAME "useVGAuth"
-/*
- * XXX Leave this off by default until the VGAuth service is being
- * officially installed.
- */
-#define USE_VGAUTH_DEFAULT FALSE
+#define USE_VGAUTH_DEFAULT TRUE
 
 static gboolean gSupportVGAuth = USE_VGAUTH_DEFAULT;
 static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);

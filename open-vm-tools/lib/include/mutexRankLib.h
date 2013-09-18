@@ -77,8 +77,8 @@
 /*
  * vigor (must be < VMDB range and < disklib, see bug 741290)
  */
-#define RANK_vigorClientLock         (RANK_libLockBase + 0x4400)
-#define RANK_vigorOfflineClientLock  (RANK_libLockBase + 0x4410)
+#define RANK_vigorOnlineLock         (RANK_libLockBase + 0x4400)
+#define RANK_vigorOfflineLock        (RANK_libLockBase + 0x4410)
 
 /*
  * NFC lib lock
