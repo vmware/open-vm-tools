@@ -52,7 +52,7 @@ typedef unsigned VThreadID;
 #define VTHREAD_INVALID_ID	(VThreadID)(~0u)
 
 /* XXX Vestigial need as an MXState array size */
-#define VTHREAD_MAX_THREADS   160
+#define VTHREAD_MAX_THREADS   224
 
 #ifdef VMM
 /*

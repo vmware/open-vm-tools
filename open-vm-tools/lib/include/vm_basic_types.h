@@ -455,6 +455,9 @@ typedef uintptr_t VPN;
 typedef uint64    PA;
 typedef uint32    PPN;
 
+typedef uint64    TPA;
+typedef uint32    TPPN;
+
 typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
 
@@ -590,7 +593,7 @@ typedef void * UserVA;
 #define INVALID_LPN64     ((LPN64)-1)
 #define INVALID_PAGENUM   ((PageNum)-1)
 
-#ifdef VMKERNEL
+#if defined(VMKERNEL) || defined(VMKBOOT)
 #define INVALID_MPN64     ((MPN64)(uintptr_t)INVALID_MPN)
 #endif
 

@@ -112,7 +112,6 @@ typedef struct WebSocketHandshakeState {
    char *handshakeBuffer;
    int32 numValidBytes;    // The number of bytes in the buffer that constitute the header
    int32 httpHeaderLength;
-   int32 maxMessageBufferSize;
 } WebSocketHandshakeState;
 
 typedef enum {
