@@ -33,6 +33,11 @@
 #include "compat_kernel.h"
 #include "compat_slab.h"
 
+/* Must be after compat_fs.h */
+#if defined VMW_USE_AIO
+#include <linux/aio.h>
+#endif
+
 #include "cpName.h"
 #include "hgfsProto.h"
 #include "module.h"
