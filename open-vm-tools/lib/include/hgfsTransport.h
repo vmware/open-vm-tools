@@ -57,13 +57,13 @@ typedef enum {
    HGFS_ASYNC_IOREQ_SHMEM,
    HGFS_ASYNC_IOREQ_GET_PAGES,
    HGFS_ASYNC_IOREP,
-} HgfsAsyncReplyFlags;
+} HgfsTransportReplyType;
 
 typedef enum {
    HGFS_TH_REP_GET_PAGES,
    HGFS_TH_REQUEST,
    HGFS_TH_TERMINATE_SESSION,
-} HgfsTransportPacketType;
+} HgfsTransportRequestType;
 
 #define HGFS_VMCI_TRANSPORT_ERROR      (VMCI_ERROR_CLIENT_MIN - 1)
 #define HGFS_VMCI_VERSION_MISMATCH     (VMCI_ERROR_CLIENT_MIN - 2)
@@ -115,7 +115,10 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsVmciHeaderNode {
    uint32 version;                          /* Version number */
-   HgfsTransportPacketType pktType;         /* Type of packet */
+   union {
+      HgfsTransportRequestType pktType;     /* Type of packet for client to server */
+      HgfsTransportReplyType replyType;     /* Type of packet for server to client */
+   };
 }
 #include "vmware_pack_end.h"
 HgfsVmciHeaderNode;
@@ -169,8 +172,7 @@ HgfsVmciAsyncShmem;
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsVmciAsyncReply {
-   uint32 version;
-   HgfsAsyncReplyFlags pktType;
+   HgfsVmciHeaderNode node;                 /* Node: version, type etc. */
    union {
      HgfsVmciAsyncResponse response;
      HgfsVmciAsyncShmem shmem;

@@ -379,15 +379,16 @@ static int HgfsVmciChannelCallback(void *data,       // IN: unused
                                    VMCIDatagram *dg) // IN: datagram
 {
    HgfsVmciAsyncReply *reply  = (HgfsVmciAsyncReply *)VMCI_DG_PAYLOAD(dg);
+   HgfsVmciHeaderNode *replyNode = &reply->node;
    HgfsTransportChannel *channel;
 
    LOG(10, (KERN_WARNING "Received VMCI channel Callback \n"));
 
-   if (reply->version != HGFS_VMCI_VERSION_1) {
+   if (replyNode->version != HGFS_VMCI_VERSION_1) {
       return HGFS_VMCI_VERSION_MISMATCH;
    }
 
-   switch (reply->pktType) {
+   switch (replyNode->pktType) {
 
    case HGFS_ASYNC_IOREP:
       LOG(10, (KERN_WARNING "Received ID%"FMT64"x \n", reply->response.id));
