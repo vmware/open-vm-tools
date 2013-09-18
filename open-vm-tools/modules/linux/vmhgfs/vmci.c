@@ -243,6 +243,7 @@ HgfsVmciChannelPassGuestPages(HgfsTransportChannel *channel) // IN:
    int j = 0;
    size_t transportHeaderSize;
    HgfsVmciTransportHeader *transportHeader = NULL;
+   HgfsVmciHeaderNode *headerNode;
    VMCIDatagram *dg;
 
    if (!gHgfsShmemPages.freePageCount) {
@@ -260,6 +261,7 @@ HgfsVmciChannelPassGuestPages(HgfsTransportChannel *channel) // IN:
    }
 
    transportHeader = VMCI_DG_PAYLOAD(dg);
+   headerNode = &transportHeader->node;
 
    for (i = 0; i < gHgfsShmemPages.totalPageCount; i++) {
       if (gHgfsShmemPages.list[i].free) {
@@ -275,10 +277,11 @@ HgfsVmciChannelPassGuestPages(HgfsTransportChannel *channel) // IN:
    dg->dst = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID, VMCI_HGFS_TRANSPORT);
    dg->payloadSize = transportHeaderSize;
 
-   transportHeader->version = HGFS_VMCI_VERSION_1;
+   headerNode->version = HGFS_VMCI_VERSION_1;
+   headerNode->pktType = HGFS_TH_REP_GET_PAGES;
+
    ASSERT(gHgfsShmemPages.freePageCount == j);
    transportHeader->iovCount = j;
-   transportHeader->pktType = HGFS_TH_REP_GET_PAGES;
 
    LOG(10, (KERN_WARNING "Sending %d Guest pages \n", i));
    if ((ret = vmci_datagram_send(dg)) < VMCI_SUCCESS) {
@@ -525,6 +528,7 @@ HgfsVmciChannelTerminateSession(HgfsTransportChannel *channel) {
    int ret = 0;
    VMCIDatagram *dg;
    HgfsVmciTransportHeader *transportHeader;
+   HgfsVmciHeaderNode *headerNode;
 
    dg = kmalloc(sizeof *dg + sizeof *transportHeader, GFP_KERNEL);
    if (NULL == dg) {
@@ -538,9 +542,12 @@ HgfsVmciChannelTerminateSession(HgfsTransportChannel *channel) {
    dg->payloadSize = sizeof *transportHeader;
 
    transportHeader = VMCI_DG_PAYLOAD(dg);
-   transportHeader->version = HGFS_VMCI_VERSION_1;
+   headerNode = &transportHeader->node;
+
+   headerNode->pktType = HGFS_TH_TERMINATE_SESSION;
+   headerNode->version = HGFS_VMCI_VERSION_1;
+
    transportHeader->iovCount = 0;
-   transportHeader->pktType = HGFS_TH_TERMINATE_SESSION;
 
    LOG(1, (KERN_WARNING "Terminating session with host \n"));
    if ((ret = vmci_datagram_send(dg)) < VMCI_SUCCESS) {
@@ -673,6 +680,7 @@ HgfsVmciChannelSend(HgfsTransportChannel *channel, // IN: Channel
    int iovCount = 0;
    VMCIDatagram *dg;
    HgfsVmciTransportHeader *transportHeader;
+   HgfsVmciHeaderNode *headerNode;
    HgfsVmciTransportStatus *transportStatus;
    size_t transportHeaderSize;
    size_t bufferSize;
@@ -708,7 +716,10 @@ HgfsVmciChannelSend(HgfsTransportChannel *channel, // IN: Channel
    dg->payloadSize = transportHeaderSize;
 
    transportHeader = VMCI_DG_PAYLOAD(dg);
-   transportHeader->version = HGFS_VMCI_VERSION_1;
+   headerNode = &transportHeader->node;
+
+   headerNode->version = HGFS_VMCI_VERSION_1;
+   headerNode->pktType = HGFS_TH_REQUEST;
 
    total = req->bufferSize + sizeof (HgfsVmciTransportStatus);
    bufferSize = 0;
@@ -747,7 +758,6 @@ HgfsVmciChannelSend(HgfsTransportChannel *channel, // IN: Channel
    }
 
    transportHeader->iovCount = iovCount;
-   transportHeader->pktType = HGFS_TH_REQUEST;
 
    /* Initialize transport Status */
    transportStatus = (HgfsVmciTransportStatus *)req->buffer;

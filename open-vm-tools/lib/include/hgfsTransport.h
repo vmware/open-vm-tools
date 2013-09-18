@@ -105,14 +105,25 @@ HgfsAsyncIov;
  * Every VMCI request will have this transport Header sent over
  * in the datagram by the Guest OS.
  *
+ * Node fields are set to be compatible for backwards compatibility
+ * for version 1 and common for newer versions.
+ *
  * Used By : Guest and Host
  * Lives in : Sent by Guest inside VMCI datagram
  */
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsVmciTransportHeader {
+struct HgfsVmciHeaderNode {
    uint32 version;                          /* Version number */
    HgfsTransportPacketType pktType;         /* Type of packet */
+}
+#include "vmware_pack_end.h"
+HgfsVmciHeaderNode;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsVmciTransportHeader {
+   HgfsVmciHeaderNode node;                 /* Node: version, type etc. */
    uint32 iovCount;                         /* Number of iovs */
    union {
       HgfsIov iov[1];                       /* (PA, len) */
