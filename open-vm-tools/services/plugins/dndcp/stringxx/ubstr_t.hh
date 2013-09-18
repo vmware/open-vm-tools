@@ -133,7 +133,7 @@ private:
       // Takes ownership of the input string.
       void Set(char *utf8String) // IN/OUT: May be NULL.
       {
-         free(mUTF8String);
+         Unicode_Free(mUTF8String);
          mUTF8String = utf8String;
       }
 
@@ -146,7 +146,7 @@ private:
       // Only destructible via unreference().
       ~UTF8Data()
       {
-         free(mUTF8String);
+         Unicode_Free(mUTF8String);
       }
 
       char *mUTF8String;
@@ -256,9 +256,9 @@ ubstr_t::ubstr_t(const char *s) // IN: A UTF-8-encoded string.
       utf16_t *utf16Str = Unicode_GetAllocUTF16(s);
       try {
          mBstr = utf16Str;
-         free(utf16Str);
+         Unicode_Free(utf16Str);
       } catch (...) {
-         free(utf16Str);
+         Unicode_Free(utf16Str);
          throw;
       }
    }
@@ -843,7 +843,7 @@ ubstr_t::GetUTF8Cache()
          mUTF8->Set(utf8Str);
       }
    } catch (...) {
-      free(utf8Str);
+      Unicode_Free(utf8Str);
       throw;
    }
 

@@ -227,7 +227,7 @@ Unicode_Duplicate(ConstUnicode str) // IN
  */
 
 void
-Unicode_Free(Unicode str) // IN
+Unicode_Free(void *str) // IN
 {
    free(str);
 }

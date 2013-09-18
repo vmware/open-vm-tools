@@ -172,7 +172,7 @@ Unicode_AllocWithUTF16(const utf16_t *utf16String) // IN
 
 
 Unicode Unicode_Duplicate(ConstUnicode str);
-void Unicode_Free(Unicode str);
+void Unicode_Free(void *str);
 
 
 Unicode *Unicode_AllocList(char **srcList, ssize_t length,
