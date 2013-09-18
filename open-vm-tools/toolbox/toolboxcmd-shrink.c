@@ -444,7 +444,8 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
       }
 
       if (!quiet) {
-         g_print("\rProgress: %d [", progress);
+         g_print(SU_(disk.wiper.progress, "\rProgress: %d"), progress);
+         g_print(" [");
          for (i = 0; i <= progress / 10; i++) {
             putchar('=');
          }
