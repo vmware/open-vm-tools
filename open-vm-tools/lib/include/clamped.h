@@ -248,4 +248,40 @@ Clamped_UAdd32(uint32 *out,  // OUT
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Clamped_UAdd64 --
+ *
+ *      Unsigned 64-bit addition.
+ *
+ *      This is a utility function for 64-bit unsigned addition,
+ *      in which the result is clamped to MAX_UINT64 on overflow.
+ *
+ * Results:
+ *      On success, returns TRUE. If the result would have overflowed
+ *      and we clamped it to MAX_UINT64, returns FALSE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Clamped_UAdd64(uint64 *out,   // OUT
+               uint64 a,      // IN
+               uint64 b)      // IN
+{
+   uint64 c = a + b;
+
+   if(UNLIKELY(c < a || c < b)) {
+      *out = MAX_UINT64;
+      return FALSE;
+   }
+
+   *out = c;
+   return TRUE;
+}
+
 #endif // ifndef _CLAMPED_H_
