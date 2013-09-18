@@ -550,6 +550,43 @@ HgfsUnpackCommonAttr(HgfsReq *req,            // IN: Reply packet
  *
  * HgfsChangeFileAttributes --
  *
+ *    Calculate the number of 512 byte blocks used.
+ *
+ *    Round the size to the next whole block and divide by the block size
+ *    to get the number of 512 byte blocks.
+ *    Note, this is taken from the nfs client and is simply performing:
+ *    (size + 512-1)/ 512)
+ *
+ * Results:
+ *    The number of 512 byte blocks for the size.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 17)
+static inline blkcnt_t
+HgfsCalcBlockSize(uint64 tsize)
+{
+   blkcnt_t used = (tsize + 511) >> 9;
+   return (used > ULONG_MAX) ? ULONG_MAX : used;
+}
+#else
+static inline unsigned long
+HgfsCalcBlockSize(uint64 tsize)
+{
+   loff_t used = (tsize + 511) >> 9;
+   return (used > ULONG_MAX) ? ULONG_MAX : used;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsChangeFileAttributes --
+ *
  *    Update an inode's attributes to match those of the HgfsAttr. May
  *    cause dirty pages to be flushed, and may invalidate cached pages,
  *    if there was a change in the file size or modification time in
@@ -663,7 +700,7 @@ HgfsChangeFileAttributes(struct inode *inode,          // IN/OUT: Inode
     */
    if (attr->mask & HGFS_ATTR_VALID_SIZE) {
       loff_t oldSize = compat_i_size_read(inode);
-      inode->i_blocks = (attr->size + HGFS_BLOCKSIZE - 1) / HGFS_BLOCKSIZE;
+      inode->i_blocks = HgfsCalcBlockSize(attr->size);
       if (oldSize != attr->size) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsChangeFileAttributes: new file "
                  "size: %"FMT64"u, old file size: %Lu\n", attr->size, oldSize));
