@@ -241,8 +241,8 @@ ToolsCore_InitRpc(ToolsServiceState *state)
        * XXX: this should be relaxed when we try to bring up a VMCI or TCP channel.
        */
       if (!state->ctx.isVMware) {
-         g_warning("The %s service needs to run inside a virtual machine.\n",
-                   state->name);
+         g_debug("The %s service needs to run inside a virtual machine.\n",
+                 state->name);
          state->ctx.rpc = NULL;
       } else {
          state->ctx.rpc = RpcChannel_New();
