@@ -961,17 +961,22 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_NEHALEM_1E     0x1e  // Lynnfield
 #define CPUID_MODEL_NEHALEM_1F     0x1f  // Havendale
 #define CPUID_MODEL_NEHALEM_25     0x25  // Westmere / Clarkdale
+#define CPUID_MODEL_ATOM_26        0x26  // Lincroft
+#define CPUID_MODEL_ATOM_27        0x27  // Saltwell
 #define CPUID_MODEL_SANDYBRIDGE_2A 0x2a  // Sandybridge (desktop/mobile)
 #define CPUID_MODEL_SANDYBRIDGE_2D 0x2d  // Sandybridge-EP
 #define CPUID_MODEL_NEHALEM_2C     0x2c  // Westmere-EP
 #define CPUID_MODEL_NEHALEM_2E     0x2e  // Nehalem-EX
 #define CPUID_MODEL_NEHALEM_2F     0x2f  // Westmere-EX
+#define CPUID_MODEL_ATOM_35        0x35  // Cloverview
+#define CPUID_MODEL_ATOM_36        0x36  // Cedarview
 #define CPUID_MODEL_SANDYBRIDGE_3A 0x3a  // Ivy Bridge
 #define CPUID_MODEL_SANDYBRIDGE_3E 0x3e  // Ivy Bridge-EP
-
-
 #define CPUID_MODEL_HASWELL_3C     0x3c  // Haswell DT
+#define CPUID_MODEL_HASWELL_3F     0x3f  // Haswell EN/EP/EX
 #define CPUID_MODEL_HASWELL_45     0x45  // Haswell Ultrathin
+#define CPUID_MODEL_HASWELL_46     0x46  // CrystalWell
+
 
 
 #define CPUID_MODEL_PIII_07    7
