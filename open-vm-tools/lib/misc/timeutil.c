@@ -1570,8 +1570,6 @@ static int Win32TimeUtilLookupZoneIndex(const char* targetName)
 time_t
 TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d) // IN
 {
-   const int DAY_IN_SECONDS = 60*60*24;
-   struct tm tmval1970 = {0};
    struct tm tmval = {0};
 
    /*
@@ -1582,15 +1580,6 @@ TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d) // IN
       return -1;
    }
 
-   /*
-    * Get the localtime for Jan 2nd 1970. We need to get the 2nd because
-    * if we are in a timezone that is + UTC then mktime will return -1
-    * for Jan 1st.
-    */
-   tmval1970.tm_year= 1970 - 1900;
-   tmval1970.tm_mon = 0;
-   tmval1970.tm_mday = 2;
-
    tmval.tm_year = d->year - 1900;
    tmval.tm_mon = d->month - 1;
    tmval.tm_mday = d->day;
@@ -1598,8 +1587,20 @@ TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d) // IN
    tmval.tm_min = d->minute;
    tmval.tm_sec = d->second;
 
+#if defined(_WIN32)
    /*
-    * Add back in the day.
-    */
-   return mktime(&tmval) - mktime(&tmval1970) + DAY_IN_SECONDS;
+   * Workaround since Win32 doesn't have timegm(). Use the win32
+   * _get_timezone to adjust to UTC.
+   */
+   {
+      int utcSeconds = 0;
+      _get_timezone(&utcSeconds);
+      return mktime(&tmval) - utcSeconds;
+   }
+#elif (defined(__linux__) || defined(__APPLE__)) && !defined(__ANDROID__)
+   return timegm(&tmval);
+#else
+   NOT_IMPLEMENTED();
+   return -1;
+#endif
 }
