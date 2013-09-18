@@ -34,7 +34,6 @@
 #define INCLUDE_ALLOW_VMK_MODULE
 #define INCLUDE_ALLOW_DISTRIBUTE
 #define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMIROM
 #include "includeCheck.h"
 #include "vm_basic_types.h" // For INLINE.
 #include "vm_basic_asm.h"   // For Div64...

@@ -78,7 +78,6 @@
 #define INCLUDE_ALLOW_VMK_MODULE
 #define INCLUDE_ALLOW_DISTRIBUTE
 #define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMIROM
 #include "includeCheck.h"
 
 /* STRICT ANSI means the Xserver build and X defines Bool differently. */

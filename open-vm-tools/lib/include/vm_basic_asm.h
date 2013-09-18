@@ -49,7 +49,6 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_DISTRIBUTE
 #define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMIROM
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"

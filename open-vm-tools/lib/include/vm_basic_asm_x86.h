@@ -47,7 +47,6 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_DISTRIBUTE
 #define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMIROM
 #include "includeCheck.h"
 
 #ifdef VM_X86_64
