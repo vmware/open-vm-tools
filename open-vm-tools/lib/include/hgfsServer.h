@@ -35,8 +35,7 @@ typedef struct HgfsServerStateLogger {
    void                       *loggerData;   // logger callback private data
 } HgfsServerStateLogger;
 
-typedef
-struct HgfsVmxIov {
+typedef struct HgfsVmxIov {
    void *va;           /* Virtual addr */
    uint64 pa;          /* Physical address passed by the guest */
    uint32 len;         /* length of data; should be <= PAGE_SIZE for VMCI; arbitrary for backdoor */
@@ -52,8 +51,7 @@ typedef enum {
 typedef uint64 HgfsStateFlags;
 #define HGFS_STATE_CLIENT_REQUEST         (1 << 0)
 #define HGFS_STATE_ASYNC_REQUEST          (1 << 1)
-typedef
-struct HgfsPacket {
+typedef struct HgfsPacket {
    uint64 id;
 
    HgfsStateFlags state;
@@ -61,10 +59,13 @@ struct HgfsPacket {
    /* For metapacket we always establish writeable mappings */
    void *metaPacket;
    size_t metaPacketSize;
+   uint32 metaPacketMappedIov;
    Bool metaPacketIsAllocated;
+   MappingType metaMappingType;
 
    void *dataPacket;
    size_t dataPacketSize;
+   uint32 dataPacketMappedIov;
    uint32 dataPacketIovIndex;
    Bool dataPacketIsAllocated;
    /* What type of mapping was established - readable/ writeable ? */
