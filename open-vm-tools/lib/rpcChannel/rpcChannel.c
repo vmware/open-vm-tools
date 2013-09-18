@@ -461,7 +461,11 @@ RpcChannel_Error(void *_chan,
 {
    RpcChannelInt *chan = _chan;
    chan->rpcError = TRUE;
-   g_warning("Error in the RPC receive loop: %s.\n", status);
+   /*
+    * XXX: Workaround for PR 935520.
+    * Revert the log call to g_warning() after fixing PR 955746.
+    */
+   g_debug("Error in the RPC receive loop: %s.\n", status);
 
    if (chan->resetCheck == NULL) {
       chan->resetCheck = g_idle_source_new();
