@@ -619,7 +619,7 @@ struct uuid_2_cid {
    static inline int VMCISock_GetAFValueFd(int *outFd)
    {
       int fd;
-      int family;
+      int family = -1;
 
 #if defined(linux)
       /*

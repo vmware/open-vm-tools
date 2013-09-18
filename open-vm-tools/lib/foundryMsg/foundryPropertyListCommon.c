@@ -136,6 +136,37 @@ VixPropertyList_RemoveAllWithoutHandles(VixPropertyListImpl *propList)   // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixPropertyList_MarkAllSensitive --
+ *
+ *       Mark all properties in a list sensitive.
+ *
+ * Results:
+ *       As above
+ *
+ * Side effects:
+ *       None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VixPropertyList_MarkAllSensitive(VixPropertyListImpl *propList)  // IN/OUT:
+{
+   if (NULL != propList) {
+      VixPropertyValue *property = propList->properties;
+
+      while (NULL != property) {
+         property->isSensitive = TRUE;
+
+         property = property->next;
+      }
+   }
+} // VixPropertyList_MarkAllSensitive
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixPropertyList_Serialize --
  *
  *       Serialize a property list to a buffer. The buffer is allocated by
@@ -155,10 +186,10 @@ VixPropertyList_RemoveAllWithoutHandles(VixPropertyListImpl *propList)   // IN
  */
 
 VixError
-VixPropertyList_Serialize(VixPropertyListImpl    *propList,       // IN
-                          Bool dirtyOnly,                         // IN
-                          size_t *resultSize,                     // OUT
-                          char **resultBuffer)                    // OUT
+VixPropertyList_Serialize(VixPropertyListImpl *propList,  // IN:
+                          Bool dirtyOnly,                 // IN:
+                          size_t *resultSize,             // OUT:
+                          char **resultBuffer)            // OUT:
 {
    VixError err = VIX_OK;
    VixPropertyValue *property = NULL;
@@ -842,7 +873,7 @@ abort:
  *
  * Results:
  *       VixError. VIX_OK if the property was found.
- *                     VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
+ *                 VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
  *
  * Side effects:
  *       None
@@ -887,12 +918,48 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixPropertyListSetStringImpl --
+ *
+ *       Saves a copy of a string property value. Sets sensitivity.
+ *
+ * Results:
+ *       As above
+ *
+ * Side effects:
+ *       None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VixPropertyListSetStringImpl(VixPropertyValue *property,  // IN:
+                             const char *value,           // IN:
+                             Bool isSensitive)            // IN:
+{
+   if (NULL != property->value.strValue) {
+      if (property->isSensitive) {
+         Util_ZeroString(property->value.strValue);
+      }
+      free(property->value.strValue);
+      property->value.strValue = NULL;
+   }
+   if (NULL != value) {
+      property->value.strValue = Util_SafeStrdup(value);
+   }
+   property->isDirty = TRUE;
+   property->isSensitive = isSensitive;
+} // VixPropertyListSetStringImpl
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixPropertyList_SetString --
  *
  *       Saves a copy of a string property value. The value is identified
  *       by the integer property ID.
  *
- *       Value names are unique within a single proeprty list.
+ *       Value names are unique within a single property list.
  *       If a previous value with the same propertyID value already
  *       existed in this property list, then it is replaced with the new
  *       value. Otherwise, a new value is added.
@@ -909,9 +976,9 @@ abort:
  */
 
 VixError
-VixPropertyList_SetString(VixPropertyListImpl *propList,    // IN
-                          int propertyID,                   // IN
-                          const char *value)                // IN
+VixPropertyList_SetString(VixPropertyListImpl *propList,  // IN:
+                          int propertyID,                 // IN:
+                          const char *value)              // IN:
 {
    VixError err = VIX_OK;
    VixPropertyValue *property = NULL;
@@ -920,31 +987,80 @@ VixPropertyList_SetString(VixPropertyListImpl *propList,    // IN
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
-   
+
    /*
     * Find or create an entry for this property.
     */
    err = VixPropertyList_FindProperty(propList,
-                                      propertyID, 
-                                      VIX_PROPERTYTYPE_STRING, 
+                                      propertyID,
+                                      VIX_PROPERTYTYPE_STRING,
                                       0,
-                                      TRUE, 
+                                      TRUE,
                                       &property);
-   if (VIX_OK != err) {
+   if (VIX_OK == err) {
+      VixPropertyListSetStringImpl(property, value, property->isSensitive);
+   }
+
+abort:
+
+   return err;
+} // VixPropertyList_SetString
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixPropertyList_SetStringSensitive --
+ *
+ *       Saves a copy of a string property value. The value is identified
+ *       by the integer property ID. Mark sensitive.
+ *
+ *       Value names are unique within a single property list.
+ *       If a previous value with the same propertyID value already
+ *       existed in this property list, then it is replaced with the new
+ *       value. Otherwise, a new value is added.
+ *
+ *       This fails if the value is present but has a different type.
+ *
+ * Results:
+ *       VixError
+ *
+ * Side effects:
+ *       None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixPropertyList_SetStringSensitive(VixPropertyListImpl *propList,  // IN:
+                                   int propertyID,                 // IN:
+                                   const char *value)              // IN:
+{
+   VixError err = VIX_OK;
+   VixPropertyValue *property = NULL;
+
+   if (NULL == propList) {
+      err = VIX_E_INVALID_ARG;
       goto abort;
    }
 
-   if (NULL != property->value.strValue) {
-      free(property->value.strValue);
-      property->value.strValue = NULL;
+   /*
+    * Find or create an entry for this property.
+    */
+   err = VixPropertyList_FindProperty(propList,
+                                      propertyID,
+                                      VIX_PROPERTYTYPE_STRING,
+                                      0,
+                                      TRUE,
+                                      &property);
+
+   if (VIX_OK == err) {
+      VixPropertyListSetStringImpl(property, value, TRUE);
    }
-   if (NULL != value) {
-      property->value.strValue = Util_SafeStrdup(value);
-   }
-   property->isDirty = TRUE;
 
 abort:
-   return(err);
+
+   return err;
 } // VixPropertyList_SetString
 
 
@@ -962,7 +1078,7 @@ abort:
  *
  * Results:
  *       VixError. VIX_OK if the property was found.
- *                     VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
+ *                 VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
  *
  * Side effects:
  *       None
@@ -1009,7 +1125,7 @@ abort:
  *       Saves a copy of a integer property value. The value is identified
  *       by the integer property ID.
  *
- *       Value names are unique within a single proeprty list.
+ *       Value names are unique within a single property list.
  *       If a previous value with the same propertyID value already
  *       existed in this property list, then it is replaced with the new
  *       value. Otherwise, a new value is added.
@@ -1055,7 +1171,7 @@ VixPropertyList_SetInteger(VixPropertyListImpl *propList,      // IN
    property->isDirty = TRUE;
 
 abort:
-   return(err);
+   return err;
 } // VixPropertyList_SetInteger
 
 
@@ -1073,7 +1189,7 @@ abort:
  *
  * Results:
  *       VixError. VIX_OK if the property was found.
- *                     VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
+ *                 VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
  *
  * Side effects:
  *       None
@@ -1124,7 +1240,7 @@ abort:
  *       Saves a copy of a Bool property value. The value is identified
  *       by the integer property ID.
  *
- *       Value names are unique within a single proeprty list.
+ *       Value names are unique within a single property list.
  *       If a previous value with the same propertyID value already
  *       existed in this property list, then it is replaced with the new
  *       value. Otherwise, a new value is added.
@@ -1170,7 +1286,7 @@ VixPropertyList_SetBool(VixPropertyListImpl *propList,      // IN
    property->isDirty = TRUE;
 
 abort:
-   return(err);
+   return err;
 }
 
 
@@ -1188,7 +1304,7 @@ abort:
  *
  * Results:
  *       VixError. VIX_OK if the property was found.
- *                     VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
+ *                 VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
  *
  * Side effects:
  *       None
@@ -1235,7 +1351,7 @@ abort:
  *       Saves a copy of a int64 property value. The value is identified
  *       by the integer property ID.
  *
- *       Value names are unique within a single proeprty list.
+ *       Value names are unique within a single property list.
  *       If a previous value with the same propertyID value already
  *       existed in this property list, then it is replaced with the new
  *       value. Otherwise, a new value is added.
@@ -1281,7 +1397,7 @@ VixPropertyList_SetInt64(VixPropertyListImpl *propList,     // IN
    property->isDirty = TRUE;
 
 abort:
-   return(err);
+   return err;
 } // VixPropertyList_SetInt64
 
 
@@ -1299,7 +1415,7 @@ abort:
  *
  * Results:
  *       VixError. VIX_OK if the property was found.
- *                     VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
+ *                 VIX_E_UNRECOGNIZED_PROPERTY if the property was not found.
  *
  * Side effects:
  *       None
@@ -1352,12 +1468,55 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixPropertyListSetBlobImpl --
+ *
+ *       Saves a copy of a blob property value. Set sensitivity.
+ *
+ * Results:
+ *       As above.
+ *
+ * Side effects:
+ *       None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VixPropertyListSetBlobImpl(VixPropertyValue *property,  // IN:
+                           int blobSize,                // IN:
+                           const unsigned char *value,  // IN:
+                           Bool isSensitive)            // IN:
+{
+   if (NULL != property->value.blobValue.blobContents) {
+      if (property->isSensitive) {
+         Util_Zero(property->value.blobValue.blobContents,
+                   property->value.blobValue.blobSize);
+      }
+
+      free(property->value.blobValue.blobContents);
+      property->value.blobValue.blobContents = NULL;
+   }
+
+   property->value.blobValue.blobSize = blobSize;
+   if ((NULL != value) && (blobSize > 0)) {
+      property->value.blobValue.blobContents = Util_SafeMalloc(blobSize);
+      memcpy(property->value.blobValue.blobContents, value, blobSize);
+   }
+
+   property->isDirty = TRUE;
+   property->isSensitive = isSensitive;
+} // VixPropertyListSetBlobImpl
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixPropertyList_SetBlob --
  *
  *       Saves a copy of a blob property value. The value is identified
  *       by the integer property ID.
  *
- *       Value names are unique within a single proeprty list.
+ *       Value names are unique within a single property list.
  *       If a previous value with the same propertyID value already
  *       existed in this property list, then it is replaced with the new
  *       value. Otherwise, a new value is added.
@@ -1374,10 +1533,10 @@ abort:
  */
 
 VixError
-VixPropertyList_SetBlob(VixPropertyListImpl *propList,      // IN
-                        int propertyID,                     // IN
-                        int blobSize,                       // IN
-                        const unsigned char *value)         // IN
+VixPropertyList_SetBlob(VixPropertyListImpl *propList,  // IN:
+                        int propertyID,                 // IN:
+                        int blobSize,                   // IN:
+                        const unsigned char *value)     // IN:
 {
    VixError err = VIX_OK;
    VixPropertyValue *property = NULL;
@@ -1386,35 +1545,81 @@ VixPropertyList_SetBlob(VixPropertyListImpl *propList,      // IN
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
-   
+
    /*
     * Find or create an entry for this property.
     */
    err = VixPropertyList_FindProperty(propList,
-                                      propertyID, 
-                                      VIX_PROPERTYTYPE_BLOB, 
+                                      propertyID,
+                                      VIX_PROPERTYTYPE_BLOB,
                                       0,
-                                      TRUE, 
+                                      TRUE,
                                       &property);
-   if (VIX_OK != err) {
+
+   if (VIX_OK == err) {
+      VixPropertyListSetBlobImpl(property, blobSize, value,
+                                 property->isSensitive);
+   }
+
+abort:
+   return err;
+} // VixPropertyList_SetBlob
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixPropertyList_SetBlobSensitive --
+ *
+ *       Saves a copy of a blob property value. The value is identified
+ *       by the integer property ID. Set sentivity.
+ *
+ *       Value names are unique within a single property list.
+ *       If a previous value with the same propertyID value already
+ *       existed in this property list, then it is replaced with the new
+ *       value. Otherwise, a new value is added.
+ *
+ *       This fails if the value is present but has a different type.
+ *
+ * Results:
+ *       VixError.
+ *
+ * Side effects:
+ *       None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixPropertyList_SetBlobSensitive(VixPropertyListImpl *propList,  // IN:
+                                 int propertyID,                 // IN:
+                                 int blobSize,                   // IN:
+                                 const unsigned char *value)     // IN:
+{
+   VixError err = VIX_OK;
+   VixPropertyValue *property = NULL;
+
+   if (NULL == propList) {
+      err = VIX_E_INVALID_ARG;
       goto abort;
    }
 
-   if (NULL != property->value.blobValue.blobContents) {
-      free(property->value.blobValue.blobContents);
-      property->value.blobValue.blobContents = NULL;
-   }
+   /*
+    * Find or create an entry for this property.
+    */
+   err = VixPropertyList_FindProperty(propList,
+                                      propertyID,
+                                      VIX_PROPERTYTYPE_BLOB,
+                                      0,
+                                      TRUE,
+                                      &property);
 
-   property->value.blobValue.blobSize = blobSize;
-   if ((NULL != value) && (blobSize > 0)) {
-      property->value.blobValue.blobContents = Util_SafeMalloc(blobSize);
-      memcpy(property->value.blobValue.blobContents, value, blobSize);
+   if (VIX_OK == err) {
+      VixPropertyListSetBlobImpl(property, blobSize, value, TRUE);
    }
-
-   property->isDirty = TRUE;
 
 abort:
-   return(err);
+   return err;
 } // VixPropertyList_SetBlob
 
 
@@ -1485,7 +1690,7 @@ abort:
  *       This is a SHALLOW copy. It only copies the pointer, not what the
  *       pointer references.
  *
- *       Value names are unique within a single proeprty list.
+ *       Value names are unique within a single property list.
  *       If a previous value with the same propertyID value already
  *       existed in this property list, then it is replaced with the new
  *       value. Otherwise, a new value is added.
@@ -1531,7 +1736,7 @@ VixPropertyList_SetPtr(VixPropertyListImpl *propList,     // IN
    property->isDirty = TRUE;
 
 abort:
-   return(err);
+   return err;
 } // VixPropertyList_SetPtr
 
 
@@ -1568,7 +1773,7 @@ VixPropertyList_PropertyExists(VixPropertyListImpl *propList,     // IN
       foundIt = TRUE;
    }
 
-   return(foundIt);
+   return foundIt;
 } // VixPropertyList_PropertyExists
 
 

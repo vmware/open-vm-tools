@@ -18,7 +18,7 @@
 
 /*
  * This header file is given out as part of the open source
- * tools. Things in this file are public, but they may not have 
+ * tools. Things in this file are public, but they may not have
  * been tested or documented, and that may change in future releases.
  * The public Vix API is defined in vix.h
  *
@@ -32,7 +32,7 @@
 
 #ifdef __cplusplus
 extern "C"{
-#endif 
+#endif
 
 /*
  * VIX_HIDE_BORA_DEPENDENCIES:
@@ -211,7 +211,7 @@ enum {
  *
  * VIX Handles --
  *
- * These are common functions that apply to handles of several types. 
+ * These are common functions that apply to handles of several types.
  *-----------------------------------------------------------------------------
  */
 
@@ -299,7 +299,7 @@ enum {
  *-----------------------------------------------------------------------------
  */
 
-/* 
+/*
  * VIX Property Type
  */
 
@@ -392,7 +392,7 @@ VixError VixPropertyList_Deserialize(VixPropertyListImpl *propListImpl,
                                      const char *buffer,
                                      size_t bufferSize,
                                      VixPropertyListBadEncodingAction action);
- 
+
 VixError
 VixPropertyList_DeserializeNoClobber(VixPropertyListImpl *propListImpl,
                                      const char *buffer,
@@ -403,7 +403,11 @@ VixError VixPropertyList_GetString(struct VixPropertyListImpl *propList,
                                    int propertyID,
                                    int index,
                                    char **resultValue);
-                                                 
+
+VixError VixPropertyList_SetStringSensitive(struct VixPropertyListImpl *propList,
+                                            int propertyID,
+                                            const char *value);
+
 VixError VixPropertyList_SetString(struct VixPropertyListImpl *propList,
                                    int propertyID,
                                    const char *value);
@@ -455,6 +459,11 @@ VixError VixPropertyList_SetBlob(struct VixPropertyListImpl *propList,
                                  int blobSize,
                                  const unsigned char *value);
 
+VixError VixPropertyList_SetBlobSensitive(struct VixPropertyListImpl *propList,
+                                          int propertyID,
+                                          int blobSize,
+                                          const unsigned char *value);
+
 VixError VixPropertyList_RemoveAll(VixHandle propertyListHandle);
 
 VixError VixPropertyList_Remove(VixHandle propertyListHandle,
@@ -463,7 +472,7 @@ VixError VixPropertyList_Remove(VixHandle propertyListHandle,
 VixError VixPropertyList_RemoveFromImpl(VixPropertyListImpl *propList,
                                         int propertyID);
 
-VixError VixPropertyList_AppendProperties(VixHandle handle, 
+VixError VixPropertyList_AppendProperties(VixHandle handle,
                                           int firstPropertyID,
                                           ...);
 
@@ -486,11 +495,11 @@ VixError VixPropertyListAppendProperty(VixPropertyListImpl *propList,
 int VixPropertyList_GetNumProperties(VixHandle propertyListHandle,
                                      int propertyID);
 
-VixError VixPropertyList_GetOptionalProperties(VixHandle propertyListHandle, 
+VixError VixPropertyList_GetOptionalProperties(VixHandle propertyListHandle,
                                                int firstPropertyID,
                                                ...);
 
-VixError VixPropertyList_GetIndexedProperties(VixHandle propertyListHandle, 
+VixError VixPropertyList_GetIndexedProperties(VixHandle propertyListHandle,
                                               Bool ignoreMissingProperties,
                                               int firstPropertyID,
                                               int firstPropertyIndex,
@@ -509,6 +518,8 @@ int VixPropertyList_NumItems(VixPropertyListImpl *propList);
 
 Bool VixPropertyList_Empty(VixPropertyListImpl *propList);
 
+void VixPropertyList_MarkAllSensitive(VixPropertyListImpl *propList);
+
 
 #endif   // VIX_HIDE_FROM_JAVA
 
@@ -518,7 +529,7 @@ Bool VixPropertyList_Empty(VixPropertyListImpl *propList);
  *
  * VixVM --
  *
- * This describes the persistent configuration state of a single VM. The 
+ * This describes the persistent configuration state of a single VM. The
  * VM may or may not be running.
  *
  *-----------------------------------------------------------------------------
@@ -641,14 +652,14 @@ typedef enum VixRegValueDataType {
  *      Use as:
  *
  *      VIX_DEBUG(("test debug message: %s %d\n", stringArg, intArg));
- *       
+ *
  *       Output will go to logfile if VIX_DEBUG_PREFERENCE_NAME is non-zero
  *
  *      VIX_DEBUG_LEVEL(3, ("test debug message: %s %d\n", stringArg, intArg));
  *
  *       Output will go to logfile if VIX_DEBUG_PREFERENCE_NAME is >=
  *       the first argument to the macro.
- * 
+ *
  *-----------------------------------------------------------------------------
  */
 
@@ -728,7 +739,7 @@ extern VixError VixLogError(VixError err, const char *function, int line,
 
 #ifdef __cplusplus
 } // extern "C" {
-#endif 
+#endif
 
 
 #endif // _VIXOpenSource_h_
