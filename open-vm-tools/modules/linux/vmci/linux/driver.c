@@ -150,6 +150,14 @@ static void process_bitmap(unsigned long data);
 #  define VMCI_DISABLE_MSIX   1
 #endif
 
+/*
+ * Needed by other components of this module.  It's okay to have one global
+ * instance of this because there can only ever be one VMCI device.  Our
+ * virtual hardware enforces this.
+ */
+
+struct pci_dev *vmci_pdev;
+
 static vmci_device vmci_dev;
 static compat_mod_param_bool vmci_disable_host = 0;
 static compat_mod_param_bool vmci_disable_guest = 0;
@@ -175,7 +183,8 @@ static uint32 data_buffer_size = VMCI_MAX_DG_SIZE;
  * and register a page with the device.
  */
 
-static uint8 *notification_bitmap = NULL;
+static uint8 *notification_bitmap;
+static dma_addr_t notification_base;
 
 
 /*
@@ -1792,7 +1801,8 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
     */
    if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
       capabilities = VMCI_CAPS_DATAGRAM;
-      notification_bitmap = vmalloc(PAGE_SIZE);
+      notification_bitmap = pci_alloc_consistent(pdev, PAGE_SIZE,
+                                                 &notification_base);
       if (notification_bitmap == NULL) {
          printk(KERN_ERR "VMCI device unable to allocate notification bitmap.\n");
       } else {
@@ -1823,8 +1833,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
     * used
     */
    if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
-      unsigned long bitmapPPN;
-      bitmapPPN = page_to_pfn(vmalloc_to_page(notification_bitmap));
+      unsigned long bitmapPPN = notification_base >> PAGE_SHIFT;
       if (!VMCI_RegisterNotificationBitmap(bitmapPPN)) {
          printk(KERN_ERR "VMCI device unable to register notification bitmap "
                 "with PPN 0x%x.\n", (uint32)bitmapPPN);
@@ -1840,6 +1849,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    /* Enable device. */
    vmci_dev.enabled = TRUE;
    pci_set_drvdata(pdev, &vmci_dev);
+   vmci_pdev = pdev;
 
    /*
     * We do global initialization here because we need datagrams
@@ -1938,7 +1948,8 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    compat_mutex_unlock(&vmci_dev.lock);
  release:
    if (notification_bitmap) {
-      vfree(notification_bitmap);
+      pci_free_consistent(pdev, PAGE_SIZE, notification_bitmap,
+                          notification_base);
       notification_bitmap = NULL;
    }
    release_region(ioaddr, ioaddr_size);
@@ -1975,6 +1986,7 @@ vmci_remove_device(struct pci_dev* pdev)
 
    VMCIQPGuestEndpoints_Exit();
    VMCIUtil_Exit();
+   vmci_pdev = NULL;
 
    compat_mutex_lock(&dev->lock);
 
@@ -2008,7 +2020,8 @@ vmci_remove_device(struct pci_dev* pdev)
        * device, so we can safely free it here.
        */
 
-      vfree(notification_bitmap);
+      pci_free_consistent(pdev, PAGE_SIZE, notification_bitmap,
+                          notification_base);
       notification_bitmap = NULL;
    }
 

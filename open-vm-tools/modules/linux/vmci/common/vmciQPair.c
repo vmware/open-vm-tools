@@ -478,12 +478,7 @@ vmci_qpair_alloc(VMCIQPair **qpair,            // OUT
    }
 
    if ((flags & (VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED)) && !vmkernel) {
-#if defined(linux)
-      if (VMCI_ROUTE_AS_GUEST != route)
-#endif // linux
-      {
-         return VMCI_ERROR_INVALID_ARGS;
-      }
+      return VMCI_ERROR_INVALID_ARGS;
    }
 
    if (flags & VMCI_QPFLAG_PINNED) {
