@@ -112,6 +112,7 @@ static guint gPanicCount = 0;
 static LogHandler *gDefaultData;
 static LogHandler *gErrorData;
 static GPtrArray *gDomains = NULL;
+static gboolean gLogInitialized = FALSE;
 
 /* Internal functions. */
 
@@ -866,6 +867,7 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
    }
 
    gLogEnabled |= force;
+   gLogInitialized = TRUE;
 
    if (allocDict) {
       g_key_file_free(cfg);
@@ -891,6 +893,15 @@ VMToolsLogWrapper(GLogLevelFlags level,
                   const char *fmt,
                   va_list args)
 {
+   if (!gLogInitialized && !IS_FATAL(level)) {
+      /*
+       * Avoid logging without initialization because
+       * it leads to spamming of the console output.
+       * Fatal messages are exception.
+       */
+      return;
+   }
+
    if (gPanicCount == 0) {
       char *msg = Str_Vasprintf(NULL, fmt, args);
       if (msg != NULL) {
