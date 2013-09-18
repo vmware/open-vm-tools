@@ -30,6 +30,7 @@
 #include "rpcChannelInt.h"
 #include "rpcin.h"
 #include "util.h"
+#include "debug.h"
 
 #define LGPFX "VSockChan: "
 
@@ -70,30 +71,30 @@ VSockCreateConn(gboolean *isPriv)        // OUT
    SockConnError err;
    SOCKET fd;
 
-   g_debug(LGPFX "Creating privileged vsocket ...\n");
+   Debug(LGPFX "Creating privileged vsocket ...\n");
    fd = Socket_ConnectVMCI(VMCI_HYPERVISOR_CONTEXT_ID,
                            GUESTRPC_RPCI_VSOCK_LISTEN_PORT,
                            TRUE, &err);
 
    if (fd != INVALID_SOCKET) {
-      g_debug(LGPFX "Successfully created priv vsocket %d\n", fd);
+      Debug(LGPFX "Successfully created priv vsocket %d\n", fd);
       *isPriv = TRUE;
       return fd;
    }
 
    if (err == SOCKERR_EACCESS) {
-      g_debug(LGPFX "Creating unprivileged vsocket ...\n");
+      Debug(LGPFX "Creating unprivileged vsocket ...\n");
       fd = Socket_ConnectVMCI(VMCI_HYPERVISOR_CONTEXT_ID,
                               GUESTRPC_RPCI_VSOCK_LISTEN_PORT,
                               FALSE, &err);
       if (fd != INVALID_SOCKET) {
-         g_debug(LGPFX "Successfully created unpriv vsocket %d\n", fd);
+         Debug(LGPFX "Successfully created unpriv vsocket %d\n", fd);
          *isPriv = FALSE;
          return fd;
       }
    }
 
-   g_warning(LGPFX "Failed to create vsocket channel, err=%d\n", err);
+   Warning(LGPFX "Failed to create vsocket channel, err=%d\n", err);
    return INVALID_SOCKET;
 }
 
@@ -252,8 +253,8 @@ VSockOutSend(VSockOut *out,        // IN
    *reply = NULL;
    *repLen = 0;
 
-   g_debug(LGPFX "Sending request for conn %d,  reqLen=%d\n",
-           out->fd, (int)reqLen);
+   Debug(LGPFX "Sending request for conn %d,  reqLen=%d\n",
+         out->fd, (int)reqLen);
 
    if (!Socket_SendPacket(out->fd, request, reqLen)) {
       *reply = "VSockOut: Unable to send data for the RPCI command";
@@ -278,7 +279,7 @@ VSockOutSend(VSockOut *out,        // IN
    *reply = out->payload + 2;
    *repLen = out->payloadLen - 2;
 
-   g_debug("VSockOut: recved %d bytes for conn %d\n", out->payloadLen, out->fd);
+   Debug("VSockOut: recved %d bytes for conn %d\n", out->payloadLen, out->fd);
 
    return out->payload[0] == '1';
 

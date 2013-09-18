@@ -33,6 +33,7 @@
 #include "vmci_sockets.h"
 #include "dataMap.h"
 #include "err.h"
+#include "debug.h"
 
 #define LGPFX "SimpleSock: "
 
@@ -65,14 +66,14 @@ SocketStartup(void)
 
    err = WSAStartup(MAKEWORD(2, 0), &wsaData);
    if (err) {
-      g_warning(LGPFX "Error in WSAStartup: %d[%s]\n", err,
-                Err_Errno2String(err));
+      Warning(LGPFX "Error in WSAStartup: %d[%s]\n", err,
+              Err_Errno2String(err));
       return FALSE;
    }
 
    if (2 != LOBYTE(wsaData.wVersion) || 0 != HIBYTE(wsaData.wVersion)) {
-      g_warning(LGPFX "Unsupported Winsock version %d.%d\n",
-                LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion));
+      Warning(LGPFX "Unsupported Winsock version %d.%d\n",
+              LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion));
       return FALSE;
    }
 #endif
@@ -103,8 +104,8 @@ SocketCleanup(void)
 #if defined(_WIN32)
    int err = WSACleanup();
    if (err) {
-      g_warning(LGPFX "Error in WSACleanup: %d[%s]\n", err,
-                Err_Errno2String(err));
+      Warning(LGPFX "Error in WSACleanup: %d[%s]\n", err,
+              Err_Errno2String(err));
       return FALSE;
    }
 #endif
@@ -141,8 +142,8 @@ Socket_Close(SOCKET sock)
 
    if (res == SOCKET_ERROR) {
       int err = SocketGetLastError();
-      g_warning(LGPFX "Error in closing socket %d: %d[%s]\n",
-                sock, err, Err_Errno2String(err));
+      Warning(LGPFX "Error in closing socket %d: %d[%s]\n",
+              sock, err, Err_Errno2String(err));
    }
 
    SocketCleanup();
@@ -204,7 +205,7 @@ Socket_Recv(SOCKET fd,      // IN
    while (remaining > 0) {
       rv = recv(fd, buf , remaining, 0);
       if (rv == 0) {
-         g_warning(LGPFX "Socket %d closed by peer.", fd);
+         Warning(LGPFX "Socket %d closed by peer.", fd);
          return FALSE;
       }
       if (rv == SOCKET_ERROR) {
@@ -212,15 +213,15 @@ Socket_Recv(SOCKET fd,      // IN
          if (sysErr == SYSERR_EINTR) {
             continue;
          }
-         g_warning(LGPFX "Recv error for socket %d: %d[%s]", fd, sysErr,
-                   Err_Errno2String(sysErr));
+         Warning(LGPFX "Recv error for socket %d: %d[%s]", fd, sysErr,
+                 Err_Errno2String(sysErr));
          return FALSE;
       }
       remaining -= rv;
       buf += rv;
    }
 
-   g_debug(LGPFX "Recved %d bytes from socket %d\n", len, fd);
+   Debug(LGPFX "Recved %d bytes from socket %d\n", len, fd);
    return TRUE;
 }
 
@@ -258,15 +259,15 @@ Socket_Send(SOCKET fd,      // IN
          if (sysErr == SYSERR_EINTR) {
             continue;
          }
-         g_warning(LGPFX "Send error for socket %d: %d[%s]", fd, sysErr,
-                   Err_Errno2String(sysErr));
+         Warning(LGPFX "Send error for socket %d: %d[%s]", fd, sysErr,
+                 Err_Errno2String(sysErr));
          return FALSE;
       }
       left -= rv;
       sent += rv;
    }
 
-   g_debug(LGPFX "Sent %d bytes from socket %d\n", len, fd);
+   Debug(LGPFX "Sent %d bytes from socket %d\n", len, fd);
    return TRUE;
 }
 
@@ -312,7 +313,7 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
    }
 
    if (family == -1) {
-      g_warning(LGPFX "Couldn't get VMCI socket family info.");
+      Warning(LGPFX "Couldn't get VMCI socket family info.");
       goto error;
    }
 
@@ -321,13 +322,13 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
    addr.svm_cid = cid;
    addr.svm_port = port;
 
-   g_debug(LGPFX "creating new socket, connecting to %u:%u\n", cid, port);
+   Debug(LGPFX "creating new socket, connecting to %u:%u\n", cid, port);
 
    fd = socket(addr.svm_family, SOCK_STREAM, 0);
    if (fd == INVALID_SOCKET) {
       sysErr = SocketGetLastError();
-      g_warning(LGPFX "failed to create socket, error %d: %s\n",
-                sysErr, Err_Errno2String(sysErr));
+      Warning(LGPFX "failed to create socket, error %d: %s\n",
+              sysErr, Err_Errno2String(sysErr));
       goto error;
    }
 
@@ -349,8 +350,8 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
          if (bind(fd, (struct sockaddr *)&localAddr, sizeof localAddr) != 0) {
             sysErr = SocketGetLastError();
             if (sysErr == SYSERR_EACCESS) {
-               g_warning(LGPFX "Couldn't bind to privileged port for "
-                         "socket %d\n", fd);
+               Warning(LGPFX "Couldn't bind to privileged port for "
+                       "socket %d\n", fd);
                error = SOCKERR_EACCESS;
                Socket_Close(fd);
                goto error;
@@ -358,8 +359,8 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
             if (sysErr == SYSERR_EADDRINUSE) {
                continue;
             }
-            g_warning(LGPFX "could not bind socket, error %d: %s\n", sysErr,
-                      Err_Errno2String(sysErr));
+            Warning(LGPFX "could not bind socket, error %d: %s\n", sysErr,
+                    Err_Errno2String(sysErr));
             Socket_Close(fd);
             error = SOCKERR_BIND;
             goto error;
@@ -370,28 +371,28 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
       }
 
       if (!bindOk) {
-         g_warning(LGPFX "Failed to bind to privileged port for socket %d, "
-                   "no port available\n", fd);
+         Warning(LGPFX "Failed to bind to privileged port for socket %d, "
+                 "no port available\n", fd);
          error = SOCKERR_BIND;
          Socket_Close(fd);
          goto error;
       } else {
-         g_debug(LGPFX "Successfully bound to port %d for socket %d\n",
-                 localAddr.svm_port, fd);
+         Debug(LGPFX "Successfully bound to port %d for socket %d\n",
+               localAddr.svm_port, fd);
       }
    }
 
    if (connect(fd, (struct sockaddr *)&addr, addrLen) != 0) {
       sysErr = SocketGetLastError();
-      g_warning(LGPFX "socket connect failed, error %d: %s\n",
-                sysErr, Err_Errno2String(sysErr));
+      Warning(LGPFX "socket connect failed, error %d: %s\n",
+              sysErr, Err_Errno2String(sysErr));
       Socket_Close(fd);
       error = SOCKERR_CONNECT;
       goto error;
    }
 
    VMCISock_ReleaseAFValueFd(vsockDev);
-   g_debug(LGPFX "socket %d connected\n", fd);
+   Debug(LGPFX "socket %d connected\n", fd);
    return fd;
 
 error:
@@ -437,7 +438,7 @@ Socket_DecodePacket(const char *recvBuf,       // IN
    /* decoding the packet */
    res = DataMap_Deserialize(recvBuf, fullPktLen, &map);
    if (res != DMERR_SUCCESS) {
-      g_debug(LGPFX "Error in dataMap decoding, error=%d\n", res);
+      Debug(LGPFX "Error in dataMap decoding, error=%d\n", res);
       return FALSE;
    }
 
@@ -445,7 +446,7 @@ Socket_DecodePacket(const char *recvBuf,       // IN
    if (res == DMERR_SUCCESS) {
       char *tmpPtr = malloc(len + 1);
       if (tmpPtr == NULL) {
-         g_debug(LGPFX "Error in allocating memory\n");
+         Debug(LGPFX "Error in allocating memory\n");
          goto error;
       }
       memcpy(tmpPtr, buf, len);
@@ -455,7 +456,7 @@ Socket_DecodePacket(const char *recvBuf,       // IN
       *payload = tmpPtr;
       *payloadLen = len;
    } else {
-      g_debug(LGPFX "Error in decoding payload, error=%d\n", res);
+      Debug(LGPFX "Error in decoding payload, error=%d\n", res);
       goto error;
    }
 
@@ -510,7 +511,7 @@ Socket_PackSendData(const char *buf,             // IN
 
    newBuf = malloc(len);
    if (newBuf == NULL) {
-      g_debug(LGPFX "Error in allocating memory.\n");
+      Debug(LGPFX "Error in allocating memory.\n");
       goto error;
    }
    memcpy(newBuf, buf, len);
@@ -533,7 +534,7 @@ error:
    if (mapCreated) {
       DataMap_Destroy(&map);
    }
-   g_debug(LGPFX "Error in dataMap encoding\n");
+   Debug(LGPFX "Error in dataMap encoding\n");
    return FALSE;
 }
 
@@ -569,8 +570,8 @@ Socket_RecvPacket(SOCKET sock,               // IN
 
    ok = Socket_Recv(sock, (char *)&packetLen, packetLenSize);
    if (!ok) {
-      g_debug(LGPFX "error in recving packet header, err=%d\n",
-              SocketGetLastError());
+      Debug(LGPFX "error in recving packet header, err=%d\n",
+            SocketGetLastError());
       return FALSE;
    }
 
@@ -578,7 +579,7 @@ Socket_RecvPacket(SOCKET sock,               // IN
    recvBufLen = fullPktLen;
    recvBuf = malloc(recvBufLen);
    if (recvBuf == NULL) {
-      g_debug(LGPFX "Could not allocate recv buffer.\n");
+      Debug(LGPFX "Could not allocate recv buffer.\n");
       return FALSE;
    }
 
@@ -586,8 +587,8 @@ Socket_RecvPacket(SOCKET sock,               // IN
    ok = Socket_Recv(sock, recvBuf + packetLenSize,
                      fullPktLen - packetLenSize);
    if (!ok) {
-      g_debug(LGPFX "error in recving packet, err=%d\n",
-              SocketGetLastError());
+      Debug(LGPFX "error in recving packet, err=%d\n",
+            SocketGetLastError());
       free(recvBuf);
       return FALSE;
    }

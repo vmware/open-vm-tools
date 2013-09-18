@@ -28,6 +28,7 @@
 #include "rpcin.h"
 #include "rpcout.h"
 #include "util.h"
+#include "debug.h"
 
 typedef struct BackdoorChannel {
    RpcOut           *out;
@@ -162,13 +163,13 @@ BkdoorChannelSend(RpcChannel *chan,
     */
    if (!ret && reply != NULL && replyLen > sizeof "RpcOut: " &&
        g_str_has_prefix(reply, "RpcOut: ")) {
-      g_debug("RpcOut failure, restarting channel.\n");
+      Debug("RpcOut failure, restarting channel.\n");
       RpcOut_stop(bdoor->out);
       if (RpcOut_start(bdoor->out)) {
          ret = RpcOut_send(bdoor->out, data, dataLen, &reply, &replyLen);
       } else {
-         g_warning("Couldn't restart RpcOut channel; bad things may happen "
-                   "until the RPC channel is reset.\n");
+         Warning("Couldn't restart RpcOut channel; bad things may happen "
+                 "until the RPC channel is reset.\n");
          chan->outStarted = FALSE;
       }
    }

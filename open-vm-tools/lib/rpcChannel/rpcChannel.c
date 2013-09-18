@@ -31,6 +31,7 @@
 #include "vmxrpc.h"
 #include "xdrutil.h"
 #include "rpcin.h"
+#include "debug.h"
 
 /** Internal state of a channel. */
 typedef struct RpcChannelInt {
@@ -90,7 +91,7 @@ RpcChannelRestart(gpointer _chan)
 
    RpcChannel_Stop(&chan->impl);
    if (!RpcChannel_Start(&chan->impl)) {
-      g_warning("Channel restart failed [%d]\n", chan->rpcErrorCount);
+      Warning("Channel restart failed [%d]\n", chan->rpcErrorCount);
       if (chan->resetCb != NULL) {
          chan->resetCb(&chan->impl, FALSE, chan->resetData);
       }
@@ -122,8 +123,8 @@ RpcChannelCheckReset(gpointer _chan)
       GSource *src;
 
       if (++(chan->rpcErrorCount) > channelTimeoutAttempts) {
-         g_warning("Failed to reset channel after %u attempts\n",
-                   chan->rpcErrorCount - 1);
+         Warning("Failed to reset channel after %u attempts\n",
+                 chan->rpcErrorCount - 1);
          if (chan->resetCb != NULL) {
             chan->resetCb(&chan->impl, FALSE, chan->resetData);
          }
@@ -131,7 +132,7 @@ RpcChannelCheckReset(gpointer _chan)
       }
 
       /* Schedule the channel restart for 1 sec in the future. */
-      g_debug("Resetting channel [%u]\n", chan->rpcErrorCount);
+      Debug("Resetting channel [%u]\n", chan->rpcErrorCount);
       src = g_timeout_source_new(1000);
       g_source_set_callback(src, RpcChannelRestart, chan, NULL);
       g_source_attach(src, chan->mainCtx);
@@ -140,7 +141,7 @@ RpcChannelCheckReset(gpointer _chan)
    }
 
    /* Reset was successful. */
-   g_debug("Channel was reset successfully.\n");
+   Debug("Channel was reset successfully.\n");
    chan->rpcErrorCount = 0;
 
    if (chan->resetCb != NULL) {
@@ -463,9 +464,9 @@ RpcChannel_Error(void *_chan,
    chan->rpcError = TRUE;
    /*
     * XXX: Workaround for PR 935520.
-    * Revert the log call to g_warning() after fixing PR 955746.
+    * Revert the log call to Warning() after fixing PR 955746.
     */
-   g_debug("Error in the RPC receive loop: %s.\n", status);
+   Debug("Error in the RPC receive loop: %s.\n", status);
 
    if (chan->resetCheck == NULL) {
       chan->resetCheck = g_idle_source_new();
@@ -601,7 +602,7 @@ RpcChannel_RegisterCallback(RpcChannel *chan,
       cdata->rpcs = g_hash_table_new(g_str_hash, g_str_equal);
    }
    if (g_hash_table_lookup(cdata->rpcs, rpc->name) != NULL) {
-      g_error("Trying to overwrite existing RPC registration for %s!\n", rpc->name);
+      Panic("Trying to overwrite existing RPC registration for %s!\n", rpc->name);
    }
    g_hash_table_insert(cdata->rpcs, (gpointer) rpc->name, rpc);
 }
@@ -716,7 +717,7 @@ RpcChannel_Start(RpcChannel *chan)
    ok = funcs->start(chan);
 
    if (!ok && funcs->onStartErr != NULL) {
-      g_warning(LGPFX "Fallback to backdoor ...\n");
+      Warning(LGPFX "Fallback to backdoor ...\n");
       funcs->onStartErr(chan);
       ok = BackdoorChannel_Fallback(chan);
    }
@@ -795,7 +796,7 @@ RpcChannel_Send(RpcChannel *chan,
    size_t resLen = 0;
    const RpcChannelFuncs *funcs;
 
-   g_debug(LGPFX "Sending: %"FMTSZ"u bytes\n", dataLen);
+   Debug(LGPFX "Sending: %"FMTSZ"u bytes\n", dataLen);
 
    ASSERT(chan && chan->funcs);
 
@@ -821,7 +822,7 @@ RpcChannel_Send(RpcChannel *chan,
        resLen = 0;
 
       /* retry once */
-      g_debug(LGPFX "Stop RpcOut channel and try to send again ...\n");
+      Debug(LGPFX "Stop RpcOut channel and try to send again ...\n");
       funcs->stopRpcOut(chan);
       if (RpcChannel_Start(chan)) {
          /* The channel may get switched from vsocket to backdoor */
@@ -837,7 +838,7 @@ RpcChannel_Send(RpcChannel *chan,
 
 done:
    if (ok) {
-      g_debug(LGPFX "Recved %"FMTSZ"u bytes\n", resLen);
+      Debug(LGPFX "Recved %"FMTSZ"u bytes\n", resLen);
    }
 
    if (result != NULL) {
@@ -903,8 +904,8 @@ RpcChannel_SendOneRaw(const char *data,
    status = TRUE;
 
 sent:
-   g_debug(LGPFX "Request %s: reqlen=%"FMTSZ"u, replyLen=%"FMTSZ"u\n",
-           status ? "OK" : "FAILED", dataLen, resultLen ? *resultLen : 0);
+   Debug(LGPFX "Request %s: reqlen=%"FMTSZ"u, replyLen=%"FMTSZ"u\n",
+         status ? "OK" : "FAILED", dataLen, resultLen ? *resultLen : 0);
    if (chan) {
       RpcChannel_Stop(chan);
       RpcChannel_Destroy(chan);
