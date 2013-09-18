@@ -227,8 +227,8 @@ static VGAuthUserHandle *currentUserHandle = NULL;
 #define  VIX_TOOLS_CONFIG_API_RELEASE_CREDENTIALS_NAME   "ReleaseCredentialsInGuest"
 
 #define VIX_TOOLS_CONFIG_API_ADD_GUEST_ALIAS_NAME      "AddGuestAlias"
-// controls both RemoveGuestAlias and RemoveGuestAliasByCert
 #define VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_NAME   "RemoveGuestAlias"
+#define VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_BY_CERT_NAME   "RemoveGuestAliasByCert"
 #define VIX_TOOLS_CONFIG_API_LIST_GUEST_ALIASES_NAME    "ListGuestAliases"
 #define VIX_TOOLS_CONFIG_API_LIST_GUEST_MAPPED_ALIASES_NAME  "ListGuestMappedAliases"
 
@@ -2699,6 +2699,7 @@ VixToolsGetAPIDisabledFromConf(GKeyFile *confDictRef,            // IN
    if (NULL != varName) {
       if ((strcmp(varName, VIX_TOOLS_CONFIG_API_ADD_GUEST_ALIAS_NAME) == 0) ||
           (strcmp(varName, VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_NAME) == 0) ||
+          (strcmp(varName, VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_BY_CERT_NAME) == 0) ||
           (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_GUEST_ALIASES_NAME) == 0) ||
           (strcmp(varName, VIX_TOOLS_CONFIG_API_LIST_GUEST_MAPPED_ALIASES_NAME) == 0)) {
          disabled = TRUE;
@@ -2986,6 +2987,13 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
       goto exit;
    }
 
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_REMOVE_AUTH_ALIAS_BY_CERT_ENABLED,
+                                 VixToolsComputeEnabledProperty(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_BY_CERT_NAME));
+   if (VIX_OK != err) {
+      goto exit;
+   }
 exit:
    Debug("finished %s, err %"FMT64"d\n", __FUNCTION__, err);
    return err;
@@ -9012,8 +9020,16 @@ VixToolsRemoveAuthAlias(VixCommandRequestHeader *requestMsg)    // IN
    }
 
    if (VIX_GUEST_AUTH_SUBJECT_TYPE_NONE == req->subjectType) {
+#ifdef notyet
+      /*
+       * XXX turn on this assert() 'soon' -- if done now it could be hit
+       * with these tools and an old hostd/VMX that still shares the opcode.
+       */
+      ASSERT(requestMsg->opCode == VIX_COMMAND_REMOVE_AUTH_ALIAS_BY_CERT);
+#endif
       vgErr = VGAuth_RemoveAliasByCert(ctx, userName, pemCert, 0, NULL);
    } else {
+      ASSERT(requestMsg->opCode == VIX_COMMAND_REMOVE_AUTH_ALIAS);
       subj.type = (req->subjectType == VIX_GUEST_AUTH_SUBJECT_TYPE_NAMED) ?
          VGAUTH_SUBJECT_NAMED : VGAUTH_SUBJECT_ANY;
       subj.val.name = (char *) subjectName;
@@ -9972,6 +9988,11 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
                                VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_NAME);
          break;
 
+      case VIX_COMMAND_REMOVE_AUTH_ALIAS_BY_CERT:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                               VIX_TOOLS_CONFIG_API_REMOVE_GUEST_ALIAS_BY_CERT_NAME);
+         break;
+
       case VIX_COMMAND_LIST_AUTH_PROVIDER_ALIASES:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
                                 VIX_TOOLS_CONFIG_API_LIST_GUEST_ALIASES_NAME);
@@ -10406,6 +10427,7 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          err = VixToolsAddAuthAlias(requestMsg);
          break;
       case VIX_COMMAND_REMOVE_AUTH_ALIAS:
+      case VIX_COMMAND_REMOVE_AUTH_ALIAS_BY_CERT:
          err = VixToolsRemoveAuthAlias(requestMsg);
          break;
       case VIX_COMMAND_LIST_AUTH_PROVIDER_ALIASES:

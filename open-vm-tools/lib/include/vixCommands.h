@@ -2424,6 +2424,8 @@ enum {
    VIX_COMMAND_LIST_REGISTRY_VALUES             = 205,
    VIX_COMMAND_DELETE_REGISTRY_VALUE            = 206,
 
+   VIX_COMMAND_REMOVE_AUTH_ALIAS_BY_CERT        = 207,
+
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2434,7 +2436,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg/foundryMsg.c as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 207,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 208,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
