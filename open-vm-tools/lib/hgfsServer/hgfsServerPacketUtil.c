@@ -92,17 +92,19 @@ static void HSPUUnmapBuf(HgfsChannelUnmapVirtAddrFunc unmapVa,
 
 void *
 HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
-                    size_t *replyPacketSize,             // IN/OUT: Size of reply Packet
-                    HgfsServerChannelCallbacks *chanCb)  // IN: Channel callbacks
+                    HgfsServerChannelCallbacks *chanCb,  // IN: Channel callbacks
+                    size_t replyDataSize,                // IN: Size of reply data
+                    size_t *replyPacketSize)             // OUT: Size of reply Packet
 {
    if (packet->replyPacket != NULL) {
       /*
        * When we are transferring packets over backdoor, reply packet
        * is a static buffer. Backdoor should always return from here.
        */
+      packet->replyPacketDataSize = replyDataSize;
       LOG(4, ("Existing reply packet %s %"FMTSZ"u %"FMTSZ"u\n", __FUNCTION__,
-              *replyPacketSize, packet->replyPacketSize));
-      ASSERT_DEVEL(*replyPacketSize <= packet->replyPacketSize);
+              replyDataSize, packet->replyPacketSize));
+      ASSERT_DEVEL(replyDataSize <= packet->replyPacketSize);
    } else if (chanCb != NULL && chanCb->getWriteVa != NULL) {
      /* Can we write directly into guest memory? */
       ASSERT_DEVEL(packet->metaPacket != NULL);
@@ -116,20 +118,30 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
           * is always mapped and copied no matter how much data it really contains.
           */
          LOG(10, ("%s Using meta packet for reply packet\n", __FUNCTION__));
-         ASSERT_DEVEL(*replyPacketSize <= packet->metaPacketDataSize);
+         ASSERT_DEVEL(replyDataSize <= packet->metaPacketDataSize);
          ASSERT_DEVEL(BUF_READWRITEABLE == packet->metaMappingType);
-         ASSERT_DEVEL(*replyPacketSize <= packet->metaPacketSize);
+         ASSERT_DEVEL(replyDataSize <= packet->metaPacketSize);
 
          packet->replyPacket = packet->metaPacket;
-         packet->replyPacketSize = packet->metaPacketDataSize;
+         packet->replyPacketDataSize = replyDataSize;
+         packet->replyPacketSize = packet->metaPacketSize;
          packet->replyPacketIsAllocated = FALSE;
+         /*
+          * The reply is using the meta buffer so update the valid data size.
+          *
+          * Note, currently We know the reply size is going to be less than the
+          * incoming request valid data size. This will updated when that part is
+          * fixed. See the above comment about the assumptions and asserts.
+          */
+         packet->metaPacketDataSize = packet->replyPacketDataSize;
       }
    } else {
       /* For sockets channel we always need to allocate buffer */
       LOG(10, ("%s Allocating reply packet\n", __FUNCTION__));
-      packet->replyPacket = Util_SafeMalloc(*replyPacketSize);
+      packet->replyPacket = Util_SafeMalloc(replyDataSize);
       packet->replyPacketIsAllocated = TRUE;
-      packet->replyPacketSize = *replyPacketSize;
+      packet->replyPacketDataSize = replyDataSize;
+      packet->replyPacketSize = replyDataSize;
    }
 
    *replyPacketSize = packet->replyPacketSize;

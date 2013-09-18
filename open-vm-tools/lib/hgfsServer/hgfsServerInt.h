@@ -839,8 +839,9 @@ HSPU_PutMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
 
 void *
 HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
-                    size_t *replyPacketSize,             //IN/OUT: Size of reply Packet
-                    HgfsServerChannelCallbacks *chanCb); // IN: Channel callbacks
+                    HgfsServerChannelCallbacks *chanCb,  // IN: Channel callbacks
+                    size_t replyDataSize,                // IN: Size of reply data
+                    size_t *replyPacketSize);            // OUT: Size of reply Packet
 
 void
 HSPU_PutReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet

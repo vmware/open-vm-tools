@@ -3140,9 +3140,10 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       }
    }
 
-   replyTotalSize = replySize;
-   reply = HSPU_GetReplyPacket(input->packet, &replyTotalSize,
-                               input->transportSession->channelCbTable);
+   reply = HSPU_GetReplyPacket(input->packet,
+                               input->transportSession->channelCbTable,
+                               replySize,
+                               &replyTotalSize);
 
    ASSERT_DEVEL(reply && (replySize <= replyTotalSize));
    if (!HgfsPackReplyHeader(status, replyPayloadSize, input->sessionEnabled, replySessionId,
@@ -4587,11 +4588,10 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
    ASSERT(transportSession);
 
    if (transportSession->state == HGFS_SESSION_STATE_OPEN) {
-      packet->replyPacketSize = packetOutLen;
       ASSERT(transportSession->type == HGFS_SESSION_TYPE_REGULAR);
       result = transportSession->channelCbTable->send(transportSession->transportData,
-                                             packet, packetOut,
-                                             packetOutLen, flags);
+                                                      packet, packetOut,
+                                                      packetOutLen, flags);
    }
 
    if (notificationNeeded) {
@@ -5803,10 +5803,10 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
               request->op > HGFS_OP_RENAME_V2) {
       headerSize = sizeof(HgfsReply);
    }
-   replyPacketSize = headerSize + replyDataSize;
    replyHeader = HSPU_GetReplyPacket(packet,
-                                     &replyPacketSize,
-                                     session->transportSession->channelCbTable);
+                                     session->transportSession->channelCbTable,
+                                     headerSize + replyDataSize,
+                                     &replyPacketSize);
 
    ASSERT_DEVEL(replyHeader && (replyPacketSize >= headerSize + replyDataSize));
 

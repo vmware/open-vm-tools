@@ -633,23 +633,22 @@ HgfsChannelGuestBdInvalidateInactiveSessions(HgfsGuestConn *connData)  // IN: co
 static Bool
 HgfsChannelGuestBdSend(void *conn,              // IN: our connection data
                        HgfsPacket *packet,      // IN/OUT: Hgfs Packet
-                       char *buffer,            // IN: buffer to be sent
-                       size_t bufferLen,        // IN: buffer length
+                       char *buffer,            // IN: unused reply in hgfs packet
+                       size_t bufferLen,        // IN: unused reply len in hgfs packet
                        HgfsSendFlags flags)     // IN: Flags to say how to process
 {
    HgfsGuestConn *connData = conn;
 
    ASSERT(NULL != connData);
    ASSERT(NULL != packet);
-   ASSERT(NULL != buffer);
-   ASSERT(bufferLen <= HGFS_LARGE_PACKET_MAX &&
-          bufferLen <= packet->replyPacketSize);
+   ASSERT(NULL != packet->replyPacket);
+   ASSERT(packet->replyPacketDataSize <= connData->packetOutLen);
+   ASSERT(packet->replyPacketSize == connData->packetOutLen);
 
-   ASSERT(bufferLen <= connData->packetOutLen);
-   if (bufferLen > connData->packetOutLen) {
-      bufferLen = connData->packetOutLen;
+   if (packet->replyPacketDataSize > connData->packetOutLen) {
+      packet->replyPacketDataSize = connData->packetOutLen;
    }
-   connData->packetOutLen = (uint32)bufferLen;
+   connData->packetOutLen = (uint32)packet->replyPacketDataSize;
 
    if (!(flags & HGFS_SEND_NO_COMPLETE)) {
       connData->serverCbTable->sendComplete(packet,

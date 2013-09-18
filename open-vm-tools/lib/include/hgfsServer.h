@@ -75,6 +75,7 @@ typedef struct HgfsPacket {
 
    void *replyPacket;
    size_t replyPacketSize;
+   size_t replyPacketDataSize;
    Bool replyPacketIsAllocated;
 
    /* Iov for the packet private to the channel. */
