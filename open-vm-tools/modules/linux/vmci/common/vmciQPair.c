@@ -294,14 +294,7 @@ VMCIQPairMapQueueHeaders(VMCIQueue *produceQ, // IN
 
    if (NULL == produceQ->qHeader || NULL == consumeQ->qHeader) {
       if (canBlock) {
-         /*
-          * We return data from creator of the queue in VM2VM case.
-          * That should be OK, as if they do not match then there
-          * is somebody else in progress of making them match, and
-          * you should not be looking at somebody else's queue if
-          * queue is active.
-          */
-         result = VMCIHost_MapQueues(0, produceQ, consumeQ, 0);
+         result = VMCIHost_MapQueues(produceQ, consumeQ, 0);
       } else {
          result = VMCI_ERROR_QUEUEPAIR_NOT_READY;
       }

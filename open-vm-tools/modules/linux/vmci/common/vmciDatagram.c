@@ -669,21 +669,19 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
          if (VMCIDenyInteraction(srcPrivFlags,
                               vmci_context_get_priv_flags(dg->dst.context))) {
             VMCI_DEBUG_LOG(4, (LGPFX"Interaction denied (%X/%X - %X/%X)\n",
-                           contextID, srcPrivFlags,
-                           dg->dst.context,
-                           vmci_context_get_priv_flags(dg->dst.context)));
+                               contextID, srcPrivFlags,
+                               dg->dst.context,
+                               vmci_context_get_priv_flags(dg->dst.context)));
             return VMCI_ERROR_NO_ACCESS;
          } else if (VMCI_CONTEXT_IS_VM(contextID)) {
             /*
              * If the sending context is a VM, it cannot reach another VM.
              */
 
-            if (!vmkernel) {
-               VMCI_DEBUG_LOG(4, (LGPFX"Datagram communication between VMs not "
-                                  "supported (src=0x%x, dst=0x%x).\n",
-                                  contextID, dg->dst.context));
-               return VMCI_ERROR_DST_UNREACHABLE;
-            }
+            VMCI_DEBUG_LOG(4, (LGPFX"Datagram communication between VMs not "
+                               "supported (src=0x%x, dst=0x%x).\n",
+                               contextID, dg->dst.context));
+            return VMCI_ERROR_DST_UNREACHABLE;
          }
       }
 
