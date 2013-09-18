@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -114,6 +114,8 @@ extern "C" {
            Panic(_##name##Fmt "\n", __FILE__, __LINE__)
 #define _ASSERT_PANIC_BUG(bug, name) \
            Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
+#define _ASSERT_PANIC_NORETURN(name) \
+           Panic(_##name##Fmt "\n", __FILE__, __LINE__)
 #endif /* VMKERNEL */
 
 #ifdef VMX86_DEVEL
@@ -216,12 +218,18 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
 #define ASSERT_NOT_IMPLEMENTED_BUG(bug, cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED_BUG(bug))
 
+#if defined VMM
+#define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
+#define NOT_IMPLEMENTED_BUG(bug) \
+          _ASSERT_PANIC_BUG_NORETURN(bug, AssertNotImplemented)
+#else
 #if defined VMKERNEL && defined VMX86_DEBUG
 #define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
 #else
 #define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented)
 #endif
 #define NOT_IMPLEMENTED_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertNotImplemented)
+#endif
 
 #if defined VMKERNEL && defined VMX86_DEBUG
 #define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached)

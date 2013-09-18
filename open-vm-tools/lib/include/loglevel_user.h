@@ -137,6 +137,7 @@
    LOGLEVEL_VAR(mksGLState), \
    LOGLEVEL_VAR(mksGLWindow), \
    LOGLEVEL_VAR(mksGLContextMux), \
+   LOGLEVEL_VAR(mksGLDraw), \
    LOGLEVEL_VAR(mksWinBSOD), \
    LOGLEVEL_VAR(vdpPlugin), \
    \
