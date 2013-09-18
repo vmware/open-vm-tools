@@ -891,7 +891,7 @@ RpcChannel_SendOneRaw(const char *data,
 
 sent:
    g_debug(LGPFX "Request %s: reqlen=%"FMTSZ"u, replyLen=%"FMTSZ"u\n",
-           status ? "OK" : "FAILED", dataLen, *resultLen);
+           status ? "OK" : "FAILED", dataLen, resultLen ? *resultLen : 0);
    if (chan) {
       RpcChannel_Stop(chan);
       RpcChannel_Destroy(chan);
