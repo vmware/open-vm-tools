@@ -78,7 +78,7 @@ ToolsCoreSigHUPCb(const siginfo_t *info,
  * @return FALSE
  */
 
-gboolean
+static gboolean
 ToolsCoreSigHandler(const siginfo_t *info,
                     gpointer data)
 {
@@ -96,12 +96,49 @@ ToolsCoreSigHandler(const siginfo_t *info,
  * @return TRUE
  */
 
-gboolean
+static gboolean
 ToolsCoreSigUsrHandler(const siginfo_t *info,
                        gpointer data)
 {
    ToolsCore_DumpState(&gState);
    return TRUE;
+}
+
+
+/**
+ * Perform (optional) work before or after running the main loop.
+ *
+ * @param[in]  state    Service state.
+ * @param[in]  before   TRUE if before running the main loop, FALSE if after.
+ */
+
+static void
+ToolsCoreWorkAroundLoop(ToolsServiceState *state,
+                        gboolean before)
+{
+#ifdef __APPLE__
+   if (state->mainService) {
+      char *libDir = GuestApp_GetInstallPath();
+      char *argv[] = {
+         NULL,
+         before ? "--startInternal" : "--stopInternal",
+         NULL,
+      };
+
+      if (!libDir) {
+         g_error("Failed to retrieve libDir.\n");
+      }
+
+      argv[0] = g_strdup_printf("%s/services.sh", libDir);
+      free(libDir);
+      if (!argv[0]) {
+         g_error("Failed to construct argv[0].\n");
+      }
+
+      g_spawn_sync(NULL, argv, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL);
+      free(argv[0]);
+   }
+#endif
 }
 
 
@@ -212,6 +249,7 @@ main(int argc,
                             ToolsCoreSigHandler, gState.ctx.mainLoop, NULL);
    g_source_unref(src);
 
+   /* On Mac OS, launchd uses SIGTERM. */
    src = VMTools_NewSignalSource(SIGTERM);
    VMTOOLSAPP_ATTACH_SOURCE(&gState.ctx, src,
                             ToolsCoreSigHandler, gState.ctx.mainLoop, NULL);
@@ -233,7 +271,9 @@ main(int argc,
     */
    gState.ctx.envp = System_GetNativeEnviron(envp);
 
+   ToolsCoreWorkAroundLoop(&gState, TRUE);
    ret = ToolsCore_Run(&gState);
+   ToolsCoreWorkAroundLoop(&gState, FALSE);
 
    if (gState.pidFile != NULL) {
       g_unlink(gState.pidFile);
@@ -241,4 +281,3 @@ main(int argc,
 exit:
    return ret;
 }
-
