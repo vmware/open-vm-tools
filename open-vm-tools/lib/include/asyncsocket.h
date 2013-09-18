@@ -67,15 +67,6 @@
 #define ASOCKERR_LISTEN            12
 
 /*
- * Address types to use with AsyncSocket_SendTo().
- */
-typedef enum {
-   ASOCKADDR_HOSTNAME = 0,
-   ASOCKADDR_IPADDRESS,
-   ASOCKADDR_SOCKADDR
-} AsyncSocketSendToType;
-
-/*
  * Flags passed into AsyncSocket_Connect*().
  * Default value is '0'.
  * The first two flags allow explicitly selecting
@@ -393,9 +384,6 @@ int AsyncSocket_SendBlocking(AsyncSocket *asock,
  */
 int AsyncSocket_Send(AsyncSocket *asock, void *buf, int len,
                       AsyncSocketSendFn sendFn, void *clientData);
-
-int AsyncSocket_SendTo(AsyncSocket *asock, void *buf, int len,
-                       AsyncSocketSendToType type, ... );
 
 int AsyncSocket_IsSendBufferFull(AsyncSocket *asock);
 int AsyncSocket_CancelRecv(AsyncSocket *asock, int *partialRecvd, void **recvBuf,
