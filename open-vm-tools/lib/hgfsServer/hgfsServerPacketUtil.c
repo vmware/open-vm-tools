@@ -95,7 +95,7 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
                     size_t *replyPacketSize,             // IN/OUT: Size of reply Packet
                     HgfsServerChannelCallbacks *chanCb)  // IN: Channel callbacks
 {
-   if (packet->replyPacket) {
+   if (packet->replyPacket != NULL) {
       /*
        * When we are transferring packets over backdoor, reply packet
        * is a static buffer. Backdoor should always return from here.
@@ -105,8 +105,8 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
       ASSERT_DEVEL(*replyPacketSize <= packet->replyPacketSize);
    } else if (chanCb != NULL && chanCb->getWriteVa != NULL) {
      /* Can we write directly into guest memory? */
-      ASSERT_DEVEL(packet->metaPacket);
-      if (packet->metaPacket) {
+      ASSERT_DEVEL(packet->metaPacket != NULL);
+      if (packet->metaPacket != NULL) {
          /* Use the pre-allocated metapacket buffer for the reply. */
          LOG(10, ("%s Using meta packet for reply packet\n", __FUNCTION__));
          ASSERT_DEVEL(*replyPacketSize <= packet->metaPacketSize);
@@ -188,7 +188,7 @@ HSPU_GetMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
       return packet->metaPacket;
    }
 
-   if (0 == packet->metaPacketSize) {
+   if (packet->metaPacketSize == 0) {
       return NULL;
    }
 
@@ -227,11 +227,11 @@ HSPU_GetDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Pack
                       MappingType mappingType,              // IN: Writeable/Readable
                       HgfsServerChannelCallbacks *chanCb)   // IN: Channel callbacks
 {
-   if (packet->dataPacket) {
+   if (packet->dataPacket != NULL) {
       return packet->dataPacket;
    }
 
-   if (0 == packet->dataPacketSize) {
+   if (packet->dataPacketSize == 0) {
       return NULL;
    }
 
@@ -279,7 +279,7 @@ HSPUGetBuf(HgfsServerChannelCallbacks *chanCb,  // IN: Channel callbacks
    HgfsChannelMapVirtAddrFunc mapVa;
    Bool releaseMappings = FALSE;
 
-   ASSERT(buf);
+   ASSERT(buf != NULL);
 
    *buf = NULL;
    *isAllocated = FALSE;
@@ -512,7 +512,7 @@ HSPUCopyBufToIovec(HgfsVmxIov *iov,          // IN: iovs (array of mappings)
    size_t remainingSize;
    size_t copiedAmount = 0;
 
-   ASSERT(buf);
+   ASSERT(buf != NULL);
 
    for (iovIndex = startIndex,  endIndex = startIndex + iovCount, remainingSize = bufSize;
         iovIndex < endIndex && remainingSize > 0;
