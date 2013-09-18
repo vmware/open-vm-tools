@@ -979,6 +979,9 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_ISTANBUL_MAGNY_08 0x08 // Istanbul (6 core) & Magny-cours (12) HY
 #define CPUID_MODEL_ISTANBUL_MAGNY_09 0x09 // HY - G34 package
 #define CPUID_MODEL_PHAROAH_HOUND_0A  0x0A // Pharoah Hound
+#define CPUID_MODEL_PILEDRIVER_1F     0x1F // Max piledriver model defined in BKDG 
+#define CPUID_MODEL_PILEDRIVER_10     0x10 // family == CPUID_FAMILY_BULLDOZER
+#define CPUID_MODEL_PILEDRIVER_02     0x02 // family == CPUID_FAMILY_BULLDOZER
 
 /* VIA model information */
 #define CPUID_MODEL_NANO       15     // Isaiah
@@ -1276,6 +1279,7 @@ CPUID_FAMILY_IS_BULLDOZER(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
 }
 
+
 /*
  * AMD Barcelona (of either Opteron or Phenom kind).
  */
@@ -1320,9 +1324,25 @@ CPUID_MODEL_IS_PHAROAH_HOUND(uint32 v) // IN: %eax from CPUID with %eax=1.
 static INLINE Bool
 CPUID_MODEL_IS_BULLDOZER(uint32 eax)
 {
-   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
+   /* 
+    * Bulldozer is models of family 0x15 that are below 10 excluding 
+    * Piledriver 02.
+    */
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER && 
+          CPUID_EFFECTIVE_MODEL(eax)  < CPUID_MODEL_PILEDRIVER_10 &&
+          CPUID_EFFECTIVE_MODEL(eax) != CPUID_MODEL_PILEDRIVER_02;
 }
 
+
+static INLINE Bool
+CPUID_MODEL_IS_PILEDRIVER(uint32 eax)
+{
+   /* Piledriver is models 0x02 & 0x10 of family 0x15 (so far). */
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER && 
+          ((CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_PILEDRIVER_10 && 
+            CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_PILEDRIVER_1F) ||
+           CPUID_EFFECTIVE_MODEL(eax) == CPUID_MODEL_PILEDRIVER_02);
+}
 
 
 #define CPUID_TYPE_PRIMARY     0
