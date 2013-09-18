@@ -415,6 +415,9 @@ VSockChannelShutdown(RpcChannel *chan)    // IN
  * VSockChannelSend --
  *
  *      Sends the data using the vsocket channel.
+ *      If the caller is not interested in the reply, result and resultLen
+ *      can be set to NULL, otherwise, the caller *must* free the result
+ *      whether the call is successful or not to avoid memory leak.
  *
  * Result:
  *      TRUE on success
@@ -430,23 +433,23 @@ static gboolean
 VSockChannelSend(RpcChannel *chan,      // IN
                  char const *data,      // IN
                  size_t dataLen,        // IN
-                 char **result,         // OUT
-                 size_t *resultLen)     // OUT
+                 char **result,         // OUT optional
+                 size_t *resultLen)     // OUT optional
 {
    gboolean ret = FALSE;
    VSockChannel *vsock = chan->_private;
-   const char *reply;
-   size_t replyLen;
+   const char *reply = NULL;
+   size_t replyLen = 0;
 
    if (!chan->outStarted) {
       goto exit;
    }
 
+   /*
+    * We propagate all replies from VSockOutSend: either a reply of the RPC
+    * result or a description of the error on failure.
+    */
    ret = VSockOutSend(vsock->out, data, dataLen, &reply, &replyLen);
-
-   if (!ret) {
-      goto exit;
-   }
 
    if (result != NULL) {
       if (reply != NULL) {
