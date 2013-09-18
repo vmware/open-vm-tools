@@ -73,6 +73,7 @@ typedef enum {
    HGFSU_CAP_MIRROR_DOWNLOADS           = 28, // supports remapping GOS Downloads to HGFS
    HGFSU_CAP_MIRROR_MOVIES              = 29, // supports remapping GOS Movies to HGFS
    GHI_CAP_TOGGLE_START_UI              = 30, // supports showing/hiding the Start UI
+   GHI_CAP_SET_DISPLAY_SCALING          = 31, // supports setting the display scaling (DPI)
 } GuestCapabilities;
 
 typedef struct {
@@ -145,6 +146,7 @@ static GuestCapElem guestCapTable[] = {
    { HGFSU_CAP_MIRROR_DOWNLOADS,           HGFSU_CAP_VMDB_PATH, "mirrorDownloads" },
    { HGFSU_CAP_MIRROR_MOVIES,              HGFSU_CAP_VMDB_PATH, "mirrorMovies" },
    { GHI_CAP_TOGGLE_START_UI,              GHI_CAP_VMDB_PATH,   "toggleStartUI"},
+   { GHI_CAP_SET_DISPLAY_SCALING,          GHI_CAP_VMDB_PATH,   "setDisplayScaling"},
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING
