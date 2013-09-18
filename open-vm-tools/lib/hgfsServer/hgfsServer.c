@@ -130,6 +130,39 @@
 #define MAX_LOCKED_FILENODES 10
 
 
+struct HgfsTransportSessionInfo {
+   /* Default session id. */
+   uint64 defaultSessionId;
+
+   /* Lock to manipulate the list of sessions */
+   MXUserExclLock *sessionArrayLock;
+
+   /* List of sessions */
+   DblLnkLst_Links sessionArray;
+
+   /* Max packet size that is supported by both client and server. */
+   uint32 maxPacketSize;
+
+   /* Total number of sessions present this transport session*/
+   uint32 numSessions;
+
+   /* Transport session context. */
+   void *transportData;
+
+   /* Current state of the session. */
+   HgfsSessionInfoState state;
+
+   /* Session is dynamic or internal. */
+   HgfsSessionInfoType type;
+
+   /* Function callbacks into Hgfs Channels. */
+   HgfsServerChannelCallbacks *channelCbTable;
+
+   Atomic_uint32 refCount;    /* Reference count for session. */
+
+   HgfsServerChannelData channelCapabilities;
+};
+
 /* The input request paramaters object. */
 typedef struct HgfsInputParam {
    const void *request;          /* Hgfs header followed by operation request */
@@ -240,8 +273,21 @@ typedef struct HgfsSharedFolderProperties {
    Bool markedForDeletion;
 } HgfsSharedFolderProperties;
 
-static void HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSession,
-                                                     HgfsSessionInfo *sessionInfo);
+
+/* Allocate/Add sessions helper functions. */
+
+static Bool
+HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
+                          HgfsSessionInfo **sessionData);
+static HgfsInternalStatus
+HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,
+                                    HgfsSessionInfo *sessionInfo);
+static void
+HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSession,
+                                         HgfsSessionInfo *sessionInfo);
+static HgfsSessionInfo *
+HgfsServerTransportGetSessionInfo(HgfsTransportSessionInfo *transportSession,
+                                  uint64 sessionId);
 
 /* Local functions. */
 static void HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,
@@ -347,7 +393,7 @@ static void HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input);
  *----------------------------------------------------------------------------
  */
 
-void
+static void
 HgfsServerSessionGet(HgfsSessionInfo *session)   // IN: session context
 {
    ASSERT(session);
@@ -3276,7 +3322,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-HgfsSessionInfo *
+static HgfsSessionInfo *
 HgfsServerTransportGetSessionInfo(HgfsTransportSessionInfo *transportSession,       // IN: transport session info
                                   uint64 sessionId)                                 // IN: session id
 {
@@ -3415,7 +3461,7 @@ HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSess
  *-----------------------------------------------------------------------------
  */
 
-HgfsInternalStatus
+static HgfsInternalStatus
 HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,       // IN: transport session info
                                     HgfsSessionInfo *session)                         // IN: session info
 {
@@ -4006,7 +4052,7 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
  *-----------------------------------------------------------------------------
  */
 
-Bool
+static Bool
 HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
                           HgfsSessionInfo **sessionData)              // OUT:
 {

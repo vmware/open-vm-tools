@@ -42,6 +42,7 @@ struct DirectoryEntry;
 
 #define HGFS_DEBUG_ASYNC   (0)
 
+typedef struct HgfsTransportSessionInfo HgfsTransportSessionInfo;
 
 /* Identifier for a local file */
 typedef struct HgfsLocalId {
@@ -246,39 +247,6 @@ typedef enum {
    HGFS_SESSION_STATE_OPEN,
    HGFS_SESSION_STATE_CLOSED,
 } HgfsSessionInfoState;
-
-typedef struct HgfsTransportSessionInfo {
-   /* Default session id. */
-   uint64 defaultSessionId;
-
-   /* Lock to manipulate the list of sessions */
-   MXUserExclLock *sessionArrayLock;
-
-   /* List of sessions */
-   DblLnkLst_Links sessionArray;
-
-   /* Max packet size that is supported by both client and server. */
-   uint32 maxPacketSize;
-
-   /* Total number of sessions present this transport session*/
-   uint32 numSessions;
-
-   /* Transport session context. */
-   void *transportData;
-
-   /* Current state of the session. */
-   HgfsSessionInfoState state;
-
-   /* Session is dynamic or internal. */
-   HgfsSessionInfoType type;
-
-   /* Function callbacks into Hgfs Channels. */
-   HgfsServerChannelCallbacks *channelCbTable;
-
-   Atomic_uint32 refCount;    /* Reference count for session. */
-
-   HgfsServerChannelData channelCapabilities;
-} HgfsTransportSessionInfo;
 
 typedef struct HgfsSessionInfo {
 
@@ -566,15 +534,6 @@ HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enum
                                   HgfsSessionInfo *session,     // IN: Session info
                                   HgfsHandle searchHandle);     // IN: search to restart
 
-/* Allocate/Add sessions helper functions. */
-
-Bool HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
-                               HgfsSessionInfo **sessionData);
-
-void HgfsServerSessionGet(HgfsSessionInfo *session);
-
-HgfsInternalStatus HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,
-                                                       HgfsSessionInfo *sessionInfo);
 
 void *
 HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
@@ -685,10 +644,6 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
                                 const char* target);   // IN: target file name
 
 
-/* Get the session with a specific session id */
-HgfsSessionInfo *
-HgfsServerTransportGetSessionInfo(HgfsTransportSessionInfo *transportSession,   // IN: transport session info
-                                  uint64 sessionId);                            // IN: session id
 
 Bool
 HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet

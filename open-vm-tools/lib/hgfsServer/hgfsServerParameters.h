@@ -29,7 +29,7 @@
 #include "hgfsServer.h"    // for HgfsPacket type
 #include "hgfsProto.h"     // for the HGFS protocol request, reply and types
 #include "hgfsUtil.h"      // for HgfsInternalStatus
-#include "hgfsServerInt.h" // for HgfsSessionInfo, HgfsInputParam, HgfsTransportSessionInfo
+#include "hgfsServerInt.h" // for HgfsSessionInfo
 
 
 /*
