@@ -541,45 +541,47 @@ Poll_SocketPair(Bool vmci,     // IN: create vmci pair?
    return 0;
 
 out:
-   Warning("Error creating a %s socket pair: %d/%s\n", vmci ? "vmci" : "inet", 
-           WSAGetLastError(), Err_ErrString());
+   Warning("%s: Error creating a %s socket pair: %d/%s\n", __FUNCTION__,
+           vmci ? "vmci" : "inet", WSAGetLastError(), Err_ErrString());
    closesocket(temp);
    closesocket(fds[0]);
    closesocket(fds[1]);
    return SOCKET_ERROR;
 }
-#endif
+#endif // _WIN32
 
 //#define POLL_UNITTEST 1
 //#define POLL_TESTLOCK 1
 //#define POLL_TESTVMCI 1
 
-#if POLL_UNITTEST
+#if POLL_UNITTEST // All the way to EOF
+
 #if _WIN32
-#include <winsock2.h>
-#include <time.h>
-#include "err.h"
-#include "random.h"
+   #include <winsock2.h>
+   #include <time.h>
+   #include "err.h"
+   #include "random.h"
 #else
-#include <sys/socket.h>
-#include <unistd.h>
+   #include <sys/socket.h>
+   #include <unistd.h>
 #endif
 #include "vmci_sockets.h"
 #if POLL_TESTLOCK
-#include "vthread.h"
-#include "../../vmx/public/mutexRankVMX.h"
-#define GRAB_LOCK(_lock)             \
-   if (_lock) {                      \
-      MXUser_AcquireRecLock(_lock);  \
-   }
-#define DROP_LOCK(_lock)             \
-   if (_lock) {                      \
-      MXUser_ReleaseRecLock(_lock);  \
-   }
-#define NUM_TEST_ITERS 10
+   #include "vthread.h"
+   #include "util.h"
+   #include "../../vmx/public/mutexRankVMX.h"
+   #define GRAB_LOCK(_lock)             \
+      if (_lock) {                      \
+         MXUser_AcquireRecLock(_lock);  \
+      }
+   #define DROP_LOCK(_lock)             \
+      if (_lock) {                      \
+         MXUser_ReleaseRecLock(_lock);  \
+      }
+   #define NUM_TEST_ITERS 10
 #else
-#define GRAB_LOCK(_lock)
-#define DROP_LOCK(_lock)
+   #define GRAB_LOCK(_lock)
+   #define DROP_LOCK(_lock)
 #endif
 
 /* 
@@ -606,7 +608,9 @@ static Bool useLocking;
 static Bool testVMCI;
 static MXUserRecLock *cbLock;
 static unsigned int lockErrors;
+#if POLL_TESTLOCK
 static volatile Bool exitThread;
+#endif
 static volatile Bool rtDeleted;
 static volatile Bool mlDeleted;
 static volatile Bool drDeleted;
@@ -658,7 +662,7 @@ CheckLockState(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * RealTime --
+ * PollUnitTest_RealTime --
  *
  *      Real time test Poll callback.
  *
@@ -675,7 +679,7 @@ CheckLockState(void)
  */
 
 static void
-RealTime(void *clientData) // IN
+PollUnitTest_RealTime(void *clientData) // IN
 {
    realTimeCount++;
    CheckLockState();
@@ -683,7 +687,7 @@ RealTime(void *clientData) // IN
    if (clientData == reinstallPoll) {
       Poll_Callback(POLL_CS_MAIN,
                     0,
-                    RealTime,
+                    PollUnitTest_RealTime,
                     clientData,
                     POLL_REALTIME,
                     0,
@@ -692,7 +696,8 @@ RealTime(void *clientData) // IN
       Bool ret;
 
       ret = Poll_CallbackRemove(POLL_CS_MAIN, POLL_FLAG_PERIODIC,
-                                RealTime, clientData, POLL_REALTIME);
+                                PollUnitTest_RealTime, clientData,
+                                POLL_REALTIME);
       ASSERT(ret);
    } else {
       ASSERT(clientData == NULL);
@@ -703,7 +708,7 @@ RealTime(void *clientData) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * MainLoop --
+ * PollUnitTest_MainLoop --
  *
  *      Main loop test Poll callback.
  *
@@ -720,7 +725,7 @@ RealTime(void *clientData) // IN
  */
 
 static void
-MainLoop(void *clientData) // IN
+PollUnitTest_MainLoop(void *clientData) // IN
 {
    mainLoopCount++;
    CheckLockState();
@@ -728,7 +733,7 @@ MainLoop(void *clientData) // IN
    if (clientData == reinstallPoll) {
       Poll_Callback(POLL_CS_MAIN,
                     0,
-                    MainLoop,
+                    PollUnitTest_MainLoop,
                     clientData,
                     POLL_MAIN_LOOP,
                     0,
@@ -737,7 +742,7 @@ MainLoop(void *clientData) // IN
       Bool ret;
 
       ret = Poll_CallbackRemove(POLL_CS_MAIN, POLL_FLAG_PERIODIC,
-                                MainLoop, clientData, POLL_MAIN_LOOP);
+                                PollUnitTest_MainLoop, clientData, POLL_MAIN_LOOP);
       ASSERT(ret);
    } else {
       ASSERT(clientData == NULL);
@@ -748,7 +753,7 @@ MainLoop(void *clientData) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * DeviceR --
+ * PollUnitTest_DeviceR --
  *
  *      Device read test Poll callback.
  *
@@ -765,7 +770,7 @@ MainLoop(void *clientData) // IN
  */
 
 static void
-DeviceR(void *clientData) // IN
+PollUnitTest_DeviceR(void *clientData) // IN
 {
 #ifdef _WIN32
    /*
@@ -786,7 +791,7 @@ DeviceR(void *clientData) // IN
    if (clientData == reinstallPoll) {
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ,
-                    DeviceR,
+                    PollUnitTest_DeviceR,
                     clientData,
                     POLL_DEVICE,
                     fds[1],
@@ -796,7 +801,7 @@ DeviceR(void *clientData) // IN
 
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                                DeviceR, clientData, POLL_DEVICE);
+                                PollUnitTest_DeviceR, clientData, POLL_DEVICE);
       ASSERT(ret);
    } else {
       ASSERT(clientData == NULL);
@@ -807,7 +812,7 @@ DeviceR(void *clientData) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * DeviceW --
+ * PollUnitTest_DeviceW --
  *
  *      Device write test Poll callback.
  *
@@ -824,7 +829,7 @@ DeviceR(void *clientData) // IN
  */
 
 static void
-DeviceW(void *clientData) // IN
+PollUnitTest_DeviceW(void *clientData) // IN
 {
    deviceWCount++;
    CheckLockState();
@@ -832,7 +837,7 @@ DeviceW(void *clientData) // IN
    if (clientData == reinstallPoll) {
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_WRITE,
-                    DeviceW,
+                    PollUnitTest_DeviceW,
                     clientData,
                     POLL_DEVICE,
                     fds[1],
@@ -842,7 +847,7 @@ DeviceW(void *clientData) // IN
 
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_WRITE | POLL_FLAG_PERIODIC,
-                                DeviceW, clientData, POLL_DEVICE);
+                                PollUnitTest_DeviceW, clientData, POLL_DEVICE);
       ASSERT(ret);
    } else {
       ASSERT(clientData == NULL);
@@ -853,7 +858,7 @@ DeviceW(void *clientData) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * DeviceRQ --
+ * PollUnitTest_DeviceRQ --
  *
  *      Device read test Poll callback, the queue test version.
  *
@@ -869,7 +874,7 @@ DeviceW(void *clientData) // IN
  */
 
 static void
-DeviceRQ(void *clientData) // IN
+PollUnitTest_DeviceRQ(void *clientData) // IN
 {
    int queueIndex = (int)(intptr_t)clientData;
 #ifdef _WIN32
@@ -890,7 +895,7 @@ DeviceRQ(void *clientData) // IN
    CheckLockState();
    Poll_Callback(POLL_CS_MAIN,
                  POLL_FLAG_SOCKET | POLL_FLAG_READ,
-                 DeviceRQ,
+                 PollUnitTest_DeviceRQ,
                  clientData,
                  POLL_DEVICE,
                  socketPairs[queueIndex].fds[1],
@@ -902,7 +907,7 @@ DeviceRQ(void *clientData) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * DeviceEvent --
+ * PollUnitTest_DeviceEvent --
  *
  *      Device read test Poll callback for Event.
  *
@@ -919,7 +924,7 @@ DeviceRQ(void *clientData) // IN
  */
 
 static void
-DeviceEvent(void *clientData) // IN
+PollUnitTest_DeviceEvent(void *clientData) // IN
 {
    CheckLockState();
    if (clientData == NULL) {
@@ -929,7 +934,7 @@ DeviceEvent(void *clientData) // IN
       ASSERT(clientData == reinstallPoll);
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_READ,
-                    DeviceEvent,
+                    PollUnitTest_DeviceEvent
                     clientData,
                     POLL_DEVICE,
                     (PollDevHandle)events[1],
@@ -944,7 +949,7 @@ DeviceEvent(void *clientData) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * TestResult --
+ * PollUnitTest_TestResult --
  *
  *      Log and count test result.
  *
@@ -958,17 +963,17 @@ DeviceEvent(void *clientData) // IN
  */
 
 static void
-TestResult(Bool success) // IN: TRUE on success, FALSE on failure
+PollUnitTest_TestResult(Bool success) // IN: TRUE on success, FALSE on failure
 {
    if (success && lockErrors == 0) {
       successCount++;
-      Warning("   success\n");
+      Warning("%s:   success\n", __FUNCTION__);
    } else {
       failureCount++;
       if (useLocking) {
-         Warning("   failure (lockErrors = %u)\n", lockErrors);
+         Warning("%s:   failure (lockErrors = %u)\n", __FUNCTION__, lockErrors);
       } else {
-         Warning("   failure\n");
+         Warning("%s:   failure\n", __FUNCTION__);
       }
    }
    lockErrors = 0;
@@ -978,7 +983,7 @@ TestResult(Bool success) // IN: TRUE on success, FALSE on failure
 /*
  *----------------------------------------------------------------------------
  *
- * DummyCallback --
+ * PollUnitTest_DummyCallback --
  *
  *      Used for tickling the poll loop periodically.
  *
@@ -992,7 +997,7 @@ TestResult(Bool success) // IN: TRUE on success, FALSE on failure
  */
 
 static void
-DummyCallback(void *clientData) // IN: unused
+PollUnitTest_DummyCallback(void *clientData) // IN: unused
 {
    dummyCount++;
 }
@@ -1007,10 +1012,6 @@ DummyCallback(void *clientData) // IN: unused
  *      This thread continuously creates a lock, adds a poll callback that
  *      will take the lock, removes the callback, and destroys the lock.  It
  *      is designed to race against the thread running Poll_Loop().
- *
- *      TODO: PollVMX does not yet handle the case of a callback lock being
- *      destroyed right after the callback is removed, so the lock destruction
- *      and re-creation code is disabled for now when running with PollVMX.
  *
  * Results:
  *      None.
@@ -1045,7 +1046,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       rtDeleted = FALSE;
       Poll_Callback(POLL_CS_MAIN,
                     periodicFlag[oddIter],
-                    RealTime,
+                    PollUnitTest_RealTime,
                     cbData[oddIter],
                     POLL_REALTIME,
                     5000,
@@ -1053,7 +1054,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       mlDeleted = FALSE;
       Poll_Callback(POLL_CS_MAIN,
                     periodicFlag[1 - oddIter],
-                    MainLoop,
+                    PollUnitTest_MainLoop,
                     cbData[1 - oddIter],
                     POLL_MAIN_LOOP,
                     0,
@@ -1065,7 +1066,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       MXUser_AcquireRecLock(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 periodicFlag[oddIter],
-                                RealTime,
+                                PollUnitTest_RealTime,
                                 cbData[oddIter],
                                 POLL_REALTIME);
       rtDeleted = TRUE;
@@ -1074,7 +1075,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       MXUser_AcquireRecLock(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 periodicFlag[1 - oddIter],
-                                MainLoop,
+                                PollUnitTest_MainLoop,
                                 cbData[1 - oddIter],
                                 POLL_MAIN_LOOP);
       mlDeleted = TRUE;
@@ -1097,7 +1098,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       drDeleted = FALSE;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ | periodicFlag[oddIter],
-                    DeviceR,
+                    PollUnitTest_DeviceR,
                     cbData[oddIter],
                     POLL_DEVICE,
                     fds[1],
@@ -1106,7 +1107,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_WRITE |
                     periodicFlag[1 - oddIter],
-                    DeviceW,
+                    PollUnitTest_DeviceW,
                     cbData[1 - oddIter],
                     POLL_DEVICE,
                     fds[1],
@@ -1118,7 +1119,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_READ |
                                 periodicFlag[oddIter],
-                                DeviceR,
+                                PollUnitTest_DeviceR,
                                 cbData[oddIter],
                                 POLL_DEVICE);
       drDeleted = TRUE;
@@ -1128,7 +1129,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_WRITE |
                                 periodicFlag[1 - oddIter],
-                                DeviceW,
+                                PollUnitTest_DeviceW,
                                 cbData[1 - oddIter],
                                 POLL_DEVICE);
       dwDeleted = TRUE;
@@ -1143,8 +1144,8 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       }
    }
    cbLock = NULL;
-   TestResult(perIterError[0] == 0 && perIterError[1] == 0 &&
-              perIterError[2] == 0 && perIterError[3] == 0);
+   PollUnitTest_TestResult(perIterError[0] == 0 && perIterError[1] == 0 &&
+                           perIterError[2] == 0 && perIterError[3] == 0);
 }
 
 
@@ -1184,7 +1185,7 @@ PollLockContentionThread(void *clientData)  // IN: unused
 /*
  *-----------------------------------------------------------------------------
  *
- * StateMachine --
+ * PollUnitTest_StateMachine --
  *
  *      State machine. The heart of Poll's unit test. Sequentially run all
  *      tests.
@@ -1199,15 +1200,17 @@ PollLockContentionThread(void *clientData)  // IN: unused
  */
 
 static void
-StateMachine(void *clientData) // IN: Unused
+PollUnitTest_StateMachine(void *clientData) // IN: Unused
 {
+#if POLL_TESTLOCK
    static VThreadID cbRaceThread;
    static unsigned int raceTestIter;
+#endif
    static unsigned int queueTestIter;
 #ifdef _WIN32
    static unsigned int eventTestIter;
 #endif
-   static unsigned int maxInetSockets; 
+   static unsigned int maxInetSockets;
    static unsigned int maxVMCISockets;
    static unsigned int queueLen;
    Bool ret;
@@ -1224,13 +1227,13 @@ StateMachine(void *clientData) // IN: Unused
 
    switch (state) {
    case 0:
-      Warning("Poll unit test: start%s%s\n", testVMCI ? " vmci tests" : "",
-              useLocking ? " locking tests" : "");
-      Warning("Testing RealTime 0 0\n");
+      Warning("%s: Poll unit test: start%s%s\n", __FUNCTION__,
+              testVMCI ? " vmci tests" : "", useLocking ? " locking tests" : "");
+      Warning("%s: Testing RealTime 0 0\n", __FUNCTION__);
       realTimeCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     0,
-                    RealTime,
+                    PollUnitTest_RealTime,
                     NULL,
                     POLL_REALTIME,
                     0,
@@ -1242,20 +1245,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 0,
-                                RealTime,
+                                PollUnitTest_RealTime,
                                 NULL,
                                 POLL_REALTIME);
       DROP_LOCK(cbLock);
-      TestResult(ret == FALSE && realTimeCount == 1);
+      PollUnitTest_TestResult(ret == FALSE && realTimeCount == 1);
       state++;
       break;
 
    case 2:
-      Warning("Testing RealTime 1 0\n");
+      Warning("%s: Testing RealTime 1 0\n", __FUNCTION__);
       realTimeCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_PERIODIC,
-                    RealTime,
+                    PollUnitTest_RealTime,
                     NULL,
                     POLL_REALTIME,
                     100000,
@@ -1267,20 +1270,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_PERIODIC,
-                                RealTime,
+                                PollUnitTest_RealTime,
                                 NULL,
                                 POLL_REALTIME);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && realTimeCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && realTimeCount > 1);
       state++;
       break;
 
    case 4:
-      Warning("Testing RealTime 0 1\n");
+      Warning("%s: Testing RealTime 0 1\n", __FUNCTION__);
       realTimeCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     0,
-                    RealTime,
+                    PollUnitTest_RealTime,
                     reinstallPoll,
                     POLL_REALTIME,
                     0,
@@ -1292,20 +1295,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 0,
-                                RealTime,
+                                PollUnitTest_RealTime,
                                 reinstallPoll,
                                 POLL_REALTIME);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && realTimeCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && realTimeCount > 1);
       state++;
       break;
 
    case 6:
-      Warning("Testing RealTime 1 1\n");
+      Warning("%s: Testing RealTime 1 1\n", __FUNCTION__);
       realTimeCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_PERIODIC,
-                    RealTime,
+                    PollUnitTest_RealTime,
                     removePoll,
                     POLL_REALTIME,
                     100000,
@@ -1317,16 +1320,16 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_PERIODIC,
-                                RealTime,
+                                PollUnitTest_RealTime,
                                 NULL,
                                 POLL_REALTIME);
       DROP_LOCK(cbLock);
-      TestResult(ret == FALSE && realTimeCount == 1);
+      PollUnitTest_TestResult(ret == FALSE && realTimeCount == 1);
       state++;
       break;
 
    case 8:
-      Warning("Testing MainLoop 0 0\n");
+      Warning("%s: Testing MainLoop 0 0\n", __FUNCTION__);
 
       /*
        * A periodic real time callback ensures that we go over the main loop
@@ -1334,7 +1337,7 @@ StateMachine(void *clientData) // IN: Unused
        */
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_PERIODIC,
-                    DummyCallback,
+                    PollUnitTest_DummyCallback,
                     NULL,
                     POLL_REALTIME,
                     100000,
@@ -1342,7 +1345,7 @@ StateMachine(void *clientData) // IN: Unused
       mainLoopCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     0,
-                    MainLoop,
+                    PollUnitTest_MainLoop,
                     NULL,
                     POLL_MAIN_LOOP,
                     0,
@@ -1354,20 +1357,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 0,
-                                MainLoop,
+                                PollUnitTest_MainLoop,
                                 NULL,
                                 POLL_MAIN_LOOP);
       DROP_LOCK(cbLock);
-      TestResult(ret == FALSE && mainLoopCount == 1);
+      PollUnitTest_TestResult(ret == FALSE && mainLoopCount == 1);
       state++;
       break;
 
    case 10:
-      Warning("Testing MainLoop 1 0\n");
+      Warning("%s: Testing MainLoop 1 0\n", __FUNCTION__);
       mainLoopCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_PERIODIC,
-                    MainLoop,
+                    PollUnitTest_MainLoop,
                     NULL,
                     POLL_MAIN_LOOP,
                     0,
@@ -1379,20 +1382,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_PERIODIC,
-                                MainLoop,
+                                PollUnitTest_MainLoop,
                                 NULL,
                                 POLL_MAIN_LOOP);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && mainLoopCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && mainLoopCount > 1);
       state++;
       break;
 
    case 12:
-      Warning("Testing MainLoop 0 1\n");
+      Warning("%s: Testing MainLoop 0 1\n", __FUNCTION__);
       mainLoopCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     0,
-                    MainLoop,
+                    PollUnitTest_MainLoop,
                     reinstallPoll,
                     POLL_MAIN_LOOP,
                     0,
@@ -1404,20 +1407,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 0,
-                                MainLoop,
+                                PollUnitTest_MainLoop,
                                 reinstallPoll,
                                 POLL_MAIN_LOOP);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && mainLoopCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && mainLoopCount > 1);
       state++;
       break;
 
    case 14:
-      Warning("Testing MainLoop 1 1\n");
+      Warning("%s: Testing MainLoop 1 1\n", __FUNCTION__);
       mainLoopCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_PERIODIC,
-                    MainLoop,
+                    PollUnitTest_MainLoop,
                     removePoll,
                     POLL_MAIN_LOOP,
                     0,
@@ -1429,25 +1432,25 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_PERIODIC,
-                                MainLoop,
+                                PollUnitTest_MainLoop,
                                 removePoll,
                                 POLL_MAIN_LOOP);
       DROP_LOCK(cbLock);
       Poll_CallbackRemove(POLL_CS_MAIN,
                           POLL_FLAG_PERIODIC,
-                          DummyCallback,
+                          PollUnitTest_DummyCallback,
                           NULL,
                           POLL_REALTIME);
-      TestResult(ret == FALSE && mainLoopCount == 1);
+      PollUnitTest_TestResult(ret == FALSE && mainLoopCount == 1);
       state++;
       break;
 
    case 16:
-      Warning("Testing DeviceR 0 0\n");
+      Warning("%s: Testing DeviceR 0 0\n", __FUNCTION__);
       deviceRCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ,
-                    DeviceR,
+                    PollUnitTest_DeviceR,
                     NULL,
                     POLL_DEVICE,
                     fds[1],
@@ -1459,20 +1462,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_READ,
-                                DeviceR,
+                                PollUnitTest_DeviceR,
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == FALSE && deviceRCount == 1);
+      PollUnitTest_TestResult(ret == FALSE && deviceRCount == 1);
       state++;
       break;
 
    case 18:
-      Warning("Testing DeviceR 1 0\n");
+      Warning("%s: Testing DeviceR 1 0\n", __FUNCTION__);
       deviceRCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                    DeviceR,
+                    PollUnitTest_DeviceR,
                     NULL,
                     POLL_DEVICE,
                     fds[1],
@@ -1484,20 +1487,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                                DeviceR,
+                                PollUnitTest_DeviceR,
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceRCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceRCount > 1);
       state++;
       break;
 
    case 20:
-      Warning("Testing DeviceR 0 1\n");
+      Warning("%s: Testing DeviceR 0 1\n", __FUNCTION__);
       deviceRCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ,
-                    DeviceR,
+                    PollUnitTest_DeviceR,
                     reinstallPoll,
                     POLL_DEVICE,
                     fds[1],
@@ -1509,20 +1512,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_READ,
-                                DeviceR,
+                                PollUnitTest_DeviceR,
                                 reinstallPoll,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceRCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceRCount > 1);
       state++;
       break;
 
    case 22:
-      Warning("Testing DeviceR 1 1\n");
+      Warning("%s: Testing DeviceR 1 1\n", __FUNCTION__);
       deviceRCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                    DeviceR,
+                    PollUnitTest_DeviceR,
                     removePoll,
                     POLL_DEVICE,
                     fds[1],
@@ -1534,20 +1537,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                                DeviceR,
+                                PollUnitTest_DeviceR,
                                 removePoll,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == FALSE && deviceRCount == 1);
+      PollUnitTest_TestResult(ret == FALSE && deviceRCount == 1);
       state++;
       break;
 
    case 24:
-      Warning("Testing DeviceW 0 0\n");
+      Warning("%s: Testing DeviceW 0 0\n", __FUNCTION__);
       deviceWCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_WRITE,
-                    DeviceW,
+                    PollUnitTest_DeviceW,
                     NULL,
                     POLL_DEVICE,
                     fds[1],
@@ -1559,20 +1562,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_WRITE,
-                                DeviceW,
+                                PollUnitTest_DeviceW,
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == FALSE && deviceWCount == 1);
+      PollUnitTest_TestResult(ret == FALSE && deviceWCount == 1);
       state++;
       break;
 
    case 26:
-      Warning("Testing DeviceW 1 0\n");
+      Warning("%s: Testing DeviceW 1 0\n", __FUNCTION__);
       deviceWCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_WRITE | POLL_FLAG_PERIODIC,
-                    DeviceW,
+                    PollUnitTest_DeviceW,
                     NULL,
                     POLL_DEVICE,
                     fds[1],
@@ -1584,20 +1587,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_WRITE | POLL_FLAG_PERIODIC,
-                                DeviceW,
+                                PollUnitTest_DeviceW,
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceWCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceWCount > 1);
       state++;
       break;
 
    case 28:
-      Warning("Testing DeviceW 0 1\n");
+      Warning("%s: Testing DeviceW 0 1\n", __FUNCTION__);
       deviceWCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_WRITE,
-                    DeviceW,
+                    PollUnitTest_DeviceW,
                     reinstallPoll,
                     POLL_DEVICE,
                     fds[1],
@@ -1609,20 +1612,20 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_WRITE,
-                                DeviceW,
+                                PollUnitTest_DeviceW,
                                 reinstallPoll,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceWCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceWCount > 1);
       state++;
       break;
 
    case 30:
-      Warning("Testing DeviceW 1 1\n");
+      Warning("%s: Testing DeviceW 1 1\n", __FUNCTION__);
       deviceWCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_WRITE | POLL_FLAG_PERIODIC,
-                    DeviceW,
+                    PollUnitTest_DeviceW,
                     removePoll,
                     POLL_DEVICE,
                     fds[1],
@@ -1634,28 +1637,29 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_WRITE | POLL_FLAG_PERIODIC,
-                                DeviceW,
+                                PollUnitTest_DeviceW,
                                 removePoll,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == FALSE && deviceWCount == 1);
+      PollUnitTest_TestResult(ret == FALSE && deviceWCount == 1);
       state++;
       break;
 
    case 32:
-      Warning("Testing Device add R, add W, remove R, remove W\n");
+      Warning("%s: Testing Device add R, add W, remove R, remove W\n",
+              __FUNCTION__);
       deviceRCount = 0;
       deviceWCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                    DeviceR,
+                    PollUnitTest_DeviceR,
                     NULL,
                     POLL_DEVICE,
                     fds[1],
                     cbLock);
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_WRITE | POLL_FLAG_PERIODIC,
-                    DeviceW,
+                    PollUnitTest_DeviceW,
                     NULL,
                     POLL_DEVICE,
                     fds[1],
@@ -1667,11 +1671,11 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                                DeviceR,
+                                PollUnitTest_DeviceR,
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceRCount > 1 && deviceWCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceRCount > 1 && deviceWCount > 1);
       deviceRCount = 0;
       deviceWCount = 0;
       state++;
@@ -1681,28 +1685,29 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_WRITE | POLL_FLAG_PERIODIC,
-                                DeviceW,
+                                PollUnitTest_DeviceW,
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceRCount == 0 && deviceWCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceRCount == 0 && deviceWCount > 1);
       state++;
       break;
 
    case 35:
-      Warning("Testing Device add R, add W, remove W, remove R\n");
+      Warning("%s: Testing Device add R, add W, remove W, remove R\n",
+              __FUNCTION__);
       deviceRCount = 0;
       deviceWCount = 0;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                    DeviceR,
+                    PollUnitTest_DeviceR,
                     NULL,
                     POLL_DEVICE,
                     fds[1],
                     cbLock);
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_WRITE | POLL_FLAG_PERIODIC,
-                    DeviceW,
+                    PollUnitTest_DeviceW,
                     NULL,
                     POLL_DEVICE,
                     fds[1],
@@ -1714,11 +1719,11 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_WRITE | POLL_FLAG_PERIODIC,
-                                DeviceW,
+                                PollUnitTest_DeviceW,
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceRCount > 1 && deviceWCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceRCount > 1 && deviceWCount > 1);
       deviceRCount = 0;
       deviceWCount = 0;
       state++;
@@ -1728,11 +1733,11 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                                DeviceR,
+                                PollUnitTest_DeviceR,
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceWCount == 0 && deviceRCount > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceWCount == 0 && deviceRCount > 1);
       state++;
 #ifndef _WIN32
       // The next test only makes sense on Windows.
@@ -1742,7 +1747,7 @@ StateMachine(void *clientData) // IN: Unused
 
 #ifdef _WIN32
    case 38:
-      Warning("Testing connecting socket\n");
+      Warning("%s: Testing connecting socket\n", __FUNCTION__);
       closesocket(fds[0]);
       closesocket(fds[1]);
       fds[0] = INVALID_SOCKET;
@@ -1751,12 +1756,12 @@ StateMachine(void *clientData) // IN: Unused
       boundSocket = PollSocketPairStartConnecting(testVMCI, TRUE, FALSE,
                                                   (SOCKET *)&fds[0]);
       if (boundSocket == INVALID_SOCKET) {
-         Warning("   failure -- error creating socket pair\n");
+         Warning("%s:   failure -- error creating socket pair\n", __FUNCTION__);
          state += 3;
       } else {
          Poll_Callback(POLL_CS_MAIN,
                        POLL_FLAG_SOCKET | POLL_FLAG_WRITE,
-                       DeviceW,
+                       PollUnitTest_DeviceW,
                        NULL,
                        POLL_DEVICE,
                        fds[0],
@@ -1768,7 +1773,7 @@ StateMachine(void *clientData) // IN: Unused
    case 39:
       fds[1] = accept(boundSocket, NULL, NULL);
       if (fds[1] == INVALID_SOCKET) {
-         Warning("Error accepting socket %d: %d/%s\n",
+         Warning("%s: Error accepting socket %d: %d/%s\n", __FUNCTION__,
                  boundSocket, WSAGetLastError(), Err_ErrString());
       }
       state++;
@@ -1778,11 +1783,11 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_SOCKET | POLL_FLAG_WRITE,
-                                DeviceW,
+                                PollUnitTest_DeviceW,
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == FALSE && deviceWCount >= 1);
+      PollUnitTest_TestResult(ret == FALSE && deviceWCount >= 1);
       state++;
       break;
 #endif
@@ -1790,7 +1795,7 @@ StateMachine(void *clientData) // IN: Unused
    case 41:
       maxInetSockets = testVMCI ? queueLen - maxVMCISockets :
                                   queueLen;
-      Warning("Testing queue size %d\n", queueLen);
+      Warning("%s: Testing queue size %d\n", __FUNCTION__, queueLen);
       deviceRCount = 0;
       queueTestIter = 0;
       queueReads = 0;
@@ -1800,8 +1805,8 @@ StateMachine(void *clientData) // IN: Unused
          socketPairs[i].fds[0] = INVALID_SOCKET;
          socketPairs[i].fds[1] = INVALID_SOCKET;
          if (Poll_SocketPair(useVMCI, TRUE, socketPairs[i].fds) < 0) {
-            Warning("   failure -- error creating socketpair, iteration %d\n", 
-                    i);
+            Warning("%s:   failure -- error creating socketpair, iteration %d\n",
+                    __FUNCTION__, i);
             break;
          }
          send(socketPairs[i].fds[0], (const char *)fds, sizeof fds, 0);
@@ -1810,8 +1815,8 @@ StateMachine(void *clientData) // IN: Unused
          socketPairs[i].fds[0] = -1;
          socketPairs[i].fds[1] = -1;
          if (socketpair(addrFamily, SOCK_STREAM, 0, socketPairs[i].fds) < 0) {
-            Warning("   failure -- error creating socketpair, iteration %d\n", 
-                    i);
+            Warning("%s:   failure -- error creating socketpair, iteration %d\n",
+                    __FUNCTION__, i);
             break;
          }
          retval = write(socketPairs[i].fds[0], fds, 1);
@@ -1819,8 +1824,8 @@ StateMachine(void *clientData) // IN: Unused
          socketPairs[i].count = 0;
          Poll_Callback(POLL_CS_MAIN,
                        POLL_FLAG_SOCKET | POLL_FLAG_READ,
-                       DeviceRQ,
-                       (void *)(intptr_t)i, 
+                       PollUnitTest_DeviceRQ,
+                       (void *)(intptr_t)i,
                        POLL_DEVICE,
                        socketPairs[i].fds[1],
                        cbLock);
@@ -1835,7 +1840,7 @@ StateMachine(void *clientData) // IN: Unused
       break;
 
    case 43:
-      Warning("   %d reads completed\n", deviceRCount); 
+      Warning("%s:   %d reads completed\n", __FUNCTION__, deviceRCount);
       for (i = 0; i < queueLen; i++) {
          if (socketPairs[i].count) {
             queueReads++;
@@ -1843,7 +1848,7 @@ StateMachine(void *clientData) // IN: Unused
          GRAB_LOCK(cbLock);
          Poll_CallbackRemove(POLL_CS_MAIN,
                              POLL_FLAG_SOCKET | POLL_FLAG_READ,
-                             DeviceRQ,
+                             PollUnitTest_DeviceRQ,
                              (void *)(intptr_t)i,
                              POLL_DEVICE);
          DROP_LOCK(cbLock);
@@ -1855,8 +1860,8 @@ StateMachine(void *clientData) // IN: Unused
          close(socketPairs[i].fds[1]);
 #endif
       }
-      Warning("   read %d sockets at least once.\n", queueReads);
-      TestResult(deviceRCount > queueLen);
+      Warning("%s:   read %d sockets at least once.\n", __FUNCTION__, queueReads);
+      PollUnitTest_TestResult(deviceRCount > queueLen);
       state++;
       break;
 
@@ -1870,29 +1875,31 @@ StateMachine(void *clientData) // IN: Unused
 
       if (!useLocking && !testVMCI) {
          testVMCI = TRUE;
-#ifdef _WIN32
+   #ifdef _WIN32
          /* Discard sockets used in connect test and re-create them. */
          closesocket(fds[0]);
          closesocket(fds[1]);
          fds[0] = INVALID_SOCKET;
          fds[1] = INVALID_SOCKET;
          if (Poll_SocketPair(TRUE, TRUE, fds) < 0) {
-            Warning("   failure -- error creating vmci socketpair\n");
+            Warning("%s:   failure -- error creating vmci socketpair\n",
+                    __FUNCTION__);
             state ++;
             break;
          }
          send(fds[0], (const char *)fds, sizeof fds, 0);
-#else
+   #else
          close(fds[0]);
          close(fds[1]);
          fds[0] = -1;
          fds[1] = -1;
          if (socketpair(VMCISock_GetAFValue(), SOCK_STREAM, 0, fds) < 0) {
-            Warning("   failure -- error creating vsock socketpair\n");
+            Warning("%s:   failure -- error creating vsock socketpair\n",
+                    __FUNCTION__);
             break;
          }
          retval = write(fds[0], fds, 0);
-#endif
+   #endif
          state = 0;
          break;
       } else {
@@ -1912,19 +1919,20 @@ StateMachine(void *clientData) // IN: Unused
                                        RANK_pollUnitTestLock);
          ASSERT_NOT_IMPLEMENTED(cbLock);
 
-#ifdef _WIN32
+   #ifdef _WIN32
          /* Discard sockets used in connect test and re-create them. */
          closesocket(fds[0]);
          closesocket(fds[1]);
          fds[0] = INVALID_SOCKET;
          fds[1] = INVALID_SOCKET;
          if (Poll_SocketPair(FALSE, TRUE, fds) < 0) {
-            Warning("   failure -- error creating socketpair\n");
+            Warning("%s:   failure -- error creating socketpair\n",
+                    __FUNCTION__);
             state += 3;
             break;
          }
          send(fds[0], (const char *)fds, sizeof fds, 0);
-#endif
+   #endif
          state = 0;
          break;
       } else {
@@ -1939,34 +1947,34 @@ StateMachine(void *clientData) // IN: Unused
        * for both the internal poll state and the callbacks.  It also uses
        * VThread.
        */
-      Warning("Testing add/remove callback and Poll_Loop race (about %u s)\n",
-              NUM_TEST_ITERS);
+      Warning("%s: Testing add/remove callback and Poll_Loop race (about %u s)\n",
+              __FUNCTION__, NUM_TEST_ITERS);
 
-#ifdef _WIN32
+   #ifdef _WIN32
       closesocket(fds[0]);
       closesocket(fds[1]);
       fds[0] = INVALID_SOCKET;
       fds[1] = INVALID_SOCKET;
       if (Poll_SocketPair(FALSE, TRUE, fds) < 0)
-#else
+   #else
       close(fds[0]);
       close(fds[1]);
       fds[0] = -1;
       fds[1] = -1;
       if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) < 0)
-#endif
+   #endif
       {
-         Warning("   failure -- error creating socketpair\n");
+         Warning("%s:   failure -- error creating socketpair\n", __FUNCTION__);
          state += 3;
          break;
       }
 
       /* Make fds[1] both readable and writable. */
-#ifdef _WIN32
+   #ifdef _WIN32
       send(fds[0], (const char *)fds, sizeof fds, 0);
-#else
+   #else
       retval = write(fds[0], fds, 1);
-#endif
+   #endif
 
       MXUser_DestroyRecLock(cbLock);
       cbLock = NULL;
@@ -1990,11 +1998,12 @@ StateMachine(void *clientData) // IN: Unused
                                           VTHREAD_INVALID_ID,
                                           "PollAddRemoveCBThread");
       if (cbRaceThread == VTHREAD_INVALID_ID) {
-         Warning("   failure -- error creating thread\n");
+         Warning("%s:   failure -- error creating thread\n", __FUNCTION__);
          state += 3;
          break;
       }
-      Poll_Callback(POLL_CS_MAIN, POLL_FLAG_PERIODIC, DummyCallback, NULL,
+      Poll_Callback(POLL_CS_MAIN, POLL_FLAG_PERIODIC,
+                    PollUnitTest_DummyCallback, NULL,
                     POLL_REALTIME, 5000, NULL);
       state++;
       break;
@@ -2006,23 +2015,25 @@ StateMachine(void *clientData) // IN: Unused
       break;
 
    case 48:
-      Poll_CallbackRemove(POLL_CS_MAIN, POLL_FLAG_PERIODIC, DummyCallback,
+      Poll_CallbackRemove(POLL_CS_MAIN, POLL_FLAG_PERIODIC,
+                          PollUnitTest_DummyCallback,
                           NULL, POLL_REALTIME);
       exitThread = TRUE;
       VThread_WaitThread(cbRaceThread);
       VThread_DestroyThread(cbRaceThread);
-      TestResult(rtCbRace == 0 && mlCbRace == 0 && drCbRace == 0 &&
-                 dwCbRace == 0);
+      PollUnitTest_TestResult(rtCbRace == 0 && mlCbRace == 0 && drCbRace == 0 &&
+                              dwCbRace == 0);
       state++;
-#ifndef _WIN32
+   #ifndef _WIN32
       // The next test only makes sense on Windows.
       state += 3;
-#endif
+   #endif
       break;
 
-#ifdef _WIN32
+   #ifdef _WIN32
    case 49:
-      Warning("Testing event-based device callbacks with lock contention\n");
+      Warning("%s: Testing event-based device callbacks with lock contention\n",
+              __FUNCTION__);
       if (!cbLock) {
          /* The previous test may have destroyed the lock. */
          cbLock = MXUser_CreateRecLock("pollUnitTestLock",
@@ -2038,7 +2049,7 @@ StateMachine(void *clientData) // IN: Unused
                                           VTHREAD_INVALID_ID,
                                           "PollLockContention");
       if (cbRaceThread == VTHREAD_INVALID_ID) {
-         Warning("   failure -- error creating thread\n");
+         Warning("%s:   failure -- error creating thread\n", __FUNCTION__);
          state += 3;
          break;
       }
@@ -2046,7 +2057,7 @@ StateMachine(void *clientData) // IN: Unused
       ASSERT_NOT_IMPLEMENTED(events[0]);
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                    DeviceEvent,
+                    PollUnitTest_DeviceEvent
                     NULL,
                     POLL_DEVICE,
                     (PollDevHandle)events[0],
@@ -2055,7 +2066,7 @@ StateMachine(void *clientData) // IN: Unused
       ASSERT_NOT_IMPLEMENTED(events[1]);
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_READ,
-                    DeviceEvent,
+                    PollUnitTest_DeviceEvent
                     reinstallPoll,
                     POLL_DEVICE,
                     (PollDevHandle)events[1],
@@ -2076,35 +2087,35 @@ StateMachine(void *clientData) // IN: Unused
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                                DeviceEvent,
+                                PollUnitTest_DeviceEvent
                                 NULL,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceEv0Count > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceEv0Count > 1);
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_READ,
-                                DeviceEvent,
+                                PollUnitTest_DeviceEvent
                                 reinstallPoll,
                                 POLL_DEVICE);
       DROP_LOCK(cbLock);
-      TestResult(ret == TRUE && deviceEv1Count > 1);
+      PollUnitTest_TestResult(ret == TRUE && deviceEv1Count > 1);
       CloseHandle(events[0]);
       CloseHandle(events[1]);
       state++;
       break;
-#endif  // _WIN32
+   #endif  // _WIN32
 #endif  // POLL_TESTLOCK (#else fall through)
 
    case 52:
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
                                 POLL_FLAG_PERIODIC,
-                                StateMachine,
+                                PollUnitTest_StateMachine,
                                 NULL,
                                 POLL_REALTIME);
       ASSERT(ret);
-      Warning("Poll unit test: stop, %u successes, %u failures\n",
-              successCount, failureCount);
+      Warning("%s: Poll unit test: stop, %u successes, %u failures\n",
+              __FUNCTION__, successCount, failureCount);
       if (cbLock) {
          MXUser_DestroyRecLock(cbLock);
       }
@@ -2154,7 +2165,7 @@ PollUnitTest(void)
 #ifdef _WIN32
    ret = WSAStartup(versionRequested, &wsaData);
    if (ret != 0) {
-      Warning("Error in WSAStartup: %d\n", ret);
+      Warning("%s: Error in WSAStartup: %d\n", __FUNCTION__, ret);
       return;
    }
    fds[0] = INVALID_SOCKET;
@@ -2165,7 +2176,7 @@ PollUnitTest(void)
    fds[1] = -1;
    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) < 0) {
 #endif
-      Warning("socketpair failed\n");
+      Warning("%s: socketpair failed\n", __FUNCTION__);
       return;
    }
 
@@ -2175,9 +2186,10 @@ PollUnitTest(void)
 #else
    retval = write(fds[0], fds, 1);
 #endif
+   Warning("%s: Starting\n", __FUNCTION__);
    Poll_Callback(POLL_CS_MAIN,
                  POLL_FLAG_PERIODIC,
-                 StateMachine,
+                 PollUnitTest_StateMachine,
                  NULL,
                  POLL_REALTIME,
                  1000000 /* 1 s. */,

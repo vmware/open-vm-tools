@@ -521,7 +521,14 @@ FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
    ASSERT(FileIO_IsValid(fd));
 
    path = Unicode_Duplicate(fd->fileName);
-   ret = FileIO_Close(fd) || File_Unlink(path);
+
+   ret = FileIO_Close(fd);
+   if (!ret) {
+      if (File_UnlinkIfExists(path) == -1) {
+         ret = TRUE;
+      }
+   }
+
    Unicode_Free(path);
 
    return ret;
