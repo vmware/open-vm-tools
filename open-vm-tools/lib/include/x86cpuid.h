@@ -940,7 +940,7 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_FAMILY_K8MOBILE        17
 #define CPUID_FAMILY_LLANO           18
 #define CPUID_FAMILY_BOBCAT          20
-#define CPUID_FAMILY_BULLDOZER       21  // Bulldozer & Piledriver
+#define CPUID_FAMILY_BULLDOZER       21  // Bulldozer Piledriver Steamroller
 #define CPUID_FAMILY_KYOTO           22
 
 /* Effective VIA CPU Families */
@@ -1359,6 +1359,9 @@ CPUID_MODEL_IS_PILEDRIVER(uint32 eax)
             CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_PILEDRIVER_1F) ||
            CPUID_EFFECTIVE_MODEL(eax) == CPUID_MODEL_PILEDRIVER_02);
 }
+
+
+
 
 static INLINE Bool
 CPUID_MODEL_IS_KYOTO(uint32 eax)
