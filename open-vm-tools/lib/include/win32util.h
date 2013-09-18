@@ -67,7 +67,6 @@ Unicode W32Util_GetCommonAppDataFilePath(ConstUnicode fileName);
 Unicode W32Util_GetVmwareCommonAppDataFilePath(ConstUnicode fileName);
 
 Unicode W32Util_GetMyDocumentPath(void);
-Unicode W32Util_GetMyVideoPath(BOOL myDocumentsOnFail);
 
 Unicode W32Util_GetDefaultVMPath(ConstUnicode pref);
 Unicode W32Util_GetInstalledFilePath(ConstUnicode fileName);

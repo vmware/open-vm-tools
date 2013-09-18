@@ -421,6 +421,7 @@ typedef union Vmxnet3_GenericDesc {
 /* completion descriptor types */
 #define VMXNET3_CDTYPE_TXCOMP      0    /* Tx Completion Descriptor */
 #define VMXNET3_CDTYPE_RXCOMP      3    /* Rx Completion Descriptor */
+#define VMXNET3_CDTYPE_RXCOMP_LRO  4    /* Rx Completion Descriptor for LRO */
 
 #define VMXNET3_GOS_BITS_UNK    0   /* unknown */
 #define VMXNET3_GOS_BITS_32     1

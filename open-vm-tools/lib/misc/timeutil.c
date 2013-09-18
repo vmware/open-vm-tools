@@ -25,6 +25,7 @@
 
 #include "safetime.h"
 #include "unicode.h"
+#include <stdio.h>
 
 #if defined(_WIN32)
 #  include <wtypes.h>
@@ -130,7 +131,7 @@ TimeUtil_MakeTime(const TimeUtil_Date *d) // IN
  *    while the time will be left unmodified.
  *    The string 'date' needs to be in the format of 'YYYYMMDD' or
  *    'YYYY/MM/DD' or 'YYYY-MM-DD'.
- *    Unsuccesful initialization will leave the 'd' argument unmodified.
+ *    Unsuccessful initialization will leave the 'd' argument unmodified.
  *
  * Results:
  *    TRUE or FALSE.
@@ -1546,3 +1547,59 @@ static int Win32TimeUtilLookupZoneIndex(const char* targetName)
    return timeZoneIndex;
 }
 #endif // _WIN32
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TimeUtil_SecondsSinceEpoch --
+ *
+ *    Converts a date into the the number of seconds since the unix epoch in UTC.
+ *
+ * Parameters:
+ *    date to be converted.
+ *
+ * Results:
+ *    Returns the numbers of seconds since the unix epoch.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+time_t
+TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d) // IN
+{
+   const int DAY_IN_SECONDS = 60*60*24;
+   struct tm tmval1970 = {0};
+   struct tm tmval = {0};
+
+   /*
+    * We can't handle negative time.
+    */
+   if (d->year < 1970) {
+      ASSERT(0);
+      return -1;
+   }
+
+   /*
+    * Get the localtime for Jan 2nd 1970. We need to get the 2nd because
+    * if we are in a timezone that is + UTC then mktime will return -1
+    * for Jan 1st.
+    */
+   tmval1970.tm_year= 1970 - 1900;
+   tmval1970.tm_mon = 0;
+   tmval1970.tm_mday = 2;
+
+   tmval.tm_year = d->year - 1900;
+   tmval.tm_mon = d->month - 1;
+   tmval.tm_mday = d->day;
+   tmval.tm_hour = d->hour;
+   tmval.tm_min = d->minute;
+   tmval.tm_sec = d->second;
+
+   /*
+    * Add back in the day.
+    */
+   return mktime(&tmval) - mktime(&tmval1970) + DAY_IN_SECONDS;
+}

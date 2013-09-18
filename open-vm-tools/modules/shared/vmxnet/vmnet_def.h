@@ -107,6 +107,7 @@
 #define VMNET_CAP_RESTART_NEG        CONST64U(0x400000000000)     /* Ability to restart negotiation of link speed/duplexity */
 #define VMNET_CAP_LRO                CONST64U(0x800000000000)     /* Hardware supported LRO */
 #define VMNET_CAP_OFFLOAD_ALIGN_ANY  CONST64U(0x1000000000000)    /* Nic requires no header alignment */
+#define VMNET_CAP_GENERIC_OFFLOAD    CONST64U(0x2000000000000)    /* Generic hardware offloading (eg. vxlan encap offload and offset based offload) */
 #define VMNET_CAP_LEGACY             CONST64U(0x8000000000000000) /* Uplink is compatible with vmklinux drivers */
 
 #endif // _VMNET_DEF_H_

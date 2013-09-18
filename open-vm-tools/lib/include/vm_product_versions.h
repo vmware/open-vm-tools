@@ -207,6 +207,7 @@
 #define HOSTD_VERSION "e.x.p"
 #define RECOVERYLIBS_VERSION "2.0.0"
 #define PRECHECK_VERSION "e.x.p"
+#define VIEW_FEATUREPACK_VERSION "5.2.0"
 
 
 #ifndef MAKESTR
@@ -325,7 +326,7 @@
  * a parameter that no longer match the content of the dormant license
  * file.
  */
-#define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "5.0"
+#define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "6.0"
 
 #if defined(VMX86_TOOLS)
 /* This product doesn't use a license */

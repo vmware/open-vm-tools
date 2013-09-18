@@ -86,7 +86,7 @@ typedef struct TimeUtil_Expiration {
 } TimeUtil_Expiration;
 
 
-time_t TimeUtil_MakeTime(const TimeUtil_Date *d);
+time_t TimeUtil_MakeTime(const TimeUtil_Date *d); // IN
 
 Bool TimeUtil_StringToDate(TimeUtil_Date *d,    // IN/OUT
                            char const *date);   // IN: 'YYYYMMDD' or 'YYYY/MM/DD' or 'YYYY-MM-DD'
@@ -131,5 +131,7 @@ Bool TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,    // IN
 #endif
 
 int TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName);
+
+time_t TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d); // IN
 
 #endif // _TIMEUTIL_H_
