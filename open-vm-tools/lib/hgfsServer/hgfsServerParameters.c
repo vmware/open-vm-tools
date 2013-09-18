@@ -1415,14 +1415,17 @@ HgfsUnpackFileNameV3(const HgfsFileNameV3 *name,   // IN: file name
                      HgfsHandle *file,             // OUT: HGFS file handle
                      uint32 *caseFlags)            // OUT: case-sensitivity flags
 {
+   *useHandle = FALSE;
+   *file = HGFS_INVALID_HANDLE;
+   *cpName = NULL;
+   *cpNameSize = 0;
+
    /*
     * If we've been asked to reuse a handle, we don't need to look at, let
     * alone test the filename or its length.
     */
    if (name->flags & HGFS_FILE_NAME_USE_FILE_DESC) {
       *file = name->fid;
-      *cpName = NULL;
-      *cpNameSize = 0;
       *caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
       *useHandle = TRUE;
    } else {
@@ -1435,11 +1438,9 @@ HgfsUnpackFileNameV3(const HgfsFileNameV3 *name,   // IN: file name
          LOG(4, ("%s: Error unpacking file name - buffer too small\n", __FUNCTION__));
          return FALSE;
       }
-      *file = HGFS_INVALID_HANDLE;
       *cpName = name->name;
       *cpNameSize = name->length;
       *caseFlags = name->caseType;
-      *useHandle = FALSE;
    }
    return TRUE;
 }
@@ -1478,26 +1479,33 @@ HgfsUnpackDeletePayloadV3(const HgfsRequestDeleteV3 *requestV3, // IN: request p
                           HgfsHandle *file,                     // OUT: file handle
                           uint32 *caseFlags)                    // OUT: case-sensitivity flags
 {
-   Bool result;
+   Bool result = TRUE;
    Bool useHandle;
 
    if (payloadSize < sizeof *requestV3) {
-      return FALSE;
+      result = FALSE;
+      goto exit;
    }
 
    *hints = requestV3->hints;
 
-   result = HgfsUnpackFileNameV3(&requestV3->fileName,
-                                 payloadSize - sizeof *requestV3,
-                                 &useHandle,
-                                 cpName,
-                                 cpNameSize,
-                                 file,
-                                 caseFlags);
+   if (!HgfsUnpackFileNameV3(&requestV3->fileName,
+                             payloadSize - sizeof *requestV3,
+                             &useHandle,
+                             cpName,
+                             cpNameSize,
+                             file,
+                             caseFlags)) {
+      result = FALSE;
+      goto exit;
+   }
+
    if (useHandle) {
       *hints |= HGFS_DELETE_HINT_USE_FILE_DESC;
    }
 
+exit:
+   LOG(8, ("%s: unpacking HGFS_OP_DELETE_DIR/FILE_V3 -> %d\n", __FUNCTION__, result));
    return result;
 }
 
@@ -1854,6 +1862,7 @@ HgfsUnpackRenamePayloadV3(const HgfsRequestRenameV3 *requestV3, // IN: request p
       *hints |= HGFS_RENAME_HINT_USE_TARGETFILE_DESC;
    }
 
+   LOG(8, ("%s: unpacking HGFS_OP_RENAME_V3 -> success\n", __FUNCTION__));
    return TRUE;
 }
 
@@ -2197,26 +2206,33 @@ HgfsUnpackGetattrPayloadV3(const HgfsRequestGetattrV3 *requestV3,// IN: request 
                            HgfsHandle *file,                     // OUT: file handle
                            uint32 *caseFlags)                    // OUT: case-sensitivity flags
 {
-   Bool result;
+   Bool result = TRUE;
    Bool useHandle;
 
    if (payloadSize < sizeof *requestV3) {
-      return FALSE;
+      result = FALSE;
+      goto exit;
    }
 
    *hints = requestV3->hints;
 
-   result = HgfsUnpackFileNameV3(&requestV3->fileName,
-                                 payloadSize - sizeof *requestV3,
-                                 &useHandle,
-                                 cpName,
-                                 cpNameSize,
-                                 file,
-                                 caseFlags);
+   if (!HgfsUnpackFileNameV3(&requestV3->fileName,
+                             payloadSize - sizeof *requestV3,
+                             &useHandle,
+                             cpName,
+                             cpNameSize,
+                             file,
+                             caseFlags)) {
+      result = FALSE;
+      goto exit;
+   }
+
    if (useHandle) {
       *hints |= HGFS_ATTR_HINT_USE_FILE_DESC;
    }
 
+exit:
+   LOG(8, ("%s: unpacking HGFS_OP_GETATTR_V3 -> %d\n", __FUNCTION__, result));
    return result;
 }
 
@@ -3390,30 +3406,35 @@ HgfsUnpackSetattrPayloadV3(const HgfsRequestSetattrV3 *requestV3,// IN: request 
                            HgfsHandle *file,                     // OUT: file handle
                            uint32 *caseFlags)                    // OUT: case-sensitivity flags
 {
-   Bool result;
+   Bool result = TRUE;
    Bool useHandle;
 
    if (payloadSize < sizeof *requestV3) {
-      return FALSE;
+      result = FALSE;
+      goto exit;
    }
 
    *hints = requestV3->hints;
 
    HgfsUnpackAttrV2(&requestV3->attr, attr);
 
-   result = HgfsUnpackFileNameV3(&requestV3->fileName,
-                                 payloadSize - sizeof *requestV3,
-                                 &useHandle,
-                                 cpName,
-                                 cpNameSize,
-                                 file,
-                                 caseFlags);
+   if (!HgfsUnpackFileNameV3(&requestV3->fileName,
+                             payloadSize - sizeof *requestV3,
+                             &useHandle,
+                             cpName,
+                             cpNameSize,
+                             file,
+                             caseFlags)) {
+      result = FALSE;
+      goto exit;
+   }
+
    if (useHandle) {
       *hints |= HGFS_ATTR_HINT_USE_FILE_DESC;
    }
 
-   LOG(4, ("%s: unpacking HGFS_OP_SETATTR_V3, %u\n", __FUNCTION__,
-       *caseFlags));
+exit:
+   LOG(8, ("%s: unpacking HGFS_OP_SETATTR_V3 -> %d\n", __FUNCTION__, result));
    return result;
 }
 
