@@ -763,9 +763,19 @@ out:
 static char *
 HostinfoGetCmdOutput(const char *cmd)  // IN:
 {
+   Bool isSuperUser = FALSE;
    DynBuf db;
    FILE *stream;
    char *out = NULL;
+
+   /*
+    * Attempt to lower privs, because we use popen and an attacker
+    * may control $PATH.
+    */
+   if (vmx86_linux && Id_IsSuperUser()) {
+      Id_EndSuperUser(getuid());
+      isSuperUser = TRUE;
+   }
 
    DynBuf_Init(&db);
 
@@ -773,7 +783,7 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
    if (stream == NULL) {
       Warning("Unable to get output of command \"%s\"\n", cmd);
 
-      return NULL;
+      goto exit;
    }
 
    for (;;) {
@@ -807,11 +817,16 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
    if (DynBuf_Get(&db)) {
       out = (char *) DynBuf_AllocGet(&db);
    }
- closeIt:
-   DynBuf_Destroy(&db);
 
+ closeIt:
    pclose(stream);
 
+ exit:
+   DynBuf_Destroy(&db);
+
+   if (isSuperUser) {
+      Id_BeginSuperUser();
+   }
    return out;
 }
 
@@ -930,7 +945,7 @@ HostinfoOSData(void)
        * Try to get OS detailed information from the lsb_release command.
        */
 
-      lsbOutput = HostinfoGetCmdOutput("lsb_release -sd 2>/dev/null");
+      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
       if (!lsbOutput) {
          int i;
 
