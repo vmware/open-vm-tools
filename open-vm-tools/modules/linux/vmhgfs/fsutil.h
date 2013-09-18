@@ -82,6 +82,7 @@ int HgfsBuildPath(char *buffer,
 void HgfsDentryAgeReset(struct dentry *dentry);
 void HgfsDentryAgeForce(struct dentry *dentry);
 int HgfsGetOpenMode(uint32 flags);
+int HgfsGetOpenFlags(uint32 flags);
 int HgfsCreateFileInfo(struct file *file,
                        HgfsHandle handle);
 void HgfsReleaseFileInfo(struct file *file);

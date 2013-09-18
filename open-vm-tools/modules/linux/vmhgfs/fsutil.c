@@ -1313,7 +1313,7 @@ HgfsGetOpenMode(uint32 flags) // IN: Open flags
    uint32 mask = O_RDONLY|O_WRONLY|O_RDWR;
    int result = -1;
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsGetOpenMode: entered\n"));
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: (%u) entered\n", __func__, flags));
 
 
    /*
@@ -1347,6 +1347,96 @@ HgfsGetOpenMode(uint32 flags) // IN: Open flags
       break;
    }
 
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: return %d\n", __func__, result));
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsGetOpenFlags --
+ *
+ *    Based on the flags requested by the process making the open()
+ *    syscall, determine which flags to send to the server to open the
+ *    file.
+ *
+ * Results:
+ *    Returns the correct HgfsOpenFlags enumeration to send to the
+ *    server, or -1 on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+HgfsGetOpenFlags(uint32 flags) // IN: Open flags
+{
+   uint32 mask = O_CREAT | O_TRUNC | O_EXCL;
+   int result = -1;
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: (%u) entered\n", __func__, flags));
+
+   /*
+    * Mask the flags to only look at O_CREAT, O_EXCL, and O_TRUNC.
+    */
+
+   flags &= mask;
+
+   /* O_EXCL has no meaning if O_CREAT is not set. */
+   if (!(flags & O_CREAT)) {
+      flags &= ~O_EXCL;
+   }
+
+   /* Pick the right HgfsOpenFlags. */
+   switch (flags) {
+
+   case 0:
+      /* Regular open; fails if file nonexistant. */
+      result = HGFS_OPEN;
+      break;
+
+   case O_CREAT:
+      /* Create file; if it exists already just open it. */
+      result = HGFS_OPEN_CREATE;
+      break;
+
+   case O_TRUNC:
+      /* Truncate existing file; fails if nonexistant. */
+      result = HGFS_OPEN_EMPTY;
+      break;
+
+   case (O_CREAT | O_EXCL):
+      /* Create file; fail if it exists already. */
+      result = HGFS_OPEN_CREATE_SAFE;
+      break;
+
+   case (O_CREAT | O_TRUNC):
+      /* Create file; if it exists already, truncate it. */
+      result = HGFS_OPEN_CREATE_EMPTY;
+      break;
+
+   default:
+      /*
+       * This can only happen if all three flags are set, which
+       * conceptually makes no sense because O_EXCL and O_TRUNC are
+       * mutually exclusive if O_CREAT is set.
+       *
+       * However, the open(2) man page doesn't say you can't set all
+       * three flags, and certain apps (*cough* Nautilus *cough*) do
+       * so. To be friendly to those apps, we just silenty drop the
+       * O_TRUNC flag on the assumption that it's safer to honor
+       * O_EXCL.
+       */
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsGetOpenFlags: invalid open "
+              "flags %o. Ignoring the O_TRUNC flag.\n", flags));
+      result = HGFS_OPEN_CREATE_SAFE;
+      break;
+   }
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: return %d\n", __func__, result));
    return result;
 }
 
