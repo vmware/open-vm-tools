@@ -64,9 +64,10 @@ static int HgfsDoWritepage(HgfsHandle handle,
                            struct page *page,
                            unsigned pageFrom,
                            unsigned pageTo);
-static void HgfsDoWriteBegin(struct page *page,
-                             unsigned pageFrom,
-                             unsigned pageTo);
+static int HgfsDoWriteBegin(struct file *file,
+                            struct page *page,
+                            unsigned pageFrom,
+                            unsigned pageTo);
 static int HgfsDoWriteEnd(struct file *file,
                           struct page *page,
                           unsigned pageFrom,
@@ -875,7 +876,7 @@ HgfsWritepage(struct page *page,             // IN: Page to write from
  *      Initialize the page if the file is to be appended.
  *
  * Results:
- *      None.
+ *    Zero on success, always.
  *
  * Side effects:
  *      None.
@@ -883,36 +884,38 @@ HgfsWritepage(struct page *page,             // IN: Page to write from
  *-----------------------------------------------------------------------------
  */
 
-static void
-HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
+static int
+HgfsDoWriteBegin(struct file *file,         // IN: File to be written
+                 struct page *page,         // IN: Page to be written
                  unsigned pageFrom,         // IN: Starting page offset
                  unsigned pageTo)           // IN: Ending page offset
 {
-   loff_t offset;
-   loff_t currentFileSize;
-
    ASSERT(page);
 
-   offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
-   currentFileSize = compat_i_size_read(page->mapping->host);
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: off %Lu: %u to %u\n", __func__,
+           (loff_t)page->index << PAGE_CACHE_SHIFT, pageFrom, pageTo));
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: %s: file size %Lu off %Lu: %u to %u\n", __func__,
-           currentFileSize, offset, pageFrom, pageTo));
-   /*
-    * If we are doing a partial write into a new page (beyond end of
-    * file), then intialize it. This allows other writes to this page
-    * to accumulate before we need to write it to the server.
-    */
-   if ((offset >= currentFileSize) ||
-       ((pageFrom == 0) && (offset + pageTo) >= currentFileSize)) {
-      void *kaddr = compat_kmap_atomic(page);
-
-      if (pageTo < PAGE_CACHE_SIZE) {
+   if (!PageUptodate(page)) {
+      /*
+       * If we are doing a partial write into a new page (beyond end of
+       * file), then intialize it. This allows other writes to this page
+       * to accumulate before we need to write it to the server.
+       */
+      if (pageTo - pageFrom != PAGE_CACHE_SIZE) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
+         zero_user_segments(page, 0, pageFrom, pageTo, PAGE_CACHE_SIZE);
+#else
+         void *kaddr = compat_kmap_atomic(page);
+         memset(kaddr, 0, pageFrom);
          memset(kaddr + pageTo, 0, PAGE_CACHE_SIZE - pageTo);
+         flush_dcache_page(page);
+         compat_kunmap_atomic(kaddr);
+#endif
       }
-      compat_kunmap_atomic(kaddr);
-      flush_dcache_page(page);
    }
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: returns 0\n", __func__));
+   return 0;
 }
 
 
@@ -927,7 +930,7 @@ HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
  *      receiving the write.
  *
  * Results:
- *      Always zero.
+ *      On success zero, always.
  *
  * Side effects:
  *      None.
@@ -936,14 +939,12 @@ HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
  */
 
 static int
-HgfsPrepareWrite(struct file *file,  // IN: Ignored
+HgfsPrepareWrite(struct file *file,  // IN: File to be written
                  struct page *page,  // IN: Page to prepare
                  unsigned pageFrom,  // IN: Beginning page offset
                  unsigned pageTo)    // IN: Ending page offset
 {
-   HgfsDoWriteBegin(page, pageFrom, pageTo);
-
-   return 0;
+   return HgfsDoWriteBegin(file, page, pageFrom, pageTo);
 }
 
 #else
@@ -982,6 +983,7 @@ HgfsWriteBegin(struct file *file,             // IN: File to be written
    unsigned pageFrom = pos & (PAGE_CACHE_SIZE - 1);
    unsigned pageTo = pageFrom + len;
    struct page *page;
+   int result;
 
    LOG(6, (KERN_WARNING "VMware hgfs: %s: (%s/%s(%ld), %u@%lld)\n",
            __func__, file->f_dentry->d_parent->d_name.name,
@@ -990,12 +992,22 @@ HgfsWriteBegin(struct file *file,             // IN: File to be written
 
    page = compat_grab_cache_page_write_begin(mapping, index, flags);
    if (page == NULL) {
-      return -ENOMEM;
+      result = -ENOMEM;
+      goto exit;
    }
    *pagePtr = page;
 
-   HgfsDoWriteBegin(page, pageFrom, pageTo);
-   return 0;
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: file size %Lu @ %Lu page %u to %u\n", __func__,
+         (loff_t)compat_i_size_read(page->mapping->host),
+         (loff_t)page->index << PAGE_CACHE_SHIFT,
+         pageFrom, pageTo));
+
+   result = HgfsDoWriteBegin(file, page, pageFrom, pageTo);
+   ASSERT(result == 0);
+
+exit:
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: return %d\n", __func__, result));
+   return result;
 }
 #endif
 
@@ -1027,59 +1039,35 @@ HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
                loff_t writeTo,    // IN: File position to write to
                unsigned copied)   // IN: Number of bytes copied to the page
 {
-   HgfsHandle handle;
-   struct inode *inode;
    loff_t currentFileSize;
-   loff_t offset;
+   struct inode *inode;
 
    ASSERT(file);
    ASSERT(page);
    inode = page->mapping->host;
    currentFileSize = compat_i_size_read(inode);
-   offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
 
    LOG(6, (KERN_WARNING "VMware hgfs: %s: (%s/%s(%ld), from %u to %u@%lld => %u)\n",
            __func__, file->f_dentry->d_parent->d_name.name,
            file->f_dentry->d_name.name,
            page->mapping->host->i_ino, pageFrom, pageTo, (long long) writeTo, copied));
 
+   /*
+    * Zero any uninitialised parts of the page, and then mark the page
+    * as up to date if it turns out that we're extending the file.
+    */
+   if (!PageUptodate(page)) {
+      SetPageUptodate(page);
+   }
+
    if (writeTo > currentFileSize) {
       compat_i_size_write(inode, writeTo);
    }
 
-   /* We wrote a complete page, so it is up to date. */
-   if (copied == PAGE_CACHE_SIZE) {
-      SetPageUptodate(page);
-   }
+   set_page_dirty(page);
 
-   /*
-    * Check if this is a partial write to a new page, which was
-    * initialized in HgfsDoWriteBegin.
-    */
-   if ((offset >= currentFileSize) ||
-       ((pageFrom == 0) && (writeTo >= currentFileSize))) {
-      SetPageUptodate(page);
-   }
-
-   /*
-    * If the page is uptodate, then just mark it dirty and let
-    * the page cache write it when it wants to.
-    */
-   if (PageUptodate(page)) {
-      set_page_dirty(page);
-      return 0;
-   }
-
-   /*
-    * We've recieved a partial write to page that is not uptodate, so
-    * do the write now while the page is still locked.  Another
-    * alternative would be to read the page in HgfsDoWriteBegin, which
-    * would make it uptodate (ie a complete cached page).
-    */
-   handle = FILE_GET_FI_P(file)->handle;
-   LOG(6, (KERN_WARNING "VMware hgfs: %s: writing to handle %u\n", __func__,
-           handle));
-   return HgfsDoWritepage(handle, page, pageFrom, pageTo);
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: return 0\n", __func__));
+   return 0;
 }
 
 
@@ -1161,7 +1149,7 @@ HgfsWriteEnd(struct file *file,              // IN: File to write
              void *clientData)               // IN: From write_begin, unused.
 {
    unsigned pageFrom = pos & (PAGE_CACHE_SIZE - 1);
-   unsigned pageTo = pageFrom + copied;
+   unsigned pageTo = pageFrom + len;
    loff_t writeTo = pos + copied;
    int ret;
 
@@ -1174,6 +1162,10 @@ HgfsWriteEnd(struct file *file,              // IN: File to write
            __func__, file->f_dentry->d_parent->d_name.name,
            file->f_dentry->d_name.name,
            mapping->host->i_ino, len, (long long) pos, copied));
+
+   if (copied < len) {
+      zero_user_segment(page, pageFrom + copied, pageFrom + len);
+   }
 
    ret = HgfsDoWriteEnd(file, page, pageFrom, pageTo, writeTo, copied);
    if (ret == 0) {

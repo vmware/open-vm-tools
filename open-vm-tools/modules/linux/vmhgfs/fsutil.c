@@ -702,15 +702,16 @@ HgfsChangeFileAttributes(struct inode *inode,          // IN/OUT: Inode
       loff_t oldSize = compat_i_size_read(inode);
       inode->i_blocks = HgfsCalcBlockSize(attr->size);
       if (oldSize != attr->size) {
+         if (oldSize < attr->size) {
+            needInvalidate = TRUE;
+         }
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsChangeFileAttributes: new file "
                  "size: %"FMT64"u, old file size: %Lu\n", attr->size, oldSize));
-         needInvalidate = TRUE;
+         compat_i_size_write(inode, attr->size);
       }
-      compat_i_size_write(inode, attr->size);
    } else {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsChangeFileAttributes: did not "
               "get file size\n"));
-      needInvalidate = TRUE;
    }
 
    if (attr->mask & HGFS_ATTR_VALID_ACCESS_TIME) {
@@ -730,11 +731,9 @@ HgfsChangeFileAttributes(struct inode *inode,          // IN/OUT: Inode
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsChangeFileAttributes: new mod "
                  "time: %ld:%lu, old mod time: %ld:%lu\n",
                  HGFS_PRINT_TIME(newTime), HGFS_PRINT_TIME(inode->i_mtime)));
-         needInvalidate = TRUE;
       }
       HGFS_SET_TIME(inode->i_mtime, attr->writeTime);
    } else {
-      needInvalidate = TRUE;
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsChangeFileAttributes: did not "
               "get mod time\n"));
       HGFS_SET_TIME(inode->i_mtime, HGFS_GET_CURRENT_TIME());
