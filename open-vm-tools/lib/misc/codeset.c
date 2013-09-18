@@ -607,11 +607,11 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
       Location_Get_Type *Location_Get = Location_Get_Addr();
 
       if (Location_Get) {
-         char *libDir = Location_Get("libDir");
-         Bool success =    libDir
-                        && DynBuf_Append(&dbpath, libDir, strlen(libDir));
+         char *icuDir = Location_Get("icuDir");
+         Bool success =    icuDir
+                        && DynBuf_Append(&dbpath, icuDir, strlen(icuDir));
 
-         free(libDir);
+         free(icuDir);
          if (!success) {
             goto exit;
          }
@@ -619,13 +619,10 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
 #   endif
 
       {
-         if (!DynBuf_Append(&dbpath, POSIX_ICU_DIR, strlen(POSIX_ICU_DIR))) {
+         if (!DynBuf_Append(&dbpath, POSIX_ICU_DIR, strlen(POSIX_ICU_DIR)) ||
+             !DynBuf_Append(&dbpath, "/icu", strlen("/icu"))) {
             goto exit;
          }
-      }
-
-      if (!DynBuf_Append(&dbpath, "/icu", strlen("/icu"))) {
-         goto exit;
       }
    }
    if (!DynBuf_Append(&dbpath, DIRSEPS, strlen(DIRSEPS)) ||

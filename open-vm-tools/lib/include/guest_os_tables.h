@@ -91,60 +91,68 @@
    GOT(GUEST_OS_VMKERNEL5)         /* ESX 5.x and later */    \
 
 
+/* This list must be sorted alphabetically (non-case-sensitive) by gos name. */
 #define GUEST_OS_LIST_GEN                                                   \
+   GOSL(STR_OS_ASIANUX_3,                    GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_ASIANUX_3 "-64",              GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_ASIANUX_4,                    GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_ASIANUX_4 "-64",              GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_CENTOS,                       GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_CENTOS "-64",                 GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_MACOS,                        GUEST_OS_DARWIN9)              \
+   GOSL(STR_OS_MACOS "-64",                  GUEST_OS_DARWIN9_64)           \
+   GOSL(STR_OS_MACOS "10",                   GUEST_OS_DARWIN10)             \
+   GOSL(STR_OS_MACOS "10-64",                GUEST_OS_DARWIN10_64)          \
+   GOSL(STR_OS_MACOS "11",                   GUEST_OS_DARWIN11)             \
+   GOSL(STR_OS_MACOS "11-64",                GUEST_OS_DARWIN11_64)          \
+   GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN12_64)          \
+   GOSL(STR_OS_MACOS "13-64",                GUEST_OS_DARWIN13_64)          \
+   GOSL(STR_OS_DEBIAN_4,                     GUEST_OS_DEBIAN45)             \
+   GOSL(STR_OS_DEBIAN_4 "-64",               GUEST_OS_DEBIAN45_64)          \
+   GOSL(STR_OS_DEBIAN_5,                     GUEST_OS_DEBIAN45)             \
+   GOSL(STR_OS_DEBIAN_5 "-64",               GUEST_OS_DEBIAN45_64)          \
+   GOSL(STR_OS_DEBIAN_6,                     GUEST_OS_DEBIAN45)             \
+   GOSL(STR_OS_DEBIAN_6 "-64",               GUEST_OS_DEBIAN45_64)          \
+   GOSL(STR_OS_DEBIAN_7,                     GUEST_OS_DEBIAN45)             \
+   GOSL(STR_OS_DEBIAN_7 "-64",               GUEST_OS_DEBIAN45_64)          \
    GOSL("dos",                               GUEST_OS_DOS)                  \
-   GOSL(STR_OS_WIN_31,                       GUEST_OS_WIN31)                \
-   GOSL(STR_OS_WIN_95,                       GUEST_OS_WIN95)                \
-   GOSL(STR_OS_WIN_98,                       GUEST_OS_WIN98)                \
-   GOSL(STR_OS_WIN_ME,                       GUEST_OS_WINME )               \
-   GOSL(STR_OS_WIN_NT,                       GUEST_OS_WINNT)                \
-   GOSL("nt4",                               GUEST_OS_WINNT)  /* old */     \
-   GOSL(STR_OS_WIN_2000_PRO,                 GUEST_OS_WIN2000)              \
-   GOSL("win2000",                           GUEST_OS_WIN2000) /* old */    \
-   GOSL(STR_OS_WIN_2000_SERV,                GUEST_OS_WIN2000)              \
-   GOSL(STR_OS_WIN_2000_ADV_SERV,            GUEST_OS_WIN2000)              \
-   GOSL(STR_OS_WIN_XP_HOME,                  GUEST_OS_WINXP)                \
-   GOSL("whistler",                          GUEST_OS_WINXP) /* old */      \
-   GOSL(STR_OS_WIN_XP_PRO,                   GUEST_OS_WINXP)                \
-   GOSL(STR_OS_WIN_XP_PRO_X64,               GUEST_OS_WINXPPRO_64)          \
-   GOSL(STR_OS_WIN_NET_WEB,                  GUEST_OS_WINNET)               \
-   GOSL(STR_OS_WIN_NET_ST,                   GUEST_OS_WINNET)               \
-   GOSL(STR_OS_WIN_NET_EN,                   GUEST_OS_WINNET)               \
-   GOSL("winNetDatacenter",                  GUEST_OS_WINNET)               \
-   GOSL(STR_OS_WIN_NET_BUS,                  GUEST_OS_WINNET)               \
-   GOSL("winNetStandard-64",                 GUEST_OS_WINNET_64)            \
-   GOSL("winNetEnterprise-64",               GUEST_OS_WINNET_64)            \
-   GOSL("winNetDatacenter-64",               GUEST_OS_WINNET_64)            \
+   GOSL(STR_OS_ECOMSTATION,                  GUEST_OS_ECOMSTATION)          \
+   GOSL(STR_OS_ECOMSTATION "2",              GUEST_OS_ECOMSTATION2)         \
+   GOSL("fedora",                            GUEST_OS_OTHER26XLINUX)        \
+   GOSL("fedora-64",                         GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL("freeBSD",                           GUEST_OS_FREEBSD)              \
+   GOSL("freeBSD-64",                        GUEST_OS_FREEBSD_64)           \
+   GOSL("linux",                             GUEST_OS_OTHERLINUX) /* old */ \
    GOSL(STR_OS_WIN_LONG,                     GUEST_OS_LONGHORN)             \
-   GOSL(STR_OS_WIN_2008_CLUSTER,             GUEST_OS_LONGHORN)             \
-   GOSL(STR_OS_WIN_2008_DATACENTER,          GUEST_OS_LONGHORN)             \
-   GOSL(STR_OS_WIN_2008_DATACENTER_CORE,     GUEST_OS_LONGHORN)             \
-   GOSL(STR_OS_WIN_2008_ENTERPRISE,          GUEST_OS_LONGHORN)             \
-   GOSL(STR_OS_WIN_2008_ENTERPRISE_CORE,     GUEST_OS_LONGHORN)             \
-   GOSL(STR_OS_WIN_2008_SMALL_BUSINESS,      GUEST_OS_LONGHORN)             \
-   GOSL(STR_OS_WIN_2008_SMALL_BUSINESS_PREMIUM, GUEST_OS_LONGHORN)          \
-   GOSL(STR_OS_WIN_2008_STANDARD,            GUEST_OS_LONGHORN)             \
-   GOSL(STR_OS_WIN_2008_STANDARD_CORE,       GUEST_OS_LONGHORN)             \
-   GOSL(STR_OS_WIN_2008_WEB_SERVER,          GUEST_OS_LONGHORN)             \
-   GOSL("winLonghornGuest",                  GUEST_OS_LONGHORN)             \
    GOSL("longhorn-64",                       GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_2008_CLUSTER_X64,         GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_2008_DATACENTER_X64,      GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_2008_DATACENTER_CORE_X64, GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_2008_ENTERPRISE_X64,      GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_2008_ENTERPRISE_CORE_X64, GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_2008_SMALL_BUSINESS_X64,  GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_2008_SMALL_BUSINESS_PREMIUM_X64, GUEST_OS_LONGHORN_64)   \
-   GOSL(STR_OS_WIN_2008_STANDARD_X64,        GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_2008_STANDARD_CORE_X64,   GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_2008_WEB_SERVER_X64,      GUEST_OS_LONGHORN_64)          \
-   GOSL("winLonghorn64Guest",                GUEST_OS_LONGHORN_64)          \
-   GOSL(STR_OS_WIN_VISTA,                    GUEST_OS_WINVISTA)             \
-   GOSL(STR_OS_WIN_VISTA_X64,                GUEST_OS_WINVISTA_64)          \
-   GOSL(STR_OS_WIN_SEVEN,                    GUEST_OS_WINSEVEN)             \
-   GOSL(STR_OS_WIN_SEVEN_X64,                GUEST_OS_WINSEVEN_64)          \
-   GOSL(STR_OS_WIN_2008R2_X64,               GUEST_OS_WIN2008R2_64)         \
-   GOSL("windows7Server64Guest",             GUEST_OS_WIN2008R2_64)         \
+   GOSL(STR_OS_MANDRAKE,                     GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_MANDRAKE "-64",               GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_MANDRIVA,                     GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_MANDRIVA "-64",               GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL("netware4",                          GUEST_OS_NETWARE4)             \
+   GOSL("netware5",                          GUEST_OS_NETWARE5)             \
+   GOSL("netware6",                          GUEST_OS_NETWARE6)             \
+   GOSL(STR_OS_NOVELL,                       GUEST_OS_OTHER26XLINUX)        \
+   GOSL("nt4",                               GUEST_OS_WINNT)   /* old */    \
+   GOSL("oes",                               GUEST_OS_OTHER26XLINUX)        \
+   GOSL("openserver5",                       GUEST_OS_OPENSERVER_5_AND_6)   \
+   GOSL("openserver6",                       GUEST_OS_OPENSERVER_5_AND_6)   \
+   GOSL(STR_OS_OPENSUSE,                     GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_OPENSUSE "-64",               GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_ORACLE,                       GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_ORACLE "-64",                 GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL("os2",                               GUEST_OS_OS2)                  \
+   GOSL("os2experimental",                   GUEST_OS_OS2)                  \
+   GOSL("other",                             GUEST_OS_OTHER)                \
+   GOSL("other-64",                          GUEST_OS_OTHER_64)             \
+   GOSL(STR_OS_OTHER_24,                     GUEST_OS_OTHER24XLINUX)        \
+   GOSL(STR_OS_OTHER_24 "-64",               GUEST_OS_OTHER24XLINUX_64)     \
+   GOSL(STR_OS_OTHER_26,                     GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_OTHER_26 "-64",               GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_OTHER_3X,                     GUEST_OS_OTHER3XLINUX)         \
+   GOSL(STR_OS_OTHER_3X "-64",               GUEST_OS_OTHER3XLINUX_64)      \
+   GOSL(STR_OS_OTHER,                        GUEST_OS_OTHERLINUX)           \
+   GOSL(STR_OS_OTHER "-64",                  GUEST_OS_OTHERLINUX_64)        \
    GOSL(STR_OS_RED_HAT,                      GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_RED_HAT_EN "2",               GUEST_OS_OTHER24XLINUX)        \
    GOSL(STR_OS_RED_HAT_EN "3",               GUEST_OS_OTHER24XLINUX)        \
@@ -157,14 +165,7 @@
    GOSL(STR_OS_RED_HAT_EN "6-64",            GUEST_OS_RHEL_64)              \
    GOSL(STR_OS_RED_HAT_EN "7",               GUEST_OS_RHEL)                 \
    GOSL(STR_OS_RED_HAT_EN "7-64",            GUEST_OS_RHEL_64)              \
-   GOSL(STR_OS_CENTOS,                       GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_CENTOS "-64",                 GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_ORACLE,                       GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_ORACLE "-64",                 GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_OPENSUSE,                     GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_OPENSUSE "-64",               GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_SUSE,                         GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_SUSE "-64",                   GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_SUN_DESK,                     GUEST_OS_OTHER24XLINUX)        \
    GOSL(STR_OS_SLES,                         GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_SLES "-64",                   GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_SLES "10",                    GUEST_OS_OTHER26XLINUX)        \
@@ -173,78 +174,76 @@
    GOSL(STR_OS_SLES "11-64",                 GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_SLES "12",                    GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_SLES "12-64",                 GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_NOVELL,                       GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_SUN_DESK,                     GUEST_OS_OTHER24XLINUX)        \
-   GOSL(STR_OS_MANDRAKE,                     GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_MANDRAKE "-64",               GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_MANDRIVA,                     GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_MANDRIVA "-64",               GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_TURBO,                        GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_TURBO "-64",                  GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_ASIANUX_3,                    GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_ASIANUX_3 "-64",              GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_ASIANUX_4,                    GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_ASIANUX_4 "-64",              GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL("fedora",                            GUEST_OS_OTHER26XLINUX)        \
-   GOSL("fedora-64",                         GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_OTHER_24,                     GUEST_OS_OTHER24XLINUX)        \
-   GOSL(STR_OS_OTHER_24 "-64",               GUEST_OS_OTHER24XLINUX_64)     \
-   GOSL(STR_OS_OTHER_26,                     GUEST_OS_OTHER26XLINUX)        \
-   GOSL(STR_OS_OTHER_26 "-64",               GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL(STR_OS_OTHER_3X,                     GUEST_OS_OTHER3XLINUX)         \
-   GOSL(STR_OS_OTHER_3X "-64",               GUEST_OS_OTHER3XLINUX_64)      \
-   GOSL(STR_OS_OTHER,                        GUEST_OS_OTHERLINUX)           \
-   GOSL(STR_OS_OTHER "-64",                  GUEST_OS_OTHERLINUX_64)        \
-   GOSL(STR_OS_DEBIAN_4,                     GUEST_OS_DEBIAN45)             \
-   GOSL(STR_OS_DEBIAN_4 "-64",               GUEST_OS_DEBIAN45_64)          \
-   GOSL(STR_OS_DEBIAN_5,                     GUEST_OS_DEBIAN45)             \
-   GOSL(STR_OS_DEBIAN_5 "-64",               GUEST_OS_DEBIAN45_64)          \
-   GOSL(STR_OS_DEBIAN_6,                     GUEST_OS_DEBIAN45)             \
-   GOSL(STR_OS_DEBIAN_6 "-64",               GUEST_OS_DEBIAN45_64)          \
-   GOSL(STR_OS_DEBIAN_7,                     GUEST_OS_DEBIAN45)             \
-   GOSL(STR_OS_DEBIAN_7 "-64",               GUEST_OS_DEBIAN45_64)          \
-   GOSL(STR_OS_DEBIAN_7_1,                   GUEST_OS_DEBIAN45)             \
-   GOSL(STR_OS_DEBIAN_7_1 "-64",             GUEST_OS_DEBIAN45_64)          \
-   GOSL(STR_OS_SOLARIS "6",                  GUEST_OS_SOLARIS_6_AND_7)      \
-   GOSL(STR_OS_SOLARIS "7",                  GUEST_OS_SOLARIS_6_AND_7)      \
-   GOSL(STR_OS_SOLARIS "8",                  GUEST_OS_SOLARIS8)             \
-   GOSL(STR_OS_SOLARIS "9",                  GUEST_OS_SOLARIS9)             \
    GOSL(STR_OS_SOLARIS "10",                 GUEST_OS_SOLARIS10)            \
    GOSL(STR_OS_SOLARIS "10-64",              GUEST_OS_SOLARIS10_64)         \
    GOSL(STR_OS_SOLARIS "11",                 GUEST_OS_SOLARIS10)            \
    GOSL(STR_OS_SOLARIS "11-64",              GUEST_OS_SOLARIS10_64)         \
-   GOSL("linux",                             GUEST_OS_OTHERLINUX) /* old */ \
-   GOSL("freeBSD",                           GUEST_OS_FREEBSD)              \
-   GOSL("freeBSD-64",                        GUEST_OS_FREEBSD_64)           \
+   GOSL(STR_OS_SOLARIS "6",                  GUEST_OS_SOLARIS_6_AND_7)      \
+   GOSL(STR_OS_SOLARIS "7",                  GUEST_OS_SOLARIS_6_AND_7)      \
+   GOSL(STR_OS_SOLARIS "8",                  GUEST_OS_SOLARIS8)             \
+   GOSL(STR_OS_SOLARIS "9",                  GUEST_OS_SOLARIS9)             \
+   GOSL(STR_OS_SUSE,                         GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_SUSE "-64",                   GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_TURBO,                        GUEST_OS_OTHER26XLINUX)        \
+   GOSL(STR_OS_TURBO "-64",                  GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_UBUNTU,                       GUEST_OS_UBUNTU)               \
    GOSL(STR_OS_UBUNTU "-64",                 GUEST_OS_OTHER26XLINUX_64)     \
-   GOSL("oes",                               GUEST_OS_OTHER26XLINUX)        \
-   GOSL("os2",                               GUEST_OS_OS2)                  \
-   GOSL("os2experimental",                   GUEST_OS_OS2)                  \
-   GOSL("netware4",                          GUEST_OS_NETWARE4)             \
-   GOSL("netware5",                          GUEST_OS_NETWARE5)             \
-   GOSL("netware6",                          GUEST_OS_NETWARE6)             \
-   GOSL(STR_OS_MACOS,                        GUEST_OS_DARWIN9)              \
-   GOSL(STR_OS_MACOS "-64",                  GUEST_OS_DARWIN9_64)           \
-   GOSL(STR_OS_MACOS "10",                   GUEST_OS_DARWIN10)             \
-   GOSL(STR_OS_MACOS "10-64",                GUEST_OS_DARWIN10_64)          \
-   GOSL(STR_OS_MACOS "11",                   GUEST_OS_DARWIN11)             \
-   GOSL(STR_OS_MACOS "11-64",                GUEST_OS_DARWIN11_64)          \
-   GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN12_64)          \
-   GOSL(STR_OS_MACOS "13-64",                GUEST_OS_DARWIN13_64)          \
-   GOSL("other",                             GUEST_OS_OTHER)                \
-   GOSL("other-64",                          GUEST_OS_OTHER_64)             \
+   GOSL("unixware7",                         GUEST_OS_UNIXWARE7)            \
    GOSL("vmkernel",                          GUEST_OS_VMKERNEL)             \
    GOSL("vmkernel5",                         GUEST_OS_VMKERNEL5)            \
    GOSL("vmkernel6",                         GUEST_OS_VMKERNEL5)            \
-   GOSL("openserver5",                       GUEST_OS_OPENSERVER_5_AND_6)   \
-   GOSL("openserver6",                       GUEST_OS_OPENSERVER_5_AND_6)   \
-   GOSL("unixware7",                         GUEST_OS_UNIXWARE7)            \
-   GOSL(STR_OS_ECOMSTATION,                  GUEST_OS_ECOMSTATION)          \
-   GOSL(STR_OS_ECOMSTATION "2",              GUEST_OS_ECOMSTATION2)         \
+   GOSL("whistler",                          GUEST_OS_WINXP)   /* old */    \
+   GOSL("win2000",                           GUEST_OS_WIN2000) /* old */    \
+   GOSL(STR_OS_WIN_2000_ADV_SERV,            GUEST_OS_WIN2000)              \
+   GOSL(STR_OS_WIN_2000_PRO,                 GUEST_OS_WIN2000)              \
+   GOSL(STR_OS_WIN_2000_SERV,                GUEST_OS_WIN2000)              \
+   GOSL(STR_OS_WIN_31,                       GUEST_OS_WIN31)                \
+   GOSL(STR_OS_WIN_95,                       GUEST_OS_WIN95)                \
+   GOSL(STR_OS_WIN_98,                       GUEST_OS_WIN98)                \
+   GOSL(STR_OS_WIN_SEVEN,                    GUEST_OS_WINSEVEN)             \
+   GOSL(STR_OS_WIN_SEVEN_X64,                GUEST_OS_WINSEVEN_64)          \
+   GOSL("windows7Server64Guest",             GUEST_OS_WIN2008R2_64)         \
+   GOSL(STR_OS_WIN_2008R2_X64,               GUEST_OS_WIN2008R2_64)         \
    GOSL(STR_OS_WIN_EIGHT,                    GUEST_OS_WINEIGHT)             \
    GOSL(STR_OS_WIN_EIGHT_X64,                GUEST_OS_WINEIGHT_64)          \
    GOSL(STR_OS_WIN_EIGHTSERVER_X64,          GUEST_OS_WINEIGHTSERVER_64)    \
    GOSL(STR_OS_HYPER_V,                      GUEST_OS_HYPER_V)              \
+   GOSL("winLonghorn64Guest",                GUEST_OS_LONGHORN_64)          \
+   GOSL("winLonghornGuest",                  GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_ME,                       GUEST_OS_WINME )               \
+   GOSL(STR_OS_WIN_NET_BUS,                  GUEST_OS_WINNET)               \
+   GOSL("winNetDatacenter",                  GUEST_OS_WINNET)               \
+   GOSL("winNetDatacenter-64",               GUEST_OS_WINNET_64)            \
+   GOSL(STR_OS_WIN_NET_EN,                   GUEST_OS_WINNET)               \
+   GOSL("winNetEnterprise-64",               GUEST_OS_WINNET_64)            \
+   GOSL(STR_OS_WIN_NET_ST,                   GUEST_OS_WINNET)               \
+   GOSL("winNetStandard-64",                 GUEST_OS_WINNET_64)            \
+   GOSL(STR_OS_WIN_NET_WEB,                  GUEST_OS_WINNET)               \
+   GOSL(STR_OS_WIN_NT,                       GUEST_OS_WINNT)                \
+   GOSL(STR_OS_WIN_2008_CLUSTER,             GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_2008_CLUSTER_X64,         GUEST_OS_LONGHORN_64)          \
+   GOSL(STR_OS_WIN_2008_DATACENTER,          GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_2008_DATACENTER_X64,      GUEST_OS_LONGHORN_64)          \
+   GOSL(STR_OS_WIN_2008_DATACENTER_CORE,     GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_2008_DATACENTER_CORE_X64, GUEST_OS_LONGHORN_64)          \
+   GOSL(STR_OS_WIN_2008_ENTERPRISE,          GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_2008_ENTERPRISE_X64,      GUEST_OS_LONGHORN_64)          \
+   GOSL(STR_OS_WIN_2008_ENTERPRISE_CORE,     GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_2008_ENTERPRISE_CORE_X64, GUEST_OS_LONGHORN_64)          \
+   GOSL(STR_OS_WIN_2008_SMALL_BUSINESS,      GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_2008_SMALL_BUSINESS_X64,  GUEST_OS_LONGHORN_64)          \
+   GOSL(STR_OS_WIN_2008_SMALL_BUSINESS_PREMIUM, GUEST_OS_LONGHORN)          \
+   GOSL(STR_OS_WIN_2008_SMALL_BUSINESS_PREMIUM_X64, GUEST_OS_LONGHORN_64)   \
+   GOSL(STR_OS_WIN_2008_STANDARD,            GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_2008_STANDARD_X64,        GUEST_OS_LONGHORN_64)          \
+   GOSL(STR_OS_WIN_2008_STANDARD_CORE,       GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_2008_STANDARD_CORE_X64,   GUEST_OS_LONGHORN_64)          \
+   GOSL(STR_OS_WIN_2008_WEB_SERVER,          GUEST_OS_LONGHORN)             \
+   GOSL(STR_OS_WIN_2008_WEB_SERVER_X64,      GUEST_OS_LONGHORN_64)          \
+   GOSL(STR_OS_WIN_VISTA,                    GUEST_OS_WINVISTA)             \
+   GOSL(STR_OS_WIN_VISTA_X64,                GUEST_OS_WINVISTA_64)          \
+   GOSL(STR_OS_WIN_XP_HOME,                  GUEST_OS_WINXP)                \
+   GOSL(STR_OS_WIN_XP_PRO,                   GUEST_OS_WINXP)                \
+   GOSL(STR_OS_WIN_XP_PRO_X64,               GUEST_OS_WINXPPRO_64)          \
 
 #endif
