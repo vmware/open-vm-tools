@@ -478,8 +478,8 @@ typedef struct HgfsCreateSessionInfo {
 
 
 typedef struct HgfsInputParam {
-   const char *metaPacket;       /* Hgfs header followed by operation request */
-   size_t metaPacketSize;        /* Size of Hgfs header and operation request */
+   const void *request;          /* Hgfs header followed by operation request */
+   size_t requestSize;           /* Size of Hgfs header and operation request */
    HgfsSessionInfo *session;     /* Hgfs session data */
    HgfsTransportSessionInfo *transportSession;
    HgfsPacket *packet;           /* Public (server/transport) Hgfs packet */

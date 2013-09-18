@@ -88,7 +88,7 @@
 #endif
 
 #define HGFS_ASSERT_INPUT(input) \
-   ASSERT(input && input->packet && input->metaPacket && \
+   ASSERT(input && input->packet && input->request && \
           ((!input->sessionEnabled && input->session) || \
           (input->sessionEnabled && \
           (input->op == HGFS_OP_CREATE_SESSION_V4 || input->session))) && \
@@ -2705,7 +2705,7 @@ HgfsServerClose(HgfsInputParam *input)  // IN: Input params
          status = HGFS_ERROR_INVALID_HANDLE;
       } else {
          HgfsFreeFileNode(file, input->session);
-         if (!HgfsPackCloseReply(input->packet, input->metaPacket, input->op,
+         if (!HgfsPackCloseReply(input->packet, input->request, input->op,
                                  &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
          }
@@ -2749,7 +2749,7 @@ HgfsServerSearchClose(HgfsInputParam *input)  // IN: Input params
       LOG(4, ("%s: close search #%u\n", __FUNCTION__, search));
 
       if (HgfsRemoveSearch(search, input->session)) {
-         if (HgfsPackSearchCloseReply(input->packet, input->metaPacket,
+         if (HgfsPackSearchCloseReply(input->packet, input->request,
                                       input->op,
                                       &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_SUCCESS;
@@ -2875,8 +2875,8 @@ HgfsServerInputAllocInit(HgfsPacket *packet,                        // IN: packe
    localParams = Util_SafeCalloc(1, sizeof *localParams);
 
    localParams->packet = packet;
-   localParams->metaPacket = request;
-   localParams->metaPacketSize = requestSize;
+   localParams->request = request;
+   localParams->requestSize = requestSize;
    localParams->transportSession = transportSession;
    localParams->session = session;
    localParams->id = requestId;
@@ -2887,7 +2887,7 @@ HgfsServerInputAllocInit(HgfsPacket *packet,                        // IN: packe
 
    if (NULL != localParams->payload) {
       localParams->payloadOffset = (char *)localParams->payload -
-                                   (char *)localParams->metaPacket;
+                                   (char *)localParams->request;
    }
    *params = localParams;
 }
@@ -3116,13 +3116,13 @@ static void
 HgfsServerProcessRequest(void *context)
 {
    HgfsInputParam *input = (HgfsInputParam *)context;
-   if (!input->metaPacket) {
-      input->metaPacket = HSPU_GetMetaPacket(input->packet,
-                                             &input->metaPacketSize,
-                                             input->transportSession);
+   if (!input->request) {
+      input->request = HSPU_GetMetaPacket(input->packet,
+                                          &input->requestSize,
+                                          input->transportSession);
    }
 
-   input->payload = (char *)input->metaPacket + input->payloadOffset;
+   input->payload = (char *)input->request + input->payloadOffset;
    (*handlers[input->op].handler)(input);
 }
 
@@ -3190,7 +3190,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
       HGFS_ASSERT_INPUT(input);
       if ((input->op < ARRAYSIZE(handlers)) &&
           (handlers[input->op].handler != NULL) &&
-          (input->metaPacketSize >= handlers[input->op].minReqSize)) {
+          (input->requestSize >= handlers[input->op].minReqSize)) {
          /* Initial validation passed, process the client request now. */
          packet->processedAsync = (handlers[input->op].reqType == REQ_ASYNC) &&
             (transportSession->channelCapabilities.flags & HGFS_CHANNEL_ASYNC);
@@ -3203,7 +3203,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
              * We can release mappings here and reacquire when needed.
              */
             HSPU_PutMetaPacket(packet, transportSession);
-            input->metaPacket = NULL;
+            input->request = NULL;
             Atomic_Inc(&gHgfsAsyncCounter);
 
             /* Remove pending requests during poweroff. */
@@ -5793,7 +5793,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
             uint32 inlineDataSize =
                (HGFS_OP_READ_FAST_V4 == input->op) ? 0 : requiredSize;
 
-            reply = HgfsAllocInitReply(input->packet, input->metaPacket,
+            reply = HgfsAllocInitReply(input->packet, input->request,
                                        sizeof *reply + inlineDataSize, input->session);
             if (HGFS_OP_READ_V3 == input->op) {
                payload = &reply->payload[0];
@@ -5819,7 +5819,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
       case HGFS_OP_READ: {
             HgfsReplyRead *reply;
 
-            reply = HgfsAllocInitReply(input->packet, input->metaPacket,
+            reply = HgfsAllocInitReply(input->packet, input->request,
                                        sizeof *reply + requiredSize, input->session);
 
             status = HgfsPlatformReadFile(file, input->session, offset, requiredSize,
@@ -5879,7 +5879,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
       status = HgfsPlatformWriteFile(file, input->session, offset, numberBytesToWrite,
                                      flags, (void *)dataToWrite, &replyActualSize);
       if (HGFS_ERROR_SUCCESS == status) {
-          if (!HgfsPackWriteReply(input->packet, input->metaPacket, input->op,
+          if (!HgfsPackWriteReply(input->packet, input->request, input->op,
                                   replyActualSize, &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
           }
@@ -6041,7 +6041,7 @@ HgfsServerQueryVolume(HgfsInputParam *input)  // IN: Input params
                                         &freeBytes,
                                         &totalBytes);
          if (HGFS_ERROR_SUCCESS == status) {
-            if (!HgfsPackQueryVolumeReply(input->packet, input->metaPacket,
+            if (!HgfsPackQueryVolumeReply(input->packet, input->request,
                                           input->op, freeBytes, totalBytes,
                                           &replyPayloadSize, input->session)) {
                status = HGFS_ERROR_INTERNAL;
@@ -6197,7 +6197,7 @@ HgfsServerSymlinkCreate(HgfsInputParam *input)  // IN: Input params
                                     srcCaseFlags, trgFileName, trgFileNameLength,
                                     trgCaseFlags);
          if (HGFS_ERROR_SUCCESS == status) {
-            if (!HgfsPackSymlinkCreateReply(input->packet, input->metaPacket, input->op,
+            if (!HgfsPackSymlinkCreateReply(input->packet, input->request, input->op,
                                             &replyPayloadSize, input->session)) {
                status = HGFS_ERROR_INTERNAL;
             }
@@ -6251,7 +6251,7 @@ HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
                                      &shareInfo, baseDir, baseDirLen,
                                      input->session, &search);
       if (HGFS_ERROR_SUCCESS == status) {
-         if (!HgfsPackSearchOpenReply(input->packet, input->metaPacket, input->op, search,
+         if (!HgfsPackSearchOpenReply(input->packet, input->request, input->op, search,
                                       &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
          }
@@ -6480,7 +6480,7 @@ HgfsServerRename(HgfsInputParam *input)  // IN: Input params
       if (HGFS_ERROR_SUCCESS == status) {
          /* Update all file nodes that refer to this file to contain the new name. */
          HgfsUpdateNodeNames(utf8OldName, utf8NewName, input->session);
-         if (!HgfsPackRenameReply(input->packet, input->metaPacket, input->op,
+         if (!HgfsPackRenameReply(input->packet, input->request, input->op,
                                   &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
          }
@@ -6542,7 +6542,7 @@ HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
          if (shareInfo.writePermissions) {
             status = HgfsPlatformCreateDir(&info, utf8Name);
             if (HGFS_ERROR_SUCCESS == status) {
-               if (!HgfsPackCreateDirReply(input->packet, input->metaPacket, info.requestType,
+               if (!HgfsPackCreateDirReply(input->packet, input->request, info.requestType,
                                            &replyPayloadSize, input->session)) {
                   status = HGFS_ERROR_PROTOCOL;
                }
@@ -6669,7 +6669,7 @@ HgfsServerDeleteFile(HgfsInputParam *input)  // IN: Input params
          }
       }
       if (HGFS_ERROR_SUCCESS == status) {
-         if (!HgfsPackDeleteReply(input->packet, input->metaPacket, input->op,
+         if (!HgfsPackDeleteReply(input->packet, input->request, input->op,
                                   &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
          }
@@ -6775,7 +6775,7 @@ HgfsServerDeleteDir(HgfsInputParam *input)  // IN: Input params
          }
       }
       if (HGFS_ERROR_SUCCESS == status) {
-         if (!HgfsPackDeleteReply(input->packet, input->metaPacket, input->op,
+         if (!HgfsPackDeleteReply(input->packet, input->request, input->op,
                                   &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
          }
@@ -6850,7 +6850,7 @@ HgfsServerWriteWin32Stream(HgfsInputParam *input)  // IN: Input params
       status = HgfsPlatformWriteWin32Stream(file, (char *)dataToWrite, (uint32)requiredSize,
                                             doSecurity, &actualSize, input->session);
       if (HGFS_ERROR_SUCCESS == status) {
-         if (!HgfsPackWriteWin32StreamReply(input->packet, input->metaPacket, input->op,
+         if (!HgfsPackWriteWin32StreamReply(input->packet, input->request, input->op,
                                             actualSize, &replyPayloadSize,
                                             input->session)) {
             status = HGFS_ERROR_INTERNAL;
@@ -7083,7 +7083,7 @@ HgfsServerSetDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
                                               events, watchTree, &watchId);
       }
       if (HGFS_ERROR_SUCCESS == status) {
-         if (!HgfsPackSetWatchReply(input->packet, input->metaPacket, input->op,
+         if (!HgfsPackSetWatchReply(input->packet, input->request, input->op,
                                     watchId, &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
          }
@@ -7148,7 +7148,7 @@ HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input)  // IN: Input params
       status = HGFS_ERROR_PROTOCOL;
    }
    if (HGFS_ERROR_SUCCESS == status) {
-      if (!HgfsPackRemoveWatchReply(input->packet, input->metaPacket, input->op,
+      if (!HgfsPackRemoveWatchReply(input->packet, input->request, input->op,
          &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
       }
@@ -7271,7 +7271,7 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
 
       }
       if (HGFS_ERROR_SUCCESS == status) {
-         if (!HgfsPackGetattrReply(input->packet, input->metaPacket, &attr, targetName,
+         if (!HgfsPackGetattrReply(input->packet, input->request, &attr, targetName,
                                    targetNameLen, &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
          }
@@ -7390,7 +7390,7 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
       }
 
       if (HGFS_ERROR_SUCCESS == status) {
-         if (!HgfsPackSetattrReply(input->packet, input->metaPacket, attr.requestType,
+         if (!HgfsPackSetattrReply(input->packet, input->request, attr.requestType,
                                    &replyPayloadSize, input->session)) {
             status = HGFS_ERROR_INTERNAL;
          }
@@ -7582,7 +7582,7 @@ HgfsServerOpen(HgfsInputParam *input)  // IN: Input params
 
                if (HgfsCreateAndCacheFileNode(&openInfo, &localId, newHandle,
                                               FALSE, input->session)) {
-                  if (!HgfsPackOpenReply(input->packet, input->metaPacket, &openInfo,
+                  if (!HgfsPackOpenReply(input->packet, input->request, &openInfo,
                                          &replyPayloadSize, input->session)) {
                      status = HGFS_ERROR_INTERNAL;
                   }
@@ -7944,7 +7944,7 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
       LOG(4, ("%s: read search #%u, offset %u\n", __FUNCTION__,
               hgfsSearchHandle, info.startIndex));
 
-      info.reply = HgfsAllocInitReply(input->packet, input->metaPacket,
+      info.reply = HgfsAllocInitReply(input->packet, input->request,
                                       baseReplySize + inlineDataSize,
                                       input->session);
 
@@ -8092,7 +8092,7 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
          session->flags |= HGFS_SESSION_OPLOCK_ENABLED;
       }
 
-      if (HgfsPackCreateSessionReply(input->packet, input->metaPacket,
+      if (HgfsPackCreateSessionReply(input->packet, input->request,
                                      &replyPayloadSize, session)) {
          status = HGFS_ERROR_SUCCESS;
       } else {
@@ -8152,7 +8152,7 @@ HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
    HgfsServerTransportRemoveSessionFromList(transportSession, session);
    MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
    if (HgfsPackDestroySessionReply(input->packet,
-                                   input->metaPacket,
+                                   input->request,
                                    &replyPayloadSize,
                                    session)) {
       status = HGFS_ERROR_SUCCESS;
