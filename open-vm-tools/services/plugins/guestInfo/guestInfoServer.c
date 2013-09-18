@@ -232,10 +232,12 @@ GuestInfoGather(gpointer data)
    char name[256];  // Size is derived from the SUS2 specification
                     // "Host names are limited to 255 bytes"
    char *osString = NULL;
+#if !defined(USERWORLD)
    gboolean disableQueryDiskInfo;
-   NicInfoV3 *nicInfo = NULL;
    GuestDiskInfo *diskInfo = NULL;
-#if defined(_WIN32) || defined(linux)
+#endif
+   NicInfoV3 *nicInfo = NULL;
+#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
    GuestMemInfo vmStats = {0};
    gboolean perfmonEnabled;
 #endif
@@ -274,6 +276,7 @@ GuestInfoGather(gpointer data)
    }
    free(osString);
 
+#if !defined(USERWORLD)
    disableQueryDiskInfo =
       g_key_file_get_boolean(ctx->config, CONFGROUPNAME_GUESTINFO,
                              CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO, NULL);
@@ -290,6 +293,7 @@ GuestInfoGather(gpointer data)
          }
       }
    }
+#endif
 
    if (!System_GetNodeName(sizeof name, name)) {
       g_warning("Failed to get netbios name.\n");
@@ -324,7 +328,7 @@ GuestInfoGather(gpointer data)
    /* Send the uptime to VMX so that it can detect soft resets. */
    SendUptime(ctx);
 
-#if defined(_WIN32) || defined(linux)
+#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
    /* Send the vmstats to the VMX. */
    perfmonEnabled = !g_key_file_get_boolean(ctx->config,
                                             CONFGROUPNAME_GUESTINFO,

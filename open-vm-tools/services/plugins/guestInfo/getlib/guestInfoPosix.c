@@ -45,6 +45,12 @@
 # endif
 #endif
 
+#ifdef USERWORLD
+#include <vm_basic_types.h>
+#include <vmkuserstatus.h>
+#include <vmkusertcpip.h>
+#endif
+
 #include <netinet/in.h>
 #include <arpa/nameser.h>
 #include <resolv.h>
@@ -187,6 +193,43 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
       return FALSE;
    }
 
+   return TRUE;
+#elif defined(USERWORLD)
+   unsigned count;
+   VmkuserTcpip_Interface ifList[NICINFO_MAX_NICS];
+   VmkuserStatus_Code status;
+
+   status = VmkuserTcpip_GetInterfaces(ifList, NICINFO_MAX_NICS, &count);
+   if (VmkuserStatus_IsOK(status)) {
+      unsigned ix;
+      for (ix = 0; ix < count && ix < ARRAYSIZE(ifList); ix++) {
+         GuestNicV3 *nic;
+         char macAddress[NICINFO_MAC_LEN];
+         struct sockaddr_in sin = {
+            .sin_family = AF_INET,
+            .sin_addr = { .s_addr = ifList[ix].ipaddr }
+         };
+         struct sockaddr sa;
+         Str_Sprintf(macAddress, sizeof macAddress,
+                     "%02x:%02x:%02x:%02x:%02x:%02x",
+                     (unsigned)ifList[ix].macaddr[0],
+                     (unsigned)ifList[ix].macaddr[1],
+                     (unsigned)ifList[ix].macaddr[2],
+                     (unsigned)ifList[ix].macaddr[3],
+                     (unsigned)ifList[ix].macaddr[4],
+                     (unsigned)ifList[ix].macaddr[5]);
+         nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
+         if (NULL == nic) {
+            /*
+             * We reached maximum number of NICs we can report to the host.
+             */
+            break;
+         }
+         memset(&sa, 0, sizeof sa);
+         memcpy(&sa, &sin, sizeof sin);
+         GuestInfoAddIpAddress(nic, &sa, 0, NULL, NULL);
+      }
+   }
    return TRUE;
 #else
    return FALSE;

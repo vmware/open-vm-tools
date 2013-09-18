@@ -63,6 +63,12 @@
 #include "ifaddrs.h"
 #endif
 
+#ifdef USERWORLD
+#include <vm_basic_types.h>
+#include <vmkuserstatus.h>
+#include <vmkuseruptime.h>
+#endif
+
 #include "vm_assert.h"
 #include "system.h"
 #include "debug.h"
@@ -183,7 +189,16 @@ System_Uptime(void)
 {
    uint64 uptime = -1;
 
-#ifdef __linux__
+#ifdef USERWORLD
+   {
+      VmkuserStatus_Code status;
+      uint64 sysUptime;
+      status = VmkuserUptime_GetUptime(&sysUptime);
+      if (VmkuserStatus_IsOK(status)) {
+         uptime = sysUptime / 10000;
+      }
+   }
+#elif defined(__linux__)
    {
       FILE *procStream;
       char *buf = NULL;
@@ -345,6 +360,8 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
    if (reboot) {
 #if defined(sun)
       cmd = "/usr/sbin/shutdown -g 0 -i 6 -y";
+#elif defined(USERWORLD)
+      cmd = "/bin/reboot";
 #else
       cmd = "/sbin/shutdown -r now";
 #endif
@@ -353,6 +370,8 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
       cmd = "/sbin/shutdown -p now";
 #elif defined(sun)
       cmd = "/usr/sbin/shutdown -g 0 -i 5 -y";
+#elif defined(USERWORLD)
+      cmd = "/bin/halt";
 #else
       cmd = "/sbin/shutdown -h now";
 #endif

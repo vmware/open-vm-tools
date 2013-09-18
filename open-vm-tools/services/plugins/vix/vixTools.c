@@ -122,7 +122,8 @@
 /*
  * No support for open-vm-tools.
  */
-#if (defined(_WIN32) ||  defined(linux)) && !defined(OPEN_VM_TOOLS)
+#if ((defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)) && \
+    !defined(OPEN_VM_TOOLS)
 #define SUPPORT_VGAUTH 1
 #else
 #define SUPPORT_VGAUTH 0
@@ -5167,7 +5168,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
                         char **result)                       // OUT
 {
    VixError err = VIX_OK;
-   char *fullResultBuffer;
+   char *fullResultBuffer = NULL;
    char *finalResultBuffer = NULL;
    size_t fullResultSize = 0;
    size_t curPacketLen = 0;

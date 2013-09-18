@@ -46,7 +46,8 @@
 
 #include "vm_basic_types.h"
 
-#if (defined(_WIN32) || defined(linux)) && defined(VMTOOLS_USE_GLIB)
+#if ((defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)) && \
+    defined(VMTOOLS_USE_GLIB)
 #define VMTOOLS_USE_VSOCKET
 #else
 #undef  VMTOOLS_USE_VSOCKET

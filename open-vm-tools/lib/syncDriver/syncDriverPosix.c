@@ -34,7 +34,7 @@
 #include "mntinfo.h"
 
 static SyncFreezeFn gBackends[] = {
-#if defined(linux)
+#if defined(__linux__) && !defined(USERWORLD)
    LinuxDriver_Freeze,
    VmSync_Freeze,
    NullDriver_Freeze,

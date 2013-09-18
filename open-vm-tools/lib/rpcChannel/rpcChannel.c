@@ -638,7 +638,7 @@ RpcChannel *
 RpcChannel_New(void)
 {
    RpcChannel *chan;
-#if defined(linux) || defined(_WIN32)
+#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
    chan = VSockChannel_New();
 #else
    chan = BackdoorChannel_New();

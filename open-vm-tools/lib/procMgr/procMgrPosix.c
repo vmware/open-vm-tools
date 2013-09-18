@@ -2077,7 +2077,9 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
    }
 
    // first change group
-#if defined(__APPLE__)
+#if defined(USERWORLD)
+   ret = Id_SetREGid(ppw->pw_gid, ppw->pw_gid);
+#elif defined(__APPLE__)
    ret = setregid(ppw->pw_gid, ppw->pw_gid);
 #else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, root_gid);
@@ -2086,13 +2088,17 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
       Warning("Failed to set gid for user %s\n", user);
       return FALSE;
    }
+#ifndef USERWORLD
    ret = initgroups(ppw->pw_name, ppw->pw_gid);
    if (ret < 0) {
       Warning("Failed to initgroups() for user %s\n", user);
       goto failure;
    }
+#endif
    // now user
-#if defined(__APPLE__)
+#if defined(USERWORLD)
+   ret = Id_SetREUid(ppw->pw_uid, ppw->pw_uid);
+#elif defined(__APPLE__)
    ret = setreuid(ppw->pw_uid, ppw->pw_uid);
 #else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
@@ -2152,7 +2158,9 @@ ProcMgr_ImpersonateUserStop(void)
    }
 
    // first change back user
-#if defined(__APPLE__)
+#if defined(USERWORLD)
+   ret = Id_SetREUid(ppw->pw_uid, ppw->pw_uid);
+#elif defined(__APPLE__)
    ret = setreuid(ppw->pw_uid, ppw->pw_uid);
 #else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
@@ -2163,7 +2171,9 @@ ProcMgr_ImpersonateUserStop(void)
    }
 
    // now group
-#if defined(__APPLE__)
+#if defined(USERWORLD)
+   ret = Id_SetREGid(ppw->pw_gid, ppw->pw_gid);
+#elif defined(__APPLE__)
    ret = setregid(ppw->pw_gid, ppw->pw_gid);
 #else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, ppw->pw_gid);
@@ -2172,11 +2182,13 @@ ProcMgr_ImpersonateUserStop(void)
       Warning("Failed to set gid for root\n");
       return FALSE;
    }
+#ifndef USERWORLD
    ret = initgroups(ppw->pw_name, ppw->pw_gid);
    if (ret < 0) {
       Warning("Failed to initgroups() for root\n");
       return FALSE;
    }
+#endif
 
    // set env
    setenv("USER", ppw->pw_name, 1);
