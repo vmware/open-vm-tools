@@ -72,6 +72,9 @@ Vix_TranslateGuestRegistryError(int systemError) // IN
    case ERROR_ACCESS_DENIED:
       err = VIX_E_GUEST_USER_PERMISSIONS;
       break;
+   case ERROR_CHILD_MUST_BE_VOLATILE:
+      err = VIX_E_REG_KEY_PARENT_VOLATILE;
+      break;
    default:
       return Vix_TranslateSystemError(systemError);
    }

@@ -196,6 +196,7 @@ enum {
    VIX_E_REG_KEY_HAS_SUBKEYS                       = 20009,
    VIX_E_REG_VALUE_NOT_FOUND                       = 20010,
    VIX_E_REG_KEY_ALREADY_EXISTS                    = 20011,
+   VIX_E_REG_KEY_PARENT_VOLATILE                   = 20012,
 
    /* Generic Guest Errors */
    VIX_E_HGFS_MOUNT_FAIL                           = 20050,
