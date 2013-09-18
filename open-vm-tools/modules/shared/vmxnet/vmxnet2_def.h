@@ -204,8 +204,6 @@ typedef struct Vmxnet2_ImplData {
    Vmxnet2_RxRingInfo    rxRing;
    Vmxnet2_RxRingInfo    rxRing2;
    Vmxnet2_TxRingInfo    txRing;
-
-   struct PhysMem_TokenList  *ddPhysMemTokenList;
 } Vmxnet2_ImplData;
 
 typedef struct Vmxnet2_DriverStats {
