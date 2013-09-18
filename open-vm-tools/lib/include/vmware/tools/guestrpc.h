@@ -192,6 +192,12 @@ RpcChannel_SendOneRaw(const char *data,
                       char **result,
                       size_t *resultLen);
 
+gboolean
+RpcChannel_SendOne(char **reply,
+                   size_t *repLen,
+                   const char *reqFmt,
+                   ...);
+
 RpcChannel *
 RpcChannel_New(void);
 

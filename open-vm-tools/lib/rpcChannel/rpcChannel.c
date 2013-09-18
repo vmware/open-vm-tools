@@ -899,3 +899,84 @@ sent:
 
    return status;
 }
+
+
+/**
+ * Open/close RpcChannel each time for sending a Rpc message, this is a wrapper
+ * for RpcChannel APIs.
+ *
+ * @param[out] reply       reply
+ * @param[out] repLen      reply length
+ * @param[in]  reqFmt      request data
+ * @param[in]  ...         optional arguments depending on reqFmt.
+
+ * @returns    TRUE on success.
+ */
+
+gboolean
+RpcChannel_SendOne(char **reply,
+                   size_t *repLen,
+                   char const *reqFmt,
+                   ...)
+{
+   va_list args;
+   gboolean status;
+   char *request;
+   size_t reqLen = 0;
+
+   status = FALSE;
+
+   /* Format the request string */
+   va_start(args, reqFmt);
+   request = Str_Vasprintf(&reqLen, reqFmt, args);
+   va_end(args);
+
+   /*
+    * If Str_Vasprintf failed, write NULL into the reply if the caller wanted
+    * a reply back.
+    */
+   if (request == NULL) {
+      goto error;
+   }
+
+   /*
+    * If the command doesn't contain a space, add one to the end to maintain
+    * compatibility with old VMXs.
+    *
+    * For a long time, the GuestRpc logic in the VMX was wired to expect a
+    * trailing space in every command, even commands without arguments. That is
+    * no longer true, but we must continue to add a trailing space because we
+    * don't know whether we're talking to an old or new VMX.
+    */
+   if (request[reqLen - 1] != ' ') {
+      char *tmp;
+
+      tmp = Str_Asprintf(NULL, "%s ", request);
+      free(request);
+      request = tmp;
+
+      /*
+       * If Str_Asprintf failed, write NULL into reply if the caller wanted
+       * a reply back.
+       */
+      if (request == NULL) {
+         goto error;
+      }
+   }
+
+   status = RpcChannel_SendOneRaw(request, reqLen, reply, repLen);
+
+   free(request);
+
+   return status;
+
+error:
+   if (reply) {
+      *reply = NULL;
+   }
+
+   if (repLen) {
+      *repLen = 0;
+   }
+   return FALSE;
+}
