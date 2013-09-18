@@ -3190,17 +3190,40 @@ AsyncSocket_WaitForConnection(AsyncSocket *s,  // IN:
    Bool read;
    int error;
    VmTimeType now, done;
+   Bool removed = FALSE;
 
    ASSERT(s->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
 
+   AsyncSocketLock(s);
+
    if (s->state == AsyncSocketConnected) {
-      return ASOCKERR_SUCCESS;
+      error = ASOCKERR_SUCCESS;
+      goto outHaveLock;
    }
 
    if (s->state != AsyncSocketListening &&
        s->state != AsyncSocketConnecting) {
-      return ASOCKERR_GENERIC;
+      error = ASOCKERR_GENERIC;
+      goto outHaveLock;
    }
+
+   /*
+   * A nuisance.  ConnectCallback() is either registered as a device or
+   * rtime callback depending on the prior return value of connect().
+   * So we try to remove it from both.
+   *
+   * XXX: For listening sockets, the callback is AsyncSocketAcceptCallback,
+   * which would need to be unregistered here and then be re-registered
+   * before returning.
+   */
+   if (s->state == AsyncSocketConnecting) {
+      removed = AsyncSocketPollRemove(s, TRUE, POLL_FLAG_WRITE,
+         AsyncSocketConnectCallback)
+         || AsyncSocketPollRemove(s, FALSE, 0, AsyncSocketConnectCallback);
+      ASSERT(removed);
+   }
+
+   AsyncSocketUnlock(s);
 
    read = s->state == AsyncSocketListening;
 
@@ -3231,18 +3254,6 @@ AsyncSocket_WaitForConnection(AsyncSocket *s,  // IN:
             goto outHaveLock;
          }
       } else {
-         /*
-          * A nuisance.  ConnectCallback() is either registered as a device or
-          * rtime callback depending on the prior return value of connect().
-          * So we try to remove it from both.
-          */
-
-         Bool removed = FALSE;
-         removed = AsyncSocketPollRemove(s, TRUE, POLL_FLAG_WRITE,
-                                         AsyncSocketConnectCallback)
-            || AsyncSocketPollRemove(s, FALSE, 0, AsyncSocketConnectCallback);
-         ASSERT(removed);
-
          error = AsyncSocketConnectInternal(s);
          goto outHaveLock;
       }
