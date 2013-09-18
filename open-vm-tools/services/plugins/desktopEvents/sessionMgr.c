@@ -40,6 +40,33 @@
  *       but errors handled by libICE's default may exit().
  */
 
+/*
+ * PR 957938 - Handling libICE I/O Errors
+ *
+ * “Before the application I/O error handler is invoked, protocol libraries
+ * that were interested in being notiﬁed of I/O errors will have their Ice-
+ * IOErrorProc handlers invoked.
+ *
+ * “[...]
+ *
+ * “There are two ways of handling IO errors in ICElib: [...] The next time
+ * IceProcessMessages is called it will return a status of IceProcessMessages-
+ * IOError. At that time, the application should call IceCloseConnection.”¹
+ *
+ * Unfortunately libSM, while creating ICE connections of its own, does NOT
+ * register an I/O error handler.  So, when such an error occurs, libSM does
+ * NOT shut itself down as it should, and so we must take care NOT to close
+ * connections ourselves, even while advised by the libICE spec quoted above.
+ *
+ * Instead, when fed an I/O error, we'll simply log its occurrence and
+ * inform GLib to no longer monitor the ICE connection.  This will still
+ * allow our application to exit cleanly when receiving SIGTERM, a fatal
+ * X server I/O error, etc.
+ *
+ * 1. Inter-Client Exchange Protocol standard, §13. Error Handling
+ *    http://www.x.org/docs/ICE/ICElib.pdf
+ */
+
 
 /* Include first.  Sets G_LOG_DOMAIN. */
 #include "desktopEventsInt.h"
@@ -358,8 +385,8 @@ ICEIOErrorHandler(IceConn iceCnx)
  * @param[in]  cond     condition satisfied (ignored)
  * @param[in]  cbData   (ICEWatchCtx*) Channel context.
  *
- * @retval TRUE  Underlying iceCnx is still valid, so do not kill this source.
- * @retval FALSE Underlying iceCnx was destroyed, so remove this source.
+ * @retval TRUE  Event loop should continue to monitoring event source.
+ * @retval FALSE Event loop should cease monitoring event source.
  *
  ******************************************************************************
  */
@@ -384,8 +411,15 @@ ICEDispatch(GIOChannel *chn,
    case IceProcessMessagesSuccess:
       return TRUE;
    case IceProcessMessagesIOError:
-      IceCloseConnection(watchCtx->iceCnx);    // Let ICEWatch kill the source.
-      return TRUE;
+      /*
+       * See “Handling libICE I/O Errors” above.  watchCtx will float around
+       * until libSM calls IceCloseConnection, upon which ICEWatch will free
+       * those resources.
+       */
+      g_message("%s: encountered IceProcessMessagesIOError\n", __func__);
+      g_message("%s: detaching fd %d from application event loop\n",
+                __func__, IceConnectionNumber(watchCtx->iceCnx));
+      return FALSE;
    case IceProcessMessagesConnectionClosed:
       /*
        * iceCnx was invalidated, so we won't see another call to ICEWatch,
@@ -414,10 +448,10 @@ ICEDispatch(GIOChannel *chn,
  *    any data it may need to save until the connection is closed and the
  *    watch procedure is invoked again with opening set to False."
  *
- * @param[in]  iceCnx    Opaque ICE connection descriptor.
- * @parma[in]  cbData    (ToolsPluginData*) plugin data
- * @param[in]  opening   True if creating a connection, False if closing.
- * @param[in]  watchData See above.  New source will be stored here.
+ * @param[in]      iceCnx    Opaque ICE connection descriptor.
+ * @parma[in]      cbData    (ToolsPluginData*) plugin data
+ * @param[in]      opening   True if creating a connection, False if closing.
+ * @param[in,out]  watchData See above.  New source will be stored here.
  *
  ******************************************************************************
  */
@@ -433,6 +467,9 @@ ICEWatch(IceConn iceCnx,
 
    ctx = g_hash_table_lookup(pdata->_private, DE_PRIVATE_CTX);
    ASSERT(ctx);
+
+   g_debug("%s: fd %d opening %d\n", __func__, IceConnectionNumber(iceCnx),
+           opening);
 
    if (opening) {
       GIOChannel *iceChannel;

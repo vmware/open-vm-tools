@@ -72,6 +72,7 @@ DEXIOErrorHandler(Display *dpy)
        * Inform clients capable of/interested in quick'n'dirty cleanup upon an
        * X I/O error.
        */
+      g_message("Emitting %s due to X I/O error.\n", TOOLS_CORE_SIG_XIOERROR);
       g_signal_emit_by_name(gCtx->serviceObj, TOOLS_CORE_SIG_XIOERROR, gCtx);
 
       /*
