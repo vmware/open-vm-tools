@@ -887,14 +887,6 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
                          HgfsSessionInfo *session,   // IN: Session info
                          HgfsLocalId *localId,       // OUT: Local unique file ID
                          fileDesc *newHandle);       // OUT: Handle to the file
-void *
-HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-            uint32 startIndex,            // IN: start index of iov
-            void **buf,                   // OUT: Contigous buffer
-            size_t bufSize,               // IN: Size of buffer
-            Bool *isAllocated,            // OUT: Was buffer allocated ?
-            MappingType mappingType,      // IN: Readable/ Writeable ?
-            HgfsTransportSessionInfo *transportSession);    // IN: Session Info
 
 void *
 HSPU_GetMetaPacket(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
@@ -911,15 +903,6 @@ HSPU_PutPacket(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
                HgfsTransportSessionInfo *transportSession);  // IN: Session Info
 
 void
-HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-            uint32 startIndex,         // IN: Start of iov
-            void **buf,                // IN/OUT: Buffer to be freed
-            size_t *bufSize,           // IN: Size of the buffer
-            Bool *isAllocated,         // IN: Was buffer allocated ?
-            MappingType mappingType,   // IN: Readable/ Writeable ?
-            HgfsTransportSessionInfo *transportSession); // IN: Session info
-
-void
 HSPU_PutDataPacketBuf(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
                       HgfsTransportSessionInfo *transportSession);  // IN: Session Info
 
@@ -927,17 +910,6 @@ void
 HSPU_PutMetaPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                    HgfsTransportSessionInfo *transportSession); // IN: Session Info
 
-void
-HSPU_CopyBufToDataIovec(HgfsPacket *packet,       // IN/OUT: Hgfs packet
-                        void *buf,                // IN: Buffer to copy from
-                        uint32 bufSize,           // IN: Size of buffer
-                        HgfsTransportSessionInfo *transportSession);// IN: Session Info
-void
-HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
-                    uint32 startIndex,        // IN: start index into iov
-                    void *buf,                // IN: Buffer
-                    size_t bufSize,           // IN: Size of buffer
-                    HgfsTransportSessionInfo *transportSession); // IN: Session Info
 void *
 HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                     size_t *replyPacketSize,   //IN/OUT: Size of reply Packet

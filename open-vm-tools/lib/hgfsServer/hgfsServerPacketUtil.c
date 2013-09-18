@@ -33,6 +33,27 @@
 #define LOGLEVEL_MODULE hgfs
 #include "loglevel_user.h"
 
+static void *HSPUGetBuf(HgfsPacket *packet,
+                        uint32 startIndex,
+                        void **buf,
+                        size_t bufSize,
+                        Bool *isAllocated,
+                        MappingType mappingType,
+                        HgfsTransportSessionInfo *transportSession);
+static void HSPUPutBuf(HgfsPacket *packet,
+                       uint32 startIndex,
+                       void **buf,
+                       size_t *bufSize,
+                       Bool *isAllocated,
+                       MappingType mappingType,
+                       HgfsTransportSessionInfo *transportSession);
+static void HSPUCopyBufToIovec(HgfsPacket *packet,
+                               uint32 startIndex,
+                               void *buf,
+                               size_t bufSize,
+                               HgfsTransportSessionInfo *transportSession);
+
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -145,10 +166,10 @@ HSPU_GetMetaPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                    HgfsTransportSessionInfo *transportSession)  // IN: Session Info
 {
    *metaPacketSize = packet->metaPacketSize;
-   return HSPU_GetBuf(packet, 0, &packet->metaPacket,
-                      packet->metaPacketSize,
-                      &packet->metaPacketIsAllocated,
-                      BUF_READWRITEABLE, transportSession);
+   return HSPUGetBuf(packet, 0, &packet->metaPacket,
+                     packet->metaPacketSize,
+                     &packet->metaPacketIsAllocated,
+                     BUF_READWRITEABLE, transportSession);
 }
 
 
@@ -174,16 +195,16 @@ HSPU_GetDataPacketBuf(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
                       HgfsTransportSessionInfo *transportSession) // IN: Session Info
 {
    packet->dataMappingType = mappingType;
-   return HSPU_GetBuf(packet, packet->dataPacketIovIndex,
-                      &packet->dataPacket, packet->dataPacketSize,
-                      &packet->dataPacketIsAllocated, mappingType, transportSession);
+   return HSPUGetBuf(packet, packet->dataPacketIovIndex,
+                     &packet->dataPacket, packet->dataPacketSize,
+                     &packet->dataPacketIsAllocated, mappingType, transportSession);
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * HSPU_GetBuf --
+ * HSPUGetBuf --
  *
  *    Get a {meta, data} packet given an hgfs packet.
  *    Guest mappings will be established.
@@ -196,14 +217,14 @@ HSPU_GetDataPacketBuf(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-void *
-HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-            uint32 startIndex,            // IN: start index of iov
-            void **buf,                   // OUT: Contigous buffer
-            size_t  bufSize,              // IN: Size of buffer
-            Bool *isAllocated,            // OUT: Was buffer allocated ?
-            MappingType mappingType,      // IN: Readable/Writeable ?
-            HgfsTransportSessionInfo *transportSession)     // IN: Session Info
+static void *
+HSPUGetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
+           uint32 startIndex,            // IN: start index of iov
+           void **buf,                   // OUT: Contigous buffer
+           size_t  bufSize,              // IN: Size of buffer
+           Bool *isAllocated,            // OUT: Was buffer allocated ?
+           MappingType mappingType,      // IN: Readable/Writeable ?
+           HgfsTransportSessionInfo *transportSession)     // IN: Session Info
 {
    uint32 iovCount;
    uint32 iovMapped = 0;
@@ -326,10 +347,10 @@ HSPU_PutMetaPacket(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
                    HgfsTransportSessionInfo *transportSession) // IN: Session Info
 {
    LOG(4, ("%s Hgfs Putting Meta packet\n", __FUNCTION__));
-   HSPU_PutBuf(packet, 0, &packet->metaPacket,
-               &packet->metaPacketSize,
-               &packet->metaPacketIsAllocated,
-               BUF_WRITEABLE, transportSession);
+   HSPUPutBuf(packet, 0, &packet->metaPacket,
+              &packet->metaPacketSize,
+              &packet->metaPacketIsAllocated,
+              BUF_WRITEABLE, transportSession);
 }
 
 
@@ -355,7 +376,7 @@ HSPU_PutDataPacketBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 {
 
    LOG(4, ("%s Hgfs Putting Data packet\n", __FUNCTION__));
-   HSPU_PutBuf(packet, packet->dataPacketIovIndex,
+   HSPUPutBuf(packet, packet->dataPacketIovIndex,
                &packet->dataPacket, &packet->dataPacketSize,
                &packet->dataPacketIsAllocated,
                packet->dataMappingType, transportSession);
@@ -365,7 +386,7 @@ HSPU_PutDataPacketBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 /*
  *-----------------------------------------------------------------------------
  *
- * HSPU_PutBuf --
+ * HSPUPutBuf --
  *
  *    Free buffer if allocated and release guest mappings.
  *
@@ -378,13 +399,13 @@ HSPU_PutDataPacketBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
  */
 
 void
-HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-            uint32 startIndex,         // IN: Start of iov
-            void **buf,                // IN/OUT: Buffer to be freed
-            size_t *bufSize,           // IN: Size of the buffer
-            Bool *isAllocated,         // IN: Was buffer allocated ?
-            MappingType mappingType,   // IN: Readable / Writeable ?
-            HgfsTransportSessionInfo *transportSession)  // IN: Session info
+HSPUPutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
+           uint32 startIndex,         // IN: Start of iov
+           void **buf,                // IN/OUT: Buffer to be freed
+           size_t *bufSize,           // IN: Size of the buffer
+           Bool *isAllocated,         // IN: Was buffer allocated ?
+           MappingType mappingType,   // IN: Readable / Writeable ?
+           HgfsTransportSessionInfo *transportSession)  // IN: Session info
 {
    uint32 iovCount = 0;
    int size = *bufSize;
@@ -400,7 +421,7 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 
    if (*isAllocated) {
       if (mappingType == BUF_WRITEABLE) {
-         HSPU_CopyBufToIovec(packet, startIndex, *buf, *bufSize, transportSession);
+         HSPUCopyBufToIovec(packet, startIndex, *buf, *bufSize, transportSession);
       }
       LOG(10, ("%s: Hgfs Freeing buffer \n", __FUNCTION__));
       free(*buf);
@@ -423,7 +444,7 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 /*
  *-----------------------------------------------------------------------------
  *
- * HSPU_CopyBufToMetaIovec --
+ * HSPUCopyBufToIovec --
  *
  *    Write out buffer to data Iovec.
  *
@@ -435,63 +456,12 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
  *-----------------------------------------------------------------------------
  */
 
-void
-HSPU_CopyBufToMetaIovec(HgfsPacket *packet,      // IN/OUT: Hgfs packet
-                        void *buf,               // IN: Buffer to copy from
-                        size_t bufSize,          // IN: Size of buffer
-                        HgfsTransportSessionInfo *transportSession)// IN: Session Info
-{
-   HSPU_CopyBufToIovec(packet, 0, buf, bufSize, transportSession);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HSPU_CopyBufToDataIovec --
- *
- *    Write out buffer to data Iovec.
- *
- * Results:
- *    void
- *
- * Side effects:
- *    @iov is populated with contents of @buf
- *-----------------------------------------------------------------------------
- */
-
-void
-HSPU_CopyBufToDataIovec(HgfsPacket *packet,   // IN: Hgfs packet
-                        void *buf,            // IN: Buffer to copy from
-                        uint32 bufSize,       // IN: Size of buffer
-                        HgfsTransportSessionInfo *transportSession)
-{
-   HSPU_CopyBufToIovec(packet, packet->dataPacketIovIndex, buf, bufSize,
-                       transportSession);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HSPU_CopyBufToDataIovec --
- *
- *    Write out buffer to data Iovec.
- *
- * Results:
- *    void
- *
- * Side effects:
- *    @iov is populated with contents of @buf
- *-----------------------------------------------------------------------------
- */
-
-void
-HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
-                    uint32 startIndex,        // IN: start index into iov
-                    void *buf,                // IN: Contigous Buffer
-                    size_t bufSize,           // IN: Size of buffer
-                    HgfsTransportSessionInfo *transportSession) // IN: Session Info
+static void
+HSPUCopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
+                   uint32 startIndex,        // IN: start index into iov
+                   void *buf,                // IN: Contigous Buffer
+                   size_t bufSize,           // IN: Size of buffer
+                   HgfsTransportSessionInfo *transportSession) // IN: Session Info
 {
    uint32 iovCount;
    size_t remainingSize = bufSize;
