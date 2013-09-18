@@ -49,15 +49,14 @@ typedef enum {
    BUF_READWRITEABLE, /* Establish read-writeable mappings */
 } MappingType;
 
+typedef uint64 HgfsStateFlags;
+#define HGFS_STATE_CLIENT_REQUEST         (1 << 0)
+#define HGFS_STATE_ASYNC_REQUEST          (1 << 1)
 typedef
 struct HgfsPacket {
    uint64 id;
 
-   /* Does transport need to send Async reply ? */
-   Bool processedAsync;
-
-   /* Is the packet guest initiated ? */
-   Bool guestInitiated;
+   HgfsStateFlags state;
 
    /* For metapacket we always establish writeable mappings */
    void *metaPacket;

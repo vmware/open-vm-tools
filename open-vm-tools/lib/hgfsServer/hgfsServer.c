@@ -3254,10 +3254,11 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
           (handlers[input->op].handler != NULL) &&
           (input->requestSize >= handlers[input->op].minReqSize)) {
          /* Initial validation passed, process the client request now. */
-         packet->processedAsync = (handlers[input->op].reqType == REQ_ASYNC) &&
-            (transportSession->channelCapabilities.flags & HGFS_CHANNEL_ASYNC);
-                                         ;
-         if (packet->processedAsync) {
+         if ((handlers[input->op].reqType == REQ_ASYNC) &&
+             (transportSession->channelCapabilities.flags & HGFS_CHANNEL_ASYNC)) {
+             packet->state |= HGFS_STATE_ASYNC_REQUEST;
+         }
+         if (0 != (packet->state & HGFS_STATE_ASYNC_REQUEST)) {
             LOG(4, ("%s: %d: @@Async\n", __FUNCTION__, __LINE__));
 #ifndef VMX86_TOOLS
             /*
@@ -4463,7 +4464,7 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
 {
    HgfsTransportSessionInfo *transportSession = clientData;
 
-   if (packet->guestInitiated) {
+   if (0 != (packet->state & HGFS_STATE_CLIENT_REQUEST)) {
       HSPU_PutMetaPacket(packet, transportSession->channelCbTable);
       HSPU_PutReplyPacket(packet, transportSession->channelCbTable);
       HSPU_PutDataPacketBuf(packet, transportSession->channelCbTable);
@@ -4575,7 +4576,8 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
                HgfsSendFlags flags)           // IN: flags for how to process
 {
    Bool result = FALSE;
-   Bool notificationNeeded = packet->guestInitiated && packet->processedAsync;
+   Bool notificationNeeded = (0 != (packet->state & HGFS_STATE_CLIENT_REQUEST) &&
+                              0 != (packet->state & HGFS_STATE_ASYNC_REQUEST));
 
    ASSERT(packet);
    ASSERT(transportSession);
@@ -8396,7 +8398,7 @@ HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folde
 
    packetHeader = Util_SafeCalloc(1, sizeNeeded);
    packet = Util_SafeCalloc(1, sizeof *packet);
-   packet->guestInitiated = FALSE;
+   packet->state &= ~HGFS_STATE_CLIENT_REQUEST;
    packet->metaPacketSize = sizeNeeded;
    packet->metaPacket = packetHeader;
    packet->dataPacketIsAllocated = TRUE;
