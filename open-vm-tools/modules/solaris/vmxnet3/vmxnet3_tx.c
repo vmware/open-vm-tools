@@ -191,7 +191,8 @@ static vmxnet3_txstatus
 vmxnet3_tx_one(vmxnet3_softc_t *dp,
                vmxnet3_txqueue_t *txq,
                vmxnet3_offload_t *ol,
-               mblk_t *mp)
+               mblk_t *mp,
+               boolean_t retry)
 {
    int ret = VMXNET3_TX_OK;
    unsigned int frags = 0, totLen = 0;
@@ -244,7 +245,11 @@ vmxnet3_tx_one(vmxnet3_softc_t *dp,
 
             if (frags >= cmdRing->size - 1 ||
                 (ol->om != VMXNET3_OM_TSO && frags >= VMXNET3_MAX_TXD_PER_PKT)) {
-               VMXNET3_DEBUG(dp, 2, "overfragmented mp (%u)\n", frags);
+
+               if (retry) {
+                  VMXNET3_DEBUG(dp, 2, "overfragmented, frags=%u ring=%hu om=%hu\n",
+                                frags, cmdRing->size, ol->om);
+               }
                ddi_dma_unbind_handle(dp->txDmaHandle);
                ret = VMXNET3_TX_PULLUP;
                goto error;
@@ -408,7 +413,7 @@ vmxnet3_tx(void *data, mblk_t *mps)
        * Try to map the message in the Tx ring.
        * This call might fail for non-fatal reasons.
        */
-      status = vmxnet3_tx_one(dp, txq, &ol, mp);
+      status = vmxnet3_tx_one(dp, txq, &ol, mp, B_FALSE);
       if (status == VMXNET3_TX_PULLUP) {
          /*
           * Try one more time after flattening
@@ -419,7 +424,7 @@ vmxnet3_tx(void *data, mblk_t *mps)
             freemsg(mp);
             if (new_mp) {
                mp = new_mp;
-               status = vmxnet3_tx_one(dp, txq, &ol, mp);
+               status = vmxnet3_tx_one(dp, txq, &ol, mp, B_TRUE);
             } else {
                continue;
             }

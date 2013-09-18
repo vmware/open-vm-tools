@@ -549,7 +549,7 @@ typedef uint64 PPN64;
 typedef uint64 MA64;
 
 
-#ifdef VMKERNEL
+#if defined(VMKERNEL) || defined(VMKBOOT)
 typedef uint8 * MPN64;
 #else
 typedef uint64 MPN64;
