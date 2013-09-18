@@ -328,6 +328,7 @@ static int HgfsFStat(int fd,
                      uint64 *creationTime);
 
 static void HgfsGetSequentialOnlyFlagFromName(const char *fileName,
+                                              Bool followSymlinks,
                                               HgfsFileAttrInfo *attr);
 
 static void HgfsGetSequentialOnlyFlagFromFd(int fd,
@@ -1942,16 +1943,40 @@ HgfsFStat(int fd,                 // IN: file descriptor
 
 static void
 HgfsGetSequentialOnlyFlagFromName(const char *fileName,        // IN
+                                  Bool followSymlinks,         // IN: If true then follow symlink
                                   HgfsFileAttrInfo *attr)      // IN/OUT
 {
 #if defined(__linux) || defined(__APPLE__)
    int fd;
+   int openFlags;
 
    if ((NULL == fileName) || (NULL == attr)) {
       return;
    }
 
-   fd = Posix_Open(fileName, O_RDONLY);
+   /*
+    * We're not interested in creating a new file. So let's just get the
+    * flags for a simple open request. This really should always work.
+    */
+   HgfsServerGetOpenFlags(0, &openFlags);
+
+   /*
+    * By default we don't follow symlinks, O_NOFOLLOW is always set.
+    * Unset it if followSymlinks config option is specified.
+    */
+   if (followSymlinks) {
+      openFlags &= ~O_NOFOLLOW;
+   }
+
+   /*
+    * Checking for a FIFO we open in nonblocking mode. In this case, opening for
+    * read only will succeed even if no-one has opened on the write side yet,
+    * opening for write only will fail with ENXIO (no such device or address)
+    * unless the other end has already been opened.
+    * Note, Under Linux, opening a FIFO for read and write will succeed both
+    * in blocking and nonblocking mode. POSIX leaves this behavior undefined.
+    */
+   fd = Posix_Open(fileName, openFlags | O_RDONLY);
    if (fd < 0) {
       LOG(4, ("%s: Couldn't open the file \"%s\"\n", __FUNCTION__, fileName));
       return;
@@ -2060,15 +2085,17 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN/OUT:  Input fi
    int error;
    char *myTargetName = NULL;
    uint64 creationTime;
+   Bool followSymlinks;
 
    ASSERT(fileName);
    ASSERT(attr);
 
    LOG(4, ("%s: getting attrs for \"%s\"\n", __FUNCTION__, fileName));
+   followSymlinks = HgfsServerPolicy_IsShareOptionSet(configOptions,
+                                                      HGFS_SHARE_FOLLOW_SYMLINKS),
 
    error = HgfsStat(fileName,
-                    HgfsServerPolicy_IsShareOptionSet(configOptions,
-                                                      HGFS_SHARE_FOLLOW_SYMLINKS),
+                    followSymlinks,
                     &stats,
                     &creationTime);
    if (error) {
@@ -2204,7 +2231,7 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN/OUT:  Input fi
     */
    HgfsGetHiddenAttr(fileName, attr);
 
-   HgfsGetSequentialOnlyFlagFromName(fileName, attr);
+   HgfsGetSequentialOnlyFlagFromName(fileName, followSymlinks, attr);
 
    /* Get effective permissions if we can */
    if (!(S_ISLNK(stats.st_mode))) {
