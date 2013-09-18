@@ -3246,7 +3246,6 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
       return;
    }
 
-   packet->id = input->id;
    HGFS_ASSERT_MINIMUM_OP(input->op);
    if (HGFS_ERROR_SUCCESS == status) {
       HGFS_ASSERT_INPUT(input);
