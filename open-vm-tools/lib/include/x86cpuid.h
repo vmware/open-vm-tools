@@ -985,6 +985,7 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_PILEDRIVER_1F     0x1F // Max piledriver model defined in BKDG 
 #define CPUID_MODEL_PILEDRIVER_10     0x10 // family == CPUID_FAMILY_BULLDOZER
 #define CPUID_MODEL_PILEDRIVER_02     0x02 // family == CPUID_FAMILY_BULLDOZER
+#define CPUID_MODEL_OPTERON_REVF_41   0x41 // family == CPUID_FAMILY_K8
 
 /* VIA model information */
 #define CPUID_MODEL_NANO       15     // Isaiah

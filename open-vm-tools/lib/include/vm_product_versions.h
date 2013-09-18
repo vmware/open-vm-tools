@@ -151,9 +151,11 @@
 #define PLAYER_VERSION "e.x.p"
 
 /*
- * When updating FUSION_VERSION from e.x.p to GA, you will also need to update
- * lastVersion{Major,Minor,Patch} in bora/scons/package/fusion/fusion.sc
- * which controls what versions are allowed to automatically update for free.
+ * In the *-main branches, FUSION_VERSION should always be set to "e.x.p".
+ * In a Fusion release branch, when you modify FUSION_VERSION, check that the
+ * computation of 'lastVersion' in
+ * bora/install/desktop/macos/makedmg.sh::GenerateDescriptorXML() does what you
+ * want.
  */
 #define FUSION_VERSION "e.x.p"
 
