@@ -940,7 +940,8 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_FAMILY_K8MOBILE        17
 #define CPUID_FAMILY_LLANO           18
 #define CPUID_FAMILY_BOBCAT          20
-#define CPUID_FAMILY_BULLDOZER       21
+#define CPUID_FAMILY_BULLDOZER       21  // Bulldozer & Piledriver
+#define CPUID_FAMILY_KYOTO           22
 
 /* Effective VIA CPU Families */
 #define CPUID_FAMILY_C7               6
@@ -995,6 +996,7 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_PILEDRIVER_10     0x10 // family == CPUID_FAMILY_BULLDOZER
 #define CPUID_MODEL_PILEDRIVER_02     0x02 // family == CPUID_FAMILY_BULLDOZER
 #define CPUID_MODEL_OPTERON_REVF_41   0x41 // family == CPUID_FAMILY_K8
+#define CPUID_MODEL_KYOTO_00          0x00 // family == CPUID_FAMILY_KYOTO
 
 /* VIA model information */
 #define CPUID_MODEL_NANO       15     // Isaiah
@@ -1288,6 +1290,11 @@ CPUID_FAMILY_IS_BULLDOZER(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
 }
 
+static INLINE Bool
+CPUID_FAMILY_IS_KYOTO(uint32 eax)
+{
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_KYOTO;
+}
 
 /*
  * AMD Barcelona (of either Opteron or Phenom kind).
@@ -1353,6 +1360,13 @@ CPUID_MODEL_IS_PILEDRIVER(uint32 eax)
            CPUID_EFFECTIVE_MODEL(eax) == CPUID_MODEL_PILEDRIVER_02);
 }
 
+static INLINE Bool
+CPUID_MODEL_IS_KYOTO(uint32 eax)
+{
+   /* Kyoto is models 0x00 of family 0x16 (so far). */
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_KYOTO && 
+          CPUID_EFFECTIVE_MODEL(eax) == CPUID_MODEL_KYOTO_00;
+}
 
 #define CPUID_TYPE_PRIMARY     0
 #define CPUID_TYPE_OVERDRIVE   1

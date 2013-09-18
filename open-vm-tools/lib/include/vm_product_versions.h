@@ -210,6 +210,7 @@
 #define RECOVERYLIBS_VERSION "2.0.0"
 #define PRECHECK_VERSION "e.x.p"
 #define VIEW_FEATUREPACK_VERSION "5.2.0"
+#define VHSESDK_VERSION "1.0.0"
 
 
 #ifndef MAKESTR
