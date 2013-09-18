@@ -823,12 +823,16 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
 {
    char *currPath;
    char *newPath;
+#if defined(_WIN32)
    uint32 currAccess;
    uint32 newAccess;
-   Bool ret = FALSE;
    FileIOResult status;
    FileIODescriptor tmpFD;
+#else
+   int fd;
+#endif
    int savedErrno = 0;
+   Bool ret = FALSE;
 
    ASSERT(FileIO_IsValid(newFD));
    ASSERT(FileIO_IsValid(currFD));
@@ -840,7 +844,6 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       char *fileName = NULL;
       char *dstDirName = NULL;
       char *dstFileName = NULL;
-      int fd;
 
       currPath = File_FullPath(FileIO_Filename(currFD));
       newPath = File_FullPath(FileIO_Filename(newFD));
@@ -947,7 +950,7 @@ swapdone:
       NOT_REACHED();
 #endif
    }
-
+#if defined(_WIN32)
    currPath = Unicode_Duplicate(FileIO_Filename(currFD));
    newPath = Unicode_Duplicate(FileIO_Filename(newFD));
 
@@ -965,13 +968,8 @@ swapdone:
     * middle of transferring ownership.
     */
 
-#if defined(_WIN32)
    CloseHandle(currFD->win32);
    currFD->win32 = INVALID_HANDLE_VALUE;
-#else
-   close(currFD->posix);
-   currFD->posix = -1;
-#endif
    if (File_RenameRetry(newPath, currPath, 10) == 0) {
       ret = TRUE;
    } else {
@@ -997,11 +995,7 @@ swapdone:
    }
    ASSERT(tmpFD.lockToken == NULL);
 
-#if defined(_WIN32)
    currFD->win32 = tmpFD.win32;
-#else
-   currFD->posix = tmpFD.posix;
-#endif
 
    FileIO_Cleanup(&tmpFD);
    Unicode_Free(currPath);
@@ -1009,4 +1003,24 @@ swapdone:
    errno = savedErrno;
 
    return ret;
+#else
+   currPath = (char *)FileIO_Filename(currFD);
+   newPath = (char *)FileIO_Filename(newFD);
+
+   if (File_Rename(newPath, currPath)) {
+      Log("%s: rename of '%s' to '%s' failed %d.\n",
+          __FUNCTION__, newPath, currPath, errno);
+          savedErrno = errno;
+   } else {
+      ret = TRUE;
+      fd = newFD->posix;
+      newFD->posix = currFD->posix;
+      currFD->posix = fd;
+      FileIO_Close(newFD);
+   }
+
+   errno = savedErrno;
+
+   return ret;
+#endif
 }
