@@ -155,9 +155,8 @@ int AsyncSocket_GetFd(AsyncSocket *asock);
 /*
  * Return the remote IP address associated with this socket if applicable
  */
-int AsyncSocket_GetRemoteIPAddress(AsyncSocket *asock,
-                                   unsigned int *ip,
-                                   const char **ipStr);
+int AsyncSocket_GetRemoteIPStr(AsyncSocket *asock,
+                               const char **ipStr);
 
 int AsyncSocket_GetLocalVMCIAddress(AsyncSocket *asock,
                                     uint32 *cid, uint32 *port);

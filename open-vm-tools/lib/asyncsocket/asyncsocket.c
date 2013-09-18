@@ -376,7 +376,7 @@ AsyncSocket_GetFd(AsyncSocket *s)
 /*
  *----------------------------------------------------------------------------
  *
- * AsyncSocket_GetRemoteIPAddress --
+ * AsyncSocket_GetRemoteIPStr --
  *
  *      Given an AsyncSocket object, returns the remote IP address associated
  *      with it, or an error if the request is meaningless for the underlying
@@ -392,35 +392,32 @@ AsyncSocket_GetFd(AsyncSocket *s)
  */
 
 int
-AsyncSocket_GetRemoteIPAddress(AsyncSocket *asock,      // IN
-                               uint32 *ipRet,           // OUT
-                               const char **ipRetStr)   // OUT
+AsyncSocket_GetRemoteIPStr(AsyncSocket *asock,      // IN
+                           const char **ipRetStr)   // OUT
 {
-   uint32 ip;
-   struct in_addr ipAddr;
+   int ret = ASOCKERR_SUCCESS;
 
    ASSERT(asock);
    ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
-   ASSERT(ipRet != NULL || ipRetStr != NULL);
+   ASSERT(ipRetStr != NULL);
 
-   if ((ipRet == NULL && ipRetStr == NULL) || asock == NULL ||
+   if (ipRetStr == NULL || asock == NULL ||
        asock->state != AsyncSocketConnected ||
-       asock->remoteAddrLen != sizeof (struct sockaddr_in)) {
-      return ASOCKERR_GENERIC;
+       (asock->remoteAddrLen != sizeof (struct sockaddr_in) &&
+        asock->remoteAddrLen != sizeof (struct sockaddr_in6))) {
+      ret = ASOCKERR_GENERIC;
+   } else {
+      char addrBuf[NI_MAXHOST];
+
+      if (Posix_GetNameInfo(&asock->remoteAddr, asock->remoteAddrLen, addrBuf,
+                            sizeof addrBuf, NULL, 0, NI_NUMERICHOST) != 0) {
+         ret = ASOCKERR_GENERIC;
+      } else {
+         *ipRetStr = Util_SafeStrdup(addrBuf);
+      }
    }
 
-   ip = ntohl(((struct sockaddr_in *) &asock->remoteAddr)->sin_addr.s_addr);
-
-   if (ipRet != NULL) {
-      *ipRet = ip;
-   }
-
-   if (ipRetStr != NULL) {
-      ipAddr.s_addr = htonl(ip);
-      *ipRetStr = inet_ntoa(ipAddr);
-   }
-
-   return ASOCKERR_SUCCESS;
+   return ret;
 }
 
 
