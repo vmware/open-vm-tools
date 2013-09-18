@@ -90,7 +90,7 @@ RecvMsgCB(RpcInData *data) // IN/OUT
 
 static Bool
 RecvMsgCB(void *clientData,
-          uint16 channelId,
+          GuestRpcChannel *chan,
           const unsigned char *args,
           uint32 argsSize,
           unsigned char **result,
