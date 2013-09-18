@@ -22,6 +22,7 @@
  * Implementation of common layer GuestDnDMgr object for guest.
  */
 
+#include "tracer.hh"
 #include "guestDnD.hh"
 #include "dndRpcV4.hh"
 #include "dndRpcV3.hh"
@@ -49,6 +50,8 @@ extern "C" {
 static gboolean
 DnDUngrabTimeout(void *clientData)
 {
+   TRACE_CALL();
+
    ASSERT(clientData);
    GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
    /* Call actual callback. */
@@ -69,7 +72,8 @@ DnDUngrabTimeout(void *clientData)
 static gboolean
 DnDHideDetWndTimer(void *clientData)
 {
-   Debug("%s: entering\n", __FUNCTION__);
+   TRACE_CALL();
+
    ASSERT(clientData);
    GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
    dnd->SetHideDetWndTimer(NULL);
@@ -90,7 +94,8 @@ DnDHideDetWndTimer(void *clientData)
 static gboolean
 DnDUnityDetTimeout(void *clientData)
 {
-   Debug("%s: entering\n", __FUNCTION__);
+   TRACE_CALL();
+
    ASSERT(clientData);
    GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
    dnd->UnityDnDDetTimeout();
@@ -155,8 +160,8 @@ GuestDnDMgr::~GuestDnDMgr(void)
 void
 GuestDnDMgr::ResetDnD(void)
 {
-   Debug("%s: state %d, session id %d before reset\n",
-         __FUNCTION__, mDnDState, mSessionId);
+   TRACE_CALL();
+
    if (mSrc) {
       srcCancelChanged.emit();
       DelayHideDetWnd();
@@ -170,9 +175,11 @@ GuestDnDMgr::ResetDnD(void)
       delete mDest;
       mDest = NULL;
    }
+
    SetState(GUEST_DND_READY);
-   Debug("%s: change to state %d, session id %d\n",
-         __FUNCTION__, mDnDState, mSessionId);
+
+   g_debug("%s: change to state %d, session id %d\n", __FUNCTION__, mDnDState,
+           mSessionId);
 }
 
 
@@ -183,10 +190,12 @@ GuestDnDMgr::ResetDnD(void)
 void
 GuestDnDMgr::SrcUIDragBeginDone(void)
 {
+   TRACE_CALL();
+
    if (mSrc) {
       mSrc->UIDragBeginDone();
    } else {
-      Debug("%s: mSrc is NULL\n", __FUNCTION__);
+      g_debug("%s: mSrc is NULL\n", __FUNCTION__);
    }
 }
 
@@ -200,10 +209,12 @@ GuestDnDMgr::SrcUIDragBeginDone(void)
 void
 GuestDnDMgr::SrcUIUpdateFeedback(DND_DROPEFFECT feedback)
 {
+   TRACE_CALL();
+
    if (mSrc) {
       mSrc->UIUpdateFeedback(feedback);
    } else {
-      Debug("%s: mSrc is NULL\n", __FUNCTION__);
+      g_debug("%s: mSrc is NULL\n", __FUNCTION__);
    }
 }
 
@@ -218,7 +229,7 @@ GuestDnDMgr::SrcUIUpdateFeedback(DND_DROPEFFECT feedback)
 void
 GuestDnDMgr::DestUIDragEnter(const CPClipboard *clip)
 {
-   Debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    /* Remove untriggered ungrab timer. */
    RemoveUngrabTimeout();
@@ -242,7 +253,7 @@ GuestDnDMgr::DestUIDragEnter(const CPClipboard *clip)
     */
    if (mDnDState != GUEST_DND_QUERY_EXITING &&
        mDnDState != GUEST_DND_READY) {
-      Debug("%s: Bad state: %d, reset\n", __FUNCTION__, mDnDState);
+      g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mDnDState);
       ResetDnD();
       return;
    }
@@ -254,7 +265,7 @@ GuestDnDMgr::DestUIDragEnter(const CPClipboard *clip)
    }
 
    if (mDest) {
-      Debug("%s: mDest is not NULL\n", __FUNCTION__);
+      g_debug("%s: mDest is not NULL\n", __FUNCTION__);
       delete mDest;
       mDest = NULL;
    }
@@ -278,27 +289,26 @@ void
 GuestDnDMgr::OnRpcSrcDragBegin(uint32 sessionId,
                                const CPClipboard *clip)
 {
-   Debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    if (!mDnDAllowed) {
-      Debug("%s: DnD is not allowed.\n", __FUNCTION__);
+      g_debug("%s: DnD is not allowed.\n", __FUNCTION__);
       return;
    }
 
    if  (GUEST_DND_READY != mDnDState) {
-      Debug("%s: Bad state: %d, reset\n", __FUNCTION__, mDnDState);
+      g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mDnDState);
       ResetDnD();
       return;
    }
 
    if (mSrc) {
-      Debug("%s: mSrc is not NULL\n", __FUNCTION__);
+      g_debug("%s: mSrc is not NULL\n", __FUNCTION__);
       delete mSrc;
       mSrc = NULL;
    }
 
-   mSessionId = sessionId;
-   Debug("%s: change sessionId to %d\n", __FUNCTION__, mSessionId);
+   SetSessionId(sessionId);
 
    ASSERT(clip);
    mSrc = new GuestDnDSrc(this);
@@ -321,24 +331,24 @@ GuestDnDMgr::OnRpcQueryExiting(uint32 sessionId,
                                int32 x,
                                int32 y)
 {
+   TRACE_CALL();
+
    if (!mDnDAllowed) {
-      Debug("%s: DnD is not allowed.\n", __FUNCTION__);
+      g_debug("%s: DnD is not allowed.\n", __FUNCTION__);
       return;
    }
 
    if (GUEST_DND_READY != mDnDState) {
       /* Reset DnD for any wrong state. */
-      Debug("%s: Bad state: %d\n", __FUNCTION__, mDnDState);
+      g_debug("%s: Bad state: %d\n", __FUNCTION__, mDnDState);
       ResetDnD();
       return;
    }
 
    /* Show detection window to detect pending GH DnD. */
    ShowDetWnd(x, y);
-   mSessionId = sessionId;
+   SetSessionId(sessionId);
    SetState(GUEST_DND_QUERY_EXITING);
-   Debug("%s: state changed to QUERY_EXITING, session id changed to %d\n",
-         __FUNCTION__, mSessionId);
 
    /*
     * Add event to fire and hide our window if a DnD is not pending.  Note that
@@ -346,7 +356,7 @@ GuestDnDMgr::OnRpcQueryExiting(uint32 sessionId,
     * for some reason.
     */
    if (NULL == mUngrabTimeout) {
-      Debug("%s: adding UngrabTimeout\n", __FUNCTION__);
+      g_debug("%s: adding UngrabTimeout\n", __FUNCTION__);
       mUngrabTimeout = g_timeout_source_new(UNGRAB_TIMEOUT);
       VMTOOLSAPP_ATTACH_SOURCE(mToolsAppCtx, mUngrabTimeout, DnDUngrabTimeout, this, NULL);
       g_source_unref(mUngrabTimeout);
@@ -363,11 +373,13 @@ GuestDnDMgr::OnRpcQueryExiting(uint32 sessionId,
 void
 GuestDnDMgr::UngrabTimeout(void)
 {
+   TRACE_CALL();
+
    mUngrabTimeout = NULL;
 
    if (mDnDState != GUEST_DND_QUERY_EXITING) {
       /* Reset DnD for any wrong state. */
-      Debug("%s: Bad state: %d\n", __FUNCTION__, mDnDState);
+      g_debug("%s: Bad state: %d\n", __FUNCTION__, mDnDState);
       ResetDnD();
       return;
    }
@@ -377,8 +389,6 @@ GuestDnDMgr::UngrabTimeout(void)
 
    HideDetWnd();
    SetState(GUEST_DND_READY);
-   Debug("%s: state changed to GUEST_DND_READY, session id changed to %d\n",
-         __FUNCTION__, mSessionId);
 }
 
 
@@ -397,12 +407,14 @@ GuestDnDMgr::OnRpcUpdateUnityDetWnd(uint32 sessionId,
                                     bool show,
                                     uint32 unityWndId)
 {
+   TRACE_CALL();
+
    if (show && mDnDState != GUEST_DND_READY) {
       /*
        * Reset DnD for any wrong state. Only do this when host asked to
        * show the window.
        */
-      Debug("%s: Bad state: %d\n", __FUNCTION__, mDnDState);
+      g_debug("%s: Bad state: %d\n", __FUNCTION__, mDnDState);
       ResetDnD();
       return;
    }
@@ -427,8 +439,7 @@ GuestDnDMgr::OnRpcUpdateUnityDetWnd(uint32 sessionId,
                                this,
                                NULL);
       g_source_unref(mUnityDnDDetTimeout);
-      mSessionId = sessionId;
-      Debug("%s: change sessionId to %d\n", __FUNCTION__, mSessionId);
+      SetSessionId(sessionId);
    } else {
       /*
        * If there is active DnD, the regular detection window will be hidden
@@ -441,8 +452,8 @@ GuestDnDMgr::OnRpcUpdateUnityDetWnd(uint32 sessionId,
 
    /* Show/hide the full screen detection window. */
    updateUnityDetWndChanged.emit(show, unityWndId, false);
-   Debug("%s: updating Unity detection window, show %d, id %u\n",
-         __FUNCTION__, show, unityWndId);
+   g_debug("%s: updating Unity detection window, show %d, id %u\n",
+           __FUNCTION__, show, unityWndId);
 }
 
 
@@ -454,6 +465,8 @@ GuestDnDMgr::OnRpcUpdateUnityDetWnd(uint32 sessionId,
 void
 GuestDnDMgr::UnityDnDDetTimeout(void)
 {
+   TRACE_CALL();
+
    mUnityDnDDetTimeout = NULL;
    updateUnityDetWndChanged.emit(true, 0, true);
 }
@@ -473,12 +486,14 @@ GuestDnDMgr::OnRpcMoveMouse(uint32 sessionId,
                             int32 x,
                             int32 y)
 {
+   TRACE_CALL();
+
    if (GUEST_DND_SRC_DRAGGING != mDnDState &&
        GUEST_DND_PRIV_DRAGGING != mDnDState) {
-      Debug("%s: not in valid state %d, ignoring\n", __FUNCTION__, mDnDState);
+      g_debug("%s: not in valid state %d, ignoring\n", __FUNCTION__, mDnDState);
       return;
    }
-   Debug("%s: move to %d, %d\n", __FUNCTION__, x, y);
+   g_debug("%s: move to %d, %d\n", __FUNCTION__, x, y);
    moveMouseChanged.emit(x, y);
 }
 
@@ -496,13 +511,15 @@ GuestDnDMgr::UpdateDetWnd(bool show,
                           int32 x,
                           int32 y)
 {
+   TRACE_CALL();
+
    if (mHideDetWndTimer) {
       g_source_destroy(mHideDetWndTimer);
       mHideDetWndTimer = NULL;
    }
 
-   Debug("%s: %s window at %d, %d\n",
-         __FUNCTION__, show ? "show" : "hide", x, y);
+   g_debug("%s: %s window at %d, %d\n", __FUNCTION__, show ? "show" : "hide",
+           x, y);
    updateDetWndChanged.emit(show, x, y);
 }
 
@@ -518,14 +535,16 @@ GuestDnDMgr::UpdateDetWnd(bool show,
 void
 GuestDnDMgr::DelayHideDetWnd(void)
 {
+   TRACE_CALL();
+
    if (NULL == mHideDetWndTimer) {
-      Debug("%s: add timer to hide detection window.\n", __FUNCTION__);
+      g_debug("%s: add timer to hide detection window.\n", __FUNCTION__);
       mHideDetWndTimer = g_timeout_source_new(HIDE_DET_WND_TIMER);
       VMTOOLSAPP_ATTACH_SOURCE(mToolsAppCtx, mHideDetWndTimer,
                                DnDHideDetWndTimer, this, NULL);
       g_source_unref(mHideDetWndTimer);
    } else {
-      Debug("%s: mHideDetWndTimer is not NULL, quit.\n", __FUNCTION__);
+      g_debug("%s: mHideDetWndTimer is not NULL, quit.\n", __FUNCTION__);
    }
 }
 
@@ -537,6 +556,8 @@ GuestDnDMgr::DelayHideDetWnd(void)
 void
 GuestDnDMgr::RemoveUngrabTimeout(void)
 {
+   TRACE_CALL();
+
    if (mUngrabTimeout) {
       g_source_destroy(mUngrabTimeout);
       mUngrabTimeout = NULL;
@@ -553,6 +574,23 @@ GuestDnDMgr::RemoveUngrabTimeout(void)
 void
 GuestDnDMgr::SetState(GUEST_DND_STATE state)
 {
+#ifdef VMX86_DEVEL
+   static const char* states[] = {
+      "GUEST_DND_INVALID",
+      "GUEST_DND_READY",
+      /* As destination. */
+      "GUEST_DND_QUERY_EXITING",
+      "GUEST_DND_DEST_DRAGGING",
+      /* In private dragging mode. */
+      "GUEST_DND_PRIV_DRAGGING",
+      /* As source. */
+      "GUEST_DND_SRC_DRAGBEGIN_PENDING",
+      "GUEST_DND_SRC_CANCEL_PENDING",
+      "GUEST_DND_SRC_DRAGGING",
+   };
+   g_debug("%s: %s => %s\n", __FUNCTION__, states[mDnDState], states[state]);
+#endif
+
    mDnDState = state;
    stateChanged.emit(state);
    if (GUEST_DND_READY == state) {
@@ -590,6 +628,8 @@ GuestDnDMgr::IsDragEnterAllowed(void)
 void
 GuestDnDMgr::VmxDnDVersionChanged(uint32 version)
 {
+   TRACE_CALL();
+
    g_debug("GuestDnDMgr::%s: enter version %d\n", __FUNCTION__, version);
    ASSERT(version >= 3);
 
@@ -663,7 +703,9 @@ GuestDnDMgr::CheckCapability(uint32 capsRequest)
 void
 GuestDnDMgr::OnPingReply(uint32 capabilities)
 {
-   Debug("%s: dnd ping reply caps are %x\n", __FUNCTION__, capabilities);
+   TRACE_CALL();
+
+   g_debug("%s: dnd ping reply caps are %x\n", __FUNCTION__, capabilities);
    mCapabilities = capabilities;
 }
 

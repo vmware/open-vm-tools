@@ -22,6 +22,7 @@
  * Implementation of common layer GuestCopyPasteMgr object for guest.
  */
 
+#include "tracer.hh"
 #include "guestCopyPaste.hh"
 #include "copyPasteRpcV3.hh"
 #include "copyPasteRpcV4.hh"
@@ -70,8 +71,8 @@ GuestCopyPasteMgr::~GuestCopyPasteMgr(void)
 void
 GuestCopyPasteMgr::ResetCopyPaste(void)
 {
-   Debug("%s: state %d, session id %d before reset\n",
-         __FUNCTION__, mCPState, mSessionId);
+   TRACE_CALL();
+
    if (mSrc) {
       delete mSrc;
       mSrc = NULL;
@@ -82,8 +83,41 @@ GuestCopyPasteMgr::ResetCopyPaste(void)
    }
    SetState(GUEST_CP_READY);
    SetSessionId(0);
-   Debug("%s: change to state %d, session id %d\n",
-         __FUNCTION__, mCPState, mSessionId);
+}
+
+
+/**
+ * Session ID change and bookkeeping.
+ *
+ * @param[in] id Next session ID.
+ */
+void
+GuestCopyPasteMgr::SetSessionId(uint32 id)
+{
+   DEVEL_ONLY(g_debug("%s: %u => %u\n", __FUNCTION__, mSessionId, id));
+   mSessionId = id;
+}
+
+
+/**
+ * State change and bookkeeping.
+ *
+ * @param[in] state Next state.
+ */
+
+void
+GuestCopyPasteMgr::SetState(GUEST_CP_STATE state)
+{
+#ifdef VMX86_DEVEL
+   static const char* states[] = {
+      "GUEST_CP_INVALID",
+      "GUEST_CP_READY",
+      "GUEST_CP_HG_FILE_COPYING",
+   };
+   g_debug("%s: %s => %s\n", __FUNCTION__, states[mCPState], states[state]);
+#endif
+
+   mCPState = state;
 }
 
 
@@ -103,30 +137,28 @@ GuestCopyPasteMgr::OnRpcSrcRecvClip(uint32 sessionId,
 {
    ASSERT(clip);
 
-   Debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    if (!mCopyPasteAllowed) {
-      Debug("%s: CopyPaste is not allowed.\n", __FUNCTION__);
+      g_debug("%s: CopyPaste is not allowed.\n", __FUNCTION__);
       return;
    }
 
    if  (GUEST_CP_READY != mCPState) {
-      Debug("%s: Bad state: %d, reset\n", __FUNCTION__, mCPState);
+      g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mCPState);
       /* XXX Should reset DnD here. */
       return;
    }
 
    if (mSrc) {
-      Debug("%s: mSrc is not NULL\n", __FUNCTION__);
+      g_debug("%s: mSrc is not NULL\n", __FUNCTION__);
       delete mSrc;
       mSrc = NULL;
    }
 
-   mSessionId = sessionId;
-   Debug("%s: change sessionId to %d\n", __FUNCTION__, mSessionId);
+   SetSessionId(sessionId);
 
    mSrc = new GuestCopyPasteSrc(this);
-
    mSrc->OnRpcRecvClip(isActive, clip);
 }
 
@@ -145,7 +177,7 @@ GuestCopyPasteMgr::SrcUIRequestFiles(const std::string &dir)
    if (mSrc) {
       return mSrc->UIRequestFiles(dir);
    } else {
-      Debug("%s: mSrc is NULL\n", __FUNCTION__);
+      g_debug("%s: mSrc is NULL\n", __FUNCTION__);
       return std::string("");
    }
 }
@@ -163,30 +195,28 @@ void
 GuestCopyPasteMgr::OnRpcDestRequestClip(uint32 sessionId,
                                         bool isActive)
 {
-   Debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    if (!mCopyPasteAllowed) {
-      Debug("%s: CopyPaste is not allowed.\n", __FUNCTION__);
+      g_debug("%s: CopyPaste is not allowed.\n", __FUNCTION__);
       return;
    }
 
    if  (GUEST_CP_READY != mCPState) {
-      Debug("%s: Bad state: %d, reset\n", __FUNCTION__, mCPState);
+      g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mCPState);
       /* XXX Should reset CP here. */
       return;
    }
 
    if (mDest) {
-      Debug("%s: mDest is not NULL\n", __FUNCTION__);
+      g_debug("%s: mDest is not NULL\n", __FUNCTION__);
       delete mDest;
       mDest = NULL;
    }
 
-   mSessionId = sessionId;
-   Debug("%s: change sessionId to %d\n", __FUNCTION__, mSessionId);
+   SetSessionId(sessionId);
 
    mDest = new GuestCopyPasteDest(this);
-
    mDest->OnRpcRequestClip(isActive);
 }
 
@@ -203,7 +233,7 @@ GuestCopyPasteMgr::DestUISendClip(const CPClipboard *clip)
    if (mDest) {
       mDest->UISendClip(clip);
    } else {
-      Debug("%s: mDest is NULL\n", __FUNCTION__);
+      g_debug("%s: mDest is NULL\n", __FUNCTION__);
    }
 }
 
@@ -217,7 +247,7 @@ GuestCopyPasteMgr::DestUISendClip(const CPClipboard *clip)
 void
 GuestCopyPasteMgr::VmxCopyPasteVersionChanged(uint32 version)
 {
-   Debug("GuestCopyPasteMgr::%s: enter version %d\n", __FUNCTION__, version);
+   g_debug("GuestCopyPasteMgr::%s: enter version %d\n", __FUNCTION__, version);
    ASSERT(version >= 3);
    ASSERT(mTransport);
 
@@ -237,8 +267,8 @@ GuestCopyPasteMgr::VmxCopyPasteVersionChanged(uint32 version)
       break;
    }
    if (mRpc) {
-      Debug("GuestCopyPasteMgr::%s: register ping reply changed %d\n",
-            __FUNCTION__, version);
+      g_debug("GuestCopyPasteMgr::%s: register ping reply changed %d\n",
+              __FUNCTION__, version);
       mRpc->pingReplyChanged.connect(
          sigc::mem_fun(this, &GuestCopyPasteMgr::OnPingReply));
       mRpc->srcRecvClipChanged.connect(
@@ -283,7 +313,7 @@ GuestCopyPasteMgr::CheckCapability(uint32 capsRequest)
 void
 GuestCopyPasteMgr::OnPingReply(uint32 capabilities)
 {
-   Debug("%s: copypaste ping reply caps are %x\n", __FUNCTION__, capabilities);
+   g_debug("%s: copypaste ping reply caps are %x\n", __FUNCTION__, capabilities);
    mResolvedCaps = capabilities;
 }
 

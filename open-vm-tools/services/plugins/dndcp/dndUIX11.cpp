@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,7 @@
 
 #include "dndUIX11.h"
 #include "guestDnDCPMgr.hh"
+#include "tracer.hh"
 
 extern "C" {
 #include "vmblock.h"
@@ -76,7 +77,7 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       m_destDropTime(0),
       mTotalFileSize(0)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 }
 
 
@@ -87,7 +88,7 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
 
 DnDUIX11::~DnDUIX11()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    if (m_detWnd) {
       delete m_detWnd;
    }
@@ -118,7 +119,7 @@ DnDUIX11::~DnDUIX11()
 bool
 DnDUIX11::Init()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    bool ret = true;
 
    CPClipboard_Init(&m_clipboard);
@@ -135,71 +136,48 @@ DnDUIX11::Init()
    }
 
 #if defined(DETWNDDEBUG)
-
    /*
     * This code can only be called when DragDetWnd is derived from
     * Gtk::Window. The normal case is that DragDetWnd is an instance of
     * Gtk::Invisible, which doesn't implement the methods that SetAttributes
     * relies upon.
     */
-
    m_detWnd->SetAttributes();
 #endif
 
    SetTargetsAndCallbacks();
 
+#define CONNECT_SIGNAL(_obj, _sig, _cb) \
+   _obj->_sig.connect(sigc::mem_fun(this, &DnDUIX11::_cb))
+
    /* Set common layer callbacks. */
-   m_DnD->srcDragBeginChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonDragStartCB));
-   m_DnD->srcDropChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonSourceDropCB));
-   m_DnD->srcCancelChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonSourceCancelCB));
-   m_DnD->getFilesDoneChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonSourceFileCopyDoneCB));
+   CONNECT_SIGNAL(m_DnD, srcDragBeginChanged,   CommonDragStartCB);
+   CONNECT_SIGNAL(m_DnD, srcDropChanged,        CommonSourceDropCB);
+   CONNECT_SIGNAL(m_DnD, srcCancelChanged,      CommonSourceCancelCB);
+   CONNECT_SIGNAL(m_DnD, destCancelChanged,     CommonDestCancelCB);
+   CONNECT_SIGNAL(m_DnD, destMoveDetWndToMousePosChanged, CommonMoveDetWndToMousePos);
+   CONNECT_SIGNAL(m_DnD, getFilesDoneChanged,   CommonSourceFileCopyDoneCB);
+   CONNECT_SIGNAL(m_DnD, moveMouseChanged,      CommonUpdateMouseCB);
+   CONNECT_SIGNAL(m_DnD, privDropChanged,       CommonDestPrivateDropCB);
+   CONNECT_SIGNAL(m_DnD, updateDetWndChanged,   CommonUpdateDetWndCB);
+   CONNECT_SIGNAL(m_DnD, updateUnityDetWndChanged, CommonUpdateUnityDetWndCB);
 
-   m_DnD->destCancelChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonDestCancelCB));
-   m_DnD->privDropChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonDestPrivateDropCB));
-
-   m_DnD->updateDetWndChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonUpdateDetWndCB));
-   m_DnD->moveMouseChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonUpdateMouseCB));
-
-   m_DnD->updateUnityDetWndChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonUpdateUnityDetWndCB));
-   m_DnD->destMoveDetWndToMousePosChanged.connect(
-      sigc::mem_fun(this, &DnDUIX11::CommonMoveDetWndToMousePos));
    /* Set Gtk+ callbacks for source. */
-   m_detWnd->signal_drag_begin().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkSourceDragBeginCB));
-   m_detWnd->signal_drag_data_get().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkSourceDragDataGetCB));
-   m_detWnd->signal_drag_end().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkSourceDragEndCB));
+   CONNECT_SIGNAL(m_detWnd, signal_drag_begin(),        GtkSourceDragBeginCB);
+   CONNECT_SIGNAL(m_detWnd, signal_drag_data_get(),     GtkSourceDragDataGetCB);
+   CONNECT_SIGNAL(m_detWnd, signal_drag_end(),          GtkSourceDragEndCB);
+   CONNECT_SIGNAL(m_detWnd, signal_enter_notify_event(), GtkEnterEventCB);
+   CONNECT_SIGNAL(m_detWnd, signal_leave_notify_event(), GtkLeaveEventCB);
+   CONNECT_SIGNAL(m_detWnd, signal_map_event(),         GtkMapEventCB);
+   CONNECT_SIGNAL(m_detWnd, signal_unmap_event(),       GtkUnmapEventCB);
+   CONNECT_SIGNAL(m_detWnd, signal_realize(),           GtkRealizeEventCB);
+   CONNECT_SIGNAL(m_detWnd, signal_unrealize(),         GtkUnrealizeEventCB);
+   CONNECT_SIGNAL(m_detWnd, signal_motion_notify_event(), GtkMotionNotifyEventCB);
+   CONNECT_SIGNAL(m_detWnd, signal_configure_event(),   GtkConfigureEventCB);
+   CONNECT_SIGNAL(m_detWnd, signal_button_press_event(), GtkButtonPressEventCB);
+   CONNECT_SIGNAL(m_detWnd, signal_button_release_event(), GtkButtonReleaseEventCB);
 
-   m_detWnd->signal_enter_notify_event().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkEnterEventCB));
-   m_detWnd->signal_leave_notify_event().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkLeaveEventCB));
-   m_detWnd->signal_map_event().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkMapEventCB));
-   m_detWnd->signal_unmap_event().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkUnmapEventCB));
-   m_detWnd->signal_realize().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkRealizeEventCB));
-   m_detWnd->signal_unrealize().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkUnrealizeEventCB));
-   m_detWnd->signal_motion_notify_event().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkMotionNotifyEventCB));
-   m_detWnd->signal_configure_event().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkConfigureEventCB));
-   m_detWnd->signal_button_press_event().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkButtonPressEventCB));
-   m_detWnd->signal_button_release_event().connect(
-      sigc::mem_fun(this, &DnDUIX11::GtkButtonReleaseEventCB));
+#undef CONNECT_SIGNAL
 
    CommonUpdateDetWndCB(false, 0, 0);
    CommonUpdateUnityDetWndCB(false, 0, false);
@@ -229,7 +207,7 @@ out:
 void
 DnDUIX11::SetTargetsAndCallbacks()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    /* Construct supported target list for HG DnD. */
    std::list<Gtk::TargetEntry> targets;
@@ -278,7 +256,7 @@ DnDUIX11::SetTargetsAndCallbacks()
 void
 DnDUIX11::CommonResetCB(void)
 {
-   g_debug("%s: entering\n", __FUNCTION__);
+   TRACE_CALL();
    m_GHDnDDataReceived = false;
    m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    m_GHDnDInProgress = false;
@@ -309,7 +287,7 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
    CPClipboard_Clear(&m_clipboard);
    CPClipboard_Copy(&m_clipboard, clip);
 
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    /*
     * Before the DnD, we should make sure that the mouse is released
@@ -393,7 +371,7 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
 void
 DnDUIX11::CommonSourceCancelCB(void)
 {
-   g_debug("%s: entering\n", __FUNCTION__);
+   TRACE_CALL();
 
    /*
     * Force the window to show, position the mouse over it, and release.
@@ -426,7 +404,7 @@ void
 DnDUIX11::CommonDestPrivateDropCB(int32 x,
                                   int32 y)
 {
-   g_debug("%s: entering\n", __FUNCTION__);
+   TRACE_CALL();
    /* Unity manager in host side may already send the drop into guest. */
    if (m_GHDnDInProgress) {
 
@@ -447,7 +425,7 @@ DnDUIX11::CommonDestPrivateDropCB(int32 x,
 void
 DnDUIX11::CommonDestCancelCB(void)
 {
-   g_debug("%s: entering\n", __FUNCTION__);
+   TRACE_CALL();
    /* Unity manager in host side may already send the drop into guest. */
    if (m_GHDnDInProgress) {
       CommonUpdateDetWndCB(true, 0, 0);
@@ -471,7 +449,7 @@ DnDUIX11::CommonDestCancelCB(void)
 void
 DnDUIX11::CommonSourceDropCB(void)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CommonUpdateDetWndCB(true, 0, 0);
 
    /*
@@ -1504,6 +1482,8 @@ DnDUIX11::SendFakeXEvents(const bool showWidget,
    int winYReturn;
    unsigned int maskReturn;
 
+   TRACE_CALL();
+
    x = xCoord;
    y = yCoord;
 
@@ -1767,7 +1747,7 @@ DnDUIX11::GetDetWndAsWidget()
 void
 DnDUIX11::AddBlock()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    if (m_blockAdded) {
       g_debug("%s: block already added\n", __FUNCTION__);
       return;
@@ -1793,7 +1773,7 @@ DnDUIX11::AddBlock()
 void
 DnDUIX11::RemoveBlock()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    if (m_blockAdded && (DND_FILE_TRANSFER_IN_PROGRESS != m_HGGetFileStatus)) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, m_HGStagingDir.c_str());
       /* We need to make sure block subsystem has not been shut off. */
@@ -2042,7 +2022,7 @@ exit:
 void
 DnDUIX11::SourceDragStartDone(void)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    m_inHGDrag = true;
    m_DnD->SrcUIDragBeginDone();
 }
@@ -2071,7 +2051,7 @@ DnDUIX11::SetBlockControl(DnDBlockControl *blockCtrl)
 void
 DnDUIX11::SourceUpdateFeedback(DND_DROPEFFECT effect)
 {
-   g_debug("%s: entering\n", __FUNCTION__);
+   TRACE_CALL();
    m_DnD->SrcUIUpdateFeedback(effect);
 }
 
@@ -2084,7 +2064,7 @@ DnDUIX11::SourceUpdateFeedback(DND_DROPEFFECT effect)
 void
 DnDUIX11::TargetDragEnter(void)
 {
-   g_debug("%s: entering\n", __FUNCTION__);
+   TRACE_CALL();
 
    /* Check if there is valid data with current detection window. */
    if (!CPClipboard_IsEmpty(&m_clipboard)) {
@@ -2142,7 +2122,7 @@ DnDUIX11::VmxDnDVersionChanged(RpcChannel *chan, uint32 version)
 bool
 DnDUIX11::GtkEnterEventCB(GdkEventCrossing *ignored)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -2157,7 +2137,7 @@ DnDUIX11::GtkEnterEventCB(GdkEventCrossing *ignored)
 bool
 DnDUIX11::GtkLeaveEventCB(GdkEventCrossing *ignored)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -2172,7 +2152,7 @@ DnDUIX11::GtkLeaveEventCB(GdkEventCrossing *ignored)
 bool
 DnDUIX11::GtkMapEventCB(GdkEventAny *event)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -2188,7 +2168,7 @@ DnDUIX11::GtkMapEventCB(GdkEventAny *event)
 bool
 DnDUIX11::GtkUnmapEventCB(GdkEventAny *event)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -2200,7 +2180,7 @@ DnDUIX11::GtkUnmapEventCB(GdkEventAny *event)
 void
 DnDUIX11::GtkRealizeEventCB()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 }
 
 
@@ -2211,7 +2191,7 @@ DnDUIX11::GtkRealizeEventCB()
 void
 DnDUIX11::GtkUnrealizeEventCB()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 }
 
 /**
@@ -2259,7 +2239,7 @@ DnDUIX11::GtkConfigureEventCB(GdkEventConfigure *event)
 bool
 DnDUIX11::GtkButtonPressEventCB(GdkEventButton *event)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -2275,7 +2255,7 @@ DnDUIX11::GtkButtonPressEventCB(GdkEventButton *event)
 bool
 DnDUIX11::GtkButtonReleaseEventCB(GdkEventButton *event)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 

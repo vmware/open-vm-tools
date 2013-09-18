@@ -81,11 +81,11 @@ GuestDnDSrc::OnRpcDragBegin(const CPClipboard *clip)
    ASSERT(mMgr);
    ASSERT(clip);
 
-   Debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
+   g_debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
    /* Setup staging directory. */
    mStagingDir = SetupDestDir("");
    if (mStagingDir.empty()) {
-      Debug("%s: SetupDestDir failed.\n", __FUNCTION__);
+      g_debug("%s: SetupDestDir failed.\n", __FUNCTION__);
       return;
    }
 
@@ -96,7 +96,7 @@ GuestDnDSrc::OnRpcDragBegin(const CPClipboard *clip)
    CPClipboard_Copy(&mClipboard, clip);
 
    mMgr->SetState(GUEST_DND_SRC_DRAGBEGIN_PENDING);
-   Debug("%s: state changed to DRAGBEGIN_PENDING\n", __FUNCTION__);
+   g_debug("%s: state changed to DRAGBEGIN_PENDING\n", __FUNCTION__);
 
    mMgr->srcDragBeginChanged.emit(&mClipboard, mStagingDir);
 }
@@ -111,20 +111,20 @@ GuestDnDSrc::UIDragBeginDone(void)
 {
    ASSERT(mMgr);
 
-   Debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
+   g_debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
    if (mMgr->GetState() != GUEST_DND_SRC_DRAGBEGIN_PENDING) {
       /* Reset DnD for any wrong state. */
-      Debug("%s: Bad state: %d\n", __FUNCTION__, mMgr->GetState());
+      g_debug("%s: Bad state: %d\n", __FUNCTION__, mMgr->GetState());
       goto error;
    }
 
    if (!mMgr->GetRpc()->SrcDragBeginDone(mMgr->GetSessionId())) {
-      Debug("%s: SrcDragBeginDone failed\n", __FUNCTION__);
+      g_debug("%s: SrcDragBeginDone failed\n", __FUNCTION__);
       goto error;
    }
 
    mMgr->SetState(GUEST_DND_SRC_DRAGGING);
-   Debug("%s: state changed to DRAGGING\n", __FUNCTION__);
+   g_debug("%s: state changed to DRAGGING\n", __FUNCTION__);
    return;
 
 error:
@@ -143,16 +143,16 @@ GuestDnDSrc::UIUpdateFeedback(DND_DROPEFFECT feedback)
 {
    ASSERT(mMgr);
 
-   Debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
+   g_debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
 
    /* This operation needs a valid session id from controller. */
    if (0 == mMgr->GetSessionId()) {
-      Debug("%s: can not get a valid session id from controller.\n",
-            __FUNCTION__);
+      g_debug("%s: can not get a valid session id from controller.\n",
+              __FUNCTION__);
       return;
    }
    if (!mMgr->GetRpc()->UpdateFeedback(mMgr->GetSessionId(), feedback)) {
-      Debug("%s: UpdateFeedback failed\n", __FUNCTION__);
+      g_debug("%s: UpdateFeedback failed\n", __FUNCTION__);
       mMgr->ResetDnD();
    }
 }
@@ -176,10 +176,10 @@ GuestDnDSrc::OnRpcDrop(uint32 sessionId,
 
    ASSERT(mMgr);
 
-   Debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
+   g_debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
    if (mMgr->GetState() != GUEST_DND_SRC_DRAGGING) {
       /* Reset DnD for any wrong state. */
-      Debug("%s: Bad state: %d\n", __FUNCTION__, mMgr->GetState());
+      g_debug("%s: Bad state: %d\n", __FUNCTION__, mMgr->GetState());
       goto error;
    }
    mMgr->srcDropChanged.emit();
@@ -190,21 +190,21 @@ GuestDnDSrc::OnRpcDrop(uint32 sessionId,
                                             sizeof cpName,
                                             cpName);
       if (cpNameSize < 0) {
-         Debug("%s: Error, could not convert to CPName.\n", __FUNCTION__);
+         g_debug("%s: Error, could not convert to CPName.\n", __FUNCTION__);
          goto error;
       }
 
       if (!mMgr->GetRpc()->SrcDropDone(sessionId,
                                        (const uint8 *)cpName,
                                        cpNameSize)) {
-         Debug("%s: SrcDropDone failed\n", __FUNCTION__);
+         g_debug("%s: SrcDropDone failed\n", __FUNCTION__);
          goto error;
       }
    } else {
       /* For non-file formats, the DnD is done. Hide detection window. */
       mMgr->HideDetWnd();
       mMgr->SetState(GUEST_DND_READY);
-      Debug("%s: state changed to READY\n", __FUNCTION__);
+      g_debug("%s: state changed to READY\n", __FUNCTION__);
    }
    return;
 
@@ -224,11 +224,11 @@ GuestDnDSrc::OnRpcCancel(uint32 sessionId)
 {
    ASSERT(mMgr);
 
-   Debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
+   g_debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
    mMgr->srcCancelChanged.emit();
    mMgr->DelayHideDetWnd();
    mMgr->SetState(GUEST_DND_READY);
-   Debug("%s: state changed to READY\n", __FUNCTION__);
+   g_debug("%s: state changed to READY\n", __FUNCTION__);
 }
 
 
@@ -256,7 +256,7 @@ GuestDnDSrc::OnRpcGetFilesDone(uint32 sessionId,
    mMgr->getFilesDoneChanged.emit(success);
    mMgr->HideDetWnd();
    mMgr->SetState(GUEST_DND_READY);
-   Debug("%s: state changed to READY\n", __FUNCTION__);
+   g_debug("%s: state changed to READY\n", __FUNCTION__);
 }
 
 
@@ -294,11 +294,11 @@ GuestDnDSrc::SetupDestDir(const std::string &destDir)
             mStagingDir += DIRSEPS;
          }
          free(newDir);
-         Debug("%s: destdir: %s", __FUNCTION__, mStagingDir.c_str());
+         g_debug("%s: destdir: %s", __FUNCTION__, mStagingDir.c_str());
 
          return mStagingDir;
       } else {
-         Debug("%s: destdir not created", __FUNCTION__);
+         g_debug("%s: destdir not created", __FUNCTION__);
          return mStagingDir;
       }
    }

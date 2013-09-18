@@ -55,15 +55,16 @@ public:
    sigc::signal<void, bool> getFilesDoneChanged;
 
    GUEST_CP_STATE GetState(void) { return mCPState; }
-   void SetState(GUEST_CP_STATE state) { mCPState = state; }
+   void SetState(GUEST_CP_STATE state);
    CopyPasteRpc *GetRpc(void) { return mRpc; }
    GuestCopyPasteSrc *GetCopyPasteSrc(void)
       { return mSrc; }
    GuestCopyPasteDest *GetCopyPasteDest(void)
       { return mDest; }
    void ResetCopyPaste(void);
+
    uint32 GetSessionId(void) { return mSessionId; }
-   void SetSessionId(uint32 id) { mSessionId = id; }
+   void SetSessionId(uint32 id);
 
    void DestUISendClip(const CPClipboard *clip);
    const std::string SrcUIRequestFiles(const std::string &dir = "");

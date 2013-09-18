@@ -24,6 +24,7 @@
 
 
 #include "guestDnD.hh"
+#include "tracer.hh"
 
 extern "C" {
    #include "dndClipboard.h"
@@ -76,11 +77,11 @@ void
 GuestDnDDest::UIDragEnter(const CPClipboard *clip)
 {
    if (!mMgr->IsDragEnterAllowed()) {
-      Debug("%s: not allowed.\n", __FUNCTION__);
+      g_debug("%s: not allowed.\n", __FUNCTION__);
       return;
    }
 
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
 
    if (GUEST_DND_DEST_DRAGGING == mMgr->GetState() ||
        GUEST_DND_PRIV_DRAGGING == mMgr->GetState()) {
@@ -89,8 +90,8 @@ GuestDnDDest::UIDragEnter(const CPClipboard *clip)
        * VM and drag into the detection window again, and trigger the
        * DragEnter. In this case, ignore the DragEnter.
        */
-      Debug("%s: already in state %d for GH DnD, ignoring.\n",
-            __FUNCTION__, mMgr->GetState());
+      g_debug("%s: already in state %d for GH DnD, ignoring.\n", __FUNCTION__,
+              mMgr->GetState());
       return;
    }
 
@@ -99,7 +100,7 @@ GuestDnDDest::UIDragEnter(const CPClipboard *clip)
        * In HG DnD case, if DnD already happened, user may also drag into the
        * detection window again. The DragEnter should also be ignored.
        */
-      Debug("%s: already in SRC_DRAGGING state, ignoring\n", __FUNCTION__);
+      g_debug("%s: already in SRC_DRAGGING state, ignoring\n", __FUNCTION__);
       return;
    }
 
@@ -109,7 +110,7 @@ GuestDnDDest::UIDragEnter(const CPClipboard *clip)
     */
    if (mMgr->GetState() != GUEST_DND_QUERY_EXITING &&
        mMgr->GetState() != GUEST_DND_READY) {
-      Debug("%s: Bad state: %d, reset\n", __FUNCTION__, mMgr->GetState());
+      g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mMgr->GetState());
       goto error;
    }
 
@@ -117,12 +118,12 @@ GuestDnDDest::UIDragEnter(const CPClipboard *clip)
    CPClipboard_Copy(&mClipboard, clip);
 
    if (!mMgr->GetRpc()->DestDragEnter(mMgr->GetSessionId(), clip)) {
-      Debug("%s: DestDragEnter failed\n", __FUNCTION__);
+      g_debug("%s: DestDragEnter failed\n", __FUNCTION__);
       goto error;
    }
 
    mMgr->SetState(GUEST_DND_DEST_DRAGGING);
-   Debug("%s: state changed to DEST_DRAGGING\n", __FUNCTION__);
+   g_debug("%s: state changed to DEST_DRAGGING\n", __FUNCTION__);
    return;
 
 error:
@@ -140,15 +141,15 @@ error:
 void
 GuestDnDDest::OnRpcPrivDragEnter(uint32 sessionId)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
 
    if (GUEST_DND_DEST_DRAGGING != mMgr->GetState()) {
-      Debug("%s: Bad state: %d, reset\n", __FUNCTION__, mMgr->GetState());
+      g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mMgr->GetState());
       goto error;
    }
 
    mMgr->SetState(GUEST_DND_PRIV_DRAGGING);
-   Debug("%s: state changed to PRIV_DRAGGING\n", __FUNCTION__);
+   g_debug("%s: state changed to PRIV_DRAGGING\n", __FUNCTION__);
    return;
 
 error:
@@ -170,16 +171,16 @@ GuestDnDDest::OnRpcPrivDragLeave(uint32 sessionId,
                                  int32 x,
                                  int32 y)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
 
    if (GUEST_DND_PRIV_DRAGGING != mMgr->GetState()) {
-      Debug("%s: Bad state: %d, reset\n", __FUNCTION__, mMgr->GetState());
+      g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mMgr->GetState());
       goto error;
    }
 
    mMgr->SetState(GUEST_DND_DEST_DRAGGING);
    mMgr->destMoveDetWndToMousePosChanged.emit();
-   Debug("%s: state changed to DEST_DRAGGING\n", __FUNCTION__);
+   g_debug("%s: state changed to DEST_DRAGGING\n", __FUNCTION__);
    return;
 
 error:
@@ -204,8 +205,9 @@ GuestDnDDest::OnRpcPrivDrop(uint32 sessionId,
    mMgr->privDropChanged.emit(x, y);
    mMgr->HideDetWnd();
    mMgr->SetState(GUEST_DND_READY);
-   Debug("%s: state changed to GUEST_DND_READY, session id changed to 0\n",
-         __FUNCTION__);
+   // XXX Trace.
+   g_debug("%s: state changed to GUEST_DND_READY, session id changed to 0\n",
+           __FUNCTION__);
 }
 
 
@@ -239,7 +241,7 @@ GuestDnDDest::OnRpcCancel(uint32 sessionId)
    mMgr->RemoveUngrabTimeout();
    mMgr->destCancelChanged.emit();
    mMgr->SetState(GUEST_DND_READY);
-   Debug("%s: state changed to GUEST_DND_READY, session id changed to 0\n",
-         __FUNCTION__);
+   g_debug("%s: state changed to GUEST_DND_READY, session id changed to 0\n",
+           __FUNCTION__);
 }
 

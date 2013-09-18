@@ -24,6 +24,7 @@
 
 
 #include "copyPasteRpcV3.hh"
+#include "tracer.hh"
 
 extern "C" {
    #include "dndMsg.h"
@@ -63,7 +64,7 @@ CopyPasteRpcV3::~CopyPasteRpcV3(void)
 void
 CopyPasteRpcV3::Init(void)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    ASSERT(mTransport);
    mTransport->RegisterRpc(this, mTransportInterface);
 }
@@ -78,7 +79,7 @@ CopyPasteRpcV3::Init(void)
 void
 CopyPasteRpcV3::SendPing(uint32 caps)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
 }
 
 
@@ -95,7 +96,7 @@ bool
 CopyPasteRpcV3::SrcRequestClip(uint32 sessionId,
                                bool isActive)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -115,7 +116,7 @@ CopyPasteRpcV3::DestSendClip(uint32 sessionId,
                              bool isActive,
                              const CPClipboard* clip)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return mUtil.SendMsg(CP_GH_GET_CLIPBOARD_DONE, clip);
 }
 
@@ -138,14 +139,14 @@ CopyPasteRpcV3::RequestFiles(uint32 sessionId,
    DnDMsg msg;
    bool ret = false;
 
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
 
    DnDMsg_Init(&msg);
 
    /* Construct msg with both cmd CP_HG_START_FILE_COPY and stagingDirCP. */
    DnDMsg_SetCmd(&msg, CP_HG_START_FILE_COPY);
    if (!DnDMsg_AppendArg(&msg, (void *)stagingDirCP, sz)) {
-      Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
+      g_debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
       goto exit;
    }
 
@@ -174,7 +175,7 @@ CopyPasteRpcV3::SendFilesDone(uint32 sessionId,
                               const uint8 *stagingDirCP,
                               uint32 sz)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -192,7 +193,7 @@ bool
 CopyPasteRpcV3::GetFilesDone(uint32 sessionId,
                              bool success)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -212,7 +213,7 @@ CopyPasteRpcV3::SendPacket(uint32 destId,
                            const uint8 *packet,
                            size_t length)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return mTransport->SendPacket(destId,
                                  mTransportInterface,
                                  packet,
@@ -241,7 +242,7 @@ CopyPasteRpcV3::HandleMsg(RpcParams *params,
 
    ret = DnDMsg_UnserializeHeader(&msg, (void *)binary, binarySize);
    if (DNDMSG_SUCCESS != ret) {
-      Debug("%s: DnDMsg_UnserializeHeader failed %d\n", __FUNCTION__, ret);
+      g_debug("%s: DnDMsg_UnserializeHeader failed %d\n", __FUNCTION__, ret);
       goto exit;
    }
 
@@ -249,12 +250,12 @@ CopyPasteRpcV3::HandleMsg(RpcParams *params,
                                 (void *)(binary + DNDMSG_HEADERSIZE_V3),
                                 binarySize - DNDMSG_HEADERSIZE_V3);
    if (DNDMSG_SUCCESS != ret) {
-      Debug("%s: DnDMsg_UnserializeArgs failed with %d\n", __FUNCTION__, ret);
+      g_debug("%s: DnDMsg_UnserializeArgs failed with %d\n", __FUNCTION__, ret);
       goto exit;
    }
 
-   Debug("%s: Got %d, binary size %d.\n",
-         __FUNCTION__, DnDMsg_GetCmd(&msg), binarySize);
+   g_debug("%s: Got %d, binary size %d.\n", __FUNCTION__, DnDMsg_GetCmd(&msg),
+           binarySize);
 
    /*
     * Translate command and emit signal. Session Id 1 is used because version
@@ -268,7 +269,7 @@ CopyPasteRpcV3::HandleMsg(RpcParams *params,
       /* Unserialize clipboard data for the command. */
       buf = DnDMsg_GetArg(&msg, 0);
       if (!CPClipboard_Unserialize(&clip, DynBuf_Get(buf), DynBuf_GetSize(buf))) {
-         Debug("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
+         g_debug("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
          goto exit;
       }
       srcRecvClipChanged.emit(1, false, &clip);
@@ -291,8 +292,8 @@ CopyPasteRpcV3::HandleMsg(RpcParams *params,
       break;
    }
    default:
-      Debug("%s: got unsupported new command %d.\n",
-            __FUNCTION__, DnDMsg_GetCmd(&msg));
+      g_debug("%s: got unsupported new command %d.\n", __FUNCTION__,
+              DnDMsg_GetCmd(&msg));
    }
 exit:
    DnDMsg_Destroy(&msg);
@@ -312,6 +313,6 @@ CopyPasteRpcV3::OnRecvPacket(uint32 srcId,
                              const uint8 *packet,
                              size_t packetSize)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    mUtil.OnRecvPacket(srcId, packet, packetSize);
 }

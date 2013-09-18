@@ -27,6 +27,7 @@
 #include "copyPasteDnDWrapper.h"
 #include "copyPasteDnDX11.h"
 #include "dndPluginIntX11.h"
+#include "tracer.hh"
 
 Window gXRoot;
 Display *gXDisplay;
@@ -98,7 +99,7 @@ BlockService::BlockService() :
 BlockService *
 BlockService::GetInstance()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    if (!m_instance) {
       m_instance = new BlockService();
@@ -121,7 +122,7 @@ BlockService::GetInstance()
 void
 BlockService::Init(ToolsAppCtx *ctx)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    if (!m_initialized && ctx) {
       m_blockCtrl.fd = ctx->blockFD;
@@ -154,7 +155,7 @@ BlockService::ShutdownSignalHandler(const siginfo_t *siginfo,
                                     gpointer data)
 {
    ToolsAppCtx *ctx = (ToolsAppCtx *)data;
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    GetInstance()->Shutdown();
 
@@ -176,7 +177,7 @@ BlockService::ShutdownSignalHandler(const siginfo_t *siginfo,
 void
 BlockService::Shutdown()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
 
    if (m_initialized) {
       g_source_destroy(m_shutdownSrc);
@@ -215,7 +216,7 @@ CopyPasteDnDX11::CopyPasteDnDX11() :
 gboolean
 CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
 
    ASSERT(ctx);
@@ -279,7 +280,7 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
 gboolean
 CopyPasteDnDX11::RegisterCP()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
 
    if (wrapper->IsCPRegistered()) {
@@ -326,7 +327,7 @@ CopyPasteDnDX11::RegisterCP()
 gboolean
 CopyPasteDnDX11::RegisterDnD()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
 
    if (!wrapper->IsDnDEnabled()) {
@@ -366,7 +367,7 @@ CopyPasteDnDX11::RegisterDnD()
 void
 CopyPasteDnDX11::UnregisterCP()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    if (wrapper->IsCPRegistered()) {
       if (m_copyPasteUI) {
@@ -387,7 +388,7 @@ CopyPasteDnDX11::UnregisterCP()
 void
 CopyPasteDnDX11::UnregisterDnD()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    if (wrapper->IsDnDRegistered()) {
       if (m_dndUI) {
@@ -412,7 +413,7 @@ void
 CopyPasteDnDX11::SetDnDAllowed(bool allowed)
 {
    ASSERT(m_dndUI);
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    m_dndUI->SetDnDAllowed(allowed);
 }
 
@@ -428,7 +429,7 @@ void
 CopyPasteDnDX11::SetCopyPasteAllowed(bool allowed)
 {
    ASSERT(m_copyPasteUI);
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    m_copyPasteUI->SetCopyPasteAllowed(allowed);
 }
 
@@ -442,7 +443,7 @@ CopyPasteDnDX11::SetCopyPasteAllowed(bool allowed)
 void
 CopyPasteDnDX11::CopyPasteVersionChanged(int version)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    ToolsAppCtx *ctx = wrapper->GetToolsAppCtx();
    g_debug("%s: calling VmxCopyPasteVersionChanged (version %d)\n",
@@ -462,7 +463,7 @@ CopyPasteDnDX11::CopyPasteVersionChanged(int version)
 void
 CopyPasteDnDX11::DnDVersionChanged(int version)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    ToolsAppCtx *ctx = wrapper->GetToolsAppCtx();
    g_debug("%s: calling VmxDnDVersionChanged (version %d)\n",
@@ -481,7 +482,7 @@ CopyPasteDnDX11::DnDVersionChanged(int version)
 void
 CopyPasteDnDX11::PointerInit()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
 
    ASSERT(wrapper);

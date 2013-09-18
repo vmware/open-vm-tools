@@ -36,6 +36,7 @@
 #endif
 
 #include "dndRpcV3.hh"
+#include "tracer.hh"
 
 extern "C" {
    #include "debug.h"
@@ -79,7 +80,7 @@ DnDRpcV3::~DnDRpcV3(void)
 void
 DnDRpcV3::Init(void)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    ASSERT(mTransport);
    mTransport->RegisterRpc(this, mTransportInterface);
 }
@@ -98,7 +99,7 @@ bool
 DnDRpcV3::SrcDragEnterDone(int32 x,
                            int32 y)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return mUtil.SendMsg(DND_HG_DRAG_ENTER_DONE, x, y);
 
 }
@@ -115,7 +116,7 @@ DnDRpcV3::SrcDragEnterDone(int32 x,
 bool
 DnDRpcV3::SrcDragBeginDone(uint32 sessionId)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return mUtil.SendMsg(DND_HG_DRAG_READY);
 }
 
@@ -141,7 +142,7 @@ DnDRpcV3::UpdateFeedback(uint32 sessionId,
    DnDMsg_SetCmd(&msg, DND_HG_UPDATE_FEEDBACK);
 
    if (!DnDMsg_AppendArg(&msg, &feedback, sizeof feedback)) {
-      Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
+      g_debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
       goto exit;
    }
 
@@ -164,7 +165,7 @@ exit:
 bool
 DnDRpcV3::SrcPrivDragEnter(uint32 sessionId)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -184,7 +185,7 @@ DnDRpcV3::SrcPrivDragLeave(uint32 sessionId,
                            int32 x,
                            int32 y)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -204,7 +205,7 @@ DnDRpcV3::SrcPrivDrop(uint32 sessionId,
                       int32 x,
                       int32 y)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -224,7 +225,7 @@ DnDRpcV3::SrcDrop(uint32 sessionId,
                   int32 x,
                   int32 y)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -247,14 +248,14 @@ DnDRpcV3::SrcDropDone(uint32 sessionId,
    DnDMsg msg;
    bool ret = false;
 
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
 
    DnDMsg_Init(&msg);
 
    /* Construct msg with both cmd CP_HG_START_FILE_COPY and stagingDirCP. */
    DnDMsg_SetCmd(&msg, DND_HG_DROP_DONE);
    if (!DnDMsg_AppendArg(&msg, (void *)stagingDirCP, sz)) {
-      Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
+      g_debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
       goto exit;
    }
 
@@ -279,7 +280,7 @@ bool
 DnDRpcV3::DestDragEnter(uint32 sessionId,
                         const CPClipboard *clip)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return mUtil.SendMsg(DND_GH_DRAG_ENTER, clip);
 }
 
@@ -297,7 +298,7 @@ bool
 DnDRpcV3::DestSendClip(uint32 sessionId,
                        const CPClipboard *clip)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -313,7 +314,7 @@ DnDRpcV3::DestSendClip(uint32 sessionId,
 bool
 DnDRpcV3::DragNotPending(uint32 sessionId)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return mUtil.SendMsg(DND_GH_NOT_PENDING);
 }
 
@@ -333,7 +334,7 @@ DnDRpcV3::DestDragLeave(uint32 sessionId,
                         int32 x,
                         int32 y)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -353,7 +354,7 @@ DnDRpcV3::DestDrop(uint32 sessionId,
                    int32 x,
                    int32 y)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -373,7 +374,7 @@ DnDRpcV3::QueryExiting(uint32 sessionId,
                        int32 x,
                        int32 y)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -393,7 +394,7 @@ DnDRpcV3::UpdateUnityDetWnd(uint32 sessionId,
                             bool show,
                             uint32 unityWndId)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -413,7 +414,7 @@ DnDRpcV3::MoveMouse(uint32 sessionId,
                     int32 x,
                     int32 y)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -429,7 +430,7 @@ DnDRpcV3::MoveMouse(uint32 sessionId,
 bool
 DnDRpcV3::RequestFiles(uint32 sessionId)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -451,7 +452,7 @@ DnDRpcV3::SendFilesDone(uint32 sessionId,
                         const uint8 *stagingDirCP,
                         uint32 sz)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -469,7 +470,7 @@ bool
 DnDRpcV3::GetFilesDone(uint32 sessionId,
                        bool success)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return true;
 }
 
@@ -489,7 +490,7 @@ DnDRpcV3::SendPacket(uint32 destId,
                      const uint8 *packet,
                      size_t length)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    return mTransport->SendPacket(destId, mTransportInterface, packet, length);
 }
 
@@ -515,7 +516,7 @@ DnDRpcV3::HandleMsg(RpcParams *params,
 
    ret = DnDMsg_UnserializeHeader(&msg, (void *)binary, binarySize);
    if (DNDMSG_SUCCESS != ret) {
-      Debug("%s: DnDMsg_UnserializeHeader failed %d\n", __FUNCTION__, ret);
+      g_debug("%s: DnDMsg_UnserializeHeader failed %d\n", __FUNCTION__, ret);
       goto exit;
    }
 
@@ -523,12 +524,12 @@ DnDRpcV3::HandleMsg(RpcParams *params,
                                 (void *)(binary + DNDMSG_HEADERSIZE_V3),
                                 binarySize - DNDMSG_HEADERSIZE_V3);
    if (DNDMSG_SUCCESS != ret) {
-      Debug("%s: DnDMsg_UnserializeArgs failed with %d\n", __FUNCTION__, ret);
+      g_debug("%s: DnDMsg_UnserializeArgs failed with %d\n", __FUNCTION__, ret);
       goto exit;
    }
 
-   Debug("%s: Got %d, binary size %d.\n",
-         __FUNCTION__, DnDMsg_GetCmd(&msg), binarySize);
+   g_debug("%s: Got %d, binary size %d.\n", __FUNCTION__, DnDMsg_GetCmd(&msg),
+           binarySize);
 
    /*
     * Translate command and emit signal. Session Id 1 is used because version
@@ -542,7 +543,7 @@ DnDRpcV3::HandleMsg(RpcParams *params,
       /* Unserialize clipboard data for the command. */
       buf = DnDMsg_GetArg(&msg, 0);
       if (!CPClipboard_Unserialize(&mClipboard, DynBuf_Get(buf), DynBuf_GetSize(buf))) {
-         Debug("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
+         g_debug("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
          break;
       }
       SrcDragEnterDone(DRAG_DET_WINDOW_WIDTH / 2,
@@ -665,8 +666,8 @@ DnDRpcV3::HandleMsg(RpcParams *params,
       break;
    }
    default:
-      Debug("%s: got unsupported new command %d.\n",
-            __FUNCTION__, DnDMsg_GetCmd(&msg));
+      g_debug("%s: got unsupported new command %d.\n", __FUNCTION__,
+              DnDMsg_GetCmd(&msg));
    }
 exit:
    DnDMsg_Destroy(&msg);
@@ -686,6 +687,6 @@ DnDRpcV3::OnRecvPacket(uint32 srcId,
                        const uint8 *packet,
                        size_t packetSize)
 {
-   Debug("%s: entering.\n", __FUNCTION__);
+   TRACE_CALL();
    mUtil.OnRecvPacket(srcId, packet, packetSize);
 }

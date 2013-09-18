@@ -72,6 +72,7 @@
 #include "copyPasteUIX11.h"
 #include "dndFileList.hh"
 #include "guestDnDCPMgr.hh"
+#include "tracer.hh"
 
 extern "C" {
    #include "vmblock.h"
@@ -161,7 +162,7 @@ CopyPasteUIX11::CopyPasteUIX11()
 bool
 CopyPasteUIX11::Init()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    if (mInited) {
       return true;
    }
@@ -206,7 +207,7 @@ CopyPasteUIX11::Init()
 
 CopyPasteUIX11::~CopyPasteUIX11()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    CPClipboard_Destroy(&mClipboard);
    /* Any files from last unfinished file transfer should be deleted. */
    if (DND_FILE_TRANSFER_IN_PROGRESS == mHGGetFileStatus &&
@@ -1170,7 +1171,7 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
    void *buf;
    size_t sz;
 
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    if (!clip) {
       g_debug("%s: No clipboard contents.", __FUNCTION__);
       return;
@@ -1590,6 +1591,6 @@ CopyPasteUIX11::SendClipNotChanged(void)
 void
 CopyPasteUIX11::Reset(void)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   TRACE_CALL();
    /* Cancel any pending file transfer. */
 }

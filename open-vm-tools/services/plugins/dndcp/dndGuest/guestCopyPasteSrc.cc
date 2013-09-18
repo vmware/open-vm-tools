@@ -25,6 +25,8 @@
 #include "guestCopyPaste.hh"
 
 extern "C" {
+   #include <glib.h>
+
    #include "dndClipboard.h"
    #include "debug.h"
    #include "file.h"
@@ -78,7 +80,7 @@ GuestCopyPasteSrc::OnRpcRecvClip(bool isActive,
    ASSERT(mMgr);
    ASSERT(clip);
 
-   Debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
+   g_debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
 
    CPClipboard_Clear(&mClipboard);
    CPClipboard_Copy(&mClipboard, clip);
@@ -104,7 +106,7 @@ GuestCopyPasteSrc::UIRequestFiles(const std::string &dir)
 
    if (mMgr->GetState() != GUEST_CP_READY) {
       /* Reset DnD for any wrong state. */
-      Debug("%s: Bad state: %d\n", __FUNCTION__, mMgr->GetState());
+      g_debug("%s: Bad state: %d\n", __FUNCTION__, mMgr->GetState());
       goto error;
    }
 
@@ -119,7 +121,7 @@ GuestCopyPasteSrc::UIRequestFiles(const std::string &dir)
                                          sizeof cpName,
                                          cpName);
    if (cpNameSize < 0) {
-      Debug("%s: Error, could not convert to CPName.\n", __FUNCTION__);
+      g_debug("%s: Error, could not convert to CPName.\n", __FUNCTION__);
       goto error;
    }
 
@@ -131,7 +133,7 @@ GuestCopyPasteSrc::UIRequestFiles(const std::string &dir)
 
    mStagingDir = destDir;
    mMgr->SetState(GUEST_CP_HG_FILE_COPYING);
-   Debug("%s: state changed to GUEST_CP_HG_FILE_COPYING\n", __FUNCTION__);
+   g_debug("%s: state changed to GUEST_CP_HG_FILE_COPYING\n", __FUNCTION__);
 
    return destDir;
 
@@ -165,7 +167,7 @@ GuestCopyPasteSrc::OnRpcGetFilesDone(uint32 sessionId,
    /* UI should remove block with this signal. */
    mMgr->getFilesDoneChanged.emit(success);
    mMgr->SetState(GUEST_CP_READY);
-   Debug("%s: state changed to READY\n", __FUNCTION__);
+   g_debug("%s: state changed to READY\n", __FUNCTION__);
 }
 
 
@@ -201,9 +203,9 @@ GuestCopyPasteSrc::SetupDestDir(const std::string &destDir)
             mStagingDir += DIRSEPS;
          }
          free(newDir);
-         Debug("%s: destdir: %s", __FUNCTION__, mStagingDir.c_str());
+         g_debug("%s: destdir: %s", __FUNCTION__, mStagingDir.c_str());
       } else {
-         Debug("%s: destdir not created", __FUNCTION__);
+         g_debug("%s: destdir not created", __FUNCTION__);
       }
    }
    return mStagingDir;
