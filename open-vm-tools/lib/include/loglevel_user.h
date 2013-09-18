@@ -278,6 +278,7 @@
    LOGLEVEL_VAR(ftConfig), /*lib/ftConfig */ \
    LOGLEVEL_VAR(vmname),  /* lib/vmname */ \
    LOGLEVEL_VAR(gpumgmt), \
+   LOGLEVEL_VAR(unityMsg),  /* mks/remote/vdpUnityVmdb */ \
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
