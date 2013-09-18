@@ -158,6 +158,38 @@ struct inode_operations HgfsFileInodeOperations = {
  * Private functions implementations.
  */
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsClearReadOnly --
+ *
+ *    Try to remove the file/dir read only attribute.
+ *
+ *    Note when running on Windows servers the entry may have the read-only
+ *    flag set and prevent a rename or delete operation from occuring.
+ *
+ * Results:
+ *    Returns zero on success, or a negative error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsClearReadOnly(struct dentry *dentry)  // IN: file/dir to remove read only
+{
+   struct iattr enableWrite;
+
+   LOG(4, (KERN_DEBUG "VMware hgfs: HgfsClearReadOnly: removing read-only\n"));
+   enableWrite.ia_mode = (dentry->d_inode->i_mode | S_IWUSR);
+   enableWrite.ia_valid = ATTR_MODE;
+   return HgfsSetattr(dentry, &enableWrite);
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -308,14 +340,8 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
           * safe?
           */
          if (!secondAttempt) {
-            struct iattr enableWrite;
             secondAttempt = TRUE;
-
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: access denied, "
-                    "attempting to work around read-only bit\n"));
-            enableWrite.ia_mode = (dentry->d_inode->i_mode | S_IWUSR);
-            enableWrite.ia_valid = ATTR_MODE;
-            result = HgfsSetattr(dentry, &enableWrite);
+            result = HgfsClearReadOnly(dentry);
             if (result == 0) {
                LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: file is no "
                        "longer read-only, retrying delete\n"));
@@ -1325,6 +1351,7 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
    HgfsReq *req = NULL;
    char *oldName;
    char *newName;
+   Bool secondAttempt=FALSE;
    uint32 *oldNameLength;
    uint32 *newNameLength;
    int result = 0;
@@ -1489,6 +1516,31 @@ retry:
                     "returned error: %d\n", result));
             goto out;
          }
+      } else if ((-EACCES == result) || (-EPERM == result)) {
+         /*
+          * It's possible that we're talking to a Windows server with
+          * a file marked read-only. Let's try again, after removing
+          * the read-only bit from the file.
+          *
+          * XXX: I think old servers will send -EPERM here. Is this entirely
+          * safe?
+          */
+         if (!secondAttempt) {
+            secondAttempt = TRUE;
+            result = HgfsClearReadOnly(newDentry);
+            if (result == 0) {
+               LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: file is no "
+                       "longer read-only, retrying rename\n"));
+               goto retry;
+            }
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: failed to remove "
+                    "read-only property\n"));
+         } else {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: second attempt at "
+                    "rename failed\n"));
+         }
+      } else if (0 != result) {
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: failed with result %d\n", result));
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: timed out\n"));
