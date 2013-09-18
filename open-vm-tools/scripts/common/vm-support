@@ -239,7 +239,7 @@ stageLinux()
    # Commands to run ($1) and redirect to logs ($2) for inclusion.
    runcmd "ps auwwx" "/tmp/ps-auwwx.$$.txt"
    runcmd "lspci -M -vvv -nn -xxxx" "/tmp/lspci1.$$.txt"
-   runcmd "lspci -t -v -nn -F /tmp/lspci1.$$.txt" "/tmp/lspci2.$$.txt"
+   runcmd "lspci -t -v -nn -F ${OUTPUT_DIR}/tmp/lspci1.$$.txt" "/tmp/lspci2.$$.txt"
    runcmd "lspci -vvv -nn" "/tmp/lspci3.$$.txt"
    runcmd "/sbin/lsmod" "/tmp/modules.$$.txt"
    runcmd "uname -a" "/tmp/uname.$$.txt"
