@@ -315,9 +315,6 @@ do {                                                        \
 #undef  ASSERT_BUG_DEBUGONLY
 #define ASSERT_BUG_DEBUGONLY(bug, cond) ((void) 0)
 
-#undef  ASSERT_LENGTH
-#define ASSERT_LENGTH(real, expected) ((void) 0)
-
 /*
  * Expand NOT_REACHED() as appropriate for each situation.
  *
@@ -400,8 +397,8 @@ do {                                                        \
  */
 
 #define MY_ASSERTS(name, assertions) \
-   static INLINE void name(void) { \
-      assertions \
+   static INLINE void name(void) {   \
+      assertions                     \
    }
 
 #ifdef __cplusplus
