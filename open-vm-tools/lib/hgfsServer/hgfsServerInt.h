@@ -874,29 +874,29 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
                          fileDesc *newHandle);       // OUT: Handle to the file
 
 void *
-HSPU_GetMetaPacket(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
-                   size_t *metaPacketSize,      // OUT: Size of metaPacket
-                   HgfsTransportSessionInfo *transportSession);   // IN: Session Info
+HSPU_GetMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
+                   size_t *metaPacketSize,               // OUT: Size of metaPacket
+                   HgfsServerChannelCallbacks *chanCb);  // IN: Channel callbacks
 
 void *
-HSPU_GetDataPacketBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                      MappingType mappingType,   // IN: Readable/ Writeable ?
-                      HgfsTransportSessionInfo *transportSession); // IN: Session Info
+HSPU_GetDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
+                      MappingType mappingType,              // IN: Readable/ Writeable ?
+                      HgfsServerChannelCallbacks *chanCb);  // IN: Channel callbacks
 
 void
-HSPU_PutDataPacketBuf(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                      HgfsTransportSessionInfo *transportSession);  // IN: Session Info
+HSPU_PutDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
+                      HgfsServerChannelCallbacks *chanCb);  // IN: Channel callbacks
 
 void
-HSPU_PutMetaPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                   HgfsTransportSessionInfo *transportSession); // IN: Session Info
+HSPU_PutMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
+                   HgfsServerChannelCallbacks *chanCb);  // IN: Channel callbacks
 
 void *
-HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                    size_t *replyPacketSize,   //IN/OUT: Size of reply Packet
-                    HgfsTransportSessionInfo *transportSession); // IN: Session Info
+HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
+                    size_t *replyPacketSize,             //IN/OUT: Size of reply Packet
+                    HgfsServerChannelCallbacks *chanCb); // IN: Channel callbacks
 
 void
-HSPU_PutReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                    HgfsTransportSessionInfo *transportSession); // IN: Session Info
+HSPU_PutReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
+                    HgfsServerChannelCallbacks *chanCb); // IN: Channel callbacks
 #endif /* __HGFS_SERVER_INT_H__ */

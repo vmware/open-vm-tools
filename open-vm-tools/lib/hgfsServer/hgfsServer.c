@@ -2973,7 +2973,7 @@ HgfsServerGetRequest(HgfsPacket *packet,                        // IN: packet
    size_t requestOpArgsSize;
    HgfsInternalStatus parseStatus = HGFS_ERROR_SUCCESS;
 
-   request = HSPU_GetMetaPacket(packet, &requestSize, transportSession);
+   request = HSPU_GetMetaPacket(packet, &requestSize, transportSession->channelCbTable);
    ASSERT_DEVEL(request);
 
    if (NULL == request) {
@@ -3091,7 +3091,7 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
 
    replyTotalSize = replySize;
    reply = HSPU_GetReplyPacket(input->packet, &replyTotalSize,
-                               input->transportSession);
+                               input->transportSession->channelCbTable);
 
    ASSERT_DEVEL(reply && (replySize <= replyTotalSize));
    if (!HgfsPackReplyHeader(status, replyPayloadSize, input->sessionEnabled, replySessionId,
@@ -3135,7 +3135,7 @@ HgfsServerProcessRequest(void *context)
    if (!input->request) {
       input->request = HSPU_GetMetaPacket(input->packet,
                                           &input->requestSize,
-                                          input->transportSession);
+                                          input->transportSession->channelCbTable);
    }
 
    input->payload = (char *)input->request + input->payloadOffset;
@@ -3218,7 +3218,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
              * Asynchronous processing is supported by the transport.
              * We can release mappings here and reacquire when needed.
              */
-            HSPU_PutMetaPacket(packet, transportSession);
+            HSPU_PutMetaPacket(packet, transportSession->channelCbTable);
             input->request = NULL;
             Atomic_Inc(&gHgfsAsyncCounter);
 
@@ -4418,9 +4418,9 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
    HgfsTransportSessionInfo *transportSession = clientData;
 
    if (packet->guestInitiated) {
-      HSPU_PutMetaPacket(packet, transportSession);
-      HSPU_PutReplyPacket(packet, transportSession);
-      HSPU_PutDataPacketBuf(packet, transportSession);
+      HSPU_PutMetaPacket(packet, transportSession->channelCbTable);
+      HSPU_PutReplyPacket(packet, transportSession->channelCbTable);
+      HSPU_PutDataPacketBuf(packet, transportSession->channelCbTable);
    } else {
       free(packet->metaPacket);
       free(packet);
@@ -5752,7 +5752,9 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
       headerSize = sizeof(HgfsReply);
    }
    replyPacketSize = headerSize + replyDataSize;
-   replyHeader = HSPU_GetReplyPacket(packet, &replyPacketSize, session->transportSession);
+   replyHeader = HSPU_GetReplyPacket(packet,
+                                     &replyPacketSize,
+                                     session->transportSession->channelCbTable);
 
    ASSERT_DEVEL(replyHeader && (replyPacketSize >= headerSize + replyDataSize));
 
@@ -5815,7 +5817,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
                payload = &reply->payload[0];
             } else {
                payload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
-                                               input->transportSession);
+                                               input->transportSession->channelCbTable);
             }
             if (payload) {
                status = HgfsPlatformReadFile(file, input->session, offset,
@@ -5900,7 +5902,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
    if (NULL == dataToWrite) {
       /* No inline data to write, get it from the transport shared memory. */
       dataToWrite = HSPU_GetDataPacketBuf(input->packet, BUF_READABLE,
-                                          input->transportSession);
+                                          input->transportSession->channelCbTable);
       if (NULL == dataToWrite) {
          LOG(4, ("%s: Error: Op %d mapping write data buffer\n", __FUNCTION__, input->op));
          status = HGFS_ERROR_PROTOCOL;
@@ -7982,7 +7984,7 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
 
       if (inlineDataSize == 0) {
          info.replyPayload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
-                                                   input->transportSession);
+                                                   input->transportSession->channelCbTable);
       } else {
          info.replyPayload = (char *)info.reply + baseReplySize;
       }
