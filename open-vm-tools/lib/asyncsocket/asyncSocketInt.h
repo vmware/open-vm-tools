@@ -203,6 +203,7 @@ struct AsyncSocket {
    SendBufList **sendBufTail;
    int sendPos;
    Bool sendCb;
+   Bool sendCbTimer;
    Bool sendBufFull;
 
    Bool sslConnected;

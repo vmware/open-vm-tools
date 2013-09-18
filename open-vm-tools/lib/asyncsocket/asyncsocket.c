@@ -2365,6 +2365,7 @@ AsyncSocketSendSocket(AsyncSocket *asock,      // IN:
          retVal = ASOCKERR_POLL;
          return retVal;
       }
+      asock->sendCbTimer = TRUE;
 #else
       /*
        * For non-Windows platforms, just schedule a regular device callback.
@@ -3678,11 +3679,16 @@ AsyncSocketCancelCbForCloseSocket(AsyncSocket *asock)  // IN:
        * we check the latter if it wasn't the former.
        */
 
-      removed = AsyncSocketPollRemove(asock, TRUE, POLL_FLAG_WRITE,
-                                      asock->vt->sendCallback)
-         || AsyncSocketPollRemove(asock, FALSE, 0, asock->vt->sendCallback);
+      if (asock->sendCbTimer) {
+         removed = AsyncSocketPollRemove(asock, FALSE, 0,
+                                         asock->vt->sendCallback);
+      } else {
+         removed = AsyncSocketPollRemove(asock, TRUE, POLL_FLAG_WRITE,
+                                         asock->vt->sendCallback);
+      }
       ASSERT(removed || asock->pollParams.iPoll);
       asock->sendCb = FALSE;
+      asock->sendCbTimer = FALSE;
    }
 }
 
@@ -4350,7 +4356,7 @@ AsyncSocketIPollRecvCallback(void *clientData)  // IN:
    NOT_IMPLEMENTED();
 #else
    AsyncSocket *asock = (AsyncSocket *) clientData;
-   int error;
+   MXUserRecLock *lock;
 
    ASSERT(asock);
    ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
@@ -4358,25 +4364,32 @@ AsyncSocketIPollRecvCallback(void *clientData)  // IN:
           !MXUser_IsCurThreadHoldingRecLock(asock->pollParams.lock));
 
    AsyncSocketLock(asock);
-   if (!asock->recvCb) {
-      MXUserRecLock *lock = asock->pollParams.lock;
+   lock = asock->pollParams.lock;
+   if (asock->recvCb) {
+      /*
+       * There is no need to take a reference here -- the fact that this
+       * callback is running means AsyncsocketIPollRemove would not release a
+       * reference if it is called.
+       */
+      int error = AsyncSocketFillRecvBuffer(asock);
 
-      /* Release the reference added when registering this callback. */
+      if (error == ASOCKERR_GENERIC || error == ASOCKERR_REMOTE_DISCONNECT) {
+         AsyncSocketHandleError(asock, error);
+      }
+   }
+
+   if (asock->recvCb) {
+      AsyncSocketUnlock(asock);
+   } else {
+      /*
+       * Callback has been unregistered.  Per above, we need to release the
+       * reference explicitly.
+       */
       AsyncSocketRelease(asock, TRUE);
       if (lock != NULL) {
          MXUser_DecRefRecLock(lock);
       }
-      return;
    }
-
-   AsyncSocketAddRef(asock);
-
-   error = AsyncSocketFillRecvBuffer(asock);
-   if (error == ASOCKERR_GENERIC || error == ASOCKERR_REMOTE_DISCONNECT) {
-      AsyncSocketHandleError(asock, error);
-   }
-
-   AsyncSocketRelease(asock, TRUE);
 #endif
 }
 
@@ -4468,6 +4481,7 @@ AsyncSocketSendCallback(void *clientData)
 
    AsyncSocketAddRef(s);
    s->sendCb = FALSE; /* AsyncSocketSendCallback is never periodic */
+   s->sendCbTimer = FALSE;
    retval = AsyncSocketWriteBuffers(s);
    if (retval != ASOCKERR_SUCCESS) {
       AsyncSocketHandleError(s, retval);
@@ -4490,6 +4504,7 @@ AsyncSocketSendCallback(void *clientData)
          pollStatus = AsyncSocketPollAdd(s, FALSE, 0,
                                          s->vt->sendCallback, 100000);
          ASSERT_NOT_IMPLEMENTED(pollStatus == VMWARE_STATUS_SUCCESS);
+         s->sendCbTimer = TRUE;
       } else
 #endif
       {
@@ -4530,33 +4545,34 @@ AsyncSocketIPollSendCallback(void *clientData)  // IN:
    NOT_IMPLEMENTED();
 #else
    AsyncSocket *s = (AsyncSocket *) clientData;
-   Bool removed;
+   MXUserRecLock *lock;
 
    ASSERT(s);
    ASSERT(s->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
 
    AsyncSocketLock(s);
-   if (!s->sendCb) {
-      MXUserRecLock *lock = s->pollParams.lock;
-
-      /* Release the reference added when registering this callback. */
-      AsyncSocketRelease(s, TRUE);
-      if (lock != NULL) {
-         MXUser_DecRefRecLock(lock);
+   lock = s->pollParams.lock;
+   if (s->sendCb) {
+      /*
+       * Unregister this callback as we want the non-periodic behavior.  There
+       * is no need to take a reference here -- the fact that this callback is
+       * running means AsyncsocketIPollRemove would not release a reference.
+       * We would release that reference at the end.
+       */
+      if (s->sendCbTimer) {
+         AsyncSocketIPollRemove(s, FALSE, 0, AsyncSocketIPollSendCallback);
+      } else {
+         AsyncSocketIPollRemove(s, TRUE, POLL_FLAG_WRITE,
+                                AsyncSocketIPollSendCallback);
       }
-      return;
+
+      AsyncSocketSendCallback(s);
    }
 
-   AsyncSocketAddRef(s);
-
-   /* Unregister this callback as we want the non-periodic behavior. */
-   removed = AsyncSocketIPollRemove(s, TRUE, POLL_FLAG_WRITE,
-                                    AsyncSocketIPollSendCallback) ||
-             AsyncSocketIPollRemove(s, FALSE, 0, AsyncSocketIPollSendCallback);
-
-   AsyncSocketSendCallback(s);
-
    AsyncSocketRelease(s, TRUE);
+   if (lock != NULL) {
+      MXUser_DecRefRecLock(lock);
+   }
 #endif
 }
 
