@@ -61,9 +61,19 @@
  *      threads.  If lib/thread is used on top of this library, the lib/thread
  *      NoID function may introduce a smaller limit.
  *
- *      On Windows and Mac, native OS TLS support is available.
- *      On Linux, require pthreads. (Generally this implies -pthread and _REENTRANT)
+ *      On Linux we make use of a combination of __thread and pthread support.
+ *      On Mac our only option is to use pthreads.
+ *      On Windows we could use the compiler supported thread locals but
+ *      that has issues when dynamically loaded from a library, so instead
+ *      we use the safer Tls* functions.
  */
+
+#if defined __linux__
+#  include <features.h>  /* for __GLIBC_PREREQ */
+#  if __GLIBC_PREREQ(2, 3)
+#    define HAVE_TLS
+#  endif
+#endif
 
 #if defined _WIN32
 #  include <windows.h>
@@ -116,6 +126,11 @@ typedef pthread_key_t VThreadBaseKeyType;
 #else
 #define VTHREADBASE_INVALID_KEY (VThreadBaseKeyType)(PTHREAD_KEYS_MAX)
 #endif
+#endif
+
+#ifdef HAVE_TLS
+static __thread VThreadBaseData *tlsBaseCache = NULL;
+static __thread VThreadID tlsIDCache = VTHREAD_INVALID_ID;
 #endif
 
 static void VThreadBaseInit(void);
@@ -280,6 +295,11 @@ VThreadBaseAreKeysInited(void)
  *      read before it is initialized we return -1 instead of 0 (since
  *      0 is used as a real thread id).
  *
+ *      Note that we use store the thread local value using pthreads
+ *      even when HAVE_TLS is defined.  This way we continue to use
+ *      the same pthread destructor path for cleanup as we would
+ *      without HAVE_TLS.
+ *
  *-----------------------------------------------------------------------------
  */
 
@@ -287,6 +307,7 @@ static INLINE Bool
 VThreadBaseSetLocal(VThreadLocal local, void *value)
 {
    VThreadBaseKeyType key;
+   void *adjustedValue = value;
    Bool success;
    ASSERT(VThreadBaseAreKeysInited());
    if (local == VTHREAD_LOCAL_BASE) {
@@ -294,14 +315,24 @@ VThreadBaseSetLocal(VThreadLocal local, void *value)
    } else {
       ASSERT(local == VTHREAD_LOCAL_ID);
       /* VThreadGetLocal compensates for this, lets the default be -1.  */
-      value = (void*)((uintptr_t)value + 1);
+      adjustedValue = (void*)((uintptr_t)adjustedValue + 1);
       key = Atomic_Read(&vthreadBaseGlobals.threadIDKey);
    }
    ASSERT(key != VTHREADBASE_INVALID_KEY);
 #if defined _WIN32
-   success = TlsSetValue(key, value);
+   success = TlsSetValue(key, adjustedValue);
 #else
-   success = pthread_setspecific(key, value) == 0;
+   success = pthread_setspecific(key, adjustedValue) == 0;
+#endif
+#ifdef HAVE_TLS
+   if (success) {
+      if (local == VTHREAD_LOCAL_BASE) {
+         tlsBaseCache = value;
+      } else {
+         ASSERT(local == VTHREAD_LOCAL_ID);
+         tlsIDCache = (VThreadID)(uintptr_t)value;
+      }
+   }
 #endif
    return success;
 }
@@ -322,11 +353,17 @@ VThreadBaseSetLocal(VThreadLocal local, void *value)
 static INLINE void *
 VThreadBaseGetLocal(VThreadLocal local) 
 {
+   void *result;
+#ifdef HAVE_TLS
+   if (local == VTHREAD_LOCAL_BASE) {
+      result = tlsBaseCache;
+   } else {
+      ASSERT(local == VTHREAD_LOCAL_ID);
+      result = (void*)(uintptr_t)tlsIDCache;
+   }
+#else 
    VThreadBaseKeyType key;
    Atomic_Int *keyPtr;
-   void *result;
-
-   ASSERT(local == VTHREAD_LOCAL_BASE || local == VTHREAD_LOCAL_ID);
 
    keyPtr = local == VTHREAD_LOCAL_BASE ? &vthreadBaseGlobals.baseKey :
                                           &vthreadBaseGlobals.threadIDKey;
@@ -342,10 +379,10 @@ VThreadBaseGetLocal(VThreadLocal local)
 #else
    result = pthread_getspecific(key);
 #endif
-
    if (local == VTHREAD_LOCAL_ID) {
       result = (void*)((uintptr_t)result - 1); /* See VThreadBaseSetLocal. */
    }
+#endif
 
    return result;
 }
@@ -669,7 +706,8 @@ VThreadBaseSafeDeleteTLS(void *tlsData)
          }
          (*vthreadBaseGlobals.freeIDFunc)(data);
 
-         success = VThreadBaseSetBase(NULL) && VThreadBaseSetID(0);
+         success = VThreadBaseSetBase(NULL) &&
+                   VThreadBaseSetID(VTHREAD_INVALID_ID);
          ASSERT_NOT_IMPLEMENTED(success);
       }
       Atomic_Dec(&vthreadBaseGlobals.numThreads);
