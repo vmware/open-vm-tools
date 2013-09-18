@@ -60,8 +60,6 @@ static Bool HgfsChannelGuestBdInit(HgfsServerSessionCallbacks *serverCBTable,
 static void HgfsChannelGuestBdExit(HgfsGuestConn *data);
 static Bool HgfsChannelGuestBdSend(void *data,
                                    HgfsPacket *packet,
-                                   char *buffer,
-                                   size_t bufferLen,
                                    HgfsSendFlags flags);
 static Bool HgfsChannelGuestBdReceive(HgfsGuestConn *data,
                                       char const *packetIn,
@@ -633,8 +631,6 @@ HgfsChannelGuestBdInvalidateInactiveSessions(HgfsGuestConn *connData)  // IN: co
 static Bool
 HgfsChannelGuestBdSend(void *conn,              // IN: our connection data
                        HgfsPacket *packet,      // IN/OUT: Hgfs Packet
-                       char *buffer,            // IN: unused reply in hgfs packet
-                       size_t bufferLen,        // IN: unused reply len in hgfs packet
                        HgfsSendFlags flags)     // IN: Flags to say how to process
 {
    HgfsGuestConn *connData = conn;

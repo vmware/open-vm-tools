@@ -4590,8 +4590,8 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
    if (transportSession->state == HGFS_SESSION_STATE_OPEN) {
       ASSERT(transportSession->type == HGFS_SESSION_TYPE_REGULAR);
       result = transportSession->channelCbTable->send(transportSession->transportData,
-                                                      packet, packetOut,
-                                                      packetOutLen, flags);
+                                                      packet,
+                                                      flags);
    }
 
    if (notificationNeeded) {

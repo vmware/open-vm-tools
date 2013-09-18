@@ -137,8 +137,6 @@ typedef struct HgfsServerConfig {
 
 typedef Bool (*HgfsChannelSendFunc)(void *opaqueSession,
                                     HgfsPacket *packet,
-                                    char *buffer,
-                                    size_t bufferLen,
                                     HgfsSendFlags flags);
 typedef void * (*HgfsChannelMapVirtAddrFunc)(uint64 pa, uint32 size, void **context);
 typedef void (*HgfsChannelUnmapVirtAddrFunc)(void **context);
