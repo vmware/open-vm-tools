@@ -60,6 +60,7 @@ static RpcChannelCallback gRpcHandlers[] =  {
    { "ping", RpcChannelPing, NULL, NULL, NULL, 0 }
 };
 
+static gboolean gUseBackdoorOnly = FALSE;
 
 /**
  * Handler for a "ping" message. Does nothing.
@@ -628,6 +629,20 @@ RpcChannel_UnregisterCallback(RpcChannel *chan,
 
 
 /**
+ * Force to create backdoor channels only.
+ * This provides a kill-switch to disable vsocket channels if needed.
+ * This needs to be called before RpcChannel_New to take effect.
+ */
+
+void
+RpcChannel_SetBackdoorOnly(void)
+{
+   gUseBackdoorOnly = TRUE;
+   Debug(LGPFX "Using vsocket is disabled.\n");
+}
+
+
+/**
  * Create an RpcChannel instance using a prefered channel implementation,
  * currently this is VSockChannel.
  *
@@ -639,7 +654,7 @@ RpcChannel_New(void)
 {
    RpcChannel *chan;
 #if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   chan = VSockChannel_New();
+   chan = gUseBackdoorOnly ? BackdoorChannel_New() : VSockChannel_New();
 #else
    chan = BackdoorChannel_New();
 #endif

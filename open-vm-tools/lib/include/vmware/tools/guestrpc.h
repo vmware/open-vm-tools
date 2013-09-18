@@ -201,6 +201,9 @@ RpcChannel_SendOne(char **reply,
 RpcChannel *
 RpcChannel_New(void);
 
+void
+RpcChannel_SetBackdoorOnly(void);
+
 G_END_DECLS
 
 /** @} */
