@@ -67,9 +67,7 @@ vm_check_file = $(shell if test -f $(1); then echo "yes"; else echo "no"; fi)
 ifndef VM_KBUILD
 VM_KBUILD := no
 ifeq ($(call vm_check_file,$(BUILD_DIR)/Makefile), yes)
-ifneq ($(call vm_check_file,$(BUILD_DIR)/Rules.make), yes)
-VM_KBUILD := 26
-endif
+VM_KBUILD := yes
 endif
 export VM_KBUILD
 endif
@@ -78,11 +76,7 @@ ifndef VM_KBUILD_SHOWN
 ifeq ($(VM_KBUILD), no)
 VM_DUMMY := $(shell echo >&2 "Using standalone build system.")
 else
-ifeq ($(VM_KBUILD), 24)
-VM_DUMMY := $(shell echo >&2 "Using 2.4.x kernel build system.")
-else
-VM_DUMMY := $(shell echo >&2 "Using 2.6.x kernel build system.")
-endif
+VM_DUMMY := $(shell echo >&2 "Using kernel build system.")
 endif
 VM_KBUILD_SHOWN := yes
 export VM_KBUILD_SHOWN
@@ -95,11 +89,7 @@ VMCCVER := $(shell $(CC) -dumpversion)
 # If there is no version defined, we are in toplevel pass, not yet in kernel makefiles...
 ifeq ($(VERSION),)
 
-ifeq ($(VM_KBUILD), 24)
-DRIVER_KO := $(DRIVER).o
-else
 DRIVER_KO := $(DRIVER).ko
-endif
 
 .PHONY: $(DRIVER_KO)
 
@@ -150,17 +140,6 @@ CC_OPTS += -DVMX86_DEBUG
 endif
 
 include $(SRCROOT)/Makefile.kernel
-
-ifdef TOPDIR
-ifeq ($(VM_KBUILD), 24)
-
-O_TARGET := $(DRIVER).o
-
-obj-y := $($(DRIVER)-y)
-
-include $(TOPDIR)/Rules.make
-endif
-endif
 
 else
 
