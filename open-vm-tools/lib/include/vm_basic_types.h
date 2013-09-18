@@ -918,6 +918,7 @@ typedef void * UserVA;
 #         define _SSIZE_T
 #         define __ssize_t_defined
 #         define _SSIZE_T_DECLARED
+#         define _SSIZE_T_DEFINED_
 #         ifdef VM_X86_64
              typedef int64 ssize_t;
 #         else
@@ -927,6 +928,7 @@ typedef void * UserVA;
 #         define _SSIZE_T
 #         define __ssize_t_defined
 #         define _SSIZE_T_DECLARED
+#         define _SSIZE_T_DEFINED_
              typedef int32 ssize_t;
 #      endif
 #   endif
