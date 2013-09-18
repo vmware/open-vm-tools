@@ -451,7 +451,7 @@
 #      if defined VMX86_DESKTOP
 /*
  * Fusion can be relocated, so it does not have a default library directory.
- * To retrieve the Fusion library directory, use Location_GetLibrary() instead.
+ * To retrieve the Fusion library directory, use Location_Get("libDir") instead.
  */
 #         define DEFAULT_LIBDIRECTORY \
              "/dev/null/Non-existing DEFAULT_LIBDIRECTORY"

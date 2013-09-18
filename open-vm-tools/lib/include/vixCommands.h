@@ -2129,14 +2129,6 @@ struct VixCommandGenericRequest {
 #include "vmware_pack_end.h"
 VixCommandGenericRequest;
 
-
-/*
- * These are values we use to discover hosts and guests through SLPv2.
- */
-#define VIX_SLPV2_SERVICE_NAME_TOOLS_SERVICE       "VMware_Vix_Tools"
-#define VIX_SLPV2_PROPERTY_IP_ADDR                 "IP"
-#define VIX_SLPV2_PROPERTY_MAC_ADDR                "Mac"
-
 /*
  * The security classifications for async op types/op code. Each op code
  * is given a security category, and the VMX uses that category to determine

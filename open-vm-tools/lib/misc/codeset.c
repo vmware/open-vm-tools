@@ -604,11 +604,10 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
    } else {
       /* Use a default ICU data dir. */
 #   if defined __APPLE__
-      Location_GetLibrary_Type *Location_GetLibrary =
-         Location_GetLibrary_Addr();
+      Location_Get_Type *Location_Get = Location_Get_Addr();
 
-      if (Location_GetLibrary) {
-         char *libDir = Location_GetLibrary();
+      if (Location_Get) {
+         char *libDir = Location_Get("libDir");
          Bool success =    libDir
                         && DynBuf_Append(&dbpath, libDir, strlen(libDir));
 

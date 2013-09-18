@@ -70,11 +70,6 @@
 #define RANK_hgfsNodeArrayLock       (RANK_libLockBase + 0x4070)
 
 /*
- * SLPv2 global lock
- */
-#define RANK_slpv2GlobalLock         (RANK_libLockBase + 0x4305)
-
-/*
  * vigor (must be < VMDB range and < disklib, see bug 741290)
  */
 #define RANK_vigorOnlineLock         (RANK_libLockBase + 0x4400)
