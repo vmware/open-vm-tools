@@ -231,11 +231,6 @@ AsyncSocket *AsyncSocket_ListenWebSocketIP(const int32 ipAddr,
                                            AsyncSocketPollParams *pollParams,
                                            int *outError);
 
-AsyncSocket *AsyncSocket_BindUDP(unsigned short port,
-                                 void *clientData,
-                                 AsyncSocketPollParams *pollParams,
-                                 int *error);
-
 /*
  * Connect to address:port and fire callback with new asock
  */

@@ -679,50 +679,6 @@ AsyncSocket_ListenVMCI(unsigned int cid,                  // IN
 /*
  *----------------------------------------------------------------------------
  *
- * AsyncSocket_BindUDP --
- *
- *      Listens on the specified port and accepts new UDP connections.
- *
- * Results:
- *      New AsyncSocket in listening state or NULL on error.
- *
- * Side effects:
- *      Creates new socket, binds.
- *
- *----------------------------------------------------------------------------
- */
-
-AsyncSocket *
-AsyncSocket_BindUDP(unsigned short port,
-                    void *clientData,
-                    AsyncSocketPollParams *pollParams,
-                    int *outError)
-{
-   AsyncSocket *asock = AsyncSocketInit(AF_INET, SOCK_DGRAM, pollParams,
-                                        outError);
-
-   if (NULL != asock) {
-      struct sockaddr_in addr;
-
-      addr.sin_family = AF_INET;
-      addr.sin_addr.s_addr = htonl(INADDR_ANY);
-      addr.sin_port = htons(0);
-
-      if (AsyncSocketBind(asock, (struct sockaddr *)&addr, outError)) {
-         asock->connectFn = NULL;
-         asock->clientData = clientData;
-         asock->state = AsyncSocketConnected;
-
-         return asock;
-      }
-   }
-
-   return NULL;
-}
-
-/*
- *----------------------------------------------------------------------------
- *
  * AsyncSocketInit --
  *
  *      This is an internal routine that sets up a socket.
