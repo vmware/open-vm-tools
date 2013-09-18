@@ -367,7 +367,7 @@ void *_ReturnAddress(void);
 #elif __GNUC__
 #define GetReturnAddress() __builtin_return_address(0)
 
-#if VMKERNEL
+#ifdef VMKERNEL
 /*
  * Using __builtin_frame_address(N) and__builtin_return_address(N)
  * with N >= 1 causes crashes for code compiled without frame pointers.
