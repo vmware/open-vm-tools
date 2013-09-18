@@ -229,6 +229,8 @@ int File_MakeTempEx2(ConstUnicode dir,
                      void *createFuncData,
                      Unicode *presult);
 
+Unicode File_MakeSafeTempDir(ConstUnicode prefix);
+
 int64 File_GetModTime(ConstUnicode pathName);
 
 char *File_GetModTimeString(ConstUnicode pathName);

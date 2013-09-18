@@ -270,9 +270,48 @@ File_MakeTempEx(ConstUnicode dir,       // IN:
 /*
  *----------------------------------------------------------------------
  *
+ *  File_MakeSafeTempDir --
+ *
+ *      Create a temporary directory in a safe area.
+ *
+ *      Optional argument 'prefix' specifies the name prefix of the
+ *      created directory. When not provided a default will be provided.
+ *
+ * Results:
+ *      NULL  Failure
+ *     !NULL  Path name of created directory
+ *
+ * Side effects:
+ *      Creates a directory if successful. Errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+Unicode
+File_MakeSafeTempDir(ConstUnicode prefix)  // IN:
+{
+   Unicode result = NULL;
+   Unicode dir = File_GetSafeTmpDir(TRUE);
+
+   if (dir != NULL) {
+      ConstUnicode effectivePrefix = (prefix == NULL) ? "safeDir" : prefix;
+
+      File_MakeTempEx2(dir, FALSE, FileMakeTempExCreateNameFunc,
+                       (void *) effectivePrefix, &result);
+
+      Unicode_Free(dir);
+   }
+
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * File_MakeSafeTemp --
  *
- *      Exactly the same as File_MakeTemp except uses a safe directory
+ *      Exactly the same as File_MakeTempEx except uses a safe directory
  *      as the default temporary directory.
  *
  * Results:
@@ -280,6 +319,7 @@ File_MakeTempEx(ConstUnicode dir,       // IN:
  *
  * Side effects:
  *      Creates a file if successful.
+ *
  *----------------------------------------------------------------------
  */
 

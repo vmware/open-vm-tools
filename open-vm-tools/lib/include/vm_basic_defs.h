@@ -80,6 +80,10 @@
 #include "includeCheck.h"
 #include "vm_basic_types.h" // For INLINE.
 
+#if defined VMKERNEL
+#include "vm_assert.h"      // For ASSERT_ON_COMPILE.
+#endif
+
 /* Checks for FreeBSD, filtering out VMKERNEL. */
 #define __IS_FREEBSD__ (!defined(VMKERNEL) && defined(__FreeBSD__))
 #define __IS_FREEBSD_VER__(ver) (__IS_FREEBSD__ && __FreeBSD_version >= (ver))
@@ -362,6 +366,23 @@ void *_ReturnAddress(void);
 #define GetReturnAddress() _ReturnAddress()
 #elif __GNUC__
 #define GetReturnAddress() __builtin_return_address(0)
+
+#if VMKERNEL
+/*
+ * Using __builtin_frame_address(N) and__builtin_return_address(N)
+ * with N >= 1 causes crashes for code compiled without frame pointers.
+ * Use Stackwalk_ReturnAddress(N) instead. Or, to collect a backtrace 
+ * fragment, use STACKWALK_STORE_BACKTRACE().
+ */
+#define __builtin_frame_address(N) ({           \
+         ASSERT_ON_COMPILE(N == 0);             \
+         __builtin_frame_address(N);            \
+      })
+#define __builtin_return_address(N) ({          \
+         ASSERT_ON_COMPILE(N == 0);             \
+         __builtin_return_address(N);           \
+      })
+#endif
 #endif
 
 

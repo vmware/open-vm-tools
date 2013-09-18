@@ -1143,7 +1143,7 @@ Eth_GetPayload(const void *frame)
 
 static INLINE Bool
 Eth_IsFrameHeaderComplete(const Eth_Header *eh,
-                          const uint16 len,
+                          const uint32 len,
                           uint16 *ehHdrLen)
 {
    uint16 ehLen;
