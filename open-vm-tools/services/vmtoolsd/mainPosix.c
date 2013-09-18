@@ -89,6 +89,7 @@ ToolsCoreSigHandler(const siginfo_t *info,
 
 /**
  * Handles a USR1 signal; logs the current service state.
+ * Also shutdown rpc connection so we can do tools upgrade.
  *
  * @param[in]  info     Unused.
  * @param[in]  data     Unused.
@@ -101,6 +102,13 @@ ToolsCoreSigUsrHandler(const siginfo_t *info,
                        gpointer data)
 {
    ToolsCore_DumpState(&gState);
+
+   g_info("Shutting down guestrpc on signal USR1 ...\n");
+   if (strcmp(gState.ctx.name, VMTOOLS_USER_SERVICE) == 0) {
+      RpcChannel_Shutdown(gState.ctx.rpc);
+      gState.ctx.rpc = NULL;
+   }
+
    return TRUE;
 }
 

@@ -633,8 +633,7 @@ RpcChannel *
 RpcChannel_New(void)
 {
    RpcChannel *chan;
-#if 0   /* defined(linux) || defined(_WIN32)
-           This is a temporarily workaround for bug 1053489 */
+#if defined(linux) || defined(_WIN32)
    chan = VSockChannel_New();
 #else
    chan = BackdoorChannel_New();
@@ -661,8 +660,16 @@ RpcChannel_Shutdown(RpcChannel *chan)
 
    if (chan != NULL && chan->funcs != NULL && chan->funcs->shutdown != NULL) {
       if (chan->in != NULL) {
+         if (chan->inStarted) {
+            RpcIn_stop(chan->in);
+         }
+         chan->inStarted = FALSE;
          RpcIn_Destruct(chan->in);
+         chan->in = NULL;
+      } else {
+         ASSERT(!chan->inStarted);
       }
+
       if (chan->mainCtx != NULL) {
          g_main_context_unref(chan->mainCtx);
       }
@@ -694,11 +701,9 @@ RpcChannel_Start(RpcChannel *chan)
       /* Already started. Make sure both channels are in sync and return. */
       ASSERT(chan->in == NULL || chan->inStarted);
       return TRUE;
-   } else {
-      ASSERT(chan->in == NULL || !chan->inStarted);
    }
 
-   if (chan->in != NULL) {
+   if (chan->in != NULL && !chan->inStarted) {
       ok = RpcIn_start(chan->in, RPCIN_MAX_DELAY, RpcChannel_Error, chan);
       chan->inStarted = ok;
    }

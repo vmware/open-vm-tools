@@ -300,6 +300,8 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
    SockConnError error = SOCKERR_GENERIC;
    int sysErr;
    socklen_t addrLen = sizeof addr;
+   int vsockDev = -1;
+   int family = VMCISock_GetAFValueFd(&vsockDev);
 
    if (outError) {
       *outError = SOCKERR_SUCCESS;
@@ -309,8 +311,13 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
       goto error;
    }
 
+   if (family == -1) {
+      g_warning(LGPFX "Couldn't get VMCI socket family info.");
+      goto error;
+   }
+
    memset((char *)&addr, 0, sizeof addr);
-   addr.svm_family = VMCISock_GetAFValue();
+   addr.svm_family = family;
    addr.svm_cid = cid;
    addr.svm_port = port;
 
@@ -383,6 +390,7 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
       goto error;
    }
 
+   VMCISock_ReleaseAFValueFd(vsockDev);
    g_debug(LGPFX "socket %d connected\n", fd);
    return fd;
 
@@ -390,6 +398,7 @@ error:
    if (outError) {
       *outError = error;
    }
+   VMCISock_ReleaseAFValueFd(vsockDev);
 
    return INVALID_SOCKET;
 }

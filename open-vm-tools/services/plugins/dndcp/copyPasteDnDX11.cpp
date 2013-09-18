@@ -154,16 +154,10 @@ gboolean
 BlockService::ShutdownSignalHandler(const siginfo_t *siginfo,
                                     gpointer data)
 {
-   ToolsAppCtx *ctx = (ToolsAppCtx *)data;
    TRACE_CALL();
 
+   g_debug("Shutting down block service on SIGUSR1 ...\n");
    GetInstance()->Shutdown();
-
-   /* shutdown rpc channel to free up VMCI/VSOCKET module usage */
-   if (ctx->rpc != NULL) {
-      RpcChannel_Shutdown(ctx->rpc);
-      ctx->rpc = NULL;
-   }
 
    return FALSE;
 }
