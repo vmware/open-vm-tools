@@ -25,25 +25,30 @@
 
 #define G_LOG_DOMAIN "dndcp"
 
+#include "xutils/xutils.hh"
+
 #include "dndUIX11.h"
 #include "guestDnDCPMgr.hh"
 #include "tracer.hh"
 
 extern "C" {
-#include "vmblock.h"
-#include "file.h"
-#include "copyPasteCompat.h"
-#include "dnd.h"
-#include "dndMsg.h"
-#include "dndClipboard.h"
-#include "cpName.h"
-#include "cpNameUtil.h"
-#include "hostinfo.h"
-#include "rpcout.h"
+#include <X11/extensions/XTest.h>       /* for XTest*() */
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
-#include <X11/extensions/XTest.h>       /* for XTest*() */
+#include <X11/Xatom.h>
+
 #include "vmware/guestrpc/tclodefs.h"
+
+#include "copyPasteCompat.h"
+#include "cpName.h"
+#include "cpNameUtil.h"
+#include "dnd.h"
+#include "dndClipboard.h"
+#include "dndMsg.h"
+#include "file.h"
+#include "hostinfo.h"
+#include "rpcout.h"
+#include "vmblock.h"
 }
 
 /* IsXExtensionPointer may be not defined with old Xorg. */
@@ -53,67 +58,99 @@ extern "C" {
 
 #include "copyPasteDnDWrapper.h"
 
-/**
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * Constructor.
+ * DnDUIX11::DnDUIX11 --
+ *
+ *      Constructor.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
-    : m_ctx(ctx),
-      m_DnD(NULL),
-      m_detWnd(NULL),
-      m_blockCtrl(NULL),
-      m_HGGetFileStatus(DND_FILE_TRANSFER_NOT_STARTED),
-      m_blockAdded(false),
-      m_GHDnDInProgress(false),
-      m_GHDnDDataReceived(false),
-      m_unityMode(false),
-      m_inHGDrag(false),
-      m_effect(DROP_NONE),
-      m_mousePosX(0),
-      m_mousePosY(0),
-      m_dc(NULL),
-      m_numPendingRequest(0),
-      m_destDropTime(0),
-      mTotalFileSize(0)
+    : mCtx(ctx),
+      mDnD(NULL),
+      mDetWnd(NULL),
+      mBlockCtrl(NULL),
+      mHGGetFileStatus(DND_FILE_TRANSFER_NOT_STARTED),
+      mBlockAdded(false),
+      mGHDnDInProgress(false),
+      mGHDnDDataReceived(false),
+      mUnityMode(false),
+      mInHGDrag(false),
+      mEffect(DROP_NONE),
+      mMousePosX(0),
+      mMousePosY(0),
+      mDragCtx(NULL),
+      mNumPendingRequest(0),
+      mDestDropTime(0),
+      mTotalFileSize(0),
+      mOrigin(0, 0)
 {
    TRACE_CALL();
+
+   xutils::Init();
+   xutils::workAreaChanged.connect(sigc::mem_fun(this, &DnDUIX11::OnWorkAreaChanged));
+
+   /*
+    * XXX Hard coded use of default screen means this doesn't work in dual-
+    * headed setups (e.g. DISPLAY=:0.1).  However, the number of people running
+    * such setups in VMs is expected to be, like, hella small, so I'mma cut
+    * corners for now.
+    */
+   OnWorkAreaChanged(Gdk::Screen::get_default());
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Destructor.
+ * DnDUIX11::~DnDUIX11 --
+ *
+ *      Destructor.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 DnDUIX11::~DnDUIX11()
 {
    TRACE_CALL();
-   if (m_detWnd) {
-      delete m_detWnd;
+
+   if (mDetWnd) {
+      delete mDetWnd;
    }
-   CPClipboard_Destroy(&m_clipboard);
+   CPClipboard_Destroy(&mClipboard);
    /* Any files from last unfinished file transfer should be deleted. */
-   if (DND_FILE_TRANSFER_IN_PROGRESS == m_HGGetFileStatus &&
-       !m_HGStagingDir.empty()) {
-      uint64 totalSize = File_GetSizeEx(m_HGStagingDir.c_str());
+   if (   DND_FILE_TRANSFER_IN_PROGRESS == mHGGetFileStatus
+       && !mHGStagingDir.empty()) {
+      uint64 totalSize = File_GetSizeEx(mHGStagingDir.c_str());
       if (mTotalFileSize != totalSize) {
          g_debug("%s: deleting %s, expecting %"FMT64"d, finished %"FMT64"d\n",
-                 __FUNCTION__, m_HGStagingDir.c_str(),
+                 __FUNCTION__, mHGStagingDir.c_str(),
                  mTotalFileSize, totalSize);
-         DnD_DeleteStagingFiles(m_HGStagingDir.c_str(), FALSE);
+         DnD_DeleteStagingFiles(mHGStagingDir.c_str(), FALSE);
       } else {
          g_debug("%s: file size match %s\n",
-                 __FUNCTION__, m_HGStagingDir.c_str());
+                 __FUNCTION__, mHGStagingDir.c_str());
       }
    }
-   CommonResetCB();
+   ResetUI();
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Initialize DnDUIX11 object.
+ * DnDUIX11::Init --
+ *
+ *      Initialize DnDUIX11 object.
+ *
+ * Results:
+ *      Returns true on success and false on failure.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 bool
@@ -122,15 +159,15 @@ DnDUIX11::Init()
    TRACE_CALL();
    bool ret = true;
 
-   CPClipboard_Init(&m_clipboard);
+   CPClipboard_Init(&mClipboard);
 
    GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
    ASSERT(p);
-   m_DnD = p->GetDnDMgr();
-   ASSERT(m_DnD);
+   mDnD = p->GetDnDMgr();
+   ASSERT(mDnD);
 
-   m_detWnd = new DragDetWnd();
-   if (!m_detWnd) {
+   mDetWnd = new DragDetWnd();
+   if (!mDetWnd) {
       g_debug("%s: unable to allocate DragDetWnd object\n", __FUNCTION__);
       goto fail;
    }
@@ -142,70 +179,73 @@ DnDUIX11::Init()
     * Gtk::Invisible, which doesn't implement the methods that SetAttributes
     * relies upon.
     */
-   m_detWnd->SetAttributes();
+   mDetWnd->SetAttributes();
 #endif
 
-   SetTargetsAndCallbacks();
+   InitGtk();
 
 #define CONNECT_SIGNAL(_obj, _sig, _cb) \
    _obj->_sig.connect(sigc::mem_fun(this, &DnDUIX11::_cb))
 
    /* Set common layer callbacks. */
-   CONNECT_SIGNAL(m_DnD, srcDragBeginChanged,   CommonDragStartCB);
-   CONNECT_SIGNAL(m_DnD, srcDropChanged,        CommonSourceDropCB);
-   CONNECT_SIGNAL(m_DnD, srcCancelChanged,      CommonSourceCancelCB);
-   CONNECT_SIGNAL(m_DnD, destCancelChanged,     CommonDestCancelCB);
-   CONNECT_SIGNAL(m_DnD, destMoveDetWndToMousePosChanged, CommonMoveDetWndToMousePos);
-   CONNECT_SIGNAL(m_DnD, getFilesDoneChanged,   CommonSourceFileCopyDoneCB);
-   CONNECT_SIGNAL(m_DnD, moveMouseChanged,      CommonUpdateMouseCB);
-   CONNECT_SIGNAL(m_DnD, privDropChanged,       CommonDestPrivateDropCB);
-   CONNECT_SIGNAL(m_DnD, updateDetWndChanged,   CommonUpdateDetWndCB);
-   CONNECT_SIGNAL(m_DnD, updateUnityDetWndChanged, CommonUpdateUnityDetWndCB);
+   CONNECT_SIGNAL(mDnD, srcDragBeginChanged,   OnSrcDragBegin);
+   CONNECT_SIGNAL(mDnD, srcDropChanged,        OnSrcDrop);
+   CONNECT_SIGNAL(mDnD, srcCancelChanged,      OnSrcCancel);
+   CONNECT_SIGNAL(mDnD, destCancelChanged,     OnDestCancel);
+   CONNECT_SIGNAL(mDnD, destMoveDetWndToMousePosChanged, OnDestMoveDetWndToMousePos);
+   CONNECT_SIGNAL(mDnD, getFilesDoneChanged,   OnGetFilesDone);
+   CONNECT_SIGNAL(mDnD, moveMouseChanged,      OnMoveMouse);
+   CONNECT_SIGNAL(mDnD, privDropChanged,       OnPrivateDrop);
+   CONNECT_SIGNAL(mDnD, updateDetWndChanged,   OnUpdateDetWnd);
+   CONNECT_SIGNAL(mDnD, updateUnityDetWndChanged, OnUpdateUnityDetWnd);
 
    /* Set Gtk+ callbacks for source. */
-   CONNECT_SIGNAL(m_detWnd, signal_drag_begin(),        GtkSourceDragBeginCB);
-   CONNECT_SIGNAL(m_detWnd, signal_drag_data_get(),     GtkSourceDragDataGetCB);
-   CONNECT_SIGNAL(m_detWnd, signal_drag_end(),          GtkSourceDragEndCB);
-   CONNECT_SIGNAL(m_detWnd, signal_enter_notify_event(), GtkEnterEventCB);
-   CONNECT_SIGNAL(m_detWnd, signal_leave_notify_event(), GtkLeaveEventCB);
-   CONNECT_SIGNAL(m_detWnd, signal_map_event(),         GtkMapEventCB);
-   CONNECT_SIGNAL(m_detWnd, signal_unmap_event(),       GtkUnmapEventCB);
-   CONNECT_SIGNAL(m_detWnd, signal_realize(),           GtkRealizeEventCB);
-   CONNECT_SIGNAL(m_detWnd, signal_unrealize(),         GtkUnrealizeEventCB);
-   CONNECT_SIGNAL(m_detWnd, signal_motion_notify_event(), GtkMotionNotifyEventCB);
-   CONNECT_SIGNAL(m_detWnd, signal_configure_event(),   GtkConfigureEventCB);
-   CONNECT_SIGNAL(m_detWnd, signal_button_press_event(), GtkButtonPressEventCB);
-   CONNECT_SIGNAL(m_detWnd, signal_button_release_event(), GtkButtonReleaseEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_drag_begin(),        OnGtkDragBegin);
+   CONNECT_SIGNAL(mDetWnd, signal_drag_data_get(),     OnGtkDragDataGet);
+   CONNECT_SIGNAL(mDetWnd, signal_drag_end(),          OnGtkDragEnd);
+   CONNECT_SIGNAL(mDetWnd, signal_enter_notify_event(), GtkEnterEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_leave_notify_event(), GtkLeaveEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_map_event(),         GtkMapEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_unmap_event(),       GtkUnmapEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_realize(),           GtkRealizeEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_unrealize(),         GtkUnrealizeEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_motion_notify_event(), GtkMotionNotifyEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_configure_event(),   GtkConfigureEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_button_press_event(), GtkButtonPressEventCB);
+   CONNECT_SIGNAL(mDetWnd, signal_button_release_event(), GtkButtonReleaseEventCB);
 
 #undef CONNECT_SIGNAL
 
-   CommonUpdateDetWndCB(false, 0, 0);
-   CommonUpdateUnityDetWndCB(false, 0, false);
+   OnUpdateDetWnd(false, 0, 0);
+   OnUpdateUnityDetWnd(false, 0, false);
    goto out;
 fail:
    ret = false;
-   if (m_DnD) {
-      delete m_DnD;
-      m_DnD = NULL;
+   if (mDnD) {
+      delete mDnD;
+      mDnD = NULL;
    }
-   if (m_detWnd) {
-      delete m_detWnd;
-      m_detWnd = NULL;
+   if (mDetWnd) {
+      delete mDetWnd;
+      mDetWnd = NULL;
    }
 out:
    return ret;
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Setup targets we support, claim ourselves as a drag destination, and
- * register callbacks for Gtk+ drag and drop callbacks the platform will
- * send to us.
+ * DnDUIX11::InitGtk --
+ *
+ *      Register supported DND target types and signal handlers with GTK+.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::SetTargetsAndCallbacks()
+DnDUIX11::InitGtk()
 {
    TRACE_CALL();
 
@@ -238,56 +278,81 @@ DnDUIX11::SetTargetsAndCallbacks()
     * but in our case, we will call drag_get_data during DragMotion, and
     * will cause X dead with DEST_DEFAULT_ALL. The reason is unclear.
     */
-   m_detWnd->drag_dest_set(targets, Gtk::DEST_DEFAULT_MOTION,
-                           Gdk::ACTION_COPY | Gdk::ACTION_MOVE);
-   m_detWnd->signal_drag_leave().connect(sigc::mem_fun(this, &DnDUIX11::GtkDestDragLeaveCB));
-   m_detWnd->signal_drag_motion().connect(sigc::mem_fun(this, &DnDUIX11::GtkDestDragMotionCB));
-   m_detWnd->signal_drag_drop().connect(sigc::mem_fun(this, &DnDUIX11::GtkDestDragDropCB));
-   m_detWnd->signal_drag_data_received().connect(sigc::mem_fun(this, &DnDUIX11::GtkDestDragDataReceivedCB));
+   mDetWnd->drag_dest_set(targets, Gtk::DEST_DEFAULT_MOTION,
+                          Gdk::ACTION_COPY | Gdk::ACTION_MOVE);
+
+   mDetWnd->signal_drag_leave().connect(
+      sigc::mem_fun(this, &DnDUIX11::OnGtkDragLeave));
+   mDetWnd->signal_drag_motion().connect(
+      sigc::mem_fun(this, &DnDUIX11::OnGtkDragMotion));
+   mDetWnd->signal_drag_drop().connect(
+      sigc::mem_fun(this, &DnDUIX11::OnGtkDragDrop));
+   mDetWnd->signal_drag_data_received().connect(
+      sigc::mem_fun(this, &DnDUIX11::OnGtkDragDataReceived));
 }
 
-/* Begin of callbacks issued by common layer code */
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Reset Callback to reset dnd ui state.
+ * DnDUIX11::ResetUI --
+ *
+ *      Reset UI state variables.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      May remove a vmblock blocking entry.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonResetCB(void)
+DnDUIX11::ResetUI()
 {
    TRACE_CALL();
-   m_GHDnDDataReceived = false;
-   m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
-   m_GHDnDInProgress = false;
-   m_effect = DROP_NONE;
-   m_inHGDrag = false;
-   m_dc = NULL;
+   mGHDnDDataReceived = false;
+   mHGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
+   mGHDnDInProgress = false;
+   mEffect = DROP_NONE;
+   mInHGDrag = false;
+   mDragCtx = NULL;
    RemoveBlock();
 }
 
 
 /* Source functions for HG DnD. */
 
-/**
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * Called when host successfully detected a pending HG drag.
+ * DnDUIX11::OnSrcDragBegin --
  *
- * param[in] clip cross-platform clipboard
- * param[in] stagingDir associated staging directory
+ *      Called when host successfully detected a pending HG drag.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Calls mDetWnd->drag_begin().
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
+DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
+                         const std::string stagingDir)  // IN
 {
    Glib::RefPtr<Gtk::TargetList> targets;
    Gdk::DragAction actions;
    GdkEventMotion event;
 
-   CPClipboard_Clear(&m_clipboard);
-   CPClipboard_Copy(&m_clipboard, clip);
-
    TRACE_CALL();
+
+   CPClipboard_Clear(&mClipboard);
+   CPClipboard_Copy(&mClipboard, clip);
 
    /*
     * Before the DnD, we should make sure that the mouse is released
@@ -295,7 +360,7 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
     * a press here to cover this case.
     */
    SendFakeXEvents(false, true, false, false, false, 0, 0);
-   SendFakeXEvents(true, true, true, false, true, 0, 0);
+   SendFakeXEvents(true, true, true, true, true, mOrigin.get_x(), mOrigin.get_y());
 
    /*
     * Construct the target and action list, as well as a fake motion notify
@@ -303,9 +368,9 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
     */
    targets = Gtk::TargetList::create(std::list<Gtk::TargetEntry>());
 
-   if (CPClipboard_ItemExists(&m_clipboard, CPFORMAT_FILELIST)) {
-      m_HGStagingDir = stagingDir;
-      if (!m_HGStagingDir.empty()) {
+   if (CPClipboard_ItemExists(&mClipboard, CPFORMAT_FILELIST)) {
+      mHGStagingDir = stagingDir;
+      if (!mHGStagingDir.empty()) {
          targets->add(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
          /* Add private data to tag dnd as originating from this vm. */
          char *pid;
@@ -318,20 +383,20 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
       }
    }
 
-   if (CPClipboard_ItemExists(&m_clipboard, CPFORMAT_FILECONTENTS)) {
+   if (CPClipboard_ItemExists(&mClipboard, CPFORMAT_FILECONTENTS)) {
       if (WriteFileContentsToStagingDir()) {
          targets->add(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
       }
    }
 
-   if (CPClipboard_ItemExists(&m_clipboard, CPFORMAT_TEXT)) {
+   if (CPClipboard_ItemExists(&mClipboard, CPFORMAT_TEXT)) {
       targets->add(Glib::ustring(TARGET_NAME_STRING));
       targets->add(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
       targets->add(Glib::ustring(TARGET_NAME_UTF8_STRING));
       targets->add(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
    }
 
-   if (CPClipboard_ItemExists(&m_clipboard, CPFORMAT_RTF)) {
+   if (CPClipboard_ItemExists(&mClipboard, CPFORMAT_RTF)) {
       targets->add(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
       targets->add(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
    }
@@ -340,7 +405,7 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
 
    /* TODO set the x/y coords to the actual drag initialization point. */
    event.type = GDK_MOTION_NOTIFY;
-   event.window = m_detWnd->get_window()->gobj();
+   event.window = mDetWnd->get_window()->gobj();
    event.send_event = false;
    event.time = GDK_CURRENT_TIME;
    event.x = 10;
@@ -349,27 +414,38 @@ DnDUIX11::CommonDragStartCB(const CPClipboard *clip, std::string stagingDir)
    event.state = GDK_BUTTON1_MASK;
    event.is_hint = 0;
    event.device = gdk_device_get_core_pointer();
-   event.x_root = 0;
-   event.y_root = 5;
+   event.x_root = mOrigin.get_x();
+   event.y_root = mOrigin.get_y();
 
    /* Tell Gtk that a drag should be started from this widget. */
-   m_detWnd->drag_begin(targets, actions, 1, (GdkEvent *)&event);
-   m_blockAdded = false;
-   m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
+   mDetWnd->drag_begin(targets, actions, 1, (GdkEvent *)&event);
+   mBlockAdded = false;
+   mHGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    SourceDragStartDone();
    /* Initialize host hide feedback to DROP_NONE. */
-   m_effect = DROP_NONE;
-   SourceUpdateFeedback(m_effect);
+   mEffect = DROP_NONE;
+   SourceUpdateFeedback(mEffect);
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Cancel current HG DnD.
+ * DnDUIX11::OnSrcCancel --
+ *
+ *      Handler for when host cancels HG drag.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Detection window and fake mouse events.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonSourceCancelCB(void)
+DnDUIX11::OnSrcCancel()
 {
    TRACE_CALL();
 
@@ -379,142 +455,188 @@ DnDUIX11::CommonSourceCancelCB(void)
     * flybacks when we cancel as user moves mouse in and out of destination
     * window in a H->G DnD.
     */
-   CommonUpdateDetWndCB(true, 0, 0);
-   SendFakeXEvents(true, true, false, true, true, 0, 0);
-   CommonUpdateDetWndCB(false, 0, 0);
-   m_inHGDrag = false;
-   m_HGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
-   m_effect = DROP_NONE;
+   OnUpdateDetWnd(true, 0, 0);
+   SendFakeXEvents(true, true, false, true, true, mOrigin.get_x(), mOrigin.get_y());
+   OnUpdateDetWnd(false, 0, 0);
+   mInHGDrag = false;
+   mHGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
+   mEffect = DROP_NONE;
    RemoveBlock();
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Handle common layer private drop CB.
+ * DnDUIX11::OnPrivateDrop --
  *
- * @param[in] x position to release the mouse button (ignored).
- * @param[in] y position to release the mouse button (ignored).
+ *      Handler for private drop event.
  *
- * @note We ignore the coordinates, because we just need to release the mouse
- * in its current position.
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Releases mouse button at current position.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonDestPrivateDropCB(int32 x,
-                                  int32 y)
+DnDUIX11::OnPrivateDrop(int32 x,        // UNUSED
+                        int32 y)        // UNUSED
 {
    TRACE_CALL();
+
    /* Unity manager in host side may already send the drop into guest. */
-   if (m_GHDnDInProgress) {
+   if (mGHDnDInProgress) {
 
       /*
        * Release the mouse button.
        */
       SendFakeXEvents(false, true, false, false, false, 0, 0);
    }
-   CommonResetCB();
+   ResetUI();
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Cancel current DnD (G->H only).
+ * DnDUIX11::OnDestCancel --
+ *
+ *      Handler for GH drag cancellation.
+ *
+ *      Note: This event fires as part of the complete guest-to-host sequence,
+ *      not just error or user cancellation.
+ *
+ * Results:
+ *      Uses detection window and fake mouse events to intercept drop.
+ *
+ * Side effects:
+ *      Reinitializes UI state.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonDestCancelCB(void)
+DnDUIX11::OnDestCancel()
 {
    TRACE_CALL();
-   /* Unity manager in host side may already send the drop into guest. */
-   if (m_GHDnDInProgress) {
-      CommonUpdateDetWndCB(true, 0, 0);
 
+   /* Unity manager in host side may already send the drop into guest. */
+   if (mGHDnDInProgress) {
       /*
        * Show the window, move it to the mouse position, and release the
        * mouse button.
        */
-      SendFakeXEvents(true, true, false, true, false, 0, 0);
+      SendFakeXEvents(true, true, false, true, false, mOrigin.get_x(),
+                      mOrigin.get_y());
    }
-   m_destDropTime = GetTimeInMillis();
-   CommonResetCB();
+   mDestDropTime = GetTimeInMillis();
+   ResetUI();
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Got drop from host side. Release the mouse button in the detection window
+ * DnDUIX11::OnSrcDrop --
+ *
+ *      Callback when host signals drop.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Release the mouse button in the detection window.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonSourceDropCB(void)
+DnDUIX11::OnSrcDrop()
 {
    TRACE_CALL();
-   CommonUpdateDetWndCB(true, 0, 0);
+   OnUpdateDetWnd(true, mOrigin.get_x(), mOrigin.get_y());
 
    /*
     * Move the mouse to the saved coordinates, and release the mouse button.
     */
-   SendFakeXEvents(false, true, false, false, true, m_mousePosX, m_mousePosY);
-   CommonUpdateDetWndCB(false, 0, 0);
+   SendFakeXEvents(false, true, false, false, true, mMousePosX, mMousePosY);
+   OnUpdateDetWnd(false, 0, 0);
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Callback when file transfer is done, which finishes the file
- * copying from host to guest staging directory.
+ * DnDUIX11::OnGetFilesDone --
  *
- * @param[in] success if true, transfer was successful
+ *      Callback when HG file transfer completes.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Releases vmblock blocking entry.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonSourceFileCopyDoneCB(bool success)
+DnDUIX11::OnGetFilesDone(bool success)  // IN: true if transfer succeeded
 {
    g_debug("%s: %s\n", __FUNCTION__, success ? "success" : "failed");
 
    /*
-    * If hg drag is not done yet, only remove block. GtkSourceDragEndCB will
-    * call CommonResetCB(). Otherwise destination may miss the data because
+    * If hg drag is not done yet, only remove block. OnGtkDragEnd will
+    * call ResetUI(). Otherwise destination may miss the data because
      * we are already reset.
     */
 
-   m_HGGetFileStatus = DND_FILE_TRANSFER_FINISHED;
+   mHGGetFileStatus = DND_FILE_TRANSFER_FINISHED;
 
-   if (!m_inHGDrag) {
-      CommonResetCB();
+   if (!mInHGDrag) {
+      ResetUI();
    } else {
       RemoveBlock();
    }
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Shows/hides drag detection windows based on the mask.
+ * DnDUIX11::OnUpdateDetWnd --
  *
- * @param[in] bShow if true, show the window, else hide it.
- * @param[in] x x-coordinate to which the detection window needs to be moved
- * @param[in] y y-coordinate to which the detection window needs to be moved
+ *      Callback to show/hide drag detection window.
+ *
+ * Results:
+ *      Shows/hides and moves detection window.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonUpdateDetWndCB(bool bShow,
-                               int32 x,
-                               int32 y)
+DnDUIX11::OnUpdateDetWnd(bool show,     // IN: show (true) or hide (false)
+                         int32 x,       // IN: detection window's destination x-coord
+                         int32 y)       // IN: detection window's destination y-coord
 {
    g_debug("%s: enter 0x%lx show %d x %d y %d\n",
          __FUNCTION__,
-         (unsigned long) m_detWnd->get_window()->gobj(), bShow, x, y);
+         (unsigned long) mDetWnd->get_window()->gobj(), show, x, y);
 
    /* If the window is being shown, move it to the right place. */
-   if (bShow) {
+   if (show) {
       x = MAX(x - DRAG_DET_WINDOW_WIDTH / 2, 0);
       y = MAX(y - DRAG_DET_WINDOW_WIDTH / 2, 0);
 
-      m_detWnd->Show();
-      m_detWnd->Raise();
-      m_detWnd->SetGeometry(x, y, DRAG_DET_WINDOW_WIDTH * 2, DRAG_DET_WINDOW_WIDTH * 2);
+      mDetWnd->Show();
+      mDetWnd->Raise();
+      mDetWnd->SetGeometry(x, y, DRAG_DET_WINDOW_WIDTH * 2, DRAG_DET_WINDOW_WIDTH * 2);
       g_debug("%s: show at (%d, %d, %d, %d)\n", __FUNCTION__, x, y, DRAG_DET_WINDOW_WIDTH * 2, DRAG_DET_WINDOW_WIDTH * 2);
       /*
        * Wiggle the mouse here. Especially for G->H DnD, this improves
@@ -523,46 +645,54 @@ DnDUIX11::CommonUpdateDetWndCB(bool bShow,
        */
 
       SendFakeMouseMove(x + 2, y + 2);
-      m_detWnd->SetIsVisible(true);
+      mDetWnd->SetIsVisible(true);
    } else {
       g_debug("%s: hide\n", __FUNCTION__);
-      m_detWnd->Hide();
-      m_detWnd->SetIsVisible(false);
+      mDetWnd->Hide();
+      mDetWnd->SetIsVisible(false);
    }
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Shows/hides full-screen Unity drag detection window.
+ * DnDUIX11::OnUpdateUnityDetWnd --
  *
- * @param[in] bShow if true, show the window, else hide it.
- * @param[in] unityWndId active front window
- * @param[in] bottom if true, adjust the z-order to be bottom most.
+ *      Callback to show/hide fullscreen Unity drag detection window.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Detection window shown, hidden.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonUpdateUnityDetWndCB(bool bShow,
-                                    uint32 unityWndId,
-                                    bool bottom)
+DnDUIX11::OnUpdateUnityDetWnd(bool show,         // IN: show (true) or hide (false)
+                              uint32 unityWndId, // IN: XXX ?
+                              bool bottom)       // IN: place window at bottom of stack?
 {
    g_debug("%s: enter 0x%lx unityID 0x%x\n",
          __FUNCTION__,
-         (unsigned long) m_detWnd->get_window()->gobj(),
+         (unsigned long) mDetWnd->get_window()->gobj(),
          unityWndId);
-   if (bShow && ((unityWndId > 0) || bottom)) {
-      int width = m_detWnd->GetScreenWidth();
-      int height = m_detWnd->GetScreenHeight();
-      m_detWnd->SetGeometry(0, 0, width, height);
-      m_detWnd->Show();
+
+   if (show && ((unityWndId > 0) || bottom)) {
+      int width = mDetWnd->GetScreenWidth();
+      int height = mDetWnd->GetScreenHeight();
+      mDetWnd->SetGeometry(0, 0, width, height);
+      mDetWnd->Show();
       if (bottom) {
-         m_detWnd->Lower();
+         mDetWnd->Lower();
       }
 
       g_debug("%s: show, (0, 0, %d, %d)\n", __FUNCTION__, width, height);
    } else {
-      if (m_detWnd->GetIsVisible() == true) {
-         if (m_unityMode) {
+      if (mDetWnd->GetIsVisible() == true) {
+         if (mUnityMode) {
 
             /*
              * Show and move detection window to current mouse position
@@ -571,110 +701,133 @@ DnDUIX11::CommonUpdateUnityDetWndCB(bool bShow,
             SendFakeXEvents(true, false, true, true, false, 0, 0);
          }
       } else {
-         m_detWnd->Hide();
+         mDetWnd->Hide();
          g_debug("%s: hide\n", __FUNCTION__);
       }
    }
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Move detection windows to current cursor position.
+ * DnDUIX11::OnDestMoveDetWndToMousePos --
+ *
+ *      Callback to move detection window to current moue position.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Detection window is moved, shown.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonMoveDetWndToMousePos(void)
+DnDUIX11::OnDestMoveDetWndToMousePos()
 {
    SendFakeXEvents(true, false, true, true, false, 0, 0);
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Handle request from common layer to update mouse position.
+ * DnDUIX11::OnMoveMouse --
  *
- * @param[in] x x coordinate of pointer
- * @param[in] y y coordinate of pointer
+ *      Callback to update mouse position.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Moves mouse.  Duh.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::CommonUpdateMouseCB(int32 x,
-                              int32 y)
+DnDUIX11::OnMoveMouse(int32 x,  // IN: Pointer x-coord
+                      int32 y)  // IN: Pointer y-coord
 {
    // Position the pointer, and record its position.
 
    SendFakeXEvents(false, false, false, false, true, x, y);
-   m_mousePosX = x;
-   m_mousePosY = y;
+   mMousePosX = x;
+   mMousePosY = y;
 
-   if (m_dc && !m_GHDnDInProgress) {
+   if (mDragCtx && !mGHDnDInProgress) {
 
       // If we are the context of a DnD, send DnD feedback to the source.
 
       DND_DROPEFFECT effect;
-      effect = ToDropEffect((Gdk::DragAction)(m_dc->action));
-      if (effect != m_effect) {
-         m_effect = effect;
+      effect = ToDropEffect((Gdk::DragAction)(mDragCtx->action));
+      if (effect != mEffect) {
+         mEffect = effect;
          g_debug("%s: Updating feedback\n", __FUNCTION__);
-         SourceUpdateFeedback(m_effect);
+         SourceUpdateFeedback(mEffect);
       }
    }
 }
 
-/* Beginning of Gtk+ Callbacks */
 
 /*
- * Source callbacks from Gtk+. Most are seen only when we are acting as a
- * drag source.
+ ****************************************************************************
+ * BEGIN GTK+ Callbacks (dndcp as drag source: host-to-guest)
  */
 
-/**
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * "drag_motion" signal handler for GTK. We should respond by setting drag
- * status. Note that there is no drag enter signal. We need to figure out
- * if a new drag is happening on our own. Also, we don't respond with a
- * "allowed" drag status right away, we start a new drag operation over VMDB
- * (which tries to notify the host of the new operation). Once the host has
- * responded), we respond with a proper drag status.
+ * DnDUIX11::OnGtkDragMotion --
  *
- * @param[in] dc associated drag context
- * @param[in] x x coordinate of the drag motion
- * @param[in] y y coordinate of the drag motion
- * @param[in] time time of the drag motion
+ *      GTK "drag_motion" signal handler.
  *
- * @return returning false means we won't get notified of future motion. So,
- * we only return false if we don't recognize the types being offered. We
- * return true otherwise, even if we don't accept the drag right now for some
- * other reason.
+ *      We should respond by setting drag status. Note that there is no drag
+ *      enter signal. We need to figure out if a new drag is happening on
+ *      our own. Also, we don't respond with a "allowed" drag status right
+ *      away, we start a new drag operation with the host (which tries to
+ *      notify the host of the new operation). Once the host has responded),
+ *      we respond with a proper drag status.
  *
- * @note you may see this callback during DnD when detection window is acting
- * as a source. In that case it will be ignored. In a future refactoring,
- * we will try and avoid this.
+ *      Note: You may see this callback during DnD when detection window
+ *      is acting as a source. In that case it will be ignored. In a future
+ *      refactoring, we will try and avoid this.
+ *
+ * Results:
+ *      Returns true unless we don't recognize the types offered.
+ *
+ * Side effects:
+ *      Via RequestData issues a Gtk::Widget::drag_get_data.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 bool
-DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
-                              int x,
-                              int y,
-                              guint timeValue)
+DnDUIX11::OnGtkDragMotion(
+   const Glib::RefPtr<Gdk::DragContext> &dc,    // IN: GTK drag context
+   int x,                                       // IN: drag motion x-coord
+   int y,                                       // IN: drag motion y-coord
+   guint timeValue)                             // IN: event timestamp
 {
    /*
     * If this is a Host to Guest drag, we are done here, so return.
     */
    unsigned long curTime = GetTimeInMillis();
-   g_debug("%s: enter dc %p, m_dc %p\n", __FUNCTION__,
-         dc ? dc->gobj() : NULL, m_dc ? m_dc : NULL);
-   if (curTime - m_destDropTime <= 1000) {
+   g_debug("%s: enter dc %p, mDragCtx %p\n", __FUNCTION__,
+         dc ? dc->gobj() : NULL, mDragCtx ? mDragCtx : NULL);
+   if (curTime - mDestDropTime <= 1000) {
       g_debug("%s: ignored %ld %ld %ld\n", __FUNCTION__,
-            curTime, m_destDropTime, curTime - m_destDropTime);
+            curTime, mDestDropTime, curTime - mDestDropTime);
       return true;
    }
 
    g_debug("%s: not ignored %ld %ld %ld\n", __FUNCTION__,
-         curTime, m_destDropTime, curTime - m_destDropTime);
+         curTime, mDestDropTime, curTime - mDestDropTime);
 
-   if (m_inHGDrag || (m_HGGetFileStatus != DND_FILE_TRANSFER_NOT_STARTED)) {
+   if (mInHGDrag || (mHGGetFileStatus != DND_FILE_TRANSFER_NOT_STARTED)) {
       g_debug("%s: ignored not in hg drag or not getting hg data\n", __FUNCTION__);
       return true;
    }
@@ -682,9 +835,9 @@ DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
    Gdk::DragAction srcActions;
    Gdk::DragAction suggestedAction;
    Gdk::DragAction dndAction = (Gdk::DragAction)0;
-   Glib::ustring target = m_detWnd->drag_dest_find_target(dc);
+   Glib::ustring target = mDetWnd->drag_dest_find_target(dc);
 
-   if (!m_DnD->IsDnDAllowed()) {
+   if (!mDnD->IsDnDAllowed()) {
       g_debug("%s: No dnd allowed!\n", __FUNCTION__);
       dc->drag_status(dndAction, timeValue);
       return true;
@@ -715,7 +868,7 @@ DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
       return true;
    }
 
-   m_dc = dc->gobj();
+   mDragCtx = dc->gobj();
 
    if (target != "") {
       /*
@@ -739,14 +892,14 @@ DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 
    if (dndAction != (Gdk::DragAction)0) {
       dc->drag_status(dndAction, timeValue);
-      if (!m_GHDnDInProgress) {
+      if (!mGHDnDInProgress) {
          g_debug("%s: new drag, need to get data for host\n", __FUNCTION__);
          /*
           * This is a new drag operation. We need to start a drag thru the
           * backdoor, and to the host. Before we can tell the host, we have to
           * retrieve the drop data.
           */
-         m_GHDnDInProgress = true;
+         mGHDnDInProgress = true;
          /* only begin drag enter after we get the data */
          /* Need to grab all of the data. */
          if (!RequestData(dc, timeValue)) {
@@ -765,21 +918,32 @@ DnDUIX11::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * "drag_leave" signal handler for GTK. Log the reception of this signal,
- * but otherwise unhandled in our implementation.
+ * DnDUIX11::OnGtkDragLeave --
  *
- *  @param[in] dc drag context
- *  @param[in] time time of the drag
+ *      GTK+ "drag_leave" signal handler.
+ *
+ *      Logs event.  Acknowledges, finishes outdated sequence if drag context
+ *      is not the same as we're currently interested in (i.e. != mDragCtx).
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      May cancel dnd associated with this drag context.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::GtkDestDragLeaveCB(const Glib::RefPtr<Gdk::DragContext> &dc,
-                             guint time)
+DnDUIX11::OnGtkDragLeave(
+   const Glib::RefPtr<Gdk::DragContext> &dc,    // IN: GTK drag context
+   guint time)                                  // IN: event timestamp
 {
-   g_debug("%s: enter dc %p, m_dc %p\n", __FUNCTION__,
-         dc ? dc->gobj() : NULL, m_dc ? m_dc : NULL);
+   g_debug("%s: enter dc %p, mDragCtx %p\n", __FUNCTION__,
+         dc ? dc->gobj() : NULL, mDragCtx ? mDragCtx : NULL);
 
    /*
     * If we reach here after reset DnD, or we are getting a late
@@ -789,7 +953,7 @@ DnDUIX11::GtkDestDragLeaveCB(const Glib::RefPtr<Gdk::DragContext> &dc,
     * be 5 minutes).
     * See http://bugzilla.eng.vmware.com/show_bug.cgi?id=528320
     */
-   if (!m_dc || dc->gobj() != m_dc) {
+   if (!mDragCtx || dc->gobj() != mDragCtx) {
       g_debug("%s: calling drag_finish\n", __FUNCTION__);
       dc->drag_finish(true, false, time);
    }
@@ -797,44 +961,57 @@ DnDUIX11::GtkDestDragLeaveCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 
 
 /*
- * Gtk+ callbacks that are seen when we are a drag source.
- */
-
-/**
+ *-----------------------------------------------------------------------------
  *
- * "drag_begin" signal handler for GTK.
+ * DnDUIX11::OnGtkDragBegin --
  *
- * @param[in] context drag context
- */
-
-void
-DnDUIX11::GtkSourceDragBeginCB(const Glib::RefPtr<Gdk::DragContext>& context)
-{
-   g_debug("%s: enter dc %p, m_dc %p\n", __FUNCTION__,
-         context ? context->gobj() : NULL, m_dc ? m_dc : NULL);
-   m_dc = context->gobj();
-}
-
-
-/**
+ *      GTK+ "drag_begin" signal handler.
  *
- * "drag_data_get" handler for GTK. We don't send drop until we are done.
+ * Results:
+ *      None.
  *
- * @param[in] dc drag state
- * @param[in] selection_data buffer for data
- * @param[in] info unused
- * @param[in] time timestamp
- *
- * @note if the drop has occurred, the files are copied from the guest.
+ * Side effects:
+ *      Records drag context for later use.
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
-                                 Gtk::SelectionData& selection_data,
-                                 guint info,
-                                 guint time)
+DnDUIX11::OnGtkDragBegin(
+   const Glib::RefPtr<Gdk::DragContext>& context)       // IN: GTK drag context
+{
+   g_debug("%s: enter dc %p, mDragCtx %p\n", __FUNCTION__,
+         context ? context->gobj() : NULL, mDragCtx ? mDragCtx : NULL);
+   mDragCtx = context->gobj();
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnDUIX11::OnGtkDragDataGet --
+ *
+ *      GTK+ "drag_data_get" signal handler.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      May insert vmblock blocking entry and request host-to-guest file transfer from
+ *      host.
+ *
+ *      If unable to obtain drag information, may instead cancel the DND
+ *      operation.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DnDUIX11::OnGtkDragDataGet(
+   const Glib::RefPtr<Gdk::DragContext> &dc,    // IN: GTK drag context
+   Gtk::SelectionData& selection_data,          // IN: drag details
+   guint info,                                  // UNUSED
+   guint time)                                  // IN: event timestamp
 {
    size_t index = 0;
    std::string str;
@@ -851,23 +1028,23 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 
    selection_data.set(target.c_str(), "");
 
-   g_debug("%s: enter dc %p, m_dc %p with target %s\n", __FUNCTION__,
-         dc ? dc->gobj() : NULL, m_dc ? m_dc : NULL,
-         target.c_str());
+   g_debug("%s: enter dc %p, mDragCtx %p with target %s\n", __FUNCTION__,
+           dc ? dc->gobj() : NULL, mDragCtx ? mDragCtx : NULL,
+           target.c_str());
 
-   if (!m_inHGDrag) {
+   if (!mInHGDrag) {
       g_debug("%s: not in drag, return\n", __FUNCTION__);
       return;
    }
 
-   if (target == DRAG_TARGET_NAME_URI_LIST &&
-       CPClipboard_GetItem(&m_clipboard, CPFORMAT_FILELIST, &buf, &sz)) {
+   if (   target == DRAG_TARGET_NAME_URI_LIST
+       && CPClipboard_GetItem(&mClipboard, CPFORMAT_FILELIST, &buf, &sz)) {
 
       /* Provide path within vmblock file system instead of actual path. */
-      stagingDirName = GetLastDirName(m_HGStagingDir);
+      stagingDirName = GetLastDirName(mHGStagingDir);
       if (stagingDirName.length() == 0) {
          g_debug("%s: Cannot get staging directory name, stagingDir: %s\n",
-               __FUNCTION__, m_HGStagingDir.c_str());
+                 __FUNCTION__, mHGStagingDir.c_str());
          return;
       }
 
@@ -887,7 +1064,7 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
          post = DND_URI_LIST_POST;
       } else {
          g_debug("%s: Unknown request target: %s\n", __FUNCTION__,
-               selection_data.get_target().c_str());
+                 selection_data.get_target().c_str());
          return;
       }
 
@@ -897,11 +1074,11 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
       /* Provide URIs for each path in the guest's file list. */
       while ((str = GetNextPath(hgData, index).c_str()).length() != 0) {
          uriList += pre;
-         if (DnD_BlockIsReady(m_blockCtrl)) {
-            uriList += m_blockCtrl->blockRoot;
+         if (DnD_BlockIsReady(mBlockCtrl)) {
+            uriList += mBlockCtrl->blockRoot;
             uriList += DIRSEPS + stagingDirName + DIRSEPS + str + post;
          } else {
-            uriList += DIRSEPS + m_HGStagingDir + DIRSEPS + str + post;
+            uriList += DIRSEPS + mHGStagingDir + DIRSEPS + str + post;
          }
       }
 
@@ -922,10 +1099,10 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
        * Doing both of these addresses bug
        * http://bugzilla.eng.vmware.com/show_bug.cgi?id=391661.
        */
-      if (!m_blockAdded &&
-          m_inHGDrag &&
-          (m_HGGetFileStatus == DND_FILE_TRANSFER_NOT_STARTED)) {
-         m_HGGetFileStatus = DND_FILE_TRANSFER_IN_PROGRESS;
+      if (   !mBlockAdded
+          &&  mInHGDrag
+          && (mHGGetFileStatus == DND_FILE_TRANSFER_NOT_STARTED)) {
+         mHGGetFileStatus = DND_FILE_TRANSFER_IN_PROGRESS;
          AddBlock();
       } else {
          g_debug("%s: not calling AddBlock\n", __FUNCTION__);
@@ -935,29 +1112,25 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
       return;
    }
 
-   if (target == DRAG_TARGET_NAME_URI_LIST &&
-       CPClipboard_ItemExists(&m_clipboard, CPFORMAT_FILECONTENTS)) {
+   if (   target == DRAG_TARGET_NAME_URI_LIST
+       && CPClipboard_ItemExists(&mClipboard, CPFORMAT_FILECONTENTS)) {
       g_debug("%s: Providing uriList [%s] for file contents DnD\n",
-            __FUNCTION__, m_HGFileContentsUriList.c_str());
+            __FUNCTION__, mHGFileContentsUriList.c_str());
 
       selection_data.set(DRAG_TARGET_NAME_URI_LIST,
-                         m_HGFileContentsUriList.c_str());
+                         mHGFileContentsUriList.c_str());
       return;
    }
 
-   if ((target == TARGET_NAME_STRING ||
-        target == TARGET_NAME_TEXT_PLAIN ||
-        target == TARGET_NAME_UTF8_STRING ||
-        target == TARGET_NAME_COMPOUND_TEXT) &&
-       CPClipboard_GetItem(&m_clipboard, CPFORMAT_TEXT, &buf, &sz)) {
+   if (   TargetIsPlainText(target)
+       && CPClipboard_GetItem(&mClipboard, CPFORMAT_TEXT, &buf, &sz)) {
       g_debug("%s: providing plain text, size %"FMTSZ"u\n", __FUNCTION__, sz);
       selection_data.set(target.c_str(), (const char *)buf);
       return;
    }
 
-   if ((target == TARGET_NAME_APPLICATION_RTF ||
-        target == TARGET_NAME_TEXT_RICHTEXT) &&
-       CPClipboard_GetItem(&m_clipboard, CPFORMAT_RTF, &buf, &sz)) {
+   if (   TargetIsRichText(target)
+       && CPClipboard_GetItem(&mClipboard, CPFORMAT_RTF, &buf, &sz)) {
       g_debug("%s: providing rtf text, size %"FMTSZ"u\n", __FUNCTION__, sz);
       selection_data.set(target.c_str(), (const char *)buf);
       return;
@@ -965,73 +1138,95 @@ DnDUIX11::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 
    /* Can not get any valid data, cancel this HG DnD. */
    g_debug("%s: no valid data for HG DnD\n", __FUNCTION__);
-   CommonResetCB();
+   ResetUI();
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * "drag_end" handler for GTK. Received by drag source.
+ * DnDUIX11::OnGtkDragEnd --
  *
- * @param[in] dc drag state
+ *      GTK+ "drag_end" signal handler.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      May reset UI state.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::GtkSourceDragEndCB(const Glib::RefPtr<Gdk::DragContext> &dc)
+DnDUIX11::OnGtkDragEnd(
+   const Glib::RefPtr<Gdk::DragContext> &dc)    // IN: GTK drag context
 {
-   g_debug("%s: entering dc %p, m_dc %p\n", __FUNCTION__,
-         dc ? dc->gobj() : NULL, m_dc ? m_dc : NULL);
+   g_debug("%s: entering dc %p, mDragCtx %p\n", __FUNCTION__,
+         dc ? dc->gobj() : NULL, mDragCtx ? mDragCtx : NULL);
 
    /*
     * We may see a drag end for the previous DnD, but after a new
     * DnD has started. If so, ignore it.
     */
-   if (m_dc && dc && (m_dc != dc->gobj())) {
+   if (mDragCtx && dc && (mDragCtx != dc->gobj())) {
       g_debug("%s: got old dc (new DnD started), ignoring\n", __FUNCTION__);
       return;
    }
 
    /*
     * If we are a file DnD and file transfer is not done yet, don't call
-    * CommonResetCB() here, since we will do so in the fileCopyDoneChanged
+    * ResetUI() here, since we will do so in the fileCopyDoneChanged
     * callback.
     */
-   if (DND_FILE_TRANSFER_IN_PROGRESS != m_HGGetFileStatus) {
-      CommonResetCB();
+   if (DND_FILE_TRANSFER_IN_PROGRESS != mHGGetFileStatus) {
+      ResetUI();
    }
-   m_inHGDrag = false;
+   mInHGDrag = false;
 }
 
-/* Gtk+ callbacks seen when we are a drag destination. */
 
-/**
+/*
+ * END GTK+ Callbacks (dndcp as drag source: host-to-guest)
+ ****************************************************************************
+ */
+
+
+/*
+ ****************************************************************************
+ * BEGIN GTK+ Callbacks (dndcp as drag destination: guest-to-host)
+ */
+
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * "drag_data_received" signal handler for GTK. We requested the drag
- * data earlier from some drag source on the guest; this is the response.
+ * DnDUIX11::OnGtkDragDataReceived --
  *
- * This is for G->H DnD.
+ *      GTK+ "drag_data_received" signal handler.
  *
- * @param[in] dc drag context
- * @param[in] x where the drop happened
- * @param[in] y where the drop happened
- * @param[in] sd the received data
- * @param[in] info the info that has been registered with the target in the
- * target list.
- * @param[in] time the timestamp at which the data was received.
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      May signal to host beginning of guest-to-host DND.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::GtkDestDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
-                                    int x,
-                                    int y,
-                                    const Gtk::SelectionData& sd,
-                                    guint info,
-                                    guint time)
+DnDUIX11::OnGtkDragDataReceived(
+   const Glib::RefPtr<Gdk::DragContext> &dc,    // IN: GTK drag context
+   int x,                                       // IN: drop location x-coord
+   int y,                                       // IN: drop location y-coord
+   const Gtk::SelectionData& sd,                // IN: drag content details
+   guint info,                                  // UNUSED
+   guint time)                                  // IN: event timestamp
 {
-   g_debug("%s: enter dc %p, m_dc %p\n", __FUNCTION__,
-         dc ? dc->gobj() : NULL, m_dc ? m_dc : NULL);
+   g_debug("%s: enter dc %p, mDragCtx %p\n", __FUNCTION__,
+         dc ? dc->gobj() : NULL, mDragCtx ? mDragCtx : NULL);
    /* The GH DnD may already finish before we got response. */
-   if (!m_GHDnDInProgress) {
+   if (!mGHDnDInProgress) {
       g_debug("%s: not valid\n", __FUNCTION__);
       return;
    }
@@ -1044,18 +1239,18 @@ DnDUIX11::GtkDestDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
     */
    if (SetCPClipboardFromGtk(sd) == false) {
       g_debug("%s: Failed to set CP clipboard.\n", __FUNCTION__);
-      CommonResetCB();
+      ResetUI();
       return;
    }
 
-   m_numPendingRequest--;
-   if (m_numPendingRequest > 0) {
+   mNumPendingRequest--;
+   if (mNumPendingRequest > 0) {
       return;
    }
 
-   if (CPClipboard_IsEmpty(&m_clipboard)) {
+   if (CPClipboard_IsEmpty(&mClipboard)) {
       g_debug("%s: Failed getting item.\n", __FUNCTION__);
-      CommonResetCB();
+      ResetUI();
       return;
    }
 
@@ -1070,41 +1265,46 @@ DnDUIX11::GtkDestDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
     * Note that we prevent against sending multiple "dragStart"s or "drop"s for
     * each DnD.
     */
-   if (!m_GHDnDDataReceived) {
+   if (!mGHDnDDataReceived) {
       g_debug("%s: Drag entering.\n", __FUNCTION__);
-      m_GHDnDDataReceived = true;
+      mGHDnDDataReceived = true;
       TargetDragEnter();
    } else {
-      g_debug("%s: not !m_GHDnDDataReceived\n", __FUNCTION__);
+      g_debug("%s: not !mGHDnDDataReceived\n", __FUNCTION__);
    }
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * "drag_drop" signal handler for GTK. Send the drop to the host (by
- * way of the backdoor), then tell the host to get the files.
+ * DnDUIX11::OnGtkDragDrop --
  *
- * @param[in] dc drag context
- * @param[in] x x location of the drop
- * @param[in] y y location of the drop
- * @param[in] time timestamp for the drop
+ *      GTK+ "drag_drop" signal handler.
  *
- * @return true on success, false otherwise.
+ * Results:
+ *      Returns true so long as drag target and data are (at one point)
+ *      provided (i.e. not a spurious event).
+ *
+ * Side effects:
+ *      Signals to drag source that drop is finished.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 bool
-DnDUIX11::GtkDestDragDropCB(const Glib::RefPtr<Gdk::DragContext> &dc,
-                            int x,
-                            int y,
-                            guint time)
+DnDUIX11::OnGtkDragDrop(
+   const Glib::RefPtr<Gdk::DragContext> &dc,    // IN: GTK drag context
+   int x,                                       // IN: drop location x-coord
+   int y,                                       // IN: drop location y-coord
+   guint time)                                  // IN: motion event timestamp
 {
-   g_debug("%s: enter dc %p, m_dc %p x %d y %d\n", __FUNCTION__,
-         (dc ? dc->gobj() : NULL), (m_dc ? m_dc : NULL), x, y);
+   g_debug("%s: enter dc %p, mDragCtx %p x %d y %d\n", __FUNCTION__,
+         (dc ? dc->gobj() : NULL), (mDragCtx ? mDragCtx : NULL), x, y);
 
    Glib::ustring target;
 
-   target = m_detWnd->drag_dest_find_target(dc);
+   target = mDetWnd->drag_dest_find_target(dc);
    g_debug("%s: calling drag_finish\n", __FUNCTION__);
    dc->drag_finish(true, false, time);
 
@@ -1113,24 +1313,35 @@ DnDUIX11::GtkDestDragDropCB(const Glib::RefPtr<Gdk::DragContext> &dc,
       return false;
    }
 
-   if (CPClipboard_IsEmpty(&m_clipboard)) {
-      g_debug("%s: No valid data on m_clipboard.\n", __FUNCTION__);
+   if (CPClipboard_IsEmpty(&mClipboard)) {
+      g_debug("%s: No valid data on mClipboard.\n", __FUNCTION__);
       return false;
    }
 
    return true;
 }
 
-/* General utility functions */
 
-/**
+/*
+ * END GTK+ Callbacks (dndcp as drag destination: guest-to-host)
+ ****************************************************************************
+ */
+
+
+/*
+ *-----------------------------------------------------------------------------
  *
- * Try to construct cross-platform clipboard data from selection data
- * provided to us by Gtk+.
+ * DnDUIX11::SetCPClipboardFromGtk --
  *
- * @param[in] sd Gtk selection data to convert to CP clipboard data
+ *      Construct cross-platform clipboard from GTK+ selection_data.
  *
- * @return false on failure, true on success
+ * Results:
+ *      Returns true if conversion succeeded, false otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 bool
@@ -1148,7 +1359,7 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
    const utf::string target = sd.get_target().c_str();
 
    /* Try to get file list. */
-   if (m_DnD->CheckCapability(DND_CP_CAP_FILE_DND) && target == DRAG_TARGET_NAME_URI_LIST) {
+   if (mDnD->CheckCapability(DND_CP_CAP_FILE_DND) && target == DRAG_TARGET_NAME_URI_LIST) {
       /*
        * Turn the uri list into two \0  delimited lists. One for full paths and
        * one for just the last path component.
@@ -1218,7 +1429,7 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
       DynBuf_Init(&buf);
       fileList.SetFileSize(totalSize);
       if (fileList.ToCPClipboard(&buf, false)) {
-          CPClipboard_SetItem(&m_clipboard, CPFORMAT_FILELIST, DynBuf_Get(&buf),
+          CPClipboard_SetItem(&mClipboard, CPFORMAT_FILELIST, DynBuf_Get(&buf),
                               DynBuf_GetSize(&buf));
       }
       DynBuf_Destroy(&buf);
@@ -1226,16 +1437,13 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
    }
 
    /* Try to get plain text. */
-   if (m_DnD->CheckCapability(DND_CP_CAP_PLAIN_TEXT_DND) && (
-       target == TARGET_NAME_STRING ||
-       target == TARGET_NAME_TEXT_PLAIN ||
-       target == TARGET_NAME_UTF8_STRING ||
-       target == TARGET_NAME_COMPOUND_TEXT)) {
+   if (   mDnD->CheckCapability(DND_CP_CAP_PLAIN_TEXT_DND)
+       && TargetIsPlainText(target)) {
       std::string source = sd.get_data_as_string();
-      if (source.size() > 0 &&
-          source.size() < DNDMSG_MAX_ARGSZ &&
-          CPClipboard_SetItem(&m_clipboard, CPFORMAT_TEXT, source.c_str(),
-                              source.size() + 1)) {
+      if (   source.size() > 0
+          && source.size() < DNDMSG_MAX_ARGSZ
+          && CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT, source.c_str(),
+                                 source.size() + 1)) {
          g_debug("%s: Got text, size %"FMTSZ"u\n", __FUNCTION__, source.size());
       } else {
          g_debug("%s: Failed to get text\n", __FUNCTION__);
@@ -1245,14 +1453,13 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
    }
 
    /* Try to get RTF string. */
-   if (m_DnD->CheckCapability(DND_CP_CAP_RTF_DND) && (
-       target == TARGET_NAME_APPLICATION_RTF ||
-       target == TARGET_NAME_TEXT_RICHTEXT)) {
+   if (   mDnD->CheckCapability(DND_CP_CAP_RTF_DND)
+       && TargetIsRichText(target)) {
       std::string source = sd.get_data_as_string();
-      if (source.size() > 0 &&
-          source.size() < DNDMSG_MAX_ARGSZ &&
-          CPClipboard_SetItem(&m_clipboard, CPFORMAT_RTF, source.c_str(),
-                              source.size() + 1)) {
+      if (   source.size() > 0
+          && source.size() < DNDMSG_MAX_ARGSZ
+          && CPClipboard_SetItem(&mClipboard, CPFORMAT_RTF, source.c_str(),
+                                 source.size() + 1)) {
          g_debug("%s: Got RTF, size %"FMTSZ"u\n", __FUNCTION__, source.size());
          return true;
       } else {
@@ -1264,36 +1471,46 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Ask for clipboard data from drag source.
+ * DnDUIX11::RequestData --
  *
- * @param[in] dc   Associated drag context
- * @param[in] time Time of the request
+ *      Requests clipboard data from a drag source.
  *
- * @return true if there is any data request, false otherwise.
+ *      Evaluates targets (think MIME types) offered by the drag source, and
+ *      if we support any, requests the contents.
+ *
+ * Results:
+ *      Returns true if we found a supported type.
+ *
+ * Side effects:
+ *      May call drag_get_data.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 bool
-DnDUIX11::RequestData(const Glib::RefPtr<Gdk::DragContext> &dc,
-                      guint time)
+DnDUIX11::RequestData(
+   const Glib::RefPtr<Gdk::DragContext> &dc, // IN: GTK drag context
+   guint time)                               // IN: event timestamp
 {
    Glib::RefPtr<Gtk::TargetList> targets;
    targets = Gtk::TargetList::create(std::list<Gtk::TargetEntry>());
 
-   CPClipboard_Clear(&m_clipboard);
-   m_numPendingRequest = 0;
+   CPClipboard_Clear(&mClipboard);
+   mNumPendingRequest = 0;
 
    /*
     * First check file list. If file list is available, all other formats will
     * be ignored.
     */
    targets->add(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
-   Glib::ustring target = m_detWnd->drag_dest_find_target(dc, targets);
+   Glib::ustring target = mDetWnd->drag_dest_find_target(dc, targets);
    targets->remove(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
    if (target != "") {
-      m_detWnd->drag_get_data(dc, target, time);
-      m_numPendingRequest++;
+      mDetWnd->drag_get_data(dc, target, time);
+      mNumPendingRequest++;
       return true;
    }
 
@@ -1302,37 +1519,50 @@ DnDUIX11::RequestData(const Glib::RefPtr<Gdk::DragContext> &dc,
    targets->add(Glib::ustring(TARGET_NAME_STRING));
    targets->add(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
    targets->add(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
-   target = m_detWnd->drag_dest_find_target(dc, targets);
+   target = mDetWnd->drag_dest_find_target(dc, targets);
    targets->remove(Glib::ustring(TARGET_NAME_STRING));
    targets->remove(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
    targets->remove(Glib::ustring(TARGET_NAME_UTF8_STRING));
    targets->remove(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
    if (target != "") {
-      m_detWnd->drag_get_data(dc, target, time);
-      m_numPendingRequest++;
+      mDetWnd->drag_get_data(dc, target, time);
+      mNumPendingRequest++;
    }
 
    /* Then check RTF. */
    targets->add(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
    targets->add(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
-   target = m_detWnd->drag_dest_find_target(dc, targets);
+   target = mDetWnd->drag_dest_find_target(dc, targets);
    targets->remove(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
    targets->remove(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
    if (target != "") {
-      m_detWnd->drag_get_data(dc, target, time);
-      m_numPendingRequest++;
+      mDetWnd->drag_get_data(dc, target, time);
+      mNumPendingRequest++;
    }
-   return (m_numPendingRequest > 0);
+   return (mNumPendingRequest > 0);
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Try to get last directory name from a full path name.
+ * DnDUIX11::GetLastDirName --
  *
- * @param[in] str pathname to process
+ *      Try to get last directory name from a full path name.
  *
- * @return last dir name in the full path name if sucess, empty str otherwise
+ *      What this really means is to get the basename of the parent's directory
+ *      name, intended to isolate an individual DND operation's staging directory
+ *      name.
+ *
+ *         E.g. /tmp/VMwareDnD/abcd137/foo → abcd137
+ *
+ * Results:
+ *      Returns session directory name on success, empty string otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 std::string
@@ -1361,20 +1591,33 @@ DnDUIX11::GetLastDirName(const std::string &str)
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Provide a substring containing the next path from the provided
- * NUL-delimited string starting at the provided index.
+ * DnDUIX11::GetNextPath --
  *
- * @param[in] str NUL-delimited path list
- * @param[in] index current index into string
+ *      Convoluted somethingerother.
  *
- * @return a string with the next path or "" if there are no more paths.
+ *      XXX Something here involves URI parsing and encoding.  Get to the bottom
+ *      of this and use shared URI code.
+ *
+ *      Original description:
+ *         Provide a substring containing the next path from the provided
+ *         NUL-delimited string starting at the provided index.
+ *
+ * Results:
+ *      Returns "a string with the next path or empty string if there are no
+ *      more paths".
+ *
+ * Side effects:
+ *      Updates index.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 utf::utf8string
-DnDUIX11::GetNextPath(utf::utf8string& str,
-                      size_t& index)
+DnDUIX11::GetNextPath(utf::utf8string& str,     // IN: NUL-delimited path list
+                      size_t& index)            // IN/OUT: index into string
 {
    utf::utf8string ret;
    size_t start;
@@ -1416,56 +1659,64 @@ DnDUIX11::GetNextPath(utf::utf8string& str,
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Issue a fake mouse move event to the detection window. Code stolen from
- * DnD V2 Linux guest implementation, where it was originally defined as a
- * macro.
+ * DnDUIX11::SendFakeMouseMove --
  *
- * @param[in] x x-coordinate of location to move mouse to.
- * @param[in] y y-coordinate of location to move mouse to.
+ *      Issue a fake mouse move event to the detection window.
  *
- * @return true on success, false on failure.
+ * Results:
+ *      Returns true on success, false on failure.
+ *
+ * Side effects:
+ *      Generates mouse events.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 bool
-DnDUIX11::SendFakeMouseMove(const int x,
-                            const int y)
+DnDUIX11::SendFakeMouseMove(const int x,        // IN: x-coord
+                            const int y)        // IN: y-coord
 {
    return SendFakeXEvents(false, false, false, false, true, x, y);
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Fake X mouse events and window movement for the provided Gtk widget.
+ * DnDUIX11::SendFakeXEvents --
  *
- * This function will optionally show the widget, move the provided widget
- * to either the provided location or the current mouse position if no
- * coordinates are provided, and cause a button press or release event.
+ *      Fake X mouse events and window movement for the detection window.
  *
- * @param[in] showWidget       whether to show Gtk widget
- * @param[in] buttonEvent      whether to send a button event
- * @param[in] buttonPress      whether to press or release mouse
- * @param[in] moveWindow:      whether to move our window too
- * @param[in] coordsProvided   whether coordinates provided
- * @param[in] xCoord           x coordinate
- * @param[in] yCoord           y coordinate
+ *      This function shows the detection window and generates button
+ *      press/release and pointer motion events.
  *
- * @note todo this code should be implemented using GDK APIs.
- * @note todo this code should be moved into the detection window class
+ *      XXX This code should be implemented using GDK APIs.
+ *          (gdk_display_warp_pointer?)
  *
- * @return true on success, false on failure.
+ *      XXX This code should be moved into the detection window class
+ *
+ * Results:
+ *      Returns true if generated X events, false on failure.
+ *
+ * Side effects:
+ *      A ton of things.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 bool
-DnDUIX11::SendFakeXEvents(const bool showWidget,
-                          const bool buttonEvent,
-                          const bool buttonPress,
-                          const bool moveWindow,
-                          const bool coordsProvided,
-                          const int xCoord,
-                          const int yCoord)
+DnDUIX11::SendFakeXEvents(
+   const bool showWidget,       // IN: whether to show widget
+   const bool buttonEvent,      // IN: whether to send a button event
+   const bool buttonPress,      // IN: whether button event is press or release
+   const bool moveWindow,       // IN: whether to move detection window
+   const bool coordsProvided,   // IN: whether coords provided, else will
+                                //     query current mouse position
+   const int xCoord,            // IN: destination x-coord
+   const int yCoord)            // IN: destination y-coord
 {
    GtkWidget *widget;
    Window rootWnd;
@@ -1527,8 +1778,8 @@ DnDUIX11::SendFakeXEvents(const bool showWidget,
       /*
        * Position away from the edge of the window.
        */
-      int width = m_detWnd->GetScreenWidth();
-      int height = m_detWnd->GetScreenHeight();
+      int width = mDetWnd->GetScreenWidth();
+      int height = mDetWnd->GetScreenHeight();
       bool change = false;
 
       x = rootXReturn;
@@ -1608,11 +1859,11 @@ DnDUIX11::SendFakeXEvents(const bool showWidget,
             goto exit;
          }
 
-         if ((maskReturn & Button1Mask) ||
-             (maskReturn & Button2Mask) ||
-             (maskReturn & Button3Mask) ||
-             (maskReturn & Button4Mask) ||
-             (maskReturn & Button5Mask)) {
+         if (   (maskReturn & Button1Mask)
+             || (maskReturn & Button2Mask)
+             || (maskReturn & Button3Mask)
+             || (maskReturn & Button4Mask)
+             || (maskReturn & Button5Mask)) {
             Debug("%s: XTestFakeButtonEvent was not working for button "
                   "release, trying XTestFakeDeviceButtonEvent now.\n",
                   __FUNCTION__);
@@ -1633,18 +1884,28 @@ exit:
 }
 
 
-/**
- * Fake X mouse events in device level.
+/*
+ *-----------------------------------------------------------------------------
  *
- * XXX The function will only be called if XTestFakeButtonEvent does not work
- * for mouse button release. Later on we may only call this one for mouse
- * button simulation if this is more reliable.
+ * DnDUIX11::TryXTestFakeDeviceButtonEvent --
  *
- * @return true on success, false on failure.
+ *      Fake X mouse events in device level.
+ *
+ *      XXX The function will only be called if XTestFakeButtonEvent does
+ *      not work for mouse button release. Later on we may only call this
+ *      one for mouse button simulation if this is more reliable.
+ *
+ * Results:
+ *      Returns true on success, false on failure.
+ *
+ * Side effects:
+ *      Generates mouse events.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 bool
-DnDUIX11::TryXTestFakeDeviceButtonEvent(void)
+DnDUIX11::TryXTestFakeDeviceButtonEvent()
 {
    XDeviceInfo *list = NULL;
    XDeviceInfo *list2 = NULL;
@@ -1709,16 +1970,27 @@ DnDUIX11::TryXTestFakeDeviceButtonEvent(void)
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Get the GtkWidget pointer for a DragDetWnd object. The X11 Unity
- * implementation requires access to the drag detection window as
- * a GtkWindow pointer, which it uses to show and hide the detection
- * window. This function is also called by the code that issues fake
- * X events to the detection window.
+ * DnDUIX11::GetDetWndAsWidget --
  *
- * @return a pointer to the GtkWidget for the detection window, or NULL
- * on failure.
+ *      Get the GtkWidget pointer for a DragDetWnd object.
+ *
+ *      The X11 Unity implementation requires access to the drag detection
+ *      window as a GtkWindow pointer, which it uses to show and hide the
+ *      detection window.
+ *
+ *      This function is also called by the code that issues fake X events
+ *      to the detection window.
+ *
+ * Results:
+ *      A GtkWidget* on success or NULL on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 GtkWidget *
@@ -1727,10 +1999,10 @@ DnDUIX11::GetDetWndAsWidget()
    GtkInvisible *window;
    GtkWidget *widget = NULL;
 
-   if (!m_detWnd) {
+   if (!mDetWnd) {
       return NULL;
    }
-   window = m_detWnd->gobj();
+   window = mDetWnd->gobj();
    if (window) {
       widget = GTK_WIDGET(window);
    }
@@ -1738,72 +2010,102 @@ DnDUIX11::GetDetWndAsWidget()
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Add a block for the current H->G file transfer. Must be paired with a
- * call to RemoveBlock() on finish or cancellation.
+ * DnDUIX11::AddBlock --
+ *
+ *      Insert a vmblock blocking entry.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Caller must pair with RemoveBlock() upon dnd completion/cancellation.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
 DnDUIX11::AddBlock()
 {
    TRACE_CALL();
-   if (m_blockAdded) {
+
+   if (mBlockAdded) {
       g_debug("%s: block already added\n", __FUNCTION__);
       return;
    }
-   g_debug("%s: DnDBlockIsReady %d fd %d\n", __FUNCTION__, DnD_BlockIsReady(m_blockCtrl), m_blockCtrl->fd);
-   if (DnD_BlockIsReady(m_blockCtrl) && m_blockCtrl->AddBlock(m_blockCtrl->fd, m_HGStagingDir.c_str())) {
-      m_blockAdded = true;
-      g_debug("%s: add block for %s.\n", __FUNCTION__, m_HGStagingDir.c_str());
+
+   g_debug("%s: DnDBlockIsReady %d fd %d\n", __FUNCTION__,
+           DnD_BlockIsReady(mBlockCtrl), mBlockCtrl->fd);
+
+   if (   DnD_BlockIsReady(mBlockCtrl)
+       && mBlockCtrl->AddBlock(mBlockCtrl->fd, mHGStagingDir.c_str())) {
+      mBlockAdded = true;
+      g_debug("%s: add block for %s.\n", __FUNCTION__, mHGStagingDir.c_str());
    } else {
-      m_blockAdded = false;
-      g_debug("%s: unable to add block dir %s.\n", __FUNCTION__, m_HGStagingDir.c_str());
+      mBlockAdded = false;
+      g_debug("%s: unable to add block dir %s.\n", __FUNCTION__, mHGStagingDir.c_str());
    }
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Remove block for the current H->G file transfer. Must be paired with a
- * call to AddBlock(), but it will only attempt to remove block if one is
- * currently in effect.
+ * DnDUIX11::RemoveBlock --
+ *
+ *      Remove a vmblock blocking entry.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
 DnDUIX11::RemoveBlock()
 {
    TRACE_CALL();
-   if (m_blockAdded && (DND_FILE_TRANSFER_IN_PROGRESS != m_HGGetFileStatus)) {
-      g_debug("%s: removing block for %s\n", __FUNCTION__, m_HGStagingDir.c_str());
+
+   if (mBlockAdded && (DND_FILE_TRANSFER_IN_PROGRESS != mHGGetFileStatus)) {
+      g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
       /* We need to make sure block subsystem has not been shut off. */
-      if (DnD_BlockIsReady(m_blockCtrl)) {
-         m_blockCtrl->RemoveBlock(m_blockCtrl->fd, m_HGStagingDir.c_str());
+      if (DnD_BlockIsReady(mBlockCtrl)) {
+         mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
       }
-      m_blockAdded = false;
+      mBlockAdded = false;
    } else {
-      g_debug("%s: not removing block m_blockAdded %d m_HGGetFileStatus %d\n",
+      g_debug("%s: not removing block mBlockAdded %d mHGGetFileStatus %d\n",
             __FUNCTION__,
-            m_blockAdded,
-            m_HGGetFileStatus);
+            mBlockAdded,
+            mHGGetFileStatus);
    }
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Convert a Gdk::DragAction value to its corresponding DND_DROPEFFECT.
+ * DnDUIX11::ToDropEffect --
  *
- * @param[in] the Gdk::DragAction value to return.
+ *      Convert a Gdk::DragAction value to its corresponding DND_DROPEFFECT.
  *
- * @return the corresponding DND_DROPEFFECT, with DROP_UNKNOWN returned
- * if no mapping is supported.
+ * Results:
+ *      Returns corresponding DND_DROPEFFECT or DROP_UNKNOWN if a match isn't
+ *      found.
  *
- * @note DROP_NONE is not mapped in this function.
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
 
-DND_DROPEFFECT
-DnDUIX11::ToDropEffect(Gdk::DragAction action)
+/* static */ DND_DROPEFFECT
+DnDUIX11::ToDropEffect(const Gdk::DragAction action)
 {
    DND_DROPEFFECT effect;
 
@@ -1828,16 +2130,25 @@ DnDUIX11::ToDropEffect(Gdk::DragAction action)
 }
 
 
-/**
+/*
+ *-----------------------------------------------------------------------------
  *
- * Try to extract file contents from m_clipboard. Write all files to a
- * temporary staging directory. Construct uri list.
+ * DnDUIX11::WriteFileContentsToStagingDir --
  *
- * @return true if success, false otherwise.
+ *      Try to extract file contents from mClipboard. Write all files to a
+ *      temporary staging directory. Construct uri list.
+ *
+ * Results:
+ *      Returns true on success, false on failure.
+ *
+ * Side effects:
+ *      Hm?
+ *
+ *-----------------------------------------------------------------------------
  */
 
 bool
-DnDUIX11::WriteFileContentsToStagingDir(void)
+DnDUIX11::WriteFileContentsToStagingDir()
 {
    void *buf = NULL;
    size_t sz = 0;
@@ -1850,7 +2161,7 @@ DnDUIX11::WriteFileContentsToStagingDir(void)
    size_t i = 0;
    bool ret = false;
 
-   if (!CPClipboard_GetItem(&m_clipboard, CPFORMAT_FILECONTENTS, &buf, &sz)) {
+   if (!CPClipboard_GetItem(&mClipboard, CPFORMAT_FILECONTENTS, &buf, &sz)) {
       return false;
    }
 
@@ -1893,7 +2204,7 @@ DnDUIX11::WriteFileContentsToStagingDir(void)
       goto exit;
    }
 
-   m_HGFileContentsUriList = "";
+   mHGFileContentsUriList = "";
 
    for (i = 0; i < nFiles; i++) {
       utf::string fileName;
@@ -1924,15 +2235,14 @@ DnDUIX11::WriteFileContentsToStagingDir(void)
       filePathName = tempDir;
       filePathName += DIRSEPS + fileName;
 
-      if (fileItem[i].validFlags & CP_FILE_VALID_TYPE &&
-          CP_FILE_TYPE_DIRECTORY == fileItem[i].type) {
+      if (   fileItem[i].validFlags & CP_FILE_VALID_TYPE
+          && CP_FILE_TYPE_DIRECTORY == fileItem[i].type) {
          if (!File_CreateDirectory(filePathName.c_str())) {
             goto exit;
          }
-         g_debug("%s: created directory [%s].\n",
-               __FUNCTION__, filePathName.c_str());
-      } else if (fileItem[i].validFlags & CP_FILE_VALID_TYPE &&
-                 CP_FILE_TYPE_REGULAR == fileItem[i].type) {
+         g_debug("%s: created directory [%s].\n", __FUNCTION__, filePathName.c_str());
+      } else if (   fileItem[i].validFlags & CP_FILE_VALID_TYPE
+                 && CP_FILE_TYPE_REGULAR == fileItem[i].type) {
          FileIODescriptor file;
          FileIOResult fileErr;
 
@@ -1952,8 +2262,7 @@ DnDUIX11::WriteFileContentsToStagingDir(void)
                                 NULL);
 
          FileIO_Close(&file);
-         g_debug("%s: created file [%s].\n",
-               __FUNCTION__, filePathName.c_str());
+         g_debug("%s: created file [%s].\n", __FUNCTION__, filePathName.c_str());
       } else {
          /*
           * Right now only Windows can provide CPFORMAT_FILECONTENTS data.
@@ -1979,17 +2288,16 @@ DnDUIX11::WriteFileContentsToStagingDir(void)
                          writeTime,
                          attrChangeTime)) {
          /* Not a critical error, only log it. */
-         g_debug("%s: File_SetTimes failed with file [%s].\n",
-               __FUNCTION__, filePathName.c_str());
+         g_debug("%s: File_SetTimes failed with file [%s].\n", __FUNCTION__,
+                 filePathName.c_str());
       }
 
       /* Update file permission attributes. */
       if (fileItem->validFlags & CP_FILE_VALID_PERMS) {
-         if (Posix_Chmod(filePathName.c_str(),
-                         fileItem->permissions) < 0) {
+         if (Posix_Chmod(filePathName.c_str(), fileItem->permissions) < 0) {
             /* Not a critical error, only log it. */
-            g_debug("%s: Posix_Chmod failed with file [%s].\n",
-                  __FUNCTION__, filePathName.c_str());
+            g_debug("%s: Posix_Chmod failed with file [%s].\n", __FUNCTION__,
+                    filePathName.c_str());
          }
       }
 
@@ -1998,11 +2306,10 @@ DnDUIX11::WriteFileContentsToStagingDir(void)
        * top level one. We only put top level name into uri list.
        */
       if (fileName.find(DIRSEPS, 0) == utf::string::npos) {
-         m_HGFileContentsUriList += "file://" + filePathName + "\r\n";
+         mHGFileContentsUriList += "file://" + filePathName + "\r\n";
       }
    }
-   g_debug("%s: created uri list [%s].\n",
-         __FUNCTION__, m_HGFileContentsUriList.c_str());
+   g_debug("%s: created uri list [%s].\n", __FUNCTION__, mHGFileContentsUriList.c_str());
    ret = true;
 
 exit:
@@ -2015,61 +2322,82 @@ exit:
 }
 
 
-/**
- * Tell host that we are done with HG DnD initialization.
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnDUIX11::SourceDragStartDone --
+ *
+ *      Tell host that we're done with host-to-guest drag-and-drop
+ *      initialization.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::SourceDragStartDone(void)
+DnDUIX11::SourceDragStartDone()
 {
    TRACE_CALL();
-   m_inHGDrag = true;
-   m_DnD->SrcUIDragBeginDone();
+   mInHGDrag = true;
+   mDnD->SrcUIDragBeginDone();
 }
 
 
-/**
- * Set block control member.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in] block control as setup by vmware-user.
+ * DnDUIX11::SetBlockControl --
+ *
+ *      Set block control member.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::SetBlockControl(DnDBlockControl *blockCtrl)
+DnDUIX11::SetBlockControl(DnDBlockControl *blockCtrl)   // IN
 {
-   m_blockCtrl = blockCtrl;
+   mBlockCtrl = blockCtrl;
 }
 
 
-/**
- * Got feedback from our DropSource, send it over to host. Called by
- * drag motion callback.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[in] effect feedback to send to the UI-independent DnD layer.
+ * DnDUIX11::SourceUpdateFeedback --
+ *
+ *      Forward feedback from our drop source to the host.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::SourceUpdateFeedback(DND_DROPEFFECT effect)
+DnDUIX11::SourceUpdateFeedback(
+   DND_DROPEFFECT effect) // IN: feedback to send to the UI-independent DnD layer.
 {
    TRACE_CALL();
-   m_DnD->SrcUIUpdateFeedback(effect);
+   mDnD->SrcUIUpdateFeedback(effect);
 }
 
 
-/**
- * This is triggered when user drags valid data from guest to host. Try to
- * get clip data and notify host to start GH DnD.
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnDUIX11::TargetDragEnter --
+ *
+ *      With the source's drag selection data on the clipboard, signal to
+ *      host to begin guest-to-host drag-and-drop.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::TargetDragEnter(void)
+DnDUIX11::TargetDragEnter()
 {
    TRACE_CALL();
 
    /* Check if there is valid data with current detection window. */
-   if (!CPClipboard_IsEmpty(&m_clipboard)) {
+   if (!CPClipboard_IsEmpty(&mClipboard)) {
       g_debug("%s: got valid data from detWnd.\n", __FUNCTION__);
-      m_DnD->DestUIDragEnter(&m_clipboard);
+      mDnD->DestUIDragEnter(&mClipboard);
    }
 
    /*
@@ -2080,14 +2408,18 @@ DnDUIX11::TargetDragEnter(void)
 }
 
 
-/**
- * Get Unix time in milliseconds. See man 2 gettimeofday for details.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @return unix time in milliseconds.
+ * DnDUIX11::GetTimeInMillis --
+ *
+ *      Get Unix time in milliseconds.
+ *
+ *-----------------------------------------------------------------------------
  */
 
-unsigned long
-DnDUIX11::GetTimeInMillis(void)
+/* static */ unsigned long
+DnDUIX11::GetTimeInMillis()
 {
    VmTimeType atime;
 
@@ -2096,18 +2428,22 @@ DnDUIX11::GetTimeInMillis(void)
 }
 
 
-/**
- * Update version information in m_DnD.
+/*
+ *-----------------------------------------------------------------------------
  *
- * @param[ignored] chan RpcChannel pointer
- * @param[in] version the version negotiated with host.
+ * DnDUIX11::VmXDnDVersionChanged --
+ *
+ *      Update version information in mDnD.
+ *
+ *-----------------------------------------------------------------------------
  */
 
 void
-DnDUIX11::VmxDnDVersionChanged(RpcChannel *chan, uint32 version)
+DnDUIX11::VmxDnDVersionChanged(RpcChannel *chan,        // IN
+                               uint32 version)          // IN
 {
-   ASSERT(m_DnD);
-   m_DnD->VmxDnDVersionChanged(version);
+   ASSERT(mDnD);
+   mDnD->VmxDnDVersionChanged(version);
 }
 
 
@@ -2260,3 +2596,48 @@ DnDUIX11::GtkButtonReleaseEventCB(GdkEventButton *event)
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnDUIX11::OnWorkAreaChanged --
+ *
+ *      Updates mOrigin in response to changes to _NET_workArea.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DnDUIX11::OnWorkAreaChanged(Glib::RefPtr<Gdk::Screen> screen)    // IN
+{
+   TRACE_CALL();
+
+   std::vector<unsigned long> values;
+   if (   xutils::GetCardinalList(screen->get_root_window(), "_NET_WORKAREA", values)
+       && values.size() > 0
+       && values.size() % 4 == 0) {
+      /*
+       * wm-spec: _NET_WORKAREA, x, y, width, height CARDINAL[][4]/32
+       *
+       * For the purposes of drag-and-drop, we're okay with using the screen-
+       * agnostic _NET_WORKAREA atom, as the guest VM really deals with only
+       * one logical monitor.
+       */
+      unsigned long desktop = 0;
+      xutils::GetCardinal(screen->get_root_window(), "_NET_CURRENT_DESKTOP", desktop);
+
+      mOrigin.set_x(values[0 + 4 * desktop]);
+      mOrigin.set_y(values[1 + 4 * desktop]);
+   } else {
+      mOrigin.set_x(0);
+      mOrigin.set_y(0);
+   }
+
+   g_debug("%s: new origin at (%d, %d)\n", __FUNCTION__, mOrigin.get_x(),
+           mOrigin.get_y());
+}

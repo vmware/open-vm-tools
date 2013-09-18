@@ -18,8 +18,6 @@
 plugindir = @VMUSR_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libdndcp.la
 
-CFLAGS += -Wno-unused
-
 libdndcp_la_CPPFLAGS =
 libdndcp_la_CPPFLAGS += @GTK_CPPFLAGS@
 libdndcp_la_CPPFLAGS += @GTKMM_CPPFLAGS@
@@ -27,6 +25,7 @@ libdndcp_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dnd
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuest
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/stringxx
+libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/xutils
 libdndcp_la_CPPFLAGS += -I$(top_builddir)/include
 
 libdndcp_la_LDFLAGS =
@@ -66,6 +65,7 @@ libdndcp_la_SOURCES += dndGuest/rpcV4Util.cpp
 libdndcp_la_SOURCES += dndGuest/dndCPTransportGuestRpc.cpp
 
 libdndcp_la_SOURCES += stringxx/string.cc
+libdndcp_la_SOURCES += xutils/xutils.cc
 
 libdndcp_la_SOURCES += copyPasteCompat.c
 libdndcp_la_SOURCES += copyPasteCompatX11.c

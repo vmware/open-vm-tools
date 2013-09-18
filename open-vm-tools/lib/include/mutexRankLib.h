@@ -86,9 +86,9 @@
 #define RANK_nfcLibLock              (RANK_libLockBase + 0x4505)
 
 /*
- * policy ops pending list lock
+ * Policy lib lock
  */
-#define RANK_popPendingListLock      (RANK_libLockBase + 0x4605)
+#define RANK_policyLibLock           (RANK_libLockBase + 0x4605)
 
 /*
  * disklib and I/O related locks
@@ -159,5 +159,6 @@
 #define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7086)
 #define RANK_licenseCheckLock        (RANK_libLockBase + 0x7090)
 #define RANK_preferenceLock          (RANK_libLockBase + 0x7100)
+
 
 #endif /* _LIBMUTEXRANK_H */

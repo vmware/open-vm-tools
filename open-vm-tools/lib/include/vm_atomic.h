@@ -37,8 +37,6 @@
 #ifndef _ATOMIC_H_
 #define _ATOMIC_H_
 
-//#define FAKE_ATOMIC /* defined if true atomic not needed */
-
 #define INCLUDE_ALLOW_USERLEVEL
 
 #define INCLUDE_ALLOW_MODULE
@@ -54,17 +52,14 @@
 #include "vm_basic_types.h"
 
 
-/* Basic atomic type: 32 bits */
+/* Basic atomic types: 32 and 64 bits */
 typedef struct Atomic_uint32 {
    volatile uint32 value;
-} Atomic_uint32;
+} Atomic_uint32 ALIGNED(4);
 
-
-/* Basic atomic type: 64 bits */
 typedef struct  Atomic_uint64 {
    volatile uint64 value;
 } Atomic_uint64 ALIGNED(8);
-
 
 /*
  * Prototypes for msft atomics.  These are defined & inlined by the
@@ -122,7 +117,7 @@ __int64  _InterlockedCompareExchange64(__int64 volatile*, __int64, __int64);
 #endif
 #endif /* _MSC_VER */
 
-#if defined(__arm__) && !defined(FAKE_ATOMIC)
+#if defined(__arm__)
 /*
  * LDREX without STREX or CLREX may cause problems in environments where the
  * context switch may not clear the reference monitor - according ARM manual
@@ -342,34 +337,47 @@ AtomicEpilogue(void)
 static INLINE uint32
 Atomic_Read(Atomic_uint32 const *var) // IN
 {
-   return var->value;
+   uint32 value;
+
+#if defined(VMM)
+   ASSERT(((uintptr_t)var % 4) == 0);
+#endif
+
+#if defined(__GNUC__)
+   /*
+    * Use inline assembler to force using a single load instruction to
+    * ensure that the compiler doesn't split a transfer operation into multiple
+    * instructions.
+    */
+
+#if defined(VM_ARM_V7)
+   __asm__ __volatile__(
+      "ldr %0, [%1]"
+      : "=r" (value)
+      : "r" (var->value)
+   );
+#else
+   __asm__ __volatile__(
+      "mov %1, %0"
+      : "=r" (value)
+      : "m" (var->value)
+   );
+#endif
+#elif defined(_MSC_VER)
+   /*
+    * Microsoft docs guarantee simple reads and writes to properly
+    * aligned 32-bit variables use only a single instruction.
+    * http://msdn.microsoft.com/en-us/library/ms684122%28VS.85%29.aspx
+    */
+
+   value = var->value;
+#else
+#error No compiler defined for Atomic_Read
+#endif
+
+   return value;
 }
 #define Atomic_Read32 Atomic_Read
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_Write --
- *
- *      Write
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_Write(Atomic_uint32 *var, // IN
-             uint32 val)         // IN
-{
-   var->value = val;
-}
-#define Atomic_Write32 Atomic_Write
 
 
 /*
@@ -392,11 +400,7 @@ static INLINE uint32
 Atomic_ReadWrite(Atomic_uint32 *var, // IN
                  uint32 val)         // IN
 {
-#ifdef FAKE_ATOMIC
-   uint32 retval = var->value;
-   var->value = val;
-   return retval;
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #ifdef VM_ARM_V7
    register volatile uint32 retVal;
    register volatile uint32 res;
@@ -451,6 +455,83 @@ Atomic_ReadWrite(Atomic_uint32 *var, // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * Atomic_Write --
+ *
+ *      Write
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Write(Atomic_uint32 *var, // IN
+             uint32 val)         // IN
+{
+#if defined(VMM)
+   ASSERT(((uintptr_t)var % 4) == 0);
+#endif
+
+#if defined(__GNUC__)
+#if defined(VM_ARM_V7)
+   /*
+    * A3.4.1 ARM DDI 0406C:
+    *
+    * When a processor writes using any instruction other than a
+    * Store-Exclusive:
+    *
+    * - if the write is to a physical address that is not covered by its local
+    *   monitor the write does not affect the state of the local monitor
+    * - if the write is to a physical address that is covered by its local
+    *   monitor it is IMPLEMENTATION DEFINED whether the write affects the
+    *   state of the local monitor.
+    *
+    * A3.4.5 ARM DDI 0406C:
+    *
+    * If two STREX instructions are executed without an intervening LDREX the
+    * second STREX returns a status value of 1. This means that:
+    *
+    * — ARM recommends that, in a given thread of execution, every STREX has a
+    *   preceding LDREX associated with it
+    * — it is not necessary for every LDREX to have a subsequent STREX.
+    */
+
+   Atomic_ReadWrite(var, val);
+#else
+   /*
+    * Use inline assembler to force using a single store instruction to
+    * ensure that the compiler doesn't split a transfer operation into multiple
+    * instructions.
+    */
+
+   __asm__ __volatile__(
+      "mov %1, %0"
+      : "=m" (var->value)
+      : "r" (val)
+   );
+#endif
+#elif defined(_MSC_VER)
+   /*
+    * Microsoft docs guarantee simple reads and writes to properly
+    * aligned 32-bit variables use only a single instruction.
+    * http://msdn.microsoft.com/en-us/library/ms684122%28VS.85%29.aspx
+    */
+
+   var->value = val;
+#else
+#error No compiler defined for Atomic_Write
+#endif
+}
+#define Atomic_Write32 Atomic_Write
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Atomic_ReadIfEqualWrite --
  *
  *      Compare exchange: Read variable, if equal to oldVal, write newVal
@@ -469,14 +550,7 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN
                         uint32 oldVal,      // IN
                         uint32 newVal)      // IN
 {
-#ifdef FAKE_ATOMIC
-   uint32 readVal = var->value;
-
-   if (oldVal == readVal) {
-     var->value = newVal;
-   }
-   return oldVal;
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #ifdef VM_ARM_V7
    register uint32 retVal;
    register uint32 res;
@@ -559,7 +633,7 @@ Atomic_ReadIfEqualWriteLockAcquire(Atomic_uint32 *var, // IN
 				   uint32 oldVal,      // IN
 				   uint32 newVal)      // IN
 {
-#if !defined(FAKE_ATOMIC) && defined(__GNUC__) && defined(__x86_64__)
+#if defined(__GNUC__) && defined(__x86_64__)
    uint32 val;
    __asm__ __volatile__(
       "repnz; lock; cmpxchgl %2, %1"
@@ -668,9 +742,7 @@ static INLINE void
 Atomic_And(Atomic_uint32 *var, // IN
            uint32 val)         // IN
 {
-#ifdef FAKE_ATOMIC
-   var->value &= val;
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #ifdef VM_ARM_V7
    register volatile uint32 res;
    register volatile uint32 tmp;
@@ -734,9 +806,7 @@ static INLINE void
 Atomic_Or(Atomic_uint32 *var, // IN
           uint32 val)         // IN
 {
-#ifdef FAKE_ATOMIC
-   var->value |= val;
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #ifdef VM_ARM_V7
    register volatile uint32 res;
    register volatile uint32 tmp;
@@ -800,9 +870,7 @@ static INLINE void
 Atomic_Xor(Atomic_uint32 *var, // IN
            uint32 val)         // IN
 {
-#ifdef FAKE_ATOMIC
-   var->value ^= val;
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #ifdef VM_ARM_V7
    register volatile uint32 res;
    register volatile uint32 tmp;
@@ -905,9 +973,7 @@ static INLINE void
 Atomic_Add(Atomic_uint32 *var, // IN
            uint32 val)         // IN
 {
-#ifdef FAKE_ATOMIC
-   var->value += val;
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #ifdef VM_ARM_V7
    register volatile uint32 res;
    register volatile uint32 tmp;
@@ -1010,9 +1076,7 @@ static INLINE void
 Atomic_Sub(Atomic_uint32 *var, // IN
            uint32 val)         // IN
 {
-#ifdef FAKE_ATOMIC
-   var->value -= val;
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #ifdef VM_ARM_V7
    register volatile uint32 res;
    register volatile uint32 tmp;
@@ -1115,7 +1179,7 @@ static INLINE void
 Atomic_Inc(Atomic_uint32 *var) // IN
 {
 #ifdef __GNUC__
-#if defined(VM_ARM_V7) || defined(FAKE_ATOMIC)
+#if defined(VM_ARM_V7)
    Atomic_Add(var, 1);
 #else // VM_ARM_V7
    /* Checked against the Intel manual and GCC --walken */
@@ -1161,7 +1225,7 @@ static INLINE void
 Atomic_Dec(Atomic_uint32 *var) // IN
 {
 #ifdef __GNUC__
-#if defined(VM_ARM_V7) || defined(FAKE_ATOMIC)
+#if defined(VM_ARM_V7)
    Atomic_Sub(var, 1);
 #else // VM_ARM_V7
    /* Checked against the Intel manual and GCC --walken */
@@ -1343,11 +1407,7 @@ static INLINE uint32
 Atomic_FetchAndAddUnfenced(Atomic_uint32 *var, // IN
                            uint32 val)         // IN
 {
-#ifdef FAKE_ATOMIC
-   uint32 res = var->value;
-   var->value = res + val;
-   return res;
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #ifdef VM_ARM_V7
    register volatile uint32 res;
    register volatile uint32 retVal;
@@ -1428,7 +1488,7 @@ static INLINE uint32
 Atomic_FetchAndAddLockReleaseUnfenced(Atomic_uint32 *var, // IN
 				      uint32 val)         // IN
 {
-#if !defined(FAKE_ATOMIC) && defined(__GNUC__) && defined(__x86_64__)
+#if defined(__GNUC__) && defined(__x86_64__)
    __asm__ __volatile__(
       "repz; lock; xaddl %0, %1"
       : "=r" (val),
@@ -1470,7 +1530,7 @@ static INLINE uint32
 Atomic_FetchAndAdd(Atomic_uint32 *var, // IN
                    uint32 val)         // IN
 {
-#if defined(__GNUC__) && !defined(VM_ARM_V7) && !defined(FAKE_ATOMIC)
+#if defined(__GNUC__) && !defined(VM_ARM_V7)
    val = Atomic_FetchAndAddUnfenced(var, val);
    AtomicEpilogue();
    return val;
@@ -1508,7 +1568,7 @@ static INLINE uint32
 Atomic_FetchAndAddLockRelease(Atomic_uint32 *var, // IN
 			      uint32 val)         // IN
 {
-#if defined(__GNUC__) && !defined(VM_ARM_V7) && !defined(FAKE_ATOMIC)
+#if defined(__GNUC__) && !defined(VM_ARM_V7)
    val = Atomic_FetchAndAddLockReleaseUnfenced(var, val);
    AtomicEpilogue();
    return val;
@@ -1755,14 +1815,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
                  uint64 const *oldVal, // IN
                  uint64 const *newVal) // IN
 {
-#ifdef FAKE_ATOMIC
-   uint64 readVal = var->value;
-
-   if (*oldVal == readVal) {
-     var->value = *newVal;
-   }
-   return (*oldVal == readVal);
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #if defined(VM_ARM_V7)
    return (Atomic_ReadIfEqualWrite64(var, *oldVal, *newVal) == *oldVal);
 
@@ -1925,14 +1978,7 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
                  uint32 oldVal, // IN
                  uint32 newVal) // IN
 {
-#ifdef FAKE_ATOMIC
-   uint32 readVal = var->value;
-
-   if (oldVal == readVal) {
-     var->value = newVal;
-   }
-   return (oldVal == readVal);
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #ifdef VM_ARM_V7
    return (Atomic_ReadIfEqualWrite(var, oldVal, newVal) == oldVal);
 #else // VM_ARM_V7
@@ -1977,9 +2023,7 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
 static INLINE uint64
 Atomic_Read64(Atomic_uint64 const *var) // IN
 {
-#ifdef FAKE_ATOMIC
-   return var->value;
-#elif defined(__GNUC__) && defined(__x86_64__)
+#if defined(__GNUC__) && defined(__x86_64__)
    uint64 value;
 
 #ifdef VMM
