@@ -326,7 +326,7 @@ FLAG(   1,  0, ECX, 20,  1, SSE42,                                 YES, TRUE)  \
 FLAG(   1,  0, ECX, 21,  1, x2APIC,                                ANY, FALSE) \
 FLAG(   1,  0, ECX, 22,  1, MOVBE,                                 YES, TRUE)  \
 FLAG(   1,  0, ECX, 23,  1, POPCNT,                                YES, TRUE)  \
-FLAG(   1,  0, ECX, 24,  1, TSC_DEADLINE,                          NO,  FALSE) \
+FLAG(   1,  0, ECX, 24,  1, TSC_DEADLINE,                          ANY, FALSE) \
 FLAG(   1,  0, ECX, 25,  1, AES,                                   YES, TRUE)  \
 FLAG(   1,  0, ECX, 26,  1, XSAVE,                                 YES, FALSE) \
 FLAG(   1,  0, ECX, 27,  1, OSXSAVE,                               ANY, FALSE) \
