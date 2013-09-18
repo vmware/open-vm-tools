@@ -137,7 +137,7 @@ typedef struct HgfsInputParam {
    HgfsSessionInfo *session;     /* Hgfs session data */
    HgfsTransportSessionInfo *transportSession;
    HgfsPacket *packet;           /* Public (server/transport) Hgfs packet */
-   void const *payload;          /* Hgfs operation request */
+   const void *payload;          /* Hgfs operation request */
    uint32 payloadOffset;         /* Offset to start of Hgfs operation request */
    size_t payloadSize;           /* Hgfs operation request size */
    HgfsOp op;                    /* Hgfs operation command code */
@@ -2877,7 +2877,7 @@ static void
 HgfsServerInputAllocInit(HgfsPacket *packet,                        // IN: packet
                          HgfsTransportSessionInfo *transportSession,// IN: session
                          HgfsSessionInfo *session,                  // IN: session Id
-                         void const *request,                       // IN: HGFS packet
+                         const void *request,                       // IN: HGFS packet
                          size_t requestSize,                        // IN: request packet size
                          Bool sessionEnabled,                       // IN: session enabled request
                          uint32 requestId,                          // IN: unique request id
@@ -5735,7 +5735,7 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
 
 void *
 HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                   void const *packetHeader,     // IN: packet header
+                   const void *packetHeader,     // IN: packet header
                    size_t replyDataSize,         // IN: replyDataSize size
                    HgfsSessionInfo *session)     // IN: Session Info
 {

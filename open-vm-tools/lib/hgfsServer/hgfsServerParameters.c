@@ -375,7 +375,7 @@ exit:
  */
 
 HgfsInternalStatus
-HgfsUnpackPacketParams(void const *packet,      // IN: HGFS packet
+HgfsUnpackPacketParams(const void *packet,      // IN: HGFS packet
                        size_t packetSize,       // IN: request packet size
                        Bool *sessionEnabled,    // OUT: session enabled request
                        uint64 *sessionId,       // OUT: session Id
@@ -673,7 +673,7 @@ HgfsUnpackOpenPayloadV3(const HgfsRequestOpenV3 *requestV3, // IN: request paylo
  */
 
 Bool
-HgfsUnpackOpenRequest(void const *packet,         // IN: HGFS packet
+HgfsUnpackOpenRequest(const void *packet,         // IN: HGFS packet
                       size_t packetSize,          // IN: packet size
                       HgfsOp op,                  // IN: requested operation
                       HgfsFileOpenInfo *openInfo) // IN/OUT: open info structure
@@ -953,7 +953,7 @@ HgfsPackOpenV1Reply(HgfsFileOpenInfo *openInfo,   // IN: open info struct
 
 Bool
 HgfsPackOpenReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                  void const *packetHeader,     // IN: packet header
+                  const void *packetHeader,     // IN: packet header
                   HgfsFileOpenInfo *openInfo,   // IN: open info struct
                   size_t *payloadSize,          // OUT: size of packet
                   HgfsSessionInfo *session)     // IN: Session info
@@ -1083,7 +1083,7 @@ HgfsUnpackClosePayloadV3(const HgfsRequestCloseV3 *requestV3, // IN: payload
  */
 
 Bool
-HgfsUnpackCloseRequest(void const *packet,  // IN: request packet
+HgfsUnpackCloseRequest(const void *packet,  // IN: request packet
                        size_t packetSize,   // IN: request packet size
                        HgfsOp op,           // IN: request type
                        HgfsHandle *file)    // OUT: Handle to close
@@ -1136,7 +1136,7 @@ HgfsUnpackCloseRequest(void const *packet,  // IN: request packet
 
 Bool
 HgfsPackCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                   void const *packetHeader,   // IN: packet header
+                   const void *packetHeader,   // IN: packet header
                    HgfsOp op,                  // IN: request type
                    size_t *payloadSize,        // OUT: size of packet excluding header
                    HgfsSessionInfo *session)   // IN: Session info
@@ -1258,7 +1258,7 @@ HgfsUnpackSearchClosePayloadV3(const HgfsRequestSearchCloseV3 *requestV3, // IN:
  */
 
 Bool
-HgfsUnpackSearchCloseRequest(void const *packet,   // IN: request packet
+HgfsUnpackSearchCloseRequest(const void *packet,   // IN: request packet
                              size_t packetSize,    // IN: request packet size
                              HgfsOp op,            // IN: request type
                              HgfsHandle *search)   // OUT: search to close
@@ -1312,7 +1312,7 @@ HgfsUnpackSearchCloseRequest(void const *packet,   // IN: request packet
 
 Bool
 HgfsPackSearchCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                         void const *packetHeader,   // IN: packet header
+                         const void *packetHeader,   // IN: packet header
                          HgfsOp op,                  // IN: request type
                          size_t *payloadSize,        // OUT: size of packet
                          HgfsSessionInfo *session)   // IN: Session info
@@ -1621,7 +1621,7 @@ HgfsUnpackDeletePayloadV1(const HgfsRequestDelete *requestV1,   // IN: request p
  */
 
 Bool
-HgfsUnpackDeleteRequest(void const *packet,      // IN: HGFS packet
+HgfsUnpackDeleteRequest(const void *packet,      // IN: HGFS packet
                         size_t packetSize,       // IN: request packet size
                         HgfsOp op,               // IN: requested operation
                         const char **cpName,     // OUT: cpName
@@ -1718,7 +1718,7 @@ HgfsUnpackDeleteRequest(void const *packet,      // IN: HGFS packet
 
 Bool
 HgfsPackDeleteReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                    void const *packetHeader,  // IN: packet header
+                    const void *packetHeader,  // IN: packet header
                     HgfsOp op,                 // IN: requested operation
                     size_t *payloadSize,       // OUT: size of packet
                     HgfsSessionInfo *session)  // IN: Session info
@@ -2013,7 +2013,7 @@ HgfsUnpackRenamePayloadV1(const HgfsRequestRename *requestV1, // IN: request pay
  */
 
 Bool
-HgfsUnpackRenameRequest(void const *packet,       // IN: HGFS packet
+HgfsUnpackRenameRequest(const void *packet,       // IN: HGFS packet
                         size_t packetSize,        // IN: request packet size
                         HgfsOp op,                // IN: requested operation
                         const char **cpOldName,   // OUT: rename src
@@ -2127,7 +2127,7 @@ HgfsUnpackRenameRequest(void const *packet,       // IN: HGFS packet
 
 Bool
 HgfsPackRenameReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                    void const *packetHeader,  // IN: packet header
+                    const void *packetHeader,  // IN: packet header
                     HgfsOp op,                 // IN: requested operation
                     size_t *payloadSize,       // OUT: size of packet
                     HgfsSessionInfo *session)  // IN: Session info
@@ -2559,7 +2559,7 @@ HgfsPackGetattrReplyPayloadV1(HgfsFileAttrInfo *attr,       // IN: attr stucture
  */
 
 Bool
-HgfsUnpackGetattrRequest(void const *packet,         // IN: HGFS packet
+HgfsUnpackGetattrRequest(const void *packet,         // IN: HGFS packet
                          size_t packetSize,          // IN: request packet size
                          HgfsOp op,                  // IN request type
                          HgfsFileAttrInfo *attrInfo, // IN/OUT: getattr info
@@ -2653,7 +2653,7 @@ HgfsUnpackGetattrRequest(void const *packet,         // IN: HGFS packet
 
 Bool
 HgfsPackGetattrReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                     void const *packetHeader,   // IN: packet header
+                     const void *packetHeader,   // IN: packet header
                      HgfsFileAttrInfo *attr,     // IN: attr stucture
                      const char *utf8TargetName, // IN: optional target name
                      uint32 utf8TargetNameLen,   // IN: file name length
@@ -3554,7 +3554,7 @@ HgfsUnpackSetattrPayloadV1(const HgfsRequestSetattr *requestV1,  // IN: request 
  */
 
 Bool
-HgfsUnpackSetattrRequest(void const *packet,       // IN: HGFS packet
+HgfsUnpackSetattrRequest(const void *packet,       // IN: HGFS packet
                          size_t packetSize,        // IN: request packet size
                          HgfsOp op,                // IN: request type
                          HgfsFileAttrInfo *attr,   // OUT: setattr info
@@ -3654,7 +3654,7 @@ HgfsUnpackSetattrRequest(void const *packet,       // IN: HGFS packet
 
 Bool
 HgfsPackSetattrReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                     void const *packetHeader,  // IN: packet header
+                     const void *packetHeader,  // IN: packet header
                      HgfsOp op,                 // IN: request type
                      size_t *payloadSize,       // OUT: size of packet
                      HgfsSessionInfo *session)  // IN: Session info
@@ -3876,7 +3876,7 @@ HgfsUnpackCreateDirPayloadV1(const HgfsRequestCreateDir *requestV1, // IN: reque
  */
 
 Bool
-HgfsUnpackCreateDirRequest(void const *packet,      // IN: incoming packet
+HgfsUnpackCreateDirRequest(const void *packet,      // IN: incoming packet
                            size_t packetSize,       // IN: size of packet
                            HgfsOp op,               // IN: request type
                            HgfsCreateDirInfo *info) // IN/OUT: info struct
@@ -3948,7 +3948,7 @@ HgfsUnpackCreateDirRequest(void const *packet,      // IN: incoming packet
 
 Bool
 HgfsPackCreateDirReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                       void const *packetHeader,  // IN: packet header
+                       const void *packetHeader,  // IN: packet header
                        HgfsOp op,                 // IN: request type
                        size_t *payloadSize,        // OUT: size of packet
                        HgfsSessionInfo *session)  // IN: Session info
@@ -4057,7 +4057,7 @@ HgfsUnpackWriteWin32StreamPayloadV3(const HgfsRequestWriteWin32StreamV3 *request
  */
 
 Bool
-HgfsUnpackWriteWin32StreamRequest(void const *packet, // IN: incoming packet
+HgfsUnpackWriteWin32StreamRequest(const void *packet, // IN: incoming packet
                                   size_t packetSize,  // IN: size of packet
                                   HgfsOp op,          // IN: request type
                                   HgfsHandle *file,   // OUT: file to write to
@@ -4106,7 +4106,7 @@ HgfsUnpackWriteWin32StreamRequest(void const *packet, // IN: incoming packet
 
 Bool
 HgfsPackWriteWin32StreamReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                              void const *packetHeader,  // IN: packet header
+                              const void *packetHeader,  // IN: packet header
                               HgfsOp op,                 // IN: request type
                               uint32 actualSize,         // IN: amount written
                               size_t *payloadSize,       // OUT: size of packet
@@ -4224,7 +4224,7 @@ HgfsUnpackReadPayloadV3(const HgfsRequestReadV3 *requestV3,  // IN: payload
  */
 
 Bool
-HgfsUnpackReadRequest(void const *packet,     // IN: HGFS request
+HgfsUnpackReadRequest(const void *packet,     // IN: HGFS request
                       size_t packetSize,      // IN: request packet size
                       HgfsOp  op,             // IN: request type
                       HgfsHandle *file,       // OUT: Handle to close
@@ -4405,7 +4405,7 @@ HgfsUnpackWriteFastPayloadV4(const HgfsRequestWriteV3 *requestV3, // IN: payload
  */
 
 Bool
-HgfsUnpackWriteRequest(void const *writeRequest,// IN: write request params
+HgfsUnpackWriteRequest(const void *writeRequest,// IN: write request params
                        size_t writeRequestSize, // IN: write request params size
                        HgfsOp writeOp,          // IN: request version
                        HgfsHandle *file,        // OUT: Handle to write to
@@ -4471,7 +4471,7 @@ HgfsUnpackWriteRequest(void const *writeRequest,// IN: write request params
 
 Bool
 HgfsPackWriteReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                   void const *packetHeader,     // IN: packet header
+                   const void *packetHeader,     // IN: packet header
                    HgfsOp op,                    // IN: request type
                    uint32 actualSize,            // IN: number of bytes that were written
                    size_t *payloadSize,          // OUT: size of packet
@@ -4607,7 +4607,7 @@ HgfsUnpackQueryVolumePayloadV3(const HgfsRequestQueryVolumeV3 *requestV3, // IN:
  */
 
 Bool
-HgfsUnpackQueryVolumeRequest(void const *packet,     // IN: HGFS packet
+HgfsUnpackQueryVolumeRequest(const void *packet,     // IN: HGFS packet
                              size_t packetSize,      // IN: request packet size
                              HgfsOp op,              // IN: request type
                              Bool *useHandle,        // OUT: use handle
@@ -4670,7 +4670,7 @@ HgfsUnpackQueryVolumeRequest(void const *packet,     // IN: HGFS packet
 
 Bool
 HgfsPackQueryVolumeReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                         void const *packetHeader,  // IN: packet header
+                         const void *packetHeader,  // IN: packet header
                          HgfsOp op,                 // IN: request type
                          uint64 freeBytes,          // IN: volume free space
                          uint64 totalBytes,         // IN: volume capacity
@@ -4842,7 +4842,7 @@ HgfsUnpackSymlinkCreatePayloadV3(const HgfsRequestSymlinkCreateV3 *requestV3, //
  */
 
 Bool
-HgfsUnpackSymlinkCreateRequest(void const *packet,        // IN: HGFS packet
+HgfsUnpackSymlinkCreateRequest(const void *packet,        // IN: HGFS packet
                                size_t packetSize,         // IN: request packet size
                                HgfsOp op,                 // IN: request type
                                Bool *srcUseHandle,        // OUT: use source handle
@@ -4916,7 +4916,7 @@ HgfsUnpackSymlinkCreateRequest(void const *packet,        // IN: HGFS packet
 
 Bool
 HgfsPackSymlinkCreateReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                           void const *packetHeader,  // IN: packet header
+                           const void *packetHeader,  // IN: packet header
                            HgfsOp op,                 // IN: request type
                            size_t *payloadSize,       // OUT: size of packet
                            HgfsSessionInfo *session)  // IN: Session info
@@ -5049,7 +5049,7 @@ HgfsUnpackSearchOpenPayloadV3(const HgfsRequestSearchOpenV3 *requestV3, // IN: p
  */
 
 Bool
-HgfsUnpackSearchOpenRequest(void const *packet,      // IN: HGFS packet
+HgfsUnpackSearchOpenRequest(const void *packet,      // IN: HGFS packet
                             size_t packetSize,       // IN: request packet size
                             HgfsOp op,               // IN: request type
                             const char **dirName,    // OUT: directory name
@@ -5108,7 +5108,7 @@ HgfsUnpackSearchOpenRequest(void const *packet,      // IN: HGFS packet
 
 Bool
 HgfsPackSearchOpenReply(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
-                        void const *packetHeader,    // IN: packet header
+                        const void *packetHeader,    // IN: packet header
                         HgfsOp op,                   // IN: request type
                         HgfsHandle search,           // IN: search handle
                         size_t *payloadSize,         // OUT: size of packet
@@ -5210,7 +5210,7 @@ HgfsUnpackCreateSessionPayloadV4(const HgfsRequestCreateSessionV4 *requestV4, //
  */
 
 Bool
-HgfsUnpackCreateSessionRequest(void const *packet,          // IN: HGFS packet
+HgfsUnpackCreateSessionRequest(const void *packet,          // IN: HGFS packet
                                size_t packetSize,           // IN: size of packet
                                HgfsOp op,                   // IN: request type
                                HgfsCreateSessionInfo *info) // IN/OUT: info struct
@@ -5250,7 +5250,7 @@ HgfsUnpackCreateSessionRequest(void const *packet,          // IN: HGFS packet
 
 Bool
 HgfsPackCreateSessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                           void const *packetHeader,  // IN: packet header
+                           const void *packetHeader,  // IN: packet header
                            size_t *payloadSize,       // OUT: size of packet
                            HgfsSessionInfo *session)  // IN: Session info
 {
@@ -5293,7 +5293,7 @@ HgfsPackCreateSessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 
 Bool
 HgfsPackDestroySessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                            void const *packetHeader,  // IN: packet header
+                            const void *packetHeader,  // IN: packet header
                             size_t *payloadSize,        // OUT: size of packet
                             HgfsSessionInfo *session)  // IN: Session info
 {
@@ -5382,7 +5382,7 @@ HgfsPackSetWatchReplyV4(HgfsSubscriberHandle watchId, // IN: host id of thee new
 
 Bool
 HgfsPackSetWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                      void const *packetHeader,     // IN: packet header
+                      const void *packetHeader,     // IN: packet header
                       HgfsOp     op,                // IN: operation code
                       HgfsSubscriberHandle watchId, // IN: id of the new watch
                       size_t *payloadSize,          // OUT: size of packet
@@ -5474,7 +5474,7 @@ HgfsUnpackSetWatchPayloadV4(const HgfsRequestSetWatchV4 *requestV4, // IN: reque
  */
 
 Bool
-HgfsUnpackSetWatchRequest(void const *packet,      // IN: HGFS packet
+HgfsUnpackSetWatchRequest(const void *packet,      // IN: HGFS packet
                           size_t packetSize,       // IN: request packet size
                           HgfsOp op,               // IN: requested operation
                           Bool *useHandle,         // OUT: handle or cpName
@@ -5530,7 +5530,7 @@ HgfsUnpackSetWatchRequest(void const *packet,      // IN: HGFS packet
 
 Bool
 HgfsPackRemoveWatchReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                         void const *packetHeader,     // IN: packet header
+                         const void *packetHeader,     // IN: packet header
                          HgfsOp     op,                // IN: operation code
                          size_t *payloadSize,          // OUT: size of packet
                          HgfsSessionInfo *session)     // IN: Session info
@@ -5604,7 +5604,7 @@ HgfsUnpackRemoveWatchPayloadV4(const HgfsRequestRemoveWatchV4 *requestV4, // IN:
  */
 
 Bool
-HgfsUnpackRemoveWatchRequest(void const *packet,            // IN: HGFS packet
+HgfsUnpackRemoveWatchRequest(const void *packet,            // IN: HGFS packet
                              size_t packetSize,             // IN: request packet size
                              HgfsOp op,                     // IN: requested operation
                              HgfsSubscriberHandle *watchId) // OUT: watch Id to remove
@@ -5836,7 +5836,7 @@ HgfsUnpackOplockBreakAckPayloadV4(const HgfsReplyOplockBreakV4 *opBrkAck,  // IN
  */
 
 Bool
-HgfsUnpackOplockBreakAckReply(void const *packet,            // IN: HGFS packet
+HgfsUnpackOplockBreakAckReply(const void *packet,            // IN: HGFS packet
                               size_t packetSize,             // IN: reply packet size
                               HgfsOp op,                     // IN: operation version
                               HgfsHandle *fileId,            // OUT: file Id to remove

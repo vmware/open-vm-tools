@@ -578,7 +578,7 @@ HgfsInternalStatus HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo 
 
 void *
 HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                   void const *packetHeader,     // IN: incoming packet header
+                   const void *packetHeader,     // IN: incoming packet header
                    size_t replyDataSize,         // IN: payload size
                    HgfsSessionInfo *session);    // IN: Session Info
 
