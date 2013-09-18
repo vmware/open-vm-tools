@@ -73,8 +73,11 @@
 /*
  * Types
  */
-
+#if defined __APPLE__
+typedef uint64 PageHandle;
+#else
 typedef uintptr_t PageHandle;
+#endif
 typedef uintptr_t Mapping;
 
 #define PAGE_HANDLE_INVALID     0

@@ -37,8 +37,8 @@
  *    holding a spinlock --hpreg
  *
  * Results:
- *    INVALID_MPN on failure
- *    mpn         on success
+ *    INVALID_MPN64 on failure
+ *    mpn           on success
  *
  * Side effects:
  *    None
@@ -46,13 +46,18 @@
  *-----------------------------------------------------------------------------
  */
 
-static INLINE MPN
+static INLINE MPN64
 PgtblPte2MPN(pte_t *pte)   // IN
 {
+   MPN64 mpn;
    if (pte_present(*pte) == 0) {
-      return INVALID_MPN;
+      return INVALID_MPN64;
    }
-   return pte_pfn(*pte);
+   mpn = pte_pfn(*pte);
+   if (mpn >= INVALID_MPN64) {
+      return INVALID_MPN64;
+   }
+   return mpn;
 }
 
 
@@ -167,12 +172,12 @@ PgtblVa2PTELocked(struct mm_struct *mm, // IN: Mm structure of a process
  *
  *    Retrieve MPN for a given va.
  *
- *    Caller must call pte_unmap if valid pte returned. The mm->page_table_lock 
+ *    Caller must call pte_unmap if valid pte returned. The mm->page_table_lock
  *    must be held, so this function is not allowed to schedule() --hpreg
  *
  * Results:
- *    INVALID_MPN on failure
- *    mpn         on success
+ *    INVALID_MPN64 on failure
+ *    mpn	    on success
  *
  * Side effects:
  *    None
@@ -180,7 +185,7 @@ PgtblVa2PTELocked(struct mm_struct *mm, // IN: Mm structure of a process
  *-----------------------------------------------------------------------------
  */
 
-static INLINE MPN
+static INLINE MPN64
 PgtblVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a process
                   VA addr)              // IN: Address in the virtual address
 {
@@ -188,12 +193,12 @@ PgtblVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a process
 
    pte = PgtblVa2PTELocked(mm, addr);
    if (pte != NULL) {
-      MPN mpn = PgtblPte2MPN(pte);
+      MPN64 mpn = PgtblPte2MPN(pte);
       pte_unmap(pte);
       return mpn;
    }
-   return INVALID_MPN;
-} 
+   return INVALID_MPN64;
+}
 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0)
@@ -208,8 +213,8 @@ PgtblVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a process
  *    must be held, so this function is not allowed to schedule() --hpreg
  *
  * Results:
- *    INVALID_MPN on failure
- *    mpn         on success
+ *    INVALID_MPN64 on failure
+ *    mpn           on success
  *
  * Side effects:
  *    None
@@ -217,7 +222,7 @@ PgtblVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a process
  *-----------------------------------------------------------------------------
  */
 
-static INLINE MPN
+static INLINE MPN64
 PgtblKVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a caller
                    VA addr)              // IN: Address in the virtual address
 {
@@ -225,11 +230,11 @@ PgtblKVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a caller
 
    pte = PgtblPGD2PTELocked(compat_pgd_offset_k(mm, addr), addr);
    if (pte != NULL) {
-      MPN mpn = PgtblPte2MPN(pte);
+      MPN64 mpn = PgtblPte2MPN(pte);
       pte_unmap(pte);
       return mpn;
    }
-   return INVALID_MPN;
+   return INVALID_MPN64;
 }
 #endif
 
@@ -285,11 +290,11 @@ PgtblVa2PageLocked(struct mm_struct *mm, // IN: Mm structure of a process
  *-----------------------------------------------------------------------------
  */
 
-static INLINE int
+static INLINE MPN64
 PgtblVa2MPN(VA addr)  // IN
 {
    struct mm_struct *mm;
-   MPN mpn;
+   MPN64 mpn;
 
    /* current->mm is NULL for kernel threads, so use active_mm. */
    mm = current->active_mm;
@@ -322,11 +327,11 @@ PgtblVa2MPN(VA addr)  // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE int
+static INLINE MPN64
 PgtblKVa2MPN(VA addr)  // IN
 {
    struct mm_struct *mm = current->active_mm;
-   MPN mpn;
+   MPN64 mpn;
 
    if (compat_get_page_table_lock(mm)) {
       spin_lock(compat_get_page_table_lock(mm));

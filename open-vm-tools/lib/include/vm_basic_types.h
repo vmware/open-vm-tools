@@ -595,6 +595,17 @@ typedef void * UserVA;
 
 #if defined(VMKERNEL) || defined(VMKBOOT)
 #define INVALID_MPN64     ((MPN64)(uintptr_t)INVALID_MPN)
+#else
+/*
+ * We are zero extending the 32 bit MPN in a 64 bit MPN container
+ * This should change when we actually get a host supporting 64 bit
+ * memory/address space.
+ */
+
+#define INVALID_MPN64     ((MPN64)INVALID_MPN)
+#define RESERVED_MPN64    ((MPN64)RESERVED_MPN)
+#define MEMREF_MPN64      ((MPN64)MEMREF_MPN)
+#define RELEASED_MPN64    ((MPN64)RELEASED_MPN)
 #endif
 
 /*
