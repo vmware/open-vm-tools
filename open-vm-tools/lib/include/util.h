@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -635,5 +635,46 @@ Util_IsFileDescriptorOpen(int fd)   // IN
    return errno != EBADF;
 }
 #endif /* !_WIN32 */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_Memcpy32 --
+ *
+ *      Special purpose version of memcpy that requires nbytes be a
+ *      multiple of 4.  This assumption lets us have a very small,
+ *      inlineable implementation.
+ *
+ * Results:
+ *      dst
+ *
+ * Side effects:
+ *      See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+Util_Memcpy32(void *dst, const void *src, size_t nbytes)
+{
+   ASSERT((nbytes % 4) == 0);
+#if defined __GNUC__ && (defined(__i386__) || defined(__x86_64__))
+   do {
+      int dummy0, dummy1, dummy2;
+      __asm__ __volatile__(
+           "cld \n\t"
+           "rep ; movsl"  "\n\t"
+        : "=&c" (dummy0), "=&D" (dummy1), "=&S" (dummy2)
+        : "0" (nbytes / 4), "1" ((long) dst), "2" ((long) src)
+        : "memory", "cc"
+      );
+      return dst;
+   } while (0);
+#else
+   return memcpy(dst, src, nbytes);
+#endif
+}
+
 
 #endif /* UTIL_H */
