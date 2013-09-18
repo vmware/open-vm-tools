@@ -217,8 +217,8 @@ SlashProcNet_GetSnmp(void)
 {
    GHashTable *myHashTable = NULL;
    GIOChannel *myChannel = NULL;
-   GIOStatus keyIoStatus;
-   GIOStatus valIoStatus;
+   GIOStatus keyIoStatus = G_IO_STATUS_ERROR;
+   GIOStatus valIoStatus = G_IO_STATUS_ERROR;
    gchar *myKeyLine = NULL;
    gchar *myValLine = NULL;
    Bool parseError = FALSE;

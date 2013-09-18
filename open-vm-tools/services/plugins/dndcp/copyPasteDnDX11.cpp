@@ -220,7 +220,7 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 
    ASSERT(ctx);
    int argc = 1;
-   char *argv[] = {"", NULL};
+   const char *argv[] = {"", NULL};
    m_main = new Gtk::Main(&argc, (char ***) &argv, false);
 
    if (wrapper) {
