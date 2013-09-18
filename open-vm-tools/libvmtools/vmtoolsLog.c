@@ -114,6 +114,7 @@ static LogHandler *gDefaultData;
 static LogHandler *gErrorData;
 static GPtrArray *gDomains = NULL;
 static gboolean gLogInitialized = FALSE;
+static gboolean gLoggingStopped = FALSE;
 
 /* Internal functions. */
 
@@ -903,6 +904,11 @@ VMToolsLogWrapper(GLogLevelFlags level,
       return;
    }
 
+   if (gLoggingStopped) {
+      /* This is to avoid nested logging in vmxLogger */
+      return;
+   }
+
    if (gPanicCount == 0) {
       char *msg = Str_Vasprintf(NULL, fmt, args);
       if (msg != NULL) {
@@ -915,6 +921,28 @@ VMToolsLogWrapper(GLogLevelFlags level,
       Str_Vsnprintf(msg, sizeof msg, fmt, args);
       VMToolsLog(gLogDomain, level, msg, gDefaultData);
    }
+}
+
+
+/**
+ * This is called to avoid nested logging in vmxLogger.
+ */
+
+void
+VMTools_StopLogging(void)
+{
+   gLoggingStopped = TRUE;
+}
+
+
+/**
+ * This is called to reset logging in vmxLogger.
+ */
+
+void
+VMTools_RestartLogging(void)
+{
+   gLoggingStopped = FALSE;
 }
 
 

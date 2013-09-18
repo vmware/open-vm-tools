@@ -36,7 +36,7 @@ typedef struct VMXLoggerData {
  *******************************************************************************
  * VMXLoggerLog --                                                        */ /**
  *
- * Logs a message to the VMX using the backdoor.
+ * Logs a message to the VMX using RpcChannel.
  *
  * The logger uses its own RpcChannel, opening and closing the channel for each
  * log message sent. This is not optimal, especially if the application already
@@ -61,20 +61,25 @@ VMXLoggerLog(const gchar *domain,
    VMXLoggerData *logger = data;
 
    g_static_mutex_lock(&logger->lock);
+
+   /*
+    * To avoid nested logging inside of RpcChannel, we need to disable logging
+    * here. See bug 1069390.
+    */
+
+   VMTools_StopLogging();
+
    if (RpcChannel_Start(logger->chan)) {
       gchar *msg;
       gint cnt = VMToolsAsprintf(&msg, "log %s", message);
 
-      /*
-       * XXX: RpcChannel_Send() can log stuff in certain situations, which will
-       * cause this to blow up. Hopefully we won't hit those too often since
-       * we're stopping / starting the channel for each log message.
-       */
       RpcChannel_Send(logger->chan, msg, cnt, NULL, NULL);
 
       g_free(msg);
       RpcChannel_Stop(logger->chan);
    }
+
+   VMTools_RestartLogging();
    g_static_mutex_unlock(&logger->lock);
 }
 

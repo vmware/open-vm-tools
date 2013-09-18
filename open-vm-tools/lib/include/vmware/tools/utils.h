@@ -142,6 +142,12 @@ VMTools_CreateTimer(gint timeout);
 void
 VMTools_SetGuestSDKMode(void);
 
+void
+VMTools_StopLogging(void);
+
+void
+VMTools_RestartLogging(void);
+
 GArray *
 VMTools_WrapArray(gconstpointer data,
                   guint elemSize,
