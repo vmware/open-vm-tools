@@ -1075,10 +1075,11 @@ AsyncSocket_Connect(const char *hostname,
                     AsyncSocketPollParams *pollParams,
                     int *outError)
 {
-   struct sockaddr_in addr;
+   struct sockaddr addr;
    int getaddrinfoError;
    int error;
    AsyncSocket *asock;
+   char *ipString = NULL;
 
    if (!connectFn || !hostname) {
       error = ASOCKERR_INVAL;
@@ -1090,8 +1091,8 @@ AsyncSocket_Connect(const char *hostname,
     * Resolve the hostname.  Handles dotted decimal strings, too.
     */
 
-   getaddrinfoError = AsyncSocketResolveAddr(hostname, port,
-                                             SOCK_STREAM, &addr);
+   getaddrinfoError = AsyncSocketResolveAddr(hostname, port, AF_INET,
+                                             SOCK_STREAM, &addr, &ipString);
    if (0 != getaddrinfoError) {
       Log(ASOCKPREFIX "Failed to resolve address '%s' and port %u\n",
           hostname, port);
@@ -1099,20 +1100,13 @@ AsyncSocket_Connect(const char *hostname,
       goto error;
    }
 
-   /* Only IPv4 for now.  Change this when IPv6 support is added. */
-   ASSERT(addr.sin_family == AF_INET);
+   Log(ASOCKPREFIX "creating new socket, connecting to %s (%s)\n", ipString,
+       hostname);
+   free(ipString);
 
-   {
-      uint32 ip;
-      ip = ntohl(addr.sin_addr.s_addr);
-      Log(ASOCKPREFIX "creating new socket, connecting to %u.%u.%u.%u:%u (%s)\n",
-          (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF,
-          port, hostname);
-   }
-
-   asock = AsyncSocketConnect((struct sockaddr *)&addr, sizeof addr,
-                              connectFn, clientData, AsyncSocketConnectCallback,
-                              flags, pollParams, &error);
+   asock = AsyncSocketConnect(&addr, sizeof addr, connectFn, clientData,
+                              AsyncSocketConnectCallback, flags, pollParams,
+                              &error);
    if (!asock) {
       Warning(ASOCKPREFIX "connection attempt failed\n");
       error = ASOCKERR_CONNECT;
@@ -2498,8 +2492,10 @@ outHaveLock:
 int
 AsyncSocketResolveAddr(const char *hostname,
                        unsigned short port,
+                       int family,
                        int type,
-                       struct sockaddr_in *addr)
+                       struct sockaddr *addr,
+                       char **addrString)
 {
    struct addrinfo hints;
    struct addrinfo *aiTop = NULL;
@@ -2508,15 +2504,16 @@ AsyncSocketResolveAddr(const char *hostname,
    char portString[6]; /* strlen("65535\0") == 6 */
 
    ASSERT(NULL != addr);
+   ASSERT(NULL != addrString);
+
    Str_Sprintf(portString, sizeof(portString), "%d", port);
    memset(&hints, 0, sizeof(hints));
-   hints.ai_family = AF_INET;
+   hints.ai_family = family;
    hints.ai_socktype = type;
 
    /*
-    * We use getaddrinfo() since it is thread-safe and IPv6 ready.
-    * gethostbyname() is not thread-safe, and gethostbyname_r() is not
-    * defined on Windows.
+    * We use getaddrinfo() since it is thread-safe. gethostbyname() is not
+    * thread-safe, and gethostbyname_r() is not defined on Windows.
     */
 
    getaddrinfoError = Posix_GetAddrInfo(hostname, portString, &hints, &aiTop);
@@ -2527,11 +2524,45 @@ AsyncSocketResolveAddr(const char *hostname,
    }
    for (aiIterator = aiTop; NULL != aiIterator ; aiIterator =
                                                        aiIterator->ai_next) {
-      if (aiIterator->ai_family != AF_INET) {
-         continue;
+      if (((family == AF_UNSPEC || family == AF_INET) &&
+           aiIterator->ai_family == AF_INET) ||
+          ((family == AF_UNSPEC || family == AF_INET6) &&
+           aiIterator->ai_family == AF_INET6)) {
+         char tempAddrString[INET6_ADDRSTRLEN];
+         static char unknownAddr[] = "(Unknown)";
+#if defined(_WIN32)
+         DWORD len = INET6_ADDRSTRLEN;
+
+         if (WSAAddressToString(aiIterator->ai_addr, aiIterator->ai_addrlen,
+                                NULL, tempAddrString, &len)) {
+            *addrString = Util_SafeStrdup(unknownAddr);
+         } else {
+            *addrString = Util_SafeStrdup(tempAddrString);
+         }
+#else
+
+         if (aiIterator->ai_family == AF_INET &&
+             !inet_ntop(aiIterator->ai_family,
+                     &(((struct sockaddr_in *)aiIterator->ai_addr)->sin_addr),
+                     tempAddrString, INET6_ADDRSTRLEN)) {
+            *addrString = Util_SafeStrdup(unknownAddr);
+         } else if (aiIterator->ai_family == AF_INET6 &&
+                    !inet_ntop(aiIterator->ai_family,
+                  &(((struct sockaddr_in6 *)aiIterator->ai_addr)->sin6_addr),
+                  tempAddrString, INET6_ADDRSTRLEN)) {
+            *addrString = Util_SafeStrdup(unknownAddr);
+         } else {
+            Str_Sprintf(tempAddrString, sizeof tempAddrString, "%s:%u",
+                        tempAddrString, port);
+
+            *addrString = Util_SafeStrdup(tempAddrString);
+         }
+#endif
+
+         *addr = *(aiIterator->ai_addr);
+
+         break;
       }
-      *addr = *((struct sockaddr_in *) (aiIterator->ai_addr));
-      break;
    }
 
 bye:

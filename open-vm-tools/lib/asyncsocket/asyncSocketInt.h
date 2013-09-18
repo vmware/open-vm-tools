@@ -294,8 +294,12 @@ Bool AsyncSocketBind(AsyncSocket *asock, struct sockaddr *addr,
                      int *outError);
 Bool AsyncSocketListen(AsyncSocket *asock, AsyncSocketConnectFn connectFn,
                        void *clientData, int *outError);
-int AsyncSocketResolveAddr(const char *hostname, unsigned short port,
-                           int type, struct sockaddr_in *addr);
+int AsyncSocketResolveAddr(const char *hostname,
+                           unsigned short port,
+                           int family,
+                           int type,
+                           struct sockaddr *addr,
+                           char **addrString);
 AsyncSocket *AsyncSocketConnectWithAsock(AsyncSocket *asock,
                                          struct sockaddr *addr,
                                          socklen_t addrLen,
