@@ -224,6 +224,8 @@ main(int argc,
    /* Ignore SIGUSR2 by default. */
    signal(SIGUSR2, SIG_IGN);
 
+   signal(SIGPIPE, SIG_IGN);
+
    /*
     * Save the original environment so that we can safely spawn other
     * applications (since we may have to modify the original environment
