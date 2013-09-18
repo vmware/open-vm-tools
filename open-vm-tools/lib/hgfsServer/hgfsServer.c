@@ -4155,10 +4155,7 @@ HgfsDisconnectSessionInt(HgfsSessionInfo *session)    // IN: session context
    ASSERT(session->nodeArray);
    ASSERT(session->searchArray);
 
-   if (session->flags & HGFS_SESSION_CHANGENOTIFY_ENABLED) {
-      LOG(8, ("%s: calling notify component to disconnect\n", __FUNCTION__));
-      HgfsNotify_RemoveSessionSubscribers(session);
-   }
+   session->state = HGFS_SESSION_STATE_CLOSED;
    LOG(8, ("%s: exit\n", __FUNCTION__));
 }
 
@@ -4255,7 +4252,7 @@ HgfsServerSessionClose(void *clientData)    // IN: session context
  *    TRUE on success, FALSE otherwise.
  *
  * Side effects:
- *    Allocates new session info.
+ *    None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -4268,6 +4265,21 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
    ASSERT(session);
    ASSERT(session->nodeArray);
    ASSERT(session->searchArray);
+
+   ASSERT(session->state == HGFS_SESSION_STATE_CLOSED);
+
+   /* Check and remove any notification handles we have for this session. */
+   if (session->flags & HGFS_SESSION_CHANGENOTIFY_ENABLED) {
+      LOG(8, ("%s: calling notify component to disconnect\n", __FUNCTION__));
+      /*
+       * This routine will synchronize itself with notification generator.
+       * Therefore, it will remove subscribers and prevent the event generator
+       * from generating any new events while it locks the subscribers lists.
+       * New events will continue once more but with the updated subscriber list
+       * that will not contain this session.
+       */
+      HgfsNotify_RemoveSessionSubscribers(session);
+   }
 
    MXUser_AcquireExclLock(session->nodeArrayLock);
 
@@ -8284,6 +8296,12 @@ HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folde
 
    LOG(4, ("%s:Entered shr hnd %u hnd %"FMT64"x file %s mask %u\n",
          __FUNCTION__, sharedFolder, subscriber, fileName, mask));
+
+   if (session->state == HGFS_SESSION_STATE_CLOSED) {
+      LOG(4, ("%s: session has been closed drop the notification %"FMT64"x\n",
+              __FUNCTION__, session->sessionId));
+      goto exit;
+   }
 
    if (!HgfsServerGetShareName(sharedFolder, &shareNameLen, &shareName)) {
       LOG(4, ("%s: failed to find shared folder for a handle %x\n",
