@@ -8399,6 +8399,7 @@ HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folde
    packet = Util_SafeCalloc(1, sizeof *packet);
    packet->state &= ~HGFS_STATE_CLIENT_REQUEST;
    packet->metaPacketSize = sizeNeeded;
+   packet->metaPacketDataSize = packet->metaPacketSize;
    packet->metaPacket = packetHeader;
    packet->dataPacketIsAllocated = TRUE;
    notifyFlags = 0;

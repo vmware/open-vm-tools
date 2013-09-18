@@ -60,12 +60,14 @@ typedef struct HgfsPacket {
    void *metaPacket;
    size_t metaPacketSize;
    uint32 metaPacketMappedIov;
+   size_t metaPacketDataSize;
    Bool metaPacketIsAllocated;
    MappingType metaMappingType;
 
    void *dataPacket;
    size_t dataPacketSize;
    uint32 dataPacketMappedIov;
+   size_t dataPacketDataSize;
    uint32 dataPacketIovIndex;
    Bool dataPacketIsAllocated;
    /* What type of mapping was established - readable/ writeable ? */

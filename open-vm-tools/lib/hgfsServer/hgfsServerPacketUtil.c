@@ -107,12 +107,21 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
      /* Can we write directly into guest memory? */
       ASSERT_DEVEL(packet->metaPacket != NULL);
       if (packet->metaPacket != NULL) {
-         /* Use the pre-allocated metapacket buffer for the reply. */
+         /*
+          * Use the mapped metapacket buffer for the reply.
+          * This currently makes assumptions about the mapping -
+          * - It is mapped read -write
+          * - It is always large enough for any reply
+          * This will change as it is grossly inefficient as the maximum size
+          * is always mapped and copied no matter how much data it really contains.
+          */
          LOG(10, ("%s Using meta packet for reply packet\n", __FUNCTION__));
+         ASSERT_DEVEL(*replyPacketSize <= packet->metaPacketDataSize);
+         ASSERT_DEVEL(BUF_READWRITEABLE == packet->metaMappingType);
          ASSERT_DEVEL(*replyPacketSize <= packet->metaPacketSize);
 
          packet->replyPacket = packet->metaPacket;
-         packet->replyPacketSize = packet->metaPacketSize;
+         packet->replyPacketSize = packet->metaPacketDataSize;
          packet->replyPacketIsAllocated = FALSE;
       }
    } else {
@@ -183,7 +192,7 @@ HSPU_GetMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
                    size_t *metaPacketSize,               // OUT: Size of metaPacket
                    HgfsServerChannelCallbacks *chanCb)   // IN: Channel callbacks
 {
-   *metaPacketSize = packet->metaPacketSize;
+   *metaPacketSize = packet->metaPacketDataSize;
    if (packet->metaPacket != NULL) {
       return packet->metaPacket;
    }
@@ -199,7 +208,7 @@ HSPU_GetMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
                      packet->iov,
                      packet->iovCount,
                      0,
-                     packet->metaPacketSize,
+                     packet->metaPacketDataSize,
                      &packet->metaPacket,
                      &packet->metaPacketIsAllocated,
                      &packet->metaPacketMappedIov);
@@ -373,7 +382,7 @@ HSPU_PutMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
               packet->iov,
               packet->iovCount,
               0,
-              packet->metaPacketSize,
+              packet->metaPacketDataSize,
               &packet->metaPacket,
               &packet->metaPacketIsAllocated,
               &packet->metaPacketMappedIov);

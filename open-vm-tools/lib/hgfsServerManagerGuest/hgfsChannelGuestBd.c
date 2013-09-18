@@ -485,6 +485,7 @@ HgfsChannelGuestReceiveInternal(HgfsGuestConn *connData,  // IN: connection
    packet.iov[0].len = packetInSize;
    packet.iovCount = 1;
    packet.metaPacket = (void *)packetIn;
+   packet.metaPacketDataSize = packetInSize;
    packet.metaPacketSize = packetInSize;
    packet.replyPacket = packetOut;
    packet.replyPacketSize = *packetOutSize;
