@@ -32,7 +32,9 @@
 
 #include <stdarg.h>
 #include <string.h>
+#ifndef VMKBOOT
 #include <stdlib.h>
+#endif
 
 #ifdef _WIN32
    #ifdef USERLEVEL
@@ -470,6 +472,7 @@ Util_ZeroString(char *str)  // IN/OUT
 }
 
 
+#ifndef VMKBOOT
 /*
  *-----------------------------------------------------------------------------
  *
@@ -610,6 +613,7 @@ Util_FreeStringList(char **list,      // IN/OUT: the list to free
 {
    Util_FreeList((void **) list, length);
 }
+#endif
 
 #ifndef _WIN32
 /*
