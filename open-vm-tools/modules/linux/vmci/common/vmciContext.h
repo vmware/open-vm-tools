@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +19,7 @@
 /*
  * vmciContext.h --
  *
- *	VMCI state to enable sending calls between VMs.
+ *    VMCI state to enable sending calls between VMs.
  */
 
 #ifndef _VMCI_CONTEXT_H_
@@ -70,7 +70,7 @@ Bool VMCIContext_SupportsHostQP(VMCIContext *context);
 void VMCIContext_ReleaseContext(VMCIContext *context);
 int VMCIContext_EnqueueDatagram(VMCIId cid, VMCIDatagram *dg);
 int VMCIContext_DequeueDatagram(VMCIContext *context, size_t *maxSize,
-				VMCIDatagram **dg);
+                                VMCIDatagram **dg);
 int VMCIContext_PendingDatagrams(VMCIId cid, uint32 *pending);
 VMCIContext *VMCIContext_Get(VMCIId cid);
 void VMCIContext_Release(VMCIContext *context);

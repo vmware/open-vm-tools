@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +19,7 @@
 /*
  * vmciDoorbell.h --
  *
- *	Internal functions in the VMCI Doorbell API.
+ *    Internal functions in the VMCI Doorbell API.
  */
 
 #ifndef VMCI_DOORBELL_H

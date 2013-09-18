@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +19,7 @@
 /*
  * vmciHashtable.h --
  *
- *	Hash table for use in the APIs.
+ *    Hash table for use in the APIs.
  */
 
 #ifndef _VMCI_HASHTABLE_H_
