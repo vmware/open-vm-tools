@@ -344,12 +344,6 @@ VSockChannelStart(RpcChannel *chan)    // IN
 
    if (ret) {
       ret = VSockOutStart(vsock->out);
-      if (!ret) {
-         if (chan->inStarted) {
-            RpcIn_stop(chan->in);
-            chan->inStarted = FALSE;
-         }
-      }
    }
    chan->outStarted = ret;
 
