@@ -453,7 +453,7 @@ Hostinfo_GetSystemBitness(void)
 }
 
 
-#if !defined __APPLE__
+#if !defined __APPLE__ && !defined USERWORLD
 /*
  *-----------------------------------------------------------------------------
  *
@@ -744,6 +744,7 @@ out:
 #endif
 
 
+#ifndef USERWORLD
 /*
  *----------------------------------------------------------------------
  *
@@ -829,6 +830,7 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
    }
    return out;
 }
+#endif
 
 
 /*
@@ -877,7 +879,15 @@ HostinfoOSData(void)
    Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s", buf.sysname,
                buf.release);
 
-#if defined __APPLE__
+#if defined USERWORLD
+   if (buf.release[0] <= '4') {
+      Str_Strcpy(osName, "vmkernel", sizeof osName);
+   } else {
+      Str_Strcpy(osName, "vmkernel5", sizeof osName);
+   }
+   Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %c.x",
+                buf.release[0]);
+#elif defined __APPLE__
    {
       /*
        * The easiest way is to invoke "system_profiler" and hope that the
@@ -1052,6 +1062,7 @@ HostinfoOSData(void)
    }
 #endif
 
+#ifndef USERWORLD
    if (Hostinfo_GetSystemBitness() == 64) {
       if (strlen(osName) + sizeof STR_OS_64BIT_SUFFIX > sizeof osName) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
@@ -1060,6 +1071,7 @@ HostinfoOSData(void)
       }
       Str_Strcat(osName, STR_OS_64BIT_SUFFIX, sizeof osName);
    }
+#endif
 
    /*
     * Before returning, truncate the \n character at the end of the full name.
