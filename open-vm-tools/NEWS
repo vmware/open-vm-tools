@@ -1,3 +1,12 @@
+open-vm-tools 2013.09.16 changes:
+	* HGFS client and server improvements.
+
+	* Fixes for HGFS driver to compile with newer kernels.
+
+	* Tools demon now can use vsock to communicate with the host.
+
+	* Other fixes and cleanups.
+
 open-vm-tools 2013.04.16 changes:
 	* VMCI/VMSOCK Linux kernel modules are disabled for kernels
 	  3.9 and above.
