@@ -108,8 +108,7 @@ static char *FilePosixNearestExistingAncestor(char const *path);
 #if CAN_USE_FTS
 # include <fts.h>
 
-struct WalkDirContextImpl
-{
+struct WalkDirContextImpl {
    FTS *fts;
 };
 
@@ -119,6 +118,7 @@ struct WalkDirContextImpl
 #define FS_NFS_ON_ESX "NFS"
 /* A string for VMFS on ESX file system type */
 #define FS_VMFS_ON_ESX "VMFS"
+#define FS_VSAN_URI_PREFIX      "vsan:"
 
 #if defined __ANDROID__
 /*
@@ -137,11 +137,11 @@ struct WalkDirContextImpl
  *
  * FileRemoveDirectory --
  *
- *      Delete a directory.
+ *	Delete a directory.
  *
  * Results:
- *      0 success
- *    > 0 failure (errno)
+ *	0	success
+ *	> 0	failure (errno)
  *
  * Side effects:
  *      May change the host file system.
@@ -161,11 +161,11 @@ FileRemoveDirectory(ConstUnicode pathName)  // IN:
  *
  * File_Rename --
  *
- *      Rename a file.
+ *	Rename a file.
  *
  * Results:
- *        0  success
- *      > 0  failure (errno)
+ *	0	success
+ *	> 0	failure (errno)
  *
  * Side effects:
  *      May change the host file system.
@@ -198,8 +198,8 @@ File_RenameRetry(ConstUnicode oldFile,    // IN:
  *      and errno will be set to EFAULT.
  *
  * Results:
- *        0  success
- *      > 0  failure (errno)
+ *	0	success
+ *	> 0	failure (errno)
  *
  * Side effects:
  *      May change the host file system.  errno may be set.
@@ -212,62 +212,38 @@ FileDeletion(ConstUnicode pathName,  // IN:
              const Bool handleLink)  // IN:
 {
    int err;
-   char *primaryPath;
 
    if (pathName == NULL) {
       errno = EFAULT;
 
       return errno;
-   } else if ((primaryPath = Unicode_GetAllocBytes(pathName,
-                                          STRING_ENCODING_DEFAULT)) == NULL) {
-      Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
-          __FUNCTION__, UTF8(pathName));
-      errno = UNICODE_CONVERSION_ERRNO;
-
-      return errno;
    }
 
    if (handleLink) {
-      struct stat statbuf;
+      Unicode linkPath = Posix_ReadLink(pathName);
 
-      if (lstat(primaryPath, &statbuf) == -1) {
+      if (linkPath == NULL) {
+         /* If there is no link involved, continue */
          err = errno;
-         goto bail;
-      }
 
-      if (S_ISLNK(statbuf.st_mode)) {
-         ssize_t len;
-         char *linkPath;
-
-         linkPath = Util_SafeMalloc(statbuf.st_size + 1);
-         len = readlink(primaryPath, linkPath, statbuf.st_size + 1);
-         if (len < 0) {
-            err = errno;
-            free(linkPath);
+         if (err != EINVAL) {
             goto bail;
          }
-         if (len != statbuf.st_size) {
-            err = ESTALE;
-            free(linkPath);
+      } else {
+         err = (Posix_Unlink(linkPath) == -1) ? errno : 0;
+
+         Unicode_Free(linkPath);
+
+         /* Ignore a file that has already disappeared */
+         if (err != ENOENT) {
             goto bail;
          }
-         linkPath[len] = '\0';
-
-         if (unlink(linkPath) == -1) {
-            if (errno != ENOENT) {
-               err = errno;
-               free(linkPath);
-               goto bail;
-            }
-         }
-         free(linkPath);
       }
    }
 
-   err = (unlink(primaryPath) == -1) ? errno : 0;
+   err = (Posix_Unlink(pathName) == -1) ? errno : 0;
 
 bail:
-   free(primaryPath);
 
    return err;
 }
@@ -278,13 +254,13 @@ bail:
  *
  * File_UnlinkDelayed --
  *
- *    Same as File_Unlink for POSIX systems since we can unlink anytime.
+ *      Same as File_Unlink for POSIX systems since we can unlink anytime.
  *
  * Results:
- *    Return 0 if the unlink is successful.   Otherwise, returns -1.
+ *      Return 0 if the unlink is successful.   Otherwise, returns -1.
  *
  * Side effects:
- *    None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -301,11 +277,11 @@ File_UnlinkDelayed(ConstUnicode pathName)  // IN:
  *
  * FileAttributes --
  *
- *      Return the attributes of a file. Time units are in OS native time.
+ *	Return the attributes of a file. Time units are in OS native time.
  *
  * Results:
- *      0    success
- *    > 0  failure (errno)
+ *	0	success
+ *	> 0	failure (errno)
  *
  * Side effects:
  *      None
@@ -507,7 +483,7 @@ File_Cwd(ConstUnicode drive)  // IN:
       free(buffer);
       buffer = NULL;
 
-      if (errno != ENAMETOOLONG) {
+      if (errno != ERANGE) {
          break;
       }
 
@@ -1014,8 +990,8 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
  *      on each level until it succeeds.
  *
  * Results:
- *      TRUE    statfs succeeded
- *      FALSE   unable to statfs anything along the path
+ *      TRUE	statfs succeeded
+ *	FALSE	unable to statfs anything along the path
  *
  * Side effects:
  *      None
@@ -1103,7 +1079,7 @@ File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
  *
  * File_GetVMFSAttributes --
  *
- *      Acquire the attributes for a given file on a VMFS volume.
+ *      Acquire the attributes for a given file or directory on a VMFS volume.
  *
  * Results:
  *      Integer return value and populated FS_PartitionListResult
@@ -1116,14 +1092,13 @@ File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
  */
 
 int
-File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
+File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File/dir to test
                        FS_PartitionListResult **fsAttrs)  // IN/OUT: VMFS Info
 {
    int fd;
    int ret;
    Unicode fullPath;
-
-   Unicode parentPath = NULL;
+   Unicode directory = NULL;
 
    fullPath = File_FullPath(pathName);
    if (fullPath == NULL) {
@@ -1131,7 +1106,11 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
       goto bail;
    }
 
-   File_SplitName(fullPath, NULL, &parentPath, NULL);
+   if (File_IsDirectory(fullPath)) {
+      directory = Unicode_Duplicate(fullPath);
+   } else {
+      File_SplitName(fullPath, NULL, &directory, NULL);
+   }
 
    if (!HostType_OSIsVMK()) {
       Log(LGPFX" %s: File %s not on VMFS volume\n", __func__, UTF8(pathName));
@@ -1146,7 +1125,7 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
    (*fsAttrs)->ioctlAttr.maxPartitions = FS_PLIST_DEF_MAX_PARTITIONS;
    (*fsAttrs)->ioctlAttr.getAttrSpec = FS_ATTR_SPEC_BASIC;
 
-   fd = Posix_Open(parentPath, O_RDONLY, 0);
+   fd = Posix_Open(directory, O_RDONLY, 0);
 
    if (fd == -1) {
       Log(LGPFX" %s: could not open %s: %s\n", __func__, UTF8(pathName),
@@ -1169,7 +1148,7 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
 
 bail:
    Unicode_Free(fullPath);
-   Unicode_Free(parentPath);
+   Unicode_Free(directory);
 
    return ret;
 }
@@ -1313,7 +1292,7 @@ File_GetVMFSMountInfo(ConstUnicode pathName,   // IN:
       if (memcmp(fsAttrs->fsType, FS_NFS_ON_ESX, sizeof(FS_NFS_ON_ESX)) == 0) {
          /*
           * logicalDevice from NFS3 client contains remote IP and remote
-          * mount point, separate by space.  Split them out.  If there is
+          * mount point, separated by space.  Split them out.  If there is
           * no space then this is probably NFS41 client, and we cannot
           * obtain its remote mount point details at this time.
           */
@@ -1506,40 +1485,61 @@ File_GetCapacity(ConstUnicode pathName)  // IN: Path name
 char *
 File_GetUniqueFileSystemID(char const *path)  // IN: File path
 {
-   if (HostType_OSIsVMK()) {
-      char *canPath;
-      char *existPath;
+#ifdef VMX86_SERVER
+   char vmfsVolumeName[FILE_MAXPATH];
+   char *existPath;
+   char *canPath;
 
-      existPath = FilePosixNearestExistingAncestor(path);
-      canPath = Posix_RealPath(existPath);
-      free(existPath);
+   existPath = FilePosixNearestExistingAncestor(path);
+   canPath = Posix_RealPath(existPath);
+   free(existPath);
 
-      if (canPath == NULL) {
-         return NULL;
-      }
-
-      /*
-       * VCFS doesn't have real mount points, so the mount point lookup below
-       * returns "/vmfs", instead of the VCFS mount point.
-       *
-       * See bug 61646 for why we care.
-       */
-
-      if (strncmp(canPath, VCFS_MOUNT_POINT, strlen(VCFS_MOUNT_POINT)) == 0) {
-         char vmfsVolumeName[FILE_MAXPATH];
-
-         if (sscanf(canPath, VCFS_MOUNT_PATH "%[^/]%*s",
-                    vmfsVolumeName) == 1) {
-            free(canPath);
-
-            return Str_SafeAsprintf(NULL, "%s/%s", VCFS_MOUNT_POINT,
-                                    vmfsVolumeName);
-         }
-      }
-
-      free(canPath);
+   if (canPath == NULL) {
+      return NULL;
    }
 
+   /*
+    * VCFS doesn't have real mount points, so the mount point lookup below
+    * returns "/vmfs", instead of the VCFS mount point.
+    *
+    * See bug 61646 for why we care.
+    */
+   if (strncmp(canPath, VCFS_MOUNT_POINT, strlen(VCFS_MOUNT_POINT)) != 0 ||
+       sscanf(canPath, VCFS_MOUNT_PATH "%[^/]%*s", vmfsVolumeName) != 1) {
+      free(canPath);
+      goto exit;
+   }
+
+   /*
+    * If the path points to a file or directory that is on a vsan datastore,
+    * we have to determine which namespace object is involved.
+    */
+   if (strncmp(vmfsVolumeName, FS_VSAN_URI_PREFIX,
+               strlen(FS_VSAN_URI_PREFIX)) == 0) {
+      FS_PartitionListResult *fsAttrs = NULL;
+      int res;
+
+      res = File_GetVMFSAttributes(canPath, &fsAttrs);
+
+      if (res >= 0 && fsAttrs != NULL &&
+          strncmp(fsAttrs->fsType, FS_VMFS_ON_ESX,
+                  strlen(FS_VMFS_ON_ESX)) == 0) {
+         char *unique;
+         unique = Str_SafeAsprintf(NULL, "%s/%s/%s",
+                                   VCFS_MOUNT_POINT, vmfsVolumeName,
+                                   fsAttrs->name);
+         free(fsAttrs);
+         free(canPath);
+         return unique;
+      }
+      free(fsAttrs);
+   }
+   free(canPath);
+
+   return Str_SafeAsprintf(NULL, "%s/%s", VCFS_MOUNT_POINT,
+                           vmfsVolumeName);
+exit:
+#endif
    return FilePosixGetBlockDevice(path);
 }
 
@@ -1652,7 +1652,7 @@ retry:
 
          ret = Util_SafeStrdup(mnt.mnt_fsname);
 
-         break;
+	 break;
       }
    }
 
@@ -2024,7 +2024,7 @@ Bool
 File_Replace(ConstUnicode oldName,  // IN: old file
              ConstUnicode newName)  // IN: new file
 {
-   int status;
+   int status = 0;
    Bool result = FALSE;
    char *newPath = NULL;
    char *oldPath = NULL;
@@ -2062,8 +2062,9 @@ File_Replace(ConstUnicode oldName,  // IN: old file
       goto bail;
    }
 
-   status = (rename(newPath, oldPath) == -1) ? errno : 0;
-   if (status != 0) {
+
+   if (rename(newPath, oldPath) < 0) {
+      status = errno;
       Msg_Append(MSGID(filePosix.replaceRenameFailed)
                  "Failed to rename \"%s\" to \"%s\": %s\n",
                  newName, oldName, Msg_ErrString());
@@ -2080,6 +2081,41 @@ bail:
 
    return result;
 }
+
+
+#ifdef VMX86_SERVER
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_Is2TiBEnabled --
+ *
+ *      Look up for the config option "disk.enable2TiB" in config file
+ *      (/etc/vmware/config). If config option is not present then return
+ *      TRUE.
+ *
+ * Results:
+ *      TRUE if 2tbplus vdisk support is enabled (default value).
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_Is2TiBEnabled(void)
+{
+   static Bool enable2TiB = FALSE;
+   static Bool enable2TiBInited = FALSE;
+
+   if (!enable2TiBInited) {
+      enable2TiB = LocalConfig_GetBool(TRUE, "disk.enable2TiB");
+      enable2TiBInited = TRUE;
+   }
+   return enable2TiB;
+}
+#endif
 
 
 /*
@@ -2435,6 +2471,20 @@ FileGetMaxOrSupportsFileSize(ConstUnicode pathName,  // IN:
 
    ASSERT(fileSize);
 
+#ifdef VMX86_SERVER
+   if (!File_Is2TiBEnabled()) {
+      if (getMaxFileSize) {
+         /*
+          * Return 2tb-512b since hostd uses this value directly to report max
+          * VMDK's sizes to the UI.
+          */
+         *fileSize = CONST64U(0x20000000000) - CONST64U(512);
+         return TRUE;
+      }
+      return *fileSize <= (CONST64U(0x20000000000) - CONST64U(512));
+   }
+#endif
+
    /*
     * We acquire the full path name for testing in
     * FilePosixCreateTestGetMaxOrSupportsFileSize().  This is also done in the
@@ -2500,6 +2550,8 @@ out:
  *
  *      Given a path to a file on a volume, return the max file size for that
  *      volume. The max file size is stored on *maxFileSize on success.
+ *      The function caps the max file size to be MAX_SUPPORTED_FILE_SIZE on
+ *      any type of FS.
  *
  * Results:
  *      TRUE on success.
@@ -2515,13 +2567,24 @@ Bool
 File_GetMaxFileSize(ConstUnicode pathName,  // IN:
                     uint64 *maxFileSize)    // OUT:
 {
+   Bool result;
+
    if (!maxFileSize) {
       Log(LGPFX" %s: maxFileSize passed as NULL.\n", __func__);
 
       return FALSE;
    }
 
-   return FileGetMaxOrSupportsFileSize(pathName, maxFileSize, TRUE);
+   result = FileGetMaxOrSupportsFileSize(pathName, maxFileSize, TRUE);
+   if (result) {
+      /*
+       * Cap the max supported file size at MAX_SUPPORTED_FILE_SIZE.
+       */
+      if (*maxFileSize > MAX_SUPPORTED_FILE_SIZE) {
+         *maxFileSize = MAX_SUPPORTED_FILE_SIZE;
+      }
+   }
+   return result;
 }
 
 
@@ -2531,6 +2594,8 @@ File_GetMaxFileSize(ConstUnicode pathName,  // IN:
  * File_SupportsFileSize --
  *
  *      Check if the given file is on an FS that supports such file size.
+ *      The function caps the max supported file size to be
+ *      MAX_SUPPORTED_FILE_SIZE on any type of FS.
  *
  * Results:
  *      TRUE if FS supports such file size.
@@ -2552,6 +2617,14 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
    if (fileSize <= 0x7FFFFFFF) {
       return TRUE;
    }
+
+   /*
+    * Cap the max supported file size at MAX_SUPPORTED_FILE_SIZE.
+    */
+   if (fileSize > MAX_SUPPORTED_FILE_SIZE) {
+      return FALSE;
+   }
+
    return FileGetMaxOrSupportsFileSize(pathName, &fileSize, FALSE);
 }
 
@@ -2561,11 +2634,11 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
  *
  * FileCreateDirectory --
  *
- *      Create a directory. The umask is honored.
+ *	Create a directory. The umask is honored.
  *
  * Results:
- *      0    success
- *    > 0  failure (errno)
+ *	0	success
+ *	> 0	failure (errno)
  *
  * Side effects:
  *      May change the host file system.
@@ -2878,13 +2951,13 @@ File_WalkDirectoryEnd(WalkDirContext context)  // IN:
  *
  * FileIsGroupsMember --
  *
- *      Determine if a gid is in the gid list of the current process
+ *	Determine if a gid is in the gid list of the current process
  *
  * Results:
- *      FALSE if error (reported to the user)
+ *	FALSE if error (reported to the user)
  *
  * Side effects:
- *      None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -2946,19 +3019,19 @@ end:
  *
  * FileIsWritableDir --
  *
- *      Determine in a non-intrusive way if the user can create a file in a
- *      directory
+ *	Determine in a non-intrusive way if the user can create a file in a
+ *	directory
  *
  * Results:
- *      FALSE if error (reported to the user)
+ *	FALSE if error (reported to the user)
  *
  * Side effects:
- *      None
+ *	None
  *
  * Bug:
- *      It would be cleaner to use the POSIX access(2), which deals well
- *      with read-only filesystems. Unfortunately, access(2) doesn't deal with
- *      the effective [u|g]ids.
+ *	It would be cleaner to use the POSIX access(2), which deals well
+ *	with read-only filesystems. Unfortunately, access(2) doesn't deal with
+ *	the effective [u|g]ids.
  *
  *----------------------------------------------------------------------
  */
@@ -3001,16 +3074,16 @@ FileIsWritableDir(ConstUnicode dirName)  // IN:
  *
  * File_MakeCfgFileExecutable --
  *
- *      Make a .vmx file executable. This is sometimes necessary
+ *	Make a .vmx file executable. This is sometimes necessary
  *      to enable MKS access to the VM.
  *
  *      Owner always gets rwx.  Group/other get x where r is set.
  *
  * Results:
- *      FALSE if error
+ *	FALSE if error
  *
  * Side effects:
- *      errno is set on error
+ *	errno is set on error
  *
  *----------------------------------------------------------------------
  */

@@ -22,7 +22,7 @@
 #include <unistd.h> // for access, crypt, etc.
 
 #include "vmware.h"
-#include "vm_product.h"
+#include "vm_version.h"
 #include "codeset.h"
 #include "posix.h"
 #include "auth.h"
@@ -52,12 +52,6 @@
 
 #define LOGLEVEL_MODULE auth
 #include "loglevel_user.h"
-
-typedef struct {
-   struct passwd  pwd;      /* must be first member */
-   size_t         bufSize;
-   uint8          buf[];
-} AuthTokenInternal;
 
 #ifdef USE_PAM
 #if defined(sun)
@@ -251,120 +245,6 @@ static struct pam_conv PAM_conversation = {
 /*
  *----------------------------------------------------------------------
  *
- * AuthAllocateToken --
- *
- *      Allocates an AuthTokenInternal structure, plus helper buffer
- *      large enough for the Posix_Get*_r calls.
- *
- * Side effects:
- *      None.
- *
- * Results:
- *      An AuthTokenInternal pointer. Free with Auth_CloseToken.
- *
- *----------------------------------------------------------------------
- */
-
-static AuthTokenInternal *
-AuthAllocateToken(void)
-{
-   AuthTokenInternal *ati;
-   size_t bufSize;
-
-   /*
-    * We need to get the maximum size buffer needed by getpwuid_r from
-    * sysconf. Multiply by 4 to compensate for the conversion to UTF-8
-    * by the Posix_Get*_r() wrappers.
-    */
-
-   bufSize = (size_t) sysconf(_SC_GETPW_R_SIZE_MAX) * 4;
-
-   ati = Util_SafeMalloc(sizeof *ati + bufSize);
-   ati->bufSize = bufSize;
-
-   return ati;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Auth_GetPwnam --
- *
- *      Wrapper aroung Posix_Getpwnam_r.
- *
- * Side effects:
- *      None.
- *
- * Results:
- *      An AuthToken. Free with Auth_CloseToken.
- *
- *----------------------------------------------------------------------
- */
-
-AuthToken
-Auth_GetPwnam(const char *user)  // IN
-{
-   AuthTokenInternal *ati;
-   int res;
-   struct passwd *ppwd;
-
-   ASSERT(user);
-
-   ati = AuthAllocateToken();
-   res = Posix_Getpwnam_r(user, &ati->pwd, ati->buf, ati->bufSize, &ppwd);
-
-   if ((0 != res) || (ppwd == NULL)) {
-      Auth_CloseToken((AuthToken) ati);
-      return NULL;
-   }
-
-   ASSERT(ppwd == &ati->pwd);
-
-   return (AuthToken) ati;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Auth_AuthenticateSelf --
- *
- *      Authenticate as the current user.
- *
- * Side effects:
- *      None.
- *
- * Results:
- *      An AuthToken. Free with Auth_CloseToken.
- *
- *----------------------------------------------------------------------
- */
-
-AuthToken
-Auth_AuthenticateSelf(void)  // IN
-{
-   AuthTokenInternal *ati;
-   int res;
-   struct passwd *ppwd;
-
-   ati = AuthAllocateToken();
-   res = Posix_Getpwuid_r(getuid(), &ati->pwd, ati->buf, ati->bufSize, &ppwd);
-
-   if ((0 != res) || (ppwd == NULL)) {
-      Auth_CloseToken((AuthToken) ati);
-      return NULL;
-   }
-
-   ASSERT(ppwd == &ati->pwd);
-
-   return (AuthToken) ati;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * Auth_AuthenticateUser --
  *
  *      Accept username/password And verfiy it
@@ -384,26 +264,25 @@ AuthToken
 Auth_AuthenticateUser(const char *user,  // IN:
                       const char *pass)  // IN:
 {
+   struct passwd *pwd;
+
 #ifdef USE_PAM
    pam_handle_t *pamh;
    int pam_error;
 #endif
 
-   Bool success = FALSE;
-   AuthTokenInternal *ati = NULL;
-
    if (!CodeSet_Validate(user, strlen(user), "UTF-8")) {
       Log("User not in UTF-8\n");
-      goto exit;
+      return NULL;
    }
    if (!CodeSet_Validate(pass, strlen(pass), "UTF-8")) {
-      Log("Password not in UTF-8\n");
-      goto exit;
+      Log("Password not in UTF-8\n");                                                     
+      return NULL;
    }
 
 #ifdef USE_PAM
    if (!AuthLoadPAM()) {
-      goto exit;
+      return NULL;
    }
 
    /*
@@ -416,7 +295,7 @@ Auth_AuthenticateUser(const char *user,  // IN:
                             __FUNCTION__, __LINE__, \
                             dlpam_strerror(pamh, pam_error), pam_error); \
                   dlpam_end(pamh, pam_error); \
-                  goto exit; \
+                  return NULL; \
                  }
    PAM_username = user;
    PAM_password = pass;
@@ -430,7 +309,7 @@ Auth_AuthenticateUser(const char *user,  // IN:
 #endif
    if (pam_error != PAM_SUCCESS) {
       Log("Failed to start PAM (error = %d).\n", pam_error);
-      goto exit;
+      return NULL;
    }
 
    pam_error = dlpam_authenticate(pamh, 0);
@@ -442,50 +321,47 @@ Auth_AuthenticateUser(const char *user,  // IN:
    dlpam_end(pamh, PAM_SUCCESS);
 
    /* If this point is reached, the user has been authenticated. */
-   ati = (AuthTokenInternal *) Auth_GetPwnam(user);
+   setpwent();
+   pwd = Posix_Getpwnam(user);
+   endpwent();
+
 #else /* !USE_PAM */
 
    /* All of the following issues are dealt with in the PAM configuration
       file, so put all authentication/priviledge checks before the
       corresponding #endif below. */
+   
+   setpwent(); //XXX can kill?
+   pwd = Posix_Getpwnam(user);
+   endpwent(); //XXX can kill?
 
-   ati = (AuthTokenInternal *) Auth_GetPwnam(user);
-
-   if (ati == NULL) {
-      goto exit;
+   if (!pwd) {
+      // No such user
+      return NULL;
    }
 
-   if (*ati->pwd.pw_passwd != '\0') {
-      char *namep = (char *) crypt(pass, ati->pwd.pw_passwd);
+   if (*pwd->pw_passwd != '\0') {
+      char *namep = (char *) crypt(pass, pwd->pw_passwd);
 
-      if (strcmp(namep, ati->pwd.pw_passwd) != 0) {
+      if (strcmp(namep, pwd->pw_passwd) != 0) {
          // Incorrect password
-         goto exit;
+         return NULL;
       }
 
       // Clear out crypt()'s internal state, too.
-      crypt("glurp", ati->pwd.pw_passwd);
+      crypt("glurp", pwd->pw_passwd);
    }
 #endif /* !USE_PAM */
-
-   success = TRUE;
-
-  exit:
-   if (success) {
-      return (AuthToken) ati;
-   } else {
-      Auth_CloseToken((AuthToken) ati);
-      return NULL;
-   }
+   
+   return pwd;
 }
-
 
 /*
  *----------------------------------------------------------------------
  *
  * Auth_CloseToken --
  *
- *      Free the token allocated in Auth_AuthenticateUser.
+ *      Do nothing.
  *
  * Side effects:
  *      None
@@ -497,7 +373,7 @@ Auth_AuthenticateUser(const char *user,  // IN:
  */
 
 void
-Auth_CloseToken(AuthToken token)  // IN (OPT):
+Auth_CloseToken(AuthToken token)  // IN:
 {
-   free((void *) token);
 }
+

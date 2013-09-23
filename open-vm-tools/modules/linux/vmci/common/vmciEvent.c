@@ -692,7 +692,7 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
 /*
  *----------------------------------------------------------------------
  *
- * VMCIEvent_Subscribe --
+ * vmci_event_subscribe --
  *
  *      Subscribe to given event. The callback specified can be fired
  *      in different contexts depending on what flag is specified while
@@ -712,15 +712,20 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIEvent_Subscribe)
+VMCI_EXPORT_SYMBOL(vmci_event_subscribe)
 int
-VMCIEvent_Subscribe(VMCI_Event event,        // IN
-                    uint32 flags,            // IN
-                    VMCI_EventCB callback,   // IN
-                    void *callbackData,      // IN
-                    VMCIId *subscriptionID)  // OUT
+vmci_event_subscribe(VMCI_Event event,        // IN
+#if !defined(linux) || defined(VMKERNEL)
+                     uint32 flags,            // IN
+#endif // !linux || VMKERNEL
+                     VMCI_EventCB callback,   // IN
+                     void *callbackData,      // IN
+                     VMCIId *subscriptionID)  // OUT
 {
    int retval;
+#if defined(linux) && !defined(VMKERNEL)
+   uint32 flags = VMCI_FLAG_EVENT_NONE;
+#endif // linux && !VMKERNEL
    VMCISubscription *s = NULL;
 
    if (subscriptionID == NULL) {
@@ -748,7 +753,7 @@ VMCIEvent_Subscribe(VMCI_Event event,        // IN
 /*
  *----------------------------------------------------------------------
  *
- * VMCIEvent_Unsubscribe --
+ * vmci_event_unsubscribe --
  *
  *      Unsubscribe to given event. Removes it from list and frees it.
  *      Will return callbackData if requested by caller.
@@ -762,9 +767,9 @@ VMCIEvent_Subscribe(VMCI_Event event,        // IN
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIEvent_Unsubscribe)
+VMCI_EXPORT_SYMBOL(vmci_event_unsubscribe)
 int
-VMCIEvent_Unsubscribe(VMCIId subID)   // IN
+vmci_event_unsubscribe(VMCIId subID)   // IN
 {
    VMCISubscription *s;
 

@@ -51,12 +51,17 @@
 #include "xdrutil.h"
 
 #if !defined(__APPLE__)
-#include "vm_version.h"
 #include "embed_version.h"
 #include "vmtoolsd_version.h"
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
+#if defined(__linux__)
+#include <sys/io.h>
+#include <errno.h>
+#include <string.h>
+#include "ioplGet.h"
+#endif
 
 #define VMBACKUP_ENQUEUE_EVENT() do {                                         \
    gBackupState->timerEvent = g_timeout_source_new(gBackupState->pollPeriod); \
@@ -149,9 +154,12 @@ VmBackup_SendEvent(const char *event,
                    const char *desc)
 {
    Bool success;
-   char *result;
+   char *result = NULL;
    size_t resultLen;
    gchar *msg;
+#if defined(__linux__)
+   unsigned int oldLevel;
+#endif
 
    ASSERT(gBackupState != NULL);
 
@@ -161,13 +169,32 @@ VmBackup_SendEvent(const char *event,
       g_source_unref(gBackupState->keepAlive);
    }
 
-   msg = g_strdup_printf(VMBACKUP_PROTOCOL_EVENT_SET" %s %u %s", event, code, desc);
+   msg = g_strdup_printf(VMBACKUP_PROTOCOL_EVENT_SET" %s %u %s", event, code,
+                         desc);
+   g_debug("sending vmbackup event, %s\n", msg);
+
+#if defined(__linux__)
+   oldLevel = Iopl_Get();
+
+   if (iopl(3) < 0) {
+      g_debug("Error raising the IOPL, %s", strerror(errno));
+   }
+#endif
+
    success = RpcChannel_Send(gBackupState->ctx->rpc, msg, strlen(msg) + 1,
                              &result, &resultLen);
 
-   if (!success) {
-      g_warning("Failed to send event to the VMX: %s.\n", result);
+#if defined(__linux__)
+   if (iopl(oldLevel) < 0) {
+      g_debug("Error restoring the IOPL, %s", strerror(errno));
    }
+#endif
+
+   if (!success) {
+      g_warning("Failed to send vmbackup event to the VMX: %s.\n", result);
+   }
+
+   vm_free(result);
 
    gBackupState->keepAlive = g_timeout_source_new(VMBACKUP_KEEP_ALIVE_PERIOD / 2);
    VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
@@ -698,6 +725,11 @@ VmBackupStartCommon(RpcInData *data,
    return RPCIN_SETRETVALS(data, "", TRUE);
 
 error:
+   if (gBackupState->keepAlive != NULL) {
+      g_source_destroy(gBackupState->keepAlive);
+      g_source_unref(gBackupState->keepAlive);
+      gBackupState->keepAlive = NULL;
+   }
    if (gBackupState->provider) {
       gBackupState->provider->release(gBackupState->provider);
    }

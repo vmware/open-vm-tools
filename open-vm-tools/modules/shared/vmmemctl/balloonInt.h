@@ -111,7 +111,7 @@
 #define	STATS_DEC(stat)
 #endif
 
-#define PPN_2_PA(_ppn)  ((_ppn) << PAGE_SHIFT)
+#define PPN_2_PA(_ppn)  ((PPN64)(_ppn) << PAGE_SHIFT)
 #define PA_2_PPN(_pa)   ((_pa) >> PAGE_SHIFT)
 
 #endif /* !BALLOONINT_H_ */

@@ -917,10 +917,12 @@ MsgFmt_GetArgsWithBuf(const char *fmt,	  // IN: format string
 	 a->v.unsigned64 = (uint64) (uintptr_t) va_arg(va, void *);
 	 break;
 
+#ifndef NO_FLOATING_POINT
       case MSGFMT_ARG_FLOAT64:
-	 ASSERT_ON_COMPILE(sizeof (double) == 8);
-	 a->v.float64 = va_arg(va, double);
+         ASSERT_ON_COMPILE(sizeof (double) == 8);
+         a->v.float64 = va_arg(va, double);
 	 break;
+#endif
 
       case MSGFMT_ARG_STRING8: {
 	 const char *p = va_arg(va, char *);
@@ -1197,6 +1199,7 @@ MsgFmtGetArg1(void *clientData,      // IN: state
    case 'G':
    case 'a':
    case 'A':
+#ifndef NO_FLOATING_POINT
       switch (lengthMod) {
       // l h hh t z are not defined by man page, but allowed by glibc
       case '\0':
@@ -1228,6 +1231,13 @@ MsgFmtGetArg1(void *clientData,      // IN: state
 	 NOT_REACHED();
       }
       break;
+#else
+      MsgFmtError(state,
+                  "MsgFmtGetArg1: %%%c%c not supported, "
+                  "pos \"%.*s\", type \"%.*s\"",
+                  lengthMod, conversion, posSize, pos, typeSize, type);
+      return -2;
+#endif /*! NO_FLOATING_POINT */
 
    case 'c':
       switch (lengthMod) {

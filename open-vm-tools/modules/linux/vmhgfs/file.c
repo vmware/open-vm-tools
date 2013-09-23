@@ -33,6 +33,11 @@
 #include "compat_kernel.h"
 #include "compat_slab.h"
 
+/* Must be after compat_fs.h */
+#if defined VMW_USE_AIO
+#include <linux/aio.h>
+#endif
+
 #include "cpName.h"
 #include "hgfsProto.h"
 #include "module.h"
@@ -50,7 +55,7 @@ static int HgfsPackOpenRequest(struct inode *inode,
 static int HgfsUnpackOpenReply(HgfsReq *req,
                                HgfsOp opUsed,
                                HgfsHandle *file,
-                               HgfsLockType *lock);
+                               HgfsServerLock *lock);
 static int HgfsGetOpenFlags(uint32 flags);
 
 /* HGFS file operations for files. */
@@ -374,7 +379,7 @@ static int
 HgfsUnpackOpenReply(HgfsReq *req,          // IN: Packet with reply inside
                     HgfsOp opUsed,         // IN: What request op did we send
                     HgfsHandle *file,      // OUT: Handle in reply packet
-                    HgfsLockType *lock)    // OUT: The server lock we got
+                    HgfsServerLock *lock)  // OUT: The server lock we got
 {
    HgfsReplyOpenV3 *replyV3;
    HgfsReplyOpenV2 *replyV2;
@@ -547,7 +552,7 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
    HgfsOp opUsed;
    HgfsStatus replyStatus;
    HgfsHandle replyFile;
-   HgfsLockType replyLock;
+   HgfsServerLock replyLock;
    HgfsInodeInfo *iinfo;
    int result = 0;
 

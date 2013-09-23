@@ -323,78 +323,6 @@ VMToolsLog(const gchar *domain,
 
 /*
  *******************************************************************************
- * VMToolsGetLogFilePath --                                               */ /**
- *
- * @brief Fetches sanitized path for the log file.
- *
- * @param[in] key       The key for log file path.
- * @param[in] domain    Domain name.
- * @param[in] cfg       Config dictionary.
- *
- * @return Sanitized path for the log file.
- *
- *******************************************************************************
- */
-
-static gchar *
-VMToolsGetLogFilePath(const gchar *key,
-                      const gchar *domain,
-                      GKeyFile *cfg)
-{
-   gsize len = 0;
-   gchar *path = NULL;
-   gchar *origPath = NULL;
-
-   path = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
-   if (path == NULL) {
-      return NULL;
-   }
-
-   len = strlen(path);
-   origPath = path;
-
-   /*
-    * Drop all the preceding '"' chars
-    */
-   while (*path == '"') {
-      path++;
-      len--;
-   }
-
-   /*
-    * Ensure that path contains something more
-    * meaningful than just '"' chars
-    */
-   if (len == 0) {
-      g_warning("Invalid path for domain '%s'.", domain);
-      g_free(origPath);
-      path = NULL;
-   } else {
-      /* Drop the trailing '"' chars */
-      gchar *sanePath = g_strdup(path);
-      g_free(origPath);
-      path = sanePath;
-
-      if (path != NULL) {
-         while (*(path + len - 1) == '"') {
-            *(path + len - 1) = '\0';
-            len--;
-         }
-
-         if (len == 0) {
-            g_warning("Invalid path for domain '%s'.", domain);
-            g_free(origPath);
-            path = NULL;
-         }
-      }
-   }
-
-   return path;
-}
-
-
-/*
- *******************************************************************************
  * VMToolsGetLogHandler --                                                */ /**
  *
  * @brief Instantiates the log handler for the given domain.
@@ -430,7 +358,7 @@ VMToolsGetLogHandler(const gchar *handler,
       handler = "file";
 
       g_snprintf(key, sizeof key, "%s.data", domain);
-      path = VMToolsGetLogFilePath(key, domain, cfg);
+      path = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
       if (path != NULL) {
          g_snprintf(key, sizeof key, "%s.maxLogSize", domain);
          maxSize = (guint) g_key_file_get_integer(cfg, LOGGING_GROUP, key, &err);

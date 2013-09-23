@@ -440,6 +440,21 @@
 #   else
 #      if defined(__APPLE__)
 #         define VMWARE_HOST_DIRECTORY VMWARE_HOST_DIRECTORY_PREFIX
+#      elif defined(__ACESC_LICENSE__)
+/*
+ * This definition (__ACESC_LICENSE__) is used by the acesc licensing.
+ * The licensing API uses VMWARE_HOST_DIRECTORY definition to save the activated
+ * license (as well as searching).
+ * In our case, the ACESC will use this customized directory, instead of the common
+ * '/etc/vmware'.
+ * The main motivation for this is that the acesc configuration application is
+ * a web application (cgi app). Using the common directory, the apache process
+ * does not have enough permission to write into the directory (/etc/vmware).
+ * Instead of making the /etc/vmware writeable by everybody, we just create another
+ * subdirectory (/etc/vmware/acesc).
+ */
+#         define VMWARE_HOST_DIRECTORY "/etc/vmware/acesc"
+#         define DEFAULT_LIBDIRECTORY "/usr/lib/" PRODUCT_GENERIC_NAME_LOWER
 #      else
 #         define VMWARE_HOST_DIRECTORY "/etc/" PRODUCT_GENERIC_NAME_LOWER
 #         define DEFAULT_LIBDIRECTORY "/usr/lib/" PRODUCT_GENERIC_NAME_LOWER

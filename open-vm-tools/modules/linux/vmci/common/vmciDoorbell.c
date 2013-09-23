@@ -260,7 +260,7 @@ VMCIDoorbellGetPrivFlags(VMCIHandle handle,             // IN
        /* Hypervisor endpoints for notifications are not supported (yet). */
       return VMCI_ERROR_INVALID_ARGS;
    } else {
-      *privFlags = VMCIContext_GetPrivFlags(handle.context);
+      *privFlags = vmci_context_get_priv_flags(handle.context);
    }
 
    return VMCI_SUCCESS;
@@ -534,7 +534,7 @@ VMCIDoorbellUnlink(VMCIHandle handle, // IN
 /*
  *------------------------------------------------------------------------------
  *
- * VMCIDoorbell_Create --
+ * vmci_doorbell_create --
  *
  *    Creates a doorbell with the given callback. If the handle is
  *    VMCI_INVALID_HANDLE, a free handle will be assigned, if
@@ -554,13 +554,13 @@ VMCIDoorbellUnlink(VMCIHandle handle, // IN
  *------------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIDoorbell_Create)
+VMCI_EXPORT_SYMBOL(vmci_doorbell_create)
 int
-VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
-                    uint32 flags,                  // IN
-                    VMCIPrivilegeFlags privFlags,  // IN
-                    VMCICallback notifyCB,         // IN
-                    void *clientData)              // IN
+vmci_doorbell_create(VMCIHandle *handle,            // IN/OUT
+                     uint32 flags,                  // IN
+                     VMCIPrivilegeFlags privFlags,  // IN
+                     VMCICallback notifyCB,         // IN
+                     void *clientData)              // IN
 {
    VMCIDoorbellEntry *entry;
    VMCIHandle newHandle;
@@ -583,7 +583,7 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
    }
 
    if (VMCI_HANDLE_INVALID(*handle)) {
-      VMCIId contextID = VMCI_GetContextID();
+      VMCIId contextID = vmci_get_context_id();
       VMCIId resourceID = VMCIResource_GetID(contextID);
       if (resourceID == VMCI_INVALID_ID) {
          result = VMCI_ERROR_NO_HANDLE;
@@ -605,7 +605,8 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN/OUT
       if (VMCI_HOST_CONTEXT_ID == handle->context) {
          validContext = TRUE;
       }
-      if (VMCI_GuestPersonalityActive() && VMCI_GetContextID() == handle->context) {
+      if (VMCI_GuestPersonalityActive() &&
+          vmci_get_context_id() == handle->context) {
          validContext = TRUE;
       }
 
@@ -669,10 +670,10 @@ freeMem:
 /*
  *------------------------------------------------------------------------------
  *
- * VMCIDoorbell_Destroy --
+ * vmci_doorbell_destroy --
  *
  *    Destroys a doorbell previously created with
- *    VMCIDoorbell_Create. This operation may block waiting for a
+ *    vmci_doorbell_create. This operation may block waiting for a
  *    callback to finish.
  *
  * Results:
@@ -684,9 +685,9 @@ freeMem:
  *------------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIDoorbell_Destroy)
+VMCI_EXPORT_SYMBOL(vmci_doorbell_destroy)
 int
-VMCIDoorbell_Destroy(VMCIHandle handle)  // IN
+vmci_doorbell_destroy(VMCIHandle handle)  // IN
 {
    VMCIDoorbellEntry *entry;
    VMCIResource *resource;
@@ -797,7 +798,7 @@ VMCIDoorbellNotifyAsGuest(VMCIHandle handle,            // IN
 /*
  *------------------------------------------------------------------------------
  *
- * VMCIDoorbell_Notify --
+ * vmci_doorbell_notify --
  *
  *    Generates a notification on the doorbell identified by the
  *    handle. For host side generation of notifications, the caller
@@ -812,10 +813,10 @@ VMCIDoorbellNotifyAsGuest(VMCIHandle handle,            // IN
  *------------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIDoorbell_Notify)
+VMCI_EXPORT_SYMBOL(vmci_doorbell_notify)
 int
-VMCIDoorbell_Notify(VMCIHandle dst,               // IN
-                    VMCIPrivilegeFlags privFlags) // IN
+vmci_doorbell_notify(VMCIHandle dst,               // IN
+                     VMCIPrivilegeFlags privFlags) // IN
 {
    int retval;
    VMCIRoute route;

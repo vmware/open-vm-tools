@@ -95,10 +95,6 @@ static HgfsFile *HgfsInsertFile(const char *fileName,
                                 HgfsFile *fp,
                                 HgfsFileHashTable *htp);
 static void HgfsReleaseFile(HgfsFile *fp, HgfsFileHashTable *htp);
-static void HgfsFileVnodeLock(HgfsFile *fp,
-                              HgfsVnodeLockType type);
-static void HgfsFileVnodeUnlock(HgfsFile *fp,
-                                HgfsVnodeLockType type);
 static int HgfsInitFile(HgfsFile *fp, struct vnode *dvp, const char *fileName,
                         HgfsFileType fileType, int permissions, off_t fileSize);
 static void HgfsFreeFile(HgfsFile *fp);
@@ -115,81 +111,6 @@ static Bool HgfsIsModeCompatible(HgfsMode requestedMode, HgfsMode existingMode);
 /*
  * Global functions
  */
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsVnodeLock --
- *
- *      Locks the HgfsFile associated with the vnode (vp). The type specifies if
- *      we are locking for reads or writes. We only lock the HgfsFile on Mac OS
- *      because FreeBSD vnodes are locked when handed to the VFS layer and there
- *      is a 1:1 mapping between vnodes and HgfsFile objects so no extra locking
- *      is required.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-HgfsVnodeLock(struct vnode *vp,       // IN: Vnode to lock
-              HgfsVnodeLockType type) // IN: Reader or Writer lock?
-{
-   HgfsFile *fp;
-
-   ASSERT(type == HGFS_READER_LOCK || type == HGFS_WRITER_LOCK);
-   ASSERT(vp);
-
-   fp = HGFS_VP_TO_FP(vp);
-   ASSERT(fp);
-
-   DEBUG(VM_DEBUG_ENTRY, "Enter(%p,%d,%p)\n", vp, type, fp);
-
-   HgfsFileVnodeLock(fp, type);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsVnodeUnlock --
- *
- *      Unlocks the HgfsFile associated with the vnode (vp). Results are
- *      undefined the type of lock specified is different than the one that the
- *      vnode was locked with originally.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-HgfsVnodeUnlock(struct vnode *vp,       // IN: Vnode to unlock
-                HgfsVnodeLockType type) // IN: Reader or Writer lock?
-{
-   HgfsFile *fp;
-
-   ASSERT(type == HGFS_READER_LOCK || type == HGFS_WRITER_LOCK);
-   ASSERT(vp);
-
-   fp = HGFS_VP_TO_FP(vp);
-   ASSERT(fp);
-
-   DEBUG(VM_DEBUG_ENTRY, "Enter(%p,%d,%p)\n", vp, type, fp);
-
-   HgfsFileVnodeUnlock(fp, type);
-}
-
 
 /*
  *----------------------------------------------------------------------------
@@ -1083,145 +1004,6 @@ out:
    NOT_IMPLEMENTED();
 #endif
 
-/* Vnode read/write lock of open file state */
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsFileVnodeLockInit --
- *
- *      Allocates and initializes the file node's vnode lock.
- *      NOTE: only lock the node on Mac OS because FreeBSD vnodes are locked when
- *      handed to the VFS layer.
- *
- * Results:
- *      TRUE if successful or FreeBSD, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static Bool
-HgfsFileVnodeLockInit(HgfsFile *fp)           // IN: file state for vnode lock
-{
-   Bool result = TRUE;
-
-#if defined __APPLE__
-   fp->rwVnodeLock = os_rw_lock_alloc_init("hgfs_rw_file_lock");
-   if (NULL == fp->rwVnodeLock) {
-      result = FALSE;
-   }
-   DEBUG(VM_DEBUG_LOG, "fp = %p, rw vnode lock = %p\n", fp, fp->rwVnodeLock);
-#endif
-
-   return result;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsFileVnodeLockFree --
- *
- *      Destroys and releases the file node's vnode lock.
- *      NOTE: only lock the node on Mac OS because FreeBSD vnodes are locked when
- *      handed to the VFS layer.
- *
- * Results:
-  *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-HgfsFileVnodeLockFree(HgfsFile *fp)           // IN: file state for vnode lock
-{
-#if defined __APPLE__
-   DEBUG(VM_DEBUG_LOG, "Destroying fp = %p, rw vnode lock = %p\n", fp, fp->rwVnodeLock);
-   if (NULL != fp->rwVnodeLock) {
-      os_rw_lock_free(fp->rwVnodeLock);
-   }
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsFileVnodeLock --
- *
- *      Locks the file node's vnode lock. The type specifies if
- *      we are locking for reads or writes. We only lock the HgfsFile on Mac OS
- *      because FreeBSD vnodes are locked when handed to the VFS layer and there
- *      is a 1:1 mapping between vnodes and HgfsFile objects so no extra locking
- *      is required.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-HgfsFileVnodeLock(HgfsFile *fp,           // IN: file state for vnode lock
-                  HgfsVnodeLockType type) // IN: Reader or Writer lock?
-{
-#if defined __APPLE__
-   DEBUG(VM_DEBUG_ENTRY, "Enter(%p,%p,%d)\n",
-         fp, fp->rwVnodeLock, type);
-
-   if (type == HGFS_READER_LOCK) {
-      os_rw_lock_lock_shared(fp->rwVnodeLock);
-   } else {
-      os_rw_lock_lock_exclusive(fp->rwVnodeLock);
-   }
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsFileVnodeUnlock --
- *
- *      Unlocks the file node's vnode lock. Results are
- *      undefined the type of lock specified is different than the one that the
- *      vnode was locked with originally.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-HgfsFileVnodeUnlock(HgfsFile *fp,         // IN: file node to lock
-                    HgfsVnodeLockType type) // IN: Reader or Writer lock?
-{
-#if defined __APPLE__
-   DEBUG(VM_DEBUG_ENTRY, "Enter(%p,%p,%d)\n",
-         fp, fp->rwVnodeLock, type);
-
-   if (type == HGFS_READER_LOCK) {
-      os_rw_lock_unlock_shared(fp->rwVnodeLock);
-   } else {
-      os_rw_lock_unlock_exclusive(fp->rwVnodeLock);
-   }
-#endif
-}
-
-
 /* Allocation/initialization/free of open file state */
 
 
@@ -1440,9 +1222,14 @@ HgfsInitFile(HgfsFile *fp,              // IN: File to initialize
       goto destroyOut;
    }
 
-   if (!HgfsFileVnodeLockInit(fp)) {
+#if defined __APPLE__
+   fp->rwFileLock = os_rw_lock_alloc_init("hgfs_rw_file_lock");
+   if (!fp->rwFileLock) {
       goto destroyOut;
    }
+   DEBUG(VM_DEBUG_LOG, "fp = %p, Lock = %p .\n", fp, fp->rwFileLock);
+
+#endif
 
    fp->parent = dvp;
    if (dvp != NULL) {
@@ -1463,7 +1250,12 @@ destroyOut:
       os_mutex_free(fp->modeMutex);
    }
 
-   HgfsFileVnodeLockFree(fp);
+#if defined __APPLE__
+   if (fp->rwFileLock) {
+      os_rw_lock_free(fp->rwFileLock);
+   }
+   DEBUG(VM_DEBUG_LOG, "Destroying fp = %p, Lock = %p .\n", fp, fp->rwFileLock);
+#endif
 
    os_free(fp, sizeof *fp);
    return HGFS_ERR;
@@ -1492,7 +1284,10 @@ HgfsFreeFile(HgfsFile *fp)   // IN: HgfsFile structure to free
    ASSERT(fp);
    os_rw_lock_free(fp->handleLock);
    os_mutex_free(fp->modeMutex);
-   HgfsFileVnodeLockFree(fp);
+#if defined __APPLE__
+   DEBUG(VM_DEBUG_LOG, "Trace enter, fp = %p, Lock = %p .\n", fp, fp->rwFileLock);
+   os_rw_lock_free(fp->rwFileLock);
+#endif
    if (fp->parent != NULL) {
       vnode_rele(fp->parent);
    }

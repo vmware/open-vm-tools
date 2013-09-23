@@ -38,7 +38,9 @@
 #include "hgfsServerPolicy.h"
 #include "hgfsUtil.h"
 #include "hgfsVirtualDir.h"
+#include "hgfsEscape.h"
 #include "codeset.h"
+#include "config.h"
 #include "dbllnklst.h"
 #include "file.h"
 #include "util.h"
@@ -109,6 +111,10 @@
 #define HGFS_ASSERT_MINIMUM_OP(op)
 #endif
 
+#ifdef VMX86_TOOLS
+#define Config_GetBool(defaultValue,fmt) (defaultValue)
+#endif
+
 /*
  * This ensures that the hgfs name conversion code never fails on long
  * filenames by using a buffer that is too small. If anything, we will
@@ -123,17 +129,17 @@
 #define NUM_FILE_NODES 100
 #define NUM_SEARCHES 100
 
+/* Default maximum number of open nodes. */
+#define MAX_CACHED_FILENODES 30
+
 /* Default maximun number of open nodes that have server locks. */
 #define MAX_LOCKED_FILENODES 10
 
-/*
- * The HGFS server configurable settings.
- * (Note: the guest sets these to all defaults only modifiable from the VMX.)
- */
-static HgfsServerConfig gHgfsCfgSettings = {
-   (HGFS_CONFIG_NOTIFY_ENABLED | HGFS_CONFIG_VOL_INFO_MIN),
-   HGFS_MAX_CACHED_FILENODES
-};
+/* Maximum number of cached open nodes. */
+static unsigned int maxCachedOpenNodes;
+
+/* Value of config option to require using host timestamps */
+Bool alwaysUseHostTime = FALSE;
 
 /*
  * Monotonically increasing handle counter used to dish out HgfsHandles.
@@ -761,6 +767,56 @@ exit:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsHandle2ServerLock --
+ *
+ *    Retrieve the serverlock information for the file node that corresponds to
+ *    the specified hgfs handle. If the server is not compiled with oplock
+ *    support, we always return TRUE and HGFS_LOCK_NONE.
+ *
+ * Results:
+ *    TRUE if the hgfs handle is valid and the lock was retrieved successfully.
+ *    FALSE otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
+                      HgfsSessionInfo *session, // IN: Session info
+                      HgfsServerLock *lock)     // OUT: Server lock
+{
+#ifdef HGFS_OPLOCKS
+   Bool found = FALSE;
+   HgfsFileNode *fileNode = NULL;
+
+   ASSERT(lock);
+
+   MXUser_AcquireExclLock(session->nodeArrayLock);
+   fileNode = HgfsHandle2FileNode(handle, session);
+   if (fileNode == NULL) {
+      goto exit;
+   }
+
+   *lock = fileNode->serverLock;
+   found = TRUE;
+
+exit:
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
+
+   return found;
+#else
+   *lock = HGFS_LOCK_NONE;
+   return TRUE;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsFileDesc2Handle --
  *
  *    Given an OS handle/fd, return file's hgfs handle.
@@ -1001,6 +1057,64 @@ HgfsHandle2NotifyInfo(HgfsHandle handle,                    // IN: Hgfs file han
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsFileHasServerLock --
+ *
+ *    Check if the file with the given name is already opened with a server
+ *    lock on it. If the server is compiled without oplock support, we always
+ *    return FALSE.
+ *
+ * Results:
+ *    TRUE if the node was found and has an oplock.
+ *    FALSE otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsFileHasServerLock(const char *utf8Name,             // IN: Name in UTF8
+                      HgfsSessionInfo *session,         // IN: Session info
+                      HgfsServerLock *serverLock,       // OUT: Existing oplock
+                      fileDesc   *fileDesc)             // OUT: Existing fd
+{
+#ifdef HGFS_OPLOCKS
+   unsigned int i;
+   Bool found = FALSE;
+   ASSERT(utf8Name);
+
+   ASSERT(session);
+   ASSERT(session->nodeArray);
+
+   MXUser_AcquireExclLock(session->nodeArrayLock);
+
+   for (i = 0; i < session->numNodes; i++) {
+      HgfsFileNode *existingFileNode = &session->nodeArray[i];
+
+      if ((existingFileNode->state == FILENODE_STATE_IN_USE_CACHED) &&
+          (existingFileNode->serverLock != HGFS_LOCK_NONE) &&
+          (!stricmp(existingFileNode->utf8Name, utf8Name))) {
+         LOG(4, ("Found file with a lock: %s\n", utf8Name));
+         *serverLock = existingFileNode->serverLock;
+         *fileDesc = existingFileNode->fileDesc;
+         found = TRUE;
+         break;
+      }
+   }
+
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
+
+   return found;
+#else
+   return FALSE;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsGetNodeCopy --
  *
  *    Make a copy of the node. The node should not be kept around for long, as
@@ -1219,7 +1333,7 @@ exit:
 Bool
 HgfsUpdateNodeServerLock(fileDesc fd,                // IN: OS handle
                          HgfsSessionInfo *session,   // IN: Session info
-                         HgfsLockType serverLock)    // IN: new oplock
+                         HgfsServerLock serverLock)  // IN: new oplock
 {
    unsigned int i;
    HgfsFileNode *existingFileNode = NULL;
@@ -1792,7 +1906,7 @@ HgfsAddToCacheInternal(HgfsHandle handle,         // IN: HGFS file handle
    }
 
    /* Remove the LRU node if the list is full. */
-   if (session->numCachedOpenNodes == gHgfsCfgSettings.maxCachedOpenNodes) {
+   if (session->numCachedOpenNodes == maxCachedOpenNodes) {
       if (!HgfsRemoveLruNode(session)) {
          LOG(4, ("%s: Unable to remove LRU node from cache.\n",
                  __FUNCTION__));
@@ -1801,7 +1915,7 @@ HgfsAddToCacheInternal(HgfsHandle handle,         // IN: HGFS file handle
       }
    }
 
-   ASSERT_BUG(36244, session->numCachedOpenNodes < gHgfsCfgSettings.maxCachedOpenNodes);
+   ASSERT_BUG(36244, session->numCachedOpenNodes < maxCachedOpenNodes);
 
    node = HgfsHandle2FileNode(handle, session);
    ASSERT(node);
@@ -1877,7 +1991,7 @@ HgfsRemoveFromCacheInternal(HgfsHandle handle,        // IN: Hgfs handle to the 
       /*
        * XXX: From this point and up in the call chain (i.e. this function and
        * all callers), Bool is returned instead of the HgfsInternalStatus.
-       * HgfsPlatformCloseFile returns HgfsInternalStatus, which is far more granular,
+       * HgfsCloseFile returns HgfsInternalStatus, which is far more granular,
        * but modifying this stack to use HgfsInternalStatus instead of Bool is
        * not worth it, as we'd have to #define per-platform error codes for
        * things like "ran out of memory", "bad file handle", etc.
@@ -1885,7 +1999,7 @@ HgfsRemoveFromCacheInternal(HgfsHandle handle,        // IN: Hgfs handle to the 
        * Instead, we'll just await the lobotomization of the node cache to
        * really fix this.
        */
-      if (HgfsPlatformCloseFile(node->fileDesc, node->fileCtx)) {
+      if (HgfsCloseFile(node->fileDesc, node->fileCtx)) {
          LOG(4, ("%s: Could not close fd %u\n", __FUNCTION__, node->fileDesc));
 
          return FALSE;
@@ -1899,7 +2013,7 @@ HgfsRemoveFromCacheInternal(HgfsHandle handle,        // IN: Hgfs handle to the 
       * we have a problem (see bug 36244).
       */
 
-      ASSERT(session->numCachedOpenNodes < gHgfsCfgSettings.maxCachedOpenNodes);
+      ASSERT(session->numCachedOpenNodes < maxCachedOpenNodes);
    }
 
    return TRUE;
@@ -2286,7 +2400,6 @@ HgfsAddNewSearch(char const *utf8Dir,       // IN: UTF8 name of dir to search in
 
    newSearch->dents = NULL;
    newSearch->numDents = 0;
-   newSearch->flags = 0;
    newSearch->type = type;
    newSearch->handle = HgfsServerGetNextHandleCounter();
 
@@ -2328,13 +2441,11 @@ HgfsFreeSearchDirents(HgfsSearch *search)       // IN/OUT: search
 {
    unsigned int i;
 
-   if (NULL != search->dents) {
+   if (search->dents) {
       for (i = 0; i < search->numDents; i++) {
          free(search->dents[i]);
-         search->dents[i] = NULL;
       }
       free(search->dents);
-      search->dents = NULL;
    }
 }
 
@@ -2371,12 +2482,6 @@ HgfsRemoveSearchInternal(HgfsSearch *search,       // IN: search
    free(search->utf8Dir);
    free(search->utf8ShareName);
    free((char*)search->shareInfo.rootDir);
-   search->utf8DirLen = 0;
-   search->utf8Dir = NULL;
-   search->utf8ShareNameLen = 0;
-   search->utf8ShareName = NULL;
-   search->shareInfo.rootDirLen = 0;
-   search->shareInfo.rootDir = NULL;
 
    /* Prepend at the beginning of the list */
    DblLnkLst_LinkFirst(&session->searchFreeList, &search->links);
@@ -2423,91 +2528,11 @@ HgfsRemoveSearch(HgfsHandle handle,        // IN: search
 
 
 /*
- *----------------------------------------------------------------------------
- *
- * HgfsSearchHasReadAllEntries --
- *
- *    Return whether the client has read all the search entries or not.
- *
- * Results:
- *    TRUE on success, FALSE on failure.  readAllEntries is filled in on
- *    success.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-static Bool
-HgfsSearchHasReadAllEntries(HgfsHandle handle,        // IN:  Hgfs file handle
-                            HgfsSessionInfo *session, // IN: Session info
-                            Bool *readAllEntries)     // OUT: If open was sequential
-{
-   HgfsSearch *search;
-   Bool success = FALSE;
-
-   ASSERT(NULL != readAllEntries);
-
-   MXUser_AcquireExclLock(session->searchArrayLock);
-
-   search = HgfsSearchHandle2Search(handle, session);
-   if (NULL == search) {
-      goto exit;
-   }
-
-   *readAllEntries = search->flags & HGFS_SEARCH_FLAG_READ_ALL_ENTRIES;
-   success = TRUE;
-
-exit:
-   MXUser_ReleaseExclLock(session->searchArrayLock);
-
-   return success;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsSearchSetReadAllEntries --
- *
- *    Set the flag to indicate the client has read all the search entries.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-HgfsSearchSetReadAllEntries(HgfsHandle handle,        // IN:  Hgfs file handle
-                            HgfsSessionInfo *session) // IN: Session info
-{
-   HgfsSearch *search;
-
-   MXUser_AcquireExclLock(session->searchArrayLock);
-
-   search = HgfsSearchHandle2Search(handle, session);
-   if (NULL == search) {
-      goto exit;
-   }
-
-   search->flags |= HGFS_SEARCH_FLAG_READ_ALL_ENTRIES;
-
-exit:
-   MXUser_ReleaseExclLock(session->searchArrayLock);
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerGetDirEntry --
+ * HgfsGetSearchResult --
  *
- *    Returns a copy of the directory entry at the given index. If remove is set
+ *    Returns a copy of the search result at the given offset. If remove is set
  *    to TRUE, the existing result is also pruned and the remaining results
  *    are shifted up in the result array.
  *
@@ -2521,45 +2546,74 @@ exit:
  *-----------------------------------------------------------------------------
  */
 
-HgfsInternalStatus
-HgfsServerGetDirEntry(HgfsHandle handle,                // IN: Handle to search
-                      HgfsSessionInfo *session,         // IN: Session info
-                      uint32 index,                     // IN: index to retrieve at
-                      Bool remove,                      // IN: If true, removes the result
-                      struct DirectoryEntry **dirEntry) // OUT: directory entry
+DirectoryEntry *
+HgfsGetSearchResult(HgfsHandle handle,         // IN: Handle to search
+                    HgfsSessionInfo *session,  // IN: Session info
+                    uint32 offset,             // IN: Offset to retrieve at
+                    Bool remove)               // IN: If true, removes the result
 {
    HgfsSearch *search;
-   struct DirectoryEntry *dent = NULL;
-   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
+   DirectoryEntry *dent = NULL;
 
    MXUser_AcquireExclLock(session->searchArrayLock);
 
    search = HgfsSearchHandle2Search(handle, session);
-   if (search == NULL) {
-      status = HGFS_ERROR_INVALID_HANDLE;
+   if (search == NULL || search->dents == NULL) {
       goto out;
    }
 
-   /* No more entries or none. */
-   if (search->dents == NULL) {
+   if (offset >= search->numDents) {
       goto out;
    }
 
-   if (HGFS_SEARCH_LAST_ENTRY_INDEX == index) {
-      /* Set the index to the final entry. */
-      index = search->numDents - 1;
+   /* If we're not removing the result, we need to make a copy of it. */
+   if (remove) {
+      /*
+       * We're going to shift the dents array, overwriting the dent pointer at
+       * offset, so first we need to save said pointer so that we can return it
+       * later to the caller.
+       */
+      dent = search->dents[offset];
+
+      /* Shift up the remaining results */
+      memmove(&search->dents[offset], &search->dents[offset + 1],
+              (search->numDents - (offset + 1)) * sizeof search->dents[0]);
+
+      /* Decrement the number of results */
+      search->numDents--;
+   } else {
+      DirectoryEntry *originalDent;
+      size_t nameLen;
+
+      originalDent = search->dents[offset];
+      ASSERT(originalDent);
+
+      nameLen = strlen(originalDent->d_name);
+      /*
+       * Make sure the name will not overrun the d_name buffer, the end of
+       * which is also the end of the DirectoryEntry.
+       */
+      ASSERT(offsetof(DirectoryEntry, d_name) + nameLen < originalDent->d_reclen);
+
+      dent = malloc(originalDent->d_reclen);
+      if (dent == NULL) {
+         goto out;
+      }
+
+      /*
+       * Yes, there are more members than this in a dirent. But if you look
+       * at the top of hgfsServerInt.h, you'll see that on Windows we only
+       * define d_reclen and d_name, as those are the only fields we need.
+       */
+      dent->d_reclen = originalDent->d_reclen;
+      memcpy(dent->d_name, originalDent->d_name, nameLen);
+      dent->d_name[nameLen] = 0;
    }
 
-   status = HgfsPlatformGetDirEntry(search,
-                                    session,
-                                    index,
-                                    remove,
-                                    &dent);
-out:
+  out:
    MXUser_ReleaseExclLock(session->searchArrayLock);
-   *dirEntry = dent;
 
-   return status;
+   return dent;
 }
 
 
@@ -2703,7 +2757,7 @@ HgfsServerClose(HgfsInputParam *input)  // IN: Input params
 
       if (!HgfsRemoveFromCache(file, input->session)) {
          LOG(4, ("%s: Could not remove the node from cache.\n", __FUNCTION__));
-         status = HGFS_ERROR_INVALID_HANDLE;
+         status = HGFS_ERROR_INTERNAL;
       } else {
          HgfsFreeFileNode(file, input->session);
          if (!HgfsPackCloseReply(input->packet, input->metaPacket, input->op,
@@ -2760,7 +2814,7 @@ HgfsServerSearchClose(HgfsInputParam *input)  // IN: Input params
       } else {
          /* Invalid handle */
          LOG(4, ("%s: invalid handle %u\n", __FUNCTION__, search));
-         status = HGFS_ERROR_INVALID_HANDLE;
+         status = HGFS_ERROR_INTERNAL;
       }
    } else {
       status = HGFS_ERROR_INTERNAL;
@@ -3440,7 +3494,6 @@ HgfsServerGetShareName(HgfsSharedFolderHandle sharedFolder, // IN: Notify handle
 
 Bool
 HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our callbacks
-                     HgfsServerConfig *serverCfgData,             // IN: configurable settings
                      HgfsServerStateLogger *serverMgrData)        // IN: mgr callback
 {
    Bool result = TRUE;
@@ -3450,9 +3503,10 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
    /* Save any server manager data for logging state updates.*/
    hgfsMgrData = serverMgrData;
 
-   if (NULL != serverCfgData) {
-      gHgfsCfgSettings = *serverCfgData;
-   }
+   maxCachedOpenNodes = Config_GetLong(MAX_CACHED_FILENODES,
+                                       "hgfs.fdCache.maxNodes");
+
+   alwaysUseHostTime = Config_GetBool(FALSE, "hgfs.alwaysUseHostTime");
 
    /*
     * Initialize the globals for handling the active shared folders.
@@ -3471,7 +3525,7 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
       if (NULL != gHgfsAsyncLock) {
          gHgfsAsyncVar = MXUser_CreateCondVarExclLock(gHgfsAsyncLock);
          if (NULL != gHgfsAsyncVar) {
-            if (!HgfsPlatformInit()) {
+            if (!HgfsServerPlatformInit()) {
                LOG(4, ("Could not initialize server platform specific \n"));
                result = FALSE;
             }
@@ -3491,8 +3545,7 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
 
    if (result) {
       *callbackTable = &hgfsServerSessionCBTable;
-
-      if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_NOTIFY_ENABLED)) {
+      if (Config_GetBool(TRUE, "isolation.tools.hgfs.notify.enable")) {
          gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
          Log("%s: initialized notification %s.\n", __FUNCTION__,
              (gHgfsDirNotifyActive ? "active" : "inactive"));
@@ -3552,7 +3605,7 @@ HgfsServer_ExitState(void)
       gHgfsAsyncVar = NULL;
    }
 
-   HgfsPlatformDestroy();
+   HgfsServerPlatformDestroy();
 }
 
 
@@ -3888,7 +3941,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
 
    *sessionData = session;
 
-   Log("%s: init session %p id %"FMT64"x\n", __FUNCTION__, session, session->sessionId);
+   LOG(8, ("%s: exit TRUE\n", __FUNCTION__));
    return TRUE;
 }
 
@@ -4038,8 +4091,7 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
 
    MXUser_AcquireExclLock(session->nodeArrayLock);
 
-   Log("%s: exit session %p id %"FMT64"x\n", __FUNCTION__, session, session->sessionId);
-
+   LOG(4, ("%s: exiting.\n", __FUNCTION__));
    /* Recycle all nodes that are still in use, then destroy the node pool. */
    for (i = 0; i < session->numNodes; i++) {
       HgfsHandle handle;
@@ -4809,24 +4861,24 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
 #endif /* defined(__APPLE__) */
 
    /*
-    * Look up the file name using the proper case if the config option is not set
-    * to use the host default and lookup is supported for this platform.
+    * Convert file name to proper case if host default config option is not set
+    * and case conversion is required for this platform.
     */
 
    if (!HgfsServerPolicy_IsShareOptionSet(shareOptions,
                                           HGFS_SHARE_HOST_DEFAULT_CASE) &&
-       HgfsPlatformDoFilenameLookup()) {
-      nameStatus = HgfsPlatformFilenameLookup(shareInfo->rootDir, shareInfo->rootDirLen,
-                                              myBufOut, myBufOutLen, caseFlags,
-                                              &convertedMyBufOut,
-                                              &convertedMyBufOutLen);
+       HgfsServerCaseConversionRequired()) {
+      nameStatus = HgfsServerConvertCase(shareInfo->rootDir, shareInfo->rootDirLen,
+                                         myBufOut, myBufOutLen, caseFlags,
+                                         &convertedMyBufOut,
+                                         &convertedMyBufOutLen);
 
       /*
-       * On successful lookup, use the found matching file name for further operations.
+       * On success, use the converted file names for further operations.
        */
 
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
-         LOG(4, ("%s: HgfsPlatformFilenameLookup failed.\n", __FUNCTION__));
+         LOG(4, ("%s: HgfsServerConvertCase failed.\n", __FUNCTION__));
          goto error;
       }
 
@@ -4848,8 +4900,8 @@ HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename 
        * We should use the resolved file path for further file system
        * operations, instead of using the one passed from the client.
        */
-      nameStatus = HgfsPlatformPathHasSymlink(myBufOut, myBufOutLen, shareInfo->rootDir,
-                                              shareInfo->rootDirLen);
+      nameStatus = HgfsServerHasSymlink(myBufOut, myBufOutLen, shareInfo->rootDir,
+                                        shareInfo->rootDirLen);
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
          LOG(4, ("%s: parent path failed to be resolved: %d\n",
                  __FUNCTION__, nameStatus));
@@ -4928,39 +4980,208 @@ HgfsServerIsSharedFolderOnly(char const *cpName,// IN:  Cross-platform filename 
 }
 
 
-#ifdef VMX86_LOG
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerDirDumpDents --
+ * HgfsServerDumpDents --
  *
  *    Dump a set of directory entries (debugging code)
  *
  * Results:
- *    None.
+ *    None
  *
  * Side effects:
- *    None.
+ *    None
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-HgfsServerDirDumpDents(HgfsHandle searchHandle,  // IN: Handle to dump dents from
-                       HgfsSessionInfo *session) // IN: Session info
+HgfsServerDumpDents(HgfsHandle searchHandle,  // IN: Handle to dump dents from
+                    HgfsSessionInfo *session) // IN: Session info
 {
+#ifdef VMX86_LOG
+   unsigned int i;
    HgfsSearch *search;
 
    MXUser_AcquireExclLock(session->searchArrayLock);
 
    search = HgfsSearchHandle2Search(searchHandle, session);
    if (search != NULL) {
-      HgfsPlatformDirDumpDents(search);
+      Log("%s: %u dents in \"%s\"\n", __FUNCTION__, search->numDents,
+          search->utf8Dir);
+
+      Log("Dumping dents:\n");
+      for (i = 0; i < search->numDents; i++) {
+         Log("\"%s\"\n", search->dents[i]->d_name);
+      }
    }
 
    MXUser_ReleaseExclLock(session->searchArrayLock);
-}
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerGetDents --
+ *
+ *    Get directory entry names from the given callback function, and
+ *    build an array of DirectoryEntrys of all the names. Somewhat similar to
+ *    scandir(3) on linux, but more general.
+ *
+ * Results:
+ *    On success, the number of directory entries found.
+ *    On failure, negative error.
+ *
+ * Side effects:
+ *    Memory allocation.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsServerGetDents(HgfsGetNameFunc getName,     // IN: Function to get name
+                   HgfsInitFunc initName,       // IN: Setup function
+                   HgfsCleanupFunc cleanupName, // IN: Cleanup function
+                   DirectoryEntry ***dents)     // OUT: Array of DirectoryEntrys
+{
+   uint32 totalDents = 0;   // Number of allocated dents
+   uint32 numDents = 0;     // Current actual number of dents
+   DirectoryEntry **myDents = NULL; // So realloc is happy w/ zero numDents
+   void *state;
+
+   state = initName();
+   if (!state) {
+      LOG(4, ("%s: Couldn't init state\n", __FUNCTION__));
+      goto error_free;
+   }
+
+   for (;;) {
+      DirectoryEntry *pDirEntry;
+      char const *name;
+      size_t len;
+      Bool done = FALSE;
+      size_t newDirEntryLen;
+      size_t maxLen;
+
+      /* Add '.' and ".." as the first dents. */
+      if (numDents == 0) {
+         name = ".";
+         len = 1;
+      } else if (numDents == 1) {
+         name = "..";
+         len = 2;
+      } else {
+         if (!getName(state, &name, &len, &done)) {
+            LOG(4, ("%s: Couldn't get next name\n", __FUNCTION__));
+            goto error;
+         }
+      }
+
+      if (done) {
+         LOG(4, ("%s: No more names\n", __FUNCTION__));
+         break;
+      }
+
+#if defined(sun)
+      /*
+       * Solaris lacks a single definition of NAME_MAX and using pathconf(), to
+       * determine NAME_MAX for the current directory, is too cumbersome for
+       * our purposes, so we use PATH_MAX as a reasonable upper bound on the
+       * length of the name.
+       */
+      maxLen = PATH_MAX;
+#else
+      maxLen = sizeof pDirEntry->d_name;
+#endif
+      if (len >= maxLen) {
+         Log("%s: Error: Name \"%s\" is too long.\n", __FUNCTION__, name);
+         continue;
+      }
+
+      /* See if we need to allocate more memory */
+      if (numDents == totalDents) {
+         void *p;
+
+         if (totalDents != 0) {
+            totalDents *= 2;
+         } else {
+            totalDents = 100;
+         }
+         p = realloc(myDents, totalDents * sizeof *myDents);
+         if (!p) {
+            LOG(4, ("%s: Couldn't reallocate array memory\n", __FUNCTION__));
+            goto error;
+         }
+         myDents = (DirectoryEntry **)p;
+      }
+
+      /* This file/directory can be added to the list. */
+      LOG(4, ("%s: Nextfilename = \"%s\"\n", __FUNCTION__, name));
+
+      /*
+       * Start with the size of the DirectoryEntry struct, subtract the static
+       * length of the d_name buffer (256 in Linux, 1 in Solaris, etc) and add
+       * back just enough space for the UTF-8 name and nul terminator.
+       */
+
+      newDirEntryLen = sizeof *pDirEntry - sizeof pDirEntry->d_name + len + 1;
+      pDirEntry = (DirectoryEntry *)malloc(newDirEntryLen);
+      if (!pDirEntry) {
+         LOG(4, ("%s: Couldn't allocate dentry memory\n", __FUNCTION__));
+         goto error;
+      }
+      pDirEntry->d_reclen = (unsigned short)newDirEntryLen;
+      memcpy(pDirEntry->d_name, name, len);
+      pDirEntry->d_name[len] = 0;
+
+      myDents[numDents] = pDirEntry;
+      numDents++;
+   }
+
+   /* We are done; cleanup the state */
+   if (!cleanupName(state)) {
+      LOG(4, ("%s: Non-error cleanup failed\n", __FUNCTION__));
+      goto error_free;
+   }
+
+   /* Trim extra memory off of dents */
+   {
+      void *p;
+
+      p = realloc(myDents, numDents * sizeof *myDents);
+      if (!p) {
+         LOG(4, ("%s: Couldn't realloc less array memory\n", __FUNCTION__));
+         *dents = myDents;
+      } else {
+         *dents = (DirectoryEntry **)p;
+      }
+   }
+
+   return numDents;
+
+error:
+   /* Cleanup the callback state */
+   if (!cleanupName(state)) {
+      LOG(4, ("%s: Error cleanup failed\n", __FUNCTION__));
+   }
+
+error_free:
+   /* Free whatever has been allocated so far */
+   {
+      unsigned int i;
+
+      for (i = 0; i < numDents; i++) {
+         free(myDents[i]);
+      }
+
+      free(myDents);
+   }
+
+   return -1;
+}
 
 
 /*
@@ -4998,6 +5219,7 @@ HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
    HgfsSearch *search = NULL;
    HgfsInternalStatus status = 0;
    HgfsNameStatus nameStatus;
+   int numDents;
    Bool followSymlinks;
    HgfsShareOptions configOptions;
 
@@ -5028,14 +5250,15 @@ HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
    followSymlinks = HgfsServerPolicy_IsShareOptionSet(configOptions,
                                                       HGFS_SHARE_FOLLOW_SYMLINKS);
 
-   status = HgfsPlatformScandir(baseDir, baseDirLen, followSymlinks,
-                                &search->dents, &search->numDents);
-   if (HGFS_ERROR_SUCCESS != status) {
+   status = HgfsServerScandir(baseDir, baseDirLen, followSymlinks,
+                              &search->dents, &numDents);
+   if (status != 0) {
       LOG(4, ("%s: couldn't scandir\n", __FUNCTION__));
       HgfsRemoveSearchInternal(search, session);
       goto out;
    }
 
+   search->numDents = numDents;
    *handle = HgfsSearch2SearchHandle(search);
 
   out:
@@ -5075,6 +5298,7 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
 {
    HgfsInternalStatus status = 0;
    HgfsSearch *search = NULL;
+   int result = 0;
 
    ASSERT(getName);
    ASSERT(initName);
@@ -5090,91 +5314,20 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
       goto out;
    }
 
-   status = HgfsPlatformScanvdir(getName,
-                                 initName,
-                                 cleanupName,
-                                 &search->dents,
-                                 &search->numDents);
-   if (HGFS_ERROR_SUCCESS != status) {
+   result = HgfsServerGetDents(getName, initName, cleanupName, &search->dents);
+   if (result < 0) {
       LOG(4, ("%s: couldn't get dents\n", __FUNCTION__));
       HgfsRemoveSearchInternal(search, session);
+      status = HGFS_ERROR_INTERNAL;
       goto out;
    }
 
+   search->numDents = result;
    *handle = HgfsSearch2SearchHandle(search);
 
   out:
    MXUser_ReleaseExclLock(session->searchArrayLock);
 
-   return status;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsServerRestartSearchVirtualDir --
- *
- *    Restart a search on a virtual directory (i.e. one that does not
- *    really exist on the server). Takes a pointer to an enumerator
- *    for the directory's contents and returns a handle to a search that is
- *    correctly set up with the virtual directory's entries.
- *
- * Results:
- *    Zero on success, returns a handle to the created search.
- *    Non-zero on failure.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-HgfsInternalStatus
-HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
-                                  HgfsInitFunc *initName,       // IN: Init function
-                                  HgfsCleanupFunc *cleanupName, // IN: Cleanup function
-                                  HgfsSessionInfo *session,     // IN: Session info
-                                  HgfsHandle searchHandle)      // IN: search to restart
-{
-   HgfsInternalStatus status = 0;
-   HgfsSearch *vdirSearch;
-
-   ASSERT(getName);
-   ASSERT(initName);
-   ASSERT(cleanupName);
-   ASSERT(searchHandle);
-
-   MXUser_AcquireExclLock(session->searchArrayLock);
-
-   vdirSearch = HgfsSearchHandle2Search(searchHandle, session);
-   if (NULL == vdirSearch) {
-      status = HGFS_ERROR_INVALID_HANDLE;
-      goto exit;
-   }
-
-   /* Release the virtual directory's old set of entries. */
-   HgfsFreeSearchDirents(vdirSearch);
-
-   /* Restart by rescanning the virtual directory. */
-   status = HgfsPlatformScanvdir(getName,
-                                 initName,
-                                 cleanupName,
-                                 &vdirSearch->dents,
-                                 &vdirSearch->numDents);
-   if (HGFS_ERROR_SUCCESS != status) {
-      ASSERT_DEVEL(0);
-      LOG(4, ("%s: couldn't get root dents %u\n", __FUNCTION__, status));
-      goto exit;
-   }
-
-   /* Clear the flag to indicate that the client has read the entries. */
-   vdirSearch->flags &= ~HGFS_SEARCH_FLAG_READ_ALL_ENTRIES;
-
-exit:
-   MXUser_ReleaseExclLock(session->searchArrayLock);
-
-   LOG(4, ("%s: refreshing dents return %d\n", __FUNCTION__, status));
    return status;
 }
 
@@ -5398,13 +5551,13 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    len = CPName_GetComponent(openInfo->cpName, inEnd, &next);
    if (len < 0) {
       LOG(4, ("%s: get first component failed\n", __FUNCTION__));
-      HgfsPlatformCloseFile(fileDesc, NULL);
+      HgfsCloseFile(fileDesc, NULL);
       return FALSE;
    }
 
    /* See if we are dealing with the base of the namespace */
    if (!len) {
-      HgfsPlatformCloseFile(fileDesc, NULL);
+      HgfsCloseFile(fileDesc, NULL);
       return FALSE;
    }
 
@@ -5421,14 +5574,14 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       LOG(4, ("%s: Failed to add new node.\n", __FUNCTION__));
       MXUser_ReleaseExclLock(session->nodeArrayLock);
 
-      HgfsPlatformCloseFile(fileDesc, NULL);
+      HgfsCloseFile(fileDesc, NULL);
       return FALSE;
    }
    handle = HgfsFileNode2Handle(node);
 
    if (!HgfsAddToCacheInternal(handle, session)) {
       HgfsFreeFileNodeInternal(handle, session);
-      HgfsPlatformCloseFile(fileDesc, NULL);
+      HgfsCloseFile(fileDesc, NULL);
 
       LOG(4, ("%s: Failed to add node to the cache.\n", __FUNCTION__));
       MXUser_ReleaseExclLock(session->nodeArrayLock);
@@ -5649,13 +5802,10 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerQueryVolInt --
+ * HgfsQueryVolume --
  *
- *    Internal function to query the volume's free space and capacity.
- *    The volume queried can be:
- *    - real taken from the file path of a real file or folder
- *    - virtual taken from one of the HGFS virtual folders which can span
- *      multiple volumes.
+ *    Performs actual work to get free space and capacity for a volume or
+ *    a group of volumes.
  *
  * Results:
  *    Zero on success.
@@ -5667,13 +5817,13 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
  *
  *-----------------------------------------------------------------------------
  */
-static HgfsInternalStatus
-HgfsServerQueryVolInt(HgfsSessionInfo *session,   // IN: session info
-                      char *fileName,             // IN: cpName for the volume
-                      size_t fileNameLength,      // IN: cpName length
-                      uint32 caseFlags,           // IN: case sensitive/insensitive name
-                      uint64 *freeBytes,          // OUT: free space in bytes
-                      uint64 *totalBytes)         // OUT: capacity in bytes
+HgfsInternalStatus
+HgfsQueryVolume(HgfsSessionInfo *session,   // IN: session info
+                char *fileName,             // IN: cpName for the volume
+                size_t fileNameLength,      // IN: cpName length
+                uint32 caseFlags,           // IN: case sensitive/insensitive name
+                uint64 *freeBytes,          // OUT: free space in bytes
+                uint64 *totalBytes)         // OUT: capacity in bytes
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
    uint64 outFreeBytes = 0;
@@ -5681,8 +5831,16 @@ HgfsServerQueryVolInt(HgfsSessionInfo *session,   // IN: session info
    char *utf8Name = NULL;
    size_t utf8NameLen;
    HgfsNameStatus nameStatus;
+   Bool firstShare = TRUE;
    HgfsShareInfo shareInfo;
+   HgfsHandle handle;
    VolumeInfoType infoType;
+   DirectoryEntry *dent;
+   size_t failed = 0;
+   size_t shares = 0;
+   int offset = 0;
+   HgfsInternalStatus firstErr = HGFS_ERROR_SUCCESS;
+   Bool success;
 
    /* It is now safe to read the file name field. */
    nameStatus = HgfsServerGetShareInfo(fileName,
@@ -5692,10 +5850,150 @@ HgfsServerQueryVolInt(HgfsSessionInfo *session,   // IN: session info
                                        &utf8Name,
                                        &utf8NameLen);
 
-   /* Check if we have a real path and if so handle it here. */
-   if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
-      Bool success;
+   switch (nameStatus) {
+   case HGFS_NAME_STATUS_INCOMPLETE_BASE:
+      /*
+       * This is the base of our namespace. Clients can request a
+       * QueryVolumeInfo on it, on individual shares, or on just about
+       * any pathname.
+       */
 
+      LOG(4,("%s: opened search on base\n", __FUNCTION__));
+      status = HgfsServerSearchVirtualDir(HgfsServerPolicy_GetShares,
+                                          HgfsServerPolicy_GetSharesInit,
+                                          HgfsServerPolicy_GetSharesCleanup,
+                                          DIRECTORY_SEARCH_TYPE_BASE,
+                                          session,
+                                          &handle);
+      if (status != 0) {
+         return status;
+      }
+
+      /*
+       * If we're outside the Tools, find out if we're to compute the minimum
+       * values across all shares, or the maximum values.
+       */
+      infoType = VOLUME_INFO_TYPE_MIN;
+#ifndef VMX86_TOOLS
+      {
+         char *volumeInfoType = Config_GetString("min",
+                                                 "tools.hgfs.volumeInfoType");
+         if (!Str_Strcasecmp(volumeInfoType, "max")) {
+            infoType = VOLUME_INFO_TYPE_MAX;
+         }
+         free(volumeInfoType);
+      }
+#endif
+
+      /*
+       * Now go through all shares and get share paths on the server.
+       * Then retrieve space info for each share's volume.
+       */
+      offset = 0;
+      while ((dent = HgfsGetSearchResult(handle, session, offset,
+                                         TRUE)) != NULL) {
+         char const *sharePath;
+         size_t sharePathLen;
+         uint64 currentFreeBytes  = 0;
+         uint64 currentTotalBytes = 0;
+         size_t length;
+
+         length = strlen(dent->d_name);
+
+         /*
+          * Now that the server is passing '.' and ".." around as dents, we
+          * need to make sure to handle them properly. In particular, they
+          * should be ignored within QueryVolume, as they're not real shares.
+          */
+         if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, "..")) {
+            LOG(4, ("%s: Skipping fake share %s\n", __FUNCTION__,
+                    dent->d_name));
+            free(dent);
+            continue;
+         }
+
+         /*
+          * The above check ignores '.' and '..' so we do not include them in
+          * the share count here.
+          */
+         shares++;
+
+         /*
+          * Check permission on the share and get the share path.  It is not
+          * fatal if these do not succeed.  Instead we ignore the failures
+          * (apart from logging them) until we have processed all shares.  Only
+          * then do we check if there were any failures; if all shares failed
+          * to process then we bail out with an error code.
+          */
+
+         nameStatus = HgfsServerPolicy_GetSharePath(dent->d_name, length,
+                                                    HGFS_OPEN_MODE_READ_ONLY,
+                                                    &sharePathLen,
+                                                    &sharePath);
+         free(dent);
+         if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+            LOG(4, ("%s: No such share or access denied\n", __FUNCTION__));
+            if (0 == firstErr) {
+               firstErr = HgfsPlatformConvertFromNameStatus(nameStatus);
+            }
+            failed++;
+            continue;
+         }
+
+         /*
+          * Pick the drive with amount of space available and return that
+          * according to different volume info type.
+          */
+
+
+         if (!HgfsServerStatFs(sharePath, sharePathLen,
+                               &currentFreeBytes, &currentTotalBytes)) {
+            LOG(4, ("%s: error getting volume information\n",
+                    __FUNCTION__));
+            if (0 == firstErr) {
+               firstErr = HGFS_ERROR_IO;
+            }
+            failed++;
+            continue;
+         }
+
+         /*
+          * Pick the drive with amount of space available and return that
+          * according to different volume info type.
+          */
+         switch (infoType) {
+         case VOLUME_INFO_TYPE_MIN:
+            if ((outFreeBytes > currentFreeBytes) || firstShare) {
+               firstShare = FALSE;
+               outFreeBytes  = currentFreeBytes;
+               outTotalBytes = currentTotalBytes;
+            }
+            break;
+         case VOLUME_INFO_TYPE_MAX:
+            if ((outFreeBytes < currentFreeBytes)) {
+               outFreeBytes  = currentFreeBytes;
+               outTotalBytes = currentTotalBytes;
+            }
+            break;
+         default:
+            NOT_IMPLEMENTED();
+         }
+      }
+      if (!HgfsRemoveSearch(handle, session)) {
+         LOG(4, ("%s: could not close search on base\n", __FUNCTION__));
+      }
+      if (shares == failed) {
+         if (firstErr != 0) {
+            /*
+             * We failed to query any of the shares.  We return the error]
+             * from the first share failure.
+             */
+            status = firstErr;
+         }
+         /* No shares but no error, return zero for sizes and success. */
+      }
+      break;
+   case HGFS_NAME_STATUS_COMPLETE:
       ASSERT(utf8Name);
       LOG(4,("%s: querying path %s\n", __FUNCTION__, utf8Name));
       success = HgfsServerStatFs(utf8Name, utf8NameLen,
@@ -5705,27 +6003,12 @@ HgfsServerQueryVolInt(HgfsSessionInfo *session,   // IN: session info
          LOG(4, ("%s: error getting volume information\n", __FUNCTION__));
          status = HGFS_ERROR_IO;
       }
-      goto exit;
+      break;
+   default:
+      LOG(4,("%s: file access check failed\n", __FUNCTION__));
+      status = HgfsPlatformConvertFromNameStatus(nameStatus);
    }
 
-    /*
-     * If we're outside the Tools, find out if we're to compute the minimum
-     * values across all shares, or the maximum values.
-     */
-   infoType = VOLUME_INFO_TYPE_MIN;
-   /* We have a virtual folder path and if so pass it over to the platform code. */
-   if (0 == (gHgfsCfgSettings.flags & HGFS_CONFIG_VOL_INFO_MIN)) {
-      /* Using the maximum volume size and space values. */
-      infoType = VOLUME_INFO_TYPE_MAX;
-   }
-
-   status = HgfsPlatformVDirStatsFs(session,
-                                    nameStatus,
-                                    infoType,
-                                    &outFreeBytes,
-                                    &outTotalBytes);
-
-exit:
    *freeBytes  = outFreeBytes;
    *totalBytes = outTotalBytes;
    LOG(4, ("%s: return %"FMT64"u bytes Free %"FMT64"u bytes\n", __FUNCTION__,
@@ -5785,12 +6068,8 @@ HgfsServerQueryVolume(HgfsInputParam *input)  // IN: Input params
          LOG(4, ("%s: Doesn't support file handle.\n", __FUNCTION__));
          status = HGFS_ERROR_INVALID_PARAMETER;
       } else {
-         status = HgfsServerQueryVolInt(input->session,
-                                        fileName,
-                                        fileNameLength,
-                                        caseFlags,
-                                        &freeBytes,
-                                        &totalBytes);
+         status = HgfsQueryVolume(input->session, fileName, fileNameLength, caseFlags,
+                                  &freeBytes, &totalBytes);
          if (HGFS_ERROR_SUCCESS == status) {
             if (!HgfsPackQueryVolumeReply(input->packet, input->metaPacket,
                                           input->op, freeBytes, totalBytes,
@@ -6047,7 +6326,7 @@ HgfsValidateRenameFile(Bool useHandle,            // IN:
 {
    HgfsInternalStatus status;
    Bool sharedFolderOpen = FALSE;
-   HgfsLockType serverLock = HGFS_LOCK_NONE;
+   HgfsServerLock serverLock = HGFS_LOCK_NONE;
    HgfsNameStatus nameStatus;
 
 
@@ -6364,7 +6643,7 @@ HgfsServerDeleteFile(HgfsInputParam *input)  // IN: Input params
 {
    char *cpName;
    size_t cpNameSize;
-   HgfsLockType serverLock = HGFS_LOCK_NONE;
+   HgfsServerLock serverLock = HGFS_LOCK_NONE;
    fileDesc fileDesc;
    HgfsHandle file;
    HgfsDeleteHint hints = 0;
@@ -6734,15 +7013,14 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
             nameStatus = CPName_ConvertFrom((char const **) &next, &nameSize,
                                             &tempSize, &tempPtr);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
-               LOG(8, ("%s: session %p id %"FMT64"x on share hnd %#x\n", __FUNCTION__,
-                       input->session, input->session->sessionId, sharedFolder));
+               LOG(8, ("%s: adding subscriber on share hnd %#x\n", __FUNCTION__, sharedFolder));
                *watchId = HgfsNotify_AddSubscriber(sharedFolder, tempBuf, events,
                                                    watchTree, HgfsServerDirWatchEvent,
                                                    input->session);
-               status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
-                        HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
-               LOG(8, ("%s: watchId %"FMT64"x result %u\n", __FUNCTION__,
-                       *watchId, status));
+                status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
+                                              HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
+               LOG(8, ("%s: adding subscriber on share hnd %#x result %u\n", __FUNCTION__,
+                       sharedFolder, status));
             } else {
                LOG(4, ("%s: Conversion to platform specific name failed\n",
                        __FUNCTION__));
@@ -7059,17 +7337,11 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
 
    if (HgfsUnpackSetattrRequest(input->payload, input->payloadSize, input->op, &attr,
                                 &hints, &cpName, &cpNameSize, &file, &caseFlags)) {
-      Bool useHostTime = 0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_USE_HOST_TIME);
-
       /* Client wants us to reuse an existing handle. */
       if (hints & HGFS_ATTR_HINT_USE_FILE_DESC) {
          if (HgfsHandle2ShareMode(file, input->session, &shareMode)) {
             if (HGFS_OPEN_MODE_READ_ONLY != shareMode) {
-               status = HgfsPlatformSetattrFromFd(file,
-                                                  input->session,
-                                                  &attr,
-                                                  hints,
-                                                  useHostTime);
+               status = HgfsPlatformSetattrFromFd(file, input->session, &attr, hints);
             } else {
                status = HGFS_ERROR_ACCESS_DENIED;
             }
@@ -7086,7 +7358,7 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
                                              &utf8Name, &utf8NameLen);
          if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
             fileDesc hFile;
-            HgfsLockType serverLock = HGFS_LOCK_NONE;
+            HgfsServerLock serverLock = HGFS_LOCK_NONE;
             HgfsShareOptions configOptions;
 
             /*
@@ -7109,11 +7381,7 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
                       __FUNCTION__));
                status = HGFS_ERROR_PATH_BUSY;
             } else {
-               status = HgfsPlatformSetattrFromName(utf8Name,
-                                                    &attr,
-                                                    configOptions,
-                                                    hints,
-                                                    useHostTime);
+               status = HgfsPlatformSetattrFromName(utf8Name, &attr, configOptions, hints);
             }
             free(utf8Name);
          } else {
@@ -7260,7 +7528,7 @@ HgfsServerOpen(HgfsInputParam *input)  // IN: Input params
    HgfsLocalId localId;
    HgfsFileOpenInfo openInfo;
    fileDesc fileDesc;
-   HgfsLockType serverLock = HGFS_LOCK_NONE;
+   HgfsServerLock serverLock = HGFS_LOCK_NONE;
    size_t replyPayloadSize = 0;
 
    HGFS_ASSERT_INPUT(input);
@@ -7413,7 +7681,7 @@ HgfsServerSearchReadAttrToMask(HgfsFileAttrInfo *attr,     // IN/OUT: attributes
  *
  * HgfsGetDirEntry --
  *
- *    Gets a directory entry at specified index.
+ *    Gets a directory entry at specified offset.
  *
  * Results:
  *    A platform specific error or success.
@@ -7434,20 +7702,21 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,     // IN: ID for search data
                 Bool *moreEntries)               // OUT: any more entries
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
-   struct DirectoryEntry *dent;
+   DirectoryEntry *dent;
    HgfsSearchReadMask infoRetrieved;
    HgfsSearchReadMask infoRequested;
-   HgfsFileAttrInfo *entryAttr;
+   HgfsFileAttrInfo *attr;
    char **entryName;
-   uint32 *entryNameLength;
+   uint32 *nameLength;
    Bool getAttrs;
+   Bool unescapeName = TRUE;
    uint32 requestedIndex;
 
    infoRequested = info->requestedMask;
 
-   entryAttr = &entry->attr;
+   attr = &entry->attr;
    entryName = &entry->name;
-   entryNameLength = &entry->nameLength;
+   nameLength = &entry->nameLength;
 
    requestedIndex = info->currentIndex;
 
@@ -7460,50 +7729,237 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,     // IN: ID for search data
 
    /* Clear out what we will return. */
    infoRetrieved = 0;
-   memset(entryAttr, 0, sizeof *entryAttr);
-   *moreEntries = FALSE;
-   *entryName = NULL;
-   *entryNameLength = 0;
+   memset(attr, 0, sizeof *attr);
 
-   status = HgfsServerGetDirEntry(hgfsSearchHandle, session, requestedIndex, FALSE, &dent);
-   if (HGFS_ERROR_SUCCESS != status) {
-      goto exit;
-   }
+   dent = HgfsGetSearchResult(hgfsSearchHandle, session, requestedIndex, FALSE);
+   if (dent) {
+      unsigned int length;
+      char *fullName;
+      char *sharePath;
+      size_t sharePathLen;
+      size_t fullNameLen;
+      HgfsServerLock serverLock = HGFS_LOCK_NONE;
+      fileDesc fileDesc;
 
-   if (NULL == dent) {
-      /* End of directory entries marker. */
-      info->replyFlags |= HGFS_SEARCH_READ_REPLY_FINAL_ENTRY;
-      HgfsSearchSetReadAllEntries(hgfsSearchHandle, session);
-      goto exit;
-   }
+      length = strlen(dent->d_name);
 
-   status = HgfsPlatformSetDirEntry(search,
-                                    configOptions,
-                                    session,
-                                    dent,
-                                    getAttrs,
-                                    entryAttr,
-                                    entryName,
-                                    entryNameLength);
-   if (HGFS_ERROR_SUCCESS != status) {
-      goto exit;
-   }
+      /* Each type of search gets a dent's attributes in a different way. */
+      switch (search->type) {
+      case DIRECTORY_SEARCH_TYPE_DIR:
 
-   if (getAttrs) {
+         /*
+          * Construct the UTF8 version of the full path to the file, and call
+          * HgfsGetattrFromName to get the attributes of the file.
+          */
+         fullNameLen = search->utf8DirLen + 1 + length;
+         fullName = (char *)malloc(fullNameLen + 1);
+         if (fullName) {
+            memcpy(fullName, search->utf8Dir, search->utf8DirLen);
+            fullName[search->utf8DirLen] = DIRSEPC;
+            memcpy(&fullName[search->utf8DirLen + 1], dent->d_name, length + 1);
+
+            LOG(4, ("%s: about to stat \"%s\"\n", __FUNCTION__, fullName));
+
+            /* Do we need to query the attributes information? */
+            if (getAttrs) {
+               /*
+                * XXX: It is unreasonable to make the caller either 1) pass existing
+                * handles for directory objects as part of the SearchRead, or 2)
+                * prior to calling SearchRead on a directory, break all oplocks on
+                * that directory's objects.
+                *
+                * To compensate for that, if we detect that this directory object
+                * has an oplock, we'll quietly reuse the handle. Note that this
+                * requires clients who take out an exclusive oplock to open a
+                * handle with read as well as write access, otherwise we'll fail
+                * further down in HgfsStat.
+                *
+                * XXX: We could open a new handle safely if its a shared oplock.
+                * But isn't this handle sharing always desirable?
+                */
+               if (HgfsFileHasServerLock(fullName, session, &serverLock, &fileDesc)) {
+                  LOG(4, ("%s: Reusing existing oplocked handle "
+                          "to avoid oplock break deadlock\n", __FUNCTION__));
+                  status = HgfsPlatformGetattrFromFd(fileDesc, session, attr);
+               } else {
+                  status = HgfsPlatformGetattrFromName(fullName, configOptions,
+                                                       search->utf8ShareName, attr, NULL);
+               }
+
+               if (HGFS_ERROR_SUCCESS != status) {
+                  HgfsOp savedOp = attr->requestType;
+                  LOG(4, ("%s: stat FAILED %s (%d)\n", __FUNCTION__, fullName, status));
+                  memset(attr, 0, sizeof *attr);
+                  attr->requestType = savedOp;
+                  attr->type = HGFS_FILE_TYPE_REGULAR;
+                  attr->mask = HGFS_ATTR_VALID_TYPE;
+                  status = HGFS_ERROR_SUCCESS;
+               }
+            }
+            /*
+             * Update the search read mask for the attributes information.
+             */
+            HgfsServerSearchReadAttrToMask(attr, &infoRetrieved);
+
+            free(fullName);
+         } else {
+            LOG(4, ("%s: could not allocate space for \"%s\\%s\"\n",
+                    __FUNCTION__, search->utf8Dir, dent->d_name));
+            status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
+         }
+         break;
+
+      case DIRECTORY_SEARCH_TYPE_BASE:
+
+         /*
+          * We only want to unescape names that we could have escaped.
+          * This cannot apply to our shares since they are created by the user.
+          * The client will take care of escaping anything it requires.
+          */
+         unescapeName = FALSE;
+         if (getAttrs) {
+            /*
+             * For a search enumerating all shares, give the default attributes
+             * for '.' and ".." (which aren't really shares anyway). Each real
+             * share gets resolved into its full path, and gets its attributes
+             * via HgfsGetattrFromName.
+             */
+            if (strcmp(dent->d_name, ".") == 0 ||
+                strcmp(dent->d_name, "..") == 0) {
+               LOG(4, ("%s: assigning %s default attributes\n",
+                       __FUNCTION__, dent->d_name));
+               HgfsPlatformGetDefaultDirAttrs(attr);
+            } else {
+               HgfsNameStatus nameStatus;
+
+               /* Check permission on the share and get the share path */
+               nameStatus =
+                  HgfsServerPolicy_GetSharePath(dent->d_name, length,
+                                                HGFS_OPEN_MODE_READ_ONLY,
+                                                &sharePathLen,
+                                                (char const **)&sharePath);
+               if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
+
+                  /*
+                   * Server needs to produce list of shares that is consistent with
+                   * the list defined in UI. If a share can't be accessed because of
+                   * problems on the host, the server still enumerates it and
+                   * returns to the client.
+                   */
+                  /*
+                   * XXX: We will open a new handle for this, but it should be safe
+                   * from oplock-induced deadlock because these are all directories,
+                   * and thus cannot have oplocks placed on them.
+                   */
+                  status = HgfsPlatformGetattrFromName(sharePath, configOptions,
+                                                       dent->d_name, attr, NULL);
+
+                  /*
+                   * For some reason, Windows marks drives as hidden and system. So
+                   * if one of the top level shared folders is mapped to a drive
+                   * letter (like C:\), then GetFileAttributesEx() will return hidden
+                   * and system attributes for that drive. We don't want that
+                   * since we want the users to see all top level shared folders.
+                   * Even in the case when the top level shared folder is mapped
+                   * to a non-drive hidden/system directory, we still want to display
+                   * it to the user. So make sure that system and hidden attributes
+                   * are not set.
+                   * Note, that for network shares this doesn't apply, since each
+                   * top level network share is a separate mount point that doesn't
+                   * have such attributes. So when we finally have per share
+                   * mounting, this hack will go away.
+                   *
+                   * See bug 125065.
+                   */
+                  attr->flags &= ~(HGFS_ATTR_HIDDEN | HGFS_ATTR_SYSTEM);
+
+                  if (HGFS_ERROR_SUCCESS != status) {
+                     /*
+                      * The dent no longer exists. Log the event.
+                      */
+
+                     LOG(4, ("%s: stat FAILED\n", __FUNCTION__));
+                     status = HGFS_ERROR_SUCCESS;
+                  }
+               } else {
+                  LOG(4, ("%s: No such share or access denied\n", __FUNCTION__));
+                  status = HgfsPlatformConvertFromNameStatus(nameStatus);
+               }
+            }
+            if (HGFS_ERROR_SUCCESS == status) {
+               /*
+                * Update the search read mask for the attributes information.
+                */
+               HgfsServerSearchReadAttrToMask(attr, &infoRetrieved);
+            }
+         }
+         break;
+      case DIRECTORY_SEARCH_TYPE_OTHER:
+
+         /*
+          * The POSIX implementation of HgfsSearchOpen could not have created
+          * this kind of search.
+          */
+#if !defined(_WIN32)
+         NOT_IMPLEMENTED();
+#endif
+         /*
+          * We only want to unescape names that we could have escaped.
+          * This cannot apply to these entries.
+          */
+         unescapeName = FALSE;
+         if (getAttrs) {
+            /*
+             * All "other" searches get the default attributes. This includes
+             * an enumeration of drive, and the root enumeration (which contains
+             * a "drive" dent and a "unc" dent).
+             */
+            HgfsPlatformGetDefaultDirAttrs(attr);
+            /*
+             * Update the search read mask for the attributes information.
+             */
+            HgfsServerSearchReadAttrToMask(attr, &infoRetrieved);
+         }
+         break;
+      default:
+         NOT_IMPLEMENTED();
+         break;
+      }
+
       /*
-       * Update the search read mask for the attributes information.
+       * We need to unescape the name before sending it back to the client
        */
-      HgfsServerSearchReadAttrToMask(entryAttr, &infoRetrieved);
+      if (HGFS_ERROR_SUCCESS == status) {
+         *entryName = Util_SafeStrdup(dent->d_name);
+         if (unescapeName) {
+            *nameLength = HgfsEscape_Undo(*entryName, length + 1);
+         } else {
+            *nameLength = length;
+         }
+         infoRetrieved |= HGFS_SEARCH_READ_NAME;
+         LOG(4, ("%s: dent name is \"%s\" len = %u\n", __FUNCTION__,
+                 *entryName, *nameLength));
+      } else {
+         *entryName = NULL;
+         *nameLength = 0;
+         LOG(4, ("%s: error %d getting dent\n", __FUNCTION__, status));
+      }
+
+      if (HGFS_ERROR_SUCCESS == status) {
+         /* Update the entry fields for valid data and index for the dent. */
+         entry->fileIndex = requestedIndex;
+         entry->mask = infoRetrieved;
+         /* Retrieve any platform specific information from the dent. */
+      }
+      free(dent);
+      *moreEntries = TRUE;
+   } else {
+      /* End of directory entries marker. */
+      *entryName = NULL;
+      *nameLength = 0;
+      *moreEntries = FALSE;
+      info->replyFlags |= HGFS_SEARCH_READ_REPLY_FINAL_ENTRY;
    }
-
-   infoRetrieved |= HGFS_SEARCH_READ_NAME;
-   /* Update the entry fields for valid data and index for the dent. */
-   entry->mask = infoRetrieved;
-   entry->fileIndex = requestedIndex;
-   *moreEntries = TRUE;
-
-exit:
-   free(dent);
    return status;
 }
 
@@ -7707,35 +8163,27 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
                      status = HGFS_ERROR_FILE_NOT_FOUND;
                   }
                } else if (0 == info.startIndex) {
-                  Bool readAllEntries = FALSE;
+                  HgfsSearch *rootSearch;
 
-                  /*
-                   * Reading the first entry, we check if this is a second scan
-                   * of the directory. If so, in some cases we restart the scan
-                   * by refreshing the entries first.
-                   */
-                  if (!HgfsSearchHasReadAllEntries(hgfsSearchHandle,
-                                                   input->session,
-                                                   &readAllEntries)) {
+                  MXUser_AcquireExclLock(input->session->searchArrayLock);
+
+                  rootSearch = HgfsSearchHandle2Search(hgfsSearchHandle, input->session);
+                  ASSERT(NULL != rootSearch);
+                  HgfsFreeSearchDirents(rootSearch);
+
+                  rootSearch->numDents =
+                     HgfsServerGetDents(HgfsServerPolicy_GetShares,
+                                        HgfsServerPolicy_GetSharesInit,
+                                        HgfsServerPolicy_GetSharesCleanup,
+                                        &rootSearch->dents);
+                  if (((int) (rootSearch->numDents)) < 0) {
+                     ASSERT_DEVEL(0);
+                     LOG(4, ("%s: couldn't get root dents\n", __FUNCTION__));
+                     rootSearch->numDents = 0;
                      status = HGFS_ERROR_INTERNAL;
                   }
 
-                  if (readAllEntries) {
-                     /*
-                      * XXX - a hack that is now required until Fusion 5.0 end
-                      * of lifes see bug 710697.
-                      * The coder modified the server instead of the OS X client
-                      * for the shares directory refresh needed by OS X clients in
-                      * order to work around handles remaining open by Finder.
-                      * This was fixed CLN 1988575 in the OS X client for 5.0.2.
-                      * However, Fusion 4.0 and Fusion 5.0 tools will rely on this hack.
-                      * At least now it works correctly without breaking everything
-                      * else.
-                      */
-                     status = HgfsPlatformRestartSearchDir(hgfsSearchHandle,
-                                                           input->session,
-                                                           search.type);
-                  }
+                  MXUser_ReleaseExclLock(input->session->searchArrayLock);
                }
 
                if (HGFS_ERROR_SUCCESS == status) {
@@ -7893,7 +8341,7 @@ HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerGetTargetRelativePath --
+ * HgfsBuildRelativePath --
  *
  *    Generates relative file path which need to be used a symbolic link
  *    target which would generate target name defined in "target" if the path
@@ -7911,8 +8359,8 @@ HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
  */
 
 char*
-HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
-                                const char* target)    // IN: target file name
+HgfsBuildRelativePath(const char* source,    // IN: source file name
+                      const char* target)    // IN: target file name
 {
    const char *relativeSource = source;
    const char *relativeTarget = target;
@@ -8107,6 +8555,163 @@ HgfsIsShareRoot(char const *cpName,         // IN: name to test
    }
    return TRUE;
 }
+
+#ifdef HGFS_OPLOCKS
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerOplockBreakReply --
+ *
+ *      The client was sent an oplock break request, and responded with this
+ *      reply. It contains the oplock status that the client is now in. Since
+ *      the break could have actually been a degrade, it is well within the
+ *      client's rights to transition to a non-broken state. We need to make
+ *      sure that such a transition was legal, acknowledge the brea
+ *      appropriately, and update our own state.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsServerOplockBreakReply(const unsigned char *packetIn, // IN: Reply packet
+                           unsigned int packetSize,       // IN: Size of packet
+                           void *clientData)              // IN: From request
+{
+   HgfsReplyServerLockChange *reply;
+   ServerLockData *lockData;
+   ASSERT(packetIn);
+   ASSERT(clientData);
+
+   if (packetSize < sizeof *reply) {
+      return;
+   }
+   reply = (HgfsReplyServerLockChange *)packetIn;
+   lockData = (ServerLockData *)clientData;
+
+   /*
+    * XXX: It should be safe to ignore the status and id from the actual
+    * HgfsReply. The only information we need to properly acknowledge the break
+    * is the original fd and the new lease, which, in the case of a degrade,
+    * is double checked in HgfsAckOplockBreak, so we'd be safe from a garbage
+    * value.
+    */
+   HgfsAckOplockBreak(lockData, reply->serverLock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerOplockBreak --
+ *
+ *      When the host FS needs to break the oplock so that another client
+ *      can open the file, it signals the event in the overlapped structure
+ *      that we used to request an oplock.
+ *      This sets off the following chains of events:
+ *      1. Send the oplock break request to the guest.
+ *      2. Once the guest acknowledges the oplock break, the completion
+ *      routine GuestRpcServerRequestCallback will fire, causing
+ *      HgfsServerOplockBreakReply to also fire, which will break the oplock
+ *      on the host FS.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      If successful, allocates memory for the rpc request.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsServerOplockBreak(ServerLockData *lockData)
+{
+   HgfsHandle hgfsHandle;
+   char *requestBuffer = NULL;
+   HgfsRequestServerLockChange *request;
+   HgfsServerLock lock;
+
+   LOG(4, ("%s: entered\n", __FUNCTION__));
+
+   /*
+    * XXX: Just because the file in not in the cache on the server,
+    * does not mean it was closed on the client. It is possible that
+    * we closed the file on the server because we ran out of space
+    * in cache. That's why for now as long as a file has a lock,
+    * we don't remove it from the node cache. This should be fixed.
+    *
+    * In any case, none of these cache-related failures should cause us to ack
+    * the oplock break locally. That is because if the file wasn't in the
+    * cache, or it had no lock, chances are someone else (maybe the VCPU
+    * thread) broke the oplock and/or closed the file.
+    */
+
+   if (!HgfsFileDesc2Handle(lockData->fileDesc, &hgfsHandle)) {
+      LOG(4, ("%s: file is not in the cache\n", __FUNCTION__));
+      goto free_and_exit;
+   }
+
+   if (!HgfsHandle2ServerLock(hgfsHandle, &lock)) {
+      LOG(4, ("%s: could not retrieve node's lock info.\n", __FUNCTION__));
+      goto free_and_exit;
+   }
+
+   if (lock == HGFS_LOCK_NONE) {
+      LOG(4, ("%s: the file does not have a server lock.\n", __FUNCTION__));
+      goto free_and_exit;
+   }
+
+   /*
+    * We need to setup the entire request here. The command prefix will be
+    * added later, so save some space for it.
+    *
+    * XXX: This should probably go into a common allocation function that
+    * other out-of-band requests can use.
+    */
+
+   requestBuffer = malloc(sizeof *request + HGFS_CLIENT_CMD_LEN);
+   if (requestBuffer == NULL) {
+      LOG(4, ("%s: could not allocate memory.\n", __FUNCTION__));
+      goto ack_and_exit;
+   }
+
+   /* Save space for the command prefix. */
+   request = (HgfsRequestServerLockChange *)
+      (requestBuffer + HGFS_CLIENT_CMD_LEN);
+   request->header.op = HGFS_OP_SERVER_LOCK_CHANGE;
+   request->header.id = 0; /* XXX */
+   request->file = hgfsHandle;
+   request->newServerLock = lockData->serverLock;
+
+   /*
+    * Just send the request size for our actual request; our callee will
+    * write in the command prefix and modify the request size appropriately.
+    *
+    * If for some reason we fail, we'll acknowledge the oplock break
+    * immediately.
+    */
+
+   if (HgfsServerManager_SendRequest(requestBuffer, sizeof *request,
+                                     HgfsServerOplockBreakReply, lockData)) {
+      return;
+   }
+   free(requestBuffer);
+
+  ack_and_exit:
+   HgfsAckOplockBreak(lockData, HGFS_LOCK_NONE);
+
+   return;
+
+  free_and_exit:
+   free(lockData);
+}
+#endif
 
 /*
  * more testing

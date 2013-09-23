@@ -254,6 +254,10 @@ Bool File_SupportsFileSize(ConstUnicode pathName,
 Bool File_GetMaxFileSize(ConstUnicode pathName,
                          uint64 *maxFileSize);
 
+#ifdef VMX86_SERVER
+Bool File_Is2TiBEnabled(void);
+#endif
+
 Bool File_SupportsLargeFiles(ConstUnicode pathName);
 
 char *File_MapPathPrefix(const char *oldPath,

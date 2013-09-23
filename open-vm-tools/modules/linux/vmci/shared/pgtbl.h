@@ -26,6 +26,13 @@
 #include "compat_spinlock.h"
 #include "compat_page.h"
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 3, 11)
+# define compat_active_mm  mm
+#else
+# define compat_active_mm  active_mm
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -292,7 +299,7 @@ PgtblVa2MPN(VA addr)  // IN
    MPN mpn;
 
    /* current->mm is NULL for kernel threads, so use active_mm. */
-   mm = current->active_mm;
+   mm = current->compat_active_mm;
    if (compat_get_page_table_lock(mm)) {
       spin_lock(compat_get_page_table_lock(mm));
    }
@@ -325,9 +332,10 @@ PgtblVa2MPN(VA addr)  // IN
 static INLINE int
 PgtblKVa2MPN(VA addr)  // IN
 {
-   struct mm_struct *mm = current->active_mm;
+   struct mm_struct *mm;
    MPN mpn;
 
+   mm = current->compat_active_mm;
    if (compat_get_page_table_lock(mm)) {
       spin_lock(compat_get_page_table_lock(mm));
    }
@@ -360,9 +368,10 @@ PgtblKVa2MPN(VA addr)  // IN
 static INLINE struct page *
 PgtblVa2Page(VA addr) // IN
 {
-   struct mm_struct *mm = current->active_mm;
+   struct mm_struct *mm;
    struct page *page;
 
+   mm = current->compat_active_mm;
    if (compat_get_page_table_lock(mm)) {
       spin_lock(compat_get_page_table_lock(mm));
    }

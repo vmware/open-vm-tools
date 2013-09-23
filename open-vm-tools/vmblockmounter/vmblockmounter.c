@@ -46,7 +46,6 @@
 #include "vmblock.h"
 #include "vmblockmounter_version.h"
 
-#include "vm_version.h"
 #include "embed_version.h"
 VM_EMBED_VERSION(VMBLOCKMOUNTER_VERSION_STRING);
 

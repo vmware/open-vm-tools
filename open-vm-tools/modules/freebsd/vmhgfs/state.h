@@ -88,10 +88,10 @@
 
 typedef uint32_t HgfsMode;
 
-typedef enum HgfsVnodeLockType {
+typedef enum HgfsLockType {
    HGFS_WRITER_LOCK = 0,
    HGFS_READER_LOCK = 1
-} HgfsVnodeLockType;
+} HgfsLockType;
 
 typedef enum HgfsOpenType {
    OPENREQ_OPEN,      /* A referenced handle in response to a vnode_open. */
@@ -168,7 +168,7 @@ typedef struct HgfsFile {
     * before any common functions are called.
     */
 #if defined __APPLE__
-   OS_RWLOCK_T *rwVnodeLock;
+   OS_RWLOCK_T *rwFileLock;
 #endif
    /*
     * File size. HGFS must tell memory management system when file size is changed.
@@ -187,9 +187,6 @@ typedef struct HgfsFileHashTable {
 
 /* Forward declaration to prevent circular dependency between this and hgfsbsd.h. */
 struct HgfsSuperInfo;
-
-void HgfsVnodeLock(struct vnode *vp, HgfsVnodeLockType type);
-void HgfsVnodeUnlock(struct vnode *vp, HgfsVnodeLockType type);
 
 int HgfsVnodeGet(struct vnode **vpp, struct vnode *dp, struct HgfsSuperInfo *sip,
                  struct mount *vfsp, const char *fileName, HgfsFileType fileType,

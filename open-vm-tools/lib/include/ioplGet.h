@@ -15,33 +15,20 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
-#ifndef VM_COMPILATION_OPTION_H
-#define VM_COMPILATION_OPTION_H
 
-#ifdef VMX86_DEVEL
-#   ifdef VMX86_DEBUG
-#      define COMPILATION_OPTION "DEBUG"
-#   else
-#      define COMPILATION_OPTION "OPT"
-#   endif
-#else
-#   ifdef VMX86_ALPHA
-#      define COMPILATION_OPTION "ALPHA"
-#   elif defined(VMX86_BETA)
-#      ifdef VMX86_EXPERIMENTAL
-#         define COMPILATION_OPTION "BETA-EXPERIMENTAL"
-#      else
-#         define COMPILATION_OPTION "BETA"
-#      endif
-#   elif defined(VMX86_RELEASE)
-#      define COMPILATION_OPTION "Release"
-#   elif defined(VMX86_OPT)
-#      define COMPILATION_OPTION "OPT"
-#   elif defined(VMX86_DEBUG)
-#      define COMPILATION_OPTION "DEBUG"
-#   elif defined(VMX86_STATS)
-#      define COMPILATION_OPTION "STATS"
-#   endif
-#endif
+/*
+ * ioplGet.h --
+ *
+ *   A utility function to retrieve the IOPL level of the current thread
+ *   Compiles on x86, x64 of Linux and Windows
+ */
+
+#ifndef _IOPL_GET_H_
+#define _IOPL_GET_H_
+
+#include "x86_basic_defs.h"
+#include "vm_basic_asm.h"
+
+#define Iopl_Get() ((GetCallerEFlags() >> EFLAGS_IOPL_SHIFT) && 0x3)
 
 #endif

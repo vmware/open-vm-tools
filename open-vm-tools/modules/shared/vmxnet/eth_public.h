@@ -53,9 +53,12 @@
 typedef uint8 Eth_Address[ETH_ADDR_LENGTH];
 
 // printf helpers
-#define ETH_ADDR_FMT_STR     "%02x:%02x:%02x:%02x:%02x:%02x"
+#define ETH_ADDR_FMT_STR     "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx"
 #define ETH_ADDR_FMT_ARGS(a) ((uint8 *)a)[0], ((uint8 *)a)[1], ((uint8 *)a)[2], \
                              ((uint8 *)a)[3], ((uint8 *)a)[4], ((uint8 *)a)[5]
+#define ETH_ADDR_PTR_FMT_ARGS(a) &((uint8 *)a)[0], &((uint8 *)a)[1], \
+                                 &((uint8 *)a)[2], &((uint8 *)a)[3], \
+                                 &((uint8 *)a)[4], &((uint8 *)a)[5]
 
 #define ETH_MAX_EXACT_MULTICAST_ADDRS 32
 
@@ -235,6 +238,7 @@ enum {
    ETH_VMWARE_FRAME_TYPE_BEACON     = 1,
    ETH_VMWARE_FRAME_TYPE_COLOR      = 2,
    ETH_VMWARE_FRAME_TYPE_ECHO       = 3,
+   ETH_VMWARE_FRAME_TYPE_LLC        = 4, // XXX: Just re-use COLOR?
 };
 
 typedef
@@ -1139,7 +1143,7 @@ Eth_GetPayload(const void *frame)
 
 static INLINE Bool
 Eth_IsFrameHeaderComplete(const Eth_Header *eh,
-                          const uint16 len,
+                          const uint32 len,
                           uint16 *ehHdrLen)
 {
    uint16 ehLen;

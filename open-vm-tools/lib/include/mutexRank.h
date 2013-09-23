@@ -32,8 +32,6 @@
 
 /*
  * Core rank defines.
- *
- * ANY RANK USAGE ABOVE RANK_LEAF IS RESERVED BY THE PI GROUP.
  */
 
 #define RANK_UNRANKED            0
@@ -54,18 +52,7 @@
  * logging code cannot call anything else which requires a lock, but
  * everyone else can safely Log() while holding a leaf lock.
  */
-#define RANK_logLock             (RANK_LEAF + 2)
-
-/*
- * overheadMem lock rank.
- *
- * Very special case. Don't change it. One must be able to enter
- * the overheadMem Facility at any rank (RANK_LEAF or lower) and
- * still be able to acquire a lock in overheadMem *AND* be able
- * to Log().
- */
-
-#define RANK_overheadMem         (RANK_LEAF + 1)
+#define RANK_logLock             (RANK_LEAF + 1)
 
 /*
  * bora/lib/allocTrack rank (not really).

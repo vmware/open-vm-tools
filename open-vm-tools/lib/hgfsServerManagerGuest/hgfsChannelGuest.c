@@ -198,9 +198,8 @@ HgfsChannelInitServer(HgfsChannelServerData *serverInfo)   // IN/OUT: ref count
    ASSERT(NULL == serverInfo->serverCBTable);
 
    Debug("%s: Initialize Hgfs server.\n", __FUNCTION__);
-
-   /* If we have a new connection initialize the server session with default settings. */
-   result = HgfsServer_InitState(&serverInfo->serverCBTable, NULL, NULL);
+   /* If we have a new connection initialize the server session. */
+   result = HgfsServer_InitState(&serverInfo->serverCBTable, NULL);
    if (!result) {
       Debug("%s: Could not init Hgfs server.\n", __FUNCTION__);
    }

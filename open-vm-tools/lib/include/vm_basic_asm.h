@@ -67,10 +67,10 @@
  * an array of the names of all the intrinsics minus the leading
  * underscore.  Searching around in the ntddk.h file can also be helpful.
  *
- * The declarations for the intrinsic functions were taken from the DDK. 
+ * The declarations for the intrinsic functions were taken from the DDK.
  * Our declarations must match the ddk's otherwise the 64-bit c++ compiler
  * will complain about second linkage of the intrinsic functions.
- * We define the intrinsic using the basic types corresponding to the 
+ * We define the intrinsic using the basic types corresponding to the
  * Windows typedefs. This avoids having to include windows header files
  * to get to the windows types.
  */
@@ -110,6 +110,9 @@ void _ReadWriteBarrier(void);
 void _mm_mfence(void);
 void _mm_lfence(void);
 #pragma intrinsic(_mm_mfence, _mm_lfence)
+
+unsigned int __getcallerseflags(void);
+#pragma intrinsic(__getcallerseflags)
 
 #ifdef VM_X86_64
 /*
@@ -201,6 +204,14 @@ __GCC_IN(l, uint32, IN32)
 #define GET_CURRENT_EIP(_eip) \
       __asm__ __volatile("call 0\n\tpopl %0" : "=r" (_eip): );
 
+static INLINE unsigned int
+GetCallerEFlags(void)
+{
+   unsigned long flags;
+   asm volatile("pushf; pop %0" : "=r"(flags));
+   return flags;
+}
+
 #endif // x86*
 
 #elif defined(_MSC_VER) // } {
@@ -246,6 +257,12 @@ OUT32(uint16 port, uint32 value)
    __asm mov _eip, eax \
 } while (0)
 #endif // VM_X86_64
+
+static INLINE unsigned int
+GetCallerEFlags(void)
+{
+   return __getcallerseflags();
+}
 
 #else // } {
 #error
@@ -361,9 +378,9 @@ mssb64_0(const uint64 value)
 
 /* **********************************************************
  *  GCC's intrinsics for the lssb and mssb family produce sub-optimal code,
- *  so we use inline assembly to improve matters.  However, GCC cannot 
- *  propagate constants through inline assembly, so we help GCC out by 
- *  allowing it to use its intrinsics for compile-time constant values.  
+ *  so we use inline assembly to improve matters.  However, GCC cannot
+ *  propagate constants through inline assembly, so we help GCC out by
+ *  allowing it to use its intrinsics for compile-time constant values.
  *  Some day, GCC will make better code and these can collapse to intrinsics.
  *
  *  For example, in Decoder_AddressSize, inlined into VVT_GetVTInstrInfo:
@@ -409,7 +426,7 @@ lssb32_0(uint32 value)
 static INLINE int
 mssb32_0(uint32 value)
 {
-   /* 
+   /*
     * We must keep the UNLIKELY(...) outside the #if defined ...
     * because __builtin_clz(0) is undefined according to gcc's
     * documentation.
@@ -1005,9 +1022,9 @@ RDTSC_BARRIER(void)
  *
  * {Clear,Set,Test}Bit{32,64} --
  *
- *    Sets or clears a specified single bit in the provided variable.  
- *    The index input value specifies which bit to modify and is 0-based. 
- *    Index is truncated by hardware to a 5-bit or 6-bit offset for the 
+ *    Sets or clears a specified single bit in the provided variable.
+ *    The index input value specifies which bit to modify and is 0-based.
+ *    Index is truncated by hardware to a 5-bit or 6-bit offset for the
  *    32 and 64-bit flavors, respectively, but input values are not validated
  *    with asserts to avoid include dependencies.
  *    64-bit flavors are not provided for 32-bit builds because the inlined
@@ -1213,7 +1230,7 @@ TestBitVector(const void *var, int32 index)
  *-----------------------------------------------------------------------------
  * RoundUpPow2_{64,32} --
  *
- *   Rounds a value up to the next higher power of 2.  Returns the original 
+ *   Rounds a value up to the next higher power of 2.  Returns the original
  *   value if it is a power of 2.  The next power of 2 for inputs {0, 1} is 1.
  *   The result is undefined for inputs above {2^63, 2^31} (but equal to 1
  *   in this implementation).
@@ -1297,7 +1314,7 @@ RoundUpPow2Asm32(uint32 value)
                                         // if value == 0, then ecx = 31
                                         // if value == 1 then zf = 1, else zf = 0.
            "rol %%cl, %[out];"          // out = 2 << ecx (if ecx != -1)
-                                        //     = 2^(log2(value - 1) + 1).  
+                                        //     = 2^(log2(value - 1) + 1).
                                         // if ecx == -1 (value == 0), out = 1
                                         // zf is always unmodified
            "cmovz %[in], %[out]"        // if value == 1 (zf == 1), write 1 to out.

@@ -40,16 +40,16 @@ disk.shrink.complete = "디스크 축소가 완료되었습니다.\n"
 
 disk.shrink.conflict =
    "오류. Toolbox에서는 디스크 축소를 사용한다고 간주하는 반면 호스트에서는 디스크 축소를 사용하지 않는다고 "
-"간주합니다.\n"
-"\n"
-" Toolbox를 닫았다가 다시 열어 이 설정을 호스트와 동기화하십시오.\n"
+   "간주합니다.\n"
+   "\n"
+   " Toolbox를 닫았다가 다시 열어 이 설정을 호스트와 동기화하십시오.\n"
 
 disk.shrink.disabled =
    "이 가상 시스템에 대해 디스크 축소가 사용되지 않습니다.\n"
-"\n"
-"연결된 복제, 연결된 복제의 상위, 미리 할당된 디스크, 스냅샷에 대해 \n"
-" 축소가 사용되지 않거나 다른 원인 때문일 수 있습니다. \n"
-"자세한 내용은 사용 설명서를 참조하십시오.\n"
+   "\n"
+   "연결된 복제, 연결된 복제의 상위, 미리 할당된 디스크, 스냅샷에 대해 \n"
+   " 축소가 사용되지 않거나 다른 원인 때문일 수 있습니다. \n"
+   "자세한 내용은 사용 설명서를 참조하십시오.\n"
 
 disk.shrink.error = "축소하는 동안 오류 발생: %1$s\n"
 
@@ -63,15 +63,23 @@ disk.shrink.partition.unsupported = "파티션 %1$s 축소 불가능\n"
 
 disk.shrink.unavailable =
    "축소 기능을 사용할 수 없습니다.\n"
-"\n"
-"이전 버전의 VMware 제품을 실행하고 있거나 "
-"통신 채널이 너무 많이 열려 있기 때문입니다.\n"
-"\n"
-"이전 버전의 VMware 제품을 실행하고 있는 경우에는 업그레이드를 "
-"고려해 보십시오.\n"
-"\n"
-"너무 많은 통신 채널이 열려 있는 경우에는 가상 시스템의 전원을 껐다가"
-"다시 켜야 합니다.\n"
+   "\n"
+   "이전 버전의 VMware 제품을 실행하고 있거나 "
+   "통신 채널이 너무 많이 열려 있기 때문입니다.\n"
+   "\n"
+   "이전 버전의 VMware 제품을 실행하고 있는 경우에는 업그레이드를 "
+   "고려해 보십시오.\n"
+   "\n"
+   "너무 많은 통신 채널이 열려 있는 경우에는 가상 시스템의 전원을 껐다가"
+   "다시 켜야 합니다.\n"
+
+disk.shrink.ignoreFreeSpaceWarnings =
+   "축소 프로세스가 실행되는 동안에는 "
+   "디스크 공간에 대한 주의를 무시하십시오.\n"
+
+disk.wipe.ignoreFreeSpaceWarnings =
+   "지우기 프로세스가 실행되는 동안에는 "
+   "디스크 공간에 대한 주의를 무시하십시오.\n"
 
 disk.wiper.error = "오류: %1$s"
 
@@ -83,7 +91,7 @@ error.noadmin.posix = "%1$s: %2$s 작업은 루트 사용자만 수행할 수 �
 
 error.noadmin.win =
    "%1$s: %2$s 작업을 수행하려면 관리자 권한이 필요합니다.\n"
-"이러한 작업을 완료하려면 관리자 명령 프롬프트를 사용하십시오.\n"
+   "이러한 작업을 완료하려면 관리자 명령 프롬프트를 사용하십시오.\n"
 
 error.novirtual = "%1$s은(는) 가상 시스템 내부에서 실행해야 합니다.\n"
 
@@ -91,86 +99,86 @@ error.unknown = "%1$s: 알 수 없는 %2$s '%3$s'\n"
 
 help.device =
    "%1$s: 가상 시스템의 하드웨어 디바이스와 관련된 기능\n"
-"사용법: %2$s %3$s <subcommand> [args]\n"
-"dev는 디바이스 이름입니다.\n"
-"\n"
-"하위 명령:\n"
-"   enable <dev>: 디바이스 dev가 사용되도록 설정합니다.\n"
-"   disable <dev>: 디바이스 dev가 사용되지 않도록 설정합니다.\n"
-"   list: 사용 가능한 모든 디바이스를 나열합니다.\n"
-"   status <dev>: 디바이스의 상태를 출력합니다.\n"
+   "사용법: %2$s %3$s <하위 명령> [인수]\n"
+   "dev는 디바이스 이름입니다.\n"
+   "\n"
+   "하위 명령:\n"
+   "   enable <dev>: 디바이스 dev가 사용되도록 설정합니다.\n"
+   "   disable <dev>: 디바이스 dev가 사용되지 않도록 설정합니다.\n"
+   "   list: 사용 가능한 모든 디바이스를 나열합니다.\n"
+   "   status <dev>: 디바이스의 상태를 출력합니다.\n"
 
 help.disk =
    "%1$s: 디스크 축소 작업을 수행합니다.\n"
-"사용법: %2$s %3$s <하위명령> [인수]\n"
-"\n"
-"하위 명령:\n"
-"   list: 사용 가능한 위치를 나열합니다.\n"
-"   shrink <mount-point>: 지정된 위치에서 파일 시스템을 지우고 축소합니다.\n"
-"   shrinkonly: 모든 디스크를 축소합니다.\n"
-"   wipe <location>: 지정된 위치에서 파일 시스템을 지웁니다.\n"
+   "사용법: %2$s %3$s <하위명령> [인수]\n"
+   "\n"
+   "하위 명령:\n"
+   "   list: 사용 가능한 위치를 나열합니다.\n"
+   "   shrink <마운트 지점>: 지정된 위치에서 파일 시스템을 지우고 축소합니다.\n"
+   "   shrinkonly: 모든 디스크를 축소합니다.\n"
+   "   wipe <위치>: 지정된 위치에서 파일 시스템을 지웁니다.\n"
 
 help.hint = "자세한 내용을 보려면 '%1$s %2$s%3$s%4$s'을(를) 시도해 보십시오.\n"
 
 help.main =
-   "사용법: %1$s <command> [options] [subcommand]\n"
-"특정 명령에 대한 도움말을 보려면 '%2$s %3$s <command>'을(를) 입력하십시오.\n"
-"VMware Tools 버전을 확인하려면 '%4$s -v'를 입력하십시오.\n"
-"stdout 출력을 표시하지 않으려면 '-q' 옵션을 사용하십시오.\n"
-"대부분의 명령에 하위 명령이 사용됩니다.\n"
-"\n"
-"사용 가능한 명령:\n"
-"   device\n"
-"   disk\n"
-"   script\n"
-"   stat\n"
-"   timesync\n"
-"   upgrade(일부 운영 체제에서만 사용할 수 있음)\n"
+   "사용법: %1$s <명령> [옵션] [하위 명령]\n"
+   "특정 명령에 대한 도움말을 보려면 '%2$s %3$s <명령>'을(를) 입력하십시오.\n"
+   "VMware Tools 버전을 확인하려면 '%4$s -v'를 입력하십시오.\n"
+   "stdout 출력을 표시하지 않으려면 '-q' 옵션을 사용하십시오.\n"
+   "대부분의 명령에 하위 명령이 사용됩니다.\n"
+   "\n"
+   "사용 가능한 명령:\n"
+   "   device\n"
+   "   disk\n"
+   "   script\n"
+   "   stat\n"
+   "   timesync\n"
+   "   upgrade(일부 운영 체제에서만 사용할 수 있음)\n"
 
 help.script =
    "%1$s: 전원 작업에 대한 응답으로 실행되는 스크립트를 제어합니다.\n"
-"사용법: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n"
-"\n"
-"하위 명령:\n"
-"   enable: 지정된 스크립트가 사용되도록 설정하고 해당 경로를 기본값으로 복원합니다.\n"
-"   disable: 지정된 스크립트가 사용되지 않도록 설정합니다.\n"
-"   set <full_path>: 지정된 스크립트를 지정된 경로로 설정합니다.\n"
-"   default: 지정된 스크립트의 기본 경로를 출력합니다.\n"
-"   current: 지정된 스크립트의 현재 경로를 출력합니다.\n"
+   "사용법: %2$s %3$s <power|resume|suspend|shutdown> <하위 명령> [인수]\n"
+   "\n"
+   "하위 명령:\n"
+   "   enable: 지정된 스크립트가 사용되도록 설정하고 해당 경로를 기본값으로 복원합니다.\n"
+   "   disable: 지정된 스크립트가 사용되지 않도록 설정합니다.\n"
+   "   set <전체 경로>: 지정된 스크립트를 지정된 경로로 설정합니다.\n"
+   "   default: 지정된 스크립트의 기본 경로를 출력합니다.\n"
+   "   current: 지정된 스크립트의 현재 경로를 출력합니다.\n"
 
 help.stat =
    "%1$s: 유용한 게스트 및 호스트 정보를 출력합니다.\n"
-"사용법: %2$s %3$s <subcommand>\n"
-"\n"
-"하위 명령:\n"
-"   hosttime: 호스트 시간을 출력합니다.\n"
-"   speed: CPU 속도를 MHz 단위로 출력합니다.\n"
-"ESX 게스트 전용 하위 명령:\n"
-"   sessionid: 현재 세션 ID를 출력합니다.\n"
-"   balloon: 메모리 벌룬 정보를 출력합니다.\n"
-"   swap: 메모리 스와핑 정보를 출력합니다.\n"
-"   memlimit: 메모리 제한 정보를 출력합니다.\n"
-"   memres: 메모리 예약 정보를 출력합니다.\n"
-"   cpures: CPU 예약 정보를 출력합니다.\n"
-"   cpulimit: CPU 제한 정보를 출력합니다.\n"
+   "사용법: %2$s %3$s <하위 명령>\n"
+   "\n"
+   "하위 명령:\n"
+   "   hosttime: 호스트 시간을 출력합니다.\n"
+   "   speed: CPU 속도를 MHz 단위로 출력합니다.\n"
+   "ESX 게스트 전용 하위 명령:\n"
+   "   sessionid: 현재 세션 ID를 출력합니다.\n"
+   "   balloon: 메모리 벌룬 정보를 출력합니다.\n"
+   "   swap: 메모리 스와핑 정보를 출력합니다.\n"
+   "   memlimit: 메모리 제한 정보를 출력합니다.\n"
+   "   memres: 메모리 예약 정보를 출력합니다.\n"
+   "   cpures: CPU 예약 정보를 출력합니다.\n"
+   "   cpulimit: CPU 제한 정보를 출력합니다.\n"
 
 help.timesync =
    "%1$s: 게스트 OS에 대한 시간 동기화를 제어하는 기능\n"
-"사용법: %2$s %3$s <subcommand>\n"
-"\n"
-"하위 명령:\n"
-"   enable: 시간 동기화가 사용되도록 설정합니다.\n"
-"   disable: 시간 동기화가 사용되지 않도록 설정합니다.\n"
-"   status: 시간 동기화 상태를 출력합니다.\n"
+   "사용법: %2$s %3$s <하위 명령>\n"
+   "\n"
+   "하위 명령:\n"
+   "   enable: 시간 동기화가 사용되도록 설정합니다.\n"
+   "   disable: 시간 동기화가 사용되지 않도록 설정합니다.\n"
+   "   status: 시간 동기화 상태를 출력합니다.\n"
 
 help.upgrade =
    "%1$s: VMware Tools 업그레이드와 관련된 기능입니다.\n"
-"사용법: %2$s %3$s <subcommand> [args]\n"
-"하위 명령:\n"
-"   status: VMware Tools 업그레이드 상태를 확인합니다.\n"
-"   start: VMware Tools의 자동 업그레이드를 시작합니다.\n"
-"\n"
-"업그레이드가 수행되려면 VMware Tools 서비스가 실행되어야 합니다.\n"
+   "사용법: %2$s %3$s <하위 명령> [인수]\n"
+   "하위 명령:\n"
+   "   status: VMware Tools 업그레이드 상태를 확인합니다.\n"
+   "   start: VMware Tools의 자동 업그레이드를 시작합니다.\n"
+   "\n"
+   "업그레이드가 수행되려면 VMware Tools 서비스가 실행되어야 합니다.\n"
 
 option.disabled = "사용 안 함"
 
@@ -207,6 +215,20 @@ stat.memswap.failed = "스와핑된 메모리를 가져오지 못했습니다. %
 stat.openhandle.failed = "OpenHandle 실패: %1$s\n"
 
 stat.update.failed = "UpdateInfo 실패: %1$s\n"
+
+stat.processorSpeed.info = "%1$uMHz\n"
+
+stat.memoryBalloon.info = "%1$uMB\n"
+
+stat.memoryReservation.info = "%1$uMB\n"
+
+stat.memorySwapped.info = "%1$uMB\n"
+
+stat.memoryLimit.info = "%1$uMB\n"
+
+stat.cpuReservation.info = "%1$uMHz\n"
+
+stat.cpuLimit.info = "%1$uMHz\n"
 
 upgrade.available = "VMware Tools의 새 버전을 사용할 수 있습니다.\n"
 

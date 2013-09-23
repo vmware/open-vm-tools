@@ -62,6 +62,8 @@
 #include "msg.h"
 #include "util.h"
 #include "str.h"
+/* For HARD_EXPIRE --hpreg */
+#include "vm_version.h"
 #include "su.h"
 #include "posix.h"
 #include "file.h"

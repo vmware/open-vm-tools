@@ -34,7 +34,13 @@
 #include "toolsCoreInt.h"
 #include "vm_tools_version.h"
 #include "vmware/tools/utils.h"
-#include "vm_version.h"
+
+#if defined(__linux__)
+#include <sys/io.h>
+#include <errno.h>
+#include <string.h>
+#include "ioplGet.h"
+#endif
 
 /**
  * Take action after an RPC channel reset.
@@ -151,6 +157,37 @@ ToolsCoreRpcCapReg(RpcInData *data)
       vm_free(result);
       g_free(toolsVersion);
    }
+
+#if defined (__linux__)
+   /* Send the IOPL elevation capability to VMX. */
+   if (state->mainService) {
+      unsigned int oldLevel;
+      char *result = NULL;
+      size_t resultLen;
+
+      const char ioplElev[] = "tools.capability.iopl_elevation";
+
+      oldLevel = Iopl_Get();
+      g_debug("%s: old IOPL = %u\n", __FUNCTION__, oldLevel);
+
+      if (iopl(3) < 0) {
+         g_debug("Error raising the IOPL, %s", strerror(errno));
+      }
+
+      g_debug("%s: new IOPL = %u\n", __FUNCTION__, Iopl_Get());
+
+      if (!RpcChannel_Send(state->ctx.rpc, ioplElev, sizeof ioplElev,
+                           &result, &resultLen)) {
+         g_debug("Error setting tools iopl elevation capability: %s\n",
+                 result);
+         vm_free(result);
+      }
+
+      if (iopl(oldLevel) < 0) {
+         g_debug("Error restoring the IOPL, %s", strerror(errno));
+      }
+   }
+#endif
 
    state->capsRegistered = TRUE;
    free(confPath);

@@ -122,7 +122,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
        */
 
       if (VMCI_INVALID_ID == src->context && VMCI_INVALID_ID != src->resource) {
-         src->context = VMCI_GetContextID();
+         src->context = vmci_get_context_id();
       }
 
       /* Send from local client down to the hypervisor. */
@@ -159,7 +159,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
       if (!fromGuest && hasGuestDevice) {
          /* If no source context then use the current. */
          if (VMCI_INVALID_ID == src->context) {
-            src->context = VMCI_GetContextID();
+            src->context = vmci_get_context_id();
          }
 
          /* Send it from local client down to the host. */
@@ -219,9 +219,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
 
             ASSERT(VMCI_CONTEXT_IS_VM(dst->context));
 
-            if (!vmkernel) {
-               return VMCI_ERROR_DST_UNREACHABLE;
-            }
+            return VMCI_ERROR_DST_UNREACHABLE;
          }
 
          /* Pass it up to the guest. */
@@ -258,7 +256,7 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
 
    /* If no source context then use the current context. */
    if (VMCI_INVALID_ID == src->context) {
-      src->context = VMCI_GetContextID();
+      src->context = vmci_get_context_id();
    }
 
    /*

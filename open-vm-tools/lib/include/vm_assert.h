@@ -91,6 +91,14 @@ extern "C" {
 #endif
 
 /*
+ * Some bits of vmcore are used in VMKernel code and cannot have
+ * the VMKERNEL define due to other header dependencies.
+ */
+#if defined(VMKERNEL) && !defined(VMKPANIC)
+#define VMKPANIC 1
+#endif
+
+/*
  * Internal macros, functions, and strings
  *
  * The monitor wants to save space at call sites, so it has specialized
@@ -100,7 +108,8 @@ extern "C" {
 
 #if !defined VMM || defined MONITOR_APP // {
 
-#if defined VMKERNEL
+#if defined VMKPANIC
+
 // vmkernel Panic() function does not want a trailing newline.
 #define _ASSERT_PANIC(name) \
            Panic(_##name##Fmt, __FILE__, __LINE__)
@@ -109,12 +118,12 @@ extern "C" {
 #define _ASSERT_PANIC_NORETURN(name) \
            Panic_NoReturn(_##name##Fmt, __FILE__, __LINE__)
 
-#else /* !VMKERNEL */
+#else /* !VMKPANIC */
 #define _ASSERT_PANIC(name) \
            Panic(_##name##Fmt "\n", __FILE__, __LINE__)
 #define _ASSERT_PANIC_BUG(bug, name) \
            Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
-#endif /* VMKERNEL */
+#endif /* VMKPANIC */
 
 #ifdef VMX86_DEVEL
 #   define _ASSERT_WARNING(name) \
@@ -141,20 +150,38 @@ extern "C" {
  * Panic and log functions
  */
 
-EXTERN void Log(const char *fmt, ...) PRINTF_DECL(1, 2);
-EXTERN void Warning(const char *fmt, ...) PRINTF_DECL(1, 2);
-#if defined VMKERNEL
-EXTERN NORETURN void Panic_NoReturn(const char *fmt, ...) PRINTF_DECL(1, 2);
-#endif
-#if defined VMKERNEL && defined VMX86_DEBUG
-EXTERN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
+void Log(const char *fmt, ...) PRINTF_DECL(1, 2);
+void Warning(const char *fmt, ...) PRINTF_DECL(1, 2);
+#if defined VMKPANIC
+void Panic_SaveRegs(void);
+
+#ifdef VMX86_DEBUG
+void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
 #else
-EXTERN NORETURN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
+NORETURN void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
 #endif
 
-EXTERN void LogThrottled(uint32 *count, const char *fmt, ...)
+NORETURN void Panic_NoSaveNoReturn(const char *fmt, ...)
+   PRINTF_DECL(1, 2);
+
+#define Panic(fmt...) do { \
+   Panic_SaveRegs(); \
+   Panic_NoSave(fmt); \
+} while(0)
+
+#define Panic_NoReturn(fmt...) do { \
+   Panic_SaveRegs(); \
+   Panic_NoSaveNoReturn(fmt); \
+} while(0)
+
+
+#else
+NORETURN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
+#endif
+
+void LogThrottled(uint32 *count, const char *fmt, ...)
             PRINTF_DECL(2, 3);
-EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
+void WarningThrottled(uint32 *count, const char *fmt, ...)
             PRINTF_DECL(2, 3);
 
 
@@ -207,7 +234,7 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
 #define PANIC()        _ASSERT_PANIC(AssertPanic)
 #define PANIC_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertPanic)
 
-#ifdef VMKERNEL
+#ifdef VMKPANIC
 #define ASSERT_OR_IN_PANIC(cond) ASSERT((cond) || Panic_IsSystemInPanic())
 #endif
 
@@ -216,14 +243,14 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
 #define ASSERT_NOT_IMPLEMENTED_BUG(bug, cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED_BUG(bug))
 
-#if defined VMKERNEL && defined VMX86_DEBUG
+#if defined VMKPANIC && defined VMX86_DEBUG
 #define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
 #else
 #define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented)
 #endif
 #define NOT_IMPLEMENTED_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertNotImplemented)
 
-#if defined VMKERNEL && defined VMX86_DEBUG
+#if defined VMKPANIC && defined VMX86_DEBUG
 #define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached)
 #else
 #define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached)

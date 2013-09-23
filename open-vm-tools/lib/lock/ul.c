@@ -122,36 +122,11 @@ MXUserSyndrome(void)
    syndrome = Atomic_Read(&syndromeMem);
 
    if (syndrome == 0) {
-      uint32 retries = 25;
-
-      /*
-       * Do not assume that the source of bits from the host OS are sane.
-       * Perhaps its random bits service is not working or always returns
-       * zero or something is misconfigured. Only perform a small number
-       * of retries attempting to appropriate the required bits.
-       */
-
-      do {
-         /* Only changes syndrome on success. No need to check for errors */
-         Random_Crypto(sizeof syndrome, &syndrome);
-
-         if (syndrome != 0) {
-            break;
-         }
-      } while (retries--);
-
-      /*
-       * If the source was unable to provide the appropriate bits, switch
-       * to plan B.
-       */
-
-      if (syndrome == 0) {
 #if defined(_WIN32)
-         syndrome = GetTickCount();
+      syndrome = GetTickCount();
 #else
-         syndrome = time(NULL) & 0xFFFFFFFF;
+      syndrome = time(NULL) & 0xFFFFFFFF;
 #endif
-      }
 
       /*
        * Protect against a total failure.

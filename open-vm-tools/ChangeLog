@@ -1,11 +1,6 @@
-2012.12.26  Dmitry Torokhov  <dtor@vmware.com>
-	This release tag contains commits up to the following id:
-	530ef7f26ed041ab1b6655f2cdc79f3af97fc50b
+9.4.0  Dmitry Torokhov <dtor@vmware.com>
+	Release matching the vSphere 5.5 release.
 
-
-2012.10.14  Dmitry Torokhov  <dtor@vmware.com>
-	This release tag contains commits up to the following id:
-	d85408321c66c927bffdb05106a26581244edd4a
 
 2012.05.21  Dmitry Torokhov  <dtor@vmware.com>
 	This release tag contains commits up to the following id:

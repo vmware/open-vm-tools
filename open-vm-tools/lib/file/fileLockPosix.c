@@ -52,6 +52,7 @@
 #include "util.h"
 #include "str.h"
 #include "err.h"
+#include "vm_version.h"
 #include "localconfig.h"
 #include "hostinfo.h"
 #include "su.h"

@@ -35,6 +35,11 @@
 #include "unicodeTypes.h"
 #include "memaligned.h"
 
+/*
+ * Max supported file size is 64 TB.
+ */
+#define MAX_SUPPORTED_FILE_SIZE CONST64U(0x400000000000)
+
 #if defined __linux__
 /*
  * These magic constants are used only for parsing Linux statfs data.

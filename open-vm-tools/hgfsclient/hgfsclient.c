@@ -39,7 +39,6 @@
 #include "vmware/tools/utils.h"
 
 #include "hgfsclient_version.h"
-#include "vm_version.h"
 #include "embed_version.h"
 VM_EMBED_VERSION(HGFSCLIENT_VERSION_STRING);
 

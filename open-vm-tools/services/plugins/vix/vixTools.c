@@ -128,7 +128,10 @@
  * No support for open-vm-tools.
  */
 #if defined(linux) && !defined(OPEN_VM_TOOLS)
-#define SUPPORT_VGAUTH 1
+/*
+ * XXX turned off for prod2013-stage branch
+ */
+#define SUPPORT_VGAUTH 0
 #else
 #define SUPPORT_VGAUTH 0
 #endif

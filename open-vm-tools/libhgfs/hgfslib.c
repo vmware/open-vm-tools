@@ -22,7 +22,6 @@
  * Library entry point.
  */
 
-#include "vm_version.h"
 #include "embed_version.h"
 #include "vmtoolslib_version.h"
 VM_EMBED_VERSION(VMTOOLSLIB_VERSION_STRING);

@@ -47,7 +47,7 @@
 #include "su.h"
 #include "vm_atomic.h"
 #include "str.h"
-#include "vm_product.h"
+#include "vm_version.h"
 #include "random.h"
 #include "userlock.h"
 #include "unicodeOperations.h"
@@ -335,13 +335,13 @@ FileFindExistingSafeTmpDir(uid_t userId,            // IN:
    Unicode pattern;
    Unicode tmpDir = NULL;
    Unicode *fileList = NULL;
-   
+
    /*
     * We always use the pattern PRODUCT-USER-xxxx when creating
     * alternative safe temp directories, so check for ones with
     * those names and the appropriate permissions.
     */
-   
+
    pattern = Unicode_Format("%s-%s-", PRODUCT_GENERIC_NAME_LOWER, userName);
    if (pattern == NULL) {
       return NULL;
@@ -405,32 +405,24 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
    char *tmpDir = NULL;
 
    while (TRUE) {
-      unsigned int suffix;
-      
-      /* 
-       * We use a crypographically strong random number which is overkill
-       * for this purpose but makes it slightly more likely that we will
-       * create an unused name than if we had simply tried suffixes in
-       * numeric order.
+      /*
+       * We use a random number that makes it more likely that we will create
+       * an unused name than if we had simply tried suffixes in numeric order.
        */
 
-      if (!Random_Crypto(sizeof(suffix), &suffix)) {
-         Warning("%s: Call to Random_Crypto failed.\n", __FUNCTION__);
-         break;
-      }
-      
       tmpDir = Str_Asprintf(NULL, "%s%s%s-%s-%u", baseTmpDir, DIRSEPS,
-                            PRODUCT_GENERIC_NAME_LOWER, userName, suffix);
-      
+                            PRODUCT_GENERIC_NAME_LOWER, userName,
+                            FileSimpleRandom());
+
       if (!tmpDir) {
          Warning("%s: Out of memory error.\n", __FUNCTION__);
          break;
       }
-      
+
       if (FileAcceptableSafeTmpDir(tmpDir, userId)) {
          break;
       }
-      
+
       if (++curDirIter > MAX_DIR_ITERS) {
          Warning("%s: Failed to create a safe temporary directory, path "
                  "\"%s\". The maximum number of attempts was exceeded.\n",
@@ -439,7 +431,7 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
          tmpDir = NULL;
          break;
       }
-      
+
       free(tmpDir);
       tmpDir = NULL;
    }
@@ -456,9 +448,12 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
  *
  *      Return a safe temporary directory (i.e. a temporary directory which
  *      is not prone to symlink attacks, because it is only writable by the
- *      current effective user). Guaranteed to return the same directory
- *      every time it is called during the lifetime of the current process
- *      (unless that directory is deleted while the process is running).
+ *      current effective user).
+ *
+ *      Guaranteed to return the same directory every time it is
+ *      called during the lifetime of the current process, for the
+ *      current effective user ID. (Barring the user manually deleting
+ *      or renaming the directory.)
  *
  * Results:
  *      The allocated directory path on success.
@@ -507,30 +502,30 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
 
    /* We don't have a useable temporary dir, create one. */
    baseTmpDir = FileGetTmpDir(useConf);
-   
+
    if (!baseTmpDir) {
       Warning("%s: FileGetTmpDir failed.\n", __FUNCTION__);
       goto exit;
    }
-   
+
    userName = FileGetUserName(userId);
-   
+
    if (!userName) {
       Warning("%s: FileGetUserName failed, using numeric ID "
               "as username instead.\n", __FUNCTION__);
-      
+
       /* Fallback on just using the userId as the username. */
       userName = Str_Asprintf(NULL, "uid-%d", userId);
-      
+
       if (!userName) {
          Warning("%s: Str_Asprintf error.\n", __FUNCTION__);
          goto exit;
       }
    }
-   
+
    tmpDir = Str_Asprintf(NULL, "%s%s%s-%s", baseTmpDir, DIRSEPS,
                          PRODUCT_GENERIC_NAME_LOWER, userName);
-   
+
    if (!tmpDir) {
       Warning("%s: Out of memory error.\n", __FUNCTION__);
       goto exit;

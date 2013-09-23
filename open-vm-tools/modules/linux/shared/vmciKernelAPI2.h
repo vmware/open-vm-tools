@@ -47,13 +47,11 @@
 
 typedef void (*VMCICallback)(void *clientData);
 
-int VMCIDoorbell_Create(VMCIHandle *handle, uint32 flags,
-                        VMCIPrivilegeFlags privFlags,
-                        VMCICallback notifyCB, void *clientData);
-int VMCIDoorbell_Destroy(VMCIHandle handle);
-int VMCIDoorbell_Notify(VMCIHandle handle,
-                        VMCIPrivilegeFlags privFlags);
-
+int vmci_doorbell_create(VMCIHandle *handle, uint32 flags,
+                         VMCIPrivilegeFlags privFlags, VMCICallback notifyCB,
+                         void *clientData);
+int vmci_doorbell_destroy(VMCIHandle handle);
+int vmci_doorbell_notify(VMCIHandle handle, VMCIPrivilegeFlags privFlags);
 
 /* Typedefs for all of the above, used by the IOCTLs and the kernel library. */
 
@@ -64,4 +62,3 @@ typedef int (VMCIDoorbell_NotifyFct)(VMCIHandle, VMCIPrivilegeFlags);
 
 
 #endif /* !__VMCI_KERNELAPI_2_H__ */
-

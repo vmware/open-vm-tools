@@ -37,7 +37,6 @@
 #include "util.h"
 #include "vmcheck.h"
 #include "vm_tools_version.h"
-#include "vm_version.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"

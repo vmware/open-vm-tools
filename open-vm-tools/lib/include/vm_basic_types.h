@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2009 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -564,6 +564,12 @@ typedef void * UserVA;
 #endif
 
 
+/*
+ * Maximal possible PPN value (errors too) that PhysMem can handle.
+ * Must be at least as large as MAX_PPN which is the maximum PPN
+ * for any region other than buserror.
+ */
+#define PHYSMEM_MAX_PPN   ((PPN)0xffffffff)
 #define MAX_PPN           ((PPN)0x3fffffff) /* Maximal observable PPN value. */
 #define INVALID_PPN       ((PPN)0xffffffff)
 #define APIC_INVALID_PPN  ((PPN)0xfffffffe)
@@ -574,7 +580,9 @@ typedef void * UserVA;
 #define INVALID_MPN       ((MPN)-1)
 #define MEMREF_MPN        ((MPN)-2)
 #define RELEASED_MPN      ((MPN)-3)
-#define MAX_MPN           ((MPN)0x7fffffff)  /* 43 bits of address space. */
+
+/* 0xfffffffc to account for special MPNs defined above. */
+#define MAX_MPN           ((MPN)0xfffffffc)  /* 44 bits of address space. */
 
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
@@ -705,19 +713,6 @@ typedef void * UserVA;
 #define SIDE_EFFECT_FREE __attribute__((__pure__))
 #else
 #define SIDE_EFFECT_FREE
-#endif
-
-/*
- * Used when a function exmaines no input other than its arguments and
- * has no side effects other than its return value.  Stronger than
- * SIDE_EFFECT_FREE as the function is not allowed to read from global
- * memory.
- */
-
-#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
-#define CONST_FUNCTION __attribute__((__const__))
-#else
-#define CONST_FUNCTION
 #endif
 
 /*

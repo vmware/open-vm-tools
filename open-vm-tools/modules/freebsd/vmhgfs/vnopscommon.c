@@ -53,11 +53,7 @@ static int HgfsDoGetattrByName(const char *path, HgfsSuperInfo *sip, HgfsAttrV2 
 int HgfsReadlinkInt(struct vnode *vp, struct uio *uiop);
 static int HgfsQueryAttrInt(const char *path, HgfsHandle handle, HgfsSuperInfo *sip,
                             HgfsKReqHandle req);
-static int HgfsRenewHandle(struct vnode *vp, HgfsSuperInfo *sip, HgfsHandle *handle);
-static int HgfsRefreshDirHandle(struct vnode *vp, HgfsSuperInfo *sip, HgfsHandle *handle);
-static int HgfsGetNewHandle(struct vnode *vp, HgfsSuperInfo *sip, HgfsFile *fp,
-                            HgfsHandle *handle);
-
+static int HgfsRefreshHandle(struct vnode *vp, HgfsSuperInfo *sip, HgfsHandle *handle);
 
 #if 0
 static int HgfsDoGetattrByHandle(HgfsHandle handle, HgfsSuperInfo *sip, HgfsAttrV2 *hgfsAttrV2);
@@ -306,10 +302,6 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
       goto out;
    }
 
-   if (HGFS_UIOP_TO_OFFSET(uiop) == 0) {
-      ret = HgfsRefreshDirHandle(vp, sip, &handle);
-   }
-
    /*
     * Allocate 1K (MAXPATHLEN) buffer for inode number generation.
     */
@@ -356,7 +348,7 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
           * enabled/disabled the shared folders. We should get a new handle
           * from the server, now.
           */
-         ret = HgfsRenewHandle(vp, sip, &handle);
+         ret = HgfsRefreshHandle(vp, sip, &handle);
          if (ret == 0) {
             /*
              * Now we have valid handle, let's try again from the same
@@ -1224,7 +1216,7 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
          DEBUG(VM_DEBUG_EXIT, "end of file reached.\n");
          return 0;
       } else if (ret == -EBADF) { // Stale host handle
-         ret = HgfsRenewHandle(vp, sip, &handle);
+         ret = HgfsRefreshHandle(vp, sip, &handle);
          if (ret == 0) {
             ret = HgfsDoRead(sip, handle, offset, size, uiop);
             if (ret < 0) {
@@ -1342,7 +1334,7 @@ HgfsWriteInt(struct vnode *vp, // IN    : the vnode of the file
       /* Send one write request. */
       ret = HgfsDoWrite(sip, handle, ioflag, offset, size, uiop);
       if (ret == -EBADF) { // Stale host handle
-         ret = HgfsRenewHandle(vp, sip, &handle);
+         ret = HgfsRefreshHandle(vp, sip, &handle);
          if (ret == 0) {
             ret = HgfsDoWrite(sip, handle, ioflag, offset, size, uiop);
             if (ret < 0) {
@@ -1791,62 +1783,9 @@ out:
 /*
  *----------------------------------------------------------------------------
  *
- * HgfsRefreshDirHandle --
+ * HgfsRefreshHandle --
  *
- *      Refresh the directory HgfsHandle for the vnode.
- *      Needed when original handle become stale because the directory contents
- *      have changed either in the VM or on the remote server.
- *
- * Results:
- *      Returns zero on success and an error code on error.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static int
-HgfsRefreshDirHandle(struct vnode *vp,          // IN: Vnode of file to open
-                     HgfsSuperInfo *sip,        // IN: Superinfo pointer
-                     HgfsHandle *handle)        // IN/OUT: handle to close and reopen
-{
-   int ret = 0;
-   HgfsFile *fp;
-
-   ASSERT(vp);
-   fp = HGFS_VP_TO_FP(vp);
-   ASSERT(fp);
-
-   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
-
-   os_rw_lock_lock_exclusive(fp->handleLock);
-
-   ASSERT(HGFS_VP_TO_VTYPE(vp) == VDIR);
-
-   if (fp->handle != *handle) {
-      /* Handle has been refreshed in another thread. */
-      *handle = fp->handle;
-   } else {
-      /* Close the existing handle and open a new one from the host. */
-      HgfsCloseServerDirHandle(sip, *handle);
-      ret = HgfsGetNewHandle(vp, sip, fp, handle);
-   }
-
-   os_rw_lock_unlock_exclusive(fp->handleLock);
-
-   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
-         ret);
-   return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsRenewHandle --
- *
- *      Renew the HgfsHandle for the vnode. Needed when original handle
+ *      Request a new HgfsHandle for the vnode. Needed when original handle
  *      become stale because HGFS has been disabled and re-enabled or VM
  *      has been suspened and then resumed.
  *
@@ -1860,11 +1799,11 @@ HgfsRefreshDirHandle(struct vnode *vp,          // IN: Vnode of file to open
  */
 
 static int
-HgfsRenewHandle(struct vnode *vp,          // IN: Vnode of file to open
-                HgfsSuperInfo *sip,        // IN: Superinfo pointer
-                HgfsHandle *handle)        // IN/OUT: Pointer to the stale handle
+HgfsRefreshHandle(struct vnode *vp,          // IN: Vnode of file to open
+                  HgfsSuperInfo *sip,        // IN: Superinfo pointer
+                  HgfsHandle *handle)        // IN OUT: Pointer to the stale handle
 {
-   int result = 0;
+   int ret = 0;
    HgfsFile *fp;
 
    ASSERT(vp);
@@ -1874,69 +1813,29 @@ HgfsRenewHandle(struct vnode *vp,          // IN: Vnode of file to open
    DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
 
    os_rw_lock_lock_exclusive(fp->handleLock);
-
    if (fp->handle != *handle) {
       /* Handle has been refreshed in another thread. */
       *handle = fp->handle;
    } else {
-      result = HgfsGetNewHandle(vp, sip, fp, handle);
-   }
-   os_rw_lock_unlock_exclusive(fp->handleLock);
-
-   DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
-         result);
-   return result;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsGetNewHandle --
- *
- *      Get a new HgfsHandle for the vnode. Needed when original handle
- *      become stale because HGFS has been disabled and re-enabled or VM
- *      has been suspened and then resumed, or folder contents have changed.
- *
- *      NOTE: file lock must be acquired when calling this function.
- *
- * Results:
- *      Returns zero on success and an error code on error.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static int
-HgfsGetNewHandle(struct vnode *vp,          // IN: Vnode of file to open
-                 HgfsSuperInfo *sip,        // IN: Superinfo pointer
-                 HgfsFile *fp,              // IN/OUT: file node pointer
-                 HgfsHandle *handle)        // IN OUT: Pointer to the stale handle
-{
-   int ret = 0;
-
-   DEBUG(VM_DEBUG_ENTRY, "Enter(%.*s)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp));
-
-   /* Retrieve a new handle from the host. */
-   if (HGFS_VP_TO_VTYPE(vp) == VREG) {
-      ret = HgfsRequestHostFileHandle(sip, vp, (int *)&fp->mode,
-                                      HGFS_OPEN, 0, handle);
-   } else if (HGFS_VP_TO_VTYPE(vp) == VDIR) {
-      char *fullPath = HGFS_VP_TO_FILENAME(vp);
-      uint32 fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
-
-      ret = HgfsSendOpenDirRequest(sip, fullPath, fullPathLen, handle);
-   } else {
-      goto out;
-   }
-
-   if (ret == 0) {
-      fp->handle = *handle;
+      /* Retrieve a new handle from the host. */
+      if (HGFS_VP_TO_VTYPE(vp) == VREG) {
+         ret = HgfsRequestHostFileHandle(sip, vp, (int *)&fp->mode,
+                                         HGFS_OPEN, 0, handle);
+      } else if (HGFS_VP_TO_VTYPE(vp) == VDIR) {
+         char *fullPath = HGFS_VP_TO_FILENAME(vp);
+         uint32 fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
+         ret = HgfsSendOpenDirRequest(sip, fullPath, fullPathLen, handle);
+      } else {
+         goto out;
+      }
+      if (ret == 0) {
+         fp->handle = *handle;
+      }
    }
 
 out:
+   os_rw_lock_unlock_exclusive(fp->handleLock);
+
    DEBUG(VM_DEBUG_EXIT, "Exit(%.*s -> %d)\n", HGFS_VP_TO_FILENAME_LENGTH(vp), HGFS_VP_TO_FILENAME(vp),
          ret);
    return ret;

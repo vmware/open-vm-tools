@@ -161,7 +161,6 @@ AlignedReallocImpl(void *oldbuf,    // IN
    return alignedResult;
 }
 
-
 /*
  *-----------------------------------------------------------------------------
  *

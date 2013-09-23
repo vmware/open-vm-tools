@@ -885,7 +885,19 @@ HgfsTruncatePages(struct inode *inode, // IN: Inode whose page to truncate
    ASSERT(inode);
 
    LOG(4, (KERN_DEBUG "VMware hgfs: HgfsTruncatePages: entered\n"));
-   result = compat_vmtruncate(inode, newSize);
+
+   /*
+    * In 3.8.0, vmtruncate was removed and replaced by calling the check
+    * size and set directly.
+    */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)
+   result = vmtruncate(inode, newSize);
+#else
+   result = inode_newsize_ok(inode, newSize);
+   if (0 == result) {
+      truncate_setsize(inode, newSize);
+   }
+#endif
    if (result) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsTruncatePages: vmtruncate failed "
               "with error code %d\n", result));
@@ -1798,6 +1810,7 @@ HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
  *
  *----------------------------------------------------------------------
  */
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
 static int
 HgfsPermission(struct inode *inode,
@@ -1811,22 +1824,27 @@ HgfsPermission(struct inode *inode,
     */
    if (mask & MAY_ACCESS) { /* For sys_access. */
       struct dentry *dentry;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
       struct hlist_node *p;
-      int dcount = 0;
+#endif
 
       if (mask & MAY_NOT_BLOCK)
          return -ECHILD;
 
       /* Find a dentry with valid d_count. Refer bug 587879. */
-      hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
-         dcount = dentry->d_count;
+      hlist_for_each_entry(dentry,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+                           p,
+#endif
+                           &inode->i_dentry,
+                           d_alias) {
+         int dcount = dentry->d_count;
          if (dcount) {
             LOG(4, ("Found %s %d \n", dentry->d_name.name, dcount));
-            break;
+            return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
          }
       }
-      ASSERT(dcount);
-      return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
+      ASSERT(FALSE);
    }
    return 0;
 }
@@ -1853,8 +1871,6 @@ HgfsPermission(struct inode *inode,
    if (mask & MAY_ACCESS) { /* For sys_access. */
 #endif
       struct list_head *pos;
-      int dcount = 0;
-      struct dentry *dentry = NULL;
 
       /*
        * In 2.6.38 path walk is done in 2 distinct modes: rcu-walk and
@@ -1873,7 +1889,8 @@ HgfsPermission(struct inode *inode,
 
       /* Find a dentry with valid d_count. Refer bug 587879. */
       list_for_each(pos, &inode->i_dentry) {
-         dentry = list_entry(pos, struct dentry, d_alias);
+         int dcount;
+         struct dentry *dentry = list_entry(pos, struct dentry, d_alias);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 38)
          dcount = atomic_read(&dentry->d_count);
 #else
@@ -1881,11 +1898,10 @@ HgfsPermission(struct inode *inode,
 #endif
          if (dcount) {
             LOG(4, ("Found %s %d \n", (dentry)->d_name.name, dcount));
-            break;
+            return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
          }
       }
-      ASSERT(dcount);
-      return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
+      ASSERT(FALSE);
    }
    return 0;
 }

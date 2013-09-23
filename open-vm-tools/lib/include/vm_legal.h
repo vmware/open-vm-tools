@@ -24,7 +24,10 @@
 #ifndef VM_LEGAL_H
 #define VM_LEGAL_H
 
-#include "vm_product.h"
+/*
+ * COMPANY_NAME comes from vm_version.h
+ */
+#include "vm_version.h"
 
 #ifndef WSTR
 #define WSTR_(x) L ## x

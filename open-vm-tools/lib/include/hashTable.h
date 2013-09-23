@@ -34,26 +34,27 @@
 
 
 typedef struct HashTable HashTable;
+typedef struct PtrHashTable PtrHashTable;
 
 typedef void (*HashTableFreeEntryFn)(void *clientData);
 
 typedef int (*HashTableForEachCallback)(const char *key,
-                                        void *value, 
+                                        void *value,
                                         void *clientData);
 
-#define HASH_STRING_KEY		0	// case-sensitive string key
-#define HASH_ISTRING_KEY	1	// case-insensitive string key
-#define HASH_INT_KEY		2	// uintptr_t or pointer key
+#define HASH_STRING_KEY         0       // case-sensitive string key
+#define HASH_ISTRING_KEY        1       // case-insensitive string key
+#define HASH_INT_KEY            2       // uintptr_t or pointer key
 
 /*
  * The flag bits are ored into the type field.
  * Atomic hash tables only support insert, lookup, and replace.
  */
 
-#define HASH_TYPE_MASK		7
-#define HASH_FLAG_MASK		(~HASH_TYPE_MASK)
-#define HASH_FLAG_ATOMIC	0x08	// thread-safe hash table
-#define HASH_FLAG_COPYKEY	0x10	// copy string key
+#define HASH_TYPE_MASK          7
+#define HASH_FLAG_MASK          (~HASH_TYPE_MASK)
+#define HASH_FLAG_ATOMIC        0x08    // thread-safe hash table
+#define HASH_FLAG_COPYKEY       0x10    // copy string key
 
 HashTable *
 HashTable_Alloc(uint32               numEntries,
@@ -152,28 +153,28 @@ typedef struct PtrHashEntry
 typedef int (*PtrHashForEachCallback)(PtrHashEntry *entry,
                                       const void *clientData);
 
-HashTable *PtrHash_Alloc(uint32 numBuckets);
+PtrHashTable *PtrHash_Alloc(uint32 numBuckets);
 
-void PtrHash_Free(HashTable *hashTable);
+void PtrHash_Free(PtrHashTable *hashTable);
 
-size_t PtrHash_AllocSize(HashTable *ht);
+size_t PtrHash_AllocSize(PtrHashTable *ht);
 
-size_t PtrHash_GetNumElements(const HashTable *ht);
+size_t PtrHash_GetNumElements(const PtrHashTable *ht);
 
-int PtrHash_ForEach(const HashTable *ht,
+int PtrHash_ForEach(const PtrHashTable *ht,
                     PtrHashForEachCallback cb,
                     const void *clientData);
 
-PtrHashEntry *PtrHash_Lookup(const HashTable *hashTable,
+PtrHashEntry *PtrHash_Lookup(const PtrHashTable *hashTable,
                              const void *keyPtr);
 
-PtrHashEntry *PtrHash_LookupAndDelete(HashTable *hashTable,
+PtrHashEntry *PtrHash_LookupAndDelete(PtrHashTable *hashTable,
                                       const void *keyPtr);
 
-Bool PtrHash_Insert(HashTable *hashTable,
+Bool PtrHash_Insert(PtrHashTable *hashTable,
                     PtrHashEntry *entry);
 
-Bool PtrHash_Delete(HashTable *hashTable,
+Bool PtrHash_Delete(PtrHashTable *hashTable,
                     const void *keyPtr);
 
 #endif

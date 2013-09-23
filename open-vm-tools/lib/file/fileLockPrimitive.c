@@ -1031,19 +1031,28 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
    } else {
       ASSERT(FileIO_IsValid(&tokenPtr->u.mandatory.lockFd));
 
-     if (FileIO_CloseAndUnlink(&tokenPtr->u.mandatory.lockFd)) {
-        /*
-         * Should succeed, but there is an unavoidable race:
-         * close() must preceed unlink(), but another locker could acquire
-         * lock between close() and unlink(). Solution: treat EBUSY as
-         * success.
-         */
-        if (Err_Errno() == EBUSY) {
-           LOG(0, ("Tolerating EBUSY on unlink of advisory lock at %s\n",
-                   UTF8(tokenPtr->pathName)));
-        } else {
-           err = Err_Errno();
-        }
+      if (FileIO_CloseAndUnlink(&tokenPtr->u.mandatory.lockFd)) {
+         /*
+          * Should succeed, but there is an unavoidable race:
+          * close() must preceed unlink(), but another thread could touch
+          * the file between close() and unlink(). We only worry about other
+          * FileLock-like manipulations; the advisory lock file should not
+          * experience any name collisions. Treat races as success.
+          * Specific errors:
+          *    EBUSY: other locked file
+          *    ENOENT: other locked + unlocked (w/ implicit unlink) file
+          */
+         if (Err_Errno() == EBUSY || Err_Errno() == ENOENT) {
+            LOG(0, ("Tolerating %s on unlink of advisory lock at %s\n",
+                    Err_Errno() == EBUSY ? "EBUSY" : "ENOENT",
+                    UTF8(tokenPtr->pathName)));
+         } else {
+            err = Err_Errno();
+            if (vmx86_debug) {
+               Log(LGPFX" %s failed for advisory lock '%s': %s\n", __FUNCTION__,
+                   UTF8(tokenPtr->pathName), strerror(err));
+            }
+         }
       }
    }
 

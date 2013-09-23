@@ -38,10 +38,7 @@
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
-#include "vm_version.h"
-#include "vm_product_versions.h"
 
-#include "vm_version.h"
 #include "embed_version.h"
 VM_EMBED_VERSION(TOOLBOXCMD_VERSION_STRING);
 

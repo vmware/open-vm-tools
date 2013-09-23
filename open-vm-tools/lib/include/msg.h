@@ -36,6 +36,9 @@
 #include "msgid.h"
 #include "msgfmt.h"
 #include "msgList.h"
+#if defined VMX86_SERVER && !defined VMCORE
+#include "voblib.h"
+#endif
 
 
 #define INVALID_MSG_CODE (-1)
@@ -121,6 +124,22 @@ extern Msg_String const Msg_Severities[];
 void Msg_Append(const char *idFmt,
                 ...) PRINTF_DECL(1, 2);
 void Msg_AppendStr(const char *id);
+void Msg_AppendMsgList(const MsgList *msgs);
+
+static INLINE void
+Msg_AppendVobContext(void)
+{
+#if defined VMX86_SERVER && !defined VMCORE
+   /* inline to avoid lib/vob dependency unless necessary */
+   MsgList *msgs = NULL;
+
+   VobLib_CurrentContextMsgAppend(&msgs);
+   Msg_AppendMsgList(msgs);
+
+   MsgList_Free(msgs);
+#endif
+}
+
 void Msg_Post(MsgSeverity severity,
               const char *idFmt,
               ...) PRINTF_DECL(2, 3);
@@ -134,7 +153,6 @@ char *Msg_VFormat(const char *idFmt,
 unsigned Msg_Question(Msg_String const *buttons,
                       int defaultAnswer,
                       const char *idFmt, ...) PRINTF_DECL(3, 4);
-void Msg_AppendMsgList(const MsgList *msgs);
 
 /*
  * Unfortunately, gcc warns about both NULL and "" being passed as format

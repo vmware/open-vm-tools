@@ -262,15 +262,13 @@ RpcV3Util::SendMsg(const uint8 *binary,
        */
       if (mSendBuf.buffer) {
          /*
-          * There is a pending big size message. If there is no update time more than
-          * DND_MAX_TRANSPORT_LATENCY_TIME, remove old message and send new message.
-          * Otherwise ignore this message.
+          * There is a pending big size message. If there is no update time
+          * more than DND_MAX_TRANSPORT_LATENCY_TIME, remove old message and
+          * send new message. Otherwise ignore this message.
           */
-         VmTimeType curTime;
 
-         Hostinfo_GetTimeOfDay(&curTime);
-
-         if ((curTime - mSendBuf.lastUpdateTime) < DND_MAX_TRANSPORT_LATENCY_TIME) {
+         if ((Hostinfo_SystemTimerUS() - mSendBuf.lastUpdateTime) <
+             DND_MAX_TRANSPORT_LATENCY_TIME) {
             LOG(1, ("%s: got a big buffer, but there is another pending one, drop it\n",
                     __FUNCTION__));
             return false;

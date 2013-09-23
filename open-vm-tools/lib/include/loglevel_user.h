@@ -134,7 +134,6 @@
    LOGLEVEL_VAR(mksGLShader), \
    LOGLEVEL_VAR(mksGLState), \
    LOGLEVEL_VAR(mksGLWindow), \
-   LOGLEVEL_VAR(mksWinBSOD), \
    LOGLEVEL_VAR(vdpPlugin), \
    \
    /* user/sound */ \

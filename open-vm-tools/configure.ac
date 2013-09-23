@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="2012.12.26"
+TOOLS_VERSION="9.4.0"
 AC_INIT(
    [open-vm-tools],
-   [2012.12.26],
+   [9.4.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -129,9 +129,6 @@ case "$host_os" in
       ;;
    [freebsd*])
       os="freebsd"
-      ;;
-   [kfreebsd*-gnu])
-      os="kfreebsd-gnu"
       ;;
    [solaris*])
       os="solaris"
@@ -945,15 +942,12 @@ if test "$os" = "linux"; then
 
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrt"
 
-   MODULES="$MODULES vmci vsock"
-   MODULES="$MODULES vmxnet vmhgfs"
-   if test "$osVersion" -lt 300000; then
-      MODULES="$MODULES vmblock vmsync"
-   fi
+   MODULES="$MODULES vmsync vmci vsock"
+   MODULES="$MODULES vmxnet vmblock vmhgfs"
    buildHgfsmounter=yes
 fi
 
-if test "$os" = "freebsd" || test "$os" = "kfreebsd-gnu"; then
+if test "$os" = "freebsd"; then
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lkvm"
    MODULES_DIR="/boot/modules"
 
@@ -1022,9 +1016,8 @@ fi
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
-AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd" -o "$os" = "kfreebsd-gnu")
-AM_CONDITIONAL(FREEBSD_CUSTOM_SYSDIR,
-               test \( "$os" = "freebsd" -o "$os" = "kfreebsd-gnu" \) -a -n "$SYSDIR")
+AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd")
+AM_CONDITIONAL(FREEBSD_CUSTOM_SYSDIR, test "$os" = "freebsd" -a -n "$SYSDIR")
 AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")

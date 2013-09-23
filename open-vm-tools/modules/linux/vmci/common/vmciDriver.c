@@ -124,11 +124,12 @@ VMCI_HostCleanup(void)
 }
 
 
-#if !defined(_WIN32)
+#if defined(__APPLE__) || defined(SOLARIS) || defined(VMKERNEL)
+/* Windows has its own implementation of this, and Linux doesn't need one. */
 /*
  *----------------------------------------------------------------------
  *
- * VMCI_DeviceGet --
+ * vmci_device_get --
  *
  *      Verifies that a valid VMCI device is present, and indicates
  *      the callers intention to use the device until it calls
@@ -143,12 +144,12 @@ VMCI_HostCleanup(void)
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
+VMCI_EXPORT_SYMBOL(vmci_device_get)
 Bool
-VMCI_DeviceGet(uint32 *apiVersion,                      // IN/OUT
-               VMCI_DeviceShutdownFn *deviceShutdownCB, // UNUSED
-               void *userData,                          // UNUSED
-               void **deviceRegistration)               // OUT
+vmci_device_get(uint32 *apiVersion,                      // IN/OUT
+                VMCI_DeviceShutdownFn *deviceShutdownCB, // UNUSED
+                void *userData,                          // UNUSED
+                void **deviceRegistration)               // OUT
 {
    if (NULL != deviceRegistration) {
       *deviceRegistration = NULL;
@@ -170,7 +171,7 @@ VMCI_DeviceGet(uint32 *apiVersion,                      // IN/OUT
 /*
  *----------------------------------------------------------------------
  *
- * VMCI_DeviceRelease --
+ * vmci_device_release --
  *
  *      Indicates that the caller is done using the VMCI device.
  *
@@ -183,12 +184,12 @@ VMCI_DeviceGet(uint32 *apiVersion,                      // IN/OUT
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
+VMCI_EXPORT_SYMBOL(vmci_device_release)
 void
-VMCI_DeviceRelease(void *deviceRegistration) // UNUSED
+vmci_device_release(void *deviceRegistration) // UNUSED
 {
 }
-#endif // !_WIN32
+#endif // __APPLE__ || SOLARIS || VMKERNEL
 
 
 /*
@@ -252,9 +253,12 @@ VMCIUtil_Init(void)
     * We subscribe to the VMCI_EVENT_CTX_ID_UPDATE here so we can update the
     * internal context id when needed.
     */
-   if (VMCIEvent_Subscribe(VMCI_EVENT_CTX_ID_UPDATE, VMCI_FLAG_EVENT_NONE,
-                           VMCIUtilCidUpdate, NULL,
-                           &ctxUpdateSubID) < VMCI_SUCCESS) {
+   if (vmci_event_subscribe(VMCI_EVENT_CTX_ID_UPDATE,
+#if !defined(linux) || defined(VMKERNEL)
+                            VMCI_FLAG_EVENT_NONE,
+#endif // !linux || VMKERNEL
+                            VMCIUtilCidUpdate, NULL,
+                            &ctxUpdateSubID) < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to subscribe to event (type=%d).\n",
                     VMCI_EVENT_CTX_ID_UPDATE));
    }
@@ -280,7 +284,7 @@ VMCIUtil_Init(void)
 void
 VMCIUtil_Exit(void)
 {
-   if (VMCIEvent_Unsubscribe(ctxUpdateSubID) < VMCI_SUCCESS) {
+   if (vmci_event_unsubscribe(ctxUpdateSubID) < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to unsubscribe to event (type=%d) with "
                     "subscriber (ID=0x%x).\n", VMCI_EVENT_CTX_ID_UPDATE,
                     ctxUpdateSubID));
@@ -522,7 +526,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
 /*
  *----------------------------------------------------------------------------
  *
- * VMCI_GetContextID --
+ * vmci_get_context_id --
  *
  *    Returns the current context ID.  Note that since this is accessed only
  *    from code running in the host, this always returns the host context ID.
@@ -536,9 +540,9 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
  *----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCI_GetContextID)
+VMCI_EXPORT_SYMBOL(vmci_get_context_id)
 VMCIId
-VMCI_GetContextID(void)
+vmci_get_context_id(void)
 {
    if (VMCI_GuestPersonalityActive()) {
       if (Atomic_Read(&vmContextID) == VMCI_INVALID_ID) {
@@ -562,7 +566,7 @@ VMCI_GetContextID(void)
 /*
  *----------------------------------------------------------------------
  *
- * VMCI_Version --
+ * vmci_version --
  *
  *     Returns the version of the VMCI driver.
  *
@@ -575,9 +579,9 @@ VMCI_GetContextID(void)
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCI_Version)
+VMCI_EXPORT_SYMBOL(vmci_version)
 uint32
-VMCI_Version()
+vmci_version(void)
 {
    return VMCI_VERSION;
 }

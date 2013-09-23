@@ -100,6 +100,7 @@
 #include "hostinfo.h"
 #include "hostinfoInt.h"
 #include "safetime.h"
+#include "vm_version.h"
 #include "str.h"
 #include "err.h"
 #include "msg.h"

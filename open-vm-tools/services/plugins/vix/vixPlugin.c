@@ -33,7 +33,6 @@
 #include "vmware/tools/utils.h"
 
 #if !defined(__APPLE__)
-#include "vm_version.h"
 #include "embed_version.h"
 #include "vmtoolsd_version.h"
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);

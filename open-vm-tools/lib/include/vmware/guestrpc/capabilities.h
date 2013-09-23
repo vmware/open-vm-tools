@@ -72,7 +72,6 @@ typedef enum {
    CAP_UPDATE_AGENT                     = 27, // supports guest update agent
    HGFSU_CAP_MIRROR_DOWNLOADS           = 28, // supports remapping GOS Downloads to HGFS
    HGFSU_CAP_MIRROR_MOVIES              = 29, // supports remapping GOS Movies to HGFS
-   GHI_CAP_TOGGLE_START_UI              = 30, // supports showing/hiding the Start UI
 } GuestCapabilities;
 
 typedef struct {
@@ -144,7 +143,6 @@ static GuestCapElem guestCapTable[] = {
    { CAP_UPDATE_AGENT,                     CAP_VMDB_PATH,       "updateAgent"},
    { HGFSU_CAP_MIRROR_DOWNLOADS,           HGFSU_CAP_VMDB_PATH, "mirrorDownloads" },
    { HGFSU_CAP_MIRROR_MOVIES,              HGFSU_CAP_VMDB_PATH, "mirrorMovies" },
-   { GHI_CAP_TOGGLE_START_UI,              GHI_CAP_VMDB_PATH,   "toggleStartUI"},
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING

@@ -47,8 +47,11 @@ char *UUID_ConvertToText(const uint8 id[UUID_SIZE]);
 #define UUID_CREATE_WS4     0  /* the "original", WS4 and earlier scheme */
 #define UUID_CREATE_WS5     1  /* the WS5 scheme */
 #define UUID_CREATE_WS6     2  /* the WS6 scheme - "native" path */
-#define UUID_CREATE_WS65    3  /* the WS65 scheme - UTF-8 path */
-#define UUID_CREATE_CURRENT 3  /* the current scheme - always the latest */
+#define UUID_CREATE_ESX50   3  /* the scheme to allow location generated using
+                                  host UUID with wrong endianness as reported by
+                                  pre-ESX 5.0 U2. See PR 861271 for details. */
+#define UUID_CREATE_WS65    4  /* the WS65 scheme - UTF-8 path */
+#define UUID_CREATE_CURRENT 4  /* the current scheme - always the latest */
 
 char *UUID_Create(const char *configFileFullPath, int schemeControl);
 

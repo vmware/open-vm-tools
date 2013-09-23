@@ -122,19 +122,6 @@ HgfsSessionSendFunc(void *opaqueSession,  // IN
                     size_t bufferLen,     // IN
                     HgfsSendFlags flags); // IN
 
-/* Default maximum number of open nodes. */
-#define HGFS_MAX_CACHED_FILENODES   30
-
-typedef uint32 HgfsConfigFlags;
-#define HGFS_CONFIG_USE_HOST_TIME   (1 << 0)
-#define HGFS_CONFIG_NOTIFY_ENABLED  (1 << 1)
-#define HGFS_CONFIG_VOL_INFO_MIN    (1 << 2)
-
-typedef struct HgfsServerConfig {
-   HgfsConfigFlags flags;
-   uint32 maxCachedOpenNodes;
-}HgfsServerConfig;
-
 typedef struct HgfsServerChannelCallbacks {
     void* (*getReadVa)(uint64 pa, uint32 size, char **token);
     void* (*getWriteVa)(uint64 pa, uint32 size, char **token);
@@ -153,9 +140,7 @@ typedef struct HgfsServerSessionCallbacks {
    void (*sendComplete)(HgfsPacket *, void *);
 } HgfsServerSessionCallbacks;
 
-Bool HgfsServer_InitState(HgfsServerSessionCallbacks **,
-                          HgfsServerConfig *,
-                          HgfsServerStateLogger *);
+Bool HgfsServer_InitState(HgfsServerSessionCallbacks **, HgfsServerStateLogger *);
 void HgfsServer_ExitState(void);
 
 uint32 HgfsServer_GetHandleCounter(void);

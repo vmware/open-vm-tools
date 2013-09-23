@@ -177,8 +177,8 @@ typedef struct {
 
 typedef struct BalloonOps {
    void (*addPage)(Balloon *b, uint16 idx, PageHandle page);
-   int (*lock)(Balloon *b, uint16 nPages, uint32 *target);
-   int (*unlock)(Balloon *b, uint16 nPages, uint32 *target);
+   int (*lock)(Balloon *b, uint16 nPages);
+   int (*unlock)(Balloon *b, uint16 nPages);
 } BalloonOps;
 
 /*

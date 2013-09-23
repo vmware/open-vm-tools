@@ -57,7 +57,7 @@
 extern int vasprintf(char **ptr, const char *f, va_list arg);
 /*
  * Declare vswprintf on platforms where it's not known to exist.  We know
- * it's available on glibc >= 2.2, FreeBSD >= 5.0, and all versions of
+ * it's available on glibc >= 2.2, FreeBSD >= 5.0, and all versions of 
  * Solaris.
  * (Re: Solaris, vswprintf has been present since Solaris 8, and we only
  * support Solaris 9 and above, since that was the first release available
@@ -80,21 +80,21 @@ extern int vswprintf(wchar_t *wcs, size_t maxlen, const wchar_t *format, va_list
  *
  * Str_Vsnprintf --
  *
- *      Compatibility wrapper b/w different libc versions
+ *	Compatibility wrapper b/w different libc versions
  *
  * Results:
  *
- *      int - number of bytes stored in 'str' (not including NUL
- *      terminate character), -1 on overflow (insufficient space for
- *      NUL terminate is considered overflow)
+ *	int - number of bytes stored in 'str' (not including NUL
+ *	terminate character), -1 on overflow (insufficient space for
+ *	NUL terminate is considered overflow)
  *
- *      NB: on overflow the buffer WILL be NUL terminated at the last
- *      UTF-8 code point boundary within the buffer's bounds.
+ *	NB: on overflow the buffer WILL be NUL terminated at the last
+ *	UTF-8 code point boundary within the buffer's bounds.
  *
  * WARNING: See warning at the top of this file.
  *
  * Side effects:
- *      None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -110,7 +110,7 @@ Str_Vsnprintf(char *str,          // OUT
    ASSERT(str != NULL);
    ASSERT(format != NULL);
 
-#if defined HAS_BSD_PRINTF && !defined __ANDROID__
+#ifdef HAS_BSD_PRINTF
    retval = bsd_vsnprintf(&str, size, format, ap);
 #else
    retval = vsnprintf(str, size, format, ap);
@@ -165,12 +165,13 @@ Str_Sprintf_C_Locale(char *buf,        // OUT:
                      const char *fmt,  // IN:
                      ...)              // IN:
 {
+   uint32 *stack = (uint32*) &buf;
    va_list args;
    int retval;
 
    ASSERT(buf);
    ASSERT(fmt);
-
+   
    va_start(args, fmt);
    retval = bsd_vsnprintf_c_locale(&buf, maxSize, fmt, args);
    va_end(args);
@@ -185,7 +186,7 @@ Str_Sprintf_C_Locale(char *buf,        // OUT:
    }
 
    if (retval >= maxSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
    }
 
    return retval;
@@ -215,14 +216,15 @@ Str_Sprintf(char *buf,       // OUT
             const char *fmt, // IN
             ...)             // IN
 {
+   uint32 *stack = (uint32*) &buf;
    va_list args;
    int i;
-
+   
    va_start(args, fmt);
    i = Str_Vsnprintf(buf, maxSize, fmt, args);
    va_end(args);
    if (i < 0) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
    }
    return i;
 }
@@ -233,23 +235,23 @@ Str_Sprintf(char *buf,       // OUT
  *
  * Str_Snprintf --
  *
- *      Compatibility wrapper b/w different libc versions
+ *	Compatibility wrapper b/w different libc versions
  *
  * Results:
  *
- *      int - number of bytes stored in 'str' (not including NUL
- *      terminate character), -1 on overflow (insufficient space for
- *      NUL terminate is considered overflow)
+ *	int - number of bytes stored in 'str' (not including NUL
+ *	terminate character), -1 on overflow (insufficient space for
+ *	NUL terminate is considered overflow)
  *
- *      NB: on overflow the buffer WILL be NUL terminated
+ *	NB: on overflow the buffer WILL be NUL terminated
  *
  * Side effects:
- *      None
+ *	None
  *
  *----------------------------------------------------------------------
  */
 
-int
+int      
 Str_Snprintf(char *str,          // OUT
              size_t size,        // IN
              const char *format, // IN
@@ -290,6 +292,7 @@ Str_Strcpy(char *buf,       // OUT
            const char *src, // IN
            size_t maxSize)  // IN
 {
+   uint32 *stack = (uint32 *)&buf;
    size_t len;
 
    ASSERT(buf != NULL);
@@ -297,7 +300,7 @@ Str_Strcpy(char *buf,       // OUT
 
    len = strlen(src);
    if (len >= maxSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
       ASSERT_BUG(5686, FALSE);
    }
    return memcpy(buf, src, len + 1);
@@ -312,7 +315,7 @@ Str_Strcpy(char *buf,       // OUT
  *      Calculate length of the string.
  *
  * Results:
- *      Length of s not including the terminating '\0' character.
+ *      Length of s not including the terminating '\0' character. 
  *      If there is no '\0' for first maxLen bytes, then it
  *      returns maxLen.
  *
@@ -323,8 +326,8 @@ Str_Strcpy(char *buf,       // OUT
  */
 
 size_t
-Str_Strlen(const char *s,  // IN:
-           size_t maxLen)  // IN:
+Str_Strlen(const char *s,  	// IN 
+	   size_t maxLen)     	// IN
 
 {
    const char *end;
@@ -333,7 +336,7 @@ Str_Strlen(const char *s,  // IN:
 
    if ((end = memchr(s, '\0', maxLen)) == NULL) {
       return maxLen;
-   }
+   } 
    return end - s;
 }
 
@@ -343,11 +346,11 @@ Str_Strlen(const char *s,  // IN:
  *
  * Str_Strnstr --
  *
- *      Find a substring within a string of length at most n. 'sub' must be
+ *	Find a substring within a string of length at most n. 'sub' must be
  *      NUL-terminated. 'n' is interpreted as an unsigned int.
  *
  * Results:
- *      A pointer to the beginning of the substring, or NULL if not found.
+ *	A pointer to the beginning of the substring, or NULL if not found.
  *
  * Side Effects:
  *      None
@@ -356,9 +359,10 @@ Str_Strlen(const char *s,  // IN:
  */
 
 char *
-Str_Strnstr(const char *src,  // IN:
-            const char *sub,  // IN:
-            size_t n)         // IN:
+Str_Strnstr(const char *src,  	// IN 
+            const char *sub,	// IN
+            size_t n)         	// IN
+
 {
    size_t subLen;
    const char *end;
@@ -377,9 +381,9 @@ Str_Strnstr(const char *src,  // IN:
       return NULL;
    }
    for (;
-       (src = memchr(src, sub[0], end - src)) != NULL &&
-        memcmp(src, sub, subLen) != 0;
-        src++) {
+	(src = memchr(src, sub[0], end - src)) != NULL &&
+	memcmp(src, sub, subLen) != 0;
+	src++) {
    }
    return (char *) src;
 }
@@ -406,6 +410,7 @@ Str_Strcat(char *buf,       // IN-OUT
            const char *src, // IN
            size_t maxSize)  // IN
 {
+   uint32 *stack = (uint32 *)&buf;
    size_t bufLen;
    size_t srcLen;
 
@@ -417,7 +422,7 @@ Str_Strcat(char *buf,       // IN-OUT
 
    /* The first comparison checks for numeric overflow */
    if (bufLen + srcLen < srcLen || bufLen + srcLen >= maxSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
    }
 
    memcpy(buf + bufLen, src, srcLen + 1);
@@ -451,10 +456,14 @@ Str_Strncat(char *buf,       // IN-OUT
             const char *src, // IN: String to append
             size_t n)        // IN: Max chars of src to append
 {
-   size_t bufLen;
+   uint32 *stack; 
+   size_t bufLen; 
 
    ASSERT(buf != NULL);
    ASSERT(src != NULL);
+
+   stack = (uint32 *)&buf;
+   bufLen = strlen(buf);
 
    /*
     * Check bufLen + n first so we can avoid the second call to strlen
@@ -468,11 +477,9 @@ Str_Strncat(char *buf,       // IN-OUT
     * happen by adding the == case to the Panic test.
     */
 
-   bufLen = strlen(buf);
-
    if (bufLen + n >= bufSize &&
        bufLen + strlen(src) >= bufSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__,__LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__,__LINE__, stack[-1]);
    }
 
    /*
@@ -539,7 +546,7 @@ Str_SafeAsprintf(size_t *length,       // OUT
 {
    va_list arguments;
    char *result;
-
+   
    va_start(arguments, format);
    result = Str_SafeVasprintf(length, format, arguments);
    va_end(arguments);
@@ -581,7 +588,7 @@ StrVasprintfInternal(size_t *length,       // OUT:
    char *buf = NULL;
    int ret;
 
-#if defined HAS_BSD_PRINTF && !defined __ANDROID__
+#ifdef HAS_BSD_PRINTF
    ret = bsd_vsnprintf(&buf, 0, format, arguments);
 
 #elif !defined sun && !defined STR_NO_WIN32_LIBS
@@ -713,14 +720,15 @@ Str_Swprintf(wchar_t *buf,       // OUT
              const wchar_t *fmt, // IN
              ...)                // IN
 {
+   uint32 *stack = (uint32*) &buf;
    va_list args;
    int i;
-
+   
    va_start(args,fmt);
    i = Str_Vsnwprintf(buf, maxSize, fmt, args);
    va_end(args);
    if (i < 0) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
    }
    return i;
 }
@@ -731,20 +739,20 @@ Str_Swprintf(wchar_t *buf,       // OUT
  *
  * Str_Vsnwprintf --
  *
- *      Compatibility wrapper b/w different libc versions
+ *	Compatibility wrapper b/w different libc versions
  *
  * Results:
  *
- *      int - number of wchar_ts stored in 'str' (not including NUL
- *      terminate character), -1 on overflow (insufficient space for
- *      NUL terminate is considered overflow)
+ *	int - number of wchar_ts stored in 'str' (not including NUL
+ *	terminate character), -1 on overflow (insufficient space for
+ *	NUL terminate is considered overflow)
  *
- *      NB: on overflow the buffer WILL be NUL terminated
+ *	NB: on overflow the buffer WILL be NUL terminated
  *
  * WARNING: See warning at the top of this file.
  *
  * Side effects:
- *      None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -794,23 +802,23 @@ Str_Vsnwprintf(wchar_t *str,          // OUT
  *
  * Str_Snwprintf --
  *
- *      Compatibility wrapper b/w different libc versions
+ *	Compatibility wrapper b/w different libc versions
  *
  * Results:
  *
- *      int - number of wchar_ts stored in 'str' (not including NUL
- *      terminate character), -1 on overflow (insufficient space for
- *      NUL terminate is considered overflow)
+ *	int - number of wchar_ts stored in 'str' (not including NUL
+ *	terminate character), -1 on overflow (insufficient space for
+ *	NUL terminate is considered overflow)
  *
- *      NB: on overflow the buffer WILL be NUL terminated
+ *	NB: on overflow the buffer WILL be NUL terminated
  *
  * Side effects:
- *      None
+ *	None
  *
  *----------------------------------------------------------------------
  */
 
-int
+int      
 Str_Snwprintf(wchar_t *str,          // OUT
               size_t size,           // IN: Size of str, in wide-characters.
               const wchar_t *format, // IN
@@ -847,12 +855,13 @@ Str_Wcscpy(wchar_t *buf,       // OUT
            const wchar_t *src, // IN
            size_t maxSize)     // IN: Size of buf, in wide-characters.
 {
+   uint32 *stack = (uint32 *)&buf;
    size_t len;
 
    len = wcslen(src);
-   if (len >= maxSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
-      ASSERT_BUG(5686, FALSE);
+   if (len >= maxSize) { 
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+      ASSERT_BUG(5686, FALSE); 
    }
    return memcpy(buf, src, (len + 1)*sizeof(wchar_t));
 }
@@ -879,6 +888,7 @@ Str_Wcscat(wchar_t *buf,       // IN-OUT
            const wchar_t *src, // IN
            size_t maxSize)     // IN: Size of buf, in wide-characters.
 {
+   uint32 *stack = (uint32 *)&buf;
    size_t bufLen;
    size_t srcLen;
 
@@ -887,7 +897,7 @@ Str_Wcscat(wchar_t *buf,       // IN-OUT
 
    /* The first comparison checks for numeric overflow */
    if (bufLen + srcLen < srcLen || bufLen + srcLen >= maxSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
    }
 
    memcpy(buf + bufLen, src, (srcLen + 1)*sizeof(wchar_t));
@@ -921,6 +931,7 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
             const wchar_t *src, // IN: String to append
             size_t n)           // IN: Max chars of src to append
 {
+   uint32 *stack = (uint32 *)&buf;
    size_t bufLen = wcslen(buf);
 
    /*
@@ -937,7 +948,7 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
 
    if (bufLen + n >= bufSize &&
        bufLen + wcslen(src) >= bufSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__,__LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__,__LINE__, stack[-1]);
    }
 
    /*
@@ -970,11 +981,12 @@ Str_Mbscpy(char *buf,                // OUT
            const char *src,          // IN
            size_t maxSize)           // IN
 {
+   uint32 *stack = (uint32 *)&buf;
    size_t len;
 
    len = strlen((const char *) src);
    if (len >= maxSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
    }
    return memcpy(buf, src, len + 1);
 }
@@ -1004,6 +1016,7 @@ Str_Mbscat(char *buf,                // IN-OUT
            const char *src,          // IN
            size_t maxSize)           // IN
 {
+   uint32 *stack = (uint32 *)&buf;
    size_t bufLen;
    size_t srcLen;
 
@@ -1012,7 +1025,7 @@ Str_Mbscat(char *buf,                // IN-OUT
 
    /* The first comparison checks for numeric overflow */
    if (bufLen + srcLen < srcLen || bufLen + srcLen >= maxSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
    }
 
    memcpy(buf + bufLen, src, srcLen + 1);
@@ -1119,7 +1132,7 @@ Str_Aswprintf(size_t *length,         // OUT
 {
    va_list arguments;
    wchar_t *result;
-
+   
    va_start(arguments, format);
    result = Str_Vaswprintf(length, format, arguments);
    va_end(arguments);
@@ -1178,7 +1191,7 @@ Str_SafeAswprintf(size_t *length,         // OUT
 {
    va_list arguments;
    wchar_t *result;
-
+   
    va_start(arguments, format);
    result = Str_SafeVaswprintf(length, format, arguments);
    va_end(arguments);
@@ -1304,7 +1317,7 @@ PrintAndCheck(char *fmt,  // IN:
    char buf1[1024], buf2[1024];
    int count;
    va_list args;
-
+   
    va_start(args, fmt);
    count = Str_Vsnprintf(buf1, sizeof buf1, fmt, args);
    va_end(args);
@@ -1344,7 +1357,7 @@ PrintAndCheckW(wchar_t *fmt, ...)
    wchar_t buf1[1024], buf2[1024];
    int count;
    va_list args;
-
+   
    va_start(args, fmt);
    count = Str_Vsnwprintf(buf1, sizeof buf1, fmt, args);
    va_end(args);

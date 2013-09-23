@@ -22,13 +22,50 @@
 
 #include "vm_basic_types.h"
 
-struct DirectoryEntry;
-
+/*
+ * Definitions of wrapped internal primitives.
+ *
+ * We wrap open file handles and directory entries so that cross-platform HGFS
+ * server code can use them without platform-specific pre-processing.
+ *
+ * On Linux, we use dirent64 from the kernel headers so as to alleviate any
+ * confusion between what the kernel will give us from the getdents64()
+ * syscall and what userspace will expect. Note that to avoid depending on
+ * kernel headers directly, I've copied the dirent struct, replacing certain
+ * kernel basic types with our own.
+ *
+ * On Windows, we define our own DirectoryEntry struct with d_reclen and
+ * d_name, as those are the only two fields we're interested in. It's not
+ * essential that it match the dirents from another platform, because we
+ * control how they get created and populated, and they never pass down a wire.
+ *
+ * Otherwise, we use the native dirent struct provided by the platform's libc,
+ * as nobody else seems to suffer from the 32-bit vs. 64-bit ino_t and off_t
+ * insanity that plagues Linux.
+ */
 #ifndef _WIN32
+#  ifdef linux
+   typedef struct DirectoryEntry {
+      uint64 d_ino;
+      uint64 d_off;
+      uint16 d_reclen;
+      uint8  d_type;
+      char   d_name[256];
+   } DirectoryEntry;
+#  else
+#    include <dirent.h>
+     typedef struct dirent DirectoryEntry;
+#  endif
    typedef int fileDesc;
 #else
 #  include <windows.h>
    typedef HANDLE fileDesc;
+   typedef struct DirectoryEntry {
+      unsigned short d_reclen;      /* The total length of this record. */
+      char d_name[PATH_MAX * 4];    /* 4 bytes is the maximum size of a utf8 */
+                                    /* representation of utf-16 encoded */
+                                    /* unicode character in the BMP */
+   } DirectoryEntry;
 #endif
 
 #include "dbllnklst.h"
@@ -50,6 +87,9 @@ struct DirectoryEntry;
 #if 0
 #define HGFS_OPLOCKS
 #endif
+
+/* Value of config option to require using host timestamps */
+extern Bool alwaysUseHostTime;
 
 /* Identifier for a local file */
 typedef struct HgfsLocalId {
@@ -77,9 +117,6 @@ typedef enum {
    DIRECTORY_SEARCH_TYPE_OTHER,     /* Objects are the contents of
                                        "root/drive" or contents of "root" */
 } DirectorySearchType;
-
-#define HGFS_SEARCH_LAST_ENTRY_INDEX         ((uint32)~((uint32)0))
-
 
 /* Two possible volume info type */
 typedef enum {
@@ -162,7 +199,7 @@ typedef struct HgfsFileNode {
    uint32 shareAccess;
 
    /* The server lock that the node currently has. */
-   HgfsLockType serverLock;
+   HgfsServerLock serverLock;
 
    /* File node state on lists */
    FileNodeState state;
@@ -203,9 +240,6 @@ typedef struct HgfsSearch {
    /* Links to place the object on various lists */
    DblLnkLst_Links links;
 
-   /* Flags to track state and information: see below. */
-   uint32 flags;
-
    /* HGFS handle uniquely identifying this search. */
    HgfsHandle handle;
 
@@ -222,7 +256,7 @@ typedef struct HgfsSearch {
    size_t utf8ShareNameLen;
 
    /* Directory entries for this search */
-   struct DirectoryEntry **dents;
+   DirectoryEntry **dents;
 
    /* Number of dents */
    uint32 numDents;
@@ -237,11 +271,6 @@ typedef struct HgfsSearch {
    /* Parameters associated with the share. */
    HgfsShareInfo shareInfo;
 } HgfsSearch;
-
-/* HgfsSearch flags. */
-
-/* TRUE if opened in append mode */
-#define HGFS_SEARCH_FLAG_READ_ALL_ENTRIES      (1 << 0)
 
 /* HgfsSessionInfo flags. */
 typedef enum {
@@ -406,8 +435,8 @@ typedef struct HgfsFileOpenInfo {
    uint64 allocationSize;            /* How much space to pre-allocate during creation */
    uint32 desiredAccess;             /* Extended support for windows access modes */
    uint32 shareAccess;               /* Windows only, share access modes */
-   HgfsLockType desiredLock;         /* The type of lock desired by the client */
-   HgfsLockType acquiredLock;        /* The type of lock acquired by the server */
+   HgfsServerLock desiredLock;       /* The type of lock desired by the client */
+   HgfsServerLock acquiredLock;      /* The type of lock acquired by the server */
    uint32 cpNameSize;
    char *cpName;
    char *utf8Name;
@@ -486,7 +515,7 @@ typedef struct HgfsCreateSessionInfo {
 typedef struct {
    fileDesc fileDesc;
    int32 event;
-   HgfsLockType serverLock;
+   HgfsServerLock serverLock;
 } ServerLockData;
 
 typedef struct HgfsInputParam {
@@ -524,22 +553,11 @@ Bool
 HgfsRemoveSearch(HgfsHandle searchHandle,
                  HgfsSessionInfo *session);
 
-#ifdef VMX86_LOG
-#define HGFS_SERVER_DIR_DUMP_DENTS(_searchHandle, _session) do {    \
-      if (DOLOG(4)) {                                               \
-         HgfsServerDirDumpDents(_searchHandle, _session);           \
-      }                                                             \
-   } while (0)
-
 void
-HgfsServerDirDumpDents(HgfsHandle searchHandle,   // IN: Handle to dump dents from
-                       HgfsSessionInfo *session); // IN: Session info
-#else
-#define HGFS_SERVER_DIR_DUMP_DENTS(_searchHandle, _session) do {} while (0)
-#endif
+HgfsServerDumpDents(HgfsHandle searchHandle,   // IN: Handle to dump dents from
+                    HgfsSessionInfo *session); // IN: Session info
 
-
-struct DirectoryEntry *
+DirectoryEntry *
 HgfsGetSearchResult(HgfsHandle handle,        // IN: Handle to search
                     HgfsSessionInfo *session, // IN: Session info
                     uint32 offset,            // IN: Offset to retrieve at
@@ -572,11 +590,11 @@ HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check
                              size_t inSize);  // IN:  Size of name in
 
 HgfsInternalStatus
-HgfsServerGetDirEntry(HgfsHandle handle,                // IN: Handle to search
-                      HgfsSessionInfo *session,         // IN: Session info
-                      uint32 index,                     // IN: index to retrieve at
-                      Bool remove,                      // IN: If true, removes the result
-                      struct DirectoryEntry **dirEntry);// OUT: directory entry
+HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
+                  size_t baseDirLen,        // IN: Length of directory
+                  Bool followSymlinks,      // IN: followSymlinks config option
+                  DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
+                  int *numDents);           // OUT: Number of DirectoryEntrys
 
 HgfsInternalStatus
 HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
@@ -593,13 +611,6 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
                            DirectorySearchType type,     // IN: Kind of search
                            HgfsSessionInfo *session,     // IN: Session info
                            HgfsHandle *handle);          // OUT: Search handle
-
-HgfsInternalStatus
-HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
-                                  HgfsInitFunc *initName,       // IN: Init function
-                                  HgfsCleanupFunc *cleanupName, // IN: Cleanup function
-                                  HgfsSessionInfo *session,     // IN: Session info
-                                  HgfsHandle searchHandle);     // IN: search to restart
 
 /* Allocate/Add sessions helper functions. */
 
@@ -978,7 +989,7 @@ HgfsHandle2LocalId(HgfsHandle handle,        // IN: Hgfs file handle
 Bool
 HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
                       HgfsSessionInfo *session, // IN: session info
-                      HgfsLockType *lock);      // OUT: Server lock
+                      HgfsServerLock *lock);    // OUT: Server lock
 
 Bool
 HgfsUpdateNodeFileDesc(HgfsHandle handle,        // IN: Hgfs file handle
@@ -989,7 +1000,7 @@ HgfsUpdateNodeFileDesc(HgfsHandle handle,        // IN: Hgfs file handle
 Bool
 HgfsUpdateNodeServerLock(fileDesc fd,                // IN: OS handle
                          HgfsSessionInfo *session,   // IN: session info
-                         HgfsLockType serverLock);   // IN: new oplock
+                         HgfsServerLock serverLock); // IN: new oplock
 
 Bool
 HgfsUpdateNodeAppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
@@ -999,7 +1010,7 @@ HgfsUpdateNodeAppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
 Bool
 HgfsFileHasServerLock(const char *utf8Name,             // IN: Name in UTF8
                       HgfsSessionInfo *session,         // IN: Session info
-                      HgfsLockType *serverLock,         // OUT: Existing oplock
+                      HgfsServerLock *serverLock,       // OUT: Existing oplock
                       fileDesc   *fileDesc);            // OUT: Existing fd
 Bool
 HgfsGetNodeCopy(HgfsHandle handle,        // IN: Hgfs file handle
@@ -1022,6 +1033,10 @@ HgfsGetSearchCopy(HgfsHandle handle,        // IN: Hgfs search handle
                   HgfsSessionInfo *session, // IN: Session info
                   HgfsSearch *copy);        // IN/OUT: Copy of the search
 
+HgfsInternalStatus
+HgfsCloseFile(fileDesc fileDesc,            // IN: OS handle of the file
+              void *fileCtx);               // IN: file context
+
 Bool
 HgfsServerGetOpenMode(HgfsFileOpenInfo *openInfo, // IN:  Open info to examine
                       uint32 *modeOut);           // OUT: Local mode
@@ -1029,11 +1044,34 @@ HgfsServerGetOpenMode(HgfsFileOpenInfo *openInfo, // IN:  Open info to examine
 Bool
 HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
                       HgfsSessionInfo *session,     // IN: Session info
-                      HgfsLockType *serverLock);    // IN/OUT: Oplock asked for/granted
+                      HgfsServerLock *serverLock);  // IN/OUT: Oplock asked for/granted
+
+Bool
+HgfsServerPlatformInit(void);
+
+void
+HgfsServerPlatformDestroy(void);
+
+HgfsNameStatus
+HgfsServerHasSymlink(const char *fileName,      // IN: fileName to be checked
+                     size_t fileNameLength,     // IN
+                     const char *sharePath,     // IN: share path in question
+                     size_t sharePathLen);      // IN
+HgfsNameStatus
+HgfsServerConvertCase(const char *sharePath,             // IN: share path in question
+                      size_t sharePathLength,            // IN
+                      char *fileName,                    // IN: filename to be looked up
+                      size_t fileNameLength,             // IN
+                      uint32 caseFlags,                  // IN: case-sensitivity flags
+                      char **convertedFileName,          // OUT: case-converted filename
+                      size_t *convertedFileNameLength);  // OUT
+
+Bool
+HgfsServerCaseConversionRequired(void);
 
 char*
-HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
-                                const char* target);   // IN: target file name
+HgfsBuildRelativePath(const char* source,    // IN: source file name
+                      const char* target);   // IN: target file name
 
 /* All oplock-specific functionality is defined here. */
 #ifdef HGFS_OPLOCKS
@@ -1042,7 +1080,7 @@ HgfsServerOplockBreak(ServerLockData *data); // IN: server lock info
 
 void
 HgfsAckOplockBreak(ServerLockData *lockData,  // IN: server lock info
-                   HgfsLockType replyLock);   // IN: client has this lock
+                   HgfsServerLock replyLock); // IN: client has this lock
 
 #endif
 
@@ -1071,32 +1109,8 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
 Bool
 HgfsServerCheckOpenFlagsForShare(HgfsFileOpenInfo *openInfo, // IN: Hgfs file handle
                                  HgfsOpenFlags *flags);      // IN/OUT: open mode
-
-/* Platform specific exports. */
-Bool
-HgfsPlatformInit(void);
-void
-HgfsPlatformDestroy(void);
-HgfsInternalStatus
-HgfsPlatformCloseFile(fileDesc fileDesc,            // IN: OS handle of the file
-                      void *fileCtx);               // IN: file context
-Bool
-HgfsPlatformDoFilenameLookup(void);
-HgfsNameStatus
-HgfsPlatformFilenameLookup(const char *sharePath,             // IN: share path in question
-                           size_t sharePathLength,            // IN
-                           char *fileName,                    // IN: filename to be looked up
-                           size_t fileNameLength,             // IN
-                           uint32 caseFlags,                  // IN: case-sensitivity flags
-                           char **convertedFileName,          // OUT: case-converted filename
-                           size_t *convertedFileNameLength);  // OUT
 HgfsInternalStatus
 HgfsPlatformConvertFromNameStatus(HgfsNameStatus status);  // IN: name status
-HgfsNameStatus
-HgfsPlatformPathHasSymlink(const char *fileName,      // IN: fileName to be checked
-                           size_t fileNameLength,     // IN
-                           const char *sharePath,     // IN: share path in question
-                           size_t sharePathLen);      // IN
 HgfsInternalStatus
 HgfsPlatformSymlinkCreate(char *localSymlinkName,   // IN: symbolic link file name
                           char *localTargetName);   // IN: symlink target name
@@ -1106,33 +1120,6 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN: file name
                             char *shareName,                // IN: share name
                             HgfsFileAttrInfo *attr,         // OUT: file attributes
                             char **targetName);             // OUT: Symlink target
-HgfsInternalStatus
-HgfsPlatformGetDirEntry(HgfsSearch *search,                // IN: search
-                        HgfsSessionInfo *session,          // IN: Session info
-                        uint32 offset,                     // IN: Offset to retrieve at
-                        Bool remove,                       // IN: If true, removes the result
-                        struct DirectoryEntry **dirEntry); // OUT: dirent
-HgfsInternalStatus
-HgfsPlatformSetDirEntry(HgfsSearch *search,              // IN: search
-                        HgfsShareOptions configOptions,  // IN: share configuration settings
-                        HgfsSessionInfo *session,        // IN: session info
-                        struct DirectoryEntry *dirEntry, // IN: the indexed dirent
-                        Bool getAttr,                    // IN: get the entry attributes
-                        HgfsFileAttrInfo *entryAttr,     // OUT: entry attributes, optional
-                        char **entryName,                // OUT: entry name
-                        uint32 *entryNameLength);        // OUT: entry name length
-HgfsInternalStatus
-HgfsPlatformScandir(char const *baseDir,             // IN: Directory to search in
-                    size_t baseDirLen,               // IN: Length of directory
-                    Bool followSymlinks,             // IN: followSymlinks config option
-                    struct DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
-                    int *numDents);                  // OUT: Number of DirectoryEntrys
-HgfsInternalStatus
-HgfsPlatformScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get name
-                     HgfsInitFunc enumNamesInit,       // IN: Setup function
-                     HgfsCleanupFunc enumNamesExit,    // IN: Cleanup function
-                     struct DirectoryEntry ***dents,   // OUT: Array of DirectoryEntrys
-                     uint32 *numDents);                // OUT: total number of directory entrys
 HgfsInternalStatus
 HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
                       char *dirName,                   // IN: relative directory name
@@ -1144,14 +1131,9 @@ HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
                       HgfsSessionInfo *session,        // IN: session info
                       HgfsHandle *handle);             // OUT: search handle
 HgfsInternalStatus
-HgfsPlatformRestartSearchDir(HgfsHandle handle,               // IN: search handle
-                             HgfsSessionInfo *session,        // IN: session info
-                             DirectorySearchType searchType); // IN: Kind of search
-#ifdef VMX86_LOG
-void
-HgfsPlatformDirDumpDents(HgfsSearch *search);         // IN: search
-#endif
-
+HgfsAccess(char *fileName,         // IN: local file path
+           char *shareName,        // IN: Name of the share
+           size_t shareNameLen);   // IN: Length of the share name
 HgfsInternalStatus
 HgfsPlatformReadFile(HgfsHandle file,             // IN: Hgfs file handle
                      HgfsSessionInfo *session,    // IN: session info
@@ -1174,12 +1156,6 @@ HgfsPlatformWriteWin32Stream(HgfsHandle file,           // IN: packet header
                              Bool doSecurity,           // IN: write ACL
                              uint32  *actualSize,       // OUT: written data size
                              HgfsSessionInfo *session); // IN: session info
-HgfsInternalStatus
-HgfsPlatformVDirStatsFs(HgfsSessionInfo *session,  // IN: session info
-                        HgfsNameStatus nameStatus, // IN:
-                        VolumeInfoType infoType,   // IN:
-                        uint64 *outFreeBytes,      // OUT:
-                        uint64 *outTotalBytes);    // OUT:
 Bool
 HgfsValidatePacket(char const *packetIn, // IN: HGFS packet
                    size_t packetSize,    // IN: HGFS packet size
@@ -1239,14 +1215,12 @@ HgfsInternalStatus
 HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
                           HgfsSessionInfo *session, // IN: session info
                           HgfsFileAttrInfo *attr,   // IN: attrs to set
-                          HgfsAttrHint hints,       // IN: attr hints
-                          Bool useHostTime);        // IN: use current host time
+                          HgfsAttrHint hints);      // IN: attr hints
 HgfsInternalStatus
 HgfsPlatformSetattrFromName(char *utf8Name,                 // IN: local file path
                             HgfsFileAttrInfo *attr,         // IN: attrs to set
                             HgfsShareOptions configOptions, // IN: share options
-                            HgfsAttrHint hints,             // IN: attr hints
-                            Bool useHostTime);              // IN: use current host time
+                            HgfsAttrHint hints);            // IN: attr hints
 HgfsInternalStatus
 HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
                          Bool followLinks,           // IN: follow symlinks on the host

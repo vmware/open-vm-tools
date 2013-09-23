@@ -110,7 +110,7 @@ VSockVmciNotifyWaitingWrite(VSockVmciSock *vsk)    // IN
     *   if writeNotifyWindow > bufferReady then notify
     * as freeSpace == ConsumeSize - bufferReady.
     */
-   retval = VMCIQPair_ConsumeFreeSpace(vsk->qpair) > notifyLimit;
+   retval = vmci_qpair_consume_free_space(vsk->qpair) > notifyLimit;
 #ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
    if (retval) {
       /*
@@ -158,7 +158,7 @@ VSockVmciNotifyWaitingRead(VSockVmciSock *vsk)  // IN
     * not require a protocol change and will retain compatibility between
     * endpoints with mixed versions of this function.
     */
-   return VMCIQPair_ProduceBufReady(vsk->qpair) > 0;
+   return vmci_qpair_produce_buf_ready(vsk->qpair) > 0;
 #else
    return TRUE;
 #endif
@@ -342,7 +342,7 @@ VSockVmciSendWaitingRead(struct sock *sk,    // IN
              vsk->consumeSize);
    }
 
-   VMCIQPair_GetConsumeIndexes(vsk->qpair, &tail, &head);
+   vmci_qpair_get_consume_indexes(vsk->qpair, &tail, &head);
    roomLeft = vsk->consumeSize - head;
    if (roomNeeded >= roomLeft) {
       waitingInfo.offset = roomNeeded - roomLeft;
@@ -401,7 +401,7 @@ VSockVmciSendWaitingWrite(struct sock *sk,   // IN
       return TRUE;
    }
 
-   VMCIQPair_GetProduceIndexes(vsk->qpair, &tail, &head);
+   vmci_qpair_get_produce_indexes(vsk->qpair, &tail, &head);
    roomLeft = vsk->produceSize - tail;
    if (roomNeeded + 1 >= roomLeft) {
       /* Wraps around to current generation. */
@@ -832,9 +832,9 @@ VSockVmciNotifyPktRecvPreDequeue(struct sock *sk,               // IN
     * socket locked we should copy at least ready bytes.
     */
 #if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   VMCIQPair_GetConsumeIndexes(vsk->qpair,
-                               &data->produceTail,
-                               &data->consumeHead);
+   vmci_qpair_get_consume_indexes(vsk->qpair,
+                                  &data->produceTail,
+                                  &data->consumeHead);
 #endif
 
    return 0;
@@ -991,9 +991,9 @@ VSockVmciNotifyPktSendPreEnqueue(struct sock *sk,               // IN
    vsk = vsock_sk(sk);
 
 #if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-      VMCIQPair_GetProduceIndexes(vsk->qpair,
-                                  &data->produceTail,
-                                  &data->consumeHead);
+      vmci_qpair_get_produce_indexes(vsk->qpair,
+                                     &data->produceTail,
+                                     &data->consumeHead);
 #endif
 
    return 0;;

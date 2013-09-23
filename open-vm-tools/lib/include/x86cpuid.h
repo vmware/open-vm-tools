@@ -405,13 +405,13 @@ FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                       NA,  FALSE)
 #define CPUID_FIELD_DATA_LEVEL_7                                                \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                               YES, FALSE) \
 FLAG(   7,  0, EBX,  3,  1, BMI1,                                   YES, TRUE)  \
-FLAG(   7,  0, EBX,  4,  1, HLE,                                    YES, TRUE)  \
-FLAG(   7,  0, EBX,  5,  1, AVX2,                                   YES, TRUE)  \
+FLAG(   7,  0, EBX,  4,  1, HLE,                                    NO,  TRUE)  \
+FLAG(   7,  0, EBX,  5,  1, AVX2,                                   NO,  TRUE)  \
 FLAG(   7,  0, EBX,  7,  1, SMEP,                                   YES, FALSE) \
-FLAG(   7,  0, EBX,  8,  1, BMI2,                                   YES, TRUE)  \
+FLAG(   7,  0, EBX,  8,  1, BMI2,                                   NO,  TRUE)  \
 FLAG(   7,  0, EBX,  9,  1, ENFSTRG,                                YES, FALSE) \
 FLAG(   7,  0, EBX, 10,  1, INVPCID,                                NO,  FALSE) \
-FLAG(   7,  0, EBX, 11,  1, RTM,                                    YES, TRUE)  \
+FLAG(   7,  0, EBX, 11,  1, RTM,                                    NO,  TRUE)  \
 CPUID_7_EBX_13
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                   MON SUPP, CPL3 */
@@ -514,6 +514,7 @@ CPUID_81_ECX_17 \
 FLAG(  81,  0, ECX, 19,  1, NODEID_MSR,                             NO,  FALSE) \
 FLAG(  81,  0, ECX, 21,  1, TBM,                                    YES, TRUE)  \
 FLAG(  81,  0, ECX, 22,  1, TOPOLOGY,                               NO,  FALSE) \
+FLAG(  81,  0, ECX, 23,  1, PERFCORE,                               ANY, TRUE)  \
 FLAG(  81,  0, EDX,  0,  1, LEAF81_FPU,                             YES, TRUE)  \
 FLAG(  81,  0, EDX,  1,  1, LEAF81_VME,                             YES, FALSE) \
 FLAG(  81,  0, EDX,  2,  1, LEAF81_DE,                              YES, FALSE) \
@@ -968,6 +969,9 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_NEHALEM_2E     0x2e  // Nehalem-EX
 #define CPUID_MODEL_NEHALEM_2F     0x2f  // Westmere-EX
 #define CPUID_MODEL_SANDYBRIDGE_3A 0x3a  // Ivy Bridge
+#define CPUID_MODEL_HASWELL_3C     0x3c  // Haswell DT
+#define CPUID_MODEL_HASWELL_45     0x45  // Haswell Ultrathin
+
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -981,6 +985,7 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_ISTANBUL_MAGNY_08 0x08 // Istanbul (6 core) & Magny-cours (12) HY
 #define CPUID_MODEL_ISTANBUL_MAGNY_09 0x09 // HY - G34 package
 #define CPUID_MODEL_PHAROAH_HOUND_0A  0x0A // Pharoah Hound
+#define CPUID_MODEL_OPTERON_REVF_41   0x41 // family == CPUID_FAMILY_K8
 
 /* VIA model information */
 #define CPUID_MODEL_NANO       15     // Isaiah
@@ -1138,15 +1143,12 @@ CPUID_UARCH_IS_SANDYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
 
 
 
-
 static INLINE Bool
-CPUID_UARCH_IS_ATOM(uint32 v) // IN: %eax from CPUID with %eax=1.
+CPUID_MODEL_IS_CENTERTON(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
-   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
-
-   return CPUID_FAMILY_IS_P6(v) &&
-          effectiveModel == CPUID_MODEL_ATOM_1C;
+   return CPUID_FAMILY_IS_P6(v) && 
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ATOM_1C;
 }
 
 
@@ -1254,6 +1256,7 @@ CPUID_FAMILY_IS_BULLDOZER(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
 }
 
+
 /*
  * AMD Barcelona (of either Opteron or Phenom kind).
  */
@@ -1300,6 +1303,7 @@ CPUID_MODEL_IS_BULLDOZER(uint32 eax)
 {
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
 }
+
 
 
 

@@ -99,7 +99,7 @@ VSockVmciNotifyWaitingWrite(VSockVmciSock *vsk)    // IN
     * as freeSpace == ConsumeSize - bufferReady.
     */
 
-   retval = VMCIQPair_ConsumeFreeSpace(vsk->qpair) > notifyLimit;
+   retval = vmci_qpair_consume_free_space(vsk->qpair) > notifyLimit;
 
    if (retval) {
       /*
@@ -553,7 +553,7 @@ VSockVmciNotifyPktRecvPostDequeue(struct sock *sk,               // IN
    if (dataRead) {
       Atomic_MFence();
 
-      freeSpace = VMCIQPair_ConsumeFreeSpace(vsk->qpair);
+      freeSpace = vmci_qpair_consume_free_space(vsk->qpair);
       wasFull = freeSpace == copied;
 
       if (wasFull) {
@@ -637,7 +637,7 @@ VSockVmciNotifyPktSendPostEnqueue(struct sock *sk,               // IN
 
    Atomic_MFence();
 
-   wasEmpty = (VMCIQPair_ProduceBufReady(vsk->qpair) == written);
+   wasEmpty = (vmci_qpair_produce_buf_ready(vsk->qpair) == written);
    if (wasEmpty) {
       while (!(vsk->peerShutdown & RCV_SHUTDOWN) &&
              !sentWrote &&

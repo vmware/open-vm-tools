@@ -29,9 +29,8 @@
 
 #include "vm_basic_types.h"
 
-Bool
-Random_Crypto(unsigned int size, // IN
-              void *buffer);     // OUT
+Bool Random_Crypto(size_t size,
+                   void *buffer);
 
 /*
  * High quality - research grade - random number generator.
@@ -41,17 +40,14 @@ Random_Crypto(unsigned int size, // IN
 
 typedef struct rqContext rqContext;
 
-rqContext *
-Random_QuickSeed(uint32 seed);
+rqContext *Random_QuickSeed(uint32 seed);
 
-uint32
-Random_Quick(rqContext *context);
+uint32 Random_Quick(rqContext *context);
 
 /*
- * Simple multiplicative conguential RNG.
+ * Simple multiplicative congruential RNG.
  */
 
-int
-Random_Simple(int seed);
+int Random_Simple(int seed);
 
 #endif /* __RANDOM_H__ */
