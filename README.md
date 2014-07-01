@@ -63,7 +63,7 @@ Please make note that the "--disable-multimon" flag should only be used when
 there are no libXinerama libraries installed, or you do not want to enable multi
 monitor support.
 
-	Your operating system version will influence which kernel
+Your operating system version will influence which kernel
 modules can be built. Here are the minimum OS versions for each
 module:
 
