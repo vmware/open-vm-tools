@@ -2,7 +2,7 @@
 
 open-vm-tools <http://open-vm-tools.sourceforge.net/>
 
-	These are the release notes for the open-vm-tools.  Read them carefully, as
+These are the release notes for the open-vm-tools.  Read them carefully, as
 they explain how to build this project for different platforms and various 
 different Linux distributions.
 
@@ -10,16 +10,16 @@ different Linux distributions.
 ##General information:
 
 * What are the open-vm-tools? 
-	The open-vm-tools are a subset of the VMware Tools, currently composed of
+The open-vm-tools are a subset of the VMware Tools, currently composed of
 kernel modules for Linux and user-space programs for all VMware supported Unix
 like guest operating systems.
 
 * Where do I find documentation for the open-vm-tools beyond this README?
-	Please refer to the main project web site for all the latest documentation 
+Please refer to the main project web site for all the latest documentation 
 at: <http://open-vm-tools.sourceforge.net/> 
 
 * How do I build the open-vm-tools?
-	The open-vm-tools uses the GNU Automake tool for generating Makefiles to 
+The open-vm-tools uses the GNU Automake tool for generating Makefiles to 
 build all sources.  More information about Automake can be found here: 
 <http://sources.redhat.com/automake/>
 
@@ -30,13 +30,13 @@ information" section of this document.
 ##Project build information:
 
 * Getting configure options & help:
-	If you are looking for help or additional settings for the building of this
+If you are looking for help or additional settings for the building of this
 project the following configure command will display a list of help options:
-	"./configure --help"
+`./configure --help`
 
 * Using configure:
-	When using configure in the steps below it is only necessary to call
-"./configure" once unless there was a problem after the first invocation.
+When using configure in the steps below it is only necessary to call
+`./configure` once unless there was a problem after the first invocation.
 
 * Building Unix user-space programs:
 1. autoreconf -i
@@ -51,14 +51,14 @@ for more information.
 
 ================================================================================
 ##Build suggestions:
-	Each Linux distribution puts binaries, libraries and development headers in 
+Each Linux distribution puts binaries, libraries and development headers in 
 different locations.  This leads to having to setup different paths for the
 compiler and linker for the Automake system.  Below is a list of known
 configurations to build for platforms that do not "just work" out of the box
 or the tar-ball as the case may be.
 
 General Build note:
-	Please make note that the "--disable-multimon" flag should only be used when
+Please make note that the "--disable-multimon" flag should only be used when
 there are no libXinerama libraries installed, or you do not want to enable multi
 monitor support.
 
@@ -72,19 +72,17 @@ module:
 | FreeBSD N/A   | FreeBSD 6.0    | FreeBSD 4.9  | FreeBSD 3.2    | FreeBSD 6.0 |
 
 * Suse Enterprise 10.1 (i386 & x86_64):
+```
 i386:
-```
 ./configure LDFLAGS="-L/opt/gnome/lib"
-```
 x86_64:
-```
 ./configure LDFLAGS="-L/opt/gnome/lib64"
 ```
 * OpenSolaris "Nevada" (i386 & x86_64):
-	Before building open-vm-tools on Solaris, you will need to make 
+Before building open-vm-tools on Solaris, you will need to make 
 sure that libdnet (http://libdnet.sourceforge.net/) is installed and 
 that the 'dnet-config' script is on your shell's PATH.
-	Make sure that the GNU tools are in your shell's PATH. The 
+Make sure that the GNU tools are in your shell's PATH. The 
 default GNU tools location on OpenSolaris is: "/usr/sfw/bin". Once the 
 PATH is set in your build shell then the following configure command 
 should work:
@@ -96,11 +94,11 @@ should work:
 
 ================================================================================
 ##Other resources:
-	There are also open-source video & mouse drivers for Xorg/XFree86 that
+* There are also open-source video & mouse drivers for Xorg/XFree86 that
 provide better performance and additional features to Linux, Solaris, and BSD
 derivatives guests running X11. 
 
-	The drivers 'xf86-input-vmmouse' and 'xf86-video-vmware' are included with 
+* The drivers 'xf86-input-vmmouse' and 'xf86-video-vmware' are included with 
 recent Xorg releases, and it shouldn't be necessary to do anything extra to 
 obtain them.  If you want to obtain them separately, they can be downloaded at:
 <http://xorg.freedesktop.org/releases/individual/driver/>
