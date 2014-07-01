@@ -60,13 +60,27 @@ static int HgfsGetNextDirEntry(HgfsSuperInfo *si,
 static int HgfsPackDirOpenRequest(struct file *file,
                                   HgfsOp opUsed,
                                   HgfsReq *req);
+static Bool
+HgfsReaddirFillEntry(filldir_t filldirCb,
+                     void *context,
+                     char *entryName,
+                     uint32 entryNameLength,
+                     loff_t entryPos,
+                     ino_t entryIno,
+                     uint32 entryType);
 
 /* HGFS file operations for directories. */
 static int HgfsDirOpen(struct inode *inode,
                        struct file *file);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)
+static int HgfsReaddir(struct file *file,
+                       struct dir_context *ctx);
+#else
 static int HgfsReaddir(struct file *file,
                        void *dirent,
                        filldir_t filldir);
+#endif
 static int HgfsDirRelease(struct inode *inode,
                           struct file *file);
 static loff_t HgfsDirLlseek(struct file *file,
@@ -79,7 +93,11 @@ struct file_operations HgfsDirFileOperations = {
    .owner       = THIS_MODULE,
    .open        = HgfsDirOpen,
    .read        = generic_read_dir,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)
+   .iterate     = HgfsReaddir,
+#else
    .readdir     = HgfsReaddir,
+#endif
    .release     = HgfsDirRelease,
 };
 
@@ -794,7 +812,303 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
 /*
  *----------------------------------------------------------------------
  *
- * HgfsReaddir --
+ * HgfsReaddirRefreshEntries --
+ *
+ *    refresh the file entries if the handle is stale by reopening.
+ *
+ * Results:
+ *    Zero on success, otherwise failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsReaddirRefreshEntries(struct file *file)    // IN: File pointer for this open
+{
+   int result = 0;
+
+   /*
+    * rm -rf 6.10+ breaks because it does following:
+    * an 'fd = open()' on a directory, followed by unlinkat()
+    * which removes an entry from the directory it and then
+    * fdopendir(fd). We get a call on open() but not on fdopendir(),
+    * which means that we do not reflect the action of unlinkat(),
+    * and thus rm -rf gets confused and marking entry as unremovable.
+    * Note that this problem exists because hgfsServer reads all
+    * the directory entries at open(). Interested reader may look at
+    * coreutils/src/remove.c file.
+    *
+    * So as a workaround, we ask the server to populate entries on
+    * first readdir() call rather than opendir(). This effect is
+    * achieved by closing and reopening the directory. Grrr!
+    *
+    * XXX We should get rid of this code when/if we remove the above
+    * behavior from hgfsServer.
+    */
+   if (FILE_GET_FI_P(file)->isStale) {
+      result = HgfsPrivateDirReOpen(file);
+   }
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: error: stale handle (%s) return %d)\n",
+            __func__, file->f_dentry->d_name.name, result));
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsGetFileInode --
+ *
+ *    Get file inode from the hgfs attributes or generate from the super block.
+ *
+ * Results:
+ *    The inode entry.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static ino_t
+HgfsGetFileInode(HgfsAttrInfo const *attr,     // IN: Attrs to use
+                 struct super_block *sb)       // IN: Superblock of this fs
+{
+   ino_t inodeEntry;
+
+   ASSERT(attr);
+   ASSERT(sb);
+
+   if (attr->mask & HGFS_ATTR_VALID_FILEID) {
+      inodeEntry = attr->hostFileId;
+   } else {
+      inodeEntry = iunique(sb, HGFS_RESERVED_INO);
+   }
+
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s: return %lu\n", __func__, inodeEntry));
+   return inodeEntry;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsGetFileType --
+ *
+ *    Get file type according to the hgfs attributes.
+ *
+ * Results:
+ *    The file type.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static uint32
+HgfsGetFileType(HgfsAttrInfo const *attr)     // IN: Attrs to use
+{
+   uint32 type;
+
+   ASSERT(attr);
+
+   switch (attr->type) {
+   case HGFS_FILE_TYPE_SYMLINK:
+      type = DT_LNK;
+      break;
+
+   case HGFS_FILE_TYPE_REGULAR:
+      type = DT_REG;
+      break;
+
+   case HGFS_FILE_TYPE_DIRECTORY:
+      type = DT_DIR;
+      break;
+
+   default:
+      /*
+       * XXX Should never happen. I'd put NOT_IMPLEMENTED() here
+       * but if the driver ever goes in the host it's probably not
+       * a good idea for an attacker to be able to hang the host
+       * simply by using a bogus file type in a reply. [bac]
+       *
+       * Well it happens! Refer bug 548177 for details. In short,
+       * when the user deletes a share, we hit this code path.
+       *
+       */
+      type = DT_UNKNOWN;
+      break;
+   }
+
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s: return %d\n", __func__, type));
+   return type;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsReaddirNextEntry --
+ *
+ *    Called whenever a process opens a directory in our filesystem.
+ *
+ *    We send a "Search Open" request to the server with the name
+ *    stored in this file's inode. If the Open succeeds, we store the
+ *    search handle sent by the server in the file struct so it can be
+ *    accessed by readdir and close.
+ *
+ * Results:
+ *    Returns zero if on success, error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsReaddirNextEntry(struct file *file,              // IN: file
+                     loff_t entryPos,                // IN: position
+                     Bool dotAndDotDotIgnore,        // IN: ignore "." and ".."
+                     size_t entryNameBufLen,         // IN: name buffer length
+                     char *entryName,                // OUT: entry name
+                     uint32 *entryNameLength,        // OUT: max name length
+                     ino_t *entryIno,                // OUT: inode entry number
+                     uint32 *entryType,              // OUT: entry type
+                     Bool *entryIgnore,              // OUT: ignore this entry or not
+                     Bool *entryEnd)                 // OUT: no more entries
+{
+   HgfsSuperInfo *si;
+   HgfsAttrInfo entryAttrs;
+   char *fileName = NULL;
+   int result;
+
+   ASSERT(file->f_dentry->d_inode->i_sb);
+
+   si = HGFS_SB_TO_COMMON(file->f_dentry->d_inode->i_sb);
+   *entryIgnore = FALSE;
+
+   /*
+    * Nonzero result = we failed to get valid reply from server.
+    * Zero result:
+    *     - done == TRUE means we hit the end of the directory
+    *     - Otherwise, fileName has the name of the next dirent
+    *
+    */
+
+   result = HgfsGetNextDirEntry(si,
+                                FILE_GET_FI_P(file)->handle,
+                                (uint32)entryPos,
+                                &entryAttrs,
+                                &fileName,
+                                entryEnd);
+   if (result == -ENAMETOOLONG) {
+      /*
+       * Skip dentry if its name is too long (see below).
+       *
+       * XXX: If a bad server sends us bad packets, we can loop here
+       * forever, as I did while testing *grumble*. Maybe we should error
+       * in that case.
+       */
+      LOG(4, (KERN_DEBUG "VMware hgfs: %s: error getnextdentry name %d\n",
+               __func__, result));
+      *entryIgnore = TRUE;
+      result = 0;
+      goto exit;
+   } else if (result) {
+      /* Error  */
+      LOG(4, (KERN_DEBUG "VMware hgfs: %s: error getnextdentry %d\n",
+               __func__, result));
+      goto exit;
+   }
+
+   if (*entryEnd) {
+      LOG(10, (KERN_DEBUG "VMware hgfs: %s: end of dir reached\n", __func__));
+      goto exit;
+   }
+
+   /*
+    * Escape all non-printable characters (which for linux is just
+    * "/").
+    *
+    * Note that normally we would first need to convert from the
+    * CP name format, but that is done implicitely here since we
+    * are guaranteed to have just one path component per dentry.
+    */
+   result = HgfsEscape_Do(fileName, strlen(fileName),
+                          entryNameBufLen, entryName);
+   kfree(fileName);
+   fileName = NULL;
+
+   /*
+    * Check the filename length.
+    *
+    * If the name is too long to be represented in linux, we simply
+    * skip it (i.e., that file is not visible to our filesystem).
+    *
+    * HgfsEscape_Do returns a negative value if the escaped
+    * output didn't fit in the specified output size, so we can
+    * just check its return value.
+    */
+   if (result < 0) {
+      /*
+       * XXX: Another area where a bad server could cause us to loop
+       * forever.
+       */
+      *entryIgnore = TRUE;
+      result = 0;
+      goto exit;
+   }
+
+   *entryNameLength = result;
+   result = 0;
+
+   /*
+    * It is unfortunate, but the HGFS server sends back '.' and ".."
+    * when we do a SearchRead. In an ideal world, these would be faked
+    * on the client, but it would be a real backwards-compatibility
+    * hassle to change the behavior at this point.
+    *
+    * So instead, we'll take the '.' and ".." and modify their inode
+    * numbers so they match what the client expects.
+    */
+   if (!strncmp(entryName, ".", sizeof ".")) {
+      if (!dotAndDotDotIgnore) {
+         *entryIno = file->f_dentry->d_inode->i_ino;
+      } else {
+         *entryIgnore = TRUE;
+      }
+   } else if (!strncmp(entryName, "..", sizeof "..")) {
+      if (!dotAndDotDotIgnore) {
+         *entryIno = compat_parent_ino(file->f_dentry);
+      } else {
+         *entryIgnore = TRUE;
+      }
+   } else {
+     *entryIno = HgfsGetFileInode(&entryAttrs, file->f_dentry->d_inode->i_sb);
+   }
+
+   if (*entryIgnore) {
+      goto exit;
+   }
+
+   /* Assign the correct dentry type. */
+   *entryType = HgfsGetFileType(&entryAttrs);
+
+exit:
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsDoReaddir --
  *
  *    Handle a readdir request. See details below if interested.
  *
@@ -820,7 +1134,7 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
  *
  *     - Passing an inum of zero to filldir doesn't work. At a minimum,
  *       you have to make up a bogus inum for each dentry.
- *     - Passing the correct d_type to filldir seems to be non-critical;
+ *     - Passing the correct entryType to filldir seems to be non-critical;
  *       apparently most programs (such as ls) stat each file if they
  *       really want to know what type it is. However, passing the
  *       correct type means that ls doesn't bother calling stat on
@@ -839,24 +1153,21 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
  */
 
 static int
-HgfsReaddir(struct file *file, // IN:  Directory to read from
-            void *dirent,      // OUT: Buffer to copy dentries into
-            filldir_t filldir) // IN:  Filler function
+HgfsDoReaddir(struct file *file,         // IN:
+              Bool dotAndDotDotIgnore,   // IN: ignore "." and ".."
+              filldir_t filldirCb,       // IN: system filler callback
+              void *filldirCtx,          // IN/OUT: system filler context
+              loff_t *fillPos,           // IN/OUT: fill entry position
+              loff_t *currentPos)        // IN/OUT: current position
 {
-   HgfsSuperInfo *si;
-   HgfsAttrInfo attr;
-   uint32 d_type;    // type of dirent
-   char *fileName = NULL;
-   char *escName = NULL; // buf for escaped version of name
-   size_t escNameLength = NAME_MAX + 1;
-   int nameLength = 0;
+   char *entryName = NULL; // buf for escaped version of name
+   size_t entryNameBufLen = NAME_MAX + 1;
+   int entryNameLength = 0;
    int result = 0;
-   Bool done = FALSE;
-   Bool isStale = FALSE;
-   ino_t ino;
+   Bool entryEnd = FALSE;
 
    ASSERT(file);
-   ASSERT(dirent);
+   ASSERT(filldirCtx);
 
    if (!file ||
       !(file->f_dentry) ||
@@ -865,207 +1176,267 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
       return -EFAULT;
    }
 
-   ASSERT(file->f_dentry->d_inode->i_sb);
-
-   si = HGFS_SB_TO_COMMON(file->f_dentry->d_inode->i_sb);
-
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReaddir: dir with name %s, "
-           "inum %lu, f_pos %Lu\n",
+   LOG(4, (KERN_DEBUG "VMware hgfs: %s(%s, inum %lu, pos %Lu)\n",
+          __func__,
           file->f_dentry->d_name.name,
           file->f_dentry->d_inode->i_ino,
-          file->f_pos));
+          *currentPos));
 
    /*
-    * rm -rf 6.10+ breaks because it does following:
-    * an 'fd = open()' on a directory, followed by unlinkat()
-    * which removes an entry from the directory it and then
-    * fdopendir(fd). We get a call on open() but not on fdopendir(),
-    * which means that we do not reflect the action of unlinkat(),
-    * and thus rm -rf gets confused and marking entry as unremovable.
-    * Note that this problem exists because hgfsServer reads all
-    * the directory entries at open(). Interested reader may look at
-    * coreutils/src/remove.c file.
-    *
-    * So as a workaround, we ask the server to populate entries on
-    * first readdir() call rather than opendir(). This effect is
-    * achieved by closing and reopening the directory. Grrr!
-    *
-    * XXX We should get rid of this code when/if we remove the above
-    * behavior from hgfsServer.
+    * Refresh entries if required. See rm -rf 6.10+ breaking issue.
     */
-   isStale = FILE_GET_FI_P(file)->isStale;
-   if (isStale) {
-      result = HgfsPrivateDirReOpen(file);
-      if (result) {
-         return result;
-      }
+   result = HgfsReaddirRefreshEntries(file);
+   if (result != 0) {
+      return result;
    }
 
    /*
     * Some day when we're out of things to do we can move this to a slab
     * allocator.
     */
-   escName = kmalloc(escNameLength, GFP_KERNEL);
-   if (!escName) {
+   entryName = kmalloc(entryNameBufLen, GFP_KERNEL);
+   if (entryName == NULL) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsReaddir: out of memory allocating "
               "escaped name buffer\n"));
-      return  -ENOMEM;
+      return -ENOMEM;
    }
 
-   while (1) {
-      /*
-       * Nonzero result = we failed to get valid reply from server.
-       * Zero result:
-       *     - done == TRUE means we hit the end of the directory
-       *     - Otherwise, fileName has the name of the next dirent
-       *
-       */
+   while (!entryEnd) {
+      Bool entryIgnore;
+      ino_t entryIno = 0;
+      uint32 entryType = DT_UNKNOWN;
 
-      result = HgfsGetNextDirEntry(si,
-                                   FILE_GET_FI_P(file)->handle,
-                                   (uint32)file->f_pos,
-                                   &attr,
-                                   &fileName,
-                                   &done);
-      if (result == -ENAMETOOLONG) {
-         /*
-          * Skip dentry if its name is too long (see below).
-          *
-          * XXX: If a bad server sends us bad packets, we can loop here
-          * forever, as I did while testing *grumble*. Maybe we should error
-          * in that case.
-          */
-         file->f_pos++;
-         continue;
-      } else if (result) {
-         /* Error  */
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsReaddir: error "
-                 "getting dentry\n"));
-         kfree(escName);
-         return result;
-      }
+      result = HgfsReaddirNextEntry(file,
+                                    *currentPos,
+                                    dotAndDotDotIgnore,
+                                    entryNameBufLen,
+                                    entryName,
+                                    &entryNameLength,
+                                    &entryIno,
+                                    &entryType,
+                                    &entryIgnore,
+                                    &entryEnd);
 
-      if (done == TRUE) {
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReaddir: end of dir reached\n"));
+      if (result != 0) {
+         /* An error occurred retrieving the entry, so exit. */
          break;
       }
 
-      /*
-       * Escape all non-printable characters (which for linux is just
-       * "/").
-       *
-       * Note that normally we would first need to convert from the
-       * CP name format, but that is done implicitely here since we
-       * are guaranteed to have just one path component per dentry.
-       */
-      result = HgfsEscape_Do(fileName, strlen(fileName),
-                             escNameLength, escName);
-      kfree(fileName);
-      fileName = NULL;
-
-      /*
-       * Check the filename length.
-       *
-       * If the name is too long to be represented in linux, we simply
-       * skip it (i.e., that file is not visible to our filesystem) by
-       * incrementing file->f_pos and repeating the loop to get the
-       * next dentry.
-       *
-       * HgfsEscape_Do returns a negative value if the escaped
-       * output didn't fit in the specified output size, so we can
-       * just check its return value.
-       */
-      if (result < 0) {
-         /*
-          * XXX: Another area where a bad server could cause us to loop
-          * forever.
-          */
-         file->f_pos++;
+      if (entryEnd) {
+         LOG(10, (KERN_DEBUG "VMware hgfs: %s: end of dir reached\n", __func__));
          continue;
       }
 
-      nameLength = result;
-
-      /* Assign the correct dentry type. */
-      switch (attr.type) {
-
-      case HGFS_FILE_TYPE_SYMLINK:
-         d_type = DT_LNK;
-         break;
-
-      case HGFS_FILE_TYPE_REGULAR:
-         d_type = DT_REG;
-         break;
-
-      case HGFS_FILE_TYPE_DIRECTORY:
-         d_type = DT_DIR;
-         break;
-
-      default:
-         /*
-          * XXX Should never happen. I'd put NOT_IMPLEMENTED() here
-          * but if the driver ever goes in the host it's probably not
-          * a good idea for an attacker to be able to hang the host
-          * simply by using a bogus file type in a reply. [bac]
-	  *
-	  * Well it happens! Refer bug 548177 for details. In short,
-	  * when the user deletes a share, we hit this code path.
-	  *
-	  */
-         d_type = DT_UNKNOWN;
-         break;
+      if (entryIgnore) {
+         *currentPos += 1;
+         continue;
       }
 
       /*
-       * It is unfortunate, but the HGFS server sends back '.' and ".."
-       * when we do a SearchRead. In an ideal world, these would be faked
-       * on the client, but it would be a real backwards-compatibility
-       * hassle to change the behavior at this point.
-       *
-       * So instead, we'll take the '.' and ".." and modify their inode
-       * numbers so they match what the client expects.
+       * Call the HGFS wrapper to the system fill function to set this dentry.
        */
-      if (!strncmp(escName, ".", sizeof ".")) {
-         ino = file->f_dentry->d_inode->i_ino;
-      } else if (!strncmp(escName, "..", sizeof "..")) {
-         ino = compat_parent_ino(file->f_dentry);
-      } else {
-         if (attr.mask & HGFS_ATTR_VALID_FILEID) {
-            ino = attr.hostFileId;
-         } else {
-            ino = iunique(file->f_dentry->d_inode->i_sb,
-                          HGFS_RESERVED_INO);
-         }
-      }
-
-      /*
-       * Call filldir for this dentry.
-       */
-      LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReaddir: calling filldir "
-              "with \"%s\", %u, %Lu\n", escName, nameLength, file->f_pos));
-      result = filldir(dirent,         /* filldir callback struct */
-                       escName,        /* name of dirent */
-                       nameLength,     /* length of name */
-                       file->f_pos,    /* offset of dirent */
-                       ino,            /* inode number (0 makes it not show) */
-                       d_type);        /* type of dirent */
-      if (result) {
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: dir_emit(%s, %u, @ (fill %Lu HGFS %Lu)\n",
+              __func__, entryName, entryNameLength, *fillPos, *currentPos));
+      if (!HgfsReaddirFillEntry(filldirCb,        /* filldir callback function */
+                                filldirCtx,       /* filldir callback struct */
+                                entryName,        /* name of dirent */
+                                entryNameLength,  /* length of name */
+                                *fillPos,         /* fill entry position */
+                                entryIno,         /* inode number (0 makes it not show) */
+                                entryType)) {     /* type of dirent */
          /*
-          * This means that filldir ran out of room in the user buffer
+          * This means that dir_emit ran out of room in the user buffer
           * it was copying into; we just break out and return, but
           * don't increment f_pos. So the next time the user calls
           * getdents, this dentry will be requested again, will get
           * retrieved again, and get copied properly to the user.
           */
+         result = 0;
          break;
       }
-      file->f_pos++;
+      *currentPos += 1;
+      *fillPos += 1;
    }
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReaddir: finished\n"));
-   kfree(escName);
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: return\n",__func__));
+   kfree(entryName);
    return 0;
 }
+
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsReaddir --
+ *
+ *    Handle a readdir request.
+ *
+ * Results:
+ *    Returns zero on success, or an error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsReaddir(struct file *file,         // IN:
+            struct dir_context *ctx)   // IN:
+{
+   HgfsFileInfo *fInfo = FILE_GET_FI_P(file);
+
+   if (0 == ctx->pos) {
+      fInfo->direntPos = 0;
+   }
+
+   /* If either dot and dotdot are filled in for us we can exit. */
+   if (!dir_emit_dots(file, ctx)) {
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: dir_emit_dots(%s, @ %Lu)\n",
+              __func__, file->f_dentry->d_name.name, ctx->pos));
+      return 0;
+   }
+
+   /* It is sufficient to pass the context as it contains the filler function. */
+   return HgfsDoReaddir(file, TRUE, NULL, ctx, &ctx->pos, &fInfo->direntPos);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsReaddirFillEntry --
+ *
+ *    Fill a readdir entry.
+ *
+ *    Failure means that fill ran out of room in the user buffer
+ *    it was copying into.
+ *
+ * Results:
+ *    Returns TRUE on success, or FALSE on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HgfsReaddirFillEntry(filldir_t filldirCb,            // IN: System filler callback
+                     void *filldirCtx,               // IN/OUT: System filler context
+                     char *entryName,                // IN: entry name
+                     uint32 entryNameLength,         // IN: max name length
+                     loff_t entryPos,                // IN: position = (ctx-pos)
+                     ino_t entryIno,                 // IN: inode entry number
+                     uint32 entryType)               // IN: entry type
+{
+   struct dir_context *ctx = filldirCtx;
+   Bool result;
+
+   ASSERT(filldirCb == NULL);   /* Contained within the context structure. */
+   ASSERT(ctx != NULL);
+   ASSERT(ctx->pos == entryPos);
+   ASSERT(entryName != NULL);
+   ASSERT(entryNameLength != 0);
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: dir_emit(%s, %u, %Lu)\n",
+            __func__, entryName, entryNameLength, ctx->pos));
+
+   result = dir_emit(ctx,              /* filldir callback struct */
+                     entryName,        /* name of dirent */
+                     entryNameLength,  /* length of name */
+                     entryIno,         /* inode number (0 makes it not show) */
+                     entryType);       /* type of dirent */
+   return result;
+}
+#else
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsReaddir --
+ *
+ *    Handle a readdir request.
+ *
+ * Results:
+ *    Returns zero on success, or an error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsReaddir(struct file *file, // IN:  Directory to read from
+            void *dirent,      // OUT: Buffer to copy dentries into
+            filldir_t filldir) // IN:  Filler function
+{
+   HgfsFileInfo *fInfo = FILE_GET_FI_P(file);
+
+   if (0 == file->f_pos) {
+      fInfo->direntPos = 0;
+   }
+
+   return HgfsDoReaddir(file, FALSE, filldir, dirent, &file->f_pos, &fInfo->direntPos);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsReaddirFillEntry --
+ *
+ *    Fill a readdir entry.
+ *
+ *    Failure means that fill ran out of room in the user buffer
+ *    it was copying into.
+ *
+ * Results:
+ *    Returns TRUE on success, or FALSE on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HgfsReaddirFillEntry(filldir_t filldirCb,            // IN: System filler callback
+                     void *filldirCtx,               // IN/OUT: System filler context
+                     char *entryName,                // IN: entry name
+                     uint32 entryNameLength,         // IN: max name length
+                     loff_t entryPos,                // IN: position
+                     ino_t entryIno,                 // IN: inode entry number
+                     uint32 entryType)               // IN: entry type
+{
+   Bool result = TRUE;
+   int fillResult;
+
+   ASSERT(filldirCb != NULL);
+   ASSERT(filldirCtx != NULL);
+   ASSERT(entryName != NULL);
+   ASSERT(entryNameLength != 0);
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: calling filldir(%s, %u, %Lu\n",
+           __func__, entryName, entryNameLength, entryPos));
+
+   fillResult = filldirCb(filldirCtx,       /* filldir callback struct */
+                          entryName,        /* name of dirent */
+                          entryNameLength,  /* length of name */
+                          entryPos,         /* offset of dirent */
+                          entryIno,         /* inode number (0 makes it not show) */
+                          entryType);       /* type of dirent */
+
+   if (fillResult != 0) {
+      result = FALSE;
+   }
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: return %d\n", __func__, result));
+   return result;
+}
+#endif
 
 
 /*

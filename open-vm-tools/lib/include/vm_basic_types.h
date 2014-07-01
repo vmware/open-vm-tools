@@ -806,6 +806,11 @@ typedef void * UserVA;
 # endif
 #endif
 
+#ifndef UNUSED_TYPE
+// XXX _Pragma would better but doesn't always work right now.
+#  define UNUSED_TYPE(_parm) UNUSED_PARAM(_parm)
+#endif
+
 #ifndef UNUSED_VARIABLE
 // XXX is there a better way?
 #  define UNUSED_VARIABLE(_var) (void)_var

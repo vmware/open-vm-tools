@@ -181,8 +181,8 @@
                     ESX_VERSION_MAINT
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
                                 ESX_VERSION_MAINT
-#define ESX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
-#define ESX_RELEASE_PATCH "0"  /* 0 = experimental */
+#define ESX_RELEASE_UPDATE "1" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define ESX_RELEASE_PATCH "19"  /* 0 = experimental */
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
 #define VMSERVER_VERSION "e.x.p"
 #define WORKSTATION_VERSION_NUMBER "9.0.0" /* this version number should always match real WS version number */
@@ -243,8 +243,8 @@
 #define VMSAFE_FILE_VERSION    1,2,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define NETDUMP_VERSION        "5.5.0"
 #define NETDUMP_FILE_VERSION    5,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define VDDK_VERSION          "5.5.0"
-#define VDDK_FILE_VERSION      5,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VDDK_VERSION          "5.5.1"
+#define VDDK_FILE_VERSION      5,5,1,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "3.5.0"
 #define OVFTOOL_FILE_VERSION 3,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VDM_CLIENT_VERSION "e.x.p"

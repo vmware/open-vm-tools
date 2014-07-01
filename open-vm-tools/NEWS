@@ -1,3 +1,12 @@
+open-vm-tools 9.4.6 changes:
+	* Release of open-vm-tools matching vSphere 5.5p02.
+
+	* Security enhancements in support scripts for Tools.
+
+   	* Skip freezing remote mounts in sync driver.
+
+	* Other fixes and cleanups.
+
 open-vm-tools 9.4.0 changes:
 	* Release of open-vm-tools matching vSphere 5.5.
 

@@ -202,6 +202,8 @@
    GOSL(STR_OS_DEBIAN_6 "-64",               GUEST_OS_DEBIAN45_64)          \
    GOSL(STR_OS_DEBIAN_7,                     GUEST_OS_DEBIAN45)             \
    GOSL(STR_OS_DEBIAN_7 "-64",               GUEST_OS_DEBIAN45_64)          \
+   GOSL(STR_OS_DEBIAN_7_1,                   GUEST_OS_DEBIAN45)             \
+   GOSL(STR_OS_DEBIAN_7_1 "-64",             GUEST_OS_DEBIAN45_64)          \
    GOSL(STR_OS_SOLARIS "6",                  GUEST_OS_SOLARIS_6_AND_7)      \
    GOSL(STR_OS_SOLARIS "7",                  GUEST_OS_SOLARIS_6_AND_7)      \
    GOSL(STR_OS_SOLARIS "8",                  GUEST_OS_SOLARIS8)             \

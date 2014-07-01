@@ -41,6 +41,46 @@ static SyncFreezeFn gBackends[] = {
 #endif
 };
 
+static const char *gRemoteFSTypes[] = {
+   "nfs",
+   "nfs4",
+   "smbfs",
+   "cifs",
+   "vmhgfs"
+};
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SyncDriverIsRemoteFSType  --
+ *
+ *    Checks whether a filesystem is remote or not
+ *
+ * Results:
+ *    Returns TRUE for remote filesystem types, otherwise FALSE.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+SyncDriverIsRemoteFSType(const char *fsType)
+{
+   size_t i;
+
+   for (i = 0; i < ARRAYSIZE(gRemoteFSTypes); i++) {
+      if (Str_Strncmp(fsType, gRemoteFSTypes[i],
+                      sizeof gRemoteFSTypes[i]) == 0) {
+         return TRUE;
+      }
+   }
+
+   return FALSE;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -80,6 +120,16 @@ SyncDriverListMounts(void)
    DynBuf_Init(&buf);
 
    while (GETNEXT_MNTINFO(mounts, mntinfo)) {
+      /*
+       * Skip remote mounts because they are not freezable and opening them
+       * could lead to hangs. See PR 1196785.
+       */
+      if (SyncDriverIsRemoteFSType(MNTINFO_FSTYPE(mntinfo))) {
+         Debug(LGPFX "Skipping remote filesystem, name=%s, mntpt=%s.\n",
+               MNTINFO_NAME(mntinfo), MNTINFO_MNTPT(mntinfo));
+         continue;
+      }
+
       /*
        * Add a separator if it's not the first path, and add the path to the
        * tail of the list.

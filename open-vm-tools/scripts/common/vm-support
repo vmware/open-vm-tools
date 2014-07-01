@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################################################
-# Copyright (C) 2006-2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2006-2013 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -28,7 +28,7 @@ usage()
 
 
 TARFILE=vm-`date +%Y-%m-%d`.$$.tar
-VER=0.88
+VER=0.89
 OUTPUT_DIR=vm-support.$$
 
 # banner(): prints any number of strings padded with
@@ -70,6 +70,25 @@ UpdateState()
    fi
 }
 
+# checkOutputDir(): checks for a self contained output
+# directory for later tar'ing  and creates it if needed
+
+checkOutputDir()
+{
+   dir=$1
+
+   if [ ! -d "${OUTPUT_DIR}$dir" ]; then
+      mkdir -p "${OUTPUT_DIR}$dir"
+
+      if [ $? != 0 ]; then
+         banner "Could not create ./${OUTPUT_DIR}$dir... " \
+                "Have you run out of disk space?" "Continuing"
+         return -1
+      fi
+   fi
+   return 0
+}
+
 # addfile(): copies whatever files and directories you give it to
 # a self contained output directory for later tar'ing
 # Working on copies could slow this down with VERY large files but:
@@ -83,14 +102,9 @@ addfile()
    file=$1
 
    dir=`dirname "$file"`
-   if [ ! -d "${OUTPUT_DIR}$dir" ]; then
-      mkdir -p "${OUTPUT_DIR}$dir"
-
-      if [ $? != 0 ]; then
-         banner "Could not create ./${OUTPUT_DIR}$dir... " \
-                "Have you run out of disk space?" "Continuing"
-         return
-      fi
+   checkOutputDir "$dir"
+   if [ $? != 0 ]; then
+      return
    fi
 
    # Ignore stdout and handle errors.
@@ -110,21 +124,22 @@ addfiles()
 }
 
 
-# runcmd($cmd, $out): executes the command redirected to a file and then adds
-# that file to the list of files to tar. It then deletes the temp file since
-# addfile makes a copy in its own self-contained area.
+# runcmd($cmd, $out): executes the command redirected to a file
 runcmd()
 {
-	$1 > $2 2>/dev/null
+   dir=`dirname "$2"`
+   checkOutputDir "$dir"
+   if [ $? != 0 ]; then
+      return
+   fi
 
-	if [ $? != 0 ]; then
-	   echo 3
-		banner "Either could not run $1 or could not write to $2" \
-		       "Do you have a full disk? Continuing..."
-	else
-		addfile "$2"
-		rm -f "$2"
-	fi
+   $1 > ${OUTPUT_DIR}$2 2>/dev/null
+
+   if [ $? != 0 ]; then
+      echo 3
+         banner "Either could not run $1 or could not write to ${OUTPUT_DIR}$2" \
+                "Do you have a full disk? Continuing..."
+   fi
 }
 
 
@@ -176,6 +191,14 @@ if [ `uname` != 'SunOS' ]; then
    unset IFS 2>/dev/null
 fi
 
+# Set umask to make diagnostic information unreadable to other users to avoid
+# possible information leakage.
+umask 0077
+
+# Clear up temporary files if the process is killed midway.
+trap "rm -rf ${OUTPUT_DIR}; exit 1" HUP INT QUIT TERM ABRT
+
+
 #	make a subdir to put all your files in.  die if it does not create
 mkdir $OUTPUT_DIR
 
@@ -226,15 +249,27 @@ stageLinux()
       addfile /etc/grub.conf
    fi
 
+   # Old linux kernel use modules.conf while new kernel use modprobe.conf and modprobe.d
+   if [ -e /etc/modules.conf ]; then
+      addfile /etc/modules.conf
+   fi
+   if [ -e /etc/modprobe.conf ]; then
+      addfile /etc/modprobe.conf
+   fi
+   if [ -d /etc/modprobe.d ]; then
+      addfile /etc/modprobe.d
+   fi
+
    addfile /etc/cron.daily
    addfile /etc/cron.hourly
    addfile /etc/cron.monthly
    addfile /etc/cron.weekly
    addfile /etc/crontab
-   addfile /etc/modules.conf
    addfile /etc/ntp.conf
    addfile /etc/security
    addfile /etc/services
+   addfile /proc/interrupts
+   addfile /proc/irq
 
    # Commands to run ($1) and redirect to logs ($2) for inclusion.
    runcmd "ps auwwx" "/tmp/ps-auwwx.$$.txt"

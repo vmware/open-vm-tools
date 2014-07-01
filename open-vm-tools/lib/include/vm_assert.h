@@ -358,12 +358,17 @@ void WarningThrottled(uint32 *count, const char *fmt, ...)
  * The implementation uses both enum and typedef because the typedef alone is
  * insufficient; gcc allows arrays to be declared with non-constant expressions
  * (even in typedefs, where it makes no sense).
+ *
+ * NOTE: if GCC ever changes so that it ignores unused types altogether, this
+ * assert might not fire!  We explicitly mark it as unused because GCC 4.8+
+ * uses -Wunused-local-typedefs as part of -Wall, which means the typedef will
+ * generate a warning.
  */
 
 #define ASSERT_ON_COMPILE(e) \
    do { \
       enum { AssertOnCompileMisused = ((e) ? 1 : -1) }; \
-      typedef char AssertOnCompileFailed[AssertOnCompileMisused]; \
+      UNUSED_TYPE(typedef char AssertOnCompileFailed[AssertOnCompileMisused]); \
    } while (0)
 
 

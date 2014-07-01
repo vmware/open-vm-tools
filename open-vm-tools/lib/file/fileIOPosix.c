@@ -855,14 +855,13 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       flags |= O_EXLOCK;
    }
 #elif defined(__linux__)
-   if (((access & (FILEIO_OPEN_LOCK_MANDATORY |
-                   FILEIO_OPEN_MULTIWRITER_LOCK)) != 0) &&
-       HostType_OSIsVMK()) {
-      /* These flags are only supported on vmkernel */
+   if (HostType_OSIsVMK()) {
       if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
          flags |= O_MULTIWRITER_LOCK;
       } else if ((access & FILEIO_OPEN_LOCK_MANDATORY) != 0) {
          flags |= O_EXCLUSIVE_LOCK;
+      } else if ((access & FILEIO_OPEN_OPTIMISTIC_LOCK) != 0) {
+         flags |= O_OPTIMISTIC_LOCK;
       }
    }
 #endif

@@ -1369,6 +1369,7 @@ HgfsCreateFileInfo(struct file *file,  // IN: File pointer to attach to
 
    /* So that readdir() reissues open request */
    fileInfo->isStale = TRUE;
+   fileInfo->direntPos = 0;
 
    /*
     * I don't think we need any VFS locks since we're only touching the HGFS

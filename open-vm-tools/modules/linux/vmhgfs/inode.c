@@ -33,6 +33,7 @@
 #include <linux/highmem.h>
 
 #include "compat_cred.h"
+#include "compat_dcache.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
 #include "compat_mm.h"
@@ -1838,7 +1839,7 @@ HgfsPermission(struct inode *inode,
 #endif
                            &inode->i_dentry,
                            d_alias) {
-         int dcount = dentry->d_count;
+         int dcount = compat_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", dentry->d_name.name, dcount));
             return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
@@ -1891,11 +1892,7 @@ HgfsPermission(struct inode *inode,
       list_for_each(pos, &inode->i_dentry) {
          int dcount;
          struct dentry *dentry = list_entry(pos, struct dentry, d_alias);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 38)
-         dcount = atomic_read(&dentry->d_count);
-#else
-         dcount = dentry->d_count;
-#endif
+         dcount = compat_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", (dentry)->d_name.name, dcount));
             return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));

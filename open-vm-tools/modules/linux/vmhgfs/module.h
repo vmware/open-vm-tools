@@ -167,6 +167,9 @@ typedef struct HgfsFileInfo {
     */
    Bool isStale;
 
+   /* Directory read position for tracking. */
+   loff_t direntPos;
+
 } HgfsFileInfo;
 
 
