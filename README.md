@@ -10,16 +10,16 @@ different Linux distributions.
 ##General information:
 
 * What are the open-vm-tools? 
-The open-vm-tools are a subset of the VMware Tools, currently composed of
+  * The open-vm-tools are a subset of the VMware Tools, currently composed of
 kernel modules for Linux and user-space programs for all VMware supported Unix
 like guest operating systems.
 
 * Where do I find documentation for the open-vm-tools beyond this README?
-Please refer to the main project web site for all the latest documentation 
+  * Please refer to the main project web site for all the latest documentation 
 at: <http://open-vm-tools.sourceforge.net/> 
 
 * How do I build the open-vm-tools?
-The open-vm-tools uses the GNU Automake tool for generating Makefiles to 
+  * The open-vm-tools uses the GNU Automake tool for generating Makefiles to 
 build all sources.  More information about Automake can be found here: 
 <http://sources.redhat.com/automake/>
 
@@ -39,11 +39,12 @@ When using configure in the steps below it is only necessary to call
 `./configure` once unless there was a problem after the first invocation.
 
 * Building Unix user-space programs:
+```
 1. autoreconf -i
 2. ./configure
 3. Run "make" to build Unix userland programs
 4. Run "make modules" to build kernel modules
-
+```
 * Packaging:
 If you are interested in creating a Tools package, please see
 <https://sourceforge.net/apps/mediawiki/open-vm-tools/index.php?title=Packaging>
@@ -94,6 +95,7 @@ should work:
 
 ================================================================================
 ##Other resources:
+
 * There are also open-source video & mouse drivers for Xorg/XFree86 that
 provide better performance and additional features to Linux, Solaris, and BSD
 derivatives guests running X11. 
