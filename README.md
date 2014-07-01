@@ -1,4 +1,4 @@
-Project information:
+##Project information:
 
 open-vm-tools <http://open-vm-tools.sourceforge.net/>
 
@@ -7,18 +7,18 @@ they explain how to build this project for different platforms and various
 different Linux distributions.
 
 ================================================================================
-General information:
+##General information:
 
-(*)What are the open-vm-tools? 
+* What are the open-vm-tools? 
 	The open-vm-tools are a subset of the VMware Tools, currently composed of
 kernel modules for Linux and user-space programs for all VMware supported Unix
 like guest operating systems.
 
-(*)Where do I find documentation for the open-vm-tools beyond this README?
+* Where do I find documentation for the open-vm-tools beyond this README?
 	Please refer to the main project web site for all the latest documentation 
 at: <http://open-vm-tools.sourceforge.net/> 
 
-(*)How do I build the open-vm-tools?
+* How do I build the open-vm-tools?
 	The open-vm-tools uses the GNU Automake tool for generating Makefiles to 
 build all sources.  More information about Automake can be found here: 
 <http://sources.redhat.com/automake/>
@@ -27,29 +27,30 @@ For more information on building this project see the "Project build
 information" section of this document. 
 
 ================================================================================
-Project build information:
+##Project build information:
 
-(*)Getting configure options & help:
+* Getting configure options & help:
 	If you are looking for help or additional settings for the building of this
 project the following configure command will display a list of help options:
 	"./configure --help"
 
-(*)Using configure:
+* Using configure:
 	When using configure in the steps below it is only necessary to call
 "./configure" once unless there was a problem after the first invocation.
 
-(*)Building Unix user-space programs:
-1) "./configure"
-2) Run "make" to build Unix userland programs
-3) Run "make modules" to build kernel modules
+* Building Unix user-space programs:
+1. autoreconf -i
+2. ./configure
+3. Run "make" to build Unix userland programs
+4. Run "make modules" to build kernel modules
 
-(*)Packaging:
+* Packaging:
 If you are interested in creating a Tools package, please see
 <https://sourceforge.net/apps/mediawiki/open-vm-tools/index.php?title=Packaging>
 for more information.
 
 ================================================================================
-Build suggestions:
+##Build suggestions:
 	Each Linux distribution puts binaries, libraries and development headers in 
 different locations.  This leads to having to setup different paths for the
 compiler and linker for the Automake system.  Below is a list of known
@@ -65,37 +66,36 @@ monitor support.
 modules can be built. Here are the minimum OS versions for each
 module:
 
-|------------------------------------------------------------------------------|
 | vmsync        | vmblock        | vmxnet       | vmmemctl       | vmhgfs      |
 |---------------|----------------|--------------|----------------|-------------|
 | Linux 2.6.6   | Linux 2.4.0    | Linux 2.2.0  | Linux 2.2.0    | Linux 2.4.0 |
 | FreeBSD N/A   | FreeBSD 6.0    | FreeBSD 4.9  | FreeBSD 3.2    | FreeBSD 6.0 |
-|------------------------------------------------------------------------------|
 
-(*)Suse Enterprise 10.1 (i386 & x86_64):
+* Suse Enterprise 10.1 (i386 & x86_64):
 i386:
+```
 ./configure LDFLAGS="-L/opt/gnome/lib"
-
+```
 x86_64:
+```
 ./configure LDFLAGS="-L/opt/gnome/lib64"
-
-(*)OpenSolaris "Nevada" (i386 & x86_64):
+```
+* OpenSolaris "Nevada" (i386 & x86_64):
 	Before building open-vm-tools on Solaris, you will need to make 
 sure that libdnet (http://libdnet.sourceforge.net/) is installed and 
 that the 'dnet-config' script is on your shell's PATH.
-
 	Make sure that the GNU tools are in your shell's PATH. The 
 default GNU tools location on OpenSolaris is: "/usr/sfw/bin". Once the 
 PATH is set in your build shell then the following configure command 
 should work:
-
+```
 ./configure --disable-multimon
-
-(*)FreeBSD 6.2 (i386 & x86_64):
+```
+* FreeBSD 6.2 (i386 & x86_64):
 ./configure LDFLAGS="-L/usr/local/lib"
 
 ================================================================================
-Other resources:
+##Other resources:
 	There are also open-source video & mouse drivers for Xorg/XFree86 that
 provide better performance and additional features to Linux, Solaris, and BSD
 derivatives guests running X11. 
@@ -106,29 +106,29 @@ obtain them.  If you want to obtain them separately, they can be downloaded at:
 <http://xorg.freedesktop.org/releases/individual/driver/>
 
 ================================================================================
-Guest operating systems used to test on this release:
+##Guest operating systems used to test on this release:
 
-(*)Fedora Core 8 (i386 & x86_64)
-(*)Redhat 9.0 (i386)
-(*)Redhat Enterprise 4 U5 (i386 & x86_64)
-(*)Redhat Enterprise 5 (i386 & x86_64)
-(*)FreeBSD 5.4 (i386 & x86_64)
-(*)FreeBSD 6.2 (i386 & x86_64)
-(*)OpenSolaris 10 "Nevada" (i386 & x86_64)
-(*)Open SuSE 10.3 (i386 & x86_64)
-(*)Ubuntu 6.04 (i386 & x86_64)
-(*)Ubuntu 7.10 (i386 & x86_64)
+* Fedora Core 8 (i386 & x86_64)
+* Redhat 9.0 (i386)
+* Redhat Enterprise 4 U5 (i386 & x86_64)
+* Redhat Enterprise 5 (i386 & x86_64)
+* FreeBSD 5.4 (i386 & x86_64)
+* FreeBSD 6.2 (i386 & x86_64)
+* OpenSolaris 10 "Nevada" (i386 & x86_64)
+* Open SuSE 10.3 (i386 & x86_64)
+* Ubuntu 6.04 (i386 & x86_64)
+* Ubuntu 7.10 (i386 & x86_64)
 
 ===============================================================================
-Known issues:
+##Known issues:
 
-(*) When using HGFS on FreeBSD, the 'cp' command will fail if the source 
+* When using HGFS on FreeBSD, the 'cp' command will fail if the source 
 file is on the HGFS share. This is because mmap() does not yet work with 
 the FreeBSD port of HGFS. One workaround is to use 'cat 
 /mnt/hgfs/foo/bar > /tmp/baz' instead of 'cp /mnt/hgfs/foo/bar 
 /tmp/baz'.
 
-(*) When using HGFS on FreeBSD, if your current working directory is the 
+* When using HGFS on FreeBSD, if your current working directory is the 
 top-level HGFS mount (e.g. '/mnt/hgfs') and you run 'ls', you will 
 receive an "Invalid argument" error. The workaround is to change to 
 another directory and then run 'ls /mnt/hgfs'. Running 'ls' in 
