@@ -32,6 +32,7 @@
 #include <linux/signal.h>
 #include "compat_fs.h"
 
+#include "module.h"                /* For kuid_t kgid_t types. */
 #include "inode.h"
 #include "request.h"
 #include "vm_basic_types.h"
@@ -92,8 +93,8 @@ int HgfsGetHandle(struct inode *inode,
 int HgfsStatusConvertToLinux(HgfsStatus hgfsStatus);
 void HgfsSetUidGid(struct inode *parent,
                    struct dentry *dentry,
-                   uid_t uid,
-                   gid_t gid);
+                   kuid_t uid,
+                   kgid_t gid);
 struct inode *HgfsGetInode(struct super_block *sb, ino_t ino);
 void HgfsDoReadInode(struct inode *inode);
 

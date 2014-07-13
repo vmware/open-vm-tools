@@ -228,17 +228,25 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
     * or gid given to us by the server.
     */
    si->uidSet = mountInfo->uidSet;
+   si->uid = current_uid();
    if (si->uidSet) {
-      si->uid = mountInfo->uid;
-   } else {
-      si->uid = current_uid();
+      kuid_t mntUid = make_kuid(current_user_ns(), mountInfo->uid);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+      if (uid_valid(mntUid))
+#endif
+         si->uid = mntUid;
    }
+
    si->gidSet = mountInfo->gidSet;
+   si->gid = current_gid();
    if (si->gidSet) {
-      si->gid = mountInfo->gid;
-   } else {
-      si->gid = current_gid();
+      kgid_t mntGid = make_kgid(current_user_ns(), mountInfo->gid);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+      if (gid_valid(mntGid))
+#endif
+         si->gid = mntGid;
    }
+
    si->fmask = mountInfo->fmask;
    si->dmask = mountInfo->dmask;
    si->ttl = mountInfo->ttl * HZ; // in ticks
