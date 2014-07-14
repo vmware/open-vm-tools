@@ -74,6 +74,16 @@ extern int LOGLEVEL_THRESHOLD;
  * Macros for accessing members that are private to this code in
  * sb/inode/file structs.
  */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0)
+typedef uid_t kuid_t;
+typedef gid_t kgid_t;
+#define from_kuid(_ns, _kuid)            (_kuid)
+#define from_kgid(_ns, _kgid)            (_kgid)
+#define make_kuid(_ns, _uid)             (_uid)
+#define make_kgid(_ns, _gid)             (_gid)
+#endif
+
 #define HGFS_SET_SB_TO_COMMON(sb, common) do { (sb)->s_fs_info = (common); } while (0)
 #define HGFS_SB_TO_COMMON(sb)             ((HgfsSuperInfo *)(sb)->s_fs_info)
 
@@ -110,9 +120,9 @@ extern int LOGLEVEL_THRESHOLD;
 
 /* Data kept in each superblock in sb->u. */
 typedef struct HgfsSuperInfo {
-   uid_t uid;                       /* UID of user who mounted this fs. */
+   kuid_t uid;                      /* UID of user who mounted this fs. */
+   kgid_t gid;                      /* GID of user who mounted this fs. */
    Bool uidSet;                     /* Was the UID specified at mount-time? */
-   gid_t gid;                       /* GID of user who mounted this fs. */
    Bool gidSet;                     /* Was the GID specified at mount-time? */
    mode_t fmask;                    /* File permission mask. */
    mode_t dmask;                    /* Directory permission mask. */
@@ -136,6 +146,13 @@ typedef struct HgfsInodeInfo {
 
    /* Is this a fake inode created in HgfsCreate that has yet to be opened? */
    Bool createdAndUnopened;
+
+   /*
+    * The number of write back pages to the file which is tracked so any
+    * concurrent file validations such as reads will not invalidate the cache.
+    */
+   unsigned long numWbPages;
+   struct list_head listWbPages;
 
    /* Is this inode referenced by HGFS? (needed by HgfsInodeLookup()) */
    Bool isReferencedInode;
@@ -166,6 +183,9 @@ typedef struct HgfsFileInfo {
     * for directories.
     */
    Bool isStale;
+
+   /* Directory read position for tracking. */
+   loff_t direntPos;
 
 } HgfsFileInfo;
 

@@ -33,6 +33,7 @@
 #include <linux/highmem.h>
 
 #include "compat_cred.h"
+#include "compat_dcache.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
 #include "compat_mm.h"
@@ -429,6 +430,8 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
    size_t reqBufferSize;
    size_t reqSize;
    int result = 0;
+   uid_t attrUid = -1;
+   gid_t attrGid = -1;
 
    ASSERT(iattr);
    ASSERT(dentry);
@@ -436,6 +439,14 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
    ASSERT(changed);
 
    valid = iattr->ia_valid;
+
+   if (valid & ATTR_UID) {
+      attrUid = from_kuid(&init_user_ns, iattr->ia_uid);
+   }
+
+   if (valid & ATTR_GID) {
+      attrGid = from_kgid(&init_user_ns, iattr->ia_gid);
+   }
 
    switch (opUsed) {
    case HGFS_OP_SETATTR_V3: {
@@ -513,13 +524,13 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
       if (valid & ATTR_UID) {
          attrV2->mask |= HGFS_ATTR_VALID_USERID;
-         attrV2->userId = iattr->ia_uid;
+         attrV2->userId = attrUid;
          *changed = TRUE;
       }
 
       if (valid & ATTR_GID) {
          attrV2->mask |= HGFS_ATTR_VALID_GROUPID;
-         attrV2->groupId = iattr->ia_gid;
+         attrV2->groupId = attrGid;
          *changed = TRUE;
       }
 
@@ -616,13 +627,13 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
       if (valid & ATTR_UID) {
          attrV2->mask |= HGFS_ATTR_VALID_USERID;
-         attrV2->userId = iattr->ia_uid;
+         attrV2->userId = attrUid;
          *changed = TRUE;
       }
 
       if (valid & ATTR_GID) {
          attrV2->mask |= HGFS_ATTR_VALID_GROUPID;
-         attrV2->groupId = iattr->ia_gid;
+         attrV2->groupId = attrGid;
          *changed = TRUE;
       }
 
@@ -1890,7 +1901,7 @@ HgfsPermission(struct inode *inode,
 #endif
                            &inode->i_dentry,
                            d_alias) {
-         int dcount = dentry->d_count;
+         int dcount = compat_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", dentry->d_name.name, dcount));
             return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
@@ -1943,11 +1954,7 @@ HgfsPermission(struct inode *inode,
       list_for_each(pos, &inode->i_dentry) {
          int dcount;
          struct dentry *dentry = list_entry(pos, struct dentry, d_alias);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 38)
-         dcount = atomic_read(&dentry->d_count);
-#else
-         dcount = dentry->d_count;
-#endif
+         dcount = compat_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", (dentry)->d_name.name, dcount));
             return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));

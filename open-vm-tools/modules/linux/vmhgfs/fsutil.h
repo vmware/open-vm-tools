@@ -32,6 +32,7 @@
 #include <linux/signal.h>
 #include "compat_fs.h"
 
+#include "module.h"                /* For kuid_t kgid_t types. */
 #include "inode.h"
 #include "request.h"
 #include "vm_basic_types.h"
@@ -73,6 +74,8 @@ int HgfsPrivateGetattr(struct dentry *dentry,
 struct inode *HgfsIget(struct super_block *sb,
                        ino_t ino,
                        HgfsAttrInfo const *attr);
+int HgfsInstantiateRoot(struct super_block *sb,
+                        struct dentry **rootDentry);
 int HgfsInstantiate(struct dentry *dentry,
                     ino_t ino,
                     HgfsAttrInfo const *attr);
@@ -82,7 +85,6 @@ int HgfsBuildPath(char *buffer,
 void HgfsDentryAgeReset(struct dentry *dentry);
 void HgfsDentryAgeForce(struct dentry *dentry);
 int HgfsGetOpenMode(uint32 flags);
-int HgfsGetOpenFlags(uint32 flags);
 int HgfsCreateFileInfo(struct file *file,
                        HgfsHandle handle);
 void HgfsReleaseFileInfo(struct file *file);
@@ -92,8 +94,8 @@ int HgfsGetHandle(struct inode *inode,
 int HgfsStatusConvertToLinux(HgfsStatus hgfsStatus);
 void HgfsSetUidGid(struct inode *parent,
                    struct dentry *dentry,
-                   uid_t uid,
-                   gid_t gid);
+                   kuid_t uid,
+                   kgid_t gid);
 struct inode *HgfsGetInode(struct super_block *sb, ino_t ino);
 void HgfsDoReadInode(struct inode *inode);
 

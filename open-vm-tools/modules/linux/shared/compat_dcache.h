@@ -48,4 +48,15 @@
 })
 #endif
 
+/*
+ * d_count field was removed in 3.11.0.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)
+#define compat_d_count(dentry) d_count(dentry)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+#define compat_d_count(dentry) dentry->d_count
+#else
+#define compat_d_count(dentry) atomic_read(&dentry->d_count);
+#endif
+
 #endif /* __COMPAT_DCACHE_H__ */
