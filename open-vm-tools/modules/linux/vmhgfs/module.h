@@ -147,6 +147,13 @@ typedef struct HgfsInodeInfo {
    /* Is this a fake inode created in HgfsCreate that has yet to be opened? */
    Bool createdAndUnopened;
 
+   /*
+    * The number of write back pages to the file which is tracked so any
+    * concurrent file validations such as reads will not invalidate the cache.
+    */
+   unsigned long numWbPages;
+   struct list_head listWbPages;
+
    /* Is this inode referenced by HGFS? (needed by HgfsInodeLookup()) */
    Bool isReferencedInode;
 
@@ -176,6 +183,9 @@ typedef struct HgfsFileInfo {
     * for directories.
     */
    Bool isStale;
+
+   /* Directory read position for tracking. */
+   loff_t direntPos;
 
 } HgfsFileInfo;
 
