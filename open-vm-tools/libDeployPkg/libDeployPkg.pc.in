@@ -1,0 +1,12 @@
+# VMware libDeployPkg pkgconfig data.
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name:          VMware DeployPkg library
+Description:   Library for unpacking and executing VMware Guest Customization package.
+Version:       @VERSION@
+Libs:          -L${libdir} -lDeployPkg
+Cflags:        -I${includedir}/deployPkg

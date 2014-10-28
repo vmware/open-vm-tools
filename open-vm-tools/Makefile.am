@@ -32,6 +32,9 @@ if BUILD_HGFSMOUNTER
 endif
 SUBDIRS += checkvm
 SUBDIRS += libguestlib
+if ENABLE_DEPLOYPKG
+   SUBDIRS += libDeployPkg
+endif
 SUBDIRS += rpctool
 SUBDIRS += scripts
 SUBDIRS += services

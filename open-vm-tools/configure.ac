@@ -289,6 +289,24 @@ if test "$have_libintl" = "no"; then
                    [])
 fi
 
+AC_ARG_ENABLE([deploypkg],
+   [AS_HELP_STRING([--disable-deploypkg],
+   [do not build deploypkg plugin.])],
+   [],
+   [enable_deploypkg=yes])
+
+if test "$enable_deploypkg" = "yes"; then
+  AC_VMW_CHECK_LIB([mspack],
+                   [MSPACK],
+                   [libmspack],
+                   [],
+                   [0.0.20040308alpha],
+                   [mspack.h],
+                   [],
+                   [],
+                   [AC_MSG_ERROR([mspack >= 0.0.20040308alpha is required.])])
+fi
+
 #
 # Check for glib 2.6.0 or greater.
 #
@@ -1034,6 +1052,7 @@ AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "os" = "linux" -a "$have_glib_2_14" = "yes")
 AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")
+AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1196,6 +1215,7 @@ AC_CONFIG_FILES([                      \
    services/plugins/timeSync/Makefile  \
    services/plugins/vix/Makefile       \
    services/plugins/vmbackup/Makefile  \
+   services/plugins/deployPkg/Makefile  \
    vmware-user-suid-wrapper/Makefile   \
    toolbox/Makefile                    \
    hgfsclient/Makefile                 \
@@ -1204,6 +1224,8 @@ AC_CONFIG_FILES([                      \
    rpctool/Makefile                    \
    libguestlib/Makefile                \
    libguestlib/vmguestlib.pc           \
+   libDeployPkg/Makefile               \
+   libDeployPkg/libDeployPkg.pc        \
    libhgfs/Makefile                    \
    libvmtools/Makefile                 \
    xferlogs/Makefile                   \

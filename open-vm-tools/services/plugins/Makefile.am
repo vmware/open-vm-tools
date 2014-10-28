@@ -25,6 +25,9 @@ endif
 SUBDIRS += guestInfo
 SUBDIRS += hgfsServer
 SUBDIRS += powerOps
+if ENABLE_DEPLOYPKG
+   SUBDIRS += deployPkg
+endif
 if HAVE_X11
    SUBDIRS += resolutionSet
 endif
