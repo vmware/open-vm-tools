@@ -1,6 +1,6 @@
 
 /*********************************************************
- * Copyright (C) 2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +45,7 @@
 #define RAMDISK_DIR_NAME                "ramdisk"
 #define SVM_DIR_NAME                    "svm"
 #define VFLASH_DIR_NAME                 "vflash"
+#define VDFM_DIR_NAME                   "vdfm"
 
 #define DEVFS_MOUNT_POINT               VMFS_ROOT_DIR_PATH DEVFS_DIR_NAME
 #define VCFS_MOUNT_POINT                VMFS_ROOT_DIR_PATH VCFS_DIR_NAME
@@ -69,6 +70,9 @@
 
 #define VFLASH_MOUNT_POINT              DEVFS_MOUNT_PATH VFLASH_DIR_NAME
 #define VFLASH_MOUNT_PATH               VFLASH_MOUNT_POINT "/"
+
+#define VDFM_MOUNT_POINT                DEVFS_MOUNT_PATH VDFM_DIR_NAME
+#define VDFM_MOUNT_PATH                 VDFM_MOUNT_POINT "/"
 
 #define CDROM_DRIVER_STRING             "cdrom"
 #define SCSI_DISK_DRIVER_STRING         "disks"

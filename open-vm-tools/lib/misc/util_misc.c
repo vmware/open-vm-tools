@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,10 +46,17 @@
 #  endif
 #  include <unistd.h>
 #  include <pwd.h>
+#  include <sys/socket.h>    // for AF_INET[6]
+#  include <arpa/inet.h>     // for inet_pton
+#  include <netinet/in.h>    // for INET6_ADDRSTRLEN
 #endif
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <pthread.h>
+#endif
+
+#if defined(__APPLE__)
+#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 #include "vmware.h"
@@ -65,6 +72,10 @@
 #include "win32u.h"
 #include "win32util.h"
 #endif
+#if defined(__APPLE__)
+#include "utilMacos.h"
+#endif
+
 /*
  * ESX with userworld VMX
  */
@@ -374,7 +385,7 @@ Util_GetPrime(unsigned n0)  // IN:
     * There is no 32-bit prime larger than 4294967291.
     */
 
-   ASSERT_NOT_IMPLEMENTED(n0 <= 4294967291U);
+   VERIFY(n0 <= 4294967291U);
    if (n0 <= 2) {
       return 2;
    }
@@ -947,3 +958,309 @@ Util_OverrideHomeDir(const char *path) // IN
    ASSERT(!gHomeDirOverride);
    gHomeDirOverride = Util_SafeStrdup(path);
 }
+
+
+#if defined(__APPLE__)
+
+/*
+ * XXX TODO: move these to utilMacos.c after it gets split up to avoid
+ * dependencies on IOKit and DiskArbitration.
+ */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_CFStringToUTF8CString --
+ *
+ *      Convert a CFString into a UTF-8 encoded C string.
+ *
+ *      Amazingly, CFString does not provide this functionality, so everybody
+ *      (including Apple, see smb-217.18/lib/smb/charsets.c in darwinsource)
+ *      ends up re-implementing it this way...
+ *
+ * Results:
+ *      On success: Allocated, UTF8-encoded, NUL-terminated string.
+ *      On failure: NULL.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Util_CFStringToUTF8CString(CFStringRef s) // IN
+{
+   static CFStringEncoding const encoding = kCFStringEncodingUTF8;
+   char const *fast;
+   char *result;
+
+   ASSERT(s);
+
+   fast = CFStringGetCStringPtr(s, encoding);
+   if (fast) {
+      result = strdup(fast);
+   } else {
+      size_t maxSize;
+
+      maxSize = CFStringGetMaximumSizeForEncoding(CFStringGetLength(s),
+                                                  encoding) + 1;
+      result = malloc(maxSize);
+      if (result) {
+         if (CFStringGetCString(s, result, maxSize, encoding)) {
+            /*
+             * It is likely that less than 'maxSize' bytes have actually been
+             * written into 'result'. If that becomes a problem in the future,
+             * we can always trim the buffer here.
+             */
+         } else {
+            free(result);
+            result = NULL;
+         }
+      }
+   }
+
+   if (!result) {
+      Log("Failed to get C string from CFString.\n");
+   }
+
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilMacos_CreateCFDictionaryWithContentsOfFile --
+ *
+ *      Creates and returns a dictionary with the contents of the specified
+ *      property list file. The file can be either XML or binary.
+ *
+ *      This is equivalent to +[NSDictionary dictionaryWithContentsOfFile:],
+ *      unfortunately Apple did not provide a similar CoreFoundation function.
+ *
+ * Results:
+ *      Dictionary with contents of the property list file, or NULL on failure.
+ *      Caller must release the dictionary with CFRelease.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+CFDictionaryRef
+UtilMacos_CreateCFDictionaryWithContentsOfFile(const char *path) // IN
+{
+   struct stat s;
+   CFURLRef url;
+   CFReadStreamRef stream = NULL;
+   CFPropertyListRef plist = NULL;
+   CFPropertyListFormat unusedFormat;
+   CFDictionaryRef result = NULL;
+
+   /*
+    * Avoid creating the unnecessary CFURL and CFReadStream objects if the
+    * file does not exist. Trying to read a non-existent file will only
+    * fail in CFReadStreamOpen().
+    */
+   if (Posix_Stat(path, &s) != 0) {
+      return NULL;
+   }
+
+   url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
+                                                 (const UInt8 *)path,
+                                                 strlen(path),
+                                                 false);
+   if (   url != NULL
+       && (stream = CFReadStreamCreateWithFile(kCFAllocatorDefault, url))
+       && CFReadStreamOpen(stream)
+       && (plist = CFPropertyListCreateFromStream(kCFAllocatorDefault,
+                                                  stream,
+                                                  0,
+                                                  kCFPropertyListImmutable,
+                                                  &unusedFormat,
+                                                  NULL))
+       && (CFGetTypeID(plist) == CFDictionaryGetTypeID())) {
+      result = (CFDictionaryRef)plist;
+      plist = NULL;
+   }
+
+   if (plist) {
+      CFRelease(plist);
+   }
+
+   if (stream) {
+      CFReadStreamClose(stream);
+      CFRelease(stream);
+   }
+
+   if (url) {
+      CFRelease(url);
+   }
+
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilMacos_ReadSystemVersion --
+ *
+ *      Reads the Mac OS system version from the provided dictionary, and
+ *      returns one or more of the requested values.
+ *
+ * Results:
+ *      TRUE if the all the values were read successfully, or FALSE on failure.
+ *      Caller must free the values.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+UtilMacos_ReadSystemVersion(CFDictionaryRef versionDict, // IN
+                            char **productName,          // OUT/OPT
+                            char **productVersion,       // OUT/OPT
+                            char **productBuildVersion)  // OUT/OPT
+{
+   struct {
+      const CFStringRef key;
+      char **outValue;
+   } keyedValues[] = {
+      { CFSTR("ProductName"),         productName         },
+      { CFSTR("ProductVersion"),      productVersion      },
+      { CFSTR("ProductBuildVersion"), productBuildVersion },
+   };
+   int i;
+
+   for (i = 0; i < ARRAYSIZE(keyedValues); i++) {
+      CFStringRef curVal;
+
+      if (keyedValues[i].outValue == NULL) {
+         continue;
+      }
+
+      curVal = CFDictionaryGetValue(versionDict, keyedValues[i].key);
+      if (   curVal != NULL
+          && CFGetTypeID(curVal) == CFStringGetTypeID()
+          && (*keyedValues[i].outValue = Util_CFStringToUTF8CString(curVal))) {
+         continue;
+      }
+
+      /*
+       * Error retrieving one of the values. Clean up any previously saved
+       * values and return with failure.
+       */
+      while (--i >= 0) {
+         if (keyedValues[i].outValue != NULL) {
+            free(*keyedValues[i].outValue);
+            *keyedValues[i].outValue = NULL;
+         }
+      }
+
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+#endif // defined(__APPLE__)
+
+/*
+ * These are generic functions which might be useful on any platform
+ * (ESX/Linux/BSD/Apple/Windows). Currently the Windows version have
+ * not been defined as that is not very straightforward and I do not
+ * know how to fully test it. f.e  we have to handle char* to wchar_t*
+ * conversion, also it appears to cause linking problems for some Windows
+ * tools.
+ * If you want to use these for Windows, please feel free to fix these
+ * and remove the ifdef macro below and in util.h.
+ */
+
+#if !defined(_WIN32)
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_IPv4AddrValid --
+ *
+ * Results:
+ *      TRUE if the passed-in string represents a valid IPv4 address in
+ *      dotted decimal notation, FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Util_IPv4AddrValid(const char *addr)  // IN: IPv4 address string
+{
+   struct in_addr dummyInAddr;
+
+   return inet_pton(AF_INET, addr, &dummyInAddr) == 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_IPv6AddrValid --
+ *
+ * Results:
+ *      TRUE if the passed-in string represents a valid IPv6 address,
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Util_IPv6AddrValid(const char *addr)  // IN: IPv6 address string
+{
+   struct in6_addr dummyInAddr;
+   char   ipv6AddrStr[INET6_ADDRSTRLEN + 1];
+
+   /*
+    * IPv6 link-local addresses can have a suffix of the form
+    * %{ifname}, e.g. %vmk0, %eth0.
+    * We cannot pass it as-is to inet_pton(), need to strip off the
+    * suffix before passing to inet_pton().
+    */
+   if (sscanf(addr, "%"XSTR(INET6_ADDRSTRLEN)"[^%]",
+              ipv6AddrStr) != 1) {
+      return FALSE;
+   }
+   return inet_pton(AF_INET6, ipv6AddrStr, &dummyInAddr) == 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_IPAddrValid --
+ *
+ * Results:
+ *      TRUE if the passed-in string represents a valid IPv4 or IPv6 address,
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Util_IPAddrValid(const char *addr)  // IN: IPv4 or IPv6 address string
+{
+   return Util_IPv4AddrValid(addr) || Util_IPv6AddrValid(addr);
+}
+
+#endif   /* ! _WIN32 */

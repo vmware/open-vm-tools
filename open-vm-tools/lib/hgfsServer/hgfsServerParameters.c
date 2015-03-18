@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -288,7 +288,7 @@ HgfsUnpackHeaderV3(const HgfsRequest *request,  // IN: request header
  *
  * Results:
  *    HGFS_ERROR_SUCCESS if successful or
- *    HGFS_ERROR_INTERNAL for a malformed request, and we cannot trust the data.
+ *    HGFS_ERROR_PROTOCOL for a malformed request, and we cannot trust the data.
  *
  * Side effects:
  *    None.
@@ -312,7 +312,7 @@ HgfsUnpackHeaderV4(const HgfsHeader *requestHeader,   // IN: request header
    if (requestSize < sizeof *requestHeader) {
       LOG(4, ("%s: Malformed HGFS packet received - header is too small!\n",
               __FUNCTION__));
-      status = HGFS_ERROR_INTERNAL;
+      status = HGFS_ERROR_PROTOCOL;
       goto exit;
    }
 
@@ -320,14 +320,14 @@ HgfsUnpackHeaderV4(const HgfsHeader *requestHeader,   // IN: request header
        requestHeader->packetSize < requestHeader->headerSize) {
       LOG(4, ("%s: Malformed HGFS packet received - inconsistent header"
               " and packet sizes!\n", __FUNCTION__));
-      status = HGFS_ERROR_INTERNAL;
+      status = HGFS_ERROR_PROTOCOL;
       goto exit;
    }
 
    if (HGFS_HEADER_VERSION_1 > requestHeader->version) {
       LOG(4, ("%s: Malformed HGFS packet received - invalid header version!\n",
               __FUNCTION__));
-      status = HGFS_ERROR_INTERNAL;
+      status = HGFS_ERROR_PROTOCOL;
       goto exit;
    }
 
@@ -337,8 +337,20 @@ HgfsUnpackHeaderV4(const HgfsHeader *requestHeader,   // IN: request header
    *sessionId   = requestHeader->sessionId;
    *requestId   = requestHeader->requestId;
    *opcode      = requestHeader->op;
-   *hdrFlags    = requestHeader->flags;
-   *information = requestHeader->information;
+
+   /*
+    * For version 1 of the header the file copy client did not ensure
+    * the following fields (and reserved fields) were set and thus can
+    * contain garbage.
+    * For this reason, we just zero out these fields for this header version.
+    */
+   if (HGFS_HEADER_VERSION_1 == requestHeader->version) {
+      *hdrFlags    = 0;
+      *information = 0;
+   } else {
+      *hdrFlags    = requestHeader->flags;
+      *information = requestHeader->information;
+   }
 
    *payloadSize = requestHeader->packetSize - requestHeader->headerSize;
    if (0 < *payloadSize) {
@@ -397,7 +409,8 @@ HgfsUnpackPacketParams(const void *packet,      // IN: HGFS packet
     * We cannot continue any further with this packet.
     */
    if (packetSize < sizeof *request) {
-      ASSERT_DEVEL(0);
+      LOG(4, ("%s: Received a request with opcode %"FMTSZ"u.\n",
+              __FUNCTION__, packetSize));
       unpackStatus = HGFS_ERROR_INTERNAL;
       goto exit;
    }
@@ -436,9 +449,15 @@ HgfsUnpackPacketParams(const void *packet,      // IN: HGFS packet
                                         payloadSize,
                                         payload);
 
-      /* XXX - TBD analyze flags and information. */
-      ASSERT(0 == hdrFlags ||
-             0 != (hdrFlags & (HGFS_PACKET_FLAG_REQUEST | HGFS_PACKET_FLAG_REPLY)));
+      /*
+       * Test if the client sent invalid flags (and information in future cases).
+       * Note, a basic sanitation was done in the unpack header itself, only V2
+       * or newer allowed to pass meaningful values through.
+       */
+      if (0 != hdrFlags &&
+          0 == (hdrFlags & (HGFS_PACKET_FLAG_REQUEST | HGFS_PACKET_FLAG_REPLY))) {
+         unpackStatus = HGFS_ERROR_PROTOCOL;
+      }
 
    } else {
       LOG(4, ("%s: HGFS packet - unknown opcode == newer client or malformed!\n",

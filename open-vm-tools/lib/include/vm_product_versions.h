@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,7 +34,7 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_DESKTOP)
-   #define PRODUCT_VERSION    9,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    10,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VCB)
@@ -49,7 +49,7 @@
 #elif defined(VMX86_VIEW)
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
-   #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    6,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
 #endif
 
 /*
@@ -136,8 +136,6 @@
 #define ESX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
 #define VMSERVER_VERSION "e.x.p"
-#define WORKSTATION_VERSION_NUMBER "9.0.0" /* this version number should always match real WS version number */
-#define WORKSTATION_VERSION "e.x.p"
 #define WORKSTATION_RELEASE_DESCRIPTION ""
 #define WORKSTATION_ENTERPRISE_VERSION "e.x.p"
 #define WSX_SERVER_VERSION_NUMBER "1.0.0"
@@ -147,7 +145,16 @@
 #define CONSOLE_VERSION "4.1.0"
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
-#define PLAYER_VERSION_NUMBER "5.0.0" /* this version number should always match real Player version number */
+
+/*
+ * HEADS UP:  Don't merge patch version bumps (e.g. x.y.0 -> x.y.1) to CBS
+ * branches (*-main), 'cuz it breaks stuff in VIX land.  See bug 939456.
+ *
+ * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
+ */
+#define WORKSTATION_VERSION_NUMBER "10.0.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION "e.x.p"
+#define PLAYER_VERSION_NUMBER "6.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
 
 /*
@@ -184,8 +191,8 @@
 #define SSO_VERSION "1.0.0"
 #define WBC_VERSION "5.1.0"
 #define SDK_VERSION "4.1.0"
-#define FOUNDRY_VERSION "1.12.0"
-#define FOUNDRY_FILE_VERSION 1,12,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define FOUNDRY_VERSION "1.13.0"
+#define FOUNDRY_FILE_VERSION 1,13,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
 #define VLICENSE_VERSION "1.1.5"
 #define DDK_VERSION "e.x.p"
@@ -198,8 +205,9 @@
 #define NETDUMP_FILE_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VDDK_VERSION          "6.0.0"
 #define VDDK_FILE_VERSION      6,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define OVFTOOL_VERSION "e.x.p"
-#define OVFTOOL_FILE_VERSION 3,0,1,PRODUCT_BUILD_NUMBER_NUMERIC
+#define OVFTOOL_VERSION "4.1.0"
+#define VCSA_INSTALLER_VERSION "1.0.0"
+#define OVFTOOL_FILE_VERSION 4,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VDM_CLIENT_VERSION "e.x.p"
 #define VGAUTH_VERSION "e.x.p"
 #define VIEWY_VERSION "e.x.p"
@@ -210,7 +218,10 @@
 #define RECOVERYLIBS_VERSION "2.0.0"
 #define PRECHECK_VERSION "e.x.p"
 #define VIEW_FEATUREPACK_VERSION "5.2.0"
+#define VIEW_CLIENT_VERSION_NUMBER "2.3.0"
+#define VIEW_CLIENT_VERSION "e.x.p"
 #define VHSESDK_VERSION "1.0.0"
+#define RDE_RFT_ALL_VERSION "2.3.0"
 
 
 #ifndef MAKESTR
@@ -352,7 +363,7 @@
 #    endif
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "6.0"
-#    define PRODUCT_LICENSE_FILE_VERSION "6.0.0.0"
+#    define PRODUCT_LICENSE_FILE_VERSION "6.0.0.3"
 #  elif defined(VMX86_WBC)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_SDK)
@@ -387,30 +398,35 @@
  * format or to the meaning of settings.  When we do this,
  * we must also add code that detects the change and can
  * convert an old config file to a new one.
+ *
+ * In practice, config.version is no longer modified. Instead
+ * we avoid making incompatible changes to the config file
+ * format and the meaning of an individual setting is never
+ * changed.
  */
 
-#define CONFIG_VERSION_VARIABLE		"config.version"
+#define CONFIG_VERSION_VARIABLE         "config.version"
 
 /*
  * PREF_VERSION_VARIABLE somehow cannot be written through Dictionary_Write
  * (there is a bug after the first reload). So it's not used.
  */
-/* #define PREF_VERSION_VARIABLE		"preferences.version"*/
+/* #define PREF_VERSION_VARIABLE        "preferences.version"*/
 
-#define CONFIG_VERSION_DEFAULT		"1"	/* if no version in file*/
-#define CONFIG_VERSION                  "8"
+#define CONFIG_VERSION_DEFAULT          1    /* if no version in file*/
+#define CONFIG_VERSION                  8
 
-#define CONFIG_VERSION_UNIFIEDSVGAME	"3"	/* Merged (S)VGA for WinME*/
-#define CONFIG_VERSION_UNIFIEDSVGA	"4"	/* Merged (S)VGA enabled.  -J.*/
-#define CONFIG_VERSION_440BX		"5"	/* 440bx becomes default */
-#define CONFIG_VERSION_NEWMACSTYLE	"3"	/* ethernet?.oldMACStyle */
-#define CONFIG_VERSION_WS2              "2"     /* config version of WS2.0.x */
-#define CONFIG_VERSION_MIGRATION        "6"     /* migration work for WS3 */
-#define CONFIG_VERSION_ESX2             "6"     /* config version of ESX 2.x */
-#define CONFIG_VERSION_UNDOPOINT        "7"     /* Undopoint paradigm (WS40) */
-#define CONFIG_VERSION_WS4              "7"     /* config version of WS4.0.x */
-#define CONFIG_VERSION_MSNAP            "8"     /* Multiple Snapshots */
-#define CONFIG_VERSION_WS5              "8"     /* WS5.0 */
+#define CONFIG_VERSION_UNIFIEDSVGAME    3    /* Merged (S)VGA for WinME*/
+#define CONFIG_VERSION_UNIFIEDSVGA      4    /* Merged (S)VGA enabled.  -J.*/
+#define CONFIG_VERSION_440BX            5    /* 440bx becomes default */
+#define CONFIG_VERSION_NEWMACSTYLE      3    /* ethernet?.oldMACStyle */
+#define CONFIG_VERSION_WS2              2    /* config version of WS2.0.x */
+#define CONFIG_VERSION_MIGRATION        6    /* migration work for WS3 */
+#define CONFIG_VERSION_ESX2             6    /* config version of ESX 2.x */
+#define CONFIG_VERSION_UNDOPOINT        7    /* Undopoint paradigm (WS40) */
+#define CONFIG_VERSION_WS4              7    /* config version of WS4.0.x */
+#define CONFIG_VERSION_MSNAP            8    /* Multiple Snapshots */
+#define CONFIG_VERSION_WS5              8    /* WS5.0 */
 
 /*
  * Product version strings allows UIs to refer to a single place for specific

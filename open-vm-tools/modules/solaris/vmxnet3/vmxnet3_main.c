@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2014 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -36,9 +36,30 @@ static int       vmxnet3_multicst(void *, boolean_t, const uint8_t *);
 static int       vmxnet3_unicst(void *, const uint8_t *);
 static boolean_t vmxnet3_getcapab(void *, mac_capab_t, void *);
 
+#ifdef SOL11
+static int       vmxnet3_get_prop(void *,
+				const char *,
+				mac_prop_id_t,
+				uint_t,
+				void *);
+static int       vmxnet3_set_prop(void *,
+				const char *,
+				mac_prop_id_t,
+				uint_t,
+				const void *);
+static void      vmxnet3_prop_info(void *,
+				const char *,
+				mac_prop_id_t,
+				mac_prop_info_handle_t);
+#endif
+
 /* MAC callbacks */
 static mac_callbacks_t vmxnet3_mac_callbacks = {
+#ifdef SOL11
+   .mc_callbacks = MC_GETCAPAB | MC_IOCTL | MC_GETPROP | MC_SETPROP | MC_PROPINFO,
+#else
    .mc_callbacks = MC_GETCAPAB | MC_IOCTL,
+#endif
    .mc_getstat = vmxnet3_getstat,
    .mc_start = vmxnet3_start,
    .mc_stop = vmxnet3_stop,
@@ -46,6 +67,11 @@ static mac_callbacks_t vmxnet3_mac_callbacks = {
    .mc_multicst = vmxnet3_multicst,
    .mc_unicst = vmxnet3_unicst,
    .mc_tx = vmxnet3_tx,
+#ifdef SOL11
+   .mc_getprop = vmxnet3_get_prop,
+   .mc_setprop = vmxnet3_set_prop,
+   .mc_propinfo = vmxnet3_prop_info,
+#endif
 #ifndef OPEN_SOLARIS
 #ifndef SOL11
    .mc_resources = NULL,
@@ -977,12 +1003,15 @@ vmxnet3_change_mtu(vmxnet3_softc_t *dp, uint32_t new_mtu)
       VMXNET3_WARN(dp, "New MTU not in valid range [%d, %d].\n",
                    VMXNET3_MIN_MTU, VMXNET3_MAX_MTU);
       return EINVAL;
-   } else if (new_mtu > ETHERMTU && !dp->allow_jumbo) {
+   }
 
+#if defined(SOL9) || defined (SOL10) || defined (OPEN_SOLARIS)
+   if (new_mtu > ETHERMTU && !dp->allow_jumbo) {
       VMXNET3_WARN(dp, "MTU cannot be greater than %d because accept-jumbo "
                    "is not enabled.\n", ETHERMTU);
       return EINVAL;
    }
+#endif
 
    if (dp->devEnabled) {
       do_reset = 1;
@@ -991,7 +1020,8 @@ vmxnet3_change_mtu(vmxnet3_softc_t *dp, uint32_t new_mtu)
    }
 
    dp->cur_mtu = new_mtu;
-#if defined (SOL11) || defined (OPEN_SOLARIS)
+
+#ifdef OPEN_SOLARIS
    mac_maxsdu_update(dp->mac, new_mtu);
 #endif
 
@@ -1158,6 +1188,80 @@ vmxnet3_getcapab(void *data, mac_capab_t capab, void *arg)
 
    return ret;
 }
+
+#ifdef SOL11
+static int
+vmxnet3_get_prop(void *data,
+		const char *prop_name,
+		mac_prop_id_t prop_id,
+		uint_t prop_val_size,
+		void *prop_val)
+{
+   vmxnet3_softc_t *dp = data;
+   int ret = 0;
+
+   switch (prop_id) {
+      case MAC_PROP_MTU: {
+         ASSERT(prop_val_size >= sizeof (uint32_t));
+         bcopy(&dp->cur_mtu, prop_val, sizeof (uint32_t));
+         break;
+      }
+      default: {
+         VMXNET3_WARN(dp, "vmxnet3_get_prop property %d not supported", prop_id);
+         ret = ENOTSUP;
+      }
+   }
+   return (0);
+}
+
+
+static int
+vmxnet3_set_prop(void *data,
+		const char *prop_name,
+		mac_prop_id_t prop_id,
+		uint_t prop_val_size,
+		const void *prop_val)
+{
+   vmxnet3_softc_t *dp = data;
+   int ret;
+
+   switch (prop_id) {
+      case MAC_PROP_MTU: {
+         uint32_t new_mtu;
+         ASSERT(prop_val_size >= sizeof (uint32_t));
+         bcopy(prop_val, &new_mtu, sizeof (new_mtu));
+         ret = vmxnet3_change_mtu(dp, new_mtu);
+         break;
+      }
+      default: {
+         VMXNET3_WARN(dp, "vmxnet3_set_prop property %d not supported", prop_id);
+         ret = ENOTSUP;
+      }
+   }
+
+   return ret;
+}
+
+
+static void
+vmxnet3_prop_info(void *data,
+		const char *prop_name,
+		mac_prop_id_t prop_id,
+		mac_prop_info_handle_t prop_handle)
+{
+   vmxnet3_softc_t *dp = data;
+
+   switch (prop_id) {
+      case MAC_PROP_MTU: {
+         mac_prop_info_set_range_uint32(prop_handle, VMXNET3_MIN_MTU, VMXNET3_MAX_MTU);
+         break;
+      }
+      default: {
+         VMXNET3_WARN(dp, "vmxnet3_prop_info: property %d not supported", prop_id);
+      }
+  }
+}
+#endif
 
 
 /*
@@ -1636,7 +1740,7 @@ vmxnet3_detach(dev_info_t *dip, ddi_detach_cmd_t cmd)
  * Structures used by the Solaris module loader
  */
 
-#define VMXNET3_IDENT "VMware EtherAdapter v3 b" BUILD_NUMBER_NUMERIC_STRING
+#define VMXNET3_IDENT "VMware EtherAdapter v3 " VMXNET3_DRIVER_VERSION_STRING
 
 COMPAT_DDI_DEFINE_STREAM_OPS(vmxnet3_dev_ops,
                              nulldev,

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -33,6 +33,7 @@
 #include <linux/highmem.h>
 
 #include "compat_cred.h"
+#include "compat_dcache.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
 #include "compat_mm.h"
@@ -49,6 +50,23 @@
 #include "request.h"
 #include "fsutil.h"
 #include "vm_assert.h"
+
+
+#if defined VMW_DCOUNT_311 || LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)
+/*
+ * Linux Kernel versions that are version 3.11 version and newer or are compatible
+ * by having the d_count function replacement backported.
+ */
+#define hgfs_d_count(dentry) d_count(dentry)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+/*
+ * Kernel versions that are not 3.11 version compatible or are just older will
+ * use the d_count field.
+ */
+#define hgfs_d_count(dentry) dentry->d_count
+#else
+#define hgfs_d_count(dentry) atomic_read(&dentry->d_count)
+#endif
 
 /* Private functions. */
 static int HgfsDelete(struct inode *dir,
@@ -429,6 +447,8 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
    size_t reqBufferSize;
    size_t reqSize;
    int result = 0;
+   uid_t attrUid = -1;
+   gid_t attrGid = -1;
 
    ASSERT(iattr);
    ASSERT(dentry);
@@ -436,6 +456,14 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
    ASSERT(changed);
 
    valid = iattr->ia_valid;
+
+   if (valid & ATTR_UID) {
+      attrUid = from_kuid(&init_user_ns, iattr->ia_uid);
+   }
+
+   if (valid & ATTR_GID) {
+      attrGid = from_kgid(&init_user_ns, iattr->ia_gid);
+   }
 
    switch (opUsed) {
    case HGFS_OP_SETATTR_V3: {
@@ -513,13 +541,13 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
       if (valid & ATTR_UID) {
          attrV2->mask |= HGFS_ATTR_VALID_USERID;
-         attrV2->userId = iattr->ia_uid;
+         attrV2->userId = attrUid;
          *changed = TRUE;
       }
 
       if (valid & ATTR_GID) {
          attrV2->mask |= HGFS_ATTR_VALID_GROUPID;
-         attrV2->groupId = iattr->ia_gid;
+         attrV2->groupId = attrGid;
          *changed = TRUE;
       }
 
@@ -616,13 +644,13 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
       if (valid & ATTR_UID) {
          attrV2->mask |= HGFS_ATTR_VALID_USERID;
-         attrV2->userId = iattr->ia_uid;
+         attrV2->userId = attrUid;
          *changed = TRUE;
       }
 
       if (valid & ATTR_GID) {
          attrV2->mask |= HGFS_ATTR_VALID_GROUPID;
-         attrV2->groupId = iattr->ia_gid;
+         attrV2->groupId = attrGid;
          *changed = TRUE;
       }
 
@@ -1890,7 +1918,7 @@ HgfsPermission(struct inode *inode,
 #endif
                            &inode->i_dentry,
                            d_alias) {
-         int dcount = dentry->d_count;
+         int dcount = hgfs_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", dentry->d_name.name, dcount));
             return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
@@ -1943,11 +1971,7 @@ HgfsPermission(struct inode *inode,
       list_for_each(pos, &inode->i_dentry) {
          int dcount;
          struct dentry *dentry = list_entry(pos, struct dentry, d_alias);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 38)
-         dcount = atomic_read(&dentry->d_count);
-#else
-         dcount = dentry->d_count;
-#endif
+         dcount = hgfs_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", (dentry)->d_name.name, dcount));
             return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));

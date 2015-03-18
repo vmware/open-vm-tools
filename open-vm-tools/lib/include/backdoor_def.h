@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -144,6 +144,7 @@
 #  define BDOOR_CMD_FAS_GET_APIC_ROUTING      4
 #  define BDOOR_CMD_FAS_GET_TABLE_SKIP        5
 #  define BDOOR_CMD_FAS_GET_SLEEP_ENABLES     6
+#  define BDOOR_CMD_FAS_GET_HARD_RESET_ENABLE 7
 #define   BDOOR_CMD_SENDPSHAREHINTS          66
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
@@ -159,9 +160,10 @@
 #  define BDOOR_CMD_FE_EXCEPTION              1
 #define   BDOOR_CMD_VMK_INFO                 72
 #define   BDOOR_CMD_EFI_BOOT_CONFIG          73 /* CPL 0 only. */
-#  define BDOOR_CMD_EBC_LEGACYBOOT_ENABLED    0
-#  define BDOOR_CMD_EBC_GET_ORDER             1
-#  define BDOOR_CMD_EBC_SHELL_ACTIVE          2
+#  define BDOOR_CMD_EBC_LEGACYBOOT_ENABLED        0
+#  define BDOOR_CMD_EBC_GET_ORDER                 1
+#  define BDOOR_CMD_EBC_SHELL_ACTIVE              2
+#  define BDOOR_CMD_EBC_GET_NETWORK_BOOT_PROTOCOL 3
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_SVGA_CAPABILITIES    75 /* CPL 0 only. */
 #define	  BDOOR_CMD_GET_FORCE_X2APIC         76 /* CPL 0 only  */
@@ -169,7 +171,8 @@
 #define   BDOOR_CMD_GET_PCI_HOLE             78 /* CPL 0 only  */
 #define   BDOOR_CMD_GET_PCI_BAR              79 /* CPL 0 only  */
 #define   BDOOR_CMD_SHOULD_GENERATE_SYSTEMID 80 /* CPL 0 only  */
-#define   BDOOR_CMD_MAX                      81
+#define   BDOOR_CMD_READ_DEBUG_FILE          81 /* Devel only. */
+#define   BDOOR_CMD_MAX                      82
 
 
 /* 
@@ -207,6 +210,10 @@
 #define EFI_BOOT_ORDER_TYPE_EFI           0x0
 #define EFI_BOOT_ORDER_TYPE_LEGACY        0x1
 #define EFI_BOOT_ORDER_TYPE_NONE          0xf
+
+#define BDOOR_NETWORK_BOOT_PROTOCOL_NONE  0x0
+#define BDOOR_NETWORK_BOOT_PROTOCOL_IPV4  0x1
+#define BDOOR_NETWORK_BOOT_PROTOCOL_IPV6  0x2
 
 /* High-bandwidth backdoor port. --hpreg */
 

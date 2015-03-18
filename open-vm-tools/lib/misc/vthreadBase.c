@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +19,7 @@
 /*
  * vthreadBase.c --
  *
- *	Base thread management functionality.  Does not care whether threads
+ *      Base thread management functionality.  Does not care whether threads
  *      are used or not.
  *
  *      For full thread management (e.g. creation/destruction), see lib/thread.
@@ -213,17 +213,17 @@ VThreadBaseInitKeyWork(Atomic_Int *key, void (*deletePtr)(void*))
 
 #if defined _WIN32
       newKey = TlsAlloc();
-      ASSERT_NOT_IMPLEMENTED(newKey != VTHREADBASE_INVALID_KEY);
+      VERIFY(newKey != VTHREADBASE_INVALID_KEY);
 #else
       Bool success = pthread_key_create(&newKey, deletePtr) == 0;
       if (success && newKey == 0) {
-         /* 
+         /*
           * Leak TLS key 0.  System libraries have a habit of destroying
           * it.  See bugs 702818 and 773420.
           */
          success = pthread_key_create(&newKey, deletePtr) == 0;
       }
-      ASSERT_NOT_IMPLEMENTED(success);
+      VERIFY(success);
 #endif
 
       if (Atomic_ReadIfEqualWrite(key, VTHREADBASE_INVALID_KEY, newKey) !=
@@ -634,7 +634,7 @@ VThreadBase_InitWithTLS(VThreadBaseData *base)  // IN: caller-managed storage
    }
    NO_ASYNC_SIGNALS_END;
    /* Try not to ASSERT while signals are blocked */
-   ASSERT_NOT_IMPLEMENTED(success);
+   VERIFY(success);
    ASSERT(!firstTime || (base == VThreadBaseGetBase()));
 
    if (firstTime) {
@@ -699,7 +699,7 @@ VThreadBaseSafeDeleteTLS(void *tlsData)
           * TLS slot.
           */
          success = VThreadBaseSetBase(&tmpData);
-         ASSERT_NOT_IMPLEMENTED(success);
+         VERIFY(success);
 
          if (vmx86_debug) {
             Log("Forgetting VThreadID %d (\"%s\").\n", data->id, data->name);
@@ -708,7 +708,7 @@ VThreadBaseSafeDeleteTLS(void *tlsData)
 
          success = VThreadBaseSetBase(NULL) &&
                    VThreadBaseSetID(VTHREAD_INVALID_ID);
-         ASSERT_NOT_IMPLEMENTED(success);
+         VERIFY(success);
       }
       Atomic_Dec(&vthreadBaseGlobals.numThreads);
    }
@@ -934,17 +934,17 @@ VThreadBaseSimpleNoID(void)
    if (!reused) {
       void *newKey;
 
-      newID = Atomic_FetchAndInc(&vthreadBaseGlobals.dynamicID);
+      newID = Atomic_ReadInc32(&vthreadBaseGlobals.dynamicID);
       /*
        * Detect VThreadID overflow (~0 is used as a sentinel).
        * Leave a space of ~10 IDs, since the increment and bounds-check
        * are not atomic.
        */
-      ASSERT_NOT_IMPLEMENTED(newID < VTHREAD_INVALID_ID - 10);
+      VERIFY(newID < VTHREAD_INVALID_ID - 10);
 
       newKey = (void *)(uintptr_t)newID;
       result = HashTable_Insert(ht, newKey, newNative);
-      ASSERT_NOT_IMPLEMENTED(result);
+      VERIFY(result);
    }
 
    /* ID picked.  Now do the important stuff. */
@@ -957,10 +957,6 @@ VThreadBaseSimpleNoID(void)
 
    if (vmx86_debug && reused) {
       Log("VThreadBase reused VThreadID %d.\n", newID);
-   }
-
-   if (Atomic_Read(&vthreadBaseGlobals.numThreads) > 1) {
-      LOG_ONCE(("VThreadBase detected multiple threads.\n"));
    }
 }
 

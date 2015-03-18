@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,6 +66,7 @@
 #include "localconfig.h"
 #include "hostType.h"
 #include "vmfs.h"
+#include "hashTable.h"
 
 #define LOGLEVEL_MODULE main
 #include "loglevel_user.h"
@@ -930,15 +931,15 @@ File_SetFilePermissions(ConstUnicode pathName,  // IN:
  *
  * FilePosixGetParent --
  *
- *      The input buffer is a canonical file path. Change it in place to the
- *      canonical file path of its parent directory.
+ *      The input buffer is a canonical path name. Change it in place to the
+ *      canonical path name of its parent directory.
  *
  *      Although this code is quite simple, we encapsulate it in a function
  *      because it is easy to get it wrong.
  *
  * Results:
- *      TRUE if the input buffer was (and remains) the root directory.
- *      FALSE if the input buffer was not the root directory and was changed in
+ *      TRUE  The input buffer was (and remains) the root directory.
+ *      FALSE The input buffer was not the root directory and was changed in
  *            place to its parent directory.
  *
  *      Example: "/foo/bar" -> "/foo" FALSE
@@ -957,6 +958,7 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
    Unicode pathName;
    Unicode baseName;
 
+   ASSERT(canPath);
    ASSERT(File_IsFullPath(*canPath));
 
    if (Unicode_Compare(*canPath, DIRSEPS) == 0) {
@@ -965,7 +967,6 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
 
    File_GetPathName(*canPath, &pathName, &baseName);
 
-   Unicode_Free(baseName);
    Unicode_Free(*canPath);
 
    if (Unicode_IsEmpty(pathName)) {
@@ -973,8 +974,15 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
       Unicode_Free(pathName);
       *canPath = Unicode_Duplicate("/");
    } else {
-      *canPath = pathName;
+      if (Unicode_IsEmpty(baseName)) {  // Directory
+         File_GetPathName(pathName, canPath, NULL);
+         Unicode_Free(pathName);
+      } else {                          // File
+         *canPath = pathName;
+      }
    }
+
+   Unicode_Free(baseName);
 
    return FALSE;
 }
@@ -985,9 +993,8 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
  *
  * File_GetParent --
  *
- *      The canPath is a canonical file path. Change it in place to the
- *      canonical file path of its parent directory. See FilePosixGetParent
- *      for more detail.
+ *      The input buffer is a canonical path name. Change it in place to the
+ *      canonical path name of its parent directory.
  *
  * Side effects:
  *      None
@@ -1585,6 +1592,21 @@ File_GetUniqueFileSystemID(char const *path)  // IN: File path
 
    existPath = FilePosixNearestExistingAncestor(path);
    canPath = Posix_RealPath(existPath);
+
+   /*
+    * Returns "/vmfs/devices" for DEVFS. Since /vmfs/devices is symbol linker,
+    * We don't use realpath here.
+    */
+   if (strncmp(existPath, DEVFS_MOUNT_POINT, strlen(DEVFS_MOUNT_POINT)) == 0) {
+      char devfsName[FILE_MAXPATH];
+
+      if (sscanf(existPath, DEVFS_MOUNT_PATH "%[^/]%*s", devfsName) == 1) {
+         free(existPath);
+         free(canPath);
+         return Str_SafeAsprintf(NULL, "%s/%s", DEVFS_MOUNT_POINT, devfsName);
+      }
+   }
+
    free(existPath);
 
    if (canPath == NULL) {
@@ -2724,10 +2746,32 @@ FileCreateDirectory(ConstUnicode pathName,  // IN:
  *      The caller may trim it with realloc() if it cares.
  *
  *      A file name that cannot be represented in the default encoding
- *      will appear as a string of three UTF8 sustitution characters.
+ *      will appear as a string of three UTF8 substitution characters.
  *
  *----------------------------------------------------------------------
  */
+
+static int
+FileKeyDispose(const char *key,   // IN:
+               void *value,       // IN:
+               void *clientData)  // IN:
+{
+   Unicode_Free((void *) key);
+
+   return 0;
+}
+
+static int
+FileUnique(const char *key,   // IN:
+           void *value,       // IN:
+           void *clientData)  // IN/OUT: a DynBuf
+{
+   DynBuf *b = clientData;
+
+   DynBuf_Append(b, &key, sizeof key);
+
+   return 0;
+}
 
 int
 File_ListDirectory(ConstUnicode pathName,  // IN:
@@ -2735,19 +2779,19 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
 {
    int err;
    DIR *dir;
-   DynBuf b;
    int count;
+   HashTable *hash;
 
    ASSERT(pathName != NULL);
 
    dir = Posix_OpenDir(pathName);
 
-   if (dir == (DIR *) NULL) {
+   if (dir == NULL) {
       // errno is preserved
       return -1;
    }
 
-   DynBuf_Init(&b);
+   hash = HashTable_Alloc(256, HASH_STRING_KEY, NULL);
    count = 0;
 
    while (TRUE) {
@@ -2755,7 +2799,7 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
 
       errno = 0;
       entry = readdir(dir);
-      if (entry == (struct dirent *) NULL) {
+      if (entry == NULL) {
          err = errno;
          break;
       }
@@ -2787,18 +2831,44 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
                                    UNICODE_SUBSTITUTION_CHAR);
          }
 
-         DynBuf_Append(&b, &id, sizeof id);
-      }
+         /*
+          * It is possible for a directory operation to change the contents
+          * of a directory while this routine is running. If the OS decides
+          * to physically rearrange the contents of the directory it is
+          * possible for readdir to report a file more than once. Only add
+          * a file to the return data if it is unique within the return
+          * data.
+          */
 
-      count++;
+         if (HashTable_Insert(hash, id, NULL)) {
+            count++;
+         } else {
+            Unicode_Free(id);
+         }
+      } else {
+         count++;
+      }
    }
 
    closedir(dir);
 
-   if (ids && (err == 0)) {
-      *ids = DynBuf_Detach(&b);
+   if (ids) {
+      ASSERT(count == HashTable_GetNumElements(hash));
+
+      if (err == 0) {
+         DynBuf b;
+
+         DynBuf_Init(&b);
+
+         HashTable_ForEach(hash, FileUnique, &b);
+         *ids = DynBuf_Detach(&b);
+         DynBuf_Destroy(&b);
+      } else {
+         HashTable_ForEach(hash, FileKeyDispose, NULL);
+      }
    }
-   DynBuf_Destroy(&b);
+
+   HashTable_Free(hash);
 
    return (errno = err) == 0 ? count : -1;
 }

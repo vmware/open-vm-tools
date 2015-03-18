@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008,2014-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,7 +24,7 @@
  *
  *    Defines the interface between applications and the underlying GuestRPC
  *    channel. The goal is to have an abstraction so applications can run over
- *    the backdoor, VMCI sockets or TCP/IP sockets by just picking up the
+ *    the backdoor, vSockets or TCP/IP sockets by just picking up the
  *    desired channel at runtime, without the need to modify the code.
  *
  *    For this reason, the behavior of all channels is modeled after the RpcIn
@@ -140,6 +140,9 @@ RpcChannel_Send(RpcChannel *chan,
                 size_t dataLen,
                 char **result,
                 size_t *resultLen);
+
+void
+RpcChannel_Free(void *ptr);
 
 gboolean
 RpcChannel_BuildXdrCommand(const char *cmd,

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -71,6 +71,40 @@
 #include "uwvmkAPI.h"
 #endif
 
+#ifdef __linux__
+/*
+ * Our toolchain does not support IPV6_V6ONLY, but the host we are running on
+ * may support it. Since setsockopt will return a error that we treat as
+ * non-fatal, it is fine to attempt it. See define in in6.h.
+ */
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 26
+#endif
+
+/*
+ * Linux versions can lack support for IPV6_V6ONLY while still supporting
+ * V4MAPPED addresses. We check for a V4MAPPED address during accept to cover
+ * this scenario. In case IN6_IS_ADDR_V4MAPPED is also not avaiable, define it.
+ */
+#ifndef IN6_IS_ADDR_V4MAPPED
+#define IN6_IS_ADDR_V4MAPPED(a)                                   \
+   (*(const u_int32_t *)(const void *)(&(a)->s6_addr[0]) == 0 &&  \
+    *(const u_int32_t *)(const void *)(&(a)->s6_addr[4]) == 0 &&  \
+    *(const u_int32_t *)(const void *)(&(a)->s6_addr[8]) == ntohl(0x0000ffff)))
+#endif
+#endif
+
+#define PORT_STRING_LEN 6 /* "12345\0" or ":12345" */
+
+/*
+ * INET6_ADDRSTRLEN allows for only 45 characters. If we somehow have a
+ * non-recommended V4MAPPED address we can exceed 45 total characters in our
+ * address string format. While this should not be the case it is possible.
+ * Account for the possible:
+ *    "[XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD]:12345\0"
+ *    (XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD\0 + [] + :12345)
+ */
+#define ADDR_STRING_LEN (INET6_ADDRSTRLEN + 2 + PORT_STRING_LEN)
 
 /*
  * The slots each have a "unique" ID, which is just an incrementing integer.
@@ -84,7 +118,6 @@ static Bool AsyncSocketHasDataPending(AsyncSocket *asock);
 static int AsyncSocketMakeNonBlocking(int fd);
 static void AsyncSocketAcceptCallback(void *clientData);
 static void AsyncSocketConnectCallback(void *clientData);
-static void AsyncSocketRecvUDPCallback(void *clientData);
 static int AsyncSocketBlockingWork(AsyncSocket *asock, Bool read, void *buf, int len,
                                    int *completed, int timeoutMS, Bool partial);
 static VMwareStatus AsyncSocketPollAdd(AsyncSocket *asock, Bool socket,
@@ -92,8 +125,8 @@ static VMwareStatus AsyncSocketPollAdd(AsyncSocket *asock, Bool socket,
                                        ...);
 static Bool AsyncSocketPollRemove(AsyncSocket *asock, Bool socket,
                                   int flags, PollerFunction callback);
-static unsigned int AsyncSocketGetPort(struct sockaddr *addr);
-static AsyncSocket *AsyncSocketConnect(struct sockaddr *addr,
+static unsigned int AsyncSocketGetPort(struct sockaddr_storage *addr);
+static AsyncSocket *AsyncSocketConnect(struct sockaddr_storage *addr,
                                        socklen_t addrLen,
                                        AsyncSocketConnectFn connectFn,
                                        void *clientData,
@@ -105,7 +138,6 @@ static int AsyncSocketConnectInternal(AsyncSocket *s);
 static int AsyncSocketRecv(AsyncSocket *asock, void *buf, int len,
                            Bool fireOnPartial, void *cb, void *cbData);
 static Bool AsyncSocketHasDataPendingSocket(AsyncSocket *asock);
-static void AsyncSocketReleaseSocket(AsyncSocket *s);
 
 static VMwareStatus AsyncSocketIPollAdd(AsyncSocket *asock, Bool socket,
                                         int flags, PollerFunction callback,
@@ -114,6 +146,7 @@ static Bool AsyncSocketIPollRemove(AsyncSocket *asock, Bool socket, int flags,
                                    PollerFunction callback);
 static void AsyncSocketIPollSendCallback(void *clientData);
 static void AsyncSocketIPollRecvCallback(void *clientData);
+static Bool AsyncSocketAddListenCbSocket(AsyncSocket *asock);
 
 
 static const AsyncSocketVTable asyncStreamSocketVTable = {
@@ -129,24 +162,7 @@ static const AsyncSocketVTable asyncStreamSocketVTable = {
    AsyncSocketCancelCbForCloseSocket,
    AsyncSocketCancelCbForConnectingCloseSocket,
    AsyncSocketCloseSocket,
-   AsyncSocketReleaseSocket,
-};
-
-
-static const AsyncSocketVTable asyncDgramSocketVTable = {
-   AsyncSocketDispatchConnect,
-   AsyncSocketSendInternal,
-   AsyncSocketSendSocket,
-   AsyncSocketRecvSocket,
-   AsyncSocketSendCallback,
-   AsyncSocketRecvUDPCallback,
-   AsyncSocketHasDataPendingSocket,
-   AsyncSocketCancelListenCbSocket,
-   AsyncSocketCancelRecvCbSocket,
-   AsyncSocketCancelCbForCloseSocket,
-   AsyncSocketCancelCbForConnectingCloseSocket,
-   AsyncSocketCloseSocket,
-   AsyncSocketReleaseSocket,
+   NULL,
 };
 
 
@@ -163,7 +179,7 @@ static const AsyncSocketVTable asyncStreamSocketIPollVTable = {
    AsyncSocketCancelCbForCloseSocket,
    AsyncSocketCancelCbForConnectingCloseSocket,
    AsyncSocketCloseSocket,
-   AsyncSocketReleaseSocket,
+   NULL,
 };
 
 
@@ -376,6 +392,74 @@ AsyncSocket_GetFd(AsyncSocket *s)
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncSocketGetAddr --
+ *
+ *      Given an AsyncSocket object, return the sockaddr associated with the
+ *      requested address family's file descriptor if available.
+ *
+ *      Passing AF_UNSPEC to socketFamily will provide you with the first
+ *      usable sockaddr found (if multiple are available), with a preference
+ *      given to IPv6.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS. ASOCKERR_INVAL if there is no socket associated with
+ *      address family requested. ASOCKERR_GENERIC for all other errors.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+AsyncSocketGetAddr(AsyncSocket *asock,                // IN
+                   int socketFamily,                  // IN
+                   struct sockaddr_storage *outAddr,  // OUT
+                   socklen_t *outAddrLen)             // IN/OUT
+{
+   AsyncSocket *tempAsock;
+   int tempFd;
+   struct sockaddr_storage addr;
+   socklen_t addrLen = sizeof addr;
+   int ret = ASOCKERR_GENERIC;
+
+   if (asock->fd != -1) {
+      tempAsock = asock;
+   } else if ((socketFamily == AF_UNSPEC || socketFamily == AF_INET6) &&
+              asock->listenAsock6 && asock->listenAsock6->fd != -1) {
+      tempAsock = asock->listenAsock6;
+   } else if ((socketFamily == AF_UNSPEC || socketFamily == AF_INET) &&
+              asock->listenAsock4 && asock->listenAsock4->fd != -1) {
+      tempAsock = asock->listenAsock4;
+   } else {
+      return ASOCKERR_INVAL;
+   }
+
+   AsyncSocketLock(tempAsock);
+   tempFd = tempAsock->fd;
+
+   if (getsockname(tempFd, (struct sockaddr*)&addr, &addrLen) == 0) {
+      if (socketFamily != AF_UNSPEC && addr.ss_family != socketFamily) {
+         ret = ASOCKERR_INVAL;
+         goto outWithLock;
+      }
+
+      memcpy(outAddr, &addr, Min(*outAddrLen, addrLen));
+      *outAddrLen = addrLen;
+      ret = ASOCKERR_SUCCESS;
+   } else {
+      ASOCKWARN(tempAsock, ("%s: could not locate socket.\n", __FUNCTION__));
+   }
+
+ outWithLock:
+   AsyncSocketUnlock(tempAsock);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncSocket_GetRemoteIPStr --
  *
  *      Given an AsyncSocket object, returns the remote IP address associated
@@ -409,13 +493,71 @@ AsyncSocket_GetRemoteIPStr(AsyncSocket *asock,      // IN
    } else {
       char addrBuf[NI_MAXHOST];
 
-      if (Posix_GetNameInfo(&asock->remoteAddr, asock->remoteAddrLen, addrBuf,
+      if (Posix_GetNameInfo((struct sockaddr *)&asock->remoteAddr,
+                            asock->remoteAddrLen, addrBuf,
                             sizeof addrBuf, NULL, 0, NI_NUMERICHOST) != 0) {
          ret = ASOCKERR_GENERIC;
       } else {
          *ipRetStr = Util_SafeStrdup(addrBuf);
       }
    }
+
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_GetINETIPStr --
+ *
+ *      Given an AsyncSocket object, returns the IP addresses associated with
+ *      the requested address family's file descriptor if available.
+ *
+ *      Passing AF_UNSPEC to socketFamily will provide you with the first
+ *      usable IP address found (if multiple are available), with a preference
+ *      given to IPv6.
+ *
+ *      It is the caller's responsibility to free ipRetStr.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS. ASOCKERR_INVAL if there is no socket associated with
+ *      address family requested. ASOCKERR_GENERIC for all other errors.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetINETIPStr(AsyncSocket *asock,  // IN
+                         int socketFamily,    // IN
+                         char **ipRetStr)     // OUT
+{
+   struct sockaddr_storage addr;
+   socklen_t addrLen = sizeof addr;
+   int ret;
+
+   AsyncSocketLock(asock);
+
+   ret = AsyncSocketGetAddr(asock, socketFamily, &addr, &addrLen);
+   if (ret == ASOCKERR_SUCCESS) {
+      char addrBuf[NI_MAXHOST];
+
+      if (ipRetStr == NULL) {
+         ret = ASOCKERR_INVAL;
+      } else if (Posix_GetNameInfo((struct sockaddr *)&addr, addrLen, addrBuf,
+                                   sizeof addrBuf, NULL, 0,
+                                   NI_NUMERICHOST) == 0) {
+         *ipRetStr = Util_SafeStrdup(addrBuf);
+      } else {
+         ASOCKWARN(asock, ("%s: could not find IP address.\n", __FUNCTION__));
+         ret = ASOCKERR_GENERIC;
+      }
+   }
+
+   AsyncSocketUnlock(asock);
 
    return ret;
 }
@@ -506,39 +648,9 @@ AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,  // IN
 /*
  *----------------------------------------------------------------------------
  *
- * AsyncSocket_Listen --
+ * AsyncSocketListenImpl --
  *
- *      Listens on the specified port and accepts new connections. Fires the
- *      connect callback with new AsyncSocket object for each connection.
- *
- * Results:
- *      New AsyncSocket in listening state or NULL on error.
- *
- * Side effects:
- *      Creates new socket, binds and listens.
- *
- *----------------------------------------------------------------------------
- */
-
-AsyncSocket *
-AsyncSocket_Listen(unsigned short port,
-                   AsyncSocketConnectFn connectFn,
-                   void *clientData,
-                   AsyncSocketPollParams *pollParams,
-                   int *outError)
-{
-   return AsyncSocket_ListenIP(INADDR_ANY, port, connectFn, clientData,
-                               pollParams, outError);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * AsyncSocket_ListenIPStr --
- *
- *      Listens on the specified ip, port and accepts new connections. Fires
- *      the connect callback with new AsyncSocket object for each connection.
+ *      Initializes, binds, and listens on pre-populated address structure.
  *
  * Results:
  *      New AsyncSocket in listening state or NULL on error.
@@ -550,77 +662,400 @@ AsyncSocket_Listen(unsigned short port,
  */
 
 AsyncSocket *
-AsyncSocket_ListenIPStr(const char *ipStr,
-                        unsigned short port,
-                        AsyncSocketConnectFn connectFn,
-                        void *clientData,
-                        AsyncSocketPollParams *pollParams,
-                        int *outError)
+AsyncSocketListenImpl(struct sockaddr_storage *addr,      // IN
+                      socklen_t addrLen,                  // IN
+                      AsyncSocketConnectFn connectFn,     // IN
+                      void *clientData,                   // IN
+                      AsyncSocketPollParams *pollParams,  // IN: optional
+                      Bool isWebSock,                     // IN
+                      Bool webSockUseSSL,                 // IN:
+                      int *outError)                      // OUT: optional
 {
-   struct in_addr ipAddr;
+   AsyncSocket *asock = AsyncSocketInit(addr->ss_family, pollParams, outError);
 
-   /*
-    * Windows doesn't have inet_aton so using inet_addr insted. Alternative is
-    * ifdef with WSAStringToAddress and inet_aton.
-    */
-
-   ipAddr.s_addr = inet_addr(ipStr);
-   if (ipAddr.s_addr == INADDR_NONE) {
-      if (outError) {
-         *outError = INADDR_NONE;
+   if (asock != NULL) {
+#ifndef VMX86_TOOLS
+      if (isWebSock) {
+         AsyncSocketInitWebSocket(asock, clientData, webSockUseSSL);
       }
+#endif
 
-      return NULL;
-   }
-
-   return AsyncSocket_ListenIP(ntohl(ipAddr.s_addr), port, connectFn,
-                               clientData, pollParams, outError);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * AsyncSocket_ListenIP --
- *
- *      Listens on the specified ip, port and accepts new connections. Fires
- *      the connect callback with new AsyncSocket object for each connection.
- *
- * Results:
- *      New AsyncSocket in listening state or NULL on error.
- *
- * Side effects:
- *      Creates new socket, binds and listens.
- *
- *----------------------------------------------------------------------------
- */
-
-AsyncSocket *
-AsyncSocket_ListenIP(unsigned int ip,
-                     unsigned short port,
-                     AsyncSocketConnectFn connectFn,
-                     void *clientData,
-                     AsyncSocketPollParams *pollParams,
-                     int *outError)
-{
-   AsyncSocket *asock = AsyncSocketInit(AF_INET, SOCK_STREAM, pollParams,
-                                        outError);
-
-   if (NULL != asock) {
-      struct sockaddr_in addr;
-
-      memset((char *)&addr, 0, sizeof addr);
-      addr.sin_family = AF_INET;
-      addr.sin_addr.s_addr = htonl(ip);
-      addr.sin_port = htons(port);
-
-      if (AsyncSocketBind(asock, (struct sockaddr *)&addr, outError) &&
+      if (AsyncSocketBind(asock, addr, addrLen, outError) &&
           AsyncSocketListen(asock, connectFn, clientData, outError)) {
          return asock;
       }
    }
 
    return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocketListenerCreateImpl --
+ *
+ *      Listens on specified address and/or port for resolved/requested socket
+ *      family and accepts new connections. Fires the connect callback with
+ *      new AsyncSocket object for each connection.
+ *
+ * Results:
+ *      New AsyncSocket in listening state or NULL on error.
+ *
+ * Side effects:
+ *      Creates new socket, binds and listens.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+AsyncSocket *
+AsyncSocketListenerCreateImpl(const char *addrStr,                // IN: optional
+                              unsigned int port,                  // IN: optional
+                              int socketFamily,                   // IN
+                              AsyncSocketConnectFn connectFn,     // IN
+                              void *clientData,                   // IN
+                              AsyncSocketPollParams *pollParams,  // IN
+                              Bool isWebSock,                     // IN
+                              Bool webSockUseSSL,                 // IN
+                              int *outError)                      // OUT: optional
+{
+   AsyncSocket *asock = NULL;
+   struct sockaddr_storage addr;
+   socklen_t addrLen;
+   char *ipString = NULL;
+   int getaddrinfoError = AsyncSocketResolveAddr(addrStr, port, socketFamily,
+                                                 TRUE, &addr, &addrLen,
+                                                 &ipString);
+
+   if (getaddrinfoError == 0) {
+      asock = AsyncSocketListenImpl(&addr, addrLen, connectFn, clientData,
+                                    pollParams, isWebSock, webSockUseSSL,
+                                    outError);
+
+      if (asock) {
+         ASOCKLG0(asock,
+                  ("Created new %s %s listener for (%s)\n",
+                   addr.ss_family == AF_INET ? "IPv4" : "IPv6",
+                   isWebSock ? "web socket" : "socket", ipString));
+      } else {
+         Log(ASOCKPREFIX "Could not create %s listener socket, error %d: %s\n",
+             addr.ss_family == AF_INET ? "IPv4" : "IPv6", *outError,
+             AsyncSocket_Err2String(*outError));
+      }
+      free(ipString);
+   } else {
+      Log(ASOCKPREFIX "Could not resolve listener socket address.\n");
+      if (outError) {
+         *outError = ASOCKERR_LISTEN;
+      }
+   }
+
+   return asock;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocketListenerCreate --
+ *
+ *      Listens on specified address and/or port for all resolved socket
+ *      families and accepts new connections. Fires the connect callback with
+ *      new AsyncSocket object for each connection.
+ *
+ *      If address string is present and that string is not the "localhost"
+ *      loopback, then we will listen on resolved address only.
+ *
+ *      If address string is NULL or is "localhost" we will listen on all
+ *      address families that will resolve on the host.
+ *
+ *      If port requested is 0, we will let the system assign the first
+ *      available port.
+ *
+ *      If address string is NULL and port requested is not 0, we will listen
+ *      on any address for all resolved protocols for the port requested.
+ *
+ *      If address string is "localhost" and port is 0, we will use the first
+ *      port we are given if the host supports multiple address families.
+ *      If by chance we try to bind on a port that is available for one
+ *      protocol and not the other, we will attempt a second time with the
+ *      order of address families reversed.
+ *
+ *      If address string is NULL, port cannot be 0.
+ *
+ * Results:
+ *      New AsyncSocket in listening state or NULL on error.
+ *
+ * Side effects:
+ *      Creates new socket/s, binds and listens.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+AsyncSocket *
+AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
+                          unsigned int port,                  // IN: optional
+                          AsyncSocketConnectFn connectFn,     // IN
+                          void *clientData,                   // IN
+                          AsyncSocketPollParams *pollParams,  // IN
+                          Bool isWebSock,                     // IN
+                          Bool webSockUseSSL,                 // IN
+                          int *outError)                      // OUT: optional
+{
+   if (addrStr != NULL && *addrStr != '\0' &&
+       Str_Strcmp(addrStr, "localhost")) {
+      return AsyncSocketListenerCreateImpl(addrStr, port, AF_UNSPEC, connectFn,
+                                           clientData, pollParams, FALSE,
+                                           FALSE, outError);
+   } else {
+      Bool localhost = addrStr != NULL && !Str_Strcmp(addrStr, "localhost");
+      unsigned int tempPort = port;
+      AsyncSocket *asock6 = NULL;
+      AsyncSocket *asock4 = NULL;
+      int tempError4;
+      int tempError6;
+
+      asock6 = AsyncSocketListenerCreateImpl(addrStr, port, AF_INET6,
+                                             connectFn, clientData, pollParams,
+                                             isWebSock, webSockUseSSL,
+                                             &tempError6);
+
+      if (localhost && port == 0) {
+         tempPort = AsyncSocket_GetPort(asock6);
+         if (tempPort == MAX_UINT32) {
+            Log(ASOCKPREFIX
+                "Could not resolve IPv6 listener socket port number.\n");
+            tempPort = port;
+         }
+      }
+
+      asock4 = AsyncSocketListenerCreateImpl(addrStr, tempPort, AF_INET,
+                                             connectFn, clientData, pollParams,
+                                             isWebSock, webSockUseSSL,
+                                             &tempError4);
+
+      if (localhost && port == 0 && tempError4 == ASOCKERR_BINDADDRINUSE) {
+         Log(ASOCKPREFIX "Failed to reuse IPv6 localhost port number for IPv4 "
+             "listener socket.\n");
+         AsyncSocket_Close(asock6);
+
+         tempError4 = ASOCKERR_SUCCESS;
+         asock4 = AsyncSocketListenerCreateImpl(addrStr, port, AF_INET,
+                                                connectFn, clientData,
+                                                pollParams, isWebSock,
+                                                webSockUseSSL, &tempError4);
+
+         tempPort = AsyncSocket_GetPort(asock4);
+         if (tempPort == MAX_UINT32) {
+            Log(ASOCKPREFIX
+                "Could not resolve IPv4 listener socket port number.\n");
+            tempPort = port;
+         }
+
+         tempError6 = ASOCKERR_SUCCESS;
+         asock6 = AsyncSocketListenerCreateImpl(addrStr, tempPort, AF_INET6,
+                                                connectFn, clientData,
+                                                pollParams, isWebSock,
+                                                webSockUseSSL, &tempError6);
+
+         if (!asock6 && tempError6 == ASOCKERR_BINDADDRINUSE) {
+            Log(ASOCKPREFIX "Failed to reuse IPv4 localhost port number for "
+                "IPv6 listener socket.\n");
+            AsyncSocket_Close(asock4);
+         }
+      }
+
+      if (asock6 && asock4) {
+         AsyncSocket *asock;
+
+         asock = AsyncSocketCreate(NULL);
+         asock->state = AsyncSocketListening;
+         asock->asockType = ASYNCSOCKET_TYPE_SOCKET;
+         asock->listenAsock6 = asock6;
+         asock->listenAsock4 = asock4;
+
+         return asock;
+      } else if (asock6) {
+         return asock6;
+      } else if (asock4) {
+         return asock4;
+      }
+
+      if (outError) {
+         /* Client only gets one error and the one for IPv6 is favored. */
+         if (!asock6) {
+            *outError = tempError6;
+         } else if (!asock4) {
+            *outError = tempError4;
+         } else {
+            *outError = ASOCKERR_LISTEN;
+         }
+      }
+
+      return NULL;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocketListenerCreateLoopback --
+ *
+ *      Listens on loopback interface and port for all resolved socket
+ *      families and accepts new connections. Fires the connect callback with
+ *      new AsyncSocket object for each connection.
+ *
+ * Results:
+ *      New AsyncSocket in listening state or NULL on error.
+ *
+ * Side effects:
+ *      Creates new socket/s, binds and listens.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static AsyncSocket *
+AsyncSocketListenerCreateLoopback(unsigned int port,                  // IN
+                                  AsyncSocketConnectFn connectFn,     // IN
+                                  void *clientData,                   // IN
+                                  AsyncSocketPollParams *pollParams,  // IN
+                                  Bool isWebSock,                     // IN
+                                  Bool webSockUseSSL,                 // IN
+                                  int *outError)                      // OUT: optional
+{
+   AsyncSocket *asock6 = NULL;
+   AsyncSocket *asock4 = NULL;
+   int tempError4;
+   int tempError6;
+
+   /*
+    * "localhost6" does not work on Windows. "localhost" does
+    * not work for IPv6 on old Linux versions like 2.6.18. So,
+    * using IP address for both the cases to be consistent.
+    */
+   asock6 = AsyncSocketListenerCreateImpl("::1", port, AF_INET6,
+                                          connectFn, clientData, pollParams,
+                                          isWebSock, webSockUseSSL,
+                                          &tempError6);
+
+   asock4 = AsyncSocketListenerCreateImpl("127.0.0.1", port, AF_INET,
+                                          connectFn, clientData, pollParams,
+                                          isWebSock, webSockUseSSL,
+                                          &tempError4);
+
+   if (asock6 && asock4) {
+      AsyncSocket *asock;
+
+      asock = AsyncSocketCreate(NULL);
+      asock->state = AsyncSocketListening;
+      asock->asockType = ASYNCSOCKET_TYPE_SOCKET;
+      asock->listenAsock6 = asock6;
+      asock->listenAsock4 = asock4;
+
+      return asock;
+   } else if (asock6) {
+      return asock6;
+   } else if (asock4) {
+      return asock4;
+   }
+
+   if (outError) {
+      /* Client only gets one error and the one for IPv6 is favored. */
+      if (!asock6) {
+         *outError = tempError6;
+      } else if (!asock4) {
+         *outError = tempError4;
+      } else {
+         *outError = ASOCKERR_LISTEN;
+      }
+   }
+
+   return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_Listen --
+ *
+ *      Listens on specified address and/or port for all resolved socket
+ *      families and accepts new connections. Fires the connect callback with
+ *      new AsyncSocket object for each connection.
+ *
+ *      If address string is present and that string is not the "localhost"
+ *      loopback, then we will listen on resolved address only.
+ *
+ *      If address string is NULL or is "localhost" we will listen on all
+ *      address families that will resolve on the host.
+ *
+ *      If port requested is 0, we will let the system assign the first
+ *      available port.
+ *
+ *      If address string is NULL and port requested is not 0, we will listen
+ *      on any address for all resolved protocols for the port requested.
+ *
+ *      If address string is "localhost" and port is 0, we will use the first
+ *      port we are given if the host supports multiple address families.
+ *      If by chance we try to bind on a port that is available for one
+ *      protocol and not the other, we will attempt a second time with the
+ *      order of address families reversed.
+ *
+ *      If address string is NULL, port cannot be 0.
+ *
+ * Results:
+ *      New AsyncSocket in listening state or NULL on error.
+ *
+ * Side effects:
+ *      Creates new socket/s, binds and listens.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+AsyncSocket *
+AsyncSocket_Listen(const char *addrStr,                // IN: optional
+                   unsigned int port,                  // IN: optional
+                   AsyncSocketConnectFn connectFn,     // IN
+                   void *clientData,                   // IN
+                   AsyncSocketPollParams *pollParams,  // IN
+                   int *outError)                      // OUT: optional
+{
+   return AsyncSocketListenerCreate(addrStr, port, connectFn, clientData,
+                                    pollParams, FALSE, FALSE, outError);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_ListenLoopback --
+ *
+ *      Listens on loopback interface and port for all resolved socket
+ *      families and accepts new connections. Fires the connect callback with
+ *      new AsyncSocket object for each connection.
+ *
+ *      If port requested is 0, we will let the system assign the first
+ *      available port.
+ *
+ * Results:
+ *      New AsyncSocket in listening state or NULL on error.
+ *
+ * Side effects:
+ *      Creates new socket/s, binds and listens.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+AsyncSocket *
+AsyncSocket_ListenLoopback(unsigned int port,                  // IN
+                           AsyncSocketConnectFn connectFn,     // IN
+                           void *clientData,                   // IN
+                           AsyncSocketPollParams *pollParams,  // IN
+                           int *outError)                      // OUT: optional
+{
+   return AsyncSocketListenerCreateLoopback(port, connectFn, clientData,
+                                            pollParams, FALSE, FALSE, outError);
 }
 
 
@@ -649,24 +1084,18 @@ AsyncSocket_ListenVMCI(unsigned int cid,                  // IN
                        AsyncSocketPollParams *pollParams, // IN
                        int *outError)                     // OUT
 {
+   struct sockaddr_vm addr;
+   AsyncSocket *asock;
    int vsockDev = -1;
-   int socketFamily = VMCISock_GetAFValueFd(&vsockDev);
-   AsyncSocket *asock = AsyncSocketInit(socketFamily, SOCK_STREAM,
-                                        pollParams, outError);
 
-   if (NULL != asock) {
-      struct sockaddr_vm addr;
+   memset(&addr, 0, sizeof addr);
+   addr.svm_family = VMCISock_GetAFValueFd(&vsockDev);
+   addr.svm_cid = cid;
+   addr.svm_port = port;
 
-      memset((char *)&addr, 0, sizeof addr);
-      addr.svm_family = socketFamily;
-      addr.svm_cid = cid;
-      addr.svm_port = port;
-
-      if (!AsyncSocketBind(asock, (struct sockaddr *)&addr, outError) ||
-          !AsyncSocketListen(asock, connectFn, clientData, outError)) {
-         asock = NULL;
-      }
-   }
+   asock = AsyncSocketListenImpl((struct sockaddr_storage *)&addr, sizeof addr,
+                                 connectFn, clientData, pollParams, FALSE,
+                                 FALSE, outError);
 
    VMCISock_ReleaseAFValueFd(vsockDev);
    return asock;
@@ -678,7 +1107,7 @@ AsyncSocket_ListenVMCI(unsigned int cid,                  // IN
  *
  * AsyncSocketInit --
  *
- *      This is an internal routine that sets up a socket.
+ *      This is an internal routine that sets up a SOCK_STREAM (TCP) socket.
  *
  * Results:
  *      New AsyncSocket or NULL on error.
@@ -691,7 +1120,6 @@ AsyncSocket_ListenVMCI(unsigned int cid,                  // IN
 
 AsyncSocket *
 AsyncSocketInit(int socketFamily,                  // IN
-                int socketType,                    // IN
                 AsyncSocketPollParams *pollParams, // IN
                 int *outError)                     // OUT
 {
@@ -704,7 +1132,7 @@ AsyncSocketInit(int socketFamily,                  // IN
     * Create a new socket
     */
 
-   if ((fd = socket(socketFamily, socketType, 0)) == -1) {
+   if ((fd = socket(socketFamily, SOCK_STREAM, 0)) == -1) {
       sysErr = ASOCK_LASTERROR();
       Warning(ASOCKPREFIX "could not create new socket, error %d: %s\n",
               sysErr, Err_Errno2String(sysErr));
@@ -717,55 +1145,6 @@ AsyncSocketInit(int socketFamily,                  // IN
 
    if ((asock = AsyncSocket_AttachToFd(fd, pollParams, &error)) == NULL) {
       goto error;
-   }
-   asock->type = socketType;
-   asock->asockType = ASYNCSOCKET_TYPE_SOCKET;
-
-   if (SOCK_STREAM == socketType) {
-      asock->vt = &asyncStreamSocketVTable;
-   } else if (SOCK_DGRAM == socketType) {
-      /*
-       *  Enable broadcast for UDP.
-       */
-
-      int bcast = 1;
-      if (setsockopt(asock->fd, SOL_SOCKET, SO_BROADCAST,
-                     (const void *) &bcast, sizeof(bcast)) != 0) {
-         sysErr = ASOCK_LASTERROR();
-         Warning(ASOCKPREFIX "could not set SO_BROADCAST, error %d: %s\n",
-                 sysErr, Err_Errno2String(sysErr));
-      }
-
-#ifdef _WIN32
-      {
-         /*
-          * On Windows, sending a UDP packet to a host may result in
-          * a "connection reset by peer" message to be sent back by
-          * the remote machine.  If that happens, our UDP socket becomes
-          * useless.  We can disable this with the SIO_UDP_CONNRESET
-          * ioctl option.
-          */
-
-         DWORD dwBytesReturned = 0;
-         BOOL bNewBehavior = FALSE;
-         DWORD status;
-
-         status = WSAIoctl(asock->fd, SIO_UDP_CONNRESET,
-                           &bNewBehavior, sizeof(bNewBehavior),
-                           NULL, 0, &dwBytesReturned,
-                           NULL, NULL);
-
-         if (SOCKET_ERROR == status) {
-            DWORD dwErr = WSAGetLastError();
-            ASOCKLOG(3, asock, ("WSAIoctl(SIO_UDP_CONNRESET) Error: %d\n",
-                                          dwErr));
-         }
-      }
-#endif
-
-      asock->vt = &asyncDgramSocketVTable;
-   } else {
-      NOT_IMPLEMENTED();
    }
 
    return asock;
@@ -788,10 +1167,10 @@ errorNoFd:
  * AsyncSocketGetPort --
  *
  *      This is an internal routine that gets a port given an address.  The
- *      address must be in either AF_INET or AF_VMCI format.
+ *      address must be in either AF_INET, AF_INET6 or AF_VMCI format.
  *
  * Results:
- *      Returns the port of the address.
+ *      Port number (in host byte order for INET).
  *
  * Side effects:
  *      None.
@@ -800,22 +1179,107 @@ errorNoFd:
  */
 
 static unsigned int
-AsyncSocketGetPort(struct sockaddr *addr)
+AsyncSocketGetPort(struct sockaddr_storage *addr)
 {
    ASSERT(NULL != addr);
 
-   if (AF_INET == addr->sa_family) {
-      return ((struct sockaddr_in *)addr)->sin_port;
+   if (AF_INET == addr->ss_family) {
+      return ntohs(((struct sockaddr_in *)addr)->sin_port);
+   } else if (AF_INET6 == addr->ss_family) {
+      return ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
+#ifndef _WIN32
+   } else if (AF_UNIX == addr->ss_family) {
+      return MAX_UINT32; // Not applicable
+#endif
    } else {
 #ifdef VMX86_DEBUG
       int vsockDev = -1;
 
-      ASSERT(VMCISock_GetAFValueFd(&vsockDev) == addr->sa_family);
+      ASSERT(VMCISock_GetAFValueFd(&vsockDev) == addr->ss_family);
       VMCISock_ReleaseAFValueFd(vsockDev);
-#endif
 
+#endif
       return ((struct sockaddr_vm *)addr)->svm_port;
    }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_GetPort --
+ *
+ *      Given an AsyncSocket object, returns the port number associated with
+ *      the requested address family's file descriptor if available.
+ *
+ * Results:
+ *      Port number in host byte order. MAX_UINT32 on error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+unsigned int
+AsyncSocket_GetPort(AsyncSocket *asock)  // IN
+{
+   AsyncSocket *tempAsock;
+   struct sockaddr_storage addr;
+   socklen_t addrLen = sizeof addr;
+   unsigned int ret = MAX_UINT32;
+
+   if (asock->fd != -1) {
+      tempAsock = asock;
+   } else if (asock->listenAsock6 && asock->listenAsock6->fd != -1) {
+      tempAsock = asock->listenAsock6;
+   } else if (asock->listenAsock4 && asock->listenAsock4->fd != -1) {
+      tempAsock = asock->listenAsock4;
+   } else {
+      return ret;
+   }
+
+   AsyncSocketLock(tempAsock);
+
+   if (AsyncSocketGetAddr(tempAsock, AF_UNSPEC, &addr, &addrLen) ==
+       ASOCKERR_SUCCESS) {
+      ret = AsyncSocketGetPort(&addr);
+   }
+
+   AsyncSocketUnlock(tempAsock);
+
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocketOSVersionSupportsV4Mapped --
+ *
+ *      Determine if runtime environment supports IPv4-mapped IPv6 addressed
+ *      and all the functionality needed to deal with this scenario.
+ *
+ * Results:
+ *      Returns TRUE if supported.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+AsyncSocketOSVersionSupportsV4Mapped()
+{
+#ifdef _WIN32
+   OSVERSIONINFOW osvi = {sizeof(OSVERSIONINFOW)};
+   GetVersionExW(&osvi);
+   /* Windows version is at least Vista or higher */
+   return osvi.dwMajorVersion >= 6;
+#else
+   return TRUE;
+#endif
 }
 
 
@@ -835,11 +1299,11 @@ AsyncSocketGetPort(struct sockaddr *addr)
  *----------------------------------------------------------------------------
  */
 
-
 Bool
-AsyncSocketBind(AsyncSocket *asock,    // IN
-                struct sockaddr *addr, // IN
-                int *outError)         // OUT
+AsyncSocketBind(AsyncSocket *asock,             // IN
+                struct sockaddr_storage *addr,  // IN
+                socklen_t addrLen,              // IN
+                int *outError)                  // OUT
 {
    int error = ASOCKERR_BIND;
    int sysErr;
@@ -850,7 +1314,7 @@ AsyncSocketBind(AsyncSocket *asock,    // IN
    ASSERT(NULL != addr);
 
    port = AsyncSocketGetPort(addr);
-   Log(ASOCKPREFIX "creating new listening socket on port %d\n", port);
+   ASOCKLG0(asock, ("creating new listening socket on port %d\n", port));
 
 #ifndef _WIN32
    /*
@@ -858,7 +1322,7 @@ AsyncSocketBind(AsyncSocket *asock,    // IN
     * it means.
     */
 
-   {
+   if (addr->ss_family == AF_INET || addr->ss_family == AF_INET6) {
       int reuse = port != 0;
 
       if (setsockopt(asock->fd, SOL_SOCKET, SO_REUSEADDR,
@@ -868,9 +1332,7 @@ AsyncSocketBind(AsyncSocket *asock,    // IN
                  sysErr, Err_Errno2String(sysErr));
       }
    }
-#endif
-
-#ifdef _WIN32
+#else
    /*
     * Always set SO_EXCLUSIVEADDRUSE on Windows, to prevent other applications
     * from stealing this socket. (Yes, Windows is that stupid).
@@ -882,22 +1344,53 @@ AsyncSocketBind(AsyncSocket *asock,    // IN
       if (setsockopt(asock->fd, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
                      (const void *) &exclusive, sizeof(exclusive)) != 0) {
          sysErr = ASOCK_LASTERROR();
-         Warning(ASOCKPREFIX "could not set SO_REUSEADDR, error %d: %s\n",
-                 sysErr, Err_Errno2String(sysErr));
+         Warning(ASOCKPREFIX "could not set SO_EXCLUSIVEADDRUSE, error %d: "
+                 "%s\n", sysErr, Err_Errno2String(sysErr));
       }
    }
+#endif
+
+#if defined(IPV6_V6ONLY)
+   /*
+    * WINDOWS: By default V4MAPPED was not supported until Windows Vista.
+    * IPV6_V6ONLY was disabled by default until Windows 7. So if we are binding
+    * to a AF_INET6 socket and IPV6_V6ONLY existed, we need to turn it on no
+    * matter what the setting is to disable V4 mapping.
+    *
+    * MAC OSX: Support for IPV6_V6ONLY can be found in 10.5+.
+    *
+    * LINUX: IPV6_V6ONLY was released after V4MAPPED was implemented. There is
+    * no way to turn V4MAPPED off on those systems. The default behavior
+    * differs from distro-to-distro so attempt to turn V4MAPPED off on all
+    * systems that have IPV6_V6ONLY define. There is no good solution for the
+    * case where we cannot enable IPV6_V6ONLY, if we error in this case and do
+    * not have a IPv4 option then we render the application useless.
+    * See AsyncSocketAcceptInternal for the IN6_IS_ADDR_V4MAPPED validation
+    * for incomming addresses to close this loophole.
+    */
+
+   if (addr->ss_family == AF_INET6 && AsyncSocketOSVersionSupportsV4Mapped()) {
+      int on = 1;
+
+      if (setsockopt(asock->fd, IPPROTO_IPV6, IPV6_V6ONLY,
+                     (const void *) &on, sizeof(on)) != 0) {
+         Warning(ASOCKPREFIX "Cannot set IPV6_V6ONLY socket option.\n");
+      }
+   }
+#else
+#error No compiler definition for IPV6_V6ONLY
 #endif
 
    /*
     * Bind to a port
     */
 
-   if (bind(asock->fd, addr, sizeof *addr) != 0) {
+   if (bind(asock->fd, (struct sockaddr *)addr, addrLen) != 0) {
       sysErr = ASOCK_LASTERROR();
       if (sysErr == ASOCK_EADDRINUSE) {
          error = ASOCKERR_BINDADDRINUSE;
       }
-      Warning("could not bind socket, error %d: %s\n", sysErr,
+      Warning(ASOCKPREFIX "Could not bind socket, error %d: %s\n", sysErr,
               Err_Errno2String(sysErr));
       goto error;
    }
@@ -915,6 +1408,7 @@ error:
    return FALSE;
 }
 
+
 /*
  *----------------------------------------------------------------------------
  *
@@ -931,7 +1425,6 @@ error:
  *----------------------------------------------------------------------------
  */
 
-
 Bool
 AsyncSocketListen(AsyncSocket *asock,                // IN
                   AsyncSocketConnectFn connectFn,    // IN
@@ -943,7 +1436,6 @@ AsyncSocketListen(AsyncSocket *asock,                // IN
 
    ASSERT(NULL != asock);
    ASSERT(NULL != asock->sslSock);
-   ASSERT(SOCK_STREAM == asock->type);
 
    if (!connectFn) {
       Warning(ASOCKPREFIX "invalid arguments to listen!\n");
@@ -1002,10 +1494,9 @@ error:
 /*
  *----------------------------------------------------------------------------
  *
- * AsyncSocket_Connect --
+ * AsyncSocketConnectImpl --
  *
- *      AsyncSocket AF_INET/AF_INET6 constructor.  This is just a wrapper for
- *      ConnectIP that does hostname -> IP address lookup.
+ *      AsyncSocket AF_INET/AF_INET6 connect.
  *
  *      NOTE: This function can block.
  *
@@ -1019,50 +1510,46 @@ error:
  *----------------------------------------------------------------------------
  */
 
-AsyncSocket *
-AsyncSocket_Connect(int socketFamily,
-                    const char *hostname,
-                    unsigned short port,
-                    AsyncSocketConnectFn connectFn,
-                    void *clientData,
-                    AsyncSocketConnectFlags flags,
-                    AsyncSocketPollParams *pollParams,
-                    int *outError)
+static AsyncSocket *
+AsyncSocketConnectImpl(int socketFamily,
+                       const char *hostname,
+                       unsigned int port,
+                       AsyncSocketConnectFn connectFn,
+                       void *clientData,
+                       AsyncSocketConnectFlags flags,
+                       AsyncSocketPollParams *pollParams,
+                       int *outError)
 {
-   struct sockaddr addr;
+   struct sockaddr_storage addr;
    int getaddrinfoError;
    int error;
    AsyncSocket *asock;
    char *ipString = NULL;
-
-   if (!connectFn || !hostname) {
-      error = ASOCKERR_INVAL;
-      Warning(ASOCKPREFIX "invalid arguments to connect!\n");
-      goto error;
-   }
+   socklen_t addrLen;
 
    /*
     * Resolve the hostname.  Handles dotted decimal strings, too.
     */
 
    getaddrinfoError = AsyncSocketResolveAddr(hostname, port, socketFamily,
-                                             SOCK_STREAM, &addr, &ipString);
+                                             FALSE, &addr, &addrLen, &ipString);
    if (0 != getaddrinfoError) {
-      Log(ASOCKPREFIX "Failed to resolve address '%s' and port %u\n",
-          hostname, port);
+      Log(ASOCKPREFIX "Failed to resolve %s address '%s' and port %u\n",
+          socketFamily == AF_INET ? "IPv4" : "IPv6", hostname, port);
       error = ASOCKERR_CONNECT;
       goto error;
    }
 
-   Log(ASOCKPREFIX "creating new socket, connecting to %s (%s)\n", ipString,
-       hostname);
+   Log(ASOCKPREFIX "creating new %s socket, connecting to %s (%s)\n",
+       socketFamily == AF_INET ? "IPv4" : "IPv6", ipString, hostname);
    free(ipString);
 
-   asock = AsyncSocketConnect(&addr, sizeof addr, connectFn, clientData,
+   asock = AsyncSocketConnect(&addr, addrLen, connectFn, clientData,
                               AsyncSocketConnectCallback, flags, pollParams,
                               &error);
    if (!asock) {
-      Warning(ASOCKPREFIX "connection attempt failed\n");
+      Warning(ASOCKPREFIX "%s connection attempt failed\n",
+              socketFamily == AF_INET ? "IPv4" : "IPv6");
       error = ASOCKERR_CONNECT;
       goto error;
    }
@@ -1081,14 +1568,16 @@ error:
 /*
  *----------------------------------------------------------------------------
  *
- * AsyncSocket_ConnectIP --
+ * AsyncSocket_Connect --
  *
- *      AsyncSocket AF_INET constructor. Connects to the specified
- *      address:port, and passes the caller a valid asock via the callback once
- *      the connection has been established.
+ *      AsyncSocket connect. Connection is attempted with AF_INET socket
+ *      family, when that fails AF_INET6 is attempted.
+ *
+ *      NOTE: This function can block.
  *
  * Results:
- *      ASOCKERR_SUCCESS or ASOCKERR_GENERIC.
+ *      AsyncSocket * on success and NULL on failure.
+ *      On failure, error is returned in *outError.
  *
  * Side effects:
  *      Allocates an AsyncSocket, registers a poll callback.
@@ -1097,79 +1586,36 @@ error:
  */
 
 AsyncSocket *
-AsyncSocket_ConnectIP(uint32 ip,
-                      unsigned short port,
-                      AsyncSocketConnectFn connectFn,
-                      void *clientData,
-                      AsyncSocketConnectFlags flags,
-                      AsyncSocketPollParams *pollParams,
-                      int *outError)
+AsyncSocket_Connect(const char *hostname,
+                    unsigned int port,
+                    AsyncSocketConnectFn connectFn,
+                    void *clientData,
+                    AsyncSocketConnectFlags flags,
+                    AsyncSocketPollParams *pollParams,
+                    int *outError)
 {
-   struct sockaddr_in addr;
+   int error = ASOCKERR_CONNECT;
+   AsyncSocket *asock = NULL;
 
-   memset((char *)&addr, 0, sizeof addr);
-   addr.sin_family = AF_INET;
-   if ((flags & ASOCKCONN_ADDR_IN_NETWORK_BYTE_ORDER) !=
-         ASOCKCONN_ADDR_IN_NETWORK_BYTE_ORDER) {
-      addr.sin_addr.s_addr = htonl(ip);
-   } else {
-      addr.sin_addr.s_addr = ip;
-   }
-   addr.sin_port = htons(port);
-
-   Log(ASOCKPREFIX "creating new socket, connecting to %u.%u.%u.%u:%u\n",
-       (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF,
-       port);
-
-   return AsyncSocketConnect((struct sockaddr *)&addr, sizeof addr,
-                             connectFn, clientData, AsyncSocketConnectCallback,
-                             flags, pollParams, outError);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * AsyncSocket_ConnectIPStr --
- *
- *      Like AsyncSocket_Connect but operates on an IP address string.
- *
- * Results:
- *      See AsyncSocket_ConnectIP.
- *
- * Side effects:
- *      See AsyncSocket_ConnectIP.
- *
- *----------------------------------------------------------------------------
- */
-
-AsyncSocket *
-AsyncSocket_ConnectIPStr(const char *ipStr,
-                         unsigned short port,
-                         AsyncSocketConnectFn connectFn,
-                         void *clientData,
-                         AsyncSocketConnectFlags flags,
-                         AsyncSocketPollParams *pollParams,
-                         int *outError)
-{
-   struct in_addr ipAddr;
-
-   /*
-    * Windows doesn't have inet_aton so using inet_addr insted. Alternative is
-    * ifdef with WSAStringToAddress and inet_aton.
-    */
-
-   ipAddr.s_addr = inet_addr(ipStr);
-   if (ipAddr.s_addr == INADDR_NONE) {
-      if (outError) {
-         *outError = INADDR_NONE;
-      }
-
-      return NULL;
+   if (!connectFn || !hostname) {
+      error = ASOCKERR_INVAL;
+      Warning(ASOCKPREFIX "invalid arguments to connect!\n");
+      goto error;
    }
 
-   return AsyncSocket_ConnectIP(ntohl(ipAddr.s_addr), port, connectFn,
-                                clientData, flags, pollParams, outError);
+   asock = AsyncSocketConnectImpl(AF_INET, hostname, port, connectFn,
+                                  clientData, flags, pollParams, &error);
+   if (!asock) {
+      asock = AsyncSocketConnectImpl(AF_INET6, hostname, port, connectFn,
+                                     clientData, flags, pollParams, &error);
+   }
+
+error:
+   if (!asock && outError) {
+      *outError = error;
+   }
+
+   return asock;
 }
 
 
@@ -1204,16 +1650,17 @@ AsyncSocket_ConnectVMCI(unsigned int cid,                  // IN
    struct sockaddr_vm addr;
    AsyncSocket *asock;
 
-   memset((char *)&addr, 0, sizeof addr);
+   memset(&addr, 0, sizeof addr);
    addr.svm_family = VMCISock_GetAFValueFd(&vsockDev);
    addr.svm_cid = cid;
    addr.svm_port = port;
 
    Log(ASOCKPREFIX "creating new socket, connecting to %u:%u\n", cid, port);
 
-   asock = AsyncSocketConnect((struct sockaddr *)&addr, sizeof addr,
-                              connectFn, clientData, AsyncSocketConnectCallback,
-                              flags, pollParams, outError);
+   asock = AsyncSocketConnect((struct sockaddr_storage *)&addr,
+                              sizeof addr, connectFn, clientData,
+                              AsyncSocketConnectCallback, flags, pollParams,
+                              outError);
 
    VMCISock_ReleaseAFValueFd(vsockDev);
    return asock;
@@ -1250,7 +1697,7 @@ AsyncSocket_ConnectUnixDomain(const char *path,                  // IN
    struct sockaddr_un addr;
    AsyncSocket *asock;
 
-   memset((char *)&addr, 0, sizeof addr);
+   memset(&addr, 0, sizeof addr);
    addr.sun_family = AF_UNIX;
 
    if (strlen(path) + 1 > sizeof addr.sun_path) {
@@ -1261,9 +1708,10 @@ AsyncSocket_ConnectUnixDomain(const char *path,                  // IN
 
    Log(ASOCKPREFIX "creating new socket, connecting to %s\n", path);
 
-   asock = AsyncSocketConnect((struct sockaddr *)&addr, sizeof addr,
-                              connectFn, clientData, AsyncSocketConnectCallback,
-                              flags, pollParams, outError);
+   asock = AsyncSocketConnect((struct sockaddr_storage *)&addr,
+                              sizeof addr, connectFn, clientData,
+                              AsyncSocketConnectCallback, flags, pollParams,
+                              outError);
 
    return asock;
 }
@@ -1288,7 +1736,7 @@ AsyncSocket_ConnectUnixDomain(const char *path,                  // IN
  */
 
 static AsyncSocket *
-AsyncSocketConnect(struct sockaddr *addr,
+AsyncSocketConnect(struct sockaddr_storage *addr,
                    socklen_t addrLen,
                    AsyncSocketConnectFn connectFn,
                    void *clientData,
@@ -1301,7 +1749,6 @@ AsyncSocketConnect(struct sockaddr *addr,
    AsyncSocket *asock = NULL;
    int error = ASOCKERR_GENERIC;
    int sysErr;
-   int socketFamily;
 
    ASSERT(addr);
 
@@ -1317,12 +1764,10 @@ AsyncSocketConnect(struct sockaddr *addr,
       goto error;
    }
 
-   socketFamily = addr->sa_family;
-
    /*
     * Create a new IP socket
     */
-   if ((fd = socket(socketFamily, SOCK_STREAM, 0)) == -1) {
+   if ((fd = socket(addr->ss_family, SOCK_STREAM, 0)) == -1) {
       sysErr = ASOCK_LASTERROR();
       Warning(ASOCKPREFIX "failed to create socket, error %d: %s\n",
               sysErr, Err_Errno2String(sysErr));
@@ -1339,8 +1784,8 @@ AsyncSocketConnect(struct sockaddr *addr,
       goto error;
    }
 
-   return AsyncSocketConnectWithAsock(asock, addr, addrLen,
-                                      connectFn, clientData, internalConnectFn,
+   return AsyncSocketConnectWithAsock(asock, addr, addrLen, connectFn,
+                                      clientData, internalConnectFn,
                                       pollParams, outError);
 
 error:
@@ -1353,7 +1798,7 @@ error:
 
 AsyncSocket *
 AsyncSocketConnectWithAsock(AsyncSocket *asock,
-                            struct sockaddr *addr,
+                            struct sockaddr_storage *addr,
                             socklen_t addrLen,
                             AsyncSocketConnectFn connectFn,
                             void *clientData,
@@ -1376,9 +1821,9 @@ AsyncSocketConnectWithAsock(AsyncSocket *asock,
     */
 
    AsyncSocketLock(asock);
-   if (connect(asock->fd, addr, addrLen) != 0) {
+   if (connect(asock->fd, (struct sockaddr *)addr, addrLen) != 0) {
       if (ASOCK_LASTERROR() == ASOCK_ECONNECTING) {
-         ASSERT(!(vmx86_server && addr->sa_family == AF_UNIX));
+         ASSERT(!(vmx86_server && addr->ss_family == AF_UNIX));
          ASOCKLOG(1, asock, ("registering write callback for socket connect\n"));
          pollStatus = AsyncSocketPollAdd(asock, TRUE, POLL_FLAG_WRITE,
                                          internalConnectFn);
@@ -1405,9 +1850,8 @@ AsyncSocketConnectWithAsock(AsyncSocket *asock,
    asock->state = AsyncSocketConnecting;
    asock->connectFn = connectFn;
    asock->clientData = clientData;
-   asock->type = SOCK_STREAM;
 
-   /* Store a copy of the sockaddr so we can look it up later. */
+   /* Store a copy of the sockaddr_storage so we can look it up later. */
    asock->remoteAddr = *addr;
    asock->remoteAddrLen = addrLen;
 
@@ -1450,8 +1894,9 @@ AsyncSocketCreate(AsyncSocketPollParams *pollParams) // IN
    AsyncSocket *s;
 
    s = Util_SafeCalloc(1, sizeof *s);
-   s->id = Atomic_FetchAndInc(&nextid);
+   s->id = Atomic_ReadInc32(&nextid);
    s->state = AsyncSocketConnected;
+   s->fd = -1;
    s->refCount = 1;
    s->inRecvLoop = FALSE;
    s->sendBufFull = FALSE;
@@ -1512,7 +1957,6 @@ AsyncSocket_AttachToSSLSock(SSLSock sslSock,
    s = AsyncSocketCreate(pollParams);
    s->sslSock = sslSock;
    s->fd = fd;
-   s->type = SOCK_STREAM;
    s->asockType = ASYNCSOCKET_TYPE_SOCKET;
    if (s->pollParams.iPoll == NULL) {
       s->vt = &asyncStreamSocketVTable;
@@ -1739,8 +2183,7 @@ AsyncSocketRecvSocket(AsyncSocket *asock, // IN:
       asock->recvCb = TRUE;
    }
 
-   if (SOCK_STREAM == asock->type &&
-       (AsyncSocketHasDataPending(asock) && !asock->inRecvLoop)) {
+   if (AsyncSocketHasDataPending(asock) && !asock->inRecvLoop) {
       ASOCKLOG(0, asock, ("installing recv RTime poll callback\n"));
       if (Poll_CB_RTime(asock->vt->recvCallback,
                         asock, 0, FALSE, NULL) !=
@@ -1762,7 +2205,7 @@ out:
  * AsyncSocket_RecvPartial --
  *
  *      Registers a callback that will fire once the specified amount of data
- *      has been received on the socket.  This handles both TCP and UDP.
+ *      has been received on the socket.
  *
  *      In the case of AsyncSocket_RecvPartial, the callback is fired
  *      once all or part of the data has been received on the socket.
@@ -1785,20 +2228,11 @@ out:
  *      this condition, i.e., if inRecvLoop is FALSE, we need to schedule the
  *      RTime callback.
  *
- *      This can be used with either TCP or UDP sockets.
- *
  *      TCP usage:
  *      AsyncSocket_Recv(AsyncSocket *asock,
  *                       void *buf,
  *                       int len,
  *                       AsyncSocketRecvFn recvFn,
- *                       void *clientData)
- *
- *      UDP usage:
- *      AsyncSocket_Recv(AsyncSocket *asock,
- *                       void *buf,
- *                       int len,
- *                       AsyncSocketRecvUDPFn recvFn,
  *                       void *clientData)
  *
  * Results:
@@ -1862,7 +2296,6 @@ AsyncSocketRecv(AsyncSocket *asock,  // IN:
                 void *cbData)        // IN:
 {
    AsyncSocketRecvFn recvFn = NULL;
-   AsyncSocketRecvUDPFn recvUDPFn = NULL;
    void *clientData = NULL;
    int retVal;
 
@@ -1878,19 +2311,8 @@ AsyncSocketRecv(AsyncSocket *asock,  // IN:
       return ASOCKERR_INVAL;
    }
 
-   if (SOCK_STREAM == asock->type) {
-      recvFn = cb;
-      clientData = cbData;
-   } else if (SOCK_DGRAM == asock->type) {
-      recvUDPFn = cb;
-      clientData = cbData;
-   } else {
-      /*
-       * If this isn't TCP or UDP, it isn't supported.
-       */
-
-      return ASOCKERR_INVAL;
-   }
+   recvFn = cb;
+   clientData = cbData;
 
    /*
     * XXX We might want to allow passing NULL for the recvFn, to indicate that
@@ -1899,7 +2321,7 @@ AsyncSocketRecv(AsyncSocket *asock,  // IN:
     *     then the client->server half of the connection is closed.
     */
 
-   if (!buf || (!recvFn && !recvUDPFn) || len <= 0) {
+   if (!buf || !recvFn || len <= 0) {
       Warning(ASOCKPREFIX "Recv called with invalid arguments!\n");
 
       return ASOCKERR_INVAL;
@@ -1932,7 +2354,6 @@ AsyncSocketRecv(AsyncSocket *asock,  // IN:
 
    asock->recvBuf = buf;
    asock->recvFn = recvFn;
-   asock->recvUDPFn = recvUDPFn;
    asock->recvLen = len;
    asock->recvFireOnPartial = fireOnPartial;
    asock->recvPos = 0;
@@ -2010,6 +2431,11 @@ AsyncSocket_RecvPassedFd(AsyncSocket *asock,  // IN/OUT: socket
  *      Blocks on the specified socket until there's data pending or a
  *      timeout occurs.
  *
+ *      If the specified socket is a dual stack listener, we will poll on all
+ *      listening sockets and will return when one is ready with data for a
+ *      connection. If both socket families happen to race with connect data,
+ *      we will favor IPv6 for the return.
+ *
  * Results:
  *      ASOCKERR_SUCCESS if it worked, ASOCKERR_GENERIC on system call
  *        failures
@@ -2021,12 +2447,13 @@ AsyncSocket_RecvPassedFd(AsyncSocket *asock,  // IN/OUT: socket
  */
 
 static int
-AsyncSocketPoll(AsyncSocket *s,  // IN:
-                Bool read,       // IN:
-                int timeoutMS)   // IN:
+AsyncSocketPoll(AsyncSocket *s,          // IN:
+                Bool read,               // IN:
+                int timeoutMS,           // IN:
+                AsyncSocket **outAsock)  // OUT:
 {
 #ifndef _WIN32
-   struct pollfd p;
+   struct pollfd p[2];
    int retval;
 #else
    /*
@@ -2039,69 +2466,130 @@ AsyncSocketPoll(AsyncSocket *s,  // IN:
    struct fd_set rwfds;
    struct fd_set exceptfds;
 #endif
+   AsyncSocket *asock[2];
+   int numSock = 0;
+   int i;
 
    ASSERT(s->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
+   ASSERT(*outAsock == NULL);
 
-   if (read && SSL_Pending(s->sslSock)) {
-      return ASOCKERR_SUCCESS;
+   if (read && s->fd == -1) {
+      if (!s->listenAsock4 && !s->listenAsock6) {
+         ASSERT(FALSE);
+         return ASOCKERR_GENERIC;
+      }
+
+      if (s->listenAsock6 && s->listenAsock6->fd != -1) {
+         asock[numSock++] = s->listenAsock6;
+      }
+      if (s->listenAsock4 && s->listenAsock4->fd != -1) {
+         asock[numSock++] = s->listenAsock4;
+      }
+   } else {
+      asock[numSock++] = s;
+   }
+
+   for (i = 0; i < numSock; i++) {
+      if (read && SSL_Pending(asock[i]->sslSock)) {
+         *outAsock = asock[i];
+         return ASOCKERR_SUCCESS;
+      }
    }
 
    while (1) {
-
 #ifndef _WIN32
-      p.fd = s->fd;
-      p.events = read ? POLLIN : POLLOUT;
+      for (i = 0; i < numSock; i++) {
+         p[i].fd = asock[i]->fd;
+         p[i].events = read ? POLLIN : POLLOUT;
+      }
 
-      retval = poll(&p, 1, timeoutMS);
+      retval = poll(p, numSock, timeoutMS);
 #else
       tv.tv_sec = timeoutMS / 1000;
       tv.tv_usec = (timeoutMS % 1000) * 1000;
 
       FD_ZERO(&rwfds);
       FD_ZERO(&exceptfds);
-      FD_SET(s->fd, &rwfds);
-      FD_SET(s->fd, &exceptfds);
+
+      for (i = 0; i < numSock; i++) {
+         FD_SET(asock[i]->fd, &rwfds);
+         FD_SET(asock[i]->fd, &exceptfds);
+      }
 
       retval = select(1, read ? &rwfds : NULL, read ? NULL : &rwfds,
                       &exceptfds, timeoutMS >= 0 ? &tv : NULL);
 #endif
+
       switch (retval) {
-
       case 1:
+      case 2: {
+         Bool failed = FALSE;
+
 #ifndef _WIN32
-         if (p.revents & (POLLERR | POLLNVAL))
+         for (i = 0; i < numSock; i++) {
+            if (p[i].revents & (POLLERR | POLLNVAL)) {
+               failed = TRUE;
+            }
+         }
 #else
-            if (FD_ISSET(s->fd, &exceptfds))
+         for (i = 0; i < numSock; i++) {
+            if (FD_ISSET(asock[i]->fd, &exceptfds)) {
+               failed = TRUE;
+            }
+         }
 #endif
-            {
-               int sockErr = 0, sysErr, sockErrLen = sizeof sockErr;
 
-               ASOCKLG0(s, ("%s on fd %d failed\n", __FUNCTION__, s->fd));
+         if (failed) {
+            int sockErr = 0;
+            int sysErr;
+            int sockErrLen = sizeof sockErr;
 
-               if (getsockopt(s->fd, SOL_SOCKET, SO_ERROR,
+            for (i = 0; i < numSock; i++) {
+               if (getsockopt(asock[i]->fd, SOL_SOCKET, SO_ERROR,
                               (void *) &sockErr, (void *) &sockErrLen) == 0) {
                   if (sockErr) {
-                     s->genericErrno = sockErr;
-                     ASOCKLG0(s, ("getsockopt error lookup returned %d: %s\n",
-                                  sockErr, Err_Errno2String(sockErr)));
+                     asock[i]->genericErrno = sockErr;
+                     ASOCKLG0(asock[i],
+                              ("%s: Socket error lookup returned %d: %s\n",
+                               __FUNCTION__, sockErr,
+                               Err_Errno2String(sockErr)));
                   }
                } else {
                   sysErr = ASOCK_LASTERROR();
-                  s->genericErrno = sysErr;
-                  ASOCKLG0(s, ("getsockopt failed with error %d: %s\n", sysErr,
-                               Err_Errno2String(sysErr)));
+                  asock[i]->genericErrno = sysErr;
+                  ASOCKLG0(asock[i],
+                           ("%s: Last socket error %d: %s\n",
+                            __FUNCTION__, sysErr, Err_Errno2String(sysErr)));
                }
-
-               return ASOCKERR_GENERIC;
             }
 
+            return ASOCKERR_GENERIC;
+         }
+
          /*
-          * One socket was ready, and it wasn't in an exception state, so
+          * If one socket is ready, and it wasn't in an exception state,
           * everything is ok. The socket is ready for reading/writing.
           */
 
-         return ASOCKERR_SUCCESS;
+#ifndef _WIN32
+         for (i = 0; i < numSock; i++) {
+            if (p[i].revents & (read ? POLLIN : POLLOUT)) {
+               *outAsock = asock[i];
+               return ASOCKERR_SUCCESS;
+            }
+         }
+#else
+         for (i = 0; i < numSock; i++) {
+            if (FD_ISSET(asock[i]->fd, &rwfds)) {
+               *outAsock = asock[i];
+               return ASOCKERR_SUCCESS;
+            }
+         }
+#endif
 
+         ASOCKWARN(s, ("Failed to return a ready socket.\n"));
+         return ASOCKERR_GENERIC;
+      }
       case 0:
          /*
           * No sockets were ready within the specified time.
@@ -2234,11 +2722,14 @@ AsyncSocketBlockingWork(AsyncSocket *s,  // IN:
    done = now + timeoutMS;
    do {
       int numBytes, error;
+      AsyncSocket *asock = NULL;
 
-      if ((error = AsyncSocketPoll(s, read, done - now)) != ASOCKERR_SUCCESS) {
+      if ((error = AsyncSocketPoll(s, read, done - now, &asock)) !=
+          ASOCKERR_SUCCESS) {
          return error;
       }
 
+      ASSERT(asock == s);
       if ((numBytes = read ? SSL_Read(s->sslSock, buf, len)
                            : SSL_Write(s->sslSock, buf, len)) > 0) {
          if (completed) {
@@ -2255,8 +2746,7 @@ AsyncSocketBlockingWork(AsyncSocket *s,  // IN:
          return ASOCKERR_REMOTE_DISCONNECT;
       } else if ((sysErr = ASOCK_LASTERROR()) != ASOCK_EWOULDBLOCK) {
          s->genericErrno = sysErr;
-         ASOCKWARN(s, ("blocking %s error %d: %s\n",
-                       read ? "recv" : "send",
+         ASOCKWARN(s, ("blocking %s error %d: %s\n", read ? "recv" : "send",
                        sysErr, Err_Errno2String(sysErr)));
 
          return ASOCKERR_GENERIC;
@@ -2314,19 +2804,30 @@ AsyncSocketSendSocket(AsyncSocket *asock,      // IN:
          return retVal;
       }
       asock->sendCbTimer = TRUE;
+      asock->sendCb = TRUE;
 #else
-      /*
-       * For non-Windows platforms, just schedule a regular device callback.
-       */
-
-      if (AsyncSocketPollAdd(asock, TRUE, POLL_FLAG_WRITE,
-                             asock->vt->sendCallback)
-          != VMWARE_STATUS_SUCCESS) {
-         retVal = ASOCKERR_POLL;
-         return retVal;
+      if (asock->sendLowLatency) {
+         /*
+          * For low-latency sockets, call the callback directly from
+          * this thread.  It is non-blocking and will schedule device
+          * callbacks if necessary to complete the operation.
+          *
+          * Unfortunately we can't make this the default as current
+          * consumers of asyncsocket are not expecting the completion
+          * callback to be invoked prior to the call to
+          * AsyncSocket_Send() returning.
+          */
+         asock->vt->sendCallback((void *)asock);
+      } else {
+         if (AsyncSocketPollAdd(asock, TRUE, POLL_FLAG_WRITE,
+                                asock->vt->sendCallback)
+             != VMWARE_STATUS_SUCCESS) {
+            retVal = ASOCKERR_POLL;
+            return retVal;
+         }
+         asock->sendCb = TRUE;
       }
 #endif
-      asock->sendCb = TRUE;
    }
 
    return retVal;
@@ -2385,9 +2886,9 @@ AsyncSocket_Send(AsyncSocket *asock,
       return ASOCKERR_INVAL;
    }
 
-   AsyncSocketLock(asock);
+   LOG(2, ("%s: sending %d bytes\n", __FUNCTION__, len));
 
-   ASSERT(SOCK_STREAM == asock->type);
+   AsyncSocketLock(asock);
 
    if (asock->state != AsyncSocketConnected) {
       ASOCKWARN(asock, ("send called but state is not connected!\n"));
@@ -2445,30 +2946,33 @@ outHaveLock:
  */
 int
 AsyncSocketResolveAddr(const char *hostname,
-                       unsigned short port,
+                       unsigned int port,
                        int family,
-                       int type,
-                       struct sockaddr *addr,
+                       Bool passive,
+                       struct sockaddr_storage *addr,
+                       socklen_t *addrLen,
                        char **addrString)
 {
    struct addrinfo hints;
    struct addrinfo *aiTop = NULL;
    struct addrinfo *aiIterator = NULL;
    int getaddrinfoError = 0;
-   char portString[6]; /* strlen("65535\0") == 6 */
+   char portString[PORT_STRING_LEN];
 
    ASSERT(NULL != addr);
-   ASSERT(NULL != addrString);
+
+   if (port > MAX_UINT16) {
+      Log(ASOCKPREFIX "port number requested (%d) is out of range.\n", port);
+      return EAI_SERVICE;
+   }
 
    Str_Sprintf(portString, sizeof(portString), "%d", port);
    memset(&hints, 0, sizeof(hints));
    hints.ai_family = family;
-   hints.ai_socktype = type;
-
-   /*
-    * We use getaddrinfo() since it is thread-safe. gethostbyname() is not
-    * thread-safe, and gethostbyname_r() is not defined on Windows.
-    */
+   hints.ai_socktype = SOCK_STREAM;
+   if (passive) {
+      hints.ai_flags = AI_PASSIVE;
+   }
 
    getaddrinfoError = Posix_GetAddrInfo(hostname, portString, &hints, &aiTop);
    if (0 != getaddrinfoError) {
@@ -2476,44 +2980,47 @@ AsyncSocketResolveAddr(const char *hostname,
                       gai_strerror(getaddrinfoError));
       goto bye;
    }
+
    for (aiIterator = aiTop; NULL != aiIterator ; aiIterator =
                                                        aiIterator->ai_next) {
-      if (((family == AF_UNSPEC || family == AF_INET) &&
-           aiIterator->ai_family == AF_INET) ||
-          ((family == AF_UNSPEC || family == AF_INET6) &&
-           aiIterator->ai_family == AF_INET6)) {
-         char tempAddrString[INET6_ADDRSTRLEN];
-         static char unknownAddr[] = "(Unknown)";
+      if ((family == AF_UNSPEC && (aiIterator->ai_family == AF_INET ||
+                                   aiIterator->ai_family == AF_INET6)) ||
+          family == aiIterator->ai_family) {
+         if (addrString != NULL) {
+            char tempAddrString[ADDR_STRING_LEN];
+            static char unknownAddr[] = "(Unknown)";
 #if defined(_WIN32)
-         DWORD len = INET6_ADDRSTRLEN;
+            DWORD len = ARRAYSIZE(tempAddrString);
 
-         if (WSAAddressToString(aiIterator->ai_addr, aiIterator->ai_addrlen,
-                                NULL, tempAddrString, &len)) {
-            *addrString = Util_SafeStrdup(unknownAddr);
-         } else {
-            *addrString = Util_SafeStrdup(tempAddrString);
-         }
+            if (WSAAddressToString(aiIterator->ai_addr, aiIterator->ai_addrlen,
+                                   NULL, tempAddrString, &len)) {
+               *addrString = Util_SafeStrdup(unknownAddr);
+            } else {
+               *addrString = Util_SafeStrdup(tempAddrString);
+            }
 #else
 
-         if (aiIterator->ai_family == AF_INET &&
-             !inet_ntop(aiIterator->ai_family,
+            if (aiIterator->ai_family == AF_INET &&
+                !inet_ntop(aiIterator->ai_family,
                      &(((struct sockaddr_in *)aiIterator->ai_addr)->sin_addr),
                      tempAddrString, INET6_ADDRSTRLEN)) {
-            *addrString = Util_SafeStrdup(unknownAddr);
-         } else if (aiIterator->ai_family == AF_INET6 &&
-                    !inet_ntop(aiIterator->ai_family,
+               *addrString = Util_SafeStrdup(unknownAddr);
+            } else if (aiIterator->ai_family == AF_INET6 &&
+                       !inet_ntop(aiIterator->ai_family,
                   &(((struct sockaddr_in6 *)aiIterator->ai_addr)->sin6_addr),
                   tempAddrString, INET6_ADDRSTRLEN)) {
-            *addrString = Util_SafeStrdup(unknownAddr);
-         } else {
-            Str_Sprintf(tempAddrString, sizeof tempAddrString, "%s:%u",
-                        tempAddrString, port);
-
-            *addrString = Util_SafeStrdup(tempAddrString);
-         }
+               *addrString = Util_SafeStrdup(unknownAddr);
+            } else {
+               *addrString = Str_SafeAsprintf(NULL, aiIterator->ai_family ==
+                                                    AF_INET6 ? "[%s]:%u" :
+                                                               "%s:%u",
+                                              tempAddrString, port);
+            }
 #endif
+         }
 
-         *addr = *(aiIterator->ai_addr);
+         memcpy(addr, aiIterator->ai_addr, aiIterator->ai_addrlen);
+         *addrLen = aiIterator->ai_addrlen;
 
          break;
       }
@@ -2911,14 +3418,15 @@ AsyncSocketAcceptInternal(AsyncSocket *s)
    AsyncSocket *newsock;
    int sysErr;
    int fd;
-   struct sockaddr remoteAddr;
+   struct sockaddr_storage remoteAddr;
    socklen_t remoteAddrLen = sizeof remoteAddr;
 
    ASSERT(s->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
    ASSERT(AsyncSocketIsLocked(s));
    ASSERT(s->state == AsyncSocketListening);
 
-   if ((fd = accept(s->fd, &remoteAddr, &remoteAddrLen)) == -1) {
+   if ((fd = accept(s->fd, (struct sockaddr *)&remoteAddr,
+                    &remoteAddrLen)) == -1) {
       sysErr = ASOCK_LASTERROR();
       s->genericErrno = sysErr;
       if (sysErr == ASOCK_EWOULDBLOCK) {
@@ -2942,6 +3450,25 @@ AsyncSocketAcceptInternal(AsyncSocket *s)
       } else {
          ASOCKWARN(s, ("accept failed on fd %d, error %d: %s\n",
                        s->fd, sysErr, Err_Errno2String(sysErr)));
+
+         return ASOCKERR_ACCEPT;
+      }
+   }
+
+   if (remoteAddr.ss_family == AF_INET6 &&
+       AsyncSocketOSVersionSupportsV4Mapped()) {
+      struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&remoteAddr;
+
+      /*
+       * Remote address should not be a V4MAPPED address. Validate for the rare
+       * case that IPV6_V6ONLY is not defined and V4MAPPED is enabled by
+       * default when setting up socket listener.
+       */
+
+      if (IN6_IS_ADDR_V4MAPPED(&(addr6->sin6_addr))) {
+         ASOCKWARN(s, ("accept rejected on fd %d due to a IPv4-mapped IPv6 "
+                       "remote connection address.\n", s->fd));
+         SSLGeneric_close(fd);
 
          return ASOCKERR_ACCEPT;
       }
@@ -2996,7 +3523,7 @@ AsyncSocketConnectInternal(AsyncSocket *s)
    ASSERT(s->state == AsyncSocketConnecting);
 
    /* Remove when bug 859728 is fixed */
-   if (vmx86_server && s->remoteAddr.sa_family == AF_UNIX) {
+   if (vmx86_server && s->remoteAddr.ss_family == AF_UNIX) {
       goto done;
    }
 
@@ -3012,14 +3539,14 @@ AsyncSocketConnectInternal(AsyncSocket *s)
 
    if (optval != 0) {
       s->genericErrno = optval;
-      Warning(ASOCKPREFIX "SO_ERROR for connect on fd %d: %s\n",
-              s->fd, Err_Errno2String(optval));
+      ASOCKLOG(1, s, ("connection SO_ERROR: %s\n", Err_Errno2String(optval)));
 
       return ASOCKERR_GENERIC;
    }
 
    s->localAddrLen = sizeof s->localAddr;
-   if (getsockname(s->fd, &s->localAddr, &s->localAddrLen) != 0) {
+   if (getsockname(s->fd, (struct sockaddr *)&s->localAddr,
+                   &s->localAddrLen) != 0) {
       sysErr = ASOCK_LASTERROR();
       s->genericErrno = sysErr;
       Warning(ASOCKPREFIX "getsockname for connect on fd %d failed with "
@@ -3087,7 +3614,7 @@ int
 AsyncSocket_WaitForConnection(AsyncSocket *s,  // IN:
                               int timeoutMS)   // IN:
 {
-   Bool read;
+   Bool read = FALSE;
    int error;
    VmTimeType now, done;
    Bool removed = FALSE;
@@ -3098,25 +3625,45 @@ AsyncSocket_WaitForConnection(AsyncSocket *s,  // IN:
 
    if (s->state == AsyncSocketConnected) {
       error = ASOCKERR_SUCCESS;
-      goto outHaveLock;
+      AsyncSocketUnlock(s);
+      goto out;
    }
 
    if (s->state != AsyncSocketListening &&
        s->state != AsyncSocketConnecting) {
       error = ASOCKERR_GENERIC;
-      goto outHaveLock;
+      AsyncSocketUnlock(s);
+      goto out;
    }
 
+   read = s->state == AsyncSocketListening;
+
    /*
-   * A nuisance.  ConnectCallback() is either registered as a device or
-   * rtime callback depending on the prior return value of connect().
-   * So we try to remove it from both.
-   *
-   * XXX: For listening sockets, the callback is AsyncSocketAcceptCallback,
-   * which would need to be unregistered here and then be re-registered
-   * before returning.
-   */
-   if (s->state == AsyncSocketConnecting) {
+    * For listening sockets, unregister AsyncSocketAcceptCallback before
+    * starting polling and re-register before returning.
+    *
+    * ConnectCallback() is either registered as a device or rtime callback
+    * depending on the prior return value of connect(). So we try to remove it
+    * from both.
+    */
+   if (read) {
+      if (s->fd == -1) {
+         if (s->listenAsock4) {
+            AsyncSocketLock(s->listenAsock4);
+            AsyncSocketCancelListenCbSocket(s->listenAsock4);
+            AsyncSocketUnlock(s->listenAsock4);
+         }
+         if (s->listenAsock6) {
+            AsyncSocketLock(s->listenAsock6);
+            AsyncSocketCancelListenCbSocket(s->listenAsock6);
+            AsyncSocketUnlock(s->listenAsock6);
+         }
+      } else {
+         AsyncSocketCancelListenCbSocket(s);
+      }
+
+      removed = TRUE;
+   } else {
       removed = AsyncSocketPollRemove(s, TRUE, POLL_FLAG_WRITE,
                                       AsyncSocketConnectCallback)
          || AsyncSocketPollRemove(s, FALSE, 0, AsyncSocketConnectCallback);
@@ -3125,23 +3672,23 @@ AsyncSocket_WaitForConnection(AsyncSocket *s,  // IN:
 
    AsyncSocketUnlock(s);
 
-   read = s->state == AsyncSocketListening;
-
    now = Hostinfo_SystemTimerUS() / 1000;
    done = now + timeoutMS;
 
    do {
+      AsyncSocket *asock = NULL;
+
       if ((error = AsyncSocketPoll(s, read,
-                                   done - now)) != ASOCKERR_SUCCESS) {
+                                   done - now, &asock)) != ASOCKERR_SUCCESS) {
          goto out;
       }
 
-      AsyncSocketLock(s);
+      AsyncSocketLock(asock);
 
       now = Hostinfo_SystemTimerUS() / 1000;
 
       if (read) {
-         if (AsyncSocketAcceptInternal(s) != ASOCKERR_SUCCESS) {
+         if (AsyncSocketAcceptInternal(asock) != ASOCKERR_SUCCESS) {
             ASOCKLG0(s, ("wait for connection: accept failed\n"));
 
             /*
@@ -3151,24 +3698,47 @@ AsyncSocket_WaitForConnection(AsyncSocket *s,  // IN:
 
          } else {
             error = ASOCKERR_SUCCESS;
-            goto outHaveLock;
+            AsyncSocketUnlock(asock);
+            goto out;
          }
       } else {
-         error = AsyncSocketConnectInternal(s);
-         goto outHaveLock;
+         error = AsyncSocketConnectInternal(asock);
+         AsyncSocketUnlock(asock);
+         goto out;
       }
 
-      AsyncSocketUnlock(s);
-
+      AsyncSocketUnlock(asock);
    } while ((now < done && timeoutMS > 0) || (timeoutMS < 0));
 
    error = ASOCKERR_TIMEOUT;
-   goto out;
-
-outHaveLock:
-   AsyncSocketUnlock(s);
 
 out:
+   if (read && removed) {
+      if (s->fd == -1) {
+         if (s->listenAsock4 && s->listenAsock4->state != AsyncSocketClosed) {
+            AsyncSocketLock(s->listenAsock4);
+            if (!AsyncSocketAddListenCbSocket(s->listenAsock4)) {
+               error = ASOCKERR_POLL;
+            }
+            AsyncSocketUnlock(s->listenAsock4);
+         }
+
+         if (s->listenAsock6 && s->listenAsock6->state != AsyncSocketClosed) {
+            AsyncSocketLock(s->listenAsock6);
+            if (!AsyncSocketAddListenCbSocket(s->listenAsock6)) {
+               error = ASOCKERR_POLL;
+            }
+            AsyncSocketUnlock(s->listenAsock6);
+         }
+      } else if (s->state != AsyncSocketClosed) {
+         AsyncSocketLock(s);
+         if (!AsyncSocketAddListenCbSocket(s)) {
+            error = ASOCKERR_POLL;
+         }
+         AsyncSocketUnlock(s);
+      }
+   }
+
    return error;
 }
 
@@ -3195,6 +3765,7 @@ int
 AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
 {
    int retVal;
+   AsyncSocket *asock = NULL;
 
    ASSERT(s->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
 
@@ -3204,10 +3775,8 @@ AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
    }
 
    if (read) {
-      VMwareStatus pollStatus;
-
       /*
-       * Bug 158571: There could other threads polling on the same asyncsocket
+       * Bug 158571: There could other threads polling on the same asyncsocket.
        * If two threads land up polling  on the same socket at the same time,
        * the first thread to be scheduled reads the data from the socket,
        * while the second one blocks infinitely. This hangs the VM. To prevent
@@ -3228,7 +3797,7 @@ AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
 
       s->inBlockingRecv++;
       AsyncSocketUnlock(s); /* We may sleep in poll. */
-      retVal = AsyncSocketPoll(s, read, timeoutMS);
+      retVal = AsyncSocketPoll(s, read, timeoutMS, &asock);
       AsyncSocketLock(s);
       s->inBlockingRecv--;
       if (retVal != ASOCKERR_SUCCESS) {
@@ -3237,6 +3806,7 @@ AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
                           __FUNCTION__));
          }
       } else {
+         ASSERT(asock == s);
          retVal = AsyncSocketFillRecvBuffer(s);
       }
 
@@ -3247,6 +3817,8 @@ AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
        */
 
       if (s->state != AsyncSocketClosed) {
+         VMwareStatus pollStatus;
+
          ASSERT(s->refCount > 1); /* We should not be last user of socket */
          ASSERT(s->state == AsyncSocketConnected);
          ASSERT(s->recvCb); /* Still interested in callback. */
@@ -3265,12 +3837,14 @@ AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
       /* This may destroy socket s if it is in AsyncSocketClosed state now. */
       AsyncSocketRelease(s, TRUE);
    } else {
-      if ((retVal = AsyncSocketPoll(s, read, timeoutMS)) != ASOCKERR_SUCCESS) {
+      if ((retVal = AsyncSocketPoll(s, read, timeoutMS, &asock)) !=
+          ASOCKERR_SUCCESS) {
          if (retVal == ASOCKERR_GENERIC) {
             ASOCKWARN(s, ("%s: failed to poll on the socket during write.\n",
                           __FUNCTION__));
          }
       } else {
+         ASSERT(asock == s);
          AsyncSocketLock(s);
          retVal = AsyncSocketWriteBuffers(s);
          AsyncSocketUnlock(s);
@@ -3327,8 +3901,10 @@ AsyncSocket_Flush(AsyncSocket *s, int timeoutMS)
    done = now + timeoutMS;
 
    while (s->sendBufList) {
+      AsyncSocket *asock = NULL;
+
       AsyncSocketUnlock(s); /* We may sleep in poll. */
-      retVal = AsyncSocketPoll(s, FALSE, done - now);
+      retVal = AsyncSocketPoll(s, FALSE, done - now, &asock);
       AsyncSocketLock(s);
 
       if (retVal != ASOCKERR_SUCCESS) {
@@ -3336,6 +3912,7 @@ AsyncSocket_Flush(AsyncSocket *s, int timeoutMS)
          goto outHaveLock;
       }
 
+      ASSERT(asock == s);
       if ((retVal = AsyncSocketWriteBuffers(s)) != ASOCKERR_SUCCESS) {
          goto outHaveLock;
       }
@@ -3435,6 +4012,41 @@ AsyncSocketCancelListenCbSocket(AsyncSocket *asock)  // IN:
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncSocketAddListenCbSocket --
+ *
+ *      Socket specific code for adding callbacks for a listening socket.
+ *
+ * Results:
+ *      TRUE if Poll callback successfully added.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+AsyncSocketAddListenCbSocket(AsyncSocket *asock)  // IN:
+{
+   VMwareStatus pollStatus;
+
+   ASSERT(AsyncSocketIsLocked(asock));
+
+   pollStatus = AsyncSocketPollAdd(asock, TRUE, POLL_FLAG_READ |
+                                                POLL_FLAG_PERIODIC,
+                                   AsyncSocketAcceptCallback);
+
+   if (pollStatus != VMWARE_STATUS_SUCCESS) {
+      ASOCKWARN(asock, ("failed to install listen accept callback!\n"));
+   }
+
+   return pollStatus == VMWARE_STATUS_SUCCESS;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncSocketCancelRecvCbSocket --
  *
  *      Socket specific code for canceling callbacks when a receive
@@ -3460,7 +4072,7 @@ AsyncSocketCancelRecvCbSocket(AsyncSocket *asock)  // IN:
       removed = AsyncSocketPollRemove(asock, TRUE,
                                       POLL_FLAG_READ | POLL_FLAG_PERIODIC,
                                       asock->vt->recvCallback);
-      ASSERT_NOT_IMPLEMENTED(removed || asock->pollParams.iPoll);
+      VERIFY(removed || asock->pollParams.iPoll);
       asock->recvCb = FALSE;
    }
 }
@@ -3727,8 +4339,7 @@ AsyncSocketCancelCbForConnectingCloseSocket(AsyncSocket *asock) // IN
 int
 AsyncSocket_Close(AsyncSocket *asock)
 {
-   Bool removed;
-   AsyncSocketState oldState;
+   Bool isListener = TRUE;
 
    if (!asock) {
       return ASOCKERR_INVAL;
@@ -3743,48 +4354,67 @@ AsyncSocket_Close(AsyncSocket *asock)
       return ASOCKERR_CLOSED;
    }
 
-   /*
-    * Set the new state to closed, and then check the old state and do the
-    * right thing accordingly
-    */
+   if (asock->listenAsock4 || asock->listenAsock6) {
+      ASSERT(asock->refCount == 1);
 
-   ASOCKLOG(1, asock, ("closing socket\n"));
-   oldState = asock->state;
-   asock->state = AsyncSocketClosed;
-
-   ASSERT(asock->vt);
-
-   switch(oldState) {
-   case AsyncSocketListening:
-      ASOCKLOG(1, asock, ("old state was listening, removing accept callback\n"));
-      ASSERT(asock->vt->cancelListenCb);
-      asock->vt->cancelListenCb(asock);
-      break;
-
-   case AsyncSocketConnecting:
-      ASOCKLOG(1, asock, ("old state was connecting, removing connect callback\n"));
-      ASSERT(asock->vt->cancelCbForConnectingClose);
-      removed = asock->vt->cancelCbForConnectingClose(asock);
-      if (!removed) {
-         ASOCKLOG(1, asock, ("connect callback is not present in the poll list.\n"));
+      if (asock->listenAsock4) {
+         AsyncSocket_Close(asock->listenAsock4);
       }
-      break;
+      if (asock->listenAsock6) {
+         AsyncSocket_Close(asock->listenAsock6);
+      }
+   } else {
+      Bool removed;
+      AsyncSocketState oldState;
 
-   case AsyncSocketConnected:
-      ASOCKLOG(1, asock, ("old state was connected\n"));
-      AsyncSocketCancelCbForCloseInt(asock);
-      break;
+      isListener = FALSE;
 
-   case AsyncSocketCBCancelled:
-      ASOCKLOG(1, asock, ("old state was CB-cancelled\n"));
-      break;
+      /*
+       * Set the new state to closed, and then check the old state and do the
+       * right thing accordingly
+       */
 
-   default:
-      NOT_REACHED();
+      ASOCKLOG(1, asock, ("closing socket\n"));
+      oldState = asock->state;
+      asock->state = AsyncSocketClosed;
+
+      ASSERT(asock->vt);
+
+      switch(oldState) {
+      case AsyncSocketListening:
+         ASOCKLOG(1, asock, ("old state was listening, removing accept "
+                             "callback\n"));
+         ASSERT(asock->vt->cancelListenCb);
+         asock->vt->cancelListenCb(asock);
+         break;
+
+      case AsyncSocketConnecting:
+         ASOCKLOG(1, asock, ("old state was connecting, removing connect "
+                             "callback\n"));
+         ASSERT(asock->vt->cancelCbForConnectingClose);
+         removed = asock->vt->cancelCbForConnectingClose(asock);
+         if (!removed) {
+            ASOCKLOG(1, asock, ("connect callback is not present in the poll "
+                                "list.\n"));
+         }
+         break;
+
+      case AsyncSocketConnected:
+         ASOCKLOG(1, asock, ("old state was connected\n"));
+         AsyncSocketCancelCbForCloseInt(asock);
+         break;
+
+      case AsyncSocketCBCancelled:
+         ASOCKLOG(1, asock, ("old state was CB-cancelled\n"));
+         break;
+
+      default:
+         NOT_REACHED();
+      }
+
+      ASSERT(asock->vt->close);
+      asock->vt->close(asock);
    }
-
-   ASSERT(asock->vt->close);
-   asock->vt->close(asock);
 
    AsyncSocketRelease(asock, TRUE);
 
@@ -4262,62 +4892,6 @@ AsyncSocketIPollRecvCallback(void *clientData)  // IN:
 /*
  *----------------------------------------------------------------------------
  *
- * AsyncSocketRecvUDPCallback --
- *
- *      Retrieve the UDP packet and fire a callback with it.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Reads data, fires recv completion.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-AsyncSocketRecvUDPCallback(void *clientData)
-{
-   AsyncSocket *asock = (AsyncSocket *) clientData;
-   struct sockaddr_in clientAddr;
-   int clientAddrLen = sizeof(clientAddr);
-   int actualPacketLength = 0;
-
-   ASSERT(asock);
-   ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
-   ASSERT(AsyncSocketIsLocked(asock));
-
-   /*
-    * TODO: It would be useful if we also get the destination address
-    * and pass that to the callback.  This way, if the socket is
-    * bound to multiple interfaces, we know which interface the
-    * packet came in from.  getsockname() doesn't appear to work here.
-    * Instead, recvmsg() with the IP_PKTINFO socket option enabled
-    * appears to be the right thing to do.  (Use WSARecvMsg on Win32)
-    */
-
-   AsyncSocketAddRef(asock);
-   actualPacketLength = recvfrom(asock->fd, asock->recvBuf,
-                                 asock->recvLen, 0,
-                                 (struct sockaddr *) &clientAddr,
-                                 &clientAddrLen);
-
-   if (-1 == actualPacketLength) {
-      AsyncSocketHandleError(asock, ASOCKERR_GENERIC);
-      goto exit;
-   }
-
-   asock->recvUDPFn(asock->recvBuf, actualPacketLength, asock,
-                    asock->clientData, &clientAddr, clientAddrLen);
-
-exit:
-   AsyncSocketRelease(asock, FALSE);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
  * AsyncSocketSendCallback --
  *
  *      Poll callback for output socket buffer space available (socket is
@@ -4368,14 +4942,14 @@ AsyncSocketSendCallback(void *clientData)
       if (!s->sslConnected) {
          pollStatus = AsyncSocketPollAdd(s, FALSE, 0,
                                          s->vt->sendCallback, 100000);
-         ASSERT_NOT_IMPLEMENTED(pollStatus == VMWARE_STATUS_SUCCESS);
+         VERIFY(pollStatus == VMWARE_STATUS_SUCCESS);
          s->sendCbTimer = TRUE;
       } else
 #endif
       {
          pollStatus = AsyncSocketPollAdd(s, TRUE, POLL_FLAG_WRITE,
                                          s->vt->sendCallback);
-         ASSERT_NOT_IMPLEMENTED(pollStatus == VMWARE_STATUS_SUCCESS);
+         VERIFY(pollStatus == VMWARE_STATUS_SUCCESS);
       }
       s->sendCb = TRUE;
    }
@@ -4471,29 +5045,6 @@ AsyncSocketAddRef(AsyncSocket *s)
 /*
  *-----------------------------------------------------------------------------
  *
- * AsyncSocketReleaseSocket --
- *
- *      Release any resources used by a socket.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-AsyncSocketReleaseSocket(AsyncSocket *s) // IN
-{
-   /* nothing to do */
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * AsyncSocketRelease --
  *
  *    Decrements reference count on AsyncSocket struct, freeing it when it
@@ -4520,9 +5071,9 @@ AsyncSocketRelease(AsyncSocket *s,  // IN:
    }
    if (0 == count) {
       ASOCKLOG(1, s, ("Final release; freeing asock struct\n"));
-      ASSERT(s->vt);
-      ASSERT(s->vt->release);
-      s->vt->release(s);
+      if (s->vt && s->vt->release) {
+         s->vt->release(s);
+      }
       free(s);
 
       return 0;
@@ -4564,6 +5115,7 @@ AsyncSocketPollAdd(AsyncSocket *asock,
    ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
 
    if (socket) {
+      ASSERT(asock->fd != -1);
       type = POLL_DEVICE;
       flags |= POLL_FLAG_SOCKET;
       info = asock->fd;
@@ -4620,6 +5172,7 @@ AsyncSocketPollRemove(AsyncSocket *asock,
    }
 
    if (socket) {
+      ASSERT(asock->fd != -1);
       type = POLL_DEVICE;
       flags |= POLL_FLAG_SOCKET;
    } else {
@@ -4768,10 +5321,10 @@ AsyncSocketIPollRemove(AsyncSocket *asock,
  *
  *    Call this function if you know what you are doing. This should be
  *    called if you want to synchronously receive the outstanding data on
- *    the socket. It removes the recv poll callback for both tcp/udp sockets.
- *    For tcp socket it also returns number of partially read bytes (if any).
- *    A partially read response may exist as AsyncSocketRecvCallback calls
- *    the recv callback only when all the data has been received.
+ *    the socket. It removes the recv poll callback. It also returns number of
+ *    partially read bytes (if any). A partially read response may exist as
+ *    AsyncSocketRecvCallback calls the recv callback only when all the data
+ *    has been received.
  *
  * Results:
  *    ASOCKERR_SUCCESS or ASOCKERR_INVAL.
@@ -4798,7 +5351,6 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
                          void **recvFn,              // OUT
                          Bool cancelOnSend)          // IN
 {
-   Bool isTcp;
    int retVal;
 
    ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
@@ -4824,9 +5376,7 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
       goto outHaveLock;
    }
 
-   isTcp = SOCK_STREAM == asock->type;
-
-   if (!cancelOnSend && isTcp && (asock->sendBufList || asock->sendCb)) {
+   if (!cancelOnSend && (asock->sendBufList || asock->sendCb)) {
       Warning(ASOCKPREFIX "Can't cancel request as socket has send operation "
               "pending.\n");
       retVal = ASOCKERR_INVAL;
@@ -4837,28 +5387,20 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
    ASSERT(asock->vt->cancelRecvCb);
    asock->vt->cancelRecvCb(asock);
 
-   if (isTcp && partialRecvd && asock->recvLen > 0) {
+   if (partialRecvd && asock->recvLen > 0) {
       ASOCKLOG(1, asock, ("Partially read %d bytes out of %d bytes while "
                           "cancelling recv request.\n", asock->recvPos, asock->recvLen));
       *partialRecvd = asock->recvPos;
    }
    if (recvFn) {
-      if (isTcp) {
-         *recvFn = asock->recvFn;
-      } else {
-         *recvFn = asock->recvUDPFn;
-      }
+      *recvFn = asock->recvFn;
    }
    if (recvBuf) {
       *recvBuf = asock->recvBuf;
    }
    asock->recvBuf = NULL;
-   if (isTcp) {
-      asock->recvFn = NULL;
-      asock->recvPos = 0;
-   } else {
-      asock->recvUDPFn = NULL;
-   }
+   asock->recvFn = NULL;
+   asock->recvPos = 0;
    asock->recvLen = 0;
 
    if (asock->passFd.fd != -1) {
@@ -4921,6 +5463,7 @@ AsyncSocket_GetReceivedFd(AsyncSocket *asock)      // IN
    return fd;
 }
 
+#ifndef USE_SSL_DIRECT
 
 /*
  *-----------------------------------------------------------------------------
@@ -4975,6 +5518,7 @@ AsyncSocket_AcceptSSL(AsyncSocket *asock)  // IN
    return SSL_Accept(asock->sslSock);
 }
 
+#endif /* ! USE_SSL_DIRECT */
 
 /*
  *----------------------------------------------------------------------------
@@ -5167,4 +5711,36 @@ AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
    }
 
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SetSendLowLatencyMode --
+ *
+ *    Put the socket into a mode where we attempt to issue sends
+ *    directly from within AsyncSocket_Send().  Ordinarily, we would
+ *    set up a Poll callback from within AsyncSocket_Send(), which
+ *    introduces some non-zero latency to the send path.  In
+ *    low-latency-send mode, that delay is potentially avoided.  This
+ *    does introduce a behavioural change; the send completion
+ *    callback may be triggered before the call to Send() returns.  As
+ *    not all clients may be expecting this, we don't enable this mode
+ *    unless requested by the client.
+ *
+ * Result
+ *    None
+ *
+ * Side-effects
+ *    See description above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock,  // IN
+                                  Bool enable)         // IN
+{
+   asock->sendLowLatency = enable;
 }

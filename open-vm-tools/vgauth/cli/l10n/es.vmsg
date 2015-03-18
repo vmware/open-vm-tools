@@ -1,0 +1,77 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+addsubj.fail = "%1$s: No ha podido añadirse el alias del usuario '%2$s': %3$s.\n"
+addsubj.success = "%1$s: se ha añadido el alias\n"
+
+addoptions.comment = "comentario del tema"
+
+addoptions.file = "nombre de archivo PEM"
+
+addoptions.global = "Añadir el certificado al archivo de asignación global"
+
+addoptions.subject = "Tema de SAML"
+
+addoptions.username = "El usuario cuyo almacén de certificados se está añadiendo a"
+
+addoptions.verbose = "Operación detallada"
+
+
+cmdline.parse = "Error de análisis de línea de comando"
+
+cmdline.summary.pemfile = "Archivo PEM"
+cmdline.summary.subject = "asunto"
+cmdline.summary.username = "nombre de usuario"
+cmdline.summary.comm = "comentario"
+
+list.comment = "Comentario"
+list.count = "%1$s Se han encontrado %2$d alias para el usuario '%3$s'\n"
+
+list.error = "%1$s: No se han podido listar los alias del usuario '%2$s': %3$s.\n"
+list.subject = "Asunto"
+
+listmapped.count = "%1$s Se han encontrado %2$d alias asignados\n"
+
+listmapped.error = "%1$s: No se han podido listar los alias asignados: %2$s.\n"
+
+listmapped.subject = "Asunto"
+
+listmapped.username = "Nombre de usuario"
+
+listoptions.username =
+         "El usuario cuyo almacén de certificados se está consultando"
+
+listoptions.verbose = "Operación detallada"
+
+loadfile.fail = "%1$s: No se ha podido leer el archivo PEM '%2$s'\n"
+
+name.any = "<CUALQUIERA>"
+
+removesubj.fail = "%1$s: No se ha podido eliminar el alias del usuario '%2$s': %3$s.\n"
+
+removesubj.success = "%1$s: alias eliminado\n"
+
+removeoptions.file = "nombre de archivo PEM"
+
+removeoptions.subject = "Tema de SAML"
+removeoptions.username =
+             "El usuario cuyo almacén de certificados se está eliminando de"
+
+removeoptions.verbose = "Operación detallada"
+
+vgauth.init.failed = "No se ha podido iniciar VGAuth"

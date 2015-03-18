@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,12 @@
 #include <sys/syscall.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef __linux__
+#if defined(__GLIBC__) && \
+           (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16))
+#include <sys/auxv.h>
+#endif
+#endif
 #ifdef __APPLE__
 #include <sys/socket.h>
 #include <TargetConditionals.h>
@@ -57,7 +63,9 @@
 #define SYS_setreuid32         (abort(), 0)
 #define SYS_setregid32         (abort(), 0)
 #define SYS_setresuid32        (abort(), 0)
+#define SYS_getresuid32        (abort(), 0)
 #define SYS_setresgid32        (abort(), 0)
+#define SYS_getresgid32        (abort(), 0)
 #define SYS_setuid32           (abort(), 0)
 #define SYS_setgid32           (abort(), 0)
 #endif
@@ -214,6 +222,42 @@ Id_SetRESUid(uid_t uid,		// IN: new uid
 }
 
 
+#if defined(__linux__)
+/*
+ *----------------------------------------------------------------------------
+ *
+ * IdGetRESUid --
+ *
+ *      Gets uid, effective uid and saved uid.
+ *
+ * Results:
+ *      0 on success, -1 on failure.
+ *
+ * Side effects:
+ *      errno may be modified on success
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+IdGetRESUid(uid_t *uid,   // OUT:
+            uid_t *euid,  // OUT:
+            uid_t *suid)  // OUT:
+{
+   if (uid32) {
+      int r = syscall(SYS_getresuid32, uid, euid, suid);
+
+      if (r != -1 || errno != ENOSYS) {
+         return r;
+      }
+      uid32 = 0;
+   }
+
+   return syscall(SYS_getresuid, uid, euid, suid);
+}
+#endif
+
+
 #if !defined(__APPLE__)
 /*
  *----------------------------------------------------------------------------
@@ -255,6 +299,42 @@ Id_SetRESGid(gid_t gid,		// IN: new gid
 
    return -1;
 #endif
+}
+#endif
+
+
+#if defined(__linux__)
+/*
+ *----------------------------------------------------------------------------
+ *
+ * IdGetRESGid --
+ *
+ *      Gets gid, effective gid and saved gid.
+ *
+ * Results:
+ *      0 on success, -1 on failure.
+ *
+ * Side effects:
+ *      errno may be modified on success
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+IdGetRESGid(gid_t *gid,   // OUT:
+            gid_t *egid,  // OUT:
+            gid_t *sgid)  // OUT:
+{
+   if (uid32) {
+      int r = syscall(SYS_getresgid32, gid, egid, sgid);
+
+      if (r != -1 || errno != ENOSYS) {
+         return r;
+      }
+      uid32 = 0;
+   }
+
+   return syscall(SYS_getresgid, gid, egid, sgid);
 }
 #endif
 
@@ -519,7 +599,7 @@ IdAuthCreateWithFork(void)
          result = waitpid(child, &status, 0);
       } while (result == -1 && errno == EINTR);
 
-      ASSERT_NOT_IMPLEMENTED(result == child);
+      VERIFY(result == child);
    } else {
       // Child: use fds[1]
 
@@ -842,7 +922,7 @@ Id_BeginSuperUser(void)
 {
    uid_t uid = Id_GetEUid();
 
-   ASSERT_NOT_IMPLEMENTED(uid != (uid_t) -1);
+   VERIFY(uid != (uid_t) -1);
 
    if (uid == 0) {
       uid = (uid_t) -1; // already root; nothing to do
@@ -894,5 +974,111 @@ Id_EndSuperUser(uid_t uid)  // IN:
       Id_SetRESUid((uid_t) -1, uid, (uid_t) -1); // revert to uid
 #endif
    }
+}
+
+
+#if defined(__linux__)
+/*
+ *----------------------------------------------------------------------------
+ *
+ * IdIsSetUGid --
+ *
+ *      Check if the binary is setuid or setgid.
+ *
+ * Results:
+ *      TRUE if the process should be considered setuid or setgid.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+IdIsSetUGid(void)
+{
+#if defined(__ANDROID__)
+   /* Android does not have a secure_getenv, so be conservative. */
+   return TRUE;
+#else
+   /*
+    * We use __secure_getenv, which returns NULL if the binary is
+    * setuid or setgid. Alternatives include,
+    *
+    *   a) getauxval(AT_SECURE); not available until glibc 2.16.
+    *   b) __libc_enable_secure; may not be exported.
+    *
+    * Use (a) when we are based on glibc 2.16, or newer.
+    */
+
+#if defined(__GLIBC__) && \
+           (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16))
+   return getauxval(AT_SECURE) != 0;
+#else
+   static const char envName[] = "VMW_SETUGID_TEST";
+
+   if (setenv(envName, "1", TRUE) == -1) {
+      return TRUE; /* Conservative */
+   }
+   return __secure_getenv(envName) == NULL;
+#endif
+#endif
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Id_IsSetUGid --
+ *
+ *      Check if the environment should be treated with suspicion in a
+ *      security sensitive context.
+ *
+ *      Most commonly, this will return TRUE when a binary is setuid or
+ *      setgid, but will also be TRUE when the uid does not match the
+ *      effective uid (for example if the current binary was exec'd from
+ *      a setuid or setgid binary without proper uid scrubbing).
+ *
+ *      Detecting dangerous environments is best-effort and there are
+ *      some known holes (see PR 1085298), so the best practice is to
+ *      design systems such that this checking is not required.
+ *
+ * Results:
+ *      TRUE if the process should be treated with suspicion in a
+ *      security sensitive context. Otherwise FALSE.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+Id_IsSetUGid(void)
+{
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(sun)
+   uid_t ruid = getuid();
+   uid_t euid = geteuid();
+   gid_t rgid = getgid();
+   gid_t egid = getegid();
+
+   return issetugid() == 1 || ruid != euid || rgid != egid;
+#elif defined(__linux__)
+   uid_t ruid, euid, suid;
+   gid_t rgid, egid, sgid;
+
+   /* We want to make sure that this call always succeeds. */
+   if (IdGetRESUid(&ruid, &euid, &suid) != 0 ||
+       IdGetRESGid(&rgid, &egid, &sgid) != 0) {
+      return TRUE; /* Conservative */
+   }
+
+   return IdIsSetUGid() ||
+          ruid != euid || ruid != suid ||
+          rgid != egid || rgid != sgid;
+#else
+   return TRUE; /* Conservative */
+#endif
 }
 #endif

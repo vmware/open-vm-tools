@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1092,11 +1092,9 @@ FileCopyTree(ConstUnicode srcName,    // IN:
 
    for (i = 0; i < numFiles && success; i++) {
       struct stat sb;
-      Unicode name;
       Unicode srcFilename;
 
-      name = Unicode_Alloc(fileList[i], STRING_ENCODING_DEFAULT);
-      srcFilename = File_PathJoin(srcName, name);
+      srcFilename = File_PathJoin(srcName, fileList[i]);
 
       if (followSymlinks) {
          success = (Posix_Stat(srcFilename, &sb) == 0);
@@ -1105,7 +1103,7 @@ FileCopyTree(ConstUnicode srcName,    // IN:
       }
 
       if (success) {
-         Unicode dstFilename = File_PathJoin(dstName, name);
+         Unicode dstFilename = File_PathJoin(dstName, fileList[i]);
 
          switch (sb.st_mode & S_IFMT) {
          case S_IFDIR:
@@ -1152,7 +1150,6 @@ FileCopyTree(ConstUnicode srcName,    // IN:
       }
 
       Unicode_Free(srcFilename);
-      Unicode_Free(name);
    }
 
    for (i = 0; i < numFiles; i++) {
@@ -1703,17 +1700,14 @@ File_GetSizeEx(ConstUnicode pathName) // IN
    }
 
    for (i = 0; i < numFiles; i++) {
-      Unicode name;
       Unicode fileName;
       int64 fileSize;
 
-      name = Unicode_Alloc(fileList[i], STRING_ENCODING_DEFAULT);
-      fileName = File_PathJoin(pathName, name);
+      fileName = File_PathJoin(pathName, fileList[i]);
 
       fileSize = File_GetSizeEx(fileName);
 
       Unicode_Free(fileName);
-      Unicode_Free(name);
 
       if (-1 == fileSize) {
          totalSize = -1;
@@ -2218,7 +2212,7 @@ FileSimpleRandom(void)
                                                         "fileSimpleRandomLock",
                                                         RANK_LEAF);
 
-   ASSERT_NOT_IMPLEMENTED(lck != NULL);
+   VERIFY(lck != NULL);
 
    MXUser_AcquireExclLock(lck);
 

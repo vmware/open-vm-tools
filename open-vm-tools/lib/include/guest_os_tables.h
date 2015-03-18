@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,9 @@
    GOT(GUEST_OS_WINEIGHT)          /* Windows 8 */            \
    GOT(GUEST_OS_WINEIGHT_64)       /* Windows 8 x64 */        \
    GOT(GUEST_OS_WINEIGHTSERVER_64) /* Windows 8 Server X64 */ \
+   GOT(GUEST_OS_WINTEN)            /* Windows 10 */           \
+   GOT(GUEST_OS_WINTEN_64)         /* Windows 10 x64 */       \
+   GOT(GUEST_OS_WINTENSERVER_64)   /* Windows 10 Server X64 */\
    GOT(GUEST_OS_HYPER_V)           /* Microsoft Hyper-V */    \
    GOT(GUEST_OS_OS2)                                          \
    GOT(GUEST_OS_ECOMSTATION)       /* OS/2 variant; 1.x */    \
@@ -82,6 +85,7 @@
    GOT(GUEST_OS_DARWIN11_64)                                  \
    GOT(GUEST_OS_DARWIN12_64)       /* Mac OS 10.8 */          \
    GOT(GUEST_OS_DARWIN13_64)       /* Mac OS 10.9 */          \
+   GOT(GUEST_OS_DARWIN14_64)       /* Mac OS 10.10 */         \
    GOT(GUEST_OS_OPENSERVER_5_AND_6)                           \
    GOT(GUEST_OS_UNIXWARE7)                                    \
    GOT(GUEST_OS_NETWARE4)                                     \
@@ -97,8 +101,10 @@
    GOSL(STR_OS_ASIANUX_3 "-64",              GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_ASIANUX_4,                    GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_ASIANUX_4 "-64",              GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL(STR_OS_ASIANUX_5 "-64",              GUEST_OS_OTHER26XLINUX_64)     \
    GOSL(STR_OS_CENTOS,                       GUEST_OS_OTHER26XLINUX)        \
    GOSL(STR_OS_CENTOS "-64",                 GUEST_OS_OTHER26XLINUX_64)     \
+   GOSL("coreos-64",                         GUEST_OS_OTHER3XLINUX_64)      \
    GOSL(STR_OS_MACOS,                        GUEST_OS_DARWIN9)              \
    GOSL(STR_OS_MACOS "-64",                  GUEST_OS_DARWIN9_64)           \
    GOSL(STR_OS_MACOS "10",                   GUEST_OS_DARWIN10)             \
@@ -107,6 +113,7 @@
    GOSL(STR_OS_MACOS "11-64",                GUEST_OS_DARWIN11_64)          \
    GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN12_64)          \
    GOSL(STR_OS_MACOS "13-64",                GUEST_OS_DARWIN13_64)          \
+   GOSL(STR_OS_MACOS "14-64",                GUEST_OS_DARWIN14_64)          \
    GOSL(STR_OS_DEBIAN_4,                     GUEST_OS_DEBIAN45)             \
    GOSL(STR_OS_DEBIAN_4 "-64",               GUEST_OS_DEBIAN45_64)          \
    GOSL(STR_OS_DEBIAN_5,                     GUEST_OS_DEBIAN45)             \
@@ -115,6 +122,8 @@
    GOSL(STR_OS_DEBIAN_6 "-64",               GUEST_OS_DEBIAN45_64)          \
    GOSL(STR_OS_DEBIAN_7,                     GUEST_OS_DEBIAN45)             \
    GOSL(STR_OS_DEBIAN_7 "-64",               GUEST_OS_DEBIAN45_64)          \
+   GOSL(STR_OS_DEBIAN_8,                     GUEST_OS_DEBIAN45)             \
+   GOSL(STR_OS_DEBIAN_8 "-64",               GUEST_OS_DEBIAN45_64)          \
    GOSL("dos",                               GUEST_OS_DOS)                  \
    GOSL(STR_OS_ECOMSTATION,                  GUEST_OS_ECOMSTATION)          \
    GOSL(STR_OS_ECOMSTATION "2",              GUEST_OS_ECOMSTATION2)         \
@@ -207,6 +216,9 @@
    GOSL(STR_OS_WIN_EIGHT,                    GUEST_OS_WINEIGHT)             \
    GOSL(STR_OS_WIN_EIGHT_X64,                GUEST_OS_WINEIGHT_64)          \
    GOSL(STR_OS_WIN_EIGHTSERVER_X64,          GUEST_OS_WINEIGHTSERVER_64)    \
+   GOSL(STR_OS_WIN_TEN,                      GUEST_OS_WINTEN)               \
+   GOSL(STR_OS_WIN_TEN_X64,                  GUEST_OS_WINTEN_64)            \
+   GOSL(STR_OS_WIN_TENSERVER_X64,            GUEST_OS_WINTENSERVER_64)      \
    GOSL(STR_OS_HYPER_V,                      GUEST_OS_HYPER_V)              \
    GOSL("winLonghorn64Guest",                GUEST_OS_LONGHORN_64)          \
    GOSL("winLonghornGuest",                  GUEST_OS_LONGHORN)             \

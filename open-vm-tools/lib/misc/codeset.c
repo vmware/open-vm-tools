@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright 1998 VMware, Inc.  All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -1678,7 +1678,7 @@ CodeSet_Validate(const char *buf,   // IN: the string
    UErrorCode uerr;
 
    // ucnv_toUChars takes 32-bit int size
-   ASSERT_NOT_IMPLEMENTED(size <= (size_t) MAX_INT32);
+   VERIFY(size <= (size_t) MAX_INT32);
 
    if (size == 0) {
       return TRUE;
@@ -1701,9 +1701,9 @@ CodeSet_Validate(const char *buf,   // IN: the string
 
    uerr = U_ZERO_ERROR;
    cv = ucnv_open(code, &uerr);
-   ASSERT_NOT_IMPLEMENTED(uerr == U_ZERO_ERROR);
+   VERIFY(uerr == U_ZERO_ERROR);
    ucnv_setToUCallBack(cv, UCNV_TO_U_CALLBACK_STOP, NULL, NULL, NULL, &uerr);
-   ASSERT_NOT_IMPLEMENTED(uerr == U_ZERO_ERROR);
+   VERIFY(uerr == U_ZERO_ERROR);
    ucnv_toUChars(cv, NULL, 0, buf, size, &uerr);
    ucnv_close(cv);
 

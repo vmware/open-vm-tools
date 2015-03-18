@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,8 +23,10 @@
 #define INCLUDE_ALLOW_VMCORE
 
 #include "includeCheck.h"
+#include "productState.h"
 
 #include <stdarg.h>
+
 
 /*
  * The bora/lib Log Facility log level model.
@@ -53,9 +55,6 @@
 #define VMW_LOG_DEBUG_08 (VMW_LOG_DEBUG_00 +  8)
 #define VMW_LOG_DEBUG_09 (VMW_LOG_DEBUG_00 +  9)
 #define VMW_LOG_DEBUG_10 (VMW_LOG_DEBUG_00 + 10) // lowest priority; least noisy
-
-#define VMW_LOG_NO_ROUTE        0x80000000  // Force routing to Log
-#define VMW_LOG_NO_ROUTE_STDERR 0x40000000  // Allow stderr on suitable msgs
 
 void LogV(uint32 routing,
           const char *fmt,
@@ -135,102 +134,162 @@ Log_Trivia(const char *fmt,
 }
 
 #if !defined(VMM)
-
 /* Forward decl */
-struct MsgList;
+struct Dictionary;
+struct CfgInterface;
 
-typedef void (LogOverrideFunc)(int level,
-                               const char *msg);
+typedef struct LogOutput LogOutput;
 
+struct CfgInterface *Log_CfgInterface(void);
 
-typedef enum {
-   LOG_SYSTEM_LOGGER_NONE,
-   LOG_SYSTEM_LOGGER_ADJUNCT,
-   LOG_SYSTEM_LOGGER_ONLY
-} SysLogger;
+int32 Log_SetStderrLevel(int32 level);
 
-typedef struct
+int32 Log_GetStderrLevel(void);
+
+LogOutput *Log_NewStdioOutput(const char *appPrefix,
+                              struct Dictionary *params,
+                              struct CfgInterface *cfgIf);
+
+LogOutput *Log_NewSyslogOutput(const char *appPrefix,
+                               const char *instanceName,
+                               struct Dictionary *params,
+                               struct CfgInterface *cfgIf);
+
+LogOutput *Log_NewFileOutput(const char *appPrefix,
+                             const char *instanceName,
+                             struct Dictionary *params,
+                             struct CfgInterface *cfgIf);
+
+typedef void (LogCustomMsgFunc)(int level,
+                                const char *msg);
+
+LogOutput *Log_NewCustomOutput(LogCustomMsgFunc *msgFunc,
+                               int minLogLevel);
+
+Bool Log_FreeOutput(LogOutput *toOutput);
+
+Bool Log_AddOutput(LogOutput *output);
+
+Bool Log_ReplaceOutput(LogOutput *fromOutput,
+                       LogOutput *toOutput,
+                       Bool copyOver);
+
+int32 Log_SetOutputLevel(LogOutput *output,
+                         int32 level);
+
+/*
+ * The most common Log Facility client usage is via the "InitWith" functions.
+ * These functions - not the "Int" versions - handle informing the Log
+ * Facility of the ProductState (product description) via inline code. This is
+ * done to avoid making the Log Facility depend on the ProductState library -
+ * the product should have the dependency, not an underlying library.
+ *
+ * In complex cases, where an "InitWith" is not sufficient and Log_AddOutput
+ * must be used directly, the client should call Log_SetProductState, passing
+ * the appropriate parameters, so the log file header information will be
+ * correct.
+ */
+
+void Log_SetProductInfo(const char *appName,
+                        const char *appVersion,
+                        const char *buildNumber,
+                        const char *compilationOption);
+
+LogOutput *Log_InitWithCustomInt(struct CfgInterface *cfgIf,
+                                 LogCustomMsgFunc *msgFunc,
+                                 int minLogLevel);
+
+static INLINE LogOutput *
+Log_InitWithCustom(struct CfgInterface *cfgIf,
+                   LogCustomMsgFunc *msgFunc,
+                   int minLogLevel)
 {
-   uint32         signature;            // initialization signature
+   Log_SetProductInfo(ProductState_GetName(),
+                      ProductState_GetVersion(),
+                      ProductState_GetBuildNumberString(),
+                      ProductState_GetCompilationOption());
 
-   const char    *fileName;             // File name, if known
-   const char    *config;               // Config variable to look up
-   const char    *suffix;               // Suffix to generate log file name
-   const char    *appName;              // App name for log header
-   const char    *appVersion;           // App version for log header
+   return Log_InitWithCustomInt(cfgIf, msgFunc, minLogLevel);
+}
 
-   Bool           append;               // Append to log file
-   Bool           switchFile;           // Switch the initial log file
-   Bool           useThreadName;        // Thread name on log line
-   Bool           useTimeStamp;         // Use a log line time stamp
-   Bool           useMilliseconds;      // Show milliseconds in time stamp
-   Bool           useLevelDesignator;   // Show level designator
-   Bool           fastRotation;         // ESX log rotation optimization
-   Bool           preventRemove;        // prevent Log_RemoveFile(FALSE)
-   Bool           syncAfterWrite;       // Sync after a write. Expensive!
-   Bool           systemAreaTemp;       // temp logs to system/user area
+LogOutput *Log_InitWithFileInt(const char *appPrefix,
+                               struct Dictionary *dict,
+                               struct CfgInterface *cfgIf,
+                               Bool boundNumFiles);
 
-   int32          stderrMinLevel;       // This level and above to stderr
-   int32          logMinLevel;          // This level and above to log
-   int            permissions;          // Permissions for log files
+static INLINE LogOutput *
+Log_InitWithFile(const char *appPrefix,
+                 struct Dictionary *dict,
+                 struct CfgInterface *cfgIf,
+                 Bool boundNumFiles)
+{
+   Log_SetProductInfo(ProductState_GetName(),
+                      ProductState_GetVersion(),
+                      ProductState_GetBuildNumberString(),
+                      ProductState_GetCompilationOption());
 
-   uint32         keepOld;              // Number of old logs to keep
-   uint32         throttleThreshold;    // Threshold for throttling
-   uint32         throttleBPS;          // BPS for throttle
-   uint32         rotateSize;           // Size at which log should be rotated
+   return Log_InitWithFileInt(appPrefix, dict, cfgIf, boundNumFiles);
+}
 
-   SysLogger      systemLoggerUse;      // System logger options
-   char           systemLoggerID[128];  // Identifier for system logger
-} LogInitParams;
+LogOutput *Log_InitWithFileSimpleInt(const char *appPrefix,
+                                     struct CfgInterface *cfgIf,
+                                     const char *fileName);
 
-void Log_GetStaticDefaults(LogInitParams *params);
+static INLINE LogOutput *
+Log_InitWithFileSimple(const char *fileName,
+                       const char *appPrefix)
+{
+   Log_SetProductInfo(ProductState_GetName(),
+                      ProductState_GetVersion(),
+                      ProductState_GetBuildNumberString(),
+                      ProductState_GetCompilationOption());
 
-void Log_ApplyConfigValues(const char *appPrefix,
-                           LogInitParams *params);
+   return Log_InitWithFileSimpleInt(appPrefix, Log_CfgInterface(), fileName);
+}
 
-Bool Log_InitEx(const LogInitParams *params);
+LogOutput *Log_InitWithSyslogInt(const char *appPrefix,
+                                 struct Dictionary *dict,
+                                 struct CfgInterface *cfgIf);
 
-Bool Log_InitWithFile(const char *fileName,
-                      const char *appPrefix);
+static INLINE LogOutput *
+Log_InitWithSyslog(const char *appPrefix,
+                   struct Dictionary *dict,
+                   struct CfgInterface *cfgIf)
+{
+   Log_SetProductInfo(ProductState_GetName(),
+                      ProductState_GetVersion(),
+                      ProductState_GetBuildNumberString(),
+                      ProductState_GetCompilationOption());
 
-Bool Log_InitWithConfig(const char *appPrefix);
+   return Log_InitWithSyslogInt(appPrefix, dict, cfgIf);
+}
 
-void Log_UpdateFilePermissions(int permissions);
+LogOutput *Log_InitWithSyslogSimpleInt(const char *appPrefix,
+                                       struct CfgInterface *cfgIf,
+                                       const char *syslogID);
 
-void Log_UpdateFileControl(Bool append,
-                           unsigned keepOld,
-                           size_t rotateSize,
-                           Bool fastRotation,
-                           uint32 throttleThreshold,
-                           uint32 throttleBPS);
+static INLINE LogOutput *
+Log_InitWithSyslogSimple(const char *syslogID,
+                         const char *appPrefix)
+{
+   Log_SetProductInfo(ProductState_GetName(),
+                      ProductState_GetVersion(),
+                      ProductState_GetBuildNumberString(),
+                      ProductState_GetCompilationOption());
 
-void Log_UpdatePerLine(Bool perLineTimeStamps,
-                       Bool perLineMilliseconds,
-                       Bool perLineThreadNames);
+   return Log_InitWithSyslogSimpleInt(appPrefix, Log_CfgInterface(), syslogID);
+}
 
 void Log_Exit(void);
 
 Bool Log_Outputting(void);
+
 const char *Log_GetFileName(void);
+const char *Log_GetOutputFileName(LogOutput *output);
+
 void Log_SkipLocking(Bool skipLocking);
-void Log_SetAlwaysKeep(Bool alwaysKeep);
-Bool Log_RemoveFile(Bool alwaysRemove);
 void Log_DisableThrottling(void);
-void Log_EnableStderrWarnings(Bool stderrOutput);
-void Log_BackupOldFiles(const char *fileName,
-                        Bool noRename);
-Bool Log_CopyFile(const char *fileName,
-                  struct MsgList **errs);
 uint32 Log_MaxLineLength(void);
-
-void Log_OverrideFunction(LogOverrideFunc *func);
-
-Bool Log_SetOutput(const char *fileName,
-                   const char *config,
-                   Bool copy,
-                   uint32 systemLoggerUse,
-                   char *systemLoggerID,
-                   struct MsgList **errs);
 
 size_t Log_MakeTimeString(Bool millisec,
                           char *buf,
@@ -239,7 +298,8 @@ size_t Log_MakeTimeString(Bool millisec,
 typedef Bool (LogOwnerFunc)(void *userData,
                             const char *fileName);
 
-Bool Log_BoundNumFiles(LogOwnerFunc *func,
+Bool Log_BoundNumFiles(struct LogOutput *output,
+                       LogOwnerFunc *func,
                        void *userData);
 
 /* Logging that uses the custom guest throttling configuration. */
@@ -247,12 +307,6 @@ void GuestLog_Init(void);
 void GuestLog_Log(const char *fmt,
                   ...) PRINTF_DECL(1, 2);
 
-
-/*
- * Default values for the log are obtained via Log_GetStaticDefaults.
- *
- * These values represent commonly used override values.
- */
 
 #if defined(VMX86_SERVER)
 #define LOG_KEEPOLD 6  // Old log files to keep around; ESX value
@@ -273,6 +327,11 @@ void GuestLog_Log(const char *fmt,
 void Log_HexDump(const char *prefix,
                  const void *data,
                  size_t size);
+
+void Log_HexDumpLevel(uint32 routing,
+                      const char *prefix,
+                      const void *data,
+                      size_t size);
 
 void Log_Time(VmTimeType *time,
               int count,

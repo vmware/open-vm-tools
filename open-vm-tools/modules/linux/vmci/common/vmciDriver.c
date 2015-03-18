@@ -124,7 +124,7 @@ VMCI_HostCleanup(void)
 }
 
 
-#if defined(__APPLE__) || defined(SOLARIS) || defined(VMKERNEL)
+#if defined(__APPLE__) || defined(VMKERNEL)
 /* Windows has its own implementation of this, and Linux doesn't need one. */
 /*
  *----------------------------------------------------------------------
@@ -189,7 +189,7 @@ void
 vmci_device_release(void *deviceRegistration) // UNUSED
 {
 }
-#endif // __APPLE__ || SOLARIS || VMKERNEL
+#endif // __APPLE__ || VMKERNEL
 
 
 /*

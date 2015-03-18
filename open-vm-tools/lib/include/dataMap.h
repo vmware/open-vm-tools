@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,6 +55,7 @@ typedef enum {
    DMERR_UNKNOWN_TYPE,             /* type unknow in decoding */
    DMERR_TRUNCATED_DATA,           /* more data expected during decoding */
    DMERR_BUFFER_TOO_SMALL,         /* a user buffer is too small */
+   DMERR_INTEGER_OVERFLOW         /* an integer overflow happened */
 } ErrorCode;
 
 /*
@@ -92,7 +93,7 @@ DataMap_Copy(const DataMap *src,  // IN
 ErrorCode
 DataMap_Serialize(const DataMap *that,   //IN
                   char **buf,            // OUT
-                  int *bufLen);          // OUT
+                  uint32 *bufLen);          // OUT
 ErrorCode
 DataMap_Deserialize(const char *bufIn,     // IN
                     const int32 bufLen,    // IN

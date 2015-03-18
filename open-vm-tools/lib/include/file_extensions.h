@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +45,8 @@
 #define TEAM_FILE_EXTENSION "vmtm"            // Foundry VM team
 #define POLICY_FILE_EXTENSION "vmpl"          // ACE/VRM policy file
 #define BUNDLE_FILE_EXTENSION "vmwarevm"      // VM configuration bundle directory
+#define SIDECAR_FILE_EXTENSION "vmfd"         // Virtual machine filter data aka sidecar
+#define HBRPERSIST_FILE_EXTENSION "psf"       // HBR/VR persistent state file
 
 /*
  * Snapshot and related file types.

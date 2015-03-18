@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -1801,8 +1801,9 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
     */
    if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
       capabilities = VMCI_CAPS_DATAGRAM;
-      notification_bitmap = pci_alloc_consistent(pdev, PAGE_SIZE,
-                                                 &notification_base);
+      notification_bitmap = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
+                                               &notification_base,
+                                               GFP_KERNEL);
       if (notification_bitmap == NULL) {
          printk(KERN_ERR "VMCI device unable to allocate notification bitmap.\n");
       } else {
@@ -1948,8 +1949,8 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    compat_mutex_unlock(&vmci_dev.lock);
  release:
    if (notification_bitmap) {
-      pci_free_consistent(pdev, PAGE_SIZE, notification_bitmap,
-                          notification_base);
+      dma_free_coherent(&pdev->dev, PAGE_SIZE, notification_bitmap,
+                        notification_base);
       notification_bitmap = NULL;
    }
    release_region(ioaddr, ioaddr_size);

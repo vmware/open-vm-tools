@@ -1,0 +1,77 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+addsubj.fail = "%1$s: '%2$s' 사용자에 대한 별칭을 추가하지 못했습니다. %3$s.\n"
+addsubj.success = "%1$s: 별칭이 추가되었습니다.\n"
+
+addoptions.comment = "제목 설명"
+
+addoptions.file = "PEM 파일 이름"
+
+addoptions.global = "인증서를 글로벌 매핑 파일에 추가"
+
+addoptions.subject = "SAML 제목"
+
+addoptions.username = "추가되는 인증서 저장소를 소유한 사용자"
+
+addoptions.verbose = "세부 작업"
+
+
+cmdline.parse = "명령줄을 구문 분석하지 못함"
+
+cmdline.summary.pemfile = "PEM 파일"
+cmdline.summary.subject = "제목"
+cmdline.summary.username = "username"
+cmdline.summary.comm = "의견"
+
+list.comment = "설명"
+list.count = "%1$s '%3$s' 사용자에 대한 별칭을 %2$d개 찾았습니다.\n"
+
+list.error = "%1$s: '%2$s' 사용자에 대한 별칭을 나열하지 못했습니다. %3$s.\n"
+list.subject = "제목"
+
+listmapped.count = "%1$s 매핑된 별칭을 %2$d개 찾았습니다.\n"
+
+listmapped.error = "%1$s: %2$s에 대한 매핑된 별칭을 나열하지 못했습니다.\n"
+
+listmapped.subject = "제목"
+
+listmapped.username = "사용자 이름"
+
+listoptions.username =
+         "쿼리되는 인증서 저장소를 소유한 사용자"
+
+listoptions.verbose = "세부 작업"
+
+loadfile.fail = "%1$s: PEM 파일 '%2$s'을(를) 읽을 수 없습니다.\n"
+
+name.any = "<임의>"
+
+removesubj.fail = "%1$s: '%2$s' 사용자에 대한 별칭을 제거하지 못했습니다. %3$s.\n"
+
+removesubj.success = "%1$s: 별칭이 제거되었습니다.\n"
+
+removeoptions.file = "PEM 파일 이름"
+
+removeoptions.subject = "SAML 제목"
+removeoptions.username =
+             "제거되는 인증서 저장소를 소유한 사용자"
+
+removeoptions.verbose = "세부 작업"
+
+vgauth.init.failed = "VGAuth를 초기화하지 못했습니다."

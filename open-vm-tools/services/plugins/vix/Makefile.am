@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright 2009 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2015 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -20,6 +20,7 @@ plugin_LTLIBRARIES = libvix.la
 
 libvix_la_CPPFLAGS =
 libvix_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libvix_la_CPPFLAGS += -I$(top_srcdir)/vgauth/public
 
 libvix_la_LDFLAGS =
 libvix_la_LDFLAGS += @PLUGIN_LDFLAGS@
@@ -31,6 +32,9 @@ libvix_la_LIBADD += @HGFS_LIBS@
 libvix_la_LIBADD += $(top_builddir)/lib/auth/libAuth.la
 libvix_la_LIBADD += $(top_builddir)/lib/foundryMsg/libFoundryMsg.la
 libvix_la_LIBADD += $(top_builddir)/lib/impersonate/libImpersonate.la
+if ENABLE_VGAUTH
+   libvix_la_LIBADD += $(top_builddir)/vgauth/lib/libvgauth.la
+endif
 
 libvix_la_SOURCES =
 libvix_la_SOURCES += foundryToolsDaemon.c

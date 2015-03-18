@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright 2007 VMware, Inc.  All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -407,7 +407,7 @@ CodeSet_Utf8ToUtf16(const char *str)  // IN:
    utf16_t *strW;
 
    if (!CodeSet_Utf8ToUtf16le(str, strlen(str), (char **) &strW, NULL)) {
-      ASSERT_MEM_ALLOC(FALSE);
+      NOT_IMPLEMENTED();
    }
 
    return strW;
@@ -442,7 +442,7 @@ CodeSet_Utf16ToUtf8(const utf16_t *strW)  // IN:
 
    if (!CodeSet_Utf16leToUtf8((const char *) strW, len * sizeof strW[0],
                               (char **) &str, NULL)) {
-      ASSERT_NOT_IMPLEMENTED(0);
+      NOT_IMPLEMENTED();
    }
 
    return str;

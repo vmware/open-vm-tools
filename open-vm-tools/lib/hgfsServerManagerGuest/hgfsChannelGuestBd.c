@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,6 +24,7 @@
  */
 
 #include <stdlib.h>
+#include "vm_basic_defs.h"
 #include "vm_assert.h"
 #include "vm_atomic.h"
 #include "util.h"
@@ -140,7 +141,7 @@ static void
 HgfsChannelGuestConnPut(HgfsGuestConn *connData)   // IN: connection
 {
    ASSERT(connData);
-   if (Atomic_FetchAndDec(&connData->refCount) == 1) {
+   if (Atomic_ReadDec32(&connData->refCount) == 1) {
       HgfsChannelGuestConnDestroy(connData);
    }
 }

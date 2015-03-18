@@ -1,3 +1,23 @@
+open-vm-tools 2015.03.12 changes:
+        * vgauth added.
+
+        * deploypkg added.
+
+        * guest proxycerttool added.
+
+        * hgfs and vmci/vsock fixes.
+
+        * asyncsocket enhancements.
+
+        * various library fixes and improvements.
+
+        * locking and logging fixes and improvements.
+
+        * foundry fixes.
+
+        * vm-support script fixes.
+
+
 open-vm-tools 2013.09.16 changes:
 	* HGFS client and server improvements.
 

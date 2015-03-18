@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -99,6 +99,7 @@
    LOGLEVEL_VAR(vcpuhotplug), \
    LOGLEVEL_VAR(vcpuNUMA), \
    LOGLEVEL_VAR(heci), \
+   LOGLEVEL_VAR(pciplugin), \
    LOGLEVEL_VAR(vmiopluginlib), \
    LOGLEVEL_VAR(vsock), \
    \
@@ -131,6 +132,7 @@
    LOGLEVEL_VAR(mksMouse), \
    LOGLEVEL_VAR(mksHostCursor), \
    LOGLEVEL_VAR(mksCursorPosition), \
+   LOGLEVEL_VAR(mksBasicOps), \
    LOGLEVEL_VAR(mksRenderOps), \
    LOGLEVEL_VAR(mksGLBasic), \
    LOGLEVEL_VAR(mksGLManager), \
@@ -231,6 +233,7 @@
    LOGLEVEL_VAR(cptOps), \
    LOGLEVEL_VAR(VProbeExec), \
    LOGLEVEL_VAR(VP), \
+   LOGLEVEL_VAR(VProbeClient), \
    LOGLEVEL_VAR(device), \
    LOGLEVEL_VAR(devicePowerOn), \
    LOGLEVEL_VAR(vmxvmdbCallbacks), \
@@ -280,6 +283,11 @@
    LOGLEVEL_VAR(vmname),  /* lib/vmname */ \
    LOGLEVEL_VAR(gpumgmt), \
    LOGLEVEL_VAR(unityMsg),  /* mks/remote/vdpUnityVmdb */ \
+   LOGLEVEL_VAR(crtbora),  /* apps/crtbora */ \
+   LOGLEVEL_VAR(mirror), \
+   LOGLEVEL_VAR(filtlib), \
+   LOGLEVEL_VAR(epd), \
+   LOGLEVEL_VAR(hostctl), \
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

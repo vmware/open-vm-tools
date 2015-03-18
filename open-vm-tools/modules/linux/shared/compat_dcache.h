@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,7 +25,7 @@
  * per-dentry locking was born in 2.5.62.
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 62)
-#define compat_lock_dentry(dentry) spin_lock(&dentry->d_lock) 
+#define compat_lock_dentry(dentry) spin_lock(&dentry->d_lock)
 #define compat_unlock_dentry(dentry) spin_unlock(&dentry->d_lock)
 #else
 #define compat_lock_dentry(dentry) do {} while (0)

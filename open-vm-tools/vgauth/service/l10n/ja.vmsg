@@ -1,0 +1,46 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+proto.attack = "セキュリティ攻撃の可能性があります。要求タイプ %1$d には userName (%2$s) が含まれていますが、これはパイプ所有者 (%3$s) と一致しません"
+
+validate.samlBearer.fail = "SAML 無記名トークンの検証が失敗しました: %1$d"
+
+validate.samlBearer.success = "ユーザー「%1$s」の SAML ベアラ トークンが検証されました"
+
+alias.addid = "ユーザー「%2$s」により「%1$s」で所有されているエイリアス ストアにエイリアスが追加されました"
+
+alias.dir.badperm = "エイリアス ストア ディレクトリ「%1$s」の所有者または権限が正しくありません。「%2$s」に現在保存されているすべてのエイリアスは認証に使用できません"
+
+alias.dir.notadir = "エイリアス ストア ディレクトリ「%1$s」は存在しますが、ディレクトリではありません"
+
+alias.dir.renamefail = "疑わしいエイリアス ストア ディレクトリの名前「%1$s」を「%2$s」に変更できませんでした"
+
+
+alias.alias.badfile = "エイリアス ストア「%1$s」は存在しますが、通常のファイルではありません。 ユーザー「%2$s」のエイリアスは認証に使用できません"
+
+alias.alias.badperm = "エイリアス ストア「%1$s」の所有者または権限が正しくありません。ユーザー「%2$s」のエイリアスは認証に使用できません"
+
+alias.alias.rename = "疑わしいエイリアス ストアの名前「%1$s」が「%2$s」に変更されました"
+
+alias.alias.renamefail = "疑わしいエイリアス ストアの名前「%1$s」を「%2$s」に変更できませんでした"
+
+alias.mapfile.badperm = "エイリアス ストア マッピング ファイル「%1$s」の所有者または権限が正しくありません。マッピング ファイル内のエイリアスは認証に使用できません"
+
+alias.mapping.badfile = "マッピング ファイル「%1$s」は存在しますが、通常のファイルではありません。マッピング ファイル内のエイリアスは認証に使用できません"
+
+alias.removeid = "ユーザー「%2$s」により「%1$s」で所有されているエイリアス ストアからエイリアスが削除されました"

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -91,13 +91,15 @@ Str_Strcpy(char *buf,       // OUT
            const char *src, // IN
            size_t maxSize)  // IN
 {
-   unsigned int *stack = (unsigned int *)&buf;
    size_t len;
 
    len = strlen(src);
    if (len >= maxSize) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__,__LINE__,
-            stack[-1]);
+#ifdef GetReturnAddress
+      Panic("%s:%d Buffer too small 0x%p\n", __FILE__, __LINE__, GetReturnAddress());
+#else
+      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+#endif
    }
    return memcpy(buf, src, len + 1);
 }

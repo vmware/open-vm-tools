@@ -170,9 +170,12 @@
 #if __FreeBSD_version < 505000
 #   define VXN_IF_ADDR_LOCK(_ifp)
 #   define VXN_IF_ADDR_UNLOCK(_ifp)
-#else
+#elif __FreeBSD_version < 1000000
 #   define VXN_IF_ADDR_LOCK(_ifp)       IF_ADDR_LOCK((_ifp))
 #   define VXN_IF_ADDR_UNLOCK(_ifp)     IF_ADDR_UNLOCK((_ifp))
+#else
+#   define VXN_IF_ADDR_LOCK(_ifp)       if_maddr_rlock((_ifp))
+#   define VXN_IF_ADDR_UNLOCK(_ifp)     if_maddr_runlock((_ifp))
 #endif
 
 #endif /* _VXN_NET_COMPAT_H_ */

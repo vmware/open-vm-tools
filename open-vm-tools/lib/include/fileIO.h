@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -190,9 +190,17 @@ typedef enum {
  *   Adaptively picks between mandatory and advisory.
  * Almost all cases should use the "best" lock.
  */
-#define FILEIO_OPEN_LOCK_BEST      FILEIO_OPEN_LOCKED /* historical */
-#define FILEIO_OPEN_LOCK_ADVISORY  (1 << 20)
-#define FILEIO_OPEN_LOCK_MANDATORY (1 << 21)
+#define FILEIO_OPEN_LOCK_BEST         FILEIO_OPEN_LOCKED /* historical */
+#define FILEIO_OPEN_LOCK_ADVISORY     (1 << 20)
+#define FILEIO_OPEN_LOCK_MANDATORY    (1 << 21)
+
+/*
+ * OPTIMISTIC is an alternative to EXCLUSIVE and MANDATORY. It applies
+ * only on ESX, and gives VMkernel permission to use a type of lock
+ * called "optimistic" to speed up opens. Rule-of-thumb is to use it
+ * only for read-only opens of small files (< 1KB).
+ */
+#define FILEIO_OPEN_OPTIMISTIC_LOCK   (1 << 22)
 
 /*
  * Flag passed to open() to not attempt to get the lun attributes as part of
@@ -207,6 +215,9 @@ typedef enum {
 // Flag passed to open() to get exclusive VMFS lock.  This definition must
 // match USEROBJ_OPEN_EXCLUSIVE_LOCK in user_vsiTypes.h.
 #define O_EXCLUSIVE_LOCK 0x10000000
+// Flag passed to open() to enable use of oplocks on VMFS.  This definition
+// must match USEROBJ_OPEN_OPTIMISTIC_LOCK in user_vsiTypes.h.
+#define O_OPTIMISTIC_LOCK 0x00400000
 
 /* File Access check args */
 #define FILEIO_ACCESS_READ       (1 << 0)
@@ -294,6 +305,12 @@ FileIOResult FileIO_Open(FileIODescriptor *file,
                          ConstUnicode pathName,
                          int access,
                          FileIOOpenAction action);
+
+FileIOResult FileIO_OpenRetry(FileIODescriptor *file,
+                              ConstUnicode pathName,
+                              int access,
+                              FileIOOpenAction action,
+                              uint32 msecMaxWaitTime);
 
 uint64 FileIO_Seek(const FileIODescriptor *file,
                    int64 distance,

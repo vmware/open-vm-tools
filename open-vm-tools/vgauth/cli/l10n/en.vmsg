@@ -1,0 +1,77 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+addsubj.fail = "%1$s: Failed to add alias for user '%2$s': %3$s.\n"
+addsubj.success = "%1$s: alias added\n"
+
+addoptions.comment = "subject comment"
+
+addoptions.file = "PEM file name"
+
+addoptions.global = "Add the certificate to the global mapping file"
+
+addoptions.subject = "The SAML subject"
+
+addoptions.username = "User whose certificate store is being added to"
+
+addoptions.verbose = "Verbose operation"
+
+
+cmdline.parse = "Command line parsing failed"
+
+cmdline.summary.pemfile = "PEM-file"
+cmdline.summary.subject = "subject"
+cmdline.summary.username = "username"
+cmdline.summary.comm = "comment"
+
+list.comment = "Comment"
+list.count = "%1$s Found %2$d aliases for user '%3$s'\n"
+
+list.error = "%1$s: Failed to list aliases for user '%2$s': %3$s.\n"
+list.subject = "Subject"
+
+listmapped.count = "%1$s Found %2$d mapped aliases\n"
+
+listmapped.error = "%1$s: Failed to list mapped aliases: %2$s.\n"
+
+listmapped.subject = "Subject"
+
+listmapped.username = "Username"
+
+listoptions.username =
+         "User whose certificate store is being queried"
+
+listoptions.verbose = "Verbose operation"
+
+loadfile.fail = "%1$s: Unable to read PEM file '%2$s'\n"
+
+name.any = "<ANY>"
+
+removesubj.fail = "%1$s: Failed to remove alias for user '%2$s': %3$s.\n"
+
+removesubj.success = "%1$s: alias removed\n"
+
+removeoptions.file = "PEM file name"
+
+removeoptions.subject = "The SAML subject"
+removeoptions.username =
+             "User whose certificate store is being removed from"
+
+removeoptions.verbose = "Verbose operation"
+
+vgauth.init.failed = "Failed to init VGAuth"

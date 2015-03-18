@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright 2007 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="2013.09.16"
+TOOLS_VERSION="2015.01.29"
 AC_INIT(
    [open-vm-tools],
-   [2013.09.16],
+   [2015.01.29],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -292,6 +292,30 @@ if test "$have_libintl" = "no"; then
                    [])
 fi
 
+AC_ARG_ENABLE([deploypkg],
+   [AS_HELP_STRING([--disable-deploypkg],
+     [do not build deploypkg plugin.])],
+   [],
+   [enable_deploypkg=yes])
+
+if test "$enable_deploypkg" = "yes"; then
+  AC_VMW_CHECK_LIB([mspack],
+                   [MSPACK],
+                   [libmspack],
+                   [],
+                   [0.0.20040308alpha],
+                   [mspack.h],
+                   [],
+                   [],
+                   [AC_MSG_ERROR([mspack >= 0.0.20040308alpha is required.])])
+fi
+
+AC_ARG_ENABLE([grabbitmqproxy],
+   [AS_HELP_STRING([--disable-grabbitmqproxy],
+     [do not build grabbitmqproxy plugin.])],
+   [],
+   [enable_grabbitmqproxy=yes])
+
 #
 # Check for glib 2.6.14 or greater.
 #
@@ -360,7 +384,7 @@ AC_VMW_CHECK_LIB([fuse],
 #
 AC_ARG_WITH([pam],
    [AS_HELP_STRING([--without-pam],
-   [compiles without PAM support.])],
+     [compiles without PAM support.])],
    [],
    [with_pam=yes])
 
@@ -375,6 +399,74 @@ if test "$with_pam" = "yes"; then
                     [pam_start],
                     [PAM_CPPFLAGS="$PAM_CPPFLAGS -DUSE_PAM"],
                     [AC_VMW_LIB_ERROR([PAM], [pam])])
+fi
+
+AC_ARG_ENABLE([vgauth],
+   [AS_HELP_STRING([--disable-vgauth],
+     [do not build vgauth.])],
+   [],
+   [enable_vgauth=yes])
+
+#
+# Check for openssl, xerces-c and xml-security-c
+#
+AC_ARG_WITH([ssl],
+   [AS_HELP_STRING([--without-ssl],
+     [compiles without openssl support (disables grabbitmqproxy and vgauth).])],
+   [
+     enable_grabbitmqproxy=no
+     enable_vgauth=no
+   ],
+   [with_ssl=yes])
+
+AC_ARG_WITH([xmlsecurity],
+   [AS_HELP_STRING([--without-xmlsecurity],
+     [compiles without xml-security-c support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xmlsecurity=yes])
+
+AC_ARG_WITH([xerces],
+   [AS_HELP_STRING([--without-xerces],
+     [compiles without xerces support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xerces=yes])
+
+if test "$enable_vgauth" = "yes" -o "$enable_grabbitmqproxy" = "yes"; then
+   AC_VMW_DEFAULT_FLAGS([SSL])
+   AC_VMW_CHECK_LIB([ssl],
+                    [SSL],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [AC_VMW_LIB_ERROR([SSL], [ssl])])
+fi
+
+if test "$enable_vgauth" = "yes"; then
+   CPPFLAGS="$CPPFLAGS -DUSE_VGAUTH"
+   AC_VMW_DEFAULT_FLAGS([XERCES])
+   AC_VMW_CHECK_LIB([xerces-c],
+                    [XERCES],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [AC_VMW_LIB_ERROR([XERCES], [xerces-c])])
+
+   AC_VMW_DEFAULT_FLAGS([XMLSECURITY])
+   AC_VMW_CHECK_LIB([xml-security-c],
+                    [XMLSECURITY],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [AC_VMW_LIB_ERROR([XMLSECURITY], [xml-security-c])])
 fi
 
 #
@@ -544,7 +636,9 @@ AC_CHECK_FUNCS(
       dl,
       dlopen,
       [VIX_LIBADD="$VIX_LIBADD -ldl"
-       LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -ldl"],
+       LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -ldl"
+       VGAUTH_LIBADD="$VGAUTH_LIBADD -ldl"
+      ],
       [AC_MSG_ERROR(
          [dlopen was not found, but is required for open-vm-tools to function properly. Please contact your OS vendor.])])])
 
@@ -973,8 +1067,7 @@ if test "$os" = "freebsd" || test "$os" = "kfreebsd-gnu"; then
       MODULES="$MODULES vmxnet"
    fi
    if test "$osVersion" -ge 600000; then
-      MODULES="$MODULES vmblock vmhgfs"
-      buildHgfsmounter=yes
+      MODULES="$MODULES vmblock"
    fi
 
    if test "$with_kernel_modules" = "yes"; then
@@ -1048,8 +1141,11 @@ AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
-AM_CONDITIONAL(USE_SLASH_PROC, test "os" = "linux")
+AM_CONDITIONAL(USE_SLASH_PROC, test "$os" = "linux")
 AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")
+AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
+AM_CONDITIONAL(ENABLE_GRABBITMQPROXY, test "$enable_grabbitmqproxy" = "yes")
+AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1151,6 +1247,7 @@ AC_SUBST([LIBVMTOOLS_LIBADD])
 ### Program substs
 
 AC_SUBST([VIX_LIBADD])
+AC_SUBST([VGAUTH_LIBADD])
 
 ###
 ### Create the Makefiles
@@ -1162,7 +1259,7 @@ AC_CONFIG_FILES([                      \
    lib/auth/Makefile                   \
    lib/backdoor/Makefile               \
    lib/asyncsocket/Makefile            \
-   lib/sslStubs/Makefile               \
+   lib/sslDirect/Makefile              \
    lib/pollGtk/Makefile                \
    lib/poll/Makefile                   \
    lib/dataMap/Makefile                \
@@ -1186,6 +1283,7 @@ AC_CONFIG_FILES([                      \
    lib/message/Makefile                \
    lib/misc/Makefile                   \
    lib/netUtil/Makefile                \
+   lib/nicInfo/Makefile                \
    lib/panic/Makefile                  \
    lib/panicDefault/Makefile           \
    lib/printer/Makefile                \
@@ -1210,22 +1308,30 @@ AC_CONFIG_FILES([                      \
    services/plugins/Makefile           \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \
+   services/plugins/grabbitmqProxy/Makefile \
    services/plugins/guestInfo/Makefile \
-   services/plugins/guestInfo/getlib/Makefile \
    services/plugins/hgfsServer/Makefile \
    services/plugins/powerOps/Makefile  \
    services/plugins/resolutionSet/Makefile \
    services/plugins/timeSync/Makefile  \
    services/plugins/vix/Makefile       \
    services/plugins/vmbackup/Makefile  \
+   services/plugins/deployPkg/Makefile  \
    vmware-user-suid-wrapper/Makefile   \
    toolbox/Makefile                    \
    hgfsclient/Makefile                 \
    hgfsmounter/Makefile                \
    checkvm/Makefile                    \
    rpctool/Makefile                    \
+   guestproxycerttool/Makefile         \
+   vgauth/Makefile                     \
+   vgauth/lib/Makefile                 \
+   vgauth/cli/Makefile                 \
+   vgauth/service/Makefile             \
    libguestlib/Makefile                \
    libguestlib/vmguestlib.pc           \
+   libDeployPkg/Makefile               \
+   libDeployPkg/libDeployPkg.pc        \
    libhgfs/Makefile                    \
    libvmtools/Makefile                 \
    xferlogs/Makefile                   \

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -232,7 +232,7 @@ PollGtkInit(void)
 
    pollState->lock = MXUser_CreateExclLock("pollGtkLock",
                                            RANK_pollDefaultLock);
-   ASSERT_NOT_IMPLEMENTED(pollState->lock);
+   VERIFY(pollState->lock);
 
    pollState->deviceTable = g_hash_table_new_full(g_direct_hash,
                                                   g_direct_equal,
@@ -325,7 +325,7 @@ PollGtkLoopTimeout(Bool loop,          // IN: loop forever if TRUE, else do one 
                    PollClass class,    // IN: class of events (POLL_CLASS_*)
                    int timeout)        // IN: maximum time to sleep
 {
-   ASSERT_NOT_IMPLEMENTED(0);
+   NOT_IMPLEMENTED();
 }
 
 
@@ -1099,7 +1099,7 @@ PollGtkCallback(PollClassSet classSet,   // IN
       }
    }
 
-   ASSERT_BUG(5315, poll != NULL);
+   ASSERT(poll != NULL);
 
    /*
     * Every callback must be in POLL_CLASS_MAIN (plus possibly others)
@@ -1112,8 +1112,8 @@ PollGtkCallback(PollClassSet classSet,   // IN
       ASSERT(info == 0);
       /* Fall-through */
    case POLL_REALTIME:
-      ASSERT(info == (uint32) info);
-      ASSERT_BUG(2430, info >= 0);
+      ASSERT(info == (uint32)info);
+      ASSERT(info >= 0);
 
       newEntry->event = info / 1000;
 

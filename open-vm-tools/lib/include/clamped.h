@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -42,6 +42,7 @@
 #define _CLAMPED_H_
 
 #include "vm_basic_types.h"
+#include "vm_assert.h"
 
 
 /*
@@ -277,6 +278,44 @@ Clamped_UAdd64(uint64 *out,   // OUT
 
    if(UNLIKELY(c < a || c < b)) {
       *out = MAX_UINT64;
+      return FALSE;
+   }
+
+   *out = c;
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Clamped_URoundUpBits32 --
+ *
+ *      Round up an unsigned 32-bit number by the specified number
+ *      of bits.  Clamp to MAX_UINT32 on overflow.
+ *
+ * Results:
+ *      On success, returns TRUE. If the result would have overflowed
+ *      and we clamped it to MAX_UINT32, returns FALSE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Clamped_URoundUpBits32(uint32 *out,  // OUT
+                       uint32 x,     // IN
+                       uint32 bits)  // IN
+{
+   uint32 mask = (1 << bits) - 1;
+   uint32 c = (x + mask) & ~mask;
+
+   ASSERT(bits < sizeof(uint32) * 8);
+
+   if (UNLIKELY(x + mask < x)) {
+      *out = MAX_UINT32;
       return FALSE;
    }
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -70,7 +70,7 @@
 #include "util.h"
 #include "str.h"
 
-#define MAX_IFACES      4
+#define MAX_IFACES      64
 #define LOOPBACK        "lo"    // XXX: We would have a problem with something like "loa0".
 #ifndef INET_ADDRSTRLEN
 #define INET_ADDRSTRLEN 16

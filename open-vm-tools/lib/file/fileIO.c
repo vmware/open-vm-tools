@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -821,8 +821,8 @@ Bool
 FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
                     FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
 {
-   char *currPath;
-   char *newPath;
+   char *currPath = NULL;
+   char *newPath = NULL;
 #if defined(_WIN32)
    uint32 currAccess;
    uint32 newAccess;
@@ -846,10 +846,20 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       char *dstFileName = NULL;
 
       currPath = File_FullPath(FileIO_Filename(currFD));
-      newPath = File_FullPath(FileIO_Filename(newFD));
+      if (!currPath) {
+         savedErrno = errno;
+         Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__,
+             FileIO_Filename(currFD));
+         goto swapdone;
+      }
 
-      ASSERT(currPath);
-      ASSERT(newPath);
+      newPath = File_FullPath(FileIO_Filename(newFD));
+      if (!newPath) {
+         savedErrno = errno;
+         Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__,
+             FileIO_Filename(newFD));
+         goto swapdone;
+      }
 
       File_GetPathName(newPath, &dirName, &fileName);
       File_GetPathName(currPath, &dstDirName, &dstFileName);
@@ -881,9 +891,8 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
 
       fd = Posix_Open(dirName, O_RDONLY);
       if (fd < 0) {
-         Log("%s: Open failed \"%s\" %d.\n", __FUNCTION__, dirName,
-             errno);
-         ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
+         Log("%s: Open failed \"%s\" %d.\n", __FUNCTION__, dirName, errno);
+         ASSERT(errno != EBUSY);   /* #615124. */
          savedErrno = errno;
          goto swapdone;
       }
@@ -892,7 +901,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
          savedErrno = errno;
          if (errno != ENOSYS && errno != ENOTTY) {
             Log("%s: ioctl failed %d.\n", __FUNCTION__, errno);
-            ASSERT_BUG_DEBUGONLY(615124, errno != EBUSY);
+            ASSERT(errno != EBUSY);   /* #615124. */
          }
       } else {
          ret = TRUE;

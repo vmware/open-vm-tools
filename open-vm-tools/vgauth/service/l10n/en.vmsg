@@ -1,0 +1,46 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+proto.attack = "Possible security attack!  Request type %1$d has a userName (%2$s) which doesn't match the pipe owner (%3$s)!"
+
+validate.samlBearer.fail = "Validation of SAML bearer token failed: %1$d"
+
+validate.samlBearer.success = "Validated SAML bearer token for user '%1$s'"
+
+alias.addid = "Alias added to Alias store owned by '%1$s' by user '%2$s'"
+
+alias.dir.badperm = "Alias store directory '%1$s' has incorrect owner or permissions.  Any Aliases currently stored in '%2$s' will not be available for authentication"
+
+alias.dir.notadir = "Alias store directory '%1$s' exists but is not a directory"
+
+alias.dir.renamefail = "Failed to rename suspect Alias store directory '%1$s' to '%2$s'"
+
+
+alias.alias.badfile = "Alias store '%1$s' exists but is not a regular file.  The Aliases for user '%2$s' will not be available for authentication"
+
+alias.alias.badperm = "Alias store '%1$s' has incorrect owner or permissions.  The Aliases for user '%2$s' will not be available for authentication"
+
+alias.alias.rename = "Suspect Alias store '%1$s' renamed to '%2$s'"
+
+alias.alias.renamefail = "Failed to rename suspect Alias store '%1$s' to '%2$s'"
+
+alias.mapfile.badperm = "Alias store mapping file '%1$s' has incorrect owner or permissions.  The Aliases in the mapping file will not be available for authentication"
+
+alias.mapping.badfile = "Mapping file '%1$s' exists but is not a regular file.  The Aliases in the mapping file will not be available for authentication"
+
+alias.removeid = "Alias removed from Alias store owned by '%1$s' by user '%2$s'"

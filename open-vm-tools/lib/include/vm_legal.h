@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +32,7 @@
 #endif
 
 
-#define COPYRIGHT_YEARS    "1998-2013"
+#define COPYRIGHT_YEARS    "1998-2015"
 #define COPYRIGHT_STRING   "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
 #define RIGHT_RESERVED     "All rights reserved."
 
@@ -56,13 +56,23 @@
 /*
  * Use PATENTS_STRING for showing the patents string in plaintext form.
  * PATENTS_FMT_STRING can be used with PATENTS_URL for creating hyperlinks.
+ *
+ * The spaces that precede embedded newlines in the strings below are
+ * intentional. (See bug 1089068.)
  */
-#define PATENTS_STRING_BASE "This product is protected by U.S. and international copyright and\nintellectual property laws. VMware products are covered by one or\nmore patents listed at "
+#define PATENTS_STRING_BASE \
+   "This product is protected by U.S. and international copyright and \n" \
+   "intellectual property laws. VMware products are covered by one or \n" \
+   "more patents listed at "
 #define PATENTS_STRING PATENTS_STRING_BASE "<" PATENTS_URL ">."
 #define PATENTS_FMT_STRING PATENTS_STRING_BASE "%s."
 #define PATENTS_URL "http://www.vmware.com/go/patents"
 
-#define TRADEMARK_STRING "VMware is a registered trademark or trademark of VMware, Inc. in the\nUnited States and/or other jurisdictions."
-#define GENERIC_TRADEMARK_STRING "All other marks and names mentioned herein may be trademarks of their\nrespective companies."
+#define TRADEMARK_STRING \
+   "VMware is a registered trademark or trademark of VMware, Inc. in the \n" \
+   "United States and/or other jurisdictions."
+#define GENERIC_TRADEMARK_STRING \
+   "All other marks and names mentioned herein may be trademarks of their \n" \
+   "respective companies."
 
 #endif /* VM_LEGAL_H */

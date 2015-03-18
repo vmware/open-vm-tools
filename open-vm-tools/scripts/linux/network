@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################################################
-# Copyright (C) 2001-2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2001-2015 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -21,9 +21,9 @@
 #
 # network (Linux)
 #
-# Using a combination of a system networking script, ifconfig, and ifup,
-# attempt to release and renew DHCP leases upon receipt of suspend and resume
-# events, respectively.
+# Using a combination of a system networking script, ifconfig, ifup, ifdown
+# and the ip command, attempt to release and renew DHCP leases upon receipt
+# of suspend and resume events, respectively.
 #
 
 
@@ -79,25 +79,233 @@ find_networking_script() {
 
 
 #
-# run_network_script --
+# exec_networking_script --
 #
-# Finds out how to run the system's script used to control networking, and
-# runs it with the given argument (which should be one of the usual SysV
-# init script arguments).
+#    Execute the networking script to bring network interfaces up or down
+#    based on the given input action argument.
 #
-run_network_script()
-{
-   script=`find_networking_script`
-   [ "$script" != "error" ] || Panic "Cannot find system networking script."
 
-   # Using SysV "service" if it exists, otherwise fall back to run the script directly
+exec_networking_script()
+{
+   local script=$1
+   local action=$2
+
+   # Using SysV "service" if it exists, otherwise fall back to run the
+   # script directly
    service=`which service 2>/dev/null`
    if [ $? = 0 -a -n "$service" ]; then
       serviceName=`basename "$script"`
-      "$service" "$serviceName" "$1"
+      "$service" "$serviceName" "$action"
    else
-      "$script" "$1"
+      "$script" "$action"
    fi
+
+   return $?
+}
+
+
+#
+# exec_systemctl_service --
+#
+#    Handle linux distributions that use systemd to replace the legacy
+#    system V startup scripts. The previous network script searching
+#    approach is no longer viable in these systems. Invoke the systemctl
+#    command to control the network service instead.
+#
+
+exec_systemctl_service()
+{
+   local rc=1
+   local action=$1
+   local ctlcmd=$(which systemctl 2>/dev/null)
+   local service
+
+   [ -z "$ctlcmd" ] && return $rc
+
+   for svc in systemd-networkd network; do
+      if ! $ctlcmd status $svc | grep -iq 'not-found'; then
+         service=$svc && break
+      fi
+   done
+
+   [ -z "$service" ] && return $rc
+
+   $ctlcmd $action $service; rc=$?
+
+   # When use the systemd-networkd service to shut down interfaces, interface
+   # address and state remain unchanged. Need to use ip command to change its
+   # address and state.
+   if [ $rc = 0 -a $service = 'systemd-networkd' -a $action = 'stop' ]; then
+      config_network_intfs $action; rc=$?
+   fi
+
+   return $rc
+}
+
+
+#
+# del_intf_ip --
+#
+#    Use the ip command to remove all the addresses of an interface.
+#
+
+del_intf_ip()
+{
+   local nic=$1
+
+   $ip_cmd addr flush dev $nic
+   return $?
+}
+
+
+#
+# ip_intf_ops --
+#
+#    Use the ip command to change the state of an interface to up or down.
+#
+
+ip_intf_ops()
+{
+   local rc=1
+   local nic=$1
+   local ops=$2
+
+   [ -z "$ip_cmd" ] && return $rc
+
+   $ip_cmd link set $nic $ops; rc=$?
+
+   # Remove interface addresses when taking an interface down.
+   if [ $rc = 0 -a $ops = down ]; then
+      del_intf_ip $nic; rc=$?
+   fi
+
+   return $rc
+}
+
+
+#
+# intf_ops --
+#
+#    Execute the specified command (ifup or ifdown) if available, otherwise use
+#    the ip command as fallback. If ifup or ifdown fails, run the ip command to
+#    retry the intended operation.
+#
+
+intf_ops()
+{
+   local rc=0
+   local cmd=$1
+   local ops=$2
+   local nic=$3
+   local tmp
+
+   if [ ! -z "$cmd" ]; then
+      tmp=$($cmd $nic 2>&1); rc=$?
+
+      # Some systems still return a successful status even the command fails
+      # because the interface is not configured in the configuration file. So
+      # have to examine the command output to determine the actual status.
+      if [ $rc = 0 ]; then
+         echo $tmp | egrep -iq 'not configured|ignoring unknown' && rc=1
+      fi
+   fi
+
+   # If ifup/ifdown fails, try the ip fallback.
+   if [ -z "$cmd" -o $rc != 0 ]; then
+      ip_intf_ops $nic $ops; rc=$?
+   fi
+
+   return $rc
+}
+
+
+#
+# exec_intf_ops --
+#
+#    Perform an operation to bring an individual interface up or down.
+#
+
+exec_intf_ops()
+{
+   local rc=0
+   local action=$1
+   local nic=$2
+
+   case $action in
+      start)
+         intf_ops "$ifup_cmd" up $nic; rc=$?
+         ;;
+      stop)
+         intf_ops "$ifdown_cmd" down $nic; rc=$?
+         ;;
+      *)
+         Panic "Illegal interface action: $action"
+         ;;
+   esac
+
+   return $rc
+}
+
+
+#
+# config_network_intfs --
+#
+#    For Linux systems not supporting networking scripts to bring interfaces
+#    up or down, provide a way to change the interface state individually.
+#
+
+config_network_intfs()
+{
+   local rc=0
+   local action=$1
+
+   if [ -f "$activeList" ]; then
+
+      while read nic; do
+         exec_intf_ops $action $nic
+         rc=$(expr $rc \| $?)
+      done < $activeList
+   fi
+
+   return $rc
+}
+
+
+#
+# run_network_script --
+#
+#    Finds out how to run the system's script used to control networking, and
+#    runs it with the given argument (which should be one of the usual SysV
+#    init script arguments). If it does not work, tries the other alternatives.
+#    So far, our alternatives are (a) systemctl (b) network script (c) perform
+#    an individual interface state change.
+#
+
+run_network_script()
+{
+   local action=$1
+   local rc=0
+   local script
+
+   while true; do
+
+      exec_systemctl_service $action
+      [ $? != 0 ] || break
+
+      script=`find_networking_script`
+
+      if [ $script != "error" ]; then
+         exec_networking_script $script $action
+         [ $? != 0 ] || break
+      fi
+
+      # Since all the other alternatives fail, need to manually change
+      # individual interface state.
+      config_network_intfs $action; rc=$?
+      break
+   done
+
+   return $rc
 }
 
 
@@ -116,13 +324,25 @@ run_network_script()
 #    None.
 #
 
-save_active_NIC_list() {
+save_active_NIC_list()
+{
+   local intf_out
+
    >$activeList
 
-   for nic in `ifconfig | awk '/^eth/ { print $1 }'`; do
-      ifconfig $nic | egrep -q '\bUP\b' && echo $nic >> $activeList
-      exitCode=`expr $exitCode \| $?`
-   done
+   # Find out all the non-loopback up interfaces. Use ifconfig if available
+   # otherwise fall back to the ip command.
+   if [ -z "$ifconfig_cmd" ]; then
+      for nic in $($ip_cmd link show up | egrep '\bUP\b' | awk -F: '{print $2}'); do
+         $ip_cmd link show ${nic%@*} | grep -iq 'link/ether' && echo ${nic%@*} >> $activeList
+      done
+   else
+      for nic in $($ifconfig_cmd | sed -n 's/^\([^: \t]*\).*$/\1/p'); do
+         intf_out=$($ifconfig_cmd $nic)
+         echo $intf_out | grep -iq loopback && continue
+         echo $intf_out | egrep -q '\bUP\b' && echo $nic >> $activeList
+      done
+   fi
 }
 
 
@@ -130,27 +350,41 @@ save_active_NIC_list() {
 # rescue_NIC --
 #
 #    For each NIC recorded in $activeList that is not currently "up", run
-#    "ifup $nic".
+#    "ifup $nic" or "ip link set $nic up" to bring the interface up.
 #
 # Results:
 #    All downed NICs should be active.
 #
 
-rescue_NIC() {
+rescue_NIC()
+{
+   local rc=0
+   local intf_out
+
    if [ -f "$activeList" ]; then
       while read nic; do
-         if ifconfig $nic | egrep -q '\bUP\b'; then
+         if [ -z "$ifconfig_cmd" ]; then
+            intf_out=$($ip_cmd link show $nic up)
+         else
+            intf_out=$($ifconfig_cmd $nic)
+         fi
+
+         if echo $intf_out | grep -q 'UP'; then
             echo `date` "[rescue_nic] $nic is already active."
          else
             echo `date` "[rescue_nic] activating $nic ..."
 
-            ifup $nic
-            exitCode=`expr $exitCode \| $?`
+            # Our best effort to activate interfaces, use ifup if available
+            # otherwise use the ip command as fallback.
+            intf_ops "$ifup_cmd" up $nic
+            rc=$(expr $rc \| $?)
          fi
       done < $activeList
 
       rm -f $activeList
    fi
+
+   return $rc
 }
 
 
@@ -277,6 +511,27 @@ WakeNetworkManager()
 
 
 #
+# sanity_check --
+#
+#    Check if the script has all the commands it needs to carry out the
+#    request. So far, it requires either ip or ifconfig command to read
+#    interface configuration. Ifup is not checked here. It is checked at
+#    the place where we need to do individual interface state change.
+#
+
+sanity_check()
+{
+   ip_cmd=$(which ip 2>/dev/null)
+   ifconfig_cmd=$(which ifconfig 2>/dev/null)
+   ifup_cmd=$(which ifup 2>/dev/null)
+   ifdown_cmd=$(which ifdown 2>/dev/null)
+
+   [ -z "$ifconfig_cmd" -a -z "$ip_cmd" ] && \
+       Panic "ip and ifconfig not in search path."
+}
+
+
+#
 # main --
 #
 #    Main entry point.  Perform some sanity checking, then map state change
@@ -290,11 +545,6 @@ main() {
    exitCode=0
    activeList=/var/run/vmware-active-nics
 
-   # XXX Are these really necessary?  If so, we should have seen customer
-   # complaints by now.
-   which ifup >/dev/null 2>&1      || Panic "ifup not in search path."
-   which ifconfig >/dev/null 2>&1  || Panic "ifconfig not in search path."
-
    case "$1" in
       poweron-vm)
          rm -f $activeList
@@ -303,6 +553,7 @@ main() {
          TranquilizeNetworkManager
          exitCode=$?
          if [ $exitCode != 0 ]; then
+            sanity_check suspend-vm
             save_active_NIC_list
             run_network_script stop
             exitCode=$?
@@ -312,6 +563,7 @@ main() {
          WakeNetworkManager
          exitCode=$?
          if [ $exitCode != 0 ]; then
+            sanity_check resume-vm
             # According to hfu, "/etc/init.d/networking restart" on Debian 5.0
             # may bring down ethernet interfaces tagged as "allow-hotplug" without
             # bringing them back up.

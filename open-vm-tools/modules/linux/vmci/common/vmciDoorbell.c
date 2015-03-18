@@ -41,7 +41,7 @@
 
 #define LGPFX "VMCIDoorbell: "
 
-#if !defined(SOLARIS) && !defined(__APPLE__)
+#if !defined(__APPLE__)
 
 #define VMCI_DOORBELL_INDEX_TABLE_SIZE 64
 #define VMCI_DOORBELL_HASH(_idx) \
@@ -1160,7 +1160,7 @@ VMCI_ScanNotificationBitmap(uint8 *bitmap)
 }
 
 
-#else // SOLARIS) || __APPLE__
+#else // __APPLE__
 
 /*
  *-----------------------------------------------------------------------------
@@ -1238,4 +1238,4 @@ VMCIDoorbell_Exit(void)
 {
 }
 
-#endif // SOLARIS) || __APPLE__
+#endif // __APPLE__

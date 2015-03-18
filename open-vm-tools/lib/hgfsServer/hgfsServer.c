@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -427,7 +427,7 @@ HgfsServerSessionPut(HgfsSessionInfo *session)   // IN: session context
 {
    ASSERT(session);
 
-   if (Atomic_FetchAndDec(&session->refCount) == 1) {
+   if (Atomic_ReadDec32(&session->refCount) == 1) {
       HgfsServerExitSessionInternal(session);
    }
 }
@@ -479,7 +479,7 @@ static void
 HgfsServerTransportSessionPut(HgfsTransportSessionInfo *transportSession)   // IN: transport session context
 {
    ASSERT(transportSession);
-   if (Atomic_FetchAndDec(&transportSession->refCount) == 1) {
+   if (Atomic_ReadDec32(&transportSession->refCount) == 1) {
       DblLnkLst_Links *curr, *next;
 
       MXUser_AcquireExclLock(transportSession->sessionArrayLock);
@@ -562,7 +562,7 @@ HgfsServerGetHandleCounter(void)
 static uint32
 HgfsServerGetNextHandleCounter(void)
 {
-   uint32 count = Atomic_FetchAndInc(&hgfsHandleCounter);
+   uint32 count = Atomic_ReadInc32(&hgfsHandleCounter);
    /*
     * Call server manager for logging state updates.
     * XXX - This will have to be reworked when the server is
@@ -1865,7 +1865,7 @@ HgfsAddToCacheInternal(HgfsHandle handle,         // IN: HGFS file handle
       }
    }
 
-   ASSERT_BUG(36244, session->numCachedOpenNodes < gHgfsCfgSettings.maxCachedOpenNodes);
+   ASSERT(session->numCachedOpenNodes < gHgfsCfgSettings.maxCachedOpenNodes);
 
    node = HgfsHandle2FileNode(handle, session);
    ASSERT(node);
@@ -3023,7 +3023,6 @@ HgfsServerGetRequest(HgfsPacket *packet,                        // IN: packet
    HgfsInternalStatus parseStatus = HGFS_ERROR_SUCCESS;
 
    request = HSPU_GetMetaPacket(packet, &requestSize, transportSession->channelCbTable);
-   ASSERT_DEVEL(request);
 
    if (NULL == request) {
       /*
@@ -3143,7 +3142,7 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
                                replySize,
                                &replyTotalSize);
 
-   ASSERT_DEVEL(reply && (replySize <= replyTotalSize));
+   ASSERT(reply && (replySize <= replyTotalSize));
    if (!HgfsPackReplyHeader(status, replyPayloadSize, input->sessionEnabled, replySessionId,
                            input->id, input->op, HGFS_PACKET_FLAG_REPLY, replyTotalSize,
                            reply)) {
@@ -4546,7 +4545,7 @@ HgfsServer_Quiesce(Bool freeze)  // IN:
 static void
 HgfsNotifyPacketSent(void)
 {
-   if (Atomic_FetchAndDec(&gHgfsAsyncCounter) == 1) {
+   if (Atomic_ReadDec32(&gHgfsAsyncCounter) == 1) {
       MXUser_AcquireExclLock(gHgfsAsyncLock);
       MXUser_BroadcastCondVar(gHgfsAsyncVar);
       MXUser_ReleaseExclLock(gHgfsAsyncLock);
@@ -5481,7 +5480,6 @@ HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enum
                                  &vdirSearch->dents,
                                  &vdirSearch->numDents);
    if (HGFS_ERROR_SUCCESS != status) {
-      ASSERT_DEVEL(0);
       LOG(4, ("%s: couldn't get root dents %u\n", __FUNCTION__, status));
       goto exit;
    }
@@ -5803,7 +5801,7 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
                                      headerSize + replyDataSize,
                                      &replyPacketSize);
 
-   ASSERT_DEVEL(replyHeader && (replyPacketSize >= headerSize + replyDataSize));
+   ASSERT(replyHeader && (replyPacketSize >= headerSize + replyDataSize));
 
    memset(replyHeader, 0, headerSize + replyDataSize);
    if (replyDataSize > 0) {

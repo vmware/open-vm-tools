@@ -68,9 +68,9 @@ extern Atomic_uint64 vSockStatsProduceTotal;
       ++vSockStatsCtlPktCount[pktType];                                 \
    } while (0)
 #define VSOCK_STATS_STREAM_CONSUME(bytes)                               \
-   Atomic_FetchAndAdd64(&vSockStatsConsumeTotal, bytes)
+   Atomic_ReadAdd64(&vSockStatsConsumeTotal, bytes)
 #define VSOCK_STATS_STREAM_PRODUCE(bytes)                               \
-   Atomic_FetchAndAdd64(&vSockStatsProduceTotal, bytes)
+   Atomic_ReadAdd64(&vSockStatsProduceTotal, bytes)
 #define VSOCK_STATS_CTLPKT_DUMP_ALL() VSockVmciStatsCtlPktDumpAll()
 #define VSOCK_STATS_HIST_DUMP_ALL()   VSockVmciStatsHistDumpAll()
 #define VSOCK_STATS_TOTALS_DUMP_ALL() VSockVmciStatsTotalsDumpAll()

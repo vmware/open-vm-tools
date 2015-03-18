@@ -1,0 +1,46 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+proto.attack = "可能存在安全攻击! 请求类型 %1$d 所具有的用户名 (%2$s) 与管道所有者 (%3$s) 不相符!"
+
+validate.samlBearer.fail = "SAML 持有者令牌的验证失败: %1$d"
+
+validate.samlBearer.success = "已验证了用户“%1$s”的 SAML 持有者令牌"
+
+alias.addid = "用户“%2$s”已将别名添加至由“%1$s”所有的别名库"
+
+alias.dir.badperm = "别名库目录“%1$s”的所有者或权限不正确。“%2$s”中当前存储的任何别名均不可用于进行身份验证"
+
+alias.dir.notadir = "别名库目录“%1$s”已存在，但不是一个目录"
+
+alias.dir.renamefail = "未能将可疑的别名库目录“%1$s”重命名为“%2$s”"
+
+
+alias.alias.badfile = "别名库“%1$s”已存在，但不是一个常规文件。用户“%2$s”的别名将不可用于进行身份验证"
+
+alias.alias.badperm = "别名库“%1$s”的所有者或权限不正确。用户“%2$s”的别名将不可用于进行身份验证"
+
+alias.alias.rename = "可疑的别名库“%1$s”已重命名为“%2$s”"
+
+alias.alias.renamefail = "未能将可疑的别名库“%1$s”重命名为“%2$s”"
+
+alias.mapfile.badperm = "别名库映射文件“%1$s”的所有者或权限不正确。映射文件中的别名将不可用于进行身份验证"
+
+alias.mapping.badfile = "映射文件“%1$s”已存在，但不是一个常规文件。映射文件中的别名将不可用于进行身份验证"
+
+alias.removeid = "用户“%2$s”已将别名从“%1$s”所拥有的别名库中删除"

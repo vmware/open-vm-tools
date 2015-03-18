@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -90,6 +90,11 @@
 #define PCI_DEVICE_VMI_REVISION         0x01
 
 #define PCI_DEVICE_ID_VMWARE_DUMMY      0x0809
+
+/*
+ * VMware Virtual Device Test Infrastructure (VDTI) devices
+ */
+#define PCI_DEVICE_ID_VMWARE_VDTI               0x7E57  /* stands for "TEST" */
 
 /* From linux/pci_ids.h:
  *   AMD Lance Ethernet controller
@@ -198,6 +203,17 @@
 #define AHCI_MAX_PORTS SATA_MAX_DEVICES
 
 /*
+ * Maximum number of supported disk in a VM.
+ *
+ * Note: With some config options for PVSCSI, maximum number of disks could
+ * be ~1K but that number is not publicly supported yet.
+ */
+#define MAX_NUM_DISKS \
+   ((SATA_MAX_CONTROLLERS * SATA_MAX_DEVICES) + \
+    (SCSI_MAX_CONTROLLERS * SCSI_MAX_DEVICES) + \
+    (IDE_NUM_INTERFACES * IDE_DRIVES_PER_IF))
+
+/*
  * VSCSI_BV_INTS is the number of uint32's needed for a bit vector
  * to cover all scsi devices per target.
  */
@@ -233,6 +249,9 @@
 
 /************* Test device implementation limits ********************/
 #define MAX_PCI_TEST_DEVICES 16
+
+/************* VDTI PCI Device implementation limits ********************/
+#define MAX_VDTI_PCI_DEVICES 16
 
 /************* USB implementation limits ********************************/
 #define MAX_USB_DEVICES_PER_HOST_CONTROLLER 127

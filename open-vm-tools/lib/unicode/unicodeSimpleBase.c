@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -615,7 +615,7 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
                                     &utf16Buf,
                                     &utf16BufLen)) {
 	    // input should be valid UTF-8, no conversion error possible
-	    ASSERT_MEM_ALLOC(FALSE);
+	    NOT_IMPLEMENTED();
             break;
          }
          copyBytes = MIN(utf16BufLen, maxLengthInBytes - 2);
@@ -803,7 +803,7 @@ UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
    case STRING_ENCODING_UTF16_LE:
       if (!CodeSet_Utf8ToUtf16le(utf8Str, lengthInBytes, &result, retLength)) {
 	 // input should be valid UTF-8, no conversion error possible
-	 ASSERT_MEM_ALLOC(FALSE);
+         NOT_IMPLEMENTED();
       }
       break;
 
@@ -877,7 +877,7 @@ UnicodeAllocStatic(const char *asciiBytes, // IN
       }
 
       // Only US-ASCII bytes are allowed as input.
-      ASSERT_NOT_IMPLEMENTED(*byte > 0);
+      VERIFY(*byte > 0);
 
       if (*byte != '\\') {
          utf16[utf16Offset++] = *byte;
@@ -893,7 +893,7 @@ UnicodeAllocStatic(const char *asciiBytes, // IN
          continue;
       }
 
-      ASSERT_NOT_IMPLEMENTED(*byte > 0);
+      VERIFY(*byte > 0);
 
       switch (*byte) {
       case 'u':
@@ -941,7 +941,7 @@ UnicodeAllocStatic(const char *asciiBytes, // IN
       }
 
       if (foundEscapedCodePoint) {
-         ASSERT_NOT_IMPLEMENTED(escapedCodePoint <= 0x10FFFF);
+         VERIFY(escapedCodePoint <= 0x10FFFF);
 
          if (U16_LENGTH(escapedCodePoint) == 1) {
             utf16[utf16Offset++] = (utf16_t)escapedCodePoint;

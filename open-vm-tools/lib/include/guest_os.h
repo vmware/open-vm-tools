@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -107,23 +107,32 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWINEIGHTCLIENT64   BS(WINEIGHT_64)
 #define ALLWINEIGHTCLIENT     ALLWINEIGHTCLIENT32, ALLWINEIGHTCLIENT64
 
+#define ALLWINTENSERVER64     BS(WINTENSERVER_64)
+#define ALLWINTENSERVER       ALLWINTENSERVER64
+
+#define ALLWINTENCLIENT32     BS(WINTEN)
+#define ALLWINTENCLIENT64     BS(WINTEN_64)
+#define ALLWINTENCLIENT       ALLWINTENCLIENT32, ALLWINTENCLIENT64
+
 #define ALLHYPER_V            BS(HYPER_V)
 
 #define ALLWINVISTA_OR_HIGHER ALLWINVISTA, ALLWINLONGHORN,           \
                               ALLWIN2008R2, ALLWINSEVEN,             \
-                              ALLWINEIGHTSERVER, ALLHYPER_V,         \
-                              ALLWINEIGHTCLIENT
+                              ALLWINEIGHTSERVER, ALLWINEIGHTCLIENT,  \
+                              ALLWINTENSERVER, ALLWINTENCLIENT,      \
+                              ALLHYPER_V                             \
 
 #define ALLWINNT32	      BS(WINNT), ALLWIN2000, ALLWINXP32,     \
                               ALLWINNET32, ALLWINVISTA32,            \
                               ALLWINLONGHORN32, ALLWINSEVEN32,       \
-                              ALLWINEIGHTCLIENT32
+                              ALLWINEIGHTCLIENT32, ALLWINTENCLIENT32
 
 #define ALLWINNT64	      ALLWINXP64, ALLWINNET64,               \
                               ALLWINVISTA64, ALLWINLONGHORN64,       \
                               ALLWINSEVEN64,  ALLWIN2008R2_64,       \
-                              ALLWINEIGHTCLIENT64,                   \
-                              ALLWINEIGHTSERVER, ALLHYPER_V
+                              ALLWINEIGHTCLIENT64, ALLWINEIGHTSERVER,\
+                              ALLWINTENCLIENT64, ALLWINTENSERVER,    \
+                              ALLHYPER_V
 
 #define ALLWINNT	      ALLWINNT32, ALLWINNT64
 
@@ -153,7 +162,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLDARWIN32           BS(DARWIN9), BS(DARWIN10), BS(DARWIN11)
 #define ALLDARWIN64           BS(DARWIN9_64), BS(DARWIN10_64), \
                               BS(DARWIN11_64), BS(DARWIN12_64), \
-                              BS(DARWIN13_64)
+                              BS(DARWIN13_64), BS(DARWIN14_64)
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 #define ALL64                 ALLWIN64, ALLLINUX64, BS(SOLARIS10_64), \
                               BS(FREEBSD_64), ALLDARWIN64,            \
@@ -177,6 +186,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_ARKLINUX            "Arklinux"
 #define STR_OS_ASIANUX_3           "asianux3"
 #define STR_OS_ASIANUX_4           "asianux4"
+#define STR_OS_ASIANUX_5           "asianux5"
 #define STR_OS_AUROX               "Aurox"
 #define STR_OS_ASIANUX             "asianux"
 #define STR_OS_BLACKCAT            "BlackCat"
@@ -189,6 +199,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_DEBIAN_6            "debian6"
 #define STR_OS_DEBIAN_7            "debian7"
 #define STR_OS_DEBIAN_7_1          "debian7"
+#define STR_OS_DEBIAN_8            "debian8"
 #define STR_OS_FEDORA              "Fedora"
 #define STR_OS_GENTOO              "Gentoo"
 #define STR_OS_IMMUNIX             "Immunix"
@@ -389,30 +400,51 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define STR_OS_WIN_EIGHT               "windows8"
 #define STR_OS_WIN_EIGHT_X64           "windows8-64"
-#define STR_OS_WIN_EIGHT_GENERIC       "Windows 8"
-#define STR_OS_WIN_EIGHTSERVER_GENERIC "Windows Server 2012"
 
-/*
- * XXX - These need to be updated when MS announces official Win 8 names.
- *       For now they are unused, see: lib/misc/hostinfoWin32.c
- */
+#define STR_OS_WIN_EIGHT_GENERIC_FULL        "Windows 8%s"
+#define STR_OS_WIN_EIGHTSERVER_GENERIC_FULL  "Windows Server%s 2012"
+#define STR_OS_WIN_EIGHT_FULL                "Windows 8%s"
+#define STR_OS_WIN_EIGHT_PRO_FULL            "Windows 8%s Pro"
+#define STR_OS_WIN_EIGHT_ENTERPRISE_FULL     "Windows 8%s Enterprise"
 
-#define STR_OS_WIN_EIGHT_STARTER_FULL      "Windows 8 Starter"
-#define STR_OS_WIN_EIGHT_HOME_BASIC_FULL   "Windows 8 Home Basic"
-#define STR_OS_WIN_EIGHT_HOME_PREMIUM_FULL "Windows 8 Home Premium"
-#define STR_OS_WIN_EIGHT_ULTIMATE_FULL     "Windows 8 Ultimate"
-#define STR_OS_WIN_EIGHT_PROFESSIONAL_FULL "Windows 8 Professional"
-#define STR_OS_WIN_EIGHT_ENTERPRISE_FULL   "Windows 8 Enterprise"
 
 /* Windows Server 2012 */
 
 #define STR_OS_WIN_EIGHTSERVER_X64 "windows8srv-64"
 
-#define STR_OS_WIN_2012_FOUNDATION_FULL "Windows Server 2012 Foundation Edition"
-#define STR_OS_WIN_2012_STANDARD_FULL   "Windows Server 2012 Standard Edition"
-#define STR_OS_WIN_2012_ENTERPRISE_FULL "Windows Server 2012 Enterprise Edition"
-#define STR_OS_WIN_2012_DATACENTER_FULL "Windows Server 2012 Datacenter Edition"
-#define STR_OS_WIN_2012_WEB_SERVER_FULL "Windows Web Server 2012 Edition"
+#define STR_OS_WIN_2012_FOUNDATION_FULL      "Windows Server 2012%s Foundation Edition"
+#define STR_OS_WIN_2012_ESSENTIALS_FULL      "Windows Server 2012%s Essentials Edition"
+#define STR_OS_WIN_2012_STANDARD_FULL        "Windows Server 2012%s Standard Edition"
+#define STR_OS_WIN_2012_ENTERPRISE_FULL      "Windows Server 2012%s Enterprise Edition"
+#define STR_OS_WIN_2012_DATACENTER_FULL      "Windows Server 2012%s Datacenter Edition"
+#define STR_OS_WIN_2012_STORAGESERVER_FULL   "Windows Server 2012%s Storage Server"
+#define STR_OS_WIN_2012_WEB_SERVER_FULL      "Windows Web Server 2012%s Edition"
+#define STR_OS_WIN_2012_MULTIPOINT_STANDARD_FULL  "Windows MultiPoint Server 2012%s Standard"
+#define STR_OS_WIN_2012_MULTIPOINT_PREMIUM_FULL   "Windows MultiPoint Server 2012%s Premium"
+
+
+/*
+ * Windows 10
+ *
+ * Microsoft renamed Windows 9 to Windows 10; Windows 9 was never released.
+ * So as to not invalidate any existing VMs or released software we retain
+ * the Windows 9 identifier strings as Windows 10.
+ */
+
+#define STR_OS_WIN_TEN           "windows9"
+#define STR_OS_WIN_TEN_X64       "windows9-64"
+
+/* THIS SPACE FOR RENT (Windows 10 official variant names) */
+
+#define STR_OS_WIN_TEN_GENERIC_FULL        "Windows 10"
+
+/* Windows Server Threshold */
+
+#define STR_OS_WIN_TENSERVER_X64 "windows9srv-64"
+
+/* THIS SPACE FOR RENT (Windows 10 official server variant names) */
+
+#define STR_OS_WIN_TENSERVER_GENERIC_FULL        "Windows Server Threshold"
 
 /* Microsoft Hyper-V */
 #define STR_OS_HYPER_V "winHyperV"

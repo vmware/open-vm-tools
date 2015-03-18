@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -232,7 +232,7 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
  *    Use this function if you are certain that:
  *    o Either the quotient will fit in 32 bits,
  *    o Or your code is ready to handle a #DE exception indicating overflow.
- *    If that is not the case, then use Div643264(). --hpreg
+ *    If that is not the case, then use Div643264().
  *
  * Results:
  *    Quotient and remainder
@@ -251,7 +251,6 @@ Div643232(uint64 dividend,   // IN
           uint32 *quotient,  // OUT
           uint32 *remainder) // OUT
 {
-   /* Checked against the Intel manual and GCC --hpreg */
    __asm__(
       "divl %4"
       : "=a" (*quotient),
@@ -271,7 +270,6 @@ Div643232(uint64 dividend,   // IN
           uint32 *quotient,  // OUT
           uint32 *remainder) // OUT
 {
-   /* Written and tested by mann, checked by dbudko and hpreg */
    __asm {
       mov  eax, DWORD PTR [dividend]
       mov  edx, DWORD PTR [dividend+4]
@@ -297,7 +295,7 @@ Div643232(uint64 dividend,   // IN
  *    Unsigned integer division:
  *       The dividend is 64-bit wide
  *       The divisor  is 32-bit wide
- *       The quotient is 64-bit wide --hpreg
+ *       The quotient is 64-bit wide
  *
  * Results:
  *    Quotient and remainder
@@ -317,7 +315,6 @@ Div643264(uint64 dividend,   // IN
    uint32 hQuotient;
    uint32 lQuotient;
 
-   /* Checked against the Intel manual and GCC --hpreg */
    __asm__(
       "divl %5"        "\n\t"
       "movl %%eax, %0" "\n\t"
@@ -342,27 +339,20 @@ Div643264(uint64 dividend,   // IN
  *
  * Mul64x3264 --
  *
- *    Unsigned integer by fixed point multiplication:
+ *    Unsigned integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
+ * 
  *       Unsigned 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
- *         multiplier >> shift, where shift < 64.
- *       Unsigned 64-bit integer product.
- *
- * Implementation:
- *    Multiply 64x32 bits to yield a full 96-bit product.
- *    Shift right by shift.
- *    Return the low-order 64 bits of the result.
+ *         (multiplier, shift), where shift < 64.
  *
  * Result:
- *    Product
- *
- * Side effects:
- *    None
+ *       Unsigned 64-bit integer product.
  *
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 4) && !defined(MUL64_NO_ASM)
 
 static INLINE uint64
 Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
@@ -371,64 +361,35 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
    uint32 tmp1, tmp2;
    // ASSERT(shift >= 0 && shift < 64);
   
-   /*
-    * Written and tested by mann, improved with suggestions by hpreg.
-    *
-    * The main improvement over the previous version is that the test
-    * of shift against 32 is moved out of the asm and into C code.
-    * This lets the compiler delete the test and one of the
-    * alternative code sequences in the case where shift is a
-    * constant.  It also lets us use the best code sequence in each
-    * alternative, rather than a compromise.  The downside is that in
-    * the non-constant case, this version takes slightly more code
-    * space.
-    *
-    * Note on the constraints: We don't really want multiplicand to
-    * start in %edx:%eax as the =A constraint dictates; in fact, we'd
-    * prefer any *other* two registers.  But gcc doesn't have
-    * constraint syntax for any other register pair, and trying to
-    * constrain ((uint32) multiplicand) to one place and (multiplicand
-    * >> 32) to another generates *really* bad code -- gcc is just not
-    * smart enough, at least in the version we are currently using.
-    */
-   if (shift < 32) {
-      __asm__("mov   %%eax, %2     \n\t" // Save lo(multiplicand) in tmp2
-              "mov   %%edx, %%eax  \n\t" // Get hi(multiplicand)
-              "mull  %4            \n\t" // p2 = hi(multiplicand) * multiplier
-              "xchg  %%eax, %2     \n\t" // Save lo(p2) in tmp2, get lo(multiplicand)
-              "mov   %%edx, %1     \n\t" // Save hi(p2) in tmp1
-              "mull  %4            \n\t" // p1 = lo(multiplicand) * multiplier
-              "addl  %2, %%edx     \n\t" // hi(p1) += lo(p2)
-              "adcl  $0, %1        \n\t" // hi(p2) += carry from previous step
-              "shrdl %%edx, %%eax  \n\t" // result = hi(p2):hi(p1):lo(p1) >> shift
-              "shrdl %1, %%edx"
-              : "=A"  (result),
-                "=&r" (tmp1),            // use in shrdl requires it to be a register
-                "=&r" (tmp2)             // could be "=&rm" but "m" is slower
-              : "0"   (multiplicand),
-                "rm"  (multiplier),
-                "c"   (shift)
-              : "cc"
-         );
-   } else {
-      __asm__("mov   %%edx, %2     \n\t" // Save hi(multiplicand) in tmp2
-              "mull  %4            \n\t" // p1 = lo(multiplicand) * multiplier
-              "mov   %%edx, %1     \n\t" // Save hi(p1) in tmp1
-              "mov   %2, %%eax     \n\t" // Discard lo(p1), get hi(multiplicand)
-              "mull  %4            \n\t" // p2 = hi(multiplicand) * multiplier
-              "addl  %1, %%eax     \n\t" // lo(p2) += hi(p1)
-              "adcl  $0, %%edx     \n\t" // hi(p2) += carry from previous step
-              "shrdl %%edx, %%eax  \n\t" // result = p2 >> (shift & 31)
-              "shrl  %%cl, %%edx"
-              : "=A"  (result),
-                "=&r" (tmp1),            // could be "=&rm" but "m" is slower
-                "=&r" (tmp2)             // could be "=&rm" but "m" is slower
-              : "0"   (multiplicand),
-                "rm"  (multiplier),
-                "c"   (shift)
-              : "cc"
-         );
-   }
+   __asm__("mov   %%eax, %2\n\t"      // Save lo(multiplicand)
+           "mov   %%edx, %%eax\n\t"   // Get hi(multiplicand)
+           "mull  %4\n\t"             // p2 = hi(multiplicand) * multiplier
+           "xchg  %%eax, %2\n\t"      // Save lo(p2), get lo(multiplicand)
+           "mov   %%edx, %1\n\t"      // Save hi(p2)
+           "mull  %4\n\t"             // p1 = lo(multiplicand) * multiplier
+           "addl  %2, %%edx\n\t"      // hi(p1) += lo(p2)
+           "adcl  $0, %1\n\t"         // hi(p2) += carry from previous step
+           "cmpl  $32, %%ecx\n\t"     // shift < 32?
+           "jl    2f\n\t"             // Go if so
+           "shll  $1, %%eax\n\t"      // Save lo(p1) bit 31 in CF in case shift=32
+           "mov   %%edx, %%eax\n\t"   // result = hi(p2):hi(p1) >> (shift & 31)
+           "mov   %1, %%edx\n\t"
+           "shrdl %%edx, %%eax\n\t"
+           "mov   $0, %2\n\t"
+           "adcl  $0, %2\n\t"         // Get highest order bit shifted out, from CF
+           "shrl  %%cl, %%edx\n\t"
+           "jmp   3f\n"
+        "2:\n\t"
+           "xor   %2, %2\n\t"
+           "shrdl %%edx, %%eax\n\t"   // result = hi(p2):hi(p1):lo(p1) >> shift
+           "adcl  $0, %2\n\t"         // Get highest order bit shifted out, from CF
+           "shrdl %1, %%edx\n"
+        "3:\n\t"
+           "addl  %2, %%eax\n\t"      // result += highest order bit shifted out
+           "adcl  $0, %%edx"
+           : "=A" (result), "=&r" (tmp1), "=&r" (tmp2)
+           : "0" (multiplicand), "rm" (multiplier), "c" (shift)
+           : "cc");
    return result;
 }
 
@@ -440,7 +401,6 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
 {
    // ASSERT(shift >= 0 && shift < 64);
 
-   /* Written and tested by mann, checked by dbudko and hpreg */
    __asm {
       mov  eax, DWORD PTR [multiplicand+4]  // Get hi(multiplicand)
       mul  DWORD PTR [multiplier]           // p2 = hi(multiplicand) * multiplier
@@ -453,22 +413,30 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
       mov  ecx, DWORD PTR [shift]           // Get shift
       cmp  ecx, 32                          // shift < 32?
       jl   SHORT l2                         // Go if so
+      shl  eax, 1                           // Save lo(p1) bit 31 in CF in case shift=32
       mov  eax, edx                         // result = hi(p2):hi(p1) >> (shift & 31)
       mov  edx, ebx
       shrd eax, edx, cl
+      mov  esi, 0
+      adc  esi, 0                           // Get highest order bit shifted out, from CF
       shr  edx, cl
       jmp  SHORT l3
    l2:
+      xor  esi, esi
       shrd eax, edx, cl                     // result = hi(p2):hi(p1):lo(p1) >> shift
+      adc  esi, 0                           // Get highest order bit shifted out, from CF
       shrd edx, ebx, cl
    l3:
+      add  eax, esi                         // result += highest order bit shifted out
+      adc  edx, 0
    }
    // return with result in edx:eax
 }
 
 #pragma warning(default: 4035)
 #else
-#error No compiler defined for Mul64x3264
+#define MUL64_NO_ASM 1
+#include "mul64.h"
 #endif
 
 /*
@@ -476,27 +444,20 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
  *
  * Muls64x32s64 --
  *
- *    Signed integer by fixed point multiplication:
+ *    Signed integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
+ * 
  *       Signed 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
- *         multiplier >> shift, where shift < 64.
- *       Signed 64-bit integer product.
- *
- * Implementation:
- *    Multiply 64x32 bits to yield a full 96-bit product.
- *    Shift right by the location of the binary point.
- *    Return the low-order 64 bits of the result.
+ *         (multiplier, shift), where shift < 64.
  *
  * Result:
- *    Product
- *
- * Side effects:
- *    None
+ *       Signed 64-bit integer product.
  *
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 4) && !defined(MUL64_NO_ASM)
 
 static INLINE int64
 Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
@@ -505,8 +466,6 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
    uint32 tmp1, tmp2;
    // ASSERT(shift >= 0 && shift < 64);
 
-   /* Written and tested by mann, checked by dbudko and hpreg */
-   /* XXX hpreg suggested some improvements that we haven't converged on yet */
    __asm__("mov   %%eax, %2\n\t"      // Save lo(multiplicand)
            "mov   %%edx, %%eax\n\t"   // Get hi(multiplicand)
            "test  %%eax, %%eax\n\t"   // Check sign of multiplicand
@@ -524,22 +483,29 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
            "adcl  $0, %1\n\t"         // hi(p2) += carry from previous step
            "cmpl  $32, %%ecx\n\t"     // shift < 32?
            "jl    2f\n\t"             // Go if so
+           "shll  $1, %%eax\n\t"      // Save lo(p1) bit 31 in CF in case shift=32
            "mov   %%edx, %%eax\n\t"   // result = hi(p2):hi(p1) >> (shift & 31)
            "mov   %1, %%edx\n\t"
            "shrdl %%edx, %%eax\n\t"
+           "mov   $0, %2\n\t"
+           "adcl  $0, %2\n\t"         // Get highest order bit shifted out from CF
            "sarl  %%cl, %%edx\n\t"
            "jmp   3f\n"
         "2:\n\t"
+           "xor   %2, %2\n\t"
            "shrdl %%edx, %%eax\n\t"   // result = hi(p2):hi(p1):lo(p1) >> shift
+           "adcl  $0, %2\n\t"         // Get highest order bit shifted out from CF
            "shrdl %1, %%edx\n"
         "3:\n\t"
+           "addl  %2, %%eax\n\t"      // result += highest order bit shifted out
+           "adcl  $0, %%edx"
            : "=A" (result), "=&r" (tmp1), "=&rm" (tmp2)
            : "0" (multiplicand), "rm" (multiplier), "c" (shift)
            : "cc");
    return result;
 }
 
-#elif defined _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(disable: 4035)
 
 static INLINE int64
@@ -547,7 +513,6 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
 {
    //ASSERT(shift >= 0 && shift < 64);
   
-   /* Written and tested by mann, checked by dbudko and hpreg */
    __asm {
       mov  eax, DWORD PTR [multiplicand+4]  // Get hi(multiplicand)
       test eax, eax                         // Check sign of multiplicand
@@ -567,22 +532,27 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
       mov  ecx, DWORD PTR [shift]           // Get shift
       cmp  ecx, 32                          // shift < 32?
       jl   SHORT l2                         // Go if so
+      shl  eax, 1                           // Save lo(p1) bit 31 in CF in case shift=32
       mov  eax, edx                         // result = hi(p2):hi(p1) >> (shift & 31)
       mov  edx, ebx
       shrd eax, edx, cl
+      mov  esi, 0
+      adc  esi, 0                           // Get highest order bit shifted out, from CF
       sar  edx, cl
       jmp  SHORT l3
    l2:
+      xor  esi, esi
       shrd eax, edx, cl                     // result = hi(p2):hi(p1):lo(p1) << shift
+      adc  esi, 0                           // Get highest order bit shifted out, from CF
       shrd edx, ebx, cl
    l3:
+      add  eax, esi                         // result += highest order bit shifted out
+      adc  edx, 0
    }
    // return with result in edx:eax
 }
 
 #pragma warning(default: 4035)
-#else
-#error No compiler defined for Muls64x32s64
 #endif
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -90,11 +90,6 @@ struct SSLSockStruct;
 struct _SSLVerifyParam;
 
 /*
- * sockaddr type declaration (so we don't have to include winsock2.h, etc)
- */
-struct sockaddr_in;
-
-/*
  * AsyncSocket type is opaque
  */
 typedef struct AsyncSocket AsyncSocket;
@@ -148,7 +143,7 @@ int AsyncSocket_GetGenericErrno(AsyncSocket *s);
 int AsyncSocket_GetID(AsyncSocket *asock);
 
 /*
- * Return the fd corresponding to the connection
+ * Return the fd corresponding to the socket.
  */
 int AsyncSocket_GetFd(AsyncSocket *asock);
 
@@ -163,14 +158,15 @@ int AsyncSocket_GetLocalVMCIAddress(AsyncSocket *asock,
 int AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,
                                      uint32 *cid, uint32 *port);
 
+int AsyncSocket_GetINETIPStr(AsyncSocket *asock, int socketFamily,
+                             char **ipRetStr);
+unsigned int AsyncSocket_GetPort(AsyncSocket *asock);
+
 /*
  * Recv callback fires once previously requested data has been received
  */
 typedef void (*AsyncSocketRecvFn) (void *buf, int len, AsyncSocket *asock,
                                    void *clientData);
-typedef void (*AsyncSocketRecvUDPFn) (void *buf, int len, AsyncSocket *asock,
-                                      void *clientData, struct sockaddr_in *sin,
-                                      int sin_len);
 
 /*
  * Send callback fires once previously queued data has been sent
@@ -192,69 +188,51 @@ typedef void (*AsyncSocketSslAcceptFn) (Bool status, AsyncSocket *asock,
 /*
  * Listen on port and fire callback with new asock
  */
-AsyncSocket *AsyncSocket_Listen(unsigned short port,
+AsyncSocket *AsyncSocket_Listen(const char *addrStr,
+                                unsigned int port,
                                 AsyncSocketConnectFn connectFn,
                                 void *clientData,
                                 AsyncSocketPollParams *pollParams,
-                                int *error);
-AsyncSocket *AsyncSocket_ListenIP(unsigned int ip,
-                                  unsigned short port,
-                                  AsyncSocketConnectFn connectFn,
-                                  void *clientData,
-                                  AsyncSocketPollParams *pollParams,
-                                  int *error);
-AsyncSocket *AsyncSocket_ListenIPStr(const char *ipStr,
-                                     unsigned short port,
-                                     AsyncSocketConnectFn connectFn,
-                                     void *clientData,
-                                     AsyncSocketPollParams *pollParams,
-                                     int *error);
+                                int *outError);
+AsyncSocket *AsyncSocket_ListenLoopback(unsigned int port,
+                                        AsyncSocketConnectFn connectFn,
+                                        void *clientData,
+                                        AsyncSocketPollParams *pollParams,
+                                        int *outError);
 AsyncSocket *AsyncSocket_ListenVMCI(unsigned int cid,
                                     unsigned int port,
                                     AsyncSocketConnectFn connectFn,
                                     void *clientData,
                                     AsyncSocketPollParams *pollParams,
-                                    int *error);
-AsyncSocket *AsyncSocket_ListenWebSocket(const char *ipStr,
+                                    int *outError);
+#ifndef VMX86_TOOLS
+AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          unsigned int port,
                                          Bool useSSL,
                                          AsyncSocketConnectFn connectFn,
                                          void *clientData,
                                          AsyncSocketPollParams *pollParams,
                                          int *outError);
-AsyncSocket *AsyncSocket_ListenWebSocketIP(const int32 ipAddr,
-                                           unsigned int port,
-                                           Bool useSSL,
-                                           AsyncSocketConnectFn connectFn,
-                                           void *clientData,
-                                           AsyncSocketPollParams *pollParams,
-                                           int *outError);
+#ifndef _WIN32
+AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
+                                            Bool useSSL,
+                                            AsyncSocketConnectFn connectFn,
+                                            void *clientData,
+                                            AsyncSocketPollParams *pollParams,
+                                            int *outError);
+#endif
+#endif
 
 /*
  * Connect to address:port and fire callback with new asock
  */
-AsyncSocket *AsyncSocket_Connect(int socketFamily,
-                                 const char *hostname,
-                                 unsigned short port,
+AsyncSocket *AsyncSocket_Connect(const char *hostname,
+                                 unsigned int port,
                                  AsyncSocketConnectFn connectFn,
                                  void *clientData,
                                  AsyncSocketConnectFlags flags,
                                  AsyncSocketPollParams *pollParams,
                                  int *error);
-AsyncSocket *AsyncSocket_ConnectIP(unsigned int ip,
-                                   unsigned short port,
-                                   AsyncSocketConnectFn connectFn,
-                                   void *clientData,
-                                   AsyncSocketConnectFlags flags,
-                                   AsyncSocketPollParams *pollParams,
-                                   int *error);
-AsyncSocket *AsyncSocket_ConnectIPStr(const char *ipStr,
-                                      unsigned short port,
-                                      AsyncSocketConnectFn connectFn,
-                                      void *clientData,
-                                      AsyncSocketConnectFlags flags,
-                                      AsyncSocketPollParams *pollParams,
-                                      int *error);
 AsyncSocket *AsyncSocket_ConnectVMCI(unsigned int cid, unsigned int port,
                                      AsyncSocketConnectFn connectFn,
                                      void *clientData,
@@ -277,8 +255,9 @@ AsyncSocket_ConnectNamedPipe(char *pipeName,
                              AsyncSocketPollParams *pollParams,
                              int *outError);
 #endif
-AsyncSocket *AsyncSocket_ConnectWebSocket(int socketFamily,
-                                          const char *url,
+
+#ifndef VMX86_TOOLS
+AsyncSocket *AsyncSocket_ConnectWebSocket(const char *url,
                                           Bool permitUnverifiedSSL,
                                           const char *cookies,
                                           AsyncSocketConnectFn connectFn,
@@ -286,13 +265,16 @@ AsyncSocket *AsyncSocket_ConnectWebSocket(int socketFamily,
                                           AsyncSocketConnectFlags flags,
                                           AsyncSocketPollParams *pollParams,
                                           int *error);
+#endif
 
+#ifndef USE_SSL_DIRECT
 /*
  * Initiate SSL connection on existing asock, with optional cert verification
  */
 Bool AsyncSocket_ConnectSSL(AsyncSocket *asock,
                             struct _SSLVerifyParam *verifyParam);
 Bool AsyncSocket_AcceptSSL(AsyncSocket *asock);
+#endif
 
 void AsyncSocket_StartSslAccept(AsyncSocket *asock,
                                 void *sslCtx,
@@ -410,6 +392,7 @@ Bool AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
  */
 int AsyncSocket_Close(AsyncSocket *asock);
 
+#ifndef VMX86_TOOLS
 /*
  * Retrieve the URI Supplied for a websocket connection
  */
@@ -419,6 +402,13 @@ char *AsyncSocket_GetWebSocketURI(AsyncSocket *asock);
  * Retrieve the Cookie Supplied for a websocket connection
  */
 char *AsyncSocket_GetWebSocketCookie(AsyncSocket *asock);
+#endif
+
+/*
+ * Set low-latency mode for sends:
+ */
+void AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock, Bool enable);
+
 
 /*
  * Some logging macros for convenience

@@ -347,6 +347,18 @@ struct Vmxnet3_RxCompDesc {
 #include "vmware_pack_end.h"
 Vmxnet3_RxCompDesc;
 
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_RxCompDescExt {
+   __le32 dword1;
+   uint8  segCnt;       /* Number of aggregated packets */
+   uint8  dupAckCnt;    /* Number of duplicate Acks */
+   __le16 tsDelta;      /* TCP timestamp difference */
+   __le32 dword2[2];
+}
+#include "vmware_pack_end.h"
+Vmxnet3_RxCompDescExt;
+
 /* fields in RxCompDesc we access via Vmxnet3_GenericDesc.dword[3] */
 #define VMXNET3_RCD_TUC_SHIFT  16
 #define VMXNET3_RCD_IPC_SHIFT  19
@@ -367,16 +379,19 @@ Vmxnet3_RxCompDesc;
 
 /* a union for accessing all cmd/completion descriptors */
 typedef union Vmxnet3_GenericDesc {
-   __le64             qword[2];
-   __le32             dword[4];
-   __le16             word[8];
-   Vmxnet3_TxDesc     txd;
-   Vmxnet3_RxDesc     rxd;
-   Vmxnet3_TxCompDesc tcd;
-   Vmxnet3_RxCompDesc rcd;
+   __le64                qword[2];
+   __le32                dword[4];
+   __le16                word[8];
+   Vmxnet3_TxDesc        txd;
+   Vmxnet3_RxDesc        rxd;
+   Vmxnet3_TxCompDesc    tcd;
+   Vmxnet3_RxCompDesc    rcd;
+   Vmxnet3_RxCompDescExt rcdExt;
 } Vmxnet3_GenericDesc;
 
 #define VMXNET3_INIT_GEN       1
+
+#define VMXNET3_INVALID_QUEUEID -1
 
 /* Max size of a single tx buffer */
 #define VMXNET3_MAX_TX_BUF_SIZE  (1 << 14)
@@ -405,6 +420,7 @@ typedef union Vmxnet3_GenericDesc {
 #define VMXNET3_TX_RING_MAX_SIZE   4096
 #define VMXNET3_TC_RING_MAX_SIZE   4096
 #define VMXNET3_RX_RING_MAX_SIZE   4096
+#define VMXNET3_RX_RING2_MAX_SIZE  2048
 #define VMXNET3_RC_RING_MAX_SIZE   8192
 
 /* a list of reasons for queue stop */

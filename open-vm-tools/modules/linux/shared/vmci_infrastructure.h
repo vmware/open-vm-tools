@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -65,12 +65,14 @@ typedef struct VMCIDoorbellCptState {
 } VMCIDoorbellCptState;
 
 /* Used to determine what checkpoint state to get and set. */
-#define VMCI_NOTIFICATION_CPT_STATE 0x1
-#define VMCI_WELLKNOWN_CPT_STATE    0x2
-#define VMCI_DG_OUT_STATE           0x3
-#define VMCI_DG_IN_STATE            0x4
-#define VMCI_DG_IN_SIZE_STATE       0x5
-#define VMCI_DOORBELL_CPT_STATE     0x6
+#define VMCI_NOTIFICATION_CPT_STATE          0x1
+#define VMCI_WELLKNOWN_CPT_STATE             0x2
+#define VMCI_DG_OUT_STATE                    0x3
+#define VMCI_DG_IN_STATE                     0x4
+#define VMCI_DG_IN_SIZE_STATE                0x5
+#define VMCI_DOORBELL_CPT_STATE              0x6
+#define VMCI_DG_HYPERVISOR_SAVE_STATE_SIZE   0x7
+#define VMCI_DG_HYPERVISOR_SAVE_STATE        0x8
 
 /* Used to control the VMCI device in the vmkernel */
 #define VMCI_DEV_RESET            0x01

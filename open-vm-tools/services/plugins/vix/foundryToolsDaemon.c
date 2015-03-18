@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -400,6 +400,20 @@ FoundryToolsDaemon_Uninitialize(ToolsAppCtx *ctx)
 }
 
 
+/**
+ * Restrict VIX commands in Foundry daemon.
+ *
+ * @param[in]  ctx        Application context.
+ * @param[in]  restricted TRUE/FALSE=>enable/disable restriction.
+ */
+
+void
+FoundryToolsDaemon_RestrictVixCommands(ToolsAppCtx *ctx, gboolean restricted)
+{
+   VixTools_RestrictCommands(restricted);
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -506,6 +520,7 @@ abort:
    return err;
 }
 
+#if defined(linux) || defined(_WIN32)
 
 /*
  *-----------------------------------------------------------------------------
@@ -524,7 +539,6 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-#if defined(linux) || defined(_WIN32)
 gboolean
 ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
 {
@@ -535,6 +549,8 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
    int timeoutVal;
    DECLARE_SYNCDRIVER_ERROR(sysError);
    ToolsAppCtx *ctx = data->appCtx;
+   GKeyFile *confDictRef = ctx->config;
+   Bool enableNullDriver;
    GSource *timer;
    
    Debug(">ToolsDaemonTcloSyncDriverFreeze\n");
@@ -569,8 +585,13 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
       goto abort;
    }
 
+   enableNullDriver = VixTools_ConfigGetBoolean(confDictRef,
+                                                "vmbackup",
+                                                "enableNullDriver",
+                                                FALSE);
+
    /* Perform the actual freeze. */
-   if (!SyncDriver_Freeze(driveList, &gSyncDriverHandle) ||
+   if (!SyncDriver_Freeze(driveList, enableNullDriver, &gSyncDriverHandle) ||
        SyncDriver_QueryStatus(gSyncDriverHandle, INFINITE) != SYNCDRIVER_IDLE) {
       Debug("ToolsDaemonTcloSyncDriverFreeze: Failed to Freeze drives '%s'\n",
             driveList);

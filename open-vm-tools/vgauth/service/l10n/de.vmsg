@@ -1,0 +1,46 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+proto.attack = "Möglicher Angriff auf die Sicherheit!  Anforderungstyp %1$d hat einen userName (%2$s), der nicht dem Pipe-Eigentümer (%3$s) entspricht!"
+
+validate.samlBearer.fail = "Fehler bei Validierung des SAML-Bearer-Tokens: %1$d"
+
+validate.samlBearer.success = "Validiertes SAML-Bearer-Token für Benutzer '%1$s'"
+
+alias.addid = "Alias hinzugefügt zu Aliasspeicher von '%1$s' durch Benutzer '%2$s'"
+
+alias.dir.badperm = "Aliasspeicherverzeichnis '%1$s' weist einen falschen Eigentümer oder falsche Berechtigungen auf.  Alle derzeit in '%2$s' gespeicherten Aliase stehen nicht zur Authentifizierung zur Verfügung."
+
+alias.dir.notadir = "Aliasspeicherverzeichnis '%1$s' ist vorhanden, aber kein Verzeichnis."
+
+alias.dir.renamefail = "Fehler beim Umbenennen des zweifelhaften Aliasspeicherverzeichnisses '%1$s' in '%2$s'"
+
+
+alias.alias.badfile = "Der Aliasspeicher '%1$s' ist vorhanden, ist aber keine reguläre Datei.  Die Aliase für Benutzer '%2$s' stehen nicht zur Authentifizierung zur Verfügung."
+
+alias.alias.badperm = "Der Aliasspeicher '%1$s' weist einen falschen Eigentümer oder falsche Berechtigungen auf.  Die Aliase für Benutzer '%2$s' stehen nicht zur Authentifizierung zur Verfügung."
+
+alias.alias.rename = "Zweifelhafter Aliasspeicher '%1$s' umbenannt in '%2$s'"
+
+alias.alias.renamefail = "Fehler beim Umbenennen des zweifelhaften Aliasspeichers '%1$s' in '%2$s'"
+
+alias.mapfile.badperm = "Die Zuordnungsdatei des Aliasspeichers '%1$s' weist einen falschen Eigentümer oder falsche Berechtigungen auf.  Die Aliase in der Zuordnungsdatei stehen nicht zur Authentifizierung zur Verfügung."
+
+alias.mapping.badfile = "Die Zuordnungsdatei '%1$s' ist vorhanden, aber keine reguläre Datei.  Die Aliase in der Zuordnungsdatei stehen nicht zur Authentifizierung zur Verfügung."
+
+alias.removeid = "Alias gelöscht aus Aliasspeicher von '%1$s' durch Benutzer '%2$s'"

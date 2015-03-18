@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -350,8 +350,8 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
          if (bind(fd, (struct sockaddr *)&localAddr, sizeof localAddr) != 0) {
             sysErr = SocketGetLastError();
             if (sysErr == SYSERR_EACCESS) {
-               Warning(LGPFX "Couldn't bind to privileged port for "
-                       "socket %d\n", fd);
+               Debug(LGPFX "Couldn't bind to privileged port for "
+                     "socket %d\n", fd);
                error = SOCKERR_EACCESS;
                Socket_Close(fd);
                goto error;
@@ -371,8 +371,8 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
       }
 
       if (!bindOk) {
-         Warning(LGPFX "Failed to bind to privileged port for socket %d, "
-                 "no port available\n", fd);
+         Debug(LGPFX "Failed to bind to privileged port for socket %d, "
+               "no port available\n", fd);
          error = SOCKERR_BIND;
          Socket_Close(fd);
          goto error;
@@ -384,8 +384,8 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
 
    if (connect(fd, (struct sockaddr *)&addr, addrLen) != 0) {
       sysErr = SocketGetLastError();
-      Warning(LGPFX "socket connect failed, error %d: %s\n",
-              sysErr, Err_Errno2String(sysErr));
+      Debug(LGPFX "socket connect failed, error %d: %s\n",
+            sysErr, Err_Errno2String(sysErr));
       Socket_Close(fd);
       error = SOCKERR_CONNECT;
       goto error;

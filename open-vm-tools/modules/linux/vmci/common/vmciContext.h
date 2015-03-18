@@ -68,7 +68,7 @@ void VMCIContext_SetId(VMCIContext *context, VMCIId cid);
 #endif
 Bool VMCIContext_SupportsHostQP(VMCIContext *context);
 void VMCIContext_ReleaseContext(VMCIContext *context);
-int VMCIContext_EnqueueDatagram(VMCIId cid, VMCIDatagram *dg);
+int VMCIContext_EnqueueDatagram(VMCIId cid, VMCIDatagram *dg, Bool notify);
 int VMCIContext_DequeueDatagram(VMCIContext *context, size_t *maxSize,
                                 VMCIDatagram **dg);
 int VMCIContext_PendingDatagrams(VMCIId cid, uint32 *pending);

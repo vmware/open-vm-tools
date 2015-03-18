@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#if defined(__linux__)
+#include <features.h>
+#endif
 
 #if defined(_WIN32)
 typedef DWORD MXUserThreadID;
@@ -62,6 +65,8 @@ typedef struct {
    int              referenceCount;   // Acquisition count
    MXUserThreadID   nativeThreadID;   // Native thread ID
 } MXRecLock;
+
+extern VmTimeType mxUserContentionDurationFloor;
 
 
 /*
@@ -177,7 +182,32 @@ MXRecLockCreateInternal(MXRecLock *lock)  // IN/OUT:
 static INLINE int
 MXRecLockDestroyInternal(MXRecLock *lock)  // IN:
 {
-   return pthread_mutex_destroy(&lock->nativeLock);
+   int err = pthread_mutex_destroy(&lock->nativeLock);
+
+#if defined(__GLIBC__)
+   extern const char *gnu_get_libc_version(void) __attribute__ ((weak));
+
+   if (gnu_get_libc_version != NULL) {
+      /*
+       * Elision locking may be used but only on Haswell and newer (compatible)
+       * processors and with glibc 2.18 or later. Unfortunately there is a
+       * problem with the implemenation that requires ignoring any error here.
+       *
+       * TODO: Change the version checking to use a range once the issue is
+       *       fixed.
+       *
+       * See PR 1200129 for more information.
+       */
+
+      const char *version = gnu_get_libc_version();
+
+      if (strcmp(version, "2.18") >= 0) {
+         err = 0;
+      }
+   }
+#endif
+
+   return err;
 }
 
 
@@ -199,7 +229,7 @@ static INLINE void
 MXRecLockSetNoOwner(MXRecLock *lock)  // IN/OUT:
 {
    /* a hack but it works portably */
-   memset((void *) &lock->nativeThreadID, 0xFF, sizeof(lock->nativeThreadID));
+   memset(&lock->nativeThreadID, 0xFF, sizeof lock->nativeThreadID);
 }
 
 
@@ -287,7 +317,6 @@ MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
                  VmTimeType *duration)  // OUT/OPT:
 {
    int err;
-   VmTimeType start = 0;
 
    if ((MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
       MXRecLockIncCount(lock, 1);
@@ -299,29 +328,13 @@ MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
       return;  // Uncontended
    }
 
-   err = MXRecLockTryAcquireInternal(lock);
+   if (LIKELY(duration == NULL)) {
+      err = MXRecLockAcquireInternal(lock);
+   } else {
+      VmTimeType start = Hostinfo_SystemTimerNS();
 
-   if (err == 0) {
-      MXRecLockIncCount(lock, 1);
+      err = MXRecLockAcquireInternal(lock);
 
-      if (duration != NULL) {
-         *duration = 0ULL;
-      }
-
-      return;  // Uncontended
-   }
-
-   if (vmx86_debug && (err != EBUSY)) {
-      Panic("%s: MXRecLockTryAcquireInternal error %d\n", __FUNCTION__, err);
-   }
-
-   if (duration != NULL) {
-      start = Hostinfo_SystemTimerNS();
-   }
-
-   err = MXRecLockAcquireInternal(lock);
-
-   if (duration != NULL) {
       *duration = Hostinfo_SystemTimerNS() - start;
    }
 
@@ -333,7 +346,7 @@ MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
 
    MXRecLockIncCount(lock, 1);
 
-   return;  // Contended
+   return;
 }
 
 
@@ -362,6 +375,7 @@ MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 
    return FALSE;  // Was not acquired
 }
+
 
 static INLINE void
 MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
@@ -426,14 +440,14 @@ MXUserCastedThreadID(void)
  */
 
 typedef enum {
-   MXUSER_TYPE_NEVER_USE = 0,
-   MXUSER_TYPE_RW = 1,
-   MXUSER_TYPE_REC = 2,
-   MXUSER_TYPE_RANK = 3,
-   MXUSER_TYPE_EXCL = 4,
-   MXUSER_TYPE_SEMA = 5,
-   MXUSER_TYPE_CONDVAR = 6,
-   MXUSER_TYPE_BARRIER = 7
+   MXUSER_TYPE_NEVER_USE  = 0,
+   MXUSER_TYPE_RW         = 1,
+   MXUSER_TYPE_REC        = 2,
+   MXUSER_TYPE_RANK       = 3,
+   MXUSER_TYPE_EXCL       = 4,
+   MXUSER_TYPE_SEMA       = 5,
+   MXUSER_TYPE_CONDVAR    = 6,
+   MXUSER_TYPE_BARRIER    = 7
 } MXUserObjectType;
 
 /*

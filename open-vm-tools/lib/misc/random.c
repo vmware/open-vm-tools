@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,7 @@
 #endif
 
 #include "vmware.h"
+#include "log.h"
 #include "random.h"
 #include "util.h"
 
@@ -57,7 +58,7 @@
  *
  *-----------------------------------------------------------------------------
  */
- 
+
 static Bool
 RandomBytesWin32(size_t size,   // IN:
                  void *buffer)  // OUT:
@@ -65,20 +66,24 @@ RandomBytesWin32(size_t size,   // IN:
    HCRYPTPROV csp;
 
    if (size != (DWORD) size) {
+      Log("%s: Overflow: %"FMTSZ"d\n", __FUNCTION__, size);
       return FALSE;
    }
 
    if (CryptAcquireContext(&csp, NULL, NULL, PROV_RSA_FULL,
                            CRYPT_VERIFYCONTEXT) == FALSE) {
+      Log("%s: CryptAcquireContext failed: %d\n", __FUNCTION__, GetLastError());
       return FALSE;
    }
 
    if (CryptGenRandom(csp, (DWORD) size, buffer) == FALSE) {
+      Log("%s: CryptGenRandom failed: %d\n", __FUNCTION__, GetLastError());
       CryptReleaseContext(csp, 0);
       return FALSE;
    }
 
    if (CryptReleaseContext(csp, 0) == FALSE) {
+      Log("%s: CryptReleaseContext failed: %d\n", __FUNCTION__, GetLastError());
       return FALSE;
    }
 

@@ -35,9 +35,15 @@
 #define compat_skb_network_header_len(skb) skb_network_header_len(skb)
 #define compat_skb_tail_pointer(skb)       skb_tail_pointer(skb)
 #define compat_skb_end_pointer(skb)        skb_end_pointer(skb)
-#define compat_skb_ip_header(skb)          ((struct iphdr *)skb_network_header(skb))
-#define compat_skb_ipv6_header(skb)        ((struct ipv6hdr *)skb_network_header(skb))
-#define compat_skb_tcp_header(skb)         ((struct tcphdr *)skb_transport_header(skb))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22)
+#   define compat_skb_ip_header(skb)       ip_hdr(skb)
+#   define compat_skb_ipv6_header(skb)     ipv6_hdr(skb)
+#   define compat_skb_tcp_header(skb)      tcp_hdr(skb)
+#else
+#   define compat_skb_ip_header(skb)   ((struct iphdr *)skb_network_header(skb))
+#   define compat_skb_ipv6_header(skb) ((struct ipv6hdr *)skb_network_header(skb))
+#   define compat_skb_tcp_header(skb)  ((struct tcphdr *)skb_transport_header(skb))
+#endif
 #define compat_skb_reset_mac_header(skb)          skb_reset_mac_header(skb)
 #define compat_skb_reset_network_header(skb)      skb_reset_network_header(skb)
 #define compat_skb_reset_transport_header(skb)    skb_reset_transport_header(skb)

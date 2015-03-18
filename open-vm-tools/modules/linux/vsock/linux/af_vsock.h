@@ -60,7 +60,11 @@ typedef struct VSockVmciSock {
    Bool trusted;
    Bool cachedPeerAllowDgram; /* Dgram communication allowed to cached peer? */
    VMCIId cachedPeer; /* Context ID of last dgram destination check. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+   kuid_t owner;
+#else
    uid_t owner;
+#endif
    VMCIHandle dgHandle;           /* For SOCK_DGRAM only. */
    /* Rest are SOCK_STREAM only. */
    VMCIHandle qpHandle;

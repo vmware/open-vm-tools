@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -316,7 +316,7 @@ RpcIn_RegisterCallback(RpcIn *in,               // IN
 {
    RpcInCallbackList *p;
 
-   Debug("Registering callback '%s'\n", name);
+   Debug("RpcIn: Registering callback '%s'\n", name);
 
    ASSERT(in);
    ASSERT(name);
@@ -362,7 +362,7 @@ RpcIn_UnregisterCallback(RpcIn *in,               // IN
    ASSERT(in);
    ASSERT(name);
 
-   Debug("Unregistering callback '%s'\n", name);
+   Debug("RpcIn: Unregistering callback '%s'\n", name);
 
    for (cur = in->callbacks, prev = NULL; cur && strcmp(cur->name, name);
         prev = cur, cur = cur->next);
@@ -643,7 +643,7 @@ RpcInPackSendData(int fd,                      // IN
    if (buf != NULL && len > 0) {
       newBuf = malloc(len);
       if (newBuf == NULL) {
-         Debug("Error in allocating memory for conn %d.\n", fd);
+         Debug("RpcIn: Error in allocating memory for conn %d.\n", fd);
          goto quit;
       }
       memcpy(newBuf, buf, len);
@@ -667,7 +667,7 @@ quit:
    if (mapCreated) {
       DataMap_Destroy(&map);
    }
-   Debug("Error in dataMap encoding for conn %d.\n", fd);
+   Debug("RpcIn: Error in dataMap encoding for conn %d.\n", fd);
    return FALSE;
 }
 
@@ -1072,6 +1072,7 @@ RpcInConnErrorHandler(int err,             // IN
       RpcInCloseChannel(conn->in, errmsg);
    } else { /* the connection never gets connected */
       RpcInCloseConn(conn);
+      Debug("RpcIn: falling back to use backdoor ...\n");
       RpcInOpenChannel(in, TRUE);  /* fall back on backdoor */
    }
 }
@@ -1160,6 +1161,9 @@ RpcInSend(RpcIn *in,   // IN
 
    if (useBackdoor) {
       ASSERT(in->channel);
+      if (in->last_resultLen) {
+         Debug("RpcIn: sending %"FMTSZ"u bytes\n", in->last_resultLen);
+      }
       status = Message_Send(in->channel, (unsigned char *)in->last_result,
                             in->last_resultLen);
    }
@@ -1320,7 +1324,6 @@ RpcInExecRpc(RpcIn *in,            // IN
    cmd = StrUtil_GetNextToken(&index, reply, " ");
    if (cmd != NULL) {
       cb = RpcInLookupCallback(in, cmd);
-      free(cmd);
       if (cb) {
          result = NULL;
          status = cb->callback((char const **) &result, &resultLen, cb->name,
@@ -1328,11 +1331,14 @@ RpcInExecRpc(RpcIn *in,            // IN
                                cb->clientData);
          ASSERT(result);
       } else {
+         Debug("RpcIn: Unknown Command '%s': No matching callback\n", cmd);
          status = FALSE;
          result = "Unknown Command";
          resultLen = strlen(result);
       }
+      free(cmd);
    } else {
+      Debug("RpcIn: Bad command (null) received\n");
       status = FALSE;
       result = "Bad command";
       resultLen = strlen(result);
@@ -1478,6 +1484,7 @@ RpcInLoop(void *clientData) // IN
    }
 
    if (repLen) {
+      Debug("RpcIn: received %"FMTSZ"u bytes\n", repLen);
       if (!RpcInExecRpc(in, reply, repLen, &errmsg)) {
          goto error;
       }

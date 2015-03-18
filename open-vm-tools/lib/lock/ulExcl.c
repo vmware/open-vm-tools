@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -306,7 +306,7 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_CreateExclLock --
+ * MXUserCreateExclLock --
  *
  *      Create an exclusive lock.
  *
@@ -320,15 +320,14 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-MXUserExclLock *
-MXUser_CreateExclLock(const char *userName,  // IN:
-                      MX_Rank rank)          // IN:
+static MXUserExclLock *
+MXUserCreateExclLock(const char *userName,  // IN:
+                     MX_Rank rank,          // IN:
+                     Bool beSilent)         // IN:
 {
    uint32 statsMode;
    char *properName;
-   MXUserExclLock *lock;
-
-   lock = Util_SafeCalloc(1, sizeof(*lock));
+   MXUserExclLock *lock = Util_SafeCalloc(1, sizeof *lock);
 
    if (userName == NULL) {
       properName = Str_SafeAsprintf(NULL, "X-%p", GetReturnAddress());
@@ -349,7 +348,7 @@ MXUser_CreateExclLock(const char *userName,  // IN:
    lock->header.serialNumber = MXUserAllocSerialNumber();
    lock->header.dumpFunc = MXUserDumpExclLock;
 
-   statsMode = MXUserStatsMode();
+   statsMode = beSilent ? 0 : MXUserStatsMode();
 
    switch (statsMode) {
    case 0:
@@ -373,6 +372,58 @@ MXUser_CreateExclLock(const char *userName,  // IN:
    MXUserAddToList(&lock->header);
 
    return lock;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_CreateExclLock --
+ *
+ *      Create an exclusive lock. The lock may log messages, including
+ *      statistics and contention information.
+ *
+ * Results:
+ *      NULL  Creation failed
+ *      !NULL Creation succeeded
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MXUserExclLock *
+MXUser_CreateExclLock(const char *userName,  // IN:
+                      MX_Rank rank)          // IN:
+{
+   return MXUserCreateExclLock(userName, rank, FALSE);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_CreateExclLockSilent --
+ *
+ *      Create an exclusive lock specifying if the lock must always be silent -
+ *      never logging any messages. Silent locks will never produce any
+ *      statistics or contention information.
+ *
+ * Results:
+ *      NULL  Creation failed
+ *      !NULL Creation succeeded
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MXUserExclLock *
+MXUser_CreateExclLockSilent(const char *userName,  // IN:
+                            MX_Rank rank)          // IN:
+{
+   return MXUserCreateExclLock(userName, rank, TRUE);
 }
 
 
@@ -477,8 +528,8 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
       if (LIKELY(acquireStats != NULL)) {
          MXUserHisto *histo;
 
-         MXUserAcquisitionSample(&acquireStats->data, TRUE, value != 0,
-                                 value);
+         MXUserAcquisitionSample(&acquireStats->data, TRUE,
+                                 value > mxUserContentionDurationFloor, value);
 
          histo = Atomic_ReadPtr(&acquireStats->histo);
 

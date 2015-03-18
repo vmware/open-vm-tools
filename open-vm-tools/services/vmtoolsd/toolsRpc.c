@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "vm_basic_defs.h"
 #include "vm_assert.h"
 #include "conf.h"
 #include "str.h"
@@ -50,6 +51,7 @@ ToolsCoreCheckReset(RpcChannel *chan,
                     gpointer _state)
 {
    ToolsServiceState *state = _state;
+   static gboolean version_sent = FALSE;
 
    ASSERT(state != NULL);
 
@@ -69,13 +71,17 @@ ToolsCoreCheckReset(RpcChannel *chan,
       }
       g_free(msg);
 
-      /*
-       * Log the Tools build number to the VMX log file. We don't really care
-       * if sending the message fails.
-       */
-      msg = g_strdup_printf("log %s: Version: %s", app, BUILD_NUMBER);
-      RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL);
-      g_free(msg);
+      if (!version_sent) {
+         /*
+          * Log the Tools build number to the VMX log file. We don't really care
+          * if sending the message fails.
+          */
+         msg = g_strdup_printf("log %s: Version: %s", app, BUILD_NUMBER);
+         RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL);
+         g_free(msg);
+         /* send message only once to prevent log spewing: */
+         version_sent = TRUE;
+      }
 
       g_signal_emit_by_name(state->ctx.serviceObj,
                             TOOLS_CORE_SIG_RESET,
@@ -353,4 +359,3 @@ ToolsCore_SetCapabilities(RpcChannel *chan,
       g_free(newcaps);
    }
 }
-

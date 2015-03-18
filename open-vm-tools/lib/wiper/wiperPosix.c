@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -144,6 +144,8 @@ static const PartitionInfo gKnownPartitions[] = {
    { "ufs",       PARTITION_UFS,          NULL,                   TRUE        },
    { "vfat",      PARTITION_FAT,          NULL,                   TRUE        },
    { "zfs",       PARTITION_ZFS,          NULL,                   FALSE       },
+   { "xfs",       PARTITION_XFS,          NULL,                   TRUE        },
+   { "btrfs",     PARTITION_BTRFS,        NULL,                   TRUE        },
 };
 
 static Bool initDone = FALSE;

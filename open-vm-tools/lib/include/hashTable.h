@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,7 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#include "vm_basic_defs.h"
 #include "vm_atomic.h"
 
 
@@ -134,8 +135,7 @@ HashTable_ForEach(const HashTable          *ht,
  * hash entry as well, the hash key being an address that must be unique.
  */
 
-typedef struct PtrHashEntry
-{
+typedef struct PtrHashEntry {
    struct PtrHashEntry  *next;
    void                 *ptr;
 } PtrHashEntry;
@@ -148,7 +148,7 @@ typedef struct PtrHashEntry
  */
 
 #define PTRHASH_CONTAINER(ptr, type, member) \
-   ((type *)((char *)(ptr) - offsetof(type, member)))
+   ((type *)((char *)(ptr) - vmw_offsetof(type, member)))
 
 typedef int (*PtrHashForEachCallback)(PtrHashEntry *entry,
                                       const void *clientData);

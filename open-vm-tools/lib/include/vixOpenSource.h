@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -145,6 +145,7 @@ enum {
    VIX_ERROREXTRATYPE_BLOCKLIST     = 10,
    VIX_ERROREXTRATYPE_V2I           = 11,
    VIX_ERROREXTRATYPE_MSGPOST       = 12,
+   VIX_ERROREXTRATYPE_NFC           = 13,	// NfcErrorCode
 };
 
 
@@ -168,10 +169,18 @@ enum {
       VIX_ERROR_SET_FROM_GUEST(err);                                  \
    } while (0)
 
-#define VIX_ERROR_SET_ADDITIONAL_ERROR(err, vixError, additionalError)   \
-   do {                                                                 \
-      err = additionalError;                                             \
-      err = (err << 32) | vixError;                                     \
+#define VIX_ERROR_SET_ADDITIONAL_ERROR(err, vixError, additionalError) \
+   do {                                                                \
+      err = additionalError;                                           \
+      err = (err << 32) | vixError;                                    \
+   } while (0)
+
+#define VIX_SET_ERROR(err, vixError, origErrorType, origError) \
+   do {                                                        \
+      err = 0;                                                 \
+      VIX_ERROR_BASE_ERROR(err) = vixError;                    \
+      VIX_ERROR_EXTRA_ERROR_TYPE(err) = origErrorType;         \
+      VIX_ERROR_EXTRA_ERROR(err) = origError;                  \
    } while (0)
 
 /*
@@ -521,7 +530,26 @@ Bool VixPropertyList_Empty(VixPropertyListImpl *propList);
 
 void VixPropertyList_MarkAllSensitive(VixPropertyListImpl *propList);
 
+Bool Vix_XMLFindElementText(const char *pattern,
+                            char *str,
+                            char *endStr,
+                            char **startText,
+                            char **stopText,
+                            char **resumeSearch);
 
+Bool Vix_XMLFindStringElementText(const char *pattern,
+                                  char *str,
+                                  char *endStr,
+                                  Bool doUnescape,
+                                  char **startText,
+                                  char **stopText,
+                                  Bool *needToFree,
+                                  char **resumeSearch);
+
+Bool Vix_XMLResultIsEscaped(const char *resultXML,
+                            const char *dataParentTag);
+
+Bool Vix_IsValidString(const char *str);
 #endif   // VIX_HIDE_FROM_JAVA
 
 

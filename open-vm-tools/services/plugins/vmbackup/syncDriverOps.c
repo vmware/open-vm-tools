@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -203,7 +203,8 @@ static VmBackupDriverOp *
 VmBackupNewDriverOp(VmBackupState *state,       // IN
                     Bool freeze,                // IN
                     SyncDriverHandle *handle,   // IN
-                    const char *volumes)        // IN
+                    const char *volumes,        // IN
+                    Bool useNullDriverPrefs)    // IN
 {
    Bool success;
    VmBackupDriverOp *op = NULL;
@@ -225,7 +226,10 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
    *op->syncHandle = (handle != NULL) ? *handle : SYNCDRIVER_INVALID_HANDLE;
 
    if (freeze) {
-      success = SyncDriver_Freeze(op->volumes, op->syncHandle);
+      success = SyncDriver_Freeze(op->volumes,
+                                  useNullDriverPrefs ?
+                                  state->enableNullDriver : FALSE,
+                                  op->syncHandle);
    } else {
       success = VmBackupDriverThaw(op);
    }
@@ -295,7 +299,44 @@ VmBackupSyncDriverStart(VmBackupState *state,
    VmBackupDriverOp *op;
 
    g_debug("*** %s\n", __FUNCTION__);
-   op = VmBackupNewDriverOp(state, TRUE, NULL, state->volumes);
+   op = VmBackupNewDriverOp(state, TRUE, NULL, state->volumes, TRUE);
+
+   if (op != NULL) {
+      state->clientData = op->syncHandle;
+   }
+
+   return VmBackup_SetCurrentOp(state,
+                                (VmBackupOp *) op,
+                                VmBackupSyncDriverReadyForSnapshot,
+                                __FUNCTION__);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ *  VmBackupSyncDriverOnlyStart --
+ *
+ *    Starts an asynchronous operation to enable the sync driver without using
+ *    NullDriver fallback.
+ *
+ * Result
+ *    TRUE, unless an error occurs.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VmBackupSyncDriverOnlyStart(VmBackupState *state,
+                            void *clientData)
+{
+   VmBackupDriverOp *op;
+
+   g_debug("*** %s\n", __FUNCTION__);
+   op = VmBackupNewDriverOp(state, TRUE, NULL, state->volumes, FALSE);
 
    if (op != NULL) {
       state->clientData = op->syncHandle;
@@ -332,7 +373,40 @@ VmBackupSyncDriverSnapshotDone(VmBackupState *state,
 
    g_debug("*** %s\n", __FUNCTION__);
 
-   op = VmBackupNewDriverOp(state, FALSE, state->clientData, NULL);
+   op = VmBackupNewDriverOp(state, FALSE, state->clientData, NULL, TRUE);
+   g_free(state->clientData);
+   state->clientData = NULL;
+
+   return VmBackup_SetCurrentOp(state, (VmBackupOp *) op, NULL, __FUNCTION__);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ *  VmBackupSyncDriverOnlySnapshotDone --
+ *
+ *    Starts an asynchronous operation to disable the sync driver
+ *    that does not fallback to NullDriver.
+ *
+ * Result
+ *    TRUE, unless an error occurs.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VmBackupSyncDriverOnlySnapshotDone(VmBackupState *state,
+                               void *clientData)
+{
+   VmBackupDriverOp *op;
+
+   g_debug("*** %s\n", __FUNCTION__);
+
+   op = VmBackupNewDriverOp(state, FALSE, state->clientData, NULL, FALSE);
    g_free(state->clientData);
    state->clientData = NULL;
 
@@ -366,10 +440,57 @@ VmBackupSyncDriverRelease(struct VmBackupSyncProvider *provider)
 /*
  *-----------------------------------------------------------------------------
  *
+ *  VmBackup_NewSyncDriverProviderInternal --
+ *
+ *    Returns a new VmBackupSyncProvider that will enable the sync driver
+ *    as part of the "sync" operation of a backup. If useNullDriverPrefs is
+ *    set to TRUE, VmBackupSyncProvider created will fallback (if required)
+ *    to NullDriver based on the preferences. If useNullDriverPrefs is set
+ *    to FALSE, VmBackupSyncProvider created will ignore the preferences and
+ *    have its' fixed behavior, which is to not use NullDriver.
+ *
+ * Result
+ *    NULL on error.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VmBackupSyncProvider *
+VmBackup_NewSyncDriverProviderInternal(Bool useNullDriverPrefs)
+{
+   VmBackupSyncProvider *provider;
+
+   if (!SyncDriver_Init()) {
+      g_debug("Error initializing the sync driver.\n");
+      return NULL;
+   }
+
+   provider = Util_SafeMalloc(sizeof *provider);
+   if (useNullDriverPrefs) {
+      provider->start = VmBackupSyncDriverStart;
+      provider->snapshotDone = VmBackupSyncDriverSnapshotDone;
+   } else {
+      provider->start = VmBackupSyncDriverOnlyStart;
+      provider->snapshotDone = VmBackupSyncDriverOnlySnapshotDone;
+   }
+   provider->release = VmBackupSyncDriverRelease;
+   provider->clientData = NULL;
+
+   return provider;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  *  VmBackup_NewSyncDriverProvider --
  *
  *    Returns a new VmBackupSyncProvider that will enable the sync driver
- *    as part of the "sync" operation of a backup.
+ *    as part of the "sync" operation of a backup. This provider uses
+ *    NullDriver fallback based on the preferences set in tools.conf.
  *
  * Result
  *    NULL on error.
@@ -383,19 +504,34 @@ VmBackupSyncDriverRelease(struct VmBackupSyncProvider *provider)
 VmBackupSyncProvider *
 VmBackup_NewSyncDriverProvider(void)
 {
-   VmBackupSyncProvider *provider;
-
-   if (!SyncDriver_Init()) {
-      g_debug("Error initializing the sync driver.\n");
-      return NULL;
-   }
-
-   provider = Util_SafeMalloc(sizeof *provider);
-   provider->start = VmBackupSyncDriverStart;
-   provider->snapshotDone = VmBackupSyncDriverSnapshotDone;
-   provider->release = VmBackupSyncDriverRelease;
-   provider->clientData = NULL;
-
-   return provider;
+   return VmBackup_NewSyncDriverProviderInternal(TRUE);
 }
 
+
+#if defined(_LINUX) || defined(__linux__)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ *  VmBackup_NewSyncDriverOnlyProvider --
+ *
+ *    Returns a new VmBackupSyncProvider that will enable the sync driver
+ *    as part of the "sync" operation of a backup. This provider does not
+ *    use NullDriver fallback (ignores the preferences set in tools.conf).
+ *
+ * Result
+ *    NULL on error.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VmBackupSyncProvider *
+VmBackup_NewSyncDriverOnlyProvider(void)
+{
+   return VmBackup_NewSyncDriverProviderInternal(FALSE);
+}
+
+#endif

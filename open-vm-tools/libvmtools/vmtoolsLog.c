@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,6 +43,7 @@
 #include "glibUtils.h"
 #include "log.h"
 #if defined(G_PLATFORM_WIN32)
+#  include <dbghelp.h>
 #  include "coreDump.h"
 #  include "w32Messages.h"
 #endif
@@ -838,10 +839,25 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
     * it's set to 5MB.
     */
    if (gEnableCoreDump) {
+      GError *err = NULL;
 #if defined(_WIN32)
+      if (g_key_file_has_key(cfg, LOGGING_GROUP, "coreDumpFlags", NULL)) {
+         guint coreDumpFlags;
+         coreDumpFlags = g_key_file_get_integer(cfg, LOGGING_GROUP, "coreDumpFlags", &err);
+         if (err != NULL) {
+            coreDumpFlags = 0;
+            g_clear_error(&err);
+         }
+         /*
+          * For flag values and information on their meanings see:
+          * http://msdn.microsoft.com/en-us/library/windows/desktop/ms680519(v=vs.85).aspx
+          */
+         coreDumpFlags &= MiniDumpValidTypeFlags;
+         g_message("Core dump flags set to %u", coreDumpFlags);
+         Panic_SetCoreDumpFlags(coreDumpFlags);
+      }
       CoreDump_SetUnhandledExceptionFilter();
 #else
-      GError *err = NULL;
       struct rlimit limit = { 0, 0 };
 
       getrlimit(RLIMIT_CORE, &limit);

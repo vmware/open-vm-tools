@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -97,6 +97,8 @@ RpcVMX_LogSetPrefix(const char *prefix)
 const char *
 RpcVMX_LogGetPrefix(const char *prefix)
 {
+   UNUSED_VARIABLE(prefix);
+
    RpcVMX.logBuf[RpcVMX.logOffset] = '\0';
    return RpcVMX.logBuf + sizeof "log";
 }

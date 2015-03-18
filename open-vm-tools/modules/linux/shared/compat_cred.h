@@ -40,4 +40,8 @@
 #define cap_set_full(_c) do { (_c) = CAP_FULL_SET; } while (0)
 #endif
 
+#if !defined(GLOBAL_ROOT_UID)
+#define GLOBAL_ROOT_UID (0)
+#endif
+
 #endif /* __COMPAT_CRED_H__ */

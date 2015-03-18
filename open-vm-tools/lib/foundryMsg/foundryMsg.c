@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1295,7 +1295,7 @@ VixMsgEncodeBuffer(const uint8 *buffer,     // IN
       srcPtr++;
    }
 
-   ASSERT_NOT_IMPLEMENTED((destPtr - resultString) <= resultBufferLength);
+   VERIFY((destPtr - resultString) <= resultBufferLength);
    *destPtr = 0;
 
 abort:
@@ -1432,7 +1432,7 @@ VixMsgDecodeBuffer(const char *str,           // IN
    }
 
    if (nullTerminateResult) {
-      ASSERT_NOT_IMPLEMENTED(resultStrLogicalLength < resultStrAllocatedLength);
+      VERIFY(resultStrLogicalLength < resultStrAllocatedLength);
       resultStr[resultStrLogicalLength] = 0;
    }
 

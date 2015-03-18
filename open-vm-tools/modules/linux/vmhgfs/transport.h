@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -66,7 +66,6 @@ void HgfsTransportFinishRequest(HgfsReq *req, Bool success, Bool do_put);
 void HgfsTransportFlushRequests(void);
 void HgfsTransportMarkDead(void);
 
-HgfsTransportChannel* HgfsGetVmciChannel(void);
 HgfsTransportChannel *HgfsGetBdChannel(void);
 
 #endif // _HGFS_DRIVER_TRANSPORT_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,8 +37,8 @@
  *    holding a spinlock --hpreg
  *
  * Results:
- *    INVALID_MPN64 on failure
- *    mpn           on success
+ *    INVALID_MPN on failure
+ *    mpn         on success
  *
  * Side effects:
  *    None
@@ -51,11 +51,11 @@ PgtblPte2MPN(pte_t *pte)   // IN
 {
    MPN64 mpn;
    if (pte_present(*pte) == 0) {
-      return INVALID_MPN64;
+      return INVALID_MPN;
    }
    mpn = pte_pfn(*pte);
-   if (mpn >= INVALID_MPN64) {
-      return INVALID_MPN64;
+   if (mpn >= INVALID_MPN) {
+      return INVALID_MPN;
    }
    return mpn;
 }
@@ -176,8 +176,8 @@ PgtblVa2PTELocked(struct mm_struct *mm, // IN: Mm structure of a process
  *    must be held, so this function is not allowed to schedule() --hpreg
  *
  * Results:
- *    INVALID_MPN64 on failure
- *    mpn	    on success
+ *    INVALID_MPN on failure
+ *    mpn         on success
  *
  * Side effects:
  *    None
@@ -197,7 +197,7 @@ PgtblVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a process
       pte_unmap(pte);
       return mpn;
    }
-   return INVALID_MPN64;
+   return INVALID_MPN;
 }
 
 
@@ -213,8 +213,8 @@ PgtblVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a process
  *    must be held, so this function is not allowed to schedule() --hpreg
  *
  * Results:
- *    INVALID_MPN64 on failure
- *    mpn           on success
+ *    INVALID_MPN on failure
+ *    mpn         on success
  *
  * Side effects:
  *    None
@@ -234,7 +234,7 @@ PgtblKVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a caller
       pte_unmap(pte);
       return mpn;
    }
-   return INVALID_MPN64;
+   return INVALID_MPN;
 }
 #endif
 

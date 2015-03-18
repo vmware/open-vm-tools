@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -104,10 +104,9 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
       packet->replyPacketDataSize = replyDataSize;
       LOG(4, ("Existing reply packet %s %"FMTSZ"u %"FMTSZ"u\n", __FUNCTION__,
               replyDataSize, packet->replyPacketSize));
-      ASSERT_DEVEL(replyDataSize <= packet->replyPacketSize);
+      ASSERT(replyDataSize <= packet->replyPacketSize);
    } else if (chanCb != NULL && chanCb->getWriteVa != NULL) {
      /* Can we write directly into guest memory? */
-      ASSERT_DEVEL(packet->metaPacket != NULL);
       if (packet->metaPacket != NULL) {
          /*
           * Use the mapped metapacket buffer for the reply.
@@ -118,9 +117,9 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
           * is always mapped and copied no matter how much data it really contains.
           */
          LOG(10, ("%s Using meta packet for reply packet\n", __FUNCTION__));
-         ASSERT_DEVEL(replyDataSize <= packet->metaPacketDataSize);
-         ASSERT_DEVEL(BUF_READWRITEABLE == packet->metaMappingType);
-         ASSERT_DEVEL(replyDataSize <= packet->metaPacketSize);
+         ASSERT(replyDataSize <= packet->metaPacketDataSize);
+         ASSERT(BUF_READWRITEABLE == packet->metaMappingType);
+         ASSERT(replyDataSize <= packet->metaPacketSize);
 
          packet->replyPacket = packet->metaPacket;
          packet->replyPacketDataSize = replyDataSize;
@@ -134,6 +133,8 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
           * fixed. See the above comment about the assumptions and asserts.
           */
          packet->metaPacketDataSize = packet->replyPacketDataSize;
+      } else {
+         NOT_IMPLEMENTED();
       }
    } else {
       /* For sockets channel we always need to allocate buffer */
@@ -341,7 +342,7 @@ HSPUGetBuf(HgfsServerChannelCallbacks *chanCb,  // IN: Channel callbacks
    }
 
    /* More than one page was mapped. */
-   ASSERT_DEVEL(iov[startIndex].len < bufSize);
+   ASSERT(iov[startIndex].len < bufSize);
 
    LOG(10, ("%s: Hgfs Allocating buffer \n", __FUNCTION__));
    *buf = Util_SafeMalloc(bufSize);
@@ -548,7 +549,7 @@ HSPUCopyBufToIovec(HgfsVmxIov *iov,          // IN: iovs (array of mappings)
       copiedAmount += copyAmount;
    }
 
-   ASSERT_DEVEL(remainingSize == 0);
+   ASSERT(remainingSize == 0);
 }
 
 
@@ -589,7 +590,7 @@ HSPUCopyIovecToBuf(HgfsVmxIov *iov,          // IN: iovs (array of mappings)
       copiedAmount += copyAmount;
       remainingSize -= copyAmount;
    }
-   ASSERT_DEVEL(copiedAmount == bufSize && remainingSize == 0);
+   ASSERT(copiedAmount == bufSize && remainingSize == 0);
 }
 
 
@@ -629,8 +630,8 @@ HSPUMapBuf(HgfsChannelMapVirtAddrFunc mapVa,    // IN: map virtual address funct
 
       iov[iovIndex].context = NULL;
 
-      /* Debugging check: Iov in VMCI should never cross page boundary */
-      ASSERT_DEVEL(iov[iovIndex].len <= (PAGE_SIZE - PAGE_OFFSET(iov[iovIndex].pa)));
+      /* Check: Iov in VMCI should never cross page boundary */
+      ASSERT(iov[iovIndex].len <= (PAGE_SIZE - PAGE_OFFSET(iov[iovIndex].pa)));
 
       iov[iovIndex].va = mapVa(iov[iovIndex].pa,
                                iov[iovIndex].len,
@@ -681,7 +682,7 @@ HSPUUnmapBuf(HgfsChannelUnmapVirtAddrFunc unmapVa, // IN/OUT: Hgfs Packet
    for (iovIndex = startIndex, endIndex = startIndex + *mappedCount;
         iovIndex < endIndex;
         iovIndex++) {
-      ASSERT_DEVEL(iov[iovIndex].context);
+      ASSERT(iov[iovIndex].context);
       unmapVa(&iov[iovIndex].context);
       iov[iovIndex].context = NULL;
       iov[iovIndex].va = NULL;

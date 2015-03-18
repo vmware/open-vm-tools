@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2012,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -112,17 +112,6 @@ VMCI_Route(VMCIHandle *src,       // IN/OUT
       /* And we cannot send if the source is the host context. */
       if (VMCI_HOST_CONTEXT_ID == src->context) {
          return VMCI_ERROR_INVALID_ARGS;
-      }
-
-      /*
-       * If the client passed the ANON source handle then respect it (both
-       * context and resource are invalid).  However, if they passed only
-       * an invalid context, then they probably mean ANY, in which case we
-       * should set the real context here before passing it down.
-       */
-
-      if (VMCI_INVALID_ID == src->context && VMCI_INVALID_ID != src->resource) {
-         src->context = vmci_get_context_id();
       }
 
       /* Send from local client down to the hypervisor. */

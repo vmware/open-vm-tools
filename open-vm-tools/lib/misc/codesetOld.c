@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2157,6 +2157,13 @@ GetInvalidCharsFlag(void)
    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
 
+   /*
+    * Starting with msvc-12.0 / SDK v8.1 GetVersionEx is deprecated.
+    * Bug 1259185 tracks switching to VerifyVersionInfo.
+    */
+
+#pragma warning(push)
+#pragma warning(disable : 4996) // 'function': was declared deprecated
    if(!(bOsVersionInfoEx = GetVersionEx((OSVERSIONINFO *) &osvi))) {
       /*
        * If GetVersionEx failed, we are running something earlier than NT4+SP6,
@@ -2168,6 +2175,7 @@ GetInvalidCharsFlag(void)
 
        return retval;
    }
+#pragma warning(pop)
 
    if (osvi.dwMajorVersion > 5) {
       retval = MB_ERR_INVALID_CHARS;  // Vista or later

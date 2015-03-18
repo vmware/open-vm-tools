@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -75,10 +75,10 @@ ImpersonateInit(void)
    status = pthread_key_create(&threadLocalStorageKey, ThreadLocalFree);
    if (status != 0) {
       Warning("Impersonate: key_create failed: %d\n", status);
-      ASSERT_NOT_IMPLEMENTED(status == 0);
+      VERIFY(status == 0);
       return;
    }
-   ASSERT_NOT_IMPLEMENTED(threadLocalStorageKey != INVALID_PTHREAD_KEY_VALUE);
+   VERIFY(threadLocalStorageKey != INVALID_PTHREAD_KEY_VALUE);
 #endif
 }
 
@@ -146,7 +146,7 @@ ImpersonateGetTLS(void)
 
    /* No state allocated, so we need to allocate it */
    ptr = calloc(1, sizeof *ptr);
-   ASSERT_MEM_ALLOC(ptr);
+   VERIFY(ptr);
 #if !defined(VMX86_TOOLS)
    status = pthread_setspecific(threadLocalStorageKey, ptr);
 #else
@@ -155,7 +155,7 @@ ImpersonateGetTLS(void)
 #endif
    if (status != 0) {
       Warning("Impersonate: setspecific: %d\n", status);
-      ASSERT_NOT_IMPLEMENTED(status == 0);
+      VERIFY(status == 0);
    }
 
    return ptr;
@@ -314,7 +314,7 @@ ImpersonateUndo(void)
    ret = 0;
 
 exit:
-   ASSERT_NOT_IMPLEMENTED(ret == 0);
+   VERIFY(ret == 0);
 #if !defined(VMX86_TOOLS)
    pthread_mutex_unlock(&mut);
 #endif
@@ -360,7 +360,7 @@ ImpersonateDoPosix(struct passwd *pwd)            // IN
    }
 
    ASSERT(getuid() == 0);
-   ASSERT_NOT_IMPLEMENTED(geteuid() == 0);
+   VERIFY(geteuid() == 0);
 
    ret = Id_SetGid(pwd->pw_gid);
    if (ret < 0) {
@@ -392,11 +392,11 @@ ImpersonateDoPosix(struct passwd *pwd)            // IN
    Posix_Setenv("SHELL", pwd->pw_shell, 1);
 
    imp->impersonatedUser = strdup(pwd->pw_name);
-   ASSERT_MEM_ALLOC(imp->impersonatedUser);
+   VERIFY(imp->impersonatedUser);
 
 exit:
    imp->refCount = 1;
-   ASSERT_NOT_IMPLEMENTED(ret == 0);
+   VERIFY(ret == 0);
 unlock:
 #if !defined(VMX86_TOOLS)
    pthread_mutex_unlock(&mut);

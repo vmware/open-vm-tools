@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +28,7 @@
 
 #include "hgfs.h"
 #include "hgfsServerManager.h"
+#include "vm_basic_defs.h"
 #include "vm_assert.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/log.h"

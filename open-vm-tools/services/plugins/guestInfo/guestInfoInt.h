@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,12 +28,21 @@
 #define G_LOG_DOMAIN "guestinfo"
 #include <glib.h>
 
-#include "guestInfoLib.h"
+#include "nicInfo.h"
 
 extern int guestInfoPollInterval;
 
 Bool
 GuestInfo_PerfMon(struct GuestMemInfo *vmStats);
+
+GuestDiskInfo *
+GuestInfoGetDiskInfoWiper(void);
+
+GuestDiskInfo *
+GuestInfo_GetDiskInfo(void);
+
+void
+GuestInfo_FreeDiskInfo(GuestDiskInfo *di);
 
 #endif /* _GUESTINFOINT_H_ */
 

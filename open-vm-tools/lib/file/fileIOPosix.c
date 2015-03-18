@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -168,6 +168,7 @@ typedef struct FilePosixOptions {
    int countThreshold;
    int sizeThreshold;
    int aioNumThreads;
+   ssize_t maxIOVec;
 } FilePosixOptions;
 
 
@@ -323,6 +324,25 @@ FileIO_OptionalSafeInitialize(void)
 
       filePosixOptions.aioNumThreads =
                            Config_GetLong(0, "aiomgr.numThreads");
+#if defined(__linux__)
+      filePosixOptions.maxIOVec = sysconf(_SC_IOV_MAX);
+
+      /* Assume unlimited unless sysconf says otherwise. */
+      if (filePosixOptions.maxIOVec < 0) {
+         filePosixOptions.maxIOVec = MAX_INT32;
+      }
+#elif defined(__APPLE__)
+      /*
+       * There appears to be no way to determine the iovec size limit at
+       * runtime.  If Apple ever changes this, we lose binary compatibility.
+       * On the bright side, Apple has not changed this value for at least as
+       * long as they've produced Intel Macs.
+       */
+
+      filePosixOptions.maxIOVec = 1024;
+#else
+      filePosixOptions.maxIOVec = MAX_INT32;
+#endif
 
       filePosixOptions.initialized = TRUE;
       FileIOAligned_PoolInit();
@@ -855,14 +875,13 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       flags |= O_EXLOCK;
    }
 #elif defined(__linux__)
-   if (((access & (FILEIO_OPEN_LOCK_MANDATORY |
-                   FILEIO_OPEN_MULTIWRITER_LOCK)) != 0) &&
-       HostType_OSIsVMK()) {
-      /* These flags are only supported on vmkernel */
+   if (HostType_OSIsVMK()) {
       if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
          flags |= O_MULTIWRITER_LOCK;
       } else if ((access & FILEIO_OPEN_LOCK_MANDATORY) != 0) {
          flags |= O_EXCLUSIVE_LOCK;
+      } else if ((access & FILEIO_OPEN_OPTIMISTIC_LOCK) != 0) {
+         flags |= O_OPTIMISTIC_LOCK;
       }
    }
 #endif
@@ -1048,7 +1067,7 @@ FileIO_Create(FileIODescriptor *file,   // OUT:
  *
  * FileIO_Open --
  *
- *      Open/create a file
+ *      Open/create a file.
  *
  * Results:
  *      FILEIO_SUCCESS on success: 'file' is set
@@ -1068,8 +1087,39 @@ FileIO_Open(FileIODescriptor *file,   // OUT:
             int access,               // IN:
             FileIOOpenAction action)  // IN:
 {
+   return FileIO_OpenRetry(file, pathName, access, action, 0);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_OpenRetry --
+ *
+ *      Open/create a file.
+ *      May perform retries to deal with certain OS conditions.
+ *
+ * Results:
+ *      FILEIO_SUCCESS on success: 'file' is set
+ *      FILEIO_OPEN_ERROR_EXIST if the file already exists
+ *      FILEIO_FILE_NOT_FOUND if the file is not present
+ *      FILEIO_ERROR for other errors
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+FileIOResult
+FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
+                 ConstUnicode pathName,    // IN:
+                 int access,               // IN:
+                 FileIOOpenAction action,  // IN:
+                 uint32 msecMaxWaitTime)   // IN:
+{
    return FileIOCreateRetry(file, pathName, access, action,
-                            S_IRUSR | S_IWUSR, 0);
+                            S_IRUSR | S_IWUSR, msecMaxWaitTime);
 }
 
 
@@ -1182,15 +1232,15 @@ FileIO_Seek(const FileIODescriptor *file,  // IN:
  *
  * Results:
  *      FILEIO_SUCCESS on success: '*actual_count' = 'requested' bytes have
- *       been written
+ *       been written.
  *      FILEIO_WRITE_ERROR_FBIG for the attempt to write file that exceeds
- *       maximum file size
+ *       maximum file size.
  *      FILEIO_WRITE_ERROR_NOSPC when the device containing the file has no
- *       room for the data
+ *       room for the data.
  *      FILEIO_WRITE_ERROR_DQUOT for attempts to write file that exceeds
- *       user's disk quota 
+ *       user's disk quota.
  *      FILEIO_ERROR for other errors: only '*actual_count' bytes have been
- *       written for sure
+ *       written for sure.
  *
  * Side effects:
  *      None
@@ -1210,7 +1260,7 @@ FileIO_Write(FileIODescriptor *fd,  // IN:
 
    ASSERT(fd);
 
-   ASSERT_NOT_IMPLEMENTED(requested < 0x80000000);
+   VERIFY(requested < 0x80000000);
 
    initial_requested = requested;
    while (requested > 0) {
@@ -1249,11 +1299,11 @@ FileIO_Write(FileIODescriptor *fd,  // IN:
  *
  * Results:
  *      FILEIO_SUCCESS on success: '*actual_count' = 'requested' bytes have
- *       been written
+ *       been read. 
  *      FILEIO_READ_ERROR_EOF if the end of the file was reached: only
- *       '*actual_count' bytes have been read for sure
+ *       '*actual_count' bytes have been read for sure.
  *      FILEIO_ERROR for other errors: only '*actual_count' bytes have been
- *       read for sure
+ *       read for sure.
  *
  * Side effects:
  *      None
@@ -1273,7 +1323,7 @@ FileIO_Read(FileIODescriptor *fd,  // IN:
 
    ASSERT(fd);
 
-   ASSERT_NOT_IMPLEMENTED(requested < 0x80000000);
+   VERIFY(requested < 0x80000000);
 
    initial_requested = requested;
    while (requested > 0) {
@@ -1566,16 +1616,17 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
    didCoalesce = FileIOCoalesce(v, numEntries, totalSize, FALSE,
                                 FALSE, fd->flags, &coV);
 
-   ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
+   VERIFY(totalSize < 0x80000000);
 
    numVec = didCoalesce ? 1 : numEntries;
    vPtr = didCoalesce ? &coV : v;
 
    while (nRetries < maxRetries) {
       ssize_t retval;
+      int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
 
-      ASSERT(numVec > 0);
-      retval = readv(fd->posix, vPtr, numVec);
+      ASSERT(tempVec > 0);
+      retval = readv(fd->posix, vPtr, tempVec);
 
       if (retval == -1) {
          if (errno == EINTR) {
@@ -1587,7 +1638,7 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
       }
       bytesRead += retval;
       if (bytesRead == totalSize) {
-         fret =  FILEIO_SUCCESS;
+         fret = FILEIO_SUCCESS;
          break;
       }
       if (retval == 0) {
@@ -1604,7 +1655,7 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
        * --Ganesh, 08/15/2001.
        */
 
-      for (; sum <= bytesRead; vPtr++, numVec--) {
+      for (; sum < bytesRead; vPtr++, numVec--) {
          sum += vPtr->iov_len;
 
          /*
@@ -1678,16 +1729,17 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
    didCoalesce = FileIOCoalesce(v, numEntries, totalSize, TRUE,
                                 FALSE, fd->flags, &coV);
 
-   ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
+   VERIFY(totalSize < 0x80000000);
 
    numVec = didCoalesce ? 1 : numEntries;
    vPtr = didCoalesce ? &coV : v;
 
    while (nRetries < maxRetries) {
       ssize_t retval;
+      int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
 
-      ASSERT(numVec > 0);
-      retval = writev(fd->posix, vPtr, numVec);
+      ASSERT(tempVec > 0);
+      retval = writev(fd->posix, vPtr, tempVec);
 
       if (retval == -1) {
          if (errno == EINTR) {
@@ -1700,11 +1752,10 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
 
       bytesWritten += retval;
       if (bytesWritten == totalSize) {
-         fret =  FILEIO_SUCCESS;
+         fret = FILEIO_SUCCESS;
          break;
       }
-      NOT_TESTED();
-      for (; sum <= bytesWritten; vPtr++, numVec--) {
+      for (; sum < bytesWritten; vPtr++, numVec--) {
          sum += vPtr->iov_len;
          nRetries++;
       }
@@ -1924,7 +1975,8 @@ exit:
           defined(sun) */
 
 
-#if defined(__linux__ )
+#if defined(__linux__)
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1935,7 +1987,7 @@ exit:
  *      library support was added in glibc 2.10.
  *      Hence using weak linkage technique, we try to call the more
  *      optimized preadv system call. If the system does not support
- *      this, we fall back to earlier unoptimized techique.
+ *      this, we fall back to earlier unoptimized technique.
  *
  *      Note that in linux, preadv can succeed on the first N vectors,
  *      and return a positive value in spite of the fact that there was
@@ -1962,14 +2014,17 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
                      uint64 offset,          // IN: Offset to start reading
                      size_t totalSize,       // IN: totalSize(bytes) in entries
                      size_t *actual)         // OUT: number of bytes read
-{  struct iovec *vPtr;
+{
+   struct iovec *vPtr;
    int numVec;
+   size_t partialBytes = 0;
    size_t bytesRead = 0;
    size_t sum = 0;
    int nRetries = 0;
    int maxRetries = numEntries;
    FileIOResult fret = FILEIO_ERROR;
 
+   FileIO_OptionalSafeInitialize();
    numVec = numEntries;
    vPtr = entries;
 
@@ -1978,7 +2033,8 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
 
       ASSERT(numVec > 0);
       if (preadv64 != NULL) {
-         retval = preadv64(fd->posix, vPtr, numVec, offset);
+         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
+         retval = preadv64(fd->posix, vPtr, tempVec, offset);
       } else {
          fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
                                       totalSize, &bytesRead);
@@ -1989,14 +2045,21 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
             NOT_TESTED();
             continue;
          }
-         if (errno == ENOSYS) {
+         if (errno == ENOSYS || errno == EINVAL || errno == ENOMEM) {
             /*
-             * Function not supported by system. Fallback to unoptimized
-             * function.
+             * ENOSYS is returned when the kernel does not support preadv and
+             * will be returned the first time we ever call preadv. So, we
+             * can assume that we are not reading partial requests here.
+             * ENOMEM can be due to system call failure and EINVAL is when file
+             * was opened with the O_DIRECT flag and memory is not suitably
+             * aligned. Let's try to read the remaining vectors using the
+             * unoptimized function and hope we don't encounter another error.
              */
-            ASSERT (nRetries == 0);
-            fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
-                                         totalSize, &bytesRead);
+            size_t remSize = totalSize - bytesRead;
+            uint64 tempOffset =  offset + bytesRead;
+            partialBytes = 0;
+            fret = FileIOPreadvCoalesced(fd, vPtr, numVec, tempOffset, remSize,
+                                         &partialBytes);
             break;
          }
          fret = FileIOErrno2Result(errno);
@@ -2004,7 +2067,7 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
       }
       bytesRead += retval;
       if (bytesRead == totalSize) {
-         fret =  FILEIO_SUCCESS;
+         fret = FILEIO_SUCCESS;
          break;
       }
       if (retval == 0) {
@@ -2022,8 +2085,9 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
        * ambiguity handling may need to change.
        */
 
-      for (; sum <= bytesRead; vPtr++, numVec--) {
+      for (; sum < bytesRead; vPtr++, numVec--) {
          sum += vPtr->iov_len;
+         offset += vPtr->iov_len;
 
          /*
           * In each syscall, we will process atleast one iovec
@@ -2041,7 +2105,7 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
       }
    }
    if (actual) {
-      *actual = bytesRead;
+      *actual = bytesRead + partialBytes;
    }
 
    return fret;
@@ -2058,7 +2122,7 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
  *      support was added in glibc 2.10.
  *      Hence using weak linkage technique, we try to call the more
  *      optimized pwritev system call. If the system does not support
- *      this, we fall back to earlier unoptimized techique.
+ *      this, we fall back to earlier unoptimized technique.
  *
  *      Note that in linux, pwritev can succeed on the first N vectors,
  *      and return a positive value in spite of the fact that there was
@@ -2088,21 +2152,24 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
 {
    struct iovec *vPtr;
    int numVec;
+   size_t partialBytes = 0;
    size_t bytesWritten = 0;
    size_t sum = 0;
    int nRetries = 0;
    int maxRetries = numEntries;
    FileIOResult fret = FILEIO_ERROR;
 
+   FileIO_OptionalSafeInitialize();
    numVec = numEntries;
    vPtr = entries;
+
    while (nRetries < maxRetries) {
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
-
       if (pwritev64 != NULL) {
-         retval = pwritev64(fd->posix, vPtr, numVec, offset);
+         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
+         retval = pwritev64(fd->posix, vPtr, tempVec, offset);
       } else {
          fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
                                        totalSize, &bytesWritten);
@@ -2113,28 +2180,36 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
             NOT_TESTED();
             continue;
          }
-         if (errno == ENOSYS) {
+         if (errno == ENOSYS || errno == EINVAL || errno == ENOMEM) {
             /*
-             * Function not supported by system. Fallback to unoptimized
-             * function.
+             * ENOSYS is returned when the kernel does not support pwritev and
+             * will be returned the first time we ever call pwritev. So, we
+             * can assume that we are not writing partial requests here.
+             * ENOMEM can be due to system call failure and EINVAL is when file
+             * was opened with the O_DIRECT flag and memory is not suitably
+             * aligned. Let's try writing the remaining vectors using the
+             * unoptimized function and hope we don't encounter another error.
              */
-            ASSERT (nRetries == 0);
-            fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
-                                          totalSize, &bytesWritten);
+            size_t remSize = totalSize - bytesWritten;
+            uint64 tempOffset =  offset + bytesWritten;
+            partialBytes = 0;
+            fret = FileIOPwritevCoalesced(fd, vPtr, numVec, tempOffset, remSize,
+                                          &partialBytes);
             break;
          }
+
          fret = FileIOErrno2Result(errno);
          break;
       }
 
       bytesWritten += retval;
       if (bytesWritten == totalSize) {
-         fret =  FILEIO_SUCCESS;
+         fret = FILEIO_SUCCESS;
          break;
       }
-      NOT_TESTED();
-      for (; sum <= bytesWritten; vPtr++, numVec--) {
+      for (; sum < bytesWritten; vPtr++, numVec--) {
          sum += vPtr->iov_len;
+         offset += vPtr->iov_len;
          nRetries++;
       }
 
@@ -2149,12 +2224,12 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
       }
    }
    if (actual) {
-      *actual = bytesWritten;
+      *actual = bytesWritten + partialBytes;
    }
    return fret;
 }
 
-#endif /* defined(__linux__ ) */
+#endif /* defined(__linux__) */
 
 
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||\
@@ -2193,9 +2268,9 @@ FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
    ASSERT(fd);
    ASSERT(entries);
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
-   ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
+   VERIFY(totalSize < 0x80000000);
 
-#if defined(__linux__ )
+#if defined(__linux__)
    fret = FileIOPreadvInternal(fd, entries, numEntries, offset, totalSize,
                                actual);
 #else
@@ -2239,9 +2314,9 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
    ASSERT(fd);
    ASSERT(entries);
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
-   ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
+   VERIFY(totalSize < 0x80000000);
 
-#if defined(__linux__ )
+#if defined(__linux__)
    fret = FileIOPwritevInternal(fd, entries, numEntries, offset, totalSize,
                                 actual);
 #else
@@ -2523,7 +2598,7 @@ FileIO_SupportsFileSize(const FileIODescriptor *fd,  // IN:
          supported = TRUE;
       }
       newPos = FileIO_Seek(fd, oldPos, FILEIO_SEEK_BEGIN);
-      ASSERT_NOT_IMPLEMENTED(oldPos == newPos);
+      VERIFY(oldPos == newPos);
    }
 
    return supported;
@@ -2912,7 +2987,7 @@ FileIOAligned_PoolInit(void)
    alignedPool.lock = MXUser_CreateSingletonExclLock(&alignedPoolLockStorage,
                                                      "alignedPoolLock",
                                                      RANK_LEAF);
-   ASSERT_NOT_IMPLEMENTED(alignedPool.lock);
+   VERIFY(alignedPool.lock);
 }
 
 

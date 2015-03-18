@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,7 +40,6 @@
 #define _VMK_EXPORTS_H
 
 #ifdef VMKERNEL
-#include "vmkapi.h"
 #include "vm_basic_defs.h"
 
 /*

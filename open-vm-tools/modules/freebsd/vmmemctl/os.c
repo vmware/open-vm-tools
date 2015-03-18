@@ -295,7 +295,12 @@ OS_ReservedPageGetHandle(PA64 pa)     // IN
 Mapping
 OS_MapPageHandle(PageHandle handle)     // IN
 {
+#if __FreeBSD_version < 1000000
    vm_offset_t res = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+#else
+   vm_offset_t res = kva_alloc(PAGE_SIZE);
+#endif
+
    vm_page_t page = (vm_page_t)handle;
 
    if (!res) {
@@ -352,7 +357,11 @@ void
 OS_UnmapPage(Mapping mapping)           // IN
 {
    pmap_qremove((vm_offset_t)mapping, 1);
+#if __FreeBSD_version < 1000000
    kmem_free(kernel_map, (vm_offset_t)mapping, PAGE_SIZE);
+#else
+   kva_free((vm_offset_t)mapping, PAGE_SIZE);
+#endif
 }
 
 
@@ -363,20 +372,28 @@ os_pmap_alloc(os_pmap *p) // IN
    p->size = (cnt.v_page_count + 7) / 8;
 
    /*
-    * expand to nearest word boundary 
-    * XXX: bitmap can be greater than total number of pages in system 
+    * expand to nearest word boundary
+    * XXX: bitmap can be greater than total number of pages in system
     */
-   p->size = (p->size + sizeof(unsigned long) - 1) & 
+   p->size = (p->size + sizeof(unsigned long) - 1) &
                          ~(sizeof(unsigned long) - 1);
 
+#if __FreeBSD_version < 1000000
    p->bitmap = (unsigned long *)kmem_alloc(kernel_map, p->size);
+#else
+   p->bitmap = (unsigned long *)kmem_malloc(kernel_arena, p->size, M_WAITOK | M_ZERO);
+#endif
 }
 
 
 static void
 os_pmap_free(os_pmap *p) // IN
 {
+#if __FreeBSD_version < 1000000
    kmem_free(kernel_map, (vm_offset_t)p->bitmap, p->size);
+#else
+   kmem_free(kernel_arena, (vm_offset_t)p->bitmap, p->size);
+#endif
    p->size = 0;
    p->bitmap = NULL;
 }

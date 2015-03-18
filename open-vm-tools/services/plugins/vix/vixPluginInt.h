@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,6 +35,9 @@ void
 FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx);
 void
 FoundryToolsDaemon_Uninitialize(ToolsAppCtx *ctx);
+
+void
+FoundryToolsDaemon_RestrictVixCommands(ToolsAppCtx *ctx, gboolean restricted);
 
 gboolean
 FoundryToolsDaemonGetToolsProperties(RpcInData *data);

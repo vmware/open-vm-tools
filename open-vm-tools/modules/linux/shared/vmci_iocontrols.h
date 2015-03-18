@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2013 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -154,7 +154,7 @@ VMCIPtrToVA64(void const *ptr) // IN
 #define VMCI_SOCKETS_MAKE_VERSION(_p) \
    ((((_p)[0] & 0xFF) << 24) | (((_p)[1] & 0xFF) << 16) | ((_p)[2]))
 
-#if defined(__linux__) || defined(SOLARIS) || defined(VMKERNEL)
+#if defined(__linux__) || defined(VMKERNEL)
 /*
  * Linux defines _IO* macros, but the core kernel code ignore the encoded
  * ioctl value. It is up to individual drivers to decode the value (for
@@ -317,12 +317,12 @@ enum IOCTLCmd_VMCI {
  * The size of this must match the size of VSockIoctlPrivSyms in
  * modules/vsock/common/vsockIoctl.h.
  */
-#include "vmware_pack_begin.h"
+#pragma pack(push, 1)
 struct IOCTLCmd_VMCIMacOS_PrivSyms {
    char data[344];
-}
-#include "vmware_pack_end.h"
-;
+};
+#pragma pack(pop)
+
 enum IOCTLCmd_VMCIMacOS {
    IOCTLCMD_I(SOCKETS_SET_SYMBOLS, struct IOCTLCmd_VMCIMacOS_PrivSyms),
    IOCTLCMD_O(SOCKETS_VERSION, unsigned int),

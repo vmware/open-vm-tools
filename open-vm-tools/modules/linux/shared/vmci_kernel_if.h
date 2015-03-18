@@ -28,7 +28,7 @@
 #define _VMCI_KERNEL_IF_H_
 
 #if !defined(linux) && !defined(_WIN32) && !defined(__APPLE__) && \
-    !defined(VMKERNEL) && !defined(SOLARIS)
+    !defined(VMKERNEL)
 #  error "Platform not supported."
 #endif
 
@@ -55,19 +55,10 @@
 
 #ifdef VMKERNEL
 #  include "splock.h"
+#  include "splock_customRanks.h"
 #  include "semaphore_ext.h"
 #  include "vmkapi.h"
 #  include "world_dist.h"
-#endif
-
-#ifdef SOLARIS
-#  include <sys/ddi.h>
-#  include <sys/kmem.h>
-#  include <sys/mutex.h>
-#  include <sys/poll.h>
-#  include <sys/semaphore.h>
-#  include <sys/sunddi.h>
-#  include <sys/types.h>
 #endif
 
 #include "vm_basic_types.h"
@@ -110,7 +101,11 @@
   typedef wait_queue_head_t VMCIEvent;
   typedef struct semaphore VMCIMutex;
   typedef PPN *VMCIPpnList; /* List of PPNs in produce/consume queue. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+  typedef kuid_t VMCIHostUser;
+#else
   typedef uid_t VMCIHostUser;
+#endif
   typedef VA64 VMCIQPGuestMem;
 #elif defined(__APPLE__)
   typedef IOLock *VMCILock;
@@ -132,14 +127,6 @@
   typedef PMDL VMCIPpnList; /* MDL to map the produce/consume queue. */
   typedef PSID VMCIHostUser;
   typedef VA64 *VMCIQPGuestMem;
-#elif defined(SOLARIS)
-  typedef kmutex_t VMCILock;
-  typedef unsigned long VMCILockFlags;
-  typedef ksema_t VMCIEvent;
-  typedef kmutex_t VMCIMutex;
-  typedef PPN *VMCIPpnList; /* List of PPNs in produce/consume queue. */
-  typedef uid_t VMCIHostUser;
-  typedef VA64 VMCIQPGuestMem;
 #endif // VMKERNEL
 
 /* Callback needed for correctly waiting on events. */
@@ -205,11 +192,6 @@ typedef struct VMCIHost {
    KEVENT *callEvent; /* Ptr to userlevel event used when signalling
                        * new pending guestcalls in kernel.
                        */
-#elif defined(SOLARIS)
-   struct pollhead pollhead; /* Per datagram handle pollhead structure to
-                              * be treated as a black-box. None of its
-                              * fields should be referenced.
-                              */
 #endif
 } VMCIHost;
 
@@ -223,9 +205,6 @@ typedef struct VMCIHost {
 #elif defined(_WIN32)
    typedef PUCHAR VMCIIoPort;
    typedef int VMCIIoHandle;
-#elif defined(SOLARIS)
-   typedef uint8_t * VMCIIoPort;
-   typedef ddi_acc_handle_t VMCIIoHandle;
 #elif defined(__APPLE__)
    typedef unsigned short int VMCIIoPort;
    typedef void *VMCIIoHandle;
@@ -260,6 +239,8 @@ void VMCIHost_SetInactiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
 uint32 VMCIHost_NumHnds(VMCIHost *hostContext);
 uintptr_t VMCIHost_GetActiveHnd(VMCIHost *hostContext);
 void VMCIHost_SignalBitmap(VMCIHost *hostContext);
+void VMCIHost_SignalBitmapAlways(VMCIHost *hostContext);
+void VMCIHost_SignalCallAlways(VMCIHost *hostContext);
 #endif
 
 #if defined(_WIN32)
@@ -296,7 +277,7 @@ Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,
 #endif
 
 #if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
-                           defined(__APPLE__) || defined(SOLARIS))
+                           defined(__APPLE__))
 int VMCI_CopyFromUser(void *dst, VA64 src, size_t len);
 #endif
 
@@ -309,16 +290,16 @@ void VMCIMutex_Destroy(VMCIMutex *mutex);
 void VMCIMutex_Acquire(VMCIMutex *mutex);
 void VMCIMutex_Release(VMCIMutex *mutex);
 
-#if defined(SOLARIS) || defined(_WIN32) || defined(__APPLE__)
+#if defined(_WIN32) || defined(__APPLE__)
 int VMCIKernelIf_Init(void);
 void VMCIKernelIf_Exit(void);
 #if defined(_WIN32)
 void VMCIKernelIf_DrainDelayedWork(void);
 #endif // _WIN32
-#endif // SOLARIS || _WIN32 || __APPLE__
+#endif // _WIN32 || __APPLE__
 
-#if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
-                           defined(SOLARIS) || defined(__APPLE__))
+#if !defined(VMKERNEL) && \
+    (defined(__linux__) || defined(_WIN32) || defined(__APPLE__))
 void *VMCI_AllocQueue(uint64 size, uint32 flags);
 void VMCI_FreeQueue(void *q, uint64 size);
 typedef struct PPNSet {
@@ -393,12 +374,12 @@ typedef uint32 VMCIGuestMemID;
    void VMCI_LockQueueHeader(struct VMCIQueue *queue);
    void VMCI_UnlockQueueHeader(struct VMCIQueue *queue);
 #else
-#  define VMCI_LockQueueHeader(_q) ASSERT_NOT_IMPLEMENTED(FALSE)
-#  define VMCI_UnlockQueueHeader(_q) ASSERT_NOT_IMPLEMENTED(FALSE)
+#  define VMCI_LockQueueHeader(_q) NOT_IMPLEMENTED()
+#  define VMCI_UnlockQueueHeader(_q) NOT_IMPLEMENTED()
 #endif
 
 #if (!defined(VMKERNEL) && defined(__linux__)) || defined(_WIN32) ||  \
-   defined(__APPLE__) || defined(SOLARIS)
+    defined(__APPLE__)
   int VMCIHost_GetUserMemory(VA64 produceUVA, VA64 consumeUVA,
                              struct VMCIQueue *produceQ,
                              struct VMCIQueue *consumeQ);
@@ -406,7 +387,7 @@ typedef uint32 VMCIGuestMemID;
                                   struct VMCIQueue *consumeQ);
 #else
 #  define VMCIHost_GetUserMemory(_puva, _cuva, _pq, _cq) VMCI_ERROR_UNAVAILABLE
-#  define VMCIHost_ReleaseUserMemory(_pq, _cq) ASSERT_NOT_IMPLEMENTED(FALSE)
+#  define VMCIHost_ReleaseUserMemory(_pq, _cq) NOT_IMPLEMENTED()
 #endif
 
 #if defined(_WIN32)

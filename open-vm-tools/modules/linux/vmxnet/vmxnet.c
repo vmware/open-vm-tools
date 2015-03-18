@@ -80,10 +80,6 @@ static int vmxnet_close(struct net_device *dev);
 static void vmxnet_set_multicast_list(struct net_device *dev);
 static int vmxnet_set_mac_address(struct net_device *dev, void *addr);
 static struct net_device_stats *vmxnet_get_stats(struct net_device *dev);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
-static int vmxnet_set_features(struct net_device *netdev, compat_netdev_features_t
-			       features);
-#endif
 #if defined(HAVE_CHANGE_MTU) || defined(HAVE_NET_DEVICE_OPS)
 static int vmxnet_change_mtu(struct net_device *dev, int new_mtu);
 #endif
@@ -992,14 +988,18 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
                     const struct pci_device_id *id)   // IN: matching device ID
 {
 #ifdef HAVE_NET_DEVICE_OPS
+   /*
+    * .ndo_set_features not required as existing initialization
+    * takes care of the necessary checks. The init routine appropriately
+    * sets netdev->hw_features after validating the device capabilities. 
+    * ndo_set_features only required if driver is changing
+    * any other intenal variables besides the netdev->features.
+    */
    static const struct net_device_ops vmxnet_netdev_ops = {
       .ndo_open = &vmxnet_open,
       .ndo_start_xmit = &vmxnet_start_tx,
       .ndo_stop = &vmxnet_close,
       .ndo_get_stats = &vmxnet_get_stats,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
-      .ndo_set_features = vmxnet_set_features,
-#endif
 #if COMPAT_LINUX_VERSION_CHECK_LT(3, 2, 0)
       .ndo_set_multicast_list = &vmxnet_set_multicast_list,
 #else
@@ -1315,6 +1315,11 @@ vmxnet_probe_features(struct net_device *dev, // IN:
    }
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
+   dev->features |= NETIF_F_RXCSUM;
+   printk( " rxCsum");
+#endif
+
 #ifdef VMXNET_DO_ZERO_COPY
    if (lp->capabilities & VMNET_CAP_SG &&
        lp->features & VMXNET_FEATURE_ZERO_COPY_TX){
@@ -1360,6 +1365,10 @@ vmxnet_probe_features(struct net_device *dev, // IN:
       printk(" lpd");
    }
 #endif
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
+   dev->hw_features = dev->features & (~NETIF_F_RXCSUM);
 #endif
 
    printk("\n");
@@ -3118,20 +3127,6 @@ vmxnet_get_stats(struct net_device *dev)
 
    return &lp->stats;
 }
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
-static int
-vmxnet_set_features(struct net_device *netdev, compat_netdev_features_t features)
-{
-   compat_netdev_features_t changed = features ^ netdev->features;
-
-   if (changed & (NETIF_F_RXCSUM)) {
-      if (features & NETIF_F_RXCSUM)
-         return 0;
-   }
-   return -1;
-}
-#endif
 
 module_init(vmxnet_init);
 module_exit(vmxnet_exit);

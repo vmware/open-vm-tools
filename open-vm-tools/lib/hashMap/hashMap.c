@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -298,11 +298,12 @@ InitMap(struct HashMap *map,     // IN
  *
  * HashMap_Put --
  *
- *    The the value at data against the key.  This will replace any existing
+ *    Put the value at data against the key.  This will replace any existing
  *    data that is in the table without warning.
  *
  * Results:
- *    None.
+ *    TRUE if the put operation is successful
+ *    FALSE otherwise
  *
  * Side Effects:
  *    The value in data is copied to the table and can be referenced in the
@@ -311,7 +312,7 @@ InitMap(struct HashMap *map,     // IN
  * ----------------------------------------------------------------------------
  */
 
-void
+Bool
 HashMap_Put(struct HashMap *map,    // IN
             const void *key,        // IN
             const void *data)       // IN
@@ -336,7 +337,7 @@ HashMap_Put(struct HashMap *map,    // IN
             /*
              * The resize must have failed.
              */
-            return;
+            return FALSE;
          }
       }
 
@@ -353,6 +354,7 @@ HashMap_Put(struct HashMap *map,    // IN
    memcpy(tableData, data, map->dataSize);
 
    EnsureSanity(map);
+   return TRUE;
 }
 
 
@@ -503,7 +505,7 @@ HashMap_Count(struct HashMap *map) // IN
  *
  * ----------------------------------------------------------------------------
  */
-uint64 
+uint64
 HashMap_Store(struct HashMap *map,       // IN
               void           *h,         // IN
               uint64    startByteOffset) // IN
@@ -522,7 +524,7 @@ HashMap_Store(struct HashMap *map,       // IN
    hashMapOnDisk.entrySize = map->entrySize;
    hashMapOnDisk.keyOffset = map->keyOffset;
    hashMapOnDisk.dataOffset = map->dataOffset;
-   
+
    /*
     * write map
     */
@@ -673,7 +675,7 @@ HashMap_Retrieve(void      *h,         // IN
  *
  * ----------------------------------------------------------------------------
  */
-uint64 
+uint64
 HashMap_Store(struct HashMap *map,       // IN
               void           *h,         // IN
               uint64    startByteOffset) // IN

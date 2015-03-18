@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -25,6 +25,7 @@
 #include "request.h"
 #include "hgfsBdGlue.h"
 #include "hgfsBd.h"
+#include "vm_basic_defs.h"
 #include "vm_assert.h"
 #include "debug.h"
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -298,7 +298,6 @@ Str_Strcpy(char *buf,       // OUT
    len = strlen(src);
    if (len >= maxSize) {
       Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
-      ASSERT_BUG(5686, FALSE);
    }
    return memcpy(buf, src, len + 1);
 }
@@ -631,7 +630,7 @@ StrVasprintfInternal(size_t *length,       // OUT:
 
   exit:
    if (assertOnFailure) {
-      ASSERT_NOT_IMPLEMENTED(buf);
+      VERIFY(buf);
    }
    return buf;
 }
@@ -671,7 +670,7 @@ Str_Vasprintf(size_t *length,       // OUT
  *    See StrVasprintfInternal.
  *
  * Results:
- *    Calls ASSERT_NOT_IMPLEMENTED on failure.
+ *    Calls VERIFY on failure.
  *
  * WARNING: See warning at the top of this file.
  *
@@ -852,7 +851,6 @@ Str_Wcscpy(wchar_t *buf,       // OUT
    len = wcslen(src);
    if (len >= maxSize) {
       Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
-      ASSERT_BUG(5686, FALSE);
    }
    return memcpy(buf, src, (len + 1)*sizeof(wchar_t));
 }
@@ -1090,7 +1088,7 @@ StrVaswprintfInternal(size_t *length,         // OUT:
 
   exit:
    if (assertOnFailure) {
-      ASSERT_NOT_IMPLEMENTED(buf);
+      VERIFY(buf);
    }
    return buf;
 }
@@ -1195,7 +1193,7 @@ Str_SafeAswprintf(size_t *length,         // OUT
  *    See StrVaswprintfInternal.
  *
  * Results:
- *    Calls ASSERT_NOT_IMPLEMENTED on failure.
+ *    Calls VERIFY on failure.
  *
  * WARNING: See warning at the top of this file.
  *

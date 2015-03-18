@@ -23,9 +23,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -231,7 +228,7 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
     */
    MNT_ILOCK(mp);
    mp->mnt_flag |= lowerrootvp->v_mount->mnt_flag & MNT_LOCAL;
-#if __FreeBSD_version >= 600000
+#if __FreeBSD_version >= 600000 && __FreeBSD_version < 1000000
    mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE;
 #endif
    MNT_IUNLOCK(mp);

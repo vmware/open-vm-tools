@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -62,6 +62,7 @@
 #ifdef _KERNEL
 
 #include "dbllnklst.h"
+#include "vm_basic_defs.h"
 #include "vm_assert.h"
 
 #endif /* _KERNEL */

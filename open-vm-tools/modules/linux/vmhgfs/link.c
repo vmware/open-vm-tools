@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -136,6 +136,13 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
 #endif
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
+#define HGFS_DO_READLINK(dentry,buffer,buflen,fileName) \
+         readlink_copy(buffer, buflen, fileName)
+#else
+#define HGFS_DO_READLINK(dentry,buffer,buflen,fileName) \
+         vfs_readlink(dentry, buffer, buflen, fileName)
+#endif
 
 /*
  *----------------------------------------------------------------------
@@ -185,7 +192,7 @@ HgfsReadlink(struct dentry *dentry,  // IN:  Dentry containing link
       } else {
          LOG(6, (KERN_DEBUG "VMware hgfs: %s: calling vfs_readlink %s\n",
                  __func__, fileName));
-         error = vfs_readlink(dentry, buffer, buflen, fileName);
+         error = HGFS_DO_READLINK(dentry, buffer, buflen, fileName);
          LOG(6, (KERN_DEBUG "VMware hgfs: %s: vfs_readlink %s ret %dn",
                  __func__, fileName, error));
       }

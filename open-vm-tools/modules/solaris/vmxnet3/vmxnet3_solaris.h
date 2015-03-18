@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2014 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -178,6 +178,7 @@ void      vmxnet3_rxqueue_fini(vmxnet3_softc_t *dp, vmxnet3_rxqueue_t *rxq);
 extern ddi_device_acc_attr_t vmxnet3_dev_attr;
 
 #define VMXNET3_MODNAME "vmxnet3s"
+#define VMXNET3_DRIVER_VERSION_STRING "1.1.0.0"
 
 /* Logging stuff */
 #define VMXNET3_LOG(Level, Device, Format, Args...)   \

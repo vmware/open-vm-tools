@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright 2009 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2015 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -16,7 +16,6 @@
 ################################################################################
 
 SUBDIRS =
-SUBDIRS += getlib
 
 plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libguestInfo.la
@@ -31,7 +30,6 @@ libguestInfo_la_LIBADD =
 libguestInfo_la_LIBADD += @VMTOOLS_LIBS@
 libguestInfo_la_LIBADD += @PROCPS_LIBS@
 libguestInfo_la_LIBADD += @XDR_LIBS@
-libguestInfo_la_LIBADD += getlib/libGuestInfo.la
 
 if HAVE_DNET
    libguestInfo_la_LIBADD += @DNET_LIBS@
@@ -40,3 +38,5 @@ endif
 libguestInfo_la_SOURCES =
 libguestInfo_la_SOURCES += guestInfoServer.c
 libguestInfo_la_SOURCES += perfMonLinux.c
+libguestInfo_la_SOURCES += diskInfo.c
+libguestInfo_la_SOURCES += diskInfoPosix.c

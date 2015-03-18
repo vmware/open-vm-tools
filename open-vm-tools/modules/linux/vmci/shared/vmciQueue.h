@@ -33,7 +33,7 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
-#if defined(SOLARIS) || defined(__APPLE__)
+#if defined(__APPLE__)
 #  include <sys/uio.h>
 #endif
 
@@ -150,10 +150,10 @@ int VMCIMemcpyFromQueueLocal(void *dest, size_t destOffset, const VMCIQueue *que
                              uint64 queueOffset, size_t size, BUF_TYPE bufType,
                              Bool canBlock);
 
-#if defined VMKERNEL || defined (SOLARIS)         || \
+#if defined VMKERNEL                              || \
    (defined(__APPLE__) && !defined (VMX86_TOOLS)) || \
    (defined(__linux__) && defined(__KERNEL__))    || \
-   (defined(_WIN32) && defined(WINNT_DDK))
+   (defined(_WIN32)    && defined(WINNT_DDK))
 int VMCIMemcpyToQueueV(VMCIQueue *queue, uint64 queueOffset, const void *src,
                        size_t srcOffset, size_t size, BUF_TYPE bufType,
                        Bool canBlock);

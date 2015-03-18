@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -70,7 +70,7 @@ HashMap *HashMap_AllocMap(uint32 numEntries, size_t keySize, size_t dataSize);
 HashMap *HashMap_AllocMapAlpha(uint32 numEntries, uint32 alpha, size_t keySize,
                                size_t dataSize);
 void HashMap_DestroyMap(HashMap *map);
-void HashMap_Put(HashMap *map, const void *key, const void *data);
+Bool HashMap_Put(HashMap *map, const void *key, const void *data);
 void *HashMap_Get(HashMap *map, const void *key);
 void HashMap_Clear(HashMap *map);
 Bool HashMap_Remove(HashMap *map, const void *key);

@@ -47,6 +47,8 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
+#include "vm_basic_defs.h"
+
 #define ETH_LADRF_LEN      2
 #define ETH_ADDR_LENGTH    6
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,6 +67,7 @@ Unicode W32Util_GetCommonAppDataFilePath(ConstUnicode fileName);
 Unicode W32Util_GetVmwareCommonAppDataFilePath(ConstUnicode fileName);
 
 Unicode W32Util_GetMyDocumentPath(void);
+Unicode W32Util_GetMyVideoPath(BOOL myDocumentsOnFail);
 
 Unicode W32Util_GetDefaultVMPath(ConstUnicode pref);
 Unicode W32Util_GetInstalledFilePath(ConstUnicode fileName);

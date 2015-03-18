@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -82,7 +82,7 @@
  * NOTE: All size_t arguments and integer returns values are in bytes.
  *
  * NOTE: Str_Asprintf/Str_Vasprintf return NULL on failure, while
- * Str_SafeAsprintf/Str_SafeVasprintf ASSERT_NOT_IMPLEMENTED.
+ * Str_SafeAsprintf/Str_SafeVasprintf VERIFY.
  *
  * NOTE: "%s" refers to strings of "char" units, while "%S" refers to
  * strings of "wchar_t" units, regardless of platform.
@@ -123,7 +123,7 @@ char *Str_SafeVasprintf(size_t *length, const char *format,
  * wchar_ts, not bytes.
  *
  * NOTE: Str_Aswprintf/Str_Vaswprintf return NULL on failure, while
- * Str_SafeAswprintf/Str_SafeVaswprintf ASSERT_NOT_IMPLEMENTED.
+ * Str_SafeAswprintf/Str_SafeVaswprintf VERIFY.
  *
  * NOTE: "%s" refers to strings of "char" units, while "%S" refers to
  * strings of "wchar_t" units, regardless of platform.

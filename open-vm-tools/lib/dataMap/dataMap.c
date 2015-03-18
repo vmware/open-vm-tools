@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -83,11 +83,11 @@ typedef struct {
     * pretty print.
     */
    char *buffer;
-   int32 buffLen;        /* available buffer size */
-   int32 maxNumElems;    /* this limits the number of elements for list print. */
-   int32 maxStrLen;      /* max number of bytes to print for each string */
+   uint32 buffLen;        /* available buffer size */
+   uint32 maxNumElems;    /* this limits the number of elements for list print. */
+   uint32 maxStrLen;      /* max number of bytes to print for each string */
    FieldIdNameEntry *fieldIdList;   /* array for field ID to name mapping */
-   int32 fieldIdListLen; /* fieldIdList size */
+   uint32 fieldIdListLen; /* fieldIdList size */
 } ClientData;
 
 static const uint64 magic_cookie = 0x4d41474943ULL;   /* 'MAGIC' */
@@ -121,7 +121,9 @@ AddEntry_Int64(DataMap *that,      // IN/OUT
    }
    entry->type = DMFIELDTYPE_INT64;
    entry->value.number.val = value;
-   HashMap_Put(that->map, &key, &entry);
+   if (!HashMap_Put(that->map, &key, &entry)) {
+      return DMERR_INSUFFICIENT_MEM;
+   }
    return DMERR_SUCCESS;
 }
 
@@ -159,7 +161,9 @@ AddEntry_String(DataMap *that,      // IN/OUT
    entry->value.string.str = str;
    entry->value.string.length = strLen;
 
-   HashMap_Put(that->map, &key, &entry);
+   if (!HashMap_Put(that->map, &key, &entry)) {
+      return DMERR_INSUFFICIENT_MEM;
+   }
    return DMERR_SUCCESS;
 }
 
@@ -198,7 +202,9 @@ AddEntry_Int64List(DataMap *that,            // IN/OUT
    entry->value.numList.numbers = numbers;
    entry->value.numList.length = listLen;
 
-   HashMap_Put(that->map, &key, &entry);
+   if (!HashMap_Put(that->map, &key, &entry)) {
+      return DMERR_INSUFFICIENT_MEM;
+   }
    return DMERR_SUCCESS;
 }
 
@@ -242,7 +248,9 @@ AddEntry_StringList(DataMap *that,            // IN/OUT
    entry->value.strList.strings = strList;
    entry->value.strList.lengths = strLens;
 
-   HashMap_Put(that->map, &key, &entry);
+   if (!HashMap_Put(that->map, &key, &entry)) {
+      return DMERR_INSUFFICIENT_MEM;
+   }
    return DMERR_SUCCESS;
 }
 
@@ -510,16 +518,22 @@ DecodeString(char **buf,         // IN/OUT
 
    res = DecodeInt32(buf, left, strLen);
 
-   if (res == DMERR_SUCCESS) {
-      *str = (char *)malloc(*strLen);
-      if (*str == NULL) {
-         return DMERR_INSUFFICIENT_MEM;
-      }
-
-      memcpy(*str, *buf, *strLen);
-      *buf += *strLen;
-      *left -= *strLen;
+   if (res != DMERR_SUCCESS) {
+      return res;
    }
+
+   if (*left < *strLen) {
+      return DMERR_TRUNCATED_DATA;
+   }
+
+   *str = (char *)malloc(*strLen);
+   if (*str == NULL) {
+      return DMERR_INSUFFICIENT_MEM;
+   }
+
+   memcpy(*str, *buf, *strLen);
+   *buf += *strLen;
+   *left -= *strLen;
 
    return res;
 }
@@ -766,7 +780,7 @@ DataMap_Create(DataMap *that)    // IN/OUT
 
 static void
 ToBufferUpdate(ClientData *clientData,   // IN/OUT
-               int32 len)
+               uint32 len)
 {
    if (len >= clientData->buffLen) {
       clientData->result = DMERR_BUFFER_TOO_SMALL;
@@ -833,9 +847,9 @@ ToBufferString(ClientData *clientData,   // IN/OUT
 static void
 ToBufferStringN(ClientData *clientData,   // IN/OUT
                 const char *str,          // IN
-                int32 len)                // IN
+                uint32 len)                // IN
 {
-   int32 copyLen = len;
+   uint32 copyLen = len;
 
    if (clientData->result != DMERR_SUCCESS) {
       /* an error occurred already, so stop. */
@@ -902,7 +916,7 @@ static void
 ToBufferInt64(ClientData *clientData,   // IN/OUT
               int64 num)                // IN
 {
-   int32 len;
+   uint32 len;
 
    if (clientData->result != DMERR_SUCCESS) {
       /* an error occurred already, so stop. */
@@ -940,7 +954,7 @@ ToBufferIdType(ClientData *clientData,   // IN/OUT
                DMKeyType fieldId,        // IN
                const char *type)         // IN
 {
-   int32 len;
+   uint32 len;
 
    if (clientData->result != DMERR_SUCCESS) {
       /* an error occurred already, so stop. */
@@ -1049,7 +1063,7 @@ IsPrintable(const char *str,    // IN
 static void
 ToBufferHexString(ClientData *clientData,    // IN/OUT
                   const char *str,           // IN
-                  int32 strLen)              // IN
+                  uint32 strLen)              // IN
 {
    Bool printable;
    int32 len; /* the number of printable chars */
@@ -1248,7 +1262,8 @@ HashMapCalcEntrySizeCb(void *key,            // IN
 {
    DataMapEntry *entry = *((DataMapEntry **)data);
    ClientData *clientData = (ClientData *)userData;
-   int32 *buffLen = &(clientData->buffLen);
+   uint32 oldLen = clientData->buffLen;
+   uint32 *buffLen = &(clientData->buffLen);
 
    if (clientData->result != DMERR_SUCCESS) {
       /* a previous error has occurred, so stop. */
@@ -1289,6 +1304,11 @@ HashMapCalcEntrySizeCb(void *key,            // IN
             *buffLen += sizeof(int32);        /* list size */
 
             for (; *strPtr != NULL; strPtr++, lenPtr++) {
+               if (*buffLen < oldLen) {
+                  clientData->result = DMERR_INTEGER_OVERFLOW;
+                  return;
+               }
+
                *buffLen += sizeof(int32);   /* string length */
                *buffLen += *lenPtr;        /* string payload */
             }
@@ -1299,6 +1319,11 @@ HashMapCalcEntrySizeCb(void *key,            // IN
             clientData->result = DMERR_UNKNOWN_TYPE;
             return;
          }
+   }
+
+   if (*buffLen < oldLen) {
+      clientData->result = DMERR_INTEGER_OVERFLOW;
+      return;
    }
 }
 
@@ -1722,7 +1747,7 @@ DataMap_Copy(const DataMap *src,  // IN
 ErrorCode
 DataMap_Serialize(const DataMap *that,     // IN
                   char **buf,              // OUT
-                  int32 *bufLen)           // OUT
+                  uint32 *bufLen)          // OUT
 {
    ClientData clientData;
 
@@ -1739,7 +1764,12 @@ DataMap_Serialize(const DataMap *that,     // IN
       return clientData.result;
    }
 
-   *bufLen = clientData.buffLen + sizeof(int32); /* 4 bytes is payload length */
+   /* 4 bytes is payload length */
+   *bufLen = clientData.buffLen + sizeof(uint32);
+   if (*bufLen < clientData.buffLen) {
+      return DMERR_INTEGER_OVERFLOW;
+   }
+
    *buf = (char *)malloc(*bufLen);
 
    if (*buf == NULL) {

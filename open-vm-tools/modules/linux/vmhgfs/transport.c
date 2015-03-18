@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -51,8 +51,6 @@
 #include "request.h"
 #include "transport.h"
 #include "vm_assert.h"
-
-extern int USE_VMCI;
 
 static HgfsTransportChannel *hgfsChannel;     /* Current active channel. */
 static compat_mutex_t hgfsChannelLock;        /* Lock to protect hgfsChannel. */
@@ -155,17 +153,6 @@ static Bool
 HgfsTransportSetupNewChannel(void)
 {
    HgfsTransportChannel *newChannel;
-
-   newChannel = HgfsGetVmciChannel();
-   if (newChannel != NULL) {
-      if (HgfsTransportOpenChannel(newChannel)) {
-         hgfsChannel = newChannel;
-         LOG(10, ("CHANNEL: Vmci channel\n"));
-         return TRUE;
-      }
-   }
-
-   USE_VMCI = 0;
 
    newChannel = HgfsGetBdChannel();
    LOG(10, ("CHANNEL: Bd channel\n"));

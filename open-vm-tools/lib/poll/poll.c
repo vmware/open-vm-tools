@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -306,6 +306,31 @@ Poll_CallbackRemoveOneByCB(PollClassSet classSet,
    ASSERT(clientData);
    flags = PollSanitizeFlags(type, flags);
    return pollImpl->CallbackRemoveOneByCB(classSet, flags, f, type, clientData);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Poll_NotifyChange --
+ *
+ *      Wake up a sleeping Poll_LoopTimeout() when there is a change
+ *      it should notice, and no normal event can be expected to wake
+ *      it up in a timely manner.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+Poll_NotifyChange(PollClassSet classSet)  // IN
+{
+   pollImpl->NotifyChange(classSet);
 }
 
 
@@ -1042,7 +1067,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       /* Add and remove real time and main loop callbacks */
       cbLock = MXUser_CreateRecLock("pollUnitTestLock",
                                     RANK_pollUnitTestLock);
-      ASSERT_NOT_IMPLEMENTED(cbLock);
+      VERIFY(cbLock);
       rtDeleted = FALSE;
       Poll_Callback(POLL_CS_MAIN,
                     periodicFlag[oddIter],
@@ -1094,7 +1119,7 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       /* Add and remove device callbacks */
       cbLock = MXUser_CreateRecLock("pollUnitTestLock",
                                     RANK_pollUnitTestLock);
-      ASSERT_NOT_IMPLEMENTED(cbLock);
+      VERIFY(cbLock);
       drDeleted = FALSE;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ | periodicFlag[oddIter],
@@ -1917,7 +1942,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
          useLocking = TRUE;
          cbLock = MXUser_CreateRecLock("pollUnitTestLock",
                                        RANK_pollUnitTestLock);
-         ASSERT_NOT_IMPLEMENTED(cbLock);
+         VERIFY(cbLock);
 
    #ifdef _WIN32
          /* Discard sockets used in connect test and re-create them. */
@@ -2038,7 +2063,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
          /* The previous test may have destroyed the lock. */
          cbLock = MXUser_CreateRecLock("pollUnitTestLock",
                                        RANK_pollUnitTestLock);
-         ASSERT_NOT_IMPLEMENTED(cbLock);
+         VERIFY(cbLock);
       }
       deviceEv0Count = 0;
       deviceEv1Count = 0;
@@ -2054,7 +2079,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
          break;
       }
       events[0] = CreateEvent(NULL, FALSE, TRUE, NULL);
-      ASSERT_NOT_IMPLEMENTED(events[0]);
+      VERIFY(events[0]);
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_READ | POLL_FLAG_PERIODIC,
                     PollUnitTest_DeviceEvent
@@ -2063,7 +2088,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
                     (PollDevHandle)events[0],
                     cbLock);
       events[1] = CreateEvent(NULL, FALSE, TRUE, NULL);
-      ASSERT_NOT_IMPLEMENTED(events[1]);
+      VERIFY(events[1]);
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_READ,
                     PollUnitTest_DeviceEvent

@@ -1,6 +1,6 @@
 #!/bin/sh
 ################################################################################
-### Copyright 2011 VMware, Inc.  All rights reserved.
+### Copyright (C) 2011-2015 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -72,7 +72,8 @@ do_rpcgen()
    fi
 
    $rpcgen $rpcgenflags $1 -o $output `basename $input`
-   sed 's,rpc/rpc\.h,vmxrpc.h,' $output > ${output}.tmp
+   sed 's,rpc/rpc\.h,vmxrpc.h,' $output |
+      sed '/register int32_t .*buf;/d' > ${output}.tmp
    mv ${output}.tmp $output
 }
 

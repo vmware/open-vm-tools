@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,6 +20,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h> // for access, crypt, etc.
+#if !defined USE_PAM && !defined __APPLE__
+#include <shadow.h>
+#endif
 
 #include "vmware.h"
 #include "vm_product.h"
@@ -456,15 +459,28 @@ Auth_AuthenticateUser(const char *user,  // IN:
    }
 
    if (*ati->pwd.pw_passwd != '\0') {
-      char *namep = (char *) crypt(pass, ati->pwd.pw_passwd);
+      const char *pw = ati->pwd.pw_passwd;
+      const char *namep;
 
-      if (strcmp(namep, ati->pwd.pw_passwd) != 0) {
+#if !defined __APPLE__
+      // support shadow passwords:
+      if (strcmp(pw, "x") == 0) {
+         struct spwd *sp = getspnam(user);
+
+         if (sp) {
+            pw = sp->sp_pwdp;
+         }
+      }
+#endif
+
+      namep = crypt(pass, pw);
+      if (namep == NULL || strcmp(namep, pw) != 0) {
          // Incorrect password
          goto exit;
       }
 
       // Clear out crypt()'s internal state, too.
-      crypt("glurp", ati->pwd.pw_passwd);
+      crypt("glurp", pw);
    }
 #endif /* !USE_PAM */
 

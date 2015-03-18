@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -477,7 +477,7 @@ MXUserDumpSemaphore(MXUserHeader *header)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_CreateSemaphore --
+ * MXUserCreateSemaphore --
  *
  *      Create a (counting) semaphore.
  *
@@ -494,14 +494,13 @@ MXUserDumpSemaphore(MXUserHeader *header)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-MXUserSemaphore *
-MXUser_CreateSemaphore(const char *userName,  // IN:
-                       MX_Rank rank)          // IN:
+static MXUserSemaphore *
+MXUserCreateSemaphore(const char *userName,  // IN:
+                      MX_Rank rank,          // IN:
+                      Bool beSilent)         // IN:
 {
    char *properName;
-   MXUserSemaphore *sema;
-
-   sema = Util_SafeCalloc(1, sizeof(*sema));
+   MXUserSemaphore *sema = Util_SafeCalloc(1, sizeof *sema);
 
    if (userName == NULL) {
       properName = Str_SafeAsprintf(NULL, "Sema-%p", GetReturnAddress());
@@ -510,19 +509,23 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
    }
 
    if (LIKELY(MXUserInit(&sema->nativeSemaphore) == 0)) {
+      uint32 statsMode;
+
       sema->header.signature = MXUserGetSignature(MXUSER_TYPE_SEMA);
       sema->header.name = properName;
       sema->header.rank = rank;
       sema->header.serialNumber = MXUserAllocSerialNumber();
       sema->header.dumpFunc = MXUserDumpSemaphore;
 
-      if (MXUserStatsMode() == 0) {
+      statsMode = beSilent ? 0 : MXUserStatsMode();
+
+      if (statsMode == 0) {
          sema->header.statsFunc = NULL;
          Atomic_WritePtr(&sema->acquireStatsMem, NULL);
       } else {
          MXUserAcquireStats *acquireStats;
 
-         acquireStats = Util_SafeCalloc(1, sizeof(*acquireStats));
+         acquireStats = Util_SafeCalloc(1, sizeof *acquireStats);
 
          MXUserAcquisitionStatsSetUp(&acquireStats->data);
 
@@ -540,6 +543,56 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
    return sema;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_CreateSemaphore --
+ *
+ *      Create a (counting) semaphore. The semaphore may log messages,
+ *      statistics and contention information.
+ *
+ * Results:
+ *      A pointer to a semaphore.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MXUserSemaphore *
+MXUser_CreateSemaphore(const char *userName,  // IN:
+                       MX_Rank rank)          // IN:
+{
+   return MXUserCreateSemaphore(userName, rank, FALSE);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_CreateSemaphoreSilent --
+ *
+ *      Create a (counting) semaphore specifying if the lock must always be
+ *      silent - never logging any messages. Silent locks will never
+ *      produce any statistics or contention information.
+ *
+ * Results:
+ *      A pointer to a semaphore.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MXUserSemaphore *
+MXUser_CreateSemaphoreSilent(const char *userName,  // IN:
+                             MX_Rank rank)          // IN:
+{
+   return MXUserCreateSemaphore(userName, rank, TRUE);
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -847,7 +900,14 @@ MXUser_UpSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    ASSERT(sema);
    MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
-   Atomic_Inc(&sema->activeUserCount);
+   /*
+    * The purpose of the activeUserCount tracking is to help catch potentially
+    * fatal cases of destroying an active semaphore; it is not expected to be
+    * (nor it can be) perfect (with low overhead). In this case the time spent
+    * in up is tiny and a decrement at the bottom might not be reached before
+    * another thread comes out of down and does a destroy - so no
+    * activeUserCount tracking here.
+    */
 
    err = MXUserUp(&sema->nativeSemaphore);
 
@@ -855,8 +915,6 @@ MXUser_UpSemaphore(MXUserSemaphore *sema)  // IN/OUT:
       MXUserDumpAndPanic(&sema->header, "%s: Internal error (%d)\n",
                          __FUNCTION__, err);
    }
-
-   Atomic_Dec(&sema->activeUserCount);
 }
 
 

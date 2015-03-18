@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -234,7 +234,7 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
          if (LIKELY(acquireStats == NULL)) {
             MXUserAcquireStats *before;
 
-            acquireStats = Util_SafeCalloc(1, sizeof(*acquireStats));
+            acquireStats = Util_SafeCalloc(1, sizeof *acquireStats);
             MXUserAcquisitionStatsSetUp(&acquireStats->data);
 
             before = Atomic_ReadIfEqualWritePtr(&lock->acquireStatsMem, NULL,
@@ -254,7 +254,7 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
          if ((heldStats == NULL) && trackHeldTimes) {
             MXUserHeldStats *before;
 
-            heldStats = Util_SafeCalloc(1, sizeof(*heldStats));
+            heldStats = Util_SafeCalloc(1, sizeof *heldStats);
             MXUserBasicStatsSetUp(&heldStats->data, MXUSER_STAT_CLASS_HELD);
 
             before = Atomic_ReadIfEqualWritePtr(&lock->heldStatsMem, NULL,
@@ -279,7 +279,7 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
       result = FALSE;
    }
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
+   if (Atomic_ReadDec32(&lock->refCount) == 1) {
       Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
    }
 
@@ -354,9 +354,7 @@ MXUserCreateRecLock(const char *userName,  // IN:
 {
    uint32 statsMode;
    char *properName;
-   MXUserRecLock *lock;
-
-   lock = Util_SafeCalloc(1, sizeof(*lock));
+   MXUserRecLock *lock = Util_SafeCalloc(1, sizeof *lock);
 
    if (userName == NULL) {
       properName = Str_SafeAsprintf(NULL, "R-%p", GetReturnAddress());
@@ -414,7 +412,7 @@ MXUserCreateRecLock(const char *userName,  // IN:
  *
  *      Create a recursive lock specifying if the lock must always be
  *      silent - never logging any messages. Silent locks will never
- *      produce any statistics, amongst the aspects of "silent".
+ *      produce any statistics or contention information.
  *
  *      Only the owner (thread) of a recursive lock may recurse on it.
  *
@@ -440,7 +438,8 @@ MXUser_CreateRecLockSilent(const char *userName,  // IN:
  *
  * MXUser_CreateRecLock --
  *
- *      Create a recursive lock.
+ *      Create a recursive lock. The lock may log messages, including
+ *      statistics and contention information.
  *
  *      Only the owner (thread) of a recursive lock may recurse on it.
  *
@@ -489,7 +488,7 @@ MXUserCondDestroyRecLock(MXUserRecLock *lock)  // IN:
    ASSERT(lock);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
+   if (Atomic_ReadDec32(&lock->refCount) == 1) {
       if (lock->vmmLock == NULL) {
          if (MXRecLockCount(&lock->recursiveLock) > 0) {
             MXUserDumpAndPanic(&lock->header,
@@ -586,10 +585,11 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
          if (LIKELY(acquireStats != NULL)) {
             if (MXRecLockCount(&lock->recursiveLock) == 1) {
                MXUserHeldStats *heldStats;
-               MXUserHisto *histo = Atomic_ReadPtr(&acquireStats->histo);
+               MXUserHisto *histo;
 
                MXUserAcquisitionSample(&acquireStats->data, TRUE,
-                                       value != 0, value);
+                                       value > mxUserContentionDurationFloor,
+                                       value);
 
                histo = Atomic_ReadPtr(&acquireStats->histo);
 
@@ -610,7 +610,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       }
    }
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
+   if (Atomic_ReadDec32(&lock->refCount) == 1) {
       Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
    }
 }
@@ -760,7 +760,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 
 bail:
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
+   if (Atomic_ReadDec32(&lock->refCount) == 1) {
       Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
    }
 
@@ -802,7 +802,7 @@ MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock)  // IN:
       result = MXRecLockIsOwner(&lock->recursiveLock);
    }
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
+   if (Atomic_ReadDec32(&lock->refCount) == 1) {
       Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
    }
 
@@ -886,7 +886,7 @@ MXUser_CreateCondVarRecLock(MXUserRecLock *lock)
 
    condVar =  MXUserCreateCondVar(&lock->header, &lock->recursiveLock);
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
+   if (Atomic_ReadDec32(&lock->refCount) == 1) {
       Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
    }
 
@@ -926,7 +926,7 @@ MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
    MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
                      MXUSER_WAIT_INFINITE);
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
+   if (Atomic_ReadDec32(&lock->refCount) == 1) {
       Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
    }
 }
@@ -964,7 +964,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
 
    MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar, msecWait);
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
+   if (Atomic_ReadDec32(&lock->refCount) == 1) {
       Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
    }
 }
@@ -996,7 +996,7 @@ MXUser_DumpRecLock(MXUserRecLock *lock)  // IN:
 
    MXUserDumpRecLock(&lock->header);
 
-   if (Atomic_FetchAndDec(&lock->refCount) == 1) {
+   if (Atomic_ReadDec32(&lock->refCount) == 1) {
       Panic("%s: Zero reference count upon exit\n", __FUNCTION__);
    }
 }
@@ -1098,7 +1098,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
     * system will take care of this.
     */
 
-   lock = Util_SafeCalloc(1, sizeof(*lock));
+   lock = Util_SafeCalloc(1, sizeof *lock);
 
    lock->header.signature = MXUserGetSignature(MXUSER_TYPE_REC);
    lock->header.name = Str_SafeAsprintf(NULL, "MX_%p", mutex);

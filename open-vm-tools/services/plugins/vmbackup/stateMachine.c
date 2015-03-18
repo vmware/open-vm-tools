@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -617,7 +617,7 @@ VmBackupStartCommon(RpcInData *data,
           */
          if (gBackupState->quiesceFS &&
              VmBackupConfigGetBoolean(ctx->config, "enableSyncDriver", TRUE)) {
-            provider = VmBackup_NewSyncDriverProvider();
+            provider = VmBackup_NewSyncDriverOnlyProvider();
           }
 #endif
       } else {
@@ -649,12 +649,17 @@ VmBackupStartCommon(RpcInData *data,
    gBackupState->pollPeriod = 1000;
    gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
    gBackupState->provider = provider;
+   gBackupState->enableNullDriver = VmBackupConfigGetBoolean(ctx->config,
+                                                             "enableNullDriver",
+                                                             TRUE);
+
    g_debug("Using quiesceApps = %d, quiesceFS = %d, allowHWProvider = %d,"
-           "execScripts = %d, scriptArg = %s, timeout = %u\n",
+           " execScripts = %d, scriptArg = %s, timeout = %u,"
+           " enableNullDriver = %d, forceQuiesce = %d\n",
            gBackupState->quiesceApps, gBackupState->quiesceFS,
            gBackupState->allowHWProvider, gBackupState->execScripts,
            (gBackupState->scriptArg != NULL) ? gBackupState->scriptArg : "",
-           gBackupState->timeout);
+           gBackupState->timeout, gBackupState->enableNullDriver, forceQuiesce);
    g_debug("Quiescing volumes: %s",
            (gBackupState->volumes) ? gBackupState->volumes : "(null)");
 

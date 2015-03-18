@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -133,7 +133,7 @@ RpcChannelCheckReset(gpointer _chan)
       }
 
       /* Schedule the channel restart for 1 sec in the future. */
-      Debug("Resetting channel [%u]\n", chan->rpcErrorCount);
+      Debug(LGPFX "Resetting channel [%u]\n", chan->rpcErrorCount);
       src = g_timeout_source_new(1000);
       g_source_set_callback(src, RpcChannelRestart, chan, NULL);
       g_source_attach(src, chan->mainCtx);
@@ -142,7 +142,7 @@ RpcChannelCheckReset(gpointer _chan)
    }
 
    /* Reset was successful. */
-   Debug("Channel was reset successfully.\n");
+   Debug(LGPFX "Channel was reset successfully.\n");
    chan->rpcErrorCount = 0;
 
    if (chan->resetCb != NULL) {
@@ -363,6 +363,7 @@ RpcChannel_Dispatch(RpcInData *data)
 
    name = StrUtil_GetNextToken(&index, data->args, " ");
    if (name == NULL) {
+      Debug(LGPFX "Bad command (null) received.\n");
       status = RPCIN_SETRETVALS(data, "Bad command", FALSE);
       goto exit;
    }
@@ -372,6 +373,7 @@ RpcChannel_Dispatch(RpcInData *data)
    }
 
    if (rpc == NULL) {
+      Debug(LGPFX "Unknown Command '%s': Handler not registered.\n", name);
       status = RPCIN_SETRETVALS(data, "Unknown Command", FALSE);
       goto exit;
    }
@@ -467,7 +469,7 @@ RpcChannel_Error(void *_chan,
     * XXX: Workaround for PR 935520.
     * Revert the log call to Warning() after fixing PR 955746.
     */
-   Debug("Error in the RPC receive loop: %s.\n", status);
+   Debug(LGPFX "Error in the RPC receive loop: %s.\n", status);
 
    if (chan->resetCheck == NULL) {
       chan->resetCheck = g_idle_source_new();
@@ -732,7 +734,7 @@ RpcChannel_Start(RpcChannel *chan)
    ok = funcs->start(chan);
 
    if (!ok && funcs->onStartErr != NULL) {
-      Warning(LGPFX "Fallback to backdoor ...\n");
+      Debug(LGPFX "Fallback to backdoor ...\n");
       funcs->onStartErr(chan);
       ok = BackdoorChannel_Fallback(chan);
    }
@@ -786,6 +788,21 @@ RpcChannel_GetType(RpcChannel *chan)
 
 
 /**
+ * Free the allocated memory for the results from RpcChannel_Send* calls.
+ *
+ * @param[in] ptr   result from RpcChannel_Send* calls.
+ *
+ * @return none
+ */
+
+void
+RpcChannel_Free(void *ptr)
+{
+   free(ptr);
+}
+
+
+/**
  * Send function of an RPC channel struct. Retry once if it fails for
  * non-backdoor Channels. Backdoor channel already tries inside. A second try
  * may create a different type of channel.
@@ -793,7 +810,8 @@ RpcChannel_GetType(RpcChannel *chan)
  * @param[in]  chan        The RPC channel instance.
  * @param[in]  data        Data to send.
  * @param[in]  dataLen     Number of bytes to send.
- * @param[out] result      Response from other side (should be freed by caller).
+ * @param[out] result      Response from other side (should be freed by
+ *                         calling RpcChannel_Free).
  * @param[out] resultLen   Number of bytes in response.
  *
  * @return The status from the remote end (TRUE if call was successful).
@@ -875,7 +893,7 @@ exit:
  *
  * @param[in]  data        request data
  * @param[in]  dataLen     data length
- * @param[in]  result      reply
+ * @param[in]  result      reply, should be freed by calling RpcChannel_Free.
  * @param[in]  resultLen   reply length
 
  * @returns    TRUE on success.
@@ -934,7 +952,7 @@ sent:
  * Open/close RpcChannel each time for sending a Rpc message, this is a wrapper
  * for RpcChannel APIs.
  *
- * @param[out] reply       reply
+ * @param[out] reply       reply, should be freed by calling RpcChannel_Free.
  * @param[out] repLen      reply length
  * @param[in]  reqFmt      request data
  * @param[in]  ...         optional arguments depending on reqFmt.

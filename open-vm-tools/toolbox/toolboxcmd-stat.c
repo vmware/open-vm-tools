@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -483,6 +483,50 @@ StatGetCpuLimit(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * StatGetRaw  --
+ *
+ *      Retrieves semi-structured stat.
+ *      Works only if the host is ESX.
+ *
+ * Results:
+ *      EXIT_SUCCESS on success.
+ *      EX_TEMPFAIL on failure.
+ *
+ * Side effects:
+ *      Prints to stderr on error.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StatGetRaw(const char *encoding,  // IN
+           const char *stat,      // IN
+           const char *param)     // IN
+{
+   int exitStatus = EXIT_SUCCESS;
+   VMGuestLibError glError;
+   char *result = NULL;
+   size_t resultSize = 0;
+   char *arg = g_strdup_printf("%s %s", stat, param);
+
+   glError = VMGuestLib_StatGet(encoding, arg, &result, &resultSize);
+   if (glError != VMGUESTLIB_ERROR_SUCCESS) {
+      ToolsCmd_PrintErr(SU_(stat.get.failed,
+                            "Failed to get stat: %s\n"),
+                        VMGuestLib_GetErrorText(glError));
+      exitStatus = EX_TEMPFAIL;
+   } else {
+      g_print("%*s", (int)resultSize, result);
+   }
+   VMGuestLib_StatFree(result, resultSize);
+   g_free(arg);
+   return exitStatus;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Stat_Command --
  *
  *      Handle and parse stat commands.
@@ -520,6 +564,10 @@ Stat_Command(char **argv,      // IN: Command line arguments
       return StatGetCpuLimit();
    } else if (toolbox_strcmp(argv[optind], "speed") == 0) {
       return StatProcessorSpeed();
+   } else if (toolbox_strcmp(argv[optind], "raw") == 0) {
+      return StatGetRaw((optind + 1 < argc) ? argv[optind + 1] : "", // encoding
+                        (optind + 2 < argc) ? argv[optind + 2] : "", // stat
+                        (optind + 3 < argc) ? argv[optind + 3] : "");// param
    } else {
       ToolsCmd_UnknownEntityError(argv[0],
                                   SU_(arg.subcommand, "subcommand"),

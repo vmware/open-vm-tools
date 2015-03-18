@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 ##########################################################
-# Copyright (C) 1998 VMware, Inc. All rights reserved.
+# Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -28,11 +28,13 @@ EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector.c, -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector1.c, -DVMW_KMEMCR_CTOR_HAS_2_ARGS, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/file_operations_fsync.c, -DVMW_FSYNC_31, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/file_operations_flush.c, -DVMW_FLUSH_HAS_1_ARG, )
 
 # Note: These tests are inverted
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/getsb1.c,, -DVMW_GETSB_2618)
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/statfs1.c,, -DVMW_STATFS_2618)
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/inode1.c,, -DVMW_INODE_2618)
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/dcount.c,, -DVMW_DCOUNT_311)
 
 MODPOST_VMCI_SYMVERS := $(wildcard $(MODULEBUILDDIR)/VMwareVMCIModule.symvers)
 

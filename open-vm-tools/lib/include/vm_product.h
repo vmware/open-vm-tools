@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -138,7 +138,7 @@
 #define PRODUCT_VDDK_SHORT_NAME "VDDK"
 #define PRODUCT_VDDK_NAME MAKE_NAME("Virtual Disk Development Kit")
 
-#define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("View Client")
+#define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("Horizon View Client")
 #define PRODUCT_VDM_CLIENT_NAME_FOR_LICENSE PRODUCT_VDM_CLIENT_NAME
 
 #define PRODUCT_XVP_SHORT_NAME "XVP"

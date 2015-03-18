@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011,2014-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -63,6 +63,7 @@
 #include <ws2tcpip.h>
 #include <wspiapi.h>
 #include <MSWSock.h>
+#include <windows.h>
 #if !(defined(__GOT_SECURE_LIB__) && __GOT_SECURE_LIB__ >= 200402L)
 #undef strcpy
 #undef strcat
@@ -85,8 +86,8 @@
 #include "vmware.h"
 #include "random.h"
 
-#ifdef ASYNCSOCKET_DONT_USE_SSL
-#include "sslStubs.h"
+#ifdef USE_SSL_DIRECT
+#include "sslDirect.h"
 #else
 #include "ssl.h"
 #endif
@@ -172,7 +173,6 @@ struct AsyncSocket {
    int fd;
    SSLSock sslSock;
    AsyncSocketType asockType;
-   int type;  /* SOCK_STREAM or SOCK_DGRAM */
    const struct AsyncSocketVTable *vt;
 
    unsigned int refCount;
@@ -181,14 +181,13 @@ struct AsyncSocket {
    void *errorClientData;
    VmTimeType drainTimeoutUS;
 
-   struct sockaddr localAddr;
+   struct sockaddr_storage localAddr;
    socklen_t localAddrLen;
-   struct sockaddr remoteAddr;
+   struct sockaddr_storage remoteAddr;
    socklen_t remoteAddrLen;
 
    AsyncSocketConnectFn connectFn;
    AsyncSocketRecvFn recvFn;
-   AsyncSocketRecvUDPFn recvUDPFn;
    AsyncSocketSslAcceptFn sslAcceptFn;
    void *clientData;       /* shared by recvFn, connectFn and sslAcceptFn */
    AsyncSocketPollParams pollParams;
@@ -205,11 +204,15 @@ struct AsyncSocket {
    Bool sendCb;
    Bool sendCbTimer;
    Bool sendBufFull;
+   Bool sendLowLatency;
 
    Bool sslConnected;
 
    Bool inRecvLoop;
    uint32 inBlockingRecv;
+
+   AsyncSocket *listenAsock4;
+   AsyncSocket *listenAsock6;
 
    struct {
       Bool expected;
@@ -263,6 +266,7 @@ struct AsyncSocket {
    struct {
       struct VSockSocket *socket;
       Bool signalCb;
+      Bool sendCb;
       uint32 opMask;
       void *partialRecvBuf;
       uint32 partialRecvLen;
@@ -287,21 +291,22 @@ typedef struct AsyncSocketVTable {
    void (*release)(AsyncSocket *asock);
 } AsyncSocketVTable;
 
-AsyncSocket *AsyncSocketInit(int socketFamily, int socketType,
+AsyncSocket *AsyncSocketInit(int socketFamily,
                              AsyncSocketPollParams *pollParams,
                              int *outError);
-Bool AsyncSocketBind(AsyncSocket *asock, struct sockaddr *addr,
-                     int *outError);
+Bool AsyncSocketBind(AsyncSocket *asock, struct sockaddr_storage *addr,
+                     socklen_t addrLen, int *outError);
 Bool AsyncSocketListen(AsyncSocket *asock, AsyncSocketConnectFn connectFn,
                        void *clientData, int *outError);
 int AsyncSocketResolveAddr(const char *hostname,
-                           unsigned short port,
+                           unsigned int port,
                            int family,
-                           int type,
-                           struct sockaddr *addr,
+                           Bool passive,
+                           struct sockaddr_storage *addr,
+                           socklen_t *addrLen,
                            char **addrString);
 AsyncSocket *AsyncSocketConnectWithAsock(AsyncSocket *asock,
-                                         struct sockaddr *addr,
+                                         struct sockaddr_storage *addr,
                                          socklen_t addrLen,
                                          AsyncSocketConnectFn connectFn,
                                          void *clientData,
@@ -332,5 +337,26 @@ void AsyncSocketCancelRecvCbSocket(AsyncSocket *asock);
 void AsyncSocketCancelCbForCloseSocket(AsyncSocket *asock);
 Bool AsyncSocketCancelCbForConnectingCloseSocket(AsyncSocket *asock);
 void AsyncSocketCloseSocket(AsyncSocket *asock);
+#ifndef VMX86_TOOLS
+void AsyncSocketInitWebSocket(AsyncSocket *asock,
+                              void *clientData,
+                              Bool useSSL);
+#endif
+AsyncSocket *AsyncSocketListenImpl(struct sockaddr_storage *addr,
+                                   socklen_t addrLen,
+                                   AsyncSocketConnectFn connectFn,
+                                   void *clientData,
+                                   AsyncSocketPollParams *pollParams,
+                                   Bool isWebSock,
+                                   Bool webSockUseSSL,
+                                   int *outError);
+AsyncSocket *AsyncSocketListenerCreate(const char *addrStr,
+                                       unsigned int port,
+                                       AsyncSocketConnectFn connectFn,
+                                       void *clientData,
+                                       AsyncSocketPollParams *pollParams,
+                                       Bool isWebSock,
+                                       Bool webSockUseSSL,
+                                       int *outError);
 
 #endif // __ASYNC_SOCKET_INT_H__

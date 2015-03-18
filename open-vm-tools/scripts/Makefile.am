@@ -7,6 +7,9 @@ confdir = /etc/vmware-tools
 
 conf_SCRIPTS = ./common/vm-support
 conf_SCRIPTS += ./common/statechange.subr
+if ENABLE_GRABBITMQPROXY
+   conf_SCRIPTS += ./common/guestproxy-ssl.conf
+endif
 conf_SCRIPTS += $(defaultscripts)
 
 vmwsrcdir = $(confdir)/scripts/vmware

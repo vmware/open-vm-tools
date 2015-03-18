@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +19,7 @@
 /*
  * vm_atomic.h --
  *
- *	Atomic power
+ *       Atomic power
  *
  * Note: Only partially tested on ARM processors: Works for View Open
  *       Client, which shouldn't have threads.
@@ -75,7 +75,7 @@ typedef struct  Atomic_uint64 {
  * Windows typedefs. This avoids having to include windows header files
  * to get to the windows types.
  */
-#if defined(_MSC_VER) && _MSC_VER >= 1310
+#if defined(_MSC_VER) && _MSC_VER >= 1310 && !defined(BORA_NO_WIN32_INTRINS)
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -271,6 +271,7 @@ AtomicEpilogue(void)
                     ".pushsection .patchtext\n\t"
                     ".quad 1b\n\t"
                     ".quad 2b\n\t"
+                    ".quad 0\n\t"
                     ".popsection\n\t" ::: "memory");
 #else
       if (UNLIKELY(AtomicUseFence)) {
@@ -610,52 +611,6 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN
 #define Atomic_ReadIfEqualWrite32 Atomic_ReadIfEqualWrite
 
 
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_ReadIfEqualWriteLockAcquire --
- *
- *      Compare exchange: Read variable, if equal to oldVal, write newVal
- *      using hint to elide the hardware lock.
- *
- * Results:
- *      The value of the atomic variable before the write.
- *
- * Side effects:
- *      The atomic variable may be modified.
- *      May return in transactional execution mode on TSX enabled CPUs
- *      IFF the atomic variable is modified.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE uint32
-Atomic_ReadIfEqualWriteLockAcquire(Atomic_uint32 *var, // IN
-				   uint32 oldVal,      // IN
-				   uint32 newVal)      // IN
-{
-#if defined(__GNUC__) && defined(__x86_64__)
-   uint32 val;
-   __asm__ __volatile__(
-      "repnz; lock; cmpxchgl %2, %1"
-      : "=a" (val),
-	"+m" (var->value)
-      : "r" (newVal),
-	"0" (oldVal)
-      : "cc"
-   );
-   AtomicEpilogue();
-   if (val != oldVal) {
-      /* Leave transactional execution mode if TSX enabled. */
-      __asm__ __volatile__("pause");
-   }
-   return val;
-#else
-   return Atomic_ReadIfEqualWrite(var, oldVal, newVal);
-#endif
-}
-
-
 #if defined(__x86_64__) || defined(VM_ARM_V7)
 /*
  *-----------------------------------------------------------------------------
@@ -945,7 +900,7 @@ Atomic_Xor64(Atomic_uint64 *var, // IN
    __asm__ __volatile__(
       "lock; xorq %1, %0"
       : "+m" (var->value)
-      : "ri" (val)
+      : "re" (val)
       : "cc"
    );
    AtomicEpilogue();
@@ -1022,45 +977,6 @@ Atomic_Add(Atomic_uint32 *var, // IN
 #define Atomic_Add32 Atomic_Add
 
 
-#if defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_Add64 --
- *
- *      Atomic read, add a value, write.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_Add64(Atomic_uint64 *var, // IN
-             uint64 val)         // IN
-{
-#if defined(__GNUC__)
-   /* Checked against the AMD manual and GCC --hpreg */
-   __asm__ __volatile__(
-      "lock; addq %1, %0"
-      : "+m" (var->value)
-      : "ri" (val)
-      : "cc"
-   );
-   AtomicEpilogue();
-#elif defined _MSC_VER
-   _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
-#else
-#error No compiler defined for Atomic_Add64
-#endif
-}
-#endif
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1123,45 +1039,6 @@ Atomic_Sub(Atomic_uint32 *var, // IN
 #endif
 }
 #define Atomic_Sub32 Atomic_Sub
-
-
-#if defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_Sub64 --
- *
- *      Atomic read, subtract a value, write.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_Sub64(Atomic_uint64 *var, // IN
-             uint64 val)         // IN
-{
-#ifdef __GNUC__
-   /* Checked against the AMD manual and GCC --hpreg */
-   __asm__ __volatile__(
-      "lock; subq %1, %0"
-      : "+m" (var->value)
-      : "ri" (val)
-      : "cc"
-   );
-   AtomicEpilogue();
-#elif defined _MSC_VER
-   _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)-val);
-#else
-#error No compiler defined for Atomic_Sub64
-#endif
-}
-#endif
 
 
 /*
@@ -1265,7 +1142,7 @@ Atomic_Dec(Atomic_uint32 *var) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_FetchAndOr --
+ * Atomic_ReadOr32 --
  *
  *      Atomic read (returned), bitwise OR with a value, write.
  *
@@ -1279,8 +1156,8 @@ Atomic_Dec(Atomic_uint32 *var) // IN
  */
 
 static INLINE uint32
-Atomic_FetchAndOr(Atomic_uint32 *var, // IN
-                  uint32 val)         // IN
+Atomic_ReadOr32(Atomic_uint32 *var, // IN
+                uint32 val)         // IN
 {
    uint32 res;
 
@@ -1295,7 +1172,7 @@ Atomic_FetchAndOr(Atomic_uint32 *var, // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_FetchAndAnd --
+ * Atomic_ReadAnd32 --
  *
  *      Atomic read (returned), bitwise And with a value, write.
  *
@@ -1309,8 +1186,8 @@ Atomic_FetchAndOr(Atomic_uint32 *var, // IN
  */
 
 static INLINE uint32
-Atomic_FetchAndAnd(Atomic_uint32 *var, // IN
-                   uint32 val)         // IN
+Atomic_ReadAnd32(Atomic_uint32 *var, // IN
+                 uint32 val)         // IN
 {
    uint32 res;
 
@@ -1320,7 +1197,6 @@ Atomic_FetchAndAnd(Atomic_uint32 *var, // IN
 
    return res;
 }
-#define Atomic_ReadOr32 Atomic_FetchAndOr
 
 
 #if defined(__x86_64__)
@@ -1388,15 +1264,15 @@ Atomic_ReadAnd64(Atomic_uint64 *var, // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_FetchAndAddUnfenced --
+ * Atomic_ReadAdd32Unfenced --
  *
  *      Atomic read (returned), add a value, write.
  *
- *      If you have to implement FetchAndAdd() on an architecture other than
+ *      If you have to implement ReadAdd32() on an architecture other than
  *      x86 or x86-64, you might want to consider doing something similar to
- *      Atomic_FetchAndOr().
+ *      Atomic_ReadOr32().
  *
- *      The "Unfenced" version of Atomic_FetchAndInc never executes
+ *      The "Unfenced" version of Atomic_ReadAdd32 never executes
  *      "lfence" after the interlocked operation.
  *
  * Results:
@@ -1409,8 +1285,8 @@ Atomic_ReadAnd64(Atomic_uint64 *var, // IN
  */
 
 static INLINE uint32
-Atomic_FetchAndAddUnfenced(Atomic_uint32 *var, // IN
-                           uint32 val)         // IN
+Atomic_ReadAdd32Unfenced(Atomic_uint32 *var, // IN
+                         uint32 val)         // IN
 {
 #if defined(__GNUC__)
 #ifdef VM_ARM_V7
@@ -1459,51 +1335,7 @@ Atomic_FetchAndAddUnfenced(Atomic_uint32 *var, // IN
 #pragma warning(pop)
 #endif
 #else
-#error No compiler defined for Atomic_FetchAndAdd
-#endif
-}
-#define Atomic_ReadAdd32 Atomic_FetchAndAdd
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_FetchAndAddLockReleaseUnfenced --
- *
- *      Atomic read (returned), add a value, write
- *      using hint to elide the hardware lock.
- *
- *      If you have to implement FetchAndAdd() on an architecture other than
- *      x86 or x86-64, you might want to consider doing something similar to
- *      Atomic_FetchAndOr().
- *
- *      The "Unfenced" version of Atomic_FetchAndInc never executes
- *      "lfence" after the interlocked operation.
- *
- * Results:
- *      The value of the variable before the operation.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE uint32
-Atomic_FetchAndAddLockReleaseUnfenced(Atomic_uint32 *var, // IN
-				      uint32 val)         // IN
-{
-#if defined(__GNUC__) && defined(__x86_64__)
-   __asm__ __volatile__(
-      "repz; lock; xaddl %0, %1"
-      : "=r" (val),
-	"+m" (var->value)
-      : "0" (val)
-      : "cc"
-   );
-   return val;
-#else
-   return Atomic_FetchAndAddUnfenced(var, val);
+#error No compiler defined for Atomic_ReadAdd32Unfenced
 #endif
 }
 
@@ -1511,13 +1343,13 @@ Atomic_FetchAndAddLockReleaseUnfenced(Atomic_uint32 *var, // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_FetchAndAdd --
+ * Atomic_ReadAdd32 --
  *
  *      Atomic read (returned), add a value, write.
  *
- *      If you have to implement FetchAndAdd() on an architecture other than
+ *      If you have to implement ReadAdd32() on an architecture other than
  *      x86 or x86-64, you might want to consider doing something similar to
- *      Atomic_FetchAndOr().
+ *      Atomic_ReadOr32().
  *
  *      Unlike "Unfenced" version, this one may execute the "lfence" after
  *      interlocked operation.
@@ -1532,15 +1364,15 @@ Atomic_FetchAndAddLockReleaseUnfenced(Atomic_uint32 *var, // IN
  */
 
 static INLINE uint32
-Atomic_FetchAndAdd(Atomic_uint32 *var, // IN
-                   uint32 val)         // IN
+Atomic_ReadAdd32(Atomic_uint32 *var, // IN
+                 uint32 val)         // IN
 {
 #if defined(__GNUC__) && !defined(VM_ARM_V7)
-   val = Atomic_FetchAndAddUnfenced(var, val);
+   val = Atomic_ReadAdd32Unfenced(var, val);
    AtomicEpilogue();
    return val;
 #else
-   return Atomic_FetchAndAddUnfenced(var, val);
+   return Atomic_ReadAdd32Unfenced(var, val);
 #endif
 }
 
@@ -1548,110 +1380,7 @@ Atomic_FetchAndAdd(Atomic_uint32 *var, // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_FetchAndAddLockRelease --
- *
- *      Atomic read (returned), add a value, write
- *      using hint to elide the hardware lock.
- *
- *      If you have to implement FetchAndAdd() on an architecture other than
- *      x86 or x86-64, you might want to consider doing something similar to
- *      Atomic_FetchAndOr().
- *
- *      Unlike "Unfenced" version, this one may execute the "lfence" after
- *      interlocked operation.
- *
- * Results:
- *      The value of the variable before the operation.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE uint32
-Atomic_FetchAndAddLockRelease(Atomic_uint32 *var, // IN
-			      uint32 val)         // IN
-{
-#if defined(__GNUC__) && !defined(VM_ARM_V7)
-   val = Atomic_FetchAndAddLockReleaseUnfenced(var, val);
-   AtomicEpilogue();
-   return val;
-#else
-   return Atomic_FetchAndAddLockReleaseUnfenced(var, val);
-#endif
-}
-
-
-#if defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_ReadAdd64 --
- *
- *      Atomic read (returned), add a value, write.
- *
- * Results:
- *      The value of the variable before the operation.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE uint64
-Atomic_ReadAdd64(Atomic_uint64 *var, // IN
-                 uint64 val)         // IN
-{
-#if defined(__GNUC__)
-   /* Checked against the AMD manual and GCC --hpreg */
-   __asm__ __volatile__(
-      "lock; xaddq %0, %1"
-      : "=r" (val),
-	"+m" (var->value)
-      : "0" (val)
-      : "cc"
-   );
-   AtomicEpilogue();
-   return val;
-#elif defined _MSC_VER
-   return _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
-#else
-#error No compiler defined for Atomic_ReadAdd64
-#endif
-}
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_ReadSub64 --
- *
- *      Atomic read (returned), sub a value, write.
- *
- * Results:
- *      The value of the variable before the operation.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE uint64
-Atomic_ReadSub64(Atomic_uint64 *var, // IN
-                 uint64 val)         // IN
-{
-   // Do an sub by an add and a overflow
-   return Atomic_ReadAdd64(var, -val);
-}
-#endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_FetchAndInc --
+ * Atomic_ReadInc32 --
  *
  *      Atomic read (returned), increment, write.
  *
@@ -1665,42 +1394,16 @@ Atomic_ReadSub64(Atomic_uint64 *var, // IN
  */
 
 static INLINE uint32
-Atomic_FetchAndInc(Atomic_uint32 *var) // IN
+Atomic_ReadInc32(Atomic_uint32 *var) // IN
 {
-   return Atomic_FetchAndAdd(var, 1);
+   return Atomic_ReadAdd32(var, 1);
 }
-#define Atomic_ReadInc32 Atomic_FetchAndInc
-
-
-#if defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_ReadInc64 --
- *
- *      Atomic read (returned), increment, write.
- *
- * Results:
- *      The value of the variable before the operation.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE uint64
-Atomic_ReadInc64(Atomic_uint64 *var) // IN
-{
-   return Atomic_ReadAdd64(var, 1);
-}
-#endif
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_FetchAndDec --
+ * Atomic_ReadDec32 --
  *
  *      Atomic read (returned), decrement, write.
  *
@@ -1714,39 +1417,13 @@ Atomic_ReadInc64(Atomic_uint64 *var) // IN
  */
 
 static INLINE uint32
-Atomic_FetchAndDec(Atomic_uint32 *var) // IN
+Atomic_ReadDec32(Atomic_uint32 *var) // IN
 {
-   return Atomic_FetchAndAdd(var, (uint32)-1);
+   return Atomic_ReadAdd32(var, (uint32)-1);
 }
-#define Atomic_ReadDec32 Atomic_FetchAndDec
 
 
-#if defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_ReadDec64 --
- *
- *      Atomic read (returned), decrement, write.
- *
- * Results:
- *      The value of the variable before the operation.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE uint64
-Atomic_ReadDec64(Atomic_uint64 *var) // IN
-{
-   return Atomic_ReadAdd64(var, CONST64U(-1));
-}
-#endif
-
-
-#ifdef VMKERNEL
+#if defined VMKERNEL || defined VMM
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2130,7 +1807,7 @@ Atomic_ReadUnaligned64(Atomic_uint64 const *var)
 /*
  *----------------------------------------------------------------------
  *
- * Atomic_FetchAndAdd64 --
+ * Atomic_ReadAdd64 --
  *
  *      Atomically adds a 64-bit integer to another
  *
@@ -2144,25 +1821,69 @@ Atomic_ReadUnaligned64(Atomic_uint64 const *var)
  */
 
 static INLINE uint64
-Atomic_FetchAndAdd64(Atomic_uint64 *var, // IN/OUT
-		     uint64 addend)      // IN
+Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
+                 uint64 val)         // IN
 {
+#if defined(__x86_64__)
+
+#if defined(__GNUC__)
+   __asm__ __volatile__(
+      "lock; xaddq %0, %1"
+      : "=r" (val),
+	"+m" (var->value)
+      : "0" (val)
+      : "cc"
+   );
+   AtomicEpilogue();
+   return val;
+#elif defined _MSC_VER
+   return _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
+#else
+#error No compiler defined for Atomic_ReadAdd64
+#endif
+
+#else
    uint64 oldVal;
    uint64 newVal;
 
    do {
       oldVal = var->value;
-      newVal = oldVal + addend;
+      newVal = oldVal + val;
    } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
 
    return oldVal;
+#endif
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * Atomic_FetchAndInc64 --
+ * Atomic_ReadSub64 --
+ *
+ *      Atomically subtracts a 64-bit integer to another
+ *
+ * Results:
+ *      Returns the old value just prior to the subtraction
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE uint64
+Atomic_ReadSub64(Atomic_uint64 *var, // IN/OUT
+                 uint64 val)         // IN
+{
+   return Atomic_ReadAdd64(var, -val);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Atomic_ReadInc64 --
  *
  *      Atomically increments a 64-bit integer
  *
@@ -2176,16 +1897,16 @@ Atomic_FetchAndAdd64(Atomic_uint64 *var, // IN/OUT
  */
 
 static INLINE uint64
-Atomic_FetchAndInc64(Atomic_uint64 *var) // IN/OUT
+Atomic_ReadInc64(Atomic_uint64 *var) // IN/OUT
 {
-   return Atomic_FetchAndAdd64(var, 1);
+   return Atomic_ReadAdd64(var, 1);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * Atomic_FetchAndDec64 --
+ * Atomic_ReadDec64 --
  *
  *      Atomically decrements a 64-bit integer
  *
@@ -2199,17 +1920,87 @@ Atomic_FetchAndInc64(Atomic_uint64 *var) // IN/OUT
  */
 
 static INLINE uint64
-Atomic_FetchAndDec64(Atomic_uint64 *var) // IN/OUT
+Atomic_ReadDec64(Atomic_uint64 *var) // IN/OUT
 {
-   uint64 oldVal;
-   uint64 newVal;
+   return Atomic_ReadAdd64(var, CONST64U(-1));
+}
 
-   do {
-      oldVal = var->value;
-      newVal = oldVal - 1;
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
 
-   return oldVal;
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Add64 --
+ *
+ *      Atomic read, add a value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Add64(Atomic_uint64 *var, // IN
+             uint64 val)         // IN
+{
+#if !defined(__x86_64__)
+   Atomic_ReadAdd64(var, val); /* Return value is unused. */
+#elif defined(__GNUC__)
+   /* Checked against the AMD manual and GCC --hpreg */
+   __asm__ __volatile__(
+      "lock; addq %1, %0"
+      : "+m" (var->value)
+      : "re" (val)
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif defined _MSC_VER
+   _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
+#else
+#error No compiler defined for Atomic_Add64
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Sub64 --
+ *
+ *      Atomic read, subtract a value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Sub64(Atomic_uint64 *var, // IN
+             uint64 val)         // IN
+{
+#if !defined(__x86_64__)
+   Atomic_ReadSub64(var, val); /* Return value is unused. */
+#elif defined(__GNUC__)
+   /* Checked against the AMD manual and GCC --hpreg */
+   __asm__ __volatile__(
+      "lock; subq %1, %0"
+      : "+m" (var->value)
+      : "re" (val)
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif defined _MSC_VER
+   _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)-val);
+#else
+#error No compiler defined for Atomic_Sub64
+#endif
 }
 
 
@@ -2233,7 +2024,7 @@ static INLINE void
 Atomic_Inc64(Atomic_uint64 *var) // IN
 {
 #if !defined(__x86_64__)
-   Atomic_FetchAndInc64(var);
+   Atomic_ReadInc64(var);  /* Return value is unused. */
 #elif defined(__GNUC__)
    /* Checked against the AMD manual and GCC --hpreg */
    __asm__ __volatile__(
@@ -2271,7 +2062,7 @@ static INLINE void
 Atomic_Dec64(Atomic_uint64 *var) // IN
 {
 #if !defined(__x86_64__)
-   Atomic_FetchAndDec64(var);
+   Atomic_ReadDec64(var);  /* Return value is unused. */
 #elif defined(__GNUC__)
    /* Checked against the AMD manual and GCC --hpreg */
    __asm__ __volatile__(
@@ -2420,7 +2211,7 @@ Atomic_Or64(Atomic_uint64 *var, // IN
    __asm__ __volatile__(
       "lock; orq %1, %0"
       : "+m" (var->value)
-      : "ri" (val)
+      : "re" (val)
       : "cc"
    );
    AtomicEpilogue();
@@ -2466,7 +2257,7 @@ Atomic_And64(Atomic_uint64 *var, // IN
    __asm__ __volatile__(
       "lock; andq %1, %0"
       : "+m" (var->value)
-      : "ri" (val)
+      : "re" (val)
       : "cc"
    );
    AtomicEpilogue();
@@ -2842,7 +2633,8 @@ MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
  *      Implements mfence in terms of a lock xor. The reason for implementing
  *      our own mfence is that not all of our supported cpus have an assembly
  *      mfence (P3, Athlon). We put it here to avoid duplicating code which is
- *      also why it is prefixed with "Atomic_".
+ *      also why it is prefixed with "Atomic_". Moreover, this implementation
+ *      performs slightly better than 'mfence' on modern CPUs (See PR 817059).
  *
  * Results:
  *      None.

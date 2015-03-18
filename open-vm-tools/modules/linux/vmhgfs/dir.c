@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -1157,7 +1157,8 @@ HgfsDoReaddir(struct file *file,         // IN:
               Bool dotAndDotDotIgnore,   // IN: ignore "." and ".."
               filldir_t filldirCb,       // IN: system filler callback
               void *filldirCtx,          // IN/OUT: system filler context
-              loff_t *entryPos)          // IN/OUT: entry position
+              loff_t *fillPos,           // IN/OUT: fill entry position
+              loff_t *currentPos)        // IN/OUT: current position
 {
    char *entryName = NULL; // buf for escaped version of name
    size_t entryNameBufLen = NAME_MAX + 1;
@@ -1179,7 +1180,7 @@ HgfsDoReaddir(struct file *file,         // IN:
           __func__,
           file->f_dentry->d_name.name,
           file->f_dentry->d_inode->i_ino,
-          *entryPos));
+          *currentPos));
 
    /*
     * Refresh entries if required. See rm -rf 6.10+ breaking issue.
@@ -1188,7 +1189,6 @@ HgfsDoReaddir(struct file *file,         // IN:
    if (result != 0) {
       return result;
    }
-
 
    /*
     * Some day when we're out of things to do we can move this to a slab
@@ -1207,7 +1207,7 @@ HgfsDoReaddir(struct file *file,         // IN:
       uint32 entryType = DT_UNKNOWN;
 
       result = HgfsReaddirNextEntry(file,
-                                    *entryPos,
+                                    *currentPos,
                                     dotAndDotDotIgnore,
                                     entryNameBufLen,
                                     entryName,
@@ -1228,20 +1228,20 @@ HgfsDoReaddir(struct file *file,         // IN:
       }
 
       if (entryIgnore) {
-         *entryPos += 1;
+         *currentPos += 1;
          continue;
       }
 
       /*
        * Call the HGFS wrapper to the system fill function to set this dentry.
        */
-      LOG(6, (KERN_DEBUG "VMware hgfs: %s: dir_emit(%s, %u, %Lu)\n",
-              __func__, entryName, entryNameLength, *entryPos));
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: dir_emit(%s, %u, @ (fill %Lu HGFS %Lu)\n",
+              __func__, entryName, entryNameLength, *fillPos, *currentPos));
       if (!HgfsReaddirFillEntry(filldirCb,        /* filldir callback function */
                                 filldirCtx,       /* filldir callback struct */
                                 entryName,        /* name of dirent */
                                 entryNameLength,  /* length of name */
-                                *entryPos,        /* entry position */
+                                *fillPos,         /* fill entry position */
                                 entryIno,         /* inode number (0 makes it not show) */
                                 entryType)) {     /* type of dirent */
          /*
@@ -1254,7 +1254,8 @@ HgfsDoReaddir(struct file *file,         // IN:
          result = 0;
          break;
       }
-      *entryPos += 1;
+      *currentPos += 1;
+      *fillPos += 1;
    }
 
    LOG(6, (KERN_DEBUG "VMware hgfs: %s: return\n",__func__));
@@ -1284,6 +1285,12 @@ static int
 HgfsReaddir(struct file *file,         // IN:
             struct dir_context *ctx)   // IN:
 {
+   HgfsFileInfo *fInfo = FILE_GET_FI_P(file);
+
+   if (0 == ctx->pos) {
+      fInfo->direntPos = 0;
+   }
+
    /* If either dot and dotdot are filled in for us we can exit. */
    if (!dir_emit_dots(file, ctx)) {
       LOG(6, (KERN_DEBUG "VMware hgfs: %s: dir_emit_dots(%s, @ %Lu)\n",
@@ -1292,7 +1299,7 @@ HgfsReaddir(struct file *file,         // IN:
    }
 
    /* It is sufficient to pass the context as it contains the filler function. */
-   return HgfsDoReaddir(file, TRUE, NULL, ctx, &ctx->pos);
+   return HgfsDoReaddir(file, TRUE, NULL, ctx, &ctx->pos, &fInfo->direntPos);
 }
 
 
@@ -1367,7 +1374,13 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
             void *dirent,      // OUT: Buffer to copy dentries into
             filldir_t filldir) // IN:  Filler function
 {
-   return HgfsDoReaddir(file, FALSE, filldir, dirent, &file->f_pos);
+   HgfsFileInfo *fInfo = FILE_GET_FI_P(file);
+
+   if (0 == file->f_pos) {
+      fInfo->direntPos = 0;
+   }
+
+   return HgfsDoReaddir(file, FALSE, filldir, dirent, &file->f_pos, &fInfo->direntPos);
 }
 
 

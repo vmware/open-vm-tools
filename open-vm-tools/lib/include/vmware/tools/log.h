@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -125,17 +125,17 @@
  *******************************************************************************
  * g_info --                                                              */ /**
  *
- * Log a message with G_LOG_LEVEL_INFO; this function is missing in glib for
- * whatever reason.
+ * Log a message with G_LOG_LEVEL_INFO; this function is missing in glib < 2.39
+ * for whatever reason.
  *
  * @param[in]  fmt   Log message format.
  * @param[in]  ...   Message arguments.
  *
  *******************************************************************************
  */
-
-#define g_info(fmt, ...) g_log(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, fmt, ## __VA_ARGS__)
-
+#if !defined(g_info)
+#  define g_info(fmt, ...) g_log(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, fmt, ## __VA_ARGS__)
+#endif
 
 /*
  *******************************************************************************

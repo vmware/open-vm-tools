@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1665,6 +1665,7 @@ HgfsReplySymlinkCreateV3;
 #define HGFS_PACKET_FLAG_REQUEST              (1 << 0)       // Request packet
 #define HGFS_PACKET_FLAG_REPLY                (1 << 1)       // Reply packet
 #define HGFS_PACKET_FLAG_INFO_EXTERROR        (1 << 2)       // Info has ext error
+#define HGFS_PACKET_FLAG_VALID_FLAGS          (0x7)          // Mask for valid values
 
 typedef
 #include "vmware_pack_begin.h"

@@ -1,0 +1,77 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+addsubj.fail = "%1$s: ユーザー 「%2$s」のエイリアスを追加できませんでした: %3$s。\n"
+addsubj.success = "%1$s: 追加されたエイリアス\n"
+
+addoptions.comment = "件名コメント"
+
+addoptions.file = "PEM ファイル名"
+
+addoptions.global = "グローバル マッピング ファイルに証明書を追加します"
+
+addoptions.subject = "SAML 件名"
+
+addoptions.username = "証明書ストアが追加されるユーザー"
+
+addoptions.verbose = "冗長操作"
+
+
+cmdline.parse = "コマンド行の解析が失敗しました"
+
+cmdline.summary.pemfile = "PEM ファイル"
+cmdline.summary.subject = "件名"
+cmdline.summary.username = "username"
+cmdline.summary.comm = "コメント"
+
+list.comment = "コメント"
+list.count = "%1$s ユーザー「%3$s」の %2$d エイリアスが検出されました\n"
+
+list.error = "%1$s: ユーザー「%2$s」のエイリアスをリストできませんでした: %3$s。\n"
+list.subject = "件名"
+
+listmapped.count = "%1$s %2$d のマップ済みエイリアスが検出されました\n"
+
+listmapped.error = "%1$s: マップ済みエイリアスをリストできませんでした: %2$s。\n"
+
+listmapped.subject = "件名"
+
+listmapped.username = "ユーザー名"
+
+listoptions.username =
+         "証明書ストアがクエリされるユーザー"
+
+listoptions.verbose = "冗長操作"
+
+loadfile.fail = "%1$s: PEM ファイル「%2$s」を読み取れません\n"
+
+name.any = "<任意>"
+
+removesubj.fail = "%1$s: ユーザー「%2$s」のエイリアスを削除できませんでした: %3$s。\n"
+
+removesubj.success = "%1$s: 削除されたエイリアス\n"
+
+removeoptions.file = "PEM ファイル名"
+
+removeoptions.subject = "SAML 件名"
+removeoptions.username =
+             "証明書ストアが削除されるユーザー"
+
+removeoptions.verbose = "冗長操作"
+
+vgauth.init.failed = "VGAuth を初期化できませんでした"

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,6 +46,9 @@ typedef struct MXUserBarrier    MXUserBarrier;
 
 MXUserExclLock *MXUser_CreateExclLock(const char *name,
                                       MX_Rank rank);
+
+MXUserExclLock *MXUser_CreateExclLockSilent(const char *name,
+                                            MX_Rank rank);
 
 void MXUser_AcquireExclLock(MXUserExclLock *lock);
 Bool MXUser_TryAcquireExclLock(MXUserExclLock *lock);
@@ -160,6 +163,9 @@ MXUserBarrier *MXUser_CreateSingletonBarrier(Atomic_Ptr *barrierStorage,
 MXUserSemaphore *MXUser_CreateSemaphore(const char *name,
                                         MX_Rank rank);
 
+MXUserSemaphore *MXUser_CreateSemaphoreSolent(const char *name,
+                                              MX_Rank rank);
+
 void MXUser_DestroySemaphore(MXUserSemaphore *sema);
 void MXUser_UpSemaphore(MXUserSemaphore *sema);
 void MXUser_DownSemaphore(MXUserSemaphore *sema);
@@ -226,8 +232,9 @@ void MXUser_TryAcquireFailureControl(Bool (*func)(const char *lockName));
 Bool MXUser_IsCurThreadHoldingLocks(void);
 #endif
 
-void MXUser_StatisticsControl(double contentionRatio,
-                              uint64 minCount);
+void MXUser_StatisticsControl(double contentionRatioFloor,
+                              uint64 minAccessCountFloor,
+                              uint64 contentionDurationFloor);
 
 void MXUser_PerLockData(void);
 void MXUser_SetStatsFunc(void *context,

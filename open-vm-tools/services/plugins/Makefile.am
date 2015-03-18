@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright 2009 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2015 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -22,9 +22,15 @@ endif
 if HAVE_GTKMM
    SUBDIRS += dndcp
 endif
+if ENABLE_GRABBITMQPROXY
+   SUBDIRS += grabbitmqProxy
+endif
 SUBDIRS += guestInfo
 SUBDIRS += hgfsServer
 SUBDIRS += powerOps
+if ENABLE_DEPLOYPKG
+   SUBDIRS += deployPkg
+endif
 if HAVE_X11
    SUBDIRS += resolutionSet
 endif

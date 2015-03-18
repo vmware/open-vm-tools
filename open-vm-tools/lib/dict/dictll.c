@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -287,7 +287,7 @@ DictLL_UnmarshalLine(const char *buf,   // IN: buffer to parse
 
    myName = BufDup(nBegin, nEnd - nBegin);
    myValue = Escape_Undo('|', vBegin, vEnd - vBegin, NULL);
-   ASSERT_MEM_ALLOC(myValue);
+   VERIFY(myValue);
 
    *line = myLine;
    *name = myName;

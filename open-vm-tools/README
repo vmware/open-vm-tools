@@ -69,7 +69,7 @@ module:
 | vmsync        | vmblock        | vmxnet       | vmmemctl       | vmhgfs      |
 |---------------|----------------|--------------|----------------|-------------|
 | Linux 2.6.6   | Linux 2.4.0    | Linux 2.2.0  | Linux 2.2.0    | Linux 2.4.0 |
-| FreeBSD N/A   | FreeBSD 6.0    | FreeBSD 4.9  | FreeBSD 3.2    | FreeBSD 6.0 |
+| FreeBSD N/A   | FreeBSD 6.0    | FreeBSD 4.9  | FreeBSD 3.2    |             |
 |------------------------------------------------------------------------------|
 
 (*)Suse Enterprise 10.1 (i386 & x86_64):
@@ -122,16 +122,5 @@ Guest operating systems used to test on this release:
 ===============================================================================
 Known issues:
 
-(*) When using HGFS on FreeBSD, the 'cp' command will fail if the source 
-file is on the HGFS share. This is because mmap() does not yet work with 
-the FreeBSD port of HGFS. One workaround is to use 'cat 
-/mnt/hgfs/foo/bar > /tmp/baz' instead of 'cp /mnt/hgfs/foo/bar 
-/tmp/baz'.
-
-(*) When using HGFS on FreeBSD, if your current working directory is the 
-top-level HGFS mount (e.g. '/mnt/hgfs') and you run 'ls', you will 
-receive an "Invalid argument" error. The workaround is to change to 
-another directory and then run 'ls /mnt/hgfs'. Running 'ls' in 
-subdirectories of /mnt/hgfs works as expected.
 
 ===============================================================================

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,6 +46,7 @@
  ************************************************/
 
 #define HGFS_VMCI_VERSION_1          0x1
+#define HGFS_VMCI_VERSION_2          0x2
 
 typedef enum {
    HGFS_TS_IO_PENDING,
@@ -135,6 +136,39 @@ struct HgfsVmciTransportHeader {
 }
 #include "vmware_pack_end.h"
 HgfsVmciTransportHeader;
+
+/*
+ * Every VMCI request will have this transport Header sent over
+ * in the datagram by the Guest or the Host.
+ * This supersedes the above header and the HgfsVmciAsyncReply structure
+ * below.
+ *
+ * Used By : Guest and Host
+ * Lives in : Sent by Guest and Host inside VMCI datagram
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsVmciTransportHeaderV2 {
+   HgfsVmciHeaderNode node;                 /* Common node for all versions. */
+   uint32 size;                             /* Size of the header. */
+   uint64 pktId;                            /* Id corresponding to the request */
+   uint64 flags;                            /* flags to indicate state of the header */
+   uint32 pktDataSize;                      /* packet data size (not buffer size) */
+   uint64 reserved1;                        /* For future use, sender must zero */
+   uint64 reserved2;                        /* For future use, sender must zero  */
+   uint32 iovCount;                         /* Number of iovs to follow */
+   union {
+      HgfsIov iov[1];                       /* (PA, len) */
+      HgfsAsyncIov asyncIov[1];
+   };
+}
+#include "vmware_pack_end.h"
+HgfsVmciTransportHeaderV2;
+
+#define HGFS_VMCI_HDR_FLAGS_REQUEST          (1 << 0)    /* CLient to the server */
+#define HGFS_VMCI_HDR_FLAGS_REPLY            (1 << 1)    /* Server to the client */
+#define HGFS_VMCI_HDR_FLAGS_ASYNCIOV         (1 << 2)    /* IOV type is async */
+
 
 /*
  * Indicates status of VMCI requests. If the requests are processed sync

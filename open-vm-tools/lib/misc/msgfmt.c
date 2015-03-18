@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright 2007 VMware, Inc.  All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -17,9 +17,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -318,9 +315,9 @@ MsgFmt_ParseWin32(MsgFmt_LitFunc *litFunc,    // IN
          if (ubyte >= '1' && ubyte <= '9') {
             sm = 2;
          } else {
-            ASSERT_NOT_IMPLEMENTED(ubyte != '0' && ubyte != 'n');
+            VERIFY(ubyte != '0' && ubyte != 'n');
             status = (*litFunc)(clientData, startUnescaped,
-				in - 1 - startUnescaped);
+                                in - 1 - startUnescaped);
             if (status < 0) {
                return status;
             }
@@ -779,14 +776,14 @@ MsgFmtAToI(char const **start,	// IN/OUT: string pointer
    ASSERT_ON_COMPILE(sizeof (int) >= 4);
    for (p = *start; p < end && *p >= '0' && *p <= '9'; p++) {
       if (n > MAX_INT32 / 10) {
-	 n = -1;
-	 break;
+         n = -1;
+         break;
       }
       n *= 10;
       n += *p - '0';
       if (n < 0) {
-	 n = -1;
-	 break;
+         n = -1;
+         break;
       }
    }
    *start = p;
@@ -965,9 +962,8 @@ MsgFmt_GetArgsWithBuf(const char *fmt,	  // IN: format string
 	    }
 	 }
 #endif
-	 if (errorNumber != ERR_INVALID) {
-	    ASSERT_NOT_IMPLEMENTED(MSGFMT_CURRENT_PLATFORM !=
-				   MSGFMT_PLATFORM_UNKNOWN);
+	 if (errorNumber != ERR_INVALID &&
+	     MSGFMT_CURRENT_PLATFORM != MSGFMT_PLATFORM_UNKNOWN) {
 	    ASSERT_ON_COMPILE(sizeof errorNumber == sizeof a->e.number);
 	    a->type = MSGFMT_ARG_ERRNO;
 	    a->e.platform = MSGFMT_CURRENT_PLATFORM;
@@ -1575,7 +1571,7 @@ MsgFmtVasprintf(MsgFmtParseState *state,	// IN/OUT: state structure
    ASSERT(state->error == NULL);
    if (state->buf == NULL) {
       p = Str_Vasprintf(NULL, fmt, args);
-      ASSERT_MEM_ALLOC(p != NULL);
+      VERIFY(p != NULL);
    } else {
       int n;
       p = state->bufp;

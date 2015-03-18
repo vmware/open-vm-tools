@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,6 +34,7 @@
 #include "str.h"
 #include "dynbuf.h"
 #include "vm_ctype.h"
+#include "util.h"
 
 
 /*
@@ -95,7 +96,7 @@ StrUtil_GetNextToken(unsigned int *index,    // IN/OUT: Index to start at
    length = *index - startIndex;
    ASSERT(length);
    token = (char *)malloc(length + 1 /* NUL */);
-   ASSERT_MEM_ALLOC(token);
+   VERIFY(token);
    memcpy(token, str + startIndex, length);
    token[length] = '\0';
 
@@ -1089,7 +1090,7 @@ StrUtil_SafeDynBufPrintf(DynBuf *b,        // IN/OUT
    success = StrUtil_VDynBufPrintf(b, fmt, args);
    va_end(args);
 
-   ASSERT_MEM_ALLOC(success);
+   VERIFY(success);
 }
 
 
@@ -1119,10 +1120,10 @@ StrUtil_SafeStrcat(char **prefix,    // IN/OUT
    size_t slen = strlen(str);
 
    /* Check for overflow */
-   ASSERT_NOT_IMPLEMENTED((size_t)-1 - plen > slen + 1);
+   VERIFY((size_t)-1 - plen > slen + 1);
 
    tmp = realloc(*prefix, plen + slen + 1 /* NUL */);
-   ASSERT_MEM_ALLOC(tmp);
+   VERIFY(tmp);
 
    memcpy(tmp + plen, str, slen + 1 /* NUL */);
    *prefix = tmp;
@@ -1184,4 +1185,55 @@ StrUtil_SafeStrcatF(char **prefix,    // IN/OUT
    va_start(args, fmt);
    StrUtil_SafeStrcatFV(prefix, fmt, args);
    va_end(args);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_TrimWhitespace --
+ *
+ *      Return a copy of the input string with leading and trailing
+ *      whitespace removed.
+ *
+ * Results:
+ *      See above. Caller should free with free().
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+StrUtil_TrimWhitespace(const char *str)  // IN
+{
+   char *cur = (char *)str;
+   char *res = NULL;
+   size_t len;
+
+   /* Skip leading whitespace. */
+   while (*cur && isspace(*cur)) {
+      cur++;
+   }
+
+   /* Copy the remaining string. */
+   res = Util_SafeStrdup(cur);
+
+   /* Find the beginning of the trailing whitespace. */
+   len = strlen(res);
+   if (len == 0) {
+      return res;
+   }
+
+   cur = res + len - 1;
+   while (cur > res && isspace(*cur)) {
+      cur--;
+   }
+
+   /* Truncate it. */
+   cur++;
+   *cur = 0;
+
+   return res;
 }

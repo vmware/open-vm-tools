@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -525,13 +525,11 @@ Panic_Panic(const char *format,
 #endif
 
    /*
-    * Log panic information, and make sure we don't remove
-    * the log file on exit.
+    * Log panic information.
     */
 
    Log("%s", buf);
    Util_Backtrace(0);
-   Log_SetAlwaysKeep(TRUE);
 
    /*
     * Do the debugging steps early before we have a chance

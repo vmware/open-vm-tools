@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -445,7 +445,7 @@ MXUser_ControlRWLock(MXUserRWLock *lock,  // IN/OUT:
          if (LIKELY(acquireStats == NULL)) {
             MXUserAcquireStats *before;
 
-            acquireStats = Util_SafeCalloc(1, sizeof(*acquireStats));
+            acquireStats = Util_SafeCalloc(1, sizeof *acquireStats);
             MXUserAcquisitionStatsSetUp(&acquireStats->data);
 
             before = Atomic_ReadIfEqualWritePtr(&lock->acquireStatsMem, NULL,
@@ -465,7 +465,7 @@ MXUser_ControlRWLock(MXUserRWLock *lock,  // IN/OUT:
          if ((heldStats == NULL) && trackHeldTimes) {
             MXUserHeldStats *before;
 
-            heldStats = Util_SafeCalloc(1, sizeof(*heldStats));
+            heldStats = Util_SafeCalloc(1, sizeof *heldStats);
             MXUserBasicStatsSetUp(&heldStats->data, MXUSER_STAT_CLASS_HELD);
 
             before = Atomic_ReadIfEqualWritePtr(&lock->heldStatsMem, NULL,
@@ -558,10 +558,8 @@ MXUser_CreateRWLock(const char *userName,  // IN:
 {
    Bool lockInited;
    char *properName;
-   MXUserRWLock *lock;
    Bool useNative = MXUserNativeRWSupported();
-
-   lock = Util_SafeCalloc(1, sizeof(*lock));
+   MXUserRWLock *lock = Util_SafeCalloc(1, sizeof *lock);
 
    if (userName == NULL) {
       if (LIKELY(useNative)) {
@@ -733,7 +731,7 @@ MXUserGetHolderContext(MXUserRWLock *lock)  // IN:
    ASSERT(lock->holderTable);
 
    if (!HashTable_Lookup(lock->holderTable, threadID, (void **) &result)) {
-      HolderContext *newContext = Util_SafeMalloc(sizeof(HolderContext));
+      HolderContext *newContext = Util_SafeMalloc(sizeof *newContext);
 
       newContext->holdStart = 0;
       newContext->state = RW_UNLOCKED;
@@ -828,7 +826,8 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
                              NULL);  // non-stats
          }
 
-         MXUserAcquisitionSample(&acquireStats->data, TRUE, value != 0, value);
+         MXUserAcquisitionSample(&acquireStats->data, TRUE,
+                                 value > mxUserContentionDurationFloor, value);
 
          histo = Atomic_ReadPtr(&acquireStats->histo);
 

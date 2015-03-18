@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -137,7 +137,7 @@ DnD_CreateStagingDirectory(void)
          /* Each staging directory is given a random name. */
          Unicode_Free(ret);
          temp = Unicode_Format("%08x%c", Random_Quick(context), DIRSEPC);
-         ASSERT_MEM_ALLOC(temp);
+         VERIFY(temp);
          ret = Unicode_Append(root, temp);
          Unicode_Free(temp);
 

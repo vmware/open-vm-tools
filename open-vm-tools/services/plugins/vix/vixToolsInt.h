@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -65,6 +65,13 @@ void VixTools_SetConsoleUserPolicy(Bool allowConsoleUserOpsParam);
 
 void VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProgramDoneProc,
                                     void *clientData);
+
+gboolean VixTools_ConfigGetBoolean(GKeyFile *confDictRef,
+                                   const char *group,
+                                   const char *key,
+                                   gboolean defValue);
+
+void VixTools_RestrictCommands(gboolean restricted);
 
 /*
  * These are internal procedures that are exposed for the legacy

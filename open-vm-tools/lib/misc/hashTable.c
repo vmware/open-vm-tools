@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -236,14 +236,14 @@ HashTable_Alloc(uint32 numEntries,        // IN: must be a power of 2
       Panic("%s only takes powers of 2 \n", __FUNCTION__);
    }
 #ifdef NO_ATOMIC_HASHTABLE
-   ASSERT_NOT_IMPLEMENTED((keyType & HASH_FLAG_ATOMIC) == 0);
+   VERIFY((keyType & HASH_FLAG_ATOMIC) == 0);
 #endif
    ASSERT((keyType & HASH_FLAG_COPYKEY) == 0 ||
           ((keyType & HASH_TYPE_MASK) == HASH_STRING_KEY ||
            (keyType & HASH_TYPE_MASK) == HASH_ISTRING_KEY));
 
    ht = Util_SafeMalloc(sizeof *ht);
-   ASSERT_MEM_ALLOC(ht);
+   VERIFY(ht);
 
    ht->numBits = lssb32_0(numEntries);
    ht->numEntries = numEntries;

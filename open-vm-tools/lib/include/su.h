@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -115,13 +115,15 @@ Id_SetEGid(gid_t egid)
 #endif /* linux */
 
 #if defined(_WIN32)
-#define Id_BeginSuperUser() (-1)
-#define Id_EndSuperUser(uid)
-#define Id_IsSuperUser() TRUE
+static INLINE int Id_BeginSuperUser(void) { return -1; }
+static INLINE void Id_EndSuperUser(int id) { }
+static INLINE Bool Id_IsSuperUser(void) { return TRUE; }
+static INLINE Bool Id_IsSetUGid(void) { return FALSE; }
 #else
-#define Id_IsSuperUser() (0 == geteuid())
+static INLINE Bool Id_IsSuperUser(void) { return 0 == geteuid(); }
 uid_t Id_BeginSuperUser(void);
 void Id_EndSuperUser(uid_t uid);
+Bool Id_IsSetUGid(void);
 #endif
 
 #endif /* USER_SU_H */

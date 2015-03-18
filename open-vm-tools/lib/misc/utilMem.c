@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,7 @@
 #include <stdlib.h>
 
 #include "vm_assert.h"
+#include "util.h"
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
@@ -275,7 +276,7 @@ UtilSafeStrndup0(const char *s,        // IN:
    }
 
    null = memchr(s, '\0', n);
-   size = null ? null - s : n;
+   size = null ? (size_t)(null - s) : n;
    newSize = size + 1;
    if (newSize < size) {  // Prevent integer overflow
       copy = NULL;
@@ -310,7 +311,7 @@ UtilSafeStrndup1(const char *s,        // IN:
    }
 
    null = memchr(s, '\0', n);
-   size = null ? null - s : n;
+   size = null ? (size_t)(null - s) : n;
    newSize = size + 1;
    if (newSize < size) {  // Prevent integer overflow
       copy = NULL;

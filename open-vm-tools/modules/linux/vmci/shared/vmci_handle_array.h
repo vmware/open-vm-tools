@@ -40,13 +40,6 @@
 #include "vm_libc.h"
 #endif // VMKERNEL
 
-#ifdef SOLARIS
-#include <sys/ddi.h>
-#include <sys/kmem.h>
-#include <sys/types.h>
-#include <sys/systm.h>
-#endif
-
 #define VMCI_HANDLE_ARRAY_DEFAULT_SIZE 4
 
 typedef struct VMCIHandleArray {

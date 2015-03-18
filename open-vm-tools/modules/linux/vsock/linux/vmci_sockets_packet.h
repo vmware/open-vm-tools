@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +19,7 @@
 /*
  * vmci_sockets_packet.h --
  *
- *    Definition of VMCI Sockets packet format, constants, and types.
+ *    Definition of vSockets packet format, constants, and types.
  */
 
 #ifndef _VMCI_SOCKETS_PACKET_H_
@@ -108,51 +108,11 @@ typedef struct VSockPacket {
 } VSockPacket;
 
 /*
- * SEQPACKET packets.
- */
-
-#define VSOCK_SEQ_PACKET_VERSION_1 1
-#define VSOCK_SEQ_PACKET_VERSION   VSOCK_SEQ_PACKET_VERSION_1
-
-/* Get the packet's payload size in bytes. */
-#define VSOCK_SEQ_PACKET_PAYLOAD_SIZE(_pkt) \
-   (VMCI_DG_SIZE(&(_pkt)->hdr.dg) - (_pkt)->hdr.offset)
-
-/* Get a pointer to the packet's payload. */
-#define VSOCK_SEQ_PACKET_PAYLOAD(_pkt) \
-   (void *)((char *)_pkt + (_pkt)->hdr.offset)
-
-typedef enum VSockSeqPacketType {
-   VSOCK_SEQ_PACKET_TYPE_INVALID = 0,  // Invalid type.
-   VSOCK_SEQ_PACKET_TYPE_CONNECT,      // Connection request.
-   VSOCK_SEQ_PACKET_TYPE_DATA,         // Data.
-   VSOCK_SEQ_PACKET_TYPE_SHUTDOWN,     // Shutdown.
-   VSOCK_SEQ_PACKET_TYPE_CLOSE,        // Close (graceful or error).
-} VSockSeqPacketType;
-
-/* Header for all packet versions. */
-typedef struct VSockSeqPacketHdr {
-   VMCIDatagram dg;     // Datagram header.
-   uint8 version;       // Version.
-   uint8 type;          // Type of message.
-   uint16 offset;       // Offset of data from start of packet.
-   int32 val;           // Value.
-} VSockSeqPacketHdr;
-
-/* Combination of all versions. */
-typedef struct VSockSeqPacket {
-   VSockSeqPacketHdr hdr;
-   /* Other versions go here. */
-   /* Data is at base + hdr.offset. */
-} VSockSeqPacket;
-
-/*
  * Size assertions.
  */
 
 MY_ASSERTS(VSockSeqPacketAsserts,
    ASSERT_ON_COMPILE(sizeof (VSockPacket) == 56);
-   ASSERT_ON_COMPILE(sizeof (VSockSeqPacket) == 32);
 )
 
 #endif // _VMCI_SOCKETS_PACKET_H_

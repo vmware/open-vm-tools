@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright 2007 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
 ###
 ### Top-level Makefile for building the VMware OSS Tools.
 ###
@@ -30,9 +30,18 @@ SUBDIRS += hgfsclient
 if BUILD_HGFSMOUNTER
    SUBDIRS += hgfsmounter
 endif
+if ENABLE_VGAUTH
+   SUBDIRS += vgauth
+endif
 SUBDIRS += checkvm
 SUBDIRS += libguestlib
+if ENABLE_DEPLOYPKG
+   SUBDIRS += libDeployPkg
+endif
 SUBDIRS += rpctool
+if ENABLE_GRABBITMQPROXY
+   SUBDIRS += guestproxycerttool
+endif
 SUBDIRS += scripts
 SUBDIRS += services
 SUBDIRS += toolbox

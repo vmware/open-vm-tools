@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,7 +33,7 @@
 /*
  * x86cpuid_asm.h
  *
- *	CPUID-related assembly functions.
+ *      CPUID-related assembly functions.
  */
 
 #ifndef _X86CPUID_ASM_H_
@@ -60,10 +60,10 @@
  * an array of the names of all the intrinsics minus the leading
  * underscore.  Searching around in the ntddk.h file can also be helpful.
  *
- * The declarations for the intrinsic functions were taken from the DDK. 
+ * The declarations for the intrinsic functions were taken from the DDK.
  * Our declarations must match the ddk's otherwise the 64-bit c++ compiler
  * will complain about second linkage of the intrinsic functions.
- * We define the intrinsic using the basic types corresponding to the 
+ * We define the intrinsic using the basic types corresponding to the
  * Windows typedefs. This avoids having to include windows header files
  * to get to the windows types.
  */
@@ -75,7 +75,7 @@ extern "C" {
 /*
  * intrinsic functions only supported by x86-64 windows as of 2k3sp1
  */
-void             __cpuid(unsigned int*, unsigned int);
+void __cpuid(int regs[4], int eax);
 #pragma intrinsic(__cpuid)
 #endif /* VM_X86_64 */
 
@@ -89,7 +89,7 @@ void             __cpuid(unsigned int*, unsigned int);
 
 /*
  * Checked against the Intel manual and GCC --hpreg
- * 
+ *
  * Need __volatile__ and "memory" since CPUID has a synchronizing effect.
  * The CPUID may also change at runtime (APIC flag, etc).
  *
@@ -237,7 +237,7 @@ static INLINE void
 __GET_CPUID(int input, CPUIDRegs *regs)
 {
 #ifdef VM_X86_64
-   __cpuid((unsigned int *)regs, input);
+   __cpuid((int *)regs, input);
 #else
    __asm push esi
    __asm push ebx
@@ -300,7 +300,7 @@ __GET_EAX_FROM_CPUID(int input)
 {
 #ifdef VM_X86_64
    CPUIDRegs regs;
-   __cpuid((unsigned int *)&regs, input);
+   __cpuid((int *)&regs, input);
    return regs.eax;
 #else
    uint32 output;
@@ -327,7 +327,7 @@ __GET_EBX_FROM_CPUID(int input)
 {
 #ifdef VM_X86_64
    CPUIDRegs regs;
-   __cpuid((unsigned int *)&regs, input);
+   __cpuid((int *)&regs, input);
    return regs.ebx;
 #else
    uint32 output;
@@ -354,7 +354,7 @@ __GET_ECX_FROM_CPUID(int input)
 {
 #ifdef VM_X86_64
    CPUIDRegs regs;
-   __cpuid((unsigned int *)&regs, input);
+   __cpuid((int *)&regs, input);
    return regs.ecx;
 #else
    uint32 output;
@@ -381,7 +381,7 @@ __GET_EDX_FROM_CPUID(int input)
 {
 #ifdef VM_X86_64
    CPUIDRegs regs;
-   __cpuid((unsigned int *)&regs, input);
+   __cpuid((int *)&regs, input);
    return regs.edx;
 #else
    uint32 output;
@@ -440,7 +440,7 @@ __GET_EAX_FROM_CPUID4(int inputEcx)
 #endif // VM_X86_64
 
 #else // }
-#error 
+#error
 #endif
 
 #define CPUID_FOR_SIDE_EFFECTS() ((void)__GET_EAX_FROM_CPUID(0))

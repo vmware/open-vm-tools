@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,6 +31,7 @@
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"
+#include "vm_basic_defs.h"
 #include "x86cpuid.h"
 #include "unicodeTypes.h"
 
@@ -176,6 +177,7 @@ typedef enum {
    OS_VISTA                  = 8,
    OS_WINSEVEN               = 9,
    OS_WIN8                   = 10,
+   OS_WIN10                  = 11,
    OS_UNKNOWN                = 99999 // last, highest value
 } OS_TYPE;
 
@@ -203,6 +205,8 @@ typedef enum {
    OS_DETAIL_WIN2K8R2        = 21,
    OS_DETAIL_WIN8            = 22,
    OS_DETAIL_WIN8SERVER      = 23,
+   OS_DETAIL_WIN10           = 24,
+   OS_DETAIL_WIN10SERVER     = 25,
    OS_DETAIL_UNKNOWN         = 99999  // last, highest value
 } OS_DETAIL_TYPE;
 

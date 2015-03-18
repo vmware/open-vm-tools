@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1260,13 +1260,7 @@ GuestInfoServerSetOption(gpointer src,
       goto exit;
    }
 
-   ip = NetUtil_GetPrimaryIP();
-   if (ip == NULL) {
-      /*
-       * If there is any error, then return a blank string.
-       */
-      ip = Util_SafeStrdup("");
-   }
+   ip = GuestInfo_GetPrimaryIP();
 
    msg = g_strdup_printf("info-set guestinfo.ip %s", ip);
    ret = RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL);

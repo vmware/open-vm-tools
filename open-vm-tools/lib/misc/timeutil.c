@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -491,7 +491,7 @@ TimeUtil_PopulateWithCurrent(Bool local,       // IN
    } else {
       currentTime = gmtime_r(&utcTime, &tmbuf);
    }
-   ASSERT_NOT_IMPLEMENTED(currentTime);
+   VERIFY(currentTime);
    d->year   = 1900 + currentTime->tm_year;
    d->month  = currentTime->tm_mon + 1;
    d->day    = currentTime->tm_mday;

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,7 +31,7 @@
  * it is used in several different contexts. In particular it is called from
  * vsockAddr.c which gets compiled into both our kernel modules as well as
  * the user level vsock library. In the linux kernel we need different behavior
- * than external kernel modules using VMCI Sockets api inside the kernel.
+ * than external kernel modules using vSockets API inside the kernel.
  */
 
 #if defined VMX86_VMX
@@ -51,7 +51,7 @@
       /* In the kernel we can't call into the provider. */
 #     define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
 #  else // WINNT_DDK
-      /* In userland, just use the normal exported userlevel api. */
+      /* In userland, just use the normal exported userlevel API. */
 #     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
 #     include <windows.h>
 #  endif // WINNT_DDK
@@ -72,7 +72,7 @@
       extern int VSockVmci_GetAFValue(void);
 #     define VMCISockGetAFValueInt() VSockVmci_GetAFValue()
 #  else // __KERNEL__
-      /* In userland, just use the normal exported userlevel api. */
+      /* In userland, just use the normal exported userlevel API. */
 #     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
 #  endif
 #elif defined __APPLE__
@@ -189,7 +189,7 @@ __declspec(selectany) extern const WSAPROTOCOL_INFOW vsockProtocolInfos[] = {
       0,                         /* Assigned by Winsock. */
       { 1, 0 },                  /* Base provider. */
       0,                         /* Version 0. */
-      VMCI_SOCKETS_AF_VALUE,     /* VMCI sockets protocol. */
+      VMCI_SOCKETS_AF_VALUE,     /* vSockets protocol. */
       16,                        /* Maximum address length in bytes. */
       16,                        /* Minimum address length in bytes. */
       SOCK_DGRAM,                /* STREAM. */
@@ -199,7 +199,7 @@ __declspec(selectany) extern const WSAPROTOCOL_INFOW vsockProtocolInfos[] = {
       SECURITY_PROTOCOL_NONE,    /* No security. */
       0,                         /* Message size unimportant. */
       0,                         /* None. */
-      L"VMCI sockets DGRAM"      /* Protocol name. */
+      L"vSockets DGRAM"          /* Protocol name. */
    },
    {
       (XP1_GUARANTEED_DELIVERY | /* Guaranteed delivery. */
@@ -213,7 +213,7 @@ __declspec(selectany) extern const WSAPROTOCOL_INFOW vsockProtocolInfos[] = {
       0,                         /* Assigned by Winsock. */
       { 1, 0 },                  /* Base provider. */
       0,                         /* Version 0. */
-      VMCI_SOCKETS_AF_VALUE,     /* VMCI sockets protocol. */
+      VMCI_SOCKETS_AF_VALUE,     /* vSockets protocol. */
       16,                        /* Maximum address length in bytes. */
       16,                        /* Minimum address length in bytes. */
       SOCK_STREAM,               /* STREAM. */
@@ -223,7 +223,7 @@ __declspec(selectany) extern const WSAPROTOCOL_INFOW vsockProtocolInfos[] = {
       SECURITY_PROTOCOL_NONE,    /* No security. */
       0,                         /* Message size unimportant. */
       0,                         /* None. */
-      L"VMCI sockets STREAM"     /* Protocol name. */
+      L"vSockets STREAM"         /* Protocol name. */
    },
 };
 

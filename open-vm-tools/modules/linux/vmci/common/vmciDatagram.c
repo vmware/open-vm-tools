@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2011,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -622,7 +622,7 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
            VMCI_CanScheduleDelayedWork())) {
          VMCIDelayedDatagramInfo *dgInfo;
 
-         if (Atomic_FetchAndAdd(&delayedDGHostQueueSize, 1) ==
+         if (Atomic_ReadInc32(&delayedDGHostQueueSize) ==
              VMCI_MAX_DELAYED_DG_HOST_QUEUE_SIZE) {
             Atomic_Dec(&delayedDGHostQueueSize);
             VMCIResource_Release(resource);
@@ -692,7 +692,7 @@ VMCIDatagramDispatchAsHost(VMCIId contextID,  // IN:
          return VMCI_ERROR_NO_MEM;
       }
       memcpy(newDG, dg, dgSize);
-      retval = VMCIContext_EnqueueDatagram(dg->dst.context, newDG);
+      retval = VMCIContext_EnqueueDatagram(dg->dst.context, newDG, TRUE);
       if (retval < VMCI_SUCCESS) {
          VMCI_FreeKernelMem(newDG, dgSize);
          VMCI_DEBUG_LOG(4, (LGPFX"Enqueue failed\n"));
@@ -843,6 +843,12 @@ VMCIDatagram_InvokeGuestHandler(VMCIDatagram *dg) // IN
    DatagramEntry *dstEntry;
 
    ASSERT(dg);
+
+   if (dg->payloadSize > VMCI_MAX_DG_PAYLOAD_SIZE) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Payload (size=%"FMT64"u bytes) too large to "
+                         "deliver.\n", dg->payloadSize));
+      return VMCI_ERROR_PAYLOAD_TOO_LARGE;
+   }
 
    resource = VMCIResource_Get(dg->dst, VMCI_RESOURCE_TYPE_DATAGRAM);
    if (NULL == resource) {

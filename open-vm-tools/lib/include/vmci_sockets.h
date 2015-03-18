@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +19,7 @@
 /*
  * vmci_sockets.h --
  *
- *    VMCI sockets public constants and types.
+ *    vSockets public constants and types.
  */
 
 #ifndef _VMCI_SOCKETS_H_
@@ -581,9 +581,9 @@ struct uuid_2_cid {
     *
     * \brief Retrieve the address family value for vSockets.
     *
-    * Returns the value to be used for the VMCI Sockets address family.
+    * Returns the value to be used for the vSockets address family.
     * This value should be used as the domain argument to \c socket(2) (when
-    * you might otherwise use \c AF_INET).  For VMCI Socket-specific options,
+    * you might otherwise use \c AF_INET).  For vSocket-specific options,
     * this value should also be used for the level argument to
     * \c setsockopt(2) (when you might otherwise use \c SOL_TCP).
     *
@@ -672,9 +672,9 @@ struct uuid_2_cid {
     *
     * \brief Retrieve the address family value for vSockets.
     *
-    * Returns the value to be used for the VMCI Sockets address family.
+    * Returns the value to be used for the vSockets address family.
     * This value should be used as the domain argument to \c socket(2) (when
-    * you might otherwise use \c AF_INET).  For VMCI Socket-specific options,
+    * you might otherwise use \c AF_INET).  For vSocket-specific options,
     * this value should also be used for the level argument to
     * \c setsockopt(2) (when you might otherwise use \c SOL_TCP).
     *

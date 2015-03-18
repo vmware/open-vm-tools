@@ -1,0 +1,77 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+addsubj.fail = "%1$s : Échec de l'ajout de l'alias pour l'utilisateur '%2$s' : %3$s.\n"
+addsubj.success = "%1$s : alias ajouté\n"
+
+addoptions.comment = "commentaire de l'objet"
+
+addoptions.file = "Nom du fichier PEM"
+
+addoptions.global = "Ajouter le certificat au fichier de mappage global"
+
+addoptions.subject = "L'objet SAML"
+
+addoptions.username = "Utilisateur dont le magasin de certificats est en train d'être ajouté"
+
+addoptions.verbose = "Opération détaillée"
+
+
+cmdline.parse = "Échec de l'analyse de ligne de commande"
+
+cmdline.summary.pemfile = "Fichier PEM"
+cmdline.summary.subject = "objet"
+cmdline.summary.username = "nom d'utilisateur"
+cmdline.summary.comm = "commentaire"
+
+list.comment = "Commentaire"
+list.count = "%1$s A trouvé %2$d alias pour l'utilisateur '%3$s'\n"
+
+list.error = "%1$s : impossible de lister les alias pour l'utilisateur '%2$s' : %3$s.\n"
+list.subject = "Objet"
+
+listmapped.count = "%1$s A trouvé %2$d alias mappés\n"
+
+listmapped.error = "%1$s : impossible de lister les alias mappés : %2$s.\n"
+
+listmapped.subject = "Objet"
+
+listmapped.username = "Nom d'utilisateur"
+
+listoptions.username =
+         "Utilisateur dont le magasin de certificats est en cours d'interrogation"
+
+listoptions.verbose = "Opération détaillée"
+
+loadfile.fail = "%1$s : impossible de lire le fichier PEM '%2$s'\n"
+
+name.any = "<ANY>"
+
+removesubj.fail = "%1$s : impossible de supprimer l'alias pour l'utilisateur '%2$s' : %3$s.\n"
+
+removesubj.success = "%1$s : alias supprimé\n"
+
+removeoptions.file = "Nom du fichier PEM"
+
+removeoptions.subject = "L'objet SAML"
+removeoptions.username =
+             "Utilisateur dont le magasin de certificat est en cours de suppression"
+
+removeoptions.verbose = "Opération détaillée"
+
+vgauth.init.failed = "Échec de l'initialisation de VGAuth"

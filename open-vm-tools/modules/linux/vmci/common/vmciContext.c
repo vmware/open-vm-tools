@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2012,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -577,8 +577,9 @@ VMCIContext_PendingDatagrams(VMCIId cid,      // IN
  */
 
 int
-VMCIContext_EnqueueDatagram(VMCIId cid,        // IN: Target VM
-                            VMCIDatagram *dg)  // IN:
+VMCIContext_EnqueueDatagram(VMCIId cid,         // IN: Target VM
+                            VMCIDatagram *dg,   // IN:
+                            Bool notify)        // IN:
 {
    DatagramQueueEntry *dqEntry;
    VMCIContext *context;
@@ -648,8 +649,12 @@ VMCIContext_EnqueueDatagram(VMCIId cid,        // IN: Target VM
    VMCIList_Insert(&dqEntry->listItem, &context->datagramQueue);
    context->pendingDatagrams++;
    context->datagramQueueSize += vmciDgSize;
-   VMCIContextSignalNotify(context);
-   VMCIHost_SignalCall(&context->hostContext);
+
+   if (notify) {
+      VMCIContextSignalNotify(context);
+      VMCIHost_SignalCall(&context->hostContext);
+   }
+
    VMCI_ReleaseLock(&context->lock, flags);
    VMCIContext_Release(context);
 
@@ -809,7 +814,7 @@ VMCIContext_Release(VMCIContext *context)  // IN
 {
    uint32 refCount;
    ASSERT(context);
-   refCount = Atomic_FetchAndDec(&context->refCount);
+   refCount = Atomic_ReadDec32(&context->refCount);
    if (refCount == 1) {
       VMCIContextFreeContext(context);
    }
@@ -1489,6 +1494,143 @@ VMCIContextFireNotification(VMCIId contextID,             // IN
    return VMCI_SUCCESS;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContextDgHypervisorSaveStateSize --
+ *
+ *      Calculate the size for the hypervisor datagram checkpoint
+ *      save data.
+ *
+ *      The format is as follows:
+ *
+ *      uint32 count - number of entries
+ *      uint32 size  - size of first entry
+ *      char bytes[] - contents of first entry
+ *      uint32 size  - size of second entry
+ *      char bytes[] - contents of second entry
+ *      ...
+ *
+ * Results:
+ *      VMCI_SUCCESS on success, error code otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+VMCIContextDgHypervisorSaveStateSize(VMCIContext *context,  // IN
+                                     uint32 *bufSize,       // IN/OUT
+                                     char **cptBufPtr)      // UNUSED
+{
+   uint32 total;
+   VMCIListItem *iter;
+
+   *bufSize = total = 0;
+
+   VMCIList_Scan(iter, &context->datagramQueue) {
+      DatagramQueueEntry *dqEntry =
+         VMCIList_Entry(iter, DatagramQueueEntry, listItem);
+
+      if (dqEntry->dg->src.context == VMCI_HYPERVISOR_CONTEXT_ID) {
+         /* Size of the datagram followed by the contents of the datagram. */
+         total += sizeof(uint32) + dqEntry->dgSize;
+      }
+   }
+
+   if (total > 0) {
+      /* Don't forget the datagram count. */
+      *bufSize = total + sizeof(uint32);
+   }
+
+   return VMCI_SUCCESS;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContextDgHypervisorSaveState --
+ *
+ *      Get the hypervisor datagram checkpoint save data.
+ *
+ * Results:
+ *      VMCI_SUCCESS on success, error code otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+VMCIContextDgHypervisorSaveState(VMCIContext *context,   // IN
+                                 uint32 *bufSize,        // IN/OUT
+                                 char **cptBufPtr)       // OUT
+{
+   uint8 *p;
+   uint32 total;
+   uint32 count;
+   VMCIListItem *iter;
+
+   /* Need at least the count field and the size of one entry. */
+   if (*bufSize < sizeof(uint32) * 2) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   p = VMCI_AllocKernelMem(*bufSize, VMCI_MEMORY_NORMAL);
+   if (p == NULL) {
+      return VMCI_ERROR_NO_MEM;
+   }
+
+   *cptBufPtr = p;
+
+   /* Leave space for the datagram count at the start. */
+   total  = sizeof(uint32);
+   p     += sizeof(uint32);
+
+   count = 0;
+   VMCIList_Scan(iter, &context->datagramQueue) {
+      DatagramQueueEntry *dqEntry =
+         VMCIList_Entry(iter, DatagramQueueEntry, listItem);
+
+      if (dqEntry->dg->src.context == VMCI_HYPERVISOR_CONTEXT_ID) {
+
+         /*
+          * VMX might have capped the amount of space we can use to checkpoint
+          * hypervisor datagrams. Respect that here. Those that are not written
+          * to the buffer will get dropped.
+          */
+
+         if (total + sizeof(uint32) + dqEntry->dgSize > *bufSize) {
+            break;
+         }
+
+         total += sizeof(uint32) + dqEntry->dgSize;
+
+         /*
+          * Write in the size of the datagram followed by the contents of the
+          * datagram itself.
+          */
+
+         *(uint32 *)p = dqEntry->dgSize;
+         p += sizeof(uint32);
+
+         memcpy(p, dqEntry->dg, dqEntry->dgSize);
+         p += dqEntry->dgSize;
+
+         count++;
+      }
+   }
+
+   /* Now rollback and write the count at the start of the block. */
+   *(uint32 *)(*cptBufPtr) = count;
+
+   return VMCI_SUCCESS;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -1546,6 +1688,12 @@ VMCIContext_GetCheckpointState(VMCIId contextID,    // IN:
       ASSERT(context->doorbellArray);
       array = context->doorbellArray;
       getContextID = FALSE;
+   } else if (cptType == VMCI_DG_HYPERVISOR_SAVE_STATE_SIZE) {
+      result = VMCIContextDgHypervisorSaveStateSize(context, bufSize, cptBufPtr);
+      goto release;
+   } else if (cptType == VMCI_DG_HYPERVISOR_SAVE_STATE) {
+      result = VMCIContextDgHypervisorSaveState(context, bufSize, cptBufPtr);
+      goto release;
    } else {
       VMCI_DEBUG_LOG(4, (LGPFX"Invalid cpt state (type=%d).\n", cptType));
       result = VMCI_ERROR_INVALID_ARGS;
@@ -1589,10 +1737,9 @@ VMCIContext_GetCheckpointState(VMCIId contextID,    // IN:
    }
    result = VMCI_SUCCESS;
 
-  release:
+release:
    VMCI_ReleaseLock(&context->lock, flags);
    VMCIContext_Release(context);
-
    return result;
 }
 
@@ -2081,7 +2228,7 @@ VMCIContext_SignalPendingDoorbells(VMCIId contextID)
    VMCI_ReleaseLock(&context->lock, flags);
 
    if (pending) {
-      VMCIHost_SignalBitmap(&context->hostContext);
+      VMCIHost_SignalBitmapAlways(&context->hostContext);
    }
 
    VMCIContext_Release(context);
@@ -2125,7 +2272,7 @@ VMCIContext_SignalPendingDatagrams(VMCIId contextID)
    VMCI_ReleaseLock(&context->lock, flags);
 
    if (pending) {
-      VMCIHost_SignalCall(&context->hostContext);
+      VMCIHost_SignalCallAlways(&context->hostContext);
    }
 
    VMCIContext_Release(context);
@@ -2207,7 +2354,7 @@ VMCI_EXPORT_SYMBOL(vmci_is_context_owner)
 #if defined(linux) && !defined(VMKERNEL)
 int
 vmci_is_context_owner(VMCIId contextID,   // IN
-                      uid_t uid)          // IN
+                      VMCIHostUser uid)          // IN
 {
    int isOwner = 0;
 
@@ -2215,7 +2362,7 @@ vmci_is_context_owner(VMCIId contextID,   // IN
       VMCIContext *context = VMCIContext_Get(contextID);
       if (context) {
          if (context->validUser) {
-            if (VMCIHost_CompareUser((VMCIHostUser *)&uid,
+            if (VMCIHost_CompareUser(&uid,
                                      &context->user) == VMCI_SUCCESS) {
                isOwner = 1;
             }

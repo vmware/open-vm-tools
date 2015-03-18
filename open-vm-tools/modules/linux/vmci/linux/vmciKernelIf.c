@@ -428,11 +428,13 @@ int VMCIHost_CompareUser(VMCIHostUser *user1,
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   if (*user1 == *user2) {
-      return VMCI_SUCCESS;
-   } else {
-      return VMCI_ERROR_GENERIC;
-   }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+#  define vmw_uid_eq(a, b) uid_eq(a, b)
+#else
+#  define vmw_uid_eq(a, b) ((a) == (b))
+#endif
+
+   return vmw_uid_eq(*user1, *user2) ? VMCI_SUCCESS : VMCI_ERROR_GENERIC;
 }
 
 
@@ -930,8 +932,8 @@ VMCI_AllocQueue(uint64 size,  // IN: size of queue (not including header)
 
    for (i = 0; i < numPages; i++) {
       queue->kernelIf->u.g.vas[i] =
-         pci_alloc_consistent(vmci_pdev, PAGE_SIZE,
-                              &queue->kernelIf->u.g.pas[i]);
+         dma_alloc_coherent(&vmci_pdev->dev, PAGE_SIZE,
+                            &queue->kernelIf->u.g.pas[i], GFP_KERNEL);
       if (!queue->kernelIf->u.g.vas[i]) {
          VMCI_FreeQueue(queue, i * PAGE_SIZE); /* Size excl. the header. */
          return NULL;
@@ -973,9 +975,9 @@ VMCI_FreeQueue(void *q,     // IN:
 
       /* Given size does not include header, so add in a page here. */
       for (i = 0; i < CEILING(size, PAGE_SIZE) + 1; i++) {
-         pci_free_consistent(vmci_pdev, PAGE_SIZE,
-                             queue->kernelIf->u.g.vas[i],
-                             queue->kernelIf->u.g.pas[i]);
+         dma_free_coherent(&vmci_pdev->dev, PAGE_SIZE,
+                           queue->kernelIf->u.g.vas[i],
+                           queue->kernelIf->u.g.pas[i]);
       }
       vfree(queue);
    }

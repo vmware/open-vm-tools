@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -211,6 +211,7 @@ PollClassSet_Include(PollClassSet set, PollClass c)
 #define POLL_FLAG_WINSOCK               0x40    // Winsock style write events
 #define POLL_FLAG_FD                    0x80    // device is a Windows file descriptor.
 #define POLL_FLAG_ACCEPT_INVALID_FDS    0x100   // For broken 3rd party libs, e.g. curl
+#define POLL_FLAG_THUNK_TO_WND          0x200   // thunk callback to window message loop
 
 
 /*
@@ -227,6 +228,7 @@ typedef void (*PollerFunction)(void *clientData);
 typedef void (*PollerFireWrapper)(PollerFunction func,
                                   void *funcData,
                                   void *wrapperData);
+typedef Bool (*PollerErrorFn)(const char *errorStr);
 
 /*
  * Initialisers:
@@ -242,6 +244,7 @@ typedef struct PollOptions {
    VThreadID windowsMsgThread;       // thread that processes Windows messages
    PollerFireWrapper fireWrapperFn;  // optional; may be useful for stats
    void *fireWrapperData; // optional
+   PollerErrorFn errorFn; // optional; called upon unrecoverable error
 } PollOptions;
 
 
@@ -285,6 +288,8 @@ Bool Poll_CallbackRemoveOneByCB(PollClassSet classSet,
                                 PollEventType type,
                                 void **clientData);
 
+void Poll_NotifyChange(PollClassSet classSet);
+
 /*
  * Wrappers for Poll_Callback and Poll_CallbackRemove that present
  * simpler subsets of those interfaces.
@@ -310,5 +315,10 @@ Bool Poll_CB_RTimeRemove(PollerFunction f,
                          void *clientData,
                          Bool periodic);
 
+
+#ifdef _WIN32
+void Poll_SetWindowMessageRecipient(HANDLE hWnd, UINT msg, Bool alwaysThunk);
+Bool Poll_FireWndCallback(void *lparam);
+#endif
 
 #endif // _POLL_H_

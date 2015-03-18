@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################################################
-# Copyright (C) 2006-2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -27,10 +27,6 @@ usage()
 }
 
 
-TARFILE=vm-`date +%Y-%m-%d`.$$.tar
-VER=0.88
-OUTPUT_DIR=vm-support.$$
-
 # banner(): prints any number of strings padded with
 # newlines before and after.
 banner()
@@ -42,6 +38,7 @@ banner()
 	done
 	echo
 }
+
 
 # The status constants are important and have to be kept
 # in sync with VMware Workstation implementation
@@ -70,6 +67,27 @@ UpdateState()
    fi
 }
 
+
+# checkOutputDir(): checks for a self contained output
+# directory for later tar'ing and creates it if needed
+
+checkOutputDir()
+{
+   dir="$1"
+
+   if [ ! -d "${OUTPUT_DIR}$dir" ]; then
+      mkdir -p "${OUTPUT_DIR}$dir"
+
+      if [ $? != 0 ]; then
+         banner "Could not create ${OUTPUT_DIR}$dir... " \
+                "Have you run out of disk space?" "Continuing"
+         return -1
+      fi
+   fi
+   return 0
+}
+
+
 # addfile(): copies whatever files and directories you give it to
 # a self contained output directory for later tar'ing
 # Working on copies could slow this down with VERY large files but:
@@ -80,17 +98,16 @@ UpdateState()
 #    Copying file first makes sure tar doesn't complain
 addfile()
 {
-   file=$1
+   file="$1"
+
+   if [ ! -e "$file" ]; then
+      return
+   fi
 
    dir=`dirname "$file"`
-   if [ ! -d "${OUTPUT_DIR}$dir" ]; then
-      mkdir -p "${OUTPUT_DIR}$dir"
-
-      if [ $? != 0 ]; then
-         banner "Could not create ./${OUTPUT_DIR}$dir... " \
-                "Have you run out of disk space?" "Continuing"
-         return
-      fi
+   checkOutputDir "$dir"
+   if [ $? != 0 ]; then
+      return
    fi
 
    # Ignore stdout and handle errors.
@@ -110,21 +127,101 @@ addfiles()
 }
 
 
-# runcmd($cmd, $out): executes the command redirected to a file and then adds
-# that file to the list of files to tar. It then deletes the temp file since
-# addfile makes a copy in its own self-contained area.
+# addGrubFile(): adds a grub file to the archive after
+# replacing password hash with 'xxxxxx'
+addGrubFile()
+{
+   file="$1"
+
+   addfile "$file"
+   if [ $? != 0 ]; then
+      return
+   fi
+
+   # Avoid tempering with links
+   if [ ! -L "${OUTPUT_DIR}$file" ]; then
+      cat "${OUTPUT_DIR}$file" | \
+         sed 's/password[[:space:]]\+\(.*\)[[:space:]]\+\(.*\)$/password \1 xxxxxx/g' > \
+         "${OUTPUT_DIR}$file.modified"
+      mv "${OUTPUT_DIR}$file.modified" "${OUTPUT_DIR}$file"
+   fi
+}
+
+# runcmd($out, $cmd): executes the command redirected to a file
 runcmd()
 {
-	$1 > $2 2>/dev/null
+   outFileRelPath="$1"
+   shift # The command arguments are in "$@".
 
-	if [ $? != 0 ]; then
-	   echo 3
-		banner "Either could not run $1 or could not write to $2" \
-		       "Do you have a full disk? Continuing..."
-	else
-		addfile "$2"
-		rm -f "$2"
-	fi
+   dir=`dirname "$outFileRelPath"`
+   checkOutputDir "$dir"
+   if [ $? != 0 ]; then
+      return
+   fi
+
+   "$@" > "$OUTPUT_DIR$outFileRelPath" 2>/dev/null
+   if [ $? != 0 ]; then
+      echo 3
+         banner "Either could not run $@ or could not write to" \
+                "${OUTPUT_DIR}$outFileRelPath" \
+                "Do you have a full disk? Continuing..."
+   fi
+}
+
+
+# stageLinux(): gather information for troubleshooting Linux guests.
+stageLinux()
+{
+   # Try to collect bootloader config.
+   addfile /etc/lilo.conf
+
+   # And for grub we are not sure about the exact default location so collect them
+   # all.
+   addGrubFile /boot/grub/grub.conf
+   addGrubFile /boot/grub/menu.lst
+   addGrubFile /etc/grub.conf
+
+   # Old linux kernel use modules.conf while new kernel use modprobe.conf and modprobe.d
+   addfile /etc/modules.conf
+   addfile /etc/modprobe.conf
+   addfile /etc/modprobe.d
+
+   addfile /etc/cron.daily
+   addfile /etc/cron.hourly
+   addfile /etc/cron.monthly
+   addfile /etc/cron.weekly
+   addfile /etc/crontab
+   addfile /etc/ntp.conf
+   addfile /etc/security
+   addfile /etc/services
+   addfile /proc/interrupts
+   addfile /proc/irq
+
+   # Commands to run ($2) and redirect to logs ($1) for inclusion.
+   runcmd "/tmp/ps-auwwx.txt" ps auwwx
+   runcmd "/tmp/lspci1.txt" lspci -M -vvv -nn -xxxx
+   runcmd "/tmp/lspci2.txt" lspci -t -v -nn -F "${OUTPUT_DIR}/tmp/lspci1.txt"
+   runcmd "/tmp/lspci3.txt" lspci -vvv -nn
+   runcmd "/tmp/modules.txt" /sbin/lsmod
+   runcmd "/tmp/uname.txt" uname -a
+   runcmd "/tmp/issue.txt" cat /etc/issue
+   runcmd "/tmp/rpm-qa.txt" rpm -qa
+   runcmd "/tmp/netstat-lan.txt" netstat -lan
+   runcmd "/tmp/route.txt" route
+   runcmd "/tmp/free.txt" free
+}
+
+
+# stageFreeBSD(): gather information for troubleshooting FreeBSD guests.
+stageFreeBSD()
+{
+   runcmd "/tmp/ps-auwwx.txt" ps auwwx
+}
+
+# stageSolaris(): gather information for troubleshooting Solaris guests.
+stageSolaris()
+{
+   runcmd "/tmp/ps-eaf.txt" ps -eaf
 }
 
 
@@ -135,6 +232,31 @@ error()
    UpdateState $VMSUPPORT_ERROR
    exit 1
 }
+
+
+# Cleanup our temp folder and optionally exit.
+cleanup()
+{
+   exitCode="$1"
+
+   rm -rf "$OUTPUT_DIR"
+   if [ $? != 0 ]; then
+      banner "$OUTPUT_DIR was not successfully removed." \
+             "Please remove manually."
+   fi
+
+   if [ "$exitCode" ]; then
+      exit "$exitCode"
+   fi
+}
+
+
+# This executable may run with root privileges, so hardcode a PATH where
+# unprivileged users cannot write.
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+
+TARFILE=vm-`date +%Y-%m-%d`.$$.tar.gz
+VER=0.90
 
 # Parse args
 for option in $@
@@ -176,18 +298,32 @@ if [ `uname` != 'SunOS' ]; then
    unset IFS 2>/dev/null
 fi
 
-#	make a subdir to put all your files in.  die if it does not create
-mkdir $OUTPUT_DIR
-
+# Create a temporary directory to place the files to archive.
+#
+# o mktemp creates a new directory, with a random name, and gives it
+#   permissions 700 so only the current user (and root) can access the
+#   contents of the directory. This prevents a rogue user from:
+#   1) Guessing the name of the directory.
+#   2) Performing a symlink attack inside the directory.
+#   3) Reading data inside the directory, that only the current user (and root)
+#      are supposed to access.
+# o The directory is created inside /tmp, so only the current user (and root)
+#   can delete the directory. This prevents a rogue user from wholesale
+#   replacing the directory after we have created it, with a directory that has
+#   more lenient permissions.
+OUTPUT_DIR="`mktemp -d /tmp/vm-support.XXXXXX`"
 if [ $? != 0 ]; then
-	error "Could not create ./${OUTPUT_DIR}. Please cd to a directory to which "
-	      "you can write."
+   banner "Could not create a secure temporary directory. Exiting..."
+   exit 1
 fi
+
+# Cleanup our temp folder if the process is signalled midway.
+trap "cleanup 1" SIGHUP SIGINT SIGQUIT SIGTERM SIGABRT
 
 banner "Collecting support information..."
 
 # Common stuff that we gather for all OSes.
-runcmd "echo vm-support version: $VER" "/tmp/vm-support-version.$$.txt"
+runcmd "/tmp/vm-support-version.txt" echo vm-support version: $VER
 
 addfiles /etc/vmware-tools
 addfiles /var/log/boot*
@@ -196,102 +332,45 @@ addfiles /var/log/messages*
 addfiles /var/log/syslog*
 addfiles /var/run/vmware-*
 
-runcmd "df" "/tmp/df.$$.txt"
-runcmd "ifconfig -a" "/tmp/ifconfig.$$.txt"
-runcmd "mount" "/tmp/mount.$$.txt"
-runcmd "dmesg" "/tmp/dmesg.$$.txt"
-runcmd "ulimit -a" "/tmp/ulimit-a.$$.txt"
-runcmd "uptime" "/tmp/uptime.$$.txt"
-runcmd "date" "/tmp/date.$$.txt"
-runcmd "umask" "/tmp/umask.$$.txt"
-
-
-# stageLinux(): gather information for troubleshooting Linux guests.
-stageLinux()
-{
-   # Try to collect bootloader config.
-   if [ -e /etc/lilo.conf ]; then
-      addfiles /etc/lilo.conf
-   fi
-
-   # And for grub we are not sure about the exact default location so collect them
-   # all.
-   if [ -e /boot/grub/grub.conf ]; then
-      addfile /boot/grub/grub.conf
-   fi
-   if [ -e /boot/grub/menu.lst ]; then
-      addfile /boot/grub/menu.lst
-   fi
-   if [ -e /etc/grub.conf ]; then
-      addfile /etc/grub.conf
-   fi
-
-   addfile /etc/cron.daily
-   addfile /etc/cron.hourly
-   addfile /etc/cron.monthly
-   addfile /etc/cron.weekly
-   addfile /etc/crontab
-   addfile /etc/modules.conf
-   addfile /etc/ntp.conf
-   addfile /etc/security
-   addfile /etc/services
-
-   # Commands to run ($1) and redirect to logs ($2) for inclusion.
-   runcmd "ps auwwx" "/tmp/ps-auwwx.$$.txt"
-   runcmd "lspci -M -vvv -nn -xxxx" "/tmp/lspci1.$$.txt"
-   runcmd "lspci -t -v -nn -F ${OUTPUT_DIR}/tmp/lspci1.$$.txt" "/tmp/lspci2.$$.txt"
-   runcmd "lspci -vvv -nn" "/tmp/lspci3.$$.txt"
-   runcmd "/sbin/lsmod" "/tmp/modules.$$.txt"
-   runcmd "uname -a" "/tmp/uname.$$.txt"
-   runcmd "cat /etc/issue" "/tmp/issue.$$.txt"
-   runcmd "rpm -qa" "/tmp/rpm-qa.$$.txt"
-   runcmd "netstat -lan" "/tmp/netstat-lan.$$.txt"
-   runcmd "route" "/tmp/route.$$.txt"
-   runcmd "free" "/tmp/free.$$.txt"
-}
-
-
-# stageFreeBSD(): gather information for troubleshooting FreeBSD guests.
-stageFreeBSD()
-{
-   runcmd "ps auwwx" "/tmp/ps-auwwx.$$.txt"
-}
-
-# stageSolaris(): gather information for troubleshooting Solaris guests.
-stageSolaris()
-{
-   runcmd "ps eaf" "/tmp/ps-eaf.$$.txt"
-}
+runcmd "/tmp/df.txt" df
+runcmd "/tmp/ifconfig.txt" ifconfig -a
+runcmd "/tmp/mount.txt" mount
+runcmd "/tmp/dmesg.txt" dmesg
+runcmd "/tmp/ulimit-a.txt" ulimit -a
+runcmd "/tmp/uptime.txt" uptime
+runcmd "/tmp/date.txt" date
+runcmd "/tmp/umask.txt" umask
 
 case `uname` in
 Linux)
    stageLinux
    #	tar options: 'S' for sparse core files.
-   TAR_OPTS=-cSf
+   TAR_OPTS=-czSf
    ;;
 FreeBSD)
    stageFreeBSD
-   TAR_OPTS=-cf
+   TAR_OPTS=-czf
    ;;
 SunOS)
    stageSolaris
-   TAR_OPTS=-cf
+   TAR_OPTS=-czf
    ;;
 esac
 
 UpdateState $VMSUPPORT_RUNNING
 
 banner "Creating tar archive..."
-tar $TAR_OPTS $TARFILE $OUTPUT_DIR
-
+# Set umask to make diagnostic information unreadable to other users to avoid
+# possible information leakage.
+(umask 0077 && tar $TAR_OPTS $TARFILE $OUTPUT_DIR)
 if [ $? != 0 ]; then
 	banner "The tar process did not successfully complete!" \
 	       "If tar reports that a file changed while reading, please attempt " \
 	       "to rerun this script."
 fi
 
-gzip $TARFILE
-TARFILE=${TARFILE}.gz
+# Clean up temporary files
+trap - SIGHUP SIGINT SIGQUIT SIGTERM SIGABRT; cleanup
 
 banner "Uploading archive to host..."
 vmware-xferlogs enc $TARFILE 2>/dev/null
@@ -301,13 +380,5 @@ if [ $? != 0 ]; then
           "binary is not in the path, or you are not in a virtual machine."
 fi
 
-#	Clean up temporary files
-rm -rf $OUTPUT_DIR
-
-if [ $? != 0 ]; then
-	banner "$OUTPUT_DIR was not successfully removed.  Please remove manually."
-fi
-
 UpdateState $VMSUPPORT_ENDING
 banner "Done, support data available in '$TARFILE'."
-

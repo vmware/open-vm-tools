@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -252,7 +252,7 @@ Aligned_Malloc(size_t size) // IN
    void *buf;
 
    buf = Aligned_UnsafeMalloc(size);
-   ASSERT_MEM_ALLOC(buf);
+   VERIFY(buf);
    return buf;
 }
 
@@ -279,7 +279,7 @@ Aligned_Calloc(size_t nmemb, // IN
                size_t size)  // IN
 {
    void *buf = Aligned_Malloc(nmemb * size);
-   ASSERT_MEM_ALLOC(buf);
+   VERIFY(buf);
    memset(buf, 0, nmemb * size);
    return buf;
 }
@@ -372,7 +372,7 @@ Aligned_Realloc(void *buf,   // IN
       void *newbuf;
 
       newbuf = Aligned_UnsafeMalloc(size);
-      ASSERT_MEM_ALLOC(newbuf);
+      VERIFY(newbuf);
       memcpy(newbuf, buf, size);
       free(buf);
       return newbuf;

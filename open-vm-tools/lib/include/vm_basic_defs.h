@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,9 +26,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of VMware Inc. nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission of VMware Inc.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -68,7 +65,6 @@
 #define _VM_BASIC_DEFS_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
 #define INCLUDE_ALLOW_VMKERNEL
@@ -78,10 +74,6 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 #include "vm_basic_types.h" // For INLINE.
-
-#if defined VMKERNEL
-#include "vm_assert.h"      // For ASSERT_ON_COMPILE.
-#endif
 
 /* Checks for FreeBSD, filtering out VMKERNEL. */
 #define __IS_FREEBSD__ (!defined(VMKERNEL) && defined(__FreeBSD__))
@@ -108,6 +100,7 @@
 // XXX the _WIN32 one matches that of VC++, to prevent redefinition warning
 // XXX the other one matches that of gcc3.3.3/glibc2.2.4 to prevent redefinition warnings
 #ifndef offsetof
+#define VMW_DEFINED_OFFSETOF
 #ifdef _WIN32
 #define offsetof(s,m)   (size_t)&(((s *)0)->m)
 #else
@@ -116,8 +109,16 @@
 #endif
 #endif // __APPLE__
 
+/*
+ * This is necessary until we eliminate the inclusion of <windows.h> above.
+ * At that time, it should be possible to use "offsetof" everywhere.
+ */
+#ifndef vmw_offsetof
+#define vmw_offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#endif
+
 #define VMW_CONTAINER_OF(ptr, type, member) \
-   ((type *)((char *)(ptr) - offsetof(type, member)))
+   ((type *)((char *)(ptr) - vmw_offsetof(type, member)))
 
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(a) (sizeof (a) / sizeof *(a))
@@ -321,10 +322,6 @@ Max(int a, int b)
 #define VM_PAE_LARGE_2_SMALL_PAGES (BYTES_2_PAGES(VM_PAE_LARGE_PAGE_SIZE))
 #endif
 
-#ifndef NR_MPNS_PER_PAGE
-#define NR_MPNS_PER_PAGE (PAGE_SIZE / sizeof(MPN))
-#endif
-
 /*
  * Word operations
  */
@@ -373,23 +370,6 @@ void *_ReturnAddress(void);
 #define GetReturnAddress() _ReturnAddress()
 #elif __GNUC__
 #define GetReturnAddress() __builtin_return_address(0)
-
-#ifdef VMKERNEL
-/*
- * Using __builtin_frame_address(N) and__builtin_return_address(N)
- * with N >= 1 causes crashes for code compiled without frame pointers.
- * Use Stackwalk_ReturnAddress(N) instead. Or, to collect a backtrace 
- * fragment, use STACKWALK_STORE_BACKTRACE().
- */
-#define __builtin_frame_address(N) ({           \
-         ASSERT_ON_COMPILE(N == 0);             \
-         __builtin_frame_address(N);            \
-      })
-#define __builtin_return_address(N) ({          \
-         ASSERT_ON_COMPILE(N == 0);             \
-         __builtin_return_address(N);           \
-      })
-#endif
 #endif
 
 
@@ -755,5 +735,27 @@ typedef int pid_t;
 #else
 #define VISIBILITY_HIDDEN /* nothing */
 #endif
+
+
+/*
+ * Bitfield extraction.
+ */
+
+#define EXTRACT_BITSLICE32(_val , _lsb, _msb)  \
+   (((uint32)(_val) << (31 - (_msb))) >> ((31 - (_msb)) + (_lsb)))
+#define EXTRACT_BITFIELD32(_val, _pos, _len) \
+   EXTRACT_BITSLICE32((_val), (_pos), ((_pos) + (_len) - 1))
+#define EXTRACT_BITSLICE64(_val, _lsb, _msb) \
+   (((uint64)(_val) << (63 - (_msb))) >> ((63 - (_msb)) + (_lsb)))
+#define EXTRACT_BITFIELD64(_val, _pos, _len) \
+   EXTRACT_BITSLICE64((_val), (_pos), ((_pos) + (_len) - 1))
+
+/*
+ * Typical cache line size.  Use this for aligning structures to cache
+ * lines for performance, but do not rely on it for correctness.
+ */
+#define CACHELINE_SIZE             64
+#define CACHELINE_ALIGNMENT_MASK   (CACHELINE_SIZE - 1)
+
 
 #endif // ifndef _VM_BASIC_DEFS_H_

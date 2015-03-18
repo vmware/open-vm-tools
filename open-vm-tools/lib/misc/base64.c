@@ -195,19 +195,20 @@ Base64_Encode(uint8 const *src,  // IN:
               size_t srcSize,    // IN:
               char *dst,         // OUT:
               size_t dstMax,     // IN: max result length, including NUL byte
-              size_t *dstSize)   // OUT: result length, may be NULL
+              size_t *dstSize)   // OUT/OPT: result length
 {
    char *dst0 = dst;
+   Bool retval = TRUE;
 
    ASSERT(src || srcSize == 0);
    ASSERT(dst);
 
-   if (4 * ((srcSize + 2) / 3) >= dstMax) {
-      if (dstSize) {
-         *dstSize = 0;
-      }
-
-      return FALSE;
+   /* Security: Carefully written to avoid fixed arithmetic attacks. */
+   if (   srcSize + 2 < srcSize
+       || dstMax < 1
+       || (srcSize + 2) / 3 > (dstMax - 1) / 4) {
+      retval = FALSE;
+      goto exit;
    }
 
    while (LIKELY(srcSize > 2)) {
@@ -233,11 +234,13 @@ Base64_Encode(uint8 const *src,  // IN:
    }
 
    dst[0] = '\0';	/* Returned value doesn't count \0. */
+
+exit:
    if (dstSize) {
       *dstSize = dst - dst0;
    }
 
-   return TRUE;
+   return retval;
 }
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,6 +46,7 @@
    #include "errno.h"
 #endif
 #include "vm_assert.h"
+#include "vm_basic_defs.h"
 #include "unicodeTypes.h"
 
 
@@ -102,6 +103,11 @@ typedef struct UtilSingleUseResource UtilSingleUseResource;
 UtilSingleUseResource *Util_SingleUseAcquire(const char *name);
 void Util_SingleUseRelease(UtilSingleUseResource *res);
 
+#ifndef _WIN32
+Bool Util_IPv4AddrValid(const char *addr);
+Bool Util_IPv6AddrValid(const char *addr);
+Bool Util_IPAddrValid(const char *addr);
+#endif
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
 Bool Util_GetProcessName(pid_t pid, char *bufOut, size_t bufOutSize);
@@ -277,12 +283,16 @@ Bool Util_MakeSureDirExistsAndAccessible(char const *path,
 #   define DIRSEPC_W	      L'\\'
 #   define VALID_DIRSEPS      "\\/"
 #   define VALID_DIRSEPS_W    L"\\/"
+#   define CUR_DIRS_W         L"."
+#   define CUR_DIRC_W         L'.'
 #else
 #   define DIRSEPS	      "/"
 #   define DIRSEPC	      '/'
 #   define VALID_DIRSEPS      DIRSEPS
 #endif
 
+#define CURR_DIRS             "."
+#define CURR_DIRC             '.'
 
 /*
  *-----------------------------------------------------------------------
@@ -339,7 +349,7 @@ char *UtilSafeStrndup0(const char *s, size_t n);
 char *UtilSafeStrndup1(const char *s, size_t n,
                       int bugNumber, const char *file, int lineno);
 
-/* 
+/*
  * Debug builds carry extra arguments into the allocation functions for
  * better error reporting. Non-debug builds don't pay this extra overhead.
  */
@@ -442,6 +452,12 @@ Util_Zero(void *buf,       // OUT
       SecureZeroMemory(buf, bufSize);
 #else
       memset(buf, 0, bufSize);
+#if !defined _WIN32
+      /*
+       * Memset calls before free might be optimized out.  See PR1248269.
+       */
+      __asm__ __volatile__("" : : "r"(&buf) : "memory");
+#endif
 #endif
    }
 }
@@ -635,8 +651,7 @@ Util_FreeStringList(char **list,      // IN/OUT: the list to free
 static INLINE Bool
 Util_IsFileDescriptorOpen(int fd)   // IN
 {
-   lseek(fd, 0L, SEEK_CUR);
-   return errno != EBADF;
+   return (lseek(fd, 0L, SEEK_CUR) == -1) ? errno != EBADF : TRUE;
 }
 #endif /* !_WIN32 */
 

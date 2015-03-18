@@ -1,0 +1,77 @@
+##########################################################
+# Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+addsubj.fail = "%1$s: Fehler beim Hinzufügen eines Alias für Benutzer '%2$s': %3$s.\n"
+addsubj.success = "%1$s: Alias hinzugefügt\n"
+
+addoptions.comment = "Betreff Kommentar"
+
+addoptions.file = "Name der PEM-Datei"
+
+addoptions.global = "Zertifikat zur globalen Zuordnungsdatei hinzufügen"
+
+addoptions.subject = "SAML-Betreff"
+
+addoptions.username = "Benutzer, in dessen Zertifikatspeicher Hinzufügung erfolgt"
+
+addoptions.verbose = "Ausführlicher Vorgang"
+
+
+cmdline.parse = "Fehler beim Parsen der Befehlszeile"
+
+cmdline.summary.pemfile = "PEM-Datei"
+cmdline.summary.subject = "Betreff"
+cmdline.summary.username = "Benutzername"
+cmdline.summary.comm = "Kommentar"
+
+list.comment = "Kommentar"
+list.count = "%1$s Gefunden: %2$d Aliase für Benutzer '%3$s'\n"
+
+list.error = "%1$s: Fehler beim Auflisten von Aliasen für Benutzer '%2$s': %3$s.\n"
+list.subject = "Betreff"
+
+listmapped.count = "%1$s Gefunden: %2$d zugeordnete Aliase\n"
+
+listmapped.error = "%1$s: Fehler beim Auflisten von zugeordneten Aliasen: %2$s.\n"
+
+listmapped.subject = "Betreff"
+
+listmapped.username = "Benutzername"
+
+listoptions.username =
+         "Benutzer, dessen Zertifikatspeicher abgefragt wird"
+
+listoptions.verbose = "Ausführlicher Vorgang"
+
+loadfile.fail = "%1$s: Fehler beim Lesen von PEM-Datei '%2$s'\n"
+
+name.any = "<ALLE>"
+
+removesubj.fail = "%1$s: Fehler beim Löschen eines Alias für Benutzer '%2$s': %3$s.\n"
+
+removesubj.success = "%1$s: Alias gelöscht\n"
+
+removeoptions.file = "Name der PEM-Datei"
+
+removeoptions.subject = "SAML-Betreff"
+removeoptions.username =
+             "Benutzer, in dessen Zertifikatspeicher Löschvorgang erfolgt"
+
+removeoptions.verbose = "Ausführlicher Vorgang"
+
+vgauth.init.failed = "Fehler beim Initialisieren von VGAuth"

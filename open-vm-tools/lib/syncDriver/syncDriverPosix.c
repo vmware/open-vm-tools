@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,6 +41,45 @@ static SyncFreezeFn gBackends[] = {
 #endif
 };
 
+static const char *gRemoteFSTypes[] = {
+   "nfs",
+   "nfs4",
+   "smbfs",
+   "cifs",
+   "vmhgfs"
+};
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SyncDriverIsRemoteFSType  --
+ *
+ *    Checks whether a filesystem is remote or not
+ *
+ * Results:
+ *    Returns TRUE for remote filesystem types, otherwise FALSE.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+SyncDriverIsRemoteFSType(const char *fsType)
+{
+   size_t i;
+
+   for (i = 0; i < ARRAYSIZE(gRemoteFSTypes); i++) {
+      if (Str_Strcmp(gRemoteFSTypes[i], fsType) == 0) {
+         return TRUE;
+      }
+   }
+
+   return FALSE;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -80,6 +119,16 @@ SyncDriverListMounts(void)
    DynBuf_Init(&buf);
 
    while (GETNEXT_MNTINFO(mounts, mntinfo)) {
+      /*
+       * Skip remote mounts because they are not freezable and opening them
+       * could lead to hangs. See PR 1196785.
+       */
+      if (SyncDriverIsRemoteFSType(MNTINFO_FSTYPE(mntinfo))) {
+         Debug(LGPFX "Skipping remote filesystem, name=%s, mntpt=%s.\n",
+               MNTINFO_NAME(mntinfo), MNTINFO_MNTPT(mntinfo));
+         continue;
+      }
+
       /*
        * Add a separator if it's not the first path, and add the path to the
        * tail of the list.
@@ -147,7 +196,7 @@ SyncDriver_Init(void)
  *    follow the order in the "gBackends" array, and keep on trying different
  *    backends while SD_UNAVAILABLE is returned. If all backends are
  *    unavailable (unlikely given the "null" backend), the the function returns
- *    error.
+ *    error. NullDriver will be tried only if enableNullDriver is TRUE.
  *
  * Results:
  *    TRUE on success
@@ -161,6 +210,7 @@ SyncDriver_Init(void)
 
 Bool
 SyncDriver_Freeze(const char *userPaths,     // IN
+                  Bool enableNullDriver,     // IN
                   SyncDriverHandle *handle)  // OUT
 {
    char *paths = NULL;
@@ -170,8 +220,15 @@ SyncDriver_Freeze(const char *userPaths,     // IN
    /*
     * First, convert the given path list to something the backends will
     * understand: a colon-separated list of paths.
+    *
+    * NOTE: Ignore disk UUIDs. We ignore the userPaths if it does
+    * not start with '/' because all paths are absolute and it is
+    * possible only when we get diskUUID as userPaths. So, all
+    * mount points are considered instead of the userPaths provided.
     */
-   if (userPaths == NULL || Str_Strncmp(userPaths, "all", sizeof "all") == 0) {
+   if (userPaths == NULL ||
+       Str_Strncmp(userPaths, "all", sizeof "all") == 0 ||
+       *userPaths != '/') {
       paths = SyncDriverListMounts();
       if (paths == NULL) {
          Debug(LGPFX "Failed to list mount points.\n");
@@ -192,7 +249,14 @@ SyncDriver_Freeze(const char *userPaths,     // IN
    }
 
    while (err == SD_UNAVAILABLE && i < ARRAYSIZE(gBackends)) {
-      err = gBackends[i++](paths, handle);
+      SyncFreezeFn freezeFn = gBackends[i++];
+#if defined(__linux__) && !defined(USERWORLD)
+      if (!enableNullDriver && (freezeFn == NullDriver_Freeze)) {
+         Debug(LGPFX "Skipping nullDriver backend.\n");
+         continue;
+      }
+#endif
+      err = freezeFn(paths, handle);
    }
 
    free(paths);

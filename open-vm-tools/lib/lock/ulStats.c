@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,8 +33,9 @@
 
 #define BINS_PER_DECADE 100
 
-static double mxUserContentionRatio = 0.0;  // always "off"
-static uint64 mxUserContentionCount = 0;    // always "off"
+static double mxUserContentionRatioFloor = 0.0;   // always "off"
+static uint64 mxUserContentionCountFloor = 0;     // always "off"
+VmTimeType    mxUserContentionDurationFloor = 0;  // always "off"
 
 static Atomic_Ptr mxLockMemPtr;   // internal singleton lock
 static ListItem *mxUserLockList;  // list of all MXUser locks
@@ -197,11 +198,11 @@ MXUserHistoSetUp(char *typeName,   // type (name) of histogram
    ASSERT(decades > 0);
    ASSERT((minValue != 0) && ((minValue == 1) || ((minValue % 10) == 0)));
 
-   histo = Util_SafeCalloc(sizeof(*histo), 1);
+   histo = Util_SafeCalloc(1, sizeof *histo);
 
    histo->typeName = Util_SafeStrdup(typeName);
    histo->numBins = BINS_PER_DECADE * decades;
-   histo->binData = Util_SafeCalloc(sizeof(uint64), histo->numBins);
+   histo->binData = Util_SafeCalloc(histo->numBins, sizeof(uint64));
    histo->totalSamples = 0;
    histo->minValue = minValue;
 
@@ -776,7 +777,7 @@ MXUserKitchen(MXUserAcquisitionStats *stats,  // IN:
     * How much "heat" is this lock generating?
     */
 
-   if (stats->numAttempts == 0) {
+   if (stats->numAttempts < mxUserContentionCountFloor) {
       *contentionRatio = 0.0;
    } else {
       double basic;
@@ -801,22 +802,22 @@ MXUserKitchen(MXUserAcquisitionStats *stats,  // IN:
    /*
     * Handle the explicit control cases.
     *
-    * An mxUserContentionCount value of zero (0) forces all locks to be
+    * An mxUserContentionCountFloor value of zero (0) forces all locks to be
     * considered "cold", regardless of their activity.
     *
-    * An mxUserContentionCount value of ~((uint64) 0) (all Fs) forces all
+    * An mxUserContentionCountFloor value of ~((uint64) 0) (all Fs) forces all
     * locks to be considered "hot" regardless of their activity, with the
     * side effect that no logging of "temperature changes" is done.
     */
 
-   if (mxUserContentionCount == 0) {              // never "hot"
+   if (mxUserContentionCountFloor == 0) {              // never "hot"
       *isHot = FALSE;
       *doLog = FALSE;
 
       return;
    }
 
-   if (mxUserContentionCount == ~((uint64) 0)) {  // always "hot"; no logging
+   if (mxUserContentionCountFloor == ~((uint64) 0)) {  // always "hot"; no logging
       *isHot = TRUE;
       *doLog = FALSE;
 
@@ -827,12 +828,12 @@ MXUserKitchen(MXUserAcquisitionStats *stats,  // IN:
     * Did the thermostat trip?
     */
 
-   ASSERT((mxUserContentionRatio > 0.0) && (mxUserContentionRatio <= 1.0));
+   ASSERT((mxUserContentionRatioFloor > 0.0) && (mxUserContentionRatioFloor <= 1.0));
 
-   if (*contentionRatio >= mxUserContentionRatio) {  // Yes
+   if (*contentionRatio > mxUserContentionRatioFloor) {  // Yes
       *isHot = TRUE;
       *doLog = TRUE;
-   } else {                                          // No
+   } else {                                              // No
       *doLog = FALSE;
       *isHot = FALSE;
    }
@@ -857,13 +858,15 @@ MXUserKitchen(MXUserAcquisitionStats *stats,  // IN:
  */
 
 void
-MXUser_StatisticsControl(double contentionRatio,  // IN:
-                         uint64 minCount)         // IN:
+MXUser_StatisticsControl(double contentionRatioFloor,     // IN:
+                         uint64 minAccessCountFloor,      // IN:
+                         uint64 contentionDurationFloor)  // IN: ns
 {
-   ASSERT((contentionRatio > 0.0) && (contentionRatio <= 1.0));
+   ASSERT((contentionRatioFloor > 0.0) && (contentionRatioFloor <= 1.0));
 
-   mxUserContentionRatio = contentionRatio;
-   mxUserContentionCount = minCount;
+   mxUserContentionRatioFloor = contentionRatioFloor;
+   mxUserContentionCountFloor = minAccessCountFloor;
+   mxUserContentionDurationFloor = contentionDurationFloor;
 }
 
 
@@ -1066,5 +1069,5 @@ MXUserAllocSerialNumber(void)
 {
    static Atomic_uint32 firstFreeSerialNumber = { 1 };  // must start not zero
 
-   return Atomic_FetchAndInc(&firstFreeSerialNumber);
+   return Atomic_ReadInc32(&firstFreeSerialNumber);
 }

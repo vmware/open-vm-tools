@@ -1234,9 +1234,9 @@ vmci_qpair_peek(VMCIQPair *qpair,    // IN
 }
 
 
-#if defined (SOLARIS) || (defined(__APPLE__) && !defined (VMX86_TOOLS)) || \
-    (defined(__linux__) && defined(__KERNEL__)) || \
-    (defined(_WIN32) && defined(WINNT_DDK))
+#if (defined(__APPLE__) && !defined (VMX86_TOOLS)) || \
+    (defined(__linux__) && defined(__KERNEL__))    || \
+    (defined(_WIN32)    && defined(WINNT_DDK))
 
 /*
  *-----------------------------------------------------------------------------

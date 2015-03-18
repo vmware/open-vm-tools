@@ -1,6 +1,1670 @@
-2013.09.16  Dmitry Torokhov  <dtor@vmware.com>
-	This release tag contains commits up to the following id:
-	112e1dfdd1884f189363ce5692c991170b0791fb
+2015.03.12  Douglas Souders  <dsouders@vmware.com> 
+
+Major areas of change in this release are:
+
+	* vgauth added
+
+	* deploypkg added
+
+	* guest proxycerttool added
+
+	* hgfs and vmci/vsock fixes
+
+	* asyncsocket enhancements
+
+	* library fixes and improvements
+
+	* locking and logging fixes and improvements
+
+	* foundry fixes
+
+	* vm-support script fixes
+
+Detailed list of changes:
+
+	* Security enhancements in support scripts for Tools.
+	  
+	  Using predictable temporary filenames is a security hole
+	  that attackers can exploit.  Avoid using temp files in
+	  this case. Also make vm-support temp files unreadable
+	  by other users and clean up in case of premature
+	  termination of the script.
+	  
+	* Add SIGABRT handling in support scripts.
+
+	* File_GetUniqueFileSystemID(): return /vmfs/devices for DEVFS
+	  
+	  Calling File_GetUniqueFileSystemID() to get the fsid for 
+	  "/vmfs/devices/deltadisks/666d6bd4-xp-000001-delta.vmdk"
+	  returned NULL, which caused problems in VmxAIOMgrReopen().
+
+	* Promote CACHELINE_SIZE definition to vm_basic_defs.h
+	  
+	  Delete redundant definitions as well, and improve the
+	  comment.
+	  
+	* AsyncSocket: Make dual stack listener work properly with AsyncSocket_WaitForConnection
+	  
+	  Dual stack listener sockets now use a master AsyncSocket
+	  structure to hold both active socket listener structures. 
+	  This works well with the recv on callback because the
+	  master struct is not used for the accept.  In the case of
+	  AsyncSocket_WaitForConnection for listener sockets, we
+	  pass the master AsyncSocket listener structure to the
+	  function and AsyncSocketPoll had no idea what to do with
+	  it.  Add the logic needed to AsyncSocketPoll that would
+	  allow listening on two socket file descriptors if
+	  available. 
+	  
+	  There are other users of AsyncSocketPoll. A few that are
+	  not used for listners and others are not ready to handle
+	  dual-stack listeners, give the later an assert on dual
+	  stack listeners.
+	  
+	  For now we favor IPv4 over IPv6 in AsyncSocket, but
+	  AsyncSocketPoll will favor the opposite because it is only
+	  selected in a race condition with two fd's returning
+	  poll events with no performance impact.
+
+	* AsyncSocket: Provide correct error when we fail to create dual stack listener
+	  
+	  We had a assumption in AsyncSocketListenerCreate that
+	  accounted for address not resolving, but not for a actual
+	  failure after dual stack resolve. Clean up those
+	  assumptions and fail properly. It is still a bit messy
+	  since if we have two failures for each socket, we only get
+	  one of them, lets hope that the failure never differ. Add
+	  better logging to the failure paths to cover this issue
+	  possible	error mismatch and to better triage this error
+	  path in all builds. 
+	  
+	* Fix memory access after being freed in function
+	  File_GetUniqueFileSystemID() in filePosix.c
+	  
+	* Add some debug logs to RPCs received in guest.
+	  
+	  In order to debug RPC failure on TCLO commands, add
+	  verbose RPC handling logs from guest.
+	  
+	* GOS table: add asianux5-64, debian8 and debian8-64
+	  
+	* Ensure statically assigned IPs and prefix lengths are retrievable from GuestInfo when nic is in disconnected state
+	  
+	  SRM needs to see the statically assigned IP and
+	  prefix/subnetMask info for disconnected nics on Windows
+	  OS's starting with XPSP3.
+
+	  1. Vista and later return this info, but we were not using
+	  the OnLinkPrefixLength field to get it. Now we do.
+
+	  2. For XP and Win2K3, we fall back to registry as those
+	  OS's wont report NIC IP info in a disconnected state. We
+	  only report IPv4 static assignments, and we don't bother
+	  reporting the auto-assign addresses.
+
+	  3. Also fix a bug in the domain name SearchList logic -
+	  a disconnected Nic will cause empty IPs to be reported,
+	  which thwarted the existing registry crawl in the
+	  disconnected nic state.
+
+	* GOS Table: add support for Mac OS X 10.10 (a.k.a. Darwin 14)
+	  
+	* Util_IsFileDescriptorOpen is incorrect
+	  
+	  The errno usage here is incorrect.  Check for
+	  success or	failure on a system call properly to use errno.
+	  
+	* GOS table: add Windows 9 support
+	  
+	* Keep memset from being optimized out of Util_Zero.
+	  
+	* Add overflow protection to Base64_Encode
+	  
+	* Restrict VIX commands during quiesced snapshot operation.
+	  
+	  Most of the VIX commands require access to the guest
+	  filesystem and therefore they could block when quiesced
+	  snapshot operation has frozen the guest filesystem. A
+	  blocked VIX command would not allow Tools service to
+	  process other important ops like resuming filesystem
+	  because Tools service is single threaded. Effectively,
+	  a VIX	command could deadlock the quiesce snapshot
+	  operation.
+	  
+	  A quiesce snapshot operation that follows a long running
+	  VIX command like runprogram/startprogram is not an issue
+	  because the running VIX commands gets blocked temporarily
+	  only when it needs to access the filesystem, otherwise
+	  it continues to run like any other application inside
+	  guest. Main idea to have Tools service responsive to
+	  TCLO messages.
+	  
+	  Return a generic error VIX_E_OBJECT_IS_BUSY to make the
+	  clients retry the command in a graceful manner.
+	  
+	* Defer the RunScript cleanup when VIX commands are restricted.
+	  
+	  RunScriptInGuest command has a poll callback that checks
+	  if script execution is done and perform script cleanup.
+	  This callback may get fired when quiesced snapshot
+	  operation has frozen the guest filesystem. We need to
+	  defer the cleanup in that situation.
+
+	* fix test
+	  
+	  fix an XML parser issue from IOActive pentest team.
+	  also add a test for billion laughs, and a test to make it
+	  easy to try out SAML tokens from a text file.
+	  
+	* Add a check for NULL RPC channel.
+	  
+	  In the cases when backdoor channel is not available,
+	  vmtoolsd exits early and might not have RPC channel
+	  to send the shutdown notification. This is possible
+	  in at least two scenarios, open-vm-tools running on
+	  physical machine and VM having backdoor disabled with
+	  'monitor_control.restrict_backdoor = "TRUE"'.
+	  
+	* VIX plugin under vmusr should not register for TOOLS_CORE_SIG_IO_FREEZE.
+	  
+	  TOOLS_CORE_SIG_IO_FREEZE signal is provided by vmbackup
+	  plugin which is not loaded by vmusr service. Therefore,
+	  VIX plugin does not need to register handler for this
+	  signal in case of vmusr service.
+	  
+	  Also cleaned up the code that was removing SyncDriver
+	  related RPC handlers from a static array in an unsafe
+	  manner.
+
+	* AsyncSocket: Add sockaddr, INET listener port, and INET listener address get functions to replace the usage of AsyncSocket_GetFd .
+	  
+	  Dual stack listening socket structures are packed into the
+	  existing async socket	structure when creating a asyncsocket
+	  listener (if not dual stack because an address is passed,
+	  still pack the listener into its address families listener
+	  structure).  Let the parent socket default since it is
+	  just a container for two listener socket that will use
+	  their respective structures when a connection is made.
+ 	The parent always has a -1 fd set. This creates a issue
+	  when getting the fd for the listeners just created. 
+	  
+	  All of the users of AsyncSocket_GetFd with the INET
+	  listener AsyncSocket structure file descriptor are then
+	  getting either the port or the ip address or both to log
+	  or pass onto another consumer.  Create convenience
+	  functions to gather these fields from dual-stack listeners
+	  or when needed or from any AsyncSocket that has	a non -1
+	  fd.  Create a AsyncSocketGetAddr to provide the sockaddr
+	  for the AsyncSocket structure, either by requesting the
+	  address family or UNSPEC if any sockaddr will do.  Share
+	  the new AsyncSocketGetAddr with both the _GetINETIPStr
+	  (again requesting the address family or UNSPEC if any
+	  address will do) and _GetPort where the first port found
+	  is returned (should always be the same).
+	  
+	  _GetPort also shares the existing AsyncSocketGetPort, it
+	  was providing network byte order (which is why it was
+	  logging a different number than requested in
+	  AsyncSocketBind), change it to return host byte order for
+	  INET address families.
+	  
+	  With "localhost" listener requests, dual stack listeners
+	  were not being created.  This is also fixed. 
+
+	* Add IPv6 support for ESX vmtoolsd
+	  
+	* Fix warnings in bitvector and lib/misc.
+	  
+	  Fix several warnings from msvc12 / Visual Studio 2013 /
+	  SDK v8.1: 
+	  
+	  * an unused variable warning in bitvector.
+	  
+	  * some deprecation warnings in bora/lib/misc
+
+	* lib/lock: MXUser Semaphore active usage count tracking may fail
+	  
+	  Most MXUser routines have an active usage count which is
+	  incremented at the top of the routine and decremented at
+	  the bottom. This will catch a destroy while code is "in"
+	  one of the MXUser routines (e.g. one thread is asleep in a
+	  down while another does a destroy).
+	  
+	  In the case of semaphore up, little time is spent in the
+	  routine and the decrement at the bottom may not be reached
+	  before another thread comes out of down and, now there is
+	  no more activity, does a destroy.
+	  
+	  The simplest fix is to not use the accounting in up.
+	  
+	* Hgfs Server: Fix unpacking of protocol header unused fields
+	  
+	  The Hgfs server currently asserts on unpacking of the new
+	  header of a received protocol request that the flags are
+	  zero (unused) or set to some valid (understood) values.
+	  Unfortunately, it was discovered that an older shipping
+	  client failed to zero out the header's unused fields for
+	  destroy session requests. This also means that since all
+	  of the reserved fields contained garbage they can't be
+	  overridden to make them into a secondary flags.	The usage
+	  of these fields can now only be guaranteed once we move
+	  the header version to 2. Also all clients using the
+	  version 2 of the header will be first vetted to ensure the
+	  header is completely initialized for all requests that it
+	  sends.
+	  
+	  Modify the unpacking of the protocol header to return zero
+	  for fields that are not trusted in version	1.
+	  
+
+	* inititialize poll/workerLib unconditionally in diskTool/diskCreate, and add Poll_ForceWake
+	  
+	  FiltLib (iofilters) wants to use workerLib, and thus needs
+	  poll. There was already code in diskTool to set this up,
+	  but it was buried in the AIOMgr	test code. Drag that up to
+	  the top and also duplicate it for diskCreate.
+	  
+	  One problem came up: After setting the Poll_Loop exit
+	  boolean and waiting on a poll thread to end, it may be
+	  waiting for up to MAX_SLEEP_TIME, which is set to 1
+	  second. It's not acceptable to take that hit on every
+	  invocation	of diskTool/diskCreate.  We could call
+	  Poll_LoopTimeout() with a smaller timeout, but that would
+	  unnecessarily waste CPU time while still adding
+	  some exit delay. VMX already has a function 
+	  Poll_NotifyChange to force the VMX poll implementation to
+	  wake its thread, so generalize that API so any poll
+	  implementation can provide its own version.
+
+	* AsyncSocket: Reuse port number when port requested is 0 for localhost address.
+	  
+	  Currently with localhost listener requests where the
+	  system is providing an available port, we are getting a
+	  different port for each protocol family if more than one
+	  is supported. To fix this reuse the first port bound to. 
+	  
+	  Fix a issue where the port assigned for IPv6 socket was in
+	  use for IPv4, to solve this attempt another bind but grab
+	  the port from IPv4 first and try to use that for IPv6.
+	  
+	  Update AsyncSocket_GetPort to return any port, since there
+	  is no longer a case that there should be more than one
+	  that differs.
+	  
+	  While refactoring, only use dual stack listener socket
+	  when dual stack	listeners are set up. 
+
+	* Validate the input when deserializing a string in the DataMap module.
+	  
+	* Asyncsocket: use int instead of short for port. 
+	  
+	  MAX_UINT32 is used for bad port, but some functions pass a
+	  port using unsigned short. Update all usage of port from
+	  unsigned short to unsigned int. 
+	  
+	* Fix a recent error code patchup was too aggressive and
+	  returned the system error when a createDirectory failed
+	  due to the directory already existing.
+	  
+	* Fix possible missing NUL term.
+	  
+	  It was possible that a cert subject name could hit a
+	  buffer limit and not be NUL terminated.
+	  
+	* Improve alias parsing to prevent leaks/DoS attacks.
+	  
+	  Catch bad XML that can cause memory leakage.
+	  
+	* Fix security bug.
+	  
+	  HashMap_Put needed to return a result so that the caller
+	  can take the appropriate actions when the operation fails.
+	  The internal resize() call could fail from being out of
+	  memory.
+
+	* Fix security bug.
+	  
+	  Use unsigned type for lengths, counts, and offsets.
+	  Otherwise the values could go negative if a very large
+	  unsigned value is passed.
+
+	* Foundry: Shift functions used in Vigor and hostd to open source
+	  
+	  A few functions were moved to the open source portion of
+	  Foundry so that Vigor and hostd can use them without the
+	  burden of full Foundry.
+	  
+	* Match g_malloc with g_free.
+	  
+	  Fix some prototype code has a malloc/free mismatch.
+	  
+	* Fix security bugs.
+	  
+	  There are a number of integer overflows in the function
+	  DataMap_Serialize().
+	  
+	  Add checks and and return proper error codes.
+	  
+	  Also fix a number of places where an unsigned value should
+	  be used for length.
+	  
+	* Use a TOCTOU safe file read for alias files.
+	  
+	  Do some extra sanity checking when loading an alias or map
+	  file.
+	  
+	  Also prevent these files for being too large to prevent
+	  DoS attacks.
+	  
+
+	* Fix an issue with fsType == "nfs4" being compared with gRemoteFSType[i] == "nfs".
+	    
+	* Improve req parsing checks.
+	  
+	  Improve the request parser to prevent attacks using bogus
+	  request data.  Ending requests with duplicate strings
+	  could have caused leakage.
+	  
+	* Add support for XFS (default FS used by RHEL 7).
+	  
+	  RHEL 7 uses XFS as the default FS instead of ext4.
+	  Added the required definition in libwiper to make
+	  XFS as supported type.
+	  
+	* GOS Table: add coreOS
+	  
+	  coreOS is a containerized, secure Linux.
+	  
+	* Make Adminstrators group check handle locale issues.
+	  
+	  Rather than use the 'Administrators' group name directly,
+	  look it up by SID and pass that value to
+	  NetLocalGroupGetMembers()
+	  
+	* Add support for BTRFS (default FS used by SLES 12).
+	  
+	  SLES 12 uses BTRFS as the default FS instead of ext3.
+	  Added the required definition in libwiper to make
+	  BTRFS as supported type.
+	  
+	* Enhance the network script to use systemctl for network start and stop.
+	  
+	  For linux distributions using systemd to replace legacy
+	  system V startup scripts, extend the current network
+	  script with systemctl to bring up or shut down network
+	  interfaces.
+	  
+	* Enhance the Solaris network script to handle interface DHCP interaction.
+	  
+	  When network interfaces are under DHCP agent control,
+	  ignore the	error returned from our manual DHCP start
+	  operation, which tries to bring	the interfaces back to
+	  operation.
+	  
+	* guest perf stats: crossport the new perf stats method
+	  
+	  Bring over the guest perf stats code and the Linux
+	  implementation. The Linux data collection was updated to
+	  include new data and simplify the code.
+	  
+	* guest perf stats: Deal with attacks and log spew
+	  
+	  Log problem issues below the default log level.
+
+	* Fix build of open vm tools on Fedora 20
+	  
+	  rpcgen generates an extraneous local "register int32_t
+	  *buf;" that results in a warning, strip it out.
+	  
+	  __secure_getenv() is not found, use getauxval() when it
+	  is available.
+
+	* Add short descriptions for the new guest counters.
+	  
+	* Update the compat check for svmotion.
+	  
+	* AsyncSocket: validate that port number requested is within expected range.
+	  
+	* Route VmkCtl_Log* to bora/lib/public/log.h instead of syslog.
+	  
+	* MX_Lock should not use HLE on unpatched Haswell systems
+	  
+	  This changeset backs out previous changes to enable the
+	  use of transactional memory on MX_Locks via HLE prefixes.
+	  This is for the safety of all the released Haswell systems
+	  that don't pick-up the microcode patch to disable TSX.
+	  See Intel Haswell errata HSW136
+	  
+	* AsyncSocketResolveAddr should not read past what GetAddrInfo returns
+	  
+	  Use memcpy so we do not consume anything more.
+	   
+	* Fix bug in PEM cert cleanup.
+	  
+	  Openssl insists on seeing a header and footer on a PEM
+	  cert.  Fix a bug in the code to add the header and footer
+	  had a bug where an extra newline got added if the last
+	  line of the cert was 64 chars.
+
+	* The guest proxy self signed cert was not generated
+	  correctly and caused	AMQP SSL hand shake to fail on the
+	  guest side.
+	  
+	  Corrected the configuration settings in the
+	  guestproxy-ssl.conf file.
+	  
+	* Bump up ovftool to 4.1.0
+	  
+	* Log errors in RandomBytesWin32.
+	  
+	* Vmtools will panic if channel is NULL.
+
+	  Fix for RpcOut_send wrongly transferring a NULL pointer to
+	  a lower function.
+
+	* authPosix: use getspent when using shadow password, but not PAM
+	  
+	* Disable NullDriver backend only for forceQuiece case.
+	  
+	  In order to limit the impact of new behavior disable the
+	  NullDriver backend only for forceQuiesce=TRUE cases which
+	  are limited to HBR and VADP use cases.
+	  
+	* Create the support dir under /tmp instead of CWD.
+	  
+	  Using CWD could be unsafe because it might not have its
+	  sticky bit set.  /tmp has the sticky bit set that allows
+	  delete and rename operations on a dirent to the root and
+	  the owner only.
+
+	* Remove shutdown notification from Tools.
+	  
+	  We added shutdown notification in Tools to inform VMX
+	  about Tools service shutting down. Shutdown notification
+	  is not needed because VMX knows when guest closed the
+	  channel.
+
+	* Fix open vm tools build in Fedora.
+	  
+	  Some compilers issue a warning on the unused local.
+
+	* Bump the tools version for vSphere 2015 release.
+	  
+	  Change the vSphere 2015 tools version to 9.10.0.
+	  
+	* Allow the network script to bring each individual interface up/down.
+	  
+	  Enhance the fallback solution when NetworkManager is not
+	  installed. Configure each individual interface to bring it
+	  up or down such that virtual machine suspend/resume
+	  operations can be successful.
+	  
+	* deployPkg plugin: make deployPkg.cpp build as C or C++
+	  
+	  To reduce dependencies on C++ libraries, the deployPkg
+	  plugin for Linux should be built with C, not C++.
+	  
+	* add deployPkg files to open-vm-tools tarball
+	  
+	  Add files for the deployPkg plugin to the open-vm-tools
+	  tarball.  Add the flag --without-deploypkg to the
+	  configure script. When the plugin is configured to build,
+	  the build envoronment will be checked for the presence of
+	  libmspack.
+	  
+	* Hosted Windows 10 support
+	  
+	* Low level identification of Windows 10
+	  
+	* Implement networkBootProtocol config option.
+	  
+	  This change adds the "networkBootProtocol" configuration
+	  option, used to choose the default network boot protocol
+	  used by the VM.
+	  
+	* File_ListDirectory returns the contents of a directory. If
+	  another apllication or thread affects the directory while
+	  the directory listing is running it is possible for the
+	  OS to physically rearrange the contents of the directory
+	  such that a file already listed will be seen again.
+	  
+	  This affects POSIXen due to the way readdir works.
+	  
+	  The contract for File_ListDirectory is that the contents
+	  are unique strings (the names of files) so the readdir
+	  data must be checked for uniqueness. No form of data 	ordering is ensured.
+	  
+	* Tools: Create GuestInfo_GetPrimaryIP as a IPv6 compliant version of NetUtil_GetPrimaryIP.
+	  
+	  Guest info has "best" attempt functionality for gathering
+	  the primary address of a VM. This functionality was not
+	  converted to IPv6 even though most of nicInfo already was.
+	  This change adds the IPv6 functionality that was lacking.
+	  
+	  
+	* Add vgauth to open vm tools
+	  
+	* Add support for a -k flag.
+	  
+	  Add support for a -k flag to kill the official instance
+	  of the service.  This is intended to be used from a
+	  service shutdown script.
+	  
+	* open-vm-tools: vgauth needs to link with libdl
+	   
+	  When building on Ubuntu after calling autogen.sh -i, the
+	  build fails unless -ldl is added to libvgauth_la_LIBADD.
+	  This change adds -ldl to libvgauth_la_LIBADD the same way
+	  it's added to libvmtools and vix.
+	   
+	* GOSTable: Windows 10 as a unique guest
+	  
+	* Plumbing to expose (whitelisted) vsi-based stats in guest
+	  
+	  Add the ability to collect statistical VM information fro
+	  within a guest.
+	   
+	  The general mechanism is a new guestrpc command
+	  "guestinfo.stat.get", which can be used in isolation to
+	  fetch a list of stats that are supported. The command
+	  takes arguments "encoding", "stat", and "param", e.g.:
+
+	     guestinfo.stat.get
+	     guestinfo.stat.get xml resources
+	     guestinfo.stat.get json vscsi scsi0:0
+
+	  Storage and network devices are indexed by storage device
+	  name and ethernet address, as those are the only "names"
+	  VSI exposes. The command will be enabled by default
+	  (similar to GuestSDK). There are some host stats here;
+	  those are default-off and require the same opt-in config
+	  setting that GuestSDK requires.
+	   
+	  There are three interfaces:
+
+	   - GuestSDK offers a new VMGuestLib_StatGet /
+	  	VMGuestLib_StatFree set of functions
+	   - "vmware-toolbox-cmd stat raw" can take parameters
+	  	(e.g. "vmware-toolbox-cmd stat raw xml resources")
+	   - vmtoolsd --cmd can take the RPC directly
+	  	(e.g. 'vmtoolsd --cmd="guestlib.stat.get"')
+
+	  Sample commands:
+	  
+	  $ vmware-toolbox-cmd stat raw
+	  session 
+	  host 
+	  resources 
+	  vscsi scsi0:0
+	  vnet 00:0c:29:1e:23:f3
+	   
+	  $ vmware-toolbox-cmd stat raw text vscsi scsi0:0
+	  num.reads = 12605
+	  num.writes = 1039
+	  size.reads = 533612032
+	  size.writes = 14279680
+	  latency.reads = 1944173239
+	  latency.writes = 102025122
+
+	  $ vmtoolsd --cmd="guestlib.stat.get"
+	  session 
+	  host 
+	  resources 
+	  vscsi scsi0:0
+	  vnet 00:0c:29:1e:23:f3
+	   
+	  # Example showing invalid input
+	  $ vmtoolsd --cmd="guestlib.stat.get foo"
+	  session 
+	  host 
+	  resources 
+	  vscsi scsi0:0
+	  vnet 00:0c:29:1e:23:f3
+	   
+	  $ vmtoolsd --cmd="guestlib.stat.get text session" 
+	  session = 4004861987670969122
+	  uptime = 1036293956
+	  version = VMware ESX 6.0.0 build-00000
+	  provider = 
+	  uuid.bios = 56 4d 2c 53 43 56 66 8e-7c 05 fd 7e 51 1e 23 f3
+	  
+	  $ vmtoolsd --cmd="guestlib.stat.get text host"
+	  host.cpu.processorMHz = 2399
+	  host.cpu.coresPerPkg = 4
+	  host.cpu.packages = 2
+	  host.cpu.cores = 8
+	  host.cpu.threads = 16
+	  host.dmi.product = ProLiant ML350 G6
+	  host.dmi.vendor = HP
+	   
+	  $ vmtoolsd --cmd="guestlib.stat.get text resources"
+	  vm.cpu.reserved = 4798
+	  vm.cpu.limit = 11995
+	  vm.cpu.used = 224057517
+	  vm.cpu.contention.cpu = 65606184
+	  vm.cpu.contention.mem = 1488848
+	  vm.numa.local = 1837248
+	  vm.numa.remote = 0
+	  guest.mem.reserved = 204800
+	  guest.mem.limit = 1536000
+	  guest.mem.mapped = 1810144
+	  guest.mem.consumed = 1521680
+	  guest.mem.swapped = 3236
+	  guest.mem.ballooned = 27104
+	  guest.mem.swapIn = 3416
+	  guest.mem.swapOut = 6588
+	  ovhd.mem.swapped = 0
+	  ovhd.mem.swapIn = 0
+	  ovhd.mem.swapOut = 0
+	   
+	  $ vmtoolsd --cmd="guestlib.stat.get yaml vnet 00:0c:29:1e:23:f3"
+	  ---
+	  num.tx:
+	      type: accumulate
+	      units: packets
+	      value: 209
+	  size.tx:
+	      type: accumulate
+	      units: bytes
+	      value: 38137
+	  num.rx:
+	      type: accumulate
+	      units: packets
+	      value: 10920
+	  size.rx:
+	      type: accumulate
+	      units: bytes
+	      value: 1312789
+	  reservation:
+	      type: static
+	      units: MBps
+	      value: 0
+	  limit:
+	      type: static
+	      units: MBps
+	      value: -1
+	  ...
+	   
+	  $ vmtoolsd --cmd="guestlib.stat.get xml vnet 00:0c:29:1e:23:f3"
+	  <metrics session="4004861987670969122"><metric name="num.tx" type="accumulate" units="packets">209</metric><metric name="size.tx" type="accumulate" units="bytes">38137</metric><metric name="num.rx" type="accumulate" units="packets">10992</metric><metric name="size.rx" type="accumulate" units="bytes">1322161</metric><metric name="reservation" type="static" units="MBps">0</metric><metric name="limit" type="static" units="MBps">-1</metric></metrics>
+	   
+	  $ vmtoolsd --cmd="guestlib.stat.get json vnet 00:0c:29:1e:23:f3"
+	  {"num.tx":{"type":"accumulate","units":"packets","value":209},"size.tx":{"type":"accumulate","units":"bytes","value":38137},"num.rx":{"type":"accumulate","units":"packets","value":11068},"size.rx":{"type":"accumulate","units":"bytes","value":1331791},"reservation":{"type":"static","units":"MBps","value":0},"limit":{"type":"static","units":"MBps","value":-1}}
+	   
+Change 3155461 by okurth@okurth-home on 2014/11/18 16:24:31
+
+	  open-vm-tools: define USE_SLASH_PROC when we have procps
+	  
+	  The presence of procps is detected correctly, but that
+	  condition wasn't set as a C macro.
+	   
+Change 3179137 by aoney@aoney-vsphere-2015-w1 on 2014/11/25 10:53:00
+
+	  Integrate vmxnet3 and pvscsi changes needed for Microsoft driver certification
+	  
+Change 3194013 by mbellon@mbellon-vsphere-2015-2 on 2014/12/02 13:21:23
+
+	  Remove the message that we detected multiple threads.
+	  
+Change 3195369 by ravindrakumar@ravindrakumar-vsphere-2015-4 on 2014/12/03 00:08:58
+
+	  Add grabbitmqProxy plugin to open-vm-tools.
+	  
+	  - Publish grabbitmqProxy plugin code as part of
+	    open-vm-tools.
+	  - Makefile changes for building grabbitmqProxy plugin
+	    along with open-vm-tools build
+	  - Added guestproxy-ssl.conf file to server cert
+	    configuration
+	  - grabbitmqProxy plugin has a dependency on AsyncSocket. 	   	  To solve this: 
+	    1. Disable all websocket related interfaces that are not
+	       used by Tools code at all (using #ifndef VMX86_TOOLS)
+	       in Tools build
+	    2. Add the required wrapper functions to sslDirect.c 		     without any locks because Toolsd is single threaded.
+	    3. Since AsyncSocket depends on SSL wrapper, we have
+	       to have two implementations: 
+	       a) open-vm-tools without SSL dependency;
+	          use sslStubs.c.
+	       b) open-vm-tools with SSL dependency;
+	  	   use sslDirect.c.
+	  - Fixed a security related issue commented in the code to
+	    listen only on "loopback" connections.
+	  - Added a configuration switch to listen on "loopback"
+	    vs open network port.
+	  - Fixed a minor bug in the grabbitmqProxy plugin where it
+	    will not cleanup the VMCI listener if it fails to create
+	    Rmq listener.
+	  
+	* Reimplement guestproxycerttool.pl in C.
+	  
+	  Reimplement guestproxycerttool.pl in C to remove perl
+	  dependency and use the OpenSSL functions directly to
+	  manage public/private key pair and certificates.
+	   
+	* Update copyright year.
+	  
+	  GuestSDK 9.10.0 will be released in vSphere 2015. Need to
+	  update copyright year wherever applicable to 2015.
+	  
+	* Add guestproxycerttool (C-implementation) to open-vm-tools and OSPs.
+	  
+	  In order to get rid of perl dependency from open-vm-tools,
+	  add guestproxycerttool (C-implementation) to open-vm-tools
+	  and remove guestproxycerttool.pl from the package.
+	  
+	  Remove guestproxycerttool.pl from VMware Tools.
+	  
+	  Add version information to guestproxycerttool.
+	  
+	  Remove duplicate perl code from the Tar installer and use
+	  the guestproxycerttool (C-implementation) instead.
+	  
+	* Update copyright years for files released to open-vm-tools.
+	  
+	* Update localized messages for Tools.
+	  
+	* GuestSDK: remove vmtools.dll/so dependency
+	  
+	  Changes during the 2015 release added a vmtools.dll/so
+	  dependency	to the GuestSDK runtime library
+	  (vmGuestLib.dll / libvmGuestLib.so) we install as part of
+	  Tools, which broke GuestSDK.  Instead, statically link
+	  the various libraries.
+
+	* vmkBoot should not depend on the vmkapi headers.
+	  
+	  vmkBoot depends on the VMKAPI headers, because it
+	  indirectly includes vmkapi.h (via vmk_exports.h).
+	  Except for vmkapi/base/vmkapi_status.h, which is
+	  included via return_status.h, there is no good reason
+	  for this dependency to exist.
+
+	* Change glib logging in RpcChannel to use Debug/Warning/Panic.
+	  
+	  Change glib logging in RpcChannel to use Debug/Warning/Panic
+	  so RpcChannel logging can be controlled by different logging
+	  stubs in different applications(rpctool/vgauth/toolsd etc).
+	  
+	* Clean up HGFS server unpack file name V3 arguments
+	  
+	  The HGFS server unpack file name argument for V3 packets
+	  generates coverity warnings as it stands. It is also just
+	  plain dubious in its usage using the out argument even when
+	  not initialized in the failure case.
+
+	* Fix nested logging for VmxLogger with vsocket channel.
+	  
+	* Harden HostinfoOSData against $PATH attacks.
+	  
+	  We are doing a popen("lsb_release... ") when attempting to
+	  determine host details in hostinfoPosix.c. Using popen
+	  means	that $PATH is walked when looking for the lsb_release
+	  binary, and that may give an attacker the ability to
+	  run a malicious version of	lsb_release.
+	   
+	  This change does two things,
+	  
+	  a) Hard code the path to lsb_release.
+	  
+	  b) Stop running HostinfoGetCmdOutput with elevated
+	     privileges.
+
+	* Implement VMware Tools for ESXi 6.0 guests.
+	  
+	  This change provides limited VMware Tools support for ESXi
+	  6.0 guests.  The powerOps and guestInfo plugins are
+	  supported. Only IPv4 addresses are reported, since those
+	  are the only ones we can get through the vmkuser library.
+	  
+	  VMware Tools for ESXi 6.0 are packed as two VIBs on a
+	  single ISO image.  One VIB contains the glib libraries
+	  that aremissing from the standard ESX distribution, and
+	  the other VIB contains the tools themselves.
+	  
+	* Report correct OS name for ESXi guests
+	  
+	  Prior to this change, vi client would say that the Guest
+	  OS was "Other (32 bit)" whenever Tools were running in an
+	  ESXi guest. Now, the Guest OS is reported as "VMware ESXi
+	  5.x."
+
+	  Note that Tools do not run in ESXi 4.x guests, and we
+	  don't have a new guest OS type for ESXi 6.0 guests.
+	  
+	* Get rid of ASSERT_ALWAYS_AVAILABLE
+	  
+	* Get rid of ASSERT_LENGTH.
+	  
+	* Move ASSERT_OR_IN_PANIC() from public/vm_assert.h
+	  to vmkernel.
+	  
+	* Make lib/location product-agnostic
+	  
+	  This change unifies/simplifies the Location query API:
+	  
+	  Location_GetRoot(), Location_GetLibrary(),
+	  Location_GetFrameworks() -> Location_Get(<string tag>)
+	  Location_GetLibrary_Addr(), Location_GetFrameworks_Addr()
+	  -> Location_Get_Addr()
+	  
+	  Then it allows each product to independently specify its
+	  own <string tag> to <actual sub-path under the root dir>
+	  mappings. Currently all products use the same mappings:
+	     "rootDir"   -> ""
+	     "libDir"    -> "/Contents/Library"
+	     "sslLibDir" -> "/Contents/Frameworks" (only lib/ssl was
+	  	calling Location_GetFrameworks, so now is a good time
+	  	to use the tag "sslLibDir" instead of "frameworks")
+	  
+	* desktopEvents: Leave libICE rug firmly under libSM.
+	  
+	  While the libICE spec's section on error handling suggests
+	  applications close libICE connections in response to I/O
+	  errors, libSM (which sits atop libICE) continues to refer
+	  to such deceased libICE connections, and doing so during
+	  shutdown leads to an app crash.
+
+	  To work around this, we'll detach the ICE connection from
+	  our application event loop but leave its handle alone.
+	   
+	* Remove SLPv2
+	  
+	* Remove AsyncSocket_SendTo
+	  
+	* Update AsyncSocketResolveAddr to allow AF_UNSPEC and AF_INET6 ai_family.
+	  
+	  AsyncSocketResolveAddr currently only accepts searches for
+	  AF_INET. Update it to search for AF_INET6 or both with
+	  AF_UNSPEC. Since we no longer need to return sockaddr_in for
+	  AsyncSocket_SendTo, only populate sockaddr. Also add a
+	  convenient IP string generation after resolve so all callers
+	  do not need to do the same operation tp log the IP string
+	  with port number.
+	  
+	* Provide a kill-switch for using vsocket in RpcChannel.
+	  
+	  Adding "void RpcChannel_SetBackdoorOnly(void)" API to allow
+	  to disable vsocket if needed.
+	  
+	* Create a socketFamily switch in AsyncSocket_Connect and AsyncSocket_ConnectWebSocket for future IPv6 integration.
+	  
+	  Allow for future use of AF_UNSPEC when a connection does not 	care if it is AF_INET or AF_INET6. Since AsyncSocket does
+	  not fully support AF_INET6 yet and our AF_INET6 test bed is
+	  not yet completed, hard code all callers to AF_INET. 
+	  
+	* AsyncSocket: Removed unused AsyncSocket_BindUDP.
+	  
+	* Remove libDir, it is no longer used.
+	  
+	* AsyncSocket: Update AsyncSocket_GetRemoteIPAddress for IPv6 support.
+	  
+	  AsyncSocket_GetRemoteIPAddress offered the return of the
+	  IP in integer and string formats, none of the callers
+	  cared for the integer return so remove it. Update name
+	  appropriately AsyncSocket_GetRemoteIPAddress->
+	  AsyncSocket_GetRemoteIPStr. AsyncSocket_GetRemoteIPAddress
+	  only supported the returning of a IPv4 string, utilize
+	  Posix_GetNameInfo that uses getnameinfo which is IPv6
+	  compliant.
+	  
+	* Remove NR_MPNS_PER_PAGE
+	  
+	* Make FileIO_AtomicUpdate fail gracefully when File_FullPath fails.
+	  
+	  Tolerate the underlying getcwd() failure and return an
+	  error.
+	  
+	* Merge atomic FetchAndAdd64 with ReadAdd64.
+	  
+	  The Atomic_FetchAndAdd64 and Atomic_ReadAdd64 implement
+	  the same interface: atomically increment a memory location
+	  and return the old value. But the implementation differs:
+	  
+	  - ReadAdd64 uses lock;xadd whereas FetchAndAdd64 uses a
+	    spin loop controlled by cmpxchg.
+	  
+	  - ReadAdd64 is available only for x86_64, whereas
+	    FetchAndAdd64 is available for all architectures.
+	  
+	  This change combines the two in a single implementation
+	  (as other functions in vm_atomic.h do): always use
+	  lock;xadd on x86_64 architectures and fall back to the
+	  spin loop on other architectures where this is not
+	  available.
+	  
+	  Atomic_FetchAnd{Sub,Inc,Dec}64 are all implemented using
+	  Atomic_FetchAndAdd64.
+	  
+	  Atomic_ReadAdd64 is now an alias for Atomic_FetchAndAdd64
+	  (and similar for Sub, Inc, and Dec).
+	  
+	* Rename Atomic_FetchAdd
+	  
+	  Atomic_FetchAnd<Op> and Atomic_Read<Op> are aliases. The
+	  current code uses a mixture of these. Let's agree on a
+	  name and remove the alias. I propose using Atomic_Read<Op>
+	  because some other interfaces (vmkapi and vmacore) use
+	  this terminology. 
+
+	  
+	* AsyncSocket: Remove UDP socket support.
+	  
+	  UDP sockets are unused in the asyncsocket library.
+	  Remove them. 
+
+	* Introduce Id_IsSetUGid for detecting setuid/setgid binaries.
+	  
+	  There is a security issue in the way SSL_Init loads the
+	  libss and libcrypto libraries: it first looks for libssl
+	  and libcrypto in the directory where the calling binary
+	  resides before moving on to check the configured install
+	  directory. If the app	that calls SSL_Init is setuid or
+	  setgid then an attacker can use this to raise privleges.
+	  
+	  The SSL_Init load library behavior is acceptable as long
+	  as the app isn't setuid/setgid. This change adds a new
+	  helper function that attempts determine if the calling app
+	  is setuid/setgid.
+	  
+	* Update Workstation and Player version numbers.
+	  
+	* Integrate all VIX changes from Workstation to vmcore-main.
+	  
+	  Last week, a new version of VIX 1.13.0 was released.
+	  Integrate the VIX changes from it.
+	  
+	  Update the vixWrapper config files for VIX 1.13.0
+	  
+	  Update the OSL file for VIX 1.13.0 GA
+	  
+ 	Expand the product matrix for ESX 5.5
+	  
+	  Installer changes for VIX 1.13.0
+	  
+	  Bump up the version numbers for VIX 1.13.0
+	  
+	  Expand the product matrix for WS 10, WS-shared 10, and
+	  Fusion 6.0
+	  
+	* Rename Atomic_FetchAnd*
+
+	  This change converts the remaining uses of Atomic_FetchAnd*.
+	  
+	* Cache Tools conf path.
+	  
+	  Tools conf path is not going to change when Tools service
+	  is running. Caching it in memory helps us avoid multiple
+	  calls to registry as well as multiple attempts to create
+	  same path that lead to log spew.
+	  
+	  Also added a check to not create the path if it already
+	  exists.
+	  
+	  After this change, vmtoolsd will not recreate the confPath
+	  if it gets deleted by someone. Only restarting the service
+	  will create it again. This makes the behavior somewhat
+	  similar to non-Windows platforms where we never create it.
+	  
+	* No more Atomic_Fetch.
+	  
+	  This removes the Atomic_FetchAnd<op> aliases from
+	  vm_atomic.h. From now on, only the Atomic_Read<op>{32,64}
+	  primitives are available.
+	  
+	  Also renamed the unfenced and lock variants using the
+	  ReadAdd terminology.
+	  
+	* Add configuring of the Windows core dump flags for the tools service
+	  
+	  Currently the Windows tools service creates an exception
+	  handler which will create a mini dump to foster debugging
+	  of crashes in the field.  However, the mini dump only
+	  creates a minimal memory file by default to ensure keeping
+	  the dump size small. In specific situations some issues
+	  would really benefit in creating larger memory dumps to
+	  enable saving much process state information, such as heap
+	  memory to enable better debugging.
+	  
+	  Thus it would be beneficial to allow a customer/user to
+	  override the default mini dump settings to enable more
+	  state information at the expense of disk space.
+	  
+	  The core dump flags settings can be viewed at:
+
+	  http://msdn.microsoft.com/en-us/library/windows/desktop/ms680519(v=vs.85).aspx
+
+	  It is expected that we can recommend that users set the
+	  flags any required valid combination but mostly likely set
+	  to 7 allowing a dump will full memory and handle data.
+	  
+	* Add surface logging to basicOps
+	  
+	  This change adds some basic surface logging to basicOps on
+	  a loglevel.
+	  
+	* Id_IsSetUGid fails to compile on Android.
+	  
+	  glibc for Android doesn't have a __secure_getenv
+	  or secure_getenv.
+
+	* AsyncSocket: Update with sockaddr_storage in place of sockaddr/_in/_in6/_un/_vm throughout.
+	  
+	  Use sockaddr_storage as the container for sockaddr*
+	  throughout asyncsocket.
+	  
+	  Update the rest of the Connect functions and callers.
+	  Those calling AsyncSocket_ConnectIPStr can call
+	  AsyncSocket_Connect directly now. AsyncSocket_ConnectIP is
+	  left unchanged since it only accepts uint32 for ip, and
+	  with a switch to IPv6 you should be moving from host byte
+	  order conversions to hostname/ip string conversions. After
+	  all the callers of AsyncSocket_ConnectIP are updated for
+	  IPv6 support, we can remove this function.
+	  
+	  AsyncSocketBind needed to enable IPV6_V6ONLY if available,
+	  if not avaiable we still allow the socket creation but log
+	  a warning for later debugging with failed remote
+	  connections.
+
+	  One issue found was in linux, some distros may allow
+	  IPv4-mapped IPv6 addresses without IPV6_V6ONLY being
+	  available. For this special linux case added a
+	  IN6_IS_ADDR_V4MAPPED validation into 	syncSocketAcceptInternal if IN6_IS_ADDR_V4MAPPED is
+	  defined (define it for Linux only if it is not defined),
+	  and in this case do not silently post a warning and
+	  continue running, close the fd which ends the handshake
+	  with the remote connection and return an error. For
+	  Windows, only do these checks of Vista and later, prior to
+	  Vista Windows did not support V4MAPPED.
+	  
+	  AsyncSocketResolveAddr needed changes to be used for
+	  AsyncSocket_ListenAny. 
+	  
+	  Update all Listen functions and callers. Since all of the
+	  callers of AsyncSocket_ListenIP were passing either *_ANY
+	  or a Loopback address, create AsyncSocket_ListenAny and
+	  AsyncSocket_ListenLoopback. Replace
+	  AsyncSocket_ListenIPStr with AsyncSocket_ListenAddrStr
+	  since it can now take either hostname or ip in string. All
+	  listeners now use a single function to init/bind/listen.
+	  
+	  For now all callers are hard coded to IPv4.
+	  
+	* Save registers earlier during Panic.
+	  
+	  When setting up the arguments for a Panic() message, gcc
+	  may discard useful registers thinking that they're no
+	  longer necessary.
+	   
+	* Prepare the HGFS Windows client to use VMCI transport header version 2
+	  
+	  Prepare the Windows client for using either the V1 VMCI
+	  transport header or the new V2 VMCI transport header and
+	  fail over to version 1 if the V2 is not supported by a
+	  server.
+
+	* Get Mac OS system version from (Server|System)Version.plist
+	  
+	  During Fusion UI's startup, the main thread was blocked in
+	  Hostinfo_GetOSName() during LogInitEx(). On a cold boot,
+	  this could take as up to 7 seconds.
+
+	  The system version info always comes from the
+	  SystemVersion.plist or ServerVersion.plist file, so it's
+	  better to just parse those.
+
+	* Introduce VERIFY and VERIFY_BUG
+	  
+	* Create new V2 of VMCI transport header
+	  
+	  The new version of the transport header should be able to
+	  be used for both directions of packets - client to server
+	  and server to client. Currently, this is not the case with
+	  V1 versions have two different headers for each direction
+	  and almost being identical but not enough information
+	  contained in either to allow for merging. Also, there was
+	  no room made for expanding the V1 headers to include the
+	  necessary additional fields. Hence, the need for V2.
+	  
+	* Add NORETURN to VERIFY_BUG, similar to ASSERT_NOT_IMPLEMENTED_BUG().
+	  
+	  
+	* VERIFY should use _ASSERT_PANIC_NORETURN
+	  
+	  This minimal change modifies VERIFY to use a "no return"
+	  attribute similar to how VERIFY_BUG works.
+	  
+	* Notify VMX when Toolsd is going down
+	  
+	  In the cases when guest is being rebooted manually or
+	  Toolsd service has been stopped manually, we notify
+	  VMX about the service going down. So that, VMX could
+	  publish this information to hostd or any clients that
+	  care about Tools heartbeat.
+	  
+	  This change covers only Toolsd (guest) side changes,
+	  VMX and hostd changes will follow.
+
+	* Add /proc/interrupts and /proc/irq/* to vm-support
+	  
+	  Add /proc/interrupts and /proc/irq/* to vm-support for
+	  debugging need.  Also add /etc/modprobe.conf and 	/etc/modprobe.d/* for newer linux kernels.
+
+	* lib/asyncsocket: add a low-latency mode for sends
+	  
+	  Avoid the round-trip through Poll when the owner of the 
+	  socket indicates it is prepared for the possibility of
+	  callbacks being invoked immediately.
+	  
+	* Remove HGFS from FreeBSD builds and packaging
+	  
+	  HGFS did not officially support FreeBSD as a guest but it
+	  shipped as part of the open-vm-tools and as such needed to 	be kept up to date.  Remove it.
+	  
+	* MSG: Skip errno localization on unknown platforms.
+	  
+	  We implicitly attempt to localize system error strings
+	  that are passed to a MSG format by storing the error code
+	  and a platform type. A client can look at the error code
+	  and generate its own error string based on the current 	encoding... at least that's the intent; this isn't
+	  robustly implemented on all hosted platforms and it's not
+	  (really) used on ESX.
+	  
+	  When the "platform" is not Windows, Linux or OS X the code
+	  hits an ASSERT_NOT_IMPLEMENTED. That's not good because
+	  the library is used in Tools.
+	  
+	  The easiest way to address this bug is to not panic when
+	  the platform is unknown. Just skip MSGFMT_ARG_ERRNO in
+	  that case.
+	  
+	* Replace CPU_MemBarrier with Atomic_MFence
+	  
+	  CPU_MemBarrier currently uses 'mfence' for INTEL and
+	  Atomic_MFence for others. As the comments indicate, it was
+	  felt at the time that 'mfence' is faster than
+	  Atomic_MFence on intel based systems. However, this does
+	  not seem to be true any more.
+	  
+	* Eliminate ASSERT_BUG_DEBUGONLY()
+	  Also remove a couple of ASSERT_BUG() uses.
+	  
+	* Get rid of NOT_REACHED_BUG.
+	  
+	  This macro was minimally used.
+
+	* Small vm_assert.h simplifcation for the vmkernel.
+	  
+	  The NOT_IMPLEMENTED and NOT_REACHED definitions in
+	  vm_assert.h for the vmkernel contained a VMX86_DEBUG
+	  clause that didn't do anything.
+
+	* Change shutdown notification RPC failure message to debug.
+	  
+	  VMX could be too old to understand shutdown notification
+	  message. Therefore, it is better to log the failure as a
+	  debug message instead of warning.
+	  
+	* Convert all remaining uses of ASSERT_BUG into something else
+
+	* Cleanup ASSERTs in asyncsocket, backdoor, http, hashMap and misc
+	  
+	  Some cleanup of ASSERT_NOT_IMPLEMENTED() and
+	  ASSERT_MEM_ALLOC() in various locations.
+	  
+	* Eliminate some "legacy IPC baggage".
+	  
+	  IPC is gone, so the dummy arg to Config_Write can go, too.
+	  
+	* Fix tools_obj_linux64 build (license file mismatch)
+	  
+	  The copyrights were updated as part of the ASSERT fixup,
+	  but the fix negelected to change the corresponding license
+	  files.  This broke the license parser. Fix the license
+	  files.
+	  
+	* ASSERT_* conversion in namespaceDb, poll* and vigor*
+	  
+	  Remove usage of ASSERT_NOT_IMPLEMENTED and ASSERT_MEM_ALLOC.
+	  
+	* Convert the HGFS uses of ASSERT_DEVEL into ASSERT or remove
+	  
+	* ASSERT_* conversion in lib/file, lib/thread and
+	  lib/alloctrack.
+
+	  The following changes we made:
+
+	    ASSERT_NOT_IMPLEMENTED(x)     -> VERIFY(x)
+	    ASSERT_NOT_IMPLEMENTED(FALSE) -> NOT_IMPLEMENTED()
+	    ASSERT_NOT_IMPLEMENTED(0)     -> NOT_IMPLEMENTED()
+	    ASSERT_NOT_IMPLEMENTED_BUG(x) -> VERIFY_BUG(x)
+	    ASSERT_MEM_ALLOC(_x)          -> VERIFY(_x)
+	  
+	* Add arm64 support in vm_basic_{types,defs}.h
+	  
+	  This patch introduces support for 64-bit ARMv8 types
+	  suitable for the aarch64 GNU toolchain.
+
+	* Add an error function hook to PollDefault
+	  
+	  On a few occasions in the past, we have had customers
+	  reporting that they hit one of the NOT_IMPLEMENTED in
+	  pollDefault.  Those cases are all on Windows, and in the
+	  cases that we have investigated fully, the problem comes
+	  from some third party program/driver that interferes
+	  with our ability to use a localhost socket.  PollDefault
+	  cannot really function in such systems, but this change
+	  provides a error function hook so that an application can
+	  fail gracefully.
+	  
+	* Add arm64 support in vm_[basic_]asm.h
+	  
+	  64-bit ARM assembler macros and architecture definition.
+	  
+	* asyncWebSocket: improve rmks warning message when WebSocket connection fails due to bad SSL cert.
+	  
+	  Now returns ASOCKERR_CONNECTSSL instead of the generic
+	  ASOCKERR_CONNECT.
+	  
+	* Add SIGABRT handling in support scripts.
+	  
+	* Skip freezing remote mounts
+	   
+	  Remote mounts aren't freezable. It's possible that opening
+	  a remote mount may hang indefinitely, which can leave the
+	  filesystem frozen.
+	   
+	* lib/file: Various fixes to FileIOP(read|write)vInternal and FileIO_(Readv|Writev).
+	  
+	  There were two issues in FileIOPreadvInternal and
+	  FileIOPwritevInternal which could lead to VM crashes or
+	  silent data corruption:
+	  
+	  * Incorrect condition to stop scanning the list of iovecs
+	    which might have been processed.  We'd always overshoot by
+	    one and then incorrectly conclude that the disk was full.
+	  
+	  * The 'offset' of the read/write was not being advanced for
+	    completed iovecs, causing retries to perform their
+	    operation on the same region as had successfully
+	    completed.
+	  
+	  FileIO_Readv and FileIO_Writev also contained the first of
+	  those issues.
+	  
+	* Start clean up of APIs used by the HGFS server library
+	  
+	  The change is the first in a series to make the HGFS
+	  server use callbacks instead of hardcoding external APIs
+	  within its library.  This first set is the
+	  HgfsServerPolicy triple of callbacks that are used to
+	  enumerate shares and until now have been hardcoded into
+	  the HGFS server library.
+	  
+	  This will make the relocation of the library simpler and
+	  more easily extended to other environments, such as View
+	  Client.
+	  
+	* Clean up the HGFS server shares interface to the HGFS server part II
+	  
+	  Make the tools HGFS server build pass the share
+	  enumeration callbacks down into the channel manager and on
+	  to the HGFS server.
+
+	* Ignore disk UUIDs from the paths to be frozen.
+	  
+	  disk.EnableUUID is usually set to FALSE by default for
+	  Linux guests. However, if a VM has disk.EnableUUID set to
+	  TRUE, VMX sends the disk UUIDs as the paths to freeze to
+	  syncDriver. As we don't support quiescing specific disks,
+	  we ignore the disk UUIDs.
+	   
+	* Revert an unnecessary initialization in ulRec.c.
+
+	* Clean up the HGFS server use of the policy share enumeraton APIs
+	  
+	  This change moves the hardcoded copies of the HGFS server
+	  policy APIs for enumerating shares into one place instead
+	  of scattered throughout the server library.
+	  
+	  This will mean then they can be replaced by the
+	  enumeration APIs passed in from the HGFS server manager
+	  code.
+	  
+	* fix HostinfoGetOSShortName to support Debian 7.x
+	  
+	* remove unnecessary constraints for ABSOLUTELY_NOINLINE define
+	  
+	* More clean up the HGFS server manager, policy manager APIs
+	  
+	  This is to tidy up some of the APIs passed around and used
+	  in the handling of shares between the UI and the HGFS
+	  server itself.  Currently, the server manager initializes
+	  the policy manager with callbacks directly into the HGFS
+	  server itself and also into the HGFS channel manager.
+	  
+	  This change makes this more consistent by making the
+	  policy manager use only the HGFS server manager. The HGFS
+	  server manager then calls through the channel manager
+	  which calls on to the HGFS server library. These calls are
+	  then consistent with the other interfaces into the HGFS
+	  server library.
+	  
+	  Furthermore, the change creates a new HGFS server callback
+	  object which holds the session callbacks and the register
+	  share entry point to the server library.
+	  
+	* AsyncSocket: Remove AsyncSocket_ConnectIP
+	  
+	* AsyncSocket: Allow listener sockets for IPv4 and IPv6 from the same requester asock struct
+	  
+	* lib/uuid: Add CreateRandomEFI, and cleanup
+	  
+	  This change allows lib/uuid to create random EFI GUIDs.
+	  (Which is useful if you want to create disk and partition
+	  GUIDs on a disk using a GPT partition scheme.) Also did
+	  some cleanup.
+	  
+	  1) In uuid.h, declare all types before functions.
+	  
+	  2) Declare a new UUIDRFC4122 type and make
+	  UUID_CreateRandomRFC4122V4 return that instead of a
+	  string. Callers can trivially call UUID_ConvertToText if
+	  they need a string.
+	  
+	  3) Fix UUID_CreateRandomRFC4122V4 so all the bits it
+	  generates are truly random.
+	  
+	  4) Updated ConvertPackedToBin and GetHostId to use an
+	  EFIGUID structure instead of hardcoding the offset of
+	  structure fields and casting pointers..
+	  
+	  5) In UUID_ConvertToText, applied what the comment
+	  suggested.
+	  
+	  6) In CreateRandomUnstylizedString, renamed the function:
+	  what is generated is a binary buffer, not a string.
+	  De-duplicated the comment about space and time.
+	  Renamed and re-typed both parameters to match modern
+	  conventions.
+	  
+	* Fix buffer overflow in perfMonLinux
+	  
+	* AsyncSocket: hostname/IP string connection functions should attempt both IPv4 and IPv6 connections.
+	  
+	  Now that we have dual socket listeners, would should
+	  attempt connections on both IPv4 and IPv6 resolved
+	  addresses. 
+	  
+	  For now we are attempting IPv4 first since there is a
+	  possibility of a resolved address that we cannot actually
+	  connect to. If this happens there can be a timeout on the
+	  connection attempt. Making an assumption that a IPv6
+	  adoption is low at this time, we will try to keep the
+	  downtime unseen by most customers and attempt the most
+	  used first. This timeout will only be noticed on a dual
+	  stack client env with only a IPv6 listener env where the
+	  server hostname some how resolves to IPv4 on the client.
+
+	* lib/lock: lock tracking tree optimization
+	  
+	* Fast send on the asynNamedPipe if Write completes synchronously.
+	  
+	  In our asyncNamedPipe implementation, we submit data on
+	  the pipe using WriteFile which can complete either
+	  synchronously or asynchronously. In the case when write
+	  completes synchronously, we register a real time poll
+	  callback and write the next buffer only when the callback
+	  has fired.  This can take a significant amount of time and
+	  results in unnecessary head of the line blocking. This fix
+	  changes this behavior and sends the next element in the
+	  transmit buffer immediately if the current element was
+	  sent synchronously. The current behavior is retained for
+	  asynchronously completing I/O.
+ 
+	* increase MAX_MPN to 38 bits
+	  
+	* lib/lock: wrapped MXUser locks should have proper names
+	  
+	* finish conversion of invalid_mpn64 and max_mpn64
+	  
+	  This is the last change that drops 64 from invalid_mpn64
+	  and max_mpn64 names and removes definitions from
+	  vm_basic_types.h
+	   
+	* Change Mul64x3264 family of functions to round instead of truncating
+
+	  Converting between units should round to the nearest
+	  integral value of the target units.  Formerly it
+	  truncated, so converting back and forth, even for small
+	  values, would often result in a smaller value each time,
+	  depending on the exact conversion factor and value being
+	  converted.
+	   
+	  Updated UserTimeTSToUS to work with the new behavior
+	  instead of doing its own rounding.
+	  
+	* Update descriptions for Windows 8 and Server 2012 product names.
+	  
+	  Added all known Windows product names.
+	  
+	* Tools L10n checkin of updated/missing localized files
+	  
+	* Checkin localized files for vmware tools
+
+	* Use UTF-8 encoding for filenames returned by File_ListDirectory
+	  
+	  Some of the functions in lib/file were incorrectly
+	  assuming filenames returned by File_ListDirectory were
+	  using default encoding. This worked fine on Linux/Mac, but
+	  on Windows the code assumed the strings were encoded in
+	  Windows 1252.
+	  
+	* Add ProductState_GetBundleIdentifier 
+	  
+
+	* Bump VIX version to 1.14.
+	  
+	* Vigor: publish the vmSupportStatus information
+	  
+	  The status of vm-support tool running in the guest needs
+	  to be published in Vigor.
+	  
+	* Support Linux Quiescing for vSphere Replication
+	  
+	  Currently, vSphere Replication only supports quiescing on
+	  Windows platform. This patch adds support for quiescing on
+	  Linux platform. 
+
+	  Now, if the VM is running Linux Guest OS, HBR would
+	  support File System Quiescing.
+
+	  In tools : If VM is running Linux Guest OS, we would only
+	  allow SyncDriver quiescing.
+	  
+	* Introduced a new file API to check if directory is
+	  empty: File_IsVmfsEmptyDirectory
+
+	* Fix AsyncSocket reference leak when using IVmdbPoll
+	  
+	* make superuser check case-insensitive
+	  
+	  the code that checks a Windows user to see if its in the
+	  Administrator group doesn't do a case-insensitive
+	  comparison, so user 'administrator' wasn't properly
+	  considered part of the group.
+	  
+	* Fix a debug statement to avoid compiler change issues.
+	  
+	  A compiler upgrade caused it to try to use some newish
+	  formating code from GLIBCXX_3.4.9, which doesn't exist
+	  on some slightly old distros (like my RHEL 5.6 dev box).
+	  Rewrite to avoid this.
+	  
+
+	* Make a LogonUser variant that supports interactiveLogon flag
+	  
+	  In order for an access token to easily work with the
+	  user's desktop, add the logon sessions's SID to
+	  the token.  For a name/password logon, this requires
+	  rewriting LogonUser() as an LsaLogonUser() implementation
+	  that allows additional SIDs at token creation.
+	  
+	  
+	* lib/lock: drop backward compatibility
+	  
+
+	* Add RpcChannel_Free API to free RpcChannel send results.
+	  
+	* The Log Facility should not be involved with core dumps.
+
+	  Make the core dump code use File_Rotate directly.
+	  
+	* There is only one use of Log_RemoveFile and it is easily
+	  rewritten to avoid its use. Log_SetAlwaysKeep is an
+	  interlock for Log_Remove.
+	  
+	  The Log_SetAlwaysKeep is unnecessary as the Log Facility
+	  will never remove a log file. With Log_RemoveFile gone
+	  there is no need for Log_SetAlwaysKeep too.
+	  
+	* lib/log: Log_CopyFile can go
+	  
+	  There are no uses anymore.
+	  
+	* [VDDK] Expose errors in addition to VixError translation in VixDiskLibVim.
+	  
+	  Make original errors, which VixDiskLibVim runs into,
+	  available to VixDiskLib.  VixDiskLib is updated to log the
+	  base VixError with original error & its type stripped off.
+	  VixDiskLibVim extracts VIM fault information and passes it
+	  to VixDiskLib as a string, along with the base VixError.
+	  
+	* lib/log: an overhaul
+	  
+	  Over the years the Log Facility has become complex.
+	  Fix this.
+
+	* lib/log: Log_InitWith routines should return "LogOutput *"
+	  
+	* lib/log: syslog should have a helper function
+	  
+	  The syslog output should have a simple helper function,
+	  just like the other outputs. Use the helper function.
+	  
+	* lib/file: File_GetParent doesn't work on a directory
+	  
+	  The routine documentation subtly states that it was
+	  designed for files. Regardless, let's make this work with
+	  no surprises.
+	  
+	* lib/log: Another refactor
+	  
+	  Now that we have Log_InitWithSyslogSimple, remove the
+	  remaining places that really don't need to deal with the
+	  complexities of initialization.
+	  
+	* lib/log: Handle product state information easier
+
+	  The Log Facility is not a product, as such it should not
+	  have direct dependencies on the ProductState library.
+	  None-the-less we want to make registering the ProductState
+	  information with the Log Facility easy.
+	  
+	  Use inline wrapper functions to provide the information. 
+	  
+	* fix bogus glib usage causing whines
+	  
+	  ReloadConfig gets called from all over, and at init time
+	  things aren't fully set up.  glib gets mad if you pass
+	  a NULL object to it, which was happening at startup, so
+	  guard against that to prevent scary-looking (but benign)
+	  warnings from showing up.
+	  
+	* lib/log: Explain Log_SetProductInfo and the InitWith functions
+	  
+	  Provide clarity concerning what's going on.
+	  
+	* Removed redundant ToolsCore_ReloadConfig call.
+	  
+	* lib/lock: remove VMX86_VMX
+	  
+	  Here we clear the MXUser side of lib/lock of VMX86_VMX
+	  dependencies.
+	  
+	* make Subject comparison case insensitive
+	  
+	  Subjects are a username and optional hostname combination. 
+	  Neither of those are case sensitive.
+
+	  
+	* fix some negative test cases
+	  
+	  There are a bunch of guestOps bugs that expect access
+	  errors when manipulating files in unreadable directories. 
+	  The old code was blindly turning any File_Exists() failure
+	  into FILE_NOT_FOUND, when it should instead use the errno
+	  so it can return FILE_NOT_FOUND or ACCESS (or something
+	  else).
+	   
+	  Note that this is not being done for VIX-only operations,
+	  just for functions that are either just for vSphere
+	  guestOps or are shared with them.
+
+	* lib/log: Intermediate change for LogLevel.
+	  
+	  The logLevel tools use Config_NotSet so add it to the Log
+	  CfgInterface. This way all of the log code can be
+	  converted to using the cfgInterface and there will no
+	  complex dependencies within lib/log.
+	  
+	  Convert the existing routine to use the cfgInterface.
+	  
+	  Change the name and parameter of the routine to that of
+	  the final destination. Follow-up changes will alter the
+	  internals of LogLevel as well as where the set-up calls
+	  are made.
+	  
+	* LogLevel: all in one place
+	  
+	  Now that the LogLevel_Configure isn't directly dependent
+	  on Config_Get* it can be brought together with the rest of
+	  the log level tools.
+	  
+	* lib/log: Factor out all Config_Get references
+	  
+	  With this change all paths into the Log Facility are via a
+	  CfgInterface - there is no direct dependency on
+	  Config_Get* anywhere in the Log Facility. This makes it
+	  perfectly clear that any Config_Get* dependencies are the
+	  responsibility of the Log Facility using application.
+	  
+	* Foundry: Shift functions used in Vigor and hostd to open source
+	  
+	  A few functions need to be moved to the open source
+	  portion of Foundry so that Vigor and hostd can use them.
+	  
+	* lib/lock: Avoid try lock on exclusive locks
+
+	  Newer processors essentially make try locks on exclusive
+	  locks forbidden.
+	  
+	* lib/lock: modern sizeof usage
+
+	* lib: more modern sizeof with a few calloc fixes thrown in
+	  	
+	* lib/log: InitWithCustom handles LOG too
+	  
+	* calloc, SafeCalloc and a few modern sizeof
+	  
+	* lib/lock: no stats locks
+	  
+	  We have some locks that are contended by design. Allow
+	  them to be ignored by the stats system.
+	  
+	* OVFtool version (4.0.0)
+
+	  Updated version number to 4.0.0
 
 
 2013.04.16  Dmitry Torokhov  <dtor@vmware.com>

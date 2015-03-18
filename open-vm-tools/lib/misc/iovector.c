@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -110,7 +110,7 @@ IOV_Zero(VMIOVec *iov)   // IN
       size_t c = MIN(numBytesLeft, iov->entries[i].iov_len);
       void *buf;
 
-      ASSERT_NOT_IMPLEMENTED(i < iov->numEntries);
+      VERIFY(i < iov->numEntries);
       buf = iov->entries[i].iov_base;
       ASSERT(buf && buf != LAZY_ALLOC_MAGIC);
       memset(buf, 0, c);
@@ -497,7 +497,7 @@ IOV_WriteIovToBuf(struct iovec* entries,   // IN
          return;
       }
 
-      ASSERT_NOT_IMPLEMENTED(count <= bufSize);
+      VERIFY(count <= bufSize);
    }
 }
 
@@ -590,7 +590,7 @@ IOV_WriteBufToIov(const uint8* bufIn,           // IN
    int i;
 
    ASSERT(entries);
-   ASSERT_BUG(29009, bufIn);
+   VERIFY_BUG(29009, bufIn);
 
    for (i = 0; i < numEntries; i++) {
       size_t numBytes;
@@ -605,7 +605,7 @@ IOV_WriteBufToIov(const uint8* bufIn,           // IN
       if (count >= bufSize) {
          return;
       }
-      ASSERT_NOT_IMPLEMENTED(count <= bufSize);
+      VERIFY(count <= bufSize);
    }
 }
 
@@ -697,7 +697,7 @@ IOV_WriteIovToBufPlus(struct iovec* entries,    // IN
    size_t count = bufSize;
    int i;
 
-   ASSERT_BUG(29009, bufOut);
+   VERIFY_BUG(29009, bufOut);
 
    i = IOVFindFirstEntryOffset(entries, numEntries, iovOffset, &entryOffset);
 
@@ -756,7 +756,7 @@ IOV_WriteBufToIovPlus(uint8* bufIn,             // IN
    size_t count = bufSize;
    int i;
 
-   ASSERT_BUG(29009, bufIn);
+   VERIFY_BUG(29009, bufIn);
 
    i = IOVFindFirstEntryOffset(entries, numEntries, iovOffset, &entryOffset);
 
@@ -764,7 +764,7 @@ IOV_WriteBufToIovPlus(uint8* bufIn,             // IN
       char *base = (char *)(entries[i].iov_base) + entryOffset;
       size_t iov_len = entries[i].iov_len;
 
-      ASSERT_BUG(33859, entries[i].iov_base || entries[i].iov_len == 0);
+      VERIFY_BUG(33859, entries[i].iov_base || entries[i].iov_len == 0);
       ASSERT(entries[i].iov_base != LAZY_ALLOC_MAGIC);
 
       if (iov_len <= 0) {

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +19,7 @@
 /*
  * af_vsock.c --
  *
- *      Linux socket module for the VMCI Sockets protocol family.
+ *      Linux socket module for the vSockets protocol family.
  */
 
 
@@ -591,7 +591,7 @@ VSockVmciAllowDgram(VSockVmciSock *vsock, // IN: Local socket
  * VMCISock_GetAFValue --
  *
  *      Kernel interface that allows external kernel modules to get the current
- *      VMCI Sockets address family.
+ *      vSockets address family.
  *      This version of the function is exported to kernel clients and should not
  *      change.
  *
@@ -613,7 +613,7 @@ VMCISock_GetAFValue(void)
 
    /*
     * Kernel clients are required to explicitly register themselves before they
-    * can use VMCI Sockets.
+    * can use vSockets.
     */
    if (vsockVmciKernClientCount <= 0) {
       afvalue = -1;
@@ -657,7 +657,7 @@ VMCISock_GetLocalCID(void)
 
    /*
     * Kernel clients are required to explicitly register themselves before they
-    * can use VMCI Sockets.
+    * can use vSockets.
     */
    if (vsockVmciKernClientCount <= 0) {
       cid = -1;
@@ -678,7 +678,7 @@ EXPORT_SYMBOL(VMCISock_GetLocalCID);
  *
  * VMCISock_KernelRegister --
  *
- *      Allows a kernel client to register with VMCI Sockets. Must be called
+ *      Allows a kernel client to register with vSockets. Must be called
  *      before VMCISock_GetAFValue within a kernel module. Note that we don't
  *      actually register the address family until the first time the module
  *      needs to use it.
@@ -707,7 +707,7 @@ EXPORT_SYMBOL(VMCISock_KernelRegister);
  *
  * VMCISock_KernelDeregister --
  *
- *      Allows a kernel client to unregister with VMCI Sockets. Every call
+ *      Allows a kernel client to unregister with vSockets. Every call
  *      to VMCISock_KernRegister must be matched with a call to
  *      VMCISock_KernUnregister.
  *
@@ -3080,7 +3080,7 @@ VSockVmciQueueRcvSkb(struct sock *sk,     // IN
  *
  * VSockVmciRegisterProto --
  *
- *      Registers the vmci sockets protocol family.
+ *      Registers the vSockets protocol family.
  *
  * Results:
  *      Zero on success, error code on failure.
@@ -3124,7 +3124,7 @@ VSockVmciRegisterProto(void)
  *
  * VSockVmciUnregisterProto --
  *
- *      Unregisters the vmci sockets protocol family.
+ *      Unregisters the vSockets protocol family.
  *
  * Results:
  *      None.

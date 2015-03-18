@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -259,11 +259,14 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
  *      Query the operating system and build a string to identify it.
  *
  *      Examples:
- *         Windows: <OS NAME> <SERVICE PACK> (BUILD <BUILD_NUMBER>)
+ *         Windows: <OS NAME> <SERVICE PACK> (Build <BUILD_NUMBER>)
  *         example: Windows XP Professional Service Pack 2 (Build 2600)
  *
  *         Linux:   <OS NAME> <OS RELEASE> <SPECIFIC_DISTRO_INFO>
  *         example: Linux 2.4.18-3 Red Hat Linux release 7.3 (Valhalla)
+ *
+ *         Mac OS:  <OS NAME> <OS VERSION> (<BUILD VERSION>) <KERNEL NAME> <KERNEL RELEASE>
+ *         example: Mac OS X 10.8.5 (12F45) Darwin 12.5.0
  *
  * Return value:
  *      NULL  Unable to obtain the OS name.
