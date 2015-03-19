@@ -1,138 +1,133 @@
-##Project information:
+#General
+##What is the open-vm-tools project?
+open-vm-tools is a set of services and modules that enable several features in VMware products for better management of, and seamless user interactions with, guests. It includes kernel modules for enhancing the performance of virtual machines running Linux or other VMware supported Unix like guest operating systems. 
+ 
+open-vm-tools enables the following features in VMware products:
 
-open-vm-tools <http://open-vm-tools.sourceforge.net/>
+- The ability to perform virtual machine power operations gracefully.
+- Execution of VMware provided or user configured scripts in guests during various power operations.
+- The ability to run programs, commands and file system operation in guests to enhance guest automation.
+- Authentication for guest operations. 
+- Periodic collection of network, disk, and memory usage information from the guest.
+- Generation of heartbeat from guests to hosts so VMware's HA solution can determine guests' availability.
+- Clock synchronization between guests and hosts or client desktops.
+- Quiescing guest file systems to allow hosts to capture file-system-consistent guest snapshots.
+- Execution of pre-freeze and post-thaw scripts while quiescing guest files systems.
+- The ability to customize guest operating systems immediately after powering on virtual machines.
+- Enabling shared folders between host and guest file systems on VMware Workstation and VMware Fusion.
+- Copying and pasting text, graphics, and files between guests and hosts or client desktops.
 
-These are the release notes for the open-vm-tools.  Read them carefully, as
-they explain how to build this project for different platforms and various 
-different Linux distributions.
+##Can you provide more details on the actual code being released?
+The following components have been released as open source software:
+- Linux, Solaris and FreeBSD drivers for various devices and file system access.
+- The memory balloon driver for reclaiming memory from guests.
+- The PowerOps plugin to perform graceful power operation and run power scripts.
+- The VIX plugin to run programs and commands, and perform file system operations in guests.
+- The GuestInfo plugin to periodically collect various statistics from guests.
+- The TimeSync plugin to perform time synchronization.
+- The dndcp plugin to support drag and drop, and text and file copy/paste operations.
+- The ResolutionSet plugin to adjust guest screen resolutions automatically based on window sizes.
+- The guest authentication service.
+- The toolbox command to perform disk wiping and shrinking, manage power scripts, and time synchronization.
+- The guest SDK libraries to provide information about virtual machines to guests.
+- Clients and servers for shared folders support.
+- Multiple monitor support.
+- The GTK Toolbox UI.
+ 
+##Is open-vm-tools available with Linux distributions?
+Yes. open-vm-tools packages for user space components are available with new versions of major Linux distributions, and are installed as part of the OS installation in several cases. Please refer to VMware KB article http://kb.vmware.com/kb/2073803 for details. All leading Linux vendors support open-vm-tools and bundle it with their products. For information about OS compatibility for open-vm-tools, see the 
+VMware Compatibility Guide at http://www.vmware.com/resources/compatibility
+Automatic installation of open-vm-tools along with the OS installation eliminates the need to separately install open-vm-tools in guests. If open-vm-tools is not installed automatically, you may be able to manually install it from the guest OS vendor's public repository. Installing open-vm-tools from the Linux vendor's repository reduces virtual machine downtime because future updates to open-vm-tools are included with the OS maintenance patches and updates.
+**NOTE**: The open-vm-tools package available with Linux distributions does not including Linux drivers because Linux drivers are available as part of Linux kernel itself. Linux kernel versions 3.10 and later include all of the Linux drivers present in open-vm-tools except the vmhgfs driver.  The vmhgfs driver is required for enabling shared folders feature.
 
-================================================================================
-##General information:
+##Will there be continued support for VMware Tools and OSP? 
+VMware Tools will continue to be available under a commercial license. It is recommended that open-vm-tools be used for the Linux distributions where open-vm-tools is available. VMware will not provide OSPs for operating systems where open-vm-tools is available.
 
-* What are the open-vm-tools? 
-  * The open-vm-tools are a subset of the VMware Tools, currently composed of
-kernel modules for Linux and user-space programs for all VMware supported Unix
-like guest operating systems.
+##How does this benefit other open source projects?
+Under the terms of the GPL, open source community members are able to use the open-vm-tools code to develop their own applications, extend it, and contribute to the community. They can also incorporate some or all of the code into their projects, provided they comply with the terms of the GPL.
 
-* Where do I find documentation for the open-vm-tools beyond this README?
-  * Please refer to the main project web site for all the latest documentation 
-at: <http://open-vm-tools.sourceforge.net/> 
+# License Related
+##What license is the code being released under?
+The code is being released under GPL v2 and GPL v2 compatible licenses. To be more specific, the Linux kernel modules are being released under the GPL v2, while almost all of the user level components are being released under the LGPL v2.1. The SVGA and mouse drivers have been available under the X11 license for quite some time. There are certain third party components released under BSD style licenses, to which VMware has in some cases contributed, and will continue to distribute with open-vm-tools.
+ 
+##Why did you choose these licenses?
+We chose the GPL v2 for the kernel components to be consistent with the Linux kernel's license. We chose the LGPL v2.1 for the user level components because some of the code is implemented as shared libraries and we do not wish to restrict proprietary code from linking against those libraries. For consistency, we decided to license the rest of the userlevel code under the LGPL v2.1 as well.
 
-* How do I build the open-vm-tools?
-  * The open-vm-tools uses the GNU Automake tool for generating Makefiles to 
-build all sources.  More information about Automake can be found here: 
-<http://sources.redhat.com/automake/>
+##What are the obligations that the license(s) impose?
+Each of these licenses have different obligations.
+For questions about the GPL, LGPL licenses, the Free Software Foundation's GPL FAQ page provides lots of useful information. 
+For questions about the other licenses like the X11, BSD licenses, the Open Source Initiative has numerous useful resources including mailing lists. 
+The Software Freedom Law Center provides legal expertise and consulting for free and open source software (FOSS) developers.
 
-For more information on building this project see the "Project build
-information" section of this document. 
+##Can I use all or part of this code in my proprietary software? Do I have to release the source code if I do?
+Different open source licenses have different requirements regarding the release of source code. Since the code is being released under various open source licenses, you will need to comply with the terms of the corresponding licenses.
 
-================================================================================
+##Am I required to contribute back any changes I make to the code?
+No, you aren't required to contribute any changes that you make back to the open-vm-tools project. However, we encourage you to do so.
+
+##Can I use all or part of this code in another open source package?
+Yes, as long as you comply with the appropriate license(s).
+ 
+##Can I package this for my favorite operating system?
+Yes! Please do. 
+
+##Will the commercial version (VMware Tools) differ from the open source version (open-vm-tools)? If so, how?
+Our goal is to work towards making the open source version as close to the commercial version as possible. However, we do currently make use of certain components licensed from third parties as well as components from other VMware products which are only available in binary form.
+
+##If I use the code from the open-vm-tools project in my project/product, can I call my project/product VMware Tools?
+No, since your project/product is not a VMware project/product.
+ 
+# Building open-vm-tools
+##How do I build open-vm-tools?
+open-vm-tools uses the GNU Automake tool for generating Makefiles to build all sources. More information about Automake can be found here: http://sources.redhat.com/automake/
 ##Project build information:
-
-* Getting configure options & help:
-If you are looking for help or additional settings for the building of this
-project the following configure command will display a list of help options:
-`./configure --help`
-
-* Using configure:
-When using configure in the steps below it is only necessary to call
-`./configure` once unless there was a problem after the first invocation.
-
-* Building Unix user-space programs:
-```
+Getting configure options & help: If you are looking for help or additional settings for the building of this project, the following configure command will display a list of help options: ./configure --help
+Using configure: When using configure in the steps below it is only necessary to call ./configure once unless there was a problem after the first invocation.
+Building Unix user-space programs:
 1. autoreconf -i
 2. ./configure
-3. Run "make" to build Unix userland programs
-4. Run "make modules" to build kernel modules
-```
-* Packaging:
-If you are interested in creating a Tools package, please see
-<https://sourceforge.net/apps/mediawiki/open-vm-tools/index.php?title=Packaging>
-for more information.
+3. Run "make" to build Unix userland  and kernel
+Packaging: If you are interested in creating a Tools package, please see https://sourceforge.net/apps/mediawiki/open-vm-tools/index.php?title=Packaging for more information.
+##Review rest of section here:
+https://github.com/vmware/open-vm-tools/
 
-================================================================================
-##Build suggestions:
-Each Linux distribution puts binaries, libraries and development headers in 
-different locations.  This leads to having to setup different paths for the
-compiler and linker for the Automake system.  Below is a list of known
-configurations to build for platforms that do not "just work" out of the box
-or the tar-ball as the case may be.
+#Getting Involved
+##How can I get involved today?
+You can get involved today in sevearl different ways:
+- Start using open-vm-tools today and give us feedback .
+- Suggest feature enhancements .
+- Identify and submit bugs under issues section: https://github.com/vmware/open-vm-tools/issues
+- Start porting the code to other operating systems.   Here is the list of operating systems with open-vm-tools:
+  * Fedora 19 and later releases
+  * Debian 7.x and later releases
+  * openSUSE 11.x and later releases
+  * Recent Ubuntu releases (12.04 LTS, 13.10 and later)
+  * Red Hat Enterprise Linux 7.0 and later releases
+  * SUSE Linux Enterprise 12 and later releases
+  * CentOS 7 and later releases
+  * Oracle Linux 7 and later 
+ 
+## Will external developers be allowed to become committers to the project?
+Yes. Initially, VMware engineers will be the only committers. As we roll out our developement infrastructure, we will be looking to add external committers to the project as well.
 
-General Build note:
-Please make note that the "--disable-multimon" flag should only be used when
-there are no libXinerama libraries installed, or you do not want to enable multi
-monitor support.
+## How can I submit code changes like bug fixes, patches, new features to the project?
+Initially, you can submit bug fixes, patches and new features to the project development mailing list as attachments to emails or bug reports. To contribute source code, you will need to fill out a contribution agreement form as part of the submission process. We will have more details on this process shortly.
 
-Your operating system version will influence which kernel
-modules can be built. Here are the minimum OS versions for each
-module:
+## What is the governance model for managing this as an open source project?
+The feature roadmap and schedules for the open-vm-tools project will continue to be defined by VMware. Initially, VMware engineers will be the only approved committers. We will review incoming submissions for suitability for merging into the project. We will be looking to add community committers to the project based on their demonstrated contributions to the project. Finally, we also plan to set up a process for enhancement proposals, establishing sub-projects and so on.
 
-| vmsync        | vmblock        | vmxnet       | vmmemctl       | vmhgfs      |
-|---------------|----------------|--------------|----------------|-------------|
-| Linux 2.6.6   | Linux 2.4.0    | Linux 2.2.0  | Linux 2.2.0    | Linux 2.4.0 |
-| FreeBSD N/A   | FreeBSD 6.0    | FreeBSD 4.9  | FreeBSD 3.2    | FreeBSD 6.0 |
+## Will you ship code that I contribute with VMware products? If so, will I get credit for my contributions?
+Contributions that are accepted into the open-vm-tools project's main source tree will likely be a part of VMware Tools. We also recognize the value of attribution and value your contributions. Consequently, we will acknowledge contributions from the community that are distributed with VMware's products.
 
-* Suse Enterprise 10.1 (i386 & x86_64):
-```
-i386:
-./configure LDFLAGS="-L/opt/gnome/lib"
-x86_64:
-./configure LDFLAGS="-L/opt/gnome/lib64"
-```
-* OpenSolaris "Nevada" (i386 & x86_64):
-Before building open-vm-tools on Solaris, you will need to make 
-sure that libdnet (http://libdnet.sourceforge.net/) is installed and 
-that the 'dnet-config' script is on your shell's PATH.
-Make sure that the GNU tools are in your shell's PATH. The 
-default GNU tools location on OpenSolaris is: "/usr/sfw/bin". Once the 
-PATH is set in your build shell then the following configure command 
-should work:
-```
-./configure --disable-multimon
-```
-* FreeBSD 6.2 (i386 & x86_64):
-./configure LDFLAGS="-L/usr/local/lib"
+## Do I need to sign something before making a contribution?
+Yes. We have a standard contribution agreement that covers all contributions made to the project. It gives VMware and you joint copyright interests in the code you are contributing. The agreement also gives VMware flexibility with licensing and also helps avoid any copyright/licensing related issues that may arise in the future. In order for us to include your contribution in our source tree, we ask that you send us a signed copy of the agreement. You can do this in one of two ways:
+Fax to +1.650.427.5003, Attn: Product & Technology Law Group
+Scan and email it to oss-queries_at_vmware.com
+Agreement: http://open-vm-tools.sourceforge.net/files/vca.pdf
 
-================================================================================
-##Other resources:
-
-* There are also open-source video & mouse drivers for Xorg/XFree86 that
-provide better performance and additional features to Linux, Solaris, and BSD
-derivatives guests running X11. 
-
-* The drivers 'xf86-input-vmmouse' and 'xf86-video-vmware' are included with 
-recent Xorg releases, and it shouldn't be necessary to do anything extra to 
-obtain them.  If you want to obtain them separately, they can be downloaded at:
-<http://xorg.freedesktop.org/releases/individual/driver/>
-
-================================================================================
-##Guest operating systems used to test on this release:
-
-* Fedora Core 8 (i386 & x86_64)
-* Redhat 9.0 (i386)
-* Redhat Enterprise 4 U5 (i386 & x86_64)
-* Redhat Enterprise 5 (i386 & x86_64)
-* FreeBSD 5.4 (i386 & x86_64)
-* FreeBSD 6.2 (i386 & x86_64)
-* OpenSolaris 10 "Nevada" (i386 & x86_64)
-* Open SuSE 10.3 (i386 & x86_64)
-* Ubuntu 6.04 (i386 & x86_64)
-* Ubuntu 7.10 (i386 & x86_64)
-
-===============================================================================
-##Known issues:
-
-* When using HGFS on FreeBSD, the 'cp' command will fail if the source 
-file is on the HGFS share. This is because mmap() does not yet work with 
-the FreeBSD port of HGFS. One workaround is to use 'cat 
-/mnt/hgfs/foo/bar > /tmp/baz' instead of 'cp /mnt/hgfs/foo/bar 
-/tmp/baz'.
-
-* When using HGFS on FreeBSD, if your current working directory is the 
-top-level HGFS mount (e.g. '/mnt/hgfs') and you run 'ls', you will 
-receive an "Invalid argument" error. The workaround is to change to 
-another directory and then run 'ls /mnt/hgfs'. Running 'ls' in 
-subdirectories of /mnt/hgfs works as expected.
-
-===============================================================================
-
+# Other
+## Mailing Lists
+Please send an email to one of these mailing lists based on the nature of your question.
+- Development related questions : open-vm-tools-devel@lists.sourceforge.net
+- Miscellaneous questions: open-vm-tools-discuss@lists.sourceforge.net
+- General project announcements: open-vm-tools-announce@lists.sourceforge.net
