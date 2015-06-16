@@ -49,7 +49,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 @HAVE_X11_TRUE@am__append_1 = appUtil
-@USE_SLASH_PROC_TRUE@am__append_2 = slashProc
+@HAVE_VSOCK_TRUE@am__append_2 = asyncsocket
+@USE_SLASH_PROC_TRUE@am__append_3 = slashProc
 subdir = lib
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -270,14 +271,14 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = guestRpc $(am__append_1) auth backdoor asyncsocket sslDirect \
-	pollGtk poll dataMap hashMap dict dynxdr err file foundryMsg \
-	glibUtils guestApp hgfs hgfsBd hgfsHelper hgfsServer \
-	hgfsServerManagerGuest hgfsServerPolicyGuest impersonate lock \
-	message misc netUtil nicInfo panic panicDefault printer \
-	procMgr rpcChannel rpcIn rpcOut rpcVmx $(am__append_2) string \
-	stubs syncDriver system unicode user vmCheck vmSignal wiper \
-	xdg
+SUBDIRS = guestRpc $(am__append_1) auth backdoor $(am__append_2) \
+	sslDirect pollGtk poll dataMap hashMap dict dynxdr err file \
+	foundryMsg glibUtils guestApp hgfs hgfsBd hgfsHelper \
+	hgfsServer hgfsServerManagerGuest hgfsServerPolicyGuest \
+	impersonate lock message misc netUtil nicInfo panic \
+	panicDefault printer procMgr rpcChannel rpcIn rpcOut rpcVmx \
+	$(am__append_3) string stubs syncDriver system unicode user \
+	vmCheck vmSignal wiper xdg
 all: all-recursive
 
 .SUFFIXES:

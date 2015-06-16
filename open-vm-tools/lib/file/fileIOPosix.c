@@ -1118,8 +1118,45 @@ FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
                  FileIOOpenAction action,  // IN:
                  uint32 msecMaxWaitTime)   // IN:
 {
+#if defined(VMX86_SERVER)
+   FileIOResult res;
+   int retries = 10;
+
+   /*
+    * Workaround the ESX NFS client bug as seen in PR 1341775.
+    * Since ESX NFS client can sometimes *wrongly* return ESTALE for
+    * legitimate file open case, we retry a few times in case we hit
+    * that problem.
+    */
+   while (retries-- > 0) {
+      res = FileIOCreateRetry(file, pathName, access, action,
+                              S_IRUSR | S_IWUSR, msecMaxWaitTime);
+      if (res == FILEIO_ERROR && Err_Errno() == ESTALE) {
+         /*
+          * 300 msec * 10 retries, gives us 3 secs of retry. This should
+          * be good enough as the ESTALE seen in PR 1341775 is due to a
+          * tiny race where another host is atomically swapping the file,
+          * and causing the file to be temporarily unlinked, while this host
+          * tries to open it. It should be very short lived.
+          */
+         if (retries > 0) {
+            Log(LGPFX "FileIOCreateRetry (%s) failed with ESTALE, retrying, "
+                      "retries left (#%d)\n", UTF8(pathName), retries);
+            Util_Usleep(300 * 1000);
+            continue;
+         } else {
+            Log(LGPFX "Failing FileIO_OpenRetry (%s) with ESTALE!\n",
+                      UTF8(pathName));
+         }
+      }
+      break;
+   }
+
+   return res;
+#else
    return FileIOCreateRetry(file, pathName, access, action,
                             S_IRUSR | S_IWUSR, msecMaxWaitTime);
+#endif
 }
 
 

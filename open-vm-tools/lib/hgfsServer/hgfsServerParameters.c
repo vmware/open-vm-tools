@@ -150,7 +150,7 @@ HgfsValidateReplySize(char const *packetIn,
    Bool result;
    HgfsRequest *request = (HgfsRequest *)packetIn;
 
-   if (HGFS_V4_LEGACY_OPCODE != request->op) {
+   if (HGFS_OP_NEW_HEADER != request->op) {
       if (HGFS_OP_READ_V3 == op) {
          result = packetSize <= HGFS_LARGE_PACKET_MAX;
       } else {
@@ -331,7 +331,7 @@ HgfsUnpackHeaderV4(const HgfsHeader *requestHeader,   // IN: request header
       goto exit;
    }
 
-   ASSERT(HGFS_V4_LEGACY_OPCODE == requestHeader->dummy);
+   ASSERT(HGFS_OP_NEW_HEADER == requestHeader->dummy);
 
    /* The basics of the header are validated, get the remaining parameters. */
    *sessionId   = requestHeader->sessionId;
@@ -431,7 +431,7 @@ HgfsUnpackPacketParams(const void *packet,      // IN: HGFS packet
                                         opcode,
                                         payloadSize,
                                         payload);
-   } else if (HGFS_V4_LEGACY_OPCODE == request->op) {
+   } else if (HGFS_OP_NEW_HEADER == request->op) {
       /* The legacy op means a new header but we can have V3 and newer opcodes. */
       const HgfsHeader *requestHdr = packet;
       uint32 hdrFlags = 0;
@@ -771,7 +771,7 @@ HgfsPackReplyHeaderV4(HgfsStatus status,            // IN: reply status
       memset(hdrPacket, 0, sizeof *hdrPacket);
 
       hdrPacket->version = HGFS_HEADER_VERSION;
-      hdrPacket->dummy = HGFS_V4_LEGACY_OPCODE;
+      hdrPacket->dummy = HGFS_OP_NEW_HEADER;
       hdrPacket->packetSize = payloadSize + sizeof *hdrPacket;
       hdrPacket->headerSize = sizeof *hdrPacket;
       hdrPacket->requestId = requestId;

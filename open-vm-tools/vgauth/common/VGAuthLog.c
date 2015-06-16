@@ -25,6 +25,11 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+/*
+ * Need GNU definition of strerror_r for better compatibility
+ * across different glibc versions.
+ */
+#define _GNU_SOURCE
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>

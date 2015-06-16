@@ -55,6 +55,12 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
+#if defined(__linux__)
+#include <sys/io.h>
+#include <errno.h>
+#include <string.h>
+#include "ioplGet.h"
+#endif
 
 #define VMBACKUP_ENQUEUE_EVENT() do {                                         \
    gBackupState->timerEvent = g_timeout_source_new(gBackupState->pollPeriod); \
@@ -130,6 +136,39 @@ VmBackupKeepAliveCallback(void *clientData)
 }
 
 
+#if defined(__linux__)
+static Bool
+VmBackupPrivSendMsg(gchar *msg,
+                    char **result,
+                    size_t *resultLen)
+{
+   Bool success;
+   unsigned int oldLevel;
+
+   ASSERT(gBackupState != NULL);
+
+   g_debug("*** %s\n", __FUNCTION__);
+
+   oldLevel = Iopl_Get();
+
+   g_debug("Raising the IOPL, oldLevel=%u\n", oldLevel);
+   if (iopl(3) < 0) {
+      g_warning("Error raising the IOPL, %s\n", strerror(errno));
+   }
+
+   success = RpcChannel_Send(gBackupState->ctx->rpc, msg,
+                             strlen(msg) + 1,
+                             result, resultLen);
+
+   if (iopl(oldLevel) < 0) {
+      g_warning("Error restoring the IOPL, %s\n", strerror(errno));
+   }
+
+   return success;
+}
+#endif
+
+
 /**
  * Sends a command to the VMX asking it to update VMDB about a new backup event.
  * This will restart the keep-alive timer.
@@ -147,7 +186,7 @@ VmBackup_SendEvent(const char *event,
                    const char *desc)
 {
    Bool success;
-   char *result;
+   char *result = NULL;
    size_t resultLen;
    gchar *msg;
 
@@ -159,13 +198,52 @@ VmBackup_SendEvent(const char *event,
       g_source_unref(gBackupState->keepAlive);
    }
 
-   msg = g_strdup_printf(VMBACKUP_PROTOCOL_EVENT_SET" %s %u %s", event, code, desc);
-   success = RpcChannel_Send(gBackupState->ctx->rpc, msg, strlen(msg) + 1,
+   msg = g_strdup_printf(VMBACKUP_PROTOCOL_EVENT_SET" %s %u %s",
+                         event, code, desc);
+   g_debug("Sending vmbackup event: %s\n", msg);
+
+#if defined(__linux__)
+   if (gBackupState->needsPriv) {
+      success = VmBackupPrivSendMsg(msg, &result, &resultLen);
+   } else {
+      success = RpcChannel_Send(gBackupState->ctx->rpc,
+                                msg, strlen(msg) + 1,
+                                &result, &resultLen);
+      if (!success) {
+         const char *privErr = "Guest is not privileged";
+         if (resultLen > strlen(privErr) &&
+             strncmp(result, privErr, strlen(privErr)) == 0) {
+            g_debug("Failed to send event: %s\n", result);
+            vm_free(result);
+
+            /*
+             * PR1444259:
+             * Some hosts enforce privilege elevation for sending this
+             * event, especially 5.5. This is Linux specific because
+             * version 9.4.x on Linux only triggers host side check for
+             * privilege elevation by sending iopl_elevation capability
+             * to the host.
+             */
+            gBackupState->needsPriv = TRUE;
+
+            g_debug("Sending event with priv: %s\n", msg);
+            success = VmBackupPrivSendMsg(msg, &result, &resultLen);
+         } else {
+            gBackupState->needsPriv = FALSE;
+         }
+      }
+   }
+#else
+   success = RpcChannel_Send(gBackupState->ctx->rpc,
+                             msg, strlen(msg) + 1,
                              &result, &resultLen);
+#endif
 
    if (!success) {
-      g_warning("Failed to send event to the VMX: %s.\n", result);
+      g_warning("Failed to send vmbackup event: %s.\n", result);
    }
+   vm_free(result);
+   g_free(msg);
 
    gBackupState->keepAlive = g_timeout_source_new(VMBACKUP_KEEP_ALIVE_PERIOD / 2);
    VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
@@ -649,6 +727,7 @@ VmBackupStartCommon(RpcInData *data,
    gBackupState->pollPeriod = 1000;
    gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
    gBackupState->provider = provider;
+   gBackupState->needsPriv = FALSE;
    gBackupState->enableNullDriver = VmBackupConfigGetBoolean(ctx->config,
                                                              "enableNullDriver",
                                                              TRUE);

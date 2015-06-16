@@ -49,6 +49,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@HAVE_VSOCK_TRUE@am__append_1 = vsockChannel.c simpleSocket.c
 subdir = lib/rpcChannel
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -62,10 +63,12 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libRpcChannel_la_LIBADD =
+am__libRpcChannel_la_SOURCES_DIST = bdoorChannel.c rpcChannel.c \
+	vsockChannel.c simpleSocket.c
+@HAVE_VSOCK_TRUE@am__objects_1 = libRpcChannel_la-vsockChannel.lo \
+@HAVE_VSOCK_TRUE@	libRpcChannel_la-simpleSocket.lo
 am_libRpcChannel_la_OBJECTS = libRpcChannel_la-bdoorChannel.lo \
-	libRpcChannel_la-rpcChannel.lo \
-	libRpcChannel_la-vsockChannel.lo \
-	libRpcChannel_la-simpleSocket.lo
+	libRpcChannel_la-rpcChannel.lo $(am__objects_1)
 libRpcChannel_la_OBJECTS = $(am_libRpcChannel_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
@@ -80,7 +83,7 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libRpcChannel_la_SOURCES)
-DIST_SOURCES = $(libRpcChannel_la_SOURCES)
+DIST_SOURCES = $(am__libRpcChannel_la_SOURCES_DIST)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -273,8 +276,7 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LTLIBRARIES = libRpcChannel.la
-libRpcChannel_la_SOURCES = bdoorChannel.c rpcChannel.c vsockChannel.c \
-	simpleSocket.c
+libRpcChannel_la_SOURCES = bdoorChannel.c rpcChannel.c $(am__append_1)
 libRpcChannel_la_CPPFLAGS = @VMTOOLS_CPPFLAGS@
 all: all-am
 

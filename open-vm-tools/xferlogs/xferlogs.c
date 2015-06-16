@@ -38,7 +38,6 @@
  */
 
 #include <stdio.h>
-#include <wchar.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>

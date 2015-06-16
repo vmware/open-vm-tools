@@ -49,8 +49,9 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@ENABLE_GRABBITMQPROXY_TRUE@am__append_1 = @SSL_LIBS@ -lcrypto
-@USE_SLASH_PROC_TRUE@am__append_2 = ../lib/slashProc/libSlashProc.la
+@HAVE_VSOCK_TRUE@am__append_1 = ../lib/asyncsocket/libAsyncSocket.la
+@ENABLE_GRABBITMQPROXY_TRUE@am__append_2 = @SSL_LIBS@ -lcrypto
+@USE_SLASH_PROC_TRUE@am__append_3 = ../lib/slashProc/libSlashProc.la
 subdir = libvmtools
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -73,8 +74,7 @@ libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libvmtools_la_DEPENDENCIES = ../lib/lock/libLock.la \
-	../lib/backdoor/libBackdoor.la \
-	../lib/asyncsocket/libAsyncSocket.la \
+	../lib/backdoor/libBackdoor.la $(am__append_1) \
 	../lib/sslDirect/libSslDirect.la ../lib/pollGtk/libPollGtk.la \
 	../lib/poll/libPoll.la ../lib/dataMap/libDataMap.la \
 	../lib/hashMap/libHashMap.la ../lib/dict/libDict.la \
@@ -91,7 +91,7 @@ libvmtools_la_DEPENDENCIES = ../lib/lock/libLock.la \
 	../lib/unicode/libUnicode.la ../lib/user/libUser.la \
 	../lib/vmCheck/libVmCheck.la ../lib/vmSignal/libVmSignal.la \
 	../lib/wiper/libWiper.la ../lib/misc/libMisc.la \
-	$(am__DEPENDENCIES_1) $(am__append_2)
+	$(am__DEPENDENCIES_1) $(am__append_3)
 am_libvmtools_la_OBJECTS = libvmtools_la-i18n.lo \
 	libvmtools_la-monotonicTimer.lo libvmtools_la-signalSource.lo \
 	libvmtools_la-vmtools.lo libvmtools_la-vmtoolsConfig.lo \
@@ -308,8 +308,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 lib_LTLIBRARIES = libvmtools.la
 libvmtools_la_LIBADD = ../lib/lock/libLock.la \
-	../lib/backdoor/libBackdoor.la \
-	../lib/asyncsocket/libAsyncSocket.la \
+	../lib/backdoor/libBackdoor.la $(am__append_1) \
 	../lib/sslDirect/libSslDirect.la ../lib/pollGtk/libPollGtk.la \
 	../lib/poll/libPoll.la ../lib/dataMap/libDataMap.la \
 	../lib/hashMap/libHashMap.la ../lib/dict/libDict.la \
@@ -326,8 +325,8 @@ libvmtools_la_LIBADD = ../lib/lock/libLock.la \
 	../lib/unicode/libUnicode.la ../lib/user/libUser.la \
 	../lib/vmCheck/libVmCheck.la ../lib/vmSignal/libVmSignal.la \
 	../lib/wiper/libWiper.la ../lib/misc/libMisc.la \
-	@LIBVMTOOLS_LIBADD@ @GLIB2_LIBS@ @ICU_LIBS@ $(am__append_1) \
-	$(am__append_2)
+	@LIBVMTOOLS_LIBADD@ @GLIB2_LIBS@ @ICU_LIBS@ $(am__append_2) \
+	$(am__append_3)
 
 # Recompile the stub for Log_* functions, but not Log() itself (see -DNO_LOG_STUB).
 libvmtools_la_SOURCES = i18n.c monotonicTimer.c signalSource.c \

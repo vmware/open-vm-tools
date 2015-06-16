@@ -144,8 +144,57 @@ static Bool CompareKeys(struct HashMap *map, const void *key, const void *compar
 static Bool NeedsResize(struct HashMap *map);
 static void Resize(struct HashMap *map);
 INLINE void EnsureSanity(HashMap *map);
-static INLINE Bool CheckSanity(HashMap *map);
 
+/*
+ * ----------------------------------------------------------------------------
+ *
+ * CheckSanity --
+ *
+ *   Same code as EnsureSanity except return Bool instead of ASSERTing
+ *
+ * Results:
+ *    TRUE is sane.
+ *
+ * Side Effects:
+ *    None.
+ *
+ * ----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+CheckSanity(HashMap *map)
+{
+#ifdef VMX86_DEBUG
+   uint32 i, cnt = 0;
+
+   ASSERT(map);
+   for (i = 0; i < map->numEntries; i++) {
+      HashMapEntryHeader *header = NULL;
+      void *key, *data;
+
+      GetEntry(map, i, &header, &key, &data);
+      ASSERT(header);
+      ASSERT(header->state == HashMapState_FILLED ||
+             header->state == HashMapState_EMPTY ||
+             header->state == HashMapState_DELETED);
+      if (header->state == HashMapState_FILLED) {
+         cnt++;
+         if (header->hash != ComputeHash(map, key)) {
+            return FALSE;
+         }
+      }
+   }
+
+   if (cnt != map->count) {
+      return FALSE;
+   }
+
+   if (!map->numEntries) {
+      return FALSE;
+   }
+#endif
+   return TRUE;
+}
 
 /*
  * ----------------------------------------------------------------------------
@@ -654,7 +703,6 @@ HashMap_Retrieve(void      *h,         // IN
       free(map);
       return NULL;
    }
-
    return map;
 }
 
@@ -1141,61 +1189,8 @@ HashMap_Iterate(HashMap *map,             // IN
 void
 EnsureSanity(HashMap *map)
 {
-#ifdef VMX86_DEBUG
    ASSERT(CheckSanity(map) == TRUE);
-#endif
 }
 
-
-/*
- * ----------------------------------------------------------------------------
- *
- * CheckSanity --
- *
- *   Same code as EnsureSanity except return Bool instead of ASSERTing
- *
- * Results:
- *    TRUE is sane.
- *
- * Side Effects:
- *    None.
- *
- * ----------------------------------------------------------------------------
- */
-
-static Bool
-CheckSanity(HashMap *map)
-{
-#ifdef VMX86_DEBUG
-   uint32 i, cnt = 0;
-
-   ASSERT(map);
-   for (i = 0; i < map->numEntries; i++) {
-      HashMapEntryHeader *header = NULL;
-      void *key, *data;
-
-      GetEntry(map, i, &header, &key, &data);
-      ASSERT(header);
-      ASSERT(header->state == HashMapState_FILLED ||
-             header->state == HashMapState_EMPTY ||
-             header->state == HashMapState_DELETED);
-      if (header->state == HashMapState_FILLED) {
-         cnt++;
-         if (header->hash != ComputeHash(map, key)) {
-            return FALSE;
-         }
-      }
-   }
-
-   if (cnt != map->count) {
-      return FALSE;
-   }
-
-   if (!map->numEntries) {
-      return FALSE;
-   }
-#endif
-   return TRUE;
-}
 
 

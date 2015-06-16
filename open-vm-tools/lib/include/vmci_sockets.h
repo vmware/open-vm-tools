@@ -39,7 +39,9 @@
 #  if defined(__APPLE__)
 #    include <sys/socket.h>
 #    include <string.h>
-#  endif // __APPLE__
+#  elif defined(__FreeBSD__)
+#     include <sys/socket.h>
+#  endif // __FreeBSD__
 #endif // linux && !VMKERNEL
 #endif
 
@@ -381,9 +383,9 @@
  */
 
 struct sockaddr_vm {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
    unsigned char svm_len;
-#endif // __APPLE__
+#endif // __APPLE__ || __FreeBSD__
 
    /** \brief Address family. \see VMCISock_GetAFValueFd() */
    sa_family_t svm_family;
@@ -835,7 +837,19 @@ struct uuid_2_cid {
       return io.u2c_context_id;
    }
 #  endif // __KERNEL__
-#endif // linux && !VMKERNEL
+#elif defined(__FreeBSD__)
+   /*
+    * No FreeBSD support yet, but it might appear in the future. Just define
+    * some stubs that return errors - that way a client doesn't have to ifdef
+    * the calls (assuming it can handle the failures).
+    */
+#  define VMCISock_Version()                    VMCI_SOCKETS_INVALID_VERSION
+#  define VMCISock_GetAFValueFd(outFd)          (-1)
+#  define VMCISock_GetAFValue()                 VMCISock_GetAFValueFd(NULL)
+#  define VMCISock_ReleaseAFValueFd(fd)         do { } while (0)
+#  define VMCISock_GetLocalCID()                VMADDR_CID_ANY
+#  define VMCISock_Uuid2ContextId(uuidString)   VMADDR_CID_ANY
+#endif // __FreeBSD__
 #endif // _WIN32
 
 

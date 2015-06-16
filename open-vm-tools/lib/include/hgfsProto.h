@@ -148,15 +148,24 @@ typedef enum {
    HGFS_OP_SET_EAS_V4,            /* Add or modify extended attributes. */
 
    HGFS_OP_MAX,                   /* Dummy op, must be last in enum */
+   HGFS_OP_NEW_HEADER = 0xff,     /* Header op, must be unique, distinguishes packet headers. */
 } HgfsOp;
 
+
+/*
+ * If we get to where the OP table has grown such that we hit the invalid opcode to
+ * distinguish between header structures in the packet, then we must ensure that there
+ * is no valid HGFS opcode with that same value.
+ * The following assert is designed to force anyone who adds new opcodes which cause the
+ * above condition to occur to verify the opcode values and then can remove this check.
+ */
+MY_ASSERTS(hgfsOpValuesAsserts,
+   ASSERT_ON_COMPILE(HGFS_OP_MAX < HGFS_OP_NEW_HEADER);
+)
 
 /* HGFS protocol versions. */
 #define HGFS_VERSION_OLD           (1 << 0)
 #define HGFS_VERSION_3             (1 << 1)
-
-/* If a V4 packet is being processed as a legacy packet it will have this opcode. */
-#define HGFS_V4_LEGACY_OPCODE      0xff
 
 /* XXX: Needs change when VMCI is supported. */
 #define HGFS_REQ_PAYLOAD_SIZE_V3(hgfsReq) (sizeof *hgfsReq + sizeof(HgfsRequest))
@@ -1672,12 +1681,11 @@ typedef
 struct HgfsHeader {
    uint8 version;       /* Header version. */
    uint8 reserved1[3];  /* Reserved for future use. */
-   uint8 dummy;         /* Needed to distinguish between older and newer header. */
-   uint8 reserved2[3];  /* Reserved for future use. */
+   HgfsOp dummy;        /* Needed to distinguish between older and newer header. */
    uint32 packetSize;   /* Size of the packet, including the header size. */
    uint32 headerSize;   /* Size of the Hgfs header. */
    uint32 requestId;    /* Request ID. */
-   uint32 op;           /* Operation. */
+   HgfsOp op;           /* Operation. */
    uint32 status;       /* Return value. */
    uint32 flags;        /* Flags. See above. */
    uint32 information;  /* Generic field, used e.g. for native error code. */

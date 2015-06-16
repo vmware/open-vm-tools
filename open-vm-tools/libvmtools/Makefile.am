@@ -20,7 +20,9 @@ lib_LTLIBRARIES = libvmtools.la
 libvmtools_la_LIBADD =
 libvmtools_la_LIBADD += ../lib/lock/libLock.la
 libvmtools_la_LIBADD += ../lib/backdoor/libBackdoor.la
+if HAVE_VSOCK
 libvmtools_la_LIBADD += ../lib/asyncsocket/libAsyncSocket.la
+endif
 libvmtools_la_LIBADD += ../lib/sslDirect/libSslDirect.la
 libvmtools_la_LIBADD += ../lib/pollGtk/libPollGtk.la
 libvmtools_la_LIBADD += ../lib/poll/libPoll.la

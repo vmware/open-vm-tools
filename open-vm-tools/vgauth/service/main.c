@@ -82,6 +82,37 @@ static char *pidFileName = "/var/run/vmware/vgauthsvclog_pid.txt";
 
 /*
  ******************************************************************************
+ * ServiceHelp --                                                        */ /**
+ *
+ * Dump some simple help.
+ *
+ ******************************************************************************
+ */
+
+static void
+ServiceHelp(char *arg)
+{
+   printf("Usage: %s [OPTION]\n", arg);
+   printf("Service to support SAML token and ticketing authentication"
+         " for VMware products.\n\n");
+#ifdef _WIN32
+   printf("\t-r\tRegister as a Windows Service.\n");
+   printf("\t-u\tUnregister as a Windows Service.\n");
+   printf("\t-d\tRun as a normal program, sending logging to stdio.\n");
+   printf("\t-s\tRun as a normal program, sending logging to a file.\n");
+#else
+#if USE_POSIX_SERVICE
+   printf("\t-k\tKill the running instance that was started as a daemon.\n");
+   printf("\t-s\tRun in daemon mode.\n");
+   printf("\t-b\tRun in background mode, using a pid lock file.\n");
+#endif
+#endif
+   printf("\t-h\tDisplay this help and exit.\n");
+}
+
+
+/*
+ ******************************************************************************
  * ServiceStartAndRun --                                               */ /**
  *
  * Does the work to start up and run the service.  Never returns.
@@ -541,6 +572,9 @@ main(int argc,
          Service_InitLogging(FALSE, FALSE);
          ServiceStartAndRun();
          return 0;
+      } else if (g_strcmp0(argv[1], "-h") == 0) {
+         ServiceHelp(argv[0]);
+         return 0;
       }
    }
 
@@ -591,6 +625,9 @@ main(int argc,
             return -1;
          }
          // NOTREACHED
+         return 0;
+      } else if (g_strcmp0(argv[1], "-h") == 0) {     // help
+         ServiceHelp(argv[0]);
          return 0;
       } else {
          Warning("%s: unrecognized args\n", __FUNCTION__);

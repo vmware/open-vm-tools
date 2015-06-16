@@ -5790,7 +5790,7 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    void *replyHeader;
    void *replyData;
 
-   if (HGFS_V4_LEGACY_OPCODE == request->op) {
+   if (HGFS_OP_NEW_HEADER == request->op) {
       headerSize = sizeof(HgfsHeader);
    } else if (request->op < HGFS_OP_CREATE_SESSION_V4 &&
               request->op > HGFS_OP_RENAME_V2) {

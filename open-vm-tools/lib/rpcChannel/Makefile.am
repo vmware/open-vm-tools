@@ -20,8 +20,10 @@ noinst_LTLIBRARIES = libRpcChannel.la
 libRpcChannel_la_SOURCES =
 libRpcChannel_la_SOURCES += bdoorChannel.c
 libRpcChannel_la_SOURCES += rpcChannel.c
+if HAVE_VSOCK
 libRpcChannel_la_SOURCES += vsockChannel.c
 libRpcChannel_la_SOURCES += simpleSocket.c
+endif
 
 libRpcChannel_la_CPPFLAGS =
 libRpcChannel_la_CPPFLAGS += @VMTOOLS_CPPFLAGS@

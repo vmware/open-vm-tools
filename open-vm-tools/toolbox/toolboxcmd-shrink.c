@@ -391,7 +391,7 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
     * Verify that wiping/shrinking are permitted before going through with the
     * wiping operation.
     */
-   if (!ShrinkGetWiperState() == WIPER_ENABLED && !Wiper_IsWipeSupported(part)) {
+   if (ShrinkGetWiperState() != WIPER_ENABLED && !Wiper_IsWipeSupported(part)) {
       g_debug("%s cannot be wiped / shrunk\n", mountPoint);
       ToolsCmd_PrintErr("%s",
                         SU_(disk.shrink.disabled, SHRINK_DISABLED_ERR));

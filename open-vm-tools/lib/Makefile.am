@@ -22,7 +22,9 @@ if HAVE_X11
 endif
 SUBDIRS += auth
 SUBDIRS += backdoor
+if HAVE_VSOCK
 SUBDIRS += asyncsocket
+endif
 SUBDIRS += sslDirect
 SUBDIRS += pollGtk
 SUBDIRS += poll

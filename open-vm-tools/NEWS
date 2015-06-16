@@ -1,31 +1,20 @@
-open-vm-tools 2015.03.12 changes:
-        * vgauth added.
+open-vm-tools 2015.06.15 changes:
+	* Various compilation fixes.
 
-        * deploypkg added.
+	* vmxnet is disabled for kernels 3.3 and above.
 
-        * guest proxycerttool added.
+	* vmhgfs is disabled for kernels 3.17 and above.
 
-        * hgfs and vmci/vsock fixes.
+	* Fixes for building on FreeBSD, see build instructions
+	  in ChangeLog.
 
-        * asyncsocket enhancements.
+	* Added a "-h" option to vgauth.
 
-        * various library fixes and improvements.
+	* Work around an NFS bug by retrying on ESTALE.
 
-        * locking and logging fixes and improvements.
+	* Retry sending vmbackup event with elevated privileges.
 
-        * foundry fixes.
-
-        * vm-support script fixes.
-
-
-open-vm-tools 2013.09.16 changes:
-	* HGFS client and server improvements.
-
-	* Fixes for HGFS driver to compile with newer kernels.
-
-	* Tools demon now can use vsock to communicate with the host.
-
-	* Other fixes and cleanups.
+	* Thaw frozen file systems when snapshot commit fails.
 
 open-vm-tools 2013.04.16 changes:
 	* VMCI/VMSOCK Linux kernel modules are disabled for kernels

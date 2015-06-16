@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="2015.01.29"
+TOOLS_VERSION="9.10.2"
 AC_INIT(
    [open-vm-tools],
-   [2015.01.29],
+   [9.10.2],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -1041,10 +1041,19 @@ if test "$os" = "linux"; then
    CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=500"
    CPPFLAGS="$CPPFLAGS -D_BSD_SOURCE"
    CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE"
+   CPPFLAGS="$CPPFLAGS -D_DEFAULT_SOURCE"
 
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrt"
 
-   MODULES="$MODULES vmxnet vmhgfs"
+   # vmhgfs is not compiled for kernels 3.17 and newer
+   # Temporary short term limit until the newer kernel component is included
+   if test "$osVersion" -lt 317000; then
+      MODULES="$MODULES vmhgfs"
+   fi
+   # vmxnet is not supported for kernels 3.3.0 and newer
+   if test "$osVersion" -lt 303000; then
+      MODULES="$MODULES vmxnet"
+   fi
    # See if we need vmci and vsock modules. Starting with 3.9 they made
    # their way into mainline kernel.
    if test "$osVersion" -lt 309000; then
@@ -1146,6 +1155,7 @@ AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")
 AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
 AM_CONDITIONAL(ENABLE_GRABBITMQPROXY, test "$enable_grabbitmqproxy" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
+AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
