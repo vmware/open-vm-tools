@@ -1492,6 +1492,24 @@ File_GetUniqueFileSystemID(char const *path)  // IN: File path
 
    existPath = FilePosixNearestExistingAncestor(path);
    canPath = Posix_RealPath(existPath);
+
+   /*
+    * Returns "/vmfs/devices" for DEVFS. Since /vmfs/devices is symbol linker,
+    * We don't use realpath here.
+    */
+   if (strncmp(existPath, DEVFS_MOUNT_POINT, strlen(DEVFS_MOUNT_POINT)) == 0) {
+      char devfsName[FILE_MAXPATH];
+
+      if (sscanf(existPath, DEVFS_MOUNT_PATH "%[^/]%*s",
+                 devfsName) == 1) {
+
+         free(existPath);
+         free(canPath);
+         return Str_SafeAsprintf(NULL, "%s/%s", DEVFS_MOUNT_POINT,
+                                 devfsName);
+      }
+   }
+
    free(existPath);
 
    if (canPath == NULL) {

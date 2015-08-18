@@ -260,6 +260,8 @@ void VMCIHost_SetInactiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
 uint32 VMCIHost_NumHnds(VMCIHost *hostContext);
 uintptr_t VMCIHost_GetActiveHnd(VMCIHost *hostContext);
 void VMCIHost_SignalBitmap(VMCIHost *hostContext);
+void VMCIHost_SignalBitmapAlways(VMCIHost *hostContext);
+void VMCIHost_SignalCallAlways(VMCIHost *hostContext);
 #endif
 
 #if defined(_WIN32)

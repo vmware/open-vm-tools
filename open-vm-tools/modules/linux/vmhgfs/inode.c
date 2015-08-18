@@ -404,6 +404,8 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
    size_t reqBufferSize;
    size_t reqSize;
    int result = 0;
+   uid_t attrUid = -1;
+   gid_t attrGid = -1;
 
    ASSERT(iattr);
    ASSERT(dentry);
@@ -411,6 +413,14 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
    ASSERT(changed);
 
    valid = iattr->ia_valid;
+
+   if (valid & ATTR_UID) {
+      attrUid = from_kuid(&init_user_ns, iattr->ia_uid);
+   }
+
+   if (valid & ATTR_GID) {
+      attrGid = from_kgid(&init_user_ns, iattr->ia_gid);
+   }
 
    switch (opUsed) {
    case HGFS_OP_SETATTR_V3: {
@@ -488,13 +498,13 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
       if (valid & ATTR_UID) {
          attrV2->mask |= HGFS_ATTR_VALID_USERID;
-         attrV2->userId = iattr->ia_uid;
+         attrV2->userId = attrUid;
          *changed = TRUE;
       }
 
       if (valid & ATTR_GID) {
          attrV2->mask |= HGFS_ATTR_VALID_GROUPID;
-         attrV2->groupId = iattr->ia_gid;
+         attrV2->groupId = attrGid;
          *changed = TRUE;
       }
 
@@ -591,13 +601,13 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
       if (valid & ATTR_UID) {
          attrV2->mask |= HGFS_ATTR_VALID_USERID;
-         attrV2->userId = iattr->ia_uid;
+         attrV2->userId = attrUid;
          *changed = TRUE;
       }
 
       if (valid & ATTR_GID) {
          attrV2->mask |= HGFS_ATTR_VALID_GROUPID;
-         attrV2->groupId = iattr->ia_gid;
+         attrV2->groupId = attrGid;
          *changed = TRUE;
       }
 

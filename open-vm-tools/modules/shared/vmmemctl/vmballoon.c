@@ -589,6 +589,35 @@ BalloonPageStore(BalloonChunk *chunk, PageHandle page)
    chunk->page[chunk->pageCount++] = page;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * BalloonChunkDestroyEmpty --
+ *
+ *      Release the chunk if it contains no pages.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+BalloonChunkDestroyEmpty(Balloon *b,            // IN/OUT
+                         BalloonChunk *chunk)   // IN/OUT
+{
+   if (chunk->pageCount == 0) {
+      /* destroy empty chunk */
+      DblLnkLst_Unlink1(&chunk->node);
+      BalloonChunk_Destroy(chunk);
+
+      /* update stats */
+      b->nChunks--;
+   }
+}
 
 /*
  *----------------------------------------------------------------------
@@ -631,14 +660,7 @@ BalloonPageFree(Balloon *b)     // IN
    b->nPages--;
 
    /* reclaim chunk, if empty */
-   if (chunk->pageCount == 0) {
-      /* destroy empty chunk */
-      DblLnkLst_Unlink1(&chunk->node);
-      BalloonChunk_Destroy(chunk);
-
-      /* update stats */
-      b->nChunks--;
-   }
+   BalloonChunkDestroyEmpty(b, chunk);
 
    return BALLOON_SUCCESS;
 }
@@ -1009,6 +1031,9 @@ BalloonLock(Balloon *b,       // IN
    status = Backdoor_MonitorLockPage(b, pagePPN);
    if (status != BALLOON_SUCCESS) {
       int old_status = status;
+
+      /* We need to release the chunk if it was just allocated */
+      BalloonChunkDestroyEmpty(b, chunk);
 
       if (status == BALLOON_ERROR_RESET ||
           status == BALLOON_ERROR_PPN_NOTNEEDED) {

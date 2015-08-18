@@ -83,7 +83,6 @@ HgfsOp hgfsVersionCreateSymlink;
 static inline unsigned long HgfsComputeBlockBits(unsigned long blockSize);
 static compat_kmem_cache_ctor HgfsInodeCacheCtor;
 static HgfsSuperInfo *HgfsInitSuperInfo(HgfsMountInfo *mountInfo);
-static int HgfsGetRootDentry(struct super_block *sb, struct dentry **rootDentry);
 static int HgfsReadSuper(struct super_block *sb,
                          void *rawData,
                          int flags);
@@ -228,16 +227,23 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
     * or gid given to us by the server.
     */
    si->uidSet = mountInfo->uidSet;
+   si->uid = current_uid();
    if (si->uidSet) {
-      si->uid = mountInfo->uid;
-   } else {
-      si->uid = current_uid();
+      kuid_t mntUid = make_kuid(current_user_ns(), mountInfo->uid);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+      if (uid_valid(mntUid))
+#endif
+         si->uid = mntUid;
    }
+
    si->gidSet = mountInfo->gidSet;
+   si->gid = current_gid();
    if (si->gidSet) {
-      si->gid = mountInfo->gid;
-   } else {
-      si->gid = current_gid();
+      kgid_t mntGid = make_kgid(current_user_ns(), mountInfo->gid);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+      if (gid_valid(mntGid))
+#endif
+         si->gid = mntGid;
    }
    si->fmask = mountInfo->fmask;
    si->dmask = mountInfo->dmask;
@@ -327,103 +333,6 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
 
 
 /*
- *----------------------------------------------------------------------------
- *
- * HgfsGetRootDentry --
- *
- *    Gets the root dentry for a given super block.
- *
- * Results:
- *    zero and a valid root dentry on success
- *    negative value on failure
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-static int
-HgfsGetRootDentry(struct super_block *sb,       // IN: Super block object
-                  struct dentry **rootDentry)   // OUT: Root dentry
-{
-   int result = -ENOMEM;
-   struct inode *rootInode;
-   struct dentry *tempRootDentry = NULL;
-   struct HgfsAttrInfo rootDentryAttr;
-   HgfsInodeInfo *iinfo;
-
-   ASSERT(sb);
-   ASSERT(rootDentry);
-
-   LOG(6, (KERN_DEBUG "VMware hgfs: %s: entered\n", __func__));
-
-   rootInode = HgfsGetInode(sb, HGFS_ROOT_INO);
-   if (rootInode == NULL) {
-      LOG(6, (KERN_DEBUG "VMware hgfs: %s: Could not get the root inode\n",
-             __func__));
-      goto exit;
-   }
-
-   /*
-    * On an allocation failure in read_super, the inode will have been
-    * marked "bad". If it was, we certainly don't want to start playing with
-    * the HgfsInodeInfo. So quietly put the inode back and fail.
-    */
-   if (is_bad_inode(rootInode)) {
-      LOG(6, (KERN_DEBUG "VMware hgfs: %s: encountered bad inode\n",
-             __func__));
-      goto exit;
-   }
-
-   tempRootDentry = d_make_root(rootInode);
-   /*
-    * d_make_root() does iput() on failure; if d_make_root() completes
-    * successfully then subsequent dput() will do iput() for us, so we
-    * should just ignore root inode from now on.
-    */
-   rootInode = NULL;
-
-   if (tempRootDentry == NULL) {
-      LOG(4, (KERN_WARNING "VMware hgfs: %s: Could not get "
-              "root dentry\n", __func__));
-      goto exit;
-   }
-
-   result = HgfsPrivateGetattr(tempRootDentry, &rootDentryAttr, NULL);
-   if (result) {
-      LOG(4, (KERN_WARNING "VMware hgfs: HgfsReadSuper: Could not"
-             "instantiate the root dentry\n"));
-      goto exit;
-   }
-
-   iinfo = INODE_GET_II_P(tempRootDentry->d_inode);
-   iinfo->isFakeInodeNumber = FALSE;
-   iinfo->isReferencedInode = TRUE;
-
-   if (rootDentryAttr.mask & HGFS_ATTR_VALID_FILEID) {
-      iinfo->hostFileId = rootDentryAttr.hostFileId;
-   }
-
-   HgfsChangeFileAttributes(tempRootDentry->d_inode, &rootDentryAttr);
-   HgfsDentryAgeReset(tempRootDentry);
-   tempRootDentry->d_op = &HgfsDentryOperations;
-
-   *rootDentry = tempRootDentry;
-   result = 0;
-
-   LOG(6, (KERN_DEBUG "VMware hgfs: %s: finished\n", __func__));
-exit:
-   if (result) {
-      iput(rootInode);
-      dput(tempRootDentry);
-      *rootDentry = NULL;
-   }
-   return result;
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * HgfsReadSuper --
@@ -503,7 +412,10 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
    sb->s_blocksize_bits = HgfsComputeBlockBits(HGFS_BLOCKSIZE);
    sb->s_blocksize = 1 << sb->s_blocksize_bits;
 
-   result = HgfsGetRootDentry(sb, &rootDentry);
+   /*
+    * Create the root dentry and its corresponding inode.
+    */
+   result = HgfsInstantiateRoot(sb, &rootDentry);
    if (result) {
       LOG(4, (KERN_WARNING "VMware hgfs: HgfsReadSuper: Could not instantiate "
               "root dentry\n"));

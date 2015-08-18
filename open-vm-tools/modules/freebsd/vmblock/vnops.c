@@ -755,14 +755,12 @@ struct vop_open_args {
 */
 {
    VMBlockMount *mp;
-   VMBlockNode *mip;
    struct vnode *vp, *ldvp;
    struct file *fp;
    int retval;
 
    vp = ap->a_vp;
    ldvp = VMBVPTOLOWERVP(vp);
-   mip = VPTOVMB(ap->a_vp);
 
    mp = MNTTOVMBLOCKMNT(ap->a_vp->v_mount);
    if (ap->a_vp == mp->rootVnode) {
@@ -1365,7 +1363,9 @@ struct vop_inactive_args {
 */
 {
    struct vnode *vp = ap->a_vp;
+#if __FreeBSD_version < 1000000
    struct thread *td = ap->a_td;
+#endif
 
    vp->v_object = NULL;
 
@@ -1373,8 +1373,11 @@ struct vop_inactive_args {
     * If this is the last reference, then free up the vnode so as not to
     * tie up the lower vnode.
     */
-   vrecycle(vp, td);
-
+#if __FreeBSD_version < 1000000
+    vrecycle(vp, td);
+#else
+   vrecycle(vp);
+#endif
    return 0;
 }
 
@@ -1414,7 +1417,6 @@ struct vop_reclaim_args {
    struct vnode *vp = ap->a_vp;
    struct VMBlockNode *xp = VPTOVMB(vp);
    struct vnode *lowervp = xp->lowerVnode;
-   struct lock *vnlock;
 
    KASSERT(lowervp != NULL, ("reclaiming node with no lower vnode"));
 
@@ -1427,7 +1429,6 @@ struct vop_reclaim_args {
    VI_LOCK(vp);
    vp->v_data = NULL;
    vp->v_object = NULL;
-   vnlock = vp->v_vnlock;
 
    /*
     * Reassign lock pointer to this vnode's lock.  (Originally assigned

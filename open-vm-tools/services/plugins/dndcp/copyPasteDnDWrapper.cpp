@@ -489,7 +489,7 @@ CopyPasteDnDWrapper::OnResetInternal()
                        strlen("dnd.is.active"), &reply, &replyLen) &&
        (1 == atoi(reply))) {
       g_debug("%s: ignore reset while file transfer is busy.\n", __FUNCTION__);
-      return;
+      goto exit;
    }
 
    if (IsDnDRegistered()) {
@@ -508,6 +508,9 @@ CopyPasteDnDWrapper::OnResetInternal()
       g_debug("%s: unable to reset fully DnD %d CP %d!\n",
             __FUNCTION__, IsDnDRegistered(), IsCPRegistered());
    }
+
+exit:
+   free(reply);
 }
 
 
@@ -544,7 +547,7 @@ void
 CopyPasteDnDWrapper::OnCapReg(gboolean set)
 {
    g_debug("%s: enter\n", __FUNCTION__);
-   char *reply;
+   char *reply = NULL;
    size_t replyLen;
    const char *toolsDnDVersion = TOOLS_DND_VERSION_4;
    char *toolsCopyPasteVersion = NULL;
@@ -593,6 +596,7 @@ CopyPasteDnDWrapper::OnCapReg(gboolean set)
             }
          }
          vm_free(reply);
+         reply = NULL;
        }
 
       /*

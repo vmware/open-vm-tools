@@ -220,8 +220,15 @@ SyncDriver_Freeze(const char *userPaths,     // IN
    /*
     * First, convert the given path list to something the backends will
     * understand: a colon-separated list of paths.
+    *
+    * NOTE: Ignore disk UUIDs. We ignore the userPaths if it does
+    * not start with '/' because all paths are absolute and it is
+    * possible only when we get diskUUID as userPaths. So, all
+    * mount points are considered instead of the userPaths provided.
     */
-   if (userPaths == NULL || Str_Strncmp(userPaths, "all", sizeof "all") == 0) {
+   if (userPaths == NULL ||
+       Str_Strncmp(userPaths, "all", sizeof "all") == 0 ||
+       *userPaths != '/') {
       paths = SyncDriverListMounts();
       if (paths == NULL) {
          Debug(LGPFX "Failed to list mount points.\n");

@@ -56,6 +56,7 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
                     gpointer _state)
 {
    ToolsServiceState *state = _state;
+   static gboolean version_sent = FALSE;
 
    ASSERT(state != NULL);
 
@@ -75,13 +76,17 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
       }
       g_free(msg);
 
-      /*
-       * Log the Tools build number to the VMX log file. We don't really care
-       * if sending the message fails.
-       */
-      msg = g_strdup_printf("log %s: Version: %s", app, BUILD_NUMBER);
-      RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL);
-      g_free(msg);
+      if (!version_sent) {
+         /*
+          * Log the Tools build number to the VMX log file. We don't really care
+          * if sending the message fails.
+          */
+         msg = g_strdup_printf("log %s: Version: %s", app, BUILD_NUMBER);
+         RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL);
+         g_free(msg);
+         /* send message only once to prevent log spewing: */
+         version_sent = TRUE;
+      }
 
       g_signal_emit_by_name(state->ctx.serviceObj,
                             TOOLS_CORE_SIG_RESET,

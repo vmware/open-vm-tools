@@ -70,7 +70,7 @@
 #include "util.h"
 #include "str.h"
 
-#define MAX_IFACES      4
+#define MAX_IFACES      64
 #define LOOPBACK        "lo"    // XXX: We would have a problem with something like "loa0".
 #ifndef INET_ADDRSTRLEN
 #define INET_ADDRSTRLEN 16

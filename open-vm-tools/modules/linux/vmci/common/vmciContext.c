@@ -2082,7 +2082,7 @@ VMCIContext_SignalPendingDoorbells(VMCIId contextID)
    VMCI_ReleaseLock(&context->lock, flags);
 
    if (pending) {
-      VMCIHost_SignalBitmap(&context->hostContext);
+      VMCIHost_SignalBitmapAlways(&context->hostContext);
    }
 
    VMCIContext_Release(context);
@@ -2126,7 +2126,7 @@ VMCIContext_SignalPendingDatagrams(VMCIId contextID)
    VMCI_ReleaseLock(&context->lock, flags);
 
    if (pending) {
-      VMCIHost_SignalCall(&context->hostContext);
+      VMCIHost_SignalCallAlways(&context->hostContext);
    }
 
    VMCIContext_Release(context);

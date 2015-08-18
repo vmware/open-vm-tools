@@ -449,7 +449,7 @@ FIELD(  D,  0, ECX,  0, 32, XSAVE_MAX_SIZE,                         YES, FALSE) 
 FIELD(  D,  0, EDX,  0, 29, XCR0_MASTER_UPPER,                      NO,  FALSE) \
 FLAG(   D,  0, EDX, 30,  1, XCR0_MASTER_LWP,                        NO,  FALSE) \
 FLAG(   D,  0, EDX, 31,  1, XCR0_MASTER_EXTENDED_XSAVE,             NO,  FALSE) \
-FLAG(   D,  1, EAX,  0,  1, XSAVEOPT,                               NO,  FALSE) \
+FLAG(   D,  1, EAX,  0,  1, XSAVEOPT,                               YES,  FALSE) \
 FIELD(  D,  2, EAX,  0, 32, XSAVE_YMM_SIZE,                         YES, FALSE) \
 FIELD(  D,  2, EBX,  0, 32, XSAVE_YMM_OFFSET,                       YES, FALSE) \
 FIELD(  D,  2, ECX,  0, 32, XSAVE_YMM_RSVD1,                        YES, FALSE) \
@@ -942,7 +942,8 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_FAMILY_K8MOBILE        17
 #define CPUID_FAMILY_LLANO           18
 #define CPUID_FAMILY_BOBCAT          20
-#define CPUID_FAMILY_BULLDOZER       21
+#define CPUID_FAMILY_BULLDOZER       21  // Bulldozer Piledriver Steamroller
+#define CPUID_FAMILY_KYOTO           22
 
 /* Effective VIA CPU Families */
 #define CPUID_FAMILY_C7               6
@@ -969,6 +970,9 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_NEHALEM_2E     0x2e  // Nehalem-EX
 #define CPUID_MODEL_NEHALEM_2F     0x2f  // Westmere-EX
 #define CPUID_MODEL_SANDYBRIDGE_3A 0x3a  // Ivy Bridge
+#define CPUID_MODEL_SANDYBRIDGE_3E 0x3e  // Ivy Bridge-EP
+#define CPUID_MODEL_HASWELL_46     0x46  // CrystalWell
+#define CPUID_MODEL_ATOM_4D        0x4d  // Avoton
 #define CPUID_MODEL_HASWELL_3C     0x3c  // Haswell DT
 #define CPUID_MODEL_HASWELL_45     0x45  // Haswell Ultrathin
 
@@ -985,7 +989,11 @@ CPUIDCheck(uint32 eaxIn, uint32 eaxInCheck,
 #define CPUID_MODEL_ISTANBUL_MAGNY_08 0x08 // Istanbul (6 core) & Magny-cours (12) HY
 #define CPUID_MODEL_ISTANBUL_MAGNY_09 0x09 // HY - G34 package
 #define CPUID_MODEL_PHAROAH_HOUND_0A  0x0A // Pharoah Hound
+#define CPUID_MODEL_PILEDRIVER_1F     0x1F // Max piledriver model defined in BKDG 
+#define CPUID_MODEL_PILEDRIVER_10     0x10 // family == CPUID_FAMILY_BULLDOZER
+#define CPUID_MODEL_PILEDRIVER_02     0x02 // family == CPUID_FAMILY_BULLDOZER
 #define CPUID_MODEL_OPTERON_REVF_41   0x41 // family == CPUID_FAMILY_K8
+#define CPUID_MODEL_KYOTO_00          0x00 // family == CPUID_FAMILY_KYOTO
 
 /* VIA model information */
 #define CPUID_MODEL_NANO       15     // Isaiah
@@ -1138,10 +1146,22 @@ CPUID_UARCH_IS_SANDYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
    return CPUID_FAMILY_IS_P6(v) &&
           (effectiveModel == CPUID_MODEL_SANDYBRIDGE_2A ||
            effectiveModel == CPUID_MODEL_SANDYBRIDGE_2D ||
+           effectiveModel == CPUID_MODEL_SANDYBRIDGE_3E ||
            effectiveModel == CPUID_MODEL_SANDYBRIDGE_3A);
 }
 
 
+static INLINE Bool
+CPUID_UARCH_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
+
+   return CPUID_FAMILY_IS_P6(v) &&
+          (effectiveModel == CPUID_MODEL_HASWELL_3C   ||
+           effectiveModel == CPUID_MODEL_HASWELL_45   ||
+           effectiveModel == CPUID_MODEL_HASWELL_46);
+}
 
 static INLINE Bool
 CPUID_MODEL_IS_CENTERTON(uint32 v) // IN: %eax from CPUID with %eax=1.
@@ -1151,6 +1171,13 @@ CPUID_MODEL_IS_CENTERTON(uint32 v) // IN: %eax from CPUID with %eax=1.
           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ATOM_1C;
 }
 
+static INLINE Bool
+CPUID_MODEL_IS_AVOTON(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) && 
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ATOM_4D;
+}
 
 static INLINE Bool
 CPUID_MODEL_IS_WESTMERE(uint32 v) // IN: %eax from CPUID with %eax=1.
@@ -1184,7 +1211,21 @@ CPUID_MODEL_IS_IVYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
    uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
 
    return CPUID_FAMILY_IS_P6(v) && (
+       effectiveModel == CPUID_MODEL_SANDYBRIDGE_3E ||
        effectiveModel == CPUID_MODEL_SANDYBRIDGE_3A);
+}
+
+
+static INLINE Bool
+CPUID_MODEL_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
+
+   return CPUID_FAMILY_IS_P6(v) &&
+          (effectiveModel == CPUID_MODEL_HASWELL_3C ||
+           effectiveModel == CPUID_MODEL_HASWELL_45 ||
+           effectiveModel == CPUID_MODEL_HASWELL_46);
 }
 
 
@@ -1256,6 +1297,11 @@ CPUID_FAMILY_IS_BULLDOZER(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
 }
 
+static INLINE Bool
+CPUID_FAMILY_IS_KYOTO(uint32 eax)
+{
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_KYOTO;
+}
 
 /*
  * AMD Barcelona (of either Opteron or Phenom kind).
@@ -1301,11 +1347,36 @@ CPUID_MODEL_IS_PHAROAH_HOUND(uint32 v) // IN: %eax from CPUID with %eax=1.
 static INLINE Bool
 CPUID_MODEL_IS_BULLDOZER(uint32 eax)
 {
-   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
+   /* 
+    * Bulldozer is models of family 0x15 that are below 10 excluding 
+    * Piledriver 02.
+    */
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER && 
+          CPUID_EFFECTIVE_MODEL(eax)  < CPUID_MODEL_PILEDRIVER_10 &&
+          CPUID_EFFECTIVE_MODEL(eax) != CPUID_MODEL_PILEDRIVER_02;
+}
+
+
+static INLINE Bool
+CPUID_MODEL_IS_PILEDRIVER(uint32 eax)
+{
+   /* Piledriver is models 0x02 & 0x10 of family 0x15 (so far). */
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER && 
+          ((CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_PILEDRIVER_10 && 
+            CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_PILEDRIVER_1F) ||
+           CPUID_EFFECTIVE_MODEL(eax) == CPUID_MODEL_PILEDRIVER_02);
 }
 
 
 
+
+static INLINE Bool
+CPUID_MODEL_IS_KYOTO(uint32 eax)
+{
+   /* Kyoto is models 0x00 of family 0x16 (so far). */
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_KYOTO &&
+          CPUID_EFFECTIVE_MODEL(eax) == CPUID_MODEL_KYOTO_00;
+}
 
 #define CPUID_TYPE_PRIMARY     0
 #define CPUID_TYPE_OVERDRIVE   1

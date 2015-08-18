@@ -185,6 +185,14 @@ RpcOut_send(RpcOut *out,         // IN
    ASSERT(out);
 
    ASSERT(out->channel);
+
+   if (out->channel == NULL) {
+      *reply = "RpcOut: Channel is not active";
+      *repLen = strlen(*reply);
+
+      return FALSE;
+   }
+
    if (Message_Send(out->channel, (const unsigned char *)request, reqLen) == FALSE) {
       *reply = "RpcOut: Unable to send the RPCI command";
       *repLen = strlen(*reply);
