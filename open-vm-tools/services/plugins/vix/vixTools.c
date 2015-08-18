@@ -350,6 +350,18 @@ static Bool allowConsoleUserOps = FALSE;
 static VixToolsReportProgramDoneProcType reportProgramDoneProc = NULL;
 static void *reportProgramDoneData = NULL;
 
+/*
+ * Global state to decide if VIX commands should be restricted.
+ *
+ * Performing most of the VIX commands when quiesce snapshot operation
+ * has frozen the guest filesystem could lead to deadlock in the tools
+ * service (bug 1210773). This does not happen with VIM clients using
+ * guestOps because hostd enforces the ordering of all VM operations.
+ * However, it is possible for VIX clients to issue an op that ends up
+ * accessing the guest filesystem in frozen state.
+ */
+static gboolean gRestrictCommands = FALSE;
+
 #ifndef _WIN32
 typedef struct VixToolsEnvironmentTableIterator {
    char **envp;
@@ -731,6 +743,28 @@ VixTools_Uninitialize(void) // IN
    }
 
    HgfsServerManager_Unregister(&gVixHgfsBkdrConn);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixTools_RestrictCommands --
+ *
+ *
+ * Return value:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VixTools_RestrictCommands(gboolean restricted) // IN
+{
+   gRestrictCommands = restricted;
 }
 
 
@@ -1777,11 +1811,19 @@ VixToolsMonitorAsyncProc(void *clientData) // IN
    ASSERT(asyncState);
 
    /*
-    * Check if the program has completed.
+    * Check if the program has completed and VIX commands
+    * are not being restricted. Performing cleanup involving
+    * IO would deadlock the operations like quiesce snapshot
+    * that freeze the filesystem.
     */
    procIsRunning = ProcMgr_IsAsyncProcRunning(asyncState->procState);
    if (!procIsRunning) {
-      goto done;
+      if (gRestrictCommands) {
+         Debug("%s: Deferring RunScript cleanup due to IO freeze\n",
+               __FUNCTION__);
+      } else {
+         goto cleanup;
+      }
    }
 
    timer = g_timeout_source_new(SECONDS_BETWEEN_POLL_TEST_FINISHED * 1000);
@@ -1790,7 +1832,7 @@ VixToolsMonitorAsyncProc(void *clientData) // IN
    g_source_unref(timer);
    return FALSE;
 
-done:
+cleanup:
 
    /*
     * We need to always check the exit code, even if there is no need to
@@ -10073,6 +10115,33 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
 
    Debug("%s: command %d\n", __FUNCTION__, requestMsg->opCode);
 
+   /*
+    * PR 1210773: Check if new VIX commands can be processed.
+    *
+    * Most of the VIX commands require access to the guest
+    * filesystem and therefore they could block when quiesced
+    * snapshot operation has frozen the guest filesystem. A
+    * blocked VIX command would not allow Tools service to
+    * process other important ops like resuming filesystem
+    * because Tools service is single threaded. Effectively,
+    * a VIX command could deadlock a quiesce snapshot operation.
+    *
+    * A quiesce snapshot operation that follows a long running
+    * VIX command like runprogram/startprogram is not an issue
+    * because the running command gets blocked temporarily
+    * only when it needs to access the filesystem, otherwise
+    * it continues to run like any other application inside
+    * guest.
+    *
+    * Return a generic error to make clients retry the command
+    * in a graceful manner.
+    */
+   if (gRestrictCommands) {
+      Warning("%s: IO freeze restricted command %d\n",
+              __FUNCTION__, requestMsg->opCode);
+      err = VIX_E_OBJECT_IS_BUSY;
+      goto abort;
+   }
 
    if (!VixToolsCheckIfVixCommandEnabled(requestMsg->opCode, confDictRef)) {
       err = VIX_E_OPERATION_DISABLED;

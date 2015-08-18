@@ -66,6 +66,8 @@ void VixTools_SetConsoleUserPolicy(Bool allowConsoleUserOpsParam);
 void VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProgramDoneProc,
                                     void *clientData);
 
+void VixTools_RestrictCommands(gboolean restricted);
+
 /*
  * These are internal procedures that are exposed for the legacy
  * tclo callbacks.

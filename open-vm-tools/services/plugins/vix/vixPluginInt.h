@@ -36,6 +36,9 @@ FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx);
 void
 FoundryToolsDaemon_Uninitialize(ToolsAppCtx *ctx);
 
+void
+FoundryToolsDaemon_RestrictVixCommands(ToolsAppCtx *ctx, gboolean restricted);
+
 gboolean
 FoundryToolsDaemonGetToolsProperties(RpcInData *data);
 

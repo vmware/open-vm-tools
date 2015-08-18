@@ -400,6 +400,20 @@ FoundryToolsDaemon_Uninitialize(ToolsAppCtx *ctx)
 }
 
 
+/**
+ * Restrict VIX commands in Foundry daemon.
+ *
+ * @param[in]  ctx        Application context.
+ * @param[in]  restricted TRUE/FALSE=>enable/disable restriction.
+ */
+
+void
+FoundryToolsDaemon_RestrictVixCommands(ToolsAppCtx *ctx, gboolean restricted)
+{
+   VixTools_RestrictCommands(restricted);
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *

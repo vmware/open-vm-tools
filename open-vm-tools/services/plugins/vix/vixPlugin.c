@@ -31,12 +31,31 @@
 #include "vixCommands.h"
 #include "vixPluginInt.h"
 #include "vmware/tools/utils.h"
+#include "vmware/tools/vmbackup.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
 #include "vmtoolsd_version.h"
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
+
+/**
+ * IO freeze signal handler. Restrict VIX commands.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The application context.
+ * @param[in]  freeze   Whether I/O is being frozen.
+ * @param[in]  data     Unused.
+ */
+
+static void
+VixIOFreeze(gpointer src,
+            ToolsAppCtx *ctx,
+            gboolean freeze,
+            gpointer data)
+{
+   FoundryToolsDaemon_RestrictVixCommands(ctx, freeze);
+}
 
 /**
  * Clean up internal state on shutdown.
@@ -83,12 +102,6 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          ToolsDaemonTcloReceiveVixCommand, NULL, NULL, 0 },
       { VIX_BACKDOORCOMMAND_MOUNT_VOLUME_LIST,
          ToolsDaemonTcloMountHGFS, NULL, NULL, NULL, 0 },
-#if defined(_WIN32) || defined(linux)
-      { VIX_BACKDOORCOMMAND_SYNCDRIVER_FREEZE,
-      ToolsDaemonTcloSyncDriverFreeze, NULL, NULL, NULL, 0 },
-      { VIX_BACKDOORCOMMAND_SYNCDRIVER_THAW,
-         ToolsDaemonTcloSyncDriverThaw, NULL, NULL, NULL, 0 }
-#endif
    };
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_SHUTDOWN, VixShutdown, &regData }
@@ -105,17 +118,44 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    FoundryToolsDaemon_Initialize(ctx);
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
-   /*
-    * If running the user daemon or if the sync driver is not active, remove
-    * the last two elements of the RPC registration array, so that the sync
-    * driver RPC commands are ignored.
-    */
+   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) == 0 && SyncDriver_Init()) {
+      size_t i;
+      size_t reg;
+
+      for (reg = 0; reg < ARRAYSIZE(regs); reg++) {
+         if (regs[reg].type == TOOLS_APP_SIGNALS) {
+            /*
+             * If running the system daemon and if the sync driver is active,
+             * add signal registrations for IO_FREEZE signal.
+             */
+            ToolsPluginSignalCb sysSigs[] = {
+               { TOOLS_CORE_SIG_IO_FREEZE, VixIOFreeze, NULL }
+            };
+
+            for (i = 0; i < ARRAYSIZE(sysSigs); i++) {
+               g_array_append_val(regs[reg].data, sysSigs[i]);
+            }
+         }
 #if defined(_WIN32) || defined(linux)
-   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) != 0 || !SyncDriver_Init()) {
-      g_array_remove_range(regs[0].data, regs[0].data->len - 2, 2);
-   }
+         else if (regs[reg].type == TOOLS_APP_GUESTRPC) {
+            /*
+             * If running the system daemon and if the sync driver is active,
+             * add RPC registrations for sync driver RPC commands.
+             */
+            RpcChannelCallback sysRpcs[] = {
+               { VIX_BACKDOORCOMMAND_SYNCDRIVER_FREEZE,
+                  ToolsDaemonTcloSyncDriverFreeze, NULL, NULL, NULL, 0 },
+               { VIX_BACKDOORCOMMAND_SYNCDRIVER_THAW,
+                  ToolsDaemonTcloSyncDriverThaw, NULL, NULL, NULL, 0 }
+            };
+
+            for (i = 0; i < ARRAYSIZE(sysRpcs); i++) {
+               g_array_append_val(regs[reg].data, sysRpcs[i]);
+            }
+         }
 #endif
+      }
+   }
 
    return &regData;
 }
-
