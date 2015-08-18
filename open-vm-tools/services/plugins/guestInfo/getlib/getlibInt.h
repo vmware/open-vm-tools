@@ -47,6 +47,12 @@ IpAddressEntry *GuestInfoAddIpAddress(GuestNicV3 *nic,                  // IN/OU
                                       InetAddressPrefixLength pfxLen,   // IN
                                       const IpAddressOrigin *origin,    // IN
                                       const IpAddressStatus *status);   // IN
+
+#if defined _WIN32
+void GuestInfoDupTypedIpAddress(TypedIpAddress *srcIp,   // IN
+                                TypedIpAddress *destIp);  // OUT
+#endif // if defined _WIN32
+
 #if defined linux || defined _WIN32
 Bool GuestInfoGetNicInfoIfIndex(NicInfoV3 *nicInfo,  // IN
                                 int ifIndex,         // IN

@@ -429,6 +429,30 @@ GuestInfoSockaddrToTypedIpAddress(const struct sockaddr *sa,
    }
 }
 
+#if defined _WIN32
+/*
+ ******************************************************************************
+ * GuestInfoDupTypedIpAddress--
+ *
+ * @brief Duplicates a @c TypedIpAddress.
+ *
+ * @param[in]  srcIp    Source @c TypedIpAddress.
+ * @param[out] destIp   Destination @c TypedIpAddress.
+ *
+ ******************************************************************************
+ */
+
+void
+GuestInfoDupTypedIpAddress(TypedIpAddress *srcIp,   // IN
+                           TypedIpAddress *destIp)  // OUT
+{
+
+   *destIp = *srcIp;
+   destIp->ipAddressAddr.InetAddress_val =
+      Util_DupeThis(srcIp->ipAddressAddr.InetAddress_val,
+                    srcIp->ipAddressAddr.InetAddress_len);
+}
+#endif // if defined _WIN32
 
 #if defined linux || defined _WIN32
 /*
