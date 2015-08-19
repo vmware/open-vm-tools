@@ -1,3 +1,14 @@
+open-vm-tools 9.4.12 changes:
+	* Release of open-vm-tools matching vSphere 5.5p12.
+
+	* Restrict VIX commands during quiesced snapshot operation.
+
+	* GuestInfo ip report enhancement for disconnected nics.
+
+	* DnD code clean up.
+
+	* Kernel module compiling issues.
+
 open-vm-tools 9.4.6 changes:
 	* Release of open-vm-tools matching vSphere 5.5p02.
 
