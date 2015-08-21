@@ -79,7 +79,7 @@ No, since your project/product is not a VMware project/product.
  
 # Building open-vm-tools
 ##How do I build open-vm-tools?
-open-vm-tools uses the GNU Automake tool for generating Makefiles to build all sources. More information about Automake can be found here: http://sources.redhat.com/automake/
+open-vm-tools uses the GNU Automake tool for generating Makefiles to build all sources. More information about Automake can be found here: http://www.gnu.org/software/automake/
 ##Project build information:
 Getting configure options & help: If you are looking for help or additional settings for the building of this project, the following configure command will display a list of help options: ./configure --help
 Using configure: When using configure in the steps below it is only necessary to call ./configure once unless there was a problem after the first invocation.
