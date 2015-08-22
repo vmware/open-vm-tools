@@ -12,7 +12,7 @@ open-vm-tools enables the following features in VMware products:
 - Generation of heartbeat from guests to hosts so VMware's HA solution can determine guests' availability.
 - Clock synchronization between guests and hosts or client desktops.
 - Quiescing guest file systems to allow hosts to capture file-system-consistent guest snapshots.
-- Execution of pre-freeze and post-thaw scripts while quiescing guest files systems.
+- Execution of pre-freeze and post-thaw scripts while quiescing guest file systems.
 - The ability to customize guest operating systems immediately after powering on virtual machines.
 - Enabling shared folders between host and guest file systems on VMware Workstation and VMware Fusion.
 - Copying and pasting text, graphics, and files between guests and hosts or client desktops.
@@ -38,7 +38,7 @@ The following components have been released as open source software:
 Yes. open-vm-tools packages for user space components are available with new versions of major Linux distributions, and are installed as part of the OS installation in several cases. Please refer to VMware KB article http://kb.vmware.com/kb/2073803 for details. All leading Linux vendors support open-vm-tools and bundle it with their products. For information about OS compatibility for open-vm-tools, see the 
 VMware Compatibility Guide at http://www.vmware.com/resources/compatibility
 Automatic installation of open-vm-tools along with the OS installation eliminates the need to separately install open-vm-tools in guests. If open-vm-tools is not installed automatically, you may be able to manually install it from the guest OS vendor's public repository. Installing open-vm-tools from the Linux vendor's repository reduces virtual machine downtime because future updates to open-vm-tools are included with the OS maintenance patches and updates.
-**NOTE**: The open-vm-tools package available with Linux distributions does not including Linux drivers because Linux drivers are available as part of Linux kernel itself. Linux kernel versions 3.10 and later include all of the Linux drivers present in open-vm-tools except the vmhgfs driver.  The vmhgfs driver is required for enabling shared folders feature.
+**NOTE**: The open-vm-tools package available with Linux distributions does not include Linux drivers because Linux drivers are available as part of Linux kernel itself. Linux kernel versions 3.10 and later include all of the Linux drivers present in open-vm-tools except the vmhgfs driver.  The vmhgfs driver is required for enabling shared folders feature.
 
 ##Will there be continued support for VMware Tools and OSP? 
 VMware Tools will continue to be available under a commercial license. It is recommended that open-vm-tools be used for the Linux distributions where open-vm-tools is available. VMware will not provide OSPs for operating systems where open-vm-tools is available.
