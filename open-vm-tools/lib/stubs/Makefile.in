@@ -63,8 +63,9 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libStubs_la_LIBADD =
-am_libStubs_la_OBJECTS = stub-config.lo stub-log.lo stub-warning.lo \
-	stub-user-msg.lo stub-user-panic.lo stub-user-util.lo
+am_libStubs_la_OBJECTS = stub-config.lo stub-log.lo stub-debug.lo \
+	stub-warning.lo stub-panic.lo stub-user-msg.lo \
+	stub-user-panic.lo stub-user-util.lo
 libStubs_la_OBJECTS = $(am_libStubs_la_OBJECTS)
 libStubsCS_la_LIBADD =
 am__libStubsCS_la_SOURCES_DIST = stub-config.c stub-user-msg.c \
@@ -280,8 +281,9 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LTLIBRARIES = libStubs.la libStubsCS.la
-libStubs_la_SOURCES = stub-config.c stub-log.c stub-warning.c \
-	stub-user-msg.c stub-user-panic.c stub-user-util.c
+libStubs_la_SOURCES = stub-config.c stub-log.c stub-debug.c \
+	stub-warning.c stub-panic.c stub-user-msg.c stub-user-panic.c \
+	stub-user-util.c
 libStubsCS_la_SOURCES = stub-config.c stub-user-msg.c \
 	stub-user-panic.c $(am__append_1)
 all: all-am
@@ -338,8 +340,10 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-config.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-debug.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-log.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-msgfmt-fbsd.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-panic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-user-msg.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-user-panic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-user-util.Plo@am__quote@

@@ -16,57 +16,31 @@
 #
 ##########################################################
 
-proto.attack = "!Posible ataque de seguridad" El tipo de solicitud %1$d tiene un "
-               "userName (%2$s) que no coincide con el propietario de del canal (%3$s)!"
+proto.attack = "Posible ataque de seguridad. El tipo de solicitud %1$d tiene un nombre de usuario (%2$s) que no coincide con el propietario de la canalización (%3$s)."
 
-validate.samlBearer.fail =
-                "Error de validación de token de portador SAML: %1$d"
+validate.samlBearer.fail = "Error de validación de token de portador SAML: %1$d"
 
-validate.samlBearer.success =
-                "Token de portador SAML validado para el usuario '%1$s'"
+validate.samlBearer.success = "Token de portador SAML validado para el usuario '%1$s'"
 
-alias.addid =
-      "El usuario '%2$s' ha añadido el alias al almacén de alias propiedad de '%1$s'"
+alias.addid = "El usuario '%2$s' ha agregado el alias al almacén de alias propiedad de '%1$s'"
 
-alias.dir.badperm =
-                "El directorio de almacén de alias '%1$s' tiene un propietario o "
-                "permisos incorrectos.  "
-                "Cualquier alias actualmente almacenado en '%2$s' no estará "
-                "disponibles para autenticación"
+alias.dir.badperm = "El directorio de almacenamiento de alias '%1$s' tiene un propietario o permisos incorrectos. Los alias almacenados actualmente en '%2$s' no estarán disponibles para la autenticación"
 
-alias.dir.notadir = "El directorio de almacén de alias '%1$s' existe pero no es un directorio"
+alias.dir.notadir = "El directorio de almacenamiento de alias '%1$s' existe, pero no es un directorio"
 
-alias.dir.renamefail =
-          "No ha podido cambiarse el nombre del supuesto directorio de almacén de alias de '%1$s' a '%2$s'"
+alias.dir.renamefail = "No se pudo cambiar el nombre del directorio de almacenamiento de alias sospechoso de '%1$s' a '%2$s'"
 
 
-alias.alias.badfile =
-          "El almacén de alias '%1$s' existe pero no es un archivo normal.  "
-          "El alias del usuario '%2$s' no estará disponible para "
-          "autenticación"
+alias.alias.badfile = "El almacén de alias '%1$s' existe, pero no es un archivo normal. Los alias del usuario '%2$s' no estarán disponibles para la autenticación"
 
-alias.alias.badperm =
-             "El Alias del almacén  '%1$s'tiene un propietario"
-             " o permisos incorrectos.  "
-             "Los alias del usuario '%2$s' no estarán disponibles "
-             "para autenticación"
+alias.alias.badperm = "El almacén de alias '%1$s' tiene un propietario o permisos incorrectos. Los alias del usuario '%2$s' no estarán disponibles para la autenticación"
 
+alias.alias.rename = "El nombre del almacén de alias sospechoso '%1$s' ha cambiado a '%2$s'"
 
-alias.alias.rename = "El nombre del supuesto almacén de alias '%1$s' ha cambiado a '%2$s'"
+alias.alias.renamefail = "No pudo cambiarse el nombre del almacén de alias sospechoso de '%1$s' a '%2$s'"
 
-alias.alias.renamefail =
-    "No ha podido cambiarse el nombre del supuesto almacén de alias de '%1$s' a '%2$s'"
+alias.mapfile.badperm = "El archivo de asignación del almacén de alias '%1$s' tiene un propietario o permisos incorrectos. Los alias del archivo de asignación no estarán disponibles para la autenticación"
 
-alias.mapfile.badperm =
-    "El archivo de asignación del almacén de alias '%1$s' tiene un"
-    " propietario o permisos incorrectos.  "
-    "Los alias del archivo de asignación no estarán "
-    "disponibles para autenticación"
+alias.mapping.badfile = "El archivo de asignación '%1$s' existe, pero no es un archivo normal. Los alias del archivo de asignación no estarán disponibles para la autenticación"
 
-alias.mapping.badfile =
-                     "El archivo de asignación '%1$s' existe pero no es un archivo normal.  "
-                     "Los alias del archivo de asignación no estarán "
-                     "disponibles para autenticación"
-
-alias.removeid =
-      "El usuario '%2$s' ha eliminado el Alias del almacén de alias propiedad de '%1$s'"
+alias.removeid = "El usuario '%2$s' ha quitado el alias del almacén de alias propiedad de '%1$s'"

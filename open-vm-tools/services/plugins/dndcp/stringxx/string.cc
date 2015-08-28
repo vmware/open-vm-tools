@@ -28,9 +28,11 @@
 #include <sstream>
 #include <iostream>
 
+#include "autoCPtr.hh"
 #include "string.hh"
 #include "unicode.h"
 #include "util.h"
+
 
 namespace utf {
 
@@ -84,13 +86,13 @@ string::string()
  *-----------------------------------------------------------------------------
  */
 
-string::string(ConstUnicode s) // IN
+string::string(const char *s) // IN
    : mUstr(),
      mUtf16Cache(NULL),
      mUtf16Length(npos)
 {
    ASSERT(s);
-   mUstr = Unicode_GetUTF8(s);
+   mUstr = s;
    ASSERT(Validate(mUstr));
 }
 
@@ -163,16 +165,9 @@ string::string(const _bstr_t &s) // IN
       return;
    }
 
-   Unicode utf8 = Unicode_AllocWithUTF16(static_cast<const utf16_t *>(s));
-
-   try {
-      mUstr = utf8;
-      Unicode_Free(utf8);
-   } catch (...) {
-      Unicode_Free(utf8);
-      throw;
-   }
-
+   mUstr = AutoCPtr<char>(
+      Unicode_AllocWithUTF16(static_cast<const utf16_t *>(s)),
+      free).get();
    ASSERT(Validate(mUstr));
 }
 #endif
@@ -238,16 +233,8 @@ string::string(const utf16_t *s) // IN
     */
    mUtf16Cache = Unicode_UTF16Strdup(s);
 
-   Unicode utf8 = Unicode_AllocWithUTF16(s);
-
-   try {
-      mUstr = utf8;
-      Unicode_Free(utf8);
-   } catch (...) {
-      Unicode_Free(utf8);
-      throw;
-   }
-
+   mUstr = AutoCPtr<char>(Unicode_AllocWithUTF16(s),
+                          free).get();
    ASSERT(Validate(mUstr));
 }
 
@@ -276,16 +263,8 @@ string::string(const char *s,           // IN
 {
    ASSERT(s != NULL);
 
-   Unicode utf8 = Unicode_Alloc(s, encoding);
-
-   try {
-      mUstr = utf8;
-      Unicode_Free(utf8);
-   } catch (...) {
-      Unicode_Free(utf8);
-      throw;
-   }
-
+   mUstr = AutoCPtr<char>(Unicode_Alloc(s, encoding),
+                          free).get();
    ASSERT(Validate(mUstr));
 }
 
@@ -486,11 +465,12 @@ string::operator+=(value_type uc) // IN
  */
 
 void
-string::swap(string &s) // IN/OUT
+string::swap(string& s) // IN/OUT
 {
+   using std::swap;
    mUstr.swap(s.mUstr);
-   std::swap(mUtf16Cache, s.mUtf16Cache);
-   std::swap(mUtf16Length, s.mUtf16Length);
+   swap(mUtf16Cache, s.mUtf16Cache);
+   swap(mUtf16Length, s.mUtf16Length);
 }
 
 
@@ -516,6 +496,29 @@ string::resize(size_type n,  // IN
 {
    InvalidateCache();
    mUstr.resize(n, c);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * utf::string::reserve --
+ *
+ *      Change the amount of memory allocated for the utf::string.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+string::reserve(size_type n) // IN/OPT
+{
+   mUstr.reserve(n);
 }
 
 
@@ -755,10 +758,7 @@ string
 string::trim()
    const
 {
-   Unicode trim = Unicode_Trim(c_str());
-   string result(trim);
-   Unicode_Free(trim);
-   return result;
+   return CopyAndFree(Unicode_Trim(c_str()), free);
 }
 
 
@@ -782,10 +782,7 @@ string
 string::trimLeft()
    const
 {
-   Unicode trim = Unicode_TrimLeft(c_str());
-   string result(trim);
-   Unicode_Free(trim);
-   return result;
+   return CopyAndFree(Unicode_TrimLeft(c_str()), free);
 }
 
 
@@ -809,10 +806,7 @@ string
 string::trimRight()
    const
 {
-   Unicode trim = Unicode_TrimRight(c_str());
-   string result(trim);
-   Unicode_Free(trim);
-   return result;
+   return CopyAndFree(Unicode_TrimRight(c_str()), free);
 }
 
 
@@ -862,14 +856,10 @@ string::toLower(const char *locale) // IN
    const
 {
 #ifdef USE_ICU
-   Unicode lower = Unicode_ToLower(c_str(), locale);
-   string results(lower);
-   Unicode_Free(lower);
+   return CopyAndFree(Unicode_ToLower(c_str(), locale), free);
 #else
-   string results(mUstr.lowercase());
+   return mUstr.lowercase();
 #endif
-
-   return results;
 }
 
 
@@ -895,20 +885,14 @@ string::toUpper(const char *locale) // IN
    const
 {
 #ifdef USE_ICU
-   Unicode upper = Unicode_ToUpper(c_str(), locale);
-   string results(upper);
-   Unicode_Free(upper);
+   return CopyAndFree(Unicode_ToUpper(c_str(), locale), free);
 #else
-   string results(mUstr.uppercase());
+   return mUstr.uppercase();
 #endif
-
-
-   return results;
 }
 
 
 #ifdef USE_ICU
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -930,13 +914,8 @@ string
 string::toTitle(const char *locale) // IN
    const
 {
-   Unicode title = Unicode_ToTitle(c_str(), locale);
-   string results(title);
-   Unicode_Free(title);
-
-   return results;
+   return CopyAndFree(Unicode_ToTitle(c_str(), locale), free);
 }
-
 #endif
 
 
@@ -1206,6 +1185,8 @@ string::replace(size_type i,     // IN
  *      Mutates this string by replacing all occurrences of one string with
  *      another.
  *
+ *      Does nothing if the `from` string is empty.
+ *
  * Results:
  *      A reference to this object.
  *
@@ -1219,10 +1200,15 @@ string&
 string::replace(const string& from, // IN
                 const string& to)   // IN
 {
+   if (from.empty()) {
+      return *this;
+   }
+
    size_type end;
    size_type start = 0;
    size_type fromSize = from.length();
    string result;
+   result.reserve(bytes() * to.bytes() / from.bytes());
 
    while ((end = find(from, start)) != string::npos) {
       result += substr(start, end - start);
@@ -1234,6 +1220,8 @@ string::replace(const string& from, // IN
    if (start < length()) {
       result += substr(start);
    }
+
+   result.reserve(0);
 
    swap(result);
    return *this;
@@ -2086,16 +2074,8 @@ CreateWithLength(const void *buffer,      // IN
       throw ConversionError();
    }
 
-   Unicode utf8 = Unicode_AllocWithLength(buffer, lengthInBytes, encoding);
-
-   try {
-      string result(utf8);
-      Unicode_Free(utf8);
-      return result;
-   } catch (...) {
-      Unicode_Free(utf8);
-      throw;
-   }
+   return CopyAndFree(Unicode_AllocWithLength(buffer, lengthInBytes, encoding),
+                      free);
 }
 
 
@@ -2148,6 +2128,32 @@ CreateWithBOMBuffer(const void *buffer,      // IN
    return CreateWithLength(reinterpret_cast<const char*>(buffer) + mapBOM[index].len,
                            lengthInBytes - mapBOM[index].len,
                            mapBOM[index].encoding);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * utf::CopyAndFree --
+ *
+ *       Creates a utf::string from an allocated UTF-8 C string,
+ *       automatically freeing it afterward.
+ *
+ * Results:
+ *       A copy of the string.
+ *
+ * Side Effect:
+ *       None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+string
+CopyAndFree(char* utf8,              // IN
+            void (*freeFunc)(void*)) // IN/OPT
+{
+   ASSERT(utf8 != NULL);
+   return AutoCPtr<char>(utf8, freeFunc).get();
 }
 
 

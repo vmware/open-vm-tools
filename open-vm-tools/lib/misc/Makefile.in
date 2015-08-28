@@ -67,8 +67,8 @@ am_libMisc_la_OBJECTS = atomic.lo base64.lo codeset.lo codesetBase.lo \
 	hostinfo.lo hostinfoHV.lo hostinfoPosix.lo hostname.lo \
 	hostType.lo idLinux.lo iovector.lo logFixed.lo machineID.lo \
 	miscSolaris.lo msgfmt.lo msgList.lo posixDlopen.lo \
-	posixPosix.lo posixPwd.lo random.lo timeutil.lo util_misc.lo \
-	utilMem.lo vmstdio.lo strutil.lo vthreadBase.lo
+	posixPosix.lo posixPwd.lo random.lo sleep.lo timeutil.lo \
+	util_misc.lo utilMem.lo vmstdio.lo strutil.lo vthreadBase.lo
 libMisc_la_OBJECTS = $(am_libMisc_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
@@ -281,8 +281,8 @@ libMisc_la_SOURCES = atomic.c base64.c codeset.c codesetBase.c \
 	hostinfo.c hostinfoHV.c hostinfoPosix.c hostname.c hostType.c \
 	idLinux.c iovector.c logFixed.c machineID.c miscSolaris.c \
 	msgfmt.c msgList.c posixDlopen.c posixPosix.c posixPwd.c \
-	random.c timeutil.c util_misc.c utilMem.c vmstdio.c strutil.c \
-	vthreadBase.c
+	random.c sleep.c timeutil.c util_misc.c utilMem.c vmstdio.c \
+	strutil.c vthreadBase.c
 all: all-am
 
 .SUFFIXES:
@@ -359,6 +359,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/posixPosix.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/posixPwd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sleep.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strutil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timeutil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utilMem.Plo@am__quote@

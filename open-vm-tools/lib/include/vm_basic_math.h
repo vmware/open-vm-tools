@@ -80,4 +80,87 @@ GetPowerOfTwo(uint32 x)
    return power2;
 }
 
+
+#if !defined(_WIN32) && !defined(_WIN64)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RotateLeft32 --
+ *
+ * Results:
+ *      Value rotated to the left by 'shift' bits.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE uint32
+RotateLeft32(uint32 value, uint8 shift)
+{
+   return ((value << shift) | (value >> (32 - shift)));
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RotateRight32 --
+ *
+ * Results:
+ *      Value rotated to the right by 'shift' bits.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE uint32
+RotateRight32(uint32 value, uint8 shift)
+{
+   return ((value >> shift) | (value << (32 - shift)));
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RotateLeft64 --
+ *
+ * Results:
+ *      Value rotated to the left by 'shift' bits.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE uint64
+RotateLeft64(uint64 value, uint8 shift)
+{
+   return ((value << shift) | (value >> (64 - shift)));
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RotateRight64 --
+ *
+ * Results:
+ *      Value rotated to the right by 'shift' bits.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE uint64
+RotateRight64(uint64 value, uint8 shift)
+{
+   return ((value >> shift) | (value << (64 - shift)));
+}
+#endif // if !defined(_WIN32) && !defined(_WIN64)
+
+
 #endif // ifndef _VM_BASIC_MATH_H_

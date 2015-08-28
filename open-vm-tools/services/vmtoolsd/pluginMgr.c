@@ -740,7 +740,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
          g_module_make_resident(plugin->module);
          g_ptr_array_add(state->plugins, plugin);
          VMTools_BindTextDomain(plugin->data->name, NULL, NULL);
-         g_debug("Plugin '%s' initialized.\n", plugin->data->name);
+         g_message("Plugin '%s' initialized.\n", plugin->data->name);
       }
    }
 
@@ -918,7 +918,7 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       ToolsPlugin *plugin = g_ptr_array_index(state->plugins, state->plugins->len - 1);
       GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
 
-      g_debug("Unloading plugin '%s'.\n", plugin->data->name);
+      g_message("Unloading plugin '%s'.\n", plugin->data->name);
 
       if (regs != NULL) {
          guint i;

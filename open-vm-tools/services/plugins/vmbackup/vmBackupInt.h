@@ -31,6 +31,9 @@
 #include "vmware.h"
 #include "vmware/guestrpc/vmbackup.h"
 #include "vmware/tools/plugin.h"
+#if !defined(_WIN32)
+#include "vmware/tools/threadPool.h"
+#endif
 
 typedef enum {
    VMBACKUP_STATUS_PENDING,
@@ -38,6 +41,13 @@ typedef enum {
    VMBACKUP_STATUS_CANCELED,
    VMBACKUP_STATUS_ERROR
 } VmBackupOpStatus;
+
+typedef enum {
+   VMBACKUP_FREEZE_PENDING,
+   VMBACKUP_FREEZE_FINISHED,
+   VMBACKUP_FREEZE_CANCELED,
+   VMBACKUP_FREEZE_ERROR
+} VmBackupFreezeStatus;
 
 typedef enum {
    VMBACKUP_SCRIPT_FREEZE,
@@ -48,6 +58,7 @@ typedef enum {
 typedef enum {
    VMBACKUP_MSTATE_IDLE,
    VMBACKUP_MSTATE_SCRIPT_FREEZE,
+   VMBACKUP_MSTATE_SYNC_FREEZE_WAIT,
    VMBACKUP_MSTATE_SYNC_FREEZE,
    VMBACKUP_MSTATE_SYNC_THAW,
    VMBACKUP_MSTATE_SCRIPT_THAW,
@@ -75,12 +86,19 @@ struct VmBackupSyncProvider;
  * Holds information about the current state of the backup operation.
  * Don't modify the fields directly - rather, use VmBackup_SetCurrentOp,
  * which does most of the handling needed by users of the state machine.
+ *
+ * NOTE: The thread for freeze operation modifies currentOp in BackupState
+ *       which is also accessed by the AsyncCallback driving the state
+ *       machine (run by main thread). Also, gcc might generate two
+ *       instructions for writing a 64-bit value. Therefore, protect the
+ *       access to currentOp and related fields using opLock mutex.
  */
 
 typedef struct VmBackupState {
    ToolsAppCtx   *ctx;
    VmBackupOp    *currentOp;
    const char    *currentOpName;
+   GStaticMutex   opLock; // See note above
    char          *volumes;
    char          *snapshots;
    guint          pollPeriod;
@@ -104,6 +122,7 @@ typedef struct VmBackupState {
    ssize_t        currentScript;
    gchar         *errorMsg;
    VmBackupMState machineState;
+   VmBackupFreezeStatus freezeStatus;
    struct VmBackupSyncProvider *provider;
 } VmBackupState;
 
@@ -118,7 +137,11 @@ typedef Bool (*VmBackupProviderCallback)(VmBackupState *, void *clientData);
  */
 
 typedef struct VmBackupSyncProvider {
+#if defined(_WIN32)
    VmBackupProviderCallback start;
+#else
+   ToolsCorePoolCb start;
+#endif
    VmBackupProviderCallback snapshotDone;
    void (*release)(struct VmBackupSyncProvider *);
    void *clientData;
@@ -147,10 +170,16 @@ VmBackup_SetCurrentOp(VmBackupState *state,
    ASSERT(state != NULL);
    ASSERT(state->currentOp == NULL);
    ASSERT(currentOpName != NULL);
+
+   g_static_mutex_lock(&state->opLock);
+
    state->currentOp = op;
    state->callback = callback;
    state->currentOpName = currentOpName;
-   state->forceRequeue = (callback != NULL && state->currentOp == NULL);
+   state->forceRequeue = (callback != NULL && op == NULL);
+
+   g_static_mutex_unlock(&state->opLock);
+
    return (op != NULL);
 }
 

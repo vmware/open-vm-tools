@@ -473,16 +473,16 @@ DnDMsg_UnserializeArgs(DnDMsg *msg,     // IN/OUT: the message
          goto err;
       }
       readArgsSz += argSz + sizeof (uint32);
+
       free(data);
+      data = NULL;
    }
 
    ASSERT(ret == DNDMSG_SUCCESS);
    return ret;
 
 err:
-   if (data) {
-      free(data);
-   }
+   free(data);
 
    count = DynBufArray_Count(&msg->args);
    for (i = 0; i < count; ++i) {

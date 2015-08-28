@@ -94,6 +94,38 @@ Util_FastRand(uint32 seed)
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ * Util_Checksum64 --
+ *    64-bit implementation of Fletcher's checksum.  Fast and simple.
+ *    Guarantees a non-zero checksum (so 0 can mean "uninitialized").
+ *    One known weakness is that the 32-bit value of 0 is
+ *    indistinguishable from ~0.  The magic number 92680 was computed
+ *    to be the most iterations before sum2 could overflow 64 bits.
+ *----------------------------------------------------------------------
+ */
+uint64
+Util_CheckSum64(uint32 *data, unsigned numWords)
+{
+   uint64 sum1 = 0xffffffff, sum2 = 0xffffffff;
+
+   while (numWords > 0) {
+      unsigned tlen = numWords > 92680 ? 92680 : numWords;
+      numWords -= tlen;
+      do {
+         sum1 += *data++;
+         sum2 += sum1;
+      } while (--tlen > 0);
+      sum1 = (sum1 & 0xffffffff) + (sum1 >> 32);
+      sum2 = (sum2 & 0xffffffff) + (sum2 >> 32);
+   }
+   /* Second reduction step to reduce sums to 32 bits */
+   sum1 = (sum1 & 0xffffffff) + (sum1 >> 32);
+   sum2 = (sum2 & 0xffffffff) + (sum2 >> 32);
+   return (sum2 << 32) | sum1;
+}
+
+
 #if defined(USERLEVEL) || defined(VMX86_DEBUG)
 static uint32 crcTable[256];
 

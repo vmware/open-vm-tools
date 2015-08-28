@@ -50,6 +50,7 @@ if HAVE_X11
 endif
 if HAVE_FUSE
    SUBDIRS += vmblock-fuse
+   SUBDIRS += vmhgfs-fuse
 endif
 if !LINUX
    SUBDIRS += vmblockmounter

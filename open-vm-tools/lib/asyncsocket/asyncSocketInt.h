@@ -108,18 +108,10 @@
 #define ASOCK_EWOULDBLOCK       EWOULDBLOCK
 #endif
 
-
-typedef struct WebSocketHandshakeState {
-   char *handshakeBuffer;
-   int32 numValidBytes;    // The number of bytes in the buffer that constitute the header
-   int32 httpHeaderLength;
-} WebSocketHandshakeState;
-
 typedef enum {
-   WEB_SOCKET_FRAME_TYPE_UNKNOWN = 0,
-   WEB_SOCKET_FRAME_TYPE_RAW = 1,
-   WEB_SOCKET_FRAME_TYPE_UTF8 = 2,
-} WebSocketFrameType;
+   WEB_SOCKET_FRAME_OPCODE_BINARY = 0x02,
+   WEB_SOCKET_FRAME_OPCODE_CLOSE = 0x08,
+} WebSocketFrameOpcode;
 
 typedef enum {
    WEB_SOCKET_STATE_CONNECTING  = 0,
@@ -129,12 +121,12 @@ typedef enum {
 } WebSocketState;
 
 typedef enum {
-   WEB_SOCKET_HYBI_NEED_FRAME_TYPE          = 0,
-   WEB_SOCKET_HYBI_NEED_FRAME_SIZE          = 1,
-   WEB_SOCKET_HYBI_NEED_EXTENDED_FRAME_SIZE = 2,
-   WEB_SOCKET_HYBI_NEED_FRAME_MASK          = 3,
-   WEB_SOCKET_HYBI_NEED_FRAME_DATA          = 4,
-} WebSocketHybiDecodeState;
+   WEB_SOCKET_NEED_FRAME_TYPE          = 0,
+   WEB_SOCKET_NEED_FRAME_SIZE          = 1,
+   WEB_SOCKET_NEED_EXTENDED_FRAME_SIZE = 2,
+   WEB_SOCKET_NEED_FRAME_MASK          = 3,
+   WEB_SOCKET_NEED_FRAME_DATA          = 4,
+} WebSocketDecodeState;
 
 /*
  * Bitmask indicates when masking should be applyed or removed,
@@ -145,10 +137,10 @@ typedef enum {
  * server.
  */
 typedef enum {
-   WEB_SOCKET_HYBI_MASKING_NONE = 0,
-   WEB_SOCKET_HYBI_MASKING_RECV = 1,
-   WEB_SOCKET_HYBI_MASKING_SEND = 1 << 1,
-} WebSocketHybiMaskingRequired;
+   WEB_SOCKET_MASKING_NONE = 0,
+   WEB_SOCKET_MASKING_RECV = 1,
+   WEB_SOCKET_MASKING_SEND = 1 << 1,
+} WebSocketMaskingRequired;
 
 typedef enum {
    ASYNCSOCKET_TYPE_SOCKET =    0,
@@ -164,7 +156,13 @@ typedef struct SendBufList {
    int                   len;
    AsyncSocketSendFn     sendFn;
    void                 *clientData;
-   char                 *base64Buf;
+   /*
+    * If the data needs to be encoded somehow before sending over the
+    * wire, this will point to an internally-allocated buffer
+    * containing the encoded version of buf.  The len field above will
+    * hold the length of the encoded data.
+    */
+   char                 *encodedBuf;
 } SendBufList;
 
 struct AsyncSocket {
@@ -196,6 +194,7 @@ struct AsyncSocket {
    int recvPos;
    int recvLen;
    Bool recvCb;
+   Bool recvCbTimer;
    Bool recvFireOnPartial;
 
    SendBufList *sendBufList;
@@ -203,11 +202,13 @@ struct AsyncSocket {
    int sendPos;
    Bool sendCb;
    Bool sendCbTimer;
+   Bool sendCbRT;
    Bool sendBufFull;
    Bool sendLowLatency;
 
    Bool sslConnected;
 
+   uint8 inIPollCb;
    Bool inRecvLoop;
    uint32 inBlockingRecv;
 
@@ -223,34 +224,35 @@ struct AsyncSocket {
       char *origin;
       char *host;
       char *hostname;
-      char *protocol;
       char *uri;
       char *cookie;
       int version;
-      WebSocketHybiMaskingRequired maskingRequirements;
-      WebSocketFrameType currentFrameType;
+      WebSocketMaskingRequired maskingRequirements;
+      WebSocketFrameOpcode frameOpcode;
       WebSocketState state;
       void *connectClientData;
       // Saved error reporting values.
       AsyncSocketErrorFn errorFn;
       void *errorClientData;
       char *socketBuffer;     // Accumulates incoming data (including framing etc.)
-      char *decodeBuffer;     // Accumulates incoming data after removing framing and base64 decoding
-      int32 socketBufferWriteOffset;   // Offset into socket buffer for raw incoming data.
-      int32 socketBufferBase64DecodeReadOffset;  // Offset into socket buffer for data waiting to be base64 decoded
-      int32 decodeBufferBase64DecodeWriteOffset; // Offset into decode buffer for base64 decoded data
-      int32 decodeBufferReadOffset;    // Offset into decode buffer for data to be consumed by our caller
-      size_t hybiFrameBytesRemaining;
-      Bool hybiMaskPresent;
-      uint8 hybiMaskBytes[4];
-      uint8 hybiMaskOffset;
-      int streamProtocol;
-      size_t hybiCurrentFrameSize;
-      WebSocketHybiDecodeState hybiCurrentDecodeState;
+      char *decodeBuffer;     // Accumulates incoming data after removing framing
+      int32 socketBufferWriteOffset;
+      int32 socketBufferReadOffset;
+      int32 decodeBufferWriteOffset;
+      int32 decodeBufferReadOffset;
+      size_t frameBytesRemaining;
+      size_t frameSize;
+      Bool maskPresent;
+      uint8 maskBytes[4];
+      uint8 maskOffset;
+      const char **streamProtocols;    // null terminated list of protocols
+      const char *streamProtocol;      // points to one of the above.
+      WebSocketDecodeState decodeState;
       Bool useSSL;
-      Bool permitUnverifiedSSL;
+      SSLVerifyParam *sslVerifyParam;  // Used for certificate verifications
       char *upgradeNonceBase64;
       rqContext *randomContext;
+      uint16 closeStatus;
    } webSocket;
 
 #ifdef _WIN32
@@ -340,7 +342,8 @@ void AsyncSocketCloseSocket(AsyncSocket *asock);
 #ifndef VMX86_TOOLS
 void AsyncSocketInitWebSocket(AsyncSocket *asock,
                               void *clientData,
-                              Bool useSSL);
+                              Bool useSSL,
+                              const char *protocols[]);
 #endif
 AsyncSocket *AsyncSocketListenImpl(struct sockaddr_storage *addr,
                                    socklen_t addrLen,
@@ -349,6 +352,7 @@ AsyncSocket *AsyncSocketListenImpl(struct sockaddr_storage *addr,
                                    AsyncSocketPollParams *pollParams,
                                    Bool isWebSock,
                                    Bool webSockUseSSL,
+                                   const char *protocols[],
                                    int *outError);
 AsyncSocket *AsyncSocketListenerCreate(const char *addrStr,
                                        unsigned int port,
@@ -357,6 +361,7 @@ AsyncSocket *AsyncSocketListenerCreate(const char *addrStr,
                                        AsyncSocketPollParams *pollParams,
                                        Bool isWebSock,
                                        Bool webSockUseSSL,
+                                       const char *protocols[],
                                        int *outError);
 
 #endif // __ASYNC_SOCKET_INT_H__

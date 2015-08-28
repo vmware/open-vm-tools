@@ -102,7 +102,7 @@ DynBuf_Destroy(DynBuf *b)  // IN/OUT:
  */
 
 void *
-DynBuf_AllocGet(DynBuf const *b) // IN
+DynBuf_AllocGet(DynBuf const *b)  // IN:
 {
    void *new_data;
    ASSERT(b);
@@ -134,9 +134,9 @@ DynBuf_AllocGet(DynBuf const *b) // IN
  */
 
 void
-DynBuf_Attach(DynBuf *b,    // IN
-              size_t size,  // IN
-              void *data)   // IN
+DynBuf_Attach(DynBuf *b,    // IN/OUT:
+              size_t size,  // IN:
+              void *data)   // IN:
 {
    ASSERT(b);
    ASSERT((size == 0) == (data == NULL));
@@ -165,7 +165,7 @@ DynBuf_Attach(DynBuf *b,    // IN
  */
 
 void *
-DynBuf_Detach(DynBuf *b) // IN
+DynBuf_Detach(DynBuf *b)  // IN/OUT:
 {
    void *data;
 
@@ -197,7 +197,7 @@ DynBuf_Detach(DynBuf *b) // IN
  */
 
 static Bool
-DynBufRealloc(DynBuf *b,            // IN:
+DynBufRealloc(DynBuf *b,            // IN/OUT:
               size_t newAllocated)  // IN:
 {
    void *new_data;
@@ -237,7 +237,7 @@ DynBufRealloc(DynBuf *b,            // IN:
  */
 
 Bool
-DynBuf_Enlarge(DynBuf *b,       // IN:
+DynBuf_Enlarge(DynBuf *b,       // IN/OUT:
                size_t minSize)  // IN:
 {
    size_t newAllocated;
@@ -305,9 +305,9 @@ DynBuf_Enlarge(DynBuf *b,       // IN:
  */
 
 Bool
-DynBuf_Append(DynBuf *b,        // IN
-              void const *data, // IN
-              size_t size)      // IN
+DynBuf_Append(DynBuf *b,        // IN/OUT:
+              void const *data, // IN:
+              size_t size)      // IN:
 {
    size_t new_size;
 
@@ -358,11 +358,11 @@ DynBuf_Append(DynBuf *b,        // IN
  */
 
 void
-DynBuf_SafeInternalAppend(DynBuf *b,            // IN
-                          void const *data,     // IN
-                          size_t size,          // IN
-                          char const *file,     // IN
-                          unsigned int lineno)  // IN
+DynBuf_SafeInternalAppend(DynBuf *b,            // IN/OUT:
+                          void const *data,     // IN:
+                          size_t size,          // IN:
+                          char const *file,     // IN:
+                          unsigned int lineno)  // IN:
 {
    if (!DynBuf_Append(b, data, size)) {
       Panic("Unrecoverable memory allocation failure at %s:%u\n",
@@ -389,7 +389,7 @@ DynBuf_SafeInternalAppend(DynBuf *b,            // IN
  */
 
 Bool
-DynBuf_Trim(DynBuf *b) // IN
+DynBuf_Trim(DynBuf *b)  // IN/OUT:
 {
    ASSERT(b);
 
@@ -402,7 +402,7 @@ DynBuf_Trim(DynBuf *b) // IN
  *
  * DynBuf_Copy --
  *
- *      Copies all data and metadata from src dynbuff to dest dynbuf.
+ *      Copies all data and metadata from src dynbuf to dest dynbuf.
  *
  *      Dest should be an initialized DynBuf of alloced length zero
  *      to prevent memory leaks.
@@ -417,8 +417,8 @@ DynBuf_Trim(DynBuf *b) // IN
  */
 
 Bool
-DynBuf_Copy(DynBuf *src,   // IN
-            DynBuf *dest)  // OUT
+DynBuf_Copy(DynBuf *src,   // IN:
+            DynBuf *dest)  // OUT:
 {
    ASSERT(src);
    ASSERT(dest);

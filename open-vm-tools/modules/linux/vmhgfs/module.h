@@ -45,7 +45,7 @@
 /* Logging stuff. */
 #ifdef VMX86_DEVEL
 extern int LOGLEVEL_THRESHOLD;
-
+#define LGPFX "VMware hgfs: "
 #define LOG(level, args) ((void) (LOGLEVEL_THRESHOLD >= (level) ? (printk args) : 0))
 #else
 #define LOG(level, args)
@@ -84,6 +84,17 @@ typedef gid_t kgid_t;
 #define make_kgid(_ns, _gid)             (_gid)
 #endif
 
+/*
+ * Since the f_dentry disappeared we do this locally.
+ * It is used quite extensively and only one other driver
+ * is affected by this so it is done locally and not
+ * as part of the common compat_fs.h includes.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+#ifndef f_dentry
+#define f_dentry                         f_path.dentry
+#endif
+#endif
 
 #define HGFS_SET_SB_TO_COMMON(sb, common) do { (sb)->s_fs_info = (common); } while (0)
 #define HGFS_SB_TO_COMMON(sb)             ((HgfsSuperInfo *)(sb)->s_fs_info)
@@ -119,17 +130,20 @@ typedef gid_t kgid_t;
 #define FILE_SET_FI_P(file, info) do { (file)->private_data = info; } while (0)
 #define FILE_GET_FI_P(file)         ((HgfsFileInfo *)(file)->private_data)
 
+#define HGFS_MNT_SET_UID            (1 << 0) /* Was the UID specified at mount-time? */
+#define HGFS_MNT_SET_GID            (1 << 1) /* Was the GID specified at mount-time? */
+#define HGFS_MNT_SERVER_INUM        (1 << 2) /* Use inode numbers from the server? */
+
 /* Data kept in each superblock in sb->u. */
 typedef struct HgfsSuperInfo {
    kuid_t uid;                      /* UID of user who mounted this fs. */
    kgid_t gid;                      /* GID of user who mounted this fs. */
-   Bool uidSet;                     /* Was the UID specified at mount-time? */
-   Bool gidSet;                     /* Was the GID specified at mount-time? */
    mode_t fmask;                    /* File permission mask. */
    mode_t dmask;                    /* Directory permission mask. */
    uint32 ttl;                      /* Maximum dentry age (in ticks). */
    char *shareName;                 /* Mounted share name. */
    size_t shareNameLen;             /* To avoid repeated strlen() calls. */
+   uint32 mntFlags;                 /* HGFS mount flags */
 } HgfsSuperInfo;
 
 /*
@@ -148,8 +162,12 @@ typedef struct HgfsInodeInfo {
    /* Is this a fake inode created in HgfsCreate that has yet to be opened? */
    Bool createdAndUnopened;
 
-   /* Is this inode referenced by HGFS? (needed by HgfsInodeLookup()) */
-   Bool isReferencedInode;
+   /*
+    * The number of write back pages to the file which is tracked so any
+    * concurrent file validations such as reads will not invalidate the cache.
+    */
+   unsigned long numWbPages;
+   struct list_head listWbPages;
 
    /* List of open files for this inode. */
    struct list_head files;

@@ -347,7 +347,7 @@ X11Lock_Init(ToolsAppCtx *ctx,
    int argc = 0;
    char *argv[] = { NULL, NULL };
 
-   if (strcmp(ctx->name, VMTOOLS_USER_SERVICE) != 0) {
+   if (!TOOLS_IS_USER_SERVICE(ctx)) {
       VMTOOLSAPP_ERROR(ctx, EXIT_FAILURE);
       return FALSE;
    }

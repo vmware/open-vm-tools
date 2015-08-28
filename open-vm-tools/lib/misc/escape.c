@@ -24,6 +24,8 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "vmware.h"
 #include "dynbuf.h"
@@ -286,6 +288,52 @@ nem:
    DynBuf_Destroy(&b);
 
    return NULL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Escape_UndoFixed --
+ *
+ *    Unescape a buffer into a fixed sized, preallocated buffer.
+ *
+ * Results:
+ *    TRUE   The unescaped NUL terminated data is in bufOut upon success.
+ *    FALSE  Escape or memory allocation failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Escape_UndoFixed(char escByte,       // IN: escape byte
+                 void const *bufIn,  // IN: string to be escaped
+                 size_t bufInSize,   // IN: uint32 - fixed size for Python
+                 void *bufOut,       // IN/OUT: preallocated output buffer
+                 size_t bufOutSize)  // IN: uint32 - fixed size for Python
+{
+   Bool success;
+   size_t sizeOut = 0;
+   void *result = Escape_Undo(escByte, bufIn, bufInSize, &sizeOut);
+
+   if (result == NULL) {
+      success = FALSE;
+   } else {
+      size_t strLen = sizeOut + 1;  // Include NUL
+
+      success = (strLen <= bufOutSize);
+
+      if (success) {
+         memcpy(bufOut, result, strLen);
+      }
+
+      free(result);
+   }
+
+   return success;
 }
 
 

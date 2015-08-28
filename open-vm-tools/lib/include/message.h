@@ -47,23 +47,32 @@ extern "C" {
 #include "vm_basic_types.h"
 
 
-typedef struct Message_Channel Message_Channel;
+/* The channel object */
+typedef struct Message_Channel {
+   /* Identifier */
+   uint16 id;
 
-Message_Channel *
-Message_Open(uint32 proto); // IN
+   /* Reception buffer */
+   /*  Data */
+   unsigned char *in;
+   /*  Allocated size */
+   size_t inAlloc;
+   Bool inPreallocated;
 
-Bool
-Message_Send(Message_Channel *chan,    // IN/OUT
-             const unsigned char *buf, // IN
-             size_t bufSize);          // IN
+   /* The cookie */
+   uint32 cookieHigh;
+   uint32 cookieLow;
+} Message_Channel;
 
-Bool
-Message_Receive(Message_Channel *chan, // IN/OUT
-                unsigned char **buf,   // OUT
-                size_t *bufSize);      // OUT
-
-Bool
-Message_Close(Message_Channel *chan); // IN/OUT
+Bool Message_OpenAllocated(uint32 proto, Message_Channel *chan,
+                           char *receiveBuffer, size_t receiveBufferSize);
+Message_Channel* Message_Open(uint32 proto);
+Bool Message_Send(Message_Channel *chan, const unsigned char *buf,
+                  size_t bufSize);
+Bool Message_Receive(Message_Channel *chan, unsigned char **buf,
+                     size_t *bufSize);
+Bool Message_CloseAllocated(Message_Channel *chan);
+Bool Message_Close(Message_Channel *chan);
 
 #ifdef __cplusplus
 }

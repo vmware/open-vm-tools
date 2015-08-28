@@ -289,7 +289,7 @@ CodeSet_UTF8ToUTF32(const char *utf8,  // IN:
    p = (char *) utf8;
    end = p + strlen(utf8);
 
-   ptr = Util_SafeMalloc(sizeof(*ptr) * (codePoints + 1));
+   ptr = Util_SafeMalloc(sizeof *ptr * (codePoints + 1));
    *utf32 = (char *) ptr;
 
    while (p < end) {

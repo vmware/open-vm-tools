@@ -1,3 +1,626 @@
+open-vm-tools-10.0.0 build 3000743
+
+*	Common versioning
+
+*	Quiesced snapshots
+
+*	hgfs-fuse
+
+*	Logging changes
+
+*	AsyncSocket changes
+
+*	Change ASSERT macros to VERIFY
+
+*	Additional locking fixes and optimizations
+
+*	Unicode type and macro cleanup
+
+*	Change glib logging in RpcChannel to use Debug/Warning/Panic.
+
+*	Clean up HGFS server unpack file name V3 arguments
+
+*	Fix nested logging for VmxLogger with vsocket channel.
+
+*	Compile mac-rdpvcbridge from cart-dev
+
+*	Implement VMware Tools for ESXi 6.0 guests.
+
+*	Get rid of ASSERT_ALWAYS_AVAILABLE
+
+*	Get rid of ASSERT_LENGTH.
+
+*	Move ASSERT_OR_IN_PANIC() from public/vm_assert.h to vmkernel.
+
+*	Make lib/location product-agnostic
+
+*	desktopEvents: Leave libICE rug firmly under libSM.
+
+*	Remove SLPv2
+
+*	Provide a kill-switch for using vsocket in RpcChannel.
+
+*	Use binary search tree to map guest os string to guest os enum.
+
+*	codeset: use icuDir instead of libDir
+
+*	Remove NR_MPNS_PER_PAGE
+
+*	Make FileIO_AtomicUpdate fail gracefully when File_FullPath fails.
+
+*	Merge atomic FetchAndAdd64 with ReadAdd64.
+
+*	Rename Atomic_FetchAdd, part 1.
+
+*	AsyncSocket: Remove UDP socket support.
+
+*	Introduce Id_IsSetUGid for detecting setuid/setgid binaries.
+
+*	Update WS, player version numbers on *-main branch.
+
+*	Integrate all VIX changes from hosted13-pd-rel to vmcore-main.
+
+*	Rename Atomic_FetchAnd*, part 5.
+
+*	Cache Tools conf path.
+
+*	No more Atomic_Fetch.
+
+*	Add configuring of the Windows core dump flags for the tools service
+
+*	Temporary fix for PR 1111448.
+
+*	Add surface logging to basicOps
+
+*	Id_IsSetUGid fails to compile on Android.
+
+*	Add devel backdoor command to run replays inside frobos tests.
+
+*	Save registers earlier during Panic.
+
+*	Prepare the HGFS Windows client to use VMCI transport header version 2
+
+*	Get Mac OS system version from (Server|System)Version.plist
+
+*	WebMKS plumbing: vmx side
+
+*	Create new V2 of VMCI transport header
+
+*	   Minor logging cleanup in vmware-vprobe
+
+*	Notify VMX when Toolsd is going down
+
+*	Remove ovftool temporary fix.
+
+*	Add /proc/interrupts and /proc/irq/* to vm-support
+
+*	Remove HGFS from FreeBSD builds and packaging
+
+*	Split DR6_ONES into DR6_DEFAULT and DR6_ONES
+
+*	Add utilMem to Frobos
+
+*	Support Intel RTM Debug behavior in VT mode.
+
+*	MSG: Skip errno localization on unknown platforms.
+
+*	Replace CPU_MemBarrier with Atomic_MFence
+
+*	Prevent low privileged user from writable access to tools conf data
+
+*	Change shutdown notification RPC failure message to debug.
+
+*	Eliminate some "legacy IPC baggage".
+
+*	Fix tools_obj_linux64 build (license file mismatch)
+
+*	Convert the HGFS uses of ASSERT_DEVEL into ASSERT or remove
+
+*	arm64 support in vm_basic_{types,defs}.h
+
+*	Add an error function hook to PollDefault
+
+*	arm64 support in vm_[basic_]asm.h
+
+*	asyncWebSocket: improve rmks warning message when WebSocket connection fails due to bad SSL cert.
+
+*	Implement MXUser semaphores on Mac OS with lib dispatch semaphores
+
+*	Replace 3-clause BSD license template with 2-clause BSD license
+
+*	vm_basic_{types,asm}.h: cleanup architecture #ifdefs
+
+*	Add a surface flag for 16-byte image alignment in mobs
+
+*	Change config.version from String to Long.
+
+*	Fix HGFS server change notification packet handling.
+
+*	Cleanup "vm_basic_defs.h"
+
+*	vm_atomic: add ARM64 atomic operations.
+
+*	Enable the HGFS VMCI VMX and HGFS server use the V2 header
+
+*	Implement Devel ScreenShot command
+
+*	Fix the HGFS protocol opcode to differentiate headers
+
+*	vmkBoot: refactor serial, arm64 serial & panic.
+
+*	vm_atomic: fix arm64 ReadIfWriteEqual atomics.
+
+*	arm: bug fixes for uint*set implementations.
+
+*	Rework the tools heartbeat code in the VMX.
+
+*	vm_atomic: eliminate non-ASCII chars in comment.
+
+*	Remove the incorrect immediate constraint from 64-bit atomic ops
+
+*	Refactor code under guestinfo/getlib.
+
+*	Remove __builtin_*_address(N) compile checks.
+
+*	boot: misc. vmkernel changes to allow arm64 boot.c compile.
+
+*	debug: move debug to main/x86, arm64 stubs.
+
+*	prda/specialstack: refactor to split out arch deps, arm64 support.
+
+*	Cleanup guestinfo plugin header dependency.
+
+*	Change WSAAddressToString to WSAAddressToStringA
+
+*	  Handle EINVAL for preadv and pwritev.
+
+*	Change GET_CURRENT_LOCATION definition.
+
+*	Check if __GLIBC_PREREQ is defined before using it.
+
+*	Add support for IOMMU guest addresses > 16TB.
+
+*
+
+*	Fix Atomic_Read on ARMv7.
+
+*	Create a trivial view when both the texture and the view are R24G8 class.
+
+*	vm_atomic: fix ARM 32/64-bit Atomic_Read.
+
+*	OvhdMem refactor + pull from vmioplugin branch
+
+*	cpuset/vm_basic_asm: use standard clr/ctz primitives.
+
+*	vm_basic_asm: fix windows build breakage.
+
+*	vSock: Rename "VMCI Sockets".
+
+*	Disable nullDriver by default and add a config switch to enable it.
+
+*	First submit of the VDTI PCI Device.
+
+*	  Cleanup/Rationalize coreDump
+
+*	vSock VMX: Introduce a separate sendCb field
+
+*	Don't define g_info if it is available.
+
+*	A virtual USB video device backend.	
+
+*	A virtual video device backend.
+
+*	Skip freezing remote mounts.
+
+*	lib/file: Various fixes to FileIOP(read|write)vInternal and FileIO_(Readv|Writev).
+
+*	Use int 31 instruction to trigger an assert in the VMKernel
+
+*	vm_basic_asm: fix uint32set for arm64.
+
+*	Clean up of APIs used by the HGFS server library
+
+*	Clean up the HGFS server shares interface to the HGFS server part II
+
+*	Ignore disk UUIDs from the paths to be frozen.
+
+*	Clean up the HGFS server use of the policy share enumeraton APIs
+
+*	fix HostinfoGetOSShortName to support Debian 7.x
+
+*	remove unnecessary constraints for ABSOLUTELY_NOINLINE define
+
+*	More clean up the HGFS server manager, policy manager APIs
+
+*	Remove MPN32 related macros.
+
+*	lib/uuid: Add CreateRandomEFI, and cleanup
+
+*	Fix buffer overflow in perfMonLinux
+
+*	AsyncSocket: hostname/IP string connection functions should attempt both IPv4 and IPv6 connections.
+
+*	lib/lock: lock tracking tree optimization
+
+*	Fast send on the asynNamedPipe if Write completes synchronously.
+
+*	increase MAX_MPN to 38 bits
+
+*	finish conversion of invalid_mpn64 and max_mpn64
+
+*	Change Mul64x3264 family of functions to round instead of truncating
+
+*	Add CACHELINE_SIZE to vm_basic_defs.h.	
+
+*	Memory is accessed after being freed in function
+
+*	Add some debug noise to RPCs received in guest.
+
+*	Add SMAP support to MMU page walkers and MonTLB
+
+*	lib/file: File_Rotate needs some protection
+
+*	Hgfs VMCI: move packet max size to the correct location
+
+*	Hgfs Server: remove transport only header file from the server.
+
+*	Log errors in RandomBytesWin32.
+
+*	Defer the RunScript cleanup when VIX commands are restricted.
+
+*	Add support in resolution set to log multiple sessions in RDSH.
+
+*	Make Clamped_SAdd32 more robust against compiler options
+
+*	Compare the remote FS type strings the right way.
+
+*	VIX plugin under vmusr should not register for TOOLS_CORE_SIG_IO_FREEZE.
+
+*	Add runtime macros to check type of tools service.
+
+*	vm_atomic: remove unfenced atomic operations.
+
+*	vm_atomic: LOCK-like semantics for arm64 atomics.
+
+*	refcount/vm_basic_asm: multi-architecture memory barriers.
+
+*	Hgfs Server: Fix unpacking of protocol header unused fields
+
+*	Enlarge MAX_IFACES to ensure vmtools could get a valid GOS IP throguh NetUtil_GetPrimaryIP().
+
+*	Change BPN to be a 64 bit type.
+
+*	lib/lock: MXUser_Control* -> typed functions [trivial?]
+
+*	fix bad error
+
+*	ARM64: Add more basic assembler support
+
+*	Guest Tools: Add memNeeded for Windows and Linux and handle versioning
+
+*	Fix incorrect LRU file accounting for memNeeded on Linux
+
+*	Change the bit representation of BPN to make way for NVM.
+
+*	tools perf mon: collect more stats from /proc/meminfo
+
+*	Remove vmxwifi.sys and macWireless_defs.h
+
+*	tools perf mon: refactor
+
+*	tools data collection: Collect all of the new Linux data	
+
+*	Guest stats: fix the time base
+
+*	gos tables: Table must be sorted; reinsert "coreos-64" accordingly
+
+*	guest performance data: no need to have a maximum RPC transfer size
+
+*	guest perf stats: replumb GuestInfo_PerfMon
+
+*	guest perf stats: GuestInfo_PerfMon builds the RPC data itself
+
+*	guest perf data: collect the Linux data
+
+*	guest perf data: return the new protocol
+
+*	guest perf stats: ice the cake (add some polish)
+
+*	guest perf stats: Linux goes to the new format
+
+*	Hgfs Posix Server: fix the writes to not exceed max file size
+
+*	Stick backdoor behavior after vSocket connection failure.
+
+*	Hgfs Posix Server: fix Solaris tools obj builds for log statements
+
+*	Fix memory leak in hgfs server.
+
+*	Implement QuadBlit for DX11Renderer.
+
+*	Add feature-specific RDE Dev Targets - folderRedirection, tsmmr, viewMP
+
+*	MX_Lock should not use HLE on unpatched Haswell systems
+
+*	Hgfs Posix Server: add some useful logging for symlink names
+
+*	lib/file: Don't leak a filename in FileRotateByRenumber.
+
+*	Hgfs Posix Server: add more useful logging to open
+
+*	Hgfs Posix Server: fix open requests failing EAGAIN (EWOULDBLOCK)
+
+*	Sometimes channel can be NULL, this will make vmtools panic.
+
+*	lib: misc/sig support for arm64 (redux).
+
+*	HostType: stop using sysctl
+
+*	authPosix: use getspent when using shadow password, but not PAM
+
+*	Added protocol selection to bora AsyncWebSocket.- Changed VNC Client offer 'vmware-vvc' protocol as an additional protocol.
+
+*	Enable 3D with DX11Renderer and port over the existing PROTOTYPE RenderOps functions.
+
+*	Create the support dir under /tmp instead of CWD.
+
+*	Disable NullDriver backend only for forceQuiece case.
+
+*	Hgfs Server: fix malformed symlink creation requests
+
+*	Hgfs Server: fix check malformed read packets
+
+*	Fix Ubuntu errors in the vm-support script.
+
+*	Expose BDOOR_CMD_VCPU_MMIO_HONORS_PAT to guest.
+
+*	Add optional websocket protocols parameter to AsyncSocket_ListenWebSocketUDS.  If NULL then default (legacy) protocols are used.
+
+*	Allow the network script to bring each individual interface up/down.
+
+*	deployPkg plugin: make deployPkg.cpp build as C or C++
+
+*	GOSTable: Plumb vmkernel6 as a separate bit
+
+*	add deployPkg files to open-vm-tools
+
+*	Introduce mkfsPmem, libpmem for managing pmem resources via the kernel from user-space.
+
+*	Allow to queue MCE requests form the kernel to the VMM.
+
+*	HGFS: Remove R/R
+
+*	Replace PUSHF/POPF with STAC/NOP when setting EFLAGS.AC
+
+*	lib/file: hostd crashes in assertion failure due to file list
+
+*	Tools: Create GuestInfo_GetPrimaryIP as a IPv6 compliant version of NetUtil_GetPrimaryIP
+
+*	Remove memNeeded calculation from the guest tools
+
+*	Move SIZE_xxBITS to common architecture file.
+
+*	GOSTable: Windows 10 as a unique guest
+
+*	Set _FILE_OFFSET_BITS=64 for Solaris
+
+*	Plumbing to expose (whitelisted) vsi-based stats in guest
+
+*	Assorted _FILE_OFFSET_BITS=64 / _LARGEFILE64_SOURCE fixups
+
+*	Serial: [2/16] Serial8250 - refactor into generic and platform parts.
+
+*	lib/log: Improve the level filtering implementation and documentation
+
+*	lib/log: no need to "blip" the lock
+
+*	lib/misc: header clean up
+
+*	Add 16 bits atomics to vm_atomic.h.
+
+*	Add 16 bits atomics for arm64
+
+*	Clean up some file headers
+
+*	Begin plumbing guest mks stats out to the host.
+
+*	lib/log: improved documentation in log.h
+
+*	Converting MPN to MPN32.
+
+*	Reimplement guestproxycerttool.pl in C.
+
+*	Atomic Boolean support
+
+*	Add grabbitmqProxy plugin to open-vm-tools.
+
+*	Windows 10: an all Windows 10 macro
+
+*	Remove some vacuous FileIO usage
+
+*	Introducing 64-bit MPN type.
+
+*	mks: add shared-secret authentication for Blast websocket connections
+
+*	Windows 10: add macros for all 32 and all 64 bit
+
+*	Add guestproxycerttool (C-implementation) to open-vm-tools and OSPs.
+
+*	cleanup app balloon in vmm, vmx, and parts of vmkernel
+
+*	Honour panic.breakOnPanic on Posix.
+
+*	hashTable: free function work like our other free functions
+
+*	Introduce certificate hash verification in blast native clients.
+
+*	Forward declare sslverifyparam in ssldirect.h
+
+*	asyncWebsocket: move WebSocketHandshakeState into asyncWebSocket.c
+
+*	RecordReplayRemoval: make RR go away from automation tools.
+
+*	tools: improved memNeeded
+
+*	guest stats: Use DynBufs
+
+*	guest tools: a bit of consolidation
+
+*	guest stats: rates in pages per second
+
+*	Guest stats: Dynamically capture stats in Linux
+
+*	guestStats: optimize memory allocation
+
+*	guest stats: Linux deals with overflow
+
+*	guest stats: consistent open file failure messages
+
+*	GuestStat: improve function header
+
+*	GuestStat: more function header cleanup
+
+*	Stop publishing guest stats from VSI/GuestMemInfo structure.
+
+*	Guest Stats: extensible reporting
+
+*	Use new #define _DEFAULT_SOURCE to build open-vm-tools.
+
+*	Publish Windows guest stats via V5 format
+
+*	Guest stats: Only populate Linux legacy values that have been consumed
+
+*	guest stats: Linux publish names as defines
+
+*	Windows stat code cleanup
+
+*	GuestStat: official registed the build in names
+
+*	Adjust lock ranks for IO filters.
+
+*	asyncWebSocket: remove hybi designator and consolidate code
+
+*	asyncWebSocket: simplify protocol lists and framing
+
+*	asyncSocket: simplify the interface for specifying websocket protocols
+
+*	GuestStat: Name data is properly name string
+
+*	lib/misc: Support Util_IsAbsolutePath on Solaris and FreeBSD
+
+*	Hgfs Server: fix unpack of file name args for directory open
+
+*	Minor updates to windows stat code
+
+*	GuestStats: Better data validation and names
+
+*	Debug log messages and minor fixes.
+
+*	Add TLS caching for gettid calls on Linux
+
+*	Add File_DeleteDirectoryContent.
+
+*	Allow vm-support script execution only for root user.
+
+*	GuestStats: rationalize the stat datum bits
+
+*	No more MPN64 type.
+
+*	Gettid TLS: fix coredumping
+
+*	sigPosix scrub: more consistent self-signal behavior and remove unused code
+
+*	Guest Stats: fix alphabetization
+
+*	Publish stats for Windows pagefile size and used subset in KB
+
+*	GuestOps: Set file ownership before setting file permissions.
+
+*	GuestStats: no time units.
+
+*	GuestSDK: remove vmtools.dll/so dependency
+
+*	Use new generic way to collect guest stats and remove unused legacy guest stats.
+
+*	Remove vmioplugin.
+
+*	Use GOnce in pollGtk instead of a static mutex.
+
+*	Update hgfsServer alias code.
+
+*	Inline ASM for rotate left/right instruction
+
+*	Add backdoor command to restrict vmmouse
+
+*	Add Posix File to hgfsURI
+
+*	lib/file: FileSleeper must really sleep
+
+*	Fix unnecessary cast
+
+*	Add LIKELY/UNLIKELY into MXUserRec
+
+*	Fix argument order for InterlockedCompareExchange8
+
+*	rmks/ssl: change SSL verification for View/Blast RMKS connections to reject mismatched thumbprint always
+
+*	GuestStats: Linux active/inactive anon buffers
+
+*	GuestStats: order the linux stats
+
+*	GuestStats: Clean up include file
+
+*	Hgfs Server: enhance logging for packet request ID
+
+*	Allow RpcVMX_LogV to run without calling malloc.
+
+*	Update the stat IDs list.
+
+*	Don't mount alias target volumes while resolving HGFS file attributes
+
+*	Remove the executable bit from various source files
+
+*	add some improved cert debug noise
+
+*	  Basic infrastructure support for guestIntegrity backdoor calls.
+
+*	Implement MXUser semaphores on Mac OS with lib dispatch semaphores
+
+*	Add a backdoor command for mksStats snapshots.
+
+*	add vmhgfs-fuse to open-vm-tools
+
+*	vm_basic_defs/gdb: use non-builtin offsetof for vmk gdb macros.
+
+*	Implement MXUserEvent
+
+*	Remove updateAgent code.
+
+*	Change default sampling rate for guest stats to 20 seconds.
+
+*	Include cstring to avoid 'memset not in scope' error.
+
+*	Remove guestStats that are beyond 60u1 scope.
+
+*	Fixes for use_after_free, double_free and double_close.
+
+*	Use a global lock for protecting gLoggingStopped.
+
+*	change default debugging level and location
+
+*	adjust logging noise for vmtoolsd
+
+*	clean up debug & warning messages in guestInfo plugin
+
+*	clean up logging in vix plugin
+
+*	recategorize powerOps logging messages
+
+*	gather new default Tools logs with vm-support
+
+*	add toolbox-cmd support for log`
+
+open-vm-tools-9.10.2 build 2822639
 
 *	Use new #define _DEFAULT_SOURCE to build OVT.
 	

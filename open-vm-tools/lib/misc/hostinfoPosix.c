@@ -75,7 +75,11 @@
 #include <sys/vfs.h>
 #endif
 #if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || (defined(HAVE_SYS_IO_H) && defined(HAVE_SYS_SYSINFO_H)))
+#if defined(__i386__) || defined(__x86_64__)
 #include <sys/io.h>
+#else
+#define NO_IOPL
+#endif
 #include <sys/sysinfo.h>
 #ifndef HAVE_SYSINFO
 #define HAVE_SYSINFO 1
@@ -151,11 +155,11 @@ static Atomic_Ptr hostinfoOSVersion;
 
 #define DISTRO_BUF_SIZE 255
 
+#if !defined __APPLE__ && !defined USERWORLD
 typedef struct lsb_distro_info {
    char *name;
    char *scanstring;
 } LSBDistroInfo;
-
 
 static const LSBDistroInfo lsbFields[] = {
    {"DISTRIB_ID=",          "DISTRIB_ID=%s"},
@@ -165,30 +169,13 @@ static const LSBDistroInfo lsbFields[] = {
    {NULL, NULL},
 };
 
-
 typedef struct distro_info {
    char *name;
    char *filename;
 } DistroInfo;
 
+/* KEEP SORTED! (sort -d) */
 static const DistroInfo distroArray[] = {
-   {"OracleLinux",        "/etc/oracle-release"},
-   {"RedHat",             "/etc/redhat-release"},
-   {"RedHat",             "/etc/redhat_version"},
-   {"Sun",                "/etc/sun-release"},
-   {"SuSE",               "/etc/SuSE-release"},
-   {"SuSE",               "/etc/novell-release"},
-   {"SuSE",               "/etc/sles-release"},
-   {"Debian",             "/etc/debian_version"},
-   {"Debian",             "/etc/debian_release"},
-   {"Mandrake",           "/etc/mandrake-release"},
-   {"Mandriva",           "/etc/mandriva-release"},
-   {"Mandrake",           "/etc/mandrakelinux-release"},
-   {"TurboLinux",         "/etc/turbolinux-release"},
-   {"Fedora Core",        "/etc/fedora-release"},
-   {"Gentoo",             "/etc/gentoo-release"},
-   {"Novell",             "/etc/nld-release"},
-   {"Ubuntu",             "/etc/lsb-release"},
    {"Annvix",             "/etc/annvix-release"},
    {"Arch",               "/etc/arch-release"},
    {"Arklinux",           "/etc/arklinux-release"},
@@ -196,23 +183,42 @@ static const DistroInfo distroArray[] = {
    {"BlackCat",           "/etc/blackcat-release"},
    {"Cobalt",             "/etc/cobalt-release"},
    {"Conectiva",          "/etc/conectiva-release"},
+   {"Debian",             "/etc/debian_release"},
+   {"Debian",             "/etc/debian_version"},
+   {"Fedora Core",        "/etc/fedora-release"},
+   {"Gentoo",             "/etc/gentoo-release"},
    {"Immunix",            "/etc/immunix-release"},
    {"Knoppix",            "/etc/knoppix_version"},
    {"Linux-From-Scratch", "/etc/lfs-release"},
    {"Linux-PPC",          "/etc/linuxppc-release"},
+   {"Mandrake",           "/etc/mandrakelinux-release"},
+   {"Mandrake",           "/etc/mandrake-release"},
+   {"Mandriva",           "/etc/mandriva-release"},
    {"MkLinux",            "/etc/mklinux-release"},
+   {"Novell",             "/etc/nld-release"},
+   {"OracleLinux",        "/etc/oracle-release"},
+   {"Photon",             "/etc/lsb-release"},
    {"PLD",                "/etc/pld-release"},
-   {"Slackware",          "/etc/slackware-version"},
+   {"RedHat",             "/etc/redhat-release"},
+   {"RedHat",             "/etc/redhat_version"},
    {"Slackware",          "/etc/slackware-release"},
+   {"Slackware",          "/etc/slackware-version"},
    {"SMEServer",          "/etc/e-smith-release"},
    {"Solaris",            "/etc/release"},
+   {"Sun",                "/etc/sun-release"},
+   {"SuSE",               "/etc/novell-release"},
+   {"SuSE",               "/etc/sles-release"},
+   {"SuSE",               "/etc/SuSE-release"},
    {"Tiny Sofa",          "/etc/tinysofa-release"},
+   {"TurboLinux",         "/etc/turbolinux-release"},
+   {"Ubuntu",             "/etc/lsb-release"},
    {"UltraPenguin",       "/etc/ultrapenguin-release"},
    {"UnitedLinux",        "/etc/UnitedLinux-release"},
    {"VALinux",            "/etc/va-release"},
    {"Yellow Dog",         "/etc/yellowdog-release"},
    {NULL, NULL},
 };
+#endif
 
 #if defined __ANDROID__
 /*
@@ -1394,24 +1400,24 @@ Hostinfo_OSIsSMP(void)
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_NameGet(void)
 {
-   Unicode result;
+   char *result;
 
    static Atomic_Ptr state; /* Implicitly initialized to NULL. --hpreg */
 
    result = Atomic_ReadPtr(&state);
 
    if (UNLIKELY(result == NULL)) {
-      Unicode before;
+      char *before;
 
       result = Hostinfo_HostName();
 
       before = Atomic_ReadIfEqualWritePtr(&state, NULL, result);
 
       if (before) {
-         Unicode_Free(result);
+         free(result);
 
          result = before;
       }
@@ -1438,14 +1444,14 @@ Hostinfo_NameGet(void)
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_GetUser(void)
 {
    char buffer[BUFSIZ];
    struct passwd pw;
    struct passwd *ppw = &pw;
-   Unicode env = NULL;
-   Unicode name = NULL;
+   char *env = NULL;
+   char *name = NULL;
 
    if ((Posix_Getpwuid_r(getuid(), &pw, buffer, sizeof buffer, &ppw) == 0) &&
        (ppw != NULL)) {
@@ -1816,7 +1822,7 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
 VmTimeType
 Hostinfo_SystemTimerNS(void)
 {
-   VmTimeType result;
+   VmTimeType result = 0;  // = 0 silence compiler warning
 
    if ((vmx86_apple && HostinfoSystemTimerMach(&result)) ||
        (vmx86_posix && HostinfoSystemTimerPosix(&result))) {
@@ -2610,6 +2616,9 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
    return HostinfoGetSysctlStringAlloc("hw.model");
 #else
 #ifdef VMX86_SERVER
+#ifdef VM_ARM_64
+   return strdup("armv8 unknown");
+#else
    if (HostType_OSIsVMK()) {
       char mName[48];
 
@@ -2624,7 +2633,8 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
 
       return NULL;
    }
-#endif
+#endif // VM_ARM_64
+#endif // VMX86_SERVER
 
    return HostinfoGetCpuInfo(cpuNumber, "model name");
 #endif
@@ -3020,7 +3030,7 @@ Hostinfo_SystemUpTime(void)
     * /proc/uptime does not exist on Visor.  Use syscall instead.
     * Discovering Visor is a run-time check with a compile-time hint.
     */
-   if (vmx86_server && HostType_OSIsPureVMK()) {
+   if (vmx86_server && HostType_OSIsVMK()) {
       uint64 uptime;
 #ifdef VMX86_SERVER
       if (UNLIKELY(VMKernel_GetUptimeUS(&uptime) != VMK_OK)) {
@@ -3508,10 +3518,10 @@ Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,      // OUT:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_GetModulePath(uint32 priv)  // IN:
 {
-   Unicode path;
+   char *path;
 
 #if defined(__APPLE__)
    uint32_t pathSize = FILE_MAXPATH;

@@ -43,8 +43,7 @@
  *
  * PosixConvertToCurrent --
  *
- *      Utility function to convert a Unicode string
- *      to the current encoding.
+ *      Utility function to convert a UTF8 string to the current encoding.
  *
  * Results:
  *      TRUE on success.
@@ -59,8 +58,8 @@
  */
 
 static INLINE Bool
-PosixConvertToCurrent(ConstUnicode in,   // IN: string to convert
-                      char **out)        // OUT: conversion result
+PosixConvertToCurrent(const char *in,   // IN: string to convert
+                      char **out)       // OUT: conversion result
 {
    int e = errno;
    char *p = Unicode_GetAllocBytes(in, STRING_ENCODING_DEFAULT);
@@ -82,9 +81,8 @@ PosixConvertToCurrent(ConstUnicode in,   // IN: string to convert
  *
  * PosixConvertToCurrentList --
  *
- *      Utility function to convert a list of Unicode strings
- *      to the current encoding.
- *	Return NULL if list is NULL.
+ *      Utility function to convert a list of UTF8 strings to the current
+ *      encoding. Return NULL if list is NULL.
  *
  * Results:
  *      TRUE on success.
@@ -99,8 +97,8 @@ PosixConvertToCurrent(ConstUnicode in,   // IN: string to convert
  */
 
 static INLINE Bool
-PosixConvertToCurrentList(Unicode const *in,  // IN: list to convert
-                          char ***out)        // OUT: conversion result
+PosixConvertToCurrentList(char *const *in,  // IN: list to convert
+                          char ***out)      // OUT: conversion result
 {
    int e = errno;
    char **p;
@@ -147,8 +145,7 @@ PosixEnvFree(void *v)
  *
  * PosixGetenvHash --
  *
- *      Save away Unicode result for Posix_Getenv() to make
- *      it persistent.
+ *      Save away UTF8 string for Posix_Getenv() to make it persistent.
  *
  * Results:
  *      The value.
@@ -160,13 +157,13 @@ PosixEnvFree(void *v)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE_SINGLE_CALLER Unicode
-PosixGetenvHash(ConstUnicode name,  // IN
-                Unicode value)      // IN/OUT: may be freed
+static INLINE_SINGLE_CALLER char *
+PosixGetenvHash(const char *name,  // IN
+                char *value)       // IN/OUT: may be freed
 {
    static Atomic_Ptr htPtr;
    HashTable *ht;
-   Unicode oldValue;
+   char *oldValue;
    PosixEnvEntry *e;
 
    /*
@@ -214,7 +211,7 @@ PosixGetenvHash(ConstUnicode name,  // IN
 
       oldValue = Atomic_ReadPtr(&e->value);
       if (Str_Strcmp(oldValue, value) == 0) {
-	 Unicode_Free(value);
+	 free(value);
 	 value = oldValue;
 	 break;
       }
@@ -229,7 +226,7 @@ PosixGetenvHash(ConstUnicode name,  // IN
 
       if (Atomic_ReadIfEqualWritePtr(&e->value, oldValue, value) == oldValue) {
 	 oldValue = Atomic_ReadWritePtr(&e->lastValue, oldValue);
-	 Unicode_Free(oldValue);
+	 free(oldValue);
 	 break;
       }
    }

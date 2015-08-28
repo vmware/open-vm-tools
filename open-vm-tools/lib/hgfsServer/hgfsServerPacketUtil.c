@@ -38,6 +38,7 @@ static void *HSPUGetBuf(HgfsServerChannelCallbacks *chanCb,
                         HgfsVmxIov *iov,
                         uint32 iovCount,
                         uint32 startIndex,
+                        size_t dataSize,
                         size_t bufSize,
                         void **buf,
                         Bool *isAllocated,
@@ -72,6 +73,65 @@ static void HSPUUnmapBuf(HgfsChannelUnmapVirtAddrFunc unmapVa,
                          uint32 startIndex,
                          HgfsVmxIov *iov,
                          uint32 *mappedCount);
+
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HSPU_ValidateReplyPacketSize --
+ *
+ *    Validate a reply buffer size in an hgfs packet with the reply data
+ *    size for the request.
+ *
+ * Results:
+ *    TRUE if the reply buffer size is large enough for the request reply
+ *    results. FALSE if not.
+ *
+ * Side effects:
+ *    None.
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HSPU_ValidateReplyPacketSize(HgfsPacket *packet,         // IN: Hgfs Packet
+                             size_t replyHeaderSize,     // IN: reply header size
+                             size_t replyResultSize,     // IN: reply result size
+                             size_t replyResultDataSize, // IN: reply result data size
+                             Bool useMappedMetaPacket)   // IN: using meta buffer
+{
+   size_t bytesRemaining;
+   Bool replySizeIsOkay = FALSE;
+
+   if (packet->replyPacket != NULL) {
+      /* Pre-allocated reply buffer (as used by the backdoor). */
+      bytesRemaining = packet->replyPacketSize;
+   } else if (useMappedMetaPacket) {
+      /* No reply buffer (as used by the VMCI) reuse the metapacket buffer. */
+      bytesRemaining = packet->metaPacketSize;
+   } else {
+      /* No reply buffer but we will allocate the size required. */
+      replySizeIsOkay = TRUE;
+      goto exit;
+   }
+
+   if (bytesRemaining >= replyHeaderSize) {
+      bytesRemaining -= replyHeaderSize;
+   } else {
+      goto exit;
+   }
+   if (bytesRemaining >= replyResultSize) {
+      bytesRemaining -= replyResultSize;
+   } else {
+      goto exit;
+   }
+   if (bytesRemaining >= replyResultDataSize) {
+      replySizeIsOkay = TRUE;
+   }
+
+exit:
+   return replySizeIsOkay;
+}
 
 
 /*
@@ -117,7 +177,6 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
           * is always mapped and copied no matter how much data it really contains.
           */
          LOG(10, ("%s Using meta packet for reply packet\n", __FUNCTION__));
-         ASSERT(replyDataSize <= packet->metaPacketDataSize);
          ASSERT(BUF_READWRITEABLE == packet->metaMappingType);
          ASSERT(replyDataSize <= packet->metaPacketSize);
 
@@ -222,9 +281,35 @@ HSPU_GetMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
                      packet->iovCount,
                      0,
                      packet->metaPacketDataSize,
+                     packet->metaPacketSize,
                      &packet->metaPacket,
                      &packet->metaPacketIsAllocated,
                      &packet->metaPacketMappedIov);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HSPU_ValidateDataPacketSize --
+ *
+ *    Validate a data packet buffer size in an hgfs packet with the required data
+ *    size for the request.
+ *
+ * Results:
+ *    TRUE if the data buffer size is valid for the request.
+ *    FALSE if not.
+ *
+ * Side effects:
+ *    None.
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HSPU_ValidateDataPacketSize(HgfsPacket *packet,     // IN: Hgfs Packet
+                            size_t dataSize)        // IN: data size
+{
+   return (dataSize <= packet->dataPacketSize);
 }
 
 
@@ -263,6 +348,7 @@ HSPU_GetDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Pack
                      packet->iov,
                      packet->iovCount,
                      packet->dataPacketIovIndex,
+                     packet->dataPacketDataSize,
                      packet->dataPacketSize,
                      &packet->dataPacket,
                      &packet->dataPacketIsAllocated,
@@ -292,6 +378,7 @@ HSPUGetBuf(HgfsServerChannelCallbacks *chanCb,  // IN: Channel callbacks
            HgfsVmxIov *iov,                     // IN: iov array
            uint32 iovCount,                     // IN: iov array size
            uint32 startIndex,                   // IN: Start index of iov
+           size_t dataSize,                     // IN: Size of data in tghe buffer
            size_t bufSize,                      // IN: Size of buffer
            void **buf,                          // OUT: Contigous buffer
            Bool *isAllocated,                   // OUT: Buffer allocated
@@ -348,9 +435,9 @@ HSPUGetBuf(HgfsServerChannelCallbacks *chanCb,  // IN: Channel callbacks
    *buf = Util_SafeMalloc(bufSize);
    *isAllocated = TRUE;
 
-   if (mappingType == BUF_READABLE ||
-       mappingType == BUF_READWRITEABLE) {
-      HSPUCopyIovecToBuf(iov, iovMapped, startIndex, *buf, bufSize);
+   if ((mappingType == BUF_READABLE || mappingType == BUF_READWRITEABLE) &&
+       (0 != dataSize)) {
+      HSPUCopyIovecToBuf(iov, iovMapped, startIndex, *buf, dataSize);
    }
    releaseMappings = TRUE;
 
@@ -405,6 +492,31 @@ HSPU_PutMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
 /*
  *-----------------------------------------------------------------------------
  *
+ * HSPU_SetDataPacketSize --
+ *
+ *    Set the size of the valid data in the data packet buffer.
+ *
+ * Results:
+ *    void.
+ *
+ * Side effects:
+ *    None.
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HSPU_SetDataPacketSize(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
+                       size_t dataSize)               // IN: data size
+{
+   ASSERT(NULL != packet);
+   ASSERT(dataSize <= packet->dataPacketSize);
+   packet->dataPacketDataSize = dataSize;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HSPU_PutDataPacketBuf --
  *
  *    Free data packet buffer if allocated.
@@ -432,7 +544,7 @@ HSPU_PutDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Pack
               packet->iov,
               packet->iovCount,
               packet->dataPacketIovIndex,
-              packet->dataPacketSize,
+              packet->dataPacketDataSize,
               &packet->dataPacket,
               &packet->dataPacketIsAllocated,
               &packet->dataPacketMappedIov);

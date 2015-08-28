@@ -293,6 +293,13 @@ HgfsMount(struct vfs *vfsp,     // IN: Filesystem to mount
       goto out;
    }
 
+   if (mountData->size != sizeof *mountData) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsMount: received invalid size value: %x\n",
+            mountData->magic);
+      ret = EINVAL;
+      goto out;
+   }
+
    /* We support only one instance of hgfs, at least for now */
    if (HgfsGetSuperInfo()) {
       DEBUG(VM_DEBUG_FAIL, "HgfsMount: HGFS is already mounted somewhere\n");

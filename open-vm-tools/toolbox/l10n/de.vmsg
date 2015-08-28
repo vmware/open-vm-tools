@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+# Copyright (C) 2010 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -20,6 +20,12 @@ arg.command = "Befehl"
 
 arg.devicename = "Gerätename"
 
+arg.logging.level = "Ebene der Protokollierung"
+
+arg.logging.service = "Dienstname der Protokollierung"
+
+arg.logging.subcommand = "Vorgang der Protokollierung"
+
 arg.mountpoint = "Mount-Punkt"
 
 arg.scriptpath = "Skriptpfad"
@@ -38,7 +44,7 @@ disk.shrink.canceled = "Vorgang zum Verkleinern der Festplatte abgebrochen.\n"
 
 disk.shrink.complete = "Vorgang zum Verkleinern der Festplatte abgeschlossen.\n"
 
-disk.shrink.conflict = "Die Toolbox betrachten die Festplattenverkleinerung als aktiviert, während der Host die Funktion als deaktiviert betrachtet.\n\n Schließen Sie die Toolbox, und öffnen Sie sie erneut, um eine Synchronisierung mit dem Host vorzunehmen.\n"
+disk.shrink.conflict = "Fehler: Die Toolbox betrachtet die Festplattenverkleinerung als aktiviert, während der Host die Funktion als deaktiviert behandelt.\n\n Schließen Sie die Toolbox und öffnen Sie sie erneut, um eine Synchronisierung mit dem Host vorzunehmen.\n"
 
 disk.shrink.disabled = "Das Verkleinern von Festplatten ist für diese virtuelle Maschine deaktiviert.\n\nDie Verkleinerung ist für verknüpfte Klone, übergeordnete Elemente verknüpfter Klone, \nFestplatten mit vorab zugewiesenem Speicherplatz, Snapshots oder aufgrund weiterer Faktoren deaktiviert. \nWeitere Informationen finden Sie im Benutzerhandbuch.\n"
 
@@ -52,7 +58,7 @@ disk.shrink.partition.notfound = "Die Partition %1$s wurde nicht gefunden\n"
 
 disk.shrink.partition.unsupported = "Die Partition %1$s kann nicht verkleinert werden\n"
 
-disk.shrink.unavailable = "Die Verkleinerungsfunktion ist nicht verfügbar.\n\nSie führen entweder eine alte Version eines VMware-Produkts aus, oder es sind zu viele Kommunikationskanäle geöffnet.\n\nWenn Sie eine alte Version eines VMware-Produkts ausführen, sollten Sie ein Upgrade in Erwägung ziehen.\n\nWenn zu viele Kommunikationskanäle geöffnet sind, sollten Sie Ihre virtuelle Maschine aus- und anschließend wieder einschalten.\n"
+disk.shrink.unavailable = "Die Verkleinerungsfunktion ist nicht verfügbar,\n\nweil Sie entweder eine alte Version eines VMware-Produkts ausführen oder weil zu viele Kommunikationskanäle offen sind.\n\nWenn Sie eine alte Version eines VMware-Produkts ausführen, sollten Sie ein Upgrade in Erwägung ziehen.\n\nWenn zu viele Kommunikationskanäle geöffnet sind, sollten Sie Ihre virtuelle Maschine aus- und anschließend wieder einschalten.\n"
 
 disk.shrink.ignoreFreeSpaceWarnings = "Ignorieren Sie während des Verkleinerungsvorgangs etwaige Warnungen bezüglich des Speicherplatzes.\n"
 
@@ -62,33 +68,35 @@ disk.wiper.error = "Fehler: %1$s"
 
 disk.wiper.file.error = "Fehler, Erstellen der Wiper-Datei nicht möglich.\n"
 
-disk.wiper.progress = "\rFortschritt: %1$d"
+disk.wiper.progress = "\rProgress: %1$d"
 
 error.missing = "%1$s: %2$s fehlt\n"
 
 error.noadmin.posix = "%1$s: Sie müssen root-Benutzer sein, um die %2$s-Vorgänge auszuführen.\n"
 
-error.noadmin.win = "%1$s: Zum Ausführen der %2$s-Vorgänge sind Administratorberechtigungen erforderlich.\nVerwenden Sie eine Administrator-Eingabeaufforderung, um diese Aufgaben fertig zu stellen.\n"
+error.noadmin.win = "%1$s: Zum Ausführen der %2$s-Vorgänge sind Administratorberechtigungen erforderlich.\nVerwenden Sie eine Administrator-Eingabeaufforderung, um diese Aufgaben abzuschließen.\n"
 
 error.novirtual = "%1$s muss innerhalb einer virtuellen Maschine ausgeführt werden.\n"
 
 error.unknown = "%1$s: %2$s '%3$s' unbekannt\n"
 
-help.device = "%1$s: Funktionen für die Hardwaregeräte der virtuellen Maschine\nNutzung: %2$s %3$s <Unterbefehl> [argumente]\n'dev' ist der Name des Geräts.\n\nUnterbefehle:\n   enable <dev>: Aktivieren des Geräts 'dev' \n   disable <dev>: Deaktivieren des Geräts 'dev'\n   list: Liste aller verfügbaren Geräte\n   status <dev>: Ausgabe des Status eines Geräts\n"
+help.device = "%1$s: Funktionen für die Hardwaregeräte der virtuellen Maschine\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\n'dev' ist der Name des Geräts.\n\nUnterbefehle:\n   enable <dev>: Aktivieren des Geräts 'dev' \n   disable <dev>: Deaktivieren des Geräts 'dev'\n   list: Auflisten aller verfügbaren Geräte\n   status <dev>: Ausgeben des Status eines Geräts\n"
 
-help.disk = "%1$s: Führt Verkleinerungen von Festplatten durch\nNutzung: %2$s %3$s <Unterbefehl> [argumente]\n\nUnterbefehle:\n   list: Liste der verfügbaren Speicherorte\n   shrink <Speicherort>: Löscht und verkleinert ein Dateisystem am angegebenen Speicherort\n   shrinkonly: Verkleinert alle Festplatten\n   wipe <Speicherort>: Löscht ein Dateisystem am angegebenen Speicherort\n"
+help.disk = "%1$s: Führt Verkleinerungen von Festplatten durch\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\n\nUnterbefehle:\n   list: Auflisten der verfügbaren Speicherorte\n   shrink <Speicherort>: Löschen und Verkleinern eines Dateisystems am angegebenen Speicherort\n   shrinkonly: Verkleinern alle Festplatten\n   wipe <Speicherort>: Löschen eines Dateisystems am angegebenen Speicherort\n"
 
 help.hint = "Siehe '%1$s %2$s%3$s%4$s' für weitere Informationen.\n"
 
-help.main = "Nutzung: %1$s <Befehl> [Optionen] [Unterbefehl]\nWenn Sie Hilfe zu einem bestimmten Befehl benötigen, geben Sie '%2$s %3$s <Befehl>' ein.\nGeben Sie '%4$s -v' ein, um die VMware Tools-Version anzuzeigen.\nVerwenden Sie die Option '-q' zum Unterdrücken der stdout-Ausgabe.\nFür meisten Befehle gibt es Unterbefehle.\n\nVerfügbare Befehle:\n   device\n   disk\n  script\n   stat\n   timesync\n   upgrade (nicht auf allen Betriebssystemen verfügbar)\n"
+help.logging = "%1$s: Toolsprotokollierung verändern\nNutzung: %2$s %3$s level <Unterbefehl> <Dienstname> <Ebene>\n\nUnterbefehle:\n   get <Dienstname>: Anzeige der aktuellen Ebene\n   set <Dienstname> <Ebene>: Einrichten der aktuellen Ebene\n\n<Dienstname> kann jeder unterstützte Dienst sein wie vmsvc oder vmusr\n<Ebene> kann für einen Fehler, ein kritisches Ereignis, eine Warnung, Info, Meldung oder ein Debugging stehen \n   Standard ist %4$s\n"
 
-help.script = "%1$s: Steuerung der Skripts, die als Reaktion auf Betriebsvorgänge ausgeführt werden\nNutzung: %2$s %3$s <power|resume|suspend|shutdown> <Unterbefehl> [argumente]\n\nUnterbefehle:\n   enable: Aktivieren des angegebenen Skripts und Wiederherstellen dessen Pfads auf den Standardpfad\n   disable: Deaktivieren des vorhandenen Skripts\n   set <Vollständiger Pfad>: Festlegen des angegebenen Skripts auf den angegebenen Pfad\n   default: Ausgabe des Standardpfads des angegebenen Skripts\n   current: Ausgabe des aktuellen Pfads des angegebenen Skripts\n"
+help.main = "Nutzung: %1$s <Befehl> [Optionen] [Unterbefehl]<\nGeben> Sie '%2$s %3$s <Befehl>' für die Hilfe zu einem bestimmten Befehl ein.\Geben Sie '%4$s -v' für die Anzeige der Version von VMware Tools ein.\nVerwenden Sie den Parameter'-q' zur Ausblendung der stdout-Ausgabe.\nDie meisten Befehle verwenden einen Unterbefehl.\n\nVerfügbare Befehle:\n   device\n   disk\n   logging\n   script\n   stat\n   timesync\n   upgrade (nicht für alle Betriebssysteme verfügbar)\n"
 
-help.stat = "%1$s: Ausgabe nützlicher Gast- und Hostinformationen\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   hosttime: Ausgabe der Hostuhrzeit\n   speed: Ausgabe der CPU-Geschwindigkeit in MHz\nUnterbefehle nur für ESX-Gäste:\n   sessionid: Ausgabe der aktuellen Sitzungs-ID\n   balloon: Ausgabe von Informationen zum Arbeitsspeicher-Ballooning\n   swap: Ausgabe von Informationen zur Arbeitsspeicherauslagerung\n   memlimit: Ausgabe von Informationen zur Arbeitsspeicherlimitierungen\n   memres: Ausgabe von Informationen zur Arbeitsspeicherreservierung\n   cpures: Ausgabe von Informationen zur CPU-Reservierung\n   cpulimit: Ausgabe von Informationen zu CPU-Limitierungen\n"
+help.script = "%1$s: Steuerung der Skripts, die als Reaktion auf Betriebsvorgänge ausgeführt werden\nNutzung: %2$s %3$s <power|resume|suspend|shutdown> <Unterbefehl> [Argumente]\n\nUnterbefehle:\n   enable: Aktivieren des angegebenen Skripts und Wiederherstellen dessen Pfads auf den Standardpfad\n   disable: Deaktivieren des vorhandenen Skripts\n   set <Vollständiger Pfad>: Festlegen des angegebenen Skripts auf den angegebenen Pfad\n   default: Ausgeben des Standardpfads des angegebenen Skripts\n   current: Ausgeben des aktuellen Pfads des angegebenen Skripts\n"
 
-help.timesync = "%1$s: Funktionen zum Steuern der Uhrzeitsynchronisierung auf dem Gastbetriebssystem\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   enable: Aktivieren der Uhrzeitsynchronisierung\n   disable: Deaktivieren der Uhrzeitsynchronisierung\n   status: Ausgabe des Status der Uhrzeitsynchronisierung\n"
+help.stat = "%1$s: Drucken von hilfreichen Gast- und Hostinformationen\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   hosttime: Ausgeben der Hostuhrzeit\n   speed: Ausgeben der CPU-Geschwindigkeit in MHz\nUnterbefehle nur für ESX-Gäste:\n   sessionid: Ausgeben der aktuellen Sitzungs-ID\n   balloon: Ausgeben der Balloon-Arbeitsspeicher-Informationen\n   swap: Ausgeben der Auslagerungsinformationen für den Arbeitsspeicher\n   memlimit: Ausgeben des Arbeitsspeicher-Limits\n   memres: Ausgeben der Arbeitsspeicherreservierung\n   cpures: Ausgeben der CPU-Reservierung\n   cpulimit: Ausgeben des CPU-Limits\n"
 
-help.upgrade = "%1$s: Funktionen für das Upgrade von VMware Tools.\nNutzung: %2$s %3$s <Unterbefehl> [argumente]\nUnterbefehle:\n   status: Überprüfen des Upgrade-Status für VMware Tools.\n   start: Starten eines automatischen Upgrades von VMware Tools.\n\nDamit die Upgrades funktionieren, muss der VMware Tools-Dienst ausgeführt werden.\n"
+help.timesync = "%1$s: Funktionen für die Steuerung der Zeitsynchronisierung auf dem Gastbetriebssystem\Nutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   enable: Aktivieren der Zeitsynchronisierung\n   disable: Deaktivieren der Zeitsynchronisierung\n   status: Ausgeben des Status der Zeitsynchronisierung\n"
+
+help.upgrade = "%1$s: Funktionen für das Upgrade von VMware Tools.\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\nUnterbefehle:\n   status: Überprüfen des Upgrade-Status für VMware Tools.\n   start: Starten eines automatischen Upgrade von VMware Tools.\n\nDamit die Upgrades funktionieren, muss der VMware Tools-Dienst ausgeführt werden.\n"
 
 option.disabled = "Deaktiviert"
 

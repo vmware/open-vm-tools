@@ -28,6 +28,8 @@
 #define TOOLSOPTION_SYNCTIME                    "synctime"
 #define TOOLSOPTION_SYNCTIME_PERIOD             "synctime.period"
 #define TOOLSOPTION_SYNCTIME_ENABLE             "time.synchronize.tools.enable"
+#define TOOLSOPTION_SYNCTIME_STARTUP_BACKWARD \
+   "time.synchronize.tools.startup.backward"
 #define TOOLSOPTION_SYNCTIME_STARTUP            "time.synchronize.tools.startup"
 #define TOOLSOPTION_SYNCTIME_SLEWCORRECTION     "time.synchronize.tools.slewCorrection"
 #define TOOLSOPTION_SYNCTIME_PERCENTCORRECTION  "time.synchronize.tools.percentCorrection"

@@ -16,6 +16,6 @@
 #
 ##########################################################
 
-auth.password.invalid = "Nome utente e password non corrispondenti per "%1$s""
-auth.password.valid = "Nome utente e password convalidati correttamente per "%1$s""
+auth.password.invalid = "Nome utente e password non corrispondenti per '%1$s'"
+auth.password.valid = "Nome utente e password convalidati correttamente per '%1$s'"
 auth.sspi.badid = "Tentativo di autenticazione utilizzando un ID test SSPI non valido o scaduto: %1$u"

@@ -28,8 +28,8 @@
 #include <sys/types.h> /* Needed before sys/vfs.h with glibc 2.0 --hpreg */
 #if !defined(__FreeBSD__)
 #if defined(__APPLE__)
-#include <sys/param.h> 
-#include <sys/mount.h> 
+#include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/times.h>
 #include <sys/sysctl.h>
 #else
@@ -590,7 +590,7 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
  */
 
 void
-FileLockAppendMessage(MsgList **msgs,  // IN/OPT:
+FileLockAppendMessage(MsgList **msgs,  // IN/OUT/OPT:
                       int err)         // IN: errno
 {
    MsgList_Append(msgs, MSGID(fileLock.posix)
@@ -966,8 +966,8 @@ FileLockParseProcessDescriptor(const char *procDescriptor,  // IN:
          return FALSE;
       }
    }
- 
-   return *pid >= 0;  
+
+   return *pid >= 0;
 }
 
 
@@ -1051,14 +1051,14 @@ FileLockValidExecutionID(const char *executionID)  // IN:
  *---------------------------------------------------------------------------
  */
 
-static Unicode
-FileLockNormalizePath(ConstUnicode filePath)  // IN:
+static char *
+FileLockNormalizePath(const char *filePath)  // IN:
 {
-   Unicode result;
-   Unicode fullPath;
+   char *result;
+   char *fullPath;
 
-   Unicode dirName = NULL;
-   Unicode fileName = NULL;
+   char *dirName = NULL;
+   char *fileName = NULL;
 
    /*
     * If the file to be locked is a symbolic link the lock file belongs next
@@ -1074,9 +1074,9 @@ FileLockNormalizePath(ConstUnicode filePath)  // IN:
    result = (fullPath == NULL) ? NULL : Unicode_Join(fullPath, DIRSEPS,
                                                      fileName, NULL);
 
-   Unicode_Free(fullPath);
-   Unicode_Free(dirName);
-   Unicode_Free(fileName);
+   free(fullPath);
+   free(dirName);
+   free(fileName);
 
    return result;
 }
@@ -1109,14 +1109,14 @@ FileLockNormalizePath(ConstUnicode filePath)  // IN:
  */
 
 FileLockToken *
-FileLock_Lock(ConstUnicode filePath,         // IN:
+FileLock_Lock(const char *filePath,          // IN:
               const Bool readOnly,           // IN:
               const uint32 msecMaxWaitTime,  // IN:
               int *err,                      // OUT/OPT: returns errno
-              MsgList **msgs)                // OUT/OPT: add error message
+              MsgList **msgs)                // IN/OUT/OPT: add error message
 {
    int res = 0;
-   Unicode normalizedPath;
+   char *normalizedPath;
    FileLockToken *tokenPtr;
 
    ASSERT(filePath);
@@ -1132,7 +1132,7 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
       tokenPtr = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
                                    &res);
 
-      Unicode_Free(normalizedPath);
+      free(normalizedPath);
    }
 
    if (err != NULL) {
@@ -1171,13 +1171,13 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
  */
 
 Bool
-FileLock_IsLocked(ConstUnicode filePath,  // IN:
-                int *err,                 // OUT/OPT: returns errno
-                MsgList **msgs)           // OUT/OPT: add error message
+FileLock_IsLocked(const char *filePath,  // IN:
+                  int *err,              // OUT/OPT: returns errno
+                  MsgList **msgs)        // IN/OUT/OPT: add error message
 {
    int res = 0;
    Bool isLocked;
-   Unicode normalizedPath;
+   char *normalizedPath;
 
    ASSERT(filePath);
 
@@ -1190,7 +1190,7 @@ FileLock_IsLocked(ConstUnicode filePath,  // IN:
    } else {
       isLocked = FileLockIsLocked(normalizedPath, &res);
 
-      Unicode_Free(normalizedPath);
+      free(normalizedPath);
    }
 
    if (err != NULL) {
@@ -1225,7 +1225,7 @@ FileLock_IsLocked(ConstUnicode filePath,  // IN:
 Bool
 FileLock_Unlock(const FileLockToken *lockToken,  // IN:
                 int *err,                        // OUT/OPT: returns errno
-                MsgList **msgs)                  // OUT/OPT: add error message
+                MsgList **msgs)                  // IN/OUT/OPT: error messages
 {
    int res;
 

@@ -68,6 +68,20 @@
 #define hgfs_d_count(dentry) atomic_read(&dentry->d_count)
 #endif
 
+#if defined VMW_DALIAS_319 || LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+/*
+ * Linux Kernel versions that are version 3.19 and newer or are compatible
+ * by having the d_alias field moved into a union backported.
+ */
+#define hgfs_d_alias() d_u.d_alias
+#else
+/*
+ * Kernel versions that are not 3.19 version compatible or are just older will
+ * use the d_alias field directly.
+ */
+#define hgfs_d_alias() d_alias
+#endif
+
 /* Private functions. */
 static int HgfsDelete(struct inode *dir,
                       struct dentry *dentry,
@@ -1552,9 +1566,14 @@ retry:
           *
           * XXX: I think old servers will send -EPERM here. Is this entirely
           * safe?
+          * We can receive EACCES or EPERM if we don't have the correct
+          * permission on the source file. So lets not assume that we have
+          * a target and only clear the target if there is one.
           */
-         if (!secondAttempt) {
+         if (!secondAttempt && newDentry->d_inode != NULL) {
             secondAttempt = TRUE;
+            LOG(4, (KERN_DEBUG "VMware hgfs: %s:clear target RO mode %8x\n",
+                    __func__, newDentry->d_inode->i_mode));
             result = HgfsClearReadOnly(newDentry);
             if (result == 0) {
                LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: file is no "
@@ -1564,8 +1583,8 @@ retry:
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: failed to remove "
                     "read-only property\n"));
          } else {
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: second attempt at "
-                    "rename failed\n"));
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: second attempt or "
+                    "no target failed\n"));
          }
       } else if (0 != result) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: failed with result %d\n", result));
@@ -1917,7 +1936,7 @@ HgfsPermission(struct inode *inode,
                            p,
 #endif
                            &inode->i_dentry,
-                           d_alias) {
+                           hgfs_d_alias()) {
          int dcount = hgfs_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", dentry->d_name.name, dcount));
@@ -1970,7 +1989,7 @@ HgfsPermission(struct inode *inode,
       /* Find a dentry with valid d_count. Refer bug 587879. */
       list_for_each(pos, &inode->i_dentry) {
          int dcount;
-         struct dentry *dentry = list_entry(pos, struct dentry, d_alias);
+         struct dentry *dentry = list_entry(pos, struct dentry, hgfs_d_alias());
          dcount = hgfs_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", (dentry)->d_name.name, dcount));
@@ -2059,7 +2078,6 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
 
    ASSERT(dentry);
    ASSERT(dentry->d_inode);
-   ASSERT(dentry->d_inode->i_mapping);
    ASSERT(dentry->d_sb);
    ASSERT(iattr);
 
@@ -2086,6 +2104,7 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
     * modify the file size or change the last write time.
     */
    if (iattr->ia_valid & ATTR_SIZE || iattr->ia_valid & ATTR_MTIME) {
+      ASSERT(dentry->d_inode->i_mapping);
       compat_filemap_write_and_wait(dentry->d_inode->i_mapping);
    }
 

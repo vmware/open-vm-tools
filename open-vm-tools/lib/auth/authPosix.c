@@ -202,12 +202,12 @@ static int PAM_conv (int num_msg,                     // IN:
 #endif
 {
    int count;
-   struct pam_response *reply = calloc(num_msg, sizeof(struct pam_response));
+   struct pam_response *reply = calloc(num_msg, sizeof *reply);
 
    if (!reply) {
       return PAM_CONV_ERR;
    }
-   
+
    for (count = 0; count < num_msg; count++) {
       switch (msg[count]->msg_style) {
       case PAM_PROMPT_ECHO_ON:
@@ -238,7 +238,7 @@ static int PAM_conv (int num_msg,                     // IN:
          return PAM_CONV_ERR;
       }
    }
-   
+
    *resp = reply;
 
    return PAM_SUCCESS;
@@ -376,7 +376,7 @@ Auth_AuthenticateSelf(void)  // IN
  *      None.
  *
  * Results:
- *      
+ *
  *      The vmauthToken for the authenticated user, or NULL if
  *      authentication failed.
  *

@@ -877,6 +877,7 @@ HgfsFileWrite(struct kiocb *iocb,      // IN:  I/O control block
 {
    ssize_t result;
    struct dentry *writeDentry;
+   HgfsInodeInfo *iinfo;
    loff_t pos;
    unsigned long iovSegs;
 
@@ -889,10 +890,26 @@ HgfsFileWrite(struct kiocb *iocb,      // IN:  I/O control block
    iovSegs = HGFS_IOV_TO_SEGS(iov, numSegs);
 
    writeDentry = iocb->ki_filp->f_dentry;
+   iinfo = INODE_GET_II_P(writeDentry->d_inode);
 
    LOG(4, (KERN_DEBUG "VMware hgfs: %s(%s/%s)\n",
           __func__, writeDentry->d_parent->d_name.name,
           writeDentry->d_name.name));
+
+
+   spin_lock(&writeDentry->d_inode->i_lock);
+   /*
+    * Guard against dentry revalidation invalidating the inode underneath us.
+    *
+    * Data is being written and may have valid data in a page in the cache.
+    * This action prevents any invalidating of the inode when a flushing of
+    * cache data occurs prior to syncing the file with the server's attributes.
+    * The flushing of cache data would empty our in memory write pages list and
+    * would cause the inode modified write time to be updated and so the inode
+    * would also be invalidated.
+    */
+   iinfo->numWbPages++;
+   spin_unlock(&writeDentry->d_inode->i_lock);
 
    result = HgfsRevalidate(writeDentry);
    if (result) {
@@ -917,7 +934,10 @@ HgfsFileWrite(struct kiocb *iocb,      // IN:  I/O control block
       }
    }
 
-  out:
+out:
+   spin_lock(&writeDentry->d_inode->i_lock);
+   iinfo->numWbPages--;
+   spin_unlock(&writeDentry->d_inode->i_lock);
    return result;
 }
 

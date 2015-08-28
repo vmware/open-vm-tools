@@ -221,12 +221,22 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
    }
 
    /*
+    * Initialize with the default flags.
+    */
+   si->mntFlags = 0;
+   if ((mountInfo->flags & HGFS_MNTINFO_SERVER_INO) != 0) {
+      si->mntFlags |= HGFS_MNT_SERVER_INUM;
+   }
+
+   /*
     * If the mounter specified a uid or gid, we will prefer them over any uid
     * or gid given to us by the server.
     */
-   si->uidSet = mountInfo->uidSet;
+   if (mountInfo->uidSet) {
+      si->mntFlags |= HGFS_MNT_SET_UID;
+   }
    si->uid = current_uid();
-   if (si->uidSet) {
+   if ((si->mntFlags & HGFS_MNT_SET_UID) != 0) {
       kuid_t mntUid = make_kuid(current_user_ns(), mountInfo->uid);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
       if (uid_valid(mntUid))
@@ -234,9 +244,11 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
          si->uid = mntUid;
    }
 
-   si->gidSet = mountInfo->gidSet;
+   if (mountInfo->gidSet) {
+      si->mntFlags |= HGFS_MNT_SET_GID;
+   }
    si->gid = current_gid();
-   if (si->gidSet) {
+   if ((si->mntFlags & HGFS_MNT_SET_GID) != 0) {
       kgid_t mntGid = make_kgid(current_user_ns(), mountInfo->gid);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
       if (gid_valid(mntGid))
@@ -372,9 +384,9 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
    mountInfo = (HgfsMountInfo *)rawData;
    if (!mountInfo ||
        mountInfo->magicNumber != HGFS_SUPER_MAGIC ||
+       mountInfo->infoSize != sizeof *mountInfo ||
        mountInfo->version != HGFS_PROTOCOL_VERSION) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsReadSuper: bad mount data passed "
-              "in by user, failing!\n"));
+      LOG(4, (KERN_CRIT LGPFX "%s: bad mount data passed\n", __func__));
       return -EINVAL;
    }
 

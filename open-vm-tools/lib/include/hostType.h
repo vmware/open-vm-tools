@@ -34,8 +34,11 @@
 #include "vm_basic_types.h"
 
 Bool HostType_OSIsVMK(void);
-Bool HostType_OSIsPureVMK(void);
-Bool HostType_OSIsVMK64(void);
 Bool HostType_OSIsSimulator(void);
+
+/* Old name. TODO: remove */
+static INLINE Bool
+HostType_OSIsPureVMK(void)
+{ return HostType_OSIsVMK(); }
 
 #endif /* ifndef _HOSTTYPE_H_ */

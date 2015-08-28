@@ -103,19 +103,19 @@ BalloonKstatUpdate(kstat_t *ksp, int rw)
    bkp->startFail.value.ui32 = stats->startFail;
    bkp->guestType.value.ui32 = stats->guestType;
    bkp->guestTypeFail.value.ui32 = stats->guestTypeFail;
-   bkp->lock.value.ui32 = stats->lock;
-   bkp->lockFail.value.ui32 = stats->lockFail;
-   bkp->unlock.value.ui32 = stats->unlock;
-   bkp->unlockFail.value.ui32 = stats->unlockFail;
+   bkp->lock.value.ui32 = stats->lock[FALSE];
+   bkp->lockFail.value.ui32 = stats->lockFail[FALSE];
+   bkp->unlock.value.ui32 = stats->unlock[FALSE];
+   bkp->unlockFail.value.ui32 = stats->unlockFail[FALSE];
    bkp->target.value.ui32 = stats->target;
    bkp->targetFail.value.ui32 = stats->targetFail;
    for (i = 0; i < BALLOON_PAGE_ALLOC_TYPES_NR; i++) {
       bkp->primAlloc[i].value.ui32 = stats->primAlloc[i];
       bkp->primAllocFail[i].value.ui32 = stats->primAllocFail[i];
    }
-   bkp->primFree.value.ui32 = stats->primFree;
-   bkp->primErrorPageAlloc.value.ui32 = stats->primErrorPageAlloc;
-   bkp->primErrorPageFree.value.ui32 = stats->primErrorPageFree;
+   bkp->primFree.value.ui32 = stats->primFree[FALSE];
+   bkp->primErrorPageAlloc.value.ui32 = stats->primErrorPageAlloc[FALSE];
+   bkp->primErrorPageFree.value.ui32 = stats->primErrorPageFree[FALSE];
 
    return 0;
 }
@@ -152,10 +152,14 @@ BalloonKstatCreate(void)
    kstat_named_init(&bkp->unlockFail, "unlockFail", KSTAT_DATA_UINT32);
    kstat_named_init(&bkp->target, "target", KSTAT_DATA_UINT32);
    kstat_named_init(&bkp->targetFail, "targetFail", KSTAT_DATA_UINT32);
+   kstat_named_init(&bkp->primAlloc[BALLOON_PAGE_ALLOC_LPAGE],
+                        "primAllocLPage", KSTAT_DATA_UINT32);
    kstat_named_init(&bkp->primAlloc[BALLOON_PAGE_ALLOC_NOSLEEP], 
 			"primAllocNoSleep", KSTAT_DATA_UINT32);
    kstat_named_init(&bkp->primAlloc[BALLOON_PAGE_ALLOC_CANSLEEP],
 			"primAllocCanSleep", KSTAT_DATA_UINT32);
+   kstat_named_init(&bkp->primAllocFail[BALLOON_PAGE_ALLOC_LPAGE],
+                        "primAllocLPageFail", KSTAT_DATA_UINT32);
    kstat_named_init(&bkp->primAllocFail[BALLOON_PAGE_ALLOC_NOSLEEP],
 			"primAllocNoSleepFail", KSTAT_DATA_UINT32);
    kstat_named_init(&bkp->primAllocFail[BALLOON_PAGE_ALLOC_CANSLEEP],

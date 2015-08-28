@@ -559,5 +559,4 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
 #pragma warning(default: 4035)
 #endif
 
-
 #endif

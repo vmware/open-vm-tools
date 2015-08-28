@@ -1328,7 +1328,7 @@ CopyPasteUIX11::LocalPrepareFileContents(const CPClipboard *clip) // IN
    CPFileContentsList *contentsList = NULL;
    size_t nFiles = 0;
    CPFileItem *fileItem = NULL;
-   Unicode tempDir = NULL;
+   char *tempDir = NULL;
    size_t i = 0;
    bool ret = false;
 

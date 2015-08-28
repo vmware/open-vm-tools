@@ -60,7 +60,7 @@
 #define _When_(expr, annos)
 #define _Printf_format_string_
 #define _Use_decl_annotations_
-#elif  _SAL_VERSION == 10
+#elif defined(_SAL_VERSION) && _SAL_VERSION == 10
 // Microsoft didn't create a header mapping SAL 2.0 to 1.0. We do that here.
 #define _In_                           __in
 #define _In_z_                         __in_z
@@ -108,7 +108,7 @@
 #define _Ret_allocates_malloc_mem_opt_z_bytecount_(_Size)
 #define _Ret_allocates_malloc_mem_opt_z_
 #define _In_frees_malloc_mem_opt_
-#elif  _SAL_VERSION == 10
+#elif defined(_SAL_VERSION) && _SAL_VERSION == 10
 #define _When_windrv_(annos)                                               annos
 #define _Ret_allocates_malloc_mem_opt_bytecap_(_Cap)                       __drv_allocatesMem("Memory") __checkReturn __post __byte_writableTo(_Cap) __exceptthat __maybenull
 #define _Ret_allocates_malloc_mem_opt_bytecount_(_Count)                   __drv_allocatesMem("Memory") __checkReturn __post __byte_readableTo(_Count) __exceptthat __maybenull

@@ -60,44 +60,44 @@ extern "C" {
  * of string".
  */
 
-int Unicode_CompareRange(ConstUnicode str1,
+int Unicode_CompareRange(const char *str1,
                          UnicodeIndex str1Start,
                          UnicodeIndex str1Length,
-                         ConstUnicode str2,
+                         const char *str2,
                          UnicodeIndex str2Start,
                          UnicodeIndex str2Length,
                          Bool ignoreCase);
 
-UnicodeIndex Unicode_FindSubstrInRange(ConstUnicode str,
+UnicodeIndex Unicode_FindSubstrInRange(const char *str,
                                        UnicodeIndex strStart,
                                        UnicodeIndex strLength,
-                                       ConstUnicode strToFind,
+                                       const char *strToFind,
                                        UnicodeIndex strToFindStart,
                                        UnicodeIndex strToFindLength);
 
-UnicodeIndex Unicode_FindLastSubstrInRange(ConstUnicode str,
+UnicodeIndex Unicode_FindLastSubstrInRange(const char *str,
                                            UnicodeIndex strStart,
                                            UnicodeIndex strLength,
-                                           ConstUnicode strToFind,
+                                           const char *strToFind,
                                            UnicodeIndex strToFindStart,
                                            UnicodeIndex strToFindLength);
-Unicode Unicode_Substr(ConstUnicode str,
-                       UnicodeIndex start,
-                       UnicodeIndex length);
+char *Unicode_Substr(const char *str,
+                     UnicodeIndex start,
+                     UnicodeIndex length);
 
-Unicode Unicode_ReplaceRange(ConstUnicode destination,
-                             UnicodeIndex destinationStart,
-                             UnicodeIndex destinationLength,
-                             ConstUnicode source,
-                             UnicodeIndex sourceStart,
-                             UnicodeIndex sourceLength);
+char *Unicode_ReplaceRange(const char *destination,
+                           UnicodeIndex destinationStart,
+                           UnicodeIndex destinationLength,
+                           const char *source,
+                           UnicodeIndex sourceStart,
+                           UnicodeIndex sourceLength);
 
-Unicode Unicode_Join(ConstUnicode first,
-                     ...);
+char *Unicode_Join(const char *first,
+                   ...);
 
-Unicode Unicode_Format(const char *fmt, ...);
+char *Unicode_Format(const char *fmt, ...);
 
-UnicodeIndex Unicode_LengthInCodePoints(ConstUnicode str);
+UnicodeIndex Unicode_LengthInCodePoints(const char *str);
 
 /*
  * Simple in-line functions that may be used below.
@@ -124,16 +124,12 @@ UnicodeIndex Unicode_LengthInCodePoints(ConstUnicode str);
  */
 
 static INLINE Bool
-Unicode_IsIndexAtCodePointBoundary(ConstUnicode str,    // IN:
+Unicode_IsIndexAtCodePointBoundary(const char *str,     // IN:
                                    UnicodeIndex index)  // IN:
 {
    ASSERT(index >= 0 && index <= Unicode_LengthInCodeUnits(str));
 
-#ifdef SUPPORT_UNICODE_OPAQUE
-   NOT_IMPLEMENTED();
-#else
    return (str[index] & 0xc0) != 0x80;
-#endif
 }
 
 
@@ -151,7 +147,7 @@ Unicode_IsIndexAtCodePointBoundary(ConstUnicode str,    // IN:
  *      followed by 'source'.
  *
  * Results:
- *      The newly-allocated string.  Caller must free with Unicode_Free.
+ *      The newly-allocated string.  Caller must free with free.
  *
  * Side effects:
  *      None
@@ -159,9 +155,9 @@ Unicode_IsIndexAtCodePointBoundary(ConstUnicode str,    // IN:
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Unicode
-Unicode_Append(ConstUnicode destination, // IN
-               ConstUnicode source)      // IN
+static INLINE char *
+Unicode_Append(const char *destination, // IN
+               const char *source)      // IN
 {
    return Unicode_ReplaceRange(destination,
                                -1,
@@ -181,7 +177,7 @@ Unicode_Append(ConstUnicode destination, // IN
  *      followed by the specified range of 'source'.
  *
  * Results:
- *      The newly-allocated string.  Caller must free with Unicode_Free.
+ *      The newly-allocated string.  Caller must free with free.
  *
  * Side effects:
  *      None
@@ -189,9 +185,9 @@ Unicode_Append(ConstUnicode destination, // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Unicode
-Unicode_AppendRange(ConstUnicode dest,       // IN:
-                    ConstUnicode src,        // IN:
+static INLINE char *
+Unicode_AppendRange(const char *dest,        // IN:
+                    const char *src,         // IN:
                     UnicodeIndex srcStart,   // IN:
                     UnicodeIndex srcLength)  // IN:
 {
@@ -226,8 +222,8 @@ Unicode_AppendRange(ConstUnicode dest,       // IN:
  */
 
 static INLINE int
-Unicode_Compare(ConstUnicode str1, // IN
-                ConstUnicode str2) // IN
+Unicode_Compare(const char *str1, // IN
+                const char *str2) // IN
 {
    return Unicode_CompareRange(str1,
                                0,
@@ -261,8 +257,8 @@ Unicode_Compare(ConstUnicode str1, // IN
  */
 
 static INLINE int
-Unicode_CompareIgnoreCase(ConstUnicode str1, // IN
-                          ConstUnicode str2) // IN
+Unicode_CompareIgnoreCase(const char *str1, // IN
+                          const char *str2) // IN
 {
    return Unicode_CompareRange(str1,
                                0,
@@ -293,8 +289,8 @@ Unicode_CompareIgnoreCase(ConstUnicode str1, // IN
  */
 
 static INLINE Bool
-UnicodeEndsWith(ConstUnicode str,     // IN:
-                ConstUnicode suffix,  // IN:
+UnicodeEndsWith(const char *str,      // IN:
+                const char *suffix,   // IN:
                 Bool ignoreCase)      // IN:
 {
    UnicodeIndex strLength = Unicode_LengthInCodePoints(str);
@@ -316,16 +312,16 @@ UnicodeEndsWith(ConstUnicode str,     // IN:
 
 
 static INLINE Bool
-Unicode_EndsWith(ConstUnicode str,    // IN
-                 ConstUnicode suffix) // IN
+Unicode_EndsWith(const char *str,    // IN
+                 const char *suffix) // IN
 {
    return UnicodeEndsWith(str, suffix, FALSE);
 }
 
 
 static INLINE Bool
-Unicode_EndsWithIgnoreCase(ConstUnicode str,    // IN
-                           ConstUnicode suffix) // IN
+Unicode_EndsWithIgnoreCase(const char *str,    // IN
+                           const char *suffix) // IN
 {
    return UnicodeEndsWith(str, suffix, TRUE);
 }
@@ -351,8 +347,8 @@ Unicode_EndsWithIgnoreCase(ConstUnicode str,    // IN
  */
 
 static INLINE UnicodeIndex
-Unicode_Find(ConstUnicode str,       // IN
-             ConstUnicode strToFind) // IN
+Unicode_Find(const char *str,       // IN
+             const char *strToFind) // IN
 {
    return Unicode_FindSubstrInRange(str,
                                     0,
@@ -384,8 +380,8 @@ Unicode_Find(ConstUnicode str,       // IN
  */
 
 static INLINE UnicodeIndex
-Unicode_FindFromIndex(ConstUnicode str,       // IN
-                      ConstUnicode strToFind, // IN
+Unicode_FindFromIndex(const char *str,        // IN
+                      const char *strToFind,  // IN
                       UnicodeIndex fromIndex) // IN
 {
    return Unicode_FindSubstrInRange(str,
@@ -418,8 +414,8 @@ Unicode_FindFromIndex(ConstUnicode str,       // IN
  */
 
 static INLINE UnicodeIndex
-Unicode_FindInRange(ConstUnicode str,       // IN
-                    ConstUnicode strToFind, // IN
+Unicode_FindInRange(const char *str,        // IN
+                    const char *strToFind,  // IN
                     UnicodeIndex start,     // IN
                     UnicodeIndex length)    // IN
 {
@@ -452,8 +448,8 @@ Unicode_FindInRange(ConstUnicode str,       // IN
  */
 
 static INLINE UnicodeIndex
-Unicode_FindLast(ConstUnicode str,       // IN
-                 ConstUnicode strToFind) // IN
+Unicode_FindLast(const char *str,       // IN
+                 const char *strToFind) // IN
 {
    return Unicode_FindLastSubstrInRange(str,
                                         0,
@@ -485,8 +481,8 @@ Unicode_FindLast(ConstUnicode str,       // IN
  */
 
 static INLINE UnicodeIndex
-Unicode_FindLastFromIndex(ConstUnicode str,       // IN
-                          ConstUnicode strToFind, // IN
+Unicode_FindLastFromIndex(const char *str,        // IN
+                          const char *strToFind,  // IN
                           UnicodeIndex fromIndex) // IN
 {
    return Unicode_FindLastSubstrInRange(str,
@@ -519,8 +515,8 @@ Unicode_FindLastFromIndex(ConstUnicode str,       // IN
  */
 
 static INLINE UnicodeIndex
-Unicode_FindLastInRange(ConstUnicode str,       // IN
-                        ConstUnicode strToFind, // IN
+Unicode_FindLastInRange(const char *str,        // IN
+                        const char *strToFind,  // IN
                         UnicodeIndex start,     // IN
                         UnicodeIndex length)    // IN
 {
@@ -542,7 +538,7 @@ Unicode_FindLastInRange(ConstUnicode str,       // IN
  *      string 'source' inserted at the index 'destinationStart'.
  *
  * Results:
- *      The newly-allocated string.  Caller must free with Unicode_Free.
+ *      The newly-allocated string.  Caller must free with free.
  *
  * Side effects:
  *      None
@@ -550,10 +546,10 @@ Unicode_FindLastInRange(ConstUnicode str,       // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Unicode
-Unicode_Insert(ConstUnicode destination,      // IN
+static INLINE char *
+Unicode_Insert(const char *destination,       // IN
                UnicodeIndex destinationStart, // IN
-               ConstUnicode source)           // IN
+               const char *source)            // IN
 {
    return Unicode_ReplaceRange(destination,
                                destinationStart,
@@ -574,7 +570,7 @@ Unicode_Insert(ConstUnicode destination,      // IN
  *      'destinationStart'.
  *
  * Results:
- *      The newly-allocated string.  Caller must free with Unicode_Free.
+ *      The newly-allocated string.  Caller must free with free.
  *
  * Side effects:
  *      None
@@ -582,10 +578,10 @@ Unicode_Insert(ConstUnicode destination,      // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Unicode
-Unicode_InsertRange(ConstUnicode destination,
+static INLINE char *
+Unicode_InsertRange(const char *destination,
                     UnicodeIndex destinationStart,
-                    ConstUnicode source,
+                    const char *source,
                     UnicodeIndex sourceStart,
                     UnicodeIndex sourceLength)
 {
@@ -615,8 +611,8 @@ Unicode_InsertRange(ConstUnicode destination,
  */
 
 static INLINE Bool
-Unicode_IsEqual(ConstUnicode str1, // IN
-                ConstUnicode str2) // IN
+Unicode_IsEqual(const char *str1, // IN
+                const char *str2) // IN
 {
    return Unicode_CompareRange(str1,
                                0,
@@ -638,7 +634,7 @@ Unicode_IsEqual(ConstUnicode str1, // IN
  *      removed.
  *
  * Results:
- *      The newly-allocated string.  Caller must free with Unicode_Free.
+ *      The newly-allocated string.  Caller must free with free.
  *
  * Side effects:
  *      None
@@ -646,8 +642,8 @@ Unicode_IsEqual(ConstUnicode str1, // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Unicode
-Unicode_RemoveRange(ConstUnicode destination,
+static INLINE char *
+Unicode_RemoveRange(const char *destination,
                     UnicodeIndex start,
                     UnicodeIndex length)
 {
@@ -666,7 +662,7 @@ Unicode_RemoveRange(ConstUnicode destination,
  *      with 'source'.
  *
  * Results:
- *      The newly-allocated string.  Caller must free with Unicode_Free.
+ *      The newly-allocated string.  Caller must free with free.
  *
  * Side effects:
  *      None
@@ -674,11 +670,11 @@ Unicode_RemoveRange(ConstUnicode destination,
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Unicode
-Unicode_Replace(ConstUnicode destination,
+static INLINE char *
+Unicode_Replace(const char *destination,
                 UnicodeIndex destinationStart,
                 UnicodeIndex destinationLength,
-                ConstUnicode source)
+                const char *source)
 {
    return Unicode_ReplaceRange(destination,
                                destinationStart,
@@ -708,9 +704,9 @@ Unicode_Replace(ConstUnicode destination,
  */
 
 static INLINE Bool
-UnicodeStartsWith(ConstUnicode str,     // IN:
-                  ConstUnicode prefix,  // IN:
-                  Bool ignoreCase)      // IN:
+UnicodeStartsWith(const char *str,     // IN:
+                  const char *prefix,  // IN:
+                  Bool ignoreCase)     // IN:
 {
    UnicodeIndex strLength = Unicode_LengthInCodePoints(str);
    UnicodeIndex prefixLength = Unicode_LengthInCodePoints(prefix);
@@ -730,16 +726,16 @@ UnicodeStartsWith(ConstUnicode str,     // IN:
 
 
 static INLINE Bool
-Unicode_StartsWith(ConstUnicode str,    // IN
-                   ConstUnicode prefix) // IN
+Unicode_StartsWith(const char *str,    // IN
+                   const char *prefix) // IN
 {
    return UnicodeStartsWith(str, prefix, FALSE);
 }
 
 
 static INLINE Bool
-Unicode_StartsWithIgnoreCase(ConstUnicode str,    // IN
-                             ConstUnicode prefix) // IN
+Unicode_StartsWithIgnoreCase(const char *str,    // IN
+                             const char *prefix) // IN
 {
    return UnicodeStartsWith(str, prefix, TRUE);
 }
@@ -755,7 +751,7 @@ Unicode_StartsWithIgnoreCase(ConstUnicode str,    // IN
  *
  * Results:
  *      The newly-allocated truncated copy of 'str'.  Caller must free
- *      with Unicode_Free.
+ *      with free.
  *
  * Side effects:
  *      None
@@ -763,8 +759,8 @@ Unicode_StartsWithIgnoreCase(ConstUnicode str,    // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Unicode
-Unicode_Truncate(ConstUnicode str,    // IN
+static INLINE char *
+Unicode_Truncate(const char *str,     // IN
                  UnicodeIndex length) // IN
 {
    return Unicode_Substr(str, 0, length);

@@ -38,6 +38,7 @@
 #  define INVALID_PID NULL
 #else
 #  define INVALID_PID (GPid) -1
+#include <sys/wait.h>
 #endif
 
 #if !defined(__APPLE__)
@@ -206,10 +207,10 @@ PowerOpsStateChangeDone(PowerOpState *state,
    /* Finally, perform the requested operation. */
    if (success) {
       if (state->stateChgInProgress == GUESTOS_STATECHANGE_REBOOT) {
-         g_debug("Initiating reboot.\n");
+         g_message("Initiating reboot.\n");
          System_Shutdown(TRUE);
       } else if (state->stateChgInProgress == GUESTOS_STATECHANGE_HALT) {
-         g_debug("Initiating halt.\n");
+         g_message("Initiating halt.\n");
          System_Shutdown(FALSE);
       }
    }
@@ -240,7 +241,7 @@ PowerOpsScriptCallback(gpointer _state)
 
       success = (ProcMgr_GetExitCode(state->pid, &exitcode) == 0 &&
                  exitcode == 0);
-      g_debug("Script exit code: %d, success = %d\n", exitcode, success);
+      g_message("Script exit code: %d, success = %d\n", exitcode, success);
       PowerOpsStateChangeDone(state, success);
       ProcMgr_Free(state->pid);
       state->pid = INVALID_PID;
@@ -286,7 +287,7 @@ PowerOpsRunScript(PowerOpState *state,
       quoted = g_strdup_printf("\"%s\"", script);
    }
 
-   g_debug("Executing script: %s\n", (quoted != NULL) ? quoted : script);
+   g_message("Executing script: %s\n", (quoted != NULL) ? quoted : script);
    state->pid = ProcMgr_ExecAsync((quoted != NULL) ? quoted : script, &procArgs);
    g_free(quoted);
 
@@ -308,7 +309,7 @@ PowerOpsRunScript(PowerOpState *state,
  * Callback for when the script process finishes on POSIX systems.
  *
  * @param[in]  pid         Child pid.
- * @param[in]  exitcode    Exit status of script.
+ * @param[in]  exitStatus  Exit status of script.
  * @param[in]  _state      Plugin state.
  *
  * @return FALSE.
@@ -316,15 +317,26 @@ PowerOpsRunScript(PowerOpState *state,
 
 static gboolean
 PowerOpsScriptCallback(GPid pid,
-                       gint exitcode,
+                       gint exitStatus,
                        gpointer _state)
 {
    PowerOpState *state = _state;
-   gboolean success = exitcode == 0;
+   gboolean success = exitStatus == 0;
 
    ASSERT(state->pid != INVALID_PID);
 
-   g_debug("Script exit code: %d, success = %d\n", exitcode, success);
+   if (WIFEXITED(exitStatus)) {
+      g_message("Script exit code: %d, success = %d\n",
+                WEXITSTATUS(exitStatus), success);
+   } else if (WIFSIGNALED(exitStatus)) {
+      g_message("Script killed by signal: %d, success = %d\n",
+                WTERMSIG(exitStatus), success);
+   } else if (WIFSTOPPED(exitStatus)) {
+      g_message("Script stopped by signal: %d, success = %d\n",
+                WSTOPSIG(exitStatus), success);
+   } else {
+      g_message("Script exit status: %d, success = %d\n", exitStatus, success);
+   }
    PowerOpsStateChangeDone(_state, success);
    g_spawn_close_pid(state->pid);
    state->pid = INVALID_PID;
@@ -364,6 +376,7 @@ PowerOpsRunScript(PowerOpState *state,
    }
    argv[1] = NULL;
 
+   g_message("Executing script: '%s'\n", script);
    if (!g_spawn_async(NULL,
                       argv,
                       NULL,

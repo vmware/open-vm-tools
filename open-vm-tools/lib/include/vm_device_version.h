@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -71,7 +71,6 @@
 #define PCI_DEVICE_ID_VMWARE_BRIDGE             0x0790
 #define PCI_DEVICE_ID_VMWARE_ROOTPORT           0x07A0
 #define PCI_DEVICE_ID_VMWARE_VMXNET3            0x07B0
-#define PCI_DEVICE_ID_VMWARE_VMXWIFI            0x07B8
 #define PCI_DEVICE_ID_VMWARE_PVSCSI             0x07C0
 #define PCI_DEVICE_ID_VMWARE_82574              0x07D0
 #define PCI_DEVICE_ID_VMWARE_AHCI               0x07E0
@@ -90,6 +89,9 @@
 #define PCI_DEVICE_VMI_REVISION         0x01
 
 #define PCI_DEVICE_ID_VMWARE_DUMMY      0x0809
+
+#define PCI_DEVICE_ID_VMWARE_NVDIMM     0x0810
+#define PCI_DEVICE_ID_VMWARE_VRDMA      0x0820
 
 /*
  * VMware Virtual Device Test Infrastructure (VDTI) devices
@@ -255,6 +257,12 @@
 
 /************* USB implementation limits ********************************/
 #define MAX_USB_DEVICES_PER_HOST_CONTROLLER 127
+
+/************* NVDIMM implementation limits ********************************/
+#define MAX_NVDIMM 64
+
+/************* vRDMA implementation limits ******************************/
+#define MAX_VRDMA_DEVICES 2
 
 /************* Strings for Host USB Driver *******************************/
 

@@ -234,7 +234,8 @@ struct rqContext {
 rqContext *
 Random_QuickSeed(uint32 seed)  // IN:
 {
-   struct rqContext *rs;
+   uint32 i;
+   struct rqContext *rs = Util_SafeMalloc(sizeof *rs);
 
    const uint32 xx[N] = {
       0x95F24DAB, 0x0B685215, 0xE76CCAE7, 0xAF3EC239, 0x715FAD23,
@@ -244,18 +245,13 @@ Random_QuickSeed(uint32 seed)  // IN:
       0x512C0C03, 0xEA857CCD, 0x4CC1D30F, 0x8891A8A1, 0xA6B7AADB
    };
 
-   rs = (struct rqContext *) Util_SafeMalloc(sizeof *rs);
 
-   if (rs != NULL) {
-      uint32 i;
-
-      for (i = 0; i < N; i++) {
-         rs->x[i] = xx[i] ^ seed;
-      }
-
-      rs->p = N - 1;
-      rs->q = N - M - 1;
+   for (i = 0; i < N; i++) {
+      rs->x[i] = xx[i] ^ seed;
    }
+
+   rs->p = N - 1;
+   rs->q = N - M - 1;
 
    return rs;
 }

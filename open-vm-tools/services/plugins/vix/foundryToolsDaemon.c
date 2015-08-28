@@ -55,6 +55,9 @@
 #include "vm_version.h"
 #include "message.h"
 
+#define G_LOG_DOMAIN  "vix"
+#include <glib.h>
+
 #include "vixPluginInt.h"
 #include "vmware/tools/utils.h"
 
@@ -354,7 +357,7 @@ abort:
 void
 FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx)
 {
-   thisProcessRunsAsRoot = (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) == 0);
+   thisProcessRunsAsRoot = TOOLS_IS_MAIN_SERVICE(ctx);
 
    /*
     * TODO: Add the original/native environment (envp) to ToolsAppContext so
@@ -443,7 +446,6 @@ ToolsDaemonTcloGetQuotedString(const char *args,      // IN
 {
    char *resultStr = NULL;
    char *endStr;
-   Debug(">ToolsDaemonTcloGetQuotedString\n");
 
    while ((*args) && ('\"' != *args)) {
       args++;
@@ -475,7 +477,6 @@ ToolsDaemonTcloGetQuotedString(const char *args,      // IN
       *endOfArg = args;
    }
 
-   Debug("<ToolsDaemonTcloGetQuotedString\n");
    return resultStr;
 } // ToolsDaemonTcloGetQuotedString
 
@@ -552,8 +553,6 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
    GKeyFile *confDictRef = ctx->config;
    Bool enableNullDriver;
    GSource *timer;
-   
-   Debug(">ToolsDaemonTcloSyncDriverFreeze\n");
 
    /*
     * Parse the arguments
@@ -566,18 +565,19 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
     */
    if (NULL == driveList || NULL == timeout) {
       err = VIX_E_INVALID_ARG;
-      Debug("ToolsDaemonTcloSyncDriverFreeze: Failed to get string args\n");
+      g_warning("%s: Failed to get string args\n", __FUNCTION__);
       goto abort;
    }
 
    if (!StrUtil_StrToInt(&timeoutVal, timeout) || timeoutVal < 0) {
-      Debug("ToolsDaemonTcloSyncDriverFreeze: Bad args, timeout '%s'\n", timeout);
+      g_warning("%s: Bad args, timeout '%s'\n",
+                __FUNCTION__, timeout);
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
 
-   Debug("SYNCDRIVE: Got request to freeze '%s', timeout %d\n", driveList,
-         timeoutVal);
+   g_debug("%s: Got request to freeze '%s', timeout %d\n",
+           __FUNCTION__, driveList, timeoutVal);
 
    /* Disallow multiple freeze calls. */
    if (gSyncDriverHandle != SYNCDRIVER_INVALID_HANDLE) {
@@ -593,8 +593,8 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
    /* Perform the actual freeze. */
    if (!SyncDriver_Freeze(driveList, enableNullDriver, &gSyncDriverHandle) ||
        SyncDriver_QueryStatus(gSyncDriverHandle, INFINITE) != SYNCDRIVER_IDLE) {
-      Debug("ToolsDaemonTcloSyncDriverFreeze: Failed to Freeze drives '%s'\n",
-            driveList);
+      g_warning("%s: Failed to Freeze drives '%s'\n",
+                __FUNCTION__, driveList);
       err = VIX_E_FAIL;
       sysError = SYNCDRIVERERROR;
       if (gSyncDriverHandle != SYNCDRIVER_INVALID_HANDLE) {
@@ -606,7 +606,8 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
 
    /* Start the timer callback to automatically thaw. */
    if (0 != timeoutVal) {
-      Debug("ToolsDaemonTcloSyncDriverFreeze: Starting timer callback %d\n", timeoutVal);
+      g_debug("%s: Starting timer callback %d\n",
+              __FUNCTION__, timeoutVal);
       timer = g_timeout_source_new(timeoutVal * 10);
       VMTOOLSAPP_ATTACH_SOURCE(ctx, timer, ToolsDaemonSyncDriverThawCallback, NULL, NULL);
       g_source_unref(timer);
@@ -624,7 +625,7 @@ abort:
     * foundry error and a guest-OS-specific error.
     */
    Str_Sprintf(resultBuffer, sizeof resultBuffer, "%"FMT64"d %d", err, sysError);
-   Debug("<ToolsDaemonTcloSyncDriverFreeze\n");
+   g_message("%s: returning %s\n", __FUNCTION__, resultBuffer);
    return RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 }
 #endif
@@ -651,21 +652,18 @@ abort:
 static Bool
 ToolsDaemonSyncDriverThawCallback(void *clientData) // IN (ignored)
 {
-   Debug(">ToolsDaemonSyncDriverThawCallback\n");
-   Debug("ToolsDaemonSyncDriverThawCallback: Timed out waiting for thaw.\n");
+   g_debug("%s: Timed out waiting for thaw.\n", __FUNCTION__);
 
    if (gSyncDriverHandle == SYNCDRIVER_INVALID_HANDLE) {
-      Debug("<ToolsDaemonSyncDriverThawCallback\n");
-      Debug("ToolsDaemonSyncDriverThawCallback: No drives are frozen.\n");
+      g_warning("%s: No drives are frozen.\n", __FUNCTION__);
       goto exit;
    }
    if (!SyncDriver_Thaw(gSyncDriverHandle)) {
-      Debug("ToolsDaemonSyncDriverThawCallback: Failed to thaw.\n");
+      g_warning("%s: Failed to thaw.\n", __FUNCTION__);
    }
 
 exit:
    SyncDriver_CloseHandle(&gSyncDriverHandle);
-   Debug("<ToolsDaemonSyncDriverThawCallback\n");
    return TRUE;
 }
 #endif
@@ -695,22 +693,21 @@ ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    VixError err = VIX_OK;
    DECLARE_SYNCDRIVER_ERROR(sysError);
-   Debug(">ToolsDaemonTcloSyncDriverThaw\n");
 
    /*
     * This function has no arguments that we care about.
     */
 
-   Debug("SYNCDRIVE: Got request to thaw\n");
+   g_debug("%s: Got request to thaw\n", __FUNCTION__);
 
    if (gSyncDriverHandle == SYNCDRIVER_INVALID_HANDLE) {
       err = VIX_E_GUEST_VOLUMES_NOT_FROZEN;
       sysError = SYNCDRIVERERROR;
-      Debug("ToolsDaemonTcloSyncDriverThaw: No drives are frozen.\n");
+      g_warning("%s: No drives are frozen.\n", __FUNCTION__);
    } else if (!SyncDriver_Thaw(gSyncDriverHandle)) {
       err = VIX_E_FAIL;
       sysError = SYNCDRIVERERROR;
-      Debug("ToolsDaemonTcloSyncDriverThaw: Failed to Thaw drives\n");
+      g_warning("%s: Failed to Thaw drives\n", __FUNCTION__);
    }
 
    SyncDriver_CloseHandle(&gSyncDriverHandle);
@@ -720,7 +717,7 @@ ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
     * foundry error and a guest-OS-specific error.
     */
    Str_Sprintf(resultBuffer, sizeof resultBuffer, "%"FMT64"d %d", err, sysError);
-   Debug("<ToolsDaemonTcloSyncDriverThaw\n");
+   g_message("%s: returning %s\n", __FUNCTION__, resultBuffer);
    return RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 }
 #endif
@@ -748,6 +745,10 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
 
 #if defined(linux)
+#define MOUNT_PATH_BIN       "/bin/mount"
+#define MOUNT_PATH_USR_BIN   "/usr" MOUNT_PATH_BIN
+#define MOUNT_HGFS_ARGS      " -t vmhgfs .host:/ /mnt/hgfs"
+
    /*
     * Look for a vmhgfs mount at /mnt/hgfs. If one exists, nothing
     * else needs to be done.  If one doesn't exist, then mount at
@@ -755,31 +756,76 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
     */
    FILE *mtab;
    struct mntent *mnt;
+   Bool isFuseEnabled = TRUE;
+   int ret;
+
+   ret = system("/usr/bin/vmhgfs-fuse --enabled");
+   if (ret != 0 || WIFSIGNALED(ret) ||
+         (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
+      g_warning("%s: vmhgfs-fuse -> %d\n", __FUNCTION__, ret);
+      isFuseEnabled = FALSE;
+   }
+
    if ((mtab = setmntent(_PATH_MOUNTED, "r")) == NULL) {
       err = VIX_E_FAIL;
    } else {
       Bool vmhgfsMntFound = FALSE;
+      char *fsName;
+      char *fsType;
+      if (isFuseEnabled) {
+         fsName = HGFS_FUSENAME;
+         fsType = HGFS_FUSETYPE;
+      } else {
+         fsName = ".host:/";
+         fsType = HGFS_NAME;
+      }
       while ((mnt = getmntent(mtab)) != NULL) {
-         if ((strcmp(mnt->mnt_fsname, ".host:/") == 0) &&
-             (strcmp(mnt->mnt_type, HGFS_NAME) == 0) &&
-             (strcmp(mnt->mnt_dir, "/mnt/hgfs") == 0)) {
-             vmhgfsMntFound = TRUE;
-             break;
+         if ((strcmp(mnt->mnt_fsname, fsName) == 0) &&
+               (strcmp(mnt->mnt_type, fsType) == 0) &&
+               (strcmp(mnt->mnt_dir, HGFS_MOUNT_POINT) == 0)) {
+            vmhgfsMntFound = TRUE;
+            g_debug("%s: mnt fs %s type %s dir %s\n", __FUNCTION__,
+                     mnt->mnt_fsname, mnt->mnt_type, mnt->mnt_dir);
+            break;
          }
       }
       endmntent(mtab);
 
       if (!vmhgfsMntFound) {
-         /*
-          * We need to call the mount program, not the mount system call. The
-          * mount program does several additional things, like compute the mount
-          * options from the contents of /etc/fstab, and invoke custom mount
-          * programs like the one needed for HGFS.
-          */
-         int ret = system("mount -t vmhgfs .host:/ /mnt/hgfs");
+         int ret;
+
+         if (isFuseEnabled) {
+            ret =
+               system("/usr/bin/vmhgfs-fuse .host:/ /mnt/hgfs -o subtype=vmhgfs-fuse,allow_other");
+         } else {
+            const char *mountCmd = NULL;
+
+            ret = access(MOUNT_PATH_USR_BIN, F_OK);
+            if (ret == 0) {
+               mountCmd = MOUNT_PATH_USR_BIN MOUNT_HGFS_ARGS;
+            } else {
+               ret = access(MOUNT_PATH_BIN, F_OK);
+               if (ret == 0) {
+                  mountCmd = MOUNT_PATH_BIN MOUNT_HGFS_ARGS;
+               } else {
+                  g_warning("%s: failed to find mount -> %d\n", __FUNCTION__, errno);
+               }
+            }
+            if (ret == 0) {
+               /*
+                * We need to call the mount program, not the mount system call. The
+                * mount program does several additional things, like compute the mount
+                * options from the contents of /etc/fstab, and invoke custom mount
+                * programs like the one needed for HGFS.
+                */
+               g_debug("%s: system: %s\n", __FUNCTION__, mountCmd);
+               ret = system(mountCmd);
+            }
+         }
          if (ret == -1 || WIFSIGNALED(ret) ||
-             (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
+               (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
             err = VIX_E_HGFS_MOUNT_FAIL;
+            g_warning("%s: vmhgfs mounting -> %d\n", __FUNCTION__, ret);
          }
       }
    }
@@ -795,6 +841,8 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
                err,
                Err_Errno());
    RPCIN_SETRETVALS(data, resultBuffer, TRUE);
+
+   g_message("%s: returning %s\n", __FUNCTION__, resultBuffer);
 
    return TRUE;
 } // ToolsDaemonTcloMountHGFS
@@ -861,7 +909,6 @@ ToolsDaemonHgfsImpersonated(RpcInData *data) // IN
                              + STRLEN_OF_MAX_64_BIT_NUMBER_AS_STRING
                              + OTHER_TEXT_SIZE;
 
-   Debug(">ToolsDaemonHgfsImpersonated\n");
 
    err = VIX_OK;
 
@@ -1002,7 +1049,7 @@ abort:
                     + OTHER_TEXT_SIZE - 1] = '#';
    }
 
-   Debug("<<<ToolsDaemonHgfsImpersonated\n");
+   g_message("%s\n", __FUNCTION__);
    return TRUE;
 } // ToolsDaemonHgfsImpersonated
 
@@ -1046,7 +1093,8 @@ ToolsDaemonTcloReportProgramCompleted(const char *requestName,    // IN
    g_free(msg);
 
    if (!sentResult) {
-      Warning("Unable to send results from polling the result program.\n\n");
+      g_warning("%s: Unable to send results from polling the result program.\n",
+                __FUNCTION__);
    }
 } // ToolsDaemonTcloReportProgramCompleted
 
@@ -1132,7 +1180,11 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
     * additional error to be sent back to VMX.
     */
    additionalError = VixTools_GetAdditionalError(requestMsg->opCode, err);
-   Debug("%s: additionalError = %u\n", __FUNCTION__, additionalError);
+   if (additionalError) {
+      g_message("%s: additionalError = %u\n", __FUNCTION__, additionalError);
+   } else {
+      g_debug("%s: additionalError = %u\n", __FUNCTION__, additionalError);
+   }
 
 abort:
    tcloBufferLen = resultValueLength + vixPrefixDataSize;
@@ -1191,7 +1243,6 @@ abort:
    }
    free(requestName);
 
-   Debug("<ToolsDaemonTcloReceiveVixCommand\n");
    return TRUE;
 } // ToolsDaemonTcloReceiveVixCommand
 

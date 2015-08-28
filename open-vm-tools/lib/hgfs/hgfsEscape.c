@@ -47,7 +47,7 @@
 #   else
 #      include <string.h>
 #   endif
-#   define memmove(s1,s2,n) bcopy(s2,s1,n) 
+#   define memmove(s1,s2,n) bcopy(s2,s1,n)
 #elif defined __APPLE__ && defined KERNEL
 #  include <string.h>
 #elif !defined sun
@@ -824,14 +824,17 @@ HgfsEscape_GetSize(char const *bufIn,    // IN:  Buffer with unescaped input
  *-----------------------------------------------------------------------------
  */
 
-int
+uint32
 HgfsEscape_Undo(char *bufIn,       // IN: Characters to be unescaped
                 uint32 sizeIn)     // IN: Number of characters in bufIn
 {
-   uint32 componentSize = strlen(bufIn) + 1;
+   uint32 componentSize;
    uint32 unprocessedSize = sizeIn + 1;
    uint32 result = 0;
    char *currentComponent = bufIn;
+
+   ASSERT(bufIn != NULL);
+
    while (currentComponent != NULL) {
       HgfsEscapeUndoComponent(currentComponent, &unprocessedSize);
       componentSize = strlen(currentComponent) + 1; // Unescaped size

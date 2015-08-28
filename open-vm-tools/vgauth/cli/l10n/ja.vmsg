@@ -16,62 +16,60 @@
 #
 ##########################################################
 
-addsubj.fail = "%1$s: ユーザー 「%2$s」のエイリアスを追加できませんでした: %3$s。\n"
-addsubj.success = "%1$s: 追加されたエイリアス\n"
+addsubj.fail = "%1$s: ユーザー '%2$s' のエイリアスを追加できませんでした: %3$s。\n"
+addsubj.success = "%1$s: エイリアスが追加されました\n"
 
-addoptions.comment = "件名コメント"
+addoptions.comment = "サブジェクトのコメント"
 
 addoptions.file = "PEM ファイル名"
 
-addoptions.global = "グローバル マッピング ファイルに証明書を追加します"
+addoptions.global = "グローバル マッピング ファイルに証明書を追加"
 
-addoptions.subject = "SAML 件名"
+addoptions.subject = "SAML サブジェクト"
 
-addoptions.username = "証明書ストアが追加されるユーザー"
+addoptions.username = "証明書ストアが追加されているユーザー"
 
-addoptions.verbose = "冗長操作"
+addoptions.verbose = "詳細な操作"
 
 
-cmdline.parse = "コマンド行の解析が失敗しました"
+cmdline.parse = "コマンド ラインの解析に失敗しました"
 
 cmdline.summary.pemfile = "PEM ファイル"
-cmdline.summary.subject = "件名"
-cmdline.summary.username = "username"
+cmdline.summary.subject = "サブジェクト"
+cmdline.summary.username = "ユーザー名"
 cmdline.summary.comm = "コメント"
 
 list.comment = "コメント"
-list.count = "%1$s ユーザー「%3$s」の %2$d エイリアスが検出されました\n"
+list.count = "%1$s でユーザー '%3$s' のエイリアスが %2$d 個検出されました\n"
 
-list.error = "%1$s: ユーザー「%2$s」のエイリアスをリストできませんでした: %3$s。\n"
-list.subject = "件名"
+list.error = "%1$s: ユーザー '%2$s' のエイリアスを一覧表示できませんでした: %3$s。\n"
+list.subject = "サブジェクト"
 
-listmapped.count = "%1$s %2$d のマップ済みエイリアスが検出されました\n"
+listmapped.count = "%1$s でマップされた %2$d 個のエイリアスが検出されました\n"
 
-listmapped.error = "%1$s: マップ済みエイリアスをリストできませんでした: %2$s。\n"
+listmapped.error = "%1$s: マップされたエイリアスを一覧表示できませんでした: %2$s。\n"
 
-listmapped.subject = "件名"
+listmapped.subject = "サブジェクト"
 
 listmapped.username = "ユーザー名"
 
-listoptions.username =
-         "証明書ストアがクエリされるユーザー"
+listoptions.username = "証明書ストアが照会されているユーザー"
 
-listoptions.verbose = "冗長操作"
+listoptions.verbose = "詳細な操作"
 
-loadfile.fail = "%1$s: PEM ファイル「%2$s」を読み取れません\n"
+loadfile.fail = "%1$s: PEM ファイル '%2$s' を読み取ることができません\n"
 
-name.any = "<任意>"
+name.any = "<ANY>"
 
-removesubj.fail = "%1$s: ユーザー「%2$s」のエイリアスを削除できませんでした: %3$s。\n"
+removesubj.fail = "%1$s: ユーザー '%2$s' のエイリアスを削除できませんでした: %3$s。\n"
 
-removesubj.success = "%1$s: 削除されたエイリアス\n"
+removesubj.success = "%1$s: エイリアスが削除されました\n"
 
 removeoptions.file = "PEM ファイル名"
 
-removeoptions.subject = "SAML 件名"
-removeoptions.username =
-             "証明書ストアが削除されるユーザー"
+removeoptions.subject = "SAML サブジェクト"
+removeoptions.username = "証明書ストアが削除されているユーザー"
 
-removeoptions.verbose = "冗長操作"
+removeoptions.verbose = "詳細な操作"
 
 vgauth.init.failed = "VGAuth を初期化できませんでした"

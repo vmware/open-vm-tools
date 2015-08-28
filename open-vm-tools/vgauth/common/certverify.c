@@ -379,6 +379,75 @@ done:
 
 /*
  ******************************************************************************
+ * CertVerifyX509ToString --                                             */ /**
+ *
+ * Debug support for X509 certs; convert them to human readable text.
+ *
+ * @param[in]  x  An X509 structure containing a cert.
+ *
+ * @return Allocated string containing the cert in human-readable text.
+ *
+ ******************************************************************************
+ */
+
+static gchar *
+CertVerifyX509ToString(X509 *x)
+{
+   BIO *mem;
+   char *str;
+   gchar *retVal;
+   int len;
+
+   mem = BIO_new(BIO_s_mem());
+   if (!mem) {
+      g_warning("%s: out of memory creating BIO\n", __FUNCTION__);
+      return NULL;
+   }
+
+   X509_print(mem, x);
+
+   len = BIO_get_mem_data(mem, &str);
+
+   retVal = g_strndup(str, len);
+
+   BIO_set_close(mem, BIO_CLOSE);
+   BIO_free(mem);
+
+   return retVal;
+}
+
+
+/*
+ ******************************************************************************
+ * CertVerify_CertToX509String --                                        */ /**
+ *
+ * Debug support for certs; convert them to human readable text.
+ *
+ * @param[in]  pemCert A certficate in PEM format.
+ *
+ * @return Allocated string containing the cert in human-readable text.
+ *
+ ******************************************************************************
+ */
+
+gchar *
+CertVerify_CertToX509String(const gchar *pemCert)
+{
+   X509 *x = NULL;
+   gchar *retVal = NULL;
+
+   x = CertStringToX509(pemCert);
+   if (x) {
+      retVal = CertVerifyX509ToString(x);
+   }
+   X509_free(x);
+
+   return retVal;
+}
+
+
+/*
+ ******************************************************************************
  * CertVerify_IsWellFormedPEMCert --                                     */ /**
  *
  * Checks to see if a PEM cert string can be converted into a x509

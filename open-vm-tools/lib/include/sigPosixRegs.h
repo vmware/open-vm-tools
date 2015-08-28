@@ -270,6 +270,10 @@
 #define SC_SP(uc)  ((unsigned long) (uc)->uc_mcontext.arm_sp)
 #define SC_LR(uc)  ((unsigned long) (uc)->uc_mcontext.arm_lr)
 #define SC_PC(uc)  ((unsigned long) (uc)->uc_mcontext.arm_pc)
+#elif defined(__aarch64__)
+#define SC_X(uc,n) ((unsigned long) (uc)->uc_mcontext.regs[n])
+#define SC_SP(uc)  ((unsigned long) (uc)->uc_mcontext.sp)
+#define SC_PC(uc)  ((unsigned long) (uc)->uc_mcontext.pc)
 #else
 #define SC_EAX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_EAX])
 #define SC_EBX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_EBX])

@@ -145,7 +145,6 @@ VThreadBase_IsInSignal(void)
 #else
 Bool VThreadBase_IsInSignal(void);
 void VThreadBase_SetIsInSignal(VThreadID tid, Bool isInSignal);
-int VThreadBase_SigMask(int how, const sigset_t *newmask, sigset_t *oldmask);
 #endif
 
 #endif /* VMM */

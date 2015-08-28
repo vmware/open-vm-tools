@@ -95,7 +95,7 @@ swab(const void *__restrict src,  // IN/OUT
    uint16 *q = dest;
    ssize_t i;
 
-   for (i = 0; i < nbytes / sizeof(*p); i++) {
+   for (i = 0; i < nbytes / sizeof *p; i++) {
       q[i] = Bswap16(p[i]);
    }
 }
@@ -726,7 +726,7 @@ CodeSetOld_GetCurrentCodeSet(void)
 #elif defined(_WIN32)
    static char ret[20];  // max is "windows-4294967296"
    if (ret[0] == '\0') {
-      Str_Sprintf(ret, sizeof(ret), "windows-%u", GetACP());
+      Str_Sprintf(ret, sizeof ret, "windows-%u", GetACP());
    }
 
    return ret;
@@ -2154,8 +2154,8 @@ GetInvalidCharsFlag(void)
     * Try calling GetVersionEx using the OSVERSIONINFOEX structure.
     */
 
-   ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-   osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+   ZeroMemory(&osvi, sizeof osvi);
+   osvi.dwOSVersionInfoSize = sizeof osvi;
 
    /*
     * Starting with msvc-12.0 / SDK v8.1 GetVersionEx is deprecated.

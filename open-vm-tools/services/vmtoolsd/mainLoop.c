@@ -160,8 +160,10 @@ ToolsCoreIOFreezeCb(gpointer src,
    if (state->configCheckTask > 0 && freeze) {
       g_source_remove(state->configCheckTask);
       state->configCheckTask = 0;
+      VMTools_SuspendLogIO();
    } else if (state->configCheckTask == 0 && !freeze) {
-      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 10,
+      VMTools_ResumeLogIO();
+      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 1000,
                                              ToolsCoreConfFileCb,
                                              state);
    }
@@ -229,7 +231,7 @@ ToolsCoreRunLoop(ToolsServiceState *state)
                           state);
       }
 
-      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 10,
+      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 1000,
                                              ToolsCoreConfFileCb,
                                              state);
 
@@ -314,7 +316,7 @@ ToolsCore_GetTcloName(ToolsServiceState *state)
 {
    if (state->mainService) {
       return TOOLS_DAEMON_NAME;
-   } else if (strcmp(state->name, VMTOOLS_USER_SERVICE) == 0) {
+   } else if (TOOLS_IS_USER_SERVICE(state)) {
       return TOOLS_DND_NAME;
    } else {
       return NULL;

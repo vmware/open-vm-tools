@@ -119,7 +119,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    FoundryToolsDaemon_Initialize(ctx);
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
-   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) == 0 && SyncDriver_Init()) {
+   if (TOOLS_IS_MAIN_SERVICE(ctx) && SyncDriver_Init()) {
       size_t i;
       size_t reg;
 

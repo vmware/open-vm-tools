@@ -30,31 +30,48 @@
 
 /*
  * The bora/lib Log Facility log level model.
- * This the same as the vmacore/hostd Log Facility.
+ *
+ * Each log entry has a level associated with it. The Log Facility filters
+ * entries as they arrive by their level; only levels equal to or below
+ * (smaller values) the filter level will be accepted by the Log Facility for
+ * processing.
+ *
+ * By default, the Log Facility will output any entry which is submitted at
+ * level VMW_LOG_WARNING and below to the "standard error". This may be
+ * controlled via Log_SetStderrLevel (see function header) or configuration
+ * parameter (see comments in log.c).
+ *
+ * The VMW_LOG_AUDIT level is used to log something that requires an audit
+ * at a later date. It is *ALWAYS* logged and *NEVER* outputs to the "standard
+ * error".
  *
  * The VMW_LOG_BASE is chosen to ensure that on all platforms commonly
  * used system logger values will be invalid and the errant usage caught.
+ *
+ *      Level            Level value             Comments
+ *---------------------------------------------------------------------------
  */
 
 #define VMW_LOG_BASE     100
-#define VMW_LOG_PANIC    (VMW_LOG_BASE     +  0) // highest priority
-#define VMW_LOG_ERROR    (VMW_LOG_BASE     +  5)
-#define VMW_LOG_WARNING  (VMW_LOG_BASE     + 10) // <= goes to stderr by default
-#define VMW_LOG_AUDIT    (VMW_LOG_BASE     + 15) // *ALWAYS* output to the log
-#define VMW_LOG_INFO     (VMW_LOG_BASE     + 20) // <= goes to log by default
-#define VMW_LOG_VERBOSE  (VMW_LOG_BASE     + 25)
-#define VMW_LOG_TRIVIA   (VMW_LOG_BASE     + 30) 
-#define VMW_LOG_DEBUG_00 (VMW_LOG_BASE     + 35) // noisiest level of debugging
+#define VMW_LOG_AUDIT    (VMW_LOG_BASE     +  0) // ALWAYS LOGGED; NO STDERR
+#define VMW_LOG_PANIC    (VMW_LOG_BASE     +  5) // Quietest level
+#define VMW_LOG_ERROR    (VMW_LOG_BASE     + 10)
+#define VMW_LOG_WARNING  (VMW_LOG_BASE     + 15)
+#define VMW_LOG_NOTICE   (VMW_LOG_BASE     + 20)
+#define VMW_LOG_INFO     (VMW_LOG_BASE     + 25)
+#define VMW_LOG_VERBOSE  (VMW_LOG_BASE     + 30)
+#define VMW_LOG_TRIVIA   (VMW_LOG_BASE     + 35)
+#define VMW_LOG_DEBUG_00 (VMW_LOG_BASE     + 40) // least noisy debug level
 #define VMW_LOG_DEBUG_01 (VMW_LOG_DEBUG_00 +  1)
 #define VMW_LOG_DEBUG_02 (VMW_LOG_DEBUG_00 +  2)
-#define VMW_LOG_DEBUG_03 (VMW_LOG_DEBUG_00 +  3)
-#define VMW_LOG_DEBUG_04 (VMW_LOG_DEBUG_00 +  4)
-#define VMW_LOG_DEBUG_05 (VMW_LOG_DEBUG_00 +  5)
-#define VMW_LOG_DEBUG_06 (VMW_LOG_DEBUG_00 +  6)
+#define VMW_LOG_DEBUG_03 (VMW_LOG_DEBUG_00 +  3) // debug levels grow
+#define VMW_LOG_DEBUG_04 (VMW_LOG_DEBUG_00 +  4) // increasingly noisy
+#define VMW_LOG_DEBUG_05 (VMW_LOG_DEBUG_00 +  5) // as the debug number
+#define VMW_LOG_DEBUG_06 (VMW_LOG_DEBUG_00 +  6) // increases
 #define VMW_LOG_DEBUG_07 (VMW_LOG_DEBUG_00 +  7)
 #define VMW_LOG_DEBUG_08 (VMW_LOG_DEBUG_00 +  8)
 #define VMW_LOG_DEBUG_09 (VMW_LOG_DEBUG_00 +  9)
-#define VMW_LOG_DEBUG_10 (VMW_LOG_DEBUG_00 + 10) // lowest priority; least noisy
+#define VMW_LOG_DEBUG_10 (VMW_LOG_DEBUG_00 + 10) // Noisiest level
 
 void LogV(uint32 routing,
           const char *fmt,
@@ -68,10 +85,8 @@ void Log_Level(uint32 routing,
 /*
  * Handy wrapper functions.
  *
- * Log -> VMW_LOG_INFO
+ * Log     -> VMW_LOG_INFO
  * Warning -> VMW_LOG_WARNING
- *
- * TODO: even Log and Warning become wrapper functions around LogV.
  */
 
 static INLINE void PRINTF_DECL(1, 2)
@@ -106,6 +121,18 @@ Log_Error(const char *fmt,
 
    va_start(ap, fmt);
    LogV(VMW_LOG_ERROR, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void PRINTF_DECL(1, 2)
+Log_Notice(const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_NOTICE, fmt, ap);
    va_end(ap);
 }
 
@@ -163,7 +190,8 @@ LogOutput *Log_NewFileOutput(const char *appPrefix,
 typedef void (LogCustomMsgFunc)(int level,
                                 const char *msg);
 
-LogOutput *Log_NewCustomOutput(LogCustomMsgFunc *msgFunc,
+LogOutput *Log_NewCustomOutput(const char *instanceName,
+                               LogCustomMsgFunc *msgFunc,
                                int minLogLevel);
 
 Bool Log_FreeOutput(LogOutput *toOutput);
@@ -185,7 +213,7 @@ int32 Log_SetOutputLevel(LogOutput *output,
  * the product should have the dependency, not an underlying library.
  *
  * In complex cases, where an "InitWith" is not sufficient and Log_AddOutput
- * must be used directly, the client should call Log_SetProductState, passing
+ * must be used directly, the client should call Log_SetProductInfo, passing
  * the appropriate parameters, so the log file header information will be
  * correct.
  */
@@ -195,19 +223,27 @@ void Log_SetProductInfo(const char *appName,
                         const char *buildNumber,
                         const char *compilationOption);
 
+static INLINE void
+Log_SetProductInfoSimple(void)
+{
+   Log_SetProductInfo(ProductState_GetName(),
+                      ProductState_GetVersion(),
+                      ProductState_GetBuildNumberString(),
+                      ProductState_GetCompilationOption());
+}
+
+
 LogOutput *Log_InitWithCustomInt(struct CfgInterface *cfgIf,
                                  LogCustomMsgFunc *msgFunc,
                                  int minLogLevel);
+
 
 static INLINE LogOutput *
 Log_InitWithCustom(struct CfgInterface *cfgIf,
                    LogCustomMsgFunc *msgFunc,
                    int minLogLevel)
 {
-   Log_SetProductInfo(ProductState_GetName(),
-                      ProductState_GetVersion(),
-                      ProductState_GetBuildNumberString(),
-                      ProductState_GetCompilationOption());
+   Log_SetProductInfoSimple();
 
    return Log_InitWithCustomInt(cfgIf, msgFunc, minLogLevel);
 }
@@ -223,10 +259,7 @@ Log_InitWithFile(const char *appPrefix,
                  struct CfgInterface *cfgIf,
                  Bool boundNumFiles)
 {
-   Log_SetProductInfo(ProductState_GetName(),
-                      ProductState_GetVersion(),
-                      ProductState_GetBuildNumberString(),
-                      ProductState_GetCompilationOption());
+   Log_SetProductInfoSimple();
 
    return Log_InitWithFileInt(appPrefix, dict, cfgIf, boundNumFiles);
 }
@@ -239,10 +272,7 @@ static INLINE LogOutput *
 Log_InitWithFileSimple(const char *fileName,
                        const char *appPrefix)
 {
-   Log_SetProductInfo(ProductState_GetName(),
-                      ProductState_GetVersion(),
-                      ProductState_GetBuildNumberString(),
-                      ProductState_GetCompilationOption());
+   Log_SetProductInfoSimple();
 
    return Log_InitWithFileSimpleInt(appPrefix, Log_CfgInterface(), fileName);
 }
@@ -256,10 +286,7 @@ Log_InitWithSyslog(const char *appPrefix,
                    struct Dictionary *dict,
                    struct CfgInterface *cfgIf)
 {
-   Log_SetProductInfo(ProductState_GetName(),
-                      ProductState_GetVersion(),
-                      ProductState_GetBuildNumberString(),
-                      ProductState_GetCompilationOption());
+   Log_SetProductInfoSimple();
 
    return Log_InitWithSyslogInt(appPrefix, dict, cfgIf);
 }
@@ -272,17 +299,31 @@ static INLINE LogOutput *
 Log_InitWithSyslogSimple(const char *syslogID,
                          const char *appPrefix)
 {
-   Log_SetProductInfo(ProductState_GetName(),
-                      ProductState_GetVersion(),
-                      ProductState_GetBuildNumberString(),
-                      ProductState_GetCompilationOption());
+   Log_SetProductInfoSimple();
 
    return Log_InitWithSyslogSimpleInt(appPrefix, Log_CfgInterface(), syslogID);
+}
+
+LogOutput *Log_InitWithStdioSimpleInt(const char *appPrefix,
+                                      struct CfgInterface *cfgIf,
+                                      const char *minLevel,
+                                      Bool withLinePrefix);
+
+static INLINE LogOutput *
+Log_InitWithStdioSimple(const char *appPrefix,
+                        const char *minLevel,
+                        Bool withLinePrefix)
+{
+   Log_SetProductInfoSimple();
+
+   return Log_InitWithStdioSimpleInt(appPrefix, Log_CfgInterface(), minLevel,
+                                     withLinePrefix);
 }
 
 void Log_Exit(void);
 
 Bool Log_Outputting(void);
+Bool Log_IsLevelOutputting(int level);
 
 const char *Log_GetFileName(void);
 const char *Log_GetOutputFileName(LogOutput *output);

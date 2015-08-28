@@ -80,45 +80,10 @@
  *-----------------------------------------------------------------------------
  */
 
-ConstUnicode
+const char *
 DnD_GetFileRoot(void)
 {
    return "/tmp/VMwareDnD/";
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * DnD_PrependFileRoot --
- *
- *    Given a buffer of '\0' delimited filenames, this prepends the file root
- *    to each one and uses '\0' delimiting for the output buffer.  The buffer
- *    pointed to by *src will be freed and *src will point to a new buffer
- *    containing the results.  *srcSize is set to the size of the new buffer,
- *    not including the NUL-terminator.
- *
- * Results:
- *    TRUE on success, FALSE on failure.
- *
- * Side effects:
- *    *src will be freed, and a new buffer will be allocated. This buffer must
- *    be freed by the caller.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-DnD_PrependFileRoot(const char *fileRoot,  // IN    : file root to append
-                    char **src,            // IN/OUT: NUL-delimited list of paths
-                    size_t *srcSize)       // IN/OUT: size of list
-{
-   ASSERT(fileRoot);
-   ASSERT(src);
-   ASSERT(*src);
-   ASSERT(srcSize);
-
-   return DnDPrependFileRoot(fileRoot, '\0', src, srcSize);
 }
 
 
@@ -792,7 +757,7 @@ DnD_CompleteBlockInitialization(int fd,                     // IN
  */
 
 Bool
-DnDRootDirUsable(ConstUnicode pathName)  // IN:
+DnDRootDirUsable(const char *pathName)  // IN:
 {
    struct stat buf;
 
@@ -825,7 +790,7 @@ DnDRootDirUsable(ConstUnicode pathName)  // IN:
  */
 
 Bool
-DnDSetPermissionsOnRootDir(ConstUnicode pathName)  // IN:
+DnDSetPermissionsOnRootDir(const char *pathName)  // IN:
 {
    return Posix_Chmod(pathName, S_ISVTX | DND_ROOTDIR_PERMS) == 0;
 }
@@ -850,7 +815,7 @@ DnDSetPermissionsOnRootDir(ConstUnicode pathName)  // IN:
  */
 
 Bool
-DnDStagingDirectoryUsable(ConstUnicode pathName)  // IN:
+DnDStagingDirectoryUsable(const char *pathName)  // IN:
 {
    struct stat buf;
 
@@ -879,7 +844,7 @@ DnDStagingDirectoryUsable(ConstUnicode pathName)  // IN:
  */
 
 Bool
-DnDSetPermissionsOnStagingDir(ConstUnicode pathName)  // IN:
+DnDSetPermissionsOnStagingDir(const char *pathName)  // IN:
 {
    return Posix_Chmod(pathName, DND_STAGINGDIR_PERMS) == 0;
 }

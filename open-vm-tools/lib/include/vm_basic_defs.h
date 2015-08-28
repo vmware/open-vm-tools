@@ -93,29 +93,39 @@
  * Simple macros
  */
 
+#ifndef vmw_offsetof
+#define vmw_offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#endif
+
 #if (defined __APPLE__ || defined __FreeBSD__) && \
     (!defined KERNEL && !defined _KERNEL && !defined VMKERNEL && !defined __KERNEL__)
 #   include <stddef.h>
 #else
-// XXX the _WIN32 one matches that of VC++, to prevent redefinition warning
-// XXX the other one matches that of gcc3.3.3/glibc2.2.4 to prevent redefinition warnings
 #ifndef offsetof
 #define VMW_DEFINED_OFFSETOF
-#ifdef _WIN32
-#define offsetof(s,m)   (size_t)&(((s *)0)->m)
-#else
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif
-#endif
-#endif // __APPLE__
 
 /*
+ * XXX While the _WIN32 implementation appears to be identical to vmw_offsetof
+ * in terms of behavior, they need to be separate to match verbatim the
+ * definition used by the respective compilers, to avoid a redefinition warning.
+ *
  * This is necessary until we eliminate the inclusion of <windows.h> above.
- * At that time, it should be possible to use "offsetof" everywhere.
  */
-#ifndef vmw_offsetof
-#define vmw_offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#ifdef _WIN32
+#define offsetof(s,m)   (size_t)&(((s *)0)->m)
+/*
+ * We use the builtin offset for gcc/clang, except when we're running under the
+ * vmkernel's GDB macro preprocessor, since gdb doesn't understand
+ * __builtin_offsetof.
+ */
+#elif defined __GNUC__ && !defined VMKERNEL_GDB_MACRO_BUILDER
+#define offsetof __builtin_offsetof
+#else
+#define offsetof vmw_offsetof
 #endif
+
+#endif // offsetof
+#endif // __APPLE__
 
 #define VMW_CONTAINER_OF(ptr, type, member) \
    ((type *)((char *)(ptr) - vmw_offsetof(type, member)))
@@ -238,6 +248,8 @@ Max(int a, int b)
    #define PAGE_SHIFT    12
 #elif defined __APPLE__
    #define PAGE_SHIFT    12
+#elif defined VM_ARM_64
+   #define PAGE_SHIFT    12
 #elif defined __arm__
    #define PAGE_SHIFT    12
 #else
@@ -246,7 +258,7 @@ Max(int a, int b)
 #endif // }
 
 #ifndef PAGE_SIZE
-#define PAGE_SIZE     (1<<PAGE_SHIFT)
+#define PAGE_SIZE     (1 << PAGE_SHIFT)
 #endif
 
 #ifndef PAGE_MASK
@@ -254,11 +266,15 @@ Max(int a, int b)
 #endif
 
 #ifndef PAGE_OFFSET
-#define PAGE_OFFSET(_addr)  ((uintptr_t)(_addr)&(PAGE_SIZE-1))
+#define PAGE_OFFSET(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE - 1))
+#endif
+
+#ifndef PAGE_NUMBER
+#define PAGE_NUMBER(_addr)  ((uintptr_t)(_addr) / PAGE_SIZE)
 #endif
 
 #ifndef VM_PAGE_BASE
-#define VM_PAGE_BASE(_addr)  ((_addr)&~(PAGE_SIZE-1))
+#define VM_PAGE_BASE(_addr)  ((_addr) & ~(PAGE_SIZE - 1))
 #endif
 
 #ifndef VM_PAGES_SPANNED
@@ -340,8 +356,12 @@ Max(int a, int b)
 #define HIBYTE(_w)    (((_w) >> 8) & 0xff)
 #endif
 
+#ifndef HIDWORD
 #define HIDWORD(_qw)   ((uint32)((_qw) >> 32))
+#endif
+#ifndef LODWORD
 #define LODWORD(_qw)   ((uint32)(_qw))
+#endif
 #define QWORD(_hi, _lo)   ((((uint64)(_hi)) << 32) | ((uint32)(_lo)))
 
 
@@ -556,8 +576,30 @@ typedef int pid_t;
 #endif
 
 /*
+ * Convenience definitions of unicode characters.
+ */
+
+#ifndef UTF8_ELLIPSIS
+#define UTF8_ELLIPSIS "\xe2\x80\xa6"
+#endif
+
+/*
  * Convenience macros and definitions. Can often be used instead of #ifdef.
  */
+
+#undef ARM64_ONLY
+#ifdef VM_ARM_64
+#define ARM64_ONLY(x)    x
+#else
+#define ARM64_ONLY(x)
+#endif
+
+#undef X86_ONLY
+#ifdef VM_X86_ANY
+#define X86_ONLY(x)      x
+#else
+#define X86_ONLY(x)
+#endif
 
 #undef DEBUG_ONLY
 #ifdef VMX86_DEBUG
@@ -753,9 +795,31 @@ typedef int pid_t;
 /*
  * Typical cache line size.  Use this for aligning structures to cache
  * lines for performance, but do not rely on it for correctness.
+ *
+ * On x86, all current processors newer than P4 have 64-byte lines,
+ * but P4 had 128.
+ *
+ * On ARM, the line size can vary between cores.  64-byte lines are
+ * common, but either larger or smaller powers of two are possible.
  */
 #define CACHELINE_SIZE             64
+#define CACHELINE_SHIFT            6
 #define CACHELINE_ALIGNMENT_MASK   (CACHELINE_SIZE - 1)
+
+
+/*
+ * Bits to bytes sizes.
+ */
+
+#define SIZE_8BIT   1
+#define SIZE_16BIT  2
+#define SIZE_24BIT  3
+#define SIZE_32BIT  4
+#define SIZE_48BIT  6
+#define SIZE_64BIT  8
+#define SIZE_80BIT  10
+#define SIZE_128BIT 16
+#define SIZE_256BIT 32
 
 
 #endif // ifndef _VM_BASIC_DEFS_H_

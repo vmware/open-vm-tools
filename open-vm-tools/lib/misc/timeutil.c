@@ -73,15 +73,9 @@ static Bool TimeUtilIsValidDate(unsigned int year,
  * a lookup table
  */
 
-static int TimeUtilFindIndexAndNameByUTCOffset(int utcStdOffMins,
-                                               const char **ptzName);
-
-#if defined(_WIN32)
-/*
- * Function to find Windows TZ Index by scanning registry
- */
-static int Win32TimeUtilLookupZoneIndex(const char* targetName);
-#endif
+static int TimeUtilFindIndexAndName(int utcStdOffMins,
+                                    const char *englishTzName,
+                                    const char **ptzName);
 
 
 /*
@@ -840,9 +834,9 @@ TimeUtil_GetTimeFormat(int64 utcTime,  // IN
                         timeStr, ARRAYSIZE(timeStr));
 
    if (showDate && showTime) {
-      return Str_Asprintf(NULL, "%s %s", dateStr, timeStr);
+      return Str_SafeAsprintf(NULL, "%s %s", dateStr, timeStr);
    } else {
-      return Str_Asprintf(NULL, "%s", showDate ? dateStr : timeStr);
+      return Util_SafeStrdup(showDate ? dateStr : timeStr);
    }
 
 #else
@@ -1032,11 +1026,16 @@ TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,   // IN
  *
  * TimeUtil_GetLocalWindowsTimeZoneIndexAndName --
  *
- *    Gets Windows TZ Index and Name for local time zone.
+ *    Determines the name and index for the computer's current time zone.  The
+ *    name is always the name of the time zone in standard time, even if Daylight
+ *    Saving is currently in effect.  This name is not localized, and is
+ *    intended to be used when Easy Installing a Vista or later guest.
  *
  * Results:
- *    -1 if there is any error, else the Windows Time Zone ID of the
- *    current timezone (non-negative value).
+ *    The index of the computer's current time zone.  The name of the time zone
+ *    in standard time is returned in *ptzName.  The caller is responsible for
+ *    freeing the returned string with free.
+ *    If an error occurs, returns -1 and sets *ptzName to NULL.
  *
  * Side effects:
  *    On non-Win32 platforms, calls localtime_r() which sets globals
@@ -1050,27 +1049,38 @@ TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName)   // OUT: returning
    int utcStdOffMins = 0;
    int winTimeZoneIndex = (-1);
    const char *tzNameByUTCOffset = NULL;
+   char *englishTzName = NULL;
 
    *ptzName = NULL;
 
 #if defined(_WIN32)
-
    {
-      TIME_ZONE_INFORMATION tz;
-      if (GetTimeZoneInformation(&tz) == TIME_ZONE_ID_INVALID) {
+      /*
+       * Hosted products don't support XP hosts anymore, but we use
+       * GetProcAddress instead of linking statically to
+       * GetDynamicTimeZoneInformation to avoid impacting Tools and Cascadia,
+       * which consume this lib and still need to run on XP.
+       */
+      DYNAMIC_TIME_ZONE_INFORMATION tzInfo = {0};
+      typedef DWORD (WINAPI* PFNGetTZInfo)(PDYNAMIC_TIME_ZONE_INFORMATION);
+      PFNGetTZInfo pfnGetTZInfo = NULL;
+
+      pfnGetTZInfo =
+         (PFNGetTZInfo) GetProcAddress(GetModuleHandleW(L"kernel32"),
+                                       "GetDynamicTimeZoneInformation");
+
+      if (pfnGetTZInfo == NULL || pfnGetTZInfo(&tzInfo) == TIME_ZONE_ID_INVALID) {
          return (-1);
       }
 
-      /* 'Bias' = diff between UTC and local standard time */
-      utcStdOffMins = 0 - tz.Bias; // already in minutes
+      /*
+       * Save the unlocalized time zone name.  We use it below to look up the
+       * time zone's index.
+       */
+      englishTzName = Unicode_AllocWithUTF16(tzInfo.TimeZoneKeyName);
 
-      /* Find Windows TZ index */
-      *ptzName = Unicode_AllocWithUTF16(tz.StandardName);
-      winTimeZoneIndex = Win32TimeUtilLookupZoneIndex(*ptzName);
-      if (winTimeZoneIndex < 0) {
-         Unicode_Free(*ptzName);
-         *ptzName = NULL;
-      }
+      /* 'Bias' = diff between UTC and local standard time */
+      utcStdOffMins = 0 - tzInfo.Bias; // already in minutes
    }
 
 #else // NOT _WIN32
@@ -1113,14 +1123,16 @@ TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName)   // OUT: returning
 
 #endif
 
-   /* If we don't have it yet, look up windowsCode. */
-   if (winTimeZoneIndex < 0) {
-      winTimeZoneIndex = TimeUtilFindIndexAndNameByUTCOffset(utcStdOffMins,
-                                                         &tzNameByUTCOffset);
-      if (winTimeZoneIndex >= 0) {
-         *ptzName = Unicode_AllocWithUTF8(tzNameByUTCOffset);
-      }
+   /* Look up the name and index in a table. */
+   winTimeZoneIndex = TimeUtilFindIndexAndName(utcStdOffMins, englishTzName,
+                                               &tzNameByUTCOffset);
+
+   if (winTimeZoneIndex >= 0) {
+      *ptzName = Unicode_AllocWithUTF8(tzNameByUTCOffset);
    }
+
+   free(englishTzName);
+   englishTzName = NULL;
 
    return winTimeZoneIndex;
 }
@@ -1321,14 +1333,15 @@ TimeUtilLoadDate(TimeUtil_Date *d,  // IN/OUT
 /*
  *----------------------------------------------------------------------
  *
- * TimeUtilFindIndexAndNameByUTCOffset --
+ * TimeUtilFindIndexAndName --
  *
- *    Private function. Scans a table for a given UTC-to-Standard
- *    offset and returns the Windows TZ Index of the first match
- *    found together with its Windows TZ Name.
+ *    Given a time zone's offset from UTC and optionally its name, returns
+ *    the time zone's Windows index and its name in standard time.
  *
  * Results:
- *    Returns Windows TZ Index (>=0) if found, else -1.
+ *    If the time zone is found in the table, returns the index and stores
+ *    the name in *ptzName.  The caller must not free the returned string.
+ *    If the time zone is not found, returns -1 and sets *ptzName to NULL.
  *
  * Side effects:
  *    None.
@@ -1336,12 +1349,13 @@ TimeUtilLoadDate(TimeUtil_Date *d,  // IN/OUT
  *----------------------------------------------------------------------
  */
 static int
-TimeUtilFindIndexAndNameByUTCOffset(int utcStdOffMins,      // IN: offset (in minutes)
-                                    const char **ptzName)   // OUT: returning TZ Name
+TimeUtilFindIndexAndName(int utcStdOffMins,          // IN: offset (in minutes)
+                         const char *englishTzName,  // IN/OPT: The English TZ name
+                         const char **ptzName)       // OUT: returning TZ Name
 {
    static struct _tzinfo {
       int winTzIndex;
-      char winTzName[256];
+      const char *winTzName;
       int utcStdOffMins;
    } TABLE[] = {
 
@@ -1349,10 +1363,11 @@ TimeUtilFindIndexAndNameByUTCOffset(int utcStdOffMins,      // IN: offset (in mi
        * These values are from Microsoft's TimeZone documentation:
        *
        * http://technet.microsoft.com/en-us/library/cc749073.aspx
+       *
+       * All time zones that have the same offset must be grouped together.
        */
 
       {   0, "Dateline Standard Time",          -720 }, // -12
-      {   1, "Samoa Standard Time",             -660 }, // -11
       {   2, "Hawaiian Standard Time",          -600 }, // -10
       {   3, "Alaskan Standard Time",           -540 }, // -9
       {   4, "Pacific Standard Time",           -480 }, // -8
@@ -1389,42 +1404,43 @@ TimeUtilFindIndexAndNameByUTCOffset(int utcStdOffMins,      // IN: offset (in mi
       { 130, "GTB Standard Time",                120 }, // +2
       { 135, "Israel Standard Time",             120 }, // +2
       { 140, "South Africa Standard Time",       120 }, // +2
-      { 145, "Russian Standard Time",            180 }, // +3
       { 150, "Arab Standard Time",               180 }, // +3
       { 155, "E. Africa Standard Time",          180 }, // +3
       { 158, "Arabic Standard Time",             180 }, // +3
       { 160, "Iran Standard Time",               210 }, // +3.5
+      { 145, "Russian Standard Time",            240 }, // +4
       { 165, "Arabian Standard Time",            240 }, // +4
       { 170, "Caucasus Standard Time",           240 }, // +4
       { 175, "Afghanistan Standard Time",        270 }, // +4.5
-      { 180, "Ekaterinburg Standard Time",       300 }, // +5
       { 185, "West Asia Standard Time",          300 }, // +5
       { 190, "India Standard Time",              330 }, // +5.5
+      { 200, "Sri Lanka Standard Time",          330 }, // +5.5
       { 193, "Nepal Standard Time",              345 }, // +5.75
+      { 180, "Ekaterinburg Standard Time",       360 }, // +6
       { 195, "Central Asia Standard Time",       360 }, // +6
-      { 200, "Sri Lanka Standard Time",          360 }, // +6
-      { 201, "N. Central Asia Standard Time",    360 }, // +6
       { 203, "Myanmar Standard Time",            390 }, // +6.5
+      { 201, "N. Central Asia Standard Time",    420 }, // +7
       { 205, "SE Asia Standard Time",            420 }, // +7
-      { 207, "North Asia Standard Time",         420 }, // +7
       { 210, "China Standard Time",              480 }, // +8
+      { 207, "North Asia Standard Time",         480 }, // +8
       { 215, "Singapore Standard Time",          480 }, // +8
       { 220, "Taipei Standard Time",             480 }, // +8
       { 225, "W. Australia Standard Time",       480 }, // +8
-      { 227, "North Asia East Standard Time",    480 }, // +8
-      { 230, "Korea Standard Time",              540 }, // +9
       { 235, "Tokyo Standard Time",              540 }, // +9
-      { 240, "Yakutsk Standard Time",            540 }, // +9
+      { 230, "Korea Standard Time",              540 }, // +9
+      { 227, "North Asia East Standard Time",    540 }, // +9
       { 245, "AUS Central Standard Time",        570 }, // +9.5
       { 250, "Cen. Australia Standard Time",     570 }, // +9.5
       { 255, "AUS Eastern Standard Time",        600 }, // +10
       { 260, "E. Australia Standard Time",       600 }, // +10
       { 265, "Tasmania Standard Time",           600 }, // +10
-      { 270, "Vladivostok Standard Time",        600 }, // +10
+      { 240, "Yakutsk Standard Time",            600 }, // +10
       { 275, "West Pacific Standard Time",       600 }, // +10
       { 280, "Central Pacific Standard Time",    660 }, // +11
-      { 285, "Fiji Standard Time",               720 }, // +12
+      { 270, "Vladivostok Standard Time",        660 }, // +11
       { 290, "New Zealand Standard Time",        720 }, // +12
+      { 285, "Fiji Standard Time",               720 }, // +12
+      {   1, "Samoa Standard Time",              780 }, // +13
       { 300, "Tonga Standard Time",              780 }};// +13
 
    size_t tableSize = ARRAYSIZE(TABLE);
@@ -1433,120 +1449,41 @@ TimeUtilFindIndexAndNameByUTCOffset(int utcStdOffMins,      // IN: offset (in mi
 
    *ptzName = NULL;
 
-   /* XXX Finds the first match, not necessariy the right match! */
+   /*
+    * Search for the first time zone that has the passed-in offset.  Then, if the
+    * caller also passed a name, search the time zones with that offset for a
+    * time zone with that name.
+    *
+    * If the caller does not pass a name, this loop returns the first time zone
+    * that it finds with the given offset.  Because the UTC offset does not uniquely
+    * identify a time zone, this function can return a time zone that is not what
+    * the caller intended.  For an example, see bug 1159642.  Callers should pass
+    * a time zone name whenever possible.
+    */
    for (look = 0; look < tableSize; look++) {
       if (TABLE[look].utcStdOffMins == utcStdOffMins) {
+         /* We found a time zone with the right offset. */
          tzIndex = TABLE[look].winTzIndex;
          *ptzName = TABLE[look].winTzName;
+
+         /* Compare names if the caller passed a name. */
+         while (englishTzName != NULL &&
+                look < tableSize &&
+                TABLE[look].utcStdOffMins == utcStdOffMins) {
+            if (strcmp(englishTzName, TABLE[look].winTzName) == 0) {
+               *ptzName = TABLE[look].winTzName;
+               return TABLE[look].winTzIndex;
+            }
+
+            look++;
+         }
+
          break;
       }
    }
 
    return tzIndex;
 }
-
-
-#ifdef _WIN32
-/*
- *----------------------------------------------------------------------
- *
- * Win32TimeUtilLookupZoneIndex --
- *
- *    Private function. Gets current Std time zone name using Windows
- *    API, then scans the registry to find the information about that zone,
- *    and extracts the TZ Index.
- *
- * Parameters:
- *    targetName   Standard-time zone name to look for.
- *
- * Results:
- *    Returns Windows TZ Index (>=0) if found.
- *    Returns -1 if not found or if any error was encountered.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------
- */
-static int Win32TimeUtilLookupZoneIndex(const char* targetName)
-{
-   int timeZoneIndex = (-1);
-   HKEY parentKey, childKey;
-   char childKeyName[255];
-   int keyIndex, childKeyLen=255;
-   DWORD rv;
-
-   /* Open parent key containing timezone child keys */
-   if (Win32U_RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-                           "SOFTWARE\\"
-                           "Microsoft\\"
-                           "Windows NT\\"
-                           "CurrentVersion\\"
-                           "Time Zones",
-                           0, KEY_READ, &parentKey) != ERROR_SUCCESS) {
-      /* Failed to open registry */
-      return (-1);
-   }
-
-   /* Scan child keys, stopping if name is found */
-   keyIndex = 0;
-   while (
-         timeZoneIndex < 0 &&
-         Win32U_RegEnumKeyEx(parentKey, keyIndex, childKeyName, &childKeyLen,
-                             0,0,0,0) == ERROR_SUCCESS) {
-      char *std;
-      DWORD stdSize;
-
-      /* Open child key */
-      rv = Win32U_RegOpenKeyEx(parentKey, childKeyName, 0, KEY_READ, &childKey);
-      if (rv != ERROR_SUCCESS) {
-         continue;
-      }
-
-      /* Get size of "Std" value */
-      if (Win32U_RegQueryValueEx(childKey, "Std", 0, 0,
-                                 NULL, &stdSize) == ERROR_SUCCESS) {
-
-         /* Get value of "Std" */
-         std = (char*) calloc(stdSize+1, sizeof(char));
-         if (std != NULL) {
-            if (Win32U_RegQueryValueEx(childKey, "Std", 0, 0, (LPBYTE) std,
-                                       &stdSize) == ERROR_SUCCESS) {
-
-               /* Make sure there is at least one EOS */
-               std[stdSize] = '\0';
-
-               /* Is this the name we want? */
-               if (!strcmp(std, targetName)) {
-                  /* yes: look up value of "Index" */
-                  DWORD val = 0;
-                  DWORD valSize = sizeof(val);
-
-                  if (Win32U_RegQueryValueEx(childKey, "Index", 0, 0,
-                                             (LPBYTE) &val,
-                                             &valSize) == ERROR_SUCCESS) {
-                     timeZoneIndex = val;
-                  }
-              }
-           }
-           free(std);
-        }
-     }
-
-      /* close this child key */
-      RegCloseKey(childKey);
-
-      /* reset for next child key */
-      childKeyLen = 255;
-      keyIndex++;
-   }
-
-   /* Close registry parent key */
-   RegCloseKey(parentKey);
-
-   return timeZoneIndex;
-}
-#endif // _WIN32
 
 
 /*

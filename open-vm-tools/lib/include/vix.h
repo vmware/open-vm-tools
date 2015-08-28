@@ -220,7 +220,7 @@ enum {
    VIX_E_SNAPSHOT_MAXSNAPSHOTS                  = 13019,
    VIX_E_SNAPSHOT_MIN_FREE_SPACE                = 13020,
    VIX_E_SNAPSHOT_HIERARCHY_TOODEEP             = 13021,
-   VIX_E_SNAPSHOT_RRSUSPEND                     = 13022,
+   // DEPRECRATED VIX_E_SNAPSHOT_RRSUSPEND                     = 13022,
    VIX_E_SNAPSHOT_NOT_REVERTABLE                = 13024,
 
    /* Host Errors */
@@ -318,7 +318,7 @@ enum {
    VIX_E_TOOLS_INSTALL_INIT_FAILED              = 21005,
    VIX_E_TOOLS_INSTALL_AUTO_NOT_SUPPORTED       = 21006,
    VIX_E_TOOLS_INSTALL_GUEST_NOT_READY          = 21007,
-   VIX_E_TOOLS_INSTALL_SIG_CHECK_FAILED         = 21008,
+   /* VIX_E_TOOLS_INSTALL_SIG_CHECK_FAILED         = 21008, Removed in version 1.15.0 */
    VIX_E_TOOLS_INSTALL_ERROR                    = 21009,
    VIX_E_TOOLS_INSTALL_ALREADY_UP_TO_DATE       = 21010,
    VIX_E_TOOLS_INSTALL_IN_PROGRESS              = 21011,
@@ -816,39 +816,6 @@ enum {
 
 //#define VIX_ADMINISTRATOR_USER_NAME    "__VMware_Vix_Guest_User_Admin__"
 //#define VIX_CONSOLE_USER_NAME          "__VMware_Vix_Guest_Console_User__"
-
-
-/*
- * Following functions were removed in version 1.11.
- *
-   VixHandle VixVM_BeginRecording(VixHandle vmHandle,
-                                  const char *displayName,
-                                  const char *description,
-                                  int options,
-                                  VixHandle propertyList,
-                                  VixEventProc *callbackProc,
-                                  void *clientData);
-
-   VixHandle VixVM_EndRecording(VixHandle vmHandle,
-                                int options,
-                                VixHandle propertyList,
-                                VixEventProc *callbackProc,
-                                void *clientData);
-
-   VixHandle VixVM_BeginReplay(VixHandle vmHandle,
-                               VixHandle snapshotHandle,
-                               int options,
-                               VixHandle propertyList,
-                               VixEventProc *callbackProc,
-                               void *clientData);
-
-   VixHandle VixVM_EndReplay(VixHandle vmHandle,
-                             int options,
-                             VixHandle propertyList,
-                             VixEventProc *callbackProc,
-                             void *clientData);
-
- */
 
 /*
  * Guest operations

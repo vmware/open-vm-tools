@@ -16,62 +16,60 @@
 #
 ##########################################################
 
-addsubj.fail = "%1$s: Fehler beim Hinzufügen eines Alias für Benutzer '%2$s': %3$s.\n"
+addsubj.fail = "%1$s: Das Hinzufügen des Alias für den Benutzer '%2$s': %3$s ist fehlgeschlagen.\n"
 addsubj.success = "%1$s: Alias hinzugefügt\n"
 
-addoptions.comment = "Betreff Kommentar"
+addoptions.comment = "Inhaberkommentar"
 
-addoptions.file = "Name der PEM-Datei"
+addoptions.file = "PEM-Dateiname"
 
-addoptions.global = "Zertifikat zur globalen Zuordnungsdatei hinzufügen"
+addoptions.global = "Zertifikat der globalen Zuordnungsdatei hinzufügen"
 
-addoptions.subject = "SAML-Betreff"
+addoptions.subject = "Der SAML-Inhaber"
 
-addoptions.username = "Benutzer, in dessen Zertifikatspeicher Hinzufügung erfolgt"
+addoptions.username = "Benutzer, dessen Zertifikatsspeicher hinzugefügt wird zu"
 
-addoptions.verbose = "Ausführlicher Vorgang"
+addoptions.verbose = "Detaillierter Vorgang"
 
 
-cmdline.parse = "Fehler beim Parsen der Befehlszeile"
+cmdline.parse = "Die Analyse der Befehlszeile ist fehlgeschlagen"
 
 cmdline.summary.pemfile = "PEM-Datei"
-cmdline.summary.subject = "Betreff"
+cmdline.summary.subject = "Inhaber"
 cmdline.summary.username = "Benutzername"
 cmdline.summary.comm = "Kommentar"
 
 list.comment = "Kommentar"
-list.count = "%1$s Gefunden: %2$d Aliase für Benutzer '%3$s'\n"
+list.count = "%1$s: Es wurden %2$d Aliase für den Benutzer '%3$s' gefunden.\n"
 
-list.error = "%1$s: Fehler beim Auflisten von Aliasen für Benutzer '%2$s': %3$s.\n"
-list.subject = "Betreff"
+list.error = "%1$s: Die Auflistung der Aliase für den Benutzer '%2$s': %3$s ist fehlgeschlagen.\n"
+list.subject = "Inhaber"
 
-listmapped.count = "%1$s Gefunden: %2$d zugeordnete Aliase\n"
+listmapped.count = "%1$s: Es wurden %2$d zugeordnete Aliase gefunden.\n"
 
-listmapped.error = "%1$s: Fehler beim Auflisten von zugeordneten Aliasen: %2$s.\n"
+listmapped.error = "%1$s: Die Auflistung der zugeordneten Aliase %2$s ist fehlgeschlagen.\n"
 
-listmapped.subject = "Betreff"
+listmapped.subject = "Inhaber"
 
 listmapped.username = "Benutzername"
 
-listoptions.username =
-         "Benutzer, dessen Zertifikatspeicher abgefragt wird"
+listoptions.username = "Benutzer, dessen Zertifikatsspeicher abgefragt wird"
 
-listoptions.verbose = "Ausführlicher Vorgang"
+listoptions.verbose = "Detaillierter Vorgang"
 
-loadfile.fail = "%1$s: Fehler beim Lesen von PEM-Datei '%2$s'\n"
+loadfile.fail = "%1$s: PEM-Datei '%2$s' kann nicht gelesen werden\n"
 
 name.any = "<ALLE>"
 
-removesubj.fail = "%1$s: Fehler beim Löschen eines Alias für Benutzer '%2$s': %3$s.\n"
+removesubj.fail = "%1$s: Das Entfernen des Alias für den Benutzer '%2$s': %3$s ist fehlgeschlagen.\n"
 
-removesubj.success = "%1$s: Alias gelöscht\n"
+removesubj.success = "%1$s: Alias entfernt\n"
 
-removeoptions.file = "Name der PEM-Datei"
+removeoptions.file = "PEM-Dateiname"
 
-removeoptions.subject = "SAML-Betreff"
-removeoptions.username =
-             "Benutzer, in dessen Zertifikatspeicher Löschvorgang erfolgt"
+removeoptions.subject = "Der SAML-Inhaber"
+removeoptions.username = "Benutzer, dessen Zertifikatsspeicher entfernt wurde aus"
 
-removeoptions.verbose = "Ausführlicher Vorgang"
+removeoptions.verbose = "Detaillierter Vorgang"
 
-vgauth.init.failed = "Fehler beim Initialisieren von VGAuth"
+vgauth.init.failed = "Die Initialisierung von VGAuth ist fehlgeschlagen"

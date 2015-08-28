@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
+### Copyright 2015 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -15,7 +15,12 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libPrinter.la
+noinst_LTLIBRARIES = libHgfsUri.la
 
-libPrinter_la_SOURCES =
-libPrinter_la_SOURCES += printer.c
+libHgfsUri_la_SOURCES =
+libHgfsUri_la_SOURCES += hgfsUriPosix.c
+
+AM_CFLAGS =
+AM_CFLAGS += -DVMTOOLS_USE_GLIB
+AM_CFLAGS += @GLIB2_CPPFLAGS@
+

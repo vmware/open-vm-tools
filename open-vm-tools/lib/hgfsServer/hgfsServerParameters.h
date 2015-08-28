@@ -246,7 +246,7 @@ HgfsUnpackSearchOpenRequest(const void *packet,      // IN: HGFS packet
                             size_t packetSize,       // IN: request packet size
                             HgfsOp op,               // IN: request type
                             const char **dirName,    // OUT: directory name
-                            uint32 *dirNameLength,   // OUT: name length
+                            size_t *dirNameLength,   // OUT: name length
                             uint32 *caseFlags);      // OUT: case flags
 Bool
 HgfsPackCloseReply(HgfsPacket *packet,          // IN/OUT: Hgfs Packet

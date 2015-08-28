@@ -53,6 +53,8 @@
 #undef  VMTOOLS_USE_VSOCKET
 #endif
 
+#include <ctype.h>
+
 #if defined(VMTOOLS_USE_VSOCKET)
 #  include <glib.h>
 #  include "poll.h"
@@ -76,7 +78,7 @@
 #include "message.h"
 #include "rpcin.h"
 #include "util.h"
-
+#include "system.h"
 
 #if !defined(VMTOOLS_USE_GLIB)
 #include "eventManager.h"
@@ -1409,6 +1411,88 @@ RpcInUpdateDelayTime(RpcIn *in)            // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * ByteDump --
+ *
+ *      Return a \0 terminated string that keeps ascii characters
+ *      but escapes non ascii ones.
+ *
+ *      The output may be truncated if an internal buffer limit is reached.
+ *
+ * Result:
+ *      Return a string that the caller should not free
+ *
+ * Side-effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+ByteDump(const char *buf,
+        size_t size)
+{
+#define BYTE_DUMP_LIMIT 128
+   static const char truncationTag[] = "...";
+   static char dumpBuffer[BYTE_DUMP_LIMIT + sizeof truncationTag];
+   size_t i, count, nPrintable, nBinary;
+
+   count = 0;
+   nPrintable = 0;
+   nBinary = 0;
+
+   if (! size) {
+      goto exit;
+   }
+
+   for (i = 0; i < size; ++i) {
+      unsigned char c = buf[i];
+      if (c == '\\') {
+         if ((BYTE_DUMP_LIMIT - count) < 2) {
+            break;
+         }
+         dumpBuffer[count++] = c;
+         dumpBuffer[count++] = c;
+         ++nPrintable;
+      } else if (isprint(c)) {
+         if ((BYTE_DUMP_LIMIT - count) < 1) {
+            break;
+         }
+         dumpBuffer[count++] = c;
+         ++nPrintable;
+      } else {
+         if ((BYTE_DUMP_LIMIT - count) < 3) {
+            break;
+         }
+         dumpBuffer[count++] = '\\';
+         Str_Snprintf(&dumpBuffer[count], 3, "%02x", c);
+         count += 2;
+         ++nBinary;
+      }
+   }
+
+   if (nBinary > nPrintable) {
+      return "(assumed/dropped binary data)";
+   }
+
+   if (i < size) {
+      /* Data is truncated */
+      int n = Str_Snprintf(&dumpBuffer[count], sizeof dumpBuffer - count,
+                           "%s", truncationTag);
+      ASSERT(n);
+      count += n;
+   }
+
+exit:
+
+   dumpBuffer[count] = 0;
+
+   return dumpBuffer;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * RpcInLoop --
  *
  *      Receives an RPC from the host.
@@ -1484,11 +1568,23 @@ RpcInLoop(void *clientData) // IN
    }
 
    if (repLen) {
-      Debug("RpcIn: received %"FMTSZ"u bytes\n", repLen);
+      char *s = ByteDump(reply, repLen);
+      Debug("RpcIn: received %d bytes, content:\"%s\"\n", (int) repLen, s);
       if (!RpcInExecRpc(in, reply, repLen, &errmsg)) {
          goto error;
       }
    } else {
+      static uint64 lastPrintMilli = 0;
+      uint64 now = System_GetTimeMonotonic() * 10;
+      if ((now - lastPrintMilli) > 5000) {
+         /*
+          * Throttle the log to write one entry every 5 seconds
+          * this allow us to figure that tools side is polling for TCLO.
+          */
+         Debug("RpcIn: received 0 bytes, empty TCLO poll\n");
+         lastPrintMilli = now;
+      }
+
       /*
        * Nothing to execute
        */

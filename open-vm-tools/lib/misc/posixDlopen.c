@@ -48,8 +48,8 @@
  */
 
 void *
-Posix_Dlopen(ConstUnicode pathName,  // IN:
-             int flag)               // IN:
+Posix_Dlopen(const char *pathName,  // IN:
+             int flag)              // IN:
 {
    char *path;
    void *ret;

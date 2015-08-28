@@ -26,6 +26,7 @@
 #include "random.h"
 
 static Bool mxInPanic = FALSE;  // track when involved in a panic
+static Bool mxUserCollectLockingTree = FALSE;
 
 Bool (*MXUserTryAcquireForceFail)() = NULL;
 
@@ -35,10 +36,58 @@ void (*MXUserMX_LockRec)(struct MX_MutexRec *lock) = NULL;
 void (*MXUserMX_UnlockRec)(struct MX_MutexRec *lock) = NULL;
 Bool (*MXUserMX_TryLockRec)(struct MX_MutexRec *lock) = NULL;
 Bool (*MXUserMX_IsLockedByCurThreadRec)(const struct MX_MutexRec *lock) = NULL;
+char *(*MXUserMX_NameRec)(const struct MX_MutexRec *lock) = NULL;
 static void (*MXUserMX_SetInPanic)(void) = NULL;
 static Bool (*MXUserMX_InPanic)(void) = NULL;
 
-#define MXUSER_NOISE_FLOOR_TRIALS 1000
+#define	MXUSER_MAX_LOOP 5
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_IsLockingTreeAvailable
+ *
+ *      Is the lock tracking tree available for reporting?
+ *
+ * Results:
+ *      TRUE  MXuser lock tree tracking is enabled
+ *      FALSE MXUser lock tree tracking is disabled
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUser_IsLockingTreeAvailable(void)
+{
+   return mxUserCollectLockingTree;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_LockingTreeCollection
+ *
+ *      Enable or disable locking tree data collection.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUser_LockingTreeCollection(Bool enabled)  // IN:
+{
+   mxUserCollectLockingTree = vmx86_devel && vmx86_debug && enabled;
+}
 
 
 /*
@@ -64,7 +113,7 @@ static Bool (*MXUserMX_InPanic)(void) = NULL;
 MXRecLock *
 MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
 {
-   MXRecLock *lock = (MXRecLock *) Atomic_ReadPtr(storage);
+   MXRecLock *lock = Atomic_ReadPtr(storage);
 
    if (UNLIKELY(lock == NULL)) {
       MXRecLock *newLock = Util_SafeMalloc(sizeof *newLock);
@@ -190,6 +239,34 @@ MXUserGetSignature(MXUserObjectType objectType)  // IN:
 
 
 /*
+ *---------------------------------------------------------------------
+ *
+ *  MXUser_SetInPanic --
+ *
+ *     Notify the locking system that a panic is occurring.
+ *
+ *  Results:
+ *     Set the "in a panic" state in userland locks and, when possible,
+ *     MX locks.
+ *
+ *  Side effects:
+ *     None
+ *
+ *---------------------------------------------------------------------
+ */
+
+void
+MXUser_SetInPanic(void)
+{
+   mxInPanic = TRUE;
+
+   if (MXUserMX_SetInPanic != NULL) {
+      MXUserMX_SetInPanic();
+   }
+}
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * MXUserDumpAndPanic --
@@ -212,8 +289,18 @@ MXUserDumpAndPanic(MXUserHeader *header,  // IN:
 {
    char *msg;
    va_list ap;
+   static uint32 loopCounter = 0;  // Is panic looping through there?
 
    ASSERT((header != NULL) && (header->dumpFunc != NULL));
+
+   if (++loopCounter > MXUSER_MAX_LOOP) {
+      /*
+       * Panic is looping through MXUser to here - no progress is being made.
+       * Switch to panic mode in the hopes that this will allow some progress.
+       */
+
+      MXUser_SetInPanic();
+   }
 
    (*header->dumpFunc)(header);
 
@@ -228,33 +315,9 @@ MXUserDumpAndPanic(MXUserHeader *header,  // IN:
 /*
  *---------------------------------------------------------------------
  *
- *  MXUser_SetInPanic --
- *	Notify the locking system that a panic is occurring.
- *
- *  Results:
- *     Set the "in a panic" state both in userland, and monitor, if applicable.
- *
- *  Side effects:
- *     None
- *
- *---------------------------------------------------------------------
- */
-
-void
-MXUser_SetInPanic(void)
-{
-   mxInPanic = TRUE;
-   if (MXUserMX_SetInPanic != NULL) {
-      MXUserMX_SetInPanic();
-   }
-}
-
-
-/*
- *---------------------------------------------------------------------
- *
  *  MXUser_InPanic --
- *	Is the caller in the midst of a panic?
+ *
+ *     Is the caller in the midst of a panic?
  *
  *  Results:
  *     TRUE   Yes
@@ -294,12 +357,13 @@ MXUser_InPanic(void)
 void
 MXUserInstallMxHooks(void (*theLockListFunc)(void),
                      MX_Rank (*theRankFunc)(void),
-                     void (*theLockFunc)(struct MX_MutexRec *lock),
-                     void (*theUnlockFunc)(struct MX_MutexRec *lock),
-                     Bool (*theTryLockFunc)(struct MX_MutexRec *lock),
-                     Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock),
-                     void (*theSetInPanicFunc)(void),
-                     Bool (*theInPanicFunc)(void))
+                     void  (*theLockFunc)(struct MX_MutexRec *lock),
+                     void  (*theUnlockFunc)(struct MX_MutexRec *lock),
+                     Bool  (*theTryLockFunc)(struct MX_MutexRec *lock),
+                     Bool  (*theIsLockedFunc)(const struct MX_MutexRec *lock),
+                     char *(*theNameFunc)(const struct MX_MutexRec *lock),
+                     void  (*theSetInPanicFunc)(void),
+                     Bool  (*theInPanicFunc)(void))
 {
    /*
     * This function can be called more than once but the second and later
@@ -313,6 +377,7 @@ MXUserInstallMxHooks(void (*theLockListFunc)(void),
        (MXUserMX_UnlockRec == NULL) &&
        (MXUserMX_TryLockRec == NULL) &&
        (MXUserMX_IsLockedByCurThreadRec == NULL) &&
+       (MXUserMX_NameRec == NULL) &&
        (MXUserMX_SetInPanic == NULL) &&
        (MXUserMX_InPanic == NULL)
        ) {
@@ -322,6 +387,7 @@ MXUserInstallMxHooks(void (*theLockListFunc)(void),
       MXUserMX_UnlockRec = theUnlockFunc;
       MXUserMX_TryLockRec = theTryLockFunc;
       MXUserMX_IsLockedByCurThreadRec = theIsLockedFunc;
+      MXUserMX_NameRec = theNameFunc;
       MXUserMX_SetInPanic = theSetInPanicFunc;
       MXUserMX_InPanic = theInPanicFunc;
    } else {
@@ -331,6 +397,7 @@ MXUserInstallMxHooks(void (*theLockListFunc)(void),
              (MXUserMX_UnlockRec == theUnlockFunc) &&
              (MXUserMX_TryLockRec == theTryLockFunc) &&
              (MXUserMX_IsLockedByCurThreadRec == theIsLockedFunc) &&
+             (MXUserMX_NameRec == theNameFunc) &&
              (MXUserMX_SetInPanic == theSetInPanicFunc) &&
              (MXUserMX_InPanic == theInPanicFunc)
             );
@@ -350,7 +417,6 @@ static Atomic_Ptr perThreadLockMem;
 static MXUserPerThread *perThreadFreeList = NULL;
 
 static Atomic_Ptr hashTableMem;
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -437,8 +503,10 @@ MXUserFreePerThread(MXUserPerThread *perThread)  // IN:
 
    MXRecLockAcquire(perThreadLock,
                     NULL);          // non-stats
+
    perThread->next = perThreadFreeList;
    perThreadFreeList = perThread;
+
    MXRecLockRelease(perThreadLock);
 }
 
@@ -500,6 +568,7 @@ MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
    return perThread;
 }
 
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -510,10 +579,10 @@ MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
  *      if no locks have been taken.
  *
  * Results:
- *      The list is printed
+ *      None
  *
  * Side effects:
- *      None
+ *      The list is printed.
  *
  *-----------------------------------------------------------------------------
  */
@@ -719,8 +788,28 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
       }
    }
 
-   /* Add lock instance to the calling threads perThread information */
+   /* Add a lock instance to the calling threads perThread information */
    perThread->lockArray[perThread->locksHeld++] = header;
+
+   /*
+    * Maintain the lock tracking tree when approporiate.
+    */
+
+   if (vmx86_devel && vmx86_debug && mxUserCollectLockingTree) {
+      uint32 i;
+      MXUserLockTreeNode *node = NULL;
+
+      MXUserLockTreeAcquire();
+
+      for (i = 0; i < perThread->locksHeld; i++) {
+         header = perThread->lockArray[i];
+
+         node = MXUserLockTreeAdd(node, header->name,
+                                  header->bits.serialNumber, header->rank);
+      }
+
+      MXUserLockTreeRelease();
+   }
 }
 
 
@@ -772,7 +861,11 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
    lastEntry = perThread->locksHeld - 1;
 
    if (i < lastEntry) {
-      perThread->lockArray[i] = perThread->lockArray[lastEntry];
+      uint32 j;
+
+      for (j = i + 1; j < perThread->locksHeld; j++) {
+         perThread->lockArray[i++] = perThread->lockArray[j];
+      }
    }
 
    perThread->lockArray[lastEntry] = NULL;  // tidy up memory
@@ -794,7 +887,7 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
  *      Unknown
  *
  * Side effects:
- *      Always entertaining...
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
@@ -811,14 +904,14 @@ MXUser_TryAcquireFailureControl(Bool (*func)(const char *name))  // IN:
  *
  * MXUserValidateHeader --
  *
- *      Validate an MXUser object header
+ *      Validate an MXUser object header.
  *
  * Results:
  *      Return  All is well
  *      Panic   All is NOT well
  *
  * Side effects:
- *      Always entertaining...
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
@@ -829,14 +922,24 @@ MXUserValidateHeader(MXUserHeader *header,         // IN:
 {
    uint32 expected = MXUserGetSignature(objectType);
 
+   if (header->bits.badHeader == 1) {
+      return; // No need to panic on a bad header repeatedly...
+   }
+
    if (header->signature != expected) {
+      header->bits.badHeader = 1;
+
       MXUserDumpAndPanic(header,
                         "%s: signature failure! expected 0x%X observed 0x%X\n",
                          __FUNCTION__, expected, header->signature);
+
    }
 
-   if (header->serialNumber == 0) {
-      MXUserDumpAndPanic(header, "%s: Invalid serial number!", __FUNCTION__);
+   if (header->bits.serialNumber == 0) {
+      header->bits.badHeader = 1;
+
+      MXUserDumpAndPanic(header, "%s: Invalid serial number!\n",
+                         __FUNCTION__);
    }
 }
 #endif

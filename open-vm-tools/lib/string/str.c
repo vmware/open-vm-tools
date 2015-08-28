@@ -401,7 +401,7 @@ Str_Strnstr(const char *src,  // IN:
  */
 
 char *
-Str_Strcat(char *buf,       // IN-OUT
+Str_Strcat(char *buf,       // IN/OUT
            const char *src, // IN
            size_t maxSize)  // IN
 {
@@ -445,7 +445,7 @@ Str_Strcat(char *buf,       // IN-OUT
  */
 
 char *
-Str_Strncat(char *buf,       // IN-OUT
+Str_Strncat(char *buf,       // IN/OUT
             size_t bufSize,  // IN: Size of buf
             const char *src, // IN: String to append
             size_t n)        // IN: Max chars of src to append
@@ -500,7 +500,7 @@ Str_Strncat(char *buf,       // IN-OUT
  */
 
 char *
-Str_Asprintf(size_t *length,       // OUT
+Str_Asprintf(size_t *length,       // OUT/OPT
              const char *format,   // IN
              ...)                  // IN
 {
@@ -532,7 +532,7 @@ Str_Asprintf(size_t *length,       // OUT
  */
 
 char *
-Str_SafeAsprintf(size_t *length,       // OUT
+Str_SafeAsprintf(size_t *length,       // OUT/OPT
                  const char *format,   // IN
                  ...)                  // IN
 {
@@ -572,7 +572,7 @@ Str_SafeAsprintf(size_t *length,       // OUT
  */
 
 static char *
-StrVasprintfInternal(size_t *length,       // OUT:
+StrVasprintfInternal(size_t *length,       // OUT/OPT:
                      const char *format,   // IN:
                      va_list arguments,    // IN:
                      Bool assertOnFailure) // IN:
@@ -654,7 +654,7 @@ StrVasprintfInternal(size_t *length,       // OUT:
  */
 
 char *
-Str_Vasprintf(size_t *length,       // OUT
+Str_Vasprintf(size_t *length,       // OUT/OPT
               const char *format,   // IN
               va_list arguments)    // IN
 {
@@ -681,7 +681,7 @@ Str_Vasprintf(size_t *length,       // OUT
  */
 
 char *
-Str_SafeVasprintf(size_t *length,       // OUT
+Str_SafeVasprintf(size_t *length,       // OUT/OPT
                   const char *format,   // IN
                   va_list arguments)    // IN
 {
@@ -873,7 +873,7 @@ Str_Wcscpy(wchar_t *buf,       // OUT
  */
 
 wchar_t *
-Str_Wcscat(wchar_t *buf,       // IN-OUT
+Str_Wcscat(wchar_t *buf,       // IN/OUT
            const wchar_t *src, // IN
            size_t maxSize)     // IN: Size of buf, in wide-characters.
 {
@@ -914,7 +914,7 @@ Str_Wcscat(wchar_t *buf,       // IN-OUT
  */
 
 wchar_t *
-Str_Wcsncat(wchar_t *buf,       // IN-OUT
+Str_Wcsncat(wchar_t *buf,       // IN/OUT
             size_t bufSize,     // IN: Size of buf, in wide-characters.
             const wchar_t *src, // IN: String to append
             size_t n)           // IN: Max chars of src to append
@@ -964,13 +964,13 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
  */
 
 unsigned char *
-Str_Mbscpy(char *buf,                // OUT
-           const char *src,          // IN
-           size_t maxSize)           // IN
+Str_Mbscpy(char *buf,        // OUT
+           const char *src,  // IN
+           size_t maxSize)   // IN
 {
    size_t len;
 
-   len = strlen((const char *) src);
+   len = strlen(src);
    if (len >= maxSize) {
       Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
    }
@@ -998,15 +998,15 @@ Str_Mbscpy(char *buf,                // OUT
  */
 
 unsigned char *
-Str_Mbscat(char *buf,                // IN-OUT
-           const char *src,          // IN
-           size_t maxSize)           // IN
+Str_Mbscat(char *buf,        // IN/OUT
+           const char *src,  // IN
+           size_t maxSize)   // IN
 {
    size_t bufLen;
    size_t srcLen;
 
-   bufLen = strlen((const char *) buf);
-   srcLen = strlen((const char *) src);
+   bufLen = strlen(buf);
+   srcLen = strlen(src);
 
    /* The first comparison checks for numeric overflow */
    if (bufLen + srcLen < srcLen || bufLen + srcLen >= maxSize) {
@@ -1042,7 +1042,7 @@ Str_Mbscat(char *buf,                // IN-OUT
  */
 
 static wchar_t *
-StrVaswprintfInternal(size_t *length,         // OUT:
+StrVaswprintfInternal(size_t *length,         // OUT/OPT:
                       const wchar_t *format,  // IN:
                       va_list arguments,      // IN
                       Bool assertOnFailure)   // IN
@@ -1111,7 +1111,7 @@ StrVaswprintfInternal(size_t *length,         // OUT:
  */
 
 wchar_t *
-Str_Aswprintf(size_t *length,         // OUT
+Str_Aswprintf(size_t *length,         // OUT/OPT
               const wchar_t *format,  // IN
               ...)                    // IN
 {
@@ -1145,7 +1145,7 @@ Str_Aswprintf(size_t *length,         // OUT
  */
 
 wchar_t *
-Str_Vaswprintf(size_t *length,         // OUT
+Str_Vaswprintf(size_t *length,         // OUT/OPT
                const wchar_t *format,  // IN
                va_list arguments)      // IN
 {
@@ -1170,7 +1170,7 @@ Str_Vaswprintf(size_t *length,         // OUT
  */
 
 wchar_t *
-Str_SafeAswprintf(size_t *length,         // OUT
+Str_SafeAswprintf(size_t *length,         // OUT/OPT
                   const wchar_t *format,  // IN
                   ...)                    // IN
 {
@@ -1204,7 +1204,7 @@ Str_SafeAswprintf(size_t *length,         // OUT
  */
 
 wchar_t *
-Str_SafeVaswprintf(size_t *length,         // OUT
+Str_SafeVaswprintf(size_t *length,         // OUT/OPT
                    const wchar_t *format,  // IN
                    va_list arguments)      // IN
 {

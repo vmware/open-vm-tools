@@ -66,6 +66,30 @@
  * can also affect other running applications that need to send messages to the
  * host. Do not use this logger unless explicitly instructed to do so.
  *
+ * Log levels:
+ *
+ * glib log levels are supported.  The error levels from
+ * most to least severe:
+ *
+ * 'error' - fatal errors
+ * 'critical' - critical errors
+ * 'warning' - something unexpected happened (useful when an error will
+ *            be reported back.)
+ * 'message' - messages about services starting, version data
+ * 'info'    - informational and diagnostic messages.
+ * 'debug'   - debug messages, typically only of interest ot a developer
+ *
+ *
+ * Until vSphere 6.0, the default logging level for beta/rel is 'warning'.
+ * Since vsphere 6.0 it is 'message'.
+ *
+ * When adding new logging messages, be sure to use the appropriate
+ * level to balance the amount of logging and usability.  The goal
+ * is to be able to debug a customer problem with the default log level
+ * whenever possible, while not filling up logfiles with noise
+ * or customer-sensitive data.
+ *
+ *
  * Logging configuration should be under the "[logging]" group in the
  * application's configuration file.
  *
@@ -136,6 +160,14 @@
 #if !defined(g_info)
 #  define g_info(fmt, ...) g_log(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, fmt, ## __VA_ARGS__)
 #endif
+
+/** default logging level */
+#ifdef VMX86_DEBUG
+#define VMTOOLS_LOGGING_LEVEL_DEFAULT "info"
+#else
+#define VMTOOLS_LOGGING_LEVEL_DEFAULT "message"
+#endif
+
 
 /*
  *******************************************************************************

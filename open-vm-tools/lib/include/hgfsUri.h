@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,24 +17,23 @@
  *********************************************************/
 
 /*
- * printer.h --
+ * hgfsUri.h
  *
- *      Assorted printer related functionality.
+ *    Provides a library for guest applications to convert local pathames to
+ *    x-vmware-share:// style URIs
  */
 
-#ifndef _VM_PRINTER_H_
-#define _VM_PRINTER_H_
-
-#define INCLUDE_ALLOW_USERLEVEL 
-#include "includeCheck.h" 
+#ifndef _HGFS_URI_H_
+#define _HGFS_URI_H_
 
 #include "vm_basic_types.h"
+#include "unicode.h"
 
-char *Printer_GetDefault(void);
-Bool Printer_SetDefault(char const *printerName); // IN
-Bool Printer_AddConnection(char *printerName, // IN:  Name of printer to add
-                           int *sysError);    // OUT: System error code (errno)
-Bool Printer_Init(void);
-Bool Printer_Cleanup(void);
+#if defined(_WIN32)
+char *HgfsUri_ConvertFromUtf16ToHgfsUri(wchar_t *pathNameUtf16, Bool hgfsOnly);
+#endif // _WIN32
+#if defined __linux__ || defined __APPLE__
+char *HgfsUri_ConvertFromPathToHgfsUri(const char *pathName, Bool hgfsOnly);
+#endif // POSIX
 
 #endif

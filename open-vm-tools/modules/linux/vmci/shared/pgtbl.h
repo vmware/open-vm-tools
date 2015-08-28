@@ -46,10 +46,10 @@
  *-----------------------------------------------------------------------------
  */
 
-static INLINE MPN64
+static INLINE MPN
 PgtblPte2MPN(pte_t *pte)   // IN
 {
-   MPN64 mpn;
+   MPN mpn;
    if (pte_present(*pte) == 0) {
       return INVALID_MPN;
    }
@@ -185,7 +185,7 @@ PgtblVa2PTELocked(struct mm_struct *mm, // IN: Mm structure of a process
  *-----------------------------------------------------------------------------
  */
 
-static INLINE MPN64
+static INLINE MPN
 PgtblVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a process
                   VA addr)              // IN: Address in the virtual address
 {
@@ -193,7 +193,7 @@ PgtblVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a process
 
    pte = PgtblVa2PTELocked(mm, addr);
    if (pte != NULL) {
-      MPN64 mpn = PgtblPte2MPN(pte);
+      MPN mpn = PgtblPte2MPN(pte);
       pte_unmap(pte);
       return mpn;
    }
@@ -222,7 +222,7 @@ PgtblVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a process
  *-----------------------------------------------------------------------------
  */
 
-static INLINE MPN64
+static INLINE MPN
 PgtblKVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a caller
                    VA addr)              // IN: Address in the virtual address
 {
@@ -230,7 +230,7 @@ PgtblKVa2MPNLocked(struct mm_struct *mm, // IN: Mm structure of a caller
 
    pte = PgtblPGD2PTELocked(compat_pgd_offset_k(mm, addr), addr);
    if (pte != NULL) {
-      MPN64 mpn = PgtblPte2MPN(pte);
+      MPN mpn = PgtblPte2MPN(pte);
       pte_unmap(pte);
       return mpn;
    }
@@ -290,11 +290,11 @@ PgtblVa2PageLocked(struct mm_struct *mm, // IN: Mm structure of a process
  *-----------------------------------------------------------------------------
  */
 
-static INLINE MPN64
+static INLINE MPN
 PgtblVa2MPN(VA addr)  // IN
 {
    struct mm_struct *mm;
-   MPN64 mpn;
+   MPN mpn;
 
    /* current->mm is NULL for kernel threads, so use active_mm. */
    mm = current->active_mm;
@@ -327,11 +327,11 @@ PgtblVa2MPN(VA addr)  // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE MPN64
+static INLINE MPN
 PgtblKVa2MPN(VA addr)  // IN
 {
    struct mm_struct *mm = current->active_mm;
-   MPN64 mpn;
+   MPN mpn;
 
    if (compat_get_page_table_lock(mm)) {
       spin_lock(compat_get_page_table_lock(mm));

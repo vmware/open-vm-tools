@@ -93,7 +93,7 @@ struct UtilVector {
  *
  * Util_Init --
  *
- *	Opportunity to sanity check things
+ *      Opportunity to sanity check things
  *
  * Results:
  *	Bool - TRUE (this should never fail)
@@ -117,11 +117,11 @@ Util_Init(void)
       char buf[2] = { 'x', 'x' };
       int rv;
 
-      rv = Str_Snprintf(buf, sizeof(buf), "a");
+      rv = Str_Snprintf(buf, sizeof buf, "a");
       ASSERT(rv == 1);
       ASSERT(!strcmp(buf, "a"));
 
-      rv = Str_Snprintf(buf, sizeof(buf), "ab");
+      rv = Str_Snprintf(buf, sizeof buf, "ab");
       ASSERT(rv == -1);
       ASSERT(!strcmp(buf, "a"));
    }
@@ -437,7 +437,9 @@ int
 Util_GetOpt(int argc,                  // IN
             char * const *argv,        // IN
             const struct option *opts, // IN
-            Util_NonOptMode mode)      // IN
+            Util_NonOptMode mode,      // IN
+            Bool manualErrorHandling)  // IN: True if the caller wants to handle error reporting.
+
 {
    int ret = -1;
 
@@ -449,7 +451,7 @@ Util_GetOpt(int argc,                  // IN
     * an optional argument.
     */
    const size_t maxCharsPerShortOption = 3;
-   const size_t modePrefixSize = 1;
+   const size_t modePrefixSize = 2; // "[+-][:]"
 
    size_t n = 0;
    size_t shortOptStringSize;
@@ -493,6 +495,7 @@ Util_GetOpt(int argc,                  // IN
       struct option *longOptOut = longOpts;
       char *shortOptOut = shortOptString;
 
+      // How to handle non-option arguments.
       switch (mode) {
          case UTIL_NONOPT_STOP:
             *shortOptOut++ = '+';
@@ -502,6 +505,14 @@ Util_GetOpt(int argc,                  // IN
             break;
          default:
             break;
+      }
+
+      if (manualErrorHandling) {
+         /*
+          * Make getopt return ':' instead of '?' if required arguments to
+          * options are missing.
+          */
+         *shortOptOut++ = ':';
       }
 
       for (i = 0; i < n; i++) {
@@ -663,14 +674,13 @@ Util_DeriveFileName(const char *source, // IN: path to dict file (incl filename)
       if (!Util_IsAbsolutePath(name) && strlen(path) > 0 &&
           strcmp(path, ".") != 0) {
 	 if (ext == NULL) {
-	    returnResult = Str_Asprintf(NULL, "%s%s%s",
-					path, DIRSEPS, name);
+	    returnResult = Str_SafeAsprintf(NULL, "%s%s%s",
+                                            path, DIRSEPS, name);
 	 } else {
-	    returnResult = Str_Asprintf(NULL, "%s%s%s.%s",
-				        path, DIRSEPS, name, ext);
+            returnResult = Str_SafeAsprintf(NULL, "%s%s%s.%s",
+                                            path, DIRSEPS, name, ext);
 	 }
       } else {
-
 	 /*
           * Path is non-existent or is just the current directory (or the
 	  * result from the dictionary is an absolute path), so we
@@ -680,9 +690,9 @@ Util_DeriveFileName(const char *source, // IN: path to dict file (incl filename)
 	  */
 
 	 if (ext == NULL) {
-	    returnResult = Str_Asprintf(NULL, "%s", name);
+            returnResult = Util_SafeStrdup(name);
 	 } else {
-	    returnResult = Str_Asprintf(NULL, "%s.%s", name, ext);
+            returnResult = Str_SafeAsprintf(NULL, "%s.%s", name, ext);
 	 }
       }
       free(path);
@@ -701,16 +711,15 @@ Util_DeriveFileName(const char *source, // IN: path to dict file (incl filename)
 
    /* Combine disk path with parent path */
    if (strlen(path) > 0 && strcmp(path, ".") != 0) {
-      returnResult = Str_Asprintf(NULL, "%s%s%s.%s",
-				  path, DIRSEPS, base, ext);
+      returnResult = Str_SafeAsprintf(NULL, "%s%s%s.%s",
+                                      path, DIRSEPS, base, ext);
    } else {
-
       /*
        * Path is non-existent or is just the current directory, so we
        * just need to use the filename (using the DIRSEPS method might
        * result in something undesireable like "\foobar.vmdk")
        */
-      returnResult = Str_Asprintf(NULL, "%s.%s", base, ext);
+      returnResult = Str_SafeAsprintf(NULL, "%s.%s", base, ext);
    }
    free(path);
    free(base);

@@ -48,6 +48,15 @@ Config_GetLong(int32 defaultValue,
 }
 
 
+double
+Config_GetDouble(double defaultValue,
+                 const char *fmt,
+                 ...)
+{
+   return defaultValue;
+}
+
+
 char *
 Config_GetString(const char *defaultValue,
                  const char *fmt, ...)

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2013,2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -65,6 +65,8 @@ Bool VMCIContext_RemoveHnd(VMCIContext *context,
                            uint32 *numNew);
 void VMCIContext_ClearDatagrams(VMCIContext *context);
 void VMCIContext_SetId(VMCIContext *context, VMCIId cid);
+void VMCIContext_NotifyGuestPaused(VMCIId cid, Bool paused);
+void VMCIContext_NotifyMemoryAccess(VMCIId cid, Bool on);
 #endif
 Bool VMCIContext_SupportsHostQP(VMCIContext *context);
 void VMCIContext_ReleaseContext(VMCIContext *context);
@@ -84,7 +86,8 @@ int VMCIContext_GetCheckpointState(VMCIId contextID, uint32 cptType,
 int VMCIContext_SetCheckpointState(VMCIId contextID, uint32 cptType,
                                    uint32 numCIDs, char *cptBuf);
 void VMCIContext_RegisterGuestMem(VMCIContext *context, VMCIGuestMemID gid);
-void VMCIContext_ReleaseGuestMem(VMCIContext *context, VMCIGuestMemID gid);
+void VMCIContext_ReleaseGuestMem(VMCIContext *context, VMCIGuestMemID gid,
+                                 Bool powerOff);
 
 int VMCIContext_QueuePairCreate(VMCIContext *context, VMCIHandle handle);
 int VMCIContext_QueuePairDestroy(VMCIContext *context, VMCIHandle handle);

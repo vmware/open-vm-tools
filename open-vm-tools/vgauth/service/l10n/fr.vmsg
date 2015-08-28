@@ -16,31 +16,31 @@
 #
 ##########################################################
 
-proto.attack = "Attaque de sécurité potentielle !  Le type de requête %1$d a un userName (%2$s) qui ne correspond pas au propriétaire du canal (%3$s) !"
+proto.attack = "Attaque possible au niveau de la sécurité ! Le type de demande %1$d a un nom d'utilisateur (%2$s) ne correspondant pas au propriétaire du canal (%3$s) !"
 
-validate.samlBearer.fail = "Échec de la validation du jeton de support SAML : %1$d"
+validate.samlBearer.fail = "Échec de la validation du jeton de support SAML : %1$d"
 
 validate.samlBearer.success = "Jeton de support SAML validé pour l'utilisateur '%1$s'"
 
-alias.addid = "Alias ajouté au magasin d'alias appartenant à '%1$s' par l'utilisateur '%2$s'"
+alias.addid = "Alias ajouté au magasin d'alias détenu par '%1$s' par l'utilisateur '%2$s'"
 
-alias.dir.badperm = "Le répertoire du magasin d'alias '%1$s' a un propriétaire ou des autorisations incorrects. Les alias actuellement stockés dans '%2$s' ne seront pas disponibles pour l'authentification"
+alias.dir.badperm = "Le répertoire du magasin d'alias '%1$s' a un détenteur ou des autorisations incorrects. Tous les alias actuellement stockés dans '%2$s' ne seront pas disponibles pour l'authentification"
 
-alias.dir.notadir = "Le répertoire du magasin d'alias '%1$s' existe mais n'est pas un répertoire"
+alias.dir.notadir = "Le répertoire du magasin d'alias '%1$s' existe mais il ne s'agit pas d'un répertoire"
 
-alias.dir.renamefail = "Impossible de renommer le répertoire du magasin d'alias suspect '%1$s' en '%2$s'"
+alias.dir.renamefail = "Échec de la modification du nom du répertoire du magasin d'alias suspect '%1$s' en '%2$s'"
 
 
-alias.alias.badfile = "Le magasin d'alias '%1$s' existe, mais n'est pas un fichier standard. Les alias de l'utilisateur '%2$s' ne seront pas disponibles pour l'authentification"
+alias.alias.badfile = "Le magasin d'alias '%1$s' existe mais il ne s'agit pas d'un fichier normal. Les alias de l'utilisateur '%2$s' ne seront pas disponibles pour l'authentification"
 
-alias.alias.badperm = "Le magasin d'alias '%1$s' a un propriétaire ou des autorisations incorrects. Les alias de l'utilisateur '%2$s' ne seront pas disponibles pour l'authentification"
+alias.alias.badperm = "Le magasin d'alias '%1$s' a un détenteur ou des autorisations incorrects. Les alias de l'utilisateur '%2$s' ne seront pas disponibles pour l'authentification"
 
 alias.alias.rename = "Magasin d'alias suspect '%1$s' renommé en '%2$s'"
 
-alias.alias.renamefail = "Impossible de renommer le magasin d'alias suspect '%1$s' en '%2$s'"
+alias.alias.renamefail = "Échec de la modification du nom du magasin d'alias suspect '%1$s' en '%2$s'"
 
-alias.mapfile.badperm = "Le fichier de mappage du magasin d'alias '%1$s' a un propriétaire ou des autorisations incorrects. Les alias dans le fichier de mappage ne seront pas disponibles pour l'authentification"
+alias.mapfile.badperm = "Le fichier de mappage du magasin d'alias '%1$s' a un détenteur ou des autorisations incorrects. Les alias dans le fichier de mappage ne seront pas disponibles pour l'authentification"
 
-alias.mapping.badfile = "Le fichier de mappage '%1$s' existe, mais n'est pas un fichier standard. Les alias dans le fichier de mappage ne seront pas disponibles pour l'authentification"
+alias.mapping.badfile = "Le fichier de mappage '%1$s' existe mais il ne s'agit pas d'un fichier normal. Les alias dans le fichier de mappage ne seront pas disponibles pour l'authentification"
 
-alias.removeid = "Alias supprimé du magasin d'alias appartenant à '%1$s' par l'utilisateur '%2$s'"
+alias.removeid = "Alias supprimés du magasin d'alias détenu par '%1$s' par l'utilisateur '%2$s'"

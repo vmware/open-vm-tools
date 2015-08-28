@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="9.10.2"
+TOOLS_VERSION="10.0.0"
 AC_INIT(
    [open-vm-tools],
-   [9.10.2],
+   [10.0.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -377,7 +377,7 @@ AC_VMW_CHECK_LIB([fuse],
                  [fuse_main],
                  [have_fuse=yes],
                  [have_fuse=no;
-                  AC_MSG_WARN([Fuse is missing, vmblock-fuse will be disabled.])])
+                  AC_MSG_WARN([Fuse is missing, vmblock-fuse/vmhgfs-fuse will be disabled.])])
 
 #
 # Check for PAM.
@@ -1045,14 +1045,13 @@ if test "$os" = "linux"; then
 
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrt"
 
-   # vmhgfs is not compiled for kernels 3.17 and newer
-   # Temporary short term limit until the newer kernel component is included
-   if test "$osVersion" -lt 317000; then
-      MODULES="$MODULES vmhgfs"
-   fi
    # vmxnet is not supported for kernels 3.3.0 and newer
    if test "$osVersion" -lt 303000; then
       MODULES="$MODULES vmxnet"
+   fi
+   # See if we need vmhgfs module. Starting with 4.0.0 we use FUSE
+   if test "$osVersion" -lt 400000; then
+      MODULES="$MODULES vmhgfs"
    fi
    # See if we need vmci and vsock modules. Starting with 3.9 they made
    # their way into mainline kernel.
@@ -1288,6 +1287,7 @@ AC_CONFIG_FILES([                      \
    lib/hgfsServer/Makefile             \
    lib/hgfsServerManagerGuest/Makefile \
    lib/hgfsServerPolicyGuest/Makefile  \
+   lib/hgfsUri/Makefile                \
    lib/impersonate/Makefile            \
    lib/lock/Makefile                   \
    lib/message/Makefile                \
@@ -1296,7 +1296,6 @@ AC_CONFIG_FILES([                      \
    lib/nicInfo/Makefile                \
    lib/panic/Makefile                  \
    lib/panicDefault/Makefile           \
-   lib/printer/Makefile                \
    lib/procMgr/Makefile                \
    lib/rpcChannel/Makefile             \
    lib/rpcIn/Makefile                  \
@@ -1347,6 +1346,7 @@ AC_CONFIG_FILES([                      \
    xferlogs/Makefile                   \
    modules/Makefile                    \
    vmblock-fuse/Makefile               \
+   vmhgfs-fuse/Makefile                \
    vmblockmounter/Makefile             \
    tests/Makefile                      \
    tests/vmrpcdbg/Makefile             \

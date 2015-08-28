@@ -36,15 +36,6 @@
  */
 
 /*
- * workerLib default completion lock
- *
- * Used for workerLib callers who don't provide their own lock. Held
- * around arbitrary completion callbacks so it probably makes sense to
- * be of a low rank.
- */
-#define RANK_workerLibCmplLock      RANK_libLockBase
-
-/*
  * hostDeviceInfo HAL lock
  *
  * Must be < vmhs locks since this is held around the RANK_vmhsHDILock
@@ -76,6 +67,38 @@
 #define RANK_vigorOfflineLock        (RANK_libLockBase + 0x4410)
 
 /*
+ * filtlib (must be > vigor and < disklib and workercmlp, PR 1340298)
+ */
+#define RANK_filtLibPollLock         (RANK_vigorOfflineLock + 1)
+
+/*
+ * filtib lock which protects a disk's allocation bitmap state.
+ * Must be > filtLibPollLock, as it could be acquire with the poll lock held.
+ * And as evidenced by PR1437159, it must also be lower than workerLibCmplLock.
+ */
+#define RANK_filtLibAllocBitmapLock (RANK_filtLibPollLock + 1)
+
+/*
+ * workerLib default completion lock
+ *
+ * Used for workerLib callers who don't provide their own lock. Held
+ * around arbitrary completion callbacks so it makes sense to be of
+ * a low rank.
+ *
+ * Must be > RANK_vigorOfflineLock because we may queue work in Vigor
+ * offline.
+ *
+ * Must be < RANK_nfcLibLock, because NFC uses AIO Generic to perform
+ * async writes to the virtual disk.
+ *
+ * Must be > RANK_filtLibPollLock so that filtlib timers can wait
+ * for queued work.
+ *
+ * Must be > RANK_filtLibAllocBitmapLock due to PR1437159.
+ */
+#define RANK_workerLibCmplLock       (RANK_filtLibAllocBitmapLock + 1)
+
+/*
  * NFC lib lock
  */
 #define RANK_nfcLibLock              (RANK_libLockBase + 0x4505)
@@ -99,6 +122,14 @@
 #define RANK_parInitLock             (RANK_libLockBase + 0x5070)
 #define RANK_namespaceLock           (RANK_libLockBase + 0x5080)
 #define RANK_vvolLibLock             (RANK_libLockBase + 0x5090)
+
+/*
+ * Persistent-memory logical and hardware  management locks
+ */
+/* The nvdimm layer is the hardware layer */
+#define RANK_nvdHandleLock          (RANK_libLockBase + 0x5300)
+/* The pmem layer is the logical layer */
+#define RANK_pmemHandleLock         (RANK_libLockBase + 0x5310)
 
 /*
  * VMDB range:

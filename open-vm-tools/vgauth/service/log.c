@@ -87,6 +87,7 @@ void
 Service_SetLogOnStdout(gboolean flag)
 {
    isLogOnStdout = flag;
+   gVerboseLogging = TRUE;
 }
 
 
@@ -452,11 +453,13 @@ Service_InitLogging(gboolean haveConsole,
          logWantedLevel = DEFAULT_LOG_LEVELS;
       } else if (g_ascii_strcasecmp(loglevel, SERVICE_LOGLEVEL_VERBOSE) == 0) {
          logWantedLevel = DEFAULT_LOG_LEVELS | G_LOG_LEVEL_DEBUG;
+         gVerboseLogging = TRUE;
       } else {
          logWantedLevel = DEFAULT_LOG_LEVELS;
 #ifdef VMX86_DEBUG
          // add DEBUG for obj builds
          logWantedLevel |= G_LOG_LEVEL_DEBUG;
+         gVerboseLogging = TRUE;
 #endif
          Warning("%s: Unrecognized loglevel '%s'\n", __FUNCTION__, loglevel);
       }

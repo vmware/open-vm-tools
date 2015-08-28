@@ -50,9 +50,9 @@
 // File locking functions
 typedef struct FileLockToken FileLockToken;
 
-Unicode FileLock_TokenPathName(const FileLockToken *fileLockToken);
+char *FileLock_TokenPathName(const FileLockToken *fileLockToken);
 
-FileLockToken *FileLock_Lock(ConstUnicode filePath,
+FileLockToken *FileLock_Lock(const char *filePath,
                              const Bool readOnly,
                              const uint32 msecMaxWaitTime,
                              int *err,
@@ -62,15 +62,15 @@ Bool FileLock_Unlock(const FileLockToken *lockToken,
                      int *err,
                      MsgList **msgs);
 
-Bool FileLock_IsLocked(ConstUnicode filePath,
+Bool FileLock_IsLocked(const char *filePath,
                        int *err,
                        MsgList **msgs);
 
-Bool FileLock_Remove(ConstUnicode filePath,
+Bool FileLock_Remove(const char *filePath,
                      int *err,
                      MsgList **msgs);
 
-Bool FileLock_CleanupVM(ConstUnicode cfgfilePath,
+Bool FileLock_CleanupVM(const char *cfgfilePath,
                         int *err,
                         MsgList **msgs);
 

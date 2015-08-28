@@ -74,6 +74,14 @@
 #define VRM_HOTFIX_FILE_EXTENSION "vmhf"      // ACE hotfix response
 
 /*
+ * VM Download.
+ */
+
+#define RVM_DOWNLOAD_FILE_EXTENSION "vmdownload"    // Downloaded file
+#define RVM_STATE_FILE_EXTENSION "vmstate"          // Download metadata
+#define DOWNLOAD_BUNDLE_FILE_EXTENSION "vmdownload" // VM download bundle directory
+
+/*
  * Other file types.
  */
 

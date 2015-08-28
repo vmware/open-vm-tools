@@ -16,31 +16,31 @@
 #
 ##########################################################
 
-proto.attack = "Möglicher Angriff auf die Sicherheit!  Anforderungstyp %1$d hat einen userName (%2$s), der nicht dem Pipe-Eigentümer (%3$s) entspricht!"
+proto.attack = "Möglicher Sicherheitsangriff!  Der Anfragetyp %1$d verfügt über einen Benutzernamen (%2$s), der nicht mit dem Pipe-Eigentümer (%3$s) übereinstimmt!"
 
-validate.samlBearer.fail = "Fehler bei Validierung des SAML-Bearer-Tokens: %1$d"
+validate.samlBearer.fail = "Die Überprüfung des SAML-Träger-Token ist fehlgeschlagen: %1$d"
 
-validate.samlBearer.success = "Validiertes SAML-Bearer-Token für Benutzer '%1$s'"
+validate.samlBearer.success = "Überprüfter SAML-Träger-Token für den Benutzer '%1$s'"
 
-alias.addid = "Alias hinzugefügt zu Aliasspeicher von '%1$s' durch Benutzer '%2$s'"
+alias.addid = "Dem Aliasspeicher im Eigentum von '%1$s' durch den Benutzer '%2$s' hinzugefügtes Alias"
 
-alias.dir.badperm = "Aliasspeicherverzeichnis '%1$s' weist einen falschen Eigentümer oder falsche Berechtigungen auf.  Alle derzeit in '%2$s' gespeicherten Aliase stehen nicht zur Authentifizierung zur Verfügung."
+alias.dir.badperm = "Das Aliasspeicherverzeichnis '%1$s' verfügt über unzulässige Eigentümer oder Berechtigungen. Alle aktuell in '%2$s' gespeicherte Aliase stehen für die Authentifizierung nicht zur Verfügung"
 
-alias.dir.notadir = "Aliasspeicherverzeichnis '%1$s' ist vorhanden, aber kein Verzeichnis."
+alias.dir.notadir = "Das Aliasspeicherverzeichnis '%1$s' ist vorhanden, ist aber kein Verzeichnis"
 
-alias.dir.renamefail = "Fehler beim Umbenennen des zweifelhaften Aliasspeicherverzeichnisses '%1$s' in '%2$s'"
+alias.dir.renamefail = "Das Umbenennen des verdächtigen Aliasspeicherverzeichnisses '%1$s' in '%2$s' ist fehlgeschlagen"
 
 
-alias.alias.badfile = "Der Aliasspeicher '%1$s' ist vorhanden, ist aber keine reguläre Datei.  Die Aliase für Benutzer '%2$s' stehen nicht zur Authentifizierung zur Verfügung."
+alias.alias.badfile = "Der Aliasspeicher '%1$s' ist vorhanden, ist aber keine ordnungsgemäße Datei. Die Aliase für den Benutzer '%2$s' stehen für die Authentifizierung nicht zur Verfügung"
 
-alias.alias.badperm = "Der Aliasspeicher '%1$s' weist einen falschen Eigentümer oder falsche Berechtigungen auf.  Die Aliase für Benutzer '%2$s' stehen nicht zur Authentifizierung zur Verfügung."
+alias.alias.badperm = "Der Aliasspeicher '%1$s' verfügt über unzulässige Eigentümer oder Berechtigungen. Die Aliase für den Benutzer '%2$s' stehen für die Authentifizierung nicht zur Verfügung"
 
-alias.alias.rename = "Zweifelhafter Aliasspeicher '%1$s' umbenannt in '%2$s'"
+alias.alias.rename = "Der verdächtige Aliasspeicher '%1$s' wurde in '%2$s' umbenannt"
 
-alias.alias.renamefail = "Fehler beim Umbenennen des zweifelhaften Aliasspeichers '%1$s' in '%2$s'"
+alias.alias.renamefail = "Das Umbenennen des verdächtigen Aliasspeichers '%1$s' in '%2$s' ist fehlgeschlagen"
 
-alias.mapfile.badperm = "Die Zuordnungsdatei des Aliasspeichers '%1$s' weist einen falschen Eigentümer oder falsche Berechtigungen auf.  Die Aliase in der Zuordnungsdatei stehen nicht zur Authentifizierung zur Verfügung."
+alias.mapfile.badperm = "Die Zuordungsdatei '%1$s' des Aliasspeichers verfügt über unzulässige Eigentümer oder Berechtigungen. Die Aliase in der Zuordnungsdatei stehen für eine Authentifizierung nicht zur Verfügung"
 
-alias.mapping.badfile = "Die Zuordnungsdatei '%1$s' ist vorhanden, aber keine reguläre Datei.  Die Aliase in der Zuordnungsdatei stehen nicht zur Authentifizierung zur Verfügung."
+alias.mapping.badfile = "Die Zuordnungsdatei '%1$s' ist vorhanden, ist aber keine ordnungsgemäße Datei. Die Aliase in der Zuordnungsdatei stehen für eine Authentifizierung nicht zur Verfügung"
 
-alias.removeid = "Alias gelöscht aus Aliasspeicher von '%1$s' durch Benutzer '%2$s'"
+alias.removeid = "Das Alias wurde aus dem Aliasspeicher im Eigentum von '%1$s' durch den Benutzer '%2$s' entfernt"

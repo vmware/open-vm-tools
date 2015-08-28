@@ -66,7 +66,7 @@ AuthToken Auth_AuthenticateSelf(void);
 
 #endif
 
-AuthToken Auth_AuthenticateUser(ConstUnicode user, ConstUnicode pass);
+AuthToken Auth_AuthenticateUser(const char *user, const char *pass);
 
 void Auth_CloseToken(AuthToken token);
 

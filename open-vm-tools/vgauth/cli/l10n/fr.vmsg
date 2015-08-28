@@ -16,62 +16,60 @@
 #
 ##########################################################
 
-addsubj.fail = "%1$s : Échec de l'ajout de l'alias pour l'utilisateur '%2$s' : %3$s.\n"
-addsubj.success = "%1$s : alias ajouté\n"
+addsubj.fail = "%1$s : échec de l'ajout de l'alias pour l'utilisateur '%2$s' : %3$s.\n"
+addsubj.success = "%1$s : alias ajouté\n"
 
-addoptions.comment = "commentaire de l'objet"
+addoptions.comment = "commentaire sur le sujet"
 
-addoptions.file = "Nom du fichier PEM"
+addoptions.file = "Nom de fichier PEM"
 
 addoptions.global = "Ajouter le certificat au fichier de mappage global"
 
-addoptions.subject = "L'objet SAML"
+addoptions.subject = "Le sujet SAML"
 
-addoptions.username = "Utilisateur dont le magasin de certificats est en train d'être ajouté"
+addoptions.username = "Utilisateur dont le magasin de certificats est ajouté à"
 
-addoptions.verbose = "Opération détaillée"
+addoptions.verbose = "Opération en mode détaillé"
 
 
-cmdline.parse = "Échec de l'analyse de ligne de commande"
+cmdline.parse = "Échec de l'analyse de la ligne de commande"
 
 cmdline.summary.pemfile = "Fichier PEM"
-cmdline.summary.subject = "objet"
+cmdline.summary.subject = "sujet"
 cmdline.summary.username = "nom d'utilisateur"
 cmdline.summary.comm = "commentaire"
 
 list.comment = "Commentaire"
-list.count = "%1$s A trouvé %2$d alias pour l'utilisateur '%3$s'\n"
+list.count = "%1$s a trouvé %2$d alias pour l'utilisateur '%3$s'\n"
 
-list.error = "%1$s : impossible de lister les alias pour l'utilisateur '%2$s' : %3$s.\n"
-list.subject = "Objet"
+list.error = "%1$s : échec de la création de la liste d'alias pour l'utilisateur '%2$s' : %3$s.\n"
+list.subject = "Sujet"
 
-listmapped.count = "%1$s A trouvé %2$d alias mappés\n"
+listmapped.count = "%1$s a trouvé %2$d alias mappés\n"
 
-listmapped.error = "%1$s : impossible de lister les alias mappés : %2$s.\n"
+listmapped.error = "%1$s : échec de la création de la liste d'alias mappés : %2$s.\n"
 
-listmapped.subject = "Objet"
+listmapped.subject = "Sujet"
 
 listmapped.username = "Nom d'utilisateur"
 
-listoptions.username =
-         "Utilisateur dont le magasin de certificats est en cours d'interrogation"
+listoptions.username = "Utilisateur dont le magasin de certificats est interrogé"
 
-listoptions.verbose = "Opération détaillée"
+listoptions.verbose = "Opération en mode détaillé"
 
-loadfile.fail = "%1$s : impossible de lire le fichier PEM '%2$s'\n"
+loadfile.fail = "%1$s : impossible de lire le fichier PEM '%2$s'\n"
 
-name.any = "<ANY>"
+name.any = "<QUELCONQUE>"
 
-removesubj.fail = "%1$s : impossible de supprimer l'alias pour l'utilisateur '%2$s' : %3$s.\n"
+removesubj.fail = "%1$s : échec de la suppression de l'alias pour l'utilisateur '%2$s' : %3$s.\n"
 
-removesubj.success = "%1$s : alias supprimé\n"
+removesubj.success = "%1$s : alias supprimé\n"
 
-removeoptions.file = "Nom du fichier PEM"
+removeoptions.file = "Nom de fichier PEM"
 
-removeoptions.subject = "L'objet SAML"
-removeoptions.username =
-             "Utilisateur dont le magasin de certificat est en cours de suppression"
+removeoptions.subject = "Le sujet SAML"
+removeoptions.username = "Utilisateur dont le magasin de certificats est supprimé de"
 
-removeoptions.verbose = "Opération détaillée"
+removeoptions.verbose = "Opération en mode détaillé"
 
 vgauth.init.failed = "Échec de l'initialisation de VGAuth"

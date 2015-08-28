@@ -80,7 +80,7 @@
  * bumped for this release, so instead I'm going to assume that appearance with
  * that release of a new macro, RES_F_DNS0ERR, implies this API is available.
  * (For internal builds, we'll know instantly when a build breaks.  The down-
- * side is that this could cause some trouble for Open VM Tools users. ,_,)
+ * side is that this could cause some trouble for open-vm-tools users. ,_,)
  *
  * resolv.h version     IPv6 API        __RES
  * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

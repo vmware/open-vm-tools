@@ -21,6 +21,9 @@ libhgfs_la_LIBADD =
 libhgfs_la_LIBADD += ../lib/hgfs/libHgfs.la
 libhgfs_la_LIBADD += ../lib/hgfsHelper/libHgfsHelper.la
 libhgfs_la_LIBADD += ../lib/hgfsServer/libHgfsServer.la
+if HAVE_GTKMM
+libhgfs_la_LIBADD += ../lib/hgfsUri/libHgfsUri.la
+endif
 libhgfs_la_LIBADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.la
 libhgfs_la_LIBADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.la
 libhgfs_la_LIBADD += @GLIB2_LIBS@

@@ -16,31 +16,31 @@
 #
 ##########################################################
 
-proto.attack = "可能存在安全攻击! 请求类型 %1$d 所具有的用户名 (%2$s) 与管道所有者 (%3$s) 不相符!"
+proto.attack = "可能发生安全攻击! 请求类型 %1$d 具有的 userName (%2$s)与管道所有者(%3$s)不匹配!"
 
-validate.samlBearer.fail = "SAML 持有者令牌的验证失败: %1$d"
+validate.samlBearer.fail = "SAML 持有者令牌验证失败: %1$d"
 
-validate.samlBearer.success = "已验证了用户“%1$s”的 SAML 持有者令牌"
+validate.samlBearer.success = "已验证用户“%1$s”的 SAML 持有者令牌"
 
-alias.addid = "用户“%2$s”已将别名添加至由“%1$s”所有的别名库"
+alias.addid = "用户“%2$s”已将别名添加到“%1$s”拥有的别名存储中"
 
-alias.dir.badperm = "别名库目录“%1$s”的所有者或权限不正确。“%2$s”中当前存储的任何别名均不可用于进行身份验证"
+alias.dir.badperm = "别名存储目录“%1$s”具有不正确的所有者或权限。无法使用当前在“%2$s”中存储的任何别名进行身份验证"
 
-alias.dir.notadir = "别名库目录“%1$s”已存在，但不是一个目录"
+alias.dir.notadir = "别名存储目录“%1$s”已存在，但不是一个目录"
 
-alias.dir.renamefail = "未能将可疑的别名库目录“%1$s”重命名为“%2$s”"
+alias.dir.renamefail = "无法将可疑别名存储目录“%1$s”重命名为“%2$s”"
 
 
-alias.alias.badfile = "别名库“%1$s”已存在，但不是一个常规文件。用户“%2$s”的别名将不可用于进行身份验证"
+alias.alias.badfile = "别名存储“%1$s”已存在，但不是一个常规文件。无法使用用户“%2$s”的别名进行身份验证"
 
-alias.alias.badperm = "别名库“%1$s”的所有者或权限不正确。用户“%2$s”的别名将不可用于进行身份验证"
+alias.alias.badperm = "别名存储“%1$s”具有不正确的所有者或权限。无法使用用户“%2$s”的别名进行身份验证"
 
-alias.alias.rename = "可疑的别名库“%1$s”已重命名为“%2$s”"
+alias.alias.rename = "已将可疑别名存储“%1$s”重命名为“%2$s”"
 
-alias.alias.renamefail = "未能将可疑的别名库“%1$s”重命名为“%2$s”"
+alias.alias.renamefail = "无法将可疑别名存储“%1$s”重命名为“%2$s”"
 
-alias.mapfile.badperm = "别名库映射文件“%1$s”的所有者或权限不正确。映射文件中的别名将不可用于进行身份验证"
+alias.mapfile.badperm = "别名存储映射文件“%1$s”具有不正确的所有者或权限。无法使用映射文件中的别名进行身份验证"
 
-alias.mapping.badfile = "映射文件“%1$s”已存在，但不是一个常规文件。映射文件中的别名将不可用于进行身份验证"
+alias.mapping.badfile = "映射文件“%1$s”已存在，但不是一个常规文件。无法使用映射文件中的别名进行身份验证"
 
-alias.removeid = "用户“%2$s”已将别名从“%1$s”所拥有的别名库中删除"
+alias.removeid = "用户“%2$s”已从“%1$s”拥有的别名存储中删除别名"

@@ -147,6 +147,15 @@ typedef struct TimeSyncData {
    GSource           *timer;
 } TimeSyncData;
 
+/*
+ * See bug 1395378
+ * Set default value to FALSE. This serves two purposes.
+ * 1) If the VMX is current, it would send the value derived from the vmx
+ *    configuration and override this value.
+ * 2) If the VMX is old, the default value shall allow us not to roll back
+ *    the guest clock when tools starts up.
+ */
+gboolean gTimeSyncToolsStartupAllowBackward = FALSE;
 
 static void TimeSyncSetSlewState(TimeSyncData *data, gboolean active);
 static void TimeSyncResetSlew(TimeSyncData *data);
@@ -836,6 +845,10 @@ TimeSyncSetOption(gpointer src,
          }
       }
 
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_STARTUP_BACKWARD) == 0) {
+      if (!ParseBoolOption(value, &gTimeSyncToolsStartupAllowBackward)) {
+         return FALSE;
+      }
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_STARTUP) == 0) {
       static gboolean doneAlready = FALSE;
       gboolean doSync;
@@ -845,7 +858,8 @@ TimeSyncSetOption(gpointer src,
       }
 
       if (doSync && !doneAlready &&
-          !TimeSyncDoSync(data->slewCorrection, TRUE, TRUE, data)) {
+          !TimeSyncDoSync(data->slewCorrection, TRUE,
+                          gTimeSyncToolsStartupAllowBackward, data)) {
          g_warning("Unable to sync time during startup.\n");
          return FALSE;
       }
@@ -932,4 +946,3 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    return &regData;
 }
-

@@ -4,28 +4,31 @@ This is an attempt to describe the VmBackup state machine using ASCII diagrams.
 
 The main state machine, implemented in stateMachine.c, works as follows:
 
-         -------------> IDLE <-----------|
-         |                |              |
-         | b, e           | a            |
-         |                |              |
-         |        e      \/              |
-   SCRIPT_ERROR <--- SCRIPT_FREEZE       |
-         ^                |              |
-         | d              | b            |
-         |        e      \/              | b, e
-    SYNC_ERROR <----- SYNC_FREEZE        |
-         ^                |              |
-         |                | c            |
-         |     e         \/              |
-         |-----------  SYNC_THAW         |
-                          |              |
-                          | d            |
-                         \/              |
-                      SCRIPT_THAW --------
+         -------------------> IDLE <-----------|
+         |                      |              |
+         | b, e                 | a            |
+         |                      |              |
+         |        e            \/              |
+   SCRIPT_ERROR <--------- SCRIPT_FREEZE       |
+         ^                   | b'    |         |
+         |      e           \/       |         |
+    SYNC_ERROR <-- SYNC_FREEZE_WAIT  |         |
+         | d                 | b     | b       |
+         |        e         \/      \/         | b, e
+    SYNC_ERROR <----------- SYNC_FREEZE        |
+         ^                      |              |
+         |                      | c            |
+         |     e               \/              |
+         |------------------ SYNC_THAW         |
+                                |              |
+                                | d            |
+                               \/              |
+                            SCRIPT_THAW --------
 
 The transitions mean the following events / conditions:
 
 a. vmbackup.start RPC
+   b'. vmbackup operation is running in background (Linux specific)
 b. vmbackup operation is finished
 c. vmbackup.snapshotDone RPC
 d. sync provider operation is finished

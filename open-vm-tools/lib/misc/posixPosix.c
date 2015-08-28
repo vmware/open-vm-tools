@@ -108,9 +108,9 @@ EXTERN int truncate(const char *, off_t);
  */
 
 int
-Posix_Open(ConstUnicode pathName,  // IN:
-           int flags,              // IN:
-           ...)                    // IN:
+Posix_Open(const char *pathName,  // IN:
+           int flags,             // IN:
+           ...)                   // IN:
 {
    char *path;
    mode_t mode = 0;
@@ -162,8 +162,8 @@ Posix_Open(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Creat(ConstUnicode pathName,  // IN:
-            mode_t mode)            // IN:
+Posix_Creat(const char *pathName,  // IN:
+            mode_t mode)           // IN:
 {
    return Posix_Open(pathName, O_CREAT | O_WRONLY | O_TRUNC, mode);
 }
@@ -186,8 +186,8 @@ Posix_Creat(ConstUnicode pathName,  // IN:
  */
 
 FILE *
-Posix_Fopen(ConstUnicode pathName,  // IN:
-            const char *mode)       // IN:
+Posix_Fopen(const char *pathName,  // IN:
+            const char *mode)      // IN:
 {
    char *path;
    FILE *stream;
@@ -224,8 +224,8 @@ Posix_Fopen(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Stat(ConstUnicode pathName,  // IN:
-           struct stat *statbuf)   // IN:
+Posix_Stat(const char *pathName,  // IN:
+           struct stat *statbuf)  // IN:
 {
    char *path;
    int ret;
@@ -260,8 +260,8 @@ Posix_Stat(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Chmod(ConstUnicode pathName,  // IN:
-            mode_t mode)            // IN:
+Posix_Chmod(const char *pathName,  // IN:
+            mode_t mode)           // IN:
 {
    char *path;
    int ret;
@@ -295,8 +295,8 @@ Posix_Chmod(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Rename(ConstUnicode fromPathName,  // IN:
-             ConstUnicode toPathName)    // IN:
+Posix_Rename(const char *fromPathName,  // IN:
+             const char *toPathName)    // IN:
 {
    char *toPath;
    char *fromPath;
@@ -336,7 +336,7 @@ Posix_Rename(ConstUnicode fromPathName,  // IN:
  */
 
 int
-Posix_Unlink(ConstUnicode pathName)  // IN:
+Posix_Unlink(const char *pathName)  // IN:
 {
    char *path;
    int ret;
@@ -370,7 +370,7 @@ Posix_Unlink(ConstUnicode pathName)  // IN:
  */
 
 int
-Posix_Rmdir(ConstUnicode pathName)  // IN:
+Posix_Rmdir(const char *pathName)  // IN:
 {
    char *path;
    int ret;
@@ -405,9 +405,9 @@ Posix_Rmdir(ConstUnicode pathName)  // IN:
  */
 
 FILE *
-Posix_Freopen(ConstUnicode pathName,  // IN:
-              const char *mode,       // IN:
-              FILE *input_stream)     // IN:
+Posix_Freopen(const char *pathName,  // IN:
+              const char *mode,      // IN:
+              FILE *input_stream)    // IN:
 {
    char *path;
    FILE *stream;
@@ -443,8 +443,8 @@ Posix_Freopen(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Access(ConstUnicode pathName,  // IN:
-             int mode)               // IN:
+Posix_Access(const char *pathName,  // IN:
+             int mode)              // IN:
 {
    char *path;
    int ret;
@@ -491,8 +491,8 @@ Posix_Access(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_EuidAccess(ConstUnicode pathName,  // IN:
-                 int mode)               // IN:
+Posix_EuidAccess(const char *pathName,  // IN:
+                 int mode)              // IN:
 {
 #if defined(GLIBC_VERSION_24)
    char *path;
@@ -531,7 +531,7 @@ Posix_EuidAccess(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Utime(ConstUnicode pathName,        // IN:
+Posix_Utime(const char *pathName,         // IN:
             const struct utimbuf *times)  // IN:
 {
    char *path;
@@ -567,7 +567,7 @@ Posix_Utime(ConstUnicode pathName,        // IN:
  */
 
 void
-Posix_Perror(ConstUnicode str)  // IN:
+Posix_Perror(const char *str)  // IN:
 {
    char *tmpstr = Unicode_GetAllocBytes(str, STRING_ENCODING_DEFAULT);
 
@@ -595,8 +595,8 @@ Posix_Perror(ConstUnicode str)  // IN:
  */
 
 long
-Posix_Pathconf(ConstUnicode pathName,  // IN:
-               int name)               // IN:
+Posix_Pathconf(const char *pathName,  // IN:
+               int name)              // IN:
 {
    char *path;
    long ret;
@@ -631,8 +631,8 @@ Posix_Pathconf(ConstUnicode pathName,  // IN:
  */
 
 FILE *
-Posix_Popen(ConstUnicode pathName,  // IN:
-            const char *mode)       // IN:
+Posix_Popen(const char *pathName,  // IN:
+            const char *mode)      // IN:
 {
    char *path;
    FILE *stream;
@@ -669,9 +669,9 @@ Posix_Popen(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Mknod(ConstUnicode pathName,  // IN:
-            mode_t mode,            // IN:
-            dev_t dev)              // IN:
+Posix_Mknod(const char *pathName,  // IN:
+            mode_t mode,           // IN:
+            dev_t dev)             // IN:
 {
    char *path;
    int ret;
@@ -706,9 +706,9 @@ Posix_Mknod(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Chown(ConstUnicode pathName,  // IN:
-            uid_t owner,            // IN:
-            gid_t group)            // IN:
+Posix_Chown(const char *pathName,  // IN:
+            uid_t owner,           // IN:
+            gid_t group)           // IN:
 {
    char *path;
    int ret;
@@ -743,9 +743,9 @@ Posix_Chown(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Lchown(ConstUnicode pathName,  // IN:
-             uid_t owner,            // IN:
-             gid_t group)            // IN:
+Posix_Lchown(const char *pathName,  // IN:
+             uid_t owner,           // IN:
+             gid_t group)           // IN:
 {
    char *path;
    int ret;
@@ -780,8 +780,8 @@ Posix_Lchown(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Link(ConstUnicode pathName1,  // IN:
-           ConstUnicode pathName2)  // IN:
+Posix_Link(const char *pathName1,  // IN:
+           const char *pathName2)  // IN:
 {
    char *path1;
    char *path2;
@@ -823,8 +823,8 @@ Posix_Link(ConstUnicode pathName1,  // IN:
  */
 
 int
-Posix_Symlink(ConstUnicode pathName1,  // IN:
-              ConstUnicode pathName2)  // IN:
+Posix_Symlink(const char *pathName1,  // IN:
+              const char *pathName2)  // IN:
 {
    char *path1;
    char *path2;
@@ -866,8 +866,8 @@ Posix_Symlink(ConstUnicode pathName1,  // IN:
  */
 
 int
-Posix_Mkfifo(ConstUnicode pathName,  // IN:
-             mode_t mode)            // IN:
+Posix_Mkfifo(const char *pathName,  // IN:
+             mode_t mode)           // IN:
 {
    char *path;
    int ret;
@@ -902,8 +902,8 @@ Posix_Mkfifo(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Truncate(ConstUnicode pathName,  // IN:
-               off_t length)           // IN:
+Posix_Truncate(const char *pathName,  // IN:
+               off_t length)          // IN:
 {
    char *path;
    int ret;
@@ -938,7 +938,7 @@ Posix_Truncate(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Utimes(ConstUnicode pathName,        // IN:
+Posix_Utimes(const char *pathName,         // IN:
              const struct timeval *times)  // IN:
 {
    char *path;
@@ -974,8 +974,9 @@ Posix_Utimes(ConstUnicode pathName,        // IN:
  */
 
 int
-Posix_Execl(ConstUnicode pathName,   // IN:
-            ConstUnicode arg0, ...)  // IN:
+Posix_Execl(const char *pathName,  // IN:
+            const char *arg0,      // IN:
+            ...)                   // IN:
 {
    int ret = -1;
    char *path;
@@ -1052,9 +1053,9 @@ exit:
  */
 
 int
-Posix_Execlp(ConstUnicode fileName,  // IN:
-             ConstUnicode arg0,      // IN:
-             ...)                    // IN:
+Posix_Execlp(const char *fileName,  // IN:
+             const char *arg0,      // IN:
+             ...)                   // IN:
 {
    int ret = -1;
    char *file;
@@ -1131,8 +1132,8 @@ exit:
  */
 
 int
-Posix_Execv(ConstUnicode pathName,   // IN:
-            Unicode const argVal[])  // IN:
+Posix_Execv(const char *pathName,  // IN:
+            char *const argVal[])  // IN:
 {
    int ret = -1;
    char *path;
@@ -1175,9 +1176,9 @@ exit:
  */
 
 int
-Posix_Execve(ConstUnicode pathName,   // IN:
-	     Unicode const argVal[],  // IN:
-             Unicode const envPtr[])  // IN:
+Posix_Execve(const char *pathName,  // IN:
+	     char *const argVal[],  // IN:
+             char *const envPtr[])  // IN:
 {
    int ret = -1;
    char *path;
@@ -1227,8 +1228,8 @@ exit:
  */
 
 int
-Posix_Execvp(ConstUnicode fileName,   // IN:
-             Unicode const argVal[])  // IN:
+Posix_Execvp(const char *fileName,   // IN:
+             char *const argVal[])  // IN:
 {
    int ret = -1;
    char *file;
@@ -1270,7 +1271,7 @@ exit:
  */
 
 int
-Posix_System(ConstUnicode command)  // IN:
+Posix_System(const char *command)  // IN:
 {
    char *tmpcommand;
    int ret;
@@ -1305,8 +1306,8 @@ Posix_System(ConstUnicode command)  // IN:
  */
 
 int
-Posix_Mkdir(ConstUnicode pathName,  // IN:
-            mode_t mode)            // IN:
+Posix_Mkdir(const char *pathName,  // IN:
+            mode_t mode)           // IN:
 {
    char *path;
    int ret;
@@ -1341,7 +1342,7 @@ Posix_Mkdir(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Chdir(ConstUnicode pathName)  // IN:
+Posix_Chdir(const char *pathName)  // IN:
 {
    char *path;
    int ret;
@@ -1375,8 +1376,8 @@ Posix_Chdir(ConstUnicode pathName)  // IN:
  *----------------------------------------------------------------------
  */
 
-Unicode
-Posix_RealPath(ConstUnicode pathName)  // IN:
+char *
+Posix_RealPath(const char *pathName)  // IN:
 {
    char *path;
    char rpath[PATH_MAX];
@@ -1411,11 +1412,11 @@ Posix_RealPath(ConstUnicode pathName)  // IN:
  *----------------------------------------------------------------------
  */
 
-Unicode
-Posix_ReadLink(ConstUnicode pathName)  // IN:
+char *
+Posix_ReadLink(const char *pathName)  // IN:
 {
    char *path = NULL;
-   Unicode result = NULL;
+   char *result = NULL;
 
    if (PosixConvertToCurrent(pathName, &path)) {
       size_t size = 2 * 1024;
@@ -1465,8 +1466,8 @@ Posix_ReadLink(ConstUnicode pathName)  // IN:
  */
 
 int
-Posix_Lstat(ConstUnicode pathName,  // IN:
-            struct stat *statbuf)   // IN:
+Posix_Lstat(const char *pathName,  // IN:
+            struct stat *statbuf)  // IN:
 {
    char *path;
    int ret;
@@ -1501,7 +1502,7 @@ Posix_Lstat(ConstUnicode pathName,  // IN:
  */
 
 DIR *
-Posix_OpenDir(ConstUnicode pathName)  // IN:
+Posix_OpenDir(const char *pathName)  // IN:
 {
    char *path;
    DIR *ret;
@@ -1536,8 +1537,8 @@ Posix_OpenDir(ConstUnicode pathName)  // IN:
  *----------------------------------------------------------------------
  */
 
-Unicode
-Posix_Getenv(ConstUnicode name)  // IN:
+char *
+Posix_Getenv(const char *name)  // IN:
 {
    char *rawName;
    char *rawValue;
@@ -1576,7 +1577,7 @@ Posix_Getenv(ConstUnicode name)  // IN:
  */
 
 int
-Posix_Putenv(Unicode name)  // IN:
+Posix_Putenv(char *name)  // IN:
 {
    ASSERT(Unicode_IsBufferValid(name, -1, STRING_ENCODING_US_ASCII));
 
@@ -1604,7 +1605,7 @@ Posix_Putenv(Unicode name)  // IN:
  */
 
 int
-Posix_Statfs(ConstUnicode pathName,     // IN:
+Posix_Statfs(const char *pathName,      // IN:
              struct statfs *statfsbuf)  // IN:
 {
    char *path;
@@ -1641,9 +1642,9 @@ Posix_Statfs(ConstUnicode pathName,     // IN:
  */
 
 int
-Posix_Setenv(ConstUnicode name,   // IN:
-             ConstUnicode value,  // IN:
-             int overWrite)       // IN:
+Posix_Setenv(const char *name,   // IN:
+             const char *value,  // IN:
+             int overWrite)      // IN:
 {
    int ret = -1;
    char *rawName = NULL;
@@ -1726,7 +1727,7 @@ exit:
  */
 
 void
-Posix_Unsetenv(ConstUnicode name)  // IN:
+Posix_Unsetenv(const char *name)  // IN:
 {
    char *rawName;
 
@@ -1764,8 +1765,8 @@ Posix_Unsetenv(ConstUnicode name)  // IN:
  */
 
 int
-Posix_Mount(ConstUnicode source,         // IN:
-            ConstUnicode target,         // IN:
+Posix_Mount(const char *source,          // IN:
+            const char *target,          // IN:
             const char *filesystemtype,  // IN:
             unsigned long mountflags,    // IN:
             const void *data)            // IN:
@@ -1809,7 +1810,7 @@ exit:
  */
 
 int
-Posix_Umount(ConstUnicode target)  // IN:
+Posix_Umount(const char *target)  // IN:
 {
    char *tmptarget;
    int ret;
@@ -1844,8 +1845,8 @@ Posix_Umount(ConstUnicode target)  // IN:
  */
 
 FILE *
-Posix_Setmntent(ConstUnicode pathName,  // IN:
-                const char *mode)       // IN:
+Posix_Setmntent(const char *pathName,  // IN:
+                const char *mode)      // IN:
 {
 #if defined NO_SETMNTENT
    NOT_IMPLEMENTED();
@@ -2090,11 +2091,11 @@ exit:
  */
 
 int
-Posix_Printf(ConstUnicode format,  // IN:
-             ...)                  // IN:
+Posix_Printf(const char *format,  // IN:
+             ...)                 // IN:
 {
    va_list args;
-   Unicode output;
+   char *output;
    char *outCurr;
    int numChars;
 
@@ -2132,12 +2133,12 @@ Posix_Printf(ConstUnicode format,  // IN:
  */
 
 int
-Posix_Fprintf(FILE *stream,         // IN:
-              ConstUnicode format,  // IN:
-              ...)                  // IN:
+Posix_Fprintf(FILE *stream,        // IN:
+              const char *format,  // IN:
+              ...)                 // IN:
 {
    va_list args;
-   Unicode output;
+   char *output;
    char *outCurr;
    int nOutput;
 
@@ -2230,10 +2231,10 @@ Posix_Getmntent(FILE *fp,           // IN:
  *----------------------------------------------------------------------
  */
 
-Unicode
-Posix_MkTemp(ConstUnicode pathName)  // IN:
+char *
+Posix_MkTemp(const char *pathName)  // IN:
 {
-   Unicode result = NULL;
+   char *result = NULL;
    char *path;
    int fd;
 

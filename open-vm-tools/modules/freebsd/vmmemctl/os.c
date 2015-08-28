@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -544,9 +544,12 @@ os_balloonobject_create(void)
  */
 
 PageHandle
-OS_ReservedPageAlloc(int canSleep) // IN
+OS_ReservedPageAlloc(int canSleep,    // IN
+                     int isLargePage) // IN
 {
    vm_page_t page;
+
+   ASSERT(!isLargePage);
 
    page = os_kmem_alloc(canSleep);
    if (page == NULL) {
@@ -574,8 +577,11 @@ OS_ReservedPageAlloc(int canSleep) // IN
  */
 
 void
-OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
+OS_ReservedPageFree(PageHandle handle, // IN: A valid page handle
+                    int isLargePage)   // IN
 {
+   ASSERT(!isLargePage);
+
    os_kmem_free((vm_page_t)handle);
 }
 
@@ -807,16 +813,16 @@ vmmemctl_sysctl(SYSCTL_HANDLER_ARGS)
                    stats->timer,
                    stats->start, stats->startFail,
                    stats->guestType, stats->guestTypeFail,
-                   stats->lock,  stats->lockFail,
-                   stats->unlock, stats->unlockFail,
+                   stats->lock[FALSE],  stats->lockFail[FALSE],
+                   stats->unlock[FALSE], stats->unlockFail[FALSE],
                    stats->target, stats->targetFail,
                    stats->primAlloc[BALLOON_PAGE_ALLOC_NOSLEEP],
                    stats->primAllocFail[BALLOON_PAGE_ALLOC_NOSLEEP],
                    stats->primAlloc[BALLOON_PAGE_ALLOC_CANSLEEP],
                    stats->primAllocFail[BALLOON_PAGE_ALLOC_CANSLEEP],
-                   stats->primFree,
-                   stats->primErrorPageAlloc,
-                   stats->primErrorPageFree);
+                   stats->primFree[FALSE],
+                   stats->primErrorPageAlloc[FALSE],
+                   stats->primErrorPageFree[FALSE]);
 
    return SYSCTL_OUT(req, buf, len + 1);
 }

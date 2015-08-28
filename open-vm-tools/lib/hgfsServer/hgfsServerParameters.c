@@ -402,7 +402,7 @@ HgfsUnpackPacketParams(const void *packet,      // IN: HGFS packet
    ASSERT(NULL != packet);
 
    request = packet;
-   LOG(4, ("%s: Received a request with opcode %d.\n", __FUNCTION__, (int) request->op));
+   LOG(4, ("%s: Received a request with opcode %d.\n", __FUNCTION__, request->op));
 
    /*
     * Error out if less than HgfsRequest size.
@@ -466,6 +466,8 @@ HgfsUnpackPacketParams(const void *packet,      // IN: HGFS packet
    }
 
 exit:
+   LOG(4, ("%s: unpacked request(op %d, id %u) -> %u.\n", __FUNCTION__,
+           request->op, *requestId, unpackStatus));
    return unpackStatus;
 }
 
@@ -893,6 +895,7 @@ HgfsPackOpenReplyV3(HgfsFileOpenInfo *openInfo,   // IN: open info struct
 {
    reply->file = openInfo->file;
    reply->reserved = 0;
+   reply->flags = 0;
    if (openInfo->mask & HGFS_OPEN_VALID_SERVER_LOCK) {
       reply->acquiredLock = openInfo->acquiredLock;
    } else {
@@ -2477,7 +2480,7 @@ HgfsPackGetattrReplyPayloadV3(HgfsFileAttrInfo *attr,     // IN: attr stucture
                               uint32 utf8TargetNameLen,   // IN: file name length
                               HgfsReplyGetattrV3 *reply) // OUT: payload
 {
-   LOG(4, ("%s: attr type: %u\n", __FUNCTION__, reply->attr.type));
+   LOG(4, ("%s: attr type: %u\n", __FUNCTION__, attr->type));
 
    HgfsPackAttrV2(attr, &reply->attr);
    reply->reserved = 0;
@@ -4845,10 +4848,16 @@ HgfsUnpackSymlinkCreatePayloadV3(const HgfsRequestSymlinkCreateV3 *requestV3, //
                                srcNameLength,
                                srcFile,
                                srcCaseFlags)) {
-         HgfsFileNameV3 *targetName = (HgfsFileNameV3 *)(*srcFileName + 1 +
-                                                         *srcNameLength);
+         const HgfsFileNameV3 *targetName;
+
+         if (*srcUseHandle) {
+            targetName = &requestV3->targetName;
+         } else {
+            targetName = (const HgfsFileNameV3 *)(*srcFileName + 1 +
+                                                  *srcNameLength);
+         }
          prefixSize = ((char *)targetName - (char *)requestV3) +
-                       offsetof(HgfsFileNameV3, name);
+                        offsetof(HgfsFileNameV3, name);
 
          return HgfsUnpackFileNameV3(targetName,
                                      payloadSize - prefixSize,
@@ -5017,7 +5026,7 @@ static Bool
 HgfsUnpackSearchOpenPayload(const HgfsRequestSearchOpen *request, // IN: payload
                             size_t payloadSize,                   // IN: payload size
                             const char **dirName,                 // OUT: directory name
-                            uint32 *dirNameLength)                // OUT: name length
+                            size_t *dirNameLength)                // OUT: name length
 {
    LOG(4, ("%s: HGFS_OP_SEARCH_OPEN\n", __FUNCTION__));
    if (payloadSize >= sizeof *request) {
@@ -5054,20 +5063,30 @@ static Bool
 HgfsUnpackSearchOpenPayloadV3(const HgfsRequestSearchOpenV3 *requestV3, // IN: payload
                               size_t payloadSize,                       // IN: payload size
                               const char **dirName,                     // OUT: directory name
-                              uint32 *dirNameLength,                    // OUT: name length
+                              size_t *dirNameLength,                    // OUT: name length
                               uint32 *caseFlags)                        // OUT: case flags
 {
+   Bool result = FALSE;
    LOG(4, ("%s: HGFS_OP_SEARCH_OPEN_V3\n", __FUNCTION__));
    if (payloadSize >= sizeof *requestV3) {
-      if (sizeof *requestV3 + requestV3->dirName.length - 1 <= payloadSize) {
-         *dirName = requestV3->dirName.name;
-         *dirNameLength = requestV3->dirName.length;
-         *caseFlags = requestV3->dirName.flags;
-         return TRUE;
+      uint32 prefixSize = offsetof(HgfsRequestSearchOpenV3, dirName.name);
+      Bool useDirHandle;
+      HgfsHandle dirHandle;
+
+      result = HgfsUnpackFileNameV3(&requestV3->dirName,
+                                    payloadSize - prefixSize,
+                                    &useDirHandle,
+                                    dirName,
+                                    dirNameLength,
+                                    &dirHandle,
+                                    caseFlags);
+      if (useDirHandle) {
+         LOG(4, ("%s: client is trying to a handle %u\n", __FUNCTION__, dirHandle));
+         result = FALSE;
       }
    }
-   LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
-   return FALSE;
+   LOG(4, ("%s: returns %d\n", __FUNCTION__, result));
+   return result;
 }
 
 
@@ -5093,7 +5112,7 @@ HgfsUnpackSearchOpenRequest(const void *packet,      // IN: HGFS packet
                             size_t packetSize,       // IN: request packet size
                             HgfsOp op,               // IN: request type
                             const char **dirName,    // OUT: directory name
-                            uint32 *dirNameLength,   // OUT: name length
+                            size_t *dirNameLength,   // OUT: name length
                             uint32 *caseFlags)       // OUT: case flags
 {
    ASSERT(packet);
@@ -5898,7 +5917,7 @@ HgfsUnpackOplockBreakAckReply(const void *packet,            // IN: HGFS packet
    }
 
    if (!result) {
-      LOG(4, ("%s: Error unpacking packet\n", __FUNCTION__));
+      LOG(4, ("%s: Error unpacking HGFS_OP_OPLOCK_BREAK_V4 packet\n", __FUNCTION__));
    }
    return result;
 }
@@ -5921,7 +5940,7 @@ HgfsUnpackOplockBreakAckReply(const void *packet,            // IN: HGFS packet
  *-----------------------------------------------------------------------------
  */
 
-static size_t
+static int
 HgfsBuildCPName(char const *shareName,  // IN: utf8 share name
                 char *fileName,         // IN: utf8 file path
                 char **cpName)          // OUT: full name in cp format
@@ -5929,18 +5948,22 @@ HgfsBuildCPName(char const *shareName,  // IN: utf8 share name
    size_t shareNameLen = strlen(shareName) + 1;
    size_t fileNameLen = strlen(fileName) + 1;
    char *fullName = Util_SafeMalloc(shareNameLen + fileNameLen);
-   size_t result;
+   int cpNameResult;
 
    *cpName = Util_SafeMalloc(shareNameLen + fileNameLen);
    Str_Strcpy(fullName, shareName, shareNameLen);
    fullName[shareNameLen - 1] = DIRSEPC;
    Str_Strcpy(fullName + shareNameLen, fileName, fileNameLen);
 
-   result = CPName_ConvertTo(fullName, shareNameLen + fileNameLen, *cpName);
-   ASSERT(result > 0); // Unescaped name can't be longer then escaped thus it must fit.
+   // Unescaped name can't be longer then escaped thus it must fit.
+   cpNameResult = CPName_ConvertTo(fullName, shareNameLen + fileNameLen, *cpName);
    free(fullName);
+   if (cpNameResult < 0) {
+      free(*cpName);
+      *cpName = NULL;
+   }
 
-   return result;
+   return cpNameResult;
 }
 
 
@@ -6002,34 +6025,45 @@ HgfsPackChangeNotifyEventV4(uint32 mask,              // IN: event mask
                             size_t bufferSize,        // IN: available space
                             HgfsNotifyEventV4 *reply) // OUT: notificaiton buffer
 {
-   size_t totalLength;
+   size_t totalLength = 0;
 
    if (sizeof *reply > bufferSize) {
-      return 0;
+      /* Not enough space for the event, drop the event. */
+      goto exit;
    }
 
    reply->nextOffset = 0;
    reply->mask = mask;
    if (NULL != fileName) {
-      char *fullPath;
+      char *cpFullName;
       size_t remainingSize;
-      size_t nameSize;
       size_t hgfsNameSize;
+      int cpFullNameSize;
 
-      nameSize = HgfsBuildCPName(shareName, fileName, &fullPath);
-      remainingSize = bufferSize - offsetof(HgfsNotifyEventV4, fileName);
-      if (HgfsPackHgfsName(fullPath, nameSize, remainingSize, &hgfsNameSize,
-                           &reply->fileName)) {
-          remainingSize -= hgfsNameSize;
-          totalLength = bufferSize - remainingSize;
-      } else {
-         totalLength = 0;
+      cpFullNameSize = HgfsBuildCPName(shareName, fileName, &cpFullName);
+      if (cpFullNameSize < 0) {
+         /* Could not build the crossplatform name, drop the event. */
+         goto exit;
       }
-      free(fullPath);
+      remainingSize = bufferSize - offsetof(HgfsNotifyEventV4, fileName);
+      if (!HgfsPackHgfsName(cpFullName,
+                            cpFullNameSize,
+                            remainingSize,
+                            &hgfsNameSize,
+                            &reply->fileName)) {
+         /* Name would not fit, drop the event. */
+         free(cpFullName);
+         goto exit;
+      }
+      remainingSize -= hgfsNameSize;
+      totalLength = bufferSize - remainingSize;
+      free(cpFullName);
    } else {
       reply->fileName.length = 0;
       totalLength = sizeof *reply;
    }
+
+exit:
    return totalLength;
 }
 

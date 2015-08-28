@@ -33,6 +33,7 @@
 #include "vm_basic_types.h"
 #include "dbllnklst.h"
 
+#define TOOLS_WIPE_CANCEL "Wipe cancelled by user.\n"
 
 typedef enum {
    PARTITION_UNSUPPORTED = 0,

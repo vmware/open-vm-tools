@@ -41,6 +41,7 @@ typedef pthread_t MXUserThreadID;
 #endif
 
 #include "vm_basic_types.h"
+#include "vm_atomic.h"
 #include "vthreadBase.h"
 #include "hostinfo.h"
 
@@ -65,8 +66,6 @@ typedef struct {
    int              referenceCount;   // Acquisition count
    MXUserThreadID   nativeThreadID;   // Native thread ID
 } MXRecLock;
-
-extern VmTimeType mxUserContentionDurationFloor;
 
 
 /*
@@ -302,13 +301,27 @@ static INLINE void
 MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
                   int count)        // IN:
 {
+   int newCount = (lock->referenceCount += count);
+
    ASSERT(count >= 0);
 
-   if (MXRecLockCount(lock) == 0) {
+   if (LIKELY(newCount == count)) {
       MXRecLockSetOwner(lock);
    }
+}
 
-   lock->referenceCount += count;
+
+static INLINE void
+MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
+                  int count)        // IN:
+{
+   int newCount = (lock->referenceCount -= count);
+
+   ASSERT(count >= 0);
+
+   if (LIKELY(newCount == 0)) {
+      MXRecLockSetNoOwner(lock);
+   }
 }
 
 
@@ -318,7 +331,7 @@ MXRecLockAcquire(MXRecLock *lock,       // IN/OUT:
 {
    int err;
 
-   if ((MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
+   if (UNLIKELY(MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
       MXRecLockIncCount(lock, 1);
 
       if (duration != NULL) {
@@ -355,7 +368,7 @@ MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 {
    int err;
 
-   if ((MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
+   if (UNLIKELY(MXRecLockCount(lock) > 0) && MXRecLockIsOwner(lock)) {
       MXRecLockIncCount(lock, 1);
 
       return TRUE;  // Was acquired
@@ -363,7 +376,7 @@ MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 
    err = MXRecLockTryAcquireInternal(lock);
 
-   if (err == 0) {
+   if (LIKELY(err == 0)) {
       MXRecLockIncCount(lock, 1);
 
       return TRUE;  // Was acquired
@@ -378,25 +391,11 @@ MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 
 
 static INLINE void
-MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
-                  int count)        // IN:
-{
-   ASSERT(count >= 0);
-
-   lock->referenceCount -= count;
-
-   if (MXRecLockCount(lock) == 0) {
-      MXRecLockSetNoOwner(lock);
-   }
-}
-
-
-static INLINE void
 MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 {
    MXRecLockDecCount(lock, 1);
 
-   if (MXRecLockCount(lock) == 0) {
+   if (LIKELY(MXRecLockCount(lock) == 0)) {
       int err = MXRecLockReleaseInternal(lock);
 
       if (vmx86_debug && (err != 0)) {
@@ -447,7 +446,8 @@ typedef enum {
    MXUSER_TYPE_EXCL       = 4,
    MXUSER_TYPE_SEMA       = 5,
    MXUSER_TYPE_CONDVAR    = 6,
-   MXUSER_TYPE_BARRIER    = 7
+   MXUSER_TYPE_BARRIER    = 7,
+   MXUSER_TYPE_EVENT      = 8
 } MXUserObjectType;
 
 /*
@@ -458,7 +458,12 @@ typedef struct MXUserHeader {
    uint32       signature;
    char        *name;
    MX_Rank      rank;
-   uint32       serialNumber;
+
+   struct {
+      unsigned int serialNumber : 24;
+      unsigned int badHeader: 1;
+   } bits;
+
    void       (*dumpFunc)(struct MXUserHeader *);
    void       (*statsFunc)(struct MXUserHeader *);
    ListItem     item;
@@ -535,6 +540,9 @@ typedef struct {
 } MXUserBasicStats;
 
 typedef struct {
+   double            contentionRatioFloor;
+   uint64            contentionCountFloor;
+   uint64            contentionDurationFloor;
    uint64            numAttempts;
    uint64            numSuccesses;
    uint64            numSuccessesContended;
@@ -547,6 +555,19 @@ typedef struct {
 typedef struct {
    MXUserBasicStats  basicStats;       // total held statistics
 } MXUserReleaseStats;
+
+typedef struct
+{
+   MXUserAcquisitionStats  data;
+   Atomic_Ptr              histo;
+} MXUserAcquireStats;
+
+typedef struct
+{
+   VmTimeType        holdStart;
+   MXUserBasicStats  data;
+   Atomic_Ptr        histo;
+} MXUserHeldStats;
 
 uint32 MXUserAllocSerialNumber(void);
 
@@ -600,14 +621,36 @@ void MXUserKitchen(MXUserAcquisitionStats *stats,
                    Bool *isHot,
                    Bool *doLog);
 
-void MXUserForceHisto(Atomic_Ptr *histoPtr,
-                      char *typeName,
-                      uint64 minValue,
-                      uint32 decades);
+#define MXUSER_DEFAULT_HISTO_MIN_VALUE_NS  1000  // 1 usec
+#define MXUSER_DEFAULT_HISTO_DECADES       7     // 1 usec to 10 seconds
 
-extern void (*MXUserMX_LockRec)(struct MX_MutexRec *lock);
-extern void (*MXUserMX_UnlockRec)(struct MX_MutexRec *lock);
-extern Bool (*MXUserMX_TryLockRec)(struct MX_MutexRec *lock);
-extern Bool (*MXUserMX_IsLockedByCurThreadRec)(const struct MX_MutexRec *lock);
+Bool MXUserForceAcquisitionHisto(Atomic_Ptr *mem,
+                                 uint64 minValue,
+                                 uint32 decades);
+
+Bool MXUserForceHeldHisto(Atomic_Ptr *mem,
+                          uint64 minValue,
+                          uint32 decades);
+
+Bool MXUserSetContentionRatioFloor(Atomic_Ptr *mem,
+                                   double ratio);
+
+Bool MXUserSetContentionCountFloor(Atomic_Ptr *mem,
+                                   uint64 count);
+
+Bool MXUserSetContentionDurationFloor(Atomic_Ptr *mem,
+                                      uint64 count);
+
+void MXUserEnableStats(Atomic_Ptr *acquisitionMem,
+                       Atomic_Ptr *heldMem);
+
+void MXUserDisableStats(Atomic_Ptr *acquisitionMem,
+                        Atomic_Ptr *heldMem);
+
+extern void  (*MXUserMX_LockRec)(struct MX_MutexRec *lock);
+extern void  (*MXUserMX_UnlockRec)(struct MX_MutexRec *lock);
+extern Bool  (*MXUserMX_TryLockRec)(struct MX_MutexRec *lock);
+extern Bool  (*MXUserMX_IsLockedByCurThreadRec)(const struct MX_MutexRec *lock);
+extern char *(*MXUserMX_NameRec)(const struct MX_MutexRec *lock);
 
 #endif

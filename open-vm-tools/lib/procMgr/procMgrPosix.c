@@ -24,10 +24,6 @@
  *
  */
 
-#ifndef VMX86_DEVEL
-
-#endif
-
 // pull in setresuid()/setresgid() if possible
 #define  _GNU_SOURCE
 #include <unistd.h>
@@ -82,10 +78,14 @@
 #include "su.h"
 #include "str.h"
 #include "strutil.h"
-#include "fileIO.h"
 #include "codeset.h"
 #include "unicode.h"
 
+#ifdef USERWORLD
+#include <vm_basic_types.h>
+#include <vmkuserstatus.h>
+#include <vmkusercompat.h>
+#endif
 
 /*
  * All signals that:
@@ -108,7 +108,7 @@ static int const cSignals[] = {
 struct ProcMgr_AsyncProc {
    pid_t waiterPid;          // pid of the waiter process
    pid_t resultPid;          // pid of the process created for the client
-   FileIODescriptor fd;      // fd to write to when the child is done
+   int fd;                   // fd to write to when the child is done
    Bool validExitCode;
    int exitCode;
 };
@@ -1303,6 +1303,38 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
       envpCurrent = Unicode_GetAllocList(envp, -1, STRING_ENCODING_DEFAULT);
    }
 
+#ifdef USERWORLD
+   do {
+      static const char filePath[] = "/bin/sh";
+      char * const argv[] = { "sh", "++group=host/vim/tmp",
+                              "-c", cmdCurrent, NULL };
+      int initFds[] = { STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO };
+      int workingDirFd;
+      VmkuserStatus_Code status;
+      int outPid;
+
+      workingDirFd = open(workingDir != NULL ? workingDir : "/tmp", O_RDONLY);
+      status = VmkuserCompat_ForkExec(filePath,
+                                      argv,
+                                      envpCurrent,
+                                      workingDirFd,
+                                      initFds,
+                                      ARRAYSIZE(initFds),
+                                      geteuid(),
+                                      getegid(),
+                                      0,
+                                      &outPid);
+      if (workingDirFd >= 0) {
+         close(workingDirFd);
+      }
+      if (VmkuserStatus_IsOK(status)) {
+         pid = (pid_t)outPid;
+      } else {
+         VmkuserStatus_CodeToErrno(status, &errno);
+         pid = -1;
+      }
+   } while (FALSE);
+#else
    pid = fork();
 
    if (pid == -1) {
@@ -1360,6 +1392,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
       Panic("Unable to execute the \"%s\" shell command: %s.\n\n",
             cmd, strerror(errno));
    }
+#endif
 
    /*
     * Parent
@@ -1367,7 +1400,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
 
    free(cmdCurrent);
    free(workDir);
-   Unicode_FreeList(envpCurrent, -1);
+   Util_FreeStringList(envpCurrent, -1);
    return pid;
 }
 
@@ -1385,12 +1418,12 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
  *      FALSE on failure or if an error occurred (detail is displayed)
  *
  * Side effects:
- *	Prevents zombification of the process.
+ *      Prevents zombification of the process.
  *
  *----------------------------------------------------------------------
  */
 
-static Bool 
+static Bool
 ProcMgrWaitForProcCompletion(pid_t pid,                 // IN
                              Bool *validExitCode,       // OUT: Optional
                              int *exitCode)             // OUT: Optional
@@ -1464,8 +1497,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
    Bool validExitCode;
    int exitCode;
    pid_t resultPid;
-   FileIODescriptor readFd;
-   FileIODescriptor writeFd;
+   int readFd, writeFd;
 
    Debug("Executing async command: '%s' in working dir '%s'\n",
          cmd, (userArgs && userArgs->workingDirectory) ? userArgs->workingDirectory : "");
@@ -1475,8 +1507,8 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
       return NULL;
    }
 
-   readFd = FileIO_CreateFDPosix(fds[0], O_RDONLY);
-   writeFd = FileIO_CreateFDPosix(fds[1], O_WRONLY);
+   readFd = fds[0];
+   writeFd = fds[1];
 
    pid = fork();
 
@@ -1503,7 +1535,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        */
       maxfd = sysconf(_SC_OPEN_MAX);
       for (i = STDERR_FILENO + 1; i < maxfd; i++) {
-         if (i != readFd.posix && i != writeFd.posix) {
+         if (i != readFd && i != writeFd) {
             close(i);
          }
       }
@@ -1518,7 +1550,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          status = FALSE;
       }
 
-      FileIO_Close(&readFd);
+      close(readFd);
 
       /*
        * Only run the program if we have not already experienced a failure.
@@ -1534,8 +1566,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * Send the child's pid back immediately, so that the caller can
        * report the result pid back synchronously.
        */
-      if (FileIO_Write(&writeFd, &childPid, sizeof childPid, NULL) !=
-          FILEIO_SUCCESS) {
+      if (write(writeFd, &childPid, sizeof childPid) == -1) {
          Warning("Waiter unable to write back to parent.\n");
          
          /*
@@ -1560,9 +1591,8 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * block waiting for data we'll never send.
        */
       Debug("Writing the command %s a success to fd %x\n", 
-            status ? "was" : "was not", writeFd.posix);
-      if (FileIO_Write(&writeFd, &status, sizeof status, NULL) !=
-          FILEIO_SUCCESS) {
+            status ? "was" : "was not", writeFd);
+      if (write(writeFd, &status, sizeof status) == -1) {
          Warning("Waiter unable to write back to parent\n");
          
          /*
@@ -1573,8 +1603,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          exit(-1);
       }
 
-      if (FileIO_Write(&writeFd, &exitCode, sizeof exitCode , NULL) != 
-          FILEIO_SUCCESS) {
+      if (write(writeFd, &exitCode, sizeof exitCode) == -1) {
          Warning("Waiter unable to write back to parent\n");
          
          /*
@@ -1585,7 +1614,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          exit(-1);
       }
 
-      FileIO_Close(&writeFd);
+      close(writeFd);
 
       if (status &&
           Signal_ResetGroupHandler(cSignals, olds, ARRAYSIZE(cSignals)) == 0) {
@@ -1605,13 +1634,13 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
     * Parent
     */
 
-   FileIO_Close(&writeFd);
+   close(writeFd);
+   writeFd = -1;
 
    /*
     * Read the pid of the child's child from the pipe.
     */
-   if (FileIO_Read(&readFd, &resultPid, sizeof resultPid , NULL) !=
-       FILEIO_SUCCESS) {
+   if (read(readFd, &resultPid, sizeof resultPid) != sizeof resultPid) {
       Warning("Unable to read result pid from the pipe.\n");
       
       /*
@@ -1636,18 +1665,18 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
 
    asyncProc = Util_SafeMalloc(sizeof *asyncProc);
    asyncProc->fd = readFd;
-   FileIO_Invalidate(&readFd);
+   readFd = -1;
    asyncProc->waiterPid = pid;
    asyncProc->validExitCode = FALSE;
    asyncProc->exitCode = -1;
    asyncProc->resultPid = resultPid;
 
  abort:
-   if (FileIO_IsValid(&readFd)) {
-      FileIO_Close(&readFd);
+   if (readFd != -1) {
+      close(readFd);
    }
-   if (FileIO_IsValid(&writeFd)) {
-      FileIO_Close(&writeFd);
+   if (writeFd != -1) {
+      close(writeFd);
    }
        
    return asyncProc;
@@ -1871,7 +1900,7 @@ ProcMgr_GetAsyncProcSelectable(ProcMgr_AsyncProc *asyncProc)
 {
    ASSERT(asyncProc);
    
-   return asyncProc->fd.posix;
+   return asyncProc->fd;
 }
 
 
@@ -1929,15 +1958,13 @@ ProcMgr_GetExitCode(ProcMgr_AsyncProc *asyncProc,  // IN
    if (asyncProc->waiterPid != -1) {
       Bool status;
 
-      if (FileIO_Read(&(asyncProc->fd), &status, sizeof status, NULL) !=
-          FILEIO_SUCCESS) {
+      if (read(asyncProc->fd, &status, sizeof status) != sizeof status) {
          Warning("Error reading async process status.\n");
          goto exit;
       }
 
-      if (FileIO_Read(&(asyncProc->fd), &(asyncProc->exitCode),
-                      sizeof asyncProc->exitCode, NULL) !=
-          FILEIO_SUCCESS) {
+      if (read(asyncProc->fd, &asyncProc->exitCode,
+               sizeof asyncProc->exitCode) != sizeof asyncProc->exitCode) {
          Warning("Error reading async process status.\n");
          goto exit;
       }
@@ -1945,7 +1972,7 @@ ProcMgr_GetExitCode(ProcMgr_AsyncProc *asyncProc,  // IN
       asyncProc->validExitCode = TRUE;
 
       Debug("Child w/ fd %x exited with code=%d\n",
-            asyncProc->fd.posix, asyncProc->exitCode);
+            asyncProc->fd, asyncProc->exitCode);
    }
 
    *exitCode = asyncProc->exitCode;
@@ -1999,8 +2026,8 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
    }
 #endif 
 
-   if ((asyncProc != NULL) && FileIO_IsValid(&(asyncProc->fd))) {
-      FileIO_Close(&(asyncProc->fd));
+   if (asyncProc != NULL && asyncProc->fd != -1) {
+      close(asyncProc->fd);
    }
    
    free(asyncProc);

@@ -16,7 +16,7 @@
 #
 ##########################################################
 
-addsubj.fail = "%1$s: Impossibile aggiungere alias per l'utente "%2$s": %3$s.\n"
+addsubj.fail = "%1$s: Impossibile aggiungere alias per l'utente '%2$s': %3$s.\n"
 addsubj.success = "%1$s: alias aggiunto\n"
 
 addoptions.comment = "commento oggetti"
@@ -40,37 +40,35 @@ cmdline.summary.username = "nome utente"
 cmdline.summary.comm = "commento"
 
 list.comment = "Commento"
-list.count = "%1$s Trovati %2$d alias per l'utente "%3$s"\n"
+list.count = "%1$s Trovati %2$d alias per l'utente '%3$s'\n"
 
-list.error = "%1$s: Impossibile elencare gli alias per l'utente "%2$s": %3$s.\n"
+list.error = "%1$s: Impossibile elencare gli alias per l'utente '%2$s': %3$s.\n"
 list.subject = "Oggetto"
 
 listmapped.count = "%1$s Trovati %2$d alias mappati\n"
 
-listmapped.error = "%1$s: Impossibile elencare gli alias mappati: %2$s.\n"
+listmapped.error = "%1$s: Impossibile elencare gli alias mappati:%2$s.\n"
 
 listmapped.subject = "Oggetto"
 
 listmapped.username = "Nome utente"
 
-listoptions.username =
-         "Utente il cui archivio certificati viene interrogato"
+listoptions.username = "Utente il cui archivio certificati viene interrogato"
 
 listoptions.verbose = "Operazione Verbose"
 
-loadfile.fail = "%1$s: Impossibile leggere il file PEM "%2$s"\n"
+loadfile.fail = "%1$s: Impossibile leggere il file PEM '%2$s'\n"
 
 name.any = "<QUALSIASI>"
 
-removesubj.fail = "%1$s: Impossibile rimuovere l'alias per l'utente "%2$s": %3$s.\n"
+removesubj.fail = "%1$s: Impossibile rimuovere l'alias per l'utente  '%2$s': %3$s.\n"
 
 removesubj.success = "%1$s: alias rimosso\n"
 
 removeoptions.file = "Nome file PEM"
 
 removeoptions.subject = "L'oggetto SAML"
-removeoptions.username =
-             "L'utente da cui viene rimosso l'archivio certificati"
+removeoptions.username = "L'utente da cui viene rimosso l'archivio certificati"
 
 removeoptions.verbose = "Operazione Verbose"
 

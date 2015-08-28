@@ -297,7 +297,7 @@ Unicode_UTF16Strdup(const utf16_t *utf16) // IN: May be NULL.
  * Results:
  *      An allocated Unicode string containing the decoded characters
  *      in buffer, or NULL if input is NULL.
- *	Caller must pass the string to Unicode_Free to free.
+ *	Caller must pass the string to free to free.
  *
  * Side effects:
  *      None
@@ -305,12 +305,12 @@ Unicode_UTF16Strdup(const utf16_t *utf16) // IN: May be NULL.
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Unicode_AllocWithLength(const void *buffer,       // IN:
                         ssize_t lengthInBytes,    // IN:
                         StringEncoding encoding)  // IN:
 {
-   Unicode result;
+   char *result;
 
    ASSERT(lengthInBytes >= 0 || lengthInBytes == -1);
 
@@ -365,7 +365,7 @@ Unicode_AllocWithLength(const void *buffer,       // IN:
  */
 
 Bool
-Unicode_CanGetBytesWithEncoding(ConstUnicode ustr,        // IN:
+Unicode_CanGetBytesWithEncoding(const char *ustr,         // IN:
                                 StringEncoding encoding)  // IN:
 {
    void *tmp;

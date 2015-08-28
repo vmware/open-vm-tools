@@ -89,30 +89,53 @@
  */
 
 #ifdef HAS_BSD_PRINTF
-int Str_Sprintf_C_Locale(char *buf, size_t max,
-                         const char *fmt, ...) PRINTF_DECL(3, 4);
+int Str_Sprintf_C_Locale(char *buf,               // OUT:
+                         size_t max,              // IN:
+                         const char *fmt,         // IN:
+                         ...) PRINTF_DECL(3, 4);  // IN:
 #endif
 
-int Str_Sprintf(char *buf, size_t max,
-                const char *fmt, ...) PRINTF_DECL(3, 4);
-int Str_Snprintf(char *buf, size_t len,
-                 const char *fmt, ...) PRINTF_DECL(3, 4);
-int Str_Vsnprintf(char *buf, size_t len,
-                  const char *fmt, va_list args);
-size_t Str_Strlen(const char *src, size_t maxLen);
-char *Str_Strnstr(const char *src, const char *sub, size_t n);
-char *Str_Strcpy(char *dst, const char *src, size_t maxLen);
-char *Str_Strcat(char *dst, const char *src, size_t maxLen);
-char *Str_Strncat(char *buf, size_t bufSize, const char *src, size_t n);
+int Str_Sprintf(char *buf,               // OUT:
+                size_t max,              // IN:
+                const char *fmt,         // IN:
+                ...) PRINTF_DECL(3, 4);  // IN:
+int Str_Snprintf(char *buf,               // OUT:
+                 size_t len,              // IN:
+                 const char *fmt,         // IN:
+                 ...) PRINTF_DECL(3, 4);  // IN:
+int Str_Vsnprintf(char *buf,        // OUT:
+                  size_t len,       // IN:
+                  const char *fmt,  // IN:
+                  va_list args);    // IN:
 
-char *Str_Asprintf(size_t *length,
-                   const char *format, ...) PRINTF_DECL(2, 3);
-char *Str_Vasprintf(size_t *length, const char *format,
-                    va_list arguments);
-char *Str_SafeAsprintf(size_t *length,
-                       const char *format, ...) PRINTF_DECL(2, 3);
-char *Str_SafeVasprintf(size_t *length, const char *format,
-                        va_list arguments);
+size_t Str_Strlen(const char *src,  // IN:
+                  size_t maxLen);   // IN:
+char *Str_Strnstr(const char *src,  // IN:
+                  const char *sub,  // IN:
+                  size_t n);        // IN:
+char *Str_Strcpy(char *dst,        // OUT:
+                 const char *src,  // IN:
+                 size_t maxLen);   // IN:
+char *Str_Strcat(char *dst,        // IN/OUT:
+                 const char *src,  // IN:
+                 size_t maxLen);   // IN:
+char *Str_Strncat(char *buf,        // IN/OUT:
+                  size_t bufSize,   // IN:
+                  const char *src,  // IN:
+                  size_t n);        // IN:
+
+char *Str_Asprintf(size_t *length,          // OUT/OPT:
+                   const char *format,      // IN:
+                   ...) PRINTF_DECL(2, 3);  // IN:
+char *Str_Vasprintf(size_t *length,      // OUT/OPT:
+                    const char *format,  // IN:
+                    va_list arguments);  // IN:
+char *Str_SafeAsprintf(size_t *length,          // OUT/OPT:
+                       const char *format,      // IN:
+                       ...) PRINTF_DECL(2, 3);  // IN:
+char *Str_SafeVasprintf(size_t *length,      // OUT/OPT:
+                        const char *format,  // IN:
+                        va_list arguments);  // IN:
 
 #if defined(_WIN32) || defined(__linux__) // {
 
@@ -129,30 +152,48 @@ char *Str_SafeVasprintf(size_t *length, const char *format,
  * strings of "wchar_t" units, regardless of platform.
  */
 
-int Str_Swprintf(wchar_t *buf, size_t max,
-                 const wchar_t *fmt, ...);
-int Str_Snwprintf(wchar_t *buf, size_t len,
-                  const wchar_t *fmt, ...);
-int Str_Vsnwprintf(wchar_t *buf, size_t len,
-                   const wchar_t *fmt, va_list args);
-wchar_t *Str_Wcscpy(wchar_t *dst, const wchar_t *src, size_t maxLen);
-wchar_t *Str_Wcscat(wchar_t *dst, const wchar_t *src, size_t maxLen);
-wchar_t *Str_Wcsncat(wchar_t *buf, size_t bufSize, const wchar_t *src,
-                     size_t n);
+int Str_Swprintf(wchar_t *buf,        // OUT:
+                 size_t max,          // IN:
+                 const wchar_t *fmt,  // IN:
+                 ...);
+int Str_Snwprintf(wchar_t *buf,        // OUT:
+                  size_t len,          // IN:
+                  const wchar_t *fmt,  // IN:
+                  ...);
+int Str_Vsnwprintf(wchar_t *buf,        // OUT:
+                   size_t len,          // IN:
+                   const wchar_t *fmt,  // IN:
+                   va_list args);
+wchar_t *Str_Wcscpy(wchar_t *dst,        // OUT:
+                    const wchar_t *src,  // IN:
+                    size_t maxLen);      // IN:
+wchar_t *Str_Wcscat(wchar_t *dst,        // IN/OUT:
+                    const wchar_t *src,  // IN:
+                    size_t maxLen);      // IN:
+wchar_t *Str_Wcsncat(wchar_t *buf,        // IN/OUT:
+                     size_t bufSize,      // IN:
+                     const wchar_t *src,  // IN:
+                     size_t n);           // IN:
 
-wchar_t *Str_Aswprintf(size_t *length,
-                       const wchar_t *format, ...);
-wchar_t *Str_Vaswprintf(size_t *length, const wchar_t *format,
-                        va_list arguments);
-wchar_t *Str_SafeAswprintf(size_t *length,
-                           const wchar_t *format, ...);
-wchar_t *Str_SafeVaswprintf(size_t *length, const wchar_t *format,
-                            va_list arguments);
+wchar_t *Str_Aswprintf(size_t *length,         // OUT/OPT:
+                       const wchar_t *format,  // IN:
+                       ...);                   // IN:
+wchar_t *Str_Vaswprintf(size_t *length,         // OUT/OPT:
+                        const wchar_t *format,  // IN:
+                        va_list arguments);     // IN:
+wchar_t *Str_SafeAswprintf(size_t *length,         // OUT/OPT:
+                           const wchar_t *format,  // IN:
+                           ...);                   // IN:
+wchar_t *Str_SafeVaswprintf(size_t *length,         // OUT/OPT:
+                            const wchar_t *format,  // IN:
+                            va_list arguments);     // IN:
 
-unsigned char *Str_Mbscpy(char *buf, const char *src,
-                          size_t maxSize);
-unsigned char *Str_Mbscat(char *buf, const char *src,
-                          size_t maxSize);
+unsigned char *Str_Mbscpy(char *buf,        // OUT:
+                          const char *src,  // IN:
+                          size_t maxSize);  // IN:
+unsigned char *Str_Mbscat(char *buf,        // IN/OUT:
+                          const char *src,  // IN:
+                          size_t maxSize);  // IN:
 
 /*
  * These are handly for Windows programmers.  They are like

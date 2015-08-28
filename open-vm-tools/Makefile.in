@@ -56,7 +56,7 @@ host_triplet = @host@
 @ENABLE_DEPLOYPKG_TRUE@am__append_3 = libDeployPkg
 @ENABLE_GRABBITMQPROXY_TRUE@am__append_4 = guestproxycerttool
 @HAVE_X11_TRUE@am__append_5 = vmware-user-suid-wrapper
-@HAVE_FUSE_TRUE@am__append_6 = vmblock-fuse
+@HAVE_FUSE_TRUE@am__append_6 = vmblock-fuse vmhgfs-fuse
 @LINUX_FALSE@am__append_7 = vmblockmounter
 @ENABLE_TESTS_TRUE@am__append_8 = tests
 @WITH_KERNEL_MODULES_TRUE@am__append_9 = modules
@@ -94,7 +94,7 @@ CTAGS = ctags
 DIST_SUBDIRS = lib libvmtools libhgfs hgfsclient hgfsmounter vgauth \
 	checkvm libguestlib libDeployPkg rpctool guestproxycerttool \
 	scripts services toolbox vmware-user-suid-wrapper vmblock-fuse \
-	vmblockmounter xferlogs tests modules docs
+	vmhgfs-fuse vmblockmounter xferlogs tests modules docs
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)

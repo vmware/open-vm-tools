@@ -37,15 +37,25 @@
 #include "codeset.h"
 
 /*
- * Force all users of these wrappers to use the LFS (large file) interface
- * versions of the functions wrapper therein. If we don't do this the
- * wrappers may be built with the LFS versions and the callers might not
- * leading to a (potentially undetected) mismatch.
+ * Require the _FILE_OFFSET_BITS=64 interface, where all Posix file
+ * structures and functions are transparently 64-bit.
+ *
+ * Some OSes (FreeBSD, OS X) natively use 64-bit file offsets and
+ * will never be a problem. Other OSes (Linux, Solaris) default
+ * to 32-bit offsets in 32-bit mode. Android ... does its own thing.
+ * Windows only offers the Posix APIs as 32-bit.
+ *
+ * There are two ways of getting 64-bit offsets, defined by the LFS standard:
+ *    _LARGEFILE64_SOURCE, which defines xxx64 types and functions
+ *    _FILE_OFFSET_BITS=64, which replaces all types and functions
+ * The _LARGEFILE64_SOURCE strategy was transitional (late 90s) and is now
+ * deprecated. All modern code should use _FILE_OFFSET_BITS=64.
+ *
+ * Instead of checking for the exact details, check for what matters
+ * for the purposes of this file: types (e.g. off_t) must be 64-bit.
  */
-
-#if defined(linux) && !defined(__ANDROID__) && \
-    (!defined(_LARGEFILE64_SOURCE) || _FILE_OFFSET_BITS != 64)
-#error LFS support is not enabled!
+#if !defined(_WIN32) && !defined(__ANDROID__)
+MY_ASSERTS(_file_offset_bits64, ASSERT_ON_COMPILE(sizeof(off_t) == 8);)
 #endif
 
 struct stat;
@@ -65,28 +75,28 @@ struct mnttab;
 #endif
 
 
-int Posix_Creat(ConstUnicode pathName, mode_t mode);
-int Posix_Open(ConstUnicode pathName, int flags, ...);
-FILE *Posix_Fopen(ConstUnicode pathName, const char *mode);
-FILE *Posix_Popen(ConstUnicode pathName, const char *mode);
-int Posix_Rename(ConstUnicode fromPathName, ConstUnicode toPathName);
-int Posix_Rmdir(ConstUnicode pathName);
-int Posix_Unlink(ConstUnicode pathName);
-FILE *Posix_Freopen(ConstUnicode pathName, const char *mode, FILE *stream);
-int Posix_Access(ConstUnicode pathName, int mode);
-int Posix_EuidAccess(ConstUnicode pathName, int mode);
-int Posix_Stat(ConstUnicode pathName, struct stat *statbuf);
-int Posix_Chmod(ConstUnicode pathName, mode_t mode);
-void Posix_Perror(ConstUnicode str);
-int Posix_Printf(ConstUnicode format, ...);
-int Posix_Fprintf(FILE *stream, ConstUnicode format, ...);
+int Posix_Creat(const char *pathName, mode_t mode);
+int Posix_Open(const char *pathName, int flags, ...);
+FILE *Posix_Fopen(const char *pathName, const char *mode);
+FILE *Posix_Popen(const char *pathName, const char *mode);
+int Posix_Rename(const char *fromPathName, const char *toPathName);
+int Posix_Rmdir(const char *pathName);
+int Posix_Unlink(const char *pathName);
+FILE *Posix_Freopen(const char *pathName, const char *mode, FILE *stream);
+int Posix_Access(const char *pathName, int mode);
+int Posix_EuidAccess(const char *pathName, int mode);
+int Posix_Stat(const char *pathName, struct stat *statbuf);
+int Posix_Chmod(const char *pathName, mode_t mode);
+void Posix_Perror(const char *str);
+int Posix_Printf(const char *format, ...);
+int Posix_Fprintf(FILE *stream, const char *format, ...);
 
-int Posix_Mkdir(ConstUnicode pathName, mode_t mode);
-int Posix_Chdir(ConstUnicode pathName);
-Unicode Posix_Getenv(ConstUnicode name);
-long Posix_Pathconf(ConstUnicode pathName, int name);
-int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
-Unicode Posix_MkTemp(ConstUnicode pathName);
+int Posix_Mkdir(const char *pathName, mode_t mode);
+int Posix_Chdir(const char *pathName);
+char *Posix_Getenv(const char *name);
+long Posix_Pathconf(const char *pathName, int name);
+int Posix_Lstat(const char *pathName, struct stat *statbuf);
+char *Posix_MkTemp(const char *pathName);
 
 #if !defined(_WIN32)
 /*
@@ -101,28 +111,28 @@ Unicode Posix_MkTemp(ConstUnicode pathName);
 #define Posix_FreeAddrInfo freeaddrinfo
 #define Posix_GetNameInfo getnameinfo
 
-void *Posix_Dlopen(ConstUnicode pathName, int flags);
+void *Posix_Dlopen(const char *pathName, int flags);
 
-int Posix_Utime(ConstUnicode pathName, const struct utimbuf *times);
+int Posix_Utime(const char *pathName, const struct utimbuf *times);
 
-int Posix_Mknod(ConstUnicode pathName, mode_t mode, dev_t dev);
-int Posix_Chown(ConstUnicode pathName, uid_t owner, gid_t group);
-int Posix_Lchown(ConstUnicode pathName, uid_t owner, gid_t group);
-int Posix_Link(ConstUnicode pathName1, ConstUnicode pathName2);
-int Posix_Symlink(ConstUnicode pathName1, ConstUnicode pathName2);
-int Posix_Mkfifo(ConstUnicode pathName, mode_t mode);
-int Posix_Truncate(ConstUnicode pathName, off_t length);
-int Posix_Utimes(ConstUnicode pathName, const struct timeval *time);
-int Posix_Execl(ConstUnicode pathName, ConstUnicode arg0, ...);
-int Posix_Execlp(ConstUnicode fileName, ConstUnicode arg0, ...);
-int Posix_Execv(ConstUnicode pathName, Unicode const argVal[]);
-int Posix_Execve(ConstUnicode pathName, Unicode const argVal[], 
-                 Unicode const envPtr[]);
-int Posix_Execvp(ConstUnicode fileName, Unicode const argVal[]);
-DIR *Posix_OpenDir(ConstUnicode pathName);
-int Posix_System(ConstUnicode command);
-int Posix_Putenv(Unicode name);
-void Posix_Unsetenv(ConstUnicode name);
+int Posix_Mknod(const char *pathName, mode_t mode, dev_t dev);
+int Posix_Chown(const char *pathName, uid_t owner, gid_t group);
+int Posix_Lchown(const char *pathName, uid_t owner, gid_t group);
+int Posix_Link(const char *pathName1, const char *pathName2);
+int Posix_Symlink(const char *pathName1, const char *pathName2);
+int Posix_Mkfifo(const char *pathName, mode_t mode);
+int Posix_Truncate(const char *pathName, off_t length);
+int Posix_Utimes(const char *pathName, const struct timeval *time);
+int Posix_Execl(const char *pathName, const char *arg0, ...);
+int Posix_Execlp(const char *fileName, const char *arg0, ...);
+int Posix_Execv(const char *pathName, char *const argVal[]);
+int Posix_Execve(const char *pathName, char *const argVal[],
+                 char *const envPtr[]);
+int Posix_Execvp(const char *fileName, char *const argVal[]);
+DIR *Posix_OpenDir(const char *pathName);
+int Posix_System(const char *command);
+int Posix_Putenv(char *name);
+void Posix_Unsetenv(const char *name);
 
 /*
  * These functions return dynamically allocated stings that have to be
@@ -130,35 +140,35 @@ void Posix_Unsetenv(ConstUnicode name);
  * are different than their POSIX "base" functions.
  */
 
-Unicode Posix_RealPath(ConstUnicode pathName);
-Unicode Posix_ReadLink(ConstUnicode pathName);
+char *Posix_RealPath(const char *pathName);
+char *Posix_ReadLink(const char *pathName);
 
-struct passwd *Posix_Getpwnam(ConstUnicode name);
+struct passwd *Posix_Getpwnam(const char *name);
 struct passwd *Posix_Getpwuid(uid_t uid);
 
-int Posix_Setenv(ConstUnicode name, ConstUnicode value, int overWrite);
+int Posix_Setenv(const char *name, const char *value, int overWrite);
 
-int Posix_Getpwnam_r(ConstUnicode name, struct passwd *pw,
+int Posix_Getpwnam_r(const char *name, struct passwd *pw,
                      char *buf, size_t size, struct passwd **ppw);
 int Posix_Getpwuid_r(uid_t uid, struct passwd *pw,
                      char *buf, size_t size, struct passwd **ppw);
 struct passwd *Posix_Getpwent(void);
-struct group *Posix_Getgrnam(ConstUnicode name);
-int Posix_Getgrnam_r(ConstUnicode name, struct group *gr,
+struct group *Posix_Getgrnam(const char *name);
+int Posix_Getgrnam_r(const char *name, struct group *gr,
                  char *buf, size_t size, struct group **pgr);
 
 #if !defined(sun)
-int Posix_Statfs(ConstUnicode pathName, struct statfs *statfsbuf);
+int Posix_Statfs(const char *pathName, struct statfs *statfsbuf);
 
-int Posix_GetGroupList(ConstUnicode user, gid_t group, gid_t *groups,
+int Posix_GetGroupList(const char *user, gid_t group, gid_t *groups,
                        int *ngroups);
 
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
-int Posix_Mount(ConstUnicode source, ConstUnicode target,
+int Posix_Mount(const char *source, const char *target,
                 const char *filesystemtype, unsigned long mountflags,
 		const void *data);
-int Posix_Umount(ConstUnicode target);
-FILE *Posix_Setmntent(ConstUnicode pathName, const char *mode);
+int Posix_Umount(const char *target);
+FILE *Posix_Setmntent(const char *pathName, const char *mode);
 struct mntent *Posix_Getmntent(FILE *fp);
 struct mntent *Posix_Getmntent_r(FILE *fp, struct mntent *m,
                                  char *buf, int size);
@@ -179,7 +189,7 @@ int Posix_Getmntent(FILE *fp, struct mnttab *mp);
  *      Wrapper for gethostbyname().  Caller should release memory
  *      allocated for the hostent structure returned by calling
  *      Posix_FreeHostent().
- *      
+ *
  * Results:
  *      NULL    Error
  *      !NULL   Pointer to hostent structure
@@ -191,7 +201,7 @@ int Posix_Getmntent(FILE *fp, struct mnttab *mp);
  */
 
 static INLINE struct hostent*
-Posix_GetHostByName(ConstUnicode name)  // IN
+Posix_GetHostByName(const char *name)  // IN
 {
    struct hostent *newhostent;
    int error;
@@ -206,7 +216,7 @@ Posix_GetHostByName(ConstUnicode name)  // IN
 
    if ((gethostbyname_r(name, &he, buffer, sizeof buffer,
 #if !defined(sun) && !defined(SOLARIS) && !defined(SOL10)
-                        &phe, 
+                        &phe,
 #endif
                         &error) == 0) && phe) {
 
@@ -227,7 +237,7 @@ Posix_GetHostByName(ConstUnicode name)  // IN
       for (p = phe->h_addr_list; *p; p++) {
          naddrs++;
       }
-      newhostent->h_addr_list = (char **)Util_SafeMalloc(naddrs * 
+      newhostent->h_addr_list = (char **)Util_SafeMalloc(naddrs *
                                  sizeof(*(phe->h_addr_list)));
       for (i = 0; i < naddrs - 1; i++) {
          newhostent->h_addr_list[i] = (char *)Util_SafeMalloc(phe->h_length);
@@ -235,7 +245,7 @@ Posix_GetHostByName(ConstUnicode name)  // IN
       }
       newhostent->h_addr_list[naddrs - 1] = NULL;
       return newhostent;
-   } 
+   }
    /* There has been an error */
    return NULL;
 }
@@ -266,9 +276,9 @@ Posix_FreeHostent(struct hostent *he)
    char **p;
 
    if (he) {
-      Unicode_Free(he->h_name);
+      free(he->h_name);
       if (he->h_aliases) {
-         Unicode_FreeList(he->h_aliases, -1);
+         Util_FreeStringList(he->h_aliases, -1);
       }
       p = he->h_addr_list;
       while (*p) {
@@ -307,11 +317,11 @@ Posix_FreeHostent(struct hostent *he)
  */
 
 static INLINE int
-Posix_GetHostName(Unicode name, // OUT
+Posix_GetHostName(char *name,   // OUT
                   int namelen)  // IN
 {
    char *nameMBCS = (char *)Util_SafeMalloc(namelen);
-   Unicode nameUTF8;
+   char *nameUTF8;
    int retval;
 
    ASSERT(name);
@@ -325,11 +335,11 @@ Posix_GetHostName(Unicode name, // OUT
          retval = -1;
          WSASetLastError(WSAEFAULT);
       }
-      Unicode_Free(nameUTF8);
+      free(nameUTF8);
    }
 
    free(nameMBCS);
-   
+
    return retval;
 }
 
@@ -342,7 +352,7 @@ Posix_GetHostName(Unicode name, // OUT
  *      Wrapper for gethostbyname().  Caller should release memory
  *      allocated for the hostent structure returned by calling
  *      Posix_FreeHostent().
- *      
+ *
  * Results:
  *      NULL    Error
  *      !NULL   Pointer to hostent structure
@@ -354,7 +364,7 @@ Posix_GetHostName(Unicode name, // OUT
  */
 
 static INLINE struct hostent*
-Posix_GetHostByName(ConstUnicode name)  // IN
+Posix_GetHostByName(const char *name)  // IN
 {
    struct hostent *newhostent;
    char *nameMBCS;
@@ -416,9 +426,9 @@ static INLINE void
 Posix_FreeHostent(struct hostent *he)
 {
    if (he) {
-      Unicode_Free(he->h_name);
+      free(he->h_name);
       if (he->h_aliases) {
-         Unicode_FreeList(he->h_aliases, -1);
+         Util_FreeStringList(he->h_aliases, -1);
       }
       free(he);
    }
@@ -457,8 +467,8 @@ typedef int (WINAPI *GetNameInfoWFnType)(const SOCKADDR *pSockaddr,
  */
 
 static INLINE int
-Posix_GetAddrInfo(ConstUnicode nodename,        // IN
-                  ConstUnicode servname,        // IN
+Posix_GetAddrInfo(const char *nodename,         // IN
+                  const char *servname,         // IN
                   const struct addrinfo *hints, // IN
                   struct addrinfo **res)        // OUT
 {
@@ -621,13 +631,13 @@ Posix_FreeAddrInfo(struct addrinfo *ai)
  */
 
 static INLINE int
-Posix_GetNameInfo(const struct sockaddr *sa,    // IN
-                  socklen_t salen,              // IN
-                  Unicode host,                 // OUT
-                  DWORD hostlen,                // IN
-                  Unicode serv,                 // OUT
-                  DWORD servlen,                // IN
-                  int flags)                    // IN
+Posix_GetNameInfo(const struct sockaddr *sa,  // IN
+                  socklen_t salen,            // IN
+                  char *host,                 // OUT
+                  DWORD hostlen,              // IN
+                  char *serv,                 // OUT
+                  DWORD servlen,              // IN
+                  int flags)                  // IN
 {
    HMODULE hWs2_32;
    int retval;
@@ -635,8 +645,8 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
    char *servMBCS = NULL;
    utf16_t *hostW = NULL;
    utf16_t *servW = NULL;
-   Unicode hostUTF8 = NULL;
-   Unicode servUTF8 = NULL;
+   char *hostUTF8 = NULL;
+   char *servUTF8 = NULL;
    GetNameInfoWFnType GetNameInfoWFn;
 
    hWs2_32 = LoadLibraryW(L"ws2_32");
@@ -683,7 +693,7 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
                }
             }
          }
-         
+
          goto exit;
       }
    }

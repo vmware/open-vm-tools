@@ -49,6 +49,15 @@ extern "C" {
 #include "backdoor.h"
 #include "backdoorInt.h"
 
+#ifdef USE_VALGRIND
+/*
+ * When running under valgrind, we need to ensure we have the correct register
+ * state when poking the backdoor. The VALGRIND_NON_SIMD_CALLx macros are used
+ * to escape from the valgrind emulated CPU to the physical CPU.
+ */
+#include "vm_valgrind.h"
+#endif
+
 #if defined(BACKDOOR_DEBUG) && defined(USERLEVEL)
 #if defined(__KERNEL__) || defined(_KERNEL)
 #else
@@ -180,6 +189,14 @@ BackdoorPrintHbProtoStruct(Backdoor_proto_hb *myBp)
  *-----------------------------------------------------------------------------
  */
 
+#ifdef USE_VALGRIND
+static void
+Backdoor_InOutValgrind(uint16 tid, Backdoor_proto *myBp)
+{
+    Backdoor_InOut(myBp);
+}
+#endif
+
 void
 Backdoor(Backdoor_proto *myBp) // IN/OUT
 {
@@ -191,7 +208,11 @@ Backdoor(Backdoor_proto *myBp) // IN/OUT
    BACKDOOR_LOG(("Backdoor: before "));
    BACKDOOR_LOG_PROTO_STRUCT(myBp);
 
+#ifdef USE_VALGRIND
+   VALGRIND_NON_SIMD_CALL1(Backdoor_InOutValgrind, myBp);
+#else
    Backdoor_InOut(myBp);
+#endif
 
    BACKDOOR_LOG(("Backdoor: after "));
    BACKDOOR_LOG_PROTO_STRUCT(myBp);
@@ -215,6 +236,14 @@ Backdoor(Backdoor_proto *myBp) // IN/OUT
  *-----------------------------------------------------------------------------
  */
 
+#ifdef USE_VALGRIND
+static void
+BackdoorHbOutValgrind(uint16 tid, Backdoor_proto_hb *myBp)
+{
+    BackdoorHbOut(myBp);
+}
+#endif
+
 void
 Backdoor_HbOut(Backdoor_proto_hb *myBp) // IN/OUT
 {
@@ -226,7 +255,11 @@ Backdoor_HbOut(Backdoor_proto_hb *myBp) // IN/OUT
    BACKDOOR_LOG(("Backdoor_HbOut: before "));
    BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
 
+#ifdef USE_VALGRIND
+   VALGRIND_NON_SIMD_CALL1(BackdoorHbOutValgrind, myBp);
+#else
    BackdoorHbOut(myBp);
+#endif
 
    BACKDOOR_LOG(("Backdoor_HbOut: after "));
    BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
@@ -250,6 +283,14 @@ Backdoor_HbOut(Backdoor_proto_hb *myBp) // IN/OUT
  *-----------------------------------------------------------------------------
  */
 
+#ifdef USE_VALGRIND
+static void
+BackdoorHbInValgrind(uint16 tid, Backdoor_proto_hb *myBp)
+{
+    BackdoorHbIn(myBp);
+}
+#endif
+
 void
 Backdoor_HbIn(Backdoor_proto_hb *myBp) // IN/OUT
 {
@@ -261,7 +302,11 @@ Backdoor_HbIn(Backdoor_proto_hb *myBp) // IN/OUT
    BACKDOOR_LOG(("Backdoor_HbIn: before "));
    BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
 
+#ifdef USE_VALGRIND
+   VALGRIND_NON_SIMD_CALL1(BackdoorHbInValgrind, myBp);
+#else
    BackdoorHbIn(myBp);
+#endif
 
    BACKDOOR_LOG(("Backdoor_HbIn: after "));
    BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);

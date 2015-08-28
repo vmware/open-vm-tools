@@ -63,7 +63,7 @@
  */
 
 Bool
-HgfsHlpr_QuerySharesDefaultRootPath(Unicode *hgfsRootPath)
+HgfsHlpr_QuerySharesDefaultRootPath(char **hgfsRootPath)
 {
 #if defined __FreeBSD__
    return FALSE;
@@ -73,7 +73,7 @@ HgfsHlpr_QuerySharesDefaultRootPath(Unicode *hgfsRootPath)
    *hgfsRootPath = Unicode_AllocWithUTF8(HGFSHLPR_DEFAULT_MOUNT_PATH);
 
    Debug("%s: HGFS shares root path name \"%s\"\n",
-         __FUNCTION__, UTF8(*hgfsRootPath));
+         __FUNCTION__, *hgfsRootPath);
 
    return TRUE;
 #endif
@@ -98,7 +98,7 @@ HgfsHlpr_QuerySharesDefaultRootPath(Unicode *hgfsRootPath)
  */
 
 void
-HgfsHlpr_FreeSharesRootPath(Unicode hgfsRootPath)
+HgfsHlpr_FreeSharesRootPath(char *hgfsRootPath)
 {
-   Unicode_Free(hgfsRootPath);
+   free(hgfsRootPath);
 }

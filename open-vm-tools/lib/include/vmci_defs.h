@@ -363,7 +363,11 @@ typedef uint32 VMCI_Event;
                                      // this event has the Context payload type.
 #define VMCI_EVENT_MEM_ACCESS_OFF 6  // Applicable to VMX and vmk.  Same as
                                      // above for the payload type.
-#define VMCI_EVENT_MAX            7
+#define VMCI_EVENT_GUEST_PAUSED   7  // Applicable to vmk. This event has the
+                                     // Context payload type.
+#define VMCI_EVENT_GUEST_UNPAUSED 8  // Applicable to vmk. Same as above for
+                                     // the payload type.
+#define VMCI_EVENT_MAX            9
 
 /*
  * Of the above events, a few are reserved for use in the VMX, and
@@ -383,7 +387,9 @@ typedef uint32 VMCI_Event;
 #else // VMX86_SERVER
 #define VMCI_EVENT_VALID(_event) (_event < VMCI_EVENT_MAX && \
                                   _event != VMCI_EVENT_MEM_ACCESS_ON && \
-                                  _event != VMCI_EVENT_MEM_ACCESS_OFF)
+                                  _event != VMCI_EVENT_MEM_ACCESS_OFF && \
+                                  _event != VMCI_EVENT_GUEST_PAUSED && \
+                                  _event != VMCI_EVENT_GUEST_UNPAUSED)
 #endif // VMX86_SERVER
 
 /* Reserved guest datagram resource ids. */
@@ -410,7 +416,7 @@ typedef uint32 VMCIPrivilegeFlags;
 #define VMCI_PRIVILEGE_FLAG_RESTRICTED     0x01
 #define VMCI_PRIVILEGE_FLAG_TRUSTED        0x02
 #define VMCI_PRIVILEGE_ALL_FLAGS           (VMCI_PRIVILEGE_FLAG_RESTRICTED | \
-				            VMCI_PRIVILEGE_FLAG_TRUSTED)
+                                            VMCI_PRIVILEGE_FLAG_TRUSTED)
 #define VMCI_NO_PRIVILEGE_FLAGS            0x00
 #define VMCI_DEFAULT_PROC_PRIVILEGE_FLAGS  VMCI_NO_PRIVILEGE_FLAGS
 #define VMCI_LEAST_PRIVILEGE_FLAGS         VMCI_PRIVILEGE_FLAG_RESTRICTED

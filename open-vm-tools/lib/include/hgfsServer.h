@@ -22,19 +22,6 @@
 #include "hgfs.h"             /* for HGFS_PACKET_MAX */
 #include "dbllnklst.h"
 
-/*
- * Function used for sending updates of server state to the manager.
- * Passed by the caller at session connect time.
- */
-typedef void
-HgfsServerStateLoggerFunc(void *data,     // IN
-                          uint64 cookie); // IN
-
-typedef struct HgfsServerStateLogger {
-   HgfsServerStateLoggerFunc  *logger;       // logger callback
-   void                       *loggerData;   // logger callback private data
-} HgfsServerStateLogger;
-
 typedef struct HgfsVmxIov {
    void *va;           /* Virtual addr */
    uint64 pa;          /* Physical address passed by the guest */
@@ -135,6 +122,50 @@ typedef struct HgfsServerConfig {
    uint32 maxCachedOpenNodes;
 }HgfsServerConfig;
 
+/*
+ * Function used to notify HGFS server that a shared folder has been created or updated.
+ * It allows HGFS server to maintain up-to-date list of shared folders and its
+ * properties.
+ */
+typedef uint32 HgfsSharedFolderHandle;
+#define HGFS_INVALID_FOLDER_HANDLE         ((HgfsSharedFolderHandle)~((HgfsSharedFolderHandle)0))
+
+typedef HgfsSharedFolderHandle (*HgfsRegisterSharedFolderFunc)(const char *shareName,
+                                                               const char *sharePath,
+                                                               Bool addFolder);
+/*
+ * Callback functions to enumerate the share resources.
+ * Filled in by the HGFS server policy and passed in to the HGFS server
+ * so that it can call out to them to enumerate the shares.
+ */
+typedef void * (*HgfsServerResEnumInitFunc)(void);
+typedef Bool (*HgfsServerResEnumGetFunc)(void *data,
+                                         char const **name,
+                                         size_t *len,
+                                         Bool *done);
+typedef Bool (*HgfsServerResEnumExitFunc)(void *);
+
+typedef struct HgfsServerResEnumCallbacks {
+   HgfsServerResEnumInitFunc init;
+   HgfsServerResEnumGetFunc get;
+   HgfsServerResEnumExitFunc exit;
+} HgfsServerResEnumCallbacks;
+
+
+/*
+ * Server Manager callback functions to enumerate the share resources and state logging.
+ * Passed to the HGFS server on initialization.
+ */
+typedef struct HgfsServerMgrCallbacks {
+   HgfsServerResEnumCallbacks enumResources;
+} HgfsServerMgrCallbacks;
+
+/*
+ * Function used for invalidating nodes and searches that fall outside of a
+ * share when the list of shares changes.
+ */
+typedef void (*HgfsInvalidateObjectsFunc)(DblLnkLst_Links *shares);
+
 typedef Bool (*HgfsChannelSendFunc)(void *opaqueSession,
                                     HgfsPacket *packet,
                                     HgfsSendFlags flags);
@@ -158,58 +189,20 @@ typedef struct HgfsServerSessionCallbacks {
    void (*sendComplete)(HgfsPacket *, void *);
 } HgfsServerSessionCallbacks;
 
-Bool HgfsServer_InitState(HgfsServerSessionCallbacks **,
+typedef struct HgfsServerCallbacks {
+   HgfsServerSessionCallbacks session;
+   HgfsRegisterSharedFolderFunc registerShare;
+} HgfsServerCallbacks;
+
+Bool HgfsServer_InitState(HgfsServerCallbacks **,
                           HgfsServerConfig *,
-                          HgfsServerStateLogger *);
+                          HgfsServerMgrCallbacks *);
 void HgfsServer_ExitState(void);
 
 uint32 HgfsServer_GetHandleCounter(void);
 void HgfsServer_SetHandleCounter(uint32 newHandleCounter);
 
-/*
- * Function pointers used for getting names in HgfsServerGetDents
- *
- * Functions of this type are expected to return a NUL terminated
- * string and the length of that string.
- */
-typedef Bool
-HgfsGetNameFunc(void *data,        // IN
-                char const **name, // OUT
-                size_t *len,       // OUT
-                Bool *done);       // OUT
 
-/*
- * Associated setup and cleanup function types, which should be called
- * before and after (respectively) HgfsGetNameFunc.
- */
-typedef void *
-HgfsInitFunc(void);
-
-typedef Bool
-HgfsCleanupFunc(void *);  // IN
-
-/*
- * Function used for invalidating nodes and searches that fall outside of a
- * share when the list of shares changes.
- */
-typedef void
-HgfsInvalidateObjectsFunc(DblLnkLst_Links *shares); // IN
-
-/*
- * Function used to notify HGFS server that a shared folder has been created or updated.
- * It allows HGFS server to maintain up-to-date list of shared folders and its
- * properties.
- */
-typedef uint32 HgfsSharedFolderHandle;
-#define HGFS_INVALID_FOLDER_HANDLE         ((HgfsSharedFolderHandle)~((HgfsSharedFolderHandle)0))
-
-typedef HgfsSharedFolderHandle
-HgfsRegisterSharedFolderFunc(const char *shareName,
-                             const char *sharePath,
-                             Bool addFolder);
-HgfsSharedFolderHandle HgfsServer_RegisterSharedFolder(const char *shareName,
-                                                       const char *sharePath,
-                                                       Bool addFolder);
 void HgfsServer_Quiesce(Bool freeze);
 
 #endif // _HGFS_SERVER_H_

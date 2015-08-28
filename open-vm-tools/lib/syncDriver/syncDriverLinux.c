@@ -115,6 +115,11 @@ LinuxFiClose(SyncDriverHandle handle)
  * If the first attempt at using the ioctl fails, assume that it doesn't exist
  * and return SD_UNAVAILABLE, so that other means of freezing are tried.
  *
+ * NOTE: This function performs two system calls open() and ioctl(). We have
+ * seen open() being slow with NFS mount points at times and ioctl() being
+ * slow when guest is performing significant IO. Therefore, caller should
+ * consider running this function in a separate thread.
+ *
  * @param[in]  paths    Paths to freeze (colon-separated).
  * @param[out] handle   Handle to use for thawing.
  *
@@ -138,7 +143,7 @@ LinuxDriver_Freeze(const char *paths,
 
    DynBuf_Init(&fds);
 
-   Debug(LGPFX "Freezing using Linux ioctls...\n");
+   Debug(LGPFX "Freezing %s using Linux ioctls...\n", paths);
 
    sync = calloc(1, sizeof *sync);
    if (sync == NULL) {
@@ -154,6 +159,7 @@ LinuxDriver_Freeze(const char *paths,
     * the current kernel.
     */
    while ((path = StrUtil_GetNextToken(&index, paths, ":")) != NULL) {
+      Debug(LGPFX "opening path '%s'.\n", path);
       fd = open(path, O_RDONLY);
       if (fd == -1) {
          switch (errno) {
@@ -185,6 +191,7 @@ LinuxDriver_Freeze(const char *paths,
          }
       }
 
+      Debug(LGPFX "freezing path '%s'.\n", path);
       if (ioctl(fd, FIFREEZE) == -1) {
          int ioctlerr = errno;
          /*
@@ -198,6 +205,8 @@ LinuxDriver_Freeze(const char *paths,
           * bind mounts).
           */
          close(fd);
+         Debug(LGPFX "freeze on '%s' returned: %d (%s)\n",
+               path, ioctlerr, strerror(ioctlerr));
          if (ioctlerr != EBUSY && ioctlerr != EOPNOTSUPP) {
             Debug(LGPFX "failed to freeze '%s': %d (%s)\n",
                   path, ioctlerr, strerror(ioctlerr));

@@ -51,7 +51,7 @@ typedef struct HgfsGuestChannelCBTable {
 extern HgfsGuestChannelCBTable gGuestBackdoorOps;
 
 /* For use by HgfsServerManager. */
-Bool HgfsChannelGuest_Init(HgfsServerMgrData *data);
+Bool HgfsChannelGuest_Init(HgfsServerMgrData *data, HgfsServerMgrCallbacks *cb);
 void HgfsChannelGuest_Exit(HgfsServerMgrData *data);
 Bool HgfsChannelGuest_Receive(HgfsServerMgrData *data,
                               char const *packetIn,

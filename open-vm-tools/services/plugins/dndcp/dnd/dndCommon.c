@@ -48,7 +48,9 @@
 #define WIN_DIRSEPC     '\\'
 #define WIN_DIRSEPS     "\\"
 
-static ConstUnicode DnDCreateRootStagingDirectory(void);
+
+#ifndef DND_IS_XDG
+static const char *DnDCreateRootStagingDirectory(void);
 
 /*
  *-----------------------------------------------------------------------------
@@ -78,14 +80,14 @@ static ConstUnicode DnDCreateRootStagingDirectory(void);
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 DnD_CreateStagingDirectory(void)
 {
-   ConstUnicode root;
-   Unicode *stagingDirList;
+   const char *root;
+   char **stagingDirList;
    int numStagingDirs;
    int i;
-   Unicode ret = NULL;
+   char *ret = NULL;
    Bool found = FALSE;
 
    /*
@@ -105,7 +107,7 @@ DnD_CreateStagingDirectory(void)
 
    for (i = 0; i < numStagingDirs; i++) {
       if (!found) {
-         Unicode stagingDir;
+         char *stagingDir;
 
          stagingDir = Unicode_Append(root, stagingDirList[i]);
 
@@ -119,11 +121,11 @@ DnD_CreateStagingDirectory(void)
                found = TRUE;
          }
 
-         Unicode_Free(stagingDir);
+         free(stagingDir);
       }
    }
 
-   Unicode_FreeList(stagingDirList, numStagingDirs);
+   Util_FreeStringList(stagingDirList, numStagingDirs);
 
    /* Only create a directory if we didn't find one above. */
    if (!found) {
@@ -132,14 +134,14 @@ DnD_CreateStagingDirectory(void)
       context = Random_QuickSeed((unsigned)time(NULL));
 
       for (i = 0; i < 10; i++) {
-         Unicode temp;
+         char *temp;
 
          /* Each staging directory is given a random name. */
-         Unicode_Free(ret);
+         free(ret);
          temp = Unicode_Format("%08x%c", Random_Quick(context), DIRSEPC);
          VERIFY(temp);
          ret = Unicode_Append(root, temp);
-         Unicode_Free(temp);
+         free(temp);
 
          if (File_CreateDirectory(ret) &&
              DnDSetPermissionsOnStagingDir(ret)) {
@@ -153,12 +155,13 @@ DnD_CreateStagingDirectory(void)
 
 exit:
    if (!found && ret != NULL) {
-      Unicode_Free(ret);
+      free(ret);
       ret = NULL;
    }
 
    return ret;
 }
+#endif // ifndef DND_IS_XDG
 
 
 /*
@@ -179,8 +182,8 @@ exit:
  */
 
 Bool
-DnD_DeleteStagingFiles(ConstUnicode stagingDir,  // IN:
-                       Bool onReboot)            // IN:
+DnD_DeleteStagingFiles(const char *stagingDir,  // IN:
+                       Bool onReboot)           // IN:
 {
    Bool ret = TRUE;
 
@@ -202,8 +205,8 @@ DnD_DeleteStagingFiles(ConstUnicode stagingDir,  // IN:
    } else {
       int i;
       int numFiles;
-      Unicode base;
-      Unicode *fileList = NULL;
+      char *base;
+      char **fileList = NULL;
 
       /* get list of files in current directory */
       numFiles = File_ListDirectory(stagingDir, &fileList);
@@ -216,7 +219,7 @@ DnD_DeleteStagingFiles(ConstUnicode stagingDir,  // IN:
       base = Unicode_Append(stagingDir, DIRSEPS);
 
       for (i = 0; i < numFiles; i++) {
-         Unicode curPath;
+         char *curPath;
 
          curPath = Unicode_Append(base, fileList[i]);
 
@@ -230,15 +233,17 @@ DnD_DeleteStagingFiles(ConstUnicode stagingDir,  // IN:
             }
          }
 
-         Unicode_Free(curPath);
+         free(curPath);
       }
 
-      Unicode_Free(base);
+      free(base);
    }
 
    return ret;
 }
 
+
+#ifndef DND_IS_XDG
 /*
  *----------------------------------------------------------------------------
  *
@@ -256,10 +261,10 @@ DnD_DeleteStagingFiles(ConstUnicode stagingDir,  // IN:
  *----------------------------------------------------------------------------
  */
 
-static ConstUnicode
+static const char *
 DnDCreateRootStagingDirectory(void)
 {
-   ConstUnicode root;
+   const char *root;
 
    /*
     * DnD_GetFileRoot() gives us a pointer to a static string, so there's no
@@ -289,120 +294,7 @@ DnDCreateRootStagingDirectory(void)
 
    return root;
 }
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * DnDPrependFileRoot --
- *
- *    Given a buffer of '\0' delimited filenames, this prepends the file root
- *    to each one and uses delimiter for delimiting the output buffer.  The
- *    buffer pointed to by *src will be freed and *src will point to a new
- *    buffer containing the results.  *srcSize is set to the size of the new
- *    buffer, not including the NUL-terminator.
- *
- *    The logic here and in the called functions appears to be UTF8-safe.
- *
- * Results:
- *    TRUE on success, FALSE on failure.
- *
- * Side effects:
- *    *src will be freed, and a new buffer will be allocated. This buffer must
- *    be freed by the caller.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-DnDPrependFileRoot(ConstUnicode fileRoot,  // IN    : file root to append
-                   char delimiter,         // IN    : delimiter for output buffer
-                   char **src,             // IN/OUT: NUL-delimited list of paths
-                   size_t *srcSize)        // IN/OUT: size of list
-{
-   char *newData = NULL;
-   size_t newDataLen = 0;
-   Bool firstPass = TRUE;
-   const char *begin;
-   const char *end;
-   const char *next;
-   size_t rootLen;
-   int len;
-
-   ASSERT(fileRoot);
-   ASSERT(src);
-   ASSERT(*src);
-   ASSERT(srcSize);
-
-   rootLen = strlen(fileRoot);
-
-   /*
-    * To prevent CPName_GetComponent() errors, we set begin to the first
-    * Non-NUL character in *src, and end to the last NUL character in *src.  We
-    * assume that the components are delimited with single NUL characters; if
-    * that is not true, CPName_GetComponent() will fail.
-    */
-
-   for (begin = *src; *begin == '\0'; begin++)
-      ;
-   end = CPNameUtil_Strrchr(*src, *srcSize, '\0');
-
-   /* Get the length of this component, and a pointer to the next */
-   while ((len = CPName_GetComponent(begin, end, &next)) != 0) {
-      size_t origNewDataLen = newDataLen;
-      int escapedLen;
-
-      if (len < 0) {
-         Log("%s: error getting next component\n", __FUNCTION__);
-         if (!firstPass) {
-            free(newData);
-         }
-
-         return FALSE;
-      }
-
-      /*
-       * Append this component to our list: allocate one more for NUL on first
-       * pass and delimiter on all other passes.
-       */
-
-      escapedLen = HgfsEscape_GetSize(begin, len);
-      if (escapedLen < 0) {
-         Log("%s: error calculating buffer size\n", __FUNCTION__);
-         return FALSE;
-      } else if (0 == escapedLen) {
-         newDataLen += rootLen + len + 1;
-         newData = (char *)Util_SafeRealloc(newData, newDataLen);
-
-         if (!firstPass) {
-            ASSERT(origNewDataLen > 0);
-            newData[origNewDataLen - 1] = delimiter;
-         }
-         memcpy(newData + origNewDataLen, fileRoot, rootLen);
-         memcpy(newData + origNewDataLen + rootLen, begin, len);
-      } else {
-         newDataLen += rootLen + 1;
-         newData = (char *)Util_SafeRealloc(newData, newDataLen);
-
-         if (!firstPass) {
-            ASSERT(origNewDataLen > 0);
-            newData[origNewDataLen - 1] = delimiter;
-         }
-         memcpy(newData + origNewDataLen, fileRoot, rootLen);
-         HgfsEscape_Do(begin, len, escapedLen, newData + origNewDataLen + rootLen);
-      }
-      newData[newDataLen - 1] = '\0';
-
-      firstPass = FALSE;
-      begin = next;
-   }
-
-   free(*src);
-   *src = newData;
-   /* Not including NUL terminator */
-   *srcSize = newDataLen - 1;
-   return TRUE;
-}
+#endif // ifndef DND_IS_XDG
 
 
 /*
@@ -473,7 +365,7 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
 
    nameSize = strlen(nameIn);
    fullNameSize = partialNameLen + partialNameSuffixLen + nameSize;
-   fullName = (char *)Util_SafeMalloc(fullNameSize + 1);
+   fullName = Util_SafeMalloc(fullNameSize + 1);
 
    memcpy(fullName, partialName, partialNameLen);
    memcpy(fullName + partialNameLen, partialNameSuffix, partialNameSuffixLen);
@@ -639,7 +531,7 @@ error:
  *    Try to get last directory name from a full path name.
  *
  * Results:
- *    The allocated Unicode string, or NULL on failure.
+ *    The allocated UTF8 string, or NULL on failure.
  *
  * Side effects:
  *    None.
@@ -647,8 +539,8 @@ error:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-DnD_GetLastDirName(ConstUnicode str) // IN
+char *
+DnD_GetLastDirName(const char *str) // IN
 {
    size_t end = strlen(str);
    size_t start;
@@ -779,8 +671,7 @@ DnD_TransportBufGetPacket(DnDTransportBuffer *buf,           // IN/OUT
       payloadSize = buf->totalSize - buf->offset;
    }
 
-   *packet = (DnDTransportPacketHeader *)Util_SafeMalloc(
-      payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE);
+   *packet = Util_SafeMalloc(payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE);
    (*packet)->type = DND_TRANSPORT_PACKET_TYPE_PAYLOAD;
    (*packet)->seqNum = buf->seqNum;
    (*packet)->totalSize = buf->totalSize;
@@ -904,7 +795,7 @@ DnD_TransportMsgToPacket(uint8 *msg,                        // IN
 
    packetSize = msgSize + DND_TRANSPORT_PACKET_HEADER_SIZE;
 
-   *packet = (DnDTransportPacketHeader *)Util_SafeMalloc(packetSize);
+   *packet = Util_SafeMalloc(packetSize);
 
    (*packet)->type = DND_TRANSPORT_PACKET_TYPE_SINGLE;
    (*packet)->seqNum = seqNum;
@@ -940,8 +831,7 @@ size_t
 DnD_TransportReqPacket(DnDTransportBuffer *buf,           // IN
                        DnDTransportPacketHeader **packet) // OUT
 {
-   *packet = (DnDTransportPacketHeader *)Util_SafeMalloc(
-      DND_TRANSPORT_PACKET_HEADER_SIZE);
+   *packet = Util_SafeMalloc(DND_TRANSPORT_PACKET_HEADER_SIZE);
 
    (*packet)->type = DND_TRANSPORT_PACKET_TYPE_REQUEST;
    (*packet)->seqNum = buf->seqNum;

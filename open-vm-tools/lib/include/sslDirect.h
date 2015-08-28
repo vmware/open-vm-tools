@@ -29,7 +29,7 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
-
+typedef struct _SSLVerifyParam SSLVerifyParam;
 typedef struct SSLSockStruct *SSLSock;
 typedef char* (SSLLibFn)(const char*, const char*);
 

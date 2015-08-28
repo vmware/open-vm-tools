@@ -29,9 +29,22 @@
 #include <dirent.h>
 #include <errno.h>
 #include <string.h>
+
+#if _FILE_OFFSET_BITS != 64
+#   error FILE_OFFSET_BITS=64 required
+#endif
+/*
+ * Work around unnecessary blocking of FOB=64 in Sol10, fixed in Sol11
+ * See https://www.illumos.org/issues/2410
+ */
+#undef _FILE_OFFSET_BITS
 #include <procfs.h>
+#define _FILE_OFFSET_BITS 64
+
 #include <ctype.h>
 #include <sys/param.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "vmware.h"
 #include "procMgr.h"
@@ -42,22 +55,22 @@
 #include "dynarray.h"
 #include "su.h"
 #include "str.h"
-#include "fileIO.h"
+#include "posix.h"
 #include "codeset.h"
 #include "unicode.h"
 
 static Bool
-ReadArgsFromAddressSpaceFile(FileIODescriptor asFd,
+ReadArgsFromAddressSpaceFile(int asFd,
                              psinfo_t *psInfo,
                              DynBufArray *cmdLineArr);
 
 static Bool
-ReadOffsetsFromAddressSpaceFile(FileIODescriptor asFd,
+ReadOffsetsFromAddressSpaceFile(int asFd,
                                 psinfo_t *psInfo,
                                 uintptr_t *argOffs);
 
 static char *
-ExtractArgStringFromAddressSpaceFile(FileIODescriptor asFd,
+ExtractArgStringFromAddressSpaceFile(int asFd,
                                      uintptr_t offset);
 
 static char *
@@ -116,12 +129,10 @@ ProcMgr_ListProcesses(void)
       psinfo_t procInfo;
       size_t strLen = 0;
       size_t numRead = 0;
-      FileIODescriptor psInfoFd;
-      FileIOResult res;
+      int psInfoFd = -1;
       Bool cmdNameLookup = TRUE;
 
       errno = 0;
-      FileIO_Invalidate(&psInfoFd);
 
       ent = readdir(dir);
       if (ent == NULL) {
@@ -139,22 +150,18 @@ ProcMgr_ListProcesses(void)
          Debug("Process id '%s' too large\n", ent->d_name);
          continue;
       }
-      res = FileIO_Open(&psInfoFd,
-                        tempPath,
-                        FILEIO_OPEN_ACCESS_READ,
-                        FILEIO_OPEN);
-      if (res != FILEIO_SUCCESS) {
-         if ((res == FILEIO_FILE_NOT_FOUND) ||
-             (res == FILEIO_NO_PERMISSION)) {
+      psInfoFd = Posix_Open(tempPath, O_RDONLY);
+      if (psInfoFd == -1) {
+         if (errno == ENOENT || errno == EACCES) {
             continue;
          } else {
             goto exit;
          }
       }
 
-      res = FileIO_Read(&psInfoFd, &procInfo, sizeof procInfo, &numRead);
-      FileIO_Close(&psInfoFd);
-      if (res != FILEIO_SUCCESS) {
+      numRead = read(psInfoFd, &procInfo, sizeof procInfo);
+      close(psInfoFd);
+      if (numRead != sizeof procInfo) {
          goto exit;
       }
 
@@ -308,8 +315,7 @@ ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo, //IN: psinfo struct
    int i;
    char tempPath[MAXPATHLEN];
    char *buf;
-   FileIODescriptor asFd;
-   FileIOResult res;
+   int asFd = -1;
    DynBuf cmdLine;
    DynBufArray args;
    pid_t pid;
@@ -318,7 +324,6 @@ ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo, //IN: psinfo struct
    if (NULL != procCmdName) {
       *procCmdName = NULL;
    }
-   FileIO_Invalidate(&asFd);
    pid = procInfo->pr_pid;
 
    if (Str_Snprintf(tempPath,
@@ -328,14 +333,10 @@ ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo, //IN: psinfo struct
       /* This should not happen. MAXPATHLEN should be large enough. */
       ASSERT(FALSE);
    }
-   res = FileIO_Open(&asFd,
-                     tempPath,
-                     FILEIO_OPEN_ACCESS_READ,
-                     FILEIO_OPEN);
-   if (res != FILEIO_SUCCESS) {
+   asFd = Posix_Open(tempPath, O_RDONLY);
+   if (asFd == -1) {
       Warning("Could not open address space file for pid %"FMT64"d, %s\n",
-              (int64_t)pid,
-              FileIO_MsgError(res));
+              (int64_t)pid, strerror(errno));
       return NULL;
    }
 
@@ -375,7 +376,7 @@ ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo, //IN: psinfo struct
       buf = DynBuf_Detach(&cmdLine);
       DynBuf_Destroy(&cmdLine);
    }
-   FileIO_Close(&asFd);
+   close(asFd);
    return buf;
 }
 
@@ -406,7 +407,7 @@ ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo, //IN: psinfo struct
  */
 
 static Bool
-ReadArgsFromAddressSpaceFile(FileIODescriptor asFd,     //IN
+ReadArgsFromAddressSpaceFile(int asFd,                  //IN
                              psinfo_t *psInfo,          //IN
                              DynBufArray *cmdLineArr)   //OUT
 {
@@ -508,14 +509,14 @@ fail:
  */
 
 static Bool
-ReadOffsetsFromAddressSpaceFile(FileIODescriptor asFd, //IN
+ReadOffsetsFromAddressSpaceFile(int asFd,              //IN
                                 psinfo_t *psInfo,      //IN
                                 uintptr_t *argOffs)    //OUT
 {
    int argc;
    int i;
    uintptr_t argv;
-   FileIOResult res;
+   ssize_t res;
 
    argc = psInfo->pr_argc;
    argv = psInfo->pr_argv;
@@ -529,8 +530,8 @@ ReadOffsetsFromAddressSpaceFile(FileIODescriptor asFd, //IN
       /*
        * The offset for each arguments is sizeof uintptr_t bytes.
        */
-      res = FileIO_Pread(&asFd, argOffs, argc * sizeof argv, argv);
-      if (res != FILEIO_SUCCESS) {
+      res = pread(asFd, argOffs, argc * sizeof argv, argv);
+      if (res != argc * sizeof argv) {
          return FALSE;
       }
    } else {
@@ -542,8 +543,8 @@ ReadOffsetsFromAddressSpaceFile(FileIODescriptor asFd, //IN
       if (argOffs32 == NULL) {
          return FALSE;
       }
-      res = FileIO_Pread(&asFd, argOffs32, argc * sizeof *argOffs32, argv);
-      if (res != FILEIO_SUCCESS) {
+      res = pread(asFd, argOffs32, argc * sizeof *argOffs32, argv);
+      if (res != argc * sizeof *argOffs32) {
          free (argOffs32);
          return FALSE;
       }
@@ -578,17 +579,17 @@ ReadOffsetsFromAddressSpaceFile(FileIODescriptor asFd, //IN
  */
 
 static char *
-ExtractArgStringFromAddressSpaceFile(FileIODescriptor asFd,     //IN
-                                     uintptr_t offset)          //IN
+ExtractArgStringFromAddressSpaceFile(int asFd,          //IN
+                                     uintptr_t offset)  //IN
 {
    int readSize = 32;
    char *buf;
-   FileIOResult res;
+   ssize_t res;
 
    buf = Util_SafeMalloc(readSize * sizeof *buf);
    while (1) {
-      res = FileIO_Pread(&asFd, buf, readSize, offset);
-      if (res != FILEIO_SUCCESS) {
+      res = pread(asFd, buf, readSize, offset);
+      if (res != readSize) {
          goto fail;
       }
       if (Str_Strlen(buf, readSize) == readSize) {

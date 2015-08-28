@@ -58,6 +58,7 @@
 #include "posix.h"
 #include "file.h"
 #include "fileIO.h"
+#include "util.h"
 #include "fileInt.h"
 #include "dynbuf.h"
 #include "base64.h"
@@ -79,15 +80,15 @@
  *      Check if a file is accessible with the process' real user ID
  *
  *      XXX - This function invokes access(), which uses the real uid,
- *      not the effective uid, so it probably does not do what you 
- *      expect.  Instead it should use Posix_EuidAccess(), which 
+ *      not the effective uid, so it probably does not do what you
+ *      expect.  Instead it should use Posix_EuidAccess(), which
  *      uses the effective uid, but it's too risky to fix right now.
  *      See PR 459242.
  *
  * Results:
  *      TRUE    file is accessible with the process' real uid
  *      FALSE   file doesn't exist or an error occured
- *      
+ *
  * Side effects:
  *      None
  *
@@ -95,7 +96,7 @@
  */
 
 Bool
-File_Exists(ConstUnicode pathName)  // IN: May be NULL.
+File_Exists(const char *pathName)  // IN: May be NULL.
 {
    return FileIO_IsSuccess(FileIO_Access(pathName, FILEIO_ACCESS_EXISTS));
 }
@@ -106,20 +107,20 @@ File_Exists(ConstUnicode pathName)  // IN: May be NULL.
  *
  * File_UnlinkIfExists --
  *
- *      If the given file exists, unlink it. 
+ *      If the given file exists, unlink it.
  *
  * Results:
- *      Return 0 if the unlink is successful or if the file did not exist.   
+ *      Return 0 if the unlink is successful or if the file did not exist.
  *      Otherwise return -1.
  *
  * Side effects:
  *      May unlink the file.
- *      
+ *
  *----------------------------------------------------------------------
  */
 
 int
-File_UnlinkIfExists(ConstUnicode pathName)  // IN:
+File_UnlinkIfExists(const char *pathName)  // IN:
 {
    int ret = FileDeletion(pathName, TRUE);
 
@@ -151,7 +152,7 @@ File_UnlinkIfExists(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_SupportsMandatoryLock(ConstUnicode pathName) // IN: file to be locked
+File_SupportsMandatoryLock(const char *pathName) // IN: file to be locked
 {
    /*
     * For now, "know" that all ESX filesystems support mandatory locks
@@ -179,7 +180,7 @@ File_SupportsMandatoryLock(ConstUnicode pathName) // IN: file to be locked
  */
 
 Bool
-File_IsDirectory(ConstUnicode pathName)  // IN:
+File_IsDirectory(const char *pathName)  // IN:
 {
    FileData fileData;
 
@@ -205,8 +206,8 @@ File_IsDirectory(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_GetFilePermissions(ConstUnicode pathName,  // IN:
-                        int *mode)              // OUT: file mode
+File_GetFilePermissions(const char *pathName,  // IN:
+                        int *mode)             // OUT: file mode
 {
    FileData fileData;
 
@@ -255,7 +256,7 @@ File_GetFilePermissions(ConstUnicode pathName,  // IN:
  */
 
 int
-File_Unlink(ConstUnicode pathName)  // IN:
+File_Unlink(const char *pathName)  // IN:
 {
    return (FileDeletion(pathName, TRUE) == 0) ? 0 : -1;
 }
@@ -280,7 +281,7 @@ File_Unlink(ConstUnicode pathName)  // IN:
  */
 
 int
-File_UnlinkNoFollow(ConstUnicode pathName)  // IN:
+File_UnlinkNoFollow(const char *pathName)  // IN:
 {
    return (FileDeletion(pathName, FALSE) == 0) ? 0 : -1;
 }
@@ -303,8 +304,8 @@ File_UnlinkNoFollow(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_CreateDirectoryEx(ConstUnicode pathName,  // IN:
-                       int mask)               // IN:
+File_CreateDirectoryEx(const char *pathName,  // IN:
+                       int mask)              // IN:
 {
    int err = FileCreateDirectory(pathName, mask);
 
@@ -329,9 +330,36 @@ File_CreateDirectoryEx(ConstUnicode pathName,  // IN:
  */
 
 Bool
-File_CreateDirectory(ConstUnicode pathName)  // IN:
+File_CreateDirectory(const char *pathName)  // IN:
 {
    return File_CreateDirectoryEx(pathName, 0777);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_EnsureDirectoryEx --
+ *
+ *      If the directory doesn't exist, creates it. If the directory
+ *      already exists, do nothing and succeed.
+ *
+ * Results:
+ *      See above.
+ *
+ * Side effects:
+ *      May create a directory on disk.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_EnsureDirectoryEx(const char *pathName,  // IN:
+                       int mask)              // IN:
+{
+   int err = FileCreateDirectory(pathName, mask);
+
+   return ((err == 0) || (err == EEXIST));
 }
 
 
@@ -353,11 +381,9 @@ File_CreateDirectory(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_EnsureDirectory(ConstUnicode pathName)  // IN:
+File_EnsureDirectory(const char *pathName)  // IN:
 {
-   int err = FileCreateDirectory(pathName, 0777);
-
-   return ((err == 0) || (err == EEXIST));
+   return File_EnsureDirectoryEx(pathName, 0777);
 }
 
 
@@ -378,7 +404,7 @@ File_EnsureDirectory(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_DeleteEmptyDirectory(ConstUnicode pathName)  // IN:
+File_DeleteEmptyDirectory(const char *pathName)  // IN:
 {
    Bool returnValue = TRUE;
 
@@ -634,8 +660,8 @@ OldMachineIDMatch(const char *first,   // IN:
  */
 
 Bool
-FileLockMachineIDMatch(char *hostMachineID,   // IN:
-                       char *otherMachineID)  // IN:
+FileLockMachineIDMatch(const char *hostMachineID,   // IN:
+                       const char *otherMachineID)  // IN:
 {
    if (strncmp(hostMachineID, "uuid=", 5) == 0) {
       if (strncmp(otherMachineID, "uuid=", 5) == 0) {
@@ -671,7 +697,7 @@ FileLockMachineIDMatch(char *hostMachineID,   // IN:
  */
 
 Bool
-File_IsEmptyDirectory(ConstUnicode pathName)  // IN:
+File_IsEmptyDirectory(const char *pathName)  // IN:
 {
    int numFiles;
 
@@ -712,10 +738,10 @@ File_IsEmptyDirectory(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_IsOsfsVolumeEmpty(ConstUnicode pathName)  // IN:
+File_IsOsfsVolumeEmpty(const char *pathName)  // IN:
 {
    int i, numFiles;
-   Unicode *fileList = NULL;
+   char **fileList = NULL;
    static const char vmfsSystemFilesuffix[] = ".sf";
    Bool onlyVmfsSystemFilesFound = TRUE;
 
@@ -731,7 +757,7 @@ File_IsOsfsVolumeEmpty(ConstUnicode pathName)  // IN:
       }
    }
 
-   Unicode_FreeList(fileList, numFiles);
+   Util_FreeStringList(fileList, numFiles);
 
    return onlyVmfsSystemFilesFound;
 }
@@ -755,7 +781,7 @@ File_IsOsfsVolumeEmpty(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_IsFile(ConstUnicode pathName)  // IN:
+File_IsFile(const char *pathName)  // IN:
 {
    FileData fileData;
 
@@ -794,7 +820,7 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
       size_t actual;
       FileIOResult fretW;
 
-      fretR = FileIO_Read(&src, buf, sizeof(buf), &actual);
+      fretR = FileIO_Read(&src, buf, sizeof buf, &actual);
       if (!FileIO_IsSuccess(fretR) && (fretR != FILEIO_READ_ERROR_EOF)) {
          err = Err_Errno();
 
@@ -824,228 +850,6 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
 
 
 /*
- *----------------------------------------------------------------------
- *
- * File_CopyFromFdToName --
- *
- *      Copy the 'src' file to 'dstName'.
- *      If the 'dstName' file already exists,
- *      If 'dstDispose' is -1, the user is prompted for proper action.
- *      If 'dstDispose' is 0, retry until success (dangerous).
- *      If 'dstDispose' is 1, overwrite the file.
- *      If 'dstDispose' is 2, return the error.
- *
- * Results:
- *      TRUE on success
- *      FALSE on failure: if the user cancelled the operation, no message is
- *                        appended. Otherwise messages are appended
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-File_CopyFromFdToName(FileIODescriptor src,  // IN:
-                      ConstUnicode dstName,  // IN:
-                      int dstDispose)        // IN:
-{
-   Bool success;
-   Err_Number err;
-   FileIOResult fret;
-   FileIODescriptor dst;
-
-   ASSERT(dstName);
-
-   FileIO_Invalidate(&dst);
-
-   fret = File_CreatePrompt(&dst, dstName, 0, dstDispose);
-   if (!FileIO_IsSuccess(fret)) {
-      err = Err_Errno();
-
-      if (fret != FILEIO_CANCELLED) {
-         Msg_Append(MSGID(File.CopyFromFdToName.create.failure)
-                    "Unable to create a new '%s' file: %s.\n\n",
-                    UTF8(dstName), FileIO_MsgError(fret));
-      }
-
-      Err_SetErrno(err);
-
-      return FALSE;
-   }
-
-   success = File_CopyFromFdToFd(src, dst);
-
-   err = Err_Errno();
-
-   if (FileIO_Close(&dst) != 0) {
-      if (success) {  // Report close failure when there isn't another error
-         err =  Err_Errno();
-      }
-
-      Msg_Append(MSGID(File.CopyFromFdToName.close.failure)
-                 "Unable to close the '%s' file: %s.\n\n", UTF8(dstName),
-                 Msg_ErrString());
-
-      success = FALSE;
-   }
-
-   if (!success) {
-      /* The copy failed: ensure the destination file is removed */
-      File_Unlink(dstName);
-   }
-
-   Err_SetErrno(err);
-
-   return success;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * File_CreatePrompt --
- *
- *      Create the 'name' file for write access or 'access' access.
- *      If the 'name' file already exists,
- *      If 'prompt' is not -1, it is the automatic answer to the question that
- *      would be asked to the user if it was -1.
- *
- * Results:
- *      FILEIO_CANCELLED if the operation was cancelled by the user, otherwise
- *      as FileIO_Open()
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-FileIOResult
-File_CreatePrompt(FileIODescriptor *file,  // OUT:
-                  ConstUnicode pathName,   // IN:
-                  int access,              // IN:
-                  int prompt)              // IN:
-{
-   FileIOResult fret;
-   FileIOOpenAction action;
-
-   ASSERT(file);
-   ASSERT(pathName);
-
-   action = FILEIO_OPEN_CREATE_SAFE;
-
-   while ((fret = FileIO_Open(file, pathName, FILEIO_OPEN_ACCESS_WRITE | access,
-                             action)) == FILEIO_OPEN_ERROR_EXIST) {
-      static Msg_String const buttons[] = {
-         {BUTTONID(file.create.retry)     "Retry"},
-         {BUTTONID(file.create.overwrite) "Overwrite"},
-         {BUTTONID(cancel)                "Cancel"},
-         {NULL}
-      };
-      int answer;
-      Err_Number err = Err_Errno();
-
-      answer = (prompt != -1) ? prompt : Msg_Question(buttons, 2,
-         MSGID(File.CreatePrompt.question)
-         "The file '%s' already exists.\n"
-         "To overwrite the content of the file, select Overwrite.\n"
-         "To retry the operation after you have moved the file "
-         "to another location, select Retry.\n"
-         "To cancel the operation, select Cancel.\n",
-         UTF8(pathName));
-
-      Err_SetErrno(err);
-
-      if (answer == 2) {
-         fret = FILEIO_CANCELLED;
-         break;
-      }
-      if (answer == 1) {
-         action = FILEIO_OPEN_CREATE_EMPTY;
-      }
-   }
-
-   return fret;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * File_CopyFromNameToName --
- *
- *      Copy the 'srcName' file to 'dstName'.
- *      If 'srcName' doesn't exist, an error is reported
- *      If the 'dstName' file already exists,
- *      If 'dstDispose' is -1, the user is prompted for proper action.
- *      If 'dstDispose' is 0, retry until success (dangerous).
- *      If 'dstDispose' is 1, overwrite the file.
- *      If 'dstDispose' is 2, return the error.
- *
- * Results:
- *      TRUE on success
- *      FALSE on failure: if the user cancelled the operation, no message is
- *                        appended. Otherwise messages are appended
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-File_CopyFromNameToName(ConstUnicode srcName,  // IN:
-                        ConstUnicode dstName,  // IN:
-                        int dstDispose)        // IN:
-{
-   Bool success;
-   Err_Number err;
-   FileIOResult fret;
-   FileIODescriptor src;
-
-   ASSERT(srcName);
-   ASSERT(dstName);
-
-   FileIO_Invalidate(&src);
-
-   fret = FileIO_Open(&src, srcName, FILEIO_OPEN_ACCESS_READ, FILEIO_OPEN);
-   if (!FileIO_IsSuccess(fret)) {
-      err = Err_Errno();
-
-      Msg_Append(MSGID(File.CopyFromNameToName.open.failure)
-                 "Unable to open the '%s' file for read access: %s.\n\n",
-                 UTF8(srcName), FileIO_MsgError(fret));
-
-      Err_SetErrno(err);
-
-      return FALSE;
-   }
-
-   success = File_CopyFromFdToName(src, dstName, dstDispose);
-
-   err = Err_Errno();
-   
-   if (FileIO_Close(&src) != 0) {
-      if (success) {  // Report close failure when there isn't another error
-         err =  Err_Errno();
-      }
-
-      Msg_Append(MSGID(File.CopyFromNameToName.close.failure)
-                 "Unable to close the '%s' file: %s.\n\n", UTF8(srcName),
-                 Msg_ErrString());
-
-      success = FALSE;
-   }
-
-   Err_SetErrno(err);
-
-   return success;
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * FileCopyTree --
@@ -1065,8 +869,8 @@ File_CopyFromNameToName(ConstUnicode srcName,  // IN:
  */
 
 static Bool
-FileCopyTree(ConstUnicode srcName,    // IN:
-             ConstUnicode dstName,    // IN:
+FileCopyTree(const char *srcName,     // IN:
+             const char *dstName,     // IN:
              Bool overwriteExisting,  // IN:
              Bool followSymlinks)     // IN:
 {
@@ -1074,7 +878,7 @@ FileCopyTree(ConstUnicode srcName,    // IN:
    Bool success = TRUE;
    int numFiles;
    int i;
-   Unicode *fileList = NULL;
+   char **fileList = NULL;
 
    numFiles = File_ListDirectory(srcName, &fileList);
 
@@ -1082,7 +886,7 @@ FileCopyTree(ConstUnicode srcName,    // IN:
       err = Err_Errno();
       Msg_Append(MSGID(File.CopyTree.walk.failure)
                  "Unable to access '%s' when copying files.\n\n",
-                 UTF8(srcName));
+                 srcName);
       Err_SetErrno(err);
 
       return FALSE;
@@ -1092,7 +896,7 @@ FileCopyTree(ConstUnicode srcName,    // IN:
 
    for (i = 0; i < numFiles && success; i++) {
       struct stat sb;
-      Unicode srcFilename;
+      char *srcFilename;
 
       srcFilename = File_PathJoin(srcName, fileList[i]);
 
@@ -1103,7 +907,7 @@ FileCopyTree(ConstUnicode srcName,    // IN:
       }
 
       if (success) {
-         Unicode dstFilename = File_PathJoin(dstName, fileList[i]);
+         char *dstFilename = File_PathJoin(dstName, fileList[i]);
 
          switch (sb.st_mode & S_IFMT) {
          case S_IFDIR:
@@ -1117,8 +921,8 @@ FileCopyTree(ConstUnicode srcName,    // IN:
                err = Err_Errno();
                Msg_Append(MSGID(File.CopyTree.symlink.failure)
                           "Unable to symlink '%s' to '%s': %s\n\n",
-                          UTF8(Posix_ReadLink(srcFilename)),
-                          UTF8(dstFilename),
+                          Posix_ReadLink(srcFilename),
+                          dstFilename,
                           Err_Errno2String(err));
                Err_SetErrno(err);
                success = FALSE;
@@ -1131,7 +935,7 @@ FileCopyTree(ConstUnicode srcName,    // IN:
                err = Err_Errno();
                Msg_Append(MSGID(File.CopyTree.copy.failure)
                           "Unable to copy '%s' to '%s': %s\n\n",
-                          UTF8(srcFilename), UTF8(dstFilename),
+                          srcFilename, dstFilename,
                           Err_Errno2String(err));
                Err_SetErrno(err);
                success = FALSE;
@@ -1140,23 +944,19 @@ FileCopyTree(ConstUnicode srcName,    // IN:
             break;
          }
 
-         Unicode_Free(dstFilename);
+         free(dstFilename);
       } else {
          err = Err_Errno();
          Msg_Append(MSGID(File.CopyTree.stat.failure)
                     "Unable to get information on '%s' when copying files.\n\n",
-                    UTF8(srcFilename));
+                    srcFilename);
          Err_SetErrno(err);
       }
 
-      Unicode_Free(srcFilename);
+      free(srcFilename);
    }
 
-   for (i = 0; i < numFiles; i++) {
-      Unicode_Free(fileList[i]);
-   }
-
-   free(fileList);
+   Util_FreeStringList(fileList, numFiles);
 
    return success;
 }
@@ -1181,8 +981,8 @@ FileCopyTree(ConstUnicode srcName,    // IN:
  */
 
 Bool
-File_CopyTree(ConstUnicode srcName,    // IN:
-              ConstUnicode dstName,    // IN:
+File_CopyTree(const char *srcName,     // IN:
+              const char *dstName,     // IN:
               Bool overwriteExisting,  // IN:
               Bool followSymlinks)     // IN:
 {
@@ -1195,7 +995,7 @@ File_CopyTree(ConstUnicode srcName,    // IN:
       err = Err_Errno();
       Msg_Append(MSGID(File.CopyTree.source.notDirectory)
                  "Source path '%s' is not a directory.",
-                 UTF8(srcName));
+                 srcName);
       Err_SetErrno(err);
       return FALSE;
    }
@@ -1204,7 +1004,7 @@ File_CopyTree(ConstUnicode srcName,    // IN:
       err = Err_Errno();
       Msg_Append(MSGID(File.CopyTree.dest.notDirectory)
                  "Destination path '%s' is not a directory.",
-                 UTF8(dstName));
+                 dstName);
       Err_SetErrno(err);
       return FALSE;
    }
@@ -1233,9 +1033,9 @@ File_CopyTree(ConstUnicode srcName,    // IN:
  */
 
 Bool
-File_CopyFromFd(FileIODescriptor src,     // IN:
-                ConstUnicode dstName,     // IN:
-                Bool overwriteExisting)   // IN:
+File_CopyFromFd(FileIODescriptor src,    // IN:
+                const char *dstName,     // IN:
+                Bool overwriteExisting)  // IN:
 {
    Bool success;
    Err_Number err;
@@ -1255,7 +1055,7 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
       err = Err_Errno();
 
       Msg_Append(MSGID(File.CopyFromFdToName.create.failure)
-                 "Unable to create a new '%s' file: %s.\n\n", UTF8(dstName),
+                 "Unable to create a new '%s' file: %s.\n\n", dstName,
                  FileIO_MsgError(fret));
 
       Err_SetErrno(err);
@@ -1267,13 +1067,13 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
 
    err = Err_Errno();
 
-   if (FileIO_Close(&dst) != 0) {
+   if (!FileIO_IsSuccess(FileIO_Close(&dst))) {
       if (success) {  // Report close failure when there isn't another error
          err =  Err_Errno();
       }
 
       Msg_Append(MSGID(File.CopyFromFdToName.close.failure)
-                 "Unable to close the '%s' file: %s.\n\n", UTF8(dstName),
+                 "Unable to close the '%s' file: %s.\n\n", dstName,
                  Msg_ErrString());
 
       success = FALSE;
@@ -1311,8 +1111,8 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
  */
 
 Bool
-File_Copy(ConstUnicode srcName,    // IN:
-          ConstUnicode dstName,    // IN:
+File_Copy(const char *srcName,     // IN:
+          const char *dstName,     // IN:
           Bool overwriteExisting)  // IN:
 {
    Bool success;
@@ -1331,7 +1131,7 @@ File_Copy(ConstUnicode srcName,    // IN:
 
       Msg_Append(MSGID(File.Copy.open.failure)
                  "Unable to open the '%s' file for read access: %s.\n\n",
-                 UTF8(srcName), FileIO_MsgError(fret));
+                 srcName, FileIO_MsgError(fret));
 
       Err_SetErrno(err);
 
@@ -1341,14 +1141,14 @@ File_Copy(ConstUnicode srcName,    // IN:
    success = File_CopyFromFd(src, dstName, overwriteExisting);
 
    err = Err_Errno();
-   
-   if (FileIO_Close(&src) != 0) {
+
+   if (!FileIO_IsSuccess(FileIO_Close(&src))) {
       if (success) {  // Report close failure when there isn't another error
          err =  Err_Errno();
       }
 
       Msg_Append(MSGID(File.Copy.close.failure)
-                 "Unable to close the '%s' file: %s.\n\n", UTF8(srcName),
+                 "Unable to close the '%s' file: %s.\n\n", srcName,
                  Msg_ErrString());
 
       success = FALSE;
@@ -1373,17 +1173,17 @@ File_Copy(ConstUnicode srcName,    // IN:
  * Results:
  *      TRUE   succeeded
  *      FALSE  otherwise
- *      
+ *
  * Side effects:
  *      src file is no more, but dst file exists
  *
  *----------------------------------------------------------------------
  */
 
-Bool 
-File_Move(ConstUnicode oldFile,  // IN:
-          ConstUnicode newFile,  // IN:
-          Bool *asRename)        // OUT: result occurred due to rename/copy
+Bool
+File_Move(const char *oldFile,  // IN:
+          const char *newFile,  // IN:
+          Bool *asRename)       // OUT/OPT: result occurred due to rename/copy
 {
    Bool ret;
    Bool duringRename;
@@ -1441,10 +1241,10 @@ File_Move(ConstUnicode oldFile,  // IN:
  */
 
 Bool
-File_MoveTree(ConstUnicode srcName,   // IN:
-              ConstUnicode dstName,   // IN:
+File_MoveTree(const char *srcName,    // IN:
+              const char *dstName,    // IN:
               Bool overwriteExisting, // IN:
-              Bool *asMove)           // OUT:
+              Bool *asMove)           // OUT/OPT:
 {
    Bool ret = FALSE;
    Bool createdDir = FALSE;
@@ -1459,7 +1259,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
    if (!File_IsDirectory(srcName)) {
       Msg_Append(MSGID(File.MoveTree.source.notDirectory)
                  "Source path '%s' is not a directory.",
-                 UTF8(srcName));
+                 srcName);
 
       return FALSE;
    }
@@ -1479,7 +1279,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
          if (ENOENT == err) {
             if (!File_CreateDirectoryHierarchy(dstName, NULL)) {
                Msg_Append(MSGID(File.MoveTree.dst.couldntCreate)
-                          "Could not create '%s'.\n\n", UTF8(dstName));
+                          "Could not create '%s'.\n\n", dstName);
 
                return FALSE;
             }
@@ -1488,7 +1288,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
          } else {
             Msg_Append(MSGID(File.MoveTree.statFailed)
                        "%d:Failed to stat destination '%s'.\n\n",
-                       err, UTF8(dstName));
+                       err, dstName);
 
             return FALSE;
          }
@@ -1496,7 +1296,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
          if (!File_IsDirectory(dstName)) {
             Msg_Append(MSGID(File.MoveTree.dest.notDirectory)
                        "The destination path '%s' is not a directory.\n\n",
-                       UTF8(dstName));
+                       dstName);
 
             return FALSE;
          }
@@ -1518,7 +1318,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
          srcSize = File_GetSizeEx(srcName);
          freeSpace = File_GetFreeSpace(dstName, TRUE);
          if (freeSpace < srcSize) {
-            Unicode spaceStr = Msg_FormatSizeInBytes(srcSize);
+            char *spaceStr = Msg_FormatSizeInBytes(srcSize);
             Msg_Append(MSGID(File.MoveTree.dst.insufficientSpace)
                   "There is not enough space in the file system to "
                   "move the directory tree. Free %s and try again.",
@@ -1536,14 +1336,14 @@ File_MoveTree(ConstUnicode srcName,   // IN:
             Msg_Append(MSGID(File.MoveTree.cleanupFailed)
                        "Forced to copy '%s' into '%s' but unable to remove "
                        "source directory.\n\n",
-                       UTF8(srcName), UTF8(dstName));
+                       srcName, dstName);
          }
       } else {
          ret = FALSE;
          Msg_Append(MSGID(File.MoveTree.copyFailed)
                     "Could not rename and failed to copy source directory "
                     "'%s'.\n\n",
-                    UTF8(srcName));
+                    srcName);
          if (createdDir) {
             /*
              * Only clean up if we created the directory.  Not attempting to
@@ -1563,14 +1363,14 @@ File_MoveTree(ConstUnicode srcName,   // IN:
  *
  * File_GetModTimeString --
  *
- *      Returns a human-readable string denoting the last modification 
+ *      Returns a human-readable string denoting the last modification
  *      time of a file.
  *      ctime() returns string terminated with newline, which we replace
  *      with a '\0'.
  *
  * Results:
  *      Last modification time string on success, NULL on error.
- *      
+ *
  * Side effects:
  *      None.
  *
@@ -1578,7 +1378,7 @@ File_MoveTree(ConstUnicode srcName,   // IN:
  */
 
 char *
-File_GetModTimeString(ConstUnicode pathName)  // IN:
+File_GetModTimeString(const char *pathName)  // IN:
 {
    int64 modTime;
 
@@ -1605,7 +1405,7 @@ File_GetModTimeString(ConstUnicode pathName)  // IN:
  */
 
 int64
-File_GetSize(ConstUnicode pathName)  // IN:
+File_GetSize(const char *pathName)  // IN:
 {
    int64 ret;
 
@@ -1649,7 +1449,7 @@ File_GetSize(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_SupportsLargeFiles(ConstUnicode pathName)  // IN:
+File_SupportsLargeFiles(const char *pathName)  // IN:
 {
    return File_SupportsFileSize(pathName, CONST64U(0x100000000));
 }
@@ -1673,11 +1473,11 @@ File_SupportsLargeFiles(ConstUnicode pathName)  // IN:
  */
 
 int64
-File_GetSizeEx(ConstUnicode pathName) // IN
+File_GetSizeEx(const char *pathName) // IN:
 {
    int numFiles;
    int i;
-   Unicode *fileList = NULL;
+   char **fileList = NULL;
    struct stat sb;
    int64 totalSize = 0;
 
@@ -1700,14 +1500,14 @@ File_GetSizeEx(ConstUnicode pathName) // IN
    }
 
    for (i = 0; i < numFiles; i++) {
-      Unicode fileName;
+      char *fileName;
       int64 fileSize;
 
       fileName = File_PathJoin(pathName, fileList[i]);
 
       fileSize = File_GetSizeEx(fileName);
 
-      Unicode_Free(fileName);
+      free(fileName);
 
       if (-1 == fileSize) {
          totalSize = -1;
@@ -1717,9 +1517,7 @@ File_GetSizeEx(ConstUnicode pathName) // IN
       }
    }
 
-   if (numFiles >= 0) {
-      Unicode_FreeList(fileList, numFiles);
-   }
+   Util_FreeStringList(fileList, numFiles);
 
    return totalSize;
 }
@@ -1742,7 +1540,7 @@ File_GetSizeEx(ConstUnicode pathName) // IN
  */
 
 int64
-File_GetSizeByPath(ConstUnicode pathName)  // IN:
+File_GetSizeByPath(const char *pathName)  // IN:
 {
    return (pathName == NULL) ? -1 : FileIO_GetSizeByPath(pathName);
 }
@@ -1766,7 +1564,7 @@ File_GetSizeByPath(ConstUnicode pathName)  // IN:
  *      Otherwise *topmostCreated is set to the topmost directory which was
  *      created. *topmostCreated is set even in case of failure.
  *
- *      The caller most Unicode_Free the resulting string.
+ *      The caller most free the resulting string.
  *
  * Side effects:
  *      Only the obvious.
@@ -1775,11 +1573,11 @@ File_GetSizeByPath(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_CreateDirectoryHierarchyEx(ConstUnicode pathName,   // IN:
-                                int mask,                // IN
-                                Unicode *topmostCreated) // OUT:
+File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
+                                int mask,               // IN:
+                                char **topmostCreated)  // OUT/OPT:
 {
-   Unicode volume;
+   char *volume;
    UnicodeIndex index;
    UnicodeIndex length;
 
@@ -1805,7 +1603,7 @@ File_CreateDirectoryHierarchyEx(ConstUnicode pathName,   // IN:
 
    index = Unicode_LengthInCodePoints(volume);
 
-   Unicode_Free(volume);
+   free(volume);
 
    if (index >= length) {
       return File_IsDirectory(pathName);
@@ -1817,23 +1615,33 @@ File_CreateDirectoryHierarchyEx(ConstUnicode pathName,   // IN:
 
    while (TRUE) {
       Bool failed;
-      Unicode temp;
+      char *temp;
 
       index = FileFirstSlashIndex(pathName, index + 1);
 
-      temp = Unicode_Substr(pathName, 0, (index == UNICODE_INDEX_NOT_FOUND) ? -1 : index);
+      temp = Unicode_Substr(pathName,
+                            0,
+                            (index == UNICODE_INDEX_NOT_FOUND) ? -1 : index);
 
-      if (File_IsDirectory(temp)) {
-         failed = FALSE;
-      } else {
-         failed = !File_CreateDirectoryEx(temp, mask);
-         if (!failed && topmostCreated != NULL && *topmostCreated == NULL) {
-            *topmostCreated = temp;
-            temp = NULL;
+      /*
+       * If we check if the directory already exists and then we create it,
+       * there is a race between these two operations - that might cause this
+       * operation to fail with no reason.
+       * This is why we reverse the attempt and the check.
+       */
+
+      failed = !File_CreateDirectoryEx(temp, mask);
+
+      if (failed) {
+         if (File_IsDirectory(temp)) {
+            failed = FALSE;
          }
+      } else if (topmostCreated != NULL && *topmostCreated == NULL) {
+         *topmostCreated = temp;
+         temp = NULL;
       }
 
-      Unicode_Free(temp);
+      free(temp);
 
       if (failed) {
          return FALSE;
@@ -1867,7 +1675,7 @@ File_CreateDirectoryHierarchyEx(ConstUnicode pathName,   // IN:
  *      Otherwise *topmostCreated is set to the topmost directory which was
  *      created. *topmostCreated is set even in case of failure.
  *
- *      The caller most Unicode_Free the resulting string.
+ *      The caller most free the resulting string.
  *
  * Side effects:
  *      Only the obvious.
@@ -1876,43 +1684,44 @@ File_CreateDirectoryHierarchyEx(ConstUnicode pathName,   // IN:
  */
 
 Bool
-File_CreateDirectoryHierarchy(ConstUnicode pathName,   // IN:
-                              Unicode *topmostCreated) // OUT:
+File_CreateDirectoryHierarchy(const char *pathName,   // IN:
+                              char **topmostCreated)  // OUT/OPT:
 {
    return File_CreateDirectoryHierarchyEx(pathName,
                                           0777,
                                           topmostCreated);
 }
 
-
 /*
  *----------------------------------------------------------------------
  *
- * File_DeleteDirectoryTree --
+ * FileDeleteDirectoryTree --
  *
  *      Deletes the specified directory tree. If filesystem errors are
  *      encountered along the way, the function will continue to delete what
- *      it can but will return FALSE.
+ *      it can but will return FALSE. If contentOnly is TRUE it does not
+ *      delete the directory itself.
  *
  * Results:
  *      TRUE   the entire tree was deleted or didn't exist
  *      FALSE  otherwise.
- *      
+ *
  * Side effects:
  *      Deletes the directory tree from disk.
  *
  *----------------------------------------------------------------------
  */
 
-Bool
-File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
+static INLINE Bool
+FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
+                        Bool contentOnly)      // IN: Content only or not
 {
    int i;
    int numFiles;
    int err = 0;
-   Unicode base;
+   char *base;
 
-   Unicode *fileList = NULL;
+   char **fileList = NULL;
    Bool sawFileError = FALSE;
 
    if (Posix_EuidAccess(pathName, F_OK) != 0) {
@@ -1949,7 +1758,7 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
    base = Unicode_Append(pathName, DIRSEPS);
 
    for (i = 0; i < numFiles; i++) {
-      Unicode curPath;
+      char *curPath;
       struct stat statbuf;
 
       curPath = Unicode_Append(base, fileList[i]);
@@ -1958,7 +1767,7 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
          switch (statbuf.st_mode & S_IFMT) {
          case S_IFDIR:
             /* Directory, recurse */
-            if (!File_DeleteDirectoryTree(curPath)) {
+            if (!FileDeleteDirectoryTree(curPath, FALSE)) {
                sawFileError = TRUE;
             }
             break;
@@ -1992,28 +1801,78 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
          sawFileError = TRUE;
       }
 
-      Unicode_Free(curPath);
+      free(curPath);
    }
 
-   Unicode_Free(base);
+   free(base);
 
-   /*
-    * Call File_DeleteEmptyDirectory() only if there is no prior error
-    * while deleting the children.
-    */
-   if (!sawFileError && !File_DeleteEmptyDirectory(pathName)) {
-      sawFileError = TRUE;
+   if (!contentOnly) {
+      /*
+       * Call File_DeleteEmptyDirectory() only if there is no prior error
+       * while deleting the children.
+       */
+      if (!sawFileError && !File_DeleteEmptyDirectory(pathName)) {
+         sawFileError = TRUE;
+      }
    }
 
-   for (i = 0; i < numFiles; i++) {
-      Unicode_Free(fileList[i]);
-   }
-
-   free(fileList);
+   Util_FreeStringList(fileList, numFiles);
 
    return !sawFileError;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_DeleteDirectoryContent --
+ *
+ *      Deletes the specified directory content. If filesystem errors are
+ *      encountered along the way, the function will continue to delete what
+ *      it can but will return FALSE.
+ *
+ * Results:
+ *      TRUE   the entire content was deleted or there were no files and the
+ *             directoy was empty
+ *      FALSE  otherwise.
+ *
+ * Side effects:
+ *      Deletes the directory content from disk.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_DeleteDirectoryContent(const char *pathName)  // IN: directory to delete
+{
+   return FileDeleteDirectoryTree(pathName, TRUE);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_DeleteDirectoryTree --
+ *
+ *      Deletes the specified directory tree. If filesystem errors are
+ *      encountered along the way, the function will continue to delete what
+ *      it can but will return FALSE.
+ *
+ * Results:
+ *      TRUE   the entire tree was deleted or didn't exist
+ *      FALSE  otherwise.
+ *
+ * Side effects:
+ *      Deletes the directory tree from disk.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_DeleteDirectoryTree(const char *pathName)  // IN: directory to delete
+{
+   return FileDeleteDirectoryTree(pathName, FALSE);
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -2037,7 +1896,7 @@ Bool
 File_FindFileInSearchPath(const char *fileIn,      // IN:
                           const char *searchPath,  // IN:
                           const char *cwd,         // IN:
-                          char **result)           // OUT:
+                          char **result)           // OUT/OPT:
 {
    char *cur;
    char *tok;
@@ -2045,8 +1904,8 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
    Bool full;
    char *saveptr = NULL;
    char *sp = NULL;
-   Unicode dir = NULL;
-   Unicode file = NULL;
+   char *dir = NULL;
+   char *file = NULL;
 
    ASSERT(fileIn);
    ASSERT(cwd);
@@ -2141,8 +2000,8 @@ done:
    }
 
    free(sp);
-   Unicode_Free(dir);
-   Unicode_Free(file);
+   free(dir);
+   free(file);
 
    return found;
 }
@@ -2275,7 +2134,7 @@ FileSleeper(uint32 msecMinSleepTime,  // IN:
       msecActualSleepTime = msecMinSleepTime + (uint32) (fpRand * variance);
    }
 
-   usleep(1000 * msecActualSleepTime);
+   Util_Usleep(1000 * msecActualSleepTime);
 
    return msecActualSleepTime;
 }
@@ -2482,12 +2341,10 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
       }
    }
 
-   if (newFilePath != NULL) {
-      if (result == -1) {
-         free(tmp);
-      } else {
-         *newFilePath = tmp;
-      }
+   if (newFilePath == NULL || result == -1) {
+      free(tmp);
+   } else {
+      *newFilePath = tmp;
    }
 
    if (nFound >= n) {
@@ -2544,6 +2401,8 @@ File_Rotate(const char *fileName,  // IN: original file
    size_t baseLen;
    char *baseName;
 
+   ASSERT(fileName);
+
    if ((ext = Str_Strrchr(fileName, '.')) == NULL) {
       ext = fileName + strlen(fileName);
    }
@@ -2586,8 +2445,8 @@ File_Rotate(const char *fileName,  // IN: original file
  *-----------------------------------------------------------------------------
  */
 
-int 
-File_GetFSMountInfo(ConstUnicode pathName,
+int
+File_GetFSMountInfo(const char *pathName,
                     char **fsType,
                     uint32 *version,
                     char **remoteIP,
@@ -2598,7 +2457,7 @@ File_GetFSMountInfo(ConstUnicode pathName,
    return  File_GetVMFSMountInfo(pathName, fsType, version,
                                  remoteIP, remoteMountPoint,
                                  localMountPoint);
-#else 
+#else
    return -1;
 #endif
 }

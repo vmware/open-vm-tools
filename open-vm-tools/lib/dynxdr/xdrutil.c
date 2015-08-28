@@ -102,7 +102,7 @@ XdrUtil_Deserialize(const void *data,  // IN
    ASSERT(dest != NULL);
 
    xdrmem_create(&xdrs, (char *) data, dataLen, XDR_DECODE);
-   ret = (Bool) proc(&xdrs, dest);
+   ret = (Bool) proc(&xdrs, dest, 0);
    xdr_destroy(&xdrs);
 
    if (!ret) {

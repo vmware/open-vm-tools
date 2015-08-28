@@ -1,4 +1,3 @@
-
 /*********************************************************
  * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
  *
@@ -62,7 +61,7 @@ Vix_TranslateGuestRegistryError(int systemError) // IN
 {
    VixError err = VIX_E_FAIL;
 #ifdef _WIN32
-   Unicode msg;
+   char *msg;
 
    switch (systemError) {
    case ERROR_INVALID_PARAMETER:
@@ -84,7 +83,7 @@ Vix_TranslateGuestRegistryError(int systemError) // IN
 
    Log("Foundry operation failed with guest windows registry error: %s (%d), translated to %"FMT64"d\n",
        msg, systemError, err);
-   Unicode_Free(msg);
+   free(msg);
 
 #endif
    return err;
@@ -111,7 +110,7 @@ Vix_TranslateSystemError(int systemError) // IN
 {
    VixError err = VIX_E_FAIL;
 #ifdef _WIN32
-   Unicode msg;
+   char *msg;
 
    switch (systemError) {
    case ERROR_ACCESS_DENIED:
@@ -179,7 +178,7 @@ Vix_TranslateSystemError(int systemError) // IN
 
    Log("Foundry operation failed with system error: %s (%d), translated to %"FMT64"d\n",
        msg, systemError, err);
-   Unicode_Free(msg);
+   free(msg);
 
 #else // linux, other *nix
    err = Vix_TranslateErrno(systemError);

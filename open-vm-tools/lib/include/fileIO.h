@@ -36,6 +36,10 @@
 #ifndef _FILEIO_H_
 #define _FILEIO_H_
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
@@ -61,7 +65,7 @@ struct FileLockToken;
 typedef struct FileIODescriptor {
    HANDLE                win32;
    uint32                flags;
-   Unicode               fileName;
+   char                 *fileName;
    struct FileLockToken *lockToken;
 } FileIODescriptor;
 
@@ -70,7 +74,7 @@ typedef struct FileIODescriptor {
 typedef struct FileIODescriptor {
    int                   posix;
    int                   flags;
-   Unicode               fileName;
+   char                 *fileName;
    struct FileLockToken *lockToken;
 } FileIODescriptor;
 
@@ -147,10 +151,6 @@ typedef enum {
  * (supported on ESX file systems)
  */
 #define FILEIO_OPEN_MULTIWRITER_LOCK     (1 << 14)
-/*
- * Flag the file to be cached by the vBlob caching layer
- */
-#define FILEIO_OPEN_USE_AIO_CACHE        (1 << 15)
 /*
  * Valid only for MacOS. It eventually results into O_EXLOCK flag passed to open
  * system call.
@@ -296,18 +296,18 @@ void FileIO_Invalidate(FileIODescriptor *file);
 Bool FileIO_IsValid(const FileIODescriptor *fd);
 
 FileIOResult FileIO_Create(FileIODescriptor *file,
-                           ConstUnicode pathName,
+                           const char *pathName,
                            int access,
                            FileIOOpenAction action,
                            int mode);
 
 FileIOResult FileIO_Open(FileIODescriptor *file,
-                         ConstUnicode pathName,
+                         const char *pathName,
                          int access,
                          FileIOOpenAction action);
 
 FileIOResult FileIO_OpenRetry(FileIODescriptor *file,
-                              ConstUnicode pathName,
+                              const char *pathName,
                               int access,
                               FileIOOpenAction action,
                               uint32 msecMaxWaitTime);
@@ -326,7 +326,7 @@ FileIOResult FileIO_Write(FileIODescriptor *file,
                           size_t requested,
                           size_t *actual);
 
-Unicode FileIO_AtomicTempPath(ConstUnicode path);
+char *FileIO_AtomicTempPath(const char *path);
 
 FileIOResult FileIO_AtomicTempFile(FileIODescriptor *fileFD,
                                    FileIODescriptor *tempFD);
@@ -337,31 +337,31 @@ Bool FileIO_AtomicUpdate(FileIODescriptor *newFD,
 #if !defined(VMX86_TOOLS) || !defined(__FreeBSD__)
 
 FileIOResult FileIO_Readv(FileIODescriptor *fd,
-                          struct iovec  *v,
+                          struct iovec const *v,
                           int count,
                           size_t totalSize,
                           size_t *bytesRead);
 
 FileIOResult FileIO_Writev(FileIODescriptor *fd,
-                           struct iovec *v,
+                           struct iovec const *v,
                            int count,
                            size_t totalSize,
                            size_t *bytesWritten);
 #endif
 
-FileIOResult FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
-                           struct iovec *entries,  // IN: Vector to read into
-                           int numEntries,         // IN: Number of vector entries
-                           uint64 offset,          // IN: Offset to start reading
-                           size_t totalSize,       // IN: totalSize (bytes) in entries
-                           size_t *actual);        // OUT: number of bytes read
+FileIOResult FileIO_Preadv(FileIODescriptor *fd,        // IN: File descriptor
+                           struct iovec const *entries, // IN: Vector to read into
+                           int numEntries,              // IN: Number of vector entries
+                           uint64 offset,               // IN: Offset to start reading
+                           size_t totalSize,            // IN: totalSize (bytes) in entries
+                           size_t *actual);             // OUT: number of bytes read
 
-FileIOResult FileIO_Pwritev(FileIODescriptor *fd,  // IN: File descriptor
-                            struct iovec *entries, // IN: Vector to write from
-                            int numEntries,        // IN: Number of vector entries
-                            uint64 offset,         // IN: Offset to start writing
-                            size_t totalSize,      // IN: Total size (bytes) in entries
-                            size_t *actual);       // OUT: number of bytes written
+FileIOResult FileIO_Pwritev(FileIODescriptor *fd,        // IN: File descriptor
+                            struct iovec const *entries, // IN: Vector to write from
+                            int numEntries,              // IN: Number of vector entries
+                            uint64 offset,               // IN: Offset to start writing
+                            size_t totalSize,            // IN: Total size (bytes) in entries
+                            size_t *actual);             // OUT: number of bytes written
 
 FileIOResult FileIO_Pread(FileIODescriptor *fd,    // IN: File descriptor
                           void *buf,               // IN: Buffer to read into
@@ -373,30 +373,32 @@ FileIOResult FileIO_Pwrite(FileIODescriptor *fd,   // IN: File descriptor
                            size_t len,             // IN: Length of the buffer
                            uint64 offset);         // IN: Offset to start writing
 
-FileIOResult FileIO_Access(ConstUnicode pathName,
+FileIOResult FileIO_Access(const char *pathName,
                            int accessMode);
 
 Bool    FileIO_Truncate(FileIODescriptor *file,
                         uint64 newSize);
 
-int     FileIO_Sync(const FileIODescriptor *file);
+FileIOResult  FileIO_Sync(const FileIODescriptor *file);
 
 FileIOResult FileIO_GetAllocSize(const FileIODescriptor *fd,
                                  uint64 *logicalBytes,
                                  uint64 *allocedBytes);
+
 int64   FileIO_GetSize(const FileIODescriptor *fd);
 
-Bool    FileIO_SetAllocSize(const FileIODescriptor *fd, uint64 size);
+Bool    FileIO_SetAllocSize(const FileIODescriptor *fd,
+                            uint64 size);
 
-FileIOResult FileIO_GetAllocSizeByPath(ConstUnicode pathName,
+FileIOResult FileIO_GetAllocSizeByPath(const char *pathName,
                                        uint64 *logicalBytes,
                                        uint64 *allocedBytes);
 
-int64   FileIO_GetSizeByPath(ConstUnicode pathName);
+int64   FileIO_GetSizeByPath(const char *pathName);
 
-Bool    FileIO_Close(FileIODescriptor *file);
+FileIOResult    FileIO_Close(FileIODescriptor *file);
 
-Bool    FileIO_CloseAndUnlink(FileIODescriptor *file);
+FileIOResult    FileIO_CloseAndUnlink(FileIODescriptor *file);
 
 uint32  FileIO_GetFlags(FileIODescriptor *file);
 
@@ -415,7 +417,7 @@ FileIOResult FileIO_Unlock(FileIODescriptor *file);
 
 /* Only users not using FileIO_Open should use these two */
 void FileIO_Init(FileIODescriptor *fd,
-                 ConstUnicode pathName);
+                 const char *pathName);
 
 void FileIO_Cleanup(FileIODescriptor *fd);
 
@@ -431,18 +433,18 @@ FileIODescriptor FileIO_CreateFDWin32(HANDLE win32,
 FileIODescriptor FileIO_CreateFDPosix(int posix,
                                       int flags);
 
-int FileIO_PrivilegedPosixOpen(ConstUnicode pathName,
+int FileIO_PrivilegedPosixOpen(const char *pathName,
                                int flags);
 #endif
 
 FILE *FileIO_DescriptorToStream(FileIODescriptor *fd,
                                 Bool textMode);
 
-ConstUnicode FileIO_Filename(FileIODescriptor *fd);
+const char *FileIO_Filename(FileIODescriptor *fd);
 
 /*
  *-------------------------------------------------------------------------
- * 
+ *
  * FileIO_IsSuccess --
  *
  *      Returns TRUE if the error code is success.
@@ -472,6 +474,11 @@ FileIO_IsSuccess(FileIOResult res)      // IN
 Bool FileIO_IsSuccess(FileIOResult res);
 #endif
 
-Bool FileIO_SupportsPrealloc(const char *pathName, Bool fsCheck);
+Bool FileIO_SupportsPrealloc(const char *pathName,
+                             Bool fsCheck);
+
+#ifdef __cplusplus
+} // extern "C" {
+#endif
 
 #endif // _FILEIO_H_

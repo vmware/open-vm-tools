@@ -127,6 +127,7 @@ DECLARE_COMMAND(Disk);
 DECLARE_COMMAND(Script);
 DECLARE_COMMAND(Stat);
 DECLARE_COMMAND(TimeSync);
+DECLARE_COMMAND(Logging);
 
 #if defined(_WIN32) || (defined(linux) && !defined(OPEN_VM_TOOLS))
 DECLARE_COMMAND(Upgrade);

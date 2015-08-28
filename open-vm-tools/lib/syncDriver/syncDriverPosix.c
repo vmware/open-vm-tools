@@ -249,7 +249,9 @@ SyncDriver_Freeze(const char *userPaths,     // IN
    }
 
    while (err == SD_UNAVAILABLE && i < ARRAYSIZE(gBackends)) {
-      SyncFreezeFn freezeFn = gBackends[i++];
+      SyncFreezeFn freezeFn = gBackends[i];
+      Debug(LGPFX "Calling backend %d.\n", (int) i);
+      i++;
 #if defined(__linux__) && !defined(USERWORLD)
       if (!enableNullDriver && (freezeFn == NullDriver_Freeze)) {
          Debug(LGPFX "Skipping nullDriver backend.\n");

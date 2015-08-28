@@ -39,8 +39,13 @@
  *----------------------------------------------------------------------
  */
 
+#ifdef _WIN32
+#define Error(fmt, ...)                                         \
+   fprintf(stderr, "%s: " fmt, g_get_prgname(), __VA_ARGS__);
+#else
 #define Error(fmt, args...)                                     \
    fprintf(stderr, "%s: " fmt, g_get_prgname(), ##args);
+#endif
 
 gchar *
 CertUtil_CreateCertFileName(const gchar *certDir, // IN
@@ -58,6 +63,11 @@ gboolean
 CertUtil_CopyFile(const gchar *src,               // IN
                   const gchar *dst);              // IN
 
+gboolean
+CertUtil_RemoveDir(const gchar *dirToRemove);     // IN
+
 const gchar *CertUtil_GetToolDir(void);
+
+gboolean CheckRootPriv(void);
 
 #endif // #ifndef _CERT_UTIL_H_

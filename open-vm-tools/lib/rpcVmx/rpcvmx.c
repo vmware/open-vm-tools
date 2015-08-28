@@ -143,7 +143,7 @@ RpcVMX_Log(const char *fmt, ...)
  *      None.
  *
  * Side effects:
- *      Lots of silly memory allocation.
+ *      Sends the log command described above.
  *
  *----------------------------------------------------------------------------
  */
@@ -152,6 +152,7 @@ void
 RpcVMX_LogV(const char *fmt, va_list args)
 {
    int payloadLen;
+   char receiveBuffer[16];
 
    payloadLen = Str_Vsnprintf(RpcVMX.logBuf + RpcVMX.logOffset,
                               sizeof RpcVMX.logBuf - RpcVMX.logOffset,
@@ -165,7 +166,16 @@ RpcVMX_LogV(const char *fmt, va_list args)
       payloadLen = sizeof RpcVMX.logBuf - RpcVMX.logOffset;
    }
 
-   RpcOut_SendOneRaw(RpcVMX.logBuf, RpcVMX.logOffset + payloadLen, NULL, NULL);
+   /*
+    * Use a pre-allocated receive buffer so that it's possible to
+    * perform the log without needing to call malloc.  This makes
+    * RpcVMX_LogV suitable to be used in Windows kernel interrupt
+    * handlers.  (It also makes it faster.)  The log command only ever
+    * returns two character strings "1 " on success and "0 " on
+    * failure, so we don't need a sizeable buffer.
+    */
+   RpcOut_SendOneRawPreallocated(RpcVMX.logBuf, RpcVMX.logOffset + payloadLen,
+                                 receiveBuffer, sizeof receiveBuffer);
 }
 
 

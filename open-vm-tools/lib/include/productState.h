@@ -44,13 +44,17 @@ typedef enum {
    PRODUCT_CVP = 1 << 5,
    PRODUCT_FUSION = 1 << 6,
    PRODUCT_VIEW = 1 << 7,
+   PRODUCT_VMRC = 1 << 8,
+   PRODUCT_GANTRY = 1 << 9,
    /* etc */
 } Product;
 typedef uint64 ProductMask;
 #define PRODUCTMASK_HOSTED (PRODUCT_WORKSTATION |\
                             PRODUCT_PLAYER      |\
                             PRODUCT_CVP         |\
-                            PRODUCT_FUSION)
+                            PRODUCT_FUSION      |\
+                            PRODUCT_VMRC        |\
+                            PRODUCT_GANTRY)
 
 typedef uint64 ProductCaps;
 /*
@@ -85,6 +89,7 @@ void ProductState_Set(Product product, const char *name, const char *version,
 
 Product ProductState_GetProduct(void);
 Bool ProductState_IsProduct(ProductMask product);
+Bool ProductState_AllowUnlicensedVMX(void);
 const char *ProductState_GetName(void);
 const char *ProductState_GetVersion(void);
 unsigned int ProductState_GetBuildNumber(void);

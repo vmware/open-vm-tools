@@ -46,55 +46,11 @@
 
 
 /*
- *----------------------------------------------------------------------
- *
- * Clamped_SAdd32 --
- *
- *      Signed 32-bit addition.
- *
- *      Add two integers, clamping the result to MAX_INT32 or
- *      MIN_INT32 if it would have overflowed.
- *
- * Results:
- *      On success, returns TRUE.
- *      If the result would have overflowed and we clamped it, returns FALSE.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE Bool
-Clamped_SAdd32(int32 *out,  // OUT
-               int32 a,     // IN
-               int32 b)     // IN
-{
-   int32 result;
-
-   result = a + b;
-
-   if (UNLIKELY(b > 0 && result < a)) {
-      *out = MAX_INT32;
-      return FALSE;
-   }
-
-   if (UNLIKELY(b < 0 && result > a)) {
-      *out = MIN_INT32;
-      return FALSE;
-   }
-
-   *out = result;
-   return TRUE;
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * Clamped_U64To32 --
  *
- *      Convert Unsigned 64-bit to 32-bit, clamping instead of truncating.
+ *      Convert unsigned 64-bit to 32-bit, clamping instead of truncating.
  *
  * Results:
  *      On success, returns TRUE. If the result would have overflowed
@@ -152,6 +108,35 @@ Clamped_S64To32(int32 *out,  // OUT
 
    *out = clamped;
    return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Clamped_SAdd32 --
+ *
+ *      Signed 32-bit addition.
+ *
+ *      Add two integers, clamping the result to MAX_INT32 or
+ *      MIN_INT32 if it would have overflowed.
+ *
+ * Results:
+ *      On success, returns TRUE.
+ *      If the result would have overflowed and we clamped it, returns FALSE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Clamped_SAdd32(int32 *out,  // OUT
+               int32 a,     // IN
+               int32 b)     // IN
+{
+   return Clamped_S64To32(out, (int64)a + b);
 }
 
 

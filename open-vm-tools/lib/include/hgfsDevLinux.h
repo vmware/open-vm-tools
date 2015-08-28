@@ -32,7 +32,7 @@
 
 /*
  * hgfsDev.h --
- * 
+ *
  *    Header for code shared between the hgfs linux kernel module driver
  *    and the pserver.
  */
@@ -44,12 +44,21 @@
 #include "hgfs.h"
 
 #define HGFS_NAME "vmhgfs"              // Name of FS (e.g. "mount -t vmhgfs")
+#define HGFS_FUSENAME "vmhgfs-fuse"     // Name of FS (e.g. "-o subtype=vmhgfs-fuse")
+#define HGFS_FUSETYPE "fuse." HGFS_FUSENAME // Type of FS (e.g. "fuse.vmhgfs-fuse")
+#define HGFS_MOUNT_POINT "/mnt/hgfs"    // Type of FS (e.g. vmhgfs-fuse )
 #define HGFS_DEVICE_NAME "dev"          // Name of our device under /proc/fs/HGFS_NAME/
 #define HGFS_SUPER_MAGIC 0xbacbacbc     // Superblock magic number
 #define HGFS_PROTOCOL_VERSION 1         // Incremented when something changes
 #define HGFS_DEFAULT_TTL 1              // Default TTL for dentries
 
-/* 
+/*
+ * The mount info flags.
+ * These specify flags from options parsed on the mount command line.
+ */
+#define HGFS_MNTINFO_SERVER_INO         (1 << 0) /* Use server inode numbers? */
+
+/*
  * Mount information, passed from pserver process to kernel
  * at mount time.
  *
@@ -57,10 +66,13 @@
  * loses its pserver, the struct will be used by /sbin/mount.vmhgfs solely.
  * As is, it is also used by the Solaris pserver.
  */
-typedef struct HgfsMountInfo {
+typedef
+struct HgfsMountInfo {
    uint32 magicNumber;        // hgfs magic number
+   uint32 infoSize;           // HgfsMountInfo object size
    uint32 version;            // protocol version
    uint32 fd;                 // file descriptor of client file
+   uint32 flags;              // hgfs specific mount flags
 #ifndef sun
    uid_t uid;                 // desired owner of files
    Bool uidSet;               // is the owner actually set?
@@ -77,6 +89,12 @@ typedef struct HgfsMountInfo {
    const char *shareNameDir;  // desired share name for mounting
 #endif
 #endif
-} HgfsMountInfo;
+}
+#if __GNUC__
+__attribute__((__packed__))
+#else
+#   error Compiler packing...
+#endif
+HgfsMountInfo;
 
 #endif //ifndef _HGFS_DEV_H_

@@ -61,10 +61,10 @@ typedef struct VmBackupDriverOp {
  */
 
 static Bool
-VmBackupDriverThaw(SyncDriverHandle *handle)
+VmBackupDriverThaw(VmBackupDriverOp *op)
 {
-   Bool success = SyncDriver_Thaw(*handle);
-   SyncDriver_CloseHandle(handle);
+   Bool success = SyncDriver_Thaw(*op->syncHandle);
+   SyncDriver_CloseHandle(op->syncHandle);
    return success;
 }
 
@@ -106,7 +106,7 @@ VmBackupDriverOpQuery(VmBackupOp *_op) // IN
 
       case SYNCDRIVER_IDLE:
          if (op->canceled) {
-            VmBackupDriverThaw(op->syncHandle);
+            VmBackupDriverThaw(op);
          }
          /*
           * This prevents the release callback from freeing the handle, which
@@ -117,7 +117,7 @@ VmBackupDriverOpQuery(VmBackupOp *_op) // IN
          break;
 
       default:
-         VmBackupDriverThaw(op->syncHandle);
+         VmBackupDriverThaw(op);
          ret = VMBACKUP_STATUS_ERROR;
          break;
       }
@@ -149,7 +149,7 @@ static void
 VmBackupDriverOpRelease(VmBackupOp *_op)  // IN
 {
    VmBackupDriverOp *op = (VmBackupDriverOp *) _op;
-   free(op->syncHandle);
+   g_free(op->syncHandle);
    free(op);
 }
 
@@ -231,10 +231,11 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
                                   state->enableNullDriver : FALSE,
                                   op->syncHandle);
    } else {
-      success = VmBackupDriverThaw(op->syncHandle);
+      success = VmBackupDriverThaw(op);
    }
    if (!success) {
       g_warning("Error %s filesystems.", freeze ? "freezing" : "thawing");
+      g_free(op->syncHandle);
       free(op);
       op = NULL;
    }
@@ -263,33 +264,29 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
 static Bool
 VmBackupSyncDriverReadyForSnapshot(VmBackupState *state)
 {
+   Bool success;
    SyncDriverHandle *handle = state->clientData;
 
    g_debug("*** %s\n", __FUNCTION__);
    if (handle != NULL && *handle != SYNCDRIVER_INVALID_HANDLE) {
-      Bool success;
       success = VmBackup_SendEvent(VMBACKUP_EVENT_SNAPSHOT_COMMIT, 0, "");
-      if (!success) {
-         /*
-          * If the vmx does not know this event (e.g. due to an RPC timeout),
-          * then filesystems need to be thawed here because snapshotDone
-          * will not be sent by the vmx.
-          */
-         g_debug("Thawing filesystems.");
-         if (!VmBackupDriverThaw(handle)) {
-            g_warning("Error thawing filesystems.");
-         }
+      if (success) {
+         state->freezeStatus = VMBACKUP_FREEZE_FINISHED;
+      } else {
+         state->freezeStatus = VMBACKUP_FREEZE_ERROR;
       }
-
       return success;
    }
+
+   /* op failed */
+   state->freezeStatus = VMBACKUP_FREEZE_ERROR;
    return TRUE;
 }
 
 
 /* Sync provider implementation. */
 
-
+#if defined(_WIN32)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -361,6 +358,83 @@ VmBackupSyncDriverOnlyStart(VmBackupState *state,
                                 VmBackupSyncDriverReadyForSnapshot,
                                 __FUNCTION__);
 }
+
+#else
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ *  VmBackupSyncDriverStart --
+ *
+ *    Starts an asynchronous operation to enable the sync driver.
+ *
+ * Result
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VmBackupSyncDriverStart(ToolsAppCtx *ctx,
+                        void *clientData)
+{
+   VmBackupDriverOp *op;
+   VmBackupState *state = (VmBackupState*) clientData;
+
+   g_debug("*** %s\n", __FUNCTION__);
+   op = VmBackupNewDriverOp(state, TRUE, NULL, state->volumes, TRUE);
+
+   if (op != NULL) {
+      state->clientData = op->syncHandle;
+   }
+
+   VmBackup_SetCurrentOp(state,
+                         (VmBackupOp *) op,
+                         VmBackupSyncDriverReadyForSnapshot,
+                         __FUNCTION__);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ *  VmBackupSyncDriverOnlyStart --
+ *
+ *    Starts an asynchronous operation to enable the sync driver without using
+ *    NullDriver fallback.
+ *
+ * Result
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VmBackupSyncDriverOnlyStart(ToolsAppCtx *ctx,
+                            void *clientData)
+{
+   VmBackupDriverOp *op;
+   VmBackupState *state = (VmBackupState*) clientData;
+
+   g_debug("*** %s\n", __FUNCTION__);
+   op = VmBackupNewDriverOp(state, TRUE, NULL, state->volumes, FALSE);
+
+   if (op != NULL) {
+      state->clientData = op->syncHandle;
+   }
+
+   VmBackup_SetCurrentOp(state,
+                         (VmBackupOp *) op,
+                         VmBackupSyncDriverReadyForSnapshot,
+                         __FUNCTION__);
+}
+#endif
 
 
 /*

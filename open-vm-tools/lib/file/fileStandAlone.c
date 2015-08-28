@@ -42,6 +42,7 @@
 #include "vmware.h"
 #include "util.h"
 #include "str.h"
+#include "strutil.h"
 #include "posix.h"
 #include "file.h"
 
@@ -66,7 +67,7 @@
  */
 
 int64
-File_GetModTime(ConstUnicode pathName)  // IN:
+File_GetModTime(const char *pathName)  // IN:
 {
    int64 theTime;
    struct stat statbuf;
@@ -91,7 +92,7 @@ File_GetModTime(ConstUnicode pathName)  // IN:
  *
  * Results:
  *      As described.
- *      
+ *
  * Side effects:
  *      None.
  *
@@ -99,7 +100,7 @@ File_GetModTime(ConstUnicode pathName)  // IN:
  */
 
 UnicodeIndex
-FileFirstSlashIndex(ConstUnicode pathName,    // IN:
+FileFirstSlashIndex(const char *pathName,     // IN:
                     UnicodeIndex startIndex)  // IN:
 {
    UnicodeIndex firstFS;
@@ -138,7 +139,7 @@ FileFirstSlashIndex(ConstUnicode pathName,    // IN:
  *
  * Results:
  *      As described.
- *      
+ *
  * Side effects:
  *      None.
  *
@@ -146,7 +147,7 @@ FileFirstSlashIndex(ConstUnicode pathName,    // IN:
  */
 
 static UnicodeIndex
-FileLastSlashIndex(ConstUnicode pathName,    // IN:
+FileLastSlashIndex(const char *pathName,     // IN:
                    UnicodeIndex startIndex)  // IN:
 {
    UnicodeIndex lastFS;
@@ -202,7 +203,7 @@ FileLastSlashIndex(ConstUnicode pathName,    // IN:
  *
  * Results:
  *      As described.
- *      
+ *
  * Side effects:
  *      None.
  *
@@ -210,14 +211,14 @@ FileLastSlashIndex(ConstUnicode pathName,    // IN:
  */
 
 void
-File_SplitName(ConstUnicode pathName,  // IN:
-               Unicode *volume,        // OUT (OPT):
-               Unicode *directory,     // OUT (OPT):
-               Unicode *base)          // OUT (OPT):
+File_SplitName(const char *pathName,  // IN:
+               char **volume,         // OUT/OPT:
+               char **directory,      // OUT/OPT:
+               char **base)           // OUT/OPT:
 {
-   Unicode vol;
-   Unicode dir;
-   Unicode bas;
+   char *vol;
+   char *dir;
+   char *bas;
    UnicodeIndex volEnd;
    UnicodeIndex length;
    UnicodeIndex baseBegin;
@@ -234,8 +235,8 @@ File_SplitName(ConstUnicode pathName,  // IN:
 #if defined(_WIN32)
    pathLen = Unicode_LengthInCodePoints(pathName);
    if ((pathLen > 2) &&
-       (Unicode_StartsWith(pathName, "\\\\") ||
-        Unicode_StartsWith(pathName, "//"))) {
+       (StrUtil_StartsWith(pathName, "\\\\") ||
+        StrUtil_StartsWith(pathName, "//"))) {
       /* UNC path */
       volEnd = FileFirstSlashIndex(pathName, 2);
 
@@ -298,19 +299,19 @@ File_SplitName(ConstUnicode pathName,  // IN:
    if (volume) {
       *volume = vol;
    } else {
-      Unicode_Free(vol);
+      free(vol);
    }
 
    if (directory) {
       *directory = dir;
    } else {
-      Unicode_Free(dir);
+      free(dir);
    }
 
    if (base) {
       *base = bas;
    } else {
-      Unicode_Free(bas);
+      free(bas);
    }
 }
 
@@ -351,12 +352,12 @@ File_SplitName(ConstUnicode pathName,  // IN:
  *---------------------------------------------------------------------------
  */
 
-Unicode
-File_PathJoin(ConstUnicode dirName,   // IN:
-              ConstUnicode baseName)  // IN: See above.
+char *
+File_PathJoin(const char *dirName,   // IN:
+              const char *baseName)  // IN: See above.
 {
-   Unicode result;
-   Unicode newDir = NULL;
+   char *result;
+   char *newDir = NULL;
 
    ASSERT(dirName);
    ASSERT(baseName);
@@ -366,7 +367,7 @@ File_PathJoin(ConstUnicode dirName,   // IN:
     */
 #if defined(_WIN32)
    {
-      ConstUnicode oldBaseName = baseName;
+      const char *oldBaseName = baseName;
 
       /*
        * Reject drive letters in baseName.
@@ -396,7 +397,7 @@ File_PathJoin(ConstUnicode dirName,   // IN:
    newDir = File_StripSlashes(dirName);
 
    result = Unicode_Join(newDir, DIRSEPS, baseName, NULL);
-   Unicode_Free(newDir);
+   free(newDir);
 
    return result;
 }
@@ -420,28 +421,28 @@ File_PathJoin(ConstUnicode dirName,   // IN:
  *      A NULL pointer may be passed for one or more OUT parameters,
  *      in which case that parameter is not returned.
  *
- * Results: 
+ * Results:
  *      As described.
  *
- * Side effects: 
+ * Side effects:
  *      The return values must be freed.
  *
  *---------------------------------------------------------------------------
  */
 
-void 
-File_GetPathName(ConstUnicode fullPath,  // IN:
-                 Unicode *pathName,      // OUT (OPT):
-                 Unicode *baseName)      // OUT (OPT):
+void
+File_GetPathName(const char *fullPath,  // IN:
+                 char **pathName,       // OUT/OPT:
+                 char **baseName)       // OUT/OPT:
 {
-   Unicode volume;
+   char *volume;
    UnicodeIndex len;
    UnicodeIndex curLen;
 
    File_SplitName(fullPath, &volume, pathName, baseName);
 
    if (pathName == NULL) {
-      Unicode_Free(volume);
+      free(volume);
       return;
    }
 
@@ -450,12 +451,12 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
     */
 
    if (!Unicode_IsEmpty(volume)) {
-      Unicode temp = Unicode_Append(volume, *pathName);
+      char *temp = Unicode_Append(volume, *pathName);
 
-      Unicode_Free(*pathName);
+      free(*pathName);
       *pathName = temp;
    }
-   Unicode_Free(volume);
+   free(volume);
 
    /*
     * Remove any trailing directory separator characters.
@@ -471,9 +472,9 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
    }
 
    if (curLen < len) {
-      Unicode temp = Unicode_Substr(*pathName, 0, curLen);
+      char *temp = Unicode_Substr(*pathName, 0, curLen);
 
-      Unicode_Free(*pathName);
+      free(*pathName);
       *pathName = temp;
    }
 }
@@ -495,10 +496,13 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
  *----------------------------------------------------------------------
  */
 
-Unicode
-File_StripSlashes(ConstUnicode path)  // IN:
+char *
+File_StripSlashes(const char *path)  // IN:
 {
-   Unicode result, volume, dir, base;
+   char *result;
+   char *volume;
+   char *dir;
+   char *base;
 
    /*
     * SplitName handles all drive letter/UNC/whatever cases, all we
@@ -526,16 +530,16 @@ File_StripSlashes(ConstUnicode path)  // IN:
          i--;
       }
 
-      Unicode_Free(dir);
+      free(dir);
       dir = Unicode_AllocWithLength(dir2, i, STRING_ENCODING_UTF8);
       free(dir2);
    }
 
    result = Unicode_Join(volume, dir, base, NULL);
 
-   Unicode_Free(volume);
-   Unicode_Free(dir);
-   Unicode_Free(base);
+   free(volume);
+   free(dir);
+   free(base);
 
    return result;
 }
@@ -714,28 +718,28 @@ File_PrependToPath(const char *searchPath,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-File_ReplaceExtension(ConstUnicode pathName,      // IN:
-                      ConstUnicode newExtension,  // IN:
-                      uint32 numExtensions,       // IN:
-                      ...)                        // IN:
+char *
+File_ReplaceExtension(const char *pathName,      // IN:
+                      const char *newExtension,  // IN:
+                      uint32 numExtensions,      // IN:
+                      ...)                       // IN:
 {
-   Unicode path;
-   Unicode base;
-   Unicode result;
+   char *path;
+   char *base;
+   char *result;
    va_list arguments;
    UnicodeIndex index;
-   
+
    ASSERT(pathName);
    ASSERT(newExtension);
-   ASSERT(Unicode_StartsWith(newExtension, "."));
+   ASSERT(*newExtension == '.');
 
    File_GetPathName(pathName, &path, &base);
 
    index = Unicode_FindLast(base, ".");
 
    if (index != UNICODE_INDEX_NOT_FOUND) {
-      Unicode oldBase = base;
+      char *oldBase = base;
 
       if (numExtensions) {
          uint32 i;
@@ -748,9 +752,9 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
          va_start(arguments, numExtensions);
 
          for (i = 0; i < numExtensions ; i++) {
-            Unicode oldExtension = va_arg(arguments, Unicode);
+            char *oldExtension = va_arg(arguments, char *);
 
-            ASSERT(Unicode_StartsWith(oldExtension, "."));
+            ASSERT(*oldExtension == '.');
 
             if (Unicode_CompareRange(base, index, -1,
                                      oldExtension, 0, -1, FALSE) == 0) {
@@ -766,7 +770,7 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
       }
 
       if (oldBase != base) {
-         Unicode_Free(oldBase);
+         free(oldBase);
       }
    }
 
@@ -776,8 +780,8 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
       result = Unicode_Join(path, DIRSEPS, base, newExtension, NULL);
    }
 
-   Unicode_Free(path);
-   Unicode_Free(base);
+   free(path);
+   free(base);
 
    return result;
 }
@@ -801,8 +805,8 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-File_RemoveExtension(ConstUnicode pathName)  // IN:
+char *
+File_RemoveExtension(const char *pathName)  // IN:
 {
    UnicodeIndex index;
 

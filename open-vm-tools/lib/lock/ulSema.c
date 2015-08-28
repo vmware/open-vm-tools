@@ -20,9 +20,7 @@
 #include <windows.h>
 #else
 #if defined(__APPLE__)
-#include <mach/mach_init.h>
-#include <mach/task.h>
-#include <mach/semaphore.h>
+#include <dispatch/dispatch.h>
 #else
 #if (_XOPEN_SOURCE < 600) && !defined(__FreeBSD__) && !defined(sun)
 #undef _XOPEN_SOURCE
@@ -49,17 +47,17 @@
 typedef HANDLE NativeSemaphore;
 #else
 #if defined(__APPLE__)
-typedef semaphore_t NativeSemaphore;
+/*
+ * The Mac OS implementation uses dispatch_semaphore_t instead of
+ * semaphore_t due to better performance in the uncontended case, by
+ * avoiding a system call.  It, also, avoids weird error cases that
+ * resulted in bug 916600.
+ */
+typedef dispatch_semaphore_t NativeSemaphore;
 #else
 typedef sem_t NativeSemaphore;
 #endif
 #endif
-
-typedef struct
-{
-   MXUserAcquisitionStats  data;
-   Atomic_Ptr              histo;
-} MXUserAcquireStats;
 
 struct MXUserSemaphore
 {
@@ -101,7 +99,7 @@ struct MXUserSemaphore
 
 #if defined(_WIN32)
 static int
-MXUserInit(NativeSemaphore *sema)  // IN:
+MXUserInit(NativeSemaphore *sema)  // OUT:
 {
    *sema = Win32U_CreateSemaphore(NULL, 0, INT_MAX, NULL);
 
@@ -185,15 +183,17 @@ MXUserUp(NativeSemaphore *sema)  // IN:
 
 #elif defined(__APPLE__)
 static int
-MXUserInit(NativeSemaphore *sema)  // IN:
+MXUserInit(NativeSemaphore *sema)  // OUT:
 {
-   return semaphore_create(mach_task_self(), sema, SYNC_POLICY_FIFO, 0);
+   *sema = dispatch_semaphore_create(0);
+   return *sema == NULL;
 }
 
 static int
 MXUserDestroy(NativeSemaphore *sema)  // IN:
 {
-   return semaphore_destroy(mach_task_self(), *sema);
+   dispatch_release(*sema);
+   return 0;
 }
 
 static int
@@ -201,63 +201,17 @@ MXUserTimedDown(NativeSemaphore *sema,  // IN:
                 uint32 msecWait,        // IN:
                 Bool *downOccurred)     // OUT:
 {
-   uint64 nsecWait;
-   VmTimeType before;
-   kern_return_t err;
-
-   ASSERT_ON_COMPILE(KERN_SUCCESS == 0);
-
-   /*
-    * Work in nanoseconds. Time the semaphore_timedwait operation in case
-    * it is interrupted (KERN_ABORT). If it is, determine how much time is
-    * necessary to fulfill the specified wait time and retry with a new
-    * and appropriate timeout.
-    */
-
-   nsecWait = 1000000ULL * (uint64) msecWait;
-   before = Hostinfo_SystemTimerNS();
-
-   do {
-      VmTimeType after;
-      mach_timespec_t ts;
-
-      ts.tv_sec = nsecWait / MXUSER_A_BILLION;
-      ts.tv_nsec = nsecWait % MXUSER_A_BILLION;
-
-      err = semaphore_timedwait(*sema, ts);
-      after = Hostinfo_SystemTimerNS();
-
-      if (err == KERN_SUCCESS) {
-         *downOccurred = TRUE;
-      } else {
-         *downOccurred = FALSE;
-
-         if (err == KERN_OPERATION_TIMED_OUT) {
-            /* Really timed out; no down occurred, no error */
-            err = KERN_SUCCESS;
-         } else {
-            if (err == KERN_ABORTED) {
-               VmTimeType duration = after - before;
-
-               if (duration < nsecWait) {
-                  nsecWait -= duration;
-
-                  before = after;
-               } else {
-                  err = KERN_SUCCESS;  // "timed out" anyway... no error
-               }
-            }
-         }
-      }
-   } while (nsecWait && (err == KERN_ABORTED));
-
-   return err;
+   int64 nsecWait = 1000000LL * (int64)msecWait;
+   dispatch_time_t deadline = dispatch_time(DISPATCH_TIME_NOW, nsecWait);
+   *downOccurred = dispatch_semaphore_wait(*sema, deadline) == 0;
+   return 0;
 }
 
 static int
 MXUserDown(NativeSemaphore *sema)  // IN:
 {
-   return semaphore_wait(*sema);
+   dispatch_semaphore_wait(*sema, DISPATCH_TIME_FOREVER);
+   return 0;
 }
 
 static int
@@ -265,24 +219,22 @@ MXUserTryDown(NativeSemaphore *sema,  // IN:
               Bool *downOccurred)     // OUT:
 {
    /*
-    * Use a wait for zero time to implement the try operation. This timed
-    * down will either succeed immediately (down occurred), fail (something
-    * terrible happened) or time out immediately (the down could not be
-    * performed and that is OK).
+    * Provide 'try' semantics by requesting an immediate timeout.
     */
-
-   return MXUserTimedDown(sema, 0, downOccurred);
+   *downOccurred = dispatch_semaphore_wait(*sema, DISPATCH_TIME_NOW) == 0;
+   return 0;
 }
 
 static int
 MXUserUp(NativeSemaphore *sema)  // IN:
 {
-    return semaphore_signal(*sema);
+    dispatch_semaphore_signal(*sema);
+    return 0;
 }
 
 #else
 static int
-MXUserInit(NativeSemaphore *sema)  // IN:
+MXUserInit(NativeSemaphore *sema)  // OUT:
 {
    return (sem_init(sema, 0, 0) == -1) ? errno : 0;
 }
@@ -360,7 +312,7 @@ MXUserTryDown(NativeSemaphore *sema,  // IN:
       *downOccurred = FALSE;
 
       /*
-       * If the error that occured indicates that the try operation cannot
+       * If the error that occurred indicates that the try operation cannot
        * succeed (EAGAIN) or was interrupted (EINTR) suppress the error
        * indicator as these are considered "normal", non-error cases.
        *
@@ -427,10 +379,9 @@ MXUserStatsActionSema(MXUserHeader *header)  // IN:
       MXUserKitchen(&acquireStats->data, &contentionRatio, &isHot, &doLog);
 
       if (isHot) {
-         MXUserForceHisto(&acquireStats->histo,
-                          MXUSER_STAT_CLASS_ACQUISITION,
-                          MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
-                          MXUSER_DEFAULT_HISTO_DECADES);
+         MXUserForceAcquisitionHisto(&sema->acquireStatsMem,
+                                     MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
+                                     MXUSER_DEFAULT_HISTO_DECADES);
 
          if (doLog) {
             Log("HOT SEMAPHORE (%s); contention ratio %f\n",
@@ -467,7 +418,7 @@ MXUserDumpSemaphore(MXUserHeader *header)  // IN:
    Warning("\tsignature 0x%X\n", sema->header.signature);
    Warning("\tname %s\n", sema->header.name);
    Warning("\trank 0x%X\n", sema->header.rank);
-   Warning("\tserial number %u\n", sema->header.serialNumber);
+   Warning("\tserial number %u\n", sema->header.bits.serialNumber);
 
    Warning("\treference count %u\n", Atomic_Read(&sema->activeUserCount));
    Warning("\taddress of native semaphore %p\n", &sema->nativeSemaphore);
@@ -477,7 +428,7 @@ MXUserDumpSemaphore(MXUserHeader *header)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserCreateSemaphore --
+ * MXUser_CreateSemaphore --
  *
  *      Create a (counting) semaphore.
  *
@@ -494,10 +445,9 @@ MXUserDumpSemaphore(MXUserHeader *header)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-static MXUserSemaphore *
-MXUserCreateSemaphore(const char *userName,  // IN:
-                      MX_Rank rank,          // IN:
-                      Bool beSilent)         // IN:
+MXUserSemaphore *
+MXUser_CreateSemaphore(const char *userName,  // IN:
+                       MX_Rank rank)          // IN:
 {
    char *properName;
    MXUserSemaphore *sema = Util_SafeCalloc(1, sizeof *sema);
@@ -514,23 +464,25 @@ MXUserCreateSemaphore(const char *userName,  // IN:
       sema->header.signature = MXUserGetSignature(MXUSER_TYPE_SEMA);
       sema->header.name = properName;
       sema->header.rank = rank;
-      sema->header.serialNumber = MXUserAllocSerialNumber();
+      sema->header.bits.serialNumber = MXUserAllocSerialNumber();
       sema->header.dumpFunc = MXUserDumpSemaphore;
 
-      statsMode = beSilent ? 0 : MXUserStatsMode();
+      statsMode = MXUserStatsMode();
 
-      if (statsMode == 0) {
+      switch (MXUserStatsMode()) {
+      case 0:
+         MXUserDisableStats(&sema->acquireStatsMem, NULL);
          sema->header.statsFunc = NULL;
-         Atomic_WritePtr(&sema->acquireStatsMem, NULL);
-      } else {
-         MXUserAcquireStats *acquireStats;
+         break;
 
-         acquireStats = Util_SafeCalloc(1, sizeof *acquireStats);
-
-         MXUserAcquisitionStatsSetUp(&acquireStats->data);
-
+      case 1:
+      case 2:
+         MXUserEnableStats(&sema->acquireStatsMem, NULL);
          sema->header.statsFunc = MXUserStatsActionSema;
-         Atomic_WritePtr(&sema->acquireStatsMem, acquireStats);
+         break;
+
+      default:
+         Panic("%s: unknown stats mode: %d!\n", __FUNCTION__, statsMode);
       }
 
       MXUserAddToList(&sema->header);
@@ -543,56 +495,6 @@ MXUserCreateSemaphore(const char *userName,  // IN:
    return sema;
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUser_CreateSemaphore --
- *
- *      Create a (counting) semaphore. The semaphore may log messages,
- *      statistics and contention information.
- *
- * Results:
- *      A pointer to a semaphore.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-MXUserSemaphore *
-MXUser_CreateSemaphore(const char *userName,  // IN:
-                       MX_Rank rank)          // IN:
-{
-   return MXUserCreateSemaphore(userName, rank, FALSE);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUser_CreateSemaphoreSilent --
- *
- *      Create a (counting) semaphore specifying if the lock must always be
- *      silent - never logging any messages. Silent locks will never
- *      produce any statistics or contention information.
- *
- * Results:
- *      A pointer to a semaphore.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-MXUserSemaphore *
-MXUser_CreateSemaphoreSilent(const char *userName,  // IN:
-                             MX_Rank rank)          // IN:
-{
-   return MXUserCreateSemaphore(userName, rank, TRUE);
-}
 
 /*
  *-----------------------------------------------------------------------------
@@ -611,7 +513,7 @@ MXUser_CreateSemaphoreSilent(const char *userName,  // IN:
  */
 
 void
-MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
+MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN/OUT:
 {
    if (LIKELY(sema != NULL)) {
       int err;
@@ -664,7 +566,7 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
  *      on a semaphore.
  *
  * Results:
- *      The count will be decremented; a sleep may occur until the decement
+ *      The count will be decremented; a sleep may occur until the decrement
  *      is possible.
  *
  * Side effects:
@@ -835,7 +737,7 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
  *
  * NOTE:
  *      A "TryAcquire" does not rank check should the down operation succeed.
- *      This duplicates the behavor of MX semaphores.
+ *      This duplicates the behavior of MX semaphores.
  *
  *-----------------------------------------------------------------------------
  */

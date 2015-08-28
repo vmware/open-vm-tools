@@ -23,9 +23,12 @@
  */
 
 
-#if !defined(VMX86_TOOLS) && !defined(__APPLE__) && !defined(sun)
-#define FILEIO_SUPPORT_ODIRECT
-#define _GNU_SOURCE
+#if defined(__linux__)
+#  if !defined(VMX86_TOOLS) && !defined(__ANDROID__)
+#     define FILEIO_SUPPORT_ODIRECT
+#     define _GNU_SOURCE
+#  endif
+#  include <features.h>
 #endif
 
 #include <stdio.h>
@@ -39,27 +42,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <dirent.h>
-#if defined(linux)
-/*
- * These headers are needed to get __USE_LARGEFILE, __USE_LARGEFILE64,
- * and SYS__llseek.
- */
-#   ifdef ANDROID_X86
-#      undef _GNU_SOURCE
-#   endif
-#   include <features.h>
-#   ifndef _GNU_SOURCE
-#      define _GNU_SOURCE
-#   endif
-#   include <linux/unistd.h>
+#if defined(__linux__)
 #ifdef __ANDROID__
 #   include <sys/syscall.h>
 #else
 #   include <syscall.h>
 #endif
-#endif
-#if defined __ANDROID__
-#   include <sys/syscall.h>
 #endif
 #include <sys/stat.h>
 #include "su.h"
@@ -83,7 +71,7 @@
 #include <sys/mount.h>
 #else
 #include <sys/statfs.h>
-#if !defined(sun)
+#if !defined(__sun__)
 #include <mntent.h>
 #include <dlfcn.h>
 #endif
@@ -217,13 +205,18 @@ static AlignedPool alignedPool;
  * are not available in any header file.
  */
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__ANDROID__)
    #if defined(_FILE_OFFSET_BITS) && (_FILE_OFFSET_BITS == 64)
+      /*
+       * We want preadv/pwritev. But due to FOB=64, the symbols are -64.
+       * TODO: when the baseline bumps to XOPEN=700, link directly to
+       * the symbols (and anyone building XOPEN<700 gets nothing).
+       */
       extern ssize_t preadv64(int fd, const struct iovec *iov, int iovcnt,
-                            off64_t offset) __attribute__ ((weak));
-      
+                          __off64_t offset) __attribute__ ((weak));
+
       extern ssize_t pwritev64(int fd, const struct iovec *iov, int iovcnt,
-                             off64_t offset) __attribute__ ((weak));
+                          __off64_t offset) __attribute__ ((weak));
    #else
       #error "Large file support unavailable. Aborting."
    #endif
@@ -480,8 +473,8 @@ FileIO_CreateFDPosix(int posix,  // IN: UNIX file descriptor
  */
 
 Bool
-FileIO_GetVolumeSectorSize(ConstUnicode pathName,  // IN:
-                           uint32 *sectorSize)     // OUT:
+FileIO_GetVolumeSectorSize(const char *pathName,  // IN:
+                           uint32 *sectorSize)    // OUT:
 {
    ASSERT(sectorSize);
 
@@ -599,7 +592,7 @@ ProxyReceiveResults(int sock_fd,      // IN:
    if (msg.msg_controllen == 0) {
       *recv_fd = -1;
    } else {
-      cmsg = CMSG_FIRSTHDR(&msg); 
+      cmsg = CMSG_FIRSTHDR(&msg);
 
       if ((cmsg->cmsg_level == SOL_SOCKET) &&
           (cmsg->cmsg_type == SCM_RIGHTS)) {
@@ -630,9 +623,9 @@ ProxyReceiveResults(int sock_fd,      // IN:
  */
 
 static int
-ProxyOpen(ConstUnicode pathName,  // IN:
-          int flags,              // IN:
-          int mode)               // IN:
+ProxyOpen(const char *pathName,  // IN:
+          int flags,             // IN:
+          int mode)              // IN:
 {
    int err;
    pid_t pid;
@@ -700,10 +693,10 @@ bail:
  */
 
 static int
-ProxyUse(ConstUnicode pathName,  // IN:
-         Bool *useProxy)         // IN:
+ProxyUse(const char *pathName,  // IN:
+         Bool *useProxy)        // IN:
 {
-   Unicode path;
+   char *path;
    UnicodeIndex index;
    struct statfs sfbuf;
    struct stat statbuf;
@@ -729,11 +722,11 @@ ProxyUse(ConstUnicode pathName,  // IN:
    if (index == UNICODE_INDEX_NOT_FOUND) {
       path = Unicode_Duplicate(".");
    } else {
-      Unicode temp;
+      char *temp;
 
       temp = Unicode_Substr(pathName, 0, index + 1);
       path = Unicode_Append(temp, ".");
-      Unicode_Free(temp);
+      free(temp);
    }
 
    /*
@@ -755,7 +748,7 @@ ProxyUse(ConstUnicode pathName,  // IN:
       *useProxy = TRUE;
    }
 
-   Unicode_Free(path);
+   free(path);
 
    return 0;
 }
@@ -784,9 +777,9 @@ ProxyUse(ConstUnicode pathName,  // IN:
  */
 
 int
-PosixFileOpener(ConstUnicode pathName,  // IN:
-                int flags,              // IN:
-                mode_t mode)            // IN:
+PosixFileOpener(const char *pathName,  // IN:
+                int flags,             // IN:
+                mode_t mode)           // IN:
 {
    Bool useProxy;
 
@@ -795,8 +788,8 @@ PosixFileOpener(ConstUnicode pathName,  // IN:
 
       /*
        * Open for write and/or O_CREAT. Determine proxy usage.
-       */ 
-   
+       */
+
       err = ProxyUse(pathName, &useProxy);
       if (err != 0) {
          errno = err;
@@ -839,7 +832,7 @@ PosixFileOpener(ConstUnicode pathName,  // IN:
 
 FileIOResult
 FileIOCreateRetry(FileIODescriptor *file,   // OUT:
-                  ConstUnicode pathName,    // IN:
+                  const char *pathName,     // IN:
                   int access,               // IN:
                   FileIOOpenAction action,  // IN:
                   int mode,                 // IN: mode_t for creation
@@ -924,7 +917,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 #elif !defined(__APPLE__) // Mac hosts need this access flag after opening.
       access &= ~FILEIO_OPEN_UNBUFFERED;
       LOG_ONCE((LGPFX" %s reverting to buffered IO on %s.\n",
-                __FUNCTION__, UTF8(pathName)));
+                __FUNCTION__, pathName));
 #endif
    }
 
@@ -942,7 +935,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    }
 #endif
 
-#if defined(linux)
+#if defined(__linux__)
    if (access & FILEIO_OPEN_SYNC) {
       flags |= O_SYNC;
    }
@@ -1053,7 +1046,7 @@ error:
 
 FileIOResult
 FileIO_Create(FileIODescriptor *file,   // OUT:
-              ConstUnicode pathName,    // IN:
+              const char *pathName,     // IN:
               int access,               // IN:
               FileIOOpenAction action,  // IN:
               int mode)                 // IN: mode_t for creation
@@ -1083,7 +1076,7 @@ FileIO_Create(FileIODescriptor *file,   // OUT:
 
 FileIOResult
 FileIO_Open(FileIODescriptor *file,   // OUT:
-            ConstUnicode pathName,    // IN:
+            const char *pathName,     // IN:
             int access,               // IN:
             FileIOOpenAction action)  // IN:
 {
@@ -1113,43 +1106,36 @@ FileIO_Open(FileIODescriptor *file,   // OUT:
 
 FileIOResult
 FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
-                 ConstUnicode pathName,    // IN:
+                 const char *pathName,     // IN:
                  int access,               // IN:
                  FileIOOpenAction action,  // IN:
                  uint32 msecMaxWaitTime)   // IN:
 {
 #if defined(VMX86_SERVER)
    FileIOResult res;
-   int retries = 10;
+   uint32 msecWaitTime = 0;
+   uint32 msecMaxLoopTime = 3000;  // 3 seconds
 
    /*
     * Workaround the ESX NFS client bug as seen in PR 1341775.
-    * Since ESX NFS client can sometimes *wrongly* return ESTALE for
-    * legitimate file open case, we retry a few times in case we hit
-    * that problem.
+    * Since ESX NFS client can sometimes *wrongly* return ESTALE for a
+    * legitimate file open case, we retry for some time in hopes that the
+    * problem will resolve itself.
     */
-   while (retries-- > 0) {
+
+   while (TRUE) {
       res = FileIOCreateRetry(file, pathName, access, action,
                               S_IRUSR | S_IWUSR, msecMaxWaitTime);
-      if (res == FILEIO_ERROR && Err_Errno() == ESTALE) {
-         /*
-          * 300 msec * 10 retries, gives us 3 secs of retry. This should
-          * be good enough as the ESTALE seen in PR 1341775 is due to a
-          * tiny race where another host is atomically swapping the file,
-          * and causing the file to be temporarily unlinked, while this host
-          * tries to open it. It should be very short lived.
-          */
-         if (retries > 0) {
-            Log(LGPFX "FileIOCreateRetry (%s) failed with ESTALE, retrying, "
-                      "retries left (#%d)\n", UTF8(pathName), retries);
-            Util_Usleep(300 * 1000);
-            continue;
-         } else {
-            Log(LGPFX "Failing FileIO_OpenRetry (%s) with ESTALE!\n",
-                      UTF8(pathName));
-         }
+
+      if (res == FILEIO_ERROR && Err_Errno() == ESTALE &&
+          msecWaitTime < msecMaxLoopTime) {
+         Log(LGPFX "FileIOCreateRetry (%s) failed with ESTALE, retrying.\n",
+             pathName);
+
+         msecWaitTime += FileSleeper(100, 300);
+      } else {
+         break;
       }
-      break;
    }
 
    return res;
@@ -1179,25 +1165,6 @@ FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
  *----------------------------------------------------------------------
  */
 
-#if defined(linux) && defined(SYS__llseek)
-/*
- * If the llseek system call exists, use it to provide a version of 64-bit
- * lseek() functionality, for FileIO_Seek() to use if appropriate.
- */
-
-#define VM_HAVE__LLSEEK 1
-
-static INLINE int
-_llseek(unsigned int fd,
-        unsigned long offset_high,
-        unsigned long offset_low,
-        loff_t * result,
-        unsigned int whence)
-{
-   return syscall(SYS__llseek, fd, offset_high, offset_low, result, whence);
-}
-#endif
-
 uint64
 FileIO_Seek(const FileIODescriptor *file,  // IN:
             int64 distance,                // IN:
@@ -1205,57 +1172,19 @@ FileIO_Seek(const FileIODescriptor *file,  // IN:
 {
    ASSERT(file);
 
+#if defined(__ANDROID__)
    /*
-    * The goal is to use the best lseek-type function with support for 64-bit
-    * file offsets (aka large file support, or LFS).
-    *
-    * __USE_LARGEFILE implies that lseek() has LFS
-    * VM_HAVE__LLSEEK tells us that we have the _llseek() routine available
-    * __USE_LARGEFILE64 implies that lseek64() is available
-    *
-    * All three of these defines only come into play on Linux systems. On any
-    * other OS, they won't be present, and we go straight for lseek() since
-    * that's the only known alternative.
+    * Android doesn't implement _FILE_OFFSET_BITS=64, but always has lseek64.
     */
-#if defined(VM_HAVE__LLSEEK) && !defined(__USE_LARGEFILE) && !defined(__USE_LARGEFILE64)
-   /*
-    * This is a Linux system that doesn't have a glibc with any large-file
-    * support (LFS), but does have the llseek system call. On Linux, this is
-    * the least desirable option because the API is a bit grotty (e.g. the
-    * casting of negative offsets into unsigned offset_hi and offset_lo), and
-    * because doing system calls directly from our code is more likely to
-    * break than using libc.
-    */
-
-   loff_t res;
-
-   if (_llseek(file->posix, distance >> 32, distance & 0xFFFFFFFF,
-               &res, FileIO_SeekOrigins[origin]) == -1) {
-      res = -1;
-   }
-
-   return res;
-#elif defined(__USE_LARGEFILE64) && !defined(__USE_LARGEFILE)
-   /*
-    * This is a Linux system with glibc that has lseek64 available, but not a
-    * lseek with LFS.
-    *
-    * lseek64 is a bit cleaner than _llseek (because glibc provides it, we
-    * know the API won't break) but still not as portable as plain old lseek.
-    */
-
-    return lseek64(file->posix, distance, FileIO_SeekOrigins[origin]);
+   return lseek64(file->posix, distance, FileIO_SeekOrigins[origin]);
 #else
-    /*
-     * We're taking this route because either we know lseek() can support
-     * 64-bit file offsets (__USE_LARGEFILE is set) or because llseek and
-     * lseek64 are both unavailable.
-     *
-     * This means this a Linux/glibc system with transparent LFS support, an
-     * old Linux system without llseek, or another POSIX system.
-     */
+   /*
+    * Require 64-bit file API support via _FILE_OFFSET_BITS=64 or
+    * operating system default.
+    */
+   ASSERT_ON_COMPILE(sizeof(off_t) == 8);
 
-    return lseek(file->posix, distance, FileIO_SeekOrigins[origin]);
+   return lseek(file->posix, distance, FileIO_SeekOrigins[origin]);
 #endif
 }
 
@@ -1336,7 +1265,7 @@ FileIO_Write(FileIODescriptor *fd,  // IN:
  *
  * Results:
  *      FILEIO_SUCCESS on success: '*actual_count' = 'requested' bytes have
- *       been read. 
+ *       been read.
  *      FILEIO_READ_ERROR_EOF if the end of the file was reached: only
  *       '*actual_count' bytes have been read for sure.
  *      FILEIO_ERROR for other errors: only '*actual_count' bytes have been
@@ -1429,8 +1358,9 @@ FileIO_Truncate(FileIODescriptor *file,  // IN:
  *      Close a file
  *
  * Results:
- *      TRUE: an error occured
- *      FALSE: no error occured
+ *      FILEIO_SUCCESS: The file was closed and unlinked. The FileIODescriptor
+ *                      is no longer valid.
+ *      FILEIO_ERROR: An error occurred.
  *
  * Side effects:
  *      None
@@ -1438,7 +1368,7 @@ FileIO_Truncate(FileIODescriptor *file,  // IN:
  *----------------------------------------------------------------------
  */
 
-Bool
+FileIOResult
 FileIO_Close(FileIODescriptor *file)  // IN:
 {
    int err;
@@ -1456,7 +1386,7 @@ FileIO_Close(FileIODescriptor *file)  // IN:
       errno = err;
    }
 
-   return err != 0;
+   return (err == 0) ? FILEIO_SUCCESS : FILEIO_ERROR;
 }
 
 
@@ -1468,8 +1398,8 @@ FileIO_Close(FileIODescriptor *file)  // IN:
  *      Synchronize the disk state of a file with its memory state
  *
  * Results:
- *      On success: 0
- *      On failure: -1
+ *      On success: FILEIO_SUCCESS
+ *      On failure: FILEIO_ERROR
  *
  * Side effects:
  *      None
@@ -1477,12 +1407,12 @@ FileIO_Close(FileIODescriptor *file)  // IN:
  *----------------------------------------------------------------------
  */
 
-int
+FileIOResult
 FileIO_Sync(const FileIODescriptor *file)  // IN:
 {
    ASSERT(file);
 
-   return fsync(file->posix);
+   return (fsync(file->posix) == -1) ? FILEIO_ERROR : FILEIO_SUCCESS;
 }
 
 
@@ -1510,13 +1440,13 @@ FileIO_Sync(const FileIODescriptor *file)  // IN:
  */
 
 static Bool
-FileIOCoalesce(struct iovec *inVec,   // IN:  Vector to coalesce from
-               int inCount,           // IN:  count for inVec
-               size_t inTotalSize,    // IN:  totalSize (bytes) in inVec
-               Bool isWrite,          // IN:  coalesce for writing (or reading)
-               Bool forceCoalesce,    // IN:  if TRUE always coalesce
-               int flags,             // IN: fileIO open flags
-               struct iovec *outVec)  // OUT: Coalesced (1-entry) iovec
+FileIOCoalesce(struct iovec const *inVec, // IN:  Vector to coalesce from
+               int inCount,               // IN:  count for inVec
+               size_t inTotalSize,        // IN:  totalSize (bytes) in inVec
+               Bool isWrite,              // IN:  coalesce for writing (or reading)
+               Bool forceCoalesce,        // IN:  if TRUE always coalesce
+               int flags,                 // IN: fileIO open flags
+               struct iovec *outVec)      // OUT: Coalesced (1-entry) iovec
 {
    uint8 *cBuf;
 
@@ -1585,12 +1515,12 @@ FileIOCoalesce(struct iovec *inVec,   // IN:  Vector to coalesce from
  */
 
 static void
-FileIODecoalesce(struct iovec *coVec,   // IN: Coalesced (1-entry) vector
-                 struct iovec *origVec, // IN: Original vector
-                 int origVecCount,      // IN: count for origVec
-                 size_t actualSize,     // IN: # bytes to transfer back to origVec
-                 Bool isWrite,          // IN: decoalesce for writing (or reading)
-                 int flags)             // IN: fileIO open flags
+FileIODecoalesce(struct iovec *coVec,         // IN: Coalesced (1-entry) vector
+                 struct iovec const *origVec, // IN: Original vector
+                 int origVecCount,            // IN: count for origVec
+                 size_t actualSize,           // IN: # bytes to transfer back to origVec
+                 Bool isWrite,                // IN: decoalesce for writing (or reading)
+                 int flags)                   // IN: fileIO open flags
 {
    ASSERT(coVec);
    ASSERT(origVec);
@@ -1635,7 +1565,7 @@ FileIODecoalesce(struct iovec *coVec,   // IN: Coalesced (1-entry) vector
 
 FileIOResult
 FileIO_Readv(FileIODescriptor *fd,  // IN:
-             struct iovec *v,       // IN:
+             struct iovec const *v, // IN:
              int numEntries,        // IN:
              size_t totalSize,      // IN:
              size_t *actual)        // OUT:
@@ -1644,7 +1574,7 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
    FileIOResult fret = FILEIO_ERROR;
    int nRetries = 0, maxRetries = numEntries;
    struct iovec coV;
-   struct iovec *vPtr;
+   struct iovec const *vPtr;
    Bool didCoalesce;
    int numVec;
 
@@ -1748,7 +1678,7 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
 
 FileIOResult
 FileIO_Writev(FileIODescriptor *fd,  // IN:
-              struct iovec *v,       // IN:
+              struct iovec const *v, // IN:
               int numEntries,        // IN:
               size_t totalSize,      // IN:
               size_t *actual)        // OUT:
@@ -1757,7 +1687,7 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
    FileIOResult fret = FILEIO_ERROR;
    int nRetries = 0, maxRetries = numEntries;
    struct iovec coV;
-   struct iovec *vPtr;
+   struct iovec const *vPtr;
    Bool didCoalesce;
    int numVec;
 
@@ -1821,7 +1751,7 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
 
 
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||\
-    defined(sun)
+    defined(__sun__)
 
 /*
  *----------------------------------------------------------------------
@@ -1844,14 +1774,14 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
  */
 
 static FileIOResult
-FileIOPreadvCoalesced(FileIODescriptor *fd,  // IN: File descriptor
-                      struct iovec *entries, // IN: Vector to read into
-                      int numEntries,        // IN: Number of vector entries
-                      uint64 offset,         // IN: Offset to start reading
-                      size_t totalSize,      // IN: totalSize(bytes) in entries
-                      size_t *actual)        // OUT: number of bytes read
+FileIOPreadvCoalesced(FileIODescriptor *fd,        // IN: File descriptor
+                      struct iovec const *entries, // IN: Vector to read into
+                      int numEntries,              // IN: Number of vector entries
+                      uint64 offset,               // IN: Offset to start reading
+                      size_t totalSize,            // IN: totalSize(bytes) in entries
+                      size_t *actual)              // OUT: number of bytes read
 {
-   struct iovec *vPtr;
+   struct iovec const *vPtr;
    struct iovec coV;
    int count;
    uint64 fileOffset;
@@ -1932,16 +1862,16 @@ exit:
  */
 
 static FileIOResult
-FileIOPwritevCoalesced(FileIODescriptor *fd,  // IN: File descriptor
-                       struct iovec *entries, // IN: Vector to write from
-                       int numEntries,        // IN: Number of vector entries
-                       uint64 offset,         // IN: Offset to start writing
-                       size_t totalSize,      // IN: Total size(bytes)
-                       size_t *actual)        // OUT: number of bytes written
+FileIOPwritevCoalesced(FileIODescriptor *fd,        // IN: File descriptor
+                       struct iovec const *entries, // IN: Vector to write from
+                       int numEntries,              // IN: Number of vector entries
+                       uint64 offset,               // IN: Offset to start writing
+                       size_t totalSize,            // IN: Total size(bytes)
+                       size_t *actual)              // OUT: number of bytes written
 {
    struct iovec coV;
    Bool didCoalesce;
-   struct iovec *vPtr;
+   struct iovec const *vPtr;
    int count;
    uint64 fileOffset;
    FileIOResult fret;
@@ -2009,10 +1939,10 @@ exit:
 }
 
 #endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||
-          defined(sun) */
+          defined(__sun__) */
 
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__ANDROID__)
 
 /*
  *----------------------------------------------------------------------
@@ -2045,14 +1975,14 @@ exit:
  */
 
 static FileIOResult
-FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
-                     struct iovec *entries,  // IN: Vector to read into
-                     int numEntries,         // IN: Number of vector entries
-                     uint64 offset,          // IN: Offset to start reading
-                     size_t totalSize,       // IN: totalSize(bytes) in entries
-                     size_t *actual)         // OUT: number of bytes read
+FileIOPreadvInternal(FileIODescriptor *fd,        // IN: File descriptor
+                     struct iovec const *entries, // IN: Vector to read into
+                     int numEntries,              // IN: Number of vector entries
+                     uint64 offset,               // IN: Offset to start reading
+                     size_t totalSize,            // IN: totalSize(bytes) in entries
+                     size_t *actual)              // OUT: number of bytes read
 {
-   struct iovec *vPtr;
+   struct iovec const *vPtr;
    int numVec;
    size_t partialBytes = 0;
    size_t bytesRead = 0;
@@ -2180,14 +2110,14 @@ FileIOPreadvInternal(FileIODescriptor *fd,   // IN: File descriptor
  */
 
 static FileIOResult
-FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
-                      struct iovec *entries, // IN: Vector to write from
-                      int numEntries,        // IN: Number of vector entries
-                      uint64 offset,         // IN: Offset to start writing
-                      size_t totalSize,      // IN: Total size(bytes)in entries
-                      size_t *actual)         // OUT: number of bytes written
+FileIOPwritevInternal(FileIODescriptor *fd,        // IN: File descriptor
+                      struct iovec const *entries, // IN: Vector to write from
+                      int numEntries,              // IN: Number of vector entries
+                      uint64 offset,               // IN: Offset to start writing
+                      size_t totalSize,            // IN: Total size(bytes)in entries
+                      size_t *actual)              // OUT: number of bytes written
 {
-   struct iovec *vPtr;
+   struct iovec const *vPtr;
    int numVec;
    size_t partialBytes = 0;
    size_t bytesWritten = 0;
@@ -2266,18 +2196,18 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
    return fret;
 }
 
-#endif /* defined(__linux__) */
+#endif /* defined(__linux__) && !defined(__ANDROID__) */
 
 
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||\
-    defined(sun)
+    defined(__sun__)
 
 /*
  *----------------------------------------------------------------------
  *
  * FileIO_Preadv --
  *
- *      Implementation of vector pread.The function checks for the support
+ *      Implementation of vector pread. The function checks for the support
  *      of system call preadv with the version of glibc and calls the
  *      optimized system call. If the system call is not supported,
  *      we fall back to the earlier technique of coalescing the vectors
@@ -2293,12 +2223,12 @@ FileIOPwritevInternal(FileIODescriptor *fd,  // IN: File descriptor
  */
 
 FileIOResult
-FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
-              struct iovec *entries,  // IN: Vector to read into
-              int numEntries,         // IN: Number of vector entries
-              uint64 offset,          // IN: Offset to start reading
-              size_t totalSize,       // IN: totalSize (bytes) in entries
-              size_t *actual)         // OUT: number of bytes read
+FileIO_Preadv(FileIODescriptor *fd,        // IN: File descriptor
+              struct iovec const *entries, // IN: Vector to read into
+              int numEntries,              // IN: Number of vector entries
+              uint64 offset,               // IN: Offset to start reading
+              size_t totalSize,            // IN: totalSize (bytes) in entries
+              size_t *actual)              // OUT: number of bytes read
 {
    FileIOResult fret;
 
@@ -2307,13 +2237,13 @@ FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
    VERIFY(totalSize < 0x80000000);
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__ANDROID__)
    fret = FileIOPreadvInternal(fd, entries, numEntries, offset, totalSize,
                                actual);
 #else
    fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset, totalSize,
                                 actual);
-#endif /* defined(__linux__ ) */
+#endif /* defined(__linux__ ) && !defined(__ANDROID__) */
    return fret;
 }
 
@@ -2323,7 +2253,7 @@ FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
  *
  * FileIO_Pwritev --
  *
- *      Implementation of vector pwrite.The function checks for the support
+ *      Implementation of vector pwrite. The function checks for the support
  *      of system call pwritev with the version of glibc and calls the
  *      optimized system call. If the system call is not supported,
  *      we fall back to the earlier technique of coalescing the vectors and
@@ -2339,12 +2269,12 @@ FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
  */
 
 FileIOResult
-FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
-               struct iovec *entries,  // IN: Vector to write from
-               int numEntries,         // IN: Number of vector entries
-               uint64 offset,          // IN: Offset to start writing
-               size_t totalSize,       // IN: Total size (bytes) in entries
-               size_t *actual)         // OUT: number of bytes written
+FileIO_Pwritev(FileIODescriptor *fd,        // IN: File descriptor
+               struct iovec const *entries, // IN: Vector to write from
+               int numEntries,              // IN: Number of vector entries
+               uint64 offset,               // IN: Offset to start writing
+               size_t totalSize,            // IN: Total size (bytes) in entries
+               size_t *actual)              // OUT: number of bytes written
 {
    FileIOResult fret;
 
@@ -2353,18 +2283,18 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
    VERIFY(totalSize < 0x80000000);
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__ANDROID__)
    fret = FileIOPwritevInternal(fd, entries, numEntries, offset, totalSize,
                                 actual);
 #else
    fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset, totalSize,
                                  actual);
-#endif /* defined(__linux__ ) */
+#endif /* defined(__linux__ ) && !defined(__ANDROID__) */
    return fret;
 }
 
 #endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||
-          defined(sun) */
+          defined(__sun__) */
 
 
 /*
@@ -2492,9 +2422,9 @@ FileIO_SetAllocSize(const FileIODescriptor *fd,  // IN:
  */
 
 FileIOResult
-FileIO_GetAllocSizeByPath(ConstUnicode pathName,    // IN:
-                          uint64 *logicalBytes,     // OUT:
-                          uint64 *allocedBytes)     // OUT:
+FileIO_GetAllocSizeByPath(const char *pathName,  // IN:
+                          uint64 *logicalBytes,  // OUT:
+                          uint64 *allocedBytes)  // OUT:
 {
    struct stat statBuf;
 
@@ -2542,8 +2472,8 @@ FileIO_GetAllocSizeByPath(ConstUnicode pathName,    // IN:
  */
 
 FileIOResult
-FileIO_Access(ConstUnicode pathName,  // IN: Path name. May be NULL.
-              int accessMode)         // IN: Access modes to be asserted
+FileIO_Access(const char *pathName,  // IN: Path name. May be NULL.
+              int accessMode)        // IN: Access modes to be asserted
 {
    int mode = 0;
 
@@ -2616,10 +2546,10 @@ Bool
 FileIO_SupportsFileSize(const FileIODescriptor *fd,  // IN:
                         uint64 requestedSize)        // IN:
 {
-#if defined(linux)
+#if defined(__linux__)
    /*
     * Linux makes test on seek(), so we can do simple non-intrusive test.
-    * Verified to work on 2.2.x, 2.4.x and 2.6.x, with ext2, ext3, smbfs, 
+    * Verified to work on 2.2.x, 2.4.x and 2.6.x, with ext2, ext3, smbfs,
     * cifs, nfs and ncpfs.  Always got some reasonable value.
     */
    Bool supported = FALSE;
@@ -2711,8 +2641,8 @@ FileIO_GetModTime(const FileIODescriptor *fd)  // IN:
  */
 
 int
-FileIO_PrivilegedPosixOpen(ConstUnicode pathName,  // IN:
-                           int flags)              // IN:
+FileIO_PrivilegedPosixOpen(const char *pathName,  // IN:
+                           int flags)             // IN:
 {
    int fd;
    Bool suDone;
@@ -2840,7 +2770,7 @@ HostSupportsPrealloc(void)
    unsigned static const int req[] = { 10, 0, 0, 6 };
    unsigned int cur[4], i;
    int num;
-   size_t len = sizeof(curRel);
+   size_t len = sizeof curRel;
    Bool ret = FALSE;
 
    val = Atomic_Read(&supported);
@@ -2879,7 +2809,7 @@ HostSupportsPrealloc(void)
          goto exit;
       } else if (req[i] < cur[i]) {
          ret = TRUE;
-         goto exit; 
+         goto exit;
       }
    }
    if (num == 5 && type == 'd') {
@@ -2895,7 +2825,7 @@ HostSupportsPrealloc(void)
    ret = num != 4;
 
 exit:
-   if (!ret && filePosixOptions.initialized && 
+   if (!ret && filePosixOptions.initialized &&
        filePosixOptions.aioNumThreads == 1) {
       ret = TRUE;
    }
@@ -2972,7 +2902,7 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
 #if (defined( __linux__) && !defined(VMX86_SERVER))
    {
       struct statfs statBuf;
-      Unicode fullPath;
+      char *fullPath;
 
       ret = FALSE;
       if (!pathName) {
@@ -2988,7 +2918,7 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
          statBuf.f_type == EXT4_SUPER_MAGIC) {
          ret = TRUE;
       }
-      Unicode_Free(fullPath);
+      free(fullPath);
    }
 #endif
 

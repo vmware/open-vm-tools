@@ -879,16 +879,22 @@ HgfsGetFileInode(HgfsAttrInfo const *attr,     // IN: Attrs to use
                  struct super_block *sb)       // IN: Superblock of this fs
 {
    ino_t inodeEntry;
+   uint64 tempIno;
+   HgfsSuperInfo *si;
 
    ASSERT(attr);
    ASSERT(sb);
 
-   if (attr->mask & HGFS_ATTR_VALID_FILEID) {
-      inodeEntry = attr->hostFileId;
+   si = HGFS_SB_TO_COMMON(sb);
+
+   if ((si->mntFlags & HGFS_MNT_SERVER_INUM) != 0 &&
+       (attr->mask & HGFS_ATTR_VALID_FILEID) != 0) {
+      tempIno = attr->hostFileId;
    } else {
-      inodeEntry = iunique(sb, HGFS_RESERVED_INO);
+      tempIno = iunique(sb, HGFS_RESERVED_INO);
    }
 
+   inodeEntry = HgfsUniqueidToIno(tempIno);
    LOG(4, (KERN_DEBUG "VMware hgfs: %s: return %lu\n", __func__, inodeEntry));
    return inodeEntry;
 }

@@ -821,6 +821,8 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
       if (ret < 0) {
          Warning("%s: failed to read from file %s (%d)\n",
                  __FUNCTION__, fileName, errno);
+         // XXX audit this?
+         err = VGAUTH_E_FAIL;
          g_free(buf);
          goto done;
       } else if (ret == 0) {     // eof

@@ -29,7 +29,7 @@
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
-#include "msgidDefs.h"
+#include "msgid_defs.h"
 
 #include "vm_basic_defs.h"
 

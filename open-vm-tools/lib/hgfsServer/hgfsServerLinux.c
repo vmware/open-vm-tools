@@ -43,6 +43,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <sys/resource.h> // for getrlimit
 
 #if defined(__FreeBSD__)
 #   include <sys/param.h>
@@ -376,7 +377,10 @@ static HgfsInternalStatus HgfsEffectivePermissions(char *fileName,
                                                    uint32 *permissions);
 static uint64 HgfsGetCreationTime(const struct stat *stats);
 
-
+#if !defined(sun)
+static HgfsInternalStatus HgfsWriteCheckIORange(off_t offset,
+                                                uint32 bytesToWrite);
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -867,7 +871,7 @@ HgfsPlatformGetFd(HgfsHandle hgfsHandle,    // IN:  HGFS file handle
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsValidateOpen --
+ * HgfsPlatformValidateOpen --
  *
  *    Verify that the file with the given local name exists in the
  *    local filesystem by trying to open the file with the requested
@@ -894,7 +898,6 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
 {
    struct stat fileStat;
    int fd;
-   int error;
    int openMode = 0, openFlags = 0;
    mode_t openPerms;
    HgfsLockType serverLock;
@@ -928,7 +931,7 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
     * a file requires a valid mode, it's highly unlikely that we'll ever
     * be creating a file without owner permissions.
     */
-   openPerms = ~ALLPERMS;
+   openPerms = 0;
    openPerms |= openInfo->mask & HGFS_OPEN_VALID_SPECIAL_PERMS ?
                   openInfo->specialPerms << 9 : 0;
    openPerms |= openInfo->mask & HGFS_OPEN_VALID_OWNER_PERMS ?
@@ -986,6 +989,9 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
          }
       }
       if (status != 0) {
+         LOG(4, ("%s: Error: Unwritable share mode %u flags %u file \"%s\": %d %s\n",
+                 __FUNCTION__, openMode, openFlags, openInfo->utf8Name,
+                 status, strerror(status)));
          goto exit;
       }
    }
@@ -1005,6 +1011,8 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
          status = EACCES;
       }
       if (status != 0) {
+         LOG(4, ("%s: Error: Unreadable share flags %u file \"%s\": %d %s\n",
+                 __FUNCTION__, openFlags, openInfo->utf8Name, status, strerror(status)));
          goto exit;
       }
    }
@@ -1030,23 +1038,29 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
     * Try to open the file with the requested mode, flags and permissions.
     */
    fd = Posix_Open(openInfo->utf8Name,
-             openMode | openFlags,
-             openPerms);
+                   openMode | openFlags,
+                   openPerms);
    if (fd < 0) {
-      error = errno;
-      LOG(4, ("%s: couldn't open file \"%s\": %s\n", __FUNCTION__,
-              openInfo->utf8Name, strerror(error)));
-      status = error;
+      status = errno;
+      if (status == EAGAIN) {
+         /*
+          * We have tried opening with O_NONBLOCK but looks like an incompatible
+          * lease may be held on the file. Tell the client that this access mode
+          * is not allowed currently.
+          */
+         status = EACCES;
+      }
+      LOG(4, ("%s: Error: open file \"%s\": %d %s\n", __FUNCTION__,
+              openInfo->utf8Name, status, strerror(status)));
       goto exit;
    }
 
    /* Stat file to get its volume and file info */
    if (fstat(fd, &fileStat) < 0) {
-      error = errno;
-      LOG(4, ("%s: couldn't stat local file \"%s\": %s\n", __FUNCTION__,
-              openInfo->utf8Name, strerror(error)));
+      status = errno;
+      LOG(4, ("%s: Error: stat file\"%s\": %d %s\n", __FUNCTION__,
+              openInfo->utf8Name, status, strerror(status)));
       close(fd);
-      status = error;
       goto exit;
    }
 
@@ -1087,8 +1101,7 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
  *
  *    Mac OS defines a special file type known as an alias which behaves like a
  *    symlink when viewed through the Finder, but is actually a regular file
- *    otherwise. Unlike symlinks, aliases cannot be broken; if the target file
- *    is deleted, so is the alias.
+ *    otherwise.
  *
  *    If the given filename is (or contains) an alias, this function will
  *    resolve it completely and set targetName to something non-NULL.
@@ -1111,109 +1124,214 @@ HgfsGetattrResolveAlias(char const *fileName,       // IN:  Input filename
 #ifndef __APPLE__
    *targetName = NULL;
    return 0;
-#else
-   char *myTargetName = NULL;
+#else // __APPLE__
    HgfsInternalStatus status = HGFS_INTERNAL_STATUS_ERROR;
-   CFURLRef resolvedRef = NULL;
-   CFStringRef resolvedString;
-   FSRef fileRef;
-   Boolean targetIsFolder;
-   Boolean wasAliased;
-   OSStatus osStatus;
+   Boolean success;
+   CFURLRef resolvedURL = NULL;
+   CFStringRef resolvedString = NULL;
+   CFIndex maxPath;
 
-   ASSERT_ON_COMPILE(sizeof osStatus == sizeof (int32));
+   *targetName = NULL;
 
-   /*
-    * Create and resolve an FSRef of the desired path. We pass FALSE to
-    * resolveAliasChains because aliases to aliases should behave as
-    * symlinks to symlinks. If the file is an alias, wasAliased will be set to
-    * TRUE and fileRef will reference the target file.
-    */
-   osStatus = FSPathMakeRef(fileName, &fileRef, NULL);
-   if (osStatus != noErr) {
-      LOG(4, ("%s: could not create file reference: error %d\n",
-              __FUNCTION__, (int32)osStatus));
-      goto exit;
-   }
-   /*
-    * If alias points to an unmounted volume, the volume needs to be explicitly
-    * mounted on the host. Mount flag kResolveAliasFileNoUI serves the purpose.
-    *
-    * XXX: This function returns fnfErr (file not found) if it encounters a
-    * broken alias. Perhaps we should make that look like a dangling symlink
-    * instead of returning an error?
-    *
-    * XXX: It also returns errors if it encounters a file with a .alias suffix
-    * that isn't a real alias. That's OK for now because our caller
-    * (HgfsGetattrFromName) will assume that an error means the file is a
-    * regular file.
-    */
-   osStatus = FSResolveAliasFileWithMountFlags(&fileRef, FALSE, &targetIsFolder,
-                                               &wasAliased,
-                                               kResolveAliasFileNoUI);
-   if (osStatus != noErr) {
-      LOG(4, ("%s: could not resolve reference: error %d\n",
-              __FUNCTION__, (int32)osStatus));
-      goto exit;
-   }
+   if (CFURLCreateBookmarkDataFromFile != NULL) {
+      /* We are running on Mac OS 10.6 or later. */
 
-   if (wasAliased) {
-      CFIndex maxPath;
+      CFURLRef fileURL;
+      CFBooleanRef isAlias = NULL;
+      CFDataRef bookmarkData = NULL;
+      CFURLBookmarkResolutionOptions resolutionOptions;
+      Boolean isStale;
+
+      fileURL = CFURLCreateFromFileSystemRepresentation(NULL, fileName,
+                                                        strlen(fileName),
+                                                        FALSE);
+      if (!fileURL) {
+         Log("%s: could not create CFURL for file.\n",
+                 __FUNCTION__);
+         goto newExit;
+      }
+
+      success = CFURLCopyResourcePropertyForKey(fileURL, kCFURLIsAliasFileKey,
+                                                &isAlias, NULL);
+      if (!success) {
+         Log("%s: could not copy IsAlias property key for file.\n",
+                 __FUNCTION__);
+         goto newExit;
+      }
+      if (!CFBooleanGetValue(isAlias)) {
+         status = 0;
+         LOG(4, ("%s: file was not an alias\n", __FUNCTION__));
+         goto newExit;
+      }
+
+      LOG(4, ("%s: file was an alias\n", __FUNCTION__));
+
+      bookmarkData = CFURLCreateBookmarkDataFromFile(NULL, fileURL, NULL);
+      if (!bookmarkData) {
+         Log("%s: could not retrieve bookmark data for file.\n",
+                 __FUNCTION__);
+         goto newExit;
+      }
 
       /*
-       * This is somewhat convoluted. We create a CFURL from the FSRef because
-       * we want to call CFURLGetFileSystemRepresentation() to get a UTF-8
-       * string representing the target of the alias. But to call
-       * CFStringGetMaximumSizeOfFileSystemRepresentation(), we need a
-       * CFString, so we make one from the CFURL. Once we've got the max number
-       * of bytes for a filename on the filesystem, we allocate some memory
-       * and convert the CFURL to a basic UTF-8 string using a call to
+       * Don't show any UI during alias resolution and don't mount volumes
+       * containing the alias target. This avoids blocking the current process
+       * and/or Finder while trying to mount unreachable hosts (bug 1396411).
+       */
+      resolutionOptions = kCFBookmarkResolutionWithoutUIMask |
+                          kCFBookmarkResolutionWithoutMountingMask;
+
+      resolvedURL = CFURLCreateByResolvingBookmarkData(NULL, bookmarkData,
+                                                       resolutionOptions,
+                                                       NULL, NULL, &isStale,
+                                                       NULL);
+      if (!resolvedURL) {
+         Log("%s: could not resolve bookmark data for file.\n",
+                 __FUNCTION__);
+         goto newExit;
+      }
+
+newExit:
+      if (fileURL) {
+         CFRelease(fileURL);
+      }
+      if (isAlias) {
+         CFRelease(isAlias);
+      }
+      if (bookmarkData) {
+         CFRelease(bookmarkData);
+      }
+
+   } else {
+      /* We are running on Mac OS 10.5 or earlier. */
+
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+      /*
+       * Mac OS 10.5 used a type of alias which appears on disk as a 0-byte
+       * file but stores its linking data in a resource fork. The APIs for
+       * interacting with this type of alias are deprecated when targetting
+       * 10.8+.
+       */
+      FSRef fileRef;
+      Boolean isAlias;
+      Boolean targetIsFolder;
+      OSStatus osStatus;
+
+      ASSERT_ON_COMPILE(sizeof osStatus == sizeof (int32));
+
+      osStatus = FSPathMakeRef(fileName, &fileRef, NULL);
+      if (osStatus != noErr) {
+         Log("%s: could not create file reference: error %d\n",
+                 __FUNCTION__, (int32)osStatus);
+         goto oldExit;
+      }
+
+      osStatus = FSIsAliasFile(&fileRef, &isAlias, &targetIsFolder);
+      if (osStatus != noErr) {
+         Log("%s: could not detect if file is an old style alias: error %d\n",
+                 __FUNCTION__, (int32)osStatus);
+         goto oldExit;
+      }
+
+      if (!isAlias) {
+         status = 0;
+         LOG(4, ("%s: file was not an alias\n", __FUNCTION__));
+         goto oldExit;
+      }
+
+      LOG(4, ("%s: file was an alias\n", __FUNCTION__));
+
+      /*
+       * Create and resolve an FSRef of the desired path. We pass FALSE to
+       * resolveAliasChains because aliases to aliases should behave as
+       * symlinks to symlinks.
+       *
+       * If alias points to an unmounted volume, the volume needs to be
+       * explicitly mounted. Mount flag kResolveAliasFileNoUI prevents the user
+       * from being prompted about mounting.
+       *
+       * Caution: Mac OS 10.10.2 will attempt to mount volumes silently,
+       * unlike the earlier behavior of only resolving within existing mounts.
+       * The new CFURLCreateByResolvingBookmarkData API must be used to avoid
+       * mounting the alias target.
+       *
+       * XXX: This function returns fnfErr (file not found) if it encounters a
+       * broken alias. Perhaps we should make that look like a dangling symlink
+       * instead of returning an error?
+       */
+      osStatus = FSResolveAliasFileWithMountFlags(&fileRef, FALSE,
+                                                  &targetIsFolder, &isAlias,
+                                                  kResolveAliasFileNoUI);
+      if (osStatus != noErr) {
+         Log("%s: could not resolve reference: error %d\n",
+                 __FUNCTION__, (int32)osStatus);
+         goto oldExit;
+      }
+
+      resolvedURL = CFURLCreateFromFSRef(NULL, &fileRef);
+      if (!resolvedURL) {
+         Log("%s: could not create resolved URL reference from "
+                 "resolved filesystem reference\n", __FUNCTION__);
+         goto oldExit;
+      }
+
+oldExit:
+      (void)0; // Need a statement for the label.
+#else // __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+      // We are running on 10.5 but the build was targetting 10.6+. Eject!
+      NOT_IMPLEMENTED();
+#endif // __MAC_OS_X_VERSION_MIN_REQUIRED
+   }
+
+   if (resolvedURL) {
+      /*
+       * This is somewhat convoluted. We want to call
+       * CFURLGetFileSystemRepresentation() to get a UTF-8 string representing
+       * the target of the alias. But to call
+       * CFStringGetMaximumSizeOfFileSystemRepresentation(), we need a CFString,
+       * so we make one from the CFURL. Once we've got the max number of bytes
+       * for a filename on the filesystem, we allocate some memory and convert
+       * the CFURL to a basic UTF-8 string using a call to
        * CFURLGetFileSystemRepresentation().
        */
-      resolvedRef = CFURLCreateFromFSRef(NULL, &fileRef);
-      if (resolvedRef == NULL) {
-         LOG(4, ("%s: could not create resolved URL reference from "
-                 "resolved filesystem reference\n", __FUNCTION__));
+      resolvedString = CFURLGetString(resolvedURL);
+      if (!resolvedString) {
+         Log("%s: could not create resolved string reference from "
+                 "resolved URL reference\n", __FUNCTION__);
          goto exit;
       }
-      resolvedString = CFURLGetString(resolvedRef);
-      if (resolvedString == NULL) {
-         LOG(4, ("%s: could not create resolved string reference from "
-                 "resolved URL reference\n", __FUNCTION__));
-         goto exit;
-      }
+
       maxPath = CFStringGetMaximumSizeOfFileSystemRepresentation(resolvedString);
-      myTargetName = malloc(maxPath);
-      if (myTargetName == NULL) {
-         LOG(4, ("%s: could not allocate %"FMTSZ"d bytes of memory for "
-                 "target name storage\n", __FUNCTION__, maxPath));
-         goto exit;
-      }
-      if (!CFURLGetFileSystemRepresentation(resolvedRef, FALSE, myTargetName,
-                                            maxPath)) {
-         LOG(4, ("%s: could not convert and copy resolved URL reference "
-                 "into allocated buffer\n", __FUNCTION__));
+      *targetName = malloc(maxPath);
+      if (*targetName == NULL) {
+         Log("%s: could not allocate %"FMTSZ"d bytes of memory for "
+                 "target name storage\n", __FUNCTION__, maxPath);
          goto exit;
       }
 
-      *targetName = myTargetName;
-      LOG(4, ("%s: file was an alias\n", __FUNCTION__));
-   } else {
-      *targetName = NULL;
-      LOG(4, ("%s: file was not an alias\n", __FUNCTION__));
+      success = CFURLGetFileSystemRepresentation(resolvedURL, FALSE,
+                                                 *targetName, maxPath);
+      if (!success) {
+         Log("%s: could not convert and copy resolved URL reference "
+                 "into allocated buffer\n", __FUNCTION__);
+         goto exit;
+      }
+
+      status = 0;
    }
-   status = 0;
 
-  exit:
+exit:
+   if (resolvedURL) {
+      CFRelease(resolvedURL);
+   }
    if (status != 0) {
-      free(myTargetName);
+      free(*targetName);
+      *targetName = NULL;
    }
 
-   if (resolvedRef != NULL) {
-      CFRelease(resolvedRef);
-   }
    return status;
-#endif
+
+#endif // __APPLE__
 }
 
 
@@ -1343,7 +1461,7 @@ HgfsConvertComponentCase(char *currentComponent,           // IN
     * to lower case and then compare it to the lower case component.
     */
    while ((dirent = readdir(dir))) {
-      Unicode dentryNameU;
+      char *dentryNameU;
       int cmpResult;
 
       dentryName = dirent->d_name;
@@ -1364,7 +1482,7 @@ HgfsConvertComponentCase(char *currentComponent,           // IN
       dentryNameU = Unicode_Alloc(dentryName, STRING_ENCODING_DEFAULT);
 
       cmpResult = Unicode_CompareIgnoreCase(currentComponent, dentryNameU);
-      Unicode_Free(dentryNameU);
+      free(dentryNameU);
 
       if (cmpResult == 0) {
          /*
@@ -1465,7 +1583,7 @@ HgfsConstructConvertedPath(char **path,                 // IN/OUT
  *
  * Results:
  *    Returns 0 if successful and resolved path for fileName is returned in
- *    convertedFileName with its length in convertedFileNameLength.
+ *    convertedFileName and its length (without nul) in convertedFileNameLength.
  *    Otherwise returns non-zero errno with convertedFileName and
  *    convertedFileNameLength set to NULL and 0 respectively.
  *
@@ -1485,41 +1603,17 @@ HgfsCaseInsensitiveLookup(const char *sharePath,           // IN
                           size_t *convertedFileNameLength) // OUT
 {
    char *currentComponent;
-   char *curDir;
    char *nextComponent;
-   int error = ENOENT;
+   char *curDir;
    size_t curDirSize;
    char *convertedComponent = NULL;
    size_t convertedComponentSize = 0;
+   int error = 0;
 
    ASSERT(sharePath);
    ASSERT(fileName);
    ASSERT(convertedFileName);
    ASSERT(fileNameLength >= sharePathLength);
-
-   currentComponent = fileName + sharePathLength;
-   /* Check there is something beyond the share name. */
-   if (*currentComponent == '\0') {
-      /*
-       * The fileName is the same as sharePath. Nothing else to do.
-       * Dup the string and return.
-       */
-      *convertedFileName = strdup(fileName);
-      if (!*convertedFileName) {
-         error = errno;
-         *convertedFileName = NULL;
-         *convertedFileNameLength = 0;
-         LOG(4, ("%s: strdup on fileName failed.\n", __FUNCTION__));
-      } else {
-         *convertedFileNameLength = strlen(fileName);
-      }
-      return 0;
-   }
-
-   /* Skip a component separator if not in the share path. */
-   if (*currentComponent == DIRSEPC) {
-      currentComponent += 1;
-   }
 
    curDirSize = sharePathLength + 1;
    curDir = malloc(curDirSize);
@@ -1529,6 +1623,21 @@ HgfsCaseInsensitiveLookup(const char *sharePath,           // IN
       goto exit;
    }
    Str_Strcpy(curDir, sharePath, curDirSize);
+
+   currentComponent = fileName + sharePathLength;
+   /* Check there is something beyond the share name. */
+   if (*currentComponent == '\0') {
+      /*
+       * The fileName is the same as sharePath. Nothing else to do.
+       * Return the duplicated sharePath string and return.
+       */
+      goto exit;
+   }
+
+   /* Skip a component separator if not in the share path. */
+   if (*currentComponent == DIRSEPC) {
+      currentComponent += 1;
+   }
 
    while (TRUE) {
       /* Get the next component. */
@@ -1553,21 +1662,15 @@ HgfsCaseInsensitiveLookup(const char *sharePath,           // IN
 
       if (error) {
          if (error == ENOENT) {
-	    int ret;
             /*
+             * We could not find the current component so no need to convert it.
+             * So it most likely a new path is to be created or an ENOENT genuine error.
              * Copy out the components starting from currentComponent. We do this
              * after replacing DIRSEPC, so all the components following
              * currentComponent gets copied.
              */
-            ret = HgfsConstructConvertedPath(&curDir, &curDirSize, currentComponent,
-                                             strlen(currentComponent) + 1);
-            if (ret) {
-               error = ret;
-            }
-         }
-
-         if (error != ENOENT) {
-            free(curDir);
+            error = HgfsConstructConvertedPath(&curDir, &curDirSize, currentComponent,
+                                               strlen(currentComponent) + 1);
          }
          break;
       }
@@ -1576,13 +1679,12 @@ HgfsCaseInsensitiveLookup(const char *sharePath,           // IN
       error = HgfsConstructConvertedPath(&curDir, &curDirSize, convertedComponent,
                                          convertedComponentSize);
       if (error) {
-         free(curDir);
-         free(convertedComponent);
          break;
       }
 
       /* Free the converted component. */
       free(convertedComponent);
+      convertedComponent = NULL;
 
       /* If there is no component after the current one then we are done. */
       if (nextComponent == NULL) {
@@ -1598,17 +1700,20 @@ HgfsCaseInsensitiveLookup(const char *sharePath,           // IN
       currentComponent = nextComponent + 1;
    }
 
-   /* If the conversion was successful, return the result. */
-   if (error == 0 || error == ENOENT) {
-      *convertedFileName = curDir;
-      *convertedFileNameLength = curDirSize;
-   }
-
 exit:
-   if (error && error != ENOENT) {
+   /*
+    * If the conversion was successful, return the result.
+    * The length does NOT include the nul terminator.
+    */
+   if (error == 0) {
+      *convertedFileName = curDir;
+      *convertedFileNameLength = curDirSize - 1;
+   } else {
       *convertedFileName = NULL;
       *convertedFileNameLength = 0;
+      free(curDir);
    }
+   free(convertedComponent);
    return error;
 }
 
@@ -1677,17 +1782,15 @@ HgfsPlatformFilenameLookup(const char *sharePath,              // IN
                                         convertedFileNameLength);
 
       /*
-       * Success or non-ENOENT error code. HgfsCaseInsensitiveLookup can
-       * return ENOENT, and its ok to continue if it is ENOENT.
+       * Map the success or an error code.
        */
       switch (error) {
          /*
-          * Both ENOENT and 0 mean that HgfsCaseInsensitiveLookup
+          * 0 means that HgfsCaseInsensitiveLookup completed
           * successfully built the converted name thus we return
-          * HGFS_NAME_STATUS_COMPLETE in these two cases.
+          * HGFS_NAME_STATUS_COMPLETE in this case.
           */
          case 0:
-         case ENOENT:
             nameStatus = HGFS_NAME_STATUS_COMPLETE;
             break;
          case ENOTDIR:
@@ -2221,6 +2324,7 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN/OUT:  Input fi
       *targetName = myTargetName;
       myTargetName = NULL;
 #endif
+      LOG(4, ("%s: symlink target \"%s\"\n", __FUNCTION__, *targetName));
    }
 
    HgfsStatToFileAttr(&stats, &creationTime, attr);
@@ -2401,6 +2505,7 @@ HgfsStatToFileAttr(struct stat *stats,       // IN: stat information
                    HgfsFileAttrInfo *attr)   // OUT: FileAttrInfo to copy into
 {
    attr->size           = stats->st_size;
+   attr->allocationSize = stats->st_blocks * 512;
    attr->creationTime   = *creationTime;
 
 #ifdef __FreeBSD__
@@ -2468,6 +2573,7 @@ HgfsStatToFileAttr(struct stat *stats,       // IN: stat information
    attr->volumeId = stats->st_dev;
    attr->mask = HGFS_ATTR_VALID_TYPE |
       HGFS_ATTR_VALID_SIZE |
+      HGFS_ATTR_VALID_ALLOCATION_SIZE |
       HGFS_ATTR_VALID_CREATE_TIME |
       HGFS_ATTR_VALID_ACCESS_TIME |
       HGFS_ATTR_VALID_WRITE_TIME |
@@ -2513,7 +2619,7 @@ HgfsSetattrMode(struct stat *statBuf,       // IN: stat info
    ASSERT(attr);
    ASSERT(newPermissions);
 
-   *newPermissions = ~ALLPERMS;
+   *newPermissions = 0;
    if (attr->mask & HGFS_ATTR_VALID_SPECIAL_PERMS) {
       *newPermissions |= attr->specialPerms << 9;
       permsChanged = TRUE;
@@ -2776,11 +2882,26 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
     * if all operations succeeded.
     */
 
+   idChanged = HgfsSetattrOwnership(attr, &newUid, &newGid);
+   if (idChanged) {
+      LOG(4, ("%s: set uid %"FMTUID" and gid %"FMTUID"\n", __FUNCTION__,
+              newUid, newGid));
+      if (fchown(fd, newUid, newGid) < 0) {
+         error = errno;
+         LOG(4, ("%s: error chowning file %u: %s\n", __FUNCTION__,
+                 fd, strerror(error)));
+         status = error;
+      }
+   }
+
    /*
     * Set permissions based on what we got in the packet. If we didn't get
     * a particular bit, use the existing permissions. In that case we don't
     * toggle permsChanged since it should not influence our decision of
     * whether to actually call chmod or not.
+    *
+    * NOTE: Setting ownership clears SUID and SGID bits, therefore set the
+    * file permissions after setting ownership.
     */
    permsChanged = HgfsSetattrMode(&statBuf, attr, &newPermissions);
    if (permsChanged) {
@@ -2789,18 +2910,6 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
       if (fchmod(fd, newPermissions) < 0) {
          error = errno;
          LOG(4, ("%s: error chmoding file %u: %s\n", __FUNCTION__,
-                 fd, strerror(error)));
-         status = error;
-      }
-   }
-
-   idChanged = HgfsSetattrOwnership(attr, &newUid, &newGid);
-   if (idChanged) {
-      LOG(4, ("%s: set uid %"FMTUID" and gid %"FMTUID"\n", __FUNCTION__,
-              newUid, newGid));
-      if (fchown(fd, newUid, newGid) < 0) {
-         error = errno;
-         LOG(4, ("%s: error chowning file %u: %s\n", __FUNCTION__,
                  fd, strerror(error)));
          status = error;
       }
@@ -2981,24 +3090,6 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
     * if all operations succeeded.
     */
 
-   /*
-    * Set permissions based on what we got in the packet. If we didn't get
-    * a particular bit, use the existing permissions. In that case we don't
-    * toggle permsChanged since it should not influence our decision of
-    * whether to actually call chmod or not.
-    */
-   permsChanged = HgfsSetattrMode(&statBuf, attr, &newPermissions);
-   if (permsChanged) {
-      LOG(4, ("%s: set mode %o\n", __FUNCTION__, (unsigned)newPermissions));
-
-      if (Posix_Chmod(localName, newPermissions) < 0) {
-         error = errno;
-         LOG(4, ("%s: error chmoding file \"%s\": %s\n", __FUNCTION__,
-                 localName, strerror(error)));
-         status = error;
-      }
-   }
-
    idChanged = HgfsSetattrOwnership(attr, &newUid, &newGid);
    /*
     * Chown changes the uid and gid together. If one of them should
@@ -3008,6 +3099,27 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
       if (Posix_Lchown(localName, newUid, newGid) < 0) {
          error = errno;
          LOG(4, ("%s: error chowning file \"%s\": %s\n", __FUNCTION__,
+                 localName, strerror(error)));
+         status = error;
+      }
+   }
+
+   /*
+    * Set permissions based on what we got in the packet. If we didn't get
+    * a particular bit, use the existing permissions. In that case we don't
+    * toggle permsChanged since it should not influence our decision of
+    * whether to actually call chmod or not.
+    *
+    * NOTE: Setting ownership clears SUID and SGID bits, therefore set the
+    * file permissions after setting ownership.
+    */
+   permsChanged = HgfsSetattrMode(&statBuf, attr, &newPermissions);
+   if (permsChanged) {
+      LOG(4, ("%s: set mode %o\n", __FUNCTION__, (unsigned)newPermissions));
+
+      if (Posix_Chmod(localName, newPermissions) < 0) {
+         error = errno;
+         LOG(4, ("%s: error chmoding file \"%s\": %s\n", __FUNCTION__,
                  localName, strerror(error)));
          status = error;
       }
@@ -3107,9 +3219,9 @@ HgfsPlatformVDirStatsFs(HgfsSessionInfo *session,  // IN: session info
        */
 
       LOG(4,("%s: opened search on base\n", __FUNCTION__));
-      status = HgfsServerSearchVirtualDir(HgfsServerPolicy_GetShares,
-                                          HgfsServerPolicy_GetSharesInit,
-                                          HgfsServerPolicy_GetSharesCleanup,
+      status = HgfsServerSearchVirtualDir(HgfsServerResEnumGet,
+                                          HgfsServerResEnumInit,
+                                          HgfsServerResEnumExit,
                                           DIRECTORY_SEARCH_TYPE_BASE,
                                           session,
                                           &handle);
@@ -3820,12 +3932,12 @@ HgfsPlatformScandir(char const *baseDir,            // IN: Directory to search i
  */
 
 HgfsInternalStatus
-HgfsPlatformScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get name
-                     HgfsInitFunc enumNamesInit,       // IN: Setup function
-                     HgfsCleanupFunc enumNamesExit,    // IN: Cleanup function
-                     DirectorySearchType type,         // IN: Kind of search - unused
-                     struct DirectoryEntry ***dents,   // OUT: Array of DirectoryEntrys
-                     uint32 *numDents)                 // OUT: total number of directory entrys
+HgfsPlatformScanvdir(HgfsServerResEnumGetFunc enumNamesGet,   // IN: Function to get name
+                     HgfsServerResEnumInitFunc enumNamesInit, // IN: Setup function
+                     HgfsServerResEnumExitFunc enumNamesExit, // IN: Cleanup function
+                     DirectorySearchType type,                // IN: Kind of search - unused
+                     struct DirectoryEntry ***dents,          // OUT: Array of DirectoryEntrys
+                     uint32 *numDents)                        // OUT: total number of directory entrys
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
    uint32 totalDents = 0;   // Number of allocated dents
@@ -4028,16 +4140,16 @@ exit:
  */
 
 HgfsInternalStatus
-HgfsPlatformReadFile(HgfsHandle file,             // IN: Hgfs file handle
+HgfsPlatformReadFile(fileDesc file,               // IN: file descriptor
                      HgfsSessionInfo *session,    // IN: session info
                      uint64 offset,               // IN: file offset to read from
                      uint32 requiredSize,         // IN: length of data to read
                      void* payload,               // OUT: buffer for the read data
                      uint32 *actualSize)          // OUT: actual length read
 {
-   int fd;
    int error;
-   HgfsInternalStatus status;
+   HgfsInternalStatus status = 0;
+   HgfsHandle handle;
    Bool sequentialOpen;
 
    ASSERT(session);
@@ -4046,15 +4158,12 @@ HgfsPlatformReadFile(HgfsHandle file,             // IN: Hgfs file handle
    LOG(4, ("%s: read fh %u, offset %"FMT64"u, count %u\n", __FUNCTION__,
            file, offset, requiredSize));
 
-   /* Get the file descriptor from the cache */
-   status = HgfsPlatformGetFd(file, session, FALSE, &fd);
-
-   if (status != 0) {
-      LOG(4, ("%s: Could not get file descriptor\n", __FUNCTION__));
-      return status;
+   if (!HgfsFileDesc2Handle(file, session, &handle)) {
+      LOG(4, ("%s: Could not get file handle\n", __FUNCTION__));
+      return EBADF;
    }
 
-   if (!HgfsHandleIsSequentialOpen(file, session, &sequentialOpen)) {
+   if (!HgfsHandleIsSequentialOpen(handle, session, &sequentialOpen)) {
       LOG(4, ("%s: Could not get sequenial open status\n", __FUNCTION__));
       return EBADF;
    }
@@ -4062,9 +4171,9 @@ HgfsPlatformReadFile(HgfsHandle file,             // IN: Hgfs file handle
 #if defined(__linux__) || defined(__APPLE__)
    /* Read from the file. */
    if (sequentialOpen) {
-      error = read(fd, payload, requiredSize);
+      error = read(file, payload, requiredSize);
    } else {
-      error = pread(fd, payload, requiredSize, offset);
+      error = pread(file, payload, requiredSize, offset);
    }
 #else
    /*
@@ -4081,18 +4190,18 @@ HgfsPlatformReadFile(HgfsHandle file,             // IN: Hgfs file handle
       {
          uint64 res;
 #      if !defined(VM_X86_64)
-         error = _llseek(fd, offset >> 32, offset & 0xFFFFFFFF, &res, 0);
+         error = _llseek(file, offset >> 32, offset & 0xFFFFFFFF, &res, 0);
 #      else
-         error = llseek(fd, offset >> 32, offset & 0xFFFFFFFF, &res, 0);
+         error = llseek(file, offset >> 32, offset & 0xFFFFFFFF, &res, 0);
 #      endif
       }
 #   else
-      error = lseek(fd, offset, 0);
+      error = lseek(file, offset, 0);
 #   endif
    }
 
    if (error >= 0) {
-      error = read(fd, payload, requiredSize);
+      error = read(file, payload, requiredSize);
    } else {
       LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
          offset, strerror(status)));
@@ -4161,6 +4270,15 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
       LOG(4, ("%s: Could not get sequential open status\n", __FUNCTION__));
       return EBADF;
    }
+
+#if !defined(sun)
+   if (!sequentialOpen) {
+      status = HgfsWriteCheckIORange(offset, requiredSize);
+      if (status != 0) {
+         return status;
+      }
+   }
+#endif
 
 #if defined(__linux__)
    /* Write to the file. */
@@ -4253,7 +4371,7 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
 HgfsInternalStatus
 HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
                       const char *dirName,             // IN: relative directory name
-                      uint32 dirNameLength,            // IN: length of dirName
+                      size_t dirNameLength,            // IN: length of dirName
                       uint32 caseFlags,                // IN: case flags
                       HgfsShareInfo *shareInfo,        // IN: sharfed folder information
                       char *baseDir,                   // IN: name of the shared directory
@@ -4321,9 +4439,9 @@ HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
        */
 
       LOG(4, ("%s: opened search on base\n", __FUNCTION__));
-      status = HgfsServerSearchVirtualDir(HgfsServerPolicy_GetShares,
-                                          HgfsServerPolicy_GetSharesInit,
-                                          HgfsServerPolicy_GetSharesCleanup,
+      status = HgfsServerSearchVirtualDir(HgfsServerResEnumGet,
+                                          HgfsServerResEnumInit,
+                                          HgfsServerResEnumExit,
                                           DIRECTORY_SEARCH_TYPE_BASE,
                                           session,
                                           handle);
@@ -4371,9 +4489,9 @@ HgfsPlatformRestartSearchDir(HgfsHandle handle,               // IN: search hand
    switch (searchType) {
    case DIRECTORY_SEARCH_TYPE_BASE:
       /* Entries are shares */
-      status = HgfsServerRestartSearchVirtualDir(HgfsServerPolicy_GetShares,
-                                                 HgfsServerPolicy_GetSharesInit,
-                                                 HgfsServerPolicy_GetSharesCleanup,
+      status = HgfsServerRestartSearchVirtualDir(HgfsServerResEnumGet,
+                                                 HgfsServerResEnumInit,
+                                                 HgfsServerResEnumExit,
                                                  session,
                                                  handle);
       break;
@@ -4690,7 +4808,7 @@ HgfsPlatformCreateDir(HgfsCreateDirInfo *info,  // IN: direcotry properties
     * a directory requires a valid mode, it's highly unlikely that we'll ever
     * be creating a directory without owner permissions.
     */
-   permissions = ~ALLPERMS;
+   permissions = 0;
    permissions |= info->mask & HGFS_CREATE_DIR_VALID_SPECIAL_PERMS ?
                   info->specialPerms << 9 : 0;
    permissions |= info->mask & HGFS_CREATE_DIR_VALID_OWNER_PERMS ?
@@ -4744,6 +4862,8 @@ HgfsPlatformSymlinkCreate(char *localSymlinkName,   // IN: symbolic link file na
 {
    HgfsInternalStatus status = 0;
    int error;
+
+   LOG(4, ("%s: %s -> %s\n", __FUNCTION__, localSymlinkName, localTargetName));
 
    /* XXX: Should make use of targetNameP->flags? */
    error = Posix_Symlink(localTargetName, localSymlinkName);
@@ -5155,3 +5275,64 @@ HgfsSetHiddenXAttr(char const *fileName,   // IN: File name
    return 0;
 }
 #endif // __APPLE__
+
+
+#if !defined(sun)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsWriteCheckIORange --
+ *
+ *    Verifies that the write arguments do not exceed the maxiuum file size.
+ *
+ * Results:
+ *    0 on success, otherwise an appropriate error.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsWriteCheckIORange(off_t offset,         // IN:
+                      uint32 bytesToWrite)  // IN:
+{
+   HgfsInternalStatus status = 0;
+   struct rlimit fileSize;
+
+   if (getrlimit(RLIMIT_FSIZE, &fileSize) < 0) {
+      status = errno;
+      LOG(4, ("%s: Could not get file size limit\n", __FUNCTION__));
+      goto exit;
+   }
+
+   LOG(6, ("%s: File Size limits: 0x%"FMT64"x 0x%"FMT64"x\n",
+           __FUNCTION__, fileSize.rlim_cur, fileSize.rlim_max));
+
+   /*
+    * Check the offset is within the file size range.
+    */
+   if (fileSize.rlim_cur < offset) {
+      status = EFBIG;
+      LOG(4, ("%s: Write offset exceeds max file size limit - 0x%"FMT64"x\n",
+               __FUNCTION__, offset));
+      goto exit;
+   }
+
+   /*
+    * Check the data to write does not exceed the max file size.
+    */
+   if (fileSize.rlim_cur - offset < bytesToWrite) {
+      status = EFBIG;
+      LOG(4, ("%s: Write data 0x%x bytes @ 0x%"FMT64"x size exceeds max file size\n",
+              __FUNCTION__, bytesToWrite, offset));
+      goto exit;
+   }
+
+exit:
+   LOG(6, ("%s: Write data 0x%x bytes @ 0x%"FMT64"x returns %d\n",
+            __FUNCTION__, bytesToWrite, offset, status));
+   return status;
+}
+#endif

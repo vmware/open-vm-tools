@@ -42,6 +42,7 @@
       #include <windows.h> /* for definition of HANDLE */
    #endif
 #else
+   #include <unistd.h>
    #include <sys/types.h>
    #include "errno.h"
 #endif
@@ -55,14 +56,19 @@
  */
 #if defined(_WIN32)
    typedef DWORD Util_ThreadID;
+#elif defined(__linux__) || defined(__ANDROID__)
+   typedef pid_t Util_ThreadID;
+#elif defined(__APPLE__)
+#  include <pthread.h>
+   typedef mach_port_t Util_ThreadID;
+#elif defined(__sun__)
+#  include <thread.h>
+   typedef thread_t Util_ThreadID;
+#elif defined(__FreeBSD__)
+#  include <pthread.h>
+   typedef pthread_t Util_ThreadID;
 #else
-   #include <unistd.h>
-   #if defined(__APPLE__) || defined(__FreeBSD__)
-      #include <pthread.h>
-      typedef pthread_t Util_ThreadID;
-   #else // Linux et al
-      typedef pid_t Util_ThreadID;
-   #endif
+#  error "Need typedef for Util_ThreadID"
 #endif
 
 uint32 CRC_Compute(const uint8 *buf, int len);
@@ -70,7 +76,7 @@ uint32 Util_Checksum32(const uint32 *buf, int len);
 uint32 Util_Checksum(const uint8 *buf, int len);
 uint32 Util_Checksumv(void *iov, int numEntries);
 uint32 Util_HashString(const char *str);
-Unicode Util_ExpandString(ConstUnicode fileName);
+char *Util_ExpandString(const char *fileName);
 void Util_ExitThread(int);
 NORETURN void Util_ExitProcessAbruptly(int);
 int Util_HasAdminPriv(void);
@@ -145,14 +151,15 @@ int Util_CompareDotted(const char *s1, const char *s2);
  * This enum defines how Util_GetOpt should handle non-option arguments:
  *
  * UTIL_NONOPT_PERMUTE: Permute argv so that all non-options are at the end.
- * UTIL_NONOPT_STOP:    Stop when first non-option argument is seen.
+ * UTIL_NONOPT_STOP:    Stop when first non-option argument is seen. (This is
+ *                      the standard POSIX behavior.)
  * UTIL_NONOPT_ALL:     Return each non-option argument as if it were
  *                      an option with character code 1.
  */
 typedef enum { UTIL_NONOPT_PERMUTE, UTIL_NONOPT_STOP, UTIL_NONOPT_ALL } Util_NonOptMode;
 struct option;
 int Util_GetOpt(int argc, char * const *argv, const struct option *opts,
-                Util_NonOptMode mode);
+                Util_NonOptMode mode, Bool manualErrorHandling);
 
 
 #if defined(VMX86_STATS)
@@ -167,7 +174,7 @@ Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
 #define UTIL_FASTRAND_SEED_MAX (0x7fffffff)
 Bool Util_Throttle(uint32 count);
 uint32 Util_FastRand(uint32 seed);
-
+uint64 Util_CheckSum64(uint32 *data, unsigned numWords);
 
 // Not thread safe!
 void Util_OverrideHomeDir(const char *path);
@@ -480,7 +487,7 @@ Util_Zero(void *buf,       // OUT
  */
 
 static INLINE void
-Util_ZeroString(char *str)  // IN/OUT
+Util_ZeroString(char *str)  // IN/OUT/OPT
 {
    if (str != NULL) {
       Util_Zero(str, strlen(str));
@@ -507,7 +514,7 @@ Util_ZeroString(char *str)  // IN/OUT
  */
 
 static INLINE void
-Util_ZeroFree(void *buf,       // OUT
+Util_ZeroFree(void *buf,       // OUT/OPT
               size_t bufSize)  // IN
 {
    if (buf != NULL) {
@@ -535,7 +542,7 @@ Util_ZeroFree(void *buf,       // OUT
  */
 
 static INLINE void
-Util_ZeroFreeString(char *str)  // IN
+Util_ZeroFreeString(char *str)  // IN/OUT/OPT
 {
    if (str != NULL) {
       Util_ZeroString(str);
@@ -563,7 +570,7 @@ Util_ZeroFreeString(char *str)  // IN
  */
 
 static INLINE void
-Util_ZeroFreeStringW(wchar_t *str)  // IN
+Util_ZeroFreeStringW(wchar_t *str)  // IN/OUT/OPT
 {
    if (str != NULL) {
       Util_Zero(str, wcslen(str) * sizeof *str);
@@ -597,7 +604,7 @@ Util_ZeroFreeStringW(wchar_t *str)  // IN
  */
 
 static INLINE void
-Util_FreeList(void **list,      // IN/OUT: the list to free
+Util_FreeList(void **list,      // IN/OUT/OPT: the list to free
               ssize_t length)   // IN: the length
 {
    if (list == NULL) {
@@ -624,36 +631,12 @@ Util_FreeList(void **list,      // IN/OUT: the list to free
 }
 
 static INLINE void
-Util_FreeStringList(char **list,      // IN/OUT: the list to free
+Util_FreeStringList(char **list,      // IN/OUT/OPT: the list to free
                     ssize_t length)   // IN: the length
 {
    Util_FreeList((void **) list, length);
 }
 #endif
-
-#ifndef _WIN32
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_IsFileDescriptorOpen --
- *
- *      Check if given file descriptor is open.
- *
- * Results:
- *      TRUE if fd is open.
- *
- * Side effects:
- *      Clobbers errno.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE Bool
-Util_IsFileDescriptorOpen(int fd)   // IN
-{
-   return (lseek(fd, 0L, SEEK_CUR) == -1) ? errno != EBADF : TRUE;
-}
-#endif /* !_WIN32 */
 
 
 /*
@@ -675,7 +658,9 @@ Util_IsFileDescriptorOpen(int fd)   // IN
  */
 
 static INLINE void *
-Util_Memcpy32(void *dst, const void *src, size_t nbytes)
+Util_Memcpy32(void *dst,
+              const void *src,
+              size_t nbytes)
 {
    ASSERT((nbytes % 4) == 0);
 #if defined __GNUC__ && (defined(__i386__) || defined(__x86_64__))

@@ -41,6 +41,8 @@
 
 #endif
 
+extern char *gImpersonatedUsername;
+#define  IMPERSONATED_USERNAME   ((gImpersonatedUsername) ? gImpersonatedUsername : "Unset")
 
 typedef struct VixToolsEnvIterator VixToolsEnvIterator;
 

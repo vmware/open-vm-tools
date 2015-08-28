@@ -17,7 +17,7 @@
  *********************************************************/
 
 /*
- * msgidDefs.h --
+ * msgid_defs.h --
  *
  *	Message ID magic definitions
  */

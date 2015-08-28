@@ -118,7 +118,7 @@
 //#define BDOOR_CMD_DEVEL_FAKEHARDWARE       44 /* Not in use. */
 #define   BDOOR_CMD_GETHZ                    45
 #define   BDOOR_CMD_GETTIMEFULL              46
-#define   BDOOR_CMD_STATELOGGER              47 /* Disabled by default. */
+//#define   BDOOR_CMD_STATELOGGER            47 /* Not in use. */
 #define   BDOOR_CMD_CHECKFORCEBIOSSETUP      48 /* CPL 0 only. */
 #define   BDOOR_CMD_LAZYTIMEREMULATION       49 /* CPL 0 only. */
 #define   BDOOR_CMD_BIOSBBS                  50 /* CPL 0 only. */
@@ -145,13 +145,14 @@
 #  define BDOOR_CMD_FAS_GET_TABLE_SKIP        5
 #  define BDOOR_CMD_FAS_GET_SLEEP_ENABLES     6
 #  define BDOOR_CMD_FAS_GET_HARD_RESET_ENABLE 7
-#define   BDOOR_CMD_SENDPSHAREHINTS          66
+#define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
 #  define BDOOR_CMD_VCPU_SLC64                0
 #  define BDOOR_CMD_VCPU_SYNC_VTSCS           1
 #  define BDOOR_CMD_VCPU_HV_REPLAY_OK         2
 #  define BDOOR_CMD_VCPU_LEGACY_X2APIC_OK     3
+#  define BDOOR_CMD_VCPU_MMIO_HONORS_PAT      4
 #  define BDOOR_CMD_VCPU_RESERVED            31
 #define   BDOOR_CMD_EFI_SERIALCON_CONFIG     69 /* CPL 0 only. */
 #define   BDOOR_CMD_BUG328986                70 /* CPL 0 only. */
@@ -172,32 +173,29 @@
 #define   BDOOR_CMD_GET_PCI_BAR              79 /* CPL 0 only  */
 #define   BDOOR_CMD_SHOULD_GENERATE_SYSTEMID 80 /* CPL 0 only  */
 #define   BDOOR_CMD_READ_DEBUG_FILE          81 /* Devel only. */
-#define   BDOOR_CMD_MAX                      82
+#define   BDOOR_CMD_SCREENSHOT               82 /* Devel only. */
+#define   BDOOR_CMD_INJECT_KEY               83 /* Devel only. */
+#define   BDOOR_CMD_INJECT_MOUSE             84 /* Devel only. */
+#define   BDOOR_CMD_MKS_GUEST_STATS          85 /* CPL 0 only. */
+#  define BDOOR_CMD_MKSGS_RESET               0
+#  define BDOOR_CMD_MKSGS_ADD_PPN             1
+#  define BDOOR_CMD_MKSGS_REMOVE_PPN          2
+#define   BDOOR_CMD_ABSPOINTER_RESTRICT      86
+#define   BDOOR_CMD_GUESTINTEGRITY           87
+#  define BDOOR_CMD_GI_SETUP                  0
+#  define BDOOR_CMD_GI_REMOVE                 1
+#define   BDOOR_CMD_MKSSTATS_SNAPSHOT        88 /* Devel only. */
+#  define BDOOR_CMD_MKSSTATS_START            0
+#  define BDOOR_CMD_MKSSTATS_STOP             1
+#define   BDOOR_CMD_MAX                      89
 
 
-/* 
+/*
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,
  * you must adhere to the semantics expected by the oldest Tools who use that
- * command. Specifically, do not alter the way in which the command modifies 
+ * command. Specifically, do not alter the way in which the command modifies
  * the registers. Otherwise backwards compatibility will suffer.
  */
-
-/* Processing mode for guest pshare hints (SENDPSHAREHINTS cmd) */
-#define BDOOR_PSHARE_HINTS_ASYNC 0
-#define BDOOR_PSHARE_HINTS_SYNC  1
-
-#define BDOOR_PSHARE_HINTS_TYPE(ecx)   (((ecx) >> 16) & 0x1)
-
-/* Version of backdoor pshare hints protocol */
-#define BDOOR_PSHARE_HINTS_VERSION     1
-#define BDOOR_PSHARE_HINTS_VER(ecx)    (((ecx) >> 17) & 0x7f)
-
-/* Task applied to backdoor pshare hints */
-#define BDOOR_PSHARE_HINTS_CMD_SHARE   0
-#define BDOOR_PSHARE_HINTS_CMD_DROP    1
-#define BDOOR_PSHARE_HINTS_CMD_MAX     2
-
-#define BDOOR_PSHARE_HINTS_CMD(ecx)   (((ecx) >> 24) & 0xff)
 
 /* Nesting control operations */
 

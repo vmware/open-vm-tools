@@ -35,7 +35,7 @@
 
 static double mxUserContentionRatioFloor = 0.0;   // always "off"
 static uint64 mxUserContentionCountFloor = 0;     // always "off"
-VmTimeType    mxUserContentionDurationFloor = 0;  // always "off"
+static uint64 mxUserContentionDurationFloor = 0;  // always "off"
 
 static Atomic_Ptr mxLockMemPtr;   // internal singleton lock
 static ListItem *mxUserLockList;  // list of all MXUser locks
@@ -83,7 +83,7 @@ static void  (*mxUserStatsFunc)(void *context,
  */
 
 void
-MXUserAddToList(MXUserHeader *header)  // IN:
+MXUserAddToList(MXUserHeader *header)  // IN/OUT:
 {
    MXRecLock *listLock = MXUserInternalSingleton(&mxLockMemPtr);
 
@@ -114,7 +114,7 @@ MXUserAddToList(MXUserHeader *header)  // IN:
  */
 
 void
-MXUserRemoveFromList(MXUserHeader *header)  // IN:
+MXUserRemoveFromList(MXUserHeader *header)  // IN/OUT:
 {
    MXRecLock *listLock = MXUserInternalSingleton(&mxLockMemPtr);
 
@@ -233,7 +233,7 @@ MXUserHistoSetUp(char *typeName,   // type (name) of histogram
  */
 
 void
-MXUserHistoTearDown(MXUserHisto *histo)  // IN:
+MXUserHistoTearDown(MXUserHisto *histo)  // IN/OUT:
 {
    if (histo != NULL) {
       free(histo->typeName);
@@ -371,8 +371,8 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
 
       i = Str_Sprintf(mxUserHistoLine, mxUserMaxLineLength,
                       "MXUser: h l=%u t=%s min=%"FMT64"u max=%"FMT64"u\n",
-                      header->serialNumber, histo->typeName, histo->minValue,
-                      histo->maxValue);
+                      header->bits.serialNumber, histo->typeName,
+                      histo->minValue, histo->maxValue);
 
       /*
        * The terminating "\n\0" will be overwritten each time a histogram
@@ -413,7 +413,7 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
       MXUserStatsLog("%s", mxUserHistoLine);
 
       i = Str_Sprintf(mxUserHistoLine, mxUserMaxLineLength,
-                      "MXUser: ht l=%u t=%s\n", header->serialNumber,
+                      "MXUser: ht l=%u t=%s\n", header->bits.serialNumber,
                       histo->typeName);
 
       p = &mxUserHistoLine[i - 1];
@@ -587,7 +587,7 @@ MXUserDumpBasicStats(MXUserBasicStats *stats,  // IN:
 
    MXUserStatsLog("MXUser: e l=%u t=%s c=%"FMT64"u min=%"FMT64"u "
                   "max=%"FMT64"u mean=%"FMT64"u sd=%"FMT64"u\n",
-                  header->serialNumber, stats->typeName,
+                  header->bits.serialNumber, stats->typeName,
                   stats->numSamples, stats->minTime, stats->maxTime,
                   stats->timeSum/stats->numSamples, stdDev);
 }
@@ -640,6 +640,9 @@ MXUserAcquisitionStatsSetUp(MXUserAcquisitionStats *stats)  // IN/OUT:
 {
    MXUserBasicStatsSetUp(&stats->basicStats, MXUSER_STAT_CLASS_ACQUISITION);
 
+   stats->contentionRatioFloor = mxUserContentionRatioFloor;
+   stats->contentionCountFloor = mxUserContentionCountFloor;
+   stats->contentionDurationFloor = mxUserContentionDurationFloor;
    stats->numAttempts = 0;
    stats->numSuccesses = 0;
    stats->numSuccessesContended = 0;
@@ -717,7 +720,7 @@ MXUserDumpAcquisitionStats(MXUserAcquisitionStats *stats,  // IN:
 
       MXUserStatsLog("MXUser: ce l=%u a=%"FMT64"u s=%"FMT64"u sc=%"FMT64"u "
                      "sct=%"FMT64"u t=%"FMT64"u\n",
-                     header->serialNumber,
+                     header->bits.serialNumber,
                      stats->numAttempts,
                      stats->numSuccesses,
                      stats->numSuccessesContended,
@@ -777,7 +780,7 @@ MXUserKitchen(MXUserAcquisitionStats *stats,  // IN:
     * How much "heat" is this lock generating?
     */
 
-   if (stats->numAttempts < mxUserContentionCountFloor) {
+   if (stats->numAttempts < stats->contentionCountFloor) {
       *contentionRatio = 0.0;
    } else {
       double basic;
@@ -810,14 +813,14 @@ MXUserKitchen(MXUserAcquisitionStats *stats,  // IN:
     * side effect that no logging of "temperature changes" is done.
     */
 
-   if (mxUserContentionCountFloor == 0) {              // never "hot"
+   if (stats->contentionCountFloor == 0) {              // never "hot"
       *isHot = FALSE;
       *doLog = FALSE;
 
       return;
    }
 
-   if (mxUserContentionCountFloor == ~((uint64) 0)) {  // always "hot"; no logging
+   if (stats->contentionCountFloor == ~((uint64) 0)) {  // always "hot"; no logging
       *isHot = TRUE;
       *doLog = FALSE;
 
@@ -828,12 +831,11 @@ MXUserKitchen(MXUserAcquisitionStats *stats,  // IN:
     * Did the thermostat trip?
     */
 
-   ASSERT((mxUserContentionRatioFloor > 0.0) && (mxUserContentionRatioFloor <= 1.0));
 
-   if (*contentionRatio > mxUserContentionRatioFloor) {  // Yes
+   if (*contentionRatio > stats->contentionRatioFloor) {  // Yes
       *isHot = TRUE;
       *doLog = TRUE;
-   } else {                                              // No
+   } else {                                               // No
       *doLog = FALSE;
       *isHot = FALSE;
    }
@@ -886,7 +888,7 @@ MXUser_StatisticsControl(double contentionRatioFloor,     // IN:
  *-----------------------------------------------------------------------------
  */
 
-void
+static INLINE void
 MXUserForceHisto(Atomic_Ptr *histoPtr,  // IN/OUT:
                  char *typeName,        // IN:
                  uint64 minValue,       // IN:
@@ -899,14 +901,78 @@ MXUserForceHisto(Atomic_Ptr *histoPtr,  // IN/OUT:
 
       ptr = MXUserHistoSetUp(typeName, minValue, decades);
 
-      before = (MXUserHisto *) Atomic_ReadIfEqualWritePtr(histoPtr, NULL,
-                                                          (void *) ptr);
+      before = Atomic_ReadIfEqualWritePtr(histoPtr, NULL, (void *) ptr);
 
       if (before) {
          MXUserHistoTearDown(ptr);
       }
    }
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserForceAcquisitionHisto --
+ *
+ *      Force acquisition histogram taking.
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      Memory is allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUserForceAcquisitionHisto(Atomic_Ptr *mem,  // IN/OUT:
+                            uint64 minValue,  // IN:
+                            uint32 decades)   // IN:
+{
+   MXUserAcquireStats *acquireStats = Atomic_ReadPtr(mem);
+
+   if (LIKELY(acquireStats != NULL)) {
+      MXUserForceHisto(&acquireStats->histo, MXUSER_STAT_CLASS_ACQUISITION,
+                       minValue, decades);
+   }
+
+   return (acquireStats != NULL);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserForceHeldHisto --
+ *
+ *      Force held histogram taking.
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      Memory is allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUserForceHeldHisto(Atomic_Ptr *mem,  // IN/OUT:
+                     uint64 minValue,  // IN:
+                     uint32 decades)   // IN:
+{
+   MXUserHeldStats *heldStats = Atomic_ReadPtr(mem);
+
+   if (LIKELY(heldStats != NULL)) {
+      MXUserForceHisto(&heldStats->histo, MXUSER_STAT_CLASS_HELD,
+                       minValue, decades);
+   }
+
+   return (heldStats != NULL);
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -916,7 +982,7 @@ MXUserForceHisto(Atomic_Ptr *histoPtr,  // IN/OUT:
  *      What's to be done with statistics?
  *
  * Results:
- *      0  Statstics are disabled
+ *      0  Statistics are disabled
  *      1  Collect statistics without tracking held times
  *      2  Collect statistics with track held times
  *
@@ -1021,12 +1087,12 @@ MXUser_PerLockData(void)
          MXUserHeader *header = LIST_CONTAINER(entry, MXUserHeader, item);
 
          /* Log the ID information for a lock that did exist previously */
-         if (header->serialNumber > lastReportedSerialNumber) {
+         if (header->bits.serialNumber > lastReportedSerialNumber) {
             MXUserStatsLog("MXUser: n n=%s l=%d r=0x%x\n", header->name,
-                           header->serialNumber, header->rank);
+                           header->bits.serialNumber, header->rank);
 
-            if (header->serialNumber > highestSerialNumber) {
-               highestSerialNumber = header->serialNumber;
+            if (header->bits.serialNumber > highestSerialNumber) {
+               highestSerialNumber = header->bits.serialNumber;
             }
          }
 
@@ -1059,7 +1125,7 @@ MXUser_PerLockData(void)
  *      As above.
  *
  * Side effects:
- *      None.
+ *      Panic if too many serial numbers are generated (PR 1309544).
  *
  *-----------------------------------------------------------------------------
  */
@@ -1067,7 +1133,219 @@ MXUser_PerLockData(void)
 uint32
 MXUserAllocSerialNumber(void)
 {
+   uint32 value;
+
    static Atomic_uint32 firstFreeSerialNumber = { 1 };  // must start not zero
 
-   return Atomic_ReadInc32(&firstFreeSerialNumber);
+   value = Atomic_ReadInc32(&firstFreeSerialNumber);
+
+   /*
+    * The serial number must be able to fit into the serial number field
+    * (see ulInt.h).
+    */
+
+   if (value > 0xFFFFFF) {
+      Panic("%s: too many locks!\n", __FUNCTION__);
+   }
+
+   return value;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserSetContentionRatioFloor
+ *
+ *      Set acquisition tracking contention ratio floor.
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUserSetContentionRatioFloor(Atomic_Ptr *mem,  // IN/OUT:
+                              double ratio)     // IN:
+{
+   MXUserAcquireStats *acquireStats = Atomic_ReadPtr(mem);
+
+   if (LIKELY(acquireStats != NULL)) {
+      acquireStats->data.contentionRatioFloor = ratio;
+   }
+
+   return (acquireStats != NULL);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserSetContentionCountFloor
+ *
+ *      Set acquisition tracking contention count floor.
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUserSetContentionCountFloor(Atomic_Ptr *mem,  // IN/OUT:
+                              uint64 count)     // IN:
+{
+   MXUserAcquireStats *acquireStats = Atomic_ReadPtr(mem);
+
+   if (LIKELY(acquireStats != NULL)) {
+      acquireStats->data.contentionCountFloor = count;
+   }
+
+   return (acquireStats != NULL);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserSetContentionDurationFloor
+ *
+ *      Set acquisition tracking contention duration floor.
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUserSetContentionDurationFloor(Atomic_Ptr *mem,  // IN/OUT:
+                                 uint64 count)     // IN:
+{
+   MXUserAcquireStats *acquireStats = Atomic_ReadPtr(mem);
+
+   if (LIKELY(acquireStats != NULL)) {
+      acquireStats->data.contentionDurationFloor = count;
+   }
+
+   return (acquireStats != NULL);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserDisableStats
+ *
+ *      Disable any statisitics collection. This should only be used
+ *      immediately after a lock is created.
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserDisableStats(Atomic_Ptr *acquisitionMem,  // IN/OPT:
+                   Atomic_Ptr *heldMem)         // IN/OPT:
+{
+   if (acquisitionMem != NULL) {
+      MXUserAcquireStats *acquireStats = Atomic_ReadPtr(acquisitionMem);
+
+      if (UNLIKELY(acquireStats != NULL)) {
+         MXUserAcquisitionStatsTearDown(&acquireStats->data);
+         MXUserHistoTearDown(Atomic_ReadPtr(&acquireStats->histo));
+
+         free(acquireStats);
+      }
+
+      Atomic_WritePtr(acquisitionMem, NULL);
+   }
+
+   if (heldMem != NULL) {
+      MXUserHeldStats *heldStats = Atomic_ReadPtr(heldMem);
+
+      if (UNLIKELY(heldStats != NULL)) {
+         MXUserBasicStatsTearDown(&heldStats->data);
+         MXUserHistoTearDown(Atomic_ReadPtr(&heldStats->histo));
+
+         free(heldStats);
+      }
+
+      Atomic_WritePtr(heldMem, NULL);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserEnableStats
+ *
+ *      Enable statisitics collection
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserEnableStats(Atomic_Ptr *acquisitionMem,  // IN/OPT:
+                  Atomic_Ptr *heldMem)         // IN/OPT:
+{
+
+   if (acquisitionMem != NULL) {
+      MXUserAcquireStats *acquireStats = Atomic_ReadPtr(acquisitionMem);
+
+      if (LIKELY(acquireStats == NULL)) {
+         MXUserAcquireStats *before;
+
+         acquireStats = Util_SafeCalloc(1, sizeof *acquireStats);
+         MXUserAcquisitionStatsSetUp(&acquireStats->data);
+
+         before = Atomic_ReadIfEqualWritePtr(acquisitionMem, NULL,
+                                             (void *) acquireStats);
+
+         if (before) {
+            free(acquireStats);
+         }
+      }
+   }
+
+   if (heldMem != NULL) {
+      MXUserHeldStats *heldStats = Atomic_ReadPtr(heldMem);
+
+      if (LIKELY(heldStats == NULL)) {
+         MXUserHeldStats *before;
+
+         heldStats = Util_SafeCalloc(1, sizeof *heldStats);
+         MXUserBasicStatsSetUp(&heldStats->data, MXUSER_STAT_CLASS_HELD);
+
+         before = Atomic_ReadIfEqualWritePtr(heldMem, NULL,
+                                             (void *) heldStats);
+
+         if (before) {
+            free(heldStats);
+         }
+      }
+   }
+}
+

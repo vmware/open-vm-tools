@@ -216,6 +216,7 @@ typedef struct _ServiceValidationResultsData {
  */
 
 extern PrefHandle gPrefs;
+extern gboolean gVerboseLogging;
 
 extern char *gInstallDir;
 

@@ -48,6 +48,16 @@ typedef struct HgfsServerPolicyState {
 
 static HgfsServerPolicyState myState;
 
+static void *
+HgfsServerPolicyEnumSharesInit(void);
+static Bool
+HgfsServerPolicyEnumSharesGet(void *data,
+                              char const **name,
+                              size_t *len,
+                              Bool *done);
+static Bool
+HgfsServerPolicyEnumSharesExit(void *data);
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -125,16 +135,18 @@ HgfsServerPolicyDestroyShares(DblLnkLst_Links *head) // IN
  */
 
 Bool
-HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects,  // Unused
-                      HgfsRegisterSharedFolderFunc *registerFolder)  // Unused
+HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,  // Unused
+                      HgfsRegisterSharedFolderFunc registerFolder,  // Unused
+                      HgfsServerResEnumCallbacks *enumResources)    // OUT enum callbacks
 {
    HgfsSharedFolder *rootShare;
 
    /*
-    * We do not recognize this callback, so make sure our caller doesn't pass
+    * Currently these callbacks are not used, so make sure our caller doesn't pass
     * it in.
     */
-   ASSERT(!invalidateObjects);
+   ASSERT(invalidateObjects == NULL);
+   ASSERT(registerFolder == NULL);
 
    DblLnkLst_Init(&myState.shares);
 
@@ -164,6 +176,13 @@ HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects,  // Unused
 
    /* Add the root node to the end of the list */
    DblLnkLst_LinkLast(&myState.shares, &rootShare->links);
+
+   /*
+    * Fill the share enumeration callback table.
+    */
+   enumResources->init = HgfsServerPolicyEnumSharesInit;
+   enumResources->get = HgfsServerPolicyEnumSharesGet;
+   enumResources->exit = HgfsServerPolicyEnumSharesExit;
 
    return TRUE;
 }
@@ -280,7 +299,7 @@ HgfsServerPolicyGetShare(HgfsServerPolicyState *state, // IN
 }
 
 
-/* State used by HgfsServerPolicy_GetShares and friends */
+/* State used by HgfsServerPolicyEnumSharesGet and friends */
 typedef struct State {
    DblLnkLst_Links *next;
 } GetSharesState;
@@ -289,9 +308,9 @@ typedef struct State {
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerPolicy_GetSharesInit --
+ * HgfsServerPolicyEnumSharesInit --
  *
- *    Setup state for HgfsServerPolicy_GetShares
+ *    Setup state for HgfsServerPolicyEnumSharesGet
  *
  * Results:
  *    Pointer to state on success.
@@ -303,14 +322,14 @@ typedef struct State {
  *-----------------------------------------------------------------------------
  */
 
-void *
-HgfsServerPolicy_GetSharesInit(void)
+static void *
+HgfsServerPolicyEnumSharesInit(void)
 {
    GetSharesState *that;
 
    that = malloc(sizeof *that);
    if (!that) {
-      LOG(4, ("HgfsServerPolicy_GetSharesInit: couldn't allocate state\n"));
+      LOG(4, ("HgfsServerPolicyEnumSharesInit: couldn't allocate state\n"));
       return NULL;
    }
 
@@ -322,14 +341,14 @@ HgfsServerPolicy_GetSharesInit(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerPolicy_GetShares --
+ * HgfsServerPolicyEnumSharesGet --
  *
  *    Enumerate share names one at a time.
  *
  *    When finished, sets "done" to TRUE.
  *
  *    Should be called with the results obtained by calling
- *    HgfsServerPolicy_GetSharesInit.
+ *    HgfsServerPolicyEnumSharesInit.
  *
  * Results:
  *    TRUE on success.
@@ -341,11 +360,11 @@ HgfsServerPolicy_GetSharesInit(void)
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsServerPolicy_GetShares(void *data,        // IN:  Callback data
-                           char const **name, // OUT: Share name
-                           size_t *len,       // OUT: Name length
-                           Bool *done)        // OUT: Completion status
+static Bool
+HgfsServerPolicyEnumSharesGet(void *data,        // IN:  Callback data
+                              char const **name, // OUT: Share name
+                              size_t *len,       // OUT: Name length
+                              Bool *done)        // OUT: Completion status
 {
    GetSharesState *that;
    HgfsSharedFolder *share;
@@ -367,7 +386,7 @@ HgfsServerPolicy_GetShares(void *data,        // IN:  Callback data
    that->next = share->links.next;
    *name = share->name;
    *len = share->nameLen;
-   LOG(4, ("HgfsServerPolicy_GetShares: Share name is \"%s\"\n",
+   LOG(4, ("HgfsServerPolicyEnumSharesGet: Share name is \"%s\"\n",
            *name));
    *done = FALSE;
    return TRUE;
@@ -377,9 +396,9 @@ HgfsServerPolicy_GetShares(void *data,        // IN:  Callback data
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerPolicy_GetSharesCleanup --
+ * HgfsServerPolicyEnumSharesExit --
  *
- *    Cleanup state from HgfsServerPolicy_GetShares
+ *    Cleanup state from HgfsServerPolicyEnumSharesGet
  *
  * Results:
  *    TRUE on success.
@@ -391,8 +410,8 @@ HgfsServerPolicy_GetShares(void *data,        // IN:  Callback data
  *-----------------------------------------------------------------------------
  */
 
-Bool
-HgfsServerPolicy_GetSharesCleanup(void *data) // IN: Callback data
+static Bool
+HgfsServerPolicyEnumSharesExit(void *data) // IN: Callback data
 {
    GetSharesState *that;
 

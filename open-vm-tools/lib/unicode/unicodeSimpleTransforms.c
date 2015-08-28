@@ -305,7 +305,7 @@ UnicodeSimpleIsWhiteSpace(utf16_t codeUnit) // IN
  *      input string.
  *
  * Results:
- *      The allocated Unicode string.  Caller must free with Unicode_Free().
+ *      The allocated Unicode string.  Caller must free with free().
  *
  * Side effects:
  *      None
@@ -313,10 +313,10 @@ UnicodeSimpleIsWhiteSpace(utf16_t codeUnit) // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_FoldCase(ConstUnicode str) // IN
+char *
+Unicode_FoldCase(const char *str) // IN
 {
-   Unicode folded;
+   char *folded;
    utf16_t *utf16;
    utf16_t *utf16Current;
 
@@ -346,7 +346,7 @@ Unicode_FoldCase(ConstUnicode str) // IN
  *      and/or end of the input string, depending on the input parameter "side".
  *
  * Results:
- *      The allocated Unicode string.  Caller must free with Unicode_Free().
+ *      The allocated Unicode string.  Caller must free with free().
  *
  * Side effects:
  *      None
@@ -354,11 +354,11 @@ Unicode_FoldCase(ConstUnicode str) // IN
  *-----------------------------------------------------------------------------
  */
 
-static Unicode
-UnicodeTrimInternal(ConstUnicode str,      // IN
+static char *
+UnicodeTrimInternal(const char *str,       // IN
                     UnicodeTrimSide side)  // IN
 {
-   Unicode trimmed;
+   char *trimmed;
    utf16_t *utf16;
    utf16_t *utf16Start;
    utf16_t *utf16End;
@@ -399,7 +399,7 @@ UnicodeTrimInternal(ConstUnicode str,      // IN
  *      and end of the input string.
  *
  * Results:
- *      The allocated Unicode string.  Caller must free with Unicode_Free().
+ *      The allocated Unicode string.  Caller must free with free().
  *
  * Side effects:
  *      None
@@ -407,8 +407,8 @@ UnicodeTrimInternal(ConstUnicode str,      // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_Trim(ConstUnicode str) // IN
+char *
+Unicode_Trim(const char *str) // IN
 {
    return UnicodeTrimInternal(str, UNICODE_TRIMBOTH);
 }
@@ -419,11 +419,11 @@ Unicode_Trim(ConstUnicode str) // IN
  *
  * Unicode_TrimLeft --
  *
- *      Creates a Unicode string by trimming whitespace from the beginning of the 
- *      input string.
+ *      Creates a Unicode string by trimming whitespace from the beginning of
+ *      the input string.
  *
  * Results:
- *      The allocated Unicode string.  Caller must free with Unicode_Free().
+ *      The allocated Unicode string.  Caller must free with free().
  *
  * Side effects:
  *      None
@@ -431,8 +431,8 @@ Unicode_Trim(ConstUnicode str) // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_TrimLeft(ConstUnicode str) // IN
+char *
+Unicode_TrimLeft(const char *str) // IN
 {
    return UnicodeTrimInternal(str, UNICODE_TRIMLEFT);
 }
@@ -447,7 +447,7 @@ Unicode_TrimLeft(ConstUnicode str) // IN
  *      input string.
  *
  * Results:
- *      The allocated Unicode string.  Caller must free with Unicode_Free().
+ *      The allocated Unicode string.  Caller must free with free().
  *
  * Side effects:
  *      None
@@ -455,8 +455,8 @@ Unicode_TrimLeft(ConstUnicode str) // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_TrimRight(ConstUnicode str) // IN
+char *
+Unicode_TrimRight(const char *str) // IN
 {
    return UnicodeTrimInternal(str, UNICODE_TRIMRIGHT);
 }

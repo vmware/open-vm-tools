@@ -115,6 +115,12 @@ VMTools_WriteConfig(const gchar *path,
                     GKeyFile *config,
                     GError **err);
 
+gboolean
+VMTools_ChangeLogFilePath(const gchar *delimiter,
+                          const gchar *appendString,
+                          const gchar *domain,
+                          GKeyFile *conf);
+
 #if defined(G_PLATFORM_WIN32)
 
 gboolean
@@ -143,10 +149,22 @@ void
 VMTools_SetGuestSDKMode(void);
 
 void
+VMTools_AcquireLogStateLock(void);
+
+void
+VMTools_ReleaseLogStateLock(void);
+
+void
 VMTools_StopLogging(void);
 
 void
 VMTools_RestartLogging(void);
+
+void
+VMTools_SuspendLogIO(void);
+
+void
+VMTools_ResumeLogIO(void);
 
 GArray *
 VMTools_WrapArray(gconstpointer data,

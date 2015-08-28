@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -284,9 +284,9 @@ Backdoor_MonitorLockPage(Balloon *b,     // IN/OUT
                         &b->resetFlag);
 
    /* update stats */
-   STATS_INC(b->stats.lock);
+   STATS_INC(b->stats.lock[FALSE]);
    if (status != BALLOON_SUCCESS) {
-      STATS_INC(b->stats.lockFail);
+      STATS_INC(b->stats.lockFail[FALSE]);
    }
 
    return status;
@@ -328,9 +328,9 @@ Backdoor_MonitorUnlockPage(Balloon *b,     // IN/OUT
                         &b->resetFlag);
 
    /* update stats */
-   STATS_INC(b->stats.unlock);
+   STATS_INC(b->stats.unlock[FALSE]);
    if (status != BALLOON_SUCCESS) {
-      STATS_INC(b->stats.unlockFail);
+      STATS_INC(b->stats.unlockFail[FALSE]);
    }
 
    return status;
@@ -353,18 +353,27 @@ Backdoor_MonitorUnlockPage(Balloon *b,     // IN/OUT
  */
 
 int
-Backdoor_MonitorLockPagesBatched(Balloon *b,     // IN/OUT
-                                 PPN64 ppn,      // IN
-                                 uint32 nPages,  // IN
-                                 uint32 *target) // OUT
+Backdoor_MonitorLockPagesBatched(Balloon *b,      // IN/OUT
+                                 PPN64 ppn,       // IN
+                                 uint32 nPages,   // IN
+                                 int isLargePage, // IN
+                                 uint32 *target)  // OUT
 {
-   int status = BackdoorCmd(BALLOON_BDOOR_CMD_BATCHED_LOCK,
-                            (size_t)ppn, nPages, target, &b->resetFlag);
+   int status;
+   uint16 cmd;
+
+   if (isLargePage) {
+      cmd = BALLOON_BDOOR_CMD_BATCHED_2M_LOCK;
+   } else {
+      cmd = BALLOON_BDOOR_CMD_BATCHED_LOCK;
+   }
+
+   status = BackdoorCmd(cmd, (size_t)ppn, nPages, target, &b->resetFlag);
 
    /* update stats */
-   STATS_INC(b->stats.lock);
+   STATS_INC(b->stats.lock[isLargePage]);
    if (status != BALLOON_SUCCESS) {
-      STATS_INC(b->stats.lockFail);
+      STATS_INC(b->stats.lockFail[isLargePage]);
    }
 
    return status;
@@ -387,18 +396,27 @@ Backdoor_MonitorLockPagesBatched(Balloon *b,     // IN/OUT
  */
 
 int
-Backdoor_MonitorUnlockPagesBatched(Balloon *b,          // IN/OUT
-                                   PPN64 ppn,           // IN
-                                   uint32 nPages,       // IN
-                                   uint32 *target)      // OUT
+Backdoor_MonitorUnlockPagesBatched(Balloon *b,      // IN/OUT
+                                   PPN64 ppn,       // IN
+                                   uint32 nPages,   // IN
+                                   int isLargePage, // IN
+                                   uint32 *target)  // OUT
 {
-   int status = BackdoorCmd(BALLOON_BDOOR_CMD_BATCHED_UNLOCK,
-                            (size_t)ppn, nPages, target, &b->resetFlag);
+   int status;
+   uint16 cmd;
+
+   if (isLargePage) {
+      cmd = BALLOON_BDOOR_CMD_BATCHED_2M_UNLOCK;
+   } else {
+      cmd = BALLOON_BDOOR_CMD_BATCHED_UNLOCK;
+   }
+
+   status = BackdoorCmd(cmd, (size_t)ppn, nPages, target, &b->resetFlag);
 
    /* update stats */
-   STATS_INC(b->stats.unlock);
+   STATS_INC(b->stats.unlock[isLargePage]);
    if (status != BALLOON_SUCCESS) {
-      STATS_INC(b->stats.unlockFail);
+      STATS_INC(b->stats.unlockFail[isLargePage]);
    }
 
    return status;

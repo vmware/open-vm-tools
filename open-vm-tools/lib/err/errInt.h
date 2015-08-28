@@ -30,8 +30,8 @@
 
 #include "err.h"
 
-
-const char *ErrErrno2String(Err_Number errorNumber, char *buf, size_t bufSize);
-
+const char *ErrErrno2String(Err_Number errorNumber,
+                            char *buf,
+                            size_t bufSize);
 
 #endif // ifndef _ERRINT_H_

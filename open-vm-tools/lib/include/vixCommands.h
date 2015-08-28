@@ -1122,24 +1122,13 @@ VixMsgRemoveBulkSnapshotRequest;
  */
 typedef
 #include "vmware_pack_begin.h"
-struct VixMsgVMSnapshotLoggingRequest {
+struct VixMsgVMSnapshotPauseRequest {
    VixCommandRequestHeader    header;
 
    int32                      options;
 }
 #include "vmware_pack_end.h"
-VixMsgVMSnapshotLoggingRequest;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgRecordReplayEvent {
-   VixMsgEventHeader          eventHeader;
-
-   int32                      newRecordState;
-   int32                      reason;
-} 
-#include "vmware_pack_end.h"
-VixMsgRecordReplayEvent;
+VixMsgVMSnapshotPauseRequest;
 
 typedef
 #include "vmware_pack_begin.h"
@@ -1455,46 +1444,6 @@ struct VixMsgConnectDeviceRequest {
 }
 #include "vmware_pack_end.h"
 VixMsgConnectDeviceRequest;
-/*
- * **********************************************************
- * Get the list of VProbes exported by a given VM. The request is
- * parameterless, and so generic.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetVProbesResponse {
-   VixCommandResponseHeader header;
-   int32                    numEntries;
-}
-#include "vmware_pack_end.h"
-VixMsgGetVProbesResponse;
-
-/*
- * **********************************************************
- * Load a vprobe script into a given VM. The request is a string
- * to be loaded. The response is a collection of warning and error
- * strings; zero errors indicates success.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVProbeLoadRequest {
-   VixCommandRequestHeader header;
-   char   string[1];             /* variable length */
-} 
-#include "vmware_pack_end.h"
-VixMsgVProbeLoadRequest;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVProbeLoadResponse {
-   VixCommandResponseHeader header;
-   uint32 numWarnings;
-   uint32 numErrors;
-   uint32 instanceID;
-   char   warningsAndErrors[1]; /* variable length */
-}
-#include "vmware_pack_end.h"
-VixMsgVProbeLoadResponse;
 
 /*
  * **********************************************************
@@ -2265,19 +2214,19 @@ enum {
    VIX_COMMAND_MOUNT_HGFS_FOLDERS               = 101,
    VIX_COMMAND_HOT_EXTEND_DISK                  = 102,
 
-   VIX_COMMAND_GET_VPROBES_VERSION              = 104,
-   VIX_COMMAND_GET_VPROBES                      = 105,
-   VIX_COMMAND_VPROBE_GET_GLOBALS               = 106,
-   VIX_COMMAND_VPROBE_LOAD                      = 107,
-   VIX_COMMAND_VPROBE_RESET                     = 108,
+   /* DEPRECATED VIX_COMMAND_GET_VPROBES_VERSION              = 104, */
+   /* DEPRECATED VIX_COMMAND_GET_VPROBES                      = 105, */
+   /* DEPRECATED VIX_COMMAND_VPROBE_GET_GLOBALS               = 106, */
+   /* DEPRECATED VIX_COMMAND_VPROBE_LOAD                      = 107, */
+   /* DEPRECATED VIX_COMMAND_VPROBE_RESET                     = 108, */
 
    /* DEPRECATED VIX_COMMAND_LIST_USB_DEVICES                 = 109, */
    VIX_COMMAND_CONNECT_HOST                     = 110,
 
    VIX_COMMAND_CREATE_LINKED_CLONE              = 112,
 
-   VIX_COMMAND_STOP_SNAPSHOT_LOG_RECORDING      = 113,
-   VIX_COMMAND_STOP_SNAPSHOT_LOG_PLAYBACK       = 114,
+   /* DEPRECATED VIX_COMMAND_STOP_SNAPSHOT_LOG_RECORDING      = 113, */
+   /* DEPRECATED VIX_COMMAND_STOP_SNAPSHOT_LOG_PLAYBACK       = 114, */
 
 
    VIX_COMMAND_SAMPLE_COMMAND                   = 115,
@@ -2316,16 +2265,16 @@ enum {
    VIX_COMMAND_HOT_ADD_DEVICE                   = 138,
    VIX_COMMAND_HOT_REMOVE_DEVICE                = 139,
 
-   VIX_COMMAND_DEBUGGER_ATTACH                  = 140,
-   VIX_COMMAND_DEBUGGER_DETACH                  = 141,
-   VIX_COMMAND_DEBUGGER_SEND_COMMAND            = 142,
+   /* DEPRECATED VIX_COMMAND_DEBUGGER_ATTACH                  = 140, */
+   /* DEPRECATED VIX_COMMAND_DEBUGGER_DETACH                  = 141, */
+   /* DEPRECATED VIX_COMMAND_DEBUGGER_SEND_COMMAND            = 142, */
 
    /* DEPRECATED VIX_COMMAND_GET_RECORD_STATE                 = 143, */
    /* DEPRECATED VIX_COMMAND_SET_RECORD_STATE                 = 144, */
-   /* DEPRECATEDVIX_COMMAND_REMOVE_RECORD_STATE              = 145, */
-   /* VIX_COMMAND_GET_REPLAY_STATE                 = 146, */
-   /* VIX_COMMAND_SET_REPLAY_STATE                 = 147, */
-   /* VIX_COMMAND_REMOVE_REPLAY_STATE              = 148, */
+   /* DEPRECATED VIX_COMMAND_REMOVE_RECORD_STATE              = 145, */
+   /* DEPRECATED VIX_COMMAND_GET_REPLAY_STATE                 = 146, */
+   /* DEPRECATED VIX_COMMAND_SET_REPLAY_STATE                 = 147, */
+   /* DEPRECATED VIX_COMMAND_REMOVE_REPLAY_STATE              = 148, */
 
    /* DEPRECATED VIX_COMMAND_CANCEL_USER_PROGRESS_MESSAGE     = 150, */
    

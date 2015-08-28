@@ -998,15 +998,15 @@ VmxListenSockConnectedCb(AsyncSocket *asock,    // IN
 
    g_debug("Entering %s\n", __FUNCTION__);
 
-   g_info("Got vmx connection, socket=%d.\n", fd);
+   g_info("Got vmx connection, socket=%d\n", fd);
 
    if (AsyncSocket_GetState(asock) != AsyncSocketConnected) {
-      g_info("Socket %d is not connected, closing.\n", fd);
+      g_info("Socket %d is not connected, closing\n", fd);
       goto exit;
    }
 
    if (!AsyncSocket_SetBufferSizes(asock, sendBufSize, recvBufSize)) {
-      g_info("Closing socket %d due to error.\n", fd);
+      g_info("Cannot set VSOCK buffer sizes, closing socket %d\n", fd);
       goto exit;
    }
 
@@ -1929,8 +1929,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)           // IN
    Poll_InitGtk();
    SSL_Init(GRabbitmqProxyGetSSLLibPath, NULL, NULL);
 
-   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) != 0 &&
-       strcmp(ctx->name, VMTOOLS_USER_SERVICE) != 0) {
+   if (!TOOLS_IS_MAIN_SERVICE(ctx) && !TOOLS_IS_USER_SERVICE(ctx)) {
       g_info("Unknown container '%s', not loading grabbitmqProxyPlugin.",
              ctx->name);
       return NULL;

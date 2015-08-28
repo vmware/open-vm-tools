@@ -60,10 +60,10 @@
  *----------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_HostName(void)
 {
-   Unicode result;
+   char *result;
    HMODULE dllHandle;
    struct hostent *myHostEnt;
    struct hostent *(WINAPI *GetHostByNameFn)(char *hostName);
@@ -156,12 +156,12 @@ Hostinfo_HostName(void)
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_HostName(void)
 {
    struct utsname un;
 
-   Unicode result = NULL;
+   char *result = NULL;
 
    if ((uname(&un) == 0) && (*un.nodename != '\0')) {
       /* 'un.nodename' is already fully qualified. */
@@ -192,12 +192,12 @@ Hostinfo_HostName(void)
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_HostName(void)
 {
    struct utsname un;
 
-   Unicode result = NULL;
+   char *result = NULL;
 
    if ((uname(&un) == 0) && (*un.nodename != '\0')) {
       char *p;
@@ -242,7 +242,7 @@ Hostinfo_HostName(void)
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_HostName(void)
 {
    return NULL;

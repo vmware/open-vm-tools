@@ -17,7 +17,7 @@
  *********************************************************/
 
 /*
- * certUtil.c --
+ * cert_util.c --
  *
  *    Utilities to manage the certificates.
  */
@@ -336,6 +336,7 @@ exit:
 }
 
 
+#ifndef _WIN32
 /*
  *----------------------------------------------------------------------
  *
@@ -364,6 +365,7 @@ CertUtil_GetToolDir(void)
 
    return path;
 }
+#endif
 
 
 /*
@@ -421,6 +423,73 @@ exit:
    }
    if (file) {
       fclose(file);
+   }
+
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CertUtil_RemoveDir --
+ *
+ *    Remove a directory. This directory can be non-empty. When it is
+ *    non-empty, all of its files and subdirectories are removed too.
+ *
+ * Results:
+ *    TRUE if the directory is successfully removed, otherwise FALSE.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+gboolean
+CertUtil_RemoveDir(const gchar *dirToRemove)
+{
+   gboolean ret = FALSE;
+   GDir *dir = NULL;
+   const gchar *file;
+   GError *error = NULL;
+   gchar *fname = NULL;
+
+   if ((dir = g_dir_open(dirToRemove, 0, &error)) == NULL) {
+      Error("Failed to open %s: %s.\n", dirToRemove, error->message);
+      goto exit;
+   }
+
+   while ((file = g_dir_read_name(dir)) != NULL) {
+      g_free(fname);
+      fname = g_build_filename(dirToRemove, file, NULL);
+
+      if (g_file_test(fname, G_FILE_TEST_IS_DIR)) {
+         if (!CertUtil_RemoveDir(fname)) {
+            Error("Couldn't remove the directory '%s'.\n", fname);
+            goto exit;
+         }
+      } else if (g_remove(fname) < 0) {
+         Error("Couldn't remove the file '%s'.\n", fname);
+         goto exit;
+      }
+   }
+
+   g_dir_close(dir);
+   dir = NULL;
+
+   if (g_rmdir(dirToRemove) < 0) {
+      Error("Couldn't remove the directory '%s'.\n", dirToRemove);
+      goto exit;
+   }
+
+   ret = TRUE;
+
+exit:
+   g_free(fname);
+   g_clear_error(&error);
+   if (dir) {
+      g_dir_close(dir);
    }
 
    return ret;

@@ -1473,8 +1473,7 @@ PollGtkBasicCallback(gpointer data) // IN: The eventEntry
 void
 Poll_InitGtk(void)
 {
-   static GStaticMutex mx = G_STATIC_MUTEX_INIT;
-   static volatile int inited = 0;
+   static volatile gsize inited = 0;
 
    static const PollImpl gtkImpl =
    {
@@ -1487,10 +1486,9 @@ Poll_InitGtk(void)
       PollLockingAlwaysEnabled,
    };
 
-   g_static_mutex_lock(&mx);
-   if (!inited) {
+   if (g_once_init_enter(&inited)) {
+      gsize didInit = 1;
       Poll_InitWithImpl(&gtkImpl);
-      inited = 1;
+      g_once_init_leave(&inited, didInit);
    }
-   g_static_mutex_unlock(&mx);
 }

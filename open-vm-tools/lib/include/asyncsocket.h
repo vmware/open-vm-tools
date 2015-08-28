@@ -65,6 +65,27 @@
 #define ASOCKERR_BIND              10
 #define ASOCKERR_BINDADDRINUSE     11
 #define ASOCKERR_LISTEN            12
+#define ASOCKERR_CONNECTSSL        13
+
+
+/*
+ * Websocket close status codes --
+ *
+ * enum has numbers in names because RFC6455 refers to the numbers frequently.
+ */
+enum {
+   WEB_SOCKET_CLOSE_STATUS_1000_NORMAL = 1000,
+   WEB_SOCKET_CLOSE_STATUS_1001_GOING_AWAY = 1001,
+   WEB_SOCKET_CLOSE_STATUS_1002_PROTOCOL_ERROR = 1002,
+   WEB_SOCKET_CLOSE_STATUS_1003_INVALID_DATA = 1003,
+   WEB_SOCKET_CLOSE_STATUS_1005_EMPTY = 1005,
+   WEB_SOCKET_CLOSE_STATUS_1006_ABNORMAL = 1006,
+   WEB_SOCKET_CLOSE_STATUS_1007_INCONSISTENT_DATA = 1007,
+   WEB_SOCKET_CLOSE_STATUS_1008_POLICY_VIOLATION = 1008,
+   WEB_SOCKET_CLOSE_STATUS_1009_MESSAGE_TOO_BIG = 1009,
+   WEB_SOCKET_CLOSE_STATUS_1010_UNSUPPORTED_EXTENSIONS = 1010,
+   WEB_SOCKET_CLOSE_STATUS_1015_TLS_HANDSHAKE_ERROR = 1015,
+};
 
 /*
  * Flags passed into AsyncSocket_Connect*().
@@ -209,6 +230,7 @@ AsyncSocket *AsyncSocket_ListenVMCI(unsigned int cid,
 AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          unsigned int port,
                                          Bool useSSL,
+                                         const char *protocols[],
                                          AsyncSocketConnectFn connectFn,
                                          void *clientData,
                                          AsyncSocketPollParams *pollParams,
@@ -216,6 +238,7 @@ AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
 #ifndef _WIN32
 AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
                                             Bool useSSL,
+                                            const char *protocols[],
                                             AsyncSocketConnectFn connectFn,
                                             void *clientData,
                                             AsyncSocketPollParams *pollParams,
@@ -257,14 +280,16 @@ AsyncSocket_ConnectNamedPipe(char *pipeName,
 #endif
 
 #ifndef VMX86_TOOLS
-AsyncSocket *AsyncSocket_ConnectWebSocket(const char *url,
-                                          Bool permitUnverifiedSSL,
-                                          const char *cookies,
-                                          AsyncSocketConnectFn connectFn,
-                                          void *clientData,
-                                          AsyncSocketConnectFlags flags,
-                                          AsyncSocketPollParams *pollParams,
-                                          int *error);
+AsyncSocket *
+AsyncSocket_ConnectWebSocket(const char *url,
+                             struct _SSLVerifyParam *sslVerifyParam,
+                             const char *cookies,
+                             const char *protocols[],
+                             AsyncSocketConnectFn connectFn,
+                             void *clientData,
+                             AsyncSocketConnectFlags flags,
+                             AsyncSocketPollParams *pollParams,
+                             int *error);
 #endif
 
 #ifndef USE_SSL_DIRECT
@@ -272,7 +297,8 @@ AsyncSocket *AsyncSocket_ConnectWebSocket(const char *url,
  * Initiate SSL connection on existing asock, with optional cert verification
  */
 Bool AsyncSocket_ConnectSSL(AsyncSocket *asock,
-                            struct _SSLVerifyParam *verifyParam);
+                            struct _SSLVerifyParam *verifyParam,
+                            void *sslContext);
 Bool AsyncSocket_AcceptSSL(AsyncSocket *asock);
 #endif
 
@@ -405,10 +431,21 @@ char *AsyncSocket_GetWebSocketCookie(AsyncSocket *asock);
 #endif
 
 /*
+ * Retrieve the close status, if received, for a websocket connection
+ */
+uint16 AsyncSocket_GetWebSocketCloseStatus(const AsyncSocket *asock);
+
+/*
  * Set low-latency mode for sends:
  */
 void AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock, Bool enable);
 
+/*
+ * Get negotiated websocket protocol
+ */
+const char *AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock);
+
+const char * stristr(const char *s, const char *find);
 
 /*
  * Some logging macros for convenience

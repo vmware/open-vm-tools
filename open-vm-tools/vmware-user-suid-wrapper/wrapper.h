@@ -38,7 +38,7 @@
 
 
 /*
- * XXX Document official VMware Tools releases vs. Open VM Tools and the
+ * XXX Document official VMware Tools releases vs. open-vm-tools and the
  * use of the locations database in the former vs. compile-time pathing
  * in the latter.
  */

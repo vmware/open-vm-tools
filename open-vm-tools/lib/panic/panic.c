@@ -31,6 +31,7 @@
 #  include <Windows.h>
 #else // Posix
 #  include <unistd.h>
+#  include <signal.h>
 #endif // Win32 vs Posix
 
 #include "vmware.h"
@@ -289,13 +290,38 @@ Panic_LoopOnPanic(void)
 void
 Panic_BreakOnPanic(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32)
    if (Panic_GetBreakOnPanic()) {
       Warning("Panic: breaking into debugger\n");
       DebugBreak();
    }
-#else
-   /* XXX: Linux experts: is there any equivalent of attaching a JIT debugger? */
+#else // Posix
+   switch (panicState.breakOnPanic) {
+   case PanicBreakLevel_Never:
+      break;
+   case PanicBreakLevel_IfDebuggerAttached:
+      {
+         void (*handler)(int);
+         handler = signal(SIGTRAP, SIG_IGN);
+
+         /*
+          * INT3 is not always ignored, so explicitely use kill() here.
+          */
+         kill(getpid(), SIGTRAP);
+
+         signal(SIGTRAP, handler);
+      }
+      break;
+   default:
+   case PanicBreakLevel_Always:
+      Warning("Panic: breaking into debugger\n");
+#  if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+      __asm__ __volatile__ ("int3");
+#  else
+      kill(getpid(), SIGTRAP);
+#  endif
+      break;
+   }
 #endif
 }
 
@@ -366,7 +392,11 @@ Panic_GetBreakOnPanic(void)
          }
       }
 #else
-      /* XXX: Linux experts?  How do you know if you're being ptraced? */
+      /*
+       * This case is handled by Panic_BreakOnPanic for Posix as there is no
+       * portable way to know if we're being debugged other than actually
+       * trapping into the debugger.
+       */
 #endif
       break;
    default:
@@ -507,7 +537,7 @@ Panic_Panic(const char *format,
    case 0:
       break;
    case 1:
-      Log("%s", buf);
+      Log("PANIC: %s", buf);
       Log("Panic loop\n");
    default:
       fprintf(stderr, "Panic loop\n");
@@ -528,7 +558,7 @@ Panic_Panic(const char *format,
     * Log panic information.
     */
 
-   Log("%s", buf);
+   Log("PANIC: %s", buf);
    Util_Backtrace(0);
 
    /*

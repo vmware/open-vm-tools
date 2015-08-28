@@ -104,7 +104,7 @@ VmSync_Freeze(const char *paths,
    int file;
    VmSyncDriver *sync = NULL;
 
-   Debug(LGPFX "Freezing using vmsync driver...\n");
+   Debug(LGPFX "Freezing %s using vmsync driver...\n", paths);
 
    file = open(SYNC_PROC_PATH, O_RDONLY);
    if (file == -1) {

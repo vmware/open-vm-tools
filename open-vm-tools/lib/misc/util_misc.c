@@ -53,6 +53,8 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <pthread.h>
+#elif defined(__sun__)
+#include <thread.h>
 #endif
 
 #if defined(__APPLE__)
@@ -205,7 +207,7 @@ Util_GetCanonicalPathForHash(const char *path)  // IN: UTF-8
  *-----------------------------------------------------------------------------
  */
 
-static char*
+static char *
 UtilGetLegacyEncodedString(const char *path)  // IN: UTF-8
 {
    char *ret = NULL;
@@ -332,10 +334,10 @@ Util_CanonicalPathsIdentical(const char *path1,  // IN:
 Bool
 Util_IsAbsolutePath(const char *path)  // IN: path to check
 {
-#if defined(__linux__) || defined(__APPLE__)
+#if defined __linux__ || defined __APPLE__ || defined __FreeBSD__ || defined sun
    // path[0] is valid even for the empty string.
    return path && path[0] == DIRSEPC;
-#elif defined(_WIN32)
+#elif defined _WIN32
    // if the length is 2, path[2] will be valid because of the null terminator.
    if (!path || strlen(path) < 2) {
       return FALSE;
@@ -414,43 +416,6 @@ Util_GetPrime(unsigned n0)  // IN:
 }
 
 
-#if defined(linux) && !defined(__ANDROID__)
-/*
- * Android has its own gettid. gettid has been declared in
- * <sys/linux-unistd.h> and defined as an extern function in <unistd.h>.
- */
-
-/*
- *-----------------------------------------------------------------------------
- *
- * gettid --
- *
- *      Retrieve unique thread identification suitable for kill or setpriority.
- *	Do not call this function directly, use Util_GetCurrentThreadId()
- *      instead.
- *
- * Results:
- *      Unique thread identification on success.
- *      (pid_t)-1 on error, errno set (when kernel does not support this call)
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE
-pid_t gettid(void)
-{
-#if defined(SYS_gettid)
-   return (pid_t)syscall(SYS_gettid);
-#else
-   return -1;
-#endif
-}
-#endif
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -458,6 +423,8 @@ pid_t gettid(void)
  *
  *      Retrieves a unique thread identification suitable to identify a thread
  *      to kill it or change its scheduling priority.
+ *
+ *      The tid is NOT guaranteed to be correct across fork().
  *
  * Results:
  *      Unique thread identification on success.
@@ -472,48 +439,53 @@ pid_t gettid(void)
 Util_ThreadID
 Util_GetCurrentThreadId(void)
 {
-#if defined(linux) || defined __ANDROID__
+#if defined(__linux__) && !defined(__ANDROID__)
    /*
-    * It is possible that two threads can enter gettid() path simultaneously,
-    * both eventually clearing useTid to zero. It does not matter - only
-    * problem which can happen is that useTid will be set to zero twice.
-    * And it has no impact on useTid value...
+    * Linux does not declare gettid, but the raw syscall
+    * works fine. We must supply our own TLS caching.
     */
-
-   static int useTid = 1;
-#if defined(VMX86_SERVER) && defined(GLIBC_VERSION_25)
-   static __thread pid_t tid = -1;
-#else
-   pid_t tid;
-#endif
-
-
-   if (useTid) {
-#if defined(VMX86_SERVER) && defined(GLIBC_VERSION_25)
-      if (tid != -1) {
-         return tid;
-      }
-#endif
-      tid = gettid();
-      if (tid != (pid_t)-1) {
-         return tid;
-      }
-      ASSERT(errno == ENOSYS);
-      useTid = 0;
+#if defined(GLIBC_VERSION_23)
+   static __thread pid_t tid;
+   if (UNLIKELY(tid == 0)) {
+      tid = (pid_t)syscall(SYS_gettid);
+      ASSERT(tid != -1);  // All kernels that support TLS also implement gettid
    }
-   tid = getpid();
-   ASSERT(tid != (pid_t)-1);
-
    return tid;
-#elif defined(sun)
-   pid_t tid;
+#else
+   /*
+    * Always a syscall, but glibc-2.2 doesn't have __thread TLS so we couldn't
+    * cache anyway. We don't support kernels from before 2.4.11 when SYS_gettid
+    * was introduced, so no need to check the return value.
+    */
+   return (pid_t)syscall(SYS_gettid);
+#endif
 
-   tid = getpid();
-   ASSERT(tid != (pid_t)-1);
-
-   return tid;
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-   ASSERT_ON_COMPILE(sizeof(Util_ThreadID) == sizeof(pthread_t));
+#elif defined(__ANDROID__)
+   /*
+    * Bionic supplies a gettid implementation in <unistd.h> that
+    * natively uses TLS.
+    */
+   return gettid();
+#elif defined(__sun__)
+   /*
+    * The old thr_ API returns an integer thread identifier. It is
+    * still available with Solaris pthreads.
+    */
+   return thr_self();
+#elif defined(__APPLE__)
+   /*
+    * NB: do not use mach_thread_self here. mach_thread_self returns
+    * a reference and requires a matching mach_port_deallocate, which
+    * would take two syscalls instead of zero.
+    */
+   return pthread_mach_thread_np(pthread_self());
+#elif defined(__FreeBSD__)
+   /*
+    * These OSes do not implement OS-native thread IDs. You probably
+    * didn't need one anyway, but guess that pthread_self works
+    * well enough.
+    */
+   ASSERT_ON_COMPILE(sizeof(Util_ThreadID) >= sizeof(pthread_t));
 
    return pthread_self();
 #elif defined(_WIN32)
@@ -630,10 +602,10 @@ UtilGetLoginName(struct passwd *pwd) // IN/OPT: user passwd struct
  *----------------------------------------------------------------------
  */
 
-static Unicode
-UtilDoTildeSubst(ConstUnicode user)  // IN: name of user
+static char *
+UtilDoTildeSubst(const char *user)  // IN: name of user
 {
-   Unicode str = NULL;
+   char *str = NULL;
    struct passwd *pwd = NULL;
 
    if (gHomeDirOverride) {
@@ -709,11 +681,11 @@ UtilDoTildeSubst(ConstUnicode user)  // IN: name of user
 
 #define UTIL_MAX_PATH_CHUNKS 100
 
-Unicode
-Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
+char *
+Util_ExpandString(const char *fileName) // IN  file path to expand
 {
-   Unicode copy = NULL;
-   Unicode result = NULL;
+   char *copy = NULL;
+   char *result = NULL;
    int nchunk = 0;
    char *chunks[UTIL_MAX_PATH_CHUNKS];
    int chunkSize[UTIL_MAX_PATH_CHUNKS];
@@ -728,8 +700,7 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
    /*
     * quick exit
     */
-   if (!Unicode_StartsWith(fileName, "~") &&
-       Unicode_Find(fileName, "$") == UNICODE_INDEX_NOT_FOUND) {
+   if ((*fileName != '~') && (strchr(fileName, '$') == NULL)) {
       return copy;
    }
 
@@ -737,8 +708,8 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
     * XXX Because the rest part of code depends pretty heavily from
     *     character pointer operations we want to leave it as-is and
     *     don't want to re-work it with using unicode library. However
-    *     it's acceptable only until our Unicode type is utf-8 and
-    *     until code below works correctly with utf-8.
+    *     it's acceptable only until our Unicode type is UTF-8 and
+    *     until code below works correctly with UTF-8.
     */
 
    /*
@@ -764,7 +735,7 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
       }
       if (nchunk >= UTIL_MAX_PATH_CHUNKS) {
          Log("%s: Filename \"%s\" has too many chunks.\n", __FUNCTION__,
-             UTF8(fileName));
+             fileName);
 	 goto out;
       }
       chunks[nchunk] = cp;
@@ -802,7 +773,7 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
 
    for (i = 0; i < nchunk; i++) {
       char save;
-      Unicode expand = NULL;
+      char *expand = NULL;
       char buf[100];
 #if defined(_WIN32)
       utf16_t bufW[100];
@@ -883,7 +854,7 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
       chunks[i] = expand;
       if (chunks[i] == NULL) {
 	 Log("%s: Cannot allocate memory to expand \"%s\" in \"%s\".\n",
-             __FUNCTION__, expand, UTF8(fileName));
+             __FUNCTION__, expand, fileName);
 	 goto out;
       }
       chunkSize[i] = strlen(expand);
@@ -903,7 +874,7 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
    }
    if (result == NULL) {
       Log("%s: Cannot allocate memory for the expansion of \"%s\".\n",
-          __FUNCTION__, UTF8(fileName));
+          __FUNCTION__, fileName);
       goto out;
    }
    cp = result;

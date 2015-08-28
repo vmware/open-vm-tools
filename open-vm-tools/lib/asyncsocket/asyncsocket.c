@@ -96,6 +96,9 @@
 
 #define PORT_STRING_LEN 6 /* "12345\0" or ":12345" */
 
+#define IN_IPOLL_RECV (1 << 0)
+#define IN_IPOLL_SEND (1 << 1)
+
 /*
  * INET6_ADDRSTRLEN allows for only 45 characters. If we somehow have a
  * non-recommended V4MAPPED address we can exceed 45 total characters in our
@@ -356,6 +359,9 @@ AsyncSocket_MsgError(int asyncSockError)   // IN
       break;
    case ASOCKERR_LISTEN:
       result = MSGID(asyncsocket.listen) "Socket listen error";
+      break;
+   case ASOCKERR_CONNECTSSL:
+      result = MSGID(asyncsocket.connectssl) "Connection error: could not negotiate SSL";
       break;
    }
 
@@ -669,6 +675,7 @@ AsyncSocketListenImpl(struct sockaddr_storage *addr,      // IN
                       AsyncSocketPollParams *pollParams,  // IN: optional
                       Bool isWebSock,                     // IN
                       Bool webSockUseSSL,                 // IN:
+                      const char *protocols[],            // IN: optional
                       int *outError)                      // OUT: optional
 {
    AsyncSocket *asock = AsyncSocketInit(addr->ss_family, pollParams, outError);
@@ -676,7 +683,7 @@ AsyncSocketListenImpl(struct sockaddr_storage *addr,      // IN
    if (asock != NULL) {
 #ifndef VMX86_TOOLS
       if (isWebSock) {
-         AsyncSocketInitWebSocket(asock, clientData, webSockUseSSL);
+         AsyncSocketInitWebSocket(asock, clientData, webSockUseSSL, protocols);
       }
 #endif
 
@@ -717,6 +724,7 @@ AsyncSocketListenerCreateImpl(const char *addrStr,                // IN: optiona
                               AsyncSocketPollParams *pollParams,  // IN
                               Bool isWebSock,                     // IN
                               Bool webSockUseSSL,                 // IN
+                              const char *protocols[],            // IN: optional
                               int *outError)                      // OUT: optional
 {
    AsyncSocket *asock = NULL;
@@ -730,7 +738,7 @@ AsyncSocketListenerCreateImpl(const char *addrStr,                // IN: optiona
    if (getaddrinfoError == 0) {
       asock = AsyncSocketListenImpl(&addr, addrLen, connectFn, clientData,
                                     pollParams, isWebSock, webSockUseSSL,
-                                    outError);
+                                    protocols, outError);
 
       if (asock) {
          ASOCKLG0(asock,
@@ -800,13 +808,14 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
                           AsyncSocketPollParams *pollParams,  // IN
                           Bool isWebSock,                     // IN
                           Bool webSockUseSSL,                 // IN
+                          const char *protocols[],            // IN: optional
                           int *outError)                      // OUT: optional
 {
    if (addrStr != NULL && *addrStr != '\0' &&
        Str_Strcmp(addrStr, "localhost")) {
       return AsyncSocketListenerCreateImpl(addrStr, port, AF_UNSPEC, connectFn,
                                            clientData, pollParams, FALSE,
-                                           FALSE, outError);
+                                           FALSE, protocols, outError);
    } else {
       Bool localhost = addrStr != NULL && !Str_Strcmp(addrStr, "localhost");
       unsigned int tempPort = port;
@@ -817,7 +826,7 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
 
       asock6 = AsyncSocketListenerCreateImpl(addrStr, port, AF_INET6,
                                              connectFn, clientData, pollParams,
-                                             isWebSock, webSockUseSSL,
+                                             isWebSock, webSockUseSSL, protocols,
                                              &tempError6);
 
       if (localhost && port == 0) {
@@ -832,7 +841,7 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
       asock4 = AsyncSocketListenerCreateImpl(addrStr, tempPort, AF_INET,
                                              connectFn, clientData, pollParams,
                                              isWebSock, webSockUseSSL,
-                                             &tempError4);
+                                             protocols, &tempError4);
 
       if (localhost && port == 0 && tempError4 == ASOCKERR_BINDADDRINUSE) {
          Log(ASOCKPREFIX "Failed to reuse IPv6 localhost port number for IPv4 "
@@ -843,7 +852,8 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
          asock4 = AsyncSocketListenerCreateImpl(addrStr, port, AF_INET,
                                                 connectFn, clientData,
                                                 pollParams, isWebSock,
-                                                webSockUseSSL, &tempError4);
+                                                webSockUseSSL, protocols,
+                                                &tempError4);
 
          tempPort = AsyncSocket_GetPort(asock4);
          if (tempPort == MAX_UINT32) {
@@ -856,7 +866,8 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
          asock6 = AsyncSocketListenerCreateImpl(addrStr, tempPort, AF_INET6,
                                                 connectFn, clientData,
                                                 pollParams, isWebSock,
-                                                webSockUseSSL, &tempError6);
+                                                webSockUseSSL, protocols,
+                                                &tempError6);
 
          if (!asock6 && tempError6 == ASOCKERR_BINDADDRINUSE) {
             Log(ASOCKPREFIX "Failed to reuse IPv4 localhost port number for "
@@ -937,12 +948,12 @@ AsyncSocketListenerCreateLoopback(unsigned int port,                  // IN
    asock6 = AsyncSocketListenerCreateImpl("::1", port, AF_INET6,
                                           connectFn, clientData, pollParams,
                                           isWebSock, webSockUseSSL,
-                                          &tempError6);
+                                          NULL, &tempError6);
 
    asock4 = AsyncSocketListenerCreateImpl("127.0.0.1", port, AF_INET,
                                           connectFn, clientData, pollParams,
                                           isWebSock, webSockUseSSL,
-                                          &tempError4);
+                                          NULL, &tempError4);
 
    if (asock6 && asock4) {
       AsyncSocket *asock;
@@ -1022,7 +1033,7 @@ AsyncSocket_Listen(const char *addrStr,                // IN: optional
                    int *outError)                      // OUT: optional
 {
    return AsyncSocketListenerCreate(addrStr, port, connectFn, clientData,
-                                    pollParams, FALSE, FALSE, outError);
+                                    pollParams, FALSE, FALSE, NULL, outError);
 }
 
 
@@ -1034,9 +1045,6 @@ AsyncSocket_Listen(const char *addrStr,                // IN: optional
  *      Listens on loopback interface and port for all resolved socket
  *      families and accepts new connections. Fires the connect callback with
  *      new AsyncSocket object for each connection.
- *
- *      If port requested is 0, we will let the system assign the first
- *      available port.
  *
  * Results:
  *      New AsyncSocket in listening state or NULL on error.
@@ -1095,7 +1103,7 @@ AsyncSocket_ListenVMCI(unsigned int cid,                  // IN
 
    asock = AsyncSocketListenImpl((struct sockaddr_storage *)&addr, sizeof addr,
                                  connectFn, clientData, pollParams, FALSE,
-                                 FALSE, outError);
+                                 FALSE, NULL, outError);
 
    VMCISock_ReleaseAFValueFd(vsockDev);
    return asock;
@@ -1274,7 +1282,15 @@ AsyncSocketOSVersionSupportsV4Mapped()
 {
 #ifdef _WIN32
    OSVERSIONINFOW osvi = {sizeof(OSVERSIONINFOW)};
+
+   /*
+    * Starting with msvc-12.0 / SDK v8.1 GetVersionEx is deprecated.
+    * Bug 1259185 tracks switching to VerifyVersionInfo.
+    */
+
+#pragma warning(suppress : 4996) // 'function': was declared deprecated
    GetVersionExW(&osvi);
+
    /* Windows version is at least Vista or higher */
    return osvi.dwMajorVersion >= 6;
 #else
@@ -2162,14 +2178,14 @@ AsyncSocketRecvSocket(AsyncSocket *asock, // IN:
 {
    int retVal = ASOCKERR_SUCCESS;
 
-   if (!asock->recvBuf && !asock->recvCb) {
+   if (!asock->recvCb) {
       VMwareStatus pollStatus;
 
       /*
        * Register the Poll callback
        */
 
-      ASOCKLOG(3, asock, ("installing recv poll callback\n"));
+      ASOCKLOG(3, asock, ("installing recv periodic poll callback\n"));
 
       pollStatus = AsyncSocketPollAdd(asock, TRUE,
                                       POLL_FLAG_READ | POLL_FLAG_PERIODIC,
@@ -2185,12 +2201,12 @@ AsyncSocketRecvSocket(AsyncSocket *asock, // IN:
 
    if (AsyncSocketHasDataPending(asock) && !asock->inRecvLoop) {
       ASOCKLOG(0, asock, ("installing recv RTime poll callback\n"));
-      if (Poll_CB_RTime(asock->vt->recvCallback,
-                        asock, 0, FALSE, NULL) !=
+      if (AsyncSocketPollAdd(asock, FALSE, 0, asock->vt->recvCallback, 0) !=
           VMWARE_STATUS_SUCCESS) {
          retVal = ASOCKERR_POLL;
          goto out;
       }
+      asock->recvCbTimer = TRUE;
    }
 
 out:
@@ -2476,6 +2492,7 @@ AsyncSocketPoll(AsyncSocket *s,          // IN:
    if (read && s->fd == -1) {
       if (!s->listenAsock4 && !s->listenAsock6) {
          ASSERT(FALSE);
+         ASOCKLG0(s, ("%s: Failed to find listener socket.\n", __FUNCTION__));
          return ASOCKERR_GENERIC;
       }
 
@@ -2587,26 +2604,37 @@ AsyncSocketPoll(AsyncSocket *s,          // IN:
          }
 #endif
 
-         ASOCKWARN(s, ("Failed to return a ready socket.\n"));
+         ASOCKWARN(s, ("%s: Failed to return a ready socket.\n",
+                       __FUNCTION__));
          return ASOCKERR_GENERIC;
       }
       case 0:
          /*
           * No sockets were ready within the specified time.
           */
+         ASOCKLG0(s, ("%s: Timeout waiting for a ready socket.\n",
+                      __FUNCTION__));
          return ASOCKERR_TIMEOUT;
 
-      case -1:
-         if (ASOCK_LASTERROR() == EINTR) {
+      case -1: {
+         int sysErr = ASOCK_LASTERROR();
+
+         if (sysErr == EINTR) {
             /*
              * We were somehow interrupted by signal. Let's loop and retry.
              */
 
+            ASOCKLG0(s, ("%s: Socket interrupted by a signal.\n",
+                         __FUNCTION__));
             continue;
          }
-         s->genericErrno = ASOCK_LASTERROR();
 
+         s->genericErrno = sysErr;
+
+         ASOCKLG0(s, ("%s: Failed with error %d: %s\n", __FUNCTION__, sysErr,
+                      Err_Errno2String(sysErr)));
          return ASOCKERR_GENERIC;
+      }
       default:
          NOT_REACHED();
       }
@@ -2798,7 +2826,8 @@ AsyncSocketSendSocket(AsyncSocket *asock,      // IN:
        * already make 0-byte send() to force WSAEWOULDBLOCK.
        */
 
-      if (AsyncSocketPollAdd(asock, FALSE, 0, asock->vt->sendCallback, 0)
+      if (AsyncSocketPollAdd(asock, FALSE, 0, asock->vt->sendCallback,
+                             asock->pollParams.iPoll != NULL ? 1 : 0)
           != VMWARE_STATUS_SUCCESS) {
          retVal = ASOCKERR_POLL;
          return retVal;
@@ -2992,8 +3021,8 @@ AsyncSocketResolveAddr(const char *hostname,
 #if defined(_WIN32)
             DWORD len = ARRAYSIZE(tempAddrString);
 
-            if (WSAAddressToString(aiIterator->ai_addr, aiIterator->ai_addrlen,
-                                   NULL, tempAddrString, &len)) {
+            if (WSAAddressToStringA(aiIterator->ai_addr, aiIterator->ai_addrlen,
+                                    NULL, tempAddrString, &len)) {
                *addrString = Util_SafeStrdup(unknownAddr);
             } else {
                *addrString = Util_SafeStrdup(tempAddrString);
@@ -3279,7 +3308,7 @@ AsyncSocketDispatchSentBuffer(AsyncSocket *s)
       s->sendBufTail = &(s->sendBufList);
    }
    s->sendPos = 0;
-   free(tmp.base64Buf);
+   free(tmp.encodedBuf);
    free(head);
 
    if (tmp.sendFn) {
@@ -3343,9 +3372,9 @@ AsyncSocketWriteBuffers(AsyncSocket *s)
       int left = head->len - s->sendPos;
       int sizeToSend = head->len;
 
-      if (head->base64Buf) {
+      if (head->encodedBuf) {
          sent = SSL_Write(s->sslSock,
-                          (uint8 *) head->base64Buf + s->sendPos, left);
+                          (uint8 *) head->encodedBuf + s->sendPos, left);
       } else {
          sent = SSL_Write(s->sslSock,
                           (uint8 *) head->buf + s->sendPos, left);
@@ -3784,16 +3813,12 @@ AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
        * after reading the data.
        */
 
-      Bool removed;
-
       AsyncSocketLock(s);
       ASSERT(s->state == AsyncSocketConnected);
       ASSERT(s->recvCb); /* We are supposed to call someone... */
       AsyncSocketAddRef(s);
-      removed = AsyncSocketPollRemove(s, TRUE,
-                                      POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                                      s->vt->recvCallback);
-      ASSERT(removed || s->pollParams.iPoll);
+      s->vt->cancelRecvCb(s);
+      s->recvCb = TRUE;  /* We need to know if the callback cancel recv. */
 
       s->inBlockingRecv++;
       AsyncSocketUnlock(s); /* We may sleep in poll. */
@@ -3816,22 +3841,20 @@ AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
        * it above.
        */
 
-      if (s->state != AsyncSocketClosed) {
-         VMwareStatus pollStatus;
-
-         ASSERT(s->refCount > 1); /* We should not be last user of socket */
+      if (s->state != AsyncSocketClosed && s->recvCb) {
+         ASSERT(s->refCount > 1); /* We should not be last user of socket. */
          ASSERT(s->state == AsyncSocketConnected);
-         ASSERT(s->recvCb); /* Still interested in callback. */
-         pollStatus = AsyncSocketPollAdd(s, TRUE,
-                                         POLL_FLAG_READ | POLL_FLAG_PERIODIC,
-                                         s->vt->recvCallback);
-
-         if (pollStatus != VMWARE_STATUS_SUCCESS) {
-            ASOCKWARN(s, ("failed to install recv callback!\n"));
-            AsyncSocketRelease(s, TRUE);
-
-            retVal = ASOCKERR_POLL;
-            goto out;
+         /*
+          * If AsyncSocketPoll or AsyncSocketFillRecvBuffer fails, do not
+          * add the recv callback as it may never fire.
+          */
+         s->recvCb = FALSE;  /* For re-registering the poll callback. */
+         if (retVal == ASOCKERR_SUCCESS || retVal == ASOCKERR_TIMEOUT) {
+            retVal = s->vt->recv(s, (uint8 *)s->recvBuf + s->recvPos,
+                                 s->recvLen - s->recvPos);
+         }
+         if (retVal != ASOCKERR_SUCCESS) {
+            s->recvBuf = NULL;
          }
       }
       /* This may destroy socket s if it is in AsyncSocketClosed state now. */
@@ -3851,7 +3874,6 @@ AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS)
       }
    }
 
-out:
    return retVal;
 }
 
@@ -4066,6 +4088,10 @@ AsyncSocketCancelRecvCbSocket(AsyncSocket *asock)  // IN:
 {
    ASSERT(AsyncSocketIsLocked(asock));
 
+   if (asock->recvCbTimer) {
+      AsyncSocketPollRemove(asock, FALSE, 0, asock->vt->recvCallback);
+      asock->recvCbTimer = FALSE;
+   }
    if (asock->recvCb) {
       Bool removed;
       ASOCKLOG(1, asock, ("Removing poll recv callback while cancelling recv.\n"));
@@ -4126,24 +4152,18 @@ AsyncSocketCancelCbForCloseSocket(AsyncSocket *asock)  // IN:
 
    ASSERT(!asock->recvBuf || asock->recvCb);
 
+   if (asock->recvCbTimer) {
+      AsyncSocketPollRemove(asock, FALSE, 0, asock->vt->recvCallback);
+      asock->recvCbTimer = FALSE;
+   }
    if (asock->recvCb) {
       ASOCKLOG(1, asock, ("recvCb is non-NULL, removing recv callback\n"));
       removed = AsyncSocketPollRemove(asock, TRUE,
                                       POLL_FLAG_READ | POLL_FLAG_PERIODIC,
                                       asock->vt->recvCallback);
-
-      /*
-       * Callback might be temporarily removed in AsyncSocket_DoOneMsg.
-       */
-
+      /* Callback might be temporarily removed in AsyncSocket_DoOneMsg. */
       ASSERT_NOT_TESTED(removed || asock->pollParams.iPoll);
 
-      /*
-       * We may still have the RTime callback, try to remove if it exists
-       */
-
-      removed = Poll_CB_RTimeRemove(asock->vt->recvCallback,
-                                    asock, FALSE);
       asock->recvCb = FALSE;
       asock->recvBuf = NULL;
    }
@@ -4220,9 +4240,9 @@ AsyncSocketCancelCbForCloseInt(AsyncSocket *asock)  // IN:
       int pos = asock->sendPos;
 
       /*
-       * Free the Base64 encoded data if it exists.
+       * Free the encoded data if it exists.
        */
-      free(cur->base64Buf);
+      free(cur->encodedBuf);
       asock->sendBufList = asock->sendBufList->next;
       asock->sendPos = 0;
 
@@ -4529,7 +4549,7 @@ AsyncSocketSendInternal(AsyncSocket *asock,         // IN
     * Allocate and initialize new send buffer entry
     */
 
-   newBuf = Util_SafeCalloc(1, sizeof(SendBufList));
+   newBuf = Util_SafeCalloc(1, sizeof *newBuf);
    newBuf->buf = buf;
    newBuf->len = len;
    newBuf->sendFn = sendFn;
@@ -4727,7 +4747,7 @@ AsyncSocketHandleError(AsyncSocket *asock, int asockErr)
 static void
 AsyncSocketAcceptCallback(void *clientData)
 {
-   AsyncSocket *asock = (AsyncSocket *) clientData;
+   AsyncSocket *asock = clientData;
    int retval;
 
    ASSERT(asock);
@@ -4769,7 +4789,7 @@ AsyncSocketAcceptCallback(void *clientData)
 static void
 AsyncSocketConnectCallback(void *clientData)
 {
-   AsyncSocket *asock = (AsyncSocket *) clientData;
+   AsyncSocket *asock = clientData;
    int retval;
 
    ASSERT(asock);
@@ -4807,7 +4827,7 @@ AsyncSocketConnectCallback(void *clientData)
 void
 AsyncSocketRecvCallback(void *clientData)
 {
-   AsyncSocket *asock = (AsyncSocket *) clientData;
+   AsyncSocket *asock = clientData;
    int error;
 
    ASSERT(asock);
@@ -4850,7 +4870,7 @@ AsyncSocketIPollRecvCallback(void *clientData)  // IN:
 #ifdef VMX86_TOOLS
    NOT_IMPLEMENTED();
 #else
-   AsyncSocket *asock = (AsyncSocket *) clientData;
+   AsyncSocket *asock = clientData;
    MXUserRecLock *lock;
 
    ASSERT(asock);
@@ -4859,8 +4879,14 @@ AsyncSocketIPollRecvCallback(void *clientData)  // IN:
           !MXUser_IsCurThreadHoldingRecLock(asock->pollParams.lock));
 
    AsyncSocketLock(asock);
+   if (asock->recvCbTimer) {
+      /* IVmdbPoll only has periodic callbacks. */
+      AsyncSocketIPollRemove(asock, FALSE, 0, asock->vt->recvCallback);
+      asock->recvCbTimer = FALSE;
+   }
+   asock->inIPollCb |= IN_IPOLL_RECV;
    lock = asock->pollParams.lock;
-   if (asock->recvCb) {
+   if (asock->recvCb && asock->inBlockingRecv == 0) {
       /*
        * There is no need to take a reference here -- the fact that this
        * callback is running means AsyncsocketIPollRemove would not release a
@@ -4873,6 +4899,7 @@ AsyncSocketIPollRecvCallback(void *clientData)  // IN:
       }
    }
 
+   asock->inIPollCb &= ~IN_IPOLL_RECV;
    if (asock->recvCb) {
       AsyncSocketUnlock(asock);
    } else {
@@ -4911,7 +4938,7 @@ AsyncSocketIPollRecvCallback(void *clientData)  // IN:
 void
 AsyncSocketSendCallback(void *clientData)
 {
-   AsyncSocket *s = (AsyncSocket *) clientData;
+   AsyncSocket *s = clientData;
    int retval;
 
    ASSERT(s);
@@ -4983,13 +5010,14 @@ AsyncSocketIPollSendCallback(void *clientData)  // IN:
 #ifdef VMX86_TOOLS
    NOT_IMPLEMENTED();
 #else
-   AsyncSocket *s = (AsyncSocket *) clientData;
+   AsyncSocket *s = clientData;
    MXUserRecLock *lock;
 
    ASSERT(s);
    ASSERT(s->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
 
    AsyncSocketLock(s);
+   s->inIPollCb |= IN_IPOLL_SEND;
    lock = s->pollParams.lock;
    if (s->sendCb) {
       /*
@@ -5008,6 +5036,7 @@ AsyncSocketIPollSendCallback(void *clientData)  // IN:
       AsyncSocketSendCallback(s);
    }
 
+   s->inIPollCb &= ~IN_IPOLL_SEND;
    AsyncSocketRelease(s, TRUE);
    if (lock != NULL) {
       MXUser_DecRefRecLock(lock);
@@ -5296,10 +5325,18 @@ AsyncSocketIPollRemove(AsyncSocket *asock,
       ret = poll->UnregisterTimer(poll, callback, asock);
    }
 
-   if (ret) {
+   if (ret &&
+       !((asock->inIPollCb & IN_IPOLL_RECV) != 0 &&
+         callback == asock->vt->recvCallback) &&
+       !((asock->inIPollCb & IN_IPOLL_SEND) != 0 &&
+         callback == asock->vt->sendCallback)) {
       MXUserRecLock *lock = asock->pollParams.lock;
 
-      /* Release the reference taken when registering the callback. */
+      /*
+       * As the callback has been unregistered and we are not currently in
+       * the callback being removed, we can safely release the reference taken
+       * when registering the callback.
+       */
       AsyncSocketRelease(asock, FALSE);
       if (lock != NULL) {
          MXUser_DecRefRecLock(lock);
@@ -5309,8 +5346,6 @@ AsyncSocketIPollRemove(AsyncSocket *asock,
    return ret;
 #endif
 }
-
-
 
 
 /*
@@ -5484,12 +5519,18 @@ AsyncSocket_GetReceivedFd(AsyncSocket *asock)      // IN
 
 Bool
 AsyncSocket_ConnectSSL(AsyncSocket *asock,          // IN
-                       SSLVerifyParam *verifyParam) // IN/OPT
+                       SSLVerifyParam *verifyParam, // IN/OPT
+                       void *sslContext)            // IN/OPT
 {
    ASSERT(asock);
    ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
 
-   return SSL_ConnectAndVerify(asock->sslSock, verifyParam);
+   if (sslContext == NULL) {
+      sslContext = SSL_DefaultContext();
+   }
+
+   return SSL_ConnectAndVerifyWithContext(asock->sslSock, verifyParam,
+                                          sslContext);
 }
 
 
@@ -5540,7 +5581,7 @@ static void
 AsyncSocketSslAcceptCallback(void *clientData)
 {
    int sslOpCode;
-   AsyncSocket *asock = (AsyncSocket *) clientData;
+   AsyncSocket *asock = clientData;
    VMwareStatus pollStatus;
 
    ASSERT(asock);

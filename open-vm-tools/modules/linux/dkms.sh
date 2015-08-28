@@ -28,12 +28,12 @@ then
    echo "   src:  root of unpacked open-vm-tools package"
    echo "   dst:  where to create the dkms tree"
    echo
-   echo "The script will create an 'open-vm-tools' module with version 9.10.2."
+   echo "The script will create an 'open-vm-tools' module with version 10.0.0."
    exit 1
 fi
 
 src=$1
-dst=$2/open-vm-tools-9.10.2
+dst=$2/open-vm-tools-10.0.0
 
 SHARED_HEADERS="backdoor_def.h"
 SHARED_HEADERS="$SHARED_HEADERS backdoor_types.h"
@@ -47,6 +47,7 @@ SHARED_HEADERS="$SHARED_HEADERS vm_atomic.h"
 SHARED_HEADERS="$SHARED_HEADERS vm_basic_asm.h"
 SHARED_HEADERS="$SHARED_HEADERS vm_basic_asm_x86.h"
 SHARED_HEADERS="$SHARED_HEADERS vm_basic_asm_x86_64.h"
+SHARED_HEADERS="$SHARED_HEADERS vm_basic_asm_x86_common.h"
 SHARED_HEADERS="$SHARED_HEADERS vm_basic_defs.h"
 SHARED_HEADERS="$SHARED_HEADERS vm_basic_math.h"
 SHARED_HEADERS="$SHARED_HEADERS vm_basic_types.h"

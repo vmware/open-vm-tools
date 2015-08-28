@@ -462,6 +462,7 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
 #endif
 
    rc = EXIT_SUCCESS;
+   g_print("\n");
    if (progress >= 100 && performShrink) {
       rc = ShrinkDiskSendRPC();
    } else if (progress < 100) {

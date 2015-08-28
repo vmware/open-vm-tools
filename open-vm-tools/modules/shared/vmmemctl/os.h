@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -80,6 +80,10 @@ typedef uintptr_t Mapping;
 #define PAGE_HANDLE_INVALID     0
 #define MAPPING_INVALID         0
 
+#define OS_SMALL_PAGE_ORDER (0) // 4 KB small pages
+#define OS_LARGE_PAGE_ORDER (9) // 2 MB large pages
+#define OS_LARGE_2_SMALL_PAGES (1 << OS_LARGE_PAGE_ORDER)
+
 /*
  * Operations
  */
@@ -95,8 +99,8 @@ extern void OS_Yield(void);
 extern unsigned long OS_ReservedPageGetLimit(void);
 extern PA64          OS_ReservedPageGetPA(PageHandle handle);
 extern PageHandle    OS_ReservedPageGetHandle(PA64 pa);
-extern PageHandle    OS_ReservedPageAlloc(int canSleep);
-extern void          OS_ReservedPageFree(PageHandle handle);
+extern PageHandle    OS_ReservedPageAlloc(int canSleep, int isLargePage);
+extern void          OS_ReservedPageFree(PageHandle handle, int isLargePage);
 
 extern Mapping       OS_MapPageHandle(PageHandle handle);
 extern void          *OS_Mapping2Addr(Mapping mapping);

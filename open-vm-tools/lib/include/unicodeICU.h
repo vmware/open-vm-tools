@@ -60,8 +60,8 @@ typedef enum {
  * the user's language and culture, collectively called the "locale".
  */
 
-int Unicode_CompareWithLocale(ConstUnicode str1,
-                              ConstUnicode str2,
+int Unicode_CompareWithLocale(const char *str1,
+                              const char *str2,
                               const char *locale,
                               UnicodeCompareOption compareOption);
 
@@ -73,11 +73,11 @@ int Unicode_CompareWithLocale(ConstUnicode str1,
  * Changing the case of a string can change its length, so don't
  * assume the string is the same length after calling these functions.
  */
-Unicode Unicode_ToLower(ConstUnicode str, const char *locale);
-Unicode Unicode_ToUpper(ConstUnicode str, const char *locale);
+char *Unicode_ToLower(const char *str, const char *locale);
+char *Unicode_ToUpper(const char *str, const char *locale);
 
 #ifdef HAVE_ICU_38
-Unicode Unicode_ToTitle(ConstUnicode str, const char *locale);
+char *Unicode_ToTitle(const char *str, const char *locale);
 #endif
 
 typedef enum {
@@ -89,7 +89,7 @@ typedef enum {
  * Normalizes Unicode characters composed of multiple parts into a
  * standard form.
  */
-Unicode Unicode_Normalize(ConstUnicode str,
+char *Unicode_Normalize(const char *str,
                           UnicodeNormalizationForm form);
 
 #ifdef __cplusplus

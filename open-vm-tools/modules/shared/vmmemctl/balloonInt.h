@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -64,7 +64,10 @@
 #define BALLOON_NAME                    "vmmemctl"
 #define BALLOON_NAME_VERBOSE            "VMware memory control driver"
 
-#if defined __linux__ || defined __FreeBSD__ || defined _WIN32
+#if defined __linux__ || (defined __APPLE__ && defined __LP64__)
+#define BALLOON_CAPABILITIES    (BALLOON_BASIC_CMDS|BALLOON_BATCHED_CMDS|\
+                                 BALLOON_BATCHED_2M_CMDS)
+#elif defined __FreeBSD__ || defined _WIN32 || (defined __APPLE__ && !defined __LP64__)
 #define BALLOON_CAPABILITIES    (BALLOON_BASIC_CMDS|BALLOON_BATCHED_CMDS)
 #else
 #define BALLOON_CAPABILITIES    BALLOON_BASIC_CMDS

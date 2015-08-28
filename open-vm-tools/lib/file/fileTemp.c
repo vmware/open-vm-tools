@@ -115,17 +115,17 @@ FileTempNum(Bool createTempFile,  // IN:
  */
 
 int
-File_MakeTempEx2(ConstUnicode dir,                             // IN:
+File_MakeTempEx2(const char *dir,                              // IN:
                  Bool createTempFile,                          // IN:
                  File_MakeTempCreateNameFunc *createNameFunc,  // IN:
                  void *createNameFuncData,                     // IN:
-                 Unicode *presult)                             // OUT:
+                 char **presult)                               // OUT:
 {
    uint32 i;
 
    int fd = -1;
    uint32 var = 0;
-   Unicode path = NULL;
+   char *path = NULL;
 
    if ((dir == NULL) || (createNameFunc == NULL)) {
       errno = EFAULT;
@@ -138,10 +138,10 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
    *presult = NULL;
 
    for (i = 0; i < (MAX_INT32 / 2); i++) {
-      Unicode fileName;
+      char *fileName;
 
       /* construct suffixed pathname to use */
-      Unicode_Free(path);
+      free(path);
       path = NULL;
 
       /*
@@ -160,7 +160,7 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
       /* construct base full pathname to use */
       path = Unicode_Join(dir, DIRSEPS, fileName, NULL);
 
-      Unicode_Free(fileName);
+      free(fileName);
 
       if (createTempFile) {
          fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
@@ -177,7 +177,7 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
       if (errno != EEXIST) {
          Log(LGPFX" Failed to create temporary %s \"%s\": %s.\n",
              createTempFile ? "file" : "directory",
-             UTF8(path), strerror(errno));
+             path, strerror(errno));
          goto exit;
       }
    }
@@ -185,13 +185,13 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
    if (fd == -1) {
       Warning(LGPFX" Failed to create temporary %s \"%s\": "
               "The name space is full.\n",
-              createTempFile ? "file" : "directory", UTF8(path));
+              createTempFile ? "file" : "directory", path);
 
       errno = EAGAIN;
    }
 
   exit:
-   Unicode_Free(path);
+   free(path);
 
    return fd;
 }
@@ -209,7 +209,7 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
  *      'num' specifies the nth time this function is called.
  *
  *      'data' specifies the payload that is specified when File_MakeTempEx2()
- *      function is called. This points to a Unicode string.
+ *      function is called. This points to a UTF8 string.
  *
  * Results:
  *      if successful, a dynamically allocated string with the basename of
@@ -221,7 +221,7 @@ File_MakeTempEx2(ConstUnicode dir,                             // IN:
  *----------------------------------------------------------------------------
  */
 
-static Unicode
+static char *
 FileMakeTempExCreateNameFunc(uint32 num,  // IN:
                              void *data)  // IN:
 {
@@ -229,7 +229,7 @@ FileMakeTempExCreateNameFunc(uint32 num,  // IN:
       return NULL;
    }
 
-   return Unicode_Format("%s%u", (Unicode) data, num);
+   return Unicode_Format("%s%u", (char *) data, num);
 }
 
 
@@ -258,9 +258,9 @@ FileMakeTempExCreateNameFunc(uint32 num,  // IN:
  */
 
 int
-File_MakeTempEx(ConstUnicode dir,       // IN:
-                ConstUnicode fileName,  // IN:
-                Unicode *presult)       // OUT:
+File_MakeTempEx(const char *dir,       // IN:
+                const char *fileName,  // IN:
+                char **presult)        // OUT:
 {
    return File_MakeTempEx2(dir, TRUE, FileMakeTempExCreateNameFunc,
                            (void *) fileName, presult);
@@ -287,19 +287,19 @@ File_MakeTempEx(ConstUnicode dir,       // IN:
  *----------------------------------------------------------------------
  */
 
-Unicode
-File_MakeSafeTempDir(ConstUnicode prefix)  // IN:
+char *
+File_MakeSafeTempDir(const char *prefix)  // IN:
 {
-   Unicode result = NULL;
-   Unicode dir = File_GetSafeTmpDir(TRUE);
+   char *result = NULL;
+   char *dir = File_GetSafeTmpDir(TRUE);
 
    if (dir != NULL) {
-      ConstUnicode effectivePrefix = (prefix == NULL) ? "safeDir" : prefix;
+      const char *effectivePrefix = (prefix == NULL) ? "safeDir" : prefix;
 
       File_MakeTempEx2(dir, FALSE, FileMakeTempExCreateNameFunc,
                        (void *) effectivePrefix, &result);
 
-      Unicode_Free(dir);
+      free(dir);
    }
 
    return result;
@@ -324,12 +324,12 @@ File_MakeSafeTempDir(ConstUnicode prefix)  // IN:
  */
 
 int
-File_MakeSafeTemp(ConstUnicode tag,  // IN (OPT):
-                  Unicode *presult)  // OUT:
+File_MakeSafeTemp(const char *tag,  // IN (OPT):
+                  char **presult)   // OUT:
 {
    int fd;
-   Unicode dir = NULL;
-   Unicode fileName = NULL;
+   char *dir = NULL;
+   char *fileName = NULL;
 
    ASSERT(presult);
 
@@ -344,8 +344,8 @@ File_MakeSafeTemp(ConstUnicode tag,  // IN (OPT):
 
    fd = File_MakeTempEx(dir, fileName, presult);
 
-   Unicode_Free(dir);
-   Unicode_Free(fileName);
+   free(dir);
+   free(fileName);
 
    return fd;
 }
@@ -370,13 +370,14 @@ File_MakeSafeTemp(ConstUnicode tag,  // IN (OPT):
  */
 
 Bool
-File_DoesVolumeSupportAcls(ConstUnicode path)  // IN:
+File_DoesVolumeSupportAcls(const char *path)  // IN:
 {
    Bool succeeded = FALSE;
 
 #if defined(_WIN32)
    Bool res;
-   Unicode vol, vol2;
+   char *vol;
+   char *vol2;
    const utf16_t *vol2W;
    DWORD fsFlags;
 
@@ -402,8 +403,8 @@ File_DoesVolumeSupportAcls(ConstUnicode path)  // IN:
    succeeded = TRUE;
 
   exit:
-   Unicode_Free(vol);
-   Unicode_Free(vol2);
+   free(vol);
+   free(vol2);
 #endif
 
    return succeeded;

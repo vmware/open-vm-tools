@@ -115,9 +115,9 @@ HgfsServerCapReg(gpointer src,
    gchar *msg;
    const char *appName = NULL;
 
-   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) == 0) {
+   if (TOOLS_IS_MAIN_SERVICE(ctx)) {
       appName = TOOLS_DAEMON_NAME;
-   } else if (strcmp(ctx->name, VMTOOLS_USER_SERVICE) == 0) {
+   } else if (TOOLS_IS_USER_SERVICE(ctx)) {
       appName = TOOLS_DND_NAME;
    } else {
       NOT_REACHED();
@@ -162,8 +162,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    };
    HgfsServerMgrData *mgrData;
 
-   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) != 0 &&
-       strcmp(ctx->name, VMTOOLS_USER_SERVICE) != 0) {
+   if (!TOOLS_IS_MAIN_SERVICE(ctx) && !TOOLS_IS_USER_SERVICE(ctx)) {
       g_info("Unknown container '%s', not loading HGFS plugin.", ctx->name);
       return NULL;
    }

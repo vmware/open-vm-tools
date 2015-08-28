@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -49,7 +49,7 @@
 #include "includeCheck.h"
 
 #define VMNET_NAME_BUFFER_LEN  128 /* Increased for i18n. */
-#define VMNET_COAL_STRING_LEN 16
+#define VMNET_COAL_STRING_LEN  128
 
 
 /*

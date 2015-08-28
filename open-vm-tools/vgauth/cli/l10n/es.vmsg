@@ -16,8 +16,8 @@
 #
 ##########################################################
 
-addsubj.fail = "%1$s: No ha podido añadirse el alias del usuario '%2$s': %3$s.\n"
-addsubj.success = "%1$s: se ha añadido el alias\n"
+addsubj.fail = "%1$s: No se pudo agregar el alias del usuario '%2$s': %3$s.\n"
+addsubj.success = "%1$s: alias agregado\n"
 
 addoptions.comment = "comentario del tema"
 
@@ -42,35 +42,33 @@ cmdline.summary.comm = "comentario"
 list.comment = "Comentario"
 list.count = "%1$s Se han encontrado %2$d alias para el usuario '%3$s'\n"
 
-list.error = "%1$s: No se han podido listar los alias del usuario '%2$s': %3$s.\n"
+list.error = "%1$s: No se pudieron enumerar los alias del usuario '%2$s': %3$s.\n"
 list.subject = "Asunto"
 
 listmapped.count = "%1$s Se han encontrado %2$d alias asignados\n"
 
-listmapped.error = "%1$s: No se han podido listar los alias asignados: %2$s.\n"
+listmapped.error = "%1$s: No se pudieron enumerar los alias asignados: %2$s.\n"
 
 listmapped.subject = "Asunto"
 
 listmapped.username = "Nombre de usuario"
 
-listoptions.username =
-         "El usuario cuyo almacén de certificados se está consultando"
+listoptions.username = "El usuario cuyo almacén de certificados se está consultando"
 
 listoptions.verbose = "Operación detallada"
 
-loadfile.fail = "%1$s: No se ha podido leer el archivo PEM '%2$s'\n"
+loadfile.fail = "%1$s: No se puede leer el archivo PEM '%2$s'\n"
 
 name.any = "<CUALQUIERA>"
 
-removesubj.fail = "%1$s: No se ha podido eliminar el alias del usuario '%2$s': %3$s.\n"
+removesubj.fail = "%1$s: No se pudo quitar el alias del usuario '%2$s': %3$s.\n"
 
-removesubj.success = "%1$s: alias eliminado\n"
+removesubj.success = "%1$s: alias quitado\n"
 
 removeoptions.file = "nombre de archivo PEM"
 
 removeoptions.subject = "Tema de SAML"
-removeoptions.username =
-             "El usuario cuyo almacén de certificados se está eliminando de"
+removeoptions.username = "El usuario cuyo almacén de certificados se está eliminando de"
 
 removeoptions.verbose = "Operación detallada"
 

@@ -117,10 +117,10 @@ typedef struct {
  * returned by said APIs.
  */
 EXTERN NetUtilIfTableEntry netUtilIfTable[];
-#   endif // ifdef DUMMY_NETUTIL
 
 int   NetUtil_GetIfIndex(const char *ifName);
 char *NetUtil_GetIfName(int ifIndex);
+#   endif // ifdef DUMMY_NETUTIL
 #endif // if defined(linux)
 
 size_t NetUtil_GetHardwareAddress(int ifIndex,         // IN

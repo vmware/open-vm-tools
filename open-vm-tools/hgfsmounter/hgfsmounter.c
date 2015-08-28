@@ -608,6 +608,67 @@ ParseTtl(const char *option,        // IN:  option string along with value
 }
 #endif
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ParseServerIno --
+ *
+ *    A helper function to process a string containing serverino value.
+ *
+ * Results:
+ *    TRUE always success.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+ParseServerIno(const char *option,         // IN:  option string along with value
+               HgfsMountInfo *mountInfo,   // OUT: mount data
+               int *flags)                 // OUT: mount flags unused
+{
+   ASSERT(option);
+   ASSERT(mountInfo);
+
+   mountInfo->flags |= HGFS_MNTINFO_SERVER_INO;
+   LOG("Setting mount flag server ino in 0x%x\n", mountInfo->flags);
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ParseNoServerIno --
+ *
+ *    A helper function to process a string containing noserverino value.
+ *
+ * Results:
+ *    TRUE always success.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+ParseNoServerIno(const char *option,         // IN:  option string along with value
+                 HgfsMountInfo *mountInfo,   // OUT: mount data
+                 int *flags)                 // OUT: mount flags unused
+{
+   ASSERT(option);
+   ASSERT(mountInfo);
+
+   mountInfo->flags &= ~HGFS_MNTINFO_SERVER_INO;
+   LOG("Clearing mount flag server ino in 0x%x\n", mountInfo->flags);
+   return TRUE;
+}
+
+
 static MountOptions mountOptions[] = {
    { "ro", MS_RDONLY, TRUE, "mount read-only",
       "Setting mount read-only", NULL },
@@ -665,6 +726,12 @@ static MountOptions mountOptions[] = {
    { "bind", MS_MOVE, TRUE, "move an existig mount point",
       "Setting mount type to move", NULL },
 #endif
+   { "serverino", 0, TRUE,
+      "Use server generated inode numbers.\n",
+      "Setting mount option for using Server inode numbers on", ParseServerIno },
+   { "noserverino", 0, FALSE,
+      "Use client generated inode numbers.\n",
+      "Setting mount option for using Server inode numbers off", ParseNoServerIno },
 
    { "remount", MS_REMOUNT, TRUE, "remount already mounted filesystem",
       "Setting mount type to remount", NULL }
@@ -1064,6 +1131,7 @@ main(int argc,          // IN
    }
 
    mountInfo.magicNumber = HGFS_SUPER_MAGIC;
+   mountInfo.infoSize = sizeof mountInfo;
    mountInfo.version = HGFS_PROTOCOL_VERSION;
 
 #ifndef sun
@@ -1080,6 +1148,10 @@ main(int argc,          // IN
    mountInfo.shareNameDir = shareNameDir;
 #endif
 #endif
+   /*
+    * Default flags which maybe modified by user passed options.
+    */
+   mountInfo.flags = HGFS_MNTINFO_SERVER_INO;
 
    /*
     * This'll write the rest of the options into HgfsMountInfo and possibly

@@ -106,6 +106,7 @@ static CmdTable commands[] = {
 #if (defined(_WIN32) || defined(linux)) && !defined(OPEN_VM_TOOLS)
    { "upgrade",   Upgrade_Command,  TRUE,    TRUE,   Upgrade_Help},
 #endif
+   { "logging",   Logging_Command,  TRUE,    TRUE,    Logging_Help},
    { "help",      HelpCommand,      FALSE,   FALSE,   ToolboxCmdHelp},
 };
 
@@ -294,6 +295,7 @@ ToolboxCmdHelp(const char *progName,   // IN
                           "Available commands:\n"
                           "   device\n"
                           "   disk\n"
+                          "   logging\n"
                           "   script\n"
                           "   stat\n"
                           "   timesync\n"

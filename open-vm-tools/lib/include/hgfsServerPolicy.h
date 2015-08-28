@@ -31,12 +31,6 @@
  */
 #define HGFS_SERVER_POLICY_ROOT_SHARE_NAME "root"
 
-Bool
-HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects, HgfsRegisterSharedFolderFunc *registerFolder);
-
-Bool
-HgfsServerPolicy_Cleanup(void);
-
 
 typedef uint32 HgfsShareOptions;
 
@@ -46,17 +40,17 @@ typedef uint32 HgfsShareOptions;
  */
 typedef struct HgfsSharedFolder {
    DblLnkLst_Links links;
-   char *name;          /* Name of share */
-   char *path;          /*
-                         * Path of share in server's filesystem. Should
-                         * not include final path separator.
-                         */
-   char *shareTags;     /* Tags associated with this share (comma delimited). */
-   size_t shareTagsLen; /* Length of shareTag string */
-   size_t nameLen;      /* Length of name string */
-   size_t pathLen;      /* Length of path string */
-   Bool readAccess;     /* Read permission for this share */
-   Bool writeAccess;    /* Write permission for this share */
+   const char *name;     /* Name of share */
+   const char *path;     /*
+                          * Path of share in server's filesystem. Should
+                          * not include final path separator.
+                          */
+   const char *shareTags;/* Tags associated with this share (comma delimited). */
+   size_t shareTagsLen;  /* Length of shareTag string */
+   size_t nameLen;       /* Length of name string */
+   size_t pathLen;       /* Length of path string */
+   Bool readAccess;      /* Read permission for this share */
+   Bool writeAccess;     /* Write permission for this share */
    HgfsShareOptions configOptions; /* User-config options. */
    HgfsSharedFolderHandle handle;  /* Handle assigned by HGFS server
                                     * when the folder was registered with it.
@@ -78,10 +72,13 @@ typedef struct HgfsServerPolicy_ShareList {
    char **shareNames;
 } HgfsServerPolicy_ShareList;
 
-/* Defined in hgfsServerInt.h */
-HgfsGetNameFunc HgfsServerPolicy_GetShares;
-HgfsInitFunc HgfsServerPolicy_GetSharesInit;
-HgfsCleanupFunc HgfsServerPolicy_GetSharesCleanup;
+Bool
+HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,
+                      HgfsRegisterSharedFolderFunc registerFolder,
+                      HgfsServerResEnumCallbacks *enumResources);
+
+Bool
+HgfsServerPolicy_Cleanup(void);
 
 HgfsNameStatus
 HgfsServerPolicy_GetSharePath(char const *nameIn,         // IN:

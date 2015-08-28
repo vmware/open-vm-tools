@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000-2012,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -71,10 +71,12 @@
  * Page allocation flags
  */
 typedef enum BalloonPageAllocType {
-   BALLOON_PAGE_ALLOC_NOSLEEP = 0,
-   BALLOON_PAGE_ALLOC_CANSLEEP = 1,
+   BALLOON_PAGE_ALLOC_LPAGE = 0,
+   BALLOON_PAGE_ALLOC_NOSLEEP = 1,
+   BALLOON_PAGE_ALLOC_CANSLEEP = 2,
    BALLOON_PAGE_ALLOC_TYPES_NR,	// total number of alloc types
 } BalloonPageAllocType;
+
 
 /*
  * Types
@@ -96,15 +98,15 @@ typedef struct {
    /* primitives */
    uint32 primAlloc[BALLOON_PAGE_ALLOC_TYPES_NR];
    uint32 primAllocFail[BALLOON_PAGE_ALLOC_TYPES_NR];
-   uint32 primFree;
-   uint32 primErrorPageAlloc;
-   uint32 primErrorPageFree;
+   uint32 primFree[2];
+   uint32 primErrorPageAlloc[2];
+   uint32 primErrorPageFree[2];
 
    /* monitor operations */
-   uint32 lock;
-   uint32 lockFail;
-   uint32 unlock;
-   uint32 unlockFail;
+   uint32 lock[2];
+   uint32 lockFail[2];
+   uint32 unlock[2];
+   uint32 unlockFail[2];
    uint32 target;
    uint32 targetFail;
    uint32 start;
@@ -116,32 +118,38 @@ typedef struct {
 #define BALLOON_ERROR_PAGES             16
 
 typedef struct {
-   PageHandle page[BALLOON_ERROR_PAGES];
-   uint32 pageCount;
+   PageHandle entries[BALLOON_ERROR_PAGES];
+   uint32 nEntries;
 } BalloonErrorPages;
 
-#define BALLOON_CHUNK_PAGES             1000
+#define BALLOON_CHUNK_ENTRIES             1000
 
 typedef struct BalloonChunk {
-   PageHandle page[BALLOON_CHUNK_PAGES];
-   uint32 pageCount;
+   PageHandle entries[BALLOON_CHUNK_ENTRIES];
+   uint32 nEntries;
    DblLnkLst_Links node;
 } BalloonChunk;
 
 struct BalloonOps;
 
 typedef struct {
-   /* sets of reserved physical pages */
    DblLnkLst_Links chunks;
    int nChunks;
+} BalloonChunkList;
+
+typedef struct {
+   /* sets of reserved physical pages */
+   BalloonChunkList pages[2];
 
    /* transient list of non-balloonable pages */
-   BalloonErrorPages errors;
+   BalloonErrorPages errors[2];
 
    BalloonGuest guestType;
 
-   /* balloon size */
+   /* balloon size (in small pages) */
    int nPages;
+
+   /* target balloon size (in small pages) */
    int nPagesTarget;
 
    /* reset flag */
@@ -167,15 +175,15 @@ typedef struct {
    PageHandle pageHandle;
    Mapping batchPageMapping;
    BalloonBatchPage *batchPage;
-   uint16 batchMaxPages;
+   uint16 batchMaxEntries;
 
    BalloonChunk *fallbackChunk;
 } Balloon;
 
 typedef struct BalloonOps {
-   void (*addPage)(Balloon *b, uint16 idx, PageHandle page);
-   int (*lock)(Balloon *b, uint16 nPages, uint32 *target);
-   int (*unlock)(Balloon *b, uint16 nPages, uint32 *target);
+   void (*addPage)(Balloon *b, uint16 idx, PageHandle entries);
+   int (*lock)(Balloon *b, uint16 nPages, int isLargePages, uint32 *target);
+   int (*unlock)(Balloon *b, uint16 nPages, int isLargePages, uint32 *target);
 } BalloonOps;
 
 /*

@@ -38,7 +38,18 @@ extern void MXUserInstallMxHooks(void (*theLockListFunc)(void),
                                  void (*theUnlockFunc)(struct MX_MutexRec *lock),
                                  Bool (*theTryLockFunc)(struct MX_MutexRec *lock),
                                  Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock),
+                                 char *(*theNameFunc)(const struct MX_MutexRec *lock),
                                  void (*theSetInPanicFunc)(void),
                                  Bool (*theInPanicFunc)(void));
+
+typedef struct MXUserLockTreeNode MXUserLockTreeNode;
+
+void MXUserLockTreeAcquire(void);
+void MXUserLockTreeRelease(void);
+
+MXUserLockTreeNode *MXUserLockTreeAdd(MXUserLockTreeNode *searchNode,
+                                      const char *name,
+                                      uint32 serialNumber,
+                                      MX_Rank rank);
 
 #endif

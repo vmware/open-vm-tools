@@ -37,18 +37,13 @@ Bool DnDDataContainsIllegalCharacters(const char *data,
                                       const size_t dataSize,
                                       const char *illegalChars);
 
-Bool DnDPrependFileRoot(ConstUnicode fileRoot,
-                        char delimiter,
-                        char **src,
-                        size_t *srcSize);
+Bool DnDRootDirUsable(const char *pathName);
 
-Bool DnDRootDirUsable(ConstUnicode pathName);
+Bool DnDSetPermissionsOnRootDir(const char *pathName);
 
-Bool DnDSetPermissionsOnRootDir(ConstUnicode pathName);
+Bool DnDStagingDirectoryUsable(const char *pathName);
 
-Bool DnDStagingDirectoryUsable(ConstUnicode pathName);
-
-Bool DnDSetPermissionsOnStagingDir(ConstUnicode pathName);
+Bool DnDSetPermissionsOnStagingDir(const char *pathName);
 
 Bool DnDReadBuffer(BufRead *b, void *out, size_t len);
 

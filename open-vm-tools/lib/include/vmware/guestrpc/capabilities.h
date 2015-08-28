@@ -59,7 +59,7 @@ typedef enum {
    GHI_CAP_SET_HANDLER                  = 14, // supports setting the handler for types/protocols
    UNITY_CAP_STATUS_UNITY_ACTIVE        = 15, // supports GuestRpc bits for Unity Status
    GHI_CAP_SET_OUTLOOK_TEMP_FOLDER      = 16, // supports setting the Outlook temp folder
-   OBSOLETE_17                          = 17, // 17 is obsolete, do not use
+                                              // 17 is obsolete, do not use
    CAP_SET_TOPO_MODES                   = 18, // supports setting topology modes in video driver
    GHI_CAP_TRAY_ICONS                   = 19, // supports ghi.guest.trayIcon commands
    GHI_CAP_SET_FOCUSED_WINDOW           = 20, // supports ghi.guest.setFocusedWindow
@@ -69,7 +69,7 @@ typedef enum {
    CAP_AUTOUPGRADE_AT_SHUTDOWN          = 24, // supports auto-upgrading tools at OS shutdown
    GHI_CAP_AUTOLOGON                    = 25, // supports autologon
    CAP_DESKTOP_AUTOLOCK                 = 26, // supports desktop autolock
-   CAP_UPDATE_AGENT                     = 27, // supports guest update agent
+                                              // 27 is obsolete, do not use
    HGFSU_CAP_MIRROR_DOWNLOADS           = 28, // supports remapping GOS Downloads to HGFS
    HGFSU_CAP_MIRROR_MOVIES              = 29, // supports remapping GOS Movies to HGFS
    GHI_CAP_TOGGLE_START_UI              = 30, // supports showing/hiding the Start UI
@@ -99,20 +99,6 @@ typedef struct {
  *  vmdb schema, since these strings are used as vmdb keys.
  */
 
-/*
- * This table must be sorted such that it can be indexed using the
- * GuestCapabilities enum above. RPC calls pass the value, and the
- * handler code uses it as an index. In other words, the value of the
- * caps field at index i must be equal to i as well. This is because
- * the code that looks up entries in this table assume as much. It
- * also means we don't need the cap field, or, to justify its existence,
- * the lookup code should be converted to loop through the table and
- * return the entry where cap == the value passed in the RPC call.
- * Moral of the story, new entries always at the bottom of the table
- * and the cap field must be set to the offset in the array (and make
- * sure the enum in GuestCapabilities is also set to that offset).
- */
-
 static GuestCapElem guestCapTable[] = {
    { UNITY_CAP_START_MENU,                 UNITY_CAP_VMDB_PATH, "startmenu" },
    { UNITY_CAP_VIRTUAL_DESK,               UNITY_CAP_VMDB_PATH, "virtualdesk" },
@@ -133,7 +119,6 @@ static GuestCapElem guestCapTable[] = {
    { GHI_CAP_SET_HANDLER,                  GHI_CAP_VMDB_PATH,   "setHandler" },
    { UNITY_CAP_STATUS_UNITY_ACTIVE,        UNITY_CAP_VMDB_PATH, "unityActive" },
    { GHI_CAP_SET_OUTLOOK_TEMP_FOLDER,      GHI_CAP_VMDB_PATH,   "setOutlookTempFolder" },
-   { OBSOLETE_17,                          NULL,                NULL },
    { CAP_SET_TOPO_MODES,                   CAP_VMDB_PATH,       "displayTopologyModesSet" },
    { GHI_CAP_TRAY_ICONS,                   GHI_CAP_VMDB_PATH,   "trayIcons" },
    { GHI_CAP_SET_FOCUSED_WINDOW,           GHI_CAP_VMDB_PATH,   "setFocusedWindow"},
@@ -143,7 +128,6 @@ static GuestCapElem guestCapTable[] = {
    { CAP_AUTOUPGRADE_AT_SHUTDOWN,          CAP_VMDB_PATH,       "autoUpgradeAtShutdown"},
    { GHI_CAP_AUTOLOGON,                    GHI_CAP_VMDB_PATH,   "autologon" },
    { CAP_DESKTOP_AUTOLOCK,                 CAP_VMDB_PATH,       "desktopAutolock" },
-   { CAP_UPDATE_AGENT,                     CAP_VMDB_PATH,       "updateAgent"},
    { HGFSU_CAP_MIRROR_DOWNLOADS,           HGFSU_CAP_VMDB_PATH, "mirrorDownloads" },
    { HGFSU_CAP_MIRROR_MOVIES,              HGFSU_CAP_VMDB_PATH, "mirrorMovies" },
    { GHI_CAP_TOGGLE_START_UI,              GHI_CAP_VMDB_PATH,   "toggleStartUI"},

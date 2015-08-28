@@ -43,6 +43,9 @@ SUBDIRS += hgfsHelper
 SUBDIRS += hgfsServer
 SUBDIRS += hgfsServerManagerGuest
 SUBDIRS += hgfsServerPolicyGuest
+if HAVE_GTKMM
+SUBDIRS += hgfsUri
+endif
 SUBDIRS += impersonate
 SUBDIRS += lock
 SUBDIRS += message
@@ -51,7 +54,6 @@ SUBDIRS += netUtil
 SUBDIRS += nicInfo
 SUBDIRS += panic
 SUBDIRS += panicDefault
-SUBDIRS += printer
 SUBDIRS += procMgr
 SUBDIRS += rpcChannel
 SUBDIRS += rpcIn

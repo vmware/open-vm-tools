@@ -111,7 +111,7 @@ FileIO_MsgError(FileIOResult status) // IN
        * because you don't want to display error messages after a user has
        * cancelled an operation.
        */
-      result = MSGID(fileio.cancel) "The operation was canceled by the user";
+      result = MSGID(fileio.cancel) "The operation was cancelled by the user";
       break;
 
    case FILEIO_ERROR:
@@ -198,8 +198,8 @@ FileIO_MsgError(FileIOResult status) // IN
  */
 
 void
-FileIO_Init(FileIODescriptor *fd,   // IN/OUT:
-            ConstUnicode pathName)  // IN:
+FileIO_Init(FileIODescriptor *fd,  // IN/OUT:
+            const char *pathName)  // IN:
 {
    ASSERT(fd);
    ASSERT(pathName);
@@ -231,7 +231,7 @@ FileIO_Cleanup(FileIODescriptor *fd)  // IN/OUT:
    ASSERT(fd);
 
    if (fd->fileName) {
-      Unicode_Free(fd->fileName);
+      free(fd->fileName);
       fd->fileName = NULL;
    }
 }
@@ -341,7 +341,7 @@ FileIO_Lock(FileIODescriptor *file,  // IN/OUT:
       if (file->lockToken == NULL) {
          /* Describe the lock not acquired situation in detail */
          Warning(LGPFX" %s on '%s' failed: %s\n",
-                 __FUNCTION__, UTF8(file->fileName),
+                 __FUNCTION__, file->fileName,
                  (err == 0) ? "Lock timed out" : strerror(err));
 
          /* Return a serious failure status if the locking code did */
@@ -400,7 +400,7 @@ FileIO_Unlock(FileIODescriptor *file)  // IN/OUT:
 
       if (!FileLock_Unlock(file->lockToken, &err, NULL)) {
          Warning(LGPFX" %s on '%s' failed: %s\n",
-                 __FUNCTION__, UTF8(file->fileName), strerror(err));
+                 __FUNCTION__, file->fileName, strerror(err));
 
          ret = FILEIO_ERROR;
       }
@@ -446,7 +446,7 @@ FileIO_GetSize(const FileIODescriptor *fd)  // IN:
  *
  * FileIO_GetSizeByPath --
  *
- *      Get size of a file specified by path. 
+ *      Get size of a file specified by path.
  *
  * Results:
  *      Size of file or -1.
@@ -458,7 +458,7 @@ FileIO_GetSize(const FileIODescriptor *fd)  // IN:
  */
 
 int64
-FileIO_GetSizeByPath(ConstUnicode pathName)  // IN:
+FileIO_GetSizeByPath(const char *pathName)  // IN:
 {
    int64 logicalBytes;
 
@@ -485,7 +485,7 @@ FileIO_GetSizeByPath(ConstUnicode pathName)  // IN:
  *----------------------------------------------------------------------
  */
 
-ConstUnicode
+const char *
 FileIO_Filename(FileIODescriptor *fd)  // IN:
 {
    ASSERT(fd);
@@ -502,8 +502,9 @@ FileIO_Filename(FileIODescriptor *fd)  // IN:
  *      Closes and unlinks the file associated with a FileIODescriptor.
  *
  * Results:
- *      TRUE: An error occurred.
- *      FALSE: The file was closed and unlinked.
+ *      FILEIO_SUCCESS: The file was closed and unlinked. The FileIODescriptor
+ *                      is no longer valid.
+ *      FILEIO_ERROR: An error occurred.
  *
  * Side effects:
  *      File is probably closed and unlinked.
@@ -511,11 +512,11 @@ FileIO_Filename(FileIODescriptor *fd)  // IN:
  *----------------------------------------------------------------------
  */
 
-Bool
+FileIOResult
 FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
 {
-   Unicode path;
-   Bool ret;
+   char *path;
+   FileIOResult ret;
 
    ASSERT(fd);
    ASSERT(FileIO_IsValid(fd));
@@ -523,13 +524,13 @@ FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
    path = Unicode_Duplicate(fd->fileName);
 
    ret = FileIO_Close(fd);
-   if (!ret) {
+   if (FileIO_IsSuccess(ret)) {
       if (File_UnlinkIfExists(path) == -1) {
-         ret = TRUE;
+         ret = FILEIO_ERROR;
       }
    }
 
-   Unicode_Free(path);
+   free(path);
 
    return ret;
 }
@@ -648,7 +649,7 @@ FileIO_IsSuccess(FileIOResult res)  // IN:
  *      The caller must free the path when done.
  *
  * Results:
- *      Unicode path if successful, NULL on failure.
+ *      UTF8 path if successful, NULL on failure.
  *
  * Side effects:
  *      None.
@@ -656,11 +657,11 @@ FileIO_IsSuccess(FileIOResult res)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-FileIO_AtomicTempPath(ConstUnicode path)  // IN:
+char *
+FileIO_AtomicTempPath(const char *path)  // IN:
 {
-   Unicode srcPath;
-   Unicode retPath;
+   char *srcPath;
+   char *retPath;
 
    srcPath = File_FullPath(path);
    if (!srcPath) {
@@ -668,7 +669,7 @@ FileIO_AtomicTempPath(ConstUnicode path)  // IN:
       return NULL;
    }
    retPath = Unicode_Join(srcPath, "~", NULL);
-   Unicode_Free(srcPath);
+   free(srcPath);
 
    return retPath;
 }
@@ -679,7 +680,7 @@ FileIO_AtomicTempPath(ConstUnicode path)  // IN:
  *
  * FileIO_AtomicTempFile
  *
- *      Create a temp file in the same directory as the argument file. 
+ *      Create a temp file in the same directory as the argument file.
  *      On non-Windows attempts to create the temp file with the same
  *      permissions and owner/group as the argument file.
  *
@@ -696,7 +697,7 @@ FileIOResult
 FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
                       FileIODescriptor *tempFD)  // OUT:
 {
-   Unicode tempPath = NULL;
+   char *tempPath = NULL;
    int permissions;
    FileIOResult status;
 #if !defined(_WIN32)
@@ -769,7 +770,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    }
 #endif
 
-   Unicode_Free(tempPath);
+   free(tempPath);
    return FILEIO_SUCCESS;
 
 bail:
@@ -787,7 +788,7 @@ bail:
       ASSERT(ret == 0);
 #endif
    }
-   Unicode_Free(tempPath);
+   free(tempPath);
    return status;
 }
 
@@ -864,20 +865,20 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       File_GetPathName(newPath, &dirName, &fileName);
       File_GetPathName(currPath, &dstDirName, &dstFileName);
 
-      ASSERT(dirName && *dirName);
+      ASSERT(dirName);
       ASSERT(fileName && *fileName);
-      ASSERT(dstDirName && *dstDirName);
+      ASSERT(dstDirName);
       ASSERT(dstFileName && *dstFileName);
-      ASSERT(!strcmp(dirName, dstDirName));
+      ASSERT(File_IsSameFile(dirName, dstDirName));
 
-      args = (FS_SwapFilesArgs *) Util_SafeCalloc(1, sizeof(*args));
-      if (Str_Snprintf(args->srcFile, sizeof(args->srcFile), "%s",
+      args = Util_SafeCalloc(1, sizeof *args);
+      if (Str_Snprintf(args->srcFile, sizeof args->srcFile, "%s",
                        fileName) < 0) {
          Log("%s: Path too long \"%s\".\n", __FUNCTION__, fileName);
          savedErrno = ENAMETOOLONG;
          goto swapdone;
       }
-      if (Str_Snprintf(args->dstFilePath, sizeof(args->dstFilePath), "%s/%s",
+      if (Str_Snprintf(args->dstFilePath, sizeof args->dstFilePath, "%s/%s",
                        dstDirName, dstFileName) < 0) {
          Log("%s: Path too long \"%s\".\n", __FUNCTION__, dstFileName);
          savedErrno = ENAMETOOLONG;
@@ -888,6 +889,12 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
        * Issue the ioctl on the directory rather than on the file,
        * because the file could be open.
        */
+
+      if (!*dirName) {
+         /* need a proper root directory string for Posix_Open() */
+         free(dirName);
+         dirName = Util_SafeStrdup("/");
+      }
 
       fd = Posix_Open(dirName, O_RDONLY);
       if (fd < 0) {
@@ -1007,8 +1014,8 @@ swapdone:
    currFD->win32 = tmpFD.win32;
 
    FileIO_Cleanup(&tmpFD);
-   Unicode_Free(currPath);
-   Unicode_Free(newPath);
+   free(currPath);
+   free(newPath);
    errno = savedErrno;
 
    return ret;

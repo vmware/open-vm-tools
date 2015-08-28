@@ -49,7 +49,7 @@ DictLL_UnmarshalLine(const char *buf,  // IN
 
 Bool
 DictLL_MarshalLine(DynBuf *output,     // IN/OUT
-                   char const *name,   // IN
+                   char const *name,   // IN/OPT
                    char const *value); // IN
 
 

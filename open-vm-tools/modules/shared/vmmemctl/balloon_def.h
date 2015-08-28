@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000-2012,2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -96,6 +96,9 @@
  * | GUEST_ID           | Always available     |
  * | BATCHED_LOCK       | BATCHED_CMDS         |
  * | BATCHED_UNLOCK     | BATCHED_CMDS         |
+ * | BATCHED_2M_LOCK    | BATCHED_2M_CMDS      |
+ * | BATCHED_2M_UNLOCK  | BATCHED_2M_CMDS      |
+ * | VMCI_DOORBELL_SET  | SIGNALED_WAKEUP_CMD  |
  * +====================+======================+
  *
  * (*) The START command has been slightly modified when more than the
@@ -110,14 +113,17 @@
  */
 
 /* backdoor command numbers */
-#define BALLOON_BDOOR_CMD_START          (0)
-#define BALLOON_BDOOR_CMD_TARGET         (1)
-#define BALLOON_BDOOR_CMD_LOCK           (2)
-#define BALLOON_BDOOR_CMD_UNLOCK         (3)
-#define BALLOON_BDOOR_CMD_GUEST_ID       (4)
+#define BALLOON_BDOOR_CMD_START             (0)
+#define BALLOON_BDOOR_CMD_TARGET            (1)
+#define BALLOON_BDOOR_CMD_LOCK              (2)
+#define BALLOON_BDOOR_CMD_UNLOCK            (3)
+#define BALLOON_BDOOR_CMD_GUEST_ID          (4)
 /* The command 5 was shortly used between 1881144 and 1901153. */
-#define BALLOON_BDOOR_CMD_BATCHED_LOCK   (6)
-#define BALLOON_BDOOR_CMD_BATCHED_UNLOCK (7)
+#define BALLOON_BDOOR_CMD_BATCHED_LOCK      (6)
+#define BALLOON_BDOOR_CMD_BATCHED_UNLOCK    (7)
+#define BALLOON_BDOOR_CMD_BATCHED_2M_LOCK   (8)
+#define BALLOON_BDOOR_CMD_BATCHED_2M_UNLOCK (9)
+#define BALLOON_BDOOR_CMD_VMCI_DOORBELL_SET (10)
 
 /* balloon capabilities */
 typedef enum {
@@ -130,7 +136,9 @@ typedef enum {
     * LOCK and UNLOCK.
     */
    BALLOON_BASIC_CMDS           = (1 << 1),
-   BALLOON_BATCHED_CMDS         = (1 << 2)
+   BALLOON_BATCHED_CMDS         = (1 << 2),
+   BALLOON_BATCHED_2M_CMDS      = (1 << 3),
+   BALLOON_SIGNALED_WAKEUP_CMD  = (1 << 4),
 } BalloonCapabilities;
 
 /* use config value for max balloon size */
@@ -169,7 +177,7 @@ typedef enum {
 /*
  * BatchPage.
  */
-#define BALLOON_BATCH_MAX_PAGES         (PAGE_SIZE / sizeof(PA64))
+#define BALLOON_BATCH_MAX_ENTRIES       (PAGE_SIZE / sizeof(PA64))
 
 /*
  * We are using the fact that for 4k pages, the 12LSB are set to 0, so
@@ -182,10 +190,6 @@ typedef enum {
  * +=============+==========+========+
  * 64  PAGE_SHIFT          6         0
  *
- * For now, only 4k pages are supported by the monitor, but by using
- * reserved bit we can in the future add some flags that will indicate
- * whether the page is a 2M page or a 1G page.
- *
  * The reserved field should be set to 0.
  *
  */
@@ -195,7 +199,7 @@ typedef enum {
 #define BALLOON_BATCH_PAGE_MASK         (~MASK64(PAGE_SHIFT))
 
 typedef struct BalloonBatchPage {
-   PA64 pages[BALLOON_BATCH_MAX_PAGES];
+   PA64 entries[BALLOON_BATCH_MAX_ENTRIES];
 } BalloonBatchPage;
 
 
@@ -218,8 +222,8 @@ static INLINE PA64
 Balloon_BatchGetPA(BalloonBatchPage *batchPage,         // IN
                    uint16 idx)                          // IN
 {
-   ASSERT(idx < BALLOON_BATCH_MAX_PAGES);
-   return batchPage->pages[idx] & BALLOON_BATCH_PAGE_MASK;
+   ASSERT(idx < BALLOON_BATCH_MAX_ENTRIES);
+   return batchPage->entries[idx] & BALLOON_BATCH_PAGE_MASK;
 }
 
 
@@ -242,8 +246,8 @@ static INLINE uint8
 Balloon_BatchGetStatus(BalloonBatchPage *batchPage,     // IN
                        uint16 idx)                      // IN
 {
-   ASSERT(idx < BALLOON_BATCH_MAX_PAGES);
-   return (uint8)(batchPage->pages[idx] & BALLOON_BATCH_STATUS_MASK);
+   ASSERT(idx < BALLOON_BATCH_MAX_ENTRIES);
+   return (uint8)(batchPage->entries[idx] & BALLOON_BATCH_STATUS_MASK);
 }
 
 
@@ -267,9 +271,9 @@ Balloon_BatchSetPA(BalloonBatchPage *batchPage,            // IN
                    uint16 idx,                             // IN
                    PA64 pa)                                // IN
 {
-   ASSERT(idx < BALLOON_BATCH_MAX_PAGES);
+   ASSERT(idx < BALLOON_BATCH_MAX_ENTRIES);
    ASSERT((pa & ~BALLOON_BATCH_PAGE_MASK) == 0);
-   batchPage->pages[idx] = pa;
+   batchPage->entries[idx] = pa;
 }
 
 
@@ -294,9 +298,9 @@ Balloon_BatchSetStatus(BalloonBatchPage *batchPage,      // IN
                        int error)                        // IN
 {
    PA64 pa = Balloon_BatchGetPA(batchPage, idx);
-   ASSERT(idx < BALLOON_BATCH_MAX_PAGES);
+   ASSERT(idx < BALLOON_BATCH_MAX_ENTRIES);
    ASSERT(error <= BALLOON_ERROR_BUSY && error >= BALLOON_FAILURE);
-   batchPage->pages[idx] = pa | (PPN64)error;
+   batchPage->entries[idx] = pa | (PPN64)error;
 }
 
 MY_ASSERTS(BALLOON_BATCH_SIZE,

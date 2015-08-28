@@ -119,24 +119,24 @@ Bool FileRetryThisError(DWORD error,
                         uint32 numCodes,
                         DWORD *codes);
 
-int FileAttributesRetry(ConstUnicode pathName,
+int FileAttributesRetry(const char *pathName,
                         uint32 msecMaxWaitTime,
                         FileData *fileData);
 
-int FileDeletionRetry(ConstUnicode pathName,
+int FileDeletionRetry(const char *pathName,
                       Bool handleLink,
                       uint32 msecMaxWaitTime);
 
-int FileCreateDirectoryRetry(ConstUnicode pathName,
+int FileCreateDirectoryRetry(const char *pathName,
                              int mask,
                              uint32 msecMaxWaitTime);
 
-int FileRemoveDirectoryRetry(ConstUnicode pathName,
+int FileRemoveDirectoryRetry(const char *pathName,
                              uint32 msecMaxWaitTime);
 
-int FileListDirectoryRetry(ConstUnicode pathName,
+int FileListDirectoryRetry(const char *pathName,
                            uint32 msecMaxWaitTime,
-                           Unicode **ids);
+                           char ***ids);
 
 #define FileAttributes(a, b)       FileAttributesRetry((a), 0, (b))
 #define FileDeletion(a, b)         FileDeletionRetry((a), (b), 0)
@@ -165,16 +165,16 @@ FileMapErrorToErrno(const char *functionName,
 
 char *FilePosixGetBlockDevice(char const *path);
 
-int FileAttributes(ConstUnicode pathName,
+int FileAttributes(const char *pathName,
                    FileData *fileData);
 
-int FileDeletion(ConstUnicode pathName,
+int FileDeletion(const char *pathName,
                  Bool handleLink);
 
-int FileCreateDirectory(ConstUnicode pathName,
+int FileCreateDirectory(const char *pathName,
                        int mask);
 
-int FileRemoveDirectory(ConstUnicode pathName);
+int FileRemoveDirectory(const char *pathName);
 
 #define FileListDirectoryRobust(a, b)    File_ListDirectory((a), (b))
 #define FileAttributesRobust(a, b)       FileAttributes((a), (b))
@@ -189,7 +189,7 @@ typedef struct active_lock
   struct active_lock *next;
   uint32              age;
   Bool                marked;
-  Unicode             dirName;
+  char               *dirName;
 } ActiveLock;
 
 typedef struct lock_values
@@ -198,7 +198,7 @@ typedef struct lock_values
    char         *executionID;
    char         *lockType;
    char         *locationChecksum;
-   Unicode       memberName;
+   char         *memberName;
    unsigned int  lamportNumber;
    Bool          exclusivity;
    uint32        waitTime;
@@ -221,40 +221,40 @@ const char *FileLockGetMachineID(void);
 
 char *FileLockGetExecutionID(void);
 
-Bool FileLockMachineIDMatch(char *host,
-                            char *second);
+Bool FileLockMachineIDMatch(const char *host,
+                            const char *second);
 
-int FileLockMemberValues(ConstUnicode lockDir, 
-                         ConstUnicode fileName,
+int FileLockMemberValues(const char *lockDir,
+                         const char *fileName,
                          char *buffer,
                          size_t size,
                          LockValues *memberValues);
 
-FileLockToken *FileLockIntrinsic(ConstUnicode filePathName,
+FileLockToken *FileLockIntrinsic(const char *filePathName,
                                  Bool exclusivity,
                                  uint32 msecMaxWaitTime,
                                  int *err);
 
 int FileUnlockIntrinsic(FileLockToken *tokenPtr);
 
-Bool FileLockIsLocked(ConstUnicode filePath,
+Bool FileLockIsLocked(const char *filePath,
                       int *err);
 
 Bool FileLockValidExecutionID(const char *executionID);
 
-Bool FileLockValidName(ConstUnicode fileName);
+Bool FileLockValidName(const char *fileName);
 
 void FileLockAppendMessage(MsgList **msgs,
                            int err);
 
-Bool FileIsWritableDir(ConstUnicode dirName);
+Bool FileIsWritableDir(const char *dirName);
 
-UnicodeIndex FileFirstSlashIndex(ConstUnicode pathName,
+UnicodeIndex FileFirstSlashIndex(const char *pathName,
                                  UnicodeIndex startIndex);
 
 FileIOResult
 FileIOCreateRetry(FileIODescriptor *fd,
-                  ConstUnicode pathName,
+                  const char *pathName,
                   int access,
                   FileIOOpenAction action,
                   int mode,
@@ -314,7 +314,7 @@ FileIOAligned_Free(void *ptr)  // IN:
 }
 
 #if defined(__APPLE__)
-int PosixFileOpener(ConstUnicode pathName,
+int PosixFileOpener(const char *pathName,
                     int flags,
                     mode_t mode);
 #else

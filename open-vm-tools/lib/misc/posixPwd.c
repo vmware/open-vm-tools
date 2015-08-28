@@ -63,7 +63,7 @@ static int GetpwInternal_r(struct passwd *pw, char *buf, size_t size,
  */
 
 struct passwd *
-Posix_Getpwnam(ConstUnicode name)  // IN:
+Posix_Getpwnam(const char *name)  // IN:
 {
    struct passwd *pw;
    char *tmpname;
@@ -616,7 +616,7 @@ EmulateGetgrnam_r(const char *name,       // IN:
  */
 
 int
-Posix_Getpwnam_r(ConstUnicode name,    // IN:
+Posix_Getpwnam_r(const char *name,     // IN:
                  struct passwd *pw,    // IN:
                  char *buf,            // IN:
                  size_t size,          // IN:
@@ -858,10 +858,10 @@ exit:
  */
 
 int
-Posix_GetGroupList(ConstUnicode user,  // IN:
-                   gid_t group,        // IN:
-                   gid_t *groups,      // OUT:
-                   int *ngroups)       // IN/OUT:
+Posix_GetGroupList(const char *user,  // IN:
+                   gid_t group,       // IN:
+                   gid_t *groups,     // OUT:
+                   int *ngroups)      // IN/OUT:
 {
    char *tmpuser;
    int ret;
@@ -917,7 +917,7 @@ Posix_GetGroupList(ConstUnicode user,  // IN:
  */
 
 struct group *
-Posix_Getgrnam(ConstUnicode name)  // IN:
+Posix_Getgrnam(const char *name)  // IN:
 {
    struct group *gr;
    char *tmpname;
@@ -940,7 +940,7 @@ Posix_Getgrnam(ConstUnicode name)  // IN:
    free(sgr.gr_passwd);
    sgr.gr_passwd = NULL;
    if (sgr.gr_mem != NULL) {
-      Unicode_FreeList(sgr.gr_mem, -1);
+      Util_FreeStringList(sgr.gr_mem, -1);
       sgr.gr_mem = NULL;
    }
 
@@ -993,7 +993,7 @@ Posix_Getgrnam(ConstUnicode name)  // IN:
  */
 
 int
-Posix_Getgrnam_r(ConstUnicode name,    // IN:
+Posix_Getgrnam_r(const char *name,     // IN:
                  struct group *gr,     // IN:
                  char *buf,            // IN:
                  size_t size,          // IN:
@@ -1101,7 +1101,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
    free(grpasswd);
    free(grname);
    if (grmem) {
-      Unicode_FreeList(grmem, -1);
+      Util_FreeStringList(grmem, -1);
    }
 
    return ret;

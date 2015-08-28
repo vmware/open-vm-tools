@@ -137,8 +137,8 @@ typedef enum {
    HGFS_OP_DELETE_V4,             /* Delete a file or a directory */
    HGFS_OP_LINKMOVE_V4,           /* Rename/move/create hard link. */
    HGFS_OP_FSCTL_V4,              /* Sending FS control requests. */
-   HGFS_OP_ACCESS_CHECK_V4,       /* Flush all cached data to the disk. */
-   HGFS_OP_FSYNC_V4,              /* Access check. */
+   HGFS_OP_ACCESS_CHECK_V4,       /* Access check. */
+   HGFS_OP_FSYNC_V4,              /* Flush all cached data to the disk. */
    HGFS_OP_QUERY_VOLUME_INFO_V4,  /* Query volume information. */
    HGFS_OP_OPLOCK_ACQUIRE_V4,     /* Acquire OPLOCK. */
    HGFS_OP_OPLOCK_BREAK_V4,       /* Break or downgrade OPLOCK. */
@@ -787,12 +787,25 @@ HgfsReplyOpenV2;
 
 /* Version 3 of HgfsReplyOpen */
 
+
+/*
+ * The HGFS open V3 can acquire locks and reserve disk space when requested.
+ * However, current versions of the server don't implement the locking or allocation of
+ * disk space on a create. These results flags indicate to the client if the server
+ * implements handling those fields and so the clients can respond accordingly.
+ */
+typedef uint32 HgfsReplyOpenFlags;
+
+#define HGFS_OPEN_REPLY_ALLOC_DISK_SPACE      (1 << 0)
+#define HGFS_OPEN_REPLY_LOCKED_FILE           (1 << 1)
+
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyOpenV3 {
    HgfsHandle file;                  /* Opaque file ID used by the server */
    HgfsLockType acquiredLock;        /* The type of lock acquired by the server */
-   uint64 reserved;                  /* Reserved for future use */
+   HgfsReplyOpenFlags flags;         /* Opened file flags */
+   uint32 reserved;                  /* Reserved for future use */
 }
 #include "vmware_pack_end.h"
 HgfsReplyOpenV3;

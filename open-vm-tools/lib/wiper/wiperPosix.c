@@ -881,7 +881,7 @@ Wiper_Next(Wiper_State **s,         // IN/OUT
                                FILEIO_OPEN_ACCESS_WRITE
                                | FILEIO_OPEN_DELETE_ASAP,
                                FILEIO_OPEN_CREATE_SAFE);
-            if (fret == FILEIO_SUCCESS) {
+            if (FileIO_IsSuccess(fret)) {
                break;
             }
 
@@ -922,8 +922,7 @@ Wiper_Next(Wiper_State **s,         // IN/OUT
             /*
              * We distiguish errors from FilieIO_Write.
              */
-            if (fret != FILEIO_SUCCESS) {
-
+            if (!FileIO_IsSuccess(fret)) {
                /* The file is too big even though its size is less than 2GB */
                if (fret == FILEIO_WRITE_ERROR_FBIG) {
                   (*state)->phase = WIPER_PHASE_CREATE;

@@ -55,8 +55,8 @@
  */
 
 int
-Unicode_CompareWithLocale(ConstUnicode str1,                  // IN
-                          ConstUnicode str2,                  // IN
+Unicode_CompareWithLocale(const char *str1,                   // IN
+                          const char *str2,                   // IN
                           const char *locale,                 // IN
                           UnicodeCompareOption compareOption) // IN
 {
@@ -154,7 +154,7 @@ Unicode_CompareWithLocale(ConstUnicode str1,                  // IN
  *
  * Results:
  *      The allocated Unicode string, or NULL on failure.
- *      Caller must free with Unicode_Free().
+ *      Caller must free with free().
  *
  * Side effects:
  *      None
@@ -162,13 +162,13 @@ Unicode_CompareWithLocale(ConstUnicode str1,                  // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_Normalize(ConstUnicode str,              // IN
+char *
+Unicode_Normalize(const char *str,               // IN
                   UnicodeNormalizationForm form) // IN
 {
    UNormalizationMode mode;
    UChar *uchars;
-   Unicode result;
+   char *result;
    int32_t normalizedLen;
    UErrorCode status = U_ZERO_ERROR;
    UCharIterator strIter;
@@ -246,7 +246,7 @@ Unicode_Normalize(ConstUnicode str,              // IN
  *
  * Results:
  *      The allocated Unicode string, or NULL on failure.
- *      Caller must free with Unicode_Free().
+ *      Caller must free with free().
  *
  * Side effects:
  *      None
@@ -254,8 +254,8 @@ Unicode_Normalize(ConstUnicode str,              // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_ToLower(ConstUnicode str,   // IN
+char *
+Unicode_ToLower(const char *str,    // IN
                 const char *locale) // IN
 {
    UCaseMap *caseMap;
@@ -265,7 +265,7 @@ Unicode_ToLower(ConstUnicode str,   // IN
    int32_t utf8SrcLen = strlen(utf8Src);
    int32_t destCapacity = utf8SrcLen + 1;
    int32_t destLen;
-   Unicode result = NULL;
+   char *result = NULL;
 
    /*
     * XXX TODO: This and the two following functions are substantially
@@ -309,7 +309,7 @@ Unicode_ToLower(ConstUnicode str,   // IN
    ucasemap_close(caseMap);
 
    if (U_SUCCESS(status) && status != U_STRING_NOT_TERMINATED_WARNING) {
-      result = (Unicode)utf8Dest;
+      result = utf8Dest;
    } else {
       ASSERT(U_SUCCESS(status));
       ASSERT(status != U_STRING_NOT_TERMINATED_WARNING);
@@ -334,7 +334,7 @@ Unicode_ToLower(ConstUnicode str,   // IN
  *
  * Results:
  *      The allocated Unicode string, or NULL on failure.
- *      Caller must free with Unicode_Free().
+ *      Caller must free with free().
  *
  * Side effects:
  *      None
@@ -342,8 +342,8 @@ Unicode_ToLower(ConstUnicode str,   // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_ToUpper(ConstUnicode str,   // IN
+char *
+Unicode_ToUpper(const char *str,    // IN
                 const char *locale) // IN
 {
    UCaseMap *caseMap;
@@ -353,7 +353,7 @@ Unicode_ToUpper(ConstUnicode str,   // IN
    int32_t utf8SrcLen = strlen(utf8Src);
    int32_t destCapacity = utf8SrcLen + 1;
    int32_t destLen;
-   Unicode result = NULL;
+   char *result = NULL;
 
    // Most upper-case operations don't change the length of the string.
    utf8Dest = (char *)Util_SafeMalloc(destCapacity);
@@ -390,7 +390,7 @@ Unicode_ToUpper(ConstUnicode str,   // IN
    ucasemap_close(caseMap);
 
    if (U_SUCCESS(status) && status != U_STRING_NOT_TERMINATED_WARNING) {
-      result = (Unicode)utf8Dest;
+      result = utf8Dest;
    } else {
       ASSERT(U_SUCCESS(status));
       ASSERT(status != U_STRING_NOT_TERMINATED_WARNING);
@@ -425,7 +425,7 @@ Unicode_ToUpper(ConstUnicode str,   // IN
  *
  * Results:
  *      The allocated Unicode string, or NULL on failure.
- *      Caller must free with Unicode_Free().
+ *      Caller must free with free().
  *
  * Side effects:
  *      None
@@ -433,8 +433,8 @@ Unicode_ToUpper(ConstUnicode str,   // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_ToTitle(ConstUnicode str,   // IN
+char *
+Unicode_ToTitle(const char *str,    // IN
                 const char *locale) // IN
 {
    UCaseMap *caseMap;
@@ -444,7 +444,7 @@ Unicode_ToTitle(ConstUnicode str,   // IN
    int32_t utf8SrcLen = strlen(utf8Src);
    int32_t destCapacity = utf8SrcLen + 1;
    int32_t destLen;
-   Unicode result = NULL;
+   char *result = NULL;
 
    // Most title-case operations don't change the length of the string.
    utf8Dest = (char *)Util_SafeMalloc(destCapacity);
@@ -481,7 +481,7 @@ Unicode_ToTitle(ConstUnicode str,   // IN
    ucasemap_close(caseMap);
 
    if (U_SUCCESS(status) && status != U_STRING_NOT_TERMINATED_WARNING) {
-      result = (Unicode)utf8Dest;
+      result = utf8Dest;
    } else {
       ASSERT(U_SUCCESS(status));
       ASSERT(status != U_STRING_NOT_TERMINATED_WARNING);

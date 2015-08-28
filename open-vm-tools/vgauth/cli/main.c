@@ -41,7 +41,7 @@
 #include "i18n.h"
 #include "prefs.h"
 
-static const gchar *appName;
+static gchar *appName;
 
 static gboolean verbose = FALSE;
 
@@ -458,7 +458,7 @@ mainRun(int argc,
    };
    GOptionContext *context;
 
-   appName = g_basename(argv[0]);
+   appName = g_path_get_basename(argv[0]);
 
    /*
     * The option parser needs to modify these, and using the variables
@@ -586,6 +586,7 @@ mainRun(int argc,
    }
 
    VGAuth_Shutdown(ctx);
+   g_free(appName);
    return (err == VGAUTH_E_OK) ? 0 : -1;
 }
 

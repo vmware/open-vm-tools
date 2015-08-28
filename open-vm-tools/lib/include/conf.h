@@ -50,7 +50,7 @@
 #define CONFNAME_SUSPENDSCRIPT            "suspend-script"
 #define CONFNAME_LOG                      "log"
 #define CONFNAME_LOGFILE                  "log.file"
-#define CONFNAME_LOGLEVEL                 "log.level" 
+#define CONFNAME_LOGLEVEL                 "log.level"
 #define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
 #define CONFNAME_DISABLEPMTIMERWARNING    "disable-pmtimerwarning"
 
@@ -87,6 +87,21 @@
  */
 #define CONFNAME_GUESTINFO_POLLINTERVAL "poll-interval"
 
+/**
+ * Define a custom GuestStats poll interval (in seconds).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * stats interval.
+ *
+ * @param int   User-defined poll interval for stats.  Set to 0 to disable polling.
+ */
+#define CONFNAME_GUESTINFO_STATSINTERVAL "stats-interval"
+
+/**
+ * Indicates whether stat results should be written to the log.
+ */
+#define CONFNAME_GUESTINFO_ENABLESTATLOGGING "enable-stat-logging"
+
 /*
  * END GuestInfo goodies.
  ******************************************************************************
@@ -102,11 +117,6 @@
  * Defines the string used for the Unity config file group.
  */
 #define CONFGROUPNAME_UNITY "unity"
-
-/**
- * Lets users enable debug info from Unity.
- */
-#define CONFNAME_UNITY_ENABLEDEBUG "debug"
 
 /**
  * Lets users override system decisions about whether unity should be available.
@@ -140,6 +150,6 @@
 #define CONF_VMWARE_TOOLS_REGKEY    "Software\\VMware, Inc.\\VMware Tools"
 
 /* Wait 5 seconds between polls to see if the conf file has changed */
-#define CONF_POLL_TIME     500
+#define CONF_POLL_TIME     5
 
 #endif /* __CONF_H__ */

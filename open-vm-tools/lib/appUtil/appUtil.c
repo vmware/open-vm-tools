@@ -22,6 +22,8 @@
  *    Utility functions for guest applications.
  */
 
+#include "appUtil.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,7 +40,7 @@
  * AppUtil_SendGuestCaps --
  *
  *     Send a list of guest capabilities to the host.
- * 
+ *
  * Results:
  *     None.
  *

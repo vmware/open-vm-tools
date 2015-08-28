@@ -313,31 +313,31 @@ Bool
 CodeSet_Utf16leToUtf8(const char *bufIn,   // IN
                       size_t sizeIn,       // IN
                       char **bufOut,       // OUT
-                      size_t *sizeOut);    // OUT
+                      size_t *sizeOut);    // OUT/OPT
 
 Bool
 CodeSet_Utf8ToUtf16le(const char *bufIn,   // IN
                       size_t sizeIn,       // IN
                       char **bufOut,       // OUT
-                      size_t *sizeOut);    // OUT
+                      size_t *sizeOut);    // OUT/OPT
 
 Bool
 CodeSet_CurrentToUtf16le(const char *bufIn,   // IN
                          size_t sizeIn,       // IN
                          char **bufOut,       // OUT
-                         size_t *sizeOut);    // OUT
+                         size_t *sizeOut);    // OUT/OPT
 
 Bool
 CodeSet_Utf16leToCurrent(const char *bufIn,   // IN
                          size_t sizeIn,       // IN
                          char **bufOut,       // OUT
-                         size_t *sizeOut);    // OUT
+                         size_t *sizeOut);    // OUT/OPT
 
 Bool
 CodeSet_Utf16beToCurrent(const char *bufIn,   // IN
                          size_t sizeIn,       // IN
                          char **bufOut,       // OUT
-                         size_t *sizeOut);    // OUT
+                         size_t *sizeOut);    // OUT/OPT
 
 Bool
 CodeSetOld_Utf8Normalize(const char *bufIn,     // IN
@@ -349,39 +349,39 @@ Bool
 CodeSet_Utf8FormDToUtf8FormC(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
-                             size_t *sizeOut);      // OUT
+                             size_t *sizeOut);      // OUT/OPT
 
 Bool
 CodeSet_Utf8FormCToUtf8FormD(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
-                             size_t *sizeOut);      // OUT
+                             size_t *sizeOut);      // OUT/OPT
 
 const char *
 CodeSet_GetCurrentCodeSet(void);
 
 Bool
-CodeSet_IsEncodingSupported(const char *name);
+CodeSet_IsEncodingSupported(const char *name);  // IN:
 
 Bool
 CodeSet_Validate(const char *buf,   // IN: the string
                  size_t size,	    // IN: length of string
                  const char *code); // IN: encoding
 
-Bool CodeSet_UTF8ToUTF32(const char *utf8,
-                         char **utf32);
+Bool CodeSet_UTF8ToUTF32(const char *utf8,  // IN:
+                         char **utf32);     // OUT:
 
-Bool CodeSet_UTF32ToUTF8(const char *utf32,
-                         char **utf8);
+Bool CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
+                         char **utf8);       // OUT:
 
-int CodeSet_LengthInCodePoints(const char *utf8);
+int CodeSet_LengthInCodePoints(const char *utf8);  // IN:
 
-int CodeSet_CodePointOffsetToByteOffset(const char *utf8,
-                                        int codePointOffset);
+int CodeSet_CodePointOffsetToByteOffset(const char *utf8,      // IN:
+                                        int codePointOffset);  // IN:
 
-int CodeSet_GetUtf8(const char *string,
-                    const char *end,
-                    uint32 *uchar);
+int CodeSet_GetUtf8(const char *string,  // IN:
+                    const char *end,     // IN:
+                    uint32 *uchar);      // OUT/OPT:
 
 
 /*

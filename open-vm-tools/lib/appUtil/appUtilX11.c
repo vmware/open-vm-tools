@@ -101,7 +101,7 @@ static void
 AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
                          const char *iconName) // IN
 {
-   char *myIconName;
+   char *myIconName = NULL;
    char *baseIconName;
    /*
     * Use the GtkIconTheme to track down any available icons for this app.

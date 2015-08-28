@@ -32,12 +32,18 @@
  * USE_PAM should be defined in the makefile, since it impacts
  * what system libraries (-ld, -lcrypt) will be needed.
  *
- * XXX The non-PAM case builds, but is currently untested (since it can't work
- * with Linux security).
+ * XXX non-PAM code doesn't enforce a delay after failure to
+ * slow down a brute-force attack.
  */
 #ifdef USE_PAM
 #  include <security/pam_appl.h>
 #  include <dlfcn.h>
+#else
+# ifdef __APPLE__
+#  error - Apple not supported.
+# else
+#  include <shadow.h>
+# endif
 #endif
 
 #include <pwd.h>
@@ -323,15 +329,25 @@ VGAuthValidateUsernamePasswordImpl(VGAuthContext *ctx,
    }
 
    if (*pwd->pw_passwd != '\0') {
-      char *namep = (char *) crypt(password, pwd->pw_passwd);
+      const char *passwd = pwd->pw_passwd;
+      const char *crypt_pw;
 
-      if (strcmp(namep, pwd->pw_passwd)) {
+      // looks like a shadow password, so use it instead
+      if (strcmp(passwd, "x") == 0) {
+         struct spwd *sp = getspnam(userName);
+         if (sp) {
+            passwd = sp->sp_pwdp;
+         }
+      }
+
+      crypt_pw = crypt(password, passwd);
+      if (!crypt_pw || (strcmp(crypt_pw, passwd) != 0)) {
          // Incorrect password
          return VGAUTH_E_AUTHENTICATION_DENIED;
       }
 
       // Clear out crypt()'s internal state, too.
-      crypt("glurp", pwd->pw_passwd);
+      crypt("glurp", passwd);
    }
 #endif /* !USE_PAM */
 

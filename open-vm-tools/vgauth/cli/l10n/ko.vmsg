@@ -16,62 +16,60 @@
 #
 ##########################################################
 
-addsubj.fail = "%1$s: '%2$s' 사용자에 대한 별칭을 추가하지 못했습니다. %3$s.\n"
-addsubj.success = "%1$s: 별칭이 추가되었습니다.\n"
+addsubj.fail = "%1$s: 사용자 '%2$s'에 대한 별칭을 추가하지 못했습니다. %3$s.\n"
+addsubj.success = "%1$s: 별칭이 추가됨\n"
 
 addoptions.comment = "제목 설명"
 
 addoptions.file = "PEM 파일 이름"
 
-addoptions.global = "인증서를 글로벌 매핑 파일에 추가"
+addoptions.global = "글로벌 매핑 파일에 인증서 추가"
 
-addoptions.subject = "SAML 제목"
+addoptions.subject = "SAML 주체"
 
-addoptions.username = "추가되는 인증서 저장소를 소유한 사용자"
+addoptions.username = "인증서 저장소를 추가 중인 사용자"
 
-addoptions.verbose = "세부 작업"
+addoptions.verbose = "자세한 정보 표시 작업"
 
 
-cmdline.parse = "명령줄을 구문 분석하지 못함"
+cmdline.parse = "명령줄 구문 분석 실패"
 
 cmdline.summary.pemfile = "PEM 파일"
 cmdline.summary.subject = "제목"
-cmdline.summary.username = "username"
-cmdline.summary.comm = "의견"
+cmdline.summary.username = "사용자 이름"
+cmdline.summary.comm = "설명"
 
 list.comment = "설명"
-list.count = "%1$s '%3$s' 사용자에 대한 별칭을 %2$d개 찾았습니다.\n"
+list.count = "%1$s에서 사용자 '%3$s'의 %2$d개 별칭이 확인되었습니다.\n"
 
-list.error = "%1$s: '%2$s' 사용자에 대한 별칭을 나열하지 못했습니다. %3$s.\n"
+list.error = "%1$s: 사용자 '%2$s'의 별칭을 나열하지 못했습니다. %3$s.\n"
 list.subject = "제목"
 
-listmapped.count = "%1$s 매핑된 별칭을 %2$d개 찾았습니다.\n"
+listmapped.count = "%1$s에서 %2$d개의 매핑된 별칭을 찾았습니다.\n"
 
-listmapped.error = "%1$s: %2$s에 대한 매핑된 별칭을 나열하지 못했습니다.\n"
+listmapped.error = "%1$s: 매핑된 별칭을 나열하지 못했습니다. %2$s.\n"
 
 listmapped.subject = "제목"
 
 listmapped.username = "사용자 이름"
 
-listoptions.username =
-         "쿼리되는 인증서 저장소를 소유한 사용자"
+listoptions.username = "인증서 저장소를 쿼리 중인 사용자"
 
-listoptions.verbose = "세부 작업"
+listoptions.verbose = "자세한 정보 표시 작업"
 
 loadfile.fail = "%1$s: PEM 파일 '%2$s'을(를) 읽을 수 없습니다.\n"
 
-name.any = "<임의>"
+name.any = "<모두>"
 
-removesubj.fail = "%1$s: '%2$s' 사용자에 대한 별칭을 제거하지 못했습니다. %3$s.\n"
+removesubj.fail = "%1$s: 사용자 '%2$s'에 대한 별칭을 제거하지 못했습니다. %3$s.\n"
 
-removesubj.success = "%1$s: 별칭이 제거되었습니다.\n"
+removesubj.success = "%1$s: 별칭이 제거됨\n"
 
 removeoptions.file = "PEM 파일 이름"
 
-removeoptions.subject = "SAML 제목"
-removeoptions.username =
-             "제거되는 인증서 저장소를 소유한 사용자"
+removeoptions.subject = "SAML 주체"
+removeoptions.username = "인증서 저장소를 제거 중인 사용자"
 
-removeoptions.verbose = "세부 작업"
+removeoptions.verbose = "자세한 정보 표시 작업"
 
-vgauth.init.failed = "VGAuth를 초기화하지 못했습니다."
+vgauth.init.failed = "VGAuth 초기화 실패"

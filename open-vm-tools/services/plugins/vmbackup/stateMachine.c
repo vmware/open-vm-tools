@@ -44,6 +44,9 @@
 #include "util.h"
 #include "vmBackupSignals.h"
 #include "guestQuiesce.h"
+#if !defined(_WIN32)
+#include "vmware/tools/threadPool.h"
+#endif
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
 #include "xdrutil.h"
@@ -76,6 +79,9 @@ static VmBackupState *gBackupState = NULL;
 static Bool
 VmBackupEnableSync(void);
 
+static Bool
+VmBackupEnableSyncWait(void);
+
 
 /**
  * Returns a string representation of the given state machine state.
@@ -94,6 +100,9 @@ VmBackupGetStateName(VmBackupMState state)
 
    case VMBACKUP_MSTATE_SCRIPT_FREEZE:
       return "SCRIPT_FREEZE";
+
+   case VMBACKUP_MSTATE_SYNC_FREEZE_WAIT:
+      return "SYNC_FREEZE_WAIT";
 
    case VMBACKUP_MSTATE_SYNC_FREEZE:
       return "SYNC_FREEZE";
@@ -269,10 +278,13 @@ VmBackupFinalize(void)
       g_source_destroy(gBackupState->abortTimer);
       g_source_unref(gBackupState->abortTimer);
    }
+
+   g_static_mutex_lock(&gBackupState->opLock);
    if (gBackupState->currentOp != NULL) {
       VmBackup_Cancel(gBackupState->currentOp);
       VmBackup_Release(gBackupState->currentOp);
    }
+   g_static_mutex_unlock(&gBackupState->opLock);
 
    VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_DONE, VMBACKUP_SUCCESS, "");
 
@@ -287,6 +299,7 @@ VmBackupFinalize(void)
    }
 
    gBackupState->provider->release(gBackupState->provider);
+   g_static_mutex_free(&gBackupState->opLock);
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
@@ -367,6 +380,7 @@ VmBackupOnError(void)
       }
       break;
 
+   case VMBACKUP_MSTATE_SYNC_FREEZE_WAIT:
    case VMBACKUP_MSTATE_SYNC_FREEZE:
    case VMBACKUP_MSTATE_SYNC_THAW:
       /* Next state is "sync error". */
@@ -404,11 +418,13 @@ VmBackupDoAbort(void)
    if (gBackupState->machineState != VMBACKUP_MSTATE_SCRIPT_ERROR &&
        gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
       /* Mark the current operation as cancelled. */
+      g_static_mutex_lock(&gBackupState->opLock);
       if (gBackupState->currentOp != NULL) {
          VmBackup_Cancel(gBackupState->currentOp);
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
       }
+      g_static_mutex_unlock(&gBackupState->opLock);
 
       VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ABORT,
                          VMBACKUP_REMOTE_ABORT,
@@ -462,27 +478,32 @@ VmBackupAsyncCallback(void *clientData)
    g_source_unref(gBackupState->timerEvent);
    gBackupState->timerEvent = NULL;
 
+   g_static_mutex_lock(&gBackupState->opLock);
    if (gBackupState->currentOp != NULL) {
       g_debug("VmBackupAsyncCallback: checking %s\n", gBackupState->currentOpName);
       status = VmBackup_QueryStatus(gBackupState->currentOp);
    }
+   g_static_mutex_unlock(&gBackupState->opLock);
 
    switch (status) {
    case VMBACKUP_STATUS_PENDING:
       goto exit;
 
    case VMBACKUP_STATUS_FINISHED:
+      g_static_mutex_lock(&gBackupState->opLock);
       if (gBackupState->currentOpName != NULL) {
          g_debug("Async request '%s' completed\n", gBackupState->currentOpName);
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOpName = NULL;
       }
       gBackupState->currentOp = NULL;
+      g_static_mutex_unlock(&gBackupState->opLock);
       break;
 
    default:
       {
          gchar *msg;
+         g_static_mutex_lock(&gBackupState->opLock);
          if (gBackupState->errorMsg != NULL) {
             msg = g_strdup_printf("'%s' operation failed: %s",
                                   gBackupState->currentOpName,
@@ -498,6 +519,7 @@ VmBackupAsyncCallback(void *clientData)
 
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
+         g_static_mutex_unlock(&gBackupState->opLock);
          VmBackupOnError();
          goto exit;
       }
@@ -512,9 +534,12 @@ VmBackupAsyncCallback(void *clientData)
       gBackupState->callback = NULL;
 
       if (cb(gBackupState)) {
+         g_static_mutex_lock(&gBackupState->opLock);
          if (gBackupState->currentOp != NULL || gBackupState->forceRequeue) {
+            g_static_mutex_unlock(&gBackupState->opLock);
             goto exit;
          }
+         g_static_mutex_unlock(&gBackupState->opLock);
       } else {
          VmBackupOnError();
          goto exit;
@@ -527,6 +552,13 @@ VmBackupAsyncCallback(void *clientData)
     */
    switch (gBackupState->machineState) {
    case VMBACKUP_MSTATE_SCRIPT_FREEZE:
+      /* Next state is "sync freeze wait". */
+      if (!VmBackupEnableSyncWait()) {
+         VmBackupOnError();
+      }
+      break;
+
+   case VMBACKUP_MSTATE_SYNC_FREEZE_WAIT:
       /* Next state is "sync freeze". */
       if (!VmBackupEnableSync()) {
          VmBackupOnError();
@@ -582,23 +614,44 @@ exit:
 
 
 /**
- * Calls the sync provider's start function.
+ * Calls the sync provider's start function and moves the state
+ * machine to next state.
  *
- * @param[in]  state    The backup state.
+ * For Windows next state is VMBACKUP_MSTATE_SYNC_FREEZE, whereas
+ * next state is VMBACKUP_MSTATE_SYNC_FREEZE_WAIT for Linux. Details
+ * below.
  *
  * @return Whether the provider's start callback was successful.
  */
 
 static Bool
-VmBackupEnableSync(void)
+VmBackupEnableSyncWait(void)
 {
    g_debug("*** %s\n", __FUNCTION__);
    g_signal_emit_by_name(gBackupState->ctx->serviceObj,
                          TOOLS_CORE_SIG_IO_FREEZE,
                          gBackupState->ctx,
                          TRUE);
+#if defined(_WIN32)
+   gBackupState->freezeStatus = VMBACKUP_FREEZE_FINISHED;
    if (!gBackupState->provider->start(gBackupState,
                                       gBackupState->provider->clientData)) {
+#else
+   /*
+    * PR 1020224:
+    * For Linux, FIFREEZE could take really long at times,
+    * especially when guest is running IO load. We have also
+    * seen slowness in performing open() on NFS mount points.
+    * So, we need to run freeze operation in a separate thread
+    * and track it with an extra state in the state machine.
+    */
+   gBackupState->freezeStatus = VMBACKUP_FREEZE_PENDING;
+   if (!ToolsCorePool_SubmitTask(gBackupState->ctx,
+                                 gBackupState->provider->start,
+                                 gBackupState,
+                                 NULL)) {
+      g_warning("Failed to submit backup start task.");
+#endif
       g_signal_emit_by_name(gBackupState->ctx->serviceObj,
                             TOOLS_CORE_SIG_IO_FREEZE,
                             gBackupState->ctx,
@@ -609,7 +662,48 @@ VmBackupEnableSync(void)
       return FALSE;
    }
 
+#if defined(_WIN32)
+   /* Move to next state */
    gBackupState->machineState = VMBACKUP_MSTATE_SYNC_FREEZE;
+#else
+   g_debug("Submitted backup start task.");
+   /* Move to next state */
+   gBackupState->machineState = VMBACKUP_MSTATE_SYNC_FREEZE_WAIT;
+#endif
+
+   return TRUE;
+}
+
+
+/**
+ * After sync provider's start function returns and moves the state
+ * machine to VMBACKUP_MSTATE_SYNC_FREEZE state.
+ *
+ * @return Whether the provider's start callback was successful.
+ */
+
+static Bool
+VmBackupEnableSync(void)
+{
+   g_debug("*** %s\n", __FUNCTION__);
+   if (gBackupState->freezeStatus == VMBACKUP_FREEZE_ERROR) {
+      g_signal_emit_by_name(gBackupState->ctx->serviceObj,
+                            TOOLS_CORE_SIG_IO_FREEZE,
+                            gBackupState->ctx,
+                            FALSE);
+      VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
+                         VMBACKUP_SYNC_ERROR,
+                         "Error when enabling the sync provider.");
+      return FALSE;
+
+   } else if (gBackupState->freezeStatus == VMBACKUP_FREEZE_CANCELED ||
+              gBackupState->freezeStatus == VMBACKUP_FREEZE_FINISHED) {
+      /* Move to next state */
+      gBackupState->machineState = VMBACKUP_MSTATE_SYNC_FREEZE;
+   } else {
+      ASSERT(gBackupState->freezeStatus == VMBACKUP_FREEZE_PENDING);
+   }
+
    return TRUE;
 }
 
@@ -726,8 +820,10 @@ VmBackupStartCommon(RpcInData *data,
    gBackupState->ctx = data->appCtx;
    gBackupState->pollPeriod = 1000;
    gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
+   gBackupState->freezeStatus = VMBACKUP_FREEZE_FINISHED;
    gBackupState->provider = provider;
    gBackupState->needsPriv = FALSE;
+   g_static_mutex_init(&gBackupState->opLock);
    gBackupState->enableNullDriver = VmBackupConfigGetBoolean(ctx->config,
                                                              "enableNullDriver",
                                                              TRUE);

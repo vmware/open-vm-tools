@@ -58,77 +58,77 @@ typedef int (*HashTableForEachCallback)(const char *key,
 #define HASH_FLAG_COPYKEY       0x10    // copy string key
 
 HashTable *
-HashTable_Alloc(uint32               numEntries,
-                int                  keyType,
-                HashTableFreeEntryFn fn);
+HashTable_Alloc(uint32               numEntries,  // IN:
+                int                  keyType,     // IN:
+                HashTableFreeEntryFn fn);         // IN/OPT:
 
 HashTable *
-HashTable_AllocOnce(Atomic_Ptr          *var,
-                    uint32               numEntries,
-                    int                  keyType,
-                    HashTableFreeEntryFn fn);
+HashTable_AllocOnce(Atomic_Ptr          *var,         // IN/OUT:
+                    uint32               numEntries,  // IN:
+                    int                  keyType,     // IN:
+                    HashTableFreeEntryFn fn);         // IN/OPT:
 
 void
-HashTable_Free(HashTable *hashTable);
+HashTable_Free(HashTable *hashTable);  // IN/OUT:
 
 void
-HashTable_FreeUnsafe(HashTable *hashTable);
+HashTable_FreeUnsafe(HashTable *hashTable);  // IN/OUT:
 
 Bool
-HashTable_Insert(HashTable  *hashTable,
-                 const void *keyStr,
-                 void       *clientData);
+HashTable_Insert(HashTable  *hashTable,    // IN/OUT:
+                 const void *keyStr,       // IN:
+                 void       *clientData);  // IN/OPT:
 
 Bool
-HashTable_Lookup(HashTable  *hashTable,
-                 const void *keyStr,
-                 void      **clientData);
+HashTable_Lookup(HashTable  *hashTable,    // IN:
+                 const void *keyStr,       // IN:
+                 void      **clientData);  // OUT/OPT:
 
 void *
-HashTable_LookupOrInsert(HashTable  *hashTable,
-                         const void *keyStr,
-                         void       *clientData);
+HashTable_LookupOrInsert(HashTable  *hashTable,    // IN/OUT:
+                         const void *keyStr,       // IN:
+                         void       *clientData);  // IN/OPT:
 
 Bool
-HashTable_ReplaceOrInsert(HashTable  *hashTable,
-                          const void *keyStr,
-                          void       *clientData);
+HashTable_ReplaceOrInsert(HashTable  *hashTable,    // IN/OUT:
+                          const void *keyStr,       // IN:
+                          void       *clientData);  // IN/OPT
 
 Bool
-HashTable_ReplaceIfEqual(HashTable  *hashTable,
-                         const void *keyStr,
-                         void       *oldClientData,
-                         void       *newClientData);
+HashTable_ReplaceIfEqual(HashTable  *hashTable,       // IN/OUT:
+                         const void *keyStr,          // IN:
+                         void       *oldClientData,   // IN/OPT
+                         void       *newClientData);  // IN/OPT
 
 Bool
-HashTable_Delete(HashTable  *hashTable,
-                 const void *keyStr);
+HashTable_Delete(HashTable  *hashTable,  // IN/OUT:
+                 const void *keyStr);    // IN:
 
 Bool
-HashTable_LookupAndDelete(HashTable  *hashTable,
-                          const void *keyStr,
-                          void      **clientData);
+HashTable_LookupAndDelete(HashTable  *hashTable,    // IN/OUT:
+                          const void *keyStr,       // IN:
+                          void      **clientData);  // OUT:
 
 void
-HashTable_Clear(HashTable *ht);
+HashTable_Clear(HashTable *ht);  // IN/OUT:
 
 void
-HashTable_ToArray(const HashTable   *ht,
-                  void            ***clientDatas,
-                  size_t            *size);
+HashTable_ToArray(const HashTable   *ht,           // IN:
+                  void            ***clientDatas,  // OUT:
+                  size_t            *size);        // OUT:
 
 void
-HashTable_KeyArray(const HashTable   *ht,
-                   const void      ***keys,
-                   size_t            *size);
+HashTable_KeyArray(const HashTable   *ht,     // IN:
+                   const void      ***keys,   // OUT:
+                   size_t            *size);  // OUT:
 
 size_t
-HashTable_GetNumElements(const HashTable *ht);
+HashTable_GetNumElements(const HashTable *ht);  // IN:
 
 int
-HashTable_ForEach(const HashTable          *ht,
-                  HashTableForEachCallback  cb,
-                  void                     *clientData);
+HashTable_ForEach(const HashTable          *ht,           // IN:
+                  HashTableForEachCallback  cb,           // IN:
+                  void                     *clientData);  // IN:
 
 /*
  * Specialize hash table that uses the callers data structure as its

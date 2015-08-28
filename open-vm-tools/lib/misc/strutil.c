@@ -95,8 +95,7 @@ StrUtil_GetNextToken(unsigned int *index,    // IN/OUT: Index to start at
 
    length = *index - startIndex;
    ASSERT(length);
-   token = (char *)malloc(length + 1 /* NUL */);
-   VERIFY(token);
+   token = Util_SafeMalloc(length + 1 /* NUL */);
    memcpy(token, str + startIndex, length);
    token[length] = '\0';
 
@@ -462,7 +461,7 @@ StrUtil_StrToSizet(size_t *out,     // OUT: The output value
    ASSERT(str);
 
    errno = 0;
-#if defined VM_X86_64
+#if defined VM_64BIT
    ASSERT_ON_COMPILE(sizeof *out == sizeof(uint64));
 #   if defined(_WIN32)
    *out = _strtoui64(str, &ptr, 0);
@@ -1122,8 +1121,7 @@ StrUtil_SafeStrcat(char **prefix,    // IN/OUT
    /* Check for overflow */
    VERIFY((size_t)-1 - plen > slen + 1);
 
-   tmp = realloc(*prefix, plen + slen + 1 /* NUL */);
-   VERIFY(tmp);
+   tmp = Util_SafeRealloc(*prefix, plen + slen + 1 /* NUL */);
 
    memcpy(tmp + plen, str, slen + 1 /* NUL */);
    *prefix = tmp;

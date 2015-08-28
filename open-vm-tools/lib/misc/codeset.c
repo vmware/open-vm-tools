@@ -248,7 +248,7 @@ CodeSetGetModulePath(uint32 priv)
 
 #else
 #if defined(VMX86_SERVER)
-   if (HostType_OSIsPureVMK()) {
+   if (HostType_OSIsVMK()) {
       goto exit;
    }
 #endif
@@ -1098,7 +1098,7 @@ CodeSet_GenericToGeneric(const char *codeIn,  // IN
                          const char *codeOut, // IN
                          unsigned int flags,  // IN
                          char **bufOut,       // OUT
-                         size_t *sizeOut)     // OUT
+                         size_t *sizeOut)     // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1176,7 +1176,7 @@ Bool
 CodeSet_Utf8ToCurrent(const char *bufIn,  // IN
                       size_t sizeIn,      // IN
                       char **bufOut,      // OUT
-                      size_t *sizeOut)    // OUT
+                      size_t *sizeOut)    // OUT/OPT
 {
 #if !defined(CURRENT_IS_UTF8)
    DynBuf db;
@@ -1225,7 +1225,7 @@ Bool
 CodeSet_CurrentToUtf8(const char *bufIn,  // IN
                       size_t sizeIn,      // IN
                       char **bufOut,      // OUT
-                      size_t *sizeOut)    // OUT
+                      size_t *sizeOut)    // OUT/OPT
 {
 #if !defined(CURRENT_IS_UTF8)
    DynBuf db;
@@ -1311,7 +1311,7 @@ Bool
 CodeSet_Utf16leToUtf8(const char *bufIn,  // IN
                       size_t sizeIn,      // IN
                       char **bufOut,      // OUT
-                      size_t *sizeOut)    // OUT
+                      size_t *sizeOut)    // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1355,7 +1355,7 @@ Bool
 CodeSet_Utf8ToUtf16le(const char *bufIn,  // IN
                       size_t sizeIn,      // IN
                       char **bufOut,      // OUT
-                      size_t *sizeOut)    // OUT
+                      size_t *sizeOut)    // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1399,7 +1399,7 @@ Bool
 CodeSet_Utf8FormDToUtf8FormC(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
-                             size_t *sizeOut)       // OUT
+                             size_t *sizeOut)       // OUT/OPT
 {
    /*
     * Fallback if necessary.
@@ -1448,7 +1448,7 @@ Bool
 CodeSet_Utf8FormCToUtf8FormD(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
-                             size_t *sizeOut)       // OUT
+                             size_t *sizeOut)       // OUT/OPT
 {
    /*
     * Fallback if necessary.
@@ -1495,7 +1495,7 @@ Bool
 CodeSet_CurrentToUtf16le(const char *bufIn, // IN
                          size_t sizeIn,     // IN
                          char **bufOut,     // OUT
-                         size_t *sizeOut)   // OUT
+                         size_t *sizeOut)   // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1538,7 +1538,7 @@ Bool
 CodeSet_Utf16leToCurrent(const char *bufIn,  // IN
                          size_t sizeIn,      // IN
                          char **bufOut,      // OUT
-                         size_t *sizeOut)    // OUT
+                         size_t *sizeOut)    // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1581,7 +1581,7 @@ Bool
 CodeSet_Utf16beToCurrent(const char *bufIn,  // IN
                          size_t sizeIn,      // IN
                          char **bufOut,      // OUT
-                         size_t *sizeOut)    // OUT
+                         size_t *sizeOut)    // OUT/OPT
 {
    DynBuf db;
    Bool ok;

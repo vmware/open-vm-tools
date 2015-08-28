@@ -104,16 +104,61 @@ typedef char           Bool;
 #  define __i386__
 #endif
 
+/*
+ * Setup a bunch of defines for instruction set architecture (ISA) related
+ * properties.
+ *
+ * For compiler types/size:
+ *
+ * - VM_32BIT for a 32-bit ISA (with the same C compiler types/sizes as 32-bit
+ *   x86/ARM).
+ * - VM_64BIT for a 64-bit ISA (with the same C compiler types/sizes as 64-bit
+ *   x86/ARM).
+ *
+ * For a given <arch> in {X86, ARM}:
+ *
+ * - VM_<arch>_32 for the 32-bit variant.
+ * - VM_<arch>_64 for the 64-bit variant.
+ * - VM_<arch>_ANY for any variant of <arch>.
+ *
+ * VM_X86_ANY is synonymous with the confusing and deprecated VM_I386 (which
+ * should really be VM_X86_32).
+ */
+
 #ifdef __i386__
+/* VM_I386 is historically synonymous with VM_X86_ANY in bora, but misleading,
+ * since it is confused with the __i386__ gcc but defined for both 32- and
+ * 64-bit x86. We retain it here for legacy compatibility.
+ */
 #define VM_I386
+#define VM_X86_32
+#define VM_X86_ANY
+#define VM_32BIT
 #endif
 
 #ifdef __x86_64__
 #define VM_X86_64
 #define VM_I386
+#define VM_X86_ANY
+#define VM_64BIT
 #define vm_x86_64 (1)
 #else
 #define vm_x86_64 (0)
+#endif
+
+#ifdef __arm__
+#define VM_ARM_32
+#define VM_ARM_ANY
+#define VM_32BIT
+#endif
+
+#ifdef __aarch64__
+#define VM_ARM_64
+#define VM_ARM_ANY
+#define VM_64BIT
+#define vm_arm_64 (1)
+#else
+#define vm_arm_64 (0)
 #endif
 
 #ifdef _MSC_VER
@@ -129,7 +174,31 @@ typedef char           Bool;
 
 #endif
 
-#if defined(__APPLE__) || defined(HAVE_STDINT_H)
+#if defined(__linux__) && defined(__cplusplus) && __cplusplus >= 201103L
+
+/*
+ * We're using stdint.h instead of cstdint below because of libstdcpp.cpp.
+ * It looks like a C++ file. When being preprocessed all the C++ specific
+ * defines(e.g. __cplusplus) are set, but the C++ include paths are not.
+ */
+#include <stdint.h>
+
+typedef char          Bool;
+
+typedef uint64_t    uint64;
+typedef  int64_t     int64;
+typedef uint32_t    uint32;
+typedef  int32_t     int32;
+typedef uint16_t    uint16;
+typedef  int16_t     int16;
+typedef  uint8_t     uint8;
+typedef   int8_t      int8;
+
+typedef uint64 BA;
+typedef uint64 MA;
+typedef uint32 MPN32;
+
+#elif defined(__APPLE__) || defined(HAVE_STDINT_H)
 
 /*
  * TODO: This is a C99 standard header.  We should be able to test for
@@ -168,7 +237,7 @@ typedef signed __int64 int64;
 #elif __GNUC__
 /* The Xserver source compiles with -ansi -pendantic */
 #   if !defined(__STRICT_ANSI__) || defined(__FreeBSD__)
-#      if defined(VM_X86_64)
+#      if defined(VM_X86_64) || defined(VM_ARM_64)
 typedef unsigned long uint64;
 typedef long int64;
 #      else
@@ -256,6 +325,9 @@ typedef int64     intptr_t;
 #            else
 typedef int32     intptr_t;
 #            endif
+#         elif defined(VM_ARM_64)
+#            define __intptr_t_defined
+typedef int64     intptr_t;
 #         elif defined(__arm__)
 #            define __intptr_t_defined
 typedef int32     intptr_t;
@@ -269,6 +341,8 @@ typedef uint64    uintptr_t;
 #            else
 typedef uint32    uintptr_t;
 #            endif
+#         elif defined(VM_ARM_64)
+typedef uint64    uintptr_t;
 #         elif defined(__arm__)
 typedef uint32    uintptr_t;
 #         endif
@@ -289,7 +363,8 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
 /*
  * Printf format specifiers for size_t and 64-bit number.
  * Use them like this:
- *    printf("%"FMT64"d\n", big);
+ *    printf("%" FMT64 "d\n", big);
+ * The spaces are important for C++11 compatibility.
  *
  * FMTH is for handles/fds.
  */
@@ -325,7 +400,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
        * ((__FreeBSD__ + 0) < 5).  No, we can't remove "+ 0" from
        * ((__FreeBSD__ + 0) < 5).
        */
-      #if defined(VM_X86_64)
+      #if defined(VM_X86_64) || defined(VM_ARM_64)
          #define FMTSZ  "l"
          #define FMTPD  "l"
       #else
@@ -339,7 +414,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       /* BSD, Linux */
       #define FMTSZ     "z"
 
-      #if defined(VM_X86_64)
+      #if defined(VM_X86_64) || defined(VM_ARM_64)
          #define FMTPD  "l"
       #else
          #define FMTPD  ""
@@ -347,13 +422,13 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
    #else
       /* Systems with a pre-C99 libc */
       #define FMTSZ     "Z"
-      #if defined(VM_X86_64)
+      #if defined(VM_X86_64) || defined(VM_ARM_64)
          #define FMTPD  "l"
       #else
          #define FMTPD  ""
       #endif
    #endif
-   #if defined(VM_X86_64)
+   #if defined(VM_X86_64) || defined(VM_ARM_64)
       #define FMT64     "l"
    #elif defined(sun) || defined(__FreeBSD__)
       #define FMT64     "ll"
@@ -384,7 +459,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
 #define CONST64(c) c##LL
 #define CONST64U(c) c##uLL
 #elif __GNUC__
-#if defined(VM_X86_64)
+#if defined(VM_X86_64) || defined(VM_ARM_64)
 #define CONST64(c) c##L
 #define CONST64U(c) c##uL
 #else
@@ -404,7 +479,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
  * more than 31 on a 64-bit compile.
  */
 
-#if defined(VM_X86_64)
+#if defined(VM_X86_64) || defined(VM_ARM_64)
     #define CONST3264(a) CONST64(a)
     #define CONST3264U(a) CONST64U(a)
 #else
@@ -442,7 +517,7 @@ typedef uint8 *TCA;  /* Pointer into TC (usually). */
  * Type big enough to hold an integer between 0..100
  */
 typedef uint8 Percent;
-#define AsPercent(v) ((Percent)(v))
+#define AsPercent(v)	((Percent)(v))
 
 
 typedef uintptr_t VA;
@@ -461,7 +536,16 @@ typedef uint64    PhysMemSize;
 #ifndef __STRICT_ANSI__
 typedef uint64    BA;
 #endif
-typedef uint32    BPN;
+
+#ifdef VMKERNEL
+typedef void     *BPN;
+#else
+typedef uint64    BPN;
+#endif
+
+#define UINT64_2_BPN(u) ((BPN)(u))
+#define BPN_2_UINT64(b) ((uint64)(b))
+
 typedef uint32    PageNum;
 typedef unsigned      MemHandle;
 typedef unsigned int  IoHandle;
@@ -488,10 +572,25 @@ typedef User_CartelID User_CartelGroupID;
 typedef uint32 Worldlet_ID;
 #define INVALID_WORLDLET_ID ((Worldlet_ID)-1)
 
+typedef  int8    Reg8;
+typedef  int16   Reg16;
+typedef  int32   Reg32;
+typedef  int64   Reg64;
+
+typedef uint8   UReg8;
+typedef uint16  UReg16;
+typedef uint32  UReg32;
+typedef uint64  UReg64;
+
+#if defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
+    defined (VMKERNEL) || defined (VMKBOOT)
+typedef  Reg64  Reg;
+typedef UReg64 UReg;
+#endif
 /* The Xserver source compiles with -ansi -pendantic */
 #ifndef __STRICT_ANSI__
 typedef uint64 MA;
-typedef uint32 MPN;
+typedef uint32 MPN32;
 #endif
 
 /*
@@ -544,7 +643,7 @@ typedef uint64 LPN64;
 typedef uint64 PA64;
 typedef uint64 PPN64;
 typedef uint64 MA64;
-typedef uint64 MPN64;
+typedef uint64 MPN;
 
 /*
  * IO device DMA virtual address and page number (translated by IOMMU to
@@ -568,22 +667,22 @@ typedef void * UserVA;
 #endif
 
 
-#define MAX_PPN_BITS      30
+#define MAX_PPN_BITS      31
 #define MAX_PPN           (((PPN)1 << MAX_PPN_BITS) - 1) /* Maximal observable PPN value. */
 #define INVALID_PPN       ((PPN)0xffffffff)
 #define APIC_INVALID_PPN  ((PPN)0xfffffffe)
 
-#define INVALID_BPN       ((BPN)0x3fffffff)
+#define INVALID_BPN       ((BPN)0x000000ffffffffffull)
 
-#define MPN38_MASK        ((1ull << 38) - 1) /* imposed by vmkernel pframes */
+#define MPN38_MASK        ((1ull << 38) - 1)
 
-#define RESERVED_MPN      ((MPN64)0)
-#define INVALID_MPN       ((MPN64)MPN38_MASK)
-#define MEMREF_MPN        ((MPN64)MPN38_MASK - 1)
-#define RELEASED_MPN      ((MPN64)MPN38_MASK - 2)
+#define RESERVED_MPN      ((MPN)0)
+#define INVALID_MPN       ((MPN)MPN38_MASK)
+#define MEMREF_MPN        ((MPN)MPN38_MASK - 1)
+#define RELEASED_MPN      ((MPN)MPN38_MASK - 2)
 
 /* account for special MPNs defined above */
-#define MAX_MPN           ((MPN64)MPN38_MASK - 3) /* 50 bits of address space */
+#define MAX_MPN           ((MPN)MPN38_MASK - 3) /* 50 bits of address space */
 
 #define INVALID_IOPN      ((IOPN)-1)
 #define MAX_IOPN          (INVALID_IOPN - 1)
@@ -595,10 +694,10 @@ typedef void * UserVA;
 
 /*
  * Format modifier for printing VA, LA, and VPN.
- * Use them like this: Log("%#"FMTLA"x\n", laddr)
+ * Use them like this: Log("%#" FMTLA "x\n", laddr)
  */
 
-#if defined(VMM) || defined(FROBOS64) || vm_x86_64 || defined __APPLE__
+#if defined(VMM) || defined(FROBOS64) || vm_x86_64 || vm_arm_64 || defined __APPLE__
 #   define FMTLA "l"
 #   define FMTVA "l"
 #   define FMTVPN "l"
@@ -711,6 +810,8 @@ typedef void * UserVA;
 
 #if defined(__GNUC__)
 #define ABSOLUTELY_NOINLINE __attribute__((__noinline__))
+#elif defined(_MSC_VER)
+#define ABSOLUTELY_NOINLINE __declspec(noinline)
 #endif
 
 /*
@@ -903,6 +1004,9 @@ typedef void * UserVA;
 #         else
              typedef uint32 size_t;
 #         endif
+#      elif defined(VM_ARM_64)
+#         define _SIZE_T
+          typedef uint64 size_t;
 #      elif defined(__arm__)
 #         define _SIZE_T
           typedef uint32 size_t;
@@ -923,6 +1027,12 @@ typedef void * UserVA;
 #         else
              typedef int32 ssize_t;
 #         endif
+#      elif defined(VM_ARM_64)
+#         define _SSIZE_T
+#         define __ssize_t_defined
+#         define _SSIZE_T_DECLARED
+#         define _SSIZE_T_DEFINED_
+          typedef int64 ssize_t;
 #      elif defined(__arm__)
 #         define _SSIZE_T
 #         define __ssize_t_defined
@@ -937,7 +1047,7 @@ typedef void * UserVA;
 /*
  * Format modifier for printing pid_t.  On sun the pid_t is a ulong, but on
  * Linux it's an int.
- * Use this like this: printf("The pid is %"FMTPID".\n", pid);
+ * Use this like this: printf("The pid is %" FMTPID ".\n", pid);
  */
 #ifdef sun
 #   ifdef VM_X86_64
@@ -952,7 +1062,7 @@ typedef void * UserVA;
 /*
  * Format modifier for printing uid_t.  On Solaris 10 and earlier, uid_t
  * is a ulong, but on other platforms it's an unsigned int.
- * Use this like this: printf("The uid is %"FMTUID".\n", uid);
+ * Use this like this: printf("The uid is %" FMTUID ".\n", uid);
  */
 #if defined(sun) && !defined(SOL11)
 #   ifdef VM_X86_64
@@ -967,7 +1077,7 @@ typedef void * UserVA;
 /*
  * Format modifier for printing mode_t.  On sun the mode_t is a ulong, but on
  * Linux it's an int.
- * Use this like this: printf("The mode is %"FMTMODE".\n", mode);
+ * Use this like this: printf("The mode is %" FMTMODE ".\n", mode);
  */
 #ifdef sun
 #   ifdef VM_X86_64
@@ -984,7 +1094,7 @@ typedef void * UserVA;
  * a long int, but on FreeBSD (as of 5.0, it seems), the time_t is a signed
  * size quantity. Refer to the definition of FMTSZ to see why we need silly
  * preprocessor arithmetic.
- * Use this like this: printf("The mode is %"FMTTIME".\n", time);
+ * Use this like this: printf("The mode is %" FMTTIME ".\n", time);
  */
 #if defined(__FreeBSD__) && (__FreeBSD__ + 0) && ((__FreeBSD__ + 0) >= 5)
 #   define FMTTIME FMTSZ"d"

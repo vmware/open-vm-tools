@@ -91,7 +91,7 @@
 #define DRAG_LEAVE_TIMEOUT         500
 
 /* Guest detection window width and height. */
-#define DRAG_DET_WINDOW_WIDTH 15
+#define DRAG_DET_WINDOW_WIDTH 31
 
 /* Clipboard image size limit. */
 #define CLIPBOARD_IMAGE_MAX_WIDTH  4000
@@ -200,16 +200,19 @@ typedef struct DnDBlockControl {
 } DnDBlockControl;
 
 #ifdef _WIN32
+#ifdef METRO
+DECLARE_HANDLE(HDROP);
+#endif
 /*
  * Windows-specific functions
  */
-Unicode DnD_GetClipboardFormatName(UINT cf);
-HGLOBAL DnD_CopyStringToGlobal(ConstUnicode str);
+char *DnD_GetClipboardFormatName(UINT cf);
+HGLOBAL DnD_CopyStringToGlobal(const char *str);
 HGLOBAL DnD_CopyDWORDToGlobal(DWORD *pDWORD);
-HGLOBAL DnD_CreateHDrop(ConstUnicode path, ConstUnicode fileList);
-HGLOBAL DnD_CreateHDropForGuest(ConstUnicode path,
-                                ConstUnicode fileList);
-size_t DnD_CPStringToLocalString(ConstUnicode bufIn,
+HGLOBAL DnD_CreateHDrop(const char *path, const char *fileList);
+HGLOBAL DnD_CreateHDropForGuest(const char *path,
+                                const char *fileList);
+size_t DnD_CPStringToLocalString(const char *bufIn,
                                  utf16_t **bufOut);
 size_t DnD_LocalStringToCPString(utf16_t *bufIn,
                                  char **bufOut);
@@ -231,7 +234,7 @@ Bool DnD_PNGToLocalFormat(const unsigned char *pngData,
 Bool DnD_FakeMouseEvent(DWORD flag);
 Bool DnD_FakeMouseState(DWORD key, Bool isDown);
 Bool DnD_FakeEscapeKey(void);
-Bool DnD_DeleteLocalDirectory(ConstUnicode localDir);
+Bool DnD_DeleteLocalDirectory(const char *localDir);
 Bool DnD_SetClipboard(UINT format, char *buffer, int len);
 Bool DnD_GetFileList(HDROP hDrop,
                      char **remoteFiles,
@@ -254,17 +257,16 @@ Bool DnD_UriIsNonFileSchemes(char const *uri);
 /*
  * Shared functions
  */
-ConstUnicode DnD_GetFileRoot(void);
+const char *DnD_GetFileRoot(void);
 char *DnD_CreateStagingDirectory(void);
-Bool DnD_DeleteStagingFiles(ConstUnicode stagingDir, Bool onReboot);
-Bool DnD_PrependFileRoot(ConstUnicode fileRoot, char **src, size_t *srcSize);
+Bool DnD_DeleteStagingFiles(const char *stagingDir, Bool onReboot);
 int DnD_LegacyConvertToCPName(const char *nameIn,
                               size_t bufOutSize,
                               char *bufOut);
 Bool DnD_CPNameListToDynBufArray(char *fileList,
                                  size_t listSize,
                                  DynBufArray *dynBufArray);
-Unicode DnD_GetLastDirName(const char *str);
+char *DnD_GetLastDirName(const char *str);
 
 /* vmblock support functions. */
 Bool DnD_InitializeBlocking(DnDBlockControl *blkCtrl);

@@ -34,18 +34,12 @@
  */
 
 typedef enum {
-/* vm-support script is not running */
-   VMSUPPORT_NOT_RUNNING = 0,
-/* vm-support script is beginning */
-   VMSUPPORT_BEGINNING = 1,
-/* vm-support script running in progress */
-   VMSUPPORT_RUNNING = 2,
-/* vm-support script is ending */
-   VMSUPPORT_ENDING = 3,
-/* vm-support script failed */
-   VMSUPPORT_ERROR = 10,
-/* vm-support collection not supported */
-   VMSUPPORT_UNKNOWN = 100
+   VMSUPPORT_NOT_RUNNING = 0,   /* script is not running */
+   VMSUPPORT_BEGINNING   = 1,   /* script is beginning */
+   VMSUPPORT_RUNNING     = 2,   /* script running in progress */
+   VMSUPPORT_ENDING      = 3,   /* script is ending */
+   VMSUPPORT_ERROR       = 10,  /* script failed */
+   VMSUPPORT_UNKNOWN     = 100  /* collection not supported */
 } VMSupportStatus;
 
 /*
@@ -55,7 +49,7 @@ typedef enum {
 
 typedef enum {
   VMSUPPORT_CMD_RESET = 0,
-  VMSUPPORT_CMD_SET = 1
+  VMSUPPORT_CMD_SET   = 1
 } VMSupportCmd;
 
 #define RPC_VMSUPPORT_START   "vmsupport.start"

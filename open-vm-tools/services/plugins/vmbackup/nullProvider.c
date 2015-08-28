@@ -31,12 +31,12 @@
 #include "vmBackupInt.h"
 
 
+#if defined(_WIN32)
 /*
  ******************************************************************************
  * VmBackupNullStart --                                                 */ /**
  *
- * Calls sync(2) on POSIX systems. Sends the "commit snapshot" event to the
- * host.
+ * Sends the "commit snapshot" event to the host.
  *
  * @param[in] state         Backup state.
  * @param[in] clientData    Unused.
@@ -50,16 +50,44 @@ static Bool
 VmBackupNullStart(VmBackupState *state,
                   void *clientData)
 {
-#if !defined(_WIN32)
+   VmBackup_SetCurrentOp(state, NULL, NULL, __FUNCTION__);
+   return VmBackup_SendEvent(VMBACKUP_EVENT_SNAPSHOT_COMMIT, 0, "");
+}
+
+#else
+
+/*
+ ******************************************************************************
+ * VmBackupNullStart --                                                 */ /**
+ *
+ * Calls sync(2) on POSIX systems. Sends the "commit snapshot" event to the
+ * host.
+ *
+ * @param[in] ctx           Plugin context.
+ * @param[in] state         Backup state.
+ *
+ ******************************************************************************
+ */
+
+static void
+VmBackupNullStart(ToolsAppCtx *ctx,
+                  void *clientData)
+{
+   VmBackupState *state = (VmBackupState*) clientData;
    /*
     * This is more of a "let's at least do something" than something that
     * will actually ensure data integrity...
     */
    sync();
-#endif
    VmBackup_SetCurrentOp(state, NULL, NULL, __FUNCTION__);
-   return VmBackup_SendEvent(VMBACKUP_EVENT_SNAPSHOT_COMMIT, 0, "");
+   if (!VmBackup_SendEvent(VMBACKUP_EVENT_SNAPSHOT_COMMIT, 0, "")) {
+      g_warning("Failed to send commit event to host");
+      state->freezeStatus = VMBACKUP_FREEZE_ERROR;
+   } else {
+      state->freezeStatus = VMBACKUP_FREEZE_FINISHED;
+   }
 }
+#endif
 
 
 /*

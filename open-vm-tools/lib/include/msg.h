@@ -114,7 +114,7 @@ VMX86_EXTERN_DATA Msg_String const Msg_RetryCancelButtons[];
 VMX86_EXTERN_DATA Msg_String const Msg_OKCancelButtons[];
 VMX86_EXTERN_DATA Msg_String const Msg_RetryAbortButtons[];
 
-extern Msg_String const Msg_Severities[];
+VMX86_EXTERN_DATA Msg_String const Msg_Severities[];
 
 
 /*

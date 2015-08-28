@@ -55,7 +55,7 @@
  *----------------------------------------------------------------------
  */
 
-static gchar *
+gchar *
 GetSSLError(gchar **errorStr)                    // OUT
 {
    unsigned long code;
@@ -582,6 +582,8 @@ exit:
    return cert;
 }
 
+
+#ifndef _WIN32
 /*
  *----------------------------------------------------------------------
  *
@@ -598,7 +600,7 @@ exit:
  *----------------------------------------------------------------------
  */
 
-static gboolean
+gboolean
 WritePemFile(EVP_PKEY *pkey,                     // IN
              const gchar *keyFile,               // IN
              X509 *cert,                         // IN
@@ -648,6 +650,8 @@ exit:
 
    return ret;
 }
+#endif
+
 
 /*
  *----------------------------------------------------------------------

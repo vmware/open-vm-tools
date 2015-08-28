@@ -26,6 +26,10 @@
 #define _APP_UTIL_H_
 
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -85,6 +89,7 @@ HICON AppUtil_GetWindowIcon(HWND hwnd,
 
 void AppUtil_BuildGlobalApplicationList(void);
 
+wchar_t* AppUtil_SanitizeCommandLine(const wchar_t *commandLineUtf16);
 char *AppUtil_ActionURIForCommandLine(const WCHAR *commandLineUtf16);
 Bool  AppUtil_CommandLineForShellCommandURI(const char *shellCommandURI,
                                             char **executablePath,
@@ -111,6 +116,8 @@ Bool AppUtil_GetIconIndexAndLocationForShortcut(const TCHAR *shortcut,
                                                 int maxLen,
                                                 TCHAR *iconFile,
                                                 int *iconIndex);
+
+PISECURITY_DESCRIPTOR AppUtil_AllocateLowIntegritySD(void);
 
 LPSTR  AppUtil_ToLowerUtf8(LPCSTR s);
 LPWSTR AppUtil_ToLowerUtf16(LPCWSTR s);

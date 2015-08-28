@@ -50,7 +50,8 @@ build_triplet = @build@
 host_triplet = @host@
 @HAVE_X11_TRUE@am__append_1 = appUtil
 @HAVE_VSOCK_TRUE@am__append_2 = asyncsocket
-@USE_SLASH_PROC_TRUE@am__append_3 = slashProc
+@HAVE_GTKMM_TRUE@am__append_3 = hgfsUri
+@USE_SLASH_PROC_TRUE@am__append_4 = slashProc
 subdir = lib
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -78,10 +79,11 @@ CTAGS = ctags
 DIST_SUBDIRS = guestRpc appUtil auth backdoor asyncsocket sslDirect \
 	pollGtk poll dataMap hashMap dict dynxdr err file foundryMsg \
 	glibUtils guestApp hgfs hgfsBd hgfsHelper hgfsServer \
-	hgfsServerManagerGuest hgfsServerPolicyGuest impersonate lock \
-	message misc netUtil nicInfo panic panicDefault printer \
-	procMgr rpcChannel rpcIn rpcOut rpcVmx slashProc string stubs \
-	syncDriver system unicode user vmCheck vmSignal wiper xdg
+	hgfsServerManagerGuest hgfsServerPolicyGuest hgfsUri \
+	impersonate lock message misc netUtil nicInfo panic \
+	panicDefault procMgr rpcChannel rpcIn rpcOut rpcVmx slashProc \
+	string stubs syncDriver system unicode user vmCheck vmSignal \
+	wiper xdg
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -275,9 +277,9 @@ SUBDIRS = guestRpc $(am__append_1) auth backdoor $(am__append_2) \
 	sslDirect pollGtk poll dataMap hashMap dict dynxdr err file \
 	foundryMsg glibUtils guestApp hgfs hgfsBd hgfsHelper \
 	hgfsServer hgfsServerManagerGuest hgfsServerPolicyGuest \
-	impersonate lock message misc netUtil nicInfo panic \
-	panicDefault printer procMgr rpcChannel rpcIn rpcOut rpcVmx \
-	$(am__append_3) string stubs syncDriver system unicode user \
+	$(am__append_3) impersonate lock message misc netUtil nicInfo \
+	panic panicDefault procMgr rpcChannel rpcIn rpcOut rpcVmx \
+	$(am__append_4) string stubs syncDriver system unicode user \
 	vmCheck vmSignal wiper xdg
 all: all-recursive
 

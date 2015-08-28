@@ -16,6 +16,6 @@
 #
 ##########################################################
 
-auth.password.invalid = "Keine Übereinstimmung bei Benutzername und Kennwort für '%1$s'"
-auth.password.valid = "Benutzername und Kennwort erfolgreich validiert für '%1$s'"
-auth.sspi.badid = "Versuch der Authentifizierung mit einer ungültigen oder abgelaufenen SSPI-Challenge-ID: %1$u"
+auth.password.invalid = "Benutzername und Kennwort für '%1$s' stimmen nicht überein"
+auth.password.valid = "Benutzername und Kennwort wurden erfolgreich für '%1$s' bestätigt"
+auth.sspi.badid = "Versuch der Authentifizierung mithilfe einer ungültigen oder abgelaufenen SSPI-Anfrage-ID: %1$u"

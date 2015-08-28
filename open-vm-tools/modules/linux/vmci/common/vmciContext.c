@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2012,2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2012,2014-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -48,7 +48,8 @@ static int VMCIContextFireNotification(VMCIId contextID,
                                        VMCIPrivilegeFlags privFlags);
 #if defined(VMKERNEL)
 static void VMCIContextReleaseGuestMemLocked(VMCIContext *context,
-                                             VMCIGuestMemID gid);
+                                             VMCIGuestMemID gid,
+                                             Bool powerOff);
 static void VMCIContextInFilterCleanup(VMCIContext *context);
 #endif
 
@@ -1227,6 +1228,98 @@ VMCIContext_SetId(VMCIContext *context,         // IN
    VMCI_GrabLock(&context->lock, &flags);
    context->cid = cid;
    VMCI_ReleaseLock(&context->lock, flags);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContextGenerateEvent --
+ *
+ *      Generates a VMCI event that only takes context ID as event data.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+VMCIContextGenerateEvent(VMCIId cid,       // IN
+                         VMCI_Event event) // IN
+{
+   VMCIEventMsg *eMsg;
+   VMCIEventPayload_Context *ePayload;
+   /* buf is only 48 bytes. */
+   char buf[sizeof *eMsg + sizeof *ePayload];
+
+   eMsg = (VMCIEventMsg *)buf;
+   ePayload = VMCIEventMsgPayload(eMsg);
+
+   eMsg->hdr.dst = VMCI_MAKE_HANDLE(VMCI_HOST_CONTEXT_ID, VMCI_EVENT_HANDLER);
+   eMsg->hdr.src = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
+                                    VMCI_CONTEXT_RESOURCE_ID);
+   eMsg->hdr.payloadSize = sizeof *eMsg + sizeof *ePayload - sizeof eMsg->hdr;
+   eMsg->eventData.event = event;
+   ePayload->contextID = cid;
+
+   (void)VMCIEvent_Dispatch((VMCIDatagram *)eMsg);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_NotifyGuestPaused --
+ *
+ *      Notify subscribers of a execution state change of the VM
+ *      with the given context ID. This will happen when a VM is
+ *      quiesced/unquiesced.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCIContext_NotifyGuestPaused(VMCIId cid,  // IN
+                              Bool paused) // IN
+{
+   VMCIContextGenerateEvent(cid, paused ? VMCI_EVENT_GUEST_PAUSED :
+                                          VMCI_EVENT_GUEST_UNPAUSED);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_NotifyMemoryAccess --
+ *
+ *      Notify subscribers of a memory access change to the device.
+ *      This can occur when the device is enabled/disabled/reset.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCIContext_NotifyMemoryAccess(VMCIId cid, // IN
+                               Bool on)    // IN
+{
+   VMCIContextGenerateEvent(cid, on ? VMCI_EVENT_MEM_ACCESS_ON :
+                                      VMCI_EVENT_MEM_ACCESS_OFF);
 }
 #endif
 
@@ -2589,7 +2682,8 @@ VMCIContext_RegisterGuestMem(VMCIContext *context, // IN: Context structure
           * execution of the source VMX following a failed FSR.
           */
 
-         VMCIContextReleaseGuestMemLocked(context, context->curGuestMemID);
+         VMCIContextReleaseGuestMemLocked(context, context->curGuestMemID,
+                                          FALSE);
       } else {
          /*
           * When unquiescing the device during a restore sync not part
@@ -2653,15 +2747,20 @@ out:
 
 static void
 VMCIContextReleaseGuestMemLocked(VMCIContext *context, // IN: Context structure
-                                 VMCIGuestMemID gid)   // IN: Reference to guest
+                                 VMCIGuestMemID gid,   // IN: Reference to guest
+                                 Bool powerOff)        // IN: Device going away
 {
    uint32 numQueuePairs;
    uint32 cur;
 
+   if (powerOff) {
+      VMCIContext_NotifyMemoryAccess(context->cid, FALSE);
+   }
+
    /*
     * It is safe to access the queue pair array here, since no changes
     * to the queuePairArray can take place when the the quiescing
-    * has been initiated.
+    * has been initiated, or when the device is being cleaned up.
     */
 
    numQueuePairs = VMCIHandleArray_GetSize(context->queuePairArray);
@@ -2704,7 +2803,8 @@ VMCIContextReleaseGuestMemLocked(VMCIContext *context, // IN: Context structure
 
 void
 VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
-                            VMCIGuestMemID gid)   // IN: Reference to guest
+                            VMCIGuestMemID gid,   // IN: Reference to guest
+                            Bool powerOff)        // IN: Device is going away
 {
 #ifdef VMKERNEL
    VMCIMutex_Acquire(&context->guestMemMutex);
@@ -2719,7 +2819,7 @@ VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
        * memory, if this is the same gid, that registered the memory.
        */
 
-      VMCIContextReleaseGuestMemLocked(context, gid);
+      VMCIContextReleaseGuestMemLocked(context, gid, powerOff);
       context->curGuestMemID = INVALID_VMCI_GUEST_MEM_ID;
    }
 

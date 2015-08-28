@@ -98,7 +98,7 @@ public:
    } NormalizeMode;
 
    string();
-   string(ConstUnicode s);
+   string(const char *s);
 
 #ifdef _WIN32
    string(const ubstr_t &s);
@@ -127,6 +127,7 @@ public:
    // Mapping functions to Glib::ustring
    void swap(string &s);
    void resize(size_type n, value_type c = '\0');
+   void reserve(size_type n = 0);
    bool empty() const;
    size_type size() const;
    size_type w_size() const;
@@ -233,42 +234,42 @@ private:
 // Helper operators
 
 string inline
-operator+(ConstUnicode lhs, const string &rhs) {
+operator+(const char *lhs, const string &rhs) {
    return string(lhs) + rhs;
 }
 
 string inline
-operator+(const string& lhs, ConstUnicode rhs) {
+operator+(const string& lhs, const char *rhs) {
    return lhs + string(rhs);
 }
 
 bool inline
-operator==(ConstUnicode lhs, const string &rhs) {
+operator==(const char *lhs, const string &rhs) {
    return string(lhs) == rhs;
 }
 
 bool inline
-operator!=(ConstUnicode lhs, const string &rhs) {
+operator!=(const char *lhs, const string &rhs) {
    return string(lhs) != rhs;
 }
 
 bool inline
-operator<(ConstUnicode lhs, const string &rhs) {
+operator<(const char *lhs, const string &rhs) {
    return string(lhs) < rhs;
 }
 
 bool inline
-operator>(ConstUnicode lhs, const string &rhs) {
+operator>(const char *lhs, const string &rhs) {
    return string(lhs) > rhs;
 }
 
 bool inline
-operator<=(ConstUnicode lhs, const string &rhs) {
+operator<=(const char *lhs, const string &rhs) {
    return string(lhs) <= rhs;
 }
 
 bool inline
-operator>=(ConstUnicode lhs, const string &rhs) {
+operator>=(const char *lhs, const string &rhs) {
    return string(lhs) >= rhs;
 }
 
@@ -294,20 +295,21 @@ class ConversionError {};
 
 // Helper functions
 
-bool VMSTRING_EXPORT Validate(const Glib::ustring& s);
+VMSTRING_EXPORT bool Validate(const Glib::ustring& s);
 
-string VMSTRING_EXPORT
+VMSTRING_EXPORT string
 CreateWithLength(const void *buffer, ssize_t lengthInBytes, StringEncoding encoding);
 
-string VMSTRING_EXPORT
+VMSTRING_EXPORT string
 CreateWithBOMBuffer(const void *buffer, ssize_t lengthInBytes);
 
-string VMSTRING_EXPORT
-IntToStr(int64 val);
+VMSTRING_EXPORT string CopyAndFree(char* utf8, void (*freeFunc)(void*) = free);
 
-void VMSTRING_EXPORT CreateWritableBuffer(const string& s,
+VMSTRING_EXPORT string IntToStr(int64 val);
+
+VMSTRING_EXPORT void CreateWritableBuffer(const string& s,
                                           std::vector<char>& buf);
-void VMSTRING_EXPORT CreateWritableBuffer(const string& s,
+VMSTRING_EXPORT void CreateWritableBuffer(const string& s,
                                           std::vector<utf16_t>& buf);
 
 

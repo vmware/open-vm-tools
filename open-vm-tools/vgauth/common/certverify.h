@@ -56,4 +56,6 @@ VGAuthError CertVerify_CheckSignatureUsingCert(VGAuthHashAlg hash,
 
 gchar * CertVerify_StripPEMCert(const gchar *pemCert);
 
+gchar * CertVerify_CertToX509String(const gchar *pemCert);
+
 #endif // _CERTVERIFY_H_

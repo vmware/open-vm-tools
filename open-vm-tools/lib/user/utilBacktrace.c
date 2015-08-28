@@ -504,18 +504,19 @@ Util_BacktraceWithFunc(int bugNr,                // IN:
                        Util_OutputFunc outFunc,  // IN:
                        void *outFuncData)        // IN:
 {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+   CoreDumpFullBacktraceOptions options = {0};
+
+   options.bugNumber = bugNr;
+   CoreDump_LogFullBacktraceToFunc(&options, outFunc, outFuncData);
+#else
    uintptr_t *x = (uintptr_t *) &bugNr;
-#endif
 
    if (bugNr == 0) {
       outFunc(outFuncData, "Backtrace:\n");
    } else {
       outFunc(outFuncData, "Backtrace for bugNr=%d\n",bugNr);
    }
-#if defined(_WIN32)
-   CoreDump_Backtrace(outFunc, outFuncData);
-#else
    Util_BacktraceFromPointerWithFunc(&x[-2], outFunc, outFuncData);
 #endif
 }

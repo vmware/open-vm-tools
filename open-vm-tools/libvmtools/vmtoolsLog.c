@@ -26,6 +26,9 @@
  *
  *    To choose the logging domain for your source file, define G_LOG_DOMAIN
  *    before including glib.h.
+ *
+ *    All fatal error messages will go to the 'syslog' handler no
+ *    matter what handler has been configured.
  */
 
 #include "vmtoolsInt.h"
@@ -46,16 +49,35 @@
 #  include <dbghelp.h>
 #  include "coreDump.h"
 #  include "w32Messages.h"
+#  include "win32u.h"
 #endif
 #include "str.h"
 #include "system.h"
+#include "vmware/tools/log.h"
 
 #define LOGGING_GROUP         "logging"
 
-#define MAX_DOMAIN_LEN        64
+#define MAX_DOMAIN_LEN                 (64)
+
+/*
+ * Default max number of log messages to be cached when log IO
+ * has been frozen. In case of cache overflow, only the most
+ * recent messages are preserved.
+ */
+#define DEFAULT_MAX_CACHE_ENTRIES      (4*1024)
 
 /** The default handler to use if none is specified by the config data. */
-#define DEFAULT_HANDLER "syslog"
+#define DEFAULT_HANDLER "file+"
+
+/** The default logfile location. */
+#ifdef WIN32
+// Windows log goes to %windir%\temp\vmware-<service>.log
+#define DEFAULT_LOGFILE_DIR "%windir%"
+#define DEFAULT_LOGFILE_NAME_PREFIX "vmware"
+#else
+// *ix log goes to /var/log/vmware-<service>.log
+#define DEFAULT_LOGFILE_NAME_PREFIX  "/var/log/vmware"
+#endif
 
 /** The "failsafe" handler. */
 #if defined(_WIN32)
@@ -83,6 +105,7 @@
       }                                            \
       g_free((handler)->domain);                   \
       g_free((handler)->type);                     \
+      g_free((handler)->confData);                 \
       g_free(handler);                             \
    }                                               \
 } while (0)
@@ -103,21 +126,90 @@ typedef struct LogHandler {
    guint          mask;
    guint          handlerId;
    gboolean       inherited;
+   /**
+    * The log handlers that write to files need special
+    * treatment when guest has been quiesced.
+    */
+   gboolean       needsFileIO;
+   gboolean       isSysLog;
+   gchar         *confData;
 } LogHandler;
 
 
+/**
+ * Structure for caching a log message
+ */
+typedef struct LogEntry {
+   gchar           *domain;
+   gchar           *msg;
+   LogHandler      *handler;
+   GLogLevelFlags   level;
+} LogEntry;
+
+
 static gchar *gLogDomain = NULL;
+static GPtrArray *gCachedLogs = NULL;
+static guint gDroppedLogCount = 0;
+static gint gMaxCacheEntries = DEFAULT_MAX_CACHE_ENTRIES;
 static gboolean gEnableCoreDump = TRUE;
 static gboolean gLogEnabled = FALSE;
 static gboolean gGuestSDKMode = FALSE;
 static guint gPanicCount = 0;
 static LogHandler *gDefaultData;
 static LogHandler *gErrorData;
+static LogHandler *gErrorSyslog;
 static GPtrArray *gDomains = NULL;
 static gboolean gLogInitialized = FALSE;
+static GStaticRecMutex gLogStateMutex = G_STATIC_REC_MUTEX_INIT;
 static gboolean gLoggingStopped = FALSE;
+static gboolean gLogIOSuspended = FALSE;
 
 /* Internal functions. */
+
+
+/**
+ * Aborts the program, optionally creating a core dump.
+ */
+
+static INLINE NORETURN void
+VMToolsLogPanic(void)
+{
+   gPanicCount++;
+
+   /*
+    * Probably, flush the cached logs here. It is not
+    * critial though because we will have the cached
+    * logs in memory anyway.
+    */
+
+   if (gEnableCoreDump) {
+      /*
+       * TODO: Make sure to thaw the filesystem before dumping core.
+       */
+#if defined(_WIN32)
+      CoreDump_CoreDump();
+#else
+      char cwd[PATH_MAX];
+      if (getcwd(cwd, sizeof cwd) != NULL) {
+         if (access(cwd, W_OK) == -1) {
+            /*
+             * Can't write to the working dir. chdir() to the user's home
+             * directory as an attempt to get a valid core dump.
+             */
+            const char *home = getenv("HOME");
+            if (home != NULL) {
+               if (chdir(home)) {
+                  /* Just to make glibc headers happy. */
+               }
+            }
+         }
+      }
+      abort();
+#endif
+   }
+   /* Same behavior as Panic_Panic(). */
+   exit(-1);
+}
 
 
 /**
@@ -153,6 +245,7 @@ VMToolsAsprintf(gchar **string,
  * @param[in] domain       Log domain.
  * @param[in] level        Log level.
  * @param[in] data         Log handler data.
+ * @param[in] cached       If the message will be cached.
  *
  * @return Formatted log message according to the log domain's config.
  *         Should be g_free()'d.
@@ -162,13 +255,15 @@ static gchar *
 VMToolsLogFormat(const gchar *message,
                  const gchar *domain,
                  GLogLevelFlags level,
-                 LogHandler *data)
+                 LogHandler *data,
+                 gboolean cached)
 {
    char *msg = NULL;
    const char *slevel;
    size_t len = 0;
    gboolean shared = TRUE;
    gboolean addsTimestamp = TRUE;
+   char *tstamp;
 
    if (domain == NULL) {
       domain = gLogDomain;
@@ -216,10 +311,9 @@ VMToolsLogFormat(const gchar *message,
       addsTimestamp = data->logger->addsTimestamp;
    }
 
-   if (!addsTimestamp) {
-      char *tstamp;
+   tstamp = System_GetTimeAsString();
 
-      tstamp = System_GetTimeAsString();
+   if (!addsTimestamp) {
       if (shared) {
          len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] %s\n",
                                (tstamp != NULL) ? tstamp : "no time",
@@ -229,15 +323,28 @@ VMToolsLogFormat(const gchar *message,
                                (tstamp != NULL) ? tstamp : "no time",
                                slevel, domain, message);
       }
-      free(tstamp);
    } else {
-      if (shared) {
-         len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] %s\n",
-                               slevel, gLogDomain, domain, message);
+      if (cached) {
+         if (shared) {
+            len = VMToolsAsprintf(&msg, "[cached at %s] [%8s] [%s:%s] %s\n",
+                                  (tstamp != NULL) ? tstamp : "no time",
+                                  slevel, gLogDomain, domain, message);
+         } else {
+            len = VMToolsAsprintf(&msg, "[cached at %s] [%8s] [%s] %s\n",
+                                  (tstamp != NULL) ? tstamp : "no time",
+                                  slevel, domain, message);
+         }
       } else {
-         len = VMToolsAsprintf(&msg, "[%8s] [%s] %s\n", slevel, domain, message);
+         if (shared) {
+            len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] %s\n",
+                                  slevel, gLogDomain, domain, message);
+         } else {
+            len = VMToolsAsprintf(&msg, "[%8s] [%s] %s\n", slevel, domain, message);
+         }
       }
    }
+
+   free(tstamp);
 
    /*
     * The log messages from glib itself (and probably other libraries based
@@ -249,42 +356,68 @@ VMToolsLogFormat(const gchar *message,
       msg[len - 1] = '\0';
    }
 
+   if (!msg) {
+      /*
+       * Memory allocation failure?
+       */
+      VMToolsLogPanic();
+   }
+
    return msg;
 }
 
 
 /**
- * Aborts the program, optionally creating a core dump.
+ * Function to free a cached LogEntry.
+ *
+ * @param[in] data    Log entry to be freed.
  */
 
-static INLINE NORETURN void
-VMToolsLogPanic(void)
+static void
+VMToolsFreeLogEntry(gpointer data)
 {
-   gPanicCount++;
-   if (gEnableCoreDump) {
-#if defined(_WIN32)
-      CoreDump_CoreDump();
-#else
-      char cwd[PATH_MAX];
-      if (getcwd(cwd, sizeof cwd) != NULL) {
-         if (access(cwd, W_OK) == -1) {
-            /*
-             * Can't write to the working dir. chdir() to the user's home
-             * directory as an attempt to get a valid core dump.
-             */
-            const char *home = getenv("HOME");
-            if (home != NULL) {
-               if (chdir(home)) {
-                  /* Just to make glibc headers happy. */
-               }
-            }
-         }
-      }
-      abort();
-#endif
+   LogEntry *entry = data;
+
+   g_free(entry->domain);
+   g_free(entry->msg);
+   g_free(entry);
+}
+
+
+/**
+ * Function that calls the log handler.
+ *
+ * Also, frees the _data to avoid having separate free call.
+ *
+ * @param[in] _data     LogEntry pointer.
+ * @param[in] userData  User data pointer.
+ */
+
+static void
+VMToolsLogMsg(gpointer _data, gpointer userData)
+{
+   LogEntry *entry = _data;
+   GlibLogger *logger = entry->handler->logger;
+   gboolean usedSyslog = FALSE;
+
+   if (logger != NULL) {
+       logger->logfn(entry->domain, entry->level, entry->msg, logger);
+       usedSyslog = entry->handler->isSysLog;
+   } else if (gErrorData->logger != NULL) {
+      gErrorData->logger->logfn(entry->domain, entry->level, entry->msg,
+                                gErrorData->logger);
+      usedSyslog = gErrorData->isSysLog;
    }
-   /* Same behavior as Panic_Panic(). */
-   exit(-1);
+
+   /*
+    * Any fatal errors need to go to syslog no matter what.
+    */
+   if (!usedSyslog && IS_FATAL(entry->level)) {
+      gErrorSyslog->logger->logfn(entry->domain, entry->level, entry->msg,
+                                  gErrorSyslog->logger);
+   }
+
+   VMToolsFreeLogEntry(entry);
 }
 
 
@@ -307,18 +440,79 @@ VMToolsLog(const gchar *domain,
    LogHandler *data = _data;
 
    if (SHOULD_LOG(level, data)) {
-      gchar *msg;
+      LogEntry *entry;
 
       data = data->inherited ? gDefaultData : data;
-      msg = VMToolsLogFormat(message, domain, level, data);
 
-      if (data->logger != NULL) {
-         data->logger->logfn(domain, level, msg, data->logger);
-      } else if (gErrorData->logger != NULL) {
-         gErrorData->logger->logfn(domain, level, msg, gErrorData->logger);
+      entry = g_malloc0(sizeof(LogEntry));
+      if (entry) {
+         entry->domain = domain ? g_strdup(domain) : NULL;
+         if (domain && !entry->domain) {
+            VMToolsLogPanic();
+         }
+         entry->handler = data;
+         entry->level = level;
       }
-      g_free(msg);
+
+      if (gLogIOSuspended && data->needsFileIO) {
+         if (gMaxCacheEntries == 0) {
+            /* No way to log at this point, drop it */
+            VMToolsFreeLogEntry(entry);
+            gDroppedLogCount++;
+            goto exit;
+         }
+
+         entry->msg = VMToolsLogFormat(message, domain, level, data, TRUE);
+
+         /*
+          * Cache the log message
+          */
+         if (!gCachedLogs) {
+
+            /*
+             * If gMaxCacheEntries > 1K, start with 1/4th size
+             * to avoid frequent allocations
+             */
+            gCachedLogs = g_ptr_array_sized_new(gMaxCacheEntries < 1024 ?
+                                                gMaxCacheEntries :
+                                                gMaxCacheEntries/4);
+            if (!gCachedLogs) {
+               VMToolsLogPanic();
+            }
+
+            /*
+             * Some builds use glib version 2.16.4 which does not
+             * support g_ptr_array_set_free_func function
+             */
+         }
+
+         /*
+          * We don't expect logging to be suspended for a long time,
+          * so we can avoid putting a cap on cache size. However, we
+          * still have a default cap of 4K messages, just to be safe.
+          */
+         if (gCachedLogs->len < gMaxCacheEntries) {
+            g_ptr_array_add(gCachedLogs, entry);
+         } else {
+            /*
+             * Cache is full, drop the oldest log message. This is not
+             * very efficient but we don't expect this to be a common
+             * case anyway.
+             */
+            LogEntry *oldest = g_ptr_array_remove_index(gCachedLogs, 0);
+            VMToolsFreeLogEntry(oldest);
+            gDroppedLogCount++;
+
+            g_ptr_array_add(gCachedLogs, entry);
+         }
+
+      } else {
+         entry->msg = VMToolsLogFormat(message, domain, level, data, FALSE);
+         VMToolsLogMsg(entry, NULL);
+      }
    }
+
+exit:
    if (IS_FATAL(level)) {
       VMToolsLogPanic();
    }
@@ -351,7 +545,18 @@ VMToolsGetLogFilePath(const gchar *key,
 
    path = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
    if (path == NULL) {
-      return NULL;
+#ifdef WIN32
+      gchar winDir[MAX_PATH];
+
+      Win32U_ExpandEnvironmentStrings(DEFAULT_LOGFILE_DIR,
+                                      (LPSTR) winDir, sizeof winDir);
+      path = g_strdup_printf("%s%sTemp%s%s-%s.log",
+                             winDir, DIRSEPS, DIRSEPS,
+                             DEFAULT_LOGFILE_NAME_PREFIX, domain);
+#else
+      path = g_strdup_printf("%s-%s.log", DEFAULT_LOGFILE_NAME_PREFIX, domain);
+#endif
+      return path;
    }
 
    len = strlen(path);
@@ -387,7 +592,7 @@ VMToolsGetLogFilePath(const gchar *key,
 
          if (len == 0) {
             g_warning("Invalid path for domain '%s'.", domain);
-            g_free(origPath);
+            g_free(path);
             path = NULL;
          }
       }
@@ -421,13 +626,15 @@ VMToolsGetLogHandler(const gchar *handler,
 {
    LogHandler *logger;
    GlibLogger *glogger = NULL;
+   gboolean needsFileIO = FALSE;
    gchar key[MAX_DOMAIN_LEN + 64];
+   gboolean isSysLog = FALSE;
+   gchar *path = NULL;
 
    if (strcmp(handler, "file") == 0 || strcmp(handler, "file+") == 0) {
       gboolean append = strcmp(handler, "file+") == 0;
       guint maxSize;
       guint maxFiles;
-      gchar *path;
       GError *err = NULL;
 
       /* Use the same type name for both. */
@@ -451,19 +658,24 @@ VMToolsGetLogHandler(const gchar *handler,
          }
 
          glogger = GlibUtils_CreateFileLogger(path, append, maxSize, maxFiles);
-         g_free(path);
+         needsFileIO = TRUE;
       } else {
          g_warning("Missing path for domain '%s'.", domain);
       }
    } else if (strcmp(handler, "std") == 0) {
       glogger = GlibUtils_CreateStdLogger();
+      needsFileIO = FALSE;
    } else if (strcmp(handler, "vmx") == 0) {
       glogger = VMToolsCreateVMXLogger();
+      needsFileIO = FALSE;
 #if defined(_WIN32)
    } else if (strcmp(handler, "outputdebugstring") == 0) {
       glogger = GlibUtils_CreateDebugLogger();
+      needsFileIO = FALSE;
    } else if (strcmp(handler, "syslog") == 0) {
       glogger = GlibUtils_CreateEventLogger(L"VMware Tools", VMTOOLS_EVENT_LOG_MESSAGE);
+      needsFileIO = FALSE;
+      isSysLog = TRUE;
 #else /* !_WIN32 */
    } else if (strcmp(handler, "syslog") == 0) {
       gchar *facility;
@@ -472,7 +684,12 @@ VMToolsGetLogHandler(const gchar *handler,
       g_snprintf(key, sizeof key, "%s.facility", gLogDomain);
       facility = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
       glogger = GlibUtils_CreateSysLogger(domain, facility);
+      /*
+       * Older versions of Linux make synchronous call to syslog.
+       */
+      needsFileIO = TRUE;
       g_free(facility);
+      isSysLog = TRUE;
 #endif
    } else {
       g_warning("Invalid handler for domain '%s': %s", domain, handler);
@@ -487,6 +704,10 @@ VMToolsGetLogHandler(const gchar *handler,
    logger->logger = glogger;
    logger->mask = mask;
    logger->type = strdup(handler);
+   logger->needsFileIO = needsFileIO;
+   logger->isSysLog = isSysLog;
+   logger->confData = (path != NULL ? g_strdup(path) : NULL);
+   g_free(path);
 
    return logger;
 }
@@ -517,6 +738,7 @@ VMToolsConfigLogDomain(const gchar *domain,
 {
    gchar *handler = NULL;
    gchar *level = NULL;
+   gchar *confData = NULL;
    gchar key[128];
    gboolean isDefault = strcmp(domain, gLogDomain) == 0;
 
@@ -535,16 +757,15 @@ VMToolsConfigLogDomain(const gchar *domain,
    g_snprintf(key, sizeof key, "%s.level", domain);
    level = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
    if (level == NULL) {
-#ifdef VMX86_DEBUG
-      level = g_strdup("message");
-#else
-      level = g_strdup("warning");
-#endif
+      level = g_strdup(VMTOOLS_LOGGING_LEVEL_DEFAULT);
    }
 
    /* Parse the handler information. */
    g_snprintf(key, sizeof key, "%s.handler", domain);
    handler = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+
+   g_snprintf(key, sizeof key, "%s.data", domain);
+   confData = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
 
    if (handler == NULL && isDefault) {
       /*
@@ -592,13 +813,17 @@ VMToolsConfigLogDomain(const gchar *domain,
        * types as the same.
        */
       const char *oldtype = oldDefault != NULL ? oldDefault->type : NULL;
+      const char *oldData = oldDefault != NULL ? oldDefault->confData : NULL;
 
       if (oldtype != NULL && strcmp(oldtype, "file+") == 0) {
          oldtype = "file";
       }
 
       if (isDefault && oldtype != NULL && strcmp(oldtype, handler) == 0) {
-         data = oldDefault;
+         // check for a filename change
+         if (oldData && strcmp(oldData, confData) == 0) {
+            data = oldDefault;
+         }
       } else if (oldDomains != NULL) {
          guint i;
          for (i = 0; i < oldDomains->len; i++) {
@@ -625,6 +850,8 @@ VMToolsConfigLogDomain(const gchar *domain,
       data->domain = g_strdup(domain);
       data->inherited = TRUE;
       data->mask = levelsMask;
+      data->isSysLog = FALSE;
+      data->confData = g_strdup(confData);
    }
 
    if (isDefault) {
@@ -667,7 +894,9 @@ VMToolsResetLogging(gboolean hard)
    g_log_set_default_handler(g_log_default_handler, NULL);
 
    CLEAR_LOG_HANDLER(gErrorData);
+   CLEAR_LOG_HANDLER(gErrorSyslog);
    gErrorData = NULL;
+   gErrorSyslog = NULL;
 
    if (gDomains != NULL) {
       guint i;
@@ -752,6 +981,7 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
    gchar **curr;
    GPtrArray *oldDomains = NULL;
    LogHandler *oldDefault = NULL;
+   GError *err = NULL;
 
    g_return_if_fail(defaultDomain != NULL);
 
@@ -777,6 +1007,15 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
                                      gLogDomain,
                                      G_LOG_LEVEL_MASK,
                                      cfg);
+
+   /*
+    * The syslog handler used for G_LOG_FLAG_FATAL.
+    * This is only used if the default handler isn't type 'syslog'.
+    */
+   gErrorSyslog = VMToolsGetLogHandler("syslog",
+                                       gLogDomain,
+                                       G_LOG_FLAG_FATAL,
+                                       cfg);
 
    /*
     * Configure the default domain first. See function documentation for
@@ -808,6 +1047,41 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
    g_strfreev(list);
 
    gLogEnabled = g_key_file_get_boolean(cfg, LOGGING_GROUP, "log", NULL);
+
+   /*
+    * Need to set these so that the code below in this function
+    * can also log messages.
+    */
+   gLogEnabled |= force;
+   if (!gLogInitialized) {
+      gLogInitialized = TRUE;
+      g_static_rec_mutex_init(&gLogStateMutex);
+   }
+
+   gMaxCacheEntries = g_key_file_get_integer(cfg, LOGGING_GROUP,
+                                             "maxCacheEntries", &err);
+   if (err != NULL || gMaxCacheEntries < 0) {
+      /*
+       * Use default value in case of error.
+       * A value '0' will turn off log caching.
+       */
+      gMaxCacheEntries = DEFAULT_MAX_CACHE_ENTRIES;
+      if (err != NULL) {
+         if (err->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
+            g_warning("Invalid value for maxCacheEntries key: Error %d.",
+                      err->code);
+         }
+         g_clear_error(&err);
+      }
+   }
+
+   if (gMaxCacheEntries > 0) {
+      g_message("Log caching is enabled with maxCacheEntries=%d.",
+                gMaxCacheEntries);
+   } else {
+      g_message("Log caching is disabled.");
+   }
+
    if (g_key_file_has_key(cfg, LOGGING_GROUP, "enableCoreDump", NULL)) {
       gEnableCoreDump = g_key_file_get_boolean(cfg, LOGGING_GROUP,
                                                "enableCoreDump", NULL);
@@ -839,7 +1113,6 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
     * it's set to 5MB.
     */
    if (gEnableCoreDump) {
-      GError *err = NULL;
 #if defined(_WIN32)
       if (g_key_file_has_key(cfg, LOGGING_GROUP, "coreDumpFlags", NULL)) {
          guint coreDumpFlags;
@@ -884,9 +1157,6 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
 #endif
    }
 
-   gLogEnabled |= force;
-   gLogInitialized = TRUE;
-
    if (allocDict) {
       g_key_file_free(cfg);
    }
@@ -920,10 +1190,13 @@ VMToolsLogWrapper(GLogLevelFlags level,
       return;
    }
 
+   VMTools_AcquireLogStateLock();
    if (gLoggingStopped) {
       /* This is to avoid nested logging in vmxLogger */
+      VMTools_ReleaseLogStateLock();
       return;
    }
+   VMTools_ReleaseLogStateLock();
 
    if (gPanicCount == 0) {
       char *msg = Str_Vasprintf(NULL, fmt, args);
@@ -941,7 +1214,30 @@ VMToolsLogWrapper(GLogLevelFlags level,
 
 
 /**
+ * Acquire the log state lock.
+ */
+
+void
+VMTools_AcquireLogStateLock(void)
+{
+   g_static_rec_mutex_lock(&gLogStateMutex);
+}
+
+
+/**
+ * Release the log state lock.
+ */
+
+void
+VMTools_ReleaseLogStateLock(void)
+{
+   g_static_rec_mutex_unlock(&gLogStateMutex);
+}
+
+
+/**
  * This is called to avoid nested logging in vmxLogger.
+ * NOTE: This must be called after acquiring LogState lock.
  */
 
 void
@@ -953,12 +1249,59 @@ VMTools_StopLogging(void)
 
 /**
  * This is called to reset logging in vmxLogger.
+ * NOTE: This must be called after acquiring LogState lock.
  */
 
 void
 VMTools_RestartLogging(void)
 {
    gLoggingStopped = FALSE;
+}
+
+
+/**
+ * Suspend IO caused by logging activity.
+ */
+
+void
+VMTools_SuspendLogIO()
+{
+   gLogIOSuspended = TRUE;
+}
+
+
+/**
+ * Resume IO caused by logging activity.
+ */
+
+void
+VMTools_ResumeLogIO()
+{
+   guint cachedEntries = 0;
+
+   /*
+    * Resume the log IO first, so that we can also log messages
+    * from within this function itself!
+    */
+   gLogIOSuspended = FALSE;
+
+   /*
+    * Flush the cached log messages, if any
+    */
+   if (gCachedLogs) {
+      cachedEntries = gCachedLogs->len;
+      g_ptr_array_foreach(gCachedLogs, VMToolsLogMsg, NULL);
+      g_ptr_array_free(gCachedLogs, TRUE);
+      gCachedLogs = NULL;
+   }
+
+   g_debug("Flushed %u log messages from cache after resuming log IO.",
+           cachedEntries);
+
+   if (gDroppedLogCount > 0) {
+      g_warning("Dropped %u log messages from cache.", gDroppedLogCount);
+      gDroppedLogCount = 0;
+   }
 }
 
 
@@ -1127,3 +1470,81 @@ Warning(const char *fmt, ...)
    va_end(args);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMTools_ChangeLogFilePath --
+ *
+ *     This function gets the log file location given in the config file
+ *     and appends the string provided just before the delimiter specified.
+ *     If more than one delimiter is present in the string, it appends just
+ *     before the first delimiter. If the delimiter does not exist in the
+ *     location, the string provided is appended at the end of the location.
+ *
+ *     NOTE: It is up to the caller to free the delimiter and append string.
+ *
+ *     Example:
+ *     1) location - "C:\vmresset.log", delimiter - ".", appendString - "_4"
+ *        location changed = "C:\vmresset_4.log"
+ *     2) location - "C:\vmresset", delimiter - ".", appendString - "_4"
+ *        location changed = "C:\vmresset_4"
+ *     3) location - "C:\vmresset.log.log", delimiter - ".", appendString - "_4"
+ *        location changed = "C:\vmresset_4.log.log"
+ *
+ * Results:
+ *     TRUE if log file location is changed, FALSE otherwise.
+ *
+ * Side effects:
+ *     Appends a string into the log file location.
+ *
+ *----------------------------------------------------------------------
+ */
+
+gboolean
+VMTools_ChangeLogFilePath(const gchar *delimiter,     // IN
+                          const gchar *appendString,  // IN
+                          const gchar *domain,        // IN
+                          GKeyFile *conf)             // IN, OUT
+{
+   gchar key[128];
+   gchar *path = NULL;
+   gchar *userLogTemp = NULL;
+   gchar **tokens;
+   gboolean retVal = FALSE;
+
+   if (domain == NULL || conf == NULL){
+      goto exit;
+   }
+
+   g_snprintf(key, sizeof key, "%s.data", domain);
+   path = VMToolsGetLogFilePath(key, domain, conf);
+
+   if (path == NULL || appendString == NULL || delimiter == NULL){
+      goto exit;
+   }
+
+   tokens = g_strsplit(path, delimiter, 2);
+   if (tokens != NULL && *tokens != NULL){
+      userLogTemp = g_strjoin(appendString, *tokens, " ", NULL);
+      userLogTemp = g_strchomp (userLogTemp);
+      if (*(tokens+1) != NULL){
+         gchar *userLog;
+         userLog = g_strjoin(delimiter, userLogTemp, *(tokens+1), NULL);
+         g_key_file_set_string(conf, LOGGING_GROUP, key, userLog);
+         g_free(userLog);
+      } else {
+         g_key_file_set_string(conf, LOGGING_GROUP, key, userLogTemp);
+      }
+      retVal = TRUE;
+      g_free(userLogTemp);
+   }
+   g_strfreev(tokens);
+
+exit:
+   if (path){
+      g_free(path);
+   }
+
+   return retVal;
+}

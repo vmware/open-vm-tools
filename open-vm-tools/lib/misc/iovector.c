@@ -460,7 +460,7 @@ IOV_Split(VMIOVec *origV,         // IN/OUT: VMIOVec for whole xfer
  *
  *      This function takes an iov and a buffer as input and writes the content
  *      of the buffers pointed to by the iov into buf.
- * 
+ *
  * Result:
  *      None.
  *
@@ -471,10 +471,10 @@ IOV_Split(VMIOVec *origV,         // IN/OUT: VMIOVec for whole xfer
  */
 
 void
-IOV_WriteIovToBuf(struct iovec* entries,   // IN
-                  int numEntries,          // IN
-                  uint8* bufOut,           // OUT
-                  size_t bufSize)          // IN
+IOV_WriteIovToBuf(struct iovec const *entries, // IN
+                  int numEntries,              // IN
+                  uint8 *bufOut,               // OUT
+                  size_t bufSize)              // IN
 {
    size_t count = 0;
    int i;
@@ -570,7 +570,7 @@ IOV_Free(VMIOVec* iov)     // IN
  *
  *      This function copies the content of bufIn into the buffer pointed to by
  *      entries. It basically does the opposite of IOV_WriteIovToBuf.
- * 
+ *
  * Result:
  *      None.
  *
@@ -581,10 +581,10 @@ IOV_Free(VMIOVec* iov)     // IN
  */
 
 void
-IOV_WriteBufToIov(const uint8* bufIn,           // IN
-                  size_t bufSize,               // IN
-                  struct iovec* entries,        // OUT
-                  int numEntries)               // IN
+IOV_WriteBufToIov(const uint8 *bufIn,          // IN
+                  size_t bufSize,              // IN
+                  struct iovec const *entries, // OUT
+                  int numEntries)              // IN
 {
    size_t count = 0;
    int i;

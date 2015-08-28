@@ -194,9 +194,9 @@ MsgList_AppendStr(MsgList **list,  // IN reference to existing list
  */
 
 void
-MsgList_VAppend(MsgList **list,     // IN reference to existing list
-                const char *idFmt,  // IN message ID and English message
-                va_list args)       // IN args
+MsgList_VAppend(MsgList **list,     // IN/OUT/OPT: reference to existing list
+                const char *idFmt,  // IN: message ID and English message
+                va_list args)       // IN: args
 {
    ASSERT(idFmt != NULL);
 
@@ -251,9 +251,9 @@ MsgList_VAppend(MsgList **list,     // IN reference to existing list
  */
 
 void
-MsgList_Append(MsgList **list,     // IN reference to existing list
-               const char *idFmt,  // IN message ID and English message
-               ...)                // IN args
+MsgList_Append(MsgList **list,     // IN/OUT/OPT: reference to existing list
+               const char *idFmt,  // IN: message ID and English message
+               ...)                // IN: args
 {
    va_list args;
 

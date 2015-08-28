@@ -17,7 +17,7 @@
  *********************************************************/
 
 /*
- * guestproxycerttool.c --
+ * cert_tool.c --
  *
  *    Utility to manage the certificates for 'rabbitmqproxy'
  *    plugin in 'VMware Tools'.
@@ -27,11 +27,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <sys/types.h>
 #include "cert_util.h"
 #include "cert_key.h"
 #include "cert_tool_version.h"
+#ifdef _WIN32
+#include "common_win.h"
+#endif
 
 #include "vm_version.h"
 #include "embed_version.h"
@@ -50,6 +55,9 @@ static gchar    *guestProxySslConf;
 
 #define RSA_KEY_LENGTH       2048
 #define CERT_EXPIRED_IN_DAYS (365 * 10)
+
+
+gboolean gIsLogEnabled = FALSE;
 
 /*
  *----------------------------------------------------------------------
@@ -73,14 +81,17 @@ PrintUsage(const gchar *cmd)                      // IN
    fprintf(stderr, "Guest Proxy Certificate Management Tool.\n");
    fprintf(stderr, "Usage: %s [OPTION] [ARGUMENTS]\n\n", cmd);
    fprintf(stderr, "Options\n"
-           "  -h, --help                Prints the Usage information.\n\n"
-           "  -g, --generate_key_cert   Regenerate the server key/cert, the old\n"
-           "                            key/cert will be replaced.\n\n"
+           "  -h, --help                Prints the usage information.\n\n"
+           "  -v, --verbose             Prints additional log messages.\n\n"
+           "  -f, --force               Forces to regenerate the new server key/cert\n"
+           "                            when used with -g.\n\n"
+           "  -g, --generate_key_cert   Generates the server key/cert if they don't\n"
+           "                            exist. Use with -f to force the regeneration.\n\n"
            "  -a, --add_trust_cert      <client_cert_pem_file>\n"
            "                            Adds the client cert to the trusted\n"
            "                            certificates directory.\n\n"
            "  -r, --remove_trust_cert   <client_cert_pem_file>\n"
-           "                            Remove the client cert from the trusted\n"
+           "                            Removes the client cert from the trusted\n"
            "                            certificates directory.\n\n"
            "  -d, --display_server_cert [<cert_pem_file>]\n"
            "                            Prints the server's certificate to the\n"
@@ -88,6 +99,46 @@ PrintUsage(const gchar *cmd)                      // IN
            "                            specified, then the server's certificate\n"
            "                            is stored in the file.\n\n");
 }
+
+
+static void
+InitProxyPaths(const gchar *toolDir)
+{
+   guestProxyDir        = g_build_filename(toolDir, "GuestProxyData", NULL);
+   guestProxyServerDir  = g_build_filename(guestProxyDir, "server", NULL);
+   guestProxyTrustedDir = g_build_filename(guestProxyDir, "trusted", NULL);
+   guestProxySslConf    = g_build_filename(toolDir, "guestproxy-ssl.conf", NULL);
+}
+
+
+#ifndef _WIN32
+/*
+ *----------------------------------------------------------------------
+ *
+ * CheckRootPriv --
+ *
+ *    Check if the effect user id is root.
+ *
+ * Results:
+ *    TRUE if it is, otherwise FALSE.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+gboolean
+CheckRootPriv(void)
+{
+   if (geteuid() != 0) {
+      Error("Please re-run this program as the super user to execute "
+            "this operation.\n");
+      return FALSE;
+   }
+   return TRUE;
+}
+#endif
 
 
 /*
@@ -102,8 +153,8 @@ PrintUsage(const gchar *cmd)                      // IN
  *    TRUE if successfully find all the paths. Otherwise FALSE.
  *
  * Side effects:
- *    Path global variables are set accordingly and initialized is set
- *    to true so it is only initialized once.
+ *    Path global variables are set accordingly and guest proxy data
+ *    directories are created on-demand.
  *
  *----------------------------------------------------------------------
  */
@@ -113,50 +164,45 @@ ValidateEnvironment(gboolean requireRootPriv)     // IN
 {
    gboolean ret = FALSE;
 
-   if (requireRootPriv && geteuid() != 0) {
-      Error("Please re-run this program as the super user to execute "
-            "this operation.\n");
+   if (requireRootPriv && !CheckRootPriv()) {
+      Error("Current user has insufficient privileges.\n");
       goto exit;
    }
 
-   ret = initialized;
-   if (ret) {
-      goto exit;
+   if (!initialized) {
+      CertKey_InitOpenSSLLib();
+      initialized = TRUE;
    }
 
-   CertKey_InitOpenSSLLib();
-
-   guestProxyDir = g_build_filename(CertUtil_GetToolDir(),
-                                    "GuestProxyData", NULL);
-   if (!g_file_test(guestProxyDir, G_FILE_TEST_IS_DIR)) {
-      Error("Couldn't find the GuestProxy Directory at '%s'.\n",
-            guestProxyDir);
-      goto exit;
-   }
-
-   guestProxyServerDir = g_build_filename(guestProxyDir, "server", NULL);
-   if (!g_file_test(guestProxyServerDir, G_FILE_TEST_IS_DIR)) {
-      Error("Couldn't find the GuestProxy Certificate Directory at '%s'.\n",
-            guestProxyServerDir);
-      goto exit;
-   }
-
-   guestProxyTrustedDir = g_build_filename(guestProxyDir, "trusted", NULL);
-   if (!g_file_test(guestProxyTrustedDir, G_FILE_TEST_IS_DIR)) {
-      Error("Couldn't find the GuestProxy Certificate Store at '%s'.\n",
-            guestProxyTrustedDir);
-      goto exit;
-   }
-
-   guestProxySslConf = g_build_filename(CertUtil_GetToolDir(),
-                                        "guestproxy-ssl.conf", NULL);
    if (!g_file_test(guestProxySslConf, G_FILE_TEST_IS_REGULAR)) {
       Error("Couldn't find the GuestProxy Config file at '%s'.\n",
             guestProxySslConf);
       goto exit;
    }
 
-   initialized = ret = TRUE;
+   /* Create guest proxy data directories on-demand */
+   if (!g_file_test(guestProxyDir, G_FILE_TEST_IS_DIR)) {
+      if (g_mkdir(guestProxyDir, 0755) < 0) {
+         Error("Couldn't create the directory '%s'.\n", guestProxyDir);
+         goto exit;
+      }
+   }
+
+   if (!g_file_test(guestProxyServerDir, G_FILE_TEST_IS_DIR)) {
+      if (g_mkdir(guestProxyServerDir, 0755) < 0) {
+         Error("Couldn't create the directory '%s'.\n", guestProxyServerDir);
+         goto exit;
+      }
+   }
+
+   if (!g_file_test(guestProxyTrustedDir, G_FILE_TEST_IS_DIR)) {
+      if (g_mkdir(guestProxyTrustedDir, 0700) < 0) {
+         Error("Couldn't create the directory '%s'.\n", guestProxyTrustedDir);
+         goto exit;
+      }
+   }
+
+   ret = TRUE;
 
 exit:
    return ret;
@@ -322,7 +368,7 @@ exit:
  */
 
 static gboolean
-CreateKeyCert(void)
+CreateKeyCert(gboolean force)
 {
    gboolean ret = FALSE;
    gchar *cert = NULL;
@@ -334,6 +380,21 @@ CreateKeyCert(void)
 
    key  = g_build_filename(guestProxyServerDir, "key.pem", NULL);
    cert = g_build_filename(guestProxyServerDir, "cert.pem", NULL);
+
+   /*
+    * If both server key and certificate files already exist and the
+    * program is not asked to create them by force, print an warning
+    * message about server key/cert files not regenerating.
+    */
+   if (g_file_test(key, G_FILE_TEST_IS_REGULAR) &&
+       g_file_test(cert, G_FILE_TEST_IS_REGULAR) && !force) {
+      printf("\nNOTE: both %s and \n      %s already exist.\n"
+             "      They are not generated again. To regenerate "
+             "them by force,\n      use the \"%s -g -f\" command.\n\n",
+             key, cert, g_get_prgname());
+      ret = TRUE;
+      goto exit;
+   }
 
    printf("Generating the key and certificate files.\n");
 
@@ -427,6 +488,50 @@ exit:
 
 
 /*
+  "  -e, --erase_proxy_data   Erases the trusted and server directories,\n"
+  "                           and their contents including server key/cert.\n\n"
+*/
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * EraseProxyData --
+ *
+ *    Delete the guest proxy data diectory and its contents.
+ *
+ * Results:
+ *    TRUE if success, otherwise FALSE.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static gboolean
+EraseProxyData(void)
+{
+   gboolean ret = FALSE;
+
+   if (!CheckRootPriv()) {
+      goto exit;
+   }
+
+   if (g_file_test(guestProxyDir, G_FILE_TEST_IS_DIR)) {
+      if (!CertUtil_RemoveDir(guestProxyDir)) {
+         Error("Fail to remove the directory '%s'.\n", guestProxyDir);
+         goto exit;
+      }
+   }
+
+   ret = TRUE;
+
+exit:
+   return ret;
+}
+
+
+/*
  * Aggregation of command options.
  */
 static struct _options {
@@ -436,7 +541,10 @@ static struct _options {
    gboolean  displayCert;
    gboolean generateCert;
    gboolean        usage;
-} options = { NULL, NULL, NULL, FALSE, FALSE, FALSE};
+   gboolean        verbose;
+   gboolean        force;
+   gboolean        erase;
+} options = { NULL, NULL, NULL, FALSE, FALSE, FALSE, FALSE};
 
 
 static gboolean
@@ -457,6 +565,12 @@ ParseDisplayCert(const gchar* name,
 static GOptionEntry cmdOptions[] = {
    { "help",                'h', 0,
      G_OPTION_ARG_NONE,      &options.usage,        NULL, NULL },
+   { "verbose",             'v', 0,
+     G_OPTION_ARG_NONE,      &options.verbose,      NULL, NULL },
+   { "erase_proxy_data",    'e', 0,
+     G_OPTION_ARG_NONE,      &options.erase,        NULL, NULL },
+   { "force",               'f', 0,
+     G_OPTION_ARG_NONE,      &options.force,        NULL, NULL },
    { "generate_key_cert",   'g', 0,
      G_OPTION_ARG_NONE,      &options.generateCert, NULL, NULL },
    { "add_trust_cert",      'a', 0,
@@ -520,10 +634,17 @@ main(int argc, char **argv)
       exit(0);
    }
 
-   if ((options.generateCert && !CreateKeyCert()) ||
+   if (options.verbose) {
+      gIsLogEnabled = TRUE;
+   }
+
+   InitProxyPaths(CertUtil_GetToolDir());
+
+   if ((options.generateCert && !CreateKeyCert(options.force)) ||
        (options.displayCert && !DisplayServerCert(options.outputCert)) ||
        (options.addCert && !AddTrustCert(options.addCert)) ||
-       (options.deleteCert && !RemoveTrustCert(options.deleteCert))) {
+       (options.deleteCert && !RemoveTrustCert(options.deleteCert)) ||
+       (options.erase && !EraseProxyData())) {
       return 1;
    } else {
       return 0;

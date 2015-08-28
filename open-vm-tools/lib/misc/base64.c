@@ -131,16 +131,16 @@ static const signed char base64Reverse[256] = {
    Table 1: The Base64 Alphabet
 
    Value Encoding  Value Encoding  Value Encoding  Value Encoding
-   0 A            17 R            34 i            51 z
-   1 B            18 S            35 j            52 0
-   2 C            19 T            36 k            53 1
-   3 D            20 U            37 l            54 2
-   4 E            21 V            38 m            55 3
-   5 F            22 W            39 n            56 4
-   6 G            23 X            40 o            57 5
-   7 H            24 Y            41 p            58 6
-   8 I            25 Z            42 q            59 7
-   9 J            26 a            43 r            60 8
+   0 A             17 R            34 i            51 z
+   1 B             18 S            35 j            52 0
+   2 C             19 T            36 k            53 1
+   3 D             20 U            37 l            54 2
+   4 E             21 V            38 m            55 3
+   5 F             22 W            39 n            56 4
+   6 G             23 X            40 o            57 5
+   7 H             24 Y            41 p            58 6
+   8 I             25 Z            42 q            59 7
+   9 J             26 a            43 r            60 8
    10 K            27 b            44 s            61 9
    11 L            28 c            45 t            62 +
    12 M            29 d            46 u            63 /
@@ -515,10 +515,10 @@ Base64_DecodedLength(char const *src,   // IN:
    // PR 303173 - do the following check to avoid a negative value returned
    // from this function. Note: length can only be in a multiple of 3
    if (length > 2) {
-      if (src[srcLength-1] == '=') {
+      if (src[srcLength - 1] == '=') {
          length--;
       }
-      if (src[srcLength-2] == '=') {
+      if (src[srcLength - 2] == '=') {
          length--;
       }
    }
@@ -557,7 +557,7 @@ Base64_EasyEncode(const uint8 *src,  // IN: data to encode
 
    size = Base64_EncodedLength(src, srcLength);
 
-   *target = (char *) malloc(size);
+   *target = malloc(size);
 
    if (!*target) {
       goto exit;
@@ -611,7 +611,7 @@ Base64_EasyDecode(const char *src,   // IN: data to decode
 
    theDataSize = Base64_DecodedLength(src, strlen(src));
 
-   theData = (uint8 *) malloc(theDataSize);
+   theData = malloc(theDataSize);
 
    if (!theData) {
       goto exit;
@@ -634,4 +634,49 @@ exit:
    }
 
    return succeeded;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Base64_DecodeFixed --
+ *
+ *      Base64-decode 'src' into a preallocated, fixed sized buffer.
+ *
+ * Results:
+ *      TRUE  outBuf is populated with the decoded string
+ *      FALSE Decoding or memory allocation failed.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Base64_DecodeFixed(const char *src,    // IN: data to decode
+                   char *outBuf,       // OUT: decoded data
+                   size_t outBufSize)  // IN: data size
+{
+   Bool success;
+   uint8 *theData;
+   size_t theDataSize;
+
+   ASSERT(src);
+   ASSERT(outBuf);
+
+   success = Base64_EasyDecode(src, &theData, &theDataSize);
+
+   if (success) {
+      success = (theDataSize <= outBufSize);
+
+      if (success) {
+         memcpy(outBuf, theData, theDataSize);
+      }
+
+      free(theData);
+   }
+
+   return success;
 }

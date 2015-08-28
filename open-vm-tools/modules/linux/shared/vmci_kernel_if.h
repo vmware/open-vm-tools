@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2011 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -88,7 +88,7 @@
 #endif
 
 #if defined(VMKERNEL)
-  typedef SP_SpinLock VMCILock;
+  typedef MCSLock VMCILock;
   typedef SP_IRQL VMCILockFlags;
   typedef Semaphore VMCIEvent;
   typedef Semaphore VMCIMutex;
@@ -145,8 +145,18 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
 
   #define VMCI_SEMA_RANK_QPHEADER       (SEMA_RANK_FS - 1)
 
-  #define VMCI_LOCK_RANK_MAX            (MIN(SP_RANK_WAIT, \
+  #define VMCI_LOCK_RANK_MAX_NONBLOCK   (MIN(SP_RANK_WAIT, \
                                              SP_RANK_HEAPLOCK_DYNAMIC) - 1)
+  #define VMCI_LOCK_RANK_MAX            (SP_RANK_BLOCKABLE_HIGHEST_MAJOR - 2)
+
+  /*
+   * Determines whether VMCI locks will be blockable or not. If blockable,
+   * all locks will be at or below VMCI_LOCK_RANK_MAX. If not, locks will
+   * instead use VMCI_LOCK_RANK_MAX_NONBLOCK as the maximum. The other
+   * VMCI_LOCK_RANK_XXX values will be rebased to be non-blocking as well
+   * in that case.
+   */
+  extern Bool vmciBlockableLock;
 #else
   typedef unsigned long VMCILockRank;
   typedef unsigned long VMCISemaRank;

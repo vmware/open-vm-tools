@@ -43,6 +43,7 @@ libMisc_la_SOURCES += posixDlopen.c
 libMisc_la_SOURCES += posixPosix.c
 libMisc_la_SOURCES += posixPwd.c
 libMisc_la_SOURCES += random.c
+libMisc_la_SOURCES += sleep.c
 libMisc_la_SOURCES += timeutil.c
 libMisc_la_SOURCES += util_misc.c
 libMisc_la_SOURCES += utilMem.c

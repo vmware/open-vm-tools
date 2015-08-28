@@ -25,6 +25,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "resolutionInt.h"
 #include "resolutionRandR12.h"
@@ -38,11 +40,11 @@
 
 #include "vmware.h"
 #include "debug.h"
-#include "fileIO.h"
 #include "libvmwarectrl.h"
 #include "str.h"
 #include "strutil.h"
 #include "util.h"
+#include "posix.h"
 
 #define VMWAREDRV_PATH_64   "/usr/X11R6/lib64/modules/drivers/vmware_drv.o"
 #define VMWAREDRV_PATH      "/usr/X11R6/lib/modules/drivers/vmware_drv.o"
@@ -333,14 +335,13 @@ static Bool
 ResolutionCanSet(void)
 {
    ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
-   FileIODescriptor fd;
-   FileIOResult res;
-   int64 filePos = 0;
+   int fd = -1;
+   off_t filePos = 0;
    Bool keepSearching = TRUE;
    Bool found = FALSE;
    char buf[sizeof VERSION_STRING + 10]; // size of VERSION_STRING plus some extra for the version number
    const char versionString[] = VERSION_STRING;
-   size_t bytesRead;
+   ssize_t bytesRead;
    int32 major, minor, level;
    unsigned int tokPos;
 
@@ -411,18 +412,17 @@ ResolutionCanSet(void)
     */
 
    buf[sizeof buf - 1] = '\0';
-   FileIO_Invalidate(&fd);
-   res = FileIO_Open(&fd, VMWAREDRV_PATH_64, FILEIO_ACCESS_READ, FILEIO_OPEN);
-   if (res != FILEIO_SUCCESS) {
-      res = FileIO_Open(&fd, VMWAREDRV_PATH, FILEIO_ACCESS_READ, FILEIO_OPEN);
+   fd = Posix_Open(VMWAREDRV_PATH_64, O_RDONLY);
+   if (fd == -1) {
+      fd = Posix_Open(VMWAREDRV_PATH, O_RDONLY);
    }
-   if (res == FILEIO_SUCCESS) {
+   if (fd != -1) {
       /*
        * One of the opens succeeded, so start searching thru the file.
        */
       while (keepSearching) {
-         res = FileIO_Read(&fd, buf, sizeof buf - 1, &bytesRead);
-         if (res != FILEIO_SUCCESS || bytesRead < sizeof buf -1 ) {
+         bytesRead = read(fd, buf, sizeof buf - 1);
+         if (bytesRead == -1 || bytesRead < sizeof buf -1 ) {
             keepSearching = FALSE;
          } else {
             if (Str_Strncmp(versionString, buf, sizeof versionString - 1) == 0) {
@@ -430,17 +430,17 @@ ResolutionCanSet(void)
                found = TRUE;
             }
          }
-         filePos = FileIO_Seek(&fd, filePos+1, FILEIO_SEEK_BEGIN);
+         filePos = lseek(fd, filePos+1, SEEK_SET);
          if (filePos == -1) {
             keepSearching = FALSE;
          }
       }
-      FileIO_Close(&fd);
+      close(fd);
       if (found) {
          /*
           * We NUL-terminated buf earlier, but Coverity really wants it to
-          * be NUL-terminated after the call to FileIO_Read (because
-          * FileIO_Read doesn't NUL-terminate). So we'll do it again.
+          * be NUL-terminated after the call to read (because
+          * read doesn't NUL-terminate). So we'll do it again.
           */
          buf[sizeof buf - 1] = '\0';
 

@@ -43,8 +43,8 @@ typedef enum {
 
 HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
 
-Unicode Hostinfo_NameGet(void);	/* don't free result */
-Unicode Hostinfo_HostName(void);	/* free result */
+char *Hostinfo_NameGet(void);	/* don't free result */
+char *Hostinfo_HostName(void);	/* free result */
 
 void Hostinfo_MachineID(uint32 *hostNameHash,
                         uint64 *hostHardwareID);
@@ -128,10 +128,10 @@ char *Hostinfo_HypervisorCPUIDSig(void);
 
 #define HGMP_PRIVILEGE    0
 #define HGMP_NO_PRIVILEGE 1
-Unicode Hostinfo_GetModulePath(uint32 priv);
+char *Hostinfo_GetModulePath(uint32 priv);
 char *Hostinfo_GetLibraryPath(void *addr);
 
-Unicode Hostinfo_GetUser(void);
+char *Hostinfo_GetUser(void);
 void Hostinfo_LogMemUsage(void);
 
 

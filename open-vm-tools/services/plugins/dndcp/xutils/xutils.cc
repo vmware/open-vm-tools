@@ -29,6 +29,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <gdk/gdkx.h>
+#include <cstring>
 
 extern "C" {
 #include "vm_assert.h"

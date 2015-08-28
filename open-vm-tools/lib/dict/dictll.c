@@ -243,7 +243,7 @@ DictLL_UnmarshalLine(const char *buf,   // IN: buffer to parse
       *value = NULL;
       return NULL;
    }
-   
+
    /* Find end of this line, beginning of next. */
    lineEnd = memchr(buf, '\n', bufSize);
    if (lineEnd != NULL) {
@@ -339,18 +339,18 @@ DictLL_ReadLine(FILE *stream, // IN: stream to read
    ASSERT(line);
    ASSERT(name);
    ASSERT(value);
- 
+
    *line = NULL;
    *name = NULL;
    *value = NULL;
-   
+
    switch (StdIO_ReadNextLine(stream, &myLine, 0, &myLineLen)) {
    case StdIO_Error:
       return 0;
- 
+
    case StdIO_EOF:
       return 1;
- 
+
    case StdIO_Success:
       if (DictLL_UnmarshalLine(myLine, myLineLen,
                                line, name, value) == NULL) {
@@ -386,7 +386,7 @@ DictLL_ReadLine(FILE *stream, // IN: stream to read
 
 Bool
 DictLL_MarshalLine(DynBuf *output,    // IN/OUT: output buffer
-                   char const *name,  // IN: name to marshal
+                   char const *name,  // IN/OPT: name to marshal
                    char const *value) // IN: value to marshal
 {
    size_t size;

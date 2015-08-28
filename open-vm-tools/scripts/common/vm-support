@@ -23,7 +23,7 @@ usage()
 	echo ""
 	echo "Usage: $0 [-h]"
 	echo "	-h prints this usage statement"
-	exit
+	exit 1
 }
 
 
@@ -101,13 +101,13 @@ addfile()
    file="$1"
 
    if [ ! -e "$file" ]; then
-      return
+      return 2
    fi
 
    dir=`dirname "$file"`
    checkOutputDir "$dir"
    if [ $? != 0 ]; then
-      return
+      return $?
    fi
 
    # Ignore stdout and handle errors.
@@ -205,7 +205,9 @@ stageLinux()
    runcmd "/tmp/modules.txt" /sbin/lsmod
    runcmd "/tmp/uname.txt" uname -a
    runcmd "/tmp/issue.txt" cat /etc/issue
-   runcmd "/tmp/rpm-qa.txt" rpm -qa
+   if which rpm &> /dev/null; then
+      runcmd "/tmp/rpm-qa.txt" rpm -qa
+   fi
    runcmd "/tmp/netstat-lan.txt" netstat -lan
    runcmd "/tmp/route.txt" route
    runcmd "/tmp/free.txt" free
@@ -256,7 +258,7 @@ cleanup()
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 TARFILE=vm-`date +%Y-%m-%d`.$$.tar.gz
-VER=0.90
+VER=0.92
 
 # Parse args
 for option in $@
@@ -283,7 +285,7 @@ banner "VMware UNIX Support Script $VER"
 #	Check for root privledge
 
 if [ `whoami` != 'root' ]; then
-   banner "You are not root, some system information can't be collected."
+   error "Please re-run this program as root. "
 fi
 
 # Source /etc/profile.  If we can't find it, it's the users problem to get
@@ -318,7 +320,7 @@ if [ $? != 0 ]; then
 fi
 
 # Cleanup our temp folder if the process is signalled midway.
-trap "cleanup 1" SIGHUP SIGINT SIGQUIT SIGTERM SIGABRT
+trap "cleanup 1" HUP INT QUIT TERM ABRT
 
 banner "Collecting support information..."
 
@@ -330,6 +332,7 @@ addfiles /var/log/boot*
 addfiles /var/log/secure*
 addfiles /var/log/messages*
 addfiles /var/log/syslog*
+addfiles /var/log/vmware-*
 addfiles /var/run/vmware-*
 
 runcmd "/tmp/df.txt" df
@@ -370,7 +373,7 @@ if [ $? != 0 ]; then
 fi
 
 # Clean up temporary files
-trap - SIGHUP SIGINT SIGQUIT SIGTERM SIGABRT; cleanup
+trap - HUP INT QUIT TERM ABRT; cleanup
 
 banner "Uploading archive to host..."
 vmware-xferlogs enc $TARFILE 2>/dev/null

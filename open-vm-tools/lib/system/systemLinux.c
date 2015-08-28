@@ -281,7 +281,7 @@ System_Uptime(void)
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 System_GetTimeAsString(void)
 {
    struct timeval tv;
@@ -290,8 +290,8 @@ System_GetTimeAsString(void)
    size_t charsWritten;
    size_t bufSize = 8; // Multiplied by 2 for the initial allocation.
    char *buf = NULL;
-   Unicode dateTime = NULL;
-   Unicode output = NULL;
+   char *dateTime = NULL;
+   char *output = NULL;
 
    if (gettimeofday(&tv, NULL)) {
       goto out;
@@ -331,7 +331,7 @@ System_GetTimeAsString(void)
 
   out:
    free(buf);
-   Unicode_Free(dateTime);
+   free(dateTime);
    return output;
 }
 

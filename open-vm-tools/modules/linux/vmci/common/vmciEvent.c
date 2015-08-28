@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -563,13 +563,15 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
       /*
        * In the vmkernel we defer delivery of events to a helper world.  This
        * makes the event delivery more consistent across hosts and guests with
-       * regard to which locks are held.  Memory access events are an exception
-       * to this, since clients need to know immediately that the device
-       * memory is disabled (if we delay such events, then clients may be
-       * notified too late).
+       * regard to which locks are held.  Memory access and guest paused events
+       * are an exception to this, since clients need to know immediately that
+       * the device memory is disabled (if we delay such events, then clients
+       * may be notified too late).
        */
       if (VMCI_EVENT_MEM_ACCESS_ON == event ||
-          VMCI_EVENT_MEM_ACCESS_OFF == event) {
+          VMCI_EVENT_MEM_ACCESS_OFF == event ||
+          VMCI_EVENT_GUEST_PAUSED == event ||
+          VMCI_EVENT_GUEST_UNPAUSED == event) {
          /*
           * Client must expect to get such events synchronously, and should
           * perform its locking accordingly.  If it can't handle this, then

@@ -39,31 +39,6 @@ extern "C" {
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 
-#if defined(SUPPORT_UNICODE_OPAQUE)
-
-/*
- * To assist with finding code that hasn't been internationalized, we
- * support building with an opaque Unicode type.  This catches users
- * passing a char * of unknown encoding to Unicode functions, and
- * assigning a Unicode to a char *.
- */
-
-typedef struct UnicodeImpl UnicodeImpl;
-typedef UnicodeImpl * Unicode;
-typedef const UnicodeImpl * ConstUnicode;
-
-#else
-
-/*
- * As a transitionary development tactic to prevent code churn while the
- * Unicode libraries are being developed, we'll start with a simple
- * implementation of Unicode as UTF-8 char *.
- */
-typedef char * Unicode;
-typedef const char * ConstUnicode;
-
-#endif
-
 typedef ssize_t UnicodeIndex;
 
 /*

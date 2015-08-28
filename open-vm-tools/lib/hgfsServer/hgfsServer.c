@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2014-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,7 +47,6 @@
 #include "hgfsServerParameters.h"
 #include "hgfsServerOplock.h"
 #include "hgfsDirNotify.h"
-#include "hgfsTransport.h"
 #include "userlock.h"
 #include "poll.h"
 #include "mutexRankLib.h"
@@ -200,7 +199,7 @@ static Atomic_uint32 gHgfsAsyncCounter = {0};
 static MXUserExclLock *gHgfsAsyncLock;
 static MXUserCondVar  *gHgfsAsyncVar;
 
-static HgfsServerStateLogger *hgfsMgrData = NULL;
+static HgfsServerMgrCallbacks *gHgfsMgrData = NULL;
 
 /*
  * Session usage and locking.
@@ -237,18 +236,24 @@ static void HgfsServerSessionInvalidateObjects(void *clientData,
                                                DblLnkLst_Links *shares);
 static uint32 HgfsServerSessionInvalidateInactiveSessions(void *clientData);
 static void HgfsServerSessionSendComplete(HgfsPacket *packet, void *clientData);
+static HgfsSharedFolderHandle HgfsServerRegisterShare(const char *shareName,
+                                                      const char *sharePath,
+                                                      Bool addFolder);
 
 /*
  * Callback table passed to transport and any channels.
  */
-HgfsServerSessionCallbacks hgfsServerSessionCBTable = {
-   HgfsServerSessionConnect,
-   HgfsServerSessionDisconnect,
-   HgfsServerSessionClose,
-   HgfsServerSessionReceive,
-   HgfsServerSessionInvalidateObjects,
-   HgfsServerSessionInvalidateInactiveSessions,
-   HgfsServerSessionSendComplete,
+HgfsServerCallbacks gHgfsServerCBTable = {
+   {
+      HgfsServerSessionConnect,
+      HgfsServerSessionDisconnect,
+      HgfsServerSessionClose,
+      HgfsServerSessionReceive,
+      HgfsServerSessionInvalidateObjects,
+      HgfsServerSessionInvalidateInactiveSessions,
+      HgfsServerSessionSendComplete,
+   },
+   HgfsServerRegisterShare,
 };
 
 /* Lock that protects shared folders list. */
@@ -562,17 +567,7 @@ HgfsServerGetHandleCounter(void)
 static uint32
 HgfsServerGetNextHandleCounter(void)
 {
-   uint32 count = Atomic_ReadInc32(&hgfsHandleCounter);
-   /*
-    * Call server manager for logging state updates.
-    * XXX - This will have to be reworked when the server is
-    * more concurrent than with the current access.
-    */
-   if (hgfsMgrData != NULL &&
-       hgfsMgrData->logger != NULL) {
-      hgfsMgrData->logger(hgfsMgrData->loggerData, count + 1);
-   }
-   return count;
+   return Atomic_ReadInc32(&hgfsHandleCounter);
 }
 
 
@@ -1628,16 +1623,22 @@ HgfsRemoveFileNode(HgfsFileNode *node,        // IN: file node
 
    if (node->shareName) {
       free(node->shareName);
+      node->shareName = NULL;
    }
-   node->shareName = NULL;
 
    if (node->utf8Name) {
       free(node->utf8Name);
+      node->utf8Name = NULL;
    }
-   node->utf8Name = NULL;
+
    node->state = FILENODE_STATE_UNUSED;
    ASSERT(node->fileCtx == NULL);
    node->fileCtx = NULL;
+
+   if (node->shareInfo.rootDir) {
+      free((void*)node->shareInfo.rootDir);
+      node->shareInfo.rootDir = NULL;
+   }
 
    /* Prepend at the beginning of the list */
    DblLnkLst_LinkFirst(&session->nodeFreeList, &node->links);
@@ -3089,6 +3090,46 @@ exit:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerGetRequestHeaderSize --
+ *
+ *    Takes the Hgfs request input and finds the size of the header component.
+ *
+ * Results:
+ *    Size of the HGFS protocol header used by this request and reply.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsServerGetRequestHeaderSize(HgfsInputParam *input)     // IN: parameters
+{
+   size_t headerSize;
+
+   /*
+    * If the HGFS request is session enabled we must have the new header.
+    * Otherwise, starting from HGFS V3 the header is not included in the
+    * request itself, so we must return the size of the separate HgfsReply
+    * structure. Prior to V3 (so V1 and V2) there was no separate header
+    * from the request result structure so a zero size is returned for these
+    * operations.
+    */
+   if (input->sessionEnabled) {
+      headerSize = sizeof (HgfsHeader);
+   } else if (input->op >= HGFS_OP_OPEN_V3) {
+      headerSize = sizeof (HgfsReply);
+   } else {
+      headerSize = 0;
+   }
+   return headerSize;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerCompleteRequest --
  *
  *    Performs all necessary action which needed for completing HGFS request:
@@ -3113,6 +3154,7 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
    void *reply;
    size_t replySize;
    size_t replyTotalSize;
+   size_t replyHeaderSize;
    uint64 replySessionId;
 
    if (HGFS_ERROR_SUCCESS == status) {
@@ -3123,18 +3165,20 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
 
    replySessionId =  (NULL != input->session) ? input->session->sessionId
                                               : HGFS_INVALID_SESSION_ID;
+   replyHeaderSize = HgfsServerGetRequestHeaderSize(input);
 
-   if (input->sessionEnabled) {
-      replySize = sizeof (HgfsHeader) + replyPayloadSize;
+   if (replyHeaderSize != 0) {
+      replySize = replyHeaderSize + replyPayloadSize;
    } else {
       /*
-       * Starting from HGFS V3 header is not included in the payload size.
+       * For pre-V3 header is included in the payload size.
+       * If we want to send just an error result then HgfsReply
+       * only size is required.
+       *
+       * XXX - all callers should be verified that the reply payload
+       * size for V1 and V2 should be correct (mininum HgfsReply size).
        */
-      if (input->op < HGFS_OP_OPEN_V3) {
-         replySize = MAX(replyPayloadSize, sizeof (HgfsReply));
-      } else {
-         replySize = sizeof (HgfsReply) + replyPayloadSize;
-      }
+      replySize = MAX(replyPayloadSize, sizeof (HgfsReply));
    }
 
    reply = HSPU_GetReplyPacket(input->packet,
@@ -3534,7 +3578,7 @@ HgfsServerCleanupDeletedFolders(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServer_RegisterSharedFolder --
+ * HgfsServerRegisterShare --
  *
  *    This is a callback function which is invoked by hgfsServerManagement
  *    for every shared folder when something changed in shared folders
@@ -3559,10 +3603,10 @@ HgfsServerCleanupDeletedFolders(void)
  *-----------------------------------------------------------------------------
  */
 
-HgfsSharedFolderHandle
-HgfsServer_RegisterSharedFolder(const char *shareName,   // IN: shared folder name
-                                const char *sharePath,   // IN: shared folder path
-                                Bool addFolder)          // IN: add or remove folder
+static HgfsSharedFolderHandle
+HgfsServerRegisterShare(const char *shareName,   // IN: shared folder name
+                        const char *sharePath,   // IN: shared folder path
+                        Bool addFolder)          // IN: add or remove folder
 {
    DblLnkLst_Links *link, *nextElem;
    HgfsSharedFolderHandle result = HGFS_INVALID_FOLDER_HANDLE;
@@ -3729,16 +3773,16 @@ HgfsServerGetShareName(HgfsSharedFolderHandle sharedFolder, // IN: Notify handle
  */
 
 Bool
-HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our callbacks
+HgfsServer_InitState(HgfsServerCallbacks **callbackTable,         // IN/OUT: our callbacks
                      HgfsServerConfig *serverCfgData,             // IN: configurable settings
-                     HgfsServerStateLogger *serverMgrData)        // IN: mgr callback
+                     HgfsServerMgrCallbacks *serverMgrData)       // IN: mgr callback
 {
    Bool result = TRUE;
 
    ASSERT(callbackTable);
 
    /* Save any server manager data for logging state updates.*/
-   hgfsMgrData = serverMgrData;
+   gHgfsMgrData = serverMgrData;
 
    if (NULL != serverCfgData) {
       gHgfsCfgSettings = *serverCfgData;
@@ -3780,7 +3824,7 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
    }
 
    if (result) {
-      *callbackTable = &hgfsServerSessionCBTable;
+      *callbackTable = &gHgfsServerCBTable;
 
       if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_NOTIFY_ENABLED)) {
          gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
@@ -3851,6 +3895,10 @@ HgfsServer_ExitState(void)
    }
 
    HgfsPlatformDestroy();
+   /*
+    * Reset the server manager callbacks.
+    */
+   gHgfsMgrData = NULL;
 }
 
 
@@ -3918,6 +3966,102 @@ HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerResEnumInit --
+ *
+ *    Initialize an enumeration of all exisitng resources.
+ *
+ * Results:
+ *    The enumeration state object.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void *
+HgfsServerResEnumInit(void)
+{
+   void *enumState = NULL;
+
+    if (gHgfsMgrData != NULL &&
+       gHgfsMgrData->enumResources.init != NULL) {
+      enumState = gHgfsMgrData->enumResources.init();
+   }
+
+   return enumState;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerResEnumGet --
+ *
+ *    Enumerates the next resource associated with the enumeration state.
+ *
+ * Results:
+ *    TRUE on success and .
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsServerResEnumGet(void *enumState,           // IN/OUT: enumeration state
+                     char const **enumResName,  // OUT: enumerated resource name
+                     size_t *enumResNameLen,    // OUT: enumerated resource name len
+                     Bool *enumResDone)         // OUT: enumerated resources done
+{
+   Bool success = FALSE;
+
+    if (gHgfsMgrData != NULL &&
+        gHgfsMgrData->enumResources.get != NULL) {
+      success = gHgfsMgrData->enumResources.get(enumState,
+                                                enumResName,
+                                                enumResNameLen,
+                                                enumResDone);
+   }
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerResEnumExit --
+ *
+ *    Exit the enumeration of all existing resources.
+ *
+ * Results:
+ *    TRUE on success, FALSE otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsServerResEnumExit(void *enumState)           // IN/OUT: enumeration state
+{
+   Bool success = FALSE;
+
+   if (gHgfsMgrData != NULL &&
+       gHgfsMgrData->enumResources.exit != NULL) {
+       success = gHgfsMgrData->enumResources.exit(enumState);
+   }
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerEnumerateSharedFolders --
  *
  *    Enumerates all exisitng shared folders and registers shared folders with
@@ -3939,7 +4083,7 @@ HgfsServerEnumerateSharedFolders(void)
    Bool success = FALSE;
 
    LOG(8, ("%s: entered\n", __FUNCTION__));
-   state = HgfsServerPolicy_GetSharesInit();
+   state = HgfsServerResEnumInit();
    if (NULL != state) {
       Bool done;
 
@@ -3947,7 +4091,7 @@ HgfsServerEnumerateSharedFolders(void)
          char const *shareName;
          size_t len;
 
-         success = HgfsServerPolicy_GetShares(state, &shareName, &len, &done);
+         success = HgfsServerResEnumGet(state, &shareName, &len, &done);
          if (success && !done) {
             HgfsSharedFolderHandle handle;
             char const *sharePath;
@@ -3959,15 +4103,14 @@ HgfsServerEnumerateSharedFolders(void)
                                                        &sharePathLen, &sharePath);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
                LOG(8, ("%s: registering share %s path %s\n", __FUNCTION__, shareName, sharePath));
-               handle = HgfsServer_RegisterSharedFolder(shareName, sharePath,
-                                                        TRUE);
+               handle = HgfsServerRegisterShare(shareName, sharePath, TRUE);
                success = handle != HGFS_INVALID_FOLDER_HANDLE;
                LOG(8, ("%s: registering share %s hnd %#x\n", __FUNCTION__, shareName, handle));
             }
          }
       } while (!done && success);
 
-      HgfsServerPolicy_GetSharesCleanup(state);
+      HgfsServerResEnumExit(state);
    }
    LOG(8, ("%s: exit %d\n", __FUNCTION__, success));
    return success;
@@ -4470,7 +4613,9 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
       HSPU_PutReplyPacket(packet, transportSession->channelCbTable);
       HSPU_PutDataPacketBuf(packet, transportSession->channelCbTable);
    } else {
-      free(packet->metaPacket);
+      if (packet->metaPacketIsAllocated) {
+         free(packet->metaPacket);
+      }
       free(packet);
    }
 }
@@ -5381,12 +5526,12 @@ HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
  */
 
 HgfsInternalStatus
-HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
-                           HgfsInitFunc *initName,       // IN: Init function
-                           HgfsCleanupFunc *cleanupName, // IN: Cleanup function
-                           DirectorySearchType type,     // IN: Kind of search
-                           HgfsSessionInfo *session,     // IN: Session info
-                           HgfsHandle *handle)           // OUT: Search handle
+HgfsServerSearchVirtualDir(HgfsServerResEnumGetFunc getName,      // IN: Name enumerator
+                           HgfsServerResEnumInitFunc initName,    // IN: Init function
+                           HgfsServerResEnumExitFunc cleanupName, // IN: Cleanup function
+                           DirectorySearchType type,              // IN: Kind of search
+                           HgfsSessionInfo *session,              // IN: Session info
+                           HgfsHandle *handle)                    // OUT: Search handle
 {
    HgfsInternalStatus status = 0;
    HgfsSearch *search = NULL;
@@ -5447,11 +5592,11 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
  */
 
 HgfsInternalStatus
-HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
-                                  HgfsInitFunc *initName,       // IN: Init function
-                                  HgfsCleanupFunc *cleanupName, // IN: Cleanup function
-                                  HgfsSessionInfo *session,     // IN: Session info
-                                  HgfsHandle searchHandle)      // IN: search to restart
+HgfsServerRestartSearchVirtualDir(HgfsServerResEnumGetFunc getName,      // IN: Name enumerator
+                                  HgfsServerResEnumInitFunc initName,    // IN: Init function
+                                  HgfsServerResEnumExitFunc cleanupName, // IN: Cleanup function
+                                  HgfsSessionInfo *session,              // IN: Session info
+                                  HgfsHandle searchHandle)               // IN: search to restart
 {
    HgfsInternalStatus status = 0;
    HgfsSearch *vdirSearch;
@@ -5790,6 +5935,10 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    void *replyHeader;
    void *replyData;
 
+   /*
+    * XXX - this should be modified to use the common HgfsServerGetRequestHeaderSize
+    * so that all requests and replies are handled consistently.
+    */
    if (HGFS_OP_NEW_HEADER == request->op) {
       headerSize = sizeof(HgfsHeader);
    } else if (request->op < HGFS_OP_CREATE_SESSION_V4 &&
@@ -5818,6 +5967,102 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerValidateRead --
+ *
+ *    Validate a Read request's arguments.
+ *
+ *    Note, the readOffset is ignored here but is checked in the platform specific
+ *    read handler.
+ *
+ * Results:
+ *    HGFS_ERROR_SUCCESS on success.
+ *    HGFS error code on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsServerValidateRead(HgfsInputParam *input,  // IN: Input params
+                       HgfsHandle readHandle,  // IN: read Handle
+                       uint32 readSize,        // IN: size to read
+                       uint64 readOffset,      // IN: offset to read unused
+                       fileDesc *readfd,       // OUT: read file descriptor
+                       size_t *readReplySize,  // OUT: read reply size
+                       size_t *readDataSize)   // OUT: read data size
+{
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
+   size_t replyReadHeaderSize;
+   size_t replyReadResultSize = 0;
+   size_t replyReadResultDataSize = 0;
+   size_t replyReadDataSize = 0;
+   fileDesc readFileDesc = 0;
+   Bool useMappedBuffer;
+
+   useMappedBuffer = (input->transportSession->channelCbTable->getWriteVa != NULL);
+   replyReadHeaderSize = HgfsServerGetRequestHeaderSize(input);
+   switch (input->op) {
+   case HGFS_OP_READ_FAST_V4:
+      /* Data is packed into a separate buffer from the read results. */
+      replyReadResultSize = sizeof (HgfsReplyReadV3);
+      replyReadResultDataSize = 0;
+      replyReadDataSize = readSize;
+      break;
+   case HGFS_OP_READ_V3:
+      /* Data is packed as a part of the read results. */
+      replyReadResultSize = sizeof (HgfsReplyReadV3);
+      replyReadResultDataSize = readSize;
+      replyReadDataSize = 0;
+      break;
+   case HGFS_OP_READ:
+      /* Data is packed as a part of the read results. */
+      replyReadResultSize = sizeof (HgfsReplyRead);
+      replyReadResultDataSize = readSize;
+      replyReadDataSize = 0;
+      break;
+   default:
+      status = HGFS_ERROR_PROTOCOL;
+      LOG(4, ("%s: Unsupported protocol version passed %d -> PROTOCOL_ERROR.\n",
+               __FUNCTION__, input->op));
+      NOT_IMPLEMENTED();
+      goto exit;
+   }
+
+   if (!HSPU_ValidateDataPacketSize(input->packet, replyReadDataSize) ||
+       !HSPU_ValidateReplyPacketSize(input->packet,
+                                     replyReadHeaderSize,
+                                     replyReadResultSize,
+                                     replyReadResultDataSize,
+                                     useMappedBuffer)) {
+      status = HGFS_ERROR_INVALID_PARAMETER;
+      LOG(4, ("%s: Error: arg validation read size -> %d.\n",
+               __FUNCTION__, status));
+      goto exit;
+   }
+
+   /* Validate the file handle by retrieving it possibly from the cache. */
+   status = HgfsPlatformGetFd(readHandle, input->session, FALSE, &readFileDesc);
+   if (status != HGFS_ERROR_SUCCESS) {
+      LOG(4, ("%s: Error: arg validation handle -> %d.\n",
+               __FUNCTION__, status));
+      goto exit;
+   }
+
+exit:
+   *readDataSize = replyReadDataSize;
+   *readReplySize = replyReadResultSize + replyReadResultDataSize;
+   *readfd = readFileDesc;
+   LOG(4, ("%s: arg validation check return (%"FMTSZ"u) %d.\n",
+            __FUNCTION__, replyReadDataSize, status));
+   return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerRead --
  *
  *    Handle a Read request.
@@ -5837,9 +6082,13 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
 {
    HgfsInternalStatus status;
    HgfsHandle file;
+   fileDesc readFd;
    uint64 offset;
    uint32 requiredSize;
    size_t replyPayloadSize = 0;
+   size_t replyReadSize = 0;
+   size_t replyReadDataSize = 0;
+   void *replyRead;
 
    HGFS_ASSERT_INPUT(input);
 
@@ -5847,61 +6096,87 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
                               &offset, &requiredSize)) {
       LOG(4, ("%s: Failed to unpack a valid packet -> PROTOCOL_ERROR.\n", __FUNCTION__));
       status = HGFS_ERROR_PROTOCOL;
-   } else {
-      switch(input->op) {
-      case HGFS_OP_READ_FAST_V4:
-      case HGFS_OP_READ_V3: {
-            HgfsReplyReadV3 *reply;
-            void *payload;
-            uint32 inlineDataSize =
-               (HGFS_OP_READ_FAST_V4 == input->op) ? 0 : requiredSize;
-
-            reply = HgfsAllocInitReply(input->packet, input->request,
-                                       sizeof *reply + inlineDataSize, input->session);
-            if (HGFS_OP_READ_V3 == input->op) {
-               payload = &reply->payload[0];
-            } else {
-               payload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
-                                               input->transportSession->channelCbTable);
-            }
-            if (payload) {
-               status = HgfsPlatformReadFile(file, input->session, offset,
-                                             requiredSize, payload,
-                                             &reply->actualSize);
-               if (HGFS_ERROR_SUCCESS == status) {
-                  reply->reserved = 0;
-                  replyPayloadSize = sizeof *reply +
-                                       ((inlineDataSize > 0) ? reply->actualSize : 0);
-               }
-            } else {
-               status = HGFS_ERROR_PROTOCOL;
-               LOG(4, ("%s: V3/V4 Failed to get payload -> PROTOCOL_ERROR.\n", __FUNCTION__));
-            }
-            break;
-         }
-      case HGFS_OP_READ: {
-            HgfsReplyRead *reply;
-
-            reply = HgfsAllocInitReply(input->packet, input->request,
-                                       sizeof *reply + requiredSize, input->session);
-
-            status = HgfsPlatformReadFile(file, input->session, offset, requiredSize,
-                                          reply->payload, &reply->actualSize);
-            if (HGFS_ERROR_SUCCESS == status) {
-               replyPayloadSize = sizeof *reply + reply->actualSize;
-            } else {
-               LOG(4, ("%s: V1 Failed to read-> %d.\n", __FUNCTION__, status));
-            }
-            break;
-         }
-      default:
-         NOT_IMPLEMENTED();
-         status = HGFS_ERROR_PROTOCOL;
-         LOG(4, ("%s: Unsupported protocol version passed %d -> PROTOCOL_ERROR.\n",
-                 __FUNCTION__, input->op));
-      }
+      goto exit;
    }
 
+   /*
+    * Validate the read arguments with the data and reply buffers to ensure
+    * there isn't a malformed request or we read more data than the buffer can
+    * hold.
+    */
+   status = HgfsServerValidateRead(input,
+                                   file,
+                                   requiredSize,
+                                   offset,
+                                   &readFd,
+                                   &replyReadSize,
+                                   &replyReadDataSize);
+   if (status != HGFS_ERROR_SUCCESS) {
+      LOG(4, ("%s: Error: validate args %u.\n", __FUNCTION__, status));
+      goto exit;
+   }
+
+   replyRead = HgfsAllocInitReply(input->packet,
+                                  input->request,
+                                  replyReadSize,
+                                  input->session);
+
+   switch (input->op) {
+   case HGFS_OP_READ_FAST_V4:
+   case HGFS_OP_READ_V3: {
+         HgfsReplyReadV3 *reply = replyRead;
+         void *payload;
+         Bool readUseDataBuffer = replyReadDataSize != 0;
+
+         /*
+          * The read data size holds the size of the data to read which will be read
+          * into the separate data packet buffer. Zero indicates data is read into the
+          * same buffer as the reply arguments.
+          */
+         if (readUseDataBuffer) {
+            payload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE,
+                                            input->transportSession->channelCbTable);
+         } else {
+            payload = &reply->payload[0];
+         }
+         if (payload) {
+            status = HgfsPlatformReadFile(readFd, input->session, offset,
+                                          requiredSize, payload,
+                                          &reply->actualSize);
+            if (HGFS_ERROR_SUCCESS == status) {
+               reply->reserved = 0;
+               replyPayloadSize = sizeof *reply;
+
+               if (readUseDataBuffer) {
+                  HSPU_SetDataPacketSize(input->packet, reply->actualSize);
+               } else {
+                  replyPayloadSize += reply->actualSize;
+               }
+            }
+         } else {
+            status = HGFS_ERROR_PROTOCOL;
+            LOG(4, ("%s: V3/V4 Failed to get payload -> PROTOCOL_ERROR.\n", __FUNCTION__));
+         }
+         break;
+      }
+   case HGFS_OP_READ: {
+         HgfsReplyRead *reply = replyRead;
+
+         status = HgfsPlatformReadFile(readFd, input->session, offset, requiredSize,
+                                       reply->payload, &reply->actualSize);
+         if (HGFS_ERROR_SUCCESS == status) {
+            replyPayloadSize = sizeof *reply + reply->actualSize;
+         } else {
+            LOG(4, ("%s: V1 Failed to read-> %d.\n", __FUNCTION__, status));
+         }
+         break;
+      }
+   default:
+      NOT_REACHED();
+      break;
+   }
+
+exit:
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
 }
 
@@ -5946,6 +6221,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
 
    if (NULL == dataToWrite) {
       /* No inline data to write, get it from the transport shared memory. */
+      HSPU_SetDataPacketSize(input->packet, numberBytesToWrite);
       dataToWrite = HSPU_GetDataPacketBuf(input->packet, BUF_READABLE,
                                           input->transportSession->channelCbTable);
       if (NULL == dataToWrite) {
@@ -6312,7 +6588,7 @@ HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
    HgfsInternalStatus status;
    size_t replyPayloadSize = 0;
    const char *dirName;
-   uint32 dirNameLength;
+   size_t dirNameLength;
    uint32 caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
    HgfsHandle search;
    HgfsNameStatus nameStatus;
@@ -8043,8 +8319,8 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
             /* Get the config options. */
             if (search.utf8ShareNameLen != 0) {
                nameStatus = HgfsServerPolicy_GetShareOptions(search.utf8ShareName,
-                                                               search.utf8ShareNameLen,
-                                                               &configOptions);
+                                                             search.utf8ShareNameLen,
+                                                             &configOptions);
                if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
                   LOG(4, ("%s: no matching share: %s.\n", __FUNCTION__,
                            search.utf8ShareName));
@@ -8077,8 +8353,8 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
                    * else.
                    */
                   status = HgfsPlatformRestartSearchDir(hgfsSearchHandle,
-                                                         input->session,
-                                                         search.type);
+                                                        input->session,
+                                                        search.type);
                }
             }
 
@@ -8095,6 +8371,9 @@ HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
             if (HGFS_ERROR_SUCCESS == status) {
                replyPayloadSize = replyInfoSize +
                                     ((inlineDataSize == 0) ? 0 : replyDirentSize);
+               if (0 == inlineDataSize) {
+                  HSPU_SetDataPacketSize(input->packet, replyDirentSize);
+               }
             }
 
             free(search.utf8Dir);
@@ -8393,13 +8672,20 @@ HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folde
 
    sizeNeeded = HgfsPackCalculateNotificationSize(shareName, fileName);
 
-   packetHeader = Util_SafeCalloc(1, sizeNeeded);
-   packet = Util_SafeCalloc(1, sizeof *packet);
-   packet->state &= ~HGFS_STATE_CLIENT_REQUEST;
+   /*
+    * Use a single buffer zero'd out, as the packet and metapacket have the same
+    * lifespan which is ended at the send complete callback (HgfsServerSessionSendComplete).
+    */
+   packet = Util_SafeCalloc(1, sizeof *packet + sizeNeeded);
+   packetHeader = (HgfsHeader *)((char *)packet + sizeof *packet);
+   /*
+    * The buffer is zero'd out, so no need to set the following explicitly:
+    * packet->metaPacketIsAllocated = FALSE;
+    * packet->state &= ~HGFS_STATE_CLIENT_REQUEST;
+    */
    packet->metaPacketSize = sizeNeeded;
    packet->metaPacketDataSize = packet->metaPacketSize;
    packet->metaPacket = packetHeader;
-   packet->dataPacketIsAllocated = TRUE;
    notifyFlags = 0;
    if (mask & HGFS_NOTIFY_EVENTS_DROPPED) {
       notifyFlags |= HGFS_NOTIFY_FLAG_OVERFLOW;
@@ -8418,7 +8704,6 @@ HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folde
 
    /* The transport will call the server send complete callback to release the packets. */
    packet = NULL;
-   packetHeader = NULL;
 
    LOG(4, ("%s: Sent notify for: %u index: %"FMT64"u file name %s mask %x\n",
            __FUNCTION__, sharedFolder, subscriber, fileName, mask));
@@ -8429,9 +8714,6 @@ exit:
    }
    if (packet) {
       free(packet);
-   }
-   if (packetHeader) {
-      free(packetHeader);
    }
 }
 

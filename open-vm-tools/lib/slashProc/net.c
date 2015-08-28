@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include <net/if.h>
 
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -768,7 +769,7 @@ SlashProcNet_GetRoute6(void)
       myEntry->rtmsg_metric = MatchToGuint64(myMatchInfo, 6, 16);
       myEntry->rtmsg_flags = MatchToGuint64(myMatchInfo, 7, 16);
 
-      MATCHEXPR(myMatchInfo, 8, myEntry->rtmsg_ifindex = NetUtil_GetIfIndex(MATCH));
+      MATCHEXPR(myMatchInfo, 8, myEntry->rtmsg_ifindex = if_nametoindex(MATCH));
 
 badIteration:
       g_free(myLine);

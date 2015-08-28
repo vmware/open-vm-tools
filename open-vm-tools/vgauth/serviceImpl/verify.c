@@ -28,7 +28,6 @@
 #include "serviceInt.h"
 #include "certverify.h"
 
-
 /*
  ******************************************************************************
  * ServiceInitVerify --                                                 */ /**
@@ -50,7 +49,6 @@ ServiceInitVerify(void)
    if (err != VGAUTH_E_OK) {
       goto done;
    }
-
 done:
    return err;
 }
@@ -189,6 +187,19 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
    }
 
    /*
+    * Dump the token cert chain for debugging purposes.
+    */
+   if (gVerboseLogging) {
+      gchar *chainx509;
+
+      for (i = 0; i < numCerts; i++) {
+         chainx509 = CertVerify_CertToX509String(pemCertChain[i]);
+         Debug("%s: Token chain cert #%d:\n%s", __FUNCTION__, i, chainx509);
+         g_free(chainx509);
+      }
+   }
+
+   /*
     * Make sure the user exists -- Query supports deleted users
     * to allow for cleanup.
     */
@@ -202,6 +213,20 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
    if (VGAUTH_E_OK != err) {
       goto done;
    }
+
+   /*
+    * Dump the store cert chain for debugging purposes.
+    */
+   if (gVerboseLogging) {
+      gchar *storex509;
+
+      for (i = 0; i < numStoreCerts; i++) {
+         storex509 = CertVerify_CertToX509String(aList[i].pemCert);
+         Debug("%s: Store chain cert #%d:\n%s", __FUNCTION__, i, storex509);
+         g_free(storex509);
+      }
+   }
+
 
    /*
     * Split the incoming chain into trusted and untrusted certs

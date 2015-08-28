@@ -70,8 +70,10 @@
 
 #if defined __linux__
 #  include <features.h>  /* for __GLIBC_PREREQ */
-#  if __GLIBC_PREREQ(2, 3)
-#    define HAVE_TLS
+#  if defined __GLIBC_PREREQ
+#    if __GLIBC_PREREQ(2, 3)
+#      define HAVE_TLS
+#    endif
 #  endif
 #endif
 
@@ -1129,32 +1131,5 @@ VThreadBase_SetIsInSignal(VThreadID tid,    // IN:
    ASSERT(Atomic_Read(&base->signalNestCount) > 0 || isInSignal);
 
    Atomic_Add(&base->signalNestCount, isInSignal ? 1 : -1);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VThreadBase_SigMask --
- *
- *      Wrapper for pthread_sigmask that uses VThreadBase's no-dependency
- *      magic to get the effects of pthread_sigmask without actually
- *      depending on lib/pthread.
- *
- * Results:
- *      See 'man pthread_setmask'.
- *
- * Side effects:
- *      See 'man pthread_setmask'.
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-VThreadBase_SigMask(int how,                  // IN:
-                    const sigset_t *newmask,  // IN:
-                    sigset_t *oldmask)        // IN:
-{
-   return pthread_sigmask(how, newmask, oldmask);
 }
 #endif

@@ -504,6 +504,18 @@ Bool
 HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check
                              size_t inSize);  // IN:  Size of name in
 
+void *
+HgfsServerResEnumInit(void);
+
+Bool
+HgfsServerResEnumGet(void *enumState,
+                     char const **enumResName,
+                     size_t *enumResNameLen,
+                     Bool *enumResDone);
+
+Bool
+HgfsServerResEnumExit(void *enumState);
+
 HgfsInternalStatus
 HgfsServerGetDirEntry(HgfsHandle handle,                // IN: Handle to search
                       HgfsSessionInfo *session,         // IN: Session info
@@ -520,19 +532,19 @@ HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
                         HgfsHandle *handle);      // OUT: Search handle
 
 HgfsInternalStatus
-HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
-                           HgfsInitFunc *initName,       // IN: Init function
-                           HgfsCleanupFunc *cleanupName, // IN: Cleanup function
-                           DirectorySearchType type,     // IN: Kind of search
-                           HgfsSessionInfo *session,     // IN: Session info
-                           HgfsHandle *handle);          // OUT: Search handle
+HgfsServerSearchVirtualDir(HgfsServerResEnumGetFunc getName,      // IN: Name enumerator
+                           HgfsServerResEnumInitFunc initName,    // IN: Init function
+                           HgfsServerResEnumExitFunc cleanupName, // IN: Cleanup function
+                           DirectorySearchType type,              // IN: Kind of search
+                           HgfsSessionInfo *session,              // IN: Session info
+                           HgfsHandle *handle);                   // OUT: Search handle
 
 HgfsInternalStatus
-HgfsServerRestartSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
-                                  HgfsInitFunc *initName,       // IN: Init function
-                                  HgfsCleanupFunc *cleanupName, // IN: Cleanup function
-                                  HgfsSessionInfo *session,     // IN: Session info
-                                  HgfsHandle searchHandle);     // IN: search to restart
+HgfsServerRestartSearchVirtualDir(HgfsServerResEnumGetFunc getName,      // IN: Name enumerator
+                                  HgfsServerResEnumInitFunc initName,    // IN: Init function
+                                  HgfsServerResEnumExitFunc cleanupName, // IN: Cleanup function
+                                  HgfsSessionInfo *session,              // IN: Session info
+                                  HgfsHandle searchHandle);              // IN: search to restart
 
 
 void *
@@ -703,16 +715,16 @@ HgfsPlatformScandir(char const *baseDir,             // IN: Directory to search 
                     struct DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
                     int *numDents);                  // OUT: Number of DirectoryEntrys
 HgfsInternalStatus
-HgfsPlatformScanvdir(HgfsGetNameFunc enumNamesGet,     // IN: Function to get name
-                     HgfsInitFunc enumNamesInit,       // IN: Setup function
-                     HgfsCleanupFunc enumNamesExit,    // IN: Cleanup function
-                     DirectorySearchType type,         // IN: Kind of search
-                     struct DirectoryEntry ***dents,   // OUT: Array of DirectoryEntrys
-                     uint32 *numDents);                // OUT: total number of directory entrys
+HgfsPlatformScanvdir(HgfsServerResEnumGetFunc enumNamesGet,   // IN: Function to get name
+                     HgfsServerResEnumInitFunc enumNamesInit, // IN: Setup function
+                     HgfsServerResEnumExitFunc enumNamesExit, // IN: Cleanup function
+                     DirectorySearchType type,                // IN: Kind of search
+                     struct DirectoryEntry ***dents,          // OUT: Array of DirectoryEntrys
+                     uint32 *numDents);                       // OUT: total number of directory entrys
 HgfsInternalStatus
 HgfsPlatformSearchDir(HgfsNameStatus nameStatus,       // IN: name status
                       const char *dirName,             // IN: relative directory name
-                      uint32 dirNameLength,            // IN: length of dirName
+                      size_t dirNameLength,            // IN: length of dirName
                       uint32 caseFlags,                // IN: case flags
                       HgfsShareInfo *shareInfo,        // IN: sharfed folder information
                       char *baseDir,                   // IN: name of the shared directory
@@ -729,7 +741,7 @@ HgfsPlatformDirDumpDents(HgfsSearch *search);         // IN: search
 #endif
 
 HgfsInternalStatus
-HgfsPlatformReadFile(HgfsHandle file,             // IN: Hgfs file handle
+HgfsPlatformReadFile(fileDesc readFile,           // IN: file descriptor
                      HgfsSessionInfo *session,    // IN: session info
                      uint64 offset,               // IN: file offset to read from
                      uint32 requiredSize,         // IN: length of data to read
@@ -824,10 +836,18 @@ HSPU_GetMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
                    size_t *metaPacketSize,               // OUT: Size of metaPacket
                    HgfsServerChannelCallbacks *chanCb);  // IN: Channel callbacks
 
+Bool
+HSPU_ValidateDataPacketSize(HgfsPacket *packet,     // IN: Hgfs Packet
+                            size_t dataSize);       // IN: data size
+
 void *
 HSPU_GetDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
                       MappingType mappingType,              // IN: Readable/ Writeable ?
                       HgfsServerChannelCallbacks *chanCb);  // IN: Channel callbacks
+
+void
+HSPU_SetDataPacketSize(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
+                       size_t dataSize);              // IN: data size
 
 void
 HSPU_PutDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
@@ -836,6 +856,13 @@ HSPU_PutDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Pack
 void
 HSPU_PutMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
                    HgfsServerChannelCallbacks *chanCb);  // IN: Channel callbacks
+
+Bool
+HSPU_ValidateReplyPacketSize(HgfsPacket *packet,         // IN: Hgfs Packet
+                             size_t replyHeaderSize,     // IN: reply header size
+                             size_t replyResultSize,     // IN: reply result size
+                             size_t replyResultDataSize, // IN: reply result data size
+                             Bool useMappedMetaPacket);    // IN: using meta buffer
 
 void *
 HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet

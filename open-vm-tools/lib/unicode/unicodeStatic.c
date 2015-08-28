@@ -19,13 +19,13 @@
 /*
  * unicodeStatic.c --
  *
- *      Manages memory for static ConstUnicode literal strings
+ *      Manages memory for static const char *literal strings
  *      created like:
  *
- *         ConstUnicode c = U_UNESCAPE("Copyright \\u00A9 VMware, Inc.");
+ *         const char *c = U_UNESCAPE("Copyright \\u00A9 VMware, Inc.");
  *
- *      Uses two HashTables to hold static ConstUnicode strings. Static
- *      ConstUnicode strings are keyed off the ASCII bytes passed to the
+ *      Uses two HashTables to hold static const char *strings. Static
+ *      const char *strings are keyed off the ASCII bytes passed to the
  *      static macros.
  *
  *      Unescaped strings are kept separate from escaped strings so
@@ -75,7 +75,7 @@ static Atomic_Ptr UnicodeUnescapedStringTable;
 static void
 UnicodeHashFree(void *v)  // IN:
 {
-   Unicode_Free((Unicode) v);
+   free(v);
 }
 
 
@@ -86,7 +86,7 @@ UnicodeHashFree(void *v)  // IN:
  *
  *      Helper function for the U_UNESCAPE() macro.
  *
- *      Given a NUL-terminated ASCII string, returns a ConstUnicode
+ *      Given a NUL-terminated ASCII string, returns a const char *
  *      string containing the string's contents.
  *
  *      If unescape is TRUE, then \\uABCD becomes the Unicode code
@@ -94,7 +94,7 @@ UnicodeHashFree(void *v)  // IN:
  *      U+1FABCD in the resulting string.
  *
  * Results:
- *      A ConstUnicode string.  Memory is managed inside this module;
+ *      A const char * string.  Memory is managed inside this module;
  *      caller does not need to free.
  *
  * Side effects:
@@ -106,11 +106,11 @@ UnicodeHashFree(void *v)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-ConstUnicode
+const char *
 Unicode_GetStatic(const char *asciiBytes, // IN
                   Bool unescape)          // IN
 {
-   Unicode result = NULL;
+   char *result = NULL;
    HashTable *stringTable;
 
    if (unescape) {
@@ -134,13 +134,13 @@ Unicode_GetStatic(const char *asciiBytes, // IN
     */
 
    if (!HashTable_Lookup(stringTable, asciiBytes, (void **) &result)) {
-      Unicode newData = UnicodeAllocStatic(asciiBytes, unescape);
+      char *newData = UnicodeAllocStatic(asciiBytes, unescape);
 
       if (newData) {
          result = HashTable_LookupOrInsert(stringTable, asciiBytes, newData);
 
          if (result != newData) {
-            Unicode_Free(newData);
+            free(newData);
          }
       }
    }

@@ -50,7 +50,7 @@
  */
 
 UnicodeIndex
-Unicode_LengthInCodePoints(ConstUnicode str)  // IN:
+Unicode_LengthInCodePoints(const char *str)  // IN:
 {
    return CodeSet_LengthInCodePoints(str);
 }
@@ -94,17 +94,17 @@ Unicode_LengthInCodePoints(ConstUnicode str)  // IN:
  */
 
 int
-Unicode_CompareRange(ConstUnicode str1,        // IN:
+Unicode_CompareRange(const char *str1,         // IN:
                      UnicodeIndex str1Start,   // IN:
                      UnicodeIndex str1Length,  // IN:
-                     ConstUnicode str2,        // IN:
+                     const char *str2,         // IN:
                      UnicodeIndex str2Start,   // IN:
                      UnicodeIndex str2Length,  // IN:
                      Bool ignoreCase)          // IN:
 {
    int result = -1;
-   Unicode substr1 = NULL;
-   Unicode substr2 = NULL;
+   char *substr1 = NULL;
+   char *substr2 = NULL;
    utf16_t *substr1UTF16 = NULL;
    utf16_t *substr2UTF16 = NULL;
    UnicodeIndex i = 0;
@@ -220,8 +220,8 @@ Unicode_CompareRange(ConstUnicode str1,        // IN:
    free(substr1UTF16);
    free(substr2UTF16);
 
-   Unicode_Free(substr1);
-   Unicode_Free(substr2);
+   free(substr1);
+   free(substr2);
 
    return result;
 }
@@ -258,10 +258,10 @@ Unicode_CompareRange(ConstUnicode str1,        // IN:
  */
 
 UnicodeIndex
-Unicode_FindSubstrInRange(ConstUnicode str,              // IN:
+Unicode_FindSubstrInRange(const char *str,               // IN:
                           UnicodeIndex strStart,         // IN:
                           UnicodeIndex strLength,        // IN:
-                          ConstUnicode strToFind,        // IN:
+                          const char *strToFind,         // IN:
                           UnicodeIndex strToFindStart,   // IN:
                           UnicodeIndex strToFindLength)  // IN:
 {
@@ -383,10 +383,10 @@ bail:
  */
 
 UnicodeIndex
-Unicode_FindLastSubstrInRange(ConstUnicode str,              // IN:
+Unicode_FindLastSubstrInRange(const char *str,               // IN:
                               UnicodeIndex strStart,         // IN:
                               UnicodeIndex strLength,        // IN:
-                              ConstUnicode strToFind,        // IN:
+                              const char *strToFind,         // IN:
                               UnicodeIndex strToFindStart,   // IN:
                               UnicodeIndex strToFindLength)  // IN:
 {
@@ -495,7 +495,7 @@ bail:
  *
  * Results:
  *      The newly-allocated substring of 'str' in the range [index,
- *      index + length). Caller must free with Unicode_Free.
+ *      index + length). Caller must free with free.
  *
  * Side effects:
  *      None
@@ -503,8 +503,8 @@ bail:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_Substr(ConstUnicode str,     // IN:
+char *
+Unicode_Substr(const char *str,      // IN:
                UnicodeIndex start,   // IN:
                UnicodeIndex length)  // IN:
 {
@@ -566,7 +566,7 @@ Unicode_Substr(ConstUnicode str,     // IN:
  *
  * Results:
  *      A newly-allocated string containing the results of the replace
- *      operation.  Caller must free with Unicode_Free.
+ *      operation.  Caller must free with free.
  *
  * Side effects:
  *      None
@@ -574,18 +574,18 @@ Unicode_Substr(ConstUnicode str,     // IN:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_ReplaceRange(ConstUnicode dest,        // IN:
+char *
+Unicode_ReplaceRange(const char *dest,         // IN:
                      UnicodeIndex destStart,   // IN:
                      UnicodeIndex destLength,  // IN:
-                     ConstUnicode src,         // IN:
+                     const char *src,          // IN:
                      UnicodeIndex srcStart,    // IN:
                      UnicodeIndex srcLength)   // IN:
 {
-   Unicode result;
-   Unicode stringOne;
-   Unicode stringTwo;
-   Unicode stringThree;
+   char *result;
+   char *stringOne;
+   char *stringTwo;
+   char *stringThree;
 
    ASSERT(dest);
    ASSERT((destStart >= 0) || (destStart == -1));
@@ -601,9 +601,9 @@ Unicode_ReplaceRange(ConstUnicode dest,        // IN:
 
    result = Unicode_Join(stringOne, stringTwo, stringThree, NULL);
 
-   Unicode_Free(stringOne);
-   Unicode_Free(stringTwo);
-   Unicode_Free(stringThree);
+   free(stringOne);
+   free(stringTwo);
+   free(stringThree);
 
    return result;
 }
@@ -615,12 +615,11 @@ Unicode_ReplaceRange(ConstUnicode dest,        // IN:
  * Unicode_Join --
  *
  *      Allocates and returns a new string containing the 'first' followed by
- *      all the unicode strings specified as optional arguments (which must
- *      be of type ConstUnicode). Appending ceases when a NULL pointer is
- *      detected.
+ *      all the unicode strings specified as optional arguments. Appending
+ *      ceases when a NULL pointer is detected.
  * 
  * Results:
- *      The newly-allocated string.  Caller must free with Unicode_Free.
+ *      The newly-allocated string.  Caller must free with free.
  *
  * Side effects:
  *      None
@@ -628,27 +627,27 @@ Unicode_ReplaceRange(ConstUnicode dest,        // IN:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_Join(ConstUnicode first,  // IN:
-             ...)                 // IN:
+char *
+Unicode_Join(const char *first,  // IN:
+             ...)                // IN:
 {
-   Unicode result;
+   char *result;
 
    if (first == NULL) {
       result = NULL;
    } else {
       va_list args;
-      ConstUnicode cur;
+      const char *cur;
 
       result = Unicode_Duplicate(first);
 
       va_start(args, first);
 
-      while ((cur = va_arg(args, ConstUnicode)) != NULL) {
-         Unicode temp;
+      while ((cur = va_arg(args, const char *)) != NULL) {
+         char *temp;
 
          temp = Unicode_Format("%s%s", result, cur);
-         Unicode_Free(result);
+         free(result);
          result = temp;
       }
 
@@ -675,7 +674,7 @@ Unicode_Join(ConstUnicode first,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Unicode_Format(const char *fmt,	// IN: the format
 	       ...)		// IN: the arguments
 {

@@ -78,7 +78,7 @@
  * also removed and the HGFS server exit is called and this object is torn down.
  */
 typedef struct HgfsChannelServerData {
-   HgfsServerSessionCallbacks *serverCBTable; /* HGFS server entry points. */
+   HgfsServerCallbacks        *serverCBTable; /* HGFS server entry points. */
    Atomic_uint32              refCount;       /* Server data reference count. */
 } HgfsChannelServerData;
 
@@ -197,7 +197,8 @@ HgfsChannelPutServer(HgfsChannelServerData *serverInfo)   // IN/OUT: ref count
  */
 
 static Bool
-HgfsChannelInitServer(HgfsChannelServerData *serverInfo)   // IN/OUT: ref count
+HgfsChannelInitServer(HgfsServerMgrCallbacks *mgrCb,       // IN: server manager callbacks
+                      HgfsChannelServerData *serverInfo)   // IN/OUT: ref count
 {
    Bool result;
 
@@ -206,7 +207,7 @@ HgfsChannelInitServer(HgfsChannelServerData *serverInfo)   // IN/OUT: ref count
    Debug("%s: Initialize Hgfs server.\n", __FUNCTION__);
 
    /* If we have a new connection initialize the server session with default settings. */
-   result = HgfsServer_InitState(&serverInfo->serverCBTable, &gHgfsGuestCfgSettings, NULL);
+   result = HgfsServer_InitState(&serverInfo->serverCBTable, &gHgfsGuestCfgSettings, mgrCb);
    if (!result) {
       Debug("%s: Could not init Hgfs server.\n", __FUNCTION__);
    }
@@ -343,6 +344,7 @@ HgfsChannelPutChannel(HgfsChannelData *channel)   // IN/OUT: ref count
 
 static Bool
 HgfsChannelInitChannel(HgfsChannelData *channel,          // IN/OUT: channel object
+                       HgfsServerMgrCallbacks *mgrCb,     // IN: server manager callbacks
                        HgfsChannelServerData *serverInfo) // IN/OUT: server info
 {
    Bool result = TRUE;
@@ -360,7 +362,7 @@ HgfsChannelInitChannel(HgfsChannelData *channel,          // IN/OUT: channel obj
    channel->serverInfo = serverInfo;
    if (0 == serverInfoCount) {
       /* The HGFS server has not been initialized, do it now. */
-      result = HgfsChannelInitServer(channel->serverInfo);
+      result = HgfsChannelInitServer(mgrCb, channel->serverInfo);
       if (!result) {
          Debug("%s: Could not init Hgfs server.\n", __FUNCTION__);
          goto exit;
@@ -431,7 +433,7 @@ HgfsChannelActivateChannel(HgfsChannelData *channel,   // IN/OUT: channel object
    Bool success = FALSE;
    struct HgfsGuestConn *connData = NULL;
 
-   if (channel->ops->init(channel->serverInfo->serverCBTable,
+   if (channel->ops->init(&channel->serverInfo->serverCBTable->session,
                           rpc,
                           rpcCallback,
                           &connData)) {
@@ -579,7 +581,8 @@ HgfsChannelTeardownChannel(HgfsChannelData *channel) // IN/OUT: connection manag
  */
 
 Bool
-HgfsChannelGuest_Init(HgfsServerMgrData *mgrData) // IN/OUT: connection manager object
+HgfsChannelGuest_Init(HgfsServerMgrData *mgrData,    // IN/OUT: server manager data
+                      HgfsServerMgrCallbacks *mgrCb) // IN: server manager callbacks
 {
    Bool success = FALSE;
    HgfsChannelData *channel = &gHgfsChannels[0]; // Shared channel (internal RPC)
@@ -616,7 +619,7 @@ HgfsChannelGuest_Init(HgfsServerMgrData *mgrData) // IN/OUT: connection manager 
    if (0 == channelRefCount) {
 
       /* Initialize channels objects. */
-      if (!HgfsChannelInitChannel(channel, &gHgfsChannelServerInfo)) {
+      if (!HgfsChannelInitChannel(channel, mgrCb, &gHgfsChannelServerInfo)) {
          Debug("%s: Could not init channel.\n", __FUNCTION__);
          goto exit;
       }

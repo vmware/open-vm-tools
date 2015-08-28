@@ -538,6 +538,7 @@ HashMap_Count(struct HashMap *map) // IN
    return map->count;
 }
 
+
 #ifdef VMX86_SERVER
 /*
  * ----------------------------------------------------------------------------
@@ -554,6 +555,7 @@ HashMap_Count(struct HashMap *map) // IN
  *
  * ----------------------------------------------------------------------------
  */
+
 uint64
 HashMap_Store(struct HashMap *map,       // IN
               void           *h,         // IN
@@ -581,12 +583,9 @@ HashMap_Store(struct HashMap *map,       // IN
    vec.iov_len = sizeof hashMapOnDisk;
    numBytes = vec.iov_len;
 
-   aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_WRITE,
-                         startByteOffset, numBytes, AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL );
-   if (AIOMgr_IsAsync(aioErr)) {
-      aioErr = AIOMgr_Sync(*handle);
-   }
-
+   aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_WRITE, startByteOffset, numBytes,
+                         AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL);
+   ASSERT(!AIOMgr_IsAsync(aioErr));
    if (!AIOMgr_IsSuccess(aioErr)) {
       return -1;
    }
@@ -598,11 +597,9 @@ HashMap_Store(struct HashMap *map,       // IN
    vec.iov_len = map->numEntries * map->entrySize;
 
    aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_WRITE,
-                        startByteOffset + numBytes, vec.iov_len, AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL );
-   if (AIOMgr_IsAsync(aioErr)) {
-      aioErr = AIOMgr_Sync(*handle);
-   }
-
+                         startByteOffset + numBytes, vec.iov_len,
+                         AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL);
+   ASSERT(!AIOMgr_IsAsync(aioErr));
    if (!AIOMgr_IsSuccess(aioErr)) {
       return -1;
    }
@@ -648,11 +645,10 @@ HashMap_Retrieve(void      *h,         // IN
    vec.iov_len = sizeof hashMapOnDisk;
    numBytes = vec.iov_len;
    if (handle) {
-      aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_READ,
-                        startByteOffset, numBytes, AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL );
-      if (AIOMgr_IsAsync(aioErr)) {
-         aioErr = AIOMgr_Sync(*handle);
-      }
+      aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_READ, startByteOffset,
+                            numBytes, AIOMGR_INVALID_IO_REQUEST_ID, NULL,
+                            NULL);
+      ASSERT(!AIOMgr_IsAsync(aioErr));
    }
 
    if (!AIOMgr_IsSuccess(aioErr)) {
@@ -686,11 +682,9 @@ HashMap_Retrieve(void      *h,         // IN
    vec.iov_len = map->numEntries * map->entrySize;
    ASSERT(handle);
    aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_READ,
-                     startByteOffset + numBytes, vec.iov_len, AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL );
-   if (AIOMgr_IsAsync(aioErr)) {
-      aioErr = AIOMgr_Sync(*handle);
-   }
-
+                         startByteOffset + numBytes, vec.iov_len,
+                         AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL);
+   ASSERT(!AIOMgr_IsAsync(aioErr));
    if (!AIOMgr_IsSuccess(aioErr)) {
       free(map->entries);
       free(map);

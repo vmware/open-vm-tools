@@ -60,6 +60,8 @@ static int reapCheckTime;
 PrefHandle gPrefs = NULL;
 static gboolean reapTimerRunning = FALSE;
 
+gboolean gVerboseLogging = FALSE;
+
 /*
  * The directory where the service binary resides.
  */

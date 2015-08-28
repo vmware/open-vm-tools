@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -96,6 +96,7 @@ typedef struct Net_AdapterCount {
    uint8 vlance;
    uint8 vmxnet2;
    uint8 vmxnet3;
+   uint8 vrdma;
    uint8 e1000;
    uint8 e1000e;
 } Net_AdapterCount;
@@ -187,6 +188,7 @@ Net_GetNumAdapters(Net_AdapterCount *counts)
    counts->vlance = 0;
    counts->vmxnet2 = 0;
    counts->vmxnet3 = 0;
+   counts->vrdma = 0;
    counts->e1000 = 0;
    counts->e1000e = 0;
 
@@ -199,6 +201,8 @@ Net_GetNumAdapters(Net_AdapterCount *counts)
       adapterStr = Config_GetString("vlance", "ethernet%d.virtualDev", i);
       if (Str_Strcasecmp(adapterStr, "vmxnet3") == 0) {
          counts->vmxnet3++;
+      } else if (Str_Strcasecmp(adapterStr, "vrdma") == 0) {
+         counts->vrdma++;
       } else if (Str_Strcasecmp(adapterStr, "vlance") == 0) {
          counts->vlance++;
       } else if (Str_Strcasecmp(adapterStr, "vmxnet") == 0) {
@@ -210,7 +214,7 @@ Net_GetNumAdapters(Net_AdapterCount *counts)
       } else {
          LOG_ONCE(("%s: unknown adapter: %s\n", __FUNCTION__, adapterStr));
       }
-      free(adapterStr);      
+      free(adapterStr);
    }
 }
 

@@ -44,8 +44,34 @@
 #include "inode.h"
 #include "vm_assert.h"
 #include "vm_basic_types.h"
-#include "hgfsTransport.h"
+#include "vm_basic_defs.h"
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+#define HGFS_SM_MB_BEFORE                   smp_mb__before_atomic
+#define HGFS_SM_MB_AFTER                    smp_mb__after_atomic
+#else
+/*
+ * Fedora 21 backported some of the atomic primitives so
+ * we test if they are defined and use them otherwise fallback
+ * to the older variants.
+ */
+#ifdef smp_mb__before_atomic
+#define HGFS_SM_MB_BEFORE                   smp_mb__before_atomic
+#else
+#define HGFS_SM_MB_BEFORE                   smp_mb__before_clear_bit
+#endif
+#ifdef smp_mb__after_atomic
+#define HGFS_SM_MB_AFTER                    smp_mb__after_atomic
+#else
+#define HGFS_SM_MB_AFTER                    smp_mb__after_clear_bit
+#endif
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+#define HGFS_PAGE_FILE_INDEX(page)          page_file_index(page)
+#else
+#define HGFS_PAGE_FILE_INDEX(page)          ((page)->index)
+#endif
 
 /* Private functions. */
 static int HgfsDoWrite(HgfsHandle handle,
@@ -67,13 +93,17 @@ static int HgfsDoWritepage(HgfsHandle handle,
 static int HgfsDoWriteBegin(struct file *file,
                             struct page *page,
                             unsigned pageFrom,
-                            unsigned pageTo);
+                            unsigned pageTo,
+                            Bool canRetry,
+                            Bool *doRetry);
 static int HgfsDoWriteEnd(struct file *file,
                           struct page *page,
                           unsigned pageFrom,
                           unsigned pageTo,
                           loff_t writeTo,
                           unsigned copied);
+static void HgfsDoExtendFile(struct inode *inode,
+                             loff_t writeTo);
 
 /* HGFS address space operations. */
 static int HgfsReadpage(struct file *file,
@@ -128,6 +158,33 @@ struct address_space_operations HgfsAddressSpaceOperations = {
 #endif
    .set_page_dirty = __set_page_dirty_nobuffers,
 };
+
+enum {
+   PG_BUSY = 0,
+};
+
+typedef struct HgfsWbPage {
+   struct list_head        wb_list;        /* Defines state of page: */
+   struct page             *wb_page;       /* page to read in/write out */
+   pgoff_t                 wb_index;       /* Offset >> PAGE_CACHE_SHIFT */
+   struct kref             wb_kref;        /* reference count */
+   unsigned long           wb_flags;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 13)
+   wait_queue_head_t       wb_queue;
+#endif
+} HgfsWbPage;
+
+static void HgfsInodePageWbAdd(struct inode *inode,
+                                struct page *page);
+static void HgfsInodePageWbRemove(struct inode *inode,
+                                  struct page *page);
+static Bool HgfsInodePageWbFind(struct inode *inode,
+                                struct page *page);
+static void HgfsWbRequestDestroy(HgfsWbPage *req);
+static Bool HgfsCheckReadModifyWrite(struct file *file,
+                                     struct page *page,
+                                     unsigned int pageFrom,
+                                     unsigned int pageTo);
 
 
 /*
@@ -267,11 +324,11 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
             goto out;
          }
 
-         if (!actualSize) {
+         result = actualSize;
+         if (actualSize == 0) {
             /* We got no bytes. */
             LOG(6, (KERN_WARNING "VMware hgfs: HgfsDoRead: server returned "
                    "zero\n"));
-            result = actualSize;
             goto out;
          }
 
@@ -284,8 +341,7 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
                     actualSize));
             kunmap(dataPacket[0].page);
          }
-         result = actualSize;
-	      break;
+         break;
 
       case -EPROTO:
          /* Retry with older version(s). Set globally. */
@@ -563,7 +619,7 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
                unsigned pageTo)    // IN:     Where to stop reading
 {
    int result = 0;
-   loff_t curOffset = ((loff_t)page->index << PAGE_CACHE_SHIFT) + pageFrom;
+   loff_t curOffset = ((loff_t)HGFS_PAGE_FILE_INDEX(page) << PAGE_CACHE_SHIFT) + pageFrom;
    size_t nextCount, remainingCount = pageTo - pageFrom;
    HgfsDataPacket dataPacket[1];
 
@@ -616,6 +672,80 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
    result = 0;
 
   out:
+   compat_unlock_page(page);
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsDoWritepageInt --
+ *
+ *    Writes out a single page, using the specified handle and page offsets.
+ *    At the time of writing, HGFS_IO_MAX == PAGE_CACHE_SIZE, so we could
+ *    avoid the do {} while() and just write the page as is, but in case the
+ *    above assumption is ever broken, it's nice that this will continue to
+ *    "just work".
+ *
+ * Results:
+ *    Number of bytes copied on success, negative error on error.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsDoWritepageInt(HgfsHandle handle,  // IN: Handle to use for writing
+                   struct page *page,  // IN: Page containing data to write
+                   unsigned pageFrom,  // IN: Beginning page offset
+                   unsigned pageTo)    // IN: Ending page offset
+{
+   int result = 0;
+   loff_t curOffset = ((loff_t)HGFS_PAGE_FILE_INDEX(page) << PAGE_CACHE_SHIFT) + pageFrom;
+   size_t nextCount;
+   size_t remainingCount = pageTo - pageFrom;
+   struct inode *inode;
+   HgfsDataPacket dataPacket[1];
+
+   ASSERT(page->mapping);
+   ASSERT(page->mapping->host);
+   inode = page->mapping->host;
+
+   LOG(4, (KERN_WARNING "VMware hgfs: %s: start writes at %Lu\n",
+           __func__, curOffset));
+   /*
+    * Call HgfsDoWrite repeatedly until either
+    * - HgfsDoWrite returns an error, or
+    * - HgfsDoWrite returns 0 (XXX this probably rarely happens), or
+    * - We have written the requested number of bytes.
+    */
+   do {
+      nextCount = (remainingCount > HGFS_IO_MAX) ?
+         HGFS_IO_MAX : remainingCount;
+      dataPacket[0].page = page;
+      dataPacket[0].offset = pageFrom;
+      dataPacket[0].len = nextCount;
+      result = HgfsDoWrite(handle, dataPacket, 1, curOffset);
+      if (result < 0) {
+         LOG(4, (KERN_WARNING "VMware hgfs: %s: write error %d\n",
+                 __func__, result));
+         goto exit;
+      }
+      remainingCount -= result;
+      curOffset += result;
+      pageFrom += result;
+
+      /* Update the inode's size now rather than waiting for a revalidate. */
+      HgfsDoExtendFile(inode, curOffset);
+   } while ((result > 0) && (remainingCount > 0));
+
+exit:
+   if (result >= 0) {
+      result = pageTo - pageFrom - remainingCount;
+   }
    return result;
 }
 
@@ -661,51 +791,22 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
                 unsigned pageTo)    // IN: Ending page offset
 {
    int result = 0;
-   loff_t curOffset = ((loff_t)page->index << PAGE_CACHE_SHIFT) + pageFrom;
-   size_t nextCount;
-   size_t remainingCount = pageTo - pageFrom;
-   struct inode *inode;
-   HgfsDataPacket dataPacket[1];
 
-   ASSERT(page->mapping);
-   ASSERT(page->mapping->host);
-   inode = page->mapping->host;
+   LOG(4, (KERN_WARNING "VMware hgfs: %s: start writes at %u to %u\n",
+           __func__, pageFrom, pageTo));
 
-   LOG(4, (KERN_WARNING "VMware hgfs: %s: start writes at %Lu\n",
-           __func__, curOffset));
-   /*
-    * Call HgfsDoWrite repeatedly until either
-    * - HgfsDoWrite returns an error, or
-    * - HgfsDoWrite returns 0 (XXX this probably rarely happens), or
-    * - We have written the requested number of bytes.
-    */
-   do {
-      nextCount = (remainingCount > HGFS_IO_MAX) ?
-         HGFS_IO_MAX : remainingCount;
-      dataPacket[0].page = page;
-      dataPacket[0].offset = pageFrom;
-      dataPacket[0].len = nextCount;
-      result = HgfsDoWrite(handle, dataPacket, 1, curOffset);
-      if (result < 0) {
-         LOG(4, (KERN_WARNING "VMware hgfs: %s: write error %d\n",
-                 __func__, result));
-         goto out;
-      }
-      remainingCount -= result;
-      curOffset += result;
-      pageFrom += result;
+   result = HgfsDoWritepageInt(handle, page, pageFrom, pageTo);
+   if (result < 0) {
+      goto exit;
+   }
 
-      /* Update the inode's size now rather than waiting for a revalidate. */
-      if (curOffset > compat_i_size_read(inode)) {
-         compat_i_size_write(inode, curOffset);
-      }
-   } while ((result > 0) && (remainingCount > 0));
+   HgfsInodePageWbRemove(page->mapping->host, page);
 
    result = 0;
-   LOG(4, (KERN_WARNING "VMware hgfs: %s: end writes at %Lu rem %zu\n",
-           __func__, curOffset, remainingCount));
+   SetPageUptodate(page);
 
-  out:
+exit:
+   LOG(4, (KERN_WARNING "VMware hgfs: %s: return %d\n", __func__, result));
    return result;
 }
 
@@ -748,13 +849,12 @@ HgfsReadpage(struct file *file, // IN:     File to read from
    ASSERT(page);
 
    handle = FILE_GET_FI_P(file)->handle;
-   LOG(6, (KERN_WARNING "VMware hgfs: HgfsReadPage: reading from handle %u\n",
-           handle));
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: reading from handle %u\n",
+           __func__, handle));
 
    page_cache_get(page);
    result = HgfsDoReadpage(handle, page, 0, PAGE_CACHE_SIZE);
    page_cache_release(page);
-   compat_unlock_page(page);
    return result;
 }
 
@@ -787,6 +887,7 @@ HgfsWritepage(struct page *page,             // IN: Page to write from
    HgfsHandle handle;
    int result;
    pgoff_t lastPageIndex;
+   pgoff_t pageIndex;
    loff_t currentFileSize;
    unsigned to = PAGE_CACHE_SIZE;
 
@@ -819,11 +920,12 @@ HgfsWritepage(struct page *page,             // IN: Page to write from
     */
    currentFileSize = compat_i_size_read(inode);
    lastPageIndex = currentFileSize >> PAGE_CACHE_SHIFT;
+   pageIndex = HGFS_PAGE_FILE_INDEX(page);
    LOG(4, (KERN_WARNING "VMware hgfs: %s: file size lpi %lu pi %lu\n",
-           __func__, lastPageIndex, page->index));
-   if (page->index > lastPageIndex) {
+           __func__, lastPageIndex, pageIndex));
+   if (pageIndex > lastPageIndex) {
       goto exit;
-   } else if (page->index == lastPageIndex) {
+   } else if (pageIndex == lastPageIndex) {
       to = currentFileSize & (PAGE_CACHE_SIZE - 1);
       if (to == 0) {
          goto exit;
@@ -888,30 +990,33 @@ static int
 HgfsDoWriteBegin(struct file *file,         // IN: File to be written
                  struct page *page,         // IN: Page to be written
                  unsigned pageFrom,         // IN: Starting page offset
-                 unsigned pageTo)           // IN: Ending page offset
+                 unsigned pageTo,           // IN: Ending page offset
+                 Bool canRetry,             // IN: can we retry write
+                 Bool *doRetry)             // OUT: set to retry if necessary
 {
    ASSERT(page);
 
    LOG(6, (KERN_DEBUG "VMware hgfs: %s: off %Lu: %u to %u\n", __func__,
-           (loff_t)page->index << PAGE_CACHE_SHIFT, pageFrom, pageTo));
+           (loff_t)HGFS_PAGE_FILE_INDEX(page) << PAGE_CACHE_SHIFT, pageFrom, pageTo));
 
-   if (!PageUptodate(page)) {
-      /*
-       * If we are doing a partial write into a new page (beyond end of
-       * file), then intialize it. This allows other writes to this page
-       * to accumulate before we need to write it to the server.
-       */
-      if (pageTo - pageFrom != PAGE_CACHE_SIZE) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
-         zero_user_segments(page, 0, pageFrom, pageTo, PAGE_CACHE_SIZE);
-#else
-         void *kaddr = compat_kmap_atomic(page);
-         memset(kaddr, 0, pageFrom);
-         memset(kaddr + pageTo, 0, PAGE_CACHE_SIZE - pageTo);
-         flush_dcache_page(page);
-         compat_kunmap_atomic(kaddr);
-#endif
+   if (canRetry && HgfsCheckReadModifyWrite(file, page, pageFrom, pageTo)) {
+      HgfsHandle readHandle;
+      int result;
+      result = HgfsGetHandle(page->mapping->host,
+                             HGFS_OPEN_MODE_READ_ONLY + 1,
+                             &readHandle);
+      if (result == 0) {
+         /*
+          * We have a partial page write and thus require non-written part if the page
+          * is to contain valid data.
+          * A read of the page of the valid file data will set the page up to date.
+          * If it fails the page will not be set up to date and the write end will write
+          * the data out immediately (synchronously effectively).
+          */
+         result = HgfsDoReadpage(readHandle, page, 0, PAGE_CACHE_SIZE);
+         *doRetry = TRUE;
       }
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: HgfsReadpage result %d\n", __func__, result));
    }
 
    LOG(6, (KERN_DEBUG "VMware hgfs: %s: returns 0\n", __func__));
@@ -944,7 +1049,8 @@ HgfsPrepareWrite(struct file *file,  // IN: File to be written
                  unsigned pageFrom,  // IN: Beginning page offset
                  unsigned pageTo)    // IN: Ending page offset
 {
-   return HgfsDoWriteBegin(file, page, pageFrom, pageTo);
+   Bool dummyCanRetry = FALSE;
+   return HgfsDoWriteBegin(file, page, pageFrom, pageTo, FALSE, &dummyCanRetry);
 }
 
 #else
@@ -984,32 +1090,179 @@ HgfsWriteBegin(struct file *file,             // IN: File to be written
    unsigned pageTo = pageFrom + len;
    struct page *page;
    int result;
+   Bool canRetry = TRUE;
+   Bool doRetry;
 
    LOG(6, (KERN_WARNING "VMware hgfs: %s: (%s/%s(%ld), %u@%lld)\n",
            __func__, file->f_dentry->d_parent->d_name.name,
            file->f_dentry->d_name.name,
            mapping->host->i_ino, len, (long long) pos));
 
-   page = compat_grab_cache_page_write_begin(mapping, index, flags);
-   if (page == NULL) {
-      result = -ENOMEM;
-      goto exit;
-   }
-   *pagePtr = page;
+   do {
+      doRetry = FALSE;
+      page = compat_grab_cache_page_write_begin(mapping, index, flags);
+      if (page == NULL) {
+         result = -ENOMEM;
+         goto exit;
+      }
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: %s: file size %Lu @ %Lu page %u to %u\n", __func__,
-         (loff_t)compat_i_size_read(page->mapping->host),
-         (loff_t)page->index << PAGE_CACHE_SHIFT,
-         pageFrom, pageTo));
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: file size %Lu @ %Lu page %u to %u\n", __func__,
+            (loff_t)compat_i_size_read(page->mapping->host),
+            (loff_t)HGFS_PAGE_FILE_INDEX(page) << PAGE_CACHE_SHIFT,
+            pageFrom, pageTo));
 
-   result = HgfsDoWriteBegin(file, page, pageFrom, pageTo);
-   ASSERT(result == 0);
+      result = HgfsDoWriteBegin(file, page, pageFrom, pageTo, canRetry, &doRetry);
+      ASSERT(result == 0);
+      canRetry = FALSE;
+      if (doRetry) {
+         page_cache_release(page);
+      }
+   } while (doRetry);
 
 exit:
+   *pagePtr = page;
    LOG(6, (KERN_DEBUG "VMware hgfs: %s: return %d\n", __func__, result));
    return result;
 }
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsDoExtendFile --
+ *
+ *      Helper function for extending a file size.
+ *
+ *      This function updates the inode->i_size, under the inode lock.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsDoExtendFile(struct inode *inode, // IN: File we're writing to
+                 loff_t writeTo)      // IN: Offset we're written to
+{
+   loff_t currentFileSize;
+
+   spin_lock(&inode->i_lock);
+   currentFileSize = compat_i_size_read(inode);
+
+   if (writeTo > currentFileSize) {
+      compat_i_size_write(inode, writeTo);
+   }
+   spin_unlock(&inode->i_lock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsZeroUserSegments --
+ *
+ *      Wrapper function for setting a page's segments.
+ *
+ *      This function updates the inode->i_size, under the inode lock.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsZeroUserSegments(struct page *page,      // IN: Page we're writing to
+                     unsigned int start1,    // IN: segment 1 start
+                     unsigned int end1,      // IN: segment 1 end
+                     unsigned int start2,    // IN: segment 2 start
+                     unsigned int end2)      // IN: segment 2 end
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
+   zero_user_segments(page, start1, end1, start2, end2);
+#else
+   void *kaddr = compat_kmap_atomic(page);
+   if (end1 > start1) {
+      memset(kaddr + start1, 0, end1 - start1);
+   }
+   if (end2 > start2) {
+      memset(kaddr + start2, 0, end2 - start2);
+   }
+   compat_kunmap_atomic(kaddr);
+   flush_dcache_page(page);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsZeroUserSegments --
+ *
+ *      Wrapper function for zeroing a page's segments.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsZeroUserSegment(struct page *page,      // IN: Page we're writing to
+                    unsigned int start,     // IN: segment 1 start
+                    unsigned int end)       // IN: segment 1 end
+{
+   HgfsZeroUserSegments(page, start, end, 0, 0);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsGetPageLength --
+ *
+ *      Helper function for finding the extent of valid file data in a page.
+ *
+ * Results:
+ *      The page valid data length.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static unsigned int
+HgfsGetPageLength(struct page *page) // IN: Page we're writing to
+{
+   loff_t currentFileSize;
+   unsigned int pageLength = 0;
+
+   currentFileSize = compat_i_size_read(page->mapping->host);
+   if (currentFileSize > 0) {
+      pgoff_t pageIndex = HGFS_PAGE_FILE_INDEX(page);
+      pgoff_t fileSizeIndex = (currentFileSize - 1) >> PAGE_CACHE_SHIFT;
+
+      if (pageIndex < fileSizeIndex) {
+         pageLength = PAGE_CACHE_SIZE;
+      } else if (pageIndex == fileSizeIndex) {
+         pageLength = ((currentFileSize - 1) & ~PAGE_CACHE_MASK) + 1;
+      }
+   }
+
+   return pageLength;
+}
 
 
 /*
@@ -1039,13 +1292,11 @@ HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
                loff_t writeTo,    // IN: File position to write to
                unsigned copied)   // IN: Number of bytes copied to the page
 {
-   loff_t currentFileSize;
    struct inode *inode;
 
    ASSERT(file);
    ASSERT(page);
    inode = page->mapping->host;
-   currentFileSize = compat_i_size_read(inode);
 
    LOG(6, (KERN_WARNING "VMware hgfs: %s: (%s/%s(%ld), from %u to %u@%lld => %u)\n",
            __func__, file->f_dentry->d_parent->d_name.name,
@@ -1057,14 +1308,45 @@ HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
     * as up to date if it turns out that we're extending the file.
     */
    if (!PageUptodate(page)) {
-      SetPageUptodate(page);
+      unsigned int pageLength = HgfsGetPageLength(page);
+
+      if (pageLength == 0) {
+         /* No file valid data in this page. Zero unwritten segments only. */
+         HgfsZeroUserSegments(page, 0, pageFrom, pageTo, PAGE_CACHE_SIZE);
+         SetPageUptodate(page);
+      } else if (pageTo >= pageLength) {
+         /* Some file valid data in this page. Zero unwritten segments only. */
+         HgfsZeroUserSegment(page, pageTo, PAGE_CACHE_SIZE);
+         if (pageTo == 0) {
+            /* Overwritten all file valid data in this page. So the page is uptodate. */
+            SetPageUptodate(page);
+         }
+      } else {
+         /* Overwriting part of the valid file data. */
+         HgfsZeroUserSegment(page, pageLength, PAGE_CACHE_SIZE);
+      }
    }
 
-   if (writeTo > currentFileSize) {
-      compat_i_size_write(inode, writeTo);
+
+   if (!PageUptodate(page)) {
+      HgfsHandle handle = FILE_GET_FI_P(file)->handle;
+      int result;
+
+      /* Do a synchronous write since we have a partial page write of data. */
+      result = HgfsDoWritepageInt(handle, page, pageFrom, pageTo);
+      if (result == 0) {
+         LOG(6, (KERN_WARNING "VMware hgfs: %s: sync write return %d\n", __func__, result));
+      }
+   } else {
+      /* Page to write contains all valid data. */
+      set_page_dirty(page);
+      /*
+       * Track the pages being written.
+       */
+      HgfsInodePageWbAdd(inode, page);
    }
 
-   set_page_dirty(page);
+   HgfsDoExtendFile(inode, writeTo);
 
    LOG(6, (KERN_WARNING "VMware hgfs: %s: return 0\n", __func__));
    return 0;
@@ -1106,7 +1388,7 @@ HgfsCommitWrite(struct file *file,    // IN: File to write
    ASSERT(page);
    ASSERT(file);
 
-   offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
+   offset = (loff_t)HGFS_PAGE_FILE_INDEX(page) << PAGE_CACHE_SHIFT;
    writeTo = offset + pageTo;
    copied = pageTo - pageFrom;
 
@@ -1164,7 +1446,7 @@ HgfsWriteEnd(struct file *file,              // IN: File to write
            mapping->host->i_ino, len, (long long) pos, copied));
 
    if (copied < len) {
-      zero_user_segment(page, pageFrom + copied, pageFrom + len);
+      HgfsZeroUserSegment(page, pageFrom + copied, pageFrom + len);
    }
 
    ret = HgfsDoWriteEnd(file, page, pageFrom, pageTo, writeTo, copied);
@@ -1174,6 +1456,779 @@ HgfsWriteEnd(struct file *file,              // IN: File to write
 
    compat_unlock_page(page);
    page_cache_release(page);
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: return %d\n", __func__, ret));
    return ret;
 }
 #endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbPageAlloc --
+ *
+ *    Allocates a write-back page object.
+ *
+ * Results:
+ *    The write-back page object
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static inline HgfsWbPage *
+HgfsWbPageAlloc(void)
+{
+   return kmalloc(sizeof (HgfsWbPage), GFP_KERNEL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbPageAlloc --
+ *
+ *    Frees a write-back page object.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+
+static inline void
+HgfsWbPageFree(HgfsWbPage *page)  // IN: request of page data to write
+{
+   ASSERT(page);
+   kfree(page);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestFree --
+ *
+ *    Frees the resources for a write-back page request.
+ *    Calls the request destroy and then frees the object memory.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsWbRequestFree(struct kref *kref)  // IN: ref field request of page data to write
+{
+   HgfsWbPage *req = container_of(kref, HgfsWbPage, wb_kref);
+
+   /* Release write back request page and free it. */
+   HgfsWbRequestDestroy(req);
+   HgfsWbPageFree(req);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestGet --
+ *
+ *    Reference the write-back page request.
+ *    Calls the request destroy and then frees the object memory.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+HgfsWbRequestGet(HgfsWbPage *req)   // IN: request of page data to write
+{
+   kref_get(&req->wb_kref);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestPut --
+ *
+ *    Remove a reference the write-back page request.
+ *    Calls the request free to tear down the object memory if it was the
+ *    final one.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    Destroys the request if last one.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+HgfsWbRequestPut(HgfsWbPage *req)  // IN: request of page data to write
+{
+   kref_put(&req->wb_kref, HgfsWbRequestFree);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestWaitUninterruptible --
+ *
+ *    Sleep function while waiting for requests to complete.
+ *
+ * Results:
+ *    Always zero.
+ *
+ * Side effects:
+*    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+static int
+HgfsWbRequestWaitUninterruptible(void *word) // IN:unused
+{
+   io_schedule();
+   return 0;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestWait --
+ *
+ *    Wait for a write-back page request to complete.
+ *    Interruptible by fatal signals only.
+ *    The user is responsible for holding a count on the request.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+
+int
+HgfsWbRequestWait(HgfsWbPage *req)  // IN: request of page data to write
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+   return wait_on_bit_io(&req->wb_flags,
+                         PG_BUSY,
+                         TASK_UNINTERRUPTIBLE);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+   return wait_on_bit(&req->wb_flags,
+                      PG_BUSY,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+                      HgfsWbRequestWaitUninterruptible,
+#endif
+                      TASK_UNINTERRUPTIBLE);
+#else
+   wait_event(req->wb_queue,
+              !test_bit(PG_BUSY, &req->wb_flags));
+   return 0;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestLock --
+ *
+ *    Lock the write-back page request.
+ *
+ * Results:
+ *    Non-zero if the lock was not already locked
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static inline int
+HgfsWbRequestLock(HgfsWbPage *req)  // IN: request of page data to write
+{
+   return !test_and_set_bit(PG_BUSY, &req->wb_flags);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestUnlock --
+ *
+ *    Unlock the write-back page request.
+ *    Wakes up any waiting threads on the lock.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsWbRequestUnlock(HgfsWbPage *req)  // IN: request of page data to write
+{
+   if (!test_bit(PG_BUSY,&req->wb_flags)) {
+      LOG(6, (KERN_WARNING "VMware Hgfs: %s: Invalid unlock attempted\n", __func__));
+      return;
+   }
+   HGFS_SM_MB_BEFORE();
+   clear_bit(PG_BUSY, &req->wb_flags);
+   HGFS_SM_MB_AFTER();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+   wake_up_bit(&req->wb_flags, PG_BUSY);
+#else
+   wake_up(&req->wb_queue);
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestUnlockAndPut --
+ *
+ *    Unlock the write-back page request and removes a reference.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsWbRequestUnlockAndPut(HgfsWbPage *req)  // IN: request of page data to write
+{
+   HgfsWbRequestUnlock(req);
+   HgfsWbRequestPut(req);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestListAdd --
+ *
+ *    Add the write-back page request into the list.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static inline void
+HgfsWbRequestListAdd(HgfsWbPage *req,         // IN: request of page data to write
+                     struct list_head *head)  // IN: list of requests
+{
+   list_add_tail(&req->wb_list, head);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestListRemove --
+ *
+ *    Remove the write-back page request from the list.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static inline void
+HgfsWbRequestListRemove(HgfsWbPage *req)  // IN: request of page data to write
+{
+   if (!list_empty(&req->wb_list)) {
+      list_del_init(&req->wb_list);
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestCreate --
+ *
+ *    Create the write-back page request.
+ *
+ * Results:
+ *    The new write-back page request.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HgfsWbPage *
+HgfsWbRequestCreate(struct page *page)   // IN: page of data to write
+{
+   HgfsWbPage *wbReq;
+   /* try to allocate the request struct */
+   wbReq = HgfsWbPageAlloc();
+   if (wbReq == NULL) {
+      wbReq = ERR_PTR(-ENOMEM);
+      goto exit;
+   }
+
+   /*
+    * Initialize the request struct. Initially, we assume a
+    * long write-back delay. This will be adjusted in
+    * update_nfs_request below if the region is not locked.
+    */
+   wbReq->wb_flags   = 0;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 13)
+   init_waitqueue_head(&wbReq->wb_queue);
+#endif
+   INIT_LIST_HEAD(&wbReq->wb_list);
+   wbReq->wb_page    = page;
+   wbReq->wb_index   = HGFS_PAGE_FILE_INDEX(page);
+   page_cache_get(page);
+   kref_init(&wbReq->wb_kref);
+
+exit:
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: (%p, %p)\n",
+          __func__, wbReq, page));
+   return wbReq;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsWbRequestDestroy --
+ *
+ *    Destroys by freeing up all resources allocated to the request.
+ *    Release page associated with a write-back request after it has completed.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsWbRequestDestroy(HgfsWbPage *req) // IN: write page request
+{
+   struct page *page = req->wb_page;
+
+   LOG(6, (KERN_WARNING"VMware hgfs: %s: (%p, %p)\n",
+          __func__, req, req->wb_page));
+
+   if (page != NULL) {
+      page_cache_release(page);
+      req->wb_page = NULL;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsInodeFindWbRequest --
+ *
+ *    Finds if there is a write-back page request on this inode and returns it.
+ *
+ * Results:
+ *    NULL or the write-back request for the page.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static HgfsWbPage *
+HgfsInodeFindWbRequest(struct inode *inode, // IN: inode of file to write to
+                       struct page *page)   // IN: page of data to write
+{
+   HgfsInodeInfo *iinfo;
+   HgfsWbPage *req = NULL;
+   HgfsWbPage *cur;
+
+   iinfo = INODE_GET_II_P(inode);
+
+   /* Linearly search the write back list for the correct req */
+   list_for_each_entry(cur, &iinfo->listWbPages, wb_list) {
+      if (cur->wb_page == page) {
+         req = cur;
+         break;
+      }
+   }
+
+   if (req != NULL) {
+      HgfsWbRequestGet(req);
+   }
+
+   return req;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsInodeFindExistingWbRequest --
+ *
+ *    Finds if there is a write-back page request on this inode and returns
+ *    locked.
+ *    If the request is busy (locked) then it drops the lock and waits for it
+ *    be not locked and searches the list again.
+ *
+ * Results:
+ *    NULL or the write-back request for the page.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static HgfsWbPage *
+HgfsInodeFindExistingWbRequest(struct inode *inode, // IN: inode of file to write to
+                               struct page *page)   // IN: page of data to write
+{
+   HgfsWbPage *req;
+   int error;
+
+   spin_lock(&inode->i_lock);
+
+   for (;;) {
+      req = HgfsInodeFindWbRequest(inode, page);
+      if (req == NULL) {
+         goto out_exit;
+      }
+
+      /*
+       * Try and lock the request if not already locked.
+       * If we find it is already locked, busy, then we drop
+       * the reference and wait to try again. Otherwise,
+       * once newly locked we break out and return to the caller.
+       */
+      if (HgfsWbRequestLock(req)) {
+         break;
+      }
+
+      /* The request was in use, so wait and then retry */
+      spin_unlock(&inode->i_lock);
+      error = HgfsWbRequestWait(req);
+      HgfsWbRequestPut(req);
+      if (error != 0) {
+         goto out_nolock;
+      }
+
+      spin_lock(&inode->i_lock);
+   }
+
+out_exit:
+   spin_unlock(&inode->i_lock);
+   return req;
+
+out_nolock:
+   return ERR_PTR(error);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsInodeAddWbRequest --
+ *
+ *    Add a write-back page request to an inode.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsInodeAddWbRequest(struct inode *inode, // IN: inode of file to write to
+                      HgfsWbPage *req)     // IN: page write request
+{
+   HgfsInodeInfo *iinfo = INODE_GET_II_P(inode);
+
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: (%p, %p, %lu)\n",
+          __func__, inode, req->wb_page, iinfo->numWbPages));
+
+   /* Lock the request! */
+   HgfsWbRequestLock(req);
+
+   HgfsWbRequestListAdd(req, &iinfo->listWbPages);
+   iinfo->numWbPages++;
+   HgfsWbRequestGet(req);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsInodeRemoveWbRequest --
+ *
+ *    Remove a write-back page request from an inode.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsInodeRemoveWbRequest(struct inode *inode, // IN: inode of file written to
+                         HgfsWbPage *req)     // IN: page write request
+{
+   HgfsInodeInfo *iinfo = INODE_GET_II_P(inode);
+
+   LOG(6, (KERN_CRIT "VMware hgfs: %s: (%p, %p, %lu)\n",
+          __func__, inode, req->wb_page, iinfo->numWbPages));
+
+   iinfo->numWbPages--;
+   HgfsWbRequestListRemove(req);
+   HgfsWbRequestPut(req);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsInodePageWbAdd --
+ *
+ *    Add a write-back page request to an inode.
+ *    If the page is already exists in the list for this inode nothing is
+ *    done, otherwise a new object is created for the page and added to the
+ *    inode list.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsInodePageWbAdd(struct inode *inode, // IN: inode of file to write to
+                   struct page *page)   // IN: page of data to write
+{
+   HgfsWbPage *req;
+
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: (%p, %p)\n",
+           __func__, inode, page));
+
+   req = HgfsInodeFindExistingWbRequest(inode, page);
+   if (req != NULL) {
+      goto exit;
+   }
+
+   /*
+    * We didn't find an existing write back request for that page so
+    * we create one.
+    */
+   req = HgfsWbRequestCreate(page);
+   if (IS_ERR(req)) {
+      goto exit;
+   }
+
+   spin_lock(&inode->i_lock);
+   /*
+    * Add the new write request for the page into our inode list to track.
+    */
+   HgfsInodeAddWbRequest(inode, req);
+   spin_unlock(&inode->i_lock);
+
+exit:
+   if (!IS_ERR(req)) {
+      HgfsWbRequestUnlockAndPut(req);
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsInodePageWbRemove --
+ *
+ *    Remove a write-back page request from an inode.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsInodePageWbRemove(struct inode *inode, // IN: inode of file written to
+                      struct page *page)   // IN: page of data written
+{
+   HgfsWbPage *req;
+
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: (%p, %p)\n",
+           __func__, inode, page));
+
+   req = HgfsInodeFindExistingWbRequest(inode, page);
+   if (req == NULL) {
+      goto exit;
+   }
+   spin_lock(&inode->i_lock);
+   /*
+    * Add the new write request for the page into our inode list to track.
+    */
+   HgfsInodeRemoveWbRequest(inode, req);
+   HgfsWbRequestUnlockAndPut(req);
+   spin_unlock(&inode->i_lock);
+
+exit:
+   return;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsInodePageWbFind --
+ *
+ *    Find a write-back page request from an inode.
+ *
+ * Results:
+ *    TRUE if found an existing write for the page, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HgfsInodePageWbFind(struct inode *inode, // IN: inode of file written to
+                    struct page *page)   // IN: page of data written
+{
+   HgfsWbPage *req;
+   Bool found = TRUE;
+
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: (%p, %p)\n",
+           __func__, inode, page));
+
+   req = HgfsInodeFindExistingWbRequest(inode, page);
+   if (req == NULL) {
+      found = FALSE;
+      goto exit;
+   }
+   spin_lock(&inode->i_lock);
+   /*
+    * Remove the write request lock and reference we just grabbed.
+    */
+   HgfsWbRequestUnlockAndPut(req);
+   spin_unlock(&inode->i_lock);
+
+exit:
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: (%p, %p) return %d\n",
+           __func__, inode, page, found));
+   return found;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsCheckReadModifyWrite --
+ *
+ *    Check if we can read the page from the server to get the valid data
+ *    for a page that we are in process of partially modifying and then
+ *    writing.
+ *
+ *    We maybe required to read the page first if the file is open for
+ *    reading in addition to writing, the page is not marked as uptodate,
+ *    it is not dirty or waiting to be committed, indicating that it was
+ *    previously allocated and then modified, that there were valid bytes
+ *    of data in that range of the file, and that the new data won't completely
+ *    replace the old data in that range of the file.
+ *
+ * Results:
+ *    TRUE if we need to read valid data and can do so for the page,
+ *    FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HgfsCheckReadModifyWrite(struct file *file,     // IN: File to be written
+                         struct page *page,     // IN: page of data written
+                         unsigned int pageFrom, // IN: position
+                         unsigned int pageTo)   // IN: len
+{
+   unsigned int pageLength = HgfsGetPageLength(page);
+   struct inode *inode = page->mapping->host;
+   Bool readPage = FALSE;
+
+  LOG(6, (KERN_WARNING "VMware hgfs: %s: (%p, %u, %u)\n",
+           __func__, page, pageFrom, pageTo));
+
+   if ((file->f_mode & FMODE_READ) &&             // opened for read?
+       !HgfsInodePageWbFind(inode, page) &&       // I/O request already ?
+       !PageUptodate(page) &&                     // Up to date?
+       pageLength > 0 &&                          // valid bytes of file?
+       (pageTo < pageLength || pageFrom != 0)) {  // replace all valid bytes?
+      readPage = TRUE;
+   }
+
+  LOG(6, (KERN_WARNING "VMware hgfs: %s: (%p, %u, %u) return %d\n",
+           __func__, page, pageFrom, pageTo, readPage));
+   return readPage;
+}

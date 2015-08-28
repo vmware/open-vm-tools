@@ -46,6 +46,7 @@ extern "C" {
 #include "dndClipboard.h"
 #include "dndMsg.h"
 #include "file.h"
+#include "hgfsUri.h"
 #include "hostinfo.h"
 #include "rpcout.h"
 #include "vmblock.h"
@@ -1423,6 +1424,11 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
          g_debug("%s: Adding newPath '%s' newRelPath '%s'\n", __FUNCTION__,
                newPath, newRelPath);
          fileList.AddFile(newPath, newRelPath);
+#if defined(linux)
+         char *newUri = HgfsUri_ConvertFromPathToHgfsUri(newPath, false);
+         fileList.AddFileUri(newUri);
+         free(newUri);
+#endif
          free(newPath);
       }
 
@@ -1433,6 +1439,13 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
                               DynBuf_GetSize(&buf));
       }
       DynBuf_Destroy(&buf);
+#if defined(linux)
+      if (fileList.ToUriClipboard(&buf)) {
+         CPClipboard_SetItem(&mClipboard, CPFORMAT_FILELIST_URI, DynBuf_Get(&buf),
+                             DynBuf_GetSize(&buf));
+      }
+      DynBuf_Destroy(&buf);
+#endif
       return true;
    }
 
@@ -2157,7 +2170,7 @@ DnDUIX11::WriteFileContentsToStagingDir()
    CPFileContentsList *contentsList = NULL;
    size_t nFiles = 0;
    CPFileItem *fileItem = NULL;
-   Unicode tempDir = NULL;
+   char *tempDir = NULL;
    size_t i = 0;
    bool ret = false;
 

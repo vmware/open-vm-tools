@@ -34,6 +34,8 @@
 #include <comutil.h>
 #include <glibmm/refptr.h>
 
+#include "autoCPtr.hh"
+
 extern "C" {
 #include "unicode.h"
 #include "util.h"
@@ -133,7 +135,10 @@ private:
       // Takes ownership of the input string.
       void Set(char *utf8String) // IN/OUT: May be NULL.
       {
-         Unicode_Free(mUTF8String);
+         if (mUTF8String == utf8String) {
+            return;
+         }
+         free(mUTF8String);
          mUTF8String = utf8String;
       }
 
@@ -146,7 +151,7 @@ private:
       // Only destructible via unreference().
       ~UTF8Data()
       {
-         Unicode_Free(mUTF8String);
+         free(mUTF8String);
       }
 
       char *mUTF8String;
@@ -253,14 +258,7 @@ ubstr_t::ubstr_t(const char *s) // IN: A UTF-8-encoded string.
    if (s != NULL) {
       // Since we already have the UTF-8 version of the string, cache it now.
       mUTF8 = Glib::RefPtr<UTF8Data>(new UTF8Data(Util_SafeStrdup(s)));
-      utf16_t *utf16Str = Unicode_GetAllocUTF16(s);
-      try {
-         mBstr = utf16Str;
-         Unicode_Free(utf16Str);
-      } catch (...) {
-         Unicode_Free(utf16Str);
-         throw;
-      }
+      mBstr = AutoCPtr<utf16_t>(Unicode_GetAllocUTF16(s), free).get();
    }
 }
 
@@ -832,19 +830,16 @@ ubstr_t::GetUTF8Cache()
       return NULL;
    }
 
-   char *utf8Str = NULL;
-   try {
-      if (!mUTF8) {
-         mUTF8 = Glib::RefPtr<UTF8Data>(new UTF8Data());
-      }
+   if (!mUTF8) {
+      mUTF8 = Glib::RefPtr<UTF8Data>(new UTF8Data());
+   }
 
-      if (mUTF8->Get() == NULL) {
-         utf8Str = Unicode_AllocWithUTF16(static_cast<wchar_t *>(mBstr));
-         mUTF8->Set(utf8Str);
-      }
-   } catch (...) {
-      Unicode_Free(utf8Str);
-      throw;
+   if (mUTF8->Get() == NULL) {
+      AutoCPtr<char> utf8Str(
+         Unicode_AllocWithUTF16(static_cast<wchar_t *>(mBstr)),
+         free);
+      mUTF8->Set(utf8Str.get());
+      utf8Str.release();
    }
 
    return mUTF8->Get();

@@ -445,12 +445,6 @@ __GET_EAX_FROM_CPUID4(int inputEcx)
 
 #define CPUID_FOR_SIDE_EFFECTS() ((void)__GET_EAX_FROM_CPUID(0))
 
-static INLINE void
-__GET_CPUID4(int inputEcx, CPUIDRegs *regs)
-{
-   __GET_CPUID2(4, inputEcx, regs);
-}
-
 /* The first parameter is used as an rvalue and then as an lvalue. */
 #define GET_CPUID(_ax, _bx, _cx, _dx) { \
    CPUIDRegs regs;                      \

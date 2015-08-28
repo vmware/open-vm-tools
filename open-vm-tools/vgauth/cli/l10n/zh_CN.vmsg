@@ -16,62 +16,60 @@
 #
 ##########################################################
 
-addsubj.fail = "%1$s: 未能为用户“%2$s”添加别名: %3$s。\n"
-addsubj.success = "%1$s: 别名已添加\n"
+addsubj.fail = "%1$s: 无法为用户“%2$s”添加别名: %3$s。\n"
+addsubj.success = "%1$s: 已添加别名\n"
 
-addoptions.comment = "主题备注"
+addoptions.comment = "主题注释"
 
 addoptions.file = "PEM 文件名"
 
-addoptions.global = "将证书添加到全局映射文件"
+addoptions.global = "将证书添加到全局映射文件中"
 
 addoptions.subject = "SAML 主题"
 
-addoptions.username = "要向其证书存储添加证书的用户"
+addoptions.username = "要在以下位置添加证书存储的用户"
 
-addoptions.verbose = "Verbose 操作"
+addoptions.verbose = "详细操作"
 
 
-cmdline.parse = "命令行解析失败"
+cmdline.parse = "命令行分析失败"
 
 cmdline.summary.pemfile = "PEM 文件"
 cmdline.summary.subject = "主题"
-cmdline.summary.username = "username"
-cmdline.summary.comm = "备注"
+cmdline.summary.username = "用户名"
+cmdline.summary.comm = "注释"
 
-list.comment = "备注"
-list.count = "%1$s 找到用户“%3$s”的 %2$d 个别名\n"
+list.comment = "注释"
+list.count = "%1$s 已找到用户“%3$s”的 %2$d 别名\n"
 
-list.error = "%1$s: 未能列出用户“%2$s”的别名: %3$s。\n"
+list.error = "%1$s: 无法列出用户“%2$s”的别名: %3$s。\n"
 list.subject = "主题"
 
-listmapped.count = "%1$s 找到 %2$d 个映射的别名\n"
+listmapped.count = "%1$s 已找到 %2$d 映射的别名\n"
 
-listmapped.error = "%1$s: 未能列出映射的别名: %2$s。\n"
+listmapped.error = "%1$s: 无法列出映射的别名: %2$s。\n"
 
 listmapped.subject = "主题"
 
 listmapped.username = "用户名"
 
-listoptions.username =
-         "要对其证书存储进行查询的用户"
+listoptions.username = "要查询其证书存储的用户"
 
-listoptions.verbose = "Verbose 操作"
+listoptions.verbose = "详细操作"
 
 loadfile.fail = "%1$s: 无法读取 PEM 文件“%2$s”\n"
 
-name.any = "<任意>"
+name.any = "<任何>"
 
-removesubj.fail = "%1$s: 未能移除用户“%2$s”的别名: %3$s。\n"
+removesubj.fail = "%1$s: 无法删除用户“%2$s”的别名: %3$s。\n"
 
-removesubj.success = "%1$s: 别名已移除\n"
+removesubj.success = "%1$s: 已删除别名\n"
 
 removeoptions.file = "PEM 文件名"
 
 removeoptions.subject = "SAML 主题"
-removeoptions.username =
-             "要从其证书存储中移除证书的用户"
+removeoptions.username = "要从以下位置删除证书存储的用户"
 
-removeoptions.verbose = "Verbose 操作"
+removeoptions.verbose = "详细操作"
 
-vgauth.init.failed = "未能初始化 VGAuth"
+vgauth.init.failed = "无法初始化 VGAuth"

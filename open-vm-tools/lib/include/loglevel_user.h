@@ -79,9 +79,8 @@
    LOGLEVEL_VAR(vusbhid), \
    LOGLEVEL_VAR(vusbtablet), \
    LOGLEVEL_VAR(vusbaudio), \
+   LOGLEVEL_VAR(vusbvideo),\
    LOGLEVEL_VAR(hidQueue), \
-   LOGLEVEL_VAR(pci_1394), \
-   LOGLEVEL_VAR(1394), \
    LOGLEVEL_VAR(pci_vlance), \
    LOGLEVEL_VAR(pci_svga), \
    LOGLEVEL_VAR(pci_e1000), \
@@ -100,8 +99,9 @@
    LOGLEVEL_VAR(vcpuNUMA), \
    LOGLEVEL_VAR(heci), \
    LOGLEVEL_VAR(pciplugin), \
-   LOGLEVEL_VAR(vmiopluginlib), \
    LOGLEVEL_VAR(vsock), \
+   LOGLEVEL_VAR(vrdma), \
+   LOGLEVEL_VAR(nvdimm), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
@@ -143,7 +143,11 @@
    LOGLEVEL_VAR(mksGLContextMux), \
    LOGLEVEL_VAR(mksGLDraw), \
    LOGLEVEL_VAR(mksGLQuery), \
+   LOGLEVEL_VAR(mksGLTextureView), \
    LOGLEVEL_VAR(mksWinBSOD), \
+   LOGLEVEL_VAR(mksDX11Renderer), \
+   LOGLEVEL_VAR(mksDX11ResourceView), \
+   LOGLEVEL_VAR(mksDX11ShimOps), \
    LOGLEVEL_VAR(vdpPlugin), \
    \
    /* user/sound */ \
@@ -151,6 +155,9 @@
    LOGLEVEL_VAR(hdaudio), \
    LOGLEVEL_VAR(pci_hdaudio), \
    LOGLEVEL_VAR(hdaudio_alsa), \
+   \
+   /* user video */ \
+   LOGLEVEL_VAR(AVCapture), \
    \
    /* user/disklib */ \
    LOGLEVEL_VAR(disklib), \
@@ -170,6 +177,7 @@
    LOGLEVEL_VAR(macbw), \
    LOGLEVEL_VAR(macfi), \
    LOGLEVEL_VAR(vmkcfg), \
+   LOGLEVEL_VAR(policy), \
    LOGLEVEL_VAR(poll), \
    LOGLEVEL_VAR(barrier), \
    LOGLEVEL_VAR(mstat), \
@@ -231,8 +239,7 @@
    LOGLEVEL_VAR(automation), \
    LOGLEVEL_VAR(oemDevice), \
    LOGLEVEL_VAR(cptOps), \
-   LOGLEVEL_VAR(VProbeExec), \
-   LOGLEVEL_VAR(VP), \
+   LOGLEVEL_VAR(vprobe), \
    LOGLEVEL_VAR(VProbeClient), \
    LOGLEVEL_VAR(device), \
    LOGLEVEL_VAR(devicePowerOn), \
@@ -266,13 +273,8 @@
    LOGLEVEL_VAR(serviceImpl), /* lib/serviceImpl */ \
    LOGLEVEL_VAR(serviceUser), /* lib/serviceUser */ \
    LOGLEVEL_VAR(ssl), \
-   LOGLEVEL_VAR(vmrc), \
    LOGLEVEL_VAR(namespaceDb), \
    LOGLEVEL_VAR(namespaceMgr), \
-   LOGLEVEL_VAR(blobMgr), \
-   LOGLEVEL_VAR(vblobbe), \
-   LOGLEVEL_VAR(blobFileBE), \
-   LOGLEVEL_VAR(blobPythonBE), \
    LOGLEVEL_VAR(grainTrack), \
    LOGLEVEL_VAR(shim3D), \
    LOGLEVEL_VAR(crc32), \
@@ -283,11 +285,14 @@
    LOGLEVEL_VAR(vmname),  /* lib/vmname */ \
    LOGLEVEL_VAR(gpumgmt), \
    LOGLEVEL_VAR(unityMsg),  /* mks/remote/vdpUnityVmdb */ \
+   LOGLEVEL_VAR(sharedFolderMgr),  /* mks/remote/vdpFolderSharedMgrVmdb */ \
    LOGLEVEL_VAR(crtbora),  /* apps/crtbora */ \
    LOGLEVEL_VAR(mirror), \
    LOGLEVEL_VAR(filtlib), \
    LOGLEVEL_VAR(epd), \
+   LOGLEVEL_VAR(ddecomd), \
    LOGLEVEL_VAR(hostctl), \
+   LOGLEVEL_VAR(pmemobj), \
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

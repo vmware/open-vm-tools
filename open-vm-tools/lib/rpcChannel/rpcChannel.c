@@ -62,6 +62,13 @@ static RpcChannelCallback gRpcHandlers[] =  {
 
 static gboolean gUseBackdoorOnly = FALSE;
 
+/*
+ * Track the vSocket connection failure, so that we can
+ * avoid using vSockets until a channel reset/restart or
+ * the service itself gets restarted.
+ */
+static gboolean gVSocketFailed = FALSE;
+
 /**
  * Handler for a "ping" message. Does nothing.
  *
@@ -91,6 +98,10 @@ RpcChannelRestart(gpointer _chan)
    RpcChannelInt *chan = _chan;
 
    RpcChannel_Stop(&chan->impl);
+   /* Clear vSocket channel failure */
+   Debug(LGPFX "Clearing backdoor behavior ...\n");
+   gVSocketFailed = FALSE;
+
    if (!RpcChannel_Start(&chan->impl)) {
       Warning("Channel restart failed [%d]\n", chan->rpcErrorCount);
       if (chan->resetCb != NULL) {
@@ -144,6 +155,8 @@ RpcChannelCheckReset(gpointer _chan)
    /* Reset was successful. */
    Debug(LGPFX "Channel was reset successfully.\n");
    chan->rpcErrorCount = 0;
+   Debug(LGPFX "Clearing backdoor behavior ...\n");
+   gVSocketFailed = FALSE;
 
    if (chan->resetCb != NULL) {
       chan->resetCb(&chan->impl, TRUE, chan->resetData);
@@ -656,7 +669,8 @@ RpcChannel_New(void)
 {
    RpcChannel *chan;
 #if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   chan = gUseBackdoorOnly ? BackdoorChannel_New() : VSockChannel_New();
+   chan = (gUseBackdoorOnly || gVSocketFailed) ?
+          BackdoorChannel_New() : VSockChannel_New();
 #else
    chan = BackdoorChannel_New();
 #endif
@@ -737,6 +751,12 @@ RpcChannel_Start(RpcChannel *chan)
       Debug(LGPFX "Fallback to backdoor ...\n");
       funcs->onStartErr(chan);
       ok = BackdoorChannel_Fallback(chan);
+      /*
+       * As vSocket is not available, we stick the backdoor
+       * behavior until the channel is reset/restarted.
+       */
+      Debug(LGPFX "Sticking backdoor behavior ...\n");
+      gVSocketFailed = TRUE;
    }
 
    return ok;

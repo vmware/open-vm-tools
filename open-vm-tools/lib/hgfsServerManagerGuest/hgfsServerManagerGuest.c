@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006,2014-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,6 +25,7 @@
  *
  */
 
+#include <string.h>
 #include "hgfsServerPolicy.h"
 #include "hgfsChannelGuestInt.h"
 #include "hgfsServerManager.h"
@@ -32,7 +33,15 @@
 #include "vm_assert.h"
 #include "hgfs.h"
 
-
+/*
+ * Local for now and will be used in conjuncutntion with the manager data passed
+ * on registration.
+ */
+static HgfsServerMgrCallbacks gHgfsServerManagerGuestData = {
+   {
+      NULL,    // Filled by the policy manager
+   }
+};
 
 /*
  *----------------------------------------------------------------------------
@@ -89,18 +98,20 @@ HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
    ASSERT(data);
    ASSERT(data->appName);
 
-
-
    /*
     * Passing NULL here is safe because the shares maintained by the guest
     * policy server never change, invalidating the need for an invalidate
     * function.
+    * XXX - retrieve the enum of shares routines and will need to pass this
+    * down through the channel guest into the HGFS server directly.
     */
-   if (!HgfsServerPolicy_Init(NULL, NULL)) {
+   if (!HgfsServerPolicy_Init(NULL,
+                              NULL,
+                              &gHgfsServerManagerGuestData.enumResources)) {
       return FALSE;
    }
 
-   if (!HgfsChannelGuest_Init(data)) {
+   if (!HgfsChannelGuest_Init(data, &gHgfsServerManagerGuestData)) {
       HgfsServerPolicy_Cleanup();
       return FALSE;
    }
@@ -160,4 +171,5 @@ HgfsServerManager_Unregister(HgfsServerMgrData *data)         // IN: RpcIn chann
 
    HgfsChannelGuest_Exit(data);
    HgfsServerPolicy_Cleanup();
+   memset(&gHgfsServerManagerGuestData, 0, sizeof gHgfsServerManagerGuestData);
 }

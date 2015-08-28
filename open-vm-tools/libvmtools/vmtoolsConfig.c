@@ -221,7 +221,6 @@ VMToolsConfigUpgrade(GHashTable *old,
       { CONFNAME_DISABLEPMTIMERWARNING, "desktopevents", CONFNAME_DISABLEPMTIMERWARNING, CFG_BOOLEAN, NULL },
 #endif
       /* Unity options. */
-      { "unity.debug", CONFGROUPNAME_UNITY, CONFNAME_UNITY_ENABLEDEBUG, CFG_BOOLEAN, NULL },
       { "unity.forceEnable", CONFGROUPNAME_UNITY, CONFNAME_UNITY_FORCEENABLE, CFG_BOOLEAN, NULL },
       { "unity.desktop.backgroundColor", CONFGROUPNAME_UNITY, CONFNAME_UNITY_BACKGROUNDCOLOR, CFG_INTEGER, NULL },
       /* Null terminator. */
@@ -334,6 +333,7 @@ VMTools_LoadConfig(const gchar *path,
    GHashTable *old = NULL;
    GError *err = NULL;
    GKeyFile *cfg = NULL;
+   static gboolean hadConfFile = TRUE;
 
    g_return_val_if_fail(config != NULL, FALSE);
 
@@ -358,10 +358,19 @@ VMTools_LoadConfig(const gchar *path,
          g_warning("Failed to stat conf file: %s\n", strerror(errno));
          goto exit;
       } else {
-         cfg = g_key_file_new();
+         /*
+          * If we used to have a file, create a config.
+          * Otherwise we can re-use the empty GKeyFile from before.
+          */
+         if (hadConfFile) {
+            cfg = g_key_file_new();
+         }
+         hadConfFile = FALSE;
          goto exit;
       }
    }
+
+   hadConfFile = TRUE;
 
    /* Check if we really need to load the data. */
    if (mtime != NULL && confStat.st_mtime <= *mtime) {

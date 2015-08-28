@@ -38,6 +38,7 @@ typedef struct MXUserRWLock     MXUserRWLock;
 typedef struct MXUserRankLock   MXUserRankLock;
 typedef struct MXUserCondVar    MXUserCondVar;
 typedef struct MXUserSemaphore  MXUserSemaphore;
+typedef struct MXUserEvent      MXUserEvent;
 typedef struct MXUserBarrier    MXUserBarrier;
 
 /*
@@ -46,9 +47,6 @@ typedef struct MXUserBarrier    MXUserBarrier;
 
 MXUserExclLock *MXUser_CreateExclLock(const char *name,
                                       MX_Rank rank);
-
-MXUserExclLock *MXUser_CreateExclLockSilent(const char *name,
-                                            MX_Rank rank);
 
 void MXUser_AcquireExclLock(MXUserExclLock *lock);
 Bool MXUser_TryAcquireExclLock(MXUserExclLock *lock);
@@ -60,10 +58,6 @@ MXUserExclLock *MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,
                                                const char *name,
                                                MX_Rank rank);
 
-Bool MXUser_ControlExclLock(MXUserExclLock *lock,
-                            uint32 command,
-                            ...);
-
 MXUserCondVar *MXUser_CreateCondVarExclLock(MXUserExclLock *lock);
 
 void MXUser_WaitCondVarExclLock(MXUserExclLock *lock,
@@ -73,6 +67,20 @@ void MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,
                                      MXUserCondVar *condVar,
                                      uint32 msecWait);
 
+Bool MXUser_EnableStatsExclLock(MXUserExclLock *lock,
+                                Bool trackAcquisitionTime,
+                                Bool trackHeldTime);
+
+Bool MXUser_DisableStatsExclLock(MXUserExclLock *lock);
+
+Bool MXUser_SetContentionRatioFloorExclLock(MXUserExclLock *lock,
+                                            double ratio);
+
+Bool MXUser_SetContentionCountFloorExclLock(MXUserExclLock *lock,
+                                            uint64 count);
+
+Bool MXUser_SetContentionDurationFloorExclLock(MXUserExclLock *lock,
+                                               uint64 count);
 
 /*
  * Recursive lock.
@@ -80,9 +88,6 @@ void MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,
 
 MXUserRecLock *MXUser_CreateRecLock(const char *name,
                                     MX_Rank rank);
-
-MXUserRecLock *MXUser_CreateRecLockSilent(const char *name,
-                                          MX_Rank rank);
 
 void MXUser_AcquireRecLock(MXUserRecLock *lock);
 Bool MXUser_TryAcquireRecLock(MXUserRecLock *lock);
@@ -93,10 +98,6 @@ Bool MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock);
 MXUserRecLock *MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,
                                              const char *name,
                                              MX_Rank rank);
-
-Bool MXUser_ControlRecLock(MXUserRecLock *lock,
-                           uint32 command,
-                           ...);
 
 void MXUser_DumpRecLock(MXUserRecLock *lock);
 
@@ -112,6 +113,22 @@ void MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,
 void MXUser_IncRefRecLock(MXUserRecLock *lock);
 
 void MXUser_DecRefRecLock(MXUserRecLock *lock);
+
+Bool MXUser_EnableStatsRecLock(MXUserRecLock *lock,
+                               Bool trackAcquisitionTime,
+                               Bool trackHeldTime);
+
+Bool MXUser_DisableStatsRecLock(MXUserRecLock *lock);
+
+Bool MXUser_SetContentionRatioFloorRecLock(MXUserRecLock *lock,
+                                           double ratio);
+
+Bool MXUser_SetContentionCountFloorRecLock(MXUserRecLock *lock,
+                                           uint64 count);
+
+Bool MXUser_SetContentionDurationFloorRecLock(MXUserRecLock *lock,
+                                              uint64 count);
+
 
 /*
  * Read-write lock
@@ -136,9 +153,22 @@ MXUserRWLock *MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
                                            const char *name,
                                            MX_Rank rank);
 
-Bool MXUser_ControlRWLock(MXUserRWLock *lock,
-                          uint32 command,
-                          ...);
+/*
+ * Stateful auto-reset event
+ */
+
+MXUserEvent *MXUser_CreateEvent(const char *name,
+                                MX_Rank rank);
+
+void MXUser_SignalEvent(MXUserEvent *event);
+void MXUser_WaitEvent(MXUserEvent *event);
+Bool MXUser_TryWaitEvent(MXUserEvent *event);
+MXSemaHandle MXUser_GetHandleForEvent(MXUserEvent *event);
+void MXUser_DestroyEvent(MXUserEvent *event);
+
+MXUserEvent *MXUser_CreateSingletonEvent(Atomic_Ptr *eventStorage,
+                                         const char *name,
+                                         MX_Rank rank);
 
 /*
  * Computational barrier
@@ -162,9 +192,6 @@ MXUserBarrier *MXUser_CreateSingletonBarrier(Atomic_Ptr *barrierStorage,
 
 MXUserSemaphore *MXUser_CreateSemaphore(const char *name,
                                         MX_Rank rank);
-
-MXUserSemaphore *MXUser_CreateSemaphoreSolent(const char *name,
-                                              MX_Rank rank);
 
 void MXUser_DestroySemaphore(MXUserSemaphore *sema);
 void MXUser_UpSemaphore(MXUserSemaphore *sema);
@@ -203,25 +230,13 @@ void MXUser_SignalCondVar(MXUserCondVar *condVar);
 void MXUser_BroadcastCondVar(MXUserCondVar *condVar);
 void MXUser_DestroyCondVar(MXUserCondVar *condVar);
 
-/*
- * MXUser_Control[Excl, Rec, RW] commands
- */
+void MXUser_LockingTreeCollection(Bool enabled);
+Bool MXUser_IsLockingTreeAvailable(void);
+void MXUser_DumpLockTree(const char *fileName,
+                         const char *timeStamp);
 
-#define MXUSER_CONTROL_ACQUISITION_HISTO   0     // minValue, decades
-#define MXUSER_CONTROL_HELD_HISTO          1     // minValue, decades
-#define MXUSER_CONTROL_ENABLE_STATS        2     // no arguments
+void MXUser_EmptyLockTree(void);
 
-#define MXUSER_DEFAULT_HISTO_MIN_VALUE_NS  1000  // 1 usec
-#define MXUSER_DEFAULT_HISTO_DECADES       7     // 1 usec to 10 seconds
-
-struct MX_MutexRec;
-
-#if defined(VMX86_VMX)
-MXUserRecLock *MXUser_InitFromMXRec(const char *name,
-                                    struct MX_MutexRec *mutex,
-                                    MX_Rank rank,
-                                    Bool isBelowBull);
-#endif
 
 #if defined(VMX86_DEBUG) && !defined(DISABLE_MXUSER_DEBUG)
 #define MXUSER_DEBUG  // debugging "everywhere" when requested
@@ -231,7 +246,6 @@ MXUserRecLock *MXUser_InitFromMXRec(const char *name,
 void MXUser_TryAcquireFailureControl(Bool (*func)(const char *lockName));
 Bool MXUser_IsCurThreadHoldingLocks(void);
 #endif
-
 void MXUser_StatisticsControl(double contentionRatioFloor,
                               uint64 minAccessCountFloor,
                               uint64 contentionDurationFloor);
@@ -247,8 +261,11 @@ void MXUser_SetStatsFunc(void *context,
 void MXUser_SetInPanic(void);
 Bool MXUser_InPanic(void);
 
+struct MX_MutexRec;
+
 MXUserRecLock       *MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,
                                            MX_Rank rank);
+
 struct MX_MutexRec  *MXUser_GetRecLockVmm(MXUserRecLock *lock);
 MX_Rank              MXUser_GetRecLockRank(MXUserRecLock *lock);
 #endif  // _USERLOCK_H_
