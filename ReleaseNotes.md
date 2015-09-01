@@ -9,6 +9,7 @@ The release notes cover the following topics:
 - Compatibility
 - Installation and Upgrades for This Release
 - Known Issues
+
 ##What's New 
 VMware Tools is a suite of utilities that enhances the performance of the virtual machine's guest operating system and improves management of the virtual machine. Read about the new and enhanced features in this release below:
 
@@ -17,6 +18,7 @@ VMware Tools is a suite of utilities that enhances the performance of the virtua
 - **Shared Folders**: For Linux distributions with kernel version 4.0.0 and higher, there is a new FUSE based Shared Folders client which is used as a replacement for the kernel mode client. 
 - **ESXi Serviceability**: Default _vmtoolsd_ logging is directed to a file instead of syslog.  _vmware-toolbox-cmd_ is enhanced for setting _vmtoolsd_ logging levels.
 - **GuestInfo Enhancements**: Plugin enhancements to report more than 64 IP addresses from the guest. These enhancements will be available only after upgrading the host because the guest IP addresses limit also exists on the host side.
+
 ## Internationalization 
 open-vm-tools 10.0.0 supports the following languages:
 
@@ -29,6 +31,7 @@ open-vm-tools 10.0.0 supports the following languages:
 - Korean 
 - Simplified Chinese 
 - Traditional Chinese
+
 ## Compatibility 
 open-vm-tools 10.0.0 is compatible with all supported versions of VMware vSphere, VMware Workstation 12.0 and VMware Fusion 8.0.
 ## Installation and Upgrades for This Release 
