@@ -63,15 +63,25 @@ Bool RpcOut_stop(RpcOut *out);
 Bool RpcOut_sendOne(char **reply, size_t *repLen, char const *reqFmt, ...);
 
 /* 
- * A new version of the above function that works with UTF-8 strings
- * and other data that would be corrupted by Win32's FormatMessage
- * function (which is used by RpcOut_sendOne()).
+ * A version of the RpcOut_sendOne function that works with UTF-8
+ * strings and other data that would be corrupted by Win32's
+ * FormatMessage function (which is used by RpcOut_sendOne()).
  */
 
 Bool RpcOut_SendOneRaw(void *request, size_t reqLen, char **reply, size_t *repLen);
 
+/* 
+ * A variant of the RpcOut_SendOneRaw in which the caller supplies the
+ * receive buffer so as to avoid the need to call malloc internally.
+ * Useful in situations where calling malloc is not allowed.
+ */
+
+Bool RpcOut_SendOneRawPreallocated(void *request, size_t reqLen, char *reply,
+                                   size_t repLen);
+
 /*
- * As the above but must be run by admin/root to make the privileged RPC call successfully.
+ * As the above but must be run by admin/root to make the privileged
+ * RPC call successfully.
  */
 Bool RpcOut_SendOneRawPriv(void *request, size_t reqLen, char **reply, size_t *repLen);
 

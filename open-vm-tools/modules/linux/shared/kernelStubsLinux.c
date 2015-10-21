@@ -289,7 +289,7 @@ strdup(const char *source) // IN
 /*
  *----------------------------------------------------------------------------
  *
- * malloc --
+ * mallocReal --
  *
  *      Allocate memory using kmalloc. There is no realloc
  *      equivalent, so we roll our own by padding each allocation with
@@ -305,8 +305,8 @@ strdup(const char *source) // IN
  *----------------------------------------------------------------------------
  */
 
-void *
-malloc(size_t size) // IN
+static void *
+mallocReal(size_t size) // IN
 {
    size_t *ptr;
    ptr = kmalloc(size + sizeof size, GFP_KERNEL);
@@ -315,6 +315,34 @@ malloc(size_t size) // IN
       *ptr++ = size;
    }
    return ptr;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * malloc --
+ *
+ *      Allocate memory using the common mallocReal.
+ *
+ * Note: This calls mallocReal and not malloc as the gcc 5.1.1 optimizer
+ *       will replace the malloc and memset with a calloc call. This results
+ *       in calloc calling itself and results in system crashes. See bug 1413226.
+ *
+ * Results:
+ *      Pointer to driver heap memory, offset by 4 (or 8)
+ *      bytes from the real block pointer.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void *
+malloc(size_t size) // IN
+{
+   return mallocReal(size);
 }
 
 /*
@@ -350,6 +378,10 @@ free(void *mem) // IN
  *
  *      Malloc and zero.
  *
+ * Note: This calls mallocReal and not malloc as the gcc 5.1.1 optimizer
+ *       will replace the malloc and memset with a calloc call. This results
+ *       for system crashes when used by kernel components. See bug 1413226.
+ *
  * Results:
  *      Pointer to driver heap memory (see malloc, above).
  *
@@ -367,7 +399,7 @@ calloc(size_t num, // IN
    void *ptr;
 
    size = num * len;
-   ptr = malloc(size);
+   ptr = mallocReal(size);
    if (ptr) {
       memset(ptr, 0, size);
    }

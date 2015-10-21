@@ -35,7 +35,10 @@
 #include "vm_assert.h"
 
 /* HGFS symlink operations. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+static const char *HgfsFollowlink(struct dentry *dentry,
+                                  void **cookie);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
 static void *HgfsFollowlink(struct dentry *dentry,
                             struct nameidata *nd);
 #else
@@ -45,7 +48,10 @@ static int HgfsFollowlink(struct dentry *dentry,
 static int HgfsReadlink(struct dentry *dentry,
                         char __user *buffer,
                         int buflen);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+static void HgfsPutlink(struct inode *unused,
+                        void *cookie);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
 static void HgfsPutlink(struct dentry *dentry,
                         struct nameidata *nd,
                         void *cookie);
@@ -85,7 +91,11 @@ struct inode_operations HgfsLinkInodeOperations = {
  *----------------------------------------------------------------------
  */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+static const char *
+HgfsFollowlink(struct dentry *dentry,
+               void **cookie)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
 static void *
 HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
                struct nameidata *nd)  // OUT: Contains target dentry
@@ -100,7 +110,9 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
    int error;
 
    ASSERT(dentry);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
    ASSERT(nd);
+#endif
 
    if (!dentry) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsFollowlink: null input\n"));
@@ -124,12 +136,22 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
       } else {
          LOG(6, (KERN_DEBUG "VMware hgfs: %s: calling nd_set_link %s\n",
                  __func__, fileName));
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+         *cookie = fileName;
+#else
          nd_set_link(nd, fileName);
+#endif
       }
    }
-  out:
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+out:
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+   if (!error) {
+      return *cookie;
+   } else {
+      return ERR_PTR(error);
+   }
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
    return ERR_PTR(error);
 #else
    return error;
@@ -219,7 +241,11 @@ HgfsReadlink(struct dentry *dentry,  // IN:  Dentry containing link
  *----------------------------------------------------------------------
  */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+static void
+HgfsPutlink(struct inode *unused,
+            void *cookie)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
 static void
 HgfsPutlink(struct dentry *dentry, // dentry
             struct nameidata *nd,  // lookup name information
@@ -232,14 +258,21 @@ HgfsPutlink(struct dentry *dentry, // dentry
 {
    char *fileName = NULL;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+   fileName = cookie;
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: put for %s\n",
+           __func__, fileName));
+#else
    LOG(6, (KERN_DEBUG "VMware hgfs: %s: put for %s\n",
            __func__, dentry->d_name.name));
-
    fileName = nd_get_link(nd);
+#endif
    if (!IS_ERR(fileName)) {
       LOG(6, (KERN_DEBUG "VMware hgfs: %s: putting %s\n",
               __func__, fileName));
       kfree(fileName);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
       nd_set_link(nd, NULL);
+#endif
    }
 }

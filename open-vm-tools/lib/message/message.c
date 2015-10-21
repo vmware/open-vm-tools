@@ -75,21 +75,72 @@ extern "C" {
 #  define MESSAGE_LOG(...)
 #endif
 
-/* The channel object */
-struct Message_Channel {
-   /* Identifier */
-   uint16 id;
 
-   /* Reception buffer */
-   /*  Data */
-   unsigned char *in;
-   /*  Allocated size */
-   size_t inAlloc;
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Message_OpenAllocated --
+ *
+ *    Open a communication channel using an allocated, but unitialized
+ *    Message_Channel structure.  A receive buffer may be optionally
+ *    specified with a given size.  If a message larger than this
+ *    buffer is received the communication will be aborted.  If no
+ *    receiver buffer is specified, one will be dynamically allocated
+ *    to size.  When finished with the channel, Message_CloseAllocated
+ *    should be called.
+ *
+ * Result:
+ *    TRUE on success, FALSE on failure.
+ *
+ * Side-effects:
+ *    See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-   /* The cookie */
-   uint32 cookieHigh;
-   uint32 cookieLow;
-};
+Bool
+Message_OpenAllocated(uint32 proto, Message_Channel *chan,
+                      char *receiveBuffer, size_t receiveBufferSize)
+{
+   uint32 flags;
+   Backdoor_proto bp;
+
+   flags = GUESTMSG_FLAG_COOKIE;
+retry:
+   /* IN: Type */
+   bp.in.cx.halfs.high = MESSAGE_TYPE_OPEN;
+   /* IN: Magic number of the protocol and flags */
+   bp.in.size = proto | flags;
+
+   bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
+   Backdoor(&bp);
+
+   /* OUT: Status */
+   if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
+      if (flags) {
+         /* Cookies not supported. Fall back to no cookie. --hpreg */
+         flags = 0;
+         goto retry;
+      }
+
+      MESSAGE_LOG("Message: Unable to open a communication channel\n");
+      return FALSE;
+   }
+
+   /* OUT: Id and cookie */
+   chan->id = bp.in.dx.halfs.high;
+   chan->cookieHigh = bp.out.si.word;
+   chan->cookieLow = bp.out.di.word;
+
+   /* Initialize the channel */
+   chan->in = (unsigned char *)receiveBuffer;
+   chan->inAlloc = receiveBufferSize;
+
+   ASSERT((receiveBuffer == NULL) == (receiveBufferSize == 0));
+   chan->inPreallocated = receiveBuffer != NULL;
+
+   return TRUE;
+}
 
 
 /*
@@ -112,52 +163,13 @@ struct Message_Channel {
 Message_Channel *
 Message_Open(uint32 proto) // IN
 {
-   Message_Channel *chan;
-   uint32 flags;
-   Backdoor_proto bp;
+   Message_Channel *chan = malloc(sizeof *chan);
 
-   chan = (Message_Channel *)malloc(sizeof(*chan));
-   if (chan == NULL) {
-      goto error_quit;
+   if (chan != NULL && !Message_OpenAllocated(proto, chan, NULL, 0)) {
+      free(chan);
+      chan = NULL;
    }
-
-   flags = GUESTMSG_FLAG_COOKIE;
-retry:
-   /* IN: Type */
-   bp.in.cx.halfs.high = MESSAGE_TYPE_OPEN;
-   /* IN: Magic number of the protocol and flags */
-   bp.in.size = proto | flags;
-
-   bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
-   Backdoor(&bp);
-
-   /* OUT: Status */
-   if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-      if (flags) {
-         /* Cookies not supported. Fall back to no cookie. --hpreg */
-         flags = 0;
-         goto retry;
-      }
-
-      MESSAGE_LOG("Message: Unable to open a communication channel\n");
-      goto error_quit;
-   }
-
-   /* OUT: Id and cookie */
-   chan->id = bp.in.dx.halfs.high;
-   chan->cookieHigh = bp.out.si.word;
-   chan->cookieLow = bp.out.di.word;
-
-   /* Initialize the channel */
-   chan->in = NULL;
-   chan->inAlloc = 0;
-
    return chan;
-
-error_quit:
-   free(chan);
-   chan = NULL;
-   return NULL;
 }
 
 
@@ -381,15 +393,20 @@ retry:
     * a C string instead. --hpreg
     */
    if (myBufSize + 1 > chan->inAlloc) {
-      myBuf = (unsigned char *)realloc(chan->in, myBufSize + 1);
-      if (myBuf == NULL) {
-         MESSAGE_LOG("Message: Not enough memory to receive a message over "
+      if (chan->inPreallocated) {
+         MESSAGE_LOG("Message: Buffer too small to receive a message over "
                      "the communication channel %u\n", chan->id);
          goto error_quit;
+      } else {
+         myBuf = (unsigned char *)realloc(chan->in, myBufSize + 1);
+         if (myBuf == NULL) {
+            MESSAGE_LOG("Message: Not enough memory to receive a message over "
+                        "the communication channel %u\n", chan->id);
+            goto error_quit;
+         }
+         chan->in = myBuf;
+         chan->inAlloc = myBufSize + 1;
       }
-
-      chan->in = myBuf;
-      chan->inAlloc = myBufSize + 1;
    }
    *bufSize = myBufSize;
    myBuf = *buf = chan->in;
@@ -556,9 +573,10 @@ error_quit:
 /*
  *-----------------------------------------------------------------------------
  *
- * Message_Close --
+ * Message_CloseAllocated --
  *
- *    Close a communication channel
+ *    Close a communication channel that had been allocated by the
+ *    caller.  (For use with Message_OpenAllocated.)
  *
  * Result:
  *    TRUE on success, the channel is destroyed
@@ -571,7 +589,7 @@ error_quit:
  */
 
 Bool
-Message_Close(Message_Channel *chan) // IN/OUT
+Message_CloseAllocated(Message_Channel *chan) // IN/OUT
 {
    Backdoor_proto bp;
    Bool ret = TRUE;
@@ -593,8 +611,36 @@ Message_Close(Message_Channel *chan) // IN/OUT
       ret = FALSE;
    }
 
-   free(chan->in);
+   if (!chan->inPreallocated) {
+      free(chan->in);
+   }
    chan->in = NULL;
+
+   return ret;
+}
+   
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Message_Close --
+ *
+ *    Close a communication channel.
+ *
+ * Result:
+ *    TRUE on success, the channel is destroyed
+ *    FALSE on failure
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Message_Close(Message_Channel *chan) // IN/OUT
+{
+   Bool ret = Message_CloseAllocated(chan);
 
    free(chan);
    return ret;

@@ -32,7 +32,7 @@
 
 /*
  * hgfsDev.h --
- * 
+ *
  *    Header for code shared between the hgfs linux kernel module driver
  *    and the pserver.
  */
@@ -44,12 +44,22 @@
 #include "hgfs.h"
 
 #define HGFS_NAME "vmhgfs"              // Name of FS (e.g. "mount -t vmhgfs")
+#define HGFS_FUSENAME "vmhgfs-fuse"     // Name of FS (e.g. "-o subtype=vmhgfs-fuse")
+#define HGFS_FUSETYPE "fuse." HGFS_FUSENAME // Type of FS (e.g. "fuse.vmhgfs-fuse")
+#define HGFS_MOUNT_POINT "/mnt/hgfs"    // Type of FS (e.g. vmhgfs-fuse )
 #define HGFS_DEVICE_NAME "dev"          // Name of our device under /proc/fs/HGFS_NAME/
 #define HGFS_SUPER_MAGIC 0xbacbacbc     // Superblock magic number
-#define HGFS_PROTOCOL_VERSION 1         // Incremented when something changes
+#define HGFS_PROTOCOL_VERSION   2       // Version 2 has size and flags field added
+#define HGFS_PROTOCOL_VERSION_1 1       // Version 1
 #define HGFS_DEFAULT_TTL 1              // Default TTL for dentries
 
-/* 
+/*
+ * The mount info flags.
+ * These specify flags from options parsed on the mount command line.
+ */
+#define HGFS_MNTINFO_SERVER_INO         (1 << 0) /* Use server inode numbers? */
+
+/*
  * Mount information, passed from pserver process to kernel
  * at mount time.
  *
@@ -57,7 +67,44 @@
  * loses its pserver, the struct will be used by /sbin/mount.vmhgfs solely.
  * As is, it is also used by the Solaris pserver.
  */
-typedef struct HgfsMountInfo {
+typedef
+struct HgfsMountInfo {
+   uint32 magicNumber;        // hgfs magic number
+   uint32 infoSize;           // HgfsMountInfo object size
+   uint32 version;            // protocol version
+   uint32 fd;                 // file descriptor of client file
+   uint32 flags;              // hgfs specific mount flags
+#ifndef sun
+   uid_t uid;                 // desired owner of files
+   Bool uidSet;               // is the owner actually set?
+   gid_t gid;                 // desired group of files
+   Bool gidSet;               // is the group actually set?
+   unsigned short fmask;      // desired file mask
+   unsigned short dmask;      // desired directory mask
+   uint32 ttl;                // number of seconds before revalidating dentries
+#if defined __APPLE__
+   char shareNameHost[MAXPATHLEN]; // must be ".host"
+   char shareNameDir[MAXPATHLEN];  // desired share name for mounting
+#else
+   const char *shareNameHost; // must be ".host"
+   const char *shareNameDir;  // desired share name for mounting
+#endif
+#endif
+}
+#if __GNUC__
+__attribute__((__packed__))
+#else
+#   error Compiler packing...
+#endif
+HgfsMountInfo;
+
+/*
+ * Version 1 of the MountInfo object.
+ * This is used so that newer kernel clients can allow mounts using
+ * older versions of the mounter application for backwards compatibility.
+ */
+typedef
+struct HgfsMountInfoV1 {
    uint32 magicNumber;        // hgfs magic number
    uint32 version;            // protocol version
    uint32 fd;                 // file descriptor of client file
@@ -77,6 +124,6 @@ typedef struct HgfsMountInfo {
    const char *shareNameDir;  // desired share name for mounting
 #endif
 #endif
-} HgfsMountInfo;
+} HgfsMountInfoV1;
 
 #endif //ifndef _HGFS_DEV_H_

@@ -1064,6 +1064,7 @@ main(int argc,          // IN
    }
 
    mountInfo.magicNumber = HGFS_SUPER_MAGIC;
+   mountInfo.infoSize = sizeof mountInfo;
    mountInfo.version = HGFS_PROTOCOL_VERSION;
 
 #ifndef sun

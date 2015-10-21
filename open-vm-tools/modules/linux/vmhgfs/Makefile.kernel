@@ -35,8 +35,9 @@ EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/getsb1.c,, -DVMW_GETSB_26
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/statfs1.c,, -DVMW_STATFS_2618)
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/inode1.c,, -DVMW_INODE_2618)
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/dcount.c,, -DVMW_DCOUNT_311)
-
-MODPOST_VMCI_SYMVERS := $(wildcard $(MODULEBUILDDIR)/VMwareVMCIModule.symvers)
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/dalias.c,, -DVMW_DALIAS_319)
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/dalias1.c,, -DVMW_DALIAS_319)
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/truncate_pagecache.c,, -DVMW_PAGECACHE_312)
 
 obj-m += $(DRIVER).o
 
@@ -117,19 +118,3 @@ clean:
 	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko .tmp_versions \
 	       Module.symvers Modules.symvers Module.markers modules.order \
 	       $(foreach dir,./,$(addprefix $(dir),.*.cmd .*.o.flags *.o)))
-
-
-#
-# vmhgfs kernel module uses symbols from the VMCI kernel module. Copy the
-# Module.symvers file here so that the vmhgfs module knows about the VMCI version.
-# This is not done for tar builds because the tools install takes care of it.
-#
-prebuild::
-ifneq ($(MODULEBUILDDIR),)
-ifeq ($(MODPOST_VMCI_SYMVERS),)
-	$(shell echo >&2 "Building vmhgfs without VMCI module symbols.")
-else
-	$(shell echo >&2 "Building vmhgfs with VMCI module symbols.")
-	cp -f $(MODPOST_VMCI_SYMVERS) $(SRCROOT)/Module.symvers
-endif
-endif

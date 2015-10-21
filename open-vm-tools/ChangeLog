@@ -1,3 +1,9 @@
+*	Update vmhgfs kernel module to work with Linux up to at least 4.2
+
+	sync vmhgfs source to vmtools 10.0.0
+	filesystem.c - Add backing_dev_info to our super_block (Linux 4.0)
+	file.c - fix compiling issue of new_sync_read/new_sync_write (Linux 4.1)
+	link.c - fix compiling issue follow_link/put_link (Linux 4.2)
 
 *	Use new #define _DEFAULT_SOURCE to build OVT.
 	

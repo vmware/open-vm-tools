@@ -41,14 +41,14 @@
 #ifndef __HGFS_ESCAPE_H__
 #define __HGFS_ESCAPE_H__
 
-int HgfsEscape_GetSize(char const *bufIn, // IN
-                       uint32 sizeIn);    // IN
-int HgfsEscape_Do(char const *bufIn, // IN
-                  uint32 sizeIn,     // IN
-                  uint32 sizeBufOut, // IN
-                  char *bufOut);     // OUT
+int HgfsEscape_GetSize(char const *bufIn,
+                       uint32 sizeIn);
+int HgfsEscape_Do(char const *bufIn,
+                  uint32 sizeIn,
+                  uint32 sizeBufOut,
+                  char *bufOut);
 
-int HgfsEscape_Undo(char *bufIn,    // IN
-                    uint32 sizeIn); // IN
+uint32 HgfsEscape_Undo(char *bufIn,
+                       uint32 sizeIn);
 
 #endif // __HGFS_ESCAPE_H__

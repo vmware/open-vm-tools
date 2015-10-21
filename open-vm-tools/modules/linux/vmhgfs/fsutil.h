@@ -47,6 +47,7 @@ typedef struct HgfsAttrInfo {
    HgfsOp requestType;
    HgfsAttrValid mask;
    HgfsFileType type;              /* File type */
+   uint64 allocSize;               /* Disk allocation size (in bytes) */
    uint64 size;                    /* File size (in bytes) */
    uint64 accessTime;              /* Time of last access */
    uint64 writeTime;               /* Time of last write */
@@ -62,6 +63,44 @@ typedef struct HgfsAttrInfo {
    uint64 hostFileId;              /* Inode number */
 } HgfsAttrInfo;
 
+
+/*
+ * ino_t is 32-bits on 32-bit arch. We have to squash the 64-bit value down
+ * so that it will fit.
+ * Note, this is taken from CIFS so we apply the same algorithm.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+/*
+ * We use hash_64 to convert the value to 31 bits, and
+ * then add 1, to ensure that we don't end up with a 0 as the value.
+ */
+#if BITS_PER_LONG == 64
+static inline ino_t
+HgfsUniqueidToIno(uint64 fileid)
+{
+   return (ino_t)fileid;
+}
+#else
+#include <linux/hash.h>
+
+static inline ino_t
+HgfsUniqueidToIno(uint64 fileid)
+{
+   return (ino_t)hash_64(fileid, (sizeof(ino_t) * 8) - 1) + 1;
+}
+#endif
+
+#else
+static inline ino_t
+HgfsUniqueidToIno(uint64 fileid)
+{
+   ino_t ino = (ino_t) fileid;
+   if (sizeof(ino_t) < sizeof(uint64)) {
+      ino ^= fileid >> (sizeof(uint64)-sizeof(ino_t)) * 8;
+   }
+   return ino;
+}
+#endif
 
 /* Public functions (with respect to the entire module). */
 int HgfsUnpackCommonAttr(HgfsReq *req,
@@ -97,8 +136,6 @@ void HgfsSetUidGid(struct inode *parent,
                    struct dentry *dentry,
                    kuid_t uid,
                    kgid_t gid);
-struct inode *HgfsGetInode(struct super_block *sb, ino_t ino);
-void HgfsDoReadInode(struct inode *inode);
 
 
 #endif // _HGFS_DRIVER_FSUTIL_H_

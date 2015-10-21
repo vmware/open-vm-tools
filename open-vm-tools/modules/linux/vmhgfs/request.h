@@ -36,8 +36,8 @@
 #include "compat_spinlock.h"
 
 #include "hgfs.h" /* For common HGFS definitions. */
-#include "hgfsTransport.h"
 #include "vm_basic_types.h"
+#include "vm_basic_defs.h"
 
 /* Macros for accessing the payload portion of the HGFS request packet. */
 #define HGFS_REQ_PAYLOAD(hgfsReq) ((hgfsReq)->payload)

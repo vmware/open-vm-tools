@@ -155,7 +155,7 @@ HgfsTransportSetupNewChannel(void)
    HgfsTransportChannel *newChannel;
 
    newChannel = HgfsGetBdChannel();
-   LOG(10, ("CHANNEL: Bd channel\n"));
+   LOG(10, (KERN_DEBUG LGPFX "%s CHANNEL: Bd channel\n", __func__));
    ASSERT(newChannel);
    hgfsChannel = newChannel;
    return HgfsTransportOpenChannel(newChannel);
@@ -242,7 +242,7 @@ HgfsTransportFlushPendingRequests(void)
 
    list_for_each_entry(req, &hgfsRepPending, list) {
       if (req->state == HGFS_REQ_STATE_SUBMITTED) {
-         LOG(6, ("VMware hgfs: %s: injecting error reply to req id: %d\n",
+         LOG(6, (KERN_DEBUG LGPFX "%s: injecting error reply to req id: %d\n",
                  __func__, req->id));
          HgfsFailReq(req, -EIO);
       }
@@ -427,7 +427,7 @@ HgfsTransportSendRequest(HgfsReq *req)   // IN: Request to send
       if (likely(ret == 0))
          break;
 
-      LOG(4, (KERN_DEBUG "VMware hgfs: %s: send failed with error %d\n",
+      LOG(4, (KERN_DEBUG LGPFX "%s: send failed with error %d\n",
               __func__, ret));
 
       if (ret == -EINTR) {
@@ -527,7 +527,7 @@ HgfsTransportInit(void)
 void
 HgfsTransportMarkDead(void)
 {
-   LOG(8, ("VMware hgfs: %s entered.\n", __func__));
+   LOG(8, (KERN_DEBUG LGPFX "%s entered.\n", __func__));
 
    compat_mutex_lock(&hgfsChannelLock);
 
@@ -559,7 +559,7 @@ HgfsTransportMarkDead(void)
 void
 HgfsTransportExit(void)
 {
-   LOG(8, ("VMware hgfs: %s entered.\n", __func__));
+   LOG(8, (KERN_DEBUG LGPFX "%s entered.\n", __func__));
 
    compat_mutex_lock(&hgfsChannelLock);
    ASSERT(hgfsChannel);
@@ -568,7 +568,7 @@ HgfsTransportExit(void)
    compat_mutex_unlock(&hgfsChannelLock);
 
    ASSERT(list_empty(&hgfsRepPending));
-   LOG(8, ("VMware hgfs: %s exited.\n", __func__));
+   LOG(8, (KERN_DEBUG LGPFX "%s exited.\n", __func__));
 }
 
 
