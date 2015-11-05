@@ -1451,7 +1451,17 @@ AC_C_VOLATILE
 
 ### General flags / actions
 CFLAGS="$CFLAGS -Wall"
-CFLAGS="$CFLAGS -Werror"
+AC_ARG_ENABLE(
+   werror,
+   AS_HELP_STRING(
+      [--disable-werror],
+      [disable compilation with -Werror]),
+   [enable_werror="$enableval"],
+   [enable_werror="yes"])
+
+if test "$enable_werror" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+fi
 
 # -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident'
 # in Xlib.h on OpenSolaris.
