@@ -171,7 +171,7 @@ typedef struct AsyncSocket AsyncSocket;
  * Or the client can specify its favorite poll class and locking behavior.
  * Use of IVmdbPoll is only supported for regular sockets and for Attach.
  */
-#include "poll.h"
+#include "vm_poll.h"
 struct IVmdbPoll;
 typedef struct AsyncSocketPollParams {
    int flags;               /* Default 0, only POLL_FLAG_NO_BULL is valid */

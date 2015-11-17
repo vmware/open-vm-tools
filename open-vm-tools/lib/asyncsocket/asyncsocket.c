@@ -87,7 +87,7 @@
 #include "random.h"
 #include "asyncsocket.h"
 #include "asyncSocketBase.h"
-#include "poll.h"
+#include "vm_poll.h"
 #include "log.h"
 #include "err.h"
 #include "hostinfo.h"
