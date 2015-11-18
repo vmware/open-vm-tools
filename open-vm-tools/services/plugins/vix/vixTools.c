@@ -66,7 +66,7 @@
 #include <unistd.h>
 #endif
 
-#if defined(sun) || defined(__FreeBSD__) || defined(__APPLE__)
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
 
