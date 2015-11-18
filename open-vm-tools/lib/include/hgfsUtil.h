@@ -53,13 +53,7 @@
 #      include <time.h>
 #   endif
 #   include "vm_basic_types.h"
-#   if !defined _STRUCT_TIMESPEC &&   \
-       !defined _TIMESPEC_DECLARED && \
-       !defined __timespec_defined && \
-       !defined sun && \
-       !defined __FreeBSD__ && \
-       !__APPLE__ && \
-       !defined _WIN32
+#   if !defined HAVE_STRUCT_TIMESPEC_TV_SEC
 struct timespec {
    time_t tv_sec;
    long   tv_nsec;
