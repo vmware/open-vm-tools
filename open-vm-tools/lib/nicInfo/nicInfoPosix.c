@@ -35,9 +35,13 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <limits.h>
-#if defined(__FreeBSD__) || defined(__APPLE__)
+#if HAVE_SYS_SYSCTL_H
 # include <sys/sysctl.h>
+#endif
+#if HAVE_IFADDRS_H
 # include <ifaddrs.h>
+#endif
+#if HAVE_NET_IF_H
 # include <net/if.h>
 #endif
 #ifndef NO_DNET
@@ -499,10 +503,7 @@ GuestInfoGetNicInfo(unsigned int maxIPv4Routes,
  *
  ******************************************************************************
  */
-#if defined(__FreeBSD__) || \
-    defined(__APPLE__) || \
-    defined(USERWORLD) || \
-    (defined(__linux__) && defined(NO_DNET))
+#if defined(NO_DNET) && defined(HAVE_GETIFADDRS)
 
 char *
 GuestInfoGetPrimaryIP(void)

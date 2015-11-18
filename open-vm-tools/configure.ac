@@ -1169,6 +1169,7 @@ AC_CHECK_FUNCS(
 
 AC_CHECK_FUNCS([ecvt])
 AC_CHECK_FUNCS([fcvt])
+AC_CHECK_FUNCS([getifaddrs getauxval issetugid __secure_getenv])
 
 AC_CHECK_FUNC([mkdtemp], [have_mkdtemp=yes])
 
@@ -1378,10 +1379,13 @@ fi
 ###
 
 AC_CHECK_HEADERS([crypt.h])
+AC_CHECK_HEADERS([ifaddrs.h])
 AC_CHECK_HEADERS([inttypes.h])
 AC_CHECK_HEADERS([stdint.h])
 AC_CHECK_HEADERS([stdlib.h])
 AC_CHECK_HEADERS([wchar.h])
+AC_CHECK_HEADERS([net/if.h])
+AC_CHECK_HEADERS([sys/auxv.h])
 AC_CHECK_HEADERS([sys/inttypes.h])
 AC_CHECK_HEADERS([sys/io.h])
 AC_CHECK_HEADERS([sys/param.h]) # Required to make the sys/user.h check work correctly on FreeBSD

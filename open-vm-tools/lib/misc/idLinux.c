@@ -27,11 +27,8 @@
 #include <sys/syscall.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef __linux__
-#if defined(__GLIBC__) && \
-           (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16))
+#ifdef HAVE_SYS_AUXV_H
 #include <sys/auxv.h>
-#endif
 #endif
 #ifdef __APPLE__
 #include <sys/socket.h>
@@ -1025,31 +1022,32 @@ Id_EndSuperUser(uid_t uid)  // IN:
 static Bool
 IdIsSetUGid(void)
 {
-#if defined(__ANDROID__)
-   /* Android does not have a secure_getenv, so be conservative. */
-   return TRUE;
-#else
    /*
     * We use __secure_getenv, which returns NULL if the binary is
-    * setuid or setgid. Alternatives include,
+    * setuid or setgid, when issetugid or getauxval(AT_SECURE) is not
+    * available. Alternatives include,
     *
-    *   a) getauxval(AT_SECURE); not available until glibc 2.16.
-    *   b) __libc_enable_secure; may not be exported.
+    *   a) issetugid(); not (yet?) available in glibc.
+    *   b) getauxval(AT_SECURE); not available until glibc 2.16.
+    *   c) __libc_enable_secure; may not be exported.
     *
-    * Use (a) when we are based on glibc 2.16, or newer.
+    * Use (b) when we are based on glibc 2.16, or newer.
     */
 
-#if defined(__GLIBC__) && \
-           (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16))
+#if HAVE_ISSETUGID
+   return issetugid();
+#elif HAVE_GETAUXVAL
    return getauxval(AT_SECURE) != 0;
-#else
+#elif HAVE___SECURE_GETENV
    static const char envName[] = "VMW_SETUGID_TEST";
 
    if (setenv(envName, "1", TRUE) == -1) {
       return TRUE; /* Conservative */
    }
    return __secure_getenv(envName) == NULL;
-#endif
+#else
+   /* Android does not have a secure_getenv, so be conservative. */
+   return TRUE;
 #endif
 }
 #endif
