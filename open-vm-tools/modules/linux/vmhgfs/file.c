@@ -28,6 +28,9 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/signal.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
+#include <linux/uio.h> /* iov_iter_count */
+#endif
 #include "compat_cred.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
@@ -168,7 +171,13 @@ struct file_operations HgfsFileFileOperations = {
    .llseek     = HgfsSeek,
    .flush      = HgfsFlush,
 #if defined VMW_USE_AIO
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+   /* Fallback to async counterpart, check kernel source read_write.c */
+   .read       = NULL,
+   .write      = NULL,
+   .read_iter  = HgfsFileRead,
+   .write_iter = HgfsFileWrite,
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
    .read       = new_sync_read,
    .write      = new_sync_write,
    .read_iter  = HgfsFileRead,

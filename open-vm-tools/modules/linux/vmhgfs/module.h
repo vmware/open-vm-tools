@@ -27,7 +27,9 @@
 
 /* Must come before any kernel header file. */
 #include "driver-config.h"
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+#include <linux/backing-dev.h>
+#endif
 #include <asm/atomic.h>
 #include "compat_fs.h"
 #include "compat_semaphore.h"
@@ -136,6 +138,10 @@ typedef gid_t kgid_t;
 
 /* Data kept in each superblock in sb->u. */
 typedef struct HgfsSuperInfo {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+   struct backing_dev_info bdi;     /* Kernel VFS uses it to check whether our backend
+                                       need to writeback dirty pages among other things. */
+#endif
    kuid_t uid;                      /* UID of user who mounted this fs. */
    kgid_t gid;                      /* GID of user who mounted this fs. */
    mode_t fmask;                    /* File permission mask. */

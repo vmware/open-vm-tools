@@ -82,7 +82,8 @@ HgfsOp hgfsVersionCreateSymlink;
 /* Private functions. */
 static inline unsigned long HgfsComputeBlockBits(unsigned long blockSize);
 static compat_kmem_cache_ctor HgfsInodeCacheCtor;
-static HgfsSuperInfo *HgfsInitSuperInfo(HgfsMountInfo *mountInfo);
+static HgfsSuperInfo *HgfsInitSuperInfo(void *rawData,
+                                        uint32 mountInfoVersion);
 static int HgfsReadSuper(struct super_block *sb,
                          void *rawData,
                          int flags);
@@ -189,6 +190,262 @@ HgfsInodeCacheCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabElem)) // IN: slab item to in
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsValidateMountInfo --
+ *
+ *    Validate the the user mode mounter information.
+ *
+ * Results:
+ *    Zero on success or -EINVAL if we pass in an unknown version.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsValidateMountInfo(void *rawData,             // IN: Fs-specific mount data
+                      uint32 *mountInfoVersion)  // OUT: Mount flags
+{
+   HgfsMountInfoV1 *infoV1;
+   HgfsMountInfo *info;
+   uint32 *magicNumber;
+   int retVal = -EINVAL;
+
+   ASSERT(mountInfoVersion);
+
+   /* Sanity check the incoming user data. */
+   if (rawData == NULL) {
+      LOG(4, (KERN_CRIT LGPFX "%s: error: no user supplied mount data\n",
+              __func__));
+      goto exit;
+   }
+
+   /* Magic number is always first 4 bytes of the header. */
+   magicNumber = rawData;
+   if (*magicNumber != HGFS_SUPER_MAGIC) {
+      LOG(4, (KERN_CRIT LGPFX "%s: error: user supplied mount data is not valid!\n",
+              __func__));
+      goto exit;
+   }
+
+   /*
+    * Looks like HGFS data, now validate the version so that we can
+    * proceed and extract the required settings from the user.
+    */
+   info = rawData;
+   infoV1 = rawData;
+   if ((info->version == HGFS_PROTOCOL_VERSION_1 ||
+        info->version == HGFS_PROTOCOL_VERSION) &&
+        info->infoSize == sizeof *info) {
+      /*
+       * The current version is validated with the size and magic number.
+       * Note the version can be either 1 or 2 as it was not bumped initially.
+       * Furthermore, return the version as HGFS_PROTOCOL_VERSION (2) only since
+       * the objects are the same and it simplifies field extractions.
+       */
+      LOG(4, (KERN_DEBUG LGPFX "%s: mount data version %d passed\n",
+              __func__, info->version));
+      *mountInfoVersion = HGFS_PROTOCOL_VERSION;
+      retVal = 0;
+   } else if (infoV1->version == HGFS_PROTOCOL_VERSION_1) {
+      /*
+       * The version 1 is validated with the version and magic number.
+       * Note the version can be only be 1 and if so does not collide with version 2 of
+       * the header (which would be the info size field).
+       */
+      LOG(4, (KERN_DEBUG LGPFX "%s: mount data version %d passed\n",
+              __func__, info->version));
+      *mountInfoVersion = infoV1->version;
+      retVal = 0;
+   } else {
+      /*
+       * The version and info size fields could not be validated
+       * for the known structure. It is probably a newer version.
+       */
+      LOG(4, (KERN_DEBUG LGPFX "%s: error: user supplied mount data version %d\n",
+              __func__, infoV1->version));
+   }
+
+exit:
+   return retVal;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsGetMountInfoV1 --
+ *
+ *    Gets the fields of interest from the user mode mounter version 1.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsGetMountInfoV1(HgfsMountInfoV1 *mountInfo, // IN: version 1 mount data
+                   uint32 *mntFlags,           // OUT: Mount flags
+                   uint32 *ttl,                // OUT: seconds until revalidate
+                   uid_t *uid,                 // OUT: owner
+                   gid_t *gid,                 // OUT: group
+                   mode_t *fmask,              // OUT: file mask
+                   mode_t *dmask,              // OUT: directory mask
+                   const char **shareHost,     // OUT: share host name
+                   const char **shareDir)      // OUT: share directory
+{
+   ASSERT(mountInfo);
+
+   *mntFlags = 0;
+   /*
+    * If the mounter specified a uid or gid, we will prefer them over any uid
+    * or gid given to us by the server.
+    */
+   if (mountInfo->uidSet) {
+      *mntFlags |= HGFS_MNT_SET_UID;
+      *uid = mountInfo->uid;
+   }
+
+   if (mountInfo->gidSet) {
+      *mntFlags |= HGFS_MNT_SET_GID;
+      *gid = mountInfo->gid;
+   }
+
+   *fmask = mountInfo->fmask;
+   *dmask = mountInfo->dmask;
+   *ttl = mountInfo->ttl;
+   *shareHost = mountInfo->shareNameHost;
+   *shareDir = mountInfo->shareNameDir;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsGetMountInfoV2 --
+ *
+ *    Gets the fields of interest from the user mode mounter version 2.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsGetMountInfoV2(HgfsMountInfo *mountInfo,   // IN: version 2 mount data
+                   uint32 *mntFlags,           // OUT: Mount flags
+                   uint32 *ttl,                // OUT: seconds until revalidate
+                   uid_t *uid,                 // OUT: owner
+                   gid_t *gid,                 // OUT: group
+                   mode_t *fmask,              // OUT: file mask
+                   mode_t *dmask,              // OUT: directory mask
+                   const char **shareHost,     // OUT: share host name
+                   const char **shareDir)      // OUT: share directory
+{
+   ASSERT(mountInfo);
+
+   *mntFlags = 0;
+
+   if ((mountInfo->flags & HGFS_MNTINFO_SERVER_INO) != 0) {
+      *mntFlags |= HGFS_MNT_SERVER_INUM;
+   }
+
+   /*
+    * If the mounter specified a uid or gid, we will prefer them over any uid
+    * or gid given to us by the server.
+    */
+   if (mountInfo->uidSet) {
+      *mntFlags |= HGFS_MNT_SET_UID;
+      *uid = mountInfo->uid;
+   }
+
+   if (mountInfo->gidSet) {
+      *mntFlags |= HGFS_MNT_SET_GID;
+      *gid = mountInfo->gid;
+   }
+
+   *fmask = mountInfo->fmask;
+   *dmask = mountInfo->dmask;
+   *ttl = mountInfo->ttl;
+   *shareHost = mountInfo->shareNameHost;
+   *shareDir = mountInfo->shareNameDir;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsGetMountInfo --
+ *
+ *    Gets the fields of interest from the user mode mounter.
+ *
+ * Results:
+ *    Zero on success or -EINVAL if we pass in an unknown version.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsGetMountInfo(void *rawData,            // IN: Fs-specific mount data
+                 uint32 mountInfoVersion,  // IN: mount information version
+                 uint32 *mntFlags,         // OUT: Mount flags
+                 uint32 *ttl,             // OUT: seconds until revalidate
+                 uid_t *uid,              // OUT: owner
+                 gid_t *gid,              // OUT: group
+                 mode_t *fmask,           // OUT: file mask
+                 mode_t *dmask,           // OUT: directory mask
+                 const char **shareHost,  // OUT: share host name
+                 const char **shareDir)   // OUT: share path
+{
+   int result = 0;
+
+   switch (mountInfoVersion) {
+   case HGFS_PROTOCOL_VERSION_1:
+      HgfsGetMountInfoV1(rawData,
+                         mntFlags,
+                         ttl,
+                         uid,
+                         gid,
+                         fmask,
+                         dmask,
+                         shareHost,
+                         shareDir);
+      break;
+   case HGFS_PROTOCOL_VERSION:
+      HgfsGetMountInfoV2(rawData,
+                         mntFlags,
+                         ttl,
+                         uid,
+                         gid,
+                         fmask,
+                         dmask,
+                         shareHost,
+                         shareDir);
+      break;
+   default:
+      ASSERT(FALSE);
+      result = -EINVAL;
+   }
+
+   return result;
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * HgfsInitSuperInfo --
@@ -206,58 +463,79 @@ HgfsInodeCacheCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabElem)) // IN: slab item to in
  */
 
 static HgfsSuperInfo *
-HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
+HgfsInitSuperInfo(void *rawData,            // IN: Passed down from the user
+                  uint32 mountInfoVersion)  // IN: version
 {
    HgfsSuperInfo *si = NULL;
    int result = 0;
    int len;
-   char *tmpName;
+   char *tmpName = NULL;
    Bool hostValid;
+   uint32 mntFlags = 0;
+   uint32 ttl = 0;
+   uid_t uid = 0;
+   gid_t gid = 0;
+   mode_t fmask = 0;
+   mode_t dmask = 0;
+   const char *shareHost;
+   const char *shareDir;
 
    si = kmalloc(sizeof *si, GFP_KERNEL);
    if (!si) {
       result = -ENOMEM;
-      goto out2;
+      goto out_error_si;
+   }
+   memset(si, 0, sizeof *si);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+   result = bdi_setup_and_register(&si->bdi, HGFS_NAME);
+   if (result) {
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: initialize backing device info"
+              "failed. (%d)\n", __func__, result));
+      goto out_error_si;
+   }
+#endif
+
+   result = HgfsGetMountInfo(rawData,
+                             mountInfoVersion,
+                             &mntFlags,
+                             &ttl,
+                             &uid,
+                             &gid,
+                             &fmask,
+                             &dmask,
+                             &shareHost,
+                             &shareDir);
+   if (result < 0) {
+      LOG(6, (KERN_DEBUG LGPFX "%s: error: get mount info %d\n", __func__, result));
+      goto out_error_last;
    }
 
    /*
     * Initialize with the default flags.
     */
-   si->mntFlags = 0;
-   if ((mountInfo->flags & HGFS_MNTINFO_SERVER_INO) != 0) {
-      si->mntFlags |= HGFS_MNT_SERVER_INUM;
-   }
+   si->mntFlags = mntFlags;
 
-   /*
-    * If the mounter specified a uid or gid, we will prefer them over any uid
-    * or gid given to us by the server.
-    */
-   if (mountInfo->uidSet) {
-      si->mntFlags |= HGFS_MNT_SET_UID;
-   }
    si->uid = current_uid();
    if ((si->mntFlags & HGFS_MNT_SET_UID) != 0) {
-      kuid_t mntUid = make_kuid(current_user_ns(), mountInfo->uid);
+      kuid_t mntUid = make_kuid(current_user_ns(), uid);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
       if (uid_valid(mntUid))
 #endif
          si->uid = mntUid;
    }
 
-   if (mountInfo->gidSet) {
-      si->mntFlags |= HGFS_MNT_SET_GID;
-   }
    si->gid = current_gid();
    if ((si->mntFlags & HGFS_MNT_SET_GID) != 0) {
-      kgid_t mntGid = make_kgid(current_user_ns(), mountInfo->gid);
+      kgid_t mntGid = make_kgid(current_user_ns(), gid);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
       if (gid_valid(mntGid))
 #endif
          si->gid = mntGid;
    }
-   si->fmask = mountInfo->fmask;
-   si->dmask = mountInfo->dmask;
-   si->ttl = mountInfo->ttl * HZ; // in ticks
+   si->fmask = fmask;
+   si->dmask = dmask;
+   si->ttl = ttl * HZ; // in ticks
 
    /*
     * We don't actually care about this field (though we may care in the
@@ -273,15 +551,15 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsInitSuperInfo: could not obtain "
               "memory for filename\n"));
       result = -ENOMEM;
-      goto out2;
+      goto out_error_last;
    }
 
-   len = strncpy_from_user(tmpName, mountInfo->shareNameHost, PATH_MAX);
+   len = strncpy_from_user(tmpName, shareHost, PATH_MAX);
    if (len < 0 || len >= PATH_MAX) {
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsInitSuperInfo: strncpy_from_user "
               "on host string failed\n"));
       result = len < 0 ? len : -ENAMETOOLONG;
-      goto out;
+      goto out_error_last;
    }
 
    hostValid = strcmp(tmpName, ".host") == 0;
@@ -289,26 +567,26 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsInitSuperInfo: host string is "
               "invalid\n"));
       result = -EINVAL;
-      goto out;
+      goto out_error_last;
    }
 
    /*
     * Perform a simple sanity check on the directory portion: it must begin
     * with forward slash.
     */
-   len = strncpy_from_user(tmpName, mountInfo->shareNameDir, PATH_MAX);
+   len = strncpy_from_user(tmpName, shareDir, PATH_MAX);
    if (len < 0 || len >= PATH_MAX) {
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsInitSuperInfo: strncpy_from_user "
               "on dir string failed\n"));
       result = len < 0 ? len : -ENAMETOOLONG;
-      goto out;
+      goto out_error_last;
    }
 
    if (*tmpName != '/') {
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsInitSuperInfo: dir string is "
               "invalid\n"));
       result = -EINVAL;
-      goto out;
+      goto out_error_last;
    }
 
    /*
@@ -326,18 +604,25 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsInitSuperInfo: kstrdup on "
               "dir string failed\n"));
       result = -ENOMEM;
-      goto out;
+      goto out_error_last;
    }
    si->shareNameLen = strlen(si->shareName);
 
-  out:
-   compat___putname(tmpName);
-  out2:
+out_error_last:
+   if (tmpName) {
+      compat___putname(tmpName);
+   }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
    if (result) {
-      /* If we failed, si->shareName couldn't have been allocated. */
+      bdi_destroy(&si->bdi);
+   }
+#endif
+out_error_si:
+   if (result) {
       kfree(si);
       si = ERR_PTR(result);
    }
+
    return si;
 }
 
@@ -373,25 +658,21 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
 {
    int result = 0;
    HgfsSuperInfo *si;
-   HgfsMountInfo *mountInfo;
    struct dentry *rootDentry = NULL;
+   uint32 mountInfoVersion;
 
    ASSERT(sb);
 
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReadSuper: entered\n"));
 
    /* Sanity check the incoming user data. */
-   mountInfo = (HgfsMountInfo *)rawData;
-   if (!mountInfo ||
-       mountInfo->magicNumber != HGFS_SUPER_MAGIC ||
-       mountInfo->infoSize != sizeof *mountInfo ||
-       mountInfo->version != HGFS_PROTOCOL_VERSION) {
-      LOG(4, (KERN_CRIT LGPFX "%s: bad mount data passed\n", __func__));
-      return -EINVAL;
+   result = HgfsValidateMountInfo(rawData, &mountInfoVersion);
+   if (result < 0) {
+      return result;
    }
 
    /* Setup both our superblock and the VFS superblock. */
-   si = HgfsInitSuperInfo(mountInfo);
+   si = HgfsInitSuperInfo(rawData, mountInfoVersion);
    if (IS_ERR(si)) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsReadSuper: superinfo "
               "init failed\n"));
@@ -403,6 +684,10 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
    sb->s_d_op = &HgfsDentryOperations;
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+   sb->s_bdi = &si->bdi;
 #endif
 
    /*
@@ -439,6 +724,10 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
   exit:
    if (result) {
       dput(rootDentry);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+      bdi_destroy(&si->bdi);
+      sb->s_bdi = NULL;
+#endif
       kfree(si->shareName);
       kfree(si);
    }

@@ -49,7 +49,8 @@
 #define HGFS_MOUNT_POINT "/mnt/hgfs"    // Type of FS (e.g. vmhgfs-fuse )
 #define HGFS_DEVICE_NAME "dev"          // Name of our device under /proc/fs/HGFS_NAME/
 #define HGFS_SUPER_MAGIC 0xbacbacbc     // Superblock magic number
-#define HGFS_PROTOCOL_VERSION 1         // Incremented when something changes
+#define HGFS_PROTOCOL_VERSION   2       // Version 2 has size and flags field added
+#define HGFS_PROTOCOL_VERSION_1 1       // Version 1
 #define HGFS_DEFAULT_TTL 1              // Default TTL for dentries
 
 /*
@@ -96,5 +97,33 @@ __attribute__((__packed__))
 #   error Compiler packing...
 #endif
 HgfsMountInfo;
+
+/*
+ * Version 1 of the MountInfo object.
+ * This is used so that newer kernel clients can allow mounts using
+ * older versions of the mounter application for backwards compatibility.
+ */
+typedef
+struct HgfsMountInfoV1 {
+   uint32 magicNumber;        // hgfs magic number
+   uint32 version;            // protocol version
+   uint32 fd;                 // file descriptor of client file
+#ifndef sun
+   uid_t uid;                 // desired owner of files
+   Bool uidSet;               // is the owner actually set?
+   gid_t gid;                 // desired group of files
+   Bool gidSet;               // is the group actually set?
+   unsigned short fmask;      // desired file mask
+   unsigned short dmask;      // desired directory mask
+   uint32 ttl;                // number of seconds before revalidating dentries
+#if defined __APPLE__
+   char shareNameHost[MAXPATHLEN]; // must be ".host"
+   char shareNameDir[MAXPATHLEN];  // desired share name for mounting
+#else
+   const char *shareNameHost; // must be ".host"
+   const char *shareNameDir;  // desired share name for mounting
+#endif
+#endif
+} HgfsMountInfoV1;
 
 #endif //ifndef _HGFS_DEV_H_
