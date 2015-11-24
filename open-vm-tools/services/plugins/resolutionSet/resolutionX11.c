@@ -588,6 +588,40 @@ SelectResolution(uint32 width,
    return perfectMatch;
 }
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ResolutionX11ErrorHandler --
+ *
+ *      Logs X non-fatal error events. This backend assumes that
+ *      errors are checked within the functions that may generate
+ *      them, not relying on X error events. Thus we just log and
+ *      discard the events to prevent the tools daemon from crashing.
+ *
+ * Results:
+ *      Logs error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ResolutionX11ErrorHandler(Display *d,      // IN: Pointer to display connection
+			  XErrorEvent *e)  // IN: Pointer to the error event
+{
+   char msg[200];
+
+   XGetErrorText(d, e->error_code, msg, sizeof(msg));
+
+   g_warning("X Error %d (%s): request %d.%d\n",
+	     e->error_code, msg, e->request_code, e->minor_code);
+
+   return 0;
+}
+
+
 /**
  * Obtain a "handle", which for X11, is a display pointer. 
  *
@@ -605,6 +639,8 @@ ResolutionToolkitInit(void)
    char *argv[] = {"", NULL};
    GtkWidget *wnd;
    Display *display;
+
+   XSetErrorHandler(ResolutionX11ErrorHandler);
    gtk_init(&argc, (char ***) &argv);
    wnd = gtk_invisible_new();
    display = GDK_WINDOW_XDISPLAY(wnd->window);
