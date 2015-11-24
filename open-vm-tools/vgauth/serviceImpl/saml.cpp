@@ -944,9 +944,8 @@ SAMLCheckConditions(const DOMDocument *doc,
  *
  * @param[in]  elem         The element containing the attribute.
  * @param[in]  attrName     The name of the attribute.
- * @param[in]  beforeNow    Whether the condition given by the attribute
- *                          requires that the timestamp be before now (true)
- *                          or after (false).
+ * @param[in]  notBefore    Whether the condition given by the attribute
+ *                          should be in the past or 'now' (true).
  *
  ******************************************************************************
  */
@@ -954,7 +953,7 @@ SAMLCheckConditions(const DOMDocument *doc,
 static bool
 SAMLCheckTimeAttr(const DOMElement *elem,
                   const char *attrName,
-                  bool beforeNow)
+                  bool notBefore)
 {
    const XMLCh *timeAttr = elem->getAttribute(MAKE_UNICODE_STRING(attrName));
    if ((NULL == timeAttr) || (0 == *timeAttr)) {
@@ -966,9 +965,9 @@ SAMLCheckTimeAttr(const DOMElement *elem,
    }
 
    SAMLStringWrapper timeStr(timeAttr);
-   GTimeVal time;
+   GTimeVal attrTime;
 
-   if (!g_time_val_from_iso8601(timeStr.c_str(), &time)) {
+   if (!g_time_val_from_iso8601(timeStr.c_str(), &attrTime)) {
       Log("%s: Could not parse %s value (%s).\n", __FUNCTION__, attrName,
           timeStr.c_str());
       return false;
@@ -977,29 +976,29 @@ SAMLCheckTimeAttr(const DOMElement *elem,
    GTimeVal now;
    g_get_current_time(&now);
 
-   GTimeVal *before;
-   GTimeVal *after;
+   glong diff;
 
-   if (beforeNow) {
-      before = &time;
-      after = &now;
+   /*
+    * Check the difference, doing the math so that a positive
+    * value is bad.  Ignore the micros since we're letting clock
+    * skew add a fudge-factor.
+    */
+   if (notBefore) {
+      // expect time <= now
+      diff = attrTime.tv_sec - now.tv_sec;
    } else {
-      before = &now;
-      after = &time;
+      // expect now <= time
+      diff = now.tv_sec - attrTime.tv_sec;
    }
 
    /*
-    * If the time delta is within our clock skew range, let it through.
-    * Ignore the micros since we're adjusting anyways for clock
-    * skew.
+    * A negative value is fine, a postive value
+    * greater than the clock skew range is bad.
     */
-   glong diff;
-
-   diff = abs(before->tv_sec - after->tv_sec);
    if (diff > clockSkewAdjustment) {
       Debug("%s: FAILED SAML assertion (timeStamp %s, delta %d) %s.\n",
             __FUNCTION__, timeStr.c_str(), (int) diff,
-            beforeNow ? "is not yet valid" : "has expired");
+            notBefore ? "is not yet valid" : "has expired");
       return false;
    }
 
