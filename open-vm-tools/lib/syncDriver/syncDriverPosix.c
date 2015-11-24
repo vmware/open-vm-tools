@@ -42,10 +42,11 @@ static SyncFreezeFn gBackends[] = {
 };
 
 static const char *gRemoteFSTypes[] = {
+   "autofs",
+   "cifs",
    "nfs",
    "nfs4",
    "smbfs",
-   "cifs",
    "vmhgfs"
 };
 
