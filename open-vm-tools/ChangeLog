@@ -1,3 +1,12 @@
+open-vm-tools-10.0.5 build 3227882
+*	ae82fa6 [Bug 1526360] fix timestamp check
+*	b510107 [Bug 1531545] Add an error handler to X11 resolutionSet
+*	adab9c5 [Bug 1503195] Kill tasklet when unloading vmci module
+*	35bcc69 [Bug 1519223] Avoid warning message when logging group is missing.
+*	581f2d0 [Bug 1473600] Skip freezing autofs mounts.
+*	8184e92 [Bug 1507819] Workaround fix to avoid rpc warning messages flooding by changing log level to debug.
+*	eb47321 [Bug 1526327] make vmhgfs compatible with Linux kernel 4.2
+
 open-vm-tools-10.0.0 build 3000743
 
 *	Common versioning

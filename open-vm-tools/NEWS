@@ -1,4 +1,11 @@
-open-vm-tools 2015-08.28 changes:
+open-vm-tools 2015.11.10 changes:
+	* [vgauth] fix timestamp check
+	* [libresolutionSet.so] Add an error handler to X11 resolutionSet
+	* [vmci.ko] Kill tasklet when unloading vmci module
+	* [libvmbackup.so] Quiesced snapshots Skip freezing autofs mounts.
+	* [vmhgfs.ko] make vmhgfs compatible with Linux kernel 4.2
+
+open-vm-tools 2015.08.28 changes:
 	* Common versioning: Infrastructure changes to enable reporting of
 	  true versions for operating system specific packages. This feature
 	  is dependant on host support.
