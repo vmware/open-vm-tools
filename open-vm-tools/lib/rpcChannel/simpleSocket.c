@@ -205,7 +205,7 @@ Socket_Recv(SOCKET fd,      // IN
    while (remaining > 0) {
       rv = recv(fd, buf , remaining, 0);
       if (rv == 0) {
-         Warning(LGPFX "Socket %d closed by peer.", fd);
+         Debug(LGPFX "Socket %d closed by peer.", fd);
          return FALSE;
       }
       if (rv == SOCKET_ERROR) {
