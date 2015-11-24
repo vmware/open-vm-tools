@@ -1067,7 +1067,8 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
        */
       gMaxCacheEntries = DEFAULT_MAX_CACHE_ENTRIES;
       if (err != NULL) {
-         if (err->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
+         if (err->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
+             err->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
             g_warning("Invalid value for maxCacheEntries key: Error %d.",
                       err->code);
          }
