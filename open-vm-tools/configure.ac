@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="10.0.5"
+TOOLS_VERSION="10.0.7"
 AC_INIT(
    [open-vm-tools],
-   [10.0.5],
+   [10.0.7],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -1332,6 +1332,7 @@ AC_CONFIG_FILES([                      \
    hgfsmounter/Makefile                \
    checkvm/Makefile                    \
    rpctool/Makefile                    \
+   namespacetool/Makefile              \
    guestproxycerttool/Makefile         \
    vgauth/Makefile                     \
    vgauth/lib/Makefile                 \

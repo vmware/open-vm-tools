@@ -39,6 +39,7 @@ if ENABLE_DEPLOYPKG
    SUBDIRS += libDeployPkg
 endif
 SUBDIRS += rpctool
+SUBDIRS += namespacetool
 if ENABLE_GRABBITMQPROXY
    SUBDIRS += guestproxycerttool
 endif
