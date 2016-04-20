@@ -41,7 +41,7 @@
 #include <ctype.h>
 
 #if !defined(_WIN32)
-#  if defined(linux)
+#  if defined(__linux__)
 #    include <sys/syscall.h> // for SYS_gettid
 #  endif
 #  include <unistd.h>
@@ -303,7 +303,7 @@ Util_CanonicalPathsIdentical(const char *path1,  // IN:
    ASSERT(path1);
    ASSERT(path2);
 
-#if defined(linux)
+#if defined(__linux__)
    return (strcmp(path1, path2) == 0);
 #elif defined(_WIN32)
    return (_stricmp(path1, path2) == 0);

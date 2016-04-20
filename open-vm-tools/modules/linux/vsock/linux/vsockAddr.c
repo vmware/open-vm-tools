@@ -26,7 +26,7 @@
  * These includes come before vsockCommon.h to ensure that VMware's ASSERT
  * macro is used instead of Linux's irda.h definition.
  */
-#if defined(linux) && !defined(VMKERNEL)
+#if defined(__linux__) && !defined(VMKERNEL)
 #  if defined(__KERNEL__)
 #    include "driver-config.h"
 #    include <linux/socket.h>

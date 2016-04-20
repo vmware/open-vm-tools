@@ -699,7 +699,7 @@ File_GetTimes(const char *pathName,        // IN:
    *accessTime     = TimeUtil_UnixTimeToNtTime(statBuf.st_atimespec);
    *writeTime      = TimeUtil_UnixTimeToNtTime(statBuf.st_mtimespec);
    *attrChangeTime = TimeUtil_UnixTimeToNtTime(statBuf.st_ctimespec);
-#elif defined(linux)
+#elif defined(__linux__)
    /*
     * Linux: Glibc 2.3+ has st_Xtim.  Glibc 2.1/2.2 has st_Xtime/__unusedX on
     *        same place (see below).  We do not support Glibc 2.0 or older.

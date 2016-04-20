@@ -216,7 +216,7 @@
 #  define __ECONNINPROGRESS   EINPROGRESS
 #  define __ESNDRCVTIMEDOUT   EAGAIN
 #  define ESYSNOTREADY        EOPNOTSUPP
-#elif defined(linux)
+#elif defined(__linux__)
 #  define ESYSNOTREADY        EOPNOTSUPP
 #  define __ELOCALSHUTDOWN    EPIPE
 #  define __ELOCALRCVSHUTDOWN 0
@@ -242,12 +242,12 @@
 #  define closesocket(_s)     close((_s))
    typedef int32              SOCKET;
 #else
-#if defined(linux) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
 #  define SOCKET_ERROR        (-1)
 #  define INVALID_SOCKET      ((SOCKET) -1)
 #  define sockerr()           errno
 #  define sockcleanup()       do {} while (0)
-#if defined(linux)
+#if defined(__linux__)
 #  define sockerr2err(_e)     (((_e) > 0) ? -(_e) : (_e))
 #  define closesocket(_s)     close((_s))
    typedef int32              SOCKET;

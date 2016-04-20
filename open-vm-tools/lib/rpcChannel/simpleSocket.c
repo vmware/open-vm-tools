@@ -24,7 +24,7 @@
  */
 
 #include <stdlib.h>
-#if defined(linux)
+#if defined(__linux__)
 #include <arpa/inet.h>
 #endif
 

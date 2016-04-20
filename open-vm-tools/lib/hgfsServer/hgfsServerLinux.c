@@ -68,7 +68,7 @@
 #include "unicodeOperations.h"
 #include "userlock.h"
 
-#if defined(linux) && !defined(SYS_getdents64)
+#if defined(__linux__) && !defined(SYS_getdents64)
 /* For DT_UNKNOWN */
 #   include <dirent.h>
 #endif
@@ -127,7 +127,7 @@ typedef struct DirectoryEntry {
  * additional parameter which returns the position of the block read, which we don't care
  * about.
  */
-#if defined(linux)
+#if defined(__linux__)
 static INLINE int
 getdents_linux(unsigned int fd,
                DirectoryEntry *dirp,
@@ -228,7 +228,7 @@ getdents_apple(DIR *fd,               // IN
 #endif
 
 
-#if defined(sun) || defined(linux) || \
+#if defined(sun) || defined(__linux__) || \
     (defined(__FreeBSD_version) && __FreeBSD_version < 490000)
 /*
  * Implements futimes(), which was introduced in glibc 2.3.3. FreeBSD 3.2
@@ -1915,7 +1915,7 @@ HgfsGetCreationTime(const struct stat *stats)
 #   else
    creationTime   = HgfsConvertTimeSpecToNtTime(&stats->st_mtimespec);
 #   endif
-#elif defined(linux)
+#elif defined(__linux__)
    /*
     * Linux: Glibc 2.3+ has st_Xtim.  Glibc 2.1/2.2 has st_Xtime/__unusedX on
     *        same place (see below).  We do not support Glibc 2.0 or older.
@@ -2516,7 +2516,7 @@ HgfsStatToFileAttr(struct stat *stats,       // IN: stat information
    attr->accessTime     = HgfsConvertTimeSpecToNtTime(&stats->st_atimespec);
    attr->writeTime      = HgfsConvertTimeSpecToNtTime(&stats->st_mtimespec);
    attr->attrChangeTime = HgfsConvertTimeSpecToNtTime(&stats->st_ctimespec);
-#elif defined(linux)
+#elif defined(__linux__)
    /*
     * Linux: Glibc 2.3+ has st_Xtim.  Glibc 2.1/2.2 has st_Xtime/__unusedX on
     *        same place (see below).  We do not support Glibc 2.0 or older.

@@ -276,7 +276,7 @@ abort:
 }
 
 
-#if defined(linux)
+#if defined(__linux__)
 #   ifdef DUMMY_NETUTIL
 /*
  *-----------------------------------------------------------------------------
@@ -406,4 +406,4 @@ NetUtil_GetHardwareAddress(int ifIndex,         // IN
 }
 
 
-#endif // if defined(linux)
+#endif // if defined(__linux__)
