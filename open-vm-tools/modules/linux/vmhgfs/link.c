@@ -72,9 +72,9 @@ static void HgfsPutlink(struct dentry *dentry,
 #endif
 /* HGFS inode operations structure for symlinks. */
 struct inode_operations HgfsLinkInodeOperations = {
-        .follow_link   = HgfsFollowlink,
-        .readlink      = HgfsReadlink,
-        .put_link      = HgfsPutlink,
+   .follow_link   = HgfsFollowlink,
+   .readlink      = HgfsReadlink,
+   .put_link      = HgfsPutlink,
 };
 #endif
 
@@ -165,7 +165,7 @@ out:
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
    return fileName;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
-      if (!error) {
+   if (!error) {
       return *cookie;
    } else {
       return ERR_PTR(error);
