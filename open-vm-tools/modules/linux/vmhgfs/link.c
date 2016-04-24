@@ -35,37 +35,48 @@
 #include "vm_assert.h"
 
 /* HGFS symlink operations. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
-static const char *HgfsFollowlink(struct dentry *dentry,
-                                  void **cookie);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
-static void *HgfsFollowlink(struct dentry *dentry,
-                            struct nameidata *nd);
-#else
-static int HgfsFollowlink(struct dentry *dentry,
-                          struct nameidata *nd);
-#endif
+
 static int HgfsReadlink(struct dentry *dentry,
                         char __user *buffer,
                         int buflen);
+//
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+
+static const char *HgfsGetLink(struct dentry *dentry,
+                               struct inode *inode,
+                               struct delayed_call *done);
+/* HGFS inode operations structure for symlinks. */
+struct inode_operations HgfsLinkInodeOperations = {
+        .get_link = HgfsGetLink,
+        .readlink = HgfsReadlink,
+};
+
+#else
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+static const char *HgfsFollowlink(struct dentry *dentry,
+                                  void **cookie);
 static void HgfsPutlink(struct inode *unused,
                         void *cookie);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
+static void *HgfsFollowlink(struct dentry *dentry,
+                            struct nameidata *nd);
 static void HgfsPutlink(struct dentry *dentry,
                         struct nameidata *nd,
                         void *cookie);
 #else
+static int HgfsFollowlink(struct dentry *dentry,
+                          struct nameidata *nd);
 static void HgfsPutlink(struct dentry *dentry,
                         struct nameidata *nd);
 #endif
-
 /* HGFS inode operations structure for symlinks. */
 struct inode_operations HgfsLinkInodeOperations = {
-   .follow_link   = HgfsFollowlink,
-   .readlink      = HgfsReadlink,
-   .put_link      = HgfsPutlink,
+        .follow_link   = HgfsFollowlink,
+        .readlink      = HgfsReadlink,
+        .put_link      = HgfsPutlink,
 };
+#endif
 
 /*
  * HGFS symlink operations.
@@ -90,8 +101,12 @@ struct inode_operations HgfsLinkInodeOperations = {
  *
  *----------------------------------------------------------------------
  */
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+static const char *
+HgfsGetLink(struct dentry *dentry,
+            struct inode *inode,
+            struct delayed_call *done)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
 static const char *
 HgfsFollowlink(struct dentry *dentry,
                void **cookie)
@@ -136,7 +151,9 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
       } else {
          LOG(6, (KERN_DEBUG "VMware hgfs: %s: calling nd_set_link %s\n",
                  __func__, fileName));
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+      set_delayed_call(done, kfree_link, fileName);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
          *cookie = fileName;
 #else
          nd_set_link(nd, fileName);
@@ -145,8 +162,10 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
    }
 
 out:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
-   if (!error) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+   return fileName;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+      if (!error) {
       return *cookie;
    } else {
       return ERR_PTR(error);
@@ -223,6 +242,7 @@ HgfsReadlink(struct dentry *dentry,  // IN:  Dentry containing link
    return error;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 
 /*
  *----------------------------------------------------------------------
@@ -276,3 +296,5 @@ HgfsPutlink(struct dentry *dentry, // dentry
 #endif
    }
 }
+
+#endif
