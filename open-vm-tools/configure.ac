@@ -179,20 +179,40 @@ AC_ARG_ENABLE(
    [enable_multimon="yes"])
 
 AC_ARG_WITH(
+   gtk3,
+   AS_HELP_STRING(
+      [--without-gtk3],
+      [compiles without Gtk 3.0]),
+   [with_gtk3="$withval"],
+   [with_gtk3="no"])
+
+AC_ARG_WITH(
    gtk2,
    AS_HELP_STRING(
       [--without-gtk2],
       [compiles without Gtk 2.0]),
    [with_gtk2="$withval"],
-   [with_gtk2="yes"])
+   [if test "$with_gtk3" = "yes"; then with_gtk2="no" ; else with_gtk2="yes"; fi])
 
-AC_ARG_WITH(
-   gtkmm,
-   AS_HELP_STRING(
-      [--without-gtkmm],
-      [compiles without Gtkmm, sigc++, and related libs]),
-   [with_gtkmm="$withval"],
-   [with_gtkmm="yes"])
+if test "$with_gtk3" = "yes"; then
+   AC_ARG_WITH(
+      gtkmm3,
+      AS_HELP_STRING(
+         [--without-gtkmm3],
+         [compiles without Gtkmm 3, sigc++, and related libs]),
+      [with_gtkmm3="$withval"],
+      [with_gtkmm3="yes"])
+      with_gtkmm="no"
+else
+   AC_ARG_WITH(
+      gtkmm,
+      AS_HELP_STRING(
+         [--without-gtkmm],
+         [compiles without Gtkmm, sigc++, and related libs]),
+      [with_gtkmm="$withval"],
+      [with_gtkmm="yes"])
+      with_gtkmm3="no"
+fi
 
 AC_ARG_ENABLE(
    docs,
@@ -589,10 +609,22 @@ else
       have_xcomposite="yes"
    fi
 
-   # Check whether we have gtk+ 2.0.
-   if test "$with_gtk2" != "no"; then
+   # Check whether we have gtk+ 3.0.
+   if test "$with_gtk3" != "no"; then
       # gdk_display_get_default_group (added in gtk+ 2.4.0) is function currently
       # needed by vmware-user.
+      AC_VMW_CHECK_LIB([gtk-3],
+                       [GTK],
+                       [gtk+-3.0],
+                       [],
+                       [3.0.0],
+                       [gtk/gtk.h],
+                       [gdk_display_get_default_group],
+                       [GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK3"],
+                       [AC_MSG_ERROR([Gtk+ 3.0 library not found or too old. Please configure without Gtk+ support (using --without-gtk3) or install the Gtk+ 3.0 devel package.])])
+
+   # Check whether we have gtk+ 2.0.
+   elif test "$with_gtk2" != "no"; then
       AC_VMW_CHECK_LIB([gtk-x11-2.0],
                        [GTK],
                        [gtk+-2.0],
@@ -608,18 +640,32 @@ else
    # Check for gtkmm 2.4.0 or greater.
    #
 
-   if test "$with_gtkmm" != "no"; then
-      CUSTOM_GTKMM_CPPFLAGS="$CUSTOM_GTKMM_CPPFLAGS $GTK_CPPFLAGS"
-      AC_VMW_CHECK_LIBXX([gtkmm-2.4],
-                         [GTKMM],
-                         [gtkmm-2.4],
-                         [],
-                         [2.4.0],
-                         [gtkmm.h],
-                         [],
-                         [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
-                         [AC_MSG_ERROR([gtkmm library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm.])])
+   if test "$with_gtkmm" != "no" -o "$with_gtkmm3" != "no"; then
+      if test "$with_gtkmm3" != "no"; then
+         AC_VMW_CHECK_LIBXX([gtkmm-3.0],
+                            [GTKMM],
+                            [gtkmm-3.0],
+                            [],
+                            [3.0.0],
+                            [],
+                            [],
+                            [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
+                            [AC_MSG_ERROR([gtkmm3 library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm3.])])
+
+      elif test "$with_gtkmm" != "no"; then
+         CUSTOM_GTKMM_CPPFLAGS="$CUSTOM_GTKMM_CPPFLAGS $GTK_CPPFLAGS"
+         AC_VMW_CHECK_LIBXX([gtkmm-2.4],
+                            [GTKMM],
+                            [gtkmm-2.4],
+                            [],
+                            [2.4.0],
+                            [gtkmm.h],
+                            [],
+                            [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
+                            [AC_MSG_ERROR([gtkmm library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm.])])
+      fi
    fi
+
 fi # End of checks for X libraries
 
 AC_CHECK_LIB(
@@ -1147,7 +1193,7 @@ AM_CONDITIONAL(HAVE_DNET, test "$have_dnet" = "yes")
 AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
 AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
-AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
+AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a \( "$with_gtkmm" = "yes" -o "$with_gtkmm3" = "yes" \) )
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "$os" = "linux")
 AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")

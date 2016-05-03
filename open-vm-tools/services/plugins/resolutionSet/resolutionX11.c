@@ -643,6 +643,10 @@ ResolutionToolkitInit(void)
    XSetErrorHandler(ResolutionX11ErrorHandler);
    gtk_init(&argc, (char ***) &argv);
    wnd = gtk_invisible_new();
+#ifndef GTK3
    display = GDK_WINDOW_XDISPLAY(wnd->window);
+#else
+   display = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(wnd));
+#endif
    return (InitHandle) display;
 }

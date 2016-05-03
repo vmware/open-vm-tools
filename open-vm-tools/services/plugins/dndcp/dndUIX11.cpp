@@ -251,7 +251,7 @@ DnDUIX11::InitGtk()
    TRACE_CALL();
 
    /* Construct supported target list for HG DnD. */
-   std::list<Gtk::TargetEntry> targets;
+   std::vector<Gtk::TargetEntry> targets;
 
    /* File DnD. */
    targets.push_back(Gtk::TargetEntry(DRAG_TARGET_NAME_URI_LIST));
@@ -367,7 +367,7 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
     * Construct the target and action list, as well as a fake motion notify
     * event that's consistent with one that would typically start a drag.
     */
-   targets = Gtk::TargetList::create(std::list<Gtk::TargetEntry>());
+   targets = Gtk::TargetList::create(std::vector<Gtk::TargetEntry>());
 
    if (CPClipboard_ItemExists(&mClipboard, CPFORMAT_FILELIST)) {
       mHGStagingDir = stagingDir;
@@ -414,7 +414,12 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
    event.axes = NULL;
    event.state = GDK_BUTTON1_MASK;
    event.is_hint = 0;
+#ifdef GTK2
    event.device = gdk_device_get_core_pointer();
+#else
+   GdkDeviceManager* manager = gdk_display_get_device_manager(gdk_window_get_display(event.window));
+   event.device = gdk_device_manager_get_client_pointer(manager);
+#endif
    event.x_root = mOrigin.get_x();
    event.y_root = mOrigin.get_y();
 
@@ -763,7 +768,11 @@ DnDUIX11::OnMoveMouse(int32 x,  // IN: Pointer x-coord
       // If we are the context of a DnD, send DnD feedback to the source.
 
       DND_DROPEFFECT effect;
+#ifndef GTK3
       effect = ToDropEffect((Gdk::DragAction)(mDragCtx->action));
+#else
+      effect = ToDropEffect((Gdk::DragAction)(gdk_drag_context_get_selected_action(mDragCtx)));
+#endif
       if (effect != mEffect) {
          mEffect = effect;
          g_debug("%s: Updating feedback\n", __FUNCTION__);
@@ -851,11 +860,16 @@ DnDUIX11::OnGtkDragMotion(
     *       Gdk::DragContext::get_targets, but API/ABI broke between 2.10 and
     *       2.12, so we work around it like this for now.
     */
+#ifndef GTK3
    Glib::ListHandle<std::string, Gdk::AtomStringTraits> targets(
       dc->gobj()->targets, Glib::OWNERSHIP_NONE);
+#else
+   Glib::ListHandle<std::string, Gdk::AtomStringTraits> targets(
+      gdk_drag_context_list_targets(dc->gobj()), Glib::OWNERSHIP_NONE);
+#endif
 
-   std::list<Glib::ustring> as = targets;
-   std::list<Glib::ustring>::iterator result;
+   std::vector<Glib::ustring> as = targets;
+   std::vector<Glib::ustring>::iterator result;
    char *pid;
    pid = Str_Asprintf(NULL, "guest-dnd-target %d", static_cast<int>(getpid()));
    if (pid) {
@@ -1509,7 +1523,7 @@ DnDUIX11::RequestData(
    guint time)                               // IN: event timestamp
 {
    Glib::RefPtr<Gtk::TargetList> targets;
-   targets = Gtk::TargetList::create(std::list<Gtk::TargetEntry>());
+   targets = Gtk::TargetList::create(std::vector<Gtk::TargetEntry>());
 
    CPClipboard_Clear(&mClipboard);
    mNumPendingRequest = 0;
@@ -1757,9 +1771,13 @@ DnDUIX11::SendFakeXEvents(
       g_debug("%s: unable to get widget\n", __FUNCTION__);
       return false;
    }
-
+#ifndef GTK3
    dndXDisplay = GDK_WINDOW_XDISPLAY(widget->window);
    dndXWindow = GDK_WINDOW_XWINDOW(widget->window);
+#else
+   dndXDisplay = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(widget));
+   dndXWindow = GDK_WINDOW_XID(gtk_widget_get_window(widget));
+#endif
    rootWnd = RootWindow(dndXDisplay, DefaultScreen(dndXDisplay));
 
    /*
@@ -1773,7 +1791,11 @@ DnDUIX11::SendFakeXEvents(
    if (showWidget) {
       g_debug("%s: showing Gtk widget\n", __FUNCTION__);
       gtk_widget_show(widget);
+#ifndef GTK3
       gdk_window_show(widget->window);
+#else
+      gdk_window_show(gtk_widget_get_window(widget));
+#endif
    }
 
    /* Get the current location of the mouse if coordinates weren't provided. */
@@ -1937,8 +1959,11 @@ DnDUIX11::TryXTestFakeDeviceButtonEvent()
       g_debug("%s: unable to get widget\n", __FUNCTION__);
       return false;
    }
-
+#ifndef GTK3
    dndXDisplay = GDK_WINDOW_XDISPLAY(widget->window);
+#else
+   dndXDisplay = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(widget));
+#endif
 
    /* First get list of all input device. */
    if (!(list = XListInputDevices (dndXDisplay, &numDevices))) {

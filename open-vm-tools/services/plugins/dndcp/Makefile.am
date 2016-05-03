@@ -20,13 +20,15 @@ plugin_LTLIBRARIES = libdndcp.la
 
 libdndcp_la_CPPFLAGS =
 libdndcp_la_CPPFLAGS += @GTK_CPPFLAGS@
-libdndcp_la_CPPFLAGS += @GTKMM_CPPFLAGS@
 libdndcp_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dnd
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuest
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/stringxx
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/xutils
 libdndcp_la_CPPFLAGS += -I$(top_builddir)/include
+
+libdndcp_la_CXXFLAGS =
+libdndcp_la_CXXFLAGS += @GTKMM_CPPFLAGS@
 
 libdndcp_la_LDFLAGS =
 libdndcp_la_LDFLAGS += @PLUGIN_LDFLAGS@

@@ -1191,7 +1191,7 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
 
    if (CPClipboard_ItemExists(clip, CPFORMAT_TEXT) ||
        CPClipboard_ItemExists(clip, CPFORMAT_RTF)) {
-      std::list<Gtk::TargetEntry> targets;
+      std::vector<Gtk::TargetEntry> targets;
 
       /*
        * rtf should be first in the target list otherwise OpenOffice may not

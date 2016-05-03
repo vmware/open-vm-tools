@@ -223,7 +223,11 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    }
 
    gUserMainWidget = gtk_invisible_new();
+#ifndef GTK3
    gXDisplay = GDK_WINDOW_XDISPLAY(gUserMainWidget->window);
+#else
+   gXDisplay = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(gUserMainWidget));
+#endif
    gXRoot = RootWindow(gXDisplay, DefaultScreen(gXDisplay));
 
    /*

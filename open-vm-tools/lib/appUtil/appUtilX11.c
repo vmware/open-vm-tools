@@ -33,7 +33,9 @@
 #include "debug.h"
 
 #ifndef GTK2
-#error "Gtk 2.0 is required"
+#ifndef GTK3
+#error "Gtk 2.0 or 3.0 is required"
+#endif
 #endif
 
 #include <libgen.h>
