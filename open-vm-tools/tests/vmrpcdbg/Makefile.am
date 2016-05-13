@@ -21,7 +21,7 @@ libvmrpcdbg_la_CPPFLAGS =
 libvmrpcdbg_la_CPPFLAGS += @CUNIT_CPPFLAGS@
 libvmrpcdbg_la_CPPFLAGS += @GMODULE_CPPFLAGS@
 libvmrpcdbg_la_CPPFLAGS += @VMTOOLS_CPPFLAGS@
-libvmrpcdbg_la_CPPFLAGS += -I$(top_builddir)/lib/rpcChannel
+libvmrpcdbg_la_CPPFLAGS += -I$(top_srcdir)/lib/rpcChannel
 
 libvmrpcdbg_la_LDFLAGS =
 libvmrpcdbg_la_LDFLAGS += @PLUGIN_LDFLAGS@
