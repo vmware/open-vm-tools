@@ -334,8 +334,8 @@ hgfs_readlink(const char *path, //IN: path to a file
    }
 
    if (size >= strlen(attr->fileName)) {
-      Str_Strcpy(buf, attr->fileName + gState->basePathLen,
-                 strlen(attr->fileName) + 1 - gState->basePathLen);
+      Str_Strcpy(buf, attr->fileName,
+                 strlen(attr->fileName) + 1);
    } else {
       res = -ENOBUFS;
    }
