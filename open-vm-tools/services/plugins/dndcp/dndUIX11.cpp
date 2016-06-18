@@ -1393,7 +1393,7 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
       while ((newPath = DnD_UriListGetNextFile(source.c_str(),
                                                &index,
                                                &newPathLen)) != NULL) {
-#if defined(linux)
+#if defined(__linux__)
          if (DnD_UriIsNonFileSchemes(newPath)) {
             /* Try to get local file path for non file uri. */
             GFile *file = g_file_new_for_uri(newPath);
@@ -1424,7 +1424,7 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
          g_debug("%s: Adding newPath '%s' newRelPath '%s'\n", __FUNCTION__,
                newPath, newRelPath);
          fileList.AddFile(newPath, newRelPath);
-#if defined(linux)
+#if defined(__linux__)
          char *newUri = HgfsUri_ConvertFromPathToHgfsUri(newPath, false);
          fileList.AddFileUri(newUri);
          free(newUri);
@@ -1439,7 +1439,7 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
                               DynBuf_GetSize(&buf));
       }
       DynBuf_Destroy(&buf);
-#if defined(linux)
+#if defined(__linux__)
       if (fileList.ToUriClipboard(&buf)) {
          CPClipboard_SetItem(&mClipboard, CPFORMAT_FILELIST_URI, DynBuf_Get(&buf),
                              DynBuf_GetSize(&buf));

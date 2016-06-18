@@ -31,7 +31,7 @@
 #     include <winsock2.h>
 #  endif // !NT_INCLUDED
 #else // _WIN32
-#if defined(linux) && !defined(VMKERNEL)
+#if defined(__linux__) && !defined(VMKERNEL)
 #  if !defined(__KERNEL__)
 #    include <sys/socket.h>
 #  endif // __KERNEL__
@@ -489,8 +489,8 @@ struct uuid_2_cid {
       }
 #  endif // !NT_INCLUDED
 #else // _WIN32
-#if (defined(linux) && !defined(VMKERNEL)) || (defined(__APPLE__))
-#  if defined(linux) && defined(__KERNEL__)
+#if (defined(__linux__) && !defined(VMKERNEL)) || (defined(__APPLE__))
+#  if defined(__linux__) && defined(__KERNEL__)
    void VMCISock_KernelRegister(void);
    void VMCISock_KernelDeregister(void);
    int VMCISock_GetAFValue(void);
@@ -509,7 +509,7 @@ struct uuid_2_cid {
 /** \cond PRIVATE */
 #  define VMCI_SOCKETS_DEFAULT_DEVICE      "/dev/vsock"
 #  define VMCI_SOCKETS_CLASSIC_ESX_DEVICE  "/vmfs/devices/char/vsock/vsock"
-#  if defined(linux)
+#  if defined(__linux__)
 #     define VMCI_SOCKETS_VERSION       1972
 #     define VMCI_SOCKETS_GET_AF_VALUE  1976
 #     define VMCI_SOCKETS_GET_LOCAL_CID 1977
@@ -623,7 +623,7 @@ struct uuid_2_cid {
       int fd;
       int family = -1;
 
-#if defined(linux)
+#if defined(__linux__)
       /*
        * vSockets is now in mainline kernel with address family 40.  As part
        * of upstreaming, we removed the IOCTL we use below to determine the

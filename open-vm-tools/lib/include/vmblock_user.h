@@ -117,7 +117,7 @@ VMBLOCK_CONTROL_FUSE(int fd,            // IN
 
 #define VMBLOCK_CONTROL(fd, op, path) VMBLOCK_CONTROL_FUSE(fd, op, path)
 
-#elif defined(linux)
+#elif defined(__linux__)
 
 static INLINE int
 VMBLOCK_CONTROL(int fd, int op, const char *path)

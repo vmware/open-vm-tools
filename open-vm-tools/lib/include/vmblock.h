@@ -145,7 +145,7 @@
 # define VMBLOCK_DEVICE_MODE           VMBLOCK_FUSE_DEVICE_MODE
 # define VMBLOCK_MOUNT_POINT           VMBLOCK_FUSE_MOUNT_POINT
 
-#elif defined(linux)
+#elif defined(__linux__)
 # define VMBLOCK_ADD_FILEBLOCK         98
 # define VMBLOCK_DEL_FILEBLOCK         99
 # ifdef VMX86_DEVEL

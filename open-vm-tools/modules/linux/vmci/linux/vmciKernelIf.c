@@ -27,7 +27,7 @@
 /* Must come before any kernel header file */
 #include "driver-config.h"
 
-#if !defined(linux) || defined(VMKERNEL)
+#if !defined(__linux__) || defined(VMKERNEL)
 #error "Wrong platform."
 #endif
 

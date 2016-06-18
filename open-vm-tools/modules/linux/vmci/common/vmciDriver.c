@@ -254,7 +254,7 @@ VMCIUtil_Init(void)
     * internal context id when needed.
     */
    if (vmci_event_subscribe(VMCI_EVENT_CTX_ID_UPDATE,
-#if !defined(linux) || defined(VMKERNEL)
+#if !defined(__linux__) || defined(VMKERNEL)
                             VMCI_FLAG_EVENT_NONE,
 #endif // !linux || VMKERNEL
                             VMCIUtilCidUpdate, NULL,

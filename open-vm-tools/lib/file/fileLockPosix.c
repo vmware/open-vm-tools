@@ -599,7 +599,7 @@ FileLockAppendMessage(MsgList **msgs,  // IN/OUT/OPT:
 }
 
 
-#if defined(linux)
+#if defined(__linux__)
 /*
  *----------------------------------------------------------------------
  *

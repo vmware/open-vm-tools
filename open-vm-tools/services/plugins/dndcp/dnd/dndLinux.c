@@ -39,7 +39,7 @@
 #include "util.h"
 #include "escape.h"
 #include "su.h"
-#if defined(linux) || defined(sun) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__)
 #include "vmblock_user.h"
 #include "mntinfo.h"
 #endif
@@ -143,7 +143,7 @@ DnDUriListGetFile(char const *uriList,  // IN    : text/uri-list string
                       DND_URI_LIST_PRE_KDE,
                       sizeof DND_URI_LIST_PRE_KDE - 1) == 0) {
       nameStart += sizeof DND_URI_LIST_PRE_KDE - 1;
-#if defined(linux)
+#if defined(__linux__)
    } else if (DnD_UriIsNonFileSchemes(nameStart)) {
       /* Do nothing. */
 #endif
@@ -276,7 +276,7 @@ DnD_UriIsNonFileSchemes(const char *uri)
 
 
 /* We need to make this suck less. */
-#if defined(linux) || defined(sun) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__)
 
 /*
  *----------------------------------------------------------------------------

@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <fcntl.h>
-#if defined(linux)
+#if defined(__linux__)
 #include <sys/wait.h>
 #include <mntent.h>
 #include <paths.h>
@@ -79,7 +79,7 @@
 #include "codeset.h"
 #include "vixToolsInt.h"
 
-#if defined(linux)
+#if defined(__linux__)
 #include "hgfsDevLinux.h"
 #endif
 
@@ -92,7 +92,7 @@
 
 #define MAX64_DECIMAL_DIGITS 20          /* 2^64 = 18,446,744,073,709,551,616 */
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 
 # if defined(_WIN32)
 #  define DECLARE_SYNCDRIVER_ERROR(name) DWORD name = ERROR_SUCCESS
@@ -119,7 +119,7 @@ gboolean ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 static HgfsServerMgrData gFoundryHgfsBkdrConn;
 gboolean ToolsDaemonHgfsImpersonated(RpcInData *data);
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 gboolean ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
 
 gboolean ToolsDaemonTcloSyncDriverThaw(RpcInData *data);
@@ -521,7 +521,7 @@ abort:
    return err;
 }
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 
 /*
  *-----------------------------------------------------------------------------
@@ -648,7 +648,7 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 static Bool
 ToolsDaemonSyncDriverThawCallback(void *clientData) // IN (ignored)
 {
@@ -686,7 +686,7 @@ exit:
  *-----------------------------------------------------------------------------
  */
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 gboolean
 ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
 {
@@ -744,7 +744,7 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
    VixError err = VIX_OK;
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
 
-#if defined(linux)
+#if defined(__linux__)
 #define MOUNT_PATH_BIN       "/bin/mount"
 #define MOUNT_PATH_USR_BIN   "/usr" MOUNT_PATH_BIN
 #define MOUNT_HGFS_ARGS      " -t vmhgfs .host:/ /mnt/hgfs"

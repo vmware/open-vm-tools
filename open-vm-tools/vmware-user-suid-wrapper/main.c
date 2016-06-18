@@ -28,7 +28,7 @@
  *      remove blocks in the blocking file system.
  */
 
-#if !defined(sun) && !defined(__FreeBSD__) && !defined(linux)
+#if !defined(sun) && !defined(__FreeBSD__) && !defined(__linux__)
 # error This program is not supported on your platform.
 #endif
 
