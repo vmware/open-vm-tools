@@ -1,0 +1,14 @@
+$NetBSD$
+
+--- services/plugins/Makefile.am.orig	2015-11-24 07:07:44.000000000 +0000
++++ services/plugins/Makefile.am
+@@ -19,9 +19,6 @@ SUBDIRS =
+ if HAVE_X11
+    SUBDIRS += desktopEvents
+ endif
+-if HAVE_GTKMM
+-   SUBDIRS += dndcp
+-endif
+ if ENABLE_GRABBITMQPROXY
+    SUBDIRS += grabbitmqProxy
+ endif

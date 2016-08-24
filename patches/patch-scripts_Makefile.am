@@ -1,0 +1,14 @@
+$NetBSD$
+
+--- scripts/Makefile.am.orig	2015-11-24 07:07:44.000000000 +0000
++++ scripts/Makefile.am
+@@ -3,7 +3,8 @@ defaultscripts += poweroff-vm-default
+ defaultscripts += suspend-vm-default
+ defaultscripts += resume-vm-default
+ 
+-confdir = /etc/vmware-tools
++EGDIR = @datarootdir@/examples
++confdir = ${EGDIR}/vmware-tools
+ 
+ conf_SCRIPTS = ./common/vm-support
+ conf_SCRIPTS += ./common/statechange.subr

@@ -1,0 +1,74 @@
+$NetBSD$
+
+--- configure.ac.orig	2015-11-24 07:07:44.000000000 +0000
++++ configure.ac
+@@ -130,6 +130,9 @@ case "$host_os" in
+    [freebsd*])
+       os="freebsd"
+       ;;
++   [netbsd*])
++      os="netbsd"
++      ;;
+    [kfreebsd*-gnu])
+       os="kfreebsd-gnu"
+       ;;
+@@ -934,7 +937,7 @@ AC_C_VOLATILE
+ ###
+ 
+ ### General flags / actions
+-CFLAGS="$CFLAGS -Wall"
++CFLAGS="$CFLAGS -g -Wall"
+ CFLAGS="$CFLAGS -Werror"
+ 
+ # -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident'
+@@ -1064,13 +1067,16 @@ if test "$os" = "linux"; then
+    buildHgfsmounter=yes
+ fi
+ 
+-if test "$os" = "freebsd" || test "$os" = "kfreebsd-gnu"; then
++if test "$os" = "freebsd" || test "$os" = "netbsd" || test "$os" = "kfreebsd-gnu"; then
+    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lkvm"
+    MODULES_DIR="/boot/modules"
+ 
+    if test "$osVersion" -ge 302000; then
+       MODULES="$MODULES vmmemctl"
+    fi
++   if test "$os" = "netbsd"; then
++       MODULES="$MODULES vmmemctl"
++   fi
+    if test "$osVersion" -ge 409000; then
+       MODULES="$MODULES vmxnet"
+    fi
+@@ -1133,6 +1139,7 @@ AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "
+ AM_CONDITIONAL(LINUX, test "$os" = "linux")
+ AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
+ AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd" -o "$os" = "kfreebsd-gnu")
++AM_CONDITIONAL(NETBSD, test "$os" = "netbsd")
+ AM_CONDITIONAL(FREEBSD_CUSTOM_SYSDIR,
+                test \( "$os" = "freebsd" -o "$os" = "kfreebsd-gnu" \) -a -n "$SYSDIR")
+ AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
+@@ -1316,8 +1323,6 @@ AC_CONFIG_FILES([                      \
+    services/vmtoolsd/Makefile          \
+    services/plugins/Makefile           \
+    services/plugins/desktopEvents/Makefile \
+-   services/plugins/dndcp/Makefile     \
+-   services/plugins/grabbitmqProxy/Makefile \
+    services/plugins/guestInfo/Makefile \
+    services/plugins/hgfsServer/Makefile \
+    services/plugins/powerOps/Makefile  \
+@@ -1328,7 +1333,6 @@ AC_CONFIG_FILES([                      \
+    services/plugins/deployPkg/Makefile  \
+    vmware-user-suid-wrapper/Makefile   \
+    toolbox/Makefile                    \
+-   hgfsclient/Makefile                 \
+    hgfsmounter/Makefile                \
+    checkvm/Makefile                    \
+    rpctool/Makefile                    \
+@@ -1347,7 +1351,6 @@ AC_CONFIG_FILES([                      \
+    modules/Makefile                    \
+    vmblock-fuse/Makefile               \
+    vmhgfs-fuse/Makefile                \
+-   vmblockmounter/Makefile             \
+    tests/Makefile                      \
+    tests/vmrpcdbg/Makefile             \
+    tests/testDebug/Makefile            \
