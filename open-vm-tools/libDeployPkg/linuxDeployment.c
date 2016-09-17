@@ -67,7 +67,6 @@
  * Constant definitions
  */
 
-static const char  ENDOFLINEMARKER = '\n';
 static const char  SPACECHAR       = ' ';
 static const char  TABCHAR         = '\t';
 static const char  QUOTECHAR       = '"';
@@ -913,19 +912,25 @@ Deploy(const char* packageName)
    deploymentResult = ForkExecAndWaitCommand(command);
    free (command);
 
-   if (deploymentResult != 0) {
+   if (deploymentResult != CUST_SUCCESS) {
       sLog(log_error, "Customization process returned with error. \n");
       sLog(log_debug, "Deployment result = %d \n", deploymentResult);
 
-      if (deploymentResult == CUST_NETWORK_ERROR || deploymentResult == CUST_NIC_ERROR) {
+      if (deploymentResult == CUST_NETWORK_ERROR || deploymentResult == CUST_NIC_ERROR || deploymentResult == CUST_DNS_ERROR) {
          // Network specific error in the guest
          sLog(log_info, "Setting network error status in vmx. \n");
          SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                      GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
                                      NULL);
-      } else {
+      } else if (deploymentResult == CUST_GENERIC_ERROR) {
          // Generic error in the guest
          sLog(log_info, "Setting generic error status in vmx. \n");
+         SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
+                                     GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                                     NULL);
+      } else {
+         // Unknown error in the guest
+         sLog(log_info, "Setting unknown error status in vmx. \n");
          SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                      GUESTCUST_EVENT_CUSTOMIZE_FAILED,
                                      NULL);

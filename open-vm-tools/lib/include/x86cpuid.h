@@ -909,7 +909,7 @@ FIELD(81E,  0, ECX,  8,  3, NODES_PER_PKG,                         NA,  FALSE)
  * Note: The MASK definitions must use some gymnastics to get
  * around a warning when shifting left by 32.
  */
-#define VMW_BIT_MASK(shift)  (((1 << (shift - 1)) << 1) - 1)
+#define VMW_BIT_MASK(shift)  (((1u << (shift - 1)) << 1) - 1)
 
 #define FIELD(lvl, ecxIn, reg, bitpos, size, name, s, c3)      \
    CPUID_##name##_SHIFT        = bitpos,                       \
