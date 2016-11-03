@@ -42,6 +42,10 @@ static SyncFreezeFn gBackends[] = {
 };
 
 static const char *gRemoteFSTypes[] = {
+  "overlay",
+   "shm",
+   "tmpfs",
+   "btrfs",
    "autofs",
    "cifs",
    "nfs",
