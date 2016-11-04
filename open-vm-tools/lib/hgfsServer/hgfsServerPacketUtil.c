@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -74,6 +74,57 @@ static void HSPUUnmapBuf(HgfsChannelUnmapVirtAddrFunc unmapVa,
                          HgfsVmxIov *iov,
                          uint32 *mappedCount);
 
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HSPU_ValidateRequestPacketSize --
+ *
+ *    Validate an HGFS packet size with the HGFS header in use, the HGFS opcode request
+ *    (its arguments) and optionally any opcode request data that is contained in the
+ *    size for the packet.
+ *
+ * Results:
+ *    TRUE if the packet size is large enough for the required request data.
+ *    FALSE if not.
+ *
+ * Side effects:
+ *    None.
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HSPU_ValidateRequestPacketSize(HgfsPacket *packet,           // IN: Hgfs Packet
+                               size_t requestHeaderSize,     // IN: request header size
+                               size_t requestOpSize,         // IN: request op size
+                               size_t requestOpDataSize)     // IN: request op data size
+{
+   size_t bytesRemaining = packet->metaPacketDataSize;
+   Bool requestSizeIsOkay = FALSE;
+
+   /*
+    * Validate the request buffer size ensuring that the the contained components
+    * (request header, the operation arguments and lastly any data) fall within it.
+    */
+
+   if (bytesRemaining >= requestHeaderSize) {
+      bytesRemaining -= requestHeaderSize;
+   } else {
+      goto exit;
+   }
+   if (bytesRemaining >= requestOpSize) {
+      bytesRemaining -= requestOpSize;
+   } else {
+      goto exit;
+   }
+   if (bytesRemaining >= requestOpDataSize) {
+      requestSizeIsOkay = TRUE;
+   }
+
+exit:
+   return requestSizeIsOkay;
+}
 
 
 /*

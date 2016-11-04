@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -687,7 +687,7 @@ static INLINE uint16
 Bswap16(uint16 v)
 {
 #if defined(VM_ARM_64)
-   __asm__("rev16 %0, %0" : "+r"(v));
+   __asm__("rev16 %w0, %w0" : "+r"(v));
    return v;
 #else
    return ((v >> 8) & 0x00ff) | ((v << 8) & 0xff00);
@@ -720,7 +720,7 @@ Bswap32(uint32 v) // IN
     __asm__("rev %0, %0" : "+r"(v));
     return v;
 #elif defined(VM_ARM_64)
-   __asm__("rev32 %0, %0" : "+r"(v));
+   __asm__("rev32 %x0, %x0" : "+r"(v));
     return v;
 #else
    return    (v >> 24)

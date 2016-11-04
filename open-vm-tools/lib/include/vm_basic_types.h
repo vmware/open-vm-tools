@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -351,6 +351,19 @@ typedef uint32    uintptr_t;
 #endif
 
 
+#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+
+typedef unsigned __int128 uint128;
+typedef          __int128  int128;
+
+#define MIN_INT128   ((int128)1 << 127)
+#define MAX_INT128   (~MIN_INT128)
+#define MIN_UINT128  ((uint128)0)
+#define MAX_UINT128  (~MIN_UINT128)
+
+#endif
+
+
 /*
  * Time
  * XXX These should be cleaned up.  -- edward
@@ -392,14 +405,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
    #define FMTH ""
 #elif __GNUC__
    #define FMTH ""
-   #if defined(N_PLAT_NLM) || defined(sun) || \
-       (defined(__FreeBSD__) && (__FreeBSD__ + 0) && ((__FreeBSD__ + 0) < 5))
-      /*
-       * Why (__FreeBSD__ + 0)?  See bug 141008.
-       * Yes, we really need to test both (__FreeBSD__ + 0) and
-       * ((__FreeBSD__ + 0) < 5).  No, we can't remove "+ 0" from
-       * ((__FreeBSD__ + 0) < 5).
-       */
+   #if defined(N_PLAT_NLM) || defined(sun)
       #if defined(VM_X86_64) || defined(VM_ARM_64)
          #define FMTSZ  "l"
          #define FMTPD  "l"
@@ -407,7 +413,8 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
          #define FMTSZ  ""
          #define FMTPD  ""
       #endif
-   #elif defined(__linux__) \
+   #elif defined(__linux__) || \
+        (defined(__FreeBSD__) && (__FreeBSD__ + 0))\
       || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) \
       || (defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112L) \
       || (defined(_POSIX2_VERSION) && _POSIX2_VERSION >= 200112L)

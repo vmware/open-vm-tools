@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -4240,40 +4240,25 @@ HgfsPlatformReadFile(fileDesc file,               // IN: file descriptor
  */
 
 HgfsInternalStatus
-HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
+HgfsPlatformWriteFile(fileDesc writeFd,            // IN: file descriptor
                       HgfsSessionInfo *session,    // IN: session info
-                      uint64 offset,               // IN: file offset to write to
-                      uint32 requiredSize,         // IN: length of data to write
-                      HgfsWriteFlags flags,        // IN: write flags
-                      const void *payload,         // IN: data to be written
-                      uint32 *actualSize)          // OUT: actual length written
+                      uint64 writeOffset,          // IN: file offset to write to
+                      uint32 writeDataSize,        // IN: length of data to write
+                      HgfsWriteFlags writeFlags,   // IN: write flags
+                      Bool writeSequential,        // IN: write is sequential
+                      Bool writeAppend,            // IN: write is appended
+                      const void *writeData,       // IN: data to be written
+                      uint32 *writtenSize)         // OUT: actual length written
 {
-   HgfsInternalStatus status;
-   int fd;
+   HgfsInternalStatus status = 0;
    int error = 0;
-   Bool sequentialOpen;
 
-   LOG(4, ("%s: write fh %u, offset %"FMT64"u, count %u\n",
-           __FUNCTION__, file, offset, requiredSize));
-
-   /* Get the file desriptor from the cache */
-   status = HgfsPlatformGetFd(file, session,
-                              ((flags & HGFS_WRITE_APPEND) ? TRUE : FALSE),
-                              &fd);
-
-   if (status != 0) {
-      LOG(4, ("%s: Could not get file descriptor\n", __FUNCTION__));
-      return status;
-   }
-
-   if (!HgfsHandleIsSequentialOpen(file, session, &sequentialOpen)) {
-      LOG(4, ("%s: Could not get sequential open status\n", __FUNCTION__));
-      return EBADF;
-   }
+   LOG(4, ("%s: write fh %u offset %"FMT64"u, count %u\n",
+           __FUNCTION__, writeFd, writeOffset, writeDataSize));
 
 #if !defined(sun)
-   if (!sequentialOpen) {
-      status = HgfsWriteCheckIORange(offset, requiredSize);
+   if (!writeSequential) {
+      status = HgfsWriteCheckIORange(writeOffset, writeDataSize);
       if (status != 0) {
          return status;
       }
@@ -4282,25 +4267,18 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
 
 #if defined(__linux__)
    /* Write to the file. */
-   if (sequentialOpen) {
-      error = write(fd, payload, requiredSize);
+   if (writeSequential) {
+      error = write(writeFd, writeData, writeDataSize);
    } else {
-      error = pwrite(fd, payload, requiredSize, offset);
+      error = pwrite(writeFd, writeData, writeDataSize, writeOffset);
    }
 #elif defined(__APPLE__)
    {
-      Bool appendMode;
-
-      if (!HgfsHandle2AppendFlag(file, session, &appendMode)) {
-         LOG(4, ("%s: Could not get append mode\n", __FUNCTION__));
-         return EBADF;
-      }
-
       /* Write to the file. */
-      if (sequentialOpen || appendMode) {
-         error = write(fd, payload, requiredSize);
+      if (writeSequential || writeAppend) {
+         error = write(writeFd, writeData, writeDataSize);
       } else {
-         error = pwrite(fd, payload, requiredSize, offset);
+         error = pwrite(writeFd, writeData, writeDataSize, writeOffset);
       }
    }
 #else
@@ -4310,27 +4288,27 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
     */
 
    MXUser_AcquireExclLock(session->fileIOLock);
-   if (!sequentialOpen) {
+   if (!writeSequential) {
 #   ifdef linux
       {
          uint64 res;
 #      if !defined(VM_X86_64)
-         error = _llseek(fd, offset >> 32, offset & 0xFFFFFFFF, &res, 0);
+         error = _llseek(writeFd, writeOffset >> 32, writeOffset & 0xFFFFFFFF, &res, 0);
 #      else
-         error = llseek(fd, offset >> 32, offset & 0xFFFFFFFF, &res, 0);
+         error = llseek(writeFd, writeOffset >> 32, writeOffset & 0xFFFFFFFF, &res, 0);
 #      endif
       }
 #   else
-      error = lseek(fd, offset, 0);
+      error = lseek(writeFd, writeOffset, 0);
 #   endif
 
    }
 
    if (error < 0) {
       LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
-              offset, strerror(errno)));
+              writeOffset, strerror(errno)));
    } else {
-      error = write(fd, payload, requiredSize);
+      error = write(writeFd, writeData, writeDataSize);
    }
    {
       int savedErr = errno;
@@ -4344,8 +4322,8 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
       LOG(4, ("%s: error writing to file: %s\n", __FUNCTION__,
          strerror(status)));
    } else {
-      LOG(4, ("%s: wrote %d bytes\n", __FUNCTION__, error));
-      *actualSize = error;
+      *writtenSize = error;
+      LOG(4, ("%s: wrote %d bytes\n", __FUNCTION__, *writtenSize));
    }
    return status;
 }

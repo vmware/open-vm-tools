@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -18,7 +18,19 @@
 
 arg.command = "명령"
 
+arg.config.key = "구성 키"
+
+arg.config.operation = "구성 작업"
+
+arg.config.section = "구성 섹션"
+
+arg.config.value = "구성 값"
+
 arg.devicename = "디바이스 이름"
+
+arg.info.class = "정보 정보 클래스"
+
+arg.info.subcommand = "정보 작업"
 
 arg.logging.level = "로깅 수준"
 
@@ -80,19 +92,23 @@ error.novirtual = "%1$s은(는) 가상 시스템 내부에서 실행해야 합�
 
 error.unknown = "%1$s: 알 수 없는 %2$s '%3$s'\n"
 
+help.config = "%1$s: 도구 구성 수정\n사용법: %2$s %3$s <하위 명령>\n\n하위 명령:\n   get <섹션> <키>: <키>에 대한 현재 값 표시\n   set <섹션> <키> <값>: <키>를 <값>으로 설정\n\n   remove <섹션> <키>: <키> 제거\n\n<섹션>은 지원되는 어떤 섹션(예: logging, guestoperations 또는 guestinfo)이라도 될 수 있습니다.\n<키>는 어떤 구성 키라도 될 수 있습니다.\n<값>은 어떤 값이라도 될 수 있습니다.\n"
+
 help.device = "%1$s: 가상 시스템의 하드웨어 디바이스와 관련된 기능\n사용법: %2$s %3$s <하위 명령> [인수]\ndev는 디바이스 이름입니다.\n\n하위 명령:\n   enable <dev>: 디바이스 dev가 사용되도록 설정합니다.\n   disable <dev>: 디바이스 dev가 사용되지 않도록 설정합니다.\n   list: 사용 가능한 모든 디바이스를 나열합니다.\n   status <dev>: 디바이스의 상태를 출력합니다.\n"
 
 help.disk = "%1$s: 디스크 축소 작업을 수행합니다.\n사용법: %2$s %3$s <하위명령> [인수]\n\n하위 명령:\n   list: 사용 가능한 위치를 나열합니다.\n   shrink <위치>: 지정된 위치에서 파일 시스템을 지우고 축소합니다.\n   shrinkonly: 모든 디스크를 축소합니다.\n   wipe <위치>: 지정된 위치에서 파일 시스템을 지웁니다.\n"
 
 help.hint = "자세한 내용을 보려면 '%1$s %2$s%3$s%4$s'을(를) 시도해 보십시오.\n"
 
+help.info = "%1$s: 호스트에서 게스트 정보 업데이트\n사용법: %2$s %3$s 업데이트 <정보 클래스>\n\n하위 명령:\n   update <정보 클래스>: <정보 클래스>에서 식별한 정보 업데이트\n<정보 클래스>는 '네트워크'일 수 있음\n"
+
 help.logging = "%1$s: 도구 로깅 수정\n사용: %2$s %3$s 수준 <subcommand> <servicename> <level>\n\n하위 명령:\n   <servicename> 가져오기: 현재 수준 표시\n   <servicename> <level> 설정: 현재 수준 설정\n\n<servicename>은 vmsvc 또는 vmusr과 같은 지원 서비스일 수 있습니다.\n<level>은 오류, 중요, 경고, 정보, 메시지, 디버그 중 하나일 수 있습니다.\n   기본값은 %4$s입니다.\n"
 
-help.main = "사용법: %1$s <명령> [옵션] [하위 명령]\n특정 명령에 대한 도움말을 보려면 '%2$s %3$s <명령>'을(를) 입력합니다.\nVMware Tools 버전을 확인하려면 '%4$s -v'를 입력합니다.\nstdout 출력을 표시하지 않으려면 '-q' 옵션을 사용합니다.\n대부분의 명령에는 하위 명령이 있습니다.\n\n사용 가능한 명령:\n   device\n   disk\n   logging\n   script\n   stat\n   timesync\n   upgrade(모든 운영 체제에서 사용할 수 있는 것은 아님)\n"
+help.main = "사용법: %1$s <명령> [옵션] [하위 명령]\n특정 명령에 대한 도움말을 보려면 '%2$s %3$s <명령>'을 입력하십시오.\nVMware Tools 버전을 확인하려면 '%4$s -v'를 입력하십시오.\nstdout 출력을 표시하지 않으려면 '-q' 옵션을 사용하십시오.\n대부분의 명령에 하위 명령이 사용됩니다.\n\n사용 가능한 명령:\n   config\n   device\n   disk(일부 운영 체제에서만 사용할 수 있음)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade(일부 운영 체제에서만 사용할 수 있음)\n"
 
-help.script = "%1$s: 전원 작업에 대한 응답으로 실행되는 스크립트를 제어합니다.\n사용법: %2$s %3$s <전원|재개|일시 중단|종료> <하위 명령> [인수]\n\n하위 명령:\n   enable: 지정된 스크립트가 사용되도록 설정하고 해당 경로를 기본값으로 복원합니다.\n   disable: 지정된 스크립트가 사용되지 않도록 설정합니다.\n   set <전체 경로>: 지정된 스크립트를 지정된 경로로 설정합니다.\n   default: 지정된 스크립트의 기본 경로를 출력합니다.\n   current: 지정된 스크립트의 현재 경로를 출력합니다.\n"
+help.script = "%1$s: 전원 작업에 대한 응답으로 실행되는 스크립트를 제어합니다.\n사용법: %2$s %3$s <power|resume|suspend|shutdown> <하위 명령> [인수]\n\n하위 명령:\n   enable: 지정된 스크립트가 사용되도록 설정하고 해당 경로를 기본값으로 복원합니다.\n   disable: 지정된 스크립트가 사용되지 않도록 설정합니다.\n   set <전체 경로>: 지정된 스크립트를 지정된 경로로 설정합니다.\n   default: 지정된 스크립트의 기본 경로를 출력합니다.\n   current: 지정된 스크립트의 현재 경로를 출력합니다.\n"
 
-help.stat = "%1$s: 유용한 게스트 및 호스트 정보 인쇄\n사용법: %2$s %3$s <하위 명령>\n\n하위 명령:\n   hosttime: 호스트 시간 인쇄\n   speed: CPU 속도(MHz) 인쇄\nESX 게스트 전용 하위 명령:\n   sessionid: 현재 세션 ID 인쇄\n   balloon: 메모리 벌루닝 정보 인쇄\n   swap: 메모리 스와핑 정보 인쇄\n   memlimit: 메모리 제한 정보 인쇄\n   memres: 메모리 예약 정보 인쇄\n   cpures: CPU 예약 정보 인쇄\n   cpulimit: CPU 제한 정보 인쇄\n"
+help.stat = "%1$s: 유용한 게스트 및 호스트 정보 인쇄\n사용법: %2$s %3$s <하위 명령>\n\n하위 명령:\n   hosttime: 호스트 시간 인쇄\n   speed: CPU 속도(MHz) 인쇄\nESX 게스트 전용 하위 명령:\n   sessionid: 현재 세션 ID 인쇄\n   balloon: 메모리 벌루닝 정보 인쇄\n   swap: 메모리 스와핑 정보 인쇄\n   memlimit: 메모리 제한 정보 인쇄\n   memres: 메모리 예약 정보 인쇄\n   cpures: CPU 예약 정보 인쇄\n   cpulimit: CPU 제한 정보 인쇄\n   raw [<인코딩> <통계 이름>]: 원시 통계 정보 인쇄\n      <인코딩>은 'text', 'json', 'xml', 'yaml' 중 하나일 수 있습니다.\n      <통계 이름>은 세션, 호스트, 리소스, vscsi 및\n      vnet을 포함합니다(vscsi와 같은 일부 통계는 'vscsi scsi0:0'과 같이 2개의 단어로 구성됨).\n      <인코딩> 및 <통계 이름>\n      인수가 지정되지 않은 경우 사용 가능한 통계를 인쇄합니다.\n"
 
 help.timesync = "%1$s: 게스트 OS의 시간 동기화 제어 기능\n사용법: %2$s %3$s <하위 명령>\n\n하위 명령:\n   enable: 시간 동기화 사용\n   disable: 시간 동기화 사용 안 함\n   status: 시간 동기화 상태 인쇄\n"
 

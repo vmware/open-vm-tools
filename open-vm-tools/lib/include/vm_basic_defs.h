@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -336,6 +336,22 @@ Max(int a, int b)
 
 #ifndef VM_PAE_LARGE_2_SMALL_PAGES
 #define VM_PAE_LARGE_2_SMALL_PAGES (BYTES_2_PAGES(VM_PAE_LARGE_PAGE_SIZE))
+#endif
+
+#ifndef VM_1GB_PAGE_SHIFT
+#define VM_1GB_PAGE_SHIFT 30
+#endif
+
+#ifndef VM_1GB_PAGE_SIZE
+#define VM_1GB_PAGE_SIZE (1 << VM_1GB_PAGE_SHIFT)
+#endif
+
+#ifndef VM_1GB_2_PAGES
+#define VM_1GB_2_PAGES (BYTES_2_PAGES(VM_1GB_PAGE_SIZE))
+#endif
+
+#ifndef VM_1GB_2_PDIRS
+#define VM_1GB_2_PDIRS (VM_1GB_PAGE_SIZE / VM_PAE_LARGE_PAGE_SIZE)
 #endif
 
 /*
@@ -820,6 +836,7 @@ typedef int pid_t;
 #define SIZE_80BIT  10
 #define SIZE_128BIT 16
 #define SIZE_256BIT 32
+#define SIZE_512BIT 64
 
 
 #endif // ifndef _VM_BASIC_DEFS_H_

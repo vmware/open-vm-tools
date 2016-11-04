@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -74,12 +74,14 @@
    LOGLEVEL_VAR(pci_xhci), \
    LOGLEVEL_VAR(usb_xhci), \
    LOGLEVEL_VAR(usb), \
-   LOGLEVEL_VAR(vusbmouse), \
-   LOGLEVEL_VAR(vusbkeyboard), \
-   LOGLEVEL_VAR(vusbhid), \
-   LOGLEVEL_VAR(vusbtablet), \
    LOGLEVEL_VAR(vusbaudio), \
+   LOGLEVEL_VAR(vusbccid), \
+   LOGLEVEL_VAR(vusbhid), \
+   LOGLEVEL_VAR(vusbkeyboard), \
+   LOGLEVEL_VAR(vusbmouse), \
+   LOGLEVEL_VAR(vusbtablet), \
    LOGLEVEL_VAR(vusbvideo),\
+   LOGLEVEL_VAR(vusbrng),\
    LOGLEVEL_VAR(hidQueue), \
    LOGLEVEL_VAR(pci_vlance), \
    LOGLEVEL_VAR(pci_svga), \
@@ -134,6 +136,7 @@
    LOGLEVEL_VAR(mksCursorPosition), \
    LOGLEVEL_VAR(mksBasicOps), \
    LOGLEVEL_VAR(mksRenderOps), \
+   LOGLEVEL_VAR(mksFrame), \
    LOGLEVEL_VAR(mksGLBasic), \
    LOGLEVEL_VAR(mksGLManager), \
    LOGLEVEL_VAR(mksGLFBO), \
@@ -186,6 +189,7 @@
    LOGLEVEL_VAR(lsilogic), \
    LOGLEVEL_VAR(pvscsi), \
    LOGLEVEL_VAR(ahci), \
+   LOGLEVEL_VAR(nvme), \
    LOGLEVEL_VAR(diskVmnix), \
    LOGLEVEL_VAR(hbaCommon), \
    LOGLEVEL_VAR(backdoor), \
@@ -220,6 +224,7 @@
    LOGLEVEL_VAR(guest_rpc), \
    LOGLEVEL_VAR(guestVars), \
    LOGLEVEL_VAR(vmkEvent), \
+   LOGLEVEL_VAR(authenticode), \
    LOGLEVEL_VAR(battery), \
    LOGLEVEL_VAR(fakeDma), \
    LOGLEVEL_VAR(shader), \
@@ -251,7 +256,6 @@
    LOGLEVEL_VAR(blit), /* lib/blit */ \
    LOGLEVEL_VAR(vmnetBridge), \
    LOGLEVEL_VAR(wifi), /* macWireless and wpa_supplicant */ \
-   LOGLEVEL_VAR(pvfslib), \
    LOGLEVEL_VAR(brtalk), \
    LOGLEVEL_VAR(button), \
    LOGLEVEL_VAR(util), \
@@ -262,12 +266,12 @@
    LOGLEVEL_VAR(syncWaitQ), \
    LOGLEVEL_VAR(sg), /* lib/sg */ \
    LOGLEVEL_VAR(ftcpt), \
-   LOGLEVEL_VAR(wrapLib),  \
    LOGLEVEL_VAR(digestlib), \
    LOGLEVEL_VAR(inputdevtap), \
    LOGLEVEL_VAR(objlib), \
    LOGLEVEL_VAR(vsanobj), \
    LOGLEVEL_VAR(vvolbe), \
+   LOGLEVEL_VAR(upitbe), \
    LOGLEVEL_VAR(svgadevtap), \
    LOGLEVEL_VAR(masReceipt), /* lib/masReceipt */ \
    LOGLEVEL_VAR(serviceImpl), /* lib/serviceImpl */ \
@@ -293,6 +297,11 @@
    LOGLEVEL_VAR(ddecomd), \
    LOGLEVEL_VAR(hostctl), \
    LOGLEVEL_VAR(pmemobj), \
+   LOGLEVEL_VAR(secureBoot), \
+   LOGLEVEL_VAR(upitd), \
+   LOGLEVEL_VAR(promotedisk), \
+   LOGLEVEL_VAR(toolsIso)
+
    /* end of list */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

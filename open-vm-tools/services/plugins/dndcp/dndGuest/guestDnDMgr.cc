@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -115,7 +115,6 @@ GuestDnDMgr::GuestDnDMgr(DnDCPTransport *transport,
  : mSrc(NULL),
    mDest(NULL),
    mRpc(NULL),
-   mFileTransfer(NULL),
    mDnDState(GUEST_DND_READY),
    mSessionId(0),
    mHideDetWndTimer(NULL),
@@ -640,6 +639,7 @@ GuestDnDMgr::VmxDnDVersionChanged(uint32 version)
    }
    if (mRpc) {
       delete mRpc;
+      mRpc = NULL;
    }
 
    switch(version) {

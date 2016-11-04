@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -329,7 +329,12 @@ VMTools_LoadConfig(const gchar *path,
    gchar *backup = NULL;
    gchar *defaultPath = NULL;
    gchar *localPath = NULL;
+   /* GStatBuf was added in 2.26. */
+#if GLIB_CHECK_VERSION(2, 26, 0)
+   GStatBuf confStat;
+#else
    struct stat confStat;
+#endif
    GHashTable *old = NULL;
    GError *err = NULL;
    GKeyFile *cfg = NULL;
@@ -527,3 +532,122 @@ exit:
    return ret;
 }
 
+
+/**
+ * Loads boolean value for a key from the specified config section.
+ *
+ * @param[in]  config   Config file to read the key from.
+ * @param[in]  section  Section to look for in the config file.
+ * @param[in]  defValue Default value if the key is not found or error.
+ *
+ * @return value of the key if value was read successfully, else defValue.
+ */
+
+gboolean
+VMTools_ConfigGetBoolean(GKeyFile *config,
+                         const gchar *section,
+                         const gchar *key,
+                         gboolean defValue)
+{
+   GError *err = NULL;
+   gboolean value;
+
+   if (config == NULL || section == NULL || key == NULL) {
+      g_debug("%s: Returning default value for '[%s] %s'=%s.\n",
+              __FUNCTION__, section ? section : "(null)",
+              key ? key : "(null)", defValue ? "TRUE" : "FALSE");
+      return defValue;
+   }
+
+   value = g_key_file_get_boolean(config, section, key, &err);
+   if (err != NULL) {
+      if (err->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
+          err->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
+         g_warning("%s: Failed to get value for '[%s] %s': %s (err=%d).\n",
+                   __FUNCTION__, section, key, err->message, err->code);
+      }
+      g_debug("%s: Returning default value for '[%s] %s'=%s.\n",
+              __FUNCTION__, section, key, defValue ? "TRUE" : "FALSE");
+      value = defValue;
+      g_clear_error(&err);
+   }
+   return value;
+}
+
+
+/**
+ * Loads integer value for a key from the specified config section.
+ *
+ * @param[in]  config   Config file to read the key from.
+ * @param[in]  section  Section to look for in the config file.
+ * @param[in]  defValue Default value if the key is not found or error.
+ *
+ * @return value of the key if value was read successfully, else defValue.
+ */
+
+gint
+VMTools_ConfigGetInteger(GKeyFile *config,
+                         const gchar *section,
+                         const gchar *key,
+                         gint defValue)
+{
+   GError *err = NULL;
+   gint value;
+
+   ASSERT(config);
+   ASSERT(key);
+   ASSERT(section);
+
+   value = g_key_file_get_integer(config, section, key, &err);
+   if (err != NULL) {
+      if (err->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
+          err->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
+         g_warning("%s: Failed to get value for '[%s] %s': %s (err=%d).\n",
+                   __FUNCTION__, section, key, err->message, err->code);
+      }
+      g_debug("%s: Returning default value for '[%s] %s'=%d.\n",
+              __FUNCTION__, section, key, defValue);
+      value = defValue;
+      g_clear_error(&err);
+   }
+   return value;
+}
+
+
+/**
+ * Loads string value for a key from the specified config section.
+ *
+ * @param[in]  config   Config file to read the key from.
+ * @param[in]  section  Section to look for in the config file.
+ * @param[in]  defValue Default value if the key is not found or error.
+ *
+ * @return value of the key if value was read successfully, else defValue.
+ */
+
+gchar *
+VMTools_ConfigGetString(GKeyFile *config,
+                        const gchar *section,
+                        const gchar *key,
+                        gchar *defValue)
+{
+   GError *err = NULL;
+   gchar *value;
+
+   ASSERT(config);
+   ASSERT(key);
+   ASSERT(section);
+
+   value = g_key_file_get_string(config, section, key, &err);
+   if (err != NULL) {
+      if (err->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
+          err->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
+         g_warning("%s: Failed to get value for '[%s] %s': %s (err=%d).\n",
+                   __FUNCTION__, section, key, err->message, err->code);
+      }
+      g_debug("%s: Returning default value for '[%s] %s'=%s.\n",
+              __FUNCTION__, section, key, defValue ? defValue : "(null)");
+      value = defValue;
+      g_clear_error(&err);
+   }
+   return value;
+}

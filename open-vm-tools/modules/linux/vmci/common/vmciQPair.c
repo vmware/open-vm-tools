@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2012 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -122,10 +122,6 @@ static INLINE int
 VMCIQPairLock(const VMCIQPair *qpair) // IN
 {
 #if !defined VMX86_VMX
-   if (qpair->flags & VMCI_QPFLAG_PINNED) {
-      VMCI_LockQueueHeader(qpair->produceQ);
-      return VMCI_SUCCESS;
-   }
    return VMCI_AcquireQueueMutex(qpair->produceQ,
                                  !(qpair->flags & VMCI_QPFLAG_NONBLOCK));
 #else
@@ -154,11 +150,7 @@ static INLINE void
 VMCIQPairUnlock(const VMCIQPair *qpair) // IN
 {
 #if !defined VMX86_VMX
-   if (qpair->flags & VMCI_QPFLAG_PINNED) {
-      VMCI_UnlockQueueHeader(qpair->produceQ);
-   } else {
-      VMCI_ReleaseQueueMutex(qpair->produceQ);
-   }
+   VMCI_ReleaseQueueMutex(qpair->produceQ);
 #endif
 }
 
@@ -222,6 +214,58 @@ VMCIQPairUnlockHeader(const VMCIQPair *qpair) // IN
       VMCI_ReleaseQueueMutex(qpair->produceQ);
    }
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueAddProducerTail() --
+ *
+ *      Helper routine to increment the Producer Tail.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VMCIQueueAddProducerTail(VMCIQueue *queue, // IN/OUT
+                         size_t add,       // IN
+                         uint64 queueSize) // IN
+{
+   VMCIQueueHeader_AddProducerTail(queue->qHeader, add, queueSize);
+   VMCI_QueueHeaderUpdated(queue);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueAddConsumerHead() --
+ *
+ *      Helper routine to increment the Consumer Head.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VMCIQueueAddConsumerHead(VMCIQueue *queue, // IN/OUT
+                         size_t add,       // IN
+                         uint64 queueSize) // IN
+{
+   VMCIQueueHeader_AddConsumerHead(queue->qHeader, add, queueSize);
+   VMCI_QueueHeaderUpdated(queue);
 }
 
 
@@ -477,27 +521,8 @@ vmci_qpair_alloc(VMCIQPair **qpair,            // OUT
       }
    }
 
-   if ((flags & (VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED)) && !vmkernel) {
+   if (flags & VMCI_QPFLAG_NONBLOCK && !vmkernel) {
       return VMCI_ERROR_INVALID_ARGS;
-   }
-
-   if (flags & VMCI_QPFLAG_PINNED) {
-      /*
-       * Pinned pages implies non-blocking mode.  Technically it doesn't
-       * have to, but there doesn't seem much point in pinning the pages if you
-       * can block since the queues will be small, so there's no performance
-       * gain to be had.
-       */
-
-      if (!(flags & VMCI_QPFLAG_NONBLOCK)) {
-         return VMCI_ERROR_INVALID_ARGS;
-      }
-
-      /* Limit the amount of memory that can be pinned. */
-
-      if (produceQSize + consumeQSize > VMCI_MAX_PINNED_QP_MEMORY) {
-         return VMCI_ERROR_NO_RESOURCES;
-      }
    }
 
    myQPair = VMCI_AllocKernelMem(sizeof *myQPair, VMCI_MEMORY_NONPAGED);
@@ -511,7 +536,8 @@ vmci_qpair_alloc(VMCIQPair **qpair,            // OUT
    myQPair->flags = flags;
    myQPair->privFlags = privFlags;
 
-   wakeupCB = clientData = NULL;
+   clientData = NULL;
+   wakeupCB = NULL;
    if (VMCI_ROUTE_AS_HOST == route) {
       myQPair->guestEndpoint = FALSE;
       if (!(flags & VMCI_QPFLAG_LOCAL)) {
@@ -971,7 +997,7 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
       return result;
    }
 
-   VMCIQueueHeader_AddProducerTail(produceQ->qHeader, written, produceQSize);
+   VMCIQueueAddProducerTail(produceQ, written, produceQSize);
    return written;
 }
 
@@ -1053,9 +1079,7 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
    }
 
    if (updateConsumer) {
-      VMCIQueueHeader_AddConsumerHead(produceQ->qHeader,
-                                      read,
-                                      consumeQSize);
+      VMCIQueueAddConsumerHead(produceQ, read, consumeQSize);
    }
 
    return read;

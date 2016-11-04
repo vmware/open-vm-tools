@@ -67,6 +67,7 @@ void VMCIContext_ClearDatagrams(VMCIContext *context);
 void VMCIContext_SetId(VMCIContext *context, VMCIId cid);
 void VMCIContext_NotifyGuestPaused(VMCIId cid, Bool paused);
 void VMCIContext_NotifyMemoryAccess(VMCIId cid, Bool on);
+Bool VMCIContext_RevalidateMappings(VMCIContext *context);
 #endif
 Bool VMCIContext_SupportsHostQP(VMCIContext *context);
 void VMCIContext_ReleaseContext(VMCIContext *context);

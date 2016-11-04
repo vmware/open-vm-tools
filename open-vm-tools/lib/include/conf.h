@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,6 +52,7 @@
 #define CONFNAME_LOGFILE                  "log.file"
 #define CONFNAME_LOGLEVEL                 "log.level"
 #define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
+#define CONFNAME_HIDETOOLSVERSION         "hide-tools-version"
 #define CONFNAME_DISABLEPMTIMERWARNING    "disable-pmtimerwarning"
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -115,19 +115,23 @@ BkdoorChannelShutdown(RpcChannel *chan)
 /**
  * Sends the data using the RpcOut library.
  *
+ * rpcStatus is valid only when function returns success.
+ *
  * @param[in]  chan        The RPC channel instance.
  * @param[in]  data        Data to send.
  * @param[in]  dataLen     Number of bytes to send.
+ * @param[out] rpcStatus   Status of RPC command.
  * @param[out] result      Response from other side.
  * @param[out] resultLen   Number of bytes in response.
  *
- * @return The status from the remote end (TRUE if call was successful).
+ * @return The status from the remote end (TRUE if RPC was sent successfully).
  */
 
 static gboolean
 BkdoorChannelSend(RpcChannel *chan,
                   char const *data,
                   size_t dataLen,
+                  Bool *rpcStatus,
                   char **result,
                   size_t *resultLen)
 {
@@ -140,7 +144,7 @@ BkdoorChannelSend(RpcChannel *chan,
       goto exit;
    }
 
-   ret = RpcOut_send(bdoor->out, data, dataLen, &reply, &replyLen);
+   ret = RpcOut_send(bdoor->out, data, dataLen, rpcStatus, &reply, &replyLen);
 
    /*
     * This is a hack to try to work around bug 393650 without having to revert
@@ -148,8 +152,7 @@ BkdoorChannelSend(RpcChannel *chan,
     * outgoing message. The issue here is that it's possible for the code to
     * try to write to the channel when a "reset" has just happened. In these
     * cases, the current RpcOut channel is not valid anymore, and we'll get an
-    * error. The RpcOut lib doesn't really reply with a useful error, but it
-    * does have consistent error messages starting with "RpcOut:".
+    * error.
     *
     * So, if the error is one of those messages, restart the RpcOut channel and
     * try to send the message again. If this second attempt fails, then give up.
@@ -161,12 +164,12 @@ BkdoorChannelSend(RpcChannel *chan,
     * starts with "RpcOut:", it will trigger this; but I don't think we have
     * any such handlers.
     */
-   if (!ret && reply != NULL && replyLen > sizeof "RpcOut: " &&
-       g_str_has_prefix(reply, "RpcOut: ")) {
+   if (!ret) {
       Debug("RpcOut failure, restarting channel.\n");
       RpcOut_stop(bdoor->out);
       if (RpcOut_start(bdoor->out)) {
-         ret = RpcOut_send(bdoor->out, data, dataLen, &reply, &replyLen);
+         ret = RpcOut_send(bdoor->out, data, dataLen, rpcStatus,
+                           &reply, &replyLen);
       } else {
          Warning("Couldn't restart RpcOut channel; bad things may happen "
                  "until the RPC channel is reset.\n");

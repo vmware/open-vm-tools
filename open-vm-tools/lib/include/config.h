@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -42,14 +42,19 @@ void Config_SetString(const char *value,
                       const char *fmt, ...) PRINTF_DECL(2, 3);
 void Config_SetStringPlain(const char *value,
                            const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetStringSecure(const char *value,
+                            const char *fmt, ...) PRINTF_DECL(2, 3);
 void Config_SetBool(Bool value, const char *fmt, ...) PRINTF_DECL(2, 3);
 void Config_SetBoolPlain(Bool value, const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetBoolSecure(Bool value, const char *fmt, ...) PRINTF_DECL(2, 3);
 void Config_SetLong(int32 value,
                     const char *fmt, ...) PRINTF_DECL(2, 3);
 void Config_SetInt64(int64 value,
                      const char *fmt, ...) PRINTF_DECL(2, 3);
 void Config_SetLongPlain(int32 value,
                          const char *fmt, ...) PRINTF_DECL(2, 3);
+void Config_SetLongSecure(int32 value,
+                          const char *fmt, ...) PRINTF_DECL(2, 3);
 void Config_SetDouble(double value,
                       const char *fmt, ...) PRINTF_DECL(2, 3);
 
@@ -57,6 +62,8 @@ char *Config_GetString(const char *defaultValue,
                        const char *fmt, ...) PRINTF_DECL(2, 3);
 char *Config_GetStringPlain(const char *defaultValue,
                             const char *fmt, ...) PRINTF_DECL(2, 3);
+char *Config_GetStringSecure(const char *defaultValue,
+                             const char *fmt, ...) PRINTF_DECL(2, 3);
 char *Config_GetAsString(const char *fmt, ...) PRINTF_DECL(1, 2);
 char *Config_GetStringEnum(const char *defaultValue,
                            const char **choices,
@@ -70,12 +77,16 @@ Bool Config_GetBool(Bool defaultValue,
                     const char *fmt, ...) PRINTF_DECL(2, 3);
 Bool Config_GetBoolPlain(Bool defaultValue,
                          const char *fmt, ...) PRINTF_DECL(2, 3);
+Bool Config_GetBoolSecure(Bool defaultValue,
+                          const char *fmt, ...) PRINTF_DECL(2, 3);
 int32 Config_GetLong(int32 defaultValue,
                      const char *fmt, ...) PRINTF_DECL(2, 3);
 int64 Config_GetInt64(int64 defaultValue,
                       const char *fmt, ...) PRINTF_DECL(2, 3);
 int32 Config_GetLongPlain(int32 defaultValue,
                           const char *fmt, ...) PRINTF_DECL(2, 3);
+int32 Config_GetLongSecure(int32 defaultValue,
+                           const char *fmt, ...) PRINTF_DECL(2, 3);
 int32 Config_GetTriState(int32 defaultValue,
                          const char *fmt, ...) PRINTF_DECL(2, 3);
 double Config_GetDouble(double defaultValue,

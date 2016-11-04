@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011,2014-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011,2014-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -108,6 +108,14 @@
 #define ASOCK_EWOULDBLOCK       EWOULDBLOCK
 #endif
 
+#define WEBSOCKET_HTTP_BUFFER_SIZE  8192
+
+typedef struct WebSocketHttpRequest {
+   char buf[WEBSOCKET_HTTP_BUFFER_SIZE + 1];  /* used for request & response */
+   int32 bufLen;
+   Bool overflow;
+} WebSocketHttpRequest;
+
 typedef enum {
    WEB_SOCKET_FRAME_OPCODE_BINARY = 0x02,
    WEB_SOCKET_FRAME_OPCODE_CLOSE = 0x08,
@@ -145,6 +153,7 @@ typedef enum {
 typedef enum {
    ASYNCSOCKET_TYPE_SOCKET =    0,
    ASYNCSOCKET_TYPE_NAMEDPIPE = 1,
+   ASYNCSOCKET_TYPE_PROXYSOCKET = 2,
 } AsyncSocketType;
 
 /*
@@ -165,6 +174,25 @@ typedef struct SendBufList {
    char                 *encodedBuf;
 } SendBufList;
 
+/*
+ * Callback to allow user handling of custom upgrade request headers
+ */
+typedef int (*AsyncWebSocketUpgradeRequestFn) (AsyncSocket *asock,
+                                            WebSocketHttpRequest *httpRequest);
+
+/*
+ * Callback to allow user handling of custom upgrade request headers
+ */
+typedef int (*AsyncWebSocketUpgradeResponseFn) (AsyncSocket *asock,
+                                            WebSocketHttpRequest *httpRequest);
+
+typedef enum {
+   CONNECTING_PRIMARY_SOCKET = 0,
+   CONNECTED_PRIMARY_SOCKET,
+   CONNECTING_SECONDARY_SOCKET,
+   CONNECTED_SECONDARY_SOCKET,
+} AsyncProxySocketState;
+
 struct AsyncSocket {
    uint32 id;
    AsyncSocketState state;
@@ -177,7 +205,7 @@ struct AsyncSocket {
    int genericErrno;
    AsyncSocketErrorFn errorFn;
    void *errorClientData;
-   VmTimeType drainTimeoutUS;
+   Bool errorSeen;
 
    struct sockaddr_storage localAddr;
    socklen_t localAddrLen;
@@ -187,8 +215,18 @@ struct AsyncSocket {
    AsyncSocketConnectFn connectFn;
    AsyncSocketRecvFn recvFn;
    AsyncSocketSslAcceptFn sslAcceptFn;
-   void *clientData;       /* shared by recvFn, connectFn and sslAcceptFn */
+   AsyncSocketSslConnectFn sslConnectFn;
+   int sslPollFlags;       /* shared by sslAcceptFn, sslConnectFn */
+
+   /* shared by recvFn, connectFn, sslAcceptFn and sslConnectFn */
+   void *clientData;
+
    AsyncSocketPollParams pollParams;
+   PollerFunction internalConnectFn;
+
+   /* governs optional AsyncSocket_Close() behavior */
+   int flushEnabledMaxWaitMsec;
+   AsyncSocketCloseCb closeCb;
 
    void *recvBuf;
    int recvPos;
@@ -253,12 +291,32 @@ struct AsyncSocket {
       char *upgradeNonceBase64;
       rqContext *randomContext;
       uint16 closeStatus;
+      AsyncWebSocketUpgradeRequestFn upgradeRequestPrepareFn;
+      AsyncWebSocketUpgradeResponseFn upgradeResponseProcessFn;
    } webSocket;
+
+   struct {
+      AsyncProxySocketState proxySocketState;
+      char *secondaryUrl;
+      char *e2ePort;
+      char *secondaryIP;
+      char *secondaryPort;
+      SSLVerifyParam *secondarySslVerifyParam;
+      const char *akey;
+      const char *label;
+      void *privData;
+      struct TCP2SCTPListenerArg *tcp2sctp;
+      AsyncSocket *primarySocket;
+      AsyncSocket *secondarySocket;
+   } proxySocket;
 
 #ifdef _WIN32
    struct {
       char *pipeName;
       uint32 connectCount;
+      uint32 numInstances;
+      DWORD openMode;
+      DWORD pipeMode;
       HANDLE pipe;
       OVERLAPPED rd;
       OVERLAPPED wr;
@@ -276,20 +334,71 @@ struct AsyncSocket {
 };
 
 typedef struct AsyncSocketVTable {
+   AsyncSocketState (*getState)(AsyncSocket *sock);
+   int (*getGenericErrno)(AsyncSocket *s);
+   int (*getFd)(AsyncSocket *asock);
+   int (*getRemoteIPStr)(AsyncSocket *asock, const char **ipStr);
+   int (*getINETIPStr)(AsyncSocket *asock, int socketFamily, char **ipRetStr);
+   unsigned int (*getPort)(AsyncSocket *asock);
+
+   int (*useNodelay)(AsyncSocket *asock, Bool nodelay);
+   int (*setTCPTimeouts)(AsyncSocket *asock, int keepIdle, int keepIntvl,
+                         int keepCnt);
+   Bool (*setBufferSizes)(AsyncSocket *asock, int sendSz, int recvSz);
+   void (*setSendLowLatencyMode)(AsyncSocket *asock, Bool enable);
+
+   Bool (*connectSSL)(AsyncSocket *asock, struct _SSLVerifyParam *verifyParam,
+                      void *sslContext);
+   void (*startSslConnect)(AsyncSocket *asock,
+                           struct _SSLVerifyParam *verifyParam, void *sslCtx,
+                           AsyncSocketSslConnectFn sslConnectFn,
+                           void *clientData);
+   Bool (*acceptSSL)(AsyncSocket *asock);
+   void (*startSslAccept)(AsyncSocket *asock, void *sslCtx,
+                          AsyncSocketSslAcceptFn sslAcceptFn,
+                          void *clientData);
+   int (*flush)(AsyncSocket *asock, int timeoutMS);
+
+   int (*recv)(AsyncSocket *asock, void *buf, int len, Bool partial, void *cb,
+               void *cbData);
+   int (*recvPassedFd)(AsyncSocket *asock, void *buf, int len, void *cb,
+                       void *cbData);
+   int (*getReceivedFd)(AsyncSocket *asock);
+
+   int (*send)(AsyncSocket *asock, void *buf, int len,
+               AsyncSocketSendFn sendFn, void *clientData);
+   int (*isSendBufferFull)(AsyncSocket *asock);
+
+   int (*close)(AsyncSocket *asock);
+   int (*cancelRecv)(AsyncSocket *asock, int *partialRecvd, void **recvBuf,
+                     void **recvFn, Bool cancelOnSend);
+   void (*cancelCbForClose)(AsyncSocket *asock);
+
+   int (*getLocalVMCIAddress)(AsyncSocket *asock, uint32 *cid, uint32 *port);
+   int (*getRemoteVMCIAddress)(AsyncSocket *asock, uint32 *cid, uint32 *port);
+
+   // WebSocket Specific
+   char *(*getWebSocketURI)(AsyncSocket *asock);
+   char *(*getWebSocketCookie)(AsyncSocket *asock);
+   uint16 (*getWebSocketCloseStatus)(const AsyncSocket *asock);
+   const char *(*getWebSocketProtocol)(AsyncSocket *asock);
+
+   // Internal
    void (*dispatchConnect)(AsyncSocket *asock, AsyncSocket *newsock);
    int (*prepareSend)(AsyncSocket *asock, void *buf, int len,
                       AsyncSocketSendFn sendFn, void *clientData,
                       Bool *bufferListWasEmpty);
-   int (*send)(AsyncSocket *asock, Bool bufferListWasEmpty, void *buf, int len);
-   int (*recv)(AsyncSocket *asock, void *buf, int len);
+   int (*sendInternal)(AsyncSocket *asock, Bool bufferListWasEmpty, void *buf,
+                     int len);
+   int (*recvInternal)(AsyncSocket *asock, void *buf, int len);
    PollerFunction sendCallback;
    PollerFunction recvCallback;
    Bool (*hasDataPending)(AsyncSocket *asock);
-   void (*cancelListenCb)(AsyncSocket *asock);
-   void (*cancelRecvCb)(AsyncSocket *asock);
-   void (*cancelCbForClose)(AsyncSocket *asock);
-   Bool (*cancelCbForConnectingClose)(AsyncSocket *asock);
-   void (*close)(AsyncSocket *asock);
+   void (*cancelListenCbInternal)(AsyncSocket *asock);
+   void (*cancelRecvCbInternal)(AsyncSocket *asock);
+   void (*cancelCbForCloseInternal)(AsyncSocket *asock);
+   Bool (*cancelCbForConnectingCloseInternal)(AsyncSocket *asock);
+   void (*closeInternal)(AsyncSocket *asock);
    void (*release)(AsyncSocket *asock);
 } AsyncSocketVTable;
 
@@ -363,5 +472,83 @@ AsyncSocket *AsyncSocketListenerCreate(const char *addrStr,
                                        Bool webSockUseSSL,
                                        const char *protocols[],
                                        int *outError);
+
+AsyncSocketState AsyncSocketGetState(AsyncSocket *sock);
+int AsyncSocketGetGenericErrno(AsyncSocket *s);
+int AsyncSocketGetFd(AsyncSocket *asock);
+int AsyncSocketGetRemoteIPStr(AsyncSocket *asock, const char **ipStr);
+int AsyncSocketGetINETIPStr(AsyncSocket *asock, int socketFamily,
+                     char **ipRetStr);
+unsigned int AsyncSocketGetPort(AsyncSocket *asock);
+int AsyncSocketUseNodelay(AsyncSocket *asock, Bool nodelay);
+int AsyncSocketSetTCPTimeouts(AsyncSocket *asock, int keepIdle,
+                       int keepIntvl, int keepCnt);
+Bool AsyncSocketSetBufferSizes(AsyncSocket *asock, int sendSz, int recvSz);
+void AsyncSocketSetSendLowLatencyMode(AsyncSocket *asock, Bool enable);
+Bool AsyncSocketConnectSSL(AsyncSocket *asock,
+                           struct _SSLVerifyParam *verifyParam,
+                           void *sslContext);
+void AsyncSocketStartSslConnect(AsyncSocket *asock, SSLVerifyParam *verifyParam,
+                                void *sslCtx,
+                                AsyncSocketSslConnectFn sslConnectFn,
+                                void *clientData);
+Bool AsyncSocketAcceptSSL(AsyncSocket *asock);
+void AsyncSocketStartSslAccept(AsyncSocket *asock, void *sslCtx,
+                        AsyncSocketSslAcceptFn sslAcceptFn,
+                        void *clientData);
+int AsyncSocketFlush(AsyncSocket *asock, int timeoutMS);
+
+int AsyncSocketRecv(AsyncSocket *asock,
+             void *buf, int len, Bool partial, void *cb, void *cbData);
+int AsyncSocketRecvPassedFd(AsyncSocket *asock, void *buf, int len,
+                     void *cb, void *cbData);
+int AsyncSocketGetReceivedFd(AsyncSocket *asock);
+int AsyncSocketSend(AsyncSocket *asock, void *buf, int len,
+             AsyncSocketSendFn sendFn, void *clientData);
+int AsyncSocketIsSendBufferFull(AsyncSocket *asock);
+int AsyncSocketClose(AsyncSocket *asock);
+int AsyncSocketCancelRecv(AsyncSocket *asock, int *partialRecvd,
+                   void **recvBuf, void **recvFn, Bool cancelOnSend);
+void AsyncSocketCancelCbForClose(AsyncSocket *asock);
+int AsyncSocketGetLocalVMCIAddress(AsyncSocket *asock,
+                            uint32 *cid, uint32 *port);
+int AsyncSocketGetRemoteVMCIAddress(AsyncSocket *asock,
+                             uint32 *cid, uint32 *port);
+char *AsyncSocketGetWebSocketURI(AsyncSocket *asock);
+char *AsyncSocketGetWebSocketCookie(AsyncSocket *asock);
+uint16 AsyncSocketGetWebSocketCloseStatus(const AsyncSocket *asock);
+const char *AsyncSocketGetWebSocketProtocol(AsyncSocket *asock);
+
+/*
+ * Websocket Connect extension function.
+ */
+AsyncSocket *
+AsyncSocket_ConnectWebSocketEx(const char *url,
+                             struct _SSLVerifyParam *sslVerifyParam,
+                             const char *cookies,
+                             const char *protocols[],
+                             AsyncSocketConnectFn connectFn,
+                             void *clientData,
+                             AsyncSocketConnectFlags flags,
+                             AsyncSocketPollParams *pollParams,
+                             AsyncWebSocketUpgradeRequestFn prepareRequestFn,
+                             AsyncWebSocketUpgradeResponseFn processResponseFn,
+                             void *privData,
+                             int *error);
+
+/*
+ * Utilities for building and parsing http request/response strings.
+ */
+void WebSocketHttpRequestPrintf(WebSocketHttpRequest *request,
+                                const char *format, ...);
+
+void WebSocketHttpRequestReset(WebSocketHttpRequest *request);
+char *WebSocketHttpRequestGetHeader(const WebSocketHttpRequest *request,
+                                    const char *webKey);
+Bool WebSocketHttpRequestHasHeader(const WebSocketHttpRequest *request,
+                                   const char *key);
+char *WebSocketHttpRequestGetURI(const WebSocketHttpRequest *request);
+char *WebSocketHttpRequestGetVerb(const WebSocketHttpRequest *request);
+char *WebSocketHttpRequestGetPath(const WebSocketHttpRequest *request);
 
 #endif // __ASYNC_SOCKET_INT_H__

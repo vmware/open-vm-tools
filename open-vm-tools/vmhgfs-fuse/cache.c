@@ -25,7 +25,13 @@
 #if !defined(__FreeBSD__) && !defined(__SOLARIS__)
 #include <glib.h>
 #endif
-#define CACHE_TIMEOUT 5
+
+/*
+ * We make the default attribute cache timeout 1 second which is the same
+ * as the FUSE driver.
+ * This can be overridden with the mount option attr_timeout=T
+ */
+#define CACHE_TIMEOUT HGFS_DEFAULT_TTL
 #define CACHE_PURGE_TIME 10
 #define CACHE_PURGE_SLEEP_TIME 30
 #define HASH_THRESHOLD_SIZE (2046 * 4)
@@ -126,7 +132,6 @@ HgfsGetAttrCache(const char* path,   //IN: Path of file or directory
       }
    }
 
-out:
    pthread_mutex_unlock(&HgfsAttrCacheLock);
    return res;
 }

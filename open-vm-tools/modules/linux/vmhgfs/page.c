@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -1603,7 +1603,7 @@ HgfsWbRequestPut(HgfsWbPage *req)  // IN: request of page data to write
  *----------------------------------------------------------------------
  */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13) && \
+#if !defined VMW_WAITONBIT_317 && LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13) && \
     LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
 static int
 HgfsWbRequestWaitUninterruptible(void *word) // IN:unused
@@ -1624,7 +1624,9 @@ HgfsWbRequestWaitUninterruptible(void *word) // IN:unused
  *    The user is responsible for holding a count on the request.
  *
  * Results:
- *    None
+ *    Returned value will be zero if the bit was cleared,
+ *    non-zero if the process received a signal and the mode
+ *    permitted wakeup on that signal.
  *
  * Side effects:
  *    None
@@ -1643,7 +1645,7 @@ HgfsWbRequestWait(HgfsWbPage *req)  // IN: request of page data to write
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
    return wait_on_bit(&req->wb_flags,
                       PG_BUSY,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+#if !defined VMW_WAITONBIT_317 && LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
                       HgfsWbRequestWaitUninterruptible,
 #endif
                       TASK_UNINTERRUPTIBLE);

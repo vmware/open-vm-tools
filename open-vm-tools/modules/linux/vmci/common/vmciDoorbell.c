@@ -782,6 +782,8 @@ VMCIDoorbellNotifyAsGuest(VMCIHandle handle,            // IN
 #else // VMKERNEL
    VMCIDoorbellNotifyMsg notifyMsg;
 
+   UNREFERENCED_PARAMETER(privFlags);
+
    ASSERT(VMCI_GuestPersonalityActive());
 
    notifyMsg.hdr.dst = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
@@ -897,6 +899,8 @@ VMCIDoorbellHostContextNotify(VMCIId srcCID,     // IN
    VMCIDoorbellEntry *entry;
    VMCIResource *resource;
    int result;
+
+   UNREFERENCED_PARAMETER(srcCID);
 
    ASSERT(VMCI_HostPersonalityActive());
 

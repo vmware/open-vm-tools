@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -80,8 +80,8 @@ extern "C" {
  */
 
 char *Unicode_AllocWithLength(const void *buffer,
-                                ssize_t lengthInBytes,
-                                StringEncoding encoding);
+                              ssize_t lengthInBytes,
+                              StringEncoding encoding);
 
 
 /*
@@ -174,9 +174,10 @@ Unicode_AllocWithUTF16(const utf16_t *utf16String) // IN
 char *Unicode_Duplicate(const char *str);
 
 char **Unicode_AllocList(char **srcList, ssize_t length,
-                           StringEncoding encoding);
+                         StringEncoding encoding);
 
-char **Unicode_GetAllocList(char *const srcList[], ssize_t length,
+char **Unicode_GetAllocList(char *const srcList[],
+                            ssize_t length,
                             StringEncoding encoding);
 
 /*
@@ -209,7 +210,8 @@ Unicode_AllocListWithUTF16(utf16_t **utf16list, // IN:
 /*
  * Compute the number of bytes in a string.
  */
-ssize_t Unicode_LengthInBytes(const void *buffer, StringEncoding encoding);
+ssize_t Unicode_LengthInBytes(const void *buffer,
+                              StringEncoding encoding);
 
 /*
  * Gets the number of UTF-16 code units in the NUL-terminated UTF-16 array.
@@ -227,6 +229,8 @@ utf16_t *Unicode_UTF16Strdup(const utf16_t *utf16);
 Bool Unicode_IsBufferValid(const void *buffer,
                            ssize_t lengthInBytes,
                            StringEncoding encoding);
+
+Bool Unicode_IsStringValidUTF8(const char *str);
 
 /*
  * Tests if the buffer's unicode contents can be converted to the

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -394,6 +394,12 @@ CliListMapped(VGAuthContext *ctx)
  ******************************************************************************
  */
 
+#ifdef _WIN32
+#define use_glib_parser 0
+#else
+#define use_glib_parser 1
+#endif
+
 static int
 mainRun(int argc,
         char *argv[])
@@ -415,7 +421,12 @@ mainRun(int argc,
    const gchar *lSubject = SU_(cmdline.summary.subject, "subject");
    const gchar *lPEMfile = SU_(cmdline.summary.pemfile, "PEM-file");
    const gchar *lComm = SU_(cmdline.summary.comm, "comment");
+#if (use_glib_parser == 0)
+   int i;
+   GOptionEntry *cmdOptions;
+#else
    GError *gErr = NULL;
+#endif
    PrefHandle prefs;
    gchar *msgCatalog = NULL;
    GOptionEntry listOptions[] = {
@@ -450,7 +461,7 @@ mainRun(int argc,
       { "global", 'g', 0, G_OPTION_ARG_NONE, &addMapped,
          SU_(addoptions.global,
              "Add the certificate to the global mapping file"), NULL },
-      { "comment", 'a', 0, G_OPTION_ARG_STRING, &comment,
+      { "comment", 'c', 0, G_OPTION_ARG_STRING, &comment,
          SU_(addoptions.comment, "subject comment"), NULL},
       { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
          SU_(addoptions.verbose, "Verbose operation"), NULL },
@@ -512,43 +523,104 @@ mainRun(int argc,
    if (strcmp(argvCopy[1], "add") == 0) {
       doAdd = TRUE;
       g_option_context_add_main_entries(context, addOptions, NULL);
+#if (use_glib_parser == 0)
+      cmdOptions = addOptions;
+#endif
    } else if (strcmp(argvCopy[1], "remove") == 0) {
       doRemove = TRUE;
       g_option_context_add_main_entries(context, removeOptions, NULL);
+#if (use_glib_parser == 0)
+      cmdOptions = removeOptions;
+#endif
    } else if (strcmp(argvCopy[1], "list") == 0) {
       doList = TRUE;
       g_option_context_add_main_entries(context, listOptions, NULL);
+#if (use_glib_parser == 0)
+      cmdOptions = listOptions;
+#endif
    } else {
       Usage(context);
    }
 
+#if (use_glib_parser == 0)
    /*
-    * Pull out the options.
+    * In Windows, g_option_context_parse() does the wrong thing for locale
+    * conversion of the incoming Unicode cmdline.  Modern glib (2.40 or
+    * later) solves this with g_option_context_parse_strv(), but we're stuck
+    * with an older glib for now.
+    *
+    * So instead lets do it all by hand.
+    *
+    * This does almost everything for the two types of options this code
+    * cares about.  It doesn't handle multiple
+    * short options behind a single dash, or '--' alone meaning
+    * to stop parsing.
+    *
+    * XXX fix this when we upgrade glib.
     */
-#ifdef _WIN32
-   {
-      char * val = getenv("CHARSET");
-      char *saved = g_strdup_printf("CHARSET=%s", val ? val : "");
+   for (i = 2; i < argc; i++) {
+      GOptionEntry *e;
+      gboolean match = FALSE;
 
-      /*
-       * Force the glib parser to interpret the input as the UTF-8
-       * Otherwise, glib treat the input encoding as the current code page,
-       * e.g. 1252
-       */
-      _putenv("CHARSET=UTF-8");
-#endif
+      e = &cmdOptions[0];
+      while (e && e->long_name) {
+         gsize len;
+         char longName[32];
+         char shortName[3];
 
-      if (!g_option_context_parse(context, &argcCopy, &argvCopy, &gErr)) {
-         g_printerr("%s: %s: %s\n", appName,
-                    SU_(cmdline.parse, "Command line parsing failed"),
-                    gErr->message);
-         g_error_free(gErr);
-         exit(-1);
+         g_snprintf(longName, sizeof(longName), "--%s", e->long_name);
+         g_snprintf(shortName, sizeof(shortName), "-%c", e->short_name);
+         len = strlen(longName);
+
+         // short options don't support '='
+         if (strcmp(shortName, argv[i]) == 0) {
+            if (e->arg == G_OPTION_ARG_STRING) {
+               if (argv[i+1]) {
+                  *(gchar **) e->arg_data = argv[++i];
+                  match = TRUE;
+               } else {
+                  Usage(context);
+               }
+            } else if (e->arg == G_OPTION_ARG_NONE) {
+               *(gboolean *) e->arg_data = TRUE;
+               match = TRUE;
+            }
+         } else if (strncmp(longName, argv[i], len) == 0 &&
+                    (argv[i][len] == '=' || argv[i][len] == '\0')) {
+            gchar *val = NULL;
+
+            if (e->arg == G_OPTION_ARG_STRING) {
+               if (argv[i][len] == '=') {
+                  val = (gchar *) &(argv[i][len+1]);
+               } else if (argv[i+1]) {
+                  val = argv[++i];
+               }
+               *(gchar **) e->arg_data = val;
+               match = TRUE;
+            } else if ((e->arg == G_OPTION_ARG_NONE) && argv[i][len] == '\0') {
+               *(gboolean *) e->arg_data = TRUE;
+               match = TRUE;
+            } else {
+               Usage(context);
+            }
+         }
+         if (match) {
+            goto next;
+         }
+         e++;
       }
-
-#ifdef _WIN32
-      _putenv("CHARSET=");
-      g_free(saved);
+next:
+      if (!match) {
+         Usage(context);
+      }
+   }
+#else
+   if (!g_option_context_parse(context, &argcCopy, &argvCopy, &gErr)) {
+      g_printerr("%s: %s: %s\n", appName,
+                 SU_(cmdline.parse, "Command line parsing failed"),
+                 gErr->message);
+      g_error_free(gErr);
+      exit(-1);
    }
 #endif
 

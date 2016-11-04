@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,6 +26,7 @@
 #define VMWARE_CRYPTOERROR_H 1
 
 #define INCLUDE_ALLOW_USERLEVEL
+#define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
 #include "vmware.h"

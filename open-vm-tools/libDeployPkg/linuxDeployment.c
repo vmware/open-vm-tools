@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -15,6 +15,12 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
+
+/*
+ * linuxDeployment.c --
+ *
+ *      Implementation of libDeployPkg.so.
+ */
 
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -33,6 +39,7 @@
 #include "deployPkg/linuxDeployment.h"
 #include "imgcust-common/process.h"
 #include "imgcust-guest/guestcust-events.h"
+#include "linuxDeploymentUtilities.h"
 #include "mspackWrapper.h"
 #include "rpcout.h"
 #include "toolsDeployPkg.h"
@@ -106,9 +113,9 @@ struct List {
  */
 
 // Private functions
-static Bool GetPackageInfo(const char* pkgName, char** cmd, uint8* type);
+static Bool GetPackageInfo(const char* pkgName, char** cmd, uint8* type, uint8* flags);
 static Bool ExtractZipPackage(const char* pkg, const char* dest);
-static Bool CreateDir(const char* path);
+static Bool CreateDir(const char *path);
 static void Init(void);
 static struct List* AddToList(struct List* head, const char* token);
 static int ListSize(struct List* head);
@@ -141,12 +148,12 @@ static LogFunction sLog = NoLogging;
  * @param   args     [in]  Argument list.
  *
  **/
-void
-Panic(const char *fmtstr,
-      va_list args)
+NORETURN void
+Panic(const char *fmtstr, ...)
 {
    /* Ignored */
-   sLog(log_warning, "Panic call back invoked. \n");
+   sLog(log_warning, "Panic callback invoked. \n");
+   exit(1);
 }
 
 // .....................................................................................
@@ -167,7 +174,7 @@ Debug(const char *fmtstr,
 {
    /* Ignored */
 #ifdef VMX86_DEBUG
-   sLog(log_debug, "Debug callback invoked. \n");
+   sLog(log_warning, "Debug callback invoked. \n");
 #endif
 }
 
@@ -517,13 +524,15 @@ Init(void)
  * @param   [IN]  packageName   package file name
  * @param   [OUT] command       command line from header
  * @param   [OUT] archiveType   package archive format
+ * @param   [OUT] flags         package header flags
  * @return  TRUE is success
  *
  **/
 Bool
 GetPackageInfo(const char* packageName,
                char** command,
-               uint8* archiveType)
+               uint8* archiveType,
+               uint8* flags)
 {
    unsigned int sz;
    VMwareDeployPkgHdr hdr;
@@ -557,6 +566,9 @@ GetPackageInfo(const char* packageName,
 
    memcpy(*command, hdr.command, VMWAREDEPLOYPKG_CMD_LENGTH);
    *archiveType = hdr.payloadType;
+   *flags = hdr.reserved;
+
+   //TODO hdr->command[VMWAREDEPLOYPKG_CMD_LENGTH - 1] = '\0';
 
    return TRUE;
 }
@@ -697,7 +709,6 @@ TransitionState(const char* stateFrom, const char* stateTo)
  *
  *-----------------------------------------------------------------------------
  */
-
 static char*
 GetNicsToEnable(const char* dir)
 {
@@ -745,7 +756,7 @@ GetNicsToEnable(const char* dir)
 }
 
 /**
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  *
  * TryToEnableNics --
  *
@@ -760,9 +771,8 @@ GetNicsToEnable(const char* dir)
  *
  *      @param nics List of nics that need to be activated.
  *
- *-----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
  */
-
 static void
 TryToEnableNics(const char *nics)
 {
@@ -845,6 +855,113 @@ _DeployPkg_SkipReboot(bool skip)
    sSkipReboot = skip;
 }
 
+/**
+ *----------------------------------------------------------------------------
+ *
+ * CloudInitSetup --
+ *
+ * Function which does the setup for cloud-init if it is enabled.
+ * Essentially it copies
+ * - nics.tx
+ * - cust.cfg to a predefined location.
+ *
+ * @param   [IN]  tmpDirPath  Path where nics.txt and cust.cfg exist
+ * @returns DEPLOY_SUCCESS on success and DEPLOY_ERROR on error
+ *
+ *----------------------------------------------------------------------------
+ * */
+static int
+CloudInitSetup(const char *tmpDirPath)
+{
+   int deployStatus = DEPLOY_ERROR;
+   const char *cloudInitTmpDirPath = "/var/run/vmware-imc";
+   int forkExecResult;
+   char command[1024];
+   Bool cloudInitTmpDirCreated = FALSE;
+
+   snprintf(command, sizeof(command),
+            "/bin/mkdir -p %s", cloudInitTmpDirPath);
+   command[sizeof(command) - 1] = '\0';
+
+   forkExecResult = ForkExecAndWaitCommand(command);
+   if (forkExecResult != 0) {
+      SetDeployError("Error creating %s dir: %s",
+                     cloudInitTmpDirPath,
+                     strerror(errno));
+      goto done;
+   }
+
+   cloudInitTmpDirCreated = TRUE;
+
+   snprintf(command, sizeof(command),
+            "/bin/rm -f %s/cust.cfg %s/nics.txt",
+            cloudInitTmpDirPath, cloudInitTmpDirPath);
+   command[sizeof(command) - 1] = '\0';
+
+   forkExecResult = ForkExecAndWaitCommand(command);
+
+   snprintf(command, sizeof(command),
+            "/bin/cp %s/cust.cfg %s/cust.cfg",
+            tmpDirPath, cloudInitTmpDirPath);
+   command[sizeof(command) - 1] = '\0';
+
+   forkExecResult = ForkExecAndWaitCommand(command);
+
+   if (forkExecResult != 0) {
+      SetDeployError("Error copying cust.cfg file: %s",
+                     strerror(errno));
+      goto done;
+   }
+
+   snprintf(command, sizeof(command),
+            "/usr/bin/test -f %s/nics.txt", tmpDirPath);
+   command[sizeof(command) - 1] = '\0';
+
+   forkExecResult = ForkExecAndWaitCommand(command);
+
+   /*
+    * /usr/bin/test -f returns 0 if the file exists
+    * non zero is returned if the file does not exist.
+    * We need to copy the nics.txt only if it exists.
+    */
+   if (forkExecResult == 0) {
+      snprintf(command, sizeof(command),
+               "/bin/cp %s/nics.txt %s/nics.txt",
+               tmpDirPath, cloudInitTmpDirPath);
+      command[sizeof(command) - 1] = '\0';
+
+      forkExecResult = ForkExecAndWaitCommand(command);
+      if (forkExecResult != 0) {
+         SetDeployError("Error copying nics.txt file: %s",
+                        strerror(errno));
+         goto done;
+      }
+   }
+
+   deployStatus = DEPLOY_SUCCESS;
+
+done:
+   if (DEPLOY_SUCCESS == deployStatus) {
+      TransitionState(INPROGRESS, DONE);
+   } else {
+      if (cloudInitTmpDirCreated) {
+         snprintf(command, sizeof(command),
+                  "/bin/rm -rf %s",
+                  cloudInitTmpDirPath);
+         command[sizeof(command) - 1] = '\0';
+         ForkExecAndWaitCommand(command);
+      }
+      sLog(log_error, "Setting generic error status in vmx. \n");
+      SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
+                                  GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                                  NULL);
+      TransitionState(INPROGRESS, ERRORED);
+   }
+
+   return deployStatus;
+}
+
+
 //......................................................................................
 
 /**
@@ -863,12 +980,17 @@ Deploy(const char* packageName)
 {
    int deployStatus = DEPLOY_SUCCESS;
    char* command = NULL;
-   int deploymentResult;
+   int deploymentResult = 0;
    char *nics;
    char* cleanupCommand;
    uint8 archiveType;
+   uint8 flags;
+   bool forceSkipReboot = false;
+   Bool cloudInitEnabled = FALSE;
+   const char *cloudInitConfigFilePath = "/etc/cloud/cloud.cfg";
+   char cloudCommand[1024];
+   int forkExecResult;
 
-   // Move to IN PROGRESS state
    TransitionState(NULL, INPROGRESS);
 
    // Notify the vpx of customization in-progress state
@@ -879,7 +1001,7 @@ Deploy(const char* packageName)
    sLog(log_info, "Reading cabinet file %s. \n", packageName);
 
    // Get the command to execute
-   if (!GetPackageInfo(packageName, &command, &archiveType)) {
+   if (!GetPackageInfo(packageName, &command, &archiveType, &flags)) {
       SetDeployError("Error extracting package header information. (%s)",
                      GetDeployError());
       return DEPLOY_ERROR;
@@ -908,70 +1030,80 @@ Deploy(const char* packageName)
       }
    }
 
-   // Run the deployment command
-   sLog(log_info, "Launching deployment %s. \n", command);
-   deploymentResult = ForkExecAndWaitCommand(command);
-   free (command);
+   // check if cloud-init installed
+   snprintf(cloudCommand, sizeof(cloudCommand),
+            "/usr/bin/cloud-init -h");
+   cloudCommand[sizeof(cloudCommand) - 1] = '\0';
+   forkExecResult = ForkExecAndWaitCommand(cloudCommand);
+   // if cloud-init is installed, check if it is enabled
+   if (forkExecResult == 0 && IsCloudInitEnabled(cloudInitConfigFilePath)) {
+      cloudInitEnabled = TRUE;
+      sSkipReboot = TRUE;
+      free(command);
+      deployStatus =  CloudInitSetup(EXTRACTPATH);
+   } else {
+      // Run the deployment command
+      sLog(log_info, "Launching deployment %s.  \n", command);
+      deploymentResult = ForkExecAndWaitCommand(command);
+      free(command);
 
-   if (deploymentResult != 0) {
-      sLog(log_error, "Customization process returned with error. \n");
-      sLog(log_debug, "Deployment result = %d \n", deploymentResult);
+      if (deploymentResult != 0) {
+         sLog(log_error, "Customization process returned with error. \n");
+         sLog(log_debug, "Deployment result = %d \n", deploymentResult);
 
-      if (deploymentResult == CUST_NETWORK_ERROR || deploymentResult == CUST_NIC_ERROR) {
-         // Network specific error in the guest
-         sLog(log_info, "Setting network error status in vmx. \n");
-         SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
-                                     GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
-                                     NULL);
+         if (deploymentResult == CUST_NETWORK_ERROR ||
+             deploymentResult == CUST_NIC_ERROR) {
+            sLog(log_info, "Setting network error status in vmx. \n");
+            SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
+                                        GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
+                                        NULL);
+         } else {
+            sLog(log_info, "Setting generic error status in vmx. \n");
+            SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
+                                        GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                                        NULL);
+         }
+
+         TransitionState(INPROGRESS, ERRORED);
+
+         deployStatus = DEPLOY_ERROR;
+         SetDeployError("Deployment failed. "
+                        "The forked off process returned error code.");
+         sLog(log_error, "Deployment failed. "
+                         "The forked off process returned error code. \n");
       } else {
-         // Generic error in the guest
-         sLog(log_info, "Setting generic error status in vmx. \n");
-         SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
-                                     GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+         SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_DONE,
+                                     TOOLSDEPLOYPKG_ERROR_SUCCESS,
                                      NULL);
+
+         TransitionState(INPROGRESS, DONE);
+
+         deployStatus = DEPLOY_SUCCESS;
+         sLog(log_info, "Deployment succeded. \n");
       }
-
-      // Move to ERROR state
-      TransitionState(INPROGRESS, ERRORED);
-
-      // Set deploy status to be returned
-      deployStatus = DEPLOY_ERROR;
-      SetDeployError("Deployment failed. The forked off process returned error code.");
-      sLog(log_error, "Deployment failed. "
-                      "The forked off process returned error code. \n");
-   } else {
-      // Set vmx status - customization success
-      SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_DONE,
-                                  TOOLSDEPLOYPKG_ERROR_SUCCESS,
-                                  NULL);
-
-      // Move to DONE state
-      TransitionState(INPROGRESS, DONE);
-
-      deployStatus = DEPLOY_SUCCESS;
-      sLog(log_info, "Deployment succeded. \n");
    }
 
-   /*
-    * Read in nics to enable from the nics.txt file. We do it irrespective of the
-    * sucess/failure of the customization so that at the end of it we always
-    * have nics enabled.
-    */
-   nics = GetNicsToEnable(EXTRACTPATH);
-   if (nics) {
-      // XXX: Sleep before the last SetCustomizationStatusInVmx
-      //      This is a temporary-hack for PR 422790
-      sleep(5);
-      sLog(log_info, "Wait before set enable-nics stats in vmx.\n");
+   if (!cloudInitEnabled || DEPLOY_SUCCESS != deployStatus) {
+      /*
+       * Read in nics to enable from the nics.txt file. We do it irrespective
+       * of the sucess/failure of the customization so that at the end of it we
+       * always have nics enabled.
+       */
+      nics = GetNicsToEnable(EXTRACTPATH);
+      if (nics) {
+         // XXX: Sleep before the last SetCustomizationStatusInVmx
+         //      This is a temporary-hack for PR 422790
+         sleep(5);
+         sLog(log_info, "Wait before set enable-nics stats in vmx.\n");
 
-      TryToEnableNics(nics);
+         TryToEnableNics(nics);
 
-      free(nics);
-   } else {
-      sLog(log_info, "No nics to enable.\n");
+         free(nics);
+      } else {
+         sLog(log_info, "No nics to enable.\n");
+      }
    }
 
-   // Clean up command
    cleanupCommand = malloc(strlen(CLEANUPCMD) + strlen(CLEANUPPATH) + 1);
    if (!cleanupCommand) {
       SetDeployError("Error allocating memory.");
@@ -989,9 +1121,17 @@ Deploy(const char* packageName)
    }
    free (cleanupCommand);
 
+   if (flags & VMWAREDEPLOYPKG_HEADER_FLAGS_SKIP_REBOOT) {
+      forceSkipReboot = true;
+   }
+   sLog(log_info,
+        "sSkipReboot: %s, forceSkipReboot %s\n",
+        sSkipReboot ? "true" : "false",
+        forceSkipReboot ? "true" : "false");
+   sSkipReboot |= forceSkipReboot;
+
    //Reset the guest OS
    if (!sSkipReboot && !deploymentResult) {
-      // Reboot the Vm
       pid_t pid = fork();
       if (pid == -1) {
          sLog(log_error, "Failed to fork: %s", strerror(errno));
@@ -1015,8 +1155,8 @@ Deploy(const char* packageName)
    return deployStatus;
 }
 
-/*
- * Extract all files into the destination folder
+/**
+ * Extract all files into the destination folder.
  */
 Bool
 ExtractCabPackage(const char* cabFileName,
@@ -1049,8 +1189,8 @@ ExtractCabPackage(const char* cabFileName,
    return TRUE;
 }
 
-/*
- * Extract all files into the destination folder
+/**
+ * Extract all files into the destination folder.
  */
 static Bool
 ExtractZipPackage(const char* pkgName,

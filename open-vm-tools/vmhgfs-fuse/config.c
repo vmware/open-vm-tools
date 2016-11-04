@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -489,6 +489,9 @@ vmhgfsPreprocessArgs(struct fuse_args *outargs)    // IN/OUT
 
    gState->basePath = NULL;
    gState->basePathLen = 0;
+
+   VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &gState->conf, NULL);
+   VMTools_ConfigLogging(G_LOG_DOMAIN, gState->conf, FALSE, FALSE);
 
 #ifdef VMX86_DEVEL
    config.logLevel = LOGLEVEL_THRESHOLD;

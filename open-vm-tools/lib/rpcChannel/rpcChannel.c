@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,6 +69,8 @@ static gboolean gUseBackdoorOnly = FALSE;
  */
 static gboolean gVSocketFailed = FALSE;
 
+static void RpcChannelStopNoLock(RpcChannel *chan);
+
 /**
  * Handler for a "ping" message. Does nothing.
  *
@@ -96,13 +98,20 @@ static gboolean
 RpcChannelRestart(gpointer _chan)
 {
    RpcChannelInt *chan = _chan;
+   gboolean chanStarted;
 
-   RpcChannel_Stop(&chan->impl);
+   /* Synchronize with any RpcChannel_Send calls by other threads. */
+   g_static_mutex_lock(&chan->impl.outLock);
+
+   RpcChannelStopNoLock(&chan->impl);
+
    /* Clear vSocket channel failure */
    Debug(LGPFX "Clearing backdoor behavior ...\n");
    gVSocketFailed = FALSE;
 
-   if (!RpcChannel_Start(&chan->impl)) {
+   chanStarted = RpcChannel_Start(&chan->impl);
+   g_static_mutex_unlock(&chan->impl.outLock);
+   if (!chanStarted) {
       Warning("Channel restart failed [%d]\n", chan->rpcErrorCount);
       if (chan->resetCb != NULL) {
          chan->resetCb(&chan->impl, FALSE, chan->resetData);
@@ -214,6 +223,8 @@ RpcChannelXdrWrapper(RpcInData *data,
    RpcInData copy;
    void *xdrData = NULL;
 
+   copy.freeResult = FALSE;
+   copy.result = NULL;
    if (rpc->xdrIn != NULL) {
       xdrData = malloc(rpc->xdrInSize);
       if (xdrData == NULL) {
@@ -261,7 +272,7 @@ RpcChannelXdrWrapper(RpcInData *data,
          goto exit;
       }
 
-      if (!xdrProc(&xdrs, copy.result)) {
+      if (!xdrProc(&xdrs, copy.result, 0)) {
          ret = RPCIN_SETRETVALS(data, "XDR serialization failed.", FALSE);
          DynXdr_Destroy(&xdrs, TRUE);
          goto exit;
@@ -319,7 +330,7 @@ RpcChannel_BuildXdrCommand(const char *cmd,
       goto exit;
    }
 
-   if (!proc(&xdrs, xdrData)) {
+   if (!proc(&xdrs, xdrData, 0)) {
       goto exit;
    }
 
@@ -764,19 +775,19 @@ RpcChannel_Start(RpcChannel *chan)
 
 
 /**
- * Wrapper for the stop function of an RPC channel struct.
+ * Stop the RPC channel.
+ * The outLock must be acquired by the caller.
  *
  * @param[in]  chan        The RPC channel instance.
  */
 
-void
-RpcChannel_Stop(RpcChannel *chan)
+static void
+RpcChannelStopNoLock(RpcChannel *chan)
 {
    g_return_if_fail(chan != NULL);
    g_return_if_fail(chan->funcs != NULL);
    g_return_if_fail(chan->funcs->stop != NULL);
 
-   g_static_mutex_lock(&chan->outLock);
    chan->funcs->stop(chan);
 
    if (chan->in != NULL) {
@@ -787,6 +798,20 @@ RpcChannel_Stop(RpcChannel *chan)
    } else {
       ASSERT(!chan->inStarted);
    }
+}
+
+
+/**
+ * Wrapper for the stop function of an RPC channel struct.
+ *
+ * @param[in]  chan        The RPC channel instance.
+ */
+
+void
+RpcChannel_Stop(RpcChannel *chan)
+{
+   g_static_mutex_lock(&chan->outLock);
+   RpcChannelStopNoLock(chan);
    g_static_mutex_unlock(&chan->outLock);
 }
 
@@ -845,6 +870,7 @@ RpcChannel_Send(RpcChannel *chan,
                 size_t *resultLen)
 {
    gboolean ok;
+   Bool rpcStatus;
    char *res = NULL;
    size_t resLen = 0;
    const RpcChannelFuncs *funcs;
@@ -865,14 +891,14 @@ RpcChannel_Send(RpcChannel *chan,
       *resultLen = 0;
    }
 
-   ok = funcs->send(chan, data, dataLen, &res, &resLen);
+   ok = funcs->send(chan, data, dataLen, &rpcStatus, &res, &resLen);
 
    if (!ok && (funcs->getType(chan) != RPCCHANNEL_TYPE_BKDOOR) &&
        (funcs->stopRpcOut != NULL)) {
 
-       free(res);
-       res = NULL;
-       resLen = 0;
+      free(res);
+      res = NULL;
+      resLen = 0;
 
       /* retry once */
       Debug(LGPFX "Stop RpcOut channel and try to send again ...\n");
@@ -881,7 +907,7 @@ RpcChannel_Send(RpcChannel *chan,
          /* The channel may get switched from vsocket to backdoor */
          funcs = chan->funcs;
          ASSERT(funcs->send);
-         ok = funcs->send(chan, data, dataLen, &res, &resLen);
+         ok = funcs->send(chan, data, dataLen, &rpcStatus, &res, &resLen);
          goto done;
       }
 
@@ -896,6 +922,8 @@ done:
 
    if (result != NULL) {
       *result = res;
+   } else {
+      free(res);
    }
    if (resultLen != NULL) {
       *resultLen = resLen;
@@ -903,7 +931,7 @@ done:
 
 exit:
    g_static_mutex_unlock(&chan->outLock);
-   return ok;
+   return ok && rpcStatus;
 }
 
 

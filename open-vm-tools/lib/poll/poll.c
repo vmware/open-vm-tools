@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1067,7 +1067,6 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       /* Add and remove real time and main loop callbacks */
       cbLock = MXUser_CreateRecLock("pollUnitTestLock",
                                     RANK_pollUnitTestLock);
-      VERIFY(cbLock);
       rtDeleted = FALSE;
       Poll_Callback(POLL_CS_MAIN,
                     periodicFlag[oddIter],
@@ -1119,7 +1118,6 @@ PollAddRemoveCBThread(void *clientData)  // IN: unused
       /* Add and remove device callbacks */
       cbLock = MXUser_CreateRecLock("pollUnitTestLock",
                                     RANK_pollUnitTestLock);
-      VERIFY(cbLock);
       drDeleted = FALSE;
       Poll_Callback(POLL_CS_MAIN,
                     POLL_FLAG_SOCKET | POLL_FLAG_READ | periodicFlag[oddIter],
@@ -1942,7 +1940,6 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
          useLocking = TRUE;
          cbLock = MXUser_CreateRecLock("pollUnitTestLock",
                                        RANK_pollUnitTestLock);
-         VERIFY(cbLock);
 
    #ifdef _WIN32
          /* Discard sockets used in connect test and re-create them. */
@@ -2063,7 +2060,6 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
          /* The previous test may have destroyed the lock. */
          cbLock = MXUser_CreateRecLock("pollUnitTestLock",
                                        RANK_pollUnitTestLock);
-         VERIFY(cbLock);
       }
       deviceEv0Count = 0;
       deviceEv1Count = 0;

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,9 +24,11 @@
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <glib.h>
 #include "debug.h"
 #include "syncDriverInt.h"
 #include "syncDriverIoc.h"
+#include "strutil.h"
 #include "util.h"
 
 #define SYNC_PROC_PATH "/proc/driver/vmware-sync"
@@ -89,7 +91,7 @@ VmSyncClose(SyncDriverHandle handle)
  * Opens a description to the driver's proc node, and if successful, send an
  * ioctl to freeze the requested filesystems.
  *
- * @param[in]  paths    Paths to freeze (colon-delimited).
+ * @param[in]  paths    List of paths to freeze.
  * @param[out] handle   Where to store the handle to use for thawing.
  *
  * @return A SyncDriverErr.
@@ -98,17 +100,39 @@ VmSyncClose(SyncDriverHandle handle)
  */
 
 SyncDriverErr
-VmSync_Freeze(const char *paths,
+VmSync_Freeze(const GSList *paths,
               SyncDriverHandle *handle)
 {
    int file;
+   Bool first = TRUE;
+   char *allPaths = NULL;
    VmSyncDriver *sync = NULL;
 
-   Debug(LGPFX "Freezing %s using vmsync driver...\n", paths);
+   Debug(LGPFX "Freezing using vmsync driver...\n");
 
    file = open(SYNC_PROC_PATH, O_RDONLY);
    if (file == -1) {
       return SD_UNAVAILABLE;
+   }
+
+   /*
+    * Ensure we did not get an empty list
+    */
+   VERIFY(paths != NULL);
+
+   /*
+    * Concatenate all paths in the list into one string
+    */
+   while (paths != NULL) {
+      if (!first) {
+         /*
+          * Append the separator (':')
+          */
+         StrUtil_SafeStrcat(&allPaths, ":");
+      }
+      StrUtil_SafeStrcat(&allPaths, paths->data);
+      first = FALSE;
+      paths = g_slist_next(paths);
    }
 
    sync = calloc(1, sizeof *sync);
@@ -120,7 +144,9 @@ VmSync_Freeze(const char *paths,
    sync->driver.close = VmSyncClose;
    sync->fd = file;
 
-   if (ioctl(file, SYNC_IOC_FREEZE, paths) == -1) {
+   Debug(LGPFX "Freezing %s using vmsync driver...\n", allPaths);
+
+   if (ioctl(file, SYNC_IOC_FREEZE, allPaths) == -1) {
       free(sync);
       sync = NULL;
    }
@@ -133,6 +159,7 @@ exit:
    } else {
       *handle = &sync->driver;
    }
+   free(allPaths);
    return sync != NULL ? SD_SUCCESS : SD_ERROR;
 }
 

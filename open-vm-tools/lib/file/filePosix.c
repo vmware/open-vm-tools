@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,6 +67,10 @@
 #include "hostType.h"
 #include "vmfs.h"
 #include "hashTable.h"
+
+#ifdef VMX86_SERVER
+#include "fs_public.h"
+#endif
 
 #define LOGLEVEL_MODULE main
 #include "loglevel_user.h"
@@ -499,7 +503,7 @@ File_Cwd(const char *drive)  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * FileStripFwdSlashes --
+ * File_StripFwdSlashes --
  *
  *      Returns a new string with the extraneous forward slashes ("/") removed.
  *
@@ -512,8 +516,8 @@ File_Cwd(const char *drive)  // IN:
  *----------------------------------------------------------------------
  */
 
-static char *
-FileStripFwdSlashes(const char *pathName)  // IN:
+char *
+File_StripFwdSlashes(const char *pathName)  // IN:
 {
    char *ptr;
    char *path;
@@ -594,7 +598,7 @@ File_FullPath(const char *pathName)  // IN:
    } else if (File_IsFullPath(pathName)) {
        ret = Posix_RealPath(pathName);
        if (ret == NULL) {
-          ret = FileStripFwdSlashes(pathName);
+          ret = File_StripFwdSlashes(pathName);
        }
    } else {
       char *path = Unicode_Join(cwd, DIRSEPS, pathName, NULL);
@@ -602,7 +606,7 @@ File_FullPath(const char *pathName)  // IN:
       ret = Posix_RealPath(path);
 
       if (ret == NULL) {
-         ret = FileStripFwdSlashes(path);
+         ret = File_StripFwdSlashes(path);
       }
       free(path);
    }
@@ -633,8 +637,7 @@ Bool
 File_IsFullPath(const char *pathName)  // IN:
 {
    /* start with a slash? */
-   return (pathName == NULL) ? FALSE :
-                               Unicode_StartsWith(pathName, DIRSEPS);
+   return pathName != NULL && pathName[0] == DIRSEPC;
 }
 
 
@@ -1493,6 +1496,55 @@ Bool
 File_SupportsMultiWriter(const char *pathName)  // IN:
 {
    return FileIsVMFS(pathName);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_SupportsOptimisticLock --
+ *
+ *      Return TRUE if the given file is on an FS that supports the
+ *      FILEIO_OPEN_OPTIMISTIC_LOCK flag (only VMFS).
+ *
+ * Results:
+ *      See above.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_SupportsOptimisticLock(const char *pathName)  // IN:
+{
+#ifdef VMX86_SERVER
+   uint16 fsTypeNum;
+   char *dir;
+   char *tempPath = NULL;
+   const char *fullPath;
+   int res;
+
+   /*
+    * File_GetVMFSFSType works much faster on directories, so get the
+    * directory.
+    */
+   if (!File_IsFullPath(pathName)) {
+      tempPath = File_FullPath(pathName);
+      fullPath = tempPath;
+   } else {
+      fullPath = pathName;
+   }
+   File_GetPathName(fullPath, &dir, NULL);
+   res = File_GetVMFSFSType(dir, -1, &fsTypeNum);
+   free(tempPath);
+   free(dir);
+
+   return (res == 0) ? IS_VMFS_FSTYPENUM(fsTypeNum) : FALSE;
+#else
+   return FALSE;
+#endif
 }
 
 

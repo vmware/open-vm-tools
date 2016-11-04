@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -57,6 +57,7 @@
 
 #define G_LOG_DOMAIN  "vix"
 #include <glib.h>
+#include <glib/gstdio.h>
 
 #include "vixPluginInt.h"
 #include "vmware/tools/utils.h"
@@ -80,6 +81,7 @@
 #include "vixToolsInt.h"
 
 #if defined(linux)
+#include "mntinfo.h"
 #include "hgfsDevLinux.h"
 #endif
 
@@ -174,7 +176,7 @@ FoundryToolsDaemonRunProgram(RpcInData *data) // IN
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
-   ProcMgr_Pid pid;
+   ProcMgr_Pid pid = -1;
    GMainLoop *eventQueue = ((ToolsAppCtx *)data->appCtx)->mainLoop;
 
    /*
@@ -723,14 +725,81 @@ ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
 #endif
 
 
+#if defined(linux)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ToolsDaemonCheckMountedHGFS --
+ *
+ *    Check if the HGFS file system is already mounted.
+ *
+ * Return value:
+ *    VIX_OK and vmhgfsMntFound is TRUE if mounted or FALSE if not.
+ *    set VixError otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+ToolsDaemonCheckMountedHGFS(Bool isFuseEnabled,      // IN:
+                            Bool *vmhgfsMntFound)    // OUT: HGFS is mounted
+{
+   MNTHANDLE mtab;
+   DECLARE_MNTINFO(mnt);
+   const char *fsName;
+   const char *fsType;
+   VixError err = VIX_OK;
+
+   if ((mtab = OPEN_MNTFILE("r")) == NULL) {
+      err = VIX_E_FAIL;
+      g_warning("%s: ERROR: opening mounted file system table -> %d\n", __FUNCTION__, errno);
+      goto exit;
+   }
+
+   *vmhgfsMntFound = FALSE;
+   if (isFuseEnabled) {
+      fsName = HGFS_FUSENAME;
+      fsType = HGFS_FUSETYPE;
+   } else {
+      fsName = ".host:/";
+      fsType = HGFS_NAME;
+   }
+   while (GETNEXT_MNTINFO(mtab, mnt)) {
+      if ((strcmp(MNTINFO_NAME(mnt), fsName) == 0) &&
+            (strcmp(MNTINFO_FSTYPE(mnt), fsType) == 0) &&
+            (strcmp(MNTINFO_MNTPT(mnt), HGFS_MOUNT_POINT) == 0)) {
+         *vmhgfsMntFound = TRUE;
+         g_debug("%s: mnt fs \"%s\" type \"%s\" dir \"%s\"\n", __FUNCTION__,
+                  MNTINFO_NAME(mnt), MNTINFO_FSTYPE(mnt), MNTINFO_MNTPT(mnt));
+         break;
+      }
+   }
+   CLOSE_MNTFILE(mtab);
+
+exit:
+   return err;
+}
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
  * ToolsDaemonTcloMountHGFS --
  *
+ *    Mount the HGFS file system.
+ *
+ *    This will do nothing if the file system is already mounted. In some cases
+ *    it might be necessary to create the mount path too.
  *
  * Return value:
- *    VixError
+ *    TRUE always and VixError status for the RPC call reply.
+ *    VIX_OK if mount succeeded or was already mounted
+ *    VIX_E_FAIL if we couldn't check the mount was available
+ *    VIX_E_HGFS_MOUNT_FAIL if the mount operation itself failed
  *
  * Side effects:
  *    None
@@ -747,85 +816,91 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
 #if defined(linux)
 #define MOUNT_PATH_BIN       "/bin/mount"
 #define MOUNT_PATH_USR_BIN   "/usr" MOUNT_PATH_BIN
-#define MOUNT_HGFS_ARGS      " -t vmhgfs .host:/ /mnt/hgfs"
+#define MOUNT_HGFS_PATH      "/mnt/hgfs"
+#define MOUNT_HGFS_ARGS      " -t vmhgfs .host:/ " MOUNT_HGFS_PATH
 
    /*
     * Look for a vmhgfs mount at /mnt/hgfs. If one exists, nothing
     * else needs to be done.  If one doesn't exist, then mount at
     * that location.
     */
-   FILE *mtab;
-   struct mntent *mnt;
+   ProcMgr_ProcArgs vmhgfsExecProcArgs;
+   Bool execRes;
+   const char *mountCmd = NULL;
    Bool isFuseEnabled = TRUE;
+   Bool vmhgfsMntFound = FALSE;
+   Bool vmhgfsMntPointCreated = FALSE;
    int ret;
 
-   ret = system("/usr/bin/vmhgfs-fuse --enabled");
-   if (ret != 0 || WIFSIGNALED(ret) ||
-         (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
-      g_warning("%s: vmhgfs-fuse -> %d\n", __FUNCTION__, ret);
+   vmhgfsExecProcArgs.envp = NULL;
+   vmhgfsExecProcArgs.workingDirectory = NULL;
+
+   execRes = ProcMgr_ExecSync("/usr/bin/vmhgfs-fuse --enabled", &vmhgfsExecProcArgs);
+   if (!execRes) {
+      g_warning("%s: vmhgfs-fuse -> not available\n", __FUNCTION__);
       isFuseEnabled = FALSE;
    }
 
-   if ((mtab = setmntent(_PATH_MOUNTED, "r")) == NULL) {
-      err = VIX_E_FAIL;
+   err = ToolsDaemonCheckMountedHGFS(isFuseEnabled, &vmhgfsMntFound);
+   if (err != VIX_OK) {
+      goto exit;
+   }
+
+   if (vmhgfsMntFound) {
+      g_message("%s: vmhgfs already mounted\n", __FUNCTION__);
+      goto exit;
+   }
+
+   /* Verify that mount point exists, if not create it. */
+   ret = g_access(MOUNT_HGFS_PATH, F_OK);
+   if (ret != 0) {
+      g_message("%s: no mount point found, create %s\n", __FUNCTION__, MOUNT_HGFS_PATH);
+      ret = g_mkdir_with_parents(MOUNT_HGFS_PATH, 0755);
+      if (ret != 0) {
+         err = VIX_E_HGFS_MOUNT_FAIL;
+         g_warning("%s: ERROR: vmhgfs mount point creation -> %d\n", __FUNCTION__, errno);
+         goto exit;
+      }
+      vmhgfsMntPointCreated = TRUE;
+   }
+
+   /* Do the HGFS mount. */
+   if (isFuseEnabled) {
+      mountCmd = "/usr/bin/vmhgfs-fuse .host:/ /mnt/hgfs -o subtype=vmhgfs-fuse,allow_other";
    } else {
-      Bool vmhgfsMntFound = FALSE;
-      char *fsName;
-      char *fsType;
-      if (isFuseEnabled) {
-         fsName = HGFS_FUSENAME;
-         fsType = HGFS_FUSETYPE;
+      /*
+       * We need to call the mount program, not the mount system call. The
+       * mount program does several additional things, like compute the mount
+       * options from the contents of /etc/fstab, and invoke custom mount
+       * programs like the one needed for HGFS.
+       */
+      ret = g_access(MOUNT_PATH_USR_BIN, F_OK);
+      if (ret == 0) {
+         mountCmd = MOUNT_PATH_USR_BIN MOUNT_HGFS_ARGS;
       } else {
-         fsName = ".host:/";
-         fsType = HGFS_NAME;
-      }
-      while ((mnt = getmntent(mtab)) != NULL) {
-         if ((strcmp(mnt->mnt_fsname, fsName) == 0) &&
-               (strcmp(mnt->mnt_type, fsType) == 0) &&
-               (strcmp(mnt->mnt_dir, HGFS_MOUNT_POINT) == 0)) {
-            vmhgfsMntFound = TRUE;
-            g_debug("%s: mnt fs %s type %s dir %s\n", __FUNCTION__,
-                     mnt->mnt_fsname, mnt->mnt_type, mnt->mnt_dir);
-            break;
-         }
-      }
-      endmntent(mtab);
-
-      if (!vmhgfsMntFound) {
-         int ret;
-
-         if (isFuseEnabled) {
-            ret =
-               system("/usr/bin/vmhgfs-fuse .host:/ /mnt/hgfs -o subtype=vmhgfs-fuse,allow_other");
+         ret = g_access(MOUNT_PATH_BIN, F_OK);
+         if (ret == 0) {
+            mountCmd = MOUNT_PATH_BIN MOUNT_HGFS_ARGS;
          } else {
-            const char *mountCmd = NULL;
-
-            ret = access(MOUNT_PATH_USR_BIN, F_OK);
-            if (ret == 0) {
-               mountCmd = MOUNT_PATH_USR_BIN MOUNT_HGFS_ARGS;
-            } else {
-               ret = access(MOUNT_PATH_BIN, F_OK);
-               if (ret == 0) {
-                  mountCmd = MOUNT_PATH_BIN MOUNT_HGFS_ARGS;
-               } else {
-                  g_warning("%s: failed to find mount -> %d\n", __FUNCTION__, errno);
-               }
-            }
-            if (ret == 0) {
-               /*
-                * We need to call the mount program, not the mount system call. The
-                * mount program does several additional things, like compute the mount
-                * options from the contents of /etc/fstab, and invoke custom mount
-                * programs like the one needed for HGFS.
-                */
-               g_debug("%s: system: %s\n", __FUNCTION__, mountCmd);
-               ret = system(mountCmd);
-            }
-         }
-         if (ret == -1 || WIFSIGNALED(ret) ||
-               (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
+            g_warning("%s: failed to find mount -> %d\n", __FUNCTION__, errno);
             err = VIX_E_HGFS_MOUNT_FAIL;
-            g_warning("%s: vmhgfs mounting -> %d\n", __FUNCTION__, ret);
+            goto exit;
+         }
+      }
+   }
+
+   g_debug("%s: Mounting: %s\n", __FUNCTION__, mountCmd);
+   execRes = ProcMgr_ExecSync(mountCmd, &vmhgfsExecProcArgs);
+   if (!execRes) {
+      err = VIX_E_HGFS_MOUNT_FAIL;
+      g_warning("%s: ERROR: no vmhgfs mount\n", __FUNCTION__);
+   }
+exit:
+   if (err != VIX_OK) {
+      if (vmhgfsMntPointCreated) {
+         ret = g_rmdir(MOUNT_HGFS_PATH);
+         if (ret != 0) {
+            g_warning("%s: vmhgfs mount point not deleted %d\n", __FUNCTION__, errno);
          }
       }
    }

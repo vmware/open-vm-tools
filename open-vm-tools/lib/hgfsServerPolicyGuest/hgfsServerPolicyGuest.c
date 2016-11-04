@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -675,63 +675,4 @@ HgfsServerPolicy_GetShareMode(char const *nameIn,        // IN: Share name to re
    }
 
    return HGFS_NAME_STATUS_COMPLETE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsServerPolicy_CheckMode --
- *
- *    Checks if the requested mode may be granted depending on read/write permissions.
- *
- * Results:
- *    TRUE if the requested mode can be granted, FALSE otherwise.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-HgfsServerPolicy_CheckMode(HgfsOpenMode mode,          // IN: mode to check
-                           Bool writePermissions,      // IN: callers write permissions
-                           Bool readPermissions)       // IN: callers read permissions
-{
-   /*
-    * See if access is allowed in the requested mode.
-    *
-    * XXX Yeah, this is retarded. We should be using bits instead of
-    * an enum for HgfsOpenMode. Add it to the todo list. [bac]
-    */
-   switch (HGFS_OPEN_MODE_ACCMODE(mode)) {
-   case HGFS_OPEN_MODE_READ_ONLY:
-      if (!readPermissions) {
-         LOG(4, ("HgfsServerPolicyCheckMode: Read access denied\n"));
-         return FALSE;
-      }
-      break;
-
-   case HGFS_OPEN_MODE_WRITE_ONLY:
-      if (!writePermissions) {
-         LOG(4, ("HgfsServerPolicyCheckMode: Write access denied\n"));
-         return FALSE;
-      }
-      break;
-
-   case HGFS_OPEN_MODE_READ_WRITE:
-      if (!readPermissions || !writePermissions) {
-         LOG(4, ("HgfsServerPolicyCheckMode: Read/write access denied\n"));
-         return FALSE;
-      }
-      break;
-
-   default:
-      LOG(0, ("HgfsServerPolicyCheckMode: Invalid mode\n"));
-      ASSERT(FALSE);
-      return FALSE;
-   }
-
-   return TRUE;
 }

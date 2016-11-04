@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -68,5 +68,7 @@ void StrUtil_SafeStrcatFV(char **prefix, const char *fmt, va_list args);
 void StrUtil_SafeStrcatF(char **prefix, const char *fmt, ...) PRINTF_DECL(2, 3);
 
 char *StrUtil_TrimWhitespace(const char *str);
+
+char *StrUtil_ReplaceAll(const char *orig, const char *what, const char *with);
 
 #endif /* STRUTIL_H */

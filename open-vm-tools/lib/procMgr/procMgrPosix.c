@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -129,40 +129,14 @@ static Bool ProcMgrKill(pid_t pid,
 static int ProcMgrGetCommandLineArgs(long pid,
                                      DynBuf *argsBuf,
                                      char **procCmdName);
+
+Bool ProcMgr_PromoteEffectiveToReal(void);
 #endif
 
 #ifdef sun
 #define  BASH_PATH "/usr/bin/bash"
 #else
 #define  BASH_PATH "/bin/bash"
-#endif
-
-#if defined(linux) && !defined(GLIBC_VERSION_23) && !defined(__UCLIBC__)
-/*
- * Implements the system calls (they are not wrapped by glibc til 2.3.2).
- *
- * The _syscall3 macro from the Linux kernel headers is not PIC-safe.
- * See: http://bugzilla.kernel.org/show_bug.cgi?id=7302
- *
- * (In fact, newer Linux kernels don't even define _syscall macros anymore.)
- */
-
-static INLINE int
-setresuid(uid_t ruid,
-          uid_t euid,
-          uid_t suid)
-{
-   return syscall(__NR_setresuid, ruid, euid, suid);
-}
-
-
-static INLINE int
-setresgid(gid_t ruid,
-          gid_t euid,
-          gid_t suid)
-{
-   return syscall(__NR_setresgid, ruid, euid, suid);
-}
 #endif
 
 
@@ -1375,6 +1349,21 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
        * Child
        */
 
+#ifdef __APPLE__
+      /*
+       * On OS X with security fixes, we cannot revert the real uid if
+       * its changed, so only the effective uid is changed.  But for
+       * running programs we need both.  See comments for
+       * ProcMgr_ImpersonateUserStart() for details.
+       *
+       * If it fails, bail since its a security issue if real uid is still
+       * root.
+       */
+      if (!ProcMgr_PromoteEffectiveToReal()) {
+         Panic("%s: Could not set real uid to effective\n", __FUNCTION__);
+      }
+#endif
+
       if (NULL != workDir) {
          if (chdir(workDir) != 0) {
             Warning("%s: Could not chdir(%s) %s\n", __FUNCTION__, workDir,
@@ -1494,7 +1483,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
    ProcMgr_AsyncProc *asyncProc = NULL;
    pid_t pid;
    int fds[2];
-   Bool validExitCode;
+   Bool validExitCode = FALSE;
    int exitCode;
    pid_t resultPid;
    int readFd, writeFd;
@@ -2046,6 +2035,15 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
  *      The user name should be UTF-8 encoded, although we do not enforce
  *      it right now.
  *
+ *      Note that for OS X, we cannot set real uid.  Until a security
+ *      patch for 10.10.3 (https://support.apple.com/en-us/HT204659)
+ *      it worked, but since the patch once the real user has been
+ *      changed, it cannot be restored.  So for OS X we set just
+ *      the effective uid. This requires additional tweaks in
+ *      ProcMgr_ExecAsync() to call ProcMgr_PromoteEffectiveToReal(),
+ *      and preventing kill(2) from being called since it looks at
+ *      the real uid.
+ *
  *      Assumes it will be called as root.
  *
  * Results:
@@ -2107,7 +2105,7 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
 #if defined(USERWORLD)
    ret = Id_SetREGid(ppw->pw_gid, ppw->pw_gid);
 #elif defined(__APPLE__)
-   ret = setregid(ppw->pw_gid, ppw->pw_gid);
+   ret = setegid(ppw->pw_gid);
 #else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, root_gid);
 #endif
@@ -2126,7 +2124,7 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
 #if defined(USERWORLD)
    ret = Id_SetREUid(ppw->pw_uid, ppw->pw_uid);
 #elif defined(__APPLE__)
-   ret = setreuid(ppw->pw_uid, ppw->pw_uid);
+   ret = seteuid(ppw->pw_uid);
 #else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
 #endif
@@ -2188,7 +2186,7 @@ ProcMgr_ImpersonateUserStop(void)
 #if defined(USERWORLD)
    ret = Id_SetREUid(ppw->pw_uid, ppw->pw_uid);
 #elif defined(__APPLE__)
-   ret = setreuid(ppw->pw_uid, ppw->pw_uid);
+   ret = seteuid(ppw->pw_uid);
 #else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
 #endif
@@ -2201,7 +2199,7 @@ ProcMgr_ImpersonateUserStop(void)
 #if defined(USERWORLD)
    ret = Id_SetREGid(ppw->pw_gid, ppw->pw_gid);
 #elif defined(__APPLE__)
-   ret = setregid(ppw->pw_gid, ppw->pw_gid);
+   ret = setegid(ppw->pw_gid);
 #else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, ppw->pw_gid);
 #endif
@@ -2224,6 +2222,51 @@ ProcMgr_ImpersonateUserStop(void)
 
    return TRUE;
 }
+
+
+#ifdef __APPLE__
+/*
+ *----------------------------------------------------------------------
+ *
+ * ProcMgr_PromoteEffectiveToReal --
+ *
+ *      Sets the processes real uid and gid to match the effective.
+ *      Once done, it cannot be undone.
+ *
+ *      See the commentary in ProcMgr_ImpersonateUserStart() for
+ *      why this is needed.
+ *
+ * Results:
+ *      TRUE on success
+ *
+ * Side effects:
+ *       Real uid is now effective.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+ProcMgr_PromoteEffectiveToReal(void)
+{
+   int ret;
+   uid_t uid = geteuid();
+   gid_t gid = getegid();
+
+   ret = setregid(gid, gid);
+   if (ret < 0) {
+      Warning("Failed to setregid(%d) %d\n", gid, errno);
+      return FALSE;
+   }
+   ret = setreuid(uid, uid);
+   if (ret < 0) {
+      Warning("Failed to setreuid(%d) %d\n", uid, errno);
+      return FALSE;
+   }
+
+   return TRUE;
+}
+#endif   // __APPLE__
+
 
 /*
  *----------------------------------------------------------------------

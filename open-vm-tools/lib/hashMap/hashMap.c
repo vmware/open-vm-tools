@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -161,10 +161,10 @@ INLINE void EnsureSanity(HashMap *map);
  * ----------------------------------------------------------------------------
  */
 
+#ifdef VMX86_DEBUG
 static INLINE Bool
 CheckSanity(HashMap *map)
 {
-#ifdef VMX86_DEBUG
    uint32 i, cnt = 0;
 
    ASSERT(map);
@@ -192,9 +192,9 @@ CheckSanity(HashMap *map)
    if (!map->numEntries) {
       return FALSE;
    }
-#endif
    return TRUE;
 }
+#endif
 
 /*
  * ----------------------------------------------------------------------------
@@ -537,221 +537,6 @@ HashMap_Count(struct HashMap *map) // IN
 {
    return map->count;
 }
-
-
-#ifdef VMX86_SERVER
-/*
- * ----------------------------------------------------------------------------
- *
- * HashMap_Store --
- *
- *    Write the contents of the HashMap to the given AIOhandle
- *
- * Results:
- *    The number of bytes written on success -1 on error
- *
- * Side Effects:
- *    None.
- *
- * ----------------------------------------------------------------------------
- */
-
-uint64
-HashMap_Store(struct HashMap *map,       // IN
-              void           *h,         // IN
-              uint64    startByteOffset) // IN
-{
-   AIOHandle *handle = (AIOHandle *)h;
-   AIOMgrError aioErr;
-   struct iovec vec;
-   uint64 numBytes;
-   struct HashMapOnDisk hashMapOnDisk;
-
-   hashMapOnDisk.numEntries = map->numEntries;
-   hashMapOnDisk.count = map->count;
-   hashMapOnDisk.alpha = map->alpha;
-   hashMapOnDisk.keySize = map->keySize;
-   hashMapOnDisk.dataSize = map->dataSize;
-   hashMapOnDisk.entrySize = map->entrySize;
-   hashMapOnDisk.keyOffset = map->keyOffset;
-   hashMapOnDisk.dataOffset = map->dataOffset;
-
-   /*
-    * write map
-    */
-   vec.iov_base = (void *)&hashMapOnDisk;
-   vec.iov_len = sizeof hashMapOnDisk;
-   numBytes = vec.iov_len;
-
-   aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_WRITE, startByteOffset, numBytes,
-                         AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL);
-   ASSERT(!AIOMgr_IsAsync(aioErr));
-   if (!AIOMgr_IsSuccess(aioErr)) {
-      return -1;
-   }
-
-   /*
-    * write map entries
-    */
-   vec.iov_base = (void *)map->entries;
-   vec.iov_len = map->numEntries * map->entrySize;
-
-   aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_WRITE,
-                         startByteOffset + numBytes, vec.iov_len,
-                         AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL);
-   ASSERT(!AIOMgr_IsAsync(aioErr));
-   if (!AIOMgr_IsSuccess(aioErr)) {
-      return -1;
-   }
-
-   return numBytes + (map->numEntries * map->entrySize);
-}
-
-
-/*
- * ----------------------------------------------------------------------------
- *
- * HashMap_Retrieve --
- *
- *    Read the contents of the HashMap from the given AIOhandle
- *
- * Results:
- *    The allocated map
- *
- * Side Effects:
- *    None.
- *
- * ----------------------------------------------------------------------------
- */
-struct HashMap *
-HashMap_Retrieve(void      *h,         // IN
-                 uint32    numEntries,      // IN
-                 uint64    startByteOffset, // IN
-                 uint64    *retNumBytes)    // OUT
-{
-   AIOMgrError aioErr = AIOMgr_MakeError(AIOERR_RDONLY, 0);
-   struct iovec vec;
-   uint64 numBytes;
-   struct HashMap *map;
-   struct HashMapOnDisk hashMapOnDisk;
-   AIOHandle *handle = (AIOHandle *)h;
-
-   map = calloc(1, sizeof *map);
-
-   /*
-    * read map
-    */
-   vec.iov_base = (void *)&hashMapOnDisk;
-   vec.iov_len = sizeof hashMapOnDisk;
-   numBytes = vec.iov_len;
-   if (handle) {
-      aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_READ, startByteOffset,
-                            numBytes, AIOMGR_INVALID_IO_REQUEST_ID, NULL,
-                            NULL);
-      ASSERT(!AIOMgr_IsAsync(aioErr));
-   }
-
-   if (!AIOMgr_IsSuccess(aioErr)) {
-      free(map);
-      map = HashMap_AllocMapAlpha(numEntries, 1, sizeof(int32), sizeof(int32));
-      *retNumBytes = sizeof(hashMapOnDisk) + (map->numEntries * map->entrySize);
-      return map;
-   }
-
-   if (!hashMapOnDisk.numEntries) {
-      free(map);
-      map = HashMap_AllocMapAlpha(numEntries, 1, sizeof(int32), sizeof(int32));
-      *retNumBytes = sizeof(hashMapOnDisk) + (map->numEntries * map->entrySize);
-      return map;
-   }
-
-   map->numEntries = hashMapOnDisk.numEntries;
-   map->count = hashMapOnDisk.count;
-   map->alpha = hashMapOnDisk.alpha;
-   map->keySize = hashMapOnDisk.keySize;
-   map->dataSize = hashMapOnDisk.dataSize;
-   map->entrySize = hashMapOnDisk.entrySize;
-   map->keyOffset = hashMapOnDisk.keyOffset;
-   map->dataOffset = hashMapOnDisk.dataOffset;
-
-   /*
-    * read map entries
-    */
-   map->entries = calloc(map->numEntries, map->entrySize);
-   vec.iov_base = (void *)map->entries;
-   vec.iov_len = map->numEntries * map->entrySize;
-   ASSERT(handle);
-   aioErr = AIOMgr_Queue(*handle, &vec, 1, OP_READ,
-                         startByteOffset + numBytes, vec.iov_len,
-                         AIOMGR_INVALID_IO_REQUEST_ID, NULL, NULL);
-   ASSERT(!AIOMgr_IsAsync(aioErr));
-   if (!AIOMgr_IsSuccess(aioErr)) {
-      free(map->entries);
-      free(map);
-      return NULL;
-   }
-
-   *retNumBytes = numBytes + (map->numEntries * map->entrySize);
-   if (!CheckSanity(map)) {
-      free(map->entries);
-      free(map);
-      return NULL;
-   }
-   return map;
-}
-
-#else
-
-/*
- * ----------------------------------------------------------------------------
- *
- * HashMap_Store --
- *
- *    Stub for non server targets
- *
- * Results:
- *    None
- *
- * Side Effects:
- *    None.
- *
- * ----------------------------------------------------------------------------
- */
-uint64
-HashMap_Store(struct HashMap *map,       // IN
-              void           *h,         // IN
-              uint64    startByteOffset) // IN
-{
-   ASSERT(0);
-   return -1;
-}
-
-
-/*
- * ----------------------------------------------------------------------------
- *
- * HashMap_Retrieve --
- *
- *    Stub for non-server targets
- *
- * Results:
- *    None
- *
- * Side Effects:
- *    None.
- *
- * ----------------------------------------------------------------------------
- */
-struct HashMap *
-HashMap_Retrieve(void      *h,              // IN
-                 uint32    numEntries,      // IN
-                 uint64    startByteOffset, // IN
-                 uint64    *retNumBytes)    // OUT
-{
-   ASSERT(0);
-   return NULL;
-}
-#endif
 
 
 /*

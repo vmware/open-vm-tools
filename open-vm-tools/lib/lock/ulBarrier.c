@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -127,29 +127,8 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
    }
 
    barrier->lock = MXUser_CreateExclLock(properName, rank);
-
-   if (barrier->lock == NULL) {
-      free(properName);
-      free(barrier);
-
-      return NULL;
-   }
-
-
    barrier->contexts[0].condVar = MXUser_CreateCondVarExclLock(barrier->lock);
    barrier->contexts[1].condVar = MXUser_CreateCondVarExclLock(barrier->lock);
-
-   if ((barrier->contexts[0].condVar == NULL) ||
-       (barrier->contexts[1].condVar == NULL)) {
-      MXUser_DestroyCondVar(barrier->contexts[0].condVar);
-      MXUser_DestroyCondVar(barrier->contexts[1].condVar);
-      MXUser_DestroyExclLock(barrier->lock);
-
-      free(properName);
-      free(barrier);
-
-      return NULL;
-   }
 
    barrier->configCount = count;
    barrier->curContext = 0;

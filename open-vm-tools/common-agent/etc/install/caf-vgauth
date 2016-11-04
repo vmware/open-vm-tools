@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+# Init file for the VMware CAF VgAuth Service
+#
+# chkconfig: 35 95 20
+# description: VMware Common Agent Framework VgAuth daemon
+#
+# processname: VGAuthService
+
+if [ -f /etc/rc.d/init.d/functions ]; then
+    . /etc/rc.d/init.d/functions
+elif [ -f /lib/lsb/init-functions ]; then
+    . /lib/lsb/init-functions
+    type success >/dev/null 2>/dev/null
+    if [ $? -ne 0 ]; then
+        success() {
+            echo -en "$@"
+            echo -e  "$rc_done"
+        }
+        failure() {
+            echo -en "$@"
+            echo -e  "$rc_failed"
+       }
+    fi
+fi
+
+progName="VMware CAF VgAuth"
+listenerName=VGAuthService
+prog="@binDir@/$listenerName"
+startScript="@scriptDir@/start-VGAuthService"
+stopScript="@scriptDir@/stop-VGAuthService"
+lockFile=/var/lock/subsys/caf-vgauth-service
+
+start()
+{
+	[ -x $startScript ] || exit 0
+	echo -n $"Starting $progName:"
+	msg="$progBase daemon startup"
+	"$startScript" && success "$msg" || failure "$msg"	
+	rc=$?
+	[ $rc -eq 0 ] && touch $lockFile
+	echo
+	return $rc
+}
+
+stop()
+{
+	echo -n $"Stoppping $progName:"
+	killproc $prog -TERM
+	rc=$?
+	[ -x $stopScript ] && $stopScript &&
+		[ $rc -ne 0 ] && [ -z "`pidof -x $prog`" ] && rc=0
+	[ $rc -eq 0 ] && rm -f $lockFile
+	echo
+	return $rc
+}
+
+restart()
+{
+	stop
+	sleep 2
+	start
+}
+
+condrestart()
+{
+	[ -e $lockFile ] && restart || :
+}
+
+case "$1" in
+	start)		start	;;
+	stop)		stop	;;
+	status)		status $prog	;;
+	restart)	restart	;;
+	condrestart)	condrestart	;;
+	*)
+		echo $"Usage: $0 {start|stop|status|condrestart|restart}"
+		exit 1
+esac
+
+exit $?

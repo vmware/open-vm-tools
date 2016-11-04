@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -18,7 +18,19 @@
 
 arg.command = "コマンド"
 
+arg.config.key = "設定キー"
+
+arg.config.operation = "設定操作"
+
+arg.config.section = "セクションの設定"
+
+arg.config.value = "設定値"
+
 arg.devicename = "デバイス名"
+
+arg.info.class = "情報カテゴリ情報"
+
+arg.info.subcommand = "操作情報"
 
 arg.logging.level = "ログ レベル"
 
@@ -80,19 +92,23 @@ error.novirtual = "%1$s は仮想マシン内で実行する必要がありま�
 
 error.unknown = "%1$s: 不明な %2$s '%3$s'\n"
 
+help.config = "%1$s: VMware Tools の設定を変更します\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド: \n   get <セクション> <キー>: <キー> の現在値を表示します\n   set <セクション> <キー> <値>: <キー> を <値> に設定します\n\n   remove <セクション> <キー>: <キー> を削除します\n\n<セクション> には、logging、guestoperations、または guestinfo などのサポートされる任意のセクションを指定できます。\n<キー> には、任意の構成キーを指定できます。\n<値> には任意の値を指定できます。\n"
+
 help.device = "%1$s: 仮想マシンのハードウェア デバイスに関連する機能\n使用方法： %2$s %3$s <サブコマンド> [引数]\ndev にはデバイス名を指定します。\n\nサブコマンド：\n   enable <デバイス>： デバイス dev を有効にする\n   disable <デバイス>： デバイス dev を無効にする\n   list： 有効なデバイスを一覧表示\n   status <デバイス>： デバイスのステータスを出力\n"
 
 help.disk = "%1$s: ディスク圧縮操作を実行\n使用方法: %2$s %3$s <サブコマンド> [引数]\n\nサブコマンド:\n   list: 使用可能な場所を一覧表示\n   shrink <場所>: 指定された場所のファイル システムをワイプおよび圧縮\n   shrinkonly: すべてのディスクを圧縮\n   wipe <場所>: 指定された場所のファイル システムをワイプ\n"
 
 help.hint = "詳細については、「%1$s %2$s%3$s%4$s」を参照してください。\n"
 
+help.info = "%1$s: ホストのゲスト情報を更新します\n使用方法: %2$s %3$s update <情報カテゴリ>\n\nサブコマンド:\n   update <情報カテゴリ>: <情報カテゴリ> で特定される情報を更新します\n<情報カテゴリ> には「network」を指定できます\n"
+
 help.logging = "%1$s: Tools ログを変更します\n使用法: %2$s %3$s level <subcommand> <servicename> <level>\n\nサブコマンド:\n   <servicename> の取得: 現在のレベルを表示します\n   <servicename> <level> の設定: 現在のレベルを設定します\n\n<servicename> は、vmsvc や vmusr などサポートされているサービスを指定できます\n<level> は、エラー、クリティカル、警告、情報、メッセージ、デバッグのいずれかを指定できます\n   デフォルトは %4$s です\n"
 
-help.main = "使用方法: %1$s <コマンド> [オプション] [サブコマンド]\n特定のコマンドのヘルプについては、'%2$s %3$s <コマンド>' を入力します。\nVMware Tools のバージョンを確認するには、'%4$s -v' を入力します。\nstdout 出力を行わない場合は '-q' オプションを使用します。\nほとんどのコマンドでは、サブコマンドを使用します。\n\n使用可能なコマンド:\n   device\n   disk\n   logging\n   script\n   stat\n   timesync\n   upgrade (すべてのオペレーティング システムで使用できるわけではありません)\n"
+help.main = "使用方法: %1$s <コマンド> [オプション] [サブコマンド]\n「%2$s %3$s <コマンド>」と入力すると、そのコマンドのヘルプを表示できます。\nVMware Tools のバージョンを確認するには「%4$s -v」と入力します。.\nstdout 出力を抑止するには「-q」オプションを使用します。\nほとんどのコマンドではサブコマンドも使用されます。\n\n使用可能なコマンド: \n   config\n   device\n   disk（オペレーティング システムによっては使用できない場合もあります）\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade（オペレーティング システムによっては使用できない場合もあります）\n"
 
 help.script = "%1$s: 電源操作に対応して実行されるスクリプトを制御\n使用方法: %2$s %3$s <power|resume|suspend|shutdown> <サブコマンド> [引数]\n\nサブコマンド:\n   enable: 指定されたスクリプトを有効にして、そのパスをデフォルトに復元\n   disable: 指定されたスクリプトを無効にする\n   set <フル パス>: 指定されたスクリプトを指定されたパスに設定\n   default: 指定されたスクリプトのデフォルトのパスを出力\n   current: 指定されたスクリプトの現在のパスを出力\n"
 
-help.stat = "%1$s: 役に立つゲストおよびホスト情報を出力\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド:\n   hosttime: ホスト時刻を出力\n   speed: CPU 速度 (MHz) を出力\nESX ゲストのみのサブコマンド:\n   sessionid: 現在のセッション ID を出力\n   balloon: メモリのバルーニング情報を出力\n   swap: メモリのスワップ情報を出力\n   memlimit: メモリの制限情報を出力\n   memres: メモリの予約情報を出力\n   cpures: CPU の予約情報を出力\n   cpulimit: CPU の制限情報を出力\n"
+help.stat = "%1$s: 役に立つゲストおよびホスト情報を出力\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド:\n   hosttime: ホスト時刻を出力\n   speed: CPU 速度 (MHz) を出力\nESX ゲストのみのサブコマンド:\n   sessionid: 現在のセッション ID を出力\n   balloon: メモリのバルーニング情報を出力\n   swap: メモリのスワップ情報を出力\n   memlimit: メモリの制限情報を出力\n   memres: メモリの予約情報を出力\n   cpures: CPU の予約情報を出力\n   cpulimit: CPU の制限情報を出力\n   raw [<エンコーディング> <統計名>]: RAW 統計情報を出力\n      <エンコーディング> には、「text'」、「json」、「xml」、「yaml」のいずれかを指定できます。\n      <統計名> には、セッション、ホスト、リソース、vscsi および\n      vnet が含まれます（vscsi などのいくつかの統計は、たとえば「vscsi scsi0:0」など、2 語になります）。\n      <エンコーディング> および <統計名>\n      の引数が指定されない場合、利用可能な統計が出力されます。\n"
 
 help.timesync = "%1$s: ゲスト OS の時刻の同期を制御するための機能\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド:\n   enable: 時刻の同期を有効にする\n   disable: 時刻の同期を無効にする\n   status: 時刻の同期の状態を出力\n"
 
@@ -108,7 +124,7 @@ script.operation = "操作"
 
 script.unknownop = "操作 %1$s のスクリプトがありません。\n"
 
-script.write.error = "構成書き込みエラー: %1$s\n"
+script.write.error = "設定書き込みエラー: %1$s\n"
 
 stat.balloon.failed = "バルーン メモリの取得に失敗しました: %1$s\n"
 

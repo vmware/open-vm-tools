@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,18 +16,17 @@
  *
  *********************************************************/
 
+/*
+ * toolsDeployPkg.h --
+ *
+ *      Define constants & exported methods related to tools package deployment.
+ */
+
 #ifndef __TOOLS_DEPLOYPKG_H_
 #define __TOOLS_DEPLOYPKG_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
-
-
-/*
- * toolsDeployPkg.h 
- *
- *   -- Define constants & exported methods related to tools package deployment.
- */
 
 typedef enum {
    TOOLSDEPLOYPKG_IDLE = 0,
@@ -40,15 +39,40 @@ typedef enum {
 
 typedef enum {
    TOOLSDEPLOYPKG_ERROR_SUCCESS = 0,
-   TOOLSDEPLOYPKG_ERROR_NOT_SUPPORT,       // Old tools do not support opetion
-   TOOLSDEPLOYPKG_ERROR_PKG_NOT_FOUND,     // Specified pkg is not found
+   TOOLSDEPLOYPKG_ERROR_NOT_SUPPORT,       // Old tools do not support option.
+   TOOLSDEPLOYPKG_ERROR_PKG_NOT_FOUND,     // Specified pkg is not found.
    TOOLSDEPLOYPKG_ERROR_RPC_INVALID,
    TOOLSDEPLOYPKG_ERROR_COPY_FAILED,
    TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
 } ToolsDeployPkgError;
 
-Bool ToolsDeployPkg_PowerOn(void);
-void ToolsDeployPkg_Begin(void);
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * ToolsDeployPkg_PowerOn --
+ *
+ *      Tools callback for PowerOn.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+Bool
+ToolsDeployPkg_PowerOn(void);
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * ToolsDeployPkg_PowerOn --
+ *
+ *      Tools callback for Begin.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+void
+ToolsDeployPkg_Begin(void);
 
 #define QUERY_NICS_SUPPORTED  "queryNicsSupported"
 #define NICS_STATUS_CONNECTED "connected"

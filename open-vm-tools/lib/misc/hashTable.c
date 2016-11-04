@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -115,9 +115,9 @@ HashTableEntry *HashTableLookupOrInsert(HashTable *ht,
  *-----------------------------------------------------------------------------
  */
 
-static INLINE uint32
-HashTableComputeHash(HashTable *ht,  // IN: hash table
-                     const void *s)  // IN: string to hash
+static uint32
+HashTableComputeHash(const HashTable *ht,  // IN: hash table
+                     const void *s)        // IN: string to hash
 {
    uint32 h = 0;
 
@@ -186,10 +186,10 @@ HashTableComputeHash(HashTable *ht,  // IN: hash table
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Bool
-HashTableEqualKeys(HashTable *ht,     // IN: hash table
-                   const void *key1,  // IN: key
-                   const void *key2)  // IN: key
+static Bool
+HashTableEqualKeys(const HashTable *ht,  // IN: hash table
+                   const void *key1,     // IN: key
+                   const void *key2)     // IN: key
 {
    switch (ht->keyType) {
    case HASH_STRING_KEY:
@@ -432,9 +432,9 @@ HashTable_FreeUnsafe(HashTable *ht)  // IN/OUT:
  */
 
 static HashTableEntry *
-HashTableLookup(HashTable *ht,       // IN:
-                const void *keyStr,  // IN:
-                uint32 hash)         // IN:
+HashTableLookup(const HashTable *ht,  // IN:
+                const void *keyStr,   // IN:
+                uint32 hash)          // IN:
 {
    HashTableEntry *entry;
 
@@ -468,9 +468,9 @@ HashTableLookup(HashTable *ht,       // IN:
  */
 
 Bool
-HashTable_Lookup(HashTable  *ht,      // IN:
-                 const void *keyStr,  // IN:
-                 void **clientData)   // OUT/OPT:
+HashTable_Lookup(const HashTable  *ht, // IN:
+                 const void *keyStr,   // IN:
+                 void **clientData)    // OUT/OPT:
 {
    uint32 hash = HashTableComputeHash(ht, keyStr);
    HashTableEntry *entry = HashTableLookup(ht, keyStr, hash);

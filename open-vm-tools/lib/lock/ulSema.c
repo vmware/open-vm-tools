@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -487,9 +487,7 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
 
       MXUserAddToList(&sema->header);
    } else {
-      free(properName);
-      free(sema);
-      sema = NULL;
+      Panic("%s: native lock initialization routine failed\n", __FUNCTION__);
    }
 
    return sema;

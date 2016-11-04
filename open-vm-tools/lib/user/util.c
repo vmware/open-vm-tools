@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,11 +66,11 @@
 #include "su.h"
 #include "posix.h"
 #include "file.h"
-#include "util_shared.h"
 #include "escape.h"
 #include "base64.h"
 #include "unicode.h"
 #include "posix.h"
+#include "random.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -251,6 +251,124 @@ Util_HashString(const char *str)  // IN:
    }
 
    return hash;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  CRC_Compute --
+ *
+ *      computes the CRC of a block of data
+ *
+ * Results:
+ *
+ *      CRC code
+ *
+ * Side effects:
+ *      Sets up the crc table if it hasn't already been computed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+UtilCRCMakeTable(uint32 crcTable[])
+{
+   uint32 c;
+   int n, k;
+
+   for (n = 0; n < 256; n++) {
+      c = (uint32) n;
+      for (k = 0; k < 8; k++) {
+         if (c & 1) {
+            c = 0xedb88320L ^ (c >> 1);
+         } else {
+            c = c >> 1;
+         }
+      }
+      crcTable[n] = c;
+   }
+}
+
+static INLINE_SINGLE_CALLER uint32
+UtilCRCUpdate(uint32 crc,
+              const uint8 *buf,
+              int len)
+{
+   uint32 c = crc;
+   int n;
+   static uint32 crcTable[256];
+   static int crcTableComputed = 0;
+
+   if (!crcTableComputed) {
+      UtilCRCMakeTable(crcTable);
+
+      crcTableComputed = 1;
+   }
+
+   for (n = 0; n < len; n++) {
+      c = crcTable[(c ^ buf[n]) & 0xff] ^ (c >> 8);
+   }
+
+   return c;
+}
+
+uint32
+CRC_Compute(const uint8 *buf,
+            int len)
+{
+   return UtilCRCUpdate(0xffffffffL, buf, len) ^ 0xffffffffL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_FastRand --
+ *
+ *      Historical-name wrapper around Random_Simple.
+ *      Deprecated: use Random_Fast, or Random_Simple directly.
+ *
+ * Results:
+ *      A random number.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+uint32
+Util_FastRand(uint32 seed)
+{
+   return Random_Simple(seed);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_Throttle --
+ *
+ *   Use for throttling of warnings.
+ *
+ * Results:
+ *    Will return TRUE for an increasingly sparse set of counter values:
+ *    1, 2, ..., 100, 200, 300, ..., 10000, 20000, 30000, ..., .
+ *
+ * Side effects:
+ *   None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Util_Throttle(uint32 count)  // IN:
+{
+   return count <     100                          ||
+         (count <   10000 && count %     100 == 0) ||
+         (count < 1000000 && count %   10000 == 0) ||
+                             count % 1000000 == 0;
 }
 
 

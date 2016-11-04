@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -457,13 +457,7 @@ MXUser_CreateRWLock(const char *userName,  // IN:
 
       MXUserAddToList(&lock->header);
    } else {
-      if (lock->useNative) {
-         MXUserNativeRWDestroy(&lock->nativeLock);
-      }
-
-      free(properName);
-      free(lock);
-      lock = NULL;
+      Panic("%s: native lock initialization routine failed\n", __FUNCTION__);
    }
 
    return lock;

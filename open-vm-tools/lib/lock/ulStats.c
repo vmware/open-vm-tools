@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -91,7 +91,7 @@ MXUserAddToList(MXUserHeader *header)  // IN/OUT:
    if (listLock) {
       MXRecLockAcquire(listLock,
                        NULL);  // non-stats
-      LIST_QUEUE(&header->item, &mxUserLockList);
+      CircList_Queue(&header->item, &mxUserLockList);
       MXRecLockRelease(listLock);
    }
 }
@@ -122,7 +122,7 @@ MXUserRemoveFromList(MXUserHeader *header)  // IN/OUT:
    if (listLock) {
       MXRecLockAcquire(listLock,
                        NULL);  // non-stats
-      LIST_DEL(&header->item, &mxUserLockList);
+      CircList_DeleteItem(&header->item, &mxUserLockList);
       MXRecLockRelease(listLock);
    }
 }
@@ -1083,8 +1083,8 @@ MXUser_PerLockData(void)
 
       highestSerialNumber = lastReportedSerialNumber;
 
-      LIST_SCAN(entry, mxUserLockList) {
-         MXUserHeader *header = LIST_CONTAINER(entry, MXUserHeader, item);
+      CIRC_LIST_SCAN(entry, mxUserLockList) {
+         MXUserHeader *header = CIRC_LIST_CONTAINER(entry, MXUserHeader, item);
 
          /* Log the ID information for a lock that did exist previously */
          if (header->bits.serialNumber > lastReportedSerialNumber) {

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -103,6 +103,39 @@ Clamped_S64To32(int32 *out,  // OUT
 
    if (UNLIKELY(a != clamped)) {
       *out = a < 0 ? MIN_INT32 : MAX_INT32;
+      return FALSE;
+   }
+
+   *out = clamped;
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Clamped_S32To16 --
+ *
+ *      Convert signed 32-bit to 16-bit, clamping instead of truncating.
+ *
+ * Results:
+ *      On success, returns TRUE. If the result would have overflowed
+ *      and we clamped it to MAX_INT16 or MIN_INT16, returns FALSE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Clamped_S32To16(int16 *out,  // OUT
+                int32 a)     // IN
+{
+   int16 clamped = (int16)a;
+
+   if (UNLIKELY(a != clamped)) {
+      *out = a < 0 ? MIN_INT16 : MAX_INT16;
       return FALSE;
    }
 

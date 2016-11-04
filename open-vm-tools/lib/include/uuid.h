@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,7 +35,17 @@ extern "C"{
 
 #define UUID_SIZE 16
 #define UUID_STRSIZE (2*UUID_SIZE + 1)
-#define	UUID_MAXLEN 48
+#define UUID_MAXLEN 48
+
+/*
+ * ISO 11578 (now X.667 section 6.4) defines the canonical text format of a
+ * UUID, which looks like this example:
+ *
+ *    "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"
+ *
+ * It is always precisely 36 characters long (excluding terminating NUL).
+ */
+#define UUID_ISO_11578_LEN 36
 
 typedef enum {
    UUID_WITH_PATH = 0,
@@ -135,7 +145,7 @@ EFIGUID;
 
 Bool UUID_ConvertToBin(uint8 dest_id[UUID_SIZE], const char *text);
 char *UUID_ConvertToText(const uint8 id[UUID_SIZE]);
-
+void UUID_ConvertToTextBuf(const uint8 id[UUID_SIZE], char *buffer, size_t len);
 char *UUID_Create(const char *configFileFullPath, int schemeControl);
 char *UUID_CreateRandom(void);
 void UUID_CreateRandomRFC4122V4(UUIDRFC4122 *id);

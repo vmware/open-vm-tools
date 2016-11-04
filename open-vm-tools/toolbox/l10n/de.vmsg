@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -18,7 +18,19 @@
 
 arg.command = "Befehl"
 
+arg.config.key = "Konfigurationsschlüssel"
+
+arg.config.operation = "Konfigurationsvorgang"
+
+arg.config.section = "Konfigurationsabschnitt"
+
+arg.config.value = "Konfigurationswert"
+
 arg.devicename = "Gerätename"
+
+arg.info.class = "info-Infoklasse"
+
+arg.info.subcommand = "info-Vorgang"
 
 arg.logging.level = "Ebene der Protokollierung"
 
@@ -80,19 +92,23 @@ error.novirtual = "%1$s muss innerhalb einer virtuellen Maschine ausgeführt wer
 
 error.unknown = "%1$s: %2$s '%3$s' unbekannt\n"
 
+help.config = "%1$s: Tools-Konfiguration bearbeiten\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   get <Abschnitt> <Schlüssel>: Aktuellen Wert für <Schlüssel> anzeigen\n   set <Abschnitt> <Schlüssel> <Wert>: <Schlüssel> auf <Wert> einstellen\n\n   remove <Abschnitt> <Schlüssel>: <Schlüssel> entfernen\n\n<Abschnitt> kann ein beliebiger unterstützter Abschnitt sein, z. B. logging, guestoperations oder guestinfo.\n<Schlüssel> kann ein beliebiger Konfigurationsschlüssel sein.\n<Wert> kann ein beliebiger Wert sein.\n"
+
 help.device = "%1$s: Funktionen für die Hardwaregeräte der virtuellen Maschine\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\n'dev' ist der Name des Geräts.\n\nUnterbefehle:\n   enable <dev>: Aktivieren des Geräts 'dev' \n   disable <dev>: Deaktivieren des Geräts 'dev'\n   list: Auflisten aller verfügbaren Geräte\n   status <dev>: Ausgeben des Status eines Geräts\n"
 
 help.disk = "%1$s: Führt Verkleinerungen von Festplatten durch\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\n\nUnterbefehle:\n   list: Auflisten der verfügbaren Speicherorte\n   shrink <Speicherort>: Löschen und Verkleinern eines Dateisystems am angegebenen Speicherort\n   shrinkonly: Verkleinern alle Festplatten\n   wipe <Speicherort>: Löschen eines Dateisystems am angegebenen Speicherort\n"
 
 help.hint = "Siehe '%1$s %2$s%3$s%4$s' für weitere Informationen.\n"
 
+help.info = "%1$s: Aktualisieren von Gastbetriebssysteminformationen auf dem Host\nNutzung: %2$s %3$s update <Infoklasse>\n\nUnterbefehle:\n   update < Infoklasse >: Aktualisieren von durch <Infoklasse> ermittelte Informationen\n< Infoklasse > kann 'network' sein\n"
+
 help.logging = "%1$s: Toolsprotokollierung verändern\nNutzung: %2$s %3$s level <Unterbefehl> <Dienstname> <Ebene>\n\nUnterbefehle:\n   get <Dienstname>: Anzeige der aktuellen Ebene\n   set <Dienstname> <Ebene>: Einrichten der aktuellen Ebene\n\n<Dienstname> kann jeder unterstützte Dienst sein wie vmsvc oder vmusr\n<Ebene> kann für einen Fehler, ein kritisches Ereignis, eine Warnung, Info, Meldung oder ein Debugging stehen \n   Standard ist %4$s\n"
 
-help.main = "Nutzung: %1$s <Befehl> [Optionen] [Unterbefehl]<\nGeben> Sie '%2$s %3$s <Befehl>' für die Hilfe zu einem bestimmten Befehl ein.\Geben Sie '%4$s -v' für die Anzeige der Version von VMware Tools ein.\nVerwenden Sie den Parameter'-q' zur Ausblendung der stdout-Ausgabe.\nDie meisten Befehle verwenden einen Unterbefehl.\n\nVerfügbare Befehle:\n   device\n   disk\n   logging\n   script\n   stat\n   timesync\n   upgrade (nicht für alle Betriebssysteme verfügbar)\n"
+help.main = "Nutzung: %1$s <Befehl> [Optionen] [Unterbefehl]\nWenn Sie Hilfe zu einem bestimmten Befehl benötigen, geben Sie '%2$s %3$s <Befehl>' ein.\nGeben Sie '%4$s -v' ein, um die VMware Tools-Version anzuzeigen.\nVerwenden Sie die Option '-q' zum Unterdrücken der stdout-Ausgabe.\nFür die meisten Befehle gibt es Unterbefehle.\n\nVerfügbare Befehle:\n   config\n   device\n   disk (nicht auf allen Betriebssystemen verfügbar)\n   info\n  logging\n   script\n   stat\n   timesync\n   upgrade (nicht auf allen Betriebssystemen verfügbar)\n"
 
 help.script = "%1$s: Steuerung der Skripts, die als Reaktion auf Betriebsvorgänge ausgeführt werden\nNutzung: %2$s %3$s <power|resume|suspend|shutdown> <Unterbefehl> [Argumente]\n\nUnterbefehle:\n   enable: Aktivieren des angegebenen Skripts und Wiederherstellen dessen Pfads auf den Standardpfad\n   disable: Deaktivieren des vorhandenen Skripts\n   set <Vollständiger Pfad>: Festlegen des angegebenen Skripts auf den angegebenen Pfad\n   default: Ausgeben des Standardpfads des angegebenen Skripts\n   current: Ausgeben des aktuellen Pfads des angegebenen Skripts\n"
 
-help.stat = "%1$s: Drucken von hilfreichen Gast- und Hostinformationen\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   hosttime: Ausgeben der Hostuhrzeit\n   speed: Ausgeben der CPU-Geschwindigkeit in MHz\nUnterbefehle nur für ESX-Gäste:\n   sessionid: Ausgeben der aktuellen Sitzungs-ID\n   balloon: Ausgeben der Balloon-Arbeitsspeicher-Informationen\n   swap: Ausgeben der Auslagerungsinformationen für den Arbeitsspeicher\n   memlimit: Ausgeben des Arbeitsspeicher-Limits\n   memres: Ausgeben der Arbeitsspeicherreservierung\n   cpures: Ausgeben der CPU-Reservierung\n   cpulimit: Ausgeben des CPU-Limits\n"
+help.stat = "%1$s: Drucken von hilfreichen Gast- und Hostinformationen\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   hosttime: Ausgeben der Hostuhrzeit\n   speed: Ausgeben der CPU-Geschwindigkeit in MHz\nUnterbefehle nur für ESX-Gäste:\n   sessionid: Ausgeben der aktuellen Sitzungs-ID\n   balloon: Ausgeben der Balloon-Arbeitsspeicher-Informationen\n   swap: Ausgeben der Auslagerungsinformationen für den Arbeitsspeicher\n   memlimit: Ausgeben des Arbeitsspeicher-Limits\n   memres: Ausgeben der Arbeitsspeicherreservierung\n   cpures: Ausgeben der CPU-Reservierung\n   cpulimit: Ausgeben des CPU-Limits\n  raw [<Codierung> <Statistikname>]: Drucken von statistischen Rohdaten\n      <Codierung> steht für 'text', 'json', 'xml' oder 'yaml'.\n      <Statistikname> beinhaltet session, host, resources, vscsi und\n      vnet (einige Statistiken wie vsci bestehen aus zwei Wörtern, z. B. 'vscsi scsi0:0').\n      Druckt verfügbare Statistiken wenn für <Codierung> und <Statistikname>\n      keine Argumente angegeben wurden.\n"
 
 help.timesync = "%1$s: Funktionen für die Steuerung der Zeitsynchronisierung auf dem Gastbetriebssystem\Nutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   enable: Aktivieren der Zeitsynchronisierung\n   disable: Deaktivieren der Zeitsynchronisierung\n   status: Ausgeben des Status der Zeitsynchronisierung\n"
 

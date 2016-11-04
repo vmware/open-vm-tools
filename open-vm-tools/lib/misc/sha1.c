@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,9 +49,11 @@
  *
  *    10/14: rberinde: Added SSE3 code and test, cleaned up a bit.
  *
+ *    10/15: rberinde: Added multibuffer AVX2 code.
+ *
  * If any changes are made to this file, please run:
  *    test-esx -n misc/sha1.sh
-*/
+ */
 
 #if defined(USERLEVEL) || defined(_WIN32)
 #   include <string.h>
@@ -89,6 +91,12 @@
 #include "vm_basic_asm.h"
 #include "vmk_exports.h"
 
+/* Initialization vectors. */
+static const uint32 sha1InitVec[5] = { 0x67452301,
+                                       0xEFCDAB89,
+                                       0x98BADCFE,
+                                       0x10325476,
+                                       0xC3D2E1F0 };
 
 /*
  * The SSSE3 implementation is only 64-bit and it is excluded from monitor,
@@ -112,10 +120,23 @@ void SHA1_Transform_SSSE3_ASM(uint32 *hash,
                               const uint8 *input,
                               uint64 numBlocks);
 
+
 /*
- * Returns TRUE if we were able to use SSSE3 to apply the transform. See
- * SHA1Transform for the function semantics.
+ *-----------------------------------------------------------------------------
+ *
+ * SHA1TransformSSSE3 --
+ *
+ *    Speed up transformation with SSSE3 if possible.
+ *
+ * Results:
+ *    TRUE if we were able to use SSSE3 to apply the transform.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
  */
+
 static INLINE Bool
 SHA1TransformSSSE3(uint32 state[5],              // IN/OUT
                    const unsigned char *buffer,  // IN
@@ -152,7 +173,7 @@ SHA1TransformSSSE3(uint32 state[5],              // IN/OUT
    while (numBlocks > 0) {
       uint32 blocksInIter = MIN(numBlocks, SHA1_SSE_BLOCKS_PER_ITERATION);
 
-      X86SSE_Prologue(&save);
+      X86SSE_Prologue(&save, FALSE /* no AVX2 */);
       SHA1_Transform_SSSE3_ASM(state, buffer, blocksInIter);
       X86SSE_Epilogue(&save);
 
@@ -165,11 +186,160 @@ SHA1TransformSSSE3(uint32 state[5],              // IN/OUT
 
 #else
 
+/* SSSE3 stub for unsupported targets. */
 static INLINE Bool
 SHA1TransformSSSE3(uint32 state[5],
                    const unsigned char *buffer,
                    uint32 numBlocks)
 {
+   return FALSE;
+}
+
+#endif
+
+
+/*
+ * The AVX2 multi-buffer implementation is 64-bit only and requires GCC 4.7 or
+ * newer. For now it is only included in the vmkernel.
+ */
+#if defined(VMKERNEL)
+
+void SHA1_Transform_AVX2_X8_ASM(uint32 transposedDigests[5][8],
+                                const uint8 *input[8],
+                                uint64 numBlocks);
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SHA1MultiBufferAVX2 --
+ *
+ *    Uses AVX2 code to compute the SHA1 of at most SHA1_MULTI_MAX_BUFFERS
+ *    buffers (if possible).
+ *
+ *    Note: size must be a multiple of 64!
+ *
+ * Results:
+ *    TRUE if we were able to use AVX2 to compute the hashes.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+SHA1MultiBufferAVX2(uint32 numBuffers,        // IN
+                    uint32 len,               // IN
+                    const void *data[],       // IN
+                    unsigned char **digests)  // OUT
+{
+   static int useAVX2 = -1;
+
+   uint32 i, j;
+   uint32 numBlocks = len / 64;
+
+   uint32 state[5][SHA1_MULTI_MAX_BUFFERS];
+   const uint8 *ptrs[SHA1_MULTI_MAX_BUFFERS];
+
+   /* Last block. */
+   uint8 lastBlock[64] = {0x80};
+
+   X86SSE_SaveState save;
+
+   ASSERT(numBuffers <= SHA1_MULTI_MAX_BUFFERS);
+   ASSERT(len % 64 == 0);
+
+   /*
+    * In debug mode, don't use AVX2 some of the time to make
+    * sure the non-SSE version is tested as well.
+    */
+   if (vmx86_debug && RDTSC() % 101 < 20) {
+      return FALSE;
+   }
+
+   ASSERT(useAVX2 == -1 || useAVX2 == 0 || useAVX2 == 1);
+
+   /* This is safe even if multiple threads race here. */
+   if (useAVX2 == -1) {
+      useAVX2 = X86SSE_IsAVX2Supported();
+   }
+
+   if (useAVX2 == 0) {
+      return FALSE;
+   }
+
+   if (numBuffers < 3) {
+      /*
+       * This routine is about 2x slower than the regular routine; it is
+       * not worth using with less than 3 buffers.
+       */
+      return FALSE;
+   }
+
+   /* Encode the length (in bits, big endian). */
+   for (i = 0; i < 4; i++) {
+      lastBlock[63 - i] = ((len * 8) >> (i * 8)) & 0xFF;
+   }
+
+   for (i = 0; i < 5; i++) {
+      for (j = 0; j < SHA1_MULTI_MAX_BUFFERS; j++) {
+         state[i][j] = sha1InitVec[i];
+      }
+   }
+
+   for (i = 0; i < 8; i++) {
+      if (i < numBuffers) {
+         ptrs[i] = data[i];
+      } else {
+         /*
+          * We don't care about these buffers but the pointers
+          * need to be valid.
+          */
+         ptrs[i] = data[0];
+      }
+   }
+
+   while (numBlocks > 0) {
+      uint32 blocksInIter = MIN(numBlocks, SHA1_SSE_BLOCKS_PER_ITERATION);
+
+      X86SSE_Prologue(&save, TRUE /* AVX2 */);
+      SHA1_Transform_AVX2_X8_ASM(state, ptrs, blocksInIter);
+
+      numBlocks -= blocksInIter;
+      for (i = 0; i < 8; i++) {
+         ptrs[i] += 64 * blocksInIter;
+      }
+
+      if (numBlocks == 0) {
+         /* Do the last block. */
+         for (i = 0; i < 8; i++) {
+            ptrs[i] = lastBlock;
+         }
+         SHA1_Transform_AVX2_X8_ASM(state, ptrs, 1);
+      }
+      X86SSE_Epilogue(&save);
+   }
+
+   for (i = 0; i < numBuffers; i++) {
+      for (j = 0; j < SHA1_HASH_LEN; j++) {
+         digests[i][j] = (state[j / 4][i] >> ((3 - j % 4) * 8)) & 0xFF;
+      }
+   }
+
+   return TRUE;
+}
+
+#else
+
+/* AVX2 stub for unsupported targets. */
+static INLINE Bool
+SHA1MultiBufferAVX2(uint32 numBuffers,
+                    uint32 len,
+                    const void *data[],
+                    unsigned char **digests)
+{
+   ASSERT(numBuffers <= SHA1_MULTI_MAX_BUFFERS);
+   ASSERT(len % 64 == 0);
    return FALSE;
 }
 
@@ -189,20 +359,32 @@ SHA1TransformSSSE3(uint32 state[5],
 #define F2(w,x,y) (((w|x)&y)|(w&x))
 #define F3(w,x,y) (w^x^y)
 
-/* Initialization vectors. */
-static const uint32 sha1InitVec[5] = { 0x67452301,
-                                       0xEFCDAB89,
-                                       0x98BADCFE,
-                                       0x10325476,
-                                       0xC3D2E1F0 };
-
 typedef union {
    unsigned char c[64];
    uint32 l[16];
 } CHAR64LONG16;
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * R --
+ *
+ *    SHA-1 core function.
+ *
+ * Results:
+ *    Product in 'f'.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 static void
-R(CHAR64LONG16 *block, uint32 *f, int i)
+R(CHAR64LONG16 *block,  // IN/OUT
+  uint32 *f,            // IN/OUT
+  int i)                // IN
 {
    uint32 a, b, c, d, e, round, blk;
    a = f[0];
@@ -237,10 +419,26 @@ R(CHAR64LONG16 *block, uint32 *f, int i)
    f[0] = e + round + blk + rol(a, 5);
 }
 
-/* Hash a single 512-bit block. This is the core of the algorithm. */
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SHA1TransformNoSSE --
+ *
+ *    Apply SHA-1 transformation on a single 512-bit block.
+ *
+ * Results:
+ *    'state' is updated.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
 static void
-SHA1TransformNoSSE(uint32 state[5], unsigned char buffer[64])
+SHA1TransformNoSSE(uint32 state[5],           // IN/OUT
+                   unsigned char buffer[64])  // IN
 {
     int i;
     uint32 f[5];
@@ -267,10 +465,10 @@ SHA1TransformNoSSE(uint32 state[5], unsigned char buffer[64])
  *
  * SHA1Transform --
  *
- *    Applies the SHA-1 transform on one or more 64-byte block buffers.
+ *    Apply SHA-1 transformation on one or more 512-bit block buffers.
  *
  * Results:
- *    state is updated.
+ *    'state' is updated.
  *
  * Side effects:
  *    None.
@@ -303,9 +501,25 @@ SHA1Transform(uint32 state[5],              // IN/OUT
     }
 }
 
-/* SHA1Init - Initialize new context */
 
-void SHA1Init(SHA1_CTX* context)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SHA1Init --
+ *
+ *    Fill context with initial SHA1 state.
+ *
+ * Results:
+ *    Initialized context.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+SHA1Init(SHA1_CTX* context)  // OUT
 {
     uint32 i;
     for (i = 0; i < 5; i++) {
@@ -316,11 +530,26 @@ void SHA1Init(SHA1_CTX* context)
 VMK_KERNEL_EXPORT(SHA1Init);
 
 
-/* Run your data through this. */
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SHA1Update --
+ *
+ *    Hash data into context.
+ *
+ * Results:
+ *    Updated context.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-void SHA1Update(SHA1_CTX* context,
-                const unsigned char *data,
-                size_t len)
+void
+SHA1Update(SHA1_CTX* context,          // IN/OUT
+           const unsigned char *data,  // IN
+           size_t len)                 // IN
 {
     size_t curOfs, numRemaining;
 
@@ -357,9 +586,25 @@ void SHA1Update(SHA1_CTX* context,
 VMK_KERNEL_EXPORT(SHA1Update);
 
 
-/* Add padding and return the message digest. */
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SHA1Final --
+ *
+ *    Add padding and return the message digest.
+ *
+ * Results:
+ *    160 bit SHA1 value in digest.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-void SHA1Final(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context)
+void
+SHA1Final(unsigned char digest[SHA1_HASH_LEN],  // OUT
+          SHA1_CTX* context)                    // IN
 {
     size_t i, j;
     unsigned char finalcount[8];
@@ -405,7 +650,7 @@ VMK_KERNEL_EXPORT(SHA1Final);
  *    will NOT compute the "usual" digest of the given buffer.
  *
  * Results:
- *    result contains the 120-bit SHA-1 value.
+ *    'result' contains the 160-bit SHA-1 value.
  *
  * Side effects:
  *    None.
@@ -413,9 +658,10 @@ VMK_KERNEL_EXPORT(SHA1Final);
  *-----------------------------------------------------------------------------
  */
 
-void SHA1RawBufferHash(const void *data,  // IN
-                       uint32 size,       // IN
-                       uint32 result[5])  // OUT
+void
+SHA1RawBufferHash(const void *data,  // IN
+                  uint32 size,       // IN
+                  uint32 result[5])  // OUT
 {
    uint32 i;
 
@@ -427,3 +673,124 @@ void SHA1RawBufferHash(const void *data,  // IN
    SHA1Transform(result, (const uint8 *) data, size / 64);
 }
 VMK_KERNEL_EXPORT(SHA1RawBufferHash);
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SHA1RawTransformBlocks --
+ *
+ *    !! WARNING !! Do not use unless you know what you are doing! This
+ *    will NOT compute the "usual" digest of the given buffer.
+ *    Meaning the function does _not_ do padding or handle variable buffer
+ *    length. The buffer size must be a multiple of 64 and the caller should to
+ *    take care of the initial state.
+ *
+ *    Finds the SHA-1 of a "raw" buffer, without doing any preprocessing (does
+ *    NOT add the 0x80 byte, 0x00 padding, and length encoding required for
+ *    the result to be a proper message digest).
+ *
+ *    This function is the alternative to SHA1RawBufferHash to control the
+ *    initial state. Used by the native random driver.
+ *
+ * Results:
+ *    'state' contains the 160-bit SHA-1 value.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+SHA1RawTransformBlocks(uint32 state[5],              // IN/OUT
+                       const unsigned char *buffer,  // IN
+                       uint32 numBlocks)             // IN
+{
+   ASSERT(buffer != NULL);
+   SHA1Transform(state, buffer, numBlocks);
+}
+VMK_KERNEL_EXPORT(SHA1RawTransformBlocks);
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SHA1RawInit --
+ *
+ *    Set the initial state for a RAW SHA1 transformations.
+ *
+ *    You probably want to use SHA1Init.
+ *
+ * Results:
+ *    Fill 'state' with initial SHA1 values.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+SHA1RawInit(uint32 state[5])  // OUT
+{
+   state[0] = sha1InitVec[0];
+   state[1] = sha1InitVec[1];
+   state[2] = sha1InitVec[2];
+   state[3] = sha1InitVec[3];
+   state[4] = sha1InitVec[4];
+}
+VMK_KERNEL_EXPORT(SHA1RawInit);
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SHA1MultiBuffer --
+ *
+ *    Computes the digests for multiple buffers of the same length. Supports
+ *    at most SHA1_MULTI_MAX_BUFFERS buffers.
+ *
+ *    On recent processors (with AVX2) this function yields significantly more
+ *    aggregate throughput compared to hashing each buffer separately. Maximum
+ *    throughput is obtained for SHA1_MULTI_MAX_BUFFERS.
+ *
+ *    Note: currently, the better throughput is only obtained if the length is
+ *    a multiple of 64.
+ *
+ * Results:
+ *    The computed digests in digest[i][j], with 0 <= i < numBuffers and
+ *    0 <= j < SHA1_HASH_LEN.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+SHA1MultiBuffer(uint32 numBuffers,         // IN
+                uint32 len,                // IN
+                const void *data[],        // IN
+                unsigned char *digests[])  // OUT
+{
+   uint32 i;
+
+   ASSERT(numBuffers > 0);
+   ASSERT(numBuffers <= SHA1_MULTI_MAX_BUFFERS);
+
+   if (len % 64 == 0 &&
+       SHA1MultiBufferAVX2(numBuffers, len, data, digests)) {
+      return;
+   }
+
+   /* Use the regular routine. */
+   for (i = 0; i < numBuffers; i++) {
+      SHA1_CTX ctx;
+
+      SHA1Init(&ctx);
+      SHA1Update(&ctx, data[i], len);
+      SHA1Final(digests[i], &ctx);
+   }
+}
+VMK_KERNEL_EXPORT(SHA1MultiBuffer);

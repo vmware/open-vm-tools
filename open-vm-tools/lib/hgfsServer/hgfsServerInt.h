@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -748,13 +748,15 @@ HgfsPlatformReadFile(fileDesc readFile,           // IN: file descriptor
                      void* payload,               // OUT: buffer for the read data
                      uint32 *actualSize);         // OUT: actual length read
 HgfsInternalStatus
-HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
+HgfsPlatformWriteFile(fileDesc writeFile,          // IN: file descriptor
                       HgfsSessionInfo *session,    // IN: session info
-                      uint64 offset,               // IN: file offset to write to
-                      uint32 requiredSize,         // IN: length of data to write
-                      HgfsWriteFlags flags,        // IN: write flags
-                      const void *payload,         // IN: data to be written
-                      uint32 *actualSize);         // OUT: actual length written
+                      uint64 writeOffset,          // IN: file offset to write to
+                      uint32 writeDataSize,        // IN: length of data to write
+                      HgfsWriteFlags writeFlags,   // IN: write flags
+                      Bool writeSequential,        // IN: write is sequential
+                      Bool writeAppend,            // IN: write is appended
+                      const void *writeData,       // IN: data to be written
+                      uint32 *writtenSize);        // OUT: byte length written
 HgfsInternalStatus
 HgfsPlatformWriteWin32Stream(HgfsHandle file,           // IN: packet header
                              char *dataToWrite,         // IN: data to write
@@ -856,6 +858,12 @@ HSPU_PutDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Pack
 void
 HSPU_PutMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
                    HgfsServerChannelCallbacks *chanCb);  // IN: Channel callbacks
+
+Bool
+HSPU_ValidateRequestPacketSize(HgfsPacket *packet,        // IN: Hgfs Packet
+                               size_t requestHeaderSize,  // IN: request header size
+                               size_t requestOpSize,      // IN: request packet size
+                               size_t requestOpDataSize); // IN: request packet data size
 
 Bool
 HSPU_ValidateReplyPacketSize(HgfsPacket *packet,         // IN: Hgfs Packet

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -491,10 +491,10 @@ MsgList_GetMsgID(const MsgList *messages)  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * MsgList_ToString --
+ * MsgList_ToEnglishString --
  *
  *      Returns the English representation of a MsgList chain.  Does NOT
- *      localize.
+ *      localize. (Use Msg_LocalizeList to localize instead.)
  *
  * Results:
  *      Allocated memory containing message.  Successive messages
@@ -507,7 +507,7 @@ MsgList_GetMsgID(const MsgList *messages)  // IN:
  */
 
 char *
-MsgList_ToString(const MsgList *messages)  // IN:
+MsgList_ToEnglishString(const MsgList *messages)  // IN:
 {
    char *result = NULL;
 
@@ -520,7 +520,7 @@ MsgList_ToString(const MsgList *messages)  // IN:
       char *tail;
 
       if (messages->next != NULL) {
-         tail = MsgList_ToString(messages->next);
+         tail = MsgList_ToEnglishString(messages->next);
       } else {
          tail = Util_SafeStrdup("");
       }

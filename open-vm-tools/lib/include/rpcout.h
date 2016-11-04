@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -51,7 +51,7 @@ RpcOut *RpcOut_Construct(void);
 void RpcOut_Destruct(RpcOut *out);
 Bool RpcOut_start(RpcOut *out);
 Bool RpcOut_send(RpcOut *out, char const *request, size_t reqLen,
-                 char const **reply, size_t *repLen);
+                 Bool *rpcStatus, char const **reply, size_t *repLen);
 Bool RpcOut_stop(RpcOut *out);
 
 

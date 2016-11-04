@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,8 +23,7 @@
  * This solves two issues:
  * 1. Microsoft changed their annotation language from SAL 1.0 (original one
  *    widely distributed by the Windows team) to their more final SAL 2.0
- *    langauge (championed by the VS team). We target multiple versions of
- *    Driver Kits, so we have to map 2.0 to 1.0.
+ *    langauge (championed by the VS team).
  * 2. We want these annotations to do nothing during non-Win32 compiles.
  *
  * A longer term goal is to rationalize this into Bora.
@@ -39,68 +38,66 @@
 #  endif
 #endif
 
-#if !defined(_SAL_VERSION)
+#if !defined(_SAL_VERSION) || (defined(_SAL_VERSION) && _SAL_VERSION == 10)
 #define _In_
-#define _In_z_
 #define _In_opt_
+#define _In_reads_bytes_(count)
+#define _In_reads_bytes_opt_(count)
+#define _In_z_
 #define _In_opt_z_
 #define _Out_
 #define _Out_opt_
+#define _Out_writes_bytes_(capcount)
+#define _Out_writes_bytes_opt_(capcount)
+#define _Out_writes_bytes_to_(cap, count)
+#define _Out_writes_bytes_to_opt_(cap, count)
+#define _Out_bytecap_post_bytecount_(cap, count)
+#define _Out_writes_z_(cap)
+#define _Out_writes_opt_z_(cap)
 #define _Out_z_cap_(e)
+#define _Outptr_result_buffer_(count)
+#define _Outptr_result_bytebuffer_(count)
+#define _Outptr_result_bytebuffer_maybenull_(count)
+#define _Outptr_opt_result_buffer_(count)
+#define _Outptr_opt_result_bytebuffer_(count)
+#define _Outptr_opt_result_bytebuffer_maybenull_(count)
+#define _COM_Outptr_
 #define _Inout_
+#define _Inout_updates_bytes_(e)
 #define _Inout_z_cap_(e)
 #define _Post_z_count_(e)
 #define _Ret_writes_z_(e)
 #define _Ret_writes_maybenull_z_(e)
+#define _Ret_maybenull_
 #define _Ret_maybenull_z_
+#define _Ret_range_(l,h)
 #define _Success_(expr)
 #define _Check_return_
 #define _Must_inspect_result_
 #define _Group_(annos)
 #define _When_(expr, annos)
+#define _Always_(annos)
 #define _Printf_format_string_
 #define _Use_decl_annotations_
-#elif defined(_SAL_VERSION) && _SAL_VERSION == 10
-// Microsoft didn't create a header mapping SAL 2.0 to 1.0. We do that here.
-#define _In_                           __in
-#define _In_z_                         __in_z
-#define _In_opt_                       __in_opt
-#define _In_opt_z_                     __in_z_opt
-#define _Out_                          __out
-#define _Out_opt_                      __out_opt
-#define _Out_z_cap_(expr)              __out_ecount_z(expr)
-#define _Inout_                        __inout
-#define _Inout_z_cap_(expr)            __inout_ecount_z(expr)
-#define _Post_z_count_(expr)
-#define _Ret_writes_z_(expr)           __out_ecount_z(expr)
-#define _Ret_writes_maybenull_z_(expr) __out_ecount_z_opt(expr)
-#define _Ret_maybenull_z_              __out_z
-#define _Check_return_                 __checkReturn
-#define _Must_inspect_result_          __checkReturn
-#define _Success_(annos)               __success(annos)
-#define _Printf_format_string_         __format_string
-#define _Use_decl_annotations_
-
-// DriverSpecs.h was pretty much empty until the DDK that defined
-// NTDDK_WIN6SP1 appeared.
-#if defined(NTDDI_WIN6SP1)
-#define _Group_(annos)              __$drv_group(annos)
-#define _When_(expr, annos)         __drv_when(expr, annos)
-#define _IRQL_requires_max_(irql)   __drv_maxIRQL(irql)
-#else
-#define _Group_(annos)
-#define _When_(expr, annos)
-#define _IRQL_requires_max_(irql)
-#define __drv_allocatesMem(kind)
-#define __drv_freesMem(kind)
-#endif
+#define _Dispatch_type_(mj)
+#define _Function_class_(c)
+#define _Requires_lock_held_(cs)
+#define _Requires_lock_not_held_(cs)
+#define _Acquires_lock_(l)
+#define _Releases_lock_(l)
+#define _IRQL_requires_max_(i)
+#define _IRQL_requires_(i)
+#define _IRQL_requires_same_
+#define _Analysis_assume_(e)
+#define _Pre_notnull_
+#define _At_(expr,annos)
 
 #else
 // Sal 2.0 path - everything is already defined.
 #endif // _SAL_VERSION
 
 // Now define our own annotations
-#if !defined(_SAL_VERSION)
+#if !defined(_SAL_VERSION) || (defined(_SAL_VERSION) && _SAL_VERSION == 10)
 #define _When_windrv_(annos)
 #define _Ret_allocates_malloc_mem_opt_bytecap_(_Size)
 #define _Ret_allocates_malloc_mem_opt_bytecount_(_Size)
@@ -108,14 +105,6 @@
 #define _Ret_allocates_malloc_mem_opt_z_bytecount_(_Size)
 #define _Ret_allocates_malloc_mem_opt_z_
 #define _In_frees_malloc_mem_opt_
-#elif defined(_SAL_VERSION) && _SAL_VERSION == 10
-#define _When_windrv_(annos)                                               annos
-#define _Ret_allocates_malloc_mem_opt_bytecap_(_Cap)                       __drv_allocatesMem("Memory") __checkReturn __post __byte_writableTo(_Cap) __exceptthat __maybenull
-#define _Ret_allocates_malloc_mem_opt_bytecount_(_Count)                   __drv_allocatesMem("Memory") __checkReturn __post __byte_readableTo(_Count) __exceptthat __maybenull
-#define _Ret_allocates_malloc_mem_opt_bytecap_post_bytecount_(_Cap,_Count) __drv_allocatesMem("Memory") __checkReturn __post __byte_writableTo(_Cap) __byte_readableTo(_Count) __exceptthat __maybenull
-#define _Ret_allocates_malloc_mem_opt_z_bytecount_(_Count)                 __drv_allocatesMem("Memory") __checkReturn __post __byte_readableTo(_Count) __valid __nullterminated __exceptthat __maybenull
-#define _Ret_allocates_malloc_mem_opt_z_                                   __drv_allocatesMem("Memory") __checkReturn __post __valid __nullterminated __exceptthat __maybenull
-#define _In_frees_malloc_mem_opt_                                          __drv_freesMem("Memory") __in_opt __post __notvalid
 #else
 #define _When_windrv_(annos)                                               annos
 #define _Ret_allocates_malloc_mem_opt_bytecap_(_Cap)                       __drv_allocatesMem("Memory") _Must_inspect_result_ _Ret_opt_bytecap_(_Cap)

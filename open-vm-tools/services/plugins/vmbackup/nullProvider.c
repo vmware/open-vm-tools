@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,7 @@
 
 
 #if defined(_WIN32)
+
 /*
  ******************************************************************************
  * VmBackupNullStart --                                                 */ /**
@@ -53,41 +54,6 @@ VmBackupNullStart(VmBackupState *state,
    VmBackup_SetCurrentOp(state, NULL, NULL, __FUNCTION__);
    return VmBackup_SendEvent(VMBACKUP_EVENT_SNAPSHOT_COMMIT, 0, "");
 }
-
-#else
-
-/*
- ******************************************************************************
- * VmBackupNullStart --                                                 */ /**
- *
- * Calls sync(2) on POSIX systems. Sends the "commit snapshot" event to the
- * host.
- *
- * @param[in] ctx           Plugin context.
- * @param[in] state         Backup state.
- *
- ******************************************************************************
- */
-
-static void
-VmBackupNullStart(ToolsAppCtx *ctx,
-                  void *clientData)
-{
-   VmBackupState *state = (VmBackupState*) clientData;
-   /*
-    * This is more of a "let's at least do something" than something that
-    * will actually ensure data integrity...
-    */
-   sync();
-   VmBackup_SetCurrentOp(state, NULL, NULL, __FUNCTION__);
-   if (!VmBackup_SendEvent(VMBACKUP_EVENT_SNAPSHOT_COMMIT, 0, "")) {
-      g_warning("Failed to send commit event to host");
-      state->freezeStatus = VMBACKUP_FREEZE_ERROR;
-   } else {
-      state->freezeStatus = VMBACKUP_FREEZE_FINISHED;
-   }
-}
-#endif
 
 
 /*
@@ -112,6 +78,172 @@ VmBackupNullSnapshotDone(VmBackupState *state,
    return TRUE;
 }
 
+#else
+
+/*
+ ******************************************************************************
+ * VmBackupNullReadyForSnapshot --                                      */ /**
+ *
+ * Sends an event to the VMX indicating that the guest is ready for a
+ * snapshot to be taken (i.e., scripts have run and Nulldriver is
+ * enabled).
+ *
+ * @param[in] state         Backup state.
+ *
+ * @return TRUE, unless sending the message fails.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+VmBackupNullReadyForSnapshot(VmBackupState *state)
+{
+   Bool success;
+
+   g_debug("*** %s\n", __FUNCTION__);
+   success = VmBackup_SendEvent(VMBACKUP_EVENT_SNAPSHOT_COMMIT, 0, "");
+   if (success) {
+      state->freezeStatus = VMBACKUP_FREEZE_FINISHED;
+   } else {
+      g_warning("Failed to send commit event to host");
+      state->freezeStatus = VMBACKUP_FREEZE_ERROR;
+   }
+   return success;
+}
+
+
+/*
+ ******************************************************************************
+ * VmBackupNullOpQuery --                                               */ /**
+ *
+ * Checks the status of the operation that is enabling or disabling the
+ * Null driver. Nulldriver is enabled immediately and there is nothing
+ * to disable.
+ *
+ * @param[in] op        VmBackupOp.
+ *
+ * @return VMBACKUP_STATUS_FINISHED always.
+ *
+ ******************************************************************************
+ */
+
+static VmBackupOpStatus
+VmBackupNullOpQuery(VmBackupOp *op) // IN
+{
+   return VMBACKUP_STATUS_FINISHED;
+}
+
+
+/*
+ ******************************************************************************
+ * VmBackupNullOpRelease --                                             */ /**
+ *
+ * Cleans up data held by the op object.
+ *
+ * @param[in] op        VmBackupOp.
+ *
+ ******************************************************************************
+ */
+
+static void
+VmBackupNullOpRelease(VmBackupOp *op)  // IN
+{
+   g_free(op);
+}
+
+
+/*
+ ******************************************************************************
+ * VmBackupNullOpCancel --                                              */ /**
+ *
+ * Cancel an ongoing Nulldriver operation. This doesn't actually
+ * do anything because there is no operation to cancel as such.
+ *
+ * @param[in] op        VmBackupOp.
+ *
+ ******************************************************************************
+ */
+
+static void
+VmBackupNullOpCancel(VmBackupOp *op)   // IN
+{
+   /* Nothing to do */
+}
+
+
+/*
+ ******************************************************************************
+ * VmBackupNullStart --                                                 */ /**
+ *
+ * Calls sync(2) on POSIX systems. Sets up an asynchronous operation
+ * for tracking.
+ *
+ * @param[in] ctx           Plugin context.
+ * @param[in] state         Backup state.
+ *
+ ******************************************************************************
+ */
+
+static void
+VmBackupNullStart(ToolsAppCtx *ctx,
+                  void *clientData)
+{
+   VmBackupOp *op;
+   VmBackupState *state = (VmBackupState*) clientData;
+
+   g_debug("*** %s\n", __FUNCTION__);
+
+   op = g_new0(VmBackupOp, 1);
+   op->queryFn = VmBackupNullOpQuery;
+   op->cancelFn = VmBackupNullOpCancel;
+   op->releaseFn = VmBackupNullOpRelease;
+
+   /*
+    * This is more of a "let's at least do something" than something that
+    * will actually ensure data integrity...
+    */
+   sync();
+
+   VmBackup_SetCurrentOp(state,
+                         op,
+                         VmBackupNullReadyForSnapshot,
+                         __FUNCTION__);
+}
+
+
+/*
+ ******************************************************************************
+ * VmBackupNullSnapshotDone --                                          */ /**
+ *
+ * Does nothing except setting up an asynchronous operation to keep the
+ * backup state machine alive.
+ *
+ * @param[in] state         Backup state.
+ * @param[in] clientData    Unused.
+ *
+ * @return TRUE.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+VmBackupNullSnapshotDone(VmBackupState *state,
+                         void *clientData)
+{
+   VmBackupOp *op;
+
+   g_debug("*** %s\n", __FUNCTION__);
+
+   op = g_new0(VmBackupOp, 1);
+   op->queryFn = VmBackupNullOpQuery;
+   op->cancelFn = VmBackupNullOpCancel;
+   op->releaseFn = VmBackupNullOpRelease;
+
+   VmBackup_SetCurrentOp(state, op, NULL, __FUNCTION__);
+   return TRUE;
+}
+
+#endif
 
 /*
  ******************************************************************************

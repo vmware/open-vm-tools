@@ -40,9 +40,11 @@
 
 static HgfsTransportChannel *gHgfsActiveChannel;     /* Current active channel. */
 static pthread_mutex_t gHgfsActiveChannelLock;       /* Current active channel lock. */
+static Bool gHgfsActiveChannelLockInited;
 
 static struct list_head gHgfsPendingRequests;        /* Pending requests queue. */
 static pthread_mutex_t gHgfsPendingRequestsLock;     /* Pending requests queue lock. */
+static Bool gHgfsPendingRequestsLockInited;
 
 
 #define HgfsRequestId(req) ((HgfsRequest *)req)->id
@@ -61,7 +63,7 @@ static void HgfsTransportChannelClose(HgfsTransportChannel **channel);
  *     Open a new workable channel.
  *
  * Results:
- *     TRUE on success and the new channel, otherwise FALSE and NULL.
+ *     0 on success and the new channel, otherwise -ENOTCONN and NULL.
  *
  * Side effects:
  *     None
@@ -69,17 +71,18 @@ static void HgfsTransportChannelClose(HgfsTransportChannel **channel);
  *----------------------------------------------------------------------
  */
 
-static Bool
+static int
 HgfsTransportChannelOpen(HgfsTransportChannel **channel) // IN: active channel
 {
-   Bool result = FALSE;
+   int result = 0;
 
    *channel = HgfsBdChannelInit();
    if (NULL != *channel) {
-      if ((*channel)->ops.open(*channel)) {
-         result = TRUE;
-      } else {
+      HgfsChannelStatus status = (*channel)->ops.open(*channel);
+      if (status != HGFS_CHANNEL_CONNECTED) {
          HgfsTransportChannelClose(channel);
+         result = -ENOTCONN;
+         *channel = NULL;
       }
    }
 
@@ -138,9 +141,14 @@ static Bool
 HgfsTransportChannelReset(HgfsTransportChannel **channel) // IN: active channel
 {
    Bool ret = FALSE;
+   int openResult;
+
    HgfsTransportChannelClose(channel);
-   ret = HgfsTransportChannelOpen(channel);
-   LOG(8, ("Result: %s.\n", ret ? "TRUE" : "FALSE"));
+   openResult = HgfsTransportChannelOpen(channel);
+   if (openResult == 0) {
+      ret = TRUE;
+   }
+   LOG(8, ("Result: %d: %s.\n",openResult, ret ? "TRUE" : "FALSE"));
    return ret;
 }
 
@@ -321,10 +329,11 @@ HgfsTransportSendRequest(HgfsReq *req)   // IN: Request to send
    pthread_mutex_lock(&gHgfsActiveChannelLock);
 
    /* Try opening the channel. */
-   if (NULL == gHgfsActiveChannel &&
-       !HgfsTransportChannelOpen(&gHgfsActiveChannel)) {
-      pthread_mutex_unlock(&gHgfsActiveChannelLock);
-      return -EPROTO;
+   if (NULL == gHgfsActiveChannel) {
+      ret = HgfsTransportChannelOpen(&gHgfsActiveChannel);
+      if (ret != 0) {
+         goto exit;
+      }
    }
 
    ASSERT(gHgfsActiveChannel->ops.send);
@@ -335,12 +344,12 @@ HgfsTransportSendRequest(HgfsReq *req)   // IN: Request to send
    if (ret < 0) {
       LOG(4, ("Send failed, status = %d. Try reopening the channel ...\n",
               ret));
-      if (gHgfsActiveChannel->ops.open(gHgfsActiveChannel) &&
-          HgfsTransportChannelReset(&gHgfsActiveChannel)) {
+      if (HgfsTransportChannelReset(&gHgfsActiveChannel)) {
          ret = gHgfsActiveChannel->ops.send(gHgfsActiveChannel, req);
       }
    }
 
+exit:
    ASSERT(req->state == HGFS_REQ_STATE_COMPLETED ||
           req->state == HGFS_REQ_STATE_SUBMITTED ||
           req->state == HGFS_REQ_STATE_UNSENT);
@@ -366,7 +375,7 @@ HgfsTransportSendRequest(HgfsReq *req)   // IN: Request to send
  *     connected socket.
  *
  * Results:
- *     Zero on success and negative one on failure.
+ *     Zero on success and negative error on failure.
  *
  * Side effects:
  *     None
@@ -378,17 +387,33 @@ int
 HgfsTransportInit(void)
 {
    int res;
-   INIT_LIST_HEAD(&gHgfsPendingRequests);
-   res = pthread_mutex_init(&gHgfsPendingRequestsLock, NULL);
-   if( res != 0) {
-      return -1;
-   }
-   res = pthread_mutex_init(&gHgfsActiveChannelLock, NULL);
-   if( res != 0) {
-      return -1;
-   }
+
    gHgfsActiveChannel = NULL;
-   return 0;
+   gHgfsPendingRequestsLockInited = FALSE;
+   gHgfsActiveChannelLockInited = FALSE;
+   INIT_LIST_HEAD(&gHgfsPendingRequests);
+
+   res = pthread_mutex_init(&gHgfsPendingRequestsLock, NULL);
+   if (res != 0) {
+      res = -res;
+      goto exit;
+   }
+   gHgfsPendingRequestsLockInited = TRUE;
+
+   res = pthread_mutex_init(&gHgfsActiveChannelLock, NULL);
+   if (res != 0) {
+      res = -res;
+      goto exit;
+   }
+   gHgfsActiveChannelLockInited = TRUE;
+
+   res = HgfsTransportChannelOpen(&gHgfsActiveChannel);
+
+exit:
+   if (res != 0) {
+      HgfsTransportExit();
+   }
+   return res;
 }
 
 
@@ -412,10 +437,21 @@ void
 HgfsTransportExit(void)
 {
    LOG(8, ("Entered.\n"));
-   pthread_mutex_lock(&gHgfsActiveChannelLock);
-   HgfsTransportChannelClose(&gHgfsActiveChannel);
-   pthread_mutex_unlock(&gHgfsActiveChannelLock);
+
+   if (gHgfsActiveChannelLockInited) {
+      pthread_mutex_lock(&gHgfsActiveChannelLock);
+      HgfsTransportChannelClose(&gHgfsActiveChannel);
+      pthread_mutex_unlock(&gHgfsActiveChannelLock);
+
+      pthread_mutex_destroy(&gHgfsActiveChannelLock);
+      gHgfsActiveChannelLockInited = FALSE;
+   }
 
    ASSERT(list_empty(&gHgfsPendingRequests));
+
+   if (gHgfsPendingRequestsLockInited) {
+      pthread_mutex_destroy(&gHgfsPendingRequestsLock);
+      gHgfsPendingRequestsLockInited = FALSE;
+   }
    LOG(8, ("Exited.\n"));
 }

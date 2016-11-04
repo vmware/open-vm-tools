@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -23,6 +23,7 @@ libMisc_la_SOURCES += base64.c
 libMisc_la_SOURCES += codeset.c
 libMisc_la_SOURCES += codesetBase.c
 libMisc_la_SOURCES += codesetOld.c
+libMisc_la_SOURCES += codesetUTF8.c
 libMisc_la_SOURCES += dynarray.c
 libMisc_la_SOURCES += dynbuf.c
 libMisc_la_SOURCES += escape.c
@@ -42,6 +43,7 @@ libMisc_la_SOURCES += msgList.c
 libMisc_la_SOURCES += posixDlopen.c
 libMisc_la_SOURCES += posixPosix.c
 libMisc_la_SOURCES += posixPwd.c
+libMisc_la_SOURCES += prng.c
 libMisc_la_SOURCES += random.c
 libMisc_la_SOURCES += sleep.c
 libMisc_la_SOURCES += timeutil.c

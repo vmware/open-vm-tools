@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,7 +69,7 @@
 #define PRODUCT_MAC_DESKTOP_BRIEF_NAME "Fusion"
 #define PRODUCT_ACE_MANAGEMENT_SERVER_BRIEF_NAME "ACE Management Server"
 #define PRODUCT_VMRC_BRIEF_NAME "Remote Console"
-#define PRODUCT_GANTRY_BRIEF_NAME "Gantry"
+#define PRODUCT_GANTRY_BRIEF_NAME "AppCatalyst"
 
 
 /*
@@ -151,8 +151,6 @@
 #define PRODUCT_XVP_NAME MAKE_NAME("vCenter XVP Manager")
 #define PRODUCT_RMKSCONTAINER_NAME MAKE_NAME("Remote MKS Container")
 
-#define PRODUCT_BOOMERANG_NAME MAKE_NAME("Boomerang")
-
 #define PRODUCT_HBR_SERVER_NAME MAKE_NAME("vSphere Replication Server")
 
 #define PRODUCT_VIEW_SHORT_NAME "Horizon View"
@@ -221,7 +219,6 @@
       || defined(VMX86_DDK)      \
       || defined(VMX86_VDDK)     \
       || defined(VMX86_NETDUMP) \
-      || defined(VMX86_BOOMERANG) \
       || defined(VMX86_HBR_SERVER) \
       || defined(VMX86_VMCF) \
       || defined(VMX86_GANTRY) \
@@ -300,8 +297,6 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VDDK_NAME
 #elif defined(VMX86_NETDUMP)
 # define PRODUCT_SHORT_NAME PRODUCT_NETDUMP_NAME
-#elif defined(VMX86_BOOMERANG)
-# define PRODUCT_SHORT_NAME PRODUCT_BOOMERANG_NAME
 #elif defined(VMX86_HBR_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_HBR_SERVER_NAME
 #elif defined(VMX86_HORIZON_VIEW)
@@ -402,7 +397,10 @@
  * product.
  */
 #   if defined(__APPLE__)
-#      if defined VMX86_DESKTOP
+#      if defined VMX86_GANTRY
+#         define VMWARE_HOST_DIRECTORY_PREFIX \
+             "/Library/Preferences/" PRODUCT_SHORT_NAME
+#      elif defined VMX86_DESKTOP
 #         define VMWARE_HOST_DIRECTORY_PREFIX \
              "/Library/Preferences/" PRODUCT_SHORT_NAME
 #      else
@@ -465,6 +463,9 @@
  */
 #   if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_VMRC_NAME
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_FLEX_NAME
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   elif defined(VMX86_DESKTOP)
 #      if defined(__APPLE__)

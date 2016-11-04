@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,6 +40,18 @@ extern "C" {
 };
 #endif // __cplusplus
 
+/*
+ * Platform-agnostic bitmask of types of handlers to include.
+ * Used by the AppUtil file type functions.
+ */
+typedef enum {
+   FILE_TYPE_INCLUDE_NONE = 0,
+   FILE_TYPE_INCLUDE_URI = 1,                     // Include URI handlers
+   FILE_TYPE_INCLUDE_PERCEIVED_HANDLERS = 1 << 1, // Include perceived type handlers
+                                                  //  (see bug 1440812).
+   FILE_TYPE_INCLUDE_ALL = FILE_TYPE_INCLUDE_URI |
+                           FILE_TYPE_INCLUDE_PERCEIVED_HANDLERS
+} FileTypeInclusions;
 
 #ifdef _WIN32
 
@@ -87,7 +99,7 @@ Bool AppUtil_GetDIBitsAlloc(HDC hdc,
 HICON AppUtil_GetWindowIcon(HWND hwnd,
                             uint32 iconSize);
 
-void AppUtil_BuildGlobalApplicationList(void);
+void AppUtil_BuildGlobalApplicationList(FileTypeInclusions inclusions);
 
 wchar_t* AppUtil_SanitizeCommandLine(const wchar_t *commandLineUtf16);
 char *AppUtil_ActionURIForCommandLine(const WCHAR *commandLineUtf16);

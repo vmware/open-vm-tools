@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -105,6 +105,7 @@ MsgCatalogFree(MsgCatalog *catalog)
  ******************************************************************************
  */
 
+#ifdef VMX86_DEBUG
 static INLINE gboolean
 MsgHasMsgID(const gchar *s)
 {
@@ -112,7 +113,7 @@ MsgHasMsgID(const gchar *s)
           *(s += MSG_MAGIC_LEN) == '(' &&
           strchr(s + 1, ')') != NULL;
 }
-
+#endif
 
 /*
  ******************************************************************************

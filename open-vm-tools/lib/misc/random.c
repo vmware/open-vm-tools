@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,6 +20,7 @@
  * random.c --
  *
  *    Random bits generation. --hpreg
+ *    (Also see prng.c for freestanding generators)
  */
 
 #include <stdio.h>
@@ -38,6 +39,7 @@
 #endif
 
 #include "vmware.h"
+#include "vm_basic_asm.h"  // RDTSC()
 #include "log.h"
 #include "random.h"
 #include "util.h"
@@ -320,21 +322,17 @@ Random_Quick(rqContext *rs)  // IN/OUT:
 }
 
 
+#if 0
 /*
  *----------------------------------------------------------------------
  *
- * Random_Simple --
+ * Random_SpeedTest --
  *
- *      Generates the next random number in the pseudo-random sequence
- *      defined by the multiplicative linear congruential generator
- *      S' = 33614 * S mod (2^31 - 1).  This is the ACM "minimal standard
- *      random number generator". Based on method described by D.G. Carta
- *      in CACM, January 1990.
- *
- *      Usage: provide previous random number as the seed for next one.
+ *      Benchmarks the speed of various random number generators.
+ *      (Intended for debugging).
  *
  * Results:
- *      A random integer number is returned.
+ *      Populates *out with cycle counts.
  *
  * Side Effects:
  *      None.
@@ -342,13 +340,58 @@ Random_Quick(rqContext *rs)  // IN/OUT:
  *----------------------------------------------------------------------
  */
 
-int
-Random_Simple(int seed)  // IN:
-{
-   uint64 product    = 33614 * (uint64) seed;
-   uint32 product_lo = (uint32) (product & 0xFFFFFFFF) >> 1;
-   uint32 product_hi = product >> 32;
-   int32  test       = product_lo + product_hi;
+typedef struct {
+   uint64 nop;
+   uint64 simple;
+   uint64 fast;
+   uint64 quick;
+} RandomSpeedTestResults;
+void Random_SpeedTest(uint64 iters, RandomSpeedTestResults *out);
 
-   return test > 0 ? test : (test & 0x7FFFFFFF) + 1;
+static int ABSOLUTELY_NOINLINE
+RandomNop(int *seed)
+{
+   return *(volatile int *)seed;
 }
+
+void
+Random_SpeedTest(uint64 iters,                 // IN:
+                 RandomSpeedTestResults *out)  // OUT:
+{
+   int i;
+   uint64 start;
+   int nop, simple;
+   uint64 fast;
+   rqContext *rq;
+
+   simple = nop = getpid();
+   Random_FastSeed(&fast, simple);
+   rq = Random_QuickSeed(nop);
+
+   start = RDTSC();
+   for (i = 0; i < iters; i++) {
+      RandomNop(&nop);
+   }
+   out->nop = RDTSC() - start;
+
+   start = RDTSC();
+   for (i = 0; i < iters; i++) {
+      simple = Random_Simple(simple);
+   }
+   out->simple = RDTSC() - start;
+
+   start = RDTSC();
+   for (i = 0; i < iters; i++) {
+      Random_Fast(&fast);
+   }
+   out->fast = RDTSC() - start;
+
+   start = RDTSC();
+   for (i = 0; i < iters; i++) {
+      Random_Quick(rq);
+   }
+   out->quick = RDTSC() - start;
+
+   free(rq);
+}
+#endif

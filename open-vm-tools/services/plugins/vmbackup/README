@@ -24,6 +24,10 @@ The main state machine, implemented in stateMachine.c, works as follows:
                                 | d            |
                                \/              |
                             SCRIPT_THAW --------
+                                |              |
+                                | f            | g
+                               \/              |
+                            COMPLETE_WAIT-------
 
 The transitions mean the following events / conditions:
 
@@ -33,6 +37,8 @@ b. vmbackup operation is finished
 c. vmbackup.snapshotDone RPC
 d. sync provider operation is finished
 e. error condition: runtime error, or vmbackup.abort RPC
+f. thaw scripts run finished
+g. get notification that snapshot succeeds
 
 Sending a vmbackup.start RPC while the state machine is not IDLE causes an
 error to be returned to the client, but the state machine is not changed.

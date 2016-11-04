@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
 lib_LTLIBRARIES = libguestlib.la
 
 AM_CFLAGS =
-AM_CFLAGS += -I$(top_builddir)/include
+AM_CFLAGS += -I$(top_srcdir)/include
 
 libguestlib_la_LIBADD =
 libguestlib_la_LIBADD += @VMTOOLS_LIBS@

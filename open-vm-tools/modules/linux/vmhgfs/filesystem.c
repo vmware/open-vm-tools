@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -218,16 +218,16 @@ HgfsValidateMountInfo(void *rawData,             // IN: Fs-specific mount data
 
    /* Sanity check the incoming user data. */
    if (rawData == NULL) {
-      LOG(4, (KERN_CRIT LGPFX "%s: error: no user supplied mount data\n",
-              __func__));
+      printk(KERN_WARNING LGPFX "%s: error: no user supplied mount data\n",
+             __func__);
       goto exit;
    }
 
    /* Magic number is always first 4 bytes of the header. */
    magicNumber = rawData;
    if (*magicNumber != HGFS_SUPER_MAGIC) {
-      LOG(4, (KERN_CRIT LGPFX "%s: error: user supplied mount data is not valid!\n",
-              __func__));
+      printk(KERN_WARNING LGPFX "%s: error: user supplied mount data is not valid!\n",
+              __func__);
       goto exit;
    }
 
@@ -265,8 +265,8 @@ HgfsValidateMountInfo(void *rawData,             // IN: Fs-specific mount data
        * The version and info size fields could not be validated
        * for the known structure. It is probably a newer version.
        */
-      LOG(4, (KERN_DEBUG LGPFX "%s: error: user supplied mount data version %d\n",
-              __func__, infoV1->version));
+      printk(KERN_WARNING LGPFX "%s: error: user supplied mount data version %d\n",
+              __func__, infoV1->version);
    }
 
 exit:

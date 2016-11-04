@@ -84,29 +84,32 @@ open-vm-tools uses the GNU Automake tool for generating Makefiles to build all s
 Getting configure options & help: If you are looking for help or additional settings for the building of this project, the following configure command will display a list of help options: ./configure --help
 Using configure: When using configure in the steps below it is only necessary to call ./configure once unless there was a problem after the first invocation.
 Building Unix user-space programs:
+
 1. autoreconf -i
 2. ./configure
-3. Run "make" to build Unix userland  and kernel
+3. Run "make" to build Unix userland and kernel
+
 Packaging: If you are interested in creating a Tools package, please see https://sourceforge.net/apps/mediawiki/open-vm-tools/index.php?title=Packaging for more information.
 
 #Getting Involved
 ##How can I get involved today?
-You can get involved today in sevearl different ways:
-- Start using open-vm-tools today and give us feedback .
-- Suggest feature enhancements .
+You can get involved today in several different ways:
+- Start using open-vm-tools today and give us feedback.
+- Suggest feature enhancements.
 - Identify and submit bugs under issues section: https://github.com/vmware/open-vm-tools/issues
 - Start porting the code to other operating systems.   Here is the list of operating systems with open-vm-tools:
-  * Fedora 19 and later releases
-  * Debian 7.x and later releases
-  * openSUSE 11.x and later releases
-  * Recent Ubuntu releases (12.04 LTS, 13.10 and later)
+
   * Red Hat Enterprise Linux 7.0 and later releases
   * SUSE Linux Enterprise 12 and later releases
+  * Ubuntu 14.04 and later releases
   * CentOS 7 and later releases
+  * Debian 7.x and later releases
   * Oracle Linux 7 and later 
+  * Fedora 19 and later releases
+  * openSUSE 11.x and later releases
  
 ## Will external developers be allowed to become committers to the project?
-Yes. Initially, VMware engineers will be the only committers. As we roll out our developement infrastructure, we will be looking to add external committers to the project as well.
+Yes. Initially, VMware engineers will be the only committers. As we roll out our development infrastructure, we will be looking to add external committers to the project as well.
 
 ## How can I submit code changes like bug fixes, patches, new features to the project?
 Initially, you can submit bug fixes, patches and new features to the project development mailing list as attachments to emails or bug reports. To contribute source code, you will need to fill out a contribution agreement form as part of the submission process. We will have more details on this process shortly.

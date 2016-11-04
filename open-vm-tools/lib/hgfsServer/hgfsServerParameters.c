@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -5560,6 +5560,7 @@ HgfsUnpackSetWatchRequest(const void *packet,      // IN: HGFS packet
       NOT_REACHED();
       result = FALSE;
    } else {
+      LOG(4, ("%s: HGFS_OP_SET_WATCH_V4\n", __FUNCTION__));
       result = HgfsUnpackSetWatchPayloadV4(requestV4, packetSize, useHandle, flags,
                                            events, cpName, cpNameSize, dir, caseFlags);
    }
@@ -6094,11 +6095,13 @@ HgfsPackChangeNotifyRequestV4(HgfsSubscriberHandle watchId,  // IN: watch
                               size_t bufferSize,             // IN: available space
                               HgfsRequestNotifyV4 *reply)    // OUT: notification buffer
 {
-   size_t size;
+   size_t size = 0;
    size_t notificationOffset;
 
    if (bufferSize < sizeof *reply) {
-      return 0;
+      LOG(4, ("%s: Error HGFS_OP_NOTIFY_V4 buf size %"FMTSZ"u reply size %"FMTSZ"u\n",
+              __FUNCTION__, bufferSize, sizeof *reply));
+      goto exit;
    }
    reply->watchId = watchId;
    reply->flags = flags;
@@ -6129,6 +6132,8 @@ HgfsPackChangeNotifyRequestV4(HgfsSubscriberHandle watchId,  // IN: watch
          reply->flags = HGFS_NOTIFY_FLAG_OVERFLOW;
       }
    }
+
+exit:
    return size;
 }
 
@@ -6163,7 +6168,7 @@ HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hg
    size_t notifyRequestSize;
    HgfsRequestNotifyV4 *notifyRequest;
    HgfsHeader *header = packet;
-   Bool result;
+   Bool result = FALSE;
 
    ASSERT(packet);
    ASSERT(shareName);
@@ -6172,8 +6177,12 @@ HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hg
    ASSERT(session);
    ASSERT(bufferSize);
 
+   LOG(4, ("%s: HGFS_OP_NOTIFY_V4\n", __FUNCTION__));
+
    if (*bufferSize < sizeof *header) {
-      return FALSE;
+      LOG(4, ("%s: Error HGFS_OP_NOTIFY_V4 buf size %"FMTSZ"u min %"FMTSZ"u\n",
+              __FUNCTION__, *bufferSize, sizeof *header));
+      goto exit;
    }
 
    /*
@@ -6199,9 +6208,8 @@ HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hg
                                      HGFS_PACKET_FLAG_REQUEST,
                                      *bufferSize,
                                      header);
-   } else {
-      result = FALSE;
    }
 
+exit:
    return result;
 }

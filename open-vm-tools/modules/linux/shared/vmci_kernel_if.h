@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -34,6 +34,8 @@
 
 #if defined(_WIN32)
 #  include <ntddk.h>
+#else
+#define UNREFERENCED_PARAMETER(P)
 #endif
 
 #if defined(linux) && !defined(VMKERNEL)
@@ -375,6 +377,8 @@ typedef uint32 VMCIGuestMemID;
                                     struct VMCIQueue *consumeQ);
   void VMCIHost_MarkQueuesUnavailable(struct VMCIQueue *produceQ,
                                       struct VMCIQueue *consumeQ);
+  int VMCIHost_RevalidateQueues(struct VMCIQueue *produceQ,
+                                struct VMCIQueue *consumeQ);
 #else
 #  define VMCIHost_MarkQueuesAvailable(_q, _p) do { } while (0)
 #  define VMCIHost_MarkQueuesUnavailable(_q, _p) do { } while(0)
@@ -386,6 +390,12 @@ typedef uint32 VMCIGuestMemID;
 #else
 #  define VMCI_LockQueueHeader(_q) NOT_IMPLEMENTED()
 #  define VMCI_UnlockQueueHeader(_q) NOT_IMPLEMENTED()
+#endif
+
+#if defined(VMKERNEL)
+   void VMCI_QueueHeaderUpdated(struct VMCIQueue *produceQ);
+#else
+#  define VMCI_QueueHeaderUpdated(_q) do { } while (0)
 #endif
 
 #if (!defined(VMKERNEL) && defined(__linux__)) || defined(_WIN32) ||  \

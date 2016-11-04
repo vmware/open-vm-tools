@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -123,7 +123,7 @@ CPUIDQuery;
    CPUIDLEVEL(TRUE,  7,   7,          1)            \
    CPUIDLEVEL(FALSE, A,   0xA,        0)            \
    CPUIDLEVEL(FALSE, B,   0xB,        2)            \
-   CPUIDLEVEL(TRUE,  D,   0xD,        4)            \
+   CPUIDLEVEL(TRUE,  D,   0xD,       10)            \
    CPUIDLEVEL(FALSE, 12,  0x12,       4)            \
    CPUIDLEVEL(FALSE, 400, 0x40000000, 0)            \
    CPUIDLEVEL(FALSE, 401, 0x40000001, 0)            \
@@ -449,12 +449,27 @@ FLAG(   7,  0, EBX, 10,  1, INVPCID,                               YES, FALSE) \
 FLAG(   7,  0, EBX, 11,  1, RTM,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX, 12,  1, PQM,                                   NO,  FALSE) \
 FLAG(   7,  0, EBX, 13,  1, FP_SEGMENT_ZERO,                       ANY, TRUE)  \
+FLAG(   7,  0, EBX, 14,  1, MPX,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX, 15,  1, PQE,                                   NO,  FALSE) \
+FLAG(   7,  0, EBX, 16,  1, AVX512F,                               YES, TRUE)  \
+FLAG(   7,  0, EBX, 17,  1, AVX512DQ,                              YES, TRUE)  \
 FLAG(   7,  0, EBX, 18,  1, RDSEED,                                YES, TRUE)  \
 FLAG(   7,  0, EBX, 19,  1, ADX,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX, 20,  1, SMAP,                                  YES, FALSE) \
+FLAG(   7,  0, EBX, 21,  1, AVX512IFMA,                            YES, TRUE)  \
+FLAG(   7,  0, EBX, 22,  1, PCOMMIT,                               YES, TRUE)  \
+FLAG(   7,  0, EBX, 23,  1, CLFLUSHOPT,                            YES, TRUE)  \
+FLAG(   7,  0, EBX, 24,  1, CLWB,                                  YES, TRUE)  \
 FLAG(   7,  0, EBX, 25,  1, PT,                                    NO,  FALSE) \
-FLAG(   7,  0, ECX,  0,  1, PREFETCHWT1,                           NO,  TRUE)
+FLAG(   7,  0, EBX, 26,  1, AVX512PF,                              YES, TRUE)  \
+FLAG(   7,  0, EBX, 27,  1, AVX512ER,                              YES, TRUE)  \
+FLAG(   7,  0, EBX, 28,  1, AVX512CD,                              YES, TRUE)  \
+FLAG(   7,  0, EBX, 30,  1, AVX512BW,                              YES, TRUE)  \
+FLAG(   7,  0, EBX, 31,  1, AVX512VL,                              YES, TRUE)  \
+FLAG(   7,  0, ECX,  0,  1, PREFETCHWT1,                           YES, TRUE)  \
+FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                            YES, TRUE)  \
+FLAG(   7,  0, ECX,  3,  1, PKU,                                   YES, TRUE)  \
+FLAG(   7,  0, ECX,  4,  1, OSPKE,                                 ANY, TRUE)  \
 
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
@@ -486,23 +501,77 @@ FIELD(  B,  0, EDX,  0, 32, TOPOLOGY_X2APIC_ID,                    NA,  FALSE)
 FLAG(   D,  0, EAX,  0,  1, XCR0_MASTER_LEGACY_FP,                 YES, FALSE) \
 FLAG(   D,  0, EAX,  1,  1, XCR0_MASTER_SSE,                       YES, FALSE) \
 FLAG(   D,  0, EAX,  2,  1, XCR0_MASTER_YMM_H,                     YES, FALSE) \
-FIELD(  D,  0, EAX,  3, 29, XCR0_MASTER_LOWER,                     NO,  FALSE) \
+FLAG(   D,  0, EAX,  3,  1, XCR0_MASTER_BNDREGS,                   YES, FALSE) \
+FLAG(   D,  0, EAX,  4,  1, XCR0_MASTER_BNDCSR,                    YES, FALSE) \
+FLAG(   D,  0, EAX,  5,  1, XCR0_MASTER_OPMASK,                    YES, FALSE) \
+FLAG(   D,  0, EAX,  6,  1, XCR0_MASTER_ZMM_H,                     YES, FALSE) \
+FLAG(   D,  0, EAX,  7,  1, XCR0_MASTER_HI16_ZMM,                  YES, FALSE) \
+FLAG(   D,  0, EAX,  8,  1, XCR0_MASTER_XSS,                       NO,  FALSE) \
+FLAG(   D,  0, EAX,  9,  1, XCR0_MASTER_PKRU,                      YES, FALSE) \
+FIELD(  D,  0, EAX,  10,22, XCR0_MASTER_LOWER,                     NO,  FALSE) \
 FIELD(  D,  0, EBX,  0, 32, XSAVE_ENABLED_SIZE,                    ANY, FALSE) \
 FIELD(  D,  0, ECX,  0, 32, XSAVE_MAX_SIZE,                        YES, FALSE) \
 FIELD(  D,  0, EDX,  0, 29, XCR0_MASTER_UPPER,                     NO,  FALSE) \
 FLAG(   D,  0, EDX, 30,  1, XCR0_MASTER_LWP,                       NO,  FALSE) \
 FLAG(   D,  0, EDX, 31,  1, XCR0_MASTER_EXTENDED_XSAVE,            NO,  FALSE) \
 FLAG(   D,  1, EAX,  0,  1, XSAVEOPT,                              YES, FALSE) \
-FLAG(   D,  1, EAX,  1,  1, XSAVEC,                                NO,  FALSE) \
+FLAG(   D,  1, EAX,  1,  1, XSAVEC,                                YES, FALSE) \
 FLAG(   D,  1, EAX,  2,  1, XGETBV_ECX1,                           NO,  FALSE) \
-FLAG(   D,  1, EAX,  3,  1, XSAVES,                                NO,  FALSE) \
-FIELD(  D,  1, EBX,  0, 32, XSAVE_XSS_SIZE,                        NO,  FALSE) \
-FIELD(  D,  1, ECX,  0, 32, XSS_LOWER,                             NO,  FALSE) \
-FIELD(  D,  1, EDX,  0, 32, XSS_UPPER,                             NO,  FALSE) \
+FLAG(   D,  1, EAX,  3,  1, XSAVES,                                YES, FALSE) \
+FIELD(  D,  1, EBX,  0, 32, XSAVES_ENABLED_SIZE,                   ANY, FALSE) \
+FIELD(  D,  1, ECX,  0,  7, XSS_XCR0_USED0,                        NO,  FALSE) \
+FLAG(   D,  1, ECX,  8,  1, XSS_PT,                                NO,  FALSE) \
+FIELD(  D,  1, ECX,  9,  1, XSS_XCR0_USED1,                        NO,  FALSE) \
+FIELD(  D,  1, ECX,  10,22, XSS_RSVD0,                             NO,  FALSE) \
+FIELD(  D,  1, EDX,  0, 32, XSS_RSVD1,                             NO,  FALSE) \
 FIELD(  D,  2, EAX,  0, 32, XSAVE_YMM_SIZE,                        YES, FALSE) \
 FIELD(  D,  2, EBX,  0, 32, XSAVE_YMM_OFFSET,                      YES, FALSE) \
-FIELD(  D,  2, ECX,  0, 32, XSAVE_YMM_RSVD1,                       YES, FALSE) \
-FIELD(  D,  2, EDX,  0, 32, XSAVE_YMM_RSVD2,                       YES, FALSE) \
+FLAG(   D,  2, ECX,  0,  1, XSAVE_YMM_SUP_BY_XSS,                  NO,  FALSE) \
+FLAG(   D,  2, ECX,  1,  1, XSAVE_YMM_ALIGN,                       YES, FALSE) \
+FIELD(  D,  2, ECX,  2, 30, XSAVE_YMM_RSVD1,                       NO,  FALSE) \
+FIELD(  D,  2, EDX,  0, 32, XSAVE_YMM_RSVD2,                       NO,  FALSE) \
+FIELD(  D,  3, EAX,  0, 32, XSAVE_BNDREGS_SIZE,                    YES, FALSE) \
+FIELD(  D,  3, EBX,  0, 32, XSAVE_BNDREGS_OFFSET,                  YES, FALSE) \
+FLAG(   D,  3, ECX,  0,  1, XSAVE_BNDREGS_SUP_BY_XSS,              NO,  FALSE) \
+FLAG(   D,  3, ECX,  1,  1, XSAVE_BNDREGS_ALIGN,                   YES, FALSE) \
+FIELD(  D,  3, ECX,  2, 30, XSAVE_BNDREGS_RSVD1,                   NO,  FALSE) \
+FIELD(  D,  3, EDX,  0, 32, XSAVE_BNDREGS_RSVD2,                   NO,  FALSE) \
+FIELD(  D,  4, EAX,  0, 32, XSAVE_BNDCSR_SIZE,                     YES, FALSE) \
+FIELD(  D,  4, EBX,  0, 32, XSAVE_BNDCSR_OFFSET,                   YES, FALSE) \
+FLAG(   D,  4, ECX,  0,  1, XSAVE_BNDCSR_SUP_BY_XSS,               NO,  FALSE) \
+FLAG(   D,  4, ECX,  1,  1, XSAVE_BNDCSR_ALIGN,                    YES, FALSE) \
+FIELD(  D,  4, ECX,  2, 30, XSAVE_BNDCSR_RSVD1,                    NO,  FALSE) \
+FIELD(  D,  4, EDX,  0, 32, XSAVE_BNDCSR_RSVD2,                    NO,  FALSE) \
+FIELD(  D,  5, EAX,  0, 32, XSAVE_OPMASK_SIZE,                     YES, FALSE) \
+FIELD(  D,  5, EBX,  0, 32, XSAVE_OPMASK_OFFSET,                   YES, FALSE) \
+FLAG(   D,  5, ECX,  0,  1, XSAVE_OPMASK_SUP_BY_XSS,               NO,  FALSE) \
+FLAG(   D,  5, ECX,  1,  1, XSAVE_OPMASK_ALIGN,                    YES, FALSE) \
+FIELD(  D,  5, ECX,  2, 30, XSAVE_OPMASK_RSVD1,                    NO,  FALSE) \
+FIELD(  D,  5, EDX,  0, 32, XSAVE_OPMASK_RSVD2,                    NO,  FALSE) \
+FIELD(  D,  6, EAX,  0, 32, XSAVE_ZMM_H_SIZE,                      YES, FALSE) \
+FIELD(  D,  6, EBX,  0, 32, XSAVE_ZMM_H_OFFSET,                    YES, FALSE) \
+FLAG(   D,  6, ECX,  0,  1, XSAVE_ZMM_H_SUP_BY_XSS,                NO,  FALSE) \
+FLAG(   D,  6, ECX,  1,  1, XSAVE_ZMM_H_ALIGN,                     YES, FALSE) \
+FIELD(  D,  6, ECX,  2, 30, XSAVE_ZMM_H_RSVD1,                     NO,  FALSE) \
+FIELD(  D,  6, EDX,  0, 32, XSAVE_ZMM_H_RSVD2,                     NO,  FALSE) \
+FIELD(  D,  7, EAX,  0, 32, XSAVE_HI16_ZMM_SIZE,                   YES, FALSE) \
+FIELD(  D,  7, EBX,  0, 32, XSAVE_HI16_ZMM_OFFSET,                 YES, FALSE) \
+FLAG(   D,  7, ECX,  0,  1, XSAVE_HI16_ZMM_SUP_BY_XSS,             NO,  FALSE) \
+FLAG(   D,  7, ECX,  1,  1, XSAVE_HI16_ZMM_ALIGN,                  YES, FALSE) \
+FIELD(  D,  7, ECX,  2, 30, XSAVE_HI16_ZMM_RSVD1,                  NO,  FALSE) \
+FIELD(  D,  7, EDX,  0, 32, XSAVE_HI16_ZMM_RSVD2,                  NO,  FALSE) \
+FIELD(  D,  8, EAX,  0, 32, XSAVE_PT_STATE_SIZE,                   NO,  FALSE) \
+FIELD(  D,  8, EBX,  0, 32, XSAVE_PT_STATE_OFFSET,                 NO,  FALSE) \
+FLAG(   D,  8, ECX,  0,  1, XSAVE_PT_STATE_SUP_BY_XSS,             NO,  FALSE) \
+FLAG(   D,  8, ECX,  1,  1, XSAVE_PT_STATE_ALIGN,                  NO,  FALSE) \
+FIELD(  D,  8, ECX,  2, 30, XSAVE_PT_STATE_RSVD1,                  NO,  FALSE) \
+FIELD(  D,  8, EDX,  0, 32, XSAVE_PT_STATE_RSVD2,                  NO,  FALSE) \
+FIELD(  D,  9, EAX,  0, 32, XSAVE_PKRU_SIZE,                       YES, FALSE) \
+FIELD(  D,  9, EBX,  0, 32, XSAVE_PKRU_OFFSET,                     YES, FALSE) \
+FLAG(   D,  9, ECX,  0,  1, XSAVE_PKRU_SUP_BY_XSS,                 NO,  FALSE) \
+FLAG(   D,  9, ECX,  1,  1, XSAVE_PKRU_ALIGN,                      YES, FALSE) \
+FIELD(  D,  9, ECX,  2, 30, XSAVE_PKRU_RSVD1,                      NO, FALSE) \
+FIELD(  D,  9, EDX,  0, 32, XSAVE_PKRU_RSVD2,                      NO, FALSE) \
 FIELD(  D, 62, EAX,  0, 32, XSAVE_LWP_SIZE,                        NO,  FALSE) \
 FIELD(  D, 62, EBX,  0, 32, XSAVE_LWP_OFFSET,                      NO,  FALSE) \
 FIELD(  D, 62, ECX,  0, 32, XSAVE_LWP_RSVD1,                       NO,  FALSE) \
@@ -905,11 +974,9 @@ FIELD(81E,  0, ECX,  8,  3, NODES_PER_PKG,                         NA,  FALSE)
  *
  * e.g. - CPUID_VIRT_BITS_MASK  = 0xff00
  *      - CPUID_VIRT_BITS_SHIFT = 8
- *
- * Note: The MASK definitions must use some gymnastics to get
- * around a warning when shifting left by 32.
  */
-#define VMW_BIT_MASK(shift)  (((1 << (shift - 1)) << 1) - 1)
+#define VMW_BIT_MASK(shift)  (0xffffffffu >> (32 - shift))
+
 
 #define FIELD(lvl, ecxIn, reg, bitpos, size, name, s, c3)      \
    CPUID_##name##_SHIFT        = bitpos,                       \
@@ -1128,7 +1195,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_FAMILY_K8MOBILE        0x11
 #define CPUID_FAMILY_LLANO           0x12
 #define CPUID_FAMILY_BOBCAT          0x14
-#define CPUID_FAMILY_BULLDOZER       0x15  // Bulldozer Piledriver Steamroller
+#define CPUID_FAMILY_BULLDOZER       0x15  // BD PD SR EX
 #define CPUID_FAMILY_KYOTO           0x16  // Note: Jaguar microarch
 
 /* Effective VIA CPU Families */
@@ -1195,6 +1262,10 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_PILEDRIVER_02     0x02 // family == CPUID_FAMILY_BULLDOZER
 #define CPUID_MODEL_OPTERON_REVF_41   0x41 // family == CPUID_FAMILY_K8
 #define CPUID_MODEL_KYOTO_00          0x00 // family == CPUID_FAMILY_KYOTO
+#define CPUID_MODEL_STEAMROLLER_3F    0x3F // Max Steamroller model defined in BKDG
+#define CPUID_MODEL_STEAMROLLER_30    0x30 // family == CPUID_FAMILY_BULLDOZER
+#define CPUID_MODEL_EXCAVATOR_60      0x60 // family == CPUID_FAMILY_BULLDOZER
+#define CPUID_MODEL_EXCAVATOR_6F      0x6f // Max Excavator model defined in BKDG
 
 /* VIA model information */
 #define CPUID_MODEL_NANO       15     // Isaiah
@@ -1460,6 +1531,8 @@ CPUID_MODEL_IS_IVYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 
+
+
 static INLINE Bool
 CPUID_FAMILY_IS_K7(uint32 eax)
 {
@@ -1597,6 +1670,24 @@ CPUID_MODEL_IS_PILEDRIVER(uint32 eax)
 }
 
 
+static INLINE Bool
+CPUID_MODEL_IS_STEAMROLLER(uint32 eax)
+{
+   /* Steamroller is model 0x30 of family 0x15 (so far). */
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER &&
+          (CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_STEAMROLLER_30 &&
+           CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_STEAMROLLER_3F);
+}
+
+
+static INLINE Bool
+CPUID_MODEL_IS_EXCAVATOR(uint32 eax)
+{
+   /* Excavator is model 0x60 of family 0x15 (so far). */
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER &&
+          (CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_EXCAVATOR_60 &&
+           CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_EXCAVATOR_6F);
+}
 
 
 static INLINE Bool

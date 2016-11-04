@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -643,6 +643,10 @@ ResolutionToolkitInit(void)
    XSetErrorHandler(ResolutionX11ErrorHandler);
    gtk_init(&argc, (char ***) &argv);
    wnd = gtk_invisible_new();
+#ifndef GTK3
    display = GDK_WINDOW_XDISPLAY(wnd->window);
+#else
+   display = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(wnd));
+#endif
    return (InitHandle) display;
 }

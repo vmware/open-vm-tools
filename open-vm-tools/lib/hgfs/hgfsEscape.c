@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -758,6 +758,7 @@ HgfsEscape_Do(char const *bufIn, // IN:  Buffer with unescaped input
  *    On success, the size (excluding the NUL terminator) of the
  *    escaped, NUL terminated buffer.
  *    Returns 0 if the name is a valid Windows file name.
+ *    Returns -1 if the name is not a valid file name.
  *
  * Side effects:
  *    None
@@ -774,15 +775,15 @@ HgfsEscape_GetSize(char const *bufIn,    // IN:  Buffer with unescaped input
    const char *end = bufIn + sizeIn;
    const char *next;
 
-   if (sizeIn == 0) { // No need toescape empty name.
+   if (sizeIn == 0) { // No need to escape an empty name.
       return 0;
    }
    if (bufIn[sizeIn - 1] == '\0') {
       /*
-       * In some cases a NUL terminated string is passed to HgfsEscape_GeSize
-       * so it make sense to support such input even if CPName_GetComponent
+       * In some cases, a NUL-terminated string is passed to HgfsEscape_GetSize,
+       * so it makes sense to support such input even if CPName_GetComponent
        * does not. Detect this case and make the input compliant with
-       * CPName_GetComponent by removing terminating NUL.
+       * CPName_GetComponent by removing the terminating NUL.
        */
       end--;
       sizeIn--;
@@ -794,7 +795,7 @@ HgfsEscape_GetSize(char const *bufIn,    // IN:  Buffer with unescaped input
    while (currentComponent - bufIn < sizeIn) {
       int componentSize = CPName_GetComponent(currentComponent, end, &next);
       if (componentSize < 0) {
-         Log("%s: failed to calculate escapde name size - name is invalid\n", __FUNCTION__);
+         Log("%s: failed to calculate escaped name size - name is invalid\n", __FUNCTION__);
          return -1;
       }
       result += HgfsEscapeGetComponentSize(currentComponent, componentSize);

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+processName="CommAmqpListener"
+pid=$(ps aux | egrep "${processName}" | egrep -v "color=auto|grep" | awk '{print $2}')
+if [ -z "$pid" ]; then
+	printf "false"
+else
+	printf "true"
+fi

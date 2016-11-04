@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,7 +39,9 @@
 #if defined(VMX86_VIEWCLIENT)
    #define PRODUCT_VERSION    3,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
-   #define PRODUCT_VERSION    7,0,1,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
+#elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
+   #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_DESKTOP)
    #define PRODUCT_VERSION    12,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
@@ -50,13 +52,12 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    6,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#elif defined(VMX86_BOOMERANG)
-   #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    6,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
-   #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
+   /* Generic catch-all. */
+   #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #endif
 
 /*
@@ -83,7 +84,7 @@
  * VMI 2.0      : 3.1.0
  * P2VA 3.0     : 3.?.?
  */
-#define VIE_FILEVERSION 6,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VIE_FILEVERSION 6,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 /*
  * This string can be a little more "free form".  The license
@@ -106,12 +107,6 @@
  */
 
 /*
- * When updating the ESX_VERSION* and ESX_RELEASE* macros, you will also
- * need to update:
- *
- *   > bora/support/gobuild/targets/server.py
- *   > console-os26/SOURCES/kernel-2.6.spec
- *
  * Rules for updating the ESX_RELEASE_* macros:
  *
  * Set UPDATE to 0 for all experimental/prerelease/and initial major and minor
@@ -133,7 +128,7 @@
  * 4.0.0-1.8: patch 3
  */
 #define ESX_VERSION_MAJOR "6"
-#define ESX_VERSION_MINOR "0"
+#define ESX_VERSION_MINOR "1"
 #define ESX_VERSION_MAINT "0"
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
                     ESX_VERSION_MAINT
@@ -161,13 +156,16 @@
  * necessary VIX changes also need to be done. See bug 939456.
  *
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
+ * lmclient.h has a FLEX_VERSION struct so the versionPrefix can't be FLEX
  */
 #define WORKSTATION_VERSION_NUMBER "12.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
-#define PLAYER_VERSION_NUMBER "8.0.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION_NUMBER "12.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
-#define VMRC_VERSION_NUMBER "7.0.1" /* this version number should always match real VMRC version number */
-#define VMRC_VERSION "7.0.1"
+#define VMRC_VERSION_NUMBER "8.0.0" /* this version number should always match real VMRC version number */
+#define VMRC_VERSION "8.0.0"
+#define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
+#define FLEX_CLIENT_VERSION "e.x.p"
 
 #define GANTRY_VERSION "e.x.p"
 
@@ -180,26 +178,32 @@
  */
 #define FUSION_VERSION "e.x.p"
 
-#define BOOMERANG_VERSION "e.x.p"
-
 // These must match VIE_FILEVERSION above
-#define SYSIMAGE_VERSION "6.0.0"
+#define SYSIMAGE_VERSION "6.1.0"
 #define SYSIMAGE_FILE_VERSION VIE_FILEVERSION
 
 #define VCB_VERSION "4.0.0"
 #define VCB_FILE_VERSION 4,0,0,0
-#define VIM_VERSION "6.0.0"
+#define VIM_VERSION "6.1.0"
 
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "6.0.0"
+#define VPX_VERSION "6.1.0"
 #define VPX_VERSION_MAJOR "6"
-#define VPX_VERSION_MINOR "0"
+#define VPX_VERSION_MINOR "1"
 #define VPX_VERSION_MAINT "0"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
+
+#define MAX_SUPPORTED_VI_VERSION "6.1" //from ovfTool/src/supportedVersions.h
+#define VCDB_CURRENT_SCHEMA_VERSION           610 // from PitCADatabase.h
+
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
+
+/* expected database version for current release */
+#define VPXD_VDB_DB_VERSION_ID            610
+#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.1"
 
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
@@ -226,15 +230,15 @@
 #define VIEWY_VERSION "e.x.p"
 #define VMCFSDK_VERSION "e.x.p"
 #define PCOIP_VERSION "e.x.p"
-#define VIEW_VERSION "6.1.1"
+#define VIEW_VERSION "6.2.0"
 #define HOSTD_VERSION "e.x.p"
 #define RECOVERYLIBS_VERSION "2.0.0"
 #define PRECHECK_VERSION "e.x.p"
 #define VIEW_FEATUREPACK_VERSION "5.2.0"
-#define VIEW_CLIENT_VERSION_NUMBER "2.3.0"
-#define VIEW_CLIENT_VERSION "e.x.p"
+#define VIEW_CLIENT_VERSION_NUMBER "3.5.0"
+#define VIEW_CLIENT_VERSION "3.5.0"
 #define VHSESDK_VERSION "1.0.0"
-#define RDE_RFT_ALL_VERSION "2.3.0"
+#define RDE_RFT_ALL_VERSION "3.5.0"
 #define RDESDK_VERSION "2.0.0"
 #define RDESDKREL_VERSION "2.0.0"
 #define MKSVCHANDEV_VERSION "1.0.0"
@@ -267,6 +271,8 @@
 #  define PRODUCT_VERSION_NUMBER VDM_CLIENT_VERSION
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #  define PRODUCT_VERSION_NUMBER VMRC_VERSION
+#elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
+#  define PRODUCT_VERSION_NUMBER FLEX_VERSION
 #elif defined(VMX86_GANTRY)
 #  define PRODUCT_VERSION_NUMBER GANTRY_VERSION
 #elif defined(VMX86_SERVER)
@@ -311,8 +317,6 @@
 #  define PRODUCT_VERSION_NUMBER TOOLS_VERSION
 #elif defined(VMX86_VDDK)
 #  define PRODUCT_VERSION_NUMBER VDDK_VERSION
-#elif defined(VMX86_BOOMERANG)
-#  define PRODUCT_VERSION_NUMBER BOOMERANG_VERSION
 #elif defined(VMX86_HBR_SERVER)
 #  define PRODUCT_VERSION_NUMBER ESX_VERSION
 #elif defined(VMX86_HORIZON_VIEW)
@@ -341,9 +345,10 @@
  * a parameter that no longer match the content of the dormant license
  * file.
  */
-#define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "7.0"
-#define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "7.0"
-#define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "7.0"
+#define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "8.0"
+#define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "12.0"
+#define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "8.0"
+#define PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE "8.0"
 
 #if defined(VMX86_TOOLS)
 /* This product doesn't use a license */
@@ -354,6 +359,8 @@
 #    define PRODUCT_LICENSE_VERSION "6.0"
 #  elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #    define PRODUCT_LICENSE_VERSION PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE
+#  elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
+#    define PRODUCT_LICENSE_VERSION PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE
 #  elif defined(VMX86_GANTRY)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_WGS_MIGRATION)
@@ -366,11 +373,11 @@
 #    if defined(__APPLE__)
 #      define PRODUCT_LICENSE_VERSION PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE
 #    else
-#      define PRODUCT_LICENSE_VERSION "11.0"
+#      define PRODUCT_LICENSE_VERSION "12.0"
 #    endif
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "6.0"
-#    define PRODUCT_LICENSE_FILE_VERSION "6.0.0.3"
+#    define PRODUCT_LICENSE_FILE_VERSION "6.1.0.1"
 #  elif defined(VMX86_WBC)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_SDK)
@@ -382,6 +389,10 @@
 #  endif
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
+#define PRODUCT_ESX_LICENSE_VERSION "6.0"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "6.1.0.4"
+#define PRODUCT_VSAN_LICENSE_VERSION "5.0"
+#define PRODUCT_VSAN_LICENSE_FILE_VERSION "5.9.2.0"
 
 /*
  * This is for ACE Management Server
@@ -446,6 +457,8 @@
 #define PRODUCT_VERSION_SCALABLE_SERVER_40 PRODUCT_ESXI_BRIEF_NAME " 4.x"
 #define PRODUCT_VERSION_SCALABLE_SERVER_50 PRODUCT_ESXI_BRIEF_NAME " 5.0"
 #define PRODUCT_VERSION_SCALABLE_SERVER_51 PRODUCT_ESXI_BRIEF_NAME " 5.1"
+#define PRODUCT_VERSION_SCALABLE_SERVER_55 PRODUCT_ESXI_BRIEF_NAME " 5.5"
+#define PRODUCT_VERSION_SCALABLE_SERVER_60 PRODUCT_ESXI_BRIEF_NAME " 6.0"
 #define PRODUCT_VERSION_WGS_1 "Server 1.x"
 #define PRODUCT_VERSION_WGS_2 "Server 2.x"
 #define PRODUCT_VERSION_GSX_3 "GSX Server 3.x"
@@ -454,10 +467,10 @@
 #define PRODUCT_VERSION_WORKSTATION_6 PRODUCT_WORKSTATION_BRIEF_NAME " 6.0"
 #define PRODUCT_VERSION_WORKSTATION_65 PRODUCT_WORKSTATION_BRIEF_NAME " 6.5"
 #define PRODUCT_VERSION_WORKSTATION_7 PRODUCT_WORKSTATION_BRIEF_NAME " 7.x"
-#define PRODUCT_VERSION_WORKSTATION_80 PRODUCT_WORKSTATION_BRIEF_NAME " 8.0"
-#define PRODUCT_VERSION_WORKSTATION_90 PRODUCT_WORKSTATION_BRIEF_NAME " 9.0"
-#define PRODUCT_VERSION_WORKSTATION_100 PRODUCT_WORKSTATION_BRIEF_NAME " 10.0"
-#define PRODUCT_VERSION_WORKSTATION_110 PRODUCT_WORKSTATION_BRIEF_NAME " 11.0"
+#define PRODUCT_VERSION_WORKSTATION_80 PRODUCT_WORKSTATION_BRIEF_NAME " 8.x"
+#define PRODUCT_VERSION_WORKSTATION_90 PRODUCT_WORKSTATION_BRIEF_NAME " 9.x"
+#define PRODUCT_VERSION_WORKSTATION_100 PRODUCT_WORKSTATION_BRIEF_NAME " 10.x"
+#define PRODUCT_VERSION_WORKSTATION_110 PRODUCT_WORKSTATION_BRIEF_NAME " 11.x"
 #define PRODUCT_VERSION_WORKSTATION_120 PRODUCT_WORKSTATION_BRIEF_NAME " 12.0"
 #define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_1 "ACE 1.x"
 #define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_2 "ACE 2.0"
@@ -466,10 +479,9 @@
 #define PRODUCT_VERSION_MAC_DESKTOP_1 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.1"
 #define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_3 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 3.x"
-#define PRODUCT_VERSION_MAC_DESKTOP_40 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 4.0"
-#define PRODUCT_VERSION_MAC_DESKTOP_50 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 5.0"
-#define PRODUCT_VERSION_MAC_DESKTOP_60 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 6.0"
-#define PRODUCT_VERSION_MAC_DESKTOP_70 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 7.0"
-#define PRODUCT_VERSION_MAC_DESKTOP_80 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 8.0"
-#define PRODUCT_VERSION_VMRC_70 PRODUCT_VMRC_BRIEF_NAME " 7.0"
+#define PRODUCT_VERSION_MAC_DESKTOP_40 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 4.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_50 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 5.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_60 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 6.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_70 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 7.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_80 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 8.x"
 #endif

@@ -1,0 +1,194 @@
+#!/bin/sh
+
+sourceCafenv() {
+	local configDir=$1
+	local cafenvAppconfig="$configDir/cafenv-appconfig"
+
+	if [ ! -f "$cafenvAppconfig" ]; then
+		echo "*** cafenv-appconfig file not found - $cafenvAppconfig"
+		exit 1
+	fi
+
+	local tmpCafenv="/tmp/_cafenv-appconfig_"
+	cat "$cafenvAppconfig" | sed 's/^\[/#[/g' | sed 's/^\([a-z].*=\)/export CAF_\U\1/g' > "$tmpCafenv"
+	sed -i 's/[ ]*=[ ]*/=/g' "$tmpCafenv"
+	. "$tmpCafenv"
+        export LD_LIBRARY_PATH="$CAF_TOOLS_LIB_DIR/libvgauth.so/:$CAF_TOOLS_LIB_DIR/libcrypto.so.1.0.2/:$CAF_TOOLS_LIB_DIR/libssl.so.1.0.2/:$CAF_LIB_DIR"
+        export VMWARE_USE_SYSTEM_LIBS=1
+}
+
+getCurrentDir() {
+	return $(dirname $(readlink -f $0))
+}
+
+startCafProcess() {
+	local startType="$1"
+	local startDir="$2"
+	local processDir="$3"
+	local processName="$4"
+
+	local processPath="$processDir/$processName"
+	verifyProcessNotRunning "$processPath"
+	setUtf8Locale
+
+	mkdir -p "$startDir"
+	cd "$startDir"
+
+	case "$startType" in
+		"daemon")
+			$processPath
+		;;
+		"foreground")
+			$processPath -n
+		;;
+		"valgrindMemChecks")
+			G_SLICE=always-malloc G_DEBUG=gc-friendly valgrind -v --tool=memcheck --leak-check=full --num-callers=40 --track-origins=yes --leak-resolution=med --track-fds=yes --log-file=${processPath}-valgrind-memchecks.log $processPath -n
+		;;
+		"valgrindProfiling")
+			valgrind --tool=callgrind --log-file=${processPath}-valgrind-profiling.log $processPath -n
+		;;
+		"valgrindThreading")
+			valgrind --tool=helgrind --track-lockorders=no --log-file=${processPath}-valgrind-threading.log $processPath -n
+		;;
+		*)
+			echo "Unknown startType - $startType"; exit 1
+		;;
+	esac
+}
+
+startVgAuthProcess() {
+	local startType="$1"
+	local startDir="$2"
+	local processDir="$3"
+	local processName="$4"
+
+	local processPath="$processDir/$processName"
+	verifyProcessNotRunning "$processPath"
+	setUtf8Locale
+
+	mkdir -p "$startDir"
+	cd "$startDir"
+
+	# Run the processes using -s rather than -d if you want the logging to go the file instead of the console
+	case "$startType" in
+		"daemon")
+			# This is supposed to start the service as a daemon, but it's failing... perhaps because the service
+			# hasn't been registered - see above.
+			#./$processName -b
+
+			# -s tells it to log to a file, -d to the console
+			nohup $processPath -s > ${processPath}.out 2>&1 &
+		;;
+		"foreground")
+			$processPath -d
+		;;
+		"valgrindMemChecks")
+			G_SLICE=always-malloc G_DEBUG=gc-friendly  valgrind -v --tool=memcheck --leak-check=full --show-leak-kinds=all --num-callers=40 --log-file=${processPath}-valgrind.log $processPath -d
+		;;
+		"valgrindProfiling")
+			valgrind --tool=callgrind $processPath -d
+		;;
+		*)
+			echo "Unknown startType - $startType"; exit 1
+		;;
+	esac
+}
+
+#The best locale is UTF8, and prefereably matches the
+#desired language and region
+getBestLocale() {
+	# Only find one best
+	if [ -z $best_locale ]; then
+		echo "Looking for best match for <$1>"
+		#If no language or region is defined, default to US English
+		if [ "$1" = "C" -o "$1" = "" -o "$1" = "POSIX" ]; then
+			echo "Generic starting point, defaulting"
+			getBestLocale "en_US"
+			return
+		fi
+
+		available_utf8_locales=`locale -a | egrep -i '.utf8|.utf-8' | egrep -vi '^c.utf'`
+		for loc in $available_utf8_locales; do
+			best_locale=$loc
+			#echo "Trying $loc"
+			if test "${loc#*$1}" != "$loc"; then
+				echo "$loc is best match for $1"
+				return
+			fi
+		done
+
+		if [ -z $best_locale ]; then
+			echo "No UTF8 locale found"
+			exit 1
+		fi
+
+		#If no match was found, use any valid UTF8
+		echo "Found no best, using $best_locale"
+	fi
+}
+
+#Set the locale to something UTF8
+setUtf8Locale() {
+	# Only change if the current locale is not UTF8
+	locale_list=`locale | egrep -vi '.utf8|.utf-8|=$|LANGUAGE'`
+	if [ $? -eq 0 ]; then
+		echo "The locale is not UTF8, looking for a better one"
+
+		#LC_ALL takes precedence
+		if [ ! -z $LC_ALL ]; then
+			echo "Initializing locale search with LC_ALL:$LC_ALL"
+			initial_local=$LC_ALL
+		else
+			echo "Initializing locale search with LANG:$LANG"
+			initial_local=$LANG
+		fi
+
+		locale_prefix=`echo $initial_local | sed 's/\.[^.]*$//'`
+		getBestLocale $locale_prefix
+
+		#For now, we'll just set LANG and LC_ALL, we may need to cycle
+		#through the entire locale_list in the future
+		export LANG=$best_locale
+		export LC_ALL=$best_locale
+	fi
+}
+
+verifyProcessNotRunning() {
+	local processPath=$1
+
+	pid=$(ps aux | egrep "${processPath}" | egrep -v "color=auto|grep" | awk '{print $2}')
+	if [ ! -z "$pid" ]; then
+		echo "$processPath is already running - $pid"; exit 0
+	fi
+}
+
+stopProcess() {
+	local processDir=$1
+	local processName=$2
+
+	local processPath="$processDir/$processName"
+
+	pid=$(ps aux | egrep "${processPath}" | egrep -v "color=auto|grep" | awk '{print $2}')
+	if [ -z "$pid" ]; then
+		echo "$processPath not found"
+	else
+		echo "Stopping $processPath - $pid"
+		counter=0
+		while [ ! -z "$pid" ]; do
+			if [ $counter -lt 20 ]; then
+				kill $pid
+			else
+				echo "Killing $processPath with prejudice- $pid"
+				kill -9 $pid
+			fi
+			counter=`expr $counter + 1`;
+			#echo "counter=$counter"
+			sleep 1
+			pid=$(ps aux | egrep "${processPath}" | egrep -v "color=auto|grep" | awk '{print $2}')
+		done
+	fi
+}
+
+enableCoreFiles() {
+	ulimit -c unlimited
+}

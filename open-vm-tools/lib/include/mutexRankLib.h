@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -79,6 +79,11 @@
 #define RANK_filtLibAllocBitmapLock (RANK_filtLibPollLock + 1)
 
 /*
+ * remoteUSB (must be < workerCmpl)
+ */
+#define RANK_remoteUSBGlobalLock (RANK_filtLibAllocBitmapLock + 1)
+
+/*
  * workerLib default completion lock
  *
  * Used for workerLib callers who don't provide their own lock. Held
@@ -95,8 +100,11 @@
  * for queued work.
  *
  * Must be > RANK_filtLibAllocBitmapLock due to PR1437159.
+ *
+ * Must be > RANK_remoteUSBGlobalLock so that virtual CCID can wait for
+ * queued work.
  */
-#define RANK_workerLibCmplLock       (RANK_filtLibAllocBitmapLock + 1)
+#define RANK_workerLibCmplLock       (RANK_remoteUSBGlobalLock + 1)
 
 /*
  * NFC lib lock
@@ -112,6 +120,7 @@
  * disklib and I/O related locks
  */
 #define RANK_diskLibLock             (RANK_libLockBase + 0x5001)
+#define RANK_digestLibLock           (RANK_libLockBase + 0x5004)
 #define RANK_nasPluginLock           (RANK_libLockBase + 0x5007)
 #define RANK_nasPluginMappingLock    (RANK_libLockBase + 0x5008)
 #define RANK_diskLibPluginLock       (RANK_libLockBase + 0x5010)
@@ -121,6 +130,7 @@
 #define RANK_scsiStateLock           (RANK_libLockBase + 0x5060)
 #define RANK_parInitLock             (RANK_libLockBase + 0x5070)
 #define RANK_namespaceLock           (RANK_libLockBase + 0x5080)
+#define RANK_objLibInitLock          (RANK_libLockBase + 0x5085)
 #define RANK_vvolLibLock             (RANK_libLockBase + 0x5090)
 
 /*

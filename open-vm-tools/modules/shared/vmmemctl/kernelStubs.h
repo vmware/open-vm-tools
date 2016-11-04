@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -100,6 +100,8 @@
 #      include "vm_assert.h"
 #   elif KRNL_STUBS_DRIVER_TYPE == KRNL_STUBS_DRIVER_TYPE_NDIS
 #      include "vm_basic_types.h"
+#      include <ntddk.h>
+#      include "kernelStubsFloorFixes.h"
 #      include <ndis.h>
 #   elif KRNL_STUBS_DRIVER_TYPE == KRNL_STUBS_DRIVER_TYPE_WDM
 #      include "vm_basic_types.h"
@@ -113,6 +115,7 @@
 #      include <stdlib.h>   /* for min macro. */
 #      include "vm_basic_defs.h"
 #      include "vm_assert.h"  /* Our assert macros */
+#      include "kernelStubsFloorFixes.h"
 #   else
 #      error Type KRNL_STUBS_DRIVER_TYPE must be defined.
 #   endif

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,11 +24,13 @@
  */
 
 enum GuestQuiesceParamsVersion {
-   GUESTQUIESCEPARAMS_V1 = 1
+   GUESTQUIESCEPARAMS_V1 = 1,
+   GUESTQUIESCEPARAMS_V2 = 2
 };
 
 const GUESTQUIESCE_SCRIPTARG_MAX_LEN = 256;
 const GUESTQUIESCE_DISKUUID_MAX_LEN = 3200;   /* (UUID_MAXLEN + 1) * 64 disks */
+
 
 /*  Guest Quiescing parameters. */
 struct GuestQuiesceParamsV1 {
@@ -42,7 +44,19 @@ struct GuestQuiesceParamsV1 {
    string diskUuids<GUESTQUIESCE_DISKUUID_MAX_LEN>;   /* disk Uuids */
 };
 
+/*  Guest Quiescing parameters V2. */
+struct GuestQuiesceParamsV2 {
+   struct GuestQuiesceParamsV1 paramsV1;
+   uint32 vssBackupContext;
+   uint32 vssBackupType;
+   Bool vssBootableSystemState;
+   Bool vssPartialFileSupport;
+};
+
+
 union GuestQuiesceParams switch (GuestQuiesceParamsVersion ver) {
 case GUESTQUIESCEPARAMS_V1:
    struct GuestQuiesceParamsV1 *guestQuiesceParamsV1;
+case GUESTQUIESCEPARAMS_V2:
+   struct GuestQuiesceParamsV2 *guestQuiesceParamsV2;
 };

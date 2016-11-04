@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -609,7 +609,13 @@ Stat_Help(const char *progName, // IN: The name of the program obtained from arg
                           "   memlimit: print memory limit information\n"
                           "   memres: print memory reservation information\n"
                           "   cpures: print CPU reservation information\n"
-                          "   cpulimit: print CPU limit information\n"),
+                          "   cpulimit: print CPU limit information\n"
+                          "   raw [<encoding> <stat name>]: print raw stat information\n"
+                          "      <encoding> can be one of 'text', 'json', 'xml', 'yaml'.\n"
+                          "      <stat name> includes session, host, resources, vscsi and\n"
+                          "      vnet (Some stats like vscsi are two words, e.g. 'vscsi scsi0:0').\n"
+                          "      Prints the available stats if <encoding> and <stat name>\n"
+                          "      arguments are not specified.\n"),
            cmd, progName, cmd);
 }
 

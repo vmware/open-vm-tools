@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -74,6 +74,7 @@
 #define PCI_DEVICE_ID_VMWARE_PVSCSI             0x07C0
 #define PCI_DEVICE_ID_VMWARE_82574              0x07D0
 #define PCI_DEVICE_ID_VMWARE_AHCI               0x07E0
+#define PCI_DEVICE_ID_VMWARE_NVME               0x07F0
 #define PCI_DEVICE_ID_VMWARE_HDAUDIO_CODEC      0x1975
 #define PCI_DEVICE_ID_VMWARE_HDAUDIO_CONTROLLER 0x1977
 
@@ -118,7 +119,7 @@
  *    Intel 82545EM (e1000, server adapter, single port)
  *    Intel 82546EB (e1000, server adapter, dual port)
  *    Intel HECI (as embedded in ich9m)
- *    Intel XHCI (as embedded in PANTHERPOINT)
+ *    Intel XHCI (Panther Point / Intel 7 Series)
  */
 #define PCI_VENDOR_ID_INTEL             0x8086
 #define PCI_DEVICE_ID_INTEL_82439TX     0x7100
@@ -135,6 +136,11 @@
 #define PCI_DEVICE_ID_INTEL_82574_APPLE 0x10f6
 #define PCI_DEVICE_ID_INTEL_HECI        0x2a74
 #define PCI_DEVICE_ID_INTEL_PANTHERPOINT_XHCI 0x1e31
+
+/* From drivers/usb/host/xhci-pci.c:
+ *    Intel XHCI (Lynx Point / Intel 8 Series)
+ */
+#define PCI_DEVICE_ID_INTEL_LYNXPOINT_XHCI 0x8c31
 
 #define E1000E_PCI_DEVICE_ID_CONFIG_STR "e1000e.pci.deviceID"
 #define E1000E_PCI_SUB_VENDOR_ID_CONFIG_STR "e1000e.pci.subVendorID"
@@ -193,6 +199,13 @@
 #define SCSI_CDROM_VENDOR_NAME COMPANY_NAME
 #define SCSI_CDROM_REV_LEVEL "1.0"
 
+/************* NVME implementation limits ********************************/
+#define NVME_MAX_CONTROLLERS   4
+#define NVME_MIN_NAMESPACES    1
+#define NVME_MAX_NAMESPACES    15 /* We support only 15 namespaces same
+                                   * as SCSI devices.
+                                   */
+
 /************* SCSI implementation limits ********************************/
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
 #define	SCSI_MAX_DEVICES	 16	  // BT-958 emulates only 16
@@ -213,6 +226,7 @@
 #define MAX_NUM_DISKS \
    ((SATA_MAX_CONTROLLERS * SATA_MAX_DEVICES) + \
     (SCSI_MAX_CONTROLLERS * SCSI_MAX_DEVICES) + \
+    (NVME_MAX_CONTROLLERS * NVME_MAX_NAMESPACES) + \
     (IDE_NUM_INTERFACES * IDE_DRIVES_PER_IF))
 
 /*
@@ -223,7 +237,17 @@
 #define SCSI_IDE_CHANNEL         SCSI_MAX_CONTROLLERS
 #define SCSI_IDE_HOSTED_CHANNEL  (SCSI_MAX_CONTROLLERS + 1)
 #define SCSI_SATA_CHANNEL_FIRST  (SCSI_IDE_HOSTED_CHANNEL + 1)
-#define SCSI_MAX_CHANNELS        (SCSI_SATA_CHANNEL_FIRST + SATA_MAX_CONTROLLERS)
+#define SCSI_NVME_CHANNEL_FIRST  (SCSI_SATA_CHANNEL_FIRST + \
+                                  SATA_MAX_CONTROLLERS)
+#define SCSI_MAX_CHANNELS        (SCSI_NVME_CHANNEL_FIRST + \
+                                  NVME_MAX_CONTROLLERS)
+
+/************* SCSI-NVME channel IDs *******************************/
+#define NVME_ID_TO_SCSI_ID(nvmeId)    \
+   (SCSI_NVME_CHANNEL_FIRST + (nvmeId))
+
+#define SCSI_ID_TO_NVME_ID(scsiId)    \
+   ((scsiId) - SCSI_NVME_CHANNEL_FIRST)
 
 /************* SCSI-SATA channel IDs********************************/
 #define SATA_ID_TO_SCSI_ID(sataId)    \
@@ -259,6 +283,7 @@
 #define MAX_USB_DEVICES_PER_HOST_CONTROLLER 127
 
 /************* NVDIMM implementation limits ********************************/
+#define NVDIMM_MAX_CONTROLLERS   1
 #define MAX_NVDIMM 64
 
 /************* vRDMA implementation limits ******************************/

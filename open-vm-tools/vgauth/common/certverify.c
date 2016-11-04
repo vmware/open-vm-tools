@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -156,6 +156,8 @@ VerifyCallback(int ok,
       switch (certErr) {
          // self-signed is ok
       case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+      case X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
+         g_debug("%s: allowing error %d\n", __FUNCTION__, certErr);
          ret = 1;
          break;
       default:
@@ -827,11 +829,15 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
                           const unsigned char *signature)
 {
    VGAuthError err = VGAUTH_E_FAIL;
-   EVP_MD_CTX mdCtx;
+   EVP_MD_CTX *mdCtx = NULL;
    const EVP_MD *hashAlg;
    int ret;
 
-   EVP_MD_CTX_init(&mdCtx);
+   mdCtx = EVP_MD_CTX_new();
+   if (mdCtx == NULL) {
+      g_warning("%s: unable to allocate a message digest.\n", __FUNCTION__);
+      return(VGAUTH_E_OUT_OF_MEMORY);
+   }
 
    switch (hash) {
    case VGAUTH_HASH_ALG_SHA256:
@@ -843,7 +849,7 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
       goto done;
    }
 
-   ret = EVP_VerifyInit(&mdCtx, hashAlg);
+   ret = EVP_VerifyInit(mdCtx, hashAlg);
    if (ret <= 0) {
       VerifyDumpSSLErrors();
       g_warning("%s: unable to initialize verificatation context (ret = %d)\n",
@@ -856,7 +862,7 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
     * one shot. We probably should put some upper bound on the size of the
     * data.
     */
-   ret = EVP_VerifyUpdate(&mdCtx, data, dataLen);
+   ret = EVP_VerifyUpdate(mdCtx, data, dataLen);
    if (ret <= 0) {
       VerifyDumpSSLErrors();
       g_warning("%s: unable to update verificatation context (ret = %d)\n",
@@ -864,7 +870,7 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
       goto done;
    }
 
-   ret = EVP_VerifyFinal(&mdCtx, signature, (unsigned int) signatureLen, publicKey);
+   ret = EVP_VerifyFinal(mdCtx, signature, (unsigned int) signatureLen, publicKey);
    if (0 == ret) {
       g_debug("%s: verification failed!\n", __FUNCTION__);
       err = VGAUTH_E_AUTHENTICATION_DENIED;
@@ -879,7 +885,7 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
    err = VGAUTH_E_OK;
 
 done:
-   EVP_MD_CTX_cleanup(&mdCtx);
+   EVP_MD_CTX_free(mdCtx);
 
    return err;
 }

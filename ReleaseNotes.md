@@ -1,6 +1,6 @@
-#open-vm-tools 10.0.0 Release Notes 
+#open-vm-tools 10.1.0 Release Notes 
 
-Updated on 1 SEP 2015
+Updated on 26 OCT 2016
 ##What's in the Release Notes
 The release notes cover the following topics: 
 
@@ -13,14 +13,19 @@ The release notes cover the following topics:
 ##What's New 
 VMware Tools is a suite of utilities that enhances the performance of the virtual machine's guest operating system and improves management of the virtual machine. Read about the new and enhanced features in this release below:
 
-- **Common versioning**: Infrastructure changes to enable reporting of the true version of open-vm-tools. This feature is dependent on host support. 
-- **Quiesced snapshots enhancements for Linux guests running IO workload**: Robustness related enhancements in quiesced snapshot operation. The _vmtoolsd_ service supports caching of log messages when guest IO has been quiesced. Enhancements in the _vmbackup_ plugin use a separate thread to quiesce the guest OS to avoid timeout issues due to heavy I/O in the guest. 
-- **Shared Folders**: For Linux distributions with kernel version 4.0.0 and higher, there is a new FUSE based Shared Folders client which is used as a replacement for the kernel mode client. 
-- **ESXi Serviceability**: Default _vmtoolsd_ logging is directed to a file instead of syslog.  _vmware-toolbox-cmd_ is enhanced for setting _vmtoolsd_ logging levels.
-- **GuestInfo Enhancements**: Plugin enhancements to report more than 64 IP addresses from the guest. These enhancements will be available only after upgrading the host because the guest IP addresses limit also exists on the host side.
+- **vmware-namespace-cmd**: Added vmware-namespace-cmd command line utility that exposes set/get commands for the namespace database in the VMX.
+- **gtk3 support**: open-vm-tools has been updated to use gtk3 libraries.
+- **Common Agent Framework (CAF)**: CAF provides the basic services necessary to simplify secure and efficient management of agents inside virtual machines.
+- **xmlsec1**: Changed guest authentication to xmlsec1.
+- **FreeBSD**: Changes to support open-vm-tools on FreeBSD.
+- **Automatic Linux Kernel Modules**: Automatic rebuilding of kernel modules is enabled by default.
+- **New sub-command**: Added a new sub-command to push updated network information to the host on demand.
+- **udev-rules**: Added udev rules for configuring SCSI timeout in the guest.
+- **Ubuntu 16.10**: Fixes for running on Ubuntu 16.10.
+- **Quiesced Snapshot**: Fix for quiesced snapshot failure leaving guest file system quiesced.
 
 ## Internationalization 
-open-vm-tools 10.0.0 supports the following languages:
+open-vm-tools 10.1.0 supports the following languages:
 
 - English 
 - French 
@@ -33,24 +38,26 @@ open-vm-tools 10.0.0 supports the following languages:
 - Traditional Chinese
 
 ## Compatibility 
-open-vm-tools 10.0.0 is compatible with all supported versions of VMware vSphere, VMware Workstation 12.0 and VMware Fusion 8.0.
+open-vm-tools 10.1.0 is compatible with all supported versions of VMware vSphere, VMware Workstation 12.5 and VMware Fusion 8.5.
 ## Installation and Upgrades for This Release 
 The steps to install open-vm-tools vary depending on your VMware product and the guest operating system you have installed. For general steps to install open-vm-tools in most VMware products, see https://github.com/vmware/open-vm-tools/blob/master/README.md
 ## Known Issues 
 The known issues are as follows:
 
-- **The status of IPv6 address is displayed as "unknown"**
+- **Common Agent Framework in open-vm-tools fails to build in Ubuntu 14.04.**
 
-	The status of IPv6 address from vim-cmd is displayed as "unknown" even when the address is valid.
+    Common Agent Framework in open-vm-tools fails to build in Ubuntu 14.04 with rabbitmq-c version lower than 0.8.0
 
-	Workaround: None 
-- **TextCopyPaste between host and guest systems fail**
+    Workaround: Upgrade rabbitmq-c to version 0.8.0 or higher for TLS1.2 support in Common Agent Framework
 
-	Copy and Paste of text between host and guest systems fail if the text size 50KB or higher.
- 
-	Workaround: Copy and Paste smaller amounts of text. 
-- **Definition of the field _ipAddress_ in guestinfo is ambiguous**
+- **vmusr plug-ins do not load on Solaris 10 Update 11.**
 
-	The field _ipAddress_ is defined as "Primary IP address assigned to the guest operating system, if known".
- 
-	Workaround: The field _ipAddress_ in this context for Linux is defined as the first IP address fetched by open-vm-tools.
+    While running VMware Tools 10.1 on Solaris 10 U11 guest operating systems, the following vmusr plug-ins are not loaded:
+        libdesktopEvents.so
+        libdndcp.so
+        libresolutionSet.so
+
+    This issue might also occur in Solaris version 11.2.
+
+    Workaround: Upgrade to Solaris 11.3. 
+

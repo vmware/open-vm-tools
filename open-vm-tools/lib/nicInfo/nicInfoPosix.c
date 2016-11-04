@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +45,7 @@
 # else
 #  include <dnet.h>
 # endif
+#define USE_RESOLVE 1
 #endif
 
 #ifdef USERWORLD
@@ -52,6 +53,8 @@
 #include <net/if.h>
 #include <netpacket/packet.h>
 #include <ifaddrs.h>
+
+#define USE_RESOLVE 1
 #endif
 
 #include <netinet/in.h>
@@ -71,10 +74,6 @@
  * the GNU C Library forked resolv.h and made modifications of their own, also
  * without changing __RES.
  *
- * glibc 2.1.92 included a patch which provides IPv6 name server support by
- * embedding in6_addr pointers in _res._u._ext.  Since I only care about major
- * and minor numbers, though, I'm going to condition this impl. on glibc 2.2.
- *
  * ISC, OTOH, provided accessing IPv6 servers via a res_getservers API.
  * TTBOMK, this went public with BIND 8.3.0.  Unfortunately __RES wasn't
  * bumped for this release, so instead I'm going to assume that appearance with
@@ -93,13 +92,11 @@
  * version.
  */
 
-#if defined __GLIBC__
-#   if __GLIBC_PREREQ(2,2)
-#      define      RESOLVER_IPV6_EXT
-#   endif // __GLIBC_PREREQ(2,2)
+#if defined __linux__
+#   define      RESOLVER_IPV6_EXT
 #elif (__RES > 19991006 || (__RES == 19991006 && defined RES_F_EDNS0ERR))
 #   define      RESOLVER_IPV6_GETSERVERS
-#endif // if defined __GLIBC__
+#endif // if defined __linux__
 
 
 #include "util.h"
@@ -134,14 +131,21 @@
 #ifndef NO_DNET
 static void RecordNetworkAddress(GuestNicV3 *nic, const struct addr *addr);
 static int ReadInterfaceDetails(const struct intf_entry *entry, void *arg);
-static Bool RecordResolverInfo(NicInfoV3 *nicInfo);
-static void RecordResolverNS(DnsConfigInfo *dnsConfigInfo);
 static Bool RecordRoutingInfo(NicInfoV3 *nicInfo);
+
 #if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(USERWORLD)
 static int GuestInfoGetIntf(const struct intf_entry *entry, void *arg);
 #endif
+
 #endif
+
 static char *ValidateConvertAddress(const struct sockaddr *addr);
+
+
+#ifdef USE_RESOLVE
+static Bool RecordResolverInfo(NicInfoV3 *nicInfo);
+static void RecordResolverNS(DnsConfigInfo *dnsConfigInfo);
+#endif
 
 
 /*
@@ -165,6 +169,54 @@ GuestInfoGetFqdn(int outBufLen,    // IN: length of output buffer
 
    return TRUE;
 }
+
+
+#ifdef USERWORLD
+/*
+ ******************************************************************************
+ * CountNetmaskBits --                                                   */ /**
+ * CountNetmaskBitsV4 --                                                 */ /**
+ * CountNetmaskBitsV6 --                                                 */ /**
+ *
+ * @brief Count the number of bits set in a IPV4 or IPV6 netmask
+ *
+ * @retval the number of bits set
+ *
+ ******************************************************************************
+ */
+
+static unsigned
+CountNetmaskBits(uint64_t x)
+{
+   /* SWAR reduction, much faster than using the loop/shift */
+   const uint64_t m1  = 0x5555555555555555; /* binary: 0101... */
+   const uint64_t m2  = 0x3333333333333333; /* binary: 00110011 */
+   const uint64_t m4  = 0x0f0f0f0f0f0f0f0f; /* binary:  4 zeros,  4 ones */
+
+   x -= (x >> 1) & m1;             /* each 2 bits into those 2 bits */
+   x = (x & m2) + ((x >> 2) & m2); /* each 4 bits into those 4 bits */
+   x = (x + (x >> 4)) & m4;        /* and so on ... */
+   x += x >>  8;
+   x += x >> 16;
+   x += x >> 32;
+   return x & 0x7f;
+}
+
+static unsigned
+CountNetmaskBitsV4(struct sockaddr *netmask)
+{
+   uint64_t value = ((struct sockaddr_in *)netmask)->sin_addr.s_addr;
+   return CountNetmaskBits(value);
+}
+
+static unsigned
+CountNetmaskBitsV6(struct sockaddr *netmask)
+{
+   uint64_t *value = (uint64_t *)&((struct sockaddr_in6 *)netmask)->sin6_addr;
+
+   return CountNetmaskBits(value[0]) + CountNetmaskBits(value[1]);
+}
+#endif
 
 
 /*
@@ -196,9 +248,11 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
 
    intf_close(intf);
 
+#ifdef USE_RESOLVE
    if (!RecordResolverInfo(nicInfo)) {
       return FALSE;
    }
+#endif
 
    if (!RecordRoutingInfo(nicInfo)) {
       return FALSE;
@@ -207,6 +261,7 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
    return TRUE;
 #elif defined(USERWORLD)
    struct ifaddrs *ifaddrs = NULL;
+
    if (getifaddrs(&ifaddrs) == 0 && ifaddrs != NULL) {
       struct ifaddrs *pkt;
       /*
@@ -241,6 +296,7 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
                    strncmp(ip->ifa_name, pkt->ifa_name, IFNAMSIZ) == 0) {
                   int family = sa->sa_family;
                   Bool goodAddress = FALSE;
+                  unsigned nBits = 0;
                   /*
                    * Ignore any loopback addresses.
                    */
@@ -248,16 +304,19 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
                      struct sockaddr_in *sin = (struct sockaddr_in *)sa;
                      if ((ntohl(sin->sin_addr.s_addr) >> IN_CLASSA_NSHIFT) !=
                          IN_LOOPBACKNET) {
+                        nBits = CountNetmaskBitsV4(ip->ifa_netmask);
                         goodAddress = TRUE;
                      }
                   } else if (family == AF_INET6) {
                      struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
                      if (!IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr)) {
+                        nBits = CountNetmaskBitsV6(ip->ifa_netmask);
                         goodAddress = TRUE;
                      }
                   }
                   if (goodAddress) {
-                     GuestInfoAddIpAddress(nic, ip->ifa_addr, 0, NULL, NULL);
+                     GuestInfoAddIpAddress(nic, ip->ifa_addr, nBits, NULL,
+                                           NULL);
                   }
                }
             }
@@ -265,6 +324,15 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
       }
       freeifaddrs(ifaddrs);
    }
+
+#ifdef USE_RESOLVE
+   if (!RecordResolverInfo(nicInfo)) {
+      return FALSE;
+   }
+#endif
+
+   // XXX - TODO -- fill in routing info
+
    return TRUE;
 #else
    return FALSE;
@@ -449,6 +517,10 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
    return 0;
 }
 
+#endif // !NO_DNET
+
+
+#ifdef USE_RESOLVE
 
 /*
  ******************************************************************************
@@ -621,6 +693,10 @@ RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
 #endif                                  // if !defined RESOLVER_IPV6_GETSERVERS
 }
 
+#endif // USE_RESOLVE
+
+
+#ifndef NO_DNET
 
 #ifdef USE_SLASH_PROC
 /*

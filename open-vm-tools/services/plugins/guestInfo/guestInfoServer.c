@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -63,6 +63,7 @@
 #if defined(_WIN32)
 #include "guestStats.h"
 #include "win32/guestInfoWin32.h"
+#include <time.h>
 #endif
 
 #if !defined(__APPLE__)
@@ -117,6 +118,14 @@ typedef struct _GuestInfoCache {
  * This value is controlled by the guestinfo.poll-interval config file option.
  */
 int guestInfoPollInterval = 0;
+
+/**
+ * The time when the guestInfo was last gathered.
+ *
+ * TODO: Need to reset this value when a VM is resumed or restored from a
+ * snapshot.
+ */
+time_t guestInfoLastGatherTime = 0;
 
 /**
  * Defines the current stats interval (in milliseconds).
@@ -253,6 +262,58 @@ GuestInfoVMSupport(RpcInData *data)
 
 /*
  ******************************************************************************
+ * GuestInfoCheckIfRunningSlow --                                        */ /**
+ *
+ * Checks the time when the guestInfo was last collected.
+ * Logs a warning message and sends a RPC message to the VMX if
+ * the function was called after longer than expected interval.
+ *
+ * @param[in]  ctx     The application context.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
+{
+   time_t now = time(NULL);
+
+   if (guestInfoLastGatherTime != 0) {
+      time_t delta = now - guestInfoLastGatherTime;
+      /*
+       * Have a long enough delta to ensure that we have really missed a
+       * collection.
+       */
+      if (((int) delta * 1000) >= (2 * guestInfoPollInterval)) {
+         gchar *msg, *rpcMsg;
+
+         msg = g_strdup_printf(
+                   "*** WARNING: GuestInfo collection interval longer than "
+                   "expected; actual=%d sec, expected=%d sec. ***\n",
+                   (int) delta, guestInfoPollInterval / 1000);
+
+         rpcMsg = g_strdup_printf("log %s", msg);
+
+         if (!RpcChannel_Send(ctx->rpc, rpcMsg, strlen(rpcMsg) + 1,
+                              NULL, NULL)) {
+            g_warning("%s: Error sending rpc message.\n", __FUNCTION__);
+         }
+
+         g_warning("%s", msg);
+
+         g_free(rpcMsg);
+         g_free(msg);
+      }
+   }
+
+   guestInfoLastGatherTime = now;
+}
+
+
+/*
+ ******************************************************************************
  * GuestInfoGather --                                                    */ /**
  *
  * Collects all the desired guest information and updates the VMX.
@@ -278,6 +339,8 @@ GuestInfoGather(gpointer data)
    ToolsAppCtx *ctx = data;
 
    g_debug("Entered guest info gather.\n");
+
+   GuestInfoCheckIfRunningSlow(ctx);
 
    /* Send tools version. */
    if (!GuestInfoUpdateVmdb(ctx, INFO_BUILD_NUMBER, BUILD_NUMBER, 0)) {
@@ -361,61 +424,6 @@ GuestInfoGather(gpointer data)
 
    /* Send the uptime to VMX so that it can detect soft resets. */
    SendUptime(ctx);
-
-   return TRUE;
-}
-
-
-/*
- ******************************************************************************
- * GuestInfoStatsGather --                                               */ /**
- *
- * Collects all the desired guest stats and updates the VMX.
- *
- * @param[in]  data     The application context.
- *
- * @return TRUE to indicate that the timer should be rescheduled.
- *
- ******************************************************************************
- */
-
-static gboolean
-GuestInfoStatsGather(gpointer data)
-{
-#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   ToolsAppCtx *ctx = data;
-   DynBuf stats;
-#endif
-#if defined(_WIN32)
-   gboolean perfmonLogStats;
-#endif
-
-   g_debug("Entered guest info stats gather.\n");
-
-#if defined(_WIN32)
-   perfmonLogStats = g_key_file_get_boolean(ctx->config,
-                                            CONFGROUPNAME_GUESTINFO,
-                                            CONFNAME_GUESTINFO_ENABLESTATLOGGING,
-                                            NULL);
-
-   GuestInfo_SetStatLogging(perfmonLogStats);
-#endif
-
-#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   /* Send the vmstats to the VMX. */
-   DynBuf_Init(&stats);
-
-   if (GuestInfo_PerfMon(&stats)) {
-      if (!GuestInfoUpdateVmdb(ctx, INFO_MEMORY, DynBuf_Get(&stats),
-                               DynBuf_GetSize(&stats))) {
-         g_warning("Failed to send vmstats.\n");
-      }
-   } else {
-      g_warning("Failed to get vmstats.\n");
-   }
-
-   DynBuf_Destroy(&stats);
-#endif
 
    return TRUE;
 }
@@ -832,6 +840,15 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
  ******************************************************************************
  */
 
+
+#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
+/*
+ * Turn off optimizer for this compiler, since something with new glib
+ * makes it go into an infinite loop, only on 64bit.
+ */
+#pragma optimize("", off)
+#endif
+
 static Bool
 GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
                     GuestInfoType infoType, // IN: guest information type
@@ -981,6 +998,12 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
    g_debug("Returning after updating guest information: %d\n", infoType);
    return TRUE;
 }
+#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
+/*
+ * Restore optimizer.
+ */
+#pragma optimize("", on)
+#endif
 
 
 /*
@@ -1307,25 +1330,27 @@ TweakGatherLoop(ToolsAppCtx *ctx,
       }
    }
 
-   /*
-    * If the interval hasn't changed, let's not interfere with the existing
-    * timeout source.
-    */
-   if (pollInterval == *currInterval) {
-      ASSERT(pollInterval || *timeoutSource == NULL);
-      return;
-   }
-
-   /*
-    * All checks have passed.  Destroy the existing timeout source, if it
-    * exists, then create and attach a new one.
-    */
-
    if (*timeoutSource != NULL) {
+      /*
+       * If the interval hasn't changed, let's not interfere with the existing
+       * timeout source.
+       */
+      if (pollInterval == *currInterval) {
+         ASSERT(pollInterval);
+         return;
+      }
+
+      /*
+       * Destroy the existing timeout source since the interval has changed.
+       */
+
       g_source_destroy(*timeoutSource);
       *timeoutSource = NULL;
    }
 
+   /*
+    * All checks have passed.  Create a new timeout source and attach it.
+    */
    *currInterval = pollInterval;
 
    if (*currInterval) {
@@ -1362,6 +1387,7 @@ static void
 TweakGatherLoops(ToolsAppCtx *ctx,
                  gboolean enable)
 {
+#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
    gboolean perfmonEnabled;
 
    perfmonEnabled = !g_key_file_get_boolean(ctx->config,
@@ -1376,7 +1402,7 @@ TweakGatherLoops(ToolsAppCtx *ctx,
       TweakGatherLoop(ctx, enable,
                       CONFNAME_GUESTINFO_STATSINTERVAL,
                       GUESTINFO_STATS_INTERVAL,
-                      GuestInfoStatsGather,
+                      GuestInfo_StatProviderPoll,
                       &guestInfoStatsInterval,
                       &gatherStatsTimeoutSource);
    } else {
@@ -1390,6 +1416,7 @@ TweakGatherLoops(ToolsAppCtx *ctx,
          g_info("PerfMon gather loop disabled.\n");
       }
    }
+#endif
 
    /*
     * Tweak GuestInfo gather loop
@@ -1400,6 +1427,34 @@ TweakGatherLoops(ToolsAppCtx *ctx,
                    GuestInfoGather,
                    &guestInfoPollInterval,
                    &gatherInfoTimeoutSource);
+}
+
+
+/*
+ ******************************************************************************
+ *
+ * GuestInfo_ServerReportStats --
+ *
+ *      Report gathered stats.
+ *
+ * Results:
+ *      Stats reported to VMX/VMDB. Returns FALSE on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ ******************************************************************************
+ */
+
+Bool
+GuestInfo_ServerReportStats(
+   ToolsAppCtx *ctx,  // IN
+   DynBuf *stats)     // IN
+{
+   return GuestInfoUpdateVmdb(ctx,
+                              INFO_MEMORY,
+                              DynBuf_Get(stats),
+                              DynBuf_GetSize(stats));
 }
 
 

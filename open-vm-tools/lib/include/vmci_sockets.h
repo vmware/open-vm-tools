@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -595,7 +595,8 @@ struct uuid_2_cid {
     * \param[out]    outFd    File descriptor to the VMCI device.  The
     *                         address family value is valid until this
     *                         descriptor is closed.  This parameter is
-    *                         only valid if the return value is not -1.
+    *                         not necessarily valid, but it is set if
+    *                         the return value is not -1.
     *                         Call VMCISock_ReleaseAFValueFd() to  close
     *                         this descriptor.
     *
@@ -640,6 +641,9 @@ struct uuid_2_cid {
          int s = socket(AF_VSOCK_LOCAL, SOCK_DGRAM, 0);
          if (s != -1) {
             close(s);
+            if (outFd) {
+               *outFd = -1;
+            }
             return AF_VSOCK_LOCAL;
          }
       }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -255,64 +255,64 @@ Proto_DumpRequest(ProtoRequest *req)
 #endif
    Debug("complete: %d\n", req->complete);
    Debug("sequenceNumber: %d\n", req->sequenceNumber);
-   Debug("requestType: %d(%s REQ)\n", req->reqType,
-         ProtoRequestTypeText(req->reqType));
+   Log("requestType: %d(%s REQ)\n", req->reqType,
+       ProtoRequestTypeText(req->reqType));
 
    switch (req->reqType) {
    case PROTO_REQUEST_SESSION_REQ:
       Debug("version #: %d\n", req->reqData.sessionReq.version);
-      Debug("userName: '%s'\n", req->reqData.sessionReq.userName);
+      Log("userName: '%s'\n", req->reqData.sessionReq.userName);
       break;
    case PROTO_REQUEST_CONN:
       // no details
       break;
    case PROTO_REQUEST_ADDALIAS:
-      Debug("userName: %s\n", req->reqData.addAlias.userName);
-      Debug("addMapped: %d\n", req->reqData.addAlias.addMapped);
+      Log("userName: %s\n", req->reqData.addAlias.userName);
+      Log("addMapped: %d\n", req->reqData.addAlias.addMapped);
       Debug("pemCert: %s\n", req->reqData.addAlias.pemCert);
       if (req->reqData.addAlias.aliasInfo.type == SUBJECT_TYPE_NAMED) {
-         Debug("Subject: %s\n", req->reqData.addAlias.aliasInfo.name);
+         Log("Subject: %s\n", req->reqData.addAlias.aliasInfo.name);
       } else  if (req->reqData.addAlias.aliasInfo.type == SUBJECT_TYPE_ANY) {
-         Debug("ANY Subject\n");
+         Log("ANY Subject\n");
       } else {
-         Debug("*** UNKNOWN Subject type ***\n");
+         Warning("*** UNKNOWN Subject type ***\n");
       }
-      Debug("comment: %s\n", req->reqData.addAlias.aliasInfo.comment);
+      Log("comment: %s\n", req->reqData.addAlias.aliasInfo.comment);
       break;
    case PROTO_REQUEST_REMOVEALIAS:
-      Debug("userName: %s\n", req->reqData.removeAlias.userName);
+      Log("userName: %s\n", req->reqData.removeAlias.userName);
       Debug("pemCert: %s\n", req->reqData.removeAlias.pemCert);
       if (req->reqData.removeAlias.subject.type == SUBJECT_TYPE_NAMED) {
-         Debug("Subject: %s\n", req->reqData.removeAlias.subject.name);
+         Log("Subject: %s\n", req->reqData.removeAlias.subject.name);
       } else  if (req->reqData.removeAlias.subject.type == SUBJECT_TYPE_ANY) {
-         Debug("ANY Subject\n");
+         Log("ANY Subject\n");
       } else {
-         Debug("No Subject type specified (assuming removeAll case)\n");
+         Log("No Subject type specified (assuming removeAll case)\n");
       }
       break;
    case PROTO_REQUEST_QUERYALIASES:
-      Debug("userName: %s\n", req->reqData.queryAliases.userName);
+      Log("userName: %s\n", req->reqData.queryAliases.userName);
       break;
    case PROTO_REQUEST_QUERYMAPPEDALIASES:
       // no details
       break;
    case PROTO_REQUEST_CREATETICKET:
-      Debug("userName '%s'\n", req->reqData.createTicket.userName);
+      Log("userName '%s'\n", req->reqData.createTicket.userName);
       break;
    case PROTO_REQUEST_VALIDATETICKET:
-      Debug("ticket '%s'\n", req->reqData.validateTicket.ticket);
+      Log("ticket '%s'\n", req->reqData.validateTicket.ticket);
       break;
    case PROTO_REQUEST_REVOKETICKET:
-      Debug("ticket '%s'\n", req->reqData.revokeTicket.ticket);
+      Log("ticket '%s'\n", req->reqData.revokeTicket.ticket);
       break;
    case PROTO_REQUEST_VALIDATE_SAML_BEARER_TOKEN:
       Debug("token '%s'\n", req->reqData.validateSamlBToken.samlToken);
-      Debug("username '%s'\n", req->reqData.validateSamlBToken.userName);
-      Debug("validate Only '%s'\n",
+      Log("username '%s'\n", req->reqData.validateSamlBToken.userName);
+      Log("validate Only '%s'\n",
             req->reqData.validateSamlBToken.validateOnly ? "TRUE" : "FALSE");
       break;
    default:
-      Debug("Unknown request type -- no request specific data\n");
+      Warning("Unknown request type -- no request specific data\n");
       break;
    }
 }
@@ -1328,7 +1328,7 @@ ProtoMakeErrorReplyInt(ServiceConnection *conn,
                             escapedErrMsg);
    g_free(escapedErrMsg);
 
-   Debug("Returning error message '%s'\n", packet);
+   Log("Returning error message '%s'\n", packet);
 
    return packet;
 }
@@ -1473,8 +1473,10 @@ sendError:
       break;
    }
 
-   Debug("%s: processed reqType %d(%s REQ) on connection %d\n", __FUNCTION__,
-         req->reqType, ProtoRequestTypeText(req->reqType), conn->connId);
+   // 'err' is from ServiceNetworkWriteData(), not from the operation
+   Log("%s: processed reqType %d(%s REQ), returning "
+       VGAUTHERR_FMT64" on connection %d\n", __FUNCTION__,
+       req->reqType, ProtoRequestTypeText(req->reqType), err, conn->connId);
 
    return err;
 }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -45,9 +45,10 @@
 #endif
 
 /* Logging stuff. */
+#define LGPFX "VMware hgfs: "
+
 #ifdef VMX86_DEVEL
 extern int LOGLEVEL_THRESHOLD;
-#define LGPFX "VMware hgfs: "
 #define LOG(level, args) ((void) (LOGLEVEL_THRESHOLD >= (level) ? (printk args) : 0))
 #else
 #define LOG(level, args)

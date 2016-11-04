@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -18,7 +18,19 @@
 
 arg.command = "命令"
 
+arg.config.key = "配置项"
+
+arg.config.operation = "配置操作"
+
+arg.config.section = "配置节"
+
+arg.config.value = "配置值"
+
 arg.devicename = "设备名称"
+
+arg.info.class = "信息的信息类"
+
+arg.info.subcommand = "信息操作"
 
 arg.logging.level = "日志记录级别"
 
@@ -80,19 +92,23 @@ error.novirtual = "%1$s 必须在虚拟机内部运行。\n"
 
 error.unknown = "%1$s: %2$s“%3$s”未知\n"
 
+help.config = "%1$s: 修改 Tools 配置\n用法: %2$s %3$s <子命令>\n\n子命令:\n   get <节> <项>: 显示 <项> 的当前值\n   set <节> <项> <值>: 将 <项> 设置为 <值>\n\n   remove <节> <项>: 移除 <项>\n\n<节> 可以是受支持的任何节，如 logging、guestoperations 或 guestinfo。\n<项> 可以是任何配置项。\n<值> 可以是任何值。\n"
+
 help.device = "%1$s: 与虚拟机的硬件设备相关的功能\n用法: %2$s %3$s <子命令> [参数]\ndev 是设备的名称。\n\n子命令:\n   enable <dev>: 启用设备 dev\n   disable <dev>: 禁用设备 dev\n   list: 列出所有可用的设备\n   status <dev>: 打印设备的状态\n"
 
 help.disk = "%1$s: 执行磁盘压缩操作\n用法: %2$s %3$s <子命令> [参数]\n\n子命令:\n   list: 列出可用的位置\n   shrink <位置>: 擦除并压缩指定位置的文件系统\n   shrinkonly: 压缩所有磁盘\n   wipe <位置>: 擦除指定位置的文件系统\n"
 
 help.hint = "有关详细信息，请尝试“%1$s %2$s%3$s%4$s”。\n"
 
+help.info = "%1$s: 更新主机上的来宾信息\n用法: %2$s %3$s update <信息类>\n\n子命令:\n   update <信息类>: 更新由 <信息类> 标识的信息\n<信息类> 可以为“network”\n"
+
 help.logging = ""%1$s: 修改 Tools 日志记录\n用法: %2$s %3$s level <子命令> <服务名> <级别>\n\n子命令:\n   get <服务名>: 显示当前级别\n   set <服务名> <级别>: 设置当前级别\n\n<服务名> 可以是受支持的任何服务，包括 vmsvc 或 vmusr\n<级别> 可以是 error、critical、warning、info、message 或 debug 中的一种\n   默认为 %4$s\n""
 
-help.main = "用法:%1$s <命令> [选项] [子命令]\n键入“%2$s %3$s <命令>”以获取特定命令的帮助。\n键入“%4$s -v”以查看 VMware Tools 版本。\n使用“-q”选项以禁用标准输出。\n大多数命令具有子命令。\n\n可用的命令:\n   device\n   disk\n   logging\n   script\n   stat\n   timesync\n   upgrade (并非适用于所有操作系统)\n"
+help.main = "用法: %1$s <命令> [选项] [子命令]\n键入“%2$s %3$s <命令>”可获取有关特定命令的帮助。\n键入“%4$s -v”可查看 VMware Tools 版本。\n使用“-q”选项可取消 stdout 输出。\n大多数命令都有子命令。\n\n可用命令:\n   config\n   device\n   disk (并非所有操作系统都支持)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (并非所有操作系统都支持)\n"
 
 help.script = "%1$s: 控制脚本运行以响应打开电源操作\n用法: %2$s %3$s <power|resume|suspend|shutdown> <子命令> [参数]\n\n子命令:\n   enable: 启用给定脚本，并将其路径恢复为默认值\n   disable: 禁用给定脚本\n   set <完整路径>: 将给定脚本设置为给定路径\n   default: 打印给定脚本的默认路径\n   current: 打印给定脚本的当前路径\n"
 
-help.stat = "%1$s: 打印有用的来宾和主机信息\n用法: %2$s %3$s <子命令>\n\n子命令:\n   hosttime: 打印主机时间\n   speed: 打印 CPU 速度(以 MHz 为单位)\n仅 ESX 来宾子命令:\n   sessionid: 打印当前会话 id\n   balloon: 打印内存扩大信息\n   swap: 打印内存交换信息\n   memlimit: 打印内存限制信息\n   memres: 打印内存保留信息\n   cpures: 打印 CPU 保留信息\n   cpulimit: 打印 CPU 限制信息\n"
+help.stat = "%1$s: 打印有用的来宾和主机信息\n用法: %2$s %3$s <子命令>\n\n子命令:\n   hosttime: 打印主机时间\n   speed: 打印 CPU 速度 (以 MHz 为单位)\n仅 ESX 来宾子命令:\n   sessionid: 打印当前会话 id\n   balloon: 打印内存扩大信息\n   swap: 打印内存交换信息\n   memlimit: 打印内存限制信息\n   memres: 打印内存保留信息\n   cpures: 打印 CPU 保留信息\n   cpulimit: 打印 CPU 限制信息\n   raw [<编码> <统计名称>]: 打印原始统计信息\n      <编码> 可以为“text”、“json”、“xml”和“yaml”之一。\n      <统计名称> 包括 session、host、resources、vscsi 和\n      vnet (诸如 vscsi 之类的某些统计由两个单词组成，例如“vscsi scsi0:0”)。\n      如果未指定 <编码> 和 <统计名称> 参数，\n      则会打印可用的统计信息。\n"
 
 help.timesync = "%1$s: 用于控制来宾操作系统上的时间同步的功能\n用法: %2$s %3$s <子命令>\n\n子命令:\n   enable: 启用时间同步\n   disable: 禁用时间同步\n   status: 打印时间同步状态\n"
 

@@ -333,9 +333,10 @@ hgfs_readlink(const char *path, //IN: path to a file
       goto exit;
    }
 
-   if (size >= strlen(attr->fileName)) {
-      Str_Strcpy(buf, attr->fileName + gState->basePathLen,
-                 strlen(attr->fileName) + 1 - gState->basePathLen);
+   if (size > strlen(attr->fileName)) {
+      Str_Strcpy(buf, attr->fileName,
+                 strlen(attr->fileName) + 1);
+      LOG(4, ("ReadLink: link target name = %s\n", buf));
    } else {
       res = -ENOBUFS;
    }
@@ -495,7 +496,9 @@ hgfs_unlink(const char *path) //IN: path to a file
    }
 
    res = HgfsDelete(abspath, HGFS_OP_DELETE_FILE);
-   HgfsInvalidateAttrCache(abspath);
+   if (res == 0) {
+      HgfsInvalidateAttrCache(abspath);
+   }
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
@@ -533,7 +536,9 @@ hgfs_rmdir(const char *path) //IN: path to a dir
    }
 
    res = HgfsDelete(abspath, HGFS_OP_DELETE_DIR);
-   HgfsInvalidateAttrCache(abspath);
+   if (res == 0) {
+      HgfsInvalidateAttrCache(abspath);
+   }
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
@@ -559,29 +564,24 @@ exit:
  */
 
 static int
-hgfs_symlink(const char *from,      //IN: from path
-             const char *to)        //IN: to path
+hgfs_symlink(const char *symname,   //IN: symname target
+             const char *source)    //IN: source name
 {
-   char *absfrom = NULL;
-   char *absto = NULL;
+   char *absSource = NULL;
    int res;
 
-   LOG(4, ("Entry(from = %s, to = %s)\n", from, to));
-   res = getAbsPath(from, &absfrom);
-   if (res < 0) {
-      goto exit;
-   }
-   res = getAbsPath(to, &absto);
+   LOG(4, ("Entry(from = %s, to = %s)\n", symname, source));
+   res = getAbsPath(source, &absSource);
    if (res < 0) {
       goto exit;
    }
 
-   res = HgfsSymlink(absto, absfrom);
+   LOG(4, ("symname = %s, abs source = %s)\n", symname, absSource));
+   res = HgfsSymlink(absSource, symname);
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
-   freeAbsPath(absfrom);
-   freeAbsPath(absto);
+   freeAbsPath(absSource);
    return res;
 }
 
@@ -621,7 +621,10 @@ hgfs_rename(const char *from,  //IN: from path name
    }
 
    res = HgfsRename(absfrom, absto);
-   HgfsInvalidateAttrCache(absfrom);
+   if (res == 0) {
+      HgfsInvalidateAttrCache(absfrom);
+      HgfsInvalidateAttrCache(absto);
+   }
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
@@ -1136,7 +1139,14 @@ hgfs_write(const char *path,          //IN: path to a file
    }
 
    res = HgfsWrite(fi, buf, size, offset);
-   HgfsInvalidateAttrCache(abspath);
+   if (res >= 0) {
+      /*
+       * Positive result indicates the number of bytes written.
+       * For zero bytes and no error, we still purge the cache
+       * this could effect the attributes.
+       */
+      HgfsInvalidateAttrCache(abspath);
+   }
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
@@ -1292,10 +1302,17 @@ hgfs_destroy(void *data) // IN: unused
    LOG(4, ("Entry()\n"));
 
    res = HgfsDestroySession();
-   free(gState->basePath);
-
    if (res < 0) {
       LOG(4, ("Destroy session failed. error = %d\n", res));
+   }
+
+   HgfsTransportExit();
+
+   free(gState->basePath);
+
+   if (gState->conf != NULL) {
+      g_key_file_free(gState->conf);
+      gState->conf = NULL;
    }
 
    LOG(4, ("Exit()\n"));
@@ -1368,7 +1385,7 @@ main(int argc,       //IN: Argument count
    HgfsResetOps();
    res = HgfsTransportInit();
    if (res != 0) {
-      LOG(4, ("Main: Error in HgfsTransportInit %d\n", res));
+      fprintf(stderr, "Error %d cannot open connection!\n", res);
       return res;
    }
    HgfsInitCache();

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,18 @@
 
 #include <glib.h>
 #include "VGAuthAuthentication.h"
+
+/* new API from OpenSSL 1.1.0
+ *      https://www.openssl.org/docs/manmaster/crypto/EVP_DigestInit.html
+ *
+ * EVP_MD_CTX_create() and EVP_MD_CTX_destroy() were renamed to
+ * EVP_MD_CTX_new() and EVP_MD_CTX_free() in OpenSSL 1.1.
+ */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#define EVP_MD_CTX_new()        EVP_MD_CTX_create()
+#define EVP_MD_CTX_free(x)      EVP_MD_CTX_destroy((x))
+#endif /* OpenSSL version < 1.1.0 */
+
 
 /*
  * XXX Do we still need this?  What other algorithms do SAML tokens use?
@@ -57,5 +69,7 @@ VGAuthError CertVerify_CheckSignatureUsingCert(VGAuthHashAlg hash,
 gchar * CertVerify_StripPEMCert(const gchar *pemCert);
 
 gchar * CertVerify_CertToX509String(const gchar *pemCert);
+
+gchar * CertVerify_EncodePEMForSSL(const gchar *pemCert);
 
 #endif // _CERTVERIFY_H_

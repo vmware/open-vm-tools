@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,7 +37,7 @@ typedef struct _RpcChannelFuncs{
    gboolean (*start)(RpcChannel *);
    void (*stop)(RpcChannel *);
    gboolean (*send)(RpcChannel *, char const *data, size_t dataLen,
-                    char **result, size_t *resultLen);
+                    Bool *rpcStatus, char **result, size_t *resultLen);
    void (*setup)(RpcChannel *chan, GMainContext *mainCtx,
                  const char *appName, gpointer appCtx);
    void (*shutdown)(RpcChannel *);
@@ -46,7 +46,12 @@ typedef struct _RpcChannelFuncs{
    gboolean (*stopRpcOut)(RpcChannel *);
 } RpcChannelFuncs;
 
-/** Defines the interface between the application and the RPC channel. */
+/**
+ * Defines the interface between the application and the RPC channel.
+ *
+ * XXX- outLock is badly named and is used to protect the in and out
+ * channels, their state (inStarted/outStarted) and _private data.
+ */
 struct _RpcChannel {
    const RpcChannelFuncs     *funcs;
    gpointer                  _private;

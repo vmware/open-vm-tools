@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,8 +25,8 @@
 #ifndef _VMHGFS_VERSION_H_
 #define _VMHGFS_VERSION_H_
 
-#define VMHGFS_DRIVER_VERSION          2.0.17.1
-#define VMHGFS_DRIVER_VERSION_COMMAS   2,0,17,1
-#define VMHGFS_DRIVER_VERSION_STRING   "2.0.17.1"
+#define VMHGFS_DRIVER_VERSION          2.0.21.0
+#define VMHGFS_DRIVER_VERSION_COMMAS   2,0,21,0
+#define VMHGFS_DRIVER_VERSION_STRING   "2.0.21.0"
 
 #endif /* _VMHGFS_VERSION_H_ */

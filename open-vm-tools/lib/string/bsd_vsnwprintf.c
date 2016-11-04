@@ -62,6 +62,14 @@
 #include "msgfmt.h"
 #include "convertutf.h"
 
+#if defined(__ANDROID__)
+/*
+ * Android doesn't support dtoa() or ldtoa().
+ */
+#define NO_DTOA
+#define NO_LDTOA
+#endif
+
 typedef struct StrBuf {
    Bool alloc;
    Bool error;
@@ -738,8 +746,12 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
          goto rflag;
       case '\'':
          flags |= GROUPING;
+#if defined(__ANDROID__)
+         thousands_sep = ',';
+#else
          thousands_sep = (wchar_t) *(localeconv()->thousands_sep);
          grouping = localeconv()->grouping;
+#endif
 
 	 /*
 	  * Grouping should not begin with 0, but it nevertheless
@@ -836,10 +848,14 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
          flags |= LONGINT;
          /*FALLTHROUGH*/
       case 'c':
+#if defined(__ANDROID__)
+         *(cp = buf) = (wchar_t)GETARG(wint_t);
+#else
          if (flags & LONGINT)
             *(cp = buf) = (wchar_t)GETARG(wint_t);
          else
             *(cp = buf) = (wchar_t)bsd_btowc(GETARG(int));
+#endif
          size = 1;
          sign = '\0';
          break;
@@ -888,14 +904,34 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
             free(convbuf);
          if (flags & LLONGINT) {
             fparg.ldbl = GETARG(long double);
+#if defined NO_DTOA
+            dtoaresult = NULL;
+            /*
+             * Below is to keep compiler happy
+             */
+            signflag = -1;
+            expt = 0;
+            dtoaend = NULL;
+#else
             dtoaresult =
                ldtoa(&fparg.ldbl, expchar ? 2 : 3, prec, &expt, &signflag,
                      &dtoaend);
+#endif
          } else {
             fparg.dbl = GETARG(double);
+#if defined NO_DTOA
+            dtoaresult = NULL;
+            /*
+             * Below is to keep compiler happy
+             */
+            signflag = -1;
+            expt = 0;
+            dtoaend = NULL;
+#else
             dtoaresult =
                dtoa(fparg.dbl, expchar ? 2 : 3, prec, &expt, &signflag,
                     &dtoaend);
+#endif
             if (expt == 9999)
                expt = INT_MAX;
          }
@@ -1025,7 +1061,7 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
          if (flags & LONGINT) {
             /* Argument is wchar_t * */
             if ((cp = GETARG(wchar_t *)) == NULL)
-               cp = L"(null)";
+               cp = (wchar_t *)L"(null)";
          } else {
             char *mbp;
             /* Argument is char * */
@@ -1033,7 +1069,7 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
             if (convbuf!= NULL)
                free(convbuf);
             if ((mbp = GETARG(char *)) == NULL)
-               cp = L"(null)";
+               cp = (wchar_t *)L"(null)";
             else {
                convbuf = BSDFmt_UTF8ToWChar(mbp, prec);
                if (convbuf == NULL) {

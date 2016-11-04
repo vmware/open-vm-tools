@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -219,11 +219,14 @@ DragDetWnd::SetGeometry(const int x,
 void
 DragDetWnd::GetGeometry(int &x, int &y, int &width, int &height)
 {
-   int dummy;
-
    Glib::RefPtr<Gdk::Window> gdkwin = get_window();
    if (gdkwin) {
+#ifndef GTK3
+      int dummy;
       gdkwin->get_geometry(x, y, width, height, dummy);
+#else
+      gdkwin->get_geometry(x, y, width, height);
+#endif
 #if defined(DETWNDTEST)
       Flush();
 #endif

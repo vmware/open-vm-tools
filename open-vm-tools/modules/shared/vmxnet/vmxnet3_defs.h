@@ -121,6 +121,7 @@ typedef enum {
    VMXNET3_CMD_STOP_EMULATION,
    VMXNET3_CMD_LOAD_PLUGIN,
    VMXNET3_CMD_ACTIVATE_VF,
+   VMXNET3_CMD_SET_POLLING,
 
    VMXNET3_CMD_FIRST_GET = 0xF00D0000,
    VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -133,6 +134,7 @@ typedef enum {
    VMXNET3_CMD_GET_DEV_EXTRA_INFO,
    VMXNET3_CMD_GET_CONF_INTR,
    VMXNET3_CMD_GET_ADAPTIVE_RING_INFO
+
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -735,12 +737,41 @@ Vmxnet3_RxQueueDesc;
 
 typedef
 #include "vmware_pack_begin.h"
+struct Vmxnet3_SetPolling {
+   uint8               enablePolling;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_SetPolling;
+
+/*
+ * If a command data does not exceed 16 bytes, it can use
+ * the shared memory directly. Otherwise use variable length
+ * configuration descriptor to pass the data.
+ */
+typedef
+#include "vmware_pack_begin.h"
+union Vmxnet3_CmdInfo {
+   Vmxnet3_VariableLenConfDesc varConf;
+   Vmxnet3_SetPolling          setPolling;
+   __le64                      data[2];
+}
+#include "vmware_pack_end.h"
+Vmxnet3_CmdInfo;
+
+typedef
+#include "vmware_pack_begin.h"
 struct Vmxnet3_DriverShared {
    __le32               magic;
    __le32               pad; /* make devRead start at 64-bit boundaries */
    Vmxnet3_DSDevRead    devRead;
    __le32               ecr;
-   __le32               reserved[5];
+   __le32               reserved;
+   union {
+      __le32            reserved1[4];
+      Vmxnet3_CmdInfo   cmdInfo; /* only valid in the context of executing the relevant
+                                  * command.
+                                  */
+   } cu;
 }
 #include "vmware_pack_end.h"
 Vmxnet3_DriverShared;

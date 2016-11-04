@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -57,10 +57,8 @@
 #define ALIAS_STORE_REL_DIRECTORY   "VMware\\VGAuth\\aliasStore"
 #define DEFAULT_ALIASSTORE_ROOT_DIR   "C:\\Documents and Settings\\All Users\\Application Data\\" ALIAS_STORE_REL_DIRECTORY
 #endif
-#define DIRSEP "\\"
 #else
 #define DEFAULT_ALIASSTORE_ROOT_DIR   "/var/lib/vmware/VGAuth/aliasStore"
-#define DIRSEP "/"
 #endif
 
 #define ALIASSTORE_MAPFILE_NAME  "mapping.xml"
@@ -2768,6 +2766,7 @@ ServiceAliasRemoveAlias(const gchar *reqUserName,
                         ServiceSubject *subj)
 {
    VGAuthError err;
+   VGAuthError savedErr = VGAUTH_E_OK;
    int numIds;
    ServiceAlias *aList = NULL;
    gboolean removeAll = (subj->type == SUBJECT_TYPE_UNSET);
@@ -2855,13 +2854,17 @@ ServiceAliasRemoveAlias(const gchar *reqUserName,
          }
       }
       if (-1 == userIdIdx) {
-         err = VGAUTH_E_INVALID_ARGUMENT;
-         goto done;
+         /*
+          * No match, but continue on through the mapped code
+          * in case we have a orphaned mapped alias from a buggy
+          * earlier version.
+          */
+         savedErr = VGAUTH_E_INVALID_ARGUMENT;
       }
    }
 
    /*
-    * Load mapping.
+    * Now clear out any mapped alias.  This may fail to find a match.
     */
    err = AliasLoadMapped(&numMapped, &maList);
    if (VGAUTH_E_OK != err) {
@@ -2918,20 +2921,16 @@ ServiceAliasRemoveAlias(const gchar *reqUserName,
                memset(&(maList[userIdIdx].subjects[maList[userIdIdx].num]), '\0',
                          sizeof(ServiceSubject));
 #endif
+               // if all the subjects are gone, toss the whole thing
+               if (maList[i].num == 0) {
+                  numMapped--;
+                  ServiceAliasFreeMappedAliasListContents(&(maList[i]));
+                  AliasShrinkMapList(maList, numMapped, userIdIdx);
+               }
+               updateMap = TRUE;
+               break;
             }
-            // if all the subjects are gone, toss the whole thing
-            if (maList[i].num == 0) {
-               numMapped--;
-               ServiceAliasFreeMappedAliasListContents(&(maList[i]));
-               AliasShrinkMapList(maList, numMapped, userIdIdx);
-            }
-            updateMap = TRUE;
-            break;
          }
-      }
-      if (-1 == userIdIdx) {
-         err = VGAUTH_E_INVALID_ARGUMENT;
-         goto done;
       }
    }
 
@@ -2951,7 +2950,15 @@ done:
    ServiceAliasFreeAliasList(numIds, aList);
    ServiceAliasFreeMappedAliasList(numMapped, maList);
 
-   return err;
+   /*
+    * If we couldn't find the alias, but dropped though to the mapped
+    * code anyways to catch orphans, return that error.
+    */
+   if (savedErr != VGAUTH_E_OK) {
+      return savedErr;
+   } else {
+      return err;
+   }
 }
 
 
@@ -3042,7 +3049,7 @@ ServiceAliasQueryMappedAliases(int *num,
  * ServiceIDVerifyStoreContents --                                       */ /**
  *
  * Looks at every file in the alias store, validating ownership and permissions.
- * If a file faisl the validation check, its renamed to file.bad.
+ * If a file fails the validation check, its renamed to file.bad.
  *
  * If we fail to rename a bad file, the function returns an error.
  *
@@ -3134,6 +3141,101 @@ ServiceIDVerifyStoreContents(void)
    g_dir_close(dir);
 
    return VGAUTH_E_OK;
+}
+
+
+/*
+ ******************************************************************************
+ * ServiceValidateAliases --                                             */ /**
+ *
+ * Looks at the alias store, and flags any orphaned mapped alias (have no
+ * associated per-user alias) that could have been left by bugs in
+ * previous releases.
+ *
+ * @return VGAUTH_E_OK on success, VGAuthError on failure
+ *
+ ******************************************************************************
+ */
+
+static VGAuthError
+ServiceValidateAliases(void)
+{
+   VGAuthError err;
+   int numMapped = 0;
+   ServiceMappedAlias *maList = NULL;
+   int numIds;
+   ServiceAlias *aList = NULL;
+   ServiceSubject *mappedSubj;
+   ServiceSubject *badSubj;
+   ServiceAliasInfo *ai;
+   int i;
+   int j;
+   int k;
+   int l;
+   gboolean foundMatch;
+
+   err = AliasLoadMapped(&numMapped, &maList);
+   if (VGAUTH_E_OK != err) {
+      goto done;
+   }
+
+   if (numMapped == 0) {
+      err = VGAUTH_E_OK;
+      goto done;
+   }
+
+   for (i = 0; i < numMapped; i++) {
+      foundMatch = FALSE;
+      badSubj = NULL;
+      err = AliasLoadAliases(maList[i].userName, &numIds, &aList);
+      if (err != VGAUTH_E_OK) {
+         Warning("%s: Failed to load alias for user '%s'\n",
+                 __FUNCTION__, maList[i].userName);
+         continue;
+      }
+
+      // iterate over subjects
+      for (j = 0; j < maList[i].num; j++) {
+         mappedSubj = &(maList[i].subjects[j]);
+         badSubj = mappedSubj;
+         for (k = 0; k < numIds; k++) {
+            if (ServiceComparePEMCerts(maList[i].pemCert, aList[k].pemCert)) {
+               for (l = 0; l < aList[k].num; l++) {
+                  ai = &(aList[k].infos[l]);
+                  if (ServiceAliasIsSubjectEqual(mappedSubj->type, ai->type,
+                                              mappedSubj->name, ai->name)) {
+                     foundMatch = TRUE;
+                     badSubj = NULL;
+                     goto next;
+                  }
+               }
+            }
+         }
+      }
+next:
+      ServiceAliasFreeAliasList(numIds, aList);
+      if (!foundMatch) {
+         Warning("%s: orphaned mapped alias: user %s subj %s cert %s\n",
+                 __FUNCTION__, maList[i].userName,
+                 (badSubj->type == SUBJECT_TYPE_NAMED ? badSubj->name : "ANY"),
+                 maList[i].pemCert);
+#if 0
+         /*
+          * This could clear the orphaned alias, but a) that could
+          * confuse a user and b) if its buggy, its made things worse.
+          */
+         err = ServiceAliasRemoveAlias("SERVICE-SANITY-CHECK",
+                                        maList[i].userName,
+                                        maList[i].pemCert,
+                                        badSubj);
+#endif
+      }
+   }
+
+done:
+   ServiceAliasFreeMappedAliasList(numMapped, maList);
+
+   return err;
 }
 
 
@@ -3255,6 +3357,11 @@ ServiceAliasInitAliasStore(void)
                      aliasStoreRootDir);
          saveBadDir = TRUE;
       }
+
+      /*
+       * Sanity check the alias store.
+       */
+      err = ServiceValidateAliases();
    }
 
    if (saveBadDir) {

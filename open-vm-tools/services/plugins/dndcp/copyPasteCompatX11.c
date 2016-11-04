@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -159,7 +159,11 @@ CopyPasteSelectionRemoveTarget(GtkWidget *widget,
    GList *selectionLists;
 
    /* Get selection list. */
+#ifndef GTK3
    selectionLists = gtk_object_get_data(GTK_OBJECT (widget), selection_handler_key);
+#else
+   selectionLists = g_object_get_data(G_OBJECT (widget), selection_handler_key);
+#endif
    tempList = selectionLists;
    while (tempList) {
       /* Enumerate the list to find the selection. */
@@ -168,6 +172,10 @@ CopyPasteSelectionRemoveTarget(GtkWidget *widget,
          /* Remove target. */
          gtk_target_list_remove(targetList->list, target);
          /* If no more target, remove selection from list. */
+#ifndef GTK3
+         /* the following code does not build with gtk3 - it may not be
+            necessary and gtk_target_list_remove() takes care of it,
+            or we create a memory leak. */
          if (!targetList->list->list) {
             /* Free target list. */
             gtk_target_list_unref(targetList->list);
@@ -176,12 +184,17 @@ CopyPasteSelectionRemoveTarget(GtkWidget *widget,
             selectionLists = g_list_remove_link(selectionLists, tempList);
             g_list_free_1(tempList);
          }
+#endif
          break;
       }
       tempList = tempList->next;
    }
    /* Put new selection list back. */
+#ifndef GTK3
    gtk_object_set_data (GTK_OBJECT (widget), selection_handler_key, selectionLists);
+#else
+   g_object_set_data (G_OBJECT (widget), selection_handler_key, selectionLists);
+#endif
 }
 
 
@@ -335,7 +348,12 @@ CopyPasteSelectionReceivedCB(GtkWidget *widget,                // IN: unused
                              gpointer data)                    // IN: unused
 {
    char *target;
+#ifndef GTK3
    char *utf8Str = NULL;
+#else
+   const char *utf8Str = NULL;
+   char *utf8Str_cvt = NULL;
+#endif
    size_t len;
    size_t aligned_len;
 
@@ -344,52 +362,96 @@ CopyPasteSelectionReceivedCB(GtkWidget *widget,                // IN: unused
       goto exit;
    }
 
+#ifndef GTK3
    if (selection_data->length < 0) {
+#else
+   if (gtk_selection_data_get_length(selection_data) < 0) {
+#endif
       g_debug("CopyPasteSelectionReceivedCB: Error, length less than 0\n");
       goto exit;
    }
 
    /* Try to get clipboard or selection timestamp. */
+#ifndef GTK3
    if (selection_data->target == GDK_SELECTION_TYPE_TIMESTAMP) {
       if (selection_data->selection == GDK_SELECTION_PRIMARY) {
          if (selection_data->length == 4) {
             gGuestSelPrimaryTime = *(uint32 *)selection_data->data;
+#else
+   if (gtk_selection_data_get_target(selection_data) == GDK_SELECTION_TYPE_TIMESTAMP) {
+      if (gtk_selection_data_get_selection(selection_data) == GDK_SELECTION_PRIMARY) {
+         if (gtk_selection_data_get_length(selection_data) == 4) {
+            gGuestSelPrimaryTime = *(uint32 *)gtk_selection_data_get_data(selection_data);
+#endif
             g_debug("CopyPasteSelectionReceivedCB: Got pri time [%"FMT64"u]\n",
                   gGuestSelPrimaryTime);
+#ifndef GTK3
          } else if (selection_data->length == 8) {
             gGuestSelPrimaryTime = *(uint64 *)selection_data->data;
+#else
+         } else if (gtk_selection_data_get_length(selection_data) == 8) {
+            gGuestSelPrimaryTime = *(uint64 *)gtk_selection_data_get_data(selection_data);
+#endif
             g_debug("CopyPasteSelectionReceivedCB: Got pri time [%"FMT64"u]\n",
                   gGuestSelPrimaryTime);
          } else {
             g_debug("CopyPasteSelectionReceivedCB: Unknown pri time. Size %d\n",
+#ifndef GTK3
                   selection_data->length);
+#else
+                  gtk_selection_data_get_length(selection_data));
+#endif
          }
       }
+#ifndef GTK3
       if (selection_data->selection == GDK_SELECTION_CLIPBOARD) {
          if (selection_data->length == 4) {
             gGuestSelClipboardTime = *(uint32 *)selection_data->data;
+#else
+      if (gtk_selection_data_get_selection(selection_data) == GDK_SELECTION_CLIPBOARD) {
+         if (gtk_selection_data_get_length(selection_data) == 4) {
+            gGuestSelClipboardTime = *(uint32 *)gtk_selection_data_get_data(selection_data);
+#endif
             g_debug("CopyPasteSelectionReceivedCB: Got clip time [%"FMT64"u]\n",
                   gGuestSelClipboardTime);
+#ifndef GTK3
          } else if (selection_data->length == 8) {
             gGuestSelClipboardTime = *(uint64 *)selection_data->data;
+#else
+         } else if (gtk_selection_data_get_length(selection_data) == 8) {
+            gGuestSelClipboardTime = *(uint64 *)gtk_selection_data_get_data(selection_data);
+#endif
             g_debug("CopyPasteSelectionReceivedCB: Got clip time [%"FMT64"u]\n",
                   gGuestSelClipboardTime);
          } else {
             g_debug("CopyPasteSelectionReceivedCB: Unknown clip time. Size %d\n",
+#ifndef GTK3
                   selection_data->length);
+#else
+                  gtk_selection_data_get_length(selection_data));
+#endif
          }
       }
       goto exit;
    }
 
+#ifndef GTK3
    if (selection_data->selection == GDK_SELECTION_PRIMARY) {
+#else
+   if (gtk_selection_data_get_selection(selection_data) == GDK_SELECTION_PRIMARY) {
+#endif
       target = gGuestSelPrimaryBuf;
+#ifndef GTK3
    } else if (selection_data->selection == GDK_SELECTION_CLIPBOARD) {
+#else
+   } else if (gtk_selection_data_get_selection(selection_data) == GDK_SELECTION_CLIPBOARD) {
+#endif
       target = gGuestSelClipboardBuf;
    } else {
       goto exit;
    }
 
+#ifndef GTK3
    utf8Str = selection_data->data;
    len = strlen(selection_data->data);
 
@@ -403,11 +465,27 @@ CopyPasteSelectionReceivedCB(GtkWidget *widget,                // IN: unused
       }
       goto exit;
    }
+#else
+   utf8Str = gtk_selection_data_get_data(selection_data);
+   len = strlen(gtk_selection_data_get_data(selection_data));
+
+   if (gtk_selection_data_get_target(selection_data) != GDK_SELECTION_TYPE_STRING &&
+       gtk_selection_data_get_target(selection_data) != GDK_SELECTION_TYPE_UTF8_STRING) {
+      /* It is a file list. */
+      if (len >= MAX_SELECTION_BUFFER_LENGTH - 1) {
+         Warning("CopyPasteSelectionReceivedCB file list too long\n");
+      } else {
+         memcpy(target, gtk_selection_data_get_data(selection_data), len + 1);
+      }
+      goto exit;
+   }
+#endif
 
    /*
     * If target is GDK_SELECTION_TYPE_STRING, assume encoding is local code
     * set. Convert to utf8 before send to vmx.
     */
+#ifndef GTK3
    if (selection_data->target == GDK_SELECTION_TYPE_STRING &&
        !CodeSet_CurrentToUtf8(selection_data->data,
                               selection_data->length,
@@ -417,6 +495,20 @@ CopyPasteSelectionReceivedCB(GtkWidget *widget,                // IN: unused
       gWaitingOnGuestSelection = FALSE;
       return;
    }
+#else
+   if (gtk_selection_data_get_target(selection_data) == GDK_SELECTION_TYPE_STRING) {
+      if (!CodeSet_CurrentToUtf8(gtk_selection_data_get_data(selection_data),
+                              gtk_selection_data_get_length(selection_data),
+                              &utf8Str_cvt,
+                              &len)) {
+         g_debug("CopyPasteSelectionReceivedCB: Couldn't convert to utf8 code set\n");
+         gWaitingOnGuestSelection = FALSE;
+         return;
+      } else {
+         utf8Str = utf8Str_cvt;
+      }
+   }
+#endif
 
    /*
     * String in backdoor communication is 4 bytes by 4 bytes, so the len
@@ -436,8 +528,13 @@ CopyPasteSelectionReceivedCB(GtkWidget *widget,                // IN: unused
    }
 
 exit:
+#ifndef GTK3
    if (selection_data->target == GDK_SELECTION_TYPE_STRING) {
       free(utf8Str);
+#else
+   if (gtk_selection_data_get_target(selection_data) == GDK_SELECTION_TYPE_STRING) {
+      free(utf8Str_cvt);
+#endif
    }
    gWaitingOnGuestSelection = FALSE;
 }
@@ -483,8 +580,13 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
    }
 
    /* If it is text copy paste, return gHostClipboardBuf. */
+#ifndef GTK3
    if (GDK_SELECTION_TYPE_STRING == selection_data->target ||
        GDK_SELECTION_TYPE_UTF8_STRING == selection_data->target) {
+#else
+   if (GDK_SELECTION_TYPE_STRING == gtk_selection_data_get_target(selection_data) ||
+       GDK_SELECTION_TYPE_UTF8_STRING == gtk_selection_data_get_target(selection_data)) {
+#endif
       char *outBuf = gHostClipboardBuf;
       size_t len = strlen(gHostClipboardBuf);
 
@@ -492,7 +594,11 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
        * If target is GDK_SELECTION_TYPE_STRING, assume encoding is local code
        * set. Convert from utf8 to local one.
        */
+#ifndef GTK3
       if (GDK_SELECTION_TYPE_STRING == selection_data->target &&
+#else
+      if (GDK_SELECTION_TYPE_STRING == gtk_selection_data_get_target(selection_data) &&
+#endif
           !CodeSet_Utf8ToCurrent(gHostClipboardBuf,
                                  strlen(gHostClipboardBuf),
                                  &outBuf,
@@ -501,11 +607,19 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
          return;
       }
 
+#ifndef GTK3
       gtk_selection_data_set(selection_data, selection_data->target, 8,
+#else
+      gtk_selection_data_set(selection_data, gtk_selection_data_get_target(selection_data), 8,
+#endif
                              outBuf, len);
       g_debug("CopyPasteSelectionGetCB: Set text [%s]\n", outBuf);
 
+#ifndef GTK3
       if (GDK_SELECTION_TYPE_STRING == selection_data->target) {
+#else
+      if (GDK_SELECTION_TYPE_STRING == gtk_selection_data_get_target(selection_data)) {
+#endif
          free(outBuf);
       }
 
@@ -728,12 +842,21 @@ CopyPaste_Register(GtkWidget* mainWnd,   // IN
    gtk_selection_add_target(mainWnd, GDK_SELECTION_CLIPBOARD,
                             GDK_SELECTION_TYPE_UTF8_STRING, 0);
 
+#ifndef GTK3
    gtk_signal_connect(GTK_OBJECT(mainWnd), "selection_received",
                       GTK_SIGNAL_FUNC(CopyPasteSelectionReceivedCB), mainWnd);
    gtk_signal_connect(GTK_OBJECT(mainWnd), "selection_get",
                       GTK_SIGNAL_FUNC(CopyPasteSelectionGetCB), mainWnd);
    gtk_signal_connect(GTK_OBJECT(mainWnd), "selection_clear_event",
                       GTK_SIGNAL_FUNC(CopyPasteSelectionClearCB), mainWnd);
+#else
+   g_signal_connect(G_OBJECT(mainWnd), "selection_received",
+                    G_CALLBACK(CopyPasteSelectionReceivedCB), mainWnd);
+   g_signal_connect(G_OBJECT(mainWnd), "selection_get",
+                    G_CALLBACK(CopyPasteSelectionGetCB), mainWnd);
+   g_signal_connect(G_OBJECT(mainWnd), "selection_clear_event",
+                    G_CALLBACK(CopyPasteSelectionClearCB), mainWnd);
+#endif
 
    CopyPasteStateInit();
 
@@ -761,6 +884,7 @@ void
 CopyPaste_Unregister(GtkWidget* mainWnd)
 {
    g_debug("%s: enter\n", __FUNCTION__);
+#ifndef GTK3
    gtk_signal_disconnect_by_func(GTK_OBJECT(mainWnd),
                                  GTK_SIGNAL_FUNC(CopyPasteSelectionReceivedCB),
                                  mainWnd);
@@ -770,6 +894,17 @@ CopyPaste_Unregister(GtkWidget* mainWnd)
    gtk_signal_disconnect_by_func(GTK_OBJECT(mainWnd),
                                  GTK_SIGNAL_FUNC(CopyPasteSelectionClearCB),
                                  mainWnd);
+#else
+   g_signal_handlers_disconnect_by_func(G_OBJECT(mainWnd),
+                               G_CALLBACK(CopyPasteSelectionReceivedCB),
+                               mainWnd);
+   g_signal_handlers_disconnect_by_func(G_OBJECT(mainWnd),
+                               G_CALLBACK(CopyPasteSelectionGetCB),
+                               mainWnd);
+   g_signal_handlers_disconnect_by_func(G_OBJECT(mainWnd),
+                               G_CALLBACK(CopyPasteSelectionClearCB),
+                               mainWnd);
+#endif
 }
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -526,7 +526,63 @@ typedef struct Atomic_Bool {
 } Atomic_Bool;
 
 /* The ARM team can come along and add the code real soon now */
+#if defined(VM_ARM_32) || defined(VM_ARM_64)
 extern Bool AtomicUndefinedOnARM(void);
+MY_ASSERTS(ARM64_BOOL_SIZE,
+           ASSERT_ON_COMPILE(sizeof(Atomic_Bool) == sizeof(uint8));
+   )
+#endif
+
+#if defined VMKERNEL || defined VMM || defined VM_ARM_64
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CMPXCHG1B --
+ *
+ *      Compare and exchange a single byte.
+ *
+ * Results:
+ *      The value read from ptr.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE uint8
+CMPXCHG1B(volatile uint8 *ptr, // IN/OUT
+          uint8 oldVal,        // IN
+          uint8 newVal)        // IN
+{
+   uint8 val;
+
+#if defined(VM_ARM_64)
+     register uint32 failed;
+
+   __asm__ __volatile__ (
+      "   dmb     sy             \n\t"
+      "1: ldxrb   %w0, [%2]      \n\t"
+      "   cmp     %w0, %w3, UXTB \n\t"
+      "   b.ne    2f             \n\t"
+      "   stxrb   %w1, %w4, [%2] \n\t"
+      "   cbnz    %w1, 1b        \n\t"
+      "2: clrex                  \n\t"
+      "   dmb     sy             \n\t"
+      : "=&r" (val), "=&r" (failed)
+      : "r" (ptr), "r" (oldVal), "r" (newVal)
+      : "cc", "memory");
+#else
+   __asm__ __volatile__("lock; cmpxchgb %b2, %1"
+                        : "=a" (val),
+                          "+m" (*ptr)
+                        : "r" (newVal),
+                          "0" (oldVal)
+                        : "cc");
+
+#endif /* defined(VM_ARM_64) */
+   return val;
+}
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -549,8 +605,15 @@ Atomic_ReadBool(Atomic_Bool const *var)  // IN:
 {
    Bool val;
 
-#if defined(__GNUC__) && (defined(VM_ARM_32) || defined(VM_ARM_64))
+#if defined(__GNUC__) && defined(VM_ARM_32)
    val = AtomicUndefinedOnARM();
+#elif defined(__GNUC__) && defined(VM_ARM_64)
+   __asm__ __volatile__ (
+      "ldrb    %w0, [%1]"
+      : "=r" (val)
+      : "r" (&var->value)
+   );
+
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
    __asm__ __volatile__(
       "movb %1, %0"
@@ -587,8 +650,25 @@ static INLINE Bool
 Atomic_ReadWriteBool(Atomic_Bool *var,  // IN/OUT:
                      Bool val)          // IN:
 {
-#if defined(__GNUC__) && (defined(VM_ARM_32) || defined(VM_ARM_64))
+#if defined(__GNUC__) && defined(VM_ARM_32)
    return AtomicUndefinedOnARM();
+#elif defined(__GNUC__) && defined(VM_ARM_64)
+   register Bool retVal;
+   register uint32 failed;
+
+   __asm__ __volatile__(
+      "   dmb     sy             \n\t"
+      "1: ldxrb   %w0, [%2]      \n\t"
+      "   stxrb   %w1, %w3, [%2] \n\t"
+      "   cbnz    %w1, 1b        \n\t"
+      "   dmb     sy             \n\t"
+      : "=&r" (retVal), "=&r" (failed)
+      : "r" (&var->value), "r" (val)
+      : "memory"
+   );
+
+   return retVal;
+
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
    __asm__ __volatile__(
       "xchgb %0, %1"
@@ -637,8 +717,10 @@ static INLINE void
 Atomic_WriteBool(Atomic_Bool *var,  // IN/OUT:
                  Bool val)          // IN:
 {
-#if defined(__GNUC__) && (defined(VM_ARM_32) || defined(VM_ARM_64))
+#if defined(__GNUC__) && defined(VM_ARM_32)
    AtomicUndefinedOnARM();
+#elif defined(__GNUC__) && defined(VM_ARM_64)
+   Atomic_ReadWriteBool(var, val);
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
    __asm__ __volatile__(
       "movb %1, %0"
@@ -674,8 +756,10 @@ Atomic_ReadIfEqualWriteBool(Atomic_Bool *var,  // IN/OUT:
                             Bool oldVal,       // IN:
                             Bool newVal)       // IN:
 {
-#if defined(__GNUC__) && (defined(VM_ARM_32) || defined(VM_ARM_64))
+#if defined(__GNUC__) && defined(VM_ARM_32)
    return AtomicUndefinedOnARM();
+#elif defined(__GNUC__) && defined(VM_ARM_64)
+   return (Bool)CMPXCHG1B((volatile uint8 *)&var->value, oldVal, newVal);
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
    Bool val;
 
@@ -1869,41 +1953,6 @@ Atomic_ReadDec32(Atomic_uint32 *var) // IN/OUT
 {
    return Atomic_ReadAdd32(var, (uint32)-1);
 }
-
-
-#if defined VMKERNEL || defined VMM
-#if !defined(VM_ARM_64)
-/*
- *-----------------------------------------------------------------------------
- *
- * CMPXCHG1B --
- *
- *      Compare and exchange a single byte.
- *
- * Results:
- *      The value read from ptr.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-static INLINE uint8
-CMPXCHG1B(volatile uint8 *ptr, // IN/OUT
-          uint8 oldVal,        // IN
-          uint8 newVal)        // IN
-{
-   uint8 val;
-   __asm__ __volatile__("lock; cmpxchgb %b2, %1"
-                        : "=a" (val),
-                          "+m" (*ptr)
-                        : "r" (newVal),
-                          "0" (oldVal)
-                        : "cc");
-   return val;
-}
-#endif /* !defined(VM_ARM_64) */
-#endif
 
 
 /*

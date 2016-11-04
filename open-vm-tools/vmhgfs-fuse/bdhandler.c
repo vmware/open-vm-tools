@@ -45,7 +45,7 @@ static HgfsTransportChannel bdChannel;
  *      Open the backdoor in an idempotent way.
  *
  * Results:
- *      TRUE on success, FALSE on failure.
+ *      Existing or updated channel status, HGFS_CHANNEL_CONNECTED on success.
  *
  * Side effects:
  *      None
@@ -53,36 +53,35 @@ static HgfsTransportChannel bdChannel;
  *-----------------------------------------------------------------------------
  */
 
-static Bool
+static HgfsChannelStatus
 HgfsBdChannelOpen(HgfsTransportChannel *channel) // IN: Channel
 {
-   Bool ret;
-
    pthread_mutex_lock(&channel->connLock);
    switch (channel->status) {
    case HGFS_CHANNEL_UNINITIALIZED:
-      ret = FALSE;
+      LOG(8, ("Backdoor uninitialized.\n"));
       break;
    case HGFS_CHANNEL_CONNECTED:
-      ret = TRUE;
+      LOG(8, ("Backdoor already connected.\n"));
       break;
    case HGFS_CHANNEL_NOTCONNECTED:
       if (HgfsBd_OpenBackdoor((RpcOut **)&channel->priv)) {
-         LOG(8, ("Backdoor opened.\n"));
-         bdChannel.status = HGFS_CHANNEL_CONNECTED;
-         ret = TRUE;
+         LOG(8, ("Backdoor opened and connected.\n"));
+         channel->status = HGFS_CHANNEL_CONNECTED;
          ASSERT(channel->priv != NULL);
       } else {
-         ret = FALSE;
+         LOG(8, ("ERROR: Backdoor cannot connect.\n"));
       }
       break;
    default:
       ASSERT(0); /* Not reached. */
-      ret = FALSE;
+      LOG(2, ("ERROR: Backdoor status %d is unknown resetting.\n",
+              channel->status));
+      channel->status = HGFS_CHANNEL_UNINITIALIZED;
    }
 
    pthread_mutex_unlock(&channel->connLock);
-   return ret;
+   return channel->status;
 }
 
 

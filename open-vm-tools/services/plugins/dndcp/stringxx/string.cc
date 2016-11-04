@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -91,7 +91,11 @@ string::string(const char *s) // IN
      mUtf16Cache(NULL),
      mUtf16Length(npos)
 {
-   ASSERT(s);
+   // If the input is NULL, then there's nothing to do.
+   if (UNLIKELY(s == NULL)) {
+      return;
+   }
+
    mUstr = s;
    ASSERT(Validate(mUstr));
 }
@@ -225,7 +229,10 @@ string::string(const utf16_t *s) // IN
      mUtf16Cache(NULL),
      mUtf16Length(npos)
 {
-   ASSERT(s != NULL);
+   // If the input is NULL, then there's nothing to do.
+   if (UNLIKELY(s == NULL)) {
+      return;
+   }
 
    /*
     * Since we already have a UTF-16 representation of the string, copy it
@@ -261,7 +268,10 @@ string::string(const char *s,           // IN
      mUtf16Cache(NULL),
      mUtf16Length(npos)
 {
-   ASSERT(s != NULL);
+   // If the input is NULL, then there's nothing to do.
+   if (UNLIKELY(s == NULL)) {
+      return;
+   }
 
    mUstr = AutoCPtr<char>(Unicode_Alloc(s, encoding),
                           free).get();

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1147,7 +1147,7 @@ static Bool
 RpcInSend(RpcIn *in,   // IN
           int flags)   // IN
 {
-   Bool status;
+   Bool status = FALSE;
    Bool useBackdoor = TRUE;
 
    ASSERT(in);

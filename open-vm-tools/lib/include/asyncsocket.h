@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,6 +48,10 @@
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
 
 /*
  * Error codes
@@ -205,6 +209,9 @@ typedef void (*AsyncSocketConnectFn) (AsyncSocket *asock, void *clientData);
 
 typedef void (*AsyncSocketSslAcceptFn) (Bool status, AsyncSocket *asock,
                                         void *clientData);
+typedef void (*AsyncSocketSslConnectFn) (Bool status, AsyncSocket *asock,
+                                         void *clientData);
+typedef void (*AsyncSocketCloseCb) (AsyncSocket *asock);
 
 /*
  * Listen on port and fire callback with new asock
@@ -243,6 +250,13 @@ AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
                                             void *clientData,
                                             AsyncSocketPollParams *pollParams,
                                             int *outError);
+
+AsyncSocket *AsyncSocket_ListenSocketUDS(const char *pipeName,
+                                         AsyncSocketConnectFn connectFn,
+                                         void *clientData,
+                                         AsyncSocketPollParams *pollParams,
+                                         int *outError);
+
 #endif
 #endif
 
@@ -271,15 +285,25 @@ AsyncSocket *AsyncSocket_ConnectUnixDomain(const char *path,
                                            int *error);
 #else
 AsyncSocket *
-AsyncSocket_ConnectNamedPipe(char *pipeName,
+AsyncSocket_ConnectNamedPipe(const char *pipeName,
                              AsyncSocketConnectFn connectFn,
                              void *clientData,
                              AsyncSocketConnectFlags flags,
                              AsyncSocketPollParams *pollParams,
                              int *outError);
+
+AsyncSocket*
+AsyncSocket_CreateNamedPipe(const char *pipeName,
+                            AsyncSocketConnectFn connectFn,
+                            void *clientData,
+                            DWORD openMode,
+                            DWORD pipeMode,
+                            uint32 numInstances,
+                            AsyncSocketPollParams *pollParams,
+                            int *error);
 #endif
 
-#ifndef VMX86_TOOLS
+#if !defined VMX86_TOOLS || TARGET_OS_IPHONE
 AsyncSocket *
 AsyncSocket_ConnectWebSocket(const char *url,
                              struct _SSLVerifyParam *sslVerifyParam,
@@ -290,18 +314,32 @@ AsyncSocket_ConnectWebSocket(const char *url,
                              AsyncSocketConnectFlags flags,
                              AsyncSocketPollParams *pollParams,
                              int *error);
+
+AsyncSocket *
+AsyncSocket_ConnectProxySocket(const char *url,
+                               struct _SSLVerifyParam *sslVerifyParam,
+                               const char *cookies,
+                               const char *protocols[],
+                               AsyncSocketConnectFn connectFn,
+                               void *clientData,
+                               AsyncSocketConnectFlags flags,
+                               AsyncSocketPollParams *pollParams,
+                               int *error);
 #endif
 
-#ifndef USE_SSL_DIRECT
 /*
  * Initiate SSL connection on existing asock, with optional cert verification
  */
 Bool AsyncSocket_ConnectSSL(AsyncSocket *asock,
                             struct _SSLVerifyParam *verifyParam,
                             void *sslContext);
-Bool AsyncSocket_AcceptSSL(AsyncSocket *asock);
-#endif
+void AsyncSocket_StartSslConnect(AsyncSocket *asock,
+                                 struct _SSLVerifyParam *verifyParam,
+                                 void *sslCtx,
+                                 AsyncSocketSslConnectFn sslConnectFn,
+                                 void *clientData);
 
+Bool AsyncSocket_AcceptSSL(AsyncSocket *asock);
 void AsyncSocket_StartSslAccept(AsyncSocket *asock,
                                 void *sslCtx,
                                 AsyncSocketSslAcceptFn sslAcceptFn,
@@ -414,11 +452,24 @@ Bool AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
                                 int recvSz);   // IN
 
 /*
+ * Set optional AsyncSocket_Close() behaviors.
+ */
+void AsyncSocket_SetCloseOptions(AsyncSocket *asock,
+                                 int flushEnabledMaxWaitMsec,
+                                 AsyncSocketCloseCb closeCb);
+
+/*
+ * Send websocket close frame.
+ */
+int
+AsyncSocket_SendWebSocketCloseFrame(AsyncSocket *asock,
+                                    uint16 closeStatus);
+
+/*
  * Close the connection and destroy the asock.
  */
 int AsyncSocket_Close(AsyncSocket *asock);
 
-#ifndef VMX86_TOOLS
 /*
  * Retrieve the URI Supplied for a websocket connection
  */
@@ -428,7 +479,6 @@ char *AsyncSocket_GetWebSocketURI(AsyncSocket *asock);
  * Retrieve the Cookie Supplied for a websocket connection
  */
 char *AsyncSocket_GetWebSocketCookie(AsyncSocket *asock);
-#endif
 
 /*
  * Retrieve the close status, if received, for a websocket connection

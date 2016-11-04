@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -95,7 +95,6 @@ char *Util_CompatGetLowerCaseCanonicalPath(const char* path);
 int Util_BumpNoFds(uint32 *cur, uint32 *wanted);
 Bool Util_CanonicalPathsIdentical(const char *path1, const char *path2);
 Bool Util_IsAbsolutePath(const char *path);
-unsigned Util_GetPrime(unsigned n0);
 Util_ThreadID Util_GetCurrentThreadId(void);
 
 char *Util_DeriveFileName(const char *source,
@@ -168,13 +167,9 @@ Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
                             uint64 **transTime, uint64 **residTime);
 #endif
 
-/*
- * In util_shared.h
- */
 #define UTIL_FASTRAND_SEED_MAX (0x7fffffff)
 Bool Util_Throttle(uint32 count);
 uint32 Util_FastRand(uint32 seed);
-uint64 Util_CheckSum64(uint32 *data, unsigned numWords);
 
 // Not thread safe!
 void Util_OverrideHomeDir(const char *path);

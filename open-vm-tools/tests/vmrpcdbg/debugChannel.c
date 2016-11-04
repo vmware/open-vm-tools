@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -165,6 +165,7 @@ RpcDebugStop(RpcChannel *chan)
  * @param[in]  chan        The RPC channel instance.
  * @param[in]  data        Data to send.
  * @param[in]  dataLen     Number of bytes to send.
+ * @param[out] rpcStatus   Status of RPC command from other side.
  * @param[out] result      Response from other side.
  * @param[out] resultLen   Number of bytes in response.
  *
@@ -176,6 +177,7 @@ static gboolean
 RpcDebugSend(RpcChannel *chan,
              char const *data,
              size_t dataLen,
+             Bool *rpcStatus,
              char **result,
              size_t *resultLen)
 {
@@ -254,6 +256,8 @@ exit:
       g_free(xdrdata);
    }
    g_free(copy);
+   /* For now, just make rpcStatus same as ret */
+   *rpcStatus = ret;
    return ret;
 }
 

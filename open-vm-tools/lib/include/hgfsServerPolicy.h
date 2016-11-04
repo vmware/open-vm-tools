@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -111,10 +111,5 @@ HgfsServerPolicy_FreeShareList(HgfsServerPolicy_ShareList *shareList); // IN: li
 
 HgfsServerPolicy_ShareList *
 HgfsServerPolicy_GetSharesWithTag(const char *tag); // IN: tag to search for
-
-Bool
-HgfsServerPolicy_CheckMode(HgfsOpenMode mode,          // IN: mode to check
-                           Bool writePermissions,      // IN: callers write permissions
-                           Bool readPermissions);      // IN: callers read permissions
 
 #endif // _HGFS_SERVER_POLICY_H_

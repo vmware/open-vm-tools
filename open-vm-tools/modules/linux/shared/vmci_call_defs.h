@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -75,7 +75,7 @@ typedef struct VMCIDatagram {
 #define VMCI_DG_PAYLOAD(_dg) (void *)((char *)(_dg) + sizeof(VMCIDatagram))
 #define VMCI_DG_HEADERSIZE sizeof(VMCIDatagram)
 #define VMCI_DG_SIZE(_dg) (VMCI_DG_HEADERSIZE + (size_t)(_dg)->payloadSize)
-#define VMCI_DG_SIZE_ALIGNED(_dg) ((VMCI_DG_SIZE(_dg) + 7) & (size_t)CONST64U(0xfffffffffffffff8))
+#define VMCI_DG_SIZE_ALIGNED(_dg) ((VMCI_DG_SIZE(_dg) + 7) & (size_t)~7)
 #define VMCI_MAX_DATAGRAM_QUEUE_SIZE (VMCI_MAX_DG_SIZE * 2)
 
 /*
@@ -281,14 +281,12 @@ VMCIEventMsgPayload(VMCIEventMsg *eMsg) // IN:
 #define VMCI_QPFLAG_ATTACH_ONLY 0x1 /* Fail alloc if QP not created by peer. */
 #define VMCI_QPFLAG_LOCAL       0x2 /* Only allow attaches from local context. */
 #define VMCI_QPFLAG_NONBLOCK    0x4 /* Host won't block when guest is quiesced. */
-#define VMCI_QPFLAG_PINNED      0x8 /* Keep all data pages pinned.  This flag */
-                                    /* must be combined with NONBLOCK. */
 /* For asymmetric queuepairs, update as new flags are added. */
-#define VMCI_QP_ASYMM           (VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED)
+#define VMCI_QP_ASYMM           VMCI_QPFLAG_NONBLOCK
 #define VMCI_QP_ASYMM_PEER      (VMCI_QPFLAG_ATTACH_ONLY | VMCI_QP_ASYMM)
 /* Update the following (bitwise OR flags) while adding new flags. */
 #define VMCI_QP_ALL_FLAGS       (VMCI_QPFLAG_ATTACH_ONLY | VMCI_QPFLAG_LOCAL | \
-                                 VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED)
+                                 VMCI_QPFLAG_NONBLOCK)
 
 /*
  * Structs used for QueuePair alloc and detach messages.  We align fields of

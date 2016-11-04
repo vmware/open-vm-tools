@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,8 +78,6 @@ uint32 HashMap_Count(HashMap *map);
 void HashMap_Iterate(HashMap* map, HashMapIteratorFn mapFn, Bool clear,
       void *userData);
 Bool HashMap_DoTests(void);
-uint64 HashMap_Store(struct HashMap *, void *, uint64);
-struct HashMap *HashMap_Retrieve(void *, uint32, uint64, uint64 *);
 
 #ifdef __cplusplus
 }

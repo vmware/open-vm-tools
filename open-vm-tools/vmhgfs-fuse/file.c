@@ -859,6 +859,7 @@ HgfsWrite(struct fuse_file_info *fi,  // IN: File info structure
    const char *buffer = buf;
    loff_t curOffset = offset;
    size_t nextCount, remainingCount = count;
+   ssize_t bytesWritten = 0;
 
    ASSERT(NULL != buf);
    ASSERT(NULL != fi);
@@ -875,6 +876,7 @@ HgfsWrite(struct fuse_file_info *fi,  // IN: File info structure
 
       result = HgfsDoWrite(fi->fh, buffer, nextCount, curOffset);
       if (result < 0) {
+         bytesWritten = result;
          LOG(4, ("Error: DoWrite -> %d\n", result));
          goto out;
       }
@@ -884,9 +886,11 @@ HgfsWrite(struct fuse_file_info *fi,  // IN: File info structure
 
    } while ((result > 0) && (remainingCount > 0));
 
+   bytesWritten = count - remainingCount;
+
 out:
-   LOG(6, ("Exit(0x%"FMTSZ"x)\n", count - remainingCount));
-   return (count - remainingCount);
+   LOG(6, ("Exit(0x%"FMTSZ"x)\n", bytesWritten));
+   return bytesWritten;
 }
 
 

@@ -110,7 +110,7 @@ typedef int VMCIMemcpyFromQueueFunc(void *dest, size_t destOffset,
  * Windows needs iovec for the V functions.  We use an MDL for the actual
  * buffers, but we also have an offset that comes from WSK_BUF.
  */
-typedef struct iovec {
+struct iovec {
    PMDL mdl;     // List of memory descriptors.
    ULONG offset; // Base offset.
 };

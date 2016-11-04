@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -86,6 +86,17 @@ typedef struct ToolsServiceState {
    RpcDebugLibData  *debugData;
    ToolsAppCtx    ctx;
    GArray        *providers;
+#if defined(__linux__)
+   /*
+    * We hold a reference to vSocket device to avoid
+    * address family re-registration when someone
+    * connects over vSocket. We have vsockFamily
+    * here mainly because it does not cost much
+    * and it is useful for debug logs.
+    */
+   int            vsockDev;
+   int            vsockFamily;
+#endif
 } ToolsServiceState;
 
 
@@ -111,6 +122,14 @@ ToolsCore_Setup(ToolsServiceState *state);
 
 gboolean
 ToolsCore_InitRpc(ToolsServiceState *state);
+
+#if defined(__linux__)
+void
+ToolsCore_InitVsockFamily(ToolsServiceState *state);
+
+void
+ToolsCore_ReleaseVsockFamily(ToolsServiceState *state);
+#endif
 
 gboolean
 ToolsCore_LoadPlugins(ToolsServiceState *state);

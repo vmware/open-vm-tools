@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -383,6 +383,10 @@ int CodeSet_GetUtf8(const char *string,  // IN:
                     const char *end,     // IN:
                     uint32 *uchar);      // OUT/OPT:
 
+Bool CodeSet_IsValidUTF8(const char *bufIn,  // IN:
+                         size_t sizeIn);     // IN:
+
+Bool CodeSet_IsStringValidUTF8(const char *string);  // IN:
 
 /*
  *-----------------------------------------------------------------------------

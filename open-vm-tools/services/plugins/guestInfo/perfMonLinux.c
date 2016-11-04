@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1108,7 +1108,7 @@ GuestInfoConstructCollector(GuestInfoQuery *queries,  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * GuestInfo_PerfMon --
+ * GuestInfoTakeSample --
  *
  *      Gather performance stats.
  *
@@ -1123,7 +1123,7 @@ GuestInfoConstructCollector(GuestInfoQuery *queries,  // IN:
  */
 
 Bool
-GuestInfo_PerfMon(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
+GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
 {
    GuestInfoCollector *temp;
    static GuestInfoCollector *current = NULL;
@@ -1168,3 +1168,40 @@ GuestInfo_PerfMon(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
    return TRUE;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GuestInfo_StatProviderPoll --
+ *
+ *      Called when a new stat sample is requested. GuestInfo_ReportStats
+ * should be called once the sample is available. If gathering is taking
+ * longer than sampling frequency, the request may be ignored.
+ *
+ * @param[in]  data     The application context.
+ *
+ * @return TRUE to indicate that the timer should be rescheduled.
+ *
+ *----------------------------------------------------------------------
+ */
+
+gboolean
+GuestInfo_StatProviderPoll(gpointer data)
+{
+   ToolsAppCtx *ctx = data;
+   DynBuf stats;
+
+   g_debug("Entered guest info stats gather.\n");
+
+   /* Send the vmstats to the VMX. */
+   DynBuf_Init(&stats);
+
+   if (!GuestInfoTakeSample(&stats)) {
+      g_warning("Failed to get vmstats.\n");
+   } else if (!GuestInfo_ServerReportStats(ctx, &stats)) {
+      g_warning("Failed to send vmstats.\n");
+   }
+
+   DynBuf_Destroy(&stats);
+   return TRUE;
+}

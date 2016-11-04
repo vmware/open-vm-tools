@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -198,6 +198,10 @@ Bool HgfsServer_InitState(HgfsServerCallbacks **,
                           HgfsServerConfig *,
                           HgfsServerMgrCallbacks *);
 void HgfsServer_ExitState(void);
+
+Bool HgfsServer_ShareAccessCheck(HgfsOpenMode accessMode,
+                                 Bool shareWriteable,
+                                 Bool shareReadable);
 
 uint32 HgfsServer_GetHandleCounter(void);
 void HgfsServer_SetHandleCounter(uint32 newHandleCounter);

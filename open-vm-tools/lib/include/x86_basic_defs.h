@@ -83,8 +83,8 @@
 #define CR4_OSXSAVE    0x00040000
 #define CR4_SMEP       0x00100000
 #define CR4_SMAP       0x00200000
-/* Removing a bit from CR4_RESERVED causes Task_Switch to leave the bit set. */
-#define CR4_RESERVED   CONST64U(0xffffffffffc89800) 
+#define CR4_PKE        0x00400000
+#define CR4_RESERVED   CONST64U(0xffffffffff889800)
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
 
 /*
@@ -238,5 +238,12 @@ typedef enum x86_FLAGS {
    EFLAGS__4           = 0x7fffffff    /* ensure 4 byte encoding */
 } x86_FLAGS;
 
+/*
+ *   MPX bound configuration registers
+ */
+#define BNDCFG_EN        0x00000001
+#define BNDCFG_BNDPRSV   0x00000002
+#define BNDCFG_RSVD      0x00000ffc
+#define BNDCFG_BDBASE    CONST64U(0xfffffffffffff000)
 
 #endif // ifndef _VM_BASIC_DEFS_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -216,8 +216,11 @@ RpcOut_start(RpcOut *out) // IN
  *    caller pass non-NULL reply and repLen arguments.
  *
  * Result
- *    TRUE on success. 'reply' contains the result of the rpc
- *    FALSE on error. 'reply' will contain a description of the error
+ *    TRUE if RPC was sent successfully. 'reply' contains the result of the rpc.
+ *    rpcStatus tells if the RPC command was processed successfully.
+ *
+ *    FALSE if RPC could not be sent successfully. 'reply' will contain a
+ *    description of the error.
  *
  *    In both cases, the caller should not free the reply.
  *
@@ -231,6 +234,7 @@ Bool
 RpcOut_send(RpcOut *out,         // IN
             char const *request, // IN
             size_t reqLen,       // IN
+            Bool *rpcStatus,     // OUT
             char const **reply,  // OUT
             size_t *repLen)      // OUT
 {
@@ -264,10 +268,11 @@ RpcOut_send(RpcOut *out,         // IN
       return FALSE;
    }
 
+   *rpcStatus = success;
    *reply = ((const char *)myReply) + 2;
    *repLen = myRepLen - 2;
 
-   return success;
+   return TRUE;
 }
 
 
@@ -322,7 +327,7 @@ RpcOut_stop(RpcOut *out) // IN
  *
  * Return value:
  *    TRUE on success. '*reply' contains an allocated result of the rpc
- *    FALSE on error. '*reply' contains an allocated description of the error 
+ *    FALSE on error. '*reply' contains an allocated description of the error
  *                    or NULL.
  *
  * Side effects:
@@ -349,7 +354,7 @@ RpcOut_sendOne(char **reply,        // OUT: Result
    request = Str_Vasprintf(&reqLen, reqFmt, args);
    va_end(args);
 
-   /* 
+   /*
     * If Str_Vasprintf failed, write NULL into the reply if the caller wanted
     * a reply back.
     */
@@ -376,9 +381,9 @@ RpcOut_sendOne(char **reply,        // OUT: Result
       free(request);
       request = tmp;
 
-      /* 
-       * If Str_Asprintf failed, write NULL into reply if the caller wanted 
-       * a reply back. 
+      /*
+       * If Str_Asprintf failed, write NULL into reply if the caller wanted
+       * a reply back.
        */
       if (request == NULL) {
          if (reply != NULL) {
@@ -416,6 +421,7 @@ RpcOutSendOneRawWork(void *request,         // IN: RPCI command
                      size_t *repLen)        // OUT: Length of the result
 {
    Bool status;
+   Bool rpcStatus;
    /* Stack allocate so this can be used in kernel logging.  See 1389199. */
    RpcOut out;
    char const *myReply;
@@ -426,7 +432,7 @@ RpcOutSendOneRawWork(void *request,         // IN: RPCI command
    if (!RpcOut_startWithReceiveBuffer(&out, callerReply, callerReplyLen)) {
       myReply = "RpcOut: Unable to open the communication channel";
       myRepLen = strlen(myReply);
-      
+
       if (callerReply != NULL) {
          unsigned s = MIN(callerReplyLen - 1, myRepLen);
          ASSERT(reply == NULL);
@@ -437,14 +443,16 @@ RpcOutSendOneRawWork(void *request,         // IN: RPCI command
       return FALSE;
    }
 
-   status = RpcOut_send(&out, request, reqLen, &myReply, &myRepLen);
+   status = RpcOut_send(&out, request, reqLen,
+                        &rpcStatus, &myReply, &myRepLen);
    /* On failure, we already have the description of the error */
 
-   Debug("Rpci: Sent request='%s', reply='%s', len=%"FMTSZ"u, status=%d\n",
-         (char *)request, myReply, myRepLen, status);
+   Debug("Rpci: Sent request='%s', reply='%s', len=%"FMTSZ"u, "
+         "status=%d, rpcStatus=%d\n",
+         (char *)request, myReply, myRepLen, status, rpcStatus);
 
    if (reply != NULL) {
-      /* 
+      /*
        * If we got a non-NULL reply, make a copy of it, because the reply
        * we got back is inside the channel buffer, which will get destroyed
        * at the end of this function.
@@ -468,15 +476,15 @@ RpcOutSendOneRawWork(void *request,         // IN: RPCI command
             (*reply)[myRepLen] = 0;
          }
       } else {
-         /* 
+         /*
           * Our reply was NULL, so just pass the NULL back up to the caller.
-          */ 
+          */
          *reply = NULL;
       }
-      
-      /* 
-       * Only set the length if the caller wanted it and if we got a good 
-       * reply. 
+
+      /*
+       * Only set the length if the caller wanted it and if we got a good
+       * reply.
        */
       if (repLen != NULL && *reply != NULL) {
          *repLen = myRepLen;
@@ -484,7 +492,7 @@ RpcOutSendOneRawWork(void *request,         // IN: RPCI command
    }
 
    if (RpcOut_stop(&out) == FALSE) {
-      /* 
+      /*
        * We couldn't stop the channel. Free anything we allocated, give our
        * client a reply of NULL, and return FALSE.
        */
@@ -497,7 +505,7 @@ RpcOutSendOneRawWork(void *request,         // IN: RPCI command
       status = FALSE;
    }
 
-   return status;
+   return status && rpcStatus;
 }
 
 
@@ -527,7 +535,7 @@ RpcOutSendOneRawWork(void *request,         // IN: RPCI command
  *
  * Return value:
  *    TRUE on success. '*reply' contains an allocated result of the rpc
- *    FALSE on error. '*reply' contains an allocated description of the 
+ *    FALSE on error. '*reply' contains an allocated description of the
  *                    error or NULL.
  *
  *
@@ -565,7 +573,7 @@ RpcOut_SendOneRaw(void *request,       // IN: RPCI command
  *
  * Return value:
  *    TRUE on success. 'reply' contains an allocated result of the rpc
- *    FALSE on error. 'reply' contains an allocated description of the 
+ *    FALSE on error. 'reply' contains an allocated description of the
  *                     error or NULL.
  *
  *

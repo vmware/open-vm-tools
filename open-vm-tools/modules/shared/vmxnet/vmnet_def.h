@@ -113,6 +113,7 @@
 #define VMNET_CAP_TRANSCEIVER_TYPE     CONST64U(0x10000000000000)   /* Uplink supports getting and setting transceiver type. */
 #define VMNET_CAP_MESSAGE_LEVEL        CONST64U(0x20000000000000)   /* Uplink supports getting and setting message level. */
 #define VMNET_CAP_RING_PARAMS          CONST64U(0x40000000000000)   /* Support getting/setting RX/TX ring size parameters */
+#define VMNET_CAP_ADVERTISE_MODES      CONST64U(0x80000000000000)   /* Support getting/setting interconnect modes */
 #define VMNET_CAP_LEGACY               CONST64U(0x8000000000000000) /* Uplink is compatible with vmklinux drivers */
 
 #endif // _VMNET_DEF_H_

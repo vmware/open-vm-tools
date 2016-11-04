@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -95,17 +95,6 @@ typedef enum VMCIIntrType {
  * memory that can be used for queue pairs.
  */
 #define VMCI_MAX_GUEST_QP_MEMORY (128 * 1024 * 1024)
-
-/*
- * Queues with pre-mapped data pages must be small, so that we don't pin
- * too much kernel memory (especially on vmkernel).  We limit a queuepair to
- * 32 KB, or 16 KB per queue for symmetrical pairs.
- *
- * XXX, we are raising this limit to 4MB to support high-throughput workloads
- * with vioi-filter.  Once we switch to rings instead of queuepairs for the
- * page channel, we will drop this limit again.  See PR 852983.
- */
-#define VMCI_MAX_PINNED_QP_MEMORY (4 * 1024 * 1024)
 
 /*
  * We have a fixed set of resource IDs available in the VMX.
@@ -275,6 +264,7 @@ static const VMCIHandle VMCI_INVALID_HANDLE = {VMCI_INVALID_ID,
  * Context ID used by host endpoints.
  */
 #define VMCI_HOST_CONTEXT_ID  2
+#define VMCI_HOST_CONTEXT_INVALID_EVENT         ((uintptr_t)~0)
 
 #define VMCI_CONTEXT_IS_VM(_cid) (VMCI_INVALID_ID != _cid && \
                                   _cid > VMCI_HOST_CONTEXT_ID)

@@ -1,6 +1,6 @@
 
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -100,13 +100,18 @@ ToolboxCmdHelp(const char *progName,
 static CmdTable commands[] = {
    { "timesync",  TimeSync_Command, TRUE,    FALSE,   TimeSync_Help},
    { "script",    Script_Command,   FALSE,   TRUE,    Script_Help},
+#if !defined(USERWORLD)
    { "disk",      Disk_Command,     TRUE,    TRUE,    Disk_Help},
+#endif
    { "stat",      Stat_Command,     TRUE,    FALSE,   Stat_Help},
    { "device",    Device_Command,   TRUE,    FALSE,   Device_Help},
-#if (defined(_WIN32) || defined(linux)) && !defined(OPEN_VM_TOOLS)
+#if defined(_WIN32) || \
+   (defined(linux) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
    { "upgrade",   Upgrade_Command,  TRUE,    TRUE,   Upgrade_Help},
 #endif
    { "logging",   Logging_Command,  TRUE,    TRUE,    Logging_Help},
+   { "info",      Info_Command,     TRUE,    TRUE,    Info_Help},
+   { "config",    Config_Command,   TRUE,    TRUE,    Config_Help},
    { "help",      HelpCommand,      FALSE,   FALSE,   ToolboxCmdHelp},
 };
 
@@ -293,8 +298,10 @@ ToolboxCmdHelp(const char *progName,   // IN
                           "Use '-q' option to suppress stdout output.\n"
                           "Most commands take a subcommand.\n\n"
                           "Available commands:\n"
+                          "   config\n"
                           "   device\n"
-                          "   disk\n"
+                          "   disk (not available on all operating systems)\n"
+                          "   info\n"
                           "   logging\n"
                           "   script\n"
                           "   stat\n"

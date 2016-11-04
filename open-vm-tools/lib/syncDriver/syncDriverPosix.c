@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,9 +25,9 @@
 #include <stdio.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <glib.h>
 #include "vmware.h"
 #include "debug.h"
-#include "dynbuf.h"
 #include "str.h"
 #include "syncDriverInt.h"
 #include "util.h"
@@ -85,19 +85,21 @@ SyncDriverIsRemoteFSType(const char *fsType)
 /*
  *-----------------------------------------------------------------------------
  *
- * SyncDriverListMounts --
+ * SyncDriverLocalMounts --
  *
- *    Returns a newly allocated string containing a list of colon-separated
- *    mount paths in the system. No filtering is done, so all paths are added.
- *    This assumes that the driver allows "unfreezable" paths to be provided
- *    to the freeze command.
+ *    Returns a singly-linked list of all local disk paths mounted in the
+ *    system filtering out remote file systems. There is no filtering for
+ *    other mount points because we assume that the underlying driver and
+ *    IOCTL can deal with "unfreezable" paths. The returned list of paths
+ *    is in the reverse order of the paths returned by GETNEXT_MNTINFO.
+ *    Caller must free each path and the list itself.
  *
  *    XXX: mntinfo.h mentions Solaris and Linux, but not FreeBSD. If we ever
  *    have a FreeBSD sync driver, we should make sure this function also
  *    works there.
  *
  * Results:
- *    The list of devices to freeze, or NULL on failure.
+ *    GSList* on success, NULL on failure.
  *
  * Side effects:
  *    None
@@ -105,21 +107,20 @@ SyncDriverIsRemoteFSType(const char *fsType)
  *-----------------------------------------------------------------------------
  */
 
-static char *
-SyncDriverListMounts(void)
+static GSList *
+SyncDriverLocalMounts(void)
 {
-   char *paths = NULL;
-   DynBuf buf;
+   GSList *paths = NULL;
    MNTHANDLE mounts;
    DECLARE_MNTINFO(mntinfo);
 
    if ((mounts = OPEN_MNTFILE("r")) == NULL) {
+      Warning(LGPFX "Failed to open mount point table.\n");
       return NULL;
    }
 
-   DynBuf_Init(&buf);
-
    while (GETNEXT_MNTINFO(mounts, mntinfo)) {
+      char *path;
       /*
        * Skip remote mounts because they are not freezable and opening them
        * could lead to hangs. See PR 1196785.
@@ -130,29 +131,21 @@ SyncDriverListMounts(void)
          continue;
       }
 
+      path = Util_SafeStrdup(MNTINFO_MNTPT(mntinfo));
+
       /*
-       * Add a separator if it's not the first path, and add the path to the
-       * tail of the list.
+       * A mount point could depend on existence of a previous mount
+       * point like a loopback. In order to avoid deadlock/hang in
+       * freeze operation, a mount point needs to be frozen before
+       * its dependency is frozen.
+       * Typically, mount points are listed in the order they are
+       * mounted by the system i.e. dependent comes after the
+       * dependency. So, we need to keep them in reverse order of
+       * mount points to achieve the dependency order.
        */
-      if ((DynBuf_GetSize(&buf) != 0 && !DynBuf_Append(&buf, ":", 1))
-          || !DynBuf_Append(&buf,
-                            MNTINFO_MNTPT(mntinfo),
-                            strlen(MNTINFO_MNTPT(mntinfo)))) {
-         goto exit;
-      }
+      paths = g_slist_prepend(paths, path);
    }
 
-   if (!DynBuf_Append(&buf, "\0", 1)) {
-      goto exit;
-   }
-
-   paths = DynBuf_AllocGet(&buf);
-   if (paths == NULL) {
-      Debug(LGPFX "Failed to allocate path list.\n");
-   }
-
-exit:
-   DynBuf_Destroy(&buf);
    (void) CLOSE_MNTFILE(mounts);
    return paths;
 }
@@ -179,6 +172,29 @@ Bool
 SyncDriver_Init(void)
 {
    return ARRAYSIZE(gBackends) > 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SyncDriverFreePath --
+ *
+ *    A GFunc for freeing path strings. It is intended for g_slist_foreach.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+SyncDriverFreePath(gpointer data, gpointer userData)
+{
+   free(data);
 }
 
 
@@ -214,14 +230,11 @@ SyncDriver_Freeze(const char *userPaths,     // IN
                   Bool enableNullDriver,     // IN
                   SyncDriverHandle *handle)  // OUT
 {
-   char *paths = NULL;
+   GSList *paths = NULL;
    SyncDriverErr err = SD_UNAVAILABLE;
    size_t i = 0;
 
    /*
-    * First, convert the given path list to something the backends will
-    * understand: a colon-separated list of paths.
-    *
     * NOTE: Ignore disk UUIDs. We ignore the userPaths if it does
     * not start with '/' because all paths are absolute and it is
     * possible only when we get diskUUID as userPaths. So, all
@@ -229,24 +242,40 @@ SyncDriver_Freeze(const char *userPaths,     // IN
     */
    if (userPaths == NULL ||
        Str_Strncmp(userPaths, "all", sizeof "all") == 0 ||
-       *userPaths != '/') {
-      paths = SyncDriverListMounts();
-      if (paths == NULL) {
-         Debug(LGPFX "Failed to list mount points.\n");
-         return SD_ERROR;
-      }
+       userPaths[0] != '/') {
+      paths = SyncDriverLocalMounts();
    } else {
       /*
-       * The sync driver API specifies spaces as separators, but the driver
-       * uses colons as the path separator on Unix.
+       * The sync driver API specifies spaces as separators.
        */
-      char *c;
-      paths = Util_SafeStrdup(userPaths);
-      for (c = paths; *c != '\0'; c++) {
-         if (*c == ' ') {
-            *c = ':';
+      while (*userPaths != '\0') {
+         const char *c;
+         char *path;
+
+         if (*userPaths == ' ') {
+            /*
+             * Trim spaces from beginning
+             */
+            userPaths++;
+            continue;
+         }
+
+         c = strchr(userPaths, ' ');
+         if (c == NULL) {
+            path = Util_SafeStrdup(userPaths);
+            paths = g_slist_append(paths, path);
+            break;
+         } else {
+            path = Util_SafeStrndup(userPaths, c - userPaths);
+            paths = g_slist_append(paths, path);
+            userPaths = c;
          }
       }
+   }
+
+   if (paths == NULL) {
+      Warning(LGPFX "No paths to freeze.\n");
+      return SD_ERROR;
    }
 
    while (err == SD_UNAVAILABLE && i < ARRAYSIZE(gBackends)) {
@@ -262,7 +291,12 @@ SyncDriver_Freeze(const char *userPaths,     // IN
       err = freezeFn(paths, handle);
    }
 
-   free(paths);
+   /*
+    * g_slist_free_full requires glib >= v2.28
+    */
+   g_slist_foreach(paths, SyncDriverFreePath, NULL);
+   g_slist_free(paths);
+
    return err == SD_SUCCESS;
 }
 

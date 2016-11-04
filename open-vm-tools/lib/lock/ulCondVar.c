@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -588,14 +588,13 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
 {
    MXUserCondVar *condVar = Util_SafeCalloc(1, sizeof *condVar);
 
-   if (MXUserCreateInternal(condVar)) {
-      condVar->signature = MXUserGetSignature(MXUSER_TYPE_CONDVAR);
-      condVar->header = header;
-      condVar->ownerLock = lock;
-   } else {
-      free(condVar);
-      condVar = NULL;
+   if (UNLIKELY(!MXUserCreateInternal(condVar))) {
+      Panic("%s: native lock initialization routine failed\n", __FUNCTION__);
    }
+
+   condVar->signature = MXUserGetSignature(MXUSER_TYPE_CONDVAR);
+   condVar->header = header;
+   condVar->ownerLock = lock;
 
    return condVar;
 }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -170,6 +170,36 @@
 
 
 /*
+ * As of version 2.46, glib thinks the Windows compiler where
+ * _MSC_VER >= 1400 can handle G_HAVE_ISO_VARARGS.  This makes our
+ * magic macros wrapping their macros fail in the simplest case,
+ * where only the fmt arg is present (eg vm_debug("test").
+ * vm_debug("test %d", 123) works fine.
+ *
+ * Work around this by making g_debug() et all be inline functions,
+ * which is how it works if G_HAVE_ISO_VARARGS isn't set.
+ *
+ * Though experimentation we found that this also works:
+ *
+ * #define LOGHELPER(...)  ,##_VA_ARGS__
+ * #define LOG(fmt, ...) g_debug_macro(__FUNCTION__, ": " fmt, LOGHELPER(__VA_ARGS__))
+ *
+ * but since its disgusting and even more magical, the inline variant was chosen
+ * instead.
+ */
+
+#if defined(_WIN32) && GLIB_CHECK_VERSION(2, 46, 0)
+static inline void
+g_critical_inline(const gchar *fmt,
+               ...)
+{
+   va_list args;
+   va_start(args, fmt);
+   g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, fmt, args);
+   va_end(args);
+}
+
+/*
  *******************************************************************************
  * vm_{critical,debug,error,info,message,warning} --                      */ /**
  *
@@ -182,7 +212,89 @@
  *
  *******************************************************************************
  */
+#define  vm_critical(fmt, ...)      g_critical_inline("%s: " fmt, FUNC, ## __VA_ARGS__)
 
+static inline void
+g_debug_inline(const gchar *fmt,
+               ...)
+{
+   va_list args;
+   va_start(args, fmt);
+   g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, fmt, args);
+   va_end(args);
+}
+
+/** @copydoc vm_critical */
+#define  vm_debug(fmt, ...)      g_debug_inline("%s: " fmt, FUNC, ## __VA_ARGS__)
+
+static inline void
+g_error_inline(const gchar *fmt,
+               ...)
+{
+   va_list args;
+   va_start(args, fmt);
+   g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_ERROR, fmt, args);
+   va_end(args);
+}
+
+/** @copydoc vm_critical */
+#define  vm_error(fmt, ...)      g_error_inline("%s: " fmt, FUNC, ## __VA_ARGS__)
+
+
+static inline void
+g_info_inline(const gchar *fmt,
+               ...)
+{
+   va_list args;
+   va_start(args, fmt);
+   g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_INFO, fmt, args);
+   va_end(args);
+}
+
+/** @copydoc vm_critical */
+#define  vm_info(fmt, ...)      g_info_inline("%s: " fmt, FUNC, ## __VA_ARGS__)
+
+static inline void
+g_message_inline(const gchar *fmt,
+               ...)
+{
+   va_list args;
+   va_start(args, fmt);
+   g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_MESSAGE, fmt, args);
+   va_end(args);
+}
+
+/** @copydoc vm_critical */
+#define  vm_message(fmt, ...)      g_message_inline("%s: " fmt, FUNC, ## __VA_ARGS__)
+
+static inline void
+g_warning_inline(const gchar *fmt,
+               ...)
+{
+   va_list args;
+   va_start(args, fmt);
+   g_logv(G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, fmt, args);
+   va_end(args);
+}
+
+/** @copydoc vm_critical */
+#define  vm_warning(fmt, ...)      g_warning_inline("%s: " fmt, FUNC, ## __VA_ARGS__)
+
+#else // ! (windows & glib >= 2.46)
+
+/*
+ *******************************************************************************
+ * vm_{critical,debug,error,info,message,warning} --                      */ /**
+ *
+ * Wrapper around the corresponding glib function that automatically includes
+ * the calling function name in the log message. The "fmt" parameter must be
+ * a string constant.
+ *
+ * @param[in]  fmt   Log message format.
+ * @param[in]  ...   Message arguments.
+ *
+ *******************************************************************************
+ */
 #define  vm_critical(fmt, ...)   g_critical("%s: " fmt, FUNC, ## __VA_ARGS__)
 
 /** @copydoc vm_critical */
@@ -199,8 +311,13 @@
 
 /** @copydoc vm_critical */
 #define  vm_warning(fmt, ...)    g_warning("%s: " fmt, FUNC, ## __VA_ARGS__)
+#endif // ! (windows & glib >= 2.46)
+
 
 G_BEGIN_DECLS
+
+void
+VMTools_ConfigLogToStdio(const gchar *domain);
 
 void
 VMTools_ConfigLogging(const gchar *defaultDomain,

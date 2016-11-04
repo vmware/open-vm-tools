@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1299,16 +1299,34 @@ TheSslContext(void)
    const char *certFile;
    const char *keyFile;
    const char *trustDir;
+   long sslCtxOptions;
 
    if (sslCtx) {
       goto done;
    }
 
-   workingCtx = SSL_CTX_new(SSLv23_server_method());
+   workingCtx = SSL_NewContext();
    if (!workingCtx) {
       g_warning("Cannot create the SSL context.\n");
       goto done;
    }
+
+   /*
+    * The bora/lib/ssl code not yet ready to disable TLS1, and TLS1_1,
+    * we shall remove the code below once it is able to.
+    */
+   sslCtxOptions = SSL_CTX_get_options(workingCtx);
+   /* Allow only TLSv1_2 */
+
+#ifdef SSL_OP_NO_TLSv1
+   sslCtxOptions |= SSL_OP_NO_TLSv1;
+#endif
+
+#ifdef SSL_OP_NO_TLSv1_1
+   sslCtxOptions |= SSL_OP_NO_TLSv1_1;
+#endif
+
+   SSL_CTX_set_options(workingCtx, sslCtxOptions);
 
    certFile = GetSslCertFile();
    if (!certFile) {

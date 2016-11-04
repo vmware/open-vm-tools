@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
 ###
 ### Top-level Makefile for building the VMware OSS Tools.
 ###
@@ -39,6 +39,7 @@ if ENABLE_DEPLOYPKG
    SUBDIRS += libDeployPkg
 endif
 SUBDIRS += rpctool
+SUBDIRS += namespacetool
 if ENABLE_GRABBITMQPROXY
    SUBDIRS += guestproxycerttool
 endif
@@ -64,3 +65,16 @@ if WITH_KERNEL_MODULES
 endif
 SUBDIRS += docs
 
+if ENABLE_CAF
+   SUBDIRS += common-agent/Cpp/Framework
+   SUBDIRS += common-agent/Cpp/ManagementAgent
+   SUBDIRS += common-agent/Cpp/Communication
+   SUBDIRS += common-agent/Cpp/ProviderFx
+   SUBDIRS += common-agent/Cpp/InternalProviders
+   SUBDIRS += common-agent/input
+   SUBDIRS += common-agent/etc
+endif
+
+if HAVE_UDEV
+   SUBDIRS += udev
+endif

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -60,6 +60,11 @@ ToolsCoreCleanup(ToolsServiceState *state)
 {
    ToolsCorePool_Shutdown(&state->ctx);
    ToolsCore_UnloadPlugins(state);
+#if defined(__linux__)
+   if (state->mainService) {
+      ToolsCore_ReleaseVsockFamily(state);
+   }
+#endif
    if (state->ctx.rpc != NULL) {
       RpcChannel_Stop(state->ctx.rpc);
       RpcChannel_Destroy(state->ctx.rpc);
@@ -201,6 +206,15 @@ ToolsCoreRunLoop(ToolsServiceState *state)
    if (!ToolsCore_LoadPlugins(state)) {
       return 1;
    }
+
+#if defined(__linux__)
+   /*
+    * Init a reference to vSocket family in the main service.
+    */
+   if (state->mainService) {
+      ToolsCore_InitVsockFamily(state);
+   }
+#endif
 
    /*
     * The following criteria needs to hold for the main loop to be run:

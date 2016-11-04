@@ -1,6 +1,6 @@
 #!/bin/sh
 ################################################################################
-### Copyright (C) 2009-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
 ###
 ### Script for creating a dmks-compliant source tree from an open-vm-tools
 ### distribution.
@@ -28,12 +28,12 @@ then
    echo "   src:  root of unpacked open-vm-tools package"
    echo "   dst:  where to create the dkms tree"
    echo
-   echo "The script will create an 'open-vm-tools' module with version 10.0.5."
+   echo "The script will create an 'open-vm-tools' module with version 10.1.0."
    exit 1
 fi
 
 src=$1
-dst=$2/open-vm-tools-10.0.5
+dst=$2/open-vm-tools-10.1.0
 
 SHARED_HEADERS="backdoor_def.h"
 SHARED_HEADERS="$SHARED_HEADERS backdoor_types.h"

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -82,14 +82,14 @@ InitGroupLeader(Window *groupLeader,
 
    gdkDisplay = gdk_display_get_default();
    gdkLeader = gdk_display_get_default_group(gdkDisplay);
-   myGroupLeader = GDK_WINDOW_XWINDOW(gdkLeader);
+   myGroupLeader = GDK_WINDOW_XID(gdkLeader);
    myRootWindow = GDK_ROOT_WINDOW();
 
    ASSERT(myGroupLeader);
    ASSERT(myRootWindow);
 
    /* XXX: With g_set_prgname() being called, this can probably go away. */
-   XStoreName(GDK_DISPLAY(), myGroupLeader, VMUSER_TITLE);
+   XStoreName(gdk_x11_get_default_xdisplay(), myGroupLeader, VMUSER_TITLE);
 
    /*
     * Sanity check:  Set the override redirect property on our group leader
@@ -97,10 +97,10 @@ InitGroupLeader(Window *groupLeader,
     * This makes sure that (a) a window manager can't re-parent our window,
     * and (b) that we remain a top-level window.
     */
-   XChangeWindowAttributes(GDK_DISPLAY(), myGroupLeader, CWOverrideRedirect,
+   XChangeWindowAttributes(gdk_x11_get_default_xdisplay(), myGroupLeader, CWOverrideRedirect,
                            &attr);
-   XReparentWindow(GDK_DISPLAY(), myGroupLeader, myRootWindow, 10, 10);
-   XSync(GDK_DISPLAY(), FALSE);
+   XReparentWindow(gdk_x11_get_default_xdisplay(), myGroupLeader, myRootWindow, 10, 10);
+   XSync(gdk_x11_get_default_xdisplay(), FALSE);
 
    *groupLeader = myGroupLeader;
    *rootWindow = myRootWindow;
@@ -216,7 +216,7 @@ AcquireDisplayLock(void)
    Bool alreadyLocked = FALSE;  // Set to TRUE if we discover lock is held.
    Bool retval = FALSE;
 
-   defaultDisplay = GDK_DISPLAY();
+   defaultDisplay = gdk_x11_get_default_xdisplay();
 
    /*
     * Reset some of our main window's settings & fetch Xlib handles for

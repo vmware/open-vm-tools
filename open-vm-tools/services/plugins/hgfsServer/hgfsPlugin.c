@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,6 +22,9 @@
  * Functionality to utilize the hgfs server in bora/lib as a tools plugin.
  */
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif // defined(_WIN32)
 #include <string.h>
 
 #define G_LOG_DOMAIN "hgfsd"
@@ -144,6 +147,89 @@ HgfsServerCapReg(gpointer src,
 }
 
 
+#if defined(_WIN32)
+/**
+ * Starts the client driver service.
+ *
+ * @param[in]  serviceControlManager   Service Control Manager handle.
+ * @param[in]  driverName              Name of the driver service to start.
+ *
+ * @return ERROR_SUCCESS on success, an appropriate error otherwise.
+ */
+
+static DWORD
+HgfsServerStartClientService(SC_HANDLE    serviceControlManager, // IN: control manager
+                             PCWSTR       driverName)            // IN: driver name
+{
+   SC_HANDLE   service;
+   DWORD       result = ERROR_SUCCESS;
+
+   g_info("%s: starting service %S\n", __FUNCTION__, driverName);
+
+   /*
+    * Open the handle to the existing service.
+    */
+   service = OpenServiceW(serviceControlManager, driverName, SERVICE_ALL_ACCESS);
+   if (NULL == service) {
+      result = GetLastError();
+      g_warning("%s: Error: open service %S = %d \n", __FUNCTION__, driverName, result);
+      goto exit;
+   }
+
+   /*
+    * Start the execution of the service (i.e. start the driver).
+    */
+   if (!StartServiceW(service, 0, NULL)) {
+      result = GetLastError();
+
+      if (ERROR_SERVICE_ALREADY_RUNNING == result) {
+         result = ERROR_SUCCESS;
+      } else {
+         g_warning("%s: Error: start service %S = %d \n", __FUNCTION__, driverName, result);
+      }
+      goto exit;
+   }
+
+exit:
+   if (NULL != service) {
+      CloseServiceHandle(service);
+   }
+
+   return result;
+}
+#endif // defined(_WIN32)
+
+
+/**
+ * Start the HGFS client redirector.
+ *
+ * @return None.
+ */
+
+static void
+HgfsServerStartClientRedirector(void)
+{
+#if defined(_WIN32)
+   SC_HANDLE   serviceControlManager = NULL;
+   PCWSTR      driverName = L"vmhgfs";
+   DWORD       result = ERROR_SUCCESS;
+
+   serviceControlManager = OpenSCManagerW(NULL, NULL, SERVICE_START);
+   if (NULL == serviceControlManager) {
+      result = GetLastError();
+      g_warning("%s: Error: Open SC Manager = %d \n", __FUNCTION__, result);
+      goto exit;
+   }
+   result = HgfsServerStartClientService(serviceControlManager, driverName);
+
+exit:
+   if (NULL != serviceControlManager) {
+      CloseServiceHandle(serviceControlManager);
+   }
+#endif // defined(_WIN32)
+}
+
+
 /**
  * Returns the registration data for the HGFS server.
  *
@@ -165,6 +251,11 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    if (!TOOLS_IS_MAIN_SERVICE(ctx) && !TOOLS_IS_USER_SERVICE(ctx)) {
       g_info("Unknown container '%s', not loading HGFS plugin.", ctx->name);
       return NULL;
+   }
+
+   if (TOOLS_IS_MAIN_SERVICE(ctx)) {
+      /* Start the Shared Folders redirector client. */
+      HgfsServerStartClientRedirector();
    }
 
    mgrData = g_malloc0(sizeof *mgrData);

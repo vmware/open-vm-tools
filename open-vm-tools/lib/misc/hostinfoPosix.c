@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -75,7 +75,7 @@
 #include <sys/vfs.h>
 #endif
 #if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || (defined(HAVE_SYS_IO_H) && defined(HAVE_SYS_SYSINFO_H)))
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 #include <sys/io.h>
 #else
 #define NO_IOPL
@@ -572,7 +572,10 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_ASIANUX_4, distroShortSize);
    } else if (strstr(distroLower, "asianux server 5") ||
               strstr(distroLower, "asianux client 5")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX_5, distroShortSize);
+      Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
+   } else if (strstr(distroLower, "asianux server 7") ||
+              strstr(distroLower, "asianux client 7")) {
+      Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
    } else if (strstr(distroLower, "aurox")) {
       Str_Strcpy(distroShort, STR_OS_AUROX, distroShortSize);
    } else if (strstr(distroLower, "black cat")) {
@@ -580,7 +583,13 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "cobalt")) {
       Str_Strcpy(distroShort, STR_OS_COBALT, distroShortSize);
    } else if (StrUtil_StartsWith(distroLower, "centos")) {
-      Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
+      if (strstr(distroLower, "6.")) {
+         Str_Strcpy(distroShort, STR_OS_CENTOS6, distroShortSize);
+      } else if (strstr(distroLower, "7.")) {
+         Str_Strcpy(distroShort, STR_OS_CENTOS7, distroShortSize);
+      } else {
+         Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
+      }
    } else if (strstr(distroLower, "conectiva")) {
       Str_Strcpy(distroShort, STR_OS_CONECTIVA, distroShortSize);
    } else if (strstr(distroLower, "debian")) {
@@ -594,6 +603,10 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_DEBIAN_7, distroShortSize);
       } else if (strstr(distroLower, "8.")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_8, distroShortSize);
+      } else if (strstr(distroLower, "9.")) {
+         Str_Strcpy(distroShort, STR_OS_DEBIAN_9, distroShortSize);
+      } else if (strstr(distroLower, "10.")) {
+         Str_Strcpy(distroShort, STR_OS_DEBIAN_10, distroShortSize);
       }
    } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
               StrUtil_StartsWith(distroLower, "oracle")) {
@@ -604,7 +617,13 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
        * Not sure why they didn't brand their releases as "Oracle Enterprise
        * Linux". Oh well. It's fixed in 6.0, though.
        */
-      Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      if (strstr(distroLower, "6.")) {
+         Str_Strcpy(distroShort, STR_OS_ORACLE6, distroShortSize);
+      } else if (strstr(distroLower, "7.")) {
+         Str_Strcpy(distroShort, STR_OS_ORACLE7, distroShortSize);
+      } else {
+         Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      }
    } else if (strstr(distroLower, "fedora")) {
       Str_Strcpy(distroShort, STR_OS_FEDORA, distroShortSize);
    } else if (strstr(distroLower, "gentoo")) {
@@ -723,11 +742,11 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
       if (tmpDistroPos) {
          sscanf(tmpDistroPos, lsbFields[i].scanstring, distroPart);
          if (distroPart[0] == '"') {
-            char *tmpMakeNull = NULL;
+            char *tmpMakeNull;
 
             tmpDistroPos += strlen(lsbFields[i].name) + 1;
             tmpMakeNull = strchr(tmpDistroPos + 1 , '"');
-            if (tmpMakeNull) {
+            if (tmpMakeNull != NULL) {
                *tmpMakeNull = '\0';
                Str_Strcat(distro, tmpDistroPos, distroSize);
                *tmpMakeNull = '"' ;
@@ -879,7 +898,6 @@ HostinfoOSData(void)
       return FALSE;
    }
 
-
    if (strlen(buf.sysname) + strlen(buf.release) + 3 > sizeof osNameFull) {
       Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
@@ -891,13 +909,21 @@ HostinfoOSData(void)
                buf.release);
 
 #if defined USERWORLD
-   if (buf.release[0] <= '4') {
+   /* The most recent osName always goes here. */
+   Str_Strcpy(osName, "vmkernel65", sizeof osName);
+
+   /* Handle any special cases */
+   if ((buf.release[0] <= '4') && (buf.release[1] == '.')) {
       Str_Strcpy(osName, "vmkernel", sizeof osName);
-   } else {
+   } else if ((buf.release[0] == '5') && (buf.release[1] == '.')) {
       Str_Strcpy(osName, "vmkernel5", sizeof osName);
+   } else if ((buf.release[0] >= '6') && (buf.release[1] == '.')) {
+      if (buf.release[2] < '5') {
+         Str_Strcpy(osName, "vmkernel6", sizeof osName);
+      }
    }
-   Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %c.x",
-                buf.release[0]);
+
+   Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %s", buf.release);
 #elif defined __APPLE__
    {
       /*
@@ -962,17 +988,32 @@ HostinfoOSData(void)
        */
 
       majorVersion = Hostinfo_OSVersion(0);
-      if (majorVersion < 2 || (majorVersion == 2 && Hostinfo_OSVersion(1) < 4)) {
+      if (majorVersion < 2) {
          Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
-      } else if (majorVersion == 2 && Hostinfo_OSVersion(1) < 6) {
-         Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
       } else if (majorVersion == 2) {
-         Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
-      } else {
+          if (Hostinfo_OSVersion(1) < 4) {
+            Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
+            Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
+         } else if (Hostinfo_OSVersion(1) < 6) {
+            Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
+            Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
+         } else {
+            Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
+            Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
+         }
+      } else if (majorVersion == 3) {
          Str_Strcpy(distro, STR_OS_OTHER_3X_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
+      } else {
+         /*
+          * Anything newer than this code explicitly handles returns the
+          * "highest" known short description and a dynamically created,
+          * appropriate long description.
+          */
+
+         Str_Sprintf(distro, sizeof distro, "Other Linux %d.%d kernel",
+                     majorVersion, Hostinfo_OSVersion(1));
          Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
       }
 
@@ -981,7 +1022,7 @@ HostinfoOSData(void)
        */
 
       lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
-      if (!lsbOutput) {
+      if (lsbOutput == NULL) {
          int i;
 
          /*
@@ -1777,7 +1818,7 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
    }
    return FALSE;
 #else
-#if vmx86_server && defined(GLIBC_VERSION_23)
+#if vmx86_server
 #  error Posix clock_gettime support required on ESX
 #endif
 #  define vmx86_posix 0

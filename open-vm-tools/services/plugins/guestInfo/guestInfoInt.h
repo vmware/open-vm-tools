@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,7 @@
 
 #define G_LOG_DOMAIN "guestinfo"
 #include "vmware/tools/log.h"
+#include "vmware/tools/plugin.h"
 
 #include "nicInfo.h"
 #include "dynbuf.h"
@@ -53,12 +54,11 @@
 extern int guestInfoPollInterval;
 
 Bool
-GuestInfo_PerfMon(DynBuf *stats);
+GuestInfo_ServerReportStats(ToolsAppCtx *ctx,  // IN
+                            DynBuf *stats);    // IN
 
-#if defined(_WIN32)
-void
-GuestInfo_SetStatLogging(Bool isEnabled);
-#endif
+gboolean
+GuestInfo_StatProviderPoll(gpointer data);
 
 GuestDiskInfo *
 GuestInfoGetDiskInfoWiper(void);

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="10.0.5"
+TOOLS_VERSION="10.1.0"
 AC_INIT(
    [open-vm-tools],
-   [10.0.5],
+   [10.1.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -79,7 +79,7 @@ case "$host_cpu" in
    [i[3456]86])
       userSpaceBitness="32"
       ;;
-   [x86_64])
+   [amd64|x86_64])
       userSpaceBitness="64"
       ;;
    [*])
@@ -97,12 +97,6 @@ AC_ARG_WITH([root-privileges],
 # Kernel arguments.
 # The kernel args have to go here otherwise the KERNEL_RELEASE won't be visible
 # to getOsVersion()
-AC_ARG_WITH([kernel-modules],
-	    [AS_HELP_STRING([--without-kernel-modules],
-		[does not compile or install the kernel modules])],
-	    [],
-	    [with_kernel_modules=yes])
-
 AC_ARG_WITH([kernel-release],
 	    [AS_HELP_STRING([--with-kernel-release],
 		[specifies the kernel release you want to build against])],
@@ -142,6 +136,17 @@ case "$host_os" in
 esac
 osVersion="`getOsVersion`"
 
+AC_ARG_WITH([kernel-modules],
+	    [AS_HELP_STRING([--with-kernel-modules],
+		[compile and install the kernel modules])],
+	    [],
+	    [if test "x$os" = "xlinux" -a "$osVersion" -ge 400000; then
+	        with_kernel_modules=no
+	     else
+	        with_kernel_modules=yes
+	     fi
+	    ])
+
 if test "$with_kernel_modules" = "yes"; then
    case "$os" in
       linux)
@@ -153,7 +158,7 @@ if test "$with_kernel_modules" = "yes"; then
          fi
          LINUXINCLUDE="$LINUXDIR/build/include"
          if test ! -d "$LINUXINCLUDE"; then
-            AC_MSG_ERROR([Can't find include dir under $LINUXDIR])
+            AC_MSG_ERROR([Cannot find include dir under $LINUXDIR])
          fi
          ;;
 
@@ -179,20 +184,40 @@ AC_ARG_ENABLE(
    [enable_multimon="yes"])
 
 AC_ARG_WITH(
+   gtk3,
+   AS_HELP_STRING(
+      [--without-gtk3],
+      [compiles without Gtk 3.0]),
+   [with_gtk3="$withval"],
+   [with_gtk3="no"])
+
+AC_ARG_WITH(
    gtk2,
    AS_HELP_STRING(
       [--without-gtk2],
       [compiles without Gtk 2.0]),
    [with_gtk2="$withval"],
-   [with_gtk2="yes"])
+   [if test "$with_gtk3" = "yes"; then with_gtk2="no" ; else with_gtk2="yes"; fi])
 
-AC_ARG_WITH(
-   gtkmm,
-   AS_HELP_STRING(
-      [--without-gtkmm],
-      [compiles without Gtkmm, sigc++, and related libs]),
-   [with_gtkmm="$withval"],
-   [with_gtkmm="yes"])
+if test "$with_gtk3" = "yes"; then
+   AC_ARG_WITH(
+      gtkmm3,
+      AS_HELP_STRING(
+         [--without-gtkmm3],
+         [compiles without Gtkmm 3, sigc++, and related libs]),
+      [with_gtkmm3="$withval"],
+      [with_gtkmm3="yes"])
+      with_gtkmm="no"
+else
+   AC_ARG_WITH(
+      gtkmm,
+      AS_HELP_STRING(
+         [--without-gtkmm],
+         [compiles without Gtkmm, sigc++, and related libs]),
+      [with_gtkmm="$withval"],
+      [with_gtkmm="yes"])
+      with_gtkmm3="no"
+fi
 
 AC_ARG_ENABLE(
    docs,
@@ -362,7 +387,7 @@ AC_CHECK_PROG([have_genmarshal],
               [no])
 
 if test "$have_genmarshal" != "yes"; then
-   AC_MSG_ERROR([glib-genmarshal is required; make sure it's available in your path.])
+   AC_MSG_ERROR([glib-genmarshal is required; make sure it is available in your path.])
 fi
 
 #
@@ -404,18 +429,53 @@ fi
 AC_ARG_ENABLE([vgauth],
    [AS_HELP_STRING([--disable-vgauth],
      [do not build vgauth.])],
-   [],
-   [enable_vgauth=yes])
+   [
+   enable_vgauth="$enableval"
+   use_xmlsec1=no
+   ],
+   [
+    enable_vgauth=yes
+    use_xmlsec1=no
+   ])
+
+AC_ARG_ENABLE([xmlsec1],
+   [AS_HELP_STRING([--enable-xmlsec1],
+     [build vgauth with xmlsec1 instead of xml-security-c (off by default).])],
+   [use_xmlsec1="$enableval"],
+   [use_xmlsec1=no])
+
+AC_ARG_ENABLE([xml-security-c],
+   [AS_HELP_STRING([--disable-xml-security-c],
+     [build vgauth with xml-security-c instead of xmlsec1 (on by default).])],
+   [
+    if test "$enableval" = "yes"; then
+       use_xmlsec1="no";
+    else
+       use_xmlsec1="yes"
+    fi
+   ],
+   [])
+
+if test "$enable_vgauth" = "yes" ; then
+   AC_ARG_ENABLE([caf],
+      [AS_HELP_STRING([--disable-caf],
+        [do not build CAF (Common Agent Framework).])],
+      [],
+      [enable_caf=no])
+else
+   enable_caf=no
+fi
 
 #
 # Check for openssl, xerces-c and xml-security-c
 #
 AC_ARG_WITH([ssl],
    [AS_HELP_STRING([--without-ssl],
-     [compiles without openssl support (disables grabbitmqproxy and vgauth).])],
+     [compiles without openssl support (disables grabbitmqproxy, vgauth and CAF).])],
    [
      enable_grabbitmqproxy=no
      enable_vgauth=no
+     enable_caf=no
    ],
    [with_ssl=yes])
 
@@ -431,21 +491,64 @@ AC_ARG_WITH([xerces],
    [enable_vgauth=no],
    [with_xerces=yes])
 
+AC_ARG_WITH([xmlsec1],
+   [AS_HELP_STRING([--without-xmlsec1],
+     [compiles without xmlsec1 support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xmlsec1=yes])
+
+AC_ARG_WITH([xml2],
+   [AS_HELP_STRING([--without-xml2],
+     [compiles without xml2 support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xml2=yes])
+
+
+# Make sure we are building with openssl 1.0.1 and above so that
+# we use only TLSv1_2.
+
 if test "$enable_vgauth" = "yes" -o "$enable_grabbitmqproxy" = "yes"; then
    AC_VMW_DEFAULT_FLAGS([SSL])
    AC_VMW_CHECK_LIB([ssl],
                     [SSL],
+                    [openssl],
                     [],
+                    [1.0.1],
                     [],
-                    [],
-                    [],
-                    [],
+                    [BIO_new_file],
                     [],
                     [AC_VMW_LIB_ERROR([SSL], [ssl])])
 fi
 
 if test "$enable_vgauth" = "yes"; then
    CPPFLAGS="$CPPFLAGS -DUSE_VGAUTH"
+if test "$use_xmlsec1" = "yes"; then
+   AC_VMW_DEFAULT_FLAGS([XML2])
+   AC_VMW_CHECK_LIB([xml2],
+                    [XML2],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [AC_VMW_LIB_ERROR([XML2], [xml2])])
+
+# Multiple distros built xmlsec1 with -DXMLSEC_NO_SIZE_T but
+# their xmlssec1-config --cflags doesn't properly report it,
+# so force it on.
+   AC_VMW_DEFAULT_FLAGS([XMLSEC1])
+   AC_VMW_CHECK_LIB([xmlsec1],
+                    [XMLSEC1],
+                    [],
+                    [xmlsec1-config],
+                    [],
+                    [xmlsec/xmlsec.h],
+                    [xmlSecCheckVersion],
+                    [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
+                    [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
+
+else
    AC_VMW_DEFAULT_FLAGS([XERCES])
    AC_VMW_CHECK_LIB([xerces-c],
                     [XERCES],
@@ -467,6 +570,9 @@ if test "$enable_vgauth" = "yes"; then
                     [],
                     [],
                     [AC_VMW_LIB_ERROR([XMLSECURITY], [xml-security-c])])
+fi
+else
+   enable_caf=no
 fi
 
 #
@@ -514,7 +620,7 @@ else
       [X11/extensions/extutil.h],
       [],
       [AC_MSG_ERROR(
-         [X11/extensions/extutil.h header not found - you're probably on Solaris 10 or older. Please copy that header file onto your system manually, or configure without X11 (using --without-x).])],
+         [X11/extensions/extutil.h header not found - you are probably on Solaris 10 or older. Please copy that header file onto your system manually, or configure without X11 (using --without-x).])],
       [#include <X11/Xlib.h>
        #include <X11/Xproto.h>])
 
@@ -589,10 +695,22 @@ else
       have_xcomposite="yes"
    fi
 
-   # Check whether we have gtk+ 2.0.
-   if test "$with_gtk2" != "no"; then
+   # Check whether we have gtk+ 3.0.
+   if test "$with_gtk3" != "no"; then
       # gdk_display_get_default_group (added in gtk+ 2.4.0) is function currently
       # needed by vmware-user.
+      AC_VMW_CHECK_LIB([gtk-3],
+                       [GTK],
+                       [gtk+-3.0],
+                       [],
+                       [3.0.0],
+                       [gtk/gtk.h],
+                       [gdk_display_get_default_group],
+                       [GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK3"],
+                       [AC_MSG_ERROR([Gtk+ 3.0 library not found or too old. Please configure without Gtk+ support (using --without-gtk3) or install the Gtk+ 3.0 devel package.])])
+
+   # Check whether we have gtk+ 2.0.
+   elif test "$with_gtk2" != "no"; then
       AC_VMW_CHECK_LIB([gtk-x11-2.0],
                        [GTK],
                        [gtk+-2.0],
@@ -608,17 +726,53 @@ else
    # Check for gtkmm 2.4.0 or greater.
    #
 
-   if test "$with_gtkmm" != "no"; then
-      CUSTOM_GTKMM_CPPFLAGS="$CUSTOM_GTKMM_CPPFLAGS $GTK_CPPFLAGS"
-      AC_VMW_CHECK_LIBXX([gtkmm-2.4],
-                         [GTKMM],
-                         [gtkmm-2.4],
+
+   if test "$with_gtkmm" != "no" -o "$with_gtkmm3" != "no"; then
+      if test "$with_gtkmm3" != "no"; then
+         AC_VMW_CHECK_LIBXX([gtkmm-3.0],
+                            [GTKMM],
+                            [gtkmm-3.0],
+                            [],
+                            [3.0.0],
+                            [],
+                            [],
+                            [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
+                            [AC_MSG_ERROR([gtkmm3 library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm3.])])
+
+      elif test "$with_gtkmm" != "no"; then
+         CUSTOM_GTKMM_CPPFLAGS="$CUSTOM_GTKMM_CPPFLAGS $GTK_CPPFLAGS"
+         AC_VMW_CHECK_LIBXX([gtkmm-2.4],
+                            [GTKMM],
+                            [gtkmm-2.4],
+                            [],
+                            [2.4.0],
+                            [gtkmm.h],
+                            [],
+                            [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
+                            [AC_MSG_ERROR([gtkmm library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm.])])
+      fi
+
+      #
+      # libsigc++-2.0 >= 2.5.1 requires C++11 support
+      #
+      # Calling AC_VMW_CHECK_LIBXX would duplicate the sigc++
+      # flags we would have already got as part of gtkmm call
+      # above. This is OK because we are not seeing any issues
+      # because of this and calling AC_VMW_CHECK_LIBXX function
+      # provides other benefits like picking custom flags.
+      #
+      # AC_VMW_CHECK_LIBXX sets CPPFLAGS and LIBS variables only,
+      # so we have to use SIGCXX_CPPFLAGS instead of SIGCXX_CXXFLAGS.
+      #
+      AC_VMW_CHECK_LIBXX([sigc++-2.0],
+                         [SIGCXX],
+                         [sigc++-2.0],
                          [],
-                         [2.4.0],
-                         [gtkmm.h],
+                         [2.5.1],
+                         [sigc++.h],
                          [],
-                         [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
-                         [AC_MSG_ERROR([gtkmm library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm.])])
+                         [SIGCXX_CPPFLAGS="$SIGCXX_CPPFLAGS -std=c++11"],
+                         [SIGCXX_CPPFLAGS="$SIGCXX_CPPFLAGS"])
    fi
 fi # End of checks for X libraries
 
@@ -645,6 +799,8 @@ AC_CHECK_FUNCS(
 AC_CHECK_FUNCS([ecvt])
 AC_CHECK_FUNCS([fcvt])
 
+AC_CHECK_FUNC([mkdtemp], [have_mkdtemp=yes])
+
 if test "$os" = "freebsd" -a "$osVersion" -ge 600000; then
    AC_CHECK_LIB(
       [thr],
@@ -666,7 +822,7 @@ AC_ARG_WITH([pam-prefix],
 	    [AS_HELP_STRING([--with-pam-prefix],
 		[specifies where pam files go. Default is $(sysconfdir)])],
 	    [PAM_PREFIX="$withval"],
-	    [PAM_PREFIX='$(sysconfdir)'])
+	    [if test "$os" = "freebsd" ; then PAM_PREFIX='$(sysconfdir)'; else PAM_PREFIX='/etc'; fi])
 
 if test "$os" = "linux"; then
         AC_ARG_WITH([procps],
@@ -779,7 +935,7 @@ if test "$with_dnet" = "yes"; then
                     [dumbnet.h],
                     [intf_open],
                     [have_dnet="yes";
-                     AC_DEFINE([DNET_IS_DUMBNET], 1, [Define to 1 if substituting Debian's libdumbnet for libdnet.])],
+                     AC_DEFINE([DNET_IS_DUMBNET], 1, [Define to 1 if substituting libdumbnet for libdnet in Debian.])],
                     [])
 
    if test $have_dnet = "no"; then
@@ -849,6 +1005,52 @@ if test "$with_icu" = "yes"; then
    CPPFLAGS="$CPPFLAGS $ICU_CPPFLAGS"
 else
    CPPFLAGS="$CPPFLAGS -DNO_ICU"
+fi
+
+if test "$enable_caf" = "yes"; then
+    AC_VMW_CHECK_LIBXX([log4cpp],
+                       [LOG4CPP],
+                       [],
+                       [log4cpp-config],
+                       [],
+                       [Appender.hh],
+                       [],
+                       [have_log4cpp="yes"],
+                       [AC_VMW_LIB_ERROR([LOG4CPP], [log4cpp])])
+
+    AC_VMW_CHECK_LIB([rabbitmq],
+                       [LIBRABBITMQ],
+                       [librabbitmq],
+                       [],
+                       [0.8.0],
+                       [amqp_tcp_socket.h],
+                       [],
+                       [have_librabbitmq="yes"],
+                       [AC_VMW_LIB_ERROR([LIBRABBITMQ], [librabbitmq])])
+
+    #
+    # CAF requires glib 2.34 or greater.
+    #
+    AC_VMW_CHECK_LIB([glib-2.0],
+                     [GLIB2],
+                     [glib-2.0],
+                     [],
+                     [2.34.0],
+                     [glib.h],
+                     [g_key_file_new],
+                     [],
+                     [AC_MSG_ERROR([glib2 >= 2.34.0 is required.])])
+
+    AC_VMW_CHECK_LIB([gthread-2.0],
+                     [GTHREAD],
+                     [gthread-2.0],
+                     [],
+                     [2.34.0],
+                     [],
+                     [],
+                     [],
+                     [AC_MSG_ERROR([glib >= 2.34.0 is required.])])
+
 fi
 
 AC_PATH_PROG(
@@ -942,7 +1144,8 @@ CFLAGS="$CFLAGS -Werror"
 # Glib2 keep changing mutex APIs so we also need to disable 'deprecated'
 # warnings for now (-Wno-deprecated-declarations).
 for TEST_CFLAG in -Wno-pointer-sign -Wno-unused-value -fno-strict-aliasing \
-    -Wno-unknown-pragmas -Wno-uninitialized -Wno-deprecated-declarations; do
+    -Wno-unknown-pragmas -Wno-uninitialized -Wno-deprecated-declarations \
+    -Wno-unused-const-variable; do
     AC_MSG_CHECKING([for GCC flag $TEST_CFLAG])
     ORIGINAL_CFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS $TEST_CFLAG"
@@ -1129,6 +1332,26 @@ if test "$os" = "solaris"; then
    fi
 fi
 
+if test "$os" = "linux"; then
+    have_udev="yes"
+    AC_ARG_WITH([udev-rules-dir],
+                [AS_HELP_STRING([--with-udev-rules-dir=DIR],
+                    [where to install udev rules])],
+                [UDEVRULESDIR="$withval"],
+                [
+                    UDEVRULESDIR="/lib/udev/rules.d"
+                    if test $HAVE_PKG_CONFIG = "yes"; then
+                        udevdir=$(pkg-config udev --variable=udevdir)
+                        if test "x$udevdir" != "x"; then
+                            UDEVRULESDIR="$udevdir/rules.d"
+                        fi
+                    fi
+                ])
+else
+    have_udev="no"
+    UDEVRULESDIR=""
+fi
+
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
@@ -1147,14 +1370,18 @@ AM_CONDITIONAL(HAVE_DNET, test "$have_dnet" = "yes")
 AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
 AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
-AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
+AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a \( "$with_gtkmm" = "yes" -o "$with_gtkmm3" = "yes" \) )
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "$os" = "linux")
 AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")
 AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
 AM_CONDITIONAL(ENABLE_GRABBITMQPROXY, test "$enable_grabbitmqproxy" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
+AM_CONDITIONAL(USE_XMLSEC1, test "$use_xmlsec1" = "yes")
+AM_CONDITIONAL(ENABLE_CAF, test "$enable_caf" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
+AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
+AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1209,6 +1436,15 @@ COMMON_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/common
 VMSVC_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmsvc
 VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
+# Installation directories for caf binary/so files
+#CAF_PME_BIN_DIR=${sbindir}/vmware-caf/pme/bin
+CAF_PME_BIN_DIR=${libdir}/open-vm-tools/vmware-caf/pme/bin
+CAF_PME_LIB_DIR=${libdir}/open-vm-tools/vmware-caf/pme/lib
+
+# Installation directories for caf subsys so files
+CAF_SUBSYS_DIR=${libdir}/open-vm-tools/vmware-caf/pme/lib
+CAF_SUBSYS_LDFLAGS="-Wl,-z,defs -Wl,-lc -shared -module -avoid-version"
+
 # General definitions
 INSTVMSG='$(SHELL) $(top_srcdir)/scripts/build/instvmsg.sh'
 RPCGEN_WRAPPER='$(SHELL) $(top_builddir)/scripts/build/rpcgen_wrapper.sh'
@@ -1237,6 +1473,10 @@ AC_SUBST([TEST_PLUGIN_INSTALLDIR])
 AC_SUBST([COMMON_PLUGIN_INSTALLDIR])
 AC_SUBST([VMSVC_PLUGIN_INSTALLDIR])
 AC_SUBST([VMUSR_PLUGIN_INSTALLDIR])
+AC_SUBST([CAF_SUBSYS_DIR])
+AC_SUBST([CAF_SUBSYS_LDFLAGS])
+AC_SUBST([CAF_PME_BIN_DIR])
+AC_SUBST([CAF_PME_LIB_DIR])
 if test "$os" = "freebsd" -a -n "$SYSDIR"; then
    # If SYSDIR is not defined, AC_SUBST expands to nothing, so we need something
    # inside this block.
@@ -1257,6 +1497,8 @@ AC_SUBST([LIBVMTOOLS_LIBADD])
 
 AC_SUBST([VIX_LIBADD])
 AC_SUBST([VGAUTH_LIBADD])
+
+AC_SUBST([UDEVRULESDIR])
 
 ###
 ### Create the Makefiles
@@ -1335,6 +1577,7 @@ AC_CONFIG_FILES([                      \
    guestproxycerttool/Makefile         \
    vgauth/Makefile                     \
    vgauth/lib/Makefile                 \
+   namespacetool/Makefile              \
    vgauth/cli/Makefile                 \
    vgauth/service/Makefile             \
    libguestlib/Makefile                \
@@ -1343,6 +1586,18 @@ AC_CONFIG_FILES([                      \
    libDeployPkg/libDeployPkg.pc        \
    libhgfs/Makefile                    \
    libvmtools/Makefile                 \
+   common-agent/Cpp/Framework/Makefile \
+   common-agent/Cpp/Communication/Makefile \
+   common-agent/Cpp/InternalProviders/Makefile \
+   common-agent/Cpp/ManagementAgent/Makefile \
+   common-agent/Cpp/ProviderFx/Makefile \
+   common-agent/input/Makefile         \
+   common-agent/input/invokers/Makefile \
+   common-agent/input/providerReg/Makefile \
+   common-agent/etc/Makefile           \
+   common-agent/etc/config/Makefile    \
+   common-agent/etc/scripts/Makefile   \
+   common-agent/etc/install/Makefile   \
    xferlogs/Makefile                   \
    modules/Makefile                    \
    vmblock-fuse/Makefile               \
@@ -1355,8 +1610,9 @@ AC_CONFIG_FILES([                      \
    tests/testVmblock/Makefile          \
    docs/Makefile                       \
    docs/api/Makefile                   \
-   scripts/Makefile		               \
+   scripts/Makefile                    \
    scripts/build/rpcgen_wrapper.sh     \
+   udev/Makefile                       \
 ])
 
 ###

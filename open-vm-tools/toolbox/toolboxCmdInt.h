@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -128,8 +128,11 @@ DECLARE_COMMAND(Script);
 DECLARE_COMMAND(Stat);
 DECLARE_COMMAND(TimeSync);
 DECLARE_COMMAND(Logging);
+DECLARE_COMMAND(Info);
+DECLARE_COMMAND(Config);
 
-#if defined(_WIN32) || (defined(linux) && !defined(OPEN_VM_TOOLS))
+#if defined(_WIN32) || \
+   (defined(linux) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
 DECLARE_COMMAND(Upgrade);
 #endif
 

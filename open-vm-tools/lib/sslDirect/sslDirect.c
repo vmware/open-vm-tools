@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -789,3 +789,89 @@ SSL_TryCompleteAccept(SSLSock ssl) // IN
    }
 }
 
+
+/*
+ * OpenSSL cipher lists are colon, comma, or space delimited lists.
+ * To get a full list of ciphers:
+ * openssl ciphers | sed 's#:#\n#g'
+ */
+#define SSL_CIPHER_LIST \
+   "!aNULL:kECDH+AES:ECDH+AES:RSA+AES:@STRENGTH"
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SSL_NewContext --
+ *
+ *      Return an SSL context initialized with reasonable defaults.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+SSL_NewContext(void)
+{
+   SSL_CTX *ctx;
+   long ctxOptions;
+
+   ctx = SSL_CTX_new(SSLv23_method());
+
+   if (!ctx) {
+      SSLPrintErrors(VMW_LOG_WARNING);
+      Panic("Error Starting Up Default SSL context\n");
+      NOT_REACHED();
+   }
+
+   /*
+    * Disable SSLv2/SSLv3 and enable all known bug workarounds.
+    */
+   ctxOptions = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
+                SSL_OP_SINGLE_DH_USE |
+                SSL_OP_CIPHER_SERVER_PREFERENCE;
+
+   /*
+    * Also turn off support for TLS ticket-based session resumption (RFC 4507)
+    * since this will cause connections to older versions of OpenSSL to fail.
+    * This was enabled by default starting with OpenSSL 0.9.8j.
+    */
+   ctxOptions |= SSL_OP_NO_TICKET;
+
+   /* SSL compression can be disabled per-context starting in OpenSSL 1.0.0 */
+#ifdef SSL_OP_NO_COMPRESSION
+      ctxOptions |= SSL_OP_NO_COMPRESSION;
+#endif
+
+   SSL_CTX_set_options(ctx, ctxOptions);
+
+   /*
+    * Automatically retry an operation that failed with
+    * SSL_WANT_{READ|WRITE} if blocking sockets are being used
+    *
+    * This flag is ineffective for non-blocking sockets and the
+    * application must retry the SSL IO operation that needs to be retried
+    * until it succeeds, before it can perform any other IO on the
+    * SSL.
+    */
+   SSL_CTX_ctrl(ctx, SSL_CTRL_MODE, SSL_MODE_AUTO_RETRY, NULL);
+
+   /* Don't cache sessions (client not smart enough to use them */
+   SSL_CTX_ctrl(ctx, SSL_CTRL_SET_SESS_CACHE_MODE,
+                SSL_SESS_CACHE_OFF, NULL);
+   /*
+    * disable the bidirectional shutdown sequence.  This is really
+    * only useful when we want to use SSL session caching.
+    * (a session will only be cached if it was shutdown properly,
+    * using the full bidirectional method).
+    * */
+   SSL_CTX_set_quiet_shutdown(ctx, 1);
+
+   /*
+    * Set the cipher for the context.  All sessions initiated from this
+    * context will use the same cipher.  Use the SSL_set_cipher_list to
+    * change the cipher on a per session basis.
+    */
+   SSL_CTX_set_cipher_list(ctx, SSL_CIPHER_LIST);
+
+   return ctx;
+}

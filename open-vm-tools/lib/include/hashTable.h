@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -80,9 +80,9 @@ HashTable_Insert(HashTable  *hashTable,    // IN/OUT:
                  void       *clientData);  // IN/OPT:
 
 Bool
-HashTable_Lookup(HashTable  *hashTable,    // IN:
-                 const void *keyStr,       // IN:
-                 void      **clientData);  // OUT/OPT:
+HashTable_Lookup(const HashTable  *hashTable,    // IN:
+                 const void       *keyStr,       // IN:
+                 void            **clientData);  // OUT/OPT:
 
 void *
 HashTable_LookupOrInsert(HashTable  *hashTable,    // IN/OUT:

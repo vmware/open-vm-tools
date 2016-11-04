@@ -1,0 +1,7 @@
+#!/bin/sh
+
+scriptsDir=$(dirname $(readlink -f $0))
+. $scriptsDir/caf-common
+
+processName="VGAuthService"
+stopProcess "$processName"

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -119,6 +119,17 @@ void SHA1Final(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
 void SHA1RawBufferHash(const void *data,
                        uint32 size,
                        uint32 result[5]);
+void SHA1RawTransformBlocks(uint32 state[5],
+                            const unsigned char *buffer,
+                            uint32 numBlocks);
+void SHA1RawInit(uint32 state[5]);
+
+#define SHA1_MULTI_MAX_BUFFERS 8
+
+void SHA1MultiBuffer(uint32 numBuffers,
+                     uint32 len,
+                     const void *data[],
+                     unsigned char *digests[]);
 
 #endif // defined __APPLE__ && defined USERLEVEL
 

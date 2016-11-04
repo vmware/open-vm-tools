@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -364,61 +364,6 @@ Util_IsAbsolutePath(const char *path)  // IN: path to check
 /*
  *-----------------------------------------------------------------------------
  *
- * Util_GetPrime --
- *
- *      Find next prime.
- *
- * Results:
- *      The smallest prime number greater than or equal to n0.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-unsigned
-Util_GetPrime(unsigned n0)  // IN:
-{
-   unsigned i, ii, n, nn;
-
-   /*
-    * Keep the main algorithm clean by catching edge cases here.
-    * There is no 32-bit prime larger than 4294967291.
-    */
-
-   VERIFY(n0 <= 4294967291U);
-   if (n0 <= 2) {
-      return 2;
-   }
-
-   for (n = n0 | 1;; n += 2) {
-      /*
-       * Run through the numbers 3,5, ..., sqrt(n) and check that none divides
-       * n.  We exploit the identity (i + 2)^2 = i^2 + 4i + 4 to incrementially
-       * maintain the square of i (and thus save a multiplication each
-       * iteration).
-       *
-       * 65521 is the largest prime below 0xffff, which is where
-       * we can stop.  Using it instead of 0xffff avoids overflowing ii.
-       */
-
-      nn = MIN(n, 65521U * 65521U);
-      for (i = 3, ii = 9;; ii += 4*i+4, i += 2) {
-         if (ii > nn) {
-            return n;
-         }
-         if (n % i == 0) {
-            break;
-         }
-      }
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * Util_GetCurrentThreadId --
  *
  *      Retrieves a unique thread identification suitable to identify a thread
@@ -444,21 +389,12 @@ Util_GetCurrentThreadId(void)
     * Linux does not declare gettid, but the raw syscall
     * works fine. We must supply our own TLS caching.
     */
-#if defined(GLIBC_VERSION_23)
    static __thread pid_t tid;
    if (UNLIKELY(tid == 0)) {
       tid = (pid_t)syscall(SYS_gettid);
       ASSERT(tid != -1);  // All kernels that support TLS also implement gettid
    }
    return tid;
-#else
-   /*
-    * Always a syscall, but glibc-2.2 doesn't have __thread TLS so we couldn't
-    * cache anyway. We don't support kernels from before 2.4.11 when SYS_gettid
-    * was introduced, so no need to check the return value.
-    */
-   return (pid_t)syscall(SYS_gettid);
-#endif
 
 #elif defined(__ANDROID__)
    /*

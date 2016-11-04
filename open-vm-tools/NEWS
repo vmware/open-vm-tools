@@ -1,3 +1,15 @@
+open-vm-tools 2016.10.25 changes:
+	* Added vmware-namespace-cmd command line utility.
+	* Added gtk3 support.
+	* Added Common Agent Framework (CAF).
+	* Changed guest authentication to xmlsec1.
+	* FreeBSD support.
+	* Automatic Linux kernel modules are enabled by default.
+	* New sub-command to push updated network information to the host on demand.
+	* Added udev rules for configuring SCSI timeout in the guest. 
+	* Fixes for running on Ubuntu 16.10.
+	* Fix for quiesced snapshot failure leaving guest file system quiesced.
+
 open-vm-tools 2015.11.10 changes:
 	* [vgauth] fix timestamp check
 	* [libresolutionSet.so] Add an error handler to X11 resolutionSet

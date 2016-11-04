@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -1041,6 +1041,9 @@ HgfsChangeFileAttributes(struct inode *inode,          // IN/OUT: Inode
    if (attr->mask & HGFS_ATTR_VALID_WRITE_TIME) {
       HGFS_DECLARE_TIME(newTime);
       HGFS_SET_TIME(newTime, attr->writeTime);
+      LOG(4, (KERN_DEBUG "VMware hgfs: %s: server mod "
+               "time: %ld:%lu, inode mod time: %ld:%lu\n", __func__,
+               HGFS_PRINT_TIME(newTime), HGFS_PRINT_TIME(inode->i_mtime)));
       if (hgfs_timespec_compare(&newTime, &inode->i_mtime) > 0 &&
           iinfo->numWbPages == 0 &&
           isSafeToChange) {

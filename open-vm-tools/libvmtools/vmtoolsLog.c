@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -85,6 +85,8 @@
 #else
 #  define SAFE_HANDLER  "std"
 #endif
+
+#define STD_HANDLER  "std"
 
 /** Tells whether the given log level is a fatal error. */
 #define IS_FATAL(level) ((level) & G_LOG_FLAG_FATAL)
@@ -412,7 +414,7 @@ VMToolsLogMsg(gpointer _data, gpointer userData)
    /*
     * Any fatal errors need to go to syslog no matter what.
     */
-   if (!usedSyslog && IS_FATAL(entry->level)) {
+   if (!usedSyslog && IS_FATAL(entry->level) && gErrorSyslog) {
       gErrorSyslog->logger->logfn(entry->domain, entry->level, entry->msg,
                                   gErrorSyslog->logger);
    }
@@ -875,6 +877,7 @@ VMToolsConfigLogDomain(const gchar *domain,
 exit:
    g_free(handler);
    g_free(level);
+   g_free(confData);
 }
 
 
@@ -952,6 +955,46 @@ VMTools_AttachConsole(void)
 }
 
 #endif
+
+
+/**
+ * Configures the logging system to log to the STDIO.
+ *
+ * @param[in] defaultDomain   Name of the default log domain.
+ */
+
+void
+VMTools_ConfigLogToStdio(const gchar *domain)
+{
+   static LogHandler *gStdLogHandler = NULL;
+   GKeyFile *cfg;
+
+   g_return_if_fail(gStdLogHandler == NULL); /* Already called */
+
+   ASSERT(domain != NULL);
+   gLogDomain = g_strdup(domain);
+   cfg = g_key_file_new();
+   gStdLogHandler = VMToolsGetLogHandler(STD_HANDLER,
+                                         gLogDomain,
+                                         ~0,
+                                         cfg);
+   if (!gStdLogHandler) {
+      fprintf(stderr, "Failed to create the STD log handler\n");
+      goto exit;
+   }
+
+   g_log_set_handler(gLogDomain, ~0, VMToolsLog, gStdLogHandler);
+
+   if (!gLogInitialized) {
+      gLogInitialized = TRUE;
+      g_static_rec_mutex_init(&gLogStateMutex);
+   }
+
+   gLogEnabled = TRUE;
+
+exit:
+   g_key_file_free(cfg);
+}
 
 
 /**

@@ -1,4 +1,2110 @@
+open-vm-tools-10.1.0 build 4449150
+
+*	Hgfs VMX: make the shares object use const strings
+	
+	The share name, path and tags strings are immutable and so should be
+	const. They remain that way for the life time of the share. If a user changes
+	any of these in the UI the share will be deleted and a new one created .
+	
+	This change makes them const strings.
+	
+*	Hgfs Linux Mounter: add noserverino mount option
+	
+	When Linux clients run against a Windows HGFS server they can get
+	messed up with the host file IDs returned by the HGFS server
+	when using them for inode numbers.
+	
+	This change allows the user to mount with an option to disable
+	that and always generate inode numbers internally.
+	
+*	Hgfs Linux Server: clean up the mode permission initialization for creates 
+	
+	For some reason that is unclear the mode permissions bit mask is set to
+	all ones except for the permissions bits, which we then add as required. This is
+	dangerous if any of the other bits become used in some way. Currently,
+	they appear to be ignored and unused so we have not run into odd
+	errors or behavior. This might change in the future.
+	
+	Now initialize the the mode permissions field to zero so that we only set
+	the bits we want.
+	
+*	Log the proper exit code of powerops Scripts.
+	
+	Use WEXITSTATUS to extract the proper exit code after a
+	child process is completed.
+	
+*	Remove nullok from pam configuration files.
+	
+	The guest operations should be not be allowed for a user with a blank
+	password. Lets remove 'nullok' setting from vmtools / vgauth related pam
+	configuration files.
+	
+*	asyncWebSocket: capture the websocket close status code correctly.
+	 
+	This change fixes the following bugs while capturing the websocket close
+	frame status code:
+	1. An incorrect 'if' condition prevented reading the websocket status code
+	     e.g. if (WebSocketDecodeBytesAvailable(s) > 4) now changed to
+	          if (s->websocket.frameSize >=2)
+	2. The status code itself was parsed incorrectly (only one byte was read
+	   instead of two)
+	3. If the closeframe was masked, it was never unmasked before reading the
+	   status code
+	
+	Also replaces HYBI prefix in variables to use WEB_SOCKET.
+	 
+	This change still does not handle the following case:
+	1. The websocket close status (normally two bytes total) straddles decodeBuffer
+	   boundaries. It would need more investigation to prove if this can even happen.
+	   If it does happen, the close status would be interpreted as missing, which is
+	   incorrect but mostly harmless.
+	2. The last chunk of decoded data (without the close status code) does not get
+	   sent to the application when a websocket close frame is encountered.
+	
+*	atomics: Atomic_ReadIfEqualWriteBool fails on 32-bit compiles
+	
+	The Atomic_ReadIfEqualWriteBool is documented to return the value
+	of the potential exchange from before the attempted operation. In
+	the 32-bit case we're not doing that. Fix this.
+	
+*	MXUser Locks: Collect the locking activity tree only when requested
+	
+	Currently we always collect the locking activity tree and optionally
+	report it. To lower overhead in an OBJ build, only collect and report
+	it when enabled.
+	
+*	Tools: XML encoding "not quite right"
+	
+	Because we've always handled the XML coming out of tools with the
+	special C XML routines it was never noticed that the escaping of
+	characters was incorrect - not all of the XML sensitive characters
+	were escaped. Fix this.
+	
+	The solution is to escape the escape character (already done) and all
+	five of the XML sensitive characters.
+	
+*	pyVigor: Handle tools XML string escaped data
+	
+	Now that tools is properly passing back escaped strings to avoid
+	any issues with standard/official XML, unescape the strings in the
+	pyVigor guestOps support code.
+	
+	To easily facilitate this, a C callable wrapped function is created
+	and used.
+	
+*	Hgfs Posix Server: return file allocation size for attributes
+	
+	Currently only the Windows HGFS server returns the allocation size
+	of a file. This allows the clients to use accurate disk space sizes
+	and help the guest enumerations calcuate disk space correctly and
+	for stat and du type of operations to report correct information.
+	Posix clients currently under report the file size disk allocation.
+	
+	Posix clients are being fixed in a separate change.
+	
+	Posix hosts should also return this information so that it can be
+	used by clients in stat and du type of operations. The block information
+	could be returned as a new field but that seems unnecessary since
+	their already exists an allocation size field which goes unused for
+	Posix HGFS servers, and can be calculated from the number of 512 byte
+	blocks returned on a stat.
+	
+*	rmks: Send error codes to View Client via VMDB
+	 
+	Until now, rmks error codes set with MKSRoleMain_Disconnected() were sent to the View client using process exit codes.
+	
+	The MKS team pointed out that exit codes are unreliably set and recommended using VMDB instead.
+	 
+	This change:
+	1. Sends the error code to View client using VMDB instead of a process exit code.
+	2. Modifies crtbora to no longer retrieve the rmks process exit code. 
+	3. Interprets the websocket close status code from Blast and converts it to a
+	   VDP error code for View client.
+	4. Handles normal, empty, and missing websocket status codes as the blast server
+	   currently only sends these.  A subsequent change will convert the full range
+	   of websocket errors to corresponding VDP error codes.
+	5. Sends proper error code on rmks crash
+	 
+	This new logic works for PCOIP, because the VDP plugin mechanism also uses
+	MKSRoleMain_Disconnected to pass back error codes. 
+	 
+*	Add additional logging to debug grabbitmqproxy socket permission.
+	
+	Need add this log line to verify that the VSOCK was fixed later
+	
+*	fix up reload time constants
+	
+	#define in deci-seconds is just confusing
+	
+*	Don't claim we reloaded a non-existent config file
+	
+	VMTools_LoadConfig() is returning TRUE if there's no config
+	file, which confuses its callers and makes them do extra work.
+	
+	Only return TRUE for a non-existent file if its the first time through
+	or if we used to have a file.
+	
+*	Unicode: Begin retiring Unicode_Free
+	
+	Now that the Unicode and ConstUnicode data types have been retired,
+	there is nothing special about Unicode_Free. Retire it.
+	
+*	tools: silence uninitialized variable warning
+	
+*	clean up debug & warning messages in guestInfo plugin
+	
+*	recategorize powerOps logging messages
+	
+	re-work logging messages in the powerOps plugin
+	to provide better data by default.
+	
+*	Unicode: the opaque type is dead
+	
+	Remove the build options...
+	
+*	sizeof: more low hanging fruit
+	
+	Continue moving our code to the prefered style.
+	
+*	adjust logging noise for vmtoolsd
+	
+	change the logging levels for vmtoolsd so that messages come out
+	at the proper level.
+	
+*	lib/file: File_CreateDirectory and friends needs to be consistent
+	
+	File_CreateDirectory fails if the directory already exists on POSIX
+	but succeeds on Windows. Things need to be consistent. Make the Windows
+	version behave like the POSIX version - fail if it already exists.
+	
+	If one want to create a directory but tolerate that it already exists
+	we already have File_EnsureDirectoryEx for that.
+	
+*	Avoid logging when guest IO has been frozen.
+	
+	This change is part 1 of the change to cache log messages when
+	guest has been quiesced. In this change, we avoid logging when
+	guest IO has been frozen. In a subsequent change, i.e. part 2,
+	we will add the code to cache and flush the log messages.
+	
+*	Add Config_GetDouble to lib/stubs.
+	
+*	Const-ify our APIs that use struct iovec
+	
+	Some of our APIs use "struct iovec *iov", which is not the expected semantics:
+	readv/writev/preadv/pwritev take a "struct iovec const *iov"
+	(see http://linux.die.net/man/2/preadv ). So const-ify these APIs.
+	
+	lib/public/iovector.h
+	lib/misc/iovector.c
+	   IOV_WriteIovToBuf
+	   IOV_WriteBufToIov
+	
+	lib/public/fileIO.h
+	lib/file/fileIOPosix.c
+	lib/file/fileIOWin32.c
+	   FileIO_Readv
+	   FileIO_Writev
+	   FileIO_Preadv
+	   FileIO_Pwritev
+	
+	lib/public/aioMgr.h
+	lib/aiomgr/aioMgr.c
+	devices/disk/vmxAioMgr.c
+	lib/aiomgr/simple.c
+	lib/aiomgr/unbuf.c
+	lib/aioManagers/aioGeneric.c
+	lib/aioManagers/aioHttp.c
+	lib/aioManagers/aioLinux.c
+	lib/aioManagers/aioWin32Completion.c
+	lib/blockListVmomi/sanMP.c
+	lib/dmg/dmgAioMgr.c
+	   AIOMgr_Queue
+	   AIOMgrInterface.Queue
+	
+*	Modifications to random.c
+	
+	Instead of #ifdefs for each function a lot of #defines are used.
+	Furthermore, #bora/lib/misc is used to leverage its SHA1 implementation.
+	The file random_impl.h and the function RandomImplInit() are introduced.
+	
+*	HGFS Protocol: open reply add flags field and flags
+	
+	The HGFS open request has an allocation size that the Windows
+	HGFS server can use to reserve disk space when creating a new
+	file (or overwrite or supersede an existing file).
+	Current implementation of the HGFS server does not make use
+	of this allocation size field. Thus, when it does it should
+	return a flag in the result to indicate the size was used.
+	This allows clients to be sure if the HGFS server used the
+	initial allocation size or not. If not, then the client will
+	continue to do as it currently does, which is cache it locally,
+	and override the values returned from the HGFS server.
+	
+	Future Windows clients, can then test the open reply flags and
+	always use the allocation size returned from the HGFS server
+	calls, and not override them with the local cached value.
+	
+*	Change default debugging level and location
+	
+	As part of the serviceability project, turn on
+	file logging by default, increase the default log levels,
+	and document what they mean and when they should be used.
+	
+	Be sure any fatal errors always make it to syslog/event viewer
+	no matter how things are configured.
+	
+	Fix a bug where changing the logging filename was
+	ignored if done while tools was running.
+	
+	
+*	GuestStats: "MemTotal" is misleading
+	
+	What Windows and Linux do are quite different. What we need to do is
+	create a new name - MemPhysUsable - to express what's really desired
+	and then clean up the Windows, Linux and Vigor codes accordingly.
+	
+	Fix the Windows page in rate.
+	
+*	Gather new default Tools logs with vm-support
+	
+	Part of the serviceability work
+	
+*	Hgfs Linux Client: fix size of mount info
+	
+	Mount info structure is passed between the mounter and the kernel
+	driver client.
+	This structure does not have any guaranteed packing and no way to verify
+	if something becomes misaligned.
+	This change modifies the HgfsMountInfo to include a structure size field
+	so that it can be verified by the kernel client with the HGFS mounter
+	application.
+	In this regard we also ensure the structure is packed so that
+	we should always get the same size no matter what the packing
+	is at the build time for the mounter and driver.
+	
+*	Tools: Use VmkuserCompat_ForkExec for ProcMgrStartProcess on ESXi
+	
+	When vmtoolsd for nested ESXi executes a program on behalf of the
+	VIX API, it should use VmkuserCompat_ForkExec with a specific
+	resource pool rather than the Posix standard fork & exec.
+	
+*	vSock: Prepare for FreeBSD
+	
+	The FreeBSD folks are interested in porting the vmci and vsock drivers
+	for us. When that happens, our API will be available on that platform.
+	In preparation for that, let's add support to our header for FreeBSD.
+	For now we just add some stubs that return errors. This way, we can
+	write code against the APIs now, as long as we handle the errors
+	appropriately.
+	
+*	vm_atomic: fence Atomic_ReadAdd{16,32} on arm64.
+	
+	Atomic_ReadAdd{16,32} were missing DMBs before/after the ops. On arm64
+	we're emulating x86 memory ordering with atomics by placing these
+	barriers conservatively, somehow these two ops missed out.
+	
+*	Clean up logging in vix plugin
+	
+	Make the logging more sane in the default (< debug) mode.
+	
+	2 patterns should be used:
+	
+	- a g_debug() containing the op, user, and arguments to the op
+	- a g_message() at the end containing the op and the return code
+	
+	The first could be considered sensitive information, so  it will
+	be visible only if logging is increaded from the
+	default.  The second will happen in the default scenario.
+	
+	Also exposed a global gImpersonatedUsername that tracks the
+	currently impersonated user for use in debug.
+	
+*	Add toolbox-cmd support for logging configuration
+	
+	Add a 'logging' operation to toolbox-cmd to allow
+	tools.conf logfile changes from the cmdline.  Currently
+	just adds 'level', but designed so it can be enhanced
+	to allow additional logging changes.
+	
+*	Create namespacetool which should support on Linux and windows guest.
+
+*	Blast failed to set resolution in the remote session
+	
+	This problem was caused by Blast switching to a new verison og Glib (2.42.2),
+	that was broken, namely the x64 version of glib was missing g_get_user_name_utf8
+	export. This fix replaces the call to g_get_user_name_utf8 by GetUserNameA
+	which allows for vmtools.dll and VMWareREsolutionSet.exe to load properly.
+	 
+*	File_ListDirectory: Use Util_FreeStringList to clean up
+	
+	There are few explicit clean ups of File_ListDirectory left over
+	from ancient times. Clean this up.
+	
+*	VMCI: Generate event in vmkon guest pause/unpause
+	
+	This change introduces a VMK only VMCI event that notifies VMCI clients
+	when a guest is paused (quiesced) and unpaused. This is to allow VMK
+	VMCI clients to release any pinned guest memory, and in general stop
+	bothering the guest while the guest is paused.
+	
+	VMCI versions bumped only for VMK since this doesn't affect other platforms.
+	
+*	Str_Asprintf error checking
+	
+	Found a few places that really should check the return value.
+	
+*	Fix a compilation error in toolboxcmd-shrink.c with gcc 5.0.1.
+	
+	While building OVT for Fedora 22, hit a compilation error with
+	gcc 5.0.1. This is not specific to open-vm-tools as such because
+	we will hit it whenever we switch to new compiler for internal
+	build too. And, there is some redundant code here. ShrinkGetMountPoints()
+	function also calls ShrinkGetWiperState() and handles the WIPER_UNAVAILABLE
+	and WIPER_DISABLED cases. So, this call to ShrinkGetWiperState() is
+	redundant because wiper state would be always WIPER_ENABLED at
+	this line.
+	
+*	Dictionary: First pass at cleaning up the parameter descriptions
+	
+	We're adding static analysis of functions so the IN/OUT/OPT
+	for each parameter had better be correct. Clean up the low hanging
+	fruit now so we can get to the good stuff faster.
+	
+	This is explicitly not being complete as we are going to the dictionary
+	code to test the detection in the static analyzer. Later changes will
+	clean up the detected issues.
+	
+*	Vigor: function parameter comments IN/OUT/OPT
+	
+	Touch a few places in the online code, cleaning up a few things.
+	
+	This is not intended to be definitive, just to cut down early, excess
+	noise when static analysis kicks in. Futher changes will finish up
+	the job.
+	
+*	lib/file: remove File_Poll*
+	
+	No uses of this code for a long time. Remove it.
+	
+*	Fix the compiler check and include mul64.h in open-vm-tools.
+	
+	CLN 2699687 introduced a compiler version check and CLN 2700663
+	introduced a new header file mul64.h. The compiler check was
+	intended to be >= GCC 4.4, but it was insisting on both major
+	and minor version of GCC to be >= 4. So, it was breaking on
+	Fedora 22 that has GCC 5.1.1 and for a community user building
+	OVT with GCC 4.3.
+	
+	For old compilers we need to provide mul64.h, so include it
+	in open-vm-tools.
+	
+*	publish tools version and install type
+	
+	This change consists of 3 parts:
+	
+	For tools:
+	- publish version even when installed from OSPs or open-vm-tools
+	(no longer use MAX_INT as the version)
+	- along with the version, publish the install type
+	
+	For vmx:
+	- accept tools install type from tools, and set tools VersionStatus
+	to TOOLS_STATUS_UNMANAGED in case the install type is OSP or OVT
+	- save install type to disk
+	- publish install type in vigor
+	
+	For hostd:
+	- publish install type in vim/vmodl
+	
+*	Improve function header comments (IN/OUT/OPT)
+	
+	As we're looking into static code coverage a few include files have
+	can be cleaned up to reduce the noise, making it easy to see real
+	issues and find bugs.
+	
+*	IN/OUT/OPT: line things up for decorating
+	
+	Get ready for adding the necessary argument descriptions for static
+	code coverage.
+	
+*	Print a newline after the Wipe operation is done.
+	
+	After the wiper operations is completd, the terminal prompt is printed
+	right after 'Progress' bar and it doesn't look good. Print a newline on
+	the console after the wipe operation is done.
+	
+*	Uniformly refer to "open-vm-tools" instead of other variants, such as "Open VM Tools".
+	
+	We are standardizing on "open-vm-tools".
+	
+	There's a bonus fix for a typo in an error message in verify_tools.py.
+	The other changes are all to comments or README files.
+	
+*	Add "PANIC: " prefix to Panic
+	
+	This change adds a standard "PANIC: " prefix to vmx and
+	lib/panic panics, and upgrades the vmx panic to the "Panic"
+	log level.
+	
+	I'm doing this in an effort to help automated scripts
+	determine what the Panic message was from a vmx crash, but
+	it's also nice for developers when reading log files.  (The
+	RemoteMKS did this a few years ago, and it's been a nice
+	convenience.)
+	
+*	open-vm-tools: fixes to build on FreeBSD 10
+	
+	This change includes various fixes to make open-vm-tools build on
+	FreeBSD.
+	
+	Prerequesites: install gcc48 with the command
+	pkg install gcc
+	
+	Install build dependencies:
+	glib libdnet libXinerama libXrandr gtk2 gtkmm24
+	
+	Instructions for building:
+	
+	autoreconf -i --force
+	env CC=gcc48 CFLAGS=-Wl,-rpath=/usr/local/lib/gcc48 CPPFLAGS="-I/usr/local/include/" LIBS="-L/usr/local/lib" ./configure --without-kernel-modules --without-xmlsecurity --without-icu --disable-vgauth --disable-grabbitmqproxy --disable-deploypkg
+	make
+	
+	- disable vsock for OSes other than Linux
+	- define CheckSanity only ifdef VMX86_DEBUG
+	- make build of hgfsUriPosix depend on having gtkmm, and enable on FreeBSD
+	- xferlogs.c does not need wchar.h
+	
+*	Plumb VMware Photon (container OS)
+	
+	Add VMware Photon as a guest. It is plumbed as a full guest (not an
+	alias) so at all times, now and in the future, it always shows up as
+	"VMware Photon" - not as something generic underneath.
+	
+	The host info code expects that the Photon team will provide an
+	"/etc/lsb-release" file with the appropriate contents therein. We will
+	make any necessary agreeing changes in a later change.
+	
+	The necessary fields may be found in lsbFields array in the
+	lib/misc/hostinfoPosix.c file.
+	
+*	Disable the tools start up time sync if the guest clock is running
+	faster.
+	
+	When the guest clock is running faster, and when guest reboot, some
+	service may stuck due to the time get moved backwards by the tools
+	time sync plugin. Making the entire guest to hang.
+	
+	The problem is very tricky to fix. Having the tools start up script
+	wait for the time sync to complete shall not work well in the newer
+	guest releases where the services are all started up in parallel as much
+	possible.
+	
+	There are also situations where guest has NTP set up while the host
+	does not causing a ping pong effects between the tools time sync and
+	the NTP time sync.
+	
+	The main purpose of the time sync is to prevent the guest from running
+	behind. So if the guest is faster, we can afford not to sync it.
+	This change disable the tools start up time sync if the guest clock
+	is faster than the host.
+	
+*	File_CopyFromNameToName: reduce to File_Copy
+	
+	The 3rd parameter to File_CopyFromNameToName (dstDispose) was "magic",
+	several raw integer values selected the behavior. This has been the
+	behavior for a Very Long Time. Sometime since then, we got File_Copy
+	which takes a Bool that does exactly the same thing, but without
+	magic numbers.
+	
+	Wholesale replace:
+	   File_CopyFromNameToName -> File_Copy
+	   File_CopyFromFdToName -> (no remaining callsites)
+	
+	All mappings are mechanical (1->TRUE, 2->FALSE). Done by hand,
+	so do please double-check during review. OpenGrok shows this is
+	all mentiones of these function names (minus some dead code). Two
+	cases in apps/modconfig were changed due to the code appearing to
+	be pre-existing buggy (an unlinked / nonexistent file should not
+	be clobbered).
+	
+*	Use the if_nametoindex() from libc to replace private NetUtil_GetIfIndex().
+	
+	Replace the private interface name to index function with if_nametoindex()
+	from libc. The if_nametoindex() will try all the possible protocols to get
+	a socket handle to retrieve the interface index.
+	
+*	Use gcc's _Static_assert for ASSERT_ON_COMPILE
+	
+	Since version 4.6, gcc has supported _Static_assert,
+	regardless of the -std option.  This generates better error
+	messages than our existing ASSERT_ON_COMPILE macro.
+	
+*	Initial Branch of CAF code into vmtools branch
+
+*	Merg in CAF changes
+	
+	Change 3592033 on 2015/05/27 by dmathews@dmathews_cafdev_vmtools 'Enhance the install.sh a bit  Q'
+*	Add some symbolic links to SOs on install
+	
+*	lib/file: FileIO_Close* error handling is inconsistent
+	
+	Make FileIO_Close* return a FileIOResult, just like FileIO_Open, and
+	adjust the code that tests appropriatedly.
+	
+*	Tools upgrade always regenerates server key and certificate files.
+	
+	Modify vmtools installer and guest proxy tool to enable users to
+	preserve guest proxy data during uninstallation and regenerate server
+	key and certificate files during installation. Move guest proxy data
+	creation and destruction from installer to proxy tool.
+	
+*	Caching support for log messages when guest IO is frozen.
+	
+	This change is part 2 of adding caching support for log messages
+	when guest filesystem has been quiesced.
+	
+	When guest filesystem is quiesced we can't log messages to log files.
+	When we are suspended log IO mode, we start caching formatted log
+	messages with required log configuration in an array. We cache a
+	max of 4K log messages when guest is in quiesced state. The cached
+	log messages are flushed using appropriate log handlers when log IO
+	is resumed. Caching log configuration at the time of quiescing is
+	fine because log configuration can't be changed in quiesced state
+	anyway.
+	
+	In order to control (including disabling log caching), we also have
+	a tools.conf switch maxCacheEntries (default 4K).
+	
+	tools-for-esxi builds with glib-2.16.4 which does not provide
+	g_ptr_array_set_free_func interface. Tools build uses glib-2.24.2.
+	Talked to Etienne, ESXi ships with glib 2.26.0 built as cayman_glib.
+	I was able to bump glib version for tools-for-esxi to match with
+	Tools build, but then I hit issues with FreeBSD build which is
+	also using some ancient version of glib. For now, I have given up
+	on bumping glib at the moment and avoid calling the missing glib
+	function g_ptr_array_set_free_func.
+	
+*	Added a missing break statement.
+	
+	This was reported from the community:
+	https://github.com/vmware/open-vm-tools/issues/25
+	
+*	Initial CAF vmtools build integration
+	
+*	Porting of the guest proxy cert tool to Windows (Part 1)
+	
+	Ported most of the SSL functionality to Windows.
+	Fix the make files.
+	Compiled and run successfuly on Windows.
+	
+	Resolved the OPENSSL_Applink error. See 
+	http://stackoverflow.com/questions/16125905/ssl-no-openssl-applink
+	
+	Fork off the implementation that requires Windows native API calls.
+	       Those implementations shall be filled in in Part2.
+	
+*	CAF - Preserve config on upgrade
+	
+*	Log the message about caching correctly.
+	
+	When maxCacheEntries is set to 0, caching is disabled.
+	We need to log it correctly.
+	
+*	lib/log: allow more than one custom output
+	
+	This is done a way that is minimally invasive into our existing codes.
+	
+	This also makes the custom output more similar to the other outputs
+	in that there is now a way to specify a unique name for each instance.
+	
+*	vgauth - add a -h option
+	
+	add a -h option, even though it shouldn't be run from a cmdline.
+	
+*	lib/log: provide a function that handles common product info issues
+	
+	Refactor the simple, default product info setting code into an
+	accessible routine to make Log Facility users life easier.
+	
+*	lib/log: handle a new init with function
+	
+	It can use the new product state setter too...
+	
+*	lib/file: FileIO_Sync return value cleanup
+	
+	The FileIO_Sync usage is inconsistent with the rest of FileIO - return
+	int rather than FileIOResult.
+	
+*	FileIO_IsSuccess: clean up some code (and fix a bug)
+	
+*	Hgfs Linux Installer: add HGFS FUSE mount capability
+	
+	Running the Linux tar installer for tools there are 2 HGFS clients which can
+	be installed and mounted to provide file sharing between the host and
+	the guest. The existing Linux kernel mode client and the FUSE client.
+	
+	This change adds the checks to decide which HGFS client to use and install.
+	Which HGFS client to install is decided using the Linux kernel version,
+	and 4.0.0 is the current latest version used if HGFS FUSE is supported
+	tests if the Linux VM has the FUSE components installed or not.
+	
+	The capability of the HGFS FUSE client to run (by default) is done by the
+	HGFS FUSE client itself running it with -e or --enabled argument. This
+	performs a system compability check and returns
+	0 = success system is compatible i.e., enabled by default,
+	1 = Linux OS version is not supported for HGFS FUSE client older than 4.0.0
+	2 = Linux OS is missing FUSE components and the user should install them.
+	For 0 or success the installer willl install the HGFS FUSE client by default
+	and mount the HGFS shares at the usual location of /mnt/hgfs
+	For 1 result the installer will install the legacy kernel version.
+	For 2 the installer outputs a message for the user recommending installing
+	the FUSE packages to enable the feature.
+	
+	The VMware tools start up scripts also run the HGFS FUSE binary to determine
+	the current system compatibility and will start and mount the HGFS FUSE client
+	for 0 returned as above. Otherwise, the legacy kernel driver will be started
+	and mounted. (Assuming HGFS client is needed.)
+	
+	The VIX RPC callback in the vmtools daemon called when the UI enables shared
+	folders to perform the HGFS mount now also runs the HGFS FUSE binary to
+	determine whether it should mount using the HGFS FUSE client or the legacy
+	kernel driver. It also determines if the mount is needed checking for the
+	expected HGFS client mount from the mtab entries.
+	
+	Lastly, the user can mount the FUSE client manually even if the system
+	compatibility checks for default use fail. It just will not work with the UI
+	enable or disable of the feature or across reboots for those cases.
+	
+*	Perform Linux quiescing in a separate thread.
+	
+	When guest is doing IO, OPEN and FIFREEZE calls might
+	take longer than expected. OPEN could take long even when
+	it is a network mount point (NFS), though it is no longer
+	applicable after fix for bug 1206486. In order to free up
+	the main thread for processing other important messages
+	like ping, we run the freeze steps in a separate thread.
+	
+	The new thread for freeze modifies currentOp in gBackupState
+	which is also accessed by the AsyncCallback driving the state
+	machine (run by main thread). Also, according to a comment in
+	vm_atomic.h, gcc might generate two instructions for writing
+	a 64-bit value. Therefore, we have opLock mutex to protect
+	access to currentOp and related fields.
+	
+	Having a separate thread requires tracking freeze status
+	and adding a new state VMBACKUP_MSTATE_SYNC_FREEZE_WAIT
+	to vmbackup state machine. Freeze status is tracked as
+	VmBackupFreezeStatus.
+	
+	This change is mostly Linux specific because the bug
+	was found on Linux and a major issue is to enforce
+	Windows threading apartments. When enabled for Windows
+	same code generates RPC_E_WRONG_THREAD because CoCreateInstance
+	is created by a different (main) thread than submitTask.
+	Refer http://blogs.msdn.com/b/larryosterman/archive/2005/08/25/456344.aspx.
+	Fixing this for Windows will require major code re-org and
+	probably not worth it right now.
+	
+	While there, improve some log messages and add few new log
+	messages for future use.
+	
+*	Asyncsocket: Fix DoOneMsg ref count leak and other bugs
+	
+	There a few issues with AsyncSocket_DoOneMsg:
+	
+	- The poll callback removal is specific to regular socket, and does
+	  not remove any real-time callback that may have been registered.
+	
+	- When using with IVmdbPoll, it would leak an ref when the function
+	  is called within an asyncsocket error handler being called from the
+	  recv callback.  In that case AsyncSocketIPollRemove would not
+	  decrement the ref count, but the subsequent AsyncSocketIPollAdd would
+	  increment, resulting in an imbalance.  The fix is to not add the
+	  callback in the error case.
+	
+	- The recv callback can also be canceled if FillRecvBuffer fires the
+	  client callback, so we need to check for that.
+	
+*	Stop caching procState for Posix guests.
+	
+	The child process' state for StartProgramInGuest is
+	cached in memory for 5 mins. procState holds a FD in
+	case of Posix. FDs are limited per process (usually
+	1024 by default). Therefore, holding on to open FDs
+	in cache could be problematic if there are frequent
+	calls to StartProgramInGuest, as that would make
+	vmtoolsd run out of FDs. Holding on to procState is
+	required only for Windows to keep Windows from reusing
+	PIDs, however, this is not required in case of Posix.
+	Stop caching procState for the child processes that
+	are no longer running in case of Posix which would
+	automatically take care of closing the FD.
+	
+*	Tools Vix Plugin: fix mount call potential security issue
+	
+	The Vix plugin processes the HGFS mount request when the user enables shared
+	folders feature from the UI. For Linux guests only, this results in a system
+	call to mount. However, no path is specified and it could pick up any mount
+	in the root system path.
+	
+	We fix this by explicitly checking for the system mount which resides in either
+	"/bin" for example in the case of Ubuntu, or "/usr/bin" in the case of SUSE.
+	
+*	lib/file: Posix File_WalkDirectoryNext incorrect
+	
+	The Posix File_WalkDirectoryNext header documentation is incorrect. It
+	returns a directory entry, not a full path. The Windows and Posix
+	implementations of File_WalkDirectory* and File_ListDirectory all
+	behave identically - they return directory contents, not full paths.
+	
+*	Add more logging around AsyncSocket Flushing.
+	
+*	Tools Vix Plugin: fix fuse mount arguments list
+	
+*	Change default sampling rate for guest stats to 20 seconds.
+	
+	Add a new poll interval guestinfo.stats-interval with default value
+	of 20 seconds. GuestStats follow this interval now and rest of the
+	GuestInfo follows the existing guestinfo.poll-interval with old
+	default value of 30 seconds.
+	
+	Now, users can disable GuestStats by setting guestinfo.stats-interval=0,
+	so guestinfo.disable-perf-mon is a redundant configuration. However,
+	we need to support it for being compatible with old tools configuration
+	as this alone is not a big enough reason to upgrade the tools config.
+	
+	VC and layers above use 20 seconds interval for sampling performance
+	stats. The current default interval for guestInfo leads to a sampling
+	error of 30%. In order to avoid sampling errors we have few choices,
+	change the current default or add a separate interval for guest stats.
+	We choose latter because we don't want to increasing reporting frequency
+	for guestInfo in general and thereby increase unnecessary load on
+	overall system.
+	
+	Also added a kill switch "guestinfo.stats.enabled" (default TRUE) in
+	VMX to disable guest stats. When this config is set to FALSE, treat
+	the guest stats as v1 to updating vmkernel, but don't process the
+	extendable part of the payload.
+	
+	There was a typo bug in memAvailable calculations on Linux. It was using
+	lowWaterMark->value where it should have been lowWaterMarkValue.
+	
+*	atomics: add arm64 implementation for Atomic_Bool
+	
+	Straight forward Atomic_Bool support for arm64
+	
+*	Port guest proxy cert tool to Windows (Part 4 and Final)
+	
+	Added code to check for the super user privileges.
+	Added an verbose option to enable logging if the user needs to.
+	
+*	Fixed typo in namespace command name from "namespace-get-events" to "namespace-get-event".
+	Added fflush for stdout and stderror.
+	
+*	Include cstring to avoid 'memset not in scope' error.
+	
+	Under a specific build environment (SUSE SLED 11 SP4), it fails to compile
+	open-vm-tools source codes because cstring is not included to define the memset
+	function prototype.
+	 
+*	Add additional logging to help debug TCLO rpc timeout
+	
+	It is going to be very useful to dump the content of the TCLO RPC
+	requests. Also we should also need to log the empty message periodically
+	so that we can be sure that the tools side is checking the TCLO RPC
+	in time.
+	 
+*	GOS Table: Add asianux7-64
+	
+	Yet another asianux release...
+	
+	In this case we had gone ahead and covered a future version 5 release
+	and now discover that they renamed it version 7. We keep the 5 entries
+	so existing VMs run but all front facing stuff is now version 7.
+	
+*	Make mouse switchable between VMW0003 and PNP0F13
+	
+*	Guest OS: trivial clean up
+	
+	The entries for OTHER should be together.
+	
+*	Help with tools uninstall removal of caf directories
+	
+*	Virtualize most of the AsyncSocket_* public member functions in vmcore-main.
+	
+	- Exceptions to this approach are AysncSocket_GetID and 
+	  AsyncSocket_SetErrorFn APIs.
+	
+*	GuestOS: Future proof Linux version identification
+	
+	When we encounter a Linux newer than the code knows about we
+	return a guestOS string that is the latest known to code along
+	with its appropriate description. This is very future proof.
+	
+	Change the Linux ID code to return a description string which is
+	dynamically created from the major/minor release number of the
+	Linux - return "Other Linux x.y kernel".
+	
+	This makes the Linux ID code in sync with the Solaris and Windows
+	codes which perform the equivalent operations.
+	
+	Towards this end, the "front facing" descriptions for Linux 3.x
+	are updated to "3.x or later". If a newer Linux comes along that
+	needs special treatment, the front facing string will be changed to
+	"3.x-a.b" and the new Linux will get its own string.
+	
+	This change makes Linux 4.x "just fall out". We really do not care
+	what the guest OS string is within the VMX file, only that it is
+	correct for the guest to be run.
+	
+*	Fast UTF8 validation
+	
+	We validate UTF8 strings using the ICU or older CodeSet routines.
+	These paths are correct but have somewhat high overhead. Encorporate
+	an optimized, high speed UTF8 validator.
+	
+	The optimized, high speed UTF8 validator is added as a separate file
+	within lib/misc so it can be used throughout our source base with
+	minimal interactions. By name, it is part of the CodeSet API.
+	
+	A Unicode library wrapper function for the CodeSet function is also
+	included... some may find this useful routine more easily this way.
+	
+*	asyncsocket: add AsyncSocket_SetCloseOptions()
+	
+	This is the first of a two-part change to:
+	- enable asyncWebSocket::close to send a websocket close frame per
+	  RFC-6455 and flush it out before closing the socket, and
+	- enable a websocket client to optionally wait asynchronously until
+	  the remote side cleanly shuts down the connection in response to
+	  receiving a close frame.
+	
+	AsyncSocket_SetCloseOptions() adds the following optional behaviors
+	when AsyncSocket_Close() is called:
+	
+	1.  If flushEnabledMaxWaitMsec is set, AsyncSocket_Close() will
+	    synchronously call AsyncSocket_Flush() until all outgoing data
+	    are sent over the wire.
+	2.  If closeCb is set, the callback will fire when AsyncSocket_Close()
+	    has closed the socket.
+	
+	For the asyncWebSocket case:
+	Option #1 allows the application to synchronously wait for the websocket
+	close frame to get flushed out.
+	Option #2 allows the application to asynchronously wait for the websocket
+	close frame reply before closing the socket.
+	
+*	Let the vmtools uninstall remove some paths
+	
+*	Remove some log files that CAF put into it's bin dir
+	
+*	Implement a PCG random number generator
+	
+	PCG is a new / fast random number generator that looks pretty
+	good. Best part: it only needs 64 bits of state storage normally.
+	
+*	Coverity fixes for possible use_after_free, double_free and double_close.
+	
+*	Random_FastSeed: take explicit seed
+	
+	Make the seed be explicit instead of implicitly 0.
+	
+*	Replace global gLoggingStopped with thread private LogState.
+	 
+	Logger is not a global object, so using a logger level lock to
+	protect global variable gLoggingStopped does not help. This was
+	not an issue before because Toolsd was pretty much single threaded.
+	 
+	This change does two things:
+	1. Replace global gLoggingStopped with thread private LogState.
+	2. Keep the existing lock in vmx logger to protect the logger itself
+	   from the scenario of different threads logging to same domain
+	   (=> same logger being used by multiple callers) at the same time.
+	 
+*	Window 10 Server now has an official name - 2016
+	
+*	fix vgauth logging defaults
+	
+	more servicability work.  make vgauth use /var/log like toolsd
+
+*	AsyncSocket - Parsing updated websocket header field. Additional logs.
+	
+	Parse updated websocket header field for e2e port and pass it to proxy API.
+	Additional log messages for better debug information.
+
+*	ASYNC-SOCKET: Fix the logic to throw away buffers that we failed to send.
+
+	AsyncSocketSendSocket appends a buffer to the sendBufList and tries
+	to send it out. If the send fails, there is logic to remove it from
+	the list but it was comparing the head of the list to see if it has
+	changed while we actually appended the buffer to the tail of the list.
+	This results in the failed buffer lingering in the list and upon an
+	immediate asynSocketClose, the callback associated with the failed
+	buffer would fire.
+	
+*	Add ProductState_GetConfigName, make W32UtilGetCommonAppDataPath use it
+	
+	Add ProductState_{Set,Get}ConfigName functions that programs
+	can use to explicitly specify the product name for
+	configuration files.
+	
+*	Don't sort compatible product names completely lexically (CUI)
+	
+	Add internal sorting keys to use instead.  This also allows
+	us to sort products alphabetically but to sort versions in
+	decreasing order.
+
+*	Rename MsgList_ToString to MsgList_ToEnglishString
+	
+	MsgList_ToString does not perform localization.  This is
+	confusing.  Even though its function comment says so, we
+	should just make the function name more descriptive.
+	
+*	Fix error messages in CAF install.sh script
+	
+*	Add usrsctp to AsyncProxySocket.
+	Remove unused variable which prevents compile with -Werror.
+	Fix scons build breakage.
+	 
+*	Skip freezing autofs mounts.
+	
+	It's possible that some autofs maps entry become invalid over time. So,
+	trying to freeze such invalid entries could lead quiesce snapshot to be
+	failed.
+	 
+*	Windows named pipe server impl in bora/lib
+	
+	This code adds the server creation functinality for named pipes in
+	asyncsocket library. It exposes the AsyncSocket_CreateNamedPipe
+	function which creates a named pipe and passes a valid AsyncSocket
+	object to the user. Also changed/added a few other functions to make it
+	work. Added an accept function that gets called when a new connection 
+	request comes in. Added needed functions for Closing the named pipe on
+	cleanup.
+	
+	The internal accept callback function creates a new AsyncSocket object,
+	swaps the HANDLE object of the new AsyncSocket object with the older
+	object and returns to the client the new AsyncSocket object(handle is
+	swapped as the connection is associated with the HANDLE). The older
+	asyncsocket object is put to listen mode again.
+
+*	Fix the params passed to accept SSL callback function
+	
+	The clientData passed to AsyncSocketSslAcceptCallback is really just
+	the asock structure. That is different from the asock->clientData which
+	is expected to be passed to sslAcceptFn().
+	
+	The current callers of AsyncSocket_StartSslAccept() don't use the clientData
+	field in CB, which is probably why they never had an issue.
+	
+*	Avoid warning message when logging group is missing.
+	
+	When tools.conf is not around, g_key_file_get_integer()
+	returns G_KEY_FILE_ERROR_GROUP_NOT_FOUND, so a check for
+	G_KEY_FILE_ERROR_KEY_NOT_FOUND error alone is not sufficient.
+	Missing error check was leading to an unnecessary warning
+	in the system logs whenever service was started with no
+	tools.conf.
+	
+*	AsyncSocket/SSL: Add APIs to do connect SSL asynchronously.
+	
+	Currently AsyncSocket_ConnectSSL is a synchronous API. VRDMA backend needs
+	to initiate SSL connections from VMX which have to be asynchronous.  There are
+	already APIs in ssl.h/asyncsocket.h for accepting SSL connections
+	asynchronously.
+	
+	This change adds new functions to do SSL connect asynchronously. The APIs
+	are very similar to AcceptSSL APIs (SSL_SetupAcceptWithContext, SSL_TryCompleteAccept and
+	AsyncSocket_StartSslAccept).
+	
+*	Make sure a timeout source exists when the polling interval is
+	unchanged.
+	
+	TweakGatherLoop previously returned without creating a timeout source
+	if the polling interval had not changed. That's fine if a timeout
+	source already exists, but that may not always be the case.  To address
+	that possibility, the code has been modified to check whether there
+	is a timeout source before checking whether the polling interval has
+	changed.
+	
+*	Hgfs Server: add a common function for shares access check
+	
+	Previously this function was duplicated and placed in VMX and
+	tools policy code. This leads to the Hgfs Server library calling
+	directly into the VMX and tools service.
+	Furthermore, the function does not need to reside in the policy
+	code as it only relies on the arguments passed and uses
+	definitions defined in the Hgfs protocol header.
+	
+	This change adds the function into the hgfs server library.
+	
+	This simplifies the tools build of the server policy code
+	as it will not need to duplicate the function now and so
+	is removed.
+	
+	The host server policy will be updated separately.
+	
+*	Hgfs Server VMX: replace the check mode for a share
+	
+	This removes the other duplicated policy function to
+	check the shares access mode. It is now replaced with a call
+	into the Hgfs server share access check funciton.
+	
+*	Define int128 and uint128 in vm_basic_types.h
+	
+*	  nrandom: Add raw SHA1 APIs and use Intel's HWRNG if available
+	
+	  Add support for RDRAND and RDSEED.
+	
+	  Using opcode for RDSEED to work around that our GNU assembler doesn't
+	  recognize the 'rdseed' instruction yet.
+	
+	  Adjust sha1.c and thereby fix extract_buf() in native random driver.
+	
+	     * The random driver doesn't use the "full" SHA1 algorithm (no padding, no
+	       variable length messages)
+	     * It sets the initial state if RDRAND is supported and only transforms
+	       block-wise
+	     * To have the same behavior (omitting the prepare phase) in ESXi we add
+	       SHA1RawInit() and SHA1RawTransformBlocks()
+	
+*	open-vm-tools: use top_srcdir instead of top_builddir for include paths
+	
+	With autoconfed packages, it's generally possible to build in another
+	directory than the source directory. For example, you can do:
+	
+	# tar zxf pkg-1.2.tar.gz
+	# cd pkg-1.2
+	# mkdir build && cd build
+	# ../configure && make
+	
+	The advantage is that it's very easy to clean up, just remove the build dir.
+	However, the feature was broken in open-vm-tools because in some places
+	$top_builddir was used instead of $top_srddir. This change fixes that.
+	
+*	Change StrUtil_StrToInt to reject empty strings as invalid.
+	
+	StrUtil_StrToInt(&out, ""); used to return true for success, and populate
+	`out` with zero. Now returns false. (As listed in the documentation, `out`
+	is undefined if the function fails.)
+	
+*	Refactoring of AsyncProxySocket code
+	
+	Refactoring of AsyncProxySocket code for better readability.
+	Mainly renamed direct socket to primary socket and proxy socket
+	to secondary socket.
+	 
+*	Hgfs: move the file type from the protocol to the hgfs public header
+	
+	Since the file type is exposed to the DnD code it makes sense to move
+	it to the public hgfs header alongside other publicly exposed types
+	such as the open mode too.
+	This allows the DnD code to not include the Hgfs protocol header
+	directly.
+	Longer term it would be great if the DnD code minimised the exposure to
+	this type using DnD wrapper functions mapping to its own internal type.
+	This would allow later removal of exposing the Hgfs type completely with
+	minimal impact.
+	
+*	Fix timestamp check
+	
+	The timestamp check math was broken for NotOnOrAfter,
+	and if the lifetime of the token was long enough, it would
+	fail a valid token.  Do some cleanup to make it all clearer.
+	
+*	Add 'info update network' subcommand
+	
+	Add network update cmd for the VMfork project so it
+	can flush reconfigured child network info asap to the management
+	layers.
+	
+*	Support for fallback to TCP for Blast UDP.
+	
+	When starting a UDP connection fails we should be falling back to the existing TCP connection.
+	The failure could be for any reason. E.g. - firewall in the middle which restricts UDP traffic or 
+	client proxy initialization failed etc.
+	 
+*	open-vm-tools: make dndcp plugin link with hgfsUriPosix
+	
+	During 'make install', libtool threw an error because it's not
+	able to find HgfsUri_ConvertFromPathToHgfsUri when linking the
+	dndcp plugin, because the dependency on hgfsUriPosix was missing.
+	
+	Fix Makefile.am to make dndcp plugin link with hgfsUriPosix.
+	
+*	Use C++11 for libsigc++-2.0 >= 2.5.1.
+	
+	According to http://libsigc.sourceforge.net/ and recent
+	build failures with open-vm-tools 10.0.0 on Fedora 23 & 24,
+	libsigc++-2.0 >= 2.5.1 requires C++11.
+	
+	When using C++11, I also figured that normally Linux builds
+	define "__linux__" instead of "linux". The latter is defined
+	only when GNU is enabled. So, replace "linux" with "__linux__"
+	so that we can use -std=c++11, otherwise, we will need to
+	use -std=gnu++11. We might want to use GNU C++11 extensions
+	in future for some other reasons, but I don't think "linux"
+	define is a good reason to choose it.
+	
+	C++11 generates warnings for missing space between strings
+	and literals. So, fix those as well.
+	
+*	Fix for assertion in asyncSocketInterface.c
+	
+	Like AsyncSocket_GetWebSocketProtocol, AsyncSocket_GetWebSocketCookie
+	is also used by clients with normal sockets (non-websockets).
+	The virtual table for these sockets will have "asock->vt->getWebSocketCookie"
+	as NULL.
+	 
+*	Workaround fix to avoid rpc warning messages flooding by changing log level to debug.
+	Customers will see a lot of 'SimpleSock: Socket # closed by peer.' in their 
+	event viewer if they are using terminal server. It does no harm but will bring 
+	unnecessary concern to customer. Change its log level from warning to debug.
+	
+*	Add an error handler to X11 resolutionSet
+	
+	If display memory is not sufficient to set a new desktop size, an X error event
+	may be generated. Without a custom error handler, this will terminate the user
+	tools daemon, which is undesirable.
+	
+	Add an X error handler that logs the error without returning.
+	
+*	Hgfs Server VMX: add some logging for file change notify ops
+	
+	The packing of the Hgfs set watch operation for a directory in a share
+	HGFS_OP_SET_WATCH_V4 and for the packing of a HGFS_OP_NOTIFY_V4
+	file change event was not logged. This makes it cumbersome to
+	track operation occurrences in the log file.
+	
+	Add logs for each of these events.
+	
+*	build vmware-toolbox-cmd for ESXi
+	
+*	Hgfs Linux Kernel Client: support older mount info version
+	
+	It is proving more problematic to expect that the HGFS mounter
+	binary and kernel HGFS driver client be kept in sync. For
+	full functionality with all the mount options supported the
+	latest mounter binary be used together with the latest kernel
+	client. However, users can mess this up at install time with
+	failure to replace the user mode mounter application.
+	Furthermore, Ubuntu need a new kernel mode HGFS client for
+	shipping 15.10 open-vm-tools-dkms package in a Linux 4.2
+	kernel, and this needs to work with the older mounter binary.
+	
+	This change allows the kernel driver to support the existing
+	new mount information object but also the older one.
+	For future changes, bump the newer version in the mount
+	information object, too.
+	
+	In order to achieve the support of at least two versions of
+	the HgfsMountInfo structure make the main line
+	code independent from the mount information object and
+	now initializes the super block information object
+	from local variables set from the mount information data. 
+	
+	The validation check for the user supplied HgfsMountInfo
+	data is pushed into a wrapper routine which will return success
+	or failure of the check. On success it will return the version
+	of the mounter information which is passed on to the function
+	for extraction of the interesting data fields to use.
+	
+	Note, for now, we support the current and older version only.
+	There is no assumption made about any newer version
+	being backwards compatible and extracting the information
+	that it knows in those cases, it will just fail.
+	
+	This only affects the Linux HGFS kernel client, the OSX and
+	Solaris clients remain as before as there is no need for
+	supporting multiple versions of the mounter binary.
+	
+*	vmtoolsd: log message when loading a plugin fails
+	
+	Add a log message when loading a plugin with system libraries fails.
+	Sometimes when vmtoolsd attempts to load a plugin it may fail, and
+	then attempt to load the plugin with shipped libraries.
+	
+*	Making Blocking socket APIs public.
+	
+	Making Blocking socket APIs public and removing them from virtual table.
+	 
+*	lib/uuid: Avoid magic number for ISO 11578 UUID format length.
+	
+	We refer to the ISO 11578 hexadecimal UUID format as "packed" format.  A
+	constant for its fixed length seems reasonable.
+	
+*	HostInfo: vmkernel5
+	
+	The hostinfo identification code isn't coded to handle vmkernel 6.5 -
+	nor is it robust about what it would do when we hit vmkernel 10 and
+	later.
+	
+*	Modify freebsd debug statement to avoid a crash
+	
+	freebsd is trying to use a %Zu for a size_t value.
+	But instead, it appears to simply ignore the format
+	'%' and print it.
+	which means a lot of bogus debug noise like
+	
+	[Aug 18 09:45:24.159] [   debug] [vmsvc] RpcIn: sending Zu bytes
+	
+	Which is gross.  But when we use it with more than one arg,
+	we end up with a nasty type issue, and try to treat use
+	arg1 with arg2's format, and boom:
+	
+	"RpcIn: received %Zu bytes, content:\"%s\"\n"
+	
+	The size_t in arg1 gets processed by the %s.
+	
+*	circList.h: stop name conflicting
+	
+	BSD headers (widely used by Mac OSX and by vmkernel's BSD
+	networking stack) have a sys/queue.h that defines LIST_FIRST
+	and LIST_FREE macros ... and does so differently from
+	the one in circList.h. Previously we have worked around the
+	problem with undef.
+	
+*	Meet the security requirements that we should disable SSLv3, TLSv1, and
+	TLSv1_1, leaving only the TLSV1_2 on.	
+	
+	Leavarage the bora/lib/ssl's SSL_NewContext() function to create the
+	SSL context so that most of the other security requirements can be
+	auto fullfilled, e.g. cipher list, single DH use, no ticket...
+	
+*	display help message for "stat raw" commands through toolboxcli
+	
+	The help commands needs to be extended to include the "raw" related subcommands
+	
+	# vmware-toolbox-cmd stat raw
+	session
+	host
+	resources
+	vscsi scsi0:0
+	vnet 00:0c:29:ca:27:69
+	
+	# vmware-toolbox-cmd help stat
+	stat: print useful guest and host information
+	Usage: vmware-toolbox-cmd stat <subcommand>
+	
+	Subcommands:
+	   hosttime: print the host time
+	   speed: print the CPU speed in MHz
+	ESX guests only subcommands:
+	   sessionid: print the current session id
+	   balloon: print memory ballooning information
+	   swap: print memory swapping information
+	   memlimit: print memory limit information
+	   memres: print memory reservation information
+	   cpures: print CPU reservation information
+	   cpulimit: print CPU limit information
+	
+*	Fix remove alias bugs
+	
+	If remove alias is called when a mapped alias also exists,
+	but with a different cert, then the remove alias code
+	was confused and returned invalid arg, thinking there
+	was no match.
+	
+	If multiple mapped entries refer to the same cert,
+	it would only look at the first user for removal, failing
+	w/o error to remove the later.
+	
+	Tweaked the remove alias code to fall through and
+	clear out any mapedp entries even if they shouldn't
+	be there, so anything left behind by 1545682 will
+	be clearable.
+	
+	Added some new unit tests for these scenarios.
+	
+	Also added some sanity checking code the service does at
+	startup to check for an orphaned alias.
+	
+*	GosTable: Photon is "Photon OS" now.
+	
+	Make the appropriate adjustments.
+	
+*	GosTable: add debian 9 and 10
+	
+	Prepare for debian 9 and 10.
+	
+*	GosTable: Darwin 16 (OS X 10.12)
+	
+	Pre enable Darwin 16 (OS X 10.12).
+	
+	Default OS X becomes 10.11.
+	
+	Fusion team/Regis/Darius: We *REALLY* need to update
+	vmcore/vmx/main/cpuid.c to reflect the abiities of newer CPUs.
+	
+*	Update the cipher list.
+	
+	The cipher spec has been made more strict since the bora/lib/ssl/ssl.c
+	cipher list was last updated.
+	
+	VMTools calls the bora/lib/ssl/ssl.c SSL_NewContext() to create
+	the ssl context. We are required to use the updated cipher list.
+	Two approaches: 1) Set the the cipher list again after calling lib/ssl
+	SSL_NewContext. 2) Change lib/ssl to update the cipher list.
+	We decided to take the latter approach.
+	
+*	Fix impersonation on OS X.
+	
+	As of a security patch to 10.10.3, setreuid() cannot be reverted.
+	since OS X doesn't has setresuid(), that means we can only use
+	the effective uid for guestOps.
+	
+	This means:
+	- KillProcess can't be done, since kill() looks at real uid
+	- access(2) also looks at real, which can result in
+	  GetFileAttributes() on an unreadable file suceeding, but
+	  returning unset data
+	- Impersonate needs to use seteuid() instead of setreuid()
+	- When lanching a new process, we need to have both effective
+	  and real set
+	
+*	Fix l10n handling on cmdline
+	
+	The glib option parser dealt poorly with Unicode
+	cmdline args before 2.40.  Unfortunately, we use
+	an older version.  So work around it and parse by hand.
+	
+*	Speed up File_IsFullPath.
+	
+	We currently do a Unicode_StartsWith in File_IsFullPath. This can
+	be replaced with a light-weight character compare.
+	
+*	Expose File_StripFwdSlashes
+	
+	Expose FileStripFwdSlashes as File_StripFwdSlashes.
+	
+*	  Make Snapshot Take API with guest quiesce parameters
+	
+	  1. Change Snapshot Vigor API quiesce as quiesceData parameter
+	  2. Change tools/vmbackup to send new binary (ABI) API to vmtools
+	  3. Detect the timeout by keep_alive msg
+	
+*	Add namespacetool in tools package for Linux and windows.
+
+	Modified user options-
+	- Provided simple namespace command for end user.
+	- added one more command to delete key. 
+	
+	
+*	VMCI: Retire VMCI_QPFLAG_PINNED
+	
+	The VMCI_QPFLAG_PINNED was introduced to support a specific use case (vVol),
+	where mapping in a page when accessing a VMCI queue couldn't be handled.
+	vVol moved on to using vPageChannel (and may even be gone as a project now),
+	and the flag has already been removed from the upstreamed Linux driver, so
+	let's remove it completely.
+	
+*	Pre-glibc-2.5 is deprecated.
+	
+	Remove macros to work around pre-glibc-2.5. Most of these
+	cover functionality that was added in glibc-2.3 or glibc-2.4.
+	
+*	Remove wrapLib from loglevel_user.h.
+	
+*	Allow self signed certs anywhere in the chain
+	
+	A common use case is to have an SSO server with a self-signed root
+	and leaf cert.  Before this change, if the leaf was in
+	the alias store, then the cert verification would fail because
+	the self-signed root was considered an error.
+	
+*	GosTable: clean up Debian
+	
+	The bits for Debian say "4-5" and one bit covers them all. No need to
+	be specific until there is a need.
+	
+*	  Add VSS parameters and timeout to control the VSS process during snapshot	
+	
+	  1. utilize the timeout to extend the time of process
+	  2. Add StartEx in VSS requestor to use vss paramters from
+	       GuestQuiesceParamsV2
+	
+*	mksVNCServer - Add support in Linux agent for sending session close reason to client.
+	 
+*	Fix domain user decoder in vgauth.
+	
+	Fix printf format for domain users
+	
+*	GosTable: Separate out Oracle and CentOS
+	
+	We need Oracle and CentOS separated out for special treatment.
+	
+	The newer OSen are grouped in 3.x Linux (or later).
+	
+*	Initialize netutil properly.
+	
+	Netutil has some dependencies which are poorly enforced.
+	
+*	Add partly encrypted dictionary.
+	
+	We are leveraging existing code for encrypting VMs on
+	our hosted products, Workstation and Fusion. In the hosted products
+	the .vmx file dictionary entries are encrypted by default; we
+	support opt-out of encryption by specifying "plain" on get and set.
+	
+	However, on ESX we want most of the dictionary entries to be plain-
+	text by default. The main reason for this decision is compatibility
+	with several existing VMware products that depend on being able to
+	read and write the dictionary out of band. For example, SRM writes
+	to the .vmx file directly when fixing paths at the recover site.
+	
+	Note that the default behavior on ESX can be changed by using the
+	following config option:
+	  encryption.unspecified.default = "encrypt"
+	With that option specified in the .vmx file before encryption, VMs
+	on ESX will be encrypted as they are on hosted.
+	
+*	open-vm-tools: add common-agent (CAF)
+	
+	Add caf files to open-vm-tools.
+	- building caf is disabled by default for now.
+	- the list of files to be included is generated dynamically, to
+	  avoid extra work and errors when files change.
+	- however, the list of files to be compiled in the Makefile.am
+	  files is NOT generated dynamically, so every time files are
+	  added/removed, the Makefile.am files need to be adjusted.
+	- two caf source files had to be edited because they use the
+	  macro VERSION which conflicts with defines used for ovt
+	- building caf depends on rabbitmq >= 0.6 (Ubuntu 14.04 ships
+	  with version 0.4.1 and 15.04 with 0.5)
+	- caf files are licensed with LGPL
+	
+*	Pull 'disk' command from ESXi
+	
+	'disk' command underlying support doesn't handle typical
+	ESX disk types, so remove it.
+	
+*	Stop compositing frames when no-one is watching
+	
+	This change makes the first foray into having the MKS stop
+	compositing frames when no-one is watching.
+	
+	Under the config option "mks.allowFrameWatchingChecks=TRUE"
+	(still disabled by default), the MKS will now skip the actual
+	compositing, unless an EndFrameImmediately is requested.  This
+	has the nice side-effect of ensuring that the odd sources of
+	frame composition keep working like normal (such as SVGA
+	develEndFrames, mksReplays, or Checkpoint stale screenshots),
+	although we might want to revisit this in the future.
+	
+	We do not yet have any notifications of when the watching status
+	changes for the screenSources to consume, but that will
+	presumably be coming as soon as the first one is ready to use
+	this notification.
+	
+*	Generate isoimages_manifest.txt as part of tools linux build
+	
+	Tools build needs to generate ISO image map manifest file
+	isoimages_manifest.txt for host to pick the guest to ISO
+	name mapping. Define this mapping in the guest_os_tables.h,
+	so that it is all in one place and matches exactly with
+	the guests we know about.
+	
+	As part of this change, also introduce the new mapping for EOL
+	Linux and Windows guests, i.e. frozen ISOes for these guests:
+	1. winPreVista.iso for pre-Vista Windows, and
+	2. linuxPreGlibc25.iso for pre-RHEL 5, pre-SLES 11, pre-Ubuntu 10
+	   and other pre-glibc 2.5 based Linux distros
+	
+*	tar installer: remove pam_unix2.so from pam file
+	
+	A customer was concerned about the warning
+	"pam_unix2.so cannot be opened" on RHEL 6.3. That modules was
+	used in older Linux distributions, but the functionality has been
+	added to pam_unix.so ion newer ones. Since tools are frozen
+	for older distros, it's now safe to remove the reference to
+	pam_unix2.so.
+	
+*	Changes for building caf in Open VM Tools.
+	
+*	Merge CAF install directory.
+	
+*	return DNS info on ESXi
+	
+	ESXi Tools only returned the basic NIC info, not the routing
+	or DNS.  This adds the DNS by rearranging #ifdef's and calling
+	the existing code for ESX.
+	
+*	Removed extra line in output of namespacetool command get-value.
+	
+*	Added namespacetool to open-vm-tools.
+	
+*	Fix incorrect value of prefixLength in guest info.
+	
+	The prefix length (number of netmask bits) are not set
+	in the guest info for the nested ESX VM. This is because we
+	were missing code path that computes it in ESX tools.
+	Added the code that computes it.
+	
+*	lib/misc: Remove Util_GetPrime.
+	
+	No callers remain for this bizarre function.  Good-bye.
+	
+*	VMCI Win Client:Migrate to the new WDK build system
+	
+	Keep building the WinXP/Win2K3 and Win8 variants but with the new build logic.
+	Switching these to Vista and dropping the WinXP/Win2K3 builds will be a short
+	follow on change.
+	
+	The change also includes changes to make the drivers compile with the new build
+	system using warning level 4.
+	
+*	Update open vm tools installation to allow CAF to install/run
+	
+*	open-vm-tools: remove directories on uninstall
+	
+	A few directories related to caf remained after 'make uninstall'.
+	
+*	Update the Copyright year to 2016.
+	
+	A new version of GuestSDK will be released as a part of vSphere 2016.
+	Updated the copyright year to 2016 at all applicable places in the GuestSDK
+	code.
+	
+*	Fix upgrade from old (pre cafenv-appconfig) version of CAF
+	
+*	improve logging
+	
+	make the default logging more useful by turning a bunch
+	of Debug() into Log().  Now it dumps some of the request
+	basics and errors.  tokens are hidden (security) and certs
+	are hidden (noise level).
+	
+*	more cmdline parser improvements
+	
+	restore support for '=' between option and value.
+	
+*	tool1010 L10n drop 1
+	
+	This is to check in tools1010 L10n drop 1.
+	
+*	BackupComplete may lead to data loss if log is truncated
+	
+	  Add extra state in VMX to commit snapshot before backup completion and update
+	  manifest file at last.
+	
+*	open-vm-tools: fixes to build with FreeBSD
+	
+	- amd64 in host_cpu means 64bit, add that to configure.ac
+	- use 'z' for FMTSZ in FreeBSD, just like Linux
+	
+*	Merge CAF to Tools
+	
+*	Tools 10.1 - Final L10n drop 
+	
+	This is to check in the final L10n drop for Tools 10.1.
+	
+*	Add Tools version 10.0.6 definition
+	
+*	prioritize 'ip' over 'ifconfig' for gathering networks
+	
+	openSUSE 13.1 (at least) has a bug with ifconfig where it
+	truncates the network name.  which makes the script code
+	to save off the networks break.  so instead of prioritizing
+	'ifconfig', use 'ip' which doesn't have any issues.
+	
+*	tar installer: fix to build with clang > 3.4
+	
+	Functions HasMap_Store() and _Retrieve() are not used any more,
+	so remove them.
+	
+	Implement CheckSanity only if VMX86_DEBUG is set to avoid
+	unused function warning.
+	
+*	Fix some memory leaks.
+	
+	leaking the 'data' pref value for a log handler.
+	leaking an rpc message response if the caller doesn't want it.
+	leaking username/password for every guestOp
+	
+*	Correct the freeze and thaw ordering for mount points
+	
+	There were two issues with the way we were doing quiescing on Linux:
+	1. Thaw was following the same order as freeze, actually it should
+	   follow the reverse order of freeze. Fixed the thaw order.
+	2. Freeze was following the order provided by getmntent API which is
+	   the order in which system created the mount points. This could
+	   be problematic when a mount point depends on other mount point,
+	   e.g. loopback mount point. In order to honor the dependency
+	   among mount points, we need to reverse the order of mount points
+	   listed by getmntent API.
+	
+	While reviewing this change it was found that the interface used for
+	passing the mount points around was not very clean. It was a ':'
+	separated string of mount points. There were multiple problems with it.
+	We were converting a list of strings into one string and then tokenizing
+	it later. As part of this change, we fix that interface too by replacing
+	the string with single-linked list, GSList. Using GSList brings glib
+	dependency to lib/syncDriver.
+	
+*	Restore fdCnt to size_t.
+	
+	The datatype for fdCnt was changed to ssize_t in a previous change.
+	It was not required because we can adjust the 'for' loop
+	using it and keep it as size_t.
+	
+*	Fix additional tools issues reported by Coverity.
+	
+	Fix some issues found by the latest Coverity scan of tools 10.1,
+	plus a few related nits.
+	
+*	Namespacetool links vmtools lib which has already implemented
+	functions "Debug" and "Panic".
+
+	Removed these functions' implementations from namespacetool.
+	
+*	Added new constants for tools version 10.0.7 (namespacetool changes).
+	
+	open-vm-tools 10.0.7 will add support for namespace command line utility,
+	so, we need to add tools version constants for 10.0.7 (update3) as a
+	future reference.
+	
+*	Fix unused function errors thrown by clang 3.4
+	
+	Fix unused function errors thrown by clang 3.4. These are all
+	caused by functions only used in an ASSERT(), which is defined
+	to a NOP for non-debug builds.
+	
+*	Improving CAF build time, esp for open-vm-tools - additional files
+	
+*	Add signature checks to lib/toolsversion accesses.
+	
+	Add Tools ISO signature checks to the accesses coming
+	from lib/toolsversion. Also, extend the signature checks
+	to cover manifest files we read from the ProductLocker.
+	 
+	As this change requires some of the stuff in toolinstall.c,
+	mainly ToolInstallLocalFileReader. So, move that stuff to
+	a common place in lib/toolsIso, so that lib/toolsversion and
+	toolinstall.c can share it easily.
+	 
+	While moving ToolInstallLocalFileReader to lib/toolsIso
+	rename it accordingly, i.e. ToolsIsoLocalFileReader. Also,
+	move the related callbacks along with it.
+	 
+	New workflow for loading manifest files requires the
+	dictionary to be built from memory buffer, but existing
+	Dictionary API does not accept MsgList from caller. So,
+	add the missing API for this, i.e. Dictionary_LoadFromBufferEx.
+	 
+*	Detect slow running systems in guestInfo.
+	
+	- Added a new function in guestInfo. The new function checks the last
+	time when the guest info was captured and prints a warning and sends
+	a RPC message to the VMX if the elapsed interval was more than the
+	expected poll interval.
+	
+*	Fix additional coverity issues in tools and hgfs.
+	
+	Fix some uninitialized variable problems reported by
+	the Coverity scan of tools.
+	
+*	Remove guestStats that are beyond 60u1 scope.
+	
+	The guestStats in R10 Tools release follow 60u1 scope and therefore
+	we need to remove the guestStats that are not in scope for 60u1.
+	
+*	Fix a couple more Coverity-reported issues in tools.
+	
+	Fix an uninitialized variable and a use-after-free problem
+	reported by Coverity.  The use-after-free problem occurs in
+	the swig-generated file vmGuestLibJava_wrap.c and is addressed
+	by changing a function prototype processed by swig to use
+	void * in place of char *.  For additional background see
+	https://sourceforge.net/p/swig/mailman/message/34977020/
+	
+*	open-vm-tools: fix build error in Ubuntu 16.04
+	
+	The -std=c++11 causes an error when used with the GNU C compiler, but it
+	is in GTKMM_CPPFLAGS. So this change moves GTKMM_CPPFLAGS from
+	libdndcp_la_CPPFLAGS to libdndcp_la_CXXFLAGS in
+	services/plugins/dndcp/Makefile.am.
+	
+	This also fixes building for current Debian sid.
+	
+*	Hold a reference to vSocket address family in vmtoolsd.
+	
+	On old hosts that do not support secure guestRpc vmtoolsd
+	falls back to use backdoor. However, there could be vmci
+	and vsocket drivers loaded in the guest that make vSocket
+	consumers (e.g. guestLib and namespace-cmd) try vSocket
+	all the time before falling back to backdoor. On old Linux
+	guests like RHEL 5, 6 (kernels below 3.9 that do not have
+	upstreamed vmci and vsocket drivers) this causes log spew
+	in guest system logs because of vSocket address family being
+	registered and unregistered on each RPC call (RpcChannel_SendOne).
+	
+	This could be solved in multiple ways involving some
+	work from user. In order to solve this problem in a user
+	friendly way, we hold a reference to vSocket device in
+	vmtoolsd service, so that the reference goes away during
+	Tools upgrade.
+	
+*	Tools GuestInfo - Return proper osname for Oracle Linux 6 / 7
+	
+	Updated the code to detect Oracle Linux 6 and Oracle Linux 7 and return
+	proper osname acocrdingly.
+	
+	In Oracle Linux 6.7 GA VM, following are the contents of /etc/oracle-release
+	Oracle Linux Server release 6.7
+	
+	In Oracle Linux 7.1 GA VM, following are the contents of /etc/oracle-release
+	Oracle Linux Server release 7.1
+	
+*	Tools GuestInfo - Return proper osname for Centos 6 / 7
+	
+	Updated the code to detect Centos 6 and Centos Linux 7 and return
+	proper osname acocrdingly.
+	
+	In Centos 6.7 GA VM, following are the contents of /etc/centos-release
+	CentOS release 6.7 (Final)
+	
+	In Centos 7.2 GA VM, following are the contents of /etc/centos-release
+	CentOS Linux release 7.2.1511 (Core)
+*	Tolerate the lack of RPC channel when there is no backdoor.
+	
+	A VM with the backdoor disabled leads to having no RPC channel
+	in vmtoolsd.  Tolerate this situation instead of ASSERTing.
+	
+*	Make NullProvider race-free to be thread-safe.
+	
+	The NullProvider start function was sending the 'prov.snapshotCommit'
+	message to VMX, which was being done on the worker thread.
+	This led to a race condition where the VMX state machine advanced
+	faster than the guest side state machine. Later, when the VMX state
+	machine sent 'vmbackup.snapshotDone' to the vmbackup plugin, it
+	did not like it because it was not ready for that message.
+	
+	To fix this issue, we split the code that sends the 
+	'prov.snapshotCommit' message into a separate callback
+	that gets called by the main thread instead of the worker
+	thread. To do that, we created a VmBackupOp for NullProvider
+	so that it can be monitored by the top level state machine.
+	
+	Also fixed a subtle race in VmBackupAsyncCallback. It can
+	prematurely release an op if the op was set by worker thread
+	between the QueryStatus and Release calls. This was possible
+	due the initial value of status. Fixed the initial value of
+	status to make it impossible.
+	
+*	open-vm-tools: add udev rules to set scsi timeout
+	
+	To avoid volumes going read-only offline, a longer timeout
+	was needed. This is already done for tar tools and OSPs using
+	udev rules, but not yet for open-vm-tools. This change adds
+	a udev rule for open-vm-tools.
+	
+*	Fix a namespace tool crash.
+	
+	The namespace tool core-dumps when running the following command
+	vmware-namespace-cmd -V get-value name -k key
+	
+	This is because glib options parser removed the -V from the argv,
+	and passed the ValidateNsCommands() check. However, the later
+	RunNamespacecommand shall ASSERT() on the NULL nscmd.
+	
+*	Properly handle non-ASCII filenames.
+	
+	Filenames are passed as UTF-8, but file opens (both CreateFile
+	and fopen()) were assuming ASCII.  Switch to a conversion and
+	CreateFileW and g_fopen(), which handles full UTF-8 filenames.
+	
+	Also tweak the error logging to dump the error code
+	for easier debugging on non-English OSes.
+	
+*	Fix the namespace tool verbose option.
+	
+	The namespace tool verbose option was supposed to print out the debug
+	and warning messages of the vm libs to stdio, but it didn't.
+	
+*	Don't auto-retry RpcChannel_Send when error is final.
+	
+	RpcChannel_Send retries in case of any error. However, retry makes
+	sense only when there is a transport error. When there is a failure
+	returned from VMware in handling the RPC command, the error is final
+	and retrying does not make any sense, so avoid retry when
+	it is not a transport error. In order to differentiate between
+	the two types of errors the internal function signatures required
+	changes. As there are not many direct consumers for RpcOut_send, fix
+	all of its callers too to check rpcStatus along with the return
+	value of the function.  The new API behavior also allows
+	removal of some string comparisons on "reply".
+	
+	There are no other behavioral changes intended in RpcChannel_Send,
+	so all the callers of this function remain untouched.
+	
+*	Replace RpcOut_sendOne with RpcChannel_SendOne in vmtoolsd commandline.
+	
+	"vmtoolsd --cmd=<payload>" uses RpcOut_sendOne which is a backdoor
+	only implementation.  It should try vSocket before falling back to
+	backdoor.
+	
+*	Make sure the Windows version of namespacetool logs to stdio instead
+	of logging to debugger.
+	
+	The Windows version of namespacetool didn't print warning messages
+	under the verbose option.
+	
+*	Add toolbox-cmd for tools.conf config entries.
+	
+	Add a generic tools.conf set/get mechanism that can
+	be used for any config entry.  The first specific use case
+	is to enable/disable the allowLocalSystem pref for SRM.
+	
+*	Remove an ASSERT and save vSock family reference in vmsvc only.
+	
+	VMCISock_GetAFValueFd API does not open a vsock device if the kernel
+	has upstreamed drivers. So don't ASSERT if the vsock fd is not valid
+	in such cases. Save the reference only when the family as well as
+	the fd are valid, because there is no need to save the reference in
+	the case of upstreamed drivers.
+	
+	If 'vmusr' holds a reference to vSock address family, it could
+	come in the way of upgrade because 'vmusr' keeps running during
+	upgrade. To avoid that issue and given that we just need one
+	reference, we limit the reference to main service only.
+	
+	Also fix the VMCISock_GetAFValueFd API to initialize outFd in
+	the case of upstreamed drivers.
+	
+*	Allow SAML authn to bypass impersonation if the user is unchanged.
+	
+	vmwsu can't create an impersonation token for SYSTEM
+	since its not a 'real' account.  So bypass the impersonation
+	phase since toolsd is already running as SYSTEM.
+	
+*	Increase the scope of 'opLock' to avoid a race in VmBackupAsyncCallback.
+	
+	A previous fixe to a race between worker thread and main thread
+	in VmBackupAsyncCallback could lead to premature release of
+	'currentOp' from 'gBackupState'.  If the 'currentOp' was set after
+	VmBackupAsyncCallback had queried status of the 'currentOp', but
+	VmBackupAsyncCallback was not done with 'status' value check,
+	it could release the 'currentOp' prematurely because 'status'
+	was initialized to VMBACKUP_STATUS_FINISHED. The fix was to
+	initialize the 'status' to VMBACKUP_STATUS_PENDING. The fix
+	broke HBR because HBR invokes quiescing with the 'execScripts = false'
+	option, and in that case there is no 'currentOp' setup by the
+	VmBackupStartScripts() call, which leaves VmBackupAsyncCallback
+	in its initialized 'status' VMBACKUP_STATUS_PENDING.
+	This fix reverts the previous fix by restoring the 'status' initial
+	value to VMBACKUP_STATUS_FINISHED and increases the scope of the
+	lock 'opLock' to address the race condition.
+	
+	This change also adds some Tools configuration settings to make
+	it easier to test HBR scenarios.
+	
+	Also moved the common functions to vmtoolslib.
+	
+*	Fix HGFS mount call to create mount point.
+	
+	For FUSE clients and open-vm-tools installations the package
+	might not create the shared folders mount point. The only reliable
+	way to ensure that we have one is to create it ourselves.
+	
+	This also ensures if a user has inadvertently deleted the mount
+	point after installing tools and before enabling the Shared Folders
+	feature the mount will be robust enough to still mount.
+	
+	Secondly, did some clean up of the mount function to move the check
+	for already mounted into a separate function.
+	
+	Finally, the mount file table check now uses the common mount info
+	macros and the system calls are replaced with ProcMgr exec calls.
+	The file access checks now use the glib routines as do the mkdir and
+	rmdir for mount point creation and deletion.
+	
+*	Make Vsock RPC code handle the ECONNRESET.
+	
+	The VMX might delay releasing a vsock when the client side closes
+	the end point first.  This makes a later client vsock connect attempt
+	fail with ECONNRESET using the same source port as the closed one.
+	Note that the client binds OK on the reused source port, since
+	the client side has released the socket on that port.
+	
+	Rewrote the connect code to make it more clear and explicitly
+	separated the retry logic. The existing higher level error code
+	enum was also not clearly defined. It is best to keep and
+	return the system errno, and also added additional information
+	about which socket API call failed.
+	
+*	tar installer/OSPs: Check for a valid shell in pam configuration.
+	
+	When a program is run in a VM using vmrun from the host, the user
+	account is not checked for a valid shell. This changes adds this
+	to the pam configuration for vmtoolsd.
+	
+	Note that /sbin/nologin is a valid shell in CentOS and RHEL, but
+	not in Ubuntu. Valid shells are those that are listed in /etc/shells.
+	
+*	open-vm-tools: Add support for gtk3.
+	
+	Add support for building open-vm-tools with gtk3.
+	
+	#ifdef statements have been added for conditional compiling
+	for GTK2/GTK3.
+	
+*	Tools RpcIn: fix an assert triggered by a race condition
+	
+	RpcIn open channel asserts that the current channel is NULL. This
+	is being triggered during the disk wipe operation test.
+	
+	The test stressed the machine so that the guest tools service ran
+	slowly and the VMX timed out and so reset the channel. This caused
+	the tools service to do a channel check reset, which then called
+	RpcChannelRestart to stop and start the channel.
+	Unfortunately, this call modified the channel global without
+	synchronizing with the other threads sending RPCs.  DiskWipe plugin
+	was in the middle of a RpcChannel_Send (with the lock acquired)
+	when the restart call ran concurrently.
+	
+	To fix this issue the RpcChannelRestart now acquires the same channel
+	lock around the channel stop and start calls so that all sending
+	threads wait or complete first.
+	
+*	Tools RPC: Fix XDR invocation on mac and an uninitialized variable.
+	
+	Uninitialized variable in rpcin.c: Initialize status to FALSE.
+	
+	xdrproc_t: On many platforms xdrproc_t is an unprototyped function
+	pointer that can take either 2 or 3 arguments.  Apple changed their
+	implementation to always take 3 arguments, so add a third argument.
+
+*	Guest DNDCP: Remove unused private variables.
+	
+*	Hgfs Server: minor clean up of request header size.
+	
+	Consistently use the correct function for determining the header
+	size for the HGFS packet to be used. This is necessary due to the
+	different protocol versions that exist; originally the request and
+	reply contained different protocol headers.
+	
+*	Hgfs Server: more minor clean up of write operations.
+	
+*	Hgfs Server: write ops clean up.
+	
+	Very minor write ops clean up fixes which renames the arguments
+	and local variables to be more consistent.
+	
+*	Hgfs Server: add write op arg basic validate write op.
+	
+	Add the basic write operation argument validation routine to obtain
+	the data sizes of the request and data to write for the supported HGFS
+	protocol versions (1 through 4). Add a call to it from the main write
+	operation handler.
+	
+*	Hgfs Server: write op move argument checks.
+	
+	Consolidate the argument verifications to the common code as these
+	are often duplicated. This will now explicitly perform the Hgfs write
+	operation argument verification in the common handler before calling
+	the platform specific code to actually peform the write.
+	
+*	Hgfs Server: write op move argument checks.
+	
+	Complete the argument verifications in the common code adding the
+	missing checks for the write request packet size checks and the
+	write request data size (separated from the request itself as
+	in V4 of the HGFS protocol).
+	This will catch any attempts from a client to pass a write request
+	containing a data size argument for the data to write that is greater
+	than the amount of data in the HGFS packet or data buffer passed.
+	
+*	Thaw/resume guest file system when VMX aborts an operation.
+	
+	When an operation is aborted by VMX after quiescing the
+	guest, we need to thaw/resume the guest without leaving
+	it in limbo.
+	
+*	Common version: Use disable-tools-version for old hosts only.
+	
+	Use disable-tools-version for old hosts only, and add a
+	hide-tools-version flag. Set disable-tools-version to "true"
+	again for OSPs.
+
+*	Apply ICU patches to lib/unicode.
+
+	Apply various ICU patches between ICU 4.4.1 and 57.1.
+
+*	Return default value in case of NULL key instead of ASSERTing.
+	
+	The configKey is NULL for NullProvider, so VMTools_ConfigGetBoolean
+	should return default value if any of the input args is NULL.
+	
+*	Updating glib and dependent libraries for CAF to latest version
+	
+	glib is upgraded to 2.48.0 with the following dependencies:
+	
+	libiconv 1.14
+	pcre 8.38
+	zlib 1.2.8
+	libffi 3.2.1
+	
+*	xmlsec1 support for verification
+	
+	Add SAML verification with xmlsec1.
+	
+*	Fix some memory leaks
+	
+*	Add verification of SAML assertions (Subject and Condtions)
+	
+*	Do schema validation with xmlsec1.
+	
+	Add schema validation for xmlsec1 based SAML verification.
+	
+*	Add xmlsec1 to open-vm-tools.
+	
+	Add the new files to open-vm-tools and add a switch to
+	turn it on.  xml-security-c remains the default for
+	now.
+	
+	also clean up the service Makefile, which was using
+	the client lib, for common code instead of building it in.
+	
+*	Update VGAuth source for compilation with OpenSSL 1.0.x or 1.1.0.
+	
+	 OpenSSL 1.1.0 is about to released.  With that release comes a number
+	of changes that include making several types opague.  Along with this,
+	new or renamed setter/getter functions appear.   The API changes and
+	the impact on open-source products is discussed at:
+	https://wiki.openssl.org/index.php/1.1_API_Changes.  Updated man pages
+	are available at: https://www.openssl.org/docs/manmaster/
+	
+	The impact on VMware Tools and open-vm-tools is that the message
+	digest type MD_CTX has become opague.  Local (stack) MD_CTX objects
+	are not supported.  The required change is to dynamically allocate
+	MD_CTX objects as needed using the 1.1.0 API xxx_new() and xxx_free()
+	or the pre-1.1.0 functions xxx_create() and xxx_destroy().
+	
+*	Update glib and pcre.
+	
+	This change adds a new glib.mk whose scope is local to the tools build.
+	The new glib.mk sets the glib2 version to 2.48 for the tools build.
+	The new version of glib depends upon libpcre, libiconv and libffi.
+	
+*	Properly configure xmlsec1 for CentOS.
+	
+	Some distros build xmlsec1 with dynamic crypto, so we
+	have to do things slightly differently.
+	
+	Also work around a bug in how Redhat & SuSE packages xmlsec1.
+	They built it with -DXMLSEC_NO_SIZE_T, but that flag
+	isn't properly exposed by xmlsec1-config.  This results
+	in a bunch of xmlsec1 data structures (anything with an xmlSecSize
+	in it) being different between the lib and our code, and
+	it tends not to work when our code references fields
+	in the data structure.  So this change always sets
+	-DXMLSEC_NO_SIZE_T.
+	
+*	Log level change in CAF - Change default log level to ERROR.
+	
 open-vm-tools-10.0.5 build 3227882
+
 *	ae82fa6 [Bug 1526360] fix timestamp check
 *	b510107 [Bug 1531545] Add an error handler to X11 resolutionSet
 *	adab9c5 [Bug 1503195] Kill tasklet when unloading vmci module
@@ -181,7 +2287,7 @@ open-vm-tools-10.0.0 build 3000743
 
 *	Change WSAAddressToString to WSAAddressToStringA
 
-*	  Handle EINVAL for preadv and pwritev.
+*	Handle EINVAL for preadv and pwritev.
 
 *	Change GET_CURRENT_LOCATION definition.
 
@@ -209,7 +2315,7 @@ open-vm-tools-10.0.0 build 3000743
 
 *	First submit of the VDTI PCI Device.
 
-*	  Cleanup/Rationalize coreDump
+*	Cleanup/Rationalize coreDump
 
 *	vSock VMX: Introduce a separate sendCb field
 

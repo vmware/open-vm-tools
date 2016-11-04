@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -61,8 +61,13 @@ static gboolean
 SocketStartup(void)
 {
 #if defined(_WIN32)
+   static Bool initialized = FALSE;
    int err;
    WSADATA wsaData;
+
+   if (initialized) {
+      return TRUE;
+   }
 
    err = WSAStartup(MAKEWORD(2, 0), &wsaData);
    if (err) {
@@ -76,39 +81,10 @@ SocketStartup(void)
               LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion));
       return FALSE;
    }
+
+   initialized = TRUE;
 #endif
 
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * SocketCleanup --
- *
- *      Win32 special socket cleanup.
- *
- * Results:
- *      TRUE on success, FALSE on failure.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static gboolean
-SocketCleanup(void)
-{
-#if defined(_WIN32)
-   int err = WSACleanup();
-   if (err) {
-      Warning(LGPFX "Error in WSACleanup: %d[%s]\n", err,
-              Err_Errno2String(err));
-      return FALSE;
-   }
-#endif
    return TRUE;
 }
 
@@ -145,8 +121,6 @@ Socket_Close(SOCKET sock)
       Warning(LGPFX "Error in closing socket %d: %d[%s]\n",
               sock, err, Err_Errno2String(err));
    }
-
-   SocketCleanup();
 }
 
 
@@ -275,14 +249,83 @@ Socket_Send(SOCKET fd,      // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * SocketConnectVmciInternal --
+ *
+ *      Connect to a VSOCK destination in blocking mode
+ *
+ * Results:
+ *      The socket created/connected upon success.
+ *      INVALID_SOCKET upon a failure:
+ *         apiErr and sysErr are populated with the proper error codes.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+static SOCKET
+SocketConnectVmciInternal(const struct sockaddr_vm *destAddr, // IN
+                          unsigned int localPort,             // IN
+                          ApiError *apiErr,                   // OUT
+                          int *sysErr)                        // OUT
+{
+   SOCKET fd;
+   struct sockaddr_vm localAddr;
+
+   fd = socket(destAddr->svm_family, SOCK_STREAM, 0);
+   if (fd == INVALID_SOCKET) {
+      *apiErr = SOCKERR_SOCKET;
+      *sysErr = SocketGetLastError();
+      Warning(LGPFX "failed to create socket, error %d: %s\n",
+              *sysErr, Err_Errno2String(*sysErr));
+      return INVALID_SOCKET;
+   }
+
+   memset(&localAddr, 0, sizeof localAddr);
+   localAddr.svm_family = destAddr->svm_family;
+   localAddr.svm_cid = VMCISock_GetLocalCID();
+   localAddr.svm_port = localPort;
+
+   if (bind(fd, (struct sockaddr *)&localAddr, sizeof localAddr) != 0) {
+      *apiErr = SOCKERR_BIND;
+      *sysErr = SocketGetLastError();
+      Debug(LGPFX "Couldn't bind on source port %d, error %d, %s\n",
+            localPort, *sysErr, Err_Errno2String(*sysErr));
+      Socket_Close(fd);
+      return INVALID_SOCKET;
+   }
+
+   Debug(LGPFX "Successfully bound to source port %d\n", localPort);
+
+   if (connect(fd, (struct sockaddr *)destAddr, sizeof *destAddr) != 0) {
+      *apiErr = SOCKERR_CONNECT;
+      *sysErr = SocketGetLastError();
+      Warning(LGPFX "failed to connect (%d => %d), error %d: %s\n",
+              localPort, destAddr->svm_port, *sysErr,
+              Err_Errno2String(*sysErr));
+      Socket_Close(fd);
+      return INVALID_SOCKET;
+   }
+
+   *apiErr = SOCKERR_SUCCESS;
+   *sysErr = 0;
+   return fd;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * Socket_ConnectVMCI --
  *
- *      Connect to VMCI port in blocking mode.
+ *      Connect to a VMCI port in blocking mode.
  *      If isPriv is true, we will try to bind the local port to a port that
  *      is less than 1024.
  *
  * Results:
- *      returns the raw socket on sucess, otherwise INVALID_SOCKET;
+ *      The socket created/connected upon success.
+ *      INVALID_SOCKET upon a failure:
+ *         outApiErr and outSysErr are populated with proper error codes.
  *
  * Side effects:
  *      None
@@ -294,27 +337,28 @@ SOCKET
 Socket_ConnectVMCI(unsigned int cid,                  // IN
                    unsigned int port,                 // IN
                    gboolean isPriv,                   // IN
-                   SockConnError *outError)           // OUT
+                   ApiError *outApiErr,               // OUT optional
+                   int *outSysErr)                    // OUT optional
 {
    struct sockaddr_vm addr;
+   unsigned int localPort;
    SOCKET fd;
-   SockConnError error = SOCKERR_GENERIC;
-   int sysErr;
-   socklen_t addrLen = sizeof addr;
+   int sysErr = 0;
+   ApiError apiErr;
    int vsockDev = -1;
    int family = VMCISock_GetAFValueFd(&vsockDev);
 
-   if (outError) {
-      *outError = SOCKERR_SUCCESS;
+   if (family == -1) {
+      Warning(LGPFX "Couldn't get VMCI socket family info.");
+      apiErr = SOCKERR_VMCI_FAMILY;
+      fd = INVALID_SOCKET;
+      goto done;
    }
 
    if (!SocketStartup()) {
-      goto error;
-   }
-
-   if (family == -1) {
-      Warning(LGPFX "Couldn't get VMCI socket family info.");
-      goto error;
+      apiErr = SOCKERR_STARTUP;
+      fd = INVALID_SOCKET;
+      goto done;
    }
 
    memset((char *)&addr, 0, sizeof addr);
@@ -324,84 +368,61 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
 
    Debug(LGPFX "creating new socket, connecting to %u:%u\n", cid, port);
 
-   fd = socket(addr.svm_family, SOCK_STREAM, 0);
-   if (fd == INVALID_SOCKET) {
-      sysErr = SocketGetLastError();
-      Warning(LGPFX "failed to create socket, error %d: %s\n",
-              sysErr, Err_Errno2String(sysErr));
-      goto error;
+   if (!isPriv) {
+      fd = SocketConnectVmciInternal(&addr, VMADDR_PORT_ANY,
+                                     &apiErr, &sysErr);
+      goto done;
    }
 
-   if (isPriv) {
-      struct sockaddr_vm localAddr;
-      gboolean bindOk = FALSE;
-      int localPort;
-
-      memset(&localAddr, 0, sizeof localAddr);
-      localAddr.svm_family = addr.svm_family;
-      localAddr.svm_cid = VMCISock_GetLocalCID();
-
-      /* Try to bind to port 1~1023 for a privileged user. */
-      for (localPort = PRIVILEGED_PORT_MAX;
-           localPort >= PRIVILEGED_PORT_MIN; localPort--) {
-
-         localAddr.svm_port = localPort;
-
-         if (bind(fd, (struct sockaddr *)&localAddr, sizeof localAddr) != 0) {
-            sysErr = SocketGetLastError();
-            if (sysErr == SYSERR_EACCESS) {
-               Debug(LGPFX "Couldn't bind to privileged port for "
-                     "socket %d\n", fd);
-               error = SOCKERR_EACCESS;
-               Socket_Close(fd);
-               goto error;
-            }
-            if (sysErr == SYSERR_EADDRINUSE) {
-               continue;
-            }
-            Warning(LGPFX "could not bind socket, error %d: %s\n", sysErr,
-                    Err_Errno2String(sysErr));
-            Socket_Close(fd);
-            error = SOCKERR_BIND;
-            goto error;
-         } else {
-            bindOk = TRUE;
-            break;
-         }
+   /* We are required to use a privileged source port. */
+   localPort = PRIVILEGED_PORT_MAX;
+   while (localPort >= PRIVILEGED_PORT_MIN) {
+      fd = SocketConnectVmciInternal(&addr, localPort, &apiErr, &sysErr);
+      if (fd != INVALID_SOCKET) {
+         goto done;
       }
-
-      if (!bindOk) {
-         Debug(LGPFX "Failed to bind to privileged port for socket %d, "
-               "no port available\n", fd);
-         error = SOCKERR_BIND;
-         Socket_Close(fd);
-         goto error;
-      } else {
-         Debug(LGPFX "Successfully bound to port %d for socket %d\n",
-               localAddr.svm_port, fd);
+      if (apiErr == SOCKERR_BIND && sysErr == SYSERR_EADDRINUSE) {
+         --localPort;
+         continue; /* Try next port */
       }
+      if (apiErr == SOCKERR_CONNECT && sysErr == SYSERR_ECONNRESET) {
+         /*
+          * VMX might be slow releasing a port pair
+          * when another client closed the client side end.
+          * Simply try next port.
+          */
+         --localPort;
+         continue;
+      }
+      if (apiErr == SOCKERR_CONNECT && sysErr == SYSERR_EINTR) {
+         /*
+          * EINTR on connect due to signal.
+          * Try again using the same port.
+          */
+         continue;
+      }
+      /* Unrecoverable error occurred */
+      goto done;
    }
 
-   if (connect(fd, (struct sockaddr *)&addr, addrLen) != 0) {
-      sysErr = SocketGetLastError();
-      Debug(LGPFX "socket connect failed, error %d: %s\n",
-            sysErr, Err_Errno2String(sysErr));
-      Socket_Close(fd);
-      error = SOCKERR_CONNECT;
-      goto error;
-   }
+   Debug(LGPFX "Failed to connect using a privileged port.\n");
+
+done:
 
    VMCISock_ReleaseAFValueFd(vsockDev);
-   Debug(LGPFX "socket %d connected\n", fd);
+
+   if (outApiErr) {
+      *outApiErr = apiErr;
+   }
+
+   if (outSysErr) {
+      *outSysErr = sysErr;
+   }
+
+   if (fd != INVALID_SOCKET) {
+      Debug(LGPFX "socket %d connected\n", fd);
+   }
    return fd;
-
-error:
-   if (outError) {
-      *outError = error;
-   }
-   VMCISock_ReleaseAFValueFd(vsockDev);
-
-   return INVALID_SOCKET;
 }
 
 
@@ -562,11 +583,11 @@ Socket_RecvPacket(SOCKET sock,               // IN
                   int *payloadLen)           // OUT
 {
    gboolean ok;
-   int32 packetLen;
+   uint32 packetLen;
+   uint32 partialPktLen;
    int packetLenSize = sizeof packetLen;
    int fullPktLen;
    char *recvBuf;
-   int recvBufLen;
 
    ok = Socket_Recv(sock, (char *)&packetLen, packetLenSize);
    if (!ok) {
@@ -575,9 +596,13 @@ Socket_RecvPacket(SOCKET sock,               // IN
       return FALSE;
    }
 
-   fullPktLen = ntohl(packetLen) + packetLenSize;
-   recvBufLen = fullPktLen;
-   recvBuf = malloc(recvBufLen);
+   partialPktLen = ntohl(packetLen);
+   if (partialPktLen > INT_MAX - packetLenSize) {
+      Panic(LGPFX "Invalid packetLen value 0x%08x\n", packetLen);
+   }
+
+   fullPktLen = partialPktLen + packetLenSize;
+   recvBuf = malloc(fullPktLen);
    if (recvBuf == NULL) {
       Debug(LGPFX "Could not allocate recv buffer.\n");
       return FALSE;

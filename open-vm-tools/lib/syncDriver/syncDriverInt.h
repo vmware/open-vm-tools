@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,11 +25,14 @@
  * Internal definitions for the sync driver library.
  */
 
+#include <glib.h>
 #include "syncDriver.h"
 
 #define LGPFX "SyncDriver: "
 
 #if !defined(Win32)
+
+#define SYNCDRIVER_PATH_SEPARATOR   ':'
 
 typedef enum {
    SD_SUCCESS,
@@ -37,7 +40,7 @@ typedef enum {
    SD_UNAVAILABLE,
 } SyncDriverErr;
 
-typedef SyncDriverErr (*SyncFreezeFn)(const char *paths,
+typedef SyncDriverErr (*SyncFreezeFn)(const GSList *paths,
                                       SyncDriverHandle *handle);
 
 typedef struct SyncHandle {
@@ -47,15 +50,15 @@ typedef struct SyncHandle {
 
 #if defined(linux)
 SyncDriverErr
-LinuxDriver_Freeze(const char *userPaths,
+LinuxDriver_Freeze(const GSList *userPaths,
                    SyncDriverHandle *handle);
 
 SyncDriverErr
-VmSync_Freeze(const char *userPaths,
+VmSync_Freeze(const GSList *userPaths,
               SyncDriverHandle *handle);
 
 SyncDriverErr
-NullDriver_Freeze(const char *userPaths,
+NullDriver_Freeze(const GSList *userPaths,
                   SyncDriverHandle *handle);
 #endif
 

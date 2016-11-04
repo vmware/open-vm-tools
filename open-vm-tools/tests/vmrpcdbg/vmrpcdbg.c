@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,6 +37,15 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 static GModule *gPlugin = NULL;
+
+#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
+/*
+ * Turn off optimizer for this compiler, since something with new glib makes it
+ * go into an infinite loop, only on 64bit and only with beta.
+ */
+#pragma optimize("", off)
+#endif
+
 
 /*
  * Static variables to hold the app's main loop data. CUnit test functions
@@ -255,4 +264,11 @@ RpcDebug_SetResult(const char *str,
       *len = strlen(str);
    }
 }
+
+#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
+/*
+ * Restore optimizer.
+ */
+#pragma optimize("", on)
+#endif
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,68 +39,114 @@ typedef struct ListItem {
    struct ListItem *next;
 } ListItem;
 
-/* A list with no elements is a null pointer. */
-#define   LIST_ITEM_DEF(name)   \
-   ListItem * name = NULL
-
-#define   LIST_EMPTY(l)      ((l) == NULL)
-
-/* initialize list item */
-#define   INIT_LIST_ITEM(p)   \
-   do {   \
-      (p)->prev = (p)->next = (p);   \
-   } while (0)
-
-/* check if initialized */
-#define   IS_LIST_ITEM_INITIALIZED(li)   \
-   (((li) == (li)->prev) && ((li) == (li)->next))
-
-/* return first element in the list */
-#define   LIST_FIRST(l)      (l)
-#define   LIST_FIRST_CHK(l)   (l)
-
-/* return last element in the list */
-#define   LIST_LAST(l)      ((l)->prev)
-#define   LIST_LAST_CHK(l)   (LIST_EMPTY(l) ? NULL : LIST_LAST(l))
 
 /*
- * LIST_CONTAINER - get the struct for this entry (like list_entry)
+ *----------------------------------------------------------------------
+ *
+ * CircList_IsEmpty --
+ *
+ *      A NULL list is an empty list.
+ *
+ * Result:
+ *      TRUE if list is empty, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE Bool
+CircList_IsEmpty(const ListItem *item)  // IN
+{
+   return item == NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CircList_InitItem --
+ *
+ *      Initialize item as a single-element circular list.
+ *
+ * Result:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+CircList_InitItem(ListItem *item)  // OUT
+{
+   item->prev = item->next = item;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CircList_First --
+ *
+ *      Return first item in the list.
+ *
+ * Result:
+ *      First item.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE ListItem *
+CircList_First(ListItem *item)  // IN
+{
+   return item;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CircList_Last --
+ *
+ *      Return last item in the list.
+ *
+ * Result:
+ *      Last item.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE ListItem *
+CircList_Last(ListItem *item)
+{
+   return item->prev;
+}
+
+
+/*
+ * CIRC_LIST_CONTAINER - get the struct for this entry (like list_entry)
  * @ptr: the &struct ListItem pointer.
  * @type:   the type of the struct this is embedded in.
  * @member: the name of the list struct within the struct.
  */
-#define LIST_CONTAINER(ptr, type, member) \
+#define CIRC_LIST_CONTAINER(ptr, type, member) \
    VMW_CONTAINER_OF(ptr, type, member)
-
-/*
- * delete item from the list
+/* 
+ * Historical name, left here to reduce churn.
+ * TODO: remove, all LIST_CONTAINER uses should be
+ * VMW_CONTAINER_OF and stop depending on circList.h
+ * to provide the definition.
  */
-#define   LIST_DEL            DelListItem
-
-/*
- * link two lists together
- */
-#define   LIST_SPLICE         SpliceLists
-
-/*
- * Split a list into two lists
- */
-#define   LIST_SPLIT          SplitLists
-
-/*
- * Add item to front of stack. List pointer points to new head.
- */
-#define   LIST_PUSH           PushListItem
-
-/*
- * Add item at back of queue. List pointer only changes if list was empty.
- */
-#define   LIST_QUEUE          QueueListItem
-
-/*
- * Get the list size.
- */
-#define   LIST_SIZE           GetListSize
+#define LIST_CONTAINER(ptr, type, member) VMW_CONTAINER_OF(ptr, type, member)
 
 /*
  * LIST_SCAN_FROM scans the list from "from" up until "until".
@@ -109,38 +155,32 @@ typedef struct ListItem {
  * "until" is the element where search should stop.
  * member is the field to use for the search - either "next" or "prev".
  */
-#define   LIST_SCAN_FROM(p, from, until, member)   \
+#define CIRC_LIST_SCAN_FROM(p, from, until, member)   \
    for (p = (from); (p) != NULL;   \
       (p) = (((p)->member == (until)) ? NULL : (p)->member))
 
 /* scan the entire list (non-destructively) */
-#define   LIST_SCAN(p, l)   \
-   LIST_SCAN_FROM(p, LIST_FIRST(l), LIST_FIRST(l), next)
+#define CIRC_LIST_SCAN(p, l)   \
+   CIRC_LIST_SCAN_FROM(p, CircList_First(l), CircList_First(l), next)
 
-
-/* scan a list backward from last element to first (non-destructively) */
-#define   LIST_SCAN_BACK(p, l)   \
-   LIST_SCAN_FROM(p, LIST_LAST_CHK(l), LIST_LAST(l), prev)
 
 /* scan the entire list where loop element may be destroyed */
-#define   LIST_SCAN_SAFE(p, pn, l)   \
-   if (!LIST_EMPTY(l))  \
-      for (p = (l), (pn) = NextListItem(p, l); (p) != NULL;   \
-           (p) = (pn), (pn) = NextListItem(p, l))
+#define CIRC_LIST_SCAN_SAFE(p, pn, l)   \
+   if (!CircList_IsEmpty(l))  \
+      for (p = (l), (pn) = CircList_Next(p, l); (p) != NULL;   \
+           (p) = (pn), (pn) = CircList_Next(p, l))
 
 /* scan the entire list backwards where loop element may be destroyed */
-#define   LIST_SCAN_BACK_SAFE(p, pn, l)   \
-   if (!LIST_EMPTY(l))  \
-      for (p = LIST_LAST(l), (pn) = PrevListItem(p, l); (p) != NULL;   \
-           (p) = (pn), (pn) = PrevListItem(p, l))
+#define CIRC_LIST_SCAN_BACK_SAFE(p, pn, l)   \
+   if (!CircList_IsEmpty(l))  \
+      for (p = CircList_Last(l), (pn) = CircList_Prev(p, l); (p) != NULL;   \
+           (p) = (pn), (pn) = CircList_Prev(p, l))
 
-
-/* function definitions */
 
 /*
  *----------------------------------------------------------------------
  *
- * NextListItem --
+ * CircList_Next --
  *
  *      Returns the next member of a doubly linked list, or NULL if last.
  *      Assumes: p is member of the list headed by head.
@@ -156,8 +196,8 @@ typedef struct ListItem {
  */
 
 static INLINE ListItem *
-NextListItem(ListItem *p,        // IN
-             ListItem *head)     // IN
+CircList_Next(ListItem *p,        // IN
+              ListItem *head)     // IN
 {
    if (head == NULL || p == NULL) {
       return NULL;
@@ -171,7 +211,7 @@ NextListItem(ListItem *p,        // IN
 /*
  *----------------------------------------------------------------------
  *
- * PrevListItem --
+ * CircList_Prev --
  *
  *      Returns the prev member of a doubly linked list, or NULL if first.
  *      Assumes: p is member of the list headed by head.
@@ -187,8 +227,8 @@ NextListItem(ListItem *p,        // IN
  */
 
 static INLINE ListItem *
-PrevListItem(ListItem *p,        // IN
-             ListItem *head)     // IN
+CircList_Prev(ListItem *p,        // IN
+              ListItem *head)     // IN
 {
    if (head == NULL || p == NULL) {
       return NULL;
@@ -201,7 +241,7 @@ PrevListItem(ListItem *p,        // IN
 /*
  *----------------------------------------------------------------------
  *
- * DelListItem --
+ * CircList_DeleteItem --
  *
  *      Deletes a member of a doubly linked list, possibly modifies the
  *      list header itself.
@@ -217,8 +257,8 @@ PrevListItem(ListItem *p,        // IN
  */
 
 static INLINE void
-DelListItem(ListItem *p,         // IN
-            ListItem **headp)    // IN/OUT
+CircList_DeleteItem(ListItem *p,         // IN
+                    ListItem **headp)    // IN/OUT
 {
    ListItem *next;
 
@@ -241,7 +281,7 @@ DelListItem(ListItem *p,         // IN
 /*
  *----------------------------------------------------------------------
  *
- * QueueListItem --
+ * CircList_Queue --
  *
  *      Adds a new member to the back of a doubly linked list (queue)
  *      Assumes neither p nor headp is null and p is not a member of *headp.
@@ -256,14 +296,14 @@ DelListItem(ListItem *p,         // IN
  */
 
 static INLINE void
-QueueListItem(ListItem *p,              // IN
-              ListItem **headp)         // IN/OUT
+CircList_Queue(ListItem *p,              // IN
+               ListItem **headp)         // IN/OUT
 {
    ListItem *head;
 
    head = *headp;
-   if (LIST_EMPTY(head)) {
-      INIT_LIST_ITEM(p);
+   if (CircList_IsEmpty(head)) {
+      CircList_InitItem(p);
       *headp = p;
    } else {
       p->prev = head->prev;
@@ -277,7 +317,7 @@ QueueListItem(ListItem *p,              // IN
 /*
  *----------------------------------------------------------------------
  *
- * PushListItem --
+ * CircList_Push --
  *
  *      Adds a new member to the front of a doubly linked list (stack)
  *      Assumes neither p nor headp is null and p is not a member of *headp.
@@ -292,10 +332,10 @@ QueueListItem(ListItem *p,              // IN
  */
 
 static INLINE void
-PushListItem(ListItem *p,               // IN
-             ListItem **headp)          // IN/OUT
+CircList_Push(ListItem *p,               // IN
+              ListItem **headp)          // IN/OUT
 {
-   QueueListItem(p, headp);
+   CircList_Queue(p, headp);
    *headp = p;
 }
 
@@ -303,7 +343,7 @@ PushListItem(ListItem *p,               // IN
 /*
  *----------------------------------------------------------------------
  *
- * SpliceLists --
+ * CircList_Splice --
  *
  *      Make a single list {l1 l2} from {l1} and {l2} and return it.
  *      It is okay for one or both lists to be NULL.
@@ -320,16 +360,16 @@ PushListItem(ListItem *p,               // IN
  */
 
 static INLINE ListItem *
-SpliceLists(ListItem *l1,      // IN
-            ListItem *l2)      // IN
+CircList_Splice(ListItem *l1,      // IN
+                ListItem *l2)      // IN
 {
    ListItem *l1Last, *l2Last;
 
-   if (LIST_EMPTY(l1)) {
+   if (CircList_IsEmpty(l1)) {
       return l2;
    }
 
-   if (LIST_EMPTY(l2)) {
+   if (CircList_IsEmpty(l2)) {
       return l1;
    }
 
@@ -349,10 +389,11 @@ SpliceLists(ListItem *l1,      // IN
 }
 
 
+#if 0  /* Presently unused, enable if a use is found */
 /*
  *----------------------------------------------------------------------
  *
- * SplitLists --
+ * CircList_Split --
  *
  *      Make a list l = {l1 l2} into two separate lists {l1} and {l2}, where:
  *      l = { ... x -> p -> ... } split into:
@@ -372,14 +413,14 @@ SpliceLists(ListItem *l1,      // IN
  */
 
 static INLINE void
-SplitLists(ListItem *p,         // IN
-           ListItem *l,         // IN
-           ListItem **l1p,      // OUT
-           ListItem **l2p)      // OUT
+CircList_Split(ListItem *p,         // IN
+               ListItem *l,         // IN
+               ListItem **l1p,      // OUT
+               ListItem **l2p)      // OUT
 {
    ListItem *last;
 
-   if (p == LIST_FIRST(l)) {   /* first element */
+   if (p == CircList_First(l)) {   /* first element */
       *l1p = NULL;
       *l2p = l;
       return;
@@ -395,12 +436,13 @@ SplitLists(ListItem *p,         // IN
    p->prev = last;
    last->next = p;
 }
+#endif
 
 
 /*
  *----------------------------------------------------------------------
  *
- * GetListSize --
+ * CircList_Size --
  *
  *	Return the number of items in the list.
  *
@@ -414,12 +456,12 @@ SplitLists(ListItem *p,         // IN
  */
 
 static INLINE int
-GetListSize(ListItem *head)     // IN
+CircList_Size(ListItem *head)     // IN
 {
    ListItem *li;
    int ret = 0;
 
-   LIST_SCAN(li, head) {
+   CIRC_LIST_SCAN(li, head) {
       ret++;
    }
    return ret;

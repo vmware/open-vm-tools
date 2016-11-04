@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,14 +16,14 @@
  *
  *********************************************************/
 
-/**
- * @file deployPkgFormat.h
+/*
+ * deployPkgFormat.h --
  *
- * @brief A deployment package format used primarily to
- *        upload and install software in a guest OS.
+ *      A deployment package format used primarily to
+ *      upload and install software in a guest OS.
  *
- * The package can be a file, or a section embedded inside
- * of another file or raw block device.
+ *      The package can be a file, or a section embedded inside
+ *      of another file or raw block device.
  */
 
 #ifndef _DEPLOY_PKG_FORMAT_H_
@@ -46,19 +46,19 @@ typedef enum {
    GzippedTar              // tar.gz
 } VMwareDeployPkgPayloadType;
 
-// Current versions
 #define VMWAREDEPLOYPKG_CURRENT_MAJOR_VERSION 1
 #define VMWAREDEPLOYPKG_CURRENT_MINOR_VERSION 0
 
-
 #include "vm_basic_types.h"
 
-// 4 byte alignment assumed
+#define VMWAREDEPLOYPKG_HEADER_FLAGS_NONE 0
+#define VMWAREDEPLOYPKG_HEADER_FLAGS_SKIP_REBOOT 1
+
 #ifdef _WIN32
-#include "pshpack4.h"
+#include "pshpack4.h" // 4 byte alignment assumed.
 #endif
 
-/**
+/*
  * VMware deployment package header. 4 byte alignment assumed.
  * The header size is exactly 512 bytes to make it easier to
  * embed in a disk device, such as a partition.
@@ -108,43 +108,43 @@ typedef enum {
 
 typedef struct
 {
-   char signature[VMWAREDEPLOYPKG_SIGNATURE_LENGTH]; // Not null terminated
+   char signature[VMWAREDEPLOYPKG_SIGNATURE_LENGTH]; // Not null terminated.
    uint8 majorVersion;
    uint8 minorVersion;
    uint8 payloadType;
    uint8 reserved;
 
-   /* 
+   /*
     * Structs are aligned to word length. For 32 bit architecture it is 4 bytes
     * aligned and for 64 bit it is 8 bytes aligned. To make sure 64 bit field
-    * "pkgLength" starts at the same place in both 32 bit and 64 bit architecture,
-    * we need to add a 4 byte padding. If the padding is not present then a package
+    * "pkgLength" starts at the same place in both 32 and 64 bit architecture,
+    * we need to add a 4 byte padding. If the padding is not present, package
     * created in 32 bit architecture will not be read correctly in 64 bit
     * architecture and vice-versa.
-    *  
+    *
     * NOTE: Positioning and size of the pad will change if fields are
-    * added/removed. 
-    */ 
+    * added/removed.
+    */
    uint32 archPadding;
 
-   uint64 pkgLength;     // total length of package including header           -- offset 20
-   uint64 payloadOffset; // offset of payload relative to beginning of header  -- offset 28
-   uint64 payloadLength; // length of payload                                  -- offset 36
-   
+   uint64 pkgLength;     // Total length of package including header, offset 20.
+   uint64 payloadOffset; // Relative to beginning of header, offset 28.
+   uint64 payloadLength; // Length of payload, offset 36.
+
    /*
-    * Command string and padding, null terminated                              -- offset 44
+    * Command string and padding, null terminated, offset 44.
     * This padding makes the header sector-aligned, making it easier
     * to embed in disks and disk partitions.
-    * This string may contain OS-specific environment variables, e.g. %SYSTEMDRIVE%
+    * This string may contain OS-specific env variables, e.g. %SYSTEMDRIVE%.
     */
 
    char seed[VMWAREDEPLOYPKG_SEED_LENGTH];
-   char command[VMWAREDEPLOYPKG_CMD_LENGTH];   
- 
+   char command[VMWAREDEPLOYPKG_CMD_LENGTH];
+
 } VMwareDeployPkgHdr;
 
 #ifdef _WIN32
 #include "poppack.h"
 #endif
 
-#endif
+#endif // _DEPLOY_PKG_FORMAT_H_
