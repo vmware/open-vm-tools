@@ -534,6 +534,7 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "suse")) {
       if (strstr(distroLower, "enterprise")) {
          if (strstr(distroLower, "server 12") ||
+             strstr(distroLower, "server for sap applications 12") ||
              strstr(distroLower, "desktop 12")) {
             Str_Strcpy(distroShort, STR_OS_SLES_12, distroShortSize);
          } else if (strstr(distroLower, "server 11") ||
