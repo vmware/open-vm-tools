@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caf:beans
+   xmlns:caf="http://schemas.vmware.com/caf/schema/fx"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://schemas.vmware.com/caf/schema/fx http://10.25.57.32/caf-downloads/schema/fx/CafIntegration.xsd">
+
+	<import resource="IntBeanConfigFile.xml"/>
+
+<!-- Channel wire tap to log -->
+<!--
+	<channel id="wireTapChannel"/>
+
+	<logging-channel-adapter
+		id="logger"
+		level="info"
+		log-full-message="false"
+		input-channel="wireTapChannel"/>
+
+	<wire-tap
+		id="wireTap"
+		order="1"
+		channel="wireTapChannel"
+		pattern=".*" />
+ -->
+
+<!-- Management Agent Request Processing -->
+
+	<channel id="requestToStringTransformerChannel"/>
+	<channel id="payloadXmlRootRouterChannel"/>
+	<channel id="payloadHeaderEnricherChannel"/>
+	<channel id="diagToMgmtRequestTransformerChannel"/>
+	<channel id="installToMgmtRequestTransformerChannel"/>
+	<channel id="headerValueRouterChannel"/>
+	<channel id="collectSchemaExecutorChannel"/>
+	<channel id="providerExecutorChannel"/>
+
+	<!-- Read the request from the agreed-upon directory. In most cases, the request is
+		written to this directory by the communication component. -->
+	<file-inbound-channel-adapter
+		id="receiveGoodRequest"
+		channel="requestToStringTransformerChannel"
+		directory="${var:globals:request_dir}"/>
+
+	<bean
+		id="payloadHeaderEnricherBean"
+		class="com.vmware.commonagent.cafintegration.payloadheaderenricher" />
+	<bean
+		id="envelopeToPayloadTransformerBean"
+		class="com.vmware.commonagent.cafintegration.envelopetopayloadtransformer"/>
+	<bean
+		id="attachmentRequestTransformerBean"
+		class="com.vmware.commonagent.maintegration.attachmentrequesttransformer"/>
+	<bean
+		id="versionTransformerBean"
+		class="com.vmware.commonagent.maintegration.versiontransformer"/>
+	<chain
+		id="requestChain1"
+		input-channel="requestToStringTransformerChannel"
+		output-channel="payloadXmlRootRouterChannel">
+
+		<!-- Read the request file into memory and pass it through the
+			system as the canonical in-memory message. -->
+		<file-to-string-transformer
+			id="requestToStringTransformer"
+			delete-files="false"/>
+
+		<!-- Store the indentifying request information into the message headers, which
+			lets some of the downstream processing be more request-independent. -->
+		<transformer
+			id="payloadHeaderEnricher"
+			ref="payloadHeaderEnricherBean"/>
+
+		<!-- Either throws an unsupported version exception or converts the
+			old version into the latest version or passes the untouched supported
+			version through. -->
+		<transformer
+			id="versionTransformerId"
+			ref="versionTransformerBean"/>
+
+		<!-- Moves the attachments into the input directory and touches up the attachment
+			URI's in the request. -->
+		<transformer
+			id="attachmentRequestTransformerId"
+			ref="attachmentRequestTransformerBean"/>
+
+		<!-- Transforms the envelope back into the normal payload -->
+		<transformer
+			id="envelopeToPayloadTransformerId"
+			ref="envelopeToPayloadTransformerBean"/>
+	</chain>
+
+	<!-- Route the request based on its type. The logic to come simply transforms the specific
+		request type (e.g. diag, install) into the standard request format. -->
+	<payload-content-router
+		id="payloadXmlRootRouter"
+		input-channel="payloadXmlRootRouterChannel">
+		<mapping value="caf:mgmtRequest " channel="payloadHeaderEnricherChannel" />
+		<mapping value="caf:diagRequest " channel="diagToMgmtRequestTransformerChannel" />
+		<mapping value="caf:installRequest " channel="installToMgmtRequestTransformerChannel" />
+	</payload-content-router>
+
+	<!-- Transform the diag request into the standard request format. -->
+	<bean
+		id="diagToMgmtRequestTransformerBean"
+		class="com.vmware.commonagent.maintegration.diagtomgmtrequesttransformer" />
+	<transformer
+		id="diagToMgmtRequestTransformer"
+		input-channel="diagToMgmtRequestTransformerChannel"
+		output-channel="payloadHeaderEnricherChannel"
+		ref="diagToMgmtRequestTransformerBean"/>
+
+	<!-- Transform the install request into the standard request format. -->
+	<bean
+		id="installToMgmtRequestTransformerBean"
+		class="com.vmware.commonagent.maintegration.installtomgmtrequesttransformer" />
+	<transformer
+		id="installToMgmtRequestTransformer"
+		input-channel="installToMgmtRequestTransformerChannel"
+		output-channel="payloadHeaderEnricherChannel"
+		ref="installToMgmtRequestTransformerBean"/>
+
+	<bean
+		id="singlePmeRequestSplitterBean"
+		class="com.vmware.commonagent.maintegration.singlepmerequestsplitter"/>
+	<chain
+		id="requestChain2"
+		input-channel="payloadHeaderEnricherChannel"
+		output-channel="headerValueRouterChannel">
+
+		<!-- Splits the single request into the processing components that require very different processing;
+                    collect schema vs. collect instances / invoke method. Also splits requests by provider. -->
+		<splitter
+			id="phReqSplitter"
+			ref="singlePmeRequestSplitterBean"/>
+	</chain>
+
+	<!-- Routes the collect schema request and regular request processing down different paths. -->
+	<header-value-router
+		id="headerValuePayloadTypeRouter"
+		input-channel="headerValueRouterChannel"
+		header-name="payloadType">
+		<mapping value="providerCollectSchemaRequest" channel="collectSchemaExecutorChannel" />
+		<mapping value="providerRequest" channel="requestSplitOutboundChannel" />
+	</header-value-router>
+
+	<!-- Collects the schema information, which basically just copies the cached schema into the
+		response directories. -->
+	<bean
+		id="collectSchemaExecutorBean"
+		class="com.vmware.commonagent.maintegration.collectschemaexecutor"/>
+	<service-activator
+		id="collectSchemaExecutor"
+		input-channel="collectSchemaExecutorChannel"
+		output-channel="fileSenderGoodChannel"
+		ref="collectSchemaExecutorBean"/>
+
+	<!-- Saves the split request into an interim request cache directory for future asynchronous
+	processing and deletes the original request. -->
+	<channel id="requestSplitOutboundChannel"/>
+	<file-outbound-channel-adapter
+		id="splitRequestFileOutbound"
+		channel="requestSplitOutboundChannel"
+		directory="${var:globals:split_request_dir}"
+		delete-source-files="true" />
+
+	<!-- Read the split request from the interim request cache directory. -->
+	<file-inbound-channel-adapter
+		id="splitRequestFileInbound"
+		channel="providerExecutorChannel"
+		directory="${var:globals:split_request_dir}"/>
+
+	<bean
+		id="providerExecutorBean"
+		class="com.vmware.commonagent.maintegration.providerexecutor">
+		<property name="beginImpersonationBeanRef" value="guestAuthenticatorBeginImpersonationBean"/>
+		<property name="endImpersonationBeanRef" value="guestAuthenticatorEndImpersonationBean"/>
+	</bean>
+	<bean
+		id="guestAuthenticatorBeginImpersonationBean"
+		class="com.vmware.commonagent.maintegration.guestauthenticator">
+		<property name="beginImpersonation" value="true"/>
+	</bean>
+	<bean
+		id="guestAuthenticatorEndImpersonationBean"
+		class="com.vmware.commonagent.maintegration.guestauthenticator">
+		<property name="endImpersonation" value="true"/>
+	</bean>
+	<chain
+		id="providerExecutorChain"
+		input-channel="providerExecutorChannel"
+		output-channel="nullChannel">
+
+		<!-- Read the request file into memory and pass it through the
+			system as the canonical in-memory message. -->
+		<file-to-string-transformer
+			id="requestToStringTransformer"
+			delete-files="false"/>
+
+		<header-enricher
+			id="responseHeaderEnricher">
+			<header
+				name="cafma.internal.useImpersonation"
+				value="${var:managementAgent:use_impersonation}"/>
+		</header-enricher>
+
+		<!-- Uses the provider URI information in the request to locate and call the appropriate provider. -->
+		<service-activator
+			id="providerExecutor"
+			ref="providerExecutorBean"/>
+	</chain>
+
+	<!-- Runs the response processing and then stores the message in the agreed-upon output
+		directory. In most cases, the communication will monitor this directory and send
+		the request back to the client. -->
+	<channel id="fileSenderGoodChannel"/>
+
+	<!-- Stores the response information into the response directory. -->
+	<file-outbound-channel-adapter
+		id="responseFileOutbound"
+		channel="fileSenderGoodChannel"
+		directory="${var:globals:response_dir}"
+		delete-source-files="true" />
+
+	<!-- Stores the error information from the default error channel into the response directory. -->
+	<channel id="fileSenderErrChannel"/>
+	<bean
+		id="errorToResponseTransformerBean"
+		class="com.vmware.commonagent.cafintegration.errortoresponsetransformer" />
+	<chain
+		id="responseErrorChain"
+		input-channel="errorChannel"
+		output-channel="fileSenderErrChannel">
+
+		<!-- Convert the error information into an error response message. -->
+		<transformer
+			id="errorToResponseTransformer"
+			ref="errorToResponseTransformerBean"/>
+	</chain>
+
+	<!-- Store the response into the responses directory. In normal processing, the responses
+		directory is monitored by the listener process, which sends the responses back to
+		the client. -->
+	<file-outbound-channel-adapter
+		id="responseErrFileOutbound"
+		channel="fileSenderErrChannel"
+		directory="${var:globals:response_dir}"
+		delete-source-files="true" />
+
+	<!-- Provider Registration -->
+	<channel id="providerRegErrorChannelSetterChannel"/>
+	<channel id="providerRegToStringTransformerChannel"/>
+	<publish-subscribe-channel id="providerRegErrorChannel"/>
+
+	<!-- Read the provider registration files -->
+	<file-inbound-channel-adapter
+		id="receiveProviderReg"
+		channel="providerRegErrorChannelSetterChannel"
+		directory="${var:providerHost:provider_reg_dir}"/>
+
+	<!-- Redirect the default error channel because provider registration takes
+		a different error path than request execution -->
+	<header-enricher
+		id="providerRegErrorChannelSetter"
+		input-channel="providerRegErrorChannelSetterChannel"
+		output-channel="providerRegToStringTransformerChannel">
+		<error-channel ref="providerRegErrorChannel"/>
+	</header-enricher>
+
+	<bean
+		id="providerCollectSchemaExecutorBean"
+		class="com.vmware.commonagent.maintegration.providercollectschemaexecutor"/>
+	<chain
+		id="providerRegChain"
+		input-channel="providerRegToStringTransformerChannel"
+		output-channel="nullChannel">
+
+		<!-- Read the provider registration file into memory and pass it through the
+			system as the canonical in-memory message. -->
+		<file-to-string-transformer
+			id="providerRegToStringTransformer"
+			delete-files="false"/>
+
+		<!-- Collect and cache the schema for the provider specified in the message. -->
+		<service-activator
+			id="providerCollectSchemaExecutor"
+			ref="providerCollectSchemaExecutorBean"/>
+	</chain>
+
+	<!-- Because the provider registration processing runs independently of request execution,
+		it currently just logs the error messages. -->
+	<transformer
+		id="providerRegErrorToResponseTransformer"
+		input-channel="providerRegErrorChannel"
+		output-channel="nullChannel"
+		ref="errorToResponseTransformerBean"/>
+
+	<channel id="configenvOutboundChannel"/>
+	<bean
+		id="maIntegrationObjects"
+		class="com.vmware.commonagent.maintegration.integrationobjects" />
+	<bean
+		id="configenvBean"
+		class="com.vmware.commonagent.maintegration.configenv"/>
+	<bean
+		id="persistenceNsdbBean"
+		class="com.vmware.commonagent.maintegration.persistencenamespacedb"/>
+
+	<persistence-inbound-channel-adapter
+		id="persistenceInboundChannelAdapterId"
+		channel="configenvOutboundChannel"
+		ref="persistenceNsdbBean">
+		<poller fixed-rate="300000"/>
+	</persistence-inbound-channel-adapter>
+
+	<configenv-outbound-channel-adapter
+		id="configenvOutboundChannelAdapterId"
+		channel="configenvOutboundChannel"
+		ref="configenvBean"
+		remove-ref="persistenceNsdbBean"/>
+
+	<channel id="persistenceOutboundChannel"/>
+
+	<configenv-inbound-channel-adapter
+		id="configenvInboundChannelAdapterId"
+		channel="persistenceOutboundChannel"
+		ref="configenvBean">
+		<poller fixed-rate="30000"/>
+	</configenv-inbound-channel-adapter>
+
+	<persistence-outbound-channel-adapter
+		id="persistenceOutboundChannelAdapterId"
+		channel="persistenceOutboundChannel"
+		ref="persistenceNsdbBean"/>
+
+	<monitor-inbound-channel-adapter
+		id="monitorInboundChannelAdapterId"
+		channel="nullChannel">
+		<poller fixed-rate="5000"/>
+	</monitor-inbound-channel-adapter>
+</caf:beans>

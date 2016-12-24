@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caf:beans
+   xmlns:caf="http://schemas.vmware.com/caf/schema/fx"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://schemas.vmware.com/caf/schema/fx http://10.25.57.32/caf-downloads/schema/fx/CafIntegration.xsd">
+
+   <import resource="IntBeanConfigFile.xml"/>
+   <import resource="CommAmqpListener-context-common.xml"/>
+
+   <bean
+      id="amqpConnectionFactory"
+      class="com.vmware.caf.comm.integration.amqp.caching.connection.factory"/>
+
+   <rabbit-outbound-channel-adapter
+      id="amqpResponseOutboundChannel"
+      channel="managementMessageOutboundAmqp"
+      amqp-template="amqpTemplate"
+      exchange-name="client.mgmt.direct"
+      routing-key-expression="@headerExprInvoker.toString('replyTo')"
+      mapped-request-headers="caf.msg.*|amqp*" />
+
+   <rabbit-outbound-channel-adapter
+      id="amqpEventOutboundChannel"
+      channel="eventOutFileChannel"
+      amqp-template="amqpTemplate"
+      exchange-name="client.mgmt.event"
+      routing-key="caf.event"
+      mapped-request-headers="caf.msg.*|amqp*" />
+
+   <rabbit-inbound-channel-adapter
+      id="amqpRequestInboundChannel"
+      channel="managementInboundAmqp"
+      queue-name="#{managementMessageQ}"
+      connection-factory="amqpConnectionFactory"
+      error-channel="errorChannel"
+      mapped-request-headers="caf.msg.*|amqp*" />
+
+   <rabbit-template
+      id="amqpTemplate"
+      connection-factory="amqpConnectionFactory"/>
+
+   <rabbit-admin
+      connection-factory="amqpConnectionFactory" />
+
+   <rabbit-queue
+      id="managementMessageQ"
+      name="${var:communication_amqp:reactive_request_queue_id}.mgmt"
+      auto-delete="true"
+      durable="false"/>
+
+   <rabbit-direct-exchange
+      name="agent.mgmt.direct">
+      <rabbit-bindings>
+         <rabbit-binding
+            queue="managementMessageQ"
+            key="${var:communication_amqp:reactive_request_queue_id}.mgmt" />
+      </rabbit-bindings>
+   </rabbit-direct-exchange>
+
+   <rabbit-direct-exchange
+      name="client.mgmt.direct" />
+
+   <rabbit-topic-exchange
+      name="client.mgmt.event" />
+</caf:beans>

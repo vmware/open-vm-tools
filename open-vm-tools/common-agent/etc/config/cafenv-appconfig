@@ -1,0 +1,39 @@
+[globals]
+# Specifies where python is located.
+python_dir=/opt/vmware/caf/python
+
+# Substitute @binDir@ for the value passed in during install
+# Maps to 'bin' in the build output
+bin_dir=@binDir@
+
+# Substitute @libDir@ for the value passed in during install
+# Maps to 'lib' in the build output
+lib_dir=@libDir@
+
+# Substitute @configDir@ for the value passed in during install
+# Maps to 'config' in the build output
+config_dir=@configDir@
+
+# Substitute @inputDir@ for the value passed in during install
+# Maps to 'data/input' in the build output
+input_dir=@inputDir@
+
+# Substitute @outputDir@ for the value passed in during install
+# No mapping in the build output since the output files are created at run-time
+output_dir=@outputDir@
+
+# Substitute @logDir@ for the value passed in during install
+# No mapping in the build output since the log files are created at run-time
+log_dir=@logDir@
+
+# Substitute @invokersDir@ for the value passed in during install
+# Maps to 'invokers' in the build output - Used by the internal providers
+invokers_dir=@invokersDir@
+
+# Substitute @providersDir@ for the value passed in during install
+# Maps to 'providers' in the build output - Used by the internal providers
+providers_dir=@providersDir@
+
+# Substitute @toolsLibDir@ for the value passed in during install
+# Maps to 'lib' in the build output
+tools_lib_dir=@toolsLibDir@

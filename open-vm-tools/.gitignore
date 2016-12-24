@@ -12,6 +12,7 @@ Makefile
 Makefile.in
 aclocal.m4
 config
+!common-agent/etc/config
 config.log
 config.status
 configure

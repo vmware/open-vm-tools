@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caf:beans
+   xmlns:caf="http://schemas.vmware.com/caf/schema/fx"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://schemas.vmware.com/caf/schema/fx http://10.25.57.32/caf-downloads/schema/fx/CafIntegration.xsd">
+
+   <import resource="IntBeanConfigFile.xml"/>
+   <import resource="CommAmqpListener-context-common.xml"/>
+
+   <bean
+      id="tunnelConnectionFactory"
+      class="com.vmware.caf.comm.integration.amqp.secure.caching.connection.factory"/>
+
+   <rabbit-outbound-channel-adapter
+      id="tunnelResponseOutboundChannel"
+      channel="managementMessageOutboundAmqp"
+      amqp-template="amqpTemplate"
+      exchange-name="client.mgmt.direct"
+      routing-key-expression="@headerExprInvoker.toString('replyTo')"
+      mapped-request-headers="caf.msg.*|amqp*" />
+
+   <rabbit-outbound-channel-adapter
+      id="tunnelEventOutboundChannel"
+      channel="eventOutFileChannel"
+      amqp-template="amqpTemplate"
+      exchange-name="client.mgmt.event"
+      routing-key="caf.event" />
+
+   <rabbit-inbound-channel-adapter
+      id="tunnelRequestInboundChannel"
+      channel="managementInboundAmqp"
+      queue-name="${var:communication_amqp:reactive_request_queue_id}.mgmt"
+      connection-factory="tunnelConnectionFactory"
+      error-channel="errorChannel"
+      mapped-request-headers="caf.msg.*|amqp*" />
+
+   <rabbit-template
+      id="amqpTemplate"
+      connection-factory="tunnelConnectionFactory"/>
+
+   <rabbit-admin
+      connection-factory="tunnelConnectionFactory" />
+</caf:beans>
