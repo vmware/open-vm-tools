@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caf:beans
+	xmlns:caf="http://schemas.vmware.com/caf/schema/fx"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://schemas.vmware.com/caf/schema/fx http://10.25.57.32/caf-downloads/schema/fx/CafIntegration.xsd">
+
+	<bean
+		id="integrationObjectFactory"
+		class="com.vmware.commonagent.integration.objectfactory" />
+
+	<bean
+		id="errorChannelBean"
+		class="com.vmware.commonagent.integration.channels.errorchannel" />
+
+	<bean
+		id="nullChannelBean"
+		class="com.vmware.commonagent.integration.channels.nullchannel" />
+		
+</caf:beans>
