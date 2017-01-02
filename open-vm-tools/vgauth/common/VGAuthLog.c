@@ -210,7 +210,7 @@ LogErrorPosixCodeV(int code,
    g_vsnprintf(buf, sizeof buf, fmt, args);
    buf[sizeof buf - 1] = '\0';
 
-#ifdef sun
+#if !defined(__GLIBC__)
    strerror_r(code, errMsg, sizeof errMsg);
    g_warning("[function %s, file %s, line %d], %s, [errno = %d], %s\n",
              func, file, line, buf, code, errMsg);

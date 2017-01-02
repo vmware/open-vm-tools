@@ -63,11 +63,13 @@ ErrErrno2String(Err_Number errorNumber, // IN
 {
    char *p;
 
-#if defined(__linux__) && !defined(__ANDROID__)
+#if defined(__GLIBC__)
    p = strerror_r(errorNumber, buf, bufSize);
 #else
-   p = strerror(errorNumber);
-#endif
+   if (strerror_r(errorNumber, buf, bufSize) != 0)
+      snprintf(buf, bufSize, "unknown error %i", errorNumber);
+   p = buf;
+#endif /* defined __GLIBC__ */
    ASSERT(p != NULL);
    return p;
 }
