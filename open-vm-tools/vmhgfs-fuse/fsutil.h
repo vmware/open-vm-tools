@@ -32,10 +32,6 @@
 #include "hgfsProto.h"
 #include <fuse.h>
 
-#if defined(__FreeBSD__) || defined(__SOLARIS__) || defined(__APPLE__)
-typedef long long loff_t;
-#endif
-
 /*
  * Struct used to pass around attributes.
  * These aren't just the attributes seen in HgfsAttr[V2]; we add a filename
@@ -73,7 +69,7 @@ ssize_t
 HgfsWrite(struct fuse_file_info *fi,
           const char  *buf,
           size_t count,
-          loff_t offset);
+          off64_t offset);
 
 int
 HgfsRename(const char* from, const char* to);
@@ -93,7 +89,7 @@ ssize_t
 HgfsRead(struct fuse_file_info *fi,
          char  *buf,
          size_t count,
-         loff_t offset);
+         off64_t offset);
 
 int
 HgfsSetattr(const char* path,

@@ -547,7 +547,7 @@ static int
 HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
            char *buf,          // OUT: Buffer to copy data into
            size_t count,       // IN:  Number of bytes to read
-           loff_t offset)      // IN:  Offset at which to read
+           off64_t offset)      // IN:  Offset at which to read
 {
    HgfsReq *req;
    HgfsOp opUsed;
@@ -708,11 +708,11 @@ ssize_t
 HgfsRead(struct fuse_file_info *fi,  // IN:  File info struct
          char  *buf,                 // OUT: User buffer to copy data into
          size_t count,               // IN:  Number of bytes to read
-         loff_t offset)              // IN:  Offset at which to read
+         off64_t offset)              // IN:  Offset at which to read
 {
    int result = 0;
    char *buffer = buf;
-   loff_t curOffset = offset;
+   off64_t curOffset = offset;
    size_t nextCount, remainingCount = count;
    uint32 maxIOSize = HgfsMaxIOSize();
 
@@ -769,7 +769,7 @@ static int
 HgfsDoWrite(HgfsHandle handle,       // IN: Handle for the file
             const char *buf,         // IN: Buffer containing data
             size_t count,            // IN: Number of bytes to write
-            loff_t offset)           // IN: Offset to begin writing at
+            off64_t offset)           // IN: Offset to begin writing at
 {
    HgfsReq *req;
    int result = 0;
@@ -893,11 +893,11 @@ ssize_t
 HgfsWrite(struct fuse_file_info *fi,  // IN: File info structure
          const char  *buf,            // OUT: User buffer to copy data into
          size_t count,                // IN:  Number of bytes to read
-         loff_t offset)               // IN:  Offset at which to read
+         off64_t offset)               // IN:  Offset at which to read
 {
    int result;
    const char *buffer = buf;
-   loff_t curOffset = offset;
+   off64_t curOffset = offset;
    size_t nextCount, remainingCount = count;
    ssize_t bytesWritten = 0;
    uint32 maxIOSize = HgfsMaxIOSize();
