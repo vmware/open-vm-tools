@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,6 +27,9 @@
 #include "vmci_infrastructure.h"
 #include "vmciEvent.h"
 #include "vmciKernelAPI.h"
+#if defined(_WIN32)
+#  include "kernelStubsSal.h"
+#endif
 #if defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
@@ -400,6 +403,9 @@ VMCIEventDeliver(VMCIEventMsg *eventMsg)  // IN
       VMCISubscription *cur = VMCIList_Entry(iter, VMCISubscription,
                                              subscriberListItem);
       ASSERT(cur && cur->event == eventMsg->eventData.event);
+#if defined(_WIN32)
+      _Analysis_assume_(cur != NULL);
+#endif
 
       if (cur->runDelayed) {
          VMCIDelayedEventInfo *eventInfo;
@@ -455,6 +461,13 @@ out:
       VMCI_EventData *ed;
       VMCIListItem *iter2;
 
+/*
+ * The below ScanSafe macro makes the analyzer think iter might be NULL and
+ * then dereferenced.
+ */
+#if defined(_WIN32)
+#pragma warning(suppress: 28182)
+#endif
       VMCIList_ScanSafe(iter, iter2, &noDelayList) {
          VMCIEventRef *eventRef = VMCIList_Entry(iter, VMCIEventRef,
                                                  listItem);
@@ -563,13 +576,15 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
       /*
        * In the vmkernel we defer delivery of events to a helper world.  This
        * makes the event delivery more consistent across hosts and guests with
-       * regard to which locks are held.  Memory access events are an exception
-       * to this, since clients need to know immediately that the device
-       * memory is disabled (if we delay such events, then clients may be
-       * notified too late).
+       * regard to which locks are held.  Memory access and guest paused events
+       * are an exception to this, since clients need to know immediately that
+       * the device memory is disabled (if we delay such events, then clients
+       * may be notified too late).
        */
       if (VMCI_EVENT_MEM_ACCESS_ON == event ||
-          VMCI_EVENT_MEM_ACCESS_OFF == event) {
+          VMCI_EVENT_MEM_ACCESS_OFF == event ||
+          VMCI_EVENT_GUEST_PAUSED == event ||
+          VMCI_EVENT_GUEST_UNPAUSED == event) {
          /*
           * Client must expect to get such events synchronously, and should
           * perform its locking accordingly.  If it can't handle this, then

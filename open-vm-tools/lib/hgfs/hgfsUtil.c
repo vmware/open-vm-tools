@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -109,7 +109,7 @@ int
 HgfsConvertFromNtTimeNsec(struct timespec *unixTime, // OUT: Time in UNIX format
 			  uint64 ntTime) // IN: Time in Windows NT format
 {
-#if !defined(VM_X86_64) && !defined(__arm__)
+#ifdef __i386__
    uint32 sec;
    uint32 nsec;
 
@@ -134,7 +134,7 @@ HgfsConvertFromNtTimeNsec(struct timespec *unixTime, // OUT: Time in UNIX format
       return -1;
    }
 
-#if !defined(VM_X86_64) && !defined(__arm__)
+#ifdef __i386__
    Div643232(ntTime - UNIX_EPOCH, 10000000, &sec, &nsec);
    unixTime->tv_sec = sec;
    unixTime->tv_nsec = nsec * 100;

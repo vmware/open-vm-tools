@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -102,7 +102,7 @@ XdrUtil_Deserialize(const void *data,  // IN
    ASSERT(dest != NULL);
 
    xdrmem_create(&xdrs, (char *) data, dataLen, XDR_DECODE);
-   ret = (Bool) proc(&xdrs, dest);
+   ret = (Bool) proc(&xdrs, dest, 0);
    xdr_destroy(&xdrs);
 
    if (!ret) {

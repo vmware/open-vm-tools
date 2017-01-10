@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,11 +66,11 @@
 #include "su.h"
 #include "posix.h"
 #include "file.h"
-#include "util_shared.h"
 #include "escape.h"
 #include "base64.h"
 #include "unicode.h"
 #include "posix.h"
+#include "random.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -93,7 +93,7 @@ struct UtilVector {
  *
  * Util_Init --
  *
- *	Opportunity to sanity check things
+ *      Opportunity to sanity check things
  *
  * Results:
  *	Bool - TRUE (this should never fail)
@@ -117,11 +117,11 @@ Util_Init(void)
       char buf[2] = { 'x', 'x' };
       int rv;
 
-      rv = Str_Snprintf(buf, sizeof(buf), "a");
+      rv = Str_Snprintf(buf, sizeof buf, "a");
       ASSERT(rv == 1);
       ASSERT(!strcmp(buf, "a"));
 
-      rv = Str_Snprintf(buf, sizeof(buf), "ab");
+      rv = Str_Snprintf(buf, sizeof buf, "ab");
       ASSERT(rv == -1);
       ASSERT(!strcmp(buf, "a"));
    }
@@ -251,6 +251,124 @@ Util_HashString(const char *str)  // IN:
    }
 
    return hash;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  CRC_Compute --
+ *
+ *      computes the CRC of a block of data
+ *
+ * Results:
+ *
+ *      CRC code
+ *
+ * Side effects:
+ *      Sets up the crc table if it hasn't already been computed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+UtilCRCMakeTable(uint32 crcTable[])
+{
+   uint32 c;
+   int n, k;
+
+   for (n = 0; n < 256; n++) {
+      c = (uint32) n;
+      for (k = 0; k < 8; k++) {
+         if (c & 1) {
+            c = 0xedb88320L ^ (c >> 1);
+         } else {
+            c = c >> 1;
+         }
+      }
+      crcTable[n] = c;
+   }
+}
+
+static INLINE_SINGLE_CALLER uint32
+UtilCRCUpdate(uint32 crc,
+              const uint8 *buf,
+              int len)
+{
+   uint32 c = crc;
+   int n;
+   static uint32 crcTable[256];
+   static int crcTableComputed = 0;
+
+   if (!crcTableComputed) {
+      UtilCRCMakeTable(crcTable);
+
+      crcTableComputed = 1;
+   }
+
+   for (n = 0; n < len; n++) {
+      c = crcTable[(c ^ buf[n]) & 0xff] ^ (c >> 8);
+   }
+
+   return c;
+}
+
+uint32
+CRC_Compute(const uint8 *buf,
+            int len)
+{
+   return UtilCRCUpdate(0xffffffffL, buf, len) ^ 0xffffffffL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_FastRand --
+ *
+ *      Historical-name wrapper around Random_Simple.
+ *      Deprecated: use Random_Fast, or Random_Simple directly.
+ *
+ * Results:
+ *      A random number.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+uint32
+Util_FastRand(uint32 seed)
+{
+   return Random_Simple(seed);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_Throttle --
+ *
+ *   Use for throttling of warnings.
+ *
+ * Results:
+ *    Will return TRUE for an increasingly sparse set of counter values:
+ *    1, 2, ..., 100, 200, 300, ..., 10000, 20000, 30000, ..., .
+ *
+ * Side effects:
+ *   None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Util_Throttle(uint32 count)  // IN:
+{
+   return count <     100                          ||
+         (count <   10000 && count %     100 == 0) ||
+         (count < 1000000 && count %   10000 == 0) ||
+                             count % 1000000 == 0;
 }
 
 
@@ -437,7 +555,9 @@ int
 Util_GetOpt(int argc,                  // IN
             char * const *argv,        // IN
             const struct option *opts, // IN
-            Util_NonOptMode mode)      // IN
+            Util_NonOptMode mode,      // IN
+            Bool manualErrorHandling)  // IN: True if the caller wants to handle error reporting.
+
 {
    int ret = -1;
 
@@ -449,7 +569,7 @@ Util_GetOpt(int argc,                  // IN
     * an optional argument.
     */
    const size_t maxCharsPerShortOption = 3;
-   const size_t modePrefixSize = 1;
+   const size_t modePrefixSize = 2; // "[+-][:]"
 
    size_t n = 0;
    size_t shortOptStringSize;
@@ -493,6 +613,7 @@ Util_GetOpt(int argc,                  // IN
       struct option *longOptOut = longOpts;
       char *shortOptOut = shortOptString;
 
+      // How to handle non-option arguments.
       switch (mode) {
          case UTIL_NONOPT_STOP:
             *shortOptOut++ = '+';
@@ -502,6 +623,14 @@ Util_GetOpt(int argc,                  // IN
             break;
          default:
             break;
+      }
+
+      if (manualErrorHandling) {
+         /*
+          * Make getopt return ':' instead of '?' if required arguments to
+          * options are missing.
+          */
+         *shortOptOut++ = ':';
       }
 
       for (i = 0; i < n; i++) {
@@ -663,14 +792,13 @@ Util_DeriveFileName(const char *source, // IN: path to dict file (incl filename)
       if (!Util_IsAbsolutePath(name) && strlen(path) > 0 &&
           strcmp(path, ".") != 0) {
 	 if (ext == NULL) {
-	    returnResult = Str_Asprintf(NULL, "%s%s%s",
-					path, DIRSEPS, name);
+	    returnResult = Str_SafeAsprintf(NULL, "%s%s%s",
+                                            path, DIRSEPS, name);
 	 } else {
-	    returnResult = Str_Asprintf(NULL, "%s%s%s.%s",
-				        path, DIRSEPS, name, ext);
+            returnResult = Str_SafeAsprintf(NULL, "%s%s%s.%s",
+                                            path, DIRSEPS, name, ext);
 	 }
       } else {
-
 	 /*
           * Path is non-existent or is just the current directory (or the
 	  * result from the dictionary is an absolute path), so we
@@ -680,9 +808,9 @@ Util_DeriveFileName(const char *source, // IN: path to dict file (incl filename)
 	  */
 
 	 if (ext == NULL) {
-	    returnResult = Str_Asprintf(NULL, "%s", name);
+            returnResult = Util_SafeStrdup(name);
 	 } else {
-	    returnResult = Str_Asprintf(NULL, "%s.%s", name, ext);
+            returnResult = Str_SafeAsprintf(NULL, "%s.%s", name, ext);
 	 }
       }
       free(path);
@@ -701,16 +829,15 @@ Util_DeriveFileName(const char *source, // IN: path to dict file (incl filename)
 
    /* Combine disk path with parent path */
    if (strlen(path) > 0 && strcmp(path, ".") != 0) {
-      returnResult = Str_Asprintf(NULL, "%s%s%s.%s",
-				  path, DIRSEPS, base, ext);
+      returnResult = Str_SafeAsprintf(NULL, "%s%s%s.%s",
+                                      path, DIRSEPS, base, ext);
    } else {
-
       /*
        * Path is non-existent or is just the current directory, so we
        * just need to use the filename (using the DIRSEPS method might
        * result in something undesireable like "\foobar.vmdk")
        */
-      returnResult = Str_Asprintf(NULL, "%s.%s", base, ext);
+      returnResult = Str_SafeAsprintf(NULL, "%s.%s", base, ext);
    }
    free(path);
    free(base);

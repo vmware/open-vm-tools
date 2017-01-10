@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,6 +31,14 @@
 #include "vmware.h"
 #include "vmware/guestrpc/vmbackup.h"
 #include "vmware/tools/plugin.h"
+#if !defined(_WIN32)
+#include "vmware/tools/threadPool.h"
+#endif
+
+/*
+ * The default timeout in seconds for guest OS quiescing process
+ */
+#define GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC     (15 * 60)
 
 typedef enum {
    VMBACKUP_STATUS_PENDING,
@@ -38,6 +46,13 @@ typedef enum {
    VMBACKUP_STATUS_CANCELED,
    VMBACKUP_STATUS_ERROR
 } VmBackupOpStatus;
+
+typedef enum {
+   VMBACKUP_FREEZE_PENDING,
+   VMBACKUP_FREEZE_FINISHED,
+   VMBACKUP_FREEZE_CANCELED,
+   VMBACKUP_FREEZE_ERROR
+} VmBackupFreezeStatus;
 
 typedef enum {
    VMBACKUP_SCRIPT_FREEZE,
@@ -48,9 +63,11 @@ typedef enum {
 typedef enum {
    VMBACKUP_MSTATE_IDLE,
    VMBACKUP_MSTATE_SCRIPT_FREEZE,
+   VMBACKUP_MSTATE_SYNC_FREEZE_WAIT,
    VMBACKUP_MSTATE_SYNC_FREEZE,
    VMBACKUP_MSTATE_SYNC_THAW,
    VMBACKUP_MSTATE_SCRIPT_THAW,
+   VMBACKUP_MSTATE_COMPLETE_WAIT,
    VMBACKUP_MSTATE_SCRIPT_ERROR,
    VMBACKUP_MSTATE_SYNC_ERROR
 } VmBackupMState;
@@ -70,17 +87,25 @@ typedef struct VmBackupOp {
 
 
 struct VmBackupSyncProvider;
+struct VmBackupSyncCompleter;
 
 /**
  * Holds information about the current state of the backup operation.
  * Don't modify the fields directly - rather, use VmBackup_SetCurrentOp,
  * which does most of the handling needed by users of the state machine.
+ *
+ * NOTE: The thread for freeze operation modifies currentOp in BackupState
+ *       which is also accessed by the AsyncCallback driving the state
+ *       machine (run by main thread). Also, gcc might generate two
+ *       instructions for writing a 64-bit value. Therefore, protect the
+ *       access to currentOp and related fields using opLock mutex.
  */
 
 typedef struct VmBackupState {
    ToolsAppCtx   *ctx;
    VmBackupOp    *currentOp;
    const char    *currentOpName;
+   GStaticMutex   opLock; // See note above
    char          *volumes;
    char          *snapshots;
    guint          pollPeriod;
@@ -96,7 +121,7 @@ typedef struct VmBackupState {
    Bool           execScripts;
    Bool           enableNullDriver;
    Bool           needsPriv;
-   char          *scriptArg;
+   gchar         *scriptArg;
    guint          timeout;
    gpointer       clientData;
    void          *scripts;
@@ -104,11 +129,19 @@ typedef struct VmBackupState {
    ssize_t        currentScript;
    gchar         *errorMsg;
    VmBackupMState machineState;
+   VmBackupFreezeStatus freezeStatus;
    struct VmBackupSyncProvider *provider;
+   struct VmBackupSyncCompleter *completer;
+   gint           vssBackupContext;
+   gint           vssBackupType;
+   Bool           vssBootableSystemState;
+   Bool           vssPartialFileSupport;
+   Bool           vssUseDefault;
 } VmBackupState;
 
 typedef Bool (*VmBackupCallback)(VmBackupState *);
 typedef Bool (*VmBackupProviderCallback)(VmBackupState *, void *clientData);
+typedef Bool (*VmBackupCompleterCallback)(VmBackupState *, void *clientData);
 
 
 /**
@@ -118,11 +151,28 @@ typedef Bool (*VmBackupProviderCallback)(VmBackupState *, void *clientData);
  */
 
 typedef struct VmBackupSyncProvider {
+#if defined(_WIN32)
    VmBackupProviderCallback start;
+#else
+   ToolsCorePoolCb start;
+#endif
    VmBackupProviderCallback snapshotDone;
    void (*release)(struct VmBackupSyncProvider *);
    void *clientData;
 } VmBackupSyncProvider;
+
+/**
+ * Defines the interface between the state machine and the implementation
+ * of the "sync completer": either the VSS completer or the sync driver
+ * completer, currently.
+ */
+
+typedef struct VmBackupSyncCompleter {
+   VmBackupCompleterCallback start;
+   VmBackupCompleterCallback snapshotCompleted;
+   void (*release)(struct VmBackupSyncCompleter *);
+   void *clientData;
+} VmBackupSyncCompleter;
 
 
 /**
@@ -147,10 +197,16 @@ VmBackup_SetCurrentOp(VmBackupState *state,
    ASSERT(state != NULL);
    ASSERT(state->currentOp == NULL);
    ASSERT(currentOpName != NULL);
+
+   g_static_mutex_lock(&state->opLock);
+
    state->currentOp = op;
    state->callback = callback;
    state->currentOpName = currentOpName;
-   state->forceRequeue = (callback != NULL && state->currentOp == NULL);
+   state->forceRequeue = (callback != NULL && op == NULL);
+
+   g_static_mutex_unlock(&state->opLock);
+
    return (op != NULL);
 }
 
@@ -221,6 +277,9 @@ VmBackup_NewSyncDriverOnlyProvider(void);
 #if defined(G_PLATFORM_WIN32)
 VmBackupSyncProvider *
 VmBackup_NewVssProvider(void);
+
+VmBackupSyncCompleter *
+VmBackup_NewVssCompleter(VmBackupSyncProvider *provider);
 
 void
 VmBackup_UnregisterSnapshotProvider(void);

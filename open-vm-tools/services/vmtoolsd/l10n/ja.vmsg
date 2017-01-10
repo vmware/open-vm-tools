@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+# Copyright (C) 2010 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -26,7 +26,7 @@ cmdline.blockfd.fd = "fd"
 
 cmdline.commonpath = "共通プラグイン ディレクトリのパスです。"
 
-cmdline.config = "指定されたパスで構成ファイルを使用します。"
+cmdline.config = "指定されたパスで設定ファイルを使用します。"
 
 cmdline.debug = "指定されたプラグインを使用して、デバッグ モードで実行します。"
 
@@ -38,7 +38,7 @@ cmdline.install = "Service Control Manager を使ってサービスをインス�
 
 cmdline.install.args = "args"
 
-cmdline.kill = "ツール サービスの実行中のインスタンスを停止します。"
+cmdline.kill = "Tools Service の実行中のインスタンスを停止します。"
 
 cmdline.log = "無視されます。後方互換性のために保持されています。"
 

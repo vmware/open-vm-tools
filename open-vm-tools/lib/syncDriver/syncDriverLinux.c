@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +32,6 @@
 #include <sys/ioctl.h>
 #include "debug.h"
 #include "dynbuf.h"
-#include "strutil.h"
 #include "syncDriverInt.h"
 
 /* Out toolchain headers are somewhat outdated and don't define these. */
@@ -70,8 +69,11 @@ LinuxFiThaw(const SyncDriverHandle handle)
    LinuxDriver *sync = (LinuxDriver *) handle;
    SyncDriverErr err = SD_SUCCESS;
 
-   for (i = 0; i < sync->fdCnt; i++) {
-      if (ioctl(sync->fds[i], FITHAW) == -1) {
+   /*
+    * Thaw in the reverse order of freeze
+    */
+   for (i = sync->fdCnt; i > 0; i--) {
+      if (ioctl(sync->fds[i-1], FITHAW) == -1) {
          err = SD_ERROR;
       }
    }
@@ -98,8 +100,11 @@ LinuxFiClose(SyncDriverHandle handle)
    LinuxDriver *sync = (LinuxDriver *) handle;
    size_t i;
 
-   for (i = 0; i < sync->fdCnt; i++) {
-      close(sync->fds[i]);
+   /*
+    * Close in the reverse order of open
+    */
+   for (i = sync->fdCnt; i > 0; i--) {
+      close(sync->fds[i-1]);
    }
    free(sync->fds);
    free(sync);
@@ -115,7 +120,12 @@ LinuxFiClose(SyncDriverHandle handle)
  * If the first attempt at using the ioctl fails, assume that it doesn't exist
  * and return SD_UNAVAILABLE, so that other means of freezing are tried.
  *
- * @param[in]  paths    Paths to freeze (colon-separated).
+ * NOTE: This function performs two system calls open() and ioctl(). We have
+ * seen open() being slow with NFS mount points at times and ioctl() being
+ * slow when guest is performing significant IO. Therefore, caller should
+ * consider running this function in a separate thread.
+ *
+ * @param[in]  paths    List of paths to freeze.
  * @param[out] handle   Handle to use for thawing.
  *
  * @return A SyncDriverErr.
@@ -124,13 +134,10 @@ LinuxFiClose(SyncDriverHandle handle)
  */
 
 SyncDriverErr
-LinuxDriver_Freeze(const char *paths,
+LinuxDriver_Freeze(const GSList *paths,
                    SyncDriverHandle *handle)
 {
-   char *path;
-   int fd;
-   size_t count = 0;
-   unsigned int index = 0;
+   ssize_t count = 0;
    Bool first = TRUE;
    DynBuf fds;
    LinuxDriver *sync = NULL;
@@ -149,11 +156,20 @@ LinuxDriver_Freeze(const char *paths,
    sync->driver.close = LinuxFiClose;
 
    /*
+    * Ensure we did not get an empty list
+    */
+   VERIFY(paths != NULL);
+
+   /*
     * Iterate through the requested paths. If we get an error for the first
     * path, and it's not EPERM, assume that the ioctls are not available in
     * the current kernel.
     */
-   while ((path = StrUtil_GetNextToken(&index, paths, ":")) != NULL) {
+   while (paths != NULL) {
+      int fd;
+      const char *path = paths->data;
+      Debug(LGPFX "opening path '%s'.\n", path);
+      paths = g_slist_next(paths);
       fd = open(path, O_RDONLY);
       if (fd == -1) {
          switch (errno) {
@@ -163,7 +179,6 @@ LinuxDriver_Freeze(const char *paths,
              * as users with permission 700, so just ignore these.
              */
             Debug(LGPFX "cannot access mounted directory '%s'.\n", path);
-            free(path);
             continue;
 
          case EIO:
@@ -173,18 +188,17 @@ LinuxDriver_Freeze(const char *paths,
              * this should be enough. Just skip.
              */
             Debug(LGPFX "I/O error reading directory '%s'.\n", path);
-            free(path);
             continue;
 
          default:
             Debug(LGPFX "failed to open '%s': %d (%s)\n",
                   path, errno, strerror(errno));
             err = SD_ERROR;
-            free(path);
             goto exit;
          }
       }
 
+      Debug(LGPFX "freezing path '%s'.\n", path);
       if (ioctl(fd, FIFREEZE) == -1) {
          int ioctlerr = errno;
          /*
@@ -198,11 +212,12 @@ LinuxDriver_Freeze(const char *paths,
           * bind mounts).
           */
          close(fd);
+         Debug(LGPFX "freeze on '%s' returned: %d (%s)\n",
+               path, ioctlerr, strerror(ioctlerr));
          if (ioctlerr != EBUSY && ioctlerr != EOPNOTSUPP) {
             Debug(LGPFX "failed to freeze '%s': %d (%s)\n",
                   path, ioctlerr, strerror(ioctlerr));
             err = first && ioctlerr == ENOTTY ? SD_UNAVAILABLE : SD_ERROR;
-            free(path);
             break;
          }
       } else {
@@ -212,7 +227,6 @@ LinuxDriver_Freeze(const char *paths,
                Warning(LGPFX "failed to thaw '%s': %d (%s)\n",
                        path, errno, strerror(errno));
             }
-            free(path);
             close(fd);
             err = SD_ERROR;
             break;
@@ -220,7 +234,6 @@ LinuxDriver_Freeze(const char *paths,
          count++;
       }
 
-      free(path);
       first = FALSE;
    }
 

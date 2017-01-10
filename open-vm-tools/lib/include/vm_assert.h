@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -103,10 +103,8 @@ extern "C" {
 
 #if !defined VMM || defined MONITOR_APP // {
 
-#if defined VMKPANIC
-
+#if defined (VMKPANIC) 
 #include "vmk_assert.h"
-
 #else /* !VMKPANIC */
 #define _ASSERT_PANIC(name) \
            Panic(_##name##Fmt "\n", __FILE__, __LINE__)
@@ -335,12 +333,19 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
  * generate a warning.
  */
 
+#if defined(_Static_assert) || defined(__cplusplus) ||                         \
+    !defined(__GNUC__) || __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 6)
 #define ASSERT_ON_COMPILE(e) \
    do { \
       enum { AssertOnCompileMisused = ((e) ? 1 : -1) }; \
       UNUSED_TYPE(typedef char AssertOnCompileFailed[AssertOnCompileMisused]); \
    } while (0)
-
+#else
+#define ASSERT_ON_COMPILE(e) \
+   do {                      \
+      _Static_assert(e, #e); \
+   } while (0);
+#endif
 
 /*
  * To put an ASSERT_ON_COMPILE() outside a function, wrap it

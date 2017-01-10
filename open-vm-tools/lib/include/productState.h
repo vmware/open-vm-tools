@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,13 +44,17 @@ typedef enum {
    PRODUCT_CVP = 1 << 5,
    PRODUCT_FUSION = 1 << 6,
    PRODUCT_VIEW = 1 << 7,
+   PRODUCT_VMRC = 1 << 8,
+   PRODUCT_GANTRY = 1 << 9,
    /* etc */
 } Product;
 typedef uint64 ProductMask;
 #define PRODUCTMASK_HOSTED (PRODUCT_WORKSTATION |\
                             PRODUCT_PLAYER      |\
                             PRODUCT_CVP         |\
-                            PRODUCT_FUSION)
+                            PRODUCT_FUSION      |\
+                            PRODUCT_VMRC        |\
+                            PRODUCT_GANTRY)
 
 typedef uint64 ProductCaps;
 /*
@@ -85,12 +89,15 @@ void ProductState_Set(Product product, const char *name, const char *version,
 
 Product ProductState_GetProduct(void);
 Bool ProductState_IsProduct(ProductMask product);
+Bool ProductState_AllowUnlicensedVMX(void);
 const char *ProductState_GetName(void);
 const char *ProductState_GetVersion(void);
 unsigned int ProductState_GetBuildNumber(void);
 ProductCaps ProductState_GetCapabilities(void);
 const char *ProductState_GetLicenseName(void);
 const char *ProductState_GetLicenseVersion(void);
+void ProductState_SetConfigName(const char *configName);
+const char *ProductState_GetConfigName(void);
 /* etc */
 
 const char *ProductState_GetCompilationOption(void);
@@ -101,6 +108,9 @@ char *ProductState_GetRegistryPathForProduct(const char *productName);
 const char *ProductState_GetBundleIdentifier(void);
 void ProductState_GetVersionNumber(unsigned int *major, unsigned int *minor,
                                    unsigned int *patchLevel);
+
+void ProductState_SetHelp(Product helpProduct, const char *helpVersion);
+void ProductState_GetHelp(Product *helpProduct, const char **helpVersion);
 
 char *ProductState_Serialize(ProductStateSerializationFlags flags);
 ProductStateSerializationFlags ProductState_Deserialize(const char *state);

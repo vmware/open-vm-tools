@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,9 +38,8 @@ Bool Base64_ChunkDecode(char const *src, size_t inSize,
 Bool Base64_ValidEncoding(char const *src, size_t srcLength);
 size_t Base64_EncodedLength(uint8 const *src, size_t srcLength);
 size_t Base64_DecodedLength(char const *src, size_t srcLength);
-Bool Base64_EasyEncode(const uint8 *src, size_t srcLength,
-                       char **target);
-Bool Base64_EasyDecode(const char *src,
-                       uint8 **target, size_t *targSize);
+Bool Base64_EasyEncode(const uint8 *src, size_t srcLength, char **target);
+Bool Base64_EasyDecode(const char *src, uint8 **target, size_t *targSize);
+Bool Base64_DecodeFixed(const char *src, char *outBuf, size_t outBufSize);
 
 #endif

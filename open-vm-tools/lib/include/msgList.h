@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -64,7 +64,7 @@ void MsgList_AppendStr(MsgList **tail, const char *id);
 void MsgList_AppendMsgList(MsgList **tail, MsgList *messages);
 
 void MsgList_Log(const MsgList *messages);
-char *MsgList_ToString(const MsgList *messages);
+char *MsgList_ToEnglishString(const MsgList *messages);
 MsgList *MsgList_Copy(const MsgList *src);
 void MsgList_Free(MsgList *messages);
 

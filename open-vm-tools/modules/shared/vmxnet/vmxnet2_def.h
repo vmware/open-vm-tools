@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -173,28 +173,24 @@ typedef struct Vmxnet2_TxRingEntry {
  * functions below to be used.
  */
 typedef struct Vmxnet2_RxRingInfo {
-#ifdef VMX86_VMX
-   PA                      basePA;     /* starting PA of the ring */
-#else
+#ifndef VMX86_VMX
    Vmxnet2_RxRingEntry    *base;       /* starting addr of the ring */
 #endif
    uint32                  nicNext;    /* next entry to use in the ring */
    uint32                  ringLength; /* # of entries in the ring */
-   PA                      startPA;    /* PA of the starting addr of the ring */
+   PA                      startPA;    /* starting addr of the ring */
 #ifdef VMX86_DEBUG
    const char             *name;
 #endif
 } Vmxnet2_RxRingInfo;
 
 typedef struct Vmxnet2_TxRingInfo {
-#ifdef VMX86_VMX
-   PA                      basePA;     /* starting PA of the ring */
-#else
+#ifndef VMX86_VMX
    Vmxnet2_TxRingEntry    *base;       /* starting addr of the ring */
 #endif
    uint32                  nicNext;    /* next entry to use in the ring */
    uint32                  ringLength; /* # of entries in the ring */
-   PA                      startPA;    /* PA of the starting addr of the ring */
+   PA                      startPA;    /* starting addr of the ring */
 #ifdef VMX86_DEBUG
    const char             *name;
 #endif
@@ -327,13 +323,16 @@ typedef struct Vmxnet2_DriverData {
    Vmxnet2_DriverStats	stats;
 } Vmxnet2_DriverData;
 
+#ifdef VMX86_SERVER
 /* 
  * Shared between VMM and Vmkernel part of vmxnet2 to optimize action posting
  * VMM writes 1 (don't post) or 0 (okay to post) and vmk reads this.
  */
 typedef struct VmxnetVMKShared {
-   uint32  dontPostActions;  
+   uint32    dontPostActions;
+   PciHandle pciHandle;
 } VmxnetVMKShared;
+#endif
 
 #if defined VMKERNEL
 

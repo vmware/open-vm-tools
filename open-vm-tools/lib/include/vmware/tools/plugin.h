@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,6 +67,20 @@
    g_source_set_callback(__src, (GSourceFunc) (cb), (data), (destroy)); \
    g_source_attach(__src, g_main_loop_get_context((ctx)->mainLoop));    \
 } while (0)
+
+/**
+ * Checks if the Tools service is main (system) service or not.
+ * @param[in]  ctx     The application context or tools service state.
+ */
+#define TOOLS_IS_MAIN_SERVICE(ctx) (strcmp((ctx)->name, \
+                                           VMTOOLS_GUEST_SERVICE) == 0)
+
+/**
+ * Checks if the Tools service is user (logged in user) service or not.
+ * @param[in]  ctx     The application context or tools service state.
+ */
+#define TOOLS_IS_USER_SERVICE(ctx) (strcmp((ctx)->name, \
+                                           VMTOOLS_USER_SERVICE) == 0)
 
 /* Indentation levels for the state log function below. */
 #define TOOLS_STATE_LOG_ROOT        0

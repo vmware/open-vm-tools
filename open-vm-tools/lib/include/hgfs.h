@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,6 +78,27 @@
 
 /* Maximum number of bytes to read or write to a V3 server in a single hgfs packet. */
 #define HGFS_LARGE_IO_MAX (HGFS_LARGE_IO_MAX_PAGES * 4096)
+
+/*
+ * File type
+ *
+ * File types, used in HgfsAttr. We support regular files,
+ * directories, and symlinks.
+ *
+ * Changing the order of this enum will break the protocol; new types
+ * should be added at the end.
+ *
+ *
+ * This definition is used in some places that don't include
+ * hgfsProto.h, which is why it is here instead of there.
+ */
+typedef enum {
+   HGFS_FILE_TYPE_REGULAR,
+   HGFS_FILE_TYPE_DIRECTORY,
+   HGFS_FILE_TYPE_SYMLINK,
+} HgfsFileType;
+
+
 
 /*
  * Open mode

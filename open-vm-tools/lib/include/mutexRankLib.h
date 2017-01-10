@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,15 +36,6 @@
  */
 
 /*
- * workerLib default completion lock
- *
- * Used for workerLib callers who don't provide their own lock. Held
- * around arbitrary completion callbacks so it probably makes sense to
- * be of a low rank.
- */
-#define RANK_workerLibCmplLock      RANK_libLockBase
-
-/*
  * hostDeviceInfo HAL lock
  *
  * Must be < vmhs locks since this is held around the RANK_vmhsHDILock
@@ -76,6 +67,46 @@
 #define RANK_vigorOfflineLock        (RANK_libLockBase + 0x4410)
 
 /*
+ * filtlib (must be > vigor and < disklib and workercmlp, PR 1340298)
+ */
+#define RANK_filtLibPollLock         (RANK_vigorOfflineLock + 1)
+
+/*
+ * filtib lock which protects a disk's allocation bitmap state.
+ * Must be > filtLibPollLock, as it could be acquire with the poll lock held.
+ * And as evidenced by PR1437159, it must also be lower than workerLibCmplLock.
+ */
+#define RANK_filtLibAllocBitmapLock (RANK_filtLibPollLock + 1)
+
+/*
+ * remoteUSB (must be < workerCmpl)
+ */
+#define RANK_remoteUSBGlobalLock (RANK_filtLibAllocBitmapLock + 1)
+
+/*
+ * workerLib default completion lock
+ *
+ * Used for workerLib callers who don't provide their own lock. Held
+ * around arbitrary completion callbacks so it makes sense to be of
+ * a low rank.
+ *
+ * Must be > RANK_vigorOfflineLock because we may queue work in Vigor
+ * offline.
+ *
+ * Must be < RANK_nfcLibLock, because NFC uses AIO Generic to perform
+ * async writes to the virtual disk.
+ *
+ * Must be > RANK_filtLibPollLock so that filtlib timers can wait
+ * for queued work.
+ *
+ * Must be > RANK_filtLibAllocBitmapLock due to PR1437159.
+ *
+ * Must be > RANK_remoteUSBGlobalLock so that virtual CCID can wait for
+ * queued work.
+ */
+#define RANK_workerLibCmplLock       (RANK_remoteUSBGlobalLock + 1)
+
+/*
  * NFC lib lock
  */
 #define RANK_nfcLibLock              (RANK_libLockBase + 0x4505)
@@ -89,6 +120,7 @@
  * disklib and I/O related locks
  */
 #define RANK_diskLibLock             (RANK_libLockBase + 0x5001)
+#define RANK_digestLibLock           (RANK_libLockBase + 0x5004)
 #define RANK_nasPluginLock           (RANK_libLockBase + 0x5007)
 #define RANK_nasPluginMappingLock    (RANK_libLockBase + 0x5008)
 #define RANK_diskLibPluginLock       (RANK_libLockBase + 0x5010)
@@ -98,7 +130,16 @@
 #define RANK_scsiStateLock           (RANK_libLockBase + 0x5060)
 #define RANK_parInitLock             (RANK_libLockBase + 0x5070)
 #define RANK_namespaceLock           (RANK_libLockBase + 0x5080)
+#define RANK_objLibInitLock          (RANK_libLockBase + 0x5085)
 #define RANK_vvolLibLock             (RANK_libLockBase + 0x5090)
+
+/*
+ * Persistent-memory logical and hardware  management locks
+ */
+/* The nvdimm layer is the hardware layer */
+#define RANK_nvdHandleLock          (RANK_libLockBase + 0x5300)
+/* The pmem layer is the logical layer */
+#define RANK_pmemHandleLock         (RANK_libLockBase + 0x5310)
 
 /*
  * VMDB range:

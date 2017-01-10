@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -117,10 +117,10 @@ typedef struct {
  * returned by said APIs.
  */
 EXTERN NetUtilIfTableEntry netUtilIfTable[];
-#   endif // ifdef DUMMY_NETUTIL
 
 int   NetUtil_GetIfIndex(const char *ifName);
 char *NetUtil_GetIfName(int ifIndex);
+#   endif // ifdef DUMMY_NETUTIL
 #endif // if defined(linux)
 
 size_t NetUtil_GetHardwareAddress(int ifIndex,         // IN

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,19 +37,22 @@
 #include "vmci_defs.h"
 #include "vmware/guestrpc/tclodefs.h"
 
+/* Describe which socket API call failed */
 typedef enum {
    SOCKERR_SUCCESS,
-   SOCKERR_GENERIC,
+   SOCKERR_VMCI_FAMILY,
+   SOCKERR_STARTUP,
+   SOCKERR_SOCKET,
    SOCKERR_CONNECT,
-   SOCKERR_BIND,
-   SOCKERR_EACCESS
-} SockConnError;
+   SOCKERR_BIND
+} ApiError;
 
 #if defined(_WIN32)
 
 #define SYSERR_EADDRINUSE        WSAEADDRINUSE
 #define SYSERR_EACCESS           WSAEACCES
 #define SYSERR_EINTR             WSAEINTR
+#define SYSERR_ECONNRESET        WSAECONNRESET
 
 typedef int socklen_t;
 
@@ -58,6 +61,7 @@ typedef int socklen_t;
 #define SYSERR_EADDRINUSE        EADDRINUSE
 #define SYSERR_EACCESS           EACCES
 #define SYSERR_EINTR             EINTR
+#define SYSERR_ECONNRESET        ECONNRESET
 
 typedef int SOCKET;
 #define SOCKET_ERROR              (-1)
@@ -72,7 +76,8 @@ void Socket_Close(SOCKET sock);
 SOCKET Socket_ConnectVMCI(unsigned int cid,
                           unsigned int port,
                           gboolean isPriv,
-                          SockConnError *outError);
+                          ApiError *outApiErr,
+                          int *outSysErr);
 gboolean Socket_Recv(SOCKET fd,
                      char *buf,
                      int len);

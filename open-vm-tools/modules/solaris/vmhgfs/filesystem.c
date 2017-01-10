@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -288,6 +288,13 @@ HgfsMount(struct vfs *vfsp,     // IN: Filesystem to mount
     */
    if (mountData->magic != HGFS_MAGIC) {
       DEBUG(VM_DEBUG_FAIL, "HgfsMount: received invalid magic value: %x\n",
+            mountData->magic);
+      ret = EINVAL;
+      goto out;
+   }
+
+   if (mountData->size != sizeof *mountData) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsMount: received invalid size value: %x\n",
             mountData->magic);
       ret = EINVAL;
       goto out;

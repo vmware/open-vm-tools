@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -232,7 +232,6 @@ PollGtkInit(void)
 
    pollState->lock = MXUser_CreateExclLock("pollGtkLock",
                                            RANK_pollDefaultLock);
-   VERIFY(pollState->lock);
 
    pollState->deviceTable = g_hash_table_new_full(g_direct_hash,
                                                   g_direct_equal,
@@ -1473,8 +1472,7 @@ PollGtkBasicCallback(gpointer data) // IN: The eventEntry
 void
 Poll_InitGtk(void)
 {
-   static GStaticMutex mx = G_STATIC_MUTEX_INIT;
-   static volatile int inited = 0;
+   static volatile gsize inited = 0;
 
    static const PollImpl gtkImpl =
    {
@@ -1487,10 +1485,9 @@ Poll_InitGtk(void)
       PollLockingAlwaysEnabled,
    };
 
-   g_static_mutex_lock(&mx);
-   if (!inited) {
+   if (g_once_init_enter(&inited)) {
+      gsize didInit = 1;
       Poll_InitWithImpl(&gtkImpl);
-      inited = 1;
+      g_once_init_leave(&inited, didInit);
    }
-   g_static_mutex_unlock(&mx);
 }

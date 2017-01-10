@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -95,17 +95,6 @@ typedef enum VMCIIntrType {
  * memory that can be used for queue pairs.
  */
 #define VMCI_MAX_GUEST_QP_MEMORY (128 * 1024 * 1024)
-
-/*
- * Queues with pre-mapped data pages must be small, so that we don't pin
- * too much kernel memory (especially on vmkernel).  We limit a queuepair to
- * 32 KB, or 16 KB per queue for symmetrical pairs.
- *
- * XXX, we are raising this limit to 4MB to support high-throughput workloads
- * with vioi-filter.  Once we switch to rings instead of queuepairs for the
- * page channel, we will drop this limit again.  See PR 852983.
- */
-#define VMCI_MAX_PINNED_QP_MEMORY (4 * 1024 * 1024)
 
 /*
  * We have a fixed set of resource IDs available in the VMX.
@@ -275,6 +264,7 @@ static const VMCIHandle VMCI_INVALID_HANDLE = {VMCI_INVALID_ID,
  * Context ID used by host endpoints.
  */
 #define VMCI_HOST_CONTEXT_ID  2
+#define VMCI_HOST_CONTEXT_INVALID_EVENT         ((uintptr_t)~0)
 
 #define VMCI_CONTEXT_IS_VM(_cid) (VMCI_INVALID_ID != _cid && \
                                   _cid > VMCI_HOST_CONTEXT_ID)
@@ -363,7 +353,11 @@ typedef uint32 VMCI_Event;
                                      // this event has the Context payload type.
 #define VMCI_EVENT_MEM_ACCESS_OFF 6  // Applicable to VMX and vmk.  Same as
                                      // above for the payload type.
-#define VMCI_EVENT_MAX            7
+#define VMCI_EVENT_GUEST_PAUSED   7  // Applicable to vmk. This event has the
+                                     // Context payload type.
+#define VMCI_EVENT_GUEST_UNPAUSED 8  // Applicable to vmk. Same as above for
+                                     // the payload type.
+#define VMCI_EVENT_MAX            9
 
 /*
  * Of the above events, a few are reserved for use in the VMX, and
@@ -383,7 +377,9 @@ typedef uint32 VMCI_Event;
 #else // VMX86_SERVER
 #define VMCI_EVENT_VALID(_event) (_event < VMCI_EVENT_MAX && \
                                   _event != VMCI_EVENT_MEM_ACCESS_ON && \
-                                  _event != VMCI_EVENT_MEM_ACCESS_OFF)
+                                  _event != VMCI_EVENT_MEM_ACCESS_OFF && \
+                                  _event != VMCI_EVENT_GUEST_PAUSED && \
+                                  _event != VMCI_EVENT_GUEST_UNPAUSED)
 #endif // VMX86_SERVER
 
 /* Reserved guest datagram resource ids. */
@@ -410,7 +406,7 @@ typedef uint32 VMCIPrivilegeFlags;
 #define VMCI_PRIVILEGE_FLAG_RESTRICTED     0x01
 #define VMCI_PRIVILEGE_FLAG_TRUSTED        0x02
 #define VMCI_PRIVILEGE_ALL_FLAGS           (VMCI_PRIVILEGE_FLAG_RESTRICTED | \
-				            VMCI_PRIVILEGE_FLAG_TRUSTED)
+                                            VMCI_PRIVILEGE_FLAG_TRUSTED)
 #define VMCI_NO_PRIVILEGE_FLAGS            0x00
 #define VMCI_DEFAULT_PROC_PRIVILEGE_FLAGS  VMCI_NO_PRIVILEGE_FLAGS
 #define VMCI_LEAST_PRIVILEGE_FLAGS         VMCI_PRIVILEGE_FLAG_RESTRICTED

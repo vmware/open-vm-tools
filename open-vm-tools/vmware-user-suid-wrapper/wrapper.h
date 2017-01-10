@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,7 +38,7 @@
 
 
 /*
- * XXX Document official VMware Tools releases vs. Open VM Tools and the
+ * XXX Document official VMware Tools releases vs. open-vm-tools and the
  * use of the locations database in the former vs. compile-time pathing
  * in the latter.
  */

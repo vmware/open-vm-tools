@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,7 +66,7 @@ AuthToken Auth_AuthenticateSelf(void);
 
 #endif
 
-AuthToken Auth_AuthenticateUser(ConstUnicode user, ConstUnicode pass);
+AuthToken Auth_AuthenticateUser(const char *user, const char *pass);
 
 void Auth_CloseToken(AuthToken token);
 

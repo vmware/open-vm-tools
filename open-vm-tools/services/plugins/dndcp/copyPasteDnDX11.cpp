@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -223,7 +223,11 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    }
 
    gUserMainWidget = gtk_invisible_new();
+#ifndef GTK3
    gXDisplay = GDK_WINDOW_XDISPLAY(gUserMainWidget->window);
+#else
+   gXDisplay = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(gUserMainWidget));
+#endif
    gXRoot = RootWindow(gXDisplay, DefaultScreen(gXDisplay));
 
    /*

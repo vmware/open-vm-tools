@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -75,7 +75,11 @@
 #include <sys/vfs.h>
 #endif
 #if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || (defined(HAVE_SYS_IO_H) && defined(HAVE_SYS_SYSINFO_H)))
+#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 #include <sys/io.h>
+#else
+#define NO_IOPL
+#endif
 #include <sys/sysinfo.h>
 #ifndef HAVE_SYSINFO
 #define HAVE_SYSINFO 1
@@ -151,11 +155,11 @@ static Atomic_Ptr hostinfoOSVersion;
 
 #define DISTRO_BUF_SIZE 255
 
+#if !defined __APPLE__ && !defined USERWORLD
 typedef struct lsb_distro_info {
    char *name;
    char *scanstring;
 } LSBDistroInfo;
-
 
 static const LSBDistroInfo lsbFields[] = {
    {"DISTRIB_ID=",          "DISTRIB_ID=%s"},
@@ -165,31 +169,13 @@ static const LSBDistroInfo lsbFields[] = {
    {NULL, NULL},
 };
 
-
 typedef struct distro_info {
    char *name;
    char *filename;
 } DistroInfo;
 
+/* KEEP SORTED! (sort -d) */
 static const DistroInfo distroArray[] = {
-   {"OracleLinux",        "/etc/oracle-release"},
-   {"RedHat",             "/etc/redhat-release"},
-   {"RedHat",             "/etc/redhat_version"},
-   {"Sun",                "/etc/sun-release"},
-   {"SuSE",               "/etc/SuSE-release"},
-   {"SuSE",               "/etc/novell-release"},
-   {"SuSE",               "/etc/sles-release"},
-   {"Debian",             "/etc/debian_version"},
-   {"Debian",             "/etc/debian_release"},
-   {"Mandrake",           "/etc/mandrake-release"},
-   {"Mandriva",           "/etc/mandriva-release"},
-   {"Mandrake",           "/etc/mandrakelinux-release"},
-   {"NixOS",              "/etc/os-release"},
-   {"TurboLinux",         "/etc/turbolinux-release"},
-   {"Fedora Core",        "/etc/fedora-release"},
-   {"Gentoo",             "/etc/gentoo-release"},
-   {"Novell",             "/etc/nld-release"},
-   {"Ubuntu",             "/etc/lsb-release"},
    {"Annvix",             "/etc/annvix-release"},
    {"Arch",               "/etc/arch-release"},
    {"Arklinux",           "/etc/arklinux-release"},
@@ -197,23 +183,43 @@ static const DistroInfo distroArray[] = {
    {"BlackCat",           "/etc/blackcat-release"},
    {"Cobalt",             "/etc/cobalt-release"},
    {"Conectiva",          "/etc/conectiva-release"},
+   {"Debian",             "/etc/debian_release"},
+   {"Debian",             "/etc/debian_version"},
+   {"Fedora Core",        "/etc/fedora-release"},
+   {"Gentoo",             "/etc/gentoo-release"},
    {"Immunix",            "/etc/immunix-release"},
    {"Knoppix",            "/etc/knoppix_version"},
    {"Linux-From-Scratch", "/etc/lfs-release"},
    {"Linux-PPC",          "/etc/linuxppc-release"},
+   {"Mandrake",           "/etc/mandrakelinux-release"},
+   {"Mandrake",           "/etc/mandrake-release"},
+   {"Mandriva",           "/etc/mandriva-release"},
    {"MkLinux",            "/etc/mklinux-release"},
+   {"NixOS",              "/etc/os-release"},
+   {"Novell",             "/etc/nld-release"},
+   {"OracleLinux",        "/etc/oracle-release"},
+   {"Photon",             "/etc/lsb-release"},
    {"PLD",                "/etc/pld-release"},
-   {"Slackware",          "/etc/slackware-version"},
+   {"RedHat",             "/etc/redhat-release"},
+   {"RedHat",             "/etc/redhat_version"},
    {"Slackware",          "/etc/slackware-release"},
+   {"Slackware",          "/etc/slackware-version"},
    {"SMEServer",          "/etc/e-smith-release"},
    {"Solaris",            "/etc/release"},
+   {"Sun",                "/etc/sun-release"},
+   {"SuSE",               "/etc/novell-release"},
+   {"SuSE",               "/etc/sles-release"},
+   {"SuSE",               "/etc/SuSE-release"},
    {"Tiny Sofa",          "/etc/tinysofa-release"},
+   {"TurboLinux",         "/etc/turbolinux-release"},
+   {"Ubuntu",             "/etc/lsb-release"},
    {"UltraPenguin",       "/etc/ultrapenguin-release"},
    {"UnitedLinux",        "/etc/UnitedLinux-release"},
    {"VALinux",            "/etc/va-release"},
    {"Yellow Dog",         "/etc/yellowdog-release"},
    {NULL, NULL},
 };
+#endif
 
 #if defined __ANDROID__
 /*
@@ -567,7 +573,10 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_ASIANUX_4, distroShortSize);
    } else if (strstr(distroLower, "asianux server 5") ||
               strstr(distroLower, "asianux client 5")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX_5, distroShortSize);
+      Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
+   } else if (strstr(distroLower, "asianux server 7") ||
+              strstr(distroLower, "asianux client 7")) {
+      Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
    } else if (strstr(distroLower, "aurox")) {
       Str_Strcpy(distroShort, STR_OS_AUROX, distroShortSize);
    } else if (strstr(distroLower, "black cat")) {
@@ -575,7 +584,13 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "cobalt")) {
       Str_Strcpy(distroShort, STR_OS_COBALT, distroShortSize);
    } else if (StrUtil_StartsWith(distroLower, "centos")) {
-      Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
+      if (strstr(distroLower, "6.")) {
+         Str_Strcpy(distroShort, STR_OS_CENTOS6, distroShortSize);
+      } else if (strstr(distroLower, "7.")) {
+         Str_Strcpy(distroShort, STR_OS_CENTOS7, distroShortSize);
+      } else {
+         Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
+      }
    } else if (strstr(distroLower, "conectiva")) {
       Str_Strcpy(distroShort, STR_OS_CONECTIVA, distroShortSize);
    } else if (strstr(distroLower, "debian")) {
@@ -589,6 +604,10 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_DEBIAN_7, distroShortSize);
       } else if (strstr(distroLower, "8.")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_8, distroShortSize);
+      } else if (strstr(distroLower, "9.")) {
+         Str_Strcpy(distroShort, STR_OS_DEBIAN_9, distroShortSize);
+      } else if (strstr(distroLower, "10.")) {
+         Str_Strcpy(distroShort, STR_OS_DEBIAN_10, distroShortSize);
       }
    } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
               StrUtil_StartsWith(distroLower, "oracle")) {
@@ -599,7 +618,13 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
        * Not sure why they didn't brand their releases as "Oracle Enterprise
        * Linux". Oh well. It's fixed in 6.0, though.
        */
-      Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      if (strstr(distroLower, "6.")) {
+         Str_Strcpy(distroShort, STR_OS_ORACLE6, distroShortSize);
+      } else if (strstr(distroLower, "7.")) {
+         Str_Strcpy(distroShort, STR_OS_ORACLE7, distroShortSize);
+      } else {
+         Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      }
    } else if (strstr(distroLower, "fedora")) {
       Str_Strcpy(distroShort, STR_OS_FEDORA, distroShortSize);
    } else if (strstr(distroLower, "gentoo")) {
@@ -720,11 +745,11 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
       if (tmpDistroPos) {
          sscanf(tmpDistroPos, lsbFields[i].scanstring, distroPart);
          if (distroPart[0] == '"') {
-            char *tmpMakeNull = NULL;
+            char *tmpMakeNull;
 
             tmpDistroPos += strlen(lsbFields[i].name) + 1;
             tmpMakeNull = strchr(tmpDistroPos + 1 , '"');
-            if (tmpMakeNull) {
+            if (tmpMakeNull != NULL) {
                *tmpMakeNull = '\0';
                Str_Strcat(distro, tmpDistroPos, distroSize);
                *tmpMakeNull = '"' ;
@@ -876,7 +901,6 @@ HostinfoOSData(void)
       return FALSE;
    }
 
-
    if (strlen(buf.sysname) + strlen(buf.release) + 3 > sizeof osNameFull) {
       Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
@@ -888,13 +912,21 @@ HostinfoOSData(void)
                buf.release);
 
 #if defined USERWORLD
-   if (buf.release[0] <= '4') {
+   /* The most recent osName always goes here. */
+   Str_Strcpy(osName, "vmkernel65", sizeof osName);
+
+   /* Handle any special cases */
+   if ((buf.release[0] <= '4') && (buf.release[1] == '.')) {
       Str_Strcpy(osName, "vmkernel", sizeof osName);
-   } else {
+   } else if ((buf.release[0] == '5') && (buf.release[1] == '.')) {
       Str_Strcpy(osName, "vmkernel5", sizeof osName);
+   } else if ((buf.release[0] >= '6') && (buf.release[1] == '.')) {
+      if (buf.release[2] < '5') {
+         Str_Strcpy(osName, "vmkernel6", sizeof osName);
+      }
    }
-   Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %c.x",
-                buf.release[0]);
+
+   Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %s", buf.release);
 #elif defined __APPLE__
    {
       /*
@@ -959,17 +991,32 @@ HostinfoOSData(void)
        */
 
       majorVersion = Hostinfo_OSVersion(0);
-      if (majorVersion < 2 || (majorVersion == 2 && Hostinfo_OSVersion(1) < 4)) {
+      if (majorVersion < 2) {
          Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
-      } else if (majorVersion == 2 && Hostinfo_OSVersion(1) < 6) {
-         Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
       } else if (majorVersion == 2) {
-         Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
-      } else {
+          if (Hostinfo_OSVersion(1) < 4) {
+            Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
+            Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
+         } else if (Hostinfo_OSVersion(1) < 6) {
+            Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
+            Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
+         } else {
+            Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
+            Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
+         }
+      } else if (majorVersion == 3) {
          Str_Strcpy(distro, STR_OS_OTHER_3X_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
+      } else {
+         /*
+          * Anything newer than this code explicitly handles returns the
+          * "highest" known short description and a dynamically created,
+          * appropriate long description.
+          */
+
+         Str_Sprintf(distro, sizeof distro, "Other Linux %d.%d kernel",
+                     majorVersion, Hostinfo_OSVersion(1));
          Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
       }
 
@@ -978,7 +1025,7 @@ HostinfoOSData(void)
        */
 
       lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
-      if (!lsbOutput) {
+      if (lsbOutput == NULL) {
          int i;
 
          /*
@@ -1397,24 +1444,24 @@ Hostinfo_OSIsSMP(void)
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_NameGet(void)
 {
-   Unicode result;
+   char *result;
 
    static Atomic_Ptr state; /* Implicitly initialized to NULL. --hpreg */
 
    result = Atomic_ReadPtr(&state);
 
    if (UNLIKELY(result == NULL)) {
-      Unicode before;
+      char *before;
 
       result = Hostinfo_HostName();
 
       before = Atomic_ReadIfEqualWritePtr(&state, NULL, result);
 
       if (before) {
-         Unicode_Free(result);
+         free(result);
 
          result = before;
       }
@@ -1441,14 +1488,14 @@ Hostinfo_NameGet(void)
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_GetUser(void)
 {
    char buffer[BUFSIZ];
    struct passwd pw;
    struct passwd *ppw = &pw;
-   Unicode env = NULL;
-   Unicode name = NULL;
+   char *env = NULL;
+   char *name = NULL;
 
    if ((Posix_Getpwuid_r(getuid(), &pw, buffer, sizeof buffer, &ppw) == 0) &&
        (ppw != NULL)) {
@@ -1774,7 +1821,7 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
    }
    return FALSE;
 #else
-#if vmx86_server && defined(GLIBC_VERSION_23)
+#if vmx86_server
 #  error Posix clock_gettime support required on ESX
 #endif
 #  define vmx86_posix 0
@@ -1819,7 +1866,7 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
 VmTimeType
 Hostinfo_SystemTimerNS(void)
 {
-   VmTimeType result;
+   VmTimeType result = 0;  // = 0 silence compiler warning
 
    if ((vmx86_apple && HostinfoSystemTimerMach(&result)) ||
        (vmx86_posix && HostinfoSystemTimerPosix(&result))) {
@@ -2613,6 +2660,9 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
    return HostinfoGetSysctlStringAlloc("hw.model");
 #else
 #ifdef VMX86_SERVER
+#ifdef VM_ARM_64
+   return strdup("armv8 unknown");
+#else
    if (HostType_OSIsVMK()) {
       char mName[48];
 
@@ -2627,7 +2677,8 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
 
       return NULL;
    }
-#endif
+#endif // VM_ARM_64
+#endif // VMX86_SERVER
 
    return HostinfoGetCpuInfo(cpuNumber, "model name");
 #endif
@@ -3023,7 +3074,7 @@ Hostinfo_SystemUpTime(void)
     * /proc/uptime does not exist on Visor.  Use syscall instead.
     * Discovering Visor is a run-time check with a compile-time hint.
     */
-   if (vmx86_server && HostType_OSIsPureVMK()) {
+   if (vmx86_server && HostType_OSIsVMK()) {
       uint64 uptime;
 #ifdef VMX86_SERVER
       if (UNLIKELY(VMKernel_GetUptimeUS(&uptime) != VMK_OK)) {
@@ -3511,10 +3562,10 @@ Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,      // OUT:
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 Hostinfo_GetModulePath(uint32 priv)  // IN:
 {
-   Unicode path;
+   char *path;
 
 #if defined(__APPLE__)
    uint32_t pathSize = FILE_MAXPATH;

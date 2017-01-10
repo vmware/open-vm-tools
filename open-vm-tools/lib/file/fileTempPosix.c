@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,10 +34,6 @@
 
 #if !defined(__FreeBSD__) && !defined(sun)
 #   include <pwd.h>
-#endif
-
-#if defined(sun)
-#   include <procfs.h>
 #endif
 
 #include "vmware.h"
@@ -325,16 +321,16 @@ FileAcceptableSafeTmpDir(const char *dirname,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-static Unicode
+static char *
 FileFindExistingSafeTmpDir(uid_t userId,            // IN:
                            const char *userName,    // IN:
                            const char *baseTmpDir)  // IN:
 {
    int i;
    int numFiles;
-   Unicode pattern;
-   Unicode tmpDir = NULL;
-   Unicode *fileList = NULL;
+   char *pattern;
+   char *tmpDir = NULL;
+   char **fileList = NULL;
 
    /*
     * We always use the pattern PRODUCT-USER-xxxx when creating
@@ -350,15 +346,14 @@ FileFindExistingSafeTmpDir(uid_t userId,            // IN:
    numFiles = File_ListDirectory(baseTmpDir, &fileList);
 
    if (numFiles == -1) {
-      Unicode_Free(pattern);
+      free(pattern);
 
       return NULL;
    }
 
    for (i = 0; i < numFiles; i++) {
        if (Unicode_StartsWith(fileList[i], pattern)) {
-          Unicode path = Unicode_Join(baseTmpDir, DIRSEPS, fileList[i],
-                                      NULL);
+          char *path = Unicode_Join(baseTmpDir, DIRSEPS, fileList[i], NULL);
 
           if (File_IsDirectory(path) &&
               FileAcceptableSafeTmpDir(path, userId)) {
@@ -366,12 +361,12 @@ FileFindExistingSafeTmpDir(uid_t userId,            // IN:
              break;
           }
 
-          Unicode_Free(path);
+          free(path);
        }
    }
 
-   Unicode_FreeList(fileList, numFiles);
-   Unicode_Free(pattern);
+   Util_FreeStringList(fileList, numFiles);
+   free(pattern);
 
    return tmpDir;
 }
@@ -485,7 +480,6 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
    /* Get and take lock for our safe dir. */
    lck = MXUser_CreateSingletonExclLock(&lckStorage, "getSafeTmpDirLock",
                                         RANK_getSafeTmpDirLock);
-   VERIFY(lck != NULL);
 
    MXUser_AcquireExclLock(lck);
 

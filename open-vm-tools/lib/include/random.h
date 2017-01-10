@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,13 +29,24 @@
 
 #include "vm_basic_types.h"
 
+/*
+ * OS-native random number generator based on one-way hashes.
+ *
+ * Good enough for any non-cryptographic use, but slower than
+ * alternative algorithms. Recommended for generating seeds.
+ *
+ * Period: infinite
+ * Speed: slow
+ */
+
 Bool Random_Crypto(size_t size,
                    void *buffer);
 
 /*
  * High quality - research grade - random number generator.
  *
- * Despite its apparent complexity this RNG is extremely fast.
+ * Period: 2^800
+ * Speed: ~23 cycles
  */
 
 typedef struct rqContext rqContext;
@@ -45,7 +56,55 @@ rqContext *Random_QuickSeed(uint32 seed);
 uint32 Random_Quick(rqContext *context);
 
 /*
+ * Good quality non-deterministic random number generator.
+ *
+ * This generator uses &(*state) as the seed to go beyond 64-bits without
+ * additional storage space; the low-grade entropy makes seeding
+ * non-deterministic. Multiple generators in the same address space
+ * with the same seed will produce unique streams, but using the same
+ * seed will NOT produce the same sequence (due to ASLR). See
+ * Raondom_FastStream for a deterministic generator.
+ *
+ * Initialize by setting *state to any seed (including zero) and calling
+ * Random_Fast TWICE. (Unless the seed is very good, the first two values
+ * are not very random).
+ *
+ * Period: 2^64
+ * Speed: ~10 cycles
+ */
+
+uint32 Random_Fast(uint64 *state);
+
+static INLINE void
+Random_FastSeed(uint64 *state,  // OUT:
+                uint64 seed)    // IN:
+{
+   *state = seed;
+   (void) Random_Fast(state);
+   (void) Random_Fast(state);
+}
+
+/*
+ * Good quality deterministic random number generator.
+ *
+ * Period: 2^64
+ * Speed: ~10 cycles
+ */
+
+typedef struct {
+   uint64 state;
+   uint64 sequence;
+} RandomFastContext;
+
+uint32 Random_FastStream(RandomFastContext *rfc);
+void Random_FastStreamSeed(RandomFastContext *rfc, uint64 seed, uint64 seq);
+
+/*
  * Simple multiplicative congruential RNG.
+ *
+ * Deprecated; prefer Random_Fast for better quality.
+ * Period: 2^31-1
+ * Speed: ~9 cycles
  */
 
 int Random_Simple(int seed);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,14 +31,14 @@
 
 
 typedef struct DynBuf {
-   char *data;
-   size_t size;
-   size_t allocated;
+   char   *data;
+   size_t  size;
+   size_t  allocated;
 } DynBuf;
 
 
 void
-DynBuf_Init(DynBuf *b); // IN
+DynBuf_Init(DynBuf *b); // OUT
 
 void
 DynBuf_Destroy(DynBuf *b); // IN
@@ -52,26 +52,26 @@ DynBuf_Attach(DynBuf *b,    // IN
               void *data);  // IN
 
 void *
-DynBuf_Detach(DynBuf *b); // IN
+DynBuf_Detach(DynBuf *b); // IN/OUT
 
 Bool
-DynBuf_Enlarge(DynBuf *b,        // IN
+DynBuf_Enlarge(DynBuf *b,        // IN/OUT
                size_t min_size); // IN
 
 Bool
-DynBuf_Append(DynBuf *b,        // IN
+DynBuf_Append(DynBuf *b,        // IN/OUT
               void const *data, // IN
               size_t size);     // IN
 
 Bool
-DynBuf_Trim(DynBuf *b); // IN
+DynBuf_Trim(DynBuf *b); // IN/OUT
 
 Bool
 DynBuf_Copy(DynBuf *src,    // IN
             DynBuf *dest);  // OUT
 
 void
-DynBuf_SafeInternalAppend(DynBuf *b,            // IN
+DynBuf_SafeInternalAppend(DynBuf *b,            // IN/OUT
                           void const *data,     // IN
                           size_t size,          // IN
                           char const *file,     // IN
@@ -160,7 +160,7 @@ static void
 #else
 static INLINE void
 #endif
-DynBuf_SetSize(DynBuf *b,   // IN
+DynBuf_SetSize(DynBuf *b,   // IN/OUT:
                size_t size) // IN
 {
    ASSERT(b);
@@ -223,11 +223,11 @@ static Bool
 #else
 static INLINE Bool
 #endif
-DynBuf_AppendString(DynBuf *buf,         // IN
+DynBuf_AppendString(DynBuf *buf,         // IN/OUT
                     const char *string)  // IN
 {
    /*
-    * Make sure to copy the NULL.
+    * Make sure to copy the NUL.
     */
    return DynBuf_Append(buf, string, strlen(string) + 1);
 }

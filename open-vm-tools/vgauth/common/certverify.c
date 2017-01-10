@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -156,6 +156,8 @@ VerifyCallback(int ok,
       switch (certErr) {
          // self-signed is ok
       case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+      case X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
+         g_debug("%s: allowing error %d\n", __FUNCTION__, certErr);
          ret = 1;
          break;
       default:
@@ -374,6 +376,75 @@ done:
    g_free(sslCertStr);
 
    return newCert;
+}
+
+
+/*
+ ******************************************************************************
+ * CertVerifyX509ToString --                                             */ /**
+ *
+ * Debug support for X509 certs; convert them to human readable text.
+ *
+ * @param[in]  x  An X509 structure containing a cert.
+ *
+ * @return Allocated string containing the cert in human-readable text.
+ *
+ ******************************************************************************
+ */
+
+static gchar *
+CertVerifyX509ToString(X509 *x)
+{
+   BIO *mem;
+   char *str;
+   gchar *retVal;
+   int len;
+
+   mem = BIO_new(BIO_s_mem());
+   if (!mem) {
+      g_warning("%s: out of memory creating BIO\n", __FUNCTION__);
+      return NULL;
+   }
+
+   X509_print(mem, x);
+
+   len = BIO_get_mem_data(mem, &str);
+
+   retVal = g_strndup(str, len);
+
+   BIO_set_close(mem, BIO_CLOSE);
+   BIO_free(mem);
+
+   return retVal;
+}
+
+
+/*
+ ******************************************************************************
+ * CertVerify_CertToX509String --                                        */ /**
+ *
+ * Debug support for certs; convert them to human readable text.
+ *
+ * @param[in]  pemCert A certficate in PEM format.
+ *
+ * @return Allocated string containing the cert in human-readable text.
+ *
+ ******************************************************************************
+ */
+
+gchar *
+CertVerify_CertToX509String(const gchar *pemCert)
+{
+   X509 *x = NULL;
+   gchar *retVal = NULL;
+
+   x = CertStringToX509(pemCert);
+   if (x) {
+      retVal = CertVerifyX509ToString(x);
+   }
+   X509_free(x);
+
+   return retVal;
 }
 
 
@@ -758,11 +829,15 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
                           const unsigned char *signature)
 {
    VGAuthError err = VGAUTH_E_FAIL;
-   EVP_MD_CTX mdCtx;
+   EVP_MD_CTX *mdCtx = NULL;
    const EVP_MD *hashAlg;
    int ret;
 
-   EVP_MD_CTX_init(&mdCtx);
+   mdCtx = EVP_MD_CTX_new();
+   if (mdCtx == NULL) {
+      g_warning("%s: unable to allocate a message digest.\n", __FUNCTION__);
+      return(VGAUTH_E_OUT_OF_MEMORY);
+   }
 
    switch (hash) {
    case VGAUTH_HASH_ALG_SHA256:
@@ -774,7 +849,7 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
       goto done;
    }
 
-   ret = EVP_VerifyInit(&mdCtx, hashAlg);
+   ret = EVP_VerifyInit(mdCtx, hashAlg);
    if (ret <= 0) {
       VerifyDumpSSLErrors();
       g_warning("%s: unable to initialize verificatation context (ret = %d)\n",
@@ -787,7 +862,7 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
     * one shot. We probably should put some upper bound on the size of the
     * data.
     */
-   ret = EVP_VerifyUpdate(&mdCtx, data, dataLen);
+   ret = EVP_VerifyUpdate(mdCtx, data, dataLen);
    if (ret <= 0) {
       VerifyDumpSSLErrors();
       g_warning("%s: unable to update verificatation context (ret = %d)\n",
@@ -795,7 +870,7 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
       goto done;
    }
 
-   ret = EVP_VerifyFinal(&mdCtx, signature, (unsigned int) signatureLen, publicKey);
+   ret = EVP_VerifyFinal(mdCtx, signature, (unsigned int) signatureLen, publicKey);
    if (0 == ret) {
       g_debug("%s: verification failed!\n", __FUNCTION__);
       err = VGAUTH_E_AUTHENTICATION_DENIED;
@@ -810,7 +885,7 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
    err = VGAUTH_E_OK;
 
 done:
-   EVP_MD_CTX_cleanup(&mdCtx);
+   EVP_MD_CTX_free(mdCtx);
 
    return err;
 }

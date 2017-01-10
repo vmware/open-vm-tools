@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -175,6 +175,7 @@ static void VSockVmciPeerAttachCB(VMCIId subId,
 static void VSockVmciPeerDetachCB(VMCIId subId,
                                   VMCI_EventData *ed, void *clientData);
 static void VSockVmciRecvPktWork(compat_work_arg work);
+static void VSockVmciDelayedSockPut(compat_work_arg work);
 static int VSockVmciRecvListen(struct sock *sk, VSockPacket *pkt);
 static int VSockVmciRecvConnectingServer(struct sock *sk,
                                          struct sock *pending, VSockPacket *pkt);
@@ -365,6 +366,11 @@ typedef struct VSockRecvPktInfo {
    struct sock *sk;
    VSockPacket pkt;
 } VSockRecvPktInfo;
+
+typedef struct VSockDelayedSockPut {
+   compat_work work;
+   struct sock *sk;
+} VSockDelayedSockPut;
 
 static compat_define_mutex(registrationMutex);
 static int devOpenCount = 0;
@@ -1028,6 +1034,7 @@ VSockVmciRecvStreamCB(void *data,           // IN
    VMCIId expectedSrcRid;
    Bool bhProcessPkt;
    int err;
+   VSockDelayedSockPut *delayedSockPut;
 
    ASSERT(dg);
    ASSERT(dg->payloadSize <= VMCI_MAX_DG_PAYLOAD_SIZE);
@@ -1053,6 +1060,15 @@ VSockVmciRecvStreamCB(void *data,           // IN
    if (VMCI_DG_SIZE(dg) < sizeof *pkt) {
       /* Drop datagrams that do not contain full VSock packets. */
       return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   /*
+    * We need to preallocate this since we otherwise may end up in a situation
+    * where we can't put the socket due to out of memory.
+    */
+   delayedSockPut = kmalloc(sizeof *delayedSockPut, GFP_ATOMIC);
+   if (!delayedSockPut) {
+      return VMCI_ERROR_NO_MEM;
    }
 
    pkt = (VSockPacket *)dg;
@@ -1170,7 +1186,12 @@ VSockVmciRecvStreamCB(void *data,           // IN
 
 out:
    if (sk) {
-      sock_put(sk);
+      delayedSockPut->sk = sk;
+      COMPAT_INIT_WORK(&delayedSockPut->work, VSockVmciDelayedSockPut,
+                       delayedSockPut);
+      compat_schedule_work(&delayedSockPut->work);
+   } else {
+      kfree(delayedSockPut);
    }
    return err;
 }
@@ -1482,6 +1503,35 @@ out:
    }
    sock_put(sk);
    sock_put(listener);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciDelayedSocketPut --
+ *
+ *    Drops a reference to the given socket.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    Socket may be freed.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VSockVmciDelayedSockPut(compat_work_arg work)  // IN
+{
+   VSockDelayedSockPut *delayedSockPut;
+
+   delayedSockPut = COMPAT_WORK_GET_DATA(work, VSockDelayedSockPut, work);
+   ASSERT(delayedSockPut);
+
+   sock_put(delayedSockPut->sk);
+   kfree(delayedSockPut);
 }
 
 

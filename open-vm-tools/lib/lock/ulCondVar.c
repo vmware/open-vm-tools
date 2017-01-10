@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -221,15 +221,15 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  *      As above
  *
  * Side effects:
- *      It is possible to return from this routine without the condtion
+ *      It is possible to return from this routine without the condition
  *      variable having been signalled (spurious wake up); code accordingly!
  *
  *-----------------------------------------------------------------------------
  */
 
 static INLINE void
-MXUserWaitInternal(MXRecLock *lock,         // IN:
-                   MXUserCondVar *condVar,  // IN:
+MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
+                   MXUserCondVar *condVar,  // IN/OUT:
                    uint32 msecWait)         // IN:
 {
    int lockCount = MXRecLockCount(lock);
@@ -356,7 +356,7 @@ MXUserSignalInternal(MXUserCondVar *condVar)  // IN/OUT:
  *
  * MXUserBroadcastInternal --
  *
- *      Perform the environmentally specific portion of broadasting on an
+ *      Perform the environmentally specific portion of broadcasting on an
  *      MXUserCondVar.
  *
  * Results:
@@ -451,15 +451,15 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  *      As above
  *
  * Side effects:
- *      It is possible to return from this routine without the condtion
+ *      It is possible to return from this routine without the condition
  *      variable having been signalled (spurious wake up); code accordingly!
  *
  *-----------------------------------------------------------------------------
  */
 
 static INLINE void
-MXUserWaitInternal(MXRecLock *lock,         // IN:
-                   MXUserCondVar *condVar,  // IN:
+MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
+                   MXUserCondVar *condVar,  // IN/OUT:
                    uint32 msecWait)         // IN:
 {
    int err;
@@ -542,7 +542,7 @@ MXUserSignalInternal(MXUserCondVar *condVar)  // IN/OUT:
  *
  * MXUserBroadcaseInternal --
  *
- *      Perform the environmentally specific portion of broadasting on an
+ *      Perform the environmentally specific portion of broadcasting on an
  *      MXUserCondVar.
  *
  * Results:
@@ -588,14 +588,13 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
 {
    MXUserCondVar *condVar = Util_SafeCalloc(1, sizeof *condVar);
 
-   if (MXUserCreateInternal(condVar)) {
-      condVar->signature = MXUserGetSignature(MXUSER_TYPE_CONDVAR);
-      condVar->header = header;
-      condVar->ownerLock = lock;
-   } else {
-      free(condVar);
-      condVar = NULL;
+   if (UNLIKELY(!MXUserCreateInternal(condVar))) {
+      Panic("%s: native lock initialization routine failed\n", __FUNCTION__);
    }
+
+   condVar->signature = MXUserGetSignature(MXUSER_TYPE_CONDVAR);
+   condVar->header = header;
+   condVar->ownerLock = lock;
 
    return condVar;
 }
@@ -620,8 +619,8 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
 
 void
 MXUserWaitCondVar(MXUserHeader *header,    // IN:
-                  MXRecLock *lock,         // IN:
-                  MXUserCondVar *condVar,  // IN:
+                  MXRecLock *lock,         // IN/OUT:
+                  MXUserCondVar *condVar,  // IN/OUT:
                   uint32 msecWait)         // IN:
 {
    ASSERT(header);
@@ -663,7 +662,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
  */
 
 void
-MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
+MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN/OUT:
 {
    int err;
 
@@ -697,7 +696,7 @@ MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
  */
 
 void
-MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
+MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN/OUT:
 {
    int err;
 
@@ -732,7 +731,7 @@ MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
  */
 
 void
-MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN:
+MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN/OUT:
 {
    if (condVar != NULL) {
       ASSERT(condVar->signature == MXUserGetSignature(MXUSER_TYPE_CONDVAR));

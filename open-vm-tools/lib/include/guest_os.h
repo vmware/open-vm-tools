@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,6 +24,7 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#include "vm_basic_types.h"
 #include "guest_os_tables.h"
 
 /*
@@ -116,7 +117,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWINTENCLIENT64     BS(WINTEN_64)
 #define ALLWINTENCLIENT       ALLWINTENCLIENT32, ALLWINTENCLIENT64
 
-#define ALLWINTEN             ALLWINTENSERVER, ALLWINTENCLIENT
+#define ALLWINTEN32           ALLWINTENCLIENT32
+#define ALLWINTEN64           ALLWINTENCLIENT64, ALLWINTENSERVER
+#define ALLWINTEN             ALLWINTENCLIENT, ALLWINTENSERVER
 
 #define ALLHYPER_V            BS(HYPER_V)
 
@@ -144,19 +147,31 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN64              ALLWINNT64
 #define ALLWIN                ALLWIN32, ALLWIN64
 
+#define ALLOTHER              BS(OTHER), BS(OTHER_64)
+
+#define ALLPHOTON             BS(PHOTON_64)
+
 #define ALLSOLARIS            BS(SOLARIS_6_AND_7), BS(SOLARIS8),     \
                               BS(SOLARIS9), BS(SOLARIS10),           \
                               BS(SOLARIS10_64)
 #define ALLSOLARIS10          BS(SOLARIS10), BS(SOLARIS10_64)
-#define ALLNETWARE            BS(NETWARE4), BS(NETWARE5), BS(NETWARE6)
-#define ALL26XLINUX32         BS(OTHER26XLINUX), BS(DEBIAN45),       \
-                              BS(RHEL), BS(UBUNTU)
-#define ALL26XLINUX64         BS(OTHER26XLINUX_64), BS(DEBIAN45_64), \
-                              BS(RHEL_64)
-#define ALL3XLINUX32          BS(OTHER3XLINUX)
-#define ALL3XLINUX64          BS(OTHER3XLINUX_64)
 
-#define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5)
+#define ALLNETWARE            BS(NETWARE4), BS(NETWARE5), BS(NETWARE6)
+
+#define ALL26XLINUX32         BS(OTHER26XLINUX), BS(DEBIAN), BS(RHEL), \
+                              BS(UBUNTU), BS(CENTOS), BS(ORACLE)
+
+#define ALL26XLINUX64         BS(OTHER26XLINUX_64), BS(DEBIAN_64), \
+                              BS(RHEL_64), BS(CENTOS_64), BS(ORACLE_64)
+
+#define ALL3XLINUX32          BS(OTHER3XLINUX), BS(CENTOS6), BS(ORACLE6)
+
+#define ALL3XLINUX64          BS(OTHER3XLINUX_64), BS(PHOTON_64), \
+                              BS(CENTOS6_64), BS(CENTOS7_64), \
+                              BS(ORACLE6_64), BS(ORACLE7_64)
+
+#define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5), BS(VMKERNEL6), \
+                              BS(VMKERNEL65)
 
 #define ALLLINUX32            BS(OTHER24XLINUX), ALL26XLINUX32, ALL3XLINUX32, \
                               BS(OTHERLINUX), BS(VMKERNEL)
@@ -166,7 +181,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLDARWIN32           BS(DARWIN9), BS(DARWIN10), BS(DARWIN11)
 #define ALLDARWIN64           BS(DARWIN9_64), BS(DARWIN10_64), \
                               BS(DARWIN11_64), BS(DARWIN12_64), \
-                              BS(DARWIN13_64), BS(DARWIN14_64)
+                              BS(DARWIN13_64), BS(DARWIN14_64), \
+                              BS(DARWIN15_64), BS(DARWIN16_64)
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 #define ALL64                 ALLWIN64, ALLLINUX64, BS(SOLARIS10_64), \
                               BS(FREEBSD_64), ALLDARWIN64,            \
@@ -181,8 +197,10 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
  */
 
 /* vmkernel (ESX) */
-#define STR_OS_ESX_4               "VMware ESX 4"
-#define STR_OS_ESX_5               "VMware ESX 5"
+#define STR_OS_ESX_4               "VMware ESX/ESXi 4.x"
+#define STR_OS_ESX_5               "VMware ESXi 5.x"
+#define STR_OS_ESX_6               "VMware ESXi 6.0"
+#define STR_OS_ESX_65              "VMware ESXi 6.5"
 
 /* Linux */
 #define STR_OS_ANNVIX              "Annvix"
@@ -191,10 +209,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_ASIANUX_3           "asianux3"
 #define STR_OS_ASIANUX_4           "asianux4"
 #define STR_OS_ASIANUX_5           "asianux5"
+#define STR_OS_ASIANUX_7           "asianux7"
 #define STR_OS_AUROX               "Aurox"
 #define STR_OS_ASIANUX             "asianux"
 #define STR_OS_BLACKCAT            "BlackCat"
 #define STR_OS_CENTOS              "centos"
+#define STR_OS_CENTOS6             "centos6"
+#define STR_OS_CENTOS7             "centos7"
 #define STR_OS_COBALT              "Cobalt"
 #define STR_OS_CONECTIVA           "Conectiva"
 #define STR_OS_DEBIAN              "Debian"
@@ -204,6 +225,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_DEBIAN_7            "debian7"
 #define STR_OS_DEBIAN_7_1          "debian7"
 #define STR_OS_DEBIAN_8            "debian8"
+#define STR_OS_DEBIAN_9            "debian9"
+#define STR_OS_DEBIAN_10           "debian10"
 #define STR_OS_FEDORA              "Fedora"
 #define STR_OS_GENTOO              "Gentoo"
 #define STR_OS_IMMUNIX             "Immunix"
@@ -218,15 +241,19 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_NIXOS              "NixOS"
 #define STR_OS_NOVELL             "nld9"
 #define STR_OS_NOVELL_FULL        "Novell Linux Desktop 9"
+#define STR_OS_ORACLE6            "oraclelinux6"
+#define STR_OS_ORACLE7            "oraclelinux7"
 #define STR_OS_ORACLE             "oraclelinux"
 #define STR_OS_OTHER              "otherlinux"
+#define STR_OS_OTHER_FULL         "Other Linux"
 #define STR_OS_OTHER_24           "other24xlinux"
 #define STR_OS_OTHER_24_FULL      "Other Linux 2.4.x kernel"
 #define STR_OS_OTHER_26           "other26xlinux"
 #define STR_OS_OTHER_26_FULL      "Other Linux 2.6.x kernel"
 #define STR_OS_OTHER_3X           "other3xlinux"
 #define STR_OS_OTHER_3X_FULL      "Other Linux 3.x kernel"
-#define STR_OS_OTHER_FULL         "Other Linux"
+#define STR_OS_PHOTON             "vmware-photon"
+#define STR_OS_PHOTON_FULL        "VMware Photon OS"
 #define STR_OS_PLD                "PLD"
 #define STR_OS_RED_HAT            "redhat"
 #define STR_OS_RED_HAT_EN         "rhel"
@@ -443,13 +470,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define STR_OS_WIN_TEN_GENERIC_FULL        "Windows 10"
 
-/* Windows Server Threshold */
+/* Windows Server 2016 */
 
 #define STR_OS_WIN_TENSERVER_X64 "windows9srv-64"
 
 /* THIS SPACE FOR RENT (Windows 10 official server variant names) */
 
-#define STR_OS_WIN_TENSERVER_GENERIC_FULL        "Windows Server Threshold"
+#define STR_OS_WIN_TENSERVER_GENERIC_FULL        "Windows Server 2016"
 
 /* Microsoft Hyper-V */
 #define STR_OS_HYPER_V "winHyperV"

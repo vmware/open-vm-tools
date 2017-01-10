@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,17 +32,17 @@
 extern "C" {
 #endif
 
-Unicode UnicodeAllocInternal(const void *buffer,
-                             ssize_t lengthInBytes,
-                             StringEncoding encoding,
-                             Bool strict);
+char *UnicodeAllocInternal(const void *buffer,
+                           ssize_t lengthInBytes,
+                           StringEncoding encoding,
+                           Bool strict);
 
-Unicode UnicodeAllocStatic(const char *asciiBytes,
-                           Bool unescape);
+char *UnicodeAllocStatic(const char *asciiBytes,
+                         Bool unescape);
 
 utf16_t UnicodeSimpleCaseFold(utf16_t codeUnit);
 
-void *UnicodeGetAllocBytesInternal(ConstUnicode src,
+void *UnicodeGetAllocBytesInternal(const char *src,
                                    StringEncoding encoding,
                                    ssize_t lengthInBytes,
                                    size_t *retLength);

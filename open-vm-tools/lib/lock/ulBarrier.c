@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,7 +67,7 @@ MXUserDumpBarrier(MXUserHeader *header)  // IN:
    Warning("\tsignature 0x%X\n", barrier->header.signature);
    Warning("\tname %s\n", barrier->header.name);
    Warning("\trank 0x%X\n", barrier->header.rank);
-   Warning("\tserial number %u\n", barrier->header.serialNumber);
+   Warning("\tserial number %u\n", barrier->header.bits.serialNumber);
 
    Warning("\tlock 0x%p\n", barrier->lock);
    Warning("\tconfigured count %u\n", barrier->configCount);
@@ -118,7 +118,7 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
 
    ASSERT(count);
 
-   barrier = Util_SafeCalloc(1, sizeof(*barrier));
+   barrier = Util_SafeCalloc(1, sizeof *barrier);
 
    if (userName == NULL) {
       properName = Str_SafeAsprintf(NULL, "Barrier-%p", GetReturnAddress());
@@ -127,29 +127,8 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
    }
 
    barrier->lock = MXUser_CreateExclLock(properName, rank);
-
-   if (barrier->lock == NULL) {
-      free(properName);
-      free(barrier);
-
-      return NULL;
-   }
-
-
    barrier->contexts[0].condVar = MXUser_CreateCondVarExclLock(barrier->lock);
    barrier->contexts[1].condVar = MXUser_CreateCondVarExclLock(barrier->lock);
-
-   if ((barrier->contexts[0].condVar == NULL) ||
-       (barrier->contexts[1].condVar == NULL)) {
-      MXUser_DestroyCondVar(barrier->contexts[0].condVar);
-      MXUser_DestroyCondVar(barrier->contexts[1].condVar);
-      MXUser_DestroyExclLock(barrier->lock);
-
-      free(properName);
-      free(barrier);
-
-      return NULL;
-   }
 
    barrier->configCount = count;
    barrier->curContext = 0;
@@ -157,7 +136,7 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
    barrier->header.signature = MXUserGetSignature(MXUSER_TYPE_BARRIER);
    barrier->header.name = properName;
    barrier->header.rank = rank;
-   barrier->header.serialNumber = MXUserAllocSerialNumber();
+   barrier->header.bits.serialNumber = MXUserAllocSerialNumber();
    barrier->header.dumpFunc = MXUserDumpBarrier;
    barrier->header.statsFunc = NULL;
 
@@ -184,7 +163,7 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
  */
 
 void
-MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
+MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN/OUT:
 {
    if (LIKELY(barrier != NULL)) {
       MXUserValidateHeader(&barrier->header, MXUSER_TYPE_BARRIER);
@@ -222,7 +201,7 @@ MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
  *      threads that have entered reaches the configured number upon which
  *      time all of the threads will return from this routine.
  *
- *      "Nobody comes out until everone goes in."
+ *      "Nobody comes out until everyone goes in."
  *
  * Results:
  *      None
@@ -311,19 +290,18 @@ MXUser_CreateSingletonBarrier(Atomic_Ptr *barrierStorage,  // IN/OUT:
 
    ASSERT(barrierStorage);
 
-   barrier = (MXUserBarrier *) Atomic_ReadPtr(barrierStorage);
+   barrier = Atomic_ReadPtr(barrierStorage);
 
    if (UNLIKELY(barrier == NULL)) {
       MXUserBarrier *newBarrier = MXUser_CreateBarrier(name, rank, count);
 
-      barrier = (MXUserBarrier *) Atomic_ReadIfEqualWritePtr(barrierStorage,
-                                                             NULL,
-                                                           (void *) newBarrier);
+      barrier = Atomic_ReadIfEqualWritePtr(barrierStorage, NULL,
+                                           (void *) newBarrier);
 
       if (barrier) {
          MXUser_DestroyBarrier(newBarrier);
       } else {
-         barrier = (MXUserBarrier *) Atomic_ReadPtr(barrierStorage);
+         barrier = Atomic_ReadPtr(barrierStorage);
       }
    }
 

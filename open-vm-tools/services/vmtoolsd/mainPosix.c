@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -104,7 +104,7 @@ ToolsCoreSigUsrHandler(const siginfo_t *info,
    ToolsCore_DumpState(&gState);
 
    g_info("Shutting down guestrpc on signal USR1 ...\n");
-   if (strcmp(gState.ctx.name, VMTOOLS_USER_SERVICE) == 0) {
+   if (TOOLS_IS_USER_SERVICE(&gState.ctx)) {
       RpcChannel_Shutdown(gState.ctx.rpc);
       gState.ctx.rpc = NULL;
    }

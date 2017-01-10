@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,6 +36,31 @@
 #include "vm_ctype.h"
 #include "util.h"
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_IsEmpty --
+ *
+ *      Test if a non-NULL string is empty.
+ *
+ * Results:
+ *      TRUE if the string has length 0, FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#ifdef VMX86_DEBUG
+static INLINE Bool
+StrUtil_IsEmpty(const char *str)  // IN:
+{
+   ASSERT(str != NULL);
+   return str[0] == '\0';
+}
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -95,8 +120,7 @@ StrUtil_GetNextToken(unsigned int *index,    // IN/OUT: Index to start at
 
    length = *index - startIndex;
    ASSERT(length);
-   token = (char *)malloc(length + 1 /* NUL */);
-   VERIFY(token);
+   token = Util_SafeMalloc(length + 1 /* NUL */);
    memcpy(token, str + startIndex, length);
    token[length] = '\0';
 
@@ -303,11 +327,11 @@ StrUtil_StrToInt(int32 *out,      // OUT
    *out = (int32)val;
 
    /*
-    * Input must be complete, no overflow, and value read must fit into
-    * 32 bits - both signed and unsigned values are accepted.
+    * Input must be non-empty, complete, no overflow, and value read must fit
+    * into 32 bits - both signed and unsigned values are accepted.
     */
 
-   return *ptr == '\0' && errno != ERANGE &&
+   return ptr != str && *ptr == '\0' && errno != ERANGE &&
           (val == (int32)val || val == (uint32)val);
 }
 
@@ -345,11 +369,11 @@ StrUtil_StrToUint(uint32 *out,     // OUT
    *out = (uint32)val;
 
    /*
-    * Input must be complete, no overflow, and value read must fit into 32
-    * bits - both signed and unsigned values are accepted.
+    * Input must be non-empty, complete, no overflow, and value read must fit
+    * into 32 bits - both signed and unsigned values are accepted.
     */
 
-   return *ptr == '\0' && errno != ERANGE &&
+   return ptr != str && *ptr == '\0' && errno != ERANGE &&
           (val == (uint32)val || val == (int32)val);
 }
 
@@ -390,7 +414,7 @@ StrUtil_StrToInt64(int64 *out,      // OUT: The output value
    *out = strtoll(str, &ptr, 0);
 #endif
 
-   return ptr[0] == '\0' && errno != ERANGE;
+   return ptr != str && ptr[0] == '\0' && errno != ERANGE;
 }
 
 
@@ -430,7 +454,7 @@ StrUtil_StrToUint64(uint64 *out,     // OUT: The output value
    *out = strtoull(str, &ptr, 0);
 #endif
 
-   return ptr[0] == '\0' && errno != ERANGE && errno != EINVAL;
+   return ptr != str && ptr[0] == '\0' && errno != ERANGE && errno != EINVAL;
 }
 
 
@@ -462,7 +486,7 @@ StrUtil_StrToSizet(size_t *out,     // OUT: The output value
    ASSERT(str);
 
    errno = 0;
-#if defined VM_X86_64
+#if defined VM_64BIT
    ASSERT_ON_COMPILE(sizeof *out == sizeof(uint64));
 #   if defined(_WIN32)
    *out = _strtoui64(str, &ptr, 0);
@@ -476,7 +500,7 @@ StrUtil_StrToSizet(size_t *out,     // OUT: The output value
    *out = strtoul(str, &ptr, 0);
 #endif
 
-   return *ptr == '\0' && errno != ERANGE;
+   return ptr != str && *ptr == '\0' && errno != ERANGE;
 }
 
 
@@ -515,7 +539,7 @@ StrUtil_StrToDouble(double *out,      // OUT: The output value
     * Input must be complete and no overflow.
     */
 
-   return *ptr == '\0' && errno != ERANGE;
+   return ptr != str && *ptr == '\0' && errno != ERANGE;
 }
 
 
@@ -658,7 +682,7 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
 /*
  *-----------------------------------------------------------------------------
  *
- * StrUtil_FormatSizeInBytes --
+ * StrUtil_FormatSizeInBytesUnlocalized --
  *
  *      Format a size (in bytes) to a string in a user-friendly way.
  *
@@ -1066,7 +1090,7 @@ StrUtil_DynBufPrintf(DynBuf *b,        // IN/OUT
  *
  * StrUtil_SafeDynBufPrintf --
  *
- *      A 'safe' variant of StrUtil_SafeDynBufPrintf(), which catches
+ *      A 'safe' variant of StrUtil_DynBufPrintf(), which catches
  *      memory allocation failures and panics.
  *
  * Results:
@@ -1122,8 +1146,7 @@ StrUtil_SafeStrcat(char **prefix,    // IN/OUT
    /* Check for overflow */
    VERIFY((size_t)-1 - plen > slen + 1);
 
-   tmp = realloc(*prefix, plen + slen + 1 /* NUL */);
-   VERIFY(tmp);
+   tmp = Util_SafeRealloc(*prefix, plen + slen + 1 /* NUL */);
 
    memcpy(tmp + plen, str, slen + 1 /* NUL */);
    *prefix = tmp;
@@ -1237,3 +1260,115 @@ StrUtil_TrimWhitespace(const char *str)  // IN
 
    return res;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_ReplaceAll --
+ *
+ *    Replaces all occurrences of a non-empty substring with non-NULL pattern
+ *    in non-NULL string.
+ *
+ * Results:
+ *    Returns pointer to the allocated resulting string. The caller is
+ *    responsible for freeing it.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+StrUtil_ReplaceAll(const char *orig, // IN
+                   const char *what, // IN
+                   const char *with) // IN
+{
+    char *result;
+    const char *current;
+    char *tmp;
+    size_t lenWhat;
+    size_t lenWith;
+    size_t lenBefore;
+    size_t occurrences = 0;
+    size_t lenNew;
+
+    ASSERT(orig != NULL);
+    ASSERT(!StrUtil_IsEmpty(what));
+    ASSERT(with != NULL);
+
+    lenWhat = strlen(what);
+    lenWith = strlen(with);
+
+    current = orig;
+    while ((tmp = strstr(current, what)) != NULL) {
+       current = tmp + lenWhat;
+       ++occurrences;
+    }
+
+    lenNew = strlen(orig) + (lenWith - lenWhat) * occurrences;
+    tmp = Util_SafeMalloc(lenNew + 1);
+    result = tmp;
+
+    while (occurrences--) {
+       current = strstr(orig, what);
+       lenBefore = current - orig;
+       tmp = memcpy(tmp, orig, lenBefore);
+       tmp += lenBefore;
+       tmp = memcpy(tmp, with, lenWith);
+       tmp += lenWith;
+       orig += lenBefore + lenWhat;
+    }
+    memcpy(tmp, orig, strlen(orig));
+
+    result[lenNew] = '\0';
+
+    return result;
+}
+
+#if 0
+
+#define FAIL(s) \
+   do { \
+      printf("FAIL: %s\n", s); \
+      exit(1); \
+   } while (0)
+
+#define REPLACE_TEST(_a, _b, _c, _x) \
+   do { \
+      char *s = StrUtil_ReplaceAll(_a, _b, _c); \
+      if (strcmp(_x, s) != 0) { \
+         printf("Got: %s\n", s); \
+         FAIL("Failed ReplaceAll('" _a "', '" _b "', '" _c "') = '" _x "'"); \
+      } \
+      free(s); \
+   } while (0)
+
+static void
+StrUtil_UnitTests(void)
+{
+   REPLACE_TEST("", "a", "b", "");
+   REPLACE_TEST("a", "a", "a", "a");
+
+   REPLACE_TEST("a", "a", "b", "b");
+   REPLACE_TEST("/a", "a", "b", "/b");
+   REPLACE_TEST("a/", "a", "b", "b/");
+
+   REPLACE_TEST("a/a", "a", "b", "b/b");
+   REPLACE_TEST("/a/a", "a", "b", "/b/b");
+   REPLACE_TEST("/a/a/", "a", "b", "/b/b/");
+
+   REPLACE_TEST("a", "a", "long", "long");
+   REPLACE_TEST("a/", "a", "long", "long/");
+   REPLACE_TEST("/a", "a", "long", "/long");
+
+   REPLACE_TEST("long", "long", "a", "a");
+   REPLACE_TEST("long/", "long", "a", "a/");
+   REPLACE_TEST("/long", "long", "a", "/a");
+
+   REPLACE_TEST("a", "a", "", "");
+   REPLACE_TEST("aaa", "a", "", "");
+
+   REPLACE_TEST("a", "not_found", "b", "a");
+}
+
+#endif // 0
+

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,6 +39,22 @@
 #pragma pack(push, 8)
 #endif // _WIN32
 
+/*
+ * Include glib.h here as a work-around - hopefully temporary - for a
+ * compilation error that would otherwise occur as a result of the
+ * inclusion of <glibmm/ustring.h> on the next line.  The compilation
+ * error that would otherwise occur is the result of:
+ *  (1) nested includes in <glibmm/ustring.h> ultimately include a
+ *      glib-related header file other than glib.h; but
+ *  (2) including a glib header file other than glib.h outside
+ *      of glib code is not allowed with the latest glib.
+ *
+ * Although including glib.h here does not actually fix the underlying
+ * problem, it does turn off the complaint.  It's believed (hoped?) that
+ * an upgrade of glibmm will fix the issue properly and eliminate the
+ * need to include <glib.h> here.
+ */
+#include <glib.h>
 #include <glibmm/ustring.h>
 
 #ifdef _WIN32
@@ -98,7 +114,7 @@ public:
    } NormalizeMode;
 
    string();
-   string(ConstUnicode s);
+   string(const char *s);
 
 #ifdef _WIN32
    string(const ubstr_t &s);
@@ -127,6 +143,7 @@ public:
    // Mapping functions to Glib::ustring
    void swap(string &s);
    void resize(size_type n, value_type c = '\0');
+   void reserve(size_type n = 0);
    bool empty() const;
    size_type size() const;
    size_type w_size() const;
@@ -233,42 +250,42 @@ private:
 // Helper operators
 
 string inline
-operator+(ConstUnicode lhs, const string &rhs) {
+operator+(const char *lhs, const string &rhs) {
    return string(lhs) + rhs;
 }
 
 string inline
-operator+(const string& lhs, ConstUnicode rhs) {
+operator+(const string& lhs, const char *rhs) {
    return lhs + string(rhs);
 }
 
 bool inline
-operator==(ConstUnicode lhs, const string &rhs) {
+operator==(const char *lhs, const string &rhs) {
    return string(lhs) == rhs;
 }
 
 bool inline
-operator!=(ConstUnicode lhs, const string &rhs) {
+operator!=(const char *lhs, const string &rhs) {
    return string(lhs) != rhs;
 }
 
 bool inline
-operator<(ConstUnicode lhs, const string &rhs) {
+operator<(const char *lhs, const string &rhs) {
    return string(lhs) < rhs;
 }
 
 bool inline
-operator>(ConstUnicode lhs, const string &rhs) {
+operator>(const char *lhs, const string &rhs) {
    return string(lhs) > rhs;
 }
 
 bool inline
-operator<=(ConstUnicode lhs, const string &rhs) {
+operator<=(const char *lhs, const string &rhs) {
    return string(lhs) <= rhs;
 }
 
 bool inline
-operator>=(ConstUnicode lhs, const string &rhs) {
+operator>=(const char *lhs, const string &rhs) {
    return string(lhs) >= rhs;
 }
 
@@ -294,20 +311,21 @@ class ConversionError {};
 
 // Helper functions
 
-bool VMSTRING_EXPORT Validate(const Glib::ustring& s);
+VMSTRING_EXPORT bool Validate(const Glib::ustring& s);
 
-string VMSTRING_EXPORT
+VMSTRING_EXPORT string
 CreateWithLength(const void *buffer, ssize_t lengthInBytes, StringEncoding encoding);
 
-string VMSTRING_EXPORT
+VMSTRING_EXPORT string
 CreateWithBOMBuffer(const void *buffer, ssize_t lengthInBytes);
 
-string VMSTRING_EXPORT
-IntToStr(int64 val);
+VMSTRING_EXPORT string CopyAndFree(char* utf8, void (*freeFunc)(void*) = free);
 
-void VMSTRING_EXPORT CreateWritableBuffer(const string& s,
+VMSTRING_EXPORT string IntToStr(int64 val);
+
+VMSTRING_EXPORT void CreateWritableBuffer(const string& s,
                                           std::vector<char>& buf);
-void VMSTRING_EXPORT CreateWritableBuffer(const string& s,
+VMSTRING_EXPORT void CreateWritableBuffer(const string& s,
                                           std::vector<utf16_t>& buf);
 
 

@@ -1,0 +1,18 @@
+#log4j.rootCategory=DEBUG, console
+log4j.rootCategory=ERROR, rolling
+
+log4j.appender.console=org.apache.log4j.ConsoleAppender
+log4j.appender.console.layout=org.apache.log4j.PatternLayout
+log4j.appender.console.layout.ConversionPattern=%p|%d{ISO8601}|%t|%c|%m%n
+
+log4j.appender.logfile=org.apache.log4j.FileAppender
+log4j.appender.logfile.fileName=ma-log4cpp.log
+log4j.appender.logfile.layout=org.apache.log4j.PatternLayout
+log4j.appender.logfile.layout.ConversionPattern=%p|%d{ISO8601}|%t|%c|%m%n
+
+log4j.appender.rolling=org.apache.log4j.RollingFileAppender
+log4j.appender.rolling.fileName=ma-log4cpp_rolling.log
+log4j.appender.rolling.layout=org.apache.log4j.PatternLayout
+log4j.appender.rolling.layout.ConversionPattern=%p|%d{ISO8601}|%t|%c|%m%n
+log4j.appender.rolling.MaxFileSize=1024KB
+log4j.appender.rolling.MaxBackupIndex=5

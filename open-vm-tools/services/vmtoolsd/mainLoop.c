@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -60,6 +60,11 @@ ToolsCoreCleanup(ToolsServiceState *state)
 {
    ToolsCorePool_Shutdown(&state->ctx);
    ToolsCore_UnloadPlugins(state);
+#if defined(__linux__)
+   if (state->mainService) {
+      ToolsCore_ReleaseVsockFamily(state);
+   }
+#endif
    if (state->ctx.rpc != NULL) {
       RpcChannel_Stop(state->ctx.rpc);
       RpcChannel_Destroy(state->ctx.rpc);
@@ -160,8 +165,10 @@ ToolsCoreIOFreezeCb(gpointer src,
    if (state->configCheckTask > 0 && freeze) {
       g_source_remove(state->configCheckTask);
       state->configCheckTask = 0;
+      VMTools_SuspendLogIO();
    } else if (state->configCheckTask == 0 && !freeze) {
-      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 10,
+      VMTools_ResumeLogIO();
+      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 1000,
                                              ToolsCoreConfFileCb,
                                              state);
    }
@@ -200,6 +207,15 @@ ToolsCoreRunLoop(ToolsServiceState *state)
       return 1;
    }
 
+#if defined(__linux__)
+   /*
+    * Init a reference to vSocket family in the main service.
+    */
+   if (state->mainService) {
+      ToolsCore_InitVsockFamily(state);
+   }
+#endif
+
    /*
     * The following criteria needs to hold for the main loop to be run:
     *
@@ -229,7 +245,7 @@ ToolsCoreRunLoop(ToolsServiceState *state)
                           state);
       }
 
-      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 10,
+      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 1000,
                                              ToolsCoreConfFileCb,
                                              state);
 
@@ -314,7 +330,7 @@ ToolsCore_GetTcloName(ToolsServiceState *state)
 {
    if (state->mainService) {
       return TOOLS_DAEMON_NAME;
-   } else if (strcmp(state->name, VMTOOLS_USER_SERVICE) == 0) {
+   } else if (TOOLS_IS_USER_SERVICE(state)) {
       return TOOLS_DND_NAME;
    } else {
       return NULL;

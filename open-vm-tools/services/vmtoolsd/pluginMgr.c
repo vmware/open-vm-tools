@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -557,6 +557,8 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
       module = g_module_open(path, G_MODULE_BIND_LOCAL);
 #ifdef USE_APPLOADER
       if (module == NULL) {
+         g_info("Opening plugin '%s' with system libraries failed: %s\n",
+                   entry, g_module_error());
          /* Falling back to the shipped libraries */
          if (!LoadDependencies(path, TRUE)) {
             g_warning("Loading of shipped library dependencies for %s failed.\n",
@@ -740,7 +742,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
          g_module_make_resident(plugin->module);
          g_ptr_array_add(state->plugins, plugin);
          VMTools_BindTextDomain(plugin->data->name, NULL, NULL);
-         g_debug("Plugin '%s' initialized.\n", plugin->data->name);
+         g_message("Plugin '%s' initialized.\n", plugin->data->name);
       }
    }
 
@@ -918,7 +920,7 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       ToolsPlugin *plugin = g_ptr_array_index(state->plugins, state->plugins->len - 1);
       GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
 
-      g_debug("Unloading plugin '%s'.\n", plugin->data->name);
+      g_message("Unloading plugin '%s'.\n", plugin->data->name);
 
       if (regs != NULL) {
          guint i;

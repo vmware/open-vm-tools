@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,6 +25,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "resolutionInt.h"
 #include "resolutionRandR12.h"
@@ -38,11 +40,11 @@
 
 #include "vmware.h"
 #include "debug.h"
-#include "fileIO.h"
 #include "libvmwarectrl.h"
 #include "str.h"
 #include "strutil.h"
 #include "util.h"
+#include "posix.h"
 
 #define VMWAREDRV_PATH_64   "/usr/X11R6/lib64/modules/drivers/vmware_drv.o"
 #define VMWAREDRV_PATH      "/usr/X11R6/lib/modules/drivers/vmware_drv.o"
@@ -333,14 +335,13 @@ static Bool
 ResolutionCanSet(void)
 {
    ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
-   FileIODescriptor fd;
-   FileIOResult res;
-   int64 filePos = 0;
+   int fd = -1;
+   off_t filePos = 0;
    Bool keepSearching = TRUE;
    Bool found = FALSE;
    char buf[sizeof VERSION_STRING + 10]; // size of VERSION_STRING plus some extra for the version number
    const char versionString[] = VERSION_STRING;
-   size_t bytesRead;
+   ssize_t bytesRead;
    int32 major, minor, level;
    unsigned int tokPos;
 
@@ -411,18 +412,17 @@ ResolutionCanSet(void)
     */
 
    buf[sizeof buf - 1] = '\0';
-   FileIO_Invalidate(&fd);
-   res = FileIO_Open(&fd, VMWAREDRV_PATH_64, FILEIO_ACCESS_READ, FILEIO_OPEN);
-   if (res != FILEIO_SUCCESS) {
-      res = FileIO_Open(&fd, VMWAREDRV_PATH, FILEIO_ACCESS_READ, FILEIO_OPEN);
+   fd = Posix_Open(VMWAREDRV_PATH_64, O_RDONLY);
+   if (fd == -1) {
+      fd = Posix_Open(VMWAREDRV_PATH, O_RDONLY);
    }
-   if (res == FILEIO_SUCCESS) {
+   if (fd != -1) {
       /*
        * One of the opens succeeded, so start searching thru the file.
        */
       while (keepSearching) {
-         res = FileIO_Read(&fd, buf, sizeof buf - 1, &bytesRead);
-         if (res != FILEIO_SUCCESS || bytesRead < sizeof buf -1 ) {
+         bytesRead = read(fd, buf, sizeof buf - 1);
+         if (bytesRead == -1 || bytesRead < sizeof buf -1 ) {
             keepSearching = FALSE;
          } else {
             if (Str_Strncmp(versionString, buf, sizeof versionString - 1) == 0) {
@@ -430,17 +430,17 @@ ResolutionCanSet(void)
                found = TRUE;
             }
          }
-         filePos = FileIO_Seek(&fd, filePos+1, FILEIO_SEEK_BEGIN);
+         filePos = lseek(fd, filePos+1, SEEK_SET);
          if (filePos == -1) {
             keepSearching = FALSE;
          }
       }
-      FileIO_Close(&fd);
+      close(fd);
       if (found) {
          /*
           * We NUL-terminated buf earlier, but Coverity really wants it to
-          * be NUL-terminated after the call to FileIO_Read (because
-          * FileIO_Read doesn't NUL-terminate). So we'll do it again.
+          * be NUL-terminated after the call to read (because
+          * read doesn't NUL-terminate). So we'll do it again.
           */
          buf[sizeof buf - 1] = '\0';
 
@@ -588,6 +588,40 @@ SelectResolution(uint32 width,
    return perfectMatch;
 }
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ResolutionX11ErrorHandler --
+ *
+ *      Logs X non-fatal error events. This backend assumes that
+ *      errors are checked within the functions that may generate
+ *      them, not relying on X error events. Thus we just log and
+ *      discard the events to prevent the tools daemon from crashing.
+ *
+ * Results:
+ *      Logs error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+ResolutionX11ErrorHandler(Display *d,      // IN: Pointer to display connection
+			  XErrorEvent *e)  // IN: Pointer to the error event
+{
+   char msg[200];
+
+   XGetErrorText(d, e->error_code, msg, sizeof(msg));
+
+   g_warning("X Error %d (%s): request %d.%d\n",
+	     e->error_code, msg, e->request_code, e->minor_code);
+
+   return 0;
+}
+
+
 /**
  * Obtain a "handle", which for X11, is a display pointer. 
  *
@@ -605,8 +639,14 @@ ResolutionToolkitInit(void)
    char *argv[] = {"", NULL};
    GtkWidget *wnd;
    Display *display;
+
+   XSetErrorHandler(ResolutionX11ErrorHandler);
    gtk_init(&argc, (char ***) &argv);
    wnd = gtk_invisible_new();
+#ifndef GTK3
    display = GDK_WINDOW_XDISPLAY(wnd->window);
+#else
+   display = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(wnd));
+#endif
    return (InitHandle) display;
 }

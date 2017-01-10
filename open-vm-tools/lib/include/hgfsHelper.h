@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,10 +29,10 @@
 #include "vm_basic_types.h"
 #include "unicode.h"
 
-Bool HgfsHlpr_QuerySharesDefaultRootPath(Unicode *hgfsRootPath);
-void HgfsHlpr_FreeSharesRootPath(Unicode hgfsRootPath);
+Bool HgfsHlpr_QuerySharesDefaultRootPath(char **hgfsRootPath);
+void HgfsHlpr_FreeSharesRootPath(char *hgfsRootPath);
 #if defined(_WIN32)
-Bool HgfsHlpr_ReadRegistryDefaultRootPath(Unicode *hgfsRootPath);
+Bool HgfsHlpr_ReadRegistryDefaultRootPath(char **hgfsRootPath);
 #endif // _WIN32
 
 #endif

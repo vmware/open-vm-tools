@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -998,15 +998,15 @@ VmxListenSockConnectedCb(AsyncSocket *asock,    // IN
 
    g_debug("Entering %s\n", __FUNCTION__);
 
-   g_info("Got vmx connection, socket=%d.\n", fd);
+   g_info("Got vmx connection, socket=%d\n", fd);
 
    if (AsyncSocket_GetState(asock) != AsyncSocketConnected) {
-      g_info("Socket %d is not connected, closing.\n", fd);
+      g_info("Socket %d is not connected, closing\n", fd);
       goto exit;
    }
 
    if (!AsyncSocket_SetBufferSizes(asock, sendBufSize, recvBufSize)) {
-      g_info("Closing socket %d due to error.\n", fd);
+      g_info("Cannot set VSOCK buffer sizes, closing socket %d\n", fd);
       goto exit;
    }
 
@@ -1299,16 +1299,34 @@ TheSslContext(void)
    const char *certFile;
    const char *keyFile;
    const char *trustDir;
+   long sslCtxOptions;
 
    if (sslCtx) {
       goto done;
    }
 
-   workingCtx = SSL_CTX_new(SSLv23_server_method());
+   workingCtx = SSL_NewContext();
    if (!workingCtx) {
       g_warning("Cannot create the SSL context.\n");
       goto done;
    }
+
+   /*
+    * The bora/lib/ssl code not yet ready to disable TLS1, and TLS1_1,
+    * we shall remove the code below once it is able to.
+    */
+   sslCtxOptions = SSL_CTX_get_options(workingCtx);
+   /* Allow only TLSv1_2 */
+
+#ifdef SSL_OP_NO_TLSv1
+   sslCtxOptions |= SSL_OP_NO_TLSv1;
+#endif
+
+#ifdef SSL_OP_NO_TLSv1_1
+   sslCtxOptions |= SSL_OP_NO_TLSv1_1;
+#endif
+
+   SSL_CTX_set_options(workingCtx, sslCtxOptions);
 
    certFile = GetSslCertFile();
    if (!certFile) {
@@ -1929,8 +1947,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)           // IN
    Poll_InitGtk();
    SSL_Init(GRabbitmqProxyGetSSLLibPath, NULL, NULL);
 
-   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) != 0 &&
-       strcmp(ctx->name, VMTOOLS_USER_SERVICE) != 0) {
+   if (!TOOLS_IS_MAIN_SERVICE(ctx) && !TOOLS_IS_USER_SERVICE(ctx)) {
       g_info("Unknown container '%s', not loading grabbitmqProxyPlugin.",
              ctx->name);
       return NULL;

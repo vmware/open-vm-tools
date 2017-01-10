@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -99,6 +99,30 @@ FileLoggerIsValid(FileLogger *logger)
 
 
 /*
+ * This function is a temporary workaround for a broken glib version
+ * 2.42.2 that is missing g_get_user_name_utf8 export. After glib
+ * is fixed this needs to be removed and call to GlibGetUserName
+ * replaced by g_get_user_name. See bug 1434059 for details.
+ */
+const char* GlibGetUserName()
+{
+#if !defined(_WIN32)
+   return g_get_user_name();
+#else
+   wchar_t buffer[256] = { 0 };
+   DWORD len = ARRAYSIZE(buffer);
+   static char* user_name_utf8 = NULL;
+   if (!user_name_utf8) {
+      if (GetUserNameW(buffer, &len)) {
+         user_name_utf8 = g_utf16_to_utf8(buffer, -1, NULL, NULL, NULL);
+      }
+   }
+   return user_name_utf8;
+#endif
+}
+
+
+/*
  *******************************************************************************
  * FileLoggerGetPath --                                                   */ /**
  *
@@ -135,7 +159,7 @@ FileLoggerGetPath(FileLogger *data,
    size_t i;
 
    logpath = g_strdup(data->path);
-   vars[1] = (char *) g_get_user_name();
+   vars[1] = (char *) GlibGetUserName();
    vars[3] = g_strdup_printf("%u", (unsigned int) getpid());
    g_snprintf(indexStr, sizeof indexStr, "%d", index);
 
@@ -215,7 +239,13 @@ FileLoggerOpen(FileLogger *data)
    path = FileLoggerGetPath(data, 0);
 
    if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+      /* GStatBuf was added in 2.26. */
+#if GLIB_CHECK_VERSION(2, 26, 0)
+      GStatBuf fstats;
+#else
       struct stat fstats;
+#endif
+
       if (g_stat(path, &fstats) > -1) {
          data->logSize = (gint) fstats.st_size;
       }

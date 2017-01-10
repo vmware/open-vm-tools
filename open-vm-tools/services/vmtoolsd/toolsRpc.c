@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,9 @@
 
 #include <stdlib.h>
 #include <string.h>
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
 #include "vm_basic_defs.h"
 #include "vm_assert.h"
 #include "conf.h"
@@ -35,7 +38,11 @@
 #include "toolsCoreInt.h"
 #include "vm_tools_version.h"
 #include "vmware/tools/utils.h"
+#include "vmware/tools/log.h"
 #include "vm_version.h"
+#if defined(__linux__)
+#include "vmci_sockets.h"
+#endif
 
 /**
  * Take action after an RPC channel reset.
@@ -54,6 +61,7 @@ ToolsCoreCheckReset(RpcChannel *chan,
    static gboolean version_sent = FALSE;
 
    ASSERT(state != NULL);
+   ASSERT(chan == state->ctx.rpc);
 
    if (success) {
       const gchar *app;
@@ -86,6 +94,15 @@ ToolsCoreCheckReset(RpcChannel *chan,
       g_signal_emit_by_name(state->ctx.serviceObj,
                             TOOLS_CORE_SIG_RESET,
                             &state->ctx);
+#if defined(__linux__)
+      if (state->mainService) {
+         /*
+          * Release the existing vSocket family.
+          */
+         ToolsCore_ReleaseVsockFamily(state);
+         ToolsCore_InitVsockFamily(state);
+      }
+#endif
    } else {
       VMTOOLSAPP_ERROR(&state->ctx, EXIT_FAILURE);
    }
@@ -124,7 +141,7 @@ ToolsCoreRpcCapReg(RpcInData *data)
    /* Tell the host the location of the conf directory. */
    msg = g_strdup_printf("tools.capability.guest_conf_directory %s", confPath);
    if (!RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL)) {
-      g_debug("Unable to register guest conf directory capability.\n");
+      g_warning("Unable to register guest conf directory capability.\n");
    }
    g_free(msg);
    msg = NULL;
@@ -132,27 +149,70 @@ ToolsCoreRpcCapReg(RpcInData *data)
    /* Send the tools version to the VMX. */
    if (state->mainService) {
       uint32 version;
+      uint32 type = TOOLS_TYPE_UNKNOWN;
       char *result = NULL;
       size_t resultLen;
       gchar *toolsVersion;
+      gboolean hideVersion = g_key_file_get_boolean(state->ctx.config,
+                                                    "vmtools",
+                                                    CONFNAME_HIDETOOLSVERSION,
+                                                    NULL);
 
-#if defined(OPEN_VM_TOOLS)
-      version = TOOLS_VERSION_UNMANAGED;
+#if defined(_WIN32)
+      type = TOOLS_TYPE_MSI;
 #else
-      gboolean disableVersion;
+#if defined(OPEN_VM_TOOLS)
+      type = TOOLS_TYPE_OVT;
+#else
+      {
+         static int is_osp = -1;
 
-      disableVersion = g_key_file_get_boolean(state->ctx.config,
-                                              "vmtools",
-                                              CONFNAME_DISABLETOOLSVERSION,
-                                              NULL);
-      version = disableVersion ? TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT;
+         if (is_osp == -1) {
+            is_osp = (access("/usr/lib/vmware-tools/dsp", F_OK) == 0);
+         }
+         type = is_osp ? TOOLS_TYPE_OSP : TOOLS_TYPE_TARBALL;
+      }
+#endif
 #endif
 
-      toolsVersion = g_strdup_printf("tools.set.version %u", version);
+      version = hideVersion ? TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT;
+
+      /*
+       * First try "tools.set.versiontype", if that fails because host is too
+       * old, fall back to "tools.set.version."
+       */
+      toolsVersion = g_strdup_printf("tools.set.versiontype %u %u", version, type);
 
       if (!RpcChannel_Send(state->ctx.rpc, toolsVersion, strlen(toolsVersion) + 1,
                            &result, &resultLen)) {
-         g_debug("Error setting tools version: %s.\n", result);
+         GError *gerror = NULL;
+         gboolean disableVersion;
+         vm_free(result);
+         g_free(toolsVersion);
+
+         /*
+          * Fall back to old behavior for OSPs and OVT so that tools will be
+          * reported as guest managed.
+          */
+         disableVersion = g_key_file_get_boolean(state->ctx.config,
+                                                          "vmtools",
+                                                          CONFNAME_DISABLETOOLSVERSION,
+                                                          &gerror);
+
+         /* By default disableVersion is FALSE, except for open-vm-tools */
+         if (type == TOOLS_TYPE_OVT && gerror != NULL) {
+            g_debug("gerror->code = %d when checking for %s\n", gerror->code, CONFNAME_DISABLETOOLSVERSION);
+            g_clear_error(&gerror);
+            disableVersion = TRUE;
+         }
+
+         version = disableVersion ? TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT;
+         toolsVersion = g_strdup_printf("tools.set.version %u", version);
+
+         if (!RpcChannel_Send(state->ctx.rpc, toolsVersion, strlen(toolsVersion) + 1,
+                              &result, &resultLen)) {
+            g_warning("Error setting tools version: %s.\n", result);
+         }
       }
       vm_free(result);
       g_free(toolsVersion);
@@ -247,8 +307,8 @@ ToolsCore_InitRpc(ToolsServiceState *state)
        * XXX: this should be relaxed when we try to bring up a VMCI or TCP channel.
        */
       if (!state->ctx.isVMware) {
-         g_debug("The %s service needs to run inside a virtual machine.\n",
-                 state->name);
+         g_info("The %s service needs to run inside a virtual machine.\n",
+                state->name);
          state->ctx.rpc = NULL;
       } else {
          state->ctx.rpc = RpcChannel_New();
@@ -359,3 +419,83 @@ ToolsCore_SetCapabilities(RpcChannel *chan,
       g_free(newcaps);
    }
 }
+
+
+#if defined(__linux__)
+/**
+ * Initializes the vSocket address family and sticks a reference
+ * to it in the service state.
+ *
+ * @param[in]  state    The service state.
+ */
+
+void
+ToolsCore_InitVsockFamily(ToolsServiceState *state)
+{
+   int vsockDev = -1;
+   int vsockFamily = -1;
+
+   ASSERT(state);
+
+   state->vsockDev = -1;
+   state->vsockFamily = -1;
+
+   if (!state->ctx.rpc) {
+      /*
+       * Nothing more to do when there is no RPC channel.
+       */
+      g_debug("No RPC channel; skipping reference to vSocket family.\n");
+      return;
+   }
+
+   switch (RpcChannel_GetType(state->ctx.rpc)) {
+   case RPCCHANNEL_TYPE_INACTIVE:
+   case RPCCHANNEL_TYPE_PRIV_VSOCK:
+   case RPCCHANNEL_TYPE_UNPRIV_VSOCK:
+      return;
+   case RPCCHANNEL_TYPE_BKDOOR:
+      vsockFamily = VMCISock_GetAFValueFd(&vsockDev);
+      if (vsockFamily == -1) {
+         /*
+          * vSocket driver may not be loaded, log and continue.
+          */
+         g_warning("Couldn't get vSocket family.\n");
+      } else if (vsockDev >= 0) {
+         g_debug("Saving reference to vSocket device=%d, family=%d\n",
+                 vsockDev, vsockFamily);
+         state->vsockFamily = vsockFamily;
+         state->vsockDev = vsockDev;
+      }
+      return;
+   default:
+      NOT_IMPLEMENTED();
+   }
+}
+
+
+/**
+ * Releases the reference to vSocket address family.
+ *
+ * @param[in]  state    The service state.
+ *
+ * @return TRUE on success.
+ */
+
+void
+ToolsCore_ReleaseVsockFamily(ToolsServiceState *state)
+{
+   ASSERT(state);
+
+   /*
+    * vSocket device is not opened in case of new kernels.
+    * Therefore, we release it only if it was opened.
+    */
+   if (state->vsockFamily >= 0 && state->vsockDev >= 0) {
+      g_debug("Releasing reference to vSocket device=%d, family=%d\n",
+              state->vsockDev, state->vsockFamily);
+      VMCISock_ReleaseAFValueFd(state->vsockDev);
+      state->vsockDev = -1;
+      state->vsockFamily = -1;
+   }
+}
+#endif

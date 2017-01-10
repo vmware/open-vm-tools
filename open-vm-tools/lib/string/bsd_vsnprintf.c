@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 2006-2015 VMware, Inc.  All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*

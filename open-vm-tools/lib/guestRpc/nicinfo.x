@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,7 +38,7 @@ enum NicInfoVersion {
  * The IP limit is large enough to hold an IP address (either v4 or v6).
  */
 const NICINFO_MAX_IP_LEN   = 64;
-const NICINFO_MAX_IPS      = 64;
+const NICINFO_MAX_IPS      = 2048;
 const NICINFO_MAX_NICS     = 16;
 
 /* MAC Addresses are "AA:BB:CC:DD:EE:FF" = 18 bytes. */

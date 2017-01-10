@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,6 +46,13 @@ Escape_Undo(char escByte,      // IN
             void const *bufIn, // IN
             size_t sizeIn,     // IN
             size_t *sizeOut);  // OUT/OPT
+
+Bool
+Escape_UndoFixed(char escByte,        // IN
+                 void const *bufIn,   // IN
+                 size_t sizeIn,       // IN
+                 void *bufOut,        // IN/OUT
+                 size_t bufOutSize);  // IN
 
 const char *
 Escape_Strchr(char escByte,      // IN

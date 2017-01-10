@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +19,7 @@
 /*
  * panic.c --
  *
- *	Basic Panic()
+ *      Basic Panic()
  */
 
 
@@ -48,8 +48,8 @@
  */
 
 void
-Panic(const char *fmt,		// IN: message format
-      ...)			// IN: message format arguments
+Panic(const char *fmt,   // IN: message format
+      ...)               // IN: message format arguments
 {
    va_list ap;
 

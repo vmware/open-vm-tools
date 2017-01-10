@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -68,6 +68,8 @@
 #define PRODUCT_ACE_PLAYER_BRIEF_NAME "ACE " PRODUCT_PLAYER_BRIEF_NAME
 #define PRODUCT_MAC_DESKTOP_BRIEF_NAME "Fusion"
 #define PRODUCT_ACE_MANAGEMENT_SERVER_BRIEF_NAME "ACE Management Server"
+#define PRODUCT_VMRC_BRIEF_NAME "Remote Console"
+#define PRODUCT_GANTRY_BRIEF_NAME "AppCatalyst"
 
 
 /*
@@ -92,6 +94,10 @@
 #define PRODUCT_ACE_PLAYER_NAME MAKE_NAME(PRODUCT_ACE_PLAYER_BRIEF_NAME)
 #define PRODUCT_ACE_MANAGEMENT_SERVER_NAME MAKE_NAME(PRODUCT_ACE_MANAGEMENT_SERVER_BRIEF_NAME)
 #define PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE "VMware Fusion for Mac OS"
+#define PRODUCT_VMRC_NAME MAKE_NAME(PRODUCT_VMRC_BRIEF_NAME)
+#define PRODUCT_VMRC_NAME_FOR_LICENSE PRODUCT_VMRC_NAME
+#define PRODUCT_GANTRY_NAME MAKE_NAME(PRODUCT_GANTRY_BRIEF_NAME)
+#define PRODUCT_GANTRY_NAME_FOR_LICENSE PRODUCT_GANTRY_NAME
 
 #define PRODUCT_VMLS_SHORT_NAME "VMLS"
 #define PRODUCT_VMLS_NAME MAKE_NAME("License Server")
@@ -138,20 +144,24 @@
 #define PRODUCT_VDDK_SHORT_NAME "VDDK"
 #define PRODUCT_VDDK_NAME MAKE_NAME("Virtual Disk Development Kit")
 
-#define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("Horizon View Client")
+#define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("Horizon Client")
 #define PRODUCT_VDM_CLIENT_NAME_FOR_LICENSE PRODUCT_VDM_CLIENT_NAME
 
 #define PRODUCT_XVP_SHORT_NAME "XVP"
 #define PRODUCT_XVP_NAME MAKE_NAME("vCenter XVP Manager")
 #define PRODUCT_RMKSCONTAINER_NAME MAKE_NAME("Remote MKS Container")
 
-#define PRODUCT_BOOMERANG_NAME MAKE_NAME("Boomerang")
-
 #define PRODUCT_HBR_SERVER_NAME MAKE_NAME("vSphere Replication Server")
 
-#define PRODUCT_VIEW_SHORT_NAME "View"
-#define PRODUCT_VIEW_NAME MAKE_NAME("View")
+#define PRODUCT_VIEW_SHORT_NAME "Horizon View"
+#define PRODUCT_VIEW_NAME MAKE_NAME("Horizon View")
 #define PRODUCT_VIEW_NAME_FOR_LICENSE PRODUCT_VIEW_NAME
+
+#define PRODUCT_FLEX_GENERIC_SHORT_NAME "Horizon FLEX"
+#define PRODUCT_FLEX_GENERIC_NAME MAKE_NAME(PRODUCT_FLEX_GENERIC_SHORT_NAME)
+
+#define PRODUCT_FLEX_SERVER_SHORT_NAME PRODUCT_FLEX_GENERIC_SHORT_NAME " Server"
+#define PRODUCT_FLEX_SERVER_NAME MAKE_NAME(PRODUCT_FLEX_SERVER_SHORT_NAME)
 
 #define PRODUCT_VMCF_NAME MAKE_NAME("VMCF")
 
@@ -168,54 +178,6 @@
 #endif
 
 /*
- * VMware Remote Console (VMRC) version definitions
- */
-
-#define PRODUCT_VMRC_SHORT_NAME "VMRC"
-#define PRODUCT_VMRC_NAME MAKE_NAME("Remote Console")
-#define PRODUCT_VMRC_PLUGIN_NAME PRODUCT_VMRC_NAME " Plug-in"
-#define PRODUCT_VMRC_DESCRIPTION "Enables remote interaction with virtual machines."
-#ifdef _WIN32
-#define PRODUCT_VMRC_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-vmrc.exe"
-#else
-#define PRODUCT_VMRC_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-vmrc"
-#define PRODUCT_VMRC_DEVICE_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-deviceMgr"
-#endif
-
-/*
- * VMRC ActiveX CLSIDs and ProgIDs
- *
- * VMRC is versioned x.y.z - ProgID is intentionally built using only x.y
- */
-#define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      4AEA1010-0A0C-405E-9B74-767FC8A998CB
-#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       E82F3B76-A628-4486-B197-03780F86063A
-#define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "VMware.RemoteConsole"
-#define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED    PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "." \
-                                               XSTR(VMRC_PLUGIN_VERSION_BASE)
-
-/*
- * VMRC MIME types
- */
-#ifdef _WIN32
-#define PRODUCT_VMRC_MIMETYPE_SEPARATOR "|"
-#define PRODUCT_VMRC_MIMETYPE_TERMINATOR ""
-#else
-#define PRODUCT_VMRC_MIMETYPE_SEPARATOR "::" PRODUCT_VMRC_PLUGIN_NAME ";"
-#define PRODUCT_VMRC_MIMETYPE_TERMINATOR "::" PRODUCT_VMRC_PLUGIN_NAME ";"
-#endif
-
-#define PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE \
-   "application/x-vmware-remote-console-2012"
-
-/*
- * All supported plugin mimetypes
- *
- * NB: See above for constraints on the ordering of this list.
- */
-#define PRODUCT_VMRC_PLUGIN_MIMETYPES \
-   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE PRODUCT_VMRC_MIMETYPE_TERMINATOR
-
-/*
  * VMware USB Arbitration Service version definitions
  */
 
@@ -226,6 +188,10 @@
 #else
 #define PRODUCT_USB_ARBITRATOR_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-usbarbitrator"
 #endif
+
+// VMware Remote Console (VMRC)
+#define PRODUCT_VMRC_UPPER "VMRC"
+#define PRODUCT_VMRC_LOWER "vmrc"
 
 /*
  * TODO: This properly lives in productState, but we need it here to
@@ -238,7 +204,7 @@
 #if !(   defined(VMX86_SERVER)   \
       || defined(VMX86_DESKTOP)  \
       || defined(VMX86_ENTERPRISE_DESKTOP) \
-      || defined(VMX86_VIEW)     \
+      || defined(VMX86_HORIZON_VIEW)     \
       || defined(VMX86_MUI)      \
       || defined(VMX86_VPX)      \
       || defined(VMX86_WBC)      \
@@ -253,9 +219,10 @@
       || defined(VMX86_DDK)      \
       || defined(VMX86_VDDK)     \
       || defined(VMX86_NETDUMP) \
-      || defined(VMX86_BOOMERANG) \
       || defined(VMX86_HBR_SERVER) \
-      || defined(VMX86_VMCF))
+      || defined(VMX86_VMCF) \
+      || defined(VMX86_GANTRY) \
+      || defined(VMX86_VMRC))
 #   if defined(_WIN32) || defined(__APPLE__)
       /*
        * XXX Make the product be Workstation by default if none of the defines
@@ -276,6 +243,10 @@
 # define PRODUCT_SHORT_NAME PRODUCT_CONSOLE_NAME
 #elif defined(VMX86_MUI)
 # define PRODUCT_SHORT_NAME PRODUCT_MUI_NAME
+#elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
+# define PRODUCT_SHORT_NAME PRODUCT_VMRC_NAME
+#elif defined(VMX86_GANTRY)
+# define PRODUCT_SHORT_NAME PRODUCT_GANTRY_NAME
 #elif defined(VMX86_ENTERPRISE_DESKTOP)
 # define PRODUCT_SHORT_NAME PRODUCT_WORKSTATION_ENTERPRISE_NAME
 #elif defined(VMX86_DESKTOP)
@@ -288,7 +259,7 @@
 # define PRODUCT_SHORT_NAME VMWARE_TOOLS_SHORT_NAME
 #elif defined(VMX86_VPX)
 #  if defined(CSI_HA)
-#     define PRODUCT_SHORT_NAME PRODUCT_HA_NAME     
+#     define PRODUCT_SHORT_NAME PRODUCT_HA_NAME
 #  elif defined(CSI_FDM)
 #     define PRODUCT_SHORT_NAME PRODUCT_FDM_NAME
 #  elif defined(VPXA)
@@ -326,11 +297,9 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VDDK_NAME
 #elif defined(VMX86_NETDUMP)
 # define PRODUCT_SHORT_NAME PRODUCT_NETDUMP_NAME
-#elif defined(VMX86_BOOMERANG)
-# define PRODUCT_SHORT_NAME PRODUCT_BOOMERANG_NAME
 #elif defined(VMX86_HBR_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_HBR_SERVER_NAME
-#elif defined(VMX86_VIEW)
+#elif defined(VMX86_HORIZON_VIEW)
 # define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
 #elif defined(VMX86_VMCF)
 # define PRODUCT_SHORT_NAME PRODUCT_VMCF_NAME
@@ -393,6 +362,12 @@
 #   if defined(VMX86_SERVER)
 #      define PRODUCT_NAME_FOR_LICENSE "VMware ESX Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE PRODUCT_ESX_SMP_NAME
+#   elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_VMRC_NAME_FOR_LICENSE
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_GANTRY)
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_GANTRY_NAME_FOR_LICENSE
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   elif defined(VMX86_DESKTOP)
 #      if defined(__APPLE__)
 #         define PRODUCT_NAME_FOR_LICENSE PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE
@@ -422,7 +397,10 @@
  * product.
  */
 #   if defined(__APPLE__)
-#      if defined VMX86_DESKTOP
+#      if defined VMX86_GANTRY
+#         define VMWARE_HOST_DIRECTORY_PREFIX \
+             "/Library/Preferences/" PRODUCT_SHORT_NAME
+#      elif defined VMX86_DESKTOP
 #         define VMWARE_HOST_DIRECTORY_PREFIX \
              "/Library/Preferences/" PRODUCT_SHORT_NAME
 #      else
@@ -483,7 +461,13 @@
  * a license intended for one flavor of the product will not allow
  * another flavor of the product to run.
  */
-#   if defined(VMX86_DESKTOP)
+#   if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_VMRC_NAME
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_FLEX_NAME
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_DESKTOP)
 #      if defined(__APPLE__)
 #         define PRODUCT_NAME_FOR_LICENSE PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE
 #      else
@@ -567,11 +551,5 @@
 // while opening connections to vCenter and vSphere servers. Currently vCloud
 // VMRC uses it.
 #define VMWARE_HTTPSPROXY  "VMWARE_HTTPSPROXY"
-
-// Name of the environment variable that controls whether MKS traffic should
-// be tunnelled over HTTPS through the console proxy. Currently vCloud VMRC
-// uses it.
-#define VMWARE_HTTPSTUNNEL_MKS   "VMWARE_HTTPSTUNNEL_MKS"
-
 
 #endif /* VM_PRODUCT_H */

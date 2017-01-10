@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2014-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2014-2016 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -30,10 +30,22 @@ VGAuthService_SOURCES += ../serviceImpl/filePosix.c
 VGAuthService_SOURCES += ../serviceImpl/netPosix.c
 VGAuthService_SOURCES += ../serviceImpl/proto.c
 VGAuthService_SOURCES += ../serviceImpl/random.c
-VGAuthService_SOURCES += ../serviceImpl/saml.cpp
+if USE_XMLSEC1
+VGAuthService_SOURCES += ../serviceImpl/saml-xmlsec1.c
+else
+VGAuthService_SOURCES += ../serviceImpl/saml-xml-security-c.cpp
+endif
 VGAuthService_SOURCES += ../serviceImpl/service.c
 VGAuthService_SOURCES += ../serviceImpl/ticket.c
 VGAuthService_SOURCES += ../serviceImpl/verify.c
+
+VGAuthService_SOURCES += ../common/audit.c
+VGAuthService_SOURCES += ../common/certverify.c
+VGAuthService_SOURCES += ../common/i18n.c
+VGAuthService_SOURCES += ../common/prefs.c
+VGAuthService_SOURCES += ../common/usercheck.c
+VGAuthService_SOURCES += ../common/VGAuthLog.c
+VGAuthService_SOURCES += ../common/VGAuthUtil.c
 
 VGAuthServicedir = /etc/vmware-tools/vgauth/schemas
 VGAuthService_SCRIPTS =
@@ -46,28 +58,33 @@ VGAuthService_SCRIPTS += ../serviceImpl/schemas/XMLSchema-hasFacetAndProperty.xs
 VGAuthService_SCRIPTS += ../serviceImpl/schemas/XMLSchema-instance.xsd
 VGAuthService_SCRIPTS += ../serviceImpl/schemas/XMLSchema.xsd
 VGAuthService_SCRIPTS += ../serviceImpl/schemas/xml.xsd
+VGAuthService_SCRIPTS += ../serviceImpl/schemas/catalog.xml
 
 VGAuthService_CPPFLAGS =
-VGAuthService_CPPFLAGS += -DVMTOOLS_USE_GLIB
 VGAuthService_CPPFLAGS += @GLIB2_CPPFLAGS@
+if USE_XMLSEC1
+VGAuthService_CPPFLAGS += @XMLSEC1_CPPFLAGS@
+else
 VGAuthService_CPPFLAGS += @XERCES_CPPFLAGS@
 VGAuthService_CPPFLAGS += @XMLSECURITY_CPPFLAGS@
+endif
 VGAuthService_CPPFLAGS += @SSL_CPPFLAGS@
-VGAuthService_CPPFLAGS += -I$(top_srcdir)/libvmtools
 VGAuthService_CPPFLAGS += -I$(top_srcdir)/vgauth/public
 VGAuthService_CPPFLAGS += -I$(top_srcdir)/vgauth/common
 VGAuthService_CPPFLAGS += -I$(top_srcdir)/vgauth/serviceImpl
 
 VGAuthService_LDADD =
-VGAuthService_LDADD += @VMTOOLS_LIBS@
 VGAuthService_LDADD += @GLIB2_LIBS@
 VGAuthService_LDADD += @GTHREAD_LIBS@
-VGAuthService_LDADD += ../lib/libvgauth.la
+if USE_XMLSEC1
+VGAuthService_LDADD += @XMLSEC1_LIBS@
+else
 VGAuthService_LDADD += @XERCES_LIBS@
 VGAuthService_LDADD += @XMLSECURITY_LIBS@
-VGAuthService_LDADD += @SSL_LIBS@
 VGAuthService_LDADD += -lxerces-c
 VGAuthService_LDADD += -lxml-security-c
+endif
+VGAuthService_LDADD += @SSL_LIBS@
 VGAuthService_LDADD += -lssl
 VGAuthService_LDADD += -lcrypto
 

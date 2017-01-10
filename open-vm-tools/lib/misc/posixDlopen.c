@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,8 +48,8 @@
  */
 
 void *
-Posix_Dlopen(ConstUnicode pathName,  // IN:
-             int flag)               // IN:
+Posix_Dlopen(const char *pathName,  // IN:
+             int flag)              // IN:
 {
    char *path;
    void *ret;

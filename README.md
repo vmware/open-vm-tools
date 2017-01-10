@@ -12,7 +12,7 @@ open-vm-tools enables the following features in VMware products:
 - Generation of heartbeat from guests to hosts so VMware's HA solution can determine guests' availability.
 - Clock synchronization between guests and hosts or client desktops.
 - Quiescing guest file systems to allow hosts to capture file-system-consistent guest snapshots.
-- Execution of pre-freeze and post-thaw scripts while quiescing guest files systems.
+- Execution of pre-freeze and post-thaw scripts while quiescing guest file systems.
 - The ability to customize guest operating systems immediately after powering on virtual machines.
 - Enabling shared folders between host and guest file systems on VMware Workstation and VMware Fusion.
 - Copying and pasting text, graphics, and files between guests and hosts or client desktops.
@@ -38,7 +38,7 @@ The following components have been released as open source software:
 Yes. open-vm-tools packages for user space components are available with new versions of major Linux distributions, and are installed as part of the OS installation in several cases. Please refer to VMware KB article http://kb.vmware.com/kb/2073803 for details. All leading Linux vendors support open-vm-tools and bundle it with their products. For information about OS compatibility for open-vm-tools, see the 
 VMware Compatibility Guide at http://www.vmware.com/resources/compatibility
 Automatic installation of open-vm-tools along with the OS installation eliminates the need to separately install open-vm-tools in guests. If open-vm-tools is not installed automatically, you may be able to manually install it from the guest OS vendor's public repository. Installing open-vm-tools from the Linux vendor's repository reduces virtual machine downtime because future updates to open-vm-tools are included with the OS maintenance patches and updates.
-**NOTE**: The open-vm-tools package available with Linux distributions does not including Linux drivers because Linux drivers are available as part of Linux kernel itself. Linux kernel versions 3.10 and later include all of the Linux drivers present in open-vm-tools except the vmhgfs driver.  The vmhgfs driver is required for enabling shared folders feature.
+**NOTE**: Most of the Linux distributions ship two open-vm-tools packages, "open-vm-tools" and "open-vm-tools-desktop". "open-vm-tools" is the core pacakge without any dependencies on X libraries and "open-vm-tools-desktop" is an additional package with dependencies on "open-vm-tools" core package and X libraries. The open-vm-tools packages available with Linux distributions do not include Linux drivers because Linux drivers are available as part of Linux kernel itself. Linux kernel versions 3.10 and later include all of the Linux drivers present in open-vm-tools except the vmhgfs driver. The vmhgfs driver is required for enabling shared folders feature.
 
 ##Will there be continued support for VMware Tools and OSP? 
 VMware Tools will continue to be available under a commercial license. It is recommended that open-vm-tools be used for the Linux distributions where open-vm-tools is available. VMware will not provide OSPs for operating systems where open-vm-tools is available.
@@ -79,34 +79,37 @@ No, since your project/product is not a VMware project/product.
  
 # Building open-vm-tools
 ##How do I build open-vm-tools?
-open-vm-tools uses the GNU Automake tool for generating Makefiles to build all sources. More information about Automake can be found here: http://sources.redhat.com/automake/
+open-vm-tools uses the GNU Automake tool for generating Makefiles to build all sources. More information about Automake can be found here: http://www.gnu.org/software/automake/
 ##Project build information:
 Getting configure options & help: If you are looking for help or additional settings for the building of this project, the following configure command will display a list of help options: ./configure --help
 Using configure: When using configure in the steps below it is only necessary to call ./configure once unless there was a problem after the first invocation.
 Building Unix user-space programs:
+
 1. autoreconf -i
 2. ./configure
-3. Run "make" to build Unix userland  and kernel
+3. Run "make" to build Unix userland and kernel
+
 Packaging: If you are interested in creating a Tools package, please see https://sourceforge.net/apps/mediawiki/open-vm-tools/index.php?title=Packaging for more information.
 
 #Getting Involved
 ##How can I get involved today?
-You can get involved today in sevearl different ways:
-- Start using open-vm-tools today and give us feedback .
-- Suggest feature enhancements .
+You can get involved today in several different ways:
+- Start using open-vm-tools today and give us feedback.
+- Suggest feature enhancements.
 - Identify and submit bugs under issues section: https://github.com/vmware/open-vm-tools/issues
 - Start porting the code to other operating systems.   Here is the list of operating systems with open-vm-tools:
-  * Fedora 19 and later releases
-  * Debian 7.x and later releases
-  * openSUSE 11.x and later releases
-  * Recent Ubuntu releases (12.04 LTS, 13.10 and later)
+
   * Red Hat Enterprise Linux 7.0 and later releases
   * SUSE Linux Enterprise 12 and later releases
+  * Ubuntu 14.04 and later releases
   * CentOS 7 and later releases
+  * Debian 7.x and later releases
   * Oracle Linux 7 and later 
+  * Fedora 19 and later releases
+  * openSUSE 11.x and later releases
  
 ## Will external developers be allowed to become committers to the project?
-Yes. Initially, VMware engineers will be the only committers. As we roll out our developement infrastructure, we will be looking to add external committers to the project as well.
+Yes. Initially, VMware engineers will be the only committers. As we roll out our development infrastructure, we will be looking to add external committers to the project as well.
 
 ## How can I submit code changes like bug fixes, patches, new features to the project?
 Initially, you can submit bug fixes, patches and new features to the project development mailing list as attachments to emails or bug reports. To contribute source code, you will need to fill out a contribution agreement form as part of the submission process. We will have more details on this process shortly.

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2010-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2010-2016 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -21,6 +21,9 @@ libhgfs_la_LIBADD =
 libhgfs_la_LIBADD += ../lib/hgfs/libHgfs.la
 libhgfs_la_LIBADD += ../lib/hgfsHelper/libHgfsHelper.la
 libhgfs_la_LIBADD += ../lib/hgfsServer/libHgfsServer.la
+if HAVE_GTKMM
+libhgfs_la_LIBADD += ../lib/hgfsUri/libHgfsUri.la
+endif
 libhgfs_la_LIBADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.la
 libhgfs_la_LIBADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.la
 libhgfs_la_LIBADD += @GLIB2_LIBS@

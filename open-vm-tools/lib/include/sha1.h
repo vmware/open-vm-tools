@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,6 +67,22 @@
 
 #else
 
+#ifndef VMKERNEL
+
+/*
+ * Prevent linkage conflicts with the SHA1 APIs brought in from
+ * OpenSSL. (Pro tip: If you're doing anything security-related, you
+ * _must_ be using lib/crypto hash routines to preserve FIPS
+ * compatibility.)
+ */
+
+#define SHA1Init             VMW_SHA1Init
+#define SHA1Update           VMW_SHA1Update
+#define SHA1Final            VMW_SHA1Final
+#define SHA1RawBufferHash    VMW_SHA1RawBufferHash
+
+#endif /* !VMKERNEL */
+
 /*
 SHA-1 in C
 By Steve Reid <steve@edmweb.com>
@@ -94,19 +110,26 @@ typedef struct {
     unsigned char buffer[64];
 } SHA1_CTX;
 
-#define SHA1HANDSOFF /* Copies data before messing with it. */
-
 void SHA1Init(SHA1_CTX* context);
-#ifdef SHA1HANDSOFF
 void SHA1Update(SHA1_CTX* context,
                 const unsigned char *data,
                 size_t len);
-#else
-void SHA1Update(SHA1_CTX* context,
-                unsigned char *data,
-                size_t len);
-#endif
 void SHA1Final(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
+
+void SHA1RawBufferHash(const void *data,
+                       uint32 size,
+                       uint32 result[5]);
+void SHA1RawTransformBlocks(uint32 state[5],
+                            const unsigned char *buffer,
+                            uint32 numBlocks);
+void SHA1RawInit(uint32 state[5]);
+
+#define SHA1_MULTI_MAX_BUFFERS 8
+
+void SHA1MultiBuffer(uint32 numBuffers,
+                     uint32 len,
+                     const void *data[],
+                     unsigned char *digests[]);
 
 #endif // defined __APPLE__ && defined USERLEVEL
 

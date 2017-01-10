@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -72,6 +72,14 @@
 
 #define VRM_HOTFIXREQ_FILE_EXTENSION "vmhr"   // ACE hotfix request
 #define VRM_HOTFIX_FILE_EXTENSION "vmhf"      // ACE hotfix response
+
+/*
+ * VM Download.
+ */
+
+#define RVM_DOWNLOAD_FILE_EXTENSION "vmdownload"    // Downloaded file
+#define RVM_STATE_FILE_EXTENSION "vmstate"          // Download metadata
+#define DOWNLOAD_BUNDLE_FILE_EXTENSION "vmdownload" // VM download bundle directory
 
 /*
  * Other file types.

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -473,16 +473,16 @@ DnDMsg_UnserializeArgs(DnDMsg *msg,     // IN/OUT: the message
          goto err;
       }
       readArgsSz += argSz + sizeof (uint32);
+
       free(data);
+      data = NULL;
    }
 
    ASSERT(ret == DNDMSG_SUCCESS);
    return ret;
 
 err:
-   if (data) {
-      free(data);
-   }
+   free(data);
 
    count = DynBufArray_Count(&msg->args);
    for (i = 0; i < count; ++i) {

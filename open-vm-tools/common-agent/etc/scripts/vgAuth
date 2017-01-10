@@ -1,0 +1,82 @@
+#!/bin/bash
+
+helpMessage() {
+	echo "*** $0 Action {Username} {CertPath} {Subject}"
+	echo "  Manages the VGAuth alias store"
+	echo "    Action: help, addUser, removeUser, listAll, listUser"
+	echo "    Username: The name of the user to add to the alias store [default: $username]"
+	echo "    CertPath: Path to the cert [default: $cert]"
+	echo "    Subject: Subject of the cert [default: $subject]"
+	exit 1
+}
+
+scriptsDir=$(dirname $(readlink -f $0))
+configDir=$scriptsDir/../config
+
+. $scriptsDir/caf-common
+sourceCafenv "$configDir"
+
+vgAuthCliName=vmware-vgauth-cmd
+if [ -f /usr/lib/vmware-vgauth/$vgAuthCliName ]; then
+	vgAuthCliPath=/usr/lib/vmware-vgauth/$vgAuthCliName
+else
+	if [ -f $CAF_BIN_DIR/$vgAuthCliName ]; then
+		vgAuthCliPath=$CAF_BIN_DIR/$vgAuthCliName
+		export LD_LIBRARY_PATH=$CAF_LIB_DIR
+	else
+		echo "*** $vgAuthCliName not found"
+		exit 1
+	fi
+fi
+
+action=$1
+username="testuser"
+cert=$CAF_INPUT_DIR/certs/selfSignedCert.pem
+subject="samlTestSubject"
+
+if [ $# -lt 1 -o $# -gt 4 -o "$1" = "--help" ]; then
+	helpMessage
+fi
+if [ $# -ge 2 ]; then
+	username=$2
+fi
+if [ $# -ge 3 ]; then
+	cert=$3
+fi
+if [ $# -ge 4 ]; then
+	subject=$4
+fi
+
+case "$action" in
+	"addUser")
+		userLineCnt=$($vgAuthCli list --username=$username | wc -l)
+		if [ $userLineCnt = 0 ]; then
+			echo "*** Addding $username ***"
+			$vgAuthCli add --global --username=$username --file $cert --subject=$subject
+		else
+			echo "*** User already exists... Doing nothing - $username"
+		fi
+	;;
+	"removeUser")
+		userLineCnt=$($vgAuthCli list --username=$username | wc -l)
+		if [ $userLineCnt = 0 ]; then
+			echo "*** User already gone... Doing nothing - $username"
+		else
+			echo "*** Removing $username ***"
+			$vgAuthCli remove --username=$username --file $cert --subject=$subject
+		fi
+	;;
+	"listAll")
+		$vgAuthCli list
+	;;
+	"listUser")
+		echo "*** Listing $username ***"
+		$vgAuthCli list --username=$username
+	;;
+	"help")
+		helpMessage
+	;;
+	*)
+		helpMessage
+	;;
+esac

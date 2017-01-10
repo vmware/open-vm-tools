@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -94,10 +94,6 @@ struct HashTable {
  * Local functions
  */
 
-static HashTableEntry *HashTableLookup(HashTable *ht,
-                                       const void *keyStr, 
-                                       uint32 hash);
-
 HashTableEntry *HashTableLookupOrInsert(HashTable *ht,
                                         const void *keyStr,
                                         void *clientData);
@@ -119,9 +115,9 @@ HashTableEntry *HashTableLookupOrInsert(HashTable *ht,
  *-----------------------------------------------------------------------------
  */
 
-static INLINE uint32
-HashTableComputeHash(HashTable *ht,  // IN: hash table
-                     const void *s)  // IN: string to hash
+static uint32
+HashTableComputeHash(const HashTable *ht,  // IN: hash table
+                     const void *s)        // IN: string to hash
 {
    uint32 h = 0;
 
@@ -190,10 +186,10 @@ HashTableComputeHash(HashTable *ht,  // IN: hash table
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Bool
-HashTableEqualKeys(HashTable *ht,     // IN: hash table
-                   const void *key1,  // IN: key
-                   const void *key2)  // IN: key
+static Bool
+HashTableEqualKeys(const HashTable *ht,  // IN: hash table
+                   const void *key1,     // IN: key
+                   const void *key2)     // IN: key
 {
    switch (ht->keyType) {
    case HASH_STRING_KEY:
@@ -243,7 +239,6 @@ HashTable_Alloc(uint32 numEntries,        // IN: must be a power of 2
            (keyType & HASH_TYPE_MASK) == HASH_ISTRING_KEY));
 
    ht = Util_SafeMalloc(sizeof *ht);
-   VERIFY(ht);
 
    ht->numBits = lssb32_0(numEntries);
    ht->numEntries = numEntries;
@@ -379,13 +374,14 @@ HashTable_Clear(HashTable *ht)  // IN/OUT:
 void
 HashTable_Free(HashTable *ht)  // IN/OUT:
 {
-   ASSERT(ht);
-   ASSERT(!ht->atomic);
+   if (ht != NULL) {
+      ASSERT(!ht->atomic);
 
-   HashTableClearInternal(ht);
+      HashTableClearInternal(ht);
 
-   free(ht->buckets);
-   free(ht);
+      free(ht->buckets);
+      free(ht);
+   }
 }
 
 
@@ -410,12 +406,12 @@ HashTable_Free(HashTable *ht)  // IN/OUT:
 void
 HashTable_FreeUnsafe(HashTable *ht)  // IN/OUT:
 {
-   ASSERT(ht);
+   if (ht != NULL) {
+      HashTableClearInternal(ht);
 
-   HashTableClearInternal(ht);
-
-   free(ht->buckets);
-   free(ht);
+      free(ht->buckets);
+      free(ht);
+   }
 }
 
 
@@ -436,9 +432,9 @@ HashTable_FreeUnsafe(HashTable *ht)  // IN/OUT:
  */
 
 static HashTableEntry *
-HashTableLookup(HashTable *ht,       // IN:
-                const void *keyStr,  // IN:
-                uint32 hash)         // IN:
+HashTableLookup(const HashTable *ht,  // IN:
+                const void *keyStr,   // IN:
+                uint32 hash)          // IN:
 {
    HashTableEntry *entry;
 
@@ -472,9 +468,9 @@ HashTableLookup(HashTable *ht,       // IN:
  */
 
 Bool
-HashTable_Lookup(HashTable  *ht,      // IN:
-                 const void *keyStr,  // IN:
-                 void **clientData)   // OUT:
+HashTable_Lookup(const HashTable  *ht, // IN:
+                 const void *keyStr,   // IN:
+                 void **clientData)    // OUT/OPT:
 {
    uint32 hash = HashTableComputeHash(ht, keyStr);
    HashTableEntry *entry = HashTableLookup(ht, keyStr, hash);
@@ -595,7 +591,7 @@ HashTable_LookupAndDelete(HashTable *ht,       // IN/OUT: the hash table
 Bool
 HashTable_Insert(HashTable  *ht,          // IN/OUT:
                  const void *keyStr,      // IN:
-                 void       *clientData)  // IN:
+                 void       *clientData)  // IN/OPT:
 {
    return HashTableLookupOrInsert(ht, keyStr, clientData) == NULL;
 }
@@ -705,8 +701,8 @@ HashTable_ReplaceOrInsert(HashTable  *ht,          // IN/OUT:
 Bool
 HashTable_ReplaceIfEqual(HashTable *ht,        // IN/OUT:
                          const void *keyStr,   // IN:
-                         void *oldClientData,  // IN:
-                         void *newClientData)  // IN:
+                         void *oldClientData,  // IN/OPT:
+                         void *newClientData)  // IN/OPT:
 {
    uint32 hash = HashTableComputeHash(ht, keyStr);
    HashTableEntry *entry = HashTableLookup(ht, keyStr, hash);
@@ -760,7 +756,7 @@ HashTable_ReplaceIfEqual(HashTable *ht,        // IN/OUT:
 HashTableEntry *
 HashTableLookupOrInsert(HashTable *ht,       // IN/OUT:
                         const void *keyStr,  // IN:
-                        void *clientData)    // IN:
+                        void *clientData)    // IN/OPT:
 {
    uint32 hash = HashTableComputeHash(ht, keyStr);
    HashTableEntry *entry = NULL;

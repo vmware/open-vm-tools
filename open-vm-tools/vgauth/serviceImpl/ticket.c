@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +28,31 @@
 #ifdef _WIN32
 #include "winDupHandle.h"
 #endif
+
+/*
+ * XXX TODO
+ *
+ * There may be a bug in the ticket implementation.
+ *
+ * Right now, a ticket doesn't care about any expiration details
+ * of the authn method used to create it.  This means a bearer
+ * token that expires in 5 minutes could be used to create a ticket
+ * with a far longer expiration time.
+ *
+ * This seems like a possible security problem, and it should instead
+ * try to obey the auth time of the original authn method.
+ *
+ * This may be messy to implement securely, since we currently
+ * lose the expiration date.  It could be passed around along with the
+ * Subject and AliasInfo we already store, but a bad client could
+ * cheat -- but a bad client can do other horrible things.  Since CreateTicket
+ * can be called as a normal user, this seems hackable.
+ *
+ * Should CreateTicket be restricted to superUser?
+ *
+ * Also -- we currently would support making a ticket from a ticket.
+ * Are there any security concerns here?
+ */
 
 /*
  * Debugging flags.

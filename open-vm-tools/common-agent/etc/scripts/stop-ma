@@ -1,0 +1,10 @@
+#!/bin/sh
+
+scriptsDir=$(dirname $(readlink -f $0))
+configDir=$scriptsDir/../config
+
+. $scriptsDir/caf-common
+sourceCafenv "$configDir"
+
+processName="ManagementAgentHost"
+stopProcess "$CAF_BIN_DIR" "$processName"

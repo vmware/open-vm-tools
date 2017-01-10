@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -36,8 +36,8 @@
 #include "compat_spinlock.h"
 
 #include "hgfs.h" /* For common HGFS definitions. */
-#include "hgfsTransport.h"
 #include "vm_basic_types.h"
+#include "vm_basic_defs.h"
 
 /* Macros for accessing the payload portion of the HGFS request packet. */
 #define HGFS_REQ_PAYLOAD(hgfsReq) ((hgfsReq)->payload)

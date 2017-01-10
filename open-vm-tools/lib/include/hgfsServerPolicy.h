@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,12 +31,6 @@
  */
 #define HGFS_SERVER_POLICY_ROOT_SHARE_NAME "root"
 
-Bool
-HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects, HgfsRegisterSharedFolderFunc *registerFolder);
-
-Bool
-HgfsServerPolicy_Cleanup(void);
-
 
 typedef uint32 HgfsShareOptions;
 
@@ -46,17 +40,17 @@ typedef uint32 HgfsShareOptions;
  */
 typedef struct HgfsSharedFolder {
    DblLnkLst_Links links;
-   char *name;          /* Name of share */
-   char *path;          /*
-                         * Path of share in server's filesystem. Should
-                         * not include final path separator.
-                         */
-   char *shareTags;     /* Tags associated with this share (comma delimited). */
-   size_t shareTagsLen; /* Length of shareTag string */
-   size_t nameLen;      /* Length of name string */
-   size_t pathLen;      /* Length of path string */
-   Bool readAccess;     /* Read permission for this share */
-   Bool writeAccess;    /* Write permission for this share */
+   const char *name;     /* Name of share */
+   const char *path;     /*
+                          * Path of share in server's filesystem. Should
+                          * not include final path separator.
+                          */
+   const char *shareTags;/* Tags associated with this share (comma delimited). */
+   size_t shareTagsLen;  /* Length of shareTag string */
+   size_t nameLen;       /* Length of name string */
+   size_t pathLen;       /* Length of path string */
+   Bool readAccess;      /* Read permission for this share */
+   Bool writeAccess;     /* Write permission for this share */
    HgfsShareOptions configOptions; /* User-config options. */
    HgfsSharedFolderHandle handle;  /* Handle assigned by HGFS server
                                     * when the folder was registered with it.
@@ -78,10 +72,13 @@ typedef struct HgfsServerPolicy_ShareList {
    char **shareNames;
 } HgfsServerPolicy_ShareList;
 
-/* Defined in hgfsServerInt.h */
-HgfsGetNameFunc HgfsServerPolicy_GetShares;
-HgfsInitFunc HgfsServerPolicy_GetSharesInit;
-HgfsCleanupFunc HgfsServerPolicy_GetSharesCleanup;
+Bool
+HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,
+                      HgfsRegisterSharedFolderFunc registerFolder,
+                      HgfsServerResEnumCallbacks *enumResources);
+
+Bool
+HgfsServerPolicy_Cleanup(void);
 
 HgfsNameStatus
 HgfsServerPolicy_GetSharePath(char const *nameIn,         // IN:
@@ -114,10 +111,5 @@ HgfsServerPolicy_FreeShareList(HgfsServerPolicy_ShareList *shareList); // IN: li
 
 HgfsServerPolicy_ShareList *
 HgfsServerPolicy_GetSharesWithTag(const char *tag); // IN: tag to search for
-
-Bool
-HgfsServerPolicy_CheckMode(HgfsOpenMode mode,          // IN: mode to check
-                           Bool writePermissions,      // IN: callers write permissions
-                           Bool readPermissions);      // IN: callers read permissions
 
 #endif // _HGFS_SERVER_POLICY_H_

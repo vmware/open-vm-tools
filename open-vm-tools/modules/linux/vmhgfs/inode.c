@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,6 +31,7 @@
 #include <linux/namei.h>
 #endif
 #include <linux/highmem.h>
+#include <linux/time.h> // for current_fs_time
 
 #include "compat_cred.h"
 #include "compat_dcache.h"
@@ -66,6 +67,20 @@
 #define hgfs_d_count(dentry) dentry->d_count
 #else
 #define hgfs_d_count(dentry) atomic_read(&dentry->d_count)
+#endif
+
+#if defined VMW_DALIAS_319 || LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+/*
+ * Linux Kernel versions that are version 3.19 and newer or are compatible
+ * by having the d_alias field moved into a union backported.
+ */
+#define hgfs_d_alias() d_u.d_alias
+#else
+/*
+ * Kernel versions that are not 3.19 version compatible or are just older will
+ * use the d_alias field directly.
+ */
+#define hgfs_d_alias() d_alias
 #endif
 
 /* Private functions. */
@@ -1552,9 +1567,14 @@ retry:
           *
           * XXX: I think old servers will send -EPERM here. Is this entirely
           * safe?
+          * We can receive EACCES or EPERM if we don't have the correct
+          * permission on the source file. So lets not assume that we have
+          * a target and only clear the target if there is one.
           */
-         if (!secondAttempt) {
+         if (!secondAttempt && newDentry->d_inode != NULL) {
             secondAttempt = TRUE;
+            LOG(4, (KERN_DEBUG "VMware hgfs: %s:clear target RO mode %8x\n",
+                    __func__, newDentry->d_inode->i_mode));
             result = HgfsClearReadOnly(newDentry);
             if (result == 0) {
                LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: file is no "
@@ -1564,8 +1584,8 @@ retry:
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: failed to remove "
                     "read-only property\n"));
          } else {
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: second attempt at "
-                    "rename failed\n"));
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: second attempt or "
+                    "no target failed\n"));
          }
       } else if (0 != result) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: failed with result %d\n", result));
@@ -1579,6 +1599,28 @@ retry:
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: unknown error: "
               "%d\n", result));
    }
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 32)
+   if (result == 0) {
+      /*
+       * We force revalidate to go get the file info as soon as needed.
+       * We only add this fix, borrowed from CIFS, for newer versions
+       * of the kernel which have the current_fs_time function.
+       * For details see bug 1613734 but here is a short summary.
+       * This addresses issues in editors such as gedit which use
+       * rename when saving the updated contents of a file.
+       * If we don't force the revalidation here, then the dentry
+       * will randomly age over some time which will then pick up the
+       * file's new timestamps from the server at that time.
+       * This delay will cause the editor to think the file has been modified
+       * underneath it and prompt the user if they want to reload the file.
+       */
+      HgfsDentryAgeForce(oldDentry);
+      HgfsDentryAgeForce(newDentry);
+      oldDir->i_ctime = oldDir->i_mtime = newDir->i_ctime =
+         newDir->i_mtime = current_fs_time(oldDir->i_sb);
+   }
+#endif // LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 32)
 
 out:
    HgfsFreeRequest(req);
@@ -1917,7 +1959,7 @@ HgfsPermission(struct inode *inode,
                            p,
 #endif
                            &inode->i_dentry,
-                           d_alias) {
+                           hgfs_d_alias()) {
          int dcount = hgfs_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", dentry->d_name.name, dcount));
@@ -1970,7 +2012,7 @@ HgfsPermission(struct inode *inode,
       /* Find a dentry with valid d_count. Refer bug 587879. */
       list_for_each(pos, &inode->i_dentry) {
          int dcount;
-         struct dentry *dentry = list_entry(pos, struct dentry, d_alias);
+         struct dentry *dentry = list_entry(pos, struct dentry, hgfs_d_alias());
          dcount = hgfs_d_count(dentry);
          if (dcount) {
             LOG(4, ("Found %s %d \n", (dentry)->d_name.name, dcount));
@@ -2059,7 +2101,6 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
 
    ASSERT(dentry);
    ASSERT(dentry->d_inode);
-   ASSERT(dentry->d_inode->i_mapping);
    ASSERT(dentry->d_sb);
    ASSERT(iattr);
 
@@ -2086,6 +2127,7 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
     * modify the file size or change the last write time.
     */
    if (iattr->ia_valid & ATTR_SIZE || iattr->ia_valid & ATTR_MTIME) {
+      ASSERT(dentry->d_inode->i_mapping);
       compat_filemap_write_and_wait(dentry->d_inode->i_mapping);
    }
 

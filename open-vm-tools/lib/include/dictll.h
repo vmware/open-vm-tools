@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,7 +49,7 @@ DictLL_UnmarshalLine(const char *buf,  // IN
 
 Bool
 DictLL_MarshalLine(DynBuf *output,     // IN/OUT
-                   char const *name,   // IN
+                   char const *name,   // IN/OPT
                    char const *value); // IN
 
 

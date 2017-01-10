@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -151,7 +151,9 @@ HgfsPutSuper(struct super_block *sb) // IN: The superblock
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPutSuper: was called\n"));
 
    si = HGFS_SB_TO_COMMON(sb);
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+   bdi_destroy(&si->bdi);
+#endif
    kfree(si->shareName);
    kfree(si);
 }

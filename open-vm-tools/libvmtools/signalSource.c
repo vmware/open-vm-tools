@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -86,6 +86,7 @@ SignalSourceReadSigInfo(void)
          ASSERT(nbytes == sizeof info);
       }
       memcpy(&gHandler.currSignal, &info, sizeof info);
+      ASSERT(0 <= info.si_signo && info.si_signo < MAX_SIGNALS);
       gHandler.signals[info.si_signo] = SIG_SRC_SIGNALED;
       gHandler.wakeupFd.revents = 0;
    }
@@ -110,7 +111,7 @@ SignalSourceSigHandler(int signum,
 {
    ssize_t bytes;
    siginfo_t dummy;
-   if (signum >= MAX_SIGNALS) {
+   if (signum >= MAX_SIGNALS || signum < 0) {
       return;
    }
 
@@ -265,7 +266,7 @@ VMTools_NewSignalSource(int signum)
    };
    SignalSource *ret;
 
-   ASSERT(signum < MAX_SIGNALS);
+   ASSERT(0 <= signum && signum < MAX_SIGNALS);
    ASSERT(signum != SIGKILL && signum != SIGSTOP);
 
    G_LOCK(gLock);

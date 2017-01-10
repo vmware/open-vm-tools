@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,10 +23,6 @@
  *    Posix implementation of the process management lib
  *
  */
-
-#ifndef VMX86_DEVEL
-
-#endif
 
 // pull in setresuid()/setresgid() if possible
 #define  _GNU_SOURCE
@@ -82,10 +78,14 @@
 #include "su.h"
 #include "str.h"
 #include "strutil.h"
-#include "fileIO.h"
 #include "codeset.h"
 #include "unicode.h"
 
+#ifdef USERWORLD
+#include <vm_basic_types.h>
+#include <vmkuserstatus.h>
+#include <vmkusercompat.h>
+#endif
 
 /*
  * All signals that:
@@ -108,7 +108,7 @@ static int const cSignals[] = {
 struct ProcMgr_AsyncProc {
    pid_t waiterPid;          // pid of the waiter process
    pid_t resultPid;          // pid of the process created for the client
-   FileIODescriptor fd;      // fd to write to when the child is done
+   int fd;                   // fd to write to when the child is done
    Bool validExitCode;
    int exitCode;
 };
@@ -129,40 +129,14 @@ static Bool ProcMgrKill(pid_t pid,
 static int ProcMgrGetCommandLineArgs(long pid,
                                      DynBuf *argsBuf,
                                      char **procCmdName);
+
+Bool ProcMgr_PromoteEffectiveToReal(void);
 #endif
 
 #ifdef sun
 #define  BASH_PATH "/usr/bin/bash"
 #else
 #define  BASH_PATH "/bin/bash"
-#endif
-
-#if defined(linux) && !defined(GLIBC_VERSION_23) && !defined(__UCLIBC__)
-/*
- * Implements the system calls (they are not wrapped by glibc til 2.3.2).
- *
- * The _syscall3 macro from the Linux kernel headers is not PIC-safe.
- * See: http://bugzilla.kernel.org/show_bug.cgi?id=7302
- *
- * (In fact, newer Linux kernels don't even define _syscall macros anymore.)
- */
-
-static INLINE int
-setresuid(uid_t ruid,
-          uid_t euid,
-          uid_t suid)
-{
-   return syscall(__NR_setresuid, ruid, euid, suid);
-}
-
-
-static INLINE int
-setresgid(gid_t ruid,
-          gid_t euid,
-          gid_t suid)
-{
-   return syscall(__NR_setresgid, ruid, euid, suid);
-}
 #endif
 
 
@@ -1303,6 +1277,38 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
       envpCurrent = Unicode_GetAllocList(envp, -1, STRING_ENCODING_DEFAULT);
    }
 
+#ifdef USERWORLD
+   do {
+      static const char filePath[] = "/bin/sh";
+      char * const argv[] = { "sh", "++group=host/vim/tmp",
+                              "-c", cmdCurrent, NULL };
+      int initFds[] = { STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO };
+      int workingDirFd;
+      VmkuserStatus_Code status;
+      int outPid;
+
+      workingDirFd = open(workingDir != NULL ? workingDir : "/tmp", O_RDONLY);
+      status = VmkuserCompat_ForkExec(filePath,
+                                      argv,
+                                      envpCurrent,
+                                      workingDirFd,
+                                      initFds,
+                                      ARRAYSIZE(initFds),
+                                      geteuid(),
+                                      getegid(),
+                                      0,
+                                      &outPid);
+      if (workingDirFd >= 0) {
+         close(workingDirFd);
+      }
+      if (VmkuserStatus_IsOK(status)) {
+         pid = (pid_t)outPid;
+      } else {
+         VmkuserStatus_CodeToErrno(status, &errno);
+         pid = -1;
+      }
+   } while (FALSE);
+#else
    pid = fork();
 
    if (pid == -1) {
@@ -1343,6 +1349,21 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
        * Child
        */
 
+#ifdef __APPLE__
+      /*
+       * On OS X with security fixes, we cannot revert the real uid if
+       * its changed, so only the effective uid is changed.  But for
+       * running programs we need both.  See comments for
+       * ProcMgr_ImpersonateUserStart() for details.
+       *
+       * If it fails, bail since its a security issue if real uid is still
+       * root.
+       */
+      if (!ProcMgr_PromoteEffectiveToReal()) {
+         Panic("%s: Could not set real uid to effective\n", __FUNCTION__);
+      }
+#endif
+
       if (NULL != workDir) {
          if (chdir(workDir) != 0) {
             Warning("%s: Could not chdir(%s) %s\n", __FUNCTION__, workDir,
@@ -1360,6 +1381,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
       Panic("Unable to execute the \"%s\" shell command: %s.\n\n",
             cmd, strerror(errno));
    }
+#endif
 
    /*
     * Parent
@@ -1367,7 +1389,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
 
    free(cmdCurrent);
    free(workDir);
-   Unicode_FreeList(envpCurrent, -1);
+   Util_FreeStringList(envpCurrent, -1);
    return pid;
 }
 
@@ -1385,12 +1407,12 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
  *      FALSE on failure or if an error occurred (detail is displayed)
  *
  * Side effects:
- *	Prevents zombification of the process.
+ *      Prevents zombification of the process.
  *
  *----------------------------------------------------------------------
  */
 
-static Bool 
+static Bool
 ProcMgrWaitForProcCompletion(pid_t pid,                 // IN
                              Bool *validExitCode,       // OUT: Optional
                              int *exitCode)             // OUT: Optional
@@ -1461,11 +1483,10 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
    ProcMgr_AsyncProc *asyncProc = NULL;
    pid_t pid;
    int fds[2];
-   Bool validExitCode;
+   Bool validExitCode = FALSE;
    int exitCode;
    pid_t resultPid;
-   FileIODescriptor readFd;
-   FileIODescriptor writeFd;
+   int readFd, writeFd;
 
    Debug("Executing async command: '%s' in working dir '%s'\n",
          cmd, (userArgs && userArgs->workingDirectory) ? userArgs->workingDirectory : "");
@@ -1475,8 +1496,8 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
       return NULL;
    }
 
-   readFd = FileIO_CreateFDPosix(fds[0], O_RDONLY);
-   writeFd = FileIO_CreateFDPosix(fds[1], O_WRONLY);
+   readFd = fds[0];
+   writeFd = fds[1];
 
    pid = fork();
 
@@ -1503,7 +1524,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        */
       maxfd = sysconf(_SC_OPEN_MAX);
       for (i = STDERR_FILENO + 1; i < maxfd; i++) {
-         if (i != readFd.posix && i != writeFd.posix) {
+         if (i != readFd && i != writeFd) {
             close(i);
          }
       }
@@ -1518,7 +1539,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          status = FALSE;
       }
 
-      FileIO_Close(&readFd);
+      close(readFd);
 
       /*
        * Only run the program if we have not already experienced a failure.
@@ -1534,8 +1555,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * Send the child's pid back immediately, so that the caller can
        * report the result pid back synchronously.
        */
-      if (FileIO_Write(&writeFd, &childPid, sizeof childPid, NULL) !=
-          FILEIO_SUCCESS) {
+      if (write(writeFd, &childPid, sizeof childPid) == -1) {
          Warning("Waiter unable to write back to parent.\n");
          
          /*
@@ -1560,9 +1580,8 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * block waiting for data we'll never send.
        */
       Debug("Writing the command %s a success to fd %x\n", 
-            status ? "was" : "was not", writeFd.posix);
-      if (FileIO_Write(&writeFd, &status, sizeof status, NULL) !=
-          FILEIO_SUCCESS) {
+            status ? "was" : "was not", writeFd);
+      if (write(writeFd, &status, sizeof status) == -1) {
          Warning("Waiter unable to write back to parent\n");
          
          /*
@@ -1573,8 +1592,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          exit(-1);
       }
 
-      if (FileIO_Write(&writeFd, &exitCode, sizeof exitCode , NULL) != 
-          FILEIO_SUCCESS) {
+      if (write(writeFd, &exitCode, sizeof exitCode) == -1) {
          Warning("Waiter unable to write back to parent\n");
          
          /*
@@ -1585,7 +1603,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          exit(-1);
       }
 
-      FileIO_Close(&writeFd);
+      close(writeFd);
 
       if (status &&
           Signal_ResetGroupHandler(cSignals, olds, ARRAYSIZE(cSignals)) == 0) {
@@ -1605,13 +1623,13 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
     * Parent
     */
 
-   FileIO_Close(&writeFd);
+   close(writeFd);
+   writeFd = -1;
 
    /*
     * Read the pid of the child's child from the pipe.
     */
-   if (FileIO_Read(&readFd, &resultPid, sizeof resultPid , NULL) !=
-       FILEIO_SUCCESS) {
+   if (read(readFd, &resultPid, sizeof resultPid) != sizeof resultPid) {
       Warning("Unable to read result pid from the pipe.\n");
       
       /*
@@ -1636,18 +1654,18 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
 
    asyncProc = Util_SafeMalloc(sizeof *asyncProc);
    asyncProc->fd = readFd;
-   FileIO_Invalidate(&readFd);
+   readFd = -1;
    asyncProc->waiterPid = pid;
    asyncProc->validExitCode = FALSE;
    asyncProc->exitCode = -1;
    asyncProc->resultPid = resultPid;
 
  abort:
-   if (FileIO_IsValid(&readFd)) {
-      FileIO_Close(&readFd);
+   if (readFd != -1) {
+      close(readFd);
    }
-   if (FileIO_IsValid(&writeFd)) {
-      FileIO_Close(&writeFd);
+   if (writeFd != -1) {
+      close(writeFd);
    }
        
    return asyncProc;
@@ -1871,7 +1889,7 @@ ProcMgr_GetAsyncProcSelectable(ProcMgr_AsyncProc *asyncProc)
 {
    ASSERT(asyncProc);
    
-   return asyncProc->fd.posix;
+   return asyncProc->fd;
 }
 
 
@@ -1929,15 +1947,13 @@ ProcMgr_GetExitCode(ProcMgr_AsyncProc *asyncProc,  // IN
    if (asyncProc->waiterPid != -1) {
       Bool status;
 
-      if (FileIO_Read(&(asyncProc->fd), &status, sizeof status, NULL) !=
-          FILEIO_SUCCESS) {
+      if (read(asyncProc->fd, &status, sizeof status) != sizeof status) {
          Warning("Error reading async process status.\n");
          goto exit;
       }
 
-      if (FileIO_Read(&(asyncProc->fd), &(asyncProc->exitCode),
-                      sizeof asyncProc->exitCode, NULL) !=
-          FILEIO_SUCCESS) {
+      if (read(asyncProc->fd, &asyncProc->exitCode,
+               sizeof asyncProc->exitCode) != sizeof asyncProc->exitCode) {
          Warning("Error reading async process status.\n");
          goto exit;
       }
@@ -1945,7 +1961,7 @@ ProcMgr_GetExitCode(ProcMgr_AsyncProc *asyncProc,  // IN
       asyncProc->validExitCode = TRUE;
 
       Debug("Child w/ fd %x exited with code=%d\n",
-            asyncProc->fd.posix, asyncProc->exitCode);
+            asyncProc->fd, asyncProc->exitCode);
    }
 
    *exitCode = asyncProc->exitCode;
@@ -1999,8 +2015,8 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
    }
 #endif 
 
-   if ((asyncProc != NULL) && FileIO_IsValid(&(asyncProc->fd))) {
-      FileIO_Close(&(asyncProc->fd));
+   if (asyncProc != NULL && asyncProc->fd != -1) {
+      close(asyncProc->fd);
    }
    
    free(asyncProc);
@@ -2018,6 +2034,15 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
  *      (access() and kill()) that look at real UID instead of effective.
  *      The user name should be UTF-8 encoded, although we do not enforce
  *      it right now.
+ *
+ *      Note that for OS X, we cannot set real uid.  Until a security
+ *      patch for 10.10.3 (https://support.apple.com/en-us/HT204659)
+ *      it worked, but since the patch once the real user has been
+ *      changed, it cannot be restored.  So for OS X we set just
+ *      the effective uid. This requires additional tweaks in
+ *      ProcMgr_ExecAsync() to call ProcMgr_PromoteEffectiveToReal(),
+ *      and preventing kill(2) from being called since it looks at
+ *      the real uid.
  *
  *      Assumes it will be called as root.
  *
@@ -2080,7 +2105,7 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
 #if defined(USERWORLD)
    ret = Id_SetREGid(ppw->pw_gid, ppw->pw_gid);
 #elif defined(__APPLE__)
-   ret = setregid(ppw->pw_gid, ppw->pw_gid);
+   ret = setegid(ppw->pw_gid);
 #else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, root_gid);
 #endif
@@ -2099,7 +2124,7 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
 #if defined(USERWORLD)
    ret = Id_SetREUid(ppw->pw_uid, ppw->pw_uid);
 #elif defined(__APPLE__)
-   ret = setreuid(ppw->pw_uid, ppw->pw_uid);
+   ret = seteuid(ppw->pw_uid);
 #else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
 #endif
@@ -2161,7 +2186,7 @@ ProcMgr_ImpersonateUserStop(void)
 #if defined(USERWORLD)
    ret = Id_SetREUid(ppw->pw_uid, ppw->pw_uid);
 #elif defined(__APPLE__)
-   ret = setreuid(ppw->pw_uid, ppw->pw_uid);
+   ret = seteuid(ppw->pw_uid);
 #else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
 #endif
@@ -2174,7 +2199,7 @@ ProcMgr_ImpersonateUserStop(void)
 #if defined(USERWORLD)
    ret = Id_SetREGid(ppw->pw_gid, ppw->pw_gid);
 #elif defined(__APPLE__)
-   ret = setregid(ppw->pw_gid, ppw->pw_gid);
+   ret = setegid(ppw->pw_gid);
 #else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, ppw->pw_gid);
 #endif
@@ -2197,6 +2222,51 @@ ProcMgr_ImpersonateUserStop(void)
 
    return TRUE;
 }
+
+
+#ifdef __APPLE__
+/*
+ *----------------------------------------------------------------------
+ *
+ * ProcMgr_PromoteEffectiveToReal --
+ *
+ *      Sets the processes real uid and gid to match the effective.
+ *      Once done, it cannot be undone.
+ *
+ *      See the commentary in ProcMgr_ImpersonateUserStart() for
+ *      why this is needed.
+ *
+ * Results:
+ *      TRUE on success
+ *
+ * Side effects:
+ *       Real uid is now effective.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+ProcMgr_PromoteEffectiveToReal(void)
+{
+   int ret;
+   uid_t uid = geteuid();
+   gid_t gid = getegid();
+
+   ret = setregid(gid, gid);
+   if (ret < 0) {
+      Warning("Failed to setregid(%d) %d\n", gid, errno);
+      return FALSE;
+   }
+   ret = setreuid(uid, uid);
+   if (ret < 0) {
+      Warning("Failed to setreuid(%d) %d\n", uid, errno);
+      return FALSE;
+   }
+
+   return TRUE;
+}
+#endif   // __APPLE__
+
 
 /*
  *----------------------------------------------------------------------

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -43,6 +43,9 @@ SUBDIRS += hgfsHelper
 SUBDIRS += hgfsServer
 SUBDIRS += hgfsServerManagerGuest
 SUBDIRS += hgfsServerPolicyGuest
+if HAVE_GTKMM
+SUBDIRS += hgfsUri
+endif
 SUBDIRS += impersonate
 SUBDIRS += lock
 SUBDIRS += message
@@ -51,7 +54,6 @@ SUBDIRS += netUtil
 SUBDIRS += nicInfo
 SUBDIRS += panic
 SUBDIRS += panicDefault
-SUBDIRS += printer
 SUBDIRS += procMgr
 SUBDIRS += rpcChannel
 SUBDIRS += rpcIn

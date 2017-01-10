@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -260,6 +260,7 @@ HgfsBd_Dispatch(RpcOut *out,            // IN: Channel to send on
                 char const **packetOut) // OUT: Buf containing reply packet
 {
    Bool success;
+   Bool rpcStatus;
    char const *reply;
    size_t replyLen;
    char *bdPacket = packetIn - HGFS_SYNC_REQREP_CLIENT_CMD_LEN;
@@ -272,8 +273,8 @@ HgfsBd_Dispatch(RpcOut *out,            // IN: Channel to send on
    memcpy(bdPacket, HGFS_SYNC_REQREP_CLIENT_CMD, HGFS_SYNC_REQREP_CLIENT_CMD_LEN);
 
    success = RpcOut_send(out, bdPacket, *packetSize + HGFS_CLIENT_CMD_LEN,
-                         &reply, &replyLen);
-   if (success == FALSE) {
+                         &rpcStatus, &reply, &replyLen);
+   if (!success || !rpcStatus) {
       Debug("HgfsBd_Dispatch: RpcOut_send returned failure\n");
       return -1;
    }
@@ -310,6 +311,7 @@ HgfsBd_Enabled(RpcOut *out,         // IN: RPCI Channel
    char const *replyPacket; // Buffer returned by HgfsBd_Dispatch
    size_t replyLen;
    Bool success;
+   Bool rpcStatus;
 
    /*
     * Send a bogus (empty) request to the VMX. If hgfs is disabled on
@@ -320,12 +322,12 @@ HgfsBd_Enabled(RpcOut *out,         // IN: RPCI Channel
     */
    success = RpcOut_send(out, requestPacket - HGFS_CLIENT_CMD_LEN,
                          HGFS_CLIENT_CMD_LEN,
-                         &replyPacket, &replyLen);
-   if (success == TRUE) {
+                         &rpcStatus, &replyPacket, &replyLen);
+   if (success && rpcStatus) {
       ASSERT(replyLen <= HGFS_LARGE_PACKET_MAX);
    }
 
-   return success;
+   return success && rpcStatus;
 }
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -87,6 +87,7 @@ void
 Service_SetLogOnStdout(gboolean flag)
 {
    isLogOnStdout = flag;
+   gVerboseLogging = TRUE;
 }
 
 
@@ -452,11 +453,13 @@ Service_InitLogging(gboolean haveConsole,
          logWantedLevel = DEFAULT_LOG_LEVELS;
       } else if (g_ascii_strcasecmp(loglevel, SERVICE_LOGLEVEL_VERBOSE) == 0) {
          logWantedLevel = DEFAULT_LOG_LEVELS | G_LOG_LEVEL_DEBUG;
+         gVerboseLogging = TRUE;
       } else {
          logWantedLevel = DEFAULT_LOG_LEVELS;
 #ifdef VMX86_DEBUG
          // add DEBUG for obj builds
          logWantedLevel |= G_LOG_LEVEL_DEBUG;
+         gVerboseLogging = TRUE;
 #endif
          Warning("%s: Unrecognized loglevel '%s'\n", __FUNCTION__, loglevel);
       }

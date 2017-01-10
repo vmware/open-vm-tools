@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -16,6 +16,9 @@
 ################################################################################
 
 noinst_LTLIBRARIES = libSyncDriver.la
+
+libSyncDriver_la_CPPFLAGS =
+libSyncDriver_la_CPPFLAGS += @GLIB2_CPPFLAGS@
 
 libSyncDriver_la_SOURCES =
 libSyncDriver_la_SOURCES += syncDriverPosix.c

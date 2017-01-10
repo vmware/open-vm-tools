@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################################################
-# Copyright (C) 2001-2015 VMware, Inc. All rights reserved.
+# Copyright (C) 2001-2016 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -330,9 +330,11 @@ save_active_NIC_list()
 
    >$activeList
 
-   # Find out all the non-loopback up interfaces. Use ifconfig if available
-   # otherwise fall back to the ip command.
-   if [ -z "$ifconfig_cmd" ]; then
+   # Find out all the non-loopback up interfaces. Use ip if available
+   # otherwise fall back to the ifconfig command.
+   # ifconfig is buggy on some platforms and truncates long
+   # network names
+   if [ -n "$ip_cmd" ]; then
       for nic in $($ip_cmd link show up | egrep '\bUP\b' | awk -F: '{print $2}'); do
          $ip_cmd link show ${nic%@*} | grep -iq 'link/ether' && echo ${nic%@*} >> $activeList
       done
@@ -363,7 +365,7 @@ rescue_NIC()
 
    if [ -f "$activeList" ]; then
       while read nic; do
-         if [ -z "$ifconfig_cmd" ]; then
+         if [ -n "$ip_cmd" ]; then
             intf_out=$($ip_cmd link show $nic up)
          else
             intf_out=$($ifconfig_cmd $nic)

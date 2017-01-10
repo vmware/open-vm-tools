@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,13 +35,13 @@
 
 #include "vm_assert.h"
 #include "conf.h"
-#include "rpcout.h"
 #include "str.h"
 #include "vmcheck.h"
 #include "vmtoolsd_version.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/i18n.h"
+#include "vmware/tools/guestrpc.h"
 #include "vm_version.h"
 
 /**
@@ -69,7 +69,7 @@ ToolsCoreRunCommand(const gchar *option,
       char *result = NULL;
       Bool status = FALSE;
 
-      status = RpcOut_sendOne(&result, NULL, "%s", value);
+      status = RpcChannel_SendOne(&result, NULL, "%s", value);
 
       if (!status) {
          g_printerr("%s\n", result ? result : "NULL");
@@ -326,14 +326,14 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
          g_printerr("%s is an invalid container name.\n", state->name);
          goto exit;
       }
-      state->mainService = (strcmp(state->name, VMTOOLS_GUEST_SERVICE) == 0);
+      state->mainService = TOOLS_IS_MAIN_SERVICE(state);
    }
 
    /* Configure logging system. */
    ToolsCore_ReloadConfig(state, TRUE);
 
    /* Log the commandline for debugging purposes. */
-   g_debug("CmdLine: \"%s\"\n", cmdStr);
+   g_info("CmdLine: \"%s\"\n", cmdStr);
 
 #if defined(G_PLATFORM_WIN32)
    if (kill) {
@@ -344,7 +344,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    }
 #else
    /* If not running the "vmusr" service, ignore the blockFd parameter. */
-   if (strcmp(state->name, VMTOOLS_USER_SERVICE) != 0) {
+   if (!TOOLS_IS_USER_SERVICE(state)) {
       if (state->ctx.blockFD >= 0) {
          close(state->ctx.blockFD);
       }

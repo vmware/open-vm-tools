@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -571,9 +571,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
     * in calls to ResolutionSetServerCapability().
     */
 
-   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) == 0) {
+   if (TOOLS_IS_MAIN_SERVICE(ctx)) {
       rpcChannelName = TOOLS_DAEMON_NAME;
-   } else if (strcmp(ctx->name, VMTOOLS_USER_SERVICE) == 0) {
+   } else if (TOOLS_IS_USER_SERVICE(ctx)) {
       rpcChannelName = TOOLS_DND_NAME;
    } else {
       NOT_REACHED();

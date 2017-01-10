@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,7 +44,6 @@
 #include "vm_basic_types.h"
 
 #include "dbllnklst.h"
-#include "guestStats.h"
 #ifndef N_PLAT_NLM
 #include "guestrpc/nicinfo.h"
 #endif // #ifndef N_PLAT_NLM
@@ -54,6 +53,7 @@
 
 #define MAX_NICS     16
 #define MAX_IPS      8     // Max number of IP addresses for a single NIC
+#define INFO_IPADDRESS_V2_MAX_IPS 64
 #define MAC_ADDR_SIZE 19
 #define IP_ADDR_SIZE 16
 #define PARTITION_NAME_SIZE MAX_VALUE_LEN
@@ -72,6 +72,7 @@ typedef enum {
    INFO_UPTIME,
    INFO_MEMORY,
    INFO_IPADDRESS_V2,
+   INFO_IPADDRESS_V3,
    INFO_MAX
 } GuestInfoType;
 

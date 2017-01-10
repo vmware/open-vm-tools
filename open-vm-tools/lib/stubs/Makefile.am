@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2008-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2008-2016 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,9 @@ noinst_LTLIBRARIES = libStubs.la
 libStubs_la_SOURCES =
 libStubs_la_SOURCES += stub-config.c
 libStubs_la_SOURCES += stub-log.c
+libStubs_la_SOURCES += stub-debug.c
 libStubs_la_SOURCES += stub-warning.c
+libStubs_la_SOURCES += stub-panic.c
 libStubs_la_SOURCES += stub-user-msg.c
 libStubs_la_SOURCES += stub-user-panic.c
 libStubs_la_SOURCES += stub-user-util.c

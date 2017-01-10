@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2012,2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2012,2014-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -34,7 +34,9 @@
 #include "vmciEvent.h"
 #include "vmciKernelAPI.h"
 #include "vmciQueuePair.h"
-#if defined(VMKERNEL)
+#if defined(_WIN32)
+#  include "kernelStubsSal.h"
+#elif defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
@@ -48,7 +50,8 @@ static int VMCIContextFireNotification(VMCIId contextID,
                                        VMCIPrivilegeFlags privFlags);
 #if defined(VMKERNEL)
 static void VMCIContextReleaseGuestMemLocked(VMCIContext *context,
-                                             VMCIGuestMemID gid);
+                                             VMCIGuestMemID gid,
+                                             Bool powerOff);
 static void VMCIContextInFilterCleanup(VMCIContext *context);
 #endif
 
@@ -869,6 +872,9 @@ VMCIContext_DequeueDatagram(VMCIContext *context, // IN
    ASSERT (listItem != NULL);
 
    dqEntry = VMCIList_Entry(listItem, DatagramQueueEntry, listItem);
+#if defined(_WIN32)
+   _Analysis_assume_(dqEntry != NULL);
+#endif
    ASSERT(dqEntry->dg);
 
    /* Check size of caller's buffer. */
@@ -895,6 +901,9 @@ VMCIContext_DequeueDatagram(VMCIContext *context, // IN
       listItem = VMCIList_First(&context->datagramQueue);
       ASSERT(listItem);
       nextEntry = VMCIList_Entry(listItem, DatagramQueueEntry, listItem);
+#if defined(_WIN32)
+      _Analysis_assume_(nextEntry != NULL);
+#endif
       ASSERT(nextEntry && nextEntry->dg);
       /*
        * The following size_t -> int truncation is fine as the maximum size of
@@ -1228,6 +1237,98 @@ VMCIContext_SetId(VMCIContext *context,         // IN
    context->cid = cid;
    VMCI_ReleaseLock(&context->lock, flags);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContextGenerateEvent --
+ *
+ *      Generates a VMCI event that only takes context ID as event data.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+VMCIContextGenerateEvent(VMCIId cid,       // IN
+                         VMCI_Event event) // IN
+{
+   VMCIEventMsg *eMsg;
+   VMCIEventPayload_Context *ePayload;
+   /* buf is only 48 bytes. */
+   char buf[sizeof *eMsg + sizeof *ePayload];
+
+   eMsg = (VMCIEventMsg *)buf;
+   ePayload = VMCIEventMsgPayload(eMsg);
+
+   eMsg->hdr.dst = VMCI_MAKE_HANDLE(VMCI_HOST_CONTEXT_ID, VMCI_EVENT_HANDLER);
+   eMsg->hdr.src = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
+                                    VMCI_CONTEXT_RESOURCE_ID);
+   eMsg->hdr.payloadSize = sizeof *eMsg + sizeof *ePayload - sizeof eMsg->hdr;
+   eMsg->eventData.event = event;
+   ePayload->contextID = cid;
+
+   (void)VMCIEvent_Dispatch((VMCIDatagram *)eMsg);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_NotifyGuestPaused --
+ *
+ *      Notify subscribers of a execution state change of the VM
+ *      with the given context ID. This will happen when a VM is
+ *      quiesced/unquiesced.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCIContext_NotifyGuestPaused(VMCIId cid,  // IN
+                              Bool paused) // IN
+{
+   VMCIContextGenerateEvent(cid, paused ? VMCI_EVENT_GUEST_PAUSED :
+                                          VMCI_EVENT_GUEST_UNPAUSED);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_NotifyMemoryAccess --
+ *
+ *      Notify subscribers of a memory access change to the device.
+ *      This can occur when the device is enabled/disabled/reset.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCIContext_NotifyMemoryAccess(VMCIId cid, // IN
+                               Bool on)    // IN
+{
+   VMCIContextGenerateEvent(cid, on ? VMCI_EVENT_MEM_ACCESS_ON :
+                                      VMCI_EVENT_MEM_ACCESS_OFF);
+}
 #endif
 
 
@@ -1528,6 +1629,8 @@ VMCIContextDgHypervisorSaveStateSize(VMCIContext *context,  // IN
    uint32 total;
    VMCIListItem *iter;
 
+   UNREFERENCED_PARAMETER(cptBufPtr);
+
    *bufSize = total = 0;
 
    VMCIList_Scan(iter, &context->datagramQueue) {
@@ -1580,12 +1683,12 @@ VMCIContextDgHypervisorSaveState(VMCIContext *context,   // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   p = VMCI_AllocKernelMem(*bufSize, VMCI_MEMORY_NORMAL);
+   p = VMCI_AllocKernelMem(*bufSize, VMCI_MEMORY_NONPAGED);
    if (p == NULL) {
       return VMCI_ERROR_NO_MEM;
    }
 
-   *cptBufPtr = p;
+   *cptBufPtr = (char *)p;
 
    /* Leave space for the datagram count at the start. */
    total  = sizeof(uint32);
@@ -1723,6 +1826,15 @@ VMCIContext_GetCheckpointState(VMCIId contextID,    // IN:
       for (i = 0; i < arraySize; i++) {
          VMCIHandle tmpHandle = VMCIHandleArray_GetEntry(array, i);
          if (cptType == VMCI_DOORBELL_CPT_STATE) {
+/*
+ * PreFAST thinks this might overflow on arraySize>=2. However, we've
+ * looked *very* carefully at this, tested PreFAST's assumptions, and
+ * concluded PreFAST is getting confused about the relationships between
+ * cptDataSize, arraySize, and i.
+ */
+#if defined(_WIN32)
+#pragma warning(suppress: 6386)
+#endif
             ((VMCIDoorbellCptState *)cptBuf)[i].handle = tmpHandle;
          } else {
             ((VMCIId *)cptBuf)[i] =
@@ -2327,6 +2439,9 @@ vmci_cid_2_host_vm_id(VMCIId contextID,    // IN
 
    return result;
 #else // !defined(VMKERNEL)
+   UNREFERENCED_PARAMETER(contextID);
+   UNREFERENCED_PARAMETER(hostVmID);
+   UNREFERENCED_PARAMETER(hostVmIDLen);
    return VMCI_ERROR_UNAVAILABLE;
 #endif
 }
@@ -2589,7 +2704,8 @@ VMCIContext_RegisterGuestMem(VMCIContext *context, // IN: Context structure
           * execution of the source VMX following a failed FSR.
           */
 
-         VMCIContextReleaseGuestMemLocked(context, context->curGuestMemID);
+         VMCIContextReleaseGuestMemLocked(context, context->curGuestMemID,
+                                          FALSE);
       } else {
          /*
           * When unquiescing the device during a restore sync not part
@@ -2629,6 +2745,9 @@ VMCIContext_RegisterGuestMem(VMCIContext *context, // IN: Context structure
 
 out:
    VMCIMutex_Release(&context->guestMemMutex);
+#else
+   UNREFERENCED_PARAMETER(context);
+   UNREFERENCED_PARAMETER(gid);
 #endif
 }
 
@@ -2653,15 +2772,20 @@ out:
 
 static void
 VMCIContextReleaseGuestMemLocked(VMCIContext *context, // IN: Context structure
-                                 VMCIGuestMemID gid)   // IN: Reference to guest
+                                 VMCIGuestMemID gid,   // IN: Reference to guest
+                                 Bool powerOff)        // IN: Device going away
 {
    uint32 numQueuePairs;
    uint32 cur;
 
+   if (powerOff) {
+      VMCIContext_NotifyMemoryAccess(context->cid, FALSE);
+   }
+
    /*
     * It is safe to access the queue pair array here, since no changes
     * to the queuePairArray can take place when the the quiescing
-    * has been initiated.
+    * has been initiated, or when the device is being cleaned up.
     */
 
    numQueuePairs = VMCIHandleArray_GetSize(context->queuePairArray);
@@ -2704,7 +2828,8 @@ VMCIContextReleaseGuestMemLocked(VMCIContext *context, // IN: Context structure
 
 void
 VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
-                            VMCIGuestMemID gid)   // IN: Reference to guest
+                            VMCIGuestMemID gid,   // IN: Reference to guest
+                            Bool powerOff)        // IN: Device is going away
 {
 #ifdef VMKERNEL
    VMCIMutex_Acquire(&context->guestMemMutex);
@@ -2719,15 +2844,70 @@ VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
        * memory, if this is the same gid, that registered the memory.
        */
 
-      VMCIContextReleaseGuestMemLocked(context, gid);
+      VMCIContextReleaseGuestMemLocked(context, gid, powerOff);
       context->curGuestMemID = INVALID_VMCI_GUEST_MEM_ID;
    }
 
    VMCIMutex_Release(&context->guestMemMutex);
+#else
+   UNREFERENCED_PARAMETER(context);
+   UNREFERENCED_PARAMETER(gid);
+   UNREFERENCED_PARAMETER(powerOff);
 #endif
 }
 
 #if defined(VMKERNEL)
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_RevalidateMappings --
+ *
+ *      Updates the mappings for all QPs.  Should only be called with the VMCI
+ *      device lock held.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+VMCIContext_RevalidateMappings(VMCIContext *context) // IN: Context structure
+{
+   uint32 numQueuePairs;
+   uint32 cur;
+
+   numQueuePairs = VMCIHandleArray_GetSize(context->queuePairArray);
+   for (cur = 0; cur < numQueuePairs; cur++) {
+      VMCIHandle handle;
+
+      handle = VMCIHandleArray_GetEntry(context->queuePairArray, cur);
+      if (!VMCI_HANDLE_EQUAL(handle, VMCI_INVALID_HANDLE)) {
+         int res = VMCIQPBroker_Revalidate(handle, context);
+
+         if (res < VMCI_SUCCESS) {
+            VMCI_WARNING(("Failed to revalidate guest mappings for queue "
+                          " pair (handle=0x%x:0x%x, res=%d).\n",
+                          handle.context, handle.resource, res));
+            /*
+             * I have not seen these errors but I do not think they should be
+             * considered fatal.
+             */
+            if (res != VMCI_ERROR_NOT_FOUND &&
+                res != VMCI_ERROR_QUEUEPAIR_NOTATTACHED) {
+               return FALSE;
+            }
+         }
+      }
+   }
+
+   return TRUE;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *

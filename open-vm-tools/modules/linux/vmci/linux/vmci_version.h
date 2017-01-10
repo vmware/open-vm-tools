@@ -25,8 +25,8 @@
 #ifndef _VMCI_VERSION_H_
 #define _VMCI_VERSION_H_
 
-#define VMCI_DRIVER_VERSION          9.7.1.0
-#define VMCI_DRIVER_VERSION_COMMAS   9,7,1,0
-#define VMCI_DRIVER_VERSION_STRING   "9.7.1.0"
+#define VMCI_DRIVER_VERSION          9.8.1.0
+#define VMCI_DRIVER_VERSION_COMMAS   9,8,1,0
+#define VMCI_DRIVER_VERSION_STRING   "9.8.1.0"
 
 #endif /* _VMCI_VERSION_H_ */

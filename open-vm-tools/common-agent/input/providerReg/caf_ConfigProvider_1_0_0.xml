@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caf:providerReg
+        xmlns:caf="http://schemas.vmware.com/caf/schema/fx"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://schemas.vmware.com/caf/schema/fx http://10.25.57.32/caf-downloads/schema/fx/ProviderInfra.xsd"
+    providerNamespace="caf"
+    providerName="ConfigProvider"
+    providerVersion="1.0.0"
+    invokerRelPath="caf_ConfigProvider_1_0_0.sh"
+    staleSec="1000"
+    isSchemaVisible="false"/>
+

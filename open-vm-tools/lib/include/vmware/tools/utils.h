@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -115,6 +115,30 @@ VMTools_WriteConfig(const gchar *path,
                     GKeyFile *config,
                     GError **err);
 
+gboolean
+VMTools_ChangeLogFilePath(const gchar *delimiter,
+                          const gchar *appendString,
+                          const gchar *domain,
+                          GKeyFile *conf);
+
+gboolean
+VMTools_ConfigGetBoolean(GKeyFile *config,
+                         const gchar *section,
+                         const gchar *key,
+                         gboolean defValue);
+
+gint
+VMTools_ConfigGetInteger(GKeyFile *config,
+                         const gchar *section,
+                         const gchar *key,
+                         gint defValue);
+
+gchar *
+VMTools_ConfigGetString(GKeyFile *config,
+                        const gchar *section,
+                        const gchar *key,
+                        gchar *defValue);
+
 #if defined(G_PLATFORM_WIN32)
 
 gboolean
@@ -143,10 +167,22 @@ void
 VMTools_SetGuestSDKMode(void);
 
 void
+VMTools_AcquireLogStateLock(void);
+
+void
+VMTools_ReleaseLogStateLock(void);
+
+void
 VMTools_StopLogging(void);
 
 void
 VMTools_RestartLogging(void);
+
+void
+VMTools_SuspendLogIO(void);
+
+void
+VMTools_ResumeLogIO(void);
 
 GArray *
 VMTools_WrapArray(gconstpointer data,

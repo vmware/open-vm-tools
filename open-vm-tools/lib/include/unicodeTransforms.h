@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,14 +44,14 @@ extern "C" {
  * Standardizes the case of the string by doing a locale-agnostic
  * uppercase operation, then a locale-agnostic lowercase operation.
  */
-Unicode Unicode_FoldCase(ConstUnicode str);
+char *Unicode_FoldCase(const char *str);
 
 /*
  * Trims whitespace from either side of the string.
  */
-Unicode Unicode_Trim(ConstUnicode str);
-Unicode Unicode_TrimLeft(ConstUnicode str);
-Unicode Unicode_TrimRight(ConstUnicode str);
+char *Unicode_Trim(const char *str);
+char *Unicode_TrimLeft(const char *str);
+char *Unicode_TrimRight(const char *str);
 
 #ifdef __cplusplus
 }

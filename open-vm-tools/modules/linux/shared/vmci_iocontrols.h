@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -60,7 +60,7 @@
 static INLINE void *
 VMCIVA64ToPtr(VA64 va64) // IN
 {
-#ifdef VM_X86_64
+#ifdef VM_64BIT
    ASSERT_ON_COMPILE(sizeof (void *) == 8);
 #else
    ASSERT_ON_COMPILE(sizeof (void *) == 4);

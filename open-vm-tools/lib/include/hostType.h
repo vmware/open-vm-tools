@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,8 +34,11 @@
 #include "vm_basic_types.h"
 
 Bool HostType_OSIsVMK(void);
-Bool HostType_OSIsPureVMK(void);
-Bool HostType_OSIsVMK64(void);
 Bool HostType_OSIsSimulator(void);
+
+/* Old name. TODO: remove */
+static INLINE Bool
+HostType_OSIsPureVMK(void)
+{ return HostType_OSIsVMK(); }
 
 #endif /* ifndef _HOSTTYPE_H_ */

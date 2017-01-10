@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,6 +44,9 @@
 #include "util.h"
 #include "vmBackupSignals.h"
 #include "guestQuiesce.h"
+#if !defined(_WIN32)
+#include "vmware/tools/threadPool.h"
+#endif
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
 #include "xdrutil.h"
@@ -71,10 +74,28 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
                             NULL);                                            \
 } while (0)
 
+/*
+ * Macros to read values from config file.
+ */
+#define VMBACKUP_CONFIG_GET_BOOL(config, key, defVal)       \
+   VMTools_ConfigGetBoolean(config, "vmbackup", key, defVal)
+
+#define VMBACKUP_CONFIG_GET_STR(config, key, defVal)        \
+   VMTools_ConfigGetString(config, "vmbackup", key, defVal)
+
+#define VMBACKUP_CONFIG_GET_INT(config, key, defVal)        \
+   VMTools_ConfigGetInteger(config, "vmbackup", key, defVal)
+
 static VmBackupState *gBackupState = NULL;
 
 static Bool
 VmBackupEnableSync(void);
+
+static Bool
+VmBackupEnableSyncWait(void);
+
+static Bool
+VmBackupEnableCompleteWait(void);
 
 
 /**
@@ -95,6 +116,9 @@ VmBackupGetStateName(VmBackupMState state)
    case VMBACKUP_MSTATE_SCRIPT_FREEZE:
       return "SCRIPT_FREEZE";
 
+   case VMBACKUP_MSTATE_SYNC_FREEZE_WAIT:
+      return "SYNC_FREEZE_WAIT";
+
    case VMBACKUP_MSTATE_SYNC_FREEZE:
       return "SYNC_FREEZE";
 
@@ -103,6 +127,9 @@ VmBackupGetStateName(VmBackupMState state)
 
    case VMBACKUP_MSTATE_SCRIPT_THAW:
       return "SCRIPT_THAW";
+
+   case VMBACKUP_MSTATE_COMPLETE_WAIT:
+      return "COMPLETE_WAIT";
 
    case VMBACKUP_MSTATE_SCRIPT_ERROR:
       return "SCRIPT_ERROR";
@@ -269,10 +296,13 @@ VmBackupFinalize(void)
       g_source_destroy(gBackupState->abortTimer);
       g_source_unref(gBackupState->abortTimer);
    }
+
+   g_static_mutex_lock(&gBackupState->opLock);
    if (gBackupState->currentOp != NULL) {
       VmBackup_Cancel(gBackupState->currentOp);
       VmBackup_Release(gBackupState->currentOp);
    }
+   g_static_mutex_unlock(&gBackupState->opLock);
 
    VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_DONE, VMBACKUP_SUCCESS, "");
 
@@ -287,6 +317,10 @@ VmBackupFinalize(void)
    }
 
    gBackupState->provider->release(gBackupState->provider);
+   if (gBackupState->completer != NULL) {
+      gBackupState->completer->release(gBackupState->completer);
+   }
+   g_static_mutex_free(&gBackupState->opLock);
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
@@ -367,6 +401,7 @@ VmBackupOnError(void)
       }
       break;
 
+   case VMBACKUP_MSTATE_SYNC_FREEZE_WAIT:
    case VMBACKUP_MSTATE_SYNC_FREEZE:
    case VMBACKUP_MSTATE_SYNC_THAW:
       /* Next state is "sync error". */
@@ -379,6 +414,7 @@ VmBackupOnError(void)
       break;
 
    case VMBACKUP_MSTATE_SCRIPT_THAW:
+   case VMBACKUP_MSTATE_COMPLETE_WAIT:
       /* Next state is "idle". */
       gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
       break;
@@ -403,16 +439,31 @@ VmBackupDoAbort(void)
    ASSERT(gBackupState != NULL);
    if (gBackupState->machineState != VMBACKUP_MSTATE_SCRIPT_ERROR &&
        gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
+      const char *eventMsg = "Quiesce aborted.";
       /* Mark the current operation as cancelled. */
+      g_static_mutex_lock(&gBackupState->opLock);
       if (gBackupState->currentOp != NULL) {
          VmBackup_Cancel(gBackupState->currentOp);
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
       }
+      g_static_mutex_unlock(&gBackupState->opLock);
+
+#ifdef __linux__
+      /* Thaw the guest if already quiesced */
+      if (gBackupState->machineState == VMBACKUP_MSTATE_SYNC_FREEZE) {
+         g_debug("Guest already quiesced, thawing for abort\n");
+         if (!gBackupState->provider->snapshotDone(gBackupState,
+                                      gBackupState->provider->clientData)) {
+            g_debug("Thaw during abort failed\n");
+            eventMsg = "Quiesce could not be aborted.";
+         }
+      }
+#endif
 
       VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ABORT,
                          VMBACKUP_REMOTE_ABORT,
-                         "Quiesce aborted.");
+                         eventMsg);
 
       /* Transition to the error state. */
       if (VmBackupOnError()) {
@@ -443,32 +494,35 @@ VmBackupAbortTimer(gpointer data)
 
 
 /**
- * Callback that checks for the status of the current operation. Calls the
- * queued operations as needed.
+ * Post-process the current operation. Calls the queued
+ * operations as needed.
  *
- * @param[in]  clientData     Unused.
+ * @param[out]    pending     Tells if currentOp is pending.
  *
- * @return FALSE
+ * @return TRUE if currentOp finished or pending, FALSE on error.
  */
 
 static gboolean
-VmBackupAsyncCallback(void *clientData)
+VmBackupPostProcessCurrentOp(gboolean *pending)
 {
+   gboolean retVal = TRUE;
    VmBackupOpStatus status = VMBACKUP_STATUS_FINISHED;
 
    g_debug("*** %s\n", __FUNCTION__);
    ASSERT(gBackupState != NULL);
 
-   g_source_unref(gBackupState->timerEvent);
-   gBackupState->timerEvent = NULL;
+   *pending = FALSE;
+
+   g_static_mutex_lock(&gBackupState->opLock);
 
    if (gBackupState->currentOp != NULL) {
-      g_debug("VmBackupAsyncCallback: checking %s\n", gBackupState->currentOpName);
+      g_debug("%s: checking %s\n", __FUNCTION__, gBackupState->currentOpName);
       status = VmBackup_QueryStatus(gBackupState->currentOp);
    }
 
    switch (status) {
    case VMBACKUP_STATUS_PENDING:
+      *pending = TRUE;
       goto exit;
 
    case VMBACKUP_STATUS_FINISHED:
@@ -498,7 +552,7 @@ VmBackupAsyncCallback(void *clientData)
 
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
-         VmBackupOnError();
+         retVal = FALSE;
          goto exit;
       }
    }
@@ -511,22 +565,71 @@ VmBackupAsyncCallback(void *clientData)
       VmBackupCallback cb = gBackupState->callback;
       gBackupState->callback = NULL;
 
+      /*
+       * Callback should not acquire opLock, but instead assume that
+       * it holds the lock already.
+       */
       if (cb(gBackupState)) {
          if (gBackupState->currentOp != NULL || gBackupState->forceRequeue) {
             goto exit;
          }
       } else {
-         VmBackupOnError();
+         retVal = FALSE;
          goto exit;
       }
    }
 
+exit:
+   g_static_mutex_unlock(&gBackupState->opLock);
+   return retVal;
+}
+
+
+/**
+ * Callback to advance the state machine to next state once
+ * current operation finishes.
+ *
+ * @param[in]  clientData     Unused.
+ *
+ * @return FALSE
+ */
+
+static gboolean
+VmBackupAsyncCallback(void *clientData)
+{
+   gboolean opPending;
+   g_debug("*** %s\n", __FUNCTION__);
+   ASSERT(gBackupState != NULL);
+
+   g_source_unref(gBackupState->timerEvent);
+   gBackupState->timerEvent = NULL;
+
    /*
-    * At this point, the current operation can be declared finished, and the
-    * state machine can move to the next state.
+    * Move the state machine to the next state, if the
+    * currentOp has finished.
     */
+   if (!VmBackupPostProcessCurrentOp(&opPending)) {
+      VmBackupOnError();
+      goto exit;
+   } else {
+      /*
+       * State transition can't be done if currentOp
+       * has not finished yet.
+       */
+      if (opPending) {
+         goto exit;
+      }
+   }
+
    switch (gBackupState->machineState) {
    case VMBACKUP_MSTATE_SCRIPT_FREEZE:
+      /* Next state is "sync freeze wait". */
+      if (!VmBackupEnableSyncWait()) {
+         VmBackupOnError();
+      }
+      break;
+
+   case VMBACKUP_MSTATE_SYNC_FREEZE_WAIT:
       /* Next state is "sync freeze". */
       if (!VmBackupEnableSync()) {
          VmBackupOnError();
@@ -551,8 +654,15 @@ VmBackupAsyncCallback(void *clientData)
       }
       break;
 
-   case VMBACKUP_MSTATE_SCRIPT_ERROR:
    case VMBACKUP_MSTATE_SCRIPT_THAW:
+      /* Next state is "complete wait" or "idle". */
+      if (!VmBackupEnableCompleteWait()) {
+         VmBackupOnError();
+      }
+      break;
+
+   case VMBACKUP_MSTATE_SCRIPT_ERROR:
+   case VMBACKUP_MSTATE_COMPLETE_WAIT:
       /* Next state is "idle". */
       gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
       break;
@@ -582,23 +692,44 @@ exit:
 
 
 /**
- * Calls the sync provider's start function.
+ * Calls the sync provider's start function and moves the state
+ * machine to next state.
  *
- * @param[in]  state    The backup state.
+ * For Windows next state is VMBACKUP_MSTATE_SYNC_FREEZE, whereas
+ * next state is VMBACKUP_MSTATE_SYNC_FREEZE_WAIT for Linux. Details
+ * below.
  *
  * @return Whether the provider's start callback was successful.
  */
 
 static Bool
-VmBackupEnableSync(void)
+VmBackupEnableSyncWait(void)
 {
    g_debug("*** %s\n", __FUNCTION__);
    g_signal_emit_by_name(gBackupState->ctx->serviceObj,
                          TOOLS_CORE_SIG_IO_FREEZE,
                          gBackupState->ctx,
                          TRUE);
+#if defined(_WIN32)
+   gBackupState->freezeStatus = VMBACKUP_FREEZE_FINISHED;
    if (!gBackupState->provider->start(gBackupState,
                                       gBackupState->provider->clientData)) {
+#else
+   /*
+    * PR 1020224:
+    * For Linux, FIFREEZE could take really long at times,
+    * especially when guest is running IO load. We have also
+    * seen slowness in performing open() on NFS mount points.
+    * So, we need to run freeze operation in a separate thread
+    * and track it with an extra state in the state machine.
+    */
+   gBackupState->freezeStatus = VMBACKUP_FREEZE_PENDING;
+   if (!ToolsCorePool_SubmitTask(gBackupState->ctx,
+                                 gBackupState->provider->start,
+                                 gBackupState,
+                                 NULL)) {
+      g_warning("Failed to submit backup start task.");
+#endif
       g_signal_emit_by_name(gBackupState->ctx->serviceObj,
                             TOOLS_CORE_SIG_IO_FREEZE,
                             gBackupState->ctx,
@@ -609,38 +740,105 @@ VmBackupEnableSync(void)
       return FALSE;
    }
 
+#if defined(_WIN32)
+   /* Move to next state */
    gBackupState->machineState = VMBACKUP_MSTATE_SYNC_FREEZE;
+#else
+   g_debug("Submitted backup start task.");
+   /* Move to next state */
+   gBackupState->machineState = VMBACKUP_MSTATE_SYNC_FREEZE_WAIT;
+#endif
+
    return TRUE;
 }
 
 
 /**
- * Get boolean entry for the key from the config file.
+ * Calls the completer's start function and moves the state
+ * machine to next state.
  *
- * @param[in]  config        Config file to read the key from.
- * @param[in]  key           Key to look for in the config file.
- * @param[in]  defaultValue  Default value if the key is not found.
+ * @return Whether the completer's start callback was successful.
  */
 
-static gboolean
-VmBackupConfigGetBoolean(GKeyFile *config,
-                         const char *key,
-                         gboolean defValue)
+static Bool
+VmBackupEnableCompleteWait(void)
 {
-   GError *err = NULL;
-   gboolean value = defValue;
+   Bool ret = TRUE;
 
-   if (key != NULL) {
-      value = g_key_file_get_boolean(config,
-                                     "vmbackup",
-                                     key,
-                                     &err);
-      if (err != NULL) {
-         g_clear_error(&err);
-         value = defValue;
+   g_debug("*** %s\n", __FUNCTION__);
+
+   if (gBackupState->completer == NULL) {
+      gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
+      goto exit;
+   }
+
+   if (gBackupState->abortTimer != NULL) {
+      g_source_destroy(gBackupState->abortTimer);
+      g_source_unref(gBackupState->abortTimer);
+
+      /* Host make timeout maximum as 15 minutes for complete process. */
+      if (gBackupState->timeout > GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC) {
+         gBackupState->timeout = GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC;
+      }
+
+      if (gBackupState->timeout != 0) {
+         g_debug("Using completer timeout: %u\n", gBackupState->timeout);
+         gBackupState->abortTimer =
+            g_timeout_source_new_seconds(gBackupState->timeout);
+         VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
+            gBackupState->abortTimer,
+            VmBackupAbortTimer,
+            NULL,
+            NULL);
       }
    }
-   return value;
+
+   if (gBackupState->completer->start(gBackupState,
+                                      gBackupState->completer->clientData)) {
+      /* Move to next state */
+      gBackupState->machineState = VMBACKUP_MSTATE_COMPLETE_WAIT;
+   } else {
+      VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
+                         VMBACKUP_SYNC_ERROR,
+                         "Error when enabling the sync provider.");
+      ret = FALSE;
+   }
+
+exit:
+   return ret;
+}
+
+
+/**
+ * After sync provider's start function returns and moves the state
+ * machine to VMBACKUP_MSTATE_SYNC_FREEZE state.
+ *
+ * @return Whether the provider's start callback was successful.
+ */
+
+static Bool
+VmBackupEnableSync(void)
+{
+   g_debug("*** %s\n", __FUNCTION__);
+   if (gBackupState->freezeStatus == VMBACKUP_FREEZE_ERROR) {
+      g_signal_emit_by_name(gBackupState->ctx->serviceObj,
+                            TOOLS_CORE_SIG_IO_FREEZE,
+                            gBackupState->ctx,
+                            FALSE);
+      VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
+                         VMBACKUP_SYNC_ERROR,
+                         "Error when enabling the sync provider.");
+      return FALSE;
+
+   } else if (gBackupState->freezeStatus == VMBACKUP_FREEZE_CANCELED ||
+              gBackupState->freezeStatus == VMBACKUP_FREEZE_FINISHED) {
+      /* Move to next state */
+      gBackupState->machineState = VMBACKUP_MSTATE_SYNC_FREEZE;
+   } else {
+      ASSERT(gBackupState->freezeStatus == VMBACKUP_FREEZE_PENDING);
+   }
+
+   return TRUE;
 }
 
 
@@ -660,9 +858,9 @@ static gboolean
 VmBackupStartCommon(RpcInData *data,
                     gboolean forceQuiesce)
 {
-   GError *err = NULL;
    ToolsAppCtx *ctx = data->appCtx;
    VmBackupSyncProvider *provider = NULL;
+   VmBackupSyncCompleter *completer = NULL;
 
    size_t i;
 
@@ -685,7 +883,7 @@ VmBackupStartCommon(RpcInData *data,
           * only allow VSS provider
           */
 #if defined(_WIN32)
-         if (VmBackupConfigGetBoolean(ctx->config, "enableVSS", TRUE)) {
+         if (VMBACKUP_CONFIG_GET_BOOL(ctx->config, "enableVSS", TRUE)) {
             provider = VmBackup_NewVssProvider();
          }
 #elif defined(_LINUX) || defined(__linux__)
@@ -694,9 +892,9 @@ VmBackupStartCommon(RpcInData *data,
           * only allow SyncDriver provider
           */
          if (gBackupState->quiesceFS &&
-             VmBackupConfigGetBoolean(ctx->config, "enableSyncDriver", TRUE)) {
+             VMBACKUP_CONFIG_GET_BOOL(ctx->config, "enableSyncDriver", TRUE)) {
             provider = VmBackup_NewSyncDriverOnlyProvider();
-          }
+         }
 #endif
       } else {
          /* If no quiescing is requested only allow null provider */
@@ -711,7 +909,7 @@ VmBackupStartCommon(RpcInData *data,
       for (i = 0; i < ARRAYSIZE(providers); i++) {
          struct SyncProvider *sp = &providers[i];
 
-         if (VmBackupConfigGetBoolean(ctx->config, sp->cfgEntry, TRUE)) {
+         if (VMBACKUP_CONFIG_GET_BOOL(ctx->config, sp->cfgEntry, TRUE)) {
             provider = sp->ctor();
             if (provider != NULL) {
                break;
@@ -722,13 +920,27 @@ VmBackupStartCommon(RpcInData *data,
 
    ASSERT(provider != NULL);
 
+#if defined(_WIN32)
+   if (VMBACKUP_CONFIG_GET_BOOL(ctx->config, "enableVSS", TRUE)) {
+      completer = VmBackup_NewVssCompleter(provider);
+      if (completer == NULL) {
+         provider->release(provider);
+         g_warning("Requested quiescing cannot be initialized.");
+         goto error;
+      }
+   }
+#endif
+
    /* Instantiate the backup state and start the operation. */
    gBackupState->ctx = data->appCtx;
    gBackupState->pollPeriod = 1000;
    gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
+   gBackupState->freezeStatus = VMBACKUP_FREEZE_FINISHED;
    gBackupState->provider = provider;
+   gBackupState->completer = completer;
    gBackupState->needsPriv = FALSE;
-   gBackupState->enableNullDriver = VmBackupConfigGetBoolean(ctx->config,
+   g_static_mutex_init(&gBackupState->opLock);
+   gBackupState->enableNullDriver = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
                                                              "enableNullDriver",
                                                              TRUE);
 
@@ -768,15 +980,8 @@ VmBackupStartCommon(RpcInData *data,
     * See bug 506106.
     */
    if (gBackupState->timeout == 0) {
-      gBackupState->timeout = (guint) g_key_file_get_integer(
-                                               gBackupState->ctx->config,
-                                               "vmbackup",
-                                               "timeout",
-                                               &err);
-      if (err != NULL) {
-         g_clear_error(&err);
-         gBackupState->timeout = 15 * 60;
-      }
+      gBackupState->timeout = VMBACKUP_CONFIG_GET_INT(ctx->config, "timeout",
+                                       GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC);
    }
 
    /* Treat "0" as no timeout. */
@@ -801,6 +1006,9 @@ error:
    }
    if (gBackupState->provider) {
       gBackupState->provider->release(gBackupState->provider);
+   }
+   if (gBackupState->completer) {
+      gBackupState->completer->release(gBackupState->completer);
    }
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
@@ -827,6 +1035,8 @@ error:
 static gboolean
 VmBackupStart(RpcInData *data)
 {
+   ToolsAppCtx *ctx = data->appCtx;
+
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
       return RPCIN_SETRETVALS(data, "Quiesce operation already in progress.",
@@ -840,12 +1050,26 @@ VmBackupStart(RpcInData *data)
       if (StrUtil_GetNextIntToken(&generateManifests, &index, data->args, " ")) {
          gBackupState->generateManifests = generateManifests;
       }
-      gBackupState->quiesceApps = TRUE;
-      gBackupState->quiesceFS = TRUE;
-      gBackupState->allowHWProvider = TRUE;
-      gBackupState->execScripts = TRUE;
-      gBackupState->scriptArg = NULL;
-      gBackupState->timeout = 0;
+      gBackupState->quiesceApps = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                                           "quiesceApps",
+                                                           TRUE);
+      gBackupState->quiesceFS = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                                         "quiesceFS",
+                                                         TRUE);
+      gBackupState->allowHWProvider = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                                             "allowHWProvider",
+                                                             TRUE);
+      gBackupState->execScripts = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                                           "execScripts",
+                                                           TRUE);
+      gBackupState->scriptArg = VMBACKUP_CONFIG_GET_STR(ctx->config,
+                                                        "scriptArg",
+                                                        NULL);
+      gBackupState->timeout = VMBACKUP_CONFIG_GET_INT(ctx->config,
+                                                      "timeout", 0);
+      gBackupState->vssUseDefault = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                                             "vssUseDefault",
+                                                             TRUE);
 
       /* get volume uuids if provided */
       if (data->args[index] != '\0') {
@@ -853,7 +1077,9 @@ VmBackupStart(RpcInData *data)
                                            data->argsSize - index);
       }
    }
-   return VmBackupStartCommon(data, FALSE);
+   return VmBackupStartCommon(data, VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                                             "forceQuiesce",
+                                                             FALSE));
 }
 
 
@@ -891,8 +1117,10 @@ VmBackupStart(RpcInData *data)
 static gboolean
 VmBackupStartWithOpts(RpcInData *data)
 {
+   ToolsAppCtx *ctx = data->appCtx;
    GuestQuiesceParams *params;
-   GuestQuiesceParamsV1 *paramsV1;
+   GuestQuiesceParamsV1 *paramsV1 = NULL;
+   GuestQuiesceParamsV2 *paramsV2;
    gboolean retval;
 
    g_debug("*** %s\n", __FUNCTION__);
@@ -901,24 +1129,57 @@ VmBackupStartWithOpts(RpcInData *data)
                               FALSE);
    }
    params = (GuestQuiesceParams *)data->args;
+
+#if defined(_WIN32)
+   if (params->ver != GUESTQUIESCEPARAMS_V1 &&
+       params->ver != GUESTQUIESCEPARAMS_V2) {
+      g_warning("%s: Incompatible quiesce parameter version. \n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Incompatible quiesce parameter version",
+                              FALSE);
+   }
+#else
    if (params->ver != GUESTQUIESCEPARAMS_V1) {
       g_warning("%s: Incompatible quiesce parameter version. \n", __FUNCTION__);
       return RPCIN_SETRETVALS(data, "Incompatible quiesce parameter version",
                               FALSE);
    }
+#endif
+
    gBackupState = g_new0(VmBackupState, 1);
-   paramsV1 = params->GuestQuiesceParams_u.guestQuiesceParamsV1;
-   gBackupState->generateManifests = paramsV1->createManifest;
-   gBackupState->quiesceApps = paramsV1->quiesceApps;
-   gBackupState->quiesceFS = paramsV1->quiesceFS;
-   gBackupState->allowHWProvider = paramsV1->writableSnapshot;
-   gBackupState->execScripts = paramsV1->execScripts;
-   gBackupState->scriptArg = g_strndup(paramsV1->scriptArg,
-                                       strlen(paramsV1->scriptArg));
-   gBackupState->timeout = paramsV1->timeout;
-   gBackupState->volumes = g_strndup(paramsV1->diskUuids,
-                                     strlen(paramsV1->diskUuids));
-   retval = VmBackupStartCommon(data, TRUE);
+
+   if (params->ver == GUESTQUIESCEPARAMS_V1) {
+      paramsV1 = params->GuestQuiesceParams_u.guestQuiesceParamsV1;
+      gBackupState->vssUseDefault = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                                             "vssUseDefault",
+                                                             TRUE);
+   } else if (params->ver == GUESTQUIESCEPARAMS_V2) {
+      paramsV2 = params->GuestQuiesceParams_u.guestQuiesceParamsV2;
+      paramsV1 = &paramsV2->paramsV1;
+      gBackupState->vssBackupContext = paramsV2->vssBackupContext;
+      gBackupState->vssBackupType = paramsV2->vssBackupType;
+      gBackupState->vssBootableSystemState = paramsV2->vssBootableSystemState;
+      gBackupState->vssPartialFileSupport = paramsV2->vssPartialFileSupport;
+      gBackupState->vssUseDefault = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                                             "vssUseDefault",
+                                                             FALSE);
+   }
+
+   if (paramsV1 != NULL) {
+      gBackupState->generateManifests = paramsV1->createManifest;
+      gBackupState->quiesceApps = paramsV1->quiesceApps;
+      gBackupState->quiesceFS = paramsV1->quiesceFS;
+      gBackupState->allowHWProvider = paramsV1->writableSnapshot;
+      gBackupState->execScripts = paramsV1->execScripts;
+      gBackupState->scriptArg = g_strndup(paramsV1->scriptArg,
+                                          strlen(paramsV1->scriptArg));
+      gBackupState->timeout = paramsV1->timeout;
+      gBackupState->volumes = g_strndup(paramsV1->diskUuids,
+                                        strlen(paramsV1->diskUuids));
+   }
+
+   retval = VmBackupStartCommon(data, VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                                               "forceQuiesce",
+                                                               TRUE));
    return retval;
 }
 
@@ -982,6 +1243,45 @@ VmBackupSnapshotDone(RpcInData *data)
          }
       } else {
          gBackupState->machineState = VMBACKUP_MSTATE_SYNC_THAW;
+      }
+      return RPCIN_SETRETVALS(data, "", TRUE);
+   }
+}
+
+
+/**
+ * Notifies the completer to complete the provider process
+ * machine in the COMPLETE_WAIT state.
+ *
+ * @param[in]  data     RPC data.
+ *
+ * @return TRUE
+ */
+
+static gboolean
+VmBackupSnapshotCompleted(RpcInData *data)
+{
+   g_debug("*** %s\n", __FUNCTION__);
+
+   if (gBackupState == NULL ||
+       gBackupState->completer == NULL) {
+      return RPCIN_SETRETVALS(data, "Error: no quiesce complete in progress",
+                              FALSE);
+   } else if (gBackupState->machineState != VMBACKUP_MSTATE_COMPLETE_WAIT) {
+      g_warning("Error: unexpected state for snapshot complete message: %s",
+                VmBackupGetStateName(gBackupState->machineState));
+      return RPCIN_SETRETVALS(data,
+                              "Error: unexpected state for complete message.",
+                              FALSE);
+   } else {
+      if (!gBackupState->completer->snapshotCompleted(gBackupState,
+             gBackupState->completer->clientData)) {
+         VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
+                            VMBACKUP_SYNC_ERROR,
+                            "Error when notifying the sync completer.");
+         if (VmBackupOnError()) {
+            VmBackupFinalize();
+         }
       }
       return RPCIN_SETRETVALS(data, "", TRUE);
    }
@@ -1071,6 +1371,8 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { VMBACKUP_PROTOCOL_START_WITH_OPTS, VmBackupStartWithOpts, NULL,
                     xdr_GuestQuiesceParams, NULL, sizeof (GuestQuiesceParams) },
       { VMBACKUP_PROTOCOL_ABORT, VmBackupAbort, NULL, NULL, NULL, 0 },
+      { VMBACKUP_PROTOCOL_SNAPSHOT_COMPLETED, VmBackupSnapshotCompleted, NULL,
+                    NULL, NULL, 0 },
       { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
    };
    ToolsPluginSignalCb sigs[] = {

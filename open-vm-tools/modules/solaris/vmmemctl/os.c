@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005,2014 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -392,7 +392,8 @@ OS_UnmapPage(Mapping mapping)   // IN
  */
 
 PageHandle
-OS_ReservedPageAlloc(int canSleep) // IN
+OS_ReservedPageAlloc(int canSleep,    // IN
+                     int isLargePage) // IN
 {
    os_state *state = &global_state;
    page_t *pp;
@@ -402,6 +403,8 @@ OS_ReservedPageAlloc(int canSleep) // IN
    id_space_t *idp = state->id_space;
    vnode_t *vp = &state->vnode;
    uint_t flags;
+
+   ASSERT(!isLargePage);
 
    /*
     * Reserve space for the page.
@@ -471,13 +474,16 @@ OS_ReservedPageAlloc(int canSleep) // IN
  */
 
 void
-OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
+OS_ReservedPageFree(PageHandle handle, // IN: A valid page handle
+                    int isLargePage)   // IN
 {
    os_state *state = &global_state;
    os_page *page = (os_page *)handle;
    page_t *pp = page->pp;
    u_offset_t off = page->offset;
    id_space_t *idp = state->id_space;
+
+   ASSERT(!isLargePage);
 
    page_free(pp, 1);
    page_unresv(1);

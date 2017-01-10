@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -445,12 +445,6 @@ __GET_EAX_FROM_CPUID4(int inputEcx)
 
 #define CPUID_FOR_SIDE_EFFECTS() ((void)__GET_EAX_FROM_CPUID(0))
 
-static INLINE void
-__GET_CPUID4(int inputEcx, CPUIDRegs *regs)
-{
-   __GET_CPUID2(4, inputEcx, regs);
-}
-
 /* The first parameter is used as an rvalue and then as an lvalue. */
 #define GET_CPUID(_ax, _bx, _cx, _dx) { \
    CPUIDRegs regs;                      \
@@ -461,5 +455,13 @@ __GET_CPUID4(int inputEcx, CPUIDRegs *regs)
    _dx = regs.edx;                      \
 }
 
+#define GET_CPUID2(_ax, _bx, _cx, _dx) {\
+   CPUIDRegs regs;                      \
+   __GET_CPUID2(_ax, _cx, &regs);       \
+   _ax = regs.eax;                      \
+   _bx = regs.ebx;                      \
+   _cx = regs.ecx;                      \
+   _dx = regs.edx;                      \
+}
 
 #endif

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,6 +28,9 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/signal.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
+#include <linux/uio.h> /* iov_iter_count */
+#endif
 #include "compat_cred.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
@@ -168,7 +171,13 @@ struct file_operations HgfsFileFileOperations = {
    .llseek     = HgfsSeek,
    .flush      = HgfsFlush,
 #if defined VMW_USE_AIO
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+   /* Fallback to async counterpart, check kernel source read_write.c */
+   .read       = NULL,
+   .write      = NULL,
+   .read_iter  = HgfsFileRead,
+   .write_iter = HgfsFileWrite,
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
    .read       = new_sync_read,
    .write      = new_sync_write,
    .read_iter  = HgfsFileRead,
@@ -877,6 +886,7 @@ HgfsFileWrite(struct kiocb *iocb,      // IN:  I/O control block
 {
    ssize_t result;
    struct dentry *writeDentry;
+   HgfsInodeInfo *iinfo;
    loff_t pos;
    unsigned long iovSegs;
 
@@ -889,10 +899,26 @@ HgfsFileWrite(struct kiocb *iocb,      // IN:  I/O control block
    iovSegs = HGFS_IOV_TO_SEGS(iov, numSegs);
 
    writeDentry = iocb->ki_filp->f_dentry;
+   iinfo = INODE_GET_II_P(writeDentry->d_inode);
 
    LOG(4, (KERN_DEBUG "VMware hgfs: %s(%s/%s)\n",
           __func__, writeDentry->d_parent->d_name.name,
           writeDentry->d_name.name));
+
+
+   spin_lock(&writeDentry->d_inode->i_lock);
+   /*
+    * Guard against dentry revalidation invalidating the inode underneath us.
+    *
+    * Data is being written and may have valid data in a page in the cache.
+    * This action prevents any invalidating of the inode when a flushing of
+    * cache data occurs prior to syncing the file with the server's attributes.
+    * The flushing of cache data would empty our in memory write pages list and
+    * would cause the inode modified write time to be updated and so the inode
+    * would also be invalidated.
+    */
+   iinfo->numWbPages++;
+   spin_unlock(&writeDentry->d_inode->i_lock);
 
    result = HgfsRevalidate(writeDentry);
    if (result) {
@@ -917,7 +943,10 @@ HgfsFileWrite(struct kiocb *iocb,      // IN:  I/O control block
       }
    }
 
-  out:
+out:
+   spin_lock(&writeDentry->d_inode->i_lock);
+   iinfo->numWbPages--;
+   spin_unlock(&writeDentry->d_inode->i_lock);
    return result;
 }
 

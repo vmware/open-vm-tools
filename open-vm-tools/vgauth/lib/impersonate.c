@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -296,7 +296,8 @@ VGAuth_UserHandleFree(VGAuthUserHandle *handle)
 
    g_free(handle->userName);
 
-   if (handle->details.type == VGAUTH_AUTH_TYPE_SAML) {
+   if (handle->details.type == VGAUTH_AUTH_TYPE_SAML ||
+       handle->details.type == VGAUTH_AUTH_TYPE_SAML_INFO_ONLY) {
       g_free(handle->details.val.samlData.subject);
       VGAuth_FreeAliasInfoContents(&(handle->details.val.samlData.aliasInfo));
    }

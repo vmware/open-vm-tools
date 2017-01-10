@@ -103,16 +103,23 @@ vmxnet3_tx_prepare_offload(vmxnet3_softc_t *dp,
                            mblk_t *mp)
 {
    int ret = 0;
-   uint32_t start, stuff, value, flags, lso_flag, mss;
+   uint32_t start, stuff, value, flags;
+#if defined(OPEN_SOLARIS) || defined(SOL11)
+   uint32_t lso_flag, mss;
+#endif
 
    ol->om = VMXNET3_OM_NONE;
    ol->hlen = 0;
    ol->msscof = 0;
 
    hcksum_retrieve(mp, NULL, NULL, &start, &stuff, NULL, &value, &flags);
+#if defined(OPEN_SOLARIS) || defined(SOL11)
    mac_lso_get(mp, &mss, &lso_flag);
 
    if (flags || lso_flag) {
+#else
+   if (flags) {
+#endif
       struct ether_vlan_header *eth = (void *) mp->b_rptr;
       uint8_t ethLen;
 
@@ -125,7 +132,16 @@ vmxnet3_tx_prepare_offload(vmxnet3_softc_t *dp,
       VMXNET3_DEBUG(dp, 4, "flags=0x%x, ethLen=%u, start=%u, stuff=%u, value=%u\n",
                             flags,      ethLen,    start,    stuff,    value);
 
+#if defined(OPEN_SOLARIS) || defined(SOL11)
       if (lso_flag & HW_LSO) {
+#else
+      if (flags & HCK_PARTIALCKSUM) {
+         ol->om = VMXNET3_OM_CSUM;
+         ol->hlen = start + ethLen;
+         ol->msscof = stuff + ethLen;
+      }
+      if (flags & HW_LSO) {
+#endif
          mblk_t *mblk = mp;
          uint8_t *ip, *tcp;
          uint8_t ipLen, tcpLen;
@@ -154,17 +170,23 @@ vmxnet3_tx_prepare_offload(vmxnet3_softc_t *dp,
 
          ol->om = VMXNET3_OM_TSO;
          ol->hlen = ethLen + ipLen + tcpLen;
+#if defined(OPEN_SOLARIS) || defined(SOL11)
          ol->msscof = mss;
-
+#else
+         /* OpenSolaris fills 'value' with the MSS but Solaris doesn't. */
+         ol->msscof = DB_LSOMSS(mp);
+#endif
          if (mblk != mp) {
             ret = ol->hlen;
          }
-      } else if (flags & HCK_PARTIALCKSUM) {
+      }
+#if defined(OPEN_SOLARIS) || defined(SOL11)
+      else if (flags & HCK_PARTIALCKSUM) {
          ol->om = VMXNET3_OM_CSUM;
          ol->hlen = start + ethLen;
          ol->msscof = stuff + ethLen;
       }
-
+#endif
    }
 
    return ret;

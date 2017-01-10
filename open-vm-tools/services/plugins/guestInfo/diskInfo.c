@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -91,7 +91,7 @@ GuestInfoGetDiskInfoWiper(void)
 
    /* Get partition list. */
    if (!WiperPartition_Open(&pl)) {
-      g_debug("GetDiskInfo: ERROR: could not get partition list\n");
+      g_warning("GetDiskInfo: ERROR: could not get partition list\n");
       return FALSE;
    }
 
@@ -108,13 +108,13 @@ GuestInfoGetDiskInfoWiper(void)
 
          error = WiperSinglePartition_GetSpace(part, &freeBytes, &totalBytes);
          if (strlen(error)) {
-            g_debug("GetDiskInfo: ERROR: could not get space for partition %s: %s\n",
+            g_warning("GetDiskInfo: ERROR: could not get space for partition %s: %s\n",
                     part->mountPoint, error);
             goto out;
          }
 
          if (strlen(part->mountPoint) + 1 > partNameSize) {
-            g_debug("GetDiskInfo: ERROR: Partition name buffer too small\n");
+            g_warning("GetDiskInfo: ERROR: Partition name buffer too small\n");
             goto out;
          }
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -317,7 +317,7 @@ Bool Poll_CB_RTimeRemove(PollerFunction f,
 
 
 #ifdef _WIN32
-void Poll_SetWindowMessageRecipient(HANDLE hWnd, UINT msg, Bool alwaysThunk);
+void Poll_SetWindowMessageRecipient(HWND hWnd, UINT msg, Bool alwaysThunk);
 Bool Poll_FireWndCallback(void *lparam);
 #endif
 

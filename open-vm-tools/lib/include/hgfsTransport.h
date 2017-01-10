@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,6 +44,13 @@
 /************************************************
  *    VMCI specific data structures, macros     *
  ************************************************/
+
+/*
+ *    Limit payload to 16M.
+ *    This limit ensures that list of shared pages fits into VMCI datagram.
+ *    Client may impose a lower limit in create session request.
+ */
+#define HGFS_VMCI_PACKET_MAX         (0x1000000)
 
 #define HGFS_VMCI_VERSION_1          0x1
 #define HGFS_VMCI_VERSION_2          0x2

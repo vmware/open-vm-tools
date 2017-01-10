@@ -140,7 +140,7 @@
 static INLINE void *
 VSockVA64ToPtr(VA64 va64) // IN
 {
-#ifdef VM_X86_64
+#ifdef VM_64BIT
    ASSERT_ON_COMPILE(sizeof (void *) == 8);
 #else
    ASSERT_ON_COMPILE(sizeof (void *) == 4);

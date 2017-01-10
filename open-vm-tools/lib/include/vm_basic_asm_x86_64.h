@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -89,18 +89,22 @@ uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
       __rip;                                                          \
 })
 
+#define GET_CURRENT_PC() GET_CURRENT_RIP()
+
 /*
  * GET_CURRENT_LOCATION
  *
  * Updates the arguments with the values of the %rip, %rbp, and %rsp
- * registers at the current code location where the macro is invoked.
+ * registers at the current code location where the macro is invoked,
+ * and the return address.
  */
-#define GET_CURRENT_LOCATION(rip, rbp, rsp)                           \
-   asm("lea 0(%%rip), %0\n"                                           \
-       "mov %%rbp, %1\n"                                              \
-       "mov %%rsp, %2\n"                                              \
-       : "=r" (rip), "=r" (rbp), "=r" (rsp))
-
+#define GET_CURRENT_LOCATION(rip, rbp, rsp, retAddr)  do {         \
+      asm("lea 0(%%rip), %0\n"                                     \
+          "mov %%rbp, %1\n"                                        \
+          "mov %%rsp, %2\n"                                        \
+          : "=r" (rip), "=r" (rbp), "=r" (rsp));                   \
+      retAddr = (uint64) GetReturnAddress();                       \
+   } while (0)
 #endif
 
 /*

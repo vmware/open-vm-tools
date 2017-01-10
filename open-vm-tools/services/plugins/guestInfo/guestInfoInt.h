@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,14 +26,39 @@
  */
 
 #define G_LOG_DOMAIN "guestinfo"
-#include <glib.h>
+#include "vmware/tools/log.h"
+#include "vmware/tools/plugin.h"
 
 #include "nicInfo.h"
+#include "dynbuf.h"
+
+/*
+ * Internal stat IDs used by intermediate stats collected
+ * for computing derived stats.
+ *
+ * NOTE: These IDs should not be published to the host as
+ * these may change.
+ */
+#define GuestStatID_SwapSpaceUsed         ((GuestStatToolsID) (GuestStatID_Max + 0))
+#define GuestStatID_SwapFilesCurrent      ((GuestStatToolsID) (GuestStatID_Max + 1))
+#define GuestStatID_SwapFilesMax          ((GuestStatToolsID) (GuestStatID_Max + 2))
+#define GuestStatID_Linux_LowWaterMark    ((GuestStatToolsID) (GuestStatID_Max + 3))
+#define GuestStatID_Linux_MemAvailable    ((GuestStatToolsID) (GuestStatID_Max + 4))
+#define GuestStatID_Linux_MemBuffers      ((GuestStatToolsID) (GuestStatID_Max + 5))
+#define GuestStatID_Linux_MemCached       ((GuestStatToolsID) (GuestStatID_Max + 6))
+#define GuestStatID_Linux_MemInactiveFile ((GuestStatToolsID) (GuestStatID_Max + 7))
+#define GuestStatID_Linux_MemSlabReclaim  ((GuestStatToolsID) (GuestStatID_Max + 8))
+#define GuestStatID_Linux_MemTotal        ((GuestStatToolsID) (GuestStatID_Max + 9))
+#define GuestStatID_Linux_Internal_Max    ((GuestStatToolsID) (GuestStatID_Max + 10))
 
 extern int guestInfoPollInterval;
 
 Bool
-GuestInfo_PerfMon(struct GuestMemInfo *vmStats);
+GuestInfo_ServerReportStats(ToolsAppCtx *ctx,  // IN
+                            DynBuf *stats);    // IN
+
+gboolean
+GuestInfo_StatProviderPoll(gpointer data);
 
 GuestDiskInfo *
 GuestInfoGetDiskInfoWiper(void);

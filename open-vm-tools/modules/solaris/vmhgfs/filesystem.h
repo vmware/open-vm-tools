@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -55,17 +55,28 @@
 
 /*
  * Macros
+ *
+ * XXX - Must place these into a common header file that can be
+ * used here and by the Linux client and OS X clients (user and kernel)
+ * components.
  */
 #define HGFS_MAGIC           (0xbacbacbc)
 #define HGFS_FSTYPE          HGFS_FS_NAME
 
 /*
  * Struct passed from mount program to kernel (fs module)
+ *
+ * ******************* IMPORTANT ****************************
+ * XXX - This must be kept compatible with the HgfsMountInfo
+ * structure which is defined in hgfsDevLinux.h
+ * ******************* IMPORTANT ****************************
  */
 typedef struct HgfsMountData {
    uint32_t magic;
+   uint32_t size;
    uint32_t version;
    uint32_t fd;
+   uint32_t flags;
 } HgfsMountData;
 
 

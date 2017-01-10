@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -281,7 +281,7 @@ System_Uptime(void)
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 System_GetTimeAsString(void)
 {
    struct timeval tv;
@@ -290,8 +290,8 @@ System_GetTimeAsString(void)
    size_t charsWritten;
    size_t bufSize = 8; // Multiplied by 2 for the initial allocation.
    char *buf = NULL;
-   Unicode dateTime = NULL;
-   Unicode output = NULL;
+   char *dateTime = NULL;
+   char *output = NULL;
 
    if (gettimeofday(&tv, NULL)) {
       goto out;
@@ -331,7 +331,7 @@ System_GetTimeAsString(void)
 
   out:
    free(buf);
-   Unicode_Free(dateTime);
+   free(dateTime);
    return output;
 }
 

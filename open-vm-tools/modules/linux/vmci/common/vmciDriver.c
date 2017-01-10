@@ -78,7 +78,8 @@ VMCI_HostInit(void)
     */
    result = VMCIContext_InitContext(VMCI_HOST_CONTEXT_ID,
                                     VMCI_DEFAULT_PROC_PRIVILEGE_FLAGS,
-                                    -1, VMCI_VERSION, NULL, &hostContext);
+                                    VMCI_HOST_CONTEXT_INVALID_EVENT,
+                                    VMCI_VERSION, NULL, &hostContext);
    if (result < VMCI_SUCCESS) {
       VMCI_WARNING((LGPFX"Failed to initialize VMCIContext (result=%d).\n",
                     result));
@@ -214,6 +215,8 @@ VMCIUtilCidUpdate(VMCIId subID,               // IN:
                   void *clientData)           // IN:
 {
    VMCIEventPayload_Context *evPayload = VMCIEventDataPayload(eventData);
+
+   UNREFERENCED_PARAMETER(clientData);
 
    if (subID != ctxUpdateSubID) {
       VMCI_DEBUG_LOG(4, (LGPFX"Invalid subscriber (ID=0x%x).\n", subID));
@@ -421,7 +424,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
    remainingBytes = currentDgInBufferSize;
 
    while (dg->dst.resource != VMCI_INVALID_ID || remainingBytes > PAGE_SIZE) {
-      unsigned dgInSize;
+      size_t dgInSize;
 
       /*
        * When the input buffer spans multiple pages, a datagram can
@@ -493,7 +496,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
           * Datagram doesn't fit in datagram buffer of maximal size. We drop it.
           */
 
-         VMCI_DEBUG_LOG(4, (LGPFX"Failed to receive datagram (size=%u bytes).\n",
+         VMCI_DEBUG_LOG(4, (LGPFX"Failed to receive datagram (size=%"FMTSZ"u bytes).\n",
                             dgInSize));
 
          bytesToSkip = dgInSize - remainingBytes;

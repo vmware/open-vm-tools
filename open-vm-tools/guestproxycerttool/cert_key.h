@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,6 +21,7 @@
 
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <openssl/evp.h>
 
 gchar *
 CertKey_ComputeCertPemFileHash(const gchar *certPemFile); // IN
@@ -35,4 +36,12 @@ CertKey_GenerateKeyCert(int bits,                         // IN
 void
 CertKey_InitOpenSSLLib(void);
 
+gboolean
+WritePemFile(EVP_PKEY *pkey,                     // IN
+             const gchar *keyFile,               // IN
+             X509 *cert,                         // IN
+             const gchar *certFile);             // IN
+
+gchar *
+GetSSLError(gchar **errorStr);                   // OUT
 #endif // #ifndef _CERT_KEY_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include <net/if.h>
 
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -768,7 +769,7 @@ SlashProcNet_GetRoute6(void)
       myEntry->rtmsg_metric = MatchToGuint64(myMatchInfo, 6, 16);
       myEntry->rtmsg_flags = MatchToGuint64(myMatchInfo, 7, 16);
 
-      MATCHEXPR(myMatchInfo, 8, myEntry->rtmsg_ifindex = NetUtil_GetIfIndex(MATCH));
+      MATCHEXPR(myMatchInfo, 8, myEntry->rtmsg_ifindex = if_nametoindex(MATCH));
 
 badIteration:
       g_free(myLine);

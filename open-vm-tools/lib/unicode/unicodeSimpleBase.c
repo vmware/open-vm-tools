@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,13 +25,13 @@
  *
  *      Basic Unicode string creation and encoding conversion.
  *
- *      The thread-safety of ConstUnicode functions is the same as
+ *      The thread-safety of const char *functions is the same as
  *      that for standard const char * functions: multiple threads can
- *      call ConstUnicode functions on the same string simultaneously.
+ *      call const char *functions on the same string simultaneously.
  *
- *      However, a non-const Unicode function (like Unicode_Free) must
+ *      However, a non-const Unicode function (like free) must
  *      not be called concurrently with any other Unicode or
- *      ConstUnicode function on the same string.
+ *      const char *function on the same string.
  */
 
 #include <string.h>
@@ -70,15 +70,15 @@ static const size_t UNICODE_UTF16_CODE_UNITS_PADDING = 10;
  *      Return NULL if strict is true and the buffer contains an invalid
  *      sequence in the specified encoding.
  *
- *	If strict is false, then an invalid sequence is replaced by
+ *      If strict is false, then an invalid sequence is replaced by
  *      a substitution character, which is either the Unicode
- *	substitution character (U+FFFD or \xef\xbf\xbd in UTF-8)
- *	or subchar1 (ASCII SUB or control-z, value 0x1a).
+ *      substitution character (U+FFFD or \xef\xbf\xbd in UTF-8)
+ *      or subchar1 (ASCII SUB or control-z, value 0x1a).
  *
  * Results:
  *      An allocated Unicode string containing the decoded characters
  *      in buffer, or NULL on failure.  Caller must pass to
- *      Unicode_Free to free.
+ *      free to free.
  *
  * Side effects:
  *      None
@@ -86,11 +86,11 @@ static const size_t UNICODE_UTF16_CODE_UNITS_PADDING = 10;
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 UnicodeAllocInternal(const void *buffer,      // IN
                      ssize_t lengthInBytes,   // IN
                      StringEncoding encoding, // IN
-		     Bool strict)             // IN
+                     Bool strict)             // IN
 {
    char *utf8Result = NULL;
 
@@ -101,7 +101,7 @@ UnicodeAllocInternal(const void *buffer,      // IN
    if (!strict) {
       CodeSet_GenericToGeneric(Unicode_EncodingEnumToName(encoding),
                                buffer, lengthInBytes,
-			       "UTF-8", CSGTG_TRANSLIT, &utf8Result, NULL);
+                               "UTF-8", CSGTG_TRANSLIT, &utf8Result, NULL);
       return utf8Result;
    }
 
@@ -109,7 +109,7 @@ UnicodeAllocInternal(const void *buffer,      // IN
    case STRING_ENCODING_US_ASCII:
    case STRING_ENCODING_UTF8:
       if (Unicode_IsBufferValid(buffer, lengthInBytes, encoding)) {
-	 utf8Result = Util_SafeStrndup(buffer, lengthInBytes);
+         utf8Result = Util_SafeStrndup(buffer, lengthInBytes);
       }
       break;
    case STRING_ENCODING_UTF16_LE:
@@ -122,11 +122,35 @@ UnicodeAllocInternal(const void *buffer,      // IN
    default:
       CodeSet_GenericToGeneric(Unicode_EncodingEnumToName(encoding),
                                buffer, lengthInBytes,
-			       "UTF-8", 0, &utf8Result, NULL);
+                               "UTF-8", 0, &utf8Result, NULL);
       break;
    }
 
-   return (Unicode)utf8Result;
+   return utf8Result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_IsStringValidUTF8 --
+ *
+ *      Tests if the specified string (NUL terminated) is valid UTF8.
+ *
+ * Results:
+ *      TRUE   The string is valid UTF8.
+ *      FALSE  The string is not valid UTF8.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Unicode_IsStringValidUTF8(const char *str)  // IN:
+{
+   return CodeSet_IsStringValidUTF8(str);
 }
 
 
@@ -170,16 +194,25 @@ Unicode_IsBufferValid(const void *buffer,      // IN
 
    encoding = Unicode_ResolveEncoding(encoding);
 
-   if (encoding == STRING_ENCODING_US_ASCII) {
+   switch (encoding) {
+   case STRING_ENCODING_US_ASCII:
       return UnicodeSanityCheck(buffer, lengthInBytes, encoding);
-   }
 
-   if (lengthInBytes == -1) {
-      lengthInBytes = Unicode_LengthInBytes(buffer, encoding);
-   }
+   case STRING_ENCODING_UTF8:
+      if (lengthInBytes == -1) {
+         return CodeSet_IsStringValidUTF8(buffer);
+      } else {
+         return CodeSet_IsValidUTF8(buffer, lengthInBytes);
+      }
 
-   return CodeSet_Validate(buffer, lengthInBytes,
-			   Unicode_EncodingEnumToName(encoding));
+   default:
+      if (lengthInBytes == -1) {
+         lengthInBytes = Unicode_LengthInBytes(buffer, encoding);
+      }
+
+      return CodeSet_Validate(buffer, lengthInBytes,
+                              Unicode_EncodingEnumToName(encoding));
+   }
 }
 
 
@@ -192,7 +225,7 @@ Unicode_IsBufferValid(const void *buffer,      // IN
  *
  * Results:
  *      An allocated Unicode string containing a duplicate of the passed-in
- *      string.  Caller must pass to Unicode_Free to free.
+ *      string.  Caller must pass to free to free.
  *
  * Side effects:
  *      None
@@ -200,36 +233,10 @@ Unicode_IsBufferValid(const void *buffer,      // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
-Unicode_Duplicate(ConstUnicode str) // IN
+char *
+Unicode_Duplicate(const char *str) // IN
 {
-   return (Unicode)Util_SafeStrdup((const char *)str);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Unicode_Free --
- *
- *      Frees the memory for the specified Unicode string and invalidates it.
- *
- *      Not thread-safe when other functions are concurrently
- *      operating on the same string.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-Unicode_Free(void *str) // IN
-{
-   free(str);
+   return Util_SafeStrdup(str);
 }
 
 
@@ -245,8 +252,8 @@ Unicode_Free(void *str) // IN
  *
  * Results:
  *      An allocated list (vector) of Unicode strings.
- *      The individual strings must be freed with Unicode_Free,
- *      or the entire list can be free with Unicode_FreeList.
+ *      The individual strings must be freed with free,
+ *      or the entire list can be free with Util_FreeStringList.
  *
  * Side effects:
  *      None
@@ -254,12 +261,12 @@ Unicode_Free(void *str) // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode *
+char **
 Unicode_AllocList(char **srcList,          // IN: list of strings
                   ssize_t length,          // IN: list 
                   StringEncoding encoding) // IN:
 {
-   Unicode *dstList = NULL;
+   char **dstList = NULL;
    ssize_t i;
 
    ASSERT(srcList != NULL);
@@ -289,34 +296,6 @@ Unicode_AllocList(char **srcList,          // IN: list of strings
 /*
  *-----------------------------------------------------------------------------
  *
- * Unicode_FreeList --
- *
- *      Free a list (actually a vector) of Unicode strings.
- *      The list (vector) itself is also freed.
- *
- *      The list either has a specified length or is
- *      argv-style NULL terminated (if length is negative).
- *
- * Results:
- *      None
- *
- * Side effects:
- *      errno or Windows last error is preserved.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-Unicode_FreeList(Unicode *list,    // IN: the list to free
-                 ssize_t length)   // IN: the length
-{
-   Util_FreeStringList(list, length);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * Unicode_GetAllocList --
  *
  *      Given a list of Unicode strings, converts them to a list of
@@ -339,9 +318,9 @@ Unicode_FreeList(Unicode *list,    // IN: the list to free
  */
 
 char **
-Unicode_GetAllocList(Unicode const srcList[], // IN: list of strings
-		     ssize_t length,          // IN: length (-1 for NULL term.)
-		     StringEncoding encoding) // IN: Encoding of returned list
+Unicode_GetAllocList(char *const srcList[],   // IN: list of strings
+                     ssize_t length,          // IN: length (-1 for NULL term.)
+                     StringEncoding encoding) // IN: Encoding of returned list
 {
    char **dstList = NULL;
    ssize_t i;
@@ -365,44 +344,15 @@ Unicode_GetAllocList(Unicode const srcList[], // IN: list of strings
    for (i = 0; i < length; i++) {
       dstList[i] = Unicode_GetAllocBytes(srcList[i], encoding);
       if (dstList[i] == NULL && srcList[i] != NULL) {
-	 while (--i >= 0) {
-	    free(dstList[i]);
-	 }
-	 free(dstList);
-	 return NULL;
+         while (--i >= 0) {
+            free(dstList[i]);
+         }
+         free(dstList);
+         return NULL;
       }
    }
 
    return dstList;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Unicode_GetUTF8 --
- *
- *      Returns the contents of the string encoded as a NUL-terminated UTF-8
- *      byte array.
- *
- * Results:
- *      A NUL-terminated UTF-8 string; lifetime is valid until the next
- *      non-const Unicode function is called on the string.  Caller should
- *      strdup if storing the return value long-term.
- *
- *      Caller does not need to free; the memory is managed inside the
- *      Unicode object.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-const char *
-Unicode_GetUTF8(ConstUnicode str) // IN
-{
-   return (const char *)str;
 }
 
 
@@ -423,7 +373,7 @@ Unicode_GetUTF8(ConstUnicode str) // IN
  */
 
 UnicodeIndex
-Unicode_LengthInCodeUnits(ConstUnicode str) // IN
+Unicode_LengthInCodeUnits(const char *str) // IN
 {
    return strlen((const char *)str);
 }
@@ -451,7 +401,7 @@ Unicode_LengthInCodeUnits(ConstUnicode str) // IN
  */
 
 size_t
-Unicode_BytesRequired(ConstUnicode str,        // IN
+Unicode_BytesRequired(const char *str,         // IN
                       StringEncoding encoding) // IN
 {
    const uint8 *utf8 = (const uint8 *)str;
@@ -550,7 +500,7 @@ Unicode_BytesRequired(ConstUnicode str,        // IN
  *      maxLengthInBytes bytes in total to the buffer.
  *
  * Results:
- *	FALSE on conversion failure or if the Unicode string requires
+ *      FALSE on conversion failure or if the Unicode string requires
  *      more than maxLengthInBytes bytes to be encoded in the specified
  *      encoding, including NUL termination. (Call
  *      Unicode_BytesRequired(str, encoding) to get the correct
@@ -566,7 +516,7 @@ Unicode_BytesRequired(ConstUnicode str,        // IN
 
 Bool
 Unicode_CopyBytes(void *destBuffer,        // OUT
-                  ConstUnicode srcBuffer,  // IN
+                  const char *srcBuffer,   // IN
                   size_t maxLengthInBytes, // IN
                   size_t *retLength,       // OUT
                   StringEncoding encoding) // IN
@@ -580,7 +530,7 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
    switch (encoding) {
    case STRING_ENCODING_US_ASCII:
       if (!UnicodeSanityCheck(utf8Str, -1, encoding)) {
-	 break;
+         break;
       }
       // fall through
    case STRING_ENCODING_UTF8:
@@ -594,8 +544,8 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
           * manner.
           */
          if (copyBytes >= len) {
-	    success = TRUE;
-	 } else {
+            success = TRUE;
+         } else {
             if (encoding == STRING_ENCODING_UTF8) {
                copyBytes =
                   CodeSet_Utf8FindCodePointBoundary(destBuffer, copyBytes);
@@ -614,8 +564,8 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
                                     strlen(utf8Str),
                                     &utf16Buf,
                                     &utf16BufLen)) {
-	    // input should be valid UTF-8, no conversion error possible
-	    NOT_IMPLEMENTED();
+            /* input should be valid UTF-8, no conversion error possible */
+            NOT_IMPLEMENTED();
             break;
          }
          copyBytes = MIN(utf16BufLen, maxLengthInBytes - 2);
@@ -635,13 +585,13 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
          char *currentBuf;
          size_t currentBufSize;
 
-	 if (!CodeSet_GenericToGeneric("UTF-8", utf8Str, strlen(utf8Str),
-				       Unicode_EncodingEnumToName(encoding),
-				       CSGTG_NORMAL,
-				       &currentBuf, &currentBufSize)) {
-	    // XXX can't distinguish error cause
-	    break;
-	 }
+         if (!CodeSet_GenericToGeneric("UTF-8", utf8Str, strlen(utf8Str),
+                                       Unicode_EncodingEnumToName(encoding),
+                                       CSGTG_NORMAL,
+                                       &currentBuf, &currentBufSize)) {
+            /* XXX can't distinguish error cause */
+            break;
+         }
          copyBytes = MIN(currentBufSize, maxLengthInBytes - 1);
          memcpy(destBuffer, currentBuf, copyBytes);
          free(currentBuf);
@@ -695,7 +645,7 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
  */
 
 void *
-Unicode_GetAllocBytes(ConstUnicode str,        // IN:
+Unicode_GetAllocBytes(const char *str,         // IN:
                       StringEncoding encoding) // IN:
 {
    if (str == NULL) {
@@ -735,7 +685,7 @@ Unicode_GetAllocBytes(ConstUnicode str,        // IN:
  */
 
 void *
-Unicode_GetAllocBytesWithLength(ConstUnicode str,        // IN:
+Unicode_GetAllocBytesWithLength(const char *str,         // IN:
                                 StringEncoding encoding, // IN:
                                 ssize_t lengthInBytes)   // IN:
 {
@@ -760,8 +710,7 @@ Unicode_GetAllocBytesWithLength(ConstUnicode str,        // IN:
  *      The converted string in an allocated buffer,
  *      or NULL on conversion failure.
  *
- *	The length of the result (in bytes, without termination)
- *	in retLength.
+ *      The length of the result (in bytes, without termination) in retLength.
  *
  * Side effects:
  *      Panic on memory allocation failure.
@@ -770,7 +719,7 @@ Unicode_GetAllocBytesWithLength(ConstUnicode str,        // IN:
  */
 
 void *
-UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
+UnicodeGetAllocBytesInternal(const char *ustr,        // IN
                              StringEncoding encoding, // IN
                              ssize_t lengthInBytes,   // IN
                              size_t *retLength)       // OUT: optional
@@ -789,31 +738,31 @@ UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
    switch (encoding) {
    case STRING_ENCODING_US_ASCII:
       if (!UnicodeSanityCheck(utf8Str, lengthInBytes, encoding)) {
-	 break;
+         break;
       }
       // fall through
    case STRING_ENCODING_UTF8:
       result = Util_SafeMalloc(lengthInBytes + 1);
       memcpy(result, utf8Str, lengthInBytes + 1);
       if (retLength != NULL) {
-	 *retLength = lengthInBytes;
+         *retLength = lengthInBytes;
       }
       break;
 
    case STRING_ENCODING_UTF16_LE:
       if (!CodeSet_Utf8ToUtf16le(utf8Str, lengthInBytes, &result, retLength)) {
-	 // input should be valid UTF-8, no conversion error possible
+         /* input should be valid UTF-8, no conversion error possible */
          NOT_IMPLEMENTED();
       }
       break;
 
    default:
       if (!CodeSet_GenericToGeneric("UTF-8", utf8Str, lengthInBytes,
-				    Unicode_EncodingEnumToName(encoding),
-				    CSGTG_NORMAL,
-				    &result, retLength)) {
-	 // XXX can't distinguish error cause
-	 ASSERT(result == NULL);
+                                    Unicode_EncodingEnumToName(encoding),
+                                    CSGTG_NORMAL,
+                                    &result, retLength)) {
+         /* XXX can't distinguish error cause */
+         ASSERT(result == NULL);
       }
    }
 
@@ -841,7 +790,7 @@ UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
  *-----------------------------------------------------------------------------
  */
 
-Unicode
+char *
 UnicodeAllocStatic(const char *asciiBytes, // IN
                    Bool unescape)          // IN
 {
@@ -849,7 +798,7 @@ UnicodeAllocStatic(const char *asciiBytes, // IN
    // Explicitly use int8 so we don't depend on whether char is signed.
    const int8 *byte = (const int8 *)asciiBytes;
    size_t utf16Offset = 0;
-   Unicode result;
+   char *result;
 
    ASSERT(asciiBytes);
 

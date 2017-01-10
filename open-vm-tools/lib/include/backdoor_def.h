@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -118,7 +118,7 @@
 //#define BDOOR_CMD_DEVEL_FAKEHARDWARE       44 /* Not in use. */
 #define   BDOOR_CMD_GETHZ                    45
 #define   BDOOR_CMD_GETTIMEFULL              46
-#define   BDOOR_CMD_STATELOGGER              47 /* Disabled by default. */
+//#define   BDOOR_CMD_STATELOGGER            47 /* Not in use. */
 #define   BDOOR_CMD_CHECKFORCEBIOSSETUP      48 /* CPL 0 only. */
 #define   BDOOR_CMD_LAZYTIMEREMULATION       49 /* CPL 0 only. */
 #define   BDOOR_CMD_BIOSBBS                  50 /* CPL 0 only. */
@@ -145,13 +145,16 @@
 #  define BDOOR_CMD_FAS_GET_TABLE_SKIP        5
 #  define BDOOR_CMD_FAS_GET_SLEEP_ENABLES     6
 #  define BDOOR_CMD_FAS_GET_HARD_RESET_ENABLE 7
-#define   BDOOR_CMD_SENDPSHAREHINTS          66
+#  define BDOOR_CMD_FAS_GET_MOUSE_HID         8
+#  define BDOOR_CMD_FAS_GET_SMBIOS_VERSION    9
+#define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
 #  define BDOOR_CMD_VCPU_SLC64                0
 #  define BDOOR_CMD_VCPU_SYNC_VTSCS           1
 #  define BDOOR_CMD_VCPU_HV_REPLAY_OK         2
 #  define BDOOR_CMD_VCPU_LEGACY_X2APIC_OK     3
+#  define BDOOR_CMD_VCPU_MMIO_HONORS_PAT      4
 #  define BDOOR_CMD_VCPU_RESERVED            31
 #define   BDOOR_CMD_EFI_SERIALCON_CONFIG     69 /* CPL 0 only. */
 #define   BDOOR_CMD_BUG328986                70 /* CPL 0 only. */
@@ -164,6 +167,7 @@
 #  define BDOOR_CMD_EBC_GET_ORDER                 1
 #  define BDOOR_CMD_EBC_SHELL_ACTIVE              2
 #  define BDOOR_CMD_EBC_GET_NETWORK_BOOT_PROTOCOL 3
+#  define BDOOR_CMD_EBC_QUICKBOOT_ENABLED         4
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_SVGA_CAPABILITIES    75 /* CPL 0 only. */
 #define	  BDOOR_CMD_GET_FORCE_X2APIC         76 /* CPL 0 only  */
@@ -172,32 +176,51 @@
 #define   BDOOR_CMD_GET_PCI_BAR              79 /* CPL 0 only  */
 #define   BDOOR_CMD_SHOULD_GENERATE_SYSTEMID 80 /* CPL 0 only  */
 #define   BDOOR_CMD_READ_DEBUG_FILE          81 /* Devel only. */
-#define   BDOOR_CMD_MAX                      82
+#define   BDOOR_CMD_SCREENSHOT               82 /* Devel only. */
+#define   BDOOR_CMD_INJECT_KEY               83 /* Devel only. */
+#define   BDOOR_CMD_INJECT_MOUSE             84 /* Devel only. */
+#define   BDOOR_CMD_MKS_GUEST_STATS          85 /* CPL 0 only. */
+#  define BDOOR_CMD_MKSGS_RESET               0
+#  define BDOOR_CMD_MKSGS_ADD_PPN             1
+#  define BDOOR_CMD_MKSGS_REMOVE_PPN          2
+#define   BDOOR_CMD_ABSPOINTER_RESTRICT      86
+#define   BDOOR_CMD_GUEST_INTEGRITY          87
+#  define BDOOR_CMD_GI_GET_CAPABILITIES       0
+#  define BDOOR_CMD_GI_SETUP_ENTRY_POINT      1
+#  define BDOOR_CMD_GI_SETUP_ALERTS           2
+#  define BDOOR_CMD_GI_SETUP_STORE            3
+#  define BDOOR_CMD_GI_SETUP_EVENT_RING       4
+#  define BDOOR_CMD_GI_SETUP_NON_FAULT_READ   5
+#  define BDOOR_CMD_GI_ENTER_INTEGRITY_MODE   6
+#  define BDOOR_CMD_GI_EXIT_INTEGRITY_MODE    7
+#  define BDOOR_CMD_GI_RESET_INTEGRITY_MODE   8
+#  define BDOOR_CMD_GI_GET_EVENT_RING_STATE   9
+#  define BDOOR_CMD_GI_CONSUME_RING_EVENTS   10
+#  define BDOOR_CMD_GI_WATCH_MAPPINGS_START  11
+#  define BDOOR_CMD_GI_WATCH_MAPPINGS_STOP   12
+#  define BDOOR_CMD_GI_CHECK_MAPPINGS_NOW    13
+#  define BDOOR_CMD_GI_WATCH_PPNS_START      14
+#  define BDOOR_CMD_GI_WATCH_PPNS_STOP       15
+#  define BDOOR_CMD_GI_SEND_MSG              16
+#  define BDOOR_CMD_GI_TEST_READ_MOB        128
+#  define BDOOR_CMD_GI_TEST_ADD_EVENT       129
+#  define BDOOR_CMD_GI_TEST_MAPPING         130
+#  define BDOOR_CMD_GI_TEST_PPN             131
+#  define BDOOR_CMD_GI_MAX                  131
+#define   BDOOR_CMD_MKSSTATS_SNAPSHOT        88 /* Devel only. */
+#  define BDOOR_CMD_MKSSTATS_START            0
+#  define BDOOR_CMD_MKSSTATS_STOP             1
+#define   BDOOR_CMD_SECUREBOOT               89
+#define   BDOOR_CMD_COPY_PHYSMEM             90 /* Devel only. */
+#define   BDOOR_CMD_MAX                      91
 
 
-/* 
+/*
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,
  * you must adhere to the semantics expected by the oldest Tools who use that
- * command. Specifically, do not alter the way in which the command modifies 
+ * command. Specifically, do not alter the way in which the command modifies
  * the registers. Otherwise backwards compatibility will suffer.
  */
-
-/* Processing mode for guest pshare hints (SENDPSHAREHINTS cmd) */
-#define BDOOR_PSHARE_HINTS_ASYNC 0
-#define BDOOR_PSHARE_HINTS_SYNC  1
-
-#define BDOOR_PSHARE_HINTS_TYPE(ecx)   (((ecx) >> 16) & 0x1)
-
-/* Version of backdoor pshare hints protocol */
-#define BDOOR_PSHARE_HINTS_VERSION     1
-#define BDOOR_PSHARE_HINTS_VER(ecx)    (((ecx) >> 17) & 0x7f)
-
-/* Task applied to backdoor pshare hints */
-#define BDOOR_PSHARE_HINTS_CMD_SHARE   0
-#define BDOOR_PSHARE_HINTS_CMD_DROP    1
-#define BDOOR_PSHARE_HINTS_CMD_MAX     2
-
-#define BDOOR_PSHARE_HINTS_CMD(ecx)   (((ecx) >> 24) & 0xff)
 
 /* Nesting control operations */
 
@@ -215,10 +238,13 @@
 #define BDOOR_NETWORK_BOOT_PROTOCOL_IPV4  0x1
 #define BDOOR_NETWORK_BOOT_PROTOCOL_IPV6  0x2
 
+#define BDOOR_SECUREBOOT_STATUS_DISABLED  0xFFFFFFFFUL
+#define BDOOR_SECUREBOOT_STATUS_APPROVED  1
+#define BDOOR_SECUREBOOT_STATUS_DENIED    2
+
 /* High-bandwidth backdoor port. --hpreg */
 
 #define BDOORHB_PORT 0x5659
-
 #define BDOORHB_CMD_MESSAGE 0
 #define BDOORHB_CMD_VASSERT 1
 #define BDOORHB_CMD_MAX 2
@@ -264,5 +290,32 @@ Backdoor_CmdRequiresFullyValidVCPU(unsigned cmd)
           cmd == BDOOR_CMD_SLDT_STR;
 }
 #endif
+
+#ifdef VM_ARM_64
+
+#define BDOOR_ARM64_LB_PORT      (BDOOR_PORT)
+#define BDOOR_ARM64_HB_PORT_IN   (BDOORHB_PORT)
+#define BDOOR_ARM64_HB_PORT_OUT  (BDOORHB_PORT +1)
+
+#define BDOOR_ARG0 REG_X0
+#define BDOOR_ARG1 REG_X1
+#define BDOOR_ARG2 REG_X2
+#define BDOOR_ARG3 REG_X3
+#define BDOOR_ARG4 REG_X4
+#define BDOOR_ARG5 REG_X5
+#define BDOOR_ARG6 REG_X6
+
+#else
+
+#define BDOOR_ARG0 REG_RAX
+#define BDOOR_ARG1 REG_RBX
+#define BDOOR_ARG2 REG_RCX
+#define BDOOR_ARG3 REG_RDX
+#define BDOOR_ARG4 REG_RSI
+#define BDOOR_ARG5 REG_RDI
+#define BDOOR_ARG6 REG_RBP
+
+#endif
+
 
 #endif

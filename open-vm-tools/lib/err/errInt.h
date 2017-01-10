@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,8 +30,8 @@
 
 #include "err.h"
 
-
-const char *ErrErrno2String(Err_Number errorNumber, char *buf, size_t bufSize);
-
+const char *ErrErrno2String(Err_Number errorNumber,
+                            char *buf,
+                            size_t bufSize);
 
 #endif // ifndef _ERRINT_H_

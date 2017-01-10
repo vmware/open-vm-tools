@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,8 +25,8 @@
 #ifndef _VSOCK_VERSION_H_
 #define _VSOCK_VERSION_H_
 
-#define VSOCK_DRIVER_VERSION          9.7.1.0
-#define VSOCK_DRIVER_VERSION_COMMAS   9,7,1,0
-#define VSOCK_DRIVER_VERSION_STRING   "9.7.1.0"
+#define VSOCK_DRIVER_VERSION          9.8.1.0
+#define VSOCK_DRIVER_VERSION_COMMAS   9,8,1,0
+#define VSOCK_DRIVER_VERSION_STRING   "9.8.1.0"
 
 #endif /* _VSOCK_VERSION_H_ */

@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 1998-2015 VMware, Inc.  All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -200,7 +200,7 @@ CodeSetGetModulePath(HANDLE hModule) // IN
 }
 
 
-#elif vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE) // _WIN32
+#elif vmx86_devel && !vmx86_server && !defined(TEST_CUSTOM_ICU_DATA_FILE) // _WIN32
 
 /*
  *-----------------------------------------------------------------------------
@@ -248,7 +248,7 @@ CodeSetGetModulePath(uint32 priv)
 
 #else
 #if defined(VMX86_SERVER)
-   if (HostType_OSIsPureVMK()) {
+   if (HostType_OSIsVMK()) {
       goto exit;
    }
 #endif
@@ -550,7 +550,7 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
 
 #else // } _WIN32 {
 
-#if vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE)
+#if vmx86_devel && !vmx86_server && !defined(TEST_CUSTOM_ICU_DATA_FILE)
    {
       char *modPath;
       char *lastSlash;
@@ -641,7 +641,7 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
 
 #endif // } _WIN32
 
-#if vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE)
+#if vmx86_devel && !vmx86_server && !defined(TEST_CUSTOM_ICU_DATA_FILE)
 found:
 #endif
 
@@ -654,12 +654,12 @@ found:
       ASSERT(memMappedData);
 
       udata_setCommonData(memMappedData, &uerr);
-      if (uerr != U_ZERO_ERROR) {
+      if (U_FAILURE(uerr)) {
          UnmapViewOfFile(memMappedData);
          goto exit;
       }
       udata_setAppData(ICU_DATA_ITEM, memMappedData, &uerr);
-      if (uerr != U_ZERO_ERROR) {
+      if (U_FAILURE(uerr)) {
          UnmapViewOfFile(memMappedData);
          goto exit;
       }
@@ -972,13 +972,13 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
 
    uerr = U_ZERO_ERROR;
    ucnv_setToUCallBack(cvin, toUCb, NULL, NULL, NULL, &uerr);
-   if (U_ZERO_ERROR != uerr) {
+   if (U_FAILURE(uerr)) {
       goto exit;
    }
 
    uerr = U_ZERO_ERROR;
    ucnv_setFromUCallBack(cvout, fromUCb, NULL, NULL, NULL, &uerr);
-   if (U_ZERO_ERROR != uerr) {
+   if (U_FAILURE(uerr)) {
       goto exit;
    }
 
@@ -1016,7 +1016,7 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
 		     bufPiv, &bufPivSource, &bufPivTarget, bufPivEnd,
 		     FALSE, TRUE, &uerr);
 
-      if (!U_FAILURE(uerr)) {
+      if (U_SUCCESS(uerr)) {
          /*
           * "This was a triumph. I'm making a note here: HUGE SUCCESS. It's
           * hard to overstate my satisfaction."
@@ -1098,7 +1098,7 @@ CodeSet_GenericToGeneric(const char *codeIn,  // IN
                          const char *codeOut, // IN
                          unsigned int flags,  // IN
                          char **bufOut,       // OUT
-                         size_t *sizeOut)     // OUT
+                         size_t *sizeOut)     // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1176,7 +1176,7 @@ Bool
 CodeSet_Utf8ToCurrent(const char *bufIn,  // IN
                       size_t sizeIn,      // IN
                       char **bufOut,      // OUT
-                      size_t *sizeOut)    // OUT
+                      size_t *sizeOut)    // OUT/OPT
 {
 #if !defined(CURRENT_IS_UTF8)
    DynBuf db;
@@ -1225,7 +1225,7 @@ Bool
 CodeSet_CurrentToUtf8(const char *bufIn,  // IN
                       size_t sizeIn,      // IN
                       char **bufOut,      // OUT
-                      size_t *sizeOut)    // OUT
+                      size_t *sizeOut)    // OUT/OPT
 {
 #if !defined(CURRENT_IS_UTF8)
    DynBuf db;
@@ -1311,7 +1311,7 @@ Bool
 CodeSet_Utf16leToUtf8(const char *bufIn,  // IN
                       size_t sizeIn,      // IN
                       char **bufOut,      // OUT
-                      size_t *sizeOut)    // OUT
+                      size_t *sizeOut)    // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1355,7 +1355,7 @@ Bool
 CodeSet_Utf8ToUtf16le(const char *bufIn,  // IN
                       size_t sizeIn,      // IN
                       char **bufOut,      // OUT
-                      size_t *sizeOut)    // OUT
+                      size_t *sizeOut)    // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1399,7 +1399,7 @@ Bool
 CodeSet_Utf8FormDToUtf8FormC(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
-                             size_t *sizeOut)       // OUT
+                             size_t *sizeOut)       // OUT/OPT
 {
    /*
     * Fallback if necessary.
@@ -1448,7 +1448,7 @@ Bool
 CodeSet_Utf8FormCToUtf8FormD(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
-                             size_t *sizeOut)       // OUT
+                             size_t *sizeOut)       // OUT/OPT
 {
    /*
     * Fallback if necessary.
@@ -1495,7 +1495,7 @@ Bool
 CodeSet_CurrentToUtf16le(const char *bufIn, // IN
                          size_t sizeIn,     // IN
                          char **bufOut,     // OUT
-                         size_t *sizeOut)   // OUT
+                         size_t *sizeOut)   // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1538,7 +1538,7 @@ Bool
 CodeSet_Utf16leToCurrent(const char *bufIn,  // IN
                          size_t sizeIn,      // IN
                          char **bufOut,      // OUT
-                         size_t *sizeOut)    // OUT
+                         size_t *sizeOut)    // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1581,7 +1581,7 @@ Bool
 CodeSet_Utf16beToCurrent(const char *bufIn,  // IN
                          size_t sizeIn,      // IN
                          char **bufOut,      // OUT
-                         size_t *sizeOut)    // OUT
+                         size_t *sizeOut)    // OUT/OPT
 {
    DynBuf db;
    Bool ok;
@@ -1668,7 +1668,7 @@ CodeSet_IsEncodingSupported(const char *name) // IN
 
 Bool
 CodeSet_Validate(const char *buf,   // IN: the string
-                 size_t size,	    // IN: length of string
+                 size_t size,       // IN: length of string
                  const char *code)  // IN: encoding
 {
 #if defined(NO_ICU)
@@ -1701,9 +1701,9 @@ CodeSet_Validate(const char *buf,   // IN: the string
 
    uerr = U_ZERO_ERROR;
    cv = ucnv_open(code, &uerr);
-   VERIFY(uerr == U_ZERO_ERROR);
+   VERIFY(U_SUCCESS(uerr));
    ucnv_setToUCallBack(cv, UCNV_TO_U_CALLBACK_STOP, NULL, NULL, NULL, &uerr);
-   VERIFY(uerr == U_ZERO_ERROR);
+   VERIFY(U_SUCCESS(uerr));
    ucnv_toUChars(cv, NULL, 0, buf, size, &uerr);
    ucnv_close(cv);
 

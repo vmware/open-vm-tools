@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2014-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2014-2016 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
 lib_LTLIBRARIES = libDeployPkg.la
 
 AM_CFLAGS =
-AM_CFLAGS += -I$(top_builddir)/include
+AM_CFLAGS += -I$(top_srcdir)/include
 AM_CFLAGS += $(MSPACK_CPPFLAGS)
 
 libDeployPkg_la_LIBADD =
@@ -31,6 +31,8 @@ libDeployPkg_la_SOURCES += mspackConfig.h
 libDeployPkg_la_SOURCES += mspackWrapper.c
 libDeployPkg_la_SOURCES += mspackWrapper.h
 libDeployPkg_la_SOURCES += processPosix.c
+libDeployPkg_la_SOURCES += linuxDeploymentUtilities.c
+libDeployPkg_la_SOURCES += linuxDeploymentUtilities.h
 libDeployPkg_la_SOURCES += toolsDeployPkg.h
 
 libDeployPkg_la_LDFLAGS =

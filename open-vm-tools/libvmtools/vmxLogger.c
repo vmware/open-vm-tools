@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +27,6 @@
 
 typedef struct VMXLoggerData {
    GlibLogger     handler;
-   GStaticMutex   lock;
    RpcChannel    *chan;
 } VMXLoggerData;
 
@@ -60,8 +59,7 @@ VMXLoggerLog(const gchar *domain,
 {
    VMXLoggerData *logger = data;
 
-   g_static_mutex_lock(&logger->lock);
-
+   VMTools_AcquireLogStateLock();
    /*
     * To avoid nested logging inside of RpcChannel, we need to disable logging
     * here. See bug 1069390.
@@ -80,7 +78,7 @@ VMXLoggerLog(const gchar *domain,
    }
 
    VMTools_RestartLogging();
-   g_static_mutex_unlock(&logger->lock);
+   VMTools_ReleaseLogStateLock();
 }
 
 
@@ -100,7 +98,6 @@ VMXLoggerDestroy(gpointer data)
 {
    VMXLoggerData *logger = data;
    RpcChannel_Destroy(logger->chan);
-   g_static_mutex_free(&logger->lock);
    g_free(logger);
 }
 
@@ -124,7 +121,6 @@ VMToolsCreateVMXLogger(void)
    data->handler.addsTimestamp = TRUE;
    data->handler.shared = TRUE;
    data->handler.dtor = VMXLoggerDestroy;
-   g_static_mutex_init(&data->lock);
    data->chan = RpcChannel_New();
    return &data->handler;
 }

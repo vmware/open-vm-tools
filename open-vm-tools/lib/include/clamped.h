@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,55 +46,11 @@
 
 
 /*
- *----------------------------------------------------------------------
- *
- * Clamped_SAdd32 --
- *
- *      Signed 32-bit addition.
- *
- *      Add two integers, clamping the result to MAX_INT32 or
- *      MIN_INT32 if it would have overflowed.
- *
- * Results:
- *      On success, returns TRUE.
- *      If the result would have overflowed and we clamped it, returns FALSE.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE Bool
-Clamped_SAdd32(int32 *out,  // OUT
-               int32 a,     // IN
-               int32 b)     // IN
-{
-   int32 result;
-
-   result = a + b;
-
-   if (UNLIKELY(b > 0 && result < a)) {
-      *out = MAX_INT32;
-      return FALSE;
-   }
-
-   if (UNLIKELY(b < 0 && result > a)) {
-      *out = MIN_INT32;
-      return FALSE;
-   }
-
-   *out = result;
-   return TRUE;
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * Clamped_U64To32 --
  *
- *      Convert Unsigned 64-bit to 32-bit, clamping instead of truncating.
+ *      Convert unsigned 64-bit to 32-bit, clamping instead of truncating.
  *
  * Results:
  *      On success, returns TRUE. If the result would have overflowed
@@ -152,6 +108,68 @@ Clamped_S64To32(int32 *out,  // OUT
 
    *out = clamped;
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Clamped_S32To16 --
+ *
+ *      Convert signed 32-bit to 16-bit, clamping instead of truncating.
+ *
+ * Results:
+ *      On success, returns TRUE. If the result would have overflowed
+ *      and we clamped it to MAX_INT16 or MIN_INT16, returns FALSE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Clamped_S32To16(int16 *out,  // OUT
+                int32 a)     // IN
+{
+   int16 clamped = (int16)a;
+
+   if (UNLIKELY(a != clamped)) {
+      *out = a < 0 ? MIN_INT16 : MAX_INT16;
+      return FALSE;
+   }
+
+   *out = clamped;
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Clamped_SAdd32 --
+ *
+ *      Signed 32-bit addition.
+ *
+ *      Add two integers, clamping the result to MAX_INT32 or
+ *      MIN_INT32 if it would have overflowed.
+ *
+ * Results:
+ *      On success, returns TRUE.
+ *      If the result would have overflowed and we clamped it, returns FALSE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Clamped_SAdd32(int32 *out,  // OUT
+               int32 a,     // IN
+               int32 b)     // IN
+{
+   return Clamped_S64To32(out, (int64)a + b);
 }
 
 

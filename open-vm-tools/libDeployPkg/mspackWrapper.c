@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -15,6 +15,12 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
+
+/*
+ * mspackWrapper.c --
+ *
+ *      Implementation of the mspack wrapper.
+ */
 
 #include "mspackWrapper.h"
 #include <string.h>

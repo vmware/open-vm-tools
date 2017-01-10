@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -64,8 +64,32 @@
  */
 
 struct RpcOut {
-   Message_Channel *channel;
+   Message_Channel channel;
+   Bool started;
 };
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcOutInitialize --
+ *
+ *      Initializes an already allocated RpcOut object.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RpcOutInitialize(RpcOut *rpcOut)
+{
+   memset(rpcOut, 0, sizeof *rpcOut);
+}
 
 
 /*
@@ -87,7 +111,9 @@ struct RpcOut {
 RpcOut *
 RpcOut_Construct(void)
 {
-   return (RpcOut *)calloc(1, sizeof(RpcOut));
+   RpcOut *rpcOut = malloc(sizeof *rpcOut);
+   RpcOutInitialize(rpcOut);
+   return rpcOut;
 }
 
 
@@ -110,10 +136,48 @@ RpcOut_Construct(void)
 void
 RpcOut_Destruct(RpcOut *out) // IN
 {
-   ASSERT(out);
-   ASSERT(out->channel == NULL);
+   ASSERT(out != NULL);
+   ASSERT(!out->started);
 
    free(out);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcOut_startWithReceiveBuffer --
+ *
+ *      Open the channel.  This variant of RpcOut_start allows the
+ *      caller to pre-allocate the receiver buffer, but by doing so it
+ *      allows for some simple operations without the need to call
+ *      malloc.
+ *
+ *      Passing in NULL and size 0 will cause this function to fall
+ *      back to using malloc.
+ *
+ * Result:
+ *      TRUE on success
+ *      FALSE on failure
+ *
+ * Side-effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+RpcOut_startWithReceiveBuffer(RpcOut *out, char *receiveBuffer,
+                              size_t receiveBufferSize)
+{
+   ASSERT(out != NULL);
+   ASSERT(!out->started);
+   out->started = Message_OpenAllocated(RPCI_PROTOCOL_NUM, &out->channel,
+                                        receiveBuffer, receiveBufferSize);
+   if (!out->started) {
+      Debug("RpcOut: couldn't open channel with RPCI protocol\n");
+   }
+   return out->started;
 }
 
 
@@ -137,15 +201,7 @@ RpcOut_Destruct(RpcOut *out) // IN
 Bool
 RpcOut_start(RpcOut *out) // IN
 {
-   ASSERT(out);
-   ASSERT(out->channel == NULL);
-   out->channel = Message_Open(RPCI_PROTOCOL_NUM);
-   if (out->channel == NULL) {
-      Debug("RpcOut: couldn't open channel with RPCI protocol\n");
-      return FALSE;
-   }
-
-   return TRUE;
+   return RpcOut_startWithReceiveBuffer(out, NULL, 0);
 }
 
 
@@ -160,8 +216,11 @@ RpcOut_start(RpcOut *out) // IN
  *    caller pass non-NULL reply and repLen arguments.
  *
  * Result
- *    TRUE on success. 'reply' contains the result of the rpc
- *    FALSE on error. 'reply' will contain a description of the error
+ *    TRUE if RPC was sent successfully. 'reply' contains the result of the rpc.
+ *    rpcStatus tells if the RPC command was processed successfully.
+ *
+ *    FALSE if RPC could not be sent successfully. 'reply' will contain a
+ *    description of the error.
  *
  *    In both cases, the caller should not free the reply.
  *
@@ -175,6 +234,7 @@ Bool
 RpcOut_send(RpcOut *out,         // IN
             char const *request, // IN
             size_t reqLen,       // IN
+            Bool *rpcStatus,     // OUT
             char const **reply,  // OUT
             size_t *repLen)      // OUT
 {
@@ -182,25 +242,17 @@ RpcOut_send(RpcOut *out,         // IN
    size_t myRepLen;
    Bool success;
 
-   ASSERT(out);
+   ASSERT(out != NULL);
+   ASSERT(out->started);
 
-   ASSERT(out->channel);
-
-   if (out->channel == NULL) {
-      *reply = "RpcOut: Channel is not active";
-      *repLen = strlen(*reply);
-
-      return FALSE;
-   }
-
-   if (Message_Send(out->channel, (const unsigned char *)request, reqLen) == FALSE) {
+   if (Message_Send(&out->channel, (const unsigned char *)request, reqLen) == FALSE) {
       *reply = "RpcOut: Unable to send the RPCI command";
       *repLen = strlen(*reply);
 
       return FALSE;
    }
 
-   if (Message_Receive(out->channel, &myReply, &myRepLen) == FALSE) {
+   if (Message_Receive(&out->channel, &myReply, &myRepLen) == FALSE) {
       *reply = "RpcOut: Unable to receive the result of the RPCI command";
       *repLen = strlen(*reply);
 
@@ -216,10 +268,11 @@ RpcOut_send(RpcOut *out,         // IN
       return FALSE;
    }
 
+   *rpcStatus = success;
    *reply = ((const char *)myReply) + 2;
    *repLen = myRepLen - 2;
 
-   return success;
+   return TRUE;
 }
 
 
@@ -243,20 +296,18 @@ RpcOut_send(RpcOut *out,         // IN
 Bool
 RpcOut_stop(RpcOut *out) // IN
 {
-   Bool status;
+   Bool status = TRUE;
 
-   ASSERT(out);
+   ASSERT(out != NULL);
 
-   status = TRUE;
-
-   if (out->channel) {
+   if (out->started) {
       /* Try to close the channel */
-      if (Message_Close(out->channel) == FALSE) {
+      if (Message_CloseAllocated(&out->channel) == FALSE) {
          Debug("RpcOut: couldn't close channel\n");
          status = FALSE;
       }
 
-      out->channel = NULL;
+      out->started = FALSE;
    }
 
    return status;
@@ -276,7 +327,7 @@ RpcOut_stop(RpcOut *out) // IN
  *
  * Return value:
  *    TRUE on success. '*reply' contains an allocated result of the rpc
- *    FALSE on error. '*reply' contains an allocated description of the error 
+ *    FALSE on error. '*reply' contains an allocated description of the error
  *                    or NULL.
  *
  * Side effects:
@@ -303,7 +354,7 @@ RpcOut_sendOne(char **reply,        // OUT: Result
    request = Str_Vasprintf(&reqLen, reqFmt, args);
    va_end(args);
 
-   /* 
+   /*
     * If Str_Vasprintf failed, write NULL into the reply if the caller wanted
     * a reply back.
     */
@@ -330,9 +381,9 @@ RpcOut_sendOne(char **reply,        // OUT: Result
       free(request);
       request = tmp;
 
-      /* 
-       * If Str_Asprintf failed, write NULL into reply if the caller wanted 
-       * a reply back. 
+      /*
+       * If Str_Asprintf failed, write NULL into reply if the caller wanted
+       * a reply back.
        */
       if (request == NULL) {
          if (reply != NULL) {
@@ -347,6 +398,114 @@ RpcOut_sendOne(char **reply,        // OUT: Result
    free(request);
 
    return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcOutSendOneRawWork --
+ *
+ *    Helper function to make VMware execute a RPCI command.  See
+ *    RpcOut_SendOneRaw and RpcOut_SendOneRawPreallocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+RpcOutSendOneRawWork(void *request,         // IN: RPCI command
+                     size_t reqLen,         // IN: Size of request buffer
+                     char *callerReply,     // IN: caller supplied reply buffer
+                     size_t callerReplyLen, // IN: size of caller supplied buf
+                     char **reply,          // OUT: Result
+                     size_t *repLen)        // OUT: Length of the result
+{
+   Bool status;
+   Bool rpcStatus;
+   /* Stack allocate so this can be used in kernel logging.  See 1389199. */
+   RpcOut out;
+   char const *myReply;
+   size_t myRepLen;
+
+   Debug("Rpci: Sending request='%s'\n", (char *)request);
+   RpcOutInitialize(&out);
+   if (!RpcOut_startWithReceiveBuffer(&out, callerReply, callerReplyLen)) {
+      myReply = "RpcOut: Unable to open the communication channel";
+      myRepLen = strlen(myReply);
+
+      if (callerReply != NULL) {
+         unsigned s = MIN(callerReplyLen - 1, myRepLen);
+         ASSERT(reply == NULL);
+         memcpy(callerReply, myReply, s);
+         callerReply[s] = '\0';
+      }
+
+      return FALSE;
+   }
+
+   status = RpcOut_send(&out, request, reqLen,
+                        &rpcStatus, &myReply, &myRepLen);
+   /* On failure, we already have the description of the error */
+
+   Debug("Rpci: Sent request='%s', reply='%s', len=%"FMTSZ"u, "
+         "status=%d, rpcStatus=%d\n",
+         (char *)request, myReply, myRepLen, status, rpcStatus);
+
+   if (reply != NULL) {
+      /*
+       * If we got a non-NULL reply, make a copy of it, because the reply
+       * we got back is inside the channel buffer, which will get destroyed
+       * at the end of this function.
+       */
+      if (myReply != NULL) {
+         /*
+          * We previously used strdup to duplicate myReply, but that
+          * breaks if you are sending binary (not string) data over the
+          * backdoor. Don't assume the data is a string.
+          *
+          * myRepLen is strlen(myReply), so we need an extra byte to
+          * cover the NUL terminator.
+          */
+         *reply = malloc(myRepLen + 1);
+         if (*reply != NULL) {
+            memcpy(*reply, myReply, myRepLen);
+            /*
+             * The message layer already writes a trailing NUL but we might
+             * change that someday, so do it again here.
+             */
+            (*reply)[myRepLen] = 0;
+         }
+      } else {
+         /*
+          * Our reply was NULL, so just pass the NULL back up to the caller.
+          */
+         *reply = NULL;
+      }
+
+      /*
+       * Only set the length if the caller wanted it and if we got a good
+       * reply.
+       */
+      if (repLen != NULL && *reply != NULL) {
+         *repLen = myRepLen;
+      }
+   }
+
+   if (RpcOut_stop(&out) == FALSE) {
+      /*
+       * We couldn't stop the channel. Free anything we allocated, give our
+       * client a reply of NULL, and return FALSE.
+       */
+
+      if (reply != NULL) {
+         free(*reply);
+         *reply = NULL;
+      }
+      Debug("Rpci: unable to close the communication channel\n");
+      status = FALSE;
+   }
+
+   return status && rpcStatus;
 }
 
 
@@ -376,9 +535,9 @@ RpcOut_sendOne(char **reply,        // OUT: Result
  *
  * Return value:
  *    TRUE on success. '*reply' contains an allocated result of the rpc
- *    FALSE on error. '*reply' contains an allocated description of the 
+ *    FALSE on error. '*reply' contains an allocated description of the
  *                    error or NULL.
- *                    
+ *
  *
  * Side effects:
  *    None
@@ -392,97 +551,43 @@ RpcOut_SendOneRaw(void *request,       // IN: RPCI command
                   char **reply,        // OUT: Result
                   size_t *repLen)      // OUT: Length of the result
 {
-   Bool status;
-   RpcOut *out = NULL;
-   char const *myReply;
-   size_t myRepLen;
-
-   status = FALSE;
-
-   Debug("Rpci: Sending request='%s'\n", (char *)request);
-   out = RpcOut_Construct();
-   if (out == NULL) {
-      myReply = "RpcOut: Unable to create the RpcOut object";
-      myRepLen = strlen(myReply);
-
-      goto sent;
-   } else if (RpcOut_start(out) == FALSE) {
-      myReply = "RpcOut: Unable to open the communication channel";
-      myRepLen = strlen(myReply);
-
-      goto sent;
-   } else if (RpcOut_send(out, request, reqLen, &myReply, &myRepLen)
-              == FALSE) {
-      /* We already have the description of the error */
-      goto sent;
-   }
-
-   status = TRUE;
-
-sent:
-   Debug("Rpci: Sent request='%s', reply='%s', len=%"FMTSZ"u, status=%d\n",
-         (char *)request, myReply, myRepLen, status);
-
-   if (reply != NULL) {
-      /* 
-       * If we got a non-NULL reply, make a copy of it, because the reply
-       * we got back is inside the channel buffer, which will get destroyed
-       * at the end of this function.
-       */
-      if (myReply != NULL) {
-         /*
-          * We previously used strdup to duplicate myReply, but that
-          * breaks if you are sending binary (not string) data over the
-          * backdoor. Don't assume the data is a string.
-          *
-          * myRepLen is strlen(myReply), so we need an extra byte to
-          * cover the NUL terminator.
-          */
-         *reply = malloc(myRepLen + 1);
-         if (*reply != NULL) {
-            memcpy(*reply, myReply, myRepLen);
-            /*
-             * The message layer already writes a trailing NUL but we might
-             * change that someday, so do it again here.
-             */
-            (*reply)[myRepLen] = 0;
-         }
-      } else {
-         /* 
-          * Our reply was NULL, so just pass the NULL back up to the caller.
-          */ 
-         *reply = NULL;
-      }
-      
-      /* 
-       * Only set the length if the caller wanted it and if we got a good 
-       * reply. 
-       */
-      if (repLen != NULL && *reply != NULL) {
-         *repLen = myRepLen;
-      }
-   }
-
-   if (out) {
-      if (RpcOut_stop(out) == FALSE) {
-         /* 
-          * We couldn't stop the channel. Free anything we allocated, give our
-          * client a reply of NULL, and return FALSE.
-          */
-
-         if (reply != NULL) {
-            free(*reply);
-            *reply = NULL;
-         }
-         Debug("Rpci: unable to close the communication channel\n");
-         status = FALSE;
-      }
-
-      RpcOut_Destruct(out);
-      out = NULL;
-   }
-
-   return status;
+   return RpcOutSendOneRawWork(request, reqLen, NULL, 0, reply, repLen);
 }
 
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcOut_SendOneRawPreallocated --
+ *
+ *    Make VMware execute a RPCI command.
+ *
+ *    A variant of RpcOut_SendOneRaw in which the caller supplies the
+ *    receive buffer instead of dynamically allocating it.  This
+ *    allows the caller to call this function in situations where
+ *    malloc is not allowed.  But if the response from the host is too
+ *    large the rpc will fail instead of attempting to grow its own
+ *    receive buffer.
+ *
+ *
+ * Return value:
+ *    TRUE on success. 'reply' contains an allocated result of the rpc
+ *    FALSE on error. 'reply' contains an allocated description of the
+ *                     error or NULL.
+ *
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+RpcOut_SendOneRawPreallocated(void *request,       // IN: RPCI command
+                              size_t reqLen,       // IN: Size of request buffer
+                              char *reply,         // OUT: Result
+                              size_t repLen)       // IN: Length of the result
+{
+   return RpcOutSendOneRawWork(request, reqLen, reply, repLen, NULL, NULL);
+}

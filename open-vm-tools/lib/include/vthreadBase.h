@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -145,7 +145,6 @@ VThreadBase_IsInSignal(void)
 #else
 Bool VThreadBase_IsInSignal(void);
 void VThreadBase_SetIsInSignal(VThreadID tid, Bool isInSignal);
-int VThreadBase_SigMask(int how, const sigset_t *newmask, sigset_t *oldmask);
 #endif
 
 #endif /* VMM */

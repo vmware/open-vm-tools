@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -110,7 +110,7 @@ private:
    GuestCopyPasteMgr *mCP;
    bool mClipboardEmpty;
    utf::string mHGStagingDir;
-   std::list<Gtk::TargetEntry> mListTargets;
+   std::vector<Gtk::TargetEntry> mListTargets;
    bool mIsClipboardOwner;
    uint64 mClipTime;
    uint64 mPrimTime;

@@ -1,0 +1,80 @@
+[globals]
+response_dir=${output_dir}/responses
+event_dir=${output_dir}/events
+request_dir=${output_dir}/requests
+tmp_dir=${output_dir}/tmp
+persistence_dir=${input_dir}/persistence
+monitor_dir=${input_dir}/monitor
+log_config_file=${config_dir}/CommAmqpListener-log4cpp_config
+
+thread_stack_size_kb=0
+
+schema_namespace_root=http://schemas.vmware.com/caf/schema
+schema_location_root=${input_dir}/schemas/caf
+
+remap_logging_location=false
+
+[communication_amqp]
+working_dir=${output_dir}/comm-wrk
+context_file=${comm_amqp_listener_context}
+resolver_cache_file=${output_dir}/cache/commAmqpResolver-cache
+
+reactive_request_queue_id=${reactive_request_amqp_queue_id}
+
+startup_timeout=5000
+shutdown_timeout=5000
+connection_retry_interval=5000
+
+# Temporarily set to 60MB for Hyperic Agent POC
+# 1024 Bytes/KB * 1024 KB/MB * 60
+max_part_size=62976000
+
+vhost=caf
+
+# Wait for (connection_retries * connection_seconds_to_wait) in milli-seconds
+connection_timeout=150000
+
+connection_retries=10
+connection_seconds_to_wait=15
+channel_cache_size=4
+reply_timeout=5000
+
+[security]
+cms_policy=CAF_Encrypted_And_Signed
+is_signing_enforced=true
+is_encryption_enforced=true
+
+tls_protocol=TLSv1_2
+tls_ciphers=SRP-RSA-AES-128-CBC-SHA
+cms_cipher=des-ede3-cbc
+
+[subsystems]
+# Integration System Beans
+com.vmware.commonagent.integration.objectfactory=IntegrationSubsys
+com.vmware.commonagent.integration.channels.errorchannel=IntegrationSubsys
+com.vmware.commonagent.integration.channels.nullchannel=IntegrationSubsys
+com.vmware.commonagent.integration.headerexpressioninvoker=IntegrationSubsys
+
+# Communication Integration Beans
+com.vmware.caf.comm.integration.cmsmessagetransformer=CommIntegrationSubsys
+com.vmware.caf.comm.integration.cmsmessagetransformerinstance=CommIntegrationSubsys
+com.vmware.caf.comm.integration.eventtopiccalculator=CommIntegrationSubsys
+com.vmware.caf.comm.integration.incomingmessagehandler=CommIntegrationSubsys
+com.vmware.caf.comm.integration.incomingmessagehandlerinstance=CommIntegrationSubsys
+com.vmware.caf.comm.integration.outgoingmessagehandler=CommIntegrationSubsys
+com.vmware.caf.comm.integration.protocolheaderenricher=CommIntegrationSubsys
+com.vmware.caf.comm.integration.protocolheaderenricherinstance=CommIntegrationSubsys
+com.vmware.caf.comm.integration.replytocacher=CommIntegrationSubsys
+com.vmware.caf.comm.integration.replytocacherinstance=CommIntegrationSubsys
+com.vmware.caf.comm.integration.replytoresolver=CommIntegrationSubsys
+com.vmware.caf.comm.integration.objects=CommAmqpIntegrationSubsys
+
+# Amqp Listener Context Beans
+com.vmware.caf.comm.integration.amqp.caching.connection.factory=CommAmqpIntegrationSubsys
+com.vmware.caf.comm.integration.amqp.secure.caching.connection.factory=CommAmqpIntegrationSubsys
+
+# CAF Integration System Beans
+com.vmware.commonagent.cafintegration.errortoresponsetransformerinstance=CafIntegrationSubsys
+com.vmware.commonagent.cafintegration.errortoresponsetransformer=CafIntegrationSubsys
+com.vmware.commonagent.cafintegration.payloadheaderenricherinstance=CafIntegrationSubsys
+com.vmware.commonagent.cafintegration.payloadheaderenricher=CafIntegrationSubsys

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,18 +37,13 @@ Bool DnDDataContainsIllegalCharacters(const char *data,
                                       const size_t dataSize,
                                       const char *illegalChars);
 
-Bool DnDPrependFileRoot(ConstUnicode fileRoot,
-                        char delimiter,
-                        char **src,
-                        size_t *srcSize);
+Bool DnDRootDirUsable(const char *pathName);
 
-Bool DnDRootDirUsable(ConstUnicode pathName);
+Bool DnDSetPermissionsOnRootDir(const char *pathName);
 
-Bool DnDSetPermissionsOnRootDir(ConstUnicode pathName);
+Bool DnDStagingDirectoryUsable(const char *pathName);
 
-Bool DnDStagingDirectoryUsable(ConstUnicode pathName);
-
-Bool DnDSetPermissionsOnStagingDir(ConstUnicode pathName);
+Bool DnDSetPermissionsOnStagingDir(const char *pathName);
 
 Bool DnDReadBuffer(BufRead *b, void *out, size_t len);
 

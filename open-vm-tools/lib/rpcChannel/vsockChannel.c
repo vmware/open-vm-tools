@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -68,13 +68,14 @@ static void VSockChannelShutdown(RpcChannel *chan);
 static SOCKET
 VSockCreateConn(gboolean *isPriv)        // OUT
 {
-   SockConnError err;
+   ApiError apiErr;
+   int sysErr;
    SOCKET fd;
 
    Debug(LGPFX "Creating privileged vsocket ...\n");
    fd = Socket_ConnectVMCI(VMCI_HYPERVISOR_CONTEXT_ID,
                            GUESTRPC_RPCI_VSOCK_LISTEN_PORT,
-                           TRUE, &err);
+                           TRUE, &apiErr, &sysErr);
 
    if (fd != INVALID_SOCKET) {
       Debug(LGPFX "Successfully created priv vsocket %d\n", fd);
@@ -82,11 +83,11 @@ VSockCreateConn(gboolean *isPriv)        // OUT
       return fd;
    }
 
-   if (err == SOCKERR_EACCESS) {
+   if (apiErr == SOCKERR_BIND && sysErr == SYSERR_EACCESS) {
       Debug(LGPFX "Creating unprivileged vsocket ...\n");
       fd = Socket_ConnectVMCI(VMCI_HYPERVISOR_CONTEXT_ID,
                               GUESTRPC_RPCI_VSOCK_LISTEN_PORT,
-                              FALSE, &err);
+                              FALSE, &apiErr, &sysErr);
       if (fd != INVALID_SOCKET) {
          Debug(LGPFX "Successfully created unpriv vsocket %d\n", fd);
          *isPriv = FALSE;
@@ -94,7 +95,7 @@ VSockCreateConn(gboolean *isPriv)        // OUT
       }
    }
 
-   Debug(LGPFX "Failed to create vsocket channel, err=%d\n", err);
+   Debug(LGPFX "Failed to create vsocket channel, %d, %d\n", apiErr, sysErr);
    return INVALID_SOCKET;
 }
 
@@ -229,8 +230,11 @@ VSockOutStop(VSockOut *out)    // IN
  *    caller pass non-NULL reply and repLen arguments.
  *
  * Result
- *    TRUE on success. 'reply' contains the result of the rpc
- *    FALSE on error. 'reply' will contain a description of the error
+ *    TRUE if RPC was sent successfully. 'reply' contains the result of the rpc.
+ *    rpcStatus tells if the RPC command was processed successfully.
+ *
+ *    FALSE if RPC could not be sent successfully. 'reply' will contain a
+ *    description of the error.
  *
  *    In both cases, the caller should not free the reply.
  *
@@ -244,6 +248,7 @@ static gboolean
 VSockOutSend(VSockOut *out,        // IN
              const char *request,  // IN
              size_t reqLen,        // IN
+             Bool *rpcStatus,      // OUT
              const char **reply,   // OUT
              size_t *repLen)       // OUT
 {
@@ -281,10 +286,12 @@ VSockOutSend(VSockOut *out,        // IN
 
    Debug("VSockOut: recved %d bytes for conn %d\n", out->payloadLen, out->fd);
 
-   return out->payload[0] == '1';
+   *rpcStatus = out->payload[0] == '1';
+   return TRUE;
 
 error:
    *repLen = strlen(*reply);
+   *rpcStatus = FALSE;
    return FALSE;
 }
 
@@ -420,6 +427,9 @@ VSockChannelShutdown(RpcChannel *chan)    // IN
  *      can be set to NULL, otherwise, the caller *must* free the result
  *      whether the call is successful or not to avoid memory leak.
  *
+ *      rpcStatus tells if VMware could process the RPC command successully.
+ *      It is valid only when function returns success.
+ *
  * Result:
  *      TRUE on success
  *      FALSE on failure
@@ -434,6 +444,7 @@ static gboolean
 VSockChannelSend(RpcChannel *chan,      // IN
                  char const *data,      // IN
                  size_t dataLen,        // IN
+                 Bool *rpcStatus,       // OUT
                  char **result,         // OUT optional
                  size_t *resultLen)     // OUT optional
 {
@@ -450,7 +461,7 @@ VSockChannelSend(RpcChannel *chan,      // IN
     * We propagate all replies from VSockOutSend: either a reply of the RPC
     * result or a description of the error on failure.
     */
-   ret = VSockOutSend(vsock->out, data, dataLen, &reply, &replyLen);
+   ret = VSockOutSend(vsock->out, data, dataLen, rpcStatus, &reply, &replyLen);
 
    if (result != NULL) {
       if (reply != NULL) {

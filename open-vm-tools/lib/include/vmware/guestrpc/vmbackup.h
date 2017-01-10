@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,6 +54,8 @@
 #define VMBACKUP_PROTOCOL_ABORT           VMBACKUP_PROTOCOL_PREFIX"abort"
 #define VMBACKUP_PROTOCOL_SNAPSHOT_DONE   VMBACKUP_PROTOCOL_PREFIX"snapshotDone"
 #define VMBACKUP_PROTOCOL_EVENT_SET       VMBACKUP_PROTOCOL_PREFIX"eventSet"
+#define VMBACKUP_PROTOCOL_SNAPSHOT_COMPLETED \
+   VMBACKUP_PROTOCOL_PREFIX"snapshotCompleted"
 
 /* These are responses to messages sent to the guest. */
 #define VMBACKUP_PROTOCOL_ERROR           "protocol.error"

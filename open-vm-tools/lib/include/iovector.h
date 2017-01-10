@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,8 +38,8 @@
 
 #ifndef HAS_IOVEC
 struct iovec {
-   void *iov_base; /* Starting address.  */
-   size_t iov_len;  /* Length in bytes.  */
+   void *iov_base; /* Starting address. */
+   size_t iov_len; /* Length in bytes. */
 };
 #endif   // HAS_IOVEC
 
@@ -84,14 +84,14 @@ void IOV_MakeSingleIOV(VMIOVec* v,
                        uint8* buffer,
                        Bool read);
 
-void IOV_WriteIovToBuf(struct iovec* entries,
+void IOV_WriteIovToBuf(struct iovec const *entries,
                        int numEntries,
-                       uint8* bufOut,
+                       uint8 *bufOut,
                        size_t bufSize);
 
-void IOV_WriteBufToIov(const uint8* bufIn,
+void IOV_WriteBufToIov(const uint8 *bufIn,
                        size_t bufSize,
-                       struct iovec* entries,
+                       struct iovec const *entries,
                        int numEntries);
 
 size_t

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -59,7 +59,7 @@
  * And obviously, we're not using glibc 2.0
  * for our 64bit builds!
  */
-#ifdef VM_X86_64
+#ifdef VM_64BIT
 #define SYS_setreuid32         (abort(), 0)
 #define SYS_setregid32         (abort(), 0)
 #define SYS_setresuid32        (abort(), 0)
@@ -81,7 +81,7 @@
  * with the '32' suffix, so we get the behaviour we want by forcing
  * the code to use the unsuffixed syscalls.
  */
-#ifdef VM_X86_64
+#ifdef VM_64BIT
 static int uid32 = 0;
 #else
 static int uid32 = 1;
