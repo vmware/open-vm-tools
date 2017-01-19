@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2017 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
 ###
 ### Top-level Makefile for building the VMware OSS Tools.
 ###
