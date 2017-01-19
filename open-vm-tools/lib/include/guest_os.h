@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -469,13 +469,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define STR_OS_WIN_TEN_GENERIC_FULL        "Windows 10"
 
-/* Windows Server 2016 */
+/* Windows Server 2016-2017 */
 
 #define STR_OS_WIN_TENSERVER_X64 "windows9srv-64"
 
 /* THIS SPACE FOR RENT (Windows 10 official server variant names) */
 
-#define STR_OS_WIN_TENSERVER_GENERIC_FULL        "Windows Server 2016"
+#define STR_OS_WIN_TENSERVER_GENERIC_FULL        "Windows Server 2016-2017"
 
 /* Microsoft Hyper-V */
 #define STR_OS_HYPER_V "winHyperV"
