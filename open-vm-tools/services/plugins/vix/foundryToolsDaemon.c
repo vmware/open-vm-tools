@@ -1256,9 +1256,11 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
     */
    additionalError = VixTools_GetAdditionalError(requestMsg->opCode, err);
    if (additionalError) {
-      g_message("%s: additionalError = %u\n", __FUNCTION__, additionalError);
+      g_message("%s: command %u, additionalError = %u\n",
+                __FUNCTION__, requestMsg->opCode, additionalError);
    } else {
-      g_debug("%s: additionalError = %u\n", __FUNCTION__, additionalError);
+      g_debug("%s: command %u, additionalError = %u\n",
+              __FUNCTION__, requestMsg->opCode, additionalError);
    }
 
 abort:

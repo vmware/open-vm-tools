@@ -73,7 +73,9 @@ LinuxFiThaw(const SyncDriverHandle handle)
     * Thaw in the reverse order of freeze
     */
    for (i = sync->fdCnt; i > 0; i--) {
+      Debug(LGPFX "Thawing fd=%d.\n", sync->fds[i-1]);
       if (ioctl(sync->fds[i-1], FITHAW) == -1) {
+         Debug(LGPFX "Thaw failed for fd=%d.\n", sync->fds[i-1]);
          err = SD_ERROR;
       }
    }
@@ -104,6 +106,7 @@ LinuxFiClose(SyncDriverHandle handle)
     * Close in the reverse order of open
     */
    for (i = sync->fdCnt; i > 0; i--) {
+      Debug(LGPFX "Closing fd=%d.\n", sync->fds[i-1]);
       close(sync->fds[i-1]);
    }
    free(sync->fds);
@@ -198,7 +201,7 @@ LinuxDriver_Freeze(const GSList *paths,
          }
       }
 
-      Debug(LGPFX "freezing path '%s'.\n", path);
+      Debug(LGPFX "freezing path '%s' (fd=%d).\n", path, fd);
       if (ioctl(fd, FIFREEZE) == -1) {
          int ioctlerr = errno;
          /*
@@ -221,7 +224,7 @@ LinuxDriver_Freeze(const GSList *paths,
             break;
          }
       } else {
-         Debug(LGPFX "successfully froze '%s'.\n", path);
+         Debug(LGPFX "successfully froze '%s' (fd=%d).\n", path, fd);
          if (!DynBuf_Append(&fds, &fd, sizeof fd)) {
             if (ioctl(fd, FITHAW) == -1) {
                Warning(LGPFX "failed to thaw '%s': %d (%s)\n",
