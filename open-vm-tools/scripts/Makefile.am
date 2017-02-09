@@ -3,7 +3,7 @@ defaultscripts += poweroff-vm-default
 defaultscripts += suspend-vm-default
 defaultscripts += resume-vm-default
 
-confdir = /etc/vmware-tools
+confdir = ${prefix}/share/vmware-tools
 
 conf_SCRIPTS = ./common/vm-support
 conf_SCRIPTS += ./common/statechange.subr
