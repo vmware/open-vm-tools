@@ -59,6 +59,7 @@ ToggleNetwork() {
 
       for intf in `list_net_interfaces dhcp`; do
          /etc/rc.d/netif $1 $intf
+         /etc/rc.d/dhclient $1 $intf
          ec=$?
 
          # Failure to stop an interface should not interfere with suspend.
