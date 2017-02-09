@@ -1,7 +1,5 @@
 #%PAM-1.0
 auth       required         pam_shells.so
 auth       sufficient       pam_unix.so shadow
-auth       required         pam_unix_auth.so shadow
 account    required         pam_shells.so
 account    sufficient       pam_unix.so
-account    required         pam_unix_acct.so
