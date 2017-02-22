@@ -1,3 +1,11 @@
+open-vm-tools 2017.02.11 changes:
+	* Exclude non-directory and non-existing paths during quiescing.
+	* Map certain PAM errors to VGAUTH_E_AUTHENTICATION_DENIED.
+	* Bump the VMware Tools update release to version 10.1.5
+	* Update tools copyright to 2017
+	* Add enhanced log messages and a few new log messages.
+	* Thaw filesystems if the snapshot commit message to VMX fails
+
 open-vm-tools 2016.10.25 changes:
 	* Added vmware-namespace-cmd command line utility.
 	* Added gtk3 support.

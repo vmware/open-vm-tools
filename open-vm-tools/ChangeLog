@@ -1,6 +1,22 @@
-open-vm-tools-10.1.5
+commit 6ffbf9d187613a911a3811f56667ba288c714e1f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Feb 17 13:26:23 2017 -0800
 
-commit 34ad652204df2bcde7d504a8a7deac3a0229c324
+    Exclude non-directory and non-existing paths during quiescing.
+
+commit 72a5cb442d7e61e33e5ca6fde37beeeb522a6ab9
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Feb 17 13:26:23 2017 -0800
+
+    Map certain PAM errors to VGAUTH_E_AUTHENTICATION_DENIED.
+
+commit 31ba85f8ef06b01adf7f32b1cc0d2c54b3b233f3
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jan 19 19:22:59 2017 -0800
+
+    bump version to 10.1.5
+
+commit b414574f336664dad7f69e35a4b340c131f89fce
 Author: Oliver Kurth <okurth@vmware.com>
 Date:   Wed Jan 18 17:28:20 2017 -0800
 
