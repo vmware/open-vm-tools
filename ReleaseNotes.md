@@ -18,7 +18,6 @@ VMware Tools is a suite of utilities that enhances the performance of the virtua
 - **Common Agent Framework (CAF)**: CAF provides the basic services necessary to simplify secure and efficient management of agents inside virtual machines.
 - **xmlsec1**: Changed guest authentication to xmlsec1.
 - **FreeBSD**: Changes to support open-vm-tools on FreeBSD.
-- **Automatic Linux Kernel Modules**: Automatic rebuilding of kernel modules is enabled by default.
 - **New sub-command**: Added a new sub-command to push updated network information to the host on demand.
 - **udev-rules**: Added udev rules for configuring SCSI timeout in the guest.
 - **Ubuntu 16.10**: Fixes for running on Ubuntu 16.10.
