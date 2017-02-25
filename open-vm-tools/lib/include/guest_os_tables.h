@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -118,8 +118,8 @@
    GOSL(STR_OS_ASIANUX_4 "-64",              GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX_5 "-64",              GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
    GOSL(STR_OS_ASIANUX_7 "-64",              GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
-   GOSL(STR_OS_CENTOS,                       GUEST_OS_CENTOS,                 "linuxPreGlibc25.iso")  \
-   GOSL(STR_OS_CENTOS "-64",                 GUEST_OS_CENTOS_64,              "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_CENTOS,                       GUEST_OS_CENTOS,                 "linux.iso")            \
+   GOSL(STR_OS_CENTOS "-64",                 GUEST_OS_CENTOS_64,              "linux.iso")            \
    GOSL(STR_OS_CENTOS "6",                   GUEST_OS_CENTOS6,                "linux.iso")            \
    GOSL(STR_OS_CENTOS "6-64",                GUEST_OS_CENTOS6_64,             "linux.iso")            \
    GOSL(STR_OS_CENTOS "7-64",                GUEST_OS_CENTOS7_64,             "linux.iso")            \
@@ -173,8 +173,8 @@
    GOSL("openserver6",                       GUEST_OS_OPENSERVER_5_AND_6,     NULL)                   \
    GOSL(STR_OS_OPENSUSE,                     GUEST_OS_OTHER26XLINUX,          "linux.iso")            \
    GOSL(STR_OS_OPENSUSE "-64",               GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
-   GOSL(STR_OS_ORACLE,                       GUEST_OS_ORACLE,                 "linuxPreGlibc25.iso")  \
-   GOSL(STR_OS_ORACLE "-64",                 GUEST_OS_ORACLE_64,              "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_ORACLE,                       GUEST_OS_ORACLE,                 "linux.iso")            \
+   GOSL(STR_OS_ORACLE "-64",                 GUEST_OS_ORACLE_64,              "linux.iso")            \
    GOSL(STR_OS_ORACLE "6",                   GUEST_OS_ORACLE6,                "linux.iso")            \
    GOSL(STR_OS_ORACLE "6-64",                GUEST_OS_ORACLE6_64,             "linux.iso")            \
    GOSL(STR_OS_ORACLE "7-64",                GUEST_OS_ORACLE7_64,             "linux.iso")            \

@@ -1,3 +1,81 @@
+commit 6ffbf9d187613a911a3811f56667ba288c714e1f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Feb 17 13:26:23 2017 -0800
+
+    Exclude non-directory and non-existing paths during quiescing.
+
+commit 72a5cb442d7e61e33e5ca6fde37beeeb522a6ab9
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Feb 17 13:26:23 2017 -0800
+
+    Map certain PAM errors to VGAUTH_E_AUTHENTICATION_DENIED.
+
+commit 31ba85f8ef06b01adf7f32b1cc0d2c54b3b233f3
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jan 19 19:22:59 2017 -0800
+
+    bump version to 10.1.5
+
+commit b414574f336664dad7f69e35a4b340c131f89fce
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jan 18 17:28:20 2017 -0800
+
+    Update copyright year
+
+commit 2cacd294dc67600c171ecff95799b6c4d9266fdb
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jan 18 17:28:20 2017 -0800
+
+    Bump the VMware Tools update release to version 10.1.5
+    
+    Change the "current" version for the VMware Tools update release to
+    be 10.1.5.   This bump is to allow versions numbers for hot patches
+    which have been or may yet be issued before the update is GA.
+
+commit 9a42959c4ae8e98f8f1e107cb580c187462efdc5
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jan 18 17:28:19 2017 -0800
+
+    Back-out previous Copyright update.
+
+commit 0066a3f7113c15f0513b1bb5cbaf2d495188d8b6
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jan 18 17:28:18 2017 -0800
+
+    Update copyright year to 2017.
+
+commit 5af13991b0db6f957fb5e27dba027eedc4f5ca5a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jan 18 17:28:16 2017 -0800
+
+    Update tools copyright to 2017
+
+commit 492b8837995814b373a52e81199c7a25e66593f5
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jan 18 17:28:16 2017 -0800
+
+    Change VMware Tools ISO mapping for centos and oraclelinux effective with 10.1.1
+    
+    No impact to open-vm-tools.
+
+commit 4f1fa88b9e2ef125ea7411b95c00659e7053bbcd
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jan 18 17:28:16 2017 -0800
+
+    Add enhanced log messages and a few new log messages.
+
+commit 36171f6857afd94e15c2a5761683dcadebfafbd8
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jan 18 17:28:16 2017 -0800
+
+    Thaw filesystems if the snapshot commit message to VMX fails
+
+commit 6ff97ba183f80f91a269b980cb384a45c4fbbab2
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jan 18 17:28:16 2017 -0800
+
+    Set/update the VMware Tools version for the 10.1.1 release
+
 open-vm-tools-10.1.0 build 4449150
 
 *	Hgfs VMX: make the shares object use const strings

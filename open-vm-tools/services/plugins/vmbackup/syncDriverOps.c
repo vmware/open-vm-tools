@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -61,10 +61,10 @@ typedef struct VmBackupDriverOp {
  */
 
 static Bool
-VmBackupDriverThaw(VmBackupDriverOp *op)
+VmBackupDriverThaw(SyncDriverHandle *handle)
 {
-   Bool success = SyncDriver_Thaw(*op->syncHandle);
-   SyncDriver_CloseHandle(op->syncHandle);
+   Bool success = SyncDriver_Thaw(*handle);
+   SyncDriver_CloseHandle(handle);
    return success;
 }
 
@@ -106,7 +106,7 @@ VmBackupDriverOpQuery(VmBackupOp *_op) // IN
 
       case SYNCDRIVER_IDLE:
          if (op->canceled) {
-            VmBackupDriverThaw(op);
+            VmBackupDriverThaw(op->syncHandle);
          }
          /*
           * This prevents the release callback from freeing the handle, which
@@ -117,7 +117,7 @@ VmBackupDriverOpQuery(VmBackupOp *_op) // IN
          break;
 
       default:
-         VmBackupDriverThaw(op);
+         VmBackupDriverThaw(op->syncHandle);
          ret = VMBACKUP_STATUS_ERROR;
          break;
       }
@@ -231,7 +231,7 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
                                   state->enableNullDriver : FALSE,
                                   op->syncHandle);
    } else {
-      success = VmBackupDriverThaw(op);
+      success = VmBackupDriverThaw(op->syncHandle);
    }
    if (!success) {
       g_warning("Error %s filesystems.", freeze ? "freezing" : "thawing");
@@ -264,15 +264,24 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
 static Bool
 VmBackupSyncDriverReadyForSnapshot(VmBackupState *state)
 {
-   Bool success;
    SyncDriverHandle *handle = state->clientData;
 
    g_debug("*** %s\n", __FUNCTION__);
    if (handle != NULL && *handle != SYNCDRIVER_INVALID_HANDLE) {
+      Bool success;
       success = VmBackup_SendEvent(VMBACKUP_EVENT_SNAPSHOT_COMMIT, 0, "");
       if (success) {
          state->freezeStatus = VMBACKUP_FREEZE_FINISHED;
       } else {
+         /*
+          * If the vmx does not know this event (e.g. due to an RPC timeout),
+          * then filesystems need to be thawed here because snapshotDone
+          * will not be sent by the vmx.
+          */
+         g_debug("VMX state changed; thawing filesystems.\n");
+         if (!VmBackupDriverThaw(handle)) {
+            g_warning("Error thawing filesystems.\n");
+         }
          state->freezeStatus = VMBACKUP_FREEZE_ERROR;
       }
       return success;

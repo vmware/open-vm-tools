@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1256,9 +1256,11 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
     */
    additionalError = VixTools_GetAdditionalError(requestMsg->opCode, err);
    if (additionalError) {
-      g_message("%s: additionalError = %u\n", __FUNCTION__, additionalError);
+      g_message("%s: command %u, additionalError = %u\n",
+                __FUNCTION__, requestMsg->opCode, additionalError);
    } else {
-      g_debug("%s: additionalError = %u\n", __FUNCTION__, additionalError);
+      g_debug("%s: command %u, additionalError = %u\n",
+              __FUNCTION__, requestMsg->opCode, additionalError);
    }
 
 abort:

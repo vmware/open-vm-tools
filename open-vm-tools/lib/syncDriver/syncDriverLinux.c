@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,8 @@
 #include <unistd.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "debug.h"
 #include "dynbuf.h"
 #include "syncDriverInt.h"
@@ -73,7 +75,9 @@ LinuxFiThaw(const SyncDriverHandle handle)
     * Thaw in the reverse order of freeze
     */
    for (i = sync->fdCnt; i > 0; i--) {
+      Debug(LGPFX "Thawing fd=%d.\n", sync->fds[i-1]);
       if (ioctl(sync->fds[i-1], FITHAW) == -1) {
+         Debug(LGPFX "Thaw failed for fd=%d.\n", sync->fds[i-1]);
          err = SD_ERROR;
       }
    }
@@ -104,6 +108,7 @@ LinuxFiClose(SyncDriverHandle handle)
     * Close in the reverse order of open
     */
    for (i = sync->fdCnt; i > 0; i--) {
+      Debug(LGPFX "Closing fd=%d.\n", sync->fds[i-1]);
       close(sync->fds[i-1]);
    }
    free(sync->fds);
@@ -167,12 +172,21 @@ LinuxDriver_Freeze(const GSList *paths,
     */
    while (paths != NULL) {
       int fd;
+      struct stat sbuf;
       const char *path = paths->data;
       Debug(LGPFX "opening path '%s'.\n", path);
       paths = g_slist_next(paths);
       fd = open(path, O_RDONLY);
       if (fd == -1) {
          switch (errno) {
+         case ENOENT:
+            /*
+             * We sometimes get stale mountpoints or special mountpoints
+             * created by the docker engine.
+             */
+            Debug(LGPFX "cannot find the directory '%s'.\n", path);
+            continue;
+
          case EACCES:
             /*
              * We sometimes get access errors to virtual filesystems mounted
@@ -198,7 +212,21 @@ LinuxDriver_Freeze(const GSList *paths,
          }
       }
 
-      Debug(LGPFX "freezing path '%s'.\n", path);
+      if (fstat(fd, &sbuf) == -1) {
+         close(fd);
+         Debug(LGPFX "failed to stat '%s': %d (%s)\n",
+               path, errno, strerror(errno));
+         err = SD_ERROR;
+         goto exit;
+      }
+
+      if (!S_ISDIR(sbuf.st_mode)) {
+         close(fd);
+         Debug(LGPFX "Skipping a non-directory path '%s'.\n", path);
+         continue;
+      }
+
+      Debug(LGPFX "freezing path '%s' (fd=%d).\n", path, fd);
       if (ioctl(fd, FIFREEZE) == -1) {
          int ioctlerr = errno;
          /*
@@ -221,7 +249,7 @@ LinuxDriver_Freeze(const GSList *paths,
             break;
          }
       } else {
-         Debug(LGPFX "successfully froze '%s'.\n", path);
+         Debug(LGPFX "successfully froze '%s' (fd=%d).\n", path, fd);
          if (!DynBuf_Append(&fds, &fd, sizeof fd)) {
             if (ioctl(fd, FITHAW) == -1) {
                Warning(LGPFX "failed to thaw '%s': %d (%s)\n",

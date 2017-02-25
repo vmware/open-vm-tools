@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -267,7 +267,8 @@ VmBackup_SendEvent(const char *event,
 #endif
 
    if (!success) {
-      g_warning("Failed to send vmbackup event: %s.\n", result);
+      g_warning("Failed to send vmbackup event: %s, result: %s.\n",
+                msg, result);
    }
    vm_free(result);
    g_free(msg);

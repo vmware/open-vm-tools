@@ -261,6 +261,7 @@ VGAuthValidateUsernamePasswordImpl(VGAuthContext *ctx,
    pam_handle_t *pamh;
    int pam_error;
    PamData pd;
+   VGAuthError err;
 #else
    struct passwd *pwd;
 #endif
@@ -269,34 +270,6 @@ VGAuthValidateUsernamePasswordImpl(VGAuthContext *ctx,
    if (!AuthLoadPAM()) {
       return VGAUTH_E_FAIL;
    }
-
-#ifdef sun
-/* Solaris does not have PAM_MODULE_UNKNOWN. */
-#define PAM_BAIL if (pam_error != PAM_SUCCESS) { \
-                    Warning("PAM error: %s (%d)\n", \
-                            dlpam_strerror(pamh, pam_error), pam_error);  \
-                    dlpam_end(pamh, pam_error); \
-                    if (PAM_AUTH_ERR == pam_error || \
-                        PAM_USER_UNKNOWN == pam_error) { \
-                       return VGAUTH_E_AUTHENTICATION_DENIED; \
-                    } else { \
-                       return VGAUTH_E_FAIL; \
-                    } \
-                 }
-#else
-#define PAM_BAIL if (pam_error != PAM_SUCCESS) { \
-                    Warning("PAM error: %s (%d)\n", \
-                            dlpam_strerror(pamh, pam_error), pam_error);  \
-                    dlpam_end(pamh, pam_error); \
-                    if (PAM_AUTH_ERR == pam_error || \
-                        PAM_USER_UNKNOWN == pam_error || \
-                        PAM_MODULE_UNKNOWN == pam_error) {\
-                       return VGAUTH_E_AUTHENTICATION_DENIED; \
-                    } else { \
-                       return VGAUTH_E_FAIL; \
-                    } \
-                 }
-#endif
 
    pd.username = userName;
    pd.password = password;
@@ -310,12 +283,44 @@ VGAuthValidateUsernamePasswordImpl(VGAuthContext *ctx,
    }
 
    pam_error = dlpam_authenticate(pamh, 0);
-   PAM_BAIL;
-   pam_error = dlpam_acct_mgmt(pamh, 0);
-   PAM_BAIL;
-   pam_error = dlpam_setcred(pamh, PAM_ESTABLISH_CRED);
-   PAM_BAIL;
-   dlpam_end(pamh, PAM_SUCCESS);
+   if (pam_error == PAM_SUCCESS) {
+      pam_error = dlpam_acct_mgmt(pamh, 0);
+      if (pam_error == PAM_SUCCESS) {
+         pam_error = dlpam_setcred(pamh, PAM_ESTABLISH_CRED);
+      }
+   }
+   dlpam_end(pamh, pam_error);
+   if (pam_error != PAM_SUCCESS) {
+      switch (pam_error) {
+         /*
+          * Most PAM errors get mapped to VGAUTH_E_AUTHENTICATION_DENIED,
+          * but some are mapped into VGAUTH_E_FAIL.
+          */
+         case PAM_OPEN_ERR:
+         case PAM_SYMBOL_ERR:
+         case PAM_SERVICE_ERR:
+         case PAM_SYSTEM_ERR:
+         case PAM_BUF_ERR:
+         case PAM_NO_MODULE_DATA:
+         case PAM_CONV_ERR:
+         case PAM_ABORT:
+#ifndef sun   /* The following error codes are undefined on Solaris. */
+         case PAM_BAD_ITEM:
+         case PAM_CONV_AGAIN:
+         case PAM_INCOMPLETE:
+#endif
+            err = VGAUTH_E_FAIL;
+            break;
+
+         default:
+            err = VGAUTH_E_AUTHENTICATION_DENIED;
+            break;
+
+      }
+      Warning("PAM error: %s (%d), mapped to VGAuth error "VGAUTHERR_FMT64"\n",
+              dlpam_strerror(pamh, pam_error), pam_error, err);
+      return err;
+   }
 
 #else /* !USE_PAM */
 
