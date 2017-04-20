@@ -1,5 +1,5 @@
-#General
-##What is the open-vm-tools project?
+# General
+## What is the open-vm-tools project?
 open-vm-tools is a set of services and modules that enable several features in VMware products for better management of, and seamless user interactions with, guests. It includes kernel modules for enhancing the performance of virtual machines running Linux or other VMware supported Unix like guest operating systems. 
  
 open-vm-tools enables the following features in VMware products:
@@ -17,7 +17,7 @@ open-vm-tools enables the following features in VMware products:
 - Enabling shared folders between host and guest file systems on VMware Workstation and VMware Fusion.
 - Copying and pasting text, graphics, and files between guests and hosts or client desktops.
 
-##Can you provide more details on the actual code being released?
+## Can you provide more details on the actual code being released?
 The following components have been released as open source software:
 - Linux, Solaris and FreeBSD drivers for various devices and file system access.
 - The memory balloon driver for reclaiming memory from guests.
@@ -34,53 +34,53 @@ The following components have been released as open source software:
 - Multiple monitor support.
 - The GTK Toolbox UI.
  
-##Is open-vm-tools available with Linux distributions?
+## Is open-vm-tools available with Linux distributions?
 Yes. open-vm-tools packages for user space components are available with new versions of major Linux distributions, and are installed as part of the OS installation in several cases. Please refer to VMware KB article http://kb.vmware.com/kb/2073803 for details. All leading Linux vendors support open-vm-tools and bundle it with their products. For information about OS compatibility for open-vm-tools, see the 
 VMware Compatibility Guide at http://www.vmware.com/resources/compatibility
 Automatic installation of open-vm-tools along with the OS installation eliminates the need to separately install open-vm-tools in guests. If open-vm-tools is not installed automatically, you may be able to manually install it from the guest OS vendor's public repository. Installing open-vm-tools from the Linux vendor's repository reduces virtual machine downtime because future updates to open-vm-tools are included with the OS maintenance patches and updates.
 **NOTE**: Most of the Linux distributions ship two open-vm-tools packages, "open-vm-tools" and "open-vm-tools-desktop". "open-vm-tools" is the core package without any dependencies on X libraries and "open-vm-tools-desktop" is an additional package with dependencies on "open-vm-tools" core package and X libraries. The open-vm-tools packages available with Linux distributions do not include Linux drivers because Linux drivers are available as part of Linux kernel itself. Linux kernel versions 3.10 and later include all of the Linux drivers present in open-vm-tools except the vmhgfs driver. The vmhgfs driver is required for enabling shared folders feature.
 
-##Will there be continued support for VMware Tools and OSP? 
+## Will there be continued support for VMware Tools and OSP? 
 VMware Tools will continue to be available under a commercial license. It is recommended that open-vm-tools be used for the Linux distributions where open-vm-tools is available. VMware will not provide OSPs for operating systems where open-vm-tools is available.
 
-##How does this benefit other open source projects?
+## How does this benefit other open source projects?
 Under the terms of the GPL, open source community members are able to use the open-vm-tools code to develop their own applications, extend it, and contribute to the community. They can also incorporate some or all of the code into their projects, provided they comply with the terms of the GPL.
 
 # License Related
 ##What license is the code being released under?
 The code is being released under GPL v2 and GPL v2 compatible licenses. To be more specific, the Linux kernel modules are being released under the GPL v2, while almost all of the user level components are being released under the LGPL v2.1. The SVGA and mouse drivers have been available under the X11 license for quite some time. There are certain third party components released under BSD style licenses, to which VMware has in some cases contributed, and will continue to distribute with open-vm-tools.
  
-##Why did you choose these licenses?
+## Why did you choose these licenses?
 We chose the GPL v2 for the kernel components to be consistent with the Linux kernel's license. We chose the LGPL v2.1 for the user level components because some of the code is implemented as shared libraries and we do not wish to restrict proprietary code from linking against those libraries. For consistency, we decided to license the rest of the userlevel code under the LGPL v2.1 as well.
 
-##What are the obligations that the license(s) impose?
+## What are the obligations that the license(s) impose?
 Each of these licenses have different obligations.
 For questions about the GPL, LGPL licenses, the Free Software Foundation's GPL FAQ page provides lots of useful information. 
 For questions about the other licenses like the X11, BSD licenses, the Open Source Initiative has numerous useful resources including mailing lists. 
 The Software Freedom Law Center provides legal expertise and consulting for free and open source software (FOSS) developers.
 
-##Can I use all or part of this code in my proprietary software? Do I have to release the source code if I do?
+## Can I use all or part of this code in my proprietary software? Do I have to release the source code if I do?
 Different open source licenses have different requirements regarding the release of source code. Since the code is being released under various open source licenses, you will need to comply with the terms of the corresponding licenses.
 
-##Am I required to contribute back any changes I make to the code?
+## Am I required to contribute back any changes I make to the code?
 No, you aren't required to contribute any changes that you make back to the open-vm-tools project. However, we encourage you to do so.
 
-##Can I use all or part of this code in another open source package?
+## Can I use all or part of this code in another open source package?
 Yes, as long as you comply with the appropriate license(s).
  
-##Can I package this for my favorite operating system?
+## Can I package this for my favorite operating system?
 Yes! Please do. 
 
-##Will the commercial version (VMware Tools) differ from the open source version (open-vm-tools)? If so, how?
+## Will the commercial version (VMware Tools) differ from the open source version (open-vm-tools)? If so, how?
 Our goal is to work towards making the open source version as close to the commercial version as possible. However, we do currently make use of certain components licensed from third parties as well as components from other VMware products which are only available in binary form.
 
-##If I use the code from the open-vm-tools project in my project/product, can I call my project/product VMware Tools?
+## If I use the code from the open-vm-tools project in my project/product, can I call my project/product VMware Tools?
 No, since your project/product is not a VMware project/product.
  
 # Building open-vm-tools
 ##How do I build open-vm-tools?
 open-vm-tools uses the GNU Automake tool for generating Makefiles to build all sources. More information about Automake can be found here: http://www.gnu.org/software/automake/
-##Project build information:
+## Project build information:
 Getting configure options & help: If you are looking for help or additional settings for the building of this project, the following configure command will display a list of help options: ./configure --help
 Using configure: When using configure in the steps below it is only necessary to call ./configure once unless there was a problem after the first invocation.
 Building Unix user-space programs:
@@ -91,8 +91,8 @@ Building Unix user-space programs:
 
 Packaging: If you are interested in creating a Tools package, please see https://sourceforge.net/apps/mediawiki/open-vm-tools/index.php?title=Packaging for more information.
 
-#Getting Involved
-##How can I get involved today?
+# Getting Involved
+## How can I get involved today?
 You can get involved today in several different ways:
 - Start using open-vm-tools today and give us feedback.
 - Suggest feature enhancements.
