@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -430,7 +430,7 @@ TimeSyncSlewTime(TimeSyncData *data, int64 adjustment)
       return FALSE;
    }
 
-   if (adjustment > TIMESYNC_PLL_UNSYNC && 
+   if (ABS(adjustment) > TIMESYNC_PLL_UNSYNC && 
        data->slewState != TimeSyncUncalibrated) {
       g_debug("Adjustment too large (%"FMT64"d), resetting PLL state.\n", 
               adjustment);
@@ -443,7 +443,7 @@ TimeSyncSlewTime(TimeSyncData *data, int64 adjustment)
          data->slewState = TimeSyncUncalibrated;
          return FALSE;
       }
-      if (adjustment < TIMESYNC_PLL_ACTIVATE && TimeSync_PLLSupported()) {
+      if (ABS(adjustment) < TIMESYNC_PLL_ACTIVATE && TimeSync_PLLSupported()) {
          g_debug("Starting PLL calibration.\n");
          calibrationStart = now;
          /* Starting out the calibration period we are adjustment behind,
