@@ -1,0 +1,22 @@
+$NetBSD$
+
+--- Makefile.am.orig	2015-11-24 07:07:44.000000000 +0000
++++ Makefile.am
+@@ -26,7 +26,6 @@ SUBDIRS =
+ SUBDIRS += lib
+ SUBDIRS += libvmtools
+ SUBDIRS += libhgfs
+-SUBDIRS += hgfsclient
+ if BUILD_HGFSMOUNTER
+    SUBDIRS += hgfsmounter
+ endif
+@@ -52,9 +51,6 @@ if HAVE_FUSE
+    SUBDIRS += vmblock-fuse
+    SUBDIRS += vmhgfs-fuse
+ endif
+-if !LINUX
+-   SUBDIRS += vmblockmounter
+-endif
+ SUBDIRS += xferlogs
+ if ENABLE_TESTS
+    SUBDIRS += tests

@@ -1,0 +1,13 @@
+$NetBSD$
+
+--- services/plugins/timeSync/Makefile.am.orig	2015-11-24 07:07:44.000000000 +0000
++++ services/plugins/timeSync/Makefile.am
+@@ -43,4 +43,8 @@ if LINUX
+ libtimeSync_la_SOURCES += slewLinux.c
+ libtimeSync_la_SOURCES += pllLinux.c
+ endif
++if NETBSD
++libtimeSync_la_SOURCES += slewAdjtime.c
++libtimeSync_la_SOURCES += pllNone.c
++endif
+ 

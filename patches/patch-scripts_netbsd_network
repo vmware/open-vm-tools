@@ -1,0 +1,50 @@
+$NetBSD$
+
+--- scripts/netbsd/network.orig	2016-06-21 20:48:47.000000000 +0000
++++ scripts/netbsd/network
+@@ -0,0 +1,45 @@
++#!/bin/sh
++#     
++# network (NetBSD 6.1.5)
++#     
++# This script uses NetBSD's rc(8) scripts to stop and restart networking
++# services in response to suspend and resume events, respectively.
++#     
++      
++echo `date` ": Executing '$0'"
++echo 
++     
++     
++ToggleNetwork() {
++   ( 
++      . /etc/rc.subr
++     
++      if [ "$1" != "stop" ]; then 
++          /etc/rc.d/network start
++          /etc/rc.d/dhclient start
++      else    
++          /etc/rc.d/dhclient stop
++          /etc/rc.d/network stop
++      fi      
++    )
++}    
++     
++main() {
++    [ -r /etc/rc.subr ] || Panic "Cannot read /etc/rc.subr."
++    [ -x /etc/rc.d/network ] || Panic "Cannot read /etc/rc.d/network"
++     
++    python /usr/share/brkt/avatar_cmd.py guest-shutdown-command "$1"
++    case "$1" in 
++      suspend-vm)
++         ToggleNetwork stop
++         ;;      
++      resume-vm)
++         ToggleNetwork start
++         ;;      
++      *) ;;   
++   esac    
++     
++   return 0
++} 
++
++main "$@"  
