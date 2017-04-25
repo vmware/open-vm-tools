@@ -2465,7 +2465,9 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
       status = VMXNET_CALL_TRANSMIT;
    }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31)
    dev->trans_start = jiffies;
+#endif
 
    lp->stats.tx_packets++;
    dd->stats.pktsTransmitted++;
