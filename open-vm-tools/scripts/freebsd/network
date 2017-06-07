@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################################################
-# Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -59,6 +59,7 @@ ToggleNetwork() {
 
       for intf in `list_net_interfaces dhcp`; do
          /etc/rc.d/netif $1 $intf
+         /etc/rc.d/dhclient $1 $intf
          ec=$?
 
          # Failure to stop an interface should not interfere with suspend.
@@ -85,7 +86,9 @@ main() {
 
    [ -r /etc/rc.subr ] || Panic "Cannot read /etc/rc.subr."
    [ -r /etc/network.subr ] || Panic "Cannot read /etc/network.subr"
-   [ -x /etc/rc.d/netif ] || Panic "Cannot read /etc/rc.d/netif"
+   [ -x /etc/rc.d/netif ] || Panic "Cannot find an executable /etc/rc.d/netif"
+   [ -x /etc/rc.d/dhclient ] || \
+      Panic "Cannot find an executable /etc/rc.d/dhclient"
 
    case "$1" in
       suspend-vm)
