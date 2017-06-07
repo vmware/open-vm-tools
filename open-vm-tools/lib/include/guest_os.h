@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -80,7 +80,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWINXP64            BS(WINXPPRO_64)
 #define ALLWINXP              ALLWINXP32, ALLWINXP64
 
-#define ALLFREEBSD            BS(FREEBSD), BS(FREEBSD_64)
+#define ALLFREEBSD            BS(FREEBSD), BS(FREEBSD_64), \
+                              BS(FREEBSD11), BS(FREEBSD11_64)
 
 #define ALLWINNET32           BS(WINNET)
 #define ALLWINNET64           BS(WINNET_64)
@@ -185,8 +186,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DARWIN15_64), BS(DARWIN16_64)
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 #define ALL64                 ALLWIN64, ALLLINUX64, BS(SOLARIS10_64), \
-                              BS(FREEBSD_64), ALLDARWIN64,            \
-                              BS(OTHER_64), ALLVMKERNEL
+                              BS(FREEBSD_64), BS(FREEBSD11_64), \
+                              ALLDARWIN64, BS(OTHER_64), ALLVMKERNEL
 
 #define ALLECOMSTATION        BS(ECOMSTATION), BS(ECOMSTATION2)
 #define ALLOS2                BS(OS2), ALLECOMSTATION
@@ -492,7 +493,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_64_BIT_EXTENSION ", 64-bit"
 
 /* FreeBSD */
-#define STR_OS_FREEBSD "FreeBSD"
+#define STR_OS_FREEBSD "freeBSD"
 
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"

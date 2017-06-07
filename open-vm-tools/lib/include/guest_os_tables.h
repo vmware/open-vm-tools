@@ -71,6 +71,8 @@
    GOT(GUEST_OS_RHEL_64)                                                   \
    GOT(GUEST_OS_FREEBSD)                                                   \
    GOT(GUEST_OS_FREEBSD_64)                                                \
+   GOT(GUEST_OS_FREEBSD11)                                                 \
+   GOT(GUEST_OS_FREEBSD11_64)                                              \
    GOT(GUEST_OS_SOLARIS_6_AND_7)                                           \
    GOT(GUEST_OS_SOLARIS8)                                                  \
    GOT(GUEST_OS_SOLARIS9)                                                  \
@@ -154,8 +156,10 @@
    GOSL(STR_OS_ECOMSTATION "2",              GUEST_OS_ECOMSTATION2,           NULL)                   \
    GOSL("fedora",                            GUEST_OS_OTHER26XLINUX,          "linux.iso")            \
    GOSL("fedora-64",                         GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
-   GOSL("freeBSD",                           GUEST_OS_FREEBSD,                "freebsd.iso")          \
-   GOSL("freeBSD-64",                        GUEST_OS_FREEBSD_64,             "freebsd.iso")          \
+   GOSL(STR_OS_FREEBSD,                      GUEST_OS_FREEBSD,                "freebsd.iso")          \
+   GOSL(STR_OS_FREEBSD "-64",                GUEST_OS_FREEBSD_64,             "freebsd.iso")          \
+   GOSL(STR_OS_FREEBSD "11",                 GUEST_OS_FREEBSD11,              "freebsd.iso")          \
+   GOSL(STR_OS_FREEBSD "11-64",              GUEST_OS_FREEBSD11_64,           "freebsd.iso")          \
    GOSL("linux",                             GUEST_OS_OTHERLINUX,             "linuxPreGlibc25.iso") /* old */ \
    GOSL(STR_OS_WIN_LONG,                     GUEST_OS_LONGHORN,               "windows.iso")          \
    GOSL("longhorn-64",                       GUEST_OS_LONGHORN_64,            "windows.iso")          \
