@@ -36,6 +36,8 @@
 #include "mspackWrapper.h"
 #include "rpcout.h"
 #include "toolsDeployPkg.h"
+#include <strutil.h>
+#include <util.h>
 
 /*
  * These are covered by #ifndef to give the ability to change these
@@ -45,12 +47,17 @@
 
 #define CLEANUPCMD  "/bin/rm -r -f "
 
-#ifndef EXTRACTPATH
-#define EXTRACTPATH "/tmp/.vmware/linux/deploy"
+#ifndef TMP_PATH_VAR
+#define TMP_PATH_VAR "/tmp/.vmware/linux/deploy"
 #endif
 
-#ifndef CLEANUPPATH
-#define CLEANUPPATH "/tmp/.vmware"
+#ifndef IMC_TMP_PATH_VAR
+#define IMC_TMP_PATH_VAR "@@IMC_TMP_PATH_VAR@@"
+#endif
+
+// '/tmp' below will be addressed by PR 1601405.
+#ifndef TMP_DIR_PATH_PATTERN
+#define TMP_DIR_PATH_PATTERN "/tmp/.vmware-imgcust-dXXXXXX"
 #endif
 
 #ifndef BASEFILENAME
@@ -108,7 +115,6 @@ struct List {
 // Private functions
 static Bool GetPackageInfo(const char* pkgName, char** cmd, uint8* type);
 static Bool ExtractZipPackage(const char* pkg, const char* dest);
-static Bool CreateDir(const char* path);
 static void Init(void);
 static struct List* AddToList(struct List* head, const char* token);
 static int ListSize(struct List* head);
@@ -141,12 +147,21 @@ static LogFunction sLog = NoLogging;
  * @param   args     [in]  Argument list.
  *
  **/
-void
-Panic(const char *fmtstr,
-      va_list args)
+NORETURN void
+Panic(const char *fmtstr, ...)
 {
-   /* Ignored */
-   sLog(log_warning, "Panic call back invoked. \n");
+   va_list args;
+
+   char *tmp = Util_SafeMalloc(MAXSTRING);
+
+   va_start(args, fmtstr);
+   vsprintf(tmp, fmtstr, args);
+
+   sLog(log_error, "Panic callback invoked: %s\n", tmp);
+
+   free(tmp);
+
+   exit(1);
 }
 
 // .....................................................................................
@@ -162,12 +177,19 @@ Panic(const char *fmtstr,
  *
  **/
 void
-Debug(const char *fmtstr,
-      va_list args)
+Debug(const char *fmtstr, ...)
 {
-   /* Ignored */
 #ifdef VMX86_DEBUG
-   sLog(log_debug, "Debug callback invoked. \n");
+   va_list args;
+
+   char *tmp = Util_SafeMalloc(MAXSTRING);
+
+   va_start(args, fmtstr);
+   vsprintf(tmp, fmtstr, args);
+
+   sLog(log_debug, "Debug callback invoked: %s\n", tmp);
+
+   free(tmp);
 #endif
 }
 
@@ -862,11 +884,13 @@ static int
 Deploy(const char* packageName)
 {
    int deployStatus = DEPLOY_SUCCESS;
+   char* pkgCommand = NULL;
    char* command = NULL;
    int deploymentResult;
    char *nics;
    char* cleanupCommand;
    uint8 archiveType;
+   char *tmpDirPath;
 
    // Move to IN PROGRESS state
    TransitionState(NULL, INPROGRESS);
@@ -876,42 +900,49 @@ Deploy(const char* packageName)
                                TOOLSDEPLOYPKG_ERROR_SUCCESS,
                                NULL);
 
+   tmpDirPath = mkdtemp((char *)Util_SafeStrdup(TMP_DIR_PATH_PATTERN));
+   if (tmpDirPath == NULL) {
+      SetDeployError("Error creating tmp dir: %s", strerror(errno));
+      return DEPLOY_ERROR;
+   }
+
    sLog(log_info, "Reading cabinet file %s. \n", packageName);
 
    // Get the command to execute
-   if (!GetPackageInfo(packageName, &command, &archiveType)) {
+   if (!GetPackageInfo(packageName, &pkgCommand, &archiveType)) {
       SetDeployError("Error extracting package header information. (%s)",
                      GetDeployError());
+      free(tmpDirPath);
       return DEPLOY_ERROR;
    }
 
-   // Print the header command
-#ifdef VMX86_DEBUG
-   sLog(log_debug, "Header command: %s \n ", command);
-#endif
-
-   // create the destination directory
-   if (!CreateDir(EXTRACTPATH "/")) {
-      free(command);
-      return DEPLOY_ERROR;
+   sLog(log_info, "Original deployment command: %s\n", pkgCommand);
+   if (strstr(pkgCommand, IMC_TMP_PATH_VAR) != NULL) {
+      command = StrUtil_ReplaceAll(pkgCommand, IMC_TMP_PATH_VAR, tmpDirPath);
+   } else {
+      command = StrUtil_ReplaceAll(pkgCommand, TMP_PATH_VAR, tmpDirPath);
    }
+   free(pkgCommand);
+
+   sLog(log_info, "Actual deployment command: %s\n", command);
 
    if (archiveType == VMWAREDEPLOYPKG_PAYLOAD_TYPE_CAB) {
-      if (!ExtractCabPackage(packageName, EXTRACTPATH)) {
+      if (!ExtractCabPackage(packageName, tmpDirPath)) {
+         free(tmpDirPath);
          free(command);
          return DEPLOY_ERROR;
       }
    } else if (archiveType == VMWAREDEPLOYPKG_PAYLOAD_TYPE_ZIP) {
-      if (!ExtractZipPackage(packageName, EXTRACTPATH)) {
+      if (!ExtractZipPackage(packageName, tmpDirPath)) {
+         free(tmpDirPath);
          free(command);
          return DEPLOY_ERROR;
       }
    }
 
    // Run the deployment command
-   sLog(log_info, "Launching deployment %s. \n", command);
    deploymentResult = ForkExecAndWaitCommand(command);
-   free (command);
+   free(command);
 
    if (deploymentResult != 0) {
       sLog(log_error, "Customization process returned with error. \n");
@@ -957,7 +988,7 @@ Deploy(const char* packageName)
     * sucess/failure of the customization so that at the end of it we always
     * have nics enabled.
     */
-   nics = GetNicsToEnable(EXTRACTPATH);
+   nics = GetNicsToEnable(tmpDirPath);
    if (nics) {
       // XXX: Sleep before the last SetCustomizationStatusInVmx
       //      This is a temporary-hack for PR 422790
@@ -972,22 +1003,23 @@ Deploy(const char* packageName)
    }
 
    // Clean up command
-   cleanupCommand = malloc(strlen(CLEANUPCMD) + strlen(CLEANUPPATH) + 1);
+   cleanupCommand = malloc(strlen(CLEANUPCMD) + strlen(tmpDirPath) + 1);
    if (!cleanupCommand) {
       SetDeployError("Error allocating memory.");
+      free(tmpDirPath);
       return DEPLOY_ERROR;
    }
 
    strcpy(cleanupCommand, CLEANUPCMD);
-   strcat(cleanupCommand, CLEANUPPATH);
+   strcat(cleanupCommand, tmpDirPath);
 
    sLog(log_info, "Launching cleanup. \n");
    if (ForkExecAndWaitCommand(cleanupCommand) != 0) {
-      sLog(log_warning, "Error while clean up. Error removing directory %s. (%s)",
-           EXTRACTPATH, strerror (errno));
-      //TODO: What should be done if cleanup fails ??
+      sLog(log_warning, "Error while clean up tmp directory %s: (%s)",
+           tmpDirPath, strerror (errno));
    }
    free (cleanupCommand);
+   free(tmpDirPath);
 
    //Reset the guest OS
    if (!sSkipReboot && !deploymentResult) {
@@ -1246,61 +1278,6 @@ ForkExecAndWaitCommand(const char* command)
    }
    Process_Destroy(hp);
    return retval;
-}
-
-/**
- * Sets up the path for exracting file. For e.g. if the file is /a/b/c/d.abc
- * then it creates /a/b/c (skips if any of the directories along the path
- * exists). If the the path ends in '/', then the the entire input is assumed
- * to be a directory and is created as such.
- *
- * @param path  IN: Complete path of the file
- * @return TRUE on success
- */
-
-Bool
-CreateDir(const char* path)
-{
-   struct stat stats;
-   char* token;
-   char* copy;
-
-   // make a copy we can modify
-   copy = strdup(path);
-
-   // walk through the path (it employs in string replacement)
-   for (token = copy + 1; *token; ++token) {
-
-      // find
-      if (*token != '/') {
-         continue;
-      }
-
-      /*
-       * cut it off here for e.g. on first iteration /a/b/c/d.abc will have
-       * token /a, on second /a/b etc
-       */
-      *token = 0;
-
-      sLog(log_debug, "Creating directory %s", copy);
-
-      // ignore if the directory exists
-      if (!((stat(copy, &stats) == 0) && S_ISDIR(stats.st_mode))) {
-         // make directory and check error (accessible only by owner)
-         if (mkdir(copy, 0700) == -1) {
-            sLog(log_error, "Unable to create directory %s (%s)", copy,
-                 strerror(errno));
-            free(copy);
-            return FALSE;
-         }
-      }
-
-      // restore the token
-      *token = '/';
-   }
-
-   free(copy);
-   return TRUE;
 }
 
 //......................................................................................
