@@ -40,6 +40,30 @@
 /*
  *-----------------------------------------------------------------------------
  *
+ * StrUtil_IsEmpty --
+ *
+ *      Test if a non-NULL string is empty.
+ *
+ * Results:
+ *      TRUE if the string has length 0, FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+StrUtil_IsEmpty(const char *str)  // IN:
+{
+   ASSERT(str != NULL);
+   return str[0] == '\0';
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * StrUtil_GetNextToken --
  *
  *      Get the next token from a string after a given index w/o modifying the
@@ -1236,4 +1260,67 @@ StrUtil_TrimWhitespace(const char *str)  // IN
    *cur = 0;
 
    return res;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_ReplaceAll --
+ *
+ *    Replaces all occurrences of a non-empty substring with non-NULL pattern
+ *    in non-NULL string.
+ *
+ * Results:
+ *    Returns pointer to the allocated resulting string. The caller is
+ *    responsible for freeing it.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+StrUtil_ReplaceAll(const char *orig, // IN
+                   const char *what, // IN
+                   const char *with) // IN
+{
+    char *result;
+    const char *current;
+    char *tmp;
+    size_t lenWhat;
+    size_t lenWith;
+    size_t lenBefore;
+    size_t occurrences = 0;
+    size_t lenNew;
+
+    ASSERT(orig != NULL);
+    ASSERT(!StrUtil_IsEmpty(what));
+    ASSERT(with != NULL);
+
+    lenWhat = strlen(what);
+    lenWith = strlen(with);
+
+    current = orig;
+    while ((tmp = strstr(current, what)) != NULL) {
+       current = tmp + lenWhat;
+       ++occurrences;
+    }
+
+    lenNew = strlen(orig) + (lenWith - lenWhat) * occurrences;
+    tmp = Util_SafeMalloc(lenNew + 1);
+    result = tmp;
+
+    while (occurrences--) {
+       current = strstr(orig, what);
+       lenBefore = current - orig;
+       tmp = memcpy(tmp, orig, lenBefore);
+       tmp += lenBefore;
+       tmp = memcpy(tmp, with, lenWith);
+       tmp += lenWith;
+       orig += lenBefore + lenWhat;
+    }
+    memcpy(tmp, orig, strlen(orig));
+
+    result[lenNew] = '\0';
+
+    return result;
 }
