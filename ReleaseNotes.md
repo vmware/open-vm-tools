@@ -1,4 +1,4 @@
-# open-vm-tools 10.1.5 Release Notes
+# open-vm-tools 10.1.10 Release Notes
 
 ## What's in the Release Notes
 
@@ -18,7 +18,7 @@ open-vm-tools is a suite of utilities that enhances the performance of the virtu
 
 ## Internationalization
 
-open-vm-tools 10.1.5 is available in the following languages:
+open-vm-tools 10.1.10 is available in the following languages:
 
 *   English
 *   French
@@ -36,20 +36,13 @@ Please refer to [VMware Compatibility Guide](http://www.vmware.com/resources/com
 
 ## Resolved Issues
 
-*   **Authentication failure is reported as unknown general system error.**  
-    Attempts to authenticate through <tt>VGAuth</tt> service might result in an authentication-specific error such as an expired account or password. The authentication-specific error might then be incorrectly reported as an unknown general system error, similar to the following:  
+*   **Fix for CVE-2015-5191**
 
-    <tt>CommunicationException: Failed to create temp file on target <IP_ADDRESS>: A general system error occurred: Unknown error</tt>
+    Open VMware Tools (CVE-2015-5191) contained multiple file system races in libDeployPkg, related to the use of hard-coded paths under /tmp.
 
-    This issue is resolved in this release.
+    Successful exploitation may result in a local privilege escalation. The impact of this vulnerability is low for distributions which have enabled PrivateTmp for the affected service.
 
-*   **Unable to backup virtual machines with active Docker containers**.  
-
-    Attempts to take quiesced snapshots may fail on RHEL 7 guest operating systems that are running Docker containers. Docker version 1.12.x and later create special mount points for containers. These mount points are recorded as 'net:[NUMBER]' instead of absolute paths in <tt>/proc/self/mounts</tt> on the system.
-
-    Note: To see the issue tracked by Red Hat, see [Red Hat Bugzilla.](https://bugzilla.redhat.com/show_bug.cgi?id=1418962)
-
-    This issue is resolved in this release.
+    We would like to thank Florian Weimer and Kurt Seifried of Red Hat Product Security for reporting this issue to us.
 
 ## Known Issues from Earlier Releases
 
