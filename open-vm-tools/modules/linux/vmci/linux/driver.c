@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2014,2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2014 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -2015,8 +2015,6 @@ vmci_remove_device(struct pci_dev* pdev)
    dev->exclusive_vectors = FALSE;
    dev->intr_type = VMCI_INTR_TYPE_INTX;
 
-   tasklet_disable(&vmci_dg_tasklet);
-   tasklet_disable(&vmci_bm_tasklet);
    tasklet_kill(&vmci_dg_tasklet);
    tasklet_kill(&vmci_bm_tasklet);
 
@@ -2478,7 +2476,6 @@ vmci_exit(void)
    if (guestDeviceInit) {
       pci_unregister_driver(&vmci_driver);
       vfree(data_buffer);
-      data_buffer = NULL;
       guestDeviceInit = FALSE;
    }
 
