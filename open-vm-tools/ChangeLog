@@ -1,3 +1,185 @@
+open-vm-tools-10.1.10 build 6082533
+
+commit d58086d3f3218024ecee479034f4441a27fe278f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Jul 28 12:16:51 2017 -0700
+
+    The previous change to the Linux VMCI driver resulted in intermittent
+    hangs during soft reboots of RHEL 6.8 Linux VM.  This change reverts
+    that code change and resets the driver version number.
+    
+    This reverts commit 7023998ba5594871a658c5ef1be4dbda6c0158eb.
+
+commit b4076f114437504bf05d7d6c3ad2b6e84dd7fa08
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Jul 28 12:16:51 2017 -0700
+
+    Previously Common Agent Framework (CAF) builds were linking against
+    specific versions of PCRE and libiconv.  That restriction has been removed.
+
+commit 22e58289f71232310d30cf162b83b5151a937bac
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jul 6 17:00:55 2017 -0700
+
+    randomly generate tmp directory name
+
+commit 9b7cdd8b4d809bb515e65acd73b719b21fb9793f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jun 6 17:17:04 2017 -0700
+
+    Check for Xen, VirtualPC etc., only if VMware not detected
+
+commit bb3334cb062179bdf6c235b37c1aba553c3661c6
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jun 6 17:17:04 2017 -0700
+
+    Update the Tools-10.1.10 Open Source License File.
+
+commit b2df92fb9e1791608d009988e3ce014f23b869a0
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jun 6 17:17:04 2017 -0700
+
+    FreeBSD: Use the "dhclient" command to renew a DHCP IP address.
+    
+    On FreeBSD, "/etc/rc.d/netif" is sufficient to stop a network interface
+    when suspending a VM.  When resuming a VM, DHCP configured interfaces
+    must be restarted with "/etc/rc.d/dhclient".
+    
+    This fix is courtesy of Steve Wills, maintainer of open-vm-tools on
+    FreeBSD, and Shuai Wang.
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/142
+
+commit 7023998ba5594871a658c5ef1be4dbda6c0158eb
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jun 6 17:17:04 2017 -0700
+
+    VMCI: reset datagram buffer pointer on dealloc
+    
+    Fix a potential guest crash when unloading the VMCI
+    driver while upgrading to a specific version of UEK.
+    A BH may run during module unload and attempt to deliver
+    datagrams to the datagram buffer after it has been
+    deallocated. It turns out that the tasklet may not
+    yet have been scheduled, so add a tasklet_disable to
+    guard against that.  Also, reset the datagram buffer
+    pointer when the buffer is deallocated to indicate
+    that it is no longer there.
+
+commit 6e88d52301ad3ec943f5d296e64c6352024082b3
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jun 6 17:17:04 2017 -0700
+
+    Add support for the new selection target name "text/rtf" for copy/paste.
+
+commit f4b546e5bd6e27135ad1d6381e259c2e55fc6357
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jun 6 17:17:03 2017 -0700
+
+    GOSTable: split FreeBSD
+    
+    Split FreeBSD into freeBSD (old) and freeBSD11 (going
+    forward). This is to cover driver differences.
+
+commit 7243dabb166db38ed34fc4a35d93d2235443f95c
+Author: Markus KARG <markus@headcrashing.eu>
+Date:   Sat Apr 22 12:04:56 2017 +0200
+
+    Fixed MarkDown Syntax
+    
+    The MarkDown Syntax was wrong, so the file README.md rendered rather urgly on GitHub.
+
+commit c1b19cbe5c9a9831b8da463a3909b9db3300aaa5
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 2 17:15:52 2017 -0700
+
+    Fix an invalid class pointer access when the VSS provider is not installed.
+    
+    Customers may disable VSS support by not installing the VMware snapshot
+    provider, which may lead to the VSS provider being uninitialized, which in
+    turn can cause an invalid class pointer access during initialization
+    completion.
+    
+    This change fixes the issue by checking the provider initialization status
+    before running the initialization completer.
+
+commit 4c20c27ee1b3d0c88ee5d6e41b88a5c94432dbcc
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Apr 20 18:04:18 2017 -0700
+
+    Include sysmacros.h directly as mandated by glibc-2.25.
+    
+    glibc-2.25 generates a deprecation warning for using the 'major'
+    macro without including sysmacros.h.
+    https://sourceware.org/glibc/wiki/Release/2.25
+    
+    This breaks Fedora builds of open-vm-tools because Fedora 26 is
+    switching to glibc-2.25.
+
+commit 0efa46ca41c3b58d5bf65d2dfb154b3d986d946f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Apr 20 18:04:18 2017 -0700
+
+    Fix timesync state to be uncalibrated when adjustment is large (>60ms).
+    
+    Open-vm-tools has a timesync plugin to adjust the guest time to match the
+    host time. Timesync relies on a state machine (uncalibrated, calibrating
+    and PLL states) to adjust the amount of guest time to match host time.
+    If the guest and host time differ by more than 60ms, the state machine
+    should reset to the uncalibrated state. This change fixes a bug that could
+    leave the state in PLL mode even when the guest and host times differed by
+    more than 60ms, since the absolute value of adjustment was not considered,
+    which in turn caused the time sync to happen more slowly than expected.
+
+commit f6e248b9d71fa4a61bd7d72872015d530df1e89c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Apr 20 18:04:18 2017 -0700
+
+    Set the version number for open-vm-tools 10.1.x, Update 2 to 10.1.10
+
+commit d9b1920a4580afe43db40ae9fb49ecb68c9f48d4
+Merge: 9f09855 854c0bb
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Feb 24 16:27:17 2017 -0800
+
+    resolve conflict in ReleaseNotes.md
+
+commit 854c0bb374612f7e633b448ca273f970f154458b
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Feb 24 14:15:37 2017 -0800
+
+    update ReleaseNotes.md
+
+commit 9f0985584ea9c2de580dcee5c25bddfc880a4e98
+Author: Ravindra Kumar <ravindrakumar@vmware.com>
+Date:   Wed Feb 22 13:39:50 2017 -0800
+
+    Removed the unrelated mention of kernel modules.
+
+commit 32f489c08cbf917bc99e646e5c04ab4005b22623
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Feb 22 13:07:00 2017 -0800
+
+    update NEWS ChangeLog README
+
+commit 7483a6df5a32f33a573db33d72ba542a510fe4b1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Feb 22 13:06:40 2017 -0800
+
+    update build numbers
+
+commit ff6c6d8b63a60c160d2e39a56d179ebaeaa30741
+Author: Peter Goldsborough <peter@goldsborough.me>
+Date:   Fri Feb 10 01:35:46 2017 +0000
+
+    s/pacakge/package
+
+commit 5a9033ddfa95786d867e4d02bbb9a29bac8fb64f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Dec 23 16:46:38 2016 -0800
+
+    - add missing directory common-agent/etc/config
+    - fix .gitignore, so the directory above will not be ignored any more
 commit 6ffbf9d187613a911a3811f56667ba288c714e1f
 Author: Oliver Kurth <okurth@vmware.com>
 Date:   Fri Feb 17 13:26:23 2017 -0800

@@ -92,10 +92,8 @@ ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so
 ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so.5
 ln -sf librabbitmq.so.4.2.1 librabbitmq.so
 ln -sf librabbitmq.so.4.2.1 librabbitmq.so.4
-ln -sf libpcre.so.1.2.6 libpcre.so
-ln -sf libpcre.so.1.2.6 libpcre.so.1
-ln -sf libiconv.so.2.5.1 libiconv.so
-ln -sf libiconv.so.2.5.1 libiconv.so.2
+ln -sf libpcre.so.1 libpcre.so
+ln -sf libiconv.so.2 libiconv.so
 ln -sf libz.so.1.2.8 libz.so
 ln -sf libz.so.1.2.8 libz.so.1
 ln -sf libffi.so.6.0.4 libffi.so

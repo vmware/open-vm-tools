@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -259,6 +259,7 @@ DnDUIX11::InitGtk()
    /* RTF text DnD. */
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_APPLICATION_RTF));
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_TEXT_RICHTEXT));
+   targets.push_back(Gtk::TargetEntry(TARGET_NAME_TEXT_RTF));
 
    /* Plain text DnD. */
    targets.push_back(Gtk::TargetEntry(TARGET_NAME_UTF8_STRING));
@@ -400,6 +401,7 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
    if (CPClipboard_ItemExists(&mClipboard, CPFORMAT_RTF)) {
       targets->add(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
       targets->add(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
+      targets->add(Glib::ustring(TARGET_NAME_TEXT_RTF));
    }
 
    actions = Gdk::ACTION_COPY | Gdk::ACTION_MOVE;
@@ -1559,9 +1561,11 @@ DnDUIX11::RequestData(
    /* Then check RTF. */
    targets->add(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
    targets->add(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
+   targets->add(Glib::ustring(TARGET_NAME_TEXT_RTF));
    target = mDetWnd->drag_dest_find_target(dc, targets);
    targets->remove(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
    targets->remove(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
+   targets->remove(Glib::ustring(TARGET_NAME_TEXT_RTF));
    if (target != "") {
       mDetWnd->drag_get_data(dc, target, time);
       mNumPendingRequest++;

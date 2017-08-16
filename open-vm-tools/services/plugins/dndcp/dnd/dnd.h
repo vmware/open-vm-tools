@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -86,6 +86,7 @@
 #define TARGET_NAME_COMPOUND_TEXT            "COMPOUND_TEXT"
 #define TARGET_NAME_APPLICATION_RTF          "application/rtf"
 #define TARGET_NAME_TEXT_RICHTEXT            "text/richtext"
+#define TARGET_NAME_TEXT_RTF                 "text/rtf"
 
 #define DRAG_TARGET_NAME_URI_LIST  "text/uri-list"
 #define DRAG_LEAVE_TIMEOUT         500
