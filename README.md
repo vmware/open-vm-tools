@@ -89,8 +89,6 @@ Building Unix user-space programs:
 2. ./configure
 3. Run "make" to build Unix userland and kernel
 
-Packaging: If you are interested in creating a Tools package, please see https://sourceforge.net/apps/mediawiki/open-vm-tools/index.php?title=Packaging for more information.
-
 # Getting Involved
 ## How can I get involved today?
 You can get involved today in several different ways:
