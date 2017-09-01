@@ -76,18 +76,26 @@ Our goal is to work towards making the open source version as close to the comme
 
 ## If I use the code from the open-vm-tools project in my project/product, can I call my project/product VMware Tools?
 No, since your project/product is not a VMware project/product.
- 
+
 # Building open-vm-tools
 ## How do I build open-vm-tools?
 open-vm-tools uses the GNU Automake tool for generating Makefiles to build all sources. More information about Automake can be found here: http://www.gnu.org/software/automake/
 ## Project build information:
-Getting configure options & help: If you are looking for help or additional settings for the building of this project, the following configure command will display a list of help options: ./configure --help
-Using configure: When using configure in the steps below it is only necessary to call ./configure once unless there was a problem after the first invocation.
-Building Unix user-space programs:
+The following steps will work on most recent Linux distributions:
+```
+autoreconf -i
+./configure --without-kernel-modules
+make
+sudo make install
+sudo ldconfig
+```
 
-1. autoreconf -i
-2. ./configure
-3. Run "make" to build Unix userland and kernel
+## Getting configure options and help
+If you are looking for help or additional settings for the building of this project, the following configure command will display a list of help options:
+```
+./configure --help
+```
+When using configure in the steps above it is only necessary to call ./configure once unless there was a problem after the first invocation.
 
 # Getting Involved
 ## How can I get involved today?
