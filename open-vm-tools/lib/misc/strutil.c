@@ -302,11 +302,11 @@ StrUtil_StrToInt(int32 *out,      // OUT
    *out = (int32)val;
 
    /*
-    * Input must be complete, no overflow, and value read must fit into
-    * 32 bits - both signed and unsigned values are accepted.
+    * Input must be non-empty, complete, no overflow, and value read must fit
+    * into 32 bits - both signed and unsigned values are accepted.
     */
 
-   return *ptr == '\0' && errno != ERANGE &&
+   return ptr != str && *ptr == '\0' && errno != ERANGE &&
           (val == (int32)val || val == (uint32)val);
 }
 
@@ -344,11 +344,11 @@ StrUtil_StrToUint(uint32 *out,     // OUT
    *out = (uint32)val;
 
    /*
-    * Input must be complete, no overflow, and value read must fit into 32
-    * bits - both signed and unsigned values are accepted.
+    * Input must be non-empty, complete, no overflow, and value read must fit
+    * into 32 bits - both signed and unsigned values are accepted.
     */
 
-   return *ptr == '\0' && errno != ERANGE &&
+   return ptr != str && *ptr == '\0' && errno != ERANGE &&
           (val == (uint32)val || val == (int32)val);
 }
 
@@ -389,7 +389,7 @@ StrUtil_StrToInt64(int64 *out,      // OUT: The output value
    *out = strtoll(str, &ptr, 0);
 #endif
 
-   return ptr[0] == '\0' && errno != ERANGE;
+   return ptr != str && ptr[0] == '\0' && errno != ERANGE;
 }
 
 
@@ -429,7 +429,7 @@ StrUtil_StrToUint64(uint64 *out,     // OUT: The output value
    *out = strtoull(str, &ptr, 0);
 #endif
 
-   return ptr[0] == '\0' && errno != ERANGE && errno != EINVAL;
+   return ptr != str && ptr[0] == '\0' && errno != ERANGE && errno != EINVAL;
 }
 
 
@@ -475,7 +475,7 @@ StrUtil_StrToSizet(size_t *out,     // OUT: The output value
    *out = strtoul(str, &ptr, 0);
 #endif
 
-   return *ptr == '\0' && errno != ERANGE;
+   return ptr != str && *ptr == '\0' && errno != ERANGE;
 }
 
 
@@ -514,7 +514,7 @@ StrUtil_StrToDouble(double *out,      // OUT: The output value
     * Input must be complete and no overflow.
     */
 
-   return *ptr == '\0' && errno != ERANGE;
+   return ptr != str && *ptr == '\0' && errno != ERANGE;
 }
 
 
@@ -657,7 +657,7 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
 /*
  *-----------------------------------------------------------------------------
  *
- * StrUtil_FormatSizeInBytes --
+ * StrUtil_FormatSizeInBytesUnlocalized --
  *
  *      Format a size (in bytes) to a string in a user-friendly way.
  *
@@ -1065,7 +1065,7 @@ StrUtil_DynBufPrintf(DynBuf *b,        // IN/OUT
  *
  * StrUtil_SafeDynBufPrintf --
  *
- *      A 'safe' variant of StrUtil_SafeDynBufPrintf(), which catches
+ *      A 'safe' variant of StrUtil_DynBufPrintf(), which catches
  *      memory allocation failures and panics.
  *
  * Results:

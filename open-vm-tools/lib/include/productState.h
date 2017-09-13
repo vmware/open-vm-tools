@@ -96,6 +96,8 @@ unsigned int ProductState_GetBuildNumber(void);
 ProductCaps ProductState_GetCapabilities(void);
 const char *ProductState_GetLicenseName(void);
 const char *ProductState_GetLicenseVersion(void);
+void ProductState_SetConfigName(const char *configName);
+const char *ProductState_GetConfigName(void);
 /* etc */
 
 const char *ProductState_GetCompilationOption(void);
@@ -106,6 +108,9 @@ char *ProductState_GetRegistryPathForProduct(const char *productName);
 const char *ProductState_GetBundleIdentifier(void);
 void ProductState_GetVersionNumber(unsigned int *major, unsigned int *minor,
                                    unsigned int *patchLevel);
+
+void ProductState_SetHelp(Product helpProduct, const char *helpVersion);
+void ProductState_GetHelp(Product *helpProduct, const char **helpVersion);
 
 char *ProductState_Serialize(ProductStateSerializationFlags flags);
 ProductStateSerializationFlags ProductState_Deserialize(const char *state);

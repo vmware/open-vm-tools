@@ -1,0 +1,44 @@
+<caf:beans>
+
+	<bean
+		id="headerExpr"
+		class="com.vmware.commonagent.integration.headerexpressioninvoker" />
+
+	<bean
+		id="connectionFactory"
+		class="com.vmware.caf.comm.integration.amqp.caching.connection.factory">
+		<property name="host" value="${var:communication_amqp:broker}"/>
+		<property name="virtualHost" value="${var:communication_amqp:vhost}"/>
+		<property name="connectionTimeout" value="${var:communication_amqp:connection_timeout}"/>
+		<property name="channelCacheSize" value="${var:communication_amqp:channel_cache_size}"/>
+	</bean>
+
+	<rabbit-template
+		id="amqpTemplate"
+		connection-factory="connectionFactory"
+		reply-timeout="${var:communication_amqp:reply_timeout}" />
+
+	<rabbit-admin
+		id="amqpAdmin"
+		connection-factory="connectionFactory" />
+
+
+
+	<!-- INTEGRATION SYSTEM BEANS -->
+	<bean
+		id="errorChannelBean"
+		class="com.vmware.commonagent.integration.channels.errorchannel" />
+	<bean
+		id="nullChannelBean"
+		class="com.vmware.commonagent.integration.channels.nullchannel" />
+	<bean
+		id="integrationObjectFactory"
+		class="com.vmware.commonagent.integration.objectfactory" />
+	<bean
+		id="amqpIntegrationObjects"
+		class="com.vmware.caf.comm.integration.objects" />
+	<bean
+		id="commIntegrationObjectFactory"
+		class="com.vmware.caf.comm.integration.objectfactory" />
+
+</caf:beans>

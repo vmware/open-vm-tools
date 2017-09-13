@@ -2071,8 +2071,6 @@ FileSimpleRandom(void)
                                                         "fileSimpleRandomLock",
                                                         RANK_LEAF);
 
-   VERIFY(lck != NULL);
-
    MXUser_AcquireExclLock(lck);
 
    if (UNLIKELY(context == NULL)) {

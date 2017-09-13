@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,6 +16,12 @@
  *
  *********************************************************/
 
+/*
+ * processPosix.c --
+ *
+ *      Implementation of the POSIX process wrapper.
+ */
+
 #include "imgcust-common/log.h"
 #include "imgcust-common/process.h"
 #include <errno.h>
@@ -23,7 +29,6 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 
-// vmware headers
 #include "util.h"
 
 typedef struct _ProcessInternal {
@@ -44,19 +49,25 @@ typedef enum _ReadStatus {
    READSTATUS_ERROR
 } ReadStatus;
 
-static void ProcessRead(ProcessInternal* p, ReadStatus* status, Bool stdout, Bool readToEof);
+static void
+ProcessRead(ProcessInternal *p, ReadStatus *status, Bool out, Bool readToEof);
 
-/**
- * Create and initialize a process object
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_Create --
+ *
+ *      Create and initialize a process object.
+ *
+ *------------------------------------------------------------------------------
  */
 
-ProcessError 
-Process_Create(ProcessHandle *h,
-               char* args[],
-               void* logPtr)
+ProcessError
+Process_Create(ProcessHandle *h, char *args[], void *logPtr)
 {
    int i, numArgs;
-   ProcessInternal* p;
+   ProcessInternal *p;
    LogFunction log = (LogFunction)logPtr;
    log(log_info, "sizeof ProcessInternal is %d\n", sizeof(ProcessInternal));
    p = Util_SafeMalloc(sizeof(ProcessInternal));
@@ -83,23 +94,30 @@ Process_Create(ProcessHandle *h,
    return PROCESS_SUCCESS;
 }
 
-/**
- * Run a process until complete, collecting stdout and stderr
- * into the process object.
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_RunToComplete --
+ *
+ *      Runs a process until complete, collecting stdout and stderr into the
+ *      process object.
+ *
+ *------------------------------------------------------------------------------
  */
 
-ProcessError 
-Process_RunToComplete(ProcessHandle h, 
-                      unsigned long timeoutSec)
+ProcessError
+Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
 {
    int stdout[2];
    int stderr[2];
    int flags;
    ProcessInternal* p;
    // poll for the process to complete and read the output
-   const unsigned int OneSecondMicrosec = 1000000;
-   const unsigned int LoopSleepMicrosec = OneSecondMicrosec / 10;
-   const unsigned long timeoutLoopSleeps = timeoutSec * (OneSecondMicrosec / LoopSleepMicrosec);
+   const unsigned int OneSecMicroSec = 1000000;
+   const unsigned int LoopSleepMicrosec = OneSecMicroSec / 10;
+   const unsigned long timeoutLoopSleeps =
+      timeoutSec * (OneSecMicroSec / LoopSleepMicrosec);
    unsigned long elapsedTimeLoopSleeps;
 
    ReadStatus res_stdout = READSTATUS_UNDEFINED;
@@ -109,13 +127,13 @@ Process_RunToComplete(ProcessHandle h,
 
    stdout[0] = stdout[1] = 0;
    if (pipe(stdout) < 0) {
-      p->log(log_error, "Failed to create pipe for stdout: %s", strerror(errno));
+      p->log(log_error, "Failed to create pipe for stdout:%s", strerror(errno));
       return PROCESS_FAILED;
    }
-   
+
    stderr[0] = stderr[1] = 0;
    if (pipe(stderr) < 0) {
-      p->log(log_error, "Failed to create pipe for stderr, %s", strerror(errno));
+      p->log(log_error, "Failed to create pipe for stderr,%s", strerror(errno));
       close(stdout[0]);
       close(stdout[1]);
       return PROCESS_FAILED;
@@ -157,20 +175,20 @@ Process_RunToComplete(ProcessHandle h,
 
    while (1) {
       int processStatus;
-      const int processFinished = (waitpid(p->pid, &processStatus, WNOHANG) > 0);
+      int processFinished = (waitpid(p->pid, &processStatus, WNOHANG) > 0);
 
       if (processFinished) {
          if (WIFEXITED(processStatus)) {
             p->exitCode = WEXITSTATUS(processStatus);
-            p->log(log_info, 
+            p->log(log_info,
                    "Process exited normally after %d seconds, returned %d",
-                   elapsedTimeLoopSleeps * LoopSleepMicrosec / OneSecondMicrosec,
+                   elapsedTimeLoopSleeps * LoopSleepMicrosec / OneSecMicroSec,
                    p->exitCode);
          } else if (WIFSIGNALED(processStatus)) {
             p->exitCode = 127;
             p->log(log_error,
-                   "Process exited abnormally after %d seconds, uncaught signal %d",
-                   elapsedTimeLoopSleeps * LoopSleepMicrosec / OneSecondMicrosec,
+                   "Process exited abnormally after %d sec, uncaught signal %d",
+                   elapsedTimeLoopSleeps * LoopSleepMicrosec / OneSecMicroSec,
                    WTERMSIG(processStatus));
          }
 
@@ -181,16 +199,16 @@ Process_RunToComplete(ProcessHandle h,
             kill(p->pid, SIGKILL);
          }
 
-         // empty the pipes
+         // Empty the pipes.
          ProcessRead(p, &res_stdout, TRUE, FALSE);
          if (res_stdout == READSTATUS_ERROR) {
-            p->log(log_error, "Error occured while reading process output, killing...");
+            p->log(log_error, "Error while reading process output, killing...");
             kill(p->pid, SIGKILL);
          }
 
          ProcessRead(p, &res_stderr, FALSE, FALSE);
          if (res_stderr == READSTATUS_ERROR) {
-            p->log(log_error, "Error occured while reading process output, killing...");
+            p->log(log_error, "Error while reading process output, killing...");
             kill(p->pid, SIGKILL);
          }
 
@@ -199,15 +217,15 @@ Process_RunToComplete(ProcessHandle h,
       }
    }
 
-   // Process completed. Now read all the output to EOF
+   // Process completed. Now read all the output to EOF.
    ProcessRead(p, &res_stdout, TRUE, TRUE);
    if (res_stdout == READSTATUS_ERROR) {
-      p->log(log_error, "Error occured while reading process output, killing...");
+      p->log(log_error, "Error while reading process output, killing...");
    }
 
    ProcessRead(p, &res_stderr, FALSE, TRUE);
    if (res_stderr == READSTATUS_ERROR) {
-      p->log(log_error, "Error occured while reading process output, killing...");
+      p->log(log_error, "Error while reading process output, killing...");
    }
 
    close(stdout[1]);
@@ -215,9 +233,13 @@ Process_RunToComplete(ProcessHandle h,
    return PROCESS_SUCCESS;
 }
 
-/**
+
+/*
+ *------------------------------------------------------------------------------
  *
- * Read redirected stdout or stderr.
+ * ProcessRead --
+ *
+ *      Read redirected stdout or stderr.
  *
  * status - as IN  - holds the result from previous read operation.
  *          as OUT - returns the status from the read operation.
@@ -228,12 +250,12 @@ Process_RunToComplete(ProcessHandle h,
  * readToEof = FALSE- Just empty the pipe. This will return even if we get
  *             EAGAIN back from the read. Use this in the midst of the poll
  *             loop so the pipe doesn't fill up and block the process.
+ *
+ *------------------------------------------------------------------------------
  */
+
 static void
-ProcessRead(ProcessInternal* p,
-            ReadStatus* status, /* IN/OUT */
-            Bool stdout,
-            Bool readToEof)
+ProcessRead(ProcessInternal *p, ReadStatus *status, Bool stdout, Bool readToEof)
 {
    char buf[1024];
    size_t currSize, newSize;
@@ -292,42 +314,75 @@ ProcessRead(ProcessInternal* p,
          }
       }
    } while (1);
-}        
+}
 
-/**
- * Get the readonly stdout buffer from the object
- */   
-const char* 
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_GetStdout --
+ *
+ *      Returns process's standard output.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+const char *
 Process_GetStdout(ProcessHandle h)
 {
-   ProcessInternal* p = (ProcessInternal*)h;
+   ProcessInternal *p = (ProcessInternal *)h;
    return p->stdoutStr;
 }
 
-/**
- * Get the readonly stderr buffer from the object
- */   
-const char* 
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_GetStderr --
+ *
+ *      Returns process's standard error output.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+const char *
 Process_GetStderr(ProcessHandle h)
 {
-   ProcessInternal* p = (ProcessInternal*)h;
+   ProcessInternal *p = (ProcessInternal *)h;
    return p->stderrStr;
 }
 
-/**
- * Get the process return code
- */   
-int 
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_GetExitCode --
+ *
+ *      Returns process's exit code.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+int
 Process_GetExitCode(ProcessHandle h)
 {
-   ProcessInternal* p = (ProcessInternal*)h;
+   ProcessInternal *p = (ProcessInternal *)h;
    return p->exitCode;
 }
 
-/**
- * clean up
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_Destroy --
+ *
+ *      Destroys the process and returns result of the operation.
+ *
+ *------------------------------------------------------------------------------
  */
-ProcessError Process_Destroy(ProcessHandle h)
+
+ProcessError
+Process_Destroy(ProcessHandle h)
 {
    ProcessInternal* p;
    int i;

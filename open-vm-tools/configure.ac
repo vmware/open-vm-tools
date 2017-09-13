@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="10.0.5"
+TOOLS_VERSION="10.0.0"
 AC_INIT(
    [open-vm-tools],
-   [10.0.5],
+   [10.0.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -153,7 +153,7 @@ if test "$with_kernel_modules" = "yes"; then
          fi
          LINUXINCLUDE="$LINUXDIR/build/include"
          if test ! -d "$LINUXINCLUDE"; then
-            AC_MSG_ERROR([Can't find include dir under $LINUXDIR])
+            AC_MSG_ERROR([Cannot find include dir under $LINUXDIR])
          fi
          ;;
 
@@ -362,7 +362,7 @@ AC_CHECK_PROG([have_genmarshal],
               [no])
 
 if test "$have_genmarshal" != "yes"; then
-   AC_MSG_ERROR([glib-genmarshal is required; make sure it's available in your path.])
+   AC_MSG_ERROR([glib-genmarshal is required; make sure it is available in your path.])
 fi
 
 #
@@ -407,15 +407,26 @@ AC_ARG_ENABLE([vgauth],
    [],
    [enable_vgauth=yes])
 
+if test "$enable_vgauth" = "yes" ; then
+   AC_ARG_ENABLE([caf],
+      [AS_HELP_STRING([--disable-caf],
+        [do not build CAF (Common Agent Framework).])],
+      [],
+      [enable_caf=no])
+else
+   enable_caf=no
+fi
+
 #
 # Check for openssl, xerces-c and xml-security-c
 #
 AC_ARG_WITH([ssl],
    [AS_HELP_STRING([--without-ssl],
-     [compiles without openssl support (disables grabbitmqproxy and vgauth).])],
+     [compiles without openssl support (disables grabbitmqproxy, vgauth and CAF).])],
    [
      enable_grabbitmqproxy=no
      enable_vgauth=no
+     enable_caf=no
    ],
    [with_ssl=yes])
 
@@ -431,15 +442,18 @@ AC_ARG_WITH([xerces],
    [enable_vgauth=no],
    [with_xerces=yes])
 
+# Make sure we are building with openssl 1.0.1 and above so that
+# we use only TLSv1_2.
+
 if test "$enable_vgauth" = "yes" -o "$enable_grabbitmqproxy" = "yes"; then
    AC_VMW_DEFAULT_FLAGS([SSL])
    AC_VMW_CHECK_LIB([ssl],
                     [SSL],
+                    [openssl],
                     [],
+                    [1.0.1],
                     [],
-                    [],
-                    [],
-                    [],
+                    [BIO_new_file],
                     [],
                     [AC_VMW_LIB_ERROR([SSL], [ssl])])
 fi
@@ -467,6 +481,8 @@ if test "$enable_vgauth" = "yes"; then
                     [],
                     [],
                     [AC_VMW_LIB_ERROR([XMLSECURITY], [xml-security-c])])
+else
+   enable_caf=no
 fi
 
 #
@@ -514,7 +530,7 @@ else
       [X11/extensions/extutil.h],
       [],
       [AC_MSG_ERROR(
-         [X11/extensions/extutil.h header not found - you're probably on Solaris 10 or older. Please copy that header file onto your system manually, or configure without X11 (using --without-x).])],
+         [X11/extensions/extutil.h header not found - you are probably on Solaris 10 or older. Please copy that header file onto your system manually, or configure without X11 (using --without-x).])],
       [#include <X11/Xlib.h>
        #include <X11/Xproto.h>])
 
@@ -619,6 +635,28 @@ else
                          [],
                          [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
                          [AC_MSG_ERROR([gtkmm library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm.])])
+
+      #
+      # libsigc++-2.0 >= 2.5.1 requires C++11 support
+      #
+      # Calling AC_VMW_CHECK_LIBXX would duplicate the sigc++
+      # flags we would have already got as part of gtkmm call
+      # above. This is OK because we are not seeing any issues
+      # because of this and calling AC_VMW_CHECK_LIBXX function
+      # provides other benefits like picking custom flags.
+      #
+      # AC_VMW_CHECK_LIBXX sets CPPFLAGS and LIBS variables only,
+      # so we have to use SIGCXX_CPPFLAGS instead of SIGCXX_CXXFLAGS.
+      #
+      AC_VMW_CHECK_LIBXX([sigc++-2.0],
+                         [SIGCXX],
+                         [sigc++-2.0],
+                         [],
+                         [2.5.1],
+                         [sigc++.h],
+                         [],
+                         [SIGCXX_CPPFLAGS="$SIGCXX_CPPFLAGS -std=c++11"],
+                         [SIGCXX_CPPFLAGS="$SIGCXX_CPPFLAGS"])
    fi
 fi # End of checks for X libraries
 
@@ -644,6 +682,8 @@ AC_CHECK_FUNCS(
 
 AC_CHECK_FUNCS([ecvt])
 AC_CHECK_FUNCS([fcvt])
+
+AC_CHECK_FUNC([mkdtemp], [have_mkdtemp=yes])
 
 if test "$os" = "freebsd" -a "$osVersion" -ge 600000; then
    AC_CHECK_LIB(
@@ -779,7 +819,7 @@ if test "$with_dnet" = "yes"; then
                     [dumbnet.h],
                     [intf_open],
                     [have_dnet="yes";
-                     AC_DEFINE([DNET_IS_DUMBNET], 1, [Define to 1 if substituting Debian's libdumbnet for libdnet.])],
+                     AC_DEFINE([DNET_IS_DUMBNET], 1, [Define to 1 if substituting libdumbnet for libdnet in Debian.])],
                     [])
 
    if test $have_dnet = "no"; then
@@ -849,6 +889,52 @@ if test "$with_icu" = "yes"; then
    CPPFLAGS="$CPPFLAGS $ICU_CPPFLAGS"
 else
    CPPFLAGS="$CPPFLAGS -DNO_ICU"
+fi
+
+if test "$enable_caf" = "yes"; then
+    AC_VMW_CHECK_LIBXX([log4cpp],
+                       [LOG4CPP],
+                       [],
+                       [log4cpp-config],
+                       [],
+                       [Appender.hh],
+                       [],
+                       [have_log4cpp="yes"],
+                       [AC_VMW_LIB_ERROR([LOG4CPP], [log4cpp])])
+
+    AC_VMW_CHECK_LIB([rabbitmq],
+                       [LIBRABBITMQ],
+                       [librabbitmq],
+                       [],
+                       [0.7.1],
+                       [amqp_tcp_socket.h],
+                       [],
+                       [have_librabbitmq="yes"],
+                       [AC_VMW_LIB_ERROR([LIBRABBITMQ], [librabbitmq])])
+
+    #
+    # CAF requires glib 2.34 or greater.
+    #
+    AC_VMW_CHECK_LIB([glib-2.0],
+                     [GLIB2],
+                     [glib-2.0],
+                     [],
+                     [2.34.0],
+                     [glib.h],
+                     [g_key_file_new],
+                     [],
+                     [AC_MSG_ERROR([glib2 >= 2.34.0 is required.])])
+
+    AC_VMW_CHECK_LIB([gthread-2.0],
+                     [GTHREAD],
+                     [gthread-2.0],
+                     [],
+                     [2.34.0],
+                     [],
+                     [],
+                     [],
+                     [AC_MSG_ERROR([glib >= 2.34.0 is required.])])
+
 fi
 
 AC_PATH_PROG(
@@ -1154,7 +1240,9 @@ AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")
 AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
 AM_CONDITIONAL(ENABLE_GRABBITMQPROXY, test "$enable_grabbitmqproxy" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
+AM_CONDITIONAL(ENABLE_CAF, test "$enable_caf" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
+AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1209,6 +1297,15 @@ COMMON_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/common
 VMSVC_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmsvc
 VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
+# Installation directories for caf binary/so files
+#CAF_PME_BIN_DIR=${sbindir}/vmware-caf/pme/bin
+CAF_PME_BIN_DIR=${libdir}/open-vm-tools/vmware-caf/pme/bin
+CAF_PME_LIB_DIR=${libdir}/open-vm-tools/vmware-caf/pme/lib
+
+# Installation directories for caf subsys so files
+CAF_SUBSYS_DIR=${libdir}/open-vm-tools/vmware-caf/pme/lib
+CAF_SUBSYS_LDFLAGS="-Wl,-z,defs -Wl,-lc -shared -module -avoid-version"
+
 # General definitions
 INSTVMSG='$(SHELL) $(top_srcdir)/scripts/build/instvmsg.sh'
 RPCGEN_WRAPPER='$(SHELL) $(top_builddir)/scripts/build/rpcgen_wrapper.sh'
@@ -1237,6 +1334,10 @@ AC_SUBST([TEST_PLUGIN_INSTALLDIR])
 AC_SUBST([COMMON_PLUGIN_INSTALLDIR])
 AC_SUBST([VMSVC_PLUGIN_INSTALLDIR])
 AC_SUBST([VMUSR_PLUGIN_INSTALLDIR])
+AC_SUBST([CAF_SUBSYS_DIR])
+AC_SUBST([CAF_SUBSYS_LDFLAGS])
+AC_SUBST([CAF_PME_BIN_DIR])
+AC_SUBST([CAF_PME_LIB_DIR])
 if test "$os" = "freebsd" -a -n "$SYSDIR"; then
    # If SYSDIR is not defined, AC_SUBST expands to nothing, so we need something
    # inside this block.
@@ -1334,6 +1435,7 @@ AC_CONFIG_FILES([                      \
    rpctool/Makefile                    \
    guestproxycerttool/Makefile         \
    vgauth/Makefile                     \
+   namespacetool/Makefile              \
    vgauth/lib/Makefile                 \
    vgauth/cli/Makefile                 \
    vgauth/service/Makefile             \
@@ -1343,6 +1445,18 @@ AC_CONFIG_FILES([                      \
    libDeployPkg/libDeployPkg.pc        \
    libhgfs/Makefile                    \
    libvmtools/Makefile                 \
+   common-agent/Cpp/Framework/Makefile \
+   common-agent/Cpp/Communication/Makefile \
+   common-agent/Cpp/InternalProviders/Makefile \
+   common-agent/Cpp/ManagementAgent/Makefile \
+   common-agent/Cpp/ProviderFx/Makefile \
+   common-agent/input/Makefile         \
+   common-agent/input/invokers/Makefile \
+   common-agent/input/providerReg/Makefile \
+   common-agent/etc/Makefile           \
+   common-agent/etc/config/Makefile    \
+   common-agent/etc/scripts/Makefile   \
+   common-agent/etc/install/Makefile   \
    xferlogs/Makefile                   \
    modules/Makefile                    \
    vmblock-fuse/Makefile               \
@@ -1355,7 +1469,7 @@ AC_CONFIG_FILES([                      \
    tests/testVmblock/Makefile          \
    docs/Makefile                       \
    docs/api/Makefile                   \
-   scripts/Makefile		               \
+   scripts/Makefile                    \
    scripts/build/rpcgen_wrapper.sh     \
 ])
 

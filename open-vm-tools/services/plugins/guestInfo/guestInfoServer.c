@@ -368,61 +368,6 @@ GuestInfoGather(gpointer data)
 
 /*
  ******************************************************************************
- * GuestInfoStatsGather --                                               */ /**
- *
- * Collects all the desired guest stats and updates the VMX.
- *
- * @param[in]  data     The application context.
- *
- * @return TRUE to indicate that the timer should be rescheduled.
- *
- ******************************************************************************
- */
-
-static gboolean
-GuestInfoStatsGather(gpointer data)
-{
-#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   ToolsAppCtx *ctx = data;
-   DynBuf stats;
-#endif
-#if defined(_WIN32)
-   gboolean perfmonLogStats;
-#endif
-
-   g_debug("Entered guest info stats gather.\n");
-
-#if defined(_WIN32)
-   perfmonLogStats = g_key_file_get_boolean(ctx->config,
-                                            CONFGROUPNAME_GUESTINFO,
-                                            CONFNAME_GUESTINFO_ENABLESTATLOGGING,
-                                            NULL);
-
-   GuestInfo_SetStatLogging(perfmonLogStats);
-#endif
-
-#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   /* Send the vmstats to the VMX. */
-   DynBuf_Init(&stats);
-
-   if (GuestInfo_PerfMon(&stats)) {
-      if (!GuestInfoUpdateVmdb(ctx, INFO_MEMORY, DynBuf_Get(&stats),
-                               DynBuf_GetSize(&stats))) {
-         g_warning("Failed to send vmstats.\n");
-      }
-   } else {
-      g_warning("Failed to get vmstats.\n");
-   }
-
-   DynBuf_Destroy(&stats);
-#endif
-
-   return TRUE;
-}
-
-
-/*
- ******************************************************************************
  * GuestInfoConvertNicInfoToNicInfoV1 --                                 */ /**
  *
  * Converts V3 XDR NicInfo to hand-packed GuestNicInfoV1.
@@ -1307,25 +1252,27 @@ TweakGatherLoop(ToolsAppCtx *ctx,
       }
    }
 
-   /*
-    * If the interval hasn't changed, let's not interfere with the existing
-    * timeout source.
-    */
-   if (pollInterval == *currInterval) {
-      ASSERT(pollInterval || *timeoutSource == NULL);
-      return;
-   }
-
-   /*
-    * All checks have passed.  Destroy the existing timeout source, if it
-    * exists, then create and attach a new one.
-    */
-
    if (*timeoutSource != NULL) {
+      /*
+       * If the interval hasn't changed, let's not interfere with the existing
+       * timeout source.
+       */
+      if (pollInterval == *currInterval) {
+         ASSERT(pollInterval);
+         return;
+      }
+
+      /*
+       * Destroy the existing timeout source since the interval has changed.
+       */
+
       g_source_destroy(*timeoutSource);
       *timeoutSource = NULL;
    }
 
+   /*
+    * All checks have passed.  Create a new timeout source and attach it.
+    */
    *currInterval = pollInterval;
 
    if (*currInterval) {
@@ -1362,6 +1309,7 @@ static void
 TweakGatherLoops(ToolsAppCtx *ctx,
                  gboolean enable)
 {
+#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
    gboolean perfmonEnabled;
 
    perfmonEnabled = !g_key_file_get_boolean(ctx->config,
@@ -1376,7 +1324,7 @@ TweakGatherLoops(ToolsAppCtx *ctx,
       TweakGatherLoop(ctx, enable,
                       CONFNAME_GUESTINFO_STATSINTERVAL,
                       GUESTINFO_STATS_INTERVAL,
-                      GuestInfoStatsGather,
+                      GuestInfo_StatProviderPoll,
                       &guestInfoStatsInterval,
                       &gatherStatsTimeoutSource);
    } else {
@@ -1390,6 +1338,7 @@ TweakGatherLoops(ToolsAppCtx *ctx,
          g_info("PerfMon gather loop disabled.\n");
       }
    }
+#endif
 
    /*
     * Tweak GuestInfo gather loop
@@ -1400,6 +1349,34 @@ TweakGatherLoops(ToolsAppCtx *ctx,
                    GuestInfoGather,
                    &guestInfoPollInterval,
                    &gatherInfoTimeoutSource);
+}
+
+
+/*
+ ******************************************************************************
+ *
+ * GuestInfo_ServerReportStats --
+ *
+ *      Report gathered stats.
+ *
+ * Results:
+ *      Stats reported to VMX/VMDB. Returns FALSE on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ ******************************************************************************
+ */
+
+Bool
+GuestInfo_ServerReportStats(
+   ToolsAppCtx *ctx,  // IN
+   DynBuf *stats)     // IN
+{
+   return GuestInfoUpdateVmdb(ctx,
+                              INFO_MEMORY,
+                              DynBuf_Get(stats),
+                              DynBuf_GetSize(stats));
 }
 
 

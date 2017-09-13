@@ -351,6 +351,19 @@ typedef uint32    uintptr_t;
 #endif
 
 
+#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+
+typedef unsigned __int128 uint128;
+typedef          __int128  int128;
+
+#define MIN_INT128   ((int128)1 << 127)
+#define MAX_INT128   (~MIN_INT128)
+#define MIN_UINT128  ((uint128)0)
+#define MAX_UINT128  (~MIN_UINT128)
+
+#endif
+
+
 /*
  * Time
  * XXX These should be cleaned up.  -- edward

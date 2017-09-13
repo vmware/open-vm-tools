@@ -42,6 +42,9 @@
 #define ZONEINFO_FILE    "/proc/zoneinfo"
 #define SWAPPINESS_FILE  "/proc/sys/vm/swappiness"
 
+#define PUBLISH_P1_2015_STATS         1
+#define PUBLISH_P1_2016_STATS         1
+#define PUBLISH_P2_STATS              1
 
 /*
  * For now, all data collection is of uint64 values. Rates are always returned
@@ -50,8 +53,9 @@
  * TODO: Deal with collected and reported data types being different.
  */
 
+#define STAT_FLAG(x) PUBLISH_##x##_STATS
 #define DECLARE_STAT(collect, publish, file, isRegExp, locatorString, reportID, units, dataType) \
-   { file, collect, publish, isRegExp, locatorString, reportID, units, dataType }
+   { file, STAT_FLAG(collect), STAT_FLAG(publish), isRegExp, locatorString, reportID, units, dataType }
 
 typedef struct {
    const char         *sourceFile;
@@ -65,28 +69,54 @@ typedef struct {
 } GuestInfoQuery;
 
 GuestInfoQuery guestInfoQuerySpecTable[] = {
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "Hugepagesize",    GuestStatID_HugePageSize,             GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, ZONEINFO_FILE,TRUE,  "present",         GuestStatID_MemPhysUsable,            GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "MemFree",         GuestStatID_MemFree,                  GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "Active(file)",    GuestStatID_MemActiveFileCache,       GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "SwapFree",        GuestStatID_SwapSpaceRemaining,       GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "HugePages_Total", GuestStatID_Linux_HugePagesTotal,     GuestUnitsHugePages, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, VMSTAT_FILE,  FALSE, "pgpgin",          GuestStatID_PageInRate,               GuestUnitsPagesPerSecond,  GuestTypeDouble),
-   DECLARE_STAT(TRUE, TRUE, VMSTAT_FILE,  FALSE, "pgpgout",         GuestStatID_PageOutRate,              GuestUnitsPagesPerSecond,  GuestTypeDouble),
-   DECLARE_STAT(TRUE, TRUE, STAT_FILE,    FALSE, "ctxt",            GuestStatID_ContextSwapRate,          GuestUnitsNumberPerSecond, GuestTypeDouble),
-   DECLARE_STAT(TRUE, TRUE, NULL,         FALSE, NULL,              GuestStatID_PhysicalPageSize,         GuestUnitsBytes, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2015, MEMINFO_FILE, FALSE, "Hugepagesize",    GuestStatID_HugePageSize,             GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2015, ZONEINFO_FILE,TRUE,  "present",         GuestStatID_MemPhysUsable,            GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2015, MEMINFO_FILE, FALSE, "MemFree",         GuestStatID_MemFree,                  GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2015, MEMINFO_FILE, FALSE, "Active(file)",    GuestStatID_MemActiveFileCache,       GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2015, MEMINFO_FILE, FALSE, "SwapFree",        GuestStatID_SwapSpaceRemaining,       GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2015, MEMINFO_FILE, FALSE, "HugePages_Total", GuestStatID_Linux_HugePagesTotal,     GuestUnitsHugePages, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2015, VMSTAT_FILE,  FALSE, "pgpgin",          GuestStatID_PageInRate,               GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P1_2015, P1_2015, VMSTAT_FILE,  FALSE, "pgpgout",         GuestStatID_PageOutRate,              GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P1_2015, P1_2015, STAT_FILE,    FALSE, "ctxt",            GuestStatID_ContextSwapRate,          GuestUnitsNumberPerSecond, GuestTypeDouble),
+   DECLARE_STAT(P1_2015, P1_2015, NULL,         FALSE, NULL,              GuestStatID_PhysicalPageSize,         GuestUnitsBytes, GuestTypeUint64),
 
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "MemAvailable",    GuestStatID_Linux_MemAvailable,       GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "Inactive(file)",  GuestStatID_Linux_MemInactiveFile,    GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "SReclaimable",    GuestStatID_Linux_MemSlabReclaim,     GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "Buffers",         GuestStatID_Linux_MemBuffers,         GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "Cached",          GuestStatID_Linux_MemCached,          GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, NULL,         FALSE, NULL,              GuestStatID_SwapSpaceUsed,            GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2016, MEMINFO_FILE, FALSE, "MemAvailable",    GuestStatID_Linux_MemAvailable,       GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2016, MEMINFO_FILE, FALSE, "Inactive(file)",  GuestStatID_Linux_MemInactiveFile,    GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2016, MEMINFO_FILE, FALSE, "SReclaimable",    GuestStatID_Linux_MemSlabReclaim,     GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2016, MEMINFO_FILE, FALSE, "Buffers",         GuestStatID_Linux_MemBuffers,         GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2016, MEMINFO_FILE, FALSE, "Cached",          GuestStatID_Linux_MemCached,          GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P1_2016, NULL,         FALSE, NULL,              GuestStatID_SwapSpaceUsed,            GuestUnitsKiB, GuestTypeUint64),
 
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE,  FALSE, "MemTotal",       GuestStatID_Linux_MemTotal,           GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE,  FALSE, "SwapTotal",      GuestStatID_SwapFilesCurrent,         GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, NULL,          FALSE,  NULL,            GuestStatID_SwapFilesMax,             GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, ZONEINFO_FILE, TRUE,  "low",            GuestStatID_Linux_LowWaterMark,       GuestUnitsPages, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P2,      MEMINFO_FILE, FALSE, "MemTotal",        GuestStatID_Linux_MemTotal,           GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P2,      MEMINFO_FILE,  FALSE, "SwapTotal",      GuestStatID_SwapFilesCurrent,         GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P2,      NULL,          FALSE,  NULL,            GuestStatID_SwapFilesMax,             GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2015, P2,      ZONEINFO_FILE, TRUE,  "low",            GuestStatID_Linux_LowWaterMark,       GuestUnitsPages, GuestTypeUint64),
+
+#if PUBLISH_P1_2016_STATS
+   DECLARE_STAT(P1_2016, P1_2016, MEMINFO_FILE, FALSE, "Active(anon)",    GuestStatID_Linux_MemActiveAnon,      GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2016, P1_2016, MEMINFO_FILE, FALSE, "Inactive(anon)",  GuestStatID_Linux_MemInactiveAnon,    GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2016, P1_2016, MEMINFO_FILE, FALSE, "Inactive",        GuestStatID_Linux_MemInactive,        GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2016, P1_2016, MEMINFO_FILE, FALSE, "Active",          GuestStatID_Linux_MemActive,          GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2016, P1_2016, MEMINFO_FILE, FALSE, "Unevictable",     GuestStatID_Linux_MemPinned,          GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2016, P1_2016, MEMINFO_FILE, FALSE, "Dirty",           GuestStatID_Linux_MemDirty,           GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P1_2016, P1_2016, VMSTAT_FILE,  FALSE, "pswpin",          GuestStatID_PageSwapInRate,           GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P1_2016, P1_2016, VMSTAT_FILE,  FALSE, "pswpout",         GuestStatID_PageSwapOutRate,          GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P1_2016, P1_2016, NULL,         FALSE, NULL,              GuestStatID_ThreadCreationRate,       GuestUnitsNumberPerSecond, GuestTypeDouble),
+   DECLARE_STAT(P1_2016, P1_2016, SWAPPINESS_FILE, FALSE, NULL,           GuestStatID_Linux_Swappiness,         GuestUnitsPercent, GuestTypeUint64),
+#endif
+
+#if PUBLISH_P2_STATS
+   DECLARE_STAT(P2,      P2,      MEMINFO_FILE, FALSE, "SwapCached",      GuestStatID_Linux_MemSwapCached,      GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P2,      P2,      MEMINFO_FILE, FALSE, "Committed_AS",    GuestStatID_Linux_MemCommitted,       GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(P2,      P2,      MEMINFO_FILE, FALSE, "HugePages_Free",  GuestStatID_Linux_HugePagesFree,      GuestUnitsHugePages, GuestTypeUint64),
+   DECLARE_STAT(P2,      P2,      VMSTAT_FILE,  FALSE, "pgfault",         GuestStatID_Linux_PageFaultRate,      GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P2,      P2,      VMSTAT_FILE,  FALSE, "pgmajfault",      GuestStatID_Linux_PageMajorFaultRate, GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P2,      P2,      VMSTAT_FILE,  FALSE, "pgfree",          GuestStatID_Linux_PageFreeRate,       GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P2,      P2,      VMSTAT_FILE,  TRUE,  "pgsteal_",        GuestStatID_Linux_PageStealRate,      GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P2,      P2,      VMSTAT_FILE,  TRUE,  "pgscan_kswapd_",  GuestStatID_Linux_PageSwapScanRate,   GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P2,      P2,      VMSTAT_FILE,  TRUE,  "pgscan_direct_",  GuestStatID_Linux_PageDirectScanRate, GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(P2,      P2,      STAT_FILE,    FALSE, "processes",       GuestStatID_ProcessCreationRate,      GuestUnitsNumberPerSecond, GuestTypeDouble),
+#endif
 };
 
 #define N_QUERIES (sizeof guestInfoQuerySpecTable / sizeof(GuestInfoQuery))
@@ -370,6 +400,64 @@ GuestInfoProcData(const char *pathName,           // IN: path name
 /*
  *----------------------------------------------------------------------
  *
+ * GuestInfoProcSimpleValue --
+ *
+ *      Reads the specified /proc file, extracts a single, simple value and
+ *      adds it to the collection.
+ *
+ * Results:
+ *      TRUE   Success!
+ *      FALSE  Failure!
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+#if PUBLISH_P1_2016_STATS
+
+static Bool
+GuestInfoProcSimpleValue(const char *pathName,           // IN:
+                         GuestStatToolsID reportID,      // IN:
+                         GuestInfoCollector *collector)  // IN/OUT:
+{
+   char line[4096];
+   uint64 value = 0;
+   FILE *fp = Posix_Fopen(pathName, "r");
+   Bool success = FALSE;
+
+   if (fp == NULL) {
+      g_warning("%s: Error opening %s.\n", __FUNCTION__, pathName);
+      return success;
+   }
+
+   if (fgets(line, sizeof line, fp) != NULL) {
+      if (sscanf(line, "%"FMT64"u", &value) == 1) {
+         success = TRUE;
+      }
+   }
+
+   fclose(fp);
+
+   if (success) {
+      GuestInfoStat *stat = NULL;
+
+      HashTable_Lookup(collector->reportMap, INT_AS_HASHKEY(reportID),
+                       (void **) &stat);
+
+      if (stat != NULL) {
+         GuestInfoStoreStat(pathName, stat, value);
+      }
+   }
+
+   return success;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * GuestInfoDeriveSwapData --
  *
  *      Update the swap stats that are calculated rather than fetched.
@@ -481,6 +569,10 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN:
    GuestInfoProcData(VMSTAT_FILE, collector);
    GuestInfoProcData(STAT_FILE, collector);
    GuestInfoProcData(ZONEINFO_FILE, collector);
+#if PUBLISH_P1_2016_STATS
+   GuestInfoProcSimpleValue(SWAPPINESS_FILE, GuestStatID_Linux_Swappiness,
+                            collector);
+#endif
    GuestInfoDeriveSwapData(collector);
 
    collector->timeData = GuestInfoGetUpTime(&collector->timeStamp);
@@ -547,7 +639,7 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN:
 
 static void
 GuestInfoLegacy(GuestInfoCollector *current,  // IN: current collection
-                GuestMemInfo *legacy)         // OUT: data filled out
+                GuestMemInfoLegacy *legacy)   // OUT: data filled out
 {
    GuestInfoStat *stat;
 
@@ -891,6 +983,7 @@ GuestInfoAppendMemNeeded(GuestInfoCollector *current,  // IN: current collection
       memNeededReservation = 0;
    }
 
+#if PUBLISH_P1_2015_STATS
    GuestInfoAppendStat(0,
                        emitNameSpace,
                        GuestStatID_MemNeeded,
@@ -900,6 +993,17 @@ GuestInfoAppendMemNeeded(GuestInfoCollector *current,  // IN: current collection
                        statBuf);
 
    emitNameSpace = FALSE;
+#endif
+
+#if PUBLISH_P2_STATS
+   GuestInfoAppendStat(0,
+                       emitNameSpace,
+                       GuestStatID_MemNeededReservation,
+                       GuestUnitsKiB, GuestTypeUint64,
+                       &memNeededReservation,
+                       GuestInfoBytesNeededUIntDatum(memNeededReservation),
+                       statBuf);
+#endif
 }
 
 
@@ -949,7 +1053,7 @@ GuestInfoEncodeStats(GuestInfoCollector *current,   // IN: current collection
                      DynBuf *statBuf)               // IN/OUT: stats data
 {
    uint32 i;
-   GuestMemInfo legacy;
+   GuestMemInfoLegacy legacy;
    Bool emitNameSpace = TRUE;
 
    /* Provide legacy data for backwards compatibility */
@@ -1108,7 +1212,7 @@ GuestInfoConstructCollector(GuestInfoQuery *queries,  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * GuestInfo_PerfMon --
+ * GuestInfoTakeSample --
  *
  *      Gather performance stats.
  *
@@ -1123,7 +1227,7 @@ GuestInfoConstructCollector(GuestInfoQuery *queries,  // IN:
  */
 
 Bool
-GuestInfo_PerfMon(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
+GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
 {
    GuestInfoCollector *temp;
    static GuestInfoCollector *current = NULL;
@@ -1168,3 +1272,40 @@ GuestInfo_PerfMon(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
    return TRUE;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GuestInfo_StatProviderPoll --
+ *
+ *      Called when a new stat sample is requested. GuestInfo_ReportStats
+ * should be called once the sample is available. If gathering is taking
+ * longer than sampling frequency, the request may be ignored.
+ *
+ * @param[in]  data     The application context.
+ *
+ * @return TRUE to indicate that the timer should be rescheduled.
+ *
+ *----------------------------------------------------------------------
+ */
+
+gboolean
+GuestInfo_StatProviderPoll(gpointer data)
+{
+   ToolsAppCtx *ctx = data;
+   DynBuf stats;
+
+   g_debug("Entered guest info stats gather.\n");
+
+   /* Send the vmstats to the VMX. */
+   DynBuf_Init(&stats);
+
+   if (!GuestInfoTakeSample(&stats)) {
+      g_warning("Failed to get vmstats.\n");
+   } else if (!GuestInfo_ServerReportStats(ctx, &stats)) {
+      g_warning("Failed to send vmstats.\n");
+   }
+
+   DynBuf_Destroy(&stats);
+   return TRUE;
+}

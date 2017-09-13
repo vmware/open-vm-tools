@@ -227,7 +227,7 @@ DynBuf_AppendString(DynBuf *buf,         // IN/OUT
                     const char *string)  // IN
 {
    /*
-    * Make sure to copy the NULL.
+    * Make sure to copy the NUL.
     */
    return DynBuf_Append(buf, string, strlen(string) + 1);
 }

@@ -18,7 +18,7 @@
 lib_LTLIBRARIES = libDeployPkg.la
 
 AM_CFLAGS =
-AM_CFLAGS += -I$(top_builddir)/include
+AM_CFLAGS += -I$(top_srcdir)/include
 AM_CFLAGS += $(MSPACK_CPPFLAGS)
 
 libDeployPkg_la_LIBADD =

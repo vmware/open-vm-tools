@@ -1,0 +1,32 @@
+#!/bin/sh
+
+helpMessage() {
+   local defStartType=$1
+
+   echo "*** $0 {startType}"
+   echo "  Starts VgAuth"
+   echo "    startType: How to start the listener (daemon, foreground, valgrindMemChecks, valgrindProfiling) [default: $defStartType]"
+   exit 1
+}
+
+startType="daemon"
+if [ $# -gt 1 -o "$1" = "--help" ]; then
+   helpMessage "$startType"
+fi
+if [ $# -ge 1 ]; then
+   startType=$1
+fi
+
+scriptsDir=$(dirname $(readlink -f $0))
+configDir=$scriptsDir/../config
+
+. $scriptsDir/caf-common
+sourceCafenv "$configDir"
+
+processName="VGAuthService"
+
+export LD_LIBRARY_PATH=$CAF_ROOT_DIR/lib
+
+#enableCoreFiles
+
+startVgAuthProcess "$startType" "$CAF_LOG_DIR" "$CAF_BIN_DIR" "$processName"

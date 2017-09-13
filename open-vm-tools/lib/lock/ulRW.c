@@ -457,13 +457,7 @@ MXUser_CreateRWLock(const char *userName,  // IN:
 
       MXUserAddToList(&lock->header);
    } else {
-      if (lock->useNative) {
-         MXUserNativeRWDestroy(&lock->nativeLock);
-      }
-
-      free(properName);
-      free(lock);
-      lock = NULL;
+      Panic("%s: native lock initialization routine failed\n", __FUNCTION__);
    }
 
    return lock;

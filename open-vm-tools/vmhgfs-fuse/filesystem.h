@@ -26,8 +26,12 @@
 #ifndef _HGFS_DRIVER_FILESYSTEM_H_
 #define _HGFS_DRIVER_FILESYSTEM_H_
 
+#define G_LOG_DOMAIN "vmhgfs-fuse"
+
 #include "vm_basic_types.h"
 #include <sys/statvfs.h>
+#include "vmware/tools/utils.h"
+#include "vmware/tools/log.h"
 
 typedef struct HgfsFuseState {
    Bool sessionEnabled;
@@ -40,6 +44,8 @@ typedef struct HgfsFuseState {
     */
    char *basePath;
    size_t basePathLen;
+
+   GKeyFile *conf;
 
 } HgfsFuseState;
 

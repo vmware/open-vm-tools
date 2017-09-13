@@ -128,8 +128,10 @@ DECLARE_COMMAND(Script);
 DECLARE_COMMAND(Stat);
 DECLARE_COMMAND(TimeSync);
 DECLARE_COMMAND(Logging);
+DECLARE_COMMAND(Info);
 
-#if defined(_WIN32) || (defined(linux) && !defined(OPEN_VM_TOOLS))
+#if defined(_WIN32) || \
+   (defined(linux) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
 DECLARE_COMMAND(Upgrade);
 #endif
 

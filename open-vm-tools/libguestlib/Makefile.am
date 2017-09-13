@@ -18,7 +18,7 @@
 lib_LTLIBRARIES = libguestlib.la
 
 AM_CFLAGS =
-AM_CFLAGS += -I$(top_builddir)/include
+AM_CFLAGS += -I$(top_srcdir)/include
 
 libguestlib_la_LIBADD =
 libguestlib_la_LIBADD += @VMTOOLS_LIBS@

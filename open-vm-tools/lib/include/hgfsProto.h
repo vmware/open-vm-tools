@@ -175,22 +175,7 @@ MY_ASSERTS(hgfsOpValuesAsserts,
 #define HGFS_REQ_GET_PAYLOAD_V3(hgfsReq) ((char *)(hgfsReq) + sizeof(HgfsRequest))
 #define HGFS_REP_GET_PAYLOAD_V3(hgfsRep) ((char *)(hgfsRep) + sizeof(HgfsReply))
 
-/*
- * File types, used in HgfsAttr. We support regular files,
- * directories, and symlinks.
- *
- * Changing the order of this enum will break the protocol; new types
- * should be added at the end.
- */
-
-typedef enum {
-   HGFS_FILE_TYPE_REGULAR,
-   HGFS_FILE_TYPE_DIRECTORY,
-   HGFS_FILE_TYPE_SYMLINK,
-} HgfsFileType;
-
-
-/*
+ /*
  * Open flags.
  *
  * Changing the order of this enum will break stuff.  Do not add any flags to

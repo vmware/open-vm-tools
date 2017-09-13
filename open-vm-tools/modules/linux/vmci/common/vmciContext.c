@@ -1621,6 +1621,8 @@ VMCIContextDgHypervisorSaveStateSize(VMCIContext *context,  // IN
    uint32 total;
    VMCIListItem *iter;
 
+   UNREFERENCED_PARAMETER(cptBufPtr);
+
    *bufSize = total = 0;
 
    VMCIList_Scan(iter, &context->datagramQueue) {
@@ -1678,7 +1680,7 @@ VMCIContextDgHypervisorSaveState(VMCIContext *context,   // IN
       return VMCI_ERROR_NO_MEM;
    }
 
-   *cptBufPtr = p;
+   *cptBufPtr = (char *)p;
 
    /* Leave space for the datagram count at the start. */
    total  = sizeof(uint32);
@@ -2420,6 +2422,9 @@ vmci_cid_2_host_vm_id(VMCIId contextID,    // IN
 
    return result;
 #else // !defined(VMKERNEL)
+   UNREFERENCED_PARAMETER(contextID);
+   UNREFERENCED_PARAMETER(hostVmID);
+   UNREFERENCED_PARAMETER(hostVmIDLen);
    return VMCI_ERROR_UNAVAILABLE;
 #endif
 }
@@ -2723,6 +2728,9 @@ VMCIContext_RegisterGuestMem(VMCIContext *context, // IN: Context structure
 
 out:
    VMCIMutex_Release(&context->guestMemMutex);
+#else
+   UNREFERENCED_PARAMETER(context);
+   UNREFERENCED_PARAMETER(gid);
 #endif
 }
 
@@ -2824,10 +2832,65 @@ VMCIContext_ReleaseGuestMem(VMCIContext *context, // IN: Context structure
    }
 
    VMCIMutex_Release(&context->guestMemMutex);
+#else
+   UNREFERENCED_PARAMETER(context);
+   UNREFERENCED_PARAMETER(gid);
+   UNREFERENCED_PARAMETER(powerOff);
 #endif
 }
 
 #if defined(VMKERNEL)
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_RevalidateMappings --
+ *
+ *      Updates the mappings for all QPs.  Should only be called with the VMCI
+ *      device lock held.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+VMCIContext_RevalidateMappings(VMCIContext *context) // IN: Context structure
+{
+   uint32 numQueuePairs;
+   uint32 cur;
+
+   numQueuePairs = VMCIHandleArray_GetSize(context->queuePairArray);
+   for (cur = 0; cur < numQueuePairs; cur++) {
+      VMCIHandle handle;
+
+      handle = VMCIHandleArray_GetEntry(context->queuePairArray, cur);
+      if (!VMCI_HANDLE_EQUAL(handle, VMCI_INVALID_HANDLE)) {
+         int res = VMCIQPBroker_Revalidate(handle, context);
+
+         if (res < VMCI_SUCCESS) {
+            VMCI_WARNING(("Failed to revalidate guest mappings for queue "
+                          " pair (handle=0x%x:0x%x, res=%d).\n",
+                          handle.context, handle.resource, res));
+            /*
+             * I have not seen these errors but I do not think they should be
+             * considered fatal.
+             */
+            if (res != VMCI_ERROR_NOT_FOUND &&
+                res != VMCI_ERROR_QUEUEPAIR_NOTATTACHED) {
+               return FALSE;
+            }
+         }
+      }
+   }
+
+   return TRUE;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *

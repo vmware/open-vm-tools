@@ -19,6 +19,7 @@ noinst_LTLIBRARIES = libAsyncSocket.la
 
 libAsyncSocket_la_SOURCES =
 libAsyncSocket_la_SOURCES += asyncsocket.c
+libAsyncSocket_la_SOURCES += asyncSocketInterface.c
 
 AM_CFLAGS =
 AM_CFLAGS += -DUSE_SSL_DIRECT

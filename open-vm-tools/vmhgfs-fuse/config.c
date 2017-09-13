@@ -490,6 +490,9 @@ vmhgfsPreprocessArgs(struct fuse_args *outargs)    // IN/OUT
    gState->basePath = NULL;
    gState->basePathLen = 0;
 
+   VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &gState->conf, NULL);
+   VMTools_ConfigLogging(G_LOG_DOMAIN, gState->conf, FALSE, FALSE);
+
 #ifdef VMX86_DEVEL
    config.logLevel = LOGLEVEL_THRESHOLD;
 #endif

@@ -588,14 +588,13 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
 {
    MXUserCondVar *condVar = Util_SafeCalloc(1, sizeof *condVar);
 
-   if (MXUserCreateInternal(condVar)) {
-      condVar->signature = MXUserGetSignature(MXUSER_TYPE_CONDVAR);
-      condVar->header = header;
-      condVar->ownerLock = lock;
-   } else {
-      free(condVar);
-      condVar = NULL;
+   if (UNLIKELY(!MXUserCreateInternal(condVar))) {
+      Panic("%s: native lock initialization routine failed\n", __FUNCTION__);
    }
+
+   condVar->signature = MXUserGetSignature(MXUSER_TYPE_CONDVAR);
+   condVar->header = header;
+   condVar->ownerLock = lock;
 
    return condVar;
 }

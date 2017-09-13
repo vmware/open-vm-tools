@@ -80,9 +80,9 @@ HashTable_Insert(HashTable  *hashTable,    // IN/OUT:
                  void       *clientData);  // IN/OPT:
 
 Bool
-HashTable_Lookup(HashTable  *hashTable,    // IN:
-                 const void *keyStr,       // IN:
-                 void      **clientData);  // OUT/OPT:
+HashTable_Lookup(const HashTable  *hashTable,    // IN:
+                 const void       *keyStr,       // IN:
+                 void            **clientData);  // OUT/OPT:
 
 void *
 HashTable_LookupOrInsert(HashTable  *hashTable,    // IN/OUT:

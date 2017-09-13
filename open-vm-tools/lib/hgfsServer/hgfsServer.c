@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2014-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -3799,27 +3799,13 @@ HgfsServer_InitState(HgfsServerCallbacks **callbackTable,         // IN/OUT: our
    DblLnkLst_Init(&gHgfsSharedFoldersList);
    gHgfsSharedFoldersLock = MXUser_CreateExclLock("sharedFoldersLock",
                                                   RANK_hgfsSharedFolders);
-   if (NULL != gHgfsSharedFoldersLock) {
-      gHgfsAsyncLock = MXUser_CreateExclLock("asyncLock",
-                                             RANK_hgfsSharedFolders);
-      if (NULL != gHgfsAsyncLock) {
-         gHgfsAsyncVar = MXUser_CreateCondVarExclLock(gHgfsAsyncLock);
-         if (NULL != gHgfsAsyncVar) {
-            if (!HgfsPlatformInit()) {
-               LOG(4, ("Could not initialize server platform specific \n"));
-               result = FALSE;
-            }
-         } else {
-            LOG(4, ("%s: Could not create async counter cond var.\n",
-                    __FUNCTION__));
-            result = FALSE;
-         }
-      } else {
-         LOG(4, ("%s: Could not create async counter mutex.\n", __FUNCTION__));
-         result = FALSE;
-      }
-   } else {
-      LOG(4, ("%s: Could not create shared folders mutex.\n", __FUNCTION__));
+   gHgfsAsyncLock = MXUser_CreateExclLock("asyncLock",
+                                          RANK_hgfsSharedFolders);
+
+   gHgfsAsyncVar = MXUser_CreateCondVarExclLock(gHgfsAsyncLock);
+
+   if (!HgfsPlatformInit()) {
+      LOG(4, ("Could not initialize server platform specific \n"));
       result = FALSE;
    }
 
@@ -3899,6 +3885,71 @@ HgfsServer_ExitState(void)
     * Reset the server manager callbacks.
     */
    gHgfsMgrData = NULL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServer_ShareAccessCheck --
+ *
+ *    Checks if the requested mode may be granted depending on read/write
+ *    permissions.
+ *
+ * Results:
+ *    An HgfsNameStatus value indicating the result is returned.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsServer_ShareAccessCheck(HgfsOpenMode accessMode,  // IN: open mode to check
+                            Bool shareWriteable,      // IN: share is writable
+                            Bool shareReadable)       // IN: share is readable
+{
+   /*
+    * See if access is allowed in the requested mode.
+    *
+    * XXX Yeah, this is retarded. We should be using bits instead of
+    * an enum for HgfsOpenMode. Add it to the todo list. [bac]
+    */
+
+   switch (HGFS_OPEN_MODE_ACCMODE(accessMode)) {
+   case HGFS_OPEN_MODE_READ_ONLY:
+      if (!shareReadable) {
+         LOG(4, ("%s: Read access denied\n", __FUNCTION__));
+
+         return FALSE;
+      }
+      break;
+
+   case HGFS_OPEN_MODE_WRITE_ONLY:
+      if (!shareWriteable) {
+         LOG(4, ("%s: Write access denied\n", __FUNCTION__));
+
+         return FALSE;
+      }
+      break;
+
+   case HGFS_OPEN_MODE_READ_WRITE:
+      if (!shareReadable || !shareWriteable) {
+         LOG(4, ("%s: Read/write access denied\n", __FUNCTION__));
+
+         return FALSE;
+      }
+      break;
+
+   default:
+      LOG(0, ("%s: Invalid mode %d\n", __FUNCTION__, accessMode));
+      ASSERT(FALSE);
+
+      return FALSE;
+   }
+
+   return TRUE;
 }
 
 
@@ -4158,11 +4209,6 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
    transportSession->sessionArrayLock =
          MXUser_CreateExclLock("HgfsSessionArrayLock",
                                RANK_hgfsSessionArrayLock);
-   if (transportSession->sessionArrayLock == NULL) {
-      LOG(4, ("%s: Could not create session sync mutex.\n", __FUNCTION__));
-      free(transportSession);
-      return FALSE;
-   }
 
    DblLnkLst_Init(&transportSession->sessionArray);
 
@@ -4216,31 +4262,12 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
 
    session->fileIOLock = MXUser_CreateExclLock("HgfsFileIOLock",
                                                RANK_hgfsFileIOLock);
-   if (session->fileIOLock == NULL) {
-      LOG(4, ("%s: Could not create node array sync mutex.\n", __FUNCTION__));
-      free(session);
-      return FALSE;
-   }
 
    session->nodeArrayLock = MXUser_CreateExclLock("HgfsNodeArrayLock",
                                                   RANK_hgfsNodeArrayLock);
-   if (session->nodeArrayLock == NULL) {
-      MXUser_DestroyExclLock(session->fileIOLock);
-      LOG(4, ("%s: Could not create node array sync mutex.\n", __FUNCTION__));
-      free(session);
-      return FALSE;
-   }
 
    session->searchArrayLock = MXUser_CreateExclLock("HgfsSearchArrayLock",
                                                     RANK_hgfsSearchArrayLock);
-   if (session->searchArrayLock == NULL) {
-      MXUser_DestroyExclLock(session->fileIOLock);
-      MXUser_DestroyExclLock(session->nodeArrayLock);
-      LOG(4, ("%s: Could not create search array sync mutex.\n",
-              __FUNCTION__));
-      free(session);
-      return FALSE;
-   }
 
    session->sessionId = HgfsGenerateSessionId();
    session->state = HGFS_SESSION_STATE_OPEN;
@@ -7599,9 +7626,9 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
             }
 
             if (HGFS_ERROR_SUCCESS == status &&
-                !HgfsServerPolicy_CheckMode(HGFS_OPEN_MODE_READ_ONLY,
-                                            shareInfo.writePermissions,
-                                            shareInfo.readPermissions)) {
+                !HgfsServer_ShareAccessCheck(HGFS_OPEN_MODE_READ_ONLY,
+                                             shareInfo.writePermissions,
+                                             shareInfo.readPermissions)) {
                status = HGFS_ERROR_ACCESS_DENIED;
             } else if (status != HGFS_ERROR_SUCCESS) {
                /*
@@ -7716,9 +7743,9 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
              * handle for the oplocked node (or break the oplock) prior to making
              * a setattr request. Fail this request.
              */
-            if (!HgfsServerPolicy_CheckMode(HGFS_OPEN_MODE_WRITE_ONLY,
-                                            shareInfo.writePermissions,
-                                            shareInfo.readPermissions)) {
+            if (!HgfsServer_ShareAccessCheck(HGFS_OPEN_MODE_WRITE_ONLY,
+                                             shareInfo.writePermissions,
+                                             shareInfo.readPermissions)) {
                status = HGFS_ERROR_ACCESS_DENIED;
             } else if (HGFS_NAME_STATUS_COMPLETE !=
                        HgfsServerPolicy_GetShareOptions(cpName, cpNameSize,

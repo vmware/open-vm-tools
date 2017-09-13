@@ -35,6 +35,11 @@
 #include "vmware/tools/threadPool.h"
 #endif
 
+/*
+ * The default timeout in seconds for guest OS quiescing process
+ */
+#define GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC     (15 * 60)
+
 typedef enum {
    VMBACKUP_STATUS_PENDING,
    VMBACKUP_STATUS_FINISHED,
@@ -124,6 +129,11 @@ typedef struct VmBackupState {
    VmBackupMState machineState;
    VmBackupFreezeStatus freezeStatus;
    struct VmBackupSyncProvider *provider;
+   gint           vssBackupContext;
+   gint           vssBackupType;
+   Bool           vssBootableSystemState;
+   Bool           vssPartialFileSupport;
+   Bool           vssUseDefault;
 } VmBackupState;
 
 typedef Bool (*VmBackupCallback)(VmBackupState *);

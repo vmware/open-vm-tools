@@ -59,7 +59,6 @@ ImpersonateGetLock(void)
    MXUserRecLock *lock = MXUser_CreateSingletonRecLock(&impersonateLockStorage,
                                                        "impersonateLock",
                                                        RANK_impersonateLock);
-   VERIFY(lock);
    return lock;
 }
 

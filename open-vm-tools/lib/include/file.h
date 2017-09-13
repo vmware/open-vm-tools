@@ -137,6 +137,8 @@ Bool File_SupportsZeroedThick(const char *pathName);
 
 Bool File_SupportsMultiWriter(const char *pathName);
 
+Bool File_SupportsOptimisticLock(const char *pathName);
+
 Bool File_SupportsMandatoryLock(const char *pathName);
 
 Bool File_Exists(const char *pathName);
@@ -187,6 +189,10 @@ int File_ListDirectory(const char *pathName,
                        char ***ids);
 
 Bool File_IsOsfsVolumeEmpty(const char *pathName);
+
+#ifndef _WIN32
+char * File_StripFwdSlashes(const char *pathName);
+#endif
 
 /*
  * Simple file-system walk.

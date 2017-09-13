@@ -5759,6 +5759,27 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
       goto abort;
    }
 
+#if defined(__APPLE__)
+   /*
+    * On OS X, we can only impersonate the effective UID, not real.
+    * But the kill(2) syscall looks at real UID.  This means its working
+    * as root, and therefore its a massive security hole to leave it
+    * as-is.
+    *
+    * Its unclear if anyone actually cares, so for now, just turn
+    * it off.  Its trivial to workaround (RunProgram of 'kill <pid>'.)
+    *
+    * Two possible fixes if necessary:
+    *
+    * - sleaze things and rewrite as a RunProgram("kill <pid>").  This
+    *   will lose probably error info.
+    * - do the kill inside fork(), sending back any error code
+    *   on a pipe.
+    */
+   err = VIX_E_NOT_SUPPORTED;
+   goto abort;
+#endif
+
    if (!ProcMgr_KillByPid(killProcessRequest->pid)) {
       /*
        * Save off the error code so any debug statements added later

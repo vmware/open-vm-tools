@@ -1,0 +1,39 @@
+#!/bin/sh
+
+helpMessage() {
+   echo "*** $0 {userName} {certPath} {subject}"
+   echo "  Starts the VgAuth service and optionally adds the user and user->subject mapping"
+   echo "    userName: The name of the user to be added [default: $userName]"
+   echo "    certPath: Path to the certificate [default: $certPath]"
+   echo "    subject: Subject that maps to the userName in the SAML [default: $subject]"
+   exit 1
+}
+
+scriptsDir=$(dirname $(readlink -f $0))
+certsDir=$scriptsDir/../data/input/certs
+
+userName=""
+certPath=$certsDir/selfSignedCert.pem
+subject="samlTestSubject"
+
+if [ $# -gt 3 -o "$1" = "--help" ]; then
+   helpMessage
+fi
+if [ $# -ge 1 ]; then
+   userName=$1
+fi
+if [ $# -ge 2 ]; then
+   certPath=$2
+fi
+if [ $# -ge 3 ]; then
+   subject=$3
+fi
+
+$scriptsDir/start-VGAuthService
+
+if [ $userName != "" ]; then
+   /usr/sbin/useradd $userName
+
+   sleep 1
+   $scriptsDir/vgAuth addUser $userName $certPath $subject
+fi

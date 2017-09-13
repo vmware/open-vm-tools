@@ -343,8 +343,7 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
  *      Only the owner (thread) of a recursive lock may recurse on it.
  *
  * Results:
- *      NULL  Creation failed
- *      !NULL Creation succeeded
+ *      A pointer to an recursive lock.
  *
  * Side effects:
  *      None
@@ -366,11 +365,8 @@ MXUser_CreateRecLock(const char *userName,  // IN:
       properName = Util_SafeStrdup(userName);
    }
 
-   if (!MXRecLockInit(&lock->recursiveLock)) {
-      free(properName);
-      free(lock);
-
-      return NULL;
+   if (UNLIKELY(!MXRecLockInit(&lock->recursiveLock))) {
+      Panic("%s: native lock initialization routine failed\n", __FUNCTION__);
    }
 
    lock->vmmLock = NULL;

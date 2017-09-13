@@ -200,7 +200,7 @@ CodeSetGetModulePath(HANDLE hModule) // IN
 }
 
 
-#elif vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE) // _WIN32
+#elif vmx86_devel && !vmx86_server && !defined(TEST_CUSTOM_ICU_DATA_FILE) // _WIN32
 
 /*
  *-----------------------------------------------------------------------------
@@ -550,7 +550,7 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
 
 #else // } _WIN32 {
 
-#if vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE)
+#if vmx86_devel && !vmx86_server && !defined(TEST_CUSTOM_ICU_DATA_FILE)
    {
       char *modPath;
       char *lastSlash;
@@ -641,7 +641,7 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
 
 #endif // } _WIN32
 
-#if vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE)
+#if vmx86_devel && !vmx86_server && !defined(TEST_CUSTOM_ICU_DATA_FILE)
 found:
 #endif
 

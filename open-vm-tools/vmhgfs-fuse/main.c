@@ -1292,10 +1292,17 @@ hgfs_destroy(void *data) // IN: unused
    LOG(4, ("Entry()\n"));
 
    res = HgfsDestroySession();
-   free(gState->basePath);
-
    if (res < 0) {
       LOG(4, ("Destroy session failed. error = %d\n", res));
+   }
+
+   HgfsTransportExit();
+
+   free(gState->basePath);
+
+   if (gState->conf != NULL) {
+      g_key_file_free(gState->conf);
+      gState->conf = NULL;
    }
 
    LOG(4, ("Exit()\n"));

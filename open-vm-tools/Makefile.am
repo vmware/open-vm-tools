@@ -39,6 +39,7 @@ if ENABLE_DEPLOYPKG
    SUBDIRS += libDeployPkg
 endif
 SUBDIRS += rpctool
+SUBDIRS += namespacetool
 if ENABLE_GRABBITMQPROXY
    SUBDIRS += guestproxycerttool
 endif
@@ -63,4 +64,14 @@ if WITH_KERNEL_MODULES
    SUBDIRS += modules
 endif
 SUBDIRS += docs
+
+if ENABLE_CAF
+   SUBDIRS += common-agent/Cpp/Framework
+   SUBDIRS += common-agent/Cpp/ManagementAgent
+   SUBDIRS += common-agent/Cpp/Communication
+   SUBDIRS += common-agent/Cpp/ProviderFx
+   SUBDIRS += common-agent/Cpp/InternalProviders
+   SUBDIRS += common-agent/input
+   SUBDIRS += common-agent/etc
+endif
 

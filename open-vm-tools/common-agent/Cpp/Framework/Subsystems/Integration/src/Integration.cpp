@@ -1,0 +1,48 @@
+/*
+ *	 Author: bwilliams
+ *  Created: Oct 22, 2010
+ *
+ *	Copyright (c) 2010 Vmware, Inc.  All rights reserved.
+ *	-- VMware Confidential
+ */
+
+#include "stdafx.h"
+#include "CIntegrationObjectFactory.h"
+#include "CErrorChannel.h"
+#include "CNullChannel.h"
+#include "CHeaderExpressionInvoker.h"
+
+using namespace Caf;
+
+CEcmSubSystemModule _Module;
+
+CAF_BEGIN_OBJECT_MAP(ObjectMap)
+	CAF_OBJECT_ENTRY(CIntegrationObjectFactory)
+	CAF_OBJECT_ENTRY(CErrorChannel)
+	CAF_OBJECT_ENTRY(CNullChannel)
+	CAF_OBJECT_ENTRY(CHeaderExpressionInvoker)
+CAF_END_OBJECT_MAP()
+
+CAF_DECLARE_SUBSYSTEM_EXPORTS()
+
+extern "C" BOOL APIENTRY DllMain(HINSTANCE hModule, uint32 dwReason, LPVOID)
+{
+	try {
+		if (DLL_PROCESS_ATTACH == dwReason)
+		{
+			// initialize the sub-system module
+			_Module.Init(ObjectMap, hModule);
+		}
+		else if (DLL_PROCESS_DETACH == dwReason)
+		{
+			// Terminate the sub-system module
+			_Module.Term();
+		}
+	} catch (std::runtime_error) {
+		::exit(2);
+	} catch (...) {
+		::exit(2);
+	}
+                
+    return TRUE;
+}

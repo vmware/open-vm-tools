@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -15,9 +15,12 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
-/**
- * Logging method that need to be provided by the client of the
- * library to enable logging.
+
+/*
+ * log.h --
+ *
+ *      Logging method that need to be provided by the client of the
+ *      library to enable logging.
  */
 
 #ifndef IMGCUST_COMMON_LOG_H

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,43 +17,117 @@
  *********************************************************/
 
 /*
- * Functions to launch an external process
+ * process.h --
+ *
+ *      Functions to launch an external process.
  */
+
+#ifndef IMGCUST_COMMON_PROCESS_H
+#define IMGCUST_COMMON_PROCESS_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct ProcessOpaque* ProcessHandle;
+typedef struct ProcessOpaque *ProcessHandle;
 
 typedef enum _ProcessError {
    PROCESS_SUCCESS,
    PROCESS_FAILED
 } ProcessError;
 
-/**
- * Process_Create
+
+/*
+ *------------------------------------------------------------------------------
  *
- * since this file can be included in a c++ file that already has the 
- * namespaced c++ definition of LogFunction defined, we can't use the c 
- * version of LogFunction as an input. Only choice is to make it a raw 
- * pointer and cast it in the processXXX.c file which can use the C 
- * definition of LogFunction.
+ * Process_Create --
+ *
+ *      Creates a process and returns result of the operation.
+ *
+ *      Since this file can be included in a c++ file that already has the
+ *      namespaced c++ definition of LogFunction defined, we can't use the c
+ *      version of LogFunction as an input. Only choice is to make it a raw
+ *      pointer and cast it in the processXXX.c file which can use the C
+ *      definition of LogFunction.
+ *
+ *------------------------------------------------------------------------------
  */
-ProcessError Process_Create(ProcessHandle *h,
-                            char* args[],
-                            void* log);
 
-ProcessError Process_RunToComplete(ProcessHandle h, unsigned long timeout);
+ProcessError
+Process_Create(ProcessHandle *h, char *args[], void *log);
 
-const char* Process_GetStdout(ProcessHandle h);
 
-const char* Process_GetStderr(ProcessHandle h);
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_RunToComplete --
+ *
+ *      Runs the process to completion and returns its result.
+ *
+ *------------------------------------------------------------------------------
+ */
 
-int Process_GetExitCode(ProcessHandle h);
+ProcessError
+Process_RunToComplete(ProcessHandle h, unsigned long timeout);
 
-ProcessError Process_Destroy(ProcessHandle h);
-   
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_GetStdout --
+ *
+ *      Returns process's standard output.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+const char *
+Process_GetStdout(ProcessHandle h);
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_GetStderr --
+ *
+ *      Returns process's standard error output.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+const char *
+Process_GetStderr(ProcessHandle h);
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_GetExitCode --
+ *
+ *      Returns process's exit code.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+int
+Process_GetExitCode(ProcessHandle h);
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * Process_Destroy --
+ *
+ *      Destroys the process and returns result of the operation.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+ProcessError
+Process_Destroy(ProcessHandle h);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+#endif // IMGCUST_COMMON_PROCESS_H

@@ -88,7 +88,7 @@ gboolean ServiceSuicide(const char *pidPath);
 #define LOGFILENAME_DEFAULT "vgauthsvclog.txt"
 #define LOGFILENAME_PATH_DEFAULT "c:\\temp\\" LOGFILENAME_DEFAULT
 #else
-#define LOGFILENAME_PATH_DEFAULT "/tmp/vgauthsvclog.txt"
+#define LOGFILENAME_PATH_DEFAULT "/var/log/vmware-vgauthsvc.log"
 #endif
 
 void Service_SetLogOnStdout(gboolean flag);

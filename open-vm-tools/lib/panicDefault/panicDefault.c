@@ -19,7 +19,7 @@
 /*
  * panic.c --
  *
- *	Basic Panic()
+ *      Basic Panic()
  */
 
 
@@ -48,8 +48,8 @@
  */
 
 void
-Panic(const char *fmt,		// IN: message format
-      ...)			// IN: message format arguments
+Panic(const char *fmt,   // IN: message format
+      ...)               // IN: message format arguments
 {
    va_list ap;
 

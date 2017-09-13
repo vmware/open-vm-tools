@@ -52,6 +52,11 @@ enum { BUFSIZE = 4096 };
 #include "userAccessControl.h"
 #endif
 
+#ifdef _WIN32
+#define DIRSEP "\\"
+#else
+#define DIRSEP "/"
+#endif
 
 /*
  * Use this for any informational messages, eg "service started".

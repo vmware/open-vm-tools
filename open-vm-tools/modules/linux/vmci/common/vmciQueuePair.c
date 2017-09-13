@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -557,6 +557,7 @@ static void
 QueuePairList_RemoveEntry(QueuePairList *qpList,  // IN
                           QueuePairEntry *entry)  // IN
 {
+   UNREFERENCED_PARAMETER(qpList);
    if (entry) {
       VMCIList_Remove(&entry->listItem);
    }
@@ -640,7 +641,7 @@ VMCIQPBroker_Exit(void)
 
    VMCIQPBrokerLock();
 
-   while ((entry = (QPBrokerEntry *)QueuePairList_GetHead(&qpBrokerList))) {
+   while ((entry = (QPBrokerEntry *)QueuePairList_GetHead(&qpBrokerList)) != NULL) {
       QueuePairList_RemoveEntry(&qpBrokerList, &entry->qp);
       VMCI_FreeKernelMem(entry, sizeof *entry);
    }
@@ -1219,6 +1220,8 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
    Bool isLocal = flags & VMCI_QPFLAG_LOCAL;
    int result;
 
+   UNREFERENCED_PARAMETER(peer);
+
    if (entry->state != VMCIQPB_CREATED_NO_MEM &&
        entry->state != VMCIQPB_CREATED_MEM) {
       VMCI_DEBUG_LOG(5, ("QP Attach - state is %x\n", entry->state));
@@ -1400,7 +1403,7 @@ VMCIQPBrokerAttach(QPBrokerEntry *entry,          // IN
             VMCI_DEBUG_LOG(5, ("QP Attach - cannot map queues for host\n"));
             return result;
          }
-         entry->qp.flags |= flags & (VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED);
+         entry->qp.flags |= flags & VMCI_QPFLAG_NONBLOCK;
       }
 
       /*
@@ -2029,6 +2032,75 @@ out:
    return result;
 }
 
+#if defined(VMKERNEL)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQPBroker_Revalidate --
+ *
+ *      Revalidates the guest memory mappings of a given queue pair.
+ *
+ * Results:
+ *      VMCI_SUCCESS on success, appropriate error code otherwise.
+ *
+ * Side effects:
+ *      Nond.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCIQPBroker_Revalidate(VMCIHandle  handle,   // IN
+                        VMCIContext *context) // IN
+{
+   QPBrokerEntry *entry;
+   const VMCIId contextId = VMCIContext_GetId(context);
+   int result = VMCI_SUCCESS;
+
+   ASSERT(!VMCI_HANDLE_INVALID(handle) && contextId != VMCI_INVALID_ID);
+
+   VMCIQPBrokerLock();
+   if (!VMCIContext_QueuePairExists(context, handle)) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Context (ID=0x%x) not attached to queue pair "
+                         "(handle=0x%x:0x%x).\n",
+                         contextId, handle.context, handle.resource));
+      result = VMCI_ERROR_NOT_FOUND;
+      goto out;
+   }
+
+   entry = (QPBrokerEntry *)QueuePairList_FindEntry(&qpBrokerList, handle);
+   if (entry == NULL) {
+      VMCI_DEBUG_LOG(4, (LGPFX"Context (ID=0x%x) reports being attached to "
+                         "queue pair (handle=0x%x:0x%x) that isn't present in "
+                         "broker.\n",
+                         contextId, handle.context, handle.resource));
+      result = VMCI_ERROR_NOT_FOUND;
+      goto out;
+   }
+
+   if (contextId != entry->createId && contextId != entry->attachId) {
+      result = VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+      goto out;
+   }
+
+   if (contextId != VMCI_HOST_CONTEXT_ID) {
+      ASSERT(entry->state != VMCIQPB_CREATED_NO_MEM &&
+             entry->state != VMCIQPB_SHUTDOWN_NO_MEM &&
+             entry->state != VMCIQPB_ATTACHED_NO_MEM);
+      ASSERT((entry->qp.flags & VMCI_QPFLAG_LOCAL) == 0);
+
+      VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
+      result = VMCIHost_RevalidateQueues(entry->produceQ, entry->consumeQ);
+      VMCI_ReleaseQueueMutex(entry->produceQ);
+   }
+
+out:
+   VMCIQPBrokerUnlock();
+   return result;
+}
+#endif
+
+
 #if !defined(VMKERNEL)
 
 /*
@@ -2108,7 +2180,7 @@ VMCIQPGuestEndpoints_Exit(void)
 
    VMCIMutex_Acquire(&qpGuestEndpoints.mutex);
 
-   while ((entry = (QPGuestEndpoint *)QueuePairList_GetHead(&qpGuestEndpoints))) {
+   while ((entry = (QPGuestEndpoint *)QueuePairList_GetHead(&qpGuestEndpoints)) != NULL) {
       /*
        * Don't make a hypercall for local QueuePairs.
        */
@@ -2399,7 +2471,7 @@ VMCIQueuePairAllocGuestWork(VMCIHandle *handle,           // IN/OUT
    }
 
    if ((queuePairEntry = (QPGuestEndpoint *)
-        QueuePairList_FindEntry(&qpGuestEndpoints, *handle))) {
+        QueuePairList_FindEntry(&qpGuestEndpoints, *handle)) != NULL) {
       if (queuePairEntry->qp.flags & VMCI_QPFLAG_LOCAL) {
          /* Local attach case. */
          if (queuePairEntry->qp.refCount > 1) {

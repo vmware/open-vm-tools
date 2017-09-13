@@ -156,6 +156,8 @@ VerifyCallback(int ok,
       switch (certErr) {
          // self-signed is ok
       case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+      case X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
+         g_debug("%s: allowing error %d\n", __FUNCTION__, certErr);
          ret = 1;
          break;
       default:

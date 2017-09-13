@@ -64,10 +64,10 @@
    } words; \
    uint64 quad
 
-#ifndef VM_X86_64
-#define DECLARE_REG_STRUCT DECLARE_REG32_STRUCT
-#else
+#if defined (VM_X86_64)  ||  defined (VM_ARM_64)
 #define DECLARE_REG_STRUCT DECLARE_REG64_STRUCT
+#else
+#define DECLARE_REG_STRUCT DECLARE_REG32_STRUCT
 #endif
 
 #define DECLARE_REG_NAMED_STRUCT(_r) \

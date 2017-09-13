@@ -59,5 +59,7 @@ int SSL_WantRead(const SSLSock ssl);
 #define SSLGeneric_close(sock) close(sock)
 #endif
 
+void *SSL_NewContext(void);
+
 #endif // ifndef _SSLDIRECT_H_
 

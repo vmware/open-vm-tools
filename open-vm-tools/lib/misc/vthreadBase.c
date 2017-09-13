@@ -61,7 +61,8 @@
  *      threads.  If lib/thread is used on top of this library, the lib/thread
  *      NoID function may introduce a smaller limit.
  *
- *      On Linux we make use of a combination of __thread and pthread support.
+ *      On Linux we make use of a combination of __thread and pthread support
+ *         (pthread being used to get a cleanup destructor).
  *      On Mac our only option is to use pthreads.
  *      On Windows we could use the compiler supported thread locals but
  *      that has issues when dynamically loaded from a library, so instead
@@ -69,12 +70,7 @@
  */
 
 #if defined __linux__
-#  include <features.h>  /* for __GLIBC_PREREQ */
-#  if defined __GLIBC_PREREQ
-#    if __GLIBC_PREREQ(2, 3)
-#      define HAVE_TLS
-#    endif
-#  endif
+#  define HAVE_TLS
 #endif
 
 #if defined _WIN32

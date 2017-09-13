@@ -24,6 +24,7 @@ AM_CFLAGS += @GLIB2_CPPFLAGS@
 vmhgfs_fuse_LDADD =
 vmhgfs_fuse_LDADD += @FUSE_LIBS@
 vmhgfs_fuse_LDADD += @GLIB2_LIBS@
+vmhgfs_fuse_LDADD += @VMTOOLS_LIBS@
 
 # The linker processes the libraries in sequence, and order matters here.
 vmhgfs_fuse_LDADD += ../lib/hgfs/libHgfs.la

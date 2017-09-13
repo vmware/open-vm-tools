@@ -494,7 +494,7 @@ int
 Posix_EuidAccess(const char *pathName,  // IN:
                  int mode)              // IN:
 {
-#if defined(GLIBC_VERSION_24)
+#ifdef __linux__
    char *path;
    int ret;
 

@@ -1,0 +1,39 @@
+#!/bin/bash
+
+helpMessage() {
+   echo "*** $0 {userName} {certPath} {subject}"
+   echo "  Stops the VgAuth service and optionally removes the user and user->subject mapping"
+   echo "    userName: The name of the user to be removed [default: $userName]"
+   echo "    certPath: Path to the certificate [default: $certPath]"
+   echo "    subject: Subject that maps to the userName in the SAML [default: $subject]"
+   exit 1
+}
+
+scriptsDir=$(dirname $(readlink -f $0))
+certsDir=$scriptsDir/../data/input/certs
+
+userName=""
+certPath=$certsDir/selfSignedCert.pem
+subject="samlTestSubject"
+
+if [ $# -gt 3 -o "$1" = "--help" ]; then
+   helpMessage
+fi
+if [ $# -ge 1 ]; then
+   userName=$1
+fi
+if [ $# -ge 2 ]; then
+   certPath=$2
+fi
+if [ $# -ge 3 ]; then
+   subject=$3
+fi
+
+if [ $userName != "" ]; then
+   $scriptsDir/vgAuth removeUser $userName $certPath $subject
+
+   sleep 1
+   /usr/sbin/userdel -r $userName
+fi
+
+$scriptsDir/stop-VGAuthService

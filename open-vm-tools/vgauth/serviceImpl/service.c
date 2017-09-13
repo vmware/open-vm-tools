@@ -250,7 +250,7 @@ ServiceDecodeUserName(const char *userName)
    ASSERT(ok);
 
    if (domain) {
-      result = g_strdup_printf("%sDIRSEP%s", domain, user);
+      result = g_strdup_printf("%s"DIRSEP"%s", domain, user);
    } else {
       result = g_strdup(userName);
    }

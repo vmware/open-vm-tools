@@ -45,9 +45,10 @@
 #endif
 
 /* Logging stuff. */
+#define LGPFX "VMware hgfs: "
+
 #ifdef VMX86_DEVEL
 extern int LOGLEVEL_THRESHOLD;
-#define LGPFX "VMware hgfs: "
 #define LOG(level, args) ((void) (LOGLEVEL_THRESHOLD >= (level) ? (printk args) : 0))
 #else
 #define LOG(level, args)

@@ -2954,7 +2954,6 @@ FileIOAligned_PoolInit(void)
    alignedPool.lock = MXUser_CreateSingletonExclLock(&alignedPoolLockStorage,
                                                      "alignedPoolLock",
                                                      RANK_LEAF);
-   VERIFY(alignedPool.lock);
 }
 
 

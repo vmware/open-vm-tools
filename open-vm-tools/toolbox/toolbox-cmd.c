@@ -100,13 +100,17 @@ ToolboxCmdHelp(const char *progName,
 static CmdTable commands[] = {
    { "timesync",  TimeSync_Command, TRUE,    FALSE,   TimeSync_Help},
    { "script",    Script_Command,   FALSE,   TRUE,    Script_Help},
+#if !defined(USERWORLD)
    { "disk",      Disk_Command,     TRUE,    TRUE,    Disk_Help},
+#endif
    { "stat",      Stat_Command,     TRUE,    FALSE,   Stat_Help},
    { "device",    Device_Command,   TRUE,    FALSE,   Device_Help},
-#if (defined(_WIN32) || defined(linux)) && !defined(OPEN_VM_TOOLS)
+#if defined(_WIN32) || \
+   (defined(linux) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
    { "upgrade",   Upgrade_Command,  TRUE,    TRUE,   Upgrade_Help},
 #endif
    { "logging",   Logging_Command,  TRUE,    TRUE,    Logging_Help},
+   { "info",      Info_Command,     TRUE,    TRUE,    Info_Help},
    { "help",      HelpCommand,      FALSE,   FALSE,   ToolboxCmdHelp},
 };
 
@@ -294,7 +298,8 @@ ToolboxCmdHelp(const char *progName,   // IN
                           "Most commands take a subcommand.\n\n"
                           "Available commands:\n"
                           "   device\n"
-                          "   disk\n"
+                          "   disk (not available on all operating systems)\n"
+                          "   info\n"
                           "   logging\n"
                           "   script\n"
                           "   stat\n"

@@ -455,5 +455,13 @@ __GET_EAX_FROM_CPUID4(int inputEcx)
    _dx = regs.edx;                      \
 }
 
+#define GET_CPUID2(_ax, _bx, _cx, _dx) {\
+   CPUIDRegs regs;                      \
+   __GET_CPUID2(_ax, _cx, &regs);       \
+   _ax = regs.eax;                      \
+   _bx = regs.ebx;                      \
+   _cx = regs.ecx;                      \
+   _dx = regs.edx;                      \
+}
 
 #endif

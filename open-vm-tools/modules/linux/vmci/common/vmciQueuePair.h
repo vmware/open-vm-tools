@@ -98,7 +98,9 @@ int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
 int VMCIQueuePair_Detach(VMCIHandle handle, Bool guestEndpoint);
 int VMCIQPBroker_Map(VMCIHandle  handle, VMCIContext *context, VMCIQPGuestMem guestMem);
 int VMCIQPBroker_Unmap(VMCIHandle  handle, VMCIContext *context, VMCIGuestMemID gid);
-
+#ifdef VMKERNEL
+int VMCIQPBroker_Revalidate(VMCIHandle  handle, VMCIContext *context);
+#endif
 
 #endif /* !_VMCI_QUEUE_PAIR_H_ */
 

@@ -26,6 +26,7 @@
 #define VMWARE_CRYPTOERROR_H 1
 
 #define INCLUDE_ALLOW_USERLEVEL
+#define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
 #include "vmware.h"

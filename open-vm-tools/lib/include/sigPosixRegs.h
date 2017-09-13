@@ -142,6 +142,11 @@
 #define SC_SP(uc)  ((unsigned long) (uc)->uc_mcontext->__ss.__sp)
 #define SC_LR(uc)  ((unsigned long) (uc)->uc_mcontext->__ss.__lr)
 #define SC_PC(uc)  ((unsigned long) (uc)->uc_mcontext->__ss.__pc)
+#elif defined(__aarch64__)
+#define SC_X(uc,n) ((unsigned long) (uc)->uc_mcontext->__ss.__x[n])
+#define SC_SP(uc)  ((unsigned long) (uc)->uc_mcontext->__ss.__sp)
+#define SC_PC(uc)  ((unsigned long) (uc)->uc_mcontext->__ss.__pc)
+#define SC_PSR(uc) ((unsigned long) (uc)->uc_mcontext->__ss.__cpsr)
 #else
 #define SC_EAX(uc) ((unsigned long) (uc)->uc_mcontext->__ss.__eax)
 #define SC_EBX(uc) ((unsigned long) (uc)->uc_mcontext->__ss.__ebx)
@@ -274,6 +279,7 @@
 #define SC_X(uc,n) ((unsigned long) (uc)->uc_mcontext.regs[n])
 #define SC_SP(uc)  ((unsigned long) (uc)->uc_mcontext.sp)
 #define SC_PC(uc)  ((unsigned long) (uc)->uc_mcontext.pc)
+#define SC_PSR(uc) ((unsigned long) (uc)->uc_mcontext.pstate)
 #else
 #define SC_EAX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_EAX])
 #define SC_EBX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_EBX])

@@ -60,10 +60,12 @@ enum {
 };
 
 /*
- * Reverse byte map used for decoding. Except for specials (negative values), contains the index
- * into Base64[] where given value is found, ie: base64Reverse[Base64[n]] = n, for 0 <= n < 64
+ * Reverse byte map used for decoding. Except for specials (negative values),
+ * contains the index into Base64[] where given value is found, ie:
+ * base64Reverse[Base64[n]] = n, for 0 <= n < 64
  *
- * This static initialization replaces, and should have identical result to, this runtime init:
+ * This static initialization replaces, and should have identical result to,
+ * this runtime init:
  *
  *  for (i = 0; i < 256; ++i) {
  *     base64Reverse[i] = isspace(i) ? WS : ILLEGAL;

@@ -415,7 +415,11 @@ mainRun(int argc,
    const gchar *lSubject = SU_(cmdline.summary.subject, "subject");
    const gchar *lPEMfile = SU_(cmdline.summary.pemfile, "PEM-file");
    const gchar *lComm = SU_(cmdline.summary.comm, "comment");
+#ifdef _WIN32
+   int i;
+#else
    GError *gErr = NULL;
+#endif
    PrefHandle prefs;
    gchar *msgCatalog = NULL;
    GOptionEntry listOptions[] = {
@@ -522,33 +526,63 @@ mainRun(int argc,
       Usage(context);
    }
 
+#ifdef _WIN32
    /*
-    * Pull out the options.
+    * In Windows, g_option_context_parse() does the wrong thing for locale
+    * conversion of the incoming Unicode cmdline.  Modern glib (2.40 or
+    * later) solves this with g_option_context_parse_stv(), but we're stuck
+    * with an older glib for now.
+    *
+    * So instead lets do it all by hand.
+    *
+    * XXX fix this when we upgrade glib.
     */
-#ifdef _WIN32
-   {
-      char * val = getenv("CHARSET");
-      char *saved = g_strdup_printf("CHARSET=%s", val ? val : "");
-
-      /*
-       * Force the glib parser to interpret the input as the UTF-8
-       * Otherwise, glib treat the input encoding as the current code page,
-       * e.g. 1252
-       */
-      _putenv("CHARSET=UTF-8");
-#endif
-
-      if (!g_option_context_parse(context, &argcCopy, &argvCopy, &gErr)) {
-         g_printerr("%s: %s: %s\n", appName,
-                    SU_(cmdline.parse, "Command line parsing failed"),
-                    gErr->message);
-         g_error_free(gErr);
-         exit(-1);
+   for (i = 2; i < argc; i++) {
+      if (strcmp(argv[i], "--global") == 0 ||
+          strcmp(argv[i], "-g") == 0) {
+         addMapped = TRUE;
+      } else if (strcmp(argv[i], "--verbose") == 0 ||
+          strcmp(argv[i], "-v") == 0) {
+         verbose = TRUE;
+      } else if (strcmp(argv[i], "--username") == 0 ||
+                 strcmp(argv[i], "-u") == 0) {
+         if ((i + 1) < argc) {
+            userName = argv[++i];
+         } else {
+            Usage(context);
+         }
+      } else if (strcmp(argv[i], "--file") == 0 ||
+                 strcmp(argv[i], "-f") == 0) {
+         if ((i + 1) < argc) {
+            pemFilename = argv[++i];
+         } else {
+            Usage(context);
+         }
+      } else if (strcmp(argv[i], "--comment") == 0 ||
+                 strcmp(argv[i], "-c") == 0) {
+         if ((i + 1) < argc) {
+            comment = argv[++i];
+         } else {
+            Usage(context);
+         }
+      } else if (strcmp(argv[i], "--subject") == 0 ||
+                 strcmp(argv[i], "-s") == 0) {
+         if ((i + 1) < argc) {
+            subject = argv[++i];
+         } else {
+            Usage(context);
+         }
+      } else {
+         Usage(context);
       }
-
-#ifdef _WIN32
-      _putenv("CHARSET=");
-      g_free(saved);
+   }
+#else
+   if (!g_option_context_parse(context, &argcCopy, &argvCopy, &gErr)) {
+      g_printerr("%s: %s: %s\n", appName,
+                 SU_(cmdline.parse, "Command line parsing failed"),
+                 gErr->message);
+      g_error_free(gErr);
+      exit(-1);
    }
 #endif
 

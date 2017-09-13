@@ -480,7 +480,6 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
    /* Get and take lock for our safe dir. */
    lck = MXUser_CreateSingletonExclLock(&lckStorage, "getSafeTmpDirLock",
                                         RANK_getSafeTmpDirLock);
-   VERIFY(lck != NULL);
 
    MXUser_AcquireExclLock(lck);
 

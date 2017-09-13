@@ -871,7 +871,7 @@ VmBackupStartCommon(RpcInData *data,
                                                &err);
       if (err != NULL) {
          g_clear_error(&err);
-         gBackupState->timeout = 15 * 60;
+         gBackupState->timeout = GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC;
       }
    }
 
@@ -942,6 +942,7 @@ VmBackupStart(RpcInData *data)
       gBackupState->execScripts = TRUE;
       gBackupState->scriptArg = NULL;
       gBackupState->timeout = 0;
+      gBackupState->vssUseDefault = TRUE;
 
       /* get volume uuids if provided */
       if (data->args[index] != '\0') {
@@ -988,7 +989,8 @@ static gboolean
 VmBackupStartWithOpts(RpcInData *data)
 {
    GuestQuiesceParams *params;
-   GuestQuiesceParamsV1 *paramsV1;
+   GuestQuiesceParamsV1 *paramsV1 = NULL;
+   GuestQuiesceParamsV2 *paramsV2;
    gboolean retval;
 
    g_debug("*** %s\n", __FUNCTION__);
@@ -997,23 +999,50 @@ VmBackupStartWithOpts(RpcInData *data)
                               FALSE);
    }
    params = (GuestQuiesceParams *)data->args;
+
+#if defined(_WIN32)
+   if (params->ver != GUESTQUIESCEPARAMS_V1 &&
+       params->ver != GUESTQUIESCEPARAMS_V2) {
+      g_warning("%s: Incompatible quiesce parameter version. \n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Incompatible quiesce parameter version",
+                              FALSE);
+   }
+#else
    if (params->ver != GUESTQUIESCEPARAMS_V1) {
       g_warning("%s: Incompatible quiesce parameter version. \n", __FUNCTION__);
       return RPCIN_SETRETVALS(data, "Incompatible quiesce parameter version",
                               FALSE);
    }
+#endif
+
    gBackupState = g_new0(VmBackupState, 1);
-   paramsV1 = params->GuestQuiesceParams_u.guestQuiesceParamsV1;
-   gBackupState->generateManifests = paramsV1->createManifest;
-   gBackupState->quiesceApps = paramsV1->quiesceApps;
-   gBackupState->quiesceFS = paramsV1->quiesceFS;
-   gBackupState->allowHWProvider = paramsV1->writableSnapshot;
-   gBackupState->execScripts = paramsV1->execScripts;
-   gBackupState->scriptArg = g_strndup(paramsV1->scriptArg,
-                                       strlen(paramsV1->scriptArg));
-   gBackupState->timeout = paramsV1->timeout;
-   gBackupState->volumes = g_strndup(paramsV1->diskUuids,
-                                     strlen(paramsV1->diskUuids));
+
+   if (params->ver == GUESTQUIESCEPARAMS_V1) {
+      paramsV1 = params->GuestQuiesceParams_u.guestQuiesceParamsV1;
+      gBackupState->vssUseDefault = TRUE;
+   } else if (params->ver == GUESTQUIESCEPARAMS_V2) {
+      paramsV2 = params->GuestQuiesceParams_u.guestQuiesceParamsV2;
+      paramsV1 = &paramsV2->paramsV1;
+      gBackupState->vssBackupContext = paramsV2->vssBackupContext;
+      gBackupState->vssBackupType = paramsV2->vssBackupType;
+      gBackupState->vssBootableSystemState = paramsV2->vssBootableSystemState;
+      gBackupState->vssPartialFileSupport = paramsV2->vssPartialFileSupport;
+      gBackupState->vssUseDefault = FALSE;
+   }
+
+   if (paramsV1 != NULL) {
+      gBackupState->generateManifests = paramsV1->createManifest;
+      gBackupState->quiesceApps = paramsV1->quiesceApps;
+      gBackupState->quiesceFS = paramsV1->quiesceFS;
+      gBackupState->allowHWProvider = paramsV1->writableSnapshot;
+      gBackupState->execScripts = paramsV1->execScripts;
+      gBackupState->scriptArg = g_strndup(paramsV1->scriptArg,
+                                          strlen(paramsV1->scriptArg));
+      gBackupState->timeout = paramsV1->timeout;
+      gBackupState->volumes = g_strndup(paramsV1->diskUuids,
+                                        strlen(paramsV1->diskUuids));
+   }
+
    retval = VmBackupStartCommon(data, TRUE);
    return retval;
 }

@@ -487,9 +487,7 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
 
       MXUserAddToList(&sema->header);
    } else {
-      free(properName);
-      free(sema);
-      sema = NULL;
+      Panic("%s: native lock initialization routine failed\n", __FUNCTION__);
    }
 
    return sema;

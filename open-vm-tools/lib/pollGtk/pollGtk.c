@@ -232,7 +232,6 @@ PollGtkInit(void)
 
    pollState->lock = MXUser_CreateExclLock("pollGtkLock",
                                            RANK_pollDefaultLock);
-   VERIFY(pollState->lock);
 
    pollState->deviceTable = g_hash_table_new_full(g_direct_hash,
                                                   g_direct_equal,

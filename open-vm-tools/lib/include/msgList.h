@@ -64,7 +64,7 @@ void MsgList_AppendStr(MsgList **tail, const char *id);
 void MsgList_AppendMsgList(MsgList **tail, MsgList *messages);
 
 void MsgList_Log(const MsgList *messages);
-char *MsgList_ToString(const MsgList *messages);
+char *MsgList_ToEnglishString(const MsgList *messages);
 MsgList *MsgList_Copy(const MsgList *src);
 void MsgList_Free(MsgList *messages);
 

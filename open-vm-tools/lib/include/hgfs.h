@@ -80,6 +80,27 @@
 #define HGFS_LARGE_IO_MAX (HGFS_LARGE_IO_MAX_PAGES * 4096)
 
 /*
+ * File type
+ *
+ * File types, used in HgfsAttr. We support regular files,
+ * directories, and symlinks.
+ *
+ * Changing the order of this enum will break the protocol; new types
+ * should be added at the end.
+ *
+ *
+ * This definition is used in some places that don't include
+ * hgfsProto.h, which is why it is here instead of there.
+ */
+typedef enum {
+   HGFS_FILE_TYPE_REGULAR,
+   HGFS_FILE_TYPE_DIRECTORY,
+   HGFS_FILE_TYPE_SYMLINK,
+} HgfsFileType;
+
+
+
+/*
  * Open mode
  *
  * These are equivalent to the O_RDONLY, O_WRONLY, O_RDWR open flags
