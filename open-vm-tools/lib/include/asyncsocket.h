@@ -360,18 +360,6 @@ AsyncSocket_ConnectWebSocket(const char *url,
                              AsyncSocketPollParams *pollParams,
                              int *error);
 
-AsyncSocket *
-AsyncSocket_ConnectProxySocket(const char *url,
-                               struct _SSLVerifyParam *sslVerifyParam,
-                               const char *httpProxy,
-                               const char *cookies,
-                               const char *protocols[],
-                               AsyncSocketConnectFn connectFn,
-                               void *clientData,
-                               AsyncSocketConnectFlags flags,
-                               AsyncSocketPollParams *pollParams,
-                               int *error);
-
 /*
  * Initiate SSL connection on existing asock, with optional cert verification
  */
@@ -573,4 +561,3 @@ const char * stristr(const char *s, const char *find);
 #endif
 
 #endif // __ASYNC_SOCKET_H__
-
