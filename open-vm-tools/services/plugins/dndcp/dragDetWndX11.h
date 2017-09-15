@@ -28,9 +28,7 @@
 #include <gtkmm.h>
 
 #if !defined(DETWNDTEST)
-extern "C" {
-   #include "dnd.h"
-}
+#include "dnd.h"
 #endif
 
 class DnDUI;
