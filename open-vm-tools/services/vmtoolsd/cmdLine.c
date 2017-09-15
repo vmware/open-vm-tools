@@ -35,13 +35,13 @@
 
 #include "vm_assert.h"
 #include "conf.h"
-#include "rpcout.h"
 #include "str.h"
 #include "vmcheck.h"
 #include "vmtoolsd_version.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/i18n.h"
+#include "vmware/tools/guestrpc.h"
 #include "vm_version.h"
 
 /**
@@ -69,7 +69,7 @@ ToolsCoreRunCommand(const gchar *option,
       char *result = NULL;
       Bool status = FALSE;
 
-      status = RpcOut_sendOne(&result, NULL, "%s", value);
+      status = RpcChannel_SendOne(&result, NULL, "%s", value);
 
       if (!status) {
          g_printerr("%s\n", result ? result : "NULL");
