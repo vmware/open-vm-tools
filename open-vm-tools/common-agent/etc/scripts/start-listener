@@ -24,8 +24,6 @@ sourceCafenv "$configDir"
 
 processName="CommAmqpListener"
 
-export LD_LIBRARY_PATH="$CAF_LIB_DIR"
-
 #enableCoreFiles
 
 startCafProcess "$startType" "$CAF_LOG_DIR" "$CAF_BIN_DIR" "$processName"

@@ -33,3 +33,7 @@ invokers_dir=@invokersDir@
 # Substitute @providersDir@ for the value passed in during install
 # Maps to 'providers' in the build output - Used by the internal providers
 providers_dir=@providersDir@
+
+# Substitute @toolsLibDir@ for the value passed in during install
+# Maps to 'lib' in the build output
+tools_lib_dir=@toolsLibDir@

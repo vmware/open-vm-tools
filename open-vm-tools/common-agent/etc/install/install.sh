@@ -25,6 +25,7 @@ baseInputDir='/var/lib'
 baseOutputDir='/var/lib'
 brokerAddr='#brokerAddr#'
 linkSo='yes'
+toolsLibDir='/usr/lib/vmware-tools/lib' # lib is symlink to either lib64 or lib32
 
 #Help function
 HELP() {
@@ -37,6 +38,7 @@ HELP() {
 	echo "B  --Sets the location for the binaries. Default is '$baseLibDir'/bin or 'bin' in base location of libraries."
 	echo "o  --Sets the base location for the output data. Default is '$baseOutputDir'."
 	echo "L  --Do not create symlinks for libraries."
+	echo "t  --Sets the location for the tools lib dir. Default is '$toolsLibDir'."
 	echo -e "h  --Displays this help message. No further functions are performed."\\n
 	echo -e "Example: $SCRIPT -b 10.25.91.81 -i \"/usr/lib\" -i \"/var/lib\" -o \"/var/lib\""\\n
 	exit 1
@@ -65,7 +67,7 @@ setupCafConfig() {
 ##BEGIN Main
 
 #Get Optional overrides
-while getopts ":b:i:l:B:o:hL" opt; do
+while getopts ":b:i:l:B:o:t:hL" opt; do
 	case $opt in
 		b)
 			brokerAddr="$OPTARG"
@@ -81,6 +83,9 @@ while getopts ":b:i:l:B:o:hL" opt; do
 			;;
 		o)
 			baseOutputDir="$OPTARG"
+			;;
+		t)
+			toolsLibDir="$OPTARG"
 			;;
 		L)
 			linkSo='no'
@@ -127,6 +132,7 @@ setupCafConfig '@outputDir@' "$outputDir" "$configDir"
 setupCafConfig '@providersDir@' "$providersDir" "$configDir"
 setupCafConfig '@invokersDir@' "$invokersDir" "$configDir"
 setupCafConfig '@logDir@' "$logDir" "$configDir"
+setupCafConfig '@toolsLibDir@' "$toolsLibDir" "$configDir"
 
 #Set default permissions
 if [ -d "$libDir" ]; then
@@ -164,14 +170,22 @@ fi
 #Set up links
 if [ "$linkSo" != "no" ] ; then
 	cd "$libDir"
-	ln -sf libglib-2.0.so.0.3400.3 libglib-2.0.so
-	ln -sf libglib-2.0.so.0.3400.3 libglib-2.0.so.0
-	ln -sf libgthread-2.0.so.0.3400.3 libgthread-2.0.so
-	ln -sf libgthread-2.0.so.0.3400.3 libgthread-2.0.so.0
+	ln -sf libglib-2.0.so.0.4800.1 libglib-2.0.so
+	ln -sf libglib-2.0.so.0.4800.1 libglib-2.0.so.0
+	ln -sf libgthread-2.0.so.0.4800.1 libgthread-2.0.so
+	ln -sf libgthread-2.0.so.0.4800.1 libgthread-2.0.so.0
 	ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so
 	ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so.5
 	ln -sf librabbitmq.so.4.2.1 librabbitmq.so
 	ln -sf librabbitmq.so.4.2.1 librabbitmq.so.4
+	ln -sf libpcre.so.1.2.6 libpcre.so
+	ln -sf libpcre.so.1.2.6 libpcre.so.1
+	ln -sf libiconv.so.2.5.1 libiconv.so
+	ln -sf libiconv.so.2.5.1 libiconv.so.2
+	ln -sf libz.so.1.2.8 libz.so
+	ln -sf libz.so.1.2.8 libz.so.1
+	ln -sf libffi.so.6.0.4 libffi.so
+	ln -sf libffi.so.6.0.4 libffi.so.6
 fi
 
 #Run provider install logic

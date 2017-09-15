@@ -13,6 +13,8 @@ sourceCafenv() {
 	cat "$cafenvAppconfig" | sed 's/^\[/#[/g' | sed 's/^\([a-z].*=\)/export CAF_\U\1/g' > "$tmpCafenv"
 	sed -i 's/[ ]*=[ ]*/=/g' "$tmpCafenv"
 	. "$tmpCafenv"
+        export LD_LIBRARY_PATH="$CAF_TOOLS_LIB_DIR/libvgauth.so/:$CAF_TOOLS_LIB_DIR/libcrypto.so.1.0.2/:$CAF_TOOLS_LIB_DIR/libssl.so.1.0.2/:$CAF_LIB_DIR"
+        export VMWARE_USE_SYSTEM_LIBS=1
 }
 
 getCurrentDir() {
