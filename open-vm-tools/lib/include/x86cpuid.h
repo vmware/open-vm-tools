@@ -1428,6 +1428,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ATOM_5A        0x5a  // Future Silvermont
 #define CPUID_MODEL_ATOM_5D        0x5d  // Future Silvermont
 #define CPUID_MODEL_SKYLAKE_5E     0x5e  // Skylake-S / Kabylake S/H ES
+#define CPUID_MODEL_ATOM_5F        0x5f  // Denverton
 
 /* Intel stepping information */
 #define CPUID_STEPPING_KABYLAKE_ES 0x8   // Kabylake S/H/U/Y ES
@@ -1691,6 +1692,13 @@ CPUID_MODEL_IS_AVOTON(uint32 v) // IN: %eax from CPUID with %eax=1.
           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ATOM_4D;
 }
 
+static INLINE Bool
+CPUID_MODEL_IS_DENVERTON(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ATOM_5F;
+}
 
 static INLINE Bool
 CPUID_MODEL_IS_WESTMERE(uint32 v) // IN: %eax from CPUID with %eax=1.
@@ -2114,6 +2122,7 @@ CPUID_SupportsMsrPlatformInfo(CpuidVendor vendor, uint32 version)
            CPUID_UARCH_IS_HASWELL(version)     ||
            CPUID_UARCH_IS_SKYLAKE(version)     ||
            CPUID_MODEL_IS_KNIGHTS_LANDING(version) ||
+           CPUID_MODEL_IS_DENVERTON(version) ||
            CPUID_MODEL_IS_AVOTON(version));
 }
 
