@@ -91,7 +91,6 @@
 
 #define PCI_DEVICE_ID_VMWARE_DUMMY      0x0809
 
-#define PCI_DEVICE_ID_VMWARE_NVDIMM     0x0810
 #define PCI_DEVICE_ID_VMWARE_VRDMA      0x0820
 
 /*
@@ -335,5 +334,14 @@ DEFINE_GUID(GUID_CLASS_VMWARE_USB_DEVICES,
 #define USB_PNP_DRIVER_NAME "vmusb"
 #endif
 #endif
+
+/*
+ * Our JEDEC 2 Manufacturer ID number is 2 in bank 10.  Our number is nine
+ * bytes of continuation code (with an odd parity bit in bit 7) followed by the
+ * number itself.
+ *
+ */
+#define JEDEC_VENDOR_ID_VMWARE          0x289
+#define JEDEC_DEVICE_ID_VMWARE_NVDIMM   0x0
 
 #endif /* VM_DEVICE_VERSION_H */
