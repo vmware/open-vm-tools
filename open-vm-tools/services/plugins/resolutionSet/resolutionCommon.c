@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -190,8 +190,9 @@ resolutionDRMCheckVersion(int fd)  // IN: An open DRM file descriptor.
     }
 
     if (ver->version_major != RESOLUTION_DRM_MAJOR ||
-	ver->version_minor < RESOLUTION_DRM_MINOR) {
-       g_debug("%s: Insufficient DRM version for resolutionKMS.\n", __func__);
+        ver->version_minor < RESOLUTION_DRM_MINOR) {
+       g_debug("%s: Insufficient DRM version %d.%d for resolutionKMS.\n",
+               __func__, ver->version_major, ver->version_minor);
        drmFreeVersion(ver);
        return -1;
     }
