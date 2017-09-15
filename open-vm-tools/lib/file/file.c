@@ -211,7 +211,7 @@ File_GetFilePermissions(const char *pathName,  // IN:
 {
    FileData fileData;
 
-   ASSERT(mode);
+   ASSERT(mode != NULL);
 
    if (FileAttributes(pathName, &fileData) != 0) {
       return FALSE;
@@ -487,7 +487,7 @@ GetOldMachineID(void)
       }
 
       machineID = Atomic_ReadPtr(&atomic);
-      ASSERT(machineID);
+      ASSERT(machineID != NULL);
    }
 
    return machineID;
@@ -567,7 +567,7 @@ FileLockGetMachineID(void)
       }
 
       machineID = Atomic_ReadPtr(&atomic);
-      ASSERT(machineID);
+      ASSERT(machineID != NULL);
    }
 
    return machineID;
@@ -988,8 +988,8 @@ File_CopyTree(const char *srcName,     // IN:
 {
    int err;
 
-   ASSERT(srcName);
-   ASSERT(dstName);
+   ASSERT(srcName != NULL);
+   ASSERT(dstName != NULL);
 
    if (!File_IsDirectory(srcName)) {
       err = Err_Errno();
@@ -1043,7 +1043,7 @@ File_CopyFromFd(FileIODescriptor src,    // IN:
    FileIODescriptor dst;
    FileIOOpenAction action;
 
-   ASSERT(dstName);
+   ASSERT(dstName != NULL);
 
    FileIO_Invalidate(&dst);
 
@@ -1120,8 +1120,8 @@ File_Copy(const char *srcName,     // IN:
    FileIOResult fret;
    FileIODescriptor src;
 
-   ASSERT(srcName);
-   ASSERT(dstName);
+   ASSERT(srcName != NULL);
+   ASSERT(dstName != NULL);
 
    FileIO_Invalidate(&src);
 
@@ -1249,8 +1249,8 @@ File_MoveTree(const char *srcName,    // IN:
    Bool ret = FALSE;
    Bool createdDir = FALSE;
 
-   ASSERT(srcName);
-   ASSERT(dstName);
+   ASSERT(srcName != NULL);
+   ASSERT(dstName != NULL);
 
    if (asMove) {
       *asMove = FALSE;
@@ -1894,9 +1894,9 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
    char *dir = NULL;
    char *file = NULL;
 
-   ASSERT(fileIn);
-   ASSERT(cwd);
-   ASSERT(searchPath);
+   ASSERT(fileIn != NULL);
+   ASSERT(searchPath != NULL);
+   ASSERT(cwd != NULL);
 
    /*
     * First check the usual places - the fullpath or the cwd.
@@ -2070,7 +2070,7 @@ FileSimpleRandom(void)
 #endif
 
       context = Random_QuickSeed(value);
-      ASSERT(context);
+      ASSERT(context != NULL);
    }
 
    result = Random_Quick(context);
@@ -2273,8 +2273,13 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    }
 
    File_GetPathName(fullPathNoExt, &baseDir, &baseName);
-   if ((baseDir[0] == '\0') || (baseName[0] == '\0')) {
-      Log(LGPFX" %s: failed to get base dir for path '%s'.\n", __FUNCTION__,
+
+   if ((baseDir == NULL) || (*baseDir == '\0')) {
+      baseDir = Unicode_Duplicate(DIRSEPS);
+   }
+
+   if ((baseName == NULL) || (*baseName == '\0')) {
+      Log(LGPFX" %s: failed to get base name for path '%s'.\n", __FUNCTION__,
           filePathNoExt);
       goto cleanup;
    }
@@ -2386,7 +2391,7 @@ File_Rotate(const char *fileName,  // IN: original file
    size_t baseLen;
    char *baseName;
 
-   ASSERT(fileName);
+   ASSERT(fileName != NULL);
 
    if ((ext = Str_Strrchr(fileName, '.')) == NULL) {
       ext = fileName + strlen(fileName);
