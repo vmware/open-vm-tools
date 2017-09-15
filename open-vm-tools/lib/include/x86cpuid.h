@@ -1448,7 +1448,9 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_KABYLAKE_9E    0x9e  // Kabylake S/H QS
 
 /* Intel stepping information */
-#define CPUID_STEPPING_KABYLAKE_ES 0x8   // Kabylake S/H/U/Y ES
+#define CPUID_STEPPING_KABYLAKE_ES     0x8  // Kabylake S/H/U/Y ES
+#define CPUID_STEPPING_COFFEELAKE_A    0xA  // Coffeelake U/S/H
+#define CPUID_STEPPING_COFFEELAKE_B    0xB  // Coffeelake S/H
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -1677,16 +1679,29 @@ CPUID_MODEL_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 static INLINE Bool
+CPUID_MODEL_IS_COFFEELAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          ((CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_9E           &&
+            (CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_COFFEELAKE_A   ||
+             CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_COFFEELAKE_B)) ||
+           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E           &&
+            CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_COFFEELAKE_A));
+}
+
+static INLINE Bool
 CPUID_MODEL_IS_KABYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
-          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_9E ||
-           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E ||
-          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E &&
-           CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_KABYLAKE_ES) ||
-          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E &&
-           CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_KABYLAKE_ES));
+          !CPUID_MODEL_IS_COFFEELAKE(v) &&
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_9E         ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E         ||
+           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E         &&
+            CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_KABYLAKE_ES) ||
+           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E         &&
+            CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_KABYLAKE_ES));
 }
 
 static INLINE Bool
@@ -1694,7 +1709,9 @@ CPUID_UARCH_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
-          (CPUID_MODEL_IS_KABYLAKE(v) || CPUID_MODEL_IS_SKYLAKE(v));
+          (CPUID_MODEL_IS_COFFEELAKE(v) ||
+           CPUID_MODEL_IS_KABYLAKE(v)   ||
+           CPUID_MODEL_IS_SKYLAKE(v));
 }
 
 static INLINE Bool
