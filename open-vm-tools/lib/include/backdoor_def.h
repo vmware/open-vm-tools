@@ -37,14 +37,11 @@
  * an assembly language file.
  */
 
-
-
 #ifndef _BACKDOOR_DEF_H_
 #define _BACKDOOR_DEF_H_
 
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
-
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
@@ -52,7 +49,6 @@
 #if defined __cplusplus
 extern "C" {
 #endif
-
 
 /*
  * If you want to add a new low-level backdoor call for a guest userland
