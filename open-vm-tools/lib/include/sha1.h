@@ -42,12 +42,15 @@
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMKERNEL
-
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
 /* for uint32 */
 #include "vm_basic_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 
 #if defined __APPLE__ && defined USERLEVEL
@@ -132,5 +135,9 @@ void SHA1MultiBuffer(uint32 numBuffers,
                      unsigned char *digests[]);
 
 #endif // defined __APPLE__ && defined USERLEVEL
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _SHA1_H_

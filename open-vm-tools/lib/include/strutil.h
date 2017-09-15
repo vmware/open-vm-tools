@@ -29,6 +29,10 @@
 #include <stdarg.h>
 #include "vm_basic_types.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 struct DynBuf;
 
 char *StrUtil_GetNextToken(unsigned int *index, const char *str,
@@ -70,5 +74,9 @@ void StrUtil_SafeStrcatF(char **prefix, const char *fmt, ...) PRINTF_DECL(2, 3);
 char *StrUtil_TrimWhitespace(const char *str);
 
 char *StrUtil_ReplaceAll(const char *orig, const char *what, const char *with);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* STRUTIL_H */

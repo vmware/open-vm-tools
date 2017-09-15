@@ -55,6 +55,10 @@
 
 #include "vm_basic_types.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 
 /*
  * These platforms use bsd_vsnprintf().
@@ -255,6 +259,10 @@ unsigned char *Str_Mbscat(char *buf,        // IN/OUT:
    #define Str_Tcscspn(s1, s2) _tcscspn(s1, s2)
    #define Str_Tcsupr(s) _tcsupr(s)
    #define Str_Tcslwr(s) _tcslwr(s)
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* _STR_H_ */

@@ -36,6 +36,10 @@
 #include "unicodeBase.h"
 #include "codeset.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * Require the _FILE_OFFSET_BITS=64 interface, where all Posix file
  * structures and functions are transparently 64-bit.
@@ -684,6 +688,10 @@ exit:
 #define Posix_Unsetenv unsetenv
 #define Posix_Utime utime
 #define Posix_Utimes utimes
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _POSIX_H_

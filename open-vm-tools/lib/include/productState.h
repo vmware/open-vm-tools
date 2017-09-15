@@ -23,11 +23,14 @@
  *      and product dependent characteristics.
  */
 
-
 #ifndef _PRODUCT_STATE_H_
 #define _PRODUCT_STATE_H_
 
 #include "vm_basic_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 
 /*
@@ -116,5 +119,8 @@ void ProductState_GetHelp(Product *helpProduct, const char **helpVersion);
 char *ProductState_Serialize(ProductStateSerializationFlags flags);
 ProductStateSerializationFlags ProductState_Deserialize(const char *state);
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _PRODUCT_STATE_H_ */

@@ -32,6 +32,9 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if __linux__         // We need the REG_foo offsets in the gregset_t;
 #  define _GNU_SOURCE // _GNU_SOURCE maps to __USE_GNU
@@ -289,6 +292,10 @@
 #define SC_ESP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_ESP])
 #define SC_EIP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_EIP])
 #endif
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // ifndef _SIGPOSIXREGS_H_

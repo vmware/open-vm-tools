@@ -25,6 +25,10 @@
 
 #include "vm_basic_types.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 void Preference_DisableUserPreferences(void);
 Bool Preference_Init(void);
 void Preference_Exit(void);
@@ -39,5 +43,9 @@ void Preference_Log(void);
 char *Preference_GetPathName(const char *defaultValue, const char *fmt);
 void Preference_SetFromString(const char *string, Bool overwrite);
 Bool Preference_NotSet(const char *fmt);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif

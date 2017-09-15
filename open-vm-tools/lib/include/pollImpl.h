@@ -46,6 +46,10 @@
 
 #include "poll.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * PollImpl:
  *
@@ -164,5 +168,9 @@ PollLockingNotAvailable(void)
 {
    return FALSE;
 }
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _POLLIMPL_H_ */

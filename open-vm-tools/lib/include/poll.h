@@ -43,6 +43,10 @@
 #include "vmware.h"
 #include "userlock.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #ifdef _WIN32
 #define HZ 100
 #elif defined linux
@@ -319,6 +323,10 @@ Bool Poll_CB_RTimeRemove(PollerFunction f,
 #ifdef _WIN32
 void Poll_SetWindowMessageRecipient(HWND hWnd, UINT msg, Bool alwaysThunk);
 Bool Poll_FireWndCallback(void *lparam);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _POLL_H_

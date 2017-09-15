@@ -34,6 +34,10 @@
 //#include "syncWaitQ.h"
 #include "vm_atomic.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
  
 #ifndef _WIN32
 typedef enum
@@ -78,5 +82,8 @@ void SyncEvent_Wait(SyncEvent *that);
 
 SyncEventSelectableHandle SyncEvent_GetHandle(SyncEvent *that);
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // #ifndef _SYNC_EVENT_H_

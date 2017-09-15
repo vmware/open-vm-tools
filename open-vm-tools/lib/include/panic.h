@@ -29,6 +29,10 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * Initialize module to read custom behavior from config files.
  */
@@ -78,5 +82,8 @@ void Panic_SetCoreDumpFlags(int flags);
  */
 void Panic_DumpGuiResources(void);
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif //  _PANIC_H_
