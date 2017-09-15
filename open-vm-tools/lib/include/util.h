@@ -103,9 +103,6 @@ char *Util_DeriveFileName(const char *source,
                           const char *name,
                           const char *ext);
 
-char *Util_CombineStrings(char **sources, int count);
-char **Util_SeparateStrings(char *source, int *count);
-
 typedef struct UtilSingleUseResource UtilSingleUseResource;
 UtilSingleUseResource *Util_SingleUseAcquire(const char *name);
 void Util_SingleUseRelease(UtilSingleUseResource *res);
@@ -424,6 +421,7 @@ char *UtilSafeStrndup1(const char *s, size_t n,
 #endif  /* VMX86_DEBUG */
 
 
+void *Util_Memdup(const void *src, size_t size);
 void *Util_Memcpy(void *dest, const void *src, size_t count);
 
 

@@ -218,6 +218,7 @@ UtilSafeStrdup0(const char *s)        // IN:
    if (s == NULL) {
       return NULL;
    }
+
 #if defined(_WIN32)
    if ((result = _strdup(s)) == NULL) {
 #else
@@ -298,7 +299,7 @@ UtilSafeStrndup0(const char *s,        // IN:
 
    copy[size] = '\0';
 
-   return (char *) memcpy(copy, s, size);
+   return memcpy(copy, s, size);
 }
 
 
@@ -333,14 +334,76 @@ UtilSafeStrndup1(const char *s,        // IN:
 
    copy[size] = '\0';
 
-   return (char *) memcpy(copy, s, size);
+   return memcpy(copy, s, size);
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_Memdup --
+ *
+ *      Allocates a copy of data.
+ *
+ * Results:
+ *      Returns a pointer to the allocated copy.  The caller is responsible for
+ *      freeing it with free().  Returns NULL on failure or if the input size
+ *      is 0.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 void *
-Util_Memcpy(void *dest,
-            const void *src,
-            size_t count)
+Util_Memdup(const void *src, // IN:
+            size_t size)     // IN:
+{
+   void *dest;
+
+   if (size == 0) {
+      return NULL;
+   }
+
+   ASSERT(src != NULL);
+
+   dest = malloc(size);
+   if (dest != NULL) {
+      Util_Memcpy(dest, src, size);
+   }
+   return dest;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_Memcpy --
+ *
+ *      Version of memcpy intended to accelerate aligned copies.
+ *
+ *      Expected benefits:
+ *      2-4x performance improvemenet for small buffers (count <= 256 bytes)
+ *      Equivalent performance on mid-sized buffers (256 bytes < count < 4K)
+ *      ~25% performance improvement on large buffers (4K < count)
+ *
+ *      Has a drawback that falling through to standard memcpy has overhead
+ *      of 5 instructions and 2 branches.
+ *
+ * Results:
+ *      Returns a pointer to the destination buffer.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void *
+Util_Memcpy(void *dest,      // OUT:
+            const void *src, // IN:
+            size_t count)    // IN:
 {
 #if defined(__x86_64__) || defined(__i386__)
    uintptr_t align = ((uintptr_t)dest | (uintptr_t)src | count);
@@ -391,7 +454,7 @@ Util_Memcpy(void *dest,
       }
 
    #endif
-  
+
 #elif defined _MSC_VER
 
    #if defined(__x86_64__)
@@ -420,5 +483,3 @@ Util_Memcpy(void *dest,
    memcpy(dest, src, count);
    return dest;
 }
-            
-

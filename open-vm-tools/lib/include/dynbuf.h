@@ -51,9 +51,6 @@ DynBuf_InitWithMemory(DynBuf *b,
 void
 DynBuf_Destroy(DynBuf *b); // IN
 
-void *
-DynBuf_AllocGet(DynBuf const *b); // IN
-
 void
 DynBuf_Attach(DynBuf *b,    // IN
               size_t size,  // IN

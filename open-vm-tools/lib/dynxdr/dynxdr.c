@@ -28,6 +28,7 @@
 
 #include "dynxdr.h"
 #include "dynbuf.h"
+#include "util.h"
 
 /*
  * dynxdr.c --
@@ -420,7 +421,7 @@ void *
 DynXdr_AllocGet(XDR *xdrs) // IN
 {
    DynBuf *buf = &((DynXdrData *) xdrs->x_private)->data;
-   return DynBuf_AllocGet(buf);
+   return Util_Memdup(DynBuf_Get(buf), DynBuf_GetSize(buf));
 }
 
 

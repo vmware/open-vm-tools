@@ -120,43 +120,6 @@ DynBuf_Destroy(DynBuf *b)  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
- * DynBuf_AllocGet --
- *
- *      Retrieve a pointer to the data contained in a dynamic buffer.  Return
- *      a copy of that data.
- *
- * Results:
- *      The pointer to the data.  NULL on out of memory failure or if the
- *      input DynBuf is empty.
- *
- * Side effects:
- *      Allocates memory.
- *
- *-----------------------------------------------------------------------------
- */
-
-void *
-DynBuf_AllocGet(DynBuf const *b)  // IN:
-{
-   void *new_data;
-   ASSERT(b);
-
-   if (b->size == 0) {
-      return NULL;
-   }
-
-   new_data = malloc(b->size);
-   if (new_data) {
-      memcpy(new_data, b->data, b->size);
-   }
-
-   return new_data;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * DynBuf_Attach --
  *
  *      Grants ownership of the specified buffer to the DynBuf
