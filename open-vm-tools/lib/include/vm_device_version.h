@@ -237,8 +237,12 @@
 
 /************* SCSI implementation limits ********************************/
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
-#define	SCSI_MAX_DEVICES	 16	  // BT-958 emulates only 16
-#define PVSCSI_MAX_DEVICES       255      // 255 (including the controller)
+#define	SCSI_MAX_DEVICES         16	  // BT-958 emulates only 16
+#define PVSCSI_HWV14_MAX_DEVICES 65	  /* HWv14 And Later Supports 64 
+					   * + controller at ID 7 
+					   */
+#define PVSCSI_MAX_DEVICES       255	  // 255 (including the controller)
+#define PVSCSI_MAX_NUM_DISKS     (PVSCSI_HWV14_MAX_DEVICES - 1)
 
 /************* SATA implementation limits ********************************/
 #define SATA_MAX_CONTROLLERS   4
@@ -247,16 +251,26 @@
 #define AHCI_MAX_PORTS SATA_MAX_DEVICES
 
 /*
- * Maximum number of supported disk in a VM.
- *
- * Note: With some config options for PVSCSI, maximum number of disks could
- * be ~1K but that number is not publicly supported yet.
+ * Publicly supported maximum number of disks per VM.
  */
 #define MAX_NUM_DISKS \
    ((SATA_MAX_CONTROLLERS * SATA_MAX_DEVICES) + \
     (SCSI_MAX_CONTROLLERS * SCSI_MAX_DEVICES) + \
     (NVME_MAX_CONTROLLERS * NVME_MAX_NAMESPACES) + \
     (IDE_NUM_INTERFACES * IDE_DRIVES_PER_IF))
+
+/*
+ * Maximum number of supported disks in a VM from HWV14 or later, using PVSCSI updated max
+ * devices.  The note above still holds true, but instead of publicly supporting
+ * all devices, HWv14 simply extends the maximum support to 256 devices,
+ * instead ~244 calculated above.
+ *
+ * PVSCSI_HW_MAX_DEVICES is 65 - allowing 64 disks + controller (at ID 7)
+ * 4 * 64 = 256 devices.
+ *
+ */
+#define MAX_NUM_DISKS_HWV14 MAX(MAX_NUM_DISKS, \
+   (SCSI_MAX_CONTROLLERS * PVSCSI_MAX_NUM_DISKS))
 
 /*
  * VSCSI_BV_INTS is the number of uint32's needed for a bit vector
