@@ -840,6 +840,15 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
  ******************************************************************************
  */
 
+
+#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
+/*
+ * Turn off optimizer for this compiler, since something with new glib
+ * makes it go into an infinite loop, only on 64bit.
+ */
+#pragma optimize("", off)
+#endif
+
 static Bool
 GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
                     GuestInfoType infoType, // IN: guest information type
@@ -989,6 +998,12 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
    g_debug("Returning after updating guest information: %d\n", infoType);
    return TRUE;
 }
+#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
+/*
+ * Restore optimizer.
+ */
+#pragma optimize("", on)
+#endif
 
 
 /*

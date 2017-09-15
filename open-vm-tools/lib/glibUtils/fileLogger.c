@@ -239,7 +239,13 @@ FileLoggerOpen(FileLogger *data)
    path = FileLoggerGetPath(data, 0);
 
    if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+      /* GStatBuf was added in 2.26. */
+#if GLIB_CHECK_VERSION(2, 26, 0)
+      GStatBuf fstats;
+#else
       struct stat fstats;
+#endif
+
       if (g_stat(path, &fstats) > -1) {
          data->logSize = (gint) fstats.st_size;
       }

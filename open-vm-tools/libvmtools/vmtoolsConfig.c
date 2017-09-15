@@ -329,7 +329,12 @@ VMTools_LoadConfig(const gchar *path,
    gchar *backup = NULL;
    gchar *defaultPath = NULL;
    gchar *localPath = NULL;
+   /* GStatBuf was added in 2.26. */
+#if GLIB_CHECK_VERSION(2, 26, 0)
+   GStatBuf confStat;
+#else
    struct stat confStat;
+#endif
    GHashTable *old = NULL;
    GError *err = NULL;
    GKeyFile *cfg = NULL;
