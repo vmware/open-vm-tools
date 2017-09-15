@@ -273,14 +273,21 @@ ProcMgr_ListProcesses(void)
       if (NULL != uptimeFile) {
          double secondsSinceBoot;
          char *realLocale;
+         char *savedLocale;
 
          /*
           * Set the locale such that floats are delimited with ".".
           */
          realLocale = setlocale(LC_NUMERIC, NULL);
+         /*
+          * On Linux, the returned locale can point to static data,
+          * so make a copy.
+          */
+         savedLocale = Util_SafeStrdup(realLocale);
          setlocale(LC_NUMERIC, "C");
          numberFound = fscanf(uptimeFile, "%lf", &secondsSinceBoot);
-         setlocale(LC_NUMERIC, realLocale);
+         setlocale(LC_NUMERIC, savedLocale);
+         free(savedLocale);
 
          /*
           * Figure out system boot time in absolute terms.
