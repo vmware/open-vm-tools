@@ -36,7 +36,8 @@
  *
  * DynBuf_Init --
  *
- *      Dynamic buffer constructor --hpreg
+ *      Dynamic buffer constructor. The dynamic buffer is empty and starts
+ *      with no memory allocated.
  *
  * Results:
  *      None
@@ -61,10 +62,10 @@ DynBuf_Init(DynBuf *b)  // OUT:
 /*
  *-----------------------------------------------------------------------------
  *
- * DynBuf_InitWithData --
+ * DynBuf_InitWithMemory --
  *
- *      Dynamic buffer constructor - starting with the specified memory
- *      allocation.
+ *      Dynamic buffer constructor. The dynamic buffer is empty but starts with
+ *      the specified memory allocation.
  *
  * Results:
  *      None
@@ -76,9 +77,9 @@ DynBuf_Init(DynBuf *b)  // OUT:
  */
 
 void
-DynBuf_InitWithData(DynBuf *b,        // IN/OUT:
-                    size_t dataSize,  // IN:
-                    void *data)       // IN:
+DynBuf_InitWithMemory(DynBuf *b,        // IN/OUT:
+                      size_t dataSize,  // IN:
+                      void *data)       // IN:
 {
    ASSERT(b);
    ASSERT(dataSize != 0);

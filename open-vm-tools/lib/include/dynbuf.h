@@ -41,9 +41,9 @@ void
 DynBuf_Init(DynBuf *b); // OUT
 
 void
-DynBuf_InitWithData(DynBuf *b,
-                    size_t dataSize,
-                    void *data);
+DynBuf_InitWithMemory(DynBuf *b,
+                      size_t dataSize,
+                      void *data);
 
 void
 DynBuf_Destroy(DynBuf *b); // IN
