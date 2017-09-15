@@ -1,0 +1,3 @@
+ACTION=="add", SUBSYSTEMS=="scsi", ATTRS{vendor}=="VMware*" , ATTRS{model}=="Virtual disk*", RUN+="/bin/sh -c 'echo 180 >/sys$DEVPATH/device/timeout'"
+ACTION=="add", SUBSYSTEMS=="scsi", ATTRS{vendor}=="VMware*" , ATTRS{model}=="VMware Virtual S", RUN+="/bin/sh -c 'echo 180 >/sys$DEVPATH/device/timeout'"
+

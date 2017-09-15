@@ -75,3 +75,6 @@ if ENABLE_CAF
    SUBDIRS += common-agent/etc
 endif
 
+if HAVE_UDEV
+   SUBDIRS += udev
+endif

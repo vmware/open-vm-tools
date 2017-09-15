@@ -1232,6 +1232,23 @@ if test "$os" = "solaris"; then
    fi
 fi
 
+if test "$os" = "linux"; then
+    have_udev="yes"
+    AC_ARG_WITH([udev-rules-dir],
+                [AS_HELP_STRING([--with-udev-rules-dir=DIR],
+                    [where to install udev rules])],
+                [UDEVRULESDIR="$withval"],
+                [udevdir=$($PKG_CONFIG udev --variable=udevdir)
+                    if test "x$udevdir" = "x"; then
+                        UDEVRULESDIR="/lib/udev/rules.d"
+                    else
+                        UDEVRULESDIR="$udevdir/rules.d"
+                    fi])
+else
+    have_udev="no"
+    UDEVRULESDIR=""
+fi
+
 if test "x$enable_resolutionkms" = "xauto"; then
    enable_resolutionkms="no"
 fi
@@ -1268,6 +1285,7 @@ AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
 AM_CONDITIONAL(ENABLE_CAF, test "$enable_caf" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
+AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
 AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
 
 if test "$have_xsm" != "yes"; then
@@ -1385,6 +1403,8 @@ AC_SUBST([LIBVMTOOLS_LIBADD])
 AC_SUBST([VIX_LIBADD])
 AC_SUBST([VGAUTH_LIBADD])
 
+AC_SUBST([UDEVRULESDIR])
+
 ###
 ### Create the Makefiles
 ###
@@ -1498,6 +1518,7 @@ AC_CONFIG_FILES([                      \
    docs/api/Makefile                   \
    scripts/Makefile                    \
    scripts/build/rpcgen_wrapper.sh     \
+   udev/Makefile                       \
 ])
 
 ###
