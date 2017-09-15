@@ -267,7 +267,8 @@ VmBackup_SendEvent(const char *event,
 #endif
 
    if (!success) {
-      g_warning("Failed to send vmbackup event: %s.\n", result);
+      g_warning("Failed to send vmbackup event: %s, result: %s.\n",
+                msg, result);
    }
    vm_free(result);
    g_free(msg);
