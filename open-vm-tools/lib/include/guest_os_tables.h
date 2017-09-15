@@ -127,15 +127,15 @@
    GOSL(STR_OS_CENTOS "6-64",                GUEST_OS_CENTOS6_64,             "linux.iso")            \
    GOSL(STR_OS_CENTOS "7-64",                GUEST_OS_CENTOS7_64,             "linux.iso")            \
    GOSL("coreos-64",                         GUEST_OS_OTHER3XLINUX_64,        NULL)                   \
-   GOSL(STR_OS_MACOS,                        GUEST_OS_DARWIN9,                "darwin.iso")           \
-   GOSL(STR_OS_MACOS "-64",                  GUEST_OS_DARWIN9_64,             "darwin.iso")           \
-   GOSL(STR_OS_MACOS "10",                   GUEST_OS_DARWIN10,               "darwin.iso")           \
-   GOSL(STR_OS_MACOS "10-64",                GUEST_OS_DARWIN10_64,            "darwin.iso")           \
-   GOSL(STR_OS_MACOS "11",                   GUEST_OS_DARWIN11,               "darwin.iso")           \
-   GOSL(STR_OS_MACOS "11-64",                GUEST_OS_DARWIN11_64,            "darwin.iso")           \
-   GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN12_64,            "darwin.iso")           \
-   GOSL(STR_OS_MACOS "13-64",                GUEST_OS_DARWIN13_64,            "darwin.iso")           \
-   GOSL(STR_OS_MACOS "14-64",                GUEST_OS_DARWIN14_64,            "darwin.iso")           \
+   GOSL(STR_OS_MACOS,                        GUEST_OS_DARWIN9,                "darwinPre15.iso")      \
+   GOSL(STR_OS_MACOS "-64",                  GUEST_OS_DARWIN9_64,             "darwinPre15.iso")      \
+   GOSL(STR_OS_MACOS "10",                   GUEST_OS_DARWIN10,               "darwinPre15.iso")      \
+   GOSL(STR_OS_MACOS "10-64",                GUEST_OS_DARWIN10_64,            "darwinPre15.iso")      \
+   GOSL(STR_OS_MACOS "11",                   GUEST_OS_DARWIN11,               "darwinPre15.iso")      \
+   GOSL(STR_OS_MACOS "11-64",                GUEST_OS_DARWIN11_64,            "darwinPre15.iso")      \
+   GOSL(STR_OS_MACOS "12-64",                GUEST_OS_DARWIN12_64,            "darwinPre15.iso")      \
+   GOSL(STR_OS_MACOS "13-64",                GUEST_OS_DARWIN13_64,            "darwinPre15.iso")      \
+   GOSL(STR_OS_MACOS "14-64",                GUEST_OS_DARWIN14_64,            "darwinPre15.iso")      \
    GOSL(STR_OS_MACOS "15-64",                GUEST_OS_DARWIN15_64,            "darwin.iso")           \
    GOSL(STR_OS_MACOS "16-64",                GUEST_OS_DARWIN16_64,            "darwin.iso")           \
    GOSL(STR_OS_MACOS "17-64",                GUEST_OS_DARWIN16_64,            "darwin.iso")           \
