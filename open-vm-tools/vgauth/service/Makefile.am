@@ -46,6 +46,7 @@ VGAuthService_SCRIPTS += ../serviceImpl/schemas/XMLSchema-hasFacetAndProperty.xs
 VGAuthService_SCRIPTS += ../serviceImpl/schemas/XMLSchema-instance.xsd
 VGAuthService_SCRIPTS += ../serviceImpl/schemas/XMLSchema.xsd
 VGAuthService_SCRIPTS += ../serviceImpl/schemas/xml.xsd
+VGAuthService_SCRIPTS += ../serviceImpl/schemas/catalog.xml
 
 VGAuthService_CPPFLAGS =
 VGAuthService_CPPFLAGS += -DVMTOOLS_USE_GLIB
