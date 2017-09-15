@@ -104,6 +104,7 @@
    LOGLEVEL_VAR(vsock), \
    LOGLEVEL_VAR(vrdma), \
    LOGLEVEL_VAR(nvdimm), \
+   LOGLEVEL_VAR(qat), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \

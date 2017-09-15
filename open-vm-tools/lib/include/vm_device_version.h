@@ -298,6 +298,9 @@
 /************* vRDMA implementation limits ******************************/
 #define MAX_VRDMA_DEVICES 1
 
+/************* QAT implementation limits ********************/
+#define MAX_QAT_PCI_DEVICES 4
+
 /************* Strings for Host USB Driver *******************************/
 
 #ifdef _WIN32
