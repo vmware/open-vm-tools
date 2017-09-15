@@ -317,6 +317,7 @@
    LOGLEVEL_VAR(udpfec),    /* lib/udpfec */ \
    LOGLEVEL_VAR(maclatency), \
    LOGLEVEL_VAR(tpm2emu), \
+   LOGLEVEL_VAR(tarReader),\
    LOGLEVEL_VAR(nvramMgr)
 
    /* end of list */
