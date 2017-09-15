@@ -108,6 +108,7 @@
    LOGLEVEL_VAR(nvdimm), \
    LOGLEVEL_VAR(qat), \
    LOGLEVEL_VAR(vtpm), \
+   LOGLEVEL_VAR(mor), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
