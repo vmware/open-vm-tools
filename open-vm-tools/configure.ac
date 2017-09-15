@@ -79,7 +79,7 @@ case "$host_cpu" in
    [i[3456]86])
       userSpaceBitness="32"
       ;;
-   [x86_64])
+   [amd64|x86_64])
       userSpaceBitness="64"
       ;;
    [*])
@@ -1435,8 +1435,8 @@ AC_CONFIG_FILES([                      \
    rpctool/Makefile                    \
    guestproxycerttool/Makefile         \
    vgauth/Makefile                     \
-   namespacetool/Makefile              \
    vgauth/lib/Makefile                 \
+   namespacetool/Makefile              \
    vgauth/cli/Makefile                 \
    vgauth/service/Makefile             \
    libguestlib/Makefile                \
