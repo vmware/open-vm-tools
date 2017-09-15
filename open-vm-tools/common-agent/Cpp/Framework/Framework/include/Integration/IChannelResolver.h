@@ -1,0 +1,32 @@
+/*
+ *	 Author: bwilliams
+ *  Created: Oct 22, 2010
+ *
+ *	Copyright (c) 2010 Vmware, Inc.  All rights reserved.
+ *	-- VMware Confidential
+ */
+
+#ifndef _IntegrationContracts_IChannelResolver_h_
+#define _IntegrationContracts_IChannelResolver_h_
+
+namespace Caf {
+
+/// TODO - describe interface
+struct __declspec(novtable)
+	IChannelResolver : public ICafObject
+{
+	CAF_DECL_UUID("32361862-a312-4cab-a978-45b7059ca102")
+
+	virtual SmartPtrIMessageChannel resolveChannelName(
+		const std::string& channelName) const = 0;
+
+	virtual SmartPtrIIntegrationObject resolveChannelNameToObject(
+		const std::string& channelName) const = 0;
+};
+
+CAF_DECLARE_SMART_INTERFACE_POINTER(IChannelResolver);
+
+}
+
+#endif // #ifndef _IntegrationContracts_IChannelResolver_h_
+
