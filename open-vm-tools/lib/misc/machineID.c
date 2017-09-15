@@ -142,13 +142,14 @@ ObtainHardwareID(uint64 *hardwareID) // OUT:
 
    // Deal with BUG 21643
    dllHandle = LoadLibrary(TEXT("icmp.dll"));
-   FreeLibrary(dllHandle);
 
    if (!dllHandle) {
       Warning("%s Failed to load icmp.dll.\n", __FUNCTION__);
 
       return EINVAL;
    }
+
+   FreeLibrary(dllHandle);
 
    dllHandle = LoadLibrary(TEXT("IpHlpApi.dll"));
 
