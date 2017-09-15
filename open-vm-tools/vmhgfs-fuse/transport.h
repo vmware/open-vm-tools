@@ -26,23 +26,23 @@
 #include "request.h"
 #include <pthread.h>
 
-/*
- * There are the operations a channel should implement.
- */
-struct HgfsTransportChannel;
-typedef struct HgfsTransportChannelOps {
-   Bool (*open)(struct HgfsTransportChannel *);
-   void (*close)(struct HgfsTransportChannel *);
-   int (*send)(struct HgfsTransportChannel *, HgfsReq *);
-   int (*recv)(struct HgfsTransportChannel *, char **, size_t *);
-   void (*exit)(struct HgfsTransportChannel *);
-} HgfsTransportChannelOps;
-
 typedef enum {
    HGFS_CHANNEL_UNINITIALIZED,
    HGFS_CHANNEL_NOTCONNECTED,
    HGFS_CHANNEL_CONNECTED,
 } HgfsChannelStatus;
+
+/*
+ * There are the operations a channel should implement.
+ */
+struct HgfsTransportChannel;
+typedef struct HgfsTransportChannelOps {
+   HgfsChannelStatus (*open)(struct HgfsTransportChannel *);
+   void (*close)(struct HgfsTransportChannel *);
+   int (*send)(struct HgfsTransportChannel *, HgfsReq *);
+   int (*recv)(struct HgfsTransportChannel *, char **, size_t *);
+   void (*exit)(struct HgfsTransportChannel *);
+} HgfsTransportChannelOps;
 
 typedef struct HgfsTransportChannel {
    const char *name;               /* Channel name. */

@@ -1371,7 +1371,7 @@ main(int argc,       //IN: Argument count
    HgfsResetOps();
    res = HgfsTransportInit();
    if (res != 0) {
-      LOG(4, ("Main: Error in HgfsTransportInit %d\n", res));
+      fprintf(stderr, "Error %d cannot open connection!\n", res);
       return res;
    }
    HgfsInitCache();
