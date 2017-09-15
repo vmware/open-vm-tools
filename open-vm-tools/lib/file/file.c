@@ -1679,8 +1679,12 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
        * Bugfix 1592498, set last error "Access denied" instead of
        * "File not found". File_XXX have different implementations on
        * Windows and Linux, this problem only happens on Windows.
+       *
+       * Bugfix 1878912, working around a problem when we have evidence that
+       * directory exists but we get intermittent errors when we check its
+       * existence.
        */
-      failed = !File_CreateDirectoryEx(temp, mask);
+      failed = !File_EnsureDirectoryEx(temp, mask);
 #if defined(_WIN32)
       status = GetLastError();
       statusNew = ERROR_SUCCESS;
