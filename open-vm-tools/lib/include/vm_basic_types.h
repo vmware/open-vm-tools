@@ -590,6 +590,11 @@ typedef uint16  UReg16;
 typedef uint32  UReg32;
 typedef uint64  UReg64;
 
+#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+typedef  int128  Reg128;
+typedef uint128 UReg128;
+#endif
+
 #if defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
     defined (VMKERNEL) || defined (VMKBOOT)
 typedef  Reg64  Reg;
