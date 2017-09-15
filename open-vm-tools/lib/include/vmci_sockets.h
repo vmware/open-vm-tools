@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -248,6 +248,36 @@ extern "C" {
  */
 
 #define SO_VMCI_NONBLOCK_TXRX               7
+
+/**
+ * \brief Option name for STREAM socket connection disconect cause
+ *
+ * Use as the option name in \c getsockopt(3) to get the cause of the
+ * peer disconnect for a stream socket.
+ *
+ * \note Only available for ESX (VMkernel/userworld) endpoints.
+ *
+ * An example is given below.
+ *
+ * \code
+ * int vmciFd;
+ * int af = VMCISock_GetAFValueFd(&vmciFd);
+ * int32 cause;
+ * socklen_t len = sizeof cause;
+ * int fd = socket(af, SOCK_DGRAM, 0);
+ * ...
+ * if (recv(fd, buf, buflen, 0) == 0) {
+ *    getsockopt(fd, af, SO_VMCI_DISCONNECT_CAUSE, &cause, &len);
+ * }
+ * close(fd);
+ * VMCISock_ReleaseAFValueFd(vmciFd);
+ * \endcode
+ */
+
+#define SO_VMCI_DISCONNECT_CAUSE            8
+
+#define VMCI_SOCKETS_DISCONNECT_REGULAR     0
+#define VMCI_SOCKETS_DISCONNECT_VMOTION     1
 
 /**
  * \brief The vSocket equivalent of INADDR_ANY.
