@@ -63,7 +63,7 @@ NullDriverClose(SyncDriverHandle handle)
  */
 
 SyncDriverErr
-NullDriver_Freeze(const char *paths,
+NullDriver_Freeze(const GSList *paths,
                   SyncDriverHandle *handle)
 {
    /*
