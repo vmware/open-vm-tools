@@ -19,7 +19,7 @@
 #include "compat_version.h"
 #include "compat_autoconf.h"
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 17, 0) && \
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0) && \
     LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
 
 #include <linux/fs.h>
