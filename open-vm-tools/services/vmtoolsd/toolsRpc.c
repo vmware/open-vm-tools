@@ -153,10 +153,10 @@ ToolsCoreRpcCapReg(RpcInData *data)
       char *result = NULL;
       size_t resultLen;
       gchar *toolsVersion;
-      gboolean disableVersion = g_key_file_get_boolean(state->ctx.config,
-                                                       "vmtools",
-                                                       CONFNAME_DISABLETOOLSVERSION,
-                                                       NULL);
+      gboolean hideVersion = g_key_file_get_boolean(state->ctx.config,
+                                                    "vmtools",
+                                                    CONFNAME_HIDETOOLSVERSION,
+                                                    NULL);
 
 #if defined(_WIN32)
       type = TOOLS_TYPE_MSI;
@@ -175,7 +175,7 @@ ToolsCoreRpcCapReg(RpcInData *data)
 #endif
 #endif
 
-      version = disableVersion ? TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT;
+      version = hideVersion ? TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT;
 
       /*
        * First try "tools.set.versiontype", if that fails because host is too
@@ -185,6 +185,8 @@ ToolsCoreRpcCapReg(RpcInData *data)
 
       if (!RpcChannel_Send(state->ctx.rpc, toolsVersion, strlen(toolsVersion) + 1,
                            &result, &resultLen)) {
+         GError *gerror = NULL;
+         gboolean disableVersion;
          vm_free(result);
          g_free(toolsVersion);
 
@@ -192,9 +194,19 @@ ToolsCoreRpcCapReg(RpcInData *data)
           * Fall back to old behavior for OSPs and OVT so that tools will be
           * reported as guest managed.
           */
-         if (type == TOOLS_TYPE_OSP || type == TOOLS_TYPE_OVT) {
-            version = TOOLS_VERSION_UNMANAGED;
+         disableVersion = g_key_file_get_boolean(state->ctx.config,
+                                                          "vmtools",
+                                                          CONFNAME_DISABLETOOLSVERSION,
+                                                          &gerror);
+
+         /* By default disableVersion is FALSE, except for open-vm-tools */
+         if (type == TOOLS_TYPE_OVT && gerror != NULL) {
+            g_debug("gerror->code = %d when checking for %s\n", gerror->code, CONFNAME_DISABLETOOLSVERSION);
+            g_clear_error(&gerror);
+            disableVersion = TRUE;
          }
+
+         version = disableVersion ? TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT;
          toolsVersion = g_strdup_printf("tools.set.version %u", version);
 
          if (!RpcChannel_Send(state->ctx.rpc, toolsVersion, strlen(toolsVersion) + 1,
