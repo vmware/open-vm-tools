@@ -28,7 +28,6 @@ libguestInfo_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libguestInfo_la_LIBADD =
 libguestInfo_la_LIBADD += @VMTOOLS_LIBS@
-libguestInfo_la_LIBADD += @PROCPS_LIBS@
 libguestInfo_la_LIBADD += @XDR_LIBS@
 
 if HAVE_DNET

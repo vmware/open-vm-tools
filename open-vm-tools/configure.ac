@@ -28,11 +28,7 @@
 #  RPCGENFLAGS: extra flags to pass to rpcgen
 #
 # The following libraries are currently tested: DNET, FUSE, GLIB2, GMODULE,
-# GOBJECT, GTHREAD, GTK, GTKMM, ICU, LIBPNG, PAM, PROCPS, URIPARSER, ZLIB
-#
-# For the procps library: you can provide the name of the procps library on
-# your system by defining CUSTOM_PROCPS_NAME. By default the configure script
-# will try both "-lproc" and "-lproc-3.2.7".
+# GOBJECT, GTHREAD, GTK, GTKMM, ICU, LIBPNG, PAM, URIPARSER, ZLIB
 ################################################################################
 
 ###
@@ -766,98 +762,6 @@ AC_ARG_WITH([pam-prefix],
 		[specifies where pam files go. Default is $(sysconfdir)])],
 	    [PAM_PREFIX="$withval"],
 	    [PAM_PREFIX='$(sysconfdir)'])
-
-if test "$os" = "linux"; then
-        AC_ARG_WITH([procps],
-	    [AS_HELP_STRING([--without-procps],
-		[compiles without libproc (disables support for meminfo)])],
-	    [],
-	    [with_procps=yes])
-else
-	with_procps="no"
-fi
-
-if test "$with_procps" = "yes"; then
-
-   have_procps=no
-
-   if test -z "$CUSTOM_PROCPS_NAME" && test -z "$CUSTOM_PROCPS_LIBS"; then
-      # See if we have procps-ng (that finally supports pkg-config).
-      AC_VMW_CHECK_LIB([procps-ng],
-                       [PROCPS],
-                       [libprocps],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [
-                        have_procps=yes;
-                       ],
-                       [])
-   fi
-
-   if test "$have_procps" = "no"; then
-      # Let's see if there is an older procps version, one that does not
-      # support pkg-config.
-      if test -z "$CUSTOM_PROCPS_NAME"; then
-         CUSTOM_PROCPS_NAME=proc
-      fi
-
-      # XXX: no pkg-config and no procps-config means we need to
-      # hard-code a sensible default.
-      if test -z "$CUSTOM_PROCPS_LIBS"; then
-         CUSTOM_PROCPS_LIBS="-L/lib"
-      fi
-
-      # Some distros provide libproc-${version}.so only, others provide the
-      # libproc.so symlink. Try both to see what sticks (but only try the 3.2.7
-      # and 3.2.8 versions - adding every possible version here would be a mess).
-      #
-      # Users can help by providing CUSTOM_PROCPS_NAME / CUSTOM_PROCPS_LIBS if
-      # necessary.
-      AC_VMW_CHECK_LIB([$CUSTOM_PROCPS_NAME],
-                       [PROCPS],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [getstat],
-                       [
-                        have_procps=yes;
-                       ],
-                       [])
-   fi
-
-   if test "$have_procps" = "no"; then
-      AC_VMW_CHECK_LIB([proc-3.2.8],
-                       [PROCPS],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [getstat],
-                       [
-                        have_procps=yes;
-                       ],
-                       [])
-   fi
-
-   if test "$have_procps" = "no"; then
-      AC_VMW_CHECK_LIB([proc-3.2.7],
-                       [PROCPS],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [getstat],
-                       [],
-                       [AC_MSG_ERROR([libproc not found. Please configure without procps (using --without-procps) or install procps - http://procps.sourceforge.net])])
-   fi
-fi
-
-if test "$with_procps" != "yes"; then
-AC_DEFINE([NO_PROCPS], 1, [Define to 1 if building without procps.])
-fi
 
 AC_ARG_WITH([dnet],
 	    [AS_HELP_STRING([--without-dnet],
