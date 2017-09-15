@@ -151,6 +151,7 @@
    LOGLEVEL_VAR(mksDX11Renderer), \
    LOGLEVEL_VAR(mksDX11ResourceView), \
    LOGLEVEL_VAR(mksDX11ShimOps), \
+   LOGLEVEL_VAR(mksMTLRenderer), \
    LOGLEVEL_VAR(vdpPlugin), \
    \
    /* user/sound */ \
