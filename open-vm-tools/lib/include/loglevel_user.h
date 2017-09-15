@@ -321,7 +321,8 @@
    LOGLEVEL_VAR(tpm2emu), \
    LOGLEVEL_VAR(tarReader),\
    LOGLEVEL_VAR(nvramMgr), \
-   LOGLEVEL_VAR(hbr)
+   LOGLEVEL_VAR(hbr), \
+   LOGLEVEL_VAR(vvtd)
 
    /* end of list */
 
