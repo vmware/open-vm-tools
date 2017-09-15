@@ -2332,7 +2332,7 @@ FoundryToolsDaemon_TranslateSystemErr(void)
  *-----------------------------------------------------------------------------
  */
 
-static VixError
+VixError
 VixToolsTranslateVGAuthError(VGAuthError vgErr)
 {
    VixError err;
@@ -11516,62 +11516,19 @@ GuestAuthSAMLAuthenticateAndImpersonate(
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
    } else {
-      VGAuthExtraParams extraParams[1];
-      VGAuthError vgErr2;
-
-      extraParams[0].name = VGAUTH_PARAM_VALIDATE_INFO_ONLY;
-      extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
-
-      vgErr2 = VGAuth_ValidateSamlBearerToken(ctx,
-                                             token,
-                                             username,
-                                             1,
-                                             extraParams,
-                                             &newHandle);
-      // if it passes with VALIDATE_ONLY, see if its the current user (SYSTEM)
-      if (vgErr2 == VGAUTH_E_OK) {
-         gchar *tokenUser = NULL;
-
-         vgErr2 = VGAuth_UserHandleUsername(ctx, newHandle, &tokenUser);
-         if (VGAUTH_FAILED(vgErr2)) {
-            g_warning("%s: VGAuth_UserHandleUsername() failed\n", __FUNCTION__);
-            err = VixToolsTranslateVGAuthError(vgErr2);
-            goto done;
-         }
-
-         g_debug("%s: VGAuth_ValidateSamlBearerToken() with "
-                 "VGAUTH_PARAM_VALIDATE_INFO_ONLY:  user is %s, "
-                 "toolsd user is %s\n",
-                 __FUNCTION__, tokenUser, gCurrentUsername);
-
-         /*
-          * If VGAUTH_PARAM_VALIDATE_INFO_ONLY passed, and the
-          * username matches, bypass impersonation.  Be sure
-          * to do a case-less comparison.
-          */
-         if (Unicode_CompareIgnoreCase(tokenUser, gCurrentUsername) == 0) {
-            g_message("%s: User '%s' matched; bypassing impersonation\n",
-                      __FUNCTION__, gCurrentUsername);
-
-            // set the impersonation token to the magic value
-            *userToken = PROCESS_CREATOR_USER_TOKEN;
-            gImpersonatedUsername = Util_SafeStrdup("_CONSOLE_USER_NAME_");
-            currentUserHandle = newHandle;
-            err = VIX_OK;
-         } else {
-            g_message("%s: User '%s' mismatch with process user '%s'\n",
-                      __FUNCTION__, tokenUser, gCurrentUsername);
-            // use original error code
-            err = VixToolsTranslateVGAuthError(vgErr);
-         }
-         VGAuth_FreeBuffer(tokenUser);
-         goto done;
-
-      } else {
-         // use original error code
-         err = VixToolsTranslateVGAuthError(vgErr);
-         goto done;
-      }
+      /*
+       * See if we have a SAML token associated with the toolsd owner.
+       * If this returns OK, we don't bother to impersonate.
+       * If it fails, return an error.
+       */
+      err = VixToolsCheckSAMLForSystem(ctx,
+                                       vgErr,
+                                       token,
+                                       username,
+                                       gCurrentUsername,
+                                       userToken,
+                                       &currentUserHandle);
+      goto done;
    }
 #else
    if (VGAUTH_FAILED(vgErr)) {
