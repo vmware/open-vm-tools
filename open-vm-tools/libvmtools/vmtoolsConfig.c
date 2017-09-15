@@ -547,9 +547,12 @@ VMTools_ConfigGetBoolean(GKeyFile *config,
    GError *err = NULL;
    gboolean value;
 
-   ASSERT(config);
-   ASSERT(key);
-   ASSERT(section);
+   if (config == NULL || section == NULL || key == NULL) {
+      g_debug("%s: Returning default value for '[%s] %s'=%s.\n",
+              __FUNCTION__, section ? section : "(null)",
+              key ? key : "(null)", defValue ? "TRUE" : "FALSE");
+      return defValue;
+   }
 
    value = g_key_file_get_boolean(config, section, key, &err);
    if (err != NULL) {
