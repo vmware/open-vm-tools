@@ -189,13 +189,6 @@ static HgfsServerConfig gHgfsCfgSettings = {
  */
 static Atomic_uint32 hgfsHandleCounter = {0};
 
-/*
- * Number of outstanding asynchronous operations.
- */
-static Atomic_uint32 gHgfsAsyncCounter = {0};
-static MXUserExclLock *gHgfsAsyncLock;
-static MXUserCondVar  *gHgfsAsyncVar;
-
 static HgfsServerMgrCallbacks *gHgfsMgrData = NULL;
 
 
@@ -273,6 +266,8 @@ typedef struct HgfsSharedFolderProperties {
 
 
 /* Allocate/Add sessions helper functions. */
+static void
+HgfsServerAsyncInfoIncCount(HgfsAsyncRequestInfo *info);
 
 static Bool
 HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
@@ -355,6 +350,7 @@ HgfsServerTransportGetDefaultSession(HgfsTransportSessionInfo *transportSession,
                                      HgfsSessionInfo **session);
 static Bool HgfsPacketSend(HgfsPacket *packet,
                            HgfsTransportSessionInfo *transportSession,
+                           HgfsSessionInfo *session,
                            HgfsSendFlags flags);
 
 /*
@@ -3236,7 +3232,10 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       goto exit;
    }
 
-   if (!HgfsPacketSend(input->packet, input->transportSession, 0)) {
+   if (!HgfsPacketSend(input->packet,
+                       input->transportSession,
+                       input->session,
+                       0)) {
       /* Send failed. Drop the reply. */
       Log("%s: Error sending reply\n", __FUNCTION__);
    }
@@ -3354,7 +3353,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
              */
             HSPU_PutMetaPacket(packet, transportSession->channelCbTable);
             input->request = NULL;
-            Atomic_Inc(&gHgfsAsyncCounter);
+            HgfsServerAsyncInfoIncCount(&input->session->asyncRequestsInfo);
 
             /* Remove pending requests during poweroff. */
             Poll_Callback(POLL_CS_MAIN,
@@ -3918,17 +3917,9 @@ HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our
     * Initialize the globals for handling the active shared folders.
     */
 
-   gHgfsAsyncLock = NULL;
-   gHgfsAsyncVar = NULL;
-   Atomic_Write(&gHgfsAsyncCounter, 0);
-
    DblLnkLst_Init(&gHgfsSharedFoldersList);
    gHgfsSharedFoldersLock = MXUser_CreateExclLock("sharedFoldersLock",
                                                   RANK_hgfsSharedFolders);
-   gHgfsAsyncLock = MXUser_CreateExclLock("asyncLock",
-                                          RANK_hgfsSharedFolders);
-
-   gHgfsAsyncVar = MXUser_CreateCondVarExclLock(gHgfsAsyncLock);
 
    if (!HgfsPlatformInit()) {
       LOG(4, ("Could not initialize server platform specific \n"));
@@ -3996,16 +3987,6 @@ HgfsServer_ExitState(void)
    if (NULL != gHgfsSharedFoldersLock) {
       MXUser_DestroyExclLock(gHgfsSharedFoldersLock);
       gHgfsSharedFoldersLock = NULL;
-   }
-
-   if (NULL != gHgfsAsyncLock) {
-      MXUser_DestroyExclLock(gHgfsAsyncLock);
-      gHgfsAsyncLock = NULL;
-   }
-
-   if (NULL != gHgfsAsyncVar) {
-      MXUser_DestroyCondVar(gHgfsAsyncVar);
-      gHgfsAsyncVar = NULL;
    }
 
    HgfsPlatformDestroy();
@@ -4420,6 +4401,170 @@ HgfsServerTransportExit(HgfsTransportSessionInfo *transportSession)   // IN: tra
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerAsyncInfoInit --
+ *
+ *    Initialize the async request info for a session.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncInfoInit(HgfsAsyncRequestInfo *info) // IN/OUT: info
+{
+   Atomic_Write(&info->requestCount, 0);
+   info->lock  = MXUser_CreateExclLock("asyncLock",
+                                       RANK_hgfsSharedFolders);
+   info->requestCountIsZero = MXUser_CreateCondVarExclLock(info->lock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncInfoExit --
+ *
+ *    Destroy the async request info for a session session.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncInfoExit(HgfsAsyncRequestInfo *info) // IN/OUT: info
+{
+   ASSERT(Atomic_Read(&info->requestCount) == 0);
+   if (NULL != info->lock) {
+      MXUser_DestroyExclLock(info->lock);
+      info->lock = NULL;
+   }
+
+   if (NULL != info->requestCountIsZero) {
+      MXUser_DestroyCondVar(info->requestCountIsZero);
+      info->requestCountIsZero = NULL;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncWaitForAllRequestsDone --
+ *
+ *    Wait for all the async info requests to be done.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncWaitForAllRequestsDone(HgfsAsyncRequestInfo *info) // IN: info
+{
+   MXUser_AcquireExclLock(info->lock);
+   while (Atomic_Read(&info->requestCount)) {
+      MXUser_WaitCondVarExclLock(info->lock, info->requestCountIsZero);
+   }
+   MXUser_ReleaseExclLock(info->lock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncSignalAllRequestsDone --
+ *
+ *    Signal that all the async info requests are done.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncSignalAllRequestsDone(HgfsAsyncRequestInfo *info) // IN: info
+{
+   MXUser_AcquireExclLock(info->lock);
+   MXUser_BroadcastCondVar(info->requestCountIsZero);
+   MXUser_ReleaseExclLock(info->lock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncInfoDecCount --
+ *
+ *    Decrement the async info request count for a session.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncInfoDecCount(HgfsAsyncRequestInfo *info) // IN/OUT: info
+{
+   if (Atomic_ReadDec32(&info->requestCount) == 1) {
+      HgfsServerAsyncSignalAllRequestsDone(info);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncInfoIncCount --
+ *
+ *    Increment the async info request count for a session.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncInfoIncCount(HgfsAsyncRequestInfo *info) // IN/OUT: info
+{
+   Atomic_Inc(&info->requestCount);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerAllocateSession --
  *
  *    Initialize a new Hgfs session.
@@ -4512,6 +4657,8 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
       DblLnkLst_LinkLast(&session->searchFreeList,
                          &session->searchArray[i].links);
    }
+   /* Initialize the async request info.*/
+   HgfsServerAsyncInfoInit(&session->asyncRequestsInfo);
 
    /* Get common to all sessions capabiities. */
    HgfsServerGetDefaultCapabilities(session->hgfsSessionCapabilities,
@@ -4753,6 +4900,9 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
    MXUser_DestroyExclLock(session->searchArrayLock);
    MXUser_DestroyExclLock(session->fileIOLock);
 
+   /* Teardown the async request info.*/
+   HgfsServerAsyncInfoExit(&session->asyncRequestsInfo);
+
    free(session);
 }
 
@@ -4887,15 +5037,7 @@ HgfsServerSessionQuiesce(void *clientData,         // IN: transport and session
             HgfsNotify_Deactivate(HGFS_NOTIFY_REASON_SERVER_SYNC, session);
          }
 
-         /*
-          * XXX - TODO move these globals into the session!
-          * Wait for outstanding asynchronous requests to complete.
-          */
-         MXUser_AcquireExclLock(gHgfsAsyncLock);
-         while (Atomic_Read(&gHgfsAsyncCounter)) {
-            MXUser_WaitCondVarExclLock(gHgfsAsyncLock, gHgfsAsyncVar);
-         }
-         MXUser_ReleaseExclLock(gHgfsAsyncLock);
+         HgfsServerAsyncWaitForAllRequestsDone(&session->asyncRequestsInfo);
          break;
 
       case HGFS_QUIESCE_THAW:
@@ -4921,35 +5063,6 @@ HgfsServerSessionQuiesce(void *clientData,         // IN: transport and session
 /*
  *----------------------------------------------------------------------------
  *
- * HgfsNotifyPacketSent --
- *
- *    Decrements counter of outstanding asynchronous packets
- *    and signal conditional variable when the counter
- *    becomes 0.
- *
- * Results:
- *    TRUE on success, FALSE on error.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-HgfsNotifyPacketSent(void)
-{
-   if (Atomic_ReadDec32(&gHgfsAsyncCounter) == 1) {
-      MXUser_AcquireExclLock(gHgfsAsyncLock);
-      MXUser_BroadcastCondVar(gHgfsAsyncVar);
-      MXUser_ReleaseExclLock(gHgfsAsyncLock);
-   }
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
  * HgfsPacketSend --
  *
  *    Send the packet.
@@ -4964,12 +5077,13 @@ HgfsNotifyPacketSent(void)
  */
 
 static Bool
-HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
-               HgfsTransportSessionInfo *transportSession,      // IN: session info
-               HgfsSendFlags flags)           // IN: flags for how to process
+HgfsPacketSend(HgfsPacket *packet,                         // IN/OUT: Hgfs Packet
+               HgfsTransportSessionInfo *transportSession, // IN: transport
+               HgfsSessionInfo *session,                   // IN: session info
+               HgfsSendFlags flags)                        // IN: send flags
 {
    Bool result = FALSE;
-   Bool notificationNeeded = (0 != (packet->state & HGFS_STATE_CLIENT_REQUEST) &&
+   Bool asyncClientRequest = (0 != (packet->state & HGFS_STATE_CLIENT_REQUEST) &&
                               0 != (packet->state & HGFS_STATE_ASYNC_REQUEST));
 
    ASSERT(packet);
@@ -4982,8 +5096,9 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
                                                       flags);
    }
 
-   if (notificationNeeded) {
-      HgfsNotifyPacketSent();
+   if (asyncClientRequest) {
+      ASSERT(session);
+      HgfsServerAsyncInfoDecCount(&session->asyncRequestsInfo);
    }
    return result;
 }
@@ -9218,7 +9333,10 @@ HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder, // IN: share
       goto exit;
    }
 
-   if (!HgfsPacketSend(packet, session->transportSession, 0)) {
+   if (!HgfsPacketSend(packet,
+                       session->transportSession,
+                       session,
+                       0)) {
       LOG(4, ("%s: failed to send notification to the host\n", __FUNCTION__));
       goto exit;
    }
