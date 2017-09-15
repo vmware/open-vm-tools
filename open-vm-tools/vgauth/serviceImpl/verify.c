@@ -258,8 +258,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
             }
             if ((foundSubjectIdx >= 0) || (foundAnyIdx >= 0)) {
                numTrusted++;
-               trustedCerts = g_realloc(trustedCerts,
-                                        numTrusted * sizeof(*trustedCerts));
+               trustedCerts = g_realloc_n(trustedCerts,
+                                          numTrusted, sizeof(*trustedCerts));
                trustedCerts[numTrusted - 1] = g_strdup(pemCertChain[i]);
                foundTrusted = TRUE;
                /*
@@ -274,8 +274,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
       }
       if (!foundTrusted) {
          numUntrusted++;
-         untrustedCerts = g_realloc(untrustedCerts,
-                                    numUntrusted * sizeof(*untrustedCerts));
+         untrustedCerts = g_realloc_n(untrustedCerts,
+                                      numUntrusted, sizeof(*untrustedCerts));
          untrustedCerts[numUntrusted - 1] = g_strdup(pemCertChain[i]);
       }
    }
