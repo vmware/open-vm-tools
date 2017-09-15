@@ -173,6 +173,7 @@ msgCatalog = /etc/vmware-tools/vgauth/messages
 #define SERVICE_LOGLEVEL_NORMAL             "normal"
 /** Normal logging level plus debug messages. */
 #define SERVICE_LOGLEVEL_VERBOSE            "verbose"
+#define SERVICE_LOGLEVEL_DEBUG              "debug"
 
 /** @} */
 
