@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -322,8 +322,9 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       state->name = VMTOOLS_GUEST_SERVICE;
       state->mainService = TRUE;
    } else {
-      if (strcmp(state->name, TOOLSCORE_COMMON) == 0) {
-         g_printerr("%s is an invalid container name.\n", state->name);
+      if (strcmp(state->name, VMTOOLS_USER_SERVICE) != 0 &&
+          strcmp(state->name, VMTOOLS_GUEST_SERVICE) != 0) {
+         g_printerr("%s is an invalid service name.\n", state->name);
          goto exit;
       }
       state->mainService = TOOLS_IS_MAIN_SERVICE(state);
