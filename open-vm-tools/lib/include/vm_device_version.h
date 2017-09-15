@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -98,7 +98,16 @@
 #define PCI_DEVICE_VMI_INTERFACE        0x00
 #define PCI_DEVICE_VMI_REVISION         0x01
 
-#define PCI_DEVICE_ID_VMWARE_DUMMY      0x0809
+/*
+ * Device IDs for the PCI passthru test device:
+ *
+ * 0x0809 is for old fashioned PCI with MSI.
+ * 0x080A is for PCI express with MSI-X.
+ * 0x080B is for PCI express with configurable BARs.
+ */
+#define PCI_DEVICE_ID_VMWARE_PCI_TEST   0x0809
+#define PCI_DEVICE_ID_VMWARE_PCIE_TEST1 0x080A
+#define PCI_DEVICE_ID_VMWARE_PCIE_TEST2 0x080B
 
 #define PCI_DEVICE_ID_VMWARE_VRDMA      0x0820
 #define PCI_DEVICE_ID_VMWARE_VTPM       0x0830
