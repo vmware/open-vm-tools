@@ -302,7 +302,8 @@
    LOGLEVEL_VAR(upitd), \
    LOGLEVEL_VAR(promotedisk), \
    LOGLEVEL_VAR(efivarstore), \
-   LOGLEVEL_VAR(toolsIso)
+   LOGLEVEL_VAR(toolsIso), \
+   LOGLEVEL_VAR(toolsversion)
 
    /* end of list */
 
