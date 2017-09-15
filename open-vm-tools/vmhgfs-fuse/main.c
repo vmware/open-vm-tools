@@ -1139,7 +1139,12 @@ hgfs_write(const char *path,          //IN: path to a file
    }
 
    res = HgfsWrite(fi, buf, size, offset);
-   if (res == 0) {
+   if (res >= 0) {
+      /*
+       * Positive result indicates the number of bytes written.
+       * For zero bytes and no error, we still purge the cache
+       * this could effect the attributes.
+       */
       HgfsInvalidateAttrCache(abspath);
    }
 
