@@ -313,6 +313,9 @@ typedef enum {
     *    ASYNC_SOCKET_OPTS_LAYER_<layer name 1>,
     *    ASYNC_SOCKET_OPTS_LAYER_<layer name 2>, ...
     */
+
+   ASYNC_SOCKET_OPTS_LAYER_BLAST_PROXY,
+
 } AsyncSocketOpts_Layer;
 
 /*

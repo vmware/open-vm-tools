@@ -67,7 +67,10 @@ typedef struct AsyncSocketVTable {
                     socklen_t inBufLen);
    /*
     * A setOption() implementation must have a symmetrical getOption()
-    * counterpart.
+    * counterpart.  The converse is not true -- a getOption()
+    * implementation need not have a setOption() counterpart.  (One
+    * way to look at this is that an option may be read-only, but it
+    * must not be write-only.)
     */
    int (*getOption)(AsyncSocket *asyncSocket,
                     AsyncSocketOpts_Layer layer,

@@ -3288,6 +3288,24 @@ char *
 File_GetMountPath(const char *pathName,  // IN:
                   Bool checkEntirePath)  // IN:
 {
-   NOT_IMPLEMENTED();
+   char *mountPath;
+
+   if (pathName == NULL) {
+      return NULL;
+   }
+
+   if (checkEntirePath) {
+      return Posix_RealPath(pathName);
+   }
+
+   mountPath = Posix_ReadLink(pathName);
+   if (mountPath != NULL) {
+      return mountPath;
+   }
+
+   if (!Posix_Access(pathName, F_OK)) {
+      return Util_SafeStrdup(pathName);
+   }
+
    return NULL;
 }
