@@ -32,6 +32,11 @@
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "vmware.h"
 
 typedef struct ListItem {
@@ -466,5 +471,9 @@ CircList_Size(ListItem *head)     // IN
    }
    return ret;
 }
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _CIRCLIST_H_ */

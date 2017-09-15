@@ -23,9 +23,12 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "vm_basic_types.h"
 #include "preference.h"
-
 
 /*
  * Well-known configuration variable names
@@ -122,5 +125,9 @@ Bool Config_GetDataFileKeys(struct KeySafeUserRing **parentKeys,
 
 Bool Config_TriToBool(Bool boolDefaultValue,
                       int32 triValue);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _CONFIG_H_

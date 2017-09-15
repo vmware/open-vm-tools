@@ -29,6 +29,10 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "vmware.h"
 
 typedef int CryptoError;
@@ -88,5 +92,9 @@ CryptoError_IsFailure(CryptoError error)
 {
    return (CRYPTO_ERROR_SUCCESS != error);
 }
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* cryptoError.h */

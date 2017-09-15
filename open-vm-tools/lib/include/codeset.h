@@ -49,6 +49,9 @@
 #ifndef __CODESET_H__
 #   define __CODESET_H__
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #include "vm_basic_types.h"
 #include "vm_assert.h"
@@ -578,5 +581,9 @@ CodeSet_Utf16FindCodePointBoundary(const char *buf, // IN
 
    return origOffset * 2;
 }
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __CODESET_H__ */

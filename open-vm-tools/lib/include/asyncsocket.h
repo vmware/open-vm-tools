@@ -49,6 +49,10 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #endif
@@ -551,6 +555,10 @@ const char * stristr(const char *s, const char *find);
          Log _logargs;                                                \
       }                                                               \
    } while(0)
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // __ASYNC_SOCKET_H__
 

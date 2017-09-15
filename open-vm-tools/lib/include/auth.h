@@ -19,6 +19,10 @@
 #ifndef _AUTH_H_
 #define _AUTH_H_
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * auth.h --
  *
@@ -69,5 +73,9 @@ AuthToken Auth_AuthenticateSelf(void);
 AuthToken Auth_AuthenticateUser(const char *user, const char *pass);
 
 void Auth_CloseToken(AuthToken token);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif

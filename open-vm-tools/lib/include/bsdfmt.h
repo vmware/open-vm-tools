@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright 2008-2014 VMware, Inc.  All rights reserved. -- VMware Confidential
+ * Copyright 2008-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  * **********************************************************/
 
 /*
@@ -47,6 +47,9 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #ifdef _WIN32 // {
 
@@ -206,5 +209,8 @@ extern char zeroes[PADSIZE];
 extern const char xdigs_lower[17];
 extern const char xdigs_upper[17];
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _BSDFMT_H_

@@ -40,6 +40,10 @@
 #ifndef _BACKDOOR_H_
 #define _BACKDOOR_H_
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 
@@ -56,5 +60,9 @@ Backdoor_HbOut(Backdoor_proto_hb *bp); // IN/OUT
 
 void
 Backdoor_HbIn(Backdoor_proto_hb *bp); // IN/OUT
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _BACKDOOR_H_ */
