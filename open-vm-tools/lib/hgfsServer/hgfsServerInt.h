@@ -750,11 +750,11 @@ HgfsPlatformReadFile(fileDesc readFile,           // IN: file descriptor
 HgfsInternalStatus
 HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
                       HgfsSessionInfo *session,    // IN: session info
-                      uint64 offset,               // IN: file offset to write to
-                      uint32 requiredSize,         // IN: length of data to write
-                      HgfsWriteFlags flags,        // IN: write flags
-                      const void *payload,         // IN: data to be written
-                      uint32 *actualSize);         // OUT: actual length written
+                      uint64 writeOffset,          // IN: file offset to write to
+                      uint32 writeDataSize,        // IN: length of data to write
+                      HgfsWriteFlags writeFlags,   // IN: write flags
+                      const void *writeData,       // IN: data to be written
+                      uint32 *writtenSize);        // OUT: byte length written
 HgfsInternalStatus
 HgfsPlatformWriteWin32Stream(HgfsHandle file,           // IN: packet header
                              char *dataToWrite,         // IN: data to write
