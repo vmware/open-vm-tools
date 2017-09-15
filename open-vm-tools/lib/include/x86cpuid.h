@@ -112,8 +112,9 @@ CPUIDQuery;
  * The fourth parameter is a "sub leaf count", where 0 means that ecx
  * is ignored, otherwise is the count of sub-leaves cached/supported.
  *
- * The fifth parameter is the first hardware version that supports this
- * level (0 = always supported).
+ * The fifth parameter is the first hardware version that is *aware* of
+ * the CPUID level (0 = existed since dawn of time), even though we
+ * may not expose this level or parts of it to guest.
  */
 
 #define CPUID_CACHED_LEVELS                         \
@@ -129,7 +130,7 @@ CPUIDQuery;
    CPUIDLEVEL(TRUE,  D,   0xD,       10,  0)        \
    CPUIDLEVEL(TRUE,  F,   0xF,        2, 13)        \
    CPUIDLEVEL(TRUE,  10,  0x10,       2, 13)        \
-   CPUIDLEVEL(FALSE, 12,  0x12,       4,  0)        \
+   CPUIDLEVEL(TRUE,  12,  0x12,       4, 13)        \
    CPUIDLEVEL(TRUE,  14,  0x14,       2, 13)        \
    CPUIDLEVEL(TRUE,  15,  0x15,       0, 13)        \
    CPUIDLEVEL(TRUE,  16,  0x16,       0, 13)        \
@@ -181,6 +182,7 @@ enum {
 #define CPUID_PROCESSOR_TOPOLOGY   4
 #define CPUID_MWAIT_FEATURES       5
 #define CPUID_XSAVE_FEATURES       0xd
+#define CPUID_SGX_FEATURES         0x12
 #define CPUID_HYPERVISOR_LEVEL_0   0x40000000
 #define CPUID_SVM_FEATURES         0x8000000a
 
@@ -605,27 +607,27 @@ FIELD( 10,  1, EDX,  0, 16, MAX_COS_NUMBER,                        NO,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_12                                              \
-FLAG(  12,  0, EAX,  0,  1, SGX1,                                  NA,  FALSE) \
-FLAG(  12,  0, EAX,  1,  1, SGX2,                                  NA,  FALSE) \
-FLAG(  12,  0, EBX, 31,  1, SGX_MISCSELECT,                        NA,  FALSE) \
-FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,                NA,  FALSE) \
-FIELD( 12,  0, EDX,  8,  8, MAX_ENCLAVE_SIZE_64,                   NA,  FALSE) \
-FIELD( 12,  1, EAX,  0, 32, SECS_ATTRIBUTES0,                      NA,  FALSE) \
-FIELD( 12,  1, EBX,  0, 32, SECS_ATTRIBUTES1,                      NA,  FALSE) \
-FIELD( 12,  1, ECX,  0, 32, SECS_ATTRIBUTES2,                      NA,  FALSE) \
-FIELD( 12,  1, EDX,  0, 32, SECS_ATTRIBUTES3,                      NA,  FALSE) \
-FIELD( 12,  2, EAX,  0,  4, EPC00_VALID,                           NA,  FALSE) \
-FIELD( 12,  2, EAX, 12, 20, EPC00_BASE_LOW,                        NA,  FALSE) \
-FIELD( 12,  2, EBX,  0, 20, EPC00_BASE_HIGH,                       NA,  FALSE) \
-FIELD( 12,  2, ECX,  0,  4, EPC00_PROTECTED,                       NA,  FALSE) \
-FIELD( 12,  2, ECX, 12, 20, EPC00_SIZE_LOW,                        NA,  FALSE) \
-FIELD( 12,  2, EDX,  0, 20, EPC00_SIZE_HIGH,                       NA,  FALSE) \
-FIELD( 12,  3, EAX,  0,  4, EPC01_VALID,                           NA,  FALSE) \
-FIELD( 12,  3, EAX, 12, 20, EPC01_BASE_LOW,                        NA,  FALSE) \
-FIELD( 12,  3, EBX,  0, 20, EPC01_BASE_HIGH,                       NA,  FALSE) \
-FIELD( 12,  3, ECX,  0,  4, EPC01_PROTECTED,                       NA,  FALSE) \
-FIELD( 12,  3, ECX, 12, 20, EPC01_SIZE_LOW,                        NA,  FALSE) \
-FIELD( 12,  3, EDX,  0, 20, EPC01_SIZE_HIGH,                       NA,  FALSE)
+FLAG(  12,  0, EAX,  0,  1, SGX1,                                  NO,  FALSE) \
+FLAG(  12,  0, EAX,  1,  1, SGX2,                                  NO,  FALSE) \
+FLAG(  12,  0, EBX, 31,  1, SGX_MISCSELECT,                        NO,  FALSE) \
+FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,                NO,  FALSE) \
+FIELD( 12,  0, EDX,  8,  8, MAX_ENCLAVE_SIZE_64,                   NO,  FALSE) \
+FIELD( 12,  1, EAX,  0, 32, SECS_ATTRIBUTES0,                      NO,  FALSE) \
+FIELD( 12,  1, EBX,  0, 32, SECS_ATTRIBUTES1,                      NO,  FALSE) \
+FIELD( 12,  1, ECX,  0, 32, SECS_ATTRIBUTES2,                      NO,  FALSE) \
+FIELD( 12,  1, EDX,  0, 32, SECS_ATTRIBUTES3,                      NO,  FALSE) \
+FIELD( 12,  2, EAX,  0,  4, EPC00_VALID,                           NO,  FALSE) \
+FIELD( 12,  2, EAX, 12, 20, EPC00_BASE_LOW,                        NO,  FALSE) \
+FIELD( 12,  2, EBX,  0, 20, EPC00_BASE_HIGH,                       NO,  FALSE) \
+FIELD( 12,  2, ECX,  0,  4, EPC00_PROTECTED,                       NO,  FALSE) \
+FIELD( 12,  2, ECX, 12, 20, EPC00_SIZE_LOW,                        NO,  FALSE) \
+FIELD( 12,  2, EDX,  0, 20, EPC00_SIZE_HIGH,                       NO,  FALSE) \
+FIELD( 12,  3, EAX,  0,  4, EPC01_VALID,                           NO,  FALSE) \
+FIELD( 12,  3, EAX, 12, 20, EPC01_BASE_LOW,                        NO,  FALSE) \
+FIELD( 12,  3, EBX,  0, 20, EPC01_BASE_HIGH,                       NO,  FALSE) \
+FIELD( 12,  3, ECX,  0,  4, EPC01_PROTECTED,                       NO,  FALSE) \
+FIELD( 12,  3, ECX, 12, 20, EPC01_SIZE_LOW,                        NO,  FALSE) \
+FIELD( 12,  3, EDX,  0, 20, EPC01_SIZE_HIGH,                       NO,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_14                                              \
