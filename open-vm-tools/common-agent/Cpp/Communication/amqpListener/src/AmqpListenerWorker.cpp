@@ -2,8 +2,7 @@
  *  Created on: Aug 20, 2012
  *      Author: mdonahue
  *
- *  Copyright (c) 2012 VMware, Inc.  All rights reserved.
- *  -- VMware Confidential
+ *  Copyright (C) 2012-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 // NOTE:  windows.h defines macros for min and max.  Specifying NOMINMAX to prevent
 // macro definition.  Must be specified before windows.h is included.

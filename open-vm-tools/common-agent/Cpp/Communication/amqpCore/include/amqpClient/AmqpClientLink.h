@@ -2,8 +2,7 @@
  *	 Author: bwilliams
  *  Created: 10/19/2010
  *
- *	Copyright (c) 2010 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2010-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef AMQP_CLIENTLINK_H_

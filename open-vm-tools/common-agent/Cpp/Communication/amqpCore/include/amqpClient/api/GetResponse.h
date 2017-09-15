@@ -2,8 +2,7 @@
  *  Created on: May 16, 2012
  *      Author: mdonahue
  *
- * Copyright (c) 2012 VMware, Inc. All rights reserved.
- * -- VMware Confidential
+ * Copyright (C) 2012-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef AMQPCLIENTAPI_GETRESPONSE_H_

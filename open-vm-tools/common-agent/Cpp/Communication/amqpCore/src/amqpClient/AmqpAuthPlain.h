@@ -2,8 +2,7 @@
  *  Created on: Oct 7, 2014
  *      Author: bwilliams
  *
- *  Copyright (c) 2014 VMware, Inc.  All rights reserved.
- *  -- VMware Confidential
+ *  Copyright (C) 2014-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef AMQPCORE_AMQPAUTHPLAIN_H_
