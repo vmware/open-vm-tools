@@ -635,15 +635,15 @@ FIELD( 14,  0, EAX,  0, 32, MAX_SUB_LEAF,                          NO,  FALSE) \
 FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,         NO,  FALSE) \
 FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,           NO,  FALSE) \
 FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,        NO,  FALSE) \
-FLAG(  14,  0, EBX,  3,  1, MTC_TIMING_SUPPRESS_COFI_PKT,          NO,  FALSE) \
-FLAG(  14,  0, ECX,  0,  1, TRACING_CAPABLE,                       NO,  FALSE) \
-FLAG(  14,  0, ECX,  1,  1, FLEXIBLE_TOPA_TABLE,                   NO,  FALSE) \
+FLAG(  14,  0, EBX,  3,  1, MTC_PKT_GENERATION_SUPPORTED,          NO,  FALSE) \
+FLAG(  14,  0, ECX,  0,  1, TOPA_OUTPUT_SUPPORTED,                 NO,  FALSE) \
+FLAG(  14,  0, ECX,  1,  1, TOPA_ALLOW_MULTIPLE_ENTRIES,           NO,  FALSE) \
 FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,            NO,  FALSE) \
 FLAG(  14,  0, ECX,  3,  1, TRACE_TRANSPORT_SUBSYSTEM,             NO,  FALSE) \
 FLAG(  14,  0, ECX, 31,  1, LIP_PRESENT_FOR_IP_PAYLOADS,           NO,  FALSE) \
 FIELD( 14,  1, EAX,  0,  2, NUM_ADDR_RANGE_FOR_FILTERING,          NO,  FALSE) \
 FIELD( 14,  1, EAX, 16, 16, SUPPORTED_MTC_ENCODINGS,               NO,  FALSE) \
-FIELD( 14,  1, EBX,  0, 16, CYCLE_THRESHOLD_ENCODINGS,             NO,  FALSE) \
+FIELD( 14,  1, EBX,  0, 16, SUPPORTED_CYCLE_THRESHOLD_ENCODINGS,   NO,  FALSE) \
 FIELD( 14,  1, EBX, 16, 16, SUPPORTED_PSB_FREQ_ENCODINGS,          NO,  FALSE) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
@@ -1896,7 +1896,7 @@ CPUID_IsHypervisorLevel(uint32 level)
 static INLINE Bool
 CPUID_LevelUsesEcx(uint32 level) {
    return level == 4 || level == 7 || level == 0xb || level == 0xd ||
-          level == 0xf || level == 0x8000001d;
+          level == 0xf || level == 0x14 || level == 0x8000001d;
 }
 
 /*
