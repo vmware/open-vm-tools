@@ -276,11 +276,14 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
    CPClipItem *item;
    uint8 *newBuf = NULL;
    /*
-    * Image, rtf and text may be put into a clipboard at same time, and total
-    * size may be more than limit. Image data will be first dropped, then
-    * rtf data.
+    * Microsoft Office Text Effects i.e. HTML Format, image, rtf and text may
+    * be put into a clipboard at same time, and total size may be more than
+    * limit. HTML format will be first dropped, then image and then rtf data.
     */
-   DND_CPFORMAT filterList[] = {CPFORMAT_IMG_PNG, CPFORMAT_RTF, CPFORMAT_TEXT};
+   DND_CPFORMAT filterList[] = {CPFORMAT_HTML_FORMAT,
+                                CPFORMAT_IMG_PNG,
+                                CPFORMAT_RTF,
+                                CPFORMAT_TEXT};
    int filterIndex = 0;
 
    ASSERT(clip);
