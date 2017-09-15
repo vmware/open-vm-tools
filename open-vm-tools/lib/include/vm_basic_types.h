@@ -982,6 +982,21 @@ typedef void * UserVA;
 #define ALIGNED(n)
 #endif
 
+
+/*
+ * Encapsulate the syntactic differences between gcc and msvc alignment control.
+ * BOUNDARY must match in the prefix and suffix.
+ */
+
+#ifdef _WIN32
+#define ALIGN_PREFIX(BOUNDRY) __declspec(align(BOUNDRY))
+#define ALIGN_SUFFIX(BOUNDRY)
+#else
+#define ALIGN_PREFIX(BOUNDRY)
+#define ALIGN_SUFFIX(BOUNDRY) __attribute__((__aligned__(BOUNDRY)))
+#endif
+
+
 /*
  * Once upon a time, this was used to silence compiler warnings that
  * get generated when the compiler thinks that a function returns

@@ -274,6 +274,7 @@
    LOGLEVEL_VAR(vsanobj), \
    LOGLEVEL_VAR(vvolbe), \
    LOGLEVEL_VAR(upitbe), \
+   LOGLEVEL_VAR(slotfs), \
    LOGLEVEL_VAR(svgadevtap), \
    LOGLEVEL_VAR(masReceipt), /* lib/masReceipt */ \
    LOGLEVEL_VAR(serviceImpl), /* lib/serviceImpl */ \
