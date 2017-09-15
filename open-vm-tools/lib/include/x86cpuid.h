@@ -634,7 +634,8 @@ FIELD( 10,  1, EDX,  0, 16, MAX_COS_NUMBER,                        NO,  FALSE)
 #define CPUID_FIELD_DATA_LEVEL_12                                              \
 FLAG(  12,  0, EAX,  0,  1, SGX1,                                 YES,  FALSE) \
 FLAG(  12,  0, EAX,  1,  1, SGX2,                                 NO,   FALSE) \
-FLAG(  12,  0, EBX, 31,  1, SGX_MISCSELECT,                       YES,  FALSE) \
+FLAG(  12,  0, EBX,  0,  1, SGX_MISCSELECT_EXINFO,                YES,  FALSE) \
+FIELD( 12,  0, EBX,  1, 31, SGX_MISCSELECT_RSVD,                  NO,   FALSE) \
 FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,               YES,  FALSE) \
 FIELD( 12,  0, EDX,  8,  8, MAX_ENCLAVE_SIZE_64,                  YES,  FALSE) \
 FIELD( 12,  1, EAX,  0, 32, SECS_ATTRIBUTES0,                     YES,  FALSE) \
@@ -656,20 +657,20 @@ FIELD( 12,  3, EDX,  0, 20, EPC01_SIZE_HIGH,                      NO,   FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_14                                              \
-FIELD( 14,  0, EAX,  0, 32, MAX_SUB_LEAF,                          YES,  FALSE) \
-FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,         YES,  FALSE) \
-FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,           YES,  FALSE) \
-FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,        YES,  FALSE) \
-FLAG(  14,  0, EBX,  3,  1, MTC_PKT_GENERATION_SUPPORTED,          YES,  FALSE) \
-FLAG(  14,  0, ECX,  0,  1, TOPA_OUTPUT_SUPPORTED,                 YES,  FALSE) \
-FLAG(  14,  0, ECX,  1,  1, TOPA_ALLOW_MULTIPLE_ENTRIES,           YES,  FALSE) \
-FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,            YES,  FALSE) \
-FLAG(  14,  0, ECX,  3,  1, TRACE_TRANSPORT_SUBSYSTEM,             NO,   FALSE) \
-FLAG(  14,  0, ECX, 31,  1, LIP_PRESENT_FOR_IP_PAYLOADS,           YES,  FALSE) \
-FIELD( 14,  1, EAX,  0,  2, NUM_ADDR_RANGE_FOR_FILTERING,          YES,  FALSE) \
-FIELD( 14,  1, EAX, 16, 16, SUPPORTED_MTC_ENCODINGS,               YES,  FALSE) \
-FIELD( 14,  1, EBX,  0, 16, SUPPORTED_CYCLE_THRESHOLD_ENCODINGS,   YES,  FALSE) \
-FIELD( 14,  1, EBX, 16, 16, SUPPORTED_PSB_FREQ_ENCODINGS,          YES,  FALSE) \
+FIELD( 14,  0, EAX,  0, 32, MAX_SUB_LEAF,                         YES,  FALSE) \
+FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,        YES,  FALSE) \
+FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,          YES,  FALSE) \
+FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,       YES,  FALSE) \
+FLAG(  14,  0, EBX,  3,  1, MTC_PKT_GENERATION_SUPPORTED,         YES,  FALSE) \
+FLAG(  14,  0, ECX,  0,  1, TOPA_OUTPUT_SUPPORTED,                YES,  FALSE) \
+FLAG(  14,  0, ECX,  1,  1, TOPA_ALLOW_MULTIPLE_ENTRIES,          YES,  FALSE) \
+FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,           YES,  FALSE) \
+FLAG(  14,  0, ECX,  3,  1, TRACE_TRANSPORT_SUBSYSTEM,            NO,   FALSE) \
+FLAG(  14,  0, ECX, 31,  1, LIP_PRESENT_FOR_IP_PAYLOADS,          YES,  FALSE) \
+FIELD( 14,  1, EAX,  0,  2, NUM_ADDR_RANGE_FOR_FILTERING,         YES,  FALSE) \
+FIELD( 14,  1, EAX, 16, 16, SUPPORTED_MTC_ENCODINGS,              YES,  FALSE) \
+FIELD( 14,  1, EBX,  0, 16, SUPPORTED_CYCLE_THRESHOLD_ENCODINGS,  YES,  FALSE) \
+FIELD( 14,  1, EBX, 16, 16, SUPPORTED_PSB_FREQ_ENCODINGS,         YES,  FALSE) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_15                                              \
