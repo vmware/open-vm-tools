@@ -204,8 +204,6 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 
 #define ASSERT_NOT_IMPLEMENTED(cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
-#define ASSERT_NOT_IMPLEMENTED_BUG(bug, cond) \
-           ASSERT_IFNOT(cond, NOT_IMPLEMENTED_BUG(bug))
 
 #if defined VMKPANIC || defined VMM
 #define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
