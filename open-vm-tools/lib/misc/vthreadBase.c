@@ -1284,7 +1284,7 @@ VThreadBase_SetIsInSignal(Bool isInSignal)  // IN:
 #if defined NEW_HAVE_TLS
    sigNestCount += (isInSignal ? 1 : -1);
 #else
-   intptr_t cnt = pthread_getspecific(sigNestCountKey);
+   intptr_t cnt = (intptr_t)pthread_getspecific(sigNestCountKey);
    cnt += (isInSignal ? 1 : -1);
    (void) pthread_setspecific(sigNestCountKey, (void *)cnt);
 #endif
