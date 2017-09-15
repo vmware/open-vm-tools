@@ -114,10 +114,12 @@ RandomBytesPosix(const char *name,  // IN:
                  size_t size,       // IN:
                  void *buffer)      // OUT:
 {
+   char errBuf[128];
    int fd = open(name, O_RDONLY);
 
    if (fd == -1) {
-      Log("%s: failed to open %s: %s\n", __FUNCTION__, name, strerror(errno));
+      Log("%s: failed to open %s: %s\n", __FUNCTION__, name,
+          strerror_r(errno, errBuf, sizeof errBuf));
       return FALSE;
    }
 
@@ -138,7 +140,8 @@ RandomBytesPosix(const char *name,  // IN:
                 __FUNCTION__, name);
          } else {
             Log("%s: %"FMTSZ"u byte read failed while reading from %s: %s\n",
-                __FUNCTION__, size, name, strerror(errno));
+                __FUNCTION__, size, name,
+                strerror_r(errno, errBuf, sizeof errBuf));
          }
 
          return FALSE;
@@ -151,7 +154,8 @@ RandomBytesPosix(const char *name,  // IN:
    }
 
    if (close(fd) == -1) {
-      Log("%s: failed to close %s: %s\n", __FUNCTION__, name, strerror(errno));
+      Log("%s: failed to close %s: %s\n", __FUNCTION__, name,
+          strerror_r(errno, errBuf, sizeof errBuf));
    }
 
    return TRUE;

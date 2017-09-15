@@ -31,6 +31,7 @@
 
 #include "vmware.h"
 #include "dndInt.h"
+#include "err.h"
 #include "dnd.h"
 #include "posix.h"
 #include "file.h"
@@ -305,7 +306,7 @@ DnD_AddBlockLegacy(int blockFd,                    // IN
 
    if (VMBLOCK_CONTROL(blockFd, VMBLOCK_ADD_FILEBLOCK, blockPath) != 0) {
       LOG(1, ("%s: Cannot add block on %s (%s)\n",
-              __func__, blockPath, strerror(errno)));
+              __func__, blockPath, Err_Errno2String(errno)));
 
       return FALSE;
    }
@@ -339,7 +340,7 @@ DnD_RemoveBlockLegacy(int blockFd,                    // IN
    if (blockFd >= 0) {
       if (VMBLOCK_CONTROL(blockFd, VMBLOCK_DEL_FILEBLOCK, blockedPath) != 0) {
          Log("%s: Cannot delete block on %s (%s)\n",
-             __func__, blockedPath, strerror(errno));
+             __func__, blockedPath, Err_Errno2String(errno));
 
          return FALSE;
       }
@@ -405,7 +406,7 @@ DnD_AddBlockFuse(int blockFd,                    // IN
    if (VMBLOCK_CONTROL_FUSE(blockFd, VMBLOCK_FUSE_ADD_FILEBLOCK,
                             blockPath) != 0) {
       LOG(1, ("%s: Cannot add block on %s (%s)\n",
-              __func__, blockPath, strerror(errno)));
+              __func__, blockPath, Err_Errno2String(errno)));
 
       return FALSE;
    }
@@ -440,7 +441,7 @@ DnD_RemoveBlockFuse(int blockFd,                    // IN
       if (VMBLOCK_CONTROL_FUSE(blockFd, VMBLOCK_FUSE_DEL_FILEBLOCK,
                                blockedPath) != 0) {
          Log("%s: Cannot delete block on %s (%s)\n",
-             __func__, blockedPath, strerror(errno));
+             __func__, blockedPath, Err_Errno2String(errno));
 
          return FALSE;
       }
@@ -479,7 +480,7 @@ DnD_CheckBlockFuse(int blockFd)                    // IN
    size = read(blockFd, buf, sizeof(VMBLOCK_FUSE_READ_RESPONSE));
    if (size < 0) {
       LOG(4, ("%s: read failed, error %s.\n",
-              __func__, strerror(errno)));
+              __func__, Err_Errno2String(errno)));
 
       return FALSE;
    }
@@ -582,7 +583,7 @@ DnD_TryInitVmblock(const char *vmbFsName,          // IN
       blockFd = Posix_Open(vmbDevice, vmbDeviceMode);
       if (blockFd < 0) {
          LOG(1, ("%s: Can not open blocker device (%s)\n",
-                 __func__, strerror(errno)));
+                 __func__, Err_Errno2String(errno)));
       } else {
          LOG(4, ("%s: Opened blocker device at %s\n",
                  __func__, VMBLOCK_DEVICE));
@@ -686,7 +687,7 @@ DnD_UninitializeBlocking(DnDBlockControl *blkCtrl)    // IN
    if (blkCtrl->fd >= 0) {
       if (close(blkCtrl->fd) < 0) {
          Log("%s: Can not close blocker device (%s)\n",
-             __func__, strerror(errno));
+             __func__, Err_Errno2String(errno));
          ret = FALSE;
       } else {
          blkCtrl->fd = -1;

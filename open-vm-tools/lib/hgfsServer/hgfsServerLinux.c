@@ -57,6 +57,7 @@
 #include "hgfsServerInt.h"
 #include "hgfsServerOplock.h"
 #include "hgfsEscape.h"
+#include "err.h"
 #include "str.h"
 #include "cpNameLite.h"
 #include "hgfsUtil.h"  // for cross-platform time conversion
@@ -658,7 +659,7 @@ HgfsPlatformCloseFile(fileDesc fileDesc, // IN: File descriptor
       int error = errno;
 
       LOG(4, ("%s: Could not close fd %d: %s\n", __FUNCTION__, fileDesc,
-              strerror(error)));
+              Err_Errno2String(error)));
       return error;
    }
 
@@ -710,7 +711,7 @@ HgfsCheckFileNode(char const *localName,      // IN
       int error = errno;
 
       LOG(4, ("%s: couldn't stat local file \"%s\": %s\n", __FUNCTION__,
-              localName, strerror(error)));
+              localName, Err_Errno2String(error)));
       return error;
    }
 
@@ -836,7 +837,7 @@ HgfsPlatformGetFd(HgfsHandle hgfsHandle,    // IN:  HGFS file handle
       int error = errno;
 
       LOG(4, ("%s: Couldn't open file \"%s\": %s\n", __FUNCTION__,
-              node.utf8Name, strerror(errno)));
+              node.utf8Name, Err_Errno2String(errno)));
       status = error;
       goto exit;
    }
@@ -991,7 +992,7 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       if (status != 0) {
          LOG(4, ("%s: Error: Unwritable share mode %u flags %u file \"%s\": %d %s\n",
                  __FUNCTION__, openMode, openFlags, openInfo->utf8Name,
-                 status, strerror(status)));
+                 status, Err_Errno2String(status)));
          goto exit;
       }
    }
@@ -1012,7 +1013,8 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       }
       if (status != 0) {
          LOG(4, ("%s: Error: Unreadable share flags %u file \"%s\": %d %s\n",
-                 __FUNCTION__, openFlags, openInfo->utf8Name, status, strerror(status)));
+                 __FUNCTION__, openFlags, openInfo->utf8Name, status,
+                 Err_Errno2String(status)));
          goto exit;
       }
    }
@@ -1051,7 +1053,7 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
          status = EACCES;
       }
       LOG(4, ("%s: Error: open file \"%s\": %d %s\n", __FUNCTION__,
-              openInfo->utf8Name, status, strerror(status)));
+              openInfo->utf8Name, status, Err_Errno2String(status)));
       goto exit;
    }
 
@@ -1059,7 +1061,7 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    if (fstat(fd, &fileStat) < 0) {
       status = errno;
       LOG(4, ("%s: Error: stat file\"%s\": %d %s\n", __FUNCTION__,
-              openInfo->utf8Name, status, strerror(status)));
+              openInfo->utf8Name, status, Err_Errno2String(status)));
       close(fd);
       goto exit;
    }
@@ -2203,7 +2205,8 @@ HgfsPlatformGetattrFromName(char *fileName,                 // IN/OUT:  Input fi
                     &creationTime);
    if (error) {
       status = errno;
-      LOG(4, ("%s: error stating file: %s\n", __FUNCTION__, strerror(status)));
+      LOG(4, ("%s: error stating file: %s\n", __FUNCTION__,
+              Err_Errno2String(status)));
       goto exit;
    }
 
@@ -2398,7 +2401,8 @@ HgfsPlatformGetattrFromFd(fileDesc fileDesc,        // IN:  file descriptor
 
    error = HgfsFStat(fileDesc, &stats, &creationTime);
    if (error) {
-      LOG(4, ("%s: error stating file: %s\n", __FUNCTION__, strerror(error)));
+      LOG(4, ("%s: error stating file: %s\n", __FUNCTION__,
+              Err_Errno2String(error)));
       status = error;
       goto exit;
    }
@@ -2780,7 +2784,7 @@ HgfsSetattrTimes(struct stat *statBuf,       // IN: stat info
             if (gettimeofday(&tv, NULL) != 0) {
                error = errno;
                LOG(4, ("%s: gettimeofday error: %s\n", __FUNCTION__,
-                       strerror(error)));
+                       Err_Errno2String(error)));
                status = error;
                goto exit;
             }
@@ -2803,7 +2807,7 @@ HgfsSetattrTimes(struct stat *statBuf,       // IN: stat info
             if (gettimeofday(&tv, NULL) != 0) {
                error = errno;
                LOG(4, ("%s: gettimeofday error: %s\n", __FUNCTION__,
-                       strerror(error)));
+                       Err_Errno2String(error)));
                status = error;
                goto exit;
             }
@@ -2870,7 +2874,7 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
    if (fstat(fd, &statBuf) == -1) {
       error = errno;
       LOG(4, ("%s: error stating file %u: %s\n", __FUNCTION__,
-              fd, strerror(error)));
+              fd, Err_Errno2String(error)));
       status = error;
       goto exit;
    }
@@ -2889,7 +2893,7 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
       if (fchown(fd, newUid, newGid) < 0) {
          error = errno;
          LOG(4, ("%s: error chowning file %u: %s\n", __FUNCTION__,
-                 fd, strerror(error)));
+                 fd, Err_Errno2String(error)));
          status = error;
       }
    }
@@ -2910,7 +2914,7 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
       if (fchmod(fd, newPermissions) < 0) {
          error = errno;
          LOG(4, ("%s: error chmoding file %u: %s\n", __FUNCTION__,
-                 fd, strerror(error)));
+                 fd, Err_Errno2String(error)));
          status = error;
       }
    }
@@ -2932,7 +2936,7 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
       } else if (ftruncate(fd, attr->size) < 0) {
          error = errno;
          LOG(4, ("%s: error truncating file %u: %s\n", __FUNCTION__,
-                 fd, strerror(error)));
+                 fd, Err_Errno2String(error)));
          status = error;
       } else {
          LOG(4, ("%s: set size %"FMT64"u\n", __FUNCTION__, attr->size));
@@ -2994,14 +2998,14 @@ HgfsPlatformSetattrFromFd(HgfsHandle file,          // IN: file descriptor
                error = errno;
                LOG(4, ("%s: Executing futimes as owner on file: %u "
                        "failed with error: %s\n", __FUNCTION__,
-                       fd, strerror(error)));
+                       fd, Err_Errno2String(error)));
                status = error;
             }
          } else {
             error = errno;
             LOG(4, ("%s: Executing futimes as superuser on file: %u "
                     "failed with error: %s\n", __FUNCTION__,
-                    fd, strerror(error)));
+                    fd, Err_Errno2String(error)));
             status = error;
          }
       }
@@ -3078,7 +3082,7 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
    if (Posix_Lstat(localName, &statBuf) == -1) {
       error = errno;
       LOG(4, ("%s: error stating file \"%s\": %s\n", __FUNCTION__,
-              localName, strerror(error)));
+              localName, Err_Errno2String(error)));
       status = error;
       goto exit;
    }
@@ -3099,7 +3103,7 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
       if (Posix_Lchown(localName, newUid, newGid) < 0) {
          error = errno;
          LOG(4, ("%s: error chowning file \"%s\": %s\n", __FUNCTION__,
-                 localName, strerror(error)));
+                 localName, Err_Errno2String(error)));
          status = error;
       }
    }
@@ -3120,7 +3124,7 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
       if (Posix_Chmod(localName, newPermissions) < 0) {
          error = errno;
          LOG(4, ("%s: error chmoding file \"%s\": %s\n", __FUNCTION__,
-                 localName, strerror(error)));
+                 localName, Err_Errno2String(error)));
          status = error;
       }
    }
@@ -3129,7 +3133,7 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
       if (Posix_Truncate(localName, attr->size) < 0) {
          error = errno;
          LOG(4, ("%s: error truncating file \"%s\": %s\n", __FUNCTION__,
-                 localName, strerror(error)));
+                 localName, Err_Errno2String(error)));
          status = error;
       } else {
          LOG(4, ("%s: set size %"FMT64"u\n", __FUNCTION__, attr->size));
@@ -3153,7 +3157,7 @@ HgfsPlatformSetattrFromName(char *localName,                // IN: Name
       if (Posix_Utimes(localName, times) < 0) {
          error = errno;
          LOG(4, ("%s: utimes error on file \"%s\": %s\n", __FUNCTION__,
-                 localName, strerror(error)));
+                 localName, Err_Errno2String(error)));
          status = error;
       }
    } else if (timesStatus != 0) {
@@ -3786,7 +3790,7 @@ HgfsPlatformScandir(char const *baseDir,            // IN: Directory to search i
       if (lstat(baseDir, &st) == -1) {
          status = errno;
          LOG(4, ("%s: error in lstat: %d (%s)\n", __FUNCTION__, status,
-                 strerror(status)));
+                 Err_Errno2String(status)));
          goto exit;
       }
       if (S_ISLNK(st.st_mode)) {
@@ -3799,7 +3803,7 @@ HgfsPlatformScandir(char const *baseDir,            // IN: Directory to search i
    if (NULL ==  fd) {
       status = errno;
       LOG(4, ("%s: error in opendir: %d (%s)\n", __FUNCTION__, status,
-              strerror(status)));
+              Err_Errno2String(status)));
       goto exit;
    }
 #else
@@ -3813,7 +3817,7 @@ HgfsPlatformScandir(char const *baseDir,            // IN: Directory to search i
    if (result < 0) {
       status = errno;
       LOG(4, ("%s: error in open: %d (%s)\n", __FUNCTION__, status,
-              strerror(status)));
+              Err_Errno2String(status)));
       goto exit;
    }
    fd = result;
@@ -3877,7 +3881,7 @@ HgfsPlatformScandir(char const *baseDir,            // IN: Directory to search i
    if (result == -1) {
       status = errno;
       LOG(4, ("%s: error in getdents: %d (%s)\n", __FUNCTION__, status,
-              strerror(status)));
+              Err_Errno2String(status)));
       goto exit;
    }
 
@@ -3889,7 +3893,7 @@ HgfsPlatformScandir(char const *baseDir,            // IN: Directory to search i
 #endif
       status = errno;
       LOG(4, ("%s: error in close: %d (%s)\n", __FUNCTION__, status,
-              strerror(status)));
+              Err_Errno2String(status)));
    }
 
    /*
@@ -4204,7 +4208,7 @@ HgfsPlatformReadFile(fileDesc file,               // IN: file descriptor
       error = read(file, payload, requiredSize);
    } else {
       LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
-         offset, strerror(status)));
+         offset, Err_Errno2String(status)));
    }
 
    MXUser_ReleaseExclLock(session->fileIOLock);
@@ -4212,7 +4216,7 @@ HgfsPlatformReadFile(fileDesc file,               // IN: file descriptor
    if (error < 0) {
       status = errno;
       LOG(4, ("%s: error reading from file: %s\n", __FUNCTION__,
-              strerror(status)));
+              Err_Errno2String(status)));
    } else {
       LOG(4, ("%s: read %d bytes\n", __FUNCTION__, error));
       *actualSize = error;
@@ -4306,7 +4310,7 @@ HgfsPlatformWriteFile(fileDesc writeFd,            // IN: file descriptor
 
    if (error < 0) {
       LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
-              writeOffset, strerror(errno)));
+              writeOffset, Err_Errno2String(errno)));
    } else {
       error = write(writeFd, writeData, writeDataSize);
    }
@@ -4320,7 +4324,7 @@ HgfsPlatformWriteFile(fileDesc writeFd,            // IN: file descriptor
    if (error < 0) {
       status = errno;
       LOG(4, ("%s: error writing to file: %s\n", __FUNCTION__,
-         strerror(status)));
+         Err_Errno2String(status)));
    } else {
       *writtenSize = error;
       LOG(4, ("%s: wrote %d bytes\n", __FUNCTION__, *writtenSize));
@@ -4539,7 +4543,7 @@ HgfsPlatformDeleteFileByName(char const *utf8Name) // IN: full file path in uf8 
    status = Posix_Unlink(utf8Name);
    if (status) {
       status = errno;
-      LOG(4, ("%s: error: %s\n", __FUNCTION__, strerror(status)));
+      LOG(4, ("%s: error: %s\n", __FUNCTION__, Err_Errno2String(status)));
    }
    return status;
 }
@@ -4621,7 +4625,7 @@ HgfsPlatformDeleteDirByName(char const *utf8Name) // IN: full file path in uf8 e
    status = Posix_Rmdir(utf8Name);
    if (status) {
       status = errno;
-      LOG(4, ("%s: error: %s\n", __FUNCTION__, strerror(status)));
+      LOG(4, ("%s: error: %s\n", __FUNCTION__, Err_Errno2String(status)));
    }
    return status;
 }
@@ -4740,7 +4744,7 @@ HgfsPlatformRename(char *localSrcName,     // IN: local path to source file
    status = Posix_Rename(localSrcName, localTargetName);
    if (status) {
       status = errno;
-      LOG(4, ("%s: error: %s\n", __FUNCTION__, strerror(status)));
+      LOG(4, ("%s: error: %s\n", __FUNCTION__, Err_Errno2String(status)));
    }
 
 exit:
@@ -4811,7 +4815,7 @@ HgfsPlatformCreateDir(HgfsCreateDirInfo *info,  // IN: direcotry properties
 
    if (status) {
       status = errno;
-      LOG(4, ("%s: error: %s\n", __FUNCTION__, strerror(status)));
+      LOG(4, ("%s: error: %s\n", __FUNCTION__, Err_Errno2String(status)));
    }
    return status;
 }
@@ -4847,7 +4851,7 @@ HgfsPlatformSymlinkCreate(char *localSymlinkName,   // IN: symbolic link file na
    error = Posix_Symlink(localTargetName, localSymlinkName);
    if (error) {
       status = errno;
-      LOG(4, ("%s: error: %s\n", __FUNCTION__, strerror(errno)));
+      LOG(4, ("%s: error: %s\n", __FUNCTION__, Err_Errno2String(errno)));
    }
    return status;
 }
@@ -4969,7 +4973,7 @@ HgfsPlatformPathHasSymlink(const char *fileName,      // IN
             break;
       }
       LOG(4, ("%s: realpath failed: fileDirName: %s: %s\n",
-              __FUNCTION__, fileDirName, strerror(errno)));
+              __FUNCTION__, fileDirName, Err_Errno2String(errno)));
       goto exit;
    }
 
