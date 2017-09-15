@@ -172,7 +172,8 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 81B, 0x8000001B, 0,  0)        \
    CPUIDLEVEL(FALSE, 81C, 0x8000001C, 0,  0)        \
    CPUIDLEVEL(FALSE, 81D, 0x8000001D, 5,  0)        \
-   CPUIDLEVEL(FALSE, 81E, 0x8000001E, 0,  0)
+   CPUIDLEVEL(FALSE, 81E, 0x8000001E, 0,  0)        \
+   CPUIDLEVEL(TRUE,  81F, 0x8000001F, 0, 14)
 
 #define CPUID_ALL_LEVELS CPUID_CACHED_LEVELS
 
@@ -1057,6 +1058,17 @@ FIELD(81E,  0, EBX,  8,  2, CORES_PER_COMPUTE_UNIT,                NA,  FALSE) \
 FIELD(81E,  0, ECX,  0,  8, NODEID_VAL,                            NA,  FALSE) \
 FIELD(81E,  0, ECX,  8,  3, NODES_PER_PKG,                         NA,  FALSE)
 
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_81F                                             \
+FLAG( 81F,  0, EAX,  0,  1, SME,                                   NO,  FALSE) \
+FLAG( 81F,  0, EAX,  1,  1, SEV,                                   NO,  FALSE) \
+FLAG( 81F,  0, EAX,  2,  1, PAGE_FLUSH_MSR,                        NO,  FALSE) \
+FLAG( 81F,  0, EAX,  3,  1, SEV_ES,                                NO,  FALSE) \
+FIELD(81F,  0, EBX,  0,  5, SME_PAGE_TABLE_BIT_NUM,                NO,  FALSE) \
+FIELD(81F,  0, EBX,  6,  6, SME_PHYS_ADDR_SPACE_REDUCTION,         NO,  FALSE) \
+FIELD(81F,  0, ECX,  0, 32, NUM_ENCRYPTED_GUESTS,                  NO,  FALSE) \
+FIELD(81F,  0, EDX,  0, 32, SEV_MIN_ASID,                          NO,  FALSE)
+
 #define INTEL_CPUID_FIELD_DATA
 
 #define AMD_CPUID_FIELD_DATA
@@ -1103,6 +1115,7 @@ FIELD(81E,  0, ECX,  8,  3, NODES_PER_PKG,                         NA,  FALSE)
    CPUID_FIELD_DATA_LEVEL_81C                                         \
    CPUID_FIELD_DATA_LEVEL_81D                                         \
    CPUID_FIELD_DATA_LEVEL_81E                                         \
+   CPUID_FIELD_DATA_LEVEL_81F                                         \
    INTEL_CPUID_FIELD_DATA                                             \
    AMD_CPUID_FIELD_DATA
 
