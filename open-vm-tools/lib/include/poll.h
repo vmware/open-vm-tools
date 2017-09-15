@@ -108,7 +108,7 @@ typedef enum PollClass {
    POLL_CLASS_MKS,
    POLL_FIXED_CLASSES,
    /* Size enum to maximum */
-   POLL_MAX_CLASSES = 540,
+   POLL_MAX_CLASSES = 31,
 } PollClass;
 
 
@@ -117,16 +117,14 @@ typedef enum PollClass {
  */
 
 typedef struct PollClassSet {
-   /* Type is uintptr_t to give best 32/64-bit code. */
-#define _POLL_ELEMSIZE (sizeof (uintptr_t) * 8)
-   uintptr_t bits[CEILING(POLL_MAX_CLASSES, _POLL_ELEMSIZE)];
+   uintptr_t bits;
 } PollClassSet;
 
 /* An empty PollClassSet. */
 static INLINE PollClassSet
 PollClassSet_Empty(void)
 {
-   PollClassSet set = { { 0 } };
+   PollClassSet set = { 0 };
    return set;
 }
 
@@ -136,12 +134,10 @@ PollClassSet_Singleton(PollClass c)
 {
    PollClassSet s = PollClassSet_Empty();
 
-   ASSERT_ON_COMPILE(sizeof s.bits[0] * 8 == _POLL_ELEMSIZE); /* Size correct */
-   ASSERT_ON_COMPILE((_POLL_ELEMSIZE & (_POLL_ELEMSIZE - 1)) == 0); /* power of 2 */
-   ASSERT_ON_COMPILE(POLL_MAX_CLASSES <= ARRAYSIZE(s.bits) * _POLL_ELEMSIZE);
+   ASSERT_ON_COMPILE(POLL_MAX_CLASSES < sizeof s.bits * 8);
    ASSERT(c < POLL_MAX_CLASSES);
 
-   s.bits[c / _POLL_ELEMSIZE] = CONST3264U(1) << (c % _POLL_ELEMSIZE);
+   s.bits = CONST3264U(1) << c;
    return s;
 }
 
@@ -149,13 +145,9 @@ PollClassSet_Singleton(PollClass c)
 static INLINE PollClassSet
 PollClassSet_Union(PollClassSet lhs, PollClassSet rhs)
 {
-   PollClassSet u;
-   unsigned i;
-
-   for (i = 0; i < ARRAYSIZE(u.bits); i++) {
-      u.bits[i] = lhs.bits[i] | rhs.bits[i];
-   }
-   return u;
+   PollClassSet set;
+   set.bits = lhs.bits | rhs.bits;
+   return set;
 }
 
 /* Add single class to PollClassSet. */
