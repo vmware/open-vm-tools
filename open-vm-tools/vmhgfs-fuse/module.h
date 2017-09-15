@@ -34,7 +34,7 @@
 #include "vm_assert.h"
 #include "cpName.h"
 #include "cpNameLite.h"
-#include "hgfsUtil.h"
+#include "hgfsDevLinux.h"
 #include "request.h"
 #include "fsutil.h"
 #include "filesystem.h"

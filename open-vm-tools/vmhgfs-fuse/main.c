@@ -496,7 +496,9 @@ hgfs_unlink(const char *path) //IN: path to a file
    }
 
    res = HgfsDelete(abspath, HGFS_OP_DELETE_FILE);
-   HgfsInvalidateAttrCache(abspath);
+   if (res == 0) {
+      HgfsInvalidateAttrCache(abspath);
+   }
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
@@ -534,7 +536,9 @@ hgfs_rmdir(const char *path) //IN: path to a dir
    }
 
    res = HgfsDelete(abspath, HGFS_OP_DELETE_DIR);
-   HgfsInvalidateAttrCache(abspath);
+   if (res == 0) {
+      HgfsInvalidateAttrCache(abspath);
+   }
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
@@ -617,7 +621,10 @@ hgfs_rename(const char *from,  //IN: from path name
    }
 
    res = HgfsRename(absfrom, absto);
-   HgfsInvalidateAttrCache(absfrom);
+   if (res == 0) {
+      HgfsInvalidateAttrCache(absfrom);
+      HgfsInvalidateAttrCache(absto);
+   }
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
@@ -1132,7 +1139,9 @@ hgfs_write(const char *path,          //IN: path to a file
    }
 
    res = HgfsWrite(fi, buf, size, offset);
-   HgfsInvalidateAttrCache(abspath);
+   if (res == 0) {
+      HgfsInvalidateAttrCache(abspath);
+   }
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
