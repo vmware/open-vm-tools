@@ -114,7 +114,7 @@ static INLINE PollClass
 PollClassSet_FFS(PollClassSet *set)
 {
    if (set->bits != 0) {
-      return lssbPtr_0(set->bits);
+      return (PollClass)lssbPtr_0(set->bits);
    }
    return POLL_MAX_CLASSES;
 }
