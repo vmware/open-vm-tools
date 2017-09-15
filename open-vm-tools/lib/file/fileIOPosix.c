@@ -1255,7 +1255,6 @@ FileIO_Write(FileIODescriptor *fd,  // IN:
          int error = errno;
 
          if (error == EINTR) {
-            NOT_TESTED();
             continue;
          }
          fret = FileIOErrno2Result(error);
@@ -1315,7 +1314,6 @@ FileIO_Read(FileIODescriptor *fd,  // IN:
       res = read(fd->posix, buf, requested);
       if (res == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          fret = FileIOErrno2Result(errno);
@@ -1613,7 +1611,6 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
 
       if (retval == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          fret = FileIOErrno2Result(errno);
@@ -1726,7 +1723,6 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
 
       if (retval == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          fret = FileIOErrno2Result(errno);
@@ -1822,8 +1818,6 @@ FileIOPreadvCoalesced(
 
          if (retval == -1) {
             if (errno == EINTR) {
-               LOG_ONCE((LGPFX" %s got EINTR.  Retrying\n", __FUNCTION__));
-               NOT_TESTED_ONCE();
                continue;
             }
             fret = FileIOErrno2Result(errno);
@@ -1911,8 +1905,6 @@ FileIOPwritevCoalesced(
 
          if (retval == -1) {
             if (errno == EINTR) {
-               LOG_ONCE((LGPFX" %s got EINTR.  Retrying\n", __FUNCTION__));
-               NOT_TESTED_ONCE();
                continue;
             }
             fret = FileIOErrno2Result(errno);
@@ -2028,7 +2020,6 @@ FileIOPreadvInternal(
       }
       if (retval == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          if (errno == ENOSYS || errno == EINVAL || errno == ENOMEM) {
@@ -2164,7 +2155,6 @@ FileIOPwritevInternal(
       }
       if (retval == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          if (errno == ENOSYS || errno == EINVAL || errno == ENOMEM) {
