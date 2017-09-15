@@ -79,7 +79,8 @@
 
 /* STRICT ANSI means the Xserver build and X defines Bool differently. */
 #if !defined(_XTYPEDEF_BOOL) && \
-    (!defined(__STRICT_ANSI__) || defined(__FreeBSD__) || defined(__MINGW32__))
+    (!defined(__STRICT_ANSI__) || defined(__FreeBSD__) || \
+      defined(__MINGW32__) || defined(__APPLE__))
 #define _XTYPEDEF_BOOL
 typedef char           Bool;
 #endif
@@ -933,6 +934,8 @@ typedef void * UserVA;
 #ifndef UNUSED_PARAM
 # if defined(__GNUC__)
 #  define UNUSED_PARAM(_parm) _parm  __attribute__((__unused__))
+# elif defined _MSC_VER
+#  define UNUSED_PARAM(_parm) __pragma(warning(suppress:4100)) _parm
 # else
 #  define UNUSED_PARAM(_parm) _parm
 # endif

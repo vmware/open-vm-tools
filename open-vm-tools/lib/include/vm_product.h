@@ -249,12 +249,6 @@
 # define PRODUCT_SHORT_NAME PRODUCT_GANTRY_NAME
 #elif defined(VMX86_ENTERPRISE_DESKTOP)
 # define PRODUCT_SHORT_NAME PRODUCT_WORKSTATION_ENTERPRISE_NAME
-#elif defined(VMX86_DESKTOP)
-# if defined(__APPLE__)
-#  define PRODUCT_SHORT_NAME PRODUCT_MAC_DESKTOP_NAME
-# else
-#  define PRODUCT_SHORT_NAME PRODUCT_WORKSTATION_NAME
-# endif
 #elif defined(VMX86_TOOLS)
 # define PRODUCT_SHORT_NAME VMWARE_TOOLS_SHORT_NAME
 #elif defined(VMX86_VPX)
@@ -303,6 +297,13 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
 #elif defined(VMX86_VMCF)
 # define PRODUCT_SHORT_NAME PRODUCT_VMCF_NAME
+// VMX86_DESKTOP must be last because it is the default and is always defined.
+#elif defined(VMX86_DESKTOP)
+# if defined(__APPLE__)
+#  define PRODUCT_SHORT_NAME PRODUCT_MAC_DESKTOP_NAME
+# else
+#  define PRODUCT_SHORT_NAME PRODUCT_WORKSTATION_NAME
+# endif
 #endif
 
 
@@ -368,13 +369,6 @@
 #   elif defined(VMX86_GANTRY)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_GANTRY_NAME_FOR_LICENSE
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_DESKTOP)
-#      if defined(__APPLE__)
-#         define PRODUCT_NAME_FOR_LICENSE PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE
-#      else
-#         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
-#      endif
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   elif defined(VMX86_VPX)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
@@ -384,6 +378,14 @@
 #   elif defined(VMX86_NETDUMP)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NETDUMP_NAME
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" //None
+// VMX86_DESKTOP must be last because it is the default and is always defined.
+#   elif defined(VMX86_DESKTOP)
+#      if defined(__APPLE__)
+#         define PRODUCT_NAME_FOR_LICENSE PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE
+#      else
+#         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
+#      endif
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   else   /* It is a product that doesn't use a license */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
@@ -467,15 +469,16 @@
 #   elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_FLEX_NAME
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_VPX)
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+// VMX86_DESKTOP must be last because it is the default and is always defined.
 #   elif defined(VMX86_DESKTOP)
 #      if defined(__APPLE__)
 #         define PRODUCT_NAME_FOR_LICENSE PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE
 #      else
 #         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
 #      endif
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_VPX)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   else
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_REG_NAME

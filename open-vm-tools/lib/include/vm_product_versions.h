@@ -42,8 +42,6 @@
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
-#elif defined(VMX86_DESKTOP)
-   #define PRODUCT_VERSION    12,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VCB)
@@ -55,6 +53,10 @@
    #define PRODUCT_VERSION    6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+// VMX86_DESKTOP must be last because it is the default and is always defined.
+#elif defined(VMX86_DESKTOP)
+   // WORKSTATION_VERSION_NUMBER below has to match this
+   #define PRODUCT_VERSION    12,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    /* Generic catch-all. */
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -229,9 +231,9 @@
 #define NETDUMP_FILE_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VDDK_VERSION          "6.1.0"
 #define VDDK_FILE_VERSION      6,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define OVFTOOL_VERSION "4.1.0"
+#define OVFTOOL_VERSION "5.0.0"
 #define VCSA_INSTALLER_VERSION "1.0.0"
-#define OVFTOOL_FILE_VERSION 4,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define OVFTOOL_FILE_VERSION 5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VDM_CLIENT_VERSION "4.0.0"
 #define VGAUTH_VERSION "e.x.p"
 #define COMMON_AGENT_VERSION "e.x.p"
@@ -289,12 +291,6 @@
 #  define PRODUCT_VERSION_NUMBER MUI_VERSION
 #elif defined(VMX86_ENTERPRISE_DESKTOP)
 #  define PRODUCT_VERSION_NUMBER WORKSTATION_ENTERPRISE_VERSION
-#elif defined(VMX86_DESKTOP)
-#  if defined(__APPLE__)
-#    define PRODUCT_VERSION_NUMBER FUSION_VERSION
-#  else
-#    define PRODUCT_VERSION_NUMBER WORKSTATION_VERSION
-#  endif
 #elif defined(VMX86_VPX)
 #  if defined(XVP)
 #     define PRODUCT_VERSION_NUMBER XVP_VERSION
@@ -329,6 +325,13 @@
 #  define PRODUCT_VERSION_NUMBER ESX_VERSION
 #elif defined(VMX86_HORIZON_VIEW)
 #  define PRODUCT_VERSION_NUMBER VIEW_VERSION
+// VMX86_DESKTOP must be last because it is the default and is always defined.
+#elif defined(VMX86_DESKTOP)
+#  if defined(__APPLE__)
+#    define PRODUCT_VERSION_NUMBER FUSION_VERSION
+#  else
+#    define PRODUCT_VERSION_NUMBER WORKSTATION_VERSION
+#  endif
 #endif
 
 /*
@@ -377,28 +380,29 @@
 #    define PRODUCT_LICENSE_VERSION "3.0"
 #  elif defined(VMX86_ENTERPRISE_DESKTOP)
 #    define PRODUCT_LICENSE_VERSION "1.0"
-#  elif defined(VMX86_DESKTOP)
-#    if defined(__APPLE__)
-#      define PRODUCT_LICENSE_VERSION PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE
-#    else
-#      define PRODUCT_LICENSE_VERSION "12.0"
-#    endif
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "6.0"
-#    define PRODUCT_LICENSE_FILE_VERSION "6.1.0.1"
+#    define PRODUCT_LICENSE_FILE_VERSION "6.5.0.0"
 #  elif defined(VMX86_WBC)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_SDK)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_P2V)
 #    define PRODUCT_LICENSE_VERSION "1.0"
+// VMX86_DESKTOP must be last because it is the default and is always defined.
+#  elif defined(VMX86_DESKTOP)
+#    if defined(__APPLE__)
+#      define PRODUCT_LICENSE_VERSION PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE
+#    else
+#      define PRODUCT_LICENSE_VERSION "12.0"
+#    endif
 #  else
 #    define PRODUCT_LICENSE_VERSION "0.0"
 #  endif
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "6.0"
-#define PRODUCT_ESX_LICENSE_FILE_VERSION "6.1.0.5"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "6.5.0.0"
 #define PRODUCT_VSAN_LICENSE_VERSION "5.0"
 #define PRODUCT_VSAN_LICENSE_FILE_VERSION "6.3.0.0"
 
