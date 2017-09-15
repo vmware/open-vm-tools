@@ -696,6 +696,8 @@ DnD_TransportBufGetPacket(DnDTransportBuffer *buf,           // IN/OUT
  * DnD_TransportBufAppendPacket --
  *
  *    Put a received packet into transport layer buffer.
+ *    This function should be called after validate the packet and packetSize!
+ *    See: RpcV3Util::OnRecvPacket()
  *
  * Results:
  *    TRUE if success, FALSE otherwise.
@@ -712,17 +714,6 @@ DnD_TransportBufAppendPacket(DnDTransportBuffer *buf,          // IN/OUT
                              size_t packetSize)                // IN
 {
    ASSERT(buf);
-   ASSERT(packetSize == (packet->payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE) &&
-          packetSize <= DND_MAX_TRANSPORT_PACKET_SIZE &&
-          (packet->payloadSize + packet->offset) <= packet->totalSize &&
-          packet->totalSize <= DNDMSG_MAX_ARGSZ);
-
-   if (packetSize != (packet->payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE) ||
-       packetSize > DND_MAX_TRANSPORT_PACKET_SIZE ||
-       (packet->payloadSize + packet->offset) > packet->totalSize ||
-       packet->totalSize > DNDMSG_MAX_ARGSZ) {
-      goto error;
-   }
 
    /*
     * If seqNum does not match, it means either this is the first packet, or there
