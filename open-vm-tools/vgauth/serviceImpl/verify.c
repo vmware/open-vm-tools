@@ -146,7 +146,7 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
          /*
           * No username, no mapped certs, no chance.
           */
-         Debug("%s: no mapping entries or userName\n", __FUNCTION__);
+         Warning("%s: no mapping entries or userName\n", __FUNCTION__);
          err = VGAUTH_E_AUTHENTICATION_DENIED;
          goto done;
       }
@@ -190,8 +190,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
        * Subject went unmatched, so fail.
        */
       if (NULL == queryUserName) {
-         Debug("%s: no matching cert and subject found in mapping file\n",
-               __FUNCTION__);
+         Warning("%s: no matching cert and subject found in mapping file\n",
+                 __FUNCTION__);
          err = VGAUTH_E_AUTHENTICATION_DENIED;
          goto done;
       }
@@ -204,7 +204,7 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
     * to allow for cleanup.
     */
    if (!UsercheckUserExists(queryUserName)) {
-      Debug("%s: User '%s' doesn't exist\n", __FUNCTION__, queryUserName);
+      Warning("%s: User '%s' doesn't exist\n", __FUNCTION__, queryUserName);
       err = VGAUTH_E_AUTHENTICATION_DENIED;
       goto done;
    }
@@ -287,7 +287,7 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
     */
    if (numTrusted == 0) {
       err = VGAUTH_E_AUTHENTICATION_DENIED;
-      Debug("%s: No trusted certs in chain\n", __FUNCTION__);
+      Warning("%s: No trusted certs in chain\n", __FUNCTION__);
       goto done;
    }
 

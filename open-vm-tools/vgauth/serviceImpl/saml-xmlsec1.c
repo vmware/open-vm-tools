@@ -763,9 +763,9 @@ CheckTimeAttr(const xmlNodePtr node,
     * greater than the clock skew range is bad.
     */
    if (diff > gClockSkewAdjustment) {
-      g_debug("%s: FAILED SAML assertion (timeStamp %s, delta %d) %s.\n",
-              __FUNCTION__, timeAttr, (int) diff,
-              notBefore ? "is not yet valid" : "has expired");
+      g_warning("%s: FAILED SAML assertion (timeStamp %s, delta %d) %s.\n",
+                __FUNCTION__, timeAttr, (int) diff,
+                notBefore ? "is not yet valid" : "has expired");
       retVal = FALSE;
       goto done;
    }
