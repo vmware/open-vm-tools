@@ -342,6 +342,10 @@ Max(int a, int b)
 #define VM_PAE_LARGE_2_SMALL_PAGES (BYTES_2_PAGES(VM_PAE_LARGE_PAGE_SIZE))
 #endif
 
+#ifndef VM_PAE_LARGE_2_BYTES
+#define VM_PAE_LARGE_2_BYTES(_2mbytes) ((_2mbytes) << VM_PAE_LARGE_PAGE_SHIFT)
+#endif
+
 #ifndef VM_1GB_PAGE_SHIFT
 #define VM_1GB_PAGE_SHIFT 30
 #endif
