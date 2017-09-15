@@ -249,9 +249,6 @@ void FileLockAppendMessage(MsgList **msgs,
 
 Bool FileIsWritableDir(const char *dirName);
 
-UnicodeIndex FileFirstSlashIndex(const char *pathName,
-                                 UnicodeIndex startIndex);
-
 FileIOResult
 FileIOCreateRetry(FileIODescriptor *fd,
                   const char *pathName,

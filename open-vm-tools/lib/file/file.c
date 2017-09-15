@@ -1588,6 +1588,53 @@ File_GetSizeByPath(const char *pathName)  // IN:
 
 
 /*
+ *----------------------------------------------------------------------
+ *
+ * FileFirstSlashIndex --
+ *
+ *      Finds the first pathname slash index in a path (both slashes count
+ *      for Win32, only forward slash for Unix).
+ *
+ * Results:
+ *      As described.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static UnicodeIndex
+FileFirstSlashIndex(const char *pathName,     // IN:
+                    UnicodeIndex startIndex)  // IN:
+{
+   UnicodeIndex firstFS;
+#if defined(_WIN32)
+   UnicodeIndex firstBS;
+#endif
+
+   ASSERT(pathName);
+
+   firstFS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
+                                       "/", 0, 1);
+
+#if defined(_WIN32)
+   firstBS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
+                                       "\\", 0, 1);
+
+   if ((firstFS != UNICODE_INDEX_NOT_FOUND) &&
+       (firstBS != UNICODE_INDEX_NOT_FOUND)) {
+      return MIN(firstFS, firstBS);
+   } else {
+     return (firstFS == UNICODE_INDEX_NOT_FOUND) ? firstBS : firstFS;
+   }
+#else
+   return firstFS;
+#endif
+}
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * File_CreateDirectoryHierarchyEx --

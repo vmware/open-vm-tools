@@ -82,97 +82,80 @@ File_GetModTime(const char *pathName)  // IN:
 }
 
 
+#if defined(_WIN32)
 /*
- *----------------------------------------------------------------------
+ *---------------------------------------------------------------------------
  *
- * FileFirstSlashIndex --
+ * FileFindFirstDirsep --
  *
- *      Finds the first pathname slash index in a path (both slashes count
- *      for Win32, only forward slash for Unix).
+ *      Return a pointer to the first directory separator.
  *
  * Results:
- *      As described.
+ *      NULL  No directory separator found
+ *     !NULL  Pointer to the last directory separator
  *
  * Side effects:
- *      None.
+ *      None
  *
- *----------------------------------------------------------------------
+ *---------------------------------------------------------------------------
  */
 
-UnicodeIndex
-FileFirstSlashIndex(const char *pathName,     // IN:
-                    UnicodeIndex startIndex)  // IN:
+static char *
+FileFindFirstDirsep(const char *pathName)  // IN:
 {
-   UnicodeIndex firstFS;
-#if defined(_WIN32)
-   UnicodeIndex firstBS;
-#endif
+   char *p;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
-   firstFS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
-                                       "/", 0, 1);
+   p = (char *) pathName;
 
-#if defined(_WIN32)
-   firstBS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
-                                       "\\", 0, 1);
+   while (*p != '\0') {
+      if (File_IsDirsep(*p)) {
+         return p;
+      }
 
-   if ((firstFS != UNICODE_INDEX_NOT_FOUND) &&
-       (firstBS != UNICODE_INDEX_NOT_FOUND)) {
-      return MIN(firstFS, firstBS);
-   } else {
-     return (firstFS == UNICODE_INDEX_NOT_FOUND) ? firstBS : firstFS;
+      p++;
    }
-#else
-   return firstFS;
-#endif
+
+   return NULL;
 }
+#endif
 
 
 /*
- *----------------------------------------------------------------------
+ *---------------------------------------------------------------------------
  *
- * FileLastSlashIndex --
+ * FileFindLastDirsep --
  *
- *      Finds the last pathname slash index in a path (both slashes count
- *      for Win32, only forward slash for Unix).
+ *      Return a pointer to the last directory separator.
  *
  * Results:
- *      As described.
+ *      NULL  No directory separator found
+ *     !NULL  Pointer to the last directory separator
  *
  * Side effects:
- *      None.
+ *      None
  *
- *----------------------------------------------------------------------
+ *---------------------------------------------------------------------------
  */
 
-static UnicodeIndex
-FileLastSlashIndex(const char *pathName,     // IN:
-                   UnicodeIndex startIndex)  // IN:
+static char *
+FileFindLastDirsep(const char *pathName,  // IN:
+                   size_t len)            // IN:
 {
-   UnicodeIndex lastFS;
-#if defined(_WIN32)
-   UnicodeIndex lastBS;
-#endif
+   char *p;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
-   lastFS = Unicode_FindLastSubstrInRange(pathName, startIndex, -1,
-                                          "/", 0, 1);
+   p = (char *) pathName + len;
 
-#if defined(_WIN32)
-   lastBS = Unicode_FindLastSubstrInRange(pathName, startIndex, -1,
-                                          "\\", 0, 1);
-
-   if ((lastFS != UNICODE_INDEX_NOT_FOUND) &&
-       (lastBS != UNICODE_INDEX_NOT_FOUND)) {
-      return MAX(lastFS, lastBS);
-   } else {
-     return (lastFS == UNICODE_INDEX_NOT_FOUND) ? lastBS : lastFS;
+   while (p-- != pathName) {
+      if (File_IsDirsep(*p)) {
+         return p;
+      }
    }
-#else
-   return lastFS;
-#endif
+
+   return NULL;
 }
 
 
@@ -219,99 +202,91 @@ File_SplitName(const char *pathName,  // IN:
    char *vol;
    char *dir;
    char *bas;
-   UnicodeIndex volEnd;
-   UnicodeIndex length;
-   UnicodeIndex baseBegin;
-   WIN32_ONLY(UnicodeIndex pathLen);
+   char *baseBegin;
+   char *volEnd;
+   int volLen, dirLen;
+   int len = strlen(pathName);
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    /*
     * Get volume.
     */
 
-   volEnd = 0;
+   volEnd = (char *) pathName;
 
-#if defined(_WIN32)
-   pathLen = Unicode_LengthInCodePoints(pathName);
-   if ((pathLen > 2) &&
-       (StrUtil_StartsWith(pathName, "\\\\") ||
-        StrUtil_StartsWith(pathName, "//"))) {
+#ifdef WIN32
+   if ((len > 2) &&
+       (!Str_Strncmp("\\\\", pathName, 2) ||
+        !Str_Strncmp("//", pathName, 2))) {
       /* UNC path */
-      volEnd = FileFirstSlashIndex(pathName, 2);
+      volEnd = FileFindFirstDirsep(volEnd + 2);
 
-      if (volEnd == UNICODE_INDEX_NOT_FOUND) {
-         /* we have \\foo, which is just bogus */
-         volEnd = 0;
-      } else {
-         volEnd = FileFirstSlashIndex(pathName, volEnd + 1);
+      if (volEnd != NULL) {
+         volEnd = FileFindFirstDirsep(volEnd + 1);
 
-         if (volEnd == UNICODE_INDEX_NOT_FOUND) {
-            /* we have \\foo\bar, which is legal */
-            volEnd = pathLen;
+         if (volEnd == NULL) {
+            /* We have \\foo\bar, which is legal */
+            volEnd = (char *) pathName + len;
          }
-      }
-   } else if ((pathLen >= 2) &&
-              (Unicode_FindSubstrInRange(pathName, 1, 1, ":", 0,
-                                         1) != UNICODE_INDEX_NOT_FOUND)) {
-      /* drive-letter path */
-      volEnd = 2;
-   }
 
-   if (volEnd > 0) {
-      vol = Unicode_Substr(pathName, 0, volEnd);
-   } else {
-      vol = Unicode_Duplicate("");
+      } else {
+         /* We have \\foo, which is just bogus */
+         volEnd = (char *) pathName;
+      }
+   } else if ((len >= 2) && (pathName[1] == ':')) {
+      // drive-letter path
+      volEnd = (char *) pathName + 2;
    }
-#else
-   vol = Unicode_Duplicate("");
-#endif /* _WIN32 */
+#endif /* WIN32 */
+
+   volLen = volEnd - pathName;
+   vol = Util_SafeMalloc(volLen + 1);
+   memcpy(vol, pathName, volLen);
+   vol[volLen] = '\0';
 
    /*
     * Get base.
     */
 
-   baseBegin = FileLastSlashIndex(pathName, 0);
-   baseBegin = (baseBegin == UNICODE_INDEX_NOT_FOUND) ? 0 : baseBegin + 1;
+   baseBegin = FileFindLastDirsep(pathName, len);
+   baseBegin = (baseBegin == NULL) ? (char *) pathName : baseBegin + 1;
 
-   if (baseBegin >= volEnd) {
-      bas = Unicode_Substr(pathName, baseBegin, -1);
-   } else {
-      bas = Unicode_Duplicate("");
+   if (baseBegin < volEnd) {
+      baseBegin = (char *) pathName + len;
    }
+
+   bas = Util_SafeStrdup(baseBegin);
 
    /*
     * Get dir.
     */
 
-   length = baseBegin - volEnd;
-
-   if (length > 0) {
-      dir = Unicode_Substr(pathName, volEnd, length);
-   } else {
-      dir = Unicode_Duplicate("");
-   }
+   dirLen = baseBegin - volEnd;
+   dir = Util_SafeMalloc(dirLen + 1);
+   memcpy(dir, volEnd, dirLen);
+   dir[dirLen] = '\0';
 
    /*
     * Return what needs to be returned.
     */
 
-   if (volume) {
+   if (volume == NULL) {
+      free(vol);
+   } else {
       *volume = vol;
-   } else {
-      Posix_Free(vol);
    }
 
-   if (directory) {
+   if (directory == NULL) {
+      free(dir);
+   } else {
       *directory = dir;
-   } else {
-      Posix_Free(dir);
    }
 
-   if (base) {
-      *base = bas;
+   if (base == NULL) {
+      free(bas);
    } else {
-      Posix_Free(bas);
+      *base = bas;
    }
 }
 
@@ -406,43 +381,6 @@ File_PathJoin(const char *dirName,   // IN:
 /*
  *---------------------------------------------------------------------------
  *
- * FileFindLastDirsep --
- *
- *      Return a pointer to the last directory separator.
- *
- * Results:
- *      NULL  No directory separator found
- *     !NULL  Pointer to the last directory separator
- *
- * Side effects:
- *      None
- *
- *---------------------------------------------------------------------------
- */
-
-static char *
-FileFindLastDirsep(const char *pathName,  // IN:
-                   size_t len)            // IN:
-{
-   char *p;
-
-   ASSERT(pathName != NULL);
-
-   p = (char *) pathName + len;
-
-   while (p-- != pathName) {
-      if (File_IsDirsep(*p)) {
-         return p;
-      }
-   }
-
-   return NULL;
-}
-
-
-/*
- *---------------------------------------------------------------------------
- *
  * File_GetPathName --
  *
  *      Behaves like File_SplitName by splitting the fullpath into
@@ -472,47 +410,42 @@ File_GetPathName(const char *fullPath,  // IN:
                  char **pathName,       // OUT/OPT:
                  char **baseName)       // OUT/OPT:
 {
-   char *volume;
-   UnicodeIndex len;
-   UnicodeIndex curLen;
+   char *p;
+   char *pName;
+   char *bName;
+   ASSERT(fullPath);
 
-   File_SplitName(fullPath, &volume, pathName, baseName);
+   p = FileFindLastDirsep(fullPath, strlen(fullPath));
+
+   if (p == NULL) {
+      pName = Util_SafeStrdup("");
+      bName = Util_SafeStrdup(fullPath);
+   } else {
+      bName = Util_SafeStrdup(&fullPath[p - fullPath + 1]);
+      pName = Util_SafeStrdup(fullPath);
+      pName[p - fullPath] = '\0';
+
+      p = &pName[p - fullPath];
+
+      while (p-- != pName) {
+         if (File_IsDirsep(*p)) {
+            *p = '\0';
+         } else {
+            break;
+         }
+      }
+   }
 
    if (pathName == NULL) {
-      Posix_Free(volume);
-      return;
+      free(pName);
+   } else {
+      *pathName = pName;
    }
 
-   /*
-    * The volume component may be empty.
-    */
-
-   if (!Unicode_IsEmpty(volume)) {
-      char *temp = Unicode_Append(volume, *pathName);
-
-      Posix_Free(*pathName);
-      *pathName = temp;
-   }
-   Posix_Free(volume);
-
-   /*
-    * Remove any trailing directory separator characters.
-    */
-
-   len = Unicode_LengthInCodePoints(*pathName);
-
-   curLen = len;
-
-   while ((curLen > 0) &&
-          (FileFirstSlashIndex(*pathName, curLen - 1) == curLen - 1)) {
-      curLen--;
-   }
-
-   if (curLen < len) {
-      char *temp = Unicode_Substr(*pathName, 0, curLen);
-
-      Posix_Free(*pathName);
-      *pathName = temp;
+   if (baseName == NULL) {
+      free(bName);
+   } else {
+      *baseName = bName;
    }
 }
 
