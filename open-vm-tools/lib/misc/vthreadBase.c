@@ -190,16 +190,14 @@ typedef enum VThreadLocal {
 } VThreadLocal;
 
 
-#if !defined _WIN32
 /*
- * Signal counting code. Signal counting operates self-contained,
- * having no particular dependency on the rest of VThreadBase
- * (especially the VThreadBaseData memory allocation).
+ * Custom code for platforms without thread-local storage.
+ * On these platforms, use constructors/destructors to manage
+ * pthread keys.
  */
-#ifdef NEW_HAVE_TLS
-static __thread int sigNestCount;
-#else
+#if !defined(NEW_HAVE_TLS)
 static pthread_key_t sigNestCountKey;
+static pthread_key_t vthreadNameKey;
 
 /*
  * To avoid needing initialization, manage via constructor/destructor.
@@ -209,12 +207,13 @@ static pthread_key_t sigNestCountKey;
  * Thus, the default 0 value indicates unset.
  */
 __attribute__((constructor))
-static void SigNestCountConstruct(void)
+static void VThreadBaseConstruct(void)
 {
    (void) pthread_key_create(&sigNestCountKey, NULL);
+   (void) pthread_key_create(&vthreadNameKey, NULL);
 }
 __attribute__((destructor))
-static void SigNestCountDestruct(void)
+static void VThreadBaseDestruct(void)
 {
    /*
     * TLS destructors have a wrinkle: if you unload a library THEN
@@ -226,11 +225,76 @@ static void SigNestCountDestruct(void)
     * Code elsewhere in this file makes the opposite choice (leak TLS key)
     * due to needing a non-trivial destructor.
     */
+   if (vthreadNameKey != 0) {
+      (void) pthread_key_delete(vthreadNameKey);
+   }
    if (sigNestCountKey != 0) {
       (void) pthread_key_delete(sigNestCountKey);
    }
 }
 #endif
+
+#if !defined _WIN32
+/*
+ * Signal counting code. Signal counting operates self-contained,
+ * having no particular dependency on the rest of VThreadBase
+ * (especially the VThreadBaseData memory allocation).
+ */
+#ifdef NEW_HAVE_TLS
+static __thread int sigNestCount;
+#endif
+#endif
+
+
+/*
+ * VThread name code.
+ * Common case: thread-local storage is available, and this is easy.
+ * Uncommon case: iOS/Android lack thread-local storage for the versions
+ *   we currently use.
+ *   Problems:
+ *      PR 1686126 shows that malloc() on the thread-name path can lead to
+ *      deadlock (due to signal within malloc()), yet somehow we must come up
+ *      with some sort of name always.
+ *      PR 1626963 shows that even if we could safely allocate memory, we
+ *      cannot free it: if we were to pthread_key_create(..., &free) and this
+ *      library were unloaded via dlclose() before all threads exit, the
+ *      call to free() (actually, our library's .plt thunk) would crash.
+ *   Solution:
+ *      Solve the simpler problem. An external SetName is assumed to not
+ *      be inside a signal handler (malloc is safe) AND is assumed there
+ *      will be an eventual ForgetSelf (avoids leak). This isn't strictly
+ *      true of all cases, but remember this only applies to iOS/Android in
+ *      the first place. If SetName has not been called on the current thread,
+ *      make up a thread-specific name and store it in a (non-thread-safe)
+ *      global buffer as a best-effort solution.
+ * Discarded ideas:
+ *   1) allocating thread-name memory on first use for anonymous threads.
+ *      Guaranteed to leak memory due to PR 1626963 (above).
+ *   2) use Android prctl(PR_GET_NAME) + iOS pthread_getname_np(). Storing names
+ *      works great, but both APIs require caller-supplied buffers ... which
+ *      leads right back to needing a per-thread buffer, and the malloc()
+ *      problem above. Except it's worse: we could find we have a perfectly
+ *      valid name, but cannot allocate a buffer to return it.
+ *   3) Re-plumbing VThreadBase_CurName() to take a caller-supplied buffer
+ *      instead of returning a pointer; that would be an ugly, invasive API
+ *      change that de-optimizes "modern" OSes by forcing them to strcpy when
+ *      they could just return a pointer.
+ *   4) Use 2-4 pthread_keys for storage (4-8 chars per key). Same problem as
+ *      (2) above... this stores the data fine, but still does not provide
+ *      a per-thread buffer for returning the data.
+ *   5) Return a static string "<unnamed>" for *all* unknown threads.
+ *      The picked solution above does have a race in that two unnamed threads
+ *      generating a default name at the same time could race and one thread
+ *      may get the wrong name; this option avoids that problem by refusing to
+ *      name unnamed threads AT ALL.
+ *      Discarded because best-effort thread identification seems better than
+ *      technically-correct-but-less-useful refusal to provide any name.
+ * To summarize in two points: a per-thread buffer is pretty much essential
+ * for correctness, and minimize effort for "old" platforms.
+ */
+
+#ifdef NEW_HAVE_TLS
+static __thread char vthreadName[VTHREADBASE_MAX_NAME];
 #endif
 
 
@@ -654,14 +718,54 @@ VThreadBase_CurID(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * VThreadBaseSafeName --
+ *
+ *      Generates a "safe" name for the current thread into a buffer.
+ *
+ *      Always succeeds, never recurses.
+ *
+ * Results:
+ *      The current thread name.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VThreadBaseSafeName(char *buf,   // OUT: new name
+                    size_t len)  // IN:
+{
+   /*
+    * This function should not ASSERT, Panic or call a Str_
+    * function (that can ASSERT or Panic), as the Panic handler is
+    * very likey to query the thread name and end up right back here.
+    */
+   uintptr_t hostTid;
+
+#if defined(_WIN32)
+   hostTid = GetCurrentThreadId();
+#elif defined(__linux__)
+   hostTid = pthread_self();
+#elif defined(__APPLE__)
+   hostTid = (uintptr_t)(void*)pthread_self();
+#else
+   hostTid = 0;
+#endif
+   snprintf(buf, len - 1 /* keep buffer NUL-terminated */,
+            "host-%"FMTPD"u", hostTid);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VThreadBase_CurName --
  *
  *      Get the current thread name.
  *
- *      This function always returns, at some level of reentrancy.  That is,
- *      the first call either returns successfully or Panics; the Panic may
- *      reentrantly call this function, and that reentrant call always
- *      returns.
+ *      Always succeeds, never recurses.
  *
  * Results:
  *      The current thread name.
@@ -675,53 +779,41 @@ VThreadBase_CurID(void)
 const char *
 VThreadBase_CurName(void)
 {
-   static Atomic_Int curNameRecursion;
-   VThreadBaseData *base = VThreadBaseGetBase();
+#if defined NEW_HAVE_TLS
+   if (UNLIKELY(vthreadName[0] == '\0')) {
+      /*
+       * Unnamed thread. If the thread's name mattered, it would
+       * have called VThreadBase_SetName() earlier.
+       *
+       * Pick an arbitrary name and store it in thread-local storage.
+       */
 
-   if (LIKELY(base != NULL)) {
-      return base->name;
-   } else if (Atomic_Read(&curNameRecursion) == 0) {
-      /* Unnamed thread, try to name it. */
-      Atomic_Inc(&curNameRecursion);
-      base = VThreadBaseGetAndInitBase(); /* Assigns name as side effect */
-      Atomic_Dec(&curNameRecursion);
+      VThreadBaseSafeName(vthreadName, sizeof vthreadName);
+   }
+   return vthreadName;
+#else
+   const char *raw;
 
-      return base->name;
+   raw = (vthreadNameKey != 0) ? pthread_getspecific(vthreadNameKey)
+                                : NULL;
+   if (LIKELY(raw != NULL)) {
+      return raw;  // fast path
    } else {
       /*
-       * Unnamed thread, but naming it failed (recursed back to here).
-       * The heuristic is not perfect (a second unnamed thread could
-       * be looking for a name while the first thread names itself),
-       * but getting here nonrecursively is unlikely and we cannot
-       * do better about detection without thread-local storage, and
-       * in the recursive case thread-local storage won't exist after
-       * a failure to set up thread-local storage in the first place.
+       * Unnamed thread. If the thread's name mattered, it would
+       * have called VThreadBase_SetName() earlier.
        *
-       * This clause function should not ASSERT, Panic or call a Str_
-       * function (that can ASSERT or Panic), as the Panic handler is
-       * very likey to query the thread name and end up right back here.
-       * Thus, use a static buffer for a partly-sane name and hope the
+       * Use a static buffer for a partly-sane name and hope the
        * Panic handler dumps enough information to figure out what went
-       * wrong.
+       * wrong. If better accuracy is needed, add thread-local storage
+       * support for the platform.
        */
 
       static char name[48];
-      uintptr_t hostTid;
-
-#if defined(_WIN32)
-      hostTid = GetCurrentThreadId();
-#elif defined(__linux__)
-      hostTid = pthread_self();
-#elif defined(__APPLE__)
-      hostTid = (uintptr_t)(void*)pthread_self();
-#else
-      hostTid = 0;
-#endif
-      snprintf(name, sizeof name - 1 /* keep buffer NUL-terminated */,
-               "host-%"FMTPD"u", hostTid);
-
+      VThreadBaseSafeName(name, sizeof name);
       return name;
    }
+#endif
 }
 
 
@@ -833,11 +925,29 @@ VThreadBase_InitWithTLS(VThreadBaseData *base)  // IN: caller-managed storage
  */
 
 static void
+VThreadBaseForgetNameRaw(void)
+{
+#if defined NEW_HAVE_TLS
+   strncpy(vthreadName, "", sizeof vthreadName);
+#else
+   char *buf;
+
+   ASSERT(vthreadNameKey != 0);
+   ASSERT(!VThreadBase_IsInSignal());
+
+   buf = pthread_getspecific(vthreadNameKey);
+   pthread_setspecific(vthreadNameKey, NULL);
+   free(buf);
+#endif
+}
+
+static void
 VThreadBaseSafeDeleteTLS(void *tlsData)
 {
    VThreadBaseData *data = tlsData;
 
    if (data != NULL) {
+      VThreadBaseForgetNameRaw();  // New-style TLS, will replace old-style soon
       if (vthreadBaseGlobals.freeIDFunc != NULL) {
          Bool success;
          VThreadBaseData tmpData = *data;
@@ -912,6 +1022,35 @@ VThreadBase_ForgetSelf(void)
  *-----------------------------------------------------------------------------
  */
 
+static void
+VThreadBaseSetNameRaw(const char *name)  // IN: new name
+{
+#if defined NEW_HAVE_TLS
+   /* Never copy last byte; this ensures NUL-term is always present */
+   strncpy(vthreadName, name, sizeof vthreadName - 1);
+#else
+   char *buf;
+
+   ASSERT(vthreadNameKey != 0);
+   ASSERT(!VThreadBase_IsInSignal());
+
+   /*
+    * The below code is racy (signal between get/set), but the
+    * race is benign. The signal handler would either get a safe
+    * name or "" (if it interrupts before setspecific or before strncpy,
+    * respectively). But as signal handlers may not call SetName,
+    * this will not double-allocate.
+    */
+   buf = pthread_getspecific(vthreadNameKey);
+   if (buf == NULL) {
+      buf = Util_SafeCalloc(1, VTHREADBASE_MAX_NAME);
+      pthread_setspecific(vthreadNameKey, buf);
+   }
+
+   strncpy(buf, name, VTHREADBASE_MAX_NAME - 1);
+#endif
+}
+
 void
 VThreadBase_SetName(const char *name)  // IN: new name
 {
@@ -931,6 +1070,7 @@ VThreadBase_SetName(const char *name)  // IN: new name
 
    memcpy(base->name, name, len);
    base->name[len] = '\0';
+   VThreadBaseSetNameRaw(name);  // New-style TLS, will replace old-style soon
 }
 
 
@@ -1114,6 +1254,7 @@ VThreadBaseSimpleNoID(void)
    Str_Sprintf(base->name, sizeof base->name, "vthread-%u", newID);
 
    result = VThreadBase_InitWithTLS(base);
+   VThreadBase_SetName(base->name);  // New-style TLS
    ASSERT(result);
 
    if (vmx86_debug && reused) {
