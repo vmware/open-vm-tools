@@ -11,7 +11,19 @@
  */
 
 #include "stdafx.h"
-#include "ProviderEventResponseXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/StatisticsXml.h"
+#include "Doc/DocXml/ResponseXml/EventKeyCollectionXml.h"
+#include "Doc/DocXml/ResponseXml/ResponseHeaderXml.h"
+
+#include "Doc/CafCoreTypesDoc/CStatisticsDoc.h"
+#include "Doc/ResponseDoc/CEventKeyCollectionDoc.h"
+#include "Doc/ResponseDoc/CEventManifestDoc.h"
+#include "Doc/ResponseDoc/CProviderEventResponseDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ResponseXml/ProviderEventResponseXml.h"
+#include "Doc/DocXml/ResponseXml/EventManifestXml.h"
 
 using namespace Caf;
 

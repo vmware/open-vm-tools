@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
 #include "Doc/CafCoreTypesDoc/COperationDoc.h"
 
 using namespace Caf;

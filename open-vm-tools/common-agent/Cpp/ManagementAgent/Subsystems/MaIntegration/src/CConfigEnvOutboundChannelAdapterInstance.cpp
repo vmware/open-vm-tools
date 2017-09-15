@@ -7,6 +7,17 @@
  */
 
 #include "stdafx.h"
+
+#include "CConfigEnvMessageHandler.h"
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "IConfigEnv.h"
+#include "IPersistence.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/IMessageHandler.h"
 #include "CConfigEnvOutboundChannelAdapterInstance.h"
 
 using namespace Caf;

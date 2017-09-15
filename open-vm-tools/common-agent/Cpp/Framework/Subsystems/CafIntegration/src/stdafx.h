@@ -13,17 +13,7 @@
 
 #include <CommonDefines.h>
 #include <Integration.h>
-#include <DocXml.h>
 #include <DocUtils.h>
-
-namespace Caf {
-	extern const char* _sObjIdErrorToResponseTransformerInstance;
-	extern const char* _sObjIdErrorToResponseTransformer;
-	extern const char* _sObjIdPayloadHeaderEnricherInstance;
-	extern const char* _sObjIdPayloadHeaderEnricher;
-	extern const char* _sObjIdEnvelopeToPayloadTransformerInstance;
-	extern const char* _sObjIdEnvelopeToPayloadTransformer;
-}
 
 #include "CErrorToResponseTransformerInstance.h"
 #include "CErrorToResponseTransformer.h"
@@ -31,7 +21,6 @@ namespace Caf {
 #include "CPayloadHeaderEnricherInstance.h"
 #include "CPayloadHeaderEnricher.h"
 
-#include "CEnvelopeToPayloadTransformerInstance.h"
 #include "CEnvelopeToPayloadTransformer.h"
 
 #endif // #ifndef stdafx_h_

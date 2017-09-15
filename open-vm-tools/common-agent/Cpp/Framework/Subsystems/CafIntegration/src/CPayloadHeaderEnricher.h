@@ -9,6 +9,13 @@
 #ifndef CPayloadHeaderEnricher_h_
 #define CPayloadHeaderEnricher_h_
 
+
+#include "IBean.h"
+
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IIntegrationComponent.h"
+
 namespace Caf {
 
 /// Sends responses/errors back to the client.

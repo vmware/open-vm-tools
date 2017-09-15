@@ -8,6 +8,7 @@
 #define _TCafSubSystemSmartCl_H
 
 #include "EcmSubSystemBase.h"
+#include "Exception/CCafException.h"
 #include "CEcmSubSystem.h"
 #include <map>
 

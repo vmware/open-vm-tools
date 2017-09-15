@@ -7,9 +7,22 @@
  */
 
 #include "stdafx.h"
-#include "RabbitTemplate.h"
+
+#include "amqpClient/amqpImpl/BasicProperties.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "amqpClient/api/AmqpMethods.h"
+#include "amqpClient/api/Channel.h"
+#include "amqpClient/api/Envelope.h"
+#include "amqpClient/api/GetResponse.h"
+#include "amqpCore/AmqpHeaderMapper.h"
+#include "amqpCore/AmqpTemplate.h"
+#include "amqpClient/api/ConnectionFactory.h"
+#include "amqpCore/DefaultAmqpHeaderMapper.h"
+#include "amqpCore/RabbitTemplate.h"
+#include "Exception/CCafException.h"
 #include "AutoChannelClose.h"
-#include "DefaultAmqpHeaderMapper.h"
 
 using namespace Caf::AmqpIntegration;
 

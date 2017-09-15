@@ -11,7 +11,17 @@
  */
 
 #include "stdafx.h"
-#include "CdifXml.h"
+
+#include "Doc/DocXml/ProviderResultsXml/DefinitionObjectCollectionXml.h"
+#include "Doc/DocXml/ProviderResultsXml/RequestIdentifierXml.h"
+#include "Doc/DocXml/ProviderResultsXml/SchemaXml.h"
+
+#include "Doc/ProviderResultsDoc/CCdifDoc.h"
+#include "Doc/ProviderResultsDoc/CDefinitionObjectCollectionDoc.h"
+#include "Doc/ProviderResultsDoc/CRequestIdentifierDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderResultsXml/CdifXml.h"
 
 using namespace Caf;
 

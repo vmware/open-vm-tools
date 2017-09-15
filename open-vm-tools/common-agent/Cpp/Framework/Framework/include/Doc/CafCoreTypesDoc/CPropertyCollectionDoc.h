@@ -11,6 +11,9 @@
 #ifndef CPropertyCollectionDoc_h_
 #define CPropertyCollectionDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CPropertyDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type PropertyCollection

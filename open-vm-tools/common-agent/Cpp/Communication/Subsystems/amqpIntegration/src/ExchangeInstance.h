@@ -9,6 +9,15 @@
 #ifndef EXCHANGEINSTANCE_H_
 #define EXCHANGEINSTANCE_H_
 
+
+#include "Integration/IIntegrationObject.h"
+
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationAppContext.h"
+#include "amqpCore/Binding.h"
+#include "amqpCore/Exchange.h"
+#include "amqpCore/ExchangeInternal.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

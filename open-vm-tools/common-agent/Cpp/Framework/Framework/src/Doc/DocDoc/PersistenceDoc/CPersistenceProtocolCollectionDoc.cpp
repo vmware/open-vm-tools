@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
 #include "Doc/PersistenceDoc/CPersistenceProtocolCollectionDoc.h"
 
 using namespace Caf;

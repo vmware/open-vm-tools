@@ -7,6 +7,7 @@
  */
 
 #include "stdafx.h"
+#include "amqpClient/api/amqpClient.h"
 
 namespace Caf {
 namespace AmqpClient {

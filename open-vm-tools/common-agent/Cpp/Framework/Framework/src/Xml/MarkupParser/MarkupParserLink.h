@@ -21,6 +21,5 @@
     #endif
 #endif
 
-#include "CMarkupParser.h"
 
 #endif /* MARKUPPARSERLINK_H_ */

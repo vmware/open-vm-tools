@@ -9,6 +9,14 @@
 #ifndef CInstallProvider_h_
 #define CInstallProvider_h_
 
+
+#include "IInvokedProvider.h"
+#include "Doc/CafInstallRequestDoc/CafInstallRequestDocTypes.h"
+
+#include "Doc/CafInstallRequestDoc/CInstallProviderSpecDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+
 namespace Caf {
 
 /// Sends responses/errors back to the client.

@@ -11,6 +11,11 @@
 #ifndef CDiagBatchDoc_h_
 #define CDiagBatchDoc_h_
 
+
+#include "Doc/DiagTypesDoc/CDiagCollectInstancesDoc.h"
+#include "Doc/DiagTypesDoc/CDiagDeleteValueCollectionDoc.h"
+#include "Doc/DiagTypesDoc/CDiagSetValueCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type DiagBatch

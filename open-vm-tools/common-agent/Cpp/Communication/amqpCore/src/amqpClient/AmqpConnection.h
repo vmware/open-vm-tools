@@ -9,6 +9,12 @@
 #ifndef AMQPCORE_AMQPCONNECTION_H_
 #define AMQPCORE_AMQPCONNECTION_H_
 
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/CAmqpAuthMechanism.h"
+#include "amqpClient/CAmqpConnection.h"
+#include "amqpClient/api/Address.h"
+#include "amqpClient/api/CertInfo.h"
+
 namespace Caf { namespace AmqpClient {
 
 /** Default maximum number of channels. */

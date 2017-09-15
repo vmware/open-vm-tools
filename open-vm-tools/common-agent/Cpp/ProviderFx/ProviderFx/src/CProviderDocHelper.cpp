@@ -7,6 +7,23 @@
  */
 
 #include "stdafx.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CClassIdentifierDoc.h"
+#include "Doc/SchemaTypesDoc/CClassInstancePropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CClassPropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
+#include "Doc/SchemaTypesDoc/CCollectMethodDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassPropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassSubInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CInstanceParameterDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodParameterDoc.h"
 #include "../include/CProviderDocHelper.h"
 
 using namespace Caf;

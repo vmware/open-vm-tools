@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CLoggingLevelCollectionDoc.h"
 #include "Doc/ProviderRequestDoc/CProviderRequestConfigDoc.h"
 
 using namespace Caf;

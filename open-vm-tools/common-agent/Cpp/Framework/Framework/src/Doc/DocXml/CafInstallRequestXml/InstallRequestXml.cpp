@@ -11,7 +11,17 @@
  */
 
 #include "stdafx.h"
-#include "InstallRequestXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestHeaderXml.h"
+#include "Doc/DocXml/CafInstallRequestXml/InstallBatchXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallBatchDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallRequestDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafInstallRequestXml/InstallRequestXml.h"
 
 using namespace Caf;
 

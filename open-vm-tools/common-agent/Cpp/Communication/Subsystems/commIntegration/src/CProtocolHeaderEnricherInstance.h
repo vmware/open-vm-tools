@@ -9,7 +9,18 @@
 #ifndef CProtocolHeaderEnricherInstance_h
 #define CProtocolHeaderEnricherInstance_h
 
-#include "ReplyToResolver.h"
+
+
+#include "Integration/IIntegrationComponentInstance.h"
+
+#include "Common/IAppContext.h"
+#include "Doc/CafCoreTypesDoc/CProtocolDoc.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ITransformer.h"
 
 namespace Caf {
 

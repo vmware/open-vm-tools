@@ -11,6 +11,10 @@
 #ifndef CDiagRequestDoc_h_
 #define CDiagRequestDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/DiagTypesDoc/CDiagBatchDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type DiagRequest

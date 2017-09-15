@@ -7,7 +7,23 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DocXml/ResponseXml/ResponseXmlRoots.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/CInlineAttachmentDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectSchemaRequestDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Doc/ResponseDoc/CManifestCollectionDoc.h"
+#include "Doc/ResponseDoc/CManifestDoc.h"
+#include "Doc/ResponseDoc/CProviderResponseDoc.h"
+#include "Doc/ResponseDoc/CResponseDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
 #include "CResponseFactory.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

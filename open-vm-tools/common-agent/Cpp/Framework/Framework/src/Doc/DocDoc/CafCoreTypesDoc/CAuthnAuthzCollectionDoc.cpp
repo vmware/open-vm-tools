@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAuthnAuthzDoc.h"
 #include "Doc/CafCoreTypesDoc/CAuthnAuthzCollectionDoc.h"
 
 using namespace Caf;

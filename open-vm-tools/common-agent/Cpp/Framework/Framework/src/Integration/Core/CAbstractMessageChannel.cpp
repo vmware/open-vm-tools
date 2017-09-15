@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "CAbstractMessageChannel.h"
+
+#include "Integration/IChannelInterceptor.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/Core/CAbstractMessageChannel.h"
 
 CAbstractMessageChannel::CAbstractMessageChannel() :
 	CAF_CM_INIT("CAbstractMessageChannel") {

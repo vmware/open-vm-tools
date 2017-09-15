@@ -11,6 +11,9 @@
 #ifndef CProviderRequestConfigDoc_h_
 #define CProviderRequestConfigDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CLoggingLevelCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ProviderRequestConfig

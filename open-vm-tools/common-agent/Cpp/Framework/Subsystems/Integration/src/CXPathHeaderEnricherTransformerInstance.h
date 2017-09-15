@@ -9,6 +9,17 @@
 #ifndef CXPathHeaderEnricherTransformerInstance_h_
 #define CXPathHeaderEnricherTransformerInstance_h_
 
+
+#include "Integration/IIntegrationComponentInstance.h"
+
+#include "CXPathHeaderEnricherItem.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ITransformer.h"
+
 namespace Caf {
 
 class CXPathHeaderEnricherTransformerInstance :

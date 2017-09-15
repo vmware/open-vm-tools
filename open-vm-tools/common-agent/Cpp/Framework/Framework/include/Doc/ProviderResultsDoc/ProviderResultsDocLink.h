@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/ProviderResultsDoc/ProviderResultsDocInc.h"
 
 #endif /* ProviderResultsDoc_Link_h_ */

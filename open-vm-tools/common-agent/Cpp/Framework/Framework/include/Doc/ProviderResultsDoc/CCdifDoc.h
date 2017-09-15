@@ -11,6 +11,11 @@
 #ifndef CCdifDoc_h_
 #define CCdifDoc_h_
 
+
+#include "Doc/ProviderResultsDoc/CDefinitionObjectCollectionDoc.h"
+#include "Doc/ProviderResultsDoc/CRequestIdentifierDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type Cdif

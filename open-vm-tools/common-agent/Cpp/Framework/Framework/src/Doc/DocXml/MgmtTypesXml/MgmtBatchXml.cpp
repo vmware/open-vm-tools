@@ -11,7 +11,17 @@
  */
 
 #include "stdafx.h"
-#include "MgmtBatchXml.h"
+
+#include "Doc/DocXml/MgmtTypesXml/MgmtCollectInstancesCollectionXml.h"
+#include "Doc/DocXml/MgmtTypesXml/MgmtCollectSchemaXml.h"
+#include "Doc/DocXml/MgmtTypesXml/MgmtInvokeOperationCollectionXml.h"
+
+#include "Doc/MgmtTypesDoc/CMgmtBatchDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectSchemaDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/MgmtTypesXml/MgmtBatchXml.h"
 
 using namespace Caf;
 

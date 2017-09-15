@@ -9,6 +9,11 @@
 #ifndef BINDINGINSTANCE_H_
 #define BINDINGINSTANCE_H_
 
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IDocument.h"
+#include "amqpCore/Binding.h"
+#include "amqpCore/BindingInternal.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

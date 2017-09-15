@@ -9,6 +9,9 @@
 #ifndef AMQUTIL_H_
 #define AMQUTIL_H_
 
+
+#include "amqpClient/api/amqpClient.h"
+
 namespace Caf { namespace AmqpClient {
 
 /**

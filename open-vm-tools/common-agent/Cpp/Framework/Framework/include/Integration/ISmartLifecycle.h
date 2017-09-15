@@ -9,6 +9,9 @@
 #ifndef _IntegrationContracts_ISmartLifecycle_h
 #define _IntegrationContracts_ISmartLifecycle_h
 
+
+#include "Integration/ILifecycle.h"
+
 namespace Caf {
 
 struct __declspec(novtable) ISmartLifecycle : public ILifecycle {

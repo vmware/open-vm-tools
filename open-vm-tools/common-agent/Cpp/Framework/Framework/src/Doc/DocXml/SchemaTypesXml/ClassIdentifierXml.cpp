@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "ClassIdentifierXml.h"
+
+#include "Doc/SchemaTypesDoc/CClassIdentifierDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/ClassIdentifierXml.h"
 
 using namespace Caf;
 

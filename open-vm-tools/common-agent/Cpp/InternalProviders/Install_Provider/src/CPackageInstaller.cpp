@@ -7,6 +7,18 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DocXml/CafInstallRequestXml/CafInstallRequestXmlRoots.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentNameCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CInlineAttachmentDoc.h"
+#include "Doc/CafInstallRequestDoc/CFullPackageElemDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallPackageSpecDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderSpecDoc.h"
+#include "Doc/CafInstallRequestDoc/CMinPackageElemDoc.h"
+#include "Doc/CafInstallRequestDoc/CPackageDefnDoc.h"
 #include "CPackageInstaller.h"
 
 using namespace Caf;

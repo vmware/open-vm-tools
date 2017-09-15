@@ -7,7 +7,14 @@
  */
 
 #include "stdafx.h"
-#include "ConsumerDispatcher.h"
+
+#include "amqpClient/amqpImpl/BasicProperties.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "amqpClient/ConsumerWorkService.h"
+#include "amqpClient/api/Consumer.h"
+#include "amqpClient/api/Envelope.h"
+#include "amqpClient/ConsumerDispatcher.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf::AmqpClient;
 

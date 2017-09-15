@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "AddInCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAddInCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/AddInCollectionXml.h"
 
 using namespace Caf;
 

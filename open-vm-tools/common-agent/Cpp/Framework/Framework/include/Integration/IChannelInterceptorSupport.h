@@ -9,6 +9,11 @@
 #ifndef _IntegrationContracts_ICHANNELINTERCEPTORSUPPORT_H_
 #define _IntegrationContracts_ICHANNELINTERCEPTORSUPPORT_H_
 
+
+#include "ICafObject.h"
+
+#include "Integration/IChannelInterceptor.h"
+
 namespace Caf {
 
 struct __declspec(novtable)

@@ -7,7 +7,8 @@
  */
 
 #include "stdafx.h"
-#include "api/Address.h"
+#include "amqpClient/api/Address.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf::AmqpClient;
 

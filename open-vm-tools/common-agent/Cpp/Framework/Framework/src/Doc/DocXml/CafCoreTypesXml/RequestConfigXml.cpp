@@ -11,7 +11,14 @@
  */
 
 #include "stdafx.h"
-#include "RequestConfigXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAddInsDoc.h"
+#include "Doc/CafCoreTypesDoc/CLoggingLevelCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestConfigDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestConfigXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/AddInsXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/LoggingLevelCollectionXml.h"
 
 using namespace Caf;
 

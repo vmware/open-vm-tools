@@ -6,6 +6,7 @@
  */
 
 #include "stdafx.h"
+#include "Common/IAppConfig.h"
 #include "CEcmSubSystemRegistry.h"
 #include "CEcmDllManager.h"
 #include <algorithm>

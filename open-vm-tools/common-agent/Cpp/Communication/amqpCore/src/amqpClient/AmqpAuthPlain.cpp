@@ -7,6 +7,9 @@
  */
 
 #include "stdafx.h"
+
+#include "amqpClient/CAmqpAuthMechanism.h"
+#include "AmqpAuthPlain.h"
 #include "AmqpUtil.h"
 
 using namespace Caf::AmqpClient;

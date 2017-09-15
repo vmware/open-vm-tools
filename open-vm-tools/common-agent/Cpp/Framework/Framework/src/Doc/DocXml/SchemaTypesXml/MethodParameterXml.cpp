@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "MethodParameterXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
+#include "Doc/SchemaTypesDoc/CMethodParameterDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/MethodParameterXml.h"
 
 using namespace Caf;
 

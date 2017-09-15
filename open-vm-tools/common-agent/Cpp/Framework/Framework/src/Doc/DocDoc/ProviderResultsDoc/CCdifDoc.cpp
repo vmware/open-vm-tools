@@ -9,6 +9,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/ProviderResultsDoc/CDefinitionObjectCollectionDoc.h"
+#include "Doc/ProviderResultsDoc/CRequestIdentifierDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
 #include "Doc/ProviderResultsDoc/CCdifDoc.h"
 
 using namespace Caf;

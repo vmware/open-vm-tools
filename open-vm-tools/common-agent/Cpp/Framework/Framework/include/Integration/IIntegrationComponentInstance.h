@@ -9,6 +9,10 @@
 #ifndef _IntegrationContracts_IIntegrationComponentInstance_h_
 #define _IntegrationContracts_IIntegrationComponentInstance_h_
 
+
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+
 namespace Caf {
 
 /// TODO - describe interface

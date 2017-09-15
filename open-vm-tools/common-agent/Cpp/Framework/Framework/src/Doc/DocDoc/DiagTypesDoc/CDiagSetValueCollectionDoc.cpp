@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DiagTypesDoc/CDiagSetValueDoc.h"
 #include "Doc/DiagTypesDoc/CDiagSetValueCollectionDoc.h"
 
 using namespace Caf;

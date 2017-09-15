@@ -11,6 +11,9 @@
 #ifndef CPackageDefnDoc_h_
 #define CPackageDefnDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentNameCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type PackageDefn

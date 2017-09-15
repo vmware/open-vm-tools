@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/MgmtTypesDoc/MgmtTypesDocInc.h"
 
 #endif /* MgmtTypesDoc_Link_h_ */

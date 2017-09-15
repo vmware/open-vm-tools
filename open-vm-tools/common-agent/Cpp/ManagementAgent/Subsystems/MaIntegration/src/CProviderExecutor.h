@@ -9,6 +9,18 @@
 #ifndef CProviderExecutor_h_
 #define CProviderExecutor_h_
 
+
+#include "IBean.h"
+
+#include "CProviderExecutorRequestHandler.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IErrorHandler.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/ITransformer.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IMessageHandler.h"
+
 using namespace Caf;
 
 /// TODO - describe class

@@ -9,6 +9,11 @@
 #ifndef CMessagePartDescriptorCalculator_h
 #define CMessagePartDescriptorCalculator_h
 
+
+#include "CMessagePartDescriptorSourceRecord.h"
+#include "CMessagePartRecord.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+
 namespace Caf {
 
 class CMessagePartDescriptorCalculator {

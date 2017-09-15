@@ -7,7 +7,17 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestXmlRoots.h"
+
+#include "Integration/Caf/CCafMessageHeaders.h"
+#include "Common/CLoggingSetter.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectSchemaRequestDoc.h"
+#include "Doc/ResponseDoc/CResponseDoc.h"
+#include "Integration/IIntMessage.h"
 #include "CCollectSchemaExecutor.h"
+#include "CResponseFactory.h"
+#include "Integration/Caf/CCafMessageCreator.h"
 
 using namespace Caf;
 

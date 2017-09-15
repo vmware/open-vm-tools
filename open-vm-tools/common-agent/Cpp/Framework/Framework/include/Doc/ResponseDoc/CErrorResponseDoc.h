@@ -11,6 +11,9 @@
 #ifndef CErrorResponseDoc_h_
 #define CErrorResponseDoc_h_
 
+
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ErrorResponse

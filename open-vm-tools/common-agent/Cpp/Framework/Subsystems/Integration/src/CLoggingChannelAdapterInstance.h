@@ -9,6 +9,16 @@
 #ifndef CLOGGINGCHANNELADAPTERINSTANCE_H_
 #define CLOGGINGCHANNELADAPTERINSTANCE_H_
 
+
+#include "Integration/IIntegrationComponentInstance.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IMessageHandler.h"
+
 namespace Caf {
 
 class CLoggingChannelAdapterInstance :

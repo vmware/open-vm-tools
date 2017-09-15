@@ -11,7 +11,12 @@
  */
 
 #include "stdafx.h"
-#include "ProtocolCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CProtocolCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CProtocolDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/ProtocolCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/ProtocolXml.h"
 
 using namespace Caf;
 

@@ -11,6 +11,8 @@
 #ifndef CPropertyDoc_h_
 #define CPropertyDoc_h_
 
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
 namespace Caf {
 
 /// A simple container for objects of type Property

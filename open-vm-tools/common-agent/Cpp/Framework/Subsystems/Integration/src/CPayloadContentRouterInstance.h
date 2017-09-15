@@ -9,13 +9,21 @@
 #ifndef CPayloadContentRouterInstance_h_
 #define CPayloadContentRouterInstance_h_
 
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/Core/CAbstractMessageRouter.h"
+
 namespace Caf {
 
 class CPayloadContentRouterInstance :
 	public IIntegrationObject,
 	public IIntegrationComponentInstance,
-	public CAbstractMessageRouter
-{
+	public CAbstractMessageRouter {
 public:
 	CPayloadContentRouterInstance();
 	virtual ~CPayloadContentRouterInstance();

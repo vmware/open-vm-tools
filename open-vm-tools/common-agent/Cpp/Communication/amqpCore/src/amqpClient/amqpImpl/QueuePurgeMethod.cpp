@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "QueuePurgeMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/QueuePurgeMethod.h"
 
 using namespace Caf::AmqpClient;
 

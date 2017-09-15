@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "InstallProviderJobXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/DocXml/CafInstallRequestXml/FullPackageElemXml.h"
+#include "Doc/CafInstallRequestDoc/CafInstallRequestDocTypes.h"
+
+#include "Doc/CafInstallRequestDoc/CFullPackageElemDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderJobDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafInstallRequestXml/InstallProviderJobXml.h"
 
 using namespace Caf;
 

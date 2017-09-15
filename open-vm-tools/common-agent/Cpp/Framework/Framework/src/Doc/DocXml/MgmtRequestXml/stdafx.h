@@ -20,9 +20,9 @@
 #endif
 
 #include <CommonDefines.h>
+
 #include <DocContracts.h>
 #include <DocUtils.h>
 
-#include "MgmtRequestXmlInc.h"
 
 #endif /* STDAFX_H_ */

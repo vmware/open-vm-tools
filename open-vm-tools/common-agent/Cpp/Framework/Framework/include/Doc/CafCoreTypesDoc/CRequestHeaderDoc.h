@@ -11,6 +11,12 @@
 #ifndef CRequestHeaderDoc_h_
 #define CRequestHeaderDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAuthnAuthzCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CProtocolCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestConfigDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type RequestHeader

@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "AttachmentNameCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentNameCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentNameCollectionXml.h"
 
 using namespace Caf;
 

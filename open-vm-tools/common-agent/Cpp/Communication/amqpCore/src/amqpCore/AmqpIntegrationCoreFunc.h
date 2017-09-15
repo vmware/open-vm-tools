@@ -9,9 +9,11 @@
 #ifndef AMQPINTEGRATIONCOREFUNC_H_
 #define AMQPINTEGRATIONCOREFUNC_H_
 
-#include "Queue.h"
-#include "Exchange.h"
-#include "Binding.h"
+
+
+#include "amqpCore/Binding.h"
+#include "amqpCore/Exchange.h"
+#include "amqpCore/Queue.h"
 
 namespace Caf {
 

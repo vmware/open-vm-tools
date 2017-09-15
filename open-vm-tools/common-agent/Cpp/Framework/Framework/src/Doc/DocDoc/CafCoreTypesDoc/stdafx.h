@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/CafCoreTypesDoc/CafCoreTypesDocInc.h"
 
 #endif /* STDAFX_H_ */

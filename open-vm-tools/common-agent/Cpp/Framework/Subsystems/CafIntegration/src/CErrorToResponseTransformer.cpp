@@ -7,6 +7,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
 #include "CErrorToResponseTransformer.h"
 
 using namespace Caf;

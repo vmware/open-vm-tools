@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "GetResponseImpl.h"
+
+#include "amqpClient/amqpImpl/BasicProperties.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "amqpClient/api/Envelope.h"
+#include "amqpClient/amqpImpl/GetResponseImpl.h"
 
 using namespace Caf::AmqpClient;
 

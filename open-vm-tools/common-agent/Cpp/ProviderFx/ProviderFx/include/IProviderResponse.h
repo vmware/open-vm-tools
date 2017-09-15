@@ -9,6 +9,10 @@
 #ifndef _ProviderContracts_IProviderResponse_H_
 #define _ProviderContracts_IProviderResponse_H_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+
 namespace Caf {
 
 struct __declspec(novtable) IProviderResponse {

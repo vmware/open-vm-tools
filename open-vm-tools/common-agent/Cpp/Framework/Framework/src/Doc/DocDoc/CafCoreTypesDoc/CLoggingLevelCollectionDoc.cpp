@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CLoggingLevelElemDoc.h"
 #include "Doc/CafCoreTypesDoc/CLoggingLevelCollectionDoc.h"
 
 using namespace Caf;

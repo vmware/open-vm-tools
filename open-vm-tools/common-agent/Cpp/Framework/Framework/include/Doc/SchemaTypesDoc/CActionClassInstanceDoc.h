@@ -11,6 +11,9 @@
 #ifndef CActionClassInstanceDoc_h_
 #define CActionClassInstanceDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CInstanceOperationCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ActionClassInstance

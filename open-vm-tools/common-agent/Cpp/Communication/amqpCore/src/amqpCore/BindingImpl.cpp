@@ -7,8 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "Binding.h"
-#include "BindingImpl.h"
+
+#include "amqpCore/Binding.h"
+#include "amqpCore/BindingImpl.h"
 
 using namespace Caf::AmqpIntegration;
 

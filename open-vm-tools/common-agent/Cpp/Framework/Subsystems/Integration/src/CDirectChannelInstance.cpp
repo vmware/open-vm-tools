@@ -7,6 +7,16 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/Core/CErrorHandler.h"
+#include "Integration/Core/CUnicastingDispatcher.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/IMessageHandler.h"
+#include "Exception/CCafException.h"
 #include "CDirectChannelInstance.h"
 
 using namespace Caf;

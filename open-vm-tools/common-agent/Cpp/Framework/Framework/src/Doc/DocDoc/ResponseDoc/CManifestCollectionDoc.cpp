@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/ResponseDoc/CManifestDoc.h"
 #include "Doc/ResponseDoc/CManifestCollectionDoc.h"
 
 using namespace Caf;

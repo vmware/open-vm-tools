@@ -7,7 +7,14 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CPropertyDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Integration/IIntMessage.h"
+#include "CProviderExecutorRequest.h"
+#include "Exception/CCafException.h"
 #include "CProviderExecutor.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
 
 using namespace Caf;
 

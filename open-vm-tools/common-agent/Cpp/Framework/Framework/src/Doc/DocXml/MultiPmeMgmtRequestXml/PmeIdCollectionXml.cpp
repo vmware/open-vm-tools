@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "PmeIdCollectionXml.h"
+
+#include "Doc/MultiPmeMgmtRequestDoc/CPmeIdCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/MultiPmeMgmtRequestXml/PmeIdCollectionXml.h"
 
 using namespace Caf;
 

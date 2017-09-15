@@ -7,7 +7,7 @@
  */
 
 #include "stdafx.h"
-#include "MessageHeaders.h"
+#include "Integration/Core/MessageHeaders.h"
 
 namespace Caf {
 	namespace MessageHeaders {

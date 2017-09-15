@@ -25,7 +25,7 @@
     #endif
 #endif
 
-#include "EnumConvertersXml.h"
+#include "Doc/DocUtils/EnumConvertersXml.h"
 #include "DefnObjectConverter.h"
 #include "ParameterUtils.h"
 #include "AttachmentUtils.h"

@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/PayloadEnvelopeDoc/PayloadEnvelopeDocInc.h"
 
 #endif /* PayloadEnvelopeDoc_Link_h_ */

@@ -7,7 +7,18 @@
  */
 
 #include "stdafx.h"
-#include "BlockingQueueConsumer.h"
+
+#include "amqpClient/amqpImpl/BasicProperties.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "amqpClient/api/Channel.h"
+#include "amqpClient/api/Envelope.h"
+#include "amqpCore/AmqpHeaderMapper.h"
+#include "amqpClient/api/ConnectionFactory.h"
+#include "amqpCore/BlockingQueueConsumer.h"
+#include "Integration/Core/CIntException.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf::AmqpIntegration;
 

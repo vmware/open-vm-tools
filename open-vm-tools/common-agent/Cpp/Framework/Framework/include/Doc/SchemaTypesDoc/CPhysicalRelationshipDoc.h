@@ -11,6 +11,10 @@
 #ifndef CPhysicalRelationshipDoc_h_
 #define CPhysicalRelationshipDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CClassCardinalityDoc.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
 namespace Caf {
 
 /// Describes a relationship between dataclass where the key information from data class instances comprising the relationship are listed in an instance of this class

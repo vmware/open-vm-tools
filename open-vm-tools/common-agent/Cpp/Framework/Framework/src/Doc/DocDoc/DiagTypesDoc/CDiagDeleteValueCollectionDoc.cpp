@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DiagTypesDoc/CDiagDeleteValueDoc.h"
 #include "Doc/DiagTypesDoc/CDiagDeleteValueCollectionDoc.h"
 
 using namespace Caf;

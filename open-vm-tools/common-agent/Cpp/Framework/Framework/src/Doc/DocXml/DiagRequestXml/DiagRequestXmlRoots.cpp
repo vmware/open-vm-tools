@@ -12,6 +12,13 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/CafCoreTypesXml/RequestXml.h"
+#include "Doc/DocXml/DiagRequestXml/DiagRequestXml.h"
+
+#include "Doc/DiagRequestDoc/CDiagRequestDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/DiagRequestXml/DiagRequestXmlRoots.h"
+
 using namespace Caf;
 
 std::string XmlRoots::saveDiagRequestToString(

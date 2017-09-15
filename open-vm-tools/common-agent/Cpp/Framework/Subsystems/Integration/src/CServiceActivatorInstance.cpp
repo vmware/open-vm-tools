@@ -7,6 +7,17 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "ICafObject.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationComponent.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IMessageChannel.h"
+#include "Exception/CCafException.h"
 #include "CServiceActivatorInstance.h"
 #include "CObjectFactoryTables.h"
 

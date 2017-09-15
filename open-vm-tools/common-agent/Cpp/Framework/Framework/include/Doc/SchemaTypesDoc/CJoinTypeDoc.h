@@ -11,6 +11,10 @@
 #ifndef CJoinTypeDoc_h_
 #define CJoinTypeDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CClassFieldDoc.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
 namespace Caf {
 
 /// A simple container for objects of type JoinType

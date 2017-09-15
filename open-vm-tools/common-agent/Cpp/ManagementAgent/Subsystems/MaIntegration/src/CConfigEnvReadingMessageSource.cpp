@@ -7,7 +7,15 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "IConfigEnv.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
 #include "CConfigEnvReadingMessageSource.h"
+#include "Exception/CCafException.h"
+#include "Doc/DocXml/PersistenceXml/PersistenceXmlRoots.h"
 
 using namespace Caf;
 

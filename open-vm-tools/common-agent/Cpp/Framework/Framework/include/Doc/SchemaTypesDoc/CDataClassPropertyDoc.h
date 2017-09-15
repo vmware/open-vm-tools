@@ -11,6 +11,9 @@
 #ifndef CDataClassPropertyDoc_h_
 #define CDataClassPropertyDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type DataClassProperty

@@ -7,9 +7,17 @@
  */
 
 #include "stdafx.h"
-#include "CCafMessagePayload.h"
 
-#include <DocXml.h>
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/ResponseDoc/CEventKeyCollectionDoc.h"
+#include "Doc/ResponseDoc/CEventKeyDoc.h"
+#include "Doc/ResponseDoc/CManifestDoc.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Integration/Caf/CCafMessagePayload.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestHeaderXml.h"
+#include "Doc/DocXml/ResponseXml/ManifestXml.h"
+#include "Doc/DocXml/ResponseXml/EventKeyCollectionXml.h"
 
 using namespace Caf;
 

@@ -21,7 +21,6 @@
     #endif
 #endif
 
-#include "CXmlElement.h"
 #include "CXmlUtils.h"
 
 #endif

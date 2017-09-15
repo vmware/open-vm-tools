@@ -9,6 +9,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAuthnAuthzCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CProtocolCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestConfigDoc.h"
 #include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
 
 using namespace Caf;

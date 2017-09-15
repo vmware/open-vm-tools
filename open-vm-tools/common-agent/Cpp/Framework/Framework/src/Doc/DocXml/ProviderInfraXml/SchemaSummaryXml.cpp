@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "SchemaSummaryXml.h"
+
+#include "Doc/DocXml/ProviderInfraXml/ClassCollectionXml.h"
+
+#include "Doc/ProviderInfraDoc/CClassCollectionDoc.h"
+#include "Doc/ProviderInfraDoc/CSchemaSummaryDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderInfraXml/SchemaSummaryXml.h"
 
 using namespace Caf;
 

@@ -7,8 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "CCmsMessageUtils.h"
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
 #include "CCmsMessage.h"
+#include "Exception/CCafException.h"
+#include "CCmsMessageUtils.h"
 #include <fstream>
 
 using namespace Caf;

@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/ProviderInfraDoc/ProviderInfraDocInc.h"
 
 #endif /* ProviderInfraDoc_Link_h_ */

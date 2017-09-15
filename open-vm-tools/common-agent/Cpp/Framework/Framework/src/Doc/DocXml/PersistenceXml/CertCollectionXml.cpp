@@ -8,7 +8,10 @@
  */
 
 #include "stdafx.h"
-#include "CertCollectionXml.h"
+
+#include "Doc/PersistenceDoc/CCertCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/PersistenceXml/CertCollectionXml.h"
 
 using namespace Caf;
 

@@ -7,7 +7,7 @@
  */
 
 #include "stdafx.h"
-#include "CIntException.h"
+#include "Integration/Core/CIntException.h"
 
 #define CAF_CM_DEFINE_INTEGRATION_EXCEPTION_CLASS(_exclass_) \
 	_exclass_::_exclass_() : CCafException( #_exclass_ ) {} \

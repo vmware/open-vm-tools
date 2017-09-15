@@ -9,6 +9,11 @@
 #ifndef CVGAUTHINITIALIZER_H_
 #define CVGAUTHINITIALIZER_H_
 
+
+#include "IVgAuthImpersonation.h"
+
+#include "CVgAuthContext.h"
+
 namespace Caf {
 
 class CVgAuthInitializer : public IVgAuthImpersonation {

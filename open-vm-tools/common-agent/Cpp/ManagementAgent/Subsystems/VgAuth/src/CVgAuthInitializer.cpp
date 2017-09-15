@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
+
+#include "CVgAuthContext.h"
 #include "CVgAuthInitializer.h"
+#include "CVgAuthImpersonation.h"
 
 CVgAuthInitializer::CVgAuthInitializer() :
 	_isInitialized(false),

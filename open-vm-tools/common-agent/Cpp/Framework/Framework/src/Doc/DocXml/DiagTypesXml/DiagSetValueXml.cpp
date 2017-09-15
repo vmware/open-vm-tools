@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "DiagSetValueXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/PropertyXml.h"
+
+#include "Doc/CafCoreTypesDoc/CPropertyDoc.h"
+#include "Doc/DiagTypesDoc/CDiagSetValueDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/DiagTypesXml/DiagSetValueXml.h"
 
 using namespace Caf;
 

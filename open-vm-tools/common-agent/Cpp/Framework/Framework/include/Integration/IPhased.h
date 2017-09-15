@@ -9,6 +9,9 @@
 #ifndef _IntegrationContracts_IPhased_h
 #define _IntegrationContracts_IPhased_h
 
+
+#include "ICafObject.h"
+
 namespace Caf {
 
 struct __declspec(novtable) IPhased : public ICafObject {

@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/SchemaTypesDoc/SchemaTypesDocInc.h"
 
 #endif /* SchemaTypesDoc_Link_h_ */

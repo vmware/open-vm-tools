@@ -7,8 +7,17 @@
  */
 
 #include "stdafx.h"
-#include "SimpleMessageListenerContainer.h"
-#include "DefaultAmqpHeaderMapper.h"
+
+#include "Integration/IIntMessage.h"
+#include "Integration/IThrowable.h"
+#include "amqpClient/api/Channel.h"
+#include "amqpCore/BlockingQueueConsumer.h"
+#include "amqpClient/api/ConnectionFactory.h"
+#include "amqpCore/DefaultAmqpHeaderMapper.h"
+#include "amqpCore/MessageListener.h"
+#include "amqpCore/SimpleMessageListenerContainer.h"
+#include "Integration/Core/CIntException.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf::AmqpIntegration;
 

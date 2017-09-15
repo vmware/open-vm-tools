@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "AuthnAuthzXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAuthnAuthzDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/AuthnAuthzXml.h"
 
 using namespace Caf;
 

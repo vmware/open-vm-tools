@@ -7,8 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "Queue.h"
-#include "QueueImpl.h"
+
+#include "amqpCore/Queue.h"
+#include "amqpCore/QueueImpl.h"
 
 using namespace Caf::AmqpIntegration;
 

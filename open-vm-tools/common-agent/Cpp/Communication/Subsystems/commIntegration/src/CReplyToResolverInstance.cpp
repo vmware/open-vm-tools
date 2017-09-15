@@ -7,7 +7,15 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/Caf/CCafMessageHeaders.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "IVariant.h"
+#include "Integration/IIntMessage.h"
+#include "Exception/CCafException.h"
 #include "CReplyToResolverInstance.h"
+#include "amqpCore/DefaultAmqpHeaderMapper.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
 
 using namespace Caf;
 

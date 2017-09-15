@@ -11,7 +11,13 @@
 #ifndef CDataClassSubInstanceDoc_h_
 #define CDataClassSubInstanceDoc_h_
 
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
+#include "Doc/SchemaTypesDoc/CCmdlUnionDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassPropertyDoc.h"
+
 namespace Caf {
+
+CAF_DECLARE_CLASS_AND_SMART_POINTER(CDataClassSubInstanceDoc);
 
 /// A simple container for objects of type DataClassSubInstance
 class SCHEMATYPESDOC_LINKAGE CDataClassSubInstanceDoc {

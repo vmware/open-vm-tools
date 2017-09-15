@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "AbstractConnectionFactory.h"
+
+#include "amqpClient/api/Connection.h"
+#include "amqpCore/ConnectionListener.h"
+#include "amqpCore/SimpleConnection.h"
+#include "amqpCore/AbstractConnectionFactory.h"
 
 using namespace Caf::AmqpIntegration;
 

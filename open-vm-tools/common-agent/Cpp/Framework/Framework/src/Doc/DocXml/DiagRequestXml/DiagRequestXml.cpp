@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "DiagRequestXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/RequestHeaderXml.h"
+#include "Doc/DocXml/DiagTypesXml/DiagBatchXml.h"
+
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/DiagRequestDoc/CDiagRequestDoc.h"
+#include "Doc/DiagTypesDoc/CDiagBatchDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/DiagRequestXml/DiagRequestXml.h"
 
 using namespace Caf;
 

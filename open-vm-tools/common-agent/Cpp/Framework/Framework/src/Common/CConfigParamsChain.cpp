@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "CConfigParamsChain.h"
+#include "Common/CConfigParamsChain.h"
+#include "Exception/CCafException.h"
+#include "Common/IConfigParams.h"
 
 using namespace Caf;
 

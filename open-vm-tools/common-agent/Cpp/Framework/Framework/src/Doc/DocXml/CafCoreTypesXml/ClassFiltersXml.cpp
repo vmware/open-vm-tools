@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "ClassFiltersXml.h"
+
+#include "Doc/CafCoreTypesDoc/CClassFiltersDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/ClassFiltersXml.h"
 
 using namespace Caf;
 

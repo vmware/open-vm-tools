@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "BasicRejectMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/BasicRejectMethod.h"
 
 using namespace Caf::AmqpClient;
 

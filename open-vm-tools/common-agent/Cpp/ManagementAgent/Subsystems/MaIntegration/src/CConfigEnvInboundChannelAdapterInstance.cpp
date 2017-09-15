@@ -7,8 +7,19 @@
  */
 
 #include "stdafx.h"
-#include "CConfigEnvInboundChannelAdapterInstance.h"
+
 #include "CConfigEnvReadingMessageSource.h"
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "IConfigEnv.h"
+#include "Integration/Core/CErrorHandler.h"
+#include "Integration/Core/CMessageHandler.h"
+#include "Integration/Core/CSimpleAsyncTaskExecutor.h"
+#include "Integration/Core/CSourcePollingChannelAdapter.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IMessageChannel.h"
+#include "CConfigEnvInboundChannelAdapterInstance.h"
 
 using namespace Caf;
 

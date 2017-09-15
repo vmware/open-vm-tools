@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "QueueUnbindMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/api/amqpClient.h"
+#include "amqpClient/amqpImpl/QueueUnbindMethod.h"
 
 using namespace Caf::AmqpClient;
 

@@ -7,7 +7,25 @@
  */
 
 #include "stdafx.h"
+
+#include "CResponseFactory.h"
+#include "CProviderExecutorRequest.h"
+#include "Common/CLoggingSetter.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Doc/ResponseDoc/CResponseDoc.h"
+#include "Integration/Core/CIntException.h"
+#include "Integration/Core/CSimpleAsyncTaskExecutor.h"
+#include "Integration/IErrorHandler.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/ITaskExecutor.h"
+#include "Integration/ITransformer.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
 #include "CProviderExecutorRequestHandler.h"
+#include "Exception/CCafException.h"
+#include "Integration/Caf/CCafMessageCreator.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
+#include "Integration/Caf/CCafMessagePayload.h"
+#include "Integration/Core/FileHeaders.h"
 
 using namespace Caf;
 

@@ -9,6 +9,11 @@
 #ifndef _ProviderContracts_IProviderRequest_H_
 #define _ProviderContracts_IProviderRequest_H_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+
 namespace Caf {
 
 struct __declspec(novtable) IProviderRequest {

@@ -9,6 +9,18 @@
 #ifndef CGuestAuthenticatorInstance_h_
 #define CGuestAuthenticatorInstance_h_
 
+
+#include "Integration/IErrorProcessor.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ITransformer.h"
+
 namespace Caf {
 
 class CGuestAuthenticatorInstance :

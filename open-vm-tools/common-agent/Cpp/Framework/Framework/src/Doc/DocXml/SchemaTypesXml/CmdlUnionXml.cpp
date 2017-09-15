@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "CmdlUnionXml.h"
+
+#include "Doc/SchemaTypesDoc/CCmdlUnionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/CmdlUnionXml.h"
 
 using namespace Caf;
 

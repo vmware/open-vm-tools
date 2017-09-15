@@ -9,6 +9,19 @@
 #ifndef RABBITTEMPLATEINSTANCE_H_
 #define RABBITTEMPLATEINSTANCE_H_
 
+
+#include "Integration/IIntegrationComponentInstance.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "amqpCore/AmqpHeaderMapper.h"
+#include "amqpCore/AmqpTemplate.h"
+#include "amqpCore/RabbitTemplate.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ILifecycle.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 CAF_DECLARE_CLASS_AND_IMPQI_POINTER(RabbitTemplateInstance);

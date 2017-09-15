@@ -7,7 +7,12 @@
  */
 
 #include "stdafx.h"
-#include "CUnicastingDispatcher.h"
+
+#include "Integration/Core/CIntException.h"
+#include "Integration/IErrorHandler.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageHandler.h"
+#include "Integration/Core/CUnicastingDispatcher.h"
 
 using namespace Caf;
 

@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "ChannelCloseOkMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/ChannelCloseOkMethod.h"
 
 using namespace Caf::AmqpClient;
 

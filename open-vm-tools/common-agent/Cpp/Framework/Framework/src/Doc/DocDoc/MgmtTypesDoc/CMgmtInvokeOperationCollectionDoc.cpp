@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationDoc.h"
 #include "Doc/MgmtTypesDoc/CMgmtInvokeOperationCollectionDoc.h"
 
 using namespace Caf;

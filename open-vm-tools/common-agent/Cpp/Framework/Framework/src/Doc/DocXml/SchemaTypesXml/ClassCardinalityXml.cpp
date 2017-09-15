@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "ClassCardinalityXml.h"
+
+#include "Doc/SchemaTypesDoc/CClassCardinalityDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/ClassCardinalityXml.h"
 
 using namespace Caf;
 

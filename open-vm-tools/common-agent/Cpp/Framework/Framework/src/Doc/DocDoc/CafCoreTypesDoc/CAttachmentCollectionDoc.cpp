@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/CInlineAttachmentDoc.h"
 #include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
 
 using namespace Caf;

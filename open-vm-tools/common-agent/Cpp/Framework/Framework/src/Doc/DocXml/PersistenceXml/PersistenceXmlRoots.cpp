@@ -9,6 +9,12 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/PersistenceXml/PersistenceXml.h"
+
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/PersistenceXml/PersistenceXmlRoots.h"
+
 using namespace Caf;
 
 std::string XmlRoots::savePersistenceToString(

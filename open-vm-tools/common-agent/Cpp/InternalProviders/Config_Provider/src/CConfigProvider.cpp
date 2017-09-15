@@ -7,7 +7,29 @@
  */
 
 #include "stdafx.h"
+
+#include "CIniFileWithoutSection.h"
+#include "Common/CIniFile.h"
+#include "Doc/CafCoreTypesDoc/COperationDoc.h"
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CClassInstancePropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CClassPropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassPropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassSubInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodParameterDoc.h"
+#include "Integration/IDocument.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Exception/CCafException.h"
 #include "CConfigProvider.h"
+#include "IProviderRequest.h"
+#include "IProviderResponse.h"
 
 using namespace Caf;
 

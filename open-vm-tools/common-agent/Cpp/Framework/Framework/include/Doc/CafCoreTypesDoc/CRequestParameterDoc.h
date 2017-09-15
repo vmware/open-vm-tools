@@ -11,6 +11,8 @@
 #ifndef CRequestParameterDoc_h_
 #define CRequestParameterDoc_h_
 
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
 namespace Caf {
 
 /// A simple container for objects of type RequestParameter

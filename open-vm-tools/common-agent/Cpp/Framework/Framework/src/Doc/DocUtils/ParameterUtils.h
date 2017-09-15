@@ -10,6 +10,11 @@
 #ifndef ParameterUtils_h_
 #define ParameterUtils_h_
 
+
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestInstanceParameterDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestParameterDoc.h"
+
 namespace Caf {
 class DOCUTILS_LINKAGE ParameterUtils {
 public:

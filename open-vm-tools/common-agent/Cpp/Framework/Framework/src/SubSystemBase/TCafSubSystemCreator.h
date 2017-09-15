@@ -8,6 +8,8 @@
 #ifndef _TCafSubSystemCreator_H_
 #define _TCafSubSystemCreator_H_
 
+#include "Exception/CCafException.h"
+
 namespace Caf {
 
 template< typename Derived, typename SmartPtr = TCafSmartPtr< Derived > >

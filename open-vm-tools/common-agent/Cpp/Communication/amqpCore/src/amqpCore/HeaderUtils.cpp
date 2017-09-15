@@ -7,6 +7,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/CVariant.h"
+#include "Integration/IIntMessage.h"
 #include "HeaderUtils.h"
 
 using namespace Caf::AmqpIntegration;

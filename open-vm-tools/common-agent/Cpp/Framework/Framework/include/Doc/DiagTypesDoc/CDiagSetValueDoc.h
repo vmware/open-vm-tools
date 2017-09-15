@@ -11,6 +11,9 @@
 #ifndef CDiagSetValueDoc_h_
 #define CDiagSetValueDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CPropertyDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type DiagSetValue

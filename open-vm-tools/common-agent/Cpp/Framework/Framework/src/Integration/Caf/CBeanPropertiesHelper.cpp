@@ -7,7 +7,8 @@
  */
 
 #include "stdafx.h"
-#include "CBeanPropertiesHelper.h"
+#include "Exception/CCafException.h"
+#include "Integration/Caf/CBeanPropertiesHelper.h"
 
 using namespace Caf;
 

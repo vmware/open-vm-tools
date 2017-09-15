@@ -7,7 +7,21 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/Caf/CBeanPropertiesHelper.h"
+#include "Integration/Caf/CCafMessageHeaders.h"
+#include "CCmsMessage.h"
+#include "CCmsMessageAttachments.h"
+#include "Common/IAppContext.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Exception/CCafException.h"
 #include "CCmsMessageTransformerInstance.h"
+#include "Integration/Caf/CCafMessageCreator.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
 
 using namespace Caf;
 

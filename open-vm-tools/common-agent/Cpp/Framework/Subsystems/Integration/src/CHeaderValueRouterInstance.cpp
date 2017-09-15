@@ -7,6 +7,13 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Exception/CCafException.h"
 #include "CHeaderValueRouterInstance.h"
 
 using namespace Caf;

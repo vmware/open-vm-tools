@@ -9,6 +9,9 @@
 #ifndef _IntegrationContracts_IMessageRouter_h_
 #define _IntegrationContracts_IMessageRouter_h_
 
+
+#include "Integration/IIntMessage.h"
+
 namespace Caf {
 
 /// TODO - describe interface

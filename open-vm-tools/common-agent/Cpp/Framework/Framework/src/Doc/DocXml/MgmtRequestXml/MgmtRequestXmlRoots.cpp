@@ -12,6 +12,13 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/CafCoreTypesXml/RequestXml.h"
+#include "Doc/DocXml/MgmtRequestXml/MgmtRequestXml.h"
+
+#include "Doc/MgmtRequestDoc/CMgmtRequestDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/MgmtRequestXml/MgmtRequestXmlRoots.h"
+
 using namespace Caf;
 
 std::string XmlRoots::saveMgmtRequestToString(

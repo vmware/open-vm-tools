@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/MgmtRequestDoc/MgmtRequestDocInc.h"
 
 #endif /* MgmtRequestDoc_Link_h_ */

@@ -9,6 +9,18 @@
 #ifndef AMQPOUTBOUNDENDPOINTINSTANCE_H_
 #define AMQPOUTBOUNDENDPOINTINSTANCE_H_
 
+
+#include "Integration/IIntegrationAppContextAware.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/Core/CMessagingTemplate.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationAppContext.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ILifecycle.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

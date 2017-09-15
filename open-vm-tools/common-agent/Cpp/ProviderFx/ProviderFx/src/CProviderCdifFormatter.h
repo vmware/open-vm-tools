@@ -9,6 +9,14 @@
 #ifndef CProviderCdifFormatter_h_
 #define CProviderCdifFormatter_h_
 
+#include "IProviderResponse.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentNameCollectionDoc.h"
+#include "Doc/ProviderResultsDoc/CRequestIdentifierDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+
 namespace Caf {
 
 /// Sends responses/errors back to the client.

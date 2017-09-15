@@ -8,6 +8,7 @@
  */
 
 #include "stdafx.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
 #include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
 
 using namespace Caf;

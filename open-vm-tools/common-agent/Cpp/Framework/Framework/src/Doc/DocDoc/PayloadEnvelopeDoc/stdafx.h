@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/PayloadEnvelopeDoc/PayloadEnvelopeDocInc.h"
 
 #endif /* STDAFX_H_ */

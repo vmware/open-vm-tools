@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "CmdlMetadataXml.h"
+
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/CmdlMetadataXml.h"
 
 using namespace Caf;
 

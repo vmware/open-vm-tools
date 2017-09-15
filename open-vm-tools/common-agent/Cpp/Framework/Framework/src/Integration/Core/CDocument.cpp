@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "CDocument.h"
+
+#include "Integration/IDocument.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Integration/Core/CDocument.h"
+#include "Common/IAppConfig.h"
 
 using namespace Caf;
 

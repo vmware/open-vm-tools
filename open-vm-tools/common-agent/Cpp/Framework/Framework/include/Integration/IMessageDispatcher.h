@@ -9,6 +9,10 @@
 #ifndef _IntegrationContracts_IMessageDispatcher_h_
 #define _IntegrationContracts_IMessageDispatcher_h_
 
+
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageHandler.h"
+
 namespace Caf {
 
 /// TODO - describe interface

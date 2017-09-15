@@ -11,6 +11,10 @@
 #ifndef CRelationshipDoc_h_
 #define CRelationshipDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CClassCardinalityDoc.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
 namespace Caf {
 
 /// Definition of a relationship between data classes

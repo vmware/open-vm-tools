@@ -11,6 +11,10 @@
 #ifndef CProviderBatchDoc_h_
 #define CProviderBatchDoc_h_
 
+
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ProviderBatch

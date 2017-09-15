@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "ConsumerWorkService.h"
+
+#include "Common/CManagedThreadPool.h"
+#include "amqpClient/ConsumerWorkService.h"
 
 using namespace Caf::AmqpClient;
 

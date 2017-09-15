@@ -11,7 +11,17 @@
  */
 
 #include "stdafx.h"
-#include "LogicalRelationshipXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/DocXml/SchemaTypesXml/ClassCardinalityXml.h"
+#include "Doc/DocXml/SchemaTypesXml/JoinTypeXml.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
+#include "Doc/SchemaTypesDoc/CClassCardinalityDoc.h"
+#include "Doc/SchemaTypesDoc/CJoinTypeDoc.h"
+#include "Doc/SchemaTypesDoc/CLogicalRelationshipDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/LogicalRelationshipXml.h"
 
 using namespace Caf;
 

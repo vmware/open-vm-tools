@@ -7,6 +7,9 @@
  */
 
 #include "stdafx.h"
+
+#include "CVgAuthContext.h"
+#include "CVgAuthUserHandle.h"
 #include "CVgAuthImpersonation.h"
 
 CVgAuthImpersonation::CVgAuthImpersonation() :

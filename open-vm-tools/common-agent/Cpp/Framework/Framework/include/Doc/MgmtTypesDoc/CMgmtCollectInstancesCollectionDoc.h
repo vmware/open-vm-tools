@@ -11,6 +11,9 @@
 #ifndef CMgmtCollectInstancesCollectionDoc_h_
 #define CMgmtCollectInstancesCollectionDoc_h_
 
+
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type MgmtCollectInstancesCollection

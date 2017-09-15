@@ -13,7 +13,7 @@
 #ifndef DocUtils_Inc_h_
 #define DocUtils_Inc_h_
 
-#include "EnumConvertersXml.h"
+#include "Doc/DocUtils/EnumConvertersXml.h"
 #include "DefnObjectConverter.h"
 #include "ParameterUtils.h"
 #include "AttachmentUtils.h"

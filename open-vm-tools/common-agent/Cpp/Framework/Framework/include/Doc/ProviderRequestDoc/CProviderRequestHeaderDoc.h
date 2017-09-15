@@ -11,6 +11,10 @@
 #ifndef CProviderRequestHeaderDoc_h_
 #define CProviderRequestHeaderDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestConfigDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ProviderRequestHeader

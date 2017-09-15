@@ -7,7 +7,8 @@
  */
 
 #include "stdafx.h"
-#include "CCafRegex.h"
+#include "Common/CCafRegex.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

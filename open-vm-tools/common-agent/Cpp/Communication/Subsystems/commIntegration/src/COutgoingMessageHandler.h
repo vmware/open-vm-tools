@@ -9,6 +9,13 @@
 #ifndef COutgoingMessageHandler_h
 #define COutgoingMessageHandler_h
 
+
+#include "IBean.h"
+
+#include "CMessageDeliveryRecord.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageProcessor.h"
+
 using namespace Caf;
 
 class COutgoingMessageHandler :

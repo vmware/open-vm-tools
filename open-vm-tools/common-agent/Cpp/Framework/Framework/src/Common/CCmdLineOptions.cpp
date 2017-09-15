@@ -7,7 +7,8 @@
  */
 
 #include "stdafx.h"
-#include "CCmdLineOptions.h"
+#include "Common/CCmdLineOptions.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

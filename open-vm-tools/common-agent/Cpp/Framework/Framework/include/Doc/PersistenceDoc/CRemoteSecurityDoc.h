@@ -10,6 +10,10 @@
 #ifndef CRemoteSecurityDoc_h_
 #define CRemoteSecurityDoc_h_
 
+
+#include "Doc/PersistenceDoc/CCertCollectionDoc.h"
+#include "Doc/PersistenceDoc/CCertPathCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type CRemoteSecurityDoc

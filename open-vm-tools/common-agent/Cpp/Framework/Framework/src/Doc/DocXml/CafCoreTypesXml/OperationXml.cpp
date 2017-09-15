@@ -11,7 +11,12 @@
  */
 
 #include "stdafx.h"
-#include "OperationXml.h"
+
+#include "Doc/CafCoreTypesDoc/COperationDoc.h"
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/OperationXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/ParameterCollectionXml.h"
 
 using namespace Caf;
 

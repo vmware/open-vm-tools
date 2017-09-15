@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "ProviderBatchXml.h"
+
+#include "Doc/DocXml/ProviderRequestXml/ProviderCollectInstancesCollectionXml.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderInvokeOperationCollectionXml.h"
+
+#include "Doc/ProviderRequestDoc/CProviderBatchDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderBatchXml.h"
 
 using namespace Caf;
 

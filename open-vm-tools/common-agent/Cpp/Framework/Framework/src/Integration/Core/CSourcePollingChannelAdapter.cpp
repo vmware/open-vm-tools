@@ -7,7 +7,13 @@
  */
 
 #include "stdafx.h"
-#include "CSourcePollingChannelAdapter.h"
+
+#include "Integration/Core/CIntException.h"
+#include "Integration/IErrorHandler.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageHandler.h"
+#include "Integration/IPollableChannel.h"
+#include "Integration/Core/CSourcePollingChannelAdapter.h"
 
 using namespace Caf;
 

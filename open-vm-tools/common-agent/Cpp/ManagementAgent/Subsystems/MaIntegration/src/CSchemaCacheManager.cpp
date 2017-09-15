@@ -7,7 +7,14 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DocXml/ProviderInfraXml/ProviderInfraXmlRoots.h"
+
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
+#include "Doc/ProviderInfraDoc/CClassCollectionDoc.h"
+#include "Doc/ProviderInfraDoc/CSchemaSummaryDoc.h"
 #include "CSchemaCacheManager.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

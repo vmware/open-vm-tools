@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/ResponseDoc/ResponseDocInc.h"
 
 #endif /* ResponseDoc_Link_h_ */

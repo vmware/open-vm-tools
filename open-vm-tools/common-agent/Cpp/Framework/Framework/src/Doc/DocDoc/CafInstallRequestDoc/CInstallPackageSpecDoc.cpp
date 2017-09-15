@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentNameCollectionDoc.h"
 #include "Doc/CafInstallRequestDoc/CInstallPackageSpecDoc.h"
 
 using namespace Caf;

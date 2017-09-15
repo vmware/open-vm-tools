@@ -7,7 +7,8 @@
  */
 
 #include "stdafx.h"
-#include "CVariant.h"
+#include "Exception/CCafException.h"
+#include "Common/CVariant.h"
 
 using namespace Caf;
 

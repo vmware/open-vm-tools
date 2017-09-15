@@ -7,6 +7,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/IDocument.h"
+#include "amqpCore/Binding.h"
+#include "Exception/CCafException.h"
 #include "BindingInstance.h"
 
 using namespace Caf::AmqpIntegration;

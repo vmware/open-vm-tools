@@ -11,6 +11,9 @@
 #ifndef CClassInstancePropertyDoc_h_
 #define CClassInstancePropertyDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CClassIdentifierDoc.h"
+
 namespace Caf {
 
 /// Definition of an attribute (field) of a class

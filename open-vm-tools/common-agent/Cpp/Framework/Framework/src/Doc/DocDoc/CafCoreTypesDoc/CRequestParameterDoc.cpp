@@ -9,6 +9,7 @@
  */
 
 #include "stdafx.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
 #include "Doc/CafCoreTypesDoc/CRequestParameterDoc.h"
 
 using namespace Caf;

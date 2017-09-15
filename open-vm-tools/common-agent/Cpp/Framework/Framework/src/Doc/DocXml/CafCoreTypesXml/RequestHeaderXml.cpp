@@ -11,7 +11,18 @@
  */
 
 #include "stdafx.h"
-#include "RequestHeaderXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAuthnAuthzCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CProtocolCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestConfigDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestHeaderXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestConfigXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/AuthnAuthzCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/ProtocolCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/PropertyCollectionXml.h"
 
 using namespace Caf;
 

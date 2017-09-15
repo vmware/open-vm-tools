@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/ResponseDoc/CEventKeyDoc.h"
 #include "Doc/ResponseDoc/CEventKeyCollectionDoc.h"
 
 using namespace Caf;

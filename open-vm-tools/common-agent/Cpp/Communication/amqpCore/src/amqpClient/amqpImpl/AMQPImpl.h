@@ -9,6 +9,10 @@
 #ifndef AMQPIMPL_H_
 #define AMQPIMPL_H_
 
+
+#include "amqpClient/amqpImpl/IContentHeader.h"
+#include "amqpClient/amqpImpl/IMethod.h"
+
 namespace Caf { namespace AmqpClient {
 
 /**

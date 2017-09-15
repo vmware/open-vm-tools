@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CClassFiltersDoc.h"
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
 #include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
 
 using namespace Caf;

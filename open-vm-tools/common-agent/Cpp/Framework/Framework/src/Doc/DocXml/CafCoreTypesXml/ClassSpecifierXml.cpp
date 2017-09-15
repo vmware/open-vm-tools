@@ -11,7 +11,14 @@
  */
 
 #include "stdafx.h"
-#include "ClassSpecifierXml.h"
+
+#include "Doc/CafCoreTypesDoc/CClassFiltersDoc.h"
+#include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/ClassSpecifierXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/FullyQualifiedClassGroupXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/ClassFiltersXml.h"
 
 using namespace Caf;
 

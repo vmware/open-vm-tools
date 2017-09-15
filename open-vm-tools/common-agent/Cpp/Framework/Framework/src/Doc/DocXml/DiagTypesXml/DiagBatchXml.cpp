@@ -11,7 +11,17 @@
  */
 
 #include "stdafx.h"
-#include "DiagBatchXml.h"
+
+#include "Doc/DocXml/DiagTypesXml/DiagCollectInstancesXml.h"
+#include "Doc/DocXml/DiagTypesXml/DiagDeleteValueCollectionXml.h"
+#include "Doc/DocXml/DiagTypesXml/DiagSetValueCollectionXml.h"
+
+#include "Doc/DiagTypesDoc/CDiagBatchDoc.h"
+#include "Doc/DiagTypesDoc/CDiagCollectInstancesDoc.h"
+#include "Doc/DiagTypesDoc/CDiagDeleteValueCollectionDoc.h"
+#include "Doc/DiagTypesDoc/CDiagSetValueCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/DiagTypesXml/DiagBatchXml.h"
 
 using namespace Caf;
 

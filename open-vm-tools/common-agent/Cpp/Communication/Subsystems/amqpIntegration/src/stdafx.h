@@ -11,7 +11,6 @@
 
 #include <CommonDefines.h>
 #include <Integration.h>
-#include "../../../amqpCore/src/amqpClient/api/amqpClient.h"
 #include "../../../amqpCore/src/amqpCore/amqpIntegrationCoreLink.h"
 #include "amqpIntegrationDefines.h"
 

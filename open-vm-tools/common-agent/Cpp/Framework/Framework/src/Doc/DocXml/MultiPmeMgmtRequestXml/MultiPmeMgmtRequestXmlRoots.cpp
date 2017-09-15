@@ -12,6 +12,13 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/CafCoreTypesXml/RequestXml.h"
+#include "Doc/DocXml/MultiPmeMgmtRequestXml/MultiPmeMgmtRequestXml.h"
+
+#include "Doc/MultiPmeMgmtRequestDoc/CMultiPmeMgmtRequestDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/MultiPmeMgmtRequestXml/MultiPmeMgmtRequestXmlRoots.h"
+
 using namespace Caf;
 
 std::string XmlRoots::saveMultiPmeMgmtRequestToString(

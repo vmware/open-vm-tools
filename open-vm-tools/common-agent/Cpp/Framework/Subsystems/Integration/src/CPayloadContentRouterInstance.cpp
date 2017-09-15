@@ -7,6 +7,15 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/CCafRegex.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Exception/CCafException.h"
 #include "CPayloadContentRouterInstance.h"
 
 using namespace Caf;

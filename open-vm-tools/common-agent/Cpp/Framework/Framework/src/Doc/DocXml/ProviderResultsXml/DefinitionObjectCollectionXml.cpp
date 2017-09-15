@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "DefinitionObjectCollectionXml.h"
+
+#include "Doc/ProviderResultsDoc/CDefinitionObjectCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderResultsXml/DefinitionObjectCollectionXml.h"
 
 using namespace Caf;
 

@@ -9,7 +9,9 @@
 #ifndef CXmlUtils_H_
 #define CXmlUtils_H_
 
-#include "CXmlElement.h"
+
+
+#include "Xml/XmlUtils/CXmlElement.h"
 
 namespace Caf {
 

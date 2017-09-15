@@ -9,6 +9,20 @@
 #ifndef AmqpInboundChannelAdapterInstance_h
 #define AmqpInboundChannelAdapterInstance_h
 
+
+#include "Integration/IIntegrationAppContextAware.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationAppContext.h"
+#include "Integration/ITaskExecutor.h"
+#include "amqpCore/SimpleMessageListenerContainer.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IPhased.h"
+#include "Integration/ISmartLifecycle.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

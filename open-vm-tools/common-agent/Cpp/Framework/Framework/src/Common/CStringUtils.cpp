@@ -7,6 +7,8 @@
  */
 
 #include "stdafx.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
 #include "CStringUtils.h"
 
 #include <algorithm>

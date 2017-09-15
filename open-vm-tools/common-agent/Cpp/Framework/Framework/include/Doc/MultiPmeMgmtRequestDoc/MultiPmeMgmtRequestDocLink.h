@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/MultiPmeMgmtRequestDoc/MultiPmeMgmtRequestDocInc.h"
 
 #endif /* MultiPmeMgmtRequestDoc_Link_h_ */

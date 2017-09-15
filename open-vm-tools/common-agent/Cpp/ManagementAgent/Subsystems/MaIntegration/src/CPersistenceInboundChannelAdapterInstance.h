@@ -9,6 +9,18 @@
 #ifndef CPersistenceInboundChannelAdapterInstance_h_
 #define CPersistenceInboundChannelAdapterInstance_h_
 
+
+#include "Integration/IIntegrationComponentInstance.h"
+
+#include "Common/IAppContext.h"
+#include "IPersistence.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/ITaskExecutor.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ILifecycle.h"
+#include "Integration/IMessageProducer.h"
+
 namespace Caf {
 
 class CPersistenceInboundChannelAdapterInstance :

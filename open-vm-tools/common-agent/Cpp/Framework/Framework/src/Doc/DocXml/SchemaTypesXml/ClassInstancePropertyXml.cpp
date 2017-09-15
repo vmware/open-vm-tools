@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "ClassInstancePropertyXml.h"
+
+#include "Doc/DocXml/SchemaTypesXml/ClassIdentifierXml.h"
+
+#include "Doc/SchemaTypesDoc/CClassIdentifierDoc.h"
+#include "Doc/SchemaTypesDoc/CClassInstancePropertyDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/ClassInstancePropertyXml.h"
 
 using namespace Caf;
 

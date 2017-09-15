@@ -9,6 +9,13 @@
 #ifndef _MaIntegration_IntegrationObjects_h_
 #define _MaIntegration_IntegrationObjects_h_
 
+
+#include "IBean.h"
+
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IIntegrationComponent.h"
+
 namespace Caf { namespace MaIntegration {
 
 class IntegrationObjects :

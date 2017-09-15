@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
+#include "Doc/SchemaTypesDoc/CClassCardinalityDoc.h"
 #include "Doc/SchemaTypesDoc/CRelationshipDoc.h"
 
 using namespace Caf;

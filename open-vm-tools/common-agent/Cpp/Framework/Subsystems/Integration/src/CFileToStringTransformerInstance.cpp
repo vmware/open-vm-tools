@@ -7,7 +7,15 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/Core/CIntMessageHeaders.h"
 #include "CFileToStringTransformerInstance.h"
+#include "Integration/Core/FileHeaders.h"
 
 using namespace Caf;
 

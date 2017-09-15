@@ -7,7 +7,15 @@
  */
 
 #include "stdafx.h"
-#include "CAmqpConnection.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "amqpClient/CAmqpAuthMechanism.h"
+#include "amqpClient/CAmqpFrame.h"
+#include "amqpClient/api/Address.h"
+#include "amqpClient/api/CertInfo.h"
+#include "amqpClient/CAmqpConnection.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf::AmqpClient;
 
@@ -40,7 +48,7 @@ AMQPStatus CAmqpConnection::connectionCreate(
 		const SmartPtrCertInfo& certInfo,
 		const uint16 channelMax,
 		const uint32 frameMax,
-		const uint16 heartbeat, 
+		const uint16 heartbeat,
 		const uint16 retries,
 		const uint16 secondsToWait) {
 	CAF_CM_FUNCNAME("connectionCreate");

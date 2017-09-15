@@ -8,6 +8,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/PersistenceDoc/CLocalSecurityDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolCollectionDoc.h"
+#include "Doc/PersistenceDoc/CRemoteSecurityCollectionDoc.h"
 #include "Doc/PersistenceDoc/CPersistenceDoc.h"
 
 using namespace Caf;

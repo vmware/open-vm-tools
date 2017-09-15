@@ -11,6 +11,9 @@
 #ifndef CAuthnAuthzCollectionDoc_h_
 #define CAuthnAuthzCollectionDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAuthnAuthzDoc.h"
+
 namespace Caf {
 
 /// Set of logging levels for different components

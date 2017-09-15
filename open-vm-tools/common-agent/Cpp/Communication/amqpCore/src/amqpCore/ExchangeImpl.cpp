@@ -7,8 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "Exchange.h"
-#include "ExchangeImpl.h"
+
+#include "amqpCore/Exchange.h"
+#include "amqpCore/ExchangeImpl.h"
 
 using namespace Caf::AmqpIntegration;
 

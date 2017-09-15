@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "ProviderRegXml.h"
+
+#include "Doc/ProviderInfraDoc/CProviderRegDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderInfraXml/ProviderRegXml.h"
 
 using namespace Caf;
 

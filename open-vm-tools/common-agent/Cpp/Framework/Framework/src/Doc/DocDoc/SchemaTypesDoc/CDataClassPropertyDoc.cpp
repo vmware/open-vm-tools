@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
 #include "Doc/SchemaTypesDoc/CDataClassPropertyDoc.h"
 
 using namespace Caf;

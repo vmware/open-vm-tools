@@ -7,6 +7,12 @@
  */
 
 #include "stdafx.h"
+
+#include "amqpClient/amqpImpl/BasicProperties.h"
+#include "amqpClient/CAmqpFrame.h"
+#include "amqpClient/amqpImpl/IContentHeader.h"
+#include "amqpClient/amqpImpl/IMethod.h"
+#include "Exception/CCafException.h"
 #include "AMQPImpl.h"
 #include "amqpImplInt.h"
 

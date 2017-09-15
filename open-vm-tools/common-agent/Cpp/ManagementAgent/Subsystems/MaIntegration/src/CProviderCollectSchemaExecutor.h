@@ -9,6 +9,15 @@
 #ifndef CProviderCollectSchemaExecutor_h_
 #define CProviderCollectSchemaExecutor_h_
 
+
+#include "IBean.h"
+
+#include "Common/CLoggingSetter.h"
+#include "Doc/ProviderInfraDoc/CProviderRegDoc.h"
+#include "Doc/ProviderInfraDoc/CSchemaSummaryDoc.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageProcessor.h"
+
 using namespace Caf;
 
 /// TODO - describe class

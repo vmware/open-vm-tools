@@ -7,13 +7,34 @@
  */
 
 #include "stdafx.h"
-#include "../include/CProviderDriver.h"
-#include "../include/IInvokedProvider.h"
-#include "../../Framework/src/Doc/DocXml/ProviderResultsXml/ProviderResultsXmlLink.h"
+
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestXmlRoots.h"
+#include "Doc/DocXml/ProviderResultsXml/ProviderResultsXmlRoots.h"
+#include "Doc/DocXml/ResponseXml/ResponseXmlRoots.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/CInlineAttachmentDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Doc/ProviderResultsDoc/CRequestIdentifierDoc.h"
+#include "Doc/ResponseDoc/CProviderResponseDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CCollectMethodDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodDoc.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
+#include "CProviderDriver.h"
 #include "CProviderCdifFormatter.h"
 #include "CProviderRequest.h"
-#include "../../Framework/src/Integration/Caf/IntegrationCafLink.h"
-
+#include "IInvokedProvider.h"
+#include "Integration/Caf/CCafMessagePayload.h"
 
 using namespace Caf;
 

@@ -19,7 +19,6 @@
 
 #include <CommonDefines.h>
 #include <Integration.h>
-#include "../amqpClient/api/amqpClient.h"
 #include "AmqpIntegrationCoreFunc.h"
 #include "AmqpIntegrationCoreDefines.h"
 #include "AmqpIntegrationExceptions.h"

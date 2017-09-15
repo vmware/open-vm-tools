@@ -11,7 +11,17 @@
  */
 
 #include "stdafx.h"
-#include "MgmtRequestXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestHeaderXml.h"
+#include "Doc/DocXml/MgmtTypesXml/MgmtBatchXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/MgmtRequestDoc/CMgmtRequestDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtBatchDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/MgmtRequestXml/MgmtRequestXml.h"
 
 using namespace Caf;
 

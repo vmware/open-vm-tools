@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "BasicCancelMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/BasicCancelMethod.h"
 
 using namespace Caf::AmqpClient;
 

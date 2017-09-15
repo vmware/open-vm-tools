@@ -8,7 +8,13 @@
  */
 
 #include "stdafx.h"
-#include "PersistenceProtocolCollectionXml.h"
+
+#include "Doc/DocXml/PersistenceXml/PersistenceProtocolXml.h"
+
+#include "Doc/PersistenceDoc/CPersistenceProtocolCollectionDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/PersistenceXml/PersistenceProtocolCollectionXml.h"
 
 using namespace Caf;
 

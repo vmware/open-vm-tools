@@ -7,6 +7,12 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/PersistenceDoc/CLocalSecurityDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
+#include "IPersistence.h"
+#include "Exception/CCafException.h"
 #include "CConfigEnv.h"
 
 using namespace Caf;

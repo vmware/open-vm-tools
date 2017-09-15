@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "MgmtCollectInstancesXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/ClassSpecifierXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/ParameterCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/MgmtTypesXml/MgmtCollectInstancesXml.h"
 
 using namespace Caf;
 

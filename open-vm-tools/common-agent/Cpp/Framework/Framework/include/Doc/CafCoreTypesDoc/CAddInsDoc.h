@@ -11,6 +11,9 @@
 #ifndef CAddInsDoc_h_
 #define CAddInsDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAddInCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type AddIns

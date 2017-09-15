@@ -14,18 +14,10 @@
 #include "../../../amqpCore/src/amqpCore/amqpIntegrationCoreLink.h"
 #include "commIntegrationDefines.h"
 
-#include <DocXml.h>
 #include <DocUtils.h>
-#include "CMessagePartRecord.h"
-#include "CMessagePartDescriptorSourceRecord.h"
-#include "CMessageDeliveryRecord.h"
 #include "CMessagePartsParser.h"
 #include "CMessagePartsBuilder.h"
-#include "CMessagePartDescriptor.h"
-#include "CMessagePartsHeader.h"
 #include "CMessagePartDescriptorCalculator.h"
 #include "CCmsMessageUtils.h"
-#include "CCmsMessage.h"
-#include "CCmsMessageAttachments.h"
 
 #endif /* stdafx_h */

@@ -11,6 +11,9 @@
 
 #include "AmqpCommon.h"
 
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/CAmqpFrame.h"
+
 namespace Caf { namespace AmqpClient {
 
 /** AMQP channel state. */

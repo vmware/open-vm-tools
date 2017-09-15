@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "CIntException.h"
+
+#include "ICafObject.h"
+#include "IVariant.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/Core/CIntMessageHeaders.h"
 
 using namespace Caf;
 

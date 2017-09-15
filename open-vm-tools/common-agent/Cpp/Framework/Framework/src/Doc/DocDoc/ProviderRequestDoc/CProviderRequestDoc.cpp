@@ -9,6 +9,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderBatchDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
 #include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
 
 using namespace Caf;

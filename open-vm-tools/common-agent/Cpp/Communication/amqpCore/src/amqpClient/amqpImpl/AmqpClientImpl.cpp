@@ -8,6 +8,10 @@
 
 #include "stdafx.h"
 
+#include "amqpClient/amqpImpl/FieldImpl.h"
+#include "amqpClient/api/amqpClient.h"
+#include "Exception/CCafException.h"
+
 using namespace Caf;
 using namespace Caf::AmqpClient;
 

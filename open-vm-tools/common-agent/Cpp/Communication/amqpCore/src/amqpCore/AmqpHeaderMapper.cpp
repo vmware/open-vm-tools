@@ -7,7 +7,7 @@
  */
 
 #include "stdafx.h"
-#include "AmqpHeaderMapper.h"
+#include "amqpCore/AmqpHeaderMapper.h"
 
 using namespace Caf::AmqpIntegration;
 

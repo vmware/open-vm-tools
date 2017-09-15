@@ -9,6 +9,10 @@
 #ifndef _IntegrationContracts_IChannelResolver_h_
 #define _IntegrationContracts_IChannelResolver_h_
 
+
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IMessageChannel.h"
+
 namespace Caf {
 
 /// TODO - describe interface

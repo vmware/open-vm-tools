@@ -7,7 +7,26 @@
  */
 
 #include "stdafx.h"
-#include "CCafMessagePayloadParser.h"
+
+#include "Doc/DocXml/CafInstallRequestXml/CafInstallRequestXmlRoots.h"
+#include "Doc/DocXml/MgmtRequestXml/MgmtRequestXmlRoots.h"
+#include "Doc/DocXml/ProviderInfraXml/ProviderInfraXmlRoots.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestXmlRoots.h"
+
+#include "Doc/DocXml/CafInstallRequestXml/InstallProviderJobXml.h"
+#include "Doc/DocXml/CafInstallRequestXml/UninstallProviderJobXml.h"
+#include "Doc/DocXml/PayloadEnvelopeXml/PayloadEnvelopeXml.h"
+
+#include "Doc/CafInstallRequestDoc/CInstallProviderJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallRequestDoc.h"
+#include "Doc/CafInstallRequestDoc/CUninstallProviderJobDoc.h"
+#include "Doc/MgmtRequestDoc/CMgmtRequestDoc.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Doc/ProviderInfraDoc/CProviderRegDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
 
 using namespace Caf;
 

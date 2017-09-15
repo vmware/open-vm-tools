@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "ExchangeDeclareMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/api/amqpClient.h"
+#include "amqpClient/amqpImpl/ExchangeDeclareMethod.h"
 
 using namespace Caf::AmqpClient;
 

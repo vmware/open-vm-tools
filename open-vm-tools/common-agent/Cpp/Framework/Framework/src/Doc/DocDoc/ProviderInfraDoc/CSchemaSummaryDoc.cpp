@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/ProviderInfraDoc/CClassCollectionDoc.h"
 #include "Doc/ProviderInfraDoc/CSchemaSummaryDoc.h"
 
 using namespace Caf;

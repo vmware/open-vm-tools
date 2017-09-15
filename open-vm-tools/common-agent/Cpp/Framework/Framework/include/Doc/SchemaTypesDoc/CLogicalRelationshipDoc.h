@@ -11,6 +11,11 @@
 #ifndef CLogicalRelationshipDoc_h_
 #define CLogicalRelationshipDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CClassCardinalityDoc.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+#include "Doc/SchemaTypesDoc/CJoinTypeDoc.h"
+
 namespace Caf {
 
 /// Definition of a relationship between classes that can be described by identifying the fields on the classes that uniquely identify the relationship

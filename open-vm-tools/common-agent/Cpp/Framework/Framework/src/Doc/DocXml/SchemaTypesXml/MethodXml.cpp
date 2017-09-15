@@ -11,7 +11,17 @@
  */
 
 #include "stdafx.h"
-#include "MethodXml.h"
+
+#include "Doc/DocXml/SchemaTypesXml/ClassIdentifierXml.h"
+#include "Doc/DocXml/SchemaTypesXml/InstanceParameterXml.h"
+#include "Doc/DocXml/SchemaTypesXml/MethodParameterXml.h"
+
+#include "Doc/SchemaTypesDoc/CClassIdentifierDoc.h"
+#include "Doc/SchemaTypesDoc/CInstanceParameterDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodParameterDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/MethodXml.h"
 
 using namespace Caf;
 

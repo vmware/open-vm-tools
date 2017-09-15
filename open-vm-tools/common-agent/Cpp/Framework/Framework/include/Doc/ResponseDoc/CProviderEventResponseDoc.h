@@ -11,6 +11,12 @@
 #ifndef CProviderEventResponseDoc_h_
 #define CProviderEventResponseDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CStatisticsDoc.h"
+#include "Doc/ResponseDoc/CEventKeyCollectionDoc.h"
+#include "Doc/ResponseDoc/CEventManifestDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ProviderEventResponse

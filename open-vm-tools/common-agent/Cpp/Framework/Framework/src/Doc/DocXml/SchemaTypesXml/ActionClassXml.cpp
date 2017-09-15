@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "ActionClassXml.h"
+
+#include "Doc/DocXml/SchemaTypesXml/MethodXml.h"
+
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CCollectMethodDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/ActionClassXml.h"
+#include "Doc/DocXml/SchemaTypesXml/CollectMethodXml.h"
 
 using namespace Caf;
 

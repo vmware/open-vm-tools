@@ -12,7 +12,6 @@
 //{{CAF_SUBSYSTEM}}
 
 #include <CommonDefines.h>
-#include <DocXml.h>
 #include <DocUtils.h>
 #include <Integration.h>
 #include <ProviderFxLink.h>
@@ -22,14 +21,11 @@ namespace Caf {
 	extern const char* _sInstallProviderSpecFilename;
 }
 
-#include "IPackage.h"
 
 #include "CInstallUtils.h"
 #include "CPathBuilder.h"
 
 #include "CPackageExecutor.h"
-#include "CPackageInstaller.h"
-#include "CProviderInstaller.h"
 
 #include "CInstallProvider.h"
 

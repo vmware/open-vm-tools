@@ -11,6 +11,9 @@
 #ifndef CMgmtInvokeOperationCollectionDoc_h_
 #define CMgmtInvokeOperationCollectionDoc_h_
 
+
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type MgmtInvokeOperationCollection

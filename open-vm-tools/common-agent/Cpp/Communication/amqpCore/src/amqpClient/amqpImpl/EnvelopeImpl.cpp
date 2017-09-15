@@ -7,7 +7,7 @@
  */
 
 #include "stdafx.h"
-#include "EnvelopeImpl.h"
+#include "amqpClient/amqpImpl/EnvelopeImpl.h"
 
 using namespace Caf::AmqpClient;
 

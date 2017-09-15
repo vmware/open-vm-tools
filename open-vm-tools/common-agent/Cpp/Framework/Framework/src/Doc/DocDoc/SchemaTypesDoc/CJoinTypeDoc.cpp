@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
+#include "Doc/SchemaTypesDoc/CClassFieldDoc.h"
 #include "Doc/SchemaTypesDoc/CJoinTypeDoc.h"
 
 using namespace Caf;

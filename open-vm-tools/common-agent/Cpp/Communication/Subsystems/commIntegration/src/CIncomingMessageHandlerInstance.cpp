@@ -7,7 +7,23 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/Caf/CCafMessageHeadersWriter.h"
+#include "CMessagePartDescriptor.h"
+#include "Common/IAppContext.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
 #include "CIncomingMessageHandlerInstance.h"
+#include "CMessagePartsHeader.h"
+#include "Integration/Core/MessageHeaders.h"
+#include "Integration/Caf/CCafMessageCreator.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
+#include "Integration/Caf/CCafMessagePayload.h"
+#include "Integration/Core/CMessageHeaderUtils.h"
 
 using namespace Caf;
 

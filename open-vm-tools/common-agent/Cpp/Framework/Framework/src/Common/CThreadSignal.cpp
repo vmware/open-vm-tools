@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "CThreadSignal.h"
+
+#include "Common/CAutoMutex.h"
+#include "Exception/CCafException.h"
+#include "Common/CThreadSignal.h"
 
 using namespace Caf;
 

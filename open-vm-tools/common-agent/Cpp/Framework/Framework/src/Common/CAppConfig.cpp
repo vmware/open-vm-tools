@@ -7,6 +7,13 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/CConfigParams.h"
+#include "Common/CLoggingUtils.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfigWrite.h"
+#include "Common/IAppConfig.h"
+#include "Common/IConfigParams.h"
 #include "CAppConfig.h"
 
 using namespace Caf;

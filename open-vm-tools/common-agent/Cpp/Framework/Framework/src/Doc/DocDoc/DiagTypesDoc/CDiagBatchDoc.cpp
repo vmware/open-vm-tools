@@ -9,6 +9,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DiagTypesDoc/CDiagCollectInstancesDoc.h"
+#include "Doc/DiagTypesDoc/CDiagDeleteValueCollectionDoc.h"
+#include "Doc/DiagTypesDoc/CDiagSetValueCollectionDoc.h"
 #include "Doc/DiagTypesDoc/CDiagBatchDoc.h"
 
 using namespace Caf;

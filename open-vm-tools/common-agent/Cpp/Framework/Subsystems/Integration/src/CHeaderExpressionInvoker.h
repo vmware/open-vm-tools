@@ -9,6 +9,14 @@
 #ifndef CHEADEREXPRESSIONINVOKER_H_
 #define CHEADEREXPRESSIONINVOKER_H_
 
+
+#include "IBean.h"
+
+#include "IVariant.h"
+#include "IntegrationSubsys.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IExpressionInvoker.h"
+
 namespace Caf {
 
 class CHeaderExpressionInvoker :

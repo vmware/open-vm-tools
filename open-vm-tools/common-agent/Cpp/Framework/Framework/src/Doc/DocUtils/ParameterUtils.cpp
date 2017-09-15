@@ -8,6 +8,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestInstanceParameterDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestParameterDoc.h"
+#include "Exception/CCafException.h"
 #include "ParameterUtils.h"
 
 using namespace Caf;

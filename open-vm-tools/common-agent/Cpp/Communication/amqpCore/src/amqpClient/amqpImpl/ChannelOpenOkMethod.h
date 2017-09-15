@@ -9,6 +9,9 @@
 #ifndef CHANNELOPENOKMETHOD_H_
 #define CHANNELOPENOKMETHOD_H_
 
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+
 namespace Caf { namespace AmqpClient {
 /**
  * @author mdonahue

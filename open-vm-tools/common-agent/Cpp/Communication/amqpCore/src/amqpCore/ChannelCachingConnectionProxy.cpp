@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "CachingConnectionFactory.h"
+
+#include "amqpClient/api/Channel.h"
+#include "amqpClient/api/Connection.h"
+#include "amqpCore/CachingConnectionFactory.h"
 
 using namespace Caf::AmqpIntegration;
 

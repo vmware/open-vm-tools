@@ -9,6 +9,12 @@
 #ifndef CRemoteCommandProvider_h_
 #define CRemoteCommandProvider_h_
 
+
+#include "IInvokedProvider.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+
 namespace Caf {
 
 /// Sends responses/errors back to the client.

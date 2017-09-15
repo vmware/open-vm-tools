@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "EventManifestXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/ResponseDoc/CEventManifestDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ResponseXml/EventManifestXml.h"
 
 using namespace Caf;
 

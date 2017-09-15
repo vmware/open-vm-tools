@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/DiagRequestDoc/DiagRequestDocInc.h"
 
 #endif /* STDAFX_H_ */

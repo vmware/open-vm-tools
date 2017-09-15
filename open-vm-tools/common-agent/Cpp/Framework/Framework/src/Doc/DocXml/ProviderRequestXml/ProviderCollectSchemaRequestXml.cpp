@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "ProviderCollectSchemaRequestXml.h"
+
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestHeaderXml.h"
+
+#include "Doc/ProviderRequestDoc/CProviderCollectSchemaRequestDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderCollectSchemaRequestXml.h"
 
 using namespace Caf;
 

@@ -7,8 +7,15 @@
  */
 
 #include "stdafx.h"
-#include "MessageHeaders.h"
-#include "CErrorHandler.h"
+
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/IThrowable.h"
+#include "Integration/Core/CErrorHandler.h"
+#include "Integration/Core/CIntMessageHeaders.h"
+#include "Integration/Core/MessageHeaders.h"
 
 using namespace Caf;
 

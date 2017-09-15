@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "MultiPmeMgmtBatchCollectionXml.h"
+
+#include "Doc/DocXml/MultiPmeMgmtRequestXml/MultiPmeMgmtBatchXml.h"
+
+#include "Doc/MultiPmeMgmtRequestDoc/CMultiPmeMgmtBatchCollectionDoc.h"
+#include "Doc/MultiPmeMgmtRequestDoc/CMultiPmeMgmtBatchDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/MultiPmeMgmtRequestXml/MultiPmeMgmtBatchCollectionXml.h"
 
 using namespace Caf;
 

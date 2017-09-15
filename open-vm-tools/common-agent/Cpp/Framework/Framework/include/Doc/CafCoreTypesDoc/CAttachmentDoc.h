@@ -10,6 +10,8 @@
 #ifndef CAttachmentDoc_h_
 #define CAttachmentDoc_h_
 
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
 namespace Caf {
 
 /// A simple container for objects of type Attachment

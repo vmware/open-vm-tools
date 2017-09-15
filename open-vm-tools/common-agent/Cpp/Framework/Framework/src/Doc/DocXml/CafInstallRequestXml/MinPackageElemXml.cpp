@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "MinPackageElemXml.h"
+
+#include "Doc/CafInstallRequestDoc/CMinPackageElemDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafInstallRequestXml/MinPackageElemXml.h"
 
 using namespace Caf;
 

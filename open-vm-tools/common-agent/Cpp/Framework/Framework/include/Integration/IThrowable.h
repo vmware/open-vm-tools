@@ -9,6 +9,9 @@
 #ifndef _FxContracts_IThrowable_h_
 #define _FxContracts_IThrowable_h_
 
+
+#include "ICafObject.h"
+
 namespace Caf {
 
 CAF_FORWARD_DECLARE_SMART_INTERFACE(IThrowable);

@@ -7,7 +7,12 @@
  */
 
 #include "stdafx.h"
-#include "CMessageHandler.h"
+
+#include "ICafObject.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/Core/CMessageHandler.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

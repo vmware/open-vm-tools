@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "ExchangeDeleteMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/ExchangeDeleteMethod.h"
 
 using namespace Caf::AmqpClient;
 

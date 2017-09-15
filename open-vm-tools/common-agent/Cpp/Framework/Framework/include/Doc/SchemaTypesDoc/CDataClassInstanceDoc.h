@@ -11,6 +11,12 @@
 #ifndef CDataClassInstanceDoc_h_
 #define CDataClassInstanceDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
+#include "Doc/SchemaTypesDoc/CCmdlUnionDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassPropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassSubInstanceDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type DataClassInstance

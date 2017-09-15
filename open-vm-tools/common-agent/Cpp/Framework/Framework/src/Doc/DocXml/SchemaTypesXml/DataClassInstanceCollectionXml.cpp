@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "DataClassInstanceCollectionXml.h"
+
+#include "Doc/DocXml/SchemaTypesXml/DataClassInstanceXml.h"
+
+#include "Doc/SchemaTypesDoc/CDataClassInstanceCollectionDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/DataClassInstanceCollectionXml.h"
 
 using namespace Caf;
 

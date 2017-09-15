@@ -11,6 +11,9 @@
 #ifndef CMultiPmeMgmtBatchCollectionDoc_h_
 #define CMultiPmeMgmtBatchCollectionDoc_h_
 
+
+#include "Doc/MultiPmeMgmtRequestDoc/CMultiPmeMgmtBatchDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type MultiPmeMgmtBatchCollection

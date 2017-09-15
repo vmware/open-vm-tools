@@ -11,7 +11,19 @@
  */
 
 #include "stdafx.h"
-#include "ProviderResponseXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/StatisticsXml.h"
+#include "Doc/DocXml/ResponseXml/ManifestXml.h"
+#include "Doc/DocXml/ResponseXml/ResponseHeaderXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CStatisticsDoc.h"
+#include "Doc/ResponseDoc/CManifestDoc.h"
+#include "Doc/ResponseDoc/CProviderResponseDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ResponseXml/ProviderResponseXml.h"
 
 using namespace Caf;
 

@@ -9,6 +9,14 @@
 #ifndef CIntegrationObjectFactory_h
 #define CIntegrationObjectFactory_h
 
+
+#include "IBean.h"
+
+#include "IntegrationSubsys.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IIntegrationComponent.h"
+
 namespace Caf {
 
 class CIntegrationObjectFactory :

@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "RequestIdentifierXml.h"
+
+#include "Doc/DocXml/SchemaTypesXml/ActionClassXml.h"
+
+#include "Doc/ProviderResultsDoc/CRequestIdentifierDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderResultsXml/RequestIdentifierXml.h"
 
 using namespace Caf;
 

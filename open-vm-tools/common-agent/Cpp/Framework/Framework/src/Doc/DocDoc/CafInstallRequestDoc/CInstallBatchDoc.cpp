@@ -9,6 +9,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafInstallRequestDoc/CGetInventoryJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CUninstallProviderJobDoc.h"
 #include "Doc/CafInstallRequestDoc/CInstallBatchDoc.h"
 
 using namespace Caf;

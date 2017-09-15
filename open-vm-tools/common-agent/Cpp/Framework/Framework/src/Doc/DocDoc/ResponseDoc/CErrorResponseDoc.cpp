@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
 #include "Doc/ResponseDoc/CErrorResponseDoc.h"
 
 using namespace Caf;

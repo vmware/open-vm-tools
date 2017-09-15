@@ -9,6 +9,10 @@
 #ifndef _IntegrationContracts_IEXPRESSIONINVOKER_H_
 #define _IntegrationContracts_IEXPRESSIONINVOKER_H_
 
+
+#include "IVariant.h"
+#include "Integration/IIntMessage.h"
+
 namespace Caf {
 
 struct __declspec(novtable) IExpressionInvoker : public ICafObject

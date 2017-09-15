@@ -7,8 +7,19 @@
  */
 
 #include "stdafx.h"
-#include "CPersistenceInboundChannelAdapterInstance.h"
+
 #include "CPersistenceReadingMessageSource.h"
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "IPersistence.h"
+#include "Integration/Core/CErrorHandler.h"
+#include "Integration/Core/CMessageHandler.h"
+#include "Integration/Core/CSimpleAsyncTaskExecutor.h"
+#include "Integration/Core/CSourcePollingChannelAdapter.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IMessageChannel.h"
+#include "CPersistenceInboundChannelAdapterInstance.h"
 
 using namespace Caf;
 

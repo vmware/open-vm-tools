@@ -7,6 +7,7 @@
  */
 
 #include "stdafx.h"
+#include "Common/IAppConfig.h"
 #include "AppConfigUtils.h"
 
 using namespace Caf;

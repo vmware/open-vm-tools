@@ -11,6 +11,10 @@
 #ifndef CMgmtCollectInstancesDoc_h_
 #define CMgmtCollectInstancesDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type MgmtCollectInstances

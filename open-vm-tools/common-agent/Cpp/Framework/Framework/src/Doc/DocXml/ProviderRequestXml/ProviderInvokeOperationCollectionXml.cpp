@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "ProviderInvokeOperationCollectionXml.h"
+
+#include "Doc/DocXml/ProviderRequestXml/ProviderInvokeOperationXml.h"
+
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderInvokeOperationCollectionXml.h"
 
 using namespace Caf;
 

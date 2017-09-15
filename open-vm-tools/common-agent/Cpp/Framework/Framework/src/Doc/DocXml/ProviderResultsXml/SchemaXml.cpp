@@ -11,7 +11,19 @@
  */
 
 #include "stdafx.h"
-#include "SchemaXml.h"
+
+#include "Doc/DocXml/SchemaTypesXml/ActionClassXml.h"
+#include "Doc/DocXml/SchemaTypesXml/DataClassXml.h"
+
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassDoc.h"
+#include "Doc/SchemaTypesDoc/CLogicalRelationshipDoc.h"
+#include "Doc/SchemaTypesDoc/CPhysicalRelationshipDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderResultsXml/SchemaXml.h"
+#include "Doc/DocXml/SchemaTypesXml/LogicalRelationshipXml.h"
+#include "Doc/DocXml/SchemaTypesXml/PhysicalRelationshipXml.h"
 
 using namespace Caf;
 

@@ -7,6 +7,7 @@
  */
 
 #include "stdafx.h"
+#include "Common/CLoggingUtils.h"
 #include "CDaemonUtils.h"
 
 #include <syslog.h>

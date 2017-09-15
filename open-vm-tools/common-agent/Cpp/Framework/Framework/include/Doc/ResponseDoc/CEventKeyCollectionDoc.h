@@ -11,6 +11,9 @@
 #ifndef CEventKeyCollectionDoc_h_
 #define CEventKeyCollectionDoc_h_
 
+
+#include "Doc/ResponseDoc/CEventKeyDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type EventKeyCollection

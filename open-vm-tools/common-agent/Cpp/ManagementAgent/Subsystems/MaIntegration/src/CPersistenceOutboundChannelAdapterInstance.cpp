@@ -7,6 +7,16 @@
  */
 
 #include "stdafx.h"
+
+#include "CPersistenceMessageHandler.h"
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "IPersistence.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/IMessageHandler.h"
 #include "CPersistenceOutboundChannelAdapterInstance.h"
 
 using namespace Caf;

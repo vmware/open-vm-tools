@@ -7,7 +7,20 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "IVariant.h"
+#include "Integration/Core/CExpressionHandler.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/ITransformer.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
 #include "CHeaderEnricherTransformerInstance.h"
+#include "Integration/Core/MessageHeaders.h"
 
 using namespace Caf;
 

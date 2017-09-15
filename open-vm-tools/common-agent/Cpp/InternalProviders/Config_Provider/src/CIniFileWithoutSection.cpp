@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/CCafRegex.h"
+#include "Common/CIniFile.h"
 #include "CIniFileWithoutSection.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

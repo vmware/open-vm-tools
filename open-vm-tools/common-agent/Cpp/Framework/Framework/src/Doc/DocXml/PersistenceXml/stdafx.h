@@ -17,9 +17,9 @@
 #endif
 
 #include <CommonDefines.h>
+
 #include <DocContracts.h>
 #include <DocUtils.h>
 
-#include "PersistenceXmlInc.h"
 
 #endif /* STDAFX_H_ */

@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CPropertyDoc.h"
 #include "Doc/DiagTypesDoc/CDiagSetValueDoc.h"
 
 using namespace Caf;

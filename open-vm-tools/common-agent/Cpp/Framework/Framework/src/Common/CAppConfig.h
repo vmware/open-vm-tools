@@ -9,6 +9,13 @@
 #ifndef CAPPCONFIG_H_
 #define CAPPCONFIG_H_
 
+#include "Common/IConfigParams.h"
+
+#include "Common/CConfigParams.h"
+
+#include "Common/IAppConfig.h"
+#include "Common/IAppConfigWrite.h"
+
 namespace Caf {
 
 CAF_DECLARE_CLASS_AND_SMART_POINTER(CAppConfig);

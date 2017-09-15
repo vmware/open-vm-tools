@@ -19,7 +19,6 @@
 
 #include <BaseDefines.h>
 #include <CommonGlobals.h>
-#include "CCafException.h"
 #include "ClassMacros.h"
 #include "ExceptionMacros.h"
 

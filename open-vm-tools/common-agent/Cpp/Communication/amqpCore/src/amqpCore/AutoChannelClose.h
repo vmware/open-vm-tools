@@ -9,6 +9,9 @@
 #ifndef AMQPINTEGRATIONCORE_AUTOCHANNELCLOSE_H_
 #define AMQPINTEGRATIONCORE_AUTOCHANNELCLOSE_H_
 
+
+#include "amqpClient/api/Channel.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

@@ -7,6 +7,8 @@
  */
 
 #include "stdafx.h"
+
+#include "CVgAuthContext.h"
 #include "CVgAuthUserHandle.h"
 
 CVgAuthUserHandle::CVgAuthUserHandle() :

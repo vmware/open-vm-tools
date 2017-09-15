@@ -8,20 +8,10 @@
  */
 
 #include "stdafx.h"
-#include "CMessageHeaderUtils.h"
 
-using namespace Caf;
-
-/*
- *  Created on: Nov 19, 2014
- *      Author: bwilliams
- *
- *  Copyright (c) 2012 VMware, Inc.  All rights reserved.
- *  -- VMware Confidential
- */
-
-#include "stdafx.h"
-#include "CMessageHeaderUtils.h"
+#include "Integration/IIntMessage.h"
+#include "Exception/CCafException.h"
+#include "Integration/Core/CMessageHeaderUtils.h"
 
 using namespace Caf;
 

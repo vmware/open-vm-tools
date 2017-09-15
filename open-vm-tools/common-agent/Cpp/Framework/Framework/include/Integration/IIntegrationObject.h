@@ -9,6 +9,9 @@
 #ifndef _IntegrationContracts_IIntegrationObject_h_
 #define _IntegrationContracts_IIntegrationObject_h_
 
+
+#include "Integration/IDocument.h"
+
 namespace Caf {
 
 /// TODO - describe interface

@@ -9,6 +9,9 @@
 #ifndef _ProviderContracts_IInvokedProvider_H_
 #define _ProviderContracts_IInvokedProvider_H_
 
+
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+
 namespace Caf {
 
 struct IProviderRequest; // Forward declaration

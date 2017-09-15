@@ -7,7 +7,16 @@
  */
 
 #include "stdafx.h"
-#include "AMQConnection.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/AMQChannelManager.h"
+#include "amqpClient/CAmqpConnection.h"
+#include "amqpClient/ConnectionWeakReference.h"
+#include "amqpClient/api/Address.h"
+#include "amqpClient/api/CertInfo.h"
+#include "amqpClient/api/Channel.h"
+#include "amqpClient/AMQConnection.h"
+#include "Exception/CCafException.h"
 #include "AMQUtil.h"
 
 using namespace Caf::AmqpClient;

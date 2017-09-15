@@ -11,6 +11,9 @@
 #ifndef CManifestDoc_h_
 #define CManifestDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentNameCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type Manifest

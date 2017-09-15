@@ -18,24 +18,7 @@
 #include <CommonDefines.h>
 #include <Integration.h>
 
-#include "FileHeaders.h"
-#include "MessageHeaders.h"
-#include "CIntMessageHeaders.h"
-#include "CIntMessage.h"
-#include "CDocument.h"
-#include "CMessageHandler.h"
-#include "CErrorHandler.h"
-#include "CIntException.h"
-#include "CChannelResolver.h"
-#include "CIntegrationAppContext.h"
-#include "CSimpleAsyncTaskExecutorState.h"
-#include "CSimpleAsyncTaskExecutor.h"
-#include "CSourcePollingChannelAdapter.h"
-#include "CBroadcastingDispatcher.h"
-#include "CUnicastingDispatcher.h"
-
-#include "CMessagingTemplateHandler.h"
-#include "CMessagingTemplate.h"
-
+#include "Integration/Core/FileHeaders.h"
+#include "Integration/Core/MessageHeaders.h"
 
 #endif /* STDAFX_H_ */

@@ -9,6 +9,12 @@
 #ifndef SECURECACHINGCONNECTIONFACTORYOBJ_H_
 #define SECURECACHINGCONNECTIONFACTORYOBJ_H_
 
+#include "IBean.h"
+
+#include "amqpCore/CachingConnectionFactory.h"
+#include "amqpClient/api/Connection.h"
+#include "amqpCore/ConnectionListener.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

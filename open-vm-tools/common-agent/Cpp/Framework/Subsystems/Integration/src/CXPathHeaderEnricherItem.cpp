@@ -7,6 +7,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/IDocument.h"
 #include "CXPathHeaderEnricherItem.h"
 
 using namespace Caf;

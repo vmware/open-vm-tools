@@ -16,17 +16,12 @@ namespace Caf {
 
 #include <CommonDefines.h>
 #include <Integration.h>
-#include <DocXml.h>
 #include <DocUtils.h>
 
 #ifndef __APPLE__
 #include <VGAuthAuthentication.h>
 
-#include "IVgAuthImpersonation.h"
 #include "CVgAuthError.h"
-#include "CVgAuthContext.h"
-#include "CVgAuthUserHandle.h"
-#include "CVgAuthImpersonation.h"
 #include "CVgAuthInitializer.h"
 #include "CGuestAuthenticatorInstance.h"
 #include "CGuestAuthenticator.h"

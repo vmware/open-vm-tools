@@ -8,7 +8,12 @@
  */
 
 #include "stdafx.h"
-#include "EnumConvertersXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/CafInstallRequestDoc/CafInstallRequestDocTypes.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

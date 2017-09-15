@@ -7,7 +7,20 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/COperationDoc.h"
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodParameterDoc.h"
+#include "Exception/CCafException.h"
 #include "CRemoteCommandProvider.h"
+#include "IProviderRequest.h"
 
 using namespace Caf;
 

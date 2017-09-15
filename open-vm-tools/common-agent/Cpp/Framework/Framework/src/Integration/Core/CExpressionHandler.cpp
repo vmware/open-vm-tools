@@ -7,7 +7,14 @@
  */
 
 #include "stdafx.h"
-#include "CExpressionHandler.h"
+
+#include "Common/IAppConfig.h"
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "IVariant.h"
+#include "Integration/Core/CExpressionHandler.h"
+#include "Common/CCafRegex.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

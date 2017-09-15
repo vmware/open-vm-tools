@@ -11,6 +11,10 @@
 #ifndef CMgmtInvokeOperationDoc_h_
 #define CMgmtInvokeOperationDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
+#include "Doc/CafCoreTypesDoc/COperationDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type MgmtInvokeOperation

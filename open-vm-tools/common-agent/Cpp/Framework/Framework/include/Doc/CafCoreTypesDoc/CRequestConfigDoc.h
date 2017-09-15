@@ -11,6 +11,10 @@
 #ifndef CRequestConfigDoc_h_
 #define CRequestConfigDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAddInsDoc.h"
+#include "Doc/CafCoreTypesDoc/CLoggingLevelCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type RequestConfig

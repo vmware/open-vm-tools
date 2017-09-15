@@ -8,7 +8,17 @@
  */
 
 #include "stdafx.h"
-#include "PersistenceXml.h"
+
+#include "Doc/DocXml/PersistenceXml/LocalSecurityXml.h"
+#include "Doc/DocXml/PersistenceXml/PersistenceProtocolCollectionXml.h"
+#include "Doc/DocXml/PersistenceXml/RemoteSecurityCollectionXml.h"
+
+#include "Doc/PersistenceDoc/CLocalSecurityDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolCollectionDoc.h"
+#include "Doc/PersistenceDoc/CRemoteSecurityCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/PersistenceXml/PersistenceXml.h"
 
 using namespace Caf;
 

@@ -10,6 +10,8 @@
 #define CCmsMessageUtil_h_
 
 #include <openssl/cms.h>
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
 #include <openssl/conf.h>
 #include <openssl/engine.h>
 #include <openssl/err.h>

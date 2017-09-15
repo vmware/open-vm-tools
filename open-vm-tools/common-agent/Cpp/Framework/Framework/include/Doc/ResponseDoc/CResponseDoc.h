@@ -11,6 +11,12 @@
 #ifndef CResponseDoc_h_
 #define CResponseDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CStatisticsDoc.h"
+#include "Doc/ResponseDoc/CManifestCollectionDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type Response

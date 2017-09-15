@@ -7,6 +7,9 @@
  */
 
 #include "stdafx.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
 #include "AmqpUtil.h"
 
 using namespace Caf::AmqpClient;

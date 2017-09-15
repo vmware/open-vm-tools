@@ -16,6 +16,5 @@
 #include "CWinService.h"
 #endif
 
-#include "CManagementAgentHostWork.h"
 
 #endif // #ifndef stdafx_h_

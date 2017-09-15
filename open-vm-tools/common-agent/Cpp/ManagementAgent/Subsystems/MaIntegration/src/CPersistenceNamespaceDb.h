@@ -9,6 +9,12 @@
 #ifndef _MaIntegration_CPersistenceNamespaceDb_h_
 #define _MaIntegration_CPersistenceNamespaceDb_h_
 
+
+#include "IBean.h"
+
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "IPersistence.h"
+
 using namespace Caf;
 
 /// TODO - describe class

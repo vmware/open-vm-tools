@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAddInCollectionDoc.h"
 #include "Doc/CafCoreTypesDoc/CAddInsDoc.h"
 
 using namespace Caf;

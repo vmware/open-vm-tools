@@ -9,6 +9,13 @@
 #ifndef CConfigProvider_h_
 #define CConfigProvider_h_
 
+
+#include "IInvokedProvider.h"
+
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+
 namespace Caf {
 
 /// Sends responses/errors back to the client.

@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "CXmlElement.h"
+
+#include "Integration/IDocument.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

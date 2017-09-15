@@ -7,7 +7,36 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DocXml/DiagRequestXml/DiagRequestXmlRoots.h"
+
+#include "CEnvelopeToPayloadTransformerInstance.h"
+#include "Common/IAppContext.h"
+#include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
+#include "Doc/CafCoreTypesDoc/COperationDoc.h"
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CPropertyDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestInstanceParameterDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestParameterDoc.h"
+#include "Doc/DiagRequestDoc/CDiagRequestDoc.h"
+#include "Doc/DiagTypesDoc/CDiagCollectInstancesDoc.h"
+#include "Doc/DiagTypesDoc/CDiagDeleteValueCollectionDoc.h"
+#include "Doc/DiagTypesDoc/CDiagDeleteValueDoc.h"
+#include "Doc/DiagTypesDoc/CDiagSetValueCollectionDoc.h"
+#include "Doc/DiagTypesDoc/CDiagSetValueDoc.h"
+#include "Doc/MgmtRequestDoc/CMgmtRequestDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtBatchDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationDoc.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
 #include "CDiagToMgmtRequestTransformerInstance.h"
+#include "Exception/CCafException.h"
+#include "Integration/Caf/CCafMessageCreator.h"
 
 using namespace Caf;
 

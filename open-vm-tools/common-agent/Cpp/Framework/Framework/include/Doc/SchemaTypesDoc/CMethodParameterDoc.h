@@ -11,6 +11,8 @@
 #ifndef CMethodParameterDoc_h_
 #define CMethodParameterDoc_h_
 
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
 namespace Caf {
 
 /// A parameter containing a simple type used by a method to control the outcome

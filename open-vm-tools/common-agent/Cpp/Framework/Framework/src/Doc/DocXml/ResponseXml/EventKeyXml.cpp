@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "EventKeyXml.h"
+
+#include "Doc/ResponseDoc/CEventKeyDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ResponseXml/EventKeyXml.h"
 
 using namespace Caf;
 

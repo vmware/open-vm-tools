@@ -13,24 +13,20 @@
 
 #include <CommonDefines.h>
 #include <Integration.h>
-#include <DocXml.h>
 #include <DocUtils.h>
 
 #include "MaContracts.h"
 #include "MaIntegration.h"
 #include "IntegrationObjects.h"
 
-#include "CAttachmentRequestTransformerInstance.h"
 #include "CAttachmentRequestTransformer.h"
 
-#include "CDiagToMgmtRequestTransformerInstance.h"
 #include "CDiagToMgmtRequestTransformer.h"
 
 #include "CInstallToMgmtRequestTransformerInstance.h"
 #include "CInstallToMgmtRequestTransformer.h"
 
 #include "CPersistenceNamespaceDb.h"
-#include "CPersistenceReadingMessageSource.h"
 #include "CPersistenceMessageHandler.h"
 #include "CPersistenceInboundChannelAdapterInstance.h"
 #include "CPersistenceOutboundChannelAdapterInstance.h"
@@ -38,24 +34,17 @@
 #include "CPersistenceMerge.h"
 #include "CConfigEnvMerge.h"
 #include "CConfigEnv.h"
-#include "CConfigEnvReadingMessageSource.h"
 #include "CConfigEnvMessageHandler.h"
 #include "CConfigEnvInboundChannelAdapterInstance.h"
 #include "CConfigEnvOutboundChannelAdapterInstance.h"
 
-#include "CSchemaCacheManager.h"
-#include "CResponseFactory.h"
 
 #include "CCollectSchemaExecutor.h"
 #include "CProviderCollectSchemaExecutor.h"
-#include "CProviderExecutorRequest.h"
-#include "CProviderExecutorRequestHandler.h"
 #include "CProviderExecutor.h"
 
 #include "CSinglePmeRequestSplitter.h"
-#include "CSinglePmeRequestSplitterInstance.h"
 
-#include "CMonitorReadingMessageSource.h"
 #include "CMonitorInboundChannelAdapterInstance.h"
 
 #include "CVersionTransformer.h"

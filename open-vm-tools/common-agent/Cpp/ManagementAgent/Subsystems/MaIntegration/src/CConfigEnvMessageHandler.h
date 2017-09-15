@@ -9,6 +9,14 @@
 #ifndef _MaIntegration_CConfigEnvMessageHandler_h_
 #define _MaIntegration_CConfigEnvMessageHandler_h_
 
+
+#include "Integration/IErrorProcessor.h"
+
+#include "IConfigEnv.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageHandler.h"
+
 namespace Caf {
 
 class CConfigEnvMessageHandler :

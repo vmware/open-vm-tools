@@ -11,7 +11,12 @@
  */
 
 #include "stdafx.h"
-#include "StatisticsXml.h"
+
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CStatisticsDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/StatisticsXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/PropertyCollectionXml.h"
 
 using namespace Caf;
 

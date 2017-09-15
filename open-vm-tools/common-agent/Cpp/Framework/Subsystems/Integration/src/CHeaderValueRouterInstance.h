@@ -9,6 +9,14 @@
 #ifndef CHeaderValueRouterInstance_h_
 #define CHeaderValueRouterInstance_h_
 
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/Core/CAbstractMessageRouter.h"
+
 namespace Caf {
 
 class CHeaderValueRouterInstance :

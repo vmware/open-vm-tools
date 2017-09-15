@@ -7,7 +7,7 @@
  */
 
 #include "stdafx.h"
-#include "FieldImpl.h"
+#include "amqpClient/amqpImpl/FieldImpl.h"
 
 using namespace Caf::AmqpClient;
 

@@ -7,8 +7,13 @@
  */
 
 #include "stdafx.h"
-#include "ConnectionFactoryImpl.h"
-#include "AMQConnection.h"
+
+#include "amqpClient/AMQConnection.h"
+#include "amqpClient/api/Address.h"
+#include "amqpClient/api/CertInfo.h"
+#include "amqpClient/api/Connection.h"
+#include "amqpClient/api/ConnectionFactory.h"
+#include "amqpClient/ConnectionFactoryImpl.h"
 
 using namespace Caf::AmqpClient;
 

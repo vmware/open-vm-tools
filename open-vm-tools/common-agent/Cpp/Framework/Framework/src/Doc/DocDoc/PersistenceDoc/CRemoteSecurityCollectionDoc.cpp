@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/PersistenceDoc/CRemoteSecurityDoc.h"
 #include "Doc/PersistenceDoc/CRemoteSecurityCollectionDoc.h"
 
 using namespace Caf;

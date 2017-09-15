@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "FullPackageElemXml.h"
+
+#include "Doc/DocXml/CafInstallRequestXml/PackageDefnXml.h"
+
+#include "Doc/CafInstallRequestDoc/CFullPackageElemDoc.h"
+#include "Doc/CafInstallRequestDoc/CPackageDefnDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafInstallRequestXml/FullPackageElemXml.h"
 
 using namespace Caf;
 

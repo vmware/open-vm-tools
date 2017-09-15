@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "DiagDeleteValueXml.h"
+
+#include "Doc/DiagTypesDoc/CDiagDeleteValueDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/DiagTypesXml/DiagDeleteValueXml.h"
 
 using namespace Caf;
 

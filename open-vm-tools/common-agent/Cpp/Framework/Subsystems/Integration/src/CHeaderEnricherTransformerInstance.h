@@ -9,6 +9,17 @@
 #ifndef CHeaderEnricherTransformerInstance_h_
 #define CHeaderEnricherTransformerInstance_h_
 
+
+#include "Integration/IIntegrationComponentInstance.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/Core/CExpressionHandler.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/ITransformer.h"
+#include "Integration/IIntegrationObject.h"
+
 namespace Caf {
 
 class CHeaderEnricherTransformerInstance :

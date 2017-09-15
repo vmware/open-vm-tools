@@ -7,7 +7,8 @@
  */
 
 #include "stdafx.h"
-#include "CMarkupParser.h"
+#include "Xml/MarkupParser/CMarkupParser.h"
+#include "Exception/CCafException.h"
 #include <deque>
 #include <algorithm>
 

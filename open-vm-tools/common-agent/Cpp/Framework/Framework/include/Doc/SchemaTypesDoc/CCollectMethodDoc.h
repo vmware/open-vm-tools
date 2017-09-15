@@ -11,6 +11,11 @@
 #ifndef CCollectMethodDoc_h_
 #define CCollectMethodDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CClassIdentifierDoc.h"
+#include "Doc/SchemaTypesDoc/CInstanceParameterDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodParameterDoc.h"
+
 namespace Caf {
 
 /// Definition of a collection method on a class

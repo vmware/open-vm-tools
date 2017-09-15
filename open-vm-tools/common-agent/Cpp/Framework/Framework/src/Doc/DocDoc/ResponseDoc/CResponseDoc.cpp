@@ -9,6 +9,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CStatisticsDoc.h"
+#include "Doc/ResponseDoc/CManifestCollectionDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
 #include "Doc/ResponseDoc/CResponseDoc.h"
 
 using namespace Caf;

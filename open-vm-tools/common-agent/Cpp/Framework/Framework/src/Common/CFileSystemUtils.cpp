@@ -7,6 +7,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Exception/CCafException.h"
 #include "CFileSystemUtils.h"
 #include "../Collections/Iterators/IteratorsInc.h"
 #ifdef WIN32

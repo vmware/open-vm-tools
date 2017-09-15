@@ -7,7 +7,17 @@
  */
 
 #include "stdafx.h"
-#include "CachingConnectionFactory.h"
+
+#include "amqpClient/amqpImpl/BasicProperties.h"
+#include "Exception/CCafException.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "amqpClient/api/AmqpMethods.h"
+#include "amqpClient/api/Channel.h"
+#include "amqpClient/api/Consumer.h"
+#include "amqpClient/api/GetResponse.h"
+#include "amqpClient/api/ReturnListener.h"
+#include "amqpClient/api/amqpClient.h"
+#include "amqpCore/CachingConnectionFactory.h"
 
 using namespace Caf::AmqpIntegration;
 

@@ -7,7 +7,15 @@ G *	 Author: bwilliams
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Exception/CCafException.h"
 #include "CVersionTransformerInstance.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
 
 using namespace Caf;
 

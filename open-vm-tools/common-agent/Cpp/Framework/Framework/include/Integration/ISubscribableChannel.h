@@ -9,6 +9,9 @@
 #ifndef _IntegrationContracts_ISubscribableChannel_h_
 #define _IntegrationContracts_ISubscribableChannel_h_
 
+
+#include "Integration/IMessageHandler.h"
+
 namespace Caf {
 
 /// TODO - describe interface

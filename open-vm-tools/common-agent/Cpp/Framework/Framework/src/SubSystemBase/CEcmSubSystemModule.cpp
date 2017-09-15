@@ -6,6 +6,7 @@
  */
 
 #include "stdafx.h"
+#include "Exception/CCafException.h"
 #include "CEcmSubSystemModule.h"
 #include "CEcmSubSystemRegistry.h"
 #include "CEcmDllManager.h"

@@ -6,7 +6,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
 #include "CMessagePartsHeader.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

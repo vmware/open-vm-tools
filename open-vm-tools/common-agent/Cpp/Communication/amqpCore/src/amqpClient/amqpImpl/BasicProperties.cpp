@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "BasicProperties.h"
+
+#include "amqpClient/CAmqpFrame.h"
+#include "amqpClient/api/amqpClient.h"
+#include "Exception/CCafException.h"
+#include "amqpClient/amqpImpl/BasicProperties.h"
 
 using namespace Caf::AmqpClient;
 

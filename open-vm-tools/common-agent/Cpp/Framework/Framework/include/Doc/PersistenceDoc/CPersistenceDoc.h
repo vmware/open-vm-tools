@@ -10,6 +10,11 @@
 #ifndef CPersistenceDoc_h_
 #define CPersistenceDoc_h_
 
+
+#include "Doc/PersistenceDoc/CLocalSecurityDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolCollectionDoc.h"
+#include "Doc/PersistenceDoc/CRemoteSecurityCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type PersistenceEnvelope

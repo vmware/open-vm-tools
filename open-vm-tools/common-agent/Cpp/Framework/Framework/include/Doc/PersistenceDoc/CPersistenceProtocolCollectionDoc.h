@@ -11,6 +11,9 @@
 #ifndef CPersistenceProtocolCollectionDoc_h_
 #define CPersistenceProtocolCollectionDoc_h_
 
+
+#include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type PersistenceProtocolCollection

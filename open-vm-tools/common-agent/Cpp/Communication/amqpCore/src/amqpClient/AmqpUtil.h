@@ -9,6 +9,9 @@
 #ifndef AMQPCORE_AMQPUTIL_H_
 #define AMQPCORE_AMQPUTIL_H_
 
+#include "amqpClient/CAmqpChannel.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+
 namespace Caf { namespace AmqpClient {
 
 class AmqpUtil {

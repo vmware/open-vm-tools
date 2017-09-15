@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/DiagTypesDoc/CDiagBatchDoc.h"
 #include "Doc/DiagRequestDoc/CDiagRequestDoc.h"
 
 using namespace Caf;

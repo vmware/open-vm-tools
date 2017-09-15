@@ -10,6 +10,7 @@
 #define TEDGELISTGRAPH_H_
 
 #include <set>
+#include "Exception/CCafException.h"
 #include <map>
 #include <list>
 #include <algorithm>

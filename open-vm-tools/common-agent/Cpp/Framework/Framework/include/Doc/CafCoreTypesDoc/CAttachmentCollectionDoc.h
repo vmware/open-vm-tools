@@ -11,6 +11,10 @@
 #ifndef CAttachmentCollectionDoc_h_
 #define CAttachmentCollectionDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/CInlineAttachmentDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type AttachmentCollection

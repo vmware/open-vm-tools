@@ -7,7 +7,13 @@
  */
 
 #include "stdafx.h"
-#include "CApplicationContext.h"
+
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Common/CApplicationContext.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
 
 using namespace Caf;
 

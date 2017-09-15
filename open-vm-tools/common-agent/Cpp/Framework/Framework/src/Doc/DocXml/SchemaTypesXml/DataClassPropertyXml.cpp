@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "DataClassPropertyXml.h"
+
+#include "Doc/DocXml/SchemaTypesXml/CmdlMetadataXml.h"
+
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassPropertyDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/DataClassPropertyXml.h"
 
 using namespace Caf;
 

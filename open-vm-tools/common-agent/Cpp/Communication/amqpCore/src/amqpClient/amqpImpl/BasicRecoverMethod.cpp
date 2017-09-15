@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "BasicRecoverMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/BasicRecoverMethod.h"
 
 using namespace Caf::AmqpClient;
 

@@ -7,7 +7,7 @@
  */
 
 #include "stdafx.h"
-#include "FileHeaders.h"
+#include "Integration/Core/FileHeaders.h"
 
 namespace Caf {
 	namespace FileHeaders {

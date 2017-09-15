@@ -9,6 +9,14 @@
 #ifndef _MaIntegration_CPersistenceMessageHandler_h_
 #define _MaIntegration_CPersistenceMessageHandler_h_
 
+
+#include "Integration/IErrorProcessor.h"
+
+#include "IPersistence.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageHandler.h"
+
 namespace Caf {
 
 class CPersistenceMessageHandler :

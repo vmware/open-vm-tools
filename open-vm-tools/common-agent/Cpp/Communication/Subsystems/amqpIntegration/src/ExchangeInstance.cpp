@@ -7,6 +7,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/IDocument.h"
+#include "amqpCore/Binding.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
 #include "ExchangeInstance.h"
 #include "BindingInstance.h"
 

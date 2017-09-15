@@ -9,6 +9,11 @@
 #ifndef _IntegrationContracts_IINTEGRATIONAPPCONTEXTAWARE_H_
 #define _IntegrationContracts_IINTEGRATIONAPPCONTEXTAWARE_H_
 
+
+#include "ICafObject.h"
+
+#include "Integration/IIntegrationAppContext.h"
+
 namespace Caf {
 
 struct __declspec(novtable) IIntegrationAppContextAware : public ICafObject {

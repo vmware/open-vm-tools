@@ -9,6 +9,7 @@
  */
 
 #include "stdafx.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
 #include "Doc/CafCoreTypesDoc/CPropertyDoc.h"
 
 using namespace Caf;

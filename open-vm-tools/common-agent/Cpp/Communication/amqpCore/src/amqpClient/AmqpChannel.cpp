@@ -7,6 +7,10 @@
  */
 
 #include "stdafx.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/CAmqpFrame.h"
+#include "AmqpChannel.h"
 #include "AmqpUtil.h"
 
 using namespace Caf::AmqpClient;

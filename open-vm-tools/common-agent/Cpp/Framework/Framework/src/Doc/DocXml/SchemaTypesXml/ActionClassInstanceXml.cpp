@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "ActionClassInstanceXml.h"
+
+#include "Doc/DocXml/SchemaTypesXml/InstanceOperationCollectionXml.h"
+
+#include "Doc/SchemaTypesDoc/CActionClassInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CInstanceOperationCollectionDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/ActionClassInstanceXml.h"
 
 using namespace Caf;
 

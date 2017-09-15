@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "CChannelResolver.h"
+
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/Core/CChannelResolver.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

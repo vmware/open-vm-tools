@@ -8,6 +8,13 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassPropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassSubInstanceDoc.h"
+#include "Integration/IDocument.h"
+#include "Xml/XmlUtils/CXmlElement.h"
 #include "DefnObjectConverter.h"
 
 using namespace Caf;

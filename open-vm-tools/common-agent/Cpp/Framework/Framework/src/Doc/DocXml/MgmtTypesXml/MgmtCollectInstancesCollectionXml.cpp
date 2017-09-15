@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "MgmtCollectInstancesCollectionXml.h"
+
+#include "Doc/DocXml/MgmtTypesXml/MgmtCollectInstancesXml.h"
+
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/MgmtTypesXml/MgmtCollectInstancesCollectionXml.h"
 
 using namespace Caf;
 

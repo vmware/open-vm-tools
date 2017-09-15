@@ -9,6 +9,15 @@
 #include "stdafx.h"
 
 #include "CXPathHeaderEnricherItem.h"
+#include "Common/IAppContext.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
+
 #include "CXPathHeaderEnricherTransformerInstance.h"
 
 using namespace Caf;

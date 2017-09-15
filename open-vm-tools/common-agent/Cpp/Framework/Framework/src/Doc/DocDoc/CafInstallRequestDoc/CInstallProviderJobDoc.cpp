@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+#include "Doc/CafInstallRequestDoc/CafInstallRequestDocTypes.h"
+
+#include "Doc/CafInstallRequestDoc/CFullPackageElemDoc.h"
 #include "Doc/CafInstallRequestDoc/CInstallProviderJobDoc.h"
 
 using namespace Caf;

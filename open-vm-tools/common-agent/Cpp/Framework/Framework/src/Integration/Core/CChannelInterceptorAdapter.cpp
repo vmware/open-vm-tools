@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "CChannelInterceptorAdapter.h"
+
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/Core/CChannelInterceptorAdapter.h"
 
 CChannelInterceptorAdapter::CChannelInterceptorAdapter() {
 }

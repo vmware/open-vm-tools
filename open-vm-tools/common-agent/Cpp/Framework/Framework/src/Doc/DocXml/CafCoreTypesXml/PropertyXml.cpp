@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "PropertyXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
+#include "Doc/CafCoreTypesDoc/CPropertyDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/PropertyXml.h"
 
 using namespace Caf;
 

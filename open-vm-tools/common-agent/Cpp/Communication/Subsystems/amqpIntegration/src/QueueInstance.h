@@ -9,6 +9,11 @@
 #ifndef QUEUEINSTANCE_H_
 #define QUEUEINSTANCE_H_
 
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IDocument.h"
+#include "amqpCore/Queue.h"
+#include "amqpCore/QueueInternal.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

@@ -11,6 +11,12 @@
 
 #include <DocContracts.h>
 
+#include "Doc/PersistenceDoc/CLocalSecurityDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolCollectionDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
+#include "Doc/PersistenceDoc/CRemoteSecurityCollectionDoc.h"
+
 namespace Caf {
 
 class COMMONAGGREGATOR_LINKAGE CPersistenceUtils {

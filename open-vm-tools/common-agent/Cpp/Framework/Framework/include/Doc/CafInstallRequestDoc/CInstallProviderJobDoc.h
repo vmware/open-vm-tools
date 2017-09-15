@@ -11,6 +11,10 @@
 #ifndef CInstallProviderJobDoc_h_
 #define CInstallProviderJobDoc_h_
 
+
+#include "Doc/CafInstallRequestDoc/CFullPackageElemDoc.h"
+#include "Doc/CafInstallRequestDoc/CafInstallRequestDocTypes.h"
+
 namespace Caf {
 
 /// A simple container for objects of type InstallProviderJob

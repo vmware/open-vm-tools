@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "CCafMessageHeadersWriter.h"
+
+#include "Integration/IIntMessage.h"
+#include "Integration/Caf/CCafMessageHeadersWriter.h"
+#include "Integration/Core/FileHeaders.h"
+#include "Integration/Core/MessageHeaders.h"
 
 using namespace Caf;
 

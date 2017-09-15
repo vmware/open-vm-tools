@@ -11,6 +11,11 @@
 #ifndef CInstallRequestDoc_h_
 #define CInstallRequestDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallBatchDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type InstallRequest

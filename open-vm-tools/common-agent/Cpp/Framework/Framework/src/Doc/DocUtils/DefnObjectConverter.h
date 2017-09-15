@@ -10,6 +10,12 @@
 #ifndef DefnObjectConverter_h_
 #define DefnObjectConverter_h_
 
+
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassSubInstanceDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+
 namespace Caf {
 class DOCUTILS_LINKAGE DefnObjectConverter {
 public:

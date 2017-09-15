@@ -12,6 +12,14 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/ProviderInfraXml/ProviderRegXml.h"
+#include "Doc/DocXml/ProviderInfraXml/SchemaSummaryXml.h"
+
+#include "Doc/ProviderInfraDoc/CProviderRegDoc.h"
+#include "Doc/ProviderInfraDoc/CSchemaSummaryDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderInfraXml/ProviderInfraXmlRoots.h"
+
 using namespace Caf;
 
 std::string XmlRoots::saveProviderRegToString(

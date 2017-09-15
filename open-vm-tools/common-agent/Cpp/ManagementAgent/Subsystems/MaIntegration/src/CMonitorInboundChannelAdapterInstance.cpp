@@ -7,8 +7,17 @@
  */
 
 #include "stdafx.h"
-#include "CMonitorInboundChannelAdapterInstance.h"
+
 #include "CMonitorReadingMessageSource.h"
+#include "Common/IAppContext.h"
+#include "Integration/Core/CErrorHandler.h"
+#include "Integration/Core/CMessageHandler.h"
+#include "Integration/Core/CSimpleAsyncTaskExecutor.h"
+#include "Integration/Core/CSourcePollingChannelAdapter.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IMessageChannel.h"
+#include "CMonitorInboundChannelAdapterInstance.h"
 
 using namespace Caf;
 

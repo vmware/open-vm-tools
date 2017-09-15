@@ -11,6 +11,8 @@
 #ifndef CUninstallProviderJobDoc_h_
 #define CUninstallProviderJobDoc_h_
 
+#include "Doc/CafInstallRequestDoc/CafInstallRequestDocTypes.h"
+
 namespace Caf {
 
 /// A simple container for objects of type UninstallProviderJob

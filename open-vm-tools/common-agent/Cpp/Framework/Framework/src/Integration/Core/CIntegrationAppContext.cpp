@@ -7,7 +7,28 @@
  */
 
 #include "stdafx.h"
-#include "CIntegrationAppContext.h"
+
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "Integration/Core/CChannelResolver.h"
+#include "Integration/Core/CDocument.h"
+#include "Integration/IChannelInterceptor.h"
+#include "Integration/IChannelInterceptorInstance.h"
+#include "Integration/IChannelInterceptorSupport.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationAppContext.h"
+#include "Integration/IIntegrationAppContextAware.h"
+#include "Integration/IIntegrationComponent.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ILifecycle.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/IMessageProducer.h"
+#include "Integration/IPhased.h"
+#include "Integration/ISmartLifecycle.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Integration/Core/CIntegrationAppContext.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

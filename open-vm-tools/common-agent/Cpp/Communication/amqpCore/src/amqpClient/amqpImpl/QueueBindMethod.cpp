@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "QueueBindMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/api/amqpClient.h"
+#include "amqpClient/amqpImpl/QueueBindMethod.h"
 
 using namespace Caf::AmqpClient;
 

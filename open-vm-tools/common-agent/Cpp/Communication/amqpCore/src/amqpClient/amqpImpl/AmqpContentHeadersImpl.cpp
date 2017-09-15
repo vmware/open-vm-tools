@@ -8,6 +8,9 @@
 
 #include "stdafx.h"
 
+#include "amqpClient/amqpImpl/BasicProperties.h"
+#include "amqpClient/api/amqpClient.h"
+
 using namespace Caf::AmqpClient;
 
 const uint32 AmqpContentHeaders::BASIC_PROPERTY_CONTENT_TYPE_FLAG			= 0x8000;

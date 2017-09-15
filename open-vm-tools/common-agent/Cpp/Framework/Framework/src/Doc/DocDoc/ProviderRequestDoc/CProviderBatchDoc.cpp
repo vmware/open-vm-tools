@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationCollectionDoc.h"
 #include "Doc/ProviderRequestDoc/CProviderBatchDoc.h"
 
 using namespace Caf;

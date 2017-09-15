@@ -9,6 +9,9 @@
 #ifndef TBLOCKINGCELL_H_
 #define TBLOCKINGCELL_H_
 
+#include "Common/CThreadSignal.h"
+#include "Exception/CCafException.h"
+
 namespace Caf {
 
 /**

@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "ParameterCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestInstanceParameterDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestParameterDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/ParameterCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestParameterXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestInstanceParameterXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestParameterXml.h"
 
 using namespace Caf;
 

@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "MgmtInvokeOperationXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/ClassSpecifierXml.h"
+
+#include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
+#include "Doc/CafCoreTypesDoc/COperationDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/MgmtTypesXml/MgmtInvokeOperationXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/OperationXml.h"
 
 using namespace Caf;
 

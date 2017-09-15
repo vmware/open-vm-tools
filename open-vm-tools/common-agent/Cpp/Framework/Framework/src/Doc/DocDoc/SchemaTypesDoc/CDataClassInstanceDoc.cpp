@@ -9,6 +9,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/SchemaTypesDoc/CCmdlMetadataDoc.h"
+#include "Doc/SchemaTypesDoc/CCmdlUnionDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassPropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassSubInstanceDoc.h"
 #include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
 
 using namespace Caf;

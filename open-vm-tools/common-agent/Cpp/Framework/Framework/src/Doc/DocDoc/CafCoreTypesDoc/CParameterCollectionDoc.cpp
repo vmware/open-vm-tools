@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CRequestInstanceParameterDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestParameterDoc.h"
 #include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
 
 using namespace Caf;

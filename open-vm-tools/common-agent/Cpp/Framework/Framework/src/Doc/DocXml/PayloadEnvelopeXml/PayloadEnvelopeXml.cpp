@@ -8,7 +8,17 @@
  */
 
 #include "stdafx.h"
-#include "PayloadEnvelopeXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/PropertyCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/ProtocolCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CProtocolCollectionDoc.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/PayloadEnvelopeXml/PayloadEnvelopeXml.h"
 
 using namespace Caf;
 

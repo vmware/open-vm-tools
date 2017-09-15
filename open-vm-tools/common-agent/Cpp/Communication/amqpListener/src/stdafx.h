@@ -16,6 +16,5 @@
 #include "CWinService.h"
 #endif
 
-#include "../../amqpCore/src/amqpClient/api/amqpClient.h"
 
 #endif /* stdafx_h */

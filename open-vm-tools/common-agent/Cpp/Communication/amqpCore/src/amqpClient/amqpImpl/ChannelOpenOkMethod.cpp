@@ -7,6 +7,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
 #include "ChannelOpenOkMethod.h"
 
 using namespace Caf::AmqpClient;

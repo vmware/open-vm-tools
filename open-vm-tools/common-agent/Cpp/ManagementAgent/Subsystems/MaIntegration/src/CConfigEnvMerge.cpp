@@ -7,6 +7,13 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/PersistenceDoc/CCertCollectionDoc.h"
+#include "Doc/PersistenceDoc/CLocalSecurityDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolCollectionDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
+#include "Exception/CCafException.h"
 #include "CConfigEnvMerge.h"
 
 #ifdef WIN32

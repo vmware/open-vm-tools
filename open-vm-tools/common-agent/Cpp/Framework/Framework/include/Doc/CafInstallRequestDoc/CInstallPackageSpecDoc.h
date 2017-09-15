@@ -11,6 +11,10 @@
 #ifndef CInstallPackageSpecDoc_h_
 #define CInstallPackageSpecDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentNameCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type InstallPackageSpec

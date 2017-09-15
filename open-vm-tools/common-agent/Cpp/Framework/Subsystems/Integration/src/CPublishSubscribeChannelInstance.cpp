@@ -7,6 +7,16 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/Core/CBroadcastingDispatcher.h"
+#include "Integration/Core/CErrorHandler.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/IMessageHandler.h"
+#include "Exception/CCafException.h"
 #include "CPublishSubscribeChannelInstance.h"
 
 using namespace Caf;

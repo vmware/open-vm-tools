@@ -7,6 +7,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Exception/CCafException.h"
 #include "CPackageExecutor.h"
 
 using namespace Caf;

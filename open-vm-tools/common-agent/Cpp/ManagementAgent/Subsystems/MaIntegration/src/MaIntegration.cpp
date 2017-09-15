@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
+#include "MaIntegration.h"
 #include "IntegrationObjects.h"
+#include "CAttachmentRequestTransformerInstance.h"
+#include "CDiagToMgmtRequestTransformerInstance.h"
+#include "CSinglePmeRequestSplitterInstance.h"
 
 namespace Caf {
 

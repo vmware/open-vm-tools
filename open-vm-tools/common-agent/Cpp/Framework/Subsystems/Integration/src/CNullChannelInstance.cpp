@@ -7,6 +7,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
 #include "CNullChannelInstance.h"
 
 using namespace Caf;

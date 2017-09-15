@@ -7,7 +7,15 @@
  */
 
 #include "stdafx.h"
-#include "CSimpleAsyncTaskExecutor.h"
+
+#include "Common/CAutoMutex.h"
+#include "Integration/Core/CIntException.h"
+#include "Integration/Core/CSimpleAsyncTaskExecutorState.h"
+#include "Integration/IErrorHandler.h"
+#include "Integration/IRunnable.h"
+#include "Integration/ITaskExecutor.h"
+#include "Integration/Core/CSimpleAsyncTaskExecutor.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

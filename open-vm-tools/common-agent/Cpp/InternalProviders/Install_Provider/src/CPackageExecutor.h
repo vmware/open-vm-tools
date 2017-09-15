@@ -9,6 +9,10 @@
 #ifndef CPackageExecutor_h_
 #define CPackageExecutor_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+
 namespace Caf {
 
 /// Utilities used in the install process.

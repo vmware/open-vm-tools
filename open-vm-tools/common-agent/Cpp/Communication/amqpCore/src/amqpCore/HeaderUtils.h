@@ -9,6 +9,9 @@
 #ifndef AMQPINTEGRATIONCORE_HEADERUTILS_H_
 #define AMQPINTEGRATIONCORE_HEADERUTILS_H_
 
+#include "Common/CVariant.h"
+#include "Integration/IIntMessage.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

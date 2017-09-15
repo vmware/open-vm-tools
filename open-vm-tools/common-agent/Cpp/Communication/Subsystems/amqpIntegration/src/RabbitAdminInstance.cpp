@@ -7,6 +7,20 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationAppContext.h"
+#include "Integration/IIntegrationObject.h"
+#include "amqpCore/Binding.h"
+#include "amqpCore/BindingInternal.h"
+#include "amqpClient/api/ConnectionFactory.h"
+#include "amqpCore/Exchange.h"
+#include "amqpCore/ExchangeInternal.h"
+#include "amqpCore/Queue.h"
+#include "amqpCore/QueueInternal.h"
 #include "RabbitAdminInstance.h"
 
 using namespace Caf::AmqpIntegration;

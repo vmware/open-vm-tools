@@ -9,6 +9,21 @@
 #ifndef RABBITADMININSTANCE_H_
 #define RABBITADMININSTANCE_H_
 
+
+#include "Integration/IIntegrationAppContextAware.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationAppContext.h"
+#include "amqpCore/Binding.h"
+#include "amqpCore/Exchange.h"
+#include "amqpCore/Queue.h"
+#include "amqpCore/RabbitAdmin.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ILifecycle.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

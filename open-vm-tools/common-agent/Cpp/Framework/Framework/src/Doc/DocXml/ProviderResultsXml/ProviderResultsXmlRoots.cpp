@@ -12,6 +12,14 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/ProviderResultsXml/CdifXml.h"
+#include "Doc/DocXml/ProviderResultsXml/SchemaXml.h"
+
+#include "Doc/ProviderResultsDoc/CCdifDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderResultsXml/ProviderResultsXmlRoots.h"
+
 using namespace Caf;
 
 std::string XmlRoots::saveSchemaToString(

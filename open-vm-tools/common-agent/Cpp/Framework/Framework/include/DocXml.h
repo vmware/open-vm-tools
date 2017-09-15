@@ -12,19 +12,19 @@
 #include <CommonDefines.h>
 #include <DocContracts.h>
 
-#include "../src/Doc/DocXml/CafCoreTypesXml/CafCoreTypesXmlLink.h"
-#include "../src/Doc/DocXml/SchemaTypesXml/SchemaTypesXmlLink.h"
-#include "../src/Doc/DocXml/DiagTypesXml/DiagTypesXmlLink.h"
-#include "../src/Doc/DocXml/DiagRequestXml/DiagRequestXmlLink.h"
-#include "../src/Doc/DocXml/MgmtTypesXml/MgmtTypesXmlLink.h"
-#include "../src/Doc/DocXml/MgmtRequestXml/MgmtRequestXmlLink.h"
-#include "../src/Doc/DocXml/PayloadEnvelopeXml/PayloadEnvelopeXmlLink.h"
-#include "../src/Doc/DocXml/PersistenceXml/PersistenceXmlLink.h"
-#include "../src/Doc/DocXml/ProviderInfraXml/ProviderInfraXmlLink.h"
-#include "../src/Doc/DocXml/ProviderRequestXml/ProviderRequestXmlLink.h"
-#include "../src/Doc/DocXml/ProviderResultsXml/ProviderResultsXmlLink.h"
-#include "../src/Doc/DocXml/ResponseXml/ResponseXmlLink.h"
-#include "../src/Doc/DocXml/CafInstallRequestXml/CafInstallRequestXmlLink.h"
-#include "../src/Doc/DocXml/MultiPmeMgmtRequestXml/MultiPmeMgmtRequestXmlLink.h"
+#include "Doc/DocXml/CafCoreTypesXml/CafCoreTypesXmlLink.h"
+#include "Doc/DocXml/SchemaTypesXml/SchemaTypesXmlLink.h"
+#include "Doc/DocXml/DiagTypesXml/DiagTypesXmlLink.h"
+#include "Doc/DocXml/DiagRequestXml/DiagRequestXmlLink.h"
+#include "Doc/DocXml/MgmtTypesXml/MgmtTypesXmlLink.h"
+#include "Doc/DocXml/MgmtRequestXml/MgmtRequestXmlLink.h"
+#include "Doc/DocXml/PayloadEnvelopeXml/PayloadEnvelopeXmlLink.h"
+#include "Doc/DocXml/PersistenceXml/PersistenceXmlLink.h"
+#include "Doc/DocXml/ProviderInfraXml/ProviderInfraXmlLink.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestXmlLink.h"
+#include "Doc/DocXml/ProviderResultsXml/ProviderResultsXmlLink.h"
+#include "Doc/DocXml/ResponseXml/ResponseXmlLink.h"
+#include "Doc/DocXml/CafInstallRequestXml/CafInstallRequestXmlLink.h"
+#include "Doc/DocXml/MgmtRequestXml/MgmtRequestXmlLink.h"
 
 #endif /* COMMON_SYS_INC_DOCXML_H_ */

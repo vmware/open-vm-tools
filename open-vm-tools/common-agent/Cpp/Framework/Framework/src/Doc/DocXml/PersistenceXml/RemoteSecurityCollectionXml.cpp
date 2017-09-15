@@ -8,7 +8,13 @@
  */
 
 #include "stdafx.h"
-#include "RemoteSecurityCollectionXml.h"
+
+#include "Doc/DocXml/PersistenceXml/RemoteSecurityXml.h"
+
+#include "Doc/PersistenceDoc/CRemoteSecurityCollectionDoc.h"
+#include "Doc/PersistenceDoc/CRemoteSecurityDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/PersistenceXml/RemoteSecurityCollectionXml.h"
 
 using namespace Caf;
 

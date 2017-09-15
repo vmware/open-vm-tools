@@ -6,6 +6,7 @@
  */
 
 #include "stdafx.h"
+#include "Exception/CCafException.h"
 #include "EcmSubSystemBase.h"
 #include <string.h>
 #include <stdlib.h>

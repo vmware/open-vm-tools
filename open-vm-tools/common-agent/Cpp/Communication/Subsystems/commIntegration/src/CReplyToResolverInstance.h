@@ -9,7 +9,11 @@
 #ifndef CReplyToResolverInstance_h
 #define CReplyToResolverInstance_h
 
+#include "IBean.h"
+#include "IVariant.h"
 #include "ReplyToResolver.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IExpressionInvoker.h"
 
 namespace Caf {
 

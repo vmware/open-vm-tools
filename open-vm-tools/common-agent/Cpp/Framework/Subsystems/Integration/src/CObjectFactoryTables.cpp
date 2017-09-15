@@ -7,6 +7,8 @@
  */
 
 #include "stdafx.h"
+
+#include "CMessageHandlerChainInstance.h"
 #include "CObjectFactoryTables.h"
 #include "CServiceActivatorInstance.h"
 #include "CWireTapInstance.h"
@@ -19,9 +21,7 @@
 #include "CPayloadContentRouterInstance.h"
 #include "CLoggingChannelAdapterInstance.h"
 #include "CRecipientListRouterInstance.h"
-#include "CMessageHandlerChainInstance.h"
 #include "CRouterInstance.h"
-#include "CXPathHeaderEnricherItem.h"
 #include "CXPathHeaderEnricherTransformerInstance.h"
 
 using namespace Caf;

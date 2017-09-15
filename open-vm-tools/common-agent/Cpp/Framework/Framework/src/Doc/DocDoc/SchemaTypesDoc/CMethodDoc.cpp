@@ -9,6 +9,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/SchemaTypesDoc/CClassIdentifierDoc.h"
+#include "Doc/SchemaTypesDoc/CInstanceParameterDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodParameterDoc.h"
 #include "Doc/SchemaTypesDoc/CMethodDoc.h"
 
 using namespace Caf;

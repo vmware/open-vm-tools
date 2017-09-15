@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/DiagRequestDoc/DiagRequestDocInc.h"
 
 #endif /* DiagRequestDoc_Link_h_ */

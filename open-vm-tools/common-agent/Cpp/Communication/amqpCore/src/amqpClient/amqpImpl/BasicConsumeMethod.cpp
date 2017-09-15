@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "BasicConsumeMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/api/amqpClient.h"
+#include "amqpClient/amqpImpl/BasicConsumeMethod.h"
 
 using namespace Caf::AmqpClient;
 

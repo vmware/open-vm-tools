@@ -7,6 +7,14 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/Caf/CCafMessagePayload.h"
+#include "Doc/ResponseDoc/CEventKeyDoc.h"
+#include "Doc/ResponseDoc/CManifestDoc.h"
+#include "IVariant.h"
+#include "Integration/IIntMessage.h"
+#include "Common/CCafRegex.h"
+#include "Exception/CCafException.h"
 #include "CEventTopicCalculatorInstance.h"
 
 using namespace Caf;
@@ -79,7 +87,7 @@ SmartPtrIVariant CEventTopicCalculatorInstance::getTopic(
 		const SmartPtrCEventKeyDoc eventKey = *key;
 		topicBld << '.' << replaceDots.replaceLiteral(eventKey->getValue(), "_");
 	}
-	
+
 	return CVariant::createString(topicBld.str());
 }
 

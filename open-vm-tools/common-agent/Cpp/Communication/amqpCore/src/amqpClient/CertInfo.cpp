@@ -7,7 +7,7 @@
  */
 
 #include "stdafx.h"
-#include "api/CertInfo.h"
+#include "amqpClient/api/CertInfo.h"
 
 using namespace Caf::AmqpClient;
 

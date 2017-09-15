@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "FullyQualifiedClassGroupXml.h"
+
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/FullyQualifiedClassGroupXml.h"
 
 using namespace Caf;
 

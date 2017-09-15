@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
 #include "Doc/SchemaTypesDoc/CDataClassInstanceCollectionDoc.h"
 
 using namespace Caf;

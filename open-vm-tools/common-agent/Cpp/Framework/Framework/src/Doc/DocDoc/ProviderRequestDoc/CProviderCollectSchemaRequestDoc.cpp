@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
 #include "Doc/ProviderRequestDoc/CProviderCollectSchemaRequestDoc.h"
 
 using namespace Caf;

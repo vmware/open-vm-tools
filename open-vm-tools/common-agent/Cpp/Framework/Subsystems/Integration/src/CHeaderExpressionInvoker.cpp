@@ -7,6 +7,10 @@
  */
 
 #include "stdafx.h"
+
+#include "IVariant.h"
+#include "Integration/IIntMessage.h"
+#include "Exception/CCafException.h"
 #include "CHeaderExpressionInvoker.h"
 
 using namespace Caf;

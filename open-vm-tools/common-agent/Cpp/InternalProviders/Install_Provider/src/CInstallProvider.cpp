@@ -7,7 +7,34 @@
  */
 
 #include "stdafx.h"
+#include "Doc/CafInstallRequestDoc/CafInstallRequestDocTypes.h"
+
+#include "CProviderInstaller.h"
+#include "Doc/CafCoreTypesDoc/COperationDoc.h"
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderSpecDoc.h"
+#include "Doc/CafInstallRequestDoc/CMinPackageElemDoc.h"
+#include "Doc/CafInstallRequestDoc/CUninstallProviderJobDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CClassInstancePropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CClassPropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassPropertyDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassSubInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CInstanceParameterDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodParameterDoc.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Exception/CCafException.h"
 #include "CInstallProvider.h"
+#include "IProviderResponse.h"
+#include "IProviderRequest.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
+#include "Integration/Caf/CCafMessagePayload.h"
 
 using namespace Caf;
 

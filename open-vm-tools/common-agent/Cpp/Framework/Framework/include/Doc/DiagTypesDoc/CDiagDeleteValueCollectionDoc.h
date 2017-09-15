@@ -11,6 +11,9 @@
 #ifndef CDiagDeleteValueCollectionDoc_h_
 #define CDiagDeleteValueCollectionDoc_h_
 
+
+#include "Doc/DiagTypesDoc/CDiagDeleteValueDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type DiagDeleteValueCollection

@@ -7,6 +7,12 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
+#include "amqpCore/CachingConnectionFactory.h"
+#include "amqpClient/api/Connection.h"
+#include "amqpCore/ConnectionListener.h"
+#include "Exception/CCafException.h"
 #include "CachingConnectionFactoryObj.h"
 
 using namespace Caf::AmqpIntegration;

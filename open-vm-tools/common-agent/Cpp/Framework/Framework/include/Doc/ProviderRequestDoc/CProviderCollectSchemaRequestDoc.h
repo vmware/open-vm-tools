@@ -11,6 +11,9 @@
 #ifndef CProviderCollectSchemaRequestDoc_h_
 #define CProviderCollectSchemaRequestDoc_h_
 
+
+#include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ProviderCollectSchemaRequest

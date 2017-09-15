@@ -7,7 +7,17 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DocXml/CafInstallRequestXml/CafInstallRequestXmlRoots.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafInstallRequestDoc/CFullPackageElemDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderSpecDoc.h"
+#include "Doc/CafInstallRequestDoc/CMinPackageElemDoc.h"
+#include "Doc/CafInstallRequestDoc/CUninstallProviderJobDoc.h"
 #include "CProviderInstaller.h"
+#include "CPackageInstaller.h"
 
 using namespace Caf;
 

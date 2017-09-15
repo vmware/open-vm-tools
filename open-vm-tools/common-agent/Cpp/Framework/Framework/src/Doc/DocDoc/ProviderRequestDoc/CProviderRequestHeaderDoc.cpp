@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestConfigDoc.h"
 #include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
 
 using namespace Caf;

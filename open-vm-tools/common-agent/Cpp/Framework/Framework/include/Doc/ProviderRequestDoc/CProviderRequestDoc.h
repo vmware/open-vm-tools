@@ -11,6 +11,11 @@
 #ifndef CProviderRequestDoc_h_
 #define CProviderRequestDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderBatchDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ProviderRequest

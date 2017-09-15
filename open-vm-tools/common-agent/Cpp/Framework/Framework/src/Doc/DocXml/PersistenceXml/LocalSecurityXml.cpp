@@ -8,7 +8,10 @@
  */
 
 #include "stdafx.h"
-#include "LocalSecurityXml.h"
+
+#include "Doc/PersistenceDoc/CLocalSecurityDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/PersistenceXml/LocalSecurityXml.h"
 
 using namespace Caf;
 

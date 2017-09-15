@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "JoinTypeXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/DocXml/SchemaTypesXml/ClassFieldXml.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
+#include "Doc/SchemaTypesDoc/CClassFieldDoc.h"
+#include "Doc/SchemaTypesDoc/CJoinTypeDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/JoinTypeXml.h"
 
 using namespace Caf;
 

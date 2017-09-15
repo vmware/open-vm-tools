@@ -9,6 +9,24 @@
 #ifndef CInstallToMgmtRequestTransformerInstance_h_
 #define CInstallToMgmtRequestTransformerInstance_h_
 
+
+#include "Integration/IIntegrationComponentInstance.h"
+
+#include "Common/IAppContext.h"
+#include "Doc/CafCoreTypesDoc/COperationDoc.h"
+#include "Doc/CafInstallRequestDoc/CGetInventoryJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CUninstallProviderJobDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationDoc.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ITransformer.h"
+
 namespace Caf {
 
 class CInstallToMgmtRequestTransformerInstance :

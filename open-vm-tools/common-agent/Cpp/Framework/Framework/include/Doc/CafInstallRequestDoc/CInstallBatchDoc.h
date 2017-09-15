@@ -11,6 +11,11 @@
 #ifndef CInstallBatchDoc_h_
 #define CInstallBatchDoc_h_
 
+
+#include "Doc/CafInstallRequestDoc/CGetInventoryJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CUninstallProviderJobDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type InstallBatch

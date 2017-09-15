@@ -9,6 +9,14 @@
 #ifndef CProviderDriver_h_
 #define CProviderDriver_h_
 
+
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Doc/ProviderResultsDoc/CRequestIdentifierDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+
 namespace Caf {
 
 struct IInvokedProvider; // Forward declaration

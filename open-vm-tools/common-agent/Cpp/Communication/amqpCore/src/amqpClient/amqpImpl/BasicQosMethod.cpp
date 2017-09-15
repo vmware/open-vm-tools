@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "BasicQosMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/BasicQosMethod.h"
 
 using namespace Caf::AmqpClient;
 

@@ -11,7 +11,17 @@
  */
 
 #include "stdafx.h"
-#include "ProviderRequestXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentCollectionXml.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderBatchXml.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestHeaderXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderBatchDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestXml.h"
 
 using namespace Caf;
 

@@ -4,7 +4,8 @@
  */
 
 #include "stdafx.h"
-#include "CLoggingSetter.h"
+#include "Common/CLoggingSetter.h"
+#include "Common/CLoggingUtils.h"
 
 using namespace Caf;
 

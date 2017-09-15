@@ -7,6 +7,9 @@
  */
 
 #include "stdafx.h"
+
+#include "CMessagePartDescriptorSourceRecord.h"
+#include "Integration/IIntMessage.h"
 #include "CMessageDeliveryRecord.h"
 
 using namespace Caf;

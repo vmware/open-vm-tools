@@ -6,6 +6,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
 #include "CMessagePartsParser.h"
 
 using namespace Caf;

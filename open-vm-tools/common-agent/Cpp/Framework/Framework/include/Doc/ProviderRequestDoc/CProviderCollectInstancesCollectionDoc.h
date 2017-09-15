@@ -11,6 +11,9 @@
 #ifndef CProviderCollectInstancesCollectionDoc_h_
 #define CProviderCollectInstancesCollectionDoc_h_
 
+
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ProviderCollectInstancesCollection

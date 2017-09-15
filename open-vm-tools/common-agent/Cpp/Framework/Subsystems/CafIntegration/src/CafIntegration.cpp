@@ -8,6 +8,8 @@
 
 #include "stdafx.h"
 
+#include "CEnvelopeToPayloadTransformerInstance.h"
+
 using namespace Caf;
 
 namespace Caf {

@@ -9,6 +9,14 @@
 #ifndef CProviderRequest_h_
 #define CProviderRequest_h_
 
+
+#include "IProviderRequest.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+
 namespace Caf {
 
 // Request information forwarded to the provider

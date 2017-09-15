@@ -7,6 +7,19 @@
  */
 
 #include "stdafx.h"
+
+#include "CProviderExecutorRequest.h"
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "Integration/Core/CErrorHandler.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IIntegrationComponent.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ITransformer.h"
+#include "Exception/CCafException.h"
 #include "CProviderExecutor.h"
 
 using namespace Caf;

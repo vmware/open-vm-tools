@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "DiagCollectInstancesXml.h"
+
+#include "Doc/DiagTypesDoc/CDiagCollectInstancesDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/DiagTypesXml/DiagCollectInstancesXml.h"
 
 using namespace Caf;
 

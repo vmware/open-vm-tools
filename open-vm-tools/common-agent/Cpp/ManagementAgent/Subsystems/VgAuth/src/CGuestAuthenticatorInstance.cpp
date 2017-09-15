@@ -7,6 +7,24 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/Caf/CCafMessagePayload.h"
+#include "CVgAuthImpersonation.h"
+#include "CVgAuthInitializer.h"
+#include "CVgAuthContext.h"
+#include "CVgAuthUserHandle.h"
+#include "Common/IAppContext.h"
+#include "Doc/CafCoreTypesDoc/CAuthnAuthzCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAuthnAuthzDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "ICafObject.h"
+#include "IVgAuthImpersonation.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Integration/Core/CIntMessageHeaders.h"
 #include "CGuestAuthenticatorInstance.h"
 
 using namespace Caf;

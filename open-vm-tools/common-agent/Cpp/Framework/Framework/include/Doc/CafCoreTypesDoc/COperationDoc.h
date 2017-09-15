@@ -11,6 +11,9 @@
 #ifndef COperationDoc_h_
 #define COperationDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type Operation

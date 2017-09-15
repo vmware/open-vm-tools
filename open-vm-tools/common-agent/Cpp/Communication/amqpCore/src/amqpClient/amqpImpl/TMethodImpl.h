@@ -9,6 +9,9 @@
 #ifndef TMETHODIMPL_H_
 #define TMETHODIMPL_H_
 
+
+#include "amqpClient/amqpImpl/IMethod.h"
+
 namespace Caf { namespace AmqpClient {
 
 /**

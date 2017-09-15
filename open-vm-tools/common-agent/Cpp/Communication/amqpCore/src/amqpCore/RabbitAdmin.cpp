@@ -7,7 +7,15 @@
  */
 
 #include "stdafx.h"
-#include "RabbitAdmin.h"
+
+#include "Common/CVariant.h"
+#include "amqpClient/api/AmqpMethods.h"
+#include "amqpClient/api/Channel.h"
+#include "amqpCore/Binding.h"
+#include "amqpClient/api/ConnectionFactory.h"
+#include "amqpCore/Exchange.h"
+#include "amqpCore/Queue.h"
+#include "amqpCore/RabbitAdmin.h"
 
 using namespace Caf::AmqpIntegration;
 

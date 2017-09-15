@@ -11,7 +11,17 @@
  */
 
 #include "stdafx.h"
-#include "InstallBatchXml.h"
+
+#include "Doc/DocXml/CafInstallRequestXml/GetInventoryJobXml.h"
+#include "Doc/DocXml/CafInstallRequestXml/InstallProviderJobXml.h"
+#include "Doc/DocXml/CafInstallRequestXml/UninstallProviderJobXml.h"
+
+#include "Doc/CafInstallRequestDoc/CGetInventoryJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallBatchDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderJobDoc.h"
+#include "Doc/CafInstallRequestDoc/CUninstallProviderJobDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafInstallRequestXml/InstallBatchXml.h"
 
 using namespace Caf;
 

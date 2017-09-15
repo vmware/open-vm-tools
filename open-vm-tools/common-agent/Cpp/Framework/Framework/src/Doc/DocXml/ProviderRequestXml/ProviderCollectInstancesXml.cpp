@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "ProviderCollectInstancesXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/ParameterCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderCollectInstancesXml.h"
 
 using namespace Caf;
 

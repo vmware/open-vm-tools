@@ -11,6 +11,11 @@
 #ifndef CMgmtRequestDoc_h_
 #define CMgmtRequestDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtBatchDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type MgmtRequest

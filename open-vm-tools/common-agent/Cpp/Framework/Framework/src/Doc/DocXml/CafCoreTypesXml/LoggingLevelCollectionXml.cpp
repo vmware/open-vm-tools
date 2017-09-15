@@ -11,7 +11,12 @@
  */
 
 #include "stdafx.h"
-#include "LoggingLevelCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CLoggingLevelCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CLoggingLevelElemDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/LoggingLevelCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/LoggingLevelElemXml.h"
 
 using namespace Caf;
 

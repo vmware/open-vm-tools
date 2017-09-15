@@ -8,6 +8,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Exception/CCafException.h"
 #include "AttachmentUtils.h"
 
 using namespace Caf;

@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "CMessagingTemplateHandler.h"
+
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageHandler.h"
+#include "Integration/Core/CMessagingTemplateHandler.h"
 
 using namespace Caf;
 

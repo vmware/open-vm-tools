@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "ManifestCollectionXml.h"
+
+#include "Doc/DocXml/ResponseXml/ManifestXml.h"
+
+#include "Doc/ResponseDoc/CManifestCollectionDoc.h"
+#include "Doc/ResponseDoc/CManifestDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ResponseXml/ManifestCollectionXml.h"
 
 using namespace Caf;
 

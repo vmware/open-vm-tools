@@ -11,6 +11,8 @@
 #ifndef CLoggingLevelElemDoc_h_
 #define CLoggingLevelElemDoc_h_
 
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
 namespace Caf {
 
 /// Logging level for a component

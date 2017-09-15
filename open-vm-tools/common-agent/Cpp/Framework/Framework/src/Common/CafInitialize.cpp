@@ -7,6 +7,11 @@
  */
 
 #include "stdafx.h"
+
+#ifdef WIN32
+#include "Common/CWinScm.h"
+#endif
+
 #include "CafInitialize.h"
 
 using namespace Caf;

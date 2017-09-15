@@ -9,6 +9,10 @@
 #ifndef _IntegrationContracts_IErrorHandler_h_
 #define _IntegrationContracts_IErrorHandler_h_
 
+
+#include "Integration/IIntMessage.h"
+#include "Integration/IThrowable.h"
+
 namespace Caf {
 
 /// TODO - describe interface

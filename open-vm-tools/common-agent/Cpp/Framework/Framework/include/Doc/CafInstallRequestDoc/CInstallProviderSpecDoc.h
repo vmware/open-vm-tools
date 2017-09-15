@@ -11,6 +11,9 @@
 #ifndef CInstallProviderSpecDoc_h_
 #define CInstallProviderSpecDoc_h_
 
+
+#include "Doc/CafInstallRequestDoc/CMinPackageElemDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type InstallProviderSpec

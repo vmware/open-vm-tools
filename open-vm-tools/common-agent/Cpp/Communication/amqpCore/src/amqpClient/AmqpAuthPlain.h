@@ -9,6 +9,9 @@
 #ifndef AMQPCORE_AMQPAUTHPLAIN_H_
 #define AMQPCORE_AMQPAUTHPLAIN_H_
 
+
+#include "amqpClient/CAmqpAuthMechanism.h"
+
 namespace Caf { namespace AmqpClient {
 
 #define	SHA256_HASH_LEN	32

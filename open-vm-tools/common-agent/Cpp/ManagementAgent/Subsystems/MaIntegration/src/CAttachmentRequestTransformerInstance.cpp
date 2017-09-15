@@ -7,7 +7,17 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
 #include "CAttachmentRequestTransformerInstance.h"
+#include "Exception/CCafException.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
+#include "Integration/Caf/CCafMessageCreator.h"
 
 using namespace Caf;
 

@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "ProviderRequestHeaderXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/PropertyCollectionXml.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestConfigXml.h"
+
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestConfigDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestHeaderXml.h"
 
 using namespace Caf;
 

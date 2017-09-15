@@ -11,6 +11,10 @@
 #ifndef CMultiPmeMgmtRequestDoc_h_
 #define CMultiPmeMgmtRequestDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/MultiPmeMgmtRequestDoc/CMultiPmeMgmtBatchCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type MultiPmeMgmtRequest

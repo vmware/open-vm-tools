@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "RequestInstanceParameterXml.h"
+
+#include "Doc/CafCoreTypesDoc/CRequestInstanceParameterDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestInstanceParameterXml.h"
 
 using namespace Caf;
 

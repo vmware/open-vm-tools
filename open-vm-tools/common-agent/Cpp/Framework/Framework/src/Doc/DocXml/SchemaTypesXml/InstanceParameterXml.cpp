@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "InstanceParameterXml.h"
+
+#include "Doc/SchemaTypesDoc/CInstanceParameterDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/InstanceParameterXml.h"
 
 using namespace Caf;
 

@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/MgmtTypesDoc/MgmtTypesDocInc.h"
 
 #endif /* STDAFX_H_ */

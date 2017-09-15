@@ -7,7 +7,28 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DocXml/ProviderInfraXml/ProviderInfraXmlRoots.h"
+#include "Doc/DocXml/ProviderResultsXml/ProviderResultsXmlRoots.h"
+#include "Doc/DocXml/ResponseXml/ResponseXmlRoots.h"
+
+#include "Common/CLoggingSetter.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
+#include "Doc/ProviderInfraDoc/CClassCollectionDoc.h"
+#include "Doc/ProviderInfraDoc/CProviderRegDoc.h"
+#include "Doc/ProviderInfraDoc/CSchemaSummaryDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/ResponseDoc/CProviderResponseDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassDoc.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Exception/CCafException.h"
 #include "CProviderCollectSchemaExecutor.h"
+#include "Integration/Caf/CCafMessageCreator.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
 
 using namespace Caf;
 

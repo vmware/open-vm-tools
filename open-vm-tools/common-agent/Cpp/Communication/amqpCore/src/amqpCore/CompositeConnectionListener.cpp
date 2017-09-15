@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "CompositeConnectionListener.h"
+
+#include "amqpClient/api/Connection.h"
+#include "amqpCore/CompositeConnectionListener.h"
 
 using namespace Caf::AmqpIntegration;
 

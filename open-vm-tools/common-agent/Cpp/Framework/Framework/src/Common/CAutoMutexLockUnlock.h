@@ -9,6 +9,10 @@
 #ifndef CAUTOMUTEXLOCKUNLOCK_H_
 #define CAUTOMUTEXLOCKUNLOCK_H_
 
+
+#include "Common/CAutoMutex.h"
+#include "Common/CAutoRecMutex.h"
+
 namespace Caf {
 
 class COMMONAGGREGATOR_LINKAGE CAutoMutexLockUnlock {

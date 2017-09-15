@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/SchemaTypesDoc/SchemaTypesDocInc.h"
 
 #endif /* STDAFX_H_ */

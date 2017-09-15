@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
+#include "Doc/CafCoreTypesDoc/COperationDoc.h"
 #include "Doc/MgmtTypesDoc/CMgmtInvokeOperationDoc.h"
 
 using namespace Caf;

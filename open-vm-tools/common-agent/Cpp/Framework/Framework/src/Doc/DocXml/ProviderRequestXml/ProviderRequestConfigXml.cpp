@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "ProviderRequestConfigXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/LoggingLevelCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CLoggingLevelCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestConfigDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestConfigXml.h"
 
 using namespace Caf;
 

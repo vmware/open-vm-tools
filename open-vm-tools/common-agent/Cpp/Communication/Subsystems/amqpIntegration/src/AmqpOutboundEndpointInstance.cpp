@@ -7,6 +7,17 @@
  */
 
 #include "stdafx.h"
+
+#include "amqpCore/AmqpOutboundEndpoint.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationAppContext.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IMessageChannel.h"
+#include "amqpCore/AmqpTemplate.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
 #include "AmqpOutboundEndpointInstance.h"
 
 using namespace Caf::AmqpIntegration;

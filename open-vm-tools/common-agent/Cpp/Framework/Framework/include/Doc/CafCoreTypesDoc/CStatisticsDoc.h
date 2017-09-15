@@ -11,6 +11,9 @@
 #ifndef CStatisticsDoc_h_
 #define CStatisticsDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type Statistics

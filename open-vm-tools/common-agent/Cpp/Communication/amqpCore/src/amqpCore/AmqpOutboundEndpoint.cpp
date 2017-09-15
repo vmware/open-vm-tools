@@ -7,8 +7,19 @@
  */
 
 #include "stdafx.h"
-#include "AmqpOutboundEndpoint.h"
-#include "DefaultAmqpHeaderMapper.h"
+
+#include "Common/IAppConfig.h"
+#include "Common/IAppContext.h"
+#include "IVariant.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "amqpCore/AmqpTemplate.h"
+#include "amqpCore/DefaultAmqpHeaderMapper.h"
+#include "Exception/CCafException.h"
+#include "amqpCore/AmqpOutboundEndpoint.h"
+#include "Integration/Core/MessageHeaders.h"
 
 using namespace Caf::AmqpIntegration;
 

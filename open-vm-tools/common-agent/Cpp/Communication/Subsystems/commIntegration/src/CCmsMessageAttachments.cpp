@@ -7,7 +7,15 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
+#include "CCmsMessage.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
 #include "CCmsMessageAttachments.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

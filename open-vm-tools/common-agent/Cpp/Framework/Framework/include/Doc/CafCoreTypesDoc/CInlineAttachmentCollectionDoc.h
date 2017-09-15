@@ -11,6 +11,9 @@
 #ifndef CInlineAttachmentCollectionDoc_h_
 #define CInlineAttachmentCollectionDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CInlineAttachmentDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type InlineAttachmentCollection

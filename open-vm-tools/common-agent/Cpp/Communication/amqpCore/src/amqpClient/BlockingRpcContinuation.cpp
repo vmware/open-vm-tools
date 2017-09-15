@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "BlockingRpcContinuation.h"
+
+#include "Exception/CCafException.h"
+#include "amqpClient/AMQCommand.h"
+#include "amqpClient/BlockingRpcContinuation.h"
 
 using namespace Caf::AmqpClient;
 

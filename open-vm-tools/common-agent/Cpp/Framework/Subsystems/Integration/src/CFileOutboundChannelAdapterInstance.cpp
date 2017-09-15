@@ -7,8 +7,16 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Exception/CCafException.h"
 #include "CFileOutboundChannelAdapterInstance.h"
 #include "CDirectChannelInstance.h"
+#include "Integration/Core/FileHeaders.h"
 
 using namespace Caf;
 

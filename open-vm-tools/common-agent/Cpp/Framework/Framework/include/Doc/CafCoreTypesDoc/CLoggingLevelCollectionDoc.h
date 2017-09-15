@@ -11,6 +11,9 @@
 #ifndef CLoggingLevelCollectionDoc_h_
 #define CLoggingLevelCollectionDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CLoggingLevelElemDoc.h"
+
 namespace Caf {
 
 /// Set of logging levels for different components

@@ -11,6 +11,9 @@
 #ifndef CEventManifestDoc_h_
 #define CEventManifestDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type EventManifest

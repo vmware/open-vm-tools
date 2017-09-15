@@ -9,10 +9,9 @@
 #ifndef STDAFX_H_
 #define STDAFX_H_
 
-#include "AmqpClientLink.h"
+#include "amqpClient/AmqpClientLink.h"
 #include <CommonDefines.h>
 
-#include "api/amqpClient.h"
 
 //extern "C" {
 #include <amqp_tcp_socket.h>
@@ -36,10 +35,7 @@ CAF_DECLARE_CLASS_AND_SMART_POINTER(CAmqpChannel);
 }}
 
 #include "AmqpCommon.h"
-#include "CAmqpFrame.h"
-#include "CAmqpAuthMechanism.h"
-#include "CAmqpChannel.h"
-#include "CAmqpConnection.h"
+#include "amqpClient/CAmqpChannel.h"
 
 #include "AmqpConnection.h"
 #include "AmqpAuthPlain.h"

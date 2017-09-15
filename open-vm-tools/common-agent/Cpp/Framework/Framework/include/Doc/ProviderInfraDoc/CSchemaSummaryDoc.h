@@ -11,6 +11,9 @@
 #ifndef CSchemaSummaryDoc_h_
 #define CSchemaSummaryDoc_h_
 
+
+#include "Doc/ProviderInfraDoc/CClassCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type SchemaSummary

@@ -9,6 +9,12 @@
 #ifndef CTestInfraProvider_h_
 #define CTestInfraProvider_h_
 
+
+#include "IInvokedProvider.h"
+
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+
 namespace Caf {
 
 /// Sends responses/errors back to the client.

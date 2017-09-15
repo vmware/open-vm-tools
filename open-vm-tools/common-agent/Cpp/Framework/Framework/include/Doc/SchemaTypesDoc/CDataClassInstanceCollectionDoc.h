@@ -11,6 +11,9 @@
 #ifndef CDataClassInstanceCollectionDoc_h_
 #define CDataClassInstanceCollectionDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type DataClassInstanceCollection

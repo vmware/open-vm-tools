@@ -9,6 +9,13 @@
 #ifndef CEventTopicCalculatorInstance_h
 #define CEventTopicCalculatorInstance_h
 
+
+#include "IBean.h"
+
+#include "IVariant.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IExpressionInvoker.h"
+
 namespace Caf {
 
 class CEventTopicCalculatorInstance :

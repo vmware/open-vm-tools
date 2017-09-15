@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "ConnectionWeakReference.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/ConnectionWeakReference.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf::AmqpClient;
 

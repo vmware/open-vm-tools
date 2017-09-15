@@ -11,6 +11,9 @@
 #ifndef CRemoteSecurityCollectionDoc_h_
 #define CRemoteSecurityCollectionDoc_h_
 
+
+#include "Doc/PersistenceDoc/CRemoteSecurityDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type RemoteSecurityCollection

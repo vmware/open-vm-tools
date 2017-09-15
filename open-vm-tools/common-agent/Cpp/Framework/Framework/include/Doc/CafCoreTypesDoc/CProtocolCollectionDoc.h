@@ -11,6 +11,9 @@
 #ifndef CProtocolCollectionDoc_h_
 #define CProtocolCollectionDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CProtocolDoc.h"
+
 namespace Caf {
 
 /// Set of protocol

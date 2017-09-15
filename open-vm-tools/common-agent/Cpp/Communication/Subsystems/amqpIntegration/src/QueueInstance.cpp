@@ -7,6 +7,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/IDocument.h"
+#include "amqpCore/Queue.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
 #include "QueueInstance.h"
 
 using namespace Caf::AmqpIntegration;

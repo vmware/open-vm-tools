@@ -9,6 +9,13 @@
 #ifndef _MaIntegration_CConfigEnv_h_
 #define _MaIntegration_CConfigEnv_h_
 
+
+#include "IBean.h"
+
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "IPersistence.h"
+#include "IConfigEnv.h"
+
 using namespace Caf;
 
 /// TODO - describe class

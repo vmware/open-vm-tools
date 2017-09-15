@@ -7,6 +7,7 @@
  */
 
 #include "stdafx.h"
+#include "Exception/CCafException.h"
 #include "UriUtils.h"
 
 using namespace Caf;

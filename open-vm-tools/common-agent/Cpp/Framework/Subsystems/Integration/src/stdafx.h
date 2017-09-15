@@ -12,15 +12,9 @@
 //{{CAF_SUBSYSTEM}}
 
 #include <CommonDefines.h>
-#include <Integration.h>
 
-namespace Caf {
-	// Integration Contracts
-	extern const char* _sObjIdIntegrationObjectFactory;
-	extern const char* _sObjIdErrorChannel;
-	extern const char* _sObjIdNullChannel;
-	extern const char* _sObjIdHeaderExpressionInvoker;
-}
+#include "Integration/IIntegrationObject.h"
+#include <Integration.h>
 
 namespace Caf {
 

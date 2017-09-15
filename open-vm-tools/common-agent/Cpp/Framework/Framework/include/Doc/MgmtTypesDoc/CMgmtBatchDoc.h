@@ -11,6 +11,11 @@
 #ifndef CMgmtBatchDoc_h_
 #define CMgmtBatchDoc_h_
 
+
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectSchemaDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type MgmtBatch

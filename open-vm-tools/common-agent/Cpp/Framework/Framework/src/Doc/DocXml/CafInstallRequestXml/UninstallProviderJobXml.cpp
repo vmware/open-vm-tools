@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "UninstallProviderJobXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/CafInstallRequestDoc/CafInstallRequestDocTypes.h"
+
+#include "Doc/CafInstallRequestDoc/CUninstallProviderJobDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafInstallRequestXml/UninstallProviderJobXml.h"
 
 using namespace Caf;
 

@@ -7,6 +7,14 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/PersistenceDoc/CCertPathCollectionDoc.h"
+#include "Doc/PersistenceDoc/CLocalSecurityDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
+#include "amqpCore/CachingConnectionFactory.h"
+#include "amqpClient/api/Connection.h"
+#include "amqpCore/ConnectionListener.h"
 #include "SecureCachingConnectionFactoryObj.h"
 
 using namespace Caf::AmqpIntegration;

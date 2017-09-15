@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/MgmtRequestDoc/MgmtRequestDocInc.h"
 
 #endif /* STDAFX_H_ */

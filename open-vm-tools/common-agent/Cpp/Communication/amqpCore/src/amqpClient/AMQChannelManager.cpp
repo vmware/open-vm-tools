@@ -7,7 +7,12 @@
  */
 
 #include "stdafx.h"
-#include "AMQChannelManager.h"
+
+#include "amqpClient/AMQChannel.h"
+#include "amqpClient/ConsumerWorkService.h"
+#include "amqpClient/api/Channel.h"
+#include "amqpClient/AMQChannelManager.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf::AmqpClient;
 

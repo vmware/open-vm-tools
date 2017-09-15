@@ -7,7 +7,7 @@
  */
 
 #include "stdafx.h"
-#include "CAutoMutex.h"
+#include "Common/CAutoMutex.h"
 
 using namespace Caf;
 

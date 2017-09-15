@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "CAmqpChannel.h"
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "amqpClient/CAmqpConnection.h"
+#include "amqpClient/CAmqpFrame.h"
+#include "amqpClient/CAmqpChannel.h"
 
 using namespace Caf::AmqpClient;
 

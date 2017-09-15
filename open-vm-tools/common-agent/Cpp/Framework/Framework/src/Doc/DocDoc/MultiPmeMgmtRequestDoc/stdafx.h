@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/MultiPmeMgmtRequestDoc/MultiPmeMgmtRequestDocInc.h"
 
 #endif /* STDAFX_H_ */

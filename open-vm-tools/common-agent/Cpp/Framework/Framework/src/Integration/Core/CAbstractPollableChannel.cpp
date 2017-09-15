@@ -7,7 +7,13 @@
  */
 
 #include "stdafx.h"
-#include "CAbstractPollableChannel.h"
+
+#include "Integration/Dependencies/CPollerMetadata.h"
+#include "Integration/IChannelInterceptor.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/Core/CAbstractPollableChannel.h"
 
 CAbstractPollableChannel::CAbstractPollableChannel() :
 	CAF_CM_INIT("CAbstractPollableChannel") {

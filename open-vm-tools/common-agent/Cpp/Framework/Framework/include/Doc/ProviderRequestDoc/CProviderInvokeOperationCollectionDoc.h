@@ -11,6 +11,9 @@
 #ifndef CProviderInvokeOperationCollectionDoc_h_
 #define CProviderInvokeOperationCollectionDoc_h_
 
+
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ProviderInvokeOperationCollection

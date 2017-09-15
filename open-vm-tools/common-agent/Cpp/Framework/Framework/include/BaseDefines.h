@@ -69,6 +69,6 @@ const gboolean GLIB_TRUE = !GLIB_FALSE;
 #include <typeinfo>
 #include <stdexcept>
 
-#include "../src/BasePlatformLink.h"
+#include "BasePlatformLink.h"
 
 #endif /* SYS_INC_BASEDEFINES_H_ */

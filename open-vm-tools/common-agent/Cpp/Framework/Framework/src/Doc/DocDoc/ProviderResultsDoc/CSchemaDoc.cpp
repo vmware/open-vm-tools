@@ -9,6 +9,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassDoc.h"
+#include "Doc/SchemaTypesDoc/CLogicalRelationshipDoc.h"
+#include "Doc/SchemaTypesDoc/CPhysicalRelationshipDoc.h"
 #include "Doc/ProviderResultsDoc/CSchemaDoc.h"
 
 using namespace Caf;

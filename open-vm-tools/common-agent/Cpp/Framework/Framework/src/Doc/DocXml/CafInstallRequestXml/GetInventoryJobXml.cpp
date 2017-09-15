@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "GetInventoryJobXml.h"
+
+#include "Doc/CafInstallRequestDoc/CGetInventoryJobDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafInstallRequestXml/GetInventoryJobXml.h"
 
 using namespace Caf;
 

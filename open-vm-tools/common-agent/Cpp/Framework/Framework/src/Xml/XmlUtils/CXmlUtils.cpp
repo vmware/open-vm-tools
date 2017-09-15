@@ -7,6 +7,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Xml/MarkupParser/CMarkupParser.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Exception/CCafException.h"
 #include "CXmlUtils.h"
 
 using namespace Caf;

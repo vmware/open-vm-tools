@@ -7,7 +7,16 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/Caf/CCafMessageHeaders.h"
+#include "Common/IAppContext.h"
+#include "Doc/ResponseDoc/CErrorResponseDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
 #include "CErrorToResponseTransformerInstance.h"
+#include "Integration/Caf/CCafMessageCreator.h"
 
 using namespace Caf;
 

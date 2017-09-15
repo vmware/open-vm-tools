@@ -9,6 +9,11 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CStatisticsDoc.h"
+#include "Doc/ResponseDoc/CEventKeyCollectionDoc.h"
+#include "Doc/ResponseDoc/CEventManifestDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
 #include "Doc/ResponseDoc/CProviderEventResponseDoc.h"
 
 using namespace Caf;

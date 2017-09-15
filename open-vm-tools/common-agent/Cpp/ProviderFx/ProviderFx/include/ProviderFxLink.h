@@ -21,9 +21,6 @@
     #endif
 #endif
 
-#include "IInvokedProvider.h"
-#include "IProviderRequest.h"
-#include "IProviderResponse.h"
 #include "CProviderDriver.h"
 #include "CProviderDocHelper.h"
 

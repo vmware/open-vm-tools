@@ -9,6 +9,10 @@
 #ifndef _IntegrationContracts_IPollableChannel_h_
 #define _IntegrationContracts_IPollableChannel_h_
 
+
+#include "Integration/Dependencies/CPollerMetadata.h"
+#include "Integration/IIntMessage.h"
+
 namespace Caf {
 
 /// TODO - describe interface

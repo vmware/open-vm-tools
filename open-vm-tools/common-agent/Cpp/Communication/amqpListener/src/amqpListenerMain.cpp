@@ -7,10 +7,14 @@
  */
 
 #include "stdafx.h"
+
+#include "AmqpListenerWorker.h"
+#include "Common/CLoggingUtils.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
 #ifndef WIN32
 #include <syslog.h>
 #endif
-#include "AmqpListenerWorker.h"
 
 bool _gDaemonized = true;
 bool _gSysLogInfos = false;
@@ -102,7 +106,7 @@ int32 main(int32 argc, char** argv) {
 		CWinService::initialize(_gAmqpListenerWorker);
 		CWinService::execute(argc, argv);
 #else
-		const std::string procPath = argv[0];
+		const std::string procPath(reinterpret_cast<const char*>(argv[0]));
 		Cdeqstr parts = CStringUtils::split(procPath, G_DIR_SEPARATOR);
 		std::string procName = "CommAmqpListener";
 		if (parts.size()) {

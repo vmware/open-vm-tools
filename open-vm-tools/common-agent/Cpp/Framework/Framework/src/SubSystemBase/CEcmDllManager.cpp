@@ -6,6 +6,7 @@
  */
 
 #include "stdafx.h"
+#include "Exception/CCafException.h"
 #include "CEcmDllManager.h"
 
 #ifndef WIN32

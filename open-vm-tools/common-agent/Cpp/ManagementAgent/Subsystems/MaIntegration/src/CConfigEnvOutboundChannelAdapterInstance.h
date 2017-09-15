@@ -9,6 +9,18 @@
 #ifndef CConfigEnvOutboundChannelAdapterInstance_h_
 #define CConfigEnvOutboundChannelAdapterInstance_h_
 
+
+#include "Integration/IIntegrationComponentInstance.h"
+
+#include "Common/IAppContext.h"
+#include "IConfigEnv.h"
+#include "IPersistence.h"
+#include "Integration/Core/CMessagingTemplate.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ILifecycle.h"
+
 namespace Caf {
 
 class CConfigEnvOutboundChannelAdapterInstance :

@@ -11,6 +11,9 @@
 #ifndef CInstanceOperationCollectionDoc_h_
 #define CInstanceOperationCollectionDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CInstanceOperationDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type InstanceOperationCollection

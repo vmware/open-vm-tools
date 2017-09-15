@@ -12,6 +12,17 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/CafCoreTypesXml/RequestXml.h"
+#include "Doc/DocXml/CafInstallRequestXml/InstallPackageSpecXml.h"
+#include "Doc/DocXml/CafInstallRequestXml/InstallProviderSpecXml.h"
+#include "Doc/DocXml/CafInstallRequestXml/InstallRequestXml.h"
+
+#include "Doc/CafInstallRequestDoc/CInstallPackageSpecDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallProviderSpecDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallRequestDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafInstallRequestXml/CafInstallRequestXmlRoots.h"
+
 using namespace Caf;
 
 std::string XmlRoots::saveInstallRequestToString(

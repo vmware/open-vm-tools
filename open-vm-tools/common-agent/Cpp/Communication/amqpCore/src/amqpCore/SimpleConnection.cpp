@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "SimpleConnection.h"
+
+#include "amqpClient/api/Channel.h"
+#include "amqpCore/SimpleConnection.h"
 
 using namespace Caf::AmqpIntegration;
 

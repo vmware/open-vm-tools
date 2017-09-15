@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
+#include "Doc/CafCoreTypesDoc/CParameterCollectionDoc.h"
 #include "Doc/MgmtTypesDoc/CMgmtCollectInstancesDoc.h"
 
 using namespace Caf;

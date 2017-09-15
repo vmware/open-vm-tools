@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "LoggingLevelElemXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
+#include "Doc/CafCoreTypesDoc/CLoggingLevelElemDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/LoggingLevelElemXml.h"
 
 using namespace Caf;
 

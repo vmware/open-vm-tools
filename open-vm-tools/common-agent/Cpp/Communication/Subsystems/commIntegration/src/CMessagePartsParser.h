@@ -9,6 +9,9 @@
 #ifndef CMessagePartsParser_h
 #define CMessagePartsParser_h
 
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+
 namespace Caf {
 
 /**

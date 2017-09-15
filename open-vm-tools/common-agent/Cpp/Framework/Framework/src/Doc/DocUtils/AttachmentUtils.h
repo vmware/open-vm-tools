@@ -10,6 +10,10 @@
 #ifndef AttachmentUtils_h_
 #define AttachmentUtils_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+
 namespace Caf {
 class DOCUTILS_LINKAGE AttachmentUtils {
 public:

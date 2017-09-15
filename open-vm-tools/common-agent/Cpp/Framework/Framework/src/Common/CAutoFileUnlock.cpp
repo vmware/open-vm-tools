@@ -4,6 +4,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/CFileLock.h"
+#include "Exception/CCafException.h"
 #include "CAutoFileUnlock.h"
 
 using namespace Caf;

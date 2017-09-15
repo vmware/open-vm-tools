@@ -10,6 +10,10 @@
 #ifndef CPersistenceProtocolDoc_h_
 #define CPersistenceProtocolDoc_h_
 
+
+#include "Doc/PersistenceDoc/CCertCollectionDoc.h"
+#include "Doc/PersistenceDoc/CCertPathCollectionDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type CPersistenceProtocolDoc

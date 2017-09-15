@@ -9,6 +9,9 @@
 #ifndef _FxContracts_IVARIANT_H_
 #define _FxContracts_IVARIANT_H_
 
+
+#include "ICafObject.h"
+
 namespace Caf {
 struct __declspec(novtable) IVariant : public ICafObject {
 	CAF_DECL_UUID("05AC7CB8-BBD4-4B3B-AB80-29002DD73747")

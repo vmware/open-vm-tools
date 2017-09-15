@@ -7,6 +7,13 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Exception/CCafException.h"
 #include "CReplyToCacherInstance.h"
 
 using namespace Caf;

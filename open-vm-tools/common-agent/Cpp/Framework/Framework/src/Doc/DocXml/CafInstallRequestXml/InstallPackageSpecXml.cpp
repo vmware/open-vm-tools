@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "InstallPackageSpecXml.h"
+
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentCollectionXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentNameCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentNameCollectionDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallPackageSpecDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafInstallRequestXml/InstallPackageSpecXml.h"
 
 using namespace Caf;
 

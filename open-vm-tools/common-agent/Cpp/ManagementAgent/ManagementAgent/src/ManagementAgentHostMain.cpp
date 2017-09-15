@@ -7,6 +7,11 @@
  */
 
 #include "stdafx.h"
+
+#include "CManagementAgentHostWork.h"
+#include "Common/CLoggingUtils.h"
+#include "Exception/CCafException.h"
+#include "Common/IAppConfig.h"
 #ifndef WIN32
 #include <syslog.h>
 #endif
@@ -114,7 +119,7 @@ int32 main(int32 argc, char** argv) {
 			return 1;
 		}
 
-		const std::string procPath = argv[0];
+		const std::string procPath(argv[0]);
 		CDaemonUtils::MakeDaemon(
 			argc,
 			argv,

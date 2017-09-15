@@ -7,7 +7,11 @@
  */
 
 #include "stdafx.h"
-#include "BasicPublishMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/BasicProperties.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "amqpClient/amqpImpl/BasicPublishMethod.h"
 
 using namespace Caf::AmqpClient;
 

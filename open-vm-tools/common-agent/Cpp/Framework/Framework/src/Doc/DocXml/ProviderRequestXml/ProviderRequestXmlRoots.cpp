@@ -12,6 +12,14 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/ProviderRequestXml/ProviderCollectSchemaRequestXml.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestXml.h"
+
+#include "Doc/ProviderRequestDoc/CProviderCollectSchemaRequestDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestXmlRoots.h"
+
 using namespace Caf;
 
 std::string XmlRoots::saveProviderCollectSchemaRequestToString(

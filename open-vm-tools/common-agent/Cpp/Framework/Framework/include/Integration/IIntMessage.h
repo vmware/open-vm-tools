@@ -9,6 +9,12 @@
 #ifndef _IntegrationContracts_IIntMessage_h_
 #define _IntegrationContracts_IIntMessage_h_
 
+
+#include "ICafObject.h"
+
+#include "IVariant.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+
 namespace Caf {
 
 /// TODO - describe interface

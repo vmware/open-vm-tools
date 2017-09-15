@@ -7,7 +7,27 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "Integration/Core/CErrorHandler.h"
+#include "Integration/Core/CMessageHandler.h"
+#include "Integration/Core/CSimpleAsyncTaskExecutor.h"
+#include "Integration/Core/CSourcePollingChannelAdapter.h"
+#include "Integration/Dependencies/CPollerMetadata.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationAppContext.h"
+#include "Integration/IIntegrationObject.h"
+#include "amqpCore/AmqpHeaderMapper.h"
+#include "amqpCore/AmqpMessageListenerSource.h"
+#include "amqpClient/api/ConnectionFactory.h"
+#include "amqpCore/DefaultAmqpHeaderMapper.h"
+#include "amqpCore/Queue.h"
+#include "Common/CCafRegex.h"
+#include "Exception/CCafException.h"
 #include "AmqpInboundChannelAdapterInstance.h"
+
 
 using namespace Caf::AmqpIntegration;
 

@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
-#include "QueueDeclareMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/api/amqpClient.h"
+#include "amqpClient/amqpImpl/QueueDeclareMethod.h"
 
 using namespace Caf::AmqpClient;
 

@@ -22,7 +22,6 @@
 #endif
 
 #include "CBacktraceUtils.h"
-#include "CCafException.h"
 #include "ClassMacros.h"
 #include "ExceptionMacros.h"
 #include "CCafExceptionEx.h"

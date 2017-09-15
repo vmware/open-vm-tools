@@ -7,7 +7,23 @@
  */
 
 #include "stdafx.h"
+
+#include "CMessageDeliveryRecord.h"
+#include "CMessagePartDescriptorSourceRecord.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Integration/Core/CIntMessageHeaders.h"
+#include "Exception/CCafException.h"
 #include "COutgoingMessageHandler.h"
+#include "CMessagePartsHeader.h"
+#include "CMessagePartDescriptor.h"
+#include "amqpCore/DefaultAmqpHeaderMapper.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
+#include "Integration/Core/CMessageHeaderUtils.h"
+#include "Integration/Core/MessageHeaders.h"
+#include "Integration/Core/CMessageHeaderUtils.h"
 
 #include <fstream>
 

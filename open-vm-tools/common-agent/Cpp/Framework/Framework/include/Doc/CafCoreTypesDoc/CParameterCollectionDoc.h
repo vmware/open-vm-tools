@@ -11,6 +11,10 @@
 #ifndef CParameterCollectionDoc_h_
 #define CParameterCollectionDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CRequestInstanceParameterDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestParameterDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ParameterCollection

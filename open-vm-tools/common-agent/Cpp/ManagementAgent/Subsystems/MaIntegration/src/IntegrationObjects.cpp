@@ -7,6 +7,14 @@
  */
 
 #include "stdafx.h"
+
+#include "CConfigEnvInboundChannelAdapterInstance.h"
+#include "CConfigEnvOutboundChannelAdapterInstance.h"
+#include "CMonitorInboundChannelAdapterInstance.h"
+#include "CPersistenceOutboundChannelAdapterInstance.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+#include "Exception/CCafException.h"
 #include "IntegrationObjects.h"
 #include "CPersistenceInboundChannelAdapterInstance.h"
 

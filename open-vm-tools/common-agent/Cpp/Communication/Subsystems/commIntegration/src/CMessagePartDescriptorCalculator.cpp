@@ -7,7 +7,17 @@
  */
 
 #include "stdafx.h"
+
+#include "CMessagePartDescriptorSourceRecord.h"
+#include "CMessagePartRecord.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Exception/CCafException.h"
 #include "CMessagePartDescriptorCalculator.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
+#include "Integration/Caf/CCafMessagePayload.h"
+#include "Integration/Caf/CCafMessageCreator.h"
 
 using namespace Caf;
 

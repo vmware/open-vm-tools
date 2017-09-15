@@ -11,7 +11,9 @@
  */
 
 #include "stdafx.h"
-#include "RequestXml.h"
+
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/RequestXml.h"
 
 using namespace Caf;
 

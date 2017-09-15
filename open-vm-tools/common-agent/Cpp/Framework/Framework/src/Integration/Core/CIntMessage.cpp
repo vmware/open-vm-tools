@@ -7,7 +7,13 @@
  */
 
 #include "stdafx.h"
-#include "CIntException.h"
+
+#include "ICafObject.h"
+#include "IVariant.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

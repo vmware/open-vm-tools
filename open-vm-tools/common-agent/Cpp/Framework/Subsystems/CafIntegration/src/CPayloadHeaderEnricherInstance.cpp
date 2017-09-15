@@ -7,7 +7,17 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/Caf/CBeanPropertiesHelper.h"
+#include "Integration/Caf/CCafMessageHeadersWriter.h"
+#include "Common/IAppContext.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
 #include "CPayloadHeaderEnricherInstance.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
 
 using namespace Caf;
 

@@ -9,6 +9,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/MgmtTypesDoc/CMgmtBatchDoc.h"
+#include "Doc/MultiPmeMgmtRequestDoc/CPmeIdCollectionDoc.h"
 #include "Doc/MultiPmeMgmtRequestDoc/CMultiPmeMgmtBatchDoc.h"
 
 using namespace Caf;

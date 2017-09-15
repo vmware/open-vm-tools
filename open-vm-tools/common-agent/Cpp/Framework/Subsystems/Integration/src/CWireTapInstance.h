@@ -9,6 +9,17 @@
 #ifndef CWIRETAPINSTANCE_H_
 #define CWIRETAPINSTANCE_H_
 
+#include "Integration/IChannelInterceptorInstance.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ILifecycle.h"
+#include "Integration/Core/CChannelInterceptorAdapter.h"
+
 namespace Caf {
 
 class CWireTapInstance :

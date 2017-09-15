@@ -9,14 +9,21 @@
 #ifndef CQueueChannelInstance_h_
 #define CQueueChannelInstance_h_
 
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/Core/CAbstractPollableChannel.h"
+
 namespace Caf {
 
 /// Sends responses/errors back to the client.
 class CQueueChannelInstance :
 	public IIntegrationObject,
 	public IIntegrationComponentInstance,
-	public CAbstractPollableChannel
-{
+	public CAbstractPollableChannel {
 public:
 	CQueueChannelInstance();
 	virtual ~CQueueChannelInstance();

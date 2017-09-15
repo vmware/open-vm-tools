@@ -9,6 +9,8 @@
 #ifndef AMQPINTEGRATIONCORE_AMQPINTEGRATIONEXCEPTIONS_H_
 #define AMQPINTEGRATIONCORE_AMQPINTEGRATIONEXCEPTIONS_H_
 
+#include "amqpClient/api/AMQExceptions.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

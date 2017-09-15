@@ -7,7 +7,37 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "Doc/CafCoreTypesDoc/CClassSpecifierDoc.h"
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestConfigDoc.h"
+#include "Doc/CafCoreTypesDoc/CRequestHeaderDoc.h"
+#include "Doc/MgmtRequestDoc/CMgmtRequestDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtBatchDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectInstancesDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtCollectSchemaDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationCollectionDoc.h"
+#include "Doc/MgmtTypesDoc/CMgmtInvokeOperationDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderBatchDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectInstancesDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectSchemaRequestDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationCollectionDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderInvokeOperationDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestConfigDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
 #include "CSinglePmeRequestSplitterInstance.h"
+#include "Exception/CCafException.h"
+#include "Integration/Caf/CCafMessageCreator.h"
+#include "Integration/Caf/CCafMessagePayloadParser.h"
+#include "Integration/Caf/CCafMessagePayload.h"
 
 using namespace Caf;
 

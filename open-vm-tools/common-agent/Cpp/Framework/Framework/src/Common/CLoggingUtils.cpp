@@ -7,7 +7,8 @@
  */
 
 #include "stdafx.h"
-#include "CLoggingUtils.h"
+#include "Common/CLoggingUtils.h"
+#include "Exception/CCafException.h"
 #include <iostream>
 #include <fstream>
 

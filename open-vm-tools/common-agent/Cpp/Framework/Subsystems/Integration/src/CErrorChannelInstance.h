@@ -9,6 +9,17 @@
 #ifndef CErrorChannelInstance_h_
 #define CErrorChannelInstance_h_
 
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageDispatcher.h"
+#include "Integration/IMessageHandler.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/ISubscribableChannel.h"
+#include "Integration/Core/CAbstractMessageChannel.h"
+
 namespace Caf {
 
 /// Sends responses/errors back to the client.

@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "ClassFieldXml.h"
+
+#include "Doc/SchemaTypesDoc/CClassFieldDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/ClassFieldXml.h"
 
 using namespace Caf;
 

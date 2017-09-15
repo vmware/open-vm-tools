@@ -11,7 +11,10 @@
  */
 
 #include "stdafx.h"
-#include "ResponseHeaderXml.h"
+
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ResponseXml/ResponseHeaderXml.h"
 
 using namespace Caf;
 

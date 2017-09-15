@@ -11,6 +11,11 @@
 #ifndef CMethodDoc_h_
 #define CMethodDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CClassIdentifierDoc.h"
+#include "Doc/SchemaTypesDoc/CInstanceParameterDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodParameterDoc.h"
+
 namespace Caf {
 
 /// Definition of a method on a class

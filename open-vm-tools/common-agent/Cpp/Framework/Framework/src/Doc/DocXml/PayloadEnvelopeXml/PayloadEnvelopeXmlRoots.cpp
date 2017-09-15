@@ -12,6 +12,12 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/PayloadEnvelopeXml/PayloadEnvelopeXml.h"
+
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/PayloadEnvelopeXml/PayloadEnvelopeXmlRoots.h"
+
 using namespace Caf;
 
 std::string XmlRoots::savePayloadEnvelopeToString(

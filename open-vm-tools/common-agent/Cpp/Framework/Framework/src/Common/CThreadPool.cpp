@@ -8,7 +8,10 @@
  */
 
 #include "stdafx.h"
-#include "CThreadPool.h"
+
+#include "Common/CManagedThreadPool.h"
+#include "Common/CThreadPool.h"
+#include "Exception/CCafException.h"
 
 	bool _isInitialized;
 	GThreadPool *_threadPool;

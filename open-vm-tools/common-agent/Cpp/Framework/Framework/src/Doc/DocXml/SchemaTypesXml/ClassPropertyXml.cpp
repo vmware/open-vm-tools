@@ -11,7 +11,14 @@
  */
 
 #include "stdafx.h"
-#include "ClassPropertyXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
+#include "Doc/SchemaTypesDoc/CClassPropertyDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/ClassPropertyXml.h"
 
 using namespace Caf;
 

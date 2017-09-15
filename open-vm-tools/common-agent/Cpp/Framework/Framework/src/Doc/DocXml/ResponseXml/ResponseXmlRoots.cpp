@@ -12,6 +12,18 @@
 
 #include "stdafx.h"
 
+#include "Doc/DocXml/ResponseXml/ResponseXml.h"
+
+#include "Doc/ResponseDoc/CErrorResponseDoc.h"
+#include "Doc/ResponseDoc/CProviderEventResponseDoc.h"
+#include "Doc/ResponseDoc/CProviderResponseDoc.h"
+#include "Doc/ResponseDoc/CResponseDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/ResponseXml/ResponseXmlRoots.h"
+#include "Doc/DocXml/ResponseXml/ErrorResponseXml.h"
+#include "Doc/DocXml/ResponseXml/ProviderResponseXml.h"
+#include "Doc/DocXml/ResponseXml/ProviderEventResponseXml.h"
+
 using namespace Caf;
 
 std::string XmlRoots::saveErrorResponseToString(

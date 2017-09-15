@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
 #include "Doc/ProviderResultsDoc/CRequestIdentifierDoc.h"
 
 using namespace Caf;

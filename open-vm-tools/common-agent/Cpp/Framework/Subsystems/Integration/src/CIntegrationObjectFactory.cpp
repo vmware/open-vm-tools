@@ -7,6 +7,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+#include "Exception/CCafException.h"
 #include "CIntegrationObjectFactory.h"
 #include "CObjectFactoryTables.h"
 #include "CDirectChannelInstance.h"

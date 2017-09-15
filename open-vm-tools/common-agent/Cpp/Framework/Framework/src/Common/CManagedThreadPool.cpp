@@ -7,7 +7,8 @@
  */
 
 #include "stdafx.h"
-#include "CManagedThreadPool.h"
+#include "Common/CManagedThreadPool.h"
+#include "Exception/CCafException.h"
 
 namespace Caf {
 

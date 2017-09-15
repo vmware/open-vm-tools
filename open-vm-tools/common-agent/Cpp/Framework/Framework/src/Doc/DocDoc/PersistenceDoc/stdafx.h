@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/PersistenceDoc/PersistenceDocInc.h"
 
 #endif /* STDAFX_H_ */

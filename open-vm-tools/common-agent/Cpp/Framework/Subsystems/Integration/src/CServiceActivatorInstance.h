@@ -9,6 +9,15 @@
 #ifndef CServiceActivatorInstance_h_
 #define CServiceActivatorInstance_h_
 
+
+#include "Integration/IIntegrationComponentInstance.h"
+
+#include "Common/IAppContext.h"
+#include "Integration/Core/CMessagingTemplate.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+
 namespace Caf {
 
 class CServiceActivatorInstance :

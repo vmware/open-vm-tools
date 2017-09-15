@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/SchemaTypesDoc/CInstanceOperationCollectionDoc.h"
 #include "Doc/SchemaTypesDoc/CActionClassInstanceDoc.h"
 
 using namespace Caf;

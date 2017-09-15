@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/CafInstallRequestDoc/CafInstallRequestDocInc.h"
 
 #endif /* STDAFX_H_ */

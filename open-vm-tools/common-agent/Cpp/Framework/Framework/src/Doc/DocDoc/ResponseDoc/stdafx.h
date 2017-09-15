@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/ResponseDoc/ResponseDocInc.h"
 
 #endif /* STDAFX_H_ */

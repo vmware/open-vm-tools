@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "CAutoCondition.h"
+
+#include "Common/CAutoMutex.h"
+#include "Common/CAutoCondition.h"
 
 using namespace Caf;
 

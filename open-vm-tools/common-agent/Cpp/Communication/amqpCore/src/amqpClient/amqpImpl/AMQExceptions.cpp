@@ -7,7 +7,7 @@
  */
 
 #include "stdafx.h"
-#include "../api/AMQExceptions.h"
+#include "amqpClient/api/AMQExceptions.h"
 
 using namespace Caf::AmqpClient::AmqpExceptions;
 

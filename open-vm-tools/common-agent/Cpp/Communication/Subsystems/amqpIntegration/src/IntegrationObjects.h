@@ -9,6 +9,13 @@
 #ifndef INTEGRATIONOBJECTS_H_
 #define INTEGRATIONOBJECTS_H_
 
+
+#include "IBean.h"
+
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IIntegrationComponent.h"
+
 namespace Caf { namespace AmqpIntegration {
 
 /**

@@ -11,6 +11,9 @@
 #ifndef CClassPropertyDoc_h_
 #define CClassPropertyDoc_h_
 
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
 namespace Caf {
 
 /// Definition of an attribute (field) of a class

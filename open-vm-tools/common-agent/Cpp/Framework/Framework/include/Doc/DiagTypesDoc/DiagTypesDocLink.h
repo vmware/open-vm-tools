@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/DiagTypesDoc/DiagTypesDocInc.h"
 
 #endif /* DiagTypesDoc_Link_h_ */

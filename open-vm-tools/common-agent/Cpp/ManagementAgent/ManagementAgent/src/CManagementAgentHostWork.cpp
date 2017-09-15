@@ -7,7 +7,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/Core/CIntegrationAppContext.h"
 #include "CManagementAgentHostWork.h"
+#include "Common/CLoggingUtils.h"
 
 using namespace Caf;
 

@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "RelationshipXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/DocXml/SchemaTypesXml/ClassCardinalityXml.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
+#include "Doc/SchemaTypesDoc/CClassCardinalityDoc.h"
+#include "Doc/SchemaTypesDoc/CRelationshipDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/RelationshipXml.h"
 
 using namespace Caf;
 

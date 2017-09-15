@@ -22,6 +22,5 @@
     #endif
 #endif
 
-#include "Doc/CafCoreTypesDoc/CafCoreTypesDocInc.h"
 
 #endif /* CafCoreTypesDoc_Link_h_ */

@@ -11,7 +11,15 @@
  */
 
 #include "stdafx.h"
-#include "PhysicalRelationshipXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/DocXml/SchemaTypesXml/ClassCardinalityXml.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocTypes.h"
+
+#include "Doc/SchemaTypesDoc/CClassCardinalityDoc.h"
+#include "Doc/SchemaTypesDoc/CPhysicalRelationshipDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/SchemaTypesXml/PhysicalRelationshipXml.h"
 
 using namespace Caf;
 

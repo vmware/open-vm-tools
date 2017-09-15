@@ -29,6 +29,8 @@ typedef TCafSmartPtr<_exclass_, TCafObject<_exclass_> > SmartPtr##_exclass_
 	void _exclass_::throwSelf() { throw this; } \
 	void _exclass_::throwAddRefedSelf() { this->AddRef(); throw this; }
 
+#include "Exception/CCafException.h"
+
 namespace Caf {
 
 // General Runtime Exceptions

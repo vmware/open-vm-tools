@@ -9,6 +9,15 @@
 #ifndef CErrorToResponseTransformerInstance_h_
 #define CErrorToResponseTransformerInstance_h_
 
+#include "CafIntegrationSubsys.h"
+#include "Common/IAppContext.h"
+#include "Integration/IErrorProcessor.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Integration/IIntegrationObject.h"
+
 namespace Caf {
 
 class CErrorToResponseTransformerInstance :

@@ -11,6 +11,12 @@
 #ifndef CProviderResponseDoc_h_
 #define CProviderResponseDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CStatisticsDoc.h"
+#include "Doc/ResponseDoc/CManifestDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ProviderResponse

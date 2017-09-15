@@ -9,6 +9,8 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
 #include "Doc/ProviderInfraDoc/CClassCollectionDoc.h"
 
 using namespace Caf;

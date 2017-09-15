@@ -7,7 +7,41 @@
  */
 
 #include "stdafx.h"
-#include "CCafMessageCreator.h"
+
+#include "Doc/DocXml/CafInstallRequestXml/CafInstallRequestXmlRoots.h"
+#include "Doc/DocXml/DiagRequestXml/DiagRequestXmlRoots.h"
+#include "Doc/DocXml/MgmtRequestXml/MgmtRequestXmlRoots.h"
+#include "Doc/DocXml/ProviderInfraXml/ProviderInfraXmlRoots.h"
+#include "Doc/DocXml/ProviderRequestXml/ProviderRequestXmlRoots.h"
+#include "Doc/DocXml/ResponseXml/ResponseXmlRoots.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentCollectionXml.h"
+
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+#include "Integration/Caf/CCafMessageHeadersWriter.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CPropertyDoc.h"
+#include "Doc/CafCoreTypesDoc/CProtocolCollectionDoc.h"
+#include "Doc/CafInstallRequestDoc/CInstallRequestDoc.h"
+#include "Doc/DiagRequestDoc/CDiagRequestDoc.h"
+#include "Doc/MgmtRequestDoc/CMgmtRequestDoc.h"
+#include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
+#include "Doc/ProviderInfraDoc/CProviderRegDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderCollectSchemaRequestDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestDoc.h"
+#include "Doc/ProviderRequestDoc/CProviderRequestHeaderDoc.h"
+#include "Doc/ResponseDoc/CErrorResponseDoc.h"
+#include "Doc/ResponseDoc/CResponseDoc.h"
+#include "Integration/Core/CIntMessage.h"
+#include "Integration/IIntMessage.h"
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Integration/Caf/CCafMessagePayload.h"
+#include "Integration/Caf/CCafMessageCreator.h"
+#include "Doc/DocXml/PayloadEnvelopeXml/PayloadEnvelopeXmlRoots.h"
 
 using namespace Caf;
 

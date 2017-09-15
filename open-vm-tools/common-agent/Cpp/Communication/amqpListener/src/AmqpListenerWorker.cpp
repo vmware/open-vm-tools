@@ -10,7 +10,11 @@
 #define NOMINMAX
 
 #include "stdafx.h"
+
+#include "Integration/Core/CIntegrationAppContext.h"
 #include "AmqpListenerWorker.h"
+#include "Common/CLoggingUtils.h"
+#include "amqpClient/api/AMQExceptions.h"
 
 using namespace Caf;
 

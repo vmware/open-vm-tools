@@ -9,6 +9,11 @@
 #ifndef _MaIntegration_CConfigEnvMerge_h_
 #define _MaIntegration_CConfigEnvMerge_h_
 
+
+#include "Doc/PersistenceDoc/CCertCollectionDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceDoc.h"
+#include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
+
 using namespace Caf;
 
 /// TODO - describe class

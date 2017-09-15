@@ -11,6 +11,9 @@
 #ifndef CClassCollectionDoc_h_
 #define CClassCollectionDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ClassCollection

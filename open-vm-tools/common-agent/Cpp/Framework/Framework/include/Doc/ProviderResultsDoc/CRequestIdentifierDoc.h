@@ -11,6 +11,9 @@
 #ifndef CRequestIdentifierDoc_h_
 #define CRequestIdentifierDoc_h_
 
+
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+
 namespace Caf {
 
 /// Fields that allow client to determine which request resulted in this response document

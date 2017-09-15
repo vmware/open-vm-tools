@@ -11,6 +11,9 @@
 #ifndef CManifestCollectionDoc_h_
 #define CManifestCollectionDoc_h_
 
+
+#include "Doc/ResponseDoc/CManifestDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ManifestCollection

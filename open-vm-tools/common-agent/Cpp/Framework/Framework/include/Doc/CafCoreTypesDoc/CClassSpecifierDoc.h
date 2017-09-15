@@ -11,6 +11,10 @@
 #ifndef CClassSpecifierDoc_h_
 #define CClassSpecifierDoc_h_
 
+
+#include "Doc/CafCoreTypesDoc/CClassFiltersDoc.h"
+#include "Doc/CafCoreTypesDoc/CFullyQualifiedClassGroupDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type ClassSpecifier

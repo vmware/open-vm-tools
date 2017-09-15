@@ -9,6 +9,15 @@
 #ifndef CRecipientListRouterInstance_h
 #define CRecipientListRouterInstance_h
 
+#include "Integration/IIntegrationComponentInstance.h"
+#include "Common/IAppContext.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/Core/CAbstractMessageRouter.h"
+
 namespace Caf {
 
 class CRecipientListRouterInstance :

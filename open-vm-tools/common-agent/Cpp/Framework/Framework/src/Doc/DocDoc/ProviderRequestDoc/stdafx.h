@@ -17,6 +17,5 @@
 #endif
 
 #include <CommonDefines.h>
-#include "Doc/ProviderRequestDoc/ProviderRequestDocInc.h"
 
 #endif /* STDAFX_H_ */

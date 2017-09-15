@@ -7,6 +7,8 @@
  */
 
 #include "stdafx.h"
+
+#include "amqpClient/api/Channel.h"
 #include "AutoChannelClose.h"
 
 using namespace Caf::AmqpIntegration;

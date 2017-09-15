@@ -7,11 +7,31 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/DocXml/ProviderResultsXml/ProviderResultsXmlRoots.h"
+#include "Doc/DocXml/ResponseXml/ResponseXmlRoots.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Doc/CafCoreTypesDoc/CAttachmentNameCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CInlineAttachmentDoc.h"
+#include "Doc/ProviderResultsDoc/CCdifDoc.h"
+#include "Doc/ProviderResultsDoc/CDefinitionObjectCollectionDoc.h"
+#include "Doc/ProviderResultsDoc/CRequestIdentifierDoc.h"
+#include "Doc/ProviderResultsDoc/CSchemaDoc.h"
+#include "Doc/ResponseDoc/CManifestDoc.h"
+#include "Doc/ResponseDoc/CProviderResponseDoc.h"
+#include "Doc/ResponseDoc/CResponseHeaderDoc.h"
+#include "Doc/SchemaTypesDoc/CActionClassDoc.h"
+#include "Doc/SchemaTypesDoc/CCollectMethodDoc.h"
+#include "Doc/SchemaTypesDoc/CDataClassInstanceDoc.h"
+#include "Doc/SchemaTypesDoc/CMethodDoc.h"
 #include "CProviderCdifFormatter.h"
-#include "../../Framework/src/Doc/DocXml/ProviderResultsXml/ProviderResultsXmlLink.h"
-#include "../../Framework/src/Doc/DocXml/ResponseXml/ResponseXmlLink.h"
+#include "Doc/DocXml/ProviderResultsXml/ProviderResultsXmlLink.h"
+#include "Doc/DocXml/ResponseXml/ResponseXmlLink.h"
 #include "../../Framework/src/Doc/DocUtils/DocUtilsLink.h"
-#include "../include/IProviderResponse.h"
 
 using namespace Caf;
 

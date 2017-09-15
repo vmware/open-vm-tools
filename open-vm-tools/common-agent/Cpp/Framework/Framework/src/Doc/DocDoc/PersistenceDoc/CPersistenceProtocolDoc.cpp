@@ -8,6 +8,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/PersistenceDoc/CCertCollectionDoc.h"
+#include "Doc/PersistenceDoc/CCertPathCollectionDoc.h"
 #include "Doc/PersistenceDoc/CPersistenceProtocolDoc.h"
 
 using namespace Caf;

@@ -7,7 +7,15 @@
  */
 
 #include "stdafx.h"
-#include "DefaultAmqpHeaderMapper.h"
+
+#include "amqpClient/amqpImpl/BasicProperties.h"
+#include "Common/CVariant.h"
+#include "Integration/IIntMessage.h"
+#include "amqpClient/api/Envelope.h"
+#include "amqpClient/api/amqpClient.h"
+#include "amqpCore/DefaultAmqpHeaderMapper.h"
+#include "Integration/Core/CIntMessageHeaders.h"
+#include "Exception/CCafException.h"
 #include "HeaderUtils.h"
 
 using namespace Caf::AmqpIntegration;

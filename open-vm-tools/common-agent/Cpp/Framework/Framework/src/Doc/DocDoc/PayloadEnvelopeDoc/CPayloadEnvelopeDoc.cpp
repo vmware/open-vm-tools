@@ -8,6 +8,10 @@
  */
 
 #include "stdafx.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CPropertyCollectionDoc.h"
+#include "Doc/CafCoreTypesDoc/CProtocolCollectionDoc.h"
 #include "Doc/PayloadEnvelopeDoc/CPayloadEnvelopeDoc.h"
 
 using namespace Caf;

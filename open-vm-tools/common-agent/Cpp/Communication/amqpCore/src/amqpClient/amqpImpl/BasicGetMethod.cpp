@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "BasicGetMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/BasicGetMethod.h"
 
 using namespace Caf::AmqpClient;
 

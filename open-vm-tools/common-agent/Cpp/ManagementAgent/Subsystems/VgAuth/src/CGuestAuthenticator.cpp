@@ -7,6 +7,9 @@
  */
 
 #include "stdafx.h"
+
+#include "Integration/IDocument.h"
+#include "Integration/IIntegrationObject.h"
 #include "CGuestAuthenticator.h"
 
 using namespace Caf;

@@ -11,6 +11,9 @@
 #ifndef CDiagSetValueCollectionDoc_h_
 #define CDiagSetValueCollectionDoc_h_
 
+
+#include "Doc/DiagTypesDoc/CDiagSetValueDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type DiagSetValueCollection

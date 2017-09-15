@@ -15,7 +15,6 @@
 #include <DocUtils.h>
 #include <ProviderFxLink.h>
 
-#include "../../Config_Provider/src/CConfigProvider.h"
-#include "../../Config_Provider/src/CIniFileWithoutSection.h"
+#include "CConfigProvider.h"
 
 #endif // #ifndef stdafx_h_

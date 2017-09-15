@@ -7,7 +7,19 @@
  */
 
 #include "stdafx.h"
-#include "CMessagingTemplate.h"
+
+#include "ICafObject.h"
+#include "Integration/Core/CErrorHandler.h"
+#include "Integration/Core/CMessageHandler.h"
+#include "Integration/Core/CSimpleAsyncTaskExecutor.h"
+#include "Integration/Core/CSourcePollingChannelAdapter.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IIntegrationObject.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/IPollableChannel.h"
+#include "Integration/ITaskExecutor.h"
+#include "Integration/Core/CMessagingTemplate.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf;
 

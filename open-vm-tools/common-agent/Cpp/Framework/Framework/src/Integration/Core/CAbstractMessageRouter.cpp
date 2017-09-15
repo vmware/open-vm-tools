@@ -7,7 +7,12 @@
  */
 
 #include "stdafx.h"
-#include "CAbstractMessageRouter.h"
+
+#include "Integration/IIntMessage.h"
+#include "Integration/IMessageChannel.h"
+#include "Integration/Core/CIntException.h"
+#include "Exception/CCafException.h"
+#include "Integration/Core/CAbstractMessageRouter.h"
 
 using namespace Caf;
 

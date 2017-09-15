@@ -9,6 +9,8 @@
 #ifndef BASICGETOKMETHOD_H_
 #define BASICGETOKMETHOD_H_
 
+#include "amqpClient/api/AmqpMethods.h"
+
 namespace Caf { namespace AmqpClient {
 
 /**

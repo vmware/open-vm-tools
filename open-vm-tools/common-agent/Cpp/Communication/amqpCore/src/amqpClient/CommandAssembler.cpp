@@ -6,7 +6,13 @@
  *	-- VMware Confidential
  */
 #include "stdafx.h"
-#include "CommandAssembler.h"
+
+#include "Memory/DynamicArray/DynamicArrayInc.h"
+#include "amqpClient/CAmqpFrame.h"
+#include "amqpClient/amqpImpl/IContentHeader.h"
+#include "amqpClient/amqpImpl/IMethod.h"
+#include "amqpClient/CommandAssembler.h"
+#include "Exception/CCafException.h"
 
 using namespace Caf::AmqpClient;
 

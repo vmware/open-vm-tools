@@ -4,7 +4,8 @@
  */
 
 #include "stdafx.h"
-#include "CFileLock.h"
+#include "Common/CFileLock.h"
+#include "Exception/CCafException.h"
 #include <fcntl.h>
 #include <sys/file.h>
 #include <errno.h>

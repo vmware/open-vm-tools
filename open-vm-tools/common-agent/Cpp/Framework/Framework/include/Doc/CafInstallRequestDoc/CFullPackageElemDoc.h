@@ -11,6 +11,9 @@
 #ifndef CFullPackageElemDoc_h_
 #define CFullPackageElemDoc_h_
 
+
+#include "Doc/CafInstallRequestDoc/CPackageDefnDoc.h"
+
 namespace Caf {
 
 /// A simple container for objects of type FullPackageElem

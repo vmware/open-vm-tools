@@ -11,7 +11,13 @@
  */
 
 #include "stdafx.h"
-#include "AttachmentXml.h"
+
+#include "Doc/DocUtils/EnumConvertersXml.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocTypes.h"
+
+#include "Doc/CafCoreTypesDoc/CAttachmentDoc.h"
+#include "Xml/XmlUtils/CXmlElement.h"
+#include "Doc/DocXml/CafCoreTypesXml/AttachmentXml.h"
 
 using namespace Caf;
 

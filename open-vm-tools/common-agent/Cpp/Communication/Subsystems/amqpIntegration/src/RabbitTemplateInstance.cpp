@@ -7,6 +7,16 @@
  */
 
 #include "stdafx.h"
+
+#include "Common/IAppContext.h"
+#include "IBean.h"
+#include "Integration/IChannelResolver.h"
+#include "Integration/IDocument.h"
+#include "Integration/IIntMessage.h"
+#include "amqpCore/AmqpHeaderMapper.h"
+#include "amqpCore/AmqpTemplate.h"
+#include "amqpClient/api/ConnectionFactory.h"
+#include "Common/IAppConfig.h"
 #include "RabbitTemplateInstance.h"
 
 using namespace Caf::AmqpIntegration;

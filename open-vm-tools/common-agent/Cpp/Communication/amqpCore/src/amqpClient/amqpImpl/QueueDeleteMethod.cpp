@@ -7,7 +7,9 @@
  */
 
 #include "stdafx.h"
-#include "QueueDeleteMethod.h"
+
+#include "amqpClient/CAmqpChannel.h"
+#include "amqpClient/amqpImpl/QueueDeleteMethod.h"
 
 using namespace Caf::AmqpClient;
 

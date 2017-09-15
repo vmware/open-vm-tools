@@ -9,6 +9,9 @@
 #ifndef _IntegrationContracts_IErrorProcessor_h_
 #define _IntegrationContracts_IErrorProcessor_h_
 
+
+#include "Integration/IIntMessage.h"
+
 namespace Caf {
 
 /// TODO - describe interface
