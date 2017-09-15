@@ -447,6 +447,7 @@ FLAG(   7,  0, EBX,  3,  1, BMI1,                                  YES, TRUE)  \
 FLAG(   7,  0, EBX,  2,  1, SGX,                                   NO,  FALSE) \
 FLAG(   7,  0, EBX,  4,  1, HLE,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX,  5,  1, AVX2,                                  YES, TRUE)  \
+FLAG(   7,  0, EBX,  6,  1, FDP_EXCPTN_ONLY,                       ANY, TRUE)  \
 FLAG(   7,  0, EBX,  7,  1, SMEP,                                  YES, FALSE) \
 FLAG(   7,  0, EBX,  8,  1, BMI2,                                  YES, TRUE)  \
 FLAG(   7,  0, EBX,  9,  1, ENFSTRG,                               YES, FALSE) \
@@ -649,6 +650,26 @@ FIELD( 15,  0, EBX,  0, 32, NUMER_TSC_TO_CORE_CRYSTAL_CLK,         NO,  FALSE) \
 FIELD( 16,  0, EAX,  0, 16, PROC_BASE_FREQ,                        NO,  FALSE) \
 FIELD( 16,  0, EBX,  0, 16, PROC_MIN_FREQ,                         NO,  FALSE) \
 FIELD( 16,  0, ECX,  0, 16, BUS_FREQ,                              NO,  FALSE) \
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_17                                              \
+FIELD( 17,  0, EAX,  0, 31, MAX_SOCID_INDEX,                       NO,  FALSE) \
+FIELD( 17,  0, EBX,  0, 16, SOC_VENDOR_ID,                         NO,  FALSE) \
+FIELD( 17,  0, EBX, 16,  1, SOC_INDUSTRY_STD,                      NO,  FALSE) \
+FIELD( 17,  0, ECX,  0, 31, SOC_PROJECT_ID,                        NO,  FALSE) \
+FIELD( 17,  0, EDX,  0, 31, SOC_STEPPING_ID,                       NO,  FALSE) \
+FIELD( 17,  1, EAX,  0, 32, SOC_VENDOR_BRAND_STRING_1_0,           NO,  FALSE) \
+FIELD( 17,  1, EBX,  0, 32, SOC_VENDOR_BRAND_STRING_1_1,           NO,  FALSE) \
+FIELD( 17,  1, ECX,  0, 32, SOC_VENDOR_BRAND_STRING_1_2,           NO,  FALSE) \
+FIELD( 17,  1, EDX,  0, 32, SOC_VENDOR_BRAND_STRING_1_3,           NO,  FALSE) \
+FIELD( 17,  2, EAX,  0, 32, SOC_VENDOR_BRAND_STRING_2_0,           NO,  FALSE) \
+FIELD( 17,  2, EBX,  0, 32, SOC_VENDOR_BRAND_STRING_2_1,           NO,  FALSE) \
+FIELD( 17,  2, ECX,  0, 32, SOC_VENDOR_BRAND_STRING_2_2,           NO,  FALSE) \
+FIELD( 17,  2, EDX,  0, 32, SOC_VENDOR_BRAND_STRING_2_3,           NO,  FALSE) \
+FIELD( 17,  3, EAX,  0, 32, SOC_VENDOR_BRAND_STRING_3_0,           NO,  FALSE) \
+FIELD( 17,  3, EBX,  0, 32, SOC_VENDOR_BRAND_STRING_3_1,           NO,  FALSE) \
+FIELD( 17,  3, ECX,  0, 32, SOC_VENDOR_BRAND_STRING_3_2,           NO,  FALSE) \
+FIELD( 17,  3, EDX,  0, 32, SOC_VENDOR_BRAND_STRING_3_3,           NO,  FALSE) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_400                                             \
