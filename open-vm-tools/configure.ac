@@ -538,6 +538,9 @@ if test "$use_xmlsec1" = "yes"; then
                     [],
                     [AC_VMW_LIB_ERROR([XML2], [xml2])])
 
+# Multiple distros built xmlsec1 with -DXMLSEC_NO_SIZE_T but
+# their xmlssec1-config --cflags doesn't properly report it,
+# so force it on.
    AC_VMW_DEFAULT_FLAGS([XMLSEC1])
    AC_VMW_CHECK_LIB([xmlsec1],
                     [XMLSEC1],
@@ -546,8 +549,9 @@ if test "$use_xmlsec1" = "yes"; then
                     [],
                     [xmlsec/xmlsec.h],
                     [xmlSecCheckVersion],
-                    [],
+                    [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
                     [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
+
 else
    AC_VMW_DEFAULT_FLAGS([XERCES])
    AC_VMW_CHECK_LIB([xerces-c],

@@ -350,12 +350,31 @@ SAML_Init(void)
    }
 
    /*
+    * set up the error callback
+    */
+   xmlSecErrorsSetCallback(XmlSecErrorHandler);
+
+   /*
     * version check xmlsec1
     */
    if (xmlSecCheckVersion() != 1) {
       g_warning("Error: xmlsec1 lib version mismatch\n");
       return VGAUTH_E_FAIL;
    }
+
+#ifdef XMLSEC_CRYPTO_DYNAMIC_LOADING
+    /*
+     * Load the openssl crypto engine if we are supporting dynamic
+     * loading for xmlsec-crypto libraries.
+     */
+    if(xmlSecCryptoDLLoadLibrary("openssl") < 0) {
+        g_warning("Error: unable to load openssl xmlsec-crypto library.\n "
+                  "Make sure that you have xmlsec1-openssl installed and\n"
+                  "check shared libraries path\n"
+                  "(LD_LIBRARY_PATH) environment variable.\n");
+      return VGAUTH_E_FAIL;
+    }
+#endif /* XMLSEC_CRYPTO_DYNAMIC_LOADING */
 
    /*
     * init the xmlsec1 crypto app layer
@@ -374,11 +393,6 @@ SAML_Init(void)
       g_warning("xmlSecCryptoInit() failed %d\n", ret);
       return VGAUTH_E_FAIL;
    }
-
-   /*
-    * set up the error callback
-    */
-   xmlSecErrorsSetCallback(XmlSecErrorHandler);
 
    /*
     * Load prefs
