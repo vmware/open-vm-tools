@@ -415,6 +415,13 @@ int
 main(int argc,          // IN
      char *argv[])      // IN
 {
+   if (argc == 2 &&
+       (!strncmp(argv[1], "-h", 2) ||
+        !strncmp(argv[1], "--help", 6))) {
+      fprintf(stderr, "hgfsclient: lists any shared folders.\n");
+      return 0;
+   }
+
    if (!HgfsClient_Init()) {
       return EXIT_FAILURE;
    }
