@@ -54,6 +54,8 @@
 #define VMBACKUP_PROTOCOL_ABORT           VMBACKUP_PROTOCOL_PREFIX"abort"
 #define VMBACKUP_PROTOCOL_SNAPSHOT_DONE   VMBACKUP_PROTOCOL_PREFIX"snapshotDone"
 #define VMBACKUP_PROTOCOL_EVENT_SET       VMBACKUP_PROTOCOL_PREFIX"eventSet"
+#define VMBACKUP_PROTOCOL_SNAPSHOT_COMPLETED \
+   VMBACKUP_PROTOCOL_PREFIX"snapshotCompleted"
 
 /* These are responses to messages sent to the guest. */
 #define VMBACKUP_PROTOCOL_ERROR           "protocol.error"
