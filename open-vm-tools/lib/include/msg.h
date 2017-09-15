@@ -101,6 +101,7 @@ typedef struct MsgCallback {
    HintResult (*hintList)(HintOptions options, MsgList *messages);
    void *(*lazyProgressStartList)(MsgList *messages);
    void (*forceUnblock)(void);
+   void (*msgPostHook)(int severity, const MsgList *msgs);
 } MsgCallback;
 
 #define MSG_QUESTION_MAX_BUTTONS   10
