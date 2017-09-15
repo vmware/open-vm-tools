@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1093,9 +1093,9 @@ FileLockNormalizePath(const char *filePath)  // IN:
  * FileLock_Lock --
  *
  *      Obtain a lock on a file; shared or exclusive access. Also specify
- *      how long to wait on lock acquisition - msecMaxWaitTime
+ *      how long to wait on lock acquisition - maxWaitTimeMsec
  *
- *      msecMaxWaitTime specifies the maximum amount of time, in
+ *      maxWaitTimeMsec specifies the maximum amount of time, in
  *      milliseconds, to wait for the lock before returning the "not
  *      acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
  *      equivalent of a "try lock" - the lock will be acquired only if
@@ -1116,7 +1116,7 @@ FileLockNormalizePath(const char *filePath)  // IN:
 FileLockToken *
 FileLock_Lock(const char *filePath,          // IN:
               const Bool readOnly,           // IN:
-              const uint32 msecMaxWaitTime,  // IN:
+              const uint32 maxWaitTimeMsec,  // IN:
               int *err,                      // OUT/OPT: returns errno
               MsgList **msgs)                // IN/OUT/OPT: add error message
 {
@@ -1134,7 +1134,7 @@ FileLock_Lock(const char *filePath,          // IN:
 
       tokenPtr = NULL;
    } else {
-      tokenPtr = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
+      tokenPtr = FileLockIntrinsic(normalizedPath, !readOnly, maxWaitTimeMsec,
                                    &res);
 
       free(normalizedPath);

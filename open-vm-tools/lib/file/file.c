@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2124,27 +2124,44 @@ FileSimpleRandom(void)
  */
 
 uint32
-FileSleeper(uint32 msecMinSleepTime,  // IN:
-            uint32 msecMaxSleepTime)  // IN:
+FileSleeper(uint32 minSleepTimeMsec,  // IN:
+            uint32 maxSleepTimeMsec)  // IN:
 {
    uint32 variance;
-   uint32 msecActualSleepTime;
+   uint32 actualSleepTimeMsec;
+#if defined(_WIN32)
+   uint32 totalSleepTimeMsec;
+#endif
 
-   ASSERT(msecMinSleepTime <= msecMaxSleepTime);
+   ASSERT(minSleepTimeMsec <= maxSleepTimeMsec);
 
-   variance = msecMaxSleepTime - msecMinSleepTime;
+   variance = maxSleepTimeMsec - minSleepTimeMsec;
 
    if (variance == 0) {
-      msecActualSleepTime = msecMinSleepTime;
+      actualSleepTimeMsec = minSleepTimeMsec;
    } else {
       float fpRand = ((float) FileSimpleRandom()) / ((float) ~((uint32) 0));
 
-      msecActualSleepTime = msecMinSleepTime + (uint32) (fpRand * variance);
+      actualSleepTimeMsec = minSleepTimeMsec + (uint32) (fpRand * variance);
    }
 
-   Util_Usleep(1000 * msecActualSleepTime);
+#if defined(_WIN32)
+   /* Clamp individual sleeps to avoid Windows issues */
+   totalSleepTimeMsec = actualSleepTimeMsec;
 
-   return msecActualSleepTime;
+   while (totalSleepTimeMsec > 0) {
+      uint32 sleepTimeMsec = (totalSleepTimeMsec > 900) ? 900 :
+                                                          totalSleepTimeMsec;
+
+      Util_Usleep(1000 * sleepTimeMsec);
+
+      totalSleepTimeMsec -= sleepTimeMsec;
+   }
+#else
+   Util_Usleep(1000 * actualSleepTimeMsec);
+#endif
+
+   return actualSleepTimeMsec;
 }
 
 
@@ -2506,10 +2523,10 @@ File_ContainSymLink(const char *pathName)  // IN:
 
    File_GetPathName(pathName, &path, &base);
 
-   if (   (path != NULL)
-       && (base != NULL)
-       && (strcmp(path, "") != 0)
-       && (strcmp(base, "") != 0)) {
+   if ((path != NULL) &&
+       (base != NULL) &&
+       (strcmp(path, "") != 0) &&
+       (strcmp(base, "") != 0)) {
       if (File_ContainSymLink(path)) {
          retValue = TRUE;
       }

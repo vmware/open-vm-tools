@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +36,7 @@ extern "C" {
 #endif
 
 // The default time, in msec, to wait for a lock before giving up
-#define	FILELOCK_DEFAULT_WAIT 2500
+#define	FILELOCK_DEFAULT_WAIT (vmx86_server ? 7000 : 3500)
 
 // The wait time that provides "try lock" functionality
 #define	FILELOCK_TRYLOCK_WAIT 0
@@ -58,7 +58,7 @@ char *FileLock_TokenPathName(const FileLockToken *fileLockToken);
 
 FileLockToken *FileLock_Lock(const char *filePath,
                              const Bool readOnly,
-                             const uint32 msecMaxWaitTime,
+                             const uint32 maxWaitTimeMsec,
                              int *err,
                              MsgList **msgs);
 

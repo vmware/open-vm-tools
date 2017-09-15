@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,8 +21,8 @@
  *
  *      Portable file locking via Lamport's Bakery algorithm.
  *
- * This implementation does rely upon a remove directory operation to fail
- * if the directory contains any files.
+ *      This implementation relies upon a remove directory operation failing
+ *      if the directory contains any files.
  */
 
 #define _GNU_SOURCE /* For O_NOFOLLOW */
@@ -62,8 +62,8 @@
 
 #define LOCK_SHARED     "S"
 #define LOCK_EXCLUSIVE  "X"
-#define FILELOCK_PROGRESS_DEARTH 8000 // Dearth of progress time in msec
-#define FILELOCK_PROGRESS_SAMPLE 200  // Progress sampling time in msec
+#define FILELOCK_PROGRESS_DEARTH 8000 // Dearth of progress time in milliseconds
+#define FILELOCK_PROGRESS_SAMPLE 200  // Progress sampling time in milliseconds
 
 static char implicitReadToken;
 
@@ -72,9 +72,9 @@ static char implicitReadToken;
 
 typedef struct parse_table
 {
-   int type;
-   char *name;
-   void *valuePtr;
+   int    type;
+   char  *name;
+   void  *valuePtr;
 } ParseTable;
 
 /*
@@ -120,38 +120,38 @@ struct FileLockToken
  */
 
 static int
-FileLockSleeper(LockValues *myValues,  // IN/OUT:
-                uint32 *loopCount)     // IN/OUT:
+FileLockSleeper(LockValues *myValues)  // IN/OUT:
 {
-   uint32 msecSleepTime;
+   VmTimeType ageMsec;
+   uint32 maxSleepTimeMsec;
 
-   if ((myValues->msecMaxWaitTime == FILELOCK_TRYLOCK_WAIT) ||
-       ((myValues->msecMaxWaitTime != FILELOCK_INFINITE_WAIT) &&
-        (myValues->waitTime > myValues->msecMaxWaitTime))) {
+   if (myValues->maxWaitTimeMsec == FILELOCK_TRYLOCK_WAIT) {
       return EAGAIN;
    }
 
-   if (*loopCount <= 20) {
-      /* most locks are "short" */
-      msecSleepTime = 100;
-      *loopCount += 1;
-   } else if (*loopCount < 40) {
-      /* lock has been around a while, linear back-off */
-      msecSleepTime = 100 * (*loopCount - 19);
-      *loopCount += 1;
+   ageMsec = Hostinfo_SystemTimerMS() - myValues->startTimeMsec;
+
+   if ((myValues->maxWaitTimeMsec != FILELOCK_INFINITE_WAIT) &&
+       (ageMsec >= myValues->maxWaitTimeMsec)) {
+      return EAGAIN;
+   }
+
+   if (ageMsec <= 2000) {
+      /* Most locks are "short" */
+      maxSleepTimeMsec = 100;
    } else {
-      /* WOW! long time... Set a maximum */
-      msecSleepTime = 2000;
+      /*
+       * The lock has been around a while, linear back off with an upper bound.
+       */
+
+      maxSleepTimeMsec = ageMsec/10;
+
+      if (maxSleepTimeMsec > 2000) {
+         maxSleepTimeMsec = 2000;
+      }
    }
 
-   myValues->waitTime += msecSleepTime;
-
-   /* Clamp individual sleeps to avoid Windows issues */
-   while (msecSleepTime) {
-      uint32 sleepTime = (msecSleepTime > 900) ? 900 : msecSleepTime;
-
-      msecSleepTime -= FileSleeper(sleepTime, sleepTime);
-   }
+   (void) FileSleeper(maxSleepTimeMsec / 10, maxSleepTimeMsec);
 
    return 0;
 }
@@ -582,7 +582,6 @@ FileLockActivateList(const char *dirName,   // IN:
    ActiveLock   *ptr;
 
    ASSERT(dirName != NULL);
-
    ASSERT(*dirName == 'D');
 
    /* Search the list for a matching entry */
@@ -1099,17 +1098,14 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
         ((strcmp(memberValues->lockType, LOCK_EXCLUSIVE) == 0) ||
          (strcmp(myValues->lockType, LOCK_EXCLUSIVE) == 0))) {
       char *path;
-      uint32 loopCount;
       Bool   thisMachine;
 
       thisMachine = FileLockMachineIDMatch(myValues->machineID,
                                            memberValues->machineID);
 
-      loopCount = 0;
-
       path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
-      while ((err = FileLockSleeper(myValues, &loopCount)) == 0) {
+      while ((err = FileLockSleeper(myValues)) == 0) {
          /* still there? */
          err = FileAttributesRobust(path, NULL);
          if (err != 0) {
@@ -1138,7 +1134,7 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
        * attempts. This can assist in debugging locking problems.
        */
 
-      if ((myValues->msecMaxWaitTime != FILELOCK_TRYLOCK_WAIT) &&
+      if ((myValues->maxWaitTimeMsec != FILELOCK_TRYLOCK_WAIT) &&
           (err == EAGAIN)) {
          if (thisMachine) {
             Log(LGPFX" %s timeout on '%s' due to a local process '%s'\n",
@@ -1538,7 +1534,7 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
  *      which requires kernel support for mandatory locking. Such locks
  *      are automatically broken if the host holding the lock fails.
  *
- *      msecMaxWaitTime specifies the maximum amount of time, in
+ *      maxWaitTimeMsec specifies the maximum amount of time, in
  *      milliseconds, to wait for the lock before returning the "not
  *      acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
  *      equivalent of a "try lock" - the lock will be acquired only if
@@ -1564,7 +1560,6 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
                            int *err)               // OUT:
 {
    int access;
-   int loopCount = 0;
    int errnum;
    FileIOResult result;
    FileLockToken *tokenPtr = Util_SafeMalloc(sizeof *tokenPtr);
@@ -1574,8 +1569,8 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
    tokenPtr->pathName = Unicode_Duplicate(pathName);
    FileIO_Invalidate(&tokenPtr->u.mandatory.lockFd);
 
-   access = myValues->exclusivity ? FILEIO_OPEN_ACCESS_WRITE
-                                  : FILEIO_OPEN_ACCESS_READ;
+   access = myValues->exclusivity ? FILEIO_OPEN_ACCESS_WRITE :
+                                    FILEIO_OPEN_ACCESS_READ;
    access |= FILEIO_OPEN_EXCLUSIVE_LOCK;
 
    do {
@@ -1587,7 +1582,7 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
       if (result != FILEIO_LOCK_FAILED) {
          break;
       }
-   } while (FileLockSleeper(myValues, &loopCount) == 0);
+   } while (FileLockSleeper(myValues) == 0);
 
    if (FileIO_IsSuccess(result)) {
       ASSERT(FileIO_IsValid(&tokenPtr->u.mandatory.lockFd));
@@ -1812,7 +1807,7 @@ bail:
  *      implemented via mandatory locks and a more portable scheme depending
  *      on host OS support.
  *
- *      msecMaxWaitTime specifies the maximum amount of time, in
+ *      maxWaitTimeMsec specifies the maximum amount of time, in
  *      milliseconds, to wait for the lock before returning the "not
  *      acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
  *      equivalent of a "try lock" - the lock will be acquired only if
@@ -1834,7 +1829,7 @@ bail:
 FileLockToken *
 FileLockIntrinsic(const char *pathName,    // IN:
                   Bool exclusivity,        // IN:
-                  uint32 msecMaxWaitTime,  // IN:
+                  uint32 maxWaitTimeMsec,  // IN:
                   int *err)                // OUT:
 {
    char *lockBase;
@@ -1846,12 +1841,12 @@ FileLockIntrinsic(const char *pathName,    // IN:
 
    myValues.lockType = exclusivity ? LOCK_EXCLUSIVE : LOCK_SHARED;
    myValues.exclusivity = exclusivity;
-   myValues.waitTime = 0;
-   myValues.msecMaxWaitTime = msecMaxWaitTime;
+   myValues.startTimeMsec = Hostinfo_SystemTimerMS();
+   myValues.maxWaitTimeMsec = maxWaitTimeMsec;
 
    if (File_SupportsMandatoryLock(pathName)) {
       LOG(1, ("Requesting %s lock on %s (mandatory, %u).\n",
-          myValues.lockType, pathName, myValues.msecMaxWaitTime));
+          myValues.lockType, pathName, myValues.maxWaitTimeMsec));
 
       tokenPtr = FileLockIntrinsicMandatory(pathName, lockBase, &myValues, err);
    } else {
@@ -1863,7 +1858,7 @@ FileLockIntrinsic(const char *pathName,    // IN:
 
       LOG(1, ("Requesting %s lock on %s (%s, %s, %u).\n",
           myValues.lockType, pathName, myValues.machineID,
-          myValues.executionID, myValues.msecMaxWaitTime));
+          myValues.executionID, myValues.maxWaitTimeMsec));
 
       tokenPtr = FileLockIntrinsicPortable(pathName, lockBase, &myValues, err);
 
