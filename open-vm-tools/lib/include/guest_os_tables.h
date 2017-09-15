@@ -77,6 +77,8 @@ extern "C" {
    GOT(GUEST_OS_FREEBSD_64)                                                \
    GOT(GUEST_OS_FREEBSD11)                                                 \
    GOT(GUEST_OS_FREEBSD11_64)                                              \
+   GOT(GUEST_OS_FREEBSD12)                                                 \
+   GOT(GUEST_OS_FREEBSD12_64)                                              \
    GOT(GUEST_OS_SOLARIS_6_AND_7)                                           \
    GOT(GUEST_OS_SOLARIS8)                                                  \
    GOT(GUEST_OS_SOLARIS9)                                                  \
@@ -95,6 +97,7 @@ extern "C" {
    GOT(GUEST_OS_DARWIN15_64)       /* Mac OS 10.11 */                      \
    GOT(GUEST_OS_DARWIN16_64)       /* Mac OS 10.12 */                      \
    GOT(GUEST_OS_DARWIN17_64)       /* Mac OS 10.13 */                      \
+   GOT(GUEST_OS_DARWIN18_64)       /* Mac OS 10.14 */                      \
    GOT(GUEST_OS_OPENSERVER_5_AND_6)                                        \
    GOT(GUEST_OS_UNIXWARE7)                                                 \
    GOT(GUEST_OS_NETWARE4)                                                  \
@@ -147,6 +150,7 @@ extern "C" {
    GOSL(STR_OS_MACOS "15-64",                GUEST_OS_DARWIN15_64,            "darwin.iso")           \
    GOSL(STR_OS_MACOS "16-64",                GUEST_OS_DARWIN16_64,            "darwin.iso")           \
    GOSL(STR_OS_MACOS "17-64",                GUEST_OS_DARWIN17_64,            "darwin.iso")           \
+   GOSL(STR_OS_MACOS "18-64",                GUEST_OS_DARWIN18_64,            "darwin.iso")           \
    GOSL(STR_OS_DEBIAN_10,                    GUEST_OS_DEBIAN,                 "linux.iso")            \
    GOSL(STR_OS_DEBIAN_10 "-64",              GUEST_OS_DEBIAN_64,              "linux.iso")            \
    GOSL(STR_OS_DEBIAN_4,                     GUEST_OS_DEBIAN,                 "linuxPreGlibc25.iso")  \
@@ -170,6 +174,8 @@ extern "C" {
    GOSL(STR_OS_FREEBSD "-64",                GUEST_OS_FREEBSD_64,             "freebsd.iso")          \
    GOSL(STR_OS_FREEBSD "11",                 GUEST_OS_FREEBSD11,              "freebsd.iso")          \
    GOSL(STR_OS_FREEBSD "11-64",              GUEST_OS_FREEBSD11_64,           "freebsd.iso")          \
+   GOSL(STR_OS_FREEBSD "12",                 GUEST_OS_FREEBSD12,              "freebsd.iso")          \
+   GOSL(STR_OS_FREEBSD "12-64",              GUEST_OS_FREEBSD12_64,           "freebsd.iso")          \
    GOSL("linux",                             GUEST_OS_OTHERLINUX,             "linuxPreGlibc25.iso") /* old */ \
    GOSL(STR_OS_WIN_LONG,                     GUEST_OS_LONGHORN,               "windows.iso")          \
    GOSL("longhorn-64",                       GUEST_OS_LONGHORN_64,            "windows.iso")          \

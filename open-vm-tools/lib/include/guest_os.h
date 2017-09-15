@@ -84,8 +84,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWINXP64            BS(WINXPPRO_64)
 #define ALLWINXP              ALLWINXP32, ALLWINXP64
 
-#define ALLFREEBSD            BS(FREEBSD), BS(FREEBSD_64), \
-                              BS(FREEBSD11), BS(FREEBSD11_64)
+#define ALLFREEBSD            BS(FREEBSD),   BS(FREEBSD_64),   \
+                              BS(FREEBSD11), BS(FREEBSD11_64), \
+                              BS(FREEBSD12), BS(FREEBSD12_64)
 
 #define ALLWINNET32           BS(WINNET)
 #define ALLWINNET64           BS(WINNET_64)
@@ -191,15 +192,16 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALL3XLINUX64, BS(OTHERLINUX_64)
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
 #define ALLDARWIN32           BS(DARWIN9), BS(DARWIN10), BS(DARWIN11)
-#define ALLDARWIN64           BS(DARWIN9_64), BS(DARWIN10_64), \
+#define ALLDARWIN64           BS(DARWIN9_64),  BS(DARWIN10_64), \
                               BS(DARWIN11_64), BS(DARWIN12_64), \
                               BS(DARWIN13_64), BS(DARWIN14_64), \
                               BS(DARWIN15_64), BS(DARWIN16_64), \
-                              BS(DARWIN17_64)
+                              BS(DARWIN17_64), BS(DARWIN18_64)
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 #define ALL64                 ALLWIN64, ALLLINUX64, BS(SOLARIS10_64), \
-                              BS(FREEBSD_64), BS(FREEBSD11_64), \
-                              ALLDARWIN64, BS(OTHER_64), ALLVMKERNEL
+                              BS(FREEBSD_64), BS(FREEBSD11_64),       \
+                              BS(FREEBSD12_64), BS(OTHER_64),         \
+                              ALLDARWIN64, ALLVMKERNEL
 
 #define ALLECOMSTATION        BS(ECOMSTATION), BS(ECOMSTATION2)
 #define ALLOS2                BS(OS2), ALLECOMSTATION
@@ -512,6 +514,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 /* FreeBSD */
 #define STR_OS_FREEBSD   "freeBSD"
 #define STR_OS_FREEBSD11 "freeBSD11"
+#define STR_OS_FREEBSD12 "freeBSD12"
 
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"

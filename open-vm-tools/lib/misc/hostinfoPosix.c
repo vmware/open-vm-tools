@@ -1099,11 +1099,14 @@ HostinfoOSData(void)
       majorVersion = Hostinfo_OSVersion(0);
 
       /*
-       * FreeBSD 11 and later are identified using
-       * a different guestId.
+       * FreeBSD 11 and later are identified using a different guestId.
        */
       if (majorVersion >= 11) {
-         Str_Strcpy(distroShort, STR_OS_FREEBSD11, sizeof distroShort);
+         if (majorVersion >= 12) {
+            Str_Strcpy(distroShort, STR_OS_FREEBSD12, sizeof distroShort);
+         } else {
+            Str_Strcpy(distroShort, STR_OS_FREEBSD11, sizeof distroShort);
+         }
       } else {
          Str_Strcpy(distroShort, STR_OS_FREEBSD, sizeof distroShort);
       }
