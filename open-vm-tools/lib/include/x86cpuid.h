@@ -105,16 +105,22 @@ CPUIDQuery;
  * CPUID levels the monitor caches.
  *
  * The first parameter defines whether the level has its default masks
- * generated from the values in this file.  Any level which is marked
- * as FALSE here *must* have all monitor support types set to NA.  A
- * static assert in lib/cpuidcompat/cpuidcompat.c will check this.
+ * generated from the values in this file. Any level which is marked as FALSE
+ * here *must* have all monitor support types set to NA. A static assert in
+ * lib/cpuidcompat/cpuidcompat.c will check this.
  *
- * The fourth parameter is a "sub leaf count", where 0 means that ecx
- * is ignored, otherwise is the count of sub-leaves cached/supported.
+ * The second parameter is the "short name" of the level. It's mainly used for
+ * token concatenation in various macros.
  *
- * The fifth parameter is the first hardware version that is *aware* of
- * the CPUID level (0 = existed since dawn of time), even though we
- * may not expose this level or parts of it to guest.
+ * The third parameter is the actual numeric value of that level (the EAX input
+ * value).
+ *
+ * The fourth parameter is a "subleaf count", where 0 means that ecx is
+ * ignored, otherwise is the count of sub-leaves (0, 2, 3, 4...).
+ *
+ * The fifth parameter is the first hardware version that is *aware* of the
+ * CPUID level (0 = existed since dawn of time), even though we may not expose
+ * this level or parts of it to guest.
  */
 
 #define CPUID_CACHED_LEVELS                         \
@@ -124,7 +130,7 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 4,   4,          7,  0)        \
    CPUIDLEVEL(FALSE, 5,   5,          0,  0)        \
    CPUIDLEVEL(FALSE, 6,   6,          0,  0)        \
-   CPUIDLEVEL(TRUE,  7,   7,          1,  0)        \
+   CPUIDLEVEL(TRUE,  7,   7,          2,  0)        \
    CPUIDLEVEL(FALSE, A,   0xA,        0,  0)        \
    CPUIDLEVEL(FALSE, B,   0xB,        2,  0)        \
    CPUIDLEVEL(TRUE,  D,   0xD,       10,  0)        \
@@ -134,6 +140,7 @@ CPUIDQuery;
    CPUIDLEVEL(TRUE,  14,  0x14,       2, 13)        \
    CPUIDLEVEL(TRUE,  15,  0x15,       0, 13)        \
    CPUIDLEVEL(TRUE,  16,  0x16,       0, 13)        \
+   CPUIDLEVEL(TRUE,  17,  0x17,       4, 13)        \
    CPUIDLEVEL(FALSE, 400, 0x40000000, 0,  0)        \
    CPUIDLEVEL(FALSE, 401, 0x40000001, 0,  0)        \
    CPUIDLEVEL(FALSE, 402, 0x40000002, 0,  0)        \
@@ -220,28 +227,35 @@ typedef enum {
 #define CPUID_VIA_VENDOR_STRING_FIXED   "CentaurHauls"
 
 /*
- * FIELD can be defined to process the CPUID information provided
- * in the following CPUID_FIELD_DATA macro.  The first parameter is
- * the CPUID level of the feature (must be defined in
- * CPUID_ALL_LEVELS, above.  The second parameter is the CPUID result
- * register in which the field is returned (defined in CPUID_REGS).
- * The third field is the vendor(s) this feature applies to.  "COMMON"
- * means all vendors apply.  UNKNOWN may not be used here.  The fourth
- * and fifth parameters are the bit position of the field and the
- * width, respectively.  The sixth is the text name of the field.
+ * FIELD can be defined to process the CPUID information provided in the
+ * following CPUID_FIELD_DATA macro.
  *
- * The seventh parameters specifies the monitor support
- * characteristics for this field.  The value must be a valid
- * CpuidFieldSupported value (omitting CPUID_FIELD_SUPPORT_ for
- * convenience).  The meaning of those values are described below.
+ * The first parameter is the CPUID level of the feature (must be defined in
+ * CPUID_ALL_LEVELS, above).
  *
- * The eighth parameter describes whether the feature is capable of
- * being used by usermode code (TRUE), or just CPL0 kernel code
- * (FALSE).
+ * The second parameter is the CPUID sub-level (subleaf) of the feature. Please
+ * make sure here the number is consistent with the "subleaf count" in
+ * CPUIDLEVEL macro. I.e., if a feature is being added to a _new_ subleaf,
+ * update the subleaf count above as well.
  *
- * FLAG is defined identically to FIELD, but its accessors are more
- * appropriate for 1-bit flags, and compile-time asserts enforce that
- * the size is 1 bit wide.
+ * The third parameter is the result register.
+ *
+ * The fourth and fifth parameters are the bit position of the field and the
+ * width, respectively.
+ *
+ * The sixth is the name of the field.
+ *
+ * The seventh parameters specifies the monitor support characteristics for
+ * this field. The value must be a valid CpuidFieldSupported value (omitting
+ * CPUID_FIELD_SUPPORT_ for convenience). The meaning of those values are
+ * described below.
+ *
+ * The eighth parameter describes whether the feature is capable of being used
+ * by usermode code (TRUE), or just CPL0 kernel code (FALSE).
+ *
+ * FLAG is defined identically to FIELD, but its accessors are more appropriate
+ * for 1-bit flags, and compile-time asserts enforce that the size is 1 bit
+ * wide.
  */
 
 
@@ -872,7 +886,7 @@ FLAG(  8A,  0, EDX, 11,  1, SVMEDX_RSVD1,                          NO,  FALSE)
 FIELD( 8A,  0, EDX, 14, 18, SVMEDX_RSVD2,                          NO,  FALSE)
 
 /*    LEVEL, REG, POS, SIZE, NAME,                             MON SUPP, CPL3 */
-#define CPUID_FIELD_DATA_LEVEL_8x                                              \
+#define CPUID_FIELD_DATA_LEVEL_85                                              \
 FIELD( 85,  0, EAX,  0,  8, ITLB_ENTRIES_2M4M_PGS,                 NA,  FALSE) \
 FIELD( 85,  0, EAX,  8,  8, ITLB_ASSOC_2M4M_PGS,                   NA,  FALSE) \
 FIELD( 85,  0, EAX, 16,  8, DTLB_ENTRIES_2M4M_PGS,                 NA,  FALSE) \
@@ -888,7 +902,10 @@ FIELD( 85,  0, ECX, 24,  8, L1_DCACHE_SIZE,                        NA,  FALSE) \
 FIELD( 85,  0, EDX,  0,  8, L1_ICACHE_LINE_SIZE,                   NA,  FALSE) \
 FIELD( 85,  0, EDX,  8,  8, L1_ICACHE_LINES_PER_TAG,               NA,  FALSE) \
 FIELD( 85,  0, EDX, 16,  8, L1_ICACHE_ASSOC,                       NA,  FALSE) \
-FIELD( 85,  0, EDX, 24,  8, L1_ICACHE_SIZE,                        NA,  FALSE) \
+FIELD( 85,  0, EDX, 24,  8, L1_ICACHE_SIZE,                        NA,  FALSE)
+
+/*    LEVEL, REG, POS, SIZE, NAME,                             MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_86                                              \
 FIELD( 86,  0, EAX,  0, 12, L2_ITLB_ENTRIES_2M4M_PGS,              NA,  FALSE) \
 FIELD( 86,  0, EAX, 12,  4, L2_ITLB_ASSOC_2M4M_PGS,                NA,  FALSE) \
 FIELD( 86,  0, EAX, 16, 12, L2_DTLB_ENTRIES_2M4M_PGS,              NA,  FALSE) \
@@ -904,7 +921,10 @@ FIELD( 86,  0, ECX, 16, 16, L2CACHE_SIZE,                          NA,  FALSE) \
 FIELD( 86,  0, EDX,  0,  8, L3CACHE_LINE,                          NA,  FALSE) \
 FIELD( 86,  0, EDX,  8,  4, L3CACHE_LINE_PER_TAG,                  NA,  FALSE) \
 FIELD( 86,  0, EDX, 12,  4, L3CACHE_WAYS,                          NA,  FALSE) \
-FIELD( 86,  0, EDX, 18, 14, L3CACHE_SIZE,                          NA,  FALSE) \
+FIELD( 86,  0, EDX, 18, 14, L3CACHE_SIZE,                          NA,  FALSE)
+
+/*    LEVEL, REG, POS, SIZE, NAME,                             MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_87                                              \
 FLAG(  87,  0, EDX,  0,  1, TS,                                    NA,  FALSE) \
 FLAG(  87,  0, EDX,  1,  1, FID,                                   NA,  FALSE) \
 FLAG(  87,  0, EDX,  2,  1, VID,                                   NA,  FALSE) \
@@ -914,12 +934,18 @@ FLAG(  87,  0, EDX,  5,  1, STC,                                   NA,  FALSE) \
 FLAG(  87,  0, EDX,  6,  1, 100MHZSTEPS,                           NA,  FALSE) \
 FLAG(  87,  0, EDX,  7,  1, HWPSTATE,                              NA,  FALSE) \
 FLAG(  87,  0, EDX,  8,  1, TSC_INVARIANT,                         NA,  FALSE) \
-FLAG(  87,  0, EDX,  9,  1, CORE_PERF_BOOST,                       NA,  FALSE) \
+FLAG(  87,  0, EDX,  9,  1, CORE_PERF_BOOST,                       NA,  FALSE)
+
+/*    LEVEL, REG, POS, SIZE, NAME,                             MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_88                                              \
 FIELD( 88,  0, EAX,  0,  8, PHYS_BITS,                             NA,  FALSE) \
 FIELD( 88,  0, EAX,  8,  8, VIRT_BITS,                             NA,  FALSE) \
 FIELD( 88,  0, EAX, 16,  8, GUEST_PHYS_ADDR_SZ,                    NA,  FALSE) \
 FIELD( 88,  0, ECX,  0,  8, LEAF88_CORE_COUNT,                     NA,  FALSE) \
-FIELD( 88,  0, ECX, 12,  4, APICID_COREID_SIZE,                    NA,  FALSE) \
+FIELD( 88,  0, ECX, 12,  4, APICID_COREID_SIZE,                    NA,  FALSE)
+
+/*    LEVEL, REG, POS, SIZE, NAME,                             MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_8A                                              \
 FIELD( 8A,  0, EAX,  0,  8, SVM_REVISION,                          YES, FALSE) \
 FLAG(  8A,  0, EAX,  8,  1, SVM_HYPERVISOR,                        NO,  FALSE) \
 FIELD( 8A,  0, EAX,  9, 23, SVMEAX_RSVD,                           NO,  FALSE) \
@@ -941,7 +967,7 @@ FLAG(  8A,  0, EDX, 13,  1, SVM_AVIC,                              NO,  FALSE) \
 CPUID_8A_EDX_14_31
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
-#define CPUID_FIELD_DATA_LEVEL_81x                                             \
+#define CPUID_FIELD_DATA_LEVEL_819                                             \
 FIELD(819,  0, EAX,  0, 12, L1_ITLB_ENTRIES_1G_PGS,                NA,  FALSE) \
 FIELD(819,  0, EAX, 12,  4, L1_ITLB_ASSOC_1G_PGS,                  NA,  FALSE) \
 FIELD(819,  0, EAX, 16, 12, L1_DTLB_ENTRIES_1G_PGS,                NA,  FALSE) \
@@ -949,9 +975,15 @@ FIELD(819,  0, EAX, 28,  4, L1_DTLB_ASSOC_1G_PGS,                  NA,  FALSE) \
 FIELD(819,  0, EBX,  0, 12, L2_ITLB_ENTRIES_1G_PGS,                NA,  FALSE) \
 FIELD(819,  0, EBX, 12,  4, L2_ITLB_ASSOC_1G_PGS,                  NA,  FALSE) \
 FIELD(819,  0, EBX, 16, 12, L2_DTLB_ENTRIES_1G_PGS,                NA,  FALSE) \
-FIELD(819,  0, EBX, 28,  4, L2_DTLB_ASSOC_1G_PGS,                  NA,  FALSE) \
+FIELD(819,  0, EBX, 28,  4, L2_DTLB_ASSOC_1G_PGS,                  NA,  FALSE)
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_81A                                             \
 FLAG( 81A,  0, EAX,  0,  1, FP128,                                 NA,  FALSE) \
-FLAG( 81A,  0, EAX,  1,  1, MOVU,                                  NA,  FALSE) \
+FLAG( 81A,  0, EAX,  1,  1, MOVU,                                  NA,  FALSE)
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_81B                                             \
 FLAG( 81B,  0, EAX,  0,  1, IBS_FFV,                               NA,  FALSE) \
 FLAG( 81B,  0, EAX,  1,  1, IBS_FETCHSAM,                          NA,  FALSE) \
 FLAG( 81B,  0, EAX,  2,  1, IBS_OPSAM,                             NA,  FALSE) \
@@ -959,7 +991,10 @@ FLAG( 81B,  0, EAX,  3,  1, RW_OPCOUNT,                            NA,  FALSE) \
 FLAG( 81B,  0, EAX,  4,  1, OPCOUNT,                               NA,  FALSE) \
 FLAG( 81B,  0, EAX,  5,  1, BRANCH_TARGET_ADDR,                    NA,  FALSE) \
 FLAG( 81B,  0, EAX,  6,  1, OPCOUNT_EXT,                           NA,  FALSE) \
-FLAG( 81B,  0, EAX,  7,  1, RIP_INVALID_CHECK,                     NA,  FALSE) \
+FLAG( 81B,  0, EAX,  7,  1, RIP_INVALID_CHECK,                     NA,  FALSE)
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_81C                                             \
 FLAG( 81C,  0, EAX,  0,  1, LWP_AVAIL,                             NA,  FALSE) \
 FLAG( 81C,  0, EAX,  1,  1, LWP_VAL_AVAIL,                         NA,  FALSE) \
 FLAG( 81C,  0, EAX,  2,  1, LWP_IRE_AVAIL,                         NA,  FALSE) \
@@ -988,7 +1023,10 @@ FLAG( 81C,  0, EDX,  3,  1, LWP_BRE_SUPPORTED,                     NA,  FALSE) \
 FLAG( 81C,  0, EDX,  4,  1, LWP_DME_SUPPORTED,                     NA,  FALSE) \
 FLAG( 81C,  0, EDX,  5,  1, LWP_CNH_SUPPORTED,                     NA,  FALSE) \
 FLAG( 81C,  0, EDX,  6,  1, LWP_RNH_SUPPORTED,                     NA,  FALSE) \
-FLAG( 81C,  0, EDX, 31,  1, LWP_INT_SUPPORTED,                     NA,  FALSE) \
+FLAG( 81C,  0, EDX, 31,  1, LWP_INT_SUPPORTED,                     NA,  FALSE)
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_81D                                             \
 FIELD(81D,  0, EAX,  0,  5, LEAF81D_CACHE_TYPE,                    NA,  FALSE) \
 FIELD(81D,  0, EAX,  5,  3, LEAF81D_CACHE_LEVEL,                   NA,  FALSE) \
 FLAG( 81D,  0, EAX,  8,  1, LEAF81D_CACHE_SELF_INIT,               NA,  FALSE) \
@@ -999,7 +1037,10 @@ FIELD(81D,  0, EBX, 12, 10, LEAF81D_CACHE_PHYS_PARTITIONS,         NA,  FALSE) \
 FIELD(81D,  0, EBX, 22, 10, LEAF81D_CACHE_WAYS,                    NA,  FALSE) \
 FIELD(81D,  0, ECX,  0, 32, LEAF81D_CACHE_NUM_SETS,                NA,  FALSE) \
 FLAG( 81D,  0, EDX,  0,  1, LEAF81D_CACHE_WBINVD,                  NA,  FALSE) \
-FLAG( 81D,  0, EDX,  1,  1, LEAF81D_CACHE_INCLUSIVE,               NA,  FALSE) \
+FLAG( 81D,  0, EDX,  1,  1, LEAF81D_CACHE_INCLUSIVE,               NA,  FALSE)
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_81E                                             \
 FIELD(81E,  0, EAX,  0, 32, EXTENDED_APICID,                       NA,  FALSE) \
 FIELD(81E,  0, EBX,  0,  8, COMPUTE_UNIT_ID,                       NA,  FALSE) \
 FIELD(81E,  0, EBX,  8,  2, CORES_PER_COMPUTE_UNIT,                NA,  FALSE) \
@@ -1027,6 +1068,7 @@ FIELD(81E,  0, ECX,  8,  3, NODES_PER_PKG,                         NA,  FALSE)
    CPUID_FIELD_DATA_LEVEL_14                                          \
    CPUID_FIELD_DATA_LEVEL_15                                          \
    CPUID_FIELD_DATA_LEVEL_16                                          \
+   CPUID_FIELD_DATA_LEVEL_17                                          \
    CPUID_FIELD_DATA_LEVEL_400                                         \
    CPUID_FIELD_DATA_LEVEL_401                                         \
    CPUID_FIELD_DATA_LEVEL_402                                         \
@@ -1040,8 +1082,17 @@ FIELD(81E,  0, ECX,  8,  3, NODES_PER_PKG,                         NA,  FALSE)
    CPUID_FIELD_DATA_LEVEL_82                                          \
    CPUID_FIELD_DATA_LEVEL_83                                          \
    CPUID_FIELD_DATA_LEVEL_84                                          \
-   CPUID_FIELD_DATA_LEVEL_8x                                          \
-   CPUID_FIELD_DATA_LEVEL_81x                                         \
+   CPUID_FIELD_DATA_LEVEL_85                                          \
+   CPUID_FIELD_DATA_LEVEL_86                                          \
+   CPUID_FIELD_DATA_LEVEL_87                                          \
+   CPUID_FIELD_DATA_LEVEL_88                                          \
+   CPUID_FIELD_DATA_LEVEL_8A                                          \
+   CPUID_FIELD_DATA_LEVEL_819                                         \
+   CPUID_FIELD_DATA_LEVEL_81A                                         \
+   CPUID_FIELD_DATA_LEVEL_81B                                         \
+   CPUID_FIELD_DATA_LEVEL_81C                                         \
+   CPUID_FIELD_DATA_LEVEL_81D                                         \
+   CPUID_FIELD_DATA_LEVEL_81E                                         \
    INTEL_CPUID_FIELD_DATA                                             \
    AMD_CPUID_FIELD_DATA
 
@@ -1902,9 +1953,21 @@ CPUID_IsHypervisorLevel(uint32 level)
 
 static INLINE Bool
 CPUID_LevelUsesEcx(uint32 level) {
-   return level == 4 || level == 7 || level == 0xb || level == 0xd ||
-          level == 0xf || level == 0x12 || level == 0x14 ||
-          level == 0x8000001d;
+   switch (level)
+   {
+
+#define CPUIDLEVEL(t, s, v, c, h)   \
+      case v:                       \
+         ASSERT_ON_COMPILE(c != 1); \
+         return c != 0;
+
+      CPUID_ALL_LEVELS
+
+#undef CPUIDLEVEL
+
+      default:
+         return FALSE;
+   }
 }
 
 /*
