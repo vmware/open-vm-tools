@@ -299,7 +299,7 @@ struct AsyncSocket {
       AsyncProxySocketState proxySocketState;
       char *secondaryUrl;
       char *e2ePort;
-      char *secondaryIP;
+      const char *secondaryIP;
       char *secondaryPort;
       SSLVerifyParam *secondarySslVerifyParam;
       const char *akey;
