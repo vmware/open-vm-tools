@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,20 +41,11 @@
 #include <ctype.h>
 
 #if !defined(_WIN32)
-#  if defined(__linux__)
-#    include <sys/syscall.h> // for SYS_gettid
-#  endif
 #  include <unistd.h>
 #  include <pwd.h>
 #  include <sys/socket.h>    // for AF_INET[6]
 #  include <arpa/inet.h>     // for inet_pton
 #  include <netinet/in.h>    // for INET6_ADDRSTRLEN
-#endif
-
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#include <pthread.h>
-#elif defined(__sun__)
-#include <thread.h>
 #endif
 
 #if defined(__APPLE__)
@@ -363,77 +354,6 @@ Util_IsAbsolutePath(const char *path)  // IN: path to check
    NOT_IMPLEMENTED();
 #endif
    NOT_REACHED();
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_GetCurrentThreadId --
- *
- *      Retrieves a unique thread identification suitable to identify a thread
- *      to kill it or change its scheduling priority.
- *
- *      The tid is NOT guaranteed to be correct across fork().
- *
- * Results:
- *      Unique thread identification on success.
- *	ASSERTs on failure (should not happen).
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Util_ThreadID
-Util_GetCurrentThreadId(void)
-{
-#if defined(__linux__) && !defined(__ANDROID__)
-   /*
-    * Linux does not declare gettid, but the raw syscall
-    * works fine. We must supply our own TLS caching.
-    */
-   static __thread pid_t tid;
-   if (UNLIKELY(tid == 0)) {
-      tid = (pid_t)syscall(SYS_gettid);
-      ASSERT(tid != -1);  // All kernels that support TLS also implement gettid
-   }
-   return tid;
-
-#elif defined(__ANDROID__)
-   /*
-    * Bionic supplies a gettid implementation in <unistd.h> that
-    * natively uses TLS.
-    */
-   return gettid();
-#elif defined(__sun__)
-   /*
-    * The old thr_ API returns an integer thread identifier. It is
-    * still available with Solaris pthreads.
-    */
-   return thr_self();
-#elif defined(__APPLE__)
-   /*
-    * NB: do not use mach_thread_self here. mach_thread_self returns
-    * a reference and requires a matching mach_port_deallocate, which
-    * would take two syscalls instead of zero.
-    */
-   return pthread_mach_thread_np(pthread_self());
-#elif defined(__FreeBSD__)
-   /*
-    * These OSes do not implement OS-native thread IDs. You probably
-    * didn't need one anyway, but guess that pthread_self works
-    * well enough.
-    */
-   ASSERT_ON_COMPILE(sizeof(Util_ThreadID) >= sizeof(pthread_t));
-
-   return pthread_self();
-#elif defined(_WIN32)
-   return GetCurrentThreadId();
-#else
-#error "Unknown platform"
-#endif
 }
 
 

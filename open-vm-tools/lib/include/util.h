@@ -55,26 +55,6 @@
 extern "C" {
 #endif
 
-/*
- * Define the Util_ThreadID type, and assorted standard bits.
- */
-#if defined(_WIN32)
-   typedef DWORD Util_ThreadID;
-#elif defined(__linux__) || defined(__ANDROID__)
-   typedef pid_t Util_ThreadID;
-#elif defined(__APPLE__)
-#  include <pthread.h>
-   typedef mach_port_t Util_ThreadID;
-#elif defined(__sun__)
-#  include <thread.h>
-   typedef thread_t Util_ThreadID;
-#elif defined(__FreeBSD__)
-#  include <pthread.h>
-   typedef pthread_t Util_ThreadID;
-#else
-#  error "Need typedef for Util_ThreadID"
-#endif
-
 uint32 CRC_Compute(const uint8 *buf, int len);
 uint32 Util_Checksum32(const uint32 *buf, int len);
 uint32 Util_Checksum(const uint8 *buf, int len);
@@ -98,7 +78,6 @@ char *Util_CompatGetLowerCaseCanonicalPath(const char* path);
 int Util_BumpNoFds(uint32 *cur, uint32 *wanted);
 Bool Util_CanonicalPathsIdentical(const char *path1, const char *path2);
 Bool Util_IsAbsolutePath(const char *path);
-Util_ThreadID Util_GetCurrentThreadId(void);
 
 char *Util_DeriveFileName(const char *source,
                           const char *name,

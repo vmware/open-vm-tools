@@ -775,9 +775,6 @@ VThreadBase_CurID(void)
  *      Obviously, specific mechanisms for obtaining native IDs are *highly*
  *      non-portable, as indicated by the _np suffixes.
  *
- *      TODO: merge with Util_GetCurrentThreadId(), or delete that function
- *      because anybody using it probably hasn't read the above disclaimer.
- *
  * Results:
  *      Some sort of system ID (e.g. LWP, Task, ...)
  *
