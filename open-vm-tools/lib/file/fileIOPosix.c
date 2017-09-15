@@ -1485,13 +1485,14 @@ FileIO_Sync(const FileIODescriptor *file)  // IN:
  */
 
 static Bool
-FileIOCoalesce(struct iovec const *inVec, // IN:  Vector to coalesce from
-               int inCount,               // IN:  count for inVec
-               size_t inTotalSize,        // IN:  totalSize (bytes) in inVec
-               Bool isWrite,              // IN:  coalesce for writing (or reading)
-               Bool forceCoalesce,        // IN:  if TRUE always coalesce
-               int flags,                 // IN: fileIO open flags
-               struct iovec *outVec)      // OUT: Coalesced (1-entry) iovec
+FileIOCoalesce(
+           struct iovec const *inVec, // IN:  Vector to coalesce from
+           int inCount,               // IN:  count for inVec
+           size_t inTotalSize,        // IN:  totalSize (bytes) in inVec
+           Bool isWrite,              // IN:  coalesce for writing (or reading)
+           Bool forceCoalesce,        // IN:  if TRUE always coalesce
+           int flags,                 // IN: fileIO open flags
+           struct iovec *outVec)      // OUT: Coalesced (1-entry) iovec
 {
    uint8 *cBuf;
 
@@ -1560,12 +1561,13 @@ FileIOCoalesce(struct iovec const *inVec, // IN:  Vector to coalesce from
  */
 
 static void
-FileIODecoalesce(struct iovec *coVec,         // IN: Coalesced (1-entry) vector
-                 struct iovec const *origVec, // IN: Original vector
-                 int origVecCount,            // IN: count for origVec
-                 size_t actualSize,           // IN: # bytes to transfer back to origVec
-                 Bool isWrite,                // IN: decoalesce for writing (or reading)
-                 int flags)                   // IN: fileIO open flags
+FileIODecoalesce(
+        struct iovec *coVec,         // IN: Coalesced (1-entry) vector
+        struct iovec const *origVec, // IN: Original vector
+        int origVecCount,            // IN: count for origVec
+        size_t actualSize,           // IN: # bytes to transfer back to origVec
+        Bool isWrite,                // IN: decoalesce for writing (or reading)
+        int flags)                   // IN: fileIO open flags
 {
    ASSERT(coVec);
    ASSERT(origVec);
@@ -1819,12 +1821,13 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
  */
 
 static FileIOResult
-FileIOPreadvCoalesced(FileIODescriptor *fd,        // IN: File descriptor
-                      struct iovec const *entries, // IN: Vector to read into
-                      int numEntries,              // IN: Number of vector entries
-                      uint64 offset,               // IN: Offset to start reading
-                      size_t totalSize,            // IN: totalSize(bytes) in entries
-                      size_t *actual)              // OUT: number of bytes read
+FileIOPreadvCoalesced(
+                FileIODescriptor *fd,        // IN: File descriptor
+                struct iovec const *entries, // IN: Vector to read into
+                int numEntries,              // IN: Number of vector entries
+                uint64 offset,               // IN: Offset to start reading
+                size_t totalSize,            // IN: totalSize(bytes) in entries
+                size_t *actual)              // OUT: number of bytes read
 {
    struct iovec const *vPtr;
    struct iovec coV;
@@ -1907,12 +1910,13 @@ exit:
  */
 
 static FileIOResult
-FileIOPwritevCoalesced(FileIODescriptor *fd,        // IN: File descriptor
-                       struct iovec const *entries, // IN: Vector to write from
-                       int numEntries,              // IN: Number of vector entries
-                       uint64 offset,               // IN: Offset to start writing
-                       size_t totalSize,            // IN: Total size(bytes)
-                       size_t *actual)              // OUT: number of bytes written
+FileIOPwritevCoalesced(
+                   FileIODescriptor *fd,        // IN: File descriptor
+                   struct iovec const *entries, // IN: Vector to write from
+                   int numEntries,              // IN: Number of vector entries
+                   uint64 offset,               // IN: Offset to start writing
+                   size_t totalSize,            // IN: Total size(bytes)
+                   size_t *actual)              // OUT: number of bytes written
 {
    struct iovec coV;
    Bool didCoalesce;
@@ -2020,12 +2024,13 @@ exit:
  */
 
 static FileIOResult
-FileIOPreadvInternal(FileIODescriptor *fd,        // IN: File descriptor
-                     struct iovec const *entries, // IN: Vector to read into
-                     int numEntries,              // IN: Number of vector entries
-                     uint64 offset,               // IN: Offset to start reading
-                     size_t totalSize,            // IN: totalSize(bytes) in entries
-                     size_t *actual)              // OUT: number of bytes read
+FileIOPreadvInternal(
+                FileIODescriptor *fd,        // IN: File descriptor
+                struct iovec const *entries, // IN: Vector to read into
+                int numEntries,              // IN: Number of vector entries
+                uint64 offset,               // IN: Offset to start reading
+                size_t totalSize,            // IN: totalSize(bytes) in entries
+                size_t *actual)              // OUT: number of bytes read
 {
    struct iovec const *vPtr;
    int numVec;
@@ -2044,13 +2049,13 @@ FileIOPreadvInternal(FileIODescriptor *fd,        // IN: File descriptor
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
-      if (preadv64 != NULL) {
-         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
-         retval = preadv64(fd->posix, vPtr, tempVec, offset);
-      } else {
+      if (preadv64 == NULL) {
          fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
                                       totalSize, &bytesRead);
          break;
+      } else {
+         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
+         retval = preadv64(fd->posix, vPtr, tempVec, offset);
       }
       if (retval == -1) {
          if (errno == EINTR) {
@@ -2155,12 +2160,13 @@ FileIOPreadvInternal(FileIODescriptor *fd,        // IN: File descriptor
  */
 
 static FileIOResult
-FileIOPwritevInternal(FileIODescriptor *fd,        // IN: File descriptor
-                      struct iovec const *entries, // IN: Vector to write from
-                      int numEntries,              // IN: Number of vector entries
-                      uint64 offset,               // IN: Offset to start writing
-                      size_t totalSize,            // IN: Total size(bytes)in entries
-                      size_t *actual)              // OUT: number of bytes written
+FileIOPwritevInternal(
+                FileIODescriptor *fd,        // IN: File descriptor
+                struct iovec const *entries, // IN: Vector to write from
+                int numEntries,              // IN: Number of vector entries
+                uint64 offset,               // IN: Offset to start writing
+                size_t totalSize,            // IN: Total size(bytes)in entries
+                size_t *actual)              // OUT: number of bytes written
 {
    struct iovec const *vPtr;
    int numVec;
@@ -2179,13 +2185,13 @@ FileIOPwritevInternal(FileIODescriptor *fd,        // IN: File descriptor
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
-      if (pwritev64 != NULL) {
-         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
-         retval = pwritev64(fd->posix, vPtr, tempVec, offset);
-      } else {
+      if (pwritev64 == NULL) {
          fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
                                        totalSize, &bytesWritten);
          break;
+      } else {
+         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
+         retval = pwritev64(fd->posix, vPtr, tempVec, offset);
       }
       if (retval == -1) {
          if (errno == EINTR) {
@@ -2359,9 +2365,9 @@ FileIO_Pwritev(FileIODescriptor *fd,        // IN: File descriptor
  */
 
 FileIOResult
-FileIO_GetAllocSize(const FileIODescriptor *fd,     // IN:
-                    uint64 *logicalBytes,           // OUT:
-                    uint64 *allocedBytes)           // OUT:
+FileIO_GetAllocSize(const FileIODescriptor *fd,  // IN:
+                    uint64 *logicalBytes,        // OUT:
+                    uint64 *allocedBytes)        // OUT:
 {
    struct stat statBuf;
 
