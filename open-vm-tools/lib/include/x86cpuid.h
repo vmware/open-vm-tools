@@ -1457,7 +1457,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_EXCAVATOR_60      0x60 // family == CPUID_FAMILY_BULLDOZER
 #define CPUID_MODEL_EXCAVATOR_6F      0x6F // Max Excavator model defined in BKDG
 #define CPUID_MODEL_ZEN_00            0x00 // family == CPUID_FAMILY_ZEN
-#define CPUID_MODEL_ZEN_0F            0x0F // Max Zen model defined in BKDG
+#define CPUID_MODEL_ZEN_1F            0x1F // Max Zen model defined in BKDG
 
 /* VIA model information */
 #define CPUID_MODEL_NANO       15     // Isaiah
@@ -1936,7 +1936,7 @@ static INLINE Bool
 CPUID_MODEL_IS_ZEN(uint32 eax)
 {
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN &&
-          CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN_0F;
+          CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN_1F;
 }
 
 #define CPUID_TYPE_PRIMARY     0
