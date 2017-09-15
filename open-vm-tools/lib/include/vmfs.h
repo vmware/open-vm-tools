@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -102,8 +102,6 @@ extern "C" {
 #define VISOR_CDROM_MOUNT_PATH          VISOR_CDROM_MOUNT_POINT "/"
 #define VISOR_DISKS_MOUNT_PATH          VISOR_DISKS_MOUNT_POINT "/"
 #define VISOR_GENERIC_SCSI_MOUNT_PATH   VISOR_GENERIC_SCSI_MOUNT_POINT "/"
-
-#define VMFS_SYSTEM_FILE_SUFFIX         ".sf"
 
 typedef enum {
    VMFS_SYMBOLIC,
