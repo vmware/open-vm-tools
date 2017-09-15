@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -156,10 +156,12 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLPHOTON             BS(PHOTON_64)
 
+#define ALLSOLARIS11_OR_HIGHER \
+                              BS(SOLARIS11_64), BS(SOLARIS12_64)
+
 #define ALLSOLARIS10_OR_HIGHER \
                               BS(SOLARIS10), BS(SOLARIS10_64), \
-                              BS(SOLARIS11_64), \
-                              BS(SOLARIS12_64)
+                              ALLSOLARIS11_OR_HIGHER
 
 #define ALLSOLARIS            BS(SOLARIS_6_AND_7), \
                               BS(SOLARIS8), \
