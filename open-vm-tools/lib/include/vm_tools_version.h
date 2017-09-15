@@ -17,6 +17,12 @@
  *********************************************************/
 
 
+#ifdef USE_GOBUILD_TOOLS_VERSION
+
+#include "vmtools_version.h"
+
+#else
+
 #ifndef VM_TOOLS_VERSION_H
 #define VM_TOOLS_VERSION_H
 
@@ -1445,3 +1451,5 @@ TOOLS_VERSION_UINT_TO_COMPONENTS(const ToolsVersion toolsVersion,   // IN
    TOOLS_VERSION_CURRENT_STR "." PRODUCT_BUILD_NUMBER_NUMERIC_STRING
 
 #endif /* VM_TOOLS_VERSION_H */
+
+#endif /* USE_GOBUILD_TOOLS_VERSION */
