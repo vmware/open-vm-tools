@@ -307,23 +307,24 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
    uint32 failed;
 
    LDST_LDST_MEM_BARRIER();
-   __asm__ __volatile__ (
-      "1: ldxp    %x0, %x1, [%3]      \n\t"
+   __asm__ __volatile__(
+      "1: ldxp    %x0, %x1, %3        \n\t"
       "   cmp     %x0, %x4            \n\t"
       "   ccmp    %x1, %x5, #0, eq    \n\t"
       "   b.ne    2f                  \n\t"
-      "   stxp    %w2, %x6, %x7, [%3] \n\t"
+      "   stxp    %w2, %x6, %x7, %3   \n\t"
       "   cbnz    %w2, 1b             \n\t"
       "2: clrex                       \n\t"
       : "=&r" (res.lo),
         "=&r" (res.hi),
-        "=&r" (failed)
-      : "r" (&ptr->value),
-        "r" (_old.lo),
+        "=&r" (failed),
+        "+Q" (ptr->value)
+      : "r" (_old.lo),
         "r" (_old.hi),
         "r" (_new.lo),
         "r" (_new.hi)
-      : "cc", "memory");
+      : "cc"
+   );
    LDST_LDST_MEM_BARRIER();
 
    return res.raw;
