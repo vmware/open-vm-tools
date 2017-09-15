@@ -456,21 +456,18 @@ Str_Strncat(char *buf,       // IN/OUT
    ASSERT(src != NULL);
 
    /*
-    * Check bufLen + n first so we can avoid the second call to strlen
-    * if possible.
+    * If bufLen + n is OK, we know things will fit (and avoids a strlen(src)).
+    * If bufLen + n looks too big, they still might fit if the src is short
+    * enough... so repeat the check using strlen(src).
     *
-    * The reason the test with bufLen and n is >= rather than just >
-    * is that strncat always NUL-terminates the resulting string, even
-    * if it reaches the length limit n. This means that if it happens that
-    * bufLen + n == bufSize, strncat will write a NUL terminator that
-    * is outside of the buffer. Therefore, we make sure this does not
-    * happen by adding the == case to the Panic test.
+    * The "fit" means less than, as strncat always adds a terminating NUL.
+    *
     */
 
    bufLen = strlen(buf);
 
-   if (bufLen + n >= bufSize &&
-       bufLen + strlen(src) >= bufSize) {
+   if (!(bufLen + n < bufSize ||
+         bufLen + strlen(src) < bufSize)) {
       Panic("%s:%d Buffer too small\n", __FILE__,__LINE__);
    }
 
