@@ -245,6 +245,24 @@ static const HgfsServerCallbacks gHgfsServerCBTable = {
    },
 };
 
+
+static void HgfsServerNotifyRegisterThreadCb(struct HgfsSessionInfo *session);
+static void HgfsServerNotifyUnregisterThreadCb(struct HgfsSessionInfo *session);
+static void HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder,
+                                           HgfsSubscriberHandle subscriber,
+                                           char* fileName,
+                                           uint32 mask,
+                                           struct HgfsSessionInfo *session);
+
+/*
+ * Callback table passed to the directory change notification component.
+ */
+static const HgfsServerNotifyCallbacks gHgfsServerNotifyCBTable = {
+   HgfsServerNotifyRegisterThreadCb,
+   HgfsServerNotifyUnregisterThreadCb,
+   HgfsServerNotifyReceiveEventCb,
+};
+
 /* Lock that protects shared folders list. */
 static MXUserExclLock *gHgfsSharedFoldersLock = NULL;
 
@@ -340,11 +358,6 @@ static Bool HgfsHandle2NotifyInfo(HgfsHandle handle,
                                   char **fileName,
                                   size_t *fileNameSize,
                                   HgfsSharedFolderHandle *folderHandle);
-static void HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder,
-                                           HgfsSubscriberHandle subscriber,
-                                           char* fileName,
-                                           uint32 mask,
-                                           struct HgfsSessionInfo *session);
 static void HgfsFreeSearchDirents(HgfsSearch *search);
 
 static HgfsInternalStatus
@@ -3932,7 +3945,7 @@ HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our
       *callbackTable = &gHgfsServerCBTable;
 
       if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_NOTIFY_ENABLED)) {
-         gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
+         gHgfsDirNotifyActive = HgfsNotify_Init(&gHgfsServerNotifyCBTable) == HGFS_STATUS_SUCCESS;
          Log("%s: initialized notification %s.\n", __FUNCTION__,
              (gHgfsDirNotifyActive ? "active" : "inactive"));
       }
@@ -7828,7 +7841,7 @@ HgfsServerSetDirWatchByHandle(HgfsInputParam *input,         // IN: Input params
       LOG(4, ("%s: adding a subscriber on shared folder handle %#x\n", __FUNCTION__,
                sharedFolder));
       *watchId = HgfsNotify_AddSubscriber(sharedFolder, fileName, events, watchTree,
-                                          HgfsServerNotifyReceiveEventCb, input->session);
+                                          input->session);
       status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                               HGFS_ERROR_SUCCESS;
       LOG(4, ("%s: result of add subscriber id %"FMT64"x status %u\n", __FUNCTION__,
@@ -7915,7 +7928,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
                LOG(8, ("%s: session %p id %"FMT64"x on share hnd %#x\n", __FUNCTION__,
                        input->session, input->session->sessionId, sharedFolder));
                *watchId = HgfsNotify_AddSubscriber(sharedFolder, tempBuf, events,
-                                                   watchTree, HgfsServerNotifyReceiveEventCb,
+                                                   watchTree,
                                                    input->session);
                status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
                         HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
@@ -7929,12 +7942,11 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
          } else {
             LOG(8, ("%s: adding subscriber on share hnd %#x\n", __FUNCTION__, sharedFolder));
             *watchId = HgfsNotify_AddSubscriber(sharedFolder, "", events, watchTree,
-                                                HgfsServerNotifyReceiveEventCb,
                                                 input->session);
             status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                                     HGFS_ERROR_SUCCESS;
-            LOG(8, ("%s: adding subscriber on share hnd %#x result %u\n", __FUNCTION__,
-                     sharedFolder, status));
+            LOG(8, ("%s: adding subscriber on share hnd %#x watchId %"FMT64"x result %u\n",
+                    __FUNCTION__, sharedFolder, *watchId, status));
          }
       } else if (HGFS_NAME_STATUS_INCOMPLETE_BASE == nameStatus) {
          LOG(4, ("%s: Notification for root share is not supported yet\n",
@@ -9191,7 +9203,6 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
 }
 
 
-#ifdef HGFS_NOTIFY_THREAD_REGISTER_SUPPORTED
 /*
  *-----------------------------------------------------------------------------
  *
@@ -9218,6 +9229,8 @@ HgfsServerNotifyRegisterThreadCb(struct HgfsSessionInfo *session)     // IN: ses
 
    ASSERT(session);
    transportSession = session->transportSession;
+
+   LOG(4, ("%s: Registering thread on session %"FMT64"x\n", __FUNCTION__, session->sessionId));
 
    if (transportSession->channelCbTable->registerThread != NULL) {
       transportSession->channelCbTable->registerThread();
@@ -9252,11 +9265,12 @@ HgfsServerNotifyUnregisterThreadCb(struct HgfsSessionInfo *session)     // IN: s
    ASSERT(session);
    transportSession = session->transportSession;
 
+   LOG(4, ("%s: Unregistering thread on session %"FMT64"x\n", __FUNCTION__, session->sessionId));
+
    if (transportSession->channelCbTable->unregisterThread != NULL) {
       transportSession->channelCbTable->unregisterThread();
    }
 }
-#endif // HGFS_NOTIFY_THREAD_REGISTER_SUPPORTED
 
 
 /*
