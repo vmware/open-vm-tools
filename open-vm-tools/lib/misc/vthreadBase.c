@@ -472,11 +472,6 @@ VThreadBaseAreKeysInited(void)
  *      the compiler to inline this with the expectation that "local"
  *      is a compile time constant.
  *
- *      To facilitate lazy initialization we special case
- *      VTHREAD_LOCAL_ID slightly and arrange so that if its value is
- *      read before it is initialized we return -1 instead of 0 (since
- *      0 is used as a real thread id).
- *
  *      Note that we use store the thread local value using pthreads
  *      even when HAVE_TLS is defined.  This way we continue to use
  *      the same pthread destructor path for cleanup as we would
@@ -489,26 +484,23 @@ static INLINE Bool
 VThreadBaseSetLocal(VThreadLocal local, void *value)
 {
    VThreadBaseKeyType key;
-   void *adjustedValue = value;
    Bool success;
    ASSERT(VThreadBaseAreKeysInited());
    if (local == VTHREAD_LOCAL_BASE) {
       key = Atomic_Read(&vthreadBaseGlobals.baseKey);
    } else {
       ASSERT(local == VTHREAD_LOCAL_ID);
-      /* VThreadGetLocal compensates for this, lets the default be -1.  */
-      adjustedValue = (void*)((uintptr_t)adjustedValue + 1);
       key = Atomic_Read(&vthreadBaseGlobals.threadIDKey);
    }
    ASSERT(key != VTHREADBASE_INVALID_KEY);
 #if defined _WIN32
 #if defined VM_WIN_UWP
-   success = FlsSetValue(key, adjustedValue);
+   success = FlsSetValue(key, value);
 #else
-   success = TlsSetValue(key, adjustedValue);
+   success = TlsSetValue(key, value);
 #endif
 #else
-   success = pthread_setspecific(key, adjustedValue) == 0;
+   success = pthread_setspecific(key, value) == 0;
 #endif
 #ifdef HAVE_TLS
    if (success) {
@@ -569,9 +561,6 @@ VThreadBaseGetLocal(VThreadLocal local)
 #else
    result = pthread_getspecific(key);
 #endif
-   if (local == VTHREAD_LOCAL_ID) {
-      result = (void*)((uintptr_t)result - 1); /* See VThreadBaseSetLocal. */
-   }
 #endif
 
    return result;
