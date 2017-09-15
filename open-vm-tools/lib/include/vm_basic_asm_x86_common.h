@@ -456,8 +456,5 @@ SMP_W_BARRIER_R(void)
 #define MMIO_RW_BARRIER_W()   SMP_RW_BARRIER_W()
 #define MMIO_RW_BARRIER_RW()  SMP_RW_BARRIER_RW()
 
-/* deprecated version -- going away soon */
-#define LD_LD_MEM_BARRIER()      SMP_R_BARRIER_R()
-
 
 #endif // _VM_BASIC_ASM_X86_COMMON_H_
