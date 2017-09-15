@@ -308,9 +308,9 @@ RDTSC_BARRIER(void)
 
 
 /*
- * Compiler/CPU barriers. These take the form of <mem access type>_<mem access
- * type>_MEM_BARRIER, where <mem access type> is either LD (load), ST (store)
- * or LDST (any).
+ * (Compiler + CPU) memory barriers. These take the form of
+ * <mem access type>_<mem access type>_MEM_BARRIER, where <mem access type> is
+ * either LD (load), ST (store) or LDST (any).
  *
  * On x86, we only need to care specifically about store-load
  * reordering on normal memory types and mfence, otherwise only a compiler
@@ -328,5 +328,6 @@ RDTSC_BARRIER(void)
 #define LDST_LD_MEM_BARRIER()    ST_LD_MEM_BARRIER()
 #define LDST_ST_MEM_BARRIER()    COMPILER_MEM_BARRIER()
 #define LDST_LDST_MEM_BARRIER()  ST_LD_MEM_BARRIER()
+
 
 #endif // _VM_BASIC_ASM_X86_COMMON_H_
