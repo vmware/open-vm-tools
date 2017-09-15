@@ -823,7 +823,7 @@ AC_ARG_WITH([pam-prefix],
 	    [AS_HELP_STRING([--with-pam-prefix],
 		[specifies where pam files go. Default is $(sysconfdir)])],
 	    [PAM_PREFIX="$withval"],
-	    [PAM_PREFIX='$(sysconfdir)'])
+	    [if test "$os" = "freebsd" ; then PAM_PREFIX='$(sysconfdir)'; else PAM_PREFIX='/etc'; fi])
 
 AC_ARG_WITH([dnet],
 	    [AS_HELP_STRING([--without-dnet],
