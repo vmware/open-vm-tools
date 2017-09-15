@@ -960,8 +960,7 @@ StrUtil_IsASCII(const char *s) // IN
  * StrUtil_VDynBufPrintf --
  *
  *      This is a vprintf() variant which appends directly into a
- *      dynbuf. The dynbuf is not NUL-terminated: The printf() result
- *      is written immediately after the last byte in the DynBuf.
+ *      DynBuf.  Does NOT visibly NUL-terminate the DynBuf.
  *
  *      This function does not use any temporary buffer. The printf()
  *      result can be arbitrarily large. This function automatically
@@ -1012,6 +1011,11 @@ StrUtil_VDynBufPrintf(DynBuf *b,        // IN/OUT
          va_list tmpArgs;
 
          va_copy(tmpArgs, args);
+
+         /*
+          * We actually do NUL-terminate the buffer internally, but this is not
+          * visible to callers, and they should not rely on this.
+          */
          i = Str_Vsnprintf((char *) DynBuf_Get(b) + size, allocSize - size,
                            fmt, tmpArgs);
          va_end(tmpArgs);

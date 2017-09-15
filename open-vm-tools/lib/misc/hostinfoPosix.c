@@ -841,14 +841,12 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
          break;
       }
 
-      /* size does -not- include the NUL terminator. */
-      DynBuf_Append(&db, line, size + 1);
+      /* size does not include the NUL terminator. */
+      DynBuf_Append(&db, line, size);
       free(line);
    }
 
-   if (DynBuf_Get(&db)) {
-      out = (char *) DynBuf_AllocGet(&db);
-   }
+   out = DynBuf_DetachString(&db);
 
  closeIt:
    pclose(stream);

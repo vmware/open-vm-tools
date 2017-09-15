@@ -69,7 +69,8 @@ UtilAllocationFailure1(int bugNumber, const char *file, int lineno)
  *
  * UtilSafeMalloc0 --
  * UtilSafeMalloc1 --
- *      Helper function for malloc
+ *
+ *      Helper functions for Util_SafeMalloc.
  *
  * Results:
  *      Pointer to the dynamically allocated memory.
@@ -110,7 +111,8 @@ UtilSafeMalloc1(size_t size,            // IN:
  *
  * UtilSafeRealloc0 --
  * UtilSafeRealloc1 --
- *      Helper function for realloc
+ *
+ *      Helper functions for Util_SafeRealloc.
  *
  * Results:
  *      Pointer to the dynamically allocated memory.
@@ -153,7 +155,8 @@ UtilSafeRealloc1(void *ptr,            // IN:
  *
  * UtilSafeCalloc0 --
  * UtilSafeCalloc1 --
- *      Helper function for calloc
+ *
+ *      Helper functions for Util_SafeCalloc.
  *
  * Results:
  *      Pointer to the dynamically allocated memory.
@@ -194,8 +197,10 @@ UtilSafeCalloc1(size_t nmemb,         // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * Util_SafeStrdup --
- *      Helper function for strdup
+ * UtilSafeStrdup0 --
+ * UtilSafeStrdup1 --
+ *
+ *      Helper functions for Util_SafeStrdup.
  *
  * Results:
  *      Pointer to the dynamically allocated, duplicate string
@@ -248,7 +253,10 @@ UtilSafeStrdup1(const char *s,        // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * Util_SafeStrndup --
+ * UtilSafeStrndup0 --
+ * UtilSafeStrndup1 --
+ *
+ *      Helper functions for Util_SafeStrndup.
  *
  *      Returns a string consisting of first n characters of 's' if 's' has
  *      length >= 'n', otherwise returns a string duplicate of 's'.

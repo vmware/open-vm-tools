@@ -2453,3 +2453,47 @@ File_GetFSMountInfo(const char *pathName,
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_ContainSymLink --
+ *
+ *      Check if the specified file path contains symbolic link.
+ *
+ * Results:
+ *      return TRUE if pathName contains a symlink,
+ *      return FALSE if pathName is not a symlink or error.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_ContainSymLink(const char *pathName)  // IN:
+{
+   char *path = NULL;
+   char *base = NULL;
+   Bool retValue = FALSE;
+
+   if (File_IsSymLink(pathName)) {
+      return TRUE;
+   }
+
+   File_GetPathName(pathName, &path, &base);
+
+   if (   (path != NULL)
+       && (base != NULL)
+       && (strcmp(path, "") != 0)
+       && (strcmp(base, "") != 0)) {
+      if (File_ContainSymLink(path)) {
+         retValue = TRUE;
+      }
+   }
+
+   free(path);
+   free(base);
+
+   return retValue;
+}

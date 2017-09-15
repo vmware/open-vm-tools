@@ -22,8 +22,8 @@
  *    Dynamic buffers
  */
 
-#ifndef __DYNBUF_H__
-#   define __DYNBUF_H__
+#ifndef DYNBUF_H
+#   define DYNBUF_H
 
 #include <string.h>
 #include "vm_basic_types.h"
@@ -61,6 +61,9 @@ DynBuf_Attach(DynBuf *b,    // IN
 
 void *
 DynBuf_Detach(DynBuf *b); // IN/OUT
+
+char *
+DynBuf_DetachString(DynBuf *b); // IN/OUT
 
 Bool
 DynBuf_Enlarge(DynBuf *b,        // IN/OUT
@@ -114,6 +117,38 @@ DynBuf_Get(DynBuf const *b) // IN
 {
    ASSERT(b);
 
+   return b->data;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_GetString --
+ *
+ * Results:
+ *      Returns a pointer to the dynamic buffer data as a NUL-terminated
+ *      string.
+ *
+ * Side effects:
+ *      DynBuf might allocate additional memory and will panic if it fails to.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#if defined(SWIG)
+static char *
+#else
+static INLINE char *
+#endif
+DynBuf_GetString(DynBuf *b) // IN
+{
+   ASSERT(b);
+
+   if (b->size == b->allocated) {
+      ASSERT_MEM_ALLOC(DynBuf_Enlarge(b, b->size + 1));
+   }
+   b->data[b->size] = '\0';
    return b->data;
 }
 
@@ -212,16 +247,17 @@ DynBuf_GetAllocatedSize(DynBuf const *b) // IN
  *
  * DynBuf_AppendString --
  *
- *     Append the string to the specified DynBuf object.  Basically a
- *     fancy strcat().
+ *     Appends the string to the specified DynBuf object, including its NUL
+ *     terminator.  Note that this is NOT like strcat; repeated calls will
+ *     leave embedded NULs in the middle of the buffer. (Compare to
+ *     DynBuf_Strcat.)
  *
  * Results:
  *      TRUE on success
  *      FALSE on failure (not enough memory)
  *
- *
  * Side effects:
- *     DynBuf may change its size or allocate additional memory.
+ *      DynBuf may change its size or allocate additional memory.
  *
  *----------------------------------------------------------------------------
  */
@@ -234,29 +270,26 @@ static INLINE Bool
 DynBuf_AppendString(DynBuf *buf,         // IN/OUT
                     const char *string)  // IN
 {
-   /*
-    * Make sure to copy the NUL.
-    */
-   return DynBuf_Append(buf, string, strlen(string) + 1);
+   return DynBuf_Append(buf, string, strlen(string) + 1 /* NUL */);
 }
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * DynBuf_ConcatString --
+ * DynBuf_Strcat --
  *
- *     Append the string to the specified DynBuf object without adding a
- *     trailing NUL.  The caller is responsible for NUL-terminating if so
- *     desired.
+ *      A DynBuf version of strcat.  Unlike DynBuf_AppendString, does NOT
+ *      visibly NUL-terminate the DynBuf, thereby allowing future appends to
+ *      do proper string concatenation without leaving embedded NULs in the
+ *      middle.
  *
  * Results:
  *      TRUE on success
  *      FALSE on failure (not enough memory)
  *
- *
  * Side effects:
- *     DynBuf may change its size or allocate additional memory.
+ *      DynBuf may change its size or allocate additional memory.
  *
  *----------------------------------------------------------------------------
  */
@@ -266,10 +299,24 @@ static Bool
 #else
 static INLINE Bool
 #endif
-DynBuf_ConcatString(DynBuf *buf,         // IN/OUT
-                    const char *string)  // IN
+DynBuf_Strcat(DynBuf *buf,         // IN/OUT
+              const char *string)  // IN
 {
-   return DynBuf_Append(buf, string, strlen(string));
+   Bool success;
+
+   ASSERT(buf != NULL);
+   ASSERT(string != NULL);
+
+   /*
+    * We actually do NUL-terminate the buffer internally, but this is not
+    * visible to callers, and they should not rely on this.
+    */
+   success = DynBuf_AppendString(buf, string);
+   if (LIKELY(success)) {
+      ASSERT(buf->size > 0);
+      buf->size--;
+   }
+   return success;
 }
 
 
@@ -277,4 +324,4 @@ DynBuf_ConcatString(DynBuf *buf,         // IN/OUT
 }  // extern "C"
 #endif
 
-#endif /* __DYNBUF_H__ */
+#endif /* DYNBUF_H */

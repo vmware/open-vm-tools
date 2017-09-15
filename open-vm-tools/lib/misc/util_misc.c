@@ -560,21 +560,26 @@ UtilDoTildeSubst(const char *user)  // IN: name of user
    if (*user == '\0') {
 #if defined(__APPLE__)
       /*
-       * The HOME environment variable is not always set on Mac OS.
-       * (was bug 841728)
+       * This check mimics the checks and order of CFCopyHomeDirectoryURL(),
+       * which is unfortunately not callable directly since Apple has marked it
+       * as only in iOS despite the fact that they clearly ship it on macOS.
        */
+      str = issetugid() ? NULL
+                        : Unicode_Duplicate(Posix_Getenv("CFFIXED_USER_HOME"));
+
       if (str == NULL) {
          pwd = Posix_Getpwuid(getuid());
          if (pwd == NULL) {
             Log("Could not get passwd for current user.\n");
          }
       }
-#else // !defined(__APPLE__)
-      str = Unicode_Duplicate(Posix_Getenv("HOME"));
-      if (str == NULL) {
-         Log("Could not expand environment variable HOME.\n");
+#endif // defined(__APPLE__)
+      if (str == NULL && pwd == NULL) {
+         str = Unicode_Duplicate(Posix_Getenv("HOME"));
+         if (str == NULL) {
+            Log("Could not expand environment variable HOME.\n");
+         }
       }
-#endif // !defined(__APPLE__)
    } else {
       pwd = Posix_Getpwnam(user);
       if (pwd == NULL) {

@@ -3262,3 +3262,32 @@ File_IsCharDevice(const char *pathName)  // IN:
    return (FileAttributes(pathName, &fileData) == 0) &&
            (fileData.fileType == FILE_TYPE_CHARDEVICE);
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * File_GetMountPath --
+ *
+ *      This function translates the path for a symlink to the physical path.
+ *      If checkEntirePath is TRUE, this function will try to translate
+ *      every parent directory to physical path.
+ *      Caller must free the returned buffer if valid path is returned.
+ *
+ * Results:
+ *      return valid physical path if successfully.
+ *      return NULL if error.
+ *
+ * Side effects:
+ *      The result is allocated.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+char *
+File_GetMountPath(const char *pathName,  // IN:
+                  Bool checkEntirePath)  // IN:
+{
+   NOT_IMPLEMENTED();
+   return NULL;
+}

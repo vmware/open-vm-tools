@@ -126,7 +126,8 @@ DynBuf_Destroy(DynBuf *b)  // IN/OUT:
  *      a copy of that data.
  *
  * Results:
- *      The pointer to the data.  NULL on out of memory failure.
+ *      The pointer to the data.  NULL on out of memory failure or if the
+ *      input DynBuf is empty.
  *
  * Side effects:
  *      Allocates memory.
@@ -139,6 +140,10 @@ DynBuf_AllocGet(DynBuf const *b)  // IN:
 {
    void *new_data;
    ASSERT(b);
+
+   if (b->size == 0) {
+      return NULL;
+   }
 
    new_data = malloc(b->size);
    if (new_data) {
@@ -185,11 +190,11 @@ DynBuf_Attach(DynBuf *b,    // IN/OUT:
  *
  * DynBuf_Detach --
  *
- *      Releases ownership of the buffer stored in the DynBuf object,
- *      and returns a pointer to it.
+ *      Transfers ownership of the buffer stored in the DynBuf object to the
+ *      caller.
  *
  * Results:
- *      The pointer to the data.
+ *      Returns a pointer to the data.  The caller must free it with free().
  *
  * Side effects:
  *      None
@@ -208,6 +213,33 @@ DynBuf_Detach(DynBuf *b)  // IN/OUT:
    b->data = NULL;
    b->allocated = 0;
 
+   return data;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_DetachString --
+ *
+ *      Transfers ownership of the buffer stored in the DynBuf object to the
+ *      caller.
+ *
+ * Results:
+ *      Returns a pointer to the data as a NUL-terminated string.  The caller
+ *      must free it with free().
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+DynBuf_DetachString(DynBuf *b) // IN/OUT
+{
+   char *data = DynBuf_GetString(b);
+   DynBuf_Detach(b);
    return data;
 }
 
@@ -360,7 +392,7 @@ DynBuf_Append(DynBuf *b,        // IN/OUT:
 
    if (new_size > b->allocated) {
       /* Not enough room */
-      if (DynBuf_Enlarge(b, new_size) == FALSE) {
+      if (!DynBuf_Enlarge(b, new_size)) {
          return FALSE;
       }
    }

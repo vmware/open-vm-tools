@@ -51,6 +51,7 @@ typedef enum {
    PRODUCT_GANTRY = 1 << 9,
    PRODUCT_VMACORETESTS = 1 << 10,
    PRODUCT_SRM = 1 << 11,
+   PRODUCT_VIEWCRT = 1 << 12,
    /* etc */
 } Product;
 typedef uint64 ProductMask;

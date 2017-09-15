@@ -212,6 +212,8 @@ Bool File_IsFile(const char *pathName);
 
 Bool File_IsSymLink(const char *pathName);
 
+Bool File_ContainSymLink(const char *pathName);
+
 Bool File_IsCharDevice(const char *pathName);
 
 Bool File_GetParent(char **canPath);
@@ -248,6 +250,8 @@ int64 File_GetModTime(const char *pathName);
 char *File_GetModTimeString(const char *pathName);
 
 char *File_GetUniqueFileSystemID(const char *pathName);
+
+char *File_GetMountPath(const char *pathName, Bool checkEntirePath);
 
 #ifdef _WIN32
 char *File_GetVolumeGUID(const char *pathName);
