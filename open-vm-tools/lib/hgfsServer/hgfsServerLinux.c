@@ -4240,36 +4240,21 @@ HgfsPlatformReadFile(fileDesc file,               // IN: file descriptor
  */
 
 HgfsInternalStatus
-HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
+HgfsPlatformWriteFile(fileDesc writeFd,            // IN: file descriptor
                       HgfsSessionInfo *session,    // IN: session info
                       uint64 writeOffset,          // IN: file offset to write to
                       uint32 writeDataSize,        // IN: length of data to write
                       HgfsWriteFlags writeFlags,   // IN: write flags
+                      Bool writeSequential,        // IN: write is sequential
+                      Bool writeAppend,            // IN: write is appended
                       const void *writeData,       // IN: data to be written
                       uint32 *writtenSize)         // OUT: actual length written
 {
-   HgfsInternalStatus status;
-   int writeFd;
+   HgfsInternalStatus status = 0;
    int error = 0;
-   Bool writeSequential;
 
    LOG(4, ("%s: write fh %u offset %"FMT64"u, count %u\n",
-           __FUNCTION__, file, writeOffset, writeDataSize));
-
-   /* Get the file desriptor from the cache */
-   status = HgfsPlatformGetFd(file, session,
-                              ((writeFlags & HGFS_WRITE_APPEND) ? TRUE : FALSE),
-                              &writeFd);
-
-   if (status != 0) {
-      LOG(4, ("%s: Could not get file descriptor\n", __FUNCTION__));
-      return status;
-   }
-
-   if (!HgfsHandleIsSequentialOpen(file, session, &writeSequential)) {
-      LOG(4, ("%s: Could not get sequential open status\n", __FUNCTION__));
-      return EBADF;
-   }
+           __FUNCTION__, writeFd, writeOffset, writeDataSize));
 
 #if !defined(sun)
    if (!writeSequential) {
@@ -4289,13 +4274,6 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
    }
 #elif defined(__APPLE__)
    {
-      Bool writeAppend;
-
-      if (!HgfsHandle2AppendFlag(file, session, &writeAppend)) {
-         LOG(4, ("%s: Could not get append mode\n", __FUNCTION__));
-         return EBADF;
-      }
-
       /* Write to the file. */
       if (writeSequential || writeAppend) {
          error = write(writeFd, writeData, writeDataSize);

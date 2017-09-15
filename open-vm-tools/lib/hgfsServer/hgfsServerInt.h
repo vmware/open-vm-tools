@@ -748,11 +748,13 @@ HgfsPlatformReadFile(fileDesc readFile,           // IN: file descriptor
                      void* payload,               // OUT: buffer for the read data
                      uint32 *actualSize);         // OUT: actual length read
 HgfsInternalStatus
-HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
+HgfsPlatformWriteFile(fileDesc writeFile,          // IN: file descriptor
                       HgfsSessionInfo *session,    // IN: session info
                       uint64 writeOffset,          // IN: file offset to write to
                       uint32 writeDataSize,        // IN: length of data to write
                       HgfsWriteFlags writeFlags,   // IN: write flags
+                      Bool writeSequential,        // IN: write is sequential
+                      Bool writeAppend,            // IN: write is appended
                       const void *writeData,       // IN: data to be written
                       uint32 *writtenSize);        // OUT: byte length written
 HgfsInternalStatus

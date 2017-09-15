@@ -6371,9 +6371,36 @@ HgfsServerValidateWrite(HgfsInputParam *input,     // IN: Input params
    /*
     * TBD -
     * - validate the packet size with the header, write request and write data
-    * - map the file handle, and extract the details of the write e.g. writing
-    * sequentially or appending
     */
+
+   /*
+    * Now map the file handle, and extract the details of the write e.g. writing
+    * sequentially or appending
+    *
+    * Validate the file handle by retrieving it possibly from the cache.
+    */
+   status = HgfsPlatformGetFd(writeHandle, input->session,
+                              ((flags & HGFS_WRITE_APPEND) ? TRUE : FALSE),
+                              &writeFileDesc);
+   if (status != HGFS_ERROR_SUCCESS) {
+      LOG(4, ("%s: Error: arg validation handle -> %d.\n",
+               __FUNCTION__, status));
+      goto exit;
+   }
+
+   if (!HgfsHandleIsSequentialOpen(writeHandle, input->session, &sequentialHandle)) {
+      status = HGFS_ERROR_INVALID_HANDLE;
+      LOG(4, ("%s: Could not get sequential open status\n", __FUNCTION__));
+      goto exit;
+   }
+
+#if defined(__APPLE__)
+   if (!HgfsHandle2AppendFlag(writeHandle, input->session, &appendHandle)) {
+      status = HGFS_ERROR_INVALID_HANDLE;
+      LOG(4, ("%s: Could not get append mode\n", __FUNCTION__));
+      goto exit;
+   }
+#endif
 
 exit:
    *writefd = writeFileDesc;
@@ -6427,9 +6454,8 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
    }
 
    /*
-    * Validate the read arguments with the data and reply buffers to ensure
-    * there isn't a malformed request or we read more data than the buffer can
-    * hold.
+    * Validate the write arguments with the data and request buffers to ensure
+    * there isn't a malformed request or we try to write more data than is in the buffer.
     */
    status = HgfsServerValidateWrite(input,
                                     writeFile,
@@ -6457,11 +6483,13 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
          }
       }
 
-      status = HgfsPlatformWriteFile(writeFile,
+      status = HgfsPlatformWriteFile(writeFd,
                                      input->session,
                                      writeOffset,
                                      writeSize,
                                      writeFlags,
+                                     writeSequential,
+                                     writeAppend,
                                      writeData,
                                      &writtenSize);
       if (HGFS_ERROR_SUCCESS != status) {
