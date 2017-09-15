@@ -502,8 +502,10 @@ TimeUtil_PopulateWithCurrent(Bool local,        // IN:
  * TimeUtil_GetTimeOfDay --
  *
  *      Get the current time for local timezone in seconds and micro-seconds.
- *      same as gettimeofday on posix systems. Time is returned in the 'time'
- *      variable.
+ *      Same as gettimeofday on POSIX systems.
+ *
+ *      May need to use QueryPerformanceCounter API if we need more
+ *      refinement/accuracy than what we are doing below.
  *
  * Results:
  *      void
@@ -524,32 +526,38 @@ TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *timeofday)  // OUT:
 
    ASSERT(timeofday != NULL);
 
-   /*
-    * May need to use QueryPerformanceCounter API if we need more 
-    * refinement/accuracy than what we are doing below.
-    */
-
-   // Get the system time in UTC format.
+   /* Get the system time in UTC format. */
    GetSystemTimeAsFileTime(&ft);
-   
-   // Convert ft structure to a uint64 containing the # of 100 ns from UTC.
+
+   /* Convert the file time to a uint64.  */
    tmptime |= ft.dwHighDateTime;
    tmptime <<= 32;
    tmptime |= ft.dwLowDateTime;
-   
-#define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
-   // Convert file time to unix epoch.
-   tmptime -= DELTA_EPOCH_IN_MICROSECS; 
-   // convert into microseconds (since the return is in 100 nseconds).
-   tmptime /= 10;  
-   // Get the seconds and microseconds in the timeofday
+
+   /*
+    * Convert the file time (reported in 100 ns ticks since the Windows epoch)
+    * to microseconds.
+    */
+
+   tmptime /= 10;  // Microseconds since the Windows epoch
+
+   /*
+    * Shift from the Windows epoch to the Unix epoch.
+    *
+    * Jan 1, 1601 to Jan 1, 1970 (134,774 days)
+    */
+
+#define DELTA_EPOCH_IN_MICROSECS  (134774ULL * 24ULL * 3600ULL * 1000000ULL)
+   tmptime -= DELTA_EPOCH_IN_MICROSECS;
+#undef DELTA_EPOCH_IN_MICROSECS
+
+   /* Return the seconds and microseconds in the timeofday. */
    timeofday->seconds = (unsigned long) (tmptime / 1000000UL);
    timeofday->useconds = (unsigned long) (tmptime % 1000000UL);
 
-#undef DELTA_EPOCH_IN_MICROSECS   
 #else
    struct timeval curTime;
-   
+
    ASSERT(timeofday != NULL);
 
    gettimeofday(&curTime, NULL);
@@ -1223,11 +1231,11 @@ TimeUtilIsValidDate(unsigned int year,   // IN:
  *
  * TimeUtilMonthDaysForYear --
  *
- *    Return an array of days in months depending on whether the 
+ *    Return an array of days in months depending on whether the
  *    argument represents a leap year.
  *
  * Results:
- *    A pointer to an array of 13 ints representing the days in the 
+ *    A pointer to an array of 13 ints representing the days in the
  *    12 months.  There are 13 entries because month is 1-12.
  *
  * Side effects:
@@ -1244,7 +1252,7 @@ TimeUtilMonthDaysForYear(unsigned int year)  // IN:
    static const unsigned int common[13] =
                    { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-   return ((year % 4) == 0 && ((year % 100) != 0 || (year % 400) == 0)) ? 
+   return ((year % 4) == 0 && ((year % 100) != 0 || (year % 400) == 0)) ?
            leap : common;
 }
 
