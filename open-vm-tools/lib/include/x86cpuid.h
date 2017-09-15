@@ -73,7 +73,10 @@ typedef union CPUIDRegsUnion {
  * Results of calling cpuid(eax, ecx) on all host logical CPU.
  */
 #ifdef _MSC_VER
+// TODO: Move this under the push
 #pragma warning (disable :4200) // non-std extension: zero-sized array in struct
+#pragma warning (push)
+#pragma warning (disable :4100) // unreferenced parameters
 #endif
 
 typedef
@@ -2038,5 +2041,9 @@ CPUID_SupportsMsrPlatformInfo(CpuidVendor vendor, uint32 version)
            CPUID_MODEL_IS_KNIGHTS_LANDING(version) ||
            CPUID_MODEL_IS_AVOTON(version));
 }
+
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif
 
 #endif
