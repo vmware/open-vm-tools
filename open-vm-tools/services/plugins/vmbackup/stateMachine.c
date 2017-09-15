@@ -439,6 +439,7 @@ VmBackupDoAbort(void)
    ASSERT(gBackupState != NULL);
    if (gBackupState->machineState != VMBACKUP_MSTATE_SCRIPT_ERROR &&
        gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
+      const char *eventMsg = "Quiesce aborted.";
       /* Mark the current operation as cancelled. */
       g_static_mutex_lock(&gBackupState->opLock);
       if (gBackupState->currentOp != NULL) {
@@ -448,9 +449,21 @@ VmBackupDoAbort(void)
       }
       g_static_mutex_unlock(&gBackupState->opLock);
 
+#ifdef __linux__
+      /* Thaw the guest if already quiesced */
+      if (gBackupState->machineState == VMBACKUP_MSTATE_SYNC_FREEZE) {
+         g_debug("Guest already quiesced, thawing for abort\n");
+         if (!gBackupState->provider->snapshotDone(gBackupState,
+                                      gBackupState->provider->clientData)) {
+            g_debug("Thaw during abort failed\n");
+            eventMsg = "Quiesce could not be aborted.";
+         }
+      }
+#endif
+
       VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ABORT,
                          VMBACKUP_REMOTE_ABORT,
-                         "Quiesce aborted.");
+                         eventMsg);
 
       /* Transition to the error state. */
       if (VmBackupOnError()) {
