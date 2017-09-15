@@ -919,7 +919,7 @@ AsyncSocket_Close(AsyncSocket *asock)         // IN
    if (VALID(asock, close)) {
       AsyncSocketLock(asock);
       ret = VT(asock)->close(asock);
-      AsyncSocketRelease(asock);
+      ASSERT(!asock->inited);
       AsyncSocketUnlock(asock);
    } else {
       ret = ASOCKERR_INVAL;

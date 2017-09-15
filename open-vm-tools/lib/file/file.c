@@ -1603,6 +1603,10 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
    while (TRUE) {
       Bool failed;
       char *temp;
+#if defined(_WIN32)  
+      DWORD status;
+      DWORD statusNew;
+#endif
 
       index = FileFirstSlashIndex(pathName, index + 1);
 
@@ -1617,16 +1621,35 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
        * This is why we reverse the attempt and the check.
        */
 
+      /*
+       * Bugfix 1592498, set last error "Access denied" instead of
+       * "File not found". File_XXX have different implementations on
+       * Windows and Linux, this problem only happens on Windows.
+       */
       failed = !File_CreateDirectoryEx(temp, mask);
+#if defined(_WIN32)
+      status = GetLastError();
+      statusNew = ERROR_SUCCESS;
+#endif
 
       if (failed) {
          if (File_IsDirectory(temp)) {
             failed = FALSE;
+         } else {
+#if defined(_WIN32)
+            statusNew = GetLastError();
+#endif
          }
       } else if (topmostCreated != NULL && *topmostCreated == NULL) {
          *topmostCreated = temp;
          temp = NULL;
       }
+
+#if defined(_WIN32)
+      if (status == ERROR_ACCESS_DENIED && statusNew == ERROR_FILE_NOT_FOUND) {
+         SetLastError(status);
+      }
+#endif
 
       free(temp);
 

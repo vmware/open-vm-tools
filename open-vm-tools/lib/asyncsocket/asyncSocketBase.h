@@ -50,6 +50,7 @@ struct AsyncSocket {
    AsyncSocketPollParams pollParams;
    AsyncSocketState state;
 
+   Bool inited;
    Bool errorSeen;
    AsyncSocketErrorFn errorFn;
    void *errorClientData;
@@ -67,6 +68,7 @@ struct AsyncSocket {
 void AsyncSocketInitSocket(AsyncSocket *asock,
                            AsyncSocketPollParams *params,
                            const AsyncSocketVTable *vtable);
+void AsyncSocketTeardownSocket(AsyncSocket *s);
 
 void AsyncSocketLock(AsyncSocket *asock);
 void AsyncSocketUnlock(AsyncSocket *asock);

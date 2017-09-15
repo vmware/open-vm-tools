@@ -4442,6 +4442,7 @@ AsyncTCPSocketClose(AsyncSocket *base)   // IN
       }
    }
 
+   AsyncSocketTeardownSocket(base);
    return ASOCKERR_SUCCESS;
 }
 

@@ -309,6 +309,7 @@ AsyncSocketInitSocket(AsyncSocket *s,                          // IN/OUT
    s->id = Atomic_ReadInc32(&nextid);
    s->refCount = 1;
    s->vt = vtable;
+   s->inited = TRUE;
    if (pollParams) {
       s->pollParams = *pollParams;
    } else {
@@ -317,6 +318,38 @@ AsyncSocketInitSocket(AsyncSocket *s,                          // IN/OUT
       s->pollParams.lock = NULL;
       s->pollParams.iPoll = NULL;
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AsyncSocketTeardownSocket --
+ *
+ *    Tear down the AsyncSocket base struct.  Currently this just
+ *    clears the inited flag and releases the initial (user) refcount.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+AsyncSocketTeardownSocket(AsyncSocket *asock)         // IN/OUT
+{
+   /*
+    * Release the initial refcount created when we initialize the
+    * socket struct.
+    */
+   ASSERT(AsyncSocketIsLocked(asock));
+   ASSERT(asock->refCount >= 1);
+   ASSERT(asock->inited);
+   asock->inited = FALSE;
+   AsyncSocketRelease(asock);
 }
 
 
