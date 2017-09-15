@@ -177,11 +177,17 @@ getdents_linux(unsigned int fd,
 }
 #      define getdents getdents_linux
 #elif defined(__FreeBSD__)
-#define getdents(fd, dirp, count)                                             \
+#if defined(__INO64)
+typedef off_t BASEPTYPE;
+#else
+typedef long BASEPTYPE;
+#endif
+#define getdents_freebsd(fd, dirp, count)                                     \
 ({                                                                            \
-   long basep;                                                                \
+   BASEPTYPE basep;                                                           \
    getdirentries(fd, dirp, count, &basep);                                    \
 })
+#      define getdents getdents_freebsd
 #elif defined(__APPLE__)
 static INLINE int
 getdents_apple(DIR *fd,               // IN

@@ -7,3 +7,6 @@ Steve Wills     Correct __IS_FREEBSD__ macro in vm_basic_defs.h (clang)
 
 Bernd Zeimetz   Fix gcc6 build issues in linuxDeployment.c file.
                 - https://github.com/vmware/open-vm-tools/pull/107
+
+Josh Paetzel    Add support for 64-bit inodes in FreeBSD 12
+                - https://github.com/vmware/open-vm-tools/pull/190
