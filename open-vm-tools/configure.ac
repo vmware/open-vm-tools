@@ -132,6 +132,34 @@ case "$host_os" in
 esac
 osVersion="`getOsVersion`"
 
+AC_ARG_ENABLE(
+   glibc-check,
+   AS_HELP_STRING(
+      [--disable-glibc-check],
+      [Skip checking the glibc version on the system. (off by default)]),
+   [enable_glibc_check=$enableval],
+   [enable_glibc_check="yes"])
+
+if test "x$enable_glibc_check" != "xno" ; then
+   if test "x$os" = "xlinux" ; then
+      libc_ver=`ldd --version 2>/dev/null | head -1 | sed 's/.* //;q'`
+
+      if test "x$libc_ver" = "x"; then
+         AC_MSG_ERROR(["Failed to detect glibc version installed in the system."])
+      fi
+
+      libc_ver_mjr=`expr "$libc_ver" : "\([[0-9]]*\)"`
+      libc_ver_mnr=`expr "$libc_ver" : "[[0-9]]*\.\([[0-9]]*\)"`
+      libc_ver_num=`expr $libc_ver_mjr \* 1000 + $libc_ver_mnr`
+
+      if test "$libc_ver_num" -lt 2012; then
+         AC_MSG_ERROR(["glibc version $libc_ver detected.
+This version of open-vm-tools requires glibc version 2.12 or later.
+Please use an older version of open-vm-tools for this system."])
+      fi
+   fi
+fi
+
 AC_ARG_WITH([kernel-modules],
 	    [AS_HELP_STRING([--with-kernel-modules],
 		[compile and install the kernel modules])],
