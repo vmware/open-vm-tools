@@ -11,6 +11,7 @@ sourceCafenv() {
 
 	local tmpCafenv="/tmp/_cafenv-appconfig_"
 	cat "$cafenvAppconfig" | sed 's/^\[/#[/g' | sed 's/^\([a-z].*=\)/export CAF_\U\1/g' > "$tmpCafenv"
+	sed -i 's/[ ]*=[ ]*/=/g' "$tmpCafenv"
 	. "$tmpCafenv"
 }
 

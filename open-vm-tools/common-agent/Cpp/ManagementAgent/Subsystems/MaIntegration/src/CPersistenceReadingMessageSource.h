@@ -34,17 +34,8 @@ protected: // CAbstractPollableChannel
 	SmartPtrIIntMessage doReceive(const int32 timeout);
 
 private:
-	uint64 getTimeSec() const;
-
-	bool isRefreshNecessary(
-		const uint32 refreshSec,
-		const uint64 lastRefreshSec) const;
-
-private:
 	bool _isInitialized;
 	std::string _id;
-	uint32 _refreshSec;
-	uint64 _lastRefreshSec;
 
 	SmartPtrIPersistence _persistence;
 

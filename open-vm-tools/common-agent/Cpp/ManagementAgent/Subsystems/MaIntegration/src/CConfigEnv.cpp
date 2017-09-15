@@ -38,27 +38,20 @@ void CConfigEnv::initialize(
 		}
 	} else {
 		_persistenceDir = AppConfigUtils::getRequiredString("persistence_dir");
-		_scriptsDir = AppConfigUtils::getRequiredString("scripts_dir");
-		_outputDir = AppConfigUtils::getRequiredString(_sAppConfigGlobalParamOutputDir);
+
 		_configDir = AppConfigUtils::getRequiredString("config_dir");
 		_persistenceAppconfigPath = FileSystemUtils::buildPath(_configDir, "persistence-appconfig");
 
+		_monitorDir = AppConfigUtils::getRequiredString("monitor_dir");
+		_restartListenerPath = FileSystemUtils::buildPath(_monitorDir, "restartListener.txt");
+		_listenerConfiguredPath = FileSystemUtils::buildPath(_monitorDir, "listenerConfigured.txt");
+
 		std::string guestProxyDir;
 #ifdef _WIN32
-		_startListenerScript = FileSystemUtils::buildPath(_scriptsDir, "start-listener.bat");
-		_stopListenerScript = FileSystemUtils::buildPath(_scriptsDir, "stop-listener.bat");
-		_startMaScript = FileSystemUtils::buildPath(_scriptsDir, "start-ma.bat");
-		_stopMaScript = FileSystemUtils::buildPath(_scriptsDir, "stop-ma.bat");
-
 		std::string programData;
 		CEnvironmentUtils::readEnvironmentVar("ProgramData", programData);
 		guestProxyDir = FileSystemUtils::buildPath(programData, "VMware", "VMware Tools", "GuestProxyData");
 #else
-		_startListenerScript = FileSystemUtils::buildPath(_scriptsDir, "start-listener");
-		_stopListenerScript = FileSystemUtils::buildPath(_scriptsDir, "stop-listener");
-		_startMaScript = FileSystemUtils::buildPath(_scriptsDir, "start-ma");
-		_stopMaScript = FileSystemUtils::buildPath(_scriptsDir, "stop-ma");
-
 		guestProxyDir = "/etc/vmware-tools/GuestProxyData";
 #endif
 
@@ -87,7 +80,7 @@ SmartPtrCPersistenceDoc CConfigEnv::getUpdated(
 		}
 
 		savePersistenceAppconfig(_persistence, _configDir);
-		restartRunningListener();
+		restartListener("Updated persistence-appconfig");
 	}
 
 	SmartPtrCPersistenceDoc rc;
@@ -115,7 +108,9 @@ void CConfigEnv::update(
 		_persistenceUpdated = createPersistenceUpdated(_persistence);
 		CPersistenceUtils::savePersistence(_persistence, _persistenceDir);
 
-		restartRunningListener();
+		const std::string reason = "Updated persistence info";
+		listenerConfigured(reason);
+		restartListener(reason);
 
 		removePrivateKey(_persistence, _persistenceRemove);
 	} else {
@@ -156,24 +151,6 @@ void CConfigEnv::savePersistenceAppconfig(
 	appconfigContents += "comm_amqp_listener_context=" + listenerContext + newLine;
 
 	FileSystemUtils::saveTextFile(_persistenceAppconfigPath, appconfigContents);
-}
-
-void CConfigEnv::executeScript(
-	const std::string& scriptPath,
-	const std::string& scriptResultsDir) const {
-	CAF_CM_FUNCNAME_VALIDATE("executeScript");
-	CAF_CM_VALIDATE_STRING(scriptPath);
-	CAF_CM_VALIDATE_STRING(scriptResultsDir);
-
-	Cdeqstr argv;
-	argv.push_back(scriptPath);
-
-	const std::string stdoutPath = FileSystemUtils::buildPath(
-			scriptResultsDir, "stdout");
-	const std::string stderrPath = FileSystemUtils::buildPath(
-			scriptResultsDir, "stderr");
-
-	ProcessUtils::runSyncToFiles(argv, stdoutPath, stderrPath);
 }
 
 void CConfigEnv::removePrivateKey(
@@ -259,13 +236,12 @@ std::string CConfigEnv::calcListenerContext(
 	return FileSystemUtils::normalizePathWithForward(rc);
 }
 
-void CConfigEnv::restartRunningListener() const {
-	// TODO: It's difficult to know when we should start the listener, because
-	// it depends upon whether its been fully configured or not, and we don't
-	// know when that happens within this code. All we know is that we've
-	// read whatever info is on the file system and in the NSDDB, but that's it.
-	// Perhaps the best we can do is to re-start the listener only if it's already
-	// running because at least then we know that it's been configured.
-	//executeScript(_stopListenerScript, _outputDir);
-	//executeScript(_startListenerScript, _outputDir);
+void CConfigEnv::restartListener(
+		const std::string& reason) const {
+	FileSystemUtils::saveTextFile(_restartListenerPath, reason);
+}
+
+void CConfigEnv::listenerConfigured(
+		const std::string& reason) const {
+	FileSystemUtils::saveTextFile(_listenerConfiguredPath, reason);
 }

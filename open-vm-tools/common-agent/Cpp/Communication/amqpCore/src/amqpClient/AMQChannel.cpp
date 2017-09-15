@@ -761,7 +761,7 @@ bool AMQChannel::taskHandler() {
 					}
 					CAF_CM_CLEAREXCEPTION;
 				}
-			} else if (status == AMQP_ERROR_TIMEOUT) {
+			} else if ((status == AMQP_ERROR_TIMEOUT) || (status == AMQP_ERROR_IO_INTERRUPTED)) {
 				break;
 			} else {
 				AMQUtil::checkAmqpStatus(status, "AmqpChannel::AMQP_ChannelReceive");

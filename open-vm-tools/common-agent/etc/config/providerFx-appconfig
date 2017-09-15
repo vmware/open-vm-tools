@@ -8,7 +8,9 @@ log_config_file=${config_dir}/providerFx-log4cpp_config
 thread_stack_size_kb=0
 
 schema_namespace_root=http://schemas.vmware.com/caf/schema
-schema_location_root=http://10.25.57.32/caf-downloads/schema
+schema_location_root=${input_dir}/schemas/caf
+
+use_single_logging=true
 
 [providerHost]
 install_dir=${config_dir}/../install

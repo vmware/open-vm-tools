@@ -13,8 +13,6 @@ using namespace Caf;
 
 CPersistenceReadingMessageSource::CPersistenceReadingMessageSource() :
 		_isInitialized(false),
-		_refreshSec(0),
-		_lastRefreshSec(0),
 	CAF_CM_INIT_LOG("CPersistenceReadingMessageSource") {
 }
 
@@ -35,7 +33,6 @@ void CPersistenceReadingMessageSource::initialize(
 	_persistence = persistence;
 
 	setPollerMetadata(pollerDoc);
-	_refreshSec = 0;
 
 	_isInitialized = true;
 }
@@ -73,29 +70,4 @@ SmartPtrIIntMessage CPersistenceReadingMessageSource::doReceive(
 	}
 
 	return message;
-}
-
-bool CPersistenceReadingMessageSource::isRefreshNecessary(
-		const uint32 refreshSec,
-		const uint64 lastRefreshSec) const {
-	bool rc = false;
-
-	if (refreshSec == 0) {
-		rc = true;
-	} else {
-		const uint64 currentTimeSec = getTimeSec();
-		if ((currentTimeSec - lastRefreshSec) > refreshSec) {
-			rc = true;
-		}
-	}
-
-	return rc;
-}
-
-uint64 CPersistenceReadingMessageSource::getTimeSec() const {
-		GTimeVal curTime;
-	::g_get_current_time(&curTime);
-	uint64 rc = curTime.tv_sec;
-
-	return rc;
 }

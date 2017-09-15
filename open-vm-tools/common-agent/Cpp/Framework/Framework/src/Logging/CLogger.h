@@ -43,7 +43,12 @@ public:
 		const int32 lineNumber,
 		const std::deque<std::string>& backtrace) const;
 
-	bool isPriorityEnabled(const log4cpp::Priority::PriorityLevel priority) const;
+public:
+	bool isPriorityEnabled(const log4cpp::Priority::Value priority) const;
+
+	log4cpp::Priority::Value getPriority() const;
+
+	void setPriority(const log4cpp::Priority::Value priority) const;
 
 private:
 	log4cpp::Category& _category;

@@ -13,8 +13,6 @@ using namespace Caf;
 
 CConfigEnvReadingMessageSource::CConfigEnvReadingMessageSource() :
 		_isInitialized(false),
-		_refreshSec(0),
-		_lastRefreshSec(0),
 	CAF_CM_INIT_LOG("CConfigEnvReadingMessageSource") {
 }
 
@@ -28,7 +26,6 @@ void CConfigEnvReadingMessageSource::initialize(
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_INTERFACE(configSection);
 	CAF_CM_VALIDATE_INTERFACE(configEnv);
-	CAF_CM_VALIDATE_INTERFACE(configSection);
 
 	_id = configSection->findRequiredAttribute("id");
 	const SmartPtrIDocument pollerDoc = configSection->findOptionalChild("poller");
@@ -36,7 +33,6 @@ void CConfigEnvReadingMessageSource::initialize(
 	_configEnv = configEnv;
 
 	setPollerMetadata(pollerDoc);
-	_refreshSec = 0;
 
 	_isInitialized = true;
 }
@@ -74,29 +70,4 @@ SmartPtrIIntMessage CConfigEnvReadingMessageSource::doReceive(
 	}
 
 	return message;
-}
-
-bool CConfigEnvReadingMessageSource::isRefreshNecessary(
-		const uint32 refreshSec,
-		const uint64 lastRefreshSec) const {
-	bool rc = false;
-
-	if (refreshSec == 0) {
-		rc = true;
-	} else {
-		const uint64 currentTimeSec = getTimeSec();
-		if ((currentTimeSec - lastRefreshSec) > refreshSec) {
-			rc = true;
-		}
-	}
-
-	return rc;
-}
-
-uint64 CConfigEnvReadingMessageSource::getTimeSec() const {
-		GTimeVal curTime;
-	::g_get_current_time(&curTime);
-	uint64 rc = curTime.tv_sec;
-
-	return rc;
 }

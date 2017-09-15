@@ -622,7 +622,7 @@ void FileSystemUtils::saveByteFile(
 	switch (fileMode) {
 		case FILE_MODE_REPLACE:
 			if (fileExists) {
-				CAF_CM_LOG_INFO_VA1("Replacing file - %s", filePath.c_str());
+				CAF_CM_LOG_DEBUG_VA1("Replacing file - %s", filePath.c_str());
 			}
 			saveFileSafely(filePath, contents, contentsLen, temporaryFileSuffix);
 		break;

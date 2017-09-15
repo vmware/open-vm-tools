@@ -55,6 +55,9 @@
 #include "CSinglePmeRequestSplitter.h"
 #include "CSinglePmeRequestSplitterInstance.h"
 
+#include "CMonitorReadingMessageSource.h"
+#include "CMonitorInboundChannelAdapterInstance.h"
+
 #include "CVersionTransformer.h"
 #include "CVersionTransformerInstance.h"
 

@@ -73,7 +73,7 @@ bool CNullChannelInstance::doSend(
 		CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 		CAF_CM_VALIDATE_INTERFACE(message);
 
-		CAF_CM_LOG_WARN_VA1("Received message - %s", message->getPayloadStr().c_str());
+		CAF_CM_LOG_DEBUG_VA1("Received message - %s", message->getPayloadStr().c_str());
 	}
 	CAF_CM_EXIT;
 	return true;

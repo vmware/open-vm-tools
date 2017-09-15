@@ -23,6 +23,14 @@ SmartPtrIAppConfig Caf::getAppConfig(const Cdeqstr& configFileCollection) {
 	return CAppConfig::getInstance(configFileCollection);
 }
 
+SmartPtrIAppConfig Caf::getAppConfigAppend(const std::string& configFile) {
+	return CAppConfig::getInstanceAppend(configFile);
+}
+
+SmartPtrIAppConfig Caf::getAppConfigAppend(const Cdeqstr& configFileCollection) {
+	return CAppConfig::getInstanceAppend(configFileCollection);
+}
+
 SmartPtrIAppConfigWrite Caf::getAppConfigWrite() {
 	return CAppConfig::getInstanceWrite();
 }
@@ -84,8 +92,6 @@ void CAppConfig::initialize(const std::string& configFile) {
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_STRING(configFile);
 
-	CAutoMutexLockUnlockRaw oLock(&_sOpMutex);
-
 	Cdeqstr configFileCollection;
 	configFileCollection.push_back(configFile);
 
@@ -93,9 +99,11 @@ void CAppConfig::initialize(const std::string& configFile) {
 }
 
 void CAppConfig::initialize(const Cdeqstr& configFileCollection) {
-	CAF_CM_FUNCNAME_VALIDATE("initializeInternal");
+	CAF_CM_FUNCNAME_VALIDATE("initialize");
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_STL(configFileCollection);
+
+	CAutoMutexLockUnlockRaw oLock(&_sOpMutex);
 
 	for (TConstIterator<Cdeqstr> strIter(configFileCollection); strIter; strIter++) {
 		const std::string configFile = *strIter;
@@ -122,6 +130,33 @@ void CAppConfig::initialize(const Cdeqstr& configFileCollection) {
 	validateGlobals(_globals);
 
 	_isInitialized = true;
+}
+
+void CAppConfig::append(const std::string& configFile) {
+	CAF_CM_FUNCNAME_VALIDATE("append");
+	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+	CAF_CM_VALIDATE_STRING(configFile);
+
+	Cdeqstr configFileCollection;
+	configFileCollection.push_back(configFile);
+
+	append(configFileCollection);
+}
+
+void CAppConfig::append(const Cdeqstr& configFileCollection) {
+	CAF_CM_FUNCNAME_VALIDATE("append");
+	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+	CAF_CM_VALIDATE_STL(configFileCollection);
+
+	CAutoMutexLockUnlockRaw oLock(&_sOpMutex);
+
+	for (TConstIterator<Cdeqstr> strIter(configFileCollection); strIter; strIter++) {
+		const std::string configFile = *strIter;
+		const std::string configPath = calcConfigPath(configFile);
+		if (! configPath.empty()) {
+			_configFileCollection.push_back(configPath);
+		}
+	}
 }
 
 SmartPtrIConfigParams CAppConfig::getParameters(const std::string& sectionName) {
@@ -531,6 +566,26 @@ SmartPtrIAppConfig CAppConfig::getInstance(const Cdeqstr& configFileCollection) 
 	appConfig.CreateInstance();
 	appConfig->initialize(configFileCollection);
 	_sInstance = appConfig;
+
+	return _sInstance;
+}
+
+SmartPtrIAppConfig CAppConfig::getInstanceAppend(
+		const std::string& configFile) {
+	CAF_CM_STATIC_FUNC_VALIDATE("CAppConfig", "getInstanceAppend");
+	CAutoMutexLockUnlockRaw oLock(&_sOpMutex);
+	CAF_CM_VALIDATE_SMARTPTR(_sInstance);
+	_sInstance->append(configFile);
+
+	return _sInstance;
+}
+
+SmartPtrIAppConfig CAppConfig::getInstanceAppend(
+		const Cdeqstr& configFileCollection) {
+	CAF_CM_STATIC_FUNC_VALIDATE("CAppConfig", "getInstanceAppend");
+	CAutoMutexLockUnlockRaw oLock(&_sOpMutex);
+	CAF_CM_VALIDATE_SMARTPTR(_sInstance);
+	_sInstance->append(configFileCollection);
 
 	return _sInstance;
 }

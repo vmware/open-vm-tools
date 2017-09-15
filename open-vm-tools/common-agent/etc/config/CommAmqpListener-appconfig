@@ -4,12 +4,15 @@ event_dir=${output_dir}/events
 request_dir=${output_dir}/requests
 tmp_dir=${output_dir}/tmp
 persistence_dir=${input_dir}/persistence
+monitor_dir=${input_dir}/monitor
 log_config_file=${config_dir}/CommAmqpListener-log4cpp_config
 
 thread_stack_size_kb=0
 
 schema_namespace_root=http://schemas.vmware.com/caf/schema
-schema_location_root=http://10.25.57.32/caf-downloads/schema
+schema_location_root=${input_dir}/schemas/caf
+
+use_single_logging=true
 
 [communication_amqp]
 working_dir=${output_dir}/comm-wrk

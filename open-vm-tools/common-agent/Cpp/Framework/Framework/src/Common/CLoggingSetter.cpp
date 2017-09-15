@@ -14,7 +14,8 @@ using namespace Caf;
 //
 ////////////////////////////////////////////////////////////////////////
 CLoggingSetter::CLoggingSetter() :
-    _isInitialized(false),
+		_isInitialized(false),
+		_useSingleLogging(false),
 	CAF_CM_INIT_LOG("CLoggingSetter") {
 }
 
@@ -28,9 +29,11 @@ CLoggingSetter::~CLoggingSetter() {
 
 	try {
 		if (_isInitialized) {
-			CAF_CM_LOG_DEBUG_VA0("Resetting log config dir");
-			CLoggingUtils::resetConfigFile();
-			CAF_CM_LOG_DEBUG_VA0("Reset log config dir");
+			if (! _useSingleLogging) {
+				CAF_CM_LOG_DEBUG_VA0("Resetting log config dir");
+				CLoggingUtils::resetConfigFile();
+				CAF_CM_LOG_DEBUG_VA0("Reset log config dir");
+			}
 		}
 	}
 	CAF_CM_CATCH_ALL;
@@ -43,17 +46,16 @@ CLoggingSetter::~CLoggingSetter() {
 //
 ////////////////////////////////////////////////////////////////////////
 void CLoggingSetter::initialize(const std::string& logDir) {
-    CAF_CM_FUNCNAME_VALIDATE("initialize");
+	CAF_CM_FUNCNAME_VALIDATE("initialize");
+	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
+	CAF_CM_VALIDATE_STRING(logDir);
 
-    CAF_CM_ENTER {
-		CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
-		CAF_CM_VALIDATE_STRING(logDir);
-
+	_useSingleLogging = AppConfigUtils::getOptionalBoolean("use_single_logging");
+	if (! _useSingleLogging) {
 		CAF_CM_LOG_DEBUG_VA1("Setting log config dir - %s", logDir.c_str());
 		CLoggingUtils::setLogDir(logDir);
 		CAF_CM_LOG_DEBUG_VA1("Set log config dir - %s", logDir.c_str());
+	}
 
-		_isInitialized = true;
-    }
-    CAF_CM_EXIT;
+	_isInitialized = true;
 }

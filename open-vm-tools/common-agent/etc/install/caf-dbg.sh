@@ -39,14 +39,31 @@ function setBroker() {
    sed -i "s/#brokerAddr#/$brokerAddr/g" "$uriFile"
 }
 
+function setListenerConfigured() {
+   echo "Manual" > "$CAF_INPUT_DIR/monitor/listenerConfigured.txt"
+}
+
+function setListenerStartupType() {
+   local startupType="$1"
+   validateNotEmpty "$startupType" "startupType"
+
+   local appconfigFile="$CAF_CONFIG_DIR/ma-appconfig"
+   sed -i "s/listener_startup_type=.*/listener_startup_type=$startupType/g" "$appconfigFile"
+}
+
 function prtHelp() {
    echo "*** $(basename $0) cmd - Runs commands that help with debugging CAF"
    echo "  * enableCaf brokerUsername brokerPassword  Enables CAF"
    echo "  * setBroker brokerAddress                  Sets the Broker into the CAF config file"
+   echo "  * setListenerConfigured                    Indicates that the Listener is configured"
+   echo "  * setListenerStartupType startupType       Sets the startup type used by the Listener (Manual, Automatic)"
+   echo ""
+   echo "  * getAmqpQueueName                         Gets the AMQP Queue Name"
    echo ""
    echo "  * checkTunnel                              Checks the AMQP Tunnel "
    echo "  * checkCerts                               Checks the certificates"
    echo "  * checkCertsVerbose                        Checks the certificates"
+   echo "  * checkToolsInstall                        Checks the Tools install"
    echo ""
    echo "  * validateXml                              Validates the XML files against the published schema"
    echo "  * validateInstall                          Validates that the files are in the right locations and have the right permissions"
@@ -61,11 +78,11 @@ function validateXml() {
    validateNotEmpty "$schemaArea" "schemaArea"
    validateNotEmpty "$schemaPrefix" "schemaPrefix"
 
-   local schemaRoot="http://10.25.57.32/caf-downloads"
+   local schemaRoot="$CAF_INPUT_DIR/schemas/caf"
 
    for file in $(find "$CAF_OUTPUT_DIR" -name '*.xml' -print0 2>/dev/null | xargs -0 egrep -IH -lw "${schemaPrefix}.xsd"); do
       prtHeader "Validating $schemaArea/$schemaPrefix - $file"
-      xmllint --schema "${schemaRoot}/schema/${schemaArea}/${schemaPrefix}.xsd" "$file"; rc=$?
+      xmllint --schema "${schemaRoot}/${schemaArea}/${schemaPrefix}.xsd" "$file"; rc=$?
       if [ "$rc" != "0" ]; then
          exit $rc
       fi
@@ -120,6 +137,10 @@ function checkTunnel() {
    openssl s_client -connect localhost:6672 -key privateKey.pem -cert publicKey.pem -CAfile cacert.pem -verify 10
 
    popd > /dev/null
+}
+
+function checkToolsInstall() {
+   systemctl status vmware-tools.service
 }
 
 function validateInstall() {
@@ -427,6 +448,10 @@ function checkFileExists() {
    fi
 }
 
+function getAmqpQueueName() {
+   grep "^reactive_request_amqp_queue_id" "$CAF_CONFIG_DIR/persistence-appconfig" | cut -d'=' -f2
+}
+
 if [ $# -lt 1 -o "$1" = "--help" ]; then
    prtHelp
    exit 1
@@ -463,6 +488,12 @@ case "$cmd" in
    "checkTunnel")
       checkTunnel "$certDir"
    ;;
+   "checkToolsInstall")
+      checkToolsInstall
+   ;;
+   "getAmqpQueueName")
+      getAmqpQueueName
+   ;;
    "clearCaches")
       clearCaches
    ;;
@@ -471,6 +502,12 @@ case "$cmd" in
    ;;
    "setBroker")
       setBroker "$1"
+   ;;
+   "setListenerConfigured")
+      setListenerConfigured
+   ;;
+   "setListenerStartupType")
+      setListenerStartupType "$1"
    ;;
    "validateInstall")
       validateInstall

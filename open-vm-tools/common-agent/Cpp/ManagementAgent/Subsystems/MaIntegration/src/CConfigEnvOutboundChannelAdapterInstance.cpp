@@ -136,10 +136,11 @@ SmartPtrIPersistence CConfigEnvOutboundChannelAdapterInstance::createOptPersiste
 			rc->initialize();
 		}
 		CAF_CM_CATCH_CAF
-		CAF_CM_CATCH_DEFAULT
-		CAF_CM_LOG_WARN_CAFEXCEPTION;
+		CAF_CM_CATCH_DEFAULT;
 
 		if (CAF_CM_ISEXCEPTION) {
+			CAF_CM_LOG_WARN_VA2("initialize failed - ref: %s, msg: %s",
+					removeRefStr.c_str(), (CAF_CM_EXCEPTION_GET_FULLMSG).c_str());
 			rc = SmartPtrIPersistence();
 		}
 	}

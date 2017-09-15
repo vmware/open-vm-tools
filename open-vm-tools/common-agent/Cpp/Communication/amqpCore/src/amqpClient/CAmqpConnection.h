@@ -211,11 +211,15 @@ private:
 	void validateOpenChannel(
 			const amqp_channel_t& channel) const;
 
+	void restartListener(
+			const std::string& reason) const;
+
 private:
 	amqp_connection_state_t _connectionState;
 	amqp_socket_t* _socket;
 	amqp_channel_t _curChannel;
 	AMQPConnectionState _connectionStateEnum;
+	bool _isConnectionLost;
 	int32 _lastStatus;
 
 	SmartPtrCAmqpAuthMechanism _auth;

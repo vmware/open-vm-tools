@@ -85,8 +85,16 @@ void CLogger::logVA(
 	}
 }
 
-bool CLogger::isPriorityEnabled(const log4cpp::Priority::PriorityLevel priority) const {
+bool CLogger::isPriorityEnabled(const log4cpp::Priority::Value priority) const {
 	return _category.isPriorityEnabled(priority);
+}
+
+log4cpp::Priority::Value CLogger::getPriority() const {
+	return _category.getPriority();
+}
+
+void CLogger::setPriority(const log4cpp::Priority::Value priority) const {
+	_category.setPriority(priority);
 }
 
 void CLogger::logBacktrace(

@@ -16,6 +16,7 @@ CAmqpConnection::CAmqpConnection() :
 	_socket(NULL),
 	_curChannel(0),
 	_connectionStateEnum(AMQP_STATE_DISCONNECTED),
+	_isConnectionLost(false),
 	_lastStatus(0),
 	_channelMax(0),
 	_frameMax(0),
@@ -238,8 +239,8 @@ AMQPStatus CAmqpConnection::receive(
 	if ((_channelFrames->end() == iter) || iter->second.empty()) {
 		CAmqpFrames frames;
 		SmartPtrCAmqpFrame frame;
-		int32 status = receiveFrame(_connectionState, frame);
-		if ((AMQP_STATUS_OK != status) && (timeout > 0)) {
+		status = receiveFrame(_connectionState, frame);
+		if ((AMQP_STATUS_TIMEOUT == status) && (timeout > 0)) {
 			CAF_CM_UNLOCK_LOCK;
 			CThreadUtils::sleep(timeout);
 		}
@@ -267,10 +268,20 @@ AMQPStatus CAmqpConnection::receive(
 		}
 		break;
 
+		case AMQP_STATUS_CONNECTION_CLOSED: {
+			if (! _isConnectionLost) {
+				CAF_CM_LOG_ERROR_VA1("Connection closed... restarting listener - %s",
+					amqp_error_string2(status));
+				_isConnectionLost = true;
+				restartListener(amqp_error_string2(status));
+			}
+			rc = AMQP_ERROR_IO_INTERRUPTED;
+		}
+		break;
+
 		default: {
-			CAF_CM_LOG_ERROR_VA1("amqp_simple_wait_frame_noblock: %s",
+			CAF_CM_LOG_ERROR_VA1("Received error status - %s",
 				amqp_error_string2(status));
-			closeConnection();
 		}
 		break;
 	}
@@ -935,7 +946,7 @@ AMQPStatus CAmqpConnection::closeChannel(
 	CAF_CM_VALIDATE_PTR(_connectionState);
 	CAF_CM_VALIDATE_BOOL(_connectionStateEnum == AMQP_STATE_CONNECTED);
 
-	CAF_CM_LOG_DEBUG_VA1("Calling amqp_channel_close - %d", channel);
+	CAF_CM_LOG_DEBUG_VA1("Calling amqp_channel_close - channel: %d", channel);
 
 	AmqpCommon::validateRpcReply(
 			"amqp_channel_close",
@@ -969,6 +980,13 @@ int32 CAmqpConnection::receiveFrame(
 		frame.CreateInstance();
 		frame->initialize(decoded_frame);
 		frame->log("Received");
+
+		if (AMQP_FRAME_METHOD == frame->getFrameType()) {
+			const amqp_method_t* amqpMethod = frame->getPayloadAsMethod();
+			if (AMQP_CONNECTION_CLOSE_METHOD == amqpMethod->id) {
+				status = AMQP_STATUS_CONNECTION_CLOSED;
+			}
+		}
 	}
 
 	return status;
@@ -1008,4 +1026,15 @@ bool CAmqpConnection::isDataAvail(
 
 	return (amqp_frames_enqueued(connectionState)) ||
 			(amqp_data_in_buffer(connectionState));
+}
+
+void CAmqpConnection::restartListener(
+		const std::string& reason) const {
+	CAF_CM_FUNCNAME_VALIDATE("restartListener");
+	CAF_CM_VALIDATE_STRING(reason);
+
+	const std::string monitorDir = AppConfigUtils::getRequiredString("monitor_dir");
+	const std::string monitorDirExp = CStringUtils::expandEnv(monitorDir);
+
+	FileSystemUtils::saveTextFile(monitorDirExp, "restartListener.txt", reason);
 }

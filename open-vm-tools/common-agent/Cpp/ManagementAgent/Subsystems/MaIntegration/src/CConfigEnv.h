@@ -64,22 +64,22 @@ private:
 			const std::string& uriSchema,
 			const std::string& configDir) const;
 
-	void restartRunningListener() const;
+	void restartListener(
+			const std::string& reason) const;
+
+	void listenerConfigured(
+			const std::string& reason) const;
 
 private:
 	bool _isInitialized;
-	std::string _vcidPath;
-	std::string _cacertPath;
 	std::string _persistenceDir;
-	std::string _scriptsDir;
-	std::string _outputDir;
 	std::string _configDir;
 	std::string _persistenceAppconfigPath;
-
-	std::string _startListenerScript;
-	std::string _stopListenerScript;
-	std::string _startMaScript;
-	std::string _stopMaScript;
+	std::string _monitorDir;
+	std::string _restartListenerPath;
+	std::string _listenerConfiguredPath;
+	std::string _vcidPath;
+	std::string _cacertPath;
 
 	SmartPtrCPersistenceDoc _persistence;
 	SmartPtrCPersistenceDoc _persistenceUpdated;

@@ -29,6 +29,8 @@
 	CLogger _logger(_scope_); \
 	CAF_CM_STATIC_FUNC( _scope_, _funcName_ )
 
+#define CAF_CM_LOG_GET_PRIORITY (_logger.getPriority())
+#define CAF_CM_LOG_SET_PRIORITY(_priorityLevel_) (_logger.setPriority(_priorityLevel_))
 #define CAF_CM_IS_LOG_ENABLED(_priorityLevel_) (_logger.isPriorityEnabled(_priorityLevel_))
 #define CAF_CM_IS_LOG_DEBUG_ENABLED (_logger.isPriorityEnabled(log4cpp::Priority::DEBUG))
 #define CAF_CM_IS_LOG_INFO_ENABLED (_logger.isPriorityEnabled(log4cpp::Priority::INFO))

@@ -17,7 +17,8 @@ public:
 	void initialize(const std::string& logDir);
 
 private:
-    bool _isInitialized;
+	bool _isInitialized;
+	bool _useSingleLogging;
 
 private:
 	CAF_CM_CREATE;

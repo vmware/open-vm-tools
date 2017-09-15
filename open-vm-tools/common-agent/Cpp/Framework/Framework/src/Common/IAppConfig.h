@@ -60,6 +60,10 @@ SmartPtrIAppConfig COMMONAGGREGATOR_LINKAGE getAppConfig();
 SmartPtrIAppConfig COMMONAGGREGATOR_LINKAGE getAppConfig(const std::string& configFile);
 
 SmartPtrIAppConfig COMMONAGGREGATOR_LINKAGE getAppConfig(const Cdeqstr& configFileCollection);
+
+SmartPtrIAppConfig COMMONAGGREGATOR_LINKAGE getAppConfigAppend(const std::string& configFile);
+
+SmartPtrIAppConfig COMMONAGGREGATOR_LINKAGE getAppConfigAppend(const Cdeqstr& configFileCollection);
 }
 
 #endif /* IAPPCONFIG_H_ */

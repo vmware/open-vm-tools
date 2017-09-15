@@ -41,7 +41,8 @@ bool IntegrationObjects::isResponsible(
 	return (name.compare("persistence-inbound-channel-adapter") == 0)
 			|| (name.compare("persistence-outbound-channel-adapter") == 0)
 			|| (name.compare("configenv-inbound-channel-adapter") == 0)
-			|| (name.compare("configenv-outbound-channel-adapter") == 0);
+			|| (name.compare("configenv-outbound-channel-adapter") == 0)
+			|| (name.compare("monitor-inbound-channel-adapter") == 0);
 }
 
 SmartPtrIIntegrationObject IntegrationObjects::createObject(
@@ -65,6 +66,10 @@ SmartPtrIIntegrationObject IntegrationObjects::createObject(
 		rc = object;
 	} else if (name.compare("configenv-outbound-channel-adapter") == 0) {
 		SmartPtrCConfigEnvOutboundChannelAdapterInstance object;
+		object.CreateInstance();
+		rc = object;
+	} else if (name.compare("monitor-inbound-channel-adapter") == 0) {
+		SmartPtrCMonitorInboundChannelAdapterInstance object;
 		object.CreateInstance();
 		rc = object;
 	} else {

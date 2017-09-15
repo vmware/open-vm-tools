@@ -52,13 +52,21 @@ private:
 	std::string getValue(const std::string& key);
 	void setValue(const std::string& key, const std::string& value);
 	void removeKey(const std::string& key);
+	bool isReady();
+	std::string getValueRaw(
+			const std::string& key,
+			std::string& stdoutContent,
+			std::string& stderrContent);
 
 private:
 	bool _isInitialized;
+	bool _isReady;
 	static const std::string _NAMESPACE_DB_CMD_FILE;
 	static const std::string _NAMESPACE;
 	std::string _namespaceDbCmd;
-	Cmapstrstr cache;
+	Cmapstrstr _cache;
+	SmartPtrCPersistenceDoc _persistenceUpdate;
+	SmartPtrCPersistenceDoc _persistenceRemove;
 
 private:
 	CAF_CM_CREATE;

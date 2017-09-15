@@ -73,6 +73,10 @@ public: // IAppConfig
 
 	static SmartPtrIAppConfig getInstance(const Cdeqstr& configFileCollection);
 
+	static SmartPtrIAppConfig getInstanceAppend(const std::string& configFile);
+
+	static SmartPtrIAppConfig getInstanceAppend(const Cdeqstr& configFileCollection);
+
 public: // IAppConfigWrite
 	void setString(const std::string& sectionName,
 						const std::string& parameterName,
@@ -109,6 +113,9 @@ private:
 	void initialize();
 	void initialize(const std::string& configFile);
 	void initialize(const Cdeqstr& configFileCollection);
+
+	void append(const std::string& configFile);
+	void append(const Cdeqstr& configFileCollection);
 
 private:
 	SmartPtrIConfigParams internalLoadParameters(
