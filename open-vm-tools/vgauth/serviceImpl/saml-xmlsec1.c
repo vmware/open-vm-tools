@@ -399,7 +399,9 @@ SAML_Init(void)
     */
    LoadPrefs();
 
-   Log("%s: Using xmlsec1 for XML signature support\n", __FUNCTION__);
+   Log("%s: Using xmlsec1 %d.%d.%d for XML signature support\n",
+       __FUNCTION__, XMLSEC_VERSION_MAJOR, XMLSEC_VERSION_MINOR,
+       XMLSEC_VERSION_SUBMINOR);
 
    return VGAUTH_E_OK;
 }
