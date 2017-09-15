@@ -130,7 +130,7 @@
  * 4.0.0-1.8: patch 3
  */
 #define ESX_VERSION_MAJOR "6"
-#define ESX_VERSION_MINOR "5"
+#define ESX_VERSION_MINOR "6"
 #define ESX_VERSION_MAINT "0"
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
                     ESX_VERSION_MAINT
