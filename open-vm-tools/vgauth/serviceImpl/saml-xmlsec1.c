@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2917 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,6 +52,18 @@ static xmlSchemaValidCtxtPtr gSchemaValidateCtx = NULL;
 #define CATALOG_FILENAME            "catalog.xml"
 #define SAML_SCHEMA_FILENAME        "saml-schema-assertion-2.0.xsd"
 
+/*
+ * Hack to test expired tokens and by-pass the time checks.
+ *
+ * Turning this on allows the VerifySAMLTokenFileTest() unit test
+ * which reads a token from the file to be fed an old token (eg
+ * from a log) and not have it fail because of the time-based
+ * assertions.
+ *
+ * Note that setting this *will* cause negative tests looking for
+ * time checks to fail.
+ */
+/* #define TEST_VERIFY_SIGN_ONLY 1 */
 
 /*
  ******************************************************************************
@@ -1333,16 +1345,20 @@ VerifySAMLToken(const gchar *token,
    }
 
    bRet = VerifySubject(doc, subject);
+#ifndef TEST_VERIFY_SIGN_ONLY
    if (FALSE == bRet) {
       g_warning("Failed to verify Subject node\n");
       goto done;
    }
+#endif
 
    bRet = VerifyConditions(doc);
+#ifndef TEST_VERIFY_SIGN_ONLY
    if (FALSE == bRet) {
       g_warning("Failed to verify Conditions\n");
       goto done;
    }
+#endif
 
    bRet = VerifySignature(doc, numCerts, certChain);
    if (FALSE == bRet) {
