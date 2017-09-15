@@ -105,17 +105,28 @@ ResolutionBackendInit(InitHandle handle)
    if (resInfoX->canUseResolutionKMS == TRUE) {
       resInfo->canSetResolution = FALSE;
       resInfo->canSetTopology = FALSE;
-      return TRUE;
+      return FALSE;
    }
 
    XSetErrorHandler(ResolutionX11ErrorHandler);
    resInfoX->display = XOpenDisplay(NULL);
 
+   /*
+    * In case display is NULL, we do not load resolutionSet
+    * as it serve no purpose. Also avoids SEGFAULT issue
+    * like BZ1880932.
+    *
+    * VMX currently remembers the settings across a reboot,
+    * so let's say someone replaces our Xorg driver with
+    * xf86-video-modesetting, and then rebooted, we'd end up here,
+    * but the VMX would still send resolution / topology events
+    * and we'd hit the same segfault.
+    */
    if (resInfoX->display == NULL) {
       g_error("%s: Invalid display detected.\n", __func__);
       resInfo->canSetResolution = FALSE;
       resInfo->canSetTopology = FALSE;
-      return TRUE;
+      return FALSE;
    }
 
    resInfoX->rootWindow = DefaultRootWindow(resInfoX->display);
