@@ -2,8 +2,7 @@
  *  Created on: Nov 13, 2015
  *      Author: bwilliams
  *
- *  Copyright (c) 2015 VMware, Inc.  All rights reserved.
- *  -- VMware Confidential
+ *  Copyright (C) 2015-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #include "stdafx.h"

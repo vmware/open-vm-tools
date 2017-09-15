@@ -2,8 +2,7 @@
  *	Author: brets
  *	Created: October 28, 2015
  *
- *	Copyright (c) 2015 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2015-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef PROVIDERFXLINK_H_

@@ -2,8 +2,7 @@
  *	Author: bwilliams
  *	Created: July 25, 2012
  *
- *	Copyright (c) 2012 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2012-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef _InstallProvider_IPackage_h_

@@ -2,8 +2,7 @@
  *  Created on: Jan 25, 2012
  *      Author: mdonahue
  *
- *  Copyright (c) 2012 VMware, Inc.  All rights reserved.
- *  -- VMware Confidential
+ *  Copyright (C) 2012-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef _IVgAuthImpersonation_H_
