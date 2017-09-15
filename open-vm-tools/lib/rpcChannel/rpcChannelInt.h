@@ -37,7 +37,7 @@ typedef struct _RpcChannelFuncs{
    gboolean (*start)(RpcChannel *);
    void (*stop)(RpcChannel *);
    gboolean (*send)(RpcChannel *, char const *data, size_t dataLen,
-                    char **result, size_t *resultLen);
+                    Bool *rpcStatus, char **result, size_t *resultLen);
    void (*setup)(RpcChannel *chan, GMainContext *mainCtx,
                  const char *appName, gpointer appCtx);
    void (*shutdown)(RpcChannel *);

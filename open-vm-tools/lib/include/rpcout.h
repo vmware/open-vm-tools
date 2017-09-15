@@ -51,7 +51,7 @@ RpcOut *RpcOut_Construct(void);
 void RpcOut_Destruct(RpcOut *out);
 Bool RpcOut_start(RpcOut *out);
 Bool RpcOut_send(RpcOut *out, char const *request, size_t reqLen,
-                 char const **reply, size_t *repLen);
+                 Bool *rpcStatus, char const **reply, size_t *repLen);
 Bool RpcOut_stop(RpcOut *out);
 
 

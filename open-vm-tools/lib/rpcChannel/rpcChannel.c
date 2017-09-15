@@ -847,6 +847,7 @@ RpcChannel_Send(RpcChannel *chan,
                 size_t *resultLen)
 {
    gboolean ok;
+   Bool rpcStatus;
    char *res = NULL;
    size_t resLen = 0;
    const RpcChannelFuncs *funcs;
@@ -867,14 +868,14 @@ RpcChannel_Send(RpcChannel *chan,
       *resultLen = 0;
    }
 
-   ok = funcs->send(chan, data, dataLen, &res, &resLen);
+   ok = funcs->send(chan, data, dataLen, &rpcStatus, &res, &resLen);
 
    if (!ok && (funcs->getType(chan) != RPCCHANNEL_TYPE_BKDOOR) &&
        (funcs->stopRpcOut != NULL)) {
 
-       free(res);
-       res = NULL;
-       resLen = 0;
+      free(res);
+      res = NULL;
+      resLen = 0;
 
       /* retry once */
       Debug(LGPFX "Stop RpcOut channel and try to send again ...\n");
@@ -883,7 +884,7 @@ RpcChannel_Send(RpcChannel *chan,
          /* The channel may get switched from vsocket to backdoor */
          funcs = chan->funcs;
          ASSERT(funcs->send);
-         ok = funcs->send(chan, data, dataLen, &res, &resLen);
+         ok = funcs->send(chan, data, dataLen, &rpcStatus, &res, &resLen);
          goto done;
       }
 
@@ -907,7 +908,7 @@ done:
 
 exit:
    g_static_mutex_unlock(&chan->outLock);
-   return ok;
+   return ok && rpcStatus;
 }
 
 
