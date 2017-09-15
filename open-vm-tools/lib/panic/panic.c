@@ -293,7 +293,7 @@ Panic_BreakOnPanic(void)
       Warning("Panic: breaking into debugger\n");
       DebugBreak();
    }
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
    if (Panic_GetBreakOnPanic()) {
       Warning("Panic: breaking into debugger\n");
       __asm__ __volatile__ ("int3");
@@ -403,7 +403,7 @@ Panic_GetBreakOnPanic(void)
    case PanicBreakAction_IfDebuggerAttached:
 #if defined(_WIN32)
       shouldBreak = IsDebuggerPresent();
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
       {
          /*
           * https://developer.apple.com/library/content/qa/qa1361/
