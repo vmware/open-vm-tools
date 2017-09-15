@@ -457,18 +457,6 @@ AsyncSocket *AsyncSocket_ListenWebSocketEx(const char *addrStr,
                                            AsyncWebSocketHandleUpgradeRequestFn handleUpgradeRequestFn,
                                            int *outError);
 
-/*
- * Listen on port and fire callback with new asock
- * NOTE - Do not use this API.
- * Listens on 127.0.0.1:port and does not use SSL.
- * This API will be deprecated soon.
- */
-AsyncSocket *AsyncSocket_ListenWebSocketNoHttp(unsigned int port,
-                                             const char *protocols[],
-                                             AsyncSocketConnectFn connectFn,
-                                             void *clientData,
-                                             AsyncSocketPollParams *pollParams,
-                                             int *outError);
 #ifndef _WIN32
 AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
                                             Bool useSSL,

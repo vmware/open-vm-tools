@@ -142,6 +142,8 @@ struct {
 #include "vmware_pack_end.h"
 EFIGUID;
 
+Bool UUID_ConvertPackedToBin(EFIGUID *destID,
+                             const char *text);
 
 Bool UUID_ConvertToBin(uint8 dest_id[UUID_SIZE],
                        const char *text);
