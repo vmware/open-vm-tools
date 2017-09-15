@@ -44,8 +44,6 @@
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
-#elif defined(VMX86_VCB)
-   #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VLICENSE)
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
@@ -139,14 +137,9 @@
 #define ESX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define ESX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
-#define VMSERVER_VERSION "e.x.p"
 #define WORKSTATION_RELEASE_DESCRIPTION ""
-#define WORKSTATION_ENTERPRISE_VERSION "e.x.p"
 #define WSX_SERVER_VERSION_NUMBER "1.0.0"
 #define WSX_SERVER_VERSION "e.x.p"
-#define ACE_MANAGEMENT_SERVER_VERSION "e.x.p"
-#define MUI_VERSION "4.1.0"
-#define CONSOLE_VERSION "4.1.0"
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
 
@@ -184,8 +177,6 @@
 #define SYSIMAGE_VERSION "6.5.0"
 #define SYSIMAGE_FILE_VERSION VIE_FILEVERSION
 
-#define VCB_VERSION "4.0.0"
-#define VCB_FILE_VERSION 4,0,0,0
 #define VIM_VERSION "6.6.1"
 /*
  *For smooth version bump up for quaterly releases, we need to have a fallback
@@ -316,10 +307,6 @@
 #  define PRODUCT_VERSION_NUMBER GANTRY_VERSION
 #elif defined(VMX86_SERVER)
 #  define PRODUCT_VERSION_NUMBER ESX_VERSION
-#elif defined(VMX86_MUI)
-#  define PRODUCT_VERSION_NUMBER MUI_VERSION
-#elif defined(VMX86_ENTERPRISE_DESKTOP)
-#  define PRODUCT_VERSION_NUMBER WORKSTATION_ENTERPRISE_VERSION
 #elif defined(VMX86_VPX)
 #  if defined(XVP)
 #     define PRODUCT_VERSION_NUMBER XVP_VERSION
@@ -407,8 +394,6 @@
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_WGS)
 #    define PRODUCT_LICENSE_VERSION "3.0"
-#  elif defined(VMX86_ENTERPRISE_DESKTOP)
-#    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "6.0"
 #    define PRODUCT_LICENSE_FILE_VERSION "6.6.0.0"
@@ -432,20 +417,6 @@
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "6.0"
 #define PRODUCT_ESX_LICENSE_FILE_VERSION "6.6.0.1"
-
-/*
- * This is for ACE Management Server
- * Since there is no separate product defined for Ace Mgmt Server
- * (i.e. PRODUCT=xxx when running makefile), we can not used the
- * generic PRODUCT_LICENSE_VERSION and PRODUCT_VERSION_STRING_FOR_LICENSE
- * definition.
- * As a result, the specific ACE_MGMT_SERVER_VERSION_STRING_FOR_LICENSE
- * is used instead.
- * A similar reason is used also for the PRODUCT_NAME_FOR_LICENSE definition
- * in the vm_product.h
- */
-
-#define ACE_MGMT_SERVER_VERSION_STRING_FOR_LICENSE "2.0"
 
 /*
  * The configuration file version string should be changed
@@ -514,9 +485,6 @@
 #define PRODUCT_VERSION_WORKSTATION_120 PRODUCT_WORKSTATION_BRIEF_NAME " 12.x"
 // Workstation 13.x is skipped.
 #define PRODUCT_VERSION_WORKSTATION_140 PRODUCT_WORKSTATION_BRIEF_NAME " Tech Preview 2017"
-#define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_1 "ACE 1.x"
-#define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_2 "ACE 2.0"
-#define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_25 "ACE 2.5"
 #define PRODUCT_VERSION_PLAYER_1 PRODUCT_PLAYER_BRIEF_NAME " 1.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_1 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.1"
 #define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.x"
