@@ -98,63 +98,37 @@ startVgAuthProcess() {
 	esac
 }
 
-#The best locale is UTF8, and prefereably matches the
-#desired language and region
-getBestLocale() {
-	# Only find one best
-	if [ -z $best_locale ]; then
-		echo "Looking for best match for <$1>"
-		#If no language or region is defined, default to US English
-		if [ "$1" = "C" -o "$1" = "" -o "$1" = "POSIX" ]; then
-			echo "Generic starting point, defaulting"
-			getBestLocale "en_US"
-			return
-		fi
-
-		available_utf8_locales=`locale -a | egrep -i '.utf8|.utf-8' | egrep -vi '^c.utf'`
-		for loc in $available_utf8_locales; do
-			best_locale=$loc
-			#echo "Trying $loc"
-			if test "${loc#*$1}" != "$loc"; then
-				echo "$loc is best match for $1"
-				return
-			fi
-		done
-
-		if [ -z $best_locale ]; then
-			echo "No UTF8 locale found"
-			exit 1
-		fi
-
-		#If no match was found, use any valid UTF8
-		echo "Found no best, using $best_locale"
-	fi
-}
-
 #Set the locale to something UTF8
 setUtf8Locale() {
-	# Only change if the current locale is not UTF8
 	locale_list=`locale | egrep -vi '.utf8|.utf-8|=$|LANGUAGE'`
-	if [ $? -eq 0 ]; then
-		echo "The locale is not UTF8, looking for a better one"
+        if [ $? -eq 0 ]; then
+		echo "The locale is currently set to $LANG, looking for UTF-8"
+                default_locale=$LANG
+                available_utf8_locales=`locale -a | egrep -i '.utf8|.utf-8' | egrep -vi '^c.utf'`
+		if [ ! -z "$available_utf8_locales" ]; then
+			for loc in $available_utf8_locales; do
+                                best_locale=$loc
+                                is_en_US_locale=`echo $loc | egrep -i 'en_US'`
+                                if [ ! -z $is_en_US_locale ]; then
+                                        echo "$loc is the best UTF-8 locale required"
+                                        break
+                                fi
+                        done
+			echo "Using the available UTF-8 locale: $best_locale"
+                else
+                        echo "No UTF-8 locale found, using the default locale $default_locale"
+                        best_locale=$default_locale
+                fi
 
-		#LC_ALL takes precedence
-		if [ ! -z $LC_ALL ]; then
-			echo "Initializing locale search with LC_ALL:$LC_ALL"
-			initial_local=$LC_ALL
-		else
-			echo "Initializing locale search with LANG:$LANG"
-			initial_local=$LANG
-		fi
+                export LANG=$best_locale
+                export LANGUAGE=$best_locale
+                export LC_ALL=$best_locale
 
-		locale_prefix=`echo $initial_local | sed 's/\.[^.]*$//'`
-		getBestLocale $locale_prefix
+                echo "The locale is now successfully set to : $LANG"
 
-		#For now, we'll just set LANG and LC_ALL, we may need to cycle
-		#through the entire locale_list in the future
-		export LANG=$best_locale
-		export LC_ALL=$best_locale
-	fi
+        else
+                echo "The locale is already set to UTF-8 : $LANG"
+        fi
 }
 
 verifyProcessNotRunning() {
