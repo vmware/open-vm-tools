@@ -6283,50 +6283,57 @@ exit:
 static void
 HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
 {
-   uint32 numberBytesToWrite;
-   HgfsInternalStatus status;
-   HgfsWriteFlags flags;
-   uint64 offset;
-   const void *dataToWrite;
-   uint32 replyActualSize;
-   size_t replyPayloadSize = 0;
-   HgfsHandle file;
+   uint64 writeOffset;
+   uint32 writeSize;
+   uint32 writtenSize = 0;
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
+   HgfsWriteFlags writeFlags;
+   const void *writeData;
+   size_t writeReplySize = 0;
+   HgfsHandle writeFile;
 
    HGFS_ASSERT_INPUT(input);
 
    if (!HgfsUnpackWriteRequest(input->payload, input->payloadSize, input->op,
-                              &file, &offset, &numberBytesToWrite, &flags,
-                              &dataToWrite)) {
+                               &writeFile, &writeOffset, &writeSize, &writeFlags,
+                               &writeData)) {
       LOG(4, ("%s: Error: Op %d unpack write request arguments\n", __FUNCTION__, input->op));
       status = HGFS_ERROR_PROTOCOL;
       goto exit;
    }
 
-   if (NULL == dataToWrite) {
-      /* No inline data to write, get it from the transport shared memory. */
-      HSPU_SetDataPacketSize(input->packet, numberBytesToWrite);
-      dataToWrite = HSPU_GetDataPacketBuf(input->packet, BUF_READABLE,
-                                          input->transportSession->channelCbTable);
-      if (NULL == dataToWrite) {
-         LOG(4, ("%s: Error: Op %d mapping write data buffer\n", __FUNCTION__, input->op));
-         status = HGFS_ERROR_PROTOCOL;
+   if (writeSize > 0) {
+      if (NULL == writeData) {
+         /* No inline data to write, get it from the transport shared memory. */
+         HSPU_SetDataPacketSize(input->packet, writeSize);
+         writeData = HSPU_GetDataPacketBuf(input->packet, BUF_READABLE,
+                                           input->transportSession->channelCbTable);
+         if (NULL == writeData) {
+            LOG(4, ("%s: Error: Op %d mapping write data buffer\n", __FUNCTION__, input->op));
+            status = HGFS_ERROR_PROTOCOL;
+            goto exit;
+         }
+      }
+
+      status = HgfsPlatformWriteFile(writeFile,
+                                     input->session,
+                                     writeOffset,
+                                     writeSize,
+                                     writeFlags,
+                                     writeData,
+                                     &writtenSize);
+      if (HGFS_ERROR_SUCCESS != status) {
          goto exit;
       }
    }
 
-   status = HgfsPlatformWriteFile(file, input->session, offset, numberBytesToWrite,
-                                  flags, dataToWrite, &replyActualSize);
-   if (HGFS_ERROR_SUCCESS != status) {
-      goto exit;
-   }
-
    if (!HgfsPackWriteReply(input->packet, input->request, input->op,
-                           replyActualSize, &replyPayloadSize, input->session)) {
+                           writtenSize, &writeReplySize, input->session)) {
       status = HGFS_ERROR_INTERNAL;
    }
 
 exit:
-   HgfsServerCompleteRequest(status, replyPayloadSize, input);
+   HgfsServerCompleteRequest(status, writeReplySize, input);
 }
 
 
