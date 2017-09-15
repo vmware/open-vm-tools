@@ -40,11 +40,11 @@
 #ifndef __MESSAGE_H__
 #   define __MESSAGE_H__
 
+#include "vm_basic_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "vm_basic_types.h"
 
 
 /* The channel object */

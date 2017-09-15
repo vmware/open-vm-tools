@@ -26,9 +26,9 @@
 #ifndef TRACER_HH
 #define TRACER_HH
 
+#include "vm_basic_defs.h"
 
 extern "C" {
-#include "vm_basic_defs.h"
 #include "glib.h"
 }
 

@@ -27,11 +27,11 @@
 #ifndef __VMCHECK_H__
 #   define __VMCHECK_H__
 
+#include "vm_basic_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#   include "vm_basic_types.h"
 
 Bool
 VmCheck_GetVersion(uint32 *version, // OUT
