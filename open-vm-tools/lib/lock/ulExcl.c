@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -638,7 +638,7 @@ MXUser_IsCurThreadHoldingExclLock(MXUserExclLock *lock)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_CreateSingletonExclLockInt --
+ * MXUser_CreateSingletonExclLock --
  *
  *      Ensures that the specified backing object (Atomic_Ptr) contains a
  *      exclusive lock. This is useful for modules that need to protect
@@ -655,9 +655,9 @@ MXUser_IsCurThreadHoldingExclLock(MXUserExclLock *lock)  // IN:
  */
 
 MXUserExclLock *
-MXUser_CreateSingletonExclLockInt(Atomic_Ptr *lockStorage,  // IN/OUT:
-                                  const char *name,         // IN:
-                                  MX_Rank rank)             // IN:
+MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,  // IN/OUT:
+                               const char *name,         // IN:
+                               MX_Rank rank)             // IN:
 {
    MXUserExclLock *lock;
 

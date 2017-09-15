@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -715,7 +715,7 @@ MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_CreateSingletonRecLockInt --
+ * MXUser_CreateSingletonRecLock --
  *
  *      Ensures that the specified backing object (Atomic_Ptr) contains a
  *      recursive lock. This is useful for modules that need to protect
@@ -732,9 +732,9 @@ MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock)  // IN:
  */
 
 MXUserRecLock *
-MXUser_CreateSingletonRecLockInt(Atomic_Ptr *lockStorage,  // IN/OUT:
-                                 const char *name,         // IN:
-                                 MX_Rank rank)             // IN:
+MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,  // IN/OUT:
+                              const char *name,         // IN:
+                              MX_Rank rank)             // IN:
 {
    MXUserRecLock *lock;
 
