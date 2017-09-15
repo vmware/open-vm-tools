@@ -100,7 +100,7 @@ IsLinkingAvailable(const char *fileName)  // IN:
    struct statfs buf;
    int status;
 
-   ASSERT(fileName);
+   ASSERT(fileName != NULL);
 
    /*
     * Don't use linking on ESX/VMFS... the overheads are expensive and this
@@ -192,7 +192,7 @@ RemoveStaleLockFile(const char *lockFileName)  // IN:
    int ret;
    int saveErrno;
 
-   ASSERT(lockFileName);
+   ASSERT(lockFileName != NULL);
 
    /* stale lock */
    Log(LGPFX" Found a previous instance of lock file '%s'. "
@@ -243,9 +243,9 @@ GetLockFileValues(const char *lockFileName,  // IN:
    uid_t uid;
    int status;
 
-   ASSERT(lockFileName);
-   ASSERT(pid);
-   ASSERT(hostID);
+   ASSERT(lockFileName != NULL);
+   ASSERT(pid != NULL);
+   ASSERT(hostID != NULL);
 
    uid = Id_BeginSuperUser();
    lockFile = Posix_Fopen(lockFileName, "r");
@@ -460,7 +460,7 @@ FileLock_LockDevice(const char *deviceName)  // IN:
 
    int  status = -1;
 
-   ASSERT(deviceName);
+   ASSERT(deviceName != NULL);
 
    lockFileName = Str_SafeAsprintf(NULL, "%s/LCK..%s", DEVICE_LOCK_DIR,
                                    deviceName);
@@ -548,7 +548,7 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
    int saveErrno;
    char *path;
 
-   ASSERT(deviceName);
+   ASSERT(deviceName != NULL);
 
    path = Str_SafeAsprintf(NULL, "%s/LCK..%s", DEVICE_LOCK_DIR, deviceName);
 
@@ -627,8 +627,8 @@ FileReadSlashProc(const char *procPath,  // IN:
    char *p;
    size_t len;
 
-   ASSERT(procPath);
-   ASSERT(buffer);
+   ASSERT(procPath != NULL);
+   ASSERT(buffer != NULL);
    ASSERT(bufferSize > 0);
 
    fd = Posix_Open(procPath, O_RDONLY, 0);
@@ -804,7 +804,7 @@ FileLockProcessCreationTime(pid_t pid,                 // IN:
    struct kinfo_proc info;
    int mib[4];
 
-   ASSERT(procCreationTime);
+   ASSERT(procCreationTime != NULL);
 
    /* Request information about the specified process */
    mib[0] = CTL_KERN;
@@ -926,7 +926,7 @@ FileLockGetExecutionID(void)
 {
    char *descriptor = FileLockProcessDescriptor(getpid());
 
-   ASSERT(descriptor);  // Must be able to describe ourselves!
+   ASSERT(descriptor != NULL);  // Must be able to describe ourselves!
 
    return descriptor;
 }
@@ -955,9 +955,9 @@ FileLockParseProcessDescriptor(const char *procDescriptor,  // IN:
                                pid_t *pid,                  // OUT:
                                uint64 *procCreationTime)    // OUT:
 {
-   ASSERT(procDescriptor);
-   ASSERT(pid);
-   ASSERT(procCreationTime);
+   ASSERT(procDescriptor != NULL);
+   ASSERT(pid != NULL);
+   ASSERT(procCreationTime != NULL);
 
    if (sscanf(procDescriptor, "%d-%"FMT64"u", pid, procCreationTime) != 2) {
       if (sscanf(procDescriptor, "%d", pid) == 1) {
@@ -1119,8 +1119,8 @@ FileLock_Lock(const char *filePath,          // IN:
    char *normalizedPath;
    FileLockToken *tokenPtr;
 
-   ASSERT(filePath);
-   ASSERT(err);
+   ASSERT(filePath != NULL);
+   ASSERT(err != NULL);
 
    normalizedPath = FileLockNormalizePath(filePath);
 
@@ -1179,7 +1179,7 @@ FileLock_IsLocked(const char *filePath,  // IN:
    Bool isLocked;
    char *normalizedPath;
 
-   ASSERT(filePath);
+   ASSERT(filePath != NULL);
 
    normalizedPath = FileLockNormalizePath(filePath);
 
@@ -1229,7 +1229,7 @@ FileLock_Unlock(const FileLockToken *lockToken,  // IN:
 {
    int res;
 
-   ASSERT(lockToken);
+   ASSERT(lockToken != NULL);
 
    res = FileUnlockIntrinsic((FileLockToken *) lockToken);
 

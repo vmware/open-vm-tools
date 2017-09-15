@@ -181,8 +181,8 @@ FileLockRemoveLockingFile(const char *lockDir,   // IN:
    int err;
    char *path;
 
-   ASSERT(lockDir);
-   ASSERT(fileName);
+   ASSERT(lockDir != NULL);
+   ASSERT(fileName != NULL);
 
    path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
@@ -315,8 +315,8 @@ FileLockMemberValues(const char *lockDir,       // IN:
                            }
                         };
 
-   ASSERT(lockDir);
-   ASSERT(fileName);
+   ASSERT(lockDir != NULL);
+   ASSERT(fileName != NULL);
 
    path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
@@ -537,7 +537,7 @@ FileLockValidName(const char *fileName)  // IN:
 {
    uint32 i;
 
-   ASSERT(fileName);
+   ASSERT(fileName != NULL);
 
    /* The fileName must start with the ASCII character, 'M', 'D' or 'E' */
    if (Unicode_FindSubstrInRange("MDE", 0, -1, fileName, 0,
@@ -581,7 +581,7 @@ FileLockActivateList(const char *dirName,   // IN:
 {
    ActiveLock   *ptr;
 
-   ASSERT(dirName);
+   ASSERT(dirName != NULL);
 
    ASSERT(*dirName == 'D');
 
@@ -693,7 +693,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
    char *myExecutionID = NULL;
    char *locationChecksum = NULL;
 
-   ASSERT(lockDir);
+   ASSERT(lockDir != NULL);
 
    numEntries = FileListDirectoryRobust(lockDir, &fileList);
 
@@ -875,7 +875,7 @@ FileLockScanner(const char *lockDir,     // IN:
    int        err;
    ActiveLock *ptr;
 
-   ASSERT(lockDir);
+   ASSERT(lockDir != NULL);
 
    myValues->lockList = NULL;
 
@@ -1088,8 +1088,8 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
 {
    int err = 0;
 
-   ASSERT(lockDir);
-   ASSERT(fileName);
+   ASSERT(lockDir != NULL);
+   ASSERT(fileName != NULL);
 
    /* "Win" or wait? */
    if (((memberValues->lamportNumber < myValues->lamportNumber) ||
@@ -1179,8 +1179,8 @@ FileLockNumberScan(const char *lockDir,       // IN:
                    LockValues *memberValues,  // IN:
                    LockValues *myValues)      // IN/OUT:
 {
-   ASSERT(lockDir);
-   ASSERT(fileName);
+   ASSERT(lockDir != NULL);
+   ASSERT(fileName != NULL);
 
    if (memberValues->lamportNumber > myValues->lamportNumber) {
       myValues->lamportNumber = memberValues->lamportNumber;
@@ -1218,7 +1218,7 @@ FileLockMakeDirectory(const char *pathName)  // IN:
    save = umask(0);
 #endif
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    err = FileCreateDirectoryRobust(pathName, 0777);
 
@@ -1265,7 +1265,7 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
    int err = 0;
    uint32 randomNumber = 0;
 
-   ASSERT(lockDir);
+   ASSERT(lockDir != NULL);
 
    *entryDirectory = NULL;
    *entryFilePath = NULL;
@@ -1439,8 +1439,8 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
    int err = 0;
    char buffer[FILELOCK_DATA_SIZE] = { 0 };
 
-   ASSERT(entryFilePath);
-   ASSERT(memberFilePath);
+   ASSERT(entryFilePath != NULL);
+   ASSERT(memberFilePath != NULL);
 
    /*
     * Populate the buffer with appropriate data
@@ -1648,8 +1648,8 @@ FileLockIntrinsicPortable(const char *pathName,   // IN:
    char *memberFilePath = NULL;
    char *entryDirectory = NULL;
 
-   ASSERT(pathName);
-   ASSERT(err);
+   ASSERT(pathName != NULL);
+   ASSERT(err != NULL);
 
    /*
     * Attempt to create the locking and entry directories; obtain the
@@ -2018,7 +2018,7 @@ FileLockIsLocked(const char *pathName,  // IN:
    Bool isLocked;
    char *lockBase;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    lockBase = Unicode_Append(pathName, FILELOCK_SUFFIX);
 

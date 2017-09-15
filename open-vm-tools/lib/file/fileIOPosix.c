@@ -362,7 +362,7 @@ FileIO_OptionalSafeInitialize(void)
 void
 FileIO_Invalidate(FileIODescriptor *fd)  // OUT:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    (memset)(fd, 0, sizeof *fd);
    fd->posix = -1;
@@ -388,7 +388,7 @@ FileIO_Invalidate(FileIODescriptor *fd)  // OUT:
 Bool
 FileIO_IsValid(const FileIODescriptor *fd)  // IN:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    return fd->posix != -1;
 }
@@ -476,7 +476,7 @@ Bool
 FileIO_GetVolumeSectorSize(const char *pathName,  // IN:
                            uint32 *sectorSize)    // OUT:
 {
-   ASSERT(sectorSize);
+   ASSERT(sectorSize != NULL);
 
    *sectorSize = 512;
 
@@ -844,7 +844,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    int error;
    FileIOResult ret;
 
-   ASSERT(file);
+   ASSERT(file != NULL);
 
    if (pathName == NULL) {
       errno = EFAULT;
@@ -1218,7 +1218,7 @@ FileIO_Seek(const FileIODescriptor *file,  // IN:
             int64 distance,                // IN:
             FileIOSeekOrigin origin)       // IN:
 {
-   ASSERT(file);
+   ASSERT(file != NULL);
 
 #if defined(__ANDROID__)
    /*
@@ -1272,7 +1272,7 @@ FileIO_Write(FileIODescriptor *fd,  // IN:
    size_t initial_requested;
    FileIOResult fret = FILEIO_SUCCESS;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    VERIFY(requested < 0x80000000);
 
@@ -1335,7 +1335,7 @@ FileIO_Read(FileIODescriptor *fd,  // IN:
    size_t initial_requested;
    FileIOResult fret = FILEIO_SUCCESS;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    VERIFY(requested < 0x80000000);
 
@@ -1389,7 +1389,7 @@ Bool
 FileIO_Truncate(FileIODescriptor *file,  // IN:
                 uint64 newLength)        // IN:
 {
-   ASSERT(file);
+   ASSERT(file != NULL);
 
    return ftruncate(file->posix, newLength) == 0;
 }
@@ -1418,7 +1418,7 @@ FileIO_Close(FileIODescriptor *file)  // IN:
 {
    int err;
 
-   ASSERT(file);
+   ASSERT(file != NULL);
 
    err = (close(file->posix) == -1) ? errno : 0;
 
@@ -1455,7 +1455,7 @@ FileIO_Close(FileIODescriptor *file)  // IN:
 FileIOResult
 FileIO_Sync(const FileIODescriptor *file)  // IN:
 {
-   ASSERT(file);
+   ASSERT(file != NULL);
 
    return (fsync(file->posix) == -1) ? FILEIO_ERROR : FILEIO_SUCCESS;
 }
@@ -1496,8 +1496,8 @@ FileIOCoalesce(
 {
    uint8 *cBuf;
 
-   ASSERT(inVec);
-   ASSERT(outVec);
+   ASSERT(inVec != NULL);
+   ASSERT(outVec != NULL);
 
    FileIO_OptionalSafeInitialize();
 
@@ -1569,8 +1569,8 @@ FileIODecoalesce(
         Bool isWrite,                // IN: decoalesce for writing (or reading)
         int flags)                   // IN: fileIO open flags
 {
-   ASSERT(coVec);
-   ASSERT(origVec);
+   ASSERT(coVec != NULL);
+   ASSERT(origVec != NULL);
 
    ASSERT(actualSize <= coVec->iov_len);
    ASSERT_NOT_TESTED(actualSize == coVec->iov_len);
@@ -1625,7 +1625,7 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
    Bool didCoalesce;
    int numVec;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    didCoalesce = FileIOCoalesce(v, numEntries, totalSize, FALSE,
                                 FALSE, fd->flags, &coV);
@@ -1738,7 +1738,7 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
    Bool didCoalesce;
    int numVec;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    didCoalesce = FileIOCoalesce(v, numEntries, totalSize, TRUE,
                                 FALSE, fd->flags, &coV);
@@ -2283,8 +2283,8 @@ FileIO_Preadv(FileIODescriptor *fd,        // IN: File descriptor
 {
    FileIOResult fret;
 
-   ASSERT(fd);
-   ASSERT(entries);
+   ASSERT(fd != NULL);
+   ASSERT(entries != NULL);
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
    VERIFY(totalSize < 0x80000000);
 
@@ -2329,8 +2329,8 @@ FileIO_Pwritev(FileIODescriptor *fd,        // IN: File descriptor
 {
    FileIOResult fret;
 
-   ASSERT(fd);
-   ASSERT(entries);
+   ASSERT(fd != NULL);
+   ASSERT(entries != NULL);
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
    VERIFY(totalSize < 0x80000000);
 
@@ -2371,7 +2371,7 @@ FileIO_GetAllocSize(const FileIODescriptor *fd,  // IN:
 {
    struct stat statBuf;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    if (fstat(fd->posix, &statBuf) == -1) {
       return FileIOErrno2Result(errno);
@@ -2570,7 +2570,7 @@ FileIO_Access(const char *pathName,  // IN: Path name. May be NULL.
 uint32
 FileIO_GetFlags(FileIODescriptor *fd)  // IN:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
    ASSERT(FileIO_IsValid(fd));
 
    return fd->flags;
