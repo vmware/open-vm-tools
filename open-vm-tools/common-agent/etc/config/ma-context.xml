@@ -309,7 +309,7 @@
 		id="persistenceInboundChannelAdapterId"
 		channel="configenvOutboundChannel"
 		ref="persistenceNsdbBean">
-		<poller fixed-rate="30000"/>
+		<poller fixed-rate="86400000"/>
 	</persistence-inbound-channel-adapter>
 
 	<configenv-outbound-channel-adapter

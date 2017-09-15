@@ -46,6 +46,12 @@ public: // ReplyToResolver
 
 	std::string lookupReplyTo(const SmartPtrIIntMessage& message);
 
+	static std::string getResolverCacheFilePath();
+
+private: // ReplyToResolver
+	void loadCache();
+	void persistCache();
+
 public: // IExpressionInvoker
 	SmartPtrIVariant invokeExpression(
 			const std::string& methodName,

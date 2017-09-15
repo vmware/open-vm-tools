@@ -17,6 +17,7 @@ remap_logging_location=false
 [communication_amqp]
 working_dir=${output_dir}/comm-wrk
 context_file=${comm_amqp_listener_context}
+resolver_cache_file=${output_dir}/cache/commAmqpResolver-cache
 
 reactive_request_queue_id=${reactive_request_amqp_queue_id}
 

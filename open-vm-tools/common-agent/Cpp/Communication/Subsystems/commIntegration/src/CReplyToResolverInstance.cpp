@@ -34,10 +34,15 @@ void CReplyToResolverInstance::initializeBean(
 	CAF_CM_FUNCNAME_VALIDATE("initializeBean");
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
+
+	// Read cache map into memory
+	loadCache();
+
 	_isInitialized = true;
 }
 
 void CReplyToResolverInstance::terminateBean() {
+	persistCache();
 }
 
 std::string CReplyToResolverInstance::cacheReplyTo(
@@ -106,7 +111,7 @@ SmartPtrIVariant CReplyToResolverInstance::invokeExpression(
 		const std::string& methodName,
 		const Cdeqstr& methodParams,
 		const SmartPtrIIntMessage& message) {
-	CAF_CM_FUNCNAME("lookupReplyTo");
+	CAF_CM_FUNCNAME("invokeExpression");
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 	CAF_CM_ASSERT(!methodParams.size());
@@ -123,3 +128,70 @@ SmartPtrIVariant CReplyToResolverInstance::invokeExpression(
 	}
 	return result;
 }
+
+inline std::string CReplyToResolverInstance::getResolverCacheFilePath()
+{
+	return AppConfigUtils::getRequiredString("communication_amqp", "resolver_cache_file");
+}
+
+/*
+ * private methods
+ *
+ */
+void CReplyToResolverInstance::loadCache() {
+	CAF_CM_FUNCNAME_VALIDATE("loadCache");
+	CAF_CM_LOCK_UNLOCK;
+
+	//const std::string cacheFilePath = AppConfigUtils::getRequiredString("communication_amqp", "resolver_cache_file");
+	const std::string cacheFilePath = getResolverCacheFilePath();
+	const std::string cacheDirPath = FileSystemUtils::getDirname(cacheFilePath);
+	if (! FileSystemUtils::doesDirectoryExist(cacheDirPath)) {
+		FileSystemUtils::createDirectory(cacheDirPath);
+	}
+	if (FileSystemUtils::doesFileExist(cacheFilePath)) {
+
+                const std::deque<std::string> fileContents = FileSystemUtils::loadTextFileIntoColl(cacheFilePath);
+		for(TConstIterator<std::deque<std::string> > fileLineIter(fileContents); fileLineIter; fileLineIter++) {
+			//const std::string fileLine = *fileLineIter;
+			const Cdeqstr fileLineTokens = CStringUtils::split(*fileLineIter, ' ');
+
+			CAF_CM_LOG_DEBUG_VA2("cache entry - reqId: %s, addr: %s",
+				fileLineTokens[0].c_str(), fileLineTokens[1].c_str());
+			if (fileLineTokens.size() == 2) {
+				UUID reqId;
+				BasePlatform::UuidFromString(fileLineTokens[0].c_str(), reqId);
+				_replyToAddresses.insert(std::make_pair(reqId, fileLineTokens[1]));
+			}
+                }
+
+	} else {
+		CAF_CM_LOG_DEBUG_VA1("resolver cache is not available - resolverCache: %s", cacheFilePath.c_str());
+	}
+
+}
+
+void CReplyToResolverInstance::persistCache() {
+	CAF_CM_FUNCNAME_VALIDATE("persistCache");
+	CAF_CM_LOCK_UNLOCK;
+	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+
+	//const std::string cacheFilePath = AppConfigUtils::getRequiredString("communication_amqp", "resolver_cache_file");
+	const std::string cacheFilePath = getResolverCacheFilePath();
+	std::stringstream contents;
+	//contents.str("");
+	for (AddressMap::const_iterator replyToIter = _replyToAddresses.begin();
+		replyToIter != _replyToAddresses.end(); ++replyToIter) {
+
+		std::string reqIdStr = BasePlatform::UuidToString(replyToIter->first);
+		contents << reqIdStr << " " << replyToIter->second << std::endl;
+		CAF_CM_LOG_DEBUG_VA2("caching entry - reqId: %s, addr: %s",
+				reqIdStr.c_str(), replyToIter->second.c_str());
+	}
+	if (contents.str().length() > 0) {
+		CAF_CM_LOG_DEBUG_VA0("Caching resolver map.");
+		FileSystemUtils::saveTextFile(cacheFilePath, contents.str());
+	}
+	
+
+}
+

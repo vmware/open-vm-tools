@@ -334,6 +334,7 @@ function clearCaches() {
       $CAF_OUTPUT_DIR/events/* \
       $CAF_OUTPUT_DIR/tmp/* \
       $CAF_OUTPUT_DIR/att/* \
+      $CAF_OUTPUT_DIR/cache/* \
       $CAF_LOG_DIR/* \
       $CAF_BIN_DIR/*.log
 }

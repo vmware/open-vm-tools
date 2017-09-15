@@ -287,6 +287,17 @@ AMQPStatus CAmqpConnection::receive(
 		}
 		break;
 
+		case AMQP_STATUS_SOCKET_ERROR: { // Enhance the logic to restart listener after certain number of errors.
+			if (! _isConnectionLost) {
+				CAF_CM_LOG_ERROR_VA1("SOCKET_ERROR... restarting listener - %s",
+					amqp_error_string2(status));
+				_isConnectionLost = true;
+				restartListener(amqp_error_string2(status));
+			}
+			rc = AMQP_ERROR_IO_INTERRUPTED;
+		}
+		break;
+
 		default: {
 			CAF_CM_LOG_ERROR_VA1("Received error status - %s",
 				amqp_error_string2(status));

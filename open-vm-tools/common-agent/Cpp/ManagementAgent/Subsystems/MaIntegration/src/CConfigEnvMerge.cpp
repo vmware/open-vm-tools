@@ -142,6 +142,8 @@ std::deque<SmartPtrCPersistenceProtocolDoc> CConfigEnvMerge::mergePersistencePro
 				persistenceProtocol->getTlsCertPathCollection());
 		persistenceProtocolCollectionInnerAll.push_back(persistenceProtocolDiff);
 
+		CAF_CM_LOG_DEBUG_VA2("uriDiff=%s, isTunnelEnabled=%s", uriDiff.c_str(), isTunnelEnabled?"true":"false" );
+
 		if (! uriDiff.empty() || ! tlsCertCollectionDiff.IsNull()) {
 			persistenceProtocolCollectionInnerDiff.push_back(persistenceProtocolDiff);
 		}
@@ -175,15 +177,17 @@ std::string CConfigEnvMerge::mergeUri(
 	UriUtils::parseUriString(uriNew, uriDataNew);
 
 	std::string rc;
-	if ((uri.compare(uriNew) != 0) || (uriDataNew.path.compare(localId) != 0)) {
-		uriDataNew.path = localId;
-		if (isTunnelEnabled) {
-			uriDataNew.path += "-agentId1";
-		}
-
-		rc = UriUtils::buildUriString(uriDataNew);
-		CAF_CM_LOG_DEBUG_VA2("uri changed - %s != %s", uri.c_str(), rc.c_str());
+	std::string pathNew(localId);
+	if (isTunnelEnabled) {
+		pathNew += "-agentId1";
 	}
+	if ((uri.compare(uriNew) != 0) || (uriDataNew.path.compare(pathNew) != 0)) {
+		uriDataNew.path = pathNew;
+		rc = UriUtils::buildUriString(uriDataNew);
+		CAF_CM_LOG_DEBUG_VA4("uri changed - %s != %s || %s != %s",
+				uri.c_str(), rc.c_str(), pathNew.c_str(), uriDataNew.path.c_str());
+	}
+	CAF_CM_LOG_DEBUG_VA1("rc: %s", rc.c_str());
 
 	return rc;
 }
