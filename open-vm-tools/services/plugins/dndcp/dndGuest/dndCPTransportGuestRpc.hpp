@@ -29,8 +29,9 @@
 
 #include "dndCPTransport.h"
 
+#include "dnd.h"
+
 extern "C" {
-   #include "dnd.h"
 #ifdef VMX86_TOOLS
    #include "vmware/tools/guestrpc.h"
 #else

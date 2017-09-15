@@ -27,11 +27,15 @@
 #include "dndCPTransportGuestRpc.hpp"
 #include "rpcBase.h"
 
+#include "str.h"
+#include "hostinfo.h"
+#include "dndMsg.h"
+#include "util.h"
+
+#define LOGLEVEL_MODULE dnd
+#include "loglevel_user.h"
+
 extern "C" {
-   #include "str.h"
-   #include "hostinfo.h"
-   #include "dndMsg.h"
-   #include "util.h"
 #ifdef VMX86_TOOLS
    #include "debug.h"
    #include "rpcout.h"
@@ -41,8 +45,6 @@ extern "C" {
    #include "dndCPInt.h"
    #include "guest_rpc.h"
    #include "tclodefs.h"
-   #define LOGLEVEL_MODULE dnd
-   #include "loglevel_user.h"
 #endif
 }
 
