@@ -1215,6 +1215,7 @@ if test "$os" = "solaris"; then
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lnsl"
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lresolv"
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrpcsvc"
+   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrt"
 
    # Setup defines to identify the OS version.
    if test "$osVersion" -eq 509000; then
