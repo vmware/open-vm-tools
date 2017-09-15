@@ -30,12 +30,6 @@
 #include "vmware.h"
 #include "dynbuf.h"
 
-#ifdef VMX86_SERVER
-#include "asan_common.h"
-#else
-#define DISABLE_ASAN
-#endif
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -337,8 +331,6 @@ DynBuf_Enlarge(DynBuf *b,       // IN/OUT:
  *-----------------------------------------------------------------------------
  */
 
-// XXX The instrumentation assumes that "data" points to the heap, PR 1826914.
-DISABLE_ASAN
 Bool
 DynBuf_Append(DynBuf *b,        // IN/OUT:
               void const *data, // IN:
