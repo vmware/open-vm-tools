@@ -565,62 +565,6 @@ PostVerifySetKeyOptions(GOptionContext *context, GOptionGroup *group,
 
 /*
  ******************************************************************************
- * Panic --
- *
- * Panic hook for backdoor code.
- *
- * @param[in]  fmt   Message format
- *
- ******************************************************************************
- */
-
-void
-Panic(const char *fmt, ...)
-{
-   va_list args;
-   static char buf[1024];
-
-   va_start(args, fmt);
-   Str_Vsnprintf(buf, sizeof buf, fmt, args);
-   va_end(args);
-
-   fputs(buf, stderr);
-   abort();
-}
-
-
-/*
- ******************************************************************************
- * Debug --
- *
- * Debug hook for backdoor code.
- *
- * @param[in]  fmt   Message format
- *
- ******************************************************************************
- */
-
-void
-Debug(char *fmt, ...)
-{
-#if defined(VMX86_DEBUG) || defined(VMX86_DEVEL)
-   va_list args;
-   char *buf;
-
-   va_start(args, fmt);
-   buf = Str_Vasprintf(NULL, fmt, args);
-   va_end(args);
-
-   fprintf(stderr, "%s: %s\n", gAppName, buf);
-   fflush(stderr);
-#else
-   /* No output in non-debug/non-developer builds */
-#endif
-}
-
-
-/*
- ******************************************************************************
  * main --
  *
  * Main entry point.
