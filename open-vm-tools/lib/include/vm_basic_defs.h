@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -854,5 +854,20 @@ typedef int pid_t;
 #define SIZE_256BIT 32
 #define SIZE_512BIT 64
 
+/*
+ * Allocate a variable of type _type, aligned to _align bytes, returning a
+ * pointer to the variable in _var.  Potentially _align - 1 bytes may be
+ * wasted.  On x86, GCC 6.3.0 behaves sub-optimally when variables are declared
+ * on the stack using the aligned attribute, so this pattern is preferred.
+ * See PRs 1795155, 1819963.
+ */
+#define WITH_PTR_TO_ALIGNED_VAR(_type, _align, _var)                     \
+   do {                                                                  \
+      uint8 _buf_##_var[sizeof(_type) + (_align) - 1];                   \
+      _type *_var = (_type *) ((uintptr_t)(_buf_##_var + (_align) - 1) & \
+                               ~((uintptr_t) ((_align) - 1)));
+
+#define END_PTR_TO_ALIGNED_VAR \
+   } while (0)
 
 #endif // ifndef _VM_BASIC_DEFS_H_
