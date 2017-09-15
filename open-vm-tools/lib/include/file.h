@@ -414,6 +414,34 @@ int File_MakeSafeTemp(const char *tag,
 
 Bool File_DoesVolumeSupportAcls(const char *pathName);
 
+/*
+ *---------------------------------------------------------------------------
+ *
+ * File_IsDirsep --
+ *
+ *      Is the argument character a directory separator?
+ *
+ * Results:
+ *     TRUE   Yes
+ *     FALSE  No
+ *
+ * Side effects:
+ *      None
+ *
+ *---------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+File_IsDirsep(int c)  // IN:
+{
+#if defined(_WIN32)
+   return (c == '/') || (c == '\\');  // Until util.h dependencies work out
+#else
+   return c == '/';
+#endif
+}
+
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif

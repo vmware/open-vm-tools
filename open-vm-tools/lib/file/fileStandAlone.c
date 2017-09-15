@@ -406,6 +406,43 @@ File_PathJoin(const char *dirName,   // IN:
 /*
  *---------------------------------------------------------------------------
  *
+ * FileFindLastDirsep --
+ *
+ *      Return a pointer to the last directory separator.
+ *
+ * Results:
+ *      NULL  No directory separator found
+ *     !NULL  Pointer to the last directory separator
+ *
+ * Side effects:
+ *      None
+ *
+ *---------------------------------------------------------------------------
+ */
+
+static char *
+FileFindLastDirsep(const char *pathName,  // IN:
+                   size_t len)            // IN:
+{
+   char *p;
+
+   ASSERT(pathName != NULL);
+
+   p = (char *) pathName + len;
+
+   while (p-- != pathName) {
+      if (File_IsDirsep(*p)) {
+         return p;
+      }
+   }
+
+   return NULL;
+}
+
+
+/*
+ *---------------------------------------------------------------------------
+ *
  * File_GetPathName --
  *
  *      Behaves like File_SplitName by splitting the fullpath into
@@ -522,10 +559,9 @@ File_StripSlashes(const char *path)  // IN:
        */
 
 #if defined(_WIN32)
-      while ((i > 1) && (('/' == dir2[i - 1]) ||
-                         ('\\' == dir2[i - 1]))) {
+      while ((i > 1) && File_IsDirsep(dir2[i - 1])) {
 #else
-      while ((i > 0) && ('/' == dir2[i - 1])) {
+      while ((i > 0) && File_IsDirsep(dir2[i - 1])) {
 #endif
          i--;
       }
@@ -742,7 +778,7 @@ File_ReplaceExtension(const char *pathName,      // IN:
 
    memcpy(result, pathName, pathNameLen + 1);
 
-   p = strrchr(result, DIRSEPC);
+   p = FileFindLastDirsep(result, pathNameLen);
    if (p == NULL) {
        p = strrchr(result, '.');
    } else {
@@ -817,7 +853,7 @@ File_RemoveExtension(const char *pathName)  // IN:
 
    result = Util_SafeStrdup(pathName);
 
-   p = strrchr(result, DIRSEPC);
+   p = FileFindLastDirsep(result, strlen(pathName));
    if (p == NULL) {
        p = strrchr(result, '.');
    } else {
