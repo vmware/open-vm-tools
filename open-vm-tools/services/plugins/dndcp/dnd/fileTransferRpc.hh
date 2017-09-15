@@ -29,9 +29,7 @@
 #include "dndCPLibExport.hh"
 #include "rpcBase.h"
 
-extern "C" {
-   #include "vm_basic_types.h"
-}
+#include "vm_basic_types.h"
 
 class LIB_EXPORT FileTransferRpc
    : public RpcBase

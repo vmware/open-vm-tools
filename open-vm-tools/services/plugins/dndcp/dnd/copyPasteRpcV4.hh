@@ -30,9 +30,10 @@
 #include "dndCPTransport.h"
 #include "rpcV4Util.hpp"
 
+#include "dnd.h"
+#include "dndMsg.h"
+
 extern "C" {
-   #include "dnd.h"
-   #include "dndMsg.h"
    #include "dndCPMsgV4.h"
 }
 

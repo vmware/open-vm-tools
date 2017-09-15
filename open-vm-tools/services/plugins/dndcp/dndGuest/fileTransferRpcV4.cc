@@ -25,12 +25,13 @@
 #include "fileTransferRpcV4.hh"
 #include "dndCPTransport.h"
 
+#include "dndMsg.h"
+#include "hgfsServer.h"
+#include "str.h"
+#include "util.h"
+
 extern "C" {
-   #include "dndMsg.h"
    #include "dndCPMsgV4.h"
-   #include "hgfsServer.h"
-   #include "str.h"
-   #include "util.h"
 
 #if defined VMX86_TOOLS
    #include "debug.h"

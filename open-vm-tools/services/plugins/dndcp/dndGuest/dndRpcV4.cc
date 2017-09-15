@@ -22,7 +22,6 @@
  * Implementation of the DnDRpcV4 object.
  */
 
-
 #include "dndRpcV4.hh"
 
 extern "C" {
@@ -35,8 +34,9 @@ extern "C" {
 #endif
 
    #include "dndClipboard.h"
-   #include "util.h"
 }
+
+#include "util.h"
 
 
 /**

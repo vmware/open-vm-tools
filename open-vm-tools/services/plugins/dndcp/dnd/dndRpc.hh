@@ -29,9 +29,7 @@
 #include "dndCPLibExport.hh"
 #include "rpcBase.h"
 
-extern "C" {
-   #include "dnd.h"
-}
+#include "dnd.h"
 
 class LIB_EXPORT DnDRpc
    : public RpcBase

@@ -34,8 +34,9 @@ extern "C" {
 #endif
 
    #include "dndClipboard.h"
-   #include "util.h"
 }
+
+#include "util.h"
 
 
 /**
