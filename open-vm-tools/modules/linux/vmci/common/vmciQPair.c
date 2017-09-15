@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -225,7 +225,8 @@ VMCIQPairUnlockHeader(const VMCIQPair *qpair) // IN
  *      Helper routine to increment the Producer Tail.
  *
  * Results:
- *      None.
+ *      VMCI_ERROR_NOT_FOUND if the vmmWorld registered with the queue
+ *      cannot be found. Otherwise VMCI_SUCCESS.
  *
  * Side effects:
  *      None.
@@ -233,13 +234,13 @@ VMCIQPairUnlockHeader(const VMCIQPair *qpair) // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static INLINE int
 VMCIQueueAddProducerTail(VMCIQueue *queue, // IN/OUT
                          size_t add,       // IN
                          uint64 queueSize) // IN
 {
    VMCIQueueHeader_AddProducerTail(queue->qHeader, add, queueSize);
-   VMCI_QueueHeaderUpdated(queue);
+   return VMCI_QueueHeaderUpdated(queue);
 }
 
 
@@ -251,7 +252,8 @@ VMCIQueueAddProducerTail(VMCIQueue *queue, // IN/OUT
  *      Helper routine to increment the Consumer Head.
  *
  * Results:
- *      None.
+ *      VMCI_ERROR_NOT_FOUND if the vmmWorld registered with the queue
+ *      cannot be found. Otherwise VMCI_SUCCESS.
  *
  * Side effects:
  *      None.
@@ -259,13 +261,13 @@ VMCIQueueAddProducerTail(VMCIQueue *queue, // IN/OUT
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static INLINE int
 VMCIQueueAddConsumerHead(VMCIQueue *queue, // IN/OUT
                          size_t add,       // IN
                          uint64 queueSize) // IN
 {
    VMCIQueueHeader_AddConsumerHead(queue->qHeader, add, queueSize);
-   VMCI_QueueHeaderUpdated(queue);
+   return VMCI_QueueHeaderUpdated(queue);
 }
 
 
@@ -931,6 +933,8 @@ vmci_qpair_consume_buf_ready(const VMCIQPair *qpair) // IN
  *      VMCI_ERROR_INVALID_ARGS, if an error occured when accessing the buffer.
  *      VMCI_ERROR_QUEUEPAIR_NOTATTACHED, if the queue pair pages aren't
  *      available.
+ *      VMCI_ERROR_NOT_FOUND, if the vmmWorld registered with the queue pair
+ *      cannot be found.
  *      Otherwise, the number of bytes written to the queue is returned.
  *
  * Side effects:
@@ -997,7 +1001,10 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
       return result;
    }
 
-   VMCIQueueAddProducerTail(produceQ, written, produceQSize);
+   result = VMCIQueueAddProducerTail(produceQ, written, produceQSize);
+   if (result < VMCI_SUCCESS) {
+      return result;
+   }
    return written;
 }
 
@@ -1017,6 +1024,8 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
  *      VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue
  *      (as defined by the queue size).
  *      VMCI_ERROR_INVALID_ARGS, if an error occured when accessing the buffer.
+ *      VMCI_ERROR_NOT_FOUND, if the vmmWorld registered with the queue pair
+ *      cannot be found.
  *      Otherwise the number of bytes dequeued is returned.
  *
  * Side effects:
@@ -1079,7 +1088,10 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
    }
 
    if (updateConsumer) {
-      VMCIQueueAddConsumerHead(produceQ, read, consumeQSize);
+      result = VMCIQueueAddConsumerHead(produceQ, read, consumeQSize);
+      if (result < VMCI_SUCCESS) {
+         return result;
+      }
    }
 
    return read;

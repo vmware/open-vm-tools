@@ -398,9 +398,9 @@ typedef uint32 VMCIGuestMemID;
 #endif
 
 #if defined(VMKERNEL)
-   void VMCI_QueueHeaderUpdated(struct VMCIQueue *produceQ);
+   int VMCI_QueueHeaderUpdated(struct VMCIQueue *produceQ);
 #else
-#  define VMCI_QueueHeaderUpdated(_q) do { } while (0)
+#  define VMCI_QueueHeaderUpdated(_q) VMCI_SUCCESS
 #endif
 
 #if (!defined(VMKERNEL) && defined(__linux__)) || defined(_WIN32) ||  \
